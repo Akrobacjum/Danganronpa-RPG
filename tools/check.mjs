@@ -170,7 +170,11 @@
  *             config.mjs's English prose, its befores the files' text, its afters
  *             null or of the before's shape, none the key or "before" of a
  *             naturalness pair N1-N60; with a control, the schema shown a copy
- *             with those four faults planted.
+ *             with those four faults planted. E65 C-pilot: the owner's answers
+ *             in it, each string's `owner` and each question's (`default` or
+ *             `other`, with the owner's note and the date), counted on the
+ *             pilot's line; the control plants a fifth fault, a question's
+ *             owner with a verdict the sheet does not offer.
  */
 
 import fs from "node:fs";
@@ -973,9 +977,10 @@ async function text() {
     }
     /* The pilot's working file (E65 C14, E65-23): docs/dev/text-pilot.json, the 40 strings the owner reads in C-pilot, held
        to its shape against this tree's files (tools/text-render.mjs pilotSchema) - a file E65 writes, so a fault is red - and
-       one line of how far it is. Its control: the schema shown a copy of the file with four faults planted (39 strings, an
-       entry with a field missing, a key no language file holds, the key of a naturalness pair) must name each, or a schema
-       broken to pass everything would leave this part green on a malformed pilot. */
+       one line of how far it is. Its control: the schema shown a copy of the file with five faults planted (39 strings, an
+       entry with a field missing, a key no language file holds, the key of a naturalness pair and, since C-pilot, a
+       question's owner with a verdict the sheet does not offer) must name each, or a schema broken to pass everything would
+       leave this part green on a malformed pilot. */
     const PILOT_FILE = "docs/dev/text-pilot.json";
     if (!exists(PILOT_FILE)) problems.push(`pilot: ${PILOT_FILE} is missing - the pilot has nothing to render`);
     else {
@@ -990,19 +995,22 @@ async function text() {
             const n = test => strings.filter(x => { try { return test(x); } catch { return false; } }).length;
             console.log(`text: pilot: ${PILOT_FILE}: ${strings.length} string(s), ${Array.isArray(pilot.questions) ? pilot.questions.length : 0} question(s); `
                 + `facts for ${n(x => x.facts.length > 0)}; afters written en ${n(x => x.en.after !== null)}, pl ${n(x => x.pl.after !== null)}; `
-                + `reviews left open ${n(x => Object.values(x.reviews).some(r => r !== null))}; owner's verdicts ${n(x => x.owner !== null)}; ${faults.length} problem(s)`);
+                + `reviews left open ${n(x => Object.values(x.reviews).some(r => r !== null))}; owner's verdicts ${n(x => x.owner !== null)}`
+                + ` (ok ${n(x => x.owner.verdict === "ok")}); questions answered ${(Array.isArray(pilot.questions) ? pilot.questions : []).filter(q => q?.owner).length}; ${faults.length} problem(s)`);
             const pair = pairs.find(p => p.key && against.en.has(p.key) && pl.has(p.key));
-            if (strings.length >= 3 && pair) {
+            if (strings.length >= 3 && pair && Array.isArray(pilot.questions) && pilot.questions.length) {
                 const copy = JSON.parse(JSON.stringify(pilot));
                 copy.strings = copy.strings.slice(0, textRender.PILOT_SIZE - 1);
                 delete copy.strings[0].owner;
                 copy.strings[1].key = "DRPG.Plant.noSuchKey";
                 copy.strings[2] = { ...copy.strings[2], key: pair.key, en: { before: against.en.get(pair.key), after: null }, pl: { before: pl.get(pair.key), after: null } };
+                copy.questions[0] = { ...copy.questions[0], owner: { verdict: "maybe", text: "", date: "01.11.2026" } };
                 const seen = textRender.pilotSchema(copy, against);
-                const want = [`strings holds ${textRender.PILOT_SIZE - 1} string(s)`, `(${copy.strings[0].key}) is not {`, "(DRPG.Plant.noSuchKey): not a key", `the key of naturalness pair ${pair.id}`];
+                const want = [`strings holds ${textRender.PILOT_SIZE - 1} string(s)`, `(${copy.strings[0].key}) is not {`, "(DRPG.Plant.noSuchKey): not a key", `the key of naturalness pair ${pair.id}`,
+                    `questions[0] (${copy.questions[0].id}): owner is neither`];
                 const unseen = want.filter(w => !seen.some(p => p.includes(w)));
                 if (unseen.length) problems.push(`pilot: the schema does not see ${unseen.map(w => JSON.stringify(w)).join(", ")} planted in a copy of ${PILOT_FILE} - it would pass a malformed pilot`);
-            } else problems.push(`pilot: the schema's control has nothing to plant in (${strings.length} string(s), ${pair ? "a" : "no"} naturalness pair with a key in both files)`);
+            } else problems.push(`pilot: the schema's control has nothing to plant in (${strings.length} string(s), ${pair ? "a" : "no"} naturalness pair with a key in both files, ${Array.isArray(pilot.questions) ? pilot.questions.length : 0} question(s))`);
         }
     }
     const held = Object.keys(T.MODES).filter(name => !fixtures.some(p => p.startsWith(`${name} `))).length;

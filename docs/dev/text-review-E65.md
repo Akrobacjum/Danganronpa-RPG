@@ -62,7 +62,7 @@ E71's by that entry (STATUS Open 18 asks whether A7's ruling on "kafel" holds fo
 ## The Frisk row: one Polish form
 
 The amend of 13.10.2026 (A11) asked the review for one Polish form of the row "zobacz, co ktoś nosi". On this tree
-that is already decided and held:
+one form stands, held since H81:
 
 | where | English | Polish |
 | --- | --- | --- |
@@ -75,22 +75,23 @@ that is already decided and held:
   "Zobacz, co nosi", as the Palm's other two rows; H81's review (H81C2-04; H81 fix r1, 50b8321a) made it the one form
   in each language in the Palm hint, the brochure and both GM handbooks, which had said "zobacz, co ktoś nosi" and
   "see what somebody carries". R620 (tier 1, E80) holds that one form wherever the Palm's three ways are listed.
-- **Decided: "Zobacz, co nosi"** (in a sentence "zobacz, co nosi"), the form in force: it is the later source, the
-  owner's table, and A11's "zobacz, co ktoś nosi" was the row's name when the amend was written. docs/glossary.json
-  holds it as `see-what-they-carry` with "zobacz, co ktoś nosi" and "see what somebody carries" forbidden, stage E80:
-  the texts obey it on this tree (T8: held, 0 findings), and a planted pl.json with the old row is reported
-  ("Zobacz, co ktoś nosi" is forbidden, the glossary says "Zobacz, co nosi"). No lang change follows.
-- Kept beside it, as sentences with a subject of their own: "{who} chce zobaczyć, co nosi {name}"
-  (DRPG.Frisk.askText, askTextAskOnly), "temu, co nosi {who}" (DRPG.Frisk.missed), "{who} ma przy sobie:"
-  (DRPG.Frisk.listHeading).
-- **The reviewer's dissent.** Asked which one Polish form is right for the row and the hint (shown the row and the
+- **The reviewer's reading.** Asked which one Polish form is right for the row and the hint (shown the row and the
   hint as they stand and A11's earlier name, not the glossary entry C13 added), the reviewer holds **"zobacz, co ktoś
   nosi"**, because: "The row label names nobody, so 'nosi' has no person to refer to (PL23, rebuilt), and the plural
   'co noszą' is X13's shape; 'ktoś' gives the verb its subject, matches the row hint's 'czyjeś kieszenie', and stays
   right in the hint whatever stands before it." (The row hint is DRPG.Frisk.rowHint, "Przejrzyj czyjeś kieszenie i
-  niczego nie bierz.") The same reading is its PL23 row on `DRPG.Frisk.rowLabel` in the DRPG.Frisk.* table. The
-  decided form stays "Zobacz, co nosi" (H81-11, the owner's) and the glossary entry is unchanged; the dissent is a
-  question for the owner (STATUS Open 84), and the PL23 row stands as the reviewer's until it is answered.
+  niczego nie bierz.") The same reading is its PL23 row on `DRPG.Frisk.rowLabel` in the DRPG.Frisk.* table.
+- **Decided by the owner, 01.11.2026: "Zobacz, co ktoś nosi"** (in a sentence "zobacz, co ktoś nosi"). Asked in the
+  pilot (E65 C-pilot; STATUS Open 84; the review page E65-PILOT-R1) whether "Zobacz, co nosi" stays, the owner
+  answered "Propozycja c13 lepsza": the reviewer's form replaces H81-11's. docs/glossary.json's `see-what-they-carry`
+  now prefers it and forbids "zobacz, co nosi", stage E71; the English, "See what they carry", is unchanged. Until E71
+  ships, T8 reports the five places that still hold the old form (the row and the Palm hint in lang/pl.json, the
+  Polish GM handbook's and the brochure's Palm rows, the player handbook's Frisk paragraph) as not yet due, and
+  `node tools/check.mjs text` stays green. E71 changes them, with R620's pinned form ("Zobacz, co nosi" in the row,
+  "zobacz, co nosi" in the hint and the books); E65 changes no key. The PL23 row below is E71's to apply.
+- Kept beside it, as sentences with a subject of their own: "{who} chce zobaczyć, co nosi {name}"
+  (DRPG.Frisk.askText, askTextAskOnly), "temu, co nosi {who}" (DRPG.Frisk.missed), "{who} ma przy sobie:"
+  (DRPG.Frisk.listHeading). The forbidden phrase is "zobacz, co nosi" whole, so none of them is read by it.
 
 ## The rows
 ### DRPG.Room.* (A8)

@@ -20,6 +20,17 @@ Every rule ends with exactly one status, in brackets:
 No rebuilt rule is the original (section 13). The pilot (prepared in E65 C14, read by the owner in C-pilot, DB23) is
 where a rebuilt rule is confirmed or changed; a rule the pilot does not exercise stays "to confirm" after it.
 
+The pilot was read on 01.11.2026 (E65 C-pilot; the answers are `owner` in `docs/dev/text-pilot.json`): the owner
+approved all 40 pairs, with no correction and no „nikt tak nie mówi”, and the default of each of the eight questions; on
+a ninth, the Frisk row's Polish form, the owner took the C13 reviewer's „Zobacz, co ktoś nosi” (the glossary's
+`see-what-they-carry`). A rebuilt rule the 40 pairs or those answers exercise now ends `confirmed in the pilot
+01.11.2026` where it said `to confirm in the pilot`; no rule says "changed in the pilot", because no verdict was a
+correction. A rule counts as exercised when an approved pair applies it - a detector of the lint finds the rule's shape
+in the pair's before and not in its after, or the C14 reviewers or the one revision named the rule as applied on that
+pair - no approved after breaks it, and no reviewer's note on the rule itself is still waiting for the owner. A rule the
+pilot reached but did not confirm carries a "Pilot 01.11.2026:" line saying why. The 60 naturalness pairs (section 12)
+were not on the pilot's page, and each stays "not confirmed".
+
 An example under a rule is a real key's text, read on this tree on 31.10.2026 - the key in backticks, English in “...”,
 Polish in „...”, "..." where a text is cut - or a sentence a source quotes, named as such. "Found:" marks a text of the
 module that shows a forbidden shape or a rule not yet applied: a reading, not a verdict on that key. The old texts are
@@ -51,55 +62,64 @@ etykiet)”]
 ## 2. O1-O18: how a text is built
 
 - **O1** Result first: the first sentence says what happened or what to do. [rebuilt 30.10 from the plan's summary of
-  O1-O18, „najpierw wynik”, number assigned 30.10, to confirm in the pilot]
+  O1-O18, „najpierw wynik”, number assigned 30.10, confirmed in the pilot 01.11.2026]
   Example: `DRPG.Vote.castConfirmed` “Your vote is in.” / „Twój głos oddany.”
 - **O2** Fewer sentences, not shorter sentences: drop the sentence that repeats or explains, and keep the ones left
-  whole (X6). [rebuilt 30.10 from the plan's summary, „mniej zdań zamiast krótszych zdań”, number assigned 30.10, to
-  confirm in the pilot]
+  whole (X6). [rebuilt 30.10 from the plan's summary, „mniej zdań zamiast krótszych zdań”, number assigned 30.10,
+  confirmed in the pilot 01.11.2026]
 - **O3** One fact in one place, by the surface matrix (section 3); the other surfaces point to it. [rebuilt 30.10 from
-  the plan's summary, „jeden fakt w jednym miejscu według macierzy powierzchni”, number assigned 30.10, to confirm in
-  the pilot]
+  the plan's summary, „jeden fakt w jednym miejscu według macierzy powierzchni”, number assigned 30.10, confirmed in the
+  pilot 01.11.2026]
 - **O4** Speak to the reader: what the text tells is what they see, hold and can do. [rebuilt 30.10 from DB36's
-  recommendation, „zgodne z O4 (mów do odbiorcy)”, to confirm in the pilot]
+  recommendation, „zgodne z O4 (mów do odbiorcy)”, confirmed in the pilot 01.11.2026]
   Example: `DRPG.Diagnose.intro` “Everything the module can check here, as one text. Copy it and send it to whoever is
   helping you.”
 - **O5** Numbers only from placeholders: a count, cost or threshold the code knows reaches the text as a placeholder,
   never as a digit typed into the prose (M5). [rebuilt 30.10 from the plan's summary, „liczby tylko z placeholderów”,
   number assigned 30.10, to confirm in the pilot]
   Example: `DRPG.Action.dcStash` “Finding a stash: {n}+.” / „Znalezienie skrytki: {n}+.”
+  Pilot 01.11.2026: stays to confirm. Two approved Polish afters write a number the code knows into the prose -
+  `DRPG.Settings.searchTokensPerRoom.hint` „od 0 do 10” (the setting's range) and `DRPG.Config.PHASES.dailyLife.hint`
+  „pięć pór” and „jeden Free Move” - while the English afters of both keep none (M5).
 - **O6** Facts first, then text: write down the key's facts - what happens, to whom, what it costs, the exceptions -
   before the sentence (DB26 for the Polish). [rebuilt 30.10 from the plan's summary, „najpierw fakty, potem tekst”,
-  number assigned 30.10, to confirm in the pilot]
-- **O7** Say what the reader can do next, when there is something to do. [rebuilt 30.10 from S18-30, „co się stało i
-  co mogę zrobić”, to confirm in the pilot]
+  number assigned 30.10, confirmed in the pilot 01.11.2026]
+  Pilot 01.11.2026: the 40 were written from 175 facts read off the code before any sentence.
+- **O7** Say what the reader can do next, when there is something to do. [rebuilt 30.10 from S18-30, „co się stało i co
+  mogę zrobić”, confirmed in the pilot 01.11.2026]
   Example: `DRPG.Vote.finalSentenceMissing` “A Final Trial verdict waits to be carried out, but this browser does not
   hold who was sentenced. Load the GMs' backup on this browser, or give the Final verdict again.”
 - **O8** A refusal says what the reader keeps. [rebuilt 30.10 from E68's text, „według O8 z E65: «You keep your
   action.» / «Nie tracisz akcji.»”, to confirm in the pilot]
   Example (E68's text): “You keep your action.” / „Nie tracisz akcji.” - where the module has `DRPG.Bridge.nothingSpent`
   “Nothing was spent.” / „Nic nie wydano.” (X1).
+  Pilot 01.11.2026: stays to confirm. Applied in `DRPG.Action.noRoom` and `DRPG.Config.HOPE_CALLS.relief.effect`; the EN
+  reviewer's note that it reads wrong on a key that is also a dimmed tile's reason (`DRPG.SearchTokens.exhausted`) and
+  on a refusal before any price (`DRPG.Actions.notEnough`) waits for the owner.
 - **O9** No design rationale in a UI string: why it was built so belongs in code comments and the handbooks. [rebuilt
   30.10 from S18-30, „odpowiadają na pytanie „dlaczego tak zaprojektowano”, a nie „co się stało i co mogę zrobić””, and
   the plan's P1, to confirm in the pilot]
 - **O10** No reassurance tail, unless it is about safety. [rebuilt 30.10 from the number alone (its subject from the
-  plan's typical message: result, justification, exception, reassurance), to confirm in the pilot]
+  plan's typical message: result, justification, exception, reassurance), confirmed in the pilot 01.11.2026]
 - **O11** A button is a verb with its object. [rebuilt 30.10 from a stage text that quotes it, „mają czasownik z
   dopełnieniem według O11”, to confirm in the pilot]
   Example: `DRPG.Project.createButton` “Create project” / „Utwórz projekt”.
 - **O12** A text written to this guide after E66 is checked by the lint and the glossary, and left as it is if it
   passes. [rebuilt 30.10 from E71's text, „tylko sprawdza lintem i słowniczkiem i zostawia, jeśli przechodzą (O12)”, to
   confirm in the pilot]
-- **O13** An exception gets a sentence only where the reader can meet it. [rebuilt 30.10 from the number alone, to
-  confirm in the pilot]
+- **O13** An exception gets a sentence only where the reader can meet it. [rebuilt 30.10 from the number alone,
+  confirmed in the pilot 01.11.2026]
 - **O14** One name per mechanic, the glossary's; no synonym for variety (DB33, DB37). [rebuilt 30.10 from the number
-  alone, to confirm in the pilot]
-- **O15** Present tense for what is true now, past for what just happened. [rebuilt 30.10 from the number alone, to
-  confirm in the pilot]
+  alone, confirmed in the pilot 01.11.2026]
+- **O15** Present tense for what is true now, past for what just happened. [rebuilt 30.10 from the number alone,
+  confirmed in the pilot 01.11.2026]
 - **O16** A stage that is not a text stage edits a text minimally and writes the fact or style error it saw into the
   table for E71, instead of rewriting it. [rebuilt 30.10 from E66's and E25's texts, „do tabeli dla E71 (O16), zamiast
   redagować”, „edycją minimalną (O16)”, to confirm in the pilot]
 - **O17** Each language for its own reader: the Polish is written from the facts, not from the English sentence by
-  sentence (DB26). [rebuilt 30.10 from the number alone, to confirm in the pilot]
+  sentence (DB26). [rebuilt 30.10 from the number alone, confirmed in the pilot 01.11.2026]
+  Pilot 01.11.2026: the Polish of the 40 was written from the facts and the old Polish with no English in its input, as
+  section 12's step 2 has it.
 - **O18** A rule that forbids a shape shows the sentence that replaces it; the pilot's approved pairs are the model.
   [rebuilt 30.10 from the number alone (its reason in the plan's risk, „Wytyczne, które tylko zakazują, dają nowy styl
   AI”), to confirm in the pilot]
@@ -108,7 +128,9 @@ etykiet)”]
 
 Where a text is shown decides who reads it, what it holds and what it never holds. Every row below: [rebuilt 30.10 from
 the pilot's quotas (S18-32: tiles and config descriptions, toasts and player cards, settings hints, GM diagnostics,
-the world voice, plural families) and S18-30 („macierzy powierzchni”), to confirm in the pilot]
+the world voice, plural families) and S18-30 („macierzy powierzchni”), confirmed in the pilot 01.11.2026 for the seven
+rows the 40 pairs stand on - tile hint, config description, toast, player chat card, settings name and hint (its hint),
+GM diagnostics, world-voice announcement - and to confirm in the pilot for the other seven]
 
 | Surface | Who reads it | What it holds | What it never holds | A key of it (31.10) |
 | --- | --- | --- | --- | --- |
@@ -135,6 +157,9 @@ the world voice, plural families) and S18-30 („macierzy powierzchni”), to co
   diagnostyka GM-a tylko raport; allowlista z powodem”]
 - **B2** The numbers, in words per string (the limit is the target times 1.5, rounded up). [rebuilt 30.10 from DB11 and
   the stage's plan (Appendix A, section 4), to confirm in the pilot]
+  Pilot 01.11.2026: stays to confirm. The owner's verdicts named no number, so docs/text-budgets.json is unchanged; read
+  by the pilot's surface, 22 approved texts (a language and a form) in 12 keys are over the target - tile hints up to 43
+  words, config descriptions up to 41, settings hints up to 37 - and none is over the limit.
 
   | Surface | Target | Limit |
   | --- | --- | --- |
@@ -161,7 +186,8 @@ the world voice, plural families) and S18-30 („macierzy powierzchni”), to co
 - **B4** A handbook has no word target: its word goals are only a guide, and nothing is cut to meet them. [survives:
   DB2 „cele słów są tylko orientacyjne”, „ucięta zawartość - NIE”]
 
-Not budgeted: settings names (the plan gives them no target, so their keys stay unclassified).
+Not budgeted: settings names (the plan gives them no target, so their keys stay unclassified; the owner's answer in the
+pilot of 01.11.2026 keeps it so: no target).
 
 ## 5. X1-X21: forbidden shapes
 
@@ -182,11 +208,16 @@ calls „wzorce jednoznaczne” (unambiguous); their content was rebuilt to fit 
   and PL), to confirm in the pilot]
   Found: `DRPG.Monocub.dialogIntro` “... Tick to opt them in - the timing is your judgement, not the module's.” /
   „... Zaznacz, by go włączyć - moment wybierasz ty, nie moduł.”
+  Pilot 01.11.2026: stays to confirm. The rewrite took the dash out of 8 English and 7 Polish befores, and two approved
+  Polish afters keep one - `DRPG.Config.ACTIONS.tamper.hint` „a gdy nie masz już akcji - Sanity” and
+  `DRPG.Chapter.bodyCalled` „Investigation jeszcze nie trwa - rozpocznie je GM”.
 - **X5** A bracketed plural "(s)": a count is a plural family (`plural()`). [rebuilt 30.10 from the number alone (one
   of E71's five unambiguous numbers), to confirm in the pilot]
   Found: `DRPG.Advance.offered` “... you have {n} pick(s).”
 - **X6** Telegraph style: articles and verbs dropped. [rebuilt 30.10 from the plan's risk, „telegrafia”, to confirm in
   the pilot]
+  Pilot 01.11.2026: stays to confirm. The EN reviewer's note that a settings hint opening with a verb and no subject
+  (“Takes effect at once.”, EN14's own sentence) is the settings convention, not telegraph style, waits for the owner.
 - **X7** A chain of label-colon-value inside a sentence. [rebuilt 30.10 from the plan's risk, „łańcuchy dwukropków”, to
   confirm in the pilot]
   Found: `DRPG.Action.dcAnalyze` “Identifying a bullet, by how visible its trace was - of the crime: {rows}; faint:
@@ -200,9 +231,15 @@ calls „wzorce jednoznaczne” (unambiguous); their content was rebuilt to fit 
   Found: `DRPG.Murder.escapeIntro` “... The incident simply ends.” / „... Incydent po prostu się kończy.”
 - **X11** A passive that hides the reader as the one who acts. [rebuilt 30.10 from the number alone, to confirm in the
   pilot]
+  Pilot 01.11.2026: stays to confirm. The EN reviewer's note that a passive which does not hide the reader
+  (`DRPG.Config.ACTIONS.observe.hint`'s draft “is copied into your inventory”) should not be read by the rule waits for
+  the owner.
 - **X12** „w: {room}”, and a label-colon-placeholder inside a Polish sentence. [rebuilt 30.10 from E71's why („w:
-  {room}” in its Polish texts), to confirm in the pilot]
+  {room}” in its Polish texts), confirmed in the pilot 01.11.2026]
   Found: `DRPG.Listen.prompt` “You are in {room}. Which neighbouring room?” / „Jesteś w: {room}. Który sąsiedni pokój?”
+  Pilot 01.11.2026: the owner kept the shape „w pokoju {room}” (question X12-room, the default), and the approved afters
+  of `DRPG.Vault.keyShared`, `DRPG.Move.entered`, `DRPG.Calls.gatherBody`, `DRPG.Vault.unlockedAnnounce` and
+  `DRPG.Eclipse.moved` use it.
 - **X13** A singular "they" given as a Polish plural. [rebuilt 30.10 from E71's why, to confirm in the pilot]
 - **X14** A negated question, or a double negation, on a button. [rebuilt 30.10 from the number alone, to confirm in
   the pilot]
@@ -303,7 +340,9 @@ dało się je policzyć.
   orzeczeniem w rodzinie” („zostały 2 akcje”)]
   Przykład: `DRPG.Motive.left` „została 1 pora dnia” / „zostały {n} pory dnia” / „zostało {n} pór dnia”.
 - **PL23** Podmiot i zaimek: podmiotem hintu jest czytelnik, a zaimek odnosi się do ostatniej nazwanej osoby. [rebuilt
-  30.10 from the number alone (PL23 named only, „podmiot i zaimek”), to confirm in the pilot]
+  30.10 from the number alone (PL23 named only, „podmiot i zaimek”), confirmed in the pilot 01.11.2026]
+  Pilot 01.11.2026: applied in `DRPG.Vault.keyShared` and `DRPG.Diagnostics.cast.poolFix`; the owner's choice of
+  „Zobacz, co ktoś nosi” for the Frisk row rests on it (the glossary's `see-what-they-carry`, stage E71).
 - **PL-i** „GM-a”, „GM-owie”, „GM-ów”, z łącznikiem. [survives: D33c]
   Przykład: `DRPG.Project.proposeButton` „Wyślij do GM-a”.
 - **PL-j** Zwykłe polskie słowa dla zwykłych rzeczy: skrytka, sejf. [survives: D33b]
@@ -332,24 +371,25 @@ dało się je policzyć.
 - **M1** The function that executes a rule is the source of a text about it, not only config.mjs. [survives: „funkcja,
   która wykonuje regułę, nie tylko config”]
 - **M2** A text never states a rule the code does not run; a disagreement goes to the stage's table, and the code wins.
-  [rebuilt 30.10 from E71's verify column, „niezgodności z kodem albo decyzją”, to confirm in the pilot]
+  [rebuilt 30.10 from E71's verify column, „niezgodności z kodem albo decyzją”, confirmed in the pilot 01.11.2026]
 - **M3** A cost is said where it is paid: when, what and how much. [rebuilt 30.10 from the number alone (named in the
-  owner's note of 30.10), to confirm in the pilot]
+  owner's note of 30.10), confirmed in the pilot 01.11.2026]
 - **M4** Conditions and exceptions stay whole when a text is shortened. [rebuilt 30.10 from the hand-off's „fakty
-  zachowane” column, to confirm in the pilot]
+  zachowane” column, confirmed in the pilot 01.11.2026]
 - **M5** No digit is added to prose; a number comes from a placeholder (O5). [rebuilt 30.10 from E66's text, „nie
   dopisuje cyfr do prozy (M5)”, to confirm in the pilot]
-- **M6** Outcome words only as DB18 has them (EN8, PL-q). [rebuilt 30.10 from the number alone, to confirm in the
-  pilot]
+  Pilot 01.11.2026: stays to confirm, as O5.
+- **M6** Outcome words only as DB18 has them (EN8, PL-q). [rebuilt 30.10 from the number alone, confirmed in the pilot
+  01.11.2026]
 - **M7** A resource is said as its reserve - „zostało N”, a full bar is a full reserve - never as "clear" or "mark".
   [rebuilt 30.10 from Work Out's conflict, „czyścisz Sanity” against „D5 i regule M7”, D5 „wszędzie zapas («zostało N»,
-  pełny pasek = pełny zapas)”, to confirm in the pilot]
+  pełny pasek = pełny zapas)”, confirmed in the pilot 01.11.2026]
   Found: `DRPG.Action.goalStressHint` “Small comforts. Clears Sanity.” / „Drobne pocieszenia. Oczyszcza Sanity.”
 - **M8** Who decides: the player proposes, the GM approves or changes it - “Approve: {stat}”, “Change to: {stat}”,
   “Refuse” / „Zatwierdź: {stat}”, „Zmień na: {stat}”, „Odmów”. [rebuilt 30.10 from the number alone (the buttons are
   DA18's, as the plan entry names them), to confirm in the pilot]
 - **M9** A text never names what its reader may not know; who reads a key is the audience map's (P3). [rebuilt 30.10
-  from the number alone, to confirm in the pilot]
+  from the number alone, confirmed in the pilot 01.11.2026]
 - **M10** Shortening a handbook: join sentences, keep one place for a fact with a pointer to it, a list or a table
   instead of prose, split paragraphs that are too long, move technical details and version history to an appendix at
   the end of the same handbook - and cut no content. [survives: E57's text, „łączenie zdań, jedno miejsce faktu z
@@ -359,7 +399,9 @@ dało się je policzyć.
 ## 9. N1-N8: what a text edit never changes
 
 - **N1** Keys stay when the wording or a name changes. [survives: E66's text, „klucze bez zmian (N1)”]
-- **N2** Placeholder names, and what each means, stay. [rebuilt 30.10 from the number alone, to confirm in the pilot]
+- **N2** Placeholder names, and what each means, stay. [rebuilt 30.10 from the number alone, confirmed in the pilot
+  01.11.2026]
+  Pilot 01.11.2026: the 40 approved pairs keep every placeholder of their befores, 80 of 80 (key, language).
 - **N3** Config ids, flag keys and setting keys stay - the `listen` key stays when its tile is relabelled (DA27).
   [rebuilt 30.10 from the number alone, to confirm in the pilot]
 - **N4** The console's names, and diagnostics.mjs's console in English (DB12), stay. [rebuilt 30.10 from the number
@@ -389,7 +431,7 @@ dało się je policzyć.
 - **P1** When more than one person reads a text, the third person with the role, or a name. [survives: DB19 „trzecia
   osoba z rolą („The victim…”, „Ofiara…”)”]
 - **P2** The second person only to the one acting, never to many readers at once (T16). [rebuilt 30.10 from DB19 and
-  DB36, to confirm in the pilot]
+  DB36, confirmed in the pilot 01.11.2026]
   Found: `DRPG.Vote.opened` “{n} ballots are out. Name who you believe is the Blackened.” / „Rozesłano {n} kart.
   Wskażcie, kto waszym zdaniem jest Blackened.” - a card to the whole table.
 - **P3** Who reads a key is read off the code that sends it (the audience map, I11): `whisperToOwner`,
@@ -428,7 +470,9 @@ para. „Przed” to dosłowny fragment wartości klucza w `lang/pl.json` (cało
 ten sam fragment napisany od nowa z faktów klucza i z kodu, który go wysyła, bez wglądu w EN (DB26, krok 2); placeholdery
 zostają te same (N2). „Reguła” mówi, co para pokazuje. Status brzmi jak w E65-18, z prawdziwą datą napisania (31.10;
 E65-18 podaje 30.10, decyzja z 31.10), i zostaje po angielsku: para jest potwierdzona dopiero po lekturze właściciela
-(C-pilot, E65-24), nigdy przez agenta.
+(C-pilot, E65-24), nigdy przez agenta. Na stronie pilota z 01.11.2026 tych par nie było: właściciel ich nie
+przeczytał i każda zostaje „not confirmed” (Q-E65-3). Kształt X12 „w pokoju {room}”, którego używają N1-N8, N10,
+N15-N20 i N23, właściciel zatwierdził osobnym pytaniem pilota.
 
 T27 (`naturalnessBefore` w `scripts/tests-text.mjs`, raport) czyta tę tabelę - jest jedynym źródłem par - i zgłasza każde
 „Przed”, które wciąż stoi w swoim kluczu, z innymi kluczami o tych samych słowach. „Przed”, którego już nie ma, bo późniejszy
@@ -497,6 +541,61 @@ kolei, klucz bez backticków, cytat bez „...”, status spoza trzech) psuje cz
 | N58 | `DRPG.Items.woreOnDespair` | „„{item}” przyjął na siebie najgorsze - zostało {left} z {total}, zanim się zepsuje.” | „„{item}” traci wytrzymałość przez Despair: ma jeszcze {left} z {total} punktów, potem się zepsuje.” | X4, T25, PL17 („przyjął” przy przedmiocie rodzaju żeńskiego) | written 31.10 for the owner's pilot, not confirmed |
 | N59 | `DRPG.Look.note` | „Wszystko w tym oknie należy do tej przeglądarki. Nikt inny nie widzi ani nie słyszy różnicy.” | „Wszystko w tym oknie dotyczy tylko tej przeglądarki. Inni przy stole niczego nie zauważą.” | PL-o (DB10), kalka „należy do” | written 31.10 for the owner's pilot, not confirmed |
 | N60 | `DRPG.Rolls.notDrawnHere` | „Ta wiadomość pojawia się raz dla tej wersji.” | „Ten komunikat zobaczysz raz na każdą wersję systemu.” | kalka „raz dla tej wersji”, O4 | written 31.10 for the owner's pilot, not confirmed |
+
+### Wzorzec pozytywny: 40 par z pilota
+
+Czterdzieści tekstów pilota (E65 C14) w brzmieniu, które właściciel zatwierdził 01.11.2026, każdy jako „ok” i bez uwag
+(`docs/dev/text-pilot.json`, pole `owner`; tam też fakty, teksty sprzed zmiany i otwarte punkty recenzentów). To wzór,
+który pokazuje, czym zastąpić kształt zakazany (O18): EN i PL po zmianie, z kluczem, powierzchnią i etapem, który zmieni
+klucz w `lang/` albo w config.mjs. W E65 nie zmienia się żaden klucz. Etap wyznacza reguła z
+`docs/dev/text-review-E65.md`: E66, gdy zmiana dotyczy nazwy (O14 albo hasło słowniczka - tu tylko
+`DRPG.Failures.cleared`, „debug log” zamiast „Failure log”, hasło `debug-log`), w każdym innym przypadku E71; partię w
+E71 ustala E71. Przy rodzinie liczebnikowej stoją wszystkie jej formy, po kolei. Cztery teksty odchodzą od reguły, która
+dlatego zostaje do potwierdzenia: nr 9 i 24 od O5 i M5, nr 6 i 31 od X4; mówi o tym linia „Pilot 01.11.2026” przy
+regule.
+
+| # | Klucz | Powierzchnia | EN | PL | Etap |
+| --- | --- | --- | --- | --- | --- |
+| 1 | `DRPG.Config.ACTIONS.search.hint` | tile-hint | “Search this room for something you pick, or for one specific thing you name. It costs an action, and the roll uses up one of the room's Search Tokens.” | „Przeszukaj pokój pod kątem czegoś, co wybierzesz albo nazwiesz. Wydajesz akcję, a po rzucie Eye zabierasz jeden z Search Tokenów pokoju.” | E71 |
+| 2 | `DRPG.Config.ACTIONS.observe.hint` | tile-hint | “Look for evidence in this room. It costs an action. On a hit, you note one Remnant here as a Truth Bullet in your inventory, and the Remnant stays where it is; on a miss, you lose Sanity.” | „Szukaj dowodów. Wydajesz akcję; przy trafieniu kopiujesz Remnant do ekwipunku jako Truth Bullet, przy pudle tracisz Sanity.” | E71 |
+| 3 | `DRPG.Config.ACTIONS.rest.hint` | tile-hint | “Recover Health, Sanity, or Hope. A Short Rest costs an action, once each time of day; a Long Rest costs more actions and recovers more, once each session. Each needs a room the GM has marked for it.” | „Odzyskaj Health, Sanity albo Hope w pokoju, w którym GM pozwala odpoczywać. Short Rest kosztuje akcję, raz na porę dnia; Long Rest kosztuje więcej akcji, raz na sesję, i daje więcej.” | E71 |
+| 4 | `DRPG.Config.ACTIONS.move.hint` | tile-hint | “Moving inside a room is free. Each time of day, your first crossing into another room uses your Free Move; each crossing after that costs an action, or one of the extra crossings you bought with Sprint.” | „W obrębie pokoju ruszasz się za darmo. Pierwsze przejście do innego pokoju o danej porze dnia zużywa twój Free Move, a za każde kolejne płacisz przejściem kupionym wcześniej Callem Sprint albo akcją.” | E71 |
+| 5 | `DRPG.Config.ACTIONS.sabotage.hint` | tile-hint | “Break a project in this room so that it needs a repair project. It costs an action, and you always leave a Remnant behind.” | „Zepsuj projekt w tym pokoju, żeby wymagał projektu naprawy. Wydajesz akcję i zawsze zostawiasz Remnant.” | E71 |
+| 6 | `DRPG.Config.ACTIONS.tamper.hint` | tile-hint | “Erase a Remnant you have found here, unless it is Reinforced; on a critical, you can reshape it instead. You can also plant a false Remnant that points at somebody else. It costs an action, or Sanity once you have no action left.” | „Wymaż Remnant, o którym wiesz, że tu jest (nie Reinforced); przy krytyku możesz go zamiast tego przekształcić. Możesz też podłożyć fałszywy Remnant, który wskazuje na kogoś innego. Płacisz akcją, a gdy nie masz już akcji - Sanity.” | E71 |
+| 7 | `DRPG.Config.ACTIONS.directMurder.hint` | tile-hint | “During an Eclipse, declare a Direct Murder that you have agreed with the GM beforehand. It costs an action.” | „Otwórz Direct Murder. Działa tylko podczas Eclipse: wydajesz akcję i zgłaszasz zabójstwo uzgodnione wcześniej z GM-em.” | E71 |
+| 8 | `DRPG.Config.ACTIONS.rest.description` | config-description | “Choose from Sleep (Health), a Meal (Sanity), and a Breath (Hope). A Long Rest lets you pick more of them, restores Health or Sanity in full, and grants more Hope; a Short Rest restores half as much and grants less Hope.” | „Do wyboru masz sen (Health), posiłek (Sanity) i oddech (Hope). Przy Long Rest wybierasz więcej opcji, odzyskujesz całe Health albo całe Sanity i dostajesz więcej Hope; przy Short Rest odzyskujesz połowę i dostajesz mniej Hope.” | E71 |
+| 9 | `DRPG.Config.PHASES.dailyLife.hint` | config-description | “You live inside a closed area. At the start of each time of day, your actions refill and your Free Move comes back.” | „Żyjecie w zamkniętym miejscu. Dzień dzieli się na pięć pór: poranek, południe, popołudnie, wieczór i noc. Z każdą nową porą dnia akcje się odnawiają, a każdy uczeń ma jeden Free Move.” | E71 |
+| 10 | `DRPG.Config.HOPE_CALLS.relief.effect` | config-description | “Take a Short Rest right now, in any room, without spending an action. Your usual Short Rest this time of day stays available. Back out of choosing what to restore, and the Hope you paid comes back.” | „Weź od razu Short Rest z tymi samymi korzyściami co zwykły; nie kosztuje akcji i nie wymaga specjalnego pokoju. Twój Short Rest z tej pory dnia zostaje nietknięty. Jeśli zamkniesz okno wyboru, Call się anuluje, a Hope do ciebie wraca.” | E71 |
+| 11 | `DRPG.SearchTokens.exhausted` | toast | “This room has no Search Tokens left. Try again in the next time of day.” | „W tym pokoju nie ma już Search Tokenów. Pojawią się znowu o następnej porze dnia.” | E71 |
+| 12 | `DRPG.Action.noRoom` | toast | “Your character's token isn't in any room. Move it into one and try again; you keep your action.” | „Twój token stoi poza wszystkimi pokojami. Przesuń go do pokoju i spróbuj jeszcze raz; akcji nie tracisz.” | E71 |
+| 13 | `DRPG.Room.imageMissing` | toast | “This room's picture couldn't be loaded.” | „Nie udało się wczytać zdjęcia tego pokoju.” | E71 |
+| 14 | `DRPG.Observe.failed` | player-card | “Nothing catches your eye.” | „Nic nie przykuwa twojej uwagi.” | E71 |
+| 15 | `DRPG.Observe.sent` | player-card | “The GM is judging your Observe and will send you the result.” | „GM oceni twoją akcję Observe i wyśle ci wynik.” | E71 |
+| 16 | `DRPG.Vault.keyShared` | player-card | “{who} gave you a copy of the key to {room}.” | „{who} daje ci kopię klucza do pokoju {room}. Kopia jest już na twoim arkuszu.” | E71 |
+| 17 | `DRPG.Steal.cardTook` | player-card | “You lift “{item}” out of {who}'s pocket.” | „Wyciągasz przedmiot „{item}” z kieszeni postaci {who}.” | E71 |
+| 18 | `DRPG.Calls.armedForYou` | player-card | “Another student spent Hope on you: your next roll gets {what}. It is already switched on in your roll window.” | „Inny uczeń wydaje na ciebie Hope: twój następny rzut ma {what}. Okno rzutu ma to już włączone.” | E71 |
+| 19 | `DRPG.Move.entered` | player-card | “You are now in {room}.” | „Jesteś teraz w pokoju {room}.” | E71 |
+| 20 | `DRPG.Passage.card.passageBuilt` | player-card | “Your Secret Passage project is finished. The passage joins {from} and {to}.” | „Twoje tajne przejście jest gotowe. Łączy dwa pokoje: {from} i {to}.” | E71 |
+| 21 | `DRPG.Settings.reducedMotion.hint` | settings-hint | “Reduces animation and motion in the module's interface. If your operating system asks for reduced motion, the module follows it even with this setting off. Takes effect at once. Only affects this browser.” | „Ogranicza ruch w interfejsie modułu. Jeśli system operacyjny prosi o mniej ruchu, moduł stosuje się do tego także przy wyłączonym ustawieniu. Zmiana działa od razu, bez przeładowania. Dotyczy tylko tej przeglądarki.” | E71 |
+| 22 | `DRPG.Settings.bulletSort.hint` | settings-hint | “Sorts your Truth Bullets by chapter, the default, or by room. The switch is in your inventory, beside them. Only affects this browser.” | „Układa Truth Bullets w twoim ekwipunku według rozdziałów (domyślnie) albo według pokoi. Przełącznik jest w ekwipunku, przy dowodach. Dotyczy tylko tej przeglądarki.” | E71 |
+| 23 | `DRPG.Settings.language.hint` | settings-hint | “Sets the language of this module's character sheet, panel, windows, and cards; Foundry keeps its own language setting. Names such as Truth Bullet, Remnant, and Despair stay in English. Needs a reload. Only affects this browser.” | „Język okien, kart, panelu i arkusza postaci tego modułu; języka Foundry to nie zmienia. Nazwy własne gry, takie jak Truth Bullet, Remnant i Despair, zostają po angielsku. Zmiana zadziała po przeładowaniu. Dotyczy tylko tej przeglądarki.” | E71 |
+| 24 | `DRPG.Settings.searchTokensPerRoom.hint` | settings-hint | “How many Search Tokens each room has per time of day. Every Search that reaches the roll uses one; a room with none left cannot be searched.” | „Ile Search Tokenów ma każdy pokój, od 0 do 10. Każdy Search zabiera jeden token po rzucie, a w pokoju bez tokenów Search zostaje odrzucony, zanim gracz wyda akcję. Tokeny odnawiają się z każdą nową porą dnia.” | E71 |
+| 25 | `DRPG.Settings.chargeMovement.hint` | settings-hint | “Moving inside a room is free. Each time of day, the first crossing between rooms uses the Free Move; later ones cost an action or a crossing bought with Sprint. Turn it off to handle movement yourself.” | „Ruch w obrębie pokoju jest darmowy. Pierwsze przejście do innego pokoju o danej porze dnia zużywa Free Move, każde kolejne kosztuje przejście kupione Callem Sprint albo akcję. Wyłącz, by rozliczać ruch ręcznie.” | E71 |
+| 26 | `DRPG.Failures.cleared` | gm-diagnostics | “The debug log on this browser is now empty.” | „Debug log w tej przeglądarce jest teraz pusty.” | E66 |
+| 27 | `DRPG.Diagnose.gmOnly` | gm-diagnostics | “This part of the report can only run in a GM's browser. Open the report in a GM's browser to see it.” | „Tę część raportu sprawdza tylko przeglądarka GM-a. Zbierz raport w przeglądarce GM-a, żeby ją zobaczyć.” | E71 |
+| 28 | `DRPG.Diagnostics.cast.pendingWhy` | gm-diagnostics | “Until they are given their starting resources, these students have a maximum Health and Sanity of zero, so they look the same as a student beaten unconscious.” | „Do tego czasu ich maksymalne Health i Sanity wynoszą zero, więc wyglądają tak samo jak uczniowie pobici do nieprzytomności.” | E71 |
+| 29 | `DRPG.Diagnostics.cast.poolFix` | gm-diagnostics | “Assign each of them a Monokuma by hand, or deliberately assign them none, in the GM panel under Despair Flow. Until then, Despair from their rolls goes to the pool named beside them; where none is named, it goes nowhere.” | „Przypisz każdemu z tych uczniów Monokumę ręcznie albo zaznacz, że celowo nie ma żadnego. Zrobisz to w panelu GM-a, w zakładce Despair Flow. Do tego czasu Despair z rzutów ucznia trafia do puli zapasowej, jeśli jej nazwa stoi przy nim; uczeń bez puli zapasowej nie ma żadnej puli, więc jego Despair nie ma dokąd trafić.” | E71 |
+| 30 | `DRPG.GmStore.notOpen` | gm-diagnostics | “The GM store (the answer keys) still has not opened in this browser after {seconds} seconds. Until it opens, Analyze and handovers are unavailable, and players are told that the GM is aware of the problem.” | „Magazyn GM-a (klucze odpowiedzi) nie otworzył się w tej przeglądarce w ciągu {seconds} s. Dopóki się nie otworzy, Analyze i przekazania są odrzucane, a gracz dowiaduje się, że GM został powiadomiony.” | E71 |
+| 31 | `DRPG.Chapter.bodyCalled` | world-voice | “Everyone is gathered in the room with the body. The GM will start the Investigation.” | „Wszystkie tokeny stoją teraz w pokoju z ciałem. Investigation jeszcze nie trwa - rozpocznie je GM.” | E71 |
+| 32 | `DRPG.Calls.gatherBody` | world-voice | “At the start of the next time of day, everyone will be gathered in {room}.” | „Na początku następnej pory dnia wszyscy zbierają się w pokoju {room}.” | E71 |
+| 33 | `DRPG.Vault.unlockedAnnounce` | world-voice | “The door to {room} is unlocked.” | „Drzwi do pokoju {room} są otwarte.” | E71 |
+| 34 | `DRPG.Overflow.cardLeft` | world-voice | “The Overflow keeps its unspent Despair.” | „Despair, którego Overflow nie wydało, zostaje.” | E71 |
+| 35 | `DRPG.Motive.withdrawn` | world-voice | “The Motive is withdrawn. Its demand, deadline, and consequence no longer apply.” | „Wycofano Motive: nie obowiązuje już ani jego żądanie, ani termin, ani konsekwencja.” | E71 |
+| 36 | `DRPG.Action.tokensLeft` | player-card | one: “{room} has {n} Search Token left this time of day.”; other: “{room} has {n} Search Tokens left this time of day.” | one: „W pokoju {room} został {n} Search Token o tej porze dnia.”; few: „W pokoju {room} zostały {n} Search Tokeny o tej porze dnia.”; many: „W pokoju {room} zostało {n} Search Tokenów o tej porze dnia.”; other: „W pokoju {room} zostało {n} Search Tokenów o tej porze dnia.” | E71 |
+| 37 | `DRPG.Actions.notEnough` | toast | one: “{actor} has {left} action left and needs {needed} for this.”; other: “{actor} has {left} actions left and needs {needed} for this.” | one: „{actor} ma {left} akcję, a potrzebuje {needed}.”; few: „{actor} ma {left} akcje, a potrzebuje {needed}.”; many: „{actor} ma {left} akcji, a potrzebuje {needed}.”; other: „{actor} ma {left} akcji, a potrzebuje {needed}.” | E71 |
+| 38 | `DRPG.Calls.burst` | player-card | one: “You have {n} free action banked. It pays the whole price of one action, even a Long Rest.”; other: “You have {n} free actions banked. Each pays the whole price of one action, even a Long Rest.” | one: „Masz w zapasie {n} darmową akcję. Pokrywa całą cenę jednej akcji, nawet Long Rest.”; few: „Masz w zapasie {n} darmowe akcje. Każda pokrywa całą cenę jednej akcji, nawet Long Rest.”; many: „Masz w zapasie {n} darmowych akcji. Każda pokrywa całą cenę jednej akcji, nawet Long Rest.”; other: „Masz w zapasie {n} darmowych akcji. Każda pokrywa całą cenę jednej akcji, nawet Long Rest.” | E71 |
+| 39 | `DRPG.Eclipse.moved` | player-card | one: “You are now in {room}, with {left} crossing left during this Eclipse.”; other: “You are now in {room}, with {left} crossings left during this Eclipse.” | one: „Jesteś teraz w pokoju {room}. Do końca Eclipse zostało ci {left} przejście.”; few: „Jesteś teraz w pokoju {room}. Do końca Eclipse zostały ci {left} przejścia.”; many: „Jesteś teraz w pokoju {room}. Do końca Eclipse zostało ci {left} przejść.”; other: „Jesteś teraz w pokoju {room}. Do końca Eclipse zostało ci {left} przejść.” | E71 |
+| 40 | `DRPG.Tamper.watched` | config-description | one: “{n} other person in this room can see you. First you roll to hide what you are doing; on a miss with Despair, you lose Sanity on top of the price.”; other: “{n} other people in this room can see you. First you roll to hide what you are doing; on a miss with Despair, you lose Sanity on top of the price.” | one: „W tym pokoju jest {n} inna osoba. Najpierw rzucasz, żeby ukryć, co robisz; przy pudle z Despair tracisz dodatkowo Sanity.”; few: „W tym pokoju są {n} inne osoby. Najpierw rzucasz, żeby ukryć, co robisz; przy pudle z Despair tracisz dodatkowo Sanity.”; many: „W tym pokoju jest {n} innych osób. Najpierw rzucasz, żeby ukryć, co robisz; przy pudle z Despair tracisz dodatkowo Sanity.”; other: „W tym pokoju jest {n} innych osób. Najpierw rzucasz, żeby ukryć, co robisz; przy pudle z Despair tracisz dodatkowo Sanity.” | E71 |
 
 ## 13. Why so much is rebuilt
 

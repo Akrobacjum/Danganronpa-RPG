@@ -1029,7 +1029,7 @@
         "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": ["kafel pokoju", "kafla pokoju", "kaflowi pokoju", "kaflem pokoju", "kaflu pokoju", "kafle pokoju", "kafli pokoju", "kaflom pokoju", "kaflami pokoju", "kaflach pokoju"], "scope": ["ui", "handbooks"], "case": "any"}},
         "stage": "E77",
         "source": ["A8", "A7"],
-        "note": "A8 names the term; the \"kafel\" variant is forbidden as A7 rules it out for the notice tile: an inference from A7, no decision of its own."
+        "note": "A8 names the term; the \"kafel\" variant is forbidden as A7 rules it out for the notice tile: an inference from A7, which the owner confirmed in the pilot of 01.11.2026 (E65 C-pilot, question kafel: the default, \"kafel\" forbidden for the room tile and the voice tile too)."
       },
       {
         "id": "voice-tile",
@@ -1040,7 +1040,7 @@
         "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": ["kafel głosu", "kafla głosu", "kaflowi głosu", "kaflem głosu", "kaflu głosu", "kafle głosu", "kafli głosu", "kaflom głosu", "kaflami głosu", "kaflach głosu"], "scope": ["ui", "handbooks"], "case": "any"}},
         "stage": "E71",
         "source": ["A8", "A7"],
-        "note": "A8 names the term; the \"kafel\" variant is forbidden as A7 rules it out for the notice tile: an inference from A7, no decision of its own."
+        "note": "A8 names the term; the \"kafel\" variant is forbidden as A7 rules it out for the notice tile: an inference from A7, which the owner confirmed in the pilot of 01.11.2026 (E65 C-pilot, question kafel: the default, \"kafel\" forbidden for the room tile and the voice tile too)."
       },
       {
         "id": "speaking",
@@ -1163,13 +1163,13 @@
       {
         "id": "see-what-they-carry",
         "en": "See what they carry",
-        "pl": "Zobacz, co nosi",
+        "pl": "Zobacz, co ktoś nosi",
         "gender": null,
         "inflection": null,
-        "forbidden": {"en": {"variants": ["see what somebody carries"], "scope": ["ui", "handbooks"], "case": "any"}, "pl": {"variants": ["zobacz, co ktoś nosi"], "scope": ["ui", "handbooks"], "case": "any"}},
-        "stage": "E80",
+        "forbidden": {"en": {"variants": ["see what somebody carries"], "scope": ["ui", "handbooks"], "case": "any"}, "pl": {"variants": ["zobacz, co nosi"], "scope": ["ui", "handbooks"], "case": "any"}},
+        "stage": "E71",
         "source": ["A11"],
-        "note": "Palm's Frisk row (DRPG.Frisk.rowLabel), and in a sentence with its first letter lowered (the Palm hint, the brochure's and the GM handbook's Palm rows). A11 asked for one Polish form of the row; H81-11 (the owner's 1.2.80 table, item 5, 20.10.2026) set \"Zobacz, co nosi\" and H81's review (H81C2-04) made it the one form, held by R620 (tier 1). The forbidden variants are the forms it replaced. Decided in docs/dev/text-review-E65.md (E65 C13)."
+        "note": "Palm's Frisk row (DRPG.Frisk.rowLabel), and in a sentence with its first letter lowered, \"zobacz, co ktoś nosi\" (the Palm hint, the brochure's and the GM handbook's Palm rows, the player handbook's Frisk paragraph). A11 asked for one Polish form of the row; H81-11 (the owner's 1.2.80 table, item 5, 20.10.2026) set \"Zobacz, co nosi\", held by R620 (tier 1). The owner's answer in the pilot of 01.11.2026 (E65 C-pilot, STATUS Open 84: \"Propozycja c13 lepsza\") takes the C13 reviewer's \"Zobacz, co ktoś nosi\" - \"nosi\" gets a subject (PL23), as the row hint's \"czyjeś kieszenie\" has one. Stage E71: lang/pl.json (DRPG.Frisk.rowLabel, the Palm hint), the Polish handbooks' rows and R620's pinned form change there; until E71 ships, T8 reports the old form as not yet due. The English is unchanged. See docs/dev/text-review-E65.md."
       },
       {
         "id": "murder-weapon",

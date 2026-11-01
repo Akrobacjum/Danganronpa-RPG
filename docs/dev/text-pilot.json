@@ -1,58 +1,110 @@
 {
   "$comment": [
     "The pilot's working file (E65 C14, E65-23; STAGE.md Appendix C). 40 strings by the plan's quotas, chosen 31.10.2026 on this tree; the selection's reasoning and counts are in the stage's scratch (selection.md), not here.",
-    "Each string: `key` (a key of lang/en.json, or of config.mjs's English prose for DRPG.Config.*, where the English of a config table lives; a plural family by its base), `surface` (docs/text-budgets.json's; T4's reading, or read by hand where T4 has none), `screen` (tools/text-map.mjs's screen id), `readers` (tools/text-audience.mjs's readers of a key that is sent - owner, browser, everyone ... - else the screen's reader: player, gm or both), `facts` (what the code does, written by the executor from the code first), `en` and `pl` (`before` as lang/ and config.mjs hold it on the day the file was written, a family as its forms; `after` the rewrite, null until written), `reviews` (what the EN reviewer, the cold EN reviewer and the PL reviewer still disagree on after the executor's one revision: null, or { verdict, points }), `owner` (the owner's verdict in C-pilot: null, or { verdict: ok | correction | nikt tak nie mówi, text, date }).",
-    "`questions`: what the owner is asked beside the 40 (each with the default the stage runs on), from STATUS's decisions.",
-    "Held by `node tools/check.mjs text` (tools/text-render.mjs pilotSchema); rendered by `node tools/text-render.mjs --pilot docs/dev/text-pilot.json` to audit/harness/results/text/pilot.html. Nothing in lang/ changes with it: an approved pair goes to the batch that owns its key (E66, E71)."
+    "Each string: `key` (a key of lang/en.json, or of config.mjs's English prose for DRPG.Config.*, where the English of a config table lives; a plural family by its base), `surface` (docs/text-budgets.json's; T4's reading, or read by hand where T4 has none), `screen` (tools/text-map.mjs's screen id), `readers` (tools/text-audience.mjs's readers of a key that is sent - owner, browser, everyone ... - else the screen's reader: player, gm or both), `facts` (what the code does, written by the executor from the code first), `en` and `pl` (`before` as lang/ and config.mjs hold it on the day the file was written, a family as its forms; `after` the rewrite, null until written), `reviews` (what the EN reviewer, the cold EN reviewer and the PL reviewer still disagree on after the executor's one revision: null, or { verdict, points }), `owner` (the owner's verdict in C-pilot: null, or { verdict: ok | correction | nikt tak nie mówi, text, date }, `text` the owner's note as written).",
+    "`questions`: what the owner is asked beside the 40 (each with the default the stage runs on), from STATUS's decisions, and the Frisk form (STATUS Open 84), asked on the pilot page; each with `owner`: null, or { verdict: default | other, text, date }.",
+    "Held by `node tools/check.mjs text` (tools/text-render.mjs pilotSchema); rendered by `node tools/text-render.mjs --pilot docs/dev/text-pilot.json` to audit/harness/results/text/pilot.html. Nothing in lang/ changes with it: an approved pair goes to the batch that owns its key (E66, E71).",
+    "Read by the owner on 01.11.2026 (the review page E65-PILOT-R1, 00:59-01:40 UTC): all 40 strings \"ok\" with no note; the eight questions their defaults; the Frisk form \"other\", the owner's note \"Propozycja c13 lepsza\" - the C13 reviewer's \"Zobacz, co ktoś nosi\", now docs/glossary.json's see-what-they-carry (stage E71). The 60 naturalness pairs of docs/text-style.md were not on that page and stay \"not confirmed\"."
   ],
   "questions": [
     {
       "id": "X12-room",
       "source": "STATUS Open 63, decision (63)",
       "text": "X12 (no \"w: {room}\" in a Polish sentence): the pairs N1-N8, N10, N15-N20, N23 write the room as a nominative apposition, \"w pokoju {room}\" (as in \"na stacji Warszawa Centralna\"); a room whose name opens with \"Pokój\" (\"Pokój Makoto\") then reads \"w pokoju Pokój Makoto\". The other shape keeps the name in quotes, \"w pokoju „{room}”\", as DRPG.Calls.gatherNoRoom writes it. Which shape does X12 take?",
-      "default": "as built: \"w pokoju {room}\""
+      "default": "as built: \"w pokoju {room}\"",
+      "owner": {
+        "verdict": "default",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "id": "kafel",
       "source": "STATUS Open 18, decision of 31.10 on C4",
       "text": "A7 rules \"kafel\" out as a variant of \"kafelek powiadomień\"; A8 names \"kafelek pokoju\" and \"kafelek głosu\" and says nothing of \"kafel\". The glossary forbids \"kafel pokoju\" and \"kafel głosu\" as an inference from A7 (31 findings of voice-tile rest on it). Does A7's ruling hold for every \"kafelek X\" term?",
-      "default": "as built: \"kafel\" is forbidden for the room tile and the voice tile too"
+      "default": "as built: \"kafel\" is forbidden for the room tile and the voice tile too",
+      "owner": {
+        "verdict": "default",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "id": "majstrowanie",
       "source": "STATUS Open 23, decision of 31.10 on C4",
       "text": "DRPG.Config.REMNANT_TYPES.resolution.hint in Polish says \"... przez majstrowanie - zbyt czysto ...\". DB38 keeps \"majstrowanie\" (Tinker's gloss) to the handbook; here it may be the ordinary word for tampering. Is it Tinker's gloss?",
-      "default": "as built: kept as written, the ordinary word"
+      "default": "as built: kept as written, the ordinary word",
+      "owner": {
+        "verdict": "default",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "id": "projekty",
       "source": "STATUS Open 24, decision of 31.10 on C4",
       "text": "The glossary's action-names-english forbids the Polish \"Projekty\": the Projects tile's Polish label (DRPG.Config.ACTIONS.project.label), four DAGGERHEART countdown titles and seven DRPG texts (DRPG.Project.manageTitle and others), some of them perhaps the ordinary plural. Is each of them D33a's name, to be \"Projects\"?",
-      "default": "as built: the entry forbids it; C13's review and E66 judge each key"
+      "default": "as built: the entry forbids it; C13's review and E66 judge each key",
+      "owner": {
+        "verdict": "default",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "id": "odrzuc",
       "source": "STATUS Open 28, decision of 31.10 on C4",
       "text": "\"Odrzuć\" is the refuse entry's (E68) forbidden variant; it stays only at the Monocub's bribe (E72). When E72 writes those keys the entry needs them as an exception. As built?",
-      "default": "as built"
+      "default": "as built",
+      "owner": {
+        "verdict": "default",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "id": "settings-name",
       "source": "STATUS Open 29, decision (29)",
       "text": "Settings names have no word budget (the plan gives a target for the settings hint, 25, and none for the name); the 34 DRPG.Settings.*.name keys stay \"unclassified\" in T4's report. A target for settings names?",
-      "default": "no target"
+      "default": "no target",
+      "owner": {
+        "verdict": "default",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "id": "misiubombo",
       "source": "STATUS Open 41, decision (41)",
       "text": "X16 (no ALL-CAPS emphasis; acronyms and names aside) flags MISIUBOMBO, the safeword's example. Is it a name (aside) or emphasis?",
-      "default": "as built: flagged in the report, nothing changed"
+      "default": "as built: flagged in the report, nothing changed",
+      "owner": {
+        "verdict": "default",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "id": "verb-lists",
       "source": "STATUS Open 51, decision (51)",
       "text": "T18 (telegraph style) reads a string as verbless when its only verb is not on its verb lists (EN_VERB_WORDS, PL_VERB, read off the tree 31.10). The pilot's strings show where the lists hold. Keep the lists as the candidate lists they are?",
-      "default": "as built"
+      "default": "as built",
+      "owner": {
+        "verdict": "default",
+        "text": "",
+        "date": "01.11.2026"
+      }
+    },
+    {
+      "id": "frisk",
+      "source": "STATUS Open 84 (E65 C13 reviewer); asked on the pilot page beside the eight, 01.11.2026",
+      "text": "The Frisk row's Polish form. Decided at H81-11 (the owner's 1.2.80 table, 20.10.2026) as \"Zobacz, co nosi\" (\"zobacz, co nosi\" in a sentence: the Palm hint, the handbooks' Palm rows), held by R620. The C13 reviewer holds \"Zobacz, co ktoś nosi\": the row names nobody, so \"nosi\" has no person to refer to (PL23), and \"ktoś\" matches the row hint's \"czyjeś kieszenie\". Does \"Zobacz, co nosi\" stay?",
+      "default": "keep \"Zobacz, co nosi\" (H81-11)",
+      "owner": {
+        "verdict": "other",
+        "text": "Propozycja c13 lepsza",
+        "date": "01.11.2026"
+      }
     }
   ],
   "strings": [
@@ -84,7 +136,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Config.ACTIONS.observe.hint",
@@ -118,7 +174,11 @@
         },
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Config.ACTIONS.rest.hint",
@@ -147,7 +207,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Config.ACTIONS.move.hint",
@@ -182,7 +246,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Config.ACTIONS.sabotage.hint",
@@ -216,7 +284,11 @@
         },
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Config.ACTIONS.tamper.hint",
@@ -251,7 +323,11 @@
         },
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Config.ACTIONS.directMurder.hint",
@@ -281,7 +357,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Config.ACTIONS.rest.description",
@@ -315,7 +395,11 @@
         },
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Config.PHASES.dailyLife.hint",
@@ -349,7 +433,11 @@
         },
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Config.HOPE_CALLS.relief.effect",
@@ -377,7 +465,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.SearchTokens.exhausted",
@@ -406,7 +498,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Action.noRoom",
@@ -434,7 +530,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Room.imageMissing",
@@ -461,7 +561,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Observe.failed",
@@ -488,7 +592,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Observe.sent",
@@ -515,7 +623,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Vault.keyShared",
@@ -543,7 +655,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Steal.cardTook",
@@ -571,7 +687,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Calls.armedForYou",
@@ -599,7 +719,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Move.entered",
@@ -627,7 +751,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Passage.card.passageBuilt",
@@ -656,7 +784,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Settings.reducedMotion.hint",
@@ -685,7 +817,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Settings.bulletSort.hint",
@@ -713,7 +849,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Settings.language.hint",
@@ -741,7 +881,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Settings.searchTokensPerRoom.hint",
@@ -769,7 +913,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Settings.chargeMovement.hint",
@@ -799,7 +947,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Failures.cleared",
@@ -837,7 +989,11 @@
         },
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Diagnose.gmOnly",
@@ -864,7 +1020,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Diagnostics.cast.pendingWhy",
@@ -892,7 +1052,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Diagnostics.cast.poolFix",
@@ -922,7 +1086,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.GmStore.notOpen",
@@ -951,7 +1119,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Chapter.bodyCalled",
@@ -979,7 +1151,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Calls.gatherBody",
@@ -1007,7 +1183,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Vault.unlockedAnnounce",
@@ -1033,7 +1213,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Overflow.cardLeft",
@@ -1061,7 +1245,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Motive.withdrawn",
@@ -1088,7 +1276,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Action.tokensLeft",
@@ -1137,7 +1329,11 @@
         },
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Actions.notEnough",
@@ -1181,7 +1377,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Calls.burst",
@@ -1225,7 +1425,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Eclipse.moved",
@@ -1270,7 +1474,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     },
     {
       "key": "DRPG.Tamper.watched",
@@ -1314,7 +1522,11 @@
         "coldEn": null,
         "pl": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026"
+      }
     }
   ]
 }

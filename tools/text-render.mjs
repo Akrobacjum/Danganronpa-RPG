@@ -291,14 +291,19 @@ ${body.join("\n")}
  * string at n = 1, 2 and 5 when it counts, with a woman's and a man's name, the three rooms and items of the three
  * Polish genders, EN and PL before and after, the facts in one line, what the reviewers still hold open, and three
  * answers (ok, a correction, "nikt tak nie mówi"). An `after` still null reads "not written yet".
+ * The owner's answers (E65 C-pilot, 01.11.2026): a string's `owner` is null or { verdict, text, date }, the verdict one
+ * of OWNER_VERDICTS and `text` the owner's note as written ("" for none); a question's `owner` is null or the same
+ * shape with the verdict one of QUESTION_VERDICTS - "default" (the stage's default stands) or "other" (the owner's
+ * `text` says what instead) - as the sheet's two answers to a question are.
  */
 export const PILOT_SIZE = 40;
 export const PILOT_NS = Object.freeze([1, 2, 5]);
 const PILOT_TOP = Object.freeze(["$comment", "questions", "strings"]);
 const PILOT_FIELDS = Object.freeze(["key", "surface", "screen", "readers", "facts", "en", "pl", "reviews", "owner"]);
 const PILOT_REVIEWS = Object.freeze(["en", "coldEn", "pl"]);
-const QUESTION_FIELDS = Object.freeze(["id", "source", "text", "default"]);
+const QUESTION_FIELDS = Object.freeze(["id", "source", "text", "default", "owner"]);
 export const OWNER_VERDICTS = Object.freeze(["ok", "correction", "nikt tak nie mówi"]);
+export const QUESTION_VERDICTS = Object.freeze(["default", "other"]);
 const FORM_NAMES = Object.freeze(["zero", "one", "two", "few", "many", "other"]);
 /* The keys `fromFiles` reads a category's values from: kept in the small render a pilot string gets. */
 const FROM_KEYS = /^DRPG\.(?:Config\.(?:ACTIONS\.[^.]+\.label|TRAITS\.[^.]+\.label|(?:HOPE|DESPAIR)_CALLS\.[^.]+\.label|TIME_OF_DAY_LABELS\.[^.]+)|Calls\.grants\.[^.]+)$/;
@@ -314,6 +319,9 @@ export function pilotValue(words, key) {
     return Object.hasOwn(forms, "other") ? forms : undefined;
 }
 const sameValue = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+/* An owner's answer: null, or { verdict, text, date } with the verdict one of `verdicts` and the date dd.mm.yyyy. */
+const ownerShaped = (o, verdicts) => o === null || (sameFields(o, ["verdict", "text", "date"]) && verdicts.includes(o.verdict)
+    && typeof o.text === "string" && /^\d\d\.\d\d\.\d{4}$/.test(String(o.date)));
 const formsText = v => (typeof v === "string" ? [v] : Object.values(v ?? {}));
 
 /**
@@ -330,7 +338,9 @@ export function pilotSchema(doc, { en = new Map(), pl = new Map(), pairs = [], s
     else {
         const ids = new Set();
         doc.questions.forEach((q, i) => {
-            if (!sameFields(q, QUESTION_FIELDS) || !QUESTION_FIELDS.every(f => isText(q[f]))) out.push(`questions[${i}] is not { ${QUESTION_FIELDS.join(", ")} }, each a text`);
+            const texts = QUESTION_FIELDS.filter(f => f !== "owner");
+            if (!sameFields(q, QUESTION_FIELDS) || !texts.every(f => isText(q[f]))) out.push(`questions[${i}] is not { ${QUESTION_FIELDS.join(", ")} }, ${texts.join(", ")} each a text`);
+            else if (!ownerShaped(q.owner, QUESTION_VERDICTS)) out.push(`questions[${i}] (${q.id}): owner is neither null nor { verdict: ${QUESTION_VERDICTS.join(" | ")}, text, date dd.mm.yyyy }`);
             else if (ids.has(q.id)) out.push(`questions[${i}]: the id ${q.id} twice`);
             else ids.add(q.id);
         });
@@ -365,10 +375,7 @@ export function pilotSchema(doc, { en = new Map(), pl = new Map(), pairs = [], s
             const v = s.reviews[r];
             if (v !== null && !(sameFields(v, ["verdict", "points"]) && isText(v.verdict) && Array.isArray(v.points) && v.points.every(isText))) out.push(`${at}: reviews.${r} is neither null nor { verdict, points }`);
         }
-        const o = s.owner;
-        if (o !== null && !(sameFields(o, ["verdict", "text", "date"]) && OWNER_VERDICTS.includes(o.verdict) && typeof o.text === "string" && /^\d\d\.\d\d\.\d{4}$/.test(String(o.date)))) {
-            out.push(`${at}: owner is neither null nor { verdict: ${OWNER_VERDICTS.join(" | ")}, text, date dd.mm.yyyy }`);
-        }
+        if (!ownerShaped(s.owner, OWNER_VERDICTS)) out.push(`${at}: owner is neither null nor { verdict: ${OWNER_VERDICTS.join(" | ")}, text, date dd.mm.yyyy }`);
         for (const p of pairs) {
             if (p.key !== null && (p.key === s.key || p.key.startsWith(`${s.key}.`))) out.push(`${at}: the key of naturalness pair ${p.id} - the pilot and the 60 pairs test different things`);
             else if (formsText(now.pl).some(t => typeof t === "string" && t.includes(p.before))) out.push(`${at}: its Polish holds naturalness pair ${p.id}'s before "${p.before}"`);
@@ -405,7 +412,7 @@ export function pilotSheet(doc, texts, { plOnly = false } = {}) {
         body.push(`<h2>Pytania (${doc.questions.length})</h2>`);
         for (const q of doc.questions) {
             body.push(`<section class="q"><h3>${escapeHtml(q.id)} <small>${escapeHtml(q.source)}</small></h3><p>${escapeHtml(q.text)}</p><p><b>Default:</b> ${escapeHtml(q.default)}</p>`
-                + `${answers(`q.${q.id}`, [["default", "as the default"], ["other", "otherwise (write it)"]])}</section>`);
+                + `${answers(`q.${q.id}`, QUESTION_VERDICTS.map(v => [v, v === "default" ? "as the default" : "otherwise (write it)"]))}</section>`);
         }
     }
     body.push(`<h2>${plOnly ? "Teksty" : "The strings"} (${doc.strings.length})</h2>`);
