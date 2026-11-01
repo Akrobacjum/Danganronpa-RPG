@@ -29243,8 +29243,9 @@ const INVARIANTS = [
 
     ["R1561 - tools/api-surface.json says what ECLIPSE_FREE_PLACEMENT holds and when eclipseMovesLeft answers null, as config.mjs and eclipse.mjs do now (E52 C6, S18-90)", async () => {
         /*
-         * E52 C6, 30.10.2026; amend 05.10 A (S18-90), E52-22, owner's Q-5: E37 withdraws free placement; until it
-         * ships the surface lists the aggregate's key as it is, and eclipseMovesLeft's null with it. A note that
+         * E52 C6, 30.10.2026; amend 05.10 A (S18-90), E52-22, owner's Q-5. The owner's decision D197 (01.11.2026)
+         * keeps the Night Eclipse's free placement, so the surface lists the aggregate's key as it is, and
+         * eclipseMovesLeft's null with it. A note that
          * outlived the code would tell a macro author a number where null comes. Held: the file's value is the live
          * `config.ECLIPSE_FREE_PLACEMENT`, its `nullAt` the times of day whose Eclipse `isFreePlacement` answers true
          * for, measured on a stand-in clock per time of day, and `movesLeft` answers null only from a null allowance.
