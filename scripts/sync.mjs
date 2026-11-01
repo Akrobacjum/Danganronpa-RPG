@@ -62,7 +62,12 @@ export const SYNC = {
      * (call-world.mjs `gatherEveryone`). Each client pans its camera to its own token among
      * them (`panToGathered`); nothing is written (E11 C3).
      */
-    gather: "gather"
+    gather: "gather",
+    /**
+     * The readiness round before the clock moves was opened, answered or ended (E37 C3; boundary.mjs): a player's
+     * window opens or closes. The GM's window keeps itself live on the setting (live.mjs `keepLive`).
+     */
+    ready: "ready"
 };
 
 /**
@@ -125,7 +130,8 @@ const SETTING_KINDS = {
     // because its caption is on screen, the rules because editing X changes
     // the "?/X" every client is reading.
     overflow: SYNC.overflow,
-    overflowRules: SYNC.overflow
+    overflowRules: SYNC.overflow,
+    readyRound: SYNC.ready
 };
 
 export function registerSync() {
@@ -585,6 +591,10 @@ function refresh(kind, data = {}) {
 
         case SYNC.gather:
             run("camera", () => import("./call-world.mjs").then(m => m.panToGathered(data)));
+            break;
+
+        case SYNC.ready:
+            run("window", () => import("./boundary.mjs").then(m => m.renderReadyRound()));
             break;
 
         default:

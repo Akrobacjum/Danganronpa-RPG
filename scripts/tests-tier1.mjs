@@ -30987,7 +30987,61 @@ const INVARIANTS = [
             next: [plural("DRPG.Panel.nextStillActing", { n: 1 }), null], strip: ["1 / 3", null], trial: ballots, eclipse: [null, "3 / 3"]
         }), "{next: the panel's Next line and its action; strip: [Still to act, Still placing] out of an Eclipse; trial: the ballots "
             + "[student, player]; eclipse: [Still to act, Still placing] in one}");
-    }]
+    }],
+    ["R1195 - the readiness round's reading (E37 C3, E37-14; the owner's ask of 28.10, Q-E37-2): each asked player reads Done, One moment, No answer yet or Not connected, counted as done; the round is ready only when every connected player said Done, and at an Eclipse's end also when every placing student crossed or its player said Done; an ended round, one whose boundary the clock has left or whose Eclipse flag no longer matches its kind reads as no round; and the asked are the players of the cast, once each, never a GM", async () => {
+        /*
+         * E37 C3, 01.11.2026; E37-12, E37-14. boundary.mjs `roundReading(record, { users, clock, placement })` is the GM's
+         * window's whole judgement - its rows, its lede's count, and whether it goes on by itself - and `roundUsers(actors,
+         * users)` who is asked. Read on stand-ins, nothing written: three players (A with two students, B, C not connected),
+         * a clock at noon and the same clock in its Eclipse; a record per case. Then `roundUsers` on two stand-in students
+         * and a player and an Assistant GM who both own the first. Red at 2e06ae13: boundary.mjs has no `roundReading`.
+         */
+        const B = await import("./boundary.mjs");
+        const { boundaryStamp } = await import("./clock.mjs");
+        must(typeof B.roundReading === "function" && typeof B.roundUsers === "function", "boundary.mjs has no roundReading or roundUsers - there is no readiness round");
+        const clock = { season: 1, chapter: 2, session: 3, day: 4, timeOfDay: "noon", phase: "dailyLife", eclipse: false };
+        const dark = { ...clock, eclipse: true };
+        const users = [{ id: "uA", name: "A", active: true, actors: [{ id: "a1", name: "Aiko" }, { id: "a2", name: "Ana" }] },
+            { id: "uB", name: "B", active: true, actors: [{ id: "b1", name: "Botan" }] },
+            { id: "uC", name: "C", active: false, actors: [{ id: "c1", name: "Chie" }] }];
+        const record = (kind, answers = {}, extra = {}) => ({ id: "r1", kind, boundary: boundaryStamp(clock), by: "gm", at: 1, answers, ...extra });
+        const read = (rec, at = clock, placement = null) => {
+            const r = B.roundReading(rec, { users, clock: at, placement });
+            return [r.open, r.rows.map(row => row.status), r.notDone, r.unplaced, r.ready];
+        };
+        const moved = (...ids) => ["a1", "a2", "b1", "c1"].map(actorId => ({ actorId, moved: ids.includes(actorId) ? 1 : 0 }));
+        equal(JSON.stringify({
+            asked: read(record("next")),
+            wait: read(record("eclipseStart", { uA: "wait" })),
+            oneDone: read(record("next", { uA: "done" })),
+            allDone: read(record("eclipseStart", { uA: "done", uB: "done" })),
+            endUnplaced: read(record("eclipseEnd", { uA: "done", uB: "done" }), dark, moved("b1")),
+            endPlaced: read(record("eclipseEnd", { uA: "done" }), dark, moved("a1", "a2", "b1", "c1")),
+            endDone: read(record("eclipseEnd", { uA: "done", uB: "done" }), dark, moved("b1", "c1")),
+            row: B.roundReading(record("next", { uB: "wait" }), { users, clock }).rows[0],
+            stale: [read(record("next"), { ...clock, timeOfDay: "afternoon" })[0], read(record("next", {}, { ended: "go" }))[0],
+                read(record("eclipseStart"), dark)[0], read(record("eclipseEnd"))[0], read({})[0], read(record("lunch"))[0]],
+            users: B.roundUsers([
+                { id: "a1", name: "Aiko", testUserPermission: user => ["uP", "uG"].includes(user.id) },
+                { id: "a2", name: "Ana", testUserPermission: user => user.id === "uP" },
+                { id: "b1", name: "Botan", testUserPermission: () => false }
+            ], [{ id: "uP", name: "P", isGM: false, active: true }, { id: "uG", name: "Assistant", isGM: true, active: true }])
+        }), JSON.stringify({
+            asked: [true, ["none", "none", "away"], 2, [], false],
+            wait: [true, ["wait", "none", "away"], 2, [], false],
+            oneDone: [true, ["done", "none", "away"], 1, [], false],
+            allDone: [true, ["done", "done", "away"], 0, [], true],
+            endUnplaced: [true, ["done", "done", "away"], 0, ["c1"], false],
+            endPlaced: [true, ["done", "none", "away"], 1, [], false],
+            endDone: [true, ["done", "done", "away"], 0, [], true],
+            row: { userId: "uA", name: "A", actors: ["Aiko", "Ana"], status: "none" },
+            stale: [false, false, false, false, false, false],
+            users: [{ id: "uP", name: "P", active: true, actors: [{ id: "a1", name: "Aiko" }, { id: "a2", name: "Ana" }] }]
+        }), "[open, each user's status, the connected players not done, the unplaced students, ready]: no answer; One moment; one Done; "
+            + "both Done with C away; an end with C's unplaced student; an end everyone placed and B silent; an end with B's and C's crossed "
+            + "and A's covered by A's Done; the first row; stale: the clock moved on, ended, a start in the Eclipse, an end outside one, no "
+            + "record, an unknown kind; who is asked: one row for the player with two students, no row for the Assistant GM");
+    }],
 ];
 
 /**

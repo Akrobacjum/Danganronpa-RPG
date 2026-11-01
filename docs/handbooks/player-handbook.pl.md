@@ -94,6 +94,8 @@ Przed każdą porą dnia gasną światła. To okno ustawiania to **Eclipse**:
 - Otwiera ci się karta z podsumowaniem poprzedniej pory dnia - co znalazłeś, co zostawiłeś.
 - Eclipse to jedyny moment pełnej osłony w grze i zwykle tu zaczyna się morderstwo. Nie jest częścią dnia: zegar nie rusza, dopóki GM go nie zakończy.
 
+**Zanim zegar się przesunie**, GM może zapytać, czy już kończysz: okno mówi, co GM chce zrobić - zacząć Eclipse, zakończyć Eclipse albo zakończyć tę porę dnia - i ma przyciski **Gotowe** i **Jeszcze chwila**. „Jeszcze chwila” mówi GM-owi, że potrzebujesz trochę więcej czasu, a okno zostaje z samym „Gotowe”. Gdy wszyscy gracze odpowiedzą „Gotowe”, gra rusza dalej sama; GM może też ruszyć wcześniej. Okno zamyka się, gdy GM rusza dalej albo postanawia jeszcze chwilę poczekać.
+
 Zaciemniona pora dnia (overflow, rozdział 6) może odjąć przejść albo zabrać dowolne ustawianie.
 
 ---

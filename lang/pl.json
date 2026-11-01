@@ -3792,7 +3792,10 @@
         "bridge.ack": "Potwierdzenie GM-a, że prośba dotarła",
         "trial.turn": "Twoja tura w rundzie",
         "trial.claim": "Zgłoszenie do Closing Argument",
-        "trial.present": "Przedstawienie Truth Bulletu"
+        "trial.present": "Przedstawienie Truth Bulletu",
+        "ready.open": "Pytanie graczy, czy skończyli",
+        "ready.answer": "Twoja odpowiedź dla GM-a",
+        "ready.end": "Zamknięcie pytania do graczy"
       },
       "notDone": "Prośba „{what}” nie została wykonana. {why}",
       "nothingSpent": "Nic nie wydano.",
@@ -4925,6 +4928,39 @@
       "q5": "Czy mam jakieś triggery?",
       "q6": "Jak planuję grać? Jakie mam cele?",
       "q7": "Planuję spróbować: … (złożone projekty zmieniające grę)"
+    },
+    "Ready": {
+      "titleNext": "Koniec tej pory dnia",
+      "askStart": "GM chce zacząć {name}. Czy kończysz już tę porę dnia?",
+      "askEnd": "GM chce zakończyć {name}. Czy twój token stoi tam, gdzie chcesz?",
+      "askNext": "GM chce zakończyć tę porę dnia. Czy już kończysz?",
+      "done": "Gotowe",
+      "wait": "Jeszcze chwila",
+      "waiting": "GM widzi, że potrzebujesz chwili. Naciśnij „Gotowe”, gdy skończysz.",
+      "cancelled": "GM jeszcze chwilę poczeka.",
+      "notDone": {
+        "one": "Jeszcze {n} gracz nie odpowiedział „Gotowe”.",
+        "few": "Jeszcze {n} gracze nie odpowiedzieli „Gotowe”.",
+        "many": "Jeszcze {n} graczy nie odpowiedziało „Gotowe”.",
+        "other": "Jeszcze {n} gracza nie odpowiedziało „Gotowe”."
+      },
+      "allDone": "Wszyscy odpowiedzieli „Gotowe”.",
+      "status": {
+        "done": "Gotowe",
+        "wait": "Jeszcze chwila",
+        "none": "Jeszcze bez odpowiedzi",
+        "away": "Brak połączenia - liczy się jako „Gotowe”"
+      },
+      "goNext": "Przesuń zegar",
+      "notNow": "Nie teraz",
+      "confirmGo": {
+        "one": "Jeszcze {n} gracz nie skończył. Iść dalej mimo to?",
+        "few": "Jeszcze {n} gracze nie skończyli. Iść dalej mimo to?",
+        "many": "Jeszcze {n} graczy nie skończyło. Iść dalej mimo to?",
+        "other": "Jeszcze {n} gracza nie skończyło. Iść dalej mimo to?"
+      },
+      "goAnyway": "Dalej",
+      "wait2": "Poczekaj"
     },
     "Summary": {
       "title": "Pora dnia dobiegła końca",

@@ -2,12 +2,13 @@
  * QA 1.2.42: one GM and three players through a Daily Life time of day.
  * Clock, actions, a Search, a Hope Call that waits for the GM, the messenger,
  * the safeword, a Despair Call - and on every client: what was said to whom.
+ * Since E37 C3 (part R, last: p3 leaves in it) the readiness round before the clock moves, on four browsers.
  */
 export const layers = ["ci"];
 
 const MOD = "danganronpa-rpg";
 
-export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO, canary, IDS, socketTraffic }) {
+export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO, canary, IDS, socketTraffic, disconnect }) {
     const players = [p1, p2, p3];
     const ids = await gm.eval(`return {
         aiko: game.actors.getName("Aiko Hoshino").id, botan: game.actors.getName("Botan Kage").id,
@@ -1906,9 +1907,146 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         JSON.stringify({ friskSet, friskRead, friskBack, gmWarnings, errs: Object.fromEntries(Object.entries(friskSeen).map(([k, v]) => [k, v.err])) }).slice(0, 3000),
         { flow: "frisk-openly" });
 
+    /*
+     * R. THE READINESS ROUND ON FOUR BROWSERS (E37 C3, 01.11.2026; E37-12 to E37-14, the owner's ask of 28.10; Q-E37-2 and
+     * Q-E37-3 as their defaults). Every window drawn as at a table (`__dialogWindows`, on the GM and the three players)
+     * and pressed by its own buttons. From Daily Life at noon, the GM's chevron: E17's question answered yes (queued),
+     * then the round - p1, p2 and p3 each one window (the Eclipse's name, Done and One moment); the GM's rows on the
+     * way: p2's One moment and the window that comes back to p2 with Done alone, p1's Done, p3 disconnected (Not
+     * connected - counts as Done; its errors read first, it does not come back), p2's Done - and the Eclipse starts by
+     * itself, every window closed. Then its end, every student's crossing written as the GMs' store holds it: p1 and p2
+     * Done, the Eclipse ends and the clock moves. Then the panel's Next time of day (boundary.mjs `nextTimeOfDay`, the
+     * panel's road): the GM's Not now - the players' windows close and each is told the GM is waiting - and pressed
+     * again, p1 and p2 Done, the clock moves. Red at 2e06ae13: no round, the chevron starts the Eclipse at the yes.
+     */
+    phase("R: the readiness round before the clock moves", { flow: "clock-day" });
+    const rWin = (c, cls) => c.eval(`const app = [...foundry.applications.instances.values()].find(a => a?.options?.classes?.includes("${cls}") && a.element?.isConnected);
+        if (!app) return null;
+        return { title: app.options?.window?.title ?? null, buttons: [...app.element.querySelectorAll("footer button[data-action]")].map(b => b.dataset.action),
+            text: app.element.querySelector(".dialog-content")?.textContent?.replace(/\\s+/g, " ").trim() ?? "",
+            rows: [...app.element.querySelectorAll("tr[data-drpg-user]")].map(tr => [tr.dataset.drpgUser, tr.dataset.drpgStatus]) };`);
+    const rPress = (c, cls, action) => c.eval(`const app = [...foundry.applications.instances.values()].find(a => a?.options?.classes?.includes("${cls}") && a.element?.isConnected);
+        const b = app?.element?.querySelector('footer button[data-action="${action}"]'); b?.click(); return Boolean(b);`);
+    const rUntil = async (test, ms = 8000) => { const end = Date.now() + ms; let v = await test(); while (!v && Date.now() < end) { await settle(200); v = await test(); } return v; };
+    const rClock = () => gm.eval(`const c = game.drpg.getClock(); return [c.timeOfDay, c.eclipse === true];`);
+    // Read as none where the setting is not registered (a tree before C3), so the check below says what it measured.
+    const rRecord = () => gm.eval(`return game.settings.settings.has("${MOD}.readyRound") ? (game.settings.get("${MOD}", "readyRound") ?? {}) : {};`);
+    const rRows = async () => Object.fromEntries(((await rWin(gm, "drpg-ready-gm"))?.rows ?? []).map(([id, status]) => [id, status]));
+    const rWho = { [p1.userId]: "p1", [p2.userId]: "p2", [p3.userId]: "p3" };
+    const named = rows => Object.fromEntries(Object.entries(rows).map(([id, status]) => [rWho[id] ?? id, status]));
+    const rSetup = await gm.eval(`
+        const M = await import("${REPO}/scripts/murder.mjs");
+        const E = await import("${REPO}/scripts/eclipse.mjs");
+        if (E.isEclipse()) await E.endEclipse({ advance: false });
+        await game.drpg.setClock({ phase: "dailyLife", timeOfDay: "noon", refilledFor: null });
+        if (game.settings.settings.has("${MOD}.readyRound")) await game.settings.set("${MOD}", "readyRound", {});
+        return { incident: Boolean(M.murderState()), clock: game.drpg.getClock().timeOfDay };`, { timeout: 60000 });
+    for (const c of [gm, ...players]) await c.eval(`globalThis.__dialogAnswers.length = 0; globalThis.__rWindowsWas = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
+        globalThis.__notifications.length = 0; return true;`);
+    await settle(400);
+    const rRead = { setup: rSetup };
+    // R1: the chevron at noon - E17's question yes, then the round.
+    await gm.eval(`globalThis.__dialogAnswers.push(true);
+        const H = await import("${REPO}/scripts/hud.mjs"); H.renderHud();
+        await new Promise(r => setTimeout(r, 300));
+        document.querySelector("#drpg-hud .fa-chevron-right")?.closest(".drpg-hud-button")?.click(); return true;`);
+    await rUntil(async () => (await rWin(gm, "drpg-ready-gm")) && (await rWin(p1, "drpg-ready-player")) && (await rWin(p2, "drpg-ready-player")) && (await rWin(p3, "drpg-ready-player")));
+    rRead.start = { kind: (await rRecord()).kind ?? null, gm: named(await rRows()), gmTitle: (await rWin(gm, "drpg-ready-gm"))?.title ?? null, players: {} };
+    for (const c of players) {
+        const w = await rWin(c, "drpg-ready-player");
+        rRead.start.players[c.who] = w && [w.buttons, w.title, w.text];
+    }
+    await rPress(p2, "drpg-ready-player", "wait");
+    await rUntil(async () => (await rRows())[p2.userId] === "wait" && (await rWin(p2, "drpg-ready-player"))?.buttons?.length === 1);
+    rRead.wait = { gm: named(await rRows()), p2: await rWin(p2, "drpg-ready-player") };
+    await rPress(p1, "drpg-ready-player", "done");
+    await rUntil(async () => (await rRows())[p1.userId] === "done");
+    rRead.done1 = named(await rRows());
+    const p3Errors = await p3.eval(`return globalThis.__errors.slice(0, 5);`);
+    check("p3: no uncaught errors (read before p3 leaves in part R)", (p3Errors ?? []).length === 0, JSON.stringify(p3Errors).slice(0, 400));
+    await disconnect("p3");
+    await rUntil(async () => (await rRows())[p3.userId] === "away");
+    rRead.away = named(await rRows());
+    rRead.beforeLast = await rClock();
+    await rPress(p2, "drpg-ready-player", "done");
+    await rUntil(async () => (await rClock())[1] === true && !(await rWin(gm, "drpg-ready-gm")), 12000);
+    await settle(1200);
+    rRead.started = { clock: await rClock(), ended: (await rRecord()).ended ?? null, gm: Boolean(await rWin(gm, "drpg-ready-gm")),
+        p1: Boolean(await rWin(p1, "drpg-ready-player")), p2: Boolean(await rWin(p2, "drpg-ready-player")) };
+    // R2: its end, every student crossed - p1 and p2 Done.
+    await gm.eval(`const S = await import("${REPO}/scripts/gm-stores.mjs"); const E = await import("${REPO}/scripts/eclipse.mjs");
+        const { actingStudents } = await import("${REPO}/scripts/monokuma.mjs");
+        for (const a of actingStudents()) await S.eclipseMoveStore.patch(a.id, { used: 1, seen: 0, eclipse: E.eclipseId() });
+        const H = await import("${REPO}/scripts/hud.mjs"); H.renderHud();
+        await new Promise(r => setTimeout(r, 300));
+        document.querySelector("#drpg-hud .fa-play")?.closest(".drpg-hud-button")?.click(); return true;`, { timeout: 60000 });
+    await rUntil(async () => (await rWin(gm, "drpg-ready-gm")) && (await rWin(p1, "drpg-ready-player")) && (await rWin(p2, "drpg-ready-player")));
+    rRead.end = { kind: (await rRecord()).kind ?? null, gm: named(await rRows()), buttons: (await rWin(gm, "drpg-ready-gm"))?.buttons ?? null,
+        p1: (await rWin(p1, "drpg-ready-player"))?.text ?? null };
+    await rPress(p1, "drpg-ready-player", "done");
+    await rPress(p2, "drpg-ready-player", "done");
+    await rUntil(async () => (await rClock())[1] === false && !(await rWin(gm, "drpg-ready-gm")), 12000);
+    await settle(1200);
+    rRead.ended = { clock: await rClock(), p1: Boolean(await rWin(p1, "drpg-ready-player")), p2: Boolean(await rWin(p2, "drpg-ready-player")) };
+    // R3: the panel's Next time of day - Not now, then again.
+    const NEXT = `const B = await import("${REPO}/scripts/boundary.mjs");
+        globalThis.__rNext = typeof B.nextTimeOfDay === "function" ? B.nextTimeOfDay() : Promise.resolve("no nextTimeOfDay"); return true;`;
+    await gm.eval(NEXT);
+    await rUntil(async () => (await rWin(gm, "drpg-ready-gm")) && (await rWin(p1, "drpg-ready-player")) && (await rWin(p2, "drpg-ready-player")));
+    rRead.next = { kind: (await rRecord()).kind ?? null, gm: (await rWin(gm, "drpg-ready-gm"))?.buttons ?? null, p1: (await rWin(p1, "drpg-ready-player"))?.text ?? null };
+    await rPress(gm, "drpg-ready-gm", "notNow");
+    await rUntil(async () => !(await rWin(p1, "drpg-ready-player")) && !(await rWin(p2, "drpg-ready-player")));
+    await settle(800);
+    const cancelled = await p1.eval(`return game.i18n.localize("DRPG.Ready.cancelled");`);
+    rRead.notNow = { clock: await rClock(), ended: (await rRecord()).ended ?? null, gm: Boolean(await rWin(gm, "drpg-ready-gm")),
+        told: { p1: (await notifs(p1)).filter(n => n.includes(cancelled)).length, p2: (await notifs(p2)).filter(n => n.includes(cancelled)).length },
+        answered: await gm.eval(`return (await globalThis.__rNext) ?? null;`) };
+    await gm.eval(NEXT);
+    await rUntil(async () => (await rWin(p1, "drpg-ready-player")) && (await rWin(p2, "drpg-ready-player")));
+    await rPress(p1, "drpg-ready-player", "done");
+    await rPress(p2, "drpg-ready-player", "done");
+    await rUntil(async () => !(await rWin(gm, "drpg-ready-gm")), 12000);
+    await gm.eval(`await globalThis.__rNext; return true;`, { timeout: 60000 });
+    await settle(800);
+    rRead.moved = { clock: await rClock(), ended: (await rRecord()).ended ?? null };
+    for (const c of [gm, p1, p2]) await c.eval(`globalThis.__dialogWindows = globalThis.__rWindowsWas; delete globalThis.__rWindowsWas; return true;`);
+    const rTimes = ["noon", "afternoon", "evening"];
+    const rExpect = {
+        setup: { incident: false, clock: "noon" },
+        start: { kind: "eclipseStart", gm: { p1: "none", p2: "none", p3: "none" } },
+        wait: { gm: { p1: "none", p2: "wait", p3: "none" }, p2buttons: ["done"] },
+        done1: { p1: "done", p2: "wait", p3: "none" },
+        away: { p1: "done", p2: "wait", p3: "away" },
+        beforeLast: ["noon", false],
+        started: { clock: ["noon", true], ended: "go", gm: false, p1: false, p2: false },
+        end: { kind: "eclipseEnd", gm: { p1: "none", p2: "none", p3: "away" }, buttons: ["end", "endOnly", "notNow"] },
+        ended: { clock: [rTimes[1], false], p1: false, p2: false },
+        next: { kind: "next", gm: ["go", "notNow"] },
+        notNow: { clock: [rTimes[1], false], ended: "stop", gm: false, told: { p1: 1, p2: 1 }, answered: null },
+        moved: { clock: [rTimes[2], false], ended: "go" }
+    };
+    const rGot = {
+        setup: rRead.setup, start: { kind: rRead.start.kind, gm: rRead.start.gm }, wait: { gm: rRead.wait.gm, p2buttons: rRead.wait.p2?.buttons ?? null },
+        done1: rRead.done1, away: rRead.away, beforeLast: rRead.beforeLast, started: rRead.started,
+        end: { kind: rRead.end.kind, gm: rRead.end.gm, buttons: rRead.end.buttons }, ended: rRead.ended,
+        next: { kind: rRead.next.kind, gm: rRead.next.gm }, notNow: rRead.notNow, moved: rRead.moved
+    };
+    const askWords = await p1.eval(`return { start: game.i18n.localize("DRPG.Ready.askStart").split("{name}")[0], end: game.i18n.localize("DRPG.Ready.askEnd").split("{name}")[0],
+        next: game.i18n.localize("DRPG.Ready.askNext"), waiting: game.i18n.localize("DRPG.Ready.waiting") };`);
+    const playersAsked = ["p1", "p2", "p3"].every(who => {
+        const w = rRead.start.players[who];
+        return w && JSON.stringify(w[0]) === JSON.stringify(["done", "wait"]) && w[1] === rRead.start.gmTitle && w[2].startsWith(askWords.start);
+    });
+    check("R: the readiness round on four browsers - the chevron's start asks p1, p2 and p3 one window each and goes on by itself at the last Done with p3 disconnected (counted as done) and p2's One moment answered after; the end and Next time of day the same, the GM's Not now closing the players' windows with a word to each; the clock moves only when the round goes on",
+        JSON.stringify(rGot) === JSON.stringify(rExpect) && playersAsked && rRead.wait.p2?.text?.includes(askWords.waiting)
+            && rRead.end.p1?.startsWith(askWords.end) && rRead.next.p1 === askWords.next,
+        JSON.stringify({ rGot, players: rRead.start.players, p2: rRead.wait.p2, endText: rRead.end.p1, nextText: rRead.next.p1, askWords }).slice(0, 3000),
+        { flow: "clock-day" });
+
     // ---- 7. uncaught errors ------------------------------------------------------------------
+    // p3 left in part R, its errors read there.
     phase("errors");
-    for (const c of [gm, ...players]) {
+    for (const c of [gm, p1, p2]) {
         const errs = await c.eval(`return globalThis.__errors.slice(0, 5);`);
         check(`${c.who}: no uncaught errors`, (errs ?? []).length === 0, JSON.stringify(errs).slice(0, 400));
     }

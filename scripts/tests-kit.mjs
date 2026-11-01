@@ -568,6 +568,11 @@ const env = Object.freeze({
        GMs' audit run on. Which GM that is is a fact about this browser at this table, so a test of those roads run from a
        second GM skips instead of failing; the harness's GM is the primary, so nothing skips for it there. */
     primaryGm: () => probe("env.primaryGm", isPrimaryGm(), "this browser is not the primary GM"),
+    /* Two players connected who own a living student (E37 C3): who is at the table now, which the readiness round asks
+       (boundary.mjs `roundUsers`). The harness connects three; a GM alone at a sandbox has none, and a test of the round
+       skips there instead of failing. */
+    playersConnected: () => probe("env.playersConnected", game.users.filter(u => !u.isGM && u.active
+        && living().some(a => a.testUserPermission(u, "OWNER"))).length >= 2, "fewer than two players who own a living student are connected here"),
     /* jsdom answers every element's fontFamily with the words "depends on user agent" (the
        note in "the theme speaks two faces" has the story); a browser names a face. */
     fonts: () => {

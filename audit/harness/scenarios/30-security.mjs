@@ -6250,6 +6250,50 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         return true;`, { timeout: 60000 });
     await settle(500);
 
+    /* THE READINESS ROUND FROM A PLAYER'S CONSOLE (E37 C3, 01.11.2026; E37-15). The round before the clock moves is opened
+       and ended by a GM (`ready.open`, `ready.end`, gmOnly) and answered by each player of the cast for that player alone
+       (`ready.answer`, the sender as Foundry names it). p1 sends, with p2's id as the packet's own `userId` as every forgery
+       here: an open - refused, nothing written; then, with a round the GM opened on the primary (boundary.mjs
+       `openRoundOnPrimary`), an answer for another round's id - refused, nothing written; Done for the open round - counted
+       for p1, never for p2, and the clock unmoved; and its end - refused, the round still open. The players sit still
+       meanwhile (`__dialogAuto` false), so no window of theirs answers between the reads. Put back: the round and the clock. */
+    phase("the readiness round from a player's console", { flow: "clock-day" });
+    const readyAuto = {};
+    for (const c of [p1, p3]) readyAuto[c.who] = await c.eval(`const was = globalThis.__dialogAuto; globalThis.__dialogAuto = false; return was ?? null;`);
+    const readyClockWas = await gm.eval(`const C = await import("${repoUrl}/scripts/clock.mjs"); const E = await import("${repoUrl}/scripts/eclipse.mjs");
+        const was = foundry.utils.deepClone(C.getClock());
+        if (E.isEclipse()) await E.endEclipse({ advance: false });
+        await C.setClock({ phase: "dailyLife", timeOfDay: "noon", eclipse: false });
+        // Not registered on a tree before C3: read as no round there, so the check says what it measured.
+        if (game.settings.settings.has("${MOD}.readyRound")) await game.settings.set("${MOD}", "readyRound", {});
+        return was;`, { timeout: 60000 });
+    await settle(500);
+    const readRound = `const C = await import("${repoUrl}/scripts/clock.mjs");
+        const r = game.settings.settings.has("${MOD}.readyRound") ? (game.settings.get("${MOD}", "readyRound") ?? {}) : {};
+        return { id: r.id ?? null, answers: r.answers ?? null, ended: r.ended ?? null, clock: C.getClock().timeOfDay };`;
+    const readyOpen = await forge("ready.open", { kind: "next" }, readRound);
+    const opened = await gm.eval(`const B = await import("${repoUrl}/scripts/boundary.mjs");
+        if (typeof B.openRoundOnPrimary !== "function") return null;
+        const out = await B.openRoundOnPrimary({ kind: "next", by: game.user.id }); return out?.reply?.round?.id ?? null;`);
+    await settle(600);
+    const readyOther = await forge("ready.answer", { roundId: "SECotherRound000", ready: true }, readRound);
+    const readyOwn = await forge("ready.answer", { roundId: opened, ready: true }, readRound);
+    const readyEnd = await forge("ready.end", { roundId: opened, outcome: "stop" }, readRound);
+    const readyTold = f => f.told.map(t => t.what ?? null);
+    check("SECURITY: a player's console cannot open or end the readiness round, an answer for another round is refused, and its own Done is counted for its sender alone - never for the user its packet names - with the clock unmoved (E37 C3)",
+        readyOpen.unchanged && readyOpen.before.id === null && readyOpen.reasons.some(r => r.includes("only a GM opens a readiness round"))
+            && JSON.stringify(readyTold(readyOpen)) === JSON.stringify(["ready.open"])
+        && Boolean(opened)
+        && readyOther.unchanged && readyOther.reasons.some(r => r.includes("the readiness round has moved on since that answer"))
+        && !readyOwn.reasons.length && JSON.stringify(readyOwn.after.answers) === JSON.stringify({ [p1.userId]: "done" }) && readyOwn.after.clock === "noon"
+        && readyEnd.unchanged && readyEnd.after.ended === null && readyEnd.reasons.some(r => r.includes("only a GM ends a readiness round")),
+        JSON.stringify({ readyOpen, opened, readyOther, readyOwn, readyEnd }).slice(0, 3000), { flow: "clock-day" });
+    await gm.eval(`if (game.settings.settings.has("${MOD}.readyRound")) await game.settings.set("${MOD}", "readyRound", {});
+        await (await import("${repoUrl}/scripts/clock.mjs")).setClock(${JSON.stringify(readyClockWas)});
+        return true;`, { timeout: 60000 });
+    for (const c of [p1, p3]) await c.eval(`globalThis.__dialogAuto = ${JSON.stringify(readyAuto[c.who])} ?? undefined; if (globalThis.__dialogAuto === undefined) delete globalThis.__dialogAuto; return true;`);
+    await settle(500);
+
     /* A PLAYER'S CARD IN THE GM'S NOTICE HISTORY (E81 C7, 12.10.2026). A public card of the module's, posted from p1's
        console with markup in it, is a card the GM's browser draws and keeps (popup.mjs `onCreateChatMessage`, E81 C3).
        The GM then opens the history window, every entry in it, and moves the pointer over every element there: what the

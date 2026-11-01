@@ -20,6 +20,8 @@
  *      way back refused in the Class Trial with its reason (A16). Since H82 C5 also a drawn roll's dice on its
  *      roller's browser, with 80 ms added each way: started at the GM's message, before its answer, once (A17); and
  *      since H82 C6 on the GM's own screen: started at its throw, before its message's echo, once, the audience told.
+ *      Since E37 C3 also the readiness round before the clock moves: opened and ended by the Assistant GM on the primary,
+ *      and a player's own Done (A18).
  *   B  what E31 adds, each written red (`expectedRed`, with what it measured) until the commit that
  *      made it so, and a plain check since: a refusal carries its reason, in the player's own
  *      language; a refused request is not acknowledged; an exception on the GM's side ends as one
@@ -1342,6 +1344,53 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     check("A17: a draw the GM refuses throws nothing on the GM's screen and sends no dice",
         refused17?.gm?.asks === 1 && refused17.gm.shows.length === 0 && refused17.gm.told.length === 0 && refused17.gm.ag.length === 0,
         JSON.stringify(refused17?.gm ?? null), { flow: "gm-rolls-total" });
+
+    /* A18. THE READINESS ROUND, ASKED BY THE ASSISTANT GM AND ANSWERED BY A PLAYER (E37 C3, 01.11.2026; E37-15). The
+       round is the primary's to write: the Assistant opens it (`ready.open`) and ends it (`ready.end`) by asking the
+       primary, and p1 answers Done for itself (`ready.answer`). The players sit still meanwhile (`__dialogAuto` false), so
+       only these three requests write the round. Read: each answer, the record after each step, who wrote the setting,
+       what p1 was told, and the GM's log of refusals. p1's window stays open while it sits still, so the end that stops the
+       round tells it once that the GM is waiting a little longer (`DRPG.Ready.cancelled`) - the first run (01.11.2026)
+       measured that sentence where the check had asked for none. Put back: the round, the clock and the players' dialogs. */
+    phase("the readiness round, by the Assistant GM and a player", { flow: "clock-day" });
+    const a18Auto = {};
+    for (const c of players) a18Auto[c.who] = await c.eval(`const was = globalThis.__dialogAuto; globalThis.__dialogAuto = false; return was ?? null;`);
+    const a18Clock = await gm.eval(`const C = await import("${repoUrl}/scripts/clock.mjs"); const E = await import("${repoUrl}/scripts/eclipse.mjs");
+        const was = foundry.utils.deepClone(C.getClock());
+        if (E.isEclipse()) await E.endEclipse({ advance: false });
+        await C.setClock({ phase: "dailyLife", timeOfDay: "noon", eclipse: false });
+        // Not registered on a tree before C3: read as no round there, so the check says what it measured.
+        if (game.settings.settings.has("${MOD}.readyRound")) await game.settings.set("${MOD}", "readyRound", {});
+        return was;`, { timeout: 60000 });
+    await settle(500);
+    await clearFailures(gm);
+    const a18Round = `const r = game.settings.settings.has("${MOD}.readyRound") ? (game.settings.get("${MOD}", "readyRound") ?? {}) : {}; return { id: r.id ?? null, kind: r.kind ?? null, by: r.by ?? null, answers: r.answers ?? null, ended: r.ended ?? null };`;
+    const a18Written = settingLog.length;
+    const a18n = await noticeCount(p1);
+    const a18Refused = (await refusedSince(p1)).length;
+    const a18Open = await ag.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs"); if (typeof B.requestReadyOpen !== "function") return { ok: false, round: null }; const r = await B.requestReadyOpen({ kind: "next" }); return { ok: r.ok, round: r.value?.round?.id ?? null };`, { timeout: 30000 });
+    await settle(800);
+    const a18AfterOpen = await gm.eval(a18Round);
+    const a18Answer = await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs"); if (typeof B.requestReadyAnswer !== "function") return { ok: false, answer: null }; const r = await B.requestReadyAnswer({ roundId: ${JSON.stringify(a18Open.round)}, ready: true }); return { ok: r.ok, answer: r.value?.answer ?? null };`, { timeout: 30000 });
+    await settle(800);
+    const a18AfterAnswer = await gm.eval(a18Round);
+    const a18End = await ag.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs"); if (typeof B.requestReadyEnd !== "function") return { ok: false, ended: null }; const r = await B.requestReadyEnd({ roundId: ${JSON.stringify(a18Open.round)}, outcome: "stop" }); return { ok: r.ok, ended: r.value?.ended ?? null };`, { timeout: 30000 });
+    await settle(800);
+    const a18 = { open: a18Open, afterOpen: a18AfterOpen, answer: a18Answer, afterAnswer: a18AfterAnswer, end: a18End, afterEnd: await gm.eval(a18Round),
+        writers: [...new Set(settingLog.slice(a18Written).filter(w => /readyRound$/.test(w.key)).map(w => w.who))],
+        said: (await noticesSince(p1, a18n)).map(x => x.msg), refused: (await refusedSince(p1)).length - a18Refused,
+        logged: [...await refusalsLogged(gm, "ready.open"), ...await refusalsLogged(gm, "ready.answer"), ...await refusalsLogged(gm, "ready.end")] };
+    check("A18: the Assistant GM opens the readiness round on the primary, p1's Done is counted for p1, and the Assistant's end is written there - each answered, the setting written by the GM alone, nothing refused, and p1 - shown the round's window - told once that the GM is waiting a little longer (E37 C3)",
+        a18.open.ok === true && Boolean(a18.open.round) && a18.afterOpen.id === a18.open.round && a18.afterOpen.kind === "next" && a18.afterOpen.by === ag.userId
+            && a18.answer.ok === true && a18.answer.answer === "done" && JSON.stringify(a18.afterAnswer.answers) === JSON.stringify({ [p1.userId]: "done" })
+            && a18.end.ok === true && a18.end.ended === "stop" && a18.afterEnd.ended === "stop"
+            && JSON.stringify(a18.writers) === JSON.stringify(["gm"]) && JSON.stringify(a18.said) === JSON.stringify(["The GM is waiting a little longer."]) && a18.refused === 0 && a18.logged.length === 0,
+        JSON.stringify(a18), { flow: "clock-day" });
+    await gm.eval(`if (game.settings.settings.has("${MOD}.readyRound")) await game.settings.set("${MOD}", "readyRound", {});
+        await (await import("${repoUrl}/scripts/clock.mjs")).setClock(${JSON.stringify(a18Clock)});
+        return true;`, { timeout: 60000 });
+    for (const c of players) await c.eval(`const was = ${JSON.stringify(a18Auto[c.who])}; if (was === null) delete globalThis.__dialogAuto; else globalThis.__dialogAuto = was; return true;`);
+    await settle(500);
 
     /* ------------------------------------------- A. the Assistant as the primary */
 

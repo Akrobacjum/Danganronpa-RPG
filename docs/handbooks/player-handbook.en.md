@@ -94,6 +94,8 @@ Before each time of day the lights go out. That placement window is the **Eclips
 - A summary card of what you did during the previous time of day opens for you - what you found, what you left behind.
 - The Eclipse is the game's one moment of total cover, and it is where a murder usually starts. It is not part of the day: the clock does not move until the GM ends it.
 
+**Before the clock moves**, the GM may ask whether you are done: a window says what the GM wants to do - start the Eclipse, end it, or end this time of day - with **Done** and **One moment**. One moment tells the GM you need a little longer, and the window stays with Done alone. Once every player has said Done the game goes on by itself; the GM may also go on earlier. The window closes when the GM goes on or decides to wait a little longer.
+
 A darkened time of day (see the overflow, chapter 6) can pull the crossings down or take the free placement away.
 
 ---

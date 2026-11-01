@@ -815,6 +815,13 @@ export const SETTINGS = {
      */
     trialProgress: "trialProgress",
     /**
+     * The readiness round before the clock moves (E37 C3; boundary.mjs): `{ id, kind, boundary, by, at, answers: {
+     * [userId]: "done"|"wait" }, ended? }`, or `{}`. World-scoped because every player's window opens and closes from it;
+     * written by the primary GM alone, in a step of boundary.mjs `READY_KEY`. Nothing secret: user ids, the GM who
+     * pressed, and Done or One moment - what the GM's window lists and the table can see (world-secrets.mjs names it).
+     */
+    readyRound: "readyRound",
+    /**
      * Who the Mastermind is, on GM browsers only.
      *
      * The single most important secret in the game, so it gets the strictest
@@ -2365,6 +2372,15 @@ export function registerSettings() {
         type: Object,
         default: {},
         onChange: () => onWorldChange(SETTINGS.trialProgress)
+    });
+
+    // The readiness round (E37 C3): every browser's window follows it through sync.mjs `SYNC.ready`.
+    game.settings.register(MODULE_ID, SETTINGS.readyRound, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onWorldChange(SETTINGS.readyRound)
     });
 
     // Client-scoped, deliberately: see the note on SETTINGS.mastermind.

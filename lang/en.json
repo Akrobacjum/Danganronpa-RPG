@@ -3459,7 +3459,10 @@
         "bridge.ack": "A GM's word that your request arrived",
         "trial.turn": "Your turn in the round",
         "trial.claim": "Volunteering for the Closing Argument",
-        "trial.present": "Presenting a Truth Bullet"
+        "trial.present": "Presenting a Truth Bullet",
+        "ready.open": "Asking the players whether they are done",
+        "ready.answer": "Your answer to the GM",
+        "ready.end": "Ending the question to the players"
       },
       "notDone": "“{what}” was not carried out. {why}",
       "nothingSpent": "Nothing was spent.",
@@ -4494,6 +4497,35 @@
       "q5": "Do I have any triggers?",
       "q6": "How do I plan to play? What are my goals?",
       "q7": "I am planning to try: … (complex, game-changing projects)"
+    },
+    "Ready": {
+      "titleNext": "The end of this time of day",
+      "askStart": "The GM wants to start the {name}. Are you done with this time of day?",
+      "askEnd": "The GM wants to end the {name}. Is your token where you want it?",
+      "askNext": "The GM wants to end this time of day. Are you done with it?",
+      "done": "Done",
+      "wait": "One moment",
+      "waiting": "The GM sees you need a moment. Press Done when you are.",
+      "cancelled": "The GM is waiting a little longer.",
+      "notDone": {
+        "one": "{n} player has not said Done yet.",
+        "other": "{n} players have not said Done yet."
+      },
+      "allDone": "Everyone said Done.",
+      "status": {
+        "done": "Done",
+        "wait": "One moment",
+        "none": "No answer yet",
+        "away": "Not connected - counts as Done"
+      },
+      "goNext": "Move the clock",
+      "notNow": "Not now",
+      "confirmGo": {
+        "one": "{n} player is not done yet. Go on anyway?",
+        "other": "{n} players are not done yet. Go on anyway?"
+      },
+      "goAnyway": "Go on",
+      "wait2": "Wait"
     },
     "Summary": {
       "title": "The time of day is over",

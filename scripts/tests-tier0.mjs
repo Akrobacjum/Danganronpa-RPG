@@ -5718,6 +5718,9 @@ const REGRESSIONS = [
             // E80 part 2 C3: an open Frisk's ask, answer and force, judged on the primary (frisk.mjs), whose runs pass their
             // `{ refused }` on, and a force's roll held to its ask (gm-bridge.mjs `friskForceRoll`, a `derive`).
             askToFrisk: "refused", answerFrisk: "refused", followFrisk: "refused", friskForceRoll: "why",
+            // E37 C3: the readiness round's open, answer and end, judged on the primary (boundary.mjs), whose runs pass their
+            // `{ refused }` on.
+            openRoundOnPrimary: "refused", answerOnPrimary: "refused", endRoundOnPrimary: "refused",
             resolveObserve: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);
@@ -8799,6 +8802,9 @@ const REGRESSIONS = [
          * harness (this test by name, once).
          * E18 C4 (20.10.2026): a card a returning reader is given its words for is raised through the catch-all
          * (secret.mjs `cardOnReturn` calls `onCreateChatMessage`, no `showPopup` of its own): no road more, its row says so.
+         * E37 C3 (01.11.2026): the readiness round's two GM asks, `requestReadyOpen` and `requestReadyEnd`, say a refusal of
+         * the primary's with `sayNotDone`: two NOTDONE rows more; `requestReadyAnswer` says nothing itself (the waiter tells
+         * a player's refusal), so no row. Red in the first quick run of C3 ("unclassified" the two), green with the rows.
          */
         const NOTICE_CENSUS = [
             ["SURFACE popup.mjs#onCreateChatMessage", "the catch-all: a card is drawn where the whisper list, a veiled card's words and the GM's diet allow it (`gmPopup`, `popupForce` from a GM writer only), and kept exactly there by `showPopup`'s recorder - public from a GM's document, a player's from its document's author, never `cardWriter` (R297, 73-notice-history); the body cleaned at save (R294); the tile's corner button counts it among the unread and shows none of its words (R298); since E18 C4 also raised for a card whose words a GM gave back to a reader who was away (secret.mjs `cardOnReturn`, the newest 8 of an ask), once a card and under its messageId, so one entry however many GMs answer (R845, 73-notice-history R1)"],
@@ -8857,6 +8863,8 @@ const REGRESSIONS = [
             ["NOTDONE gm-bridge.mjs#requestRepoint", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a GM's re-point refused kept like the rest, as a notDone entry (R297; E79 C16)"],
             ["NOTDONE gm-bridge.mjs#callGm", "composed on this client from closed lists (`sayNotDone`: the action the caller names, `CALL_GM_WHAT` by default, read through `requestLabel`, the reason the literal noGm); a call on the GM with no GM connected, kept as a notDone entry: read, these words and no others (R297; E18 C0)"],
             ["NOTDONE gm-bridge.mjs#promptForRequest", "composed on this client from closed lists (`sayNotDone`: the action the caller names, `CALL_GM_WHAT` by default, read through `requestLabel`, the reason the literal noGm); a request window with no GM connected, kept as a notDone entry: read, these words and no others (R297; E18 C0, moved out of `promptAndCallGm` by E16 part 2 C1, which asks it first)"],
+            ["NOTDONE gm-bridge.mjs#requestReadyOpen", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a readiness round the primary would not open kept like the rest, as a notDone entry (R297; E37 C3)"],
+            ["NOTDONE gm-bridge.mjs#requestReadyEnd", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a readiness round the primary would not end kept like the rest, as a notDone entry (R297; E37 C3)"],
             ["NOTDONE monocub.mjs#performCubAbility", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE trial-floor.mjs#advanceFloorNow", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE vote.mjs#sendBallot", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
@@ -17736,7 +17744,12 @@ const REGRESSIONS = [
         const HINDERING = Object.values(CRISIS_ACTIONS).filter(def => def.hinders?.actions?.length);
         must(HINDERING.length >= 2, "fewer than two crisis actions hinder - this would measure little");
         const FROM = LEGAL_ROLL_MODIFIERS.slice(0, 3).map(row => row.key);
-        const fragmentHosts = () => {
+        /* E37 C3 (01.11.2026): `DRPG.Eclipse.named` - a name, indeclinable („Eclipse (Noc)”) - in E17's question and the
+           readiness round's two asks, section 14's row; the time of day's label as each language's file has it. */
+        const ECLIPSE_HOSTS = ["DRPG.Hud.eclipseAsk", "DRPG.Hud.eclipseAskRefilled", "DRPG.Ready.askStart", "DRPG.Ready.askEnd"];
+        const TIMES = { en: { night: "Night", noon: "Noon" }, pl: files.pl.DRPG.Config?.TIME_OF_DAY_LABELS ?? {} };
+        const eclipseNamed = (code, t) => game.i18n.format("DRPG.Eclipse.named", { time: TIMES[code][t] ?? t });
+        const fragmentHosts = code => {
             const fmt = (key, data) => game.i18n.format(key, data), loc = key => game.i18n.localize(key);
             const advance = ["standard", "reinforced"].map(kindName);
             const overflow = Object.keys(files.en.DRPG.Overflow.name).map(k => loc(`DRPG.Overflow.name.${k}`));
@@ -17752,7 +17765,8 @@ const REGRESSIONS = [
                     const names = def.hinders.actions.map(label);
                     return [["CRISIS_ACTIONS.label", U.plural("DRPG.Murder.hinderedActions", { turns: def.hinders.turns, actions: U.listOf(names) }, "turns"), names],
                         ["CRISIS_ACTIONS.label", U.plural("DRPG.Murder.blockedActions", { turns: def.hinders.turns, actions: U.listOf(names, { type: "negated" }) }, "turns"), names]];
-                })
+                }),
+                ...["night", "noon"].flatMap(t => ECLIPSE_HOSTS.map(host => ["Eclipse.named", fmt(host, { name: eclipseNamed(code, t) }), [eclipseNamed(code, t)]]))
             ];
         };
         const KINDS = Object.keys(files.en.DRPG.Calls.grants).filter(k => typeof files.en.DRPG.Calls.grants[k] === "string");
@@ -17780,7 +17794,7 @@ const REGRESSIONS = [
                         game.i18n.format("DRPG.Price.refundLost", { what: P.priceLabel({ pay: "hope", amount: 1 }) }).includes(P.priceLabel({ pay: "hope", amount: 1 }))],
                     reserves: C.reserveNote({ you: true }, [{ key: "hitPoints", landed: 1 }, { key: "stress", landed: 2 }])
                 };
-                const hosts = fragmentHosts();
+                const hosts = fragmentHosts(code);
                 read[code].fragments = {
                     read: hosts.length,
                     broken: hosts.filter(([, text, parts]) => /[{}]|DRPG\./.test(text) || !parts.every(part => text.includes(part))).map(([row, text]) => `${row}: ${text.slice(0, 70)}`),
@@ -17789,7 +17803,8 @@ const REGRESSIONS = [
                     flag: D.flagText({ kind: "dice", claimed: "3", expected: "1" }),
                     from: D.flagText({ kind: "modifier", claimed: "3", expected: "1", from: FROM })
                         === game.i18n.format("DRPG.Rolls.flagFrom", { line: D.flagText({ kind: "modifier", claimed: "3", expected: "1" }),
-                            list: U.listOf(FROM.map(key => game.i18n.localize(LEGAL_ROLL_MODIFIERS.find(row => row.key === key).label))) })
+                            list: U.listOf(FROM.map(key => game.i18n.localize(LEGAL_ROLL_MODIFIERS.find(row => row.key === key).label))) }),
+                    eclipse: game.i18n.format("DRPG.Ready.askStart", { name: eclipseNamed(code, "night") })
                 };
                 const flag = k => game.i18n.localize(`DRPG.Rolls.flagKind.${k}`);
                 const picksWere = [LEVEL_UP.standard.picks, LEVEL_UP.reinforced.picks];
@@ -17812,7 +17827,7 @@ const REGRESSIONS = [
         const sources = await moduleSources();
         const reading = re => [...sources].filter(([file, text]) => !file.startsWith("tests") && re.test(stripComments(text))).map(([file]) => file).sort();
         const dialog = stripComments(sources.get("roll-dialog.mjs") ?? "");
-        const FRAGMENT_HOSTS = 2 * 6 + Object.keys(files.en.DRPG.Overflow.name).length * 3 + 6 + HINDERING.length * 2;
+        const FRAGMENT_HOSTS = 2 * 6 + Object.keys(files.en.DRPG.Overflow.name).length * 3 + 6 + HINDERING.length * 2 + 2 * ECLIPSE_HOSTS.length;
         read.sources = { acc: reading(/DRPG\.Calls\.grants\.\$\{/), nom: reading(/DRPG\.Calls\.grantsNom\.\$\{/), helper: reading(/"DRPG\.Calls\.grantsGen\."/),
             joined: /listOf\(\[\.\.\.new Set\(waiting\.map\(entry => game\.i18n\.localize\(`DRPG\.Calls\.grantsNom\./.test(dialog),
             away: /return listOf\(moves\);/.test(stripComments(fnSource(sources.get("roll-draw.mjs") ?? "", "awayMoves") ?? "")),
@@ -17827,7 +17842,8 @@ const REGRESSIONS = [
                 price: ["You get 2 actions back.", true, true],
                 reserves: "You lose 1 Health and 2 Sanity.",
                 fragments: { read: FRAGMENT_HOSTS, broken: [], advance: "Reinforced Level Up (pick 3). Press the button beside your name on your sheet and choose - you have 3 picks.",
-                    overflow: "Right now: 4 of 10. Darkness was announced in the trial and waits for the next time of day.", flag: "dice 3, expected 1", from: true },
+                    overflow: "Right now: 4 of 10. Darkness was announced in the trial and waits for the next time of day.", flag: "dice 3, expected 1", from: true,
+                    eclipse: "The GM wants to start the Night Eclipse. Are you done with this time of day?" },
                 picks: ["Level Up (pick 4)", "Reinforced Level Up (pick 7)"], roller: true
             },
             pl: {
@@ -17839,7 +17855,8 @@ const REGRESSIONS = [
                 price: ["Odzyskujesz: 2 akcje.", true, true],
                 reserves: "Tracisz 1 Health i 2 Sanity.",
                 fragments: { read: FRAGMENT_HOSTS, broken: [], advance: "Reinforced Level Up (wybierz 3). Naciśnij przycisk obok swojego imienia na arkuszu i wybierz - masz 3 wybory.",
-                    overflow: "Teraz: 4 z 10. Darkness ogłoszono w procesie i czeka na następną porę dnia.", flag: "kości 3, oczekiwano 1", from: true },
+                    overflow: "Teraz: 4 z 10. Darkness ogłoszono w procesie i czeka na następną porę dnia.", flag: "kości 3, oczekiwano 1", from: true,
+                    eclipse: "GM chce zacząć Eclipse (Noc). Czy kończysz już tę porę dnia?" },
                 picks: ["Level Up (wybierz 4)", "Reinforced Level Up (wybierz 7)"], roller: true
             },
             sources: { acc: ["gm-bridge.mjs"], nom: ["roll-dialog.mjs", "sheet.mjs"], helper: ["call-effects.mjs"], joined: true, away: true, kinds: ["level-up.mjs"] }
@@ -17850,7 +17867,9 @@ const REGRESSIONS = [
             + "and (E66 fix r1 F6) section 14's Advance.kind, Overflow.name, Rolls.flagKind and crisis labels in each host they take: "
             + "how many were rendered, those that leave a brace or a key or lose the fragment, one of each, and flagText's list through listOf; "
             + "and (E66 C7) the Level Up kinds with LEVEL_UP's picks set to 4 and 7, the roller's line with its two lists through listOf, "
-            + "awayMoves's join through listOf, and the scripts that name a kind's key - level-up.mjs's advanceKindName alone]");
+            + "awayMoves's join through listOf, and the scripts that name a kind's key - level-up.mjs's advanceKindName alone; "
+            + "and (E37 C3) section 14's Eclipse.named in E17's two questions and the readiness round's two asks, counted with the rest, "
+            + "and the round's askStart at Night]");
     }],
 
     ["R1159 - utils.mjs `proseOf(entry, field, extra)` fills a config sentence's numbers from config (E66-17): each placeholder from config.mjs `PROSE_NUMBERS` - the entry's field (`{hp}`, `{stress}`, `{drain}`, `{turns}`, the Calls' `{cost}`, `{hope}`, `{progress}`, `{overflow}`) or the constant the rule reads (`{mult}`, `{actions}`, `{worth}`) - a countable noun through its `DRPG.Unit.*` family, Health and Sanity after the bare number; a copy of the entry, or of the constant, with its number changed changes the English and the Polish; `callEffect` is the same fill; every reader of such a sentence calls `proseOf`; no config sentence, English or Polish, holds a digit its entry carries but the one the allow table names; a placeholder with no value stays, `extra` wins (E66 C4; S18-37, E66-17)", async () => {
@@ -18358,6 +18377,49 @@ const REGRESSIONS = [
         }), "{chevron, panel: [imports boundary.mjs, calls toggleEclipse(), calls startEclipse or endEclipse itself]; own: [gm-panel.mjs's "
             + "toggleEclipse, hud.mjs's askEclipse and eclipseQuestion]; toggle: [the start's refusals, E17's question, the start, the placement, "
             + "no window when every placing student moved, End and move the clock, End without advancing]}");
+    }],
+    ["R1196 - the readiness round's record is the primary's to write (E37 C3, E37-15): every write of the world setting `readyRound` in the module is in boundary.mjs, one in each of `openRoundOnPrimary`, `answerOnPrimary` and `endRoundOnPrimary`, inside their step of `serialWrite(READY_KEY, ...)`; and the bridge's rows `ready.open` and `ready.end` are a GM's alone (gmOnly first), `ready.answer` opens with knownSender and lets through the round's id and the answer and no user id", async () => {
+        /*
+         * E37 C3, 01.11.2026; E37-15, the Write roads of S/stages/E37/STAGE.md. The round is a world setting every browser
+         * reads; a write outside the primary's step would race the answers (two landing within a server round trip, the
+         * second dropping the first, as utils.mjs `serialWrite` records), and a row a player could open or end, or answer
+         * for somebody else, would put a window on every screen or speak for another player. Read off the source, comments
+         * out: every `game.settings.set(...)` naming `SETTINGS.readyRound`, by file; each of the three functions' step and
+         * the write inside it. Then the rows as the bridge holds them: the first guard of each, and the answer's whitelist.
+         * Nothing is written. Red at 2e06ae13: no such setting, no boundary.mjs steps and no rows.
+         */
+        const sources = new Map(await otherSources());
+        const WRITE = /game\.settings\.set\(\s*MODULE_ID\s*,\s*SETTINGS\.readyRound\b/g;
+        const writes = [...sources].map(([file, raw]) => [file, (stripComments(raw).match(WRITE) ?? []).length]).filter(([, n]) => n > 0);
+        const boundary = stripComments(sources.get("boundary.mjs") ?? "");
+        must(boundary.length > 1000, "boundary.mjs was not read - this test measured nothing");
+        const steps = ["openRoundOnPrimary", "answerOnPrimary", "endRoundOnPrimary"].map(name => {
+            const fn = topLevelFunction(boundary, name);
+            if (!fn) return [name, null];
+            const inStep = bodyOf(fn, "serialWrite(READY_KEY, async () => {");
+            return [name, [(fn.match(WRITE) ?? []).length, (inStep.match(WRITE) ?? []).length]];
+        });
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const row = action => BRIDGE_ACTIONS[action] ?? null;
+        const first = action => {
+            const guard = row(action)?.guards?.[0] ?? null;
+            return guard === G.knownSender ? "knownSender" : guard?.factory ?? (guard ? guard.name : null);
+        };
+        equal(JSON.stringify({
+            writes, steps, key: /export const READY_KEY = "readyRound";/.test(boundary),
+            guards: ["ready.open", "ready.answer", "ready.end"].map(first),
+            answer: row("ready.answer")?.sanitize?.fields ?? null,
+            answers: ["ready.open", "ready.answer", "ready.end"].map(action => row(action)?.answer ?? null)
+        }), JSON.stringify({
+            writes: [["boundary.mjs", 3]],
+            steps: [["openRoundOnPrimary", [1, 1]], ["answerOnPrimary", [1, 1]], ["endRoundOnPrimary", [1, 1]]], key: true,
+            guards: ["gmOnly", "knownSender", "gmOnly"],
+            answer: { roundId: "id", ready: "bool" },
+            answers: ["reply", "reply", "reply"]
+        }), "{writes: the files that write readyRound and how often; steps: [writes in the function, writes inside its step of READY_KEY]; "
+            + "key: READY_KEY is the setting's own name; guards: the first guard of ready.open, ready.answer, ready.end; answer: the answer's "
+            + "whitelist; answers: how each is answered}");
     }],
 ];
 

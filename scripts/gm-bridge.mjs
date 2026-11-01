@@ -79,6 +79,12 @@ const ACTION_TRIAL_TURN = "trial.turn";
 const ACTION_TRIAL_CLAIM = "trial.claim";
 // A Present posted by the primary with a copy as shown to every other participant (E70 C10; trial.mjs `presentOnPrimary`).
 const ACTION_TRIAL_PRESENT = "trial.present";
+/** GM -> primary GM: open the readiness round before the clock moves (E37 C3; boundary.mjs `openRoundOnPrimary`). */
+const ACTION_READY_OPEN = "ready.open";
+/** player -> primary GM: this player's Done or One moment in the open round (E37 C3; boundary.mjs `answerOnPrimary`). */
+const ACTION_READY_ANSWER = "ready.answer";
+/** GM -> primary GM: the round ended, the GM going on or stopping it (E37 C3; boundary.mjs `endRoundOnPrimary`). */
+const ACTION_READY_END = "ready.end";
 /** GM -> primary GM: the trial's voices settled to the clock - its dead listed and muted, or given back (E70 C5; voice.mjs `askTrialVoices`). */
 const ACTION_TRIAL_ENTER = "trial.enter";
 /** GM -> primary GM: a write of the trial's record - a patch, the reset at the entry, the sentence carried out or taken back (E70 fix p1-G2; vote.mjs `recordOnPrimary`). */
@@ -1881,6 +1887,30 @@ async function handleTrialClaim(payload) {
     return { reply: out?.reply ?? null };
 }
 
+/** The run of `ready.open` (E37 C3): the round opened, or the one open joined, on this primary (boundary.mjs `openRoundOnPrimary`). */
+async function handleReadyOpen(payload, sender) {
+    const { openRoundOnPrimary } = await import("./boundary.mjs");
+    const out = await openRoundOnPrimary({ kind: payload.kind, by: sender.id });
+    if (out?.refused) return { refused: out.refused };
+    return { reply: out?.reply ?? null };
+}
+
+/** The run of `ready.answer` (E37 C3): the sender's own answer, judged on this primary (boundary.mjs `answerOnPrimary`). */
+async function handleReadyAnswer(payload, sender) {
+    const { answerOnPrimary } = await import("./boundary.mjs");
+    const out = await answerOnPrimary(sender, { roundId: payload.roundId, ready: payload.ready });
+    if (out?.refused) return { refused: out.refused };
+    return { reply: out?.reply ?? null };
+}
+
+/** The run of `ready.end` (E37 C3): the round ended on this primary (boundary.mjs `endRoundOnPrimary`). */
+async function handleReadyEnd(payload) {
+    const { endRoundOnPrimary } = await import("./boundary.mjs");
+    const out = await endRoundOnPrimary({ roundId: payload.roundId, outcome: payload.outcome });
+    if (out?.refused) return { refused: out.refused };
+    return { reply: out?.reply ?? null };
+}
+
 /** The run of `trial.present` (E70 C10): the card and the copies, judged on this primary (trial.mjs `presentOnPrimary`). */
 async function handleTrialPresent(payload) {
     const { presentOnPrimary } = await import("./trial.mjs");
@@ -3002,6 +3032,54 @@ export const BRIDGE_ACTIONS = table({
         }
     },
     /*
+     * THE READINESS ROUND (E37 C3, 01.11.2026; E37-12 to E37-15, the owner's ask of 28.10). A GM's press that would start
+     * an Eclipse, end one or move the time of day opens a round on the primary (boundary.mjs `openRoundOnPrimary`), in a
+     * step of `READY_KEY`: the primary's own press locally, any other GM's here. A GM's alone: a player's console that
+     * could open one would put a window on every screen, and one that could end one would close the GM's. `kind` is one
+     * of three and is held to the clock in the step (an end only while an Eclipse runs). "reply": the GM's window opens
+     * on the round answered. 30-security sends a player's open and end (refused, nothing written); 33-bridge-paths the
+     * Assistant GM's open and end.
+     */
+    [ACTION_READY_OPEN]: {
+        label: "DRPG.Bridge.what.ready.open",
+        guards: [gmOnly("only a GM opens a readiness round")],
+        sanitize: pick({ kind: as.oneOf("eclipseStart", "eclipseEnd", "next") }),
+        run: handleReadyOpen,
+        answer: "reply",
+        claims: { kind: "one of eclipseStart, eclipseEnd, next (as.oneOf); held by boundary.mjs openRoundOnPrimary to the clock the primary holds, in the step of READY_KEY" }
+    },
+    /*
+     * A PLAYER'S ANSWER (E37 C3; E37-13, E37-15): Done or One moment, from the player's window. The answer is the
+     * sender's word about the sender: keyed by the user Foundry names as the sender, never by a user id in the packet
+     * (the packet carries none), for the round the primary holds open, from a player who owns a student of the one cast
+     * (boundary.mjs `answerOnPrimary`). It writes that one answer and moves nothing: only the GM's window moves the
+     * clock. "reply": the window comes back after One moment once it is counted.
+     */
+    [ACTION_READY_ANSWER]: {
+        label: "DRPG.Bridge.what.ready.answer",
+        guards: [knownSender],
+        sanitize: pick({ roundId: as.id, ready: as.bool }),
+        run: handleReadyAnswer,
+        answer: "reply",
+        claims: {
+            roundId: "compared by boundary.mjs answerOnPrimary to the id of the round the primary holds open over its clock, in the step of READY_KEY; any other is refused and writes nothing"
+        }
+    },
+    /*
+     * THE ROUND'S END (E37 C3; E37-14): the GM's window went on ("go") or the GM said Not now ("stop"); the record keeps
+     * which, so every player's window closes and says it (boundary.mjs `endRoundOnPrimary`). A GM's alone, as the open.
+     */
+    [ACTION_READY_END]: {
+        label: "DRPG.Bridge.what.ready.end",
+        guards: [gmOnly("only a GM ends a readiness round")],
+        sanitize: pick({ roundId: as.id, outcome: as.oneOf("go", "stop") }),
+        run: handleReadyEnd,
+        answer: "reply",
+        claims: {
+            roundId: "compared by boundary.mjs endRoundOnPrimary to the id of the round the primary's record holds, in the step of READY_KEY; another, or one ended, is refused and writes nothing"
+        }
+    },
+    /*
      * A RESHAPE RULED ON THE PRIMARY GM (E09 C10, 08.10.2026). Each GM has the card, and
      * each GM's ruling used to run on its own browser against its own copy of the synced
      * attempt store: two GMs - or Approve and Decline on one card - both wrote. The primary
@@ -3329,6 +3407,42 @@ export function requestTurn({ actorId, kind, step }) {
         ...(kind === "over" ? { quiet: true } : {}),
         local: () => import("./trial-modes.mjs").then(m => m.turnOnPrimary({ actorId, kind, step }, game.user.id)).then(out => {
             if (out?.refused && kind !== "over") sayNotDone(ACTION_TRIAL_TURN, reasonOf(out.refused));
+            return out?.reply ?? null;
+        })
+    });
+}
+
+/**
+ * The readiness round's open, from the GM who pressed (E37 C3; boundary.mjs `askReadiness`). Its value is `{ round }`, the
+ * round open now, `round: null` when nobody is asked; null on the primary's own refusal, which is told here.
+ */
+export function requestReadyOpen({ kind }) {
+    return ask(ACTION_READY_OPEN, { kind }, {
+        onPrimary: true,
+        local: () => import("./boundary.mjs").then(m => m.openRoundOnPrimary({ kind, by: game.user.id })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_READY_OPEN, reasonOf(out.refused));
+            return out?.reply ?? null;
+        })
+    });
+}
+
+/**
+ * This player's answer in the open round (E37 C3; boundary.mjs `promptPlayer`): Done (`ready` true) or One moment. Its
+ * value is `{ answer }`.
+ */
+export function requestReadyAnswer({ roundId, ready }) {
+    return ask(ACTION_READY_ANSWER, { roundId, ready: ready === true });
+}
+
+/**
+ * The round's end, from the GM's window (E37 C3; boundary.mjs `askReadiness`): `outcome` "go" or "stop". Its value is
+ * `{ ended }`; null on the primary's own refusal, which is told here.
+ */
+export function requestReadyEnd({ roundId, outcome }) {
+    return ask(ACTION_READY_END, { roundId, outcome }, {
+        onPrimary: true,
+        local: () => import("./boundary.mjs").then(m => m.endRoundOnPrimary({ roundId, outcome })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_READY_END, reasonOf(out.refused));
             return out?.reply ?? null;
         })
     });

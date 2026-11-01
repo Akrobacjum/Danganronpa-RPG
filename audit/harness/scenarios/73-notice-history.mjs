@@ -500,19 +500,26 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, disco
             };
             let open = null;
             if (e) {
+                /* THE ROW AS THE WINDOW HOLDS IT NOW (E37 C3, 01.11.2026; from 1.2.96's CI, crlf run 41330603959): a change of
+                   the history that lands after the entry is opened draws the list again (notice-history-app.mjs, changed),
+                   and an element held from before that is no longer in the window - H3 read it and found the sentence 0
+                   times (a planted win.changed() after the open reproduced it). So the row is read live after each step:
+                   opened, the list drawn again, closed. No backtick in here: this is inside the template the page runs. */
+                const live = () => row(eclipse)?.details ?? null;
                 e.details.open = true;
-                await until(() => e.details.querySelector(".drpg-notice-more"), 3000);
-                const shown = visible(e.details);
+                await until(() => live()?.open && live().querySelector(".drpg-notice-more"), 3000);
+                const shown = visible(live());
                 open = { sentence: times(shown, sentence), name: times(shown, ${J(hRan.name)}), shown: shown.slice(0, 400) };
                 // The list drawn again with the entry open (what a new notice does when the reader is not in the list).
+                const before = live();
                 win.redraw();
-                const again = row(eclipse)?.details;
-                await until(() => again?.open && again.querySelector(".drpg-notice-more"), 3000);
+                await until(() => live() && live() !== before && live().open && live().querySelector(".drpg-notice-more"), 3000);
+                const again = live();
                 const redrawn = visible(again);
-                open.redrawn = [again !== e.details, times(redrawn, sentence), times(redrawn, ${J(hRan.name)})];
-                (again ?? e.details).open = false;
-                await until(() => !(again ?? e.details).querySelector(":scope > summary > .drpg-notice-text")?.hidden, 1000);
-                open.closedText = visible((again ?? e.details).querySelector(":scope > summary")).includes(sentence);
+                open.redrawn = [Boolean(again) && again !== before, times(redrawn, sentence), times(redrawn, ${J(hRan.name)})];
+                if (live()) live().open = false;
+                await until(() => live() && !live().open && !live().querySelector(":scope > summary > .drpg-notice-text")?.hidden, 1000);
+                open.closedText = visible(live()?.querySelector(":scope > summary") ?? null).includes(sentence);
             }
             return { found: [Boolean(eclipse), Boolean(time)], sentence, foot: { words: footWords, clear: Boolean(clear), unsaved: foot?.querySelector(".drpg-notices-unsaved")?.hidden ?? null }, rows, open };
         } finally {

@@ -78152,6 +78152,11 @@ const SCENARIOS = [
          * Next line's action at each press. Put back: the clock, every character's actions, the crossings' rows, the
          * seals, the restrictions, the motive, the search tokens and the body's record. Red at 84fdb5af: the chevron
          * ended at once over a student at 0, the panel started without asking, and each end sent two packets.
+         * E37 C3 (01.11.2026): each press now opens the readiness round first when a connected player owns a student of the
+         * cast (boundary.mjs `askReadiness`; E37-T3 measures it). Its GM window is answered here with its first button
+         * (Start it, End and move the clock), and its confirmation over the players not done by DialogV2.confirm as E17's
+         * question is; an end with a student nobody placed for still hands the decision to the placement table, so what this
+         * reads is unchanged. The round's setting is put back as well.
          */
         needs(env.primaryGm(), "an Eclipse is started and ended on the primary GM");
         const J = stableJson;
@@ -78179,6 +78184,7 @@ const SCENARIOS = [
         const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait"),
             emit: Object.getOwnPropertyDescriptor(game.socket, "emit") };
         const wait0 = D.wait, emit0 = game.socket.emit;
+        const roundWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.readyRound) ?? {});
         let answer = false, pressPanel = false, panels = 0, packets = 0;
         const asked = [], tables = [], lines = [];
         const read = {};
@@ -78227,6 +78233,7 @@ const SCENARIOS = [
                     tables.push(config);
                     return "endOnly";
                 }
+                if (config?.classes?.includes?.("drpg-ready-gm")) return config.buttons?.[0]?.action ?? null;
                 return wait0.call(D, config);
             };
             game.socket.emit = function (event, packet, ...rest) {
@@ -78300,6 +78307,7 @@ const SCENARIOS = [
                 else await S.eclipseMoveStore.drop(id);
             }
             for (const [key, value] of Object.entries(settingsWas)) if (value !== null) await game.settings.set(MODULE_ID, SETTINGS[key], value);
+            await game.settings.set(MODULE_ID, SETTINGS.readyRound, roundWas);
             await settle();
         }
         const road = { no: [[true, false], false], yes: [true, true], short: [true, [student.name], false, true, 1], placed: [0, false, "afternoon", 1] };
@@ -78308,6 +78316,143 @@ const SCENARIOS = [
             + "an Eclipse after a yes]; short: [the placement table's lede is endPrompt, its greyed rows' names, an Eclipse after End "
             + "without advancing, the clock where it was, SYNC.eclipse packets of that end]; placed: [placement tables shown, an Eclipse "
             + "after the end, the time of day after it, SYNC.eclipse packets of that end]}; lines: the panel's Next line's action at each press}");
+    }],
+    ["E37-T3 - the readiness round (E37 C3, E37-12 to E37-15; the owner's ask of 28.10): the panel's Next time of day opens a round on the primary and the GM's window lists every player of the cast; an answer judged as the bridge judges it counts Done and One moment for its sender alone and refuses another round's id and a sender who plays nobody, the clock unmoved; Go on with somebody not done asks first with Wait the default and the window comes back; the window goes on by itself at the last Done and the clock moves once; and a clock moved by the API ends an open round and its window and moves nothing more", async () => {
+        /*
+         * E37 C3, 01.11.2026; E37-12 to E37-15, Q-E37-2 (approved as its default 01.11.2026). Driven on this GM, the
+         * primary, from Daily Life at noon: boundary.mjs `nextTimeOfDay` (the panel's "Next time of day") pressed and not
+         * awaited, its GM window read as drawn (`drpg-ready-gm`: each row's user and status). The players' answers are
+         * packets handed to the bridge's runner as Foundry would hand them from those players (`judge(BRIDGE_ACTIONS, ...)`
+         * with each player's id as the sender): the first connected player of the cast Done, the second One moment, the
+         * second again with another round's id, and a user planted in the users' list who owns nobody (taken out at once).
+         * Read: the record (kind, its GM, the answers), what each sender was told, the window's rows and the clock; the
+         * window's "Go on" pressed with one player not done - the confirmation's default and the window again after its
+         * Wait (DialogV2.confirm answered no here); the last players' Done - the window gone by itself, the record ended
+         * "go", the clock one step on; then a second press at the new time of day and clock.mjs `advanceTimeOfDay` called
+         * as the API: the press answered null, no round open, its window gone, the clock one step on. Put back: the clock,
+         * every character's actions, the round's setting, the seals, the restrictions, the motive, the search tokens and
+         * the body's record. Red at 2e06ae13: boundary.mjs has no `nextTimeOfDay`.
+         */
+        needs(env.primaryGm(), "the round is opened and judged on the primary GM");
+        needs(env.dialogs(), "the GM's window is read as drawn");
+        needs(env.playersConnected(), "the round asks the connected players of the cast");
+        const J = stableJson;
+        const B = await import("./boundary.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const C = await import("./clock.mjs");
+        const E = await import("./eclipse.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { murderState } = await import("./murder.mjs");
+        must(typeof B.nextTimeOfDay === "function" && typeof B.roundUsers === "function", "boundary.mjs has no nextTimeOfDay or roundUsers - there is no readiness round");
+        must(!murderState(), "an incident is open - no round is asked there, and this would measure nothing");
+        const D = foundry.applications.api.DialogV2;
+        const confirmOwn = Object.getOwnPropertyDescriptor(D, "confirm");
+        const was = foundry.utils.deepClone(getClock());
+        const roundWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.readyRound) ?? {});
+        const characters = game.actors.filter(a => a.type === "character");
+        const actionsWas = characters.map(a => [a, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]);
+        const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound"]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS[key]) ?? null)]));
+        const NOBODY = { id: "!E37T3nobody0000", name: "E37 T3 nobody", role: CONST.USER_ROLES.PLAYER, isGM: false, active: true };
+        const win = () => [...foundry.applications.instances.values()].find(app => app?.options?.classes?.includes("drpg-ready-gm")
+            && app.element?.isConnected) ?? null;
+        const rows = () => [...(win()?.element?.querySelectorAll("tr[data-drpg-user]") ?? [])].map(tr => [tr.dataset.drpgUser, tr.dataset.drpgStatus]);
+        let sent = 0;
+        const answer = async (senderId, roundId, ready) => {
+            const told = [];
+            const verdict = await G.judge(BRIDGE_ACTIONS, { action: "ready.answer", requestId: `suite-e37t3-${++sent}`, userId: senderId, roundId, ready },
+                senderId, { send: (who, reply) => told.push(reply?.reason ?? reply?.action ?? null) });
+            await settle();
+            return verdict === false ? "no row" : told.join(",");
+        };
+        const confirms = [];
+        const read = {};
+        let pressed = null;
+        try {
+            D.confirm = async config => {
+                confirms.push([config?.no?.default === true, config?.yes?.default === true]);
+                return false;
+            };
+            if (E.isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife", timeOfDay: "noon", refilledFor: null });
+            await game.settings.set(MODULE_ID, SETTINGS.readyRound, {});
+            await settle();
+            const asked = B.roundUsers().filter(u => u.active);
+            must(asked.length >= 2, `${asked.length} connected player(s) own a student of the cast - this would measure little`);
+            const [first, second, ...rest] = asked;
+
+            pressed = B.nextTimeOfDay();
+            await until(() => win() && rows().length > 0, 12000);
+            const round = B.readyRecord();
+            read.opened = [round.kind, Boolean(round.id), round.by === game.user.id,
+                J(rows().map(([id]) => id).sort()) === J(B.roundUsers().map(u => u.id).sort()),
+                rows().every(([id, status]) => status === (asked.some(u => u.id === id) ? "none" : "away"))];
+
+            read.told = [await answer(first.id, round.id, true), await answer(second.id, round.id, false),
+                await answer(second.id, "zE37T3otherRound", true)];
+            game.users.set(NOBODY.id, NOBODY);
+            try {
+                read.told.push(await answer(NOBODY.id, round.id, true));
+            } finally {
+                game.users.delete(NOBODY.id);
+            }
+            await settle();
+            const answers = B.readyRecord().answers ?? {};
+            const status = id => rows().find(([user]) => user === id)?.[1] ?? null;
+            read.counted = [answers[first.id] ?? null, answers[second.id] ?? null, Object.keys(answers).length];
+            read.window = [Boolean(win()), status(first.id), status(second.id), getClock().timeOfDay];
+
+            const before = win();
+            before?.element?.querySelector('footer button[data-action="go"]')?.click();
+            await until(() => confirms.length >= 1 && win() && win() !== before, 8000);
+            await settle();
+            read.goOn = [confirms[0] ?? null, Boolean(win()), getClock().timeOfDay];
+
+            for (const user of [second, ...rest]) await answer(user.id, round.id, true);
+            await until(() => !win() && getClock().timeOfDay !== "noon", 12000);
+            await pressed;
+            pressed = null;
+            await settle();
+            read.auto = [B.readyRecord().ended ?? null, getClock().timeOfDay, Boolean(win())];
+
+            pressed = B.nextTimeOfDay();
+            await until(() => win(), 12000);
+            const again = B.readyRecord();
+            await C.advanceTimeOfDay();
+            await until(() => !win(), 8000);
+            const out = await pressed;
+            pressed = null;
+            await settle();
+            read.api = [again.id !== round.id, out ?? null, B.roundOf(B.readyRecord(), getClock()), getClock().timeOfDay, Boolean(win())];
+        } finally {
+            if (confirmOwn) Object.defineProperty(D, "confirm", confirmOwn); else delete D.confirm;
+            game.users.delete(NOBODY.id);
+            if (pressed) {
+                await win()?.close();
+                await pressed.catch(() => null);
+            }
+            await setClock(was);
+            for (const [actor, value, max] of actionsWas) {
+                await actor.update({ "system.resources.actions.value": value, ...(max === null ? {} : { "system.resources.actions.max": max }) });
+            }
+            for (const [key, value] of Object.entries(settingsWas)) if (value !== null) await game.settings.set(MODULE_ID, SETTINGS[key], value);
+            await game.settings.set(MODULE_ID, SETTINGS.readyRound, roundWas);
+            await settle();
+        }
+        equal(J(read), J({
+            opened: ["next", true, true, true, true],
+            told: ["bridge.ack,bridge.done", "bridge.ack,bridge.done", "bridge.ack,movedOn", "bridge.ack,notEligible"],
+            counted: ["done", "wait", 2],
+            window: [true, "done", "wait", "noon"],
+            goOn: [[true, false], true, "noon"],
+            auto: ["go", "afternoon", false],
+            api: [true, null, null, "evening", false]
+        }), "{opened: [the round's kind, an id, opened by this GM, a row for every player of the cast, connected ones No answer yet and "
+            + "the rest Not connected]; told: what the first player's Done, the second's One moment, the second's answer for another round and "
+            + "a sender who plays nobody were told; counted: the record's answers of the first two and how many it holds; window: [open, the "
+            + "first's row, the second's, the time of day]; goOn: [the confirmation's [Wait the default, Go on the default], the window again "
+            + "after Wait, the time of day]; auto: [the record's end after the last Done, the time of day, a window]; api: [a new round at the "
+            + "next press, what the press answered after advanceTimeOfDay, a round open after it, the time of day, a window]}");
     }],
     ...GRID
 ];

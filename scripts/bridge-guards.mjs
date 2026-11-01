@@ -436,7 +436,13 @@ export const REASON_PATTERNS = Object.freeze([
     ["alreadyDone", /^that character has already volunteered$/],
     ["cannotNow", /^a dead student does not present$/],
     ["cannotNow", /^that character may not present now$/],
-    ["failed", /^the Present's card could not be posted$/]
+    ["failed", /^the Present's card could not be posted$/],
+    // E37 C3: the readiness round before the clock moves ("ready.open", "ready.answer", "ready.end"; boundary.mjs).
+    ["cannotNow", /^the clock is not at that boundary$/],
+    ["cannotNow", /^another readiness round is open$/],
+    ["cannotNow", /^no readiness round is open$/],
+    ["movedOn", /^the readiness round has moved on since that answer$/],
+    ["notEligible", /^the sender plays no student the round asks$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
 /** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */

@@ -8,7 +8,7 @@
 
 import { MODULE_ID, moduleVersion, FLAGS, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES,
     CHAPTERS_PER_SEASON } from "./config.mjs";
-import { getClock, setClock, advanceTimeOfDay, clockSummary, phaseLabel, campaignName } from "./clock.mjs";
+import { getClock, setClock, clockSummary, phaseLabel, campaignName } from "./clock.mjs";
 import { actionsLeft, actionsMax, hasFreeMove, resetAllActions } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { studentActors, actingStudents } from "./monokuma.mjs";
@@ -373,15 +373,10 @@ const EXTRA_ACTIONS = {
      * Eclipse, whose own end already advances - a second budget is exactly
      * what a table must never be handed.
      */
+    // The readiness round asks first (E37 C3): boundary.mjs `nextTimeOfDay`, which refuses during an Eclipse as this did.
     advance: {
         key: "advance",
-        run: async () => {
-            if (isEclipse()) {
-                ui.notifications.warn(game.i18n.localize("DRPG.Panel.advanceDuringEclipse"));
-                return null;
-            }
-            return advanceTimeOfDay({ resetActions: true });
-        }
+        run: () => import("./boundary.mjs").then(m => m.nextTimeOfDay())
     },
     chapterEnd: {
         key: "chapterEnd",

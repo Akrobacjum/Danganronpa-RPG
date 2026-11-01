@@ -111,8 +111,13 @@ export const FLOWS = Object.freeze([
             "trial.claim", "trial.present"],
             sockets: ["vote.mjs"] },
         scenarios: ["10-murder", "11-killer-secrecy", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial", "67-trial-modes", "88-flow-length"], status: "partial", stage: "E40" },
-    { id: "clock-day", what: "The clock: a GM moves the time of day or opens an Eclipse, every client redraws and refills",
-        entry: { api: ["setClock", "advanceTimeOfDay", "startEclipse", "endEclipse"] }, scenarios: ["40-flow", "14-quiet"],
+    // E37 C3 (01.11.2026): the readiness round before a GM's press moves the clock - opened and ended by a GM
+    // (`ready.open`, `ready.end`, gmOnly), answered by each player of the cast (`ready.answer`). 40-flow's part R drives it on
+    // four browsers; 30-security sends a player's open and end and an answer for another round; 33-bridge-paths the
+    // Assistant GM's open and end and a player's legal answer; tier 2 E37-T3 judges the answers on the primary.
+    { id: "clock-day", what: "The clock: a GM moves the time of day or opens an Eclipse, the players asked first, every client redraws and refills",
+        entry: { api: ["setClock", "advanceTimeOfDay", "startEclipse", "endEclipse"], bridge: ["ready.open", "ready.answer", "ready.end"] },
+        scenarios: ["40-flow", "14-quiet", "30-security", "33-bridge-paths"],
         status: "partial", stage: "E37" },
     // E17 C3 (26.10.2026): a GM's "Refund last crossing" (`token.refundCrossing`, gmOnly), given back on the primary from the
     // GMs' record of the crossing; tier 2 E17-T6 judges the row as a player's ask and as a GM's. No scenario drives it yet.
