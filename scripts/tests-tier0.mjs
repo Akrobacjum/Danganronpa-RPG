@@ -17134,7 +17134,7 @@ const REGRESSIONS = [
                 ["familyFormats", 9, 9], ["glossaryHits", 11, 11], ["itemQuotes", 3, 3], ["lengthOver", 8, 8], ["loanDeclension", 7, 7], ["loanGender", 7, 7],
                 ["localeCalls", 8, 8], ["mirror", 3, 3], ["monokumaVoice", 7, 7], ["naturalnessBefore", 2, 2], ["oxfordComma", 3, 3], ["pairParity", 5, 5], ["patterns", 22, 22], ["pluralForms", 4, 4],
                 ["renderChecks", 7, 7], ["retiredHits", 11, 11], ["ruleNumberWords", 9, 9], ["secondPersonToMany", 6, 6], ["tableWordProblems", 4, 4], ["telegraph", 3, 3], ["uiLiterals", 6, 6]],
-            baselines: [["dashesIn", 11], ["familyFormats", 1]],
+            baselines: [["dashesIn", 11], ["familyFormats", 0]],
             notDue: [["glossaryHits", 1, 1], ["retiredHits", 1, 1]],
             problems: [], caught: 2, ledgerBlind: 1, unlexed: ["dashesIn", "familyFormats", "itemQuotes", "lengthOver", "localeCalls", "monokumaVoice", "uiLiterals"],
             schemaStubs: [["glossarySchema", 1], ["budgetsSchema", 1]], pairsStub: 1, goneSeen: [1, 8], marksBlind: 3
@@ -17146,7 +17146,7 @@ const REGRESSIONS = [
             + "screen map's marks makes]");
     }],
 
-    ["R1059 - the text lint's FAIL detectors over the files the module serves find nothing their baselines do not hold, fill every baseline row they can read and read something: every English plural family has its four Polish forms; every key in both files fills the same placeholders and holds the same HTML tags in each, a Polish .few and .many the placeholders of its .other; no plural family reaches game.i18n.format or localize itself but murder-rules.mjs's hindrance (S13-19); no en dash, em dash or minus sign in the language files, the scripts' strings or the handbooks but the sites written before E65; no Intl format and no toLocale*String outside utils.mjs's helpers but requirements.mjs's one allowance (E65 C1, C2; T1's language half, T2, T3, T6, E65-04 to E65-08; E66 C1, T20, E66-06)", async () => {
+    ["R1059 - the text lint's FAIL detectors over the files the module serves find nothing their baselines do not hold, fill every baseline row they can read and read something: every English plural family has its four Polish forms; every key in both files fills the same placeholders and holds the same HTML tags in each, a Polish .few and .many the placeholders of its .other; no plural family reaches game.i18n.format or localize itself, murder-rules.mjs's hindrance included since E66 C2 (S13-19); no en dash, em dash or minus sign in the language files, the scripts' strings or the handbooks but the sites written before E65; no Intl format and no toLocale*String outside utils.mjs's helpers but requirements.mjs's one allowance (E65 C1, C2; T1's language half, T2, T3, T6, E65-04 to E65-08; E66 C1, T20, E66-06; E66 C2, E66-11)", async () => {
         /*
          * E65 C1, 31.10.2026; C2 the same day. The functions `node tools/check.mjs text` runs in Node over lang/,
          * scripts/ and docs/, here over the files this Foundry serves - a table's own install, which CI never sees:
@@ -17160,7 +17160,8 @@ const REGRESSIONS = [
          * each baseline is held whole: a finding it does not hold is red, and so is a row nothing fills ("take it out
          * of the baseline"), with the number of sites judged. Read on 52eacb9c in Node: 168 families and 4774 pairs
          * found nothing; T3 3498 calls in 146 scripts, the baseline's two keys; T6 the eleven baseline sites, nothing
-         * else. Nothing is written.
+         * else. Nothing is written. Since E66 C2 T3's baseline is empty (the hindrance goes through `plural()`), so T3
+         * judges no site and finds nothing.
          */
         const lang = {};
         for (const code of ["en", "pl"]) {
@@ -17190,7 +17191,7 @@ const REGRESSIONS = [
         log(`R1059: ${runs.map(r => `${r.name} read ${r.read} found ${r.found.length} beyond its baseline, ${r.matched}/${r.sites} baseline site(s) filled`).join("; ")}; `
             + `en ${lang.en.size} keys, pl ${lang.pl.size}; ${scripts.size} scripts; ${docs.size} handbooks`);
         equal(JSON.stringify(runs.map(r => [r.name, r.read > 0, r.sites, r.found, r.gone])), JSON.stringify([
-            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 2, [], []], ["dashesIn", true, 9, [], []],
+            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 9, [], []],
             ["localeCalls", true, 0, [], []]]),
         "[each FAIL detector that reads only what a table serves: its name, whether it read anything, the baseline sites judged here, "
             + "what it found that its baseline does not hold, the baseline rows nothing filled]");

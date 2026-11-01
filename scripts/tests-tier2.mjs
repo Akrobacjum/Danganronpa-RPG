@@ -77942,6 +77942,105 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson([true, true, true, true]),
             "[drawn again: a room sealed, the seal put back, a chain written, the chain put back]");
     }],
+    ["E66-T1 - a crisis Pin them down writes the hindrance and a critical Keep your distance the block on their cards, the actions by name and the turns counted, no \"DRPG.\", in English and in Polish (E66 C2; S13-19, E66-11)", async () => {
+        /*
+         * E66 C2, 01.11.2026; S13-19, E66-11. murder-rules.mjs `applyHindrance` handed the two plural families to
+         * `game.i18n.format`, which returns a family's key, so every Pin them down and Keep your distance card read
+         * "DRPG.Murder.hinderedActions" or "DRPG.Murder.blockedActions" in both languages. Here an incident is opened
+         * between two connected players' students as the Pin test above opens it, and the killer takes a Pin them down
+         * with Hope and a critical Keep your distance, first in English, then with lang/pl.json's DRPG block put in place
+         * of this browser's and the page's language stood in as Polish (settings.mjs `setPageLanguage`), both put back in
+         * a finally. Read: each action's new cards, with `contentOf`, against the sentence written out here from
+         * config.mjs's labels. The victim's reserves are cleared before each action, as the Pin test clears them. Red at
+         * 8e9d40e9: the raw keys on the cards.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer whose player is asked the opening roll, and a victim");
+        const M = await import("./murder.mjs");
+        const S = await import("./settings.mjs");
+        const { CRISIS_ACTIONS } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        must(typeof S.setPageLanguage === "function", "settings.mjs has no setPageLanguage - the page's language cannot be stood in");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const calm = () => victim.update({ "system.resources.stress.value": 0, "system.resources.hitPoints.value": 0 });
+        const label = key => CRISIS_ACTIONS[key]?.label ?? key;
+        const card = async (key, isCritical) => {
+            for (let i = 0; i < 3 && !M.isTheirTurn(killer); i++) await M.passTurn();
+            await calm();
+            await settle();
+            must(M.murderState()?.stage === "incident" && M.isTheirTurn(killer), `the incident is not on the killer's turn before ${key} - this would measure nothing`);
+            const mark = new Set(game.messages.map(m => m.id));
+            await M.resolveCrisisAction({ actorId: killer.id, key, total: 20, isCritical, withHope: true });
+            await settle();
+            return game.messages.filter(m => !mark.has(m.id)).map(m => String(contentOf(m) ?? "")).join("\n");
+        };
+        await calm();
+        await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+        if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        must(M.murderState()?.stage === "incident", "the fight did not start");
+        const own = game.i18n.translations;
+        const cards = {};
+        let was = null, swapped = false;
+        try {
+            cards.en = [await card("pin", false), await card("keepDistance", true)];
+            game.i18n.translations = { ...own, DRPG: pl.DRPG };
+            was = S.setPageLanguage("pl");
+            swapped = true;
+            cards.pl = [await card("pin", false), await card("keepDistance", true)];
+        } finally {
+            game.i18n.translations = own;
+            if (swapped) S.setPageLanguage(was);
+        }
+        const [lc, sv, st, rr] = ["leaveClue", "survive", "secureTrace", "roleReversal"].map(label);
+        const want = {
+            en: [`Their opponent rolls ${lc} and ${sv} at disadvantage for 2 turns.`, `Their opponent cannot use ${st} or ${rr} for 2 turns.`],
+            pl: [`Przeciwnik ma utrudnienie na ${lc} i ${sv} przez 2 tury.`, `Przeciwnik nie może użyć ${st} ani ${rr} przez 2 tury.`]
+        };
+        const read = Object.fromEntries(["en", "pl"].map(code => [code, cards[code].map((text, i) => [text.includes(want[code][i]), text.includes("DRPG.")])]));
+        equal(stableJson(read), stableJson({ en: [[true, false], [true, false]], pl: [[true, false], [true, false]] }),
+            "[in English, then Polish: a Pin them down with Hope and a critical Keep your distance - the card says the sentence with the "
+            + `actions and the turns, the card holds a raw key] (cards: ${JSON.stringify(cards).slice(0, 600)})`);
+    }],
+
+    ["E66-T2 - price.mjs `refundPrice` says and answers only what landed: a receipt `refundAction` cannot give back (0 actions) whispers its owner nothing and answers false, moves nothing, and a refused Objection's line fed that answer says the price did not come back (E66 C2; S09-40, E66-13)", async () => {
+        /*
+         * E66 C2, 01.11.2026; S09-40, E66-13. `refundPrice` ignored `refundAction`'s answer: it whispered "You get ...
+         * back" and answered true whatever came back, and its answer is what cleanup's give-back records (`paidBack`) and
+         * what a refused Objection's line says (trial.mjs `objectionRefusedLine`). Read in actions.mjs on this tree:
+         * `refundAction` answers false with no actor or an amount of 0 or less, and nowhere else - and both roads hand
+         * `refundPrice` the table's amount, 1, so neither meets a false on its own today (E66 STATUS, Open). Here a
+         * receipt of 0 actions on a cast student: the whispers posted, the answer, the actions before and after, and the
+         * line the Objection's refusal builds from that answer. The student's actions are put back and the test's own
+         * whisper, if one was posted, deleted. Red at 8e9d40e9: "You get 0 actions back." whispered and true.
+         */
+        const [who] = cast(1);
+        const P = await import("./price.mjs");
+        const trial = await import("./trial.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const receipt = { key: "objection", pay: "action", amount: 0, grant: false };
+        const back = game.i18n.format("DRPG.Price.refunded", { what: P.priceLabel(receipt) });
+        const why = game.i18n.localize("DRPG.Trial.objectionNoFloor");
+        const before = who.system.resources.actions.value;
+        const mark = new Set(game.messages.map(m => m.id));
+        const posted = () => game.messages.filter(m => !mark.has(m.id) && String(contentOf(m) ?? "").includes(back));
+        const read = {};
+        try {
+            read.answer = await P.refundPrice(who, receipt);
+            await settle();
+            read.told = posted().length;
+            read.moved = who.system.resources.actions.value - before;
+            read.line = trial.objectionRefusedLine(why, { receipt, refunded: read.answer }) === game.i18n.format("DRPG.Trial.objectionRefundLost", { why, what: P.priceLabel(receipt) });
+        } finally {
+            for (const m of posted()) { try { await m.delete(); } catch { /* already gone */ } }
+            if (who.system.resources.actions.value !== before) await who.update({ "system.resources.actions.value": before });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ answer: false, told: 0, moved: 0, line: true }),
+            "[refundPrice on a receipt of 0 actions: what it answers, the whispers saying it came back, the actions moved, the refused Objection's line says it did not come back]");
+    }],
     ...GRID
 ];
 

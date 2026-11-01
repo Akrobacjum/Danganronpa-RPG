@@ -81,16 +81,23 @@ const INVARIANTS = [
          * itself - so nothing else in the suite would notice a chain whose refusal
          * has no sentence, or a sentence for a currency that no longer exists.
          */
+        /* Since E66 C2 (S18-36) the counted lines are plural families, read by their `.other`; a gated chain has its
+           one-step refusal (`nothingLeft.<key>OneStep`, S09-40). */
+        const WILL_FAMILIES = ["action", "actionsLeft", "burst", "hope", "hopeHeld", "stressAfterHope", "stressAfterAction", "skippedAction"];
+        const WILL_LINES = ["breakdown", "free"];
+        const oneStep = Object.keys(PRICE_CHAINS).filter(key => PRICE_CHAINS[key].stepsBeyondFirst).map(key => `${key}OneStep`);
         for (const kind of kinds) {
             ok(game.i18n.has(`DRPG.Price.label.${kind}.other`), `no plural label for ${kind}`);
-            ok(game.i18n.has(`DRPG.Price.paid.${kind}`), `no "paid" line for ${kind}`);
+            ok(game.i18n.has(`DRPG.Price.paid.${kind}.other`), `no "paid" family for ${kind}`);
         }
-        for (const key of Object.keys(PRICE_CHAINS)) {
+        for (const key of [...Object.keys(PRICE_CHAINS), ...oneStep]) {
             ok(game.i18n.has(`DRPG.Price.nothingLeft.${key}`),
                 `${key} has no sentence for running out of everything`);
         }
-        for (const name of ["action", "burst", "hope", "stressAfterHope",
-            "stressAfterAction", "breakdown", "free"]) {
+        for (const name of WILL_FAMILIES) {
+            ok(game.i18n.has(`DRPG.Price.will.${name}.other`), `DRPG.Price.will.${name} is no plural family`);
+        }
+        for (const name of WILL_LINES) {
             ok(game.i18n.has(`DRPG.Price.will.${name}`), `DRPG.Price.will.${name} is missing`);
         }
         for (const name of ["label.free", "paid.burst", "refunded", "refundLost", "noPrice"]) {
@@ -102,9 +109,8 @@ const INVARIANTS = [
                 const known = family === "label" || family === "paid"
                     ? [...kinds, "free", "burst"]
                     : family === "nothingLeft"
-                        ? Object.keys(PRICE_CHAINS)
-                        : ["action", "burst", "hope", "stressAfterHope",
-                            "stressAfterAction", "breakdown", "free"];
+                        ? [...Object.keys(PRICE_CHAINS), ...oneStep]
+                        : [...WILL_FAMILIES, ...WILL_LINES];
                 ok(known.includes(name),
                     `DRPG.Price.${family}.${name} is a sentence nothing can reach`);
             }
@@ -30544,6 +30550,117 @@ const INVARIANTS = [
             same: game.i18n.format(KEY, DATA),
             unset: game.i18n.format(KEY, DATA)
         }), `[the setting's scope, window, type, choices and default; the writes seedDocumentLanguage made with the setting empty, then holding "pl" (this GM ${primary ? "is" : "is not"} the primary); what it answers; ${KEY} through worldLocalize with the documents in "${other}", in "${page}" (the page's) and unset]`);
+    }],
+    ["R1155 - the price road's counts are plural families with the predicate in the family, in English and Polish: price.mjs `priceLine` and `paidLine`, `Price.paid.*`, `Price.will.*` (a sentence with two counts two families joined), `Action.costActions`, `Monocub.meddleCost(Short)`, each at n = 0, 1, 2, 5, 12, 22, 25, 112 with nothing left of \"{\" or \"DRPG.\" (\"Kosztuje 2 akcje. Masz 5 akcji.\"); a quote carries the steps it skipped and the skipped action step says it is not needed, never \"No actions left\"; Analyze outside the Class Trial is refused with its one-step line; the four keys of S13-19 render a 2-turn hindrance, a block and an action back (E66 C2; S18-36, S09-40, S13-19, E66-11 to E66-13)", async () => {
+        /*
+         * E66 C2, 01.11.2026; S18-36, S09-40, S13-19, E66-11 to E66-13. The price lines were flat strings: a Polish
+         * window read "Kosztuje 2 akcję. Masz 5." and a card "Zapłacono 2 akcją.", and a cleaner's Tamper in their own
+         * Stage 6, whose action step `skip` takes out, said "No actions left, so this costs 1 Sanity" with actions in
+         * hand. Each language is read with its file's DRPG block put in place of this browser's and the page's
+         * language stood in (settings.mjs `setPageLanguage`), both put back in a finally (R1507's and R1152's way), so
+         * `plural()` picks the language's forms. The quotes are plain objects, but for two: `quotePrice` on a living
+         * student, which only reads, for `skipped`; and on a stand-in with no action, no Hope and a full Sanity track,
+         * with the clock answered as Daily Life and then as the Class Trial (game.settings.get stood in for the clock
+         * alone, put back). The hindrance's actions are config.mjs's labels joined by utils.mjs `listOf`, as
+         * murder-rules.mjs `applyHindrance` joins them (tier 2's E66-T1 reads the card itself). Nothing is written.
+         * Red at 8e9d40e9: the families rendered their raw keys, priceLine wrote "Kosztuje 2 akcję. Masz 5." and a
+         * skipped step "No actions left", and Analyze outside the trial named Hope and Sanity.
+         */
+        needs(world.atLeast("livingStudents", 1), "a living student to quote a Tamper with its action step skipped");
+        const S = await import("./settings.mjs"), U = await import("./utils.mjs"), P = await import("./price.mjs");
+        must(typeof S.setPageLanguage === "function", "settings.mjs has no setPageLanguage - the page's language cannot be stood in");
+        const files = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" });
+            must(res.ok, `${code}.json: HTTP ${res.status}`);
+            files[code] = await res.json();
+        }
+        const student = studentActors().find(a => !a.getFlag(MODULE_ID, FLAGS.deceased)) ?? null;
+        must(student, "no living student among the students - this would measure nothing");
+        const NS = [0, 1, 2, 5, 12, 22, 25, 112];
+        const FAMILIES = [
+            ["DRPG.Price.paid.action", "n"], ["DRPG.Price.paid.hope", "n"], ["DRPG.Price.paid.stress", "n"],
+            ["DRPG.Price.will.action", "n"], ["DRPG.Price.will.actionsLeft", "left"], ["DRPG.Price.will.burst", "n"],
+            ["DRPG.Price.will.hope", "n"], ["DRPG.Price.will.hopeHeld", "held"], ["DRPG.Price.will.stressAfterHope", "n"],
+            ["DRPG.Price.will.stressAfterAction", "n"], ["DRPG.Price.will.skippedAction", "n"], ["DRPG.Action.costActions", "n"],
+            ["DRPG.Monocub.meddleCost", "actions"], ["DRPG.Monocub.meddleCostShort", "actions"],
+            ["DRPG.Murder.hinderedActions", "turns"], ["DRPG.Murder.blockedActions", "turns"], ["DRPG.Cleanup.actionBack", "n"]
+        ];
+        const label = key => CRISIS_ACTIONS[key]?.label ?? key;
+        const stuck = {
+            id: "R1155stuck", name: "R1155 stuck", type: "character", items: [], getFlag: () => undefined,
+            system: { resources: { actions: { value: 0, max: 3 }, hope: { value: 0, max: 6 }, stress: { value: 6, max: 6 }, hitPoints: { value: 0, max: 6 } } }
+        };
+        const settings = game.settings, ownGet = Object.hasOwn(settings, "get"), realGet = settings.get;
+        let phase = "dailyLife";
+        const own = game.i18n.translations;
+        const was = S.setPageLanguage("en");
+        const read = {};
+        try {
+            settings.get = function (ns, key, ...rest) {
+                if (ns === MODULE_ID && key === SETTINGS.clock) return { ...(realGet.call(this, ns, key, ...rest) ?? {}), phase };
+                return realGet.call(this, ns, key, ...rest);
+            };
+            for (const code of ["en", "pl"]) {
+                game.i18n.translations = { ...own, DRPG: files[code].DRPG };
+                S.setPageLanguage(code);
+                const r = read[code] = {};
+                r.broken = FAMILIES.flatMap(([key, on]) => NS.map(n => [key, n, U.plural(key, { n, left: n, held: n, hope: 1, actions: n, turns: n }, on)]))
+                    .filter(([, , text]) => /[{}]|DRPG\./.test(String(text))).map(([key, n]) => `${key} ${n}`);
+                r.cost = [1, 2, 5, 22, 25].map(n => U.plural("DRPG.Price.will.action", { n }));
+                r.lines = [
+                    P.priceLine(null, { key: "objection", pay: "action", amount: 2, left: 5, grant: false }),
+                    P.priceLine(null, { key: "objection", pay: "hope", amount: 1, held: 2 }),
+                    P.paidLine({ pay: "action", amount: 2 }),
+                    U.plural("DRPG.Action.costActions", { n: 2 }),
+                    U.plural("DRPG.Monocub.meddleCost", { hope: 1, actions: 2 }, "actions")
+                ];
+                r.skipped = P.priceLine(null, { key: "tamper", pay: "stress", amount: 1, skipped: ["action"], lastSanity: false });
+                phase = "dailyLife";
+                r.analyze = [P.quotePrice(stuck, "analyze").blocked];
+                phase = "classTrial";
+                r.analyze.push(P.quotePrice(stuck, "analyze").blocked);
+                phase = "dailyLife";
+                r.raw = [
+                    U.plural("DRPG.Murder.hinderedActions", { turns: 2, actions: U.listOf([label("leaveClue"), label("survive")]) }, "turns"),
+                    U.plural("DRPG.Murder.blockedActions", { turns: 2, actions: U.listOf([label("secureTrace"), label("roleReversal")], { type: "negated" }) }, "turns"),
+                    U.plural("DRPG.Murder.blockedActions", { turns: 1, actions: U.listOf([label("survive")], { type: "negated" }) }, "turns"),
+                    U.plural("DRPG.Cleanup.actionBack", { n: 1 }),
+                    game.i18n.format("DRPG.Cleanup.stressBack", { n: 1 })
+                ];
+            }
+            read.quoted = [P.quotePrice(student, "tamper", { skip: ["action"] }).skipped ?? null, P.quotePrice(student, "tamper").skipped ?? null];
+        } finally {
+            if (ownGet) settings.get = realGet; else delete settings.get;
+            game.i18n.translations = own;
+            S.setPageLanguage(was);
+        }
+        const [lc, sv, st, rr] = ["leaveClue", "survive", "secureTrace", "roleReversal"].map(label);
+        equal(stableJson(read), stableJson({
+            en: {
+                broken: [],
+                cost: ["Costs 1 action.", "Costs 2 actions.", "Costs 5 actions.", "Costs 22 actions.", "Costs 25 actions."],
+                lines: ["Costs 2 actions. You have 5 actions.", "No actions left, so this costs 1 Hope. You hold 2 Hope.", "Paid with 2 actions.", "2 actions", "1 Hope, 2 actions."],
+                skipped: "No action is needed here. This costs 1 Sanity.",
+                analyze: ["No action left, so there is nothing to pay for Analyze with.", "No action, no Hope and no Sanity left, so there is nothing to pay for Analyze with."],
+                raw: [`Their opponent rolls ${lc} and ${sv} at disadvantage for 2 turns.`, `Their opponent cannot use ${st} or ${rr} for 2 turns.`,
+                    `Their opponent cannot use ${sv} for 1 turn.`, "1 action back.", "You get 1 Sanity back."]
+            },
+            pl: {
+                broken: [],
+                cost: ["Kosztuje 1 akcję.", "Kosztuje 2 akcje.", "Kosztuje 5 akcji.", "Kosztuje 22 akcje.", "Kosztuje 25 akcji."],
+                lines: ["Kosztuje 2 akcje. Masz 5 akcji.", "Nie masz już akcji, więc to kosztuje 1 Hope. Masz 2 Hope.", "Zapłacono 2 akcjami.", "2 akcje", "1 Hope, 2 akcje."],
+                skipped: "Akcja nie jest tu potrzebna. To kosztuje 1 Sanity.",
+                analyze: ["Nie masz już akcji, więc nie masz czym zapłacić za Analyze.", "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Analyze."],
+                raw: [`Przeciwnik ma utrudnienie na ${lc} i ${sv} przez 2 tury.`, `Przeciwnik nie może użyć ${st} ani ${rr} przez 2 tury.`,
+                    `Przeciwnik nie może użyć ${sv} przez 1 turę.`, "Odzyskujesz 1 akcję.", "Odzyskujesz 1 Sanity."]
+            },
+            quoted: [["action"], []]
+        }), "[in English, then Polish: the families at the eight n that leave a brace or a key; Price.will.action at 1, 2, 5, 22 and 25; "
+            + "priceLine for 2 actions with 5 held and for 1 Hope with 2 held, paidLine for 2 actions, a tile's cost, the Confusion's; "
+            + "priceLine for a Sanity step with the action skipped; Analyze refused with nothing left in Daily Life and in the Class Trial; "
+            + "the hindrance, the block, a block of one action, the action and the Sanity given back; then a living student's Tamper quoted "
+            + "with its action step skipped and without]");
     }]
 ];
 

@@ -805,7 +805,12 @@
         "bonus": "Przewaga, utrudnienie i doświadczenie"
       },
       "chooseTrait": "{action} - która statystyka?",
-      "costActions": "{n} akcja",
+      "costActions": {
+        "one": "{n} akcja",
+        "few": "{n} akcje",
+        "many": "{n} akcji",
+        "other": "{n} akcji"
+      },
       "costFree": "za darmo",
       "cannotAfford": {
         "one": "Masz {left} akcję, a to wymaga {needed}.",
@@ -1071,7 +1076,12 @@
       "tickFirst": "Najpierw zaznacz Monocub",
       "student": "Uczeń",
       "panelTitle": "Monocub",
-      "meddleCost": "{hope} Hope, {actions} akcja.",
+      "meddleCost": {
+        "one": "{hope} Hope, {actions} akcja.",
+        "few": "{hope} Hope, {actions} akcje.",
+        "many": "{hope} Hope, {actions} akcji.",
+        "other": "{hope} Hope, {actions} akcji."
+      },
       "cannotMeddle": "Za mało akcji albo za mało Hope.",
       "mustBeDead": "Monocubem zostaje tylko postać, która już zginęła.",
       "opted": "{name} dołącza do GM-ów jako Monocub.",
@@ -1115,7 +1125,12 @@
       "silenceTitle": "Zobowiązany do milczenia",
       "silenceOn": "Zbrodnia na twoich oczach. Nie możesz o niej mówić do końca tego rozdziału.",
       "silenceOff": "Milczenie zdjęte. Znów możesz mówić o zbrodni.",
-      "meddleCostShort": "{hope} Hope, {actions} akcja",
+      "meddleCostShort": {
+        "one": "{hope} Hope, {actions} akcja",
+        "few": "{hope} Hope, {actions} akcje",
+        "many": "{hope} Hope, {actions} akcji",
+        "other": "{hope} Hope, {actions} akcji"
+      },
       "silencedBadge": "Zobowiązany do milczenia",
       "silencedTooltip": "Zbrodnia na twoich oczach. Nie możesz o niej mówić do końca tego rozdziału; Confusion wciąż działa.",
       "invite": "Zaproś jako Monocuba",
@@ -1950,16 +1965,16 @@
       "theyLose": "{name} traci {what}.",
       "killerChooses": "Krytyk - zabójca wybiera: oba znaczniki z Health albo oba z Sanity.",
       "hinderedActions": {
-        "one": "{n} akcja przeciwnika z utrudnieniem przez {turns} tur.",
-        "few": "{n} akcje przeciwnika z utrudnieniem przez {turns} tur.",
-        "many": "{n} akcji przeciwnika z utrudnieniem przez {turns} tur.",
-        "other": "{n} akcji przeciwnika z utrudnieniem przez {turns} tur."
+        "one": "Przeciwnik ma utrudnienie na {actions} przez {turns} turę.",
+        "few": "Przeciwnik ma utrudnienie na {actions} przez {turns} tury.",
+        "many": "Przeciwnik ma utrudnienie na {actions} przez {turns} tur.",
+        "other": "Przeciwnik ma utrudnienie na {actions} przez {turns} tur."
       },
       "blockedActions": {
-        "one": "{n} akcja przeciwnika całkiem zablokowana przez {turns} tur.",
-        "few": "{n} akcje przeciwnika całkiem zablokowane przez {turns} tur.",
-        "many": "{n} akcji przeciwnika całkiem zablokowanych przez {turns} tur.",
-        "other": "{n} akcji przeciwnika całkiem zablokowanych przez {turns} tur."
+        "one": "Przeciwnik nie może użyć {actions} przez {turns} turę.",
+        "few": "Przeciwnik nie może użyć {actions} przez {turns} tury.",
+        "many": "Przeciwnik nie może użyć {actions} przez {turns} tur.",
+        "other": "Przeciwnik nie może użyć {actions} przez {turns} tur."
       },
       "rolesSwapped": "Role odwrócone. Teraz krwawi zabójca.",
       "incidentEnded": "Incydent zakończony.",
@@ -6385,23 +6400,82 @@
         "free": "za darmo"
       },
       "will": {
-        "action": "Kosztuje {n} akcję. Masz {left}.",
-        "burst": "Kosztuje {n} akcję - płaci za nią Burst z zapasu.",
-        "hope": "Nie masz już akcji, więc to kosztuje {n} Hope. Masz {held}.",
-        "stressAfterHope": "Nie masz już akcji ani Hope, więc to kosztuje {n} Sanity.",
-        "stressAfterAction": "Nie masz już akcji, więc to kosztuje {n} Sanity.",
+        "action": {
+          "one": "Kosztuje {n} akcję.",
+          "few": "Kosztuje {n} akcje.",
+          "many": "Kosztuje {n} akcji.",
+          "other": "Kosztuje {n} akcji."
+        },
+        "actionsLeft": {
+          "one": "Masz {left} akcję.",
+          "few": "Masz {left} akcje.",
+          "many": "Masz {left} akcji.",
+          "other": "Masz {left} akcji."
+        },
+        "burst": {
+          "one": "Kosztuje {n} akcję - płaci za nią Burst z zapasu.",
+          "few": "Kosztuje {n} akcje - płaci za nie Burst z zapasu.",
+          "many": "Kosztuje {n} akcji - płaci za nie Burst z zapasu.",
+          "other": "Kosztuje {n} akcji - płaci za nie Burst z zapasu."
+        },
+        "hope": {
+          "one": "Nie masz już akcji, więc to kosztuje {n} Hope.",
+          "few": "Nie masz już akcji, więc to kosztuje {n} Hope.",
+          "many": "Nie masz już akcji, więc to kosztuje {n} Hope.",
+          "other": "Nie masz już akcji, więc to kosztuje {n} Hope."
+        },
+        "hopeHeld": {
+          "one": "Masz {held} Hope.",
+          "few": "Masz {held} Hope.",
+          "many": "Masz {held} Hope.",
+          "other": "Masz {held} Hope."
+        },
+        "stressAfterHope": {
+          "one": "Nie masz już akcji ani Hope, więc to kosztuje {n} Sanity.",
+          "few": "Nie masz już akcji ani Hope, więc to kosztuje {n} Sanity.",
+          "many": "Nie masz już akcji ani Hope, więc to kosztuje {n} Sanity.",
+          "other": "Nie masz już akcji ani Hope, więc to kosztuje {n} Sanity."
+        },
+        "stressAfterAction": {
+          "one": "Nie masz już akcji, więc to kosztuje {n} Sanity.",
+          "few": "Nie masz już akcji, więc to kosztuje {n} Sanity.",
+          "many": "Nie masz już akcji, więc to kosztuje {n} Sanity.",
+          "other": "Nie masz już akcji, więc to kosztuje {n} Sanity."
+        },
+        "skippedAction": {
+          "one": "Akcja nie jest tu potrzebna. To kosztuje {n} Sanity.",
+          "few": "Akcja nie jest tu potrzebna. To kosztuje {n} Sanity.",
+          "many": "Akcja nie jest tu potrzebna. To kosztuje {n} Sanity.",
+          "other": "Akcja nie jest tu potrzebna. To kosztuje {n} Sanity."
+        },
         "breakdown": "To twój ostatni punkt Sanity. Zapłacenie go wpędzi cię w Breakdown.",
         "free": "To nic nie kosztuje."
       },
       "nothingLeft": {
         "objection": "Nie masz już akcji, Hope ani Sanity, więc nie możesz wnieść objection.",
         "analyze": "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Analyze.",
+        "analyzeOneStep": "Nie masz już akcji, więc nie masz czym zapłacić za Analyze.",
         "tamper": "Nie masz już akcji ani Sanity, które można by dać w zamian."
       },
       "paid": {
-        "action": "Zapłacono {n} akcją.",
-        "hope": "Zapłacono {n} Hope.",
-        "stress": "Zapłacono {n} Sanity.",
+        "action": {
+          "one": "Zapłacono {n} akcją.",
+          "few": "Zapłacono {n} akcjami.",
+          "many": "Zapłacono {n} akcjami.",
+          "other": "Zapłacono {n} akcjami."
+        },
+        "hope": {
+          "one": "Zapłacono {n} Hope.",
+          "few": "Zapłacono {n} Hope.",
+          "many": "Zapłacono {n} Hope.",
+          "other": "Zapłacono {n} Hope."
+        },
+        "stress": {
+          "one": "Zapłacono {n} Sanity.",
+          "few": "Zapłacono {n} Sanity.",
+          "many": "Zapłacono {n} Sanity.",
+          "other": "Zapłacono {n} Sanity."
+        },
         "burst": "Zapłacono Burstem z zapasu."
       },
       "refunded": "Odzyskujesz: {what}.",

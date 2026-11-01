@@ -82,7 +82,7 @@ import { dropRemnant, traceFeedback, publishTiesFor, fightKey } from "./remnants
 import { closeOpen } from "./live.mjs";
 import {
     announce as announcePlain, dialogContent, whisperToGms, whisperToOwner as whisperToOwnerPlain, ownerOf,
-    ownerIdsOf, gmIds, isPrimaryGm, log, warn, error, plural, debug, esc, cardHead, markFired
+    ownerIdsOf, gmIds, isPrimaryGm, log, warn, error, plural, listOf, debug, esc, cardHead, markFired
 } from "./utils.mjs";
 import {
     readCast, murderState, writeCast, incidentWrite, stillHolds, restoreState, incidentAudienceIds, writeState,
@@ -2587,10 +2587,17 @@ async function applyHindrance(state, def, band, done) {
     for (const key of def.hinders.actions) next[target][key] = def.hinders.turns;
 
     await writeState({ [store]: next });
-    done.push(game.i18n.format(
-        band === "critical" ? "DRPG.Murder.blockedActions" : "DRPG.Murder.hinderedActions",
-        { n: def.hinders.actions.length, turns: def.hinders.turns }
-    ));
+    /*
+     * THE ACTIONS BY NAME AND THE TURNS COUNTED (E66 C2, 01.11.2026; S13-19, E66-11). Both keys are plural families,
+     * and `game.i18n.format` handed a family returns the key itself: every Pin them down and Keep your distance card
+     * read "DRPG.Murder.hinderedActions" in both languages. The family is counted on `turns`; the actions are their
+     * localized labels (config.mjs's, swapped in place by i18n.mjs `localizeConfig`) joined by `listOf` - "and" for a
+     * hindrance, the negated list for a block ("cannot use A or B", Polish "A ani B").
+     */
+    const critical = band === "critical";
+    const names = def.hinders.actions.map(key => esc(CRISIS_ACTIONS[key]?.label ?? key));
+    done.push(plural(critical ? "DRPG.Murder.blockedActions" : "DRPG.Murder.hinderedActions",
+        { turns: def.hinders.turns, actions: listOf(names, { type: critical ? "negated" : "conjunction" }) }, "turns"));
 }
 
 /**

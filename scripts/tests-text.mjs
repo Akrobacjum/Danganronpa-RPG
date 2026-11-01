@@ -364,7 +364,8 @@ const I18N_CALL = /\bgame\s*\??\.\s*i18n\s*\??\.\s*(format|localize)\s*(?:\?\.\s
  * as covered. Measured on 52eacb9c (31.10.2026, a probe in the stage folder):
  * 168 families, 177 of their keys written as literals in the 146 module
  * scripts, and one call that formats a family - murder-rules.mjs's hindrance,
- * two keys, the baseline's row.
+ * two keys, the baseline's row, which E66 C2 emptied (the hindrance through
+ * `plural()`).
  */
 export function familyFormats(bag = {}) {
     const lx = lexerOf(bag, "familyFormats");
@@ -2391,10 +2392,9 @@ export function secondPersonToMany(bag = {}) {
  * Escapes, never the characters (`dashes` reads code).
  */
 export const BASELINES = Object.freeze({
-    familyFormats: Object.freeze([
-        Object.freeze({ file: "scripts/murder-rules.mjs", keys: Object.freeze(["DRPG.Murder.blockedActions", "DRPG.Murder.hinderedActions"]), issue: "S13-19", empties: "E66",
-            why: "a crisis action's hindrance on its card: the one game.i18n.format whose first argument picks between the two families" })
-    ]),
+    /* Emptied in E66 C2 (01.11.2026; S13-19, E66-11): murder-rules.mjs `applyHindrance` calls `plural()`. T3 stays FAIL
+       with no row, so a family handed to game.i18n.format anywhere is red. */
+    familyFormats: Object.freeze([]),
     dashesIn: Object.freeze([
         ...["hinder", "hinderTarget"].flatMap(k => [
             Object.freeze({ in: "prose", file: "scripts/config.mjs", key: `DRPG.Config.MONOCUB.abilities.meddle.thresholds.0.${k}`, issue: "S02-66", empties: "E25" }),

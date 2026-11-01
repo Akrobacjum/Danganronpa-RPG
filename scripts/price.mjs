@@ -57,6 +57,13 @@ export function chainFor(key) {
  * of day (D3) and who therefore starts the chain at its Sanity step.
  */
 function stepsNow(chain, skip = []) {
+    const offered = stepsOffered(chain);
+    return skip.length ? offered.filter(step => !skip.includes(step.pay)) : offered;
+}
+
+/* The chain's steps this phase offers, before a caller's `skip` (E66 C2): the quote says which of them it skipped and
+   whether the phase cut the chain to its first step, so its sentence can say so (S09-40). */
+function stepsOffered(chain) {
     if (!chain?.steps?.length) return [];
     const gate = chain.stepsBeyondFirst;
     let phase = null;
@@ -67,8 +74,7 @@ function stepsNow(chain, skip = []) {
         // actions cost before the chains existed.
         phase = null;
     }
-    const offered = !gate || phase === gate ? chain.steps : chain.steps.slice(0, 1);
-    return skip.length ? offered.filter(step => !skip.includes(step.pay)) : offered;
+    return !gate || phase === gate ? chain.steps : chain.steps.slice(0, 1);
 }
 
 /** How much room is left under a reverse track's maximum. */
@@ -114,9 +120,12 @@ function cannotPayAtAll(actor) {
  * @param {string} key                 A key of `PRICE_CHAINS`.
  * @param {object} [options]
  * @param {string[]} [options.skip]    Steps the caller has already settled.
+ * `skipped` (E66 C2, 01.11.2026; S09-40) names the steps of the chain this phase offered that `skip` took out - a
+ * cleaner's Tamper in their own Stage 6 starts at Sanity with actions in hand, and its line said "No actions left".
+ *
  * @returns {{
  *   key: string, pay: string|null, amount: number, grant: boolean,
- *   left: number, held: number, lastSanity: boolean,
+ *   left: number, held: number, lastSanity: boolean, skipped: string[],
  *   blocked: string|null, blockedKind: "noPrice"|"nothingLeft"|null
  * }}
  */
@@ -129,6 +138,7 @@ export function quotePrice(actor, key, { skip = [] } = {}) {
         left: actor ? actionsLeft(actor) : 0,
         held: actor ? resourceValue(actor, "hope") : 0,
         lastSanity: false,
+        skipped: [],
         blocked: null,
         blockedKind: null
     };
@@ -142,9 +152,15 @@ export function quotePrice(actor, key, { skip = [] } = {}) {
         };
     }
 
+    const offered = stepsOffered(chain);
+    base.skipped = offered.filter(entry => skip.includes(entry.pay)).map(entry => entry.pay);
     const step = stepsNow(chain, skip).find(entry => canPayStep(actor, entry)) ?? null;
     if (!step) {
-        const line = `DRPG.Price.nothingLeft.${key}`;
+        /* Outside the phase its later steps live in, a gated chain is one step long (`stepsBeyondFirst`): Analyze
+           outside the Class Trial is paid with an action or not at all, so its refusal names no Hope and no Sanity
+           (E66 C2; S09-40) - `nothingLeft.<key>OneStep` where the file has one. */
+        const oneStep = offered.length < chain.steps.length && game.i18n.has(`DRPG.Price.nothingLeft.${key}OneStep`);
+        const line = oneStep ? `DRPG.Price.nothingLeft.${key}OneStep` : `DRPG.Price.nothingLeft.${key}`;
         return {
             ...base,
             blocked: game.i18n.has(line)
@@ -216,6 +232,14 @@ export async function payPrice(actor, key, { skip = [], quiet = false } = {}) {
  * character is told rather than left believing they were repaid. A Sanity mark is
  * lifted, not healed: it is the same mark going away.
  *
+ * SAID ONLY WHEN IT LANDED (E66 C2, 01.11.2026; S09-40): an action comes back as `refundAction` answers, and until
+ * E66 this whispered "You get ... back" and answered true whatever it answered, so cleanup's give-back (`paidBack`)
+ * would record the step as returned and a refused Objection's line say it came back. Read in actions.mjs on this
+ * tree: `refundAction` answers false only with no actor or an amount of 0 or less (a Burst's `grantFreeActions` the
+ * same, and it is asked for 1), and both of those roads hand it the table's amount, 1 - so neither meets a false
+ * today; tier 2's E66-T2 holds the answer on a receipt of 0. Hope answers whether it landed, as before; a Sanity mark
+ * lifted always lands.
+ *
  * `quiet`: true keeps the "you get it back" whisper for a caller that tells the refund itself; "all" keeps the
  * "could not come back" one as well, for a caller that words the loss itself (E51 fix round FG7, 31.10.2026; review
  * correctness F3: a refused Objection whose Hope a darkening held back was told the loss twice, here and in trial.mjs
@@ -227,9 +251,9 @@ export async function refundPrice(actor, receipt, { quiet = false } = {}) {
     if (!actor || !receipt?.pay) return false;
 
     if (receipt.pay === "action") {
-        await refundAction(actor, receipt.amount, receipt);
-        if (!quiet) await tellRefund(actor, receipt);
-        return true;
+        const ok = await refundAction(actor, receipt.amount, receipt);
+        if (ok && !quiet) await tellRefund(actor, receipt);
+        return Boolean(ok);
     }
 
     if (receipt.pay === "hope") {
@@ -294,28 +318,36 @@ export function priceLabel(quote) {
  * The sentence a window shows BEFORE paying: what this will cost, and what is
  * left. The Sanity step says which of the earlier steps ran out, because "no
  * actions left" and "no actions and no Hope left" are different situations and the
- * player is about to mark their Sanity over the difference.
+ * player is about to mark their Sanity over the difference - and, when the caller
+ * skipped the action step (`quote.skipped`), that no action is needed, never "no
+ * actions left" (E66 C2; S09-40).
+ *
+ * EVERY COUNT ITS OWN FAMILY (E66 C2, 01.11.2026; S18-36, E66-12): the cost and what
+ * is held are two families joined with a space, each through `plural()`, so a Polish
+ * page reads "Kosztuje 2 akcje. Masz 5 akcji." where the flat strings wrote "Kosztuje
+ * 2 akcję. Masz 5.".
  */
 export function priceLine(actor, quote) {
     if (quote?.blocked) return quote.blocked;
     if (!quote?.pay) return game.i18n.localize("DRPG.Price.will.free");
 
     if (quote.pay === "action") {
-        return quote.grant
-            ? game.i18n.format("DRPG.Price.will.burst", { n: quote.amount })
-            : game.i18n.format("DRPG.Price.will.action",
-                { n: quote.amount, left: actor ? actionsLeft(actor) : quote.left });
+        if (quote.grant) return plural("DRPG.Price.will.burst", { n: quote.amount });
+        const left = actor ? actionsLeft(actor) : quote.left;
+        return `${plural("DRPG.Price.will.action", { n: quote.amount })} ${plural("DRPG.Price.will.actionsLeft", { left }, "left")}`;
     }
 
     if (quote.pay === "hope") {
-        return game.i18n.format("DRPG.Price.will.hope",
-            { n: quote.amount, held: actor ? resourceValue(actor, "hope") : quote.held });
+        const held = actor ? resourceValue(actor, "hope") : quote.held;
+        return `${plural("DRPG.Price.will.hope", { n: quote.amount })} ${plural("DRPG.Price.will.hopeHeld", { held }, "held")}`;
     }
 
     const afterHope = Boolean(chainFor(quote.key)?.steps?.some(step => step.pay === "hope"));
-    const line = game.i18n.format(afterHope
-        ? "DRPG.Price.will.stressAfterHope"
-        : "DRPG.Price.will.stressAfterAction", { n: quote.amount });
+    const line = plural((quote.skipped ?? []).includes("action")
+        ? "DRPG.Price.will.skippedAction"
+        : afterHope
+            ? "DRPG.Price.will.stressAfterHope"
+            : "DRPG.Price.will.stressAfterAction", { n: quote.amount });
     // The last mark, said in the same breath as the price: this is the one step
     // that changes what the character is.
     return quote.lastSanity
@@ -329,7 +361,7 @@ export function paidLine(receipt) {
     if (receipt.pay === "action" && receipt.grant) {
         return game.i18n.localize("DRPG.Price.paid.burst");
     }
-    return game.i18n.format(`DRPG.Price.paid.${receipt.pay}`, { n: receipt.amount });
+    return plural(`DRPG.Price.paid.${receipt.pay}`, { n: receipt.amount });
 }
 
 /**

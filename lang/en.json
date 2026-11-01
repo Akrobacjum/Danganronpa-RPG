@@ -475,23 +475,27 @@
         "free": "free"
       },
       "will": {
-        "action": "Costs {n} action. You have {left}.",
-        "burst": "Costs {n} action - your banked Burst pays it.",
-        "hope": "No actions left, so this costs {n} Hope. You hold {held}.",
-        "stressAfterHope": "No actions and no Hope left, so this costs {n} Sanity.",
-        "stressAfterAction": "No actions left, so this costs {n} Sanity.",
+        "action": { "one": "Costs {n} action.", "other": "Costs {n} actions." },
+        "actionsLeft": { "one": "You have {left} action.", "other": "You have {left} actions." },
+        "burst": { "one": "Costs {n} action - your banked Burst pays it.", "other": "Costs {n} actions - your banked Burst pays it." },
+        "hope": { "one": "No actions left, so this costs {n} Hope.", "other": "No actions left, so this costs {n} Hope." },
+        "hopeHeld": { "one": "You hold {held} Hope.", "other": "You hold {held} Hope." },
+        "stressAfterHope": { "one": "No actions and no Hope left, so this costs {n} Sanity.", "other": "No actions and no Hope left, so this costs {n} Sanity." },
+        "stressAfterAction": { "one": "No actions left, so this costs {n} Sanity.", "other": "No actions left, so this costs {n} Sanity." },
+        "skippedAction": { "one": "No action is needed here. This costs {n} Sanity.", "other": "No action is needed here. This costs {n} Sanity." },
         "breakdown": "That is your last point of Sanity. Paying it breaks you down.",
         "free": "This costs nothing."
       },
       "nothingLeft": {
         "objection": "No action, no Hope and no Sanity left, so you cannot object.",
         "analyze": "No action, no Hope and no Sanity left, so there is nothing to pay for Analyze with.",
+        "analyzeOneStep": "No action left, so there is nothing to pay for Analyze with.",
         "tamper": "No action left, and no Sanity to give instead."
       },
       "paid": {
-        "action": "Paid with {n} action.",
-        "hope": "Paid with {n} Hope.",
-        "stress": "Paid with {n} Sanity.",
+        "action": { "one": "Paid with {n} action.", "other": "Paid with {n} actions." },
+        "hope": { "one": "Paid with {n} Hope.", "other": "Paid with {n} Hope." },
+        "stress": { "one": "Paid with {n} Sanity.", "other": "Paid with {n} Sanity." },
         "burst": "Paid with a banked Burst."
       },
       "refunded": "You get {what} back.",
@@ -824,7 +828,7 @@
         "bonus": "Advantage, disadvantage and experience"
       },
       "chooseTrait": "{action} - which statistic?",
-      "costActions": "{n} action",
+      "costActions": { "one": "{n} action", "other": "{n} actions" },
       "costFree": "free",
       "cannotAfford": {
         "one": "You have {left} action left and this needs {needed}.",
@@ -1081,7 +1085,7 @@
       "panelTitle": "Monocub",
       "tickFirst": "Tick Monocub first",
       "student": "Student",
-      "meddleCost": "{hope} Hope, {actions} action.",
+      "meddleCost": { "one": "{hope} Hope, {actions} action.", "other": "{hope} Hope, {actions} actions." },
       "cannotMeddle": "Not enough action, or not enough Hope.",
       "mustBeDead": "Only a character who has already died becomes a Monocub.",
       "onlyTwoActions": "A Monocub has two things to do: cross a room, and Confusion. The rest of the grid belongs to the living.",
@@ -1128,7 +1132,7 @@
       "silenceTitle": "Sworn to silence",
       "silenceOn": "You stumbled onto the crime. You may not discuss it until this chapter ends.",
       "silenceOff": "The silence is lifted. You may discuss the crime again.",
-      "meddleCostShort": "{hope} Hope, {actions} action",
+      "meddleCostShort": { "one": "{hope} Hope, {actions} action", "other": "{hope} Hope, {actions} actions" },
       "silencedBadge": "Sworn to silence",
       "silencedTooltip": "You stumbled onto the crime. You may not discuss it until this chapter ends; Confusion still works.",
       "invite": "Invite as a Monocub"
@@ -1927,12 +1931,12 @@
       "theyLose": "{name} loses {what}.",
       "killerChooses": "Critical - the killer chooses: both marks off Health, or both off Sanity.",
       "hinderedActions": {
-        "one": "{n} of their action at disadvantage for {turns} turns.",
-        "other": "{n} of their actions at disadvantage for {turns} turns."
+        "one": "Their opponent rolls {actions} at disadvantage for {turns} turn.",
+        "other": "Their opponent rolls {actions} at disadvantage for {turns} turns."
       },
       "blockedActions": {
-        "one": "{n} of their action shut down entirely for {turns} turns.",
-        "other": "{n} of their actions shut down entirely for {turns} turns."
+        "one": "Their opponent cannot use {actions} for {turns} turn.",
+        "other": "Their opponent cannot use {actions} for {turns} turns."
       },
       "rolesSwapped": "The roles are reversed. The killer is the one bleeding now.",
       "incidentEnded": "The incident is over.",

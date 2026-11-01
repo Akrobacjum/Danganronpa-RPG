@@ -3907,18 +3907,19 @@ function abilityButton(actor, key, def) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = `drpg-action-button${affordable ? "" : " unaffordable"}`;
-    button.dataset.tooltip = `${game.i18n.format("DRPG.Monocub.meddleCost", {
+    // Counted on the actions (E66 C2; S18-36): Hope agrees with nothing in either language.
+    button.dataset.tooltip = `${plural("DRPG.Monocub.meddleCost", {
         actions: def.cost, hope: def.hopeCost
-    })}${affordable ? "" : `<br><em>${game.i18n.localize("DRPG.Monocub.cannotMeddle")}</em>`}`;
+    }, "actions")}${affordable ? "" : `<br><em>${game.i18n.localize("DRPG.Monocub.cannotMeddle")}</em>`}`;
     // "1 · 1◆" was unreadable without already knowing which number was which.
     // Confusion is the only action in the game that costs two different things,
     // so the tile spells both out in the same order the tooltip does.
     button.innerHTML = `
         <i class="fa-solid ${def.icon} drpg-action-icon" inert></i>
         <span class="drpg-action-name">${softWrap(foundry.utils.escapeHTML(def.label))}</span>
-        <span class="drpg-action-cost">${game.i18n.format("DRPG.Monocub.meddleCostShort", {
+        <span class="drpg-action-cost">${plural("DRPG.Monocub.meddleCostShort", {
             actions: def.cost, hope: def.hopeCost
-        })}</span>`;
+        }, "actions")}</span>`;
 
     button.addEventListener("click", async () => {
         const { cubAbilityDialog } = await import("./monocub.mjs");
@@ -4912,7 +4913,7 @@ function costLabelFor(actor, key, def) {
     const cost = costOf(actor, key, def);
     return cost === 0
         ? game.i18n.localize("DRPG.Action.costFree")
-        : game.i18n.format("DRPG.Action.costActions", { n: cost });
+        : plural("DRPG.Action.costActions", { n: cost });
 }
 
 /* ==========================================================================
