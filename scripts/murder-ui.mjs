@@ -650,6 +650,8 @@ export async function openIncidentTracker() {
     }
     if (action === "end") {
         const sure = await DialogV2.confirm({
+            yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+            no: { label: game.i18n.localize("DRPG.Dialog.no") },
             classes: ["drpg-panel"],
             window: { title: game.i18n.localize("DRPG.Murder.endMurder") },
             content: `<p>${game.i18n.localize("DRPG.Murder.endConfirm")}</p>`

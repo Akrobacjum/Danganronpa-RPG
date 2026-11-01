@@ -17957,7 +17957,7 @@ const REGRESSIONS = [
                     "End the incident now. The number to beat is 5 times the victim's remaining Health, so it is 0 once they have none. A hit with Despair leaves an Evident Remnant, and a critical makes your first clean-up attempt cost no Sanity.", "You live inside a closed area. 2 actions per time of day.",
                     "Add a new experience worth +2"],
                 moved: ["A hit takes 2 Health and 3 Sanity off the victim and leaves a Remnant, Hidden with Hope and Subtle with Despair. On a critical, the whole blow lands on Health or on Sanity, as you choose, and you leave no Remnant.",
-                    "Nothing on a Hope failure. On Despair you still take 4 Sanity off them and leave an Evident Remnant; a critical failure leaves an Obvious one.",
+                    "Nothing on a Hope failure. On Despair you still take 4 Sanity off them and leave an Evident Remnant.",
                     "Put the victim's Leave a Clue and Survive at disadvantage for their next 5 turns, or block both on a critical. With Despair, a hit leaves a Subtle Remnant, and a miss leaves an Evident one.", "Put the victim's Secure a Trace and Role Reversal at disadvantage for their next turn, or block both on a critical. With Despair, a hit leaves a Subtle Remnant, and a miss leaves an Evident one.",
                     "End the incident now. The number to beat is 7 times the victim's remaining Health, so it is 0 once they have none. A hit with Despair leaves an Evident Remnant, and a critical makes your first clean-up attempt cost no Sanity.", "You live inside a closed area. 5 actions per time of day.",
                     "Add a new experience worth +3"]
@@ -17968,7 +17968,7 @@ const REGRESSIONS = [
                     "Zakończ incydent. Próg to pozostałe Health ofiary razy 5, więc gdy ofiara nie ma już Health, wynosi 0. Trafienie z Despair zostawia Evident Remnant, a krytyk sprawia, że twoja pierwsza próba sprzątania nie kosztuje Sanity.", "Żyjecie w zamkniętym miejscu. 2 akcje na porę dnia.",
                     "Dodaj nowe doświadczenie warte +2"],
                 moved: ["Zadaj cios: przy trafieniu ofiara traci 2 Health i 3 Sanity, a ty zostawiasz Remnant, z Hope Hidden, z Despair Subtle. Przy krytyku cały cios spada na Health albo na Sanity, jak wybierzesz, i nie zostawiasz Remnantu.",
-                    "Nic przy porażce z Hope. Przy Despair wciąż zdejmujesz im 4 Sanity i zostawiasz Evident Remnant; porażka krytyczna zostawia Obvious.",
+                    "Nic przy porażce z Hope. Przy Despair wciąż zdejmujesz im 4 Sanity i zostawiasz Evident Remnant.",
                     "Przytrzymaj ofiarę: przez jej najbliższych 5 tur Leave a Clue i Survive mają utrudnienie, a przy krytyku są zablokowane. Z Despair trafienie zostawia Subtle Remnant, a pudło Evident Remnant.", "Trzymaj ofiarę na dystans: przez jej najbliższą turę Secure a Trace i Role Reversal mają utrudnienie, a przy krytyku są zablokowane. Z Despair trafienie zostawia Subtle Remnant, a pudło Evident Remnant.",
                     "Zakończ incydent. Próg to pozostałe Health ofiary razy 7, więc gdy ofiara nie ma już Health, wynosi 0. Trafienie z Despair zostawia Evident Remnant, a krytyk sprawia, że twoja pierwsza próba sprzątania nie kosztuje Sanity.", "Żyjecie w zamkniętym miejscu. 5 akcji na porę dnia.",
                     "Dodaj nowe doświadczenie warte +3"]

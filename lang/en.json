@@ -4867,6 +4867,10 @@
         "none": "Nothing yet - no project is visible to you."
       }
     },
+    "Dialog": {
+      "yes": "Yes",
+      "no": "No"
+    },
     "Diagnose": {
       "title": "Diagnostics report",
       "intro": "Everything the module can check here, as one text. Copy it and send it to whoever is helping you.",

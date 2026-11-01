@@ -506,8 +506,9 @@ ${body.join("\n")}
  *   - `owner`: the owner's verdict (null, or { verdict, text, date, page }, `page` the review page the owner answered on).
  * `batchSchema` holds the file to that shape against the files of this tree - `node tools/check.mjs text` makes each
  * problem red: the shape, a key no file holds or one Appendix C leaves out, a fact with no function, an after that
- * changes a placeholder (N2), adds a digit (M5) or runs over its surface's limit (B1), a pilot copy that is not the
- * pilot's approved after, an owner's verdict on no page or on a text not written. Where the texts stand in the files is
+ * changes a placeholder (N2), adds a digit (M5) or runs over its surface's limit (B1), an English and a Polish after
+ * whose forms the files would refuse (T2, `pairParity`, handed in), a pilot copy that is not the pilot's approved
+ * after, an owner's verdict on no page or on a text not written. Where the texts stand in the files is
  * `batchState`'s reading, printed and never red (C7 lands the afters); `batchSheet` renders it for the readers.
  */
 export const BATCH_FILES = Object.freeze(["docs/dev/text-batch-B01a.json"]);
@@ -580,9 +581,11 @@ const pilotVerdict = (o, p) => (p === null || p === undefined ? o === null
  * prose, `pl` pl.json's (Maps of flat keys); `pairs` the guide's naturalness pairs - a batch text that is a pair's key
  * carries the pair's approved after in its Polish (the owner approved it; Q-E66-5's rule); `surfaces` docs/text-budgets.json's `surfaces` (each `{ target, limit }`);
  * `pilot` docs/dev/text-pilot.json parsed (the copies are held to it); `source(path)` a file's text or null, for the
- * facts' functions; `count(text)` the words of a text as T4 counts them (tests-text.mjs `wordCount`).
+ * facts' functions; `count(text)` the words of a text as T4 counts them (tests-text.mjs `wordCount`); `parity` T2's
+ * detector (tests-text.mjs `pairParity`), run on each text's two afters, a form against its twin.
  */
-export function batchSchema(doc, { en = new Map(), pl = new Map(), pairs = [], surfaces = null, pilot = null, source = () => null, count = plainWords } = {}) {
+export function batchSchema(doc, { en = new Map(), pl = new Map(), pairs = [], surfaces = null, pilot = null, source = () => null, count = plainWords,
+    parity = null } = {}) {
     if (doc === null || typeof doc !== "object" || Array.isArray(doc)) return ["the file is not an object"];
     const out = [];
     for (const k of Object.keys(doc)) if (!BATCH_TOP.includes(k)) out.push(`the file has a field "${k}" (it holds ${BATCH_TOP.join(", ")})`);
@@ -650,6 +653,19 @@ export function batchSchema(doc, { en = new Map(), pl = new Map(), pairs = [], s
             }
         }
         if (t.source === "written" && written && (t.kept === null || !t.kept.length)) out.push(`${at}: an after is written and kept names no fact (section 11's facts kept)`);
+        /*
+         * T2 ON THE AFTERS (E66 fix r2, 01.11.2026; the goal review's m5). N2 above compares an after with its own
+         * before, all forms at once; T2 holds each form to its twin in the other language (one to one, other to other, a
+         * Polish few and many to the English other) and fails the files. So B01a showed the owner two families whose
+         * English .one filled {n} and the Polish .one did not (sabotageHint, coverHint), which could not land as shown
+         * (STATUS Open 56). Run here on the two afters as the files would hold them, before a page shows them.
+         */
+        if (typeof parity === "function" && written === 2) {
+            const flat = a => (typeof a === "string" ? { [t.key]: a } : Object.fromEntries(Object.entries(a).map(([form, x]) => [`${t.key}.${form}`, x])));
+            for (const f of parity({ en: flat(t.en.after), pl: flat(t.pl.after) }).found ?? []) {
+                out.push(`${at}: the afters break T2 (pairParity): ${f.what} - the files would refuse the pair as written`);
+            }
+        }
         if (!sameFields(t.reviews, Object.keys(BATCH_REVIEWS))) out.push(`${at}: reviews is not { ${Object.keys(BATCH_REVIEWS).join(", ")} }`);
         else for (const [r, verdicts] of Object.entries(BATCH_REVIEWS)) {
             const v = t.reviews[r];

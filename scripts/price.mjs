@@ -244,12 +244,20 @@ export async function payPrice(actor, key, { skip = [], quiet = false } = {}) {
  * today; tier 2's E66-T2 holds the answer on a receipt of 0. Hope answers whether it landed, as before; a Sanity mark
  * lifted always lands.
  *
+ * WHAT THE ANSWER IS, EXACTLY (E66 fix r2, 01.11.2026; review correctness n2): whether the refund was written. False
+ * with no actor or no receipt, where `refundAction` (or a Burst's `grantFreeActions`) answers false, and for Hope a
+ * darkened hour held back. True, with the "you get it back" whisper, also where nothing could move: actions already at
+ * their maximum (`refundAction` writes the cap again) and a Sanity mark at 0 (`Math.max(0, marks - amount)`), as Hope
+ * already at its maximum counts as landed - there was nowhere for it to go, which is not the refund being eaten. Kept
+ * so rather than answered false: the two callers that read the answer (cleanup.mjs `paidBack`, trial.mjs
+ * `objectionRefusedLine`) would then say a step that cost nothing to give back "could not come back".
+ *
  * `quiet`: true keeps the "you get it back" whisper for a caller that tells the refund itself; "all" keeps the
  * "could not come back" one as well, for a caller that words the loss itself (E51 fix round FG7, 31.10.2026; review
  * correctness F3: a refused Objection whose Hope a darkening held back was told the loss twice, here and in trial.mjs
  * `objectionRefusedLine`; tier 2's E51-T18 counts the two).
  *
- * @returns {Promise<boolean>} whether the refund landed.
+ * @returns {Promise<boolean>} whether the refund was written (see above: a refund with nowhere to go answers true).
  */
 export async function refundPrice(actor, receipt, { quiet = false } = {}) {
     if (!actor || !receipt?.pay) return false;

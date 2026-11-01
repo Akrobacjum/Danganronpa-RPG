@@ -1554,6 +1554,8 @@ export async function confirmSweepBullets({ actors = null } = {}) {
     }
 
     const sure = await DialogV2.confirm({
+        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        no: { label: game.i18n.localize("DRPG.Dialog.no") },
         window: { title: game.i18n.localize("DRPG.Panel.sweepBullets") },
         classes: ["drpg-panel"],
         content: dialogContent(`<div>

@@ -680,6 +680,8 @@ async function confirmUse(item, preview, pointless) {
     const summary = describe(preview);
 
     return DialogV2.confirm({
+        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        no: { label: game.i18n.localize("DRPG.Dialog.no") },
         window: { title: game.i18n.format("DRPG.Items.useTitle", { item: item.name }) },
         classes: ["drpg-panel", "drpg-narrow"],
         content: `<p>${game.i18n.format("DRPG.Items.confirmUse", {
@@ -890,6 +892,8 @@ export async function discardBroken(actor, item) {
     }
 
     const go = await DialogV2.confirm({
+        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        no: { label: game.i18n.localize("DRPG.Dialog.no") },
         window: { title: game.i18n.format("DRPG.Items.discardTitle", { item: item.name }) },
         classes: ["drpg-panel", "drpg-narrow"],
         content: `<p>${game.i18n.format("DRPG.Items.discardPrompt", {

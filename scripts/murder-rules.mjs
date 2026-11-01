@@ -3029,6 +3029,8 @@ async function killerFell({ pass = true } = {}) {
     const words = game.i18n.localize("DRPG.Murder.noKillerLeft");
     await whisperToGms(`<p>${words}</p>`);
     const sure = await DialogV2.confirm({
+        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        no: { label: game.i18n.localize("DRPG.Dialog.no") },
         classes: ["drpg-panel"],
         window: { title: game.i18n.localize("DRPG.Murder.endMurder") },
         content: `<p>${words}</p><p>${game.i18n.localize("DRPG.Murder.endConfirm")}</p>`,
@@ -4120,16 +4122,18 @@ async function announceCrisis(actor, def, { success, band, total, threshold, don
     //
     // `def.failure` is one string covering every branch at once: "Nothing on a
     // Hope failure. On Despair you still take 1 Sanity off them and leave an
-    // Evident Remnant; a critical failure leaves an Obvious one." That is a
-    // reference table, and the player has to work out which third of it applies
-    // to the roll they just made - while the line directly under it already
-    // lists what the module actually did.
+    // Evident Remnant." That is a reference table, and the player has to work
+    // out which half of it applies to the roll they just made - while the line
+    // directly under it already lists what the module actually did.
     //
-    // Worse, three of those strings had drifted from the code: Self-defence and
-    // Role reversal both promise an extra point of drain on a Despair failure
-    // and neither has `failureExtraDrain` set, and Escape together promises the
-    // newcomer becomes a second victim, which nothing implements. Printing the
-    // receipt instead of the promise cannot drift.
+    // Worse, three of those strings had drifted from the code when this was
+    // written: Self-defence and Role reversal promised an extra point of drain
+    // on a Despair failure that neither carried (both carry `failureExtraDrain:
+    // { despair: 1 }` in config.mjs now, read 01.11.2026), and Escape together
+    // promised the newcomer becomes a second victim, which nothing implemented;
+    // Strike's promised an Obvious Remnant on a critical failure, which no roll
+    // reaches, until E66 fix r2 took the clause out. Printing the receipt
+    // instead of the promise cannot drift.
     // Nor the band's sentence when it promises a door the incident took away (`applyUnlocks`).
     const outcome = success && promised ? (def[band] ?? "") : "";
     const state = murderState();

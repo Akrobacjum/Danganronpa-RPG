@@ -59,17 +59,29 @@ export function prefetchLanguage() {
     const lang = moduleLanguage();
     setPageLanguage(lang);
     if (lang === "en" || pending) return pending;
+    pending = fetchLanguageFile(lang);
+    return pending;
+}
+
+/**
+ * The language file's fetch: its parsed JSON, or null with the page back in English (E66 fix r2, 01.11.2026; review
+ * correctness m3). `prefetchLanguage` sets the page's language before the fetch; when the file did not load, the
+ * module said "the module stays in English" and `pageLanguage()` stayed "pl", so `listOf`, `localeFormat` and
+ * `markLanguage` wrote Polish lists, dates and `lang` into English text. `fetchFile` and `report` are handed in by
+ * R1166.
+ */
+export function fetchLanguageFile(lang, { fetchFile = path => fetch(path), report = error } = {}) {
     const path = `modules/${MODULE_ID}/lang/${lang}.json`;
-    pending = fetch(path)
+    return fetchFile(path)
         .then(response => {
             if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
             return response.json();
         })
         .catch(err => {
-            error(`Could not load the ${lang} language file; the module stays in English`, err);
+            setPageLanguage("en");
+            report(`Could not load the ${lang} language file; the module stays in English`, err);
             return null;
         });
-    return pending;
 }
 
 /**

@@ -5377,6 +5377,10 @@
         "none": "Jeszcze nic - żaden projekt nie jest dla ciebie widoczny."
       }
     },
+    "Dialog": {
+      "yes": "Tak",
+      "no": "Nie"
+    },
     "Diagnose": {
       "title": "Raport diagnostyczny",
       "intro": "Wszystko, co moduł potrafi tu sprawdzić, w jednym tekście. Skopiuj go i wyślij osobie, która ci pomaga.",
@@ -6353,7 +6357,7 @@
         "strike": {
           "label": "Strike",
           "hint": "Zadaj cios: przy trafieniu ofiara traci {hp} Health i {stress} Sanity, a ty zostawiasz Remnant, z Hope Hidden, z Despair Subtle. Przy krytyku cały cios spada na Health albo na Sanity, jak wybierzesz, i nie zostawiasz Remnantu.",
-          "failure": "Nic przy porażce z Hope. Przy Despair wciąż zdejmujesz im {stress} Sanity i zostawiasz Evident Remnant; porażka krytyczna zostawia Obvious."
+          "failure": "Nic przy porażce z Hope. Przy Despair wciąż zdejmujesz im {stress} Sanity i zostawiasz Evident Remnant."
         },
         "pin": {
           "label": "Pin Them Down",

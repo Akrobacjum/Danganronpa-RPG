@@ -1054,7 +1054,8 @@ async function text() {
        the approved after, an owner's verdict on no page), one line of its counts - the budgets' "over a limit" among them,
        which the schema makes red - and where its texts stand in the files (batchState, a reading). Its control: a copy with
        seven faults planted must have each named, or a schema broken to pass everything would leave this part green on a batch
-       with no facts. Since C7 (E66-28, 01.11.2026) a text the owner approved ("ok") must read its after in both languages: the
+       with no facts (eight since E66 fix r2: an English .one given a placeholder its Polish .one lacks, which T2 run on the afters
+       must name). Since C7 (E66-28, 01.11.2026) a text the owner approved ("ok") must read its after in both languages: the
        landed line is red, naming the texts, while one still reads its before or was edited after the approval. */
     const pilotDoc = (() => { try { return JSON.parse(read(PILOT_FILE)); } catch { return null; } })();
     for (const BATCH_FILE of textRender.BATCH_FILES) {
@@ -1063,7 +1064,7 @@ async function text() {
         try { batch = JSON.parse(read(BATCH_FILE)); } catch (err) { problems.push(`batch: ${BATCH_FILE} does not parse (${err.message})`); continue; }
         const { pairs } = T.naturalnessPairs(exists(T.NATURALNESS_GUIDE) ? read(T.NATURALNESS_GUIDE) : "");
         const against = { en: new Map([...en, ...prose]), pl, pairs, surfaces: budgets?.surfaces ?? null, pilot: pilotDoc,
-            source: f => (exists(f) ? read(f) : null), count: T.wordCount };
+            source: f => (exists(f) ? read(f) : null), count: T.wordCount, parity: T.pairParity };
         const faults = textRender.batchSchema(batch, against);
         problems.push(...faults.map(p => `batch: ${BATCH_FILE}: ${p}`));
         const c = textRender.batchCounts(batch, against);
@@ -1098,11 +1099,18 @@ async function text() {
             const owned = copy.texts.findIndex((t, i) => t.owner && i !== copyOf);
             if (owned >= 0) copy.texts[owned] = { ...copy.texts[owned], owner: { verdict: "ok", text: "", date: "01.11.2026" } };
             copy.texts.push({ ...copy.texts[plain], key: "DRPG.Plant.noSuchKey", en: { ...copy.texts[plain].en, after: null }, kept: null });
+            /* A family whose Polish .one fills fewer placeholders than its English .other: its English .one given the .other's words. */
+            const holes = s => (typeof s === "string" ? [...new Set(s.match(/\{\w+\}/g) ?? [])].sort().join() : null);
+            const family = copy.texts.findIndex((t, i) => ![t0, marked, plain, copyOf, owned].includes(i) && typeof t?.en?.after?.other === "string"
+                && typeof t?.en?.after?.one === "string" && typeof t?.pl?.after?.one === "string" && holes(t.en.after.other) !== holes(t.pl.after.one));
+            if (family >= 0) copy.texts[family] = { ...copy.texts[family], en: { ...copy.texts[family].en, after: { ...copy.texts[family].en.after, one: copy.texts[family].en.after.other } } };
+            else problems.push(`batch: the schema's control found no family to plant T2's fault in (an English .other whose placeholders its Polish .one lacks)`);
             const seen = textRender.batchSchema(copy, against);
             const want = [`(${copy.texts[t0].key}): facts is not a non-empty list`, `(${copy.texts[marked].key}): en.after's placeholders`,
                 `(${copy.texts[plain].key}): en.after adds the digit(s) 7`, `(${copy.texts[plain].key}): en.after is ${limit + 3} words, over the`,
                 `(${copy.texts[copyOf].key}): pl.after is not the pilot's approved after`, "(DRPG.Plant.noSuchKey): not a key",
-                ...(owned >= 0 ? [`(${copy.texts[owned].key}): owner is neither null nor`] : [])];
+                ...(owned >= 0 ? [`(${copy.texts[owned].key}): owner is neither null nor`] : []),
+                ...(family >= 0 ? [`(${copy.texts[family].key}): the afters break T2 (pairParity)`] : [])];
             const unseen = want.filter(w => !seen.some(p => p.includes(w)));
             if (unseen.length) problems.push(`batch: the schema does not see ${unseen.map(w => JSON.stringify(w)).join(", ")} planted in a copy of ${BATCH_FILE} - it would pass a malformed batch`);
         } else problems.push(`batch: the schema's control has nothing to plant in (${texts.length} text(s); a pilot copy ${copyOf >= 0 ? "found" : "missing"}, a written text with a placeholder ${marked >= 0 ? "found" : "missing"})`);

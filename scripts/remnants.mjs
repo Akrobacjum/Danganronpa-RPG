@@ -2311,6 +2311,8 @@ export async function confirmClearFaint({ tokens = null } = {}) {
     }
 
     const sure = await DialogV2.confirm({
+        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        no: { label: game.i18n.localize("DRPG.Dialog.no") },
         window: { title: game.i18n.localize("DRPG.Panel.clearFaint") },
         classes: ["drpg-panel"],
         content: `<p>${plural("DRPG.Panel.faintConfirm", { n: doomed })}</p>

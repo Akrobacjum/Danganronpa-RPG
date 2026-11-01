@@ -30490,7 +30490,9 @@ const INVARIANTS = [
         try {
             await own.render({ force: true });
             await foreign.render({ force: true });
-            read.windows = [own.element?.getAttribute("lang") ?? null, foreign.element?.getAttribute("lang") ?? null];
+            // A window's language is its content's (E66 fix r2: the frame holds Foundry's words), or the element's where there is no frame.
+            const marked = app => ((app.element?.querySelector?.(":scope > .window-content")) ?? app.element)?.getAttribute("lang") ?? null;
+            read.windows = [marked(own), marked(foreign)];
         } finally {
             await own.close().catch(() => null);
             await foreign.close().catch(() => null);
@@ -30515,7 +30517,9 @@ const INVARIANTS = [
         const ROOTS = [["player-status.mjs", "renderPlayerStatus", "el"], ["room-tile.mjs", "ensureRoomTile", "tile"],
             ["sfx.mjs", "renderSoundLauncher", "button"], ["voice-tile.mjs", "buildVoiceTile", "tile"], ["voice-tile.mjs", "buildVoiceList", "list"],
             ["messenger-app.mjs", "renderLauncher", "button"], ["messenger-app.mjs", "buildRoster", "panel"], ["handbooks.mjs", "renderBookLauncher", "button"],
-            ["foundry-windows.mjs", "buildFrame", "head"], ["foundry-windows.mjs", "buildLauncher", "btn"], ["fog.mjs", "renderFloorSwitcher", "nav"]];
+            ["foundry-windows.mjs", "buildFrame", "head"], ["foundry-windows.mjs", "buildLauncher", "btn"], ["fog.mjs", "renderFloorSwitcher", "nav"],
+            // E66 fix r2: the two buttons the module puts into Daggerheart's countdown window's header, whose other words are Daggerheart's.
+            ["projects-ui.mjs", "onRenderCountdowns", "gear"], ["projects-tray.mjs", "addCollapseControl", "button"]];
         read.roots = ROOTS.filter(([file, name, el]) => !new RegExp(`\\bmarkLanguage\\(\\s*${el}\\s*\\)`).test(fn(file, name))).map(([file, name]) => `${file} ${name}`);
         read.frameMarked = /\bmarkLanguage\(\s*frame\s*\)/.test(fn("foundry-windows.mjs", "buildFrame"));
         const DRAWN = ["drpg-player-status", "drpg-room-tile", "drpg-sound-launcher", "drpg-voice-tile", "drpg-voice-list", "drpg-messenger-launcher",
@@ -30524,9 +30528,61 @@ const INVARIANTS = [
         read.drawn = drawn.filter(id => document.getElementById(id).getAttribute("lang") !== page);
         read.frames = ["drpg-win-ftools", "drpg-win-maptools"].map(id => document.getElementById(id)).filter(Boolean)
             .filter(frame => frame.hasAttribute("lang") || frame.querySelector(":scope > header")?.getAttribute("lang") !== page).map(frame => frame.id);
+        /*
+         * E66 fix r2 (review correctness m1, m2), 01.11.2026. A framed window holds Foundry's words beside the module's:
+         * its header's controls (Close, the menu) are Foundry's, in Foundry's language. So the hook marks the module's
+         * title and `.window-content`, not the frame, as fix r1 F1 marked foundry-windows.mjs's header alone; a window
+         * with no `.window-content` (a frameless one, whose element is its content, and every window in the harness,
+         * which draws no frame) is marked whole. A third window of the suite's own draws Foundry's frame itself where the
+         * page drew none (Foundry hands `_replaceHTML` the `.window-content`; the harness the element). A
+         * `DialogV2.confirm`'s footer is inside the content, so every confirm the module opens passes its own Yes and
+         * No (`DRPG.Dialog.yes`, `.no`): Foundry's default labels are Foundry's words. And every DialogV2 the module
+         * opens names a `drpg-` class, or the hook never sees it. Both by source (comments out), each call's object read
+         * to its closing brace. Red at 33662b90: the frame marked whole (its header inside the page's lang), 3 dialogs
+         * with no class (gm-stores.mjs, sheet.mjs, tables.mjs), 17 confirms with Foundry's Yes and No.
+         */
+        class R1153Framed extends ApplicationV2 {
+            async _renderHTML() { return "<p>R1153</p>"; }
+            _replaceHTML(result, content) {
+                if (content.classList?.contains("window-content")) { content.innerHTML = result; return; }
+                content.innerHTML = `<header class="window-header"><h1 class="window-title">R1153</h1><button type="button" class="header-control" `
+                    + `data-action="close" aria-label="Close Window"></button></header><section class="window-content">${result}</section>`;
+            }
+        }
+        const framed = new R1153Framed({ id: `drpg-r1153-framed-${foundry.utils.randomID(6)}`, classes: ["drpg-panel"], window: { title: "R1153" } });
+        try {
+            await framed.render({ force: true });
+            const el = framed.element, header = el?.querySelector?.(":scope > .window-header") ?? null;
+            const inside = node => { const at = node?.closest?.("[lang]"); return at && el.contains(at) ? at.getAttribute("lang") : "inherited"; };
+            read.frame = { element: el?.getAttribute("lang") ?? null, header: header ? inside(header) : "absent",
+                title: header?.querySelector(".window-title")?.getAttribute("lang") ?? null,
+                content: el?.querySelector?.(":scope > .window-content")?.getAttribute("lang") ?? null };
+        } finally {
+            await framed.close().catch(() => null);
+        }
+        let dialogs = 0;
+        read.unclassed = [];
+        read.foundryWords = [];
+        for (const [file, text] of rootSources) {
+            if (/^tests/.test(file)) continue;
+            const src = stripComments(text);
+            const calls = /\bDialogV2\s*\.\s*(confirm|wait|prompt|input)\s*\(\s*\{|\bnew\s+(?:foundry\.applications\.api\.)?DialogV2\s*\(\s*\{/g;
+            for (let m; (m = calls.exec(src));) {
+                let depth = 0, end = m.index + m[0].length - 1;
+                for (; end < src.length; end++) {
+                    if (src[end] === "{") depth += 1;
+                    else if (src[end] === "}") { depth -= 1; if (!depth) break; }
+                }
+                const body = src.slice(m.index, end + 1), at = `${file}:${src.slice(0, m.index).split("\n").length}`;
+                dialogs += 1;
+                if (!/\bclasses\s*:[^\n]*["'`]drpg-/.test(body)) read.unclassed.push(at);
+                if (m[1] === "confirm" && !(/\byes\s*:\s*\{[^}]*\blabel\s*:/.test(body) && /\bno\s*:\s*\{[^}]*\blabel\s*:/.test(body))) read.foundryWords.push(at);
+            }
+        }
+        must(dialogs >= 100, `only ${dialogs} DialogV2 call(s) with an object read in the module's source - the reader is broken`);
         equal(stableJson(read), stableJson({ windows: [page, null], hud: page, notices: page, launcher: page, sheet: true, description: [true, true, true],
-            roots: [], frameMarked: false, drawn: [], frames: [] }),
-            `[on a page built in "${page}": lang on the module's window and on a window not the module's; on the HUD, the notice stack and the GM's launcher; the sheet's render hook marks its root; module.json's description names English, Polish and "Polski"; the builders of the other roots that mark nothing; the Foundry window's frame marked whole; of the ${drawn.length} roots this page has drawn (${drawn.join(", ")}), those whose lang is not the page's; the Foundry windows' frames with a lang of their own or a header without the page's]`);
+            roots: [], frameMarked: false, drawn: [], frames: [], frame: { element: null, header: "inherited", title: page, content: page }, unclassed: [], foundryWords: [] }),
+            `[on a page built in "${page}": lang on the module's window (its content, or the element where it has no frame) and on a window not the module's; on the HUD, the notice stack and the GM's launcher; the sheet's render hook marks its root; module.json's description names English, Polish and "Polski"; the builders of the other roots that mark nothing; the Foundry window's frame marked whole; of the ${drawn.length} roots this page has drawn (${drawn.join(", ")}), those whose lang is not the page's; the Foundry windows' frames with a lang of their own or a header without the page's; a module window with Foundry's frame: the element's lang, the language its header inherits, the title's and the content's; of the ${dialogs} DialogV2 calls in the module's source, those that name no drpg- class, and the confirms that leave Foundry's Yes or No]`);
     }],
 
     ["R1154 - the documents' language is the world's (D196): a world setting `documentLanguage` with the module's languages for choices, not in the settings window, empty by default and written once by the primary GM's first start while empty; utils.mjs `worldLocalize` formats a key from that language's file with the page in the other, and in the page's language where the setting is empty (E66 C1; decision 38 = D34, E66-09)", async () => {
@@ -30804,6 +30860,66 @@ const INVARIANTS = [
         equal(stableJson({ outside, documents: doc ? [doc.default, Object.keys(doc.choices ?? {}).filter(code => code !== "")] : null }),
             stableJson({ outside: [], documents: ["", Object.keys(S.LANGUAGES)] }),
             `[of the ${rows.length} settings of the module with choices, those whose default is not one of them; the documents' language's default and its choices beside the empty one]`);
+    }],
+
+    ["R1165 - Check rooms writes its squares by the page's language (E66 fix r2; the goal review's m4, S18-40, E66-05): fog-diagnostics.mjs `squaresText` writes one decimal through `localeFormat` - \"1,5\" and \"2,0\" on a Polish page, \"1.5\" and \"2.0\" on an English one - and the overlap's squares and depth and a border's squares adrift go through it, with no `toFixed` left in the file", async () => {
+        /*
+         * E66 fix r2, 01.11.2026; the goal review's m4. `finding()` was handed `squares.toFixed(1)` and
+         * `(depth / grid).toFixed(1)` for `DRPG.Fog.check.overlap` and `.adrift`, so a Polish GM read "Około 1.5 kratki" -
+         * the class of `Vault.roomRatio` (fix r1 F4), which T20 does not see (it reads Intl and toLocale*, not toFixed).
+         * The writer is run with the page's language stood in (settings.mjs `setPageLanguage`, put back in a finally);
+         * the callers are read in their source (comments out). Nothing is written. Red at 33662b90 with the writer
+         * taken out of the three calls as it stood (`toFixed(1)`): "1.5" and "2.0" on the Polish page.
+         */
+        const S = await import("./settings.mjs"), F = await import("./fog-diagnostics.mjs");
+        must(typeof F.squaresText === "function", "fog-diagnostics.mjs has no squaresText - Check rooms' squares have no writer to read");
+        const read = {};
+        const was = S.setPageLanguage("pl");
+        try {
+            for (const code of ["pl", "en"]) {
+                S.setPageLanguage(code);
+                read[code] = [F.squaresText(1.5), F.squaresText(2), F.squaresText(0.25)];
+            }
+        } finally {
+            S.setPageLanguage(was);
+        }
+        const src = stripComments((await moduleSources()).get("fog-diagnostics.mjs") ?? "");
+        must(src.length > 1000, "fog-diagnostics.mjs was not read");
+        read.toFixed = (src.match(/\.toFixed\(/g) ?? []).length;
+        read.through = (src.match(/\bsquaresText\(/g) ?? []).length;
+        equal(stableJson(read), stableJson({ pl: ["1,5", "2,0", "0,3"], en: ["1.5", "2.0", "0.3"], toFixed: 0, through: 3 }),
+            "[squaresText of 1.5, 2 and 0.25 on a Polish and on an English page; the toFixed calls left in fog-diagnostics.mjs; its calls of squaresText (the overlap's squares and depth, the border adrift)]");
+    }],
+
+    ["R1166 - a language file that does not load leaves the page in English: i18n.mjs `fetchLanguageFile`, handed a fetch that is refused, one that answers 404 and one that answers a file, on a page stood in as Polish - the first two answer null with the page \"en\" and say so once each, the third answers the file with the page still \"pl\" (E66 fix r2; review correctness m3)", async () => {
+        /*
+         * E66 fix r2, 01.11.2026; review correctness m3. `prefetchLanguage` sets the page's language before the file's
+         * fetch, and a fetch that failed said "the module stays in English" while `pageLanguage()` stayed "pl"; since
+         * E66 `listOf`, `localeFormat` and `markLanguage` read it, so the same failure wrote "A, B i C", Polish dates and
+         * `lang="pl"` into English text. The fetch is handed in, and so is the reporter (no error is logged here); the
+         * page's language is stood in and put back in a finally. Nothing is written. Red at 33662b90 with the fetch moved
+         * into `fetchLanguageFile` as it stood: the page "pl" after the refused and the missing file.
+         */
+        const S = await import("./settings.mjs"), I = await import("./i18n.mjs");
+        must(typeof I.fetchLanguageFile === "function", "i18n.mjs has no fetchLanguageFile - the language file's fetch cannot be run apart from init's");
+        const read = {}, reported = [];
+        const report = message => reported.push(String(message));
+        const ROADS = [["refused", () => Promise.reject(new Error("R1166"))],
+            ["missing", async () => ({ ok: false, status: 404, json: async () => ({}) })],
+            ["loaded", async () => ({ ok: true, status: 200, json: async () => ({ R1166: "R1166" }) })]];
+        const was = S.setPageLanguage("pl");
+        try {
+            for (const [name, fetchFile] of ROADS) {
+                S.setPageLanguage("pl");
+                const json = await I.fetchLanguageFile("pl", { fetchFile, report });
+                read[name] = [json === null ? null : Object.keys(json), S.pageLanguage()];
+            }
+        } finally {
+            S.setPageLanguage(was);
+        }
+        read.reported = reported.length;
+        equal(stableJson(read), stableJson({ refused: [null, "en"], missing: [null, "en"], loaded: [["R1166"], "pl"], reported: 2 }),
+            "[the file's answer and the page's language after a refused fetch, a 404 and a file that loads, on a page stood in as Polish; how many times the failure was reported]");
     }]
 ];
 

@@ -1790,6 +1790,9 @@ export async function backupCase({ ask = false } = {}) {
         const waiting = gmStoreHydration().waiting.map(id => game.users.get(id)?.name ?? id);
         const early = !gmStoresHydrated() && waiting.length;
         const yes = await DialogV2.confirm({
+            classes: ["drpg-panel"],
+            yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+            no: { label: game.i18n.localize("DRPG.Dialog.no") },
             window: { title: game.i18n.localize("DRPG.Case.backupTitle") },
             content: dialogContent(`<p>${esc(game.i18n.localize("DRPG.Case.backupWhat"))}</p>${early
                 ? `<p class="drpg-warning">${esc(game.i18n.format("DRPG.Case.backupEarly", { names: waiting.join(", ") }))}</p>` : ""}`),

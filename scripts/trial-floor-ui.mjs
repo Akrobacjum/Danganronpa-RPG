@@ -550,6 +550,8 @@ export async function endClassTrial() {
         return closeTrial(exit);
     }
     const confirmed = await DialogV2.confirm({
+        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        no: { label: game.i18n.localize("DRPG.Dialog.no") },
         classes: ["drpg-panel"],
         window: { title: game.i18n.localize("DRPG.Floor.endTrial") },
         content: `<p>${game.i18n.localize("DRPG.Floor.endTrialConfirm")}</p>${notChapter}`,
@@ -1792,6 +1794,8 @@ export async function openVoteDialog() {
         const unseen = ballotCopyStatus() !== null;
         if (returned || unseen) {
             const sure = await DialogV2.confirm({
+                yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+                no: { label: game.i18n.localize("DRPG.Dialog.no") },
                 classes: ["drpg-panel"],
                 window: { title: game.i18n.localize("DRPG.Vote.sendAgain") },
                 content: `<p>${unseen ? game.i18n.localize("DRPG.Vote.resendUnseen")

@@ -2229,6 +2229,9 @@ function wirePaneHeading(pane, root, { current, show, nameEl }) {
         // and "delete this table and the fourteen items in it?" deserve
         // different answers, and only one of them is on screen.
         const ok = await foundry.applications.api.DialogV2.confirm({
+            classes: ["drpg-panel"],
+            yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+            no: { label: game.i18n.localize("DRPG.Dialog.no") },
             window: { title: game.i18n.localize("DRPG.Tables.deleteTable") },
             content: `<p>${plural("DRPG.Tables.deleteConfirm", {
                 name: esc(current().name), n: current().results.size

@@ -97,12 +97,25 @@ export function markLanguage(el) {
  * `drpg-table-window`) - gets `markLanguage`. By the classes it was opened with (`options.classes`), not the element's:
  * the module decorates Daggerheart's own windows with `drpg-` classes of its own (the roll dialog's), and their words
  * are Daggerheart's, in Foundry's language. The character sheet is marked by its own render hook (sheet.mjs).
+ *
+ * THE CONTENT AND THE TITLE, NOT THE FRAME (E66 fix r2, 01.11.2026; review correctness m1). A framed window's header
+ * holds Foundry's controls - Close, the menu - whose labels are Foundry's, in Foundry's language; C1 marked the whole
+ * element, so a Polish module on an English Foundry had "Close Window" read with Polish rules. So `.window-content` and
+ * the header's `.window-title` (the module's own title) are marked, as fix r1 F1 marked foundry-windows.mjs's header
+ * alone; a window with no `.window-content` - a frameless one, whose element is its content - is marked whole. A
+ * `DialogV2.confirm`'s buttons sit inside the content, so every confirm the module opens passes its own Yes and No
+ * (`DRPG.Dialog.yes`, `.no`) rather than Foundry's defaults - the smaller sound change than marking each footer
+ * button by whose word it is, which would rest on Foundry's default labels being the keys "Yes" and "No", read from
+ * v13 and not from v14. R1153 holds both, and that every DialogV2 the module opens names a `drpg-` class.
  */
 export function markModuleWindow(app) {
     const classes = app?.options?.classes;
     if (!Array.isArray(classes) || !classes.some(name => typeof name === "string" && name.startsWith("drpg-"))) return;
     const el = app.element instanceof HTMLElement ? app.element : app.element?.[0];
-    markLanguage(el);
+    const content = el?.querySelector?.(":scope > .window-content");
+    if (!content) { markLanguage(el); return; }
+    markLanguage(content);
+    markLanguage(el.querySelector(":scope > .window-header .window-title"));
 }
 
 /* The language files `worldLocalize` has read, by code: a promise of the parsed file, or of null for one that would

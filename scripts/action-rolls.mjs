@@ -5956,6 +5956,8 @@ async function performBetrayal(actor, partner, def, options = {}) {
     const cost = dark && !options.free ? def.cost : 0;
     if (cost > 0 && !canAfford(actor, cost)) return null;
     const confirmed = await DialogV2.confirm({
+        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        no: { label: game.i18n.localize("DRPG.Dialog.no") },
         classes: ["drpg-panel"],
         window: { title: game.i18n.localize("DRPG.Murder.betrayalTitle") },
         content: `<p>${game.i18n.format("DRPG.Murder.betrayalIntro", {
@@ -6013,6 +6015,8 @@ async function performDirectMurder(actor, def, options) {
     const room = roomOfActor(actor);
 
     const confirmed = await DialogV2.confirm({
+        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        no: { label: game.i18n.localize("DRPG.Dialog.no") },
         classes: ["drpg-panel"],
         window: { title: def.label },
         content: `${briefingBlock(actor, "directMurder", def)}

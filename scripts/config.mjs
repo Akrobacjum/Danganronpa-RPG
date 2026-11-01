@@ -1597,12 +1597,13 @@ export const ACTIONS = {
         hint: "Work on an unfinished project here, propose a new one, or sabotage one. A Work or a Sabotage costs an "
             + "action, and a critical Work gives it back; proposing costs none, and a new project is created only once "
             + "a GM approves it.",
-        // The room requirement is not written here any more. `roomBlockFor()`
-        // refuses the roll where it applies and says why, the tile greys out
-        // before that, and the project list in the window is already the list
-        // of what is workable from where you stand - three places that state it
-        // at the moment it binds, against one paragraph that stated it in
-        // advance and made this the longest text in the module.
+        // The room requirement is one word here, "here" (B01a, approved
+        // 01.11.2026), not the paragraph that stated it in advance and made
+        // this the longest text in the module. `roomBlockFor()` refuses the
+        // roll where it applies and says why, the tile greys out before that,
+        // and the project list in the window is already the list of what is
+        // workable from where you stand - three places that state it at the
+        // moment it binds.
         description: "A project takes several actions, usually over several times of day: each Work costs one and adds "
             + "a little progress. An indirect murder is a project too, with rolls to hide your intent from anyone "
             + "present and the Remnants each Work leaves.",
@@ -1644,9 +1645,11 @@ export const ACTIONS = {
         cost: 1,
         // "Bedroom only" was wrong, not just long: a Long Rest asks for a room
         // the GM flagged for it in Room Setup, which may be anybody's room or
-        // nobody's. The dialog prices Short against Long and names the rooms
-        // that allow each - see `DRPG.Rest.allowedIn` - so both the costs and
-        // the room live where they are checked.
+        // nobody's. The hint says both in general words since B01a (the
+        // pilot's pair 3, approved 01.11.2026): a Short Rest costs an action, a
+        // Long Rest more, and each needs a room the GM marked. The numbers and
+        // the rooms' names live where they are checked: the dialog prices Short
+        // against Long and names the rooms that allow each (`DRPG.Rest.allowedIn`).
         hint: "Recover Health, Sanity, or Hope. A Short Rest costs an action, once each time of day; a Long Rest costs "
             + "more actions and recovers more, once each session. Each needs a room the GM has marked for it.",
         description: "Choose from Sleep (Health), a Meal (Sanity), and a Breath (Hope). A Long Rest lets you pick more "
@@ -3564,7 +3567,7 @@ export const CRISIS_ACTIONS = {
         },
         remnant: { hope: "hidden", despair: "subtle", critical: null },
         failure: "Nothing on a Hope failure. On Despair you still take {stress} Sanity off them and "
-            + "leave an Evident Remnant; a critical failure leaves an Obvious one.",
+            + "leave an Evident Remnant.",
         failureDamage: { despair: { stress: 1 } },
         failureRemnant: { despair: "evident", critical: "obvious" }
     },

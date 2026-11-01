@@ -1541,6 +1541,8 @@ function injectInitButton(app, element) {
 
     button.addEventListener("click", async () => {
         const confirmed = await foundry.applications.api.DialogV2.confirm({
+            yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+            no: { label: game.i18n.localize("DRPG.Dialog.no") },
             window: { title: game.i18n.localize("DRPG.Character.initTitle") },
             classes: ["drpg-panel", "drpg-narrow"],
             content: `<p>${game.i18n.format("DRPG.Character.initConfirm", {
@@ -2772,6 +2774,9 @@ function buildOtherSection(box, actor, app) {
             button.innerHTML = `<i class="fa-solid fa-trash" inert></i>`;
             button.addEventListener("click", async () => {
                 const sure = await foundry.applications.api.DialogV2.confirm({
+                    classes: ["drpg-panel"],
+                    yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+                    no: { label: game.i18n.localize("DRPG.Dialog.no") },
                     window: { title: tip },
                     content: `<p>${game.i18n.format("DRPG.Sheet.otherRemoveAsk", {
                         item: foundry.utils.escapeHTML(item.name), actor: foundry.utils.escapeHTML(actor.name) })}</p>`,

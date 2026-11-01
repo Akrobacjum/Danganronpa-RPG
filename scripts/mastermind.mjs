@@ -409,6 +409,8 @@ export async function toggleFinalTrialFlag() {
     const next = !inFinalTrial();
 
     const sure = await DialogV2.confirm({
+        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        no: { label: game.i18n.localize("DRPG.Dialog.no") },
         window: { title: game.i18n.localize("DRPG.Mastermind.toggleFinalTrial") },
         classes: ["drpg-panel"],
         content: `<p>${game.i18n.localize(
