@@ -104,6 +104,14 @@ export const KINDS = Object.freeze(["override", "hook", "setting-entry", "flag",
  * every world without it. (It was only recommended then; since E13 C10 this module
  * does not start without it.)
  */
+/* A class's name and its ancestors', the class first, to the first that is no class of its own (Function.prototype); 32 at most. */
+const classChain = Class => {
+    const names = [];
+    for (let C = Class; typeof C === "function" && C !== Function.prototype && names.length < 32; C = Object.getPrototypeOf(C)) {
+        names.push(C.name || "(anonymous)");
+    }
+    return names;
+};
 /* The countdown tray's class, as projects-ui.mjs `wrapCountdownMenu` finds it. */
 const trayClass = () => {
     const Tray = game.system?.api?.applications?.ui?.DhCountdowns ?? CONFIG.ui?.countdowns ?? null;
@@ -576,12 +584,22 @@ export const PATCHES = [
         symbol: "registerTokenRuler",
         why: "The line a token's move draws wears the hour's colour, the room outline's (E51 C3; the owner's report of 11.10).",
         when: "always, from init",
-        fallback: "no ruler class there: a token's ruler keeps Foundry's colour",
+        fallback: "no ruler class there: no token ruler to colour; a ruler class with no HourTokenRuler in its chain: a token's ruler keeps the colour that class gives it, Foundry's or another module's",
         probe: () => {
             const Ruler = CONFIG.Token?.rulerClass;
             // No class is a Foundry (or the harness) with no token ruler to colour: unknown, never failed (LIVE-E51-02).
             if (typeof Ruler !== "function") return { present: null, ours: null, state: "unknown", note: "no token ruler class here" };
-            return { present: true, ours: Ruler.name === "HourTokenRuler" };
+            /* THE MODULE'S CLASS ANYWHERE IN THE CHAIN (E37 C4b, 01.11.2026; the owner's table, 1.2.96 on Foundry 14.365).
+               The row asked the top class's name alone, and failed - "another function stands where the module's was" -
+               where Isometric Perspective had subclassed the module's ruler: the owner's console read the chain
+               TokenRulerIsometric > HourTokenRuler > DhpTokenRuler > TokenRuler > BaseTokenRuler, and the moving token's
+               line wore the hour's colour. A subclass keeps the module's styles unless it overrides them, so the row is
+               ok while HourTokenRuler stands anywhere in the chain, and its note names the class over it; with none of
+               ours in the chain it fails as before, the chain named. R1203. */
+            const chain = classChain(Ruler);
+            const at = chain.indexOf("HourTokenRuler");
+            if (at < 0) return { present: true, ours: false, note: `no HourTokenRuler in the ruler class's chain: ${chain.join(" > ")}` };
+            return { present: true, ours: true, ...(at > 0 ? { note: `${chain[at - 1]} stands over the module's HourTokenRuler (${chain.join(" > ")})` } : {}) };
         }
     },
     {

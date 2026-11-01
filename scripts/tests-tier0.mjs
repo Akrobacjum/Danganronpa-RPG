@@ -18421,6 +18421,50 @@ const REGRESSIONS = [
             + "key: READY_KEY is the setting's own name; guards: the first guard of ready.open, ready.answer, ready.end; answer: the answer's "
             + "whitelist; answers: how each is answered}");
     }],
+    ["R1203 - the contract's row \"token-ruler\" reads the whole chain of the ruler class (E37 C4b; the owner's table, 1.2.96 on Foundry 14.365): ok while the module's HourTokenRuler stands anywhere in it, with a note naming the class over it; failed, the chain named, when none of ours is in it; unknown with no class", async () => {
+        /*
+         * E37 C4b, 01.11.2026. At the owner's table (1.2.96, Foundry 14.365) the row failed - "another function stands where
+         * the module's was" - while CONFIG.Token.rulerClass's chain was TokenRulerIsometric > HourTokenRuler > DhpTokenRuler
+         * > TokenRuler > BaseTokenRuler (Isometric Perspective subclassed the module's class) and the moving token's line
+         * wore the hour's colour: the probe asked the top class's name alone. Read here on classes of this test's own,
+         * named as that chain, set as CONFIG.Token.rulerClass for the reading and put back after; the row judged by
+         * patches.mjs `runContract` on it alone (a run over rows handed in is not kept as the load's). Four chains: the
+         * owner's, the same with no HourTokenRuler (failed before and after), the module's class on top, and no class.
+         * Red at 2230c1fa: the owner's chain read failed.
+         */
+        const P = await import("./patches.mjs");
+        const row = P.PATCHES.find(r => r.id === "token-ruler");
+        must(row && typeof row.probe === "function", "the contract has no row token-ruler - this test reads nothing");
+        class BaseTokenRuler {}
+        class TokenRuler extends BaseTokenRuler {}
+        class DhpTokenRuler extends TokenRuler {}
+        class HourTokenRuler extends DhpTokenRuler {}
+        class TokenRulerIsometric extends HourTokenRuler {}
+        // The same name over Daggerheart's class, with no HourTokenRuler between them.
+        const IsometricAlone = { TokenRulerIsometric: class extends DhpTokenRuler {} }.TokenRulerIsometric;
+        const hadToken = Object.hasOwn(CONFIG, "Token"), token = CONFIG.Token, ruler = token?.rulerClass;
+        const read = Ruler => {
+            CONFIG.Token = { ...(token ?? {}), rulerClass: Ruler };
+            const [r] = P.runContract({ rows: [row] }).rows;
+            return [r.state, r.ours, r.note];
+        };
+        let got;
+        try {
+            got = { wrapped: read(TokenRulerIsometric), without: read(IsometricAlone), top: read(HourTokenRuler), none: read(undefined) };
+        } finally {
+            if (hadToken) CONFIG.Token = token;
+            else delete CONFIG.Token;
+        }
+        equal(JSON.stringify(got), JSON.stringify({
+            wrapped: ["ok", true, "TokenRulerIsometric stands over the module's HourTokenRuler (TokenRulerIsometric > HourTokenRuler > DhpTokenRuler > TokenRuler > BaseTokenRuler)"],
+            without: ["failed", false, "no HourTokenRuler in the ruler class's chain: TokenRulerIsometric > DhpTokenRuler > TokenRuler > BaseTokenRuler"],
+            top: ["ok", true, ""],
+            none: ["unknown", null, "no token ruler class here"]
+        }), "[state, ours, note] of the row token-ruler with the ruler class: the owner's chain (Isometric Perspective over the module's class), "
+            + "the same chain with no HourTokenRuler, the module's class on top, no class");
+        equal(JSON.stringify([CONFIG.Token === token, CONFIG.Token?.rulerClass === ruler]), JSON.stringify([true, true]),
+            "the test did not put CONFIG.Token.rulerClass back as it found it");
+    }],
 ];
 
 

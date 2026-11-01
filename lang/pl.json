@@ -6852,7 +6852,7 @@
         "selection-controlled-colour": "ramki tokenów zostają pomarańczowe, jak w Foundry",
         "countdown-row-menu": "menu wiersza projektu jest menu Daggerheart: widać Reveal i Hide, a Delete usuwa tylko odliczanie",
         "door-controls": "każdy znacznik drzwi jest pokazywany tak, jak pokazuje go Foundry",
-        "token-ruler": "linijka ruchu żetonu zostaje w kolorze Foundry",
+        "token-ruler": "linijka ruchu żetonu zostaje w kolorze, który daje jej Foundry albo inny moduł",
         "actions-resource": "postać nie ma zasobu Akcji",
         "sidebar-calls": "własne wywołania Foundry ani nie pokazują, ani nie ustawiają okna narzędzi Foundry",
         "relay-guard": "prośby z Daggerheart gracza, których moduł nie przejrzał, są odrzucane w przeglądarce GM-a, a GM-owie dostają o tym wiadomość raz na wersję; gdzie strażnik nie może stanąć wcale, przekaźnik nie jest strzeżony, a GM-owie są o tym informowani przy każdym wczytaniu",
