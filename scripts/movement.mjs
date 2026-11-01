@@ -3103,7 +3103,7 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
         ? game.i18n.localize("DRPG.Move.wasFree")
         : cost === "sprint"
             ? plural("DRPG.Move.wasSprint", { n: freeMovesLeft(actor) })
-            : game.i18n.format("DRPG.Move.costAction", { left: actionsLeft(actor) });
+            : plural("DRPG.Move.costAction", { left: actionsLeft(actor) }, "left");
 
     if (tokenDoc) lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
 

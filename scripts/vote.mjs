@@ -1284,14 +1284,15 @@ async function closeRound(progress) {
        hidden from a screen reader, which has the count beside it. */
     const share = n => Math.round(100 * n / Math.max(1, issued));
     const esc = foundry.utils.escapeHTML;
+    // The two that count ballots are plural families on {total} (E66 C3, the census); the one-name line is a ratio.
+    const accusing = { names: accused.map(r => esc(named(r.id))).join(", "), n: Math.min(...accused.map(r => r.n)), total: issued };
     const sentence = noMajority
-        ? game.i18n.format("DRPG.Vote.noMajority", { majority, total: issued })
+        ? plural("DRPG.Vote.noMajority", { majority, total: issued }, "total")
         : tied
             ? game.i18n.localize("DRPG.Vote.tied")
-            : game.i18n.format(accused.length > 1 ? "DRPG.Vote.accusesLineMany" : "DRPG.Vote.accusesLine", {
-                names: accused.map(r => esc(named(r.id))).join(", "),
-                n: Math.min(...accused.map(r => r.n)), total: issued
-            });
+            : accused.length > 1
+                ? plural("DRPG.Vote.accusesLineMany", accusing, "total")
+                : game.i18n.format("DRPG.Vote.accusesLine", accusing);
     await announce({
         flags: { [MODULE_ID]: { sfx: { key: "verdict", gm: true } } },
         content: `<div class="drpg-evidence-card">

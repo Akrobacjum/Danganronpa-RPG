@@ -24,7 +24,7 @@ import { MODULE_ID, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT, ECLIPSE_MOVES, TIMING,
 import { overflowCrossings } from "./overflow.mjs";
 import { getClock, setClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay, boundaryStamp } from "./clock.mjs";
 import { play, TURN, ARRIVE, LEAVE } from "./motion.mjs";
-import { isPrimaryGm, error, debug, serverNow, tickerRuns, markLanguage } from "./utils.mjs";
+import { isPrimaryGm, error, debug, serverNow, tickerRuns, markLanguage, plural } from "./utils.mjs";
 import { isSyncedSetting } from "./sync.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
@@ -1334,11 +1334,12 @@ function buildTimeRow(clock, isGM) {
             ? game.i18n.localize("DRPG.Hud.endEclipse")
             : body ? game.i18n.localize("DRPG.Eclipse.bodyFirst")
             : incident ? game.i18n.localize("DRPG.Eclipse.incidentFirst")
-            : game.i18n.format(
-                index === TIMES_OF_DAY.length - 1 ? "DRPG.Hud.startEclipseNewSession"
-                    : free ? "DRPG.Hud.startEclipseFree"
-                        : "DRPG.Hud.startEclipseNamed",
-                { time: timeOfDayLabel(incoming), n: overflowCrossings(ECLIPSE_MOVES) ?? ECLIPSE_MOVES });
+            // The two that count the crossings are plural families on {n} (E66 C3; S10-69, E66-14): the last time of
+            // day's said "(2 crossings)" whatever the count was. The free Eclipse names no count.
+            : free && index !== TIMES_OF_DAY.length - 1
+                ? game.i18n.format("DRPG.Hud.startEclipseFree", { time: timeOfDayLabel(incoming) })
+                : plural(index === TIMES_OF_DAY.length - 1 ? "DRPG.Hud.startEclipseNewSession" : "DRPG.Hud.startEclipseNamed",
+                    { time: timeOfDayLabel(incoming), n: overflowCrossings(ECLIPSE_MOVES) ?? ECLIPSE_MOVES });
 
         row.append(control(
             eclipseRunning ? "fa-play" : "fa-chevron-right",
@@ -1649,7 +1650,7 @@ let elapsedTimer = null;
 function buildElapsed() {
     const el = document.createElement("div");
     el.className = "drpg-hud-elapsed";
-    el.dataset.tooltip = game.i18n.format("DRPG.Hud.elapsedTooltip", { first: MARK_FIRST_ACTION / 60000, second: MARK_SECOND_ACTION / 60000 });
+    el.dataset.tooltip = plural("DRPG.Hud.elapsedTooltip", { first: MARK_FIRST_ACTION / 60000, second: MARK_SECOND_ACTION / 60000 }, "first");
     paintElapsed(el);
 
     clearInterval(elapsedTimer);

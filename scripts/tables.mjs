@@ -986,7 +986,7 @@ export async function installTables({ overwrite = false, prompt = true } = {}) {
             const choice = await DialogV2.wait({
                 window: { title: game.i18n.localize("DRPG.Panel.installTables") },
                 classes: ["drpg-panel"],
-                content: `<p>${game.i18n.format("DRPG.Tables.allPresent", { n: present.length })}</p>
+                content: `<p>${plural("DRPG.Tables.allPresent", { n: present.length })}</p>
                           <p class="notes">${game.i18n.localize("DRPG.Tables.rebuildNote")}</p>`,
                 buttons: [
                     { action: "keep", label: game.i18n.localize("DRPG.Tables.keep"), default: true },
@@ -998,7 +998,7 @@ export async function installTables({ overwrite = false, prompt = true } = {}) {
 
             if (!choice || choice === "cancel") return null;
             if (choice === "keep") {
-                ui.notifications.warn(game.i18n.format("DRPG.Tables.allPresent", { n: present.length }));
+                ui.notifications.warn(plural("DRPG.Tables.allPresent", { n: present.length }));
                 await openTablesTab();
                 return { created: [], skipped: present.map(j => existingTableName(j.category, j.tier, j.goal)), failed: [] };
             }
@@ -2230,7 +2230,7 @@ function wirePaneHeading(pane, root, { current, show, nameEl }) {
         // different answers, and only one of them is on screen.
         const ok = await foundry.applications.api.DialogV2.confirm({
             window: { title: game.i18n.localize("DRPG.Tables.deleteTable") },
-            content: `<p>${game.i18n.format("DRPG.Tables.deleteConfirm", {
+            content: `<p>${plural("DRPG.Tables.deleteConfirm", {
                 name: esc(current().name), n: current().results.size
             })}</p>`,
             rejectClose: false, modal: true

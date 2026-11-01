@@ -21,7 +21,7 @@ import { SETTINGS } from "./settings.mjs";
 import { pendingCalls, situationalAdvantage } from "./call-effects.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isBrokenDown } from "./character.mjs";
-import { debug, plural, warn } from "./utils.mjs";
+import { debug, plural, warn, listOf } from "./utils.mjs";
 // One string, and nothing in action-rolls.mjs reaches back here - the roll
 // dialog is opened BY the system, not by that file.
 import { DRPG_ACTION_ROLL, TRAIT_BY_GM } from "./action-rolls.mjs";
@@ -150,7 +150,8 @@ function showWaitingCalls(root, app, actor) {
         note.className = "drpg-calls-waiting hint";
         (root.querySelector(".roll-dialog-container") ?? root).append(note);
     }
-    const what = [...new Set(waiting.map(entry => game.i18n.localize(`DRPG.Calls.grants.${entry.grants}`)))].join(", ");
+    // The nominative after the host's colon (call-effects.mjs `grantWords`, E66 C3), joined by `listOf` (EN2).
+    const what = listOf([...new Set(waiting.map(entry => game.i18n.localize(`DRPG.Calls.grantsNom.${entry.grants}`)))]);
     note.textContent = game.i18n.format("DRPG.Calls.waitsNextRoll", { what });
 }
 
@@ -1157,7 +1158,7 @@ function explainAdvantage(sign, count, capped, sources) {
         { n: count, sources: list });
 
     return capped
-        ? `${text} ${game.i18n.format("DRPG.RollDialog.advantageCapped", { cap: ADVANTAGE_CAP })}`
+        ? `${text} ${plural("DRPG.RollDialog.advantageCapped", { cap: ADVANTAGE_CAP }, "cap")}`
         : text;
 }
 

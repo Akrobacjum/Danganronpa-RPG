@@ -19,7 +19,7 @@ import { witnessesOf } from "./chapter.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { flagsHeldNow } from "./sheet-audit.mjs";
 import { inClassTrial } from "./trial.mjs";
-import { esc, log, debug, error, whisperToOwner, whisperToGms, announce, ownerIdsOf, gmIds, activeGmIds, primaryGmId, isPrimaryGm, dialogContent } from "./utils.mjs";
+import { esc, log, debug, error, whisperToOwner, whisperToGms, announce, ownerIdsOf, gmIds, activeGmIds, primaryGmId, isPrimaryGm, dialogContent, plural } from "./utils.mjs";
 import { knowsOfDeath } from "./incident-store.mjs";
 import { sayNotDone } from "./bridge-guards.mjs";
 
@@ -956,7 +956,9 @@ export async function onFriskPacket(payload, senderId) {
     if (payload.notice) {
         const s = Number(payload.s) || 0;
         const key = `DRPG.Frisk.${payload.notice === "kept" ? "gmKept" : "gmIncident"}${s > 0 ? "" : "Now"}`;
-        toast(game.i18n.format(key, { who: payload.who ?? "", target: payload.name ?? "", s }));
+        // The two with a count of seconds are plural families on {s} (E66 C3, the census); the "Now" twins name none.
+        const data = { who: payload.who ?? "", target: payload.name ?? "", s };
+        toast(game.i18n.has(`${key}.other`) ? plural(key, data, "s") : game.i18n.format(key, data));
         return true;
     }
     openAskWindow(payload).catch(err => error("Could not open a Frisk's window", err));
@@ -1002,7 +1004,7 @@ async function openAskWindow({ askId, who = "", name = "", ms = 0, force = false
     askWindows.set(askId, open);
     const text = [byGms ? say("DRPG.Frisk.gmFor", { name }) : "",
         say(force ? "DRPG.Frisk.askText" : "DRPG.Frisk.askTextAskOnly", { who, name }),
-        `<p><small>${game.i18n.format("DRPG.Frisk.askClock", { s: Math.round((Number(ms) || 0) / 1000) })}</small></p>`].join("");
+        `<p><small>${plural("DRPG.Frisk.askClock", { s: Math.round((Number(ms) || 0) / 1000) }, "s")}</small></p>`].join("");
     const { DialogV2 } = foundry.applications.api;
     let answer = null;
     try {
@@ -1044,7 +1046,7 @@ async function askToForce(def, forceMs) {
         const picked = await DialogV2.wait({
             window: { title: game.i18n.localize("DRPG.Frisk.forceTitle") },
             classes: ["drpg-panel"],
-            content: dialogContent(say("DRPG.Frisk.forceText", { force: def?.frisk?.threshold, s: Math.round(forceMs / 1000) })),
+            content: dialogContent(`<p>${plural("DRPG.Frisk.forceText", { force: esc(def?.frisk?.threshold ?? ""), s: Math.round(forceMs / 1000) }, "s")}</p>`),
             rejectClose: false,
             buttons: [
                 { action: "leave", label: game.i18n.localize("DRPG.Frisk.leave"), default: true },

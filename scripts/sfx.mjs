@@ -61,7 +61,7 @@
 import { MODULE_ID, FLAGS, SFX_EVENTS, SFX_CATEGORIES, SFX_SLIDERS, SFX_VOLUME_KEYS,
     SFX_VARIATION, GAME_WINDOWS } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
-import { log, warn, error, clamp, ownerOf, esc} from "./utils.mjs";
+import { log, warn, error, clamp, ownerOf, esc, plural, markLanguage } from "./utils.mjs";
 import { cardFlag, cardWriter, wordsOf, secretHtml, isVeiled, SECRET_FLAG } from "./secret.mjs";
 import { count } from "./perf-counters.mjs";
 
@@ -1222,6 +1222,8 @@ export function renderSoundLauncher() {
         const button = document.createElement("button");
         button.type = "button";
         button.id = LAUNCHER_ID;
+        // Its language, the page's (E66 C3; C1's `lang` on the module's containers, STATUS Open 3).
+        markLanguage(button);
 
         // Under the Stained Glass theme this is the settings button: the two
         // volumes plus the look of this browser, in one window (see look.mjs).
@@ -1350,8 +1352,7 @@ export function soundEffectsHtml() {
             // how many files this event draws from, and whether it bends.
             const badges = [
                 many > 1
-                    ? `<span class="drpg-sfx-badge">${game.i18n.format(
-                        "DRPG.Sound.fileCount", { n: many })}</span>`
+                    ? `<span class="drpg-sfx-badge">${plural("DRPG.Sound.fileCount", { n: many })}</span>`
                     : "",
                 event.vary
                     ? `<span class="drpg-sfx-badge" data-tooltip="${esc(game.i18n.localize(
@@ -1415,7 +1416,7 @@ function groupCountLine(category) {
 /** "12 of 35 events have a file." - the empty state, said as a number. */
 function countLine() {
     const keys = Object.keys(SFX_EVENTS);
-    return game.i18n.format("DRPG.Sound.assigned", {
+    return plural("DRPG.Sound.assigned", {
         n: keys.filter(key => soundFor(key)).length,
         total: keys.length
     });

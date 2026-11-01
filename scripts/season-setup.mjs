@@ -1368,7 +1368,7 @@ function roomImagesSection(found, esc, probeMs = ROOM_IMAGE_LIMITS.probeMs) {
         found.large.length && game.i18n.format("DRPG.Panel.checksImagesLarge", { side: ROOM_IMAGE_LIMITS.side,
             mb: mb(ROOM_IMAGE_LIMITS.bytes), rooms: found.large.map(sized).join("; ") }),
         found.unknownSize.length && game.i18n.format("DRPG.Panel.checksImagesUnknown", { rooms: listOf(found.unknownSize) }),
-        found.late?.length && game.i18n.format("DRPG.Panel.checksImagesLate", { s: probeMs / 1000, rooms: listOf(found.late) })
+        found.late?.length && plural("DRPG.Panel.checksImagesLate", { s: probeMs / 1000, rooms: listOf(found.late) }, "s")
     ].filter(Boolean);
     return lines.length ? `<h3>${esc(game.i18n.localize("DRPG.Panel.checksImages"))}</h3>
             ${lines.map(line => `<p class="drpg-check-report">${esc(line)}</p>`).join("")}` : "";

@@ -430,7 +430,7 @@ function briefingFacts(actor, actionKey, def, extraFacts = []) {
             // will really take.
             actionKey === "tamper" ? tamperQuote(actor) : quotePrice(actor, actionKey)));
     } else if (cost > 0) {
-        facts.push(game.i18n.format("DRPG.Action.willCost", { n: cost, left: actionsLeft(actor) }));
+        facts.push(plural("DRPG.Action.willCost", { n: cost, left: actionsLeft(actor) }));
     }
 
     // Not for a project's roll (E32+E07 C11d): Projects and Sabotage list the four a

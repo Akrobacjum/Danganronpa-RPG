@@ -68,7 +68,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, whisperToGms, debug, warn, error, serialWrite } from "./utils.mjs";
+import { isPrimaryGm, whisperToGms, debug, warn, error, serialWrite, plural } from "./utils.mjs";
 import { senderOf, tellRefused } from "./bridge-guards.mjs";
 
 const GM_UPDATE = "DhGMUpdate";
@@ -1159,7 +1159,7 @@ function noteBusyFear(sender, steps) {
     const now = Date.now();
     if (now - (lastWarned.get(key) ?? 0) < WARN_EVERY_MS) return;
     lastWarned.set(key, now);
-    ui.notifications?.info(game.i18n.format("DRPG.Relay.busyFear", { name: plainWhat(sender.name), steps }));
+    ui.notifications?.info(plural("DRPG.Relay.busyFear", { name: plainWhat(sender.name), steps }, "steps"));
 }
 
 /**

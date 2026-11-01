@@ -437,7 +437,7 @@ export function incidentTrackerHtml(now, cleanup) {
         <p>${game.i18n.format("DRPG.Murder.victimMarks", {
             hp: left("hitPoints"), stress: left("stress")
         })}</p>
-        <p>${game.i18n.format("DRPG.Murder.keyCount", { n: now.keyRemnants })}</p>
+        <p>${plural("DRPG.Murder.keyCount", { n: now.keyRemnants })}</p>
         ${cleanupSection(killerIds(now).map(id => game.actors.get(id)).filter(Boolean), cleanup)}</div>`;
 }
 

@@ -1120,7 +1120,7 @@ export function trialConsoleHtml(view) {
                 : floor.mode === FLOOR_MODES.closing
                     // The Closing Argument (E70 C8): its speaker and seconds, or its phase's line for the table.
                     ? `<p>${floor.holderId
-                        ? game.i18n.format("DRPG.Floor.closing.holding", { who: esc(holder?.name ?? "-"), seconds: Math.max(left, 0) })
+                        ? plural("DRPG.Floor.closing.holding", { who: esc(holder?.name ?? "-"), seconds: Math.max(left, 0) }, "seconds")
                         : esc(game.i18n.localize("DRPG.Floor.mode.closing"))}</p>`
                 : floor.mode === FLOOR_MODES.objection
                     // E79 C16: an Objection raised and still waiting for its Truth Bullet runs the seconds to pick.
@@ -1282,8 +1282,8 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                         // After an Overrule (E70 C2): the same button, the debate again with the time it had.
                         // The seconds it opens with, at least 30 (`debateSeconds`, E51 C6), as `openAgain` opens it.
                         ? { action: "openAgain", default: isDefault("openAgain"),
-                            label: game.i18n.format("DRPG.Floor.againAfterOverrule", { seconds: Number(progress.againAfterOverrule.seconds) > 0
-                                ? debateSeconds(progress.againAfterOverrule.seconds) : 0 }) }
+                            label: plural("DRPG.Floor.againAfterOverrule", { seconds: Number(progress.againAfterOverrule.seconds) > 0
+                                ? debateSeconds(progress.againAfterOverrule.seconds) : 0 }, "seconds") }
                         : progress.debateAgain
                             // After its exchange closed it (E70 C3): the same question and budget, no window.
                             ? { action: "reopen", default: isDefault("reopen"), label: game.i18n.localize("DRPG.Floor.againSame") }

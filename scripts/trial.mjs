@@ -50,7 +50,7 @@ import { SETTINGS, isMutedDead } from "./settings.mjs";
 import { truthBulletData, isTruthBullet, bulletDescription, bulletAsHeld, unanalysedType, secretOf } from "./truth-bullets.mjs";
 import { showPopup, OVERRULED_FLAG, overruledStamp } from "./popup.mjs";
 import { announce, dialogContent, isPrimaryGm, log, error, tableDialog,
-    whisperToOwner, serialWrite, serverNow, esc, localeFormat } from "./utils.mjs";
+    whisperToOwner, serialWrite, serverNow, esc, localeFormat, plural } from "./utils.mjs";
 // The price of an interruption, quoted where it is about to be shown (T-1).
 import { quotePrice, priceLine, payPrice, refundPrice, paidLine, priceLabel } from "./price.mjs";
 // The question alone, with no toast: this decides a button, and a window that
@@ -1396,7 +1396,7 @@ async function pickObjectionEvidence(actor, { target, messageId }) {
         const floor = trialFloor();
         return pendingFor(floor, actor.id, messageId) ? Math.ceil(msLeft(floor) / 1000) : 0;
     };
-    const countLine = () => game.i18n.format("DRPG.Trial.objectionPickCount", { seconds: left() });
+    const countLine = () => plural("DRPG.Trial.objectionPickCount", { seconds: left() }, "seconds");
     // An Objection in the Closing Argument names the decision its exchange ends in (E70 C8; E70-53, TR24).
     const { closingOf } = await import("./floor-machine.mjs");
     // The Present's choice, with or without the Analyze result (E70 C10; Q-p2-3), where any bullet offered has one to hide.
@@ -1416,9 +1416,8 @@ async function pickObjectionEvidence(actor, { target, messageId }) {
             <label>${game.i18n.localize("DRPG.Trial.comment")}
                 <textarea name="comment" rows="2"
                     placeholder="${game.i18n.localize("DRPG.Trial.commentPlaceholder")}"></textarea></label>
-            <p class="drpg-warning">${game.i18n.format("DRPG.Trial.objectionWarning", {
-                objection: TRIAL.objectionSeconds, rebuttal: TRIAL.rebuttalSeconds
-            })}</p>
+            <p class="drpg-warning">${plural("DRPG.Trial.objectionWarning", { objection: TRIAL.objectionSeconds }, "objection")} ${
+                plural("DRPG.Trial.objectionWarningRebuttal", { rebuttal: TRIAL.rebuttalSeconds }, "rebuttal")}</p>
             ${decisionLine}
             <p class="notes">${countLine()}</p>
         </form>`),
@@ -1622,13 +1621,13 @@ export async function openObjectionLog() {
         </tr>`).join("");
 
         return `<div class="drpg-objection-live">
-            <p>${game.i18n.format("DRPG.Trial.logSummary", {
+            <p>${plural("DRPG.Trial.logSummary", {
                 total: entries.length,
                 // The ones that actually took the floor. A refused card is listed
                 // in the table below and says so, so the count and the rows do not
                 // have to mean the same thing.
                 objections: entries.filter(e => e.objection && !e.refused && !e.withdrawn).length
-            })}</p>
+            }, "total")}</p>
             <table class="drpg-objection-log"><thead><tr>
                 <th>${game.i18n.localize("DRPG.Trial.logKind")}</th>
                 <th>${game.i18n.localize("DRPG.Trial.logWho")}</th>

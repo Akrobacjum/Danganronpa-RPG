@@ -1297,7 +1297,7 @@ function actionPips(actor, { left, max, spentActions, fresh, viewer = false }) {
                 set();
             });
         } else if (!viewer) {
-            pip.dataset.tooltip = game.i18n.format("DRPG.Actions.pipReadOnly", { left, max: budget });
+            pip.dataset.tooltip = plural("DRPG.Actions.pipReadOnly", { left, max: budget }, "max");
         }
         pips.push(pip);
     }
@@ -1376,11 +1376,12 @@ function pendingStack(actor) {
         // its badge. The armed entry has carried the call's key all along; the
         // phrase stays as the fallback for an entry old enough not to.
         const call = (despair ? DESPAIR_CALLS : HOPE_CALLS)[entry.key];
-        const label = call?.label ?? game.i18n.localize(`DRPG.Calls.grants.${entry.grants}`);
+        // The nominative, standing alone on the badge and after the tooltip's colon (call-effects.mjs `grantWords`, E66 C3).
+        const label = call?.label ?? game.i18n.localize(`DRPG.Calls.grantsNom.${entry.grants}`);
         const badge = document.createElement("div");
         badge.className = `drpg-pending-call drpg-pending-${despair ? "despair" : "hope"}`;
         badge.dataset.tooltip = game.i18n.format("DRPG.Calls.pendingTooltip", {
-            what: game.i18n.localize(`DRPG.Calls.grants.${entry.grants}`)
+            what: game.i18n.localize(`DRPG.Calls.grantsNom.${entry.grants}`)
         });
         badge.innerHTML = `<i class="fa-solid ${despair ? "fa-skull" : "fa-hand-sparkles"}" inert></i>
                            <span>${foundry.utils.escapeHTML(label)}</span>`;
@@ -3948,9 +3949,9 @@ function budgetLine(actor) {
     line.className = "notes drpg-keep drpg-budget-line";
 
     const left = actionsLeft(actor);
-    const parts = [game.i18n.format("DRPG.Actions.leftOf", {
+    const parts = [plural("DRPG.Actions.leftOf", {
         left, max: actionsMax(actor)
-    })];
+    }, "max")];
 
     if (hasFreeMove(actor)) parts.push(game.i18n.localize("DRPG.Actions.freeMoveLeft"));
 
@@ -4907,7 +4908,7 @@ function costLabelFor(actor, key, def) {
         const left = eclipseMovesLeft(actor);
         return left === null
             ? game.i18n.localize("DRPG.Action.costAnyRoom")
-            : game.i18n.format("DRPG.Action.costCrossings", { left, max: ECLIPSE_MOVES });
+            : plural("DRPG.Action.costCrossings", { left, max: ECLIPSE_MOVES }, "max");
     }
 
     const cost = costOf(actor, key, def);

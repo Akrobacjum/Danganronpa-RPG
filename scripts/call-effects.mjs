@@ -289,8 +289,9 @@ export async function armCall(actor, { key, kind, grants, amount = null, from = 
         await whisperToOwner(actor, `${cardHead({
             action: game.i18n.localize("DRPG.Calls.armedTitle")
         })}<p>${
+            // The accusative: "nałożył na twój następny rzut {what}", "rzut ma {what}", "rzut niesie {what}" (`grantWords`).
             game.i18n.format(voice, {
-                what: game.i18n.localize(`DRPG.Calls.grants.${grants}`)
+                what: grantWords(grants, "acc")
             })
         }</p>`, voice === "DRPG.Calls.armedByNobody" ? { veiled: true } : {});
     }
@@ -934,10 +935,27 @@ async function grantEffect(actor, call, choice, done, { key, kind, nonce = null 
     // like it had done something.
     if (!armed) throw new Error(`could not arm ${key} on ${beneficiary.name}`);
 
+    // The genitive: "{name} może teraz użyć {what}" (`grantWords`).
     done.push(game.i18n.format("DRPG.Calls.armed", {
         name: beneficiary.name,
-        what: game.i18n.localize(`DRPG.Calls.grants.${call.grants}`)
+        what: grantWords(call.grants, "gen")
     }));
+}
+
+/**
+ * WHAT AN ARMED CALL GIVES, IN THE CASE ITS SENTENCE NEEDS (E66 C3, 01.11.2026; S18-38, E66-16). `DRPG.Calls.grants.*`
+ * were Polish accusatives ("przewagę", "stałą premię albo karę") put into a genitive host (`Calls.armed`, "może teraz
+ * użyć {what}") and after a colon (`Calls.pendingTooltip`, `Calls.waitsNextRoll`), where Polish wants the nominative.
+ * One key a case: `grants` the accusative (`armedByMonokuma`, `armedForYou`, `armedByNobody`), `grantsGen` the
+ * genitive (`armed`), `grantsNom` the nominative (`pendingTooltip`, `waitsNextRoll`, the sheet's badge). English has
+ * one form and writes it three times. The contract is docs/text-style.md's fragment section; R1158 renders each host
+ * with each fragment.
+ */
+// Prefixes, each ending in "." (R1 reads a literal that ends so as a prefix, not a key).
+const GRANT_CASES = Object.freeze({ acc: "DRPG.Calls.grants.", gen: "DRPG.Calls.grantsGen.", nom: "DRPG.Calls.grantsNom." });
+
+export function grantWords(grants, kase = "acc") {
+    return game.i18n.localize(`${GRANT_CASES[kase] ?? GRANT_CASES.acc}${grants}`);
 }
 
 // --- Despair spent as somebody else's Hope ---

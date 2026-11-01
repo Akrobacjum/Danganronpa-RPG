@@ -625,9 +625,12 @@ const INVARIANTS = [
 
         // Every entry needs a name and a sentence, or the card that announces a
         // draw has nothing to say about what was drawn.
+        // The words through overflow.mjs `overflowWhat`, the one road of its three readers since E66 C3 (Darkness, Shift and
+        // Panic are plural families there).
+        const { overflowWhat } = await import("./overflow.mjs");
         for (const key of Object.keys(OVERFLOW.effects)) {
             const name = game.i18n.localize(`DRPG.Overflow.name.${key}`);
-            const what = game.i18n.localize(`DRPG.Overflow.what.${key}`);
+            const what = overflowWhat(key, OVERFLOW.effects[key]);
             ok(name && !name.startsWith("DRPG."), `${key} has no name for the card`);
             ok(what && !what.startsWith("DRPG."), `${key} has no sentence for the card`);
         }
@@ -18030,6 +18033,8 @@ const INVARIANTS = [
         for (const key of keys) {
             for (const lang of ["en", "pl"]) {
                 const words = flats[lang][key];
+                // A Polish family's .few and .many have no English twin: English has .one and .other (E66 C3).
+                if (words === undefined && lang === "en" && /\.(few|many)$/.test(key) && typeof flats.en[key.replace(/\.(few|many)$/, ".other")] === "string") continue;
                 if (typeof words !== "string" || !words.trim()) { wrong.push(`${lang} ${key}: missing`); continue; }
                 if (/\d/.test(words.replace(/\{[^}]*\}/g, ""))) wrong.push(`${lang} ${key}: a number not by placeholder`);
                 if (/consent/i.test(words)) wrong.push(`${lang} ${key}: 'Consent'`);
@@ -24928,7 +24933,7 @@ const INVARIANTS = [
                 { available: true, feet: 2, solid: true, tooltip: n(2) }],
             drawn: [[true, false, 1, 0, free], [false, true, 0, 1, n(0)], [true, false, 2, 0, n(2)]],
             tips: [L("DRPG.Eclipse.actionsMurderOnly"), L("DRPG.Eclipse.placementOnly"),
-                game.i18n.format("DRPG.Actions.pipReadOnly", { left: 1, max: 2 }), L("DRPG.Actions.allSpent")],
+                plural("DRPG.Actions.pipReadOnly", { left: 1, max: 2 }, "max"), L("DRPG.Actions.allSpent")],
             placing: [2, 2],
             source: [true, true, true]
         }), "{rows: the Move row's reading in free placement, with no crossing left, with two; drawn: [available, spent, solid feet, outlined "
@@ -28019,6 +28024,7 @@ const INVARIANTS = [
          */
         let RT = null, C = null, SS = null;
         try { [RT, C, SS] = await Promise.all([import("./room-tile.mjs"), import("./config.mjs"), import("./season-setup.mjs")]); } catch { RT = null; }
+        const { plural } = await import("./utils.mjs");  // checksImagesLate is a family on {s} (E66 C3)
         const fx = await e20Fixture();
         const MB = 1024 * 1024;
         const pics = { ok: ["load", 200, MB], broken: ["fail", 200, MB], gone: ["load", 404, null], slow: ["hang", 200, 2 * MB],
@@ -28053,8 +28059,8 @@ const INVARIANTS = [
         equal(stableJson({
             missing: rooms(found?.missing), late: rooms(found?.late), large: (found?.large ?? []).map(e => [e.rooms[0].room.replace("R1536 ", ""), e.pixels, e.heavy]),
             unknownSize: rooms(found?.unknownSize), most, atOnce: C?.ROOM_IMAGE_LIMITS?.atOnce ?? null,
-            said: game.i18n.has("DRPG.Panel.checksImagesLate") && String(line).includes(game.i18n.format("DRPG.Panel.checksImagesLate",
-                { s: 0.03, rooms: ["slow", "slowheavy", "slownohead", "slownolength"].map(n => game.i18n.format("DRPG.Panel.checksImagesWhere", { room: `R1536 ${n}`, scene: "R1536 pictures" })).join("; ") }))
+            said: game.i18n.has("DRPG.Panel.checksImagesLate.other") && String(line).includes(plural("DRPG.Panel.checksImagesLate",
+                { s: 0.03, rooms: ["slow", "slowheavy", "slownohead", "slownolength"].map(n => game.i18n.format("DRPG.Panel.checksImagesWhere", { room: `R1536 ${n}`, scene: "R1536 pictures" })).join("; ") }, "s"))
         }), stableJson({
             missing: ["broken", "gone"], late: ["slow", "slowheavy", "slownohead", "slownolength"], large: [["slowheavy", false, true]],
             unknownSize: [], most: 3, atOnce: 3, said: true

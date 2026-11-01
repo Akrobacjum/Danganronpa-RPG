@@ -68,7 +68,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 import { seatRoomArt } from "./glass.mjs";
 import { tileRow } from "./narrow.mjs";
 import { alreadyOpen } from "./live.mjs";
-import { error, markFired } from "./utils.mjs";
+import { error, markFired, plural, markLanguage } from "./utils.mjs";
 import { MODULE_ID, ROOM_IMAGE_LIMITS } from "./config.mjs";
 import { phaseLabel } from "./clock.mjs";
 import { trialScene, roomNames } from "./rooms.mjs";
@@ -196,6 +196,9 @@ export function ensureRoomTile() {
     if (!tile) {
         tile = document.createElement("section");
         tile.id = TILE_ID;
+        // Its language, the page's (E66 C3; C1's `lang` on the module's containers, STATUS Open 3); the prose inside it
+        // inherits it.
+        markLanguage(tile);
         tile.className = "drpg-room-tile";
         tile.setAttribute("role", "region");
         tile.setAttribute("aria-label", game.i18n.localize("DRPG.Room.tileLabel"));
@@ -487,7 +490,7 @@ function buildSearchPips({ max, left, sealed }) {
         : game.i18n.format("DRPG.Hud.roomTokens", { left, max }));
     row.dataset.tooltipText = sealed
         ? game.i18n.localize("DRPG.SearchTokens.sealed")
-        : game.i18n.format("DRPG.Hud.roomTokensTooltip", { left, max });
+        : plural("DRPG.Hud.roomTokensTooltip", { left, max }, "left");
 
     for (let i = 0; i < max; i++) {
         const pip = document.createElement("span");

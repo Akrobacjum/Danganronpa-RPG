@@ -1013,7 +1013,7 @@ export function traceClicks({ seconds = 20, toChat = true, onReport = null } = {
     }
     window.addEventListener("click", cameBack, { passive: true });
 
-    if (toChat) ui.notifications.info(game.i18n.format("DRPG.Diagnostics.tracing", { seconds }));
+    if (toChat) ui.notifications.info(plural("DRPG.Diagnostics.tracing", { seconds }, "seconds"));
 
     setTimeout(() => {
         for (const [type, fn] of Object.entries(handlers)) {

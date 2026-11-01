@@ -675,3 +675,28 @@ number alone means that row.
   needs a floor on how many strings a surface rule places (`node tools/check.mjs text` prints "T4 classified ...":
   2712 of 10242 on 01.11.2026) - E71, when it turns T4 to FAIL; the Frisk row's Polish form „Zobacz, co ktoś nosi”
   (`see-what-they-carry`) - E71, with R620's pinned form.
+
+## 14. Fragments inserted into a sentence: the case contract (E66 C3)
+
+A fragment is a key whose text the code puts into another key's placeholder - a Call's grant into "{name} may now use
+{what}", a price into "You get {what} back". English has one form; Polish has seven cases, and a fragment written in one
+case reads wrong in a host that wants another. So every fragment has a contract: the case it is written in, and the hosts
+that may take it. A host that needs another case gets a fragment key of its own in that case, never the same words bent
+by the code (S18-38, I4). The contract is also written beside each insertion in the code; tier 0's R1158 renders every
+host with every fragment it takes, in English and Polish. Read on this tree on 01.11.2026.
+
+| Fragment keys | Polish case | Hosts that take it | Inserted by |
+| --- | --- | --- | --- |
+| `DRPG.Calls.grants.*` | accusative („przewagę”, „stałą premię albo karę”) | `Calls.armedByMonokuma`, `Calls.armedForYou`, `Calls.armedByNobody` | call-effects.mjs `grantWords(kind, "acc")`; gm-bridge.mjs `tellBeneficiary` |
+| `DRPG.Calls.grantsGen.*` | genitive („przewagi”, „stałej premii albo kary”) | `Calls.armed` („może teraz użyć {what}”) | call-effects.mjs `grantWords(kind, "gen")` |
+| `DRPG.Calls.grantsNom.*` | nominative („przewaga”, „stała premia albo kara”) | `Calls.pendingTooltip`, `Calls.waitsNextRoll` (after a colon; several joined by `listOf`), the sheet's badge (standing alone) | sheet.mjs, roll-dialog.mjs |
+| `DRPG.Price.label.*` | nominative („1 akcja”, „2 akcje”) | `Price.refunded` and `Cleanup.refundUnheld` (after a colon), `Trial.objectionRefunded` and `Trial.objectionRefundLost` (in brackets); `Price.refundLost` takes the Hope label alone, which does not inflect | price.mjs `priceLabel`; cleanup.mjs; trial.mjs `objectionRefusedLine` |
+| `DRPG.Reserve.*` (Health, Sanity) | indeclinable (DB4): every case reads the same | `Murder.youLose`, `Murder.theyLose` (several joined by `listOf`) | character.mjs `reserveNote` |
+| `CRISIS_ACTIONS.*.label` | names, indeclinable (PL-k) | `Murder.hinderedActions`, `Murder.blockedActions` (`listOf`, the negated list for a block: „A ani B”) | murder-rules.mjs `applyHindrance` |
+| `DRPG.Advance.kind.*` | names („Level Up”, „Reinforced Level Up”), after a colon or opening the sentence | `Advance.offered`, `Advance.offerTooltip`, `Advance.takeBack`, `Advance.takenBack`, `Vote.blackenedRewarded` | level-up.mjs, sheet.mjs, vote.mjs |
+| `DRPG.Overflow.name.*` | names, indeclinable | `Overflow.gmHintQueued`, `Overflow.currentDrawn` (after a colon), `Overflow.currentWaiting` | overflow.mjs |
+| `DRPG.Rolls.flagKind.*` | nominative, opening the line | `Rolls.flagLine` | roll-draw.mjs `flagText` |
+
+English writes `Calls.grantsGen` and `Calls.grantsNom` with the same words as `Calls.grants`. The rows from
+`Advance.kind` down were read in the code for this table and needed no split; they are not rendered by R1158. A new
+fragment is a row here and a case in its key's name before it is a placeholder in a host.

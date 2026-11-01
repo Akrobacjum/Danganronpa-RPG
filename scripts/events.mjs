@@ -32,7 +32,7 @@ import { keyPlanStatus } from "./investigation.mjs";
 import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, bodyFoundSinceTrial, incidentCast, incidentSeats,
     incidentWitness, isDeceased } from "./settings.mjs";
 import { flagsHeldNow } from "./sheet-audit.mjs";
-import { overflowEffect, overflowStatus, overflowRules } from "./overflow.mjs";
+import { overflowEffect, overflowStatus, overflowRules, overflowWhat } from "./overflow.mjs";
 import { SAFEWORD_FLAG } from "./safeword.mjs";
 import { trialProgress, votesIn, pendingVoters, ballotInHere } from "./vote.mjs";
 import { narrowColumn } from "./narrow.mjs";
@@ -423,7 +423,7 @@ export function trialCard(clock) {
                 sub: game.i18n.localize("DRPG.Events.voteSub"),
                 meta: back === null || out === null
                     ? game.i18n.localize("DRPG.Events.voteMeta")
-                    : game.i18n.format("DRPG.Events.voteMetaGm", { back, total: back + out })
+                    : plural("DRPG.Events.voteMetaGm", { back, total: back + out }, "back")
             };
         }
 
@@ -565,8 +565,8 @@ export function bodyCard(clock) {
                 if (status.entries.length) {
                     // `foundAny`, so a Key Remnant found off the plan is not
                     // missing from the line that says how solvable the case is (F18).
-                    meta = game.i18n.format("DRPG.Events.bodyMetaGm",
-                        { found: status.foundAny, total: status.entries.length });
+                    meta = plural("DRPG.Events.bodyMetaGm",
+                        { found: status.foundAny, total: status.entries.length }, "total");
                 }
             } catch { /* the plan is the GM's and may not exist yet */ }
         }
@@ -612,7 +612,7 @@ function overflowCard() {
             sub: status.effectName ?? game.i18n.localize(`DRPG.Overflow.name.${key}`),
             meta: game.user.isGM
                 ? game.i18n.format("DRPG.Events.overflowMetaGm", { count: status.count, max: status.threshold })
-                : game.i18n.format(`DRPG.Overflow.what.${key}`, { n: rule.by ?? 1 })
+                : overflowWhat(key, rule)
         };
     } catch (err) {
         error("Could not read the overflow for the Event panel", err);

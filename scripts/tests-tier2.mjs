@@ -13497,7 +13497,7 @@ const SCENARIOS = [
         const S = await import("./secret.mjs");
         const M = await import("./murder.mjs");
         const Mv = await import("./movement.mjs");
-        const { ownerIdsOf } = await import("./utils.mjs");
+        const { ownerIdsOf, plural } = await import("./utils.mjs");
         const { trustedWrite } = await import("./resource-guard.mjs");
         const { actionsLeft } = await import("./actions.mjs");
         const { deathStore } = await import("./gm-stores.mjs");
@@ -13546,7 +13546,9 @@ const SCENARIOS = [
             gmIncident: ["DRPG.Frisk.gmIncident", { s: Math.round(TIMING.friskAnswerMs / 1000) }], gmIncidentNow: ["DRPG.Frisk.gmIncidentNow", {}],
             withdrawn: ["DRPG.Frisk.withdrawn", {}]
         };
-        const toastOf = text => Object.entries(TOASTS).find(([, [key, data]]) => text === game.i18n.format(key, { who: theirs.name, target: other.name, ...data }))?.[0]
+        // gmKept and gmIncident are families on {s} since E66 C3; the others are flat.
+        const toast = (key, data) => game.i18n.has(`${key}.other`) ? plural(key, data, "s") : game.i18n.format(key, data);
+        const toastOf = text => Object.entries(TOASTS).find(([, [key, data]]) => text === toast(key, { who: theirs.name, target: other.name, ...data }))?.[0]
             ?? `other: ${String(text).slice(0, 120)}`;
         const packets = [], made = [], toasts = [];
         const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
@@ -22856,7 +22858,7 @@ const SCENARIOS = [
          * the card a table naming both.
          */
         const [a, b, c, d] = cast(4);
-        const { isPrimaryGm } = await import("./utils.mjs");
+        const { isPrimaryGm, plural } = await import("./utils.mjs");
         must(isPrimaryGm(), "this browser is not the primary GM, which counts the ballots");
         const V = await import("./vote.mjs");
         const { ballotStore } = await import("./gm-stores.mjs");
@@ -22898,7 +22900,7 @@ const SCENARIOS = [
             el.innerHTML = String(card?.content ?? "");
             equal(stableJson([Boolean(card), el.querySelectorAll(".drpg-vote-row").length, Boolean(el.querySelector("table")),
                 el.querySelector(".drpg-vote-sentence")?.textContent ?? null]),
-            stableJson([true, 4, false, game.i18n.format("DRPG.Vote.noMajority", { majority: 4, total: 6 })]),
+            stableJson([true, 4, false, plural("DRPG.Vote.noMajority", { majority: 4, total: 6 }, "total")]),
             "the count's card is not one row per name and the one sentence that the room has no majority");
         } finally {
             if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
@@ -70941,7 +70943,7 @@ const SCENARIOS = [
         const o = await import("./overflow.mjs");
         const { overflowStore } = await import("./gm-stores.mjs");
         const { OVERFLOW, TIMES_OF_DAY } = await import("./config.mjs");
-        const { isPrimaryGm } = await import("./utils.mjs");
+        const { isPrimaryGm, plural } = await import("./utils.mjs");
         must(isPrimaryGm(), "this client is not the primary GM, whose migration clause trims the rules - this would measure nothing");
         const rulesWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflowRules) ?? {});
         const overflowWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {});
@@ -71022,7 +71024,7 @@ const SCENARIOS = [
             must(armed?.effect === "panic", `the overflow drew ${armed?.effect ?? "nothing"}, not Panic - this would measure nothing`);
             const card = cardsSince(at).map(m => m.content ?? "").join("");
             seen.trial = { next: armed.session === trial.session + 1 && armed.timeOfDay === TIMES_OF_DAY[0],
-                says: card.includes(game.i18n.format("DRPG.Overflow.cardBodyTrial", { n: o.overflowThreshold() })), now: o.overflowEffect() };
+                says: card.includes(plural("DRPG.Overflow.cardBodyTrial", { n: o.overflowThreshold() })), now: o.overflowEffect() };
             await o.resetOverflow();
             const kept = game.settings.get(MODULE_ID, SETTINGS.overflow)?.active ?? null;
             seen.verdict = { count: o.overflowCount(), effect: o.overflowEffect(), waiting: kept?.pending === true && kept?.effect === "panic" };

@@ -473,7 +473,7 @@ export async function offerAdvancement(actor, kind = "standard", { extra = 0, de
     }
 
     const { whisperToOwner } = await import("./utils.mjs");
-    const line = game.i18n.format("DRPG.Advance.offered", {
+    const line = plural("DRPG.Advance.offered", {
         kind: game.i18n.localize(`DRPG.Advance.kind.${kind}`),
         n: offerPicks(asked)
     });
@@ -1054,7 +1054,7 @@ export async function deferAdvancement(actor, kind = "reinforced", chapter = nul
 
     const { whisperToOwner } = await import("./utils.mjs");
     await whisperToOwner(actor, `<p><strong>${game.i18n.localize("DRPG.Advance.offerTitle")}</strong></p>
-        <p>${game.i18n.format("DRPG.Advance.deferred", { n: deferredPicks(row) })}</p>`, { veiled: true });
+        <p>${plural("DRPG.Advance.deferred", { n: deferredPicks(row) })}</p>`, { veiled: true });
     log(`${actor.name}'s ${kind} Level Up waits for the class's next one.`);
     return row;
 }

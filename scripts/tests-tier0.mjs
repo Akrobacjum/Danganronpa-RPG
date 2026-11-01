@@ -17504,6 +17504,268 @@ const REGRESSIONS = [
         }), "[per language and type, a list of one, two and three items and of none; three items with no Intl.ListFormat]");
         equal(JSON.stringify(reserves.read), JSON.stringify(reserves.before), "[reserveNote in English for one reserve and for two, against the sentence the old Intl.ListFormat(\"en\") built]");
     }],
+    ["R1156 - the counters of the plan's I2 list are plural families with the predicate in the family, in English and Polish, each at n = 0, 1, 2, 5, 12, 22, 25, 112 with nothing left of \"{\" or \"DRPG.\": `Move.costAction` (\"zostały 2 akcje\", \"zostało 5 akcji\"), `Hud.startEclipseNamed` and `startEclipseNewSession` on {n}, `Summary.totals` as three families with a GM's own lede (day-summary.mjs `summaryLede`, `summaryTotals`), `Advance.offered`, `Sound.fileCount`, `Tables.allPresent`, `Tables.deleteConfirm`, `Motive.migrated`, `Investigation.tooThin` with its own sentence for none (`tooThinLine`), `keyOffPlan` on {bar}, `createHereIntro` on {n}, `Overflow.what.darkness/shift/panic` through overflow.mjs `overflowWhat` for its three readers; `Calls.hopeSpent` and `Items.woreOnDespair` as the owner's approved Polish (N53, N58); `Floor.startTrialNote` names the time of day's stopwatch (E66 C3; S18-36, S13-29, S10-69, S09-42, E66-14)", async () => {
+        /*
+         * E66 C3, 01.11.2026; S18-36, S13-29, S10-69, S09-42, E66-14. The flat counters wrote "zostało 2 akcji" and
+         * "pick(s)", the last time of day's Eclipse "(2 crossings)" whatever the count, a GM's summary "What you did"
+         * over the table's rows, "Only 0 Key Remnants", "the four" and "five clues" written into the prose, and three
+         * readers formatted `DRPG.Overflow.what.*` by a template key each. Each language is read with its file's DRPG
+         * block put in place of this browser's and the page's language stood in (settings.mjs `setPageLanguage`), both
+         * put back in a finally. The helpers are called; the three readers of `overflowWhat` are read in their source
+         * (comments out). Nothing is written. Red at 900b1b99: the flat values rendered their raw keys, the helpers did
+         * not exist, and the English said "(2 crossings)".
+         */
+        const S = await import("./settings.mjs"), U = await import("./utils.mjs");
+        const DS = await import("./day-summary.mjs"), O = await import("./overflow.mjs"), I = await import("./investigation.mjs");
+        must(typeof S.setPageLanguage === "function", "settings.mjs has no setPageLanguage - the page's language cannot be stood in");
+        const files = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" });
+            must(res.ok, `${code}.json: HTTP ${res.status}`);
+            files[code] = await res.json();
+        }
+        const NS = [0, 1, 2, 5, 12, 22, 25, 112];
+        const FAMILIES = [["DRPG.Move.costAction", "left"], ["DRPG.Hud.startEclipseNamed", "n"], ["DRPG.Hud.startEclipseNewSession", "n"],
+            ["DRPG.Summary.totals", "actions"], ["DRPG.Summary.totalsFound", "found"], ["DRPG.Summary.totalsTraces", "traces"],
+            ["DRPG.Advance.offered", "n"], ["DRPG.Sound.fileCount", "n"], ["DRPG.Tables.allPresent", "n"], ["DRPG.Tables.deleteConfirm", "n"],
+            ["DRPG.Motive.migrated", "n"], ["DRPG.Investigation.tooThin", "found"], ["DRPG.Investigation.keyOffPlan", "n"],
+            ["DRPG.Investigation.createHereIntro", "n"], ["DRPG.Overflow.what.darkness", "n"], ["DRPG.Overflow.what.shift", "n"],
+            ["DRPG.Overflow.what.panic", "n"]];
+        const fill = n => ({ n, left: n, actions: n, found: n, traces: n, time: "T", kind: "K", name: "N", min: 3, bar: 4, names: "A" });
+        const first = text => String(text ?? "").split(/[.:] /)[0].replace(/\.$/, "");
+        const own = game.i18n.translations;
+        const was = S.setPageLanguage("en");
+        const read = {};
+        try {
+            for (const code of ["en", "pl"]) {
+                game.i18n.translations = { ...own, DRPG: files[code].DRPG };
+                S.setPageLanguage(code);
+                read[code] = {
+                    broken: FAMILIES.flatMap(([key, on]) => NS.map(n => [key, n, U.plural(key, fill(n), on)]))
+                        .filter(([, , text]) => /[{}]|DRPG\./.test(String(text))).map(([key, n]) => `${key} ${n}`),
+                    move: [1, 2, 5].map(left => U.plural("DRPG.Move.costAction", { left }, "left")),
+                    eclipse: [1, 2].map(n => U.plural("DRPG.Hud.startEclipseNewSession", { time: "T", n }).split("(").pop()),
+                    summary: typeof DS.summaryLede === "function" && typeof DS.summaryTotals === "function"
+                        ? [DS.summaryLede("P", false), DS.summaryLede("P", true), DS.summaryTotals({ actions: 2, found: 1, traces: 5 })] : null,
+                    thin: typeof I.tooThinLine === "function" ? [first(I.tooThinLine(0)), first(I.tooThinLine(2))] : null,
+                    overflow: typeof O.overflowWhat === "function"
+                        ? [first(O.overflowWhat("panic", { by: 2 }).replace(/^[^:]*: /, "")), O.overflowWhat("despair", {}) === game.i18n.localize("DRPG.Overflow.what.despair")] : null,
+                    approved: [game.i18n.format("DRPG.Calls.hopeSpent", { cost: 2, left: 5 }), first(game.i18n.format("DRPG.Items.woreOnDespair", { item: "I", left: 1, total: 3 }))]
+                };
+            }
+        } finally {
+            game.i18n.translations = own;
+            S.setPageLanguage(was);
+        }
+        const sources = await moduleSources();
+        const src = file => stripComments(sources.get(file) ?? "");
+        read.readers = [/announceOverflow[\s\S]*?overflowWhat\(drawn/.test(src("overflow.mjs")), /overflowWhat\(key, rule\)\)/.test(src("overflow.mjs")),
+            /overflowWhat\(key, rule\)/.test(src("events.mjs")),
+            ["overflow.mjs", "events.mjs"].map(f => (src(f).match(/DRPG\.Overflow\.what\.\$\{/g) ?? []).length)];
+        read.note = [files.en.DRPG.Floor.startTrialNote.includes("campaign"), files.en.DRPG.Floor.startTrialNote.includes("stopwatch")];
+        equal(JSON.stringify(read), JSON.stringify({
+            en: {
+                broken: [],
+                move: ["That cost an action - 1 action left.", "That cost an action - 2 actions left.", "That cost an action - 5 actions left."],
+                eclipse: ["1 crossing)", "2 crossings)"],
+                summary: ["What you did during the P.", "What the table did during the P.", "2 actions · 1 item found · 5 traces left behind"],
+                thin: ["No Key Remnant has been found yet", "Only 2 Key Remnants have been found"],
+                overflow: ["2 fewer actions each, on top of anything Wounded already took", true],
+                approved: ["You spend 2 Hope; you have 5 Hope left.", "“I” loses durability to Despair"]
+            },
+            pl: {
+                broken: [],
+                move: ["To kosztowało akcję - została 1 akcja.", "To kosztowało akcję - zostały 2 akcje.", "To kosztowało akcję - zostało 5 akcji."],
+                eclipse: ["1 przejście)", "2 przejścia)"],
+                summary: ["Co się u ciebie działo w porze: P.", "Co działo się przy stole w porze: P.", "2 akcje · 1 znalezisko · 5 pozostawionych śladów"],
+                thin: ["Nie znaleziono jeszcze żadnego Key Remnantu", "Znaleziono tylko 2 Key Remnants"],
+                overflow: ["o 2 akcje mniej dla każdego, ponad to, co już zabrał Wounded", true],
+                approved: ["Wydajesz 2 Hope; zostaje ci 5 Hope.", "„I” traci wytrzymałość przez Despair"]
+            },
+            readers: [true, true, true, [1, 0]],
+            note: [false, true]
+        }), "[in English, then Polish: the families at the eight n that leave a brace or a key; Move.costAction at 1, 2 and 5; the new "
+            + "session's Eclipse at 1 and 2; the lede as a player and as a GM and the totals; the thin warning at 0 and at 2; Panic's words "
+            + "by overflowWhat and Despair's sentence through it; the two approved afters; then overflowWhat in announceOverflow, in "
+            + "overflowSection, in events.mjs, and the template key's count in overflow.mjs and events.mjs; the trial's note names the "
+            + "campaign, the stopwatch]");
+    }],
+
+    ["R1157 - the census of the counts (E66-15): every value of lang/en.json and lang/pl.json outside a plural family that puts a count before a countable noun, a unit or a counting word, or after a Polish predicate that agrees with it, is a family, or is in this test's allow table with its reason - uncountable in both languages, a unit symbol, a ratio with nothing agreeing, a decimal, the owner's approved after; no allow row is stale, and the rule flags a planted flat counter in each language and not a family or a name (E66 C3; S18-36, S13-29, E66-15)", async () => {
+        /*
+         * E66 C3, 01.11.2026; S18-36 ("17 tekstów z rozpoznania PL": the list was lost, rebuilt by this census),
+         * E66-15. The rule: a placeholder that holds a count (not a name, a room, an item or a label - NOT_COUNTS)
+         * followed in English by a noun or a counting word of COUNTED_EN, in Polish by one of COUNTED_PL, or in Polish
+         * after a predicate that agrees with it (AGREES_PL: "zostało", "wróciło", "wszystkie" ...), in a value whose key
+         * is no family. Run in Node first (S/stages/E66/scratch/c3/census.mjs): 140 at 8e9d40e9, 138 at 900b1b99 with
+         * the Polish rule; this commit made 45 of them families and left 93 (Calls.hopeSpent and Items.woreOnDespair
+         * with new values, N53's and N58's), each in ALLOW. Reasons: U uncountable in both languages (Hope, Sanity, Health, Despair,
+         * progress: DB4), S a unit symbol (s, min) with no word agreeing, R a ratio "{a} of {b}" with nothing agreeing,
+         * D a quotient written with one decimal (English takes the plural and Polish the genitive singular for every
+         * decimal), P the owner's approved Polish after (N58), which reads "z {total} punktów" for every total of its one
+         * road (use-items.mjs whispers it only for a tool that did not break, so 2 or more). Nothing is written. Red at
+         * 900b1b99: 45 flat values the allow table does not hold (the families this commit made).
+         */
+        const COUNTED_EN = "actions?|crossings?|turns?|times?|tokens?|Search Tokens?|Remnants?|Key Remnants?|files?|entries|entry|tables?|students?|players?|items?|projects?|rooms?|seconds?|minutes?|s|min|days?|points?|marks?|Hope|Sanity|Health|Despair|picks?|ballots?|cards?|clues?|traces?|bullets?|Truth Bullets?|messages?|rows?|progress|uses?|dice|die|GMs?|copies|copy|steps?|rolls?|votes?|keys?|doors?|walls?|notices?|names?|people|persons?|others?|fewer|more|left|of";
+        const W = "[\\w\\u00c0-\\u017f]*";
+        const COUNTED_PL = [`akcj${W}`, `przejś${W}`, `przejści${W}`, "tokeny?", "tokenów", "Tokeny?", "Tokenów", `sekund${W}`, `minut${W}`, `tur${W}`,
+            "razy?", `punkt${W}`, "pory", "pór", "porę", `plik${W}`, `wpis${W}`, `tabel${W}`, `kart${W}`, `głos${W}`, `zdarze${W}`, "kości?", "osób",
+            "osoby", "tropów", `trop${W}`, "pokoi", "pokoju", "pokoje", "pokój", `przedstawion${W}`, "nowych", "nowe", "nowy", `wybor${W}`, "wybór",
+            "Key Remnants?", `Remnant${W}`, "s", "min", "Hope", "Sanity", "Health", "Despair", `postęp${W}`].join("|");
+        const AGREES_PL = `został${W}|zostaje|wróci${W}|znalazł${W}|rozlał${W}|wszystkie|wszystkich`;
+        const NOT_COUNTS = new Set(["name", "names", "who", "target", "room", "rooms", "item", "what", "actor", "call", "project", "phase", "time", "tier",
+            "action", "mode", "kind", "field", "row", "third", "chapter", "to", "from", "version", "bonus", "value", "label", "next", "why", "duality", "stat"]);
+        const EN_RE = new RegExp(`\\{(\\w+)\\}\\s+(?:${COUNTED_EN})(?![\\w\\u00c0-\\u017f])`, "g");
+        const PL_RE = new RegExp(`\\{(\\w+)\\}\\s+(?:${COUNTED_PL})(?![\\w\\u00c0-\\u017f])|(?:${AGREES_PL})\\s+(?:ci\\s+)?\\{(\\w+)\\}|\\{(\\w+)\\}\\s+z\\s+\\{\\w+\\}\\s+(?:${AGREES_PL})`, "g");
+        const familyOf = key => key.replace(/\.(one|few|many|other)$/, "");
+        const census = (en, pl) => {
+            const families = new Set([...en.keys()].filter(k => /\.(one|other)$/.test(k)).map(familyOf));
+            const hit = new Set();
+            for (const [map, re] of [[en, EN_RE], [pl, PL_RE]]) {
+                for (const [key, value] of map) {
+                    if (typeof value !== "string" || !key.startsWith("DRPG.") || families.has(familyOf(key))) continue;
+                    if ([...value.matchAll(re)].some(m => !NOT_COUNTS.has(m[1] ?? m[2] ?? m[3]))) hit.add(key);
+                }
+            }
+            return [...hit].sort();
+        };
+        const ALLOW = new Map([
+            ...[
+                "Action.failStress", "Action.observeGm", "Action.progressOn", "Calls.approveCost",
+                "Calls.costsDespair", "Calls.costsDespairShort", "Calls.costsHope", "Calls.costsHopeShort",
+                "Calls.hopeGranted", "Calls.hopeSpent", "Calls.newRuleNote", "Calls.notEnoughHope",
+                "Calls.overflowFed", "Calls.progressSent", "Calls.send", "Character.initConfirm",
+                "Character.initTooltip", "Cleanup.intro", "Cleanup.moveHint", "Cleanup.moveIntro",
+                "Cleanup.stressBack", "Cleanup.stressSpent", "Config.DESPAIR_CALLS.favoriteProject.effect",
+                "Config.DESPAIR_CALLS.feedOverflow.effect", "Config.DESPAIR_CALLS.fuelTheCub.effect",
+                "Config.DESPAIR_CALLS.gameProtection.effect", "Config.DESPAIR_CALLS.paranoia.effect",
+                "Config.DESPAIR_CALLS.thisWillHurt.effect", "Config.HOPE_CALLS.contribution.effect",
+                "Despair.hopeConverted", "Despair.notEnough", "Despair.notEnoughPool", "Despair.removePoolAsk",
+                "Despair.spent", "Diagnostics.cast.starting", "Items.choiceBonus", "Monocub.hopeShort",
+                "Murder.briefCostStress", "Murder.indirectCost", "Observe.failedStress", "Overflow.what.earthquake",
+                "Project.customScale", "Remnant.projectNote", "Remnant.projectNoteUncovered",
+                "Reroll.interruptedGivingBack", "Reroll.interruptedPaying", "Reroll.sabotageRedone", "Rolls.awayHope"
+            ].map(key => [key, "U"]),
+            ...[
+                "Floor.bar.minusSeconds", "Floor.bar.plusSeconds", "Floor.closing.gmVolunteers", "Floor.gmNoteAdjust",
+                "Floor.holdingDebate", "Floor.holdingDebateOver", "Floor.holdingObjection",
+                "Floor.holdingObjectionPending", "Floor.holdingRebuttal", "Floor.holdingRound",
+                "Floor.holdingRoundLast", "Floor.round.startedLine", "Floor.round.tooLongSeconds",
+                "Floor.round.tooShortSeconds", "Floor.roundWindow.range", "Floor.trialTimeNoBudget",
+                "GmStore.notOpen", "Hud.elapsed", "Trial.claim.body", "Trial.turn.title"
+            ].map(key => [key, "S"]),
+            ...[
+                "Action.searchTokensLeft", "Events.overflowMetaGm", "Explain.room.tokens",
+                "Explain.status.actionsNow", "Explain.status.hopeNow", "Explain.time.position", "Floor.trialTime",
+                "Investigation.filterCount", "Investigation.keyLimitLine", "Investigation.keySummary",
+                "Overflow.clearAsk", "Overflow.current", "Overflow.currentDrawn", "Overflow.currentWaiting",
+                "Overflow.gmHint", "Overflow.gmHintActive", "Overflow.gmHintActiveFull", "Overflow.gmHintQueued",
+                "Passage.pick.step", "Sound.groupAssigned", "Vote.accusesLine", "Vote.barLine", "Vote.namedByTable"
+            ].map(key => [key, "R"]),
+            ...[
+                "Vault.roomRatio"
+            ].map(key => [key, "D"]),
+            ...[
+                "Items.woreOnDespair"
+            ].map(key => [key, "P"])
+        ].map(([key, why]) => [`DRPG.${key}`, why]));
+        const lang = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" });
+            must(res.ok, `${code}.json: HTTP ${res.status}`);
+            lang[code] = flatLang(JSON.parse(await lfText(res)));
+        }
+        const found = census(lang.en, lang.pl);
+        const fixture = census(new Map([["DRPG.Fx.a", "{n} actions left"], ["DRPG.Fx.b", "{who} turns away"], ["DRPG.Fx.c.one", "{n} action"], ["DRPG.Fx.c.other", "{n} actions"]]),
+            new Map([["DRPG.Fx.d", "Zostało {seconds} s."], ["DRPG.Fx.e", "zostały {left} akcje"], ["DRPG.Fx.f", "{name} odwraca się"], ["DRPG.Fx.c.few", "{n} akcje"]]));
+        const reasons = {};
+        for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
+        equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 48, S: 20, R: 23, D: 1, P: 1 } }),
+            "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
+            + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
+            + "the allow rows by reason]");
+    }],
+
+    ["R1158 - every fragment inserted into a sentence stands in the case its host needs (E66-16): `Calls.grants` the accusative in `armedByMonokuma`, `armedForYou`, `armedByNobody`, `grantsGen` the genitive in `armed`, `grantsNom` the nominative in `pendingTooltip` and `waitsNextRoll` (a list by `listOf`), through call-effects.mjs `grantWords`; `Price.label.*` the nominative after a colon or in brackets (`Price.refunded`, `Trial.objectionRefunded`, `Trial.objectionRefundLost`, `Cleanup.refundUnheld`), Hope alone in `Price.refundLost`; the reserves in `Murder.youLose` and `theyLose`; every host renders with every fragment it takes in English and Polish; the accusative is read by a template key only in gm-bridge.mjs `tellBeneficiary`, the nominative in roll-dialog.mjs and sheet.mjs (E66 C3; S18-38, I4, E66-16)", async () => {
+        /*
+         * E66 C3, 01.11.2026; S18-38 (I4), E66-16. `DRPG.Calls.grants.*` are Polish accusatives ("przewagę", "stałą premię
+         * albo karę") and were put into `Calls.armed`, "może teraz użyć {what}", which wants the genitive, and after the
+         * colons of `pendingTooltip` and `waitsNextRoll`, which want the nominative; roll-dialog.mjs joined several with
+         * ", ". The contract is docs/text-style.md's section 14. Each language is read with its file's DRPG block put in
+         * place of this browser's and the page's language stood in, both put back in a finally; the hosts are formatted
+         * as their callers format them. The readers of the keys are read in the module's source, comments out. Nothing is
+         * written. Red at 900b1b99: no `grantWords`, and `Calls.armed` with "przewagę".
+         */
+        const S = await import("./settings.mjs"), U = await import("./utils.mjs"), CE = await import("./call-effects.mjs");
+        const P = await import("./price.mjs"), C = await import("./character.mjs");
+        must(typeof S.setPageLanguage === "function", "settings.mjs has no setPageLanguage - the page's language cannot be stood in");
+        const files = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" });
+            must(res.ok, `${code}.json: HTTP ${res.status}`);
+            files[code] = await res.json();
+        }
+        const KINDS = Object.keys(files.en.DRPG.Calls.grants).filter(k => typeof files.en.DRPG.Calls.grants[k] === "string");
+        must(KINDS.length >= 6, "lang/en.json carries fewer than six grants - this would measure little");
+        const words = (kind, kase) => (typeof CE.grantWords === "function" ? CE.grantWords(kind, kase) : game.i18n.localize(`DRPG.Calls.grants.${kind}`));
+        const HOSTS = { acc: ["DRPG.Calls.armedByMonokuma", "DRPG.Calls.armedForYou", "DRPG.Calls.armedByNobody"], gen: ["DRPG.Calls.armed"],
+            nom: ["DRPG.Calls.pendingTooltip", "DRPG.Calls.waitsNextRoll"] };
+        const own = game.i18n.translations;
+        const was = S.setPageLanguage("en");
+        const read = {};
+        try {
+            for (const code of ["en", "pl"]) {
+                game.i18n.translations = { ...own, DRPG: files[code].DRPG };
+                S.setPageLanguage(code);
+                const all = Object.entries(HOSTS).flatMap(([kase, hosts]) => hosts.flatMap(host => KINDS.map(kind =>
+                    [host, kind, game.i18n.format(host, { name: "Aiko", what: words(kind, kase) }), words(kind, kase)])));
+                read[code] = {
+                    broken: all.filter(([, , text, what]) => /[{}]|DRPG\./.test(text) || !text.includes(what)).map(([host, kind]) => `${host} ${kind}`),
+                    armed: ["advantage", "bonus"].map(kind => game.i18n.format("DRPG.Calls.armed", { name: "Aiko", what: words(kind, "gen") })),
+                    forYou: game.i18n.format("DRPG.Calls.armedForYou", { what: words("advantage", "acc") }),
+                    pending: game.i18n.format("DRPG.Calls.pendingTooltip", { what: words("bonus", "nom") }),
+                    waits: game.i18n.format("DRPG.Calls.waitsNextRoll", { what: U.listOf(["advantage", "bonus"].map(kind => words(kind, "nom"))) }),
+                    price: [game.i18n.format("DRPG.Price.refunded", { what: P.priceLabel({ pay: "action", amount: 2 }) }),
+                        game.i18n.format("DRPG.Trial.objectionRefunded", { why: "W.", what: P.priceLabel({ pay: "action", amount: 1 }) }).includes(`(${P.priceLabel({ pay: "action", amount: 1 })})`),
+                        game.i18n.format("DRPG.Price.refundLost", { what: P.priceLabel({ pay: "hope", amount: 1 }) }).includes(P.priceLabel({ pay: "hope", amount: 1 }))],
+                    reserves: C.reserveNote({ you: true }, [{ key: "hitPoints", landed: 1 }, { key: "stress", landed: 2 }])
+                };
+            }
+        } finally {
+            game.i18n.translations = own;
+            S.setPageLanguage(was);
+        }
+        const sources = await moduleSources();
+        const reading = re => [...sources].filter(([file, text]) => !file.startsWith("tests") && re.test(stripComments(text))).map(([file]) => file).sort();
+        const dialog = stripComments(sources.get("roll-dialog.mjs") ?? "");
+        read.sources = { acc: reading(/DRPG\.Calls\.grants\.\$\{/), nom: reading(/DRPG\.Calls\.grantsNom\.\$\{/), helper: reading(/"DRPG\.Calls\.grantsGen\."/),
+            joined: /listOf\(\[\.\.\.new Set\(waiting\.map\(entry => game\.i18n\.localize\(`DRPG\.Calls\.grantsNom\./.test(dialog) };
+        equal(JSON.stringify(read), JSON.stringify({
+            en: {
+                broken: [],
+                armed: ["Aiko may now use advantage on their next roll.", "Aiko may now use a flat bonus or penalty on their next roll."],
+                forYou: "Another student spent Hope on you: your next roll has advantage. It applies by itself.",
+                pending: "Waiting on your next roll: a flat bonus or penalty. Spent the moment you roll.",
+                waits: "Armed after this window opened: advantage and a flat bonus or penalty. It is not part of this roll - it waits for your next one.",
+                price: ["You get 2 actions back.", true, true],
+                reserves: "You lose 1 Health and 2 Sanity."
+            },
+            pl: {
+                broken: [],
+                armed: ["Aiko może teraz użyć przewagi przy następnym rzucie.", "Aiko może teraz użyć stałej premii albo kary przy następnym rzucie."],
+                forYou: "Inny uczeń wydał na ciebie Hope: twój następny rzut ma przewagę. Działa samo.",
+                pending: "Czeka na twój następny rzut: stała premia albo kara. Zużyte w chwili rzutu.",
+                waits: "Nałożone po otwarciu tego okna: przewaga i stała premia albo kara. Nie wchodzi do tego rzutu - czeka na twój następny.",
+                price: ["Odzyskujesz: 2 akcje.", true, true],
+                reserves: "Tracisz 1 Health i 2 Sanity."
+            },
+            sources: { acc: ["gm-bridge.mjs"], nom: ["roll-dialog.mjs", "sheet.mjs"], helper: ["call-effects.mjs"], joined: true }
+        }), "[in English, then Polish: each host with each grant in its case - those that leave a brace or a key or lose the fragment; "
+            + "Calls.armed with advantage and a bonus; armedForYou; pendingTooltip; waitsNextRoll with a list of two; a price given back, the "
+            + "Objection's bracket, the lost Hope; a loss of two reserves; then the scripts that read the accusative by a template key, the "
+            + "nominative so, the one that holds the three cases' keys (grantWords), and roll-dialog.mjs's join through listOf]");
+    }],
 ];
 
 

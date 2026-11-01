@@ -1623,6 +1623,7 @@ async function tellBeneficiary(actor, kind, grants) {
         await whisperToOwner(actor, `${cardHead({
             action: game.i18n.localize("DRPG.Calls.armedTitle")
         })}<p>${
+            // The accusative (call-effects.mjs `grantWords`, E66 C3): "nałożył na twój następny rzut {what}", "rzut ma {what}".
             game.i18n.format(kind === "despair" ? "DRPG.Calls.armedByMonokuma" : "DRPG.Calls.armedForYou", {
                 what: game.i18n.localize(`DRPG.Calls.grants.${grants}`)
             })

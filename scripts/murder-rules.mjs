@@ -2760,7 +2760,7 @@ async function swapRoles(state, done, { restores = false } = {}) {
     // the one thing about the old plan that survives, so it is also the one
     // thing the GM does not have to decide again.
     await whisperToGms(`<p class="drpg-warning">${
-        game.i18n.format("DRPG.Murder.keyRemnantsStale", { n: state.keyRemnants })}</p>`);
+        plural("DRPG.Murder.keyRemnantsStale", { n: state.keyRemnants })}</p>`);
 }
 
 async function finishIncident(state, key, band, done, killed = null, actorId = null) {
@@ -4069,7 +4069,7 @@ async function afterNoBody(state, victim, killer) {
 
 async function tellGms(text, extra = {}) {
     await whisperToGms(`<p>${foundry.utils.escapeHTML(text)}</p>${
-        extra.keys ? `<p><strong>${game.i18n.format("DRPG.Murder.keyCount", {
+        extra.keys ? `<p><strong>${plural("DRPG.Murder.keyCount", {
             n: extra.keys
         })}</strong></p>` : ""
     }`);

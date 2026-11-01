@@ -53,7 +53,7 @@ import { MODULE_ID, TRIAL, staleStamp } from "./config.mjs";
 import { SETTINGS, getClock, getSetting, isDeceased, isMutedDead, seasonEpoch } from "./settings.mjs";
 import { isMonocub } from "./monocub.mjs";
 import { cubVoice } from "./voice.mjs";
-import { isPrimaryGm, error, serverNow, serialWrite } from "./utils.mjs";
+import { isPrimaryGm, error, serverNow, serialWrite, plural } from "./utils.mjs";
 import { bridgeRequest, sayNotDone } from "./bridge-guards.mjs";
 import { SEIZE_KEY, objectionRecord } from "./trial.mjs";
 // The trial's participants, asked synchronously by `targetRefusal` (E51 C6): static, and no cycle (R161).
@@ -1240,12 +1240,12 @@ export async function overruleObjection(messageId = null) {
 function overruledState(floor) {
     const seconds = Math.max(leftAt(floor, serverNow()), 0);
     if (floor?.mode === FLOOR_MODES.rebuttal) {
-        return game.i18n.format("DRPG.Floor.overrule.stateRebuttal", {
+        return plural("DRPG.Floor.overrule.stateRebuttal", {
             who: game.actors.get(floor.holderId ?? "")?.name ?? "-", target: game.actors.get(floor.targetId ?? "")?.name ?? "-", seconds
-        });
+        }, "seconds");
     }
     if (floor?.mode === FLOOR_MODES.objection) return game.i18n.localize("DRPG.Floor.mode.objection");
-    return game.i18n.format("DRPG.Floor.overrule.stateDebate", { seconds });
+    return plural("DRPG.Floor.overrule.stateDebate", { seconds }, "seconds");
 }
 
 /**
