@@ -87,8 +87,9 @@ one form stands, held since H81:
   now prefers it and forbids "zobacz, co nosi", stage E71; the English, "See what they carry", is unchanged. Until E71
   ships, T8 reports the five places that still hold the old form (the row and the Palm hint in lang/pl.json, the
   Polish GM handbook's and the brochure's Palm rows, the player handbook's Frisk paragraph) as not yet due, and
-  `node tools/check.mjs text` stays green. E71 changes them, with R620's pinned form ("Zobacz, co nosi" in the row,
-  "zobacz, co nosi" in the hint and the books); E65 changes no key. The PL23 row below is E71's to apply.
+  `node tools/check.mjs text` stays green. E71 changes the five to the owner's form, "Zobacz, co ktoś nosi" in the row
+  and "zobacz, co ktoś nosi" in the hint and the books, and moves R620's pin (tier 1) from "Zobacz, co nosi" to it in
+  the same commit; E65 changes no key. The PL23 row below is E71's to apply.
 - Kept beside it, as sentences with a subject of their own: "{who} chce zobaczyć, co nosi {name}"
   (DRPG.Frisk.askText, askTextAskOnly), "temu, co nosi {who}" (DRPG.Frisk.missed), "{who} ma przy sobie:"
   (DRPG.Frisk.listHeading). The forbidden phrase is "zobacz, co nosi" whole, so none of them is read by it.

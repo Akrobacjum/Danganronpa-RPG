@@ -2134,7 +2134,9 @@ const PAIR_KEY = /^`([A-Za-z][\w-]*(?:\.[\w-]+)+)`$/, PLAN_PHRASING = "plan phra
 const PAIR_QUOTE = /^„([\s\S]*\S[\s\S]*)”$/u;
 /* E65-18's status with the date the pairs were written (31.10.2026: E65-18 says 30.10, and the orchestrator's decision 62 of
    31.10 has the true date; E65 C10), then the two the owner's reading gives a pair (E65-24): no agent writes either of those. */
-const PAIR_STATUS = /^(?:written 31\.10 for the owner's pilot, not confirmed|(?:confirmed|changed) in the pilot \d\d\.\d\d\.\d{4})$/;
+/* A verdict may name the owner's page it was given on (E65 fix round, 01.11.2026): the 60 were read on E65-PILOT-R2, the
+   pilot's second page, after the first (E65-PILOT-R1) had left them out. */
+const PAIR_STATUS = /^(?:written 31\.10 for the owner's pilot, not confirmed|(?:confirmed|changed) in the pilot \d\d\.\d\d\.\d{4}(?: \(E65-PILOT-R[12]\))?)$/;
 const pairCells = line => line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map(c => c.trim());
 
 /**
@@ -2176,7 +2178,7 @@ export function naturalnessPairs(text) {
         if (before === undefined) faults.push(`${name}'s before ${JSON.stringify(beforeCell)} is not a quote in „...”`);
         if (after === undefined) faults.push(`${name}'s after ${JSON.stringify(afterCell)} is not a quote in „...”`);
         if (!rule) faults.push(`${name} names no rule`);
-        if (!PAIR_STATUS.test(status)) faults.push(`${name}'s status ${JSON.stringify(status)} is not "written 31.10 for the owner's pilot, not confirmed", "confirmed in the pilot <dd.mm.yyyy>" or "changed in the pilot <dd.mm.yyyy>"`);
+        if (!PAIR_STATUS.test(status)) faults.push(`${name}'s status ${JSON.stringify(status)} is not "written 31.10 for the owner's pilot, not confirmed", "confirmed in the pilot <dd.mm.yyyy>" or "changed in the pilot <dd.mm.yyyy>", each with or without " (E65-PILOT-R1)" or " (E65-PILOT-R2)" after the date`);
         if (key === undefined || before === undefined) continue;
         const twin = seen.get(`${key} ${before}`);
         if (twin) faults.push(`${name} repeats ${twin}'s key and before`);
@@ -2425,8 +2427,9 @@ export const staleRow = (name, s) => `${name}'s baseline row ${s.file} ${s.key ?
  * what it reads. The plan's five FAIL tests are T1, T2, T3, T6 and T14 (its
  * risk: a lint in FAIL from the first day would stop the gate on debt this stage
  * does not make); every other detector reports until the stage named in `fail`.
- * `fail` null is a report that stays one (T7's part: the rules-parity test of E25 and
- * E57 replaces it rather than turning it). `reads` is what it needs, `also` what it reads when it is handed it (T6 the
+ * `fail` null is a report that stays one (T17, T18, T19, T22, T23, T27). T7's part fails
+ * from E25, which owns the rule numbers' wording (E65 decision 44, 31.10.2026; set at the fix round, 01.11); the rest
+ * of the rules-parity test is E25's and E57's. `reads` is what it needs, `also` what it reads when it is handed it (T6 the
  * English prose, which only Node has), `lexer` that it takes tests-lint.mjs's.
  * A FAIL detector with a baseline (BASELINES) is red only on what the baseline
  * does not hold, and on a row the files no longer fill.
@@ -2442,7 +2445,7 @@ export const MODES = Object.freeze({
     retiredHits: Object.freeze({ test: "T28", mode: "report", fail: "E66", reads: Object.freeze(["glossary", "lang", "docs"]), also: Object.freeze(["prose"]) }),
     lengthOver: Object.freeze({ test: "T4", mode: "report", fail: "E71", reads: Object.freeze(["budgets", "lang"]), also: Object.freeze(["prose", "scripts"]), lexer: true }),
     patterns: Object.freeze({ test: "T5", mode: "report", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "budgets", "scripts"]), lexer: true }),
-    ruleNumberWords: Object.freeze({ test: "T7", mode: "report", fail: null, reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
+    ruleNumberWords: Object.freeze({ test: "T7", mode: "report", fail: "E25", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
     monokumaVoice: Object.freeze({ test: "T21", mode: "report", fail: "E71", reads: Object.freeze(["lang", "budgets", "scripts"]), also: Object.freeze(["prose", "docs"]), lexer: true }),
     colonChains: Object.freeze({ test: "T24", mode: "report", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
     loanGender: Object.freeze({ test: "T11", mode: "report", fail: "E71", reads: Object.freeze(["glossary", "lang"]), also: Object.freeze(["docs"]) }),
@@ -3210,7 +3213,7 @@ export const FIXTURES = Object.freeze({
         flags: ["DRPG.Fx.here N1-present", "DRPG.Fx.road N2-present"],
         gone: ["N3", "N4", "N5", "N6"],
         counts: { pairs: 6, present: 2, gone: 4, keyGone: 2, elsewhere: 1, notConfirmed: 1, confirmed: 1, changed: 0 },
-        faults: ["N6 (line 18)'s status \"confirmed\" is not \"written 31.10 for the owner's pilot, not confirmed\", \"confirmed in the pilot <dd.mm.yyyy>\" or \"changed in the pilot <dd.mm.yyyy>\""],
+        faults: ["N6 (line 18)'s status \"confirmed\" is not \"written 31.10 for the owner's pilot, not confirmed\", \"confirmed in the pilot <dd.mm.yyyy>\" or \"changed in the pilot <dd.mm.yyyy>\", each with or without \" (E65-PILOT-R1)\" or \" (E65-PILOT-R2)\" after the date"],
         input: {
             docs: {
                 "docs/text-style.md": [
@@ -3327,7 +3330,7 @@ export const NATURALNESS_TABLE_FIXTURE = Object.freeze({
             "| N3 | notakey | „Brak.” | „Nic.” | X6 | written 31.10 for the owner's pilot, not confirmed |",                                    // no key: not a pair
             "| N4 | `DRPG.Fx.c` | „Brak.” | „Nic.” | X6 |",                                                                                // five cells
             "| N5 | `DRPG.Fx.d` | Brak. | „” |  | confirmed |",                                                                              // no quote, empty after, no rule, a status with no date
-            "| N6 | `DRPG.Fx.a` | „„{item}” się zużył.” | „Inaczej.” | PL-g | confirmed in the pilot 01.11.2026 |",                             // N1's key and before again
+            "| N6 | `DRPG.Fx.a` | „„{item}” się zużył.” | „Inaczej.” | PL-g | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |",              // N1's key and before again; a verdict with its page
             "| N7 | `DRPG.Fx.f` | „Brak.” | „Nic.” | X6 | written 30.10 for the owner's pilot, not confirmed |"                                     // the date before C10's decision 62
         ].join("\n"),
         "## 12. Bez tabeli\n\n| N | Klucz | Przed | Po | Reguła | Status |",
@@ -3343,9 +3346,9 @@ export const NATURALNESS_TABLE_FIXTURE = Object.freeze({
                 "N5 (line 8)'s before \"Brak.\" is not a quote in „...”",
                 "N5 (line 8)'s after \"„”\" is not a quote in „...”",
                 "N5 (line 8) names no rule",
-                "N5 (line 8)'s status \"confirmed\" is not \"written 31.10 for the owner's pilot, not confirmed\", \"confirmed in the pilot <dd.mm.yyyy>\" or \"changed in the pilot <dd.mm.yyyy>\"",
+                "N5 (line 8)'s status \"confirmed\" is not \"written 31.10 for the owner's pilot, not confirmed\", \"confirmed in the pilot <dd.mm.yyyy>\" or \"changed in the pilot <dd.mm.yyyy>\", each with or without \" (E65-PILOT-R1)\" or \" (E65-PILOT-R2)\" after the date",
                 "N6 (line 9) repeats N1's key and before",
-                "N7 (line 10)'s status \"written 30.10 for the owner's pilot, not confirmed\" is not \"written 31.10 for the owner's pilot, not confirmed\", \"confirmed in the pilot <dd.mm.yyyy>\" or \"changed in the pilot <dd.mm.yyyy>\"",
+                "N7 (line 10)'s status \"written 30.10 for the owner's pilot, not confirmed\" is not \"written 31.10 for the owner's pilot, not confirmed\", \"confirmed in the pilot <dd.mm.yyyy>\" or \"changed in the pilot <dd.mm.yyyy>\", each with or without \" (E65-PILOT-R1)\" or \" (E65-PILOT-R2)\" after the date",
                 "the heading names N1-N4, and the table holds 7 row(s)"
             ]
         },

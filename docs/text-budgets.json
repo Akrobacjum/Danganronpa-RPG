@@ -3,12 +3,12 @@
         "How long a text of each surface may be (E65 C5; S18-33, DB11). The surfaces are docs/text-style.md's (section 3), the numbers its section 4: words, counted per string.",
         "DB11 (the owner, binding): a target that goes to the report and a hard limit of about 1.5 times the target, FAIL for the player's and the settings' texts; the GM's diagnostics only reported (limit null); an allow list with a reason.",
         "`fail` on each surface (E65 C6): the stage from which a string over its limit is red - E71 for the player's and the settings' texts, as the orchestrator read DB11 on 31.10 - or null where the surface stays a report: the GM's card, the GM's diagnostics, and the window surfaces whose reader a key's name does not tell.",
-        "The targets are rebuilt 30.10 from DB11 and Appendix A section 4 of the stage's plan, to confirm in the pilot (DB23); each limit is the target times 1.5, rounded up. No text of the module is over a budget by these numbers until the pilot has confirmed them.",
+        "The targets are rebuilt 30.10 from DB11 and Appendix A section 4 of the stage's plan; the pilot of 01.11.2026 (DB23) named no number, so they are to confirm in E71 (row 1.2.128), which turns T4's limits to FAIL. Each limit is the target times 1.5, rounded up. Until E71 confirms them, a count over a budget is a reading, not a verdict on a text of the module.",
         "`rules`: the first rule that names a key gives its surface; `keys` is a regular expression over the whole key (en.json, pl.json, and config.mjs's prose by its DRPG.Config.* key), `sender` the functions that post it (scripts/tests-text.mjs SENDERS). A key no rule names is \"unclassified\" in the report.",
         "`allow`: one key silenced for one rule (T4 or an X rule of the guide; T16 has no allow list), with `why` and the stage that may remove it (`until`). A row without `why` is a schema error (tests-text.mjs budgetsSchema, red in `node tools/check.mjs text`).",
         "Who reads it: T4 (lengthOver, E65 C6: the targets, the limits, `fail` and the rules), T5 (patterns, the X rules' allow rows and the surfaces it reads) and T21 (monokumaVoice, the world voice's surface), through `node tools/check.mjs text`. Nothing at a table reads it (export-ignore)."
     ],
-    "status": "rebuilt 30.10 from DB11 and Appendix A section 4, to confirm in the pilot",
+    "status": "rebuilt 30.10 from DB11 and Appendix A section 4, to confirm in E71 (row 1.2.128)",
     "unit": "words",
     "surfaces": {
         "tile-label": {

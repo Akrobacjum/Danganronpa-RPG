@@ -17210,7 +17210,9 @@ const REGRESSIONS = [
          * English label) is a candidate. Why both tiers keep it: R972 is E14's (tier 1, with the read-back by
          * classifyTableName and the flags), R1060 is the plan's T14, a FAIL test of the text lint, in tier 0 beside
          * R1058 and R1059. Read on 52eacb9c in Node: the words and lists of Base unchanged, (1) nothing found. Nothing
-         * is written to the world.
+         * is written to the world. The harness's GM plays in English, so headless R1060 always sets the Polish itself;
+         * the reading on a GM whose module language is Polish (nothing set, 0 fields put back) is LIVE-E65-01 (AUDIT 9.2
+         * item 361).
          */
         const C = await import("./config.mjs");
         const t = await import("./tables.mjs");

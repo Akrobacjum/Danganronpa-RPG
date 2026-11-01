@@ -11,14 +11,18 @@ Every rule ends with exactly one status, in brackets:
 
 - `[survives: <source>]` - the rule's content survives in a source, quoted or named. DB1-DB41 are the owner's answers:
   they bind, whole and as decided, and are cited by number, never marked rebuilt.
-- `[rebuilt 30.10 from <source>, to confirm in the pilot]` - the rule's own wording is lost; it is rebuilt from what
+- `[rebuilt 30.10 from <source>, to confirm in E71 (row 1.2.128)]` - the rule's own wording is lost; it is rebuilt from what
   survives of it, and the source is named.
-- `[rebuilt 30.10 from the number alone, to confirm in the pilot]` - only the rule's number survives; its content is a
+- `[rebuilt 30.10 from the number alone, to confirm in E71 (row 1.2.128)]` - only the rule's number survives; its content is a
   reconstruction.
+- `confirmed in the pilot 01.11.2026` in place of the "to confirm": the owner's pilot confirmed the rebuilt rule.
 - "number assigned 30.10" inside a status: the content survives in a summary, but which number it carried does not.
 
 No rebuilt rule is the original (section 13). The pilot (prepared in E65 C14, read by the owner in C-pilot, DB23) is
-where a rebuilt rule is confirmed or changed; a rule the pilot does not exercise stays "to confirm" after it.
+where a rebuilt rule is confirmed or changed; a rule the pilot does not exercise stays "to confirm" after it, and E71
+(row 1.2.128) confirms it: E71 turns T4, T5, T11, T12, T13, T15, T16, T21, T24 and T25 to FAIL (MODES in
+`scripts/tests-text.mjs`), so it measures each rule against the texts it rewrites. Until the pilot the status read
+"to confirm in the pilot"; the E65 fix round (01.11.2026) named E71 in each that the pilot left.
 
 The pilot was read on 01.11.2026 (E65 C-pilot; the answers are `owner` in `docs/dev/text-pilot.json`): the owner
 approved all 40 pairs, with no correction and no „nikt tak nie mówi”, and the default of each of the eight questions; on
@@ -29,7 +33,11 @@ correction. A rule counts as exercised when an approved pair applies it - a dete
 in the pair's before and not in its after, or the C14 reviewers or the one revision named the rule as applied on that
 pair - no approved after breaks it, and no reviewer's note on the rule itself is still waiting for the owner. A rule the
 pilot reached but did not confirm carries a "Pilot 01.11.2026:" line saying why. The 60 naturalness pairs (section 12)
-were not on the pilot's page, and each stays "not confirmed".
+were not on the pilot's page (E65-PILOT-R1); the owner read them the same day on a second page, E65-PILOT-R2, and
+approved all 60 as written, with no note on any pair ("Wszystkie z 60 naturalnosci zatwierdzam jako domyslne"). Each
+now ends `confirmed in the pilot 01.11.2026 (E65-PILOT-R2)`, and a rebuilt rule the 60 exercise by the same test - for
+these pairs the rule column, which the page showed the owner, names a rule as applied - is confirmed with a "Pilot
+01.11.2026 (E65-PILOT-R2):" line saying where: X1, X10, X13 and M8 (E65 fix round).
 
 An example under a rule is a real key's text, read on this tree on 31.10.2026 - the key in backticks, English in “...”,
 Polish in „...”, "..." where a text is cut - or a sentence a source quotes, named as such. "Found:" marks a text of the
@@ -50,14 +58,14 @@ autorytet reguł, PH 0.2.2 i angielski podręcznik modułu jako autorytet brzmie
 etykiet)”]
 
 5. This guide, then the glossary for words. [rebuilt 30.10 from the plan's goal (docs/text-style.md and
-   docs/glossary.json as the stage's two sources of style and words), to confirm in the pilot]
+   docs/glossary.json as the stage's two sources of style and words), to confirm in E71 (row 1.2.128)]
 
 - **Sources 1** Where a DB answer and a rebuilt rule disagree, the DB answer wins; where an answer overrode an earlier
   recommendation, the answer holds - DB34's „akcje uniwersalne” over the recommendation (b). [survives: DB34
   „Rekomendacja po krytyce polszczyzny była inna (b), ale decyzja ... jest wiążąca”]
 - **Sources 2** A decision that names a stage: this guide states the rule, the glossary's entry the stage from which it
   holds (DB7's labels: the entries `crime-silence-badge` and `crime-witness`). [rebuilt 30.10 from the stage's plan (C5's
-  edge cases), to confirm in the pilot]
+  edge cases), to confirm in E71 (row 1.2.128)]
 
 ## 2. O1-O18: how a text is built
 
@@ -76,7 +84,7 @@ etykiet)”]
   helping you.”
 - **O5** Numbers only from placeholders: a count, cost or threshold the code knows reaches the text as a placeholder,
   never as a digit typed into the prose (M5). [rebuilt 30.10 from the plan's summary, „liczby tylko z placeholderów”,
-  number assigned 30.10, to confirm in the pilot]
+  number assigned 30.10, to confirm in E71 (row 1.2.128)]
   Example: `DRPG.Action.dcStash` “Finding a stash: {n}+.” / „Znalezienie skrytki: {n}+.”
   Pilot 01.11.2026: stays to confirm. Two approved Polish afters write a number the code knows into the prose -
   `DRPG.Settings.searchTokensPerRoom.hint` „od 0 do 10” (the setting's range) and `DRPG.Config.PHASES.dailyLife.hint`
@@ -90,7 +98,7 @@ etykiet)”]
   Example: `DRPG.Vote.finalSentenceMissing` “A Final Trial verdict waits to be carried out, but this browser does not
   hold who was sentenced. Load the GMs' backup on this browser, or give the Final verdict again.”
 - **O8** A refusal says what the reader keeps. [rebuilt 30.10 from E68's text, „według O8 z E65: «You keep your
-  action.» / «Nie tracisz akcji.»”, to confirm in the pilot]
+  action.» / «Nie tracisz akcji.»”, to confirm in E71 (row 1.2.128)]
   Example (E68's text): “You keep your action.” / „Nie tracisz akcji.” - where the module has `DRPG.Bridge.nothingSpent`
   “Nothing was spent.” / „Nic nie wydano.” (X1).
   Pilot 01.11.2026: stays to confirm. Applied in `DRPG.Action.noRoom` and `DRPG.Config.HOPE_CALLS.relief.effect`; the EN
@@ -98,15 +106,15 @@ etykiet)”]
   on a refusal before any price (`DRPG.Actions.notEnough`) waits for the owner.
 - **O9** No design rationale in a UI string: why it was built so belongs in code comments and the handbooks. [rebuilt
   30.10 from S18-30, „odpowiadają na pytanie „dlaczego tak zaprojektowano”, a nie „co się stało i co mogę zrobić””, and
-  the plan's P1, to confirm in the pilot]
+  the plan's P1, to confirm in E71 (row 1.2.128)]
 - **O10** No reassurance tail, unless it is about safety. [rebuilt 30.10 from the number alone (its subject from the
   plan's typical message: result, justification, exception, reassurance), confirmed in the pilot 01.11.2026]
 - **O11** A button is a verb with its object. [rebuilt 30.10 from a stage text that quotes it, „mają czasownik z
-  dopełnieniem według O11”, to confirm in the pilot]
+  dopełnieniem według O11”, to confirm in E71 (row 1.2.128)]
   Example: `DRPG.Project.createButton` “Create project” / „Utwórz projekt”.
 - **O12** A text written to this guide after E66 is checked by the lint and the glossary, and left as it is if it
   passes. [rebuilt 30.10 from E71's text, „tylko sprawdza lintem i słowniczkiem i zostawia, jeśli przechodzą (O12)”, to
-  confirm in the pilot]
+  confirm in E71 (row 1.2.128)]
 - **O13** An exception gets a sentence only where the reader can meet it. [rebuilt 30.10 from the number alone,
   confirmed in the pilot 01.11.2026]
 - **O14** One name per mechanic, the glossary's; no synonym for variety (DB33, DB37). [rebuilt 30.10 from the number
@@ -115,14 +123,14 @@ etykiet)”]
   confirmed in the pilot 01.11.2026]
 - **O16** A stage that is not a text stage edits a text minimally and writes the fact or style error it saw into the
   table for E71, instead of rewriting it. [rebuilt 30.10 from E66's and E25's texts, „do tabeli dla E71 (O16), zamiast
-  redagować”, „edycją minimalną (O16)”, to confirm in the pilot]
+  redagować”, „edycją minimalną (O16)”, to confirm in E71 (row 1.2.128)]
 - **O17** Each language for its own reader: the Polish is written from the facts, not from the English sentence by
   sentence (DB26). [rebuilt 30.10 from the number alone, confirmed in the pilot 01.11.2026]
   Pilot 01.11.2026: the Polish of the 40 was written from the facts and the old Polish with no English in its input, as
   section 12's step 2 has it.
 - **O18** A rule that forbids a shape shows the sentence that replaces it; the pilot's approved pairs are the model.
   [rebuilt 30.10 from the number alone (its reason in the plan's risk, „Wytyczne, które tylko zakazują, dają nowy styl
-  AI”), to confirm in the pilot]
+  AI”), to confirm in E71 (row 1.2.128)]
 
 ## 3. Surfaces and the surface matrix
 
@@ -130,7 +138,7 @@ Where a text is shown decides who reads it, what it holds and what it never hold
 the pilot's quotas (S18-32: tiles and config descriptions, toasts and player cards, settings hints, GM diagnostics,
 the world voice, plural families) and S18-30 („macierzy powierzchni”), confirmed in the pilot 01.11.2026 for the seven
 rows the 40 pairs stand on - tile hint, config description, toast, player chat card, settings name and hint (its hint),
-GM diagnostics, world-voice announcement - and to confirm in the pilot for the other seven]
+GM diagnostics, world-voice announcement - and to confirm in E71 (row 1.2.128) for the other seven]
 
 | Surface | Who reads it | What it holds | What it never holds | A key of it (31.10) |
 | --- | --- | --- | --- | --- |
@@ -156,7 +164,7 @@ GM diagnostics, world-voice announcement - and to confirm in the pilot for the o
   reason. [survives: DB11 „cel (raport) i limit twardy ok. 1,5 razy cel (FAIL) dla tekstów gracza i ustawień;
   diagnostyka GM-a tylko raport; allowlista z powodem”]
 - **B2** The numbers, in words per string (the limit is the target times 1.5, rounded up). [rebuilt 30.10 from DB11 and
-  the stage's plan (Appendix A, section 4), to confirm in the pilot]
+  the stage's plan (Appendix A, section 4), to confirm in E71 (row 1.2.128)]
   Pilot 01.11.2026: stays to confirm. The owner's verdicts named no number, so docs/text-budgets.json is unchanged; read
   by the pilot's surface, 22 approved texts (a language and a form) in 12 keys are over the target - tile hints up to 43
   words, config descriptions up to 41, settings hints up to 37 - and none is over the limit.
@@ -180,7 +188,7 @@ GM diagnostics, world-voice announcement - and to confirm in the pilot for the o
   `.title` or `...Title`, the diagnostics' key groups; a toast by `ui.notifications`, a player card by `whisperToOwner`
   and the room's or the incident's audience, a GM card by `whisperToGms`, the world voice by `announce` with no whisper
   list. A key no rule names is "unclassified" in the report. The rules are `rules` in `docs/text-budgets.json`. [rebuilt
-  30.10 from the stage's plan (Appendix A, section 4), to confirm in the pilot]
+  30.10 from the stage's plan (Appendix A, section 4), to confirm in E71 (row 1.2.128)]
   Measured 31.10 by the key rules alone: 623 of 4953 keys (en.json 4438, config.mjs's prose 515) are named, 4330 are
   not; a rule by sender needs the call that posts the key.
 - **B4** A handbook has no word target: its word goals are only a guide, and nothing is cut to meet them. [survives:
@@ -196,41 +204,46 @@ C6) reports these shapes; E71 turns X5, X9, X15, X16 and X18 to FAIL (S18-47). T
 calls „wzorce jednoznaczne” (unambiguous); their content was rebuilt to fit that word.
 
 - **X1** Reassurance by denying a loss - say what the reader keeps instead (O8). [rebuilt 30.10 from E68's conflict
-  note, „«Nothing was spent.» przeczy wytycznym X1 i O8”, to confirm in the pilot]
+  note, „«Nothing was spent.» przeczy wytycznym X1 i O8”, confirmed in the pilot 01.11.2026]
   Found: `DRPG.Bridge.nothingSpent` “Nothing was spent.” / „Nic nie wydano.”
+  Pilot 01.11.2026 (E65-PILOT-R2): applied in N28, N29 and N30 (`DRPG.Action.dynamicRefused`,
+  `DRPG.TraitRuling.refused`, `DRPG.Overflow.hopeBlocked`): T5 finds X1's shape in the three befores and in none of the
+  100 approved afters (the pilot's 40 in both languages, the 60 pairs).
 - **X2** A design rationale in the string (O9). [rebuilt 30.10 from the number alone (its subject from the plan's P1),
-  to confirm in the pilot]
+  to confirm in E71 (row 1.2.128)]
 - **X3** The antithesis "X, not Y" as a sentence shape. [rebuilt 30.10 from E71's why (the shape counted in its
-  strings), to confirm in the pilot]
+  strings), to confirm in E71 (row 1.2.128)]
   Found: `DRPG.Hud.trialTooltip` “The Class Trial. The debate runs from the GM's console, not here.” / „Class Trial.
   Debatę prowadzi GM ze swojej konsoli, nie stąd.”
 - **X4** A dash that tacks a moral or an aside on to a sentence. [rebuilt 30.10 from E71's why (the shape counted in EN
-  and PL), to confirm in the pilot]
+  and PL), to confirm in E71 (row 1.2.128)]
   Found: `DRPG.Monocub.dialogIntro` “... Tick to opt them in - the timing is your judgement, not the module's.” /
   „... Zaznacz, by go włączyć - moment wybierasz ty, nie moduł.”
   Pilot 01.11.2026: stays to confirm. The rewrite took the dash out of 8 English and 7 Polish befores, and two approved
   Polish afters keep one - `DRPG.Config.ACTIONS.tamper.hint` „a gdy nie masz już akcji - Sanity” and
   `DRPG.Chapter.bodyCalled` „Investigation jeszcze nie trwa - rozpocznie je GM”.
 - **X5** A bracketed plural "(s)": a count is a plural family (`plural()`). [rebuilt 30.10 from the number alone (one
-  of E71's five unambiguous numbers), to confirm in the pilot]
+  of E71's five unambiguous numbers), to confirm in E71 (row 1.2.128)]
   Found: `DRPG.Advance.offered` “... you have {n} pick(s).”
 - **X6** Telegraph style: articles and verbs dropped. [rebuilt 30.10 from the plan's risk, „telegrafia”, to confirm in
-  the pilot]
+  E71 (row 1.2.128)]
   Pilot 01.11.2026: stays to confirm. The EN reviewer's note that a settings hint opening with a verb and no subject
   (“Takes effect at once.”, EN14's own sentence) is the settings convention, not telegraph style, waits for the owner.
 - **X7** A chain of label-colon-value inside a sentence. [rebuilt 30.10 from the plan's risk, „łańcuchy dwukropków”, to
-  confirm in the pilot]
+  confirm in E71 (row 1.2.128)]
   Found: `DRPG.Action.dcAnalyze` “Identifying a bullet, by how visible its trace was - of the crime: {rows}; faint:
   {faint}; Key and Final: {key}.”
-- **X8** "please" or "sorry" in system text. [rebuilt 30.10 from the number alone, to confirm in the pilot]
+- **X8** "please" or "sorry" in system text. [rebuilt 30.10 from the number alone, to confirm in E71 (row 1.2.128)]
   Found: `DRPG.Reroll.rulingVoid` “... Please rule again.” / „... Zdecyduj ponownie.”
 - **X9** A doubled space, or a space before punctuation. [rebuilt 30.10 from the number alone (one of E71's five
-  unambiguous numbers), to confirm in the pilot]
+  unambiguous numbers), to confirm in E71 (row 1.2.128)]
 - **X10** Hedges and fillers: "just", "simply", "actually", „po prostu”, „właściwie”. [rebuilt 30.10 from the number
-  alone, to confirm in the pilot]
+  alone, confirmed in the pilot 01.11.2026]
   Found: `DRPG.Murder.escapeIntro` “... The incident simply ends.” / „... Incydent po prostu się kończy.”
-- **X11** A passive that hides the reader as the one who acts. [rebuilt 30.10 from the number alone, to confirm in the
-  pilot]
+  Pilot 01.11.2026 (E65-PILOT-R2): applied in N25 and N27 (`DRPG.Config.ACTIONS.palm.description`,
+  `DRPG.Murder.freeResolution`): T5 finds „po prostu” in both befores and in none of the 100 approved afters.
+- **X11** A passive that hides the reader as the one who acts. [rebuilt 30.10 from the number alone, to confirm in E71
+  (row 1.2.128)]
   Pilot 01.11.2026: stays to confirm. The EN reviewer's note that a passive which does not hide the reader
   (`DRPG.Config.ACTIONS.observe.hint`'s draft “is copied into your inventory”) should not be read by the rule waits for
   the owner.
@@ -240,22 +253,26 @@ calls „wzorce jednoznaczne” (unambiguous); their content was rebuilt to fit 
   Pilot 01.11.2026: the owner kept the shape „w pokoju {room}” (question X12-room, the default), and the approved afters
   of `DRPG.Vault.keyShared`, `DRPG.Move.entered`, `DRPG.Calls.gatherBody`, `DRPG.Vault.unlockedAnnounce` and
   `DRPG.Eclipse.moved` use it.
-- **X13** A singular "they" given as a Polish plural. [rebuilt 30.10 from E71's why, to confirm in the pilot]
+- **X13** A singular "they" given as a Polish plural. [rebuilt 30.10 from E71's why, confirmed in the pilot 01.11.2026]
+  Pilot 01.11.2026 (E65-PILOT-R2): applied in N24, N25 and N26 (`DRPG.Chapter.revived`,
+  `DRPG.Config.ACTIONS.palm.description`, `DRPG.Vote.verdictIntroKnown`), as their rule column says and the owner read
+  it; T5's X13 matcher finds the shape in none of the three befores and none of the 100 approved afters, so the
+  confirmation rests on the pairs the owner approved, not on the matcher.
 - **X14** A negated question, or a double negation, on a button. [rebuilt 30.10 from the number alone, to confirm in
-  the pilot]
+  E71 (row 1.2.128)]
 - **X15** An exclamation mark in system text and in the world voice. [rebuilt 30.10 from the number alone (one of
-  E71's five unambiguous numbers), to confirm in the pilot]
+  E71's five unambiguous numbers), to confirm in E71 (row 1.2.128)]
   Found: `DRPG.Floor.debateOpenedTitle` “Nonstop Debate!”
 - **X16** ALL-CAPS emphasis (acronyms such as GM, NPC and HUD, and names, aside). [rebuilt 30.10 from the number alone
-  (one of E71's five unambiguous numbers), to confirm in the pilot]
-- **X17** Stacked qualifiers: "only ... unless ... except". [rebuilt 30.10 from the number alone, to confirm in the
-  pilot]
+  (one of E71's five unambiguous numbers), to confirm in E71 (row 1.2.128)]
+- **X17** Stacked qualifiers: "only ... unless ... except". [rebuilt 30.10 from the number alone, to confirm in E71
+  (row 1.2.128)]
 - **X18** "successfully" / „pomyślnie”. [rebuilt 30.10 from the number alone (one of E71's five unambiguous numbers),
-  to confirm in the pilot]
-- **X19** A hint that restates its label. [rebuilt 30.10 from the number alone, to confirm in the pilot]
-- **X20** A "Note:", "Tip:" or „Uwaga:” lead-in in UI text. [rebuilt 30.10 from the number alone, to confirm in the
-  pilot]
-- **X21** A rhetorical question in system text. [rebuilt 30.10 from the number alone, to confirm in the pilot]
+  to confirm in E71 (row 1.2.128)]
+- **X19** A hint that restates its label. [rebuilt 30.10 from the number alone, to confirm in E71 (row 1.2.128)]
+- **X20** A "Note:", "Tip:" or „Uwaga:” lead-in in UI text. [rebuilt 30.10 from the number alone, to confirm in E71
+  (row 1.2.128)]
+- **X21** A rhetorical question in system text. [rebuilt 30.10 from the number alone, to confirm in E71 (row 1.2.128)]
 
 ## 6. English
 
@@ -309,11 +326,13 @@ dało się je policzyć.
 - **PL-a** Odmieniane są tylko rzeczowniki policzalne: Truth Bulletu, Remnantu, tokenu, Search Tokenu (-u jak
   bilet/biletu), Call/Calla, Level Upy; Class Trial nieodmienne z przyimkiem („w/podczas Class Trial”); z nazw Calli
   odmieniane tylko Reroll (Rerolla) i Burst (Burstem); zasoby nijakie i nieodmienne (tabeli zasobów, 2.11, nie ma w
-  zachowanych źródłach). [survives: DB4]
+  zachowanych źródłach); Hope i Despair są męskie (PL-b, D191). [survives: DB4]
   Przykład: `DRPG.Trial.notInTrial` „Dowody przedstawia się w Class Trial.”; znalezione: `DRPG.Action.dcAnalyze`
   „Identyfikacja Truth Bulleta, ...”.
 - **PL-b** Rodzaj: zasoby, Overflow, Eclipse, fazy i stany nijakie; Class Trial, Free Move, Rebuttal, Truth Bullet,
-  Remnant, Search Token męskie; Nonstop Debate żeńska; Objection nijakie, jak dziś w UI. [survives: DB28]
+  Remnant, Search Token męskie; Nonstop Debate żeńska; Objection nijakie, jak dziś w UI. Hope i Despair są męskie i
+  nieodmienne („twój Hope”, „cały Despair”): nijaki rodzaj zasobów z DB28 ich nie obejmuje. [survives: DB28; Hope and
+  Despair are masculine and indeclinable (the owner, 31.10.2026, D191)]
 - **PL-c** Tryby rozprawy mają rodzaj polskiego odpowiednika: Testimony n (zeznanie), Panic Round ż (runda), Closing
   Argument m (argument), Straw Poll ż (sonda), Logic Dive m, Scrum Debate ż (debata); Findings nieodmienne, w zdaniu
   „lista Findings”. [survives: DB39]
@@ -377,7 +396,7 @@ dało się je policzyć.
 - **M4** Conditions and exceptions stay whole when a text is shortened. [rebuilt 30.10 from the hand-off's „fakty
   zachowane” column, confirmed in the pilot 01.11.2026]
 - **M5** No digit is added to prose; a number comes from a placeholder (O5). [rebuilt 30.10 from E66's text, „nie
-  dopisuje cyfr do prozy (M5)”, to confirm in the pilot]
+  dopisuje cyfr do prozy (M5)”, to confirm in E71 (row 1.2.128)]
   Pilot 01.11.2026: stays to confirm, as O5.
 - **M6** Outcome words only as DB18 has them (EN8, PL-q). [rebuilt 30.10 from the number alone, confirmed in the pilot
   01.11.2026]
@@ -387,7 +406,9 @@ dało się je policzyć.
   Found: `DRPG.Action.goalStressHint` “Small comforts. Clears Sanity.” / „Drobne pocieszenia. Oczyszcza Sanity.”
 - **M8** Who decides: the player proposes, the GM approves or changes it - “Approve: {stat}”, “Change to: {stat}”,
   “Refuse” / „Zatwierdź: {stat}”, „Zmień na: {stat}”, „Odmów”. [rebuilt 30.10 from the number alone (the buttons are
-  DA18's, as the plan entry names them), to confirm in the pilot]
+  DA18's, as the plan entry names them), confirmed in the pilot 01.11.2026]
+  Pilot 01.11.2026 (E65-PILOT-R2): applied in N29 (`DRPG.TraitRuling.refused`, „GM odmawia tej akcji”), as its rule
+  column says and the owner read it; M8 has no detector.
 - **M9** A text never names what its reader may not know; who reads a key is the audience map's (P3). [rebuilt 30.10
   from the number alone, confirmed in the pilot 01.11.2026]
 - **M10** Shortening a handbook: join sentences, keep one place for a fact with a pointer to it, a list or a table
@@ -403,9 +424,9 @@ dało się je policzyć.
   01.11.2026]
   Pilot 01.11.2026: the 40 approved pairs keep every placeholder of their befores, 80 of 80 (key, language).
 - **N3** Config ids, flag keys and setting keys stay - the `listen` key stays when its tile is relabelled (DA27).
-  [rebuilt 30.10 from the number alone, to confirm in the pilot]
+  [rebuilt 30.10 from the number alone, to confirm in E71 (row 1.2.128)]
 - **N4** The console's names, and diagnostics.mjs's console in English (DB12), stay. [rebuilt 30.10 from the number
-  alone, to confirm in the pilot]
+  alone, to confirm in E71 (row 1.2.128)]
 - **N5** The key-labels `ITEM_CATEGORIES.*.plural` and `.label`, `USABLE_KINDS.*.label` and `USABLE_GOALS.*.label`
   change only with the old wording added to `LEGACY_PLURALS` or `LEGACY_GOAL_LABELS` (scripts/tables.mjs), and those
   lists are only appended to (DB13; T14). [survives: the plan, „etykiety-klucze ITEM_CATEGORIES.*.plural i .label,
@@ -415,19 +436,20 @@ dało się je policzyć.
   frozen) and the legacy lists against their contents there. A word a stage adds to a legacy list after that commit is
   held by N5's "only appended to" and by review, not by T14.
 - **N6** The handbook section numbers the UI links to stay (D35). [rebuilt 30.10 from the number alone, to confirm in
-  the pilot]
-- **N7** The names of documents the module finds by name stay. [rebuilt 30.10 from the number alone, to confirm in the
-  pilot]
+  E71 (row 1.2.128)]
+- **N7** The names of documents the module finds by name stay. [rebuilt 30.10 from the number alone, to confirm in E71
+  (row 1.2.128)]
 - **N8** A posted record - a chat card in the log - is not rewritten. [rebuilt 30.10 from the number alone, to confirm
-  in the pilot]
+  in E71 (row 1.2.128)]
 
 ## 10. Three voices and the perspective
 
 - **V1** The interface speaks to the one acting: second person, what they see and can do (O4). [rebuilt 30.10 from
-  DB1, DB12 and the pilot's quotas, to confirm in the pilot]
+  DB1, DB12 and the pilot's quotas, to confirm in E71 (row 1.2.128)]
 - **V2** The world speaks in a neutral voice, in the third person, with no lines of Monokuma. [survives: DB1]
 - **V3** The GM's diagnostics speak to a GM: what is wrong, where, what to do; the console of diagnostics.mjs stays in
-  English. [rebuilt 30.10 from DB11 and DB12 („konsola diagnostics.mjs zostaje po angielsku”), to confirm in the pilot]
+  English. [rebuilt 30.10 from DB11 and DB12 („konsola diagnostics.mjs zostaje po angielsku”), to confirm in E71
+  (row 1.2.128)]
 - **P1** When more than one person reads a text, the third person with the role, or a name. [survives: DB19 „trzecia
   osoba z rolą („The victim…”, „Ofiara…”)”]
 - **P2** The second person only to the one acting, never to many readers at once (T16). [rebuilt 30.10 from DB19 and
@@ -436,7 +458,7 @@ dało się je policzyć.
   Wskażcie, kto waszym zdaniem jest Blackened.” - a card to the whole table.
 - **P3** Who reads a key is read off the code that sends it (the audience map, I11): `whisperToOwner`,
   `roomAudience`, `incidentAudienceIds`, `announce`, `whisperToGms`, `ui.notifications`. [rebuilt 30.10 from S18-34, to
-  confirm in the pilot]
+  confirm in E71 (row 1.2.128)]
 
 ## 11. The hand-off format of a batch
 
@@ -447,7 +469,7 @@ with code or a decision. [survives: E71's verify, its columns]
 ## 12. Test naturalności PL
 
 Metoda w ośmiu krokach. [rebuilt 30.10 from the number alone („metoda w ośmiu krokach”; the steps from DB26, DB23 and
-the plan's reviewer roles), to confirm in the pilot]
+the plan's reviewer roles), to confirm in E71 (row 1.2.128)]
 
 1. Fakty klucza: co się dzieje, komu, ile kosztuje, z jakimi wyjątkami (O6).
 2. Polski z faktów, kodu i starego PL, bez wglądu w nowy EN; EN dopiero przy kontroli parytetu (DB26).
@@ -464,14 +486,16 @@ wypadają”]
 
 ### Pary N1-N60
 
-Sześćdziesiąt par napisanych od nowa 31.10.2026 (E65 C9) do lektury właściciela w pilocie; tabela z 2.16 przepadła, więc
+Sześćdziesiąt par napisanych od nowa 31.10.2026 (E65 C9) do lektury właściciela; tabela z 2.16 przepadła, więc
 numeracja N1-N60 jest nowa i nie powtarza starej. Żadna para nie dotyczy DB34: „akcje uniwersalne” to reguła (PL-l), nie
 para. „Przed” to dosłowny fragment wartości klucza w `lang/pl.json` (całość albo jej zdanie, z wielkością liter), „Po” to
 ten sam fragment napisany od nowa z faktów klucza i z kodu, który go wysyła, bez wglądu w EN (DB26, krok 2); placeholdery
-zostają te same (N2). „Reguła” mówi, co para pokazuje. Status brzmi jak w E65-18, z prawdziwą datą napisania (31.10;
-E65-18 podaje 30.10, decyzja z 31.10), i zostaje po angielsku: para jest potwierdzona dopiero po lekturze właściciela
-(C-pilot, E65-24), nigdy przez agenta. Na stronie pilota z 01.11.2026 tych par nie było: właściciel ich nie
-przeczytał i każda zostaje „not confirmed” (Q-E65-3). Kształt X12 „w pokoju {room}”, którego używają N1-N8, N10,
+zostają te same (N2). „Reguła” mówi, co para pokazuje. Status zostaje po angielsku: para jest potwierdzona dopiero po
+lekturze właściciela (E65-24), nigdy przez agenta. Na stronie pilota z 01.11.2026 (E65-PILOT-R1) tych par nie było;
+tego samego dnia właściciel przeczytał je na drugiej stronie, E65-PILOT-R2, i zatwierdził wszystkie 60 tak, jak są
+napisane, bez uwagi do żadnej („Wszystkie z 60 naturalnosci zatwierdzam jako domyslne”; Q-E65-3). Każda ma więc status
+„confirmed in the pilot 01.11.2026 (E65-PILOT-R2)”; do tej lektury brzmiał „written 31.10 for the owner's pilot, not
+confirmed”, z prawdziwą datą napisania. Kształt X12 „w pokoju {room}”, którego używają N1-N8, N10,
 N15-N20 i N23, właściciel zatwierdził osobnym pytaniem pilota.
 
 T27 (`naturalnessBefore` w `scripts/tests-text.mjs`, raport) czyta tę tabelę - jest jedynym źródłem par - i zgłasza każde
@@ -481,66 +505,66 @@ kolei, klucz bez backticków, cytat bez „...”, status spoza trzech) psuje cz
 
 | N | Klucz | Przed | Po | Reguła | Status |
 | --- | --- | --- | --- | --- | --- |
-| N1 | `DRPG.Listen.prompt` | „Jesteś w: {room}. Który sąsiedni pokój?” | „Jesteś w pokoju {room}. Który sąsiedni pokój chcesz podsłuchać?” | X12, O4 | written 31.10 for the owner's pilot, not confirmed |
-| N2 | `DRPG.Listen.anonymous.few` | „{n} osoby w: {room}. Nie da się poznać kto.” | „W pokoju {room} są {n} osoby, ale nie poznajesz, kto to.” | X12, PL7 | written 31.10 for the owner's pilot, not confirmed |
-| N3 | `DRPG.Action.sabotageSeen` | „Widać, jak {actor} grzebie przy projekcie w: {room}.” | „W pokoju {room} widać, jak {actor} grzebie przy projekcie.” | X12 | written 31.10 for the owner's pilot, not confirmed |
-| N4 | `DRPG.Vault.keyGranted` | „Masz klucz do: {room}.” | „Masz klucz do pokoju {room}.” | X12 | written 31.10 for the owner's pilot, not confirmed |
-| N5 | `DRPG.Vault.keyMissing` | „Drzwi do: {room} są zamknięte. Nie masz tego klucza.” | „Pokój {room} jest zamknięty, a ty nie masz do niego klucza.” | X12, O2 | written 31.10 for the owner's pilot, not confirmed |
-| N6 | `DRPG.Vault.notHere` | „Twoja skrytka jest w: {room} - stań tam, żeby do niej sięgnąć.” | „Twoja skrytka jest w pokoju {room}. Przejdź tam, żeby do niej sięgnąć.” | X12, X4, O7 | written 31.10 for the owner's pilot, not confirmed |
-| N7 | `DRPG.Chapter.bodyFound` | „Znaleziono ciało w: {room}.” | „W pokoju {room} znaleziono ciało.” | X12, V2 | written 31.10 for the owner's pilot, not confirmed |
-| N8 | `DRPG.Chapter.bodyFoundNamed` | „{name} znaleziony martwy w: {room}.” | „{name} nie żyje. Ciało leży w pokoju {room}.” | X12, PL17 (czas teraźniejszy zamiast „znaleziony” przy imieniu kobiety) | written 31.10 for the owner's pilot, not confirmed |
-| N9 | `DRPG.Handover.gave` | „{name} należy teraz do: {who}.” | „{who} ma teraz przedmiot „{name}”.” | X12, PL-g | written 31.10 for the owner's pilot, not confirmed |
-| N10 | `DRPG.Handover.nobodyHere` | „Nie ma nikogo innego w: {room}, komu dałoby się cokolwiek przekazać.” | „W pokoju {room} nie ma nikogo poza tobą, więc nie masz komu niczego przekazać.” | X12, O4 | written 31.10 for the owner's pilot, not confirmed |
-| N11 | `DRPG.Analyze.stashFound` | „Jest tu skrytka i należy do: {who}.” | „Znajdujesz tu skrytkę postaci {who}.” | X12, O1 | written 31.10 for the owner's pilot, not confirmed |
-| N12 | `DRPG.Murder.openingDeclined` | „Brak rzutu otwarcia od: {name}.” | „{name} odmawia rzutu otwarcia.” | X12, X6 | written 31.10 for the owner's pilot, not confirmed |
-| N13 | `DRPG.Items.took` | „{item} zabrany od: {actor}.” | „Zabierasz przedmiot „{item}” postaci {actor}.” | X12, X6, PL-g | written 31.10 for the owner's pilot, not confirmed |
-| N14 | `DRPG.Monocub.meddledOn` | „Confusion użyte na: {name}.” | „Używasz Confusion na postaci {name}.” | X12, X6, O4 | written 31.10 for the owner's pilot, not confirmed |
-| N15 | `DRPG.Passage.list.oneWay` | „Tylko w jedną stronę, z: {from}, do: {to}.” | „Tylko w jedną stronę: z pokoju {from} do pokoju {to}.” | X12, X7 | written 31.10 for the owner's pilot, not confirmed |
-| N16 | `DRPG.Cleanup.bodyMoved` | „Ciało przeniesiono do: {room}.” | „Ciało leży teraz w pokoju {room}.” | X12, O1 | written 31.10 for the owner's pilot, not confirmed |
-| N17 | `DRPG.Cleanup.moveIntro` | „Ciało jest w: {room}. Wybierz, dokąd je wleczesz. Kosztuje {n} Sanity.” | „Ciało leży w pokoju {room}. Wybierz, dokąd je zawleczesz; wydasz na to {n} Sanity.” | X12, M3, M7 | written 31.10 for the owner's pilot, not confirmed |
-| N18 | `DRPG.Action.murderCancelled` | „Direct Murder ({killer}) spełzł na niczym w: {room} - {reason}” | „Direct Murder ({killer}) w pokoju {room} nie dochodzi do skutku: {reason}” | X12, X4 | written 31.10 for the owner's pilot, not confirmed |
-| N19 | `DRPG.Analyze.stashFoundGm` | „{finder} - rzut {total}, znaleziona ukryta skrytka ({who}) w: {room}.” | „{finder} znajduje ukrytą skrytkę postaci {who} w pokoju {room} (rzut {total}).” | X12, X6, T22 | written 31.10 for the owner's pilot, not confirmed |
-| N20 | `DRPG.Remnant.sabotageNote` | „{actor} - sabotaż projektu {project} w: {room} (rzut {total}).” | „{actor} sabotuje projekt {project} w pokoju {room} (rzut {total}).” | X12, X6 | written 31.10 for the owner's pilot, not confirmed |
-| N21 | `DRPG.Cleanup.gmLine` | „{actor} - rzut {total} przeciw DC {dc} przy: {what} - {verdict}.” | „{actor} rzuca {total} przeciw DC {dc} ({what}): {verdict}.” | X12, X4, X7 | written 31.10 for the owner's pilot, not confirmed |
-| N22 | `DRPG.Murder.crowded` | „{name} wchodzi zaraz po: {third}. Cztery osoby w jednym pokoju to nie morderstwo, które ktokolwiek może przeprowadzić - incydent odwołany.” | „{name} wchodzi zaraz po postaci {third}. W pokoju są teraz cztery osoby, więc incydent zostaje odwołany.” | X12, X4, X6 | written 31.10 for the owner's pilot, not confirmed |
-| N23 | `DRPG.Vault.full` | „{room}: skrytka pełna. Mieści {limit} rzeczy - wyjmij coś, zanim coś włożysz.” | „Skrytka w pokoju {room} jest pełna: mieści {limit} rzeczy. Wyjmij coś, zanim włożysz nową.” | X12, X4, X6 | written 31.10 for the owner's pilot, not confirmed |
-| N24 | `DRPG.Chapter.revived` | „Truth Bullets, które z nimi zginęły, nie wracają.” | „Truth Bullets, które przepadły razem z tą postacią, nie wracają.” | X13 | written 31.10 for the owner's pilot, not confirmed |
-| N25 | `DRPG.Config.ACTIONS.palm.description` | „Albo po prostu prosisz, żeby pokazali kieszenie.” | „Możesz też poprosić tę osobę, żeby pokazała kieszenie.” | X13, X10 | written 31.10 for the owner's pilot, not confirmed |
-| N26 | `DRPG.Vote.verdictIntroKnown` | „Tylko ty wiesz, czy trafili.” | „Tylko ty wiesz, czy stół trafił.” | X13 | written 31.10 for the owner's pilot, not confirmed |
-| N27 | `DRPG.Murder.freeResolution` | „Weź w tej turze Survive albo Role reversal - bez rzutu, po prostu działa.” | „W tej turze weź Survive albo Role reversal: działa bez rzutu.” | X4, X10 | written 31.10 for the owner's pilot, not confirmed |
-| N28 | `DRPG.Action.dynamicRefused` | „GM odrzucił Dynamic action. Nic nie zostało wydane.” | „GM odrzuca twoją Dynamic action. Nie tracisz akcji.” | X1, O8, O15 | written 31.10 for the owner's pilot, not confirmed |
-| N29 | `DRPG.TraitRuling.refused` | „GM nie dopuścił tej akcji. Nic nie zostało wydane.” | „GM odmawia tej akcji, więc jej nie tracisz.” | X1, O8, M8 | written 31.10 for the owner's pilot, not confirmed |
-| N30 | `DRPG.Overflow.hopeBlocked` | „Zaciemnienie blokuje Hope w tej porze dnia - nic nie zostało wydane.” | „Zaciemnienie blokuje Hope Calls o tej porze dnia. Hope zostaje przy tobie.” | X1, O8, X4 | written 31.10 for the owner's pilot, not confirmed |
-| N31 | `DRPG.Hud.trialTooltip` | „Class Trial. Debatę prowadzi GM ze swojej konsoli, nie stąd.” | „Class Trial. Debatą kieruje GM ze swojej konsoli.” | X3 | written 31.10 for the owner's pilot, not confirmed |
-| N32 | `DRPG.RollDialog.advantageLocked` | „Przewaga i utrudnienie biorą się z Calli, nie stąd.” | „Przewagę i utrudnienie dają Calle; w tym oknie ich nie ustawisz.” | X3, O4 | written 31.10 for the owner's pilot, not confirmed |
-| N33 | `DRPG.RollDialog.modeLocked` | „To, kto widzi ten rzut, ustala gra, nie to okno.” | „Kto zobaczy ten rzut, ustala gra; w tym oknie tego nie zmienisz.” | X3, O4 | written 31.10 for the owner's pilot, not confirmed |
-| N34 | `DRPG.Vault.noBullets` | „Truth Bullets to to, co wiesz, nie rzeczy w skrytce.” | „Truth Bullets to twoja wiedza, więc nie trafiają do skrytki.” | X3 | written 31.10 for the owner's pilot, not confirmed |
-| N35 | `DRPG.Floor.closing.waitsForGm` | „Closing Argument czeka na twój wybór, nie na zegar.” | „Closing Argument nie ruszy, dopóki nie wybierzesz.” | X3 | written 31.10 for the owner's pilot, not confirmed |
-| N36 | `DRPG.Calls.needNote` | „Najpierw napisz, co zamierzasz z tym zrobić - GM ma orzec o tym, nie o Callu.” | „Najpierw napisz, co chcesz z tym zrobić: GM ocenia twój zamiar.” | X3, X4 | written 31.10 for the owner's pilot, not confirmed |
-| N37 | `DRPG.Sound.effectsIntro` | „puste pole gra ciszą, co jest wyborem, nie usterką.” | „puste pole oznacza ciszę.” | X3, O9 | written 31.10 for the owner's pilot, not confirmed |
-| N38 | `DRPG.Monocub.dialogIntro` | „Zaznacz, by go włączyć - moment wybierasz ty, nie moduł.” | „Zaznacz gracza, kiedy uznasz, że czas go włączyć.” | X4, X3 | written 31.10 for the owner's pilot, not confirmed |
-| N39 | `DRPG.Action.substitute` | „Nie to, czego szukasz - to, co miał ten pokój.” | „Tego, czego szukasz, tu nie ma. Znajdujesz coś innego, co było w tym pokoju.” | X4, X6 | written 31.10 for the owner's pilot, not confirmed |
-| N40 | `DRPG.Action.goalToolHint` | „Narzędzie. Daje przewagę przy pracy nad projektem - i nie zostawia śladu, chyba że to, co się znajdzie, jest też bronią.” | „Narzędzie daje przewagę przy pracy nad projektem. Nie zostawia Remnantu, chyba że znaleziona rzecz jest też bronią.” | X4, X6, PL-r | written 31.10 for the owner's pilot, not confirmed |
-| N41 | `DRPG.Action.murderSpendsAnyway` | „Potwierdzenie wydaje akcję niezależnie od tego, czy się uda - a czy się udało, dowiesz się dopiero, gdy Eclipse się skończy.” | „Potwierdzając, wydajesz akcję bez względu na wynik. Czy się udało, dowiesz się dopiero po zakończeniu Eclipse.” | X4, M3 | written 31.10 for the owner's pilot, not confirmed |
-| N42 | `DRPG.Items.noneReadied` | „Nic nie jest w ręku - w incydencie i przy sprzątaniu liczy się tylko to, co trzymasz.” | „Nie trzymasz niczego w ręku, a w incydencie i przy sprzątaniu liczy się tylko to, co trzymasz.” | X4, O4 | written 31.10 for the owner's pilot, not confirmed |
-| N43 | `DRPG.Items.wouldRestoreNothing` | „Nic nie przywróci - masz już pełne wszystko, co daje.” | „Ten przedmiot nic ci teraz nie da: wszystko, co przywraca, masz już pełne.” | X4, M7 | written 31.10 for the owner's pilot, not confirmed |
-| N44 | `DRPG.Cleanup.reshapeNeedsBoth` | „Napisz i nazwę, i opis - puste kłamstwo to nie kłamstwo. Okno otwiera się znowu z tym, co już wpisano.” | „Wpisz i nazwę, i opis. Okno otworzy się znowu z tym, co już jest wpisane.” | X4, O9 | written 31.10 for the owner's pilot, not confirmed |
-| N45 | `DRPG.Vote.dismissed` | „Karta zamknięta bez głosu. Nic ci nie policzono - poproś GM-a, by wysłał ją ponownie.” | „Zamykasz kartę bez głosu, więc twój głos się nie liczy. Jeśli chcesz zagłosować, poproś GM-a, żeby wysłał kartę jeszcze raz.” | X4, X6, O7 | written 31.10 for the owner's pilot, not confirmed |
-| N46 | `DRPG.Analyze.askHintHint` | „Brak dowodów w ręku - poproś GM-a, by cię gdzieś skierował.” | „Nie masz w ręku żadnego dowodu. Poproś GM-a o wskazówkę, gdzie szukać.” | X4, X6 | written 31.10 for the owner's pilot, not confirmed |
-| N47 | `DRPG.Observe.critPrompt` | „Krytyk - kategoria rozpoznana od razu, i należy się solidna podpowiedź.” | „Krytyk: obserwator od razu rozpoznaje kategorię. Daj solidną podpowiedź.” | X4, X11, O4 | written 31.10 for the owner's pilot, not confirmed |
-| N48 | `DRPG.Action.goalStressHint` | „Drobne pocieszenia. Oczyszcza Sanity.” | „Drobne pocieszenia przywracają Sanity.” | X6, M7 | written 31.10 for the owner's pilot, not confirmed |
-| N49 | `DRPG.Cleanup.bareHands` | „Nic w ręku. Gołe ręce.” | „Nie trzymasz narzędzia, więc sprzątasz gołymi rękami, bez przewagi.” | X6, O4 | written 31.10 for the owner's pilot, not confirmed |
-| N50 | `DRPG.Season.resetDone` | „Sezon zresetowany. Obsada i mapy nietknięte.” | „Sezon zaczyna się od nowa. Obsada i mapy zostają bez zmian.” | X6, O1 | written 31.10 for the owner's pilot, not confirmed |
-| N51 | `DRPG.Calls.motiveSet.few` | „Motive ogłoszony. {n} pory dnia na zegarze.” | „Motive jest ogłoszony. Na zegarze zostały {n} pory dnia.” | X6, PL7 | written 31.10 for the owner's pilot, not confirmed |
-| N52 | `DRPG.Overflow.rulesChanged` | „Overflow przestrojony. Odpala teraz przy {n}.” | „Overflow ma nowe ustawienia: odpala teraz przy {n}.” | X6, PL-b (Overflow nijakie; „przestrojony” jest męskie) | written 31.10 for the owner's pilot, not confirmed |
-| N53 | `DRPG.Calls.hopeSpent` | „Wydano {cost} Hope · zostało {left}.” | „Wydajesz {cost} Hope; zostaje ci {left} Hope.” | T25, X11 | written 31.10 for the owner's pilot, not confirmed |
-| N54 | `DRPG.Trial.objectionPickCount` | „Na wybór zostało {seconds} s. Gdy czas minie, Objection zostanie wycofane, a to, co zapłaciłeś, nie wróci.” | „Na wybór masz {seconds} s. Po tym czasie Objection przepada, a jego koszt nie wraca.” | T25, X11, PL-b (bez „zapłaciłeś”) | written 31.10 for the owner's pilot, not confirmed |
-| N55 | `DRPG.Eclipse.trialFirst` | „Trwa Class Trial, więc Eclipse nie został rozpoczęty” | „Trwa Class Trial, więc Eclipse nie może się zacząć” | PL-b (Eclipse nijakie), X11 | written 31.10 for the owner's pilot, not confirmed |
-| N56 | `DRPG.Actions.allSpent` | „Brak akcji. Wracają, gdy zacznie się następny Eclipse.” | „Nie masz już akcji. Wrócą na początku kolejnego Eclipse.” | X6, PL-b, PL17 (forma bez rodzaju) | written 31.10 for the owner's pilot, not confirmed |
-| N57 | `DRPG.Action.murderNotParked` | „To zgłoszenie już nie czeka - Eclipse się skończył albo już je rozstrzygnięto.” | „To zgłoszenie już nie czeka: Eclipse się skończyło albo zgłoszenie jest już rozstrzygnięte.” | PL-b, X4, X11 | written 31.10 for the owner's pilot, not confirmed |
-| N58 | `DRPG.Items.woreOnDespair` | „„{item}” przyjął na siebie najgorsze - zostało {left} z {total}, zanim się zepsuje.” | „„{item}” traci wytrzymałość przez Despair: ma jeszcze {left} z {total} punktów, potem się zepsuje.” | X4, T25, PL17 („przyjął” przy przedmiocie rodzaju żeńskiego) | written 31.10 for the owner's pilot, not confirmed |
-| N59 | `DRPG.Look.note` | „Wszystko w tym oknie należy do tej przeglądarki. Nikt inny nie widzi ani nie słyszy różnicy.” | „Wszystko w tym oknie dotyczy tylko tej przeglądarki. Inni przy stole niczego nie zauważą.” | PL-o (DB10), kalka „należy do” | written 31.10 for the owner's pilot, not confirmed |
-| N60 | `DRPG.Rolls.notDrawnHere` | „Ta wiadomość pojawia się raz dla tej wersji.” | „Ten komunikat zobaczysz raz na każdą wersję systemu.” | kalka „raz dla tej wersji”, O4 | written 31.10 for the owner's pilot, not confirmed |
+| N1 | `DRPG.Listen.prompt` | „Jesteś w: {room}. Który sąsiedni pokój?” | „Jesteś w pokoju {room}. Który sąsiedni pokój chcesz podsłuchać?” | X12, O4 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N2 | `DRPG.Listen.anonymous.few` | „{n} osoby w: {room}. Nie da się poznać kto.” | „W pokoju {room} są {n} osoby, ale nie poznajesz, kto to.” | X12, PL7 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N3 | `DRPG.Action.sabotageSeen` | „Widać, jak {actor} grzebie przy projekcie w: {room}.” | „W pokoju {room} widać, jak {actor} grzebie przy projekcie.” | X12 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N4 | `DRPG.Vault.keyGranted` | „Masz klucz do: {room}.” | „Masz klucz do pokoju {room}.” | X12 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N5 | `DRPG.Vault.keyMissing` | „Drzwi do: {room} są zamknięte. Nie masz tego klucza.” | „Pokój {room} jest zamknięty, a ty nie masz do niego klucza.” | X12, O2 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N6 | `DRPG.Vault.notHere` | „Twoja skrytka jest w: {room} - stań tam, żeby do niej sięgnąć.” | „Twoja skrytka jest w pokoju {room}. Przejdź tam, żeby do niej sięgnąć.” | X12, X4, O7 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N7 | `DRPG.Chapter.bodyFound` | „Znaleziono ciało w: {room}.” | „W pokoju {room} znaleziono ciało.” | X12, V2 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N8 | `DRPG.Chapter.bodyFoundNamed` | „{name} znaleziony martwy w: {room}.” | „{name} nie żyje. Ciało leży w pokoju {room}.” | X12, PL17 (czas teraźniejszy zamiast „znaleziony” przy imieniu kobiety) | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N9 | `DRPG.Handover.gave` | „{name} należy teraz do: {who}.” | „{who} ma teraz przedmiot „{name}”.” | X12, PL-g | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N10 | `DRPG.Handover.nobodyHere` | „Nie ma nikogo innego w: {room}, komu dałoby się cokolwiek przekazać.” | „W pokoju {room} nie ma nikogo poza tobą, więc nie masz komu niczego przekazać.” | X12, O4 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N11 | `DRPG.Analyze.stashFound` | „Jest tu skrytka i należy do: {who}.” | „Znajdujesz tu skrytkę postaci {who}.” | X12, O1 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N12 | `DRPG.Murder.openingDeclined` | „Brak rzutu otwarcia od: {name}.” | „{name} odmawia rzutu otwarcia.” | X12, X6 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N13 | `DRPG.Items.took` | „{item} zabrany od: {actor}.” | „Zabierasz przedmiot „{item}” postaci {actor}.” | X12, X6, PL-g | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N14 | `DRPG.Monocub.meddledOn` | „Confusion użyte na: {name}.” | „Używasz Confusion na postaci {name}.” | X12, X6, O4 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N15 | `DRPG.Passage.list.oneWay` | „Tylko w jedną stronę, z: {from}, do: {to}.” | „Tylko w jedną stronę: z pokoju {from} do pokoju {to}.” | X12, X7 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N16 | `DRPG.Cleanup.bodyMoved` | „Ciało przeniesiono do: {room}.” | „Ciało leży teraz w pokoju {room}.” | X12, O1 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N17 | `DRPG.Cleanup.moveIntro` | „Ciało jest w: {room}. Wybierz, dokąd je wleczesz. Kosztuje {n} Sanity.” | „Ciało leży w pokoju {room}. Wybierz, dokąd je zawleczesz; wydasz na to {n} Sanity.” | X12, M3, M7 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N18 | `DRPG.Action.murderCancelled` | „Direct Murder ({killer}) spełzł na niczym w: {room} - {reason}” | „Direct Murder ({killer}) w pokoju {room} nie dochodzi do skutku: {reason}” | X12, X4 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N19 | `DRPG.Analyze.stashFoundGm` | „{finder} - rzut {total}, znaleziona ukryta skrytka ({who}) w: {room}.” | „{finder} znajduje ukrytą skrytkę postaci {who} w pokoju {room} (rzut {total}).” | X12, X6, T22 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N20 | `DRPG.Remnant.sabotageNote` | „{actor} - sabotaż projektu {project} w: {room} (rzut {total}).” | „{actor} sabotuje projekt {project} w pokoju {room} (rzut {total}).” | X12, X6 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N21 | `DRPG.Cleanup.gmLine` | „{actor} - rzut {total} przeciw DC {dc} przy: {what} - {verdict}.” | „{actor} rzuca {total} przeciw DC {dc} ({what}): {verdict}.” | X12, X4, X7 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N22 | `DRPG.Murder.crowded` | „{name} wchodzi zaraz po: {third}. Cztery osoby w jednym pokoju to nie morderstwo, które ktokolwiek może przeprowadzić - incydent odwołany.” | „{name} wchodzi zaraz po postaci {third}. W pokoju są teraz cztery osoby, więc incydent zostaje odwołany.” | X12, X4, X6 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N23 | `DRPG.Vault.full` | „{room}: skrytka pełna. Mieści {limit} rzeczy - wyjmij coś, zanim coś włożysz.” | „Skrytka w pokoju {room} jest pełna: mieści {limit} rzeczy. Wyjmij coś, zanim włożysz nową.” | X12, X4, X6 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N24 | `DRPG.Chapter.revived` | „Truth Bullets, które z nimi zginęły, nie wracają.” | „Truth Bullets, które przepadły razem z tą postacią, nie wracają.” | X13 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N25 | `DRPG.Config.ACTIONS.palm.description` | „Albo po prostu prosisz, żeby pokazali kieszenie.” | „Możesz też poprosić tę osobę, żeby pokazała kieszenie.” | X13, X10 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N26 | `DRPG.Vote.verdictIntroKnown` | „Tylko ty wiesz, czy trafili.” | „Tylko ty wiesz, czy stół trafił.” | X13 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N27 | `DRPG.Murder.freeResolution` | „Weź w tej turze Survive albo Role reversal - bez rzutu, po prostu działa.” | „W tej turze weź Survive albo Role reversal: działa bez rzutu.” | X4, X10 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N28 | `DRPG.Action.dynamicRefused` | „GM odrzucił Dynamic action. Nic nie zostało wydane.” | „GM odrzuca twoją Dynamic action. Nie tracisz akcji.” | X1, O8, O15 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N29 | `DRPG.TraitRuling.refused` | „GM nie dopuścił tej akcji. Nic nie zostało wydane.” | „GM odmawia tej akcji, więc jej nie tracisz.” | X1, O8, M8 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N30 | `DRPG.Overflow.hopeBlocked` | „Zaciemnienie blokuje Hope w tej porze dnia - nic nie zostało wydane.” | „Zaciemnienie blokuje Hope Calls o tej porze dnia. Hope zostaje przy tobie.” | X1, O8, X4 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N31 | `DRPG.Hud.trialTooltip` | „Class Trial. Debatę prowadzi GM ze swojej konsoli, nie stąd.” | „Class Trial. Debatą kieruje GM ze swojej konsoli.” | X3 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N32 | `DRPG.RollDialog.advantageLocked` | „Przewaga i utrudnienie biorą się z Calli, nie stąd.” | „Przewagę i utrudnienie dają Calle; w tym oknie ich nie ustawisz.” | X3, O4 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N33 | `DRPG.RollDialog.modeLocked` | „To, kto widzi ten rzut, ustala gra, nie to okno.” | „Kto zobaczy ten rzut, ustala gra; w tym oknie tego nie zmienisz.” | X3, O4 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N34 | `DRPG.Vault.noBullets` | „Truth Bullets to to, co wiesz, nie rzeczy w skrytce.” | „Truth Bullets to twoja wiedza, więc nie trafiają do skrytki.” | X3 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N35 | `DRPG.Floor.closing.waitsForGm` | „Closing Argument czeka na twój wybór, nie na zegar.” | „Closing Argument nie ruszy, dopóki nie wybierzesz.” | X3 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N36 | `DRPG.Calls.needNote` | „Najpierw napisz, co zamierzasz z tym zrobić - GM ma orzec o tym, nie o Callu.” | „Najpierw napisz, co chcesz z tym zrobić: GM ocenia twój zamiar.” | X3, X4 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N37 | `DRPG.Sound.effectsIntro` | „puste pole gra ciszą, co jest wyborem, nie usterką.” | „puste pole oznacza ciszę.” | X3, O9 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N38 | `DRPG.Monocub.dialogIntro` | „Zaznacz, by go włączyć - moment wybierasz ty, nie moduł.” | „Zaznacz gracza, kiedy uznasz, że czas go włączyć.” | X4, X3 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N39 | `DRPG.Action.substitute` | „Nie to, czego szukasz - to, co miał ten pokój.” | „Tego, czego szukasz, tu nie ma. Znajdujesz coś innego, co było w tym pokoju.” | X4, X6 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N40 | `DRPG.Action.goalToolHint` | „Narzędzie. Daje przewagę przy pracy nad projektem - i nie zostawia śladu, chyba że to, co się znajdzie, jest też bronią.” | „Narzędzie daje przewagę przy pracy nad projektem. Nie zostawia Remnantu, chyba że znaleziona rzecz jest też bronią.” | X4, X6, PL-r | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N41 | `DRPG.Action.murderSpendsAnyway` | „Potwierdzenie wydaje akcję niezależnie od tego, czy się uda - a czy się udało, dowiesz się dopiero, gdy Eclipse się skończy.” | „Potwierdzając, wydajesz akcję bez względu na wynik. Czy się udało, dowiesz się dopiero po zakończeniu Eclipse.” | X4, M3 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N42 | `DRPG.Items.noneReadied` | „Nic nie jest w ręku - w incydencie i przy sprzątaniu liczy się tylko to, co trzymasz.” | „Nie trzymasz niczego w ręku, a w incydencie i przy sprzątaniu liczy się tylko to, co trzymasz.” | X4, O4 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N43 | `DRPG.Items.wouldRestoreNothing` | „Nic nie przywróci - masz już pełne wszystko, co daje.” | „Ten przedmiot nic ci teraz nie da: wszystko, co przywraca, masz już pełne.” | X4, M7 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N44 | `DRPG.Cleanup.reshapeNeedsBoth` | „Napisz i nazwę, i opis - puste kłamstwo to nie kłamstwo. Okno otwiera się znowu z tym, co już wpisano.” | „Wpisz i nazwę, i opis. Okno otworzy się znowu z tym, co już jest wpisane.” | X4, O9 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N45 | `DRPG.Vote.dismissed` | „Karta zamknięta bez głosu. Nic ci nie policzono - poproś GM-a, by wysłał ją ponownie.” | „Zamykasz kartę bez głosu, więc twój głos się nie liczy. Jeśli chcesz zagłosować, poproś GM-a, żeby wysłał kartę jeszcze raz.” | X4, X6, O7 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N46 | `DRPG.Analyze.askHintHint` | „Brak dowodów w ręku - poproś GM-a, by cię gdzieś skierował.” | „Nie masz w ręku żadnego dowodu. Poproś GM-a o wskazówkę, gdzie szukać.” | X4, X6 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N47 | `DRPG.Observe.critPrompt` | „Krytyk - kategoria rozpoznana od razu, i należy się solidna podpowiedź.” | „Krytyk: obserwator od razu rozpoznaje kategorię. Daj solidną podpowiedź.” | X4, X11, O4 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N48 | `DRPG.Action.goalStressHint` | „Drobne pocieszenia. Oczyszcza Sanity.” | „Drobne pocieszenia przywracają Sanity.” | X6, M7 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N49 | `DRPG.Cleanup.bareHands` | „Nic w ręku. Gołe ręce.” | „Nie trzymasz narzędzia, więc sprzątasz gołymi rękami, bez przewagi.” | X6, O4 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N50 | `DRPG.Season.resetDone` | „Sezon zresetowany. Obsada i mapy nietknięte.” | „Sezon zaczyna się od nowa. Obsada i mapy zostają bez zmian.” | X6, O1 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N51 | `DRPG.Calls.motiveSet.few` | „Motive ogłoszony. {n} pory dnia na zegarze.” | „Motive jest ogłoszony. Na zegarze zostały {n} pory dnia.” | X6, PL7 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N52 | `DRPG.Overflow.rulesChanged` | „Overflow przestrojony. Odpala teraz przy {n}.” | „Overflow ma nowe ustawienia: odpala teraz przy {n}.” | X6, PL-b (Overflow nijakie; „przestrojony” jest męskie) | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N53 | `DRPG.Calls.hopeSpent` | „Wydano {cost} Hope · zostało {left}.” | „Wydajesz {cost} Hope; zostaje ci {left} Hope.” | T25, X11 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N54 | `DRPG.Trial.objectionPickCount` | „Na wybór zostało {seconds} s. Gdy czas minie, Objection zostanie wycofane, a to, co zapłaciłeś, nie wróci.” | „Na wybór masz {seconds} s. Po tym czasie Objection przepada, a jego koszt nie wraca.” | T25, X11, PL-b (bez „zapłaciłeś”) | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N55 | `DRPG.Eclipse.trialFirst` | „Trwa Class Trial, więc Eclipse nie został rozpoczęty” | „Trwa Class Trial, więc Eclipse nie może się zacząć” | PL-b (Eclipse nijakie), X11 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N56 | `DRPG.Actions.allSpent` | „Brak akcji. Wracają, gdy zacznie się następny Eclipse.” | „Nie masz już akcji. Wrócą na początku kolejnego Eclipse.” | X6, PL-b, PL17 (forma bez rodzaju) | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N57 | `DRPG.Action.murderNotParked` | „To zgłoszenie już nie czeka - Eclipse się skończył albo już je rozstrzygnięto.” | „To zgłoszenie już nie czeka: Eclipse się skończyło albo zgłoszenie jest już rozstrzygnięte.” | PL-b, X4, X11 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N58 | `DRPG.Items.woreOnDespair` | „„{item}” przyjął na siebie najgorsze - zostało {left} z {total}, zanim się zepsuje.” | „„{item}” traci wytrzymałość przez Despair: ma jeszcze {left} z {total} punktów, potem się zepsuje.” | X4, T25, PL17 („przyjął” przy przedmiocie rodzaju żeńskiego) | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N59 | `DRPG.Look.note` | „Wszystko w tym oknie należy do tej przeglądarki. Nikt inny nie widzi ani nie słyszy różnicy.” | „Wszystko w tym oknie dotyczy tylko tej przeglądarki. Inni przy stole niczego nie zauważą.” | PL-o (DB10), kalka „należy do” | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
+| N60 | `DRPG.Rolls.notDrawnHere` | „Ta wiadomość pojawia się raz dla tej wersji.” | „Ten komunikat zobaczysz raz na każdą wersję systemu.” | kalka „raz dla tej wersji”, O4 | confirmed in the pilot 01.11.2026 (E65-PILOT-R2) |
 
 ### Wzorzec pozytywny: 40 par z pilota
 
@@ -604,4 +628,45 @@ Przyjmujemy ze wszystkie decyzje sa dobre...”. The wording of O1-O18, X1-X21, 
 pairs was lost with it. What survives is their names, the plan's one-sentence summary of O1-O18, the answers DB1-DB41,
 the issue texts and mentions in other stages' texts. The owner's default holds: this guide is rebuilt from what
 survives; every rule rebuilt so says "rebuilt 30.10" and names its source, or says that only its number survives; no
-rebuilt rule is presented as the original; and the 60 pairs are written fresh, for the owner to read in the pilot.
+rebuilt rule is presented as the original; and the 60 pairs are written fresh for the owner to read: they were not on
+the pilot's page, and the owner read and approved them on a second page, E65-PILOT-R2 (01.11.2026).
+
+### What stays open, and the stage that owns it
+
+Read on 01.11.2026 at the E65 fix round. Each item names an unshipped stage with a row in `tools/stages.json`; a stage
+number alone means that row.
+
+- **The rebuilt rules the pilot did not confirm**: 37 rules (section 1's fifth source, Sources 2, O5, O8, O9, O11,
+  O12, O16, O18, B2, B3, X2-X9, X11, X14-X21, M5, N3, N4, N6-N8, V1, V3 and P3), the other seven rows of section 3
+  and section 12's method: to confirm in E71 (row 1.2.128), which turns the report detectors to FAIL. Of the 41 the
+  first page left, the 60 pairs of the second confirmed X1, X10, X13 and M8; X3 and O9 stay, because an approved
+  after holds their shape by T5 (N24's „, nie wracają” for X3; the pilot's `DRPG.Diagnostics.cast.poolFix` „celowo”
+  for O9, through X2), and X7 because a reviewer's point on it in the pilot's file still waits. The questions the C14
+  reviewers left on O8, X6, X11, EN3, EN6, O5, M5, X4 and B2 (E65 STATUS Open 90-96) go with E71's batch.
+- **The 60 naturalness pairs** (section 12): approved by the owner on E65-PILOT-R2 (01.11.2026), nothing open; they
+  are applied to `lang/pl.json` by the stage the rule of `docs/dev/text-review-E65.md` gives - E66 (row 1.2.96) where
+  a pair changes a name, E71 (row 1.2.128) otherwise - and T27 reports each until then.
+- **The open glossary entries** (`open: true`: no source read decides them, so they forbid nothing), each with the
+  stage that settles it, as the glossary's stage rule gives it (its `$comment`): `db3-english` (DB3's question is not
+  in the sources read) and `mechanic-capitals` (which names DB25 listed) - E25, which settles the DB residue;
+  `truth-bullet` (the four variants S18-31 names) and `murder-weapon` ("crime tool" or "Murder Weapon") - E66,
+  which settles the names; `gm-bar-buttons` (the trial floor's GM bar, E70) - E71, which rewrites those strings.
+- **The choices E65 recorded and did not ask** (E65 STATUS Open 19-22 and 25-27; each stands as built):
+  A10's passage words read as `passage-words` reads them, and which keys A10's texts cover (19) - E66, from which T28
+  fails; the glossary's sources beyond the decisions, S<nn>-<nn> and "E<nn> plan" (20) - E25, from which T8 fails;
+  the retired rows' stages, E65 where no source ties one (21) - E66; not in the glossary for want of a source: DB4's
+  resources (table 2.11, lost) - E71, which turns T11 and T12 to FAIL, and D33a's "Find Stash" as a Polish form - E25,
+  which owns D33a-D33f, while the GM bar's buttons are now `gm-bar-buttons` (22); the stages chosen by reading for
+  has-the-floor, speaking, foundry-tools, map-tools, room-tile, notice-history, find-passage, secret-passage,
+  breach-the-wall and the DB residue (25) - E25, when T8 turns to FAIL; E65-11 run on the real glossary (26) - a
+  record of how it was measured, nothing open; T8's other FAIL steps (E71 for stage-E71 entries, E57 for the
+  handbooks) written in the glossary's `$comment` and not in MODES (27) - E25 decides whether MODES grows a list.
+- **What E65 handed on**: T7's part fails from E25 (MODES `fail: "E25"`; E65 decision 44); the DB28 strings T11
+  shows, Eclipse and Overflow agreed as masculine - E71 rewrites them (49); whether T20's FAIL also covers
+  DateTimeFormat, NumberFormat and PluralRules outside the helpers - E66, when it turns T20 to FAIL (60); T4's FAIL on
+  the window surfaces by reader and the readers of the screens SCREENS does not name - E71 (67); T13's file set,
+  its own or the screen map's - E71, when it turns T13 to FAIL (69); whether a Polish handbook whose ids, kinds or
+  lines differ from the English one is red - E57 (row 1.2.131), which owns the handbook facts (85); whether T4's FAIL
+  needs a floor on how many strings a surface rule places (`node tools/check.mjs text` prints "T4 classified ...":
+  2712 of 10242 on 01.11.2026) - E71, when it turns T4 to FAIL; the Frisk row's Polish form „Zobacz, co ktoś nosi”
+  (`see-what-they-carry`) - E71, with R620's pinned form.

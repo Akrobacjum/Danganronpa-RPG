@@ -423,24 +423,24 @@
         "en": "Hope",
         "pl": "Hope",
         "gender": "m",
-        "inflection": "Indeclinable (DB4: resources do not inflect); written masculine on this tree (\"twój Hope\", \"każdy Hope\").",
+        "inflection": "Indeclinable (DB4: resources do not inflect) and masculine (the owner, 31.10.2026, D191), as this tree writes it (\"twój Hope\", \"każdy Hope\").",
         "declension": {"indeclinable": true},
         "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
         "stage": "E65",
-        "source": ["DB4", "DB28"],
-        "note": "Added in E65 C9 so that T11 and T12 read it (the orchestrator's decision on C7's Open 46). Read 31.10.2026: 253 occurrences of \"Hope\" in pl.json and the Polish handbooks, none with a case ending; T11 with this entry neuter finds 26 candidates for Hope and Despair together (\"Twój Hope jest nietknięty\", \"każdy Hope\", \"Despair, który\"), masculine none. DB28 makes resources neuter; whether Hope and Despair are among DB4's resources (table 2.11) is not in the sources read, so the gender follows the tree until the owner rules (STATUS Open 61)."
+        "source": ["DB4", "DB28", "D191"],
+        "note": "Added in E65 C9 so that T11 and T12 read it (the orchestrator's decision on C7's Open 46). Read 31.10.2026: 253 occurrences of \"Hope\" in pl.json and the Polish handbooks, none with a case ending; T11 with this entry neuter finds 26 candidates for Hope and Despair together (\"Twój Hope jest nietknięty\", \"każdy Hope\", \"Despair, który\"), masculine none. DB28 makes resources neuter; the owner ruled on 31.10.2026 (D191, E65 STATUS Open 61): Hope and Despair are masculine and indeclinable, and DB28's neuter does not cover them."
       },
       {
         "id": "despair",
         "en": "Despair",
         "pl": "Despair",
         "gender": "m",
-        "inflection": "Indeclinable (DB4: resources do not inflect); written masculine on this tree (\"swój Despair\", \"cały Despair\").",
+        "inflection": "Indeclinable (DB4: resources do not inflect) and masculine (the owner, 31.10.2026, D191), as this tree writes it (\"swój Despair\", \"cały Despair\").",
         "declension": {"indeclinable": true},
         "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
         "stage": "E65",
-        "source": ["DB4", "DB28"],
-        "note": "Added in E65 C9 with hope (the orchestrator's decision on C7's Open 46). Read 31.10.2026: 288 occurrences of \"Despair\" in pl.json and the Polish handbooks, none with a case ending, written masculine (\"cały Despair\", \"rozlany Despair\", \"Despair, który\"); DB28's neuter for resources is not applied for the reason given under hope (STATUS Open 61)."
+        "source": ["DB4", "DB28", "D191"],
+        "note": "Added in E65 C9 with hope (the orchestrator's decision on C7's Open 46). Read 31.10.2026: 288 occurrences of \"Despair\" in pl.json and the Polish handbooks, none with a case ending, written masculine (\"cały Despair\", \"rozlany Despair\", \"Despair, który\"); DB28's neuter for resources does not cover it: the owner's ruling of 31.10.2026 (D191), as under hope."
       },
       {
         "id": "free-move",
@@ -1182,6 +1182,19 @@
         "source": ["S18-31"],
         "open": true,
         "note": "\"crime tool\" or \"Murder Weapon\": S18-31 names the split and no source read decides it."
+      },
+      {
+        "id": "gm-bar-buttons",
+        "en": null,
+        "pl": null,
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E71",
+        "source": ["E65 plan"],
+        "open": true,
+        "rule": "The GM's bar on the trial floor (E70): its buttons' names, which the plan's Appendix B lists as \"the GM bar's buttons (E70)\" without the names themselves.",
+        "note": "Added at the E65 fix round (01.11.2026; the goal review's m1, STATUS Open 22). Read on this tree: DRPG.Floor.bar.label \"The GM's controls\" / \"Sterowanie GM-a\", skip \"Skip\" / \"Pomiń\", minus and plus \"-30 s\" / \"+30 s\", overrule \"Overrule\" / \"Oddalenie\", endMode \"End this mode\" / \"Zakończ ten tryb\". No source read fixes them as names or forbids a variant, so the entry is open and forbids nothing; E71, which rewrites those strings, decides whether they are names and writes the entry."
       }
     ],
     "retired": [
