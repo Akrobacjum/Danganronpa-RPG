@@ -1,8 +1,10 @@
 # BOARD - the two lines (edit only your own section; fetch before, merge, never force)
 
-Updated 01.11.2026 (06:35 UTC) by line A (and line B for its own sections).
+Updated 01.11.2026 (20:05 UTC) by line A (and line B for its own sections).
 
 ## Shipped (line A writes this)
+- 1.2.96 (01.11.2026, main 7d384f26, PR #43, latest): E66 alone - one road for numbers, lists, dates and names in the page's language (`listOf`, `localeFormat`, `plural()` families, `lang` on the module's windows, a hidden `documentLanguage` world setting written once by the primary GM), one rename (Remnant, Find Passage, Murder Weapon, Reroll; in Polish "zrób Reroll"), 59 B01a texts approved by the owner, rule O19 (player texts: only the mechanics a player needs). No migration, store, socket or bridge change; no key renamed or removed. CI: the dispatched run red once on scenario 73 H3 (green in the push run and the CRLF job on the same commit; one re-run green); the test holds an element a late history change redraws - E37 carries the test fix.
+- Owner 01.11 (D198, D199): no local whole tier 2 in a train; CRLF dispatched on the last code commit; E37 puts CRLF in 8 shards (blocking, ~25 min) with the single-process run weekly and before 1.3.0; releases 2 a week by default, up to 3 stages each.
 - 1.2.95 (01.11.2026, main c014681b, PR #42, latest): E65 alone - the text style guide, glossary, `node tools/check.mjs text` (26 detectors), the handbook-facts tool, the review of older texts and the pilot (40 pairs and 60 naturalness pairs approved by the owner). No module script changes behaviour. Push CI red once in scenario 87 D1 (green on the same commit in the CRLF run and 5/5 locally; one re-run, green; cause not found).
 - 1.2.94 (31.10.2026, main ed6e8a0b, PR #41, latest): E50 and E51 together. First CI red on four tier-2/scenario-72 readers of E51's deliberate changes; tests fixed (21ab6aab, 976e2101). New rule before release.sh: the whole of tier 2 and every scenario touching the changed scripts/.
 - 1.2.93 (31.10.2026, main 8abf0a42, PR #40, latest): E90 alone, the GM stores' clock hotfix (The Forge's serverTime counts from the server's start). CRLF hang fixed in the harness (06556296): requestAnimationFrame ticks on the timers captured at boot; a test that stubs `globalThis.setInterval` no longer stops frames for the rest of the session.
@@ -16,9 +18,9 @@ Updated 01.11.2026 (06:35 UTC) by line A (and line B for its own sections).
 | E89 | shipped in 1.2.91 with E20 | visibility.mjs, movement.mjs, fog*.mjs, glass/CSS, rooms/vault (Bedroom stash) | release 1.2.91 |
 | E52 | shipped in 1.2.92 | patches.mjs, diagnostics.mjs, api.mjs, tools/api-surface.json | line B: E52 is done; tests that stub a Foundry function keep the function itself, not `.bind()` |
 | E65 | shipped in 1.2.95 | lint, tools, docs (text guidelines, glossary) | from now on: read docs/text-style.md and docs/glossary.json before writing user-facing text (CLAUDE.md) |
-| E66 | SPEC ready (29 rows, C1-C7 + C-owner); BUILD from C1 on branch e66 (base c014681b; Q-E66-1..5 on their defaults) (train 1.2.96) | i18n across many files (lang/ in every commit), one rename of names (C5) | conflicts with almost anything in flight; E24/E60 still wait for it |
+| E66 | shipped in 1.2.96 | i18n across many files, the rename | line B: E66's names are in; read docs/glossary.json before naming anything; `listOf`/`localeFormat`/`plural()` for every count, list and date |
 | E50, E51 | shipped in 1.2.94 | messenger, music, sfx, Take; action windows, Calls, map (fog, fog-doorways), HUD, panel, trace digest | E63 left the plan; E67 merged into E72 |
-| E37 | SPEC being written (on the 1.2.95 tree; anchors re-read on E66's tree before the build); BUILD after E66 | clock, Eclipse, sync, readiness check | lang/ too, so not beside E66 |
+| E37 | BUILD on branch e37: C1 84fdb5af, C2 2e06ae13 pushed; C3 building (spec revised for D197, anchors re-read at 7efb4e58) | clock, Eclipse (boundary.mjs), sync, readiness round (3 bridge rows, a world setting), scenario 73 H3 test fix, CI (CRLF shards) | next release with up to 2 more stages (D199) |
 
 R numbers: line A R1049-R1499.
 
