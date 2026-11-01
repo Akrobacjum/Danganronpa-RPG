@@ -107,7 +107,8 @@ export const NOTICE_TEXTS = Object.freeze({
  * 26 000 characters, the design's reading); an entry over its limit keeps its title and
  * text and drops the html (`clipped`). A player's section keeps 250 entries and 200 000
  * characters, a GM's 150 and 100 000; the whole value 500 000. A section holds at most 4
- * full day summaries (E37 gives one at every boundary of a time of day), and at most 40
+ * full day summaries (E37 gives one at every boundary of a time of day), fewer where its
+ * characters run short (the older ones clipped to their words before any entry is cut, E37 C4), and at most 40
  * entries and a quarter of the section's characters from each other user (`authorShare`, E81
  * fix r1-G1). None of these is a measurement of a browser's quota:
  * localStorage is shared with the private cards and the GM stores, and the history gives way
@@ -605,6 +606,25 @@ export function createNoticeEngine(env) {
             if (now.n > Math.floor(BUDGET.perAuthor * room) || now.size > cap.chars * BUDGET.authorShare * room) drop.add(entry);
         }
         if (drop.size) section.entries = section.entries.filter(entry => !drop.has(entry));
+        /*
+         * AND THE OLDER SUMMARIES GO TO THEIR WORDS BEFORE ANY ENTRY GOES (E37 C4, 01.11.2026; E37-18, the A7 amend of
+         * 11.10). Since E37 C4 a summary shows at every boundary of a time of day, five a day, and a GM's summary table
+         * reaches the 26 000 budget: four whole ones are more than the GM's 100 000 characters with anything beside
+         * them, and the cut below took the section's oldest entries - the GM's own cards - to keep them whole (R292 at
+         * 2230c1fa: 12 of 20 cards kept beside five summaries of one day). Over its characters, the section clips its
+         * summaries oldest first, the newest left whole, and only then cuts anything.
+         */
+        let over = sizeOf(section) - chars;
+        if (over > 0) {
+            const full = section.entries.map((entry, i) => (entry.source === "summary" && !entry.clipped ? i : -1)).filter(i => i >= 0);
+            for (const i of full.slice(0, -1)) {
+                if (over <= 0) break;
+                const entry = section.entries[i], clipped = { ...entry, html: "", clipped: true };
+                over -= sizeOf(entry) - sizeOf(clipped);
+                section.entries[i] = clipped;
+                weight.set(clipped, sizeOf(clipped) + 1);
+            }
+        }
         const groups = new Map();
         for (const entry of section.entries) {
             const group = groups.get(entry.author ?? "") ?? { n: 0, size: 0 };

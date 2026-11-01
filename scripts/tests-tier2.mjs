@@ -78454,6 +78454,123 @@ const SCENARIOS = [
             + "after Wait, the time of day]; auto: [the record's end after the last Done, the time of day, a window]; api: [a new round at the "
             + "next press, what the press answered after advanceTimeOfDay, a round open after it, the time of day, a window]}");
     }],
+    ["E37-T4 - the summary at every boundary (E37 C4, E37-16, E37-17; D44c, S10-79): with three cards of a time of day in the GM's store, Next time of day (`advanceTimeOfDay`) shows one summary with their rows; the same cards and an Eclipse's start show the same summary - title, lede, rows and totals; and the Eclipse's end that moves the clock after it shows none", async () => {
+        /*
+         * E37 C4, 01.11.2026; E37-16, E37-17, audit S10-79. day-summary.mjs showed the summary on `drpgEclipseChanged(true)`
+         * alone, so a time of day closed by "Next time of day" summed nothing up. Driven on this GM: the clock at a morning
+         * stamped now, three cards whispered to the GMs with their facts (one find, one trace), their rows read from the
+         * store first; then `advanceTimeOfDay` (the panel's Next after its round), the summary popups that name the cards
+         * read off the page; then the clock at the next day's morning with the same stamp - a boundary of its own, which
+         * closes noon's empty window, so the same cards stand in a time of day again - and `startEclipse`, the popups read
+         * again; then `endEclipse({ advance: true })`, and three seconds for a popup that should not come. A popup is
+         * read as its title, its lede, its rows' words and its totals. Put back: the clock, every character's actions,
+         * the crossings' rows, the seals, the restrictions, the motive, the search tokens, the body's record and the
+         * round; the cards deleted, the popups dismissed. Red at 2230c1fa: no popup on Next.
+         */
+        needs(env.primaryGm(), "an Eclipse is started and ended on the primary GM");
+        const J = stableJson;
+        const E = await import("./eclipse.mjs");
+        const C = await import("./clock.mjs");
+        const U = await import("./utils.mjs");
+        const D = await import("./day-summary.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { actingStudents } = await import("./monokuma.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        const [who] = cast(1);
+        must(!murderState() && !bodyDiscovery(), "an incident or a body's hold is open - no Eclipse starts there, and this would measure nothing");
+        const was = foundry.utils.deepClone(getClock());
+        const characters = game.actors.filter(a => a.type === "character");
+        const actionsWas = characters.map(a => [a, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]);
+        const rowsWas = new Map(actingStudents().map(a => [a.id, foundry.utils.deepClone(S.eclipseMoveStore.get(a.id) ?? null)]));
+        const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "readyRound"]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS[key]) ?? null)]));
+        const MARK = "E37T4 room";
+        const words = el => el?.textContent?.replace(/\s+/g, " ").trim() ?? null;
+        const summaries = () => [...document.querySelectorAll(".drpg-popup")]
+            .filter(card => card.querySelector(".drpg-day-summary") && card.textContent.includes(MARK));
+        const readCard = card => (card ? {
+            title: words(card.querySelector(".drpg-popup-title")), lede: words(card.querySelector(".drpg-sum-lede")),
+            rows: [...card.querySelectorAll(".drpg-sum-row")].map(words), totals: words(card.querySelector(".drpg-sum-totals"))
+        } : null);
+        const dismiss = () => {
+            for (const card of document.querySelectorAll(".drpg-popup")) {
+                if (card.querySelector(".drpg-day-summary")) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            }
+        };
+        const cards = [];
+        const read = {};
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            const T0 = Date.now();
+            await setClock({ phase: "dailyLife", timeOfDay: "morning", timeOfDayStartedAt: T0, refilledFor: null });
+            await settle();
+            for (let n = 0; n < 3; n++) {
+                cards.push(await U.whisperToGms(`<p>E37T4 card ${n}</p>`, { summary: { actorId: who.id, action: `E37T4 action ${n}`,
+                    room: MARK, total: 10 + n, critical: false, item: n === 0 ? "E37T4 find" : null, tier: n === 0 ? 1 : null,
+                    leftTrace: n === 1, at: Date.now() } }));
+            }
+            await until(() => D.entriesSince(T0).filter(e => e.room === MARK).length === 3, 8000);
+            must(D.entriesSince(T0).filter(e => e.room === MARK).length === 3, "the three cards' facts are not in this browser's store - this would measure nothing");
+            dismiss();
+            await settle();
+
+            await C.advanceTimeOfDay({ resetSearchTokens: false, announce: false });
+            await until(() => summaries().length > 0, 8000);
+            await settle();
+            read.next = [getClock().timeOfDay, summaries().length];
+            const next = readCard(summaries()[0]);
+            dismiss();
+
+            await setClock({ day: (getClock().day ?? 1) + 1, timeOfDay: "morning", timeOfDayStartedAt: T0 });
+            await settle();
+            read.between = summaries().length;
+            await E.startEclipse();
+            await until(() => summaries().length > 0, 8000);
+            await settle();
+            read.eclipse = [isEclipse(), summaries().length];
+            const dark = readCard(summaries()[0]);
+            read.same = [next?.rows?.length ?? null, J(next) === J(dark)];
+            read.card = next;
+            dismiss();
+            await settle();
+
+            await E.endEclipse({ advance: true });
+            await until(() => !isEclipse(), 8000);
+            await settle();
+            await until(() => summaries().length > 0, 3000);
+            read.end = [isEclipse(), getClock().timeOfDay, summaries().length];
+        } finally {
+            dismiss();
+            for (const card of cards) await card?.delete?.();
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock(was);
+            for (const [actor, value, max] of actionsWas) {
+                await actor.update({ "system.resources.actions.value": value, ...(max === null ? {} : { "system.resources.actions.max": max }) });
+            }
+            for (const [id, row] of rowsWas) {
+                if (row) await S.eclipseMoveStore.patch(id, row);
+                else await S.eclipseMoveStore.drop(id);
+            }
+            for (const [key, value] of Object.entries(settingsWas)) if (value !== null) await game.settings.set(MODULE_ID, SETTINGS[key], value);
+            await settle();
+            dismiss();
+        }
+        const lede = D.summaryLede(C.timeOfDayLabel("morning"), true);
+        const holder = Object.assign(document.createElement("div"), { innerHTML: lede });
+        equal(J(read), J({
+            next: ["noon", 1],
+            between: 0,
+            eclipse: [true, 1],
+            same: [3, true],
+            card: read.card ? { ...read.card, title: game.i18n.localize("DRPG.Summary.title"), lede: words(holder),
+                totals: D.summaryTotals({ actions: 3, found: 1, traces: 1 }) } : "a summary",
+            end: [false, "noon", 0]
+        }), "{next: [the time of day after Next, summary popups naming the cards]; between: popups after the clock was put at the next "
+            + "day's morning; eclipse: [an Eclipse, popups after its start]; same: [the Next summary's rows, the Eclipse's summary the same "
+            + "card]; card: the Next summary's title, lede (the morning, a GM's), rows and totals (three actions, one find, one trace); end: "
+            + "[an Eclipse after its end, the time of day, popups after it]}");
+    }],
     ...GRID
 ];
 

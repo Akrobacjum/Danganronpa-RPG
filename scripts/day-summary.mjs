@@ -8,7 +8,9 @@
  *
  * So the Eclipse - which is otherwise dead air, a placement phase with nothing
  * to read - opens a summary instead. What you did, what you found, what you
- * left behind.
+ * left behind. Since E37 C4 (D44c) every end of a time of day does: an Eclipse's
+ * start, and a move of the clock no Eclipse opened - "Next time of day",
+ * `setTimeOfDay`, the API (`summaryWindow`, below).
  *
  * It invents nothing. Every line comes from the facts `report()` sends with the
  * card it posts - kept beside the card's words in this browser's private-card
@@ -20,17 +22,86 @@
  * own, and a GM gets the table's.
  */
 
-import { getClock, timeOfDayLabel } from "./clock.mjs";
+import { getClock, timeOfDayLabel, boundaryStamp } from "./clock.mjs";
+import { MODULE_ID, TIMES_OF_DAY } from "./config.mjs";
+import { SETTINGS } from "./settings.mjs";
 import { secretSummaries } from "./secret.mjs";
 import { error, esc, plural } from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
 
+/*
+ * WHAT THIS PAGE LAST SAW OF THE CLOCK, AND THE LAST BOUNDARY IT SUMMED UP (E37 C4, 01.11.2026; E37-16, D44c, audit
+ * S10-79). The summary showed on `drpgEclipseChanged(true)` alone, so a time of day the GM closed with "Next time of
+ * day" - or `setTimeOfDay`, or the API - closed with none. `drpgTimeOfDayChanged` hands the NEW clock, whose
+ * `timeOfDayStartedAt` is the new time of day's, so the ended one's window is read off the clock this page saw before
+ * it (`seen`): read at `ready`, so a page loaded mid-time-of-day sums up from what it found, and kept at every hook of
+ * the clock and at every write of it that moves no boundary (a pause, a phase's restamp at the trial's edge, a
+ * correction of the stamp). `shownFor` is the `boundaryStamp` of the last time of day this page summed up, so a
+ * boundary is summed up once on each browser: an Eclipse ended without advancing and opened again, or a rewind and
+ * Next again within it, show nothing new. Both are this page's own, in memory; nothing is written.
+ */
+let seen = null;
+let shownFor = null;
+
 export function registerDaySummary() {
-    // The Eclipse is the seam between two times of day, and the only moment in
-    // the cycle when nobody is mid-action.
-    Hooks.on("drpgEclipseChanged", running => {
-        if (running) showDaySummary().catch(err => error("Could not show the day summary", err));
+    // Every hook of the clock reads it the same way, so whichever of them a run of the bus calls first (the calendar's,
+    // the phase's, the Eclipse's) does the reading and the rest find nothing new. The Eclipse's hook is handed the flag:
+    // its packet can land before the clock's setting does here, so the flag it names is the one read.
+    Hooks.on("drpgTimeOfDayChanged", clock => sumUp(clock ?? getClock()));
+    Hooks.on("drpgPhaseChanged", () => sumUp(getClock()));
+    Hooks.on("drpgEclipseChanged", running => sumUp({ ...getClock(), eclipse: running === true }));
+    Hooks.on("updateSetting", setting => {
+        if (setting?.key !== `${MODULE_ID}.${SETTINGS.clock}` || !seen) return;
+        const clock = getClock();
+        if (calendarOf(clock) === calendarOf(seen) && (clock?.eclipse === true) === (seen.eclipse === true)) seen = clock;
     });
+    Hooks.once("ready", () => { seen ??= getClock(); });
+}
+
+/* The clock this page is told of, read against the one it saw: the summary of the time of day that ended, if one did. */
+function sumUp(clock) {
+    const window = seen ? summaryWindow(seen, clock, shownFor) : null;
+    seen = clock;
+    if (!window) return;
+    shownFor = window.stamp;
+    showDaySummary(window).catch(err => error("Could not show the day summary", err));
+}
+
+const calendarOf = clock => JSON.stringify([clock?.season ?? null, clock?.chapter ?? null, clock?.session ?? null,
+    clock?.day ?? null, clock?.timeOfDay ?? null]);
+
+/**
+ * The window of the time of day that `after` closes, read against `before` (the clock this page saw) and `shownFor`
+ * (the boundary it summed up last): `{ since, until, timeOfDay, stamp }`, or null with none to sum up. Pure (R1197).
+ *
+ * - A move of the clock forward in the same season and chapter, with no Eclipse open before it - Next time of day,
+ *   `setTimeOfDay` to a later time, the night's wrap into the next day: `before`'s time of day ends, over [its
+ *   `timeOfDayStartedAt`, the new one's), named `before`'s, and its stamp the boundary out of it (`boundaryStamp`).
+ * - An Eclipse's start (the flag set, the calendar where it was): the clock's own time of day ends, over [its stamp,
+ *   the Eclipse's start), the stamp the boundary the Eclipse opens - the same window as Next's for the same cards.
+ * - Nothing else: a move out of an Eclipse (its start summed it up; a page loaded in the dark saw no time of day of its
+ *   own to close), a rewind (an earlier day, or an earlier time of the same day), a new season or chapter (the season's
+ *   reset, the chapter's step), a write that moves neither (a pause), a clock with no stamp (R996's rule: no stamp, no
+ *   summary), a window that closes before it opens (a clock put back with an older stamp), or a boundary `shownFor`
+ *   names already.
+ */
+export function summaryWindow(before, after, shown = null) {
+    if (!before || !after) return null;
+    if ((before.season ?? null) !== (after.season ?? null) || (before.chapter ?? null) !== (after.chapter ?? null)) return null;
+    const at = clock => [Number(clock.day ?? 1), TIMES_OF_DAY.indexOf(clock.timeOfDay)];
+    const [dayBefore, timeBefore] = at(before), [dayAfter, timeAfter] = at(after);
+    const finite = value => (value !== null && value !== undefined && Number.isFinite(Number(value)) ? Number(value) : null);
+    let window = null;
+    if (before.eclipse !== true && (dayAfter > dayBefore || (dayAfter === dayBefore && timeAfter > timeBefore))) {
+        window = { since: summarySinceOf(before), until: finite(after.timeOfDayStartedAt), timeOfDay: before.timeOfDay ?? null,
+            stamp: boundaryStamp(before) };
+    } else if (after.eclipse === true && before.eclipse !== true && dayAfter === dayBefore && timeAfter === timeBefore) {
+        window = { since: summarySinceOf(after), until: finite(after.eclipseStartedAt), timeOfDay: after.timeOfDay ?? null,
+            stamp: boundaryStamp(after) };
+    }
+    if (!window || window.since === null) return null;
+    if (window.until !== null && window.until <= window.since) return null;
+    return window.stamp === shown ? null : window;
 }
 
 /**
@@ -43,10 +114,12 @@ export function registerDaySummary() {
  * copy of p1's Search card said what p1 found (40-flow, S02-11). The facts come
  * with the card's words now, to the card's readers alone, and are read from this
  * browser's store: a player's summary can hold only what was sent to them.
- * Exported for the suite.
+ * Exported for the suite. `until` (E37 C4) closes the window at the boundary: a card of the time of day that began
+ * there is not the ended one's.
  */
-export function entriesSince(startedAt) {
-    return secretSummaries(startedAt);
+export function entriesSince(startedAt, until = null) {
+    const entries = secretSummaries(startedAt);
+    return until === null ? entries : entries.filter(entry => entry.at < until);
 }
 
 /**
@@ -79,11 +152,16 @@ function summarySinceOf(clock) {
     return clock?.timeOfDayStartedAt && Number.isFinite(started) ? started : null;
 }
 
-export async function showDaySummary() {
+/**
+ * The summary of a time of day, as a popup. Handed the window `summaryWindow` read (E37 C4): its start, its end and
+ * the time of day it names, which at Next is no longer the clock's. With none, the clock's own time of day so far.
+ */
+export async function showDaySummary(window = null) {
     const clock = getClock();
-    const started = summarySince(clock);
-    if (started === null) return;
-    const entries = entriesSince(started);
+    const started = window ? window.since : summarySince(clock);
+    if (started === null || started === undefined) return;
+    const entries = entriesSince(started, window?.until ?? null);
+    const timeOfDay = window?.timeOfDay ?? clock?.timeOfDay;
 
     // Nothing happened - a time of day spent entirely in conversation is a
     // legitimate one, and a window saying "you did nothing" is a scolding.
@@ -129,7 +207,7 @@ export async function showDaySummary() {
 
     const content = `
         <div class="drpg-day-summary">
-            <p class="drpg-sum-lede">${summaryLede(esc(timeOfDayLabel(clock?.timeOfDay)), game.user.isGM)}</p>
+            <p class="drpg-sum-lede">${summaryLede(esc(timeOfDayLabel(timeOfDay)), game.user.isGM)}</p>
             <ul class="drpg-sum-list">${rows.join("")}</ul>
             <p class="drpg-sum-totals">${summaryTotals({ actions: mine.length, found, traces })}</p>
         </div>`;

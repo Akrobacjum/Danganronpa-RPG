@@ -8289,6 +8289,32 @@ const INVARIANTS = [
         equal(JSON.stringify(e.entries().map(x => x.clipped)), JSON.stringify([true, false, false, false, false]),
             "a fifth day summary in a section did not clip the oldest of the five");
 
+        /*
+         * A WHOLE DAY'S SUMMARIES IN A GM'S SECTION (E37 C4, 01.11.2026; E37-18, the A7 amend of 11.10). Since C4 a
+         * summary shows at every boundary of a time of day, five a day, and a GM's summary table reaches the 26 000
+         * budget: four whole ones are more than the GM's 100 000 characters with anything else beside them. The cut
+         * took the oldest entry of the section, which was the GM's own card, not a summary. Now the older summaries
+         * are clipped to their words before any other entry leaves for the characters' budget, the newest whole. A
+         * GM's section, four cards of its own before each of five summaries of 24 000 characters of html: every card
+         * stays, and the summaries are clipped oldest first until the section fits. Red at 2230c1fa (quoted in C4).
+         */
+        e = bench(fresh(), U1, { gm: true });
+        e.open();
+        for (let day = 0; day < 5; day++) {
+            for (let i = 0; i < 4; i++) { tick(); e.record(card(`gm ${day}.${i}`)); }
+            tick();
+            e.record(card(`summary ${day}`, { source: "summary", html: `<p>${"s".repeat(23990)}</p>` }));
+        }
+        const daySums = e.entries().filter(x => x.source === "summary");
+        must(e.entries().length > 0, "the GM's section kept nothing - nothing below would be measured");
+        const newest = daySums.at(-1);
+        equal(JSON.stringify([e.entries().filter(x => x.source === "mine").length, daySums.map(x => x.title),
+            daySums.map(x => x.clipped), Boolean(newest && !newest.clipped && JSON.stringify(newest).length > 24000),
+            JSON.stringify(e.entries()).length <= 100000]),
+        JSON.stringify([20, ["card summary 0", "card summary 1", "card summary 2", "card summary 3", "card summary 4"], [true, true, false, false, false], true, true]),
+            "[a GM's own cards kept of 20, beside five summaries of one day; the summaries kept; each one clipped, oldest first; the newest "
+            + "whole and over 24 000 characters (at the budget); the section within 100 000]");
+
         // The 251st entry, and a GM's 151st.
         const counts = [];
         for (const [gm, n] of [[false, 251], [true, 151]]) {
@@ -31041,6 +31067,63 @@ const INVARIANTS = [
             + "both Done with C away; an end with C's unplaced student; an end everyone placed and B silent; an end with B's and C's crossed "
             + "and A's covered by A's Done; the first row; stale: the clock moved on, ended, a start in the Eclipse, an end outside one, no "
             + "record, an unknown kind; who is asked: one row for the player with two students, no row for the Assistant GM");
+    }],
+    ["R1197 - the summary at every boundary (E37 C4, E37-16; D44c, S10-79): day-summary.mjs `summaryWindow(before, after, shownFor)` gives an Eclipse's start and a move of the clock with no Eclipse open the same window - the ended time of day's start, the boundary, its name and the boundary's stamp - and none for a move out of an Eclipse, a boundary this page summed up already, a rewind, a new season or chapter, a pause, a clock with no stamp or one put back with an older stamp", async () => {
+        /*
+         * E37 C4, 01.11.2026; E37-16, audit S10-79 (the summary only through an Eclipse). The day summary showed on
+         * `drpgEclipseChanged(true)` alone, so "Next time of day", `setTimeOfDay` and the API closed a time of day with no
+         * summary. Now each page reads the clock it last saw (`before`) against the clock it is told of (`after`) and the
+         * boundary it last summed up (`shownFor`): a move forward with no Eclipse open closes `before`'s time of day, over
+         * [its `timeOfDayStartedAt`, the new one's); an Eclipse's start closes the clock's own, up to the Eclipse's start.
+         * Read on plain clocks, nothing written: morning (stamp T) moved to noon at B, the same morning's Eclipse begun at
+         * B, a Night wrapping into the next day's morning, a jump to the evening (`setTimeOfDay`), and the cases that give
+         * none. Pure; R996 holds the stamp's rule (no stamp, no summary). Red at 2230c1fa: day-summary.mjs has no
+         * `summaryWindow`, and a move of the clock with no Eclipse showed nothing.
+         */
+        const DS = await import("./day-summary.mjs");
+        const { boundaryStamp } = await import("./clock.mjs");
+        must(typeof DS.summaryWindow === "function", "day-summary.mjs has no summaryWindow - a move of the clock with no Eclipse sums nothing up (S10-79)");
+        const T = 1_000_000_000, B = T + 3_600_000;
+        const morning = { season: 1, chapter: 2, session: 3, day: 4, timeOfDay: "morning", phase: "dailyLife", eclipse: false,
+            eclipseStartedAt: null, timeOfDayStartedAt: T, pausedTotalMs: 0, pausedAt: null };
+        const noon = { ...morning, timeOfDay: "noon", timeOfDayStartedAt: B };
+        const dark = { ...morning, eclipse: true, eclipseStartedAt: B };
+        const night = { ...morning, timeOfDay: "night" };
+        const dawn = { ...morning, session: 4, day: 5, timeOfDay: "morning", timeOfDayStartedAt: B };
+        const w = (before, after, shownFor = null) => DS.summaryWindow(before, after, shownFor);
+        const stamp = boundaryStamp(morning);
+        const got = {
+            next: w(morning, noon),
+            eclipse: w(morning, dark),
+            wrap: w(night, dawn),
+            jump: w(morning, { ...morning, timeOfDay: "evening", timeOfDayStartedAt: B }),
+            outOfEclipse: [w(dark, { ...noon, eclipseStartedAt: null }), w(dark, { ...dark, eclipse: false, eclipseStartedAt: null })],
+            shown: [w(morning, noon, stamp), w(morning, dark, stamp), w({ ...dark, eclipse: false, eclipseStartedAt: null }, noon, stamp)],
+            rewind: [w(noon, { ...morning, timeOfDayStartedAt: B + 60_000 }), w(dawn, { ...night, timeOfDayStartedAt: B + 60_000 })],
+            calendar: [w(morning, { ...noon, season: 2 }), w(morning, { ...noon, chapter: 3 })],
+            pause: w(morning, { ...morning, pausedAt: T + 60_000 }),
+            stampless: [w({ ...morning, timeOfDayStartedAt: null }, noon), w({ ...morning, timeOfDayStartedAt: null }, { ...dark, timeOfDayStartedAt: null })],
+            putBack: w(morning, { ...noon, timeOfDayStartedAt: T - 60_000 }),
+            none: [w(null, noon), w(morning, null)]
+        };
+        const closed = { since: T, until: B, timeOfDay: "morning", stamp };
+        equal(stableJson(got), stableJson({
+            next: closed, eclipse: closed,
+            wrap: { since: T, until: B, timeOfDay: "night", stamp: boundaryStamp(night) },
+            jump: closed,
+            outOfEclipse: [null, null],
+            shown: [null, null, null],
+            rewind: [null, null],
+            calendar: [null, null],
+            pause: null,
+            stampless: [null, null],
+            putBack: null,
+            none: [null, null]
+        }), "{next: morning moved to noon; eclipse: the same morning's Eclipse begun at the same moment - the same window; wrap: a Night into the "
+            + "next day's morning; jump: setTimeOfDay to the evening; outOfEclipse: an Eclipse ended with the clock moved, and without; shown: the "
+            + "boundary summed up already - by Next, by an Eclipse, and Next after an Eclipse ended without advancing; rewind: noon back to the "
+            + "morning, a morning back to last night; calendar: a new season, a new chapter; pause; stampless: no stamp at a move and at an "
+            + "Eclipse; putBack: a clock put back with an older stamp; none: no clock before, none after}");
     }],
 ];
 
