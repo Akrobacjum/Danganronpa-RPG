@@ -141,7 +141,8 @@ etykiet)”]
   stores or plays a step, that a GM must be connected, or what happens when a GM leaves; the refusal at that moment says
   it if it happens. A GM's note may. [the owner, 01.11.2026, on B01a: „Gracz nie musi wiedziec, ze przegladarka
   gma cos przechowuje albo ze gm musi byc zalogowany by akcja zadzialala. Te opisy powinny wspominac tylko niezbedne
-  mechaniczne kwestie, istotne z perspektywy gracza stricte.”; confirmed in B01a 01.11.2026]
+  mechaniczne kwestie, istotne z perspektywy gracza stricte.”; the last sentence, "A GM's note may.": the
+  orchestrator's reading, confirmed by the owner in chat 01.11.2026: „Dobrze odczytales”; confirmed in B01a 01.11.2026]
   Example: `DRPG.Observe.specificHint` on page E66-B01A-R1 ended “... picks the Remnant in this room your search finds.
   With no GM online, your action comes back.” / „... Bez GM-a online akcja do ciebie wraca.”; on R2, approved,
   it ends at “your search finds.” (B01a, `docs/dev/text-batch-B01a.json` `removed`).
@@ -765,7 +766,31 @@ item names an unshipped stage with a row in `tools/stages.json`; a stage number 
   crossing of `DRPG.Config.HOPE_CALLS.sprint.effect` is a word with no `PROSE_NUMBERS` row (Open 46) - E71; the
   reviewers' points B01a left open (texts with one: en 4, coldEn 5, pl 5, mechanics 3; the file's `reviews`) - E71, with
   its batches; the style and fact errors E66 saw in the texts it only re-routed (O16; E66 STATUS Open 15, 28, 34, 36, 38,
-  39) - E71.
+  39) - E71. Added at E66's fix round r2 (01.11.2026, from the two end reviews), each E71's (row 1.2.128): B01a's other
+  `needsCode` items, approved texts that say in words a number config holds, where a placeholder needs a
+  `PROSE_NUMBERS` row and so the owner's text change - `CRISIS_ACTIONS.leaveClue.hint` and `secureTrace.hint`'s "a
+  critical leaves two" / „a krytyk zostawia dwa” (`indirectVictim.count.critical`, 2; R1159 holds the two in its
+  number-word allow table, so a third word of a number an entry carries is red), beside Sprint's "one more" above,
+  `ACTIONS.project.description`'s "a little progress" (the thresholds' progress), `CRISIS_ACTIONS.strike.hint`'s "the
+  whole blow" (`criticalAmount`) and `Cleanup.transformActionHint`'s lower number (`CLEANUP.transformAction.dcRelief`);
+  the digits whose number is a constant in code rather than config, which R1159's digit rule does not read (E66 STATUS
+  Open 22: Meddle's +1/-1, Level Up's +1, Breath's 2/1, Wounded's -1, Conceal Your Intent's +1), with the same rows;
+  T4's report count, 3410 before B01a landed and 3510 after (Open 59), when T4 turns to FAIL; the roller's Polish line,
+  which puts what the GM counted after „GM policzył” as an accusative list no Polish reader has read (Open 60); the
+  approved Sabotage hint's "This room has {n} projects" / „w tym pokoju”, which a Monokuma's count does not keep to
+  (action-rolls.mjs `sabotageTargetsIn` with `anyRoom`; the correctness review's m4; the owner on page Q-R2, #3,
+  01.11.2026: E71), and the approved Contribution effect's "in your room", while the picker also offers projects with
+  no room (its n4) - both text changes for the owner; British spelling outside the names - "neighbour(ing)",
+  "behaviour", "recognise", "favour", "cancelled", "catalogue" (D33e and the rest of DB9; the glossary's entries
+  `neighbor`, `behavior`, `recognize`, `favor`, `canceled` and `catalog`, stage E71; T8 lists their 50 places as not
+  yet due, 01.11.2026).
+- **What E66 handed to E57** (row 1.2.131, which owns the documents and the handbook facts; the goal review's m3 and
+  the correctness review's n3, 01.11.2026): the nine tier sentences (`TIER_EFFECTS.usable.1-3`,
+  `USABLE_KIND_EFFECTS.healing/stress.1-3`) keep their digits - the amount is `USABLE_EFFECTS[tier].amount`, a sibling
+  table, and the sentences are written into world documents (E66 STATUS Open 21); utils.mjs `worldLocalize` formats a
+  `DRPG.Config.*` key in the page's language whatever `documentLanguage` holds, since config prose has no English file
+  to read (E57 reads config.mjs's own tables, i18n-config.mjs's walk); `documentLanguage` stays `config: false` until a
+  document is written through it (Open 2), and its empty choice's label "-" is named when it becomes visible (Open 53).
 
 ## 14. Fragments inserted into a sentence: the case contract (E66 C3)
 

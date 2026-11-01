@@ -255,6 +255,72 @@
         "note": "American spelling everywhere (DB9)."
       },
       {
+        "id": "neighbor",
+        "en": "neighbor",
+        "pl": null,
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": [{"stem": "neighbour", "endings": ["", "s", "ing", "hood", "ly"]}], "scope": ["ui", "handbooks"], "case": "any"}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E71",
+        "source": ["DB9", "D33e"],
+        "note": "American spelling everywhere (DB9); added at E66 fix r2 (01.11.2026, the goal review's m7), when the texts still wrote it British."
+      },
+      {
+        "id": "behavior",
+        "en": "behavior",
+        "pl": null,
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": [{"stem": "behaviour", "endings": ["", "s", "al"]}], "scope": ["ui", "handbooks"], "case": "any"}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E71",
+        "source": ["DB9", "D33e"],
+        "note": "American spelling everywhere (DB9); added at E66 fix r2 (01.11.2026, the goal review's m7), when the texts still wrote it British."
+      },
+      {
+        "id": "recognize",
+        "en": "recognize",
+        "pl": null,
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": [{"stem": "recognis", "endings": ["e", "ed", "es", "ing", "able"]}], "scope": ["ui", "handbooks"], "case": "any"}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E71",
+        "source": ["DB9", "D33e"],
+        "note": "American spelling everywhere (DB9); added at E66 fix r2 (01.11.2026, the goal review's m7), when the texts still wrote it British."
+      },
+      {
+        "id": "favor",
+        "en": "favor",
+        "pl": null,
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": [{"stem": "favour", "endings": ["", "s", "ed", "ing", "able", "ite", "ites"]}], "scope": ["ui", "handbooks"], "case": "any"}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E71",
+        "source": ["DB9", "D33e"],
+        "note": "American spelling everywhere (DB9); added at E66 fix r2 (01.11.2026, the goal review's m7), when the texts still wrote it British."
+      },
+      {
+        "id": "canceled",
+        "en": "canceled",
+        "pl": null,
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": [{"stem": "cancell", "endings": ["ed", "ing"]}], "scope": ["ui", "handbooks"], "case": "any"}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E71",
+        "source": ["DB9", "D33e"],
+        "note": "American spelling everywhere (DB9); added at E66 fix r2 (01.11.2026, the goal review's m7), when the texts still wrote it British."
+      },
+      {
+        "id": "catalog",
+        "en": "catalog",
+        "pl": null,
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": [{"stem": "catalogue", "endings": ["", "s", "d"]}], "scope": ["ui", "handbooks"], "case": "any"}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E71",
+        "source": ["DB9", "D33e"],
+        "note": "American spelling everywhere (DB9); added at E66 fix r2 (01.11.2026, the goal review's m7), when the texts still wrote it British."
+      },
+      {
         "id": "this-browser",
         "en": "Only affects this browser.",
         "pl": "Dotyczy tylko tej przeglądarki.",

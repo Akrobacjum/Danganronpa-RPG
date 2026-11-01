@@ -17939,6 +17939,28 @@ const REGRESSIONS = [
             }
         });
         read.digits = { read: sentences > 400, flagged: [...flagged].filter(k => !ALLOW.has(k)).sort(), stale: [...ALLOW.keys()].filter(k => !flagged.has(k)) };
+        /*
+         * E66 fix r2, 01.11.2026; the goal review's M3. The same rule for a number written as a word: B01a's approved
+         * Leave a Clue and Secure a Trace hints end "a critical leaves two" / „a krytyk zostawia dwa”, the entry's
+         * `indirectVictim.count.critical`, and the digit rule cannot see a word. 2 to 12 only: "one" and „jeden” stand
+         * in every other sentence as an article or a pronoun (Sprint's "one more" is section 13's, E71). Measured on
+         * this tree: these four places and no other. Their placeholder needs the owner's text change: E71 (row 1.2.128).
+         */
+        const NUMBER_WORDS = { en: ["", "", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"],
+            pl: ["", "", "dwa|dwie|dwóch|dwoma|dwu", "trzy|trzech|trzema", "cztery|czterech", "pięć|pięciu", "sześć|sześciu", "siedem|siedmiu",
+                "osiem|ośmiu", "dziewięć|dziewięciu", "dziesięć|dziesięciu", "jedenaście|jedenastu", "dwanaście|dwunastu"] };
+        const ALLOW_WORDS = new Map(["CRISIS_ACTIONS.leaveClue.hint", "CRISIS_ACTIONS.secureTrace.hint"].map(k => [k,
+            "B01a's approved text, approved 01.11.2026: the count of Remnants an indirect murder's critical leaves, as a word; a placeholder is E71's (docs/text-style.md section 13)"]));
+        const worded = new Set();
+        walkConfigProse(C, (key, value) => {
+            const path = key.slice("DRPG.Config.".length);
+            const nums = [...carried(at(C, path.split(".").slice(0, -1).join(".")))].filter(n => n >= 2 && n <= 12);
+            const texts = { en: value, pl: at(files.pl, key) };
+            for (const code of ["en", "pl"]) {
+                if (nums.some(n => new RegExp(`(?<!\\p{L})(?:${NUMBER_WORDS[code][n]})(?!\\p{L})`, "iu").test(String(texts[code] ?? "")))) worded.add(path);
+            }
+        });
+        read.words = { flagged: [...worded].filter(k => !ALLOW_WORDS.has(k)).sort(), stale: [...ALLOW_WORDS.keys()].filter(k => !worded.has(k)) };
         const sources = await moduleSources();
         const src = file => stripComments(sources.get(file) ?? "");
         read.readers = {
@@ -17976,12 +17998,14 @@ const REGRESSIONS = [
             calls: [], callCount: 7,
             planted: ["a {nope} b", "T", ""],
             digits: { read: true, flagged: [], stale: [] },
+            words: { flagged: [], stale: [] },
             readers: { callEffect: [], proseOf: [], raw: [false, false] }
         }), "[in English, then Polish: the renders that leave a brace or a key; the sentences a changed number did not move; Strike's hint, Pin's, "
             + "the finishing blow's threshold, Daily Life's hint and the new experience's label as config holds them; then with the numbers changed "
             + "(Strike 2 and 3, its miss 4, Pin 5 turns, Keep your distance 1, the finishing blow 7, the budget 5, an experience 3); the Calls whose "
             + "proseOf is not callEffect's or leaves a brace, and how many carry a placeholder; a missing value, extra, no entry; the config "
-            + "sentences holding a digit their entry carries outside the allow table, and stale allow rows; the files still calling callEffect, "
+            + "sentences holding a digit their entry carries outside the allow table, and stale allow rows; the same for a number of 2 to 12 "
+            + "written as an English or a Polish word (E66 fix r2); the files still calling callEffect, "
             + "the readers not calling proseOf as many times as they read, a raw read left in crisisDetails or explain.mjs]");
     }],
 
