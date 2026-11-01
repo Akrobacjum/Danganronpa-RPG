@@ -130,7 +130,7 @@ import { voiceIdentity, voiceActorFor, measureCameraDock } from "./camera-view.m
 import { safeRoomImage } from "./vault.mjs";
 import { cssString } from "./room-tile.mjs";
 import { reducedMotion, TURN } from "./motion.mjs";
-import { error, plural, tickerRuns } from "./utils.mjs";
+import { error, plural, tickerRuns, markLanguage } from "./utils.mjs";
 import { refreshGlass, seatVoiceArt } from "./glass.mjs";
 import { tileRow } from "./narrow.mjs";
 import { objectionControl, renderHud } from "./hud.mjs";
@@ -343,6 +343,8 @@ function recutForTile() {
 export function buildVoiceTile({ onMic = () => toggleOwnMic(), onSpeaker = tile => toggleVoiceList(watches.get(tile)) } = {}) {
     const tile = document.createElement("section");
     const n = ++tiles;
+    // Its language, the page's (E66 fix r1 F1; C1's `lang` on the module's containers, STATUS Open 3 and 19).
+    markLanguage(tile);
     tile.className = "drpg-voice-tile";
     tile.dataset.state = "offline";
     tile.setAttribute("role", "region");
@@ -1462,6 +1464,8 @@ function listStops(list) {
 function buildVoiceList(watch) {
     const list = textNode("section", "drpg-voice-list", "");
     list.id = watch.tile?.id === TILE_ID ? LIST_ID : `${LIST_ID}-${++tiles}`;
+    // Its language, the page's: the list stands in the body, not inside its tile (E66 fix r1 F1, STATUS Open 19).
+    markLanguage(list);
     list.hidden = true;
     list.setAttribute("role", "dialog");
     const title = textNode("h2", "drpg-voice-list-title", game.i18n.localize("DRPG.Voice.list.open"));

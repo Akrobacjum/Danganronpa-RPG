@@ -216,7 +216,7 @@ export const SETTINGS = {
      */
     sfxVary: "sfxVary",
     /**
-     * How loud this module is on THIS browser: `{ sound }`, 0–1.
+     * How loud this module is on THIS browser: `{ sound }`, 0-1.
      *
      * Client-scoped, because volume is the one thing about sound that is
      * genuinely personal - a GM on headphones and a player on laptop speakers
@@ -1347,7 +1347,10 @@ export function registerSettings() {
         scope: "world",
         config: false,
         type: String,
-        choices: { ...LANGUAGES },
+        /* "" is "not written yet", the default: a choice of its own, so the default is among the choices whatever a
+           Foundry holds a setting's default to (E66 fix r1 F12; STATUS Open 2; R1164). Its label is a dash: no window
+           shows this setting in E66. */
+        choices: { "": "-", ...LANGUAGES },
         default: ""
     });
 

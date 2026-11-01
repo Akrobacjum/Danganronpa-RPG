@@ -800,6 +800,13 @@ function onRenderCharacterSheet(app, element, context, options) {
         root?.classList?.toggle("drpg-monokuma", isMonokuma(app.document));
         // The sheet's language, the page's (E66 C1): the module draws most of what it shows, its renamed traits and
         // resources included. Daggerheart's own words on it are in Foundry's language and carry no mark of their own.
+        // ON THE ROOT, NOT ON THE MODULE'S PARTS (E66 fix r1 F2, STATUS Open 4; read 01.11.2026): lang/en.json and pl.json
+        // each override 94 of Daggerheart's own keys - among them its traits' names, short labels and verbs (30), Health
+        // (3), Sanity, Despair for Fear and the Actions tab - which Daggerheart's own markup draws, on the sheet as
+        // elsewhere, in the module's language; and `tidySidebar` writes the module's heading into Daggerheart's element in
+        // place. A `lang` on the blocks this hook injects alone would label those words with Foundry's language; which of
+        // Daggerheart's words come from its own keys cannot be told in its markup here (no template of its is in this
+        // repository or the harness). A table reads it: LIVE-E66-02.
         markLanguage(root);
 
         settle(root, () => {

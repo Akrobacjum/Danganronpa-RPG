@@ -20,7 +20,7 @@
 
 import { MODULE_ID, PRICE_CHAINS, PROJECT_SCALE } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { gmIds, ownerOf, whisperToGms, error, debug, warn, wholeNumber, localeFormat } from "./utils.mjs";
+import { gmIds, ownerOf, whisperToGms, error, debug, warn, wholeNumber, localeFormat, markLanguage } from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
 import {
     MESSENGER_FLAGS, THREAD_KIND,
@@ -1413,6 +1413,8 @@ export function renderLauncher() {
         const button = document.createElement("button");
         button.type = "button";
         button.id = LAUNCHER_ID;
+        // Its language, the page's (E66 fix r1 F1; C1's `lang` on the module's containers, STATUS Open 3 and 19).
+        markLanguage(button);
         button.dataset.tooltip = launcherTooltip();
         button.setAttribute("aria-label", launcherTooltip());
         button.innerHTML = `<i class="fa-solid fa-comments" inert></i>`;
@@ -1494,6 +1496,8 @@ function buildRoster(anchor) {
     for (const old of document.querySelectorAll("#drpg-messenger-roster")) closeRoster(old, { instant: true });
     const panel = document.createElement("div");
     panel.id = "drpg-messenger-roster";
+    // Its language, the page's (E66 fix r1 F1; C1's `lang` on the module's containers, STATUS Open 3 and 19).
+    markLanguage(panel);
 
     const title = document.createElement("h4");
     title.textContent = game.i18n.localize("DRPG.Messenger.rosterTitle");

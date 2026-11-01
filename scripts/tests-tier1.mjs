@@ -307,8 +307,8 @@ const INVARIANTS = [
 
         const dent = DESPAIR_CALLS.gameProtection;
         const boost = DESPAIR_CALLS.favoriteProject;
-        equal(dent?.label, "Game Integrity", "Game Integrity is not the name on the −2 Call");
-        equal(dent?.progress, -2, "Game Integrity is not −2 progress");
+        equal(dent?.label, "Game Integrity", "Game Integrity is not the name on the -2 Call");
+        equal(dent?.progress, -2, "Game Integrity is not -2 progress");
         equal(boost?.progress, 2, "Patronage is not +2 progress");
         equal(dent?.cost, boost?.cost,
             `the project Calls are no longer a pair: ${dent?.cost} against ${boost?.cost}`);
@@ -30377,7 +30377,8 @@ const INVARIANTS = [
             written, ...read
         }), stableJson({
             same: [true, true, true], frozen: true,
-            choices: [stableJson(S.LANGUAGES), stableJson(S.LANGUAGES)],
+            // E66 fix r1 F12: the documents' setting offers its empty default, "not written yet", beside the languages (R1164).
+            choices: [stableJson(S.LANGUAGES), stableJson({ "": "-", ...S.LANGUAGES })],
             reload: true,
             written: ["settings.mjs"],
             told: other,
@@ -30491,8 +30492,31 @@ const INVARIANTS = [
         const sheet = fnSource(stripComments((await moduleSources()).get("sheet.mjs") ?? ""), "onRenderCharacterSheet") ?? "";
         read.sheet = /\bmarkLanguage\(\s*root\s*\)/.test(sheet);
         read.description = [/\bEnglish\b/.test(manifest.description ?? ""), /\bPolish\b/.test(manifest.description ?? ""), /\bPolski\b/.test(manifest.description ?? "")];
-        equal(stableJson(read), stableJson({ windows: [page, null], hud: page, notices: page, launcher: page, sheet: true, description: [true, true, true] }),
-            `[on a page built in "${page}": lang on the module's window and on a window not the module's; on the HUD, the notice stack and the GM's launcher; the sheet's render hook marks its root; module.json's description names English, Polish and "Polski"]`);
+        /*
+         * E66 fix r1 F1 (STATUS Open 3, 19), 01.11.2026: the roots built outside C1's files. Each by its builder's source
+         * (comments out) - a call of `markLanguage` on the element it builds - since several are drawn only on some
+         * pages (the voice tile with voice on, the roster and the floors on a click, the Foundry windows on a GM); and
+         * each that this page has drawn by the element itself. A Foundry window's frame is marked on its header alone:
+         * its body holds Foundry's own sidebar or scene controls, whose words are Foundry's. Red at dd7176ec: the
+         * builders of voice-tile.mjs, messenger-app.mjs, handbooks.mjs, foundry-windows.mjs and fog.mjs marked nothing.
+         */
+        const rootSources = new Map(await moduleSources());
+        const fn = (file, name) => fnSource(stripComments(rootSources.get(file) ?? ""), name) ?? "";
+        const ROOTS = [["player-status.mjs", "renderPlayerStatus", "el"], ["room-tile.mjs", "ensureRoomTile", "tile"],
+            ["sfx.mjs", "renderSoundLauncher", "button"], ["voice-tile.mjs", "buildVoiceTile", "tile"], ["voice-tile.mjs", "buildVoiceList", "list"],
+            ["messenger-app.mjs", "renderLauncher", "button"], ["messenger-app.mjs", "buildRoster", "panel"], ["handbooks.mjs", "renderBookLauncher", "button"],
+            ["foundry-windows.mjs", "buildFrame", "head"], ["foundry-windows.mjs", "buildLauncher", "btn"], ["fog.mjs", "renderFloorSwitcher", "nav"]];
+        read.roots = ROOTS.filter(([file, name, el]) => !new RegExp(`\\bmarkLanguage\\(\\s*${el}\\s*\\)`).test(fn(file, name))).map(([file, name]) => `${file} ${name}`);
+        read.frameMarked = /\bmarkLanguage\(\s*frame\s*\)/.test(fn("foundry-windows.mjs", "buildFrame"));
+        const DRAWN = ["drpg-player-status", "drpg-room-tile", "drpg-sound-launcher", "drpg-voice-tile", "drpg-voice-list", "drpg-messenger-launcher",
+            "drpg-messenger-roster", "drpg-book-launcher", "drpg-foundry-tools", "drpg-floors"];
+        const drawn = DRAWN.filter(id => document.getElementById(id));
+        read.drawn = drawn.filter(id => document.getElementById(id).getAttribute("lang") !== page);
+        read.frames = ["drpg-win-ftools", "drpg-win-maptools"].map(id => document.getElementById(id)).filter(Boolean)
+            .filter(frame => frame.hasAttribute("lang") || frame.querySelector(":scope > header")?.getAttribute("lang") !== page).map(frame => frame.id);
+        equal(stableJson(read), stableJson({ windows: [page, null], hud: page, notices: page, launcher: page, sheet: true, description: [true, true, true],
+            roots: [], frameMarked: false, drawn: [], frames: [] }),
+            `[on a page built in "${page}": lang on the module's window and on a window not the module's; on the HUD, the notice stack and the GM's launcher; the sheet's render hook marks its root; module.json's description names English, Polish and "Polski"; the builders of the other roots that mark nothing; the Foundry window's frame marked whole; of the ${drawn.length} roots this page has drawn (${drawn.join(", ")}), those whose lang is not the page's; the Foundry windows' frames with a lang of their own or a header without the page's]`);
     }],
 
     ["R1154 - the documents' language is the world's (D196): a world setting `documentLanguage` with the module's languages for choices, not in the settings window, empty by default and written once by the primary GM's first start while empty; utils.mjs `worldLocalize` formats a key from that language's file with the page in the other, and in the page's language where the setting is empty (E66 C1; decision 38 = D34, E66-09)", async () => {
@@ -30548,7 +30572,7 @@ const INVARIANTS = [
             setting: def && { scope: def.scope, config: def.config === true, type: def.type?.name ?? null, choices: stableJson(def.choices), default: def.default },
             writes, ...read
         }), stableJson({
-            setting: { scope: "world", config: false, type: "String", choices: stableJson(S.LANGUAGES), default: "" },
+            setting: { scope: "world", config: false, type: "String", choices: stableJson({ "": "-", ...S.LANGUAGES }), default: "" },
             writes: primary ? [["documentLanguage", page]] : [],
             seeded: [primary, false],
             read: "pl",
@@ -30667,6 +30691,25 @@ const INVARIANTS = [
             + "priceLine for a Sanity step with the action skipped; Analyze refused with nothing left in Daily Life and in the Class Trial; "
             + "the hindrance, the block, a block of one action, the action and the Sanity given back; then a living student's Tamper quoted "
             + "with its action step skipped and without]");
+    }],
+
+    ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
+        /*
+         * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its
+         * choices and "" for its default, the value that says "not written yet" (i18n.mjs `seedDocumentLanguage` writes
+         * the primary GM's page language while it is empty). Whether Foundry v14 holds a setting's default to its choices
+         * is not read in this repository's notes, and the harness's settings keep whatever they are given; a default
+         * among the choices needs no answer to that. Read: every registration of this module, as Foundry holds it.
+         * Nothing is written. Red at dd7176ec: documentLanguage's "" outside its choices.
+         */
+        const S = await import("./settings.mjs");
+        const rows = [...game.settings.settings.entries()].filter(([key, def]) => key.startsWith(`${MODULE_ID}.`) && def?.choices && typeof def.choices === "object");
+        must(rows.length >= 4, `only ${rows.length} setting(s) of the module offer choices - this would measure little`);
+        const outside = rows.filter(([, def]) => !Object.hasOwn(def.choices, String(def.default))).map(([key, def]) => `${key}: ${JSON.stringify(def.default)}`);
+        const doc = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.documentLanguage}`);
+        equal(stableJson({ outside, documents: doc ? [doc.default, Object.keys(doc.choices ?? {}).filter(code => code !== "")] : null }),
+            stableJson({ outside: [], documents: ["", Object.keys(S.LANGUAGES)] }),
+            `[of the ${rows.length} settings of the module with choices, those whose default is not one of them; the documents' language's default and its choices beside the empty one]`);
     }]
 ];
 

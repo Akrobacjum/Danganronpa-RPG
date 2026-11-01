@@ -21,7 +21,7 @@ import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { pageLanguage } from "./i18n.mjs";
 import { alreadyOpen } from "./live.mjs";
-import { error } from "./utils.mjs";
+import { error, markLanguage } from "./utils.mjs";
 
 const LAUNCHER_ID = "drpg-book-launcher";
 const WINDOW_CLASS = "drpg-handbook";
@@ -385,6 +385,8 @@ export function renderBookLauncher() {
         const button = document.createElement("button");
         button.type = "button";
         button.id = LAUNCHER_ID;
+        // Its language, the page's (E66 fix r1 F1; C1's `lang` on the module's containers, STATUS Open 3 and 19).
+        markLanguage(button);
         const tip = game.i18n.localize("DRPG.Handbooks.launcherTooltip");
         button.dataset.tooltip = tip;
         button.setAttribute("aria-label", tip);

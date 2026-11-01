@@ -66,7 +66,7 @@ import { roomPieces, roomRegions, roomNames, sceneHoldsRooms, scenesWithRooms, n
     regionPatches } from "./rooms.mjs";
 import { isMastermind, mastermindActor, mastermindLair, setMastermindLair } from "./mastermind.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
-import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural, whisperToGms, esc, serialWrite } from "./utils.mjs";
+import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural, whisperToGms, esc, serialWrite, markLanguage } from "./utils.mjs";
 import { ENTER, reducedMotion, glassOn } from "./motion.mjs";
 import { playSfx } from "./sfx.mjs";
 import { discoveryStore, fogCopy, fogSectionFor } from "./gm-stores.mjs";
@@ -2045,7 +2045,7 @@ function clearReveals() {
  * second. Walking across a scene made the fog strobe.
  *
  * So the two states are mixed per pixel instead: erase `t` of the old, then
- * ADD the new at `t`, which is exactly `old·(1−t) + new·t` and never lets
+ * ADD the new at `t`, which is exactly `old·(1-t) + new·t` and never lets
  * the total drop below either end of the transition. Two blend modes, both
  * already load-bearing in this file.
  */
@@ -3353,6 +3353,8 @@ function renderFloorSwitcher(scene, offer, here) {
     const floors = floorsOf(scene);
     const nav = old ?? document.createElement("nav");
     nav.id = FLOORS_ID;
+    // Its language, the page's (E66 fix r1 F1, STATUS Open 19); a floor's own name is the GM's, as written.
+    markLanguage(nav);
     nav.setAttribute("aria-label", game.i18n.localize("DRPG.Fog.floors"));
     nav.dataset.tooltip = game.i18n.localize("DRPG.Fog.floorsHint");
     nav.replaceChildren(...offer.map(id => {
@@ -3728,11 +3730,11 @@ function startDrift() {
          * everything else leaned. The lines are meant to run with the map.
          *
          * Not hard-coded to 45°, because the isometric module applies rotation
-         * AND skew: its matrix is [0.392, −0.261, 0.392, 0.261], and a line that
+         * AND skew: its matrix is [0.392, -0.261, 0.392, 0.261], and a line that
          * is vertical in the scene arrives on screen at about 34°, not 45. So
          * the angle is read off the matrix instead. A vertical line maps to the
          * direction (c, d), and the tile rotation that produces it is
-         * `atan2(−c, d)` - which comes out as exactly zero on a canvas nobody
+         * `atan2(-c, d)` - which comes out as exactly zero on a canvas nobody
          * has rotated, so this costs nothing when the module is not installed.
          */
         const wt = canvas?.stage?.worldTransform;
