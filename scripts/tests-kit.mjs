@@ -1354,6 +1354,30 @@ function vaultText(sources, family = VAULT_FAMILY) {
 }
 
 /**
+ * The GM panel's family (E41 C7a): gm-panel.mjs - the facade, which keeps the panel, its sections and its other
+ * windows - and the files two of its windows moved into, in the order they stood there: the Students window
+ * (gm-students.mjs) and Edit campaign (gm-campaign.mjs). A reader of gm-panel.mjs's text reads the family through
+ * `panelText` and follows each file here without a repoint of its own.
+ */
+const PANEL_FAMILY = Object.freeze(["gm-panel.mjs", "gm-students.mjs", "gm-campaign.mjs"]);
+
+/** The line `panelText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
+const PANEL_FAMILY_END = "const PANEL_FAMILY_END = {};";
+
+/**
+ * The GM panel's family's texts, raw, in PANEL_FAMILY's order, joined by the line `const PANEL_FAMILY_END = {};` (E41
+ * C7a): what a read of gm-panel.mjs's whole text read while the panel was one file. A reader strips the comments
+ * itself, as it did; a `fnSource` or `topLevelFunction` of the text cuts a function in its own file. A file of the
+ * family that is not among `sources` refuses by `must`, by name.
+ */
+function panelText(sources, family = PANEL_FAMILY) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string");
+    must(!gone.length, `${gone.join(", ")}, of the GM panel's family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`);
+    return family.map(file => map.get(file)).join(`\n${PANEL_FAMILY_END}\n`);
+}
+
+/**
  * Everything wrong with the bridge's tables, one sentence each (R1b). Pure: it
  * is handed the tables (as `bridgeTables()` gives them), the language keys of
  * each file, flattened, and bridge-guards.mjs's namespace, so R1b can run it on
@@ -2222,7 +2246,7 @@ export {
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, styleCascade, bodyOf, topLevelFunction, fnSource, lineAround,
-    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeDeclarationCalls, bridgeCut, bridgeLookup, bridgeCrawl, bridgeFamily, bridgeRead, bridgeFn, bridgeText, censusFile, BRIDGE_FAMILY_END, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
+    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeDeclarationCalls, bridgeCut, bridgeLookup, bridgeCrawl, bridgeFamily, bridgeRead, bridgeFn, bridgeText, censusFile, BRIDGE_FAMILY_END, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
     flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem, TEXT_BASELINES, textAgainstBaseline, textStaleRow,
     textTableWords, textLegacyLists,

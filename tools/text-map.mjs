@@ -84,7 +84,8 @@ export const SCREENS = Object.freeze([
     row("stash", "the stash: a character's items and gear", "window", "both", ["scripts/vault-store.mjs:*", "scripts/stash-reach.mjs:*",
         "scripts/room-setup.mjs:*", "scripts/palm.mjs:tellPalmVictim", "scripts/palm.mjs:stealFromPerson", "scripts/palm.mjs:plantOnPerson"]),
     row("season-setup", "Season setup", "window", "gm", ["scripts/season-setup.mjs:*"], { note: "setting a season up and taking one down: the GM's" }),
-    row("gm-panel", "the GM panel", "window", "gm", ["scripts/gm-panel.mjs:*"], { stage: "E13" }),
+    // E41 C7a (1.2.97): the Students window, one of the panel's windows, in its own file.
+    row("gm-panel", "the GM panel", "window", "gm", ["scripts/gm-panel.mjs:*", "scripts/gm-students.mjs:*"], { stage: "E13" }),
     row("trial-console", "the trial console: the GM's controls for a Class Trial", "window", "gm", ["scripts/trial-floor-ui.mjs:*"], { stage: "E10" }),
     row("trial-turn", "a round's turn on a participant's browser", "window", "player", ["scripts/trial-prompt.mjs:*"], { stage: "E70" }),
     row("trial-evidence", "evidence put in front of the table, and the Objection", "flow", "both", ["scripts/trial.mjs:*"]),
@@ -110,7 +111,7 @@ export const SCREENS = Object.freeze([
     row("observe", "Observe and Analyze", "flow", "both", ["scripts/observe.mjs:*", "scripts/analyze.mjs:*"], { stage: "E09" }),
     row("advancement", "Advancement", "window", "both", ["scripts/level-up.mjs:*"], { stage: "E10" }),
     row("vote", "the vote and the verdict", "window", "both", ["scripts/vote.mjs:*"], { stage: "E10" }),
-    row("clock", "the GM's clock and its corrections", "window", "gm", ["scripts/gm-panel.mjs:openClockDialog", "scripts/gm-panel.mjs:confirmCorrection"], { stage: "E11" }),
+    row("clock", "the GM's clock and its corrections", "window", "gm", ["scripts/gm-campaign.mjs:openClockDialog", "scripts/gm-campaign.mjs:confirmCorrection"], { stage: "E11" }),
     row("project-start", "a project started from an action", "window", "both", ["scripts/action-project.mjs:startProject"], { stage: "E12" }),
     row("move-body", "moving a body", "window", "player", ["scripts/cleanup.mjs:openMoveBodyDialog"], { stage: "E12" }),
     row("tier-zero", "a crisis action rated at tier zero", "window", "gm", ["scripts/murder-rules.mjs:rateTierZero"], { stage: "E13" }),

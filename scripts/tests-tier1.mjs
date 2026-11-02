@@ -22,7 +22,7 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText, expectedRed, stripStrings, bridgeFn, bridgeText, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText
+    worldDump, dumpDiff, lfText, expectedRed, stripStrings, bridgeFn, bridgeText, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -1015,7 +1015,7 @@ const INVARIANTS = [
          * Cheap to write down and it covers the whole module, not this stage.
          */
         const guilty = [];
-        for (const file of ["traps", "projects", "projects-secrecy", "gm-panel", "sheet", "murder", "incident-store", "murder-rules", "murder-ui"]) {
+        for (const file of ["traps", "projects", "projects-secrecy", "gm-panel", "gm-students", "gm-campaign", "sheet", "murder", "incident-store", "murder-rules", "murder-ui"]) {
             const src = await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(lfText);
             for (const m of src.matchAll(/game\.i18n\.localize\([^)]*\)\s*\|\|/g)) {
                 guilty.push(`${file}.mjs :: ${m[0].slice(0, 60)}`);
@@ -1260,7 +1260,7 @@ const INVARIANTS = [
         const files = [
             "music", "investigation", "trial-floor-ui", "projects-ui", "vault",
             "tables", "season-setup", "mastermind", "rules", "monocub",
-            "gm-team-dialog", "gm-items", "gm-panel", "murder", "murder-ui", "voice", "trial"
+            "gm-team-dialog", "gm-items", "gm-panel", "gm-students", "gm-campaign", "murder", "murder-ui", "voice", "trial"
         ];
 
         const missing = [];
@@ -8093,7 +8093,8 @@ const INVARIANTS = [
 
         const files = new Map(await otherSources());
         must(["trial-floor-ui.mjs", "gm-panel.mjs", "trial-scene.mjs"].every(file => files.has(file)), "the files the window and the doors live in are not served - this would measure nothing");
-        const ui = stripComments(files.get("trial-floor-ui.mjs")), panel = stripComments(files.get("gm-panel.mjs"));
+        // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
+        const ui = stripComments(files.get("trial-floor-ui.mjs")), panel = stripComments(panelText(files));
         const start = fnSource(ui, "startClassTrial"), edit = fnSource(panel, "openClockDialog");
         const at = text => start.indexOf(text);
         equal(JSON.stringify([en.includes("the dead listen but do not speak in the trial"), pl.includes("umarli słuchają, ale nie mówią w rozprawie"),
@@ -29294,7 +29295,7 @@ const INVARIANTS = [
             /extraPoolUserIds\(\)/.test(pools), docOver("\n    monokumas,").includes("Assistant GM"),
             REST.long.perSession === true && /roomFlag\(/.test(fnSource(rest, "roomAllows") ?? ""),
             docOver("\n    takeRest,").includes("once per session") && docOver("\n    takeRest,").includes("roomAllows") && !/bedroom/i.test(docOver("\n    takeRest,")),
-            /diagnoseCharacters\(\{ toChat: false \}\)/.test(sources.get("season-setup.mjs") ?? "") && !/diagnoseCharacters/.test(sources.get("gm-panel.mjs") ?? ""),
+            /diagnoseCharacters\(\{ toChat: false \}\)/.test(sources.get("season-setup.mjs") ?? "") && !/diagnoseCharacters/.test(panelText(sources)),
             docOver("\n    diagnoseCharacters,").includes("pre-session checks") && !/GM panel/.test(docOver("\n    diagnoseCharacters,")),
             /migrateTruthBullets/.test(migrate) && /migrateRemnants/.test(migrate), /the data migration runs\s+\*?\s*them too/.test(docOver("\n    migrateTruthBullets,"))
         ]), stableJson([true, true, true, true, true, true, true, true, true, true]),

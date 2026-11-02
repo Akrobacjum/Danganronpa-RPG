@@ -15,7 +15,7 @@ import {
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
-    bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
+    bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists
 } from "./tests-kit.mjs";
@@ -1271,7 +1271,8 @@ const REGRESSIONS = [
          */
         const MUST_BE_LIVE = {
             openGmPanel: "gm-panel",
-            openWhoIsAliveDialog: "gm-panel",
+            // E41 C7a (1.2.97): the Students window's own file.
+            openWhoIsAliveDialog: "gm-students",
             openInvestigationDashboard: "investigation",
             manageClassTrial: "trial-floor-ui",
             // Added in E6, and for the reason the list exists: both used to
@@ -2008,7 +2009,8 @@ const REGRESSIONS = [
         const eclipse = stripComments(sources.get("eclipse.mjs") ?? "");
         const start = bodyOf(eclipse, "export async function startEclipse", { until: "\nexport " });
         ok(/clearSeals\(\)/.test(start), "the Eclipse opens with the seals and restrictions still on");
-        const panel = stripComments(sources.get("gm-panel.mjs") ?? "");
+        // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
+        const panel = stripComments(panelText(sources));
         ok(!/setTimeOfDay\(/.test(panel), "Edit campaign runs the whole time-of-day boundary again");
     }],
 
@@ -3319,7 +3321,8 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const live = stripComments(sources.get("live.mjs") ?? "");
-        const panel = stripComments(sources.get("gm-panel.mjs") ?? "");
+        // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
+        const panel = stripComments(panelText(sources));
 
         const body = bodyOf(live, "export function handOff", { until: "\nexport " });
         ok(body.length > 100, "handOff's body could not be read");
@@ -3358,9 +3361,11 @@ const REGRESSIONS = [
          * `watch.settings` is given, so an omitted filter is the WIDE net - and this
          * window is built out of several of the module's settings.
          */
-        const panel = stripComments(new Map(await otherSources()).get("gm-panel.mjs") ?? "");
-        // E37 C2: `toggleEclipse`, the function that followed, left gm-panel.mjs for boundary.mjs; the body ends where `nextStep` begins.
-        const body = bodyOf(panel, "export async function applyAliveStates", { until: "export function nextStep" });
+        // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
+        const panel = stripComments(panelText(await otherSources()));
+        // E37 C2: `toggleEclipse`, the function that followed, left gm-panel.mjs for boundary.mjs; the body ended where `nextStep` began.
+        // E41 C7a: `applyAliveStates` is gm-students.mjs's last function, so its cut runs to that file's end.
+        const body = fnSource(panel, "applyAliveStates");
         ok(/Object\.entries\(chosen\)/.test(body),
             "the apply loop is driven by something other than the answer it was given");
         ok(!/\bstudents\b/.test(body),
@@ -3437,9 +3442,11 @@ const REGRESSIONS = [
         const died = bodyOf(chapter, "export async function incidentVictimDied", { until: "async function isIncidentVictim" });
         ok(died.indexOf("tieChapterTraces(") > 0 && died.indexOf("offerStageSix(") > died.indexOf("tieChapterTraces("),
             "incidentVictimDied no longer ties the chapter's traces before it offers Stage 6");
-        const panel = stripComments(sources.get("gm-panel.mjs") ?? "");
-        // E37 C2: `toggleEclipse` left gm-panel.mjs for boundary.mjs; the body ends where `nextStep` begins.
-        const repair = bodyOf(panel, "export async function applyAliveStates", { until: "export function nextStep" });
+        // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
+        const panel = stripComments(panelText(sources));
+        // E37 C2: `toggleEclipse` left gm-panel.mjs for boundary.mjs; the body ended where `nextStep` began.
+        // E41 C7a: `applyAliveStates` is gm-students.mjs's last function, so its cut runs to that file's end.
+        const repair = fnSource(panel, "applyAliveStates");
         ok(/incidentVictimDied\(/.test(repair) && !/killCharacter\(/.test(repair),
             "the repair does not offer Stage 6 for the running incident's victim, or runs the whole death procedure (F16, D13)");
 
@@ -3466,7 +3473,8 @@ const REGRESSIONS = [
          * tell the fix from the bug.
          */
         const sources = new Map(await otherSources());
-        const panel = stripComments(sources.get("gm-panel.mjs") ?? "");
+        // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
+        const panel = stripComments(panelText(sources));
         const clockWin = bodyOf(panel, "export async function openClockDialog");
         const list = bodyOf(clockWin, "const stated", { until: "const result" });
         ok(list.length > 80, "the chapter list has moved or gone");
@@ -3497,7 +3505,8 @@ const REGRESSIONS = [
          * refusing every murder, and a warning that cries on every Apply is one
          * nobody reads.
          */
-        const panel = stripComments(new Map(await otherSources()).get("gm-panel.mjs") ?? "");
+        // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
+        const panel = stripComments(panelText(await otherSources()));
         const win = bodyOf(panel, "export async function openClockDialog");
         ok(!/result\.timeOfDay\s*!==\s*undefined/.test(win),
             "the Eclipse warning is gated on a field the form always fills");
@@ -8302,7 +8311,7 @@ const REGRESSIONS = [
         const FILES = ["chapter.mjs", "character.mjs", "season-setup.mjs", "call-world.mjs", "projects.mjs", "projects-map.mjs", "projects-secrecy.mjs", "eclipse.mjs"];
         const NAMED = { "gm-bridge.mjs": ["handleAdvancement"], "level-up.mjs": ["applyAdvancement"],
             "vault-store.mjs": ["keysHeldBy", "grantBedroomKey", "grantKeyNow", "repointDeadKey", "reconcileBedroomKeys", "setStash", "allBedroomsAnywhere"], "events.mjs": ["bodyCard"],
-            "gm-panel.mjs": ["nextStep", "openClockDialog"], "clock.mjs": ["setClock", "reconcilePhase", "setPhase"],
+            "gm-panel.mjs": ["nextStep"], "gm-campaign.mjs": ["openClockDialog"], "clock.mjs": ["setClock", "reconcilePhase", "setPhase"],
             "murder-rules.mjs": ["endMurder", "closeIncident", "registerMurder"], "visibility.mjs": ["applyToProjectToken", "applyToToken"],
             "sync.mjs": ["registerSync"], "mastermind.mjs": ["finalTruthPlacedThisChapter"], "settings.mjs": ["bodyDiscoveryFresh", "deathRecordFor"] };
         // Where gm-bridge.mjs registers its sockets and answers an owner: read for handlers, never a row of their own.
@@ -8894,7 +8903,7 @@ const REGRESSIONS = [
         const NAMED = { "gm-bridge.mjs": ["requestSendBack"], "murder-rules.mjs": ["wearSwing", "undoLastCrisis", "rateTierZero", "registerMurder"],
             "inventory.mjs": ["wearItem", "breakItem"], "sheet-audit.mjs": ["flagsAsHeld", "flagsHeldNow", "actorHeldNow", "itemAsHeld"],
             "movement.mjs": ["onPreUpdateToken", "judgeMove", "locateActor", "placesOf", "registerMovement"], "chapter.mjs": ["applyChapterEnd"],
-            "sync.mjs": ["registerSync"], "gm-panel.mjs": ["openClockDialog"], "settings.mjs": ["isDeadForGm"], "monocub.mjs": ["isMonocub"] };
+            "sync.mjs": ["registerSync"], "gm-campaign.mjs": ["openClockDialog"], "settings.mjs": ["isDeadForGm"], "monocub.mjs": ["isMonocub"] };
         // Where gm-bridge.mjs registers its sockets and answers an owner: read for handlers, never a row of their own.
         const BRIDGE_TOPS = /^(?:BRIDGE_ACTIONS|ACTION_\w*|registerGmBridge|replyForMe)$/;
         const SHEET = [/\bisDeceased\(|\bisDeadForGm\(|\blivingStudents(?:ForGm)?\(|\bdeathRecordFor\(|\bisMonocub\(|\bisMonokuma\(|FLAGS\.(?:deceased|monocub|monokuma)\b/,
@@ -12179,7 +12188,8 @@ const REGRESSIONS = [
             return text;
         };
         const vote = code("vote.mjs"), levelUp = code("level-up.mjs"), floorUi = code("trial-floor-ui.mjs");
-        const panel = code("gm-panel.mjs"), floorCode = code("trial-floor.mjs");
+        // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
+        const panel = stripComments(panelText(sources)), floorCode = code("trial-floor.mjs");
         const finalRoute = /if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/;
         const verdict = fnSource(vote, "openVerdictDialog"), batch = fnSource(levelUp, "runAdvancementBatch");
         const card = fnSource(vote, "postVerdictCard"), wipe = fnSource(code("season-setup.mjs"), "wipeSeason");
@@ -13065,7 +13075,8 @@ const REGRESSIONS = [
             JSON.stringify({ defaults: Object.fromEntries([...TARGETS.map(([element]) => element), ...HIDDEN].map(element => [element, true])), problems: [] }),
             "the base sheet no longer hides the Scenes tab from a player or the navigation or the hotbar from everybody, or a rule shows the navigation or the hotbar, or hides the tab from the GM, in a theme");
 
-        const panel = stripComments(new Map(await otherSources()).get("gm-panel.mjs") ?? "");
+        // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
+        const panel = stripComments(panelText(await otherSources()));
         const chrome = bodyOf(panel, "const GM_CHROME = [", { until: "];" });
         const mark = fnSource(panel, "markGmChrome");
         equal(JSON.stringify({
@@ -17285,9 +17296,10 @@ const REGRESSIONS = [
         must(src.size > 50, "the module's sources were not read - this would measure nothing");
         const FIELDS = [
             ["call-pickers.mjs", "timesOfDay", /\[name=timesOfDay\]"\)\??\.value/g],
-            ["gm-panel.mjs", "amount:${a.id}", /\[name="amount:\$\{id\}"\]`\)\?\.value/g],
-            ["gm-panel.mjs", "day", /\bform\.day\.value\b/g],
-            ["gm-panel.mjs", "session", /\bform\.session\.value\b/g],
+            // E41 C7a (1.2.97): the Students window's donation and Edit campaign's two fields, in their own files.
+            ["gm-campaign.mjs", "day", /\bform\.day\.value\b/g],
+            ["gm-campaign.mjs", "session", /\bform\.session\.value\b/g],
+            ["gm-students.mjs", "amount:${a.id}", /\[name="amount:\$\{id\}"\]`\)\?\.value/g],
             ["mastermind.mjs", "amount", /\[name=amount\]"\)\?\.value/g],
             ["messenger-app.mjs", "${name}", /\bf\.elements\[key\]\?\.value/g],
             ["monocub.mjs", "amount:${a.id}", /\[name="amount:\$\{id\}"\]`\)\?\.value/g],
@@ -18618,7 +18630,7 @@ const REGRESSIONS = [
             return text;
         };
         const ANOTHER = {
-            "gm-panel.mjs#openWhoIsAliveDialog": "the Students window: every student with their state, the dead included, for the GM to change it",
+            "gm-students.mjs#openWhoIsAliveDialog": "the Students window: every student with their state, the dead included, for the GM to change it",
             "monocub.mjs#eligibleForMonocub": "the dead who are not a Monocub yet: who may become one",
             "monocub.mjs#openMonocubDialog": "the Monocubs' window, drawn over the dead",
             "season-setup.mjs#placeCast": "the season reset's placement of the tokens, by the GMs' record of who is dead",
@@ -18672,7 +18684,8 @@ const REGRESSIONS = [
          * own `endEclipse` and `startEclipse`, the panel's own `toggleEclipse`, and no boundary.mjs.
          */
         const sources = new Map(await otherSources());
-        const hud = stripComments(sources.get("hud.mjs") ?? ""), panel = stripComments(sources.get("gm-panel.mjs") ?? "");
+        // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
+        const hud = stripComments(sources.get("hud.mjs") ?? ""), panel = stripComments(panelText(sources));
         must(hud.length > 1000 && panel.length > 1000, "hud.mjs or gm-panel.mjs was not read - this test measured nothing");
         const boundary = stripComments(sources.get("boundary.mjs") ?? "");
         const chevron = bodyOf(fnSource(hud, "buildTimeRow"), "eclipseRunning ? \"fa-play\" : \"fa-chevron-right\"", { until: "\n        ));" });
