@@ -177,10 +177,11 @@ export function flaggedTables(category, tier, goal = null, tables = game.tables 
 /**
  * Every table that answers for this category, tier and goal: by its flags first, then by a name it could be sitting
  * under (`tableNameCandidates`) - a table the GM made in the sidebar under a pool's name carries no flags, and has
- * answered by its name since before the flags existed. Each table once.
+ * answered by its name since before the flags existed. Each table once. `tables` is the world's by default; a draw hands
+ * its own (`drawItem`, E41 C1c).
  */
-export function tierTablesFor(category, tier, goal = null) {
-    const found = flaggedTables(category, tier, goal);
+export function tierTablesFor(category, tier, goal = null, tables = game.tables) {
+    const found = flaggedTables(category, tier, goal, tables ?? []);
     // Not a table whose flags name another pool (E14 fix e1-G2, 25.10.2026; the review's E14p2-R4): a Tier 2 weapons
     // pool renamed "DRPG Tools - Tier 1" in the sidebar answered a Tier 1 Tool's draw by that name, and the find was
     // a Tier 1 Murder Weapon. The module's own rename refuses that name (`renameOtherPool`); the sidebar does not.
@@ -189,7 +190,7 @@ export function tierTablesFor(category, tier, goal = null) {
         return Boolean(own) && (own.category !== category || own.tier !== Number(tier) || (own.goal ?? null) !== (goal ?? null));
     };
     for (const name of tableNameCandidates(category, tier, goal)) {
-        const table = game.tables?.getName?.(name);
+        const table = tables?.getName?.(name);
         if (table && !found.includes(table) && !another(table)) found.push(table);
     }
     return found;
@@ -689,13 +690,13 @@ export function tierTableIdFor(categoryValue, tier) {
     return tierTablesFor(category, tier, goal)[0]?.id ?? null;
 }
 
-/** One random item name for a category and tier. */
-export function randomItem(category, tier, goal = null) {
+/** One random item name for a category and tier. `rng` is the draw's (`drawItem`), `Math.random` by default. */
+export function randomItem(category, tier, goal = null, rng = Math.random) {
     const goalPool = USABLE_GOALS[goal]?.pool;
     const pool = goalPool?.[tier] ?? goalPool?.[0]
         ?? ITEM_POOLS[category]?.[tier] ?? ITEM_POOLS[category]?.[0] ?? [];
     if (!pool.length) return null;
-    return pool[Math.floor(Math.random() * pool.length)];
+    return pool[Math.floor(rng() * pool.length)];
 }
 
 /** What one table hands a Search: its first result's name and what travels with it, or null for an empty or broken table. */
@@ -819,107 +820,147 @@ function poolEntryAs(table, asked) {
 }
 
 /**
+ * WHAT A DRAW ANSWERS (E41 C1c; audit S17-29): the one place an answer is built, for each of `DRAW_STEPS`. `found` is
+ * what the step drew (`drawFrom`'s row, or a built-in pool's name with its roles), `how.from` the road it came by -
+ * "room" (a room's table, `how.table`: the entry as the tier pools file it, else as the table's name says, else the
+ * request - `roomEntryAs`), "pool" (a GM's tier pool, `how.table`: its flags, else its name - `poolEntryAs`), "builtIn"
+ * (the request, which is the pool it drew from) or "spare" (`how.category`, another category's pool, at the tier
+ * asked and no goal). Each the shape `drawItem` answered on that road before the steps were a list.
+ */
+function resultFrom(found, ctx, how) {
+    if (how.from === "room") return { ...found, ...roomEntryAs(ctx.roomBase, how.table, found.name, ctx.asked) };
+    if (how.from === "pool") return { ...found, ...poolEntryAs(how.table, ctx.asked) };
+    if (how.from === "spare") return { ...found, category: how.category, tier: ctx.asked.tier, goal: null };
+    return { ...found, ...ctx.asked };
+}
+
+/*
+ * THE STEPS OF A DRAW, IN THIS ORDER (D15, the owner: "tabele pokoju mają pierwszeństwo przed pulami świata"; E14 part 2
+ * C2, 24.10.2026; a list since E41 C1c, audit S17-29): the room's own tables, then the GM's tier pools, then the
+ * built-in pools, then any other category. Until E14 part 2 C2 the world's tier pools were asked between the room's
+ * named tables and the rest of the room's, so the promise that the room answers before the world was not true: an
+ * armoury stocked with "Armoury - Murder Weapons" and asked for something to patch you up handed over the world's
+ * bandage (audit S08-05; E14-T13 read it at b94e1cac). Each step is `async (ctx) => answer | null` over the draw's
+ * context (`drawItem`) and answers through `resultFrom`; the first that answers is the draw.
+ */
+
+/**
+ * The room's tables by name: the tier, the category (an older or a Polish plural too, `roomPluralsOf`), then the flat
+ * table - "Kitchen - Tier 2" answers a Tier 2 roll before "Kitchen - Murder Weapons", and that before plain "Kitchen".
+ * The guide says outright that what turns up can depend on where you are, so a kitchen and a boiler room do not draw
+ * from the same bag; a single "Kitchen" table asked for a crime tool would hand back an apple and then label it a
+ * weapon, so the split by category and by tier (F5.5, Dawid 25.08) is asked first. A GM who does not want that
+ * precision keeps one flat table and it answers everything. A room with nothing to give - never set up, or its tables
+ * empty - falls through to the world's pools as it did before (D15).
+ */
+async function drawRoomNamed(ctx) {
+    if (!ctx.roomBase) return null;
+    for (const name of roomTableNames(ctx.roomBase, ctx.category, ctx.tier)) {
+        const table = ctx.tables?.getName?.(name);
+        // A tier pool is never a room's stock, whatever its name (E14 fix e1-G2): a room pointed at one before
+        // Room Setup read the flags answered every Search there from that pool, at any roll.
+        const found = table && !tierPoolOf(table) ? await drawFrom(table) : null;
+        if (found) return resultFrom(found, ctx, { from: "room", table });
+    }
+    return null;
+}
+
+/**
+ * THE ROOM ANSWERS WITH WHAT IT HAS, BEFORE THE WORLD ANSWERS AT ALL.
+ *
+ * The names above ask the room for the tier and the category. For a room the GM DID stock, asking the world next
+ * produces the wrong kind of wrong: ask an armoury for something to patch you up and, if the GM built "Armoury -
+ * Murder Weapons" and no flat "Armoury", the lookup walks straight past the room and hands over a bandage. In an
+ * armoury.
+ *
+ * So before the world's pools: every table this room owns, picked at random. A player who asks a room for something it
+ * does not stock gets what it does stock - which is both funnier and truer than either "nothing" or "a bandage from
+ * nowhere". A table is the room's by a suffix this module reads (`isRoomTableOf`), never by its first words alone:
+ * "Kitchen - Back room" is another room's pool, not the Kitchen's (S08-45), and a "Kitchen - Tier 3" does not answer a
+ * Tier 1 roll.
+ *
+ * `substitute` travels with it so the card can say so. It is not a failure: the roll was made and beaten, an action
+ * and a search token are spent, and something real came out. It is simply not what was asked for.
+ */
+async function drawRoomAny(ctx) {
+    if (!ctx.roomBase) return null;
+    const owned = (ctx.tables?.contents ?? []).filter(t => isRoomTableOf(ctx.roomBase, t.name, ctx.tier) && !tierPoolOf(t));
+    // Shuffled rather than "the first one": the room's tables are named by category and taking the first would
+    // silently favour whichever category sorts earliest. The shuffle is today's, `sort` on the draw's `rng`: a fair
+    // one (Fisher-Yates) waits for the balance after sessions 0 (D21, E64).
+    for (const table of owned.sort(() => ctx.rng() - 0.5)) {
+        const found = await drawFrom(table, { substitute: true });
+        if (found) return resultFrom(found, ctx, { from: "room", table });
+    }
+    return null;
+}
+
+/**
+ * The GM's tier pools by their flags, then by every name these have ever been called - see `tierTablesFor` and
+ * LEGACY_PLURALS. A world whose tables were built before a label was reworded, or by a client in another language, or
+ * renamed by its GM, is still the world whose tables answer. With a goal, the goal's pools and then the category's.
+ */
+async function drawTierPools(ctx) {
+    const pools = [...tierTablesFor(ctx.category, ctx.tier, ctx.goal, ctx.tables),
+        ...(ctx.goal ? tierTablesFor(ctx.category, ctx.tier, null, ctx.tables) : [])]
+        .filter((table, at, all) => all.indexOf(table) === at);
+    for (const table of pools) {
+        const found = await drawFrom(table);
+        if (found) return resultFrom(found, ctx, { from: "pool", table });
+    }
+    return null;
+}
+
+/** The built-in pool of the category, tier and goal asked (`randomItem` on the draw's `rng`). */
+async function drawBuiltIn(ctx) {
+    const picked = randomItem(ctx.category, ctx.tier, ctx.goal, ctx.rng);
+    return picked ? resultFrom({ name: picked, fromTable: false, roles: rolesForPoolItem(picked) }, ctx, { from: "builtIn" }) : null;
+}
+
+/**
+ * Nothing in the asked-for category anywhere, which is a world with a gap in it rather than a room with a character.
+ * Any other category, at random (today's shuffle on the draw's `rng`, as the room's; D21, E64), rather than sending
+ * somebody away empty-handed from a roll they beat - never a Truth Bullet. Its own category (E14 part 2 C3): until
+ * then an apple from here was granted as the category nobody stocks.
+ */
+async function drawSpare(ctx) {
+    for (const other of Object.keys(ITEM_CATEGORIES).sort(() => ctx.rng() - 0.5)) {
+        if (other === ctx.category || other === "truthBullet") continue;
+        const name = randomItem(other, ctx.tier, null, ctx.rng);
+        if (name) return resultFrom({ name, fromTable: false, substitute: true, roles: rolesForPoolItem(name) }, ctx, { from: "spare", category: other });
+    }
+    return null;
+}
+
+/** The steps a draw runs, in order, each by its name (R1234 reads the order). */
+export const DRAW_STEPS = Object.freeze([
+    Object.freeze({ name: "roomNamed", run: drawRoomNamed }),
+    Object.freeze({ name: "roomAny", run: drawRoomAny }),
+    Object.freeze({ name: "tierPools", run: drawTierPools }),
+    Object.freeze({ name: "builtIn", run: drawBuiltIn }),
+    Object.freeze({ name: "spare", run: drawSpare })
+]);
+
+/**
  * Roll on the world's table if one exists, otherwise fall back to the built-in
  * pool. The GM editing a table has to actually change what Search produces.
  * What was drawn comes back with its own category, tier and goal (C3, above `foundAs`).
  *
+ * `DRAW_STEPS` in order, the first answer the draw (E41 C1c). `rng` is the draw's chance - both shuffles and the
+ * built-in pools' pick - and `tables` the tables it reads, the world's by default; both are handed by the suite
+ * (R1234), as is `trail`, an array each step's name is pushed to as the step runs.
+ *
  * @returns {Promise<{name: string, fromTable: boolean, category: string, tier: number, goal: string|null}|null>}
  */
-export async function drawItem(category, tier, { goal = null, room = null, scene = null } = {}) {
+export async function drawItem(category, tier, { goal = null, room = null, scene = null, rng = Math.random, tables = game.tables, trail = null } = {}) {
     const asked = { category, tier: Number(tier), goal: goal ?? null };
-    // The room's own table first, when it has one. A kitchen and a boiler room
-    // should not be drawing from the same bag - the guide says outright that
-    // what turns up can depend on where you are.
-    //
-    // It falls THROUGH to the global pool when the room has nothing to give: a
-    // room the GM never got round to configuring, or one whose tables are all
-    // empty, behaves exactly as it did before. A silent empty-handed Search in a
-    // room somebody forgot to set up would just look like a broken action. A room
-    // that does stock something answers with it, though, whatever was asked for
-    // (D15, below) - since E14 part 2 C2 it no longer hands over the world's
-    // healing items beside its own crime tools.
-    // A room's table can be split by category the same way the global ones are,
-    // and for the same reason: a single "Kitchen" table asked for a crime tool
-    // would hand back an apple and then label it a weapon. So "Kitchen - Murder
-    // Weapons" (or an older or Polish plural, `roomPluralsOf`) is tried before
-    // plain "Kitchen". A GM who does not want that precision makes one flat
-    // table and it answers everything.
-    // THE ROLL MATTERS IN ROOMS TOO (F5.5, Dawid 2026-08-25). A room table can
-    // be split by tier the same way it can be split by category: "Kuchnia -
-    // Tier 2" answers a Tier 2 roll in the Kuchnia before the flat "Kuchnia"
-    // does. A GM who does not want that precision keeps one flat table and the
-    // lookup falls straight through - same bargain as the category split.
+    // The room's tables' name (vault.mjs Room Setup's "Draws from"), read once before the steps.
     const roomBase = room ? await tableForRoom(room, scene) : null;
-
-    /*
-     * THREE STEPS, IN THIS ORDER (D15, the owner: "tabele pokoju mają pierwszeństwo przed pulami świata"; E14 part 2 C2,
-     * 24.10.2026): the room's own tables, then the GM's tier pools, then the built-in pools. Until C2 the world's tier
-     * pools were asked between the room's named tables and the rest of the room's, so the paragraph below that
-     * promises the room answers before the world was not true: an armoury stocked with "Armoury - Murder Weapons" and
-     * asked for something to patch you up handed over the world's bandage (audit S08-05; E14-T13 read it at b94e1cac).
-     */
-    if (roomBase) {
-        for (const name of roomTableNames(roomBase, category, tier)) {
-            const table = game.tables?.getName?.(name);
-            // A tier pool is never a room's stock, whatever its name (E14 fix e1-G2): a room pointed at one before
-            // Room Setup read the flags answered every Search there from that pool, at any roll.
-            const found = table && !tierPoolOf(table) ? await drawFrom(table) : null;
-            if (found) return { ...found, ...roomEntryAs(roomBase, table, found.name, asked) };
-        }
-
-        /*
-         * THE ROOM ANSWERS WITH WHAT IT HAS, BEFORE THE WORLD ANSWERS AT ALL.
-         *
-         * The names above ask the room for the tier and the category. For a room the GM DID stock, asking the world
-         * next produces the wrong kind of wrong: ask an armoury for something to patch you up and, if the GM built
-         * "Armoury - Murder Weapons" and no flat "Armoury", the lookup walks straight past the room and hands over a
-         * bandage. In an armoury.
-         *
-         * So before the world's pools: every table this room owns, picked at random. A player who asks a room for
-         * something it does not stock gets what it does stock - which is both funnier and truer than either "nothing"
-         * or "a bandage from nowhere". A table is the room's by a suffix this module reads (`isRoomTableOf`), never by
-         * its first words alone: "Kitchen - Back room" is another room's pool, not the Kitchen's (S08-45), and a
-         * "Kitchen - Tier 3" does not answer a Tier 1 roll.
-         *
-         * `substitute` travels with it so the card can say so. It is not a failure:
-         * the roll was made and beaten, an action and a search token are spent, and
-         * something real came out. It is simply not what was asked for.
-         */
-        const owned = (game.tables?.contents ?? []).filter(t => isRoomTableOf(roomBase, t.name, tier) && !tierPoolOf(t));
-        // Shuffled rather than "the first one": the room's tables are named by
-        // category and taking the first would silently favour whichever
-        // category sorts earliest.
-        for (const table of owned.sort(() => Math.random() - 0.5)) {
-            const found = await drawFrom(table, { substitute: true });
-            if (found) return { ...found, ...roomEntryAs(roomBase, table, found.name, asked) };
-        }
-    }
-
-    // The GM's tier pools by their flags, then by every name these have ever been
-    // called - see `tierTablesFor` and LEGACY_PLURALS. A world whose tables
-    // were built before a label was reworded, or by a client in another
-    // language, or renamed by its GM, is still the world whose tables answer.
-    const pools = [...tierTablesFor(category, tier, goal), ...(goal ? tierTablesFor(category, tier) : [])]
-        .filter((table, at, all) => all.indexOf(table) === at);
-    for (const table of pools) {
-        const found = await drawFrom(table);
-        if (found) return { ...found, ...poolEntryAs(table, asked) };
-    }
-
-    const picked = randomItem(category, tier, goal);
-    if (picked) return { name: picked, fromTable: false, roles: rolesForPoolItem(picked), ...asked };
-
-    // Nothing in the asked-for category anywhere, which is a world with a gap
-    // in it rather than a room with a character. Any other category, at random,
-    // rather than sending somebody away empty-handed from a roll they beat.
-    for (const other of Object.keys(ITEM_CATEGORIES).sort(() => Math.random() - 0.5)) {
-        if (other === category || other === "truthBullet") continue;
-        const spare = randomItem(other, tier, null);
-        if (spare) {
-            // Its own category (C3): until then an apple from here was granted as the category nobody stocks.
-            return { name: spare, fromTable: false, substitute: true,
-                     roles: rolesForPoolItem(spare), category: other, tier: asked.tier, goal: null };
-        }
+    const ctx = { asked, category, tier, goal, room, scene, roomBase, rng, tables };
+    for (const step of DRAW_STEPS) {
+        trail?.push(step.name);
+        const answer = await step.run(ctx);
+        if (answer) return answer;
     }
     return null;
 }

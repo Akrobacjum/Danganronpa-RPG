@@ -31491,6 +31491,96 @@ const INVARIANTS = [
             + "a critical], sabotageRepairScale's numeric literals]; rest: [restVariants reads REST[kind].actionCost, counts 2 : 1 itself, long, "
             + "short]; traceWrong: category/role pairs leavesTraceFor answers otherwise than the parent's rule}");
     }],
+    ["R1234 - a draw is a list of steps (E41 C1c, E41-07; audit S17-29): tables.mjs `drawItem` runs `DRAW_STEPS` - the room's tables by name, the room's every table shuffled, the GM's tier pools, the built-in pool, a spare category - in order, each answering through `resultFrom`, on the draw's `rng` and `tables`; on a shim of the tables and a fixed sequence each road takes the parent's steps and answers what the parent's `drawItem` answered with `Math.random` on the same sequence", async () => {
+        /*
+         * E41 C1c, 02.11.2026; E41-07, audit S17-29. `drawItem` was one function: its steps in line, the answer built
+         * inline on five roads, `Math.random` reached directly (two `sort(() => Math.random() - 0.5)` and `randomItem`),
+         * so no test read the order without a world's tables. Now `DRAW_STEPS` (frozen) runs in order, each step
+         * answering through `resultFrom`, and the draw hands `rng` (both shuffles and `randomItem`) and `tables` (what
+         * every step reads). The shuffle is today's (D21: Fisher-Yates waits for E64).
+         *
+         * Read on a shim, nothing written and nothing of this browser's replaced: each road's own tables (a stand-in
+         * collection with `getName`, `contents` and an iterator; tables whose `draw` answers a fixed result, or throws),
+         * a stand-in scene whose one room points at its tables (vault.mjs `roomTable`, reached through `tableForRoom`),
+         * and a fresh fixed sequence for `rng`. For each road: the steps run (`trail`) and the answer's name, category,
+         * tier, goal, roles, substitute and fromTable. The parent's answers, quoted below, are what the parent's
+         * `drawItem` answered on the same shims with `game.tables` set to each road's collection and `Math.random` to the
+         * same sequence (S/stages/E41/scratch/c1/c1c/probe-head.txt, a run of the parent's code that is not in the
+         * suite); its steps are its code's order, the road's step and every one before it. Red at the parent: no
+         * `DRAW_STEPS`, and `rng` and `tables` not read.
+         */
+        const T = await import("./tables.mjs");
+        const plural = category => T.tableNameCandidates(category, 0)[0].replace(/^DRPG /, "").replace(/ - Tier 0$/, "");
+        const sequence = () => { let at = 0; const values = [0.91, 0.12, 0.73, 0.34, 0.55, 0.06, 0.87, 0.28, 0.49, 0.65]; return () => values[at++ % values.length]; };
+        let made = 0;
+        const result = (name, roles = []) => ({ name, img: null, description: null, getFlag: (module, key) => module === MODULE_ID && key === "roles" ? roles : undefined });
+        const table = (name, results, flags = {}, broken = false) => ({
+            id: `zR1234table${made++}`, name, getFlag: (module, key) => module === MODULE_ID ? flags[key] : undefined,
+            draw: async () => { if (broken) throw new Error("R1234: a broken table"); return { results }; }
+        });
+        const shelf = list => ({ contents: list, getName: name => list.find(t => t.name === name) ?? null, [Symbol.iterator]: () => list[Symbol.iterator]() });
+        const sceneFor = (room, base) => ({ id: "zR1234scene", regions: [{ id: "zR1234region", name: room, behaviors: [],
+            getFlag: (module, key) => module !== MODULE_ID ? undefined : key === "room" ? true : key === "drpgItemTable" ? base : undefined }] });
+        const ROADS = [
+            { road: "room's table by name (a broken one asked first)", asked: ["crimeTool", 1, null], room: "R1234 Kitchen",
+              tables: [table("R1234 Kitchen - Tier 1", [result("R1234 cleaver", ["crimeTool"])], {}, true),
+                       table(`R1234 Kitchen - ${plural("crimeTool")}`, [result("R1234 knife", ["crimeTool", "tool"])])] },
+            { road: "room's other tables, shuffled", asked: ["crimeTool", 2, null], room: "R1234 Library",
+              tables: [table("R1234 Library - Tier 0", [result("R1234 book")]), table("R1234 Library - Tier 1", [result("R1234 lamp", ["tool"])]),
+                       table(`R1234 Library - ${plural("tool")}`, [result("R1234 ladder", ["tool"])]), table("R1234 Library - Back room", [result("R1234 not the Library's")])] },
+            { road: "a tier pool by its flags", asked: ["tool", 1, null], room: null,
+              tables: [table("R1234 wrenches", [result("R1234 wrench", ["tool"])], { category: "tool", tier: 1 })] },
+            { road: "a tier pool by its name", asked: ["cleaningTool", 1, null], room: null,
+              tables: [table(T.tableNameCandidates("cleaningTool", 1)[0], [result("R1234 mop")])] },
+            { road: "the built-in pool", asked: ["usable", 1, "healing"], room: null, tables: [] },
+            { road: "a spare category", asked: ["bedroomKey", 1, null], room: null, tables: [] }
+        ];
+        const pick = answer => answer && ["name", "category", "tier", "goal", "roles", "substitute", "fromTable"].map(key => answer[key] ?? null);
+        // The parent's answers on these shims (probe-head.txt, twice the same), and its steps: the road's and every one before it.
+        const NAMES = ["roomNamed", "roomAny", "tierPools", "builtIn", "spare"];
+        const upTo = n => NAMES.slice(0, n);
+        const EXPECTED = {
+            frozen: true,
+            steps: NAMES.map(name => [name, true, true, false]),
+            resultFrom: [true, true],
+            shuffles: 2,
+            mathRandom: false,
+            roads: [
+                ["room's table by name (a broken one asked first)", upTo(1), ["R1234 knife", "crimeTool", 1, null, ["crimeTool", "tool"], null, true]],
+                ["room's other tables, shuffled", upTo(2), ["R1234 book", "crimeTool", 0, null, [], true, true]],
+                ["a tier pool by its flags", upTo(3), ["R1234 wrench", "tool", 1, null, ["tool"], null, true]],
+                ["a tier pool by its name", upTo(3), ["R1234 mop", "cleaningTool", 1, null, [], null, true]],
+                ["the built-in pool", upTo(4), ["Sports drink", "usable", 1, "healing", [], null, false]],
+                ["a spare category", upTo(5), ["Cold tea", "usable", 1, null, [], true, false]]
+            ]
+        };
+        const steps = Array.isArray(T.DRAW_STEPS) ? T.DRAW_STEPS : null;
+        const tablesSrc = stripComments((await otherSources()).find(([file]) => file === "tables.mjs")?.[1] ?? "");
+        must(tablesSrc.length > 5000, "tables.mjs was not read - this test measured nothing");
+        const stepShape = steps ? steps.map(step => {
+            const body = topLevelFunction(tablesSrc, step?.run?.name ?? "") ?? "";
+            return [step.name, Object.isFrozen(step), /\bresultFrom\(/.test(body) && !/\breturn\s*\{/.test(body), /\bMath\.random\b/.test(body)];
+        }) : null;
+        const roads = [];
+        for (const road of ROADS) {
+            const [category, tier, goal] = road.asked;
+            const trail = [];
+            const answer = await T.drawItem(category, tier, { goal, room: road.room, scene: road.room ? sceneFor(road.room, road.room) : null,
+                rng: sequence(), tables: shelf(road.tables), trail });
+            roads.push([road.road, trail, pick(answer)]);
+        }
+        const built = /\bfunction resultFrom\(/.test(tablesSrc) ? fnSource(tablesSrc, "resultFrom") : "";
+        equal(JSON.stringify({
+            frozen: steps ? Object.isFrozen(steps) : null,
+            steps: stepShape,
+            resultFrom: [/\broomEntryAs\(/, /\bpoolEntryAs\(/].map(re => re.test(built)),
+            shuffles: (tablesSrc.match(/\.sort\(\(\) => ctx\.rng\(\) - 0\.5\)/g) ?? []).length,
+            mathRandom: /\bMath\.random\(\)/.test(fnSource(tablesSrc, "randomItem")),
+            roads
+        }), JSON.stringify(EXPECTED), "{frozen: DRAW_STEPS is frozen; steps: each [name, frozen, answers through resultFrom alone, reaches Math.random]; "
+            + "resultFrom: it builds the room's and the pool's entries; shuffles: the two `sort(() => ctx.rng() - 0.5)`; mathRandom: randomItem "
+            + "calls Math.random itself; roads: each [road, the steps run, the answer's name, category, tier, goal, roles, substitute, fromTable]}");
+    }],
 ];
 
 /**
