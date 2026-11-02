@@ -71,7 +71,7 @@ const READ_ONLY_MS = 370000;
 /*
  * THE PRIMARY'S BEAT IS THE ONE LEAF THAT MAY TICK (E17 fix ci-2, 26.10.2026; CI run 40402423765 on f7ac1e9d, suite
  * 1/8). Since E17 C6 the primary GM writes `serverNow()` into the GMs' store "clockBeat" every 60 s while the world runs
- * (hud.mjs `beatClock`) - a client setting of this browser, so this reading saw it: A1 and A2 each failed on
+ * (hud-elapsed.mjs `beatClock`) - a client setting of this browser, so this reading saw it: A1 and A2 each failed on
  * `client.danganronpa-rpg.gmClockBeat.worlds.drpg-audit-world.e.record.at` and `...t.record`, a run of tiers 0 and 1
  * being longer than a beat. The beat is the time passing, written whatever the suite does, as a GM at the table would
  * have it written; the suite's own dump leaves it out with its measurement (tests-kit.mjs `DUMP_RULES`, the gmClockBeat

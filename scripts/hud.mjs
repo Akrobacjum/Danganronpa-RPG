@@ -44,7 +44,7 @@ import { incomingTimeOfDay, incidentWitness, SETTINGS, getSetting, bodyDiscovery
 import { isMonokuma, poolUserFor, chooseOwnStudent, ownedStudents } from "./monokuma.mjs";
 // For OBJECTION! (E79 C16): monocub.mjs's static imports, walked to the end on 17.10.2026, never reach this file.
 import { isMonocub } from "./monocub.mjs";
-// Static, and safe: nothing imports hud.mjs, so no path leads back here.
+// Static, and safe: murder.mjs reaches this file by no static import (nor hud-elapsed.mjs, which imports it too).
 import { murderState } from "./murder.mjs";
 import { nowPlayingHere } from "./music.mjs";
 import { renderEvents } from "./events.mjs";

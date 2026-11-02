@@ -87,7 +87,7 @@
  * `broken` cleared, a `wear` lowered or a count raised - each one's other way stands, as
  * a use or a break spends it. A move into or out of a stash (`location`, `stashRoom`)
  * stands when the student stands, as this GM sees it, in a room with a stash of theirs
- * (vault.mjs `myStashHere`'s rule), the stash holds fewer than `VAULT_LIMIT` besides it,
+ * (stash-reach.mjs `myStashHere`'s rule), the stash holds fewer than `VAULT_LIMIT` besides it,
  * a retrieve takes from that room's stash and the carry cap has room for it; else it is
  * put back. A module item a player deletes stands when it is a `discard` of an item broken
  * on the GMs' copy; an item a player creates stands when it is a Search's find - its
@@ -156,7 +156,7 @@ import { WARN_EVERY_MS, TRACE_PATHS } from "./relay-guard.mjs";
  */
 const GM_FLAGS = [...["deceased", "monocub", "silencedChapter", "advances", "sheetAtStart", "levelUpExperiences", "lootTrace",
     "swungWeapon", "betrayalWindow", "monokuma"].map(key => FLAGS[key]),
-    /* The stashes a student has found (vault.mjs `VAULT_FLAGS.found`, written by the GMs' `resolveStashSearch`), since E16
+    /* The stashes a student has found (vault-store.mjs `VAULT_FLAGS.found`, written by the GMs' `resolveStashSearch`), since E16
        part 2 C3 (design-notes D10): its owner could write it, no judgement read it (`kindOf` answered null), and
        `stealFromVault` opened a concealed stash on it. Spelt here, not imported: this file reaches nothing that imports
        vault.mjs (R161). E16-T29 holds the two names to one. */
@@ -253,7 +253,7 @@ const ITEM_WRITES = new Set(["updateItem", "createItem", "deleteItem"]);
  * = cor M5, which measured a console's `roles` making a carried item serve as a crime tool, no row).
  *
  * AND THE ROOM A BEDROOM KEY OPENS (E29 fix r2-H19, 06.10.2026; found by fix r2-H17). A flag outside `ITEM_FLAGS`
- * (config.mjs `BEDROOM_KEY_FLAG`) that only a GM writes: vault.mjs `grantBedroomKey` on the key it makes, and the copy
+ * (config.mjs `BEDROOM_KEY_FLAG`) that only a GM writes: vault-store.mjs `grantBedroomKey` on the key it makes, and the copy
  * roads carry it over (inventory.mjs `preservedFlags`). It was no part of this list, so a player's write of one was
  * listed and stood, and a hand-over of the item it stood on made the receiver a real key to that room (handover.mjs
  * `shareKey`, through `grantBedroomKey`), as a plant's copy carried it: at 68150ec (e29run/r2h19red) a key written by
@@ -285,7 +285,7 @@ const ITEM_JUDGED = ["system.quantity", ...[...ITEM_FIXED, ITEM_FLAGS.broken, IT
 /*
  * The judged paths an item the GMs hold no copy of is read without (`itemFindings`' `before`, `itemsAsHeld`,
  * `itemCovers`): its category, which would make it the module's, and since E29 fix r2-H19 a bedroom key's room, which
- * makes any item a key where a key is read (handover.mjs `giveItem`, vault.mjs `keysHeldBy`). A player's write of
+ * makes any item a key where a key is read (handover.mjs `giveItem`, vault-store.mjs `keysHeldBy`). A player's write of
  * either on such an item is put back, and neither is read off it as the GMs hold it.
  */
 const ITEM_UNHELD = [ITEM_FLAGS.category, BEDROOM_KEY_FLAG].map(flag => `flags.${MODULE_ID}.${flag}`);
@@ -469,7 +469,7 @@ const itemMoves = (kind, mark, item, data, changes = {}) => kind !== "updateItem
 /** An item the mark holds, whole: its copy with the effects held on it (G3), as a deleted one is made again. */
 const wholeItem = (mark, id) => ({ ...clone(mark.items[id]), effects: Object.values(mark.itemEffects?.[id] ?? {}).map(clone) });
 
-/** Whether an item's data is the module's: one with a category (vault.mjs `vaultContents` reads the same). */
+/** Whether an item's data is the module's: one with a category (vault-store.mjs `vaultContents` reads the same). */
 function isModuleItem(data) {
     return Boolean(data?.flags?.[MODULE_ID]?.[ITEM_FLAGS.category]);
 }
@@ -728,7 +728,7 @@ export async function armedCallsHeld(actor) {
 /*
  * A STUDENT'S ITEMS AS THE GMS HOLD THEM (E29 fix r2-H17, 06.10.2026; found by fix r2-H16). A GM's road that makes
  * a copy of a student's item on another sheet - since E35 one road, inventory.mjs `transferItem`, which handover.mjs
- * `giveItem` and `lootBody`, vault.mjs `stealFromVault`, `stealFromPerson` and `plantOnPerson` call after reading
+ * `giveItem` and `lootBody`, stash-reach.mjs `stealFromVault`, palm.mjs `stealFromPerson` and `plantOnPerson` call after reading
  * here for their own gates - reads the item here: once every write queued on the student has been
  * judged (`judgedFor`), the fields this file judges (`ITEM_JUDGED`, a class's hit points) as the mark holds them,
  * whether their put-back landed or failed, as `armedCallsHeld` reads a Call; every other field as the document
@@ -846,9 +846,9 @@ export function flagsHeldNow(actor) {
  * items as `itemsAsHeld` reads them, in a list read as an actor's collection (`filter`, `find`, `some`, `get`). The
  * readers stay synchronous, and the player's browser's own reads stay on its document (its sheet and its quotes: the
  * GM decides). Nothing is written through it - a road writes to the documents. The roads: the crisis on the GM
- * (murder-rules.mjs `applyCrisisAction`), a tool's relief on a project's roll (action-rolls.mjs `reliefHeld`), and the
+ * (murder-rules.mjs `applyCrisisAction`), a tool's relief on a project's roll (action-project.mjs `reliefHeld`), and the
  * receiver's hands on the one road an item changes owner by since E35 C1-C3, inventory.mjs `transferItem` (its
- * callers: handover.mjs `giveItem`, `lootBody`; vault.mjs `stealFromVault`, `stealFromPerson`, `plantOnPerson`). The wait is `itemsAsHeld`'s, and on these roads, as on H17's, it holds up
+ * callers: handover.mjs `giveItem`, `lootBody`; stash-reach.mjs `stealFromVault`, palm.mjs `stealFromPerson`, `plantOnPerson`). The wait is `itemsAsHeld`'s, and on these roads, as on H17's, it holds up
  * nothing that holds it up, by reading: a crisis action, a project's packet and a copy each come after the roll and
  * the use they follow, and none writes what a judgement waits for (a use's consumption, a roll's card).
  * And since fix r2-H20, each saying the same of its own wait: a clean-up's and Stage 6's gloves (cleanup.mjs
@@ -874,7 +874,7 @@ export function actorHeldNow(actor) {
  * stands - so a copy road read it as any item the GMs hold: a hand-over, a plant, a theft or a loot made a GM's copy
  * of it on another sheet, a write that stands as the GMs', and deleted the original, whose card's Undo then found
  * nothing to undo. The copy roads (handover.mjs `giveItem` - its key's and its bullet's branches included - and
- * `lootBody`; vault.mjs `plantOnPerson`, `stealFromVault` and `stealFromPerson`) ask this after their wait, which
+ * `lootBody`; palm.mjs `plantOnPerson`, stash-reach.mjs `stealFromVault` and palm.mjs `stealFromPerson`) ask this after their wait, which
  * has judged every write queued on the student and so written the creation's row, and before anything is written:
  * an item whose creation row (`sheetWrites`, verdict "flagged", the change `items.<id>` from null) holds no decision
  * is refused, and the asker told (`itemNotDecided`). The decision is read as the card's Undo and Keep write it
@@ -1027,7 +1027,7 @@ export function gmMeansWrite(actor, write) {
  * waits on the student's queue; every other wait a road makes - `itemAsHeld` in `grantItemEffect`, a judgement's; the
  * GM's yes in `spendHopeCall` - comes before its job or after it, never in it; no judgement calls any of these roads;
  * and no `gmMeansWrite` job calls one (the jobs before this fix make their writes and call no road: reroll.mjs
- * `makeReroll` and `giveBack`, gm-bridge.mjs `armPaidByPlayer`, despair-award.mjs `adjustCritHopeTopUp`, roll-draw.mjs
+ * `makeReroll` and `giveBack`, bridge-runs-records.mjs `armPaidByPlayer`, despair-award.mjs `adjustCritHopeTopUp`, roll-draw.mjs
  * `modifyFromHeld`, murder-rules.mjs `undoLastCrisis`, cleanup.mjs `undoLastCleanup`).
  */
 export function meansWrite(actor, write) {
@@ -1964,7 +1964,7 @@ const heardAt = message => rollsHeard.get(message.id) ?? (Number(message.timesta
  * (`from`), as an item used waits for its consumption: a roll window spends its Calls as it closes
  * (roll-dialog.mjs `onCloseApplication`), before Daggerheart throws the roll and writes its card
  * (dhRoll.mjs `build`, read in 2.10.5), while the module's own roll spends them after its card
- * (action-rolls.mjs `throwDice`); live, the roll is one of the last `ROLL_COVER_MS`. How long a
+ * (action-pipeline.mjs `throwDice`); live, the roll is one of the last `ROLL_COVER_MS`. How long a
  * table's card takes after the window closes is not measured here - the harness's roll windows are
  * stand-ins that throw nothing (LIVE-E29 candidate). Answers the message, or null.
  */
@@ -2070,7 +2070,7 @@ function withPaths(data, before, paths) {
  * broken - and since 694cfbff (08.10) that was the whole judgement, so a console made the stamped delete without the
  * Shadow roll and the trace the honest road leaves (use-items.mjs `discardBroken`: "NO TRACE, NO DISPOSAL"). Measured
  * by the review's probe on 47b63d64, each on the GM afterwards: D1, the Class Trial, a broken tool: gone, no row, no
- * card, no trace - past the bridge's trial refusal (gm-bridge.mjs `handleRemnant`), which stops only the trace; D3, a
+ * card, no trace - past the bridge's trial refusal (bridge-runs-records.mjs `handleRemnant`), which stops only the trace; D3, a
  * whole tool set broken by the console one write earlier (a break is a spend, so it stood), then the stamped delete:
  * the same; D4, the Investigation: the same, where the module asks a roll and a trace; D2, the bare delete, flagged
  * on one card - the protection the stamp stepped past.
@@ -2225,7 +2225,7 @@ async function itemFindings(kind, item, actor, mark, changes, user, options, see
 
 /*
  * A STASH OR A RETRIEVE (the plan's 2.6), read on this GM. The student stands in a room with a
- * stash of theirs (vault.mjs `myStashHere`, as `stow` and `retrieve` ask it on the player's
+ * stash of theirs (stash-reach.mjs `myStashHere`, as `stow` and `retrieve` ask it on the player's
  * browser); a thing put away goes into that room's stash, is no Truth Bullet, and the stash holds
  * fewer than `VAULT_LIMIT` besides it; a thing taken out comes from that room's stash, and the carry
  * cap has room for it besides. Which stash an item is in is read as `stashRoomOfItem` reads it (an
@@ -2239,7 +2239,7 @@ async function placeStands(actor, item, before, now) {
     const was = stashOf(before), is = stashOf(now);
     if (was === is) return true;
     // The dead put nothing away and take nothing out (E14 part 1 C3; audit S08-12, D15): a death the GMs
-    // hold, published or not, as `itemCovers` reads it; vault.mjs `stow` and `retrieve` refuse it first.
+    // hold, published or not, as `itemCovers` reads it; stash-reach.mjs `stow` and `retrieve` refuse it first.
     if (isDeadForGm(actor)) return false;
     const room = await V.myStashHere(actor);
     if (!room) return false;
@@ -2255,20 +2255,20 @@ async function placeStands(actor, item, before, now) {
 
 /*
  * A SEARCH'S FIND (the plan's 2.6): an item created `searchFind`, its `ref` the GMs' record of a
- * Search (roll-draw.mjs `rollRecord`; action-rolls.mjs `grantDrawn` names it) of this student by
+ * Search (roll-draw.mjs `rollRecord`; action-search.mjs `grantDrawn` names it) of this student by
  * this player that hit, not used for a find before, and the item's tier at most what the record's
- * total - with the hidden stash's step the GM drew - earns on the Search's table (action-rolls.mjs
+ * total - with the hidden stash's step the GM drew - earns on the Search's table (action-search.mjs
  * `searchTier`, the reading the Search itself makes). Answers the student's finds with this one in
  * them, or null. A find whose record is swept is forgotten with it: a record past a Reroll's reach
  * names no find any more.
  *
  * NOT A SEARCH THAT ENDED WITHOUT A DRAW (round 1's m6, 05.10.2026). A hit asked of the GM ("something
- * specific", action-rolls.mjs `searchSpecific`) or taken from a stash (`searchStash`) creates nothing
+ * specific", action-search.mjs `searchSpecific`) or taken from a stash (`searchStash`) creates nothing
  * through `grantDrawn`, so its record stayed unused and a console's item named after it stood - a
  * second item for one Search. The record now keeps the Search's goal as the roller sent it (roll-draw.mjs
  * `CONTEXT_SENT`, the roller's word like the category beside it), and a stash's theft settles the
  * record's "search" (bridge-guards.mjs `rollsFor`); a find on either is refused. The other way round,
- * a theft named after a record a find already stood on is refused by gm-bridge.mjs `searchTheftOf`.
+ * a theft named after a record a find already stood on is refused by bridge-runs-acts.mjs `searchTheftOf`.
  *
  * NOR A SEARCH WHOSE TOKEN THE GM NEVER SPENT (E29 fix r2-H11, 06.10.2026). A Search spends its
  * room's token after its roll, and a refused spend settles the record (search-tokens.mjs

@@ -139,7 +139,7 @@ export function startPanicRound(options = {}) {
 const overHeard = new Set();
 
 /**
- * A participant's "trial.turn" on the primary (gm-bridge.mjs `handleTrialTurn`; the speaker's own window and every
+ * A participant's "trial.turn" on the primary (bridge-runs-records.mjs `handleTrialTurn`; the speaker's own window and every
  * participant's step over, trial-prompt.mjs): `{ reply: { step } }` with the step written, or `{ refused }` in the
  * bridge's closed words. The sender's ownership of `actorId` is the bridge's guard; here: a Class Trial, a round on the
  * floor, the character in its order, one step over per sender and step, and the machine's judgement in the floor's step.
@@ -288,7 +288,7 @@ export function resumeClosing() {
 }
 
 /**
- * A volunteer's "trial.claim" on the primary (gm-bridge.mjs `handleTrialClaim`; the "I'll sum up" window,
+ * A volunteer's "trial.claim" on the primary (bridge-runs-records.mjs `handleTrialClaim`; the "I'll sum up" window,
  * trial-prompt.mjs): `{ reply: { count } }` or `{ refused }` in the bridge's closed words. The sender's ownership of
  * `actorId` is the bridge's guard; here, in one step of the floor's key: a Class Trial, the volunteers' window open, the
  * character taking part (vote.mjs `trialParticipants`), once; the name kept in the GMs' store and the count on the floor.
@@ -338,7 +338,7 @@ export async function endClosingForVote() {
  * uczestnika jak znaleziony, ze znanym typem i tekstem dla gracza, a odczyt dalej przez Analyze" (TR5 = 1). So each
  * participant (vote.mjs `trialParticipants`: no Monocub, nobody dead) is handed a copy as a find would hand it - typed
  * Key, the players' text, not read (the owner's Q-p2-2 of 27.10: Analyze at its usual cost, and E16's one filter keeps
- * it open, action-rolls.mjs `ANALYZE_TRIAL_FILTER`) - with no fee, and its trace is revealed on a find's road
+ * it open, action-analyze.mjs `ANALYZE_TRIAL_FILTER`) - with no fee, and its trace is revealed on a find's road
  * (remnants.mjs `markKeyFound`, source "reveal"). As many as the fee charged for (`paid`, written with the fee and never
  * counted again: a Key placed or found after the charge changes nothing of it); past that only when the GM confirms
  * "No Despair was charged for this Key Remnant. Reveal it anyway?" (TR28 = 1). Once per row. The copies are minted on

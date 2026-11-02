@@ -6,9 +6,11 @@
  * moved to sfx-play.mjs by a pure move that `node tools/moved-only.mjs`
  * proves, and this file re-exports the fourteen names of it that it exported.
  * It keeps what listens: `registerSfx` with the socket's listener and the
- * hooks that play a sound, the unlock and `diagnoseSfx`, and, until E41 C9b
- * moves them to sound-panel.mjs, the Sound window's sliders, its Effects tab
- * and the launcher. Every importer still imports this file. New code goes
+ * hooks that play a sound, the unlock and `diagnoseSfx`, and the Sound
+ * window's sliders, its Effects tab and the launcher: in sound-panel.mjs they
+ * would close a static import cycle (sound-panel.mjs reaches this file through
+ * music-states.mjs, clock.mjs and actions.mjs), so they stay here, and E41-16
+ * is carried to E73. Every importer still imports this file. New code goes
  * into the file of its role, not here.
  *
  * Until this file the module played exactly one sound: a notification chime

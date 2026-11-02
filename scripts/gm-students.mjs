@@ -130,7 +130,7 @@ function aliveTableHtml({ roster, stateOf, donors, isCrimeSilenced, resourceValu
 /*
  * REFUND LAST CROSSING (E17 C3, 26.10.2026; audit S07-16, D18). On the row of a character whose newest crossing the GMs
  * hold and have not given back (gm-stores.mjs `crossingStore`); its tooltip names the two rooms. One click gives it back
- * on the primary GM (gm-bridge.mjs `requestRefundCrossing`, movement.mjs `refundLastCrossing`); the store's change
+ * on the primary GM (bridge-asks.mjs `requestRefundCrossing`, movement.mjs `refundLastCrossing`); the store's change
  * redraws the row on every GM (`drpgCrossingsChanged`), so the button goes once it is used, wherever it was pressed.
  */
 function refundButton(actor) {

@@ -215,7 +215,7 @@ async function fixCursorPermission() {
     return before.length - after.length;
 }
 
-/** The rooms-per-student line under the room count step: the Doors tab's own sentence (vault.mjs `roomRatioLine`, E20 C1). */
+/** The rooms-per-student line under the room count step: the Doors tab's own sentence (vault-store.mjs `roomRatioLine`, E20 C1). */
 function roomCountLine(census, living) {
     return `<div class="notes">${foundry.utils.escapeHTML(roomRatioLine(census, living))}</div>`;
 }
@@ -1154,7 +1154,7 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
 
     const chapterWas = Number(getClock().chapter);
     await setClock({ campaignName: result.campaignName, chapter: result.chapter });
-    /* AND IT SAYS WHEN AN ECLIPSE STILL RUNS (E51 C6; audit S06-46), as Edit campaign does (gm-panel.mjs
+    /* AND IT SAYS WHEN AN ECLIPSE STILL RUNS (E51 C6; audit S06-46), as Edit campaign does (gm-campaign.mjs
        `openClockDialog`): a chapter moved here leaves the Eclipse on - placing freely, refusing murders - and this
        window has no switch for it. */
     if (Number(result.chapter) !== chapterWas && isEclipse()) ui.notifications.warn(game.i18n.localize("DRPG.Clock.eclipseStillOn"));
@@ -1780,7 +1780,7 @@ export const RESET_CHOICES = Object.freeze(["placeCast"]);
  * Each value is the reset's constant, written with no read: it supersedes whatever a put-back
  * still owes (the plan's 1b.2). The Reroll's last roll is the GMs' store `rerollBookmarks`, cut by
  * `actions` since E08+E28 C2 (gm-stores.mjs); the actor flag `lastAction` the plan names here is
- * 1.2.63's, taken off every actor by a migration (action-rolls.mjs `dropRollBookmarks`), so
+ * 1.2.63's, taken off every actor by a migration (action-pipeline.mjs `dropRollBookmarks`), so
  * nothing here writes it.
  *
  * `left`, when given, collects what the `advancement` part could not tell apart (E11 C11): a
@@ -2101,7 +2101,7 @@ async function wipeSeason(plan) {
         },
 
         // Each in a step of its key (E70 C0; tier 0 R991, R1020): the floor's (trial.mjs `SEIZE_KEY`) and the record's
-        // (vote.mjs `TRIAL_PROGRESS_KEY`), so a seizure, the heartbeat or a vote's step on its way is not written over
+        // (trial-progress.mjs `TRIAL_PROGRESS_KEY`), so a seizure, the heartbeat or a vote's step on its way is not written over
         // with last season's floor or record after the reset. Written raw, as before: nothing is withdrawn or told.
         trialFloor: () => import("./trial.mjs").then(m => serialWrite(m.SEIZE_KEY,
             () => game.settings.set(MODULE_ID, SETTINGS.trialQueue, {}))),
@@ -2271,7 +2271,7 @@ async function wipeSeason(plan) {
          */
         clock: async () => {
             /* THE SENTENCE BEFORE THE PHASE (E70 C4): this write leaves a running trial, and the way out of one carries
-               out its sentence (vote.mjs `executeAtExit`) - on a student the "deaths" step may just have brought back,
+               out its sentence (trial-progress.mjs `executeAtExit`) - on a student the "deaths" step may just have brought back,
                in a season that is over. Taken back first, whichever groups were ticked. */
             const { clearSentence } = await import("./vote.mjs");
             await clearSentence();

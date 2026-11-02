@@ -654,17 +654,6 @@ function nameFieldHtml({ name, value = "", placeholder = "", error = null }) {
 }
 
 /**
- * The item tables, editable.
- *
- * @param {object} [options]
- * @param {object} [options.preset]  Prefill for the "add an item" form:
- *   `{ category, tier, room, name }`. Handed in by the ruling card a Search for
- *   "something specific" produces - the GM pressed "Create an item" while
- *   reading a roll that already says which category, which tier and which room,
- *   and re-picking all three here would be answering a question they have just
- *   answered.
- */
-/**
  * Which tables the preset points at: the ones this category and tier would
  * actually be drawn from, plus the room's own if it has one. Ticked, not
  * forced - the GM can add or clear any of them before pressing Add.
@@ -1494,6 +1483,17 @@ async function addItemFrom(action) {
     ui.notifications.info(plural("DRPG.Tables.itemAdded", { name: action.name, n: added }));
 }
 
+/**
+ * The item tables, editable.
+ *
+ * @param {object} [options]
+ * @param {object} [options.preset]  Prefill for the "add an item" form:
+ *   `{ category, tier, room, name }`. Handed in by the ruling card a Search for
+ *   "something specific" produces - the GM pressed "Create an item" while
+ *   reading a roll that already says which category, which tier and which room,
+ *   and re-picking all three here would be answering a question they have just
+ *   answered.
+ */
 export async function openItemTables({ preset = null, poolError = null } = {}) {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the

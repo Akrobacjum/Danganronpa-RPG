@@ -939,7 +939,7 @@ export const DrpgApi = {
      *  browser beside the primary's: in scenario 62 before the fix, gm2's console
      *  Approve and the GM's own, made at once, both answered true and the player was
      *  told twice (D3), and gm2's Decline was ruled on gm2 (D2). Now they ask the
-     *  primary GM as the card's buttons do (gm-bridge.mjs `askReshapeRuling`): one
+     *  primary GM as the card's buttons do (bridge-asks.mjs `askReshapeRuling`): one
      *  claim, kept as the caller's ruling, a second one refused and told who ruled;
      *  on the primary itself the call claims locally. A console caller passes what
      *  the card's buttons carry, `{ actorId, tokenId, attempt }`: the character who

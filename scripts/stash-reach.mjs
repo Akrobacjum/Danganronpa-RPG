@@ -462,7 +462,7 @@ export async function stealFromVault({
      * no action, no roll, and therefore no business opening a hiding place its
      * owner built a project for. The Search action is the other, and it is the
      * one the concealment penalty exists FOR - `performSearch` takes a step of
-     * disadvantage (action-rolls.mjs `stashStep`) precisely because the stash is
+     * disadvantage (action-search.mjs `stashStep`) precisely because the stash is
      * hidden, spends a search token and an action, and only then asks for a
      * specific item.
      *
@@ -528,7 +528,7 @@ export async function stealFromVault({
 
     /*
      * ONCE A TIME OF DAY (E14 part 1 C4; D15). The drawer's free route only: a Search's find (`viaSearch`, which the
-     * bridge reads off the GMs' record of the Search's roll - gm-bridge.mjs `searchTheftOf`) paid an action for its
+     * bridge reads off the GMs' record of the Search's roll - bridge-runs-acts.mjs `searchTheftOf`) paid an action for its
      * reach, and neither asks the count nor writes it. The Mastermind is counted as anyone is: their exception is the
      * hiding place, not the hand. Asked after every wait above and stamped with no wait between, so of two reaches
      * served at once on one GM the second finds the first's stamp (read in the code; no test drives two at once); the
@@ -648,8 +648,8 @@ export async function stealFromVault({
  *
  * THE REPLAY SEARCHES WHERE THE ROLL WAS THROWN (E80 fix r1-G4, 19.10.2026; the review's
  * E80-G-1 = E80-COR-2). Every first search answers where it searched (`place`: scene, room
- * and floor ids), which the GMs keep with their facts on its roll (`findPlace`: gm-bridge.mjs
- * `handleFindStash`, a GM's own action-rolls.mjs `locateStash`). A replay handed that place
+ * and floor ids), which the GMs keep with their facts on its roll (`findPlace`: bridge-runs-acts.mjs
+ * `handleFindStash`, a GM's own action-analyze.mjs `locateStash`). A replay handed that place
  * (`at`) searches it only while the GMs still read the character there (movement.mjs
  * `gmPlaceOf`), and answers noRoom otherwise - and for `at` null, a row written before the
  * place was kept - so its Reroll is given back whole. Until then it searched wherever the
@@ -659,10 +659,10 @@ export async function stealFromVault({
  *
  * NO HUNT IN A CLASS TRIAL (E16 part 2 C3, 26.10.2026; audit S02-70, the owner's D16: "odmawia choice 'hint' i 'stash'
  * w classTrial, także z pakietu"). In a trial Analyze only identifies Truth Bullets, and its picker no longer offers the
- * hunt (action-rolls.mjs `ANALYZE_TRIAL_FILTER`) - but a console's packet, a GM's own call and a Reroll of a hunt thrown
+ * hunt (action-analyze.mjs `ANALYZE_TRIAL_FILTER`) - but a console's packet, a GM's own call and a Reroll of a hunt thrown
  * before the trial all come here, so here is where it is refused, on this GM's clock, before the throw is read: no trap
- * told, nothing whispered, nothing written. `{ refused }`, told by the bridge as `trialLocked` (gm-bridge.mjs
- * `handleFindStash`, `requestStashSearch`), and a Reroll's replay is given back whole (reroll.mjs `settleStashFind`).
+ * told, nothing whispered, nothing written. `{ refused }`, told by the bridge as `trialLocked` (bridge-runs-acts.mjs
+ * `handleFindStash`, bridge-asks.mjs `requestStashSearch`), and a Reroll's replay is given back whole (reroll.mjs `settleStashFind`).
  */
 export async function resolveStashSearch({ actorId, total = 0, isCritical = false, replay = false, at = undefined } = {},
     { hunted = event => Hooks.callAll("drpgStashHunted", event) } = {}) {

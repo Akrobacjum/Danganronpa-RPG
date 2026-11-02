@@ -120,7 +120,7 @@ export function ruledDefinitions() {
 
 /**
  * Whether a Resolve is armed on this character for its next roll: the one Call that buys the
- * picker. Exported for the crisis menu, which says who will pick (action-rolls.mjs `crisisDetails`).
+ * picker. Exported for the crisis menu, which says who will pick (action-murder.mjs `crisisDetails`).
  */
 export function resolveArmed(actor) {
     try {

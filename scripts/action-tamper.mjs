@@ -16,14 +16,14 @@
  */
 
 import { CLEANUP, RESOLUTION_STRESS_COST } from "./config.mjs";
-// The killer's skipped step and who actually counts as a witness. Static,
-// because `briefingFacts` is synchronous and R8 renders it for every action;
-// cleanup.mjs reaches back into this file only through a dynamic import.
+// The killer's skipped step, for the menu's price (`tamperQuote`). Static:
+// cleanup.mjs reaches the action family only through `import()` of
+// action-rolls.mjs (action-briefing.mjs imports it for `briefingFacts`).
 import { tamperQuote } from "./cleanup.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { plural, esc } from "./utils.mjs";
-// One reader, for the Tamper menu's "what you have readied" line. use-items.mjs
-// does not import this file.
+// For the Tamper menu's "what you have readied" line (action-project.mjs reads
+// use-items.mjs as well). use-items.mjs does not import this file.
 import { equippedFor } from "./use-items.mjs";
 import { briefingBlock, tamperThresholdFacts } from "./action-briefing.mjs";
 import { chooseVariant } from "./action-menus.mjs";

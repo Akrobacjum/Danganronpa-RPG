@@ -48,7 +48,7 @@ import { murderState, clockHiddenHere } from "./murder.mjs";
  * [that end, the new end) - nothing when it holds no card - and none when the window shown had no end. R1197 `after`.
  *
  * NOT ON A BYSTANDER'S SCREEN (E37 fix FG2, 02.11.2026; the end review's S-M1). While an incident runs, the clock moves
- * in private (clock.mjs `announceTimeOfDay`, hud.mjs `clockForDisplay`), and since C4 a bystander's browser still put up
+ * in private (clock.mjs `announceTimeOfDay`, hud-elapsed.mjs `clockForDisplay`), and since C4 a bystander's browser still put up
  * "Your <time of day>" at that very moment, naming the time of day that ended. A browser whose clock is hidden for the
  * incident (incident-store.mjs `clockHiddenHere`, the HUD's own question) shows no summary: the window is taken as
  * shown and dropped. Tier 2 E37-T10.

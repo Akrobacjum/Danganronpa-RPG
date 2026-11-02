@@ -40,7 +40,7 @@ import { requestFieldHtml, readRequestField, chooseVariant } from "./action-menu
  * row's context: for "bullet" the bullet). Outside a trial no row is shut, so none is greyed (the owner, 11.10 A10:
  * "E16 zostawia jeden filtr, a wiersz poza rozprawą nigdy nie jest wyszarzony"). E70 C9 appends its Key Remnant read here
  * (the Reveal's copy, below), tested in tier 2 E70-T11 and scenario 67-trial-modes (66 is 66-rooms); Frisk is no row (13.10 A11: the GM-online check covers it). The
- * GMs refuse the stash hunt in a trial on their side too (vault.mjs `resolveStashSearch`), and the passage
+ * GMs refuse the stash hunt in a trial on their side too (stash-reach.mjs `resolveStashSearch`), and the passage
  * (passages-gm.mjs `resolvePassageSearch`): this list is the player's window, not the protection.
  */
 export const ANALYZE_TRIAL_FILTER = [
@@ -313,7 +313,7 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
      * attempt, including one that finds nothing, before the dice are read. This
      * client raised it, and its relay was the only thing that told the GM: a
      * console that searched without raising it hunted past every trap. It is
-     * raised by the GM that judges the search now (vault.mjs
+     * raised by the GM that judges the search now (stash-reach.mjs
      * `resolveStashSearch`), before the roll is scored.
      */
     const { requestStashSearch } = await import("./gm-bridge.mjs");
@@ -327,7 +327,7 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
         return null;
     }
     /* A CLASS TRIAL OPENED WHILE THE DICE WERE IN THE AIR (E16 part 2 C3): the GMs refuse the hunt before its throw is
-       read (vault.mjs `resolveStashSearch`), so the price comes back - by analogy with E14 part 1's Q3 ("a refusal before
+       read (stash-reach.mjs `resolveStashSearch`), so the price comes back - by analogy with E14 part 1's Q3 ("a refusal before
        the rolls are read refunds", 18.10). Asked here first, where the price is known, and again on the GMs' answer
        below: a trial opened while the packet was in flight is refused there (E16 fix e1-G2). */
     if (analyzeRowShut("stash")) {
@@ -360,7 +360,7 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
     }
 
     // NOT `gmRuled`. A Reroll replays this from a threshold (reroll.mjs `settleStashFind`, E80 C4), on the GMs'
-    // facts that this roll was a Find Stash and whether it opened one: a player's written by gm-bridge.mjs
+    // facts that this roll was a Find Stash and whether it opened one: a player's written by bridge-runs-acts.mjs
     // `handleFindStash`, a GM's own here (`OWN_FACTS`, from the answer of its own search). A roll that opened
     // one opens no second, however often it is rerolled.
     await noteRollContext(actor, {

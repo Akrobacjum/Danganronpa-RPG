@@ -31,7 +31,7 @@ import { SOCKET_EVENT, ACTION_ADVANCEMENT_OFFERS, ACTION_SHARE_BULLET, ACTION_DO
 
 /*
  * THE RUNS (E31, 25.09.2026). Each handler below is the `run` of one
- * declaration in BRIDGE_ACTIONS, at the end of this file, and keeps its name,
+ * declaration in BRIDGE_ACTIONS (bridge-table.mjs), and keeps its name,
  * its order and its first parameter, `payload` - which is no longer the packet
  * but a copy with only the fields the declaration lists (`sanitize`). By the
  * time a run is called, `judge` (bridge-guards.mjs) has asked who sent the
@@ -367,7 +367,7 @@ export function notFindPassageRoll(record) {
  * Plant were scored on the packet's two totals - the hand's against the action's bar, the unseen
  * one against whether anybody watched (`stealFromPerson`, `plantOnPerson`). The packet names both
  * rolls now: the hand's (`rollId`, thrown as "steal" for a Steal and a Plant alike, as it always
- * was) and the unseen one (`unseenRollId`, thrown as "palm" since C15, action-rolls.mjs
+ * was) and the unseen one (`unseenRollId`, thrown as "palm" since C15, palm.mjs
  * `performPalm`), whose result goes in `unseenTotal` and `unseenCritical`.
  * One hand's roll settles one Steal or one Plant.
  */
@@ -381,7 +381,7 @@ export function palmRolls(actor) {
     // And into them. Same guards as the theft, mirrored - the sender has to own
     // the character whose pocket the item is leaving. An item no GM has decided on
     // (E29 fix r2-H21), the one gate's refusals before the rolls (inventory.mjs
-    // `transferRefusal`; E14 part 1 C1) and a stash's own (vault.mjs `stealFromVault`;
+    // `transferRefusal`; E14 part 1 C1) and a stash's own (stash-reach.mjs `stealFromVault`;
     // E14 fix e1-G1) come back as { refused } and are told by their code; the gate's
     // second asking, after the rolls, is told as nothing carried out (fix e1-G4). What a
     // run carries out - a missed hand, full pockets - is the asker's whisper.
@@ -522,7 +522,7 @@ export async function handleVaultSteal(payload, sender, ctx) {
         clumsy: payload.clumsy
     });
     if (out?.refused) return { refused: out.refused };
-    // Whether the thing moved (E16 fix e1-G2): a Search leaves its trace only on `taken` (action-rolls.mjs `searchStash`).
+    // Whether the thing moved (E16 fix e1-G2): a Search leaves its trace only on `taken` (action-search.mjs `searchStash`).
     return { reply: { taken: Boolean(out) } };
 }
 
@@ -532,7 +532,7 @@ export async function handleVaultSteal(payload, sender, ctx) {
  * and that its hand was steady. A packet that says `viaSearch` now names the Search's roll, and
  * both are read off the GMs' record of it: the Search found the stash when its total, with the
  * hidden stash's step the GM drew with the dice (`used.stash`, roll-draw.mjs `drawOnGm`), reaches
- * a tier of the Search's table, or the roll is a critical - action-rolls.mjs `searchTier`, as
+ * a tier of the Search's table, or the roll is a critical - action-search.mjs `searchTier`, as
  * `performSearch` reads it before it opens the stash (`searchStash`); it fumbled on Despair with no
  * critical, as `searchStash` says. A packet that does not say `viaSearch` asks no roll: it is the
  * drawer's free route, which `stealFromVault` holds to a stash that is not concealed or was found,

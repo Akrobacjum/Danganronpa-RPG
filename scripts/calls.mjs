@@ -348,7 +348,7 @@ async function postHopeCallCard(actor, call, note, done, left) {
  *
  * An answer later than the bridge's clock posts the card then, and a refusal that late is
  * said then; the clock's own line says the Reroll may still be made, not that it was not
- * (fix r1-G5, the round-1 review's m1: gm-bridge.mjs `requestReroll`). Asked again meanwhile,
+ * (fix r1-G5, the round-1 review's m1: bridge-asks.mjs `requestReroll`). Asked again meanwhile,
  * the GM refuses it as one already being made (reroll.mjs `rerollRefusal`).
  */
 async function askReroll(actor, key, call, { note, choice }) {
@@ -528,7 +528,7 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
  * statistic for an armed Resolve). The window said only the Call's sentence, so three Hope went
  * on a roll the player was not shown, and on a choice the window did not offer.
  *
- * The roll is the one this browser threw last for the character (action-rolls.mjs `rollInHand`):
+ * The roll is the one this browser threw last for the character (action-pipeline.mjs `rollInHand`):
  * the GMs keep their own row of it and take that one back. After a reload this browser has none
  * and says nothing of it, rather than guess.
  */

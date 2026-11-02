@@ -737,7 +737,7 @@ export function wireCallActions(body, message = null) {
             busy = true;
             hold(true);
             try {
-                // Claimed on the primary GM first (E18 C3, gm-bridge.mjs `claimCard`): a card another GM has, or
+                // Claimed on the primary GM first (E18 C3, bridge-asks.mjs `claimCard`): a card another GM has, or
                 // ruled, is not ruled again here, and this GM is told who has it. No card, no claim and no ruling.
                 const { claimCard, settleCall } = await import("./gm-bridge.mjs");
                 const outcome = await claimCard(message, () => runCallAction(button.dataset.drpgCall, { ...button.dataset }, message));
@@ -812,7 +812,7 @@ async function askItemEffect(item) {
     // r2-H4): one it could not keep leaves the card open. The primary writes
     // "Approved" on the card once the player's browser has the yes (E18 C1). The
     // card pressed goes with it: the primary keeps a yes only for the ask held on
-    // that card (gm-bridge.mjs `yesOnPrimary`, fix early-C2-G2).
+    // that card (call-gm.mjs `yesOnPrimary`, fix early-C2-G2).
 async function ruleApproveCallOrRefuseCall(action, data, message = null) {
     const { answerHopeCall } = await import("./gm-bridge.mjs");
     const yes = action === "approveCall";
@@ -823,10 +823,10 @@ async function ruleApproveCallOrRefuseCall(action, data, message = null) {
     // A Dynamic action: the difficulty editor is the old dialog, opened from
     // the card by whichever GM picks it up; "Refuse" tells the player so. The
     // difficulty is kept in the card's meta, where the GM who places the action's
-    // trace reads its band (gm-bridge.mjs `dynamicRulingOf`, E08+E28 C15). The
+    // trace reads its band (bridge-runs-records.mjs `dynamicRulingOf`, E08+E28 C15). The
     // ruling goes by the primary, which keeps it in the meta and takes the card's
     // buttons off as it sends it on, and writes the card's line once the player's
-    // browser has it (E18 C1; gm-bridge.mjs `keepRuling`, fix early-C1-G1) - for
+    // browser has it (E18 C1; call-gm.mjs `keepRuling`, fix early-C1-G1) - for
     // the ask held on the card pressed alone (`dynamicOnPrimary`, fix early-C2-G2).
 async function ruleSetDifficulty(action, data, message = null) {
     const { askDynamicDifficulty } = await import("./action-rolls.mjs");
@@ -1021,7 +1021,7 @@ async function ruleDeclineReshape(action, data) {
 /*
  * AN OBSERVE'S FOCUSED GAZE (E09 C12; audit S05-27). "Pick a trace" opens the picker on this
  * GM's browser and sends the pick to the primary GM, which checks it against the traces the
- * character could be shown now and answers the player (observe.mjs `pickFromCard`, gm-bridge.mjs
+ * character could be shown now and answers the player (observe.mjs `pickFromCard`, bridge-asks.mjs
  * `askObservePick`). A pick the primary did not take leaves the card open, unless nobody is
  * waiting on it any more - then the card says so. The card carries the ask's request id, the
  * character and the player's own words, and no trace.

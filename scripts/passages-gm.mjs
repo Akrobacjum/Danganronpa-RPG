@@ -2081,7 +2081,7 @@ export async function roomNamerFor(actor, sceneId, { mastermind = mastermindStor
 /**
  * The two rooms a passage joins, as `actor` may name them: each room on the map (`world.sides`), else
  * the name the GM gave it, and a room this character has not found "Unexplored room n" as Listen says
- * it (action-rolls.mjs `listenLabels`); `null` for `known` names every room (the GMs, and the owner
+ * it (action-listen.mjs `listenLabels`); `null` for `known` names every room (the GMs, and the owner
  * who acts as the Mastermind through the character - `actsAsMastermind`).
  */
 function roomsAsKnown(row, world, known) {
@@ -2381,7 +2381,7 @@ export async function resolvePassageSearch({ actorId, total = 0, isCritical = fa
         // passage in a room where no Analyze was paid or thrown. A replay handed no such place (null: a row written before
         // the fact was) searches nowhere, so its Reroll is given back whole. And it searches there only while the GMs still
         // read the character in that room, on that scene and floor (E80 fix r1-G5, the review's E80-G-2), as a Find Stash's
-        // replay does (vault.mjs `resolveStashSearch`): until then a miss by a passage, rerolled after a walk away, found
+        // replay does (stash-reach.mjs `resolveStashSearch`): until then a miss by a passage, rerolled after a walk away, found
         // that passage in a room the character had left. A character no longer there is refused, and its Reroll given back.
         if (undo && at !== undefined) {
             const held = heldPlace(at);
@@ -2435,7 +2435,7 @@ function heldPlace(at) {
 }
 
 /**
- * The GMs' facts on the roll a first search was thrown with (action-rolls.mjs `rollOfFact`): its Reroll replays a passage
+ * The GMs' facts on the roll a first search was thrown with (action-pipeline.mjs `rollOfFact`): its Reroll replays a passage
  * search (`findPassage`), in the place the GMs read the searcher at that throw (`findPlace`: scene, room and floor ids).
  */
 async function noteFindFact({ actorId, rollId, by, place = null }) {

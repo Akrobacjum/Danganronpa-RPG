@@ -203,7 +203,7 @@ function exemptLanding(tokenDoc, scene, was, kept) {
 
 /*
  * WHO ASKED A GM'S WRITE (E79 fix r2-G1, 1.2.79; review r2, SEC M1 = cor F2 = goal H1 a). The bridge's send-back
- * (gm-bridge.mjs `handleSendback`) is written by the GM and was exempt as a GM's move before anything else was read,
+ * (bridge-runs-records.mjs `handleSendback`) is written by the GM and was exempt as a GM's move before anything else was read,
  * and `guardSendbackPlace` accepts the centre of a room the token stood in as well as a spot of the record: the
  * owner's send-back to the centre of the room Botan stood in, across a wall, undid the audit's put-back with no row
  * (the reviewers' SECR2-P1 and probe76: Botan at 1550,450, 0 rows, 0 whispers). Its write names the player who asked

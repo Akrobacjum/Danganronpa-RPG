@@ -612,7 +612,7 @@ function glyphGrid(current) {
 
 /**
  * The Statistic select's options for a project's form - the GM's editor here, and a
- * player's proposal (action-rolls.mjs `startProject`).
+ * player's proposal (action-project.mjs `startProject`).
  *
  * A STATISTIC IS REQUIRED (E32+E07 C11d; the owner's rules of 28.09.2026). Both forms
  * offered "- player chooses -" until 1.2.66, and a roll on such a project let the

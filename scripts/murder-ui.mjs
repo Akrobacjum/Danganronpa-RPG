@@ -742,7 +742,7 @@ function killerCleanup(killer, cleanup, named) {
  * The actions too (E66 C4, 01.11.2026; E66-18): "roughly four to six actions" was written in, and config gives
  * neither number. Each part is its own project, so a part takes its progress over what one Work makes when it
  * lands at the lowest band of `ACTIONS.project` with the lone killer's `INDIRECT_MURDER.concealIntent.aloneBonus`
- * (action-rolls.mjs `projectProgress`), rounded up: 1 + 1 = 2 a Work, 2 + 2 actions at the smallest scales and 3 + 2
+ * (action-project.mjs `projectProgress`), rounded up: 1 + 1 = 2 a Work, 2 + 2 actions at the smallest scales and 3 + 2
  * at the largest, so "4 to 5" with config.mjs as it stands. R1160 reads it.
  */
 export function indirectCostText() {

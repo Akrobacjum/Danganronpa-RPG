@@ -3008,7 +3008,7 @@ const REGRESSIONS = [
         ok(tick.includes("trialFloor()"), "the tick runs while no floor is open");
 
         // A list since E10 C5 (09.10.2026): the console also wakes on `userConnected`, the one thing
-        // that changes when the GM giving a verdict leaves (vote.mjs `verdictStopped`).
+        // that changes when the GM giving a verdict leaves (verdict.mjs `verdictStopped`).
         ok(/hooks: \[[^\]]*"drpgBallotsChanged"/.test(manage), "the console stopped watching for a ballot");
         ok(!/watch: \{[^}]*settings:/.test(manage),
             "the console's watch was narrowed to a list of settings, so the floor and the trial "
@@ -5485,7 +5485,7 @@ const REGRESSIONS = [
          * means the source moved and this measured nothing, and fails as such.
          */
         const sources = new Map(await otherSources());
-        // The bridge's tables, read live since E31 (25.09.2026): gm-bridge.mjs's, the trap relay's and the search
+        // The bridge's tables, read live since E31 (25.09.2026): BRIDGE_ACTIONS (bridge-table.mjs), the trap relay's and the search
         // tokens'. No count here: a stage that adds an action (E05's note.save) would make one stale, and the
         // floor below is what says the tables were read at all.
         const actions = (await bridgeTables()).flatMap(t => Object.keys(t.table));
@@ -5598,7 +5598,7 @@ const REGRESSIONS = [
             const r = payloadReads(decl, lookup);
             // The runner reads the roll a result comes from in the run's copy (E08+E28 C14, bridge-guards.mjs `judge`):
             // since C15 each of a list, and the fields a path, `when` and `kindAt` start from; since C16 what a
-            // `derive` reads of the copy it is handed (gm-bridge.mjs `progressOf`), read as a run's reads are; since
+            // `derive` reads of the copy it is handed (bridge-runs-records.mjs `progressOf`), read as a run's reads are; since
             // fix r2-H1 the paths a `named` field is compared with (a crisis roll's `key`).
             for (const rolled of G.rollsOf(decl)) {
                 const derived = rolled.derive ? payloadReads({ run: rolled.derive }, lookup) : { fields: [], unreadable: [] };
@@ -5755,7 +5755,7 @@ const REGRESSIONS = [
             // E80 part 2 C1: one student acting on another in their room, the primary's gate (frisk.mjs); C2 and C3 ask it.
             personActionRefusal: "returns",
             // E80 part 2 C3: an open Frisk's ask, answer and force, judged on the primary (frisk.mjs), whose runs pass their
-            // `{ refused }` on, and a force's roll held to its ask (gm-bridge.mjs `friskForceRoll`, a `derive`).
+            // `{ refused }` on, and a force's roll held to its ask (bridge-runs-acts.mjs `friskForceRoll`, a `derive`).
             askToFrisk: "refused", answerFrisk: "refused", followFrisk: "refused", friskForceRoll: "why",
             // E37 C3: the readiness round's open, answer and end, judged on the primary (boundary.mjs), whose runs pass their
             // `{ refused }` on.
@@ -6286,7 +6286,7 @@ const REGRESSIONS = [
            GMs' copy of each character's dice look (E16 fix early-C4-G1, 19.10.2026) is no season's either: a row goes
            with its actor, dropped as the actor is deleted. The primary's beat (E17 C6, 26.10.2026) is the last moment a
            primary was at the table, which a season does not change: a beat older than the clock's time of day reads as
-           none (hud.mjs `readyPatch`). */
+           none (hud-elapsed.mjs `readyPatch`). */
         const UNCUT = {
             "the store passageMap": "a secret passage stays; who knows it is cut with the passages group",
             "the store diceLooks": "a character's dice look is the GMs' choice and no season's; its row goes with its actor",
@@ -6952,7 +6952,7 @@ const REGRESSIONS = [
          * (dualityRoll.mjs:146-160, 2.6.5) throws |n| dice of one kind, keeps the highest above
          * one (`kh`), and adds it for advantage or takes it off for disadvantage; roll-dialog.mjs
          * caps |n| at ADVANTAGE_CAP. Since E06 C11 the window arms the room's count alone and the
-         * stash is a step on the dice it threw (action-rolls.mjs `stashStep`). For every window
+         * stash is a step on the dice it threw (action-search.mjs `stashStep`). For every window
          * count n from -3 to 3, every face of its d6s and every value each `draw(m)` may give
          * (1 to m, each branch weighted 1/m), the distribution of what the dice put on the total
          * after the step is compared, exactly - counts over a common denominator, not samples -
@@ -10288,7 +10288,7 @@ const REGRESSIONS = [
          * `postAsked`, `postToThread`, `whisperToGms`, `whisperToOwnerOnly` or `privately`, outside comments and
          * strings. A card whispered through `whisperToOwner` to the wrong character is not read here: R562 counts who
          * each card went to, and scenario 76 G reads the card in the one shown it's notice history and in nobody else's.
-         * (The packet's own road, "passage.share" written once in gm-bridge.mjs, is R553's census row.)
+         * (The packet's own road, "passage.share" written once in bridge-wire.mjs, is R553's census row.)
          *
          * E79 fix r2-G2, 16.10.2026 (the round-2 review's SEC M3 = cor F1, and H3): who acts as the Mastermind for a
          * passage is one reading, `actsAsMastermind`, declared once, exported, in passages-gm.mjs - the door's owner or a
@@ -11627,7 +11627,7 @@ const REGRESSIONS = [
          * `stampStartingSheet`. Read in the source: level-up.mjs `applyAdvancement` writes in one job of the student's
          * queue (`meansWrite`) from the sheet's values as the GMs hold them (`numberHeld`), reads no prepared maximum
          * (`resourceMax(`, `actor.system.resources`/`traits`), and refuses a statistic that is not one and an experience
-         * the GMs do not hold rather than skipping the pick; gm-bridge.mjs `handleAdvancement` refuses the same two
+         * the GMs do not hold rather than skipping the pick; bridge-runs-acts.mjs `handleAdvancement` refuses the same two
          * before its latch and the apply, the experiences read held; `openAdvancement` refuses an experience to raise
          * with none named before anything is sent or applied, and `buildContent` draws the option disabled where there
          * is none; character.mjs `stampStartingSheet` reads the spread held, not off `actor.system`. Tier 2 drives them
@@ -11986,7 +11986,7 @@ const REGRESSIONS = [
          * E09 C10, 08.10.2026. Two rulings of one reshape both ran - Approve and Decline on one card,
          * or two GMs' Approve - because each read the attempt's row, awaited, and wrote, and nothing
          * marked the proposal ruled. cleanup.mjs `claimRuling` reads the row and marks it in one
-         * synchronous step, and every GM's ruling is run on the primary (gm-bridge.mjs
+         * synchronous step, and every GM's ruling is run on the primary (bridge-asks.mjs
          * `askReshapeRuling`), so of two rulings there exactly one finds it unmarked. Tier 2 measures
          * the race ("two rulings of one reshape at once run once, and the second is told it was
          * ruled"); this holds the shape it rests on, which a later edit could undo without that test
@@ -12071,13 +12071,13 @@ const REGRESSIONS = [
          * E09 C7 made the bar where it is fewer. Each line read here is first asserted to exist, so a
          * rewritten handbook fails here instead of passing on nothing; the numbers are compared with
          * KEY_REMNANTS, OBSERVE_DC, ANALYZE_DC and CLEANUP.transformAction, and the count of Tamper's
-         * things with the options action-rolls.mjs `chooseTamper` offers before its Stage 6 row. The words
+         * things with the options action-tamper.mjs `chooseTamper` offers before its Stage 6 row. The words
          * a handbook gives the bar are a table below with four alone: another bar has no words here and
          * fails until somebody writes them. Scenario 62's L2 reads the menus' labels against the same files.
          * THE DAILY LIFE OBSERVE COLUMN (E09 fix r2-G7, 09.10.2026; review round 2's open item 12). Both
          * handbooks printed OBSERVE_DC's Daily Life ladder beside the scored ones. No roll is scored on it -
          * `observeDc` is asked a Remnant's kind, no kind (REMNANT_TYPES, OBSERVE_TYPE_ALIAS) is "dailyLife",
-         * and its one reader is Observe's briefing (action-rolls.mjs `thresholdFacts`, `dcObserveDaily`) -
+         * and its one reader is Observe's briefing (action-briefing.mjs `thresholdFacts`, `dcObserveDaily`) -
          * so each handbook now says what the ladder is for, and this reads that sentence and the two facts
          * it rests on. A kind that is "dailyLife" fails here until the sentence is rewritten.
          */
@@ -12656,15 +12656,14 @@ const REGRESSIONS = [
         const CAMERA = /\bcanvas\??\.(?:scene|level)\b|\b(?:viewedScene|viewedLevel|workingScene)\s*\(|\bgame\.scenes\??\.(?:current|viewed)\b/;
         const TOP = /^(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s+(\w+)|class\s+(\w+)|(?:const|let|var)\s+(\w+))/gm;
         const KINDS = new Set(["definition", "draw", "window", "diagnose", "own"]);
-        /* E41 C6 (1.2.97): rooms.mjs's row "vault.mjs#openRoomSetupDialog" names the stash's facade, and a pure move
-           rewrites no row of rooms.mjs; a reader in a file vault.mjs's code moved to (the kit's VAULT_FAMILY, palm.mjs
-           aside, which holds the player's half of a Palm as well) is keyed by vault.mjs, as the row is. */
-        const rowFile = file => VAULT_FAMILY.includes(file) && file !== "palm.mjs" ? "vault.mjs" : file;
+        /* E41 C11 (1.2.97): a reader is keyed by the file it stands in. From C6 to C10b rooms.mjs's row for Room Setup
+           named the stash's facade ("vault.mjs#openRoomSetupDialog"), which a pure move could not rewrite, and this
+           test keyed every file vault.mjs's code moved to by vault.mjs; the row names room-setup.mjs now. */
         const readersIn = (file, raw) => {
             const code = stripStrings(stripComments(raw));
             const pieces = [{ at: 0, name: "(top level)" }, ...[...code.matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[3] }))];
             return pieces.filter((piece, i) => CAMERA.test(code.slice(piece.at, pieces[i + 1]?.at ?? code.length)))
-                .map(piece => `${rowFile(file)}#${piece.name}`);
+                .map(piece => `${file}#${piece.name}`);
         };
         const judge = (found, registry) => ({
             unregistered: found.filter(key => !(key in registry)).sort(),
@@ -13557,7 +13556,7 @@ const REGRESSIONS = [
         /*
          * E79 C11 (16.10.2026; the owner's N6 of 14.10.2026). The hall's name, picture and words are a flag of
          * the hall scene every browser holds (trial-scene.mjs `HALL_ROOM_FLAG`), so what a console writes there is
-         * read by every player's tile: the reader judges the picture on every read, as vault.mjs `roomImage` does a
+         * read by every player's tile: the reader judges the picture on every read, as vault-store.mjs `roomImage` does a
          * room's, and the writer is a GM's. Read off the module's files, comments blanked: [setHallRoom's first
          * statement the GM gate; its picture through safeRoomImage; its one write, the hall's flag, and no other;
          * its one call, in applyScenesTab; hallRoom reading the flag and judging the picture; one read of the flag
@@ -14263,7 +14262,7 @@ const REGRESSIONS = [
          * a second GM's 'You answer for' runs `answerFrisk` where no ask is held, and the NPC's answer is lost. The
          * harness has one GM, who is the primary, so no tier and no scenario turns red on that edit: the waiter's
          * `onPrimary` road is R219's (driven with fakes), and this reads that each Frisk request takes it.
-         * Read: gm-bridge.mjs's source with its comments blanked, each `requestFrisk*` cut with `fnSource`, and the live
+         * Read: the bridge's family with its comments blanked, each `requestFrisk*` cut with `fnSource`, and the live
          * `BRIDGE_ACTIONS` rows with TIMING. THE CONTROL: the same reader on each request with `onPrimary: true` taken out
          * must miss it, so the reading is of the option and not of the name. Red at 42b684b with `onPrimary: true` taken
          * out of requestFriskAnswer (the review's mutant), green at 42b684b as it stands.
@@ -15455,7 +15454,7 @@ const REGRESSIONS = [
             "the census of project writes: each of these changes a project outside applyProjectChange's queue or its token outside syncProjectToken (rule, what, where)");
     }],
 
-    ["R991 - one queue on the primary (E17 C0): every write of Despair's pools, the search tokens, the clock, the overflow and the Eclipse's count, every tunnel's price, every seizure of the trial's floor and (E17 C9) every write of a project's row and of the Countdowns lies in a step of utils.mjs `serialWrite` under its own key (despair.mjs `DESPAIR_KEY`, search-tokens.mjs `SEARCH_KEY`, clock.mjs `CLOCK_KEY`, overflow.mjs `OVERFLOW_KEY`, trial.mjs `SEIZE_KEY`, movement.mjs `crossingKey(actorId)`, projects-secrecy.mjs `COUNTDOWNS_KEY`); the primary's charge of a door's crossing (movement.mjs `settleRoute`) and `objectOnPrimary` queue on theirs; and trial.mjs keeps no hand-made `seizing` chain; and (E70 C0) every write of the trial's floor and of its record lies in a step of trial.mjs `SEIZE_KEY` and of vote.mjs `TRIAL_PROGRESS_KEY`", async () => {
+    ["R991 - one queue on the primary (E17 C0): every write of Despair's pools, the search tokens, the clock, the overflow and the Eclipse's count, every tunnel's price, every seizure of the trial's floor and (E17 C9) every write of a project's row and of the Countdowns lies in a step of utils.mjs `serialWrite` under its own key (despair.mjs `DESPAIR_KEY`, search-tokens.mjs `SEARCH_KEY`, clock.mjs `CLOCK_KEY`, overflow.mjs `OVERFLOW_KEY`, trial.mjs `SEIZE_KEY`, movement.mjs `crossingKey(actorId)`, projects-secrecy.mjs `COUNTDOWNS_KEY`); the primary's charge of a door's crossing (movement.mjs `settleRoute`) and `objectOnPrimary` queue on theirs; and trial.mjs keeps no hand-made `seizing` chain; and (E70 C0) every write of the trial's floor and of its record lies in a step of trial.mjs `SEIZE_KEY` and of trial-progress.mjs `TRIAL_PROGRESS_KEY`", async () => {
         /*
          * E17 C0, 26.10.2026; E17-02 and E17-04, audit S10-23, S07-24 and S09-32, session 0 (11.10) and the owner's Q1
          * of 19.10 ("Ok": the named list, a table later stages extend). Foundry changes a setting's cached value only
@@ -15492,7 +15491,7 @@ const REGRESSIONS = [
          * every row stands outside a step, settleRoute and objectOnPrimary hold none, and trial.mjs keeps `seizing`.
          * E70 C0 (27.10.2026; E70-01, amend 5 (d)) adds two rows: the trial's floor (`SETTINGS.trialQueue`) under the
          * seizures' key, and its record (`SETTINGS.trialProgress`) under `TRIAL_PROGRESS_KEY`. Red at e2085d7b: the
-         * floor's two writes (trial-floor.mjs `writeFloor`, `endFloor`) and the record's (vote.mjs `setTrialProgress`)
+         * floor's two writes (trial-floor.mjs `writeFloor`, `endFloor`) and the record's (trial-progress.mjs `setTrialProgress`)
          * stood outside every step, and the season reset handed both settings to `emptied` (rule (d)).
          */
         const SUITE = /^tests(?:-[\w-]+)?\.mjs$/;
@@ -15772,7 +15771,7 @@ const REGRESSIONS = [
             "the census of the one queue: each of these writes shared state on the primary outside a step of its key, or a road that must queue does not (rule, where)");
     }],
 
-    ["R1020 - the trial's floor and its record have named writers (E70 C0): `SETTINGS.trialQueue` is written only in trial-floor.mjs `writeFloor` and `endFloorInStep` and the season reset (`wipeSeason`), `SETTINGS.trialProgress` only in vote.mjs `writeTrialProgressInStep` and the season reset; a planted writer is caught; and the GMs' row trial.gm names exactly the floor's ops", async () => {
+    ["R1020 - the trial's floor and its record have named writers (E70 C0): `SETTINGS.trialQueue` is written only in trial-floor.mjs `writeFloor` and `endFloorInStep` and the season reset (`wipeSeason`), `SETTINGS.trialProgress` only in trial-progress.mjs `writeTrialProgressInStep` and the season reset; a planted writer is caught; and the GMs' row trial.gm names exactly the floor's ops", async () => {
         /*
          * E70 C0, 27.10.2026; E70-01 (amend 5 (d)). R991 holds each write of the two settings to a step of its key; this
          * holds who writes them at all, so a new writer is a decision a test has to be changed for, not a line that
@@ -15837,7 +15836,7 @@ const REGRESSIONS = [
         const F = await import("./trial-floor.mjs");
         const ops = bodyOf(blankComments(sources.get("trial-floor.mjs")), "const FLOOR_OPS = {", { until: "\n};" });
         const keys = [...ops.matchAll(/^ {4}([\w$]+):/gm)].map(m => m[1]);
-        // The row as written: its `pick` keeps only the kinds of its fields, so the list is read off gm-bridge.mjs.
+        // The row as written: its `pick` keeps only the kinds of its fields, so the list is read off the row (bridge-table.mjs).
         const row = bodyOf(bridgeText(sources), "[ACTION_TRIAL_GM]: {", { until: "\n    },\n" });
         const listed = row.match(/\bop:\s*as\.oneOf\(([^)]*)\)/)?.[1] ?? null;
         const allowed = listed === null ? null : [...listed.matchAll(/"([^"]*)"/g)].map(m => m[1]);
@@ -15850,7 +15849,7 @@ const REGRESSIONS = [
          * E70 C0, 27.10.2026; E70-02. A step of a key that awaits a function which opens another step of the same key
          * waits for itself: utils.mjs `serialWrite` runs a key's steps one after another, so the inner step starts only
          * after the outer one ends, which it never does - the seizures, the heartbeat and every GM's button behind it
-         * stop for good. So every public writer has an in-step twin (trial-floor.mjs `FLOOR_OPS`, vote.mjs
+         * stop for good. So every public writer has an in-step twin (trial-floor.mjs `FLOOR_OPS`, trial-progress.mjs
          * `writeTrialProgressInStep`) and a step calls the twin. Read in the module's files without the suite's,
          * comments and literals blanked: each `serialWrite(` whose first argument is the key, and from its arguments
          * every call `name(` (or `name[...](`) of a top-level function of the same file or of a file it imports
@@ -16129,7 +16128,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(readOf(sources)), "[]",
             "the doors' rules on the GM: asked twice, before the walls and floors, behind an option of the update, skipped on a clear or noted move, not handed in, named elsewhere, or a put-back that meets walls");
     }],
-    ["R1032 - the trial's fields live as long as the trial (E70 C3, amend (i)): vote.mjs `resetTrialProgress` blanks the question (`topic`), the vote's opening (`voteOpenedAt`), the debate again (`debateAgain`) and the trial's size (`trialSize`) and stamps `trialStartedAt` on the server's clock, and names none of the chapter's (`objections`, `keysCharged`); `openRound` stamps `voteOpenedAt` on `serverNow()`; trial-floor-ui.mjs `openDebate` writes the question after the floor opens", async () => {
+    ["R1032 - the trial's fields live as long as the trial (E70 C3, amend (i)): trial-progress.mjs `resetTrialProgress` blanks the question (`topic`), the vote's opening (`voteOpenedAt`), the debate again (`debateAgain`) and the trial's size (`trialSize`) and stamps `trialStartedAt` on the server's clock, and names none of the chapter's (`objections`, `keysCharged`); `openRound` stamps `voteOpenedAt` on `serverNow()`; trial-floor-ui.mjs `openDebate` writes the question after the floor opens", async () => {
         /*
          * E70 C3, 27.10.2026; E70-13, E70-14. The plan's amend (i): `topic`, `trialStartedAt`, `voteOpenedAt` are the
          * trial's (a second trial in the chapter, D17, starts without the first one's), `objections` and `keysCharged`
@@ -16307,8 +16306,8 @@ const REGRESSIONS = [
          * and the dead's microphones blocked for the trial (C5) - and the books said "the module mutes nobody", named
          * a button the console no longer draws (End this mode now) and said the table learns an execution "with the
          * verdict". As R321 does for the vote: each claim is a pair, what the code does, read from its function
-         * (`BAR_OPS`, `barRefusal`, floor-machine.mjs `nextFloor` and `debateAgain`, `overruleTarget`, vote.mjs
-         * `VERDICT_STEPS`, `trialParticipants`, clock.mjs `reconcilePhase`, trial-floor-ui.mjs `closeTrial`,
+         * (`BAR_OPS`, `barRefusal`, floor-machine.mjs `nextFloor` and `debateAgain`, `overruleTarget`, verdict.mjs
+         * `VERDICT_STEPS`, vote.mjs `trialParticipants`, clock.mjs `reconcilePhase`, trial-floor-ui.mjs `closeTrial`,
          * `trialTime`), and the sentences that say it, one per handbook that says it; a code fact that changes fails
          * here with its sentences, and a sentence rewritten without the code fails too. The stale sentences must be
          * gone from both books. Each book and each file is asserted to have been read, so nothing passes on an empty
@@ -16976,7 +16975,7 @@ const REGRESSIONS = [
     ["R1106 - one project-name formatter: the action window's project list, the Call picker and the project manager each name a project through projects.mjs `projectLabel`, and none writes `current}/${...start` by hand (E51 C1; E51-08, audit S02-51 (f))", async () => {
         /*
          * E51 C1, 30.10.2026; audit S02-51 (f). Three readers wrote a project's progress each in its own shape:
-         * action-rolls.mjs `projectOptionsHtml`, call-pickers.mjs `pickProject` and projects-ui.mjs (the manager's cell
+         * action-project.mjs `projectOptionsHtml`, call-pickers.mjs `pickProject` and projects-ui.mjs (the manager's cell
          * and its live refresh). Read with comments stripped: each file brings `projectLabel` in from projects.mjs and
          * calls it, and none holds a template of `current` over `start`. The formatter itself is tier 2's to call; this
          * reads its shape in projects.mjs. Red at C1's parent: no `projectLabel`, and four hand-built templates.
@@ -17287,7 +17286,7 @@ const REGRESSIONS = [
         }), "[the store's row: kind, key, reset group, backed up, synced; its setting's scope and config; remnants.mjs still keeps pendingTraces; "
             + "announceRemnant writes the row, and asks for the primary; sendTraceDigest asks for the primary and drops the rows it says; whisperTraceNow drops its row; DRPG.Case.store.traceDigest exists]");
     }],
-    ["R1135 - a discard's ticket is written only for a trace placed, and a discard stands only on one: gm-bridge.mjs `handleRemnant` calls `noteDiscardTrace` once, for a player's discard, after the Class Trial's refusal and after the trace is placed; sheet-audit.mjs `itemFindings` lets a discard-stamped deletion stand only where `takeDiscardTrace` answers (E51 fix FG5; the end review's S1)", async () => {
+    ["R1135 - a discard's ticket is written only for a trace placed, and a discard stands only on one: bridge-runs-records.mjs `handleRemnant` calls `noteDiscardTrace` once, for a player's discard, after the Class Trial's refusal and after the trace is placed; sheet-audit.mjs `itemFindings` lets a discard-stamped deletion stand only where `takeDiscardTrace` answers (E51 fix FG5; the end review's S1)", async () => {
         /*
          * E51 fix FG5, 31.10.2026; the end review's S1. The ticket is the evidence a discard's stamp stood on nothing
          * without: written before the trial's refusal it would let D1 through again (a discard's trace in the Class
@@ -17565,7 +17564,7 @@ const REGRESSIONS = [
             + "what it found that its baseline does not hold, the baseline rows nothing filled]");
     }],
 
-    ["R1060 - an item table's words are held: every word config.mjs TABLE_NAME_WORDS carried at E65's Base is today's or in tables.mjs's legacy list of its category or kind, those lists only grow, and with lang/pl.json put over config.mjs every name tableName builds and the first of tableNameCandidates is the English one, every name a client in Polish built a candidate (E65 C3; T14, DB13, E65-09)", async () => {
+    ["R1060 - an item table's words are held: every word config.mjs TABLE_NAME_WORDS carried at E65's Base is today's or in tables-pools.mjs's legacy list of its category or kind, those lists only grow, and with lang/pl.json put over config.mjs every name tableName builds and the first of tableNameCandidates is the English one, every name a client in Polish built a candidate (E65 C3; T14, DB13, E65-09)", async () => {
         /*
          * E65 C3, 31.10.2026; the plan's T14 (DB13, N5). Two halves. (1) tests-text.mjs `tableWordProblems` - the
          * function `node tools/check.mjs text` runs in Node - over this install's config.mjs `TABLE_NAME_WORDS` and the
@@ -18068,7 +18067,7 @@ const REGRESSIONS = [
             + "the allow rows by reason]");
     }],
 
-    ["R1158 - every fragment inserted into a sentence stands in the case its host needs (E66-16): `Calls.grants` the accusative in `armedByMonokuma`, `armedForYou`, `armedByNobody`, `grantsGen` the genitive in `armed`, `grantsNom` the nominative in `pendingTooltip` and `waitsNextRoll` (a list by `listOf`), through call-effects.mjs `grantWords`; `Price.label.*` the nominative after a colon or in brackets (`Price.refunded`, `Trial.objectionRefunded`, `Trial.objectionRefundLost`, `Cleanup.refundUnheld`), Hope alone in `Price.refundLost`; the reserves in `Murder.youLose` and `theyLose`; every host renders with every fragment it takes in English and Polish; the accusative is read by a template key only in gm-bridge.mjs `tellBeneficiary`, the nominative in roll-dialog.mjs and sheet.mjs (E66 C3; S18-38, I4, E66-16)", async () => {
+    ["R1158 - every fragment inserted into a sentence stands in the case its host needs (E66-16): `Calls.grants` the accusative in `armedByMonokuma`, `armedForYou`, `armedByNobody`, `grantsGen` the genitive in `armed`, `grantsNom` the nominative in `pendingTooltip` and `waitsNextRoll` (a list by `listOf`), through call-effects.mjs `grantWords`; `Price.label.*` the nominative after a colon or in brackets (`Price.refunded`, `Trial.objectionRefunded`, `Trial.objectionRefundLost`, `Cleanup.refundUnheld`), Hope alone in `Price.refundLost`; the reserves in `Murder.youLose` and `theyLose`; every host renders with every fragment it takes in English and Polish; the accusative is read by a template key only in bridge-runs-records.mjs `tellBeneficiary`, the nominative in roll-dialog.mjs and sheet.mjs (E66 C3; S18-38, I4, E66-16)", async () => {
         /*
          * E66 C3, 01.11.2026; S18-38 (I4), E66-16. `DRPG.Calls.grants.*` are Polish accusatives ("przewagę", "stałą premię
          * albo karę") and were put into `Calls.armed`, "może teraz użyć {what}", which wants the genitive, and after the

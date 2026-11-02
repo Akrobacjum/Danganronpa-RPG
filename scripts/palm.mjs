@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG - Palm, the player's half.
+ * Danganronpa RPG - Palm: the player's half and the GM's.
  * ---------------------------------------------------------------------------
  * The Palm action as the player's browser runs it: the parts its rolls are
  * named by (`PALM_PARTS`, `palmHand`, `palmTitle`), its window and the Frisk's
@@ -18,9 +18,12 @@
  * dispatches to it; action-rolls.mjs does not re-export it. A forced Frisk is
  * frisk.mjs's `performFrisk`, reached by `import()` as before: frisk.mjs stays
  * a file of its own (the owner's A11 of 13.10), and R1230 holds that it does.
- * The vault's half of a Palm (vault.mjs: the GM's side of a steal and a plant)
- * joins this file in E41 C6. Of the action family it reads the shared layer
- * alone.
+ * The vault's half of a Palm - the GM's side of a steal and a plant: the
+ * pockets as the GMs hold them (`pocketsAsHeld`, `pocketsFrom`), what a
+ * victim is told (`tellPalmVictim`), `stealFromPerson` and `plantOnPerson` -
+ * joined this file below the player's half in E41 C6, out of vault.mjs, which
+ * re-exports the four of them it exported. Of the action family it reads the
+ * shared layer alone.
  */
 
 import { MODULE_ID, ACTIONS, TRAITS, ITEM_CATEGORIES } from "./config.mjs";
@@ -199,7 +202,7 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
     });
     // Refused by the one gate before the rolls were read: the action back (`palmBack`; Q3). A Plant into full pockets
     // was tried, and is no refusal (D42): it stays paid; so does one the gate refused on its second asking, after the
-    // rolls (told as nothing carried out, vault.mjs `plantOnPerson`; fix e1-G4).
+    // rolls (told as nothing carried out, palm.mjs `plantOnPerson`; fix e1-G4).
     if (nobodyTook(res.ok, res.reason) || TRANSFER_REFUSED.includes(res.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
         : (res.refused ? res.reason : null))) await palmBack(actor, paid);
 
@@ -367,14 +370,14 @@ export async function performPalm(actor, def, options) {
     /*
      * A PALM THE ONE GATE REFUSED GIVES ITS ACTION BACK (E14 part 1 C1; the owner's Q3 of 18.10.2026: "a refusal before
      * the rolls are read refunds; a full-pockets Plant does not"). The primary asks inventory.mjs `transferRefusal` -
-     * the room, both lives, the person, the Eclipse, the Class Trial - before it reads either roll (vault.mjs
+     * the room, both lives, the person, the Eclipse, the Class Trial - before it reads either roll (palm.mjs
      * `stealFromPerson`, `plantOnPerson`), and its refusal comes back with one of the gate's codes (`TRANSFER_REFUSED`;
      * the bridge has said why already). Handed back here, by what was paid (`abort`, its receipt: a Burst as a Burst, a
      * free Palm nothing), and not by the primary, which cannot tell a Burst from an action - as a Frisk's ask is (frisk.mjs
-     * `FRISK_HANDED_BACK`). A GM's own Palm reads the refusal off its own answer (gm-bridge.mjs `requestSteal`'s `local`).
+     * `FRISK_HANDED_BACK`). A GM's own Palm reads the refusal off its own answer (bridge-asks.mjs `requestSteal`'s `local`).
      * The dice were thrown and paid out their Hope and Despair all the same: that is what the owner's answer accepts.
      * One the gate refused on its second asking, inside the move after the rolls were read, comes back as nothing carried
-     * out (`refused`, vault.mjs `stealFromPerson`) and stays paid, as Q3 reads (E14 fix e1-G4; the review's E14R-07).
+     * out (`refused`, palm.mjs `stealFromPerson`) and stays paid, as Q3 reads (E14 fix e1-G4; the review's E14R-07).
      */
     if (nobodyTook(res.ok, res.reason) || TRANSFER_REFUSED.includes(res.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
         : (res.refused ? res.reason : null))) await palmBack(actor, paid);
@@ -567,7 +570,7 @@ async function tellPalmVictim(victim, html, { body = false } = {}) {
  * @param {number} options.unseenTotal     The Shadow roll.
  * @param {boolean} [options.unseenCritical]
  * @param {object} [context]
- * @param {User|null} [context.asker]     The user whose packet asked (gm-bridge.mjs `handleSteal`): a body the GMs keep
+ * @param {User|null} [context.asker]     The user whose packet asked (bridge-runs-acts.mjs `handleSteal`): a body the GMs keep
  *   from that user is robbed as a living victim is (inventory.mjs `transferRefusal`).
  */
 export async function stealFromPerson({
@@ -762,7 +765,7 @@ export async function stealFromPerson({
  * @param {number} options.total        The Hand roll.
  * @param {number} options.unseenTotal  The Shadow roll.
  * @param {object} [context]
- * @param {User|null} [context.asker]   The user whose packet asked (gm-bridge.mjs `handlePlant`): a body the GMs keep
+ * @param {User|null} [context.asker]   The user whose packet asked (bridge-runs-acts.mjs `handlePlant`): a body the GMs keep
  *   from that user is planted on as a living victim is (inventory.mjs `transferRefusal`).
  */
 export async function plantOnPerson({

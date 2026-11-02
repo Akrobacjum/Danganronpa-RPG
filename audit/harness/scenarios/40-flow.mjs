@@ -971,7 +971,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
      * The GM wrote a player's freeze and repair on the sender's newest Sabotage row as the packet
      * arrived, and `roll.bookmark`'s run kept the row after it (5 of 5 of the review's runs), so
      * the Reroll into a miss took nothing back. The packet names its roll now, and the fact waits
-     * for that roll's row (action-rolls.mjs `noteFactOfRoll`). p1 sabotages a project alone in
+     * for that roll's row (action-pipeline.mjs `noteFactOfRoll`). p1 sabotages a project alone in
      * Aiko's room on forced dice, and rerolls into 3 (`REROLL_ARM`). Read on the GM: the row's
      * facts (the freeze, the repair and the Sabotage's own trace, which names the roll too), the
      * freeze and the repairs of the target before and after. The race itself is timing: at
@@ -1065,8 +1065,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
      * round 1's fix G1). Since fix r1-G1 the GM learns a player's Sabotage's target from its packet
      * alone, and a miss sent none, so its Reroll into a success froze nothing - until then the
      * roller's bookmark had carried the target of any Sabotage. A miss is sent now as a repair of 0
-     * (action-rolls.mjs `performSabotage`), which freezes nothing and writes the target on the roll's
-     * row (gm-bridge.mjs `handleSabotage`). p1 sabotages a project in Aiko's room on forced dice that
+     * (action-project.mjs `performSabotage`), which freezes nothing and writes the target on the roll's
+     * row (bridge-runs-records.mjs `handleSabotage`). p1 sabotages a project in Aiko's room on forced dice that
      * miss (3 and 2), and rerolls into 9 and 5. Read on the GM: the row's facts and the freeze before
      * and after the Reroll; and where each Sabotage packet p1 sent went - to the GMs, and nobody else.
      */
@@ -1110,10 +1110,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     /*
      * ITS TRACE IS LEFT AT THE BAND ITS REPAIR WAS MADE AT (E08+E28 fix r2-H3, 05.10.2026; the round-2
      * review's S2-9). The GM banded a player's Sabotage's trace with the tool readied on the sheet now
-     * (gm-bridge.mjs `traceBandOf`), and made its repair with the relief the roller claimed, held to
+     * (bridge-runs-records.mjs `traceBandOf`), and made its repair with the relief the roller claimed, held to
      * every tool the character carries for a roll with Fear, whose Despair wears the readied one
      * before the packets leave (`repairOf`): a tier-1 tool that broke on the roll froze the project at
-     * the first band and left the trace at a miss's. Both hold the claim one way now (action-rolls.mjs
+     * the first band and left the trace at a miss's. Both hold the claim one way now (action-project.mjs
      * `sabotageExtrasHeld`), and the claim rides the roll's own bookmark (`performSabotage`'s context),
      * because the trace's packet leaves before `noteRollContext` tells the GMs the relief. p1 sabotages
      * a project in Aiko's room holding a tier-1 tool readied (any tool she held put down for it), on
@@ -1180,7 +1180,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
      * A CLOSED WINDOW COVERS NOTHING (E32+E07 C13, 03.10.2026; audit S02-03). Every Work on an
      * indirect murder rolls to cover its traces once the progress is in, and a closed window left
      * no trace at all: the drop sat under `if (trace)`. It leaves the worst band's trace now
-     * ("obvious") and a line on the card (action-rolls.mjs `hideProjectTraces`). The GM makes Aiko
+     * ("obvious") and a line on the card (action-project.mjs `hideProjectTraces`). The GM makes Aiko
      * an indirect murder of her own with a statistic and refills her actions; p1 works on it from
      * the Projects window, its dialogs answered with their defaults, the dice forced, and Aiko's
      * `rollTrait` answers null for the cover roll alone, as a closed window does. Read: the last
@@ -1240,7 +1240,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
      * step - one more disadvantage die here, the harness's roll having no advantage dice - was drawn
      * on the searcher's browser and was in no message. The GM draws it now with the dice, where the
      * room it sees the searcher in holds a hidden stash, and the searcher takes that step and draws
-     * none (action-rolls.mjs `stashStepOf`). The GM hides a thing in a stash of Daichi's in Aiko's
+     * none (action-search.mjs `stashStepOf`). The GM hides a thing in a stash of Daichi's in Aiko's
      * room and scripts its randomiser to a 6 for the extra die; p1's is scripted to a 1, and p1
      * searches - a miss, so the stash's thing stays where it is. Read on the GM: the record's step,
      * the Search card's step (its meta, `stashStep`) and the record's flags. Until C12b the card's
@@ -1312,9 +1312,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     // ---- 6f. a player's Plant, scored on the GMs' record of both its rolls ----------------------
     /*
      * BOTH OF A PALM'S ROLLS, END TO END (E08+E28 C15, 04.10.2026; audit S10-06). A Steal and a
-     * Plant are scored on the GMs' record of the two rolls the packet names (gm-bridge.mjs
+     * Plant are scored on the GMs' record of the two rolls the packet names (bridge-runs-acts.mjs
      * `palmRolls`): the hand's, thrown as "steal", and the unseen one, thrown as "palm"
-     * (action-rolls.mjs `performPalm`). A Palm that named one and not the other, or whose unseen
+     * (palm.mjs `performPalm`). A Palm that named one and not the other, or whose unseen
      * roll was told as another action, would be refused at every table - which no console check
      * sees, as each sends a packet of its own. The GM stands Botan where Aiko stands and hands
      * Aiko a note; p1 plants it on Botan (the window answered with the Plant, Botan and the note),
@@ -1464,7 +1464,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
      * hidden stash in Aiko's room; p1 locates it with an Analyze, then opens it with a Search, each on
      * faces of 12 and 11; then p1 asks a Dynamic action, which the GM rules Trivial from its card's
      * button, and throws it on 9 and 5. Read on the GM: whether Aiko found the stash, whether the kit
-     * is hers, the ruling the card keeps (gm-bridge.mjs `dynamicRulingOf`), and what each newest record
+     * is hers, the ruling the card keeps (bridge-runs-records.mjs `dynamicRulingOf`), and what each newest record
      * of Aiko's settled.
      */
     phase("a player's stash, found and opened, and a Dynamic action ruled from its card", { flow: "give-take-stash" });

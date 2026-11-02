@@ -71,7 +71,7 @@ export const MUSIC_STATES = [
      *
      * Every other row here is a fact about the WORLD, decided by the primary GM
      * and distributed by Foundry, so the whole table hears the same thing. That
-     * is exactly why the header of this file used to say an incident gets no
+     * is exactly why the header of music.mjs used to say an incident gets no
      * music at all: a playlist that only ever starts during Stage 5 announces
      * the killing to everybody in earshot, which is the one thing this module
      * is built to prevent.
@@ -79,7 +79,7 @@ export const MUSIC_STATES = [
      * This row is a fact about the BROWSER. It plays for the people in the
      * incident and for the GM, on their own clients, and a bystander hears the
      * afternoon exactly as before - so the objection the header raised does not
-     * apply to it. See `applyMurderMusic` at the bottom of this file for how,
+     * apply to it. See `applyMurderMusic` in murder-music.mjs for how,
      * and for the two things that cost: the room's own playlist has to be
      * held on those browsers, and a Foundry playlist cannot be played on one
      * client, so what actually plays is one track off it.

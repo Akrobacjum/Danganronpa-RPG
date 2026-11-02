@@ -30,13 +30,13 @@ import { playlistFor } from "./music-states.mjs";
  * Dawid, 15.09: the people in a killing get their own playlist, and nobody
  * else hears it.
  *
- * WHY IT CANNOT BE A STATE LIKE THE OTHERS. Everything above this line works
- * because a Foundry playlist is a WORLD DOCUMENT: the primary GM calls
- * `playAll()`, the document changes, and every client's own `PlaylistSound`
- * reacts. That is the whole reason this file needs no socket - and it is also
- * the reason it cannot do this, because a world document reaches the four
- * people who must not know a murder is happening just as reliably as it
- * reaches the two who are in it.
+ * WHY IT CANNOT BE A STATE LIKE THE OTHERS. The rest of the music (the states
+ * in music-states.mjs, the engine in music-play.mjs) works because a Foundry
+ * playlist is a WORLD DOCUMENT: the primary GM calls `playAll()`, the document
+ * changes, and every client's own `PlaylistSound` reacts. That is the whole
+ * reason the engine needs no socket - and it is also the reason it cannot do
+ * this, because a world document reaches the four people who must not know a
+ * murder is happening just as reliably as it reaches the two who are in it.
  *
  * SO IT IS AN OVERLAY, AND IT COSTS TWO THINGS - both worth saying plainly
  * rather than discovering at a table:

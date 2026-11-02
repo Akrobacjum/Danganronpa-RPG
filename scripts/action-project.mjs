@@ -531,7 +531,7 @@ async function workOnProject(actor, def, options, chosen = null) {
     let applied = null;
     /* Named for this roll (E08+E28 C2): the GMs' bookmark keeps what it added, and a Call's progress names none.
        Since C16 the GM adds what the roll earned on its record, with what only this browser saw - the tool's
-       relief and the concealment's bonus - held to what the rules allow (gm-bridge.mjs `progressOf`). */
+       relief and the concealment's bonus - held to what the rules allow (bridge-runs-records.mjs `progressOf`). */
     if (progress > 0) {
         applied = await addProgress(project.id, progress, { actorId: actor.id, rollId: rollInHand(actor)?.messageId ?? null, relief, bonus });
     }
@@ -591,7 +591,7 @@ async function workOnProject(actor, def, options, chosen = null) {
  * What a Work on a Project's roll earns: the band its total reaches with the readied tool's
  * `relief` off the bands (a critical reads none), plus an indirect murder's concealment `bonus`
  * whatever the band - `bonus` in the answer is the whole of it. The one reading `workOnProject`,
- * the GM's (gm-bridge.mjs `progressOf`, E08+E28 C16) and the Reroll's (reroll.mjs
+ * the GM's (bridge-runs-records.mjs `progressOf`, E08+E28 C16) and the Reroll's (reroll.mjs
  * `settleProgress`) share.
  *
  * THE BONUS ON ANY OUTCOME (E15 C2, 25.10.2026; audit S02-08, the owner's D13: "bonus +1 za
@@ -753,7 +753,7 @@ export async function hideProjectTraces(actor, project, progress, lines) {
         // r1-G4 (`buildsOwnMurder`, the same question on both).
         tiedToCrime: buildsOwnMurder(project.id, actor.id) ? true : null,
         // A player's packet is never taken at its word on the tie: the GM reads it off this
-        // project (gm-bridge.mjs `handleRemnant`, fix r2-G3).
+        // project (bridge-runs-records.mjs `handleRemnant`, fix r2-G3).
         projectId: project.id,
         action: "project",
         subject: project.name,
@@ -971,7 +971,7 @@ export async function performSabotage(actor, def, options, preset = null) {
     try {
         /* The relief rides the roll's own bookmark with the penalty (fix r2-H3; the round-2 review's
            S2-9): the GM bands this Sabotage's trace with the relief claimed for the roll, held as its
-           repair holds it (gm-bridge.mjs `traceBandOf`), and the trace's packet leaves before
+           repair holds it (bridge-runs-records.mjs `traceBandOf`), and the trace's packet leaves before
            `noteRollContext` below tells the GMs anything more. */
         roll = await rollTrait(actor, trait, {
             actionKey: "sabotage",
@@ -1010,7 +1010,7 @@ export async function performSabotage(actor, def, options, preset = null) {
     let repair = null;
     /* Named, so the GM writes the freeze on this roll's row and no other (fix r1-G1); since E08+E28 C16 the
        GM makes the repair the roll earned on its record, with this browser's concealment and tool held to
-       the rules (gm-bridge.mjs `repairOf`). A player's miss is sent too, as a repair of 0: it freezes
+       the rules (bridge-runs-records.mjs `repairOf`). A player's miss is sent too, as a repair of 0: it freezes
        nothing and tells the GMs alone its target, for a Reroll of it that succeeds (the orchestrator's
        decision of 04.10.2026). A GM's own row keeps its target from `noteRollContext` below. */
     const named = { rollId: rollInHand(actor)?.messageId ?? null, actorId: actor.id, penalty, relief };
@@ -1209,7 +1209,7 @@ export function sabotageBar(def = ACTIONS.sabotage, relief = 0, penalty = 0) {
  * The band of the Sabotage table a roll reaches, or null: `penalty` on its total (a concealment
  * thrown with Despair), the readied tool's `relief` off the bands - read as `sabotageBar`, the
  * numbers the roll window shows. The one reading `performSabotage` and the GM's band of the
- * Sabotage's trace share (gm-bridge.mjs `traceBandOf`, E08+E28 C15).
+ * Sabotage's trace share (bridge-runs-records.mjs `traceBandOf`, E08+E28 C15).
  */
 export function sabotageHit(roll, { penalty = 0, relief = 0 } = {}, def = ACTIONS.sabotage) {
     return roll?.isCritical ? def.critical : resolveThreshold(Number(roll?.total) || 0, sabotageBar(def, relief, penalty));

@@ -107,7 +107,7 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         { action: "${action}", userId: "${IDS.p2}", requestId: "${requestId}", ...${JSON.stringify(fields)} }, ${toGms}); return true;`);
     const progressOf = id => `return { current: ${projects}.allProjects().find(p => p.id === "${id}")?.current ?? null };`;
     /* A PLAYER'S SABOTAGE NAMES ITS ROLL (E08+E28 C16, 04.10.2026): the GM makes the repair the GMs' record
-       of that roll earned (gm-bridge.mjs `repairOf`). Code that throws a Sabotage of `actorId`'s at `targetId` the GM
+       of that roll earned (bridge-runs-records.mjs `repairOf`). Code that throws a Sabotage of `actorId`'s at `targetId` the GM
        draws, on faces that earn a repair, and leaves the message it wrote in `rollId` - drawn for that project, the one
        its record lets it freeze since fix r2-H2. */
     const sabotageRoll = (actorId, targetId) => `const A = await import("${repoUrl}/scripts/action-rolls.mjs");
@@ -615,7 +615,7 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         return true;`);
 
     /* A SABOTAGE'S TRACE OF THE SABOTEUR'S OWN TRAP (E09 C5, 08.10.2026; audit S10-17). p2's browser does what
-       action-rolls.mjs `performSabotage` does after its windows: Botan's roll drawn and kept on the GMs' row
+       action-project.mjs `performSabotage` does after its windows: Botan's roll drawn and kept on the GMs' row
        (`remember`, as the action's own roll is), the Sabotage naming it and awaited, then the trace in the shape
        `dropSabotageTrace` sends - asked tied, as it asks for any indirect murder. The GM decides the tie from the
        target its Sabotage noted on that roll's row: tied for the trap Botan is the killer of, not for Aiko's (shared
@@ -977,7 +977,7 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     // zabronione w trial grounds"; Q1: the Class Trial's phase). A broken lockpick on Aiko, the clock in the Class Trial.
     // p1's own road (use-items.mjs `discardBroken`) refuses before its window, says why and asks nothing of the GM; then
     // p1's console forges the discard's trace packet (`remnant.place`, action "discard") past it, as a discard begun
-    // before the trial and landing in it would arrive. The primary refuses it (gm-bridge.mjs `handleRemnant`), told once
+    // before the trial and landing in it would arrive. The primary refuses it (bridge-runs-records.mjs `handleRemnant`), told once
     // with cannotNow and logged; no trace is placed and the item stays. Red at C6's parent: the window asked and the
     // discard carried out on p1's road, and the forged trace placed.
     phase("a discard in the Class Trial", { flow: "trace-remnant" });

@@ -939,7 +939,7 @@ async function keepReceipt(messageId, floor, { objectorId, aimedAt, paid }) {
 
 /**
  * The trial record's receipts (`objections`), the trial's stamp and the console's offer of the debate again
- * (`againAfterOverrule`), as vote.mjs `trialProgress` reads the record: `chapter`'s (the clock's), else none - a record
+ * (`againAfterOverrule`), as trial-progress.mjs `trialProgress` reads the record: `chapter`'s (the clock's), else none - a record
  * of another chapter is another trial's. `given` stands for the record (the suite's). Read synchronously, for the bar's
  * greyed button and the log, without the vote's file.
  */

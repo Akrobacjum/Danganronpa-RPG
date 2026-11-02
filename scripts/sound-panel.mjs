@@ -14,12 +14,14 @@
  * music.mjs re-exports the two names here it exported before
  * (`musicMapRows`, `openSoundDialog`). Its sfx side - the sliders, the Effects
  * tab and the launcher by the chat, from `LAUNCHER_ID` to `wireSoundPanel` -
- * is sfx.mjs's in that commit and moves here in E41 C9b, the commit after it,
- * which also deletes the one line by which `openSoundDialog` took those panes
- * from sfx.mjs (`import("./sfx.mjs")`). It reads the states and the map from
+ * stays in sfx.mjs, and `openSoundDialog` takes those panes from it by
+ * `import("./sfx.mjs")`: moved here (E41 C9b, built on a scratch copy and not
+ * committed), they made sfx.mjs import this file, and this file reaches
+ * sfx.mjs through music-states.mjs, clock.mjs and actions.mjs - a static
+ * import cycle in which the module did not boot. E41-16 is carried to E73,
+ * which writes its sfx rows here. It reads the states and the map from
  * music-states.mjs and the engine's Play and Reset from music-play.mjs; it
- * imports neither music.mjs nor, once the sfx side is here, sfx.mjs (the
- * facade rule, .claude/rules/code.md).
+ * imports music.mjs by no road (the facade rule, .claude/rules/code.md).
  */
 
 import { SITUATIONAL_PLAYLIST } from "./config.mjs";

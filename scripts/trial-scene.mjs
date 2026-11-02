@@ -1172,13 +1172,13 @@ async function watchCastDeleted(tokenDoc, options, userId) {
  * THE SCENES TAB (E13 C5, 12.10.2026; plan-E13 C5, doneWhen 3, R120; the owner's answers Q-E13-1 d
  * and e of 09.10). Until this commit no window linked the two scenes or kept the cast's choice:
  * scenario 41 a and the suite wrote the setting and `saveTrialCast` from a console. Room Setup's
- * last tab (vault.mjs `ROOM_SETUP_TABS`) does it now: a select for the school and one for the
+ * last tab (room-setup.mjs `ROOM_SETUP_TABS`) does it now: a select for the school and one for the
  * hall, the hall's cast with a tick each, what is wrong with the pair (`sceneReport`), and
  * "Prepare the hall". The tokens are the trial's to make (E81 DZ6, `stageHall`); the tab names
  * only Monokuma ticked with no token in the hall, the one the module never makes. Room Setup opens on it when its scene holds no room (Q-E13-1 e).
  *
  * WHAT THE GM CHANGED, NOT WHAT THE FORM SAYS. A select or a tick counts only when it differs from
- * what the window drew (`data-drawn`, `defaultChecked`), as the Fog tab's boxes do (vault.mjs
+ * what the window drew (`data-drawn`, `defaultChecked`), as the Fog tab's boxes do (room-setup.mjs
  * `readRoomSetupForm`): an Apply that changed nothing here writes nothing here - Room Setup is
  * applied for its other tabs far more often than for this one - and a role whose scene was
  * deleted is not cleared by a GM who only opened the window. The roles are merged into what is
@@ -1299,7 +1299,7 @@ export function readCastPicker(root) {
  * the tile shows them, or the trial's own label when no name is set. They are a flag of the hall scene
  * (`HALL_ROOM_FLAG`), not a region and not a room: the hall still holds none, and nothing that reads rooms
  * reads this. One writer, `setHallRoom`, called by the tab's Apply on a GM's browser; one reader, `hallRoom`,
- * which judges the picture again (`safeRoomImage`) on every read, as vault.mjs `roomImage` does a room's;
+ * which judges the picture again (`safeRoomImage`) on every read, as vault-store.mjs `roomImage` does a room's;
  * R583 holds both to that.
  */
 
@@ -1403,7 +1403,7 @@ export function scenesTabHtml(roles = sceneRoles()) {
  * The tab's live half, in a drawn window: the warnings follow both selects, the cast list follows
  * the hall's (a GM linking a hall picks its cast in the same Apply), and `block(reason | null)`
  * holds Apply while both name one scene, or while the hall select is changed in a running trial
- * (`hallLockReason`) (vault.mjs `setApplyBlock`).
+ * (`hallLockReason`) (room-setup.mjs `setApplyBlock`).
  */
 export function wireScenesTab(root, block = () => {}) {
     const [school, trial] = ["school", "trial"].map(role => root?.querySelector?.(`[name="scenes:${role}"]`));

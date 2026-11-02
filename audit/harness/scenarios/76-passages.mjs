@@ -1551,7 +1551,7 @@ async function phaseG({ gm, gm2, p1, p2, p3, p4, check, phase, settle, dump, soc
        names for the Mastermind's student, and from that student's other owner. Botan is made the Mastermind and p3 is given
        Botan beside p2, whom the door names (the first connected owner); Botan, whom nobody gave the passage, shows it to
        Aiko, who knows it: nothing is written, and the one card is the giver's, to the player who asked. The bridge hands
-       the show its sender as the one who asks (gm-bridge.mjs `handlePassageShare`): with nobody there p2's show is refused
+       the show its sender as the one who asks (bridge-runs-acts.mjs `handlePassageShare`): with nobody there p2's show is refused
        as a passage Botan does not know, and with the door's owner there p3's is carried out. Then the Mastermind and p3's
        ownership are put back, and p2's copy is waited for without the passage, as p2 held it above. */
     const MM = `const M = await import("${repoUrl}/scripts/mastermind.mjs"), S = await import("${repoUrl}/scripts/gm-stores.mjs"), U = await import("${repoUrl}/scripts/utils.mjs");`;
@@ -1586,7 +1586,7 @@ async function phaseG({ gm, gm2, p1, p2, p3, p4, check, phase, settle, dump, soc
         openGiven.includes(set.id) && doorGiven.held && J(doorGiven.keys) === J(openGiven) && J(doorGiven.stored) === J(openGiven)
             && J(doorGiven.knowers) === J([IDS.botan]) && doorGiven.token && doorGiven.through === false && doorGiven.beside === true,
         J({ openGiven, doorGiven }));
-    /* The row answers "ack" (gm-bridge.mjs BRIDGE_ACTIONS), so the asker's answer is the GM's receipt, and a refusal of
+    /* The row answers "ack" (bridge-table.mjs BRIDGE_ACTIONS), so the asker's answer is the GM's receipt, and a refusal of
        the run comes after it as its own packet: each asker's bridge packets are read on its socket for 1.5 s. */
     const askAs = client => client.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs"), got = [];
         const on = payload => { if (payload?.userId === game.user.id && String(payload?.action ?? "").startsWith("bridge.")) got.push([payload.action, payload.reason ?? null]); };

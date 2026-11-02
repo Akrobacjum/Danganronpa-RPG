@@ -86,7 +86,7 @@ export const ACTION_READY_ANSWER = "ready.answer";
 export const ACTION_READY_END = "ready.end";
 /** GM -> primary GM: the trial's voices settled to the clock - its dead listed and muted, or given back (E70 C5; voice.mjs `askTrialVoices`). */
 export const ACTION_TRIAL_ENTER = "trial.enter";
-/** GM -> primary GM: a write of the trial's record - a patch, the reset at the entry, the sentence carried out or taken back (E70 fix p1-G2; vote.mjs `recordOnPrimary`). */
+/** GM -> primary GM: a write of the trial's record - a patch, the reset at the entry, the sentence carried out or taken back (E70 fix p1-G2; trial-progress.mjs `recordOnPrimary`). */
 export const ACTION_TRIAL_RECORD = "trial.record";
 /** GM -> primary GM: Approve or Decline on a reshape card (E09 C10; cleanup.mjs `ruleReshape`, `askReshapeRuling`). */
 export const ACTION_RESHAPE_RULING = "cleanup.ruling";

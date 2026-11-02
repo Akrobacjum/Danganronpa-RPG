@@ -108,7 +108,7 @@ async function rerollKeepingDice(original, actor, message, bookmark = null) {
  * character's data from the actor the Reroll was asked for (`getRollData()`, as
  * actor.mjs `diceRoll` gives it), its effects as `rollTrait` finds them
  * (actor.mjs:576; none where the system has no such call), and the statistic
- * and the experiences from the GMs' bookmark (action-rolls.mjs `keepGmBookmark`;
+ * and the experiences from the GMs' bookmark (action-pipeline.mjs `keepGmBookmark`;
  * the roller's own browser's until E08+E28 C4a) - which is kept only for the roll
  * the bookmark names - or, for a roll the GM drew, from its record (E08+E28 C12b). A roll
  * the GM drew and threw from its own list is rebuilt whole from the record's `scored` since
@@ -298,9 +298,9 @@ function advantageDice(roll) {
  * hour - which rerolled another roll - and every undo of the replay sent to the GM
  * as a player's packet. A tab closed half way lost a Reroll half made.
  *
- * It is one request now, `reroll.ask { actorId }` (gm-bridge.mjs `requestReroll`),
+ * It is one request now, `reroll.ask { actorId }` (bridge-asks.mjs `requestReroll`),
  * and the GM makes all of it (`rerollOnGm`), one character at a time: it reads the
- * GMs' own bookmark (action-rolls.mjs `keepGmBookmark`), refuses before anything is
+ * GMs' own bookmark (action-pipeline.mjs `keepGmBookmark`), refuses before anything is
  * paid, writes a journal row, pays, throws the dice again, rewrites the message,
  * shows the dice to the roller and the roll's readers, takes the action back and
  * makes it again on its own client - every `settle*` below reaches its GM work
@@ -340,7 +340,7 @@ export function replayBookmark(row) {
 /**
  * THE THROW A ROLLER'S CLAIMS WERE MADE ON (E08+E28 fix r2-H3, 05.10.2026; the round-2 review's
  * M1), which the replays of a Work, a Sabotage and a Dynamic action hold them to as the first
- * throw was held (action-rolls.mjs `projectExtrasHeld`, `sabotageExtrasHeld`; gm-bridge.mjs
+ * throw was held (action-project.mjs `projectExtrasHeld`, `sabotageExtrasHeld`; bridge-runs-records.mjs
  * `dynamicRulingOf`): the character, the duality - a roll with Fear may have worn the readied
  * tool its relief was claimed for - and the time a ruling is looked for from. On the GMs' record
  * of a roll they drew that is the draw itself, `versions[0]` once a Reroll has stood (roll-draw.mjs
@@ -386,7 +386,7 @@ async function replayRefusal(actor, row) {
     /* A CRISIS ROW WITHOUT ITS FACT (E08+E28 fix r1-G2, 04.10.2026; the round-1 review's B1). Its
        replay (`settleCrisis`) reads the action off the row; without it the Reroll was paid and
        settled as "the dice are the whole result", while the first throw's damage, trace and turn
-       stood. The fact now waits for its row (action-rolls.mjs `rollOfFact`), and a row still
+       stood. The fact now waits for its row (action-pipeline.mjs `rollOfFact`), and a row still
        without one - a refused action, or a fact still on its way - is refused here, nothing paid. */
     if (row.actionKey === "crisis" && !row.facts?.crisis) return "that crisis action has no result to take back";
     if (row.actionKey === "crisis") {
@@ -415,14 +415,14 @@ async function replayRefusal(actor, row) {
 
 /**
  * WHETHER A HUMAN RULED THE ROLL, READ ON THE GM (E08+E28 fix r1-G6, 04.10.2026; the round-1
- * review's S5). `gmRuled` is the roller's claim (action-rolls.mjs `ROLL_CLAIMS`), and it was
+ * review's S5). `gmRuled` is the roller's claim (action-pipeline.mjs `ROLL_CLAIMS`), and it was
  * read first: an Observe's `roll.bookmark` sent again with it skipped both of C6a's refusals
  * above, and its Reroll asked the GM for a second ruling on the new dice while the first
  * result stood. The GMs write the fact a scored Observe or Analyze leaves - the Observe's key
  * (observe.mjs `keepResult`), the Analyze's bullet (analyze.mjs) - and a row holding it is
  * taken back by its undo whatever the claim says. The claim still decides where the GMs hold
  * nothing: a Search's described find, and an Observe or a hint the GM was asked for by hand
- * (action-rolls.mjs `ruleObserve`, the Analyze's hint), which leave no fact anywhere. The
+ * (action-observe.mjs `ruleObserve`, the Analyze's hint), which leave no fact anywhere. The
  * review's fix asked C6a's "no result to take back" of every Observe row; that refused every
  * Reroll of an Observe the GM ruled by hand, which the plan (1.1) re-asks. What a claim gains
  * here is that re-asking - the GM's card, answered by hand, as an honest one is.
@@ -430,7 +430,7 @@ async function replayRefusal(actor, row) {
 function ruledByHand(bookmark) {
     if (!bookmark?.gmRuled) return false;
     if (bookmark.actionKey === "observe") return !bookmark.observeKey;
-    // A Find Passage and a Find Stash leave their facts too (E80 C3, passages-gm.mjs `noteFindFact`; C4, gm-bridge.mjs
+    // A Find Passage and a Find Stash leave their facts too (E80 C3, passages-gm.mjs `noteFindFact`; C4, bridge-runs-acts.mjs
     // `handleFindStash`), and are replayed by them.
     if (bookmark.actionKey === "analyze") return !bookmark.bulletId && !bookmark.findPassage && !bookmark.findStash;
     return bookmark.actionKey === "search";
@@ -461,7 +461,7 @@ const REPLAY_SAYS = Object.freeze({
 async function rerollRefusal(actor, sender, cost) {
     /* ONE REROLL OF A CHARACTER AT A TIME, ON EVERY GM (E08+E28 fix r1-G5, 04.10.2026; the
        round-1 review's m2). `making` is this client's alone: an assistant GM's own Reroll ran
-       on its client (gm-bridge.mjs `requestReroll`'s `local`) while a player's ran on the
+       on its client (bridge-asks.mjs `requestReroll`'s `local`) while a player's ran on the
        primary, and each paid 3 and took the action back. Since fix r2-H7 (the round-2 review's
        S2-7) every Reroll is made on the primary (`onPrimary`), so `making` holds them all and
        this row is what a primary that changed, or reloaded, finds. A journal row of the character is a
@@ -684,7 +684,7 @@ async function makeReroll(actor, sender) {
 /**
  * The new row: the replay's patch, a claim where the action's claims name the field and
  * a fact otherwise, over the row as the replay left it - a replay's own GM work writes
- * its facts on it as it goes (action-rolls.mjs `noteRollFact`). `first` and `by` are the
+ * its facts on it as it goes (action-pipeline.mjs `noteRollFact`). `first` and `by` are the
  * first throw's still; `stands` is the rolls this Reroll wrote, which the roll stands on now
  * (`standingRolls`, fix r1-G6).
  */
@@ -707,10 +707,10 @@ async function keepRerolledRow(actor, row, patch, after, message) {
  * from the roller's browser, from facts the replay has just changed, and kept its first total
  * and its first words - the table read two outcomes of one roll. The GM cannot write those
  * words again, so the card is marked, not rewritten: `rerolled`, `{ from, to, tone, at }` - the
- * total the card prints, the new one, and the new roll's colour (action-rolls.mjs `rollTone`) -
+ * total the card prints, the new one, and the new roll's colour (action-report.mjs `rollTone`) -
  * and every reader draws the struck total and one line from it (private-rolls.mjs
  * `markReplaced`). A second Reroll of the same roll keeps `from`, the number the card itself
- * prints. The card is the one the roller named (action-rolls.mjs `reportCardOf`); a row naming
+ * prints. The card is the one the roller named (action-pipeline.mjs `reportCardOf`); a row naming
  * none is a roll whose card was never named, and nothing is marked. Written once the Reroll
  * stands, so a refused one leaves it as it was.
  *
@@ -1198,7 +1198,7 @@ export async function settleSearch(actor, bookmark, after, done, rerolled = null
         return {};
     }
 
-    // A hidden stash's step on the new dice, with a new draw (E32+E07 C11e, action-rolls.mjs
+    // A hidden stash's step on the new dice, with a new draw (E32+E07 C11e, action-search.mjs
     // `stashStep`). Until 1.2.65 the stash's disadvantage die was one of the roll's dice and
     // `rerollKeepingDice` threw it again; the step is not thrown with the dice, so it is taken
     // again here on what they rolled - a die set aside drawn afresh, a die added rolled afresh.
@@ -1261,8 +1261,8 @@ export async function settleSearch(actor, bookmark, after, done, rerolled = null
     // back; nothing a judgement waits for comes from a replay's grant. Until this fix (4d1532c, e29run/r2h20red,
     // 06.10.2026) a replay's find went into the hands, in a slot a stash written outside the GMs' mark had emptied.
     const counted = async () => (await import("./sheet-audit.mjs")).actorAsHeld(actor);
-    // What a find is, as the Search itself reads it (action-rolls.mjs `findOf`, E14 part 2 C3): the category, tier and
-    // goal of what was drawn - a plant's off its name (tables.mjs `foundAs`), as `searchDraw` reads it - at most the
+    // What a find is, as the Search itself reads it (action-search.mjs `findOf`, E14 part 2 C3): the category, tier and
+    // goal of what was drawn - a plant's off its name (tables-pools.mjs `foundAs`), as `searchDraw` reads it - at most the
     // tier these dice earn. The GM's own grant, so nothing judges it; it gives what the Search would have given.
     const asked = { category: bookmark.category ?? null, tier, goalKey: bookmark.goal ?? null };
     let find = { category: asked.category, tier, goal: asked.goalKey };
@@ -1398,7 +1398,7 @@ async function settleSabotage(actor, bookmark, after, done) {
     let repairId = null;
     if (success && bookmark.targetProjectId) {
         // Guide's Sabotage table, by the repair project it demands (the first throw's
-        // reading, action-rolls.mjs `sabotageRepairScale`):
+        // reading, action-project.mjs `sabotageRepairScale`):
         //   12 -> trivial (3)   18 -> complex (6)   crit -> desperate (8)
         // The complex band is the last of the table, lowered by the same relief.
         const difficulty = sabotageRepairScale(after, score, relief);
@@ -1446,9 +1446,9 @@ async function settleSabotage(actor, bookmark, after, done) {
  *
  * The band is not re-asked: the GM ruled on what the player described, and that
  * description has not changed. Only the dice have. It is a GM's: the band a GM's
- * own action picked, kept on its row as a fact (action-rolls.mjs `OWN_FACTS`), else
+ * own action picked, kept on its row as a fact (action-pipeline.mjs `OWN_FACTS`), else
  * the ruling a GM made on a player's card, read as the first throw's trace reads it
- * (gm-bridge.mjs `dynamicRulingOf`). Fix r2-H3 (the round-2 review's M1): the row's
+ * (bridge-runs-records.mjs `dynamicRulingOf`). Fix r2-H3 (the round-2 review's M1): the row's
  * `bandIndex` was the roller's claim, and a Reroll was scored at any of the four bands.
  */
 async function settleDynamic(actor, bookmark, after, done, before = null) {
@@ -1478,7 +1478,7 @@ async function settleDynamic(actor, bookmark, after, done, before = null) {
         ? game.i18n.format("DRPG.Action.dynamicSuccess", { tier: band.tier })
         : game.i18n.localize("DRPG.Action.nothing"));
     /* A MISS TURNED INTO A SUCCESS GETS THE SUCCESS'S CARD (E16 part 2 C2, 26.10.2026; audit S02-09).
-       The first throw's success posted the GMs' card (action-rolls.mjs `offerDynamicFind`); a Reroll
+       The first throw's success posted the GMs' card (action-dynamic.mjs `offerDynamicFind`); a Reroll
        of it that succeeds again posts no second one. `before` is the roll the GMs kept; a Reroll with
        none read posts none, and ends none.
        A SUCCESS TURNED INTO A MISS ENDS ITS CARD (E16 fix e1-G3; the review's E16p2-BEH-3): until this fix the first
@@ -1757,9 +1757,9 @@ async function settleAnalyze(actor, bookmark, after, done) {
 }
 
 /**
- * A Find Stash replayed on this GM (E80 C4, S16-19; the GMs' facts `findStash`, `stashFound`: gm-bridge.mjs
- * `handleFindStash`, action-rolls.mjs `locateStash`). A roll that opened a stash keeps it whatever the new dice say,
- * and opens no second one; one that did not searches again with the new dice (vault.mjs `resolveStashSearch`, its own
+ * A Find Stash replayed on this GM (E80 C4, S16-19; the GMs' facts `findStash`, `stashFound`: bridge-runs-acts.mjs
+ * `handleFindStash`, action-analyze.mjs `locateStash`). A roll that opened a stash keeps it whatever the new dice say,
+ * and opens no second one; one that did not searches again with the new dice (stash-reach.mjs `resolveStashSearch`, its own
  * card to the finder and, on a find, to the GMs) as a replay, which tells no trap a second hunt (E80 fix r1-G1). It
  * searches the room its roll was thrown in (the GMs' fact `findPlace`), and only while the GMs still read the character
  * there (E80 fix r1-G4; the review's E80-G-1); a character no longer there, or with no room to search, gives the Reroll
@@ -1821,7 +1821,7 @@ async function settlePassageFind(actor, bookmark, after, done) {
  * roller had not been in, where the first throw says "Unexplored room n" (22.09). So the
  * GM answers only what it holds - the row's room and target and the new dice - as one
  * entry among the lines, and the roller's browser builds the words from it with what it
- * holds itself (`heardLines`), as action-rolls.mjs `performListen` built the first ones.
+ * holds itself (`heardLines`), as action-listen.mjs `performListen` built the first ones.
  * The target is the roller's own claim, and what is heard of it is what their browser
  * already shows them, so the GM does not hold it to the room's neighbours.
  */
@@ -1838,7 +1838,7 @@ async function settleListen(actor, bookmark, after, done) {
 /**
  * The Reroll's lines as the roller reads them: the GM's words as they are, and a Listen's
  * entry (`settleListen`) heard on this browser - its own tokens, its own copy of the deaths
- * it may know, its own map (action-rolls.mjs `listenLabels`). Exported for calls.mjs
+ * it may know, its own map (action-listen.mjs `listenLabels`). Exported for calls.mjs
  * `askReroll` and the suite.
  */
 export async function heardLines(actor, lines) {

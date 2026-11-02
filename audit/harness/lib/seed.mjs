@@ -88,7 +88,7 @@ export const world = {
                not there", "every stash belongs to somebody who exists") loop over the
                world's stashes, and this world had none: on 24.09, with the assertion
                counter in and nothing else changed, both FAILed "measured nothing". The
-               stash is written as vault.mjs's setStash writes one (the room's
+               stash is written as vault-store.mjs's setStash writes one (the room's
                drpgStashes list) and the item as inventory.mjs's addItem makes a
                stashed Tool (category, tier, location "vault", the room stamped on it,
                an identity). Daichi's, in Storage: nobody's bedroom and no token's

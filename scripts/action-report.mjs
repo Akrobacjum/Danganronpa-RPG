@@ -12,9 +12,9 @@
  * that `node tools/moved-only.mjs` proves line by line. action-rolls.mjs
  * re-exports `rollTone` and `report`, the two names here it exported before,
  * and nothing here imports it back (the facade rule, .claude/rules/code.md).
- * `rollHead` and `rollCardFlags` are exported now because the actions that
- * stay in action-rolls.mjs write their own cards with them; action-rolls.mjs
- * does not re-export them. Of the action family it reads action-pipeline.mjs
+ * `rollHead` and `rollCardFlags` are exported now because the actions write
+ * their own cards with them (each in a file of its own since E41 C4);
+ * action-rolls.mjs does not re-export them. Of the action family it reads action-pipeline.mjs
  * alone (`rollInHand`, `noteRollContext`).
  */
 

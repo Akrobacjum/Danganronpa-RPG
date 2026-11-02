@@ -144,7 +144,7 @@ export async function requestRefundCrossing(actorId) {
 }
 
 /**
- * Find Passage (E80 C3; action-rolls.mjs `locatePassage`): the roll `rollId` names goes to the primary GM, which reads the
+ * Find Passage (E80 C3; action-analyze.mjs `locatePassage`): the roll `rollId` names goes to the primary GM, which reads the
  * total off its record and judges the rest from the GMs' records (passages-gm.mjs `resolvePassageSearch`); a GM's own
  * browser does it here when it is the primary, and says a refusal as the bridge would. Its value is true once judged:
  * what was found the character's owner is told on a card of its own, a miss in the same shape.
@@ -826,7 +826,7 @@ export function requestCrisisResult({
 
 /**
  * Tell the GMs what was just rolled for the Reroll's bookmark (E08+E28 C2); a GM keeps
- * it here. See action-rolls.mjs `tellGmsOfRoll`.
+ * it here. See action-pipeline.mjs `tellGmsOfRoll`.
  */
 export function requestRollBookmark(payload) {
     return ask(ACTION_ROLL_BOOKMARK, payload, {
@@ -962,7 +962,7 @@ export function requestSteal({
 }) {
     return ask(ACTION_STEAL, { thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical, rollId, unseenRollId }, {
         // A GM's own Palm refused is said as the bridge would say it, and its answer keeps the refusal, which the Palm
-        // reads to give its action back (action-rolls.mjs `performPalm`; E14 part 1 C1, Q3).
+        // reads to give its action back (palm.mjs `performPalm`; E14 part 1 C1, Q3).
         local: () => import("./vault.mjs").then(m => m.stealFromPerson({
             thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical
         })).then(out => {
@@ -1076,7 +1076,7 @@ export function requestPlant({
 export function requestStashSearch({ actorId, total = 0, isCritical = false, rollId = null }) {
     return ask(ACTION_FIND_STASH, { actorId, total, isCritical, rollId }, {
         // A GM's own search refused (in a Class Trial, E16 part 2 C3) is said as the bridge would say it to a player, and its
-        // answer keeps the refusal, which action-rolls.mjs `locateStash` reads to give the price back.
+        // answer keeps the refusal, which action-analyze.mjs `locateStash` reads to give the price back.
         local: () => import("./vault.mjs").then(m => m.resolveStashSearch({ actorId, total, isCritical })).then(out => {
             if (out?.refused) sayNotDone(ACTION_FIND_STASH, reasonOf(out.refused));
             return out;

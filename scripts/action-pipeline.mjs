@@ -19,8 +19,9 @@
  * imports action-rolls.mjs, and nothing here imports it back (the facade rule,
  * .claude/rules/code.md). Seven names are exported that were not (`remnantRef`,
  * `canAfford`, `roomAudience`, `declineAction`, `ruledMissAction`, `missAction`,
- * `gmRulingActions`), because the actions that stay in action-rolls.mjs call
- * them; action-rolls.mjs does not re-export them. It imports nothing of the
+ * `gmRulingActions`), because the actions call them (in action-rolls.mjs at
+ * E41 C3, each in a file of its own since C4); action-rolls.mjs does not
+ * re-export them. It imports nothing of the
  * action family; call-effects.mjs and gm-bridge.mjs, other families' facades,
  * and forced-roll.mjs, secret.mjs and reroll.mjs are read by `import()` where
  * the roll needs them, as before the move.
@@ -36,7 +37,7 @@ import {
 import { supersedingRoll, reportRollSubject, isClaimedRoll, ROLL_NONCE } from "./private-rolls.mjs";
 import { rerollBookmarkStore } from "./gm-stores.mjs";
 
-/** What a readied Tool takes off a threshold. 0 for bare hands. Exported for the GM's band of a Sabotage's trace (gm-bridge.mjs `traceBandOf`). */
+/** What a readied Tool takes off a threshold. 0 for bare hands. Exported for the GM's band of a Sabotage's trace (bridge-runs-records.mjs `traceBandOf`). */
 export function toolRelief(tool, tierOf) {
     return TOOL_IN_HAND.tierReducesThreshold && tool ? tierOf(tool) : 0;
 }
@@ -399,7 +400,7 @@ async function rememberRoll(actor, outcome, result, actionKey = null, context = 
  * Where a Remnant this action dropped ended up, in a form the record can carry: a
  * GM's own trace, which `noteRollContext` writes onto the GMs' row as a fact. A
  * player's Remnant is placed by the GM over the socket, and that GM writes the fact
- * itself (gm-bridge.mjs `handleRemnant`).
+ * itself (bridge-runs-records.mjs `handleRemnant`).
  */
 export function remnantRef(placed) {
     const doc = placed?.document ?? placed;
@@ -537,9 +538,9 @@ export function rollClaims(actionKey, context) {
 /**
  * The facts a GM's own action wrote into its context, which a player's are written by the bridge's handlers.
  * A Dynamic action's band is one since fix r2-H3: a GM's own picks it in its own window (`askDynamicDifficulty`)
- * and leaves no ruling on a card, where a player's band is read (gm-bridge.mjs `dynamicRulingOf`).
+ * and leaves no ruling on a card, where a player's band is read (bridge-runs-records.mjs `dynamicRulingOf`).
  */
-// A GM's own Find Stash (E80 C4): what a player's is given by gm-bridge.mjs `handleFindStash`, for its Reroll's replay;
+// A GM's own Find Stash (E80 C4): what a player's is given by bridge-runs-acts.mjs `handleFindStash`, for its Reroll's replay;
 // `findPlace` the place it searched (E80 fix r1-G4).
 const OWN_FACTS = ["remnantId", "remnantScene", "repairId", "targetProjectId", "projectId", "progress", "bandIndex", "findStash", "stashFound",
     "findPlace"];
@@ -550,7 +551,7 @@ function ownFacts(data) {
 
 /**
  * Tell the GMs what was rolled: `roll.bookmark`, judged on the primary, kept by a GM
- * here (gm-bridge.mjs `requestRollBookmark`). Nobody waits on it; a refusal is the
+ * here (bridge-asks.mjs `requestRollBookmark`). Nobody waits on it; a refusal is the
  * GM's log line.
  */
 async function tellGmsOfRoll(actor, bookmark) {
@@ -692,7 +693,7 @@ export async function noteRollFact(actorId, messageId, facts) {
 /*
  * A FACT FOR THE ROLL ITS PACKET NAMES (E08+E28 fix r1-G1, 04.10.2026; the round-1 review's B1
  * and M3 = S2). A player's Sabotage and a player's trace are carried out by the GM's handler
- * (gm-bridge.mjs `handleSabotage`, `handleRemnant`), and that handler wrote the fact on the row
+ * (bridge-runs-records.mjs `handleSabotage`, `handleRemnant`), and that handler wrote the fact on the row
  * it found as the packet arrived: the sender's newest Sabotage row, or the character's newest
  * row of any kind. Both were wrong. `roll.bookmark` leaves the roller's browser first, but its
  * run - three guards, the store's hydration, the card's lookup, an import - ended after the

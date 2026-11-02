@@ -160,7 +160,7 @@ function onBallotOpened(payload, senderId) {
 
 /**
  * A BALLOT, JUDGED AND RECORDED BY THE PRIMARY GM (E10 C2, 1.2.71; audit S06-12, S06-17): the run of the
- * bridge's `vote.cast` (gm-bridge.mjs `handleBallot`), which reaches the primary alone, from a player alone
+ * bridge's `vote.cast` (bridge-runs-records.mjs `handleBallot`), which reaches the primary alone, from a player alone
  * (`playersOnly`). Answers `{ reply: { round } }` once the row is in the GMs' store, or `{ refused }` with
  * the reason the player is told.
  *
@@ -228,7 +228,7 @@ function ballotRefusal(progress, actor, round, choice) {
 
 /**
  * A PLAYER'S OWN BALLOT, ASKED FOR (E10 C2, 1.2.71; the plan's section 3, "A late joiner"): the run of the
- * bridge's `vote.ask` (gm-bridge.mjs `handleBallotAsk`), on the primary, about the sender alone. Null when no
+ * bridge's `vote.ask` (bridge-runs-records.mjs `handleBallotAsk`), on the primary, about the sender alone. Null when no
  * vote is open or the sender holds no ballot in it (`trialParticipants`, as the GMs hold the students); `{ cast:
  * true, round }` when the sender's ballot of this round is in; otherwise the ballot, `{ round, picks,
  * candidates }` - and a sender the vote had not handed one yet, a player who joined after the ballots went out,

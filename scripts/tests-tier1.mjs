@@ -8132,7 +8132,7 @@ const INVARIANTS = [
          * critical; sheet.mjs `wearMarkup` for a tier 0, 1 and 3 Tool, a tier 0 Murder Weapon and Cleaning Tool and a
          * tier 0 usable (no track, and no "Single use" either: it is not readied for a roll). Then, in the source with
          * comments blanked: `breakOnDespair` asks `rollSpends` before it wears; the five roads that wear a tool after
-         * their dice still call it, as a statement of its own (action-rolls.mjs `workOnProject`, `performSabotage`; cleanup.mjs `attemptCleanup`,
+         * their dice still call it, as a statement of its own (action-project.mjs `workOnProject`, `performSabotage`; cleanup.mjs `attemptCleanup`,
          * `attemptStageSix`; murder-rules.mjs `wearSwing`); and creative use (`useItem`, `useCreatively`) reaches no
          * wear. The tier-2 tests "a tier-0 tool is spent by any roll it was used in and a tier-1 tool only by a
          * Despair" and "a tier-0 knife swung on a hit with Hope is spent and a Reroll gives it back for the replay
@@ -16782,7 +16782,7 @@ const INVARIANTS = [
          * GMs of every miss or a third player of a show, a sound or a card at a GM's revoke or Close that tells the
          * table a passage existed, and a reset that keeps a season's finds or loses the GMs' map. Run on an engine of
          * the suite's own (R562's): the search and the show with their whispers injected, each card's sound read as
-         * sfx.mjs `soundFromMessage` reads a GM's card, its hearers by that file's audience rule (a whisper reaches its
+         * sfx-play.mjs `soundFromMessage` reads a GM's card, its hearers by that file's audience rule (a whisper reaches its
          * names; a GM of them only for a sound marked for the GMs). The revoke, the Close and the reset on the same
          * stores, with this browser's chat and its sounds watched. Make public is not built (the stage's
          * C6). Red at the parent (879d6d5): no `resolvePassageSearch`.
@@ -17253,7 +17253,7 @@ const INVARIANTS = [
     ["R604 - a trap hears of a Find Passage from the primary GM that judges it: every first throw that stands, a miss as a find, in the room the GMs read the character in, before its card; a Reroll's replay, a refusal and a search off the primary tell it nothing; a stash hunt is told by the GM that judges it, once the room is read and before the roll is scored, and never for a replay; the roller's browser raises neither any more", async () => {
         /*
          * E80 fix r1-G1 (18.10.2026; the review's E80-SEC-1). The harm: a trap watching for a Find Passage or a stash hunt
-         * (traps.mjs triggers 8 and 9) heard of it from the roller's own browser (action-rolls.mjs `locatePassage`,
+         * (traps.mjs triggers 8 and 9) heard of it from the roller's own browser (action-analyze.mjs `locatePassage`,
          * `locateStash`), so a console that asked the GM for the search without raising the hook searched past every
          * trap, and the room the trap read was that browser's word. Run on an engine of the suite's own (R598's), with
          * characters, people and a world of its own, the search's card and the trap's word injected and logged in one
@@ -17648,7 +17648,7 @@ const INVARIANTS = [
         /*
          * E80 fix r1-G8 (19.10.2026; the review's E80-C1-03). `tunnelMarks` (fog-doorways.mjs) named every unfound room
          * beyond a tunnel 'Unexplored room 1', so two tunnels from one room to two rooms the student has not found looked
-         * like two ways into the same room - as the Listen labels (action-rolls.mjs `listenLabels`) and the sheet's rows
+         * like two ways into the same room - as the Listen labels (action-listen.mjs `listenLabels`) and the sheet's rows
          * (passages-gm.mjs `roomsAsKnown`) do not. Read here on a copy of the suite's own, handed to the marks; nothing of
          * the world is read or written. Red at the parent (529e404): the Kitchen's mark reads 'Unexplored room 1' too.
          */
@@ -17930,7 +17930,7 @@ const INVARIANTS = [
          * E80 part 2 C1, 19.10.2026; the A11 design's step 4 (S17-16: one pool, no further copy). The harm: a list that
          * names a stashed item tells a frisker a stash exists and what is in it (the rule "a Palm does not reach a stash"
          * broken); one that names a Truth Bullet hands over knowledge as a thing; and a theft whose pool drifted from the
-         * list takes what was never shown. vault.mjs `pocketsFrom` is the rule, read on items made here (each an id and
+         * list takes what was never shown. palm.mjs `pocketsFrom` is the rule, read on items made here (each an id and
          * its module flags): the categories out of order, a stashed one, a Truth Bullet, a broken one, one with no
          * category, and one an `undecided` reader names. Then the world: each character holding a stashed item, read as
          * `pocketsAsHeld` reads it on this GM, against its own items filtered here off the documents. Nothing is written.
@@ -17967,7 +17967,7 @@ const INVARIANTS = [
         /*
          * E80 part 2 C2, 19.10.2026; the A11 design's step 1 and its A11-3. The harm: a Palm window that shows a
          * player what the person they picked carries before any roll (the whole point of a Frisk is that the list comes
-         * from the GM after the verdict), or one that says a bar the GM does not judge. action-rolls.mjs `choosePalm`
+         * from the GM after the verdict), or one that says a bar the GM does not judge. palm.mjs `choosePalm`
          * drawn for a character and, as its target, one holding a stashed item, with `DialogV2.wait` answered with
          * nothing: its rows, the Frisk row's words, the Unseen line under it for the config's `ACTIONS.palm` and for a
          * copy whose two numbers are moved (17 and 11), the confirm button's label after each row is picked as the
@@ -18183,7 +18183,7 @@ const INVARIANTS = [
          * bare 400 px dialog beside the Palm window's 544 and without Glass's frame (mk-3); and the Frisk row's
          * `fa-hand-pointer` had no pixel glyph, the one Palm row Stained Glass would draw in Font Awesome's style (mk-4).
          * jsdom has no layout, so this reads what decides each, as the cascade test of the room tile does: the Palm
-         * window as action-rolls.mjs `choosePalm` draws it (`DialogV2.wait` answered with nothing, nothing shown) set in
+         * window as palm.mjs `choosePalm` draws it (`DialogV2.wait` answered with nothing, nothing shown) set in
          * Foundry's DialogV2 frame (window-content > dialog-form > dialog-content + form-footer) on a document of its
          * own, and for its footer the `position` of every style rule of module.json's sheets whose selector the footer
          * matches by its own `matches`; the same frame round a table and round a short paragraph, the two controls; the
@@ -20718,7 +20718,7 @@ const INVARIANTS = [
          * the track, so a 404 (`AudioHelper.play` answers a sound with `failed`, it does not throw) left a participant
          * in silence, and a browser not clicked yet kept the room down while the track waited on the first click - and
          * started it, looped, after the incident had ended, with nothing left to stop it. The overlay is now a small
-         * machine (music.mjs `createMurderOverlay`) driven here with its effects as lists: `play` answers a promise the
+         * machine (murder-music.mjs `createMurderOverlay`) driven here with its effects as lists: `play` answers a promise the
          * test settles, so each case says when the track "starts".
          * E19 fix r1-G3 (the review's E19-COR-5): a file that failed was skipped until another one played, so with a
          * murder playlist of one track a 404 in one incident (a late upload, a fetch that hiccuped) meant no murder
@@ -20834,7 +20834,7 @@ const INVARIANTS = [
          * music stayed at 0 on that browser for good. The overlay no longer moves the Music volume at all (the 04.10
          * answer: the Music channel, the room's playlists held), so the parked number is only what an earlier version
          * left: `restoreDuckedMusic` gives it back at ready, in an incident too, with its two writes as lists here.
-         * The writes are read in music.mjs with comments blanked: the one write of the Music volume
+         * The writes are read in music.mjs's family with comments blanked: the one write of the Music volume
          * (`core.globalPlaylistVolume`) and the one of the parked volume (`musicDuckedFrom`) are `restoreDuckedMusic`'s.
          */
         const M = await import("./music.mjs");
@@ -20877,7 +20877,7 @@ const INVARIANTS = [
          * room's music had (a player who had turned the clicks down heard no murder music), each browser drew its own
          * track at random (killer and victim heard different ones), and the room's music was ducked by setting the
          * Music volume to 0 - which on the Music channel would silence the murder track too. The room's sounds are now
-         * held on that browser alone (music.mjs `createRoomHold`): each playing sound's own volume to 0 and back,
+         * held on that browser alone (murder-music.mjs `createRoomHold`): each playing sound's own volume to 0 and back,
          * a sound that starts later held as it starts. Held in place rather than paused: a GM's browser is always in
          * the incident, and a playlist moves to its next track when a GM's browser hears the last one end. Fakes here,
          * no audio: the sandbox's audio is locked.
@@ -21014,7 +21014,7 @@ const INVARIANTS = [
          * paused time, so a Reset in a later silence brought back music from hours before; leaving the body's silence
          * for a mapped Investigation resumed the afternoon (a fade in) and then stopped it; and the silent state, having
          * no playlist, was "nothing to take over with", so a GM's track played on through the announcement. Who gives
-         * way is `cueGivesWay`, driven here; the hand-offs are read in music.mjs with comments blanked; the Sound
+         * way is `cueGivesWay`, driven here; the hand-offs are read in music.mjs's family with comments blanked; the Sound
          * window's note says it in both languages.
          */
         const M = await import("./music.mjs");
@@ -21200,7 +21200,7 @@ const INVARIANTS = [
          * window's Send answers `{ text }` (`askForRequest`), an empty request is asked again where the caller says it
          * needs words (`required`), and the body is a `div.drpg-call-body` (`callCardHtml`). Measured on this browser with
          * DialogV2.wait answered here and the toasts caught, both put back; nothing is posted. Since E18 fix e1-G3 the empty
-         * request is said as a refusal card (gm-bridge.mjs `sayRefusedHere`), read here and taken down, and no toast.
+         * request is said as a refusal card (call-gm.mjs `sayRefusedHere`), read here and taken down, and no toast.
          */
         const B = await import("./gm-bridge.mjs");
         ok(typeof B.askForRequest === "function" && typeof B.callCardHtml === "function",
@@ -21334,7 +21334,7 @@ const INVARIANTS = [
          * player whose ask reached no GM's listener (the primary mid-reload, a socket that dropped it) looked at
          * "Awaiting a ruling." until the ruling's own clock - five minutes for a Hope Call. Now each waits
          * `TIMING.ackMs` for the "got it", as every request that is not a ballot does. Driven as R165 drives the
-         * waiter - fakes, nothing leaves this client - with each row's own policy as `ask` (gm-bridge.mjs) reads it,
+         * waiter - fakes, nothing leaves this client - with each row's own policy as `ask` (bridge-table.mjs) reads it,
          * a "got it" clock of 40 ms for TIMING.ackMs and a ruling clock of 3000 ms. Read per row: whether it is patient,
          * the result, whether it came before half the ruling's clock, what was said, and what was sent after the ask.
          */
@@ -21403,7 +21403,7 @@ const INVARIANTS = [
     ["R1006 - a Frisk's wait ends at once when its primary leaves for another GM, and keeps its clock when that primary was the only GM: then the clock ends it and tells the GMs it expired, and the leaving tells nobody (E18 fix c7-G1)", async () => {
         /*
          * E18 fix c7-G1, 26.10.2026; the review's C7-R1 (twice) and C7-SEC-2. C7 marked the searcher's wait on an open
-         * Frisk's ask (gm-bridge.mjs `requestFriskAsk`) `untilPrimaryLeaves` and said the wait ended 'at once' when the
+         * Frisk's ask (bridge-asks.mjs `requestFriskAsk`) `untilPrimaryLeaves` and said the wait ended 'at once' when the
          * primary left; registerBridgeReplies runs `primaryGone` only when `primaryLeft` - when another GM is here to take
          * the primary - so at a one-GM table the wait runs its clock, friskAnswerMs + friskMarginMs (75 s), and only that
          * clock hands the action back. The tier-2 test read the option in the source and drove nothing. Driven here with
@@ -22667,7 +22667,7 @@ const INVARIANTS = [
     ["R979 - an indirect murder's concealment bonus is paid on any outcome: a lone miss pays +1, a hit and a critical their band plus it, a plain project's miss nothing; the trap's budget is read off its two parts, 7-10 (E15 C2)", async () => {
         /*
          * E15 C2, 25.10.2026; audit S02-08 (the owner's D13) and S12-74; E15-T2. `projectProgress` is the one
-         * reading of a Work's roll the roller's browser, the GM (gm-bridge.mjs `progressOf`) and the Reroll
+         * reading of a Work's roll the roller's browser, the GM (bridge-runs-records.mjs `progressOf`) and the Reroll
          * (reroll.mjs `settleProgress`) share; the bonus rode only on a band reached, so a lone killer's miss paid 0
          * beside a card that said the project gains +1. Read with ACTIONS.project's bands (12 and 18) and its
          * critical: a miss at 8, a 13, an 18 and a critical at 4, each with the alone bonus of INDIRECT_MURDER and
@@ -22980,7 +22980,7 @@ const INVARIANTS = [
         }), "[per card: the bar's words, the body's words, a heading left in the body, the kept title, a heading in the kept html]");
         /* E18 fix e1-G3 (24.10.2026; the end review's E18-END-8 and F7): a card posted with its title and opening with the
            same heading ("same") read it in the bar and again under it - a call on the GM with no thread to post into
-           (gm-bridge.mjs `callGm`); and the time of day's card, its heading lifted into the bar, said the time of day again
+           (call-gm.mjs `callGm`); and the time of day's card, its heading lifted into the bar, said the time of day again
            at the end of the clock line under it (clock.mjs `announceTimeOfDay`). */
         const CL = await import("./clock.mjs");
         const clock = getClock();
@@ -23723,7 +23723,7 @@ const INVARIANTS = [
          * E35 C0, 24.10.2026; audit S08-31, S17-17: a skeleton of E14's, red until E14 lands. The harm: a key in a stash
          * on the far side of the building opens its bedroom door, against the handbook's "A key opens its door whoever
          * holds it". The door (movement.mjs `bedroomShut`, asked by `crossingVerdict` through `restrictedFrom`) counts
-         * every item with the key's flag, and so does vault.mjs `keysHeldBy`, which `mayEnterBedroom` asks for
+         * every item with the key's flag, and so does vault-store.mjs `keysHeldBy`, which `mayEnterBedroom` asks for
          * game.drpg. Read on a scene of plain objects, a Hall whose list names a Bedroom some other character owns,
          * with three plain movers who are neither a GM nor the Mastermind: one carrying the key, one whose key is in a
          * stash, one with no key - so the two controls hold the reading to the door and the key itself. Nothing of this
@@ -23826,7 +23826,7 @@ const INVARIANTS = [
          * E35 C6, 24.10.2026; E35-24, D42 (the owner's option 1). Until C6 the handbook's stash list said that
          * something "slipped into your pocket" while your hands were full goes into your stash, and the Palm's section
          * that what does not fit in a full pocket goes into "their stash" - both what Base did, both what D42 ended
-         * (vault.mjs `plantOnPerson`, E35 C3). Read: TRANSFER_POLICY as the code holds it, the planter's line in both
+         * (palm.mjs `plantOnPerson`, E35 C3). Read: TRANSFER_POLICY as the code holds it, the planter's line in both
          * languages' files, and in each language's player handbook the stash list's full-hands line and the Palm's
          * paragraph on outcomes, cut by their first words. Red at 7fd0772 (C5): both books said the stash took the
          * Plant.
@@ -23870,7 +23870,7 @@ const INVARIANTS = [
          * side never kept (S08-06), "not hidden" over a hidden stash its thief had found or the Mastermind's (S08-48), and
          * "Kaede, Makoto's stash" over two. Read: `DRPG.Vault.rifleIntro` and `rifleNote` in lang/en.json and
          * lang/pl.json, fetched as served - the placeholders, the time of day, the words that must be gone - and in
-         * vault.mjs `rifleStashDialog` that the line is formatted with the list of owners and the room. Red at 7a766612
+         * stash-reach.mjs `rifleStashDialog` that the line is formatted with the list of owners and the room. Red at 7a766612
          * (c4-t6-red.log): both languages said "not hidden" and named no time of day.
          *
          * E14 fix e1-G1 (the review's E14R-02): the sheet's note under the open stashes it lists (sheet.mjs
@@ -24395,14 +24395,14 @@ const INVARIANTS = [
             + "[per language: names the call, a {placeholder} left]");
     }],
 
-    ["R985 - Sabotage's window shows the bar it judges (E16-T20; audit S02-14): for a concealment thrown with Despair (SABOTAGE_CONCEAL.despairPenalty) and none, with no tool, a tier-1 tool and a tier-2 tool, each number action-rolls.mjs `sabotageBar` gives is the least total `sabotageHit` puts in that band, and the window's numbers and the judge both read that one bar", async () => {
+    ["R985 - Sabotage's window shows the bar it judges (E16-T20; audit S02-14): for a concealment thrown with Despair (SABOTAGE_CONCEAL.despairPenalty) and none, with no tool, a tier-1 tool and a tier-2 tool, each number action-project.mjs `sabotageBar` gives is the least total `sabotageHit` puts in that band, and the window's numbers and the judge both read that one bar", async () => {
         /*
          * E16 part 2 C0, 26.10.2026. performSabotage wrote the roll window's numbers as
          * `t.min - relief + penalty`, and the judge (`sabotageHit`) scores `total + penalty`
          * against the bands eased by the relief: with the Despair concealment's -1 the window said
          * "beat 11 / 17" while a total of 13 / 19 was needed, so a player who threw 11 or 12 read a
          * success and got "Nothing happens.". Each total from 0 to 40 is judged as the GM judges a
-         * Sabotage (`sabotageHit`, also gm-bridge.mjs `traceBandOf`'s reading) and the least total
+         * Sabotage (`sabotageHit`, also bridge-runs-records.mjs `traceBandOf`'s reading) and the least total
          * reaching each band is held to the bar's number for it; then the two places that show and
          * judge are read in the source for the one bar. Nothing is written; no phase is asked.
          */
@@ -24554,7 +24554,7 @@ const INVARIANTS = [
         equal(JSON.stringify([seat("seatRoomArt", "#drpg-room-tile"), seat("seatVoiceArt", "#drpg-voice-tile")]), "[[true,true],[true,true]]",
             "[[the room's picture laid by paneLayer at its tile's turn, its turn taken off when it goes back], [the same for the voice tile's portrait]]");
     }],
-    ["R989 - a player's stash hunt gives its price back on the GMs' refusal, and a Search's trace out of a stash waits for the GMs' word that the thing moved (E16-T39; the review's E16p2-BEH-1, E16R-04, E16P2-R4; E16p2-BEH-2, E16R-03, E16P2-R2): both rows answer once carried out, action-rolls.mjs `locateStash` refunds a refusal in either shape before it notes the roll, its card goes out before the request, and `searchStash`'s player's `got` follows the answer's `taken`", async () => {
+    ["R989 - a player's stash hunt gives its price back on the GMs' refusal, and a Search's trace out of a stash waits for the GMs' word that the thing moved (E16-T39; the review's E16p2-BEH-1, E16R-04, E16P2-R4; E16p2-BEH-2, E16R-03, E16P2-R2): both rows answer once carried out, action-analyze.mjs `locateStash` refunds a refusal in either shape before it notes the roll, its card goes out before the request, and `searchStash`'s player's `got` follows the answer's `taken`", async () => {
         /*
          * E16 fix e1-G2, 26.10.2026. On "ack" a refusal of the run came to a player's browser once `locateStash` and
          * `searchStash` had returned: a Class Trial opened while a hunt was in flight kept its price, and a reach refused
@@ -25878,10 +25878,10 @@ const INVARIANTS = [
             hold: [null, ["deadMuted", true], null]
         }), "an account's voice character in the trial is not its living one (voice: one listed, both listed, none listed, a GM; micHold the same three)");
     }],
-    ["R1039 - another GM's write of the trial's record is held to the record's own fields on the primary (E70 fix p1-G2; the review's SEC-4): vote.mjs `recordPatchOf` keeps a patch's fields of the record and drops the chapter, the trial's list of the dead, the receipts and anything else, and answers null for a patch that names none, a function or an array", async () => {
+    ["R1039 - another GM's write of the trial's record is held to the record's own fields on the primary (E70 fix p1-G2; the review's SEC-4): trial-progress.mjs `recordPatchOf` keeps a patch's fields of the record and drops the chapter, the trial's list of the dead, the receipts and anything else, and answers null for a patch that names none, a function or an array", async () => {
         /*
          * E70 fix p1-G2, 28.10.2026. A GM that is not the primary asks the primary for its write of the record ("trial.record",
-         * vote.mjs `recordOnPrimary`), which spreads the patch over the record its one queue finds. The list of the dead and
+         * trial-progress.mjs `recordOnPrimary`), which spreads the patch over the record its one queue finds. The list of the dead and
          * the receipts are the primary's own steps' (the settle, `keepReceipt`), and the chapter the step's: a patch that
          * named them would write over them. Read without a world. Red at 5ee86113: no `recordPatchOf`.
          */
@@ -26319,7 +26319,7 @@ const INVARIANTS = [
         /*
          * E70 C13, 28.10.2026. Part 2 put three modes on the floor with no playlist of their own, and the trial's three
          * music states each tested one mode by name, so a new mode played whatever state came next and nothing said so.
-         * music.mjs answers from one table over floor-machine.mjs MODES now (`TRIAL_MODE_MUSIC`, `trialMusicState`). Read
+         * music-states.mjs answers from one table over floor-machine.mjs MODES now (`TRIAL_MODE_MUSIC`, `trialMusicState`). Read
          * here: every mode has its row and the row is the spec's; a floor with no mode in the trial is the discussion,
          * none outside it; and the Closing's exchange, built by `nextFloor` itself from a speaker objected at, is the
          * Objection's. Red at 4c58d5a7: music.mjs had neither export - the behaviour was the same for today's six modes
@@ -26479,7 +26479,7 @@ const INVARIANTS = [
             + "the decision: its line, each button [op, actor, time]; Resume [op, the rest]; after the vote; outside a trial; the Reveal: the count, a button per row, the no-trace marks, "
             + "nothing to say, outside a trial; roundLength]");
     }],
-    ["R1500 - one census of rooms and students, read by the Doors tab, the season checklist and Pre-season checks (E20 C1, E20-01, E20-24; S07-38, Q-3): vault.mjs `roomCensus` (marked, no owner, not No privacy, locked counted), monokuma.mjs `studentCensus` (the living), the Doors tab's line off its form, the checklist's roomCount line and Pre-season's scene line give one number, in one wording", async () => {
+    ["R1500 - one census of rooms and students, read by the Doors tab, the season checklist and Pre-season checks (E20 C1, E20-01, E20-24; S07-38, Q-3): vault-store.mjs `roomCensus` (marked, no owner, not No privacy, locked counted), monokuma.mjs `studentCensus` (the living), the Doors tab's line off its form, the checklist's roomCount line and Pre-season's scene line give one number, in one wording", async () => {
         /*
          * E20 C1, 29.10.2026; the owner's Q-3. The harm (S07-38): one map read "17 shared rooms open for 3 living
          * students" in the Doors tab (locked rooms left out, the living), "Rooms: 17. Players: 4" on the checklist
@@ -29430,7 +29430,7 @@ const INVARIANTS = [
         equal(stableJson(missing), "[]", "the handbook lacks something the code has");
     }],
 
-    ["R1104 - the Palm and Frisk roll windows are named by their part: action-rolls.mjs `palmTitle` reads \"Palm - Shadow, beat 15\", \"Palm - Hand, beat 10\", \"Palm - Body, beat 12\" and the Plant's and the unseen Frisk's numbers off ACTIONS.palm, and a part the table does not hold falls back to the action's label (E51 C1; E51-05, the owner's A11 of 13.10)", async () => {
+    ["R1104 - the Palm and Frisk roll windows are named by their part: palm.mjs `palmTitle` reads \"Palm - Shadow, beat 15\", \"Palm - Hand, beat 10\", \"Palm - Body, beat 12\" and the Plant's and the unseen Frisk's numbers off ACTIONS.palm, and a part the table does not hold falls back to the action's label (E51 C1; E51-05, the owner's A11 of 13.10)", async () => {
         /*
          * E51 C1, 30.10.2026; the owner's A11 (13.10): roll titles "Palm - Hand, beat 10", Frisk included, the numbers
          * from config. The cover's window read "Keep your hands out of sight · beat 15" and the hand's "Palm · beat 10";
@@ -29464,7 +29464,7 @@ const INVARIANTS = [
         /*
          * E51 C1, 30.10.2026; audit S02-51 (g). The row was filtered out of the victim's list, so the menu lost Role
          * reversal with no word of why; since C1 it stays, `denied`, shut like a blocked row and drawn struck through
-         * (action-rolls.mjs `openCrisisMenu`, `.drpg-row-denied`), with `DRPG.Murder.deniedByIncident`. The GM's
+         * (action-murder.mjs `openCrisisMenu`, `.drpg-row-denied`), with `DRPG.Murder.deniedByIncident`. The GM's
          * judgement refuses it as before (`crisisRefusal`'s `offered.denied`, under the same code). Asked of fixture
          * states as R211's: the victim on their turn with Role reversal unlocked, denied and not. Pure; nothing is
          * written. Red at C1's parent: the denied state gave no row.
@@ -29493,7 +29493,7 @@ const INVARIANTS = [
         /*
          * E51 C1, 30.10.2026; the owner, 14.10: the module told nobody the thresholds. The roll window said "beat N";
          * the card the roll reports went out with the total alone. `cardHead` takes the roll's `dc` (kept on the roll
-         * by `rollTrait`, read by action-rolls.mjs `rollHead` and `report`) and writes `DRPG.Action.needed` in the total's
+         * by `rollTrait`, read by action-report.mjs `rollHead` and `report`) and writes `DRPG.Action.needed` in the total's
          * slot. Pure; nothing is written. Red at C1's parent: no "needed" in any of the heads.
          */
         const { cardHead } = await import("./utils.mjs");
@@ -30165,7 +30165,7 @@ const INVARIANTS = [
         /*
          * E51 fix FG5, 31.10.2026; the end review's S1. The discard stamp stood on the GMs' copy being broken, which a
          * console sets one write earlier; it stands now on the ticket the primary writes as it places the discard's
-         * trace (gm-bridge.mjs `handleRemnant`), taken by the audit at the deletion. Read with the module's own pair on
+         * trace (bridge-runs-records.mjs `handleRemnant`), taken by the audit at the deletion. Read with the module's own pair on
          * this browser's memory, with ids no actor has; the old ticket is written with `Date.now` read 61 s back and
          * put back at once. Every ticket written here is taken before the end, so nothing is left. Red at the fix's
          * parent: neither function exported.
@@ -30189,7 +30189,7 @@ const INVARIANTS = [
         equal(JSON.stringify({ first, cut, old, ms: A.DISCARD_TICKET_MS }), JSON.stringify({ first: [false, false, true, false], cut: true, old: false, ms: 60000 }),
             "[another student's take, another name's, the ticket's own, the second time; a name past 80 read as cut; a ticket older than the minute; the minute]");
     }],
-    ["R1142 - a field of one row shows with that row alone, in both themes: each `data-drpg-when` value the module's windows write (and each `when` handed to action-rolls.mjs `requestFieldHtml`) is drawn, by the module's sheets' cascade under Monokuma Legacy and Stained Glass, when its row is checked and hidden under another row; the Projects window's two selects carry `work` and `sabotage`, Tamper's Reshape trace `reshape` (E51 fix FG4; the owner's item of 31.10, review correctness \"item 1 wider\")", async () => {
+    ["R1142 - a field of one row shows with that row alone, in both themes: each `data-drpg-when` value the module's windows write (and each `when` handed to action-menus.mjs `requestFieldHtml`) is drawn, by the module's sheets' cascade under Monokuma Legacy and Stained Glass, when its row is checked and hidden under another row; the Projects window's two selects carry `work` and `sabotage`, Tamper's Reshape trace `reshape` (E51 fix FG4; the owner's item of 31.10, review correctness \"item 1 wider\")", async () => {
         /*
          * E51 fix round FG4, 31.10.2026; the owner at the table ("Which project?" and "Sabotage which project?" shown at
          * once whatever row is picked) and the correctness review's "item 1 wider". The Projects window
@@ -30479,7 +30479,7 @@ const INVARIANTS = [
         }), `[i18n.mjs's LANGUAGES, moduleLanguage and pageLanguage the leaf's; LANGUAGES frozen; the choices of the language and documents' settings; the language setting's reload; the files that write the list out; with the setting answering "${other}" on a page built in "${page}": the setting read as told, the plural forms asked for 2 and 5, a list, a time, the handbook's language; "xx" stored]`);
     }],
 
-    ["R1152 - a date, a time and a number on screen are the page's language through utils.mjs `localeFormat`, with the browser's locale and Foundry's language both different: gm-stores.mjs's case rows, messenger-app.mjs `bubbleTime`, secret.mjs `readersLines`, notice-history.mjs `noticeTime` by a call each, gm-bridge.mjs `expiresHtml`, gm-panel.mjs's failure log, trial.mjs's evidence log and season-setup.mjs's megabytes by their source (E66 C1; S18-40, E66-05)", async () => {
+    ["R1152 - a date, a time and a number on screen are the page's language through utils.mjs `localeFormat`, with the browser's locale and Foundry's language both different: gm-stores.mjs's case rows, messenger-app.mjs `bubbleTime`, secret.mjs `readersLines`, notice-history.mjs `noticeTime` by a call each, call-gm.mjs `expiresHtml`, gm-panel.mjs's failure log, trial.mjs's evidence log and season-setup.mjs's megabytes by their source (E66 C1; S18-40, E66-05)", async () => {
         /*
          * E66 C1, 01.11.2026; S18-40, E66-05. T20 counted ten calls that wrote a date or a time in the browser's locale
          * or in Foundry's language, and three Intl formats on their own: the case health check's dates in the browser's
@@ -30843,7 +30843,7 @@ const INVARIANTS = [
             + "with its action step skipped and without]");
     }],
 
-    ["R1163 - the fix round's numbers reach their texts by the road, in English and Polish (E66 fix r1 F4, F7, F8, F9): vault.mjs `roomRatioLine` writes its quotient and the season's rooms per student through `localeFormat` (\"1,5\" on a Polish page); events.mjs `voteMetaLine` agrees with both its counts - the noun with the total, the Polish predicate with the ballots back - a total of 1 included; `Trial.turn.closingPassEarly` and `Floor.modeNote` say the seconds `TRIAL` holds, filled where they are drawn; the Rest's \"half\" is the half rest.mjs heals", async () => {
+    ["R1163 - the fix round's numbers reach their texts by the road, in English and Polish (E66 fix r1 F4, F7, F8, F9): vault-store.mjs `roomRatioLine` writes its quotient and the season's rooms per student through `localeFormat` (\"1,5\" on a Polish page); events.mjs `voteMetaLine` agrees with both its counts - the noun with the total, the Polish predicate with the ballots back - a total of 1 included; `Trial.turn.closingPassEarly` and `Floor.modeNote` say the seconds `TRIAL` holds, filled where they are drawn; the Rest's \"half\" is the half rest.mjs heals", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 13 (F4), 17 (F7), 24 and 49 (F8), 26 (F9). `roomRatioLine` wrote its
          * quotient by `toFixed(1)`, "1.5" on a Polish page, and the 1.5 rooms per student as it is; `Events.voteMetaGm`
@@ -31392,7 +31392,7 @@ const INVARIANTS = [
          * said "Free Move used - the next room costs an action" whatever paid, and the crossing's card "That cost an
          * action" for a Burst, so a player who had bought a Burst for their next action read that the walk would cost an
          * action and found the Burst gone. Read: the order of the four in `takeMove`'s and `spendAction`'s source and in
-         * `nextCrossingPrice`'s (`fnSource`); `nextCrossingPrice` and the briefing's first line (action-rolls.mjs
+         * `nextCrossingPrice`'s (`fnSource`); `nextCrossingPrice` and the briefing's first line (action-briefing.mjs
          * `briefingBlock`, the window's own text) on five stand-ins of this test's own - an id no token has, the flags and
          * the actions as given, nothing written; and movement.mjs `chargeForCrossing`'s card for a cost "burst". Under a
          * darkening that takes the Free Move away (`overflowBlocksFreeMove`) the first stand-in reads the next price, as a
@@ -31455,7 +31455,7 @@ const INVARIANTS = [
         /*
          * E41 C1b, 02.11.2026; E41-04, audit S02-65. Four numbers each written twice: `BROKEN_ITEMS.thresholds` and
          * `.critical`, `INDIRECT_MURDER.hideTraces`' rows again ("verbatim"); `OVERFLOW.effects.darkness.freeBecomes: 2` and
-         * overflow.mjs `overflowCrossings`' `?? 2`, `ECLIPSE_MOVES` again; action-rolls.mjs `sabotageRepairScale`'s 18,
+         * overflow.mjs `overflowCrossings`' `?? 2`, `ECLIPSE_MOVES` again; action-project.mjs `sabotageRepairScale`'s 18,
          * `ACTIONS.sabotage.thresholds`' complex row again; rest.mjs `restVariants`' `kind === "long" ? 2 : 1`, `REST`'s
          * `actionCost` again. Read: the identities; `overflowCrossings` called with the darkening running - this
          * browser's `game.settings.get` answers a clock and an Overflow stamp of its own for the length of one
@@ -31528,7 +31528,7 @@ const INVARIANTS = [
             + "a critical], sabotageRepairScale's numeric literals]; rest: [restVariants reads REST[kind].actionCost, counts 2 : 1 itself, long, "
             + "short]; traceWrong: category/role pairs leavesTraceFor answers otherwise than the parent's rule}");
     }],
-    ["R1234 - a draw is a list of steps (E41 C1c, E41-07; audit S17-29): tables.mjs `drawItem` runs `DRAW_STEPS` - the room's tables by name, the room's every table shuffled, the GM's tier pools, the built-in pool, a spare category - in order, each answering through `resultFrom`, on the draw's `rng` and `tables`; on a shim of the tables and a fixed sequence each road takes the parent's steps and answers what the parent's `drawItem` answered with `Math.random` on the same sequence", async () => {
+    ["R1234 - a draw is a list of steps (E41 C1c, E41-07; audit S17-29): tables-pools.mjs `drawItem` runs `DRAW_STEPS` - the room's tables by name, the room's every table shuffled, the GM's tier pools, the built-in pool, a spare category - in order, each answering through `resultFrom`, on the draw's `rng` and `tables`; on a shim of the tables and a fixed sequence each road takes the parent's steps and answers what the parent's `drawItem` answered with `Math.random` on the same sequence", async () => {
         /*
          * E41 C1c, 02.11.2026; E41-07, audit S17-29. `drawItem` was one function: its steps in line, the answer built
          * inline on five roads, `Math.random` reached directly (two `sort(() => Math.random() - 0.5)` and `randomItem`),
@@ -31538,7 +31538,7 @@ const INVARIANTS = [
          *
          * Read on a shim, nothing written and nothing of this browser's replaced: each road's own tables (a stand-in
          * collection with `getName`, `contents` and an iterator; tables whose `draw` answers a fixed result, or throws),
-         * a stand-in scene whose one room points at its tables (vault.mjs `roomTable`, reached through `tableForRoom`),
+         * a stand-in scene whose one room points at its tables (vault-store.mjs `roomTable`, reached through `tableForRoom`),
          * and a fresh fixed sequence for `rng`. For each road: the steps run (`trail`) and the answer's name, category,
          * tier, goal, roles, substitute and fromTable. The parent's answers, quoted below, are what the parent's
          * `drawItem` answered on the same shims with `game.tables` set to each road's collection and `Math.random` to the

@@ -2537,7 +2537,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         M.wireCallActions(body, message);
         globalThis.__clButton = body.querySelector('[data-drpg-call="decline"]');
         return Boolean(globalThis.__clButton);`, { timeout: 20000 });
-    /* What the GM who clicked is told: a refusal card (gm-bridge.mjs `sayRefusedHere`, a showPopup of kind error since
+    /* What the GM who clicked is told: a refusal card (call-gm.mjs `sayRefusedHere`, a showPopup of kind error since
        E18 fix e1-G3, which left this read on the toasts alone and CL2/CL3 red at 89095263), or a toast where no card could
        be shown - each in the order shown. */
     const clickCL = client => client.eval(`const told = [], real = ui.notifications.warn;

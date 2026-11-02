@@ -1386,7 +1386,7 @@ async function restoreTrialBlock(user, row) {
 }
 
 /**
- * The trial's voices settled to the clock, on the primary GM, in one step of the record's key (vote.mjs
+ * The trial's voices settled to the clock, on the primary GM, in one step of the record's key (trial-progress.mjs
  * `TRIAL_PROGRESS_KEY`): in a Class Trial the list written and every listed player blocked, a player no longer listed
  * (a new Monocub) given back; outside one the list taken out of the record and every block the trial wrote given back.
  * `release` gives everything back whatever the clock says (the season's reset, before its cut empties the store).
@@ -1416,7 +1416,7 @@ export async function settleTrialVoices({ release = false } = {}) {
             if (own !== null && own !== clock.chapter) {
                 if (JSON.stringify(stored.mutedDead ?? null) !== JSON.stringify(list)) await vote.writeTrialProgressInStep({ mutedDead: list }, { chapter: own });
             } else if (JSON.stringify(now) !== JSON.stringify(list)) {
-                // The trial's size counted again with the first list, which the reset could not know (fix p1-G2; vote.mjs `trialSizeNow`).
+                // The trial's size counted again with the first list, which the reset could not know (fix p1-G2; trial-progress.mjs `trialSizeNow`).
                 await vote.writeTrialProgressInStep({ mutedDead: list, ...(now === null ? { trialSize: vote.trialSizeNow(list) } : {}) });
             }
         } else if (Object.hasOwn(stored, "mutedDead")) {

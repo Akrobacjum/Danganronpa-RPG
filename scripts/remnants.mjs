@@ -223,13 +223,13 @@ export async function dropRemnant(actor, {
     itemIdentity = null,
     /*
      * The project a Work trace was left by. Kept nowhere: a player's packet carries it so the
-     * GM can judge the tie to the crime on its own record (gm-bridge.mjs `handleRemnant`,
+     * GM can judge the tie to the crime on its own record (bridge-runs-records.mjs `handleRemnant`,
      * E32+E07 fix r2-G3), since the packet's own `tiedToCrime` is never taken.
      */
     projectId = null,
     /*
      * The message of the roll this trace is that roll's own trace of - a Search's, a Sabotage's,
-     * a Dynamic action's - so the GM writes it on that roll's row and no other (gm-bridge.mjs
+     * a Dynamic action's - so the GM writes it on that roll's row and no other (bridge-runs-records.mjs
      * `handleRemnant`, E08+E28 fix r1-G1). Null for a trace no roll's replay owns (a discarded
      * item's, an indirect murder's covering, a GM's own). Travels beside the packet's data.
      */
@@ -1594,7 +1594,7 @@ async function followIncidentKind(tokenDoc, type) {
  * round-2 reviews' cor N5 and sec S2-4). C13 put the Faint box and `followIncidentKind` in
  * `setRemnantFlags` alone, and `retuneRemnant` writes the kind too - a reshape (cleanup.mjs
  * `reshapeTrace`), its Reroll's undo (`undoLastCleanup`) and a GM's edit over the bridge
- * (gm-bridge.mjs `handleRemnantEdit`, which passes a GM sender every kind CLEANUP.transform lists,
+ * (bridge-runs-records.mjs `handleRemnantEdit`, which passes a GM sender every kind CLEANUP.transform lists,
  * "faint" and "incident" among them). So a kind retuned to Faint Remnant was not Faint, and an
  * uncopied Incident Remnant the killer reshaped stayed drawn for the cast as theirs (tier 2 "a
  * trace retuned to Faint Remnant is Faint ..." and "an uncopied Incident Remnant reshaped and

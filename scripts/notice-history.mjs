@@ -211,7 +211,7 @@ const CELL_SPAN = /^[1-9]\d{0,2}$/;
  * 68 at E70 part 2 (28.10.2026; CI at fffe49e6 counted them, the list did not): the Closing's decision line on an
  * Objection's card (C8) and the Present window's "with the Analyze result" checkbox label (C10), in trial.mjs;
  * 69 at E51 C1 (30.10.2026, counted in the list): the crisis menu's struck row of an action the incident denies
- * (action-rolls.mjs `chooseVariant`, `drpg-row-denied`);
+ * (action-menus.mjs `chooseVariant`, `drpg-row-denied`);
  * R294 runs the same grep and fails on a difference, so a class a card body gains is either added here or
  * drawn bare in the window.
  */
@@ -1219,7 +1219,7 @@ function fromGm(userId) {
 
 /**
  * A chat card changed after it was shown (E81 C5; the A7 design's P5-1): a Reroll's mark on the card it
- * replaced (`rerolled`, reroll.mjs `markReplacedCard`) or a GM's ruling on a call (`settled`, gm-bridge.mjs
+ * replaced (`rerolled`, reroll.mjs `markReplacedCard`) or a GM's ruling on a call (`settled`, call-gm.mjs
  * `settleCall`). A mark is one of a closed list; what the card showed is not drawn again from it.
  * Two roads, one handler each. A card that is not private carries its mark on its document, written by a
  * GM's update: `noticeCardChanged`, on `updateChatMessage`. A private card's mark travels in the meta that

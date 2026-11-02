@@ -554,7 +554,7 @@ export async function searchDraw(room, scene, category, tier, goalKey, actor = n
             identity: plant.drpgItemId,
             // Its way back to the room when it cannot be handed over (`grantDrawn`, E14 part 2 C4).
             back: plant.back ?? null,
-            // And what it is, read off its name as a room table's entry is (tables.mjs `foundAs`, E14 part 2 C3):
+            // And what it is, read off its name as a room table's entry is (tables-pools.mjs `foundAs`, E14 part 2 C3):
             // "Cold tea" planted in an armoury is a Sanity Relief usable on the sheet, as the same tea drawn there.
             ...foundAs(plant.name, { category, tier, goal: goalKey ?? null })
         }

@@ -150,7 +150,7 @@ export class SearchTokens {
      * `takePlant` takes the plant out of the store before anybody knows whether it fits: a student
      * with full hands and no stash found the plant, `grantItem` refused it, and the plant, its row
      * in the trap's ledger and the killer's project went with it, the GMs told nothing until
-     * `diagnoseTraps`. action-rolls.mjs `grantDrawn` hands a refused plant here: on a GM it goes
+     * `diagnoseTraps`. action-search.mjs `grantDrawn` hands a refused plant here: on a GM it goes
      * back at once (`putPlantBack`), on a player's client the GM is asked as a late plant is
      * (`ACTION_RETURN_PLANT`, judged by `guardPlantReturn`: only the plant handed to that user, once,
      * inside `PLANT_WINDOW_MS`). Answers whether it went back, or was asked to.
@@ -265,7 +265,7 @@ export class SearchTokens {
      * Spend one token and say why not: `{ ok, why }`, `why` one of "sealed", "empty", "unanswered", "refused", null
      * when spent (E17 C4, 26.10.2026; audit S07-20). The GM's refusal of a sealed room came back to the player as a
      * bare false, read as an unanswered request ("The search was not counted."); the reply names it now
-     * (`runSpend`) and the Search says the seal (action-rolls.mjs `unclaimedOutcome`).
+     * (`runSpend`) and the Search says the seal (action-search.mjs `unclaimedOutcome`).
      */
     static async claim(roomName, sceneId, { actorId = null, onPrimary = false } = {}) {
         if (!roomName) return { ok: false, why: "empty" };
@@ -664,7 +664,7 @@ async function runSpend(payload, sender, ctx) {
 /*
  * A SEARCH WHOSE TOKEN WAS REFUSED FINDS NOTHING (E29 fix r2-H9, 06.10.2026; review round 2 cor m3).
  * The searcher's browser ends a Search whose token this GM refused - a room picked clean, or sealed -
- * without a find (action-rolls.mjs `searchUnclaimed`), but the GMs' record of its roll stayed as the
+ * without a find (action-search.mjs `searchUnclaimed`), but the GMs' record of its roll stayed as the
  * draw wrote it, and an item a player's console created named after that record stood as the Search's
  * find (sheet-audit.mjs `searchFind`; red at 2f2747d, the tier-2 test "a Search whose token the GM
  * refused"). The refusal settles the record's "search" now, as a stash's theft does (bridge-guards.mjs
@@ -681,7 +681,7 @@ async function runSpend(payload, sender, ctx) {
  * what the refusal above closes. A spend that succeeds marks the same record - the newest Search
  * of the character drawn for the sender (`SearchTokens.markSpent`) - and the find's judge asks for
  * that mark. A player's Search draws its roll, then spends, and only then draws the find
- * (action-rolls.mjs `performSearch`, and `grantDrawn`, the one road that names a record): the
+ * (action-search.mjs `performSearch`, and `grantDrawn`, the one road that names a record): the
  * Daily Life day of 40-flow flags its find when the spend marks nothing. The rest by reading, not
  * measured: a plant is handed only after a spend (`runTakePlant`); a Reroll keeps the record and
  * its mark, and grants as `reroll`; a spend that reaches this GM before its roll's record does
@@ -864,7 +864,7 @@ export const SEARCH_ACTIONS = table({
         run: runTakePlant,
         answer: "reply", timeoutMs: TIMING.plantRequestMs,
         claims: { sceneId: guardSearchRoom, actorId: guardSearchRoom,
-            rollId: "written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and a Search" }
+            rollId: "written on only by noteFactOfRoll (action-pipeline.mjs): the sender's own row of that message, its character and a Search" }
     },
     [ACTION_RETURN_PLANT]: {
         label: "DRPG.Bridge.what.searchTokens.returnPlant",
@@ -884,7 +884,7 @@ export const SEARCH_ACTIONS = table({
     }
 });
 
-/** Ask the primary GM for a search action as SEARCH_ACTIONS says (`ask` in gm-bridge.mjs is the same); both clocks are its one. */
+/** Ask the primary GM for a search action as SEARCH_ACTIONS says (`ask` in bridge-table.mjs is the same); both clocks are its one. */
 function askSearch(action, payload, opts = {}) {
     const decl = SEARCH_ACTIONS[action];
     return bridgeRequest(action, payload, {

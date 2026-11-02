@@ -57,7 +57,7 @@
  * told that the GM was waiting a little longer - where a round that goes on tells nothing: to an outsider, a sign that
  * something holds the clock. The primary writes a barred "go" as "go" now - the same record, the same packet, nothing
  * told on a player's page - and answers it `barred`, so the caller moves nothing and its GM alone reads the line. What
- * the outsider sees of the clock is the HUD's, frozen for the incident (hud.mjs `clockForDisplay`, incident-store.mjs
+ * the outsider sees of the clock is the HUD's, frozen for the incident (hud-elapsed.mjs `clockForDisplay`, incident-store.mjs
  * `clockHiddenHere`), so a "go" that moves nothing reads there as any "go" of the incident. In a Class Trial nobody's
  * HUD is frozen, and the trial is the table's to see. Tier 2 E37-T9 (a player's page posed on the GM's).
  *

@@ -18,8 +18,10 @@
  * that `node tools/moved-only.mjs` proves line by line. gm-bridge.mjs
  * re-exports the ten names of this file it exported, so every importer
  * still imports gm-bridge.mjs; fifteen more are exported now because the
- * bridge's table, runs and asks, which stay in gm-bridge.mjs, read them, and
- * gm-bridge.mjs does not re-export those. Nothing here imports gm-bridge.mjs
+ * bridge's table, runs and asks read them (in gm-bridge.mjs at C5; in
+ * bridge-table.mjs, the two runs files and bridge-asks.mjs since C5a and C5b),
+ * and gm-bridge.mjs does not re-export those. C5a added the ask cards' four
+ * primary-side senders, three of them exported for the runs and the asks. Nothing here imports gm-bridge.mjs
  * (the facade rule, .claude/rules/code.md). `CALL_GM_WHAT` stands above the
  * first function so that no function's cut runs on into it (the bridge's
  * crawl reads `receivedOnPrimary`'s, which it followed in gm-bridge.mjs).
@@ -836,7 +838,7 @@ export async function callGm(actor, {
      * "awaiting" line, no `gmAsk`, no sound or popup of a question. Every other card at d90687dc
      * carries buttons or is answered by a reply (`askGm`: Think, Listen and the rest), so is a
      * question; the watched trap's receipt was the one caller (projects.mjs `announceTrapReady`), and since E51 C1 a
-     * Dynamic miss's card is another (action-rolls.mjs `offerDynamicFind`).
+     * Dynamic miss's card is another (action-dynamic.mjs `offerDynamicFind`).
      */
     receipt = false
 } = {}) {

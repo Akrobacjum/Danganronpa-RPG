@@ -414,7 +414,7 @@ export async function appendArmedCall(actor, payload, { by = game.user } = {}) {
  *
  * ON THE ROAD, NAMED `call` (E33 C1b, 06.10.2026; R220's census). This and
  * `spendCallsByNonce` wrote the armed list with a bare `setFlag`/`unsetFlag`, which a
- * roll on a player's browser still makes (roll-dialog.mjs, action-rolls.mjs `throwDice`
+ * roll on a player's browser still makes (roll-dialog.mjs, action-pipeline.mjs `throwDice`
  * when the GM drew nothing); the GMs' audit judges that write by the entries it takes
  * off (sheet-audit.mjs `actorFindings`, `callsOwed`), not by its reason (read on this day), so
  * the name changes no verdict - it says on the row what the write was. No `ref`: no judge reads
@@ -1085,7 +1085,7 @@ async function progressEffect(actor, call, choice, done, { key, kind }) {
          * 25.10.2026; audit S09-06, the owner's D13: "Contribution do pułapki woła ten sam rzut
          * ukrycia"). It added its progress and nothing else, so a killer with witnesses in the room
          * finished the trap with Hope Calls, no Shadow rolled and no trace left. The same roll and
-         * trace as a Work's (action-rolls.mjs `hideProjectTraces`), after the progress and only when
+         * trace as a Work's (action-project.mjs `hideProjectTraces`), after the progress and only when
          * the bar was not refused outright, on the roller's browser as a Work's is - its lines into
          * the Call's receipt, which is plain text. A Hope Call only: a Despair Call (Patronage) is a
          * Monokuma's, bought on a GM's client, and builds nothing in the room. The picker stays

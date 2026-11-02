@@ -227,18 +227,18 @@ const ASKED_BY = "askedBy";
  * (`safeword`): the real card is public and carries it on its document, and in a
  * private card's meta it rang the siren on the GMs' screens without pausing anything
  * (E06 fix r1-G5, 28.09.2026; the round-1 review's m3 - sfx.mjs reads it off the
- * document now as well). Nor what a GM ruled on a card (`ruling`, gm-bridge.mjs
+ * document now as well). Nor what a GM ruled on a card (`ruling`, call-gm.mjs
  * `settleCall`, E32+E07 C11b): the record of a statistic the GM picked is the GM's to write.
  * Nor who asked a GM to post a card (`ASKED_BY`): that is the GM's to say (E08+E28 fix r2-H5).
- * Nor a ruling's or a Reroll's mark on a card (`settled`, gm-bridge.mjs `settleCall`; `rerolled`,
+ * Nor a ruling's or a Reroll's mark on a card (`settled`, call-gm.mjs `settleCall`; `rerolled`,
  * reroll.mjs `markReplacedCard`): both are a GM's to write, and every browser's notice history marks its
  * entry by them (E81 fix r1-G3, 12.10.2026; review round 1's O14 - a player's own card could carry
  * "Ruled on by the GM"). No test or scenario sends either in a player's meta (read 12.10.2026).
- * Nor an ask's mark (`rid`, gm-bridge.mjs `callGm`, E18 C2): the primary takes a card carrying it for the card
+ * Nor an ask's mark (`rid`, call-gm.mjs `callGm`, E18 C2): the primary takes a card carrying it for the card
  * it posted for that ask, and posts none when the player asks again, so a player's card carrying it would
  * stand in for the GMs' (tier 2's "a resent ask finds the card a GM posted for it") - and since fix early-C2-G2
- * it says what that ask was for, which the ask held again is (gm-bridge.mjs `sameAsk`). Nor the mark that a ruling
- * went to its asker (`sentOn`, gm-bridge.mjs `keepRuling`, E18 fix e1-G1): a primary that reloaded ends the card by it.
+ * it says what that ask was for, which the ask held again is (call-gm.mjs `sameAsk`). Nor the mark that a ruling
+ * went to its asker (`sentOn`, call-gm.mjs `keepRuling`, E18 fix e1-G1): a primary that reloaded ends the card by it.
  */
 const GM_META = Object.freeze(["gmPopup", "popupForce", "callCard", "safeword", "ruling", ASKED_BY, "settled", "rerolled", "rid", "sentOn"]);
 
@@ -271,7 +271,7 @@ function splitFlags(flags, veiled) {
  *
  * AND `callCard` ON A RULING NOBODY HAS SETTLED (E06 fix r2-G1, 28.09.2026; review round 2's
  * mn3 = m3). A card with no thread to live in - a trap's alert, a Direct Murder declared in
- * the dark (gm-bridge.mjs `callGm`) - is wired in a GM's chat log only while `cardFlag` finds
+ * the dark (call-gm.mjs `callGm`) - is wired in a GM's chat log only while `cardFlag` finds
  * `callCard`, and no store holds meta for a card that old: a ruling still waiting at the
  * upgrade showed its buttons dead on every GM. The flag says that the GMs were asked, which
  * the card's list of GMs says already. `veil`: the card is being veiled as well (`veilOldCard`),
@@ -316,7 +316,7 @@ export function cardTooLong(content, flags) {
 
 /*
  * THE GMS' PROSE STAYS THEIRS (E06 C7b, 27.09.2026; audit L17, S11-05). A ruling card
- * (gm-bridge.mjs `callGm`) lives in the player's thread and carries the GMs' half of it -
+ * (call-gm.mjs `callGm`) lives in the player's thread and carries the GMs' half of it -
  * the reference table, the critical's reminder (`.drpg-gm-only`) and the ruling's buttons
  * (`.drpg-call-actions`). The messenger took both off its bubbles on a player's screen, but
  * the words went to the player whole: into their browser's store, and into their Chat tab
@@ -335,7 +335,7 @@ const GM_PROSE = ".drpg-gm-only, .drpg-call-actions";
  * GM half has been wrapped in `.drpg-gm-only` since 1.2.50 (9808697, 22.09); an Observe card posted before that
  * carries its "Total 10. Score it against the Observe table ... A failure costs them 2 Sanity." as a bare line,
  * and a player's thread showed it after any update - the audit's screenshot. A player's copy drops such a line,
- * matched by what it says, as gm-bridge.mjs `settleCall` matches the awaiting sentence of cards older than its
+ * matched by what it says, as call-gm.mjs `settleCall` matches the awaiting sentence of cards older than its
  * class: the sentence of `DRPG.Action.observeGm` in this browser's language, its numbers any. A card written in
  * another language than the reader's is not matched (not measured on an old world: the audit's was English).
  */
@@ -413,7 +413,7 @@ export function youOrThem(userIds, { you, them }) {
  * ("Approved by ...", "Nobody answered in time - ask again.") in the primary's language: a player in London read an
  * hour more than they waited for a GM in Warsaw, and a Polish player read English endings at an English GM's table. The
  * card carries what its lines say as data - `data-expires`, the server's milliseconds, and `data-drpg-line`, the key of
- * an ask's end with `data-drpg-name`, the GM who ruled (gm-bridge.mjs `expiresHtml`, `settleCall`) - and each reader's
+ * an ask's end with `data-drpg-name`, the GM who ruled (call-gm.mjs `expiresHtml`, `settleCall`) - and each reader's
  * browser writes them again in its own time zone and language as it draws the card: the chat log (`drawPrivateCard`),
  * the messenger's bubble and its notice (messenger-app.mjs `buildBubble`, `cardPreview`). A line whose key is not one of
  * an ask's ends keeps its words. R852 reads it.
@@ -983,7 +983,7 @@ export function drawPrivateCard(message, element) {
 
 /**
  * What a messenger bubble draws of a card: `contentOf`, or `elsewhereHtml` for a card whose words did not come.
- * Not `contentOf` itself, whose callers rewrite a card from what it reads (gm-bridge.mjs `keepRuling`).
+ * Not `contentOf` itself, whose callers rewrite a card from what it reads (call-gm.mjs `keepRuling`).
  */
 export function shownWordsOf(message) {
     return unfilled.has(message?.id) && wordless(message) ? elsewhereHtml() : contentOf(message);

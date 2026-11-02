@@ -1118,7 +1118,7 @@ export function oldRollReaders(message) {
  * character to every browser that holds the message, and since E06 C5b both
  * are emptied on every roll the module throws (`neutralRollSource`), which
  * would have left all three with nobody. So the subject reaches the GM another
- * way: `throwDice` (action-rolls.mjs) reports `{ messageId, actorId }` in an
+ * way: `throwDice` (action-pipeline.mjs) reports `{ messageId, actorId }` in an
  * addressed request, `roll.subject`, the primary GM keeps it in memory, and
  * `rollSubject` answers from that before it reads the message. The speaker
  * and the source are still read after it, for the rolls the module did not

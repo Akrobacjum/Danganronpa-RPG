@@ -13,7 +13,8 @@
  * re-exports `briefingBlock` and `moveLine`, the two names here it exported
  * before, and nothing here imports it back (the facade rule,
  * .claude/rules/code.md). `briefing` and `tamperThresholdFacts` are exported
- * now because `performAction` and Tamper, which stay there, call them;
+ * now because `performAction` and Tamper (action-tamper.mjs since E41 C4)
+ * call them;
  * action-rolls.mjs does not re-export them. cleanup.mjs is imported statically
  * because `briefingFacts` is synchronous (R8 renders it for every action);
  * cleanup.mjs reaches the action family only through `import()` of

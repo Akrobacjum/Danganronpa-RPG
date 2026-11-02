@@ -1083,10 +1083,10 @@ function roomsReportHtml(rows) {
 }
 
 /**
- * Each Bedroom of `scenes` whose owner has no stash in it given an open one (vault.mjs `bedroomStashGaps`,
+ * Each Bedroom of `scenes` whose owner has no stash in it given an open one (vault-store.mjs `bedroomStashGaps`,
  * `ensureBedroomStash`), and the GMs told which, by scene and owner; answers the rows told, `{ scene, rooms }`, none
  * when nothing was written. The clause `bedroomStashes` over every scene once a world, and since E89 fix FG2 (finding
- * G7) vault.mjs `bedroomsOfNewScene` over a scene created after it ran - an import or a copy. The caller asks whether
+ * G7) vault-store.mjs `bedroomsOfNewScene` over a scene created after it ran - an import or a copy. The caller asks whether
  * this browser is the primary.
  */
 export async function seedBedroomStashes(scenes) {

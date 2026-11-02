@@ -1312,7 +1312,7 @@ async function playerRollBookmark(player, actor, actionKey, context = {}, { reco
  * the Calls armed on the character are the window's and not shielded from it (action-rolls.mjs
  * `shieldCalls`); `experiences` are the chips its player clicks (`neutralRoll`). `situational` (E33 C3) is the
  * die the action hands its roll - a room that favours the category, a tool in hand, the Night - given to the
- * roll by name (action-rolls.mjs `rollTrait`), so a window puts it on as the action's would. Answers the verdict,
+ * roll by name (action-pipeline.mjs `rollTrait`), so a window puts it on as the action's would. Answers the verdict,
  * what was sent back, the answer's value, the GM's message and record, and `putBack`, which deletes
  * both messages and the record, puts Daggerheart's Fear back as found and the payment's actions as
  * they were. Ask the world's rows first - it writes.
@@ -1567,7 +1567,7 @@ async function spentSearch(player, actor, fields) {
 
 /**
  * A PLAYER'S PROJECT PACKETS, JUDGED AS THE BRIDGE JUDGES THEM (E08+E28 C16, 04.10.2026). Progress
- * and a Sabotage are read off the GMs' record of the roll their packet names (gm-bridge.mjs
+ * and a Sabotage are read off the GMs' record of the roll their packet names (bridge-runs-records.mjs
  * `progressOf`, `repairOf`). `project(room)` makes a public project of 12 in `room`, or in none;
  * `rolled(total, actionKey)` throws a roll of `actor`'s and gives it the GMs' record as `player`'s
  * (`recordFor`), answering its message, which is what a packet names; `ask(action, fields)` judges
@@ -1620,10 +1620,10 @@ async function projectPackets(player, actor) {
  * `projectPackets(player, actor)` and `where` the room `actor` stands in (`playerInRoom`). A roll
  * of `actor`'s kept on the GMs' row as `player`'s Sabotage of `target` (`playerRollBookmark`), the
  * GMs' record of it at 13 (`recordFor`), the Sabotage's packet naming it, then the trace's packet
- * in the shape the roller's browser sends (action-rolls.mjs `dropSabotageTrace`: tied when the
+ * in the shape the roller's browser sends (action-project.mjs `dropSabotageTrace`: tied when the
  * project is an indirect murder), `data` changed in it. `early` takes the row away before the
  * Sabotage and keeps it again after the trace, as a `roll.bookmark` slower than both leaves it (the
- * facts are parked, action-rolls.mjs `noteFactOfRoll`). `row` writes the Sabotage's fact on the GMs'
+ * facts are parked, action-pipeline.mjs `noteFactOfRoll`). `row` writes the Sabotage's fact on the GMs'
  * row of another roll instead of sending the packet (`{ actor }`: a Sabotage that character
  * made, its row kept in `player`'s name), and the trace names that roll. Answers the tie the GMs'
  * ledger holds for the trace left (true, false or null), "none" when it left none, or the refusal
@@ -1633,7 +1633,7 @@ async function projectPackets(player, actor) {
  * murders in `where`'s room, seen by `player` (a trap is seen only by its builder's players until it is
  * shared, and a Sabotage of one the sender cannot see is refused, `cannotSee` - measured 08.10.2026, the
  * bystander's and the proposer's), one per Sabotage, as a frozen project freezes nothing more
- * (gm-bridge.mjs `handleSabotage`), and deletes them with the repairs the Sabotages made.
+ * (bridge-runs-records.mjs `handleSabotage`), and deletes them with the repairs the Sabotages made.
  */
 async function sabotageTraceTie(F, player, actor, where, target, { data = {}, early = false, row = null, refused = false } = {}) {
     const { remnantData } = await import("./remnants.mjs");
@@ -1830,7 +1830,7 @@ async function playerInRoom() {
  * player's character in a room with no armed trap (a hunt would spring it, and nothing here puts a trap back), the
  * concealed stashes of two other characters on the room's region, in that order. Answers the player, the character,
  * where it stands, the two owners, `opened()` - how many of the two it has found - `key(owner)` - the note a find of
- * that owner's stash writes (vault.mjs `foundKey`) - and `putBack`, which puts the region's flags and the character's
+ * that owner's stash writes (vault-store.mjs `foundKey`) - and `putBack`, which puts the region's flags and the character's
  * found list back as they were. Ask the world's rows first: it writes.
  */
 async function hiddenStashesHere() {
@@ -2279,7 +2279,7 @@ async function rollWindow(actor, config = {}) {
 
 /**
  * THE TILE IN A FIGHT, PRESSED (E32+E07 C15, 03.10.2026). Direct Murder at the incident stage
- * opens the crisis menu (action-rolls.mjs `openCrisisMenu`); here on this GM's browser, with
+ * opens the crisis menu (action-murder.mjs `openCrisisMenu`); here on this GM's browser, with
  * every window answered: the menu by `choose(rows)` - the value of the row to check before its
  * default button is pressed, or null for none, which closes it - the GM's statistic window by
  * `pick(offered)`, any other closed; a `DialogV2.confirm` is answered yes, as the harness's
@@ -2438,7 +2438,7 @@ async function withStashIn(room, owner, run) {
 
 /**
  * The GMs' memory of `thief`'s free reaches into stashes, forgotten (E14 part 1 C4): a stash is rifled once a time of
- * day per thief (vault.mjs `stealFromVault`, gm-stores.mjs `rifleStore`; D15), so a test of a rifle's mechanics that
+ * day per thief (stash-reach.mjs `stealFromVault`, gm-stores.mjs `rifleStore`; D15), so a test of a rifle's mechanics that
  * reaches into one stash more than once in a time of day forgets the reach before the next. Tier 2's restore puts
  * the store's setting back as it found it either way.
  */
@@ -2585,7 +2585,7 @@ async function withVerdictOpen(run) {
 }
 
 /**
- * A verdict given in a Class Trial, then the trial's end that carries its sentence out (E70 C4: vote.mjs
+ * A verdict given in a Class Trial, then the trial's end that carries its sentence out (E70 C4: trial-progress.mjs
  * `executeAtExit`, as End the trial asks it), over `withVerdictOpen`'s record. The clock is written raw around both,
  * so no phase write runs its roads (the floor, the hall), and put back. Answers what `run` answered.
  */
@@ -2960,7 +2960,7 @@ async function c3Effect(actor, name, changes) {
     return { off: gone, undo: gone };
 }
 
-/* A GM's statistic card for the roll (gm-bridge.mjs `settleCall`), as the pick a GM makes before it is thrown. */
+/* A GM's statistic card for the roll (call-gm.mjs `settleCall`), as the pick a GM makes before it is thrown. */
 async function c3Pick(actor, kind, key, trait, variant = null) {
     const { whisperToGms } = await import("./utils.mjs");
     const { settleCall } = await import("./gm-bridge.mjs");
@@ -4365,7 +4365,7 @@ const SCENARIOS = [
          * single-use, broken after every roll it was the tool or weapon of, whatever the roll. Until C8 it wore as a
          * tier 1 tool does, only on a Despair that was no critical, so a sack of nothing held ready through a run of
          * Hope rolls lasted as long as a real tool. Driven through use-items.mjs `breakOnDespair` with each result, as
-         * the roads that wear a tool call it after their dice (action-rolls.mjs `workOnProject` and `performSabotage`,
+         * the roads that wear a tool call it after their dice (action-project.mjs `workOnProject` and `performSabotage`,
          * cleanup.mjs `attemptCleanup` and `attemptStageSix`; the swing has its own test below), on three tier 0
          * Tools and one tier 1 Tool readied by a student. Read: what each call answered (the name of what broke),
          * whether each tier 0 Tool is broken and out of the hand, the tier 1 Tool's broken and wear after a Hope and
@@ -6802,7 +6802,7 @@ const SCENARIOS = [
          * its traces after the progress is added, and the whole of the trace's drop sat under
          * `if (trace)`: a closed window left none, so a trap could be built to the end without
          * one. A closed window is the roll not made now - the worst band's trace ("obvious") and
-         * a line on the card (action-rolls.mjs `hideProjectTraces`). A student stood alone in a
+         * a line on the card (action-project.mjs `hideProjectTraces`). A student stood alone in a
          * room (no concealment roll) works, free, on an indirect murder of their own made there
          * with a statistic; the cover roll's window is closed (`rollTrait` answers null for it, as
          * a closed window does). Read: the throws, the traces the project left, and the card's
@@ -7781,7 +7781,7 @@ const SCENARIOS = [
         /*
          * E08+E28 C12a, 04.10.2026; the plan's 3.3. The GM that draws a player's roll settles it on
          * its own client - `dualityUpdate` and the costs, through one resource map - and the
-         * roller's browser commits nothing for it (action-rolls.mjs `commitResources`). Two draws,
+         * roller's browser commits nothing for it (action-pipeline.mjs `commitResources`). Two draws,
          * one the harness throws with Hope and one with Fear: the character's Hope written once
          * by this GM where the record says Hope (or a critical), never otherwise, and Daggerheart's
          * Fear moved once where it says Fear. At a table the faces are random and the two readings
@@ -8298,13 +8298,13 @@ const SCENARIOS = [
          * E08+E28 C12b, 04.10.2026; the owner's rule of 28.09.2026 (E28's amend): the roll's
          * statistic is held to the GM's pick, or the player's own after a Resolve. A roll whose
          * window says a GM picked its statistic is held to the newest pick card a GM settled for
-         * that character (gm-bridge.mjs `settleCall`'s `ruling`), which one roll uses and no other.
+         * that character (call-gm.mjs `settleCall`'s `ruling`), which one roll uses and no other.
          * Three crisis draws of a player's character, each saying a GM picked: after a card picking
          * Hand, a roll of Hand; after a card picking Body, a roll of Eye; then a roll of Eye with no
          * new card - the newest is used already. And a Search, which rolls Eye, rolled with Hand.
          * Read: each record's flags and the statistic it expected. Until C12b nothing was expected.
          * The crisis packets no longer say a GM picked (E29 fix r2-H1, 05.10.2026): the window's mark
-         * (action-rolls.mjs `TRAIT_BY_GM`) is not an option a packet may carry (roll-draw.mjs
+         * (action-pipeline.mjs `TRAIT_BY_GM`) is not an option a packet may carry (roll-draw.mjs
          * `DRAWN_OPTIONS`) and one that does is refused; the GM has not read it since fix r2-H8.
          * IN A FIGHT, AT THE ROLLER'S OWN TURNS (fix r2-H1, 05.10.2026). A crisis roll is drawn only
          * as its crisis action could be taken - the character's turn in a running incident, for a
@@ -8662,7 +8662,7 @@ const SCENARIOS = [
          * naming that one (B2); after a GM's card for the other project, naming it (m1); after a GM's
          * card for this one naming Eye, which a project does not list (m1); after a GM's card for this
          * one naming the claim's (the control: held to it); and with no new card, the newest used (M2).
-         * Then the difficulty a GM set on a Dynamic action's card (gm-bridge.mjs `dynamicRulingOf`): a
+         * Then the difficulty a GM set on a Dynamic action's card (bridge-runs-records.mjs `dynamicRulingOf`): a
          * GM's card, then a newer one the player wrote. Read: each draw's statistic and pick flags, the
          * statistic thrown and whose card held it; the difficulty read. At a4a7f25's runtime
          * (e29run/r2h2red), the seeded character's highest Hand and lowest Body: the player's card and
@@ -10154,7 +10154,7 @@ const SCENARIOS = [
          * the advantage die set aside, drawn at random, or one more disadvantage die - was drawn in
          * the searcher's browser and was in no message. The GM draws it with the dice now, where the
          * room it sees the searcher in holds a hidden stash, and the searcher takes that step and
-         * draws none (action-rolls.mjs `stashStepOf`). A player's character stood alone in a room
+         * draws none (action-search.mjs `stashStepOf`). A player's character stood alone in a room
          * where another student keeps a hidden stash with one thing in it, its Search's packet
          * naming the stash; the GM's randomiser scripted to give a 6 for the extra die, then the
          * searcher's to give a 1. Read: the step the GM answered and recorded, and the step the
@@ -10556,7 +10556,7 @@ const SCENARIOS = [
          * for a notice, a ruling's buttons and the safeword's siren, name the GM as the one who asked
          * and put it in a thread that is not the player's. Read: the verdict and the answer, the
          * document (author, speaker, whisper list, module flags, rolls), what this GM holds of it
-         * (words, meta), its writer (`cardWriter`) and the sound it asks of the GMs (sfx.mjs
+         * (words, meta), its writer (`cardWriter`) and the sound it asks of the GMs (sfx-play.mjs
          * `soundFromMessage`, which a GM's card may ring and a player's may not). Then three packets that must be refused with nothing posted: a card speaking
          * as a character the player does not own, one read by a user who is not of this world, one
          * heavier than a player's words may be. That a player's browser asks at all is
@@ -10623,7 +10623,7 @@ const SCENARIOS = [
          * could neither retune nor remove it (`remnantRef` -> null). The GMs' bookmark keeps
          * it now: the player's roll is bookmarked, then their Search's trace is asked for as
          * the listener judges it - naming its roll, as the Search names it since fix r1-G1
-         * (action-rolls.mjs `leaveSearchTrace`). Read: the bookmark's verdict, the placement's,
+         * (action-search.mjs `leaveSearchTrace`). Read: the bookmark's verdict, the placement's,
          * the tokens the scene gained, and the row's trace, scene and roller. Since E08+E28 C15 a
          * Search's trace takes its band from the GMs' record of the roll it names, so the suite's
          * roll is given one (`recordFor`), on 20 - the band the packet asks, "evident".
@@ -10654,12 +10654,12 @@ const SCENARIOS = [
     ["a player's Sabotage judged before its roll's row is kept still writes its freeze on that row", async () => {
         /*
          * E08+E28 fix r1-G1, 04.10.2026; the round-1 review's B1. A player's Sabotage is frozen by
-         * the GM's handler (gm-bridge.mjs `handleSabotage`), which wrote the project and its repair
+         * the GM's handler (bridge-runs-records.mjs `handleSabotage`), which wrote the project and its repair
          * on the sender's newest Sabotage row as the packet arrived. `roll.bookmark` leaves first,
          * but its run ended after the Sabotage's in 5 of 5 of the review's runs at f941051 (2 of 3
          * of its 97 at d20fadb): no row, or the previous Sabotage's, and the Reroll into a miss left
          * the project frozen. The packet names its roll now and the fact waits for that roll's row
-         * (action-rolls.mjs `noteFactOfRoll`). Measured here in that order, made certain: a roll of
+         * (action-pipeline.mjs `noteFactOfRoll`). Measured here in that order, made certain: a roll of
          * the player's character in their name, its `roll.bookmark` judged with the store's
          * hydration held for that run alone - not the store's `patch`, which 97b wrapped: the parked
          * facts are taken in the step before the patch, and a patch held back would open a window
@@ -10692,7 +10692,7 @@ const SCENARIOS = [
             ({ message } = await neutralRoll(actor, { faces: { hope: 9, fear: 4 } }));
             must(message, `no roll of ${actor.name} was thrown - this would measure nothing`);
             await message.update({ author: player.id });
-            // The GMs' record of it (E08+E28 C16: a Sabotage's repair is read off the record, gm-bridge.mjs `repairOf`).
+            // The GMs' record of it (E08+E28 C16: a Sabotage's repair is read off the record, bridge-runs-records.mjs `repairOf`).
             record = await recordFor(message, player, actor, "sabotage", { total: 13 });
             const ask = packet => G.judge(BRIDGE_ACTIONS, packet, player.id, { send: () => {} });
             const gate = new Promise(resolve => { release = resolve; });
@@ -10784,7 +10784,7 @@ const SCENARIOS = [
          * it started (`rollOfNow`), and a Strike's packet leaves right after its roll's
          * `roll.bookmark`: a row not kept yet took none, and the Reroll then settled "the dice are
          * the whole result" while the first throw's damage and turn stood. The packet names its roll
-         * now and the fact waits for that roll's row (action-rolls.mjs `rollOfFact`). At the killer's
+         * now and the fact waits for that roll's row (action-pipeline.mjs `rollOfFact`). At the killer's
          * turn (`swingFixture`) the killer's player's roll is thrown with its row held back
          * (`heldRollBookmark`), a critical Strike on Sanity judged meanwhile as the listener judges
          * it, then the row let go. Read: the two verdicts, whether the row existed when the Strike
@@ -10817,7 +10817,7 @@ const SCENARIOS = [
         /*
          * E08+E28 fix r1-G2, 04.10.2026; the round-1 review's B1, its rest. The bullet an Analyze
          * read went on the row `resolveAnalyze` found as it started (`rollOfNow`). The packet names
-         * its roll now (action-rolls.mjs `rollOfFact`). A player's character holds a fresh bullet;
+         * its roll now (action-pipeline.mjs `rollOfFact`). A player's character holds a fresh bullet;
          * its Analyze roll is thrown with the row held back (`heldRollBookmark`), the Analyze judged
          * meanwhile as the listener judges it, then the row let go. Read: the verdicts, whether the
          * row existed when the Analyze was scored (it must not), and the row's action and bullet.
@@ -10860,7 +10860,7 @@ const SCENARIOS = [
          * E08+E28 fix r1-G2, 04.10.2026; the round-1 review's B1, its rest. The attempt a clean-up
          * made went on the row `resolveCleanup` found as it started (`rollOfNow`), and a Reroll of an
          * attempt the row does not name finds nothing to take back. The packet names its roll now
-         * (action-rolls.mjs `rollOfFact`). A trace and a Truth Bullet copy of it (`cleanupFixture`);
+         * (action-pipeline.mjs `rollOfFact`). A trace and a Truth Bullet copy of it (`cleanupFixture`);
          * the player's character's clean-up roll thrown with its row held back (`heldRollBookmark`),
          * the erase scored meanwhile as the bridge's handler scores it - the roll the packet named
          * and its sender - then the row let go. Read: the verdict, the erase, whether the row existed
@@ -10896,7 +10896,7 @@ const SCENARIOS = [
          * E08+E28 fix r1-G2, 04.10.2026; the round-1 review's B1, its rest. An Observe's key and
          * result went on the row `scoreObserve` found as it started (`rollOfNow`); a row without them
          * refuses the Reroll (C6a), so an Observe whose row came late could never be rerolled. The
-         * resolve names its roll now (action-rolls.mjs `rollOfFact`). A trace where the player's
+         * resolve names its roll now (action-pipeline.mjs `rollOfFact`). A trace where the player's
          * character stands, the Observe aimed at it, the roll thrown with its row held back
          * (`heldRollBookmark`), the resolve run as the bridge's handler runs it - the roll the packet
          * named and its sender - with any window of the GM's closed at once, then the row let go.
@@ -13992,7 +13992,7 @@ const SCENARIOS = [
             const windows = await withFormAnswered(root => {
                 const row = root.querySelector('input[name="variant"][value="frisk"]');
                 if (row) row.checked = true;
-                // Openly is the checked way since C3 (action-rolls.mjs `friskModes`): this test is the unseen one's.
+                // Openly is the checked way since C3 (palm.mjs `friskModes`): this test is the unseen one's.
                 const unseen = root.querySelector('input[name="friskMode"][value="unseen"]');
                 if (unseen) unseen.checked = true;
                 const who = root.querySelector("select[name=who]");
@@ -14878,7 +14878,7 @@ const SCENARIOS = [
          * to none, and a roll of it on another was flagged by nobody (roll-draw.mjs `TRAIT_SOURCES`,
          * its `fixed` row). Every definition of config that lists one statistic - an action of the
          * table, a crisis action, a clean-up's step - and every part of an action that names one, each
-         * told as the module tells it: a Palm's hand as "steal" and its cover as "palm" (action-rolls.mjs
+         * told as the module tells it: a Palm's hand as "steal" and its cover as "palm" (palm.mjs
          * `performPalm`), Tamper through the clean-up's door (cleanup.mjs `cleanupTrait`), a crisis
          * action and a step in the packet's context. A part this test does not know how the module
          * tells is read as told for no action, and fails here. Read: what the GM expects of a roll of
@@ -15029,7 +15029,7 @@ const SCENARIOS = [
          * E08+E28 C15, 04.10.2026; audit S10-06. `vault.steal` took `viaSearch` and `clumsy` on the
          * sender's word: a packet saying a Search had paid for a concealed stash opened it, and one
          * saying the hand was steady kept the owner from being told. A packet that says `viaSearch`
-         * names the Search's roll now, and both are read off the GMs' record of it (gm-bridge.mjs
+         * names the Search's roll now, and both are read off the GMs' record of it (bridge-runs-acts.mjs
          * `searchTheftOf`). The room a player's character stands in holds a concealed stash of
          * another character's with an item in it (region and item put back after); the theft judged
          * as the bridge judges that player's packet saying `viaSearch` and a steady hand: naming no
@@ -15267,7 +15267,7 @@ const SCENARIOS = [
     ["a bedroom key a player writes on an item is put back, and a hand-over or a plant reads the key the GMs hold, not a write of the player's their put-back has not undone", async () => {
         /*
          * E29 fix r2-H19, 06.10.2026; found by fix r2-H17. The room a bedroom key opens is a flag on the key (config.mjs
-         * `BEDROOM_KEY_FLAG`) only a GM writes - vault.mjs `grantBedroomKey`, and the copy roads carry it (inventory.mjs
+         * `BEDROOM_KEY_FLAG`) only a GM writes - vault-store.mjs `grantBedroomKey`, and the copy roads carry it (inventory.mjs
          * `preservedFlags`) - and the audit judged no such flag: a player's write of one stood, listed, and a hand-over of
          * the item it stood on made the receiver a real key to that room (handover.mjs `shareKey`), as a plant's copy carried
          * it. A key to a room written by the player on a Tool the GM gave (`tool`) and on an item that is not the module's
@@ -15464,7 +15464,7 @@ const SCENARIOS = [
          * E08+E28 C15, 04.10.2026; audit S10-06; the plan's "a packet asking hidden for a Search that
          * earned evident: placed evident, flagged". A player's trace of a Search, a Sabotage or a
          * Dynamic action is placed at the band the GMs' record of its roll earns, with the action's
-         * own table (gm-bridge.mjs `traceBandOf`). A player's character in a room; two rolls of
+         * own table (bridge-runs-records.mjs `traceBandOf`). A player's character in a room; two rolls of
          * theirs given a record (`recordFor`): a Search on 20 ("evident" in its table), and a Dynamic
          * action on 14 under a GM's ruling of the second difficulty (13-15, "evident"), kept on a
          * card as `ruleSetDifficulty` keeps it (here on the card's own flags, which `cardFlag` reads
@@ -15519,7 +15519,7 @@ const SCENARIOS = [
          * E08+E28 C16, 04.10.2026; audit S10-08, S10-06; the plan's 3.5. `project.progress` added
          * the packet's amount, held only to a Despair pool's 12: a console that had thrown a 7 added
          * 12. A Work on a Project names its roll now, and the GM adds what that roll earned on its
-         * record (gm-bridge.mjs `progressOf`), with the tool's relief and the concealment's bonus
+         * record (bridge-runs-records.mjs `progressOf`), with the tool's relief and the concealment's bonus
          * the packet claims held to the rules; a packet that names no roll is a Call's, which since fix
          * r2-H2 names its Hope Call and adds that Call's amount (bridge-guards.mjs `guardCallProgress`):
          * one naming none is refused as a bad request, where C16 refused its 12 as out of range. A
@@ -15611,7 +15611,7 @@ const SCENARIOS = [
          * E08+E28 C16, 04.10.2026; audit S10-06; the plan's 3.5, and the orchestrator's decision of
          * 04.10.2026 on round 1's fix G1. `difficulty` - the repair's size, so what the freeze costs
          * its owner - was the packet's. It is read off the GMs' record of the roll the packet names
-         * now (gm-bridge.mjs `repairOf`), the concealment's penalty and the tool's relief the packet
+         * now (bridge-runs-records.mjs `repairOf`), the concealment's penalty and the tool's relief the packet
          * claims held to the rules; and a miss is sent too, as a repair of 0: it freezes nothing and
          * writes its target on the roll's row, so the GM's Reroll of it into a success can freeze it
          * (reroll.mjs `settleSabotage`). Two public projects in the room the player's character
@@ -15792,11 +15792,11 @@ const SCENARIOS = [
     ["a Reroll of a Work or a Sabotage is scored on what its first throw could claim, not on its row's word", async () => {
         /*
          * E08+E28 fix r2-H3, 05.10.2026; the round-2 review's M1. C16 held what only the roller saw of a
-         * project's roll on its first throw (gm-bridge.mjs `progressOf`, `repairOf`), and the Reroll's
+         * project's roll on its first throw (bridge-runs-records.mjs `progressOf`, `repairOf`), and the Reroll's
          * replays read the same claims raw off the GMs' row (reroll.mjs `settleProgress`,
          * `settleSabotage`): the review's EXP-R2 rerolled a Work claiming a bonus of 40 on a project that
          * is no indirect murder into 13, and the project went 0 -> 41. The replays hold the row's claims
-         * as the first throw's were held now (action-rolls.mjs `projectExtrasHeld`, `sabotageExtrasHeld`).
+         * as the first throw's were held now (action-project.mjs `projectExtrasHeld`, `sabotageExtrasHeld`).
          * A connected player's character in a room; four rows of theirs (`playerRollBookmark`), each on
          * its own public project of 12 in that room, written on the row as the first throw's packet
          * writes it, and each rerolled on this GM as theirs (`rerollOnGm`): a Work claiming a bonus of 40,
@@ -15847,10 +15847,10 @@ const SCENARIOS = [
     ["a Dynamic action's Reroll is scored at the band a GM ruled, not the one its row claims", async () => {
         /*
          * E08+E28 fix r2-H3, 05.10.2026; the round-2 review's M1. A Dynamic action's trace is left at the
-         * band a GM ruled for it (gm-bridge.mjs `traceBandOf`, `dynamicRulingOf`; C15), and its Reroll's
+         * band a GM ruled for it (bridge-runs-records.mjs `traceBandOf`, `dynamicRulingOf`; C15), and its Reroll's
          * replay read the band off the row's claims (`bandIndex`, reroll.mjs `settleDynamic`): any of the
          * four. The replay reads the GM's ruling now, as the trace's packet does, and `bandIndex` is no
-         * claim (action-rolls.mjs `ROLL_CLAIMS`). A connected player's character in a room; a GM's ruling
+         * claim (action-pipeline.mjs `ROLL_CLAIMS`). A connected player's character in a room; a GM's ruling
          * of the second difficulty (13-15, "evident") kept on a card as `ruleSetDifficulty` keeps it (on
          * the card's own flags, which `cardFlag` reads first); a row of theirs claiming the fourth
          * (19-21, "hidden"), rerolled on this GM as theirs into 11 and 9. Read: whether the Reroll stood,
@@ -15885,11 +15885,11 @@ const SCENARIOS = [
     ["a Sabotage's trace is banded with the relief its repair used, when a roll with Fear broke the readied tool", async () => {
         /*
          * E08+E28 fix r2-H3, 05.10.2026; the round-2 review's S2-9. The GM banded a player's Sabotage's
-         * trace with the tool readied on the sheet now (gm-bridge.mjs `traceBandOf`), and made its
+         * trace with the tool readied on the sheet now (bridge-runs-records.mjs `traceBandOf`), and made its
          * repair with the relief the roller claimed, held to every tool the character carries for a roll
          * with Fear, whose Despair wears the readied one before the packets leave (`repairOf`): with the
          * tool broken, the project froze at the first band and the trace was left at a miss's, which the
-         * roller's card did not say. Both hold the claim one way now (action-rolls.mjs
+         * roller's card did not say. Both hold the claim one way now (action-project.mjs
          * `sabotageExtrasHeld`). A connected player's character in a room, any tool they held put down,
          * carrying a tier-1 tool broken as a Despair leaves one; a public project of 12 in that room; a
          * Sabotage roll of theirs with Fear on 11 - the first band only with the tool's relief of 1 - its
@@ -16035,7 +16035,7 @@ const SCENARIOS = [
          * E09 fix r1-G4, 08.10.2026; the round-1 security review's F7, which the correctness review read
          * as not real (a victim's death ties every undecided trace of its chapter, remnants.mjs
          * `tieChapterTraces`) - measured here before any death. The bridge notes a Sabotage's target on
-         * its roll's row only when the freeze was made or the roll missed (gm-bridge.mjs
+         * its roll's row only when the freeze was made or the roll missed (bridge-runs-records.mjs
          * `handleSabotage`), and a trace's tie reads that target (`worksOwnMurder`): a Sabotage of a trap
          * frozen since its picker was drawn - another's Sabotage landing first - froze nothing, noted
          * nothing, and its trace was left undecided where the C5 rule ties the saboteur's own. A
@@ -16075,9 +16075,9 @@ const SCENARIOS = [
         /*
          * E09 fix r1-G4, 08.10.2026; the round-1 goal check's G2b, and the security review's note K6 for
          * the Work. A player's Work or Sabotage trace is tied by the bridge only when the character is
-         * the trap's killer or proposer (gm-bridge.mjs `worksOwnMurder`; fix r2-G3, E09 C5), and a GM's
+         * the trap's killer or proposer (bridge-runs-records.mjs `worksOwnMurder`; fix r2-G3, E09 C5), and a GM's
          * own action places its trace on its own client, where the drop tied any character's trace of
-         * any indirect murder (action-rolls.mjs `hideProjectTraces`, `dropSabotageTrace`): the same
+         * any indirect murder (action-project.mjs `hideProjectTraces`, `dropSabotageTrace`): the same
          * Sabotage left a tied trace or an untied one by which browser rolled it. A student stood alone
          * in a room; three traps there seen by every player - another character's, the student's own as
          * its killer, and another's the student proposed; on each the student Works and then Sabotages
@@ -16155,7 +16155,7 @@ const SCENARIOS = [
         /*
          * E08+E28 fix r2-H3, 05.10.2026. A roller's relief is held to the tool in their hand or, for a
          * roll with Fear, whose Despair wears the readied tool before the packets leave, to every tool
-         * they carry (action-rolls.mjs `projectExtrasHeld`). A Reroll writes the duality of the roll it
+         * they carry (action-project.mjs `projectExtrasHeld`). A Reroll writes the duality of the roll it
          * threw on the GMs' record and on the row (roll-draw.mjs `keepRerolledVersion`, reroll.mjs
          * `keepRerolledRow`) while the claim stays the first throw's, so a later Reroll is held with the
          * throw the claim was made on: the draw, `versions[0]` (reroll.mjs `claimedOn`). A connected
@@ -16213,7 +16213,7 @@ const SCENARIOS = [
     ["a project's tool relief is held to the tools as the GMs hold them, not to a write of the player's their put-back has not undone", async () => {
         /*
          * E29 fix r2-H18, 06.10.2026. A Work's or a Sabotage's relief is held to what the GM sees of the roller's tools
-         * (action-rolls.mjs `projectExtrasHeld`, `sabotageExtrasHeld`; fix r2-H3), and that was the sheet as it stood: a
+         * (action-project.mjs `projectExtrasHeld`, `sabotageExtrasHeld`; fix r2-H3), and that was the sheet as it stood: a
          * tier the player's console wrote on the tool in hand stands there until its put-back lands, or for good where
          * the put-back fails, and the relief was held to it. Both read the tools as the GMs hold them now
          * (sheet-audit.mjs `actorAsHeld`). A student with every tool they carried stowed and a Tool of tier 1 readied,
@@ -16261,8 +16261,8 @@ const SCENARIOS = [
     ["a GM's own Dynamic action's Reroll is scored at the band the GM picked for it", async () => {
         /*
          * E08+E28 fix r2-H3, 05.10.2026. A Dynamic action's Reroll reads its band off a GM: a player's
-         * from the ruling a GM made on their card (gm-bridge.mjs `dynamicRulingOf`), a GM's own from the
-         * pick its own window made (action-rolls.mjs `askDynamicDifficulty`), which leaves no card and is
+         * from the ruling a GM made on their card (bridge-runs-records.mjs `dynamicRulingOf`), a GM's own from the
+         * pick its own window made (action-dynamic.mjs `askDynamicDifficulty`), which leaves no card and is
          * kept on the row as a GM fact (`OWN_FACTS`; reroll.mjs `settleDynamic`). The row's claim
          * carried it before the fix; with the claim gone and nothing in its place, the GM's own Reroll
          * would read whatever ruling a player's card holds for the character, or none. A player's
@@ -16376,7 +16376,7 @@ const SCENARIOS = [
          * E08+E28 C17, 04.10.2026; audit S10-06. Two packets of a crisis action throw no dice and
          * name no roll: a third party's decision and a free take a critical Self-defence bought.
          * Every other one has to name its roll (bridge-guards.mjs `guardCrisisRoll`), and what
-         * passes with none is scored on no dice (gm-bridge.mjs `handleCrisis`). At the killer's
+         * passes with none is scored on no dice (bridge-runs-acts.mjs `handleCrisis`). At the killer's
          * turn (`swingFixture`), the victim one Health from the end, the killer's player sends a
          * Finishing blow saying 99 and naming no roll; then the same claiming a free take, which
          * nobody granted the killer. Read: the codes, whether the victim died, and the action the
@@ -17668,7 +17668,7 @@ const SCENARIOS = [
          * refusals, and its Reroll asked the GM for a second ruling while the first result stood.
          * The fact the GMs write - the Observe's key - decides now (reroll.mjs `ruledByHand`). Two
          * Observes of the same player's, both claiming a ruling: one the GM was asked by hand
-         * (action-rolls.mjs `ruleObserve`), which leaves no fact, and one aimed at a trace where the
+         * (action-observe.mjs `ruleObserve`), which leaves no fact, and one aimed at a trace where the
          * character stands, resolved on a critical so the GM is asked to describe the find (as the
          * C6a test above). Read: whether the first's Reroll asked the GM again; the second's while
          * the find is described - its refusal, the Hope it took, the rewrites of its roll; whether
@@ -19972,7 +19972,7 @@ const SCENARIOS = [
          * created while it was open, so a statistic a player clicked on the sheet while a Work on
          * Project window stood open had its card stamped, hidden and emptied, and the project's own
          * roll kept Daggerheart's card. Two rolls in flight on this browser: the project's, through
-         * the module's `rollTrait` (action-rolls.mjs; `remember: false`, so no bookmark is written),
+         * the module's `rollTrait` (action-pipeline.mjs; `remember: false`, so no bookmark is written),
          * whose window the character's `rollTrait` stands in for and holds open; and, while it is
          * held, a statistic thrown as the sheet throws it, by the character's own `rollTrait`. Then
          * the window is let go. Read: whether each message is claimed (`isClaimedRoll`), whether the
@@ -20560,7 +20560,7 @@ const SCENARIOS = [
     ["the cards an incident's roll brings name no participant", async () => {
         /*
          * E06 fix r1-G3, 28.09.2026; review M2. Three cards other files post on a roll's behalf -
-         * a Loaded Die's notice (action-rolls.mjs `throwDice`), a tool worn or broken on a Despair
+         * a Loaded Die's notice (action-pipeline.mjs `throwDice`), a tool worn or broken on a Despair
          * (use-items.mjs `breakOnDespair`, which a crisis action calls) and a Hope Call's receipt
          * (calls.mjs `spendHopeCall`) - were whispered from the character to the GMs and its
          * player, so in a fight each named a participant to every console beside the roll that
@@ -21776,7 +21776,7 @@ const SCENARIOS = [
          * opened and then spent the whole list once the dice were in, after the window's close had
          * spent what the window applied - so a Call armed between the two was spent by a roll it
          * never touched. A student's list emptied and a Support armed; the action roll's own
-         * `rollTrait` (action-rolls.mjs) runs with the character's `rollTrait` standing in for the
+         * `rollTrait` (action-pipeline.mjs) runs with the character's `rollTrait` standing in for the
          * window: the window opened on the roll's config and submitted, an Obstacle armed, then the
          * dice thrown as the suite throws them. Read: the Calls left after the window's close, those
          * left after the roll, and how often the armed list was written after the Obstacle.
@@ -22286,7 +22286,7 @@ const SCENARIOS = [
         /* E05 C10; the owner's Q3, 26.09.2026: besides the discovery only a GM publishes a death,
            and until then it counts nowhere. The trial's start tells the GM how many there are
            (`tellUnfoundDeaths`, which clock.mjs runs on the phase's entry) and publishes none;
-           the Players window's "dead" (gm-panel.mjs `applyAliveStates`) is the GM's hand. */
+           the Players window's "dead" (gm-students.mjs `applyAliveStates`) is the GM's hand. */
         const [victim] = cast(1);
         const { isDeceased, isDeadForGm, killCharacter, tellUnfoundDeaths, livingStudents } = await import("./chapter.mjs");
         const { applyAliveStates } = await import("./gm-panel.mjs");
@@ -23565,7 +23565,7 @@ const SCENARIOS = [
         const living = livingStudents();
         must(living.every(a => !S.offerStore.has(a.id) && !S.deferredOfferStore.has(a.id)),
             "an offer or a waiting Level Up stands already - this would read it, not the ones made here");
-        // The batch's rows go in the class's order (vote.mjs `verdictHeld`, level-up.mjs `advancementPlan`).
+        // The batch's rows go in the class's order (verdict.mjs `verdictHeld`, level-up.mjs `advancementPlan`).
         const order = studentActors().map(a => a.id);
         living.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
         const first = living[0];
@@ -25864,7 +25864,7 @@ const SCENARIOS = [
         /*
          * E09 fix r2-G6, 08.10.2026; the round-2 reviews' cor N5 and sec S2-4. C13 ticks the Faint box
          * of a trace written Faint Remnant on the dashboard, and `retuneRemnant` - the write a GM's
-         * edit over the bridge hands a GM sender's kind to (gm-bridge.mjs `handleRemnantEdit`, read in
+         * edit over the bridge hands a GM sender's kind to (bridge-runs-records.mjs `handleRemnantEdit`, read in
          * the code), and a reshape's Reroll undo restores a kind through - wrote the kind without the
          * box: a Faint Remnant Clear Faint Remnants passes over. And a GM who unticked the box of a
          * Faint Remnant on the dashboard saw it ticked again with no word why. A Prep trace, retuned
@@ -32447,7 +32447,7 @@ const SCENARIOS = [
     ["a Frisk's ask its searcher stopped waiting for ends on the primary: only that searcher's expiry of that ask, once its wait could have run out, ends it, as interrupted, the target's window withdrawn and a yes after it not kept; a refusal's open force ends as 'Leave it' does; a GM whose socket comes back drops its asks (E18 C7)", async () => {
         /*
          * E18 C7, 26.10.2026; amend 5 (A11's Frisk ask on E18's one road), the stage's row E18-31. An open Frisk's ask is
-         * the primary's (frisk.mjs `friskAsks`), and the searcher's browser waits on it (gm-bridge.mjs `requestFriskAsk`)
+         * the primary's (frisk.mjs `friskAsks`), and the searcher's browser waits on it (bridge-asks.mjs `requestFriskAsk`)
          * for the answer's clock and a margin. Nothing told the primary when that wait ran out: the searcher's browser had
          * handed the action back, the primary still held the ask, and the target's yes after it posted the list to the
          * searcher, or a refusal's force window stayed open and ended 'lets it go' to the target and the room. The one
@@ -32754,7 +32754,7 @@ const SCENARIOS = [
          * kept for the Ultimate, and one naming another character the player owns had a Dynamic card's difficulty kept
          * for that character. The mark says what the card was posted for now, and a resend that differs from it is
          * refused. Each ask is handed to the bridge's runner as Foundry would name its sender, and the yes and the
-         * difficulty name the card they are given on (gm-bridge.mjs `answerHopeCall`, `answerDynamic`). Read: (1) the
+         * difficulty name the card they are given on (bridge-asks.mjs `answerHopeCall`, `answerDynamic`). Read: (1) the
          * marks the real road writes, on a Call's card and on a Dynamic action's; (2) a Call's card for an Experience,
          * posted with such a mark and held by no ask - as after this primary's reload - then a resend naming the
          * Ultimate and another purchase: what the runner sent, the cards it posted, whether this GM's yes is kept, and
@@ -33111,7 +33111,7 @@ const SCENARIOS = [
         const seen = new Set(game.messages.map(m => m.id));
         const created = [];
         const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
-        // What this GM is told: a refusal card each (gm-bridge.mjs `sayRefusedHere`, since E18 fix e1-G3), oldest first.
+        // What this GM is told: a refusal card each (call-gm.mjs `sayRefusedHere`, since E18 fix e1-G3), oldest first.
         const shownBefore = new Set(document.querySelectorAll(".drpg-popup"));
         const told = () => [...document.querySelectorAll(".drpg-popup.drpg-popup-error")].filter(c => !shownBefore.has(c))
             .sort((a, b) => Number(a.dataset.drpgSeq) - Number(b.dataset.drpgSeq)).map(c => c.querySelector(".drpg-popup-body")?.textContent.trim() ?? "");
@@ -35263,7 +35263,7 @@ const SCENARIOS = [
         /*
          * E06 C10, 28.09.2026; audit S02-12 (L21). A sabotage the room saw was told to everybody
          * standing there with the project's name, secret or not. The line is read as the watched
-         * branch posts it (action-rolls.mjs `sabotageWatchedLine`) for three projects: a public
+         * branch posts it (action-project.mjs `sabotageWatchedLine`) for three projects: a public
          * one is named; a secret one is not; nor is an indirect murder revealed to the table,
          * which is not secret any more and is still somebody's trap.
          */
@@ -39724,7 +39724,7 @@ const SCENARIOS = [
         /*
          * E70 fix p1-G2, 28.10.2026; the review's BEH-2, BEH-6 = E70P1-R16, E70P1-R10, E70P1-R08 (goal). Read on this
          * primary, the clock and the record written raw. (1) An exit's kill failed: the record holds the sentence,
-         * `execution.failed` and no stamp, and the phase is Daily Life. Asked again (vote.mjs `retrySentence`, which the
+         * `execution.failed` and no stamp, and the phase is Daily Life. Asked again (trial-progress.mjs `retrySentence`, which the
          * primary's ready and every later change of phase ask), A dies executed in the trial's phase, the record is
          * stamped, and no walk past A finds a body (chapter.mjs `bodiesToDiscover`, the death's phase - E70-16's
          * "discovery stamp" is the death record's phase, STATUS). (2) A Final verdict's sentence waits and this browser's
@@ -45439,7 +45439,7 @@ const SCENARIOS = [
          * E09 fix r1-G1, 08.10.2026; the round-1 reviews' cor F3. Two roads make the running fight's
          * victim the table's dead at once, with no body to find: the GM's "A character dies" with
          * "kept until found" unticked (chapter.mjs `killCharacter`, `secret: false`), and the
-         * Students list's "dead" on a living victim (gm-panel.mjs `applyAliveStates`). Each ties the
+         * Students list's "dead" on a living victim (gm-students.mjs `applyAliveStates`). Each ties the
          * chapter's undecided traces (`incidentVictimDied`), and C4 sent the ties to nobody. For each
          * road, a fight of its own over an undecided trace of the chapter and a Search's trace that
          * handed the knife over, each with an identified copy on a third student; the knife's tie
@@ -48536,7 +48536,7 @@ const SCENARIOS = [
 
     /*
      * A SEARCH WHOSE TOKEN WAS REFUSED (E29 fix r2-H9, 06.10.2026; review round 2 cor m3). The searcher's
-     * browser ends it without a find (action-rolls.mjs `searchUnclaimed`); the GMs' record of its roll
+     * browser ends it without a find (action-search.mjs `searchUnclaimed`); the GMs' record of its roll
      * stayed unsettled, and an item a console then created named after it stood as its find. The spend
      * runs as the bridge runs it for the student's player (`SEARCH_ACTIONS`, its packet sanitized; the
      * room's count stubbed, so none moves - the guard is R166's), on a record of 13 (a tier-1 hit), and
@@ -48633,7 +48633,7 @@ const SCENARIOS = [
            no row and no card; the same discard of the whole one is flagged on one card, and the GMs' Undo
            makes it again under its id with its flags. At HEAD a deletion was judged as an effect: both stood.
            Since E51 fix FG5 a discard stands on the trace the primary placed for it (sheet-audit.mjs
-           `noteDiscardTrace`, written by gm-bridge.mjs `handleRemnant`): the honest road's ticket is written here
+           `noteDiscardTrace`, written by bridge-runs-records.mjs `handleRemnant`): the honest road's ticket is written here
            as the bridge writes it, and E51-T22 reads the stamp without one. */
         needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
         const [student] = cast(1);
@@ -51461,7 +51461,7 @@ const SCENARIOS = [
            that goal on the GMs' record (roll-draw.mjs `CONTEXT_SENT`), and a tier-1 item named after it is
            flagged; so is one named after a record a stash's theft settled ("search" in its `resolved`, as
            bridge-guards.mjs `rollsFor` writes it); and the vault steal's reading of a record a find stood on
-           refuses the theft (gm-bridge.mjs `searchTheftOf`), where the same reading of a fresh record takes
+           refuses the theft (bridge-runs-acts.mjs `searchTheftOf`), where the same reading of a fresh record takes
            it. At HEAD the record kept no goal, both items stood, and the theft was taken. */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
         const { player, theirs } = playerAndCharacters();
@@ -53015,7 +53015,7 @@ const SCENARIOS = [
          * betrayal stamp, a found stash noted, a usable item and the key to its bedroom, its stash there
          * hidden beside another's hidden one - and each group's change is read against the step before:
          * the advancement first, so a Hope or a wound it brought back is seen. Then, on a student of the
-         * cast, the key's held read (vault.mjs `keysHeldBy` on a GM): a room written on one of their
+         * cast, the key's held read (vault-store.mjs `keysHeldBy` on a GM): a room written on one of their
          * items outside the GMs' mark, as a player's console write the audit has not put back yet, is no
          * key there, so `grantBedroomKey` still makes the real one, once. Red at the parent on its
          * first check: 2073b49 has no `wipeStudent` (read in the code, 10.10.2026).
@@ -54283,7 +54283,7 @@ const SCENARIOS = [
          * cards since the walk, the hold, this chapter's stamps since the walk, the room each token read as
          * it arrived. The gather is the discovery's, after its stamp (`runDiscovery`): no stamp, no gather.
          * E70 C4: the verdict kills nobody in a trial; given after End the trial, as here, its sentence is carried out at
-         * once (vote.mjs `runVerdict` -> `executeAtExit`, which keeps the trial's phase), so this still reads the kill.
+         * once (verdict.mjs `runVerdict` -> trial-progress.mjs `executeAtExit`, which keeps the trial's phase), so this still reads the kill.
          */
         needs(world.atLeast("studentTokensOnScreen", 3), "three students are stood in one room by their tokens");
         needs(world.atLeast("namedRooms", 2), "one room is left to the three of them");
@@ -56504,7 +56504,7 @@ const SCENARIOS = [
     ["a stash taken away is forgotten on its own scene only", async () => {
         /*
          * E12 C3, 11.10.2026; audit S08-39. A finder's note about a stash is keyed
-         * `sceneId::room::ownerId` (vault.mjs `foundKey`), and taking a stash away
+         * `sceneId::room::ownerId` (vault-store.mjs `foundKey`), and taking a stash away
          * (`setStash(..., { present: false })`) cleared every note whose key ENDED in
          * `::room::ownerId` - so the same owner's stash in another scene's room of the same
          * name was forgotten with it, and its finder paid to find it again. `forgetStashFound`
@@ -56892,7 +56892,7 @@ const SCENARIOS = [
          * runs once a world, so a scene exported from a world before 1.2.91 (or kept in a compendium) whose Bedroom still
          * carries the empty list the old Stashes tab wrote, imported after the clause ran, had no stash for its owner
          * until the GM ticked the cell. Now a scene's creation (`createScene`: an import from a compendium, a copy, one
-         * made by a script) runs the clause's seeding on that scene alone, on the primary GM (vault.mjs
+         * made by a script) runs the clause's seeding on that scene alone, on the primary GM (vault-store.mjs
          * `bedroomsOfNewScene`), and the GMs are told which rooms were written - a copy of a scene whose stash a GM had
          * removed on purpose gets it back, and the report is how they see it (TRAP 76 holds for every later event). A
          * scene of the suite's own is made with its regions: Kept (A's, with A's stash hidden), Emptied (B's, an empty
@@ -57575,7 +57575,7 @@ const SCENARIOS = [
          * readers (`stashItemsIn`, `mayEnterBedroom`, `hasFoundStash`, `discoveredFor`) - and the GMs
          * were told. Red before C8: after the second rename the new name read [0, false, false, false].
          * The new name with one piece renamed reads "may enter" since E12 fix r1-G1: the piece renamed
-         * off the room carries no owner any more (vault.mjs `clearSplitPiece`), so it is nobody's
+         * off the room carries no owner any more (vault-store.mjs `clearSplitPiece`), so it is nobody's
          * bedroom and `mayEnterBedroom` lets anybody in without asking for a key - measured by the k2
          * suite on 8109466 (11.10.2026, [0, true, false, false] there), which expected the C8 reading
          * of a piece that still carried the owner. The primary does the carry (E12 fix r2-H4, early
@@ -58144,7 +58144,7 @@ const SCENARIOS = [
             await Promise.race([answer, wait(3000)]);
             for (const app of drawn()) await app.close();
         }
-        /* Every tab the window names, read from its one list (vault.mjs `ROOM_SETUP_TABS`): this listed the seven
+        /* Every tab the window names, read from its one list (room-setup.mjs `ROOM_SETUP_TABS`): this listed the seven
            tabs by hand, and E13 C5's Scenes tab, Apply and Cancel like the rest, failed it at k4 on 45e6bcf as a
            footer that differed (E13 fix r1-G1, 12.10.2026). A footer that moves on any tab still fails it. */
         const both = ["ok", "cancel"];
@@ -58305,7 +58305,7 @@ const SCENARIOS = [
          * name, so each piece carries a whole copy of the room; the review measured on b5baaf5 that
          * renaming one piece of a two-piece Kitchen to "Pantry" left `vaultOwnerOf("Pantry")` the
          * Kitchen's owner (a second bedroom, shut to the rest, and a key at the next Apply). A GM's
-         * rename of such a piece now takes the room's flags off it in the same update (vault.mjs
+         * rename of such a piece now takes the room's flags off it in the same update (vault-store.mjs
          * `clearSplitPiece`, in `preUpdateRegion`) and the GMs are told; a room's only piece renamed is
          * the room's own rename, E12 C8's, and keeps them. Here, on a scene of the suite's own that
          * nobody views: a Kitchen of two marked pieces set up through the module's writers (a bedroom,
@@ -58416,7 +58416,7 @@ const SCENARIOS = [
         /*
          * E12 fix r1-G2, 11.10.2026; review round 1 CR1-2 and CR1-6. The plant window listed the
          * rooms of the scene on the GM's screen and keyed the plant on it, while a Search takes a
-         * plant on the scene its searcher stands on (action-rolls.mjs `searchDraw`): a GM ruling a
+         * plant on the scene its searcher stands on (action-search.mjs `searchDraw`): a GM ruling a
          * Trap whose project is in the school's room, with another map holding a room of that name
          * on screen, found that room chosen and planted it there, and the Search in the school's
          * room never found it. Here a project is made in a school room and a scene of the suite's
@@ -59667,7 +59667,7 @@ const SCENARIOS = [
         const box = x => [{ type: "rectangle", x, y: 100, width: 400, height: 400 }];
         const room = owner => ({ [MODULE_ID]: { [R.ROOM_FLAG]: true, [V.VAULT_FLAGS.owner]: owner.id, [V.VAULT_FLAGS.stashes]: owner === aiko ? [{ actorId: aiko.id, concealed: true }] : [] } });
         const messagesBefore = new Set(game.messages.contents.map(m => m.id));
-        // The join's whisper is the one with a warning's class that names both rooms (vault.mjs `clearSplitPiece`).
+        // The join's whisper is the one with a warning's class that names both rooms (vault-store.mjs `clearSplitPiece`).
         const told = () => game.messages.contents.filter(m => !messagesBefore.has(m.id))
             .filter(m => /drpg-warning/.test(String(contentOf(m) ?? "")) && String(contentOf(m) ?? "").includes(DORM_A) && String(contentOf(m) ?? "").includes(DORM_B)).length;
         let scene = null, key = null, item = null, read = null;
@@ -61731,7 +61731,7 @@ const SCENARIOS = [
          * searched where the character stood at the Reroll (vault.mjs `resolveStashSearch`, `locateActor` now): a miss in
          * an empty room, rerolled after a walk into another student's bedroom, opened the stash hidden there, where no
          * Analyze was paid or thrown and no stash-hunt trap was told, and a miss by the stash rerolled after a walk away
-         * searched the other room. The first search now keeps where it searched with the GMs' facts on its roll (gm-bridge.mjs
+         * searched the other room. The first search now keeps where it searched with the GMs' facts on its roll (bridge-runs-acts.mjs
          * `handleFindStash`, `findPlace`), and the replay searches there only while the GMs still read the student there
          * (movement.mjs `gmPlaceOf`), else answers noRoom and the Reroll is given back. Driven as "A10-7 Reroll where it was
          * thrown": a student of the suite's own owned by a connected player, and another whose stash is hidden in a Dorm, in a
@@ -62274,7 +62274,7 @@ const SCENARIOS = [
          * suite's own (two floors, heights 0 and 10, as "H81-01 stairs"), the suite's GM moves the student's token as a
          * drag writes it - x and y, no option - from beside the stairs' end downstairs onto it, and the sheet's trigger
          * on this browser (sheet.mjs `onTunnelStep`) takes it up through `passage.cross`, the primary's own road here
-         * (gm-bridge.mjs `requestPassageCross`'s local), judged and written by `crossTunnel`. Then the season's placing
+         * (bridge-asks.mjs `requestPassageCross`'s local), judged and written by `crossTunnel`. Then the season's placing
          * (call-world.mjs `teleportInto`) puts the token back on that end through the room's own teleport, given here
          * as a Foundry that writes the spot with no option of the module's (the harness's regions have none, and which
          * options v14's writes is LIVE-H81-03). Read after each: where the token stands, its floor, its height, the
@@ -63950,7 +63950,7 @@ const SCENARIOS = [
          * context in noteRollContext"), a guard: the context is the action's, handed to `rollTrait` and kept on
          * the roll in hand (`rememberRoll`), which `locatePassage`'s `noteRollContext` then extends; the window
          * is what C1 rebuilt. A student's Find Passage roll (`rollTrait` of Head with the Analyze's key and
-         * `findPassage`, as action-rolls.mjs `performAnalyze` throws it) thrown through Daggerheart's window
+         * `findPassage`, as action-analyze.mjs `performAnalyze` throws it) thrown through Daggerheart's window
          * (the suite's rolls skip it, `suiteRolling`), the lock on, its faces set. Green at cfbbf60 as well.
          * A11's half (E16-09, E16 fix r1f-G1, 19.10.2026, once E80 part 2 was on this line): a Frisk's two rolls
          * thrown the same way, each with the key and context frisk.mjs throws it with and then extended by the
@@ -65390,11 +65390,11 @@ const SCENARIOS = [
 
     ["a dead student puts nothing in their stash and takes nothing out, on their sheet's road and when the GMs judge a player's write (S08-12)", async () => {
         /*
-         * E35 C0, 24.10.2026; audit S08-12, S17-17: a skeleton of E14's, plain since E14 part 1 C3 (vault.mjs
+         * E35 C0, 24.10.2026; audit S08-12, S17-17: a skeleton of E14's, plain since E14 part 1 C3 (stash-reach.mjs
          * `stow`, `retrieve` and sheet-audit.mjs `placeStands` refuse the dead; E14-T4 reads the rest). The harm: a dead
          * student's player clicks "Put this in your stash" on the body's things, and an item put away is no longer on
          * the body for anyone to loot (handover.mjs `lootBody` refuses a stashed one), against the handbook's
-         * "Everything else stays on the body to be found"; and takes things out the same way. vault.mjs `stow` and
+         * "Everything else stays on the body to be found"; and takes things out the same way. stash-reach.mjs `stow` and
          * `retrieve` ask no death, nor does the GMs' judgement of a player's stash write (sheet-audit.mjs `placeStands`).
          * A student stood in a room with a stash of theirs: alive, one thing put away by `stow` and one by a player's
          * write the GMs judge (the controls, each must stand); then killed with the table told, and asked to put a
@@ -65462,7 +65462,7 @@ const SCENARIOS = [
          * C3 (the three gates read `deadToViewer` alone; a Monocub's body is looted as any body is: E14-T2).
          * The harm: a Monocub uses and throws away what is on their own body, the discard's trace lands at their token
          * and not at the body, and the open stash section offers a Rifle the GM's side then refuses in silence
-         * (vault.mjs `stealFromVault` asks `isDeceased`). sheet.mjs `addUseButton`, `addDiscardButton` and
+         * (stash-reach.mjs `stealFromVault` asks `isDeceased`). sheet.mjs `addUseButton`, `addDiscardButton` and
          * `buildOpenStashSection` close for the dead except a Monocub (`!isMonocub`). Drawn by the module's own
          * render hook on a stand-in sheet (`drawnSheet`): a student holding a usable thing and a broken one, in a room
          * where another student's open stash holds something; read alive (the control: all three drawn), then dead
@@ -65582,7 +65582,7 @@ const SCENARIOS = [
          * inventory.mjs `transferItem` and its key rule (E35-09, C1); the spec had it plain at C3, but it drives the
          * loot alone, and the Palm's and the rifle's roads to the same two keys are C3's to drive. The harm: a taker
          * who holds the key to a room and takes a second one to the same room - off a body (handover.mjs `lootBody`),
-         * by a Palm (vault.mjs `stealFromPerson`) or out of a stash (`stealFromVault`) - has two identical rows under
+         * by a Palm (palm.mjs `stealFromPerson`) or out of a stash (stash-reach.mjs `stealFromVault`) - has two identical rows under
          * Room Keys. The loot is driven here, a GM's own (`local`),
          * as the H17 test above drives it, its trace and Truth Bullet put back as it puts them back. Read: the taker's
          * keys to the room and the body's. Red at f2cfc2d and at 58ea711 (C1): [2, 0]; [1, 0] at C2.
@@ -65643,7 +65643,7 @@ const SCENARIOS = [
          * The harm: a victim killed outside their room, and searching their bedroom - the classic of the genre - is shut
          * to everyone without the key until a GM clears its owner in Room Setup. D15: it opens by itself in
          * Investigation and shuts again after. The door (movement.mjs `bedroomShut`, asked by `crossingVerdict`) and
-         * game.drpg's answer (vault.mjs `mayEnterBedroom`) read on a scene of plain objects, a Hall whose list names a
+         * game.drpg's answer (vault-store.mjs `mayEnterBedroom`) read on a scene of plain objects, a Hall whose list names a
          * Bedroom the cast student owns, for a plain mover with no key who is neither a GM nor the Mastermind; the
          * owner dead with the table told, the clock in Investigation, then in Daily Life (the control: shut), then the
          * owner alive again in Investigation (the control: shut). Clock and death put back. Red at f2cfc2d: shut in
@@ -66377,7 +66377,7 @@ const SCENARIOS = [
          * rolled: a broken Tool of tier 3, worn twice and a weapon besides, lifted from the first, then one out of the
          * stash, then one planted on the second; a stack of three kits lifted, then one out of the stash; a key to a
          * room the second holds one to, lifted, then one out of the stash; and a stack out of the stash once its owner
-         * has concealed it from a thief who never found it (the free route's gate, vault.mjs `stealFromVault`, stays
+         * has concealed it from a thief who never found it (the free route's gate, stash-reach.mjs `stealFromVault`, stays
          * before the one road: mutant e3c). Read: each Tool copy's category, tier,
          * broken, wear, roles, kind and identity against the original's, and whether the first still holds it; the
          * kits left with the first and those that arrived; the keys to the room on each sheet; the rows the GMs'
@@ -67412,7 +67412,7 @@ const SCENARIOS = [
          * room given to somebody else in Room Setup left the old owner a working key, so they walked into the new owner's
          * bedroom (S08-11). Three students: the owner, a holder, a keyless third. The door is read as the veto and the
          * primary read it (movement.mjs `crossingVerdict`, unpaid, a mover that is neither a GM nor the Mastermind) on a
-         * scene of plain objects whose Bedroom the owner owns, with game.drpg's answer (vault.mjs `mayEnterBedroom`) and
+         * scene of plain objects whose Bedroom the owner owns, with game.drpg's answer (vault-store.mjs `mayEnterBedroom`) and
          * `keysHeldBy` beside it; the holder's keys are real items, made by the GMs' own road (`grantItem`), the GMs'
          * mark of them waited for. Then Room Setup, answered as a GM answers it (the R119 test's way), on a scene of the
          * suite's own in a GM-store world of its own: the room to the owner, to the holder, to the third. Red at a36e1c30:
@@ -67543,7 +67543,7 @@ const SCENARIOS = [
     ["a bedroom given away from the console takes the old owner's keys as Room Setup does, and a copy the old owner gave stays with its holder, named to the GM and its text naming the new owner; a key text a GM wrote is left (E14 fix e1-G2, S08-11)", async () => {
         /*
          * E14 fix e1-G2, 24.10.2026; the review's E14R-1, E14R-2, E14R-09 and E14R-08. C2 took the old owner's keys only in
-         * Room Setup's Apply (vault.mjs `applyRoomRows`), so `game.drpg.setVaultRoom(room, { owner })`, the console road
+         * Room Setup's Apply (room-setup.mjs `applyRoomRows`), so `game.drpg.setVaultRoom(room, { owner })`, the console road
          * the GM handbook names, left the old owner a key that opened the new owner's door. And a copy the old owner had
          * given somebody stayed, as C2 chose, with nothing telling the GM it exists and its text still "which belongs to"
          * the old owner. Whether such copies go with the room is the owner's to say (STATUS Open); what holds either way
@@ -68784,7 +68784,7 @@ const SCENARIOS = [
          * Murder Weapon pool's flags and one entry, "Calm" with a Tier 1 Sanity Relief pool's, and one under a tier pool's
          * name no table of the world answers to, flagged as another category's pool; and a room of the scene on screen
          * pointed at "Kitchen knives" (its region's `drpgItemTable`, put back after). Read: the window's two lists, Room
-         * Setup's (tables.mjs `roomStockTables`, which vault.mjs's Room Setup reads), how the knives' entry and the calm
+         * Setup's (tables-pools.mjs `roomStockTables`, which room-setup.mjs's Room Setup reads), how the knives' entry and the calm
          * one are filed (`foundAs`, `usableKindFor`), what a Healing usable's draw in the room hands over, and whether the
          * impostor answers the draw its name says. Red at f33c0150: listed on the Room pools tab, offered, unfiled, the
          * room drew the cleaver, the impostor answered.
@@ -68865,7 +68865,7 @@ const SCENARIOS = [
     ["a Search's trace follows what was found, not what was asked for, and a plant is granted as its name is filed: a weapon a room handed over for a Healing ask leaves a trace, an apple handed over for a weapon none, and a planted mop is a Cleaning Tool (E14 fix e1-G7: R7)", async () => {
         /*
          * E14 fix e1-G7, 25.10.2026; the review's E14p2-R7 and R9 (the C3 Open lines). C3 made the trace and the card follow
-         * the find (action-rolls.mjs `traceTheFind`, out of `performSearch` here) and read a plant's name as a table's entry
+         * the find (action-search.mjs `traceTheFind`, out of `performSearch` here) and read a plant's name as a table's entry
          * is read (`searchDraw`'s `foundAs`), and no test drove either: passing the asked category to the trace, or dropping
          * the plant's `foundAs`, left every test green. Read on a student standing in a room, as a critical hit (the Search's
          * critical trace, "obvious"): `traceTheFind` for a weapon drawn on a Healing ask and for an apple drawn on a weapon
@@ -68936,7 +68936,7 @@ const SCENARIOS = [
          * store before anybody knows whether it fits, and a student with full hands and no stash who found it was refused
          * by `grantItem` - the plant, its trap's ledger row and the killer's project were gone, and the GMs learnt of it
          * only from `diagnoseTraps`. Two roads, each with a plant of the suite's in a room of the suite's: a GM's own
-         * Search, a stashless student's every Tool slot filled with the suite's, drawn by action-rolls.mjs `searchDraw`
+         * Search, a stashless student's every Tool slot filled with the suite's, drawn by action-search.mjs `searchDraw`
          * and given by `grantDrawn`; and a player's, as the primary GM judges its packets - the spend, the plant check
          * under a request id of the suite's, and the return that player's client sends with the id the check answered
          * (`SEARCH_ACTIONS`), once and then again. Read: whether the draw was the plant, the grant, the room's plant (its
@@ -69070,7 +69070,7 @@ const SCENARIOS = [
 
     ["the stash hunt raised by the GM that judges the throw: a player's Find Stash naming no roll the GMs drew springs none, each throw that passed its roll guard springs one, a throw spent once springs no second, and a player's own stash or passage report is no report (E14-T10, E14-41)", async () => {
         /*
-         * E14 fix e1-G1, 25.10.2026; E14-41. E80 fix r1-G1 (b2389294) moved the hunt off the roller's browser: vault.mjs
+         * E14 fix e1-G1, 25.10.2026; E14-41. E80 fix r1-G1 (b2389294) moved the hunt off the roller's browser: stash-reach.mjs
          * `resolveStashSearch` raises `drpgStashHunted` on the GM that judges a Find Stash, after the runner's `rolled` guard
          * (bridge-guards.mjs `rollsFor`), and traps.mjs's `trap.event` refuses a player's "stash" (`guardRelayTeller`) and
          * reads no "passage". R600 holds the guard and the sanitize as functions and R604 the source; nothing drove the
@@ -72365,12 +72365,12 @@ const SCENARIOS = [
          * investigation a roll of theirs kept on the GMs at 12 (`playerRollBookmark`) and its `vault.findStash` judged as
          * the bridge judges that player's packet, a miss; then, in a Class Trial: that roll's Reroll made on this GM as
          * theirs, 12 into 17 (`rerollAgain`); a second roll of theirs at 20 and its packet; this GM's own search at 30
-         * (gm-bridge.mjs `requestStashSearch`); the character's Analyze on this GM, paid, its picker answered "stash" and
+         * (bridge-asks.mjs `requestStashSearch`); the character's Analyze on this GM, paid, its picker answered "stash" and
          * then "hint" though neither row is offered (a window that names one anyway); the passage's search on this GM.
          * Read after each: what it answered, what was sent back or said here, how many of the two stashes the character
          * has found, the hunts a trap was told of, and for the Reroll and the picker the Hope and actions as they were and
          * the messages they posted. The price of a hunt refused after its throw (a trial opened while the dice were in the
-         * air) comes back by the owner's Q3 of 18.10, read in action-rolls.mjs `locateStash` and not driven here.
+         * air) comes back by the owner's Q3 of 18.10, read in action-analyze.mjs `locateStash` and not driven here.
          */
         needs(world.atLeast("playerCharactersInRooms"), "the stashes are in the room the player's character stands in");
         needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
@@ -72467,7 +72467,7 @@ const SCENARIOS = [
     ["E16-T29 - a student's own write of the stashes it has found is put back, and the GMs' search reads the list they hold (design-notes D10)", async () => {
         /*
          * E16 part 2 C3, 26.10.2026; E16-50, beyond the plan (design-notes D10). The list of stashes a student has found
-         * (vault.mjs `VAULT_FLAGS.found`) is written by the GMs' search alone, but it is a flag on the student, which its
+         * (vault-store.mjs `VAULT_FLAGS.found`) is written by the GMs' search alone, but it is a flag on the student, which its
          * owner can write: no judgement read it (sheet-audit.mjs `kindOf` answered null), and `stealFromVault` opens a
          * concealed stash to a thief whose list names it. A connected player's character in a room holding the concealed
          * stashes of two other characters (`hiddenStashesHere`), outside a Class Trial. Its player's own write of the list
@@ -72845,7 +72845,7 @@ const SCENARIOS = [
                     `${label} is not alone in the stash - this would measure nothing`);
                 const SearchTokens = (await import("./search-tokens.mjs")).SearchTokens;
                 must(SearchTokens.left(stood.room, canvas.scene) > 0, `${stood.room} has no search left - this would measure nothing`);
-                // A stash is gone through once a time of day per thief (vault.mjs `stealFromVault`): forgotten before each.
+                // A stash is gone through once a time of day per thief (stash-reach.mjs `stealFromVault`): forgotten before each.
                 await forgetRifles(actor);
                 actor.rollTrait = async () => ({ roll: { total: 30, isCritical: false, result: { duality: 1, total: 30 },
                     options: { roll: { trait: "instinct" } } } });
@@ -72999,7 +72999,7 @@ const SCENARIOS = [
          * only on cards older than that - which a world keeps after every update. The filter (secret.mjs
          * `dropOldGmLines`) matches the sentence of DRPG.Action.observeGm, its numbers any. Read on three cards:
          * an old one as 1.2.49 wrote it (the sentence a bare line), a fresh one built as `callGm` builds it
-         * (gm-bridge.mjs `callCardHtml`), cut for a player as the messenger cuts it (`.drpg-gm-only` off, then the
+         * (call-gm.mjs `callCardHtml`), cut for a player as the messenger cuts it (`.drpg-gm-only` off, then the
          * filter) and for a GM; then the three places a player's copy is drawn read in the source for the filter.
          * Nothing is written.
          */
@@ -74292,7 +74292,7 @@ const SCENARIOS = [
          * judged with `Date.now` moved past `TIMING.plantWindowMs`; (d) a third, whose plant check the player asked
          * before the return (a console's order: the browser that gave up asks none); (e) a spend in a sealed room of a
          * scene of the suite's own and in an empty room: the reply's `why`; (f) what the player's browser reads of a
-         * bridge result (`claimOf`) and what a refused claim shows and keeps (action-rolls.mjs `unclaimedOutcome`).
+         * bridge result (`claimOf`) and what a refused claim shows and keeps (action-search.mjs `unclaimedOutcome`).
          * Red at 38b232c9: no wait options, no return row, the reply named no why, nothing read a seal.
          */
         const G = await import("./bridge-guards.mjs");
@@ -74968,7 +74968,7 @@ const SCENARIOS = [
          * on this GM: a motive of one time of day, a direct murder's fight between two students (`fightOpen`); read the
          * chevron as drawn, `startEclipse`'s answer and words, the motive's tick in the fight (the cards it posted: in
          * public, or to the incident's table; whether it is marked as announced), the clock a bystander's HUD shows
-         * after a reload with the clock moved meanwhile (hud.mjs `shownClock` with no page memory, over
+         * after a reload with the clock moved meanwhile (hud-elapsed.mjs `shownClock` with no page memory, over
          * the clock's `clockAtOpen`), and the motive's
          * tick after the close. The incident, the motive and the clock are put back.
          * E17 fix p2-G3 (26.10.2026; the end review's E17p2-R3 and R8, correctness, R5, goal): the Event panel's motive
@@ -76184,7 +76184,7 @@ const SCENARIOS = [
             const needed = game.i18n.format("DRPG.Action.needed", { n: SABOTAGE_CONCEAL.threshold });
             read = {
                 cards: words.filter(w => told.some(line => w.includes(line))).length,
-                // A private card's sound rides in its meta, as the reader's browser reads it (sfx.mjs `soundFromMessage`).
+                // A private card's sound rides in its meta, as the reader's browser reads it (sfx-play.mjs `soundFromMessage`).
                 sounds: fresh.map(m => soundFromMessage(m)?.key ?? null).filter(Boolean),
                 cover: words.some(w => w.includes(`<strong>${SABOTAGE_CONCEAL.label}</strong>`) && w.includes(needed))
             };
@@ -76393,7 +76393,7 @@ const SCENARIOS = [
     ["E51-T8 - a Dynamic action's GM card comes on a miss as on a success, each with the roll and \"needed N\", the miss's with nothing to press (E51 C1; E51-15, the session notes of 27.10)", async () => {
         /*
          * E51 C1, 30.10.2026; the session notes of 27.10: the Dynamic difficulty card ended "Answered by" and a failure
-         * gave the GM no card with the result. The GMs' card of a success (action-rolls.mjs `offerDynamicFind`, E16 C2)
+         * gave the GM no card with the result. The GMs' card of a success (action-dynamic.mjs `offerDynamicFind`, E16 C2)
          * now comes on a miss too, a receipt with no button, and both say "needed N" (the band's `dynamicBar`). This GM
          * takes a Dynamic action for a player's character standing in a room, free, twice: the second band picked, the
          * dice forced to 9 and 8 (a success), then to 2 and 1 (a miss). Read per throw: the new cards with the action's
@@ -77656,7 +77656,7 @@ const SCENARIOS = [
     ["E51-T31 - a Dynamic Reroll tells the GMs its result as the first throw does: a miss rerolled into a miss posts the miss's card with the new total and \"needed N\", nothing to press, and a miss rerolled into a success posts the success's card with \"needed N\" (E51 fix FG7; review goal G5, row E51-15)", async () => {
         /*
          * E51 fix round FG7 (G5), 31.10.2026; the session notes of 27.10 and E51-T8. E51 C1 gave a Dynamic miss the GMs'
-         * card a success had, the roll and "needed N" (action-rolls.mjs `offerDynamicFind`); the Reroll's road (reroll.mjs
+         * card a success had, the roll and "needed N" (action-dynamic.mjs `offerDynamicFind`); the Reroll's road (reroll.mjs
          * `settleDynamic`) posted the card only for a miss turned into a success, and that one without its number. This
          * GM takes a Dynamic action for a player's character standing in a room, free, at the second band, on 2 and 1 (a
          * miss), and rerolls it as its own into 3 and 1 (a miss again); then once more on 2 and 1, rerolled into 11 and
@@ -78972,7 +78972,7 @@ const SCENARIOS = [
         /*
          * E37 fix FG2, 02.11.2026; the end review's S-M1 (security lens). While an incident runs before its end the clock
          * moves in private: the time of day's card goes to the incident's audience alone (clock.mjs `announceTimeOfDay`)
-         * and a bystander's HUD and explainer stay frozen (hud.mjs `clockForDisplay`, incident-store.mjs
+         * and a bystander's HUD and explainer stay frozen (hud-elapsed.mjs `clockForDisplay`, incident-store.mjs
          * `clockHiddenHere`). Since C4 the summary hung on every forward move, and a bystander with a card of their own
          * was shown "Your <time of day>" at the moment of the private move, naming the time of day that ended. Driven on
          * this GM, the primary: a direct murder opened (`openMurder`, its opening's trait the body); the clock at a morning

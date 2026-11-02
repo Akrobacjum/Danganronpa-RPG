@@ -377,12 +377,12 @@ export const TIMING = {
     friskMarginMs: 15000,
     /** How long past either clock the primary still takes what was pressed at the last second on a window that opened
      *  one trip after the clock started: an answer to an ask (frisk.mjs `sweepFriskAsks` ends an unanswered ask only
-     *  then) and a force's draw (`friskForceOpen`, gm-bridge.mjs `friskForceRoll`). The windows themselves close at
+     *  then) and a force's draw (`friskForceOpen`, bridge-runs-acts.mjs `friskForceRoll`). The windows themselves close at
      *  `friskAnswerMs` and `friskForceMs` after they open. Under `friskMarginMs`, so a late 'does not answer' still
      *  reaches the searcher's wait (E80 fix r1-G1): chosen, not measured - a real round trip is LIVE-E80-05. */
     friskGraceMs: 5000,
     /** How long past the force's clock and its grace a force's roll may still be drawn (frisk.mjs `forceDrawnBy`, for
-     *  `friskForceOpen` and gm-bridge.mjs `friskForceRoll`): 'Make them' pressed at the last second of its window opens
+     *  `friskForceOpen` and bridge-runs-acts.mjs `friskForceRoll`): 'Make them' pressed at the last second of its window opens
      *  Daggerheart's roll window, and the roll is drawn only when that is confirmed - the design counts the draw, so
      *  that what comes after the press does not take the force away. The sweep keeps the row `friskMarginMs` past that
      *  for the follow (E80 fix r1-G2, the review's er-cor-8): chosen, not measured - a real roll window is LIVE-E80-05. */
@@ -748,7 +748,7 @@ export const TIER_EFFECTS = {
  *
  * `resource` is the Daggerheart resource key `use-items.mjs` writes to. The
  * labels feed the table names ("DRPG Usables (Healing) - Tier 2") through
- * USABLE_GOALS in tables.mjs, so renaming one here renames what a fresh world
+ * USABLE_GOALS in tables-pools.mjs, so renaming one here renames what a fresh world
  * installs.
  */
 /**
@@ -774,7 +774,7 @@ export const USABLE_KINDS = {
  * a GM in Polish installed a second set (audit S01-05, S02-05, S08-03, S13-01). A name is a display; this copy is the
  * one it is built from, and it is frozen, so nothing rewrites it. The owner's ruling (E14's risk, "wbudowane pule
  * zostają angielskie") keeps the built-in names English. A world built in Polish before this is found through the
- * Polish plurals in tables.mjs `LEGACY_PLURALS`.
+ * Polish plurals in tables-pools.mjs `LEGACY_PLURALS`.
  */
 export const TABLE_NAME_WORDS = Object.freeze({
     plural: Object.freeze(Object.fromEntries(Object.entries(ITEM_CATEGORIES).map(([key, c]) => [key, c.plural]))),
@@ -1549,7 +1549,7 @@ export const ACTIONS = {
          * A flat number rather than a table, because there is nothing for a
          * table to say. Beating it does not open anything by itself - the
          * result goes to the GM and they decide what it bought. See
-         * `locateStash` in action-rolls.mjs for why nothing is modelled.
+         * `locateStash` in action-analyze.mjs for why nothing is modelled.
          */
         stashThreshold: 16,
         /**
@@ -1609,7 +1609,7 @@ export const ACTIONS = {
      *
      * Its label, hint and description are localised strings, which cannot be
      * written in this file: `game.i18n` does not exist when config.mjs is
-     * evaluated. `dynamicDef()` in action-rolls.mjs builds the real thing at
+     * evaluated. `dynamicDef()` in action-dynamic.mjs builds the real thing at
      * render time and the grid asks for it when it reaches this row.
      *
      * What the row is FOR is its position. The dynamic tile used to be appended
@@ -1873,7 +1873,7 @@ function workableProjectCount(actor) {
 /**
  * Whether this character's Direct Murder would wait on the GM (E32+E07 C16, 03.10.2026;
  * audit S02-33). The tile is three actions, and only the declaration parks anything: a
- * killing declared in an Eclipse, and a betrayal declared in one (action-rolls.mjs
+ * killing declared in an Eclipse, and a betrayal declared in one (action-murder.mjs
  * `performBetrayal`). In a fight it opens the crisis actions, and at Stage 6 outside an
  * Eclipse the betrayal is the player's own decision - the GM's client writes it and asks
  * nobody. The chip said "GM" on all three, for both sides of a fight and for an accomplice
@@ -3800,7 +3800,7 @@ export const TRIAL = {
      *
      * THE WHOLE TABLE (E70 C13, 28.10.2026; E70-82): `gm` (the bar), `topicLength`, `budget`, `round` (Testimony, Panic
      * Round) and `closing` (the Closing Argument), each read where its comment says; the floor's modes have no music of
-     * their own (music.mjs `TRIAL_MODE_MUSIC`). The budget is read only as the console's estimate: what a GM over it
+     * their own (music-states.mjs `TRIAL_MODE_MUSIC`). The budget is read only as the console's estimate: what a GM over it
      * skips first is the GM handbook's advice (section 15), never a rule here, and nothing the module skips by itself.
      *
      * E70 C3 (27.10.2026; S18-70, S18-80): `topicLength` is the longest debate question kept (floor-machine.mjs
@@ -4410,7 +4410,7 @@ export const SFX_CATEGORIES = {
  * How far a repeated sound is allowed to wander.
  *
  * `rate` is the FULL reach of the pitch-and-speed bend and `floor` is how close
- * to unbent a play is allowed to land - see `rateFor` in sfx.mjs, which is
+ * to unbent a play is allowed to land - see `rateFor` in sfx-play.mjs, which is
  * where the second number does its work.
  *
  * TUNED BY EAR, WHICH IS THE ONLY WAY. Dawid, 28.08, on 0.08: "you can hear it,

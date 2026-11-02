@@ -55,7 +55,7 @@ async function tellGmsKeyMissing(item) {
 export async function resolveAnalyze({
     actorId, itemId, total, isCritical = false, undo = false,
     // The roll it was thrown with and who threw it, for the GMs' fact of the bullet (fix r1-G2):
-    // action-rolls.mjs `rollOfFact`.
+    // action-pipeline.mjs `rollOfFact`.
     rollId = null, by = null
 } = {}) {
     if (!game.user.isGM) return null;
@@ -119,7 +119,7 @@ export async function resolveAnalyze({
      * open within `TIMING.gmStoreOpenMs`, or could not open at all, refuses with
      * `keysNotOpen` rather than holding the request for ever (`answerKeysRefusal`).
      * Either refusal hands the price back on the asking player's client
-     * (action-rolls.mjs `analyseBullet`); until fix round 10 neither did - the
+     * (action-analyze.mjs `analyseBullet`); until fix round 10 neither did - the
      * missing key's measured on 05ac984: p1's actions 3 -> 2, nothing given back -
      * though this note said so.
      */

@@ -2,7 +2,7 @@
  * Danganronpa RPG - the Passages tab of Room Setup (E79 C5, 1.2.79).
  * ---------------------------------------------------------------------------
  * The GMs' table of the secret passages on the scene Room Setup was opened on, after the Doors
- * tab (vault.mjs `ROOM_SETUP_TABS`), drawn as the D31 mockup drew it (the E79 plan's 2.4): a row
+ * tab (room-setup.mjs `ROOM_SETUP_TABS`), drawn as the D31 mockup drew it (the E79 plan's 2.4): a row
  * per passage - its rooms; who knows it, a chip per student with the way they learnt it, a cross
  * that revokes it and '+' that gives it to another (two clicks); who knows it from the season's
  * start; its state (secret, closed, or broken when its wall moved, with the students no player of
@@ -181,7 +181,7 @@ export function passagesTabBody(scene, { stores = PASSAGE_STORES, students = [],
     return `${table}<p class="notes">${esc(t("DRPG.Passage.tab.footnote"))} ${esc(t("DRPG.Passage.tab.startHint"))} ${esc(t("DRPG.Passage.tab.wayHint"))}</p>`;
 }
 
-/** The Passages panel's inside, for Room Setup (vault.mjs `roomSetupContent`): nothing on a player's browser. */
+/** The Passages panel's inside, for Room Setup (room-setup.mjs `roomSetupContent`): nothing on a player's browser. */
 export function passagesTabHtml(scene, options = {}) {
     if (!game.user?.isGM) return "";
     return `<p>${esc(t("DRPG.Passage.tab.intro"))}</p><div class="drpg-passage-bar"><button type="button" class="drpg-mini-button"

@@ -142,7 +142,7 @@ export async function startRefusal(clock = getClock()) {
 
     /*
      * NOT OVER A RUNNING INCIDENT (E17 C7, 26.10.2026; audit S10-07, the owner's Q3 (a) of 19.10: "najpierw zamknij
-     * incydent"). While an incident runs the clock moves in private (clock.mjs `announceTimeOfDay`, hud.mjs
+     * incydent"). While an incident runs the clock moves in private (clock.mjs `announceTimeOfDay`, hud-elapsed.mjs
      * `clockForDisplay`), and an Eclipse told every screen at once that the GM was doing something: its public card
      * with its sound, the dimming on every browser, a whisper to every student. Refused here, the one writer of
      * `eclipse: true` the HUD's chevron, the GM panel's "Do it" and the API reach; the chevron is dimmed with the same
@@ -503,7 +503,7 @@ export async function parkDirectMurder({ killerId, room = null, note = "" } = {}
 export async function writeParkedMurder({ killerId, room = null, note = "" } = {}) {
     // Only in an Eclipse (E05 fix r1-G3; review S1-m8): outside one the row would be named
     // for no Eclipse, nothing could rule on it and the GMs were asked all the same. The
-    // bridge refuses a player's with its reason first (gm-bridge.mjs `handleParkMurder`).
+    // bridge refuses a player's with its reason first (bridge-runs-acts.mjs `handleParkMurder`).
     if (!game.user.isGM || !killerId || !eclipseId()) return null;
     // `approved: null` is undecided, and it is written explicitly: every field is
     // named, so a second declaration by the same killer replaces the first whole.

@@ -356,7 +356,7 @@ export function isTierPoolTable(table) {
     return isTierPool(table?.name);
 }
 
-/** The names Room Setup's "Draws from" offers: every table but a tier pool (`isTierPoolTable`), sorted (vault.mjs). */
+/** The names Room Setup's "Draws from" offers: every table but a tier pool (`isTierPoolTable`), sorted (room-setup.mjs). */
 export function roomStockTables(tables = game.tables ?? []) {
     return Array.from(tables).filter(t => !isTierPoolTable(t)).map(t => t.name).sort();
 }
@@ -764,7 +764,7 @@ export function roomTableNames(base, category, tier) {
  * A SEARCH DRAWS ONLY WHAT A SEARCH ASKS FOR (E14 fix e1-G4, 25.10.2026; the review's E14p2-END-02, R5).
  * Every key of `ITEM_CATEGORIES` was a suffix here, and since C3 the suffix is the find's category (`roomEntryAs`): a
  * "Library - Truth Bullets" table handed a Search for a weapon a Truth Bullet with no trace behind it, ready for the
- * trial, and "Dorm - Room Keys" a key with no room on it - against the module's own rulings (vault.mjs Room Setup, A24:
+ * trial, and "Dorm - Room Keys" a key with no room on it - against the module's own rulings (room-setup.mjs Room Setup, A24:
  * "Truth Bullets are not searched for, and neither are bedroom keys"; `pickableCategories`; `drawItem`'s spare, which
  * skips the Truth Bullet). Only the categories the pools hold (`ITEM_POOLS`) are a room table's suffix now.
  */
@@ -789,14 +789,14 @@ function isRoomTableOf(base, name, tier) {
  *     tier, a plural its category - else the request;
  *   - a built-in pool, the request, which is the pool it drew from.
  * The tier is the item's, which can be above the roll's: "Kitchen - Tier 3" also answers a Tier 1 roll as a
- * substitute. `grantDrawn` (action-rolls.mjs) gives it no higher than the tier the Search earned, and the GM still
+ * substitute. `grantDrawn` (action-search.mjs) gives it no higher than the tier the Search earned, and the GM still
  * judges that tier (sheet-audit.mjs `searchFind`).
  */
 
 /**
  * The category, tier and goal an entry of this name is filed under in the tier pools (`classifyEntryName`), or
  * `fallback` when no pool files it. An entry filed twice (an axe that is also a tool) answers as the pool asked for
- * when it is one of them. Exported: a plant's name is read the same way (action-rolls.mjs `searchDraw`), so a planted
+ * when it is one of them. Exported: a plant's name is read the same way (action-search.mjs `searchDraw`), so a planted
  * item lands on the sheet as the same entry drawn from a table would (trap 166).
  *
  * @param {string} name
@@ -967,7 +967,7 @@ export const DRAW_STEPS = Object.freeze([
  */
 export async function drawItem(category, tier, { goal = null, room = null, scene = null, rng = Math.random, tables = game.tables, trail = null } = {}) {
     const asked = { category, tier: Number(tier), goal: goal ?? null };
-    // The room's tables' name (vault.mjs Room Setup's "Draws from"), read once before the steps.
+    // The room's tables' name (room-setup.mjs Room Setup's "Draws from"), read once before the steps.
     const roomBase = room ? await tableForRoom(room, scene) : null;
     const ctx = { asked, category, tier, goal, room, scene, roomBase, rng, tables };
     for (const step of DRAW_STEPS) {

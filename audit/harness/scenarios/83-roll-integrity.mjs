@@ -36,7 +36,7 @@
  *     arms the Obstacle on Aiko, 61 s before her roll - the grace is 60 (config.mjs `HOSTILE_GRACE`).
  *   - L3 "action and reaction": a statistic off the sheet is thrown as a reaction (roll-dialog.mjs
  *     `forceReaction`, roll-draw.mjs `onGmTerms`), and the action is the module's own roll of a
- *     statistic (action-rolls.mjs `rollTrait`). Both drawn, both Chie's.
+ *     statistic (action-pipeline.mjs `rollTrait`). Both drawn, both Chie's.
  *   - L4's experience: the harness's roll window clicks only the chips a test forces, and this file
  *     forces nothing, so p2's page clicks the chip itself as the window opens, as a player does.
  *   - L9's crisis action: a Finishing Blow's threshold is five times the victim's Health left, which
@@ -201,7 +201,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
 
     /* --------------------------- L1. a Search ------------------------------- */
 
-    /* p1 searches Dorm A from Aiko's grid; the GM draws the roll and p1's page takes the find (action-rolls.mjs
+    /* p1 searches Dorm A from Aiko's grid; the GM draws the roll and p1's page takes the find (action-search.mjs
        `grantDrawn`, judged by sheet-audit.mjs `searchFind`). Her Eye is raised to 10 for the road so the roll
        always earns a find (a find needs 12, config.mjs ACTIONS.search), and put back after. */
     phase("L1: p1's Search, drawn, and its find", { flow: "gm-rolls-total" });
@@ -274,7 +274,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     /* ---------------------- L4. an Experience, bought ------------------------- */
 
     /* p2 asks for an Experience Call from Botan's sheet (calls.mjs `spendHopeCall`); the GM says yes on the card in
-       p2's thread (gm-bridge.mjs `answerHopeCall`), which buys and arms it on the GM; p2 then throws Botan's Eye and
+       p2's thread (bridge-asks.mjs `answerHopeCall`), which buys and arms it on the GM; p2 then throws Botan's Eye and
        clicks his experience's chip as the window opens. */
     const experienceRoad = async label => {
         await refill(botan);
@@ -359,7 +359,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
 
     /* ------------------------ L11. a Level Up ------------------------ */
 
-    /* The GM offers Botan a Standard Level Up; p2 takes +1 Health from his sheet (gm-bridge.mjs `requestAdvancement`),
+    /* The GM offers Botan a Standard Level Up; p2 takes +1 Health from his sheet (bridge-asks.mjs `requestAdvancement`),
        which the GM applies (level-up.mjs `applyAdvancement`). */
     phase("L11: a Level Up p2 takes and the GM applies", { flow: "sheet-audit" });
     const l11Was = await sheetOf(botan);
@@ -905,7 +905,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
 
     /* ---------------- F5a. a drawn roll's packet, edited ---------------- */
 
-    /* p1 throws Aiko's Eye through the module (action-rolls.mjs rollTrait); its console edits the roll.draw packet
+    /* p1 throws Aiko's Eye through the module (action-pipeline.mjs rollTrait); its console edits the roll.draw packet
        on its way to the GM: a + 5 after her Eye, Daggerheart's guaranteedCritical, and dice of one face. The GM
        throws its own dice and scores its own list (roll-draw.mjs onGmTerms, E29 C10, fix r2-H1): the record's dice
        are d12s, a critical only of equal dice, and the 5 is claimed, not scored - flagged to the GMs and named to p1. */
@@ -1242,7 +1242,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     /* ------------- F8. a Frisk's hand and force on a card with the draw's flags ------------- */
 
     /* E80 fix r1-G4 (19.10.2026; the review's sec-3, goal-P2-19 and E80-C3-7 (b)): a Frisk is judged on the GMs' record
-       of its rolls (gm-bridge.mjs `friskRolls`, `friskForceRoll`), so a card of p1's own carrying the draw's flags is no
+       of its rolls (bridge-runs-acts.mjs `friskRolls`, `friskForceRoll`), so a card of p1's own carrying the draw's flags is no
        roll of it. p1's console writes a duality card of Aiko's with a total of 40 and the flags the GM's draw stamps
        (`drawn`, and the rollId of F5a's record), as F4's, then names it as an unseen Frisk's hand and cover of Botan
        (`action.friskUnseen`, saying 30 and a critical) and as an open Frisk's force (`action.friskFollow`). Each is

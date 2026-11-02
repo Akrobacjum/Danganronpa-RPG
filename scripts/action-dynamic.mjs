@@ -53,7 +53,7 @@ export async function performDynamic(actor, options) {
     /*
      * ONE CARD (E16 part 2 C1, 26.10.2026; audit S02-34). The description went out through
      * `promptAndCallGm`, a card with a Reply alone, and the difficulty below asked again with the
-     * card that carries Set difficulty and Refuse (gm-bridge.mjs `askDynamicByCard`): two cards
+     * card that carries Set difficulty and Refuse (call-gm.mjs `askDynamicByCard`): two cards
      * with one description, and the first stayed "Awaiting a ruling." in the thread for the rest of
      * the season. The window is asked alone now (`promptForRequest`, no card), and the GMs' one
      * card is the difficulty's; a GM's own action is ruled in a window and posts none. Tier 2's
@@ -228,7 +228,7 @@ export async function offerDynamicFind(actor, { success = true, tier, room = nul
  * the player "Nothing" - but the card still read "The roll succeeded" with Create an item on it, and a GM who did not
  * watch the Reroll made an item for a roll that had missed. On the GM that settles the Reroll (reroll.mjs
  * `settleDynamic`): every card not yet answered whose Create an item names this character and this roll's message
- * (`data-roll`, written by `offerDynamicFind`) is ended through gm-bridge.mjs `settleCall`, its buttons off, with
+ * (`data-roll`, written by `offerDynamicFind`) is ended through call-gm.mjs `settleCall`, its buttons off, with
  * the line that the success no longer stands. A card already answered is left as it was: what a GM gave on it is the
  * GMs' to take back. A card a player's console wrote naming the roll is that player's own, and ends the same way.
  * Answers how many cards it ended. Tier 2's E16-T26 reads it.

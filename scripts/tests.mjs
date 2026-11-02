@@ -163,7 +163,7 @@ export async function runTests({ tier = 1, only = null, confirmed = null, shard 
             }
         }
         // Every roll the scenarios make skips the configuration window - see
-        // `suiteRolling` in action-rolls.mjs for why, and the scenario named "the
+        // `suiteRolling` in action-pipeline.mjs for why, and the scenario named "the
         // roll window opens, locked" for what still covers it.
         if (game.drpg) game.drpg.suiteRolling = true;
         return await runSuite(tier, only, cut);

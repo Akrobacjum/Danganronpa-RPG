@@ -173,7 +173,7 @@ function currentClock() {
 /**
  * The Rest window's two rows, each with its price and its reason for being unavailable - spent already, or not
  * allowed in this room. Both reasons used to be printed above a pair of buttons that stayed live regardless, so the
- * player could pick the one the list had just told them they could not have. Out of action-rolls.mjs `performRest`
+ * player could pick the one the list had just told them they could not have. Out of action-rest.mjs `performRest`
  * (E16 part 2 C4, 26.10.2026; audit S02-26), so the sheet's tile reads the same rows (`restShutReason`).
  */
 export function restVariants(actor) {

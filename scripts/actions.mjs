@@ -348,7 +348,7 @@ export async function takeMove(actor, { quiet = false } = {}) {
 /**
  * What the next crossing takes, read in `takeMove`'s order without paying it (E37 C6, 01.11.2026; E37-28, audit S10-48):
  * "free" (the Free Move), "sprint" (a banked Sprint), "burst" (a banked Burst, which `spendAction` takes before an
- * action), "action", or null when nothing is left to pay with. The Move briefing says it (action-rolls.mjs `moveLine`),
+ * action), "action", or null when nothing is left to pay with. The Move briefing says it (action-briefing.mjs `moveLine`),
  * so a player who banked a Burst reads that the walk will take it; `takeMove` itself is unchanged (D21). R1200 holds the
  * two to one order, read off `takeMove`'s source and run on fixtures.
  */

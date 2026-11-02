@@ -477,7 +477,7 @@ async function armAhead() {
     }
 }
 
-/** The reason `resetOverflow` is given by the verdict (vote.mjs `verdictOverflow` passes none). */
+/** The reason `resetOverflow` is given by the verdict (verdict.mjs `verdictOverflow` passes none). */
 const VERDICT = "the verdict";
 
 /**

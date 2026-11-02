@@ -1450,8 +1450,9 @@ function musicText(sources, family = MUSIC_FAMILY) {
 
 /**
  * The sound engine's family (E41 C9a): sfx.mjs - the facade, which keeps `registerSfx`, its listeners, the unlock and
- * `diagnoseSfx`, and until E41 C9b the Sound window's sliders, Effects tab and launcher - and the file its player moved
- * into (sfx-play.mjs). A reader of sfx.mjs's text reads the family through `sfxText`.
+ * `diagnoseSfx`, and the Sound window's sliders, Effects tab and launcher (they stay: in sound-panel.mjs they close a
+ * static import cycle; E41-16, carried to E73) - and the file its player moved into (sfx-play.mjs). A reader of
+ * sfx.mjs's text reads the family through `sfxText`.
  */
 const SFX_FAMILY = Object.freeze(["sfx.mjs", "sfx-play.mjs"]);
 

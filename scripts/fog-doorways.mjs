@@ -725,7 +725,7 @@ export function viewerPassages(actor, region, scene, level = null, { gm = Boolea
  * `[{ id, x, y, to }]`, `to` the room at the other end as this viewer may name it - the rooms it has not
  * found are "Unexplored room 1, 2...", numbered over the distinct far rooms of this room's marks in the order
  * they come, so two marks to one such room share its number and two to two rooms do not, as Listen numbers
- * its list (action-rolls.mjs `listenLabels`; E80 fix r1-G8, the review's E80-C1-03: every one was 1). Read from this
+ * its list (action-listen.mjs `listenLabels`; E80 fix r1-G8, the review's E80-C1-03: every one was 1). Read from this
  * browser's copy (passages.mjs `tunnelEndsFor`), so a tunnel the GMs closed, deleted or never gave a
  * character of this player's has no mark, and the rooms are read off the map as the list reads them
  * (movement.mjs `passageRooms`). None on a GM's browser, as `viewerPassages` hands a GM none. The end of a one-way

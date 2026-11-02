@@ -76,8 +76,8 @@
  *     E4 (fix FG2, G4) p1's page answers no character of its own for the click's read: "no character" once, no
  *        "took" toast, the Take open again, nothing sent.
  *     E3 the Take lands: the toast once, the Take stays shut, a second press sends nothing (one packet counted on gm).
- *   S (E50 C4; E50-33, flow "sound") - sfx.mjs's socket road, counted where `fire` hands a file to the audio layer
- *     (`sfx.played`), a key mapped and every browser's Sound slider at 0.8:
+ *   S (E50 C4; E50-33, flow "sound") - the sounds' socket road (sfx-play.mjs sends, sfx.mjs listens), counted where
+ *     `fire` hands a file to the audio layer (`sfx.played`), a key mapped and every browser's Sound slider at 0.8:
  *     S1 gm plays a sound for p1 (`playSfxForUsers`): 1 on p1, 0 on gm, gm2, p2 and p3.
  *     S2 p2's page sends `playSfxFor` packets, one to p1 and one to everybody: 0 everywhere.
  *

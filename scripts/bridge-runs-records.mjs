@@ -168,7 +168,7 @@ export async function handleRemnant(payload, sender, ctx) {
 
 /**
  * A PLAYER'S WORK ON THEIR OWN INDIRECT MURDER IS THE CRIME'S TRACE (E32+E07 fix r2-G3, 03.10.2026;
- * the round-2 review's C2-m9 (a)). The module's own drop says so (action-rolls.mjs
+ * the round-2 review's C2-m9 (a)). The module's own drop says so (action-project.mjs
  * `hideProjectTraces`: an indirect murder is the murder, built in instalments), and the rebuild
  * above drops every packet's `tiedToCrime` - so since E03 a trap built from a player's browser left
  * untied traces, which the chapter's end sweeps. Judged here on the GMs' record, not on the packet:
@@ -176,7 +176,7 @@ export async function handleRemnant(payload, sender, ctx) {
  * who proposed it.
  *
  * AND A SABOTAGE OF IT (E09 C5, 08.10.2026; audit S10-17). The roller's browser ties the trace of a
- * Sabotage of an indirect murder (action-rolls.mjs `dropSabotageTrace`) and the rebuild dropped that
+ * Sabotage of an indirect murder (action-project.mjs `dropSabotageTrace`) and the rebuild dropped that
  * too, so the killer's Sabotage of their own trap left an untied trace (read in the code at C5's parent:
  * this answered false for every action but a Work; the tier-2 tests' red is in C5's message). The
  * project is not the packet's: it is the target `handleSabotage` noted on the GMs' row of the roll the
@@ -210,10 +210,10 @@ async function worksOwnMurder(payload, actor, action, sender) {
  * (`rollId`, as it has since fix r1-G1 for the GMs' row), and the band is read off the GMs' record
  * of it with the action's own table, as the roller's browser reads it:
  *   - a Search: the tier its total reaches with the hidden stash's step the GM drew, or the
- *     critical's band (action-rolls.mjs `searchTier`, `leaveSearchTrace`);
+ *     critical's band (action-search.mjs `searchTier`, `leaveSearchTrace`);
  *   - a Sabotage: the band its total reaches (`sabotageHit`), with the concealment's penalty and
  *     the readied tool's relief the roller claimed for that roll (the GMs' bookmark,
- *     `ROLL_CLAIMS.sabotage`), held as its repair holds them (action-rolls.mjs
+ *     `ROLL_CLAIMS.sabotage`), held as its repair holds them (action-project.mjs
  *     `sabotageExtrasHeld`) - the concealment's own roll names no action, so its Despair is not on
  *     a record yet; a miss leaves the table's `failureRemnant`. The relief was the tool readied
  *     on the sheet now until fix r2-H3 (the round-2 review's S2-9): a tool that broke on a roll
@@ -274,9 +274,9 @@ export function dynamicRulingOf(record) {
  * WHAT A PROJECT'S ROLL EARNED IS THE GM'S (E08+E28 C16, 04.10.2026; audit S10-08, S10-06; the plan's
  * 3.5). Progress and a Sabotage's repair were the packet's numbers, held only to a range: a console
  * that named a roll of 7 added 12. The packet names its roll now, and the GM reads what it earned
- * off its record with the action's own table, as the roller's browser reads it (action-rolls.mjs
+ * off its record with the action's own table, as the roller's browser reads it (action-project.mjs
  * `projectProgress`, `sabotageHit`, `sabotageRepairScale`). What only the roller saw rides on the
- * packet and is held to what the rules allow (action-rolls.mjs `projectExtrasHeld`,
+ * packet and is held to what the rules allow (action-project.mjs `projectExtrasHeld`,
  * `sabotageExtrasHeld`, which the Reroll's replays and a Sabotage's trace read too since fix
  * r2-H3): an indirect murder's concealment adds at most `PROJECT_BONUS_MOST`, and to nothing else;
  * a Sabotage's concealment takes off at most what one thrown with Despair takes; the readied
@@ -286,7 +286,7 @@ export function dynamicRulingOf(record) {
  * 0, which freezes nothing (`handleSabotage`).
  *
  * A MISS ON A MURDER PLAN PAYS ITS HELD BONUS (E15 C2, 25.10.2026; audit S02-08, the owner's D13).
- * The concealment's bonus rides on any outcome now (action-rolls.mjs `projectProgress`), so a miss
+ * The concealment's bonus rides on any outcome now (action-project.mjs `projectProgress`), so a miss
  * that was refused here adds the bonus its packet claims, held as a hit's is: at most
  * `PROJECT_BONUS_MOST` on an indirect murder, nothing on any other project, whose miss is refused
  * as before. E15-T3 sends a miss claiming 40 to each: 1 and refused.
@@ -715,7 +715,7 @@ export async function handleKeysCharge() {
     return { reply: await chargeForUnfoundKeys() };
 }
 
-/** The run of `trial.record` (E70 fix p1-G2): the record's write on this primary (vote.mjs `recordOnPrimary`), its answer or null. */
+/** The run of `trial.record` (E70 fix p1-G2): the record's write on this primary (trial-progress.mjs `recordOnPrimary`), its answer or null. */
 export async function handleTrialRecord(payload) {
     const { recordOnPrimary } = await import("./vote.mjs");
     return { reply: await recordOnPrimary(payload.op, { patch: payload.patch, seconds: payload.seconds, chapter: payload.chapter }) ?? null };

@@ -1102,7 +1102,7 @@ function tellHere(level, key, data = null) {
  * ran again and told the player a second time (T9: 3 messages, then 4). Nothing
  * marked a proposal as ruled; each ruling read the row, awaited, and wrote. Here the
  * row is read and marked `ruled` in one synchronous step, so of two rulings on one
- * browser exactly one finds it unmarked; `askReshapeRuling` (gm-bridge.mjs) sends
+ * browser exactly one finds it unmarked; `askReshapeRuling` (bridge-asks.mjs) sends
  * every GM's ruling to the primary, which makes that one browser.
  *
  * The proposal is the row's (`proposeReshape`), and a row that does not hold one for
@@ -1714,7 +1714,7 @@ export async function resolveCleanup({
     // string, and only a step the table knows is honoured.
     price = null, grant = false,
     // The roll it was thrown with and who threw it, for the GMs' fact of the attempt (fix
-    // r1-G2): action-rolls.mjs `rollOfFact`. `by` is the bridge's sender, null for a GM's own
+    // r1-G2): action-pipeline.mjs `rollOfFact`. `by` is the bridge's sender, null for a GM's own
     // attempt, and a give-back the GMs' audit cannot check is not made on a player's word (`paidBack`).
     rollId = null, by = null
 } = {}) {
@@ -1960,7 +1960,7 @@ export function tamperPriceSkip(actor) {
  * Monocub) stays refused - a grant is no reason to clean.
  *
  * The readers are the ones `tamperPriceSkip` names: this file's charge (`chargeTamper`), the
- * Tamper tile's refusal and briefing (action-rolls.mjs), and the sheet's price label.
+ * Tamper tile's refusal and briefing (action-tamper.mjs, action-briefing.mjs), and the sheet's price label.
  */
 export function tamperQuote(actor) {
     const quote = quotePrice(actor, "tamper", { skip: tamperPriceSkip(actor) });
@@ -3026,7 +3026,7 @@ async function refundRefused(actor, price, grant = false, by = null) {
  * hand it back by hand. A player's packet reaches that branch, by reading (fix r2-G8; not measured - the harness runs
  * one GM, its stores hydrated before the suite): the primary judges a packet without waiting for its stores where the
  * GM-side draw is not in force (bridge-guards.mjs `rollsFor` returns before `whenHydrated`, and nothing else in `judge`
- * waits), and asks whether it is the primary as the packet arrives (gm-bridge.mjs `onSocket`), not when the give-back
+ * waits), and asks whether it is the primary as the packet arrives (bridge-table.mjs `onSocket`), not when the give-back
  * runs. Tier 2 reaches the branch by dropping the student's mark before each packet: measured at 8303625 by "a give-back
  * the GMs cannot check against a payment is not made on a player's word and the GMs are told", a player who had paid
  * neither had the Sanity step and the action two packets claimed given back, and the GMs were told nothing.

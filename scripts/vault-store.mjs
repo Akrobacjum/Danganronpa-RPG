@@ -57,11 +57,11 @@
 import { MODULE_ID, BEDROOM_KEY_FLAG, ROOMS_PER_PLAYER } from "./config.mjs";
 import { ITEM_FLAGS, isStashed } from "./inventory.mjs";
 import { trustedWrite, trustedDelete } from "./resource-guard.mjs";
-// Static because `keysHeldBy` is synchronous; sheet-audit.mjs reaches nothing that imports this file (R161).
+// Static because `keysHeldBy` is synchronous; sheet-audit.mjs reaches this file by no static import (R161).
 import { itemsHeldNow, judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
-// The one room lookup. movement.mjs does not reach back into this file.
 // The key rule both this file and the door read (E14 part 1 C2; bedroom-keys.mjs's header).
 import { keyRooms, bedroomShutTo } from "./bedroom-keys.mjs";
+// The one room lookup. movement.mjs does not reach back into this file.
 import { ROOM_FLAGS, roomBroken } from "./movement.mjs";
 import { isDeceased, getClock } from "./settings.mjs";
 import { SEARCH_FLAGS } from "./search-tokens.mjs";
@@ -1042,7 +1042,6 @@ export async function unconcealStashes(actorId) {
     return rooms;
 }
 
-/** Has a "build a stash" project made this room's contents hard to find? */
 /**
  * Is this room locked when a season begins?
  *

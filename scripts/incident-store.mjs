@@ -191,7 +191,7 @@ export function murderState() {
 /**
  * WHETHER THIS BROWSER IS A BYSTANDER OF THE RUNNING INCIDENT (E17 fix p2-G3, 26.10.2026): an incident runs, this is
  * no GM, and none of the seats of `incidentSeats` at the stage running is a character this user owns - the reading
- * hud.mjs `clockForDisplay` freezes the clock by (E06 C2, D6), moved here so that the Event panel's motive card
+ * hud-elapsed.mjs `clockForDisplay` freezes the clock by (E06 C2, D6), moved here so that the Event panel's motive card
  * (events.mjs `motiveCard`) asks the same question: the panel is drawn by hud.mjs, which imports events.mjs.
  */
 export function clockHiddenHere(state = murderState()) {
@@ -1840,7 +1840,7 @@ export function betrayalCandidate(state, killer) {
  *
  * THE IDS ARE THE GMS' (E32+E07 fix r2-G4, 03.10.2026; the correctness review's m3). Until
  * this fix they were kept in a Set on the browser that posted the cards, and a player's result
- * is judged on the primary GM alone (gm-bridge.mjs `handleOpeningResult`): a murder opened on
+ * is judged on the primary GM alone (bridge-runs-acts.mjs `handleOpeningResult`): a murder opened on
  * another GM, a re-ask from one, or the posting GM's reload left the deciding browser's Set
  * empty, and "This roll is yours" stayed through the fight (scenario 61 F9: a second GM's
  * re-ask stayed on the killer's player's browser after the primary closed the murder). They

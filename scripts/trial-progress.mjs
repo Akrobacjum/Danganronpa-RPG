@@ -411,7 +411,7 @@ async function askRecord(op, fields, local) {
 }
 
 /**
- * The run of "trial.record" on the primary (gm-bridge.mjs `handleTrialRecord`), and this primary's own road: `patch`
+ * The run of "trial.record" on the primary (bridge-runs-records.mjs `handleTrialRecord`), and this primary's own road: `patch`
  * (held to `RECORD_FIELDS`), `reset` (`resetTrialProgress`'s fields), `execute` (`executeAtExit` of `chapter`) and
  * `clearSentence`. Answers what the write answers, or null.
  */

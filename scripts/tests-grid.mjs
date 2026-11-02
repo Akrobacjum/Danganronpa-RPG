@@ -683,7 +683,7 @@ const STEPS = {
      * one opens, its killer the third - or, in an Eclipse, is parked until the lights, at
      * the cost of an action (Q3), the offer standing until the lights take it (fix r1-G2:
      * a declaration in the dark moves nothing a player's browser is sent). In an Eclipse the
-     * tile itself is pressed (action-rolls.mjs `performBetrayal`, E32 C5b): the action is paid
+     * tile itself is pressed (action-murder.mjs `performBetrayal`, E32 C5b): the action is paid
      * there, on the asking client, and its confirmation and note are answered by `answerDialogs`.
      */
     async betray(run) {
@@ -726,7 +726,7 @@ const STEPS = {
     },
 
     /*
-     * A DEATH FROM THE STUDENTS LIST: the GM panel's "dead" (gm-panel.mjs `applyAliveStates`),
+     * A DEATH FROM THE STUDENTS LIST: the GM panel's "dead" (gm-students.mjs `applyAliveStates`),
      * which makes the death the table's at once - so a victim's body is found as it falls.
      * The rules (D13): the victim's death in the fight offers Stage 6, which the GM takes; a
      * killer's leaves the fight standing, and moves the turn on past them (S04-42, E32+E07
@@ -884,7 +884,7 @@ async function afterKillerDeath(run, actor, offers) {
  * DRAWN ON THE GMS' RECORD). The packet is cut on the statistic the GM's list picks for the action
  * when no pick card stands - the lowest of the action's on the sheet, the first listed of equals
  * (roll-draw.mjs `lowestOf`) - so the claim and the list agree and the GM flags nothing. The
- * roller's browser bookmarks its roll before the action's packet leaves (action-rolls.mjs
+ * roller's browser bookmarks its roll before the action's packet leaves (action-pipeline.mjs
  * `rollTrait`), so `roll.bookmark` is judged first, as that player's, and the crisis packet after
  * it, naming the roll's message as the roller's does; the packet's numbers are the record's, which
  * the bridge reads for itself. What the step drew is kept on `run.drawn` for `reroll` and I15, with

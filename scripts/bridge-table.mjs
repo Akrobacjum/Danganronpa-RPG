@@ -129,7 +129,7 @@ export const BRIDGE_ACTIONS = table({
            packet's (E08+E28 C14; bridge-guards.mjs `rollRefusal`): an Observe's roll, of this
            character, the sender's, settling one Observe. */
         rolled: { field: "rollId", actor: "actorId", kind: "observe" },
-        claims: { rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and an Observe" }
+        claims: { rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-pipeline.mjs): the sender's own row of that message, its character and an Observe" }
     },
     [ACTION_ANALYZE_RESOLVE]: {
         label: "DRPG.Bridge.what.analyze.resolve",
@@ -140,7 +140,7 @@ export const BRIDGE_ACTIONS = table({
         // An Analyze's roll, never one thrown as a Find Passage (`notFindPassageRoll`, E80 fix r1-G7).
         rolled: { field: "rollId", actor: "actorId", kind: "analyze", derive: notFindPassageRoll },
         claims: { itemId: "looked up on that one character by resolveAnalyze (analyze.mjs), never across the world",
-            rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and an Analyze not thrown as a Find Passage (`notFindPassageRoll`)" }
+            rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-pipeline.mjs): the sender's own row of that message, its character and an Analyze not thrown as a Find Passage (`notFindPassageRoll`)" }
     },
     [ACTION_ADVANCEMENT]: {
         label: "DRPG.Bridge.what.advancement.apply",
@@ -232,8 +232,8 @@ export const BRIDGE_ACTIONS = table({
         // Both of the Palm's rolls, each on the GMs' record of it (E08+E28 C15; `palmRolls`).
         rolled: palmRolls("plannerId"),
         claims: {
-            victimId: "judged by plantOnPerson (vault.mjs), before the rolls are read, on the one gate (inventory.mjs transferRefusal, frisk.mjs personActionRefusal): a student in the planter's room as the GMs read both, no Monocub, Monokuma or hidden token, outside an Eclipse, a Class Trial and the planter's own incident; a body the GMs keep from the sender is planted on as a living one",
-            itemId: "judged by plantOnPerson (vault.mjs): an item in the planter's own hands",
+            victimId: "judged by plantOnPerson (palm.mjs), before the rolls are read, on the one gate (inventory.mjs transferRefusal, frisk.mjs personActionRefusal): a student in the planter's room as the GMs read both, no Monocub, Monokuma or hidden token, outside an Eclipse, a Class Trial and the planter's own incident; a body the GMs keep from the sender is planted on as a living one",
+            itemId: "judged by plantOnPerson (palm.mjs): an item in the planter's own hands",
             rollId: "the hand's roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the planter's Palm",
             unseenRollId: "the unseen roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the planter's Palm"
         }
@@ -298,7 +298,7 @@ export const BRIDGE_ACTIONS = table({
         run: handleFindStash,
         /* "reply" since E16 fix e1-G2 (26.10.2026; the review's E16p2-BEH-1 = E16R-04 = E16P2-R4): a Class Trial opened
            while the packet was in flight is refused here before the throw is read, and the asker gives the price back
-           on that refusal (action-rolls.mjs `locateStash`; the owner's Q3 of 18.10 by analogy) - heard after its
+           on that refusal (action-analyze.mjs `locateStash`; the owner's Q3 of 18.10 by analogy) - heard after its
            "got it" while the row was "ack", when `locateStash` had returned and the price stayed spent. */
         answer: "reply",
         // An Analyze's roll: a search for a hidden stash is one of the Analyze's roads (E08+E28 C14), and a roll thrown as
@@ -317,8 +317,8 @@ export const BRIDGE_ACTIONS = table({
         answer: "reply",
         rolled: palmRolls("thiefId"),
         claims: {
-            victimId: "judged by stealFromPerson (vault.mjs), before the rolls are read, on the one gate (inventory.mjs transferRefusal, frisk.mjs personActionRefusal): a student in the thief's room as the GMs read both, no Monocub, Monokuma or hidden token, outside an Eclipse, a Class Trial and the thief's own incident; a body the GMs keep from the sender is robbed as a living one",
-            itemId: "honoured by stealFromPerson (vault.mjs) only on a critical, and only if it is in the victim's pockets",
+            victimId: "judged by stealFromPerson (palm.mjs), before the rolls are read, on the one gate (inventory.mjs transferRefusal, frisk.mjs personActionRefusal): a student in the thief's room as the GMs read both, no Monocub, Monokuma or hidden token, outside an Eclipse, a Class Trial and the thief's own incident; a body the GMs keep from the sender is robbed as a living one",
+            itemId: "honoured by stealFromPerson (palm.mjs) only on a critical, and only if it is in the victim's pockets",
             rollId: "the hand's roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the thief's Palm",
             unseenRollId: "the unseen roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the thief's Palm"
         }
@@ -331,13 +331,13 @@ export const BRIDGE_ACTIONS = table({
         /* "reply" since E16 fix e1-G2 (26.10.2026; the review's E16p2-BEH-2 = E16R-03 = E16P2-R2): a Search that takes a
            Murder Weapon out of a stash leaves a Prep Remnant (E16 part 2 C4), and on "ack" it left one as the packet was
            accepted - for a thing a GM then refused (another reach took it first, full hands, an undecided item). The
-           asker leaves it only on the answer's `taken` (`handleVaultSteal`, action-rolls.mjs `searchStash`). */
+           asker leaves it only on the answer's `taken` (`handleVaultSteal`, action-search.mjs `searchStash`). */
         answer: "reply",
         // A packet that says a Search paid for it names that Search's roll (E08+E28 C15; `searchTheftOf`).
         rolled: { field: "rollId", actor: "thiefId", kind: "search", when: "viaSearch", derive: searchTheftOf },
         claims: {
-            ownerId: "judged by stealFromVault (vault.mjs): the owner of a stash the thief can reach",
-            itemId: "judged by stealFromVault (vault.mjs): an item that owner has stashed",
+            ownerId: "judged by stealFromVault (stash-reach.mjs): the owner of a stash the thief can reach",
+            itemId: "judged by stealFromVault (stash-reach.mjs): an item that owner has stashed",
             rollId: "the Search's roll whether it found the stash, and fumbled it, is read from (searchTheftOf): one the GM drew for the thief's Search"
         }
     },
@@ -373,7 +373,7 @@ export const BRIDGE_ACTIONS = table({
             usedItemId: "narrowed in the run to an item the acting character holds, else null",
             swungId: "narrowed in the run to an item the acting character holds, else null",
             before: "numbers or null by resourcesBefore (murder.mjs): a claim about the sender's own character, kept on the GMs' bookmark",
-            rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and a crisis action"
+            rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-pipeline.mjs): the sender's own row of that message, its character and a crisis action"
         }
     },
     [ACTION_PARK_MURDER]: {
@@ -410,7 +410,7 @@ export const BRIDGE_ACTIONS = table({
             price: "bounded on arrival against PRICE_CHAINS by the resolvers (T-1), and given back no further than the GMs' credit holds it (cleanup.mjs paidBack)",
             transform: "bounded on arrival against CLEANUP.transform by resolveCleanup (G-20)",
             change: "bounded on arrival against CLEANUP.transform by resolveCleanup (Z5)",
-            rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and a clean-up"
+            rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-pipeline.mjs): the sender's own row of that message, its character and a clean-up"
         }
     },
     [ACTION_CUB_ABILITY]: {
@@ -452,8 +452,8 @@ export const BRIDGE_ACTIONS = table({
         run: handleCallYes,
         answer: "reply",
         claims: {
-            asker: "yesOnPrimary (gm-bridge.mjs) keeps a yes only for an ask this primary holds under that request, made by that user",
-            messageId: "yesOnPrimary (gm-bridge.mjs) keeps a yes only when the card pressed is the card the ask is held on"
+            asker: "yesOnPrimary (call-gm.mjs) keeps a yes only for an ask this primary holds under that request, made by that user",
+            messageId: "yesOnPrimary (call-gm.mjs) keeps a yes only when the card pressed is the card the ask is held on"
         }
     },
     [ACTION_DIFFICULTY]: {
@@ -483,8 +483,8 @@ export const BRIDGE_ACTIONS = table({
         run: handleDynamicAnswer,
         answer: "reply",
         claims: {
-            asker: "dynamicOnPrimary (gm-bridge.mjs) keeps a ruling on its card and sends it on only for a Dynamic ask this primary holds under that request, made by that user",
-            messageId: "dynamicOnPrimary (gm-bridge.mjs) keeps and sends on a ruling only when the card pressed is the card the ask is held on"
+            asker: "dynamicOnPrimary (call-gm.mjs) keeps a ruling on its card and sends it on only for a Dynamic ask this primary holds under that request, made by that user",
+            messageId: "dynamicOnPrimary (call-gm.mjs) keeps and sends on a ruling only when the card pressed is the card the ask is held on"
         }
     },
     [ACTION_RULING_EXPIRED]: {
@@ -493,7 +493,7 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ rid: as.text }),
         run: handleRulingExpired,
         answer: "none", quiet: true,
-        claims: { rid: "expiredOnPrimary (gm-bridge.mjs) ends only an ask this primary holds or answered under that id, asked by the sender - a card's, or an open Frisk's (frisk.mjs expireFriskAsk: an unanswered one only once the sender's wait could have run out, an answered one as its 'Leave it')" }
+        claims: { rid: "expiredOnPrimary (call-gm.mjs) ends only an ask this primary holds or answered under that id, asked by the sender - a card's, or an open Frisk's (frisk.mjs expireFriskAsk: an unanswered one only once the sender's wait could have run out, an answered one as its 'Leave it')" }
     },
     [ACTION_RULING_RECEIVED]: {
         label: "DRPG.Bridge.what.ruling.received",
@@ -501,7 +501,7 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ rid: as.text }),
         run: handleRulingReceived,
         answer: "none", quiet: true,
-        claims: { rid: "receivedOnPrimary (gm-bridge.mjs) writes only a ruling this primary sent under that id to the sender" }
+        claims: { rid: "receivedOnPrimary (call-gm.mjs) writes only a ruling this primary sent under that id to the sender" }
     },
     /*
      * THE GM PICKS THE STATISTIC (E32+E07 C11b, 02.10.2026; audit S04-23). Judged on
@@ -553,7 +553,7 @@ export const BRIDGE_ACTIONS = table({
            guards bound it. */
         rolled: { field: "rollId", actor: "actorId", kind: "project", when: "rollId", named: { project: "countdownId" }, derive: progressOf },
         claims: { rollId: "the roll whose record the amount is read from (progressOf), and compared by noteProgressFact with the sender's own kept project roll; any other names no roll and writes no fact",
-            relief: "the roller's word for its readied tool, held by progressOf to the tools the GM sees on the character (action-rolls.mjs projectExtrasHeld)",
+            relief: "the roller's word for its readied tool, held by progressOf to the tools the GM sees on the character (action-project.mjs projectExtrasHeld)",
             bonus: "the roller's word for an indirect murder's concealment, held by progressOf to [0, PROJECT_BONUS_MOST] on an indirect murder, on any outcome, and to 0 on any other project (projectExtrasHeld)" }
     },
     [ACTION_SHARE]: {
@@ -592,7 +592,7 @@ export const BRIDGE_ACTIONS = table({
            names no roll. One roll leaves one trace. */
         rolled: { field: "rollId", actor: "data.sourceActor", kind: TRACE_OF_ROLL, kindAt: "data.action", settles: "trace", derive: traceBandOf },
         claims: { data: "a player's is rebuilt from a whitelist by narrowPlayerRemnant (remnants.mjs), its visibility the GM's band where its action's roll leaves it (traceBandOf), a discard's type the GM's (use-items.mjs discardRemnantType), refused in the Class Trial, and once placed the ticket its item's deletion stands on (sheet-audit.mjs noteDiscardTrace); a GM's is placed as written",
-            rollId: "the roll a Search's, Sabotage's or Dynamic action's trace takes its band from (traceBandOf), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and an action that owns a trace" }
+            rollId: "the roll a Search's, Sabotage's or Dynamic action's trace takes its band from (traceBandOf), and written on only by noteFactOfRoll (action-pipeline.mjs): the sender's own row of that message, its character and an action that owns a trace" }
     },
     [ACTION_TIE_TRACE]: {
         label: "DRPG.Bridge.what.remnant.tieForItem",
@@ -649,8 +649,8 @@ export const BRIDGE_ACTIONS = table({
         answer: "reply", resend: true, queue: "project",
         // Of the project its roll was drawn for (fix r2-H2: `named`).
         rolled: { field: "rollId", actor: "actorId", kind: "sabotage", named: { project: "targetId" }, derive: repairOf },
-        claims: { rollId: "the roll whose record the repair is read from (repairOf), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own Sabotage row of that message",
-            penalty: "the roller's word for its concealment, held by repairOf to [SABOTAGE_CONCEAL.despairPenalty, 0] (action-rolls.mjs sabotageExtrasHeld)",
+        claims: { rollId: "the roll whose record the repair is read from (repairOf), and written on only by noteFactOfRoll (action-pipeline.mjs): the sender's own Sabotage row of that message",
+            penalty: "the roller's word for its concealment, held by repairOf to [SABOTAGE_CONCEAL.despairPenalty, 0] (action-project.mjs sabotageExtrasHeld)",
             relief: "the roller's word for its readied tool, held by repairOf to the tools the GM sees on the character (sabotageExtrasHeld)" }
     },
     [ACTION_UNSABOTAGE]: {
@@ -865,7 +865,7 @@ export const BRIDGE_ACTIONS = table({
     },
     /* THE ROLL A REROLL WOULD TAKE BACK, AS ITS ROLLER SAW IT (E08+E28 C2, 03.10.2026; the
        plan's 2.2). Sent by the roller's browser after the roll, and again when its action
-       adds a claim (action-rolls.mjs `tellGmsOfRoll`): a report nobody waits on, so a refusal
+       adds a claim (action-pipeline.mjs `tellGmsOfRoll`): a report nobody waits on, so a refusal
        is the GM's log line. The roll's own numbers are read off the message on the GM. Since
        C5 it also names the card the roll was reported on, which a Reroll marks. */
     [ACTION_ROLL_BOOKMARK]: {
@@ -877,9 +877,9 @@ export const BRIDGE_ACTIONS = table({
         answer: "none", quiet: true,
         claims: {
             messageId: guardRollAuthor,
-            experiences: "the roller's own sheet's: keepGmBookmark (action-rolls.mjs) keeps up to twelve short strings",
-            context: "picked per action by rollClaims (action-rolls.mjs ROLL_CLAIMS): what the roller alone saw; a Reroll's replay judges anything it writes beyond the roller's own sheet",
-            reportMessageId: "kept only when reportCardOf (action-rolls.mjs) finds a module card of the sender's, no older than the roll and under a minute old; a Reroll only marks it"
+            experiences: "the roller's own sheet's: keepGmBookmark (action-pipeline.mjs) keeps up to twelve short strings",
+            context: "picked per action by rollClaims (action-pipeline.mjs ROLL_CLAIMS): what the roller alone saw; a Reroll's replay judges anything it writes beyond the roller's own sheet",
+            reportMessageId: "kept only when reportCardOf (action-pipeline.mjs) finds a module card of the sender's, no older than the roll and under a minute old; a Reroll only marks it"
         }
     },
     /*
@@ -960,7 +960,7 @@ export const BRIDGE_ACTIONS = table({
      * The record is one world setting, and each GM wrote it in its own browser's queue from its own copy: a write of
      * another GM and one of the primary landed over each other, and two GMs ending the trial carried the sentence out
      * twice. Another GM's object patch, the reset at the entry, the execution and the season's taking back of the
-     * sentence are asked here (vote.mjs `setTrialProgress`, `resetTrialProgress`, `executeAtExit`, `clearSentence`) and
+     * sentence are asked here (trial-progress.mjs `setTrialProgress`, `resetTrialProgress`, `executeAtExit`, `clearSentence`) and
      * run in the primary's one queue. A GM's request only: `patch` is held there to the record's own fields
      * (`recordPatchOf`), never the trial's list of the dead or the receipts, which only the primary's own steps write.
      */
@@ -971,7 +971,7 @@ export const BRIDGE_ACTIONS = table({
         run: handleTrialRecord,
         answer: "reply",
         claims: {
-            patch: "a GM's patch of the trial's record, held on the primary to the record's own fields (vote.mjs recordPatchOf, RECORD_FIELDS): never the chapter, the trial's list of the dead or the Objections' receipts; a GM's request only"
+            patch: "a GM's patch of the trial's record, held on the primary to the record's own fields (trial-progress.mjs recordPatchOf, RECORD_FIELDS): never the chapter, the trial's list of the dead or the Objections' receipts; a GM's request only"
         }
     },
     /*

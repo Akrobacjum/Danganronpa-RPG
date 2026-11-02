@@ -47,7 +47,7 @@ export async function openAdvancementFor(actor) {
         return null;
     }
 
-    // The module's one menu shape - see `chooseVariant` in action-rolls.mjs.
+    // The module's one menu shape - see `chooseVariant` in action-menus.mjs.
     // Imported dynamically because this window is opened from a sheet button
     // and a GM console, neither of which is on a path that has already paid
     // for that module.
@@ -350,7 +350,7 @@ async function withdrawOffer(actorId, offerId) {
 
 /**
  * Characters whose Level Up is being written on this browser - the primary GM's, which judges a
- * player's picks (gm-bridge.mjs `handleAdvancement` takes and lets go of the latch) and every
+ * player's picks (bridge-runs-acts.mjs `handleAdvancement` takes and lets go of the latch) and every
  * take-back of an offer (`takeBackOffer` here, the bridge's `take` for another GM, which read it
  * and hold it from their check to their drop).
  */
@@ -1003,7 +1003,7 @@ async function tellPlayer(actor, reasons, summary, taken) {
  * maxima and `advances` on the actor and a card spoken by it with the Level Up's sound,
  * all of it world data every console holds - the one student the class had just failed
  * to name, named by the reward. D4 gives everybody's advancement at the chapter's end,
- * which exists only at a correct verdict (vote.mjs `applyVerdict`), so the Reinforced
+ * which exists only at a correct verdict (verdict.mjs `applyVerdict`), so the Reinforced
  * waits for the class's next correct verdict and is picked with that survivor's
  * Standard, 1 + 3 picks in one window and one write; or for the Final Trial's verdict,
  * when the season's secrets are out anyway (the owner's Q7, option b). It lapses at a
@@ -1096,7 +1096,7 @@ export async function deferAdvancement(actor, kind = "reinforced", chapter = nul
  * and wrote, how many wait for their players, the names not yet given, the rows that lapsed.
  *
  * `given` are the students a verdict's batch gave one already before it stopped, and `onGiven`
- * is told each row given here, written or offered, once its waiting row is gone (vote.mjs
+ * is told each row given here, written or offered, once its waiting row is gone (verdict.mjs
  * `verdictLevelUps`; E10 fix r1-G1). The given are still among the living: their rows are
  * not drawn, and their waiting rows do not lapse.
  */
@@ -1151,7 +1151,7 @@ export async function runAdvancementBatch(actors, kind = "standard", { given = [
  * "HAND THEM OUT" FIRST (E10 fix r1-G2, 1.2.71; the round-1 goal verifier's item (b)). C7 marked
  * it the default - the window's answer is what its rows say - but listed "All: the players pick"
  * first, and Enter in a DialogV2 presses the first submit button in DOM order whatever carries
- * `default` (vote.mjs `openVerdictDialog`, E10 C4): a GM who set rows to "I pick" and pressed
+ * `default` (verdict.mjs `openVerdictDialog`, E10 C4): a GM who set rows to "I pick" and pressed
  * Enter handed every row to its player. Measured on the harness at 1a9a07e (tier 2, "Enter in
  * the class's Level Up window gives what its rows say"): every row "I pick", the form submitted
  * by its first button, the answer was "player" for each. The key itself in Foundry's window is

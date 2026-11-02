@@ -31,7 +31,8 @@ import { neighbouringRooms, ROOM_FLAGS } from "./movement.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { SEARCH_FLAGS } from "./search-tokens.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
-// Static is safe: tables.mjs only reaches back into this file lazily.
+// Static is safe: the tables' family reaches back into this one only lazily (tables-pools.mjs `tableForRoom`'s
+// `import("./vault.mjs")`).
 import { roomStockTables } from "./tables.mjs";
 import {
     dialogContent, tableDialog, announce, plural, workingScene, pinFooterAcrossScroll, wireDashboardTabs,
@@ -1144,7 +1145,7 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
     // The living as the checklist counts them (E20 C1, `studentCensus`): `isDeceased` here missed a death the GMs keep.
     const living = studentCensus(students).count;
     // Room pools only. The tier pools (`tableName()`'s family) answer dice
-    // rolls and are never a room's stock - see `roomStockTables` in tables.mjs:
+    // rolls and are never a room's stock - see `roomStockTables` in tables-pools.mjs:
     // by their flags since E14 fix e1-G2, so one the GM renamed in the sidebar
     // is not offered here as "Kitchen knives".
     const tables = roomStockTables();

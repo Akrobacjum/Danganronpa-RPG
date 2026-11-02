@@ -63,7 +63,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         return item ? item.getFlag("${MOD}", T.TRUTH_BULLET_FLAGS.tiedToCrime) ?? null : "absent";`);
 
     /* THE WEAPON'S TIE AND THE COPIES (E09 fix r1-G1, 08.10.2026; the round-1 reviews' cor F1 and
-       sec F1). The swing asks the GMs to tie the traces that handed the weapon over (gm-bridge.mjs
+       sec F1). The swing asks the GMs to tie the traces that handed the weapon over (bridge-asks.mjs
        `requestTieTrace`), and the tie went on to every identified copy there and then: Aiko's copy
        climbed to the top of her pack in a fight she is in no part of, and stayed there through a
        death nobody had found. Here and not in 62, which has no death phase to wait for. A Search's

@@ -204,7 +204,7 @@ function closingOver(floor, now, cards = []) {
 }
 
 /**
- * The trial record's Closing after a machine's `record` (pure; vote.mjs `trialProgress().closing`, written by
+ * The trial record's Closing after a machine's `record` (pure; trial-progress.mjs `trialProgress().closing`, written by
  * trial-floor.mjs `commitFloor` in the record's own key): `start` begins it, `push` adds a speaker, `leftAtEnd` is the last
  * speaker's seconds when their stretch stopped, `done` whether it is over.
  */
@@ -427,7 +427,7 @@ function turnOf(floor) {
 /**
  * WHICH OBJECTION AN OVERRULE NAMES, AND WHETHER IT MAY (E70 C2, 27.10.2026; TR35: only the newest not overruled;
  * E70-10, E70-11). Pure, as `nextFloor` is: `floor` as `trialFloor()` reads it, `objections` the trial record's receipts
- * (vote.mjs `trialProgress().objections`, by card: `{ objectorId, targetId, paid, mode, trialStartedAt,
+ * (trial-progress.mjs `trialProgress().objections`, by card: `{ objectorId, targetId, paid, mode, trialStartedAt,
  * leftAtObjection, debateLeft, at, overruled }`, written by the primary from the price it took - trial.mjs
  * `keepReceipt`), `trialStartedAt` the running trial's stamp, `messageId` the card the GM named or null for "the
  * newest", `running` whether a Class Trial is in session. Answers `{ messageId, receipt, during }` or `{ refused }`:
