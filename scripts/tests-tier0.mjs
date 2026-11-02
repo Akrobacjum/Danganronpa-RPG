@@ -15,7 +15,7 @@ import {
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
-    bridgeTables, bridgeLookup, bridgeCrawl, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
+    bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists
 } from "./tests-kit.mjs";
@@ -390,7 +390,10 @@ const REGRESSIONS = [
             // E79 C4 (1.2.79): `payload.userId` is the address, `sceneId` and `tokenId` only name the room the line says; `sentBackRefusal` holds the rule.
             "movement-audit.mjs": "the GMs' word that a token of this user's was put back from a wall: taken only from the primary GM, addressed to this user, with a code it knows; plays a sound and shows a line, and acts on no actor",
             // E80 part 2 C3: `payload.userId` is the address, `askId` names the window; `friskPacketRefusal` holds the rule.
-            "frisk.mjs": "an open Frisk's window and its withdrawal: taken only from the primary GM, addressed to this user; the window's answer goes back on the bridge (`action.friskAnswer`), judged there by its sender, and acts on no actor"
+            "frisk.mjs": "an open Frisk's window and its withdrawal: taken only from the primary GM, addressed to this user; the window's answer goes back on the bridge (`action.friskAnswer`), judged there by its sender, and acts on no actor",
+            // E41 C2b: read from E41 C5b, when the table leaves gm-bridge.mjs for bridge-table.mjs; until then the file
+            // is a table file and skipped as one, above. Not idle: gm-bridge.mjs listens on the socket.
+            "gm-bridge.mjs": "GM -> player only: the opening roll's invitation and its withdrawal, the Level Up offers and a GM's ready signal, each taken only from a GM (`game.users.get(senderId)?.isGM`, `replyForMe`) and addressed to this user; the players' requests are the table file's `onSocket`, read above"
             // E10 C2 (1.2.71): vote.mjs is off the list. A ballot reaches the GMs on the bridge (`vote.cast`), and
             // the one packet its listener still takes, a GM's ballot, names no id.
         };
@@ -692,7 +695,7 @@ const REGRESSIONS = [
          * is the call site's business, and that is what this reads.
          */
         const sources = new Map(await otherSources());
-        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        const bridge = bridgeText(sources);
         const leaf = stripComments(sources.get("bridge-guards.mjs") ?? "");
         ok(bridge.length > 1000 && leaf.length > 1000, "gm-bridge.mjs or bridge-guards.mjs did not load");
 
@@ -722,7 +725,7 @@ const REGRESSIONS = [
             if (/\blocal:/.test(fnSource(bridge, name))) continue;
 
             for (const [file, raw] of sources) {
-                if (file === "gm-bridge.mjs") continue;
+                if (bridgeFamily().includes(file)) continue;
                 const text = stripComments(raw);
                 for (const call of text.matchAll(new RegExp(`\\b${name}\\s*\\(`, "g"))) {
                     /*
@@ -960,7 +963,7 @@ const REGRESSIONS = [
          * nothing, first.
          */
         const sources = new Map(await otherSources());
-        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        const bridge = bridgeText(sources);
         const leaf = stripComments(sources.get("bridge-guards.mjs") ?? "");
         const requests = [...bridge.matchAll(/^export\s+(?:async\s+)?function\s+(request\w+)\s*\(/gm)].map(m => m[1]);
         ok(requests.length > 20, "gm-bridge.mjs did not load");
@@ -2455,8 +2458,7 @@ const REGRESSIONS = [
             "the concealment's own refund is gone - that one is not the attempt's price");
 
         // The step travels: the roll context, both sides of the bridge, the replay.
-        const bridge = stripComments(new Map(await otherSources()).get("gm-bridge.mjs") ?? "");
-        const socket = bodyOf(bridge, "async function handleCleanup(", { until: "async function handleCubAbility(" });
+        const socket = bridgeFn(new Map(await otherSources()), "handleCleanup");
         ok((socket.match(/price: payload\.price/g) ?? []).length >= 2,
             "the socket branch drops the price claim for one of the two resolvers, "
             + "so every remote Tamper on that road pays twice");
@@ -3902,8 +3904,10 @@ const REGRESSIONS = [
         ok(/if \(offerId\) await withdrawOffer\(actor\.id, offerId\)/.test(applied),
             "the offer is not spent by being taken, so it can be taken twice - or a GM's own Level Up spends the player's");
 
-        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
-        const handler = bodyOf(bridge, "async function handleAdvancement(", { until: "async function handleShareBulletOrGiveItem(" });
+        const bridge = bridgeText(sources);
+        // E41 C2b: what the range from handleAdvancement to handleShareBulletOrGiveItem held, each function cut where it lives.
+        const handler = ["handleAdvancement", "handleAdvancementOffer", "handleAdvancementAsk", "sendOffersTo", "requestOfferRecord", "onAdvancementOffers",
+            "askForOffers"].map(name => fnSource(bridge, name)).join("");
         ok(handler.length > 300, "the GM side of the handover is gone");
         // The declaration, since E31 (25.09.2026): its run is the handler read above, and
         // ownership is its guard - the runner asks it before the run.
@@ -4101,8 +4105,8 @@ const REGRESSIONS = [
          * which is true of a miss with Hope and not of a miss with Despair.
          */
         const sources = new Map(await otherSources());
-        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
-        const prompt = bodyOf(bridge, "export async function promptAndCallGm");
+        const bridge = bridgeText(sources);
+        const prompt = fnSource(bridge, "promptAndCallGm");
         ok(/const sent = await callGm\(/.test(prompt),
             "promptAndCallGm throws away what callGm answered");
         ok(/return sent === false \? null : text;/.test(prompt),
@@ -4327,7 +4331,7 @@ const REGRESSIONS = [
             "the lost road refunds an action on a socket payload's word, which is ACT-12 "
             + "with the names changed");
 
-        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        const bridge = bridgeText(sources);
         ok(/actorId: payload\.actorId/.test(bridge),
             "the resolve packet's actor never reaches the resolver, so a lost record "
             + "cannot name who is waiting");
@@ -4789,14 +4793,14 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const despair = stripComments(sources.get("despair.mjs") ?? "");
-        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        const bridge = bridgeText(sources);
         const adjust = bodyOf(despair, "export async function adjustDespair(", { until: "\nexport " });
         // The pip's `clamp` rides along since E17 fix e1-G4 (`routeToPrimary`, below `adjustDespair` and read with it).
         ok(/sendDespairToPrimary\(userId, delta(?:, \{ clamp \})?\)/.test(adjust),
             "an assistant GM's Despair is not sent to the primary");
         ok(!/requestDespairAdjust|hasGm/.test(adjust),
             "adjustDespair reaches for a road that loops or a name that is not exported");
-        const send = bodyOf(bridge, "export function sendDespairToPrimary(", { until: "\n}" });
+        const send = bodyOf(fnSource(bridge, "sendDespairToPrimary"), "export function sendDespairToPrimary(", { until: "\n}" });
         ok(send.length > 40, "gm-bridge has no way to send a GM's Despair to the primary");
         ok(!/adjustDespair/.test(send), "the send calls adjustDespair, which would loop back to it");
     }],
@@ -4813,7 +4817,7 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const level = stripComments(sources.get("level-up.mjs") ?? "");
-        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        const bridge = bridgeText(sources);
         const sheet = stripComments(sources.get("sheet.mjs") ?? "");
 
         ok(!/pendingAdvance/.test(stripComments(sources.get("config.mjs") ?? "")),
@@ -4837,7 +4841,7 @@ const REGRESSIONS = [
         ok(/if \(!isPrimaryGm\(\)\) return false;/.test(bodyOf(level, "export async function dropOffer(", { until: "export function offersFor(" })),
             "a client other than the primary GM takes an offer off the authority");
 
-        const handler = bodyOf(bridge, "async function handleAdvancement(", { until: "async function handleAdvancementOffer(" });
+        const handler = fnSource(bridge, "handleAdvancement");
         ok(/advancing\.has\(actor\.id\)/.test(handler) && /finally \{\s*advancing\.delete/.test(handler),
             "two packets inside the apply's round trips both spend the offer");
         ok(/experienceNew[\s\S]{0,80}\.trim\(\)/.test(handler),
@@ -4846,7 +4850,7 @@ const REGRESSIONS = [
         const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
         const first = BRIDGE_ACTIONS["advancement.offer"]?.guards?.[0];
         ok(first?.factory === "gmOnly" && /!sender\?\.isGM/.test(String(first)), "a player can record an offer through the bridge");
-        ok(/\{ recipients: \[userId\] \}/.test(bodyOf(bridge, "export async function sendOffersTo(")),
+        ok(/\{ recipients: \[userId\] \}/.test(fnSource(bridge, "sendOffersTo")),
             "an owner's offers are broadcast rather than addressed to them");
         ok(/game\.socket\.on\(SOCKET_EVENT, onAdvancementOffers\);\s*askForOffers\(\);/.test(bridge),
             "an owner never asks for their offers, so one made while they were away never lights");
@@ -5746,10 +5750,13 @@ const REGRESSIONS = [
             texts.push({ text: why, from: `a ${guard.factory} guard` });
         }
         for (const entry of tables) {
-            const { file, table, text } = entry;
+            const { file, table } = entry;
+            // E41 C2b: the table's file or exactly one file of its family (`bridgeCrawlSources`), so a run moved into a
+            // file the family does not list is not read as nothing.
             for (const decl of Object.values(table)) {
                 const name = decl.run.name;
-                must(topLevelFunction(text, name), `${file}: the run ${name || "(unnamed)"} is not a function of its own file - this reads nothing of it`);
+                const holders = bridgeCrawlSources(entry).filter(([, src]) => topLevelFunction(src, name)).map(([holder]) => holder);
+                must(holders.length === 1, `${file}: the run ${name || "(unnamed)"} is a function of ${holders.length ? holders.join(", ") : "neither its own file nor a file of its family"} - this reads ${holders.length ? "one of them as if it were the other" : "nothing of it"}`);
             }
             // The kit's crawl since E41 C2 (R1235 shows it planted faults): the runs, and what they call, cut in the
             // table's file and then its family.
@@ -5867,6 +5874,91 @@ const REGRESSIONS = [
         log(`R1235: ${tables.length} tables, ${members} family file(s) served and cut, ${runs} runs, ${reached} functions the crawl reaches`);
         // 161 functions over the four tables, measured at E41 C2 (02.11.2026; a name two tables reach is counted twice).
         ok(runs >= 37 && reached >= 150, `only ${runs} runs and ${reached} crawled functions were read - the tables are not where this test looks`);
+    }],
+
+    ["R1238 - every reader of the bridge's code reads its family: a function is cut in the one file of it that declares it, a search reads every file of it, and a census key names gm-bridge.mjs", async () => {
+        /*
+         * E41 C2b, 02.11.2026 (E41-24). E41 splits gm-bridge.mjs (the owner's answer to Q-E41-1, 01.11.2026): from C5
+         * its callees, from C5a its wire names and runs, from C5b its table and asks live in files of their own. Some
+         * forty tests read its text - a function cut by name, a search of the whole file, a row naming the file, a
+         * census key built from the file a statement stands in - and each would read less, or nothing, the moment a
+         * name left the file; the ones that assert an absence would pass on a facade with no code. So they read the
+         * bridge's family through the kit: `bridgeFamily()` (gm-bridge.mjs, then BRIDGE_ACTIONS' table file and the
+         * family its row lists, each once), `bridgeFn` (the cut in the one file that declares the name), `bridgeText`
+         * (the family's texts joined by a line that ends every cut at its file's end) and `censusFile` (a family
+         * file's key is gm-bridge.mjs's). The bridge's moves then list their files in the kit's row and repoint no test.
+         *
+         * Fixtures first, so each helper is shown to read the family and not only to answer; then the live family:
+         * every file of it served, every top-level function of it declared in one file, every file the facade
+         * re-exports from (the guards' leaf aside) and every file BRIDGE_ACTIONS' table file takes a run from in the
+         * family (a move cannot leave one out), and every run of BRIDGE_ACTIONS a top-level function of a family file.
+         */
+        const kit = await import("./tests-kit.mjs");
+        for (const name of ["bridgeFamily", "bridgeRead", "bridgeFn", "bridgeText", "censusFile"]) {
+            ok(typeof kit[name] === "function", `the kit has no ${name} - a reader of the bridge's code reads gm-bridge.mjs alone`);
+        }
+        // The family of a fixture's rows: the facade first, the table file and its row's family, each once; another table's family is not the bridge's.
+        const ROWS = [["fx-table.mjs", "BRIDGE_ACTIONS", ["fx-runs.mjs", "gm-bridge.mjs", "fx-runs.mjs"]], ["traps.mjs", "TRAP_ACTIONS", ["fx-traps.mjs"]]];
+        equal(JSON.stringify(kit.bridgeFamily(ROWS)), JSON.stringify(["gm-bridge.mjs", "fx-table.mjs", "fx-runs.mjs"]),
+            "the bridge's family is not the facade, then BRIDGE_ACTIONS' table file and its row's family, each once");
+
+        const FAMILY = ["gm-bridge.mjs", "fx-runs.mjs"];
+        const FX = new Map([
+            ["gm-bridge.mjs", "import { a } from \"./a.mjs\";\n// a comment that names fxOnlyThere()\nexport function fxStays() {\n    return 1;\n}\nfunction fxTwice() {\n    return \"facade\";\n}\n"],
+            ["fx-runs.mjs", "import { b } from \"./b.mjs\";\nexport function fxOnlyThere() {\n    return \"runs\";\n}\nfunction fxTwice() {\n    return \"runs\";\n}\n"],
+            ["other.mjs", "export function fxOther() {\n    return 0;\n}\n"]
+        ]);
+        equal(kit.bridgeFn(FX, "fxOnlyThere", FAMILY), "export function fxOnlyThere() {\n    return \"runs\";\n}\n",
+            "a function declared only in a family file is not cut there");
+        equal(kit.bridgeFn(FX, "fxStays", FAMILY), "export function fxStays() {\n    return 1;\n}\n", "a function the facade keeps is not cut there");
+        // What bridgeFn and bridgeText refuse with, read without a refusal thrown (`bridgeRead`).
+        ok(/fxTwice\(\) is declared in 2 files of the bridge's family \(gm-bridge\.mjs, fx-runs\.mjs\)/.test(kit.bridgeRead(FX, "fxTwice", FAMILY).why ?? ""),
+            "a function two family files declare is not refused by name and file");
+        ok(/no longer declares a top-level function fxOther\(\)/.test(kit.bridgeRead(FX, "fxOther", FAMILY).why ?? ""),
+            "a function outside the family is cut as if it were the bridge's");
+        ok(/fx-gone\.mjs, of the bridge's family, is not among the sources/.test(kit.bridgeRead(FX, null, [...FAMILY, "fx-gone.mjs"]).why ?? ""),
+            "a family file that is not served is not named");
+        // The join: the facade's last function stops before the next file's import; the comments are gone.
+        const text = kit.bridgeText(FX, FAMILY);
+        equal(JSON.stringify([topLevelFunction(text, "fxTwice")?.includes("import { b }") ?? null, text.includes(kit.BRIDGE_FAMILY_END), /a comment/.test(text),
+            [...text.matchAll(/^(?:export )?function (\w+)\(/gm)].map(m => m[1])]),
+            JSON.stringify([false, true, false, ["fxStays", "fxTwice", "fxOnlyThere", "fxTwice"]]),
+            "[the facade's last cut runs into the next file's imports, the boundary line, a comment kept, the functions of the joined text]");
+        equal(JSON.stringify(["gm-bridge.mjs", "fx-runs.mjs", "other.mjs"].map(file => kit.censusFile(file, FAMILY))),
+            JSON.stringify(["gm-bridge.mjs", "gm-bridge.mjs", "other.mjs"]), "a census key of a family file's statement does not name gm-bridge.mjs");
+
+        // Live.
+        const sources = new Map(await otherSources());
+        const family = kit.bridgeFamily();
+        const bridgeRow = (await bridgeTables()).find(t => t.name === "BRIDGE_ACTIONS");
+        equal(JSON.stringify(family), JSON.stringify([...new Set(["gm-bridge.mjs", bridgeRow?.file, ...(bridgeRow?.family ?? []).map(([file]) => file)])]),
+            "bridgeFamily() is not the facade, then the table file and the family bridgeTables() reads for BRIDGE_ACTIONS");
+        for (const file of family) ok(typeof sources.get(file) === "string" && sources.get(file).length > 0, `${file}, of the bridge's family, is not served`);
+        const declared = new Map();
+        for (const file of family) {
+            for (const m of stripComments(sources.get(file) ?? "").matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)) {
+                declared.set(m[1], [...declared.get(m[1]) ?? [], file]);
+            }
+        }
+        const twice = [...declared].filter(([, files]) => files.length > 1).map(([name, files]) => `${name} (${files.join(", ")})`);
+        ok(!twice.length, `functions declared in two files of the bridge's family: ${twice.join("; ")}`);
+        const facade = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        const reexported = [...facade.matchAll(/^export\s*(?:\{[^}]*\}|\*(?:\s+as\s+\w+)?)\s*from\s*"\.\/([\w.-]+\.mjs)"/gm)].map(m => m[1]);
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const table = stripComments(sources.get(bridgeRow?.file) ?? "");
+        const runs = [...new Set(Object.values(BRIDGE_ACTIONS).map(decl => decl.run?.name).filter(Boolean))];
+        const takenFrom = [...table.matchAll(/^import\s*\{([^}]*)\}\s*from\s*"\.\/([\w.-]+\.mjs)"/gm)]
+            .filter(m => m[1].split(",").map(s => s.trim().split(/\s+as\s+/).pop()).some(name => runs.includes(name))).map(m => m[2]);
+        // bridge-guards.mjs aside: the leaf, whose `removalRefusal` the facade re-exports for its older readers (E31, R148),
+        // read by every crawl as the leaf; it holds no code of the bridge's.
+        const outside = [...new Set([...reexported, ...takenFrom])].filter(file => !family.includes(file) && file !== "bridge-guards.mjs");
+        ok(!outside.length, `the facade re-exports from, or BRIDGE_ACTIONS' table file takes a run from, a file the kit's family does not list: ${outside.join(", ")}`);
+        const homeless = runs.filter(name => !(declared.get(name)?.length === 1));
+        ok(!homeless.length, `runs of BRIDGE_ACTIONS that are not a top-level function of one file of the family: ${homeless.join(", ")}`);
+        log(`R1238: the bridge's family is ${family.length} file(s) (${family.join(", ")}), ${declared.size} top-level functions, ${runs.length} runs of BRIDGE_ACTIONS; `
+            + `${reexported.length} file(s) the facade re-exports from, ${takenFrom.length} the table takes a run from`);
+        // 220 functions and 79 runs (88 actions) at E41 C2b, measured 02.11.2026.
+        ok(declared.size >= 200 && runs.length >= 70, `only ${declared.size} functions and ${runs.length} runs were read - the family is not where this test looks`);
     }],
 
     ["R171 - nothing outside the engine reads or writes a GM store, a frozen legacy key or a player copy", async () => {
@@ -6843,7 +6935,7 @@ const REGRESSIONS = [
         "the guard does not refuse exactly a player's undo and a player's negative amount, with its reason");
         // Carried from R134: every guard a function of the bridge names is defined.
         const sources = new Map(await otherSources());
-        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        const bridge = bridgeText(sources);
         const leaf = stripComments(sources.get("bridge-guards.mjs") ?? "");
         must(bridge.length > 1000 && leaf.length > 1000, "gm-bridge.mjs or bridge-guards.mjs did not load");
         const both = `${bridge}\n${leaf}`;
@@ -7281,9 +7373,9 @@ const REGRESSIONS = [
             const ownSite = new Set();
             for (const s of sites) {
                 if (s.gated) continue;
-                const k = key(s.file, s.fn, s.receiver);
+                const k = key(censusFile(s.file), s.fn, s.receiver);
                 if (notStudent.has(k)) used.add(notStudent.get(k));
-                else if (roads.has(key(s.file, s.fn))) ownSite.add(key(s.file, s.fn));
+                else if (roads.has(key(censusFile(s.file), s.fn))) ownSite.add(key(censusFile(s.file), s.fn));
                 else out.push(`${s.file}:${s.line} ${s.fn} writes ${s.receiver}.${s.kind} with no gate before it and no row`);
             }
             // Where each GM road is named outside its declaration: [file, line, caller, gated].
@@ -7869,9 +7961,11 @@ const REGRESSIONS = [
             }
             const files = new Map(sources);
             const tops = [];
-            for (const file of [...FILES, ...Object.keys(NAMED)]) {
-                if (!files.has(file)) continue;
-                const code = blankComments(files.get(file));
+            // E41 C2b: gm-bridge.mjs's row is read in every file of the bridge's family, each keyed as gm-bridge.mjs.
+            for (const read of [...FILES, ...Object.keys(NAMED)].flatMap(f => f === "gm-bridge.mjs" ? bridgeFamily() : [f])) {
+                if (!files.has(read)) continue;
+                const file = censusFile(read);
+                const code = blankComments(files.get(read));
                 // A statement at column 0 that declares nothing (a `game.socket.on` there) is "(top)", not dropped
                 // (E12 fix r2-S2; review O7, as R346 and R379 were read since E12 fix r1-G5, review EARLY-C0-1). The
                 // live census read the same 52 places with it (harness, 11.10.2026, once): the planted `onLoose` is its proof.
@@ -8137,9 +8231,11 @@ const REGRESSIONS = [
             }
             const files = new Map(sources);
             const tops = [];
-            for (const file of [...FILES, ...Object.keys(NAMED)]) {
-                if (!files.has(file)) continue;
-                const code = blankComments(files.get(file));
+            // E41 C2b: gm-bridge.mjs's row is read in every file of the bridge's family, each keyed as gm-bridge.mjs.
+            for (const read of [...FILES, ...Object.keys(NAMED)].flatMap(f => f === "gm-bridge.mjs" ? bridgeFamily() : [f])) {
+                if (!files.has(read)) continue;
+                const file = censusFile(read);
+                const code = blankComments(files.get(read));
                 // A statement at column 0 that declares nothing (a `Hooks.on` or `game.socket.on` there) is
                 // "(top)", not dropped (E12 fix r1-G5; review EARLY-C0-1).
                 const at = [...blankLiterals(code).matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? "(top)", binding: Boolean(m[3]) }));
@@ -8490,7 +8586,7 @@ const REGRESSIONS = [
                 // A statement at column 0 that declares nothing (a `Hooks.on` or `game.socket.on` there) is
                 // "(top)", not dropped (E12 fix r1-G5; review EARLY-C0-1).
                 const at = [...blankLiterals(code).matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? "(top)", binding: Boolean(m[3]) }));
-                at.forEach((top, i) => tops.push({ file, ...top, text: code.slice(top.at, at[i + 1]?.at ?? code.length) }));
+                at.forEach((top, i) => tops.push({ file: censusFile(file), ...top, text: code.slice(top.at, at[i + 1]?.at ?? code.length) }));
             }
             const handlers = new Set();
             for (const top of tops) {
@@ -8728,9 +8824,11 @@ const REGRESSIONS = [
             }
             const files = new Map(sources);
             const tops = [];
-            for (const file of [...FILES, ...Object.keys(NAMED)]) {
-                if (!files.has(file)) continue;
-                const code = blankComments(files.get(file));
+            // E41 C2b: gm-bridge.mjs's row is read in every file of the bridge's family, each keyed as gm-bridge.mjs.
+            for (const read of [...FILES, ...Object.keys(NAMED)].flatMap(f => f === "gm-bridge.mjs" ? bridgeFamily() : [f])) {
+                if (!files.has(read)) continue;
+                const file = censusFile(read);
+                const code = blankComments(files.get(read));
                 const at = [...blankLiterals(code).matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? "(top)", binding: Boolean(m[3]) }));
                 at.forEach((top, i) => {
                     if (top.name !== "(top)" && NAMED[file] && !NAMED[file].includes(top.name) && !(file === "gm-bridge.mjs" && BRIDGE_TOPS.test(top.name))) return;
@@ -8767,7 +8865,7 @@ const REGRESSIONS = [
                 const arrows = {};
                 for (const m of blankComments(source).matchAll(HOOKS)) {
                     const name = m[2] ?? `arrow${arrows[m[1]] = (arrows[m[1]] ?? 0) + 1}`;
-                    found.push(`HOOK ${file}#${m[1]}#${name}`);
+                    found.push(`HOOK ${censusFile(file)}#${m[1]}#${name}`);
                 }
             }
             for (const [key, file, name] of STORES) {
@@ -9005,7 +9103,9 @@ const REGRESSIONS = [
                 sites.set(key, n);
                 found.push(n === 1 ? key : `${key} (${n})`);
             };
-            for (const [file, raw] of sources) {
+            for (const [path, raw] of sources) {
+                // E41 C2b: a file of the bridge's family is keyed as gm-bridge.mjs.
+                const file = censusFile(path);
                 if (!file.endsWith(".mjs")) continue;
                 const code = blankComments(raw), blank = blankLiterals(code);
                 const tops = [...blank.matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? null }));
@@ -9888,7 +9988,9 @@ const REGRESSIONS = [
                 const base = `${kind} ${file}#${decl}${field ? `#${field}` : ""}`;
                 for (const sink of sinks) if (!found.includes(`${base} -> ${sink}`)) found.push(`${base} -> ${sink}`);
             };
-            for (const [file, raw] of sources) {
+            for (const [path, raw] of sources) {
+                // E41 C2b: a file of the bridge's family is keyed as gm-bridge.mjs.
+                const file = censusFile(path);
                 if (!file.endsWith(".mjs")) continue;
                 const code = blankComments(raw), blank = blankLiterals(code);
                 const tops = [...blank.matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? null }));
@@ -11405,7 +11507,7 @@ const REGRESSIONS = [
          * is stamped as the GMs hold it, not from an effect's bonus or a console's write"), and 63 I5 from p1's browser.
          */
         const sources = new Map(await otherSources());
-        const level = stripComments(sources.get("level-up.mjs") ?? ""), bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        const level = stripComments(sources.get("level-up.mjs") ?? ""), bridge = bridgeText(sources);
         const character = stripComments(sources.get("character.mjs") ?? "");
         const apply = fnSource(level, "applyAdvancement"), picker = fnSource(level, "openAdvancement"), content = fnSource(level, "buildContent");
         const handler = fnSource(bridge, "handleAdvancement"), stamp = fnSource(character, "stampStartingSheet");
@@ -13644,8 +13746,8 @@ const REGRESSIONS = [
         "[the Room's branch reads targetId; targetId named before it (the signature only); after it; the no-Room branch judges it; "
             + "a press naming nobody answered needName and nothing else; anything paid before that answer]");
         const callers = [...sources].flatMap(([file, raw]) =>
-            [...stripComments(raw).matchAll(/\bobjectOnPrimary\(/g)].map(() => file)).filter(file => file !== "trial.mjs");
-        const run = stripComments(fnSource(src("gm-bridge.mjs"), "handleTrialObject"));
+            [...stripComments(raw).matchAll(/\bobjectOnPrimary\(/g)].map(() => censusFile(file))).filter(file => file !== "trial.mjs");
+        const run = bridgeFn(sources, "handleTrialObject");
         equal(JSON.stringify([callers, (run.match(/\btargetId\b/g) ?? []).length,
             /objectOnPrimary\(\{ actorId: payload\.actorId, targetId: payload\.targetId \}\)/.test(run),
             /speakerRoomOpen|trial-speakers/.test(stripComments(fnSource(src("trial.mjs"), "raiseObjection")))]),
@@ -14023,7 +14125,7 @@ const REGRESSIONS = [
          */
         const { TIMING } = await import("./config.mjs");
         const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
-        const bridge = stripComments(new Map(await otherSources()).get("gm-bridge.mjs") ?? "");
+        const bridge = bridgeText(new Map(await otherSources()));
         const REQUESTS = { requestFriskUnseen: ["ACTION_FRISK_UNSEEN", "friskPerson"], requestFriskAsk: ["ACTION_FRISK_ASK", "askToFriskHere"],
             requestFriskAnswer: ["ACTION_FRISK_ANSWER", "answerFrisk"], requestFriskFollow: ["ACTION_FRISK_FOLLOW", "followFrisk"] };
         const readOf = (fn, [action, here]) => ({
@@ -14578,13 +14680,13 @@ const REGRESSIONS = [
         const keys = { en: await language("en"), pl: await language("pl") };
         const sources = new Map(await otherSources());
         const actions = [], problems = [];
-        for (const file of ["gm-bridge.mjs", "bridge-guards.mjs"]) {
-            const text = stripComments(sources.get(file) ?? "");
+        // E41 C2b: the bridge's family, read as one text in gm-bridge.mjs's place.
+        for (const [file, text] of [["gm-bridge.mjs", bridgeText(sources)], ["bridge-guards.mjs", stripComments(sources.get("bridge-guards.mjs") ?? "")]]) {
             ok(text.length > 10000, `${file} did not load - this would measure nothing`);
             for (const m of text.matchAll(/\bconst ACTION_\w+ = "([\w.]+)";/g)) actions.push(`${file} ${m[1]}`);
         }
         ok(actions.length >= 40, `the reader found ${actions.length} packet name(s) in the two files - it reads the wrong thing`);
-        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        const bridge = bridgeText(sources);
         const fallback = /\bwhat = ([A-Z_]+|"[\w.]+")/.exec(fnSource(bridge, "callGm"))?.[1] ?? null;
         const named = fallback?.startsWith('"') ? fallback.slice(1, -1)
             : fallback ? new RegExp(`\\bconst ${fallback} = "([\\w.]+)";`).exec(bridge)?.[1] ?? null : null;
@@ -14641,7 +14743,7 @@ const REGRESSIONS = [
                     if (/\bfunction\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
                     const i = tops.findLastIndex(t => t.at <= m.index);
                     const top = tops[i], end = tops[i + 1]?.at ?? blank.length;
-                    const key = `${file}#${top?.name ?? "(top level)"}`;
+                    const key = `${censusFile(file)}#${top?.name ?? "(top level)"}`;
                     const n = (sites.get(key) ?? 0) + 1;
                     sites.set(key, n);
                     const { close } = callArgs(blank, m.index + m[0].length - 1);
@@ -14696,7 +14798,8 @@ const REGRESSIONS = [
         const read = [];
         read.push(row ? [row.guards?.[0]?.factory ?? null, row.sanitize?.fields ?? null, Object.keys(row.claims ?? {}), row.answer] : null);
         const sources = new Map(await otherSources());
-        const raw = sources.get("gm-bridge.mjs") ?? "";
+        // E41 C2b: the family's raw texts (claimCard's JSDoc is read), each file whole.
+        const raw = bridgeFamily().map(file => sources.get(file) ?? "").join("\n");
         ok(raw.length > 10000, "gm-bridge.mjs did not load - this would measure nothing");
         const doc = /\/\*\*((?:(?!\*\/)[\s\S])*)\*\/\s*export async function claimCard\(/.exec(raw)?.[1] ?? "";
         read.push(["E67", "E68", "E72"].filter(stage => doc.includes(stage)));
@@ -14707,7 +14810,7 @@ const REGRESSIONS = [
             for (const m of blank.matchAll(/\bclaimCard\s*\(/g)) {
                 if (/\bfunction\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
                 const top = [...blank.slice(0, m.index).matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)/gm)].at(-1)?.[1] ?? "(top level)";
-                callers.push(`${file}#${top}`);
+                callers.push(`${censusFile(file)}#${top}`);
             }
         }
         read.push(callers);
@@ -15588,7 +15691,7 @@ const REGRESSIONS = [
         const ops = bodyOf(blankComments(sources.get("trial-floor.mjs")), "const FLOOR_OPS = {", { until: "\n};" });
         const keys = [...ops.matchAll(/^ {4}([\w$]+):/gm)].map(m => m[1]);
         // The row as written: its `pick` keeps only the kinds of its fields, so the list is read off gm-bridge.mjs.
-        const row = bodyOf(blankComments(sources.get("gm-bridge.mjs") ?? ""), "[ACTION_TRIAL_GM]: {", { until: "\n    },\n" });
+        const row = bodyOf(bridgeText(sources), "[ACTION_TRIAL_GM]: {", { until: "\n    },\n" });
         const listed = row.match(/\bop:\s*as\.oneOf\(([^)]*)\)/)?.[1] ?? null;
         const allowed = listed === null ? null : [...listed.matchAll(/"([^"]*)"/g)].map(m => m[1]);
         equal(JSON.stringify([keys, allowed]), JSON.stringify([[...F.FLOOR_OP_NAMES], [...F.FLOOR_OP_NAMES]]),
@@ -16000,7 +16103,7 @@ const REGRESSIONS = [
                 const decls = [...src.matchAll(DECL)].map(m => ({ name: m[1], at: m.index }));
                 // A write names the field as a key of the change, `"permissions.BROADCAST_AUDIO":`; a read does not.
                 for (const m of src.matchAll(/["'`]permissions\.BROADCAST_AUDIO["'`]\s*:/g)) {
-                    found.add(`${file}#${decls.findLast(d => d.at <= m.index)?.name ?? "top level"}`);
+                    found.add(`${censusFile(file)}#${decls.findLast(d => d.at <= m.index)?.name ?? "top level"}`);
                 }
             }
             return [...found].sort();
@@ -16016,7 +16119,8 @@ const REGRESSIONS = [
         equal(JSON.stringify(writersIn(planted)), JSON.stringify([...WRITERS, "hud.mjs#muteDead"].sort()), "the writers' reader misses a planted writer");
 
         const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
-        const names = ["voice.mjs", "voice-tile.mjs", "vote.mjs", "clock.mjs", "gm-bridge.mjs", "gm-stores.mjs", "hud.mjs", "trial-floor.mjs", "trial.mjs",
+        // E41 C2b: the bridge's family in gm-bridge.mjs's place.
+        const names = ["voice.mjs", "voice-tile.mjs", "vote.mjs", "clock.mjs", ...bridgeFamily(), "gm-stores.mjs", "hud.mjs", "trial-floor.mjs", "trial.mjs",
             "monocub.mjs", "chapter.mjs", "movement.mjs", "season-setup.mjs", "api.mjs", "settings.mjs"];
         const real = Object.fromEntries(await Promise.all(names.map(async f => [f, await read(f)])));
         must(Object.values(real).every(src => src.length > 1000), "a file of the census was not served - this test reads nothing until it is");
@@ -16031,7 +16135,7 @@ const REGRESSIONS = [
         const at = (body, re) => { const m = re.exec(body); return m ? m.index : -1; };
         const entry = reconcile.slice(Math.max(at(reconcile, /\bif \(to === "classTrial"\)/), 0));
         const exit = reconcile.slice(0, Math.max(at(reconcile, /\bif \(to === "classTrial"\)/), 0));
-        const row = bodyOf(real["gm-bridge.mjs"], "[ACTION_TRIAL_ENTER]: {", { until: "\n    },\n" });
+        const row = bodyOf(bridgeText(new Map(Object.entries(real))), "[ACTION_TRIAL_ENTER]: {", { until: "\n    },\n" });
         const store = bodyOf(real["gm-stores.mjs"], "export const trialMuteStore = defineGmStore({", { until: "});" });
         equal(JSON.stringify({
             restore: [/\bforcedDeletion\(\)/.test(restore), /-=/.test(restore)],
@@ -17036,7 +17140,7 @@ const REGRESSIONS = [
          * Red at the fix's parent: no `noteDiscardTrace` in handleRemnant, no `takeDiscardTrace` in itemFindings.
          */
         const sources = await moduleSources();
-        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? ""), audit = stripComments(sources.get("sheet-audit.mjs") ?? "");
+        const bridge = bridgeText(sources), audit = stripComments(sources.get("sheet-audit.mjs") ?? "");
         must(bridge.length > 10000 && audit.length > 10000, "gm-bridge.mjs or sheet-audit.mjs was not read - this reads nothing");
         const run = topLevelFunction(bridge, "handleRemnant") ?? "", judge = topLevelFunction(audit, "itemFindings") ?? "";
         const at = re => { const m = re.exec(run); return m ? m.index : -1; };
@@ -17920,7 +18024,7 @@ const REGRESSIONS = [
             S.setPageLanguage(was);
         }
         const sources = await moduleSources();
-        const reading = re => [...sources].filter(([file, text]) => !file.startsWith("tests") && re.test(stripComments(text))).map(([file]) => file).sort();
+        const reading = re => [...new Set([...sources].filter(([file, text]) => !file.startsWith("tests") && re.test(stripComments(text))).map(([file]) => censusFile(file)))].sort();
         const dialog = stripComments(sources.get("roll-dialog.mjs") ?? "");
         const FRAGMENT_HOSTS = 2 * 6 + Object.keys(files.en.DRPG.Overflow.name).length * 3 + 6 + HINDERING.length * 2 + 2 * ECLIPSE_HOSTS.length;
         read.sources = { acc: reading(/DRPG\.Calls\.grants\.\$\{/), nom: reading(/DRPG\.Calls\.grantsNom\.\$\{/), helper: reading(/"DRPG\.Calls\.grantsGen\."/),

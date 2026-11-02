@@ -16,7 +16,8 @@ import { forcedDeletion } from "./utils.mjs";
 import { gmStoresIdle, gmStoreNow } from "./gm-store.mjs";
 import {
     ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource,
-    STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, watchLog, cast, systemSheetsAvailable, lfText, expectedRed
+    STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, watchLog, cast, systemSheetsAvailable, lfText, expectedRed,
+    bridgeFn, bridgeText
 } from "./tests-kit.mjs";
 import { GRID } from "./tests-grid.mjs";
 
@@ -32521,7 +32522,7 @@ const SCENARIOS = [
             if (typeof F.friskSocketBack === "function") await F.friskSocketBack();
             seen.back = { state: rowC?.state ?? null, listening, held: holds(rowC), ...read(),
                 yes: await judged("action.friskAnswer", { askId: rowC?.askId ?? null, allow: true }, answerer), after: read() };
-            const wait = fnSource(stripComments(new Map(await otherSources()).get("gm-bridge.mjs") ?? ""), "requestFriskAsk");
+            const wait = bridgeFn(new Map(await otherSources()), "requestFriskAsk");
             seen.wait = [/\bexpired:\s*ACTION_RULING_EXPIRED\b/.test(wait), /\buntilPrimaryLeaves:\s*true\b/.test(wait)];
         } finally {
             Hooks.off("createChatMessage", hook);
@@ -32952,7 +32953,7 @@ const SCENARIOS = [
             for (const message of created) await message.delete().catch(() => {});
             await settle();
         }
-        const ready = fnSource(stripComments(new Map(await otherSources()).get("gm-bridge.mjs") ?? ""), "registerGmBridge");
+        const ready = bridgeFn(new Map(await otherSources()), "registerGmBridge");
         ok(ready.length > 100, "registerGmBridge is gone - the read below would measure nothing");
         read.push(/sweepAskCards\(\)/.test(ready));
         equal(stableJson(read), stableJson([[later, true], [true, false, false],
@@ -72981,7 +72982,7 @@ const SCENARIOS = [
          */
         const { ACTIONS } = await import("./config.mjs");
         const src = stripComments((await moduleSources()).get("action-rolls.mjs") ?? "");
-        const bridge = stripComments((await moduleSources()).get("gm-bridge.mjs") ?? "");
+        const bridge = bridgeText(await moduleSources());
         must(src && bridge && Object.keys(ACTIONS).length > 3, "the sources or the action table were not read - this would measure nothing");
         // Its body, past the signature: the name itself reads as a call of a performer.
         const perform = fnSource(src, "performAction").replace(/^[^{]*\{/, "");

@@ -1119,6 +1119,14 @@ function importCycles(files) {
  * run, and what the run hands its packet to) - in the table's own file and,
  * since E41 C2, in its family: the files its runs reach into, which a split of
  * the table's file moves them to (`bridgeCrawlSources`, R1235).
+ *
+ * Every other reader of the bridge's code reads its family too, since E41 C2b
+ * (R1238): gm-bridge.mjs, then BRIDGE_ACTIONS' table file and that row's family
+ * (`bridgeFamily`). A function is cut in the one file of it that declares it
+ * (`bridgeFn`), a search of the whole text reads every file of it (`bridgeText`),
+ * and a census key names its family's file as gm-bridge.mjs (`censusFile`), so a
+ * move of the bridge's code between those files changes no key and leaves no
+ * reader reading less.
  */
 async function bridgeTables() {
     const out = [];
@@ -1197,6 +1205,70 @@ function bridgeCrawl(entry) {
         for (const m of stripStrings(found.source).matchAll(/\b([A-Za-z_$][\w$]*)\s*\(/g)) queue.push(m[1]);
     }
     return out;
+}
+
+/**
+ * The bridge's family (E41 C2b, R1238): gm-bridge.mjs - the facade, which keeps the GM -> player wire and the
+ * registration - then BRIDGE_ACTIONS' table file and the family its row lists, each once. `rows` is the kit's own
+ * BRIDGE_TABLE_FILES unless a test hands a fixture. The bridge's moves (E41 C5, C5a, C5b) list their new files in that
+ * row, and every reader of the bridge's code reads them through this, so none of those moves repoints a test.
+ */
+function bridgeFamily(rows = BRIDGE_TABLE_FILES) {
+    const row = rows.find(([, name]) => name === "BRIDGE_ACTIONS");
+    return [...new Set(["gm-bridge.mjs", ...(row ? [row[0], ...(row[2] ?? [])] : [])])];
+}
+
+/** The line `bridgeText` puts between two files: the second of `topLevelFunction`'s two ends, so no cut runs on into the next file. */
+const BRIDGE_FAMILY_END = "const BRIDGE_FAMILY_END = {};";
+
+/**
+ * Each file of the family with its text, comments stripped, and the sentence a reader refuses with - a file of the
+ * family that is not among `sources` (named), no file of it that declares `name`, or two that do - or null. Pure, so
+ * R1238 reads each refusal without one being thrown; `bridgeFn` and `bridgeText` refuse with it.
+ */
+function bridgeRead(sources, name = null, family = bridgeFamily()) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string");
+    const texts = family.filter(file => !gone.includes(file)).map(file => [file, stripComments(map.get(file))]);
+    const found = name === null ? [] : texts.map(([file, text]) => [file, topLevelFunction(text, name)]).filter(([, cut]) => cut !== null);
+    const why = gone.length ? `${gone.join(", ")}, of the bridge's family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`
+        : name === null ? null
+        : found.length > 1 ? `${name}() is declared in ${found.length} files of the bridge's family (${found.map(([file]) => file).join(", ")}) - this cannot tell which is read`
+        : !found.length ? `the bridge's family (${family.join(", ")}) no longer declares a top-level function ${name}() - this test reads nothing until it is pointed at the code again`
+        : null;
+    return { texts, cut: found.length === 1 ? found[0][1] : null, why };
+}
+
+/**
+ * The cut of the top-level function `name` in the one file of the bridge's family that declares it (E41 C2b), comments
+ * stripped: what `fnSource(stripComments(sources.get("gm-bridge.mjs")), name)` read while the bridge was one file. A
+ * `must` names the family when no file of it declares the name, and the files when two do (a cut of either would be
+ * a guess).
+ */
+function bridgeFn(sources, name, family = bridgeFamily()) {
+    const { cut, why } = bridgeRead(sources, name, family);
+    must(!why, why);
+    return cut;
+}
+
+/**
+ * The family's texts, comments stripped, joined by a line `const BRIDGE_FAMILY_END = {};` (E41 C2b): what a search of
+ * gm-bridge.mjs's whole text read while the bridge was one file. The line ends every cut at its file's end, so a
+ * `fnSource` or `topLevelFunction` of this text cuts as `bridgeFn` does, but takes the first of two declarations.
+ */
+function bridgeText(sources, family = bridgeFamily()) {
+    const { texts, why } = bridgeRead(sources, null, family);
+    must(!why, why);
+    return texts.map(([, text]) => text).join(`\n${BRIDGE_FAMILY_END}\n`);
+}
+
+/**
+ * The file a census key names for a top-level statement of `file` (E41 C2b): "gm-bridge.mjs" for every file of the
+ * bridge's family, as the PACKET keys built from the table already are, and the file itself otherwise - so a move
+ * between the family's files renames no key.
+ */
+function censusFile(file, family = bridgeFamily()) {
+    return family.includes(file) ? "gm-bridge.mjs" : file;
 }
 
 /**
@@ -2068,7 +2140,7 @@ export {
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, styleCascade, bodyOf, topLevelFunction, fnSource, lineAround,
-    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeCut, bridgeLookup, bridgeCrawl, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
+    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeCut, bridgeLookup, bridgeCrawl, bridgeFamily, bridgeRead, bridgeFn, bridgeText, censusFile, BRIDGE_FAMILY_END, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
     flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem, TEXT_BASELINES, textAgainstBaseline, textStaleRow,
     textTableWords, textLegacyLists,

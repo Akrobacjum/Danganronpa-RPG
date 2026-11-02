@@ -22,7 +22,7 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText, expectedRed, stripStrings
+    worldDump, dumpDiff, lfText, expectedRed, stripStrings, bridgeFn, bridgeText
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -1563,7 +1563,7 @@ const INVARIANTS = [
         const effects = stripComments(sources.get("call-effects.mjs") ?? "");
         const dialog = stripComments(sources.get("roll-dialog.mjs") ?? "");
         const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
-        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        const bridge = bridgeText(sources);
 
         ok(/export function pendingCalls\(/.test(effects), "the armed Calls are a single slot again");
         ok(/Array\.isArray\(stored\)/.test(effects),
@@ -5258,7 +5258,8 @@ const INVARIANTS = [
         const sources = new Map(await otherSources());
         const found = [];
         for (const [file, fn, own] of SENDERS) {
-            const src = stripComments(sources.get(file) ?? "");
+            // E41 C2b: a row of gm-bridge.mjs is read in the bridge's family - the sender and its calls.
+            const src = file === "gm-bridge.mjs" ? bridgeText(sources) : stripComments(sources.get(file) ?? "");
             const body = fnSource(src, fn);
             if (!/\bemit\([^;]*\bstamps?\b/.test(body)) found.push(`${file} ${fn} emits no stamp`);
             const calls = [...src.matchAll(new RegExp(`\\b${fn}\\(([^;]*)\\);`, "g"))].filter(m => !/^\s*function\b/.test(src.slice(Math.max(0, m.index - 9), m.index + 1)));
@@ -5495,13 +5496,13 @@ const INVARIANTS = [
         const src = file => stripComments(sources.get(file) ?? "");
         const found = [];
         for (const [file, fn] of [["mastermind.mjs", "sendDoorFlag"], ["incident-store.mjs", "sendCast"], ["gm-bridge.mjs", "sendOffersTo"], ["fog.mjs", "sendStoreTo"]]) {
-            const body = fnSource(src(file), fn);
+            const body = file === "gm-bridge.mjs" ? bridgeFn(sources, fn) : fnSource(src(file), fn);
             const asked = body.indexOf("gmStoresQuiet()"), sent = body.search(/\bemit\(/);
             if (asked < 0 || sent < asked) found.push(`${file} ${fn} sends without asking whether the suite holds the stores`);
         }
         for (const [file, fn, reads] of [["mastermind.mjs", "registerMastermind", "const mine = readStore();"], ["incident-store.mjs", "registerIncidentCastSync", "const cast = readCast();"],
             ["fog.mjs", "registerLedgerRoad", "sendStoreTo(sender);"], ["gm-bridge.mjs", "handleAdvancementAsk", "sendOffersTo(sender.id)"]]) {
-            const body = fnSource(src(file), fn);
+            const body = file === "gm-bridge.mjs" ? bridgeFn(sources, fn) : fnSource(src(file), fn);
             const waited = body.indexOf("whenGmStoresAudible()"), read = body.indexOf(reads);
             if (waited < 0 || read < waited) found.push(`${file} ${fn} answers a player's request before the suite lets the stores go`);
         }
@@ -6875,7 +6876,8 @@ const INVARIANTS = [
             "a refusal after the clock did not go to `lateRefused` with its code (an unknown one as `refused`), or a request without one heard it (the clock's answer, heard, said)");
 
         const sources = new Map(await otherSources());
-        const body = (file, fn) => fnSource(stripComments(sources.get(file) ?? ""), fn);
+        // E41 C2b: gm-bridge.mjs's functions are cut where the bridge's family holds them.
+        const body = (file, fn) => file === "gm-bridge.mjs" ? bridgeFn(sources, fn) : fnSource(stripComments(sources.get(file) ?? ""), fn);
         const ask = body("gm-bridge.mjs", "requestReroll"), caller = body("calls.mjs", "askReroll"), pass = body("reroll.mjs", "recoverRerollJournal");
         equal(JSON.stringify([/quiet:\s*true/.test(ask), /\blate\b/.test(ask), /\blateRefused\b/.test(ask), /\blateMs:/.test(ask),
             /DRPG\.Reroll\.stillMaking/.test(caller) && /"noAnswer"/.test(caller), /isPrimaryGm\(\{\s*leaving:\s*gone\s*\}\)/.test(pass)]),
@@ -6991,7 +6993,7 @@ const INVARIANTS = [
         // E80 fix r1-G4 (the review's goal-P2-02): a Frisk's four requests, whose asks the primary alone holds (R621).
         const named = [["gm-bridge.mjs", "requestReroll"], ["roll-draw.mjs", "askToDecide"], ["gm-bridge.mjs", "requestFriskUnseen"],
             ["gm-bridge.mjs", "requestFriskAsk"], ["gm-bridge.mjs", "requestFriskAnswer"], ["gm-bridge.mjs", "requestFriskFollow"]]
-            .filter(([file, fn]) => !/\bonPrimary:\s*true\b/.test(fnSource(stripComments(sources.get(file) ?? ""), fn)));
+            .filter(([file, fn]) => !/\bonPrimary:\s*true\b/.test(file === "gm-bridge.mjs" ? bridgeFn(sources, fn) : fnSource(stripComments(sources.get(file) ?? ""), fn)));
         ok(!named.length, `these are decided on whichever GM asks, not on the primary: ${named.map(([f, fn]) => `${f} ${fn}`).join(", ")}`);
         const feeAsk = topLevelFunction(stripComments(sources.get("investigation.mjs") ?? ""), "askToChargeForUnfoundKeys") ?? "";
         const opening = fnSource(stripComments(sources.get("clock.mjs") ?? ""), "reconcilePhase");
@@ -14568,7 +14570,9 @@ const INVARIANTS = [
         equal(J([setting?.scope, setting?.config, setting?.default, Object.keys(setting?.choices ?? {})]), J(["world", true, "log", ["log", "sendBack"]]),
             "[the setting's scope, shown in the settings, its default, its choices]");
         const src = file => fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText).then(stripComments);
-        const [movement, bridge, own] = await Promise.all([src("movement.mjs"), src("gm-bridge.mjs"), src("movement-audit.mjs")]);
+        const [movement, own] = await Promise.all([src("movement.mjs"), src("movement-audit.mjs")]);
+        // E41 C2b: the bridge's family, served as the module's sources.
+        const bridge = bridgeText(await moduleSources());
         const seen = fnSource(movement, "noteGmPosition");
         equal(J([/constrainOptions: \{ ignoreWalls: true \}/.test(fnSource(movement, "sendBack")), /constrainOptions: \{ ignoreWalls: true \}/.test(fnSource(bridge, "handleSendback")),
             /auditMove\(tokenDoc, changes, options, userId, gmSeen\.get\(tokenDoc\.id\),/.test(seen) && seen.search(/auditMove\(/) < seen.search(/gmSeen\.set\(/),
@@ -18561,7 +18565,7 @@ const INVARIANTS = [
         const theirs = def(engine("R901U1", false), S.passageMapStore, "MapOfAPlayer");
         await theirs.patch(T, { oneWay: 0 });
         equal(J([theirs.get(T) ?? null, await P.setPassageWay(W, 0, { stores }), stores.map.get(W)?.oneWay ?? null, await P.setPassageWay(T, 2, { stores }),
-            stores.map.get(T)?.oneWay, /setPassageWay/.test(stripComments(sources.get("gm-bridge.mjs")))]),
+            stores.map.get(T)?.oneWay, /setPassageWay/.test(bridgeText(sources))]),
             J([null, false, null, false, null, false]),
             "[a player's engine's write, a wall's way refused, the wall's row, a third end refused, the tunnel's row, a bridge road that sets a way]");
     }],
@@ -23682,7 +23686,7 @@ const INVARIANTS = [
         };
         const rest = [game.i18n.format("DRPG.Bridge.settledApproved", { name: "R852 GM" }), game.i18n.localize("DRPG.Bridge.settledGone"), "R852 kept words"];
         const sources = new Map(await moduleSources());
-        const fn = (file, name) => fnSource(stripComments(sources.get(file) ?? ""), name);
+        const fn = (file, name) => file === "gm-bridge.mjs" ? bridgeFn(sources, name) : fnSource(stripComments(sources.get(file) ?? ""), name);
         equal(stableJson([drawn("pl"), drawn("en"),
             /readersLines\(body\)/.test(fn("secret.mjs", "drawPrivateCard")), /readersLines\(body\)/.test(fn("messenger-app.mjs", "buildBubble")),
             /readersLines\(wrap\)/.test(fn("messenger-app.mjs", "cardPreview")), /drpgLine/.test(fn("gm-bridge.mjs", "settleCall")),
@@ -30491,7 +30495,7 @@ const INVARIANTS = [
             S.setPageLanguage(was);
         }
         const sources = new Map(await moduleSources());
-        const fn = (file, name) => fnSource(stripComments(sources.get(file) ?? ""), name) ?? "";
+        const fn = (file, name) => (file === "gm-bridge.mjs" ? bridgeFn(sources, name) : fnSource(stripComments(sources.get(file) ?? ""), name)) ?? "";
         const through = (body, call) => body.includes(call) && !/toLocale(?:Date|Time)?String|\bIntl\s*\./.test(body);
         const pagePrefs = { hour: "2-digit", minute: "2-digit" };
         equal(stableJson({ ...read,
