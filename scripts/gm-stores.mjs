@@ -763,10 +763,15 @@ export const ballotStore = defineGmStore({
  * for the Blackened, not for a sentence that waits for the trial's end - a GM who moved to another browser before End
  * the trial executed nobody. In the backup and the health check now; a record that says a Final sentence waits and a
  * store that holds none is told to the GMs (trial-progress.mjs `sentenceOf`).
+ * And the Level Ups a verdict is giving (E42 C1c, 1.2.97; E42-05, E42-06): `giving`, the row of a verdict's batch in
+ * flight - `{ at, actorId, offers, advances }`, the verdict's `at`, the student, and the offers standing on them and
+ * their `advances` before the row's write, null once its `given` is written (verdict.mjs `keepGiving`) - and
+ * `finalGiven`, whom the Final Trial's batch has given what waited, `{ at, ids }` (verdict.mjs `finalVerdictLevelUps`):
+ * the world's record names nobody in a Final Trial, so a Finish reads them here. Both counts and ids, the GMs' alone.
  */
 export const verdictStore = defineGmStore({
     name: "verdict", key: SETTINGS.gmVerdict,
-    kind: "record", fields: ["at", "blackenedIds", "finalAt", "finalSentenced"], resetGroup: "trialProgress", backup: true, sync: true
+    kind: "record", fields: ["at", "blackenedIds", "finalAt", "finalSentenced", "giving", "finalGiven"], resetGroup: "trialProgress", backup: true, sync: true
 });
 
 /**

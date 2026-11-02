@@ -1757,7 +1757,13 @@
         "offers": "Level Up Blackened",
         "despair": "pule Despair",
         "rule": "zasada Blackened",
-        "overflow": "Despair overflow"
+        "overflow": "Despair overflow",
+        "finalSentence": "wyrok Final Trial",
+        "finalCard": "karta Final Trial",
+        "finalClose": "zamknięcie Final Trial",
+        "finalExecution": "egzekucja",
+        "finalLevelUps": "Level Upy, które czekały",
+        "mastermind": "czyszczenie wyboru Masterminda"
       }
     },
     "Music": {

@@ -6195,11 +6195,14 @@ const INVARIANTS = [
         // The Final Trial's verdict is not driven here or in tier 2 (a Mastermind, a public banner,
         // the pick cleared): its call is read. Since E70 C4 the Mastermind dies when the trial ends, not in the
         // verdict, so the batch leaves out a Mastermind it sentenced, whose kill drops their row (R1033).
-        // E41 C10b (1.2.97): the Final Trial's verdict is verdict.mjs's; its writes are `giveFinalVerdict`'s.
-        const finalVerdict = bodyOf(stripComments(new Map(await otherSources()).get("verdict.mjs") ?? ""), "async function giveFinalVerdict");
-        const sentence = finalVerdict.indexOf("finalSentenced: [mastermind.id]"),
-            batch = finalVerdict.indexOf("runAdvancementBatch(livingStudentsForGm().filter(actor => !(executed && actor.id === mastermind.id)), null)");
-        ok(sentence > 0 && batch > sentence, "the Final Trial's verdict does not hand out what waited for the class (Q7), or hands it to the Mastermind it sentenced");
+        // E41 C10b (1.2.97): the Final Trial's verdict is verdict.mjs's. E42 C1c (1.2.97): its sentence and its batch are steps
+        // (`finalVerdictSentence`, `finalVerdictLevelUps`), the sentence's first in `FINAL_VERDICT_STEPS`.
+        const verdictCode = stripComments(new Map(await otherSources()).get("verdict.mjs") ?? "");
+        const table = bodyOf(verdictCode, "const FINAL_VERDICT_STEPS = ", { until: ";" });
+        const sentence = fnSource(verdictCode, "finalVerdictSentence").indexOf("finalSentenced: [mastermind.id]"),
+            batch = fnSource(verdictCode, "finalVerdictLevelUps").indexOf("promptAdvancements(livingStudentsForGm().filter(actor => !(executed && actor.id === mastermind?.id)), null,");
+        ok(sentence > 0 && batch > 0 && table.indexOf('"finalLevelUps"') > table.indexOf('"finalSentence"') && table.indexOf('"finalSentence"') > 0,
+            "the Final Trial's verdict does not hand out what waited for the class (Q7), or hands it to the Mastermind it sentenced");
         equal(stableJson([deferredOfferStore.spec?.resetGroup, deferredOfferStore.spec?.backup, deferredOfferStore.spec?.sync]),
             stableJson(["advancement", true, true]), "the waiting Level Ups are not cut by the reset's advancement group, backed up and synced");
     }],

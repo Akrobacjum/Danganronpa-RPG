@@ -8084,7 +8084,8 @@ const REGRESSIONS = [
             ["SHEET trial-floor-ui.mjs#startClassTrial", "judged (C12): who is alive for 'nobody for the trial' is read as the GMs hold it - `isDeceased(flagsHeldNow(actor))` in one synchronous pass after `judgedFor` of every student, as `eligibleVoters`; the card's budget line after the write still counts `livingStudents()` (a display, R4) [1b.2]"],
             ["SHEET trial-floor-ui.mjs#readTrial", "out of scope: the trial console's display (R4, GM only, C12): the register's count (`blackenedIds`) and whether a student died this chapter of this season (`isDeadForGm`, `deathRecordFor` and since E11 C12 `sameSeason`, a death the GMs keep included), to warn of an empty register; it decides nothing - `manageClassTrial`, its only caller, answers a player with a warning before anything is read"],
             ["SHEET verdict.mjs#openFinalVerdictDialog", "out of scope: the Final Trial's window (display, GM only); `isDeadForGm` reads the GM deaths store beside the flag; since C10 the trial console's verdict opens it in a Final Trial (`TRIAL_ACTIONS.verdict`); since E41 C10b it is verdict.mjs's and marks the dead as the table knows them (`isDeceased(flagsHeldNow(a))` after `judgedFor`), every student choosable - who it names decides only the GMs' summary"],
-            ["SHEET verdict.mjs#giveFinalVerdict", "out of scope: `isDeadForGm` = the document flag or the GM deaths store - the same class as `applyVerdict`'s, left to E40; C10 adds two GM writes, the trial's record (`verdictApplied` and a `verdict` with `final: true` that names nobody) and the clock's `finalTrial: false`; since E41 C10b `applyFinalVerdict`'s writes, behind `verdictRefusal` and `verdictRunning`"],
+            ["SHEET verdict.mjs#giveFinalVerdict", "out of scope: `isDeadForGm` = the document flag or the GM deaths store - the same class as `applyVerdict`'s, left to E40; C10 adds two GM writes, the trial's record (`verdictApplied` and a `verdict` with `final: true` that names nobody) and the clock's `finalTrial: false`; since E41 C10b `applyFinalVerdict`'s writes, behind `verdictRefusal` and `verdictRunning`; since E42 C1c the record's first write alone, its steps run by `runVerdict` (`finalVerdictClose` writes the flag)"],
+            ["SHEET verdict.mjs#finalContext", "out of scope (E42 C1c): a Finish of the Final Trial's verdict reads the Mastermind's `isDeadForGm` for the GMs' summary's outcome alone, a GM's own reading as `giveFinalVerdict`'s; no write rests on it - whether the sentence waits is the record's `sentencePending`"],
             ["SHEET character.mjs#stampStartingSheet", "judged (C8): the spread read as the GMs hold it (`numberHeld`) in one `meansWrite` job of the student's queue, not off the prepared `actor.system`; R318 [1b.2]"],
             ["SHEET gm-bridge.mjs#handleAdvancement", "judged (C8): S03-22 - a statistic among TRAITS and an `experienceUp` id on the held sheet (`numberHeld` at the experiences' root), read synchronously before the latch, else refused and told; `applyAdvancement` checks the experiences again in its job [F7, 1b.2]"],
             ["SHEET chapter.mjs#livingStudents", "out of scope as a function (document `isDeceased`); its R1 caller `applyVerdict` stopped using it in C5 (`verdictHeld`) [1b.2]"],
@@ -12292,7 +12293,9 @@ const REGRESSIONS = [
             noRepeat: /if \(verdictCardPosted\(context\.record\)\) return;/.test(fnSource(vote, "verdictCard"))
                 && /given: context\.record\.given \?\? \[\]/.test(fnSource(vote, "verdictLevelUps"))
                 && /planned\.filter\(entry => !handled\.has\(entry\.actorId\)\)/.test(batch),
-            givenGap: /done\.applied\+\+;\s*if \(entry\.deferred\) await deferredOfferStore\.drop\(actor\.id\);\s*await onGiven\?\.\(actor\);/.test(batch),
+            givenGap: /done\.applied\+\+;\s*if \(entry\.deferred\) await deferredOfferStore\.drop\(actor\.id\);\s*await onGiven\?\.\(actor\);/.test(batch)
+                // E42 C1c (1.2.97): the gap is closed - the row in flight is written before its Level Up and settled on a Finish.
+                && /await onGiving\?\.\(actor, givenCounts\(actor\)\);/.test(batch) && /if \(flying && rowGrew\(flying, giving\)\)/.test(batch),
             takeBackBusy: /if \(advancing\.has\(actor\.id\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Advance\.takeBackBusy"/
                 .test(fnSource(levelUp, "takeBackOffer")),
             enterGives: /buttons: \[\s*\{ action: "give", [^}]*default: true,/.test(fnSource(levelUp, "askWhoPicks")),
@@ -12309,7 +12312,9 @@ const REGRESSIONS = [
             runnerGap: /return by\?\.active \? by\.id : primaryGmId\(\);/.test(fnSource(vote, "verdictRunner")),
             takeLatch: /advancing\.add\(actor\.id\);\s*takingBack\.add\(actor\.id\);\s*try \{\s*if \(!await withdrawOffer/.test(fnSource(levelUp, "takeBackOffer"))
                 && /if \(takingBack\.has\(actor\.id\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Advance\.takeBackTaking"/.test(fnSource(levelUp, "takeBackOffer")),
-            finalApi: finalRoute.test(fnSource(vote, "openVerdictDialog")) && finalRoute.test(fnSource(vote, "applyVerdict"))
+            finalApi: finalRoute.test(fnSource(vote, "openVerdictDialog")) && finalRoute.test(fnSource(vote, "applyVerdict")),
+            // E42 C1c (1.2.97): a Final verdict that stopped is offered Finish, and Finish runs the Final Trial's steps.
+            finalFinish: !/verdict\.final \|\|/.test(fnSource(vote, "verdictStopped")) && /if \(progress\.verdict\.final\) \{/.test(fnSource(vote, "finishVerdict"))
         };
         const SAYS = {
             en: {
@@ -12329,7 +12334,7 @@ const REGRESSIONS = [
                     deadObjector: [/an Objection posted in a dead student's name is refused on the primary GM's browser/],
                     finishRunner: [/It runs on the browser of the GM who gave the verdict while they are connected, otherwise on the primary GM's - on another GM's the console names whom to ask, and Enter presses nothing there/],
                     noRepeat: [/it gives no survivor a second Level Up and posts no second card/],
-                    givenGap: [/a GM who leaves between a row's Level Up and the write that records it leaves that one row to be given again \(read in the code, not measured\)/],
+                    givenGap: [/a GM who leaves between a row's Level Up and the write that records it no longer leaves that row to be given again/],
                     takeBackBusy: [/A take-back is refused, and you are told, while that character's Level Up is being written\./],
                     enterGives: [/\*\*Hand them out\*\* - the first button and the default, so Enter does it - follows the rows/],
                     unfoundExecuted: [/the window tells you alone whose death it is: executing them makes that death the execution, and the table learns it when the trial ends/],
@@ -12338,7 +12343,8 @@ const REGRESSIONS = [
                     nowOnPrimary: [/\*\*Skip\*\* runs on the primary GM's browser whichever GM presses it, so a press while the clock is moving the floor on does not move it a second time, and a press that reaches it after the floor has moved on moves nothing and tells you so/],
                     runnerGap: [/in the moment the verdict's GM disconnects, the GM who becomes its runner can press Finish the verdict before the first one's last write has landed/],
                     takeLatch: [/A player's Level Up picked while a take-back of that offer is being written is refused as busy, and a second take-back of the same character in that time is refused in its own words on the primary GM's browser and on the browser of the GM who asked for the first \(that one read in the code\), and as busy on any other GM's\./],
-                    finalApi: [/`game\.drpg\.verdictDialog\(\)` and `game\.drpg\.applyVerdict\(\)` open that window too, so no road gives a Final Trial the ordinary verdict/]
+                    finalApi: [/`game\.drpg\.verdictDialog\(\)` and `game\.drpg\.applyVerdict\(\)` open that window too, so no road gives a Final Trial the ordinary verdict/],
+                    finalFinish: [/It stops and is finished as the ordinary verdict does \(since 1\.2\.97\)/, /\*\*Finish the verdict\*\* runs the steps left, giving what waited once/]
                 },
                 player: {
                     onePerPerson: [/one per person, however many students you play; a student only a GM plays gets none/],
@@ -12366,7 +12372,7 @@ const REGRESSIONS = [
                     deadObjector: [/Objection wniesione w imieniu martwego ucznia jest odrzucane w przeglądarce głównego GMa/],
                     finishRunner: [/Wykonuje się w przeglądarce GMa, który wydał werdykt, dopóki jest połączony, a inaczej w przeglądarce głównego GMa - w przeglądarce innego GMa konsola mówi, kogo poprosić, a Enter niczego tam nie naciska/],
                     noRepeat: [/żadnemu ocalałemu nie daje drugiego Level Upa ani nie wysyła drugiej karty/],
-                    givenGap: [/GM, który wyjdzie między Level Upem wiersza a zapisem, który go odnotowuje, zostawia ten jeden wiersz do przyznania jeszcze raz \(odczytane w kodzie, niezmierzone\)/],
+                    givenGap: [/GM, który wyjdzie między Level Upem wiersza a zapisem, który go odnotowuje, nie zostawia już tego wiersza do przyznania jeszcze raz/],
                     takeBackBusy: [/Cofnięcie jest odmawiane, a ty się o tym dowiadujesz, dopóki Level Up tej postaci jest zapisywany\./],
                     enterGives: [/\*\*Przyznaj\*\* - pierwszy przycisk i domyślny, więc Enter robi to samo - wykonuje wiersze/],
                     unfoundExecuted: [/okno mówi tylko tobie, czyja to śmierć: stracenie go czyni tę śmierć egzekucją, a stół dowiaduje się o niej, gdy rozprawa się kończy/],
@@ -12375,7 +12381,8 @@ const REGRESSIONS = [
                     nowOnPrimary: [/\*\*Pomiń\*\* wykonuje się w przeglądarce głównego GMa, którykolwiek GM go naciśnie, więc naciśnięcie w chwili, gdy zegar sam przesuwa debatę dalej, nie przesuwa jej drugi raz, a naciśnięcie, które dotrze do głównego GMa, gdy debata już przesunęła się dalej, niczego nie przesuwa i mówi ci o tym/],
                     runnerGap: [/w chwili, gdy GM werdyktu się rozłącza, GM, który przejmuje jego wykonanie, może nacisnąć Dokończ werdykt, zanim dotrze ostatni zapis pierwszego/],
                     takeLatch: [/Level Up gracza wybrany, gdy cofnięcie tej oferty jest zapisywane, jest odmawiany jako zajęty, a drugie cofnięcie tej samej postaci w tym czasie jest odmawiane własnymi słowami w przeglądarce głównego GMa i w przeglądarce GMa, który poprosił o pierwsze \(to odczytane w kodzie\), a w przeglądarce każdego innego GMa jako zajęte\./],
-                    finalApi: [/`game\.drpg\.verdictDialog\(\)` i `game\.drpg\.applyVerdict\(\)` też otwierają to okno, więc żadna droga nie daje Final Trial zwykłego werdyktu/]
+                    finalApi: [/`game\.drpg\.verdictDialog\(\)` i `game\.drpg\.applyVerdict\(\)` też otwierają to okno, więc żadna droga nie daje Final Trial zwykłego werdyktu/],
+                    finalFinish: [/Zatrzymuje się i jest dokańczany tak jak zwykły werdykt \(od 1\.2\.97\)/, /\*\*Dokończ werdykt\*\* wykonuje pozostałe kroki i przyznaje to, co czekało, raz/]
                 },
                 player: {
                     onePerPerson: [/jedną na osobę, niezależnie od tego, ilu uczniów grasz; uczeń, którego gra tylko GM, nie dostaje żadnej/],
@@ -19166,8 +19173,9 @@ const REGRESSIONS = [
             const fn = name => topLevelFunction(files["verdict.mjs"], name) ?? "";
             const reexported = file => [...files[file].matchAll(/\bexport\s*\{([^}]*)\}\s*from\s*"\.\/verdict\.mjs"/g)]
                 .flatMap(m => m[1].split(",").map(name => name.trim()).filter(Boolean));
+            // E42 C1c (1.2.97): the Final Trial's card is its step's (`finalVerdictCard`), and its summary runVerdict's, which runs both verdicts.
             const BUILT = [["postVerdictCard", /\bannounce\(verdictCardContent\(/], ["runVerdict", /\bwhisperToGms\(verdictSummaryContent\(/],
-                ["giveFinalVerdict", /\bannounce\(verdictCardContent\(/], ["giveFinalVerdict", /\bwhisperToGms\(verdictSummaryContent\(/]];
+                ["finalVerdictCard", /\bannounce\(verdictCardContent\(/], ["runVerdict", /\bfinalSummary\(final, report\)/]];
             return {
                 missing: NAMES.filter(name => topLevelFunction(files["verdict.mjs"], name) === null),
                 elsewhere: ["vote.mjs", "mastermind.mjs"].flatMap(file => NAMES.filter(name => topLevelFunction(files[file], name) !== null).map(name => `${file}#${name}`)),
@@ -19185,6 +19193,58 @@ const REGRESSIONS = [
             "the verdict has more than one owner, or a verdict skips the one lock, the one list or a builder (missing: what verdict.mjs does not declare; "
             + "elsewhere: what vote.mjs or mastermind.mjs still declare; unexported: what a facade does not re-export; opens: an open without "
             + "verdictCandidates and verdictRefusal; applies: an apply without verdictRefusal and verdictRunning; builders: a card or a summary built by hand)");
+    }],
+
+    ["R1252 - the verdict, the Final Trial's verdict and the execution are step tables on the one runner (E42 C1c, E42-04, E42-06, E42-07; audit S17-30): `VERDICT_STEPS` and `VERDICT_NEEDS` as E70 left them (no \"executions\"), `FINAL_VERDICT_STEPS` the Final Trial's six keys in order, none of them `card`, `sentence` or an ordinary verdict's key, every key of both tables a step in `VERDICT_STEP` and a label in both languages, `verdictSteps` answering the Final Trial's table for a `final` record, and `runVerdict` and `carryOutSentence` running on steps.mjs `runSteps`", async () => {
+        /*
+         * E42 C1c, 02.11.2026; E42-04, E42-06, E42-07, audit S17-30. The ordinary verdict's steps were a table run by a
+         * loop of its own (`runVerdict`), the Final Trial's verdict one function whose consequences logged and went on,
+         * and the execution a loop of its own (`carryOutSentence`). One runner now, and the tables are values read here
+         * off the source (comments stripped) and parsed: a Final step keyed "card" would be read by events.mjs
+         * `afterVerdictCard` as a chapter's verdict told, one keyed "sentence" by trial-progress.mjs `sentenceOf` as an
+         * ordinary sentence, and a key shared with the ordinary table would mix the two in a Finish. The reader is shown
+         * the tree with a Final step keyed "card" planted, which it must name. Nothing is written. Red at C1b's tree: no
+         * `FINAL_VERDICT_STEPS`, and neither loop on `runSteps`. C2 adds the chapter's end's half.
+         */
+        const sources = new Map(await otherSources());
+        const FINAL = ["finalSentence", "finalCard", "finalClose", "finalExecution", "finalLevelUps", "mastermind"];
+        const parse = text => { try { return JSON.parse(text.replace(/([{,]\s*)(\w+):/g, '$1"$2":')); } catch { return null; } };
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const readOf = vote => {
+            const steps = /const VERDICT_STEPS = \{\s*correct: (\[[^\]]*\]),\s*wrong: (\[[^\]]*\])\s*\};/.exec(vote);
+            const needsText = /const VERDICT_NEEDS = (\{[^}]*\});/.exec(vote);
+            const finalText = /const FINAL_VERDICT_STEPS = Object\.freeze\((\[[^\]]*\])\);/.exec(vote);
+            const mapText = /const VERDICT_STEP = \{([^}]*)\};/.exec(vote);
+            const labelsText = /const VERDICT_STEP_LABELS = (\{[^}]*\});/.exec(vote);
+            const ordinary = steps ? { correct: parse(steps[1]), wrong: parse(steps[2]) } : null;
+            const final = finalText ? parse(finalText[1]) : null;
+            const map = Object.fromEntries((mapText?.[1] ?? "").split(",").map(pair => pair.split(":").map(x => x.trim())).filter(([k, v]) => k && v));
+            const labels = labelsText ? parse(labelsText[1]) : {};
+            const keys = [...new Set([...(ordinary?.correct ?? []), ...(ordinary?.wrong ?? []), ...(final ?? [])])];
+            const ordinaryKeys = new Set([...(ordinary?.correct ?? []), ...(ordinary?.wrong ?? [])]);
+            return {
+                ordinary, needs: needsText ? parse(needsText[1]) : null, final,
+                finalForbidden: (final ?? []).filter(key => ["card", "sentence", "executions"].includes(key) || ordinaryKeys.has(key)),
+                unrun: keys.filter(key => !map[key] || topLevelFunction(vote, map[key]) === null),
+                unlabelled: keys.filter(key => labels?.[key] !== `DRPG.Vote.verdictSteps.${key}`
+                    || ["en", "pl"].some(code => typeof foundry.utils.getProperty(lang[code], `DRPG.Vote.verdictSteps.${key}`) !== "string")),
+                finalTable: /if \(verdict\?\.final\) return FINAL_VERDICT_STEPS;/.test(fnSource(vote, "verdictSteps")),
+                runners: ["runVerdict", "carryOutSentence"].filter(name => !/\brunSteps\(\{/.test(fnSource(vote, name)))
+            };
+        };
+        const vote = stripComments(voteText(sources));
+        must(vote.length > 10000, "the vote's family was not read - this test measured nothing");
+        const planted = vote.replace('Object.freeze(["finalSentence", "finalCard"', 'Object.freeze(["finalSentence", "card"');
+        ok(planted !== vote && JSON.stringify(readOf(planted).finalForbidden) === JSON.stringify(["card"]),
+            "the reader does not name a Final step keyed \"card\" planted in FINAL_VERDICT_STEPS");
+        equal(JSON.stringify(readOf(vote)), JSON.stringify({
+            ordinary: { correct: ["sentence", "card", "levelUps", "overflow"], wrong: ["sentence", "card", "offers", "despair", "rule", "overflow"] },
+            needs: { card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence" },
+            final: FINAL, finalForbidden: [], unrun: [], unlabelled: [], finalTable: true, runners: []
+        }), "the verdicts' step tables are not as E70 left the ordinary one and E42 wrote the Final Trial's, or a loop is not the one runner "
+            + "(ordinary, needs, final: the tables; finalForbidden: a Final key that is card, sentence, executions or an ordinary key; unrun: a key with no "
+            + "step function; unlabelled: a key with no label or no text in a language; finalTable: verdictSteps answers the Final's; runners: a loop off runSteps)");
     }],
 ];
 

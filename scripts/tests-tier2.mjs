@@ -79778,13 +79778,26 @@ const SCENARIOS = [
                 const onItsWay = [held, asked, lockDuring, warned.slice(from), cards()];
 
                 // A second GM's browser in that seam: its latch clear, the world's record as `seen`, the flag up, the pick again.
-                await game.settings.set(MODULE_ID, SETTINGS.trialProgress, seen);
+                /* E42 C1c (1.2.97): the verdict being given is another GM's on that browser - a connected GM put in this
+                   browser's list of users, whose id sorts last so the primary stays this one, named as the record's `by`,
+                   and taken out once the two reads are made. A Final verdict has a Finish since E42 C1c, offered where
+                   the verdict's GM is gone or its page reloaded under it (`verdictStopped`), as the ordinary one's: the
+                   record's own `by` here read as this browser's own reload. */
+                const first = { id: "zzzzE42T2firstGM", name: "E42 the first verdict's GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+                await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...seen, verdict: { ...seen.verdict, by: first.id } });
                 await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), finalTrial: true });
                 await mastermindStore.patch("record", { actorId: mastermind.id, room: null });
                 await settle();
                 from = warned.length;
-                const cardsBefore = cards(), stopped = V.verdictStopped();
-                const elsewhere = await game.drpg.applyFinalVerdict(wrong) ?? null;
+                let cardsBefore = null, stopped = "unread", elsewhere = "unanswered";
+                game.users.set(first.id, first);
+                try {
+                    cardsBefore = cards();
+                    stopped = V.verdictStopped();
+                    elsewhere = await game.drpg.applyFinalVerdict(wrong) ?? null;
+                } finally {
+                    game.users.delete(first.id);
+                }
                 await settle();
                 const secondView = [seen.verdictApplied ?? null, seen.verdict?.stage ?? null, seen.verdict?.final ?? null,
                     ["executedIds", "correct", "accusedId", "sentenced"].filter(key => key in (seen.verdict ?? {})), stopped, elsewhere,
@@ -79904,6 +79917,313 @@ const SCENARIOS = [
             "the ordinary verdict's executed list leaves a known Blackened out, lets a dead student be picked, or does not open where it did "
             + "(per accused s2, s3: the select's value, its first option, every student listed, s3 choosable, s4's words and disabled; then the lock and "
             + "the messages since)");
+    }],
+    ["E42-T1 - a verdict stopped in its Level Ups at each of three points - before a row's Level Up, right after its write and before its `given`, and after its `given` - and finished gives each survivor one Level Up and the waited Reinforced once (E42 C1c, E42-05; audit S17-30, D4)", async () => {
+        /*
+         * E42 C1c, 02.11.2026; E42-05, audit S17-30, D4. The class's batch writes a row's Level Up (an offer, or the
+         * GM's advance) and then the record's `given`; a tab closed between the two left a row given and not recorded,
+         * and a Finish gave it again ("the one write between them is not closed", verdict.mjs `verdictLevelUps` since
+         * E10 fix r1-G1, read in the code until now). A refused write of the record cannot stop the batch here - the
+         * record's write logs its own throw (trial-progress.mjs `writeTrialProgressInStep`) and the next write carries
+         * the id - so the closed tab is modelled as the existing Finish test models it: a correct verdict run whole on
+         * the players' road ("All: the players pick"; the GM's picker, answered, for a student nobody plays), the world
+         * read at one moment of the row of X - a student a connected player owns, whose Reinforced waited for the class
+         * (D4) - and the world put back as a GM gone at that moment leaves it: the trial's record as it stood (stage
+         * "applying", its GM gone), the Level Ups of the rows after taken back, X's waiting row and the GMs'
+         * `verdictStore.giving` as they stood. The moments: when X's offer is about to be written ("before"), right
+         * after it landed ("middle"), and after the record's write that names X ("after"). Then Finish the verdict, its
+         * windows answered the same way. Read per moment: the record's steps done when it stopped, each survivor's Level
+         * Ups (offers and advances), the waited picks X was given, X's waiting row, the stage, the verdict's cards.
+         * Red at 85e8b0e2: at "middle" X was given a second Level Up.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student a player owns, whose Level Up is an offer the moment can follow");
+        const L = await import("./level-up.mjs");
+        const S = await import("./gm-stores.mjs");
+        const V = await import("./vote.mjs");
+        const { RECORD } = await import("./gm-store.mjs");
+        const { LEVEL_UP } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const { ownerIdsOf, isPrimaryGm } = await import("./utils.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which finishes a verdict - this would measure nothing");
+        const living = livingStudents();
+        must(living.every(a => !S.offerStore.has(a.id) && !S.deferredOfferStore.has(a.id)),
+            "an offer or a waiting Level Up stands already - this would read it, not the ones made here");
+        const order = studentActors().map(a => a.id);
+        living.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+        const X = living.find(a => ownerIdsOf(a).some(id => game.users.get(id)?.active));
+        must(X, "no living student a connected player owns - the moment of an offer cannot be read");
+        const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
+        const putBack = new Map(living.map(a => [a.id, sheetAsFound(a, [HP_MAX, ADVANCES])]));
+        const advances = a => foundry.utils.getProperty(a._source, ADVANCES) ?? 0;
+        const before = new Map(living.map(a => [a.id, advances(a)]));
+        const offersOf = a => L.offerList(S.offerStore.get(a.id));
+        const levelUps = a => offersOf(a).length + advances(a) - before.get(a.id);
+        const waited = a => offersOf(a).reduce((n, offer) => n + offer.deferred, 0);
+        const pick = entry => Array.from({ length: entry.picks }, () => ({ option: "hp" }));
+        const hasGiving = (S.verdictStore.spec?.fields ?? []).includes("giving");
+        await S.verdictStore.whenHydrated();
+        const keptGiving = foundry.utils.deepClone(S.verdictStore.record()?.giving ?? null);
+        const settings = game.settings, own = Object.getOwnPropertyDescriptor(settings, "set"), set = settings.set;
+        const patch = S.offerStore.patch, ownPatch = Object.getOwnPropertyDescriptor(S.offerStore, "patch");
+        const title = game.i18n.localize("DRPG.Vote.verdictCardTitle");
+        const unwrap = () => {
+            if (own) Object.defineProperty(settings, "set", own); else delete settings.set;
+            if (ownPatch) Object.defineProperty(S.offerStore, "patch", ownPatch); else delete S.offerStore.patch;
+        };
+        const takeBack = async () => {
+            for (const a of living) if (S.offerStore.has(a.id)) await S.offerStore.drop(a.id);
+            for (const back of putBack.values()) await back();
+            if (S.deferredOfferStore.has(X.id)) await S.deferredOfferStore.drop(X.id);
+            if (hasGiving) await S.verdictStore.patch(RECORD, { giving: keptGiving });
+        };
+        const seen = {};
+        try {
+            for (const point of ["before", "middle", "after"]) {
+                const moments = {};
+                const snap = label => {
+                    if (moments[label]) return;
+                    moments[label] = { record: foundry.utils.deepClone(getSetting(SETTINGS.trialProgress)?.verdict ?? null),
+                        work: living.filter(a => levelUps(a) > 0).map(a => a.id),
+                        giving: foundry.utils.deepClone(S.verdictStore.record()?.giving ?? null),
+                        deferred: foundry.utils.deepClone(S.deferredOfferStore.get(X.id) ?? null) };
+                };
+                await L.deferAdvancement(X, "reinforced", getClock().chapter ?? null);
+                const from = new Set(game.messages.map(m => m.id));
+                S.offerStore.patch = async function (key, ...rest) {
+                    if (key === X.id) snap("before");
+                    const out = await patch.call(this, key, ...rest);
+                    if (key === X.id) snap("middle");
+                    return out;
+                };
+                settings.set = async function (namespace, key, value, ...rest) {
+                    const out = await set.call(this, namespace, key, value, ...rest);
+                    if (namespace === MODULE_ID && key === SETTINGS.trialProgress && value?.verdict?.given?.includes(X.id)) snap("after");
+                    return out;
+                };
+                await withVerdictOpen(async () => {
+                    await withAdvanceWindows(pick, () => V.applyVerdict({ correct: true, executedIds: [], blackenedIds: [] }), "players");
+                    await settle();
+                    unwrap();
+                    const at = V.trialProgress().verdict?.at;
+                    const m = moments[point];
+                    must(m?.record?.at === at && living.every(a => levelUps(a) === 1) && waited(X) === LEVEL_UP.reinforced.picks,
+                        `the verdict did not give every survivor one Level Up and X the waited picks, or the moment "${point}" was not seen - nothing to finish`);
+                    // The world as a GM gone at that moment leaves it.
+                    for (const a of living.filter(a => !m.work.includes(a.id))) {
+                        if (S.offerStore.has(a.id)) await S.offerStore.drop(a.id);
+                        await putBack.get(a.id)();
+                    }
+                    if (m.deferred) await S.deferredOfferStore.patch(X.id, m.deferred, { whole: true });
+                    else if (S.deferredOfferStore.has(X.id)) await S.deferredOfferStore.drop(X.id);
+                    if (hasGiving) await S.verdictStore.patch(RECORD, { giving: m.giving });
+                    await V.setTrialProgress({ verdict: { ...m.record, stage: "applying", by: "a GM who left", failed: [] } });
+                    await withAdvanceWindows(pick, () => V.finishVerdict(), "players");
+                    await settle();
+                    const said = await Promise.all(game.messages.filter(x => !from.has(x.id)).map(x => wordsOf(x, 1000)));
+                    seen[point] = { done: m.record.done, levelUps: living.map(a => [a.name, levelUps(a)]), waited: waited(X),
+                        waiting: S.deferredOfferStore.has(X.id), stage: V.trialProgress().verdict?.stage ?? null,
+                        cards: said.filter(words => String(words ?? "").includes(title)).length };
+                });
+                unwrap();
+                await takeBack();
+            }
+            const want = { done: ["sentence", "card"], levelUps: living.map(a => [a.name, 1]), waited: LEVEL_UP.reinforced.picks, waiting: false,
+                stage: "done", cards: 1 };
+            equal(stableJson(seen), stableJson({ before: want, middle: want, after: want }),
+                "a verdict stopped in its Level Ups and finished gave a survivor a second Level Up or none, X the waited picks other than once, or ran a step twice "
+                + "(per moment: the steps done when it stopped, Level Ups per survivor - offers and advances -, the waited picks X holds, X's waiting row, the stage, the verdict's cards)");
+        } finally {
+            unwrap();
+            await takeBack();
+        }
+    }],
+
+    ["E42-T2 - a Final verdict stopped in its Level Ups is offered Finish, which gives what waited once, and its record names nobody (E42 C1c, E42-06; audit S17-30)", async () => {
+        /*
+         * E42 C1c, 02.11.2026; E42-06, audit S17-30. The Final Trial's verdict wrote its record "done" before the
+         * Level Ups that waited for the class (D4, the owner's Q7 (b)), whose throw it logged and passed over: what
+         * waited was never given, and no console offered a Finish (verdict.mjs `verdictStopped` passed a final record
+         * over, E41 fix FG1). A wrong Final verdict on this GM over a Final Trial in its phase (a Mastermind through the
+         * store, the flag up), so nobody is executed; Y, a student a connected player owns, holds a waiting Reinforced;
+         * the class's Level Up window refused once (its `DialogV2.wait` throws), then answered "All: the players pick".
+         * Read: the record, `verdictStopped` and the trial console's buttons after the stop; after Finish the verdict,
+         * the record, Y's offers and the picks that waited in them, Y's waiting row, whom the GMs' store says the batch
+         * gave, a second Finish refused; the banners and the ordinary verdict's cards since; and the record's fields and
+         * every actor id in it. Red at 85e8b0e2: the record "done", no Finish, the waited Level Up never given.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student a player owns, whose waited Level Up is offered");
+        const L = await import("./level-up.mjs");
+        const S = await import("./gm-stores.mjs");
+        const V = await import("./vote.mjs");
+        const { RECORD } = await import("./gm-store.mjs");
+        const { LEVEL_UP } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { ownerIdsOf, isPrimaryGm } = await import("./utils.mjs");
+        const { manageClassTrial } = await import("./trial-floor-ui.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM - this would measure nothing");
+        const Y = livingStudents().find(a => ownerIdsOf(a).some(id => game.users.get(id)?.active));
+        must(Y, "no living student a connected player owns");
+        const mastermind = livingStudents().find(a => a.id !== Y.id);
+        must(mastermind, "no second living student to be the Mastermind");
+        must(!S.offerStore.has(Y.id) && !S.deferredOfferStore.has(Y.id), "an offer or a waiting Level Up stands on Y already");
+        await S.verdictStore.whenHydrated();
+        const kept = foundry.utils.deepClone(S.verdictStore.record());
+        const offersOf = a => L.offerList(S.offerStore.get(a.id));
+        const banners = ["DRPG.Mastermind.defeatedBanner", "DRPG.Mastermind.revealedBanner"].map(key => game.i18n.localize(key));
+        const ordinaryTitle = game.i18n.localize("DRPG.Vote.verdictCardTitle");
+        const label = game.i18n.localize("DRPG.Vote.verdictSteps.finalLevelUps");
+        const warn = ui.notifications.warn, warned = [];
+        let refuse = true;
+        const answer = cfg => {
+            const classes = cfg?.classes ?? [];
+            if (classes.includes("drpg-advance-queue")) {
+                if (refuse) {
+                    refuse = false;
+                    throw new Error("E42-T2: the class's Level Up window is refused once");
+                }
+                return answerQueue(cfg, "players", {});
+            }
+            return null;
+        };
+        const consoleOf = async windows => {
+            const from = windows.length;
+            await manageClassTrial();
+            const opened = windows.slice(from).filter(cfg => (cfg?.classes ?? []).includes("drpg-window-trial")).pop() ?? null;
+            const finish = (opened?.buttons ?? []).find(b => b.action === "finishVerdict");
+            return [Boolean(finish), finish?.default === true];
+        };
+        const quiet = console.error;
+        let reading = null;
+        try {
+            await L.deferAdvancement(Y, "reinforced", getClock().chapter ?? null);
+            ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return warn.call(ui.notifications, message, ...rest); };
+            reading = await withVerdictFixture({ mastermind, final: true, answer }, async ({ windows, fresh }) => {
+                console.error = () => {};
+                await game.drpg.applyFinalVerdict({ correct: false, accusedId: Y.id });
+                console.error = quiet;
+                await settle();
+                const p = V.trialProgress();
+                const stopped = [p.verdict?.stage ?? null, p.verdict?.failed ?? null, p.verdict?.done ?? null, V.verdictStopped() ?? null,
+                    offersOf(Y).length, S.deferredOfferStore.has(Y.id), await consoleOf(windows)];
+                await V.finishVerdict();
+                await settle();
+                const q = V.trialProgress();
+                const given = S.verdictStore.record()?.finalGiven ?? null;
+                const finished = [q.verdict?.stage ?? null, q.verdict?.failed ?? null, offersOf(Y).length, offersOf(Y).reduce((n, o) => n + o.deferred, 0),
+                    S.deferredOfferStore.has(Y.id), Array.isArray(given?.ids) && given.ids.includes(Y.id) && given.at === q.verdict?.at, V.verdictStopped() ?? null];
+                const from = warned.length;
+                const again = [await V.finishVerdict() ?? null, offersOf(Y).length, warned.slice(from).includes(game.i18n.localize("DRPG.Vote.verdictAlreadyApplied"))];
+                const posted = fresh();
+                const cards = [posted.filter(m => banners.some(b => String(m.content ?? "").includes(b))).length,
+                    posted.filter(m => String(m.content ?? "").includes(ordinaryTitle)).length];
+                const text = JSON.stringify(q.verdict ?? null);
+                const names = [Object.keys(q.verdict ?? {}).sort(), game.actors.filter(a => text.includes(a.id)).map(a => a.name)];
+                return { stopped, finished, again, cards, names };
+            });
+        } finally {
+            console.error = quiet;
+            ui.notifications.warn = warn;
+            if (S.offerStore.has(Y.id)) await S.offerStore.drop(Y.id);
+            if (S.deferredOfferStore.has(Y.id)) await S.deferredOfferStore.drop(Y.id);
+            if ((S.verdictStore.spec?.fields ?? []).includes("giving")) {
+                await S.verdictStore.patch(RECORD, { giving: kept.giving ?? null, finalGiven: kept.finalGiven ?? null });
+            }
+        }
+        const done = ["finalSentence", "finalCard", "finalClose", "finalExecution", "mastermind"];
+        equal(stableJson(reading), stableJson({
+            stopped: ["applying", ["finalLevelUps"], done, label, 0, true, [true, true]],
+            finished: ["done", [], 1, LEVEL_UP.reinforced.picks, false, true, null],
+            again: [null, 1, true],
+            cards: [1, 0],
+            names: [["at", "by", "done", "failed", "final", "sentencePending", "stage"], []]
+        }), "a Final verdict stopped in its Level Ups was not offered Finish, its Finish did not give what waited once, or its record names somebody "
+            + "(stopped: stage, failed, done, the stopped steps named, Y's offers, Y's waiting row, the console's Finish and its default; finished: stage, "
+            + "failed, Y's offers, the waited picks in them, Y's waiting row, the GMs' store names Y given, stopped; again: a second Finish's answer, Y's offers, "
+            + "refused; cards: banners, ordinary verdict cards; names: the record's fields, the actors whose id it holds)");
+    }],
+
+    ["E42-T3 - the execution at the trial's end on the one runner, as before (E42 C1c, E42-07): of two sentenced, a kill that fails leaves `execution.failed`, no stamp, one card for the other and the GM told; asked again (`retrySentence`) it executes the one left, stamps the record and posts its card, and kills nobody twice; asked once more it does nothing", async () => {
+        /*
+         * E42 C1c, 02.11.2026; E42-07. trial-progress.mjs `carryOutSentence` ran its own loop (E70 C4, fix p1-G2) and runs
+         * on steps.mjs `runSteps` now: a step a sentenced student, the record written after each, the stamp only when
+         * nobody failed, the card for this run's executed. 1:1 is the promise, so this reads green before and after.
+         * On this primary, the clock and the record written raw: a wrong verdict done in the trial, A and B sentenced,
+         * the phase Daily Life, nothing executed yet. A's death flag refused once (`setFlag` throws: `markDeceased`
+         * logs it and the kill answers null). Read: who is dead, the record's `execution` and stamp, the execution
+         * cards since and whom each names, what the GM was told; then the same after `retrySentence`, the deaths
+         * written per student; then `retrySentence` again. Green at 85e8b0e2 (measured before C1c).
+         */
+        needs(env.primaryGm(), "a sentence is carried out on the primary GM");
+        const [A, B] = cast(2);
+        const V = await import("./vote.mjs");
+        const { reviveCharacter, isDeceased, isDeadForGm } = await import("./chapter.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        must(!isDeadForGm(A) && !isDeadForGm(B), "a sentenced student is dead before the test - this would measure nothing");
+        const seen = new Set(game.messages.map(m => m.id));
+        const cards = () => {
+            const out = game.messages.filter(m => !seen.has(m.id) && m.getFlag(MODULE_ID, "executionCard"))
+                .map(m => [A, B].filter(a => String(m.content ?? "").includes(foundry.utils.escapeHTML(a.name))).map(a => a.name));
+            for (const m of game.messages) seen.add(m.id);
+            return out;
+        };
+        const deaths = { [A.id]: 0, [B.id]: 0 };
+        const hook = Hooks.on("updateActor", (actor, change) => {
+            const path = `flags.${MODULE_ID}.${FLAGS.deceased}`;
+            if (actor.id in deaths && foundry.utils.getProperty(foundry.utils.expandObject(change ?? {}), path)) deaths[actor.id]++;
+        });
+        const errorNote = ui.notifications.error, told = [];
+        const ownSetFlag = Object.getOwnPropertyDescriptor(A, "setFlag");
+        const setFlag = A.setFlag;
+        let refuse = true;
+        const quiet = console.error;
+        const read = {};
+        try {
+            const chapter = getClock().chapter;
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), phase: "dailyLife" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter, verdictApplied: true,
+                verdict: { stage: "done", correct: false, executedIds: [A.id, B.id], sentenced: [A.id, B.id], by: game.user.id, at: Date.now(),
+                    done: ["sentence", "card"], failed: [] }, executedAt: null, execution: null });
+            cards();
+            A.setFlag = async function (scope, key, ...rest) {
+                if (refuse && scope === MODULE_ID && key === FLAGS.deceased) {
+                    refuse = false;
+                    throw new Error("E42-T3: the death of A is refused once");
+                }
+                return setFlag.call(this, scope, key, ...rest);
+            };
+            ui.notifications.error = (message, ...rest) => { told.push(String(message)); return errorNote.call(ui.notifications, message, ...rest); };
+            console.error = () => {};
+            const first = await V.executeAtExit({ chapter });
+            console.error = quiet;
+            await settle();
+            const r1 = getSetting(SETTINGS.trialProgress);
+            read.first = [first ? [first.executed, first.failed] : null, isDeceased(A), isDeceased(B), r1?.execution ?? null, Number.isFinite(r1?.executedAt),
+                cards(), told.some(line => line.includes(foundry.utils.escapeHTML(A.name)))];
+            const retry = await V.retrySentence();
+            await settle();
+            const r2 = getSetting(SETTINGS.trialProgress);
+            read.retry = [retry ? [retry.executed, retry.failed] : null, isDeceased(A), isDeceased(B), r2?.execution ?? null, Number.isFinite(r2?.executedAt),
+                cards(), [deaths[A.id], deaths[B.id]]];
+            read.again = [await V.retrySentence() ?? null, cards(), [deaths[A.id], deaths[B.id]]];
+        } finally {
+            console.error = quiet;
+            ui.notifications.error = errorNote;
+            if (ownSetFlag) Object.defineProperty(A, "setFlag", ownSetFlag); else delete A.setFlag;
+            Hooks.off("updateActor", hook);
+            for (const a of [A, B]) if (isDeadForGm(a)) await reviveCharacter(a, { quiet: true });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            first: [[[B.id], [A.id]], false, true, { done: [B.id], failed: [A.id] }, false, [[B.name]], true],
+            retry: [[[A.id], []], true, true, { done: [B.id, A.id], failed: [] }, true, [[A.name]], [1, 1]],
+            again: [null, [], [1, 1]]
+        }), "the execution at the trial's end is not as it was (first: the answer [executed, failed], A dead, B dead, the record's execution, stamped, "
+            + "the execution cards since and whom each names, the GM told of A; retry: the same and the deaths written of A and B; again: the answer, cards, deaths)");
     }],
     ...GRID
 ];

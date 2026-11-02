@@ -1634,7 +1634,13 @@
         "offers": "the Blackened's Level Up",
         "despair": "the Despair pools",
         "rule": "the Blackened's rule",
-        "overflow": "the Despair overflow"
+        "overflow": "the Despair overflow",
+        "finalSentence": "the Final Trial's sentence",
+        "finalCard": "the Final Trial's card",
+        "finalClose": "closing the Final Trial",
+        "finalExecution": "the execution",
+        "finalLevelUps": "the Level Ups that waited",
+        "mastermind": "clearing the Mastermind's pick"
       }
     },
     "Music": {

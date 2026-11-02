@@ -1099,13 +1099,27 @@ export async function deferAdvancement(actor, kind = "reinforced", chapter = nul
  * is told each row given here, written or offered, once its waiting row is gone (verdict.mjs
  * `verdictLevelUps`; E10 fix r1-G1). The given are still among the living: their rows are
  * not drawn, and their waiting rows do not lapse.
+ *
+ * THE ROW IN FLIGHT (E42 C1c, 1.2.97; E42-05). `onGiving(actor, { offers, advances })` is told each row before
+ * its write - the offers standing on the student and their `advances` as this GM holds them (`givenCounts`) - and
+ * `giving` is that snapshot of a batch that stopped (verdict.mjs `verdictStore.giving`). A `giving` row not in
+ * `given` is settled first: given when either count grew since the snapshot - its write landed and its record did
+ * not, a closed tab between the two - and then its waiting Reinforced is dropped if it still stands and `onGiven`
+ * told; drawn again otherwise. A GM who also gave that student a Level Up by hand between the snapshot and the
+ * Finish reads as given too (the counts grew): said here, not measured.
  */
-export async function runAdvancementBatch(actors, kind = "standard", { given = [], onGiven = null } = {}) {
+export async function runAdvancementBatch(actors, kind = "standard", { given = [], giving = null, onGiving = null, onGiven = null } = {}) {
     if (!game.user.isGM) return null;
     await deferredOfferStore.whenHydrated();
     const byId = new Map((actors ?? []).filter(Boolean).map(a => [a.id, a]));
     const handled = new Set(given);
     const { entries: planned, drop } = advancementPlan([...byId.keys()], deferredOfferStore.entries(), kind);
+    const flying = giving?.actorId && !handled.has(giving.actorId) ? byId.get(giving.actorId) : null;
+    if (flying && rowGrew(flying, giving)) {
+        if (planned.find(entry => entry.actorId === flying.id)?.deferred) await deferredOfferStore.drop(flying.id);
+        handled.add(flying.id);
+        await onGiven?.(flying);
+    }
     const entries = planned.filter(entry => !handled.has(entry.actorId));
     if (drop.length) await deferredOfferStore.dropMany(drop);
     const done = { opened: entries.length, applied: 0, offered: 0, notGiven: [], lapsed: drop.length };
@@ -1118,6 +1132,7 @@ export async function runAdvancementBatch(actors, kind = "standard", { given = [
     const who = await askWhoPicks(rows);
     for (const { entry, actor, playable, here } of rows) {
         try {
+            await onGiving?.(actor, givenCounts(actor));
             const choice = !who ? (playable ? "player" : null) : who[actor.id] ?? (playable && here ? "player" : "gm");
             if (choice === "gm" && await openAdvancement(actor, entry.kind, { extraPicks: entry.extraPicks, reasons: entry.reasons })) {
                 done.applied++;
@@ -1141,6 +1156,17 @@ export async function runAdvancementBatch(actors, kind = "standard", { given = [
         }
     }
     return done;
+}
+
+/** What a row's Level Up raises (E42 C1c): the offers standing on the student and their `advances`, as this GM holds them. */
+function givenCounts(actor) {
+    return { offers: standingOffers(actor).length, advances: Math.max(0, Math.trunc(Number(actor?.getFlag?.(MODULE_ID, FLAGS.advances)) || 0)) };
+}
+
+/** Whether a row's Level Up landed since `snapshot` (`givenCounts` before its write): either count grew. */
+function rowGrew(actor, snapshot) {
+    const now = givenCounts(actor);
+    return now.offers > (Number(snapshot?.offers) || 0) || now.advances > (Number(snapshot?.advances) || 0);
 }
 
 /**

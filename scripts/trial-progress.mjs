@@ -37,6 +37,7 @@ import { verdictStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
 import { bridgeRequest } from "./bridge-guards.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
+import { runSteps } from "./steps.mjs";
 import {
     announce, whisperToGms, whisperToOwner, isPrimaryGm, log, warn, error, serialWrite, serverNow
 } from "./utils.mjs";
@@ -76,6 +77,13 @@ const blankVote = () => ({ open: false, round: 0, picks: 1, issued: [], openedAt
  * that a Final verdict's sentence waits (`sentencePending`); who is in the GMs' store (gm-stores.mjs
  * `verdictStore`, `finalSentenced` under the verdict's `finalAt`), as the Mastermind's identity is kept
  * off the world (mastermind.mjs's header).
+ *
+ * ON THE ONE RUNNER (E42 C1c, 1.2.97; E42-07). The loop is steps.mjs `runSteps`: a step a sentenced student, the
+ * record's `{ done, failed }` written after each student it executed or failed - not after one passed over, as
+ * before - then the stamp, a step the runner keeps unwritten while anybody failed (`ask`), then the card for this
+ * run's executed. What the record holds, the stamp, the card, `retrySentence` and the chapter's reading of the
+ * record are as they were (1:1, tier 2 E42-T3, green before and after); every student is read again on each run,
+ * as before, and the runner's own record of the run is not the world's.
  *
  * Answers `{ executed, failed }` (the students' ids), or null when there is no sentence to carry out.
  */
@@ -146,26 +154,40 @@ async function carryOutSentence(chapter) {
     if (record.executedAt) return null;
     const ids = await sentenceOf(record);
     if (!ids) return null;
-    const done = [...(record.execution?.done ?? [])], failed = [], executed = [];
-    for (const actor of ids.map(id => game.actors.get(id)).filter(Boolean)) {
-        await judgedFor(actor.id);
-        const held = flagsHeldNow(actor);
-        if (isDeceased(held)) continue;
-        let died = null;
-        try {
-            died = isDeadForGm(held)
-                ? await publishDeath(actor, { phase: "classTrial", cause: "executed" })
-                : await killCharacter(actor, { secret: false, phase: "classTrial", cause: "executed", chapter });
-        } catch (err) {
-            error(`${actor.name} could not be executed`, err);
-        }
-        if (died) {
-            executed.push(actor);
-            if (!done.includes(actor.id)) done.push(actor.id);
-        } else failed.push(actor.id);
-        await writeExecution(chapter, { execution: { done: [...done], failed: [...failed] } });
-    }
-    if (!failed.length) await writeExecution(chapter, now => (now.executedAt ? null : { executedAt: serverNow() }));
+    const done = [...(record.execution?.done ?? [])], failed = [], executed = [], passed = new Set();
+    const STAMP = "executedAt";
+    await runSteps({
+        label: "execution",
+        steps: [...ids.map(id => game.actors.get(id)).filter(Boolean).map(actor => ({ key: actor.id, run: async () => {
+            await judgedFor(actor.id);
+            const held = flagsHeldNow(actor);
+            if (isDeceased(held)) {
+                passed.add(actor.id);
+                return null;
+            }
+            let died = null;
+            try {
+                died = isDeadForGm(held)
+                    ? await publishDeath(actor, { phase: "classTrial", cause: "executed" })
+                    : await killCharacter(actor, { secret: false, phase: "classTrial", cause: "executed", chapter });
+            } catch (err) {
+                error(`${actor.name} could not be executed`, err);
+            }
+            if (died) {
+                executed.push(actor);
+                if (!done.includes(actor.id)) done.push(actor.id);
+                return null;
+            }
+            failed.push(actor.id);
+            return false;
+        } })), {
+            // The stamp only when nobody failed: the next road finishes it (`retrySentence`).
+            key: STAMP, ask: () => !failed.length,
+            run: () => writeExecution(chapter, now => (now.executedAt ? null : { executedAt: serverNow() })).then(() => null)
+        }],
+        save: (run, { key, end = false } = {}) => (end || key === STAMP || passed.has(key) ? null
+            : writeExecution(chapter, { execution: { done: [...done], failed: [...failed] } }))
+    });
     if (executed.length) await postExecutionCard(executed, { final: Boolean(record.verdict?.final) });
     if (failed.length) {
         const names = failed.map(id => foundry.utils.escapeHTML(game.actors.get(id)?.name ?? "?")).join(", ");

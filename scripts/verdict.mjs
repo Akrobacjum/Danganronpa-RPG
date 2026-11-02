@@ -14,6 +14,12 @@
  * it writes down is carried out at the trial's end by trial-progress.mjs
  * (`executeAtExit`).
  *
+ * ON THE ONE RUNNER (E42 C1c, 1.2.97; audit S17-30). Both verdicts are tables
+ * of steps run by steps.mjs `runSteps` - the ordinary verdict's
+ * (`VERDICT_STEPS`, as E70 left them) and the Final Trial's
+ * (`FINAL_VERDICT_STEPS`) - over the world's record, and one Finish
+ * (`finishVerdict`) finishes either; the GMs' summary is `stepsReport`'s.
+ *
  * WHERE IT SITS. Moved out of vote.mjs by E41 C10a (1.2.97), a pure move that
  * `node tools/moved-only.mjs` proves line by line. It reads the trial's record
  * from trial-progress.mjs, and reaches the Final Trial's window in
@@ -31,8 +37,9 @@ import { trialBlackenedIds, trialBlackenedActors, whenTrialReadable } from "./mu
 import { deferredOfferStore, verdictStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
-import { announce, dialogContent, whisperToGms, primaryGmId, log, warn, error, plural } from "./utils.mjs";
+import { announce, dialogContent, whisperToGms, primaryGmId, log, warn, error, plural, listOf } from "./utils.mjs";
 import { trialProgress, setTrialProgress, executionLines, executeAtExit } from "./trial-progress.mjs";
+import { runSteps, stepsReport } from "./steps.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -461,68 +468,111 @@ const VERDICT_STEPS = {
     wrong: ["sentence", "card", "offers", "despair", "rule", "overflow"]
 };
 const VERDICT_NEEDS = { card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence" };
+
+/*
+ * THE FINAL TRIAL'S VERDICT, STEP BY STEP (E42 C1c, 1.2.97; E42-06, audit S17-30). It was one function: its record
+ * written first (E41 fix FG1) and "done" after its card and whisper, then the Final Trial's flag, the execution, the
+ * Level Ups that waited and the Mastermind's pick, each in a try/catch of its own that logged and went on - so a
+ * throw or a closed tab in the Level Ups left them never given, under a record that said done and offered no Finish
+ * (measured, tier 2 E42-T2: red at 85e8b0e2). Its steps are a table now, run like the ordinary verdict's and
+ * finished by the same Finish. Their keys are the Final Trial's own, never "card" or "sentence": events.mjs
+ * `afterVerdictCard` reads "card" in `done` as a chapter's verdict told, and trial-progress.mjs `sentenceOf` reads
+ * "sentence" as an ordinary sentence (R1252). The record holds the keys and nothing else of the Final Trial: no
+ * name, no id (the Mastermind's identity is the GMs'; mastermind.mjs's header).
+ */
+const FINAL_VERDICT_STEPS = Object.freeze(["finalSentence", "finalCard", "finalClose", "finalExecution", "finalLevelUps", "mastermind"]);
+
 // "executions" stays named for a record from before 1.2.90 whose stopped steps still list it (`verdictStopped`).
 const VERDICT_STEP_LABELS = {
     sentence: "DRPG.Vote.verdictSteps.sentence", executions: "DRPG.Vote.verdictSteps.executions",
     card: "DRPG.Vote.verdictSteps.card", levelUps: "DRPG.Vote.verdictSteps.levelUps",
     offers: "DRPG.Vote.verdictSteps.offers", despair: "DRPG.Vote.verdictSteps.despair",
-    rule: "DRPG.Vote.verdictSteps.rule", overflow: "DRPG.Vote.verdictSteps.overflow"
+    rule: "DRPG.Vote.verdictSteps.rule", overflow: "DRPG.Vote.verdictSteps.overflow",
+    finalSentence: "DRPG.Vote.verdictSteps.finalSentence", finalCard: "DRPG.Vote.verdictSteps.finalCard",
+    finalClose: "DRPG.Vote.verdictSteps.finalClose", finalExecution: "DRPG.Vote.verdictSteps.finalExecution",
+    finalLevelUps: "DRPG.Vote.verdictSteps.finalLevelUps", mastermind: "DRPG.Vote.verdictSteps.mastermind"
 };
 
-/** The steps of a verdict record (`trialProgress().verdict`), in order. */
+/** The steps of a verdict record (`trialProgress().verdict`), in order: the Final Trial's for a `final` record. */
 function verdictSteps(verdict) {
+    if (verdict?.final) return FINAL_VERDICT_STEPS;
     return VERDICT_STEPS[verdict?.correct ? "correct" : "wrong"];
 }
 
-/** The console's names for `steps`, in one line. */
+/** The console's name for one step. */
+function stepLabel(step) {
+    return game.i18n.localize(VERDICT_STEP_LABELS[step] ?? step);
+}
+
+/** The console's names for `steps`, in one list (`listOf`, E66; "a, b, c" until E42 C1c). */
 function stepLabels(steps) {
-    return steps.map(step => game.i18n.localize(VERDICT_STEP_LABELS[step] ?? step)).join(", ");
+    return listOf(steps.map(stepLabel));
 }
 
 /**
- * The steps of `record` not yet done, each in its own try/catch and the record written after each;
- * then the stage - "done" once every step is, "applying" with the steps that failed - and the GMs'
- * summary. Answers the summary's lines. `blackenedIds` are a wrong verdict's killers, which the
- * world's record never holds.
+ * The steps of `record` not yet done, on the one runner (steps.mjs `runSteps`, E42 C1c): each in its own
+ * try/catch, a step whose `VERDICT_NEEDS` is not done not run, and the record written after each step done;
+ * then the stage - "done" once every step is, "applying" with the steps that failed - and the GMs' summary
+ * (`stepsReport`). Answers the summary's lines. `blackenedIds` are a wrong verdict's killers, which the
+ * world's record never holds; `final` is the Final Trial's verdict's context (`giveFinalVerdict`,
+ * `finalContext`) for a `final` record.
+ *
+ * THE WRITES AS THEY WERE (E10 C5). The record is written after each step done, never after one that failed:
+ * a failed step is in the record's `failed` only at the end, so while the verdict runs another GM's console does
+ * not read it as stopped (`verdictStopped`) and offer a Finish beside the GM still giving it. The steps change the
+ * record themselves (`readSentence`'s sentence, the Level Ups' `given`); the runner's `done` is merged into it.
  */
-async function runVerdict(record, blackenedIds) {
-    const context = { record, blackenedIds, lines: [], reading: null };
-    const failed = [];
-    for (const step of verdictSteps(record)) {
-        const needs = VERDICT_NEEDS[step];
-        if (context.record.done.includes(step) || (needs && !context.record.done.includes(needs))) continue;
-        try {
-            await VERDICT_STEP[step](context);
-        } catch (err) {
-            error(`The verdict stopped at its step "${step}"`, err);
-            failed.push(step);
-            continue;
+async function runVerdict(record, blackenedIds, final = null) {
+    const context = { record, blackenedIds, final, lines: [], reading: null };
+    let written = record.done.length;
+    const result = await runSteps({
+        label: final ? "Final Trial's verdict" : "verdict", context, record,
+        steps: verdictSteps(record).map(key => ({
+            key, needs: VERDICT_NEEDS[key],
+            run: async () => { await VERDICT_STEP[key](context); },
+            after: key === "card" ? () => verdictExecutedNow(context) : null
+        })),
+        save: async (run, { end = false } = {}) => {
+            context.record = { ...context.record, done: [...run.done] };
+            if (end) {
+                const left = verdictSteps(record).filter(step => !run.done.includes(step));
+                // Cleared before the last write, so the console that write redraws reads a verdict that stopped as stopped.
+                verdictRunning = false;
+                await setTrialProgress({ verdict: { ...context.record, stage: left.length ? "applying" : "done", failed: [...run.failed] } });
+            } else if (run.done.length > written) {
+                written = run.done.length;
+                await setTrialProgress({ verdict: context.record });
+            }
         }
-        context.record = { ...context.record, done: [...context.record.done, step] };
-        await setTrialProgress({ verdict: context.record });
-        /* A VERDICT GIVEN AFTER THE TRIAL ENDED IS CARRIED OUT AT ONCE (E70 C4; the plan's point (g), road 3). The
-           console offers the verdict after End the trial (trial-floor-ui.mjs `trialNextStep`, E11 fix r1-G1), and
-           the exit that would execute it has already gone by: the sentence is carried out straight after the card
-           that tells it, before the Level Ups, which can keep their windows open for minutes. */
-        if (step === "card" && getClock().phase !== "classTrial") context.lines.push(...await executionLines());
-    }
-    const left = verdictSteps(record).filter(step => !context.record.done.includes(step));
-    // Cleared before the last write, so the console that write redraws reads a verdict that stopped as stopped.
-    verdictRunning = false;
-    await setTrialProgress({ verdict: { ...context.record, stage: left.length ? "applying" : "done", failed } });
-
+    });
+    // HEAD's one warning: the steps that failed, or, when none did, the ones left.
+    const report = stepsReport(result, { lines: context.lines, label: stepLabel,
+        groups: { [result.failed.length ? "failed" : "notRun"]: "DRPG.Vote.verdictStopped" } });
+    const stopped = result.failed.length > 0 || result.notRun.length > 0;
     try {
-        await whisperToGms(verdictSummaryContent({
+        await whisperToGms(verdictSummaryContent(final ? finalSummary(final, report) : {
             title: "DRPG.Vote.verdictTitle",
             summary: game.i18n.localize(record.correct ? "DRPG.Vote.correctSummary" : "DRPG.Vote.wrongSummary"),
-            lines: context.lines,
-            warning: left.length ? game.i18n.format("DRPG.Vote.verdictStopped", { steps: stepLabels(failed.length ? failed : left) }) : ""
+            lines: report.lines,
+            warning: report.warnings.join(" ")
         }));
     } catch (err) {
         error("Could not tell the GMs what the verdict did", err);
     }
-    log(`Verdict ${left.length ? "stopped" : "applied"}: ${record.correct ? "correct" : "wrong"}.`);
+    log(final ? `Final Trial verdict ${stopped ? "stopped" : "applied"}: ${final.executed ? "executed" : "revealed, not executed"}.`
+        : `Verdict ${stopped ? "stopped" : "applied"}: ${record.correct ? "correct" : "wrong"}.`);
     return context.lines;
+}
+
+/*
+ * A VERDICT GIVEN AFTER THE TRIAL ENDED IS CARRIED OUT AT ONCE (E70 C4; the plan's point (g), road 3). The
+ * console offers the verdict after End the trial (trial-floor-ui.mjs `trialNextStep`, E11 fix r1-G1), and
+ * the exit that would execute it has already gone by: the sentence is carried out straight after the card
+ * that tells it - once the card's step is written done - before the Level Ups, which can keep their windows
+ * open for minutes (`runVerdict`, the card step's `after`).
+ */
+async function verdictExecutedNow(context) {
+    if (getClock().phase !== "classTrial") context.lines.push(...await executionLines());
 }
 
 /** The verdict's reading of who is alive (`verdictHeld`), once per run, after the audit of everybody it reads. */
@@ -689,11 +739,16 @@ function verdictCardPosted(record) {
  */
 async function verdictLevelUps(context) {
     const { survivors } = await verdictReading(context);
+    const at = context.record.at;
+    await verdictStore.whenHydrated();
     const done = await promptAdvancements(survivors, TRIAL.correct.levelUp, {
         given: context.record.given ?? [],
+        giving: givingOf(at),
+        onGiving: (actor, counts) => keepGiving(at, actor, counts),
         onGiven: async actor => {
             context.record = { ...context.record, given: [...(context.record.given ?? []), actor.id] };
             await setTrialProgress({ verdict: context.record });
+            await keepGiving(at, null);
         }
     });
     if (done === null) throw new Error("the Level Ups did not open");
@@ -703,6 +758,31 @@ async function verdictLevelUps(context) {
     if (done.offered) context.lines.push(plural("DRPG.Vote.levelUpWaiting", { n: done.offered, kind }));
     for (const name of done.notGiven) {
         context.lines.push(game.i18n.format("DRPG.Advance.notYetGiven", { name: foundry.utils.escapeHTML(name) }));
+    }
+}
+
+/*
+ * THE ROW IN FLIGHT (E42 C1c, 1.2.97; E42-05). "A GM gone between a row's Level Up and the write that records it
+ * leaves that one row to be given again" (the comment above, since E10 fix r1-G1): the batch's `given` is written
+ * after the row's offer or advance, so a tab closed between the two left a row given and not recorded, and a Finish
+ * gave it a second Level Up (measured, tier 2 E42-T1: red at 85e8b0e2). The row being given is written first, to the
+ * GMs' store and never to the world's record - `verdictStore.giving`: the verdict's `at`, the student, and the offers
+ * standing on them and their `advances` before the row's write - and cleared once its `given` is written. A Finish
+ * hands it to the batch, which reads the row as given when either count grew (level-up.mjs `runAdvancementBatch`).
+ * One verdict's row at a time; a row of another verdict (`at`) is nobody's. A write of it that fails is logged and
+ * the Level Up is given all the same, as before E42.
+ */
+function givingOf(at) {
+    const giving = verdictStore.record()?.giving;
+    return giving && typeof giving === "object" && giving.at === at ? giving : null;
+}
+
+/** `verdictStore.giving` written before a row's Level Up (the batch's `onGiving`), or cleared after its `given` (null). */
+async function keepGiving(at, actor, { offers = 0, advances = 0 } = {}) {
+    try {
+        await verdictStore.patch(RECORD, { giving: actor ? { at, actorId: actor.id, offers, advances } : null });
+    } catch (err) {
+        error("Could not keep the Level Up being given for a Finish", err);
     }
 }
 
@@ -775,7 +855,9 @@ async function verdictOverflow() {
 /** What each step of a verdict does; `runVerdict` runs them in `VERDICT_STEPS`'s order. */
 const VERDICT_STEP = {
     sentence: readSentence, card: verdictCard,
-    levelUps: verdictLevelUps, offers: verdictOffers, despair: verdictDespair, rule: verdictRule, overflow: verdictOverflow
+    levelUps: verdictLevelUps, offers: verdictOffers, despair: verdictDespair, rule: verdictRule, overflow: verdictOverflow,
+    finalSentence: finalVerdictSentence, finalCard: finalVerdictCard, finalClose: finalVerdictClose,
+    finalExecution: finalVerdictExecution, finalLevelUps: finalVerdictLevelUps, mastermind: finalVerdictMastermind
 };
 
 /**
@@ -786,9 +868,10 @@ const VERDICT_STEP = {
  */
 export function verdictStopped(progress = trialProgress()) {
     const verdict = progress?.verdict;
-    // A Final verdict's steps are not `runVerdict`'s: its record reads "applying" while it is given and after a throw
-    // (E41 fix FG1), and a Finish would run the ordinary verdict's steps on it.
-    if (verdict?.stage !== "applying" || verdict.final || verdictRunning) return null;
+    // A Final verdict's too since E42 C1c: its steps are a table `runVerdict` runs (`verdictSteps` answers the Final
+    // Trial's for a `final` record), so a Finish runs them; until then (E41 fix FG1) it was passed over, and a Final
+    // verdict that stopped could not be finished.
+    if (verdict?.stage !== "applying" || verdictRunning) return null;
     const failed = Array.isArray(verdict.failed) ? verdict.failed : [];
     const by = game.users.get(verdict.by);
     if (!failed.length && by?.active && by.id !== game.user.id) return null;
@@ -853,6 +936,13 @@ export async function finishVerdict() {
     }
     verdictRunning = true;
     try {
+        // The Final Trial's verdict finishes its own steps (E42 C1c): its context is read off the GMs' side.
+        if (progress.verdict.final) {
+            const record = { ...progress.verdict, done: [...(progress.verdict.done ?? [])], by: game.user.id, failed: [] };
+            const final = await finalContext(record);
+            await setTrialProgress({ verdict: record });
+            return await runVerdict(record, [], final);
+        }
         await whenTrialReadable();
         await verdictStore.whenHydrated();
         const kept = verdictStore.record();
@@ -1002,7 +1092,7 @@ export async function applyFinalVerdict({ correct, accusedId, alreadyDead = null
 
 /** `applyFinalVerdict`'s writes, inside its lock. */
 async function giveFinalVerdict({ correct, accusedId, alreadyDead }) {
-    const { mastermindActor, clearMastermind, setFinalTrial } = await import("./mastermind.mjs");
+    const { mastermindActor } = await import("./mastermind.mjs");
     const mastermind = mastermindActor();
     if (!mastermind) return null;
     const dead = alreadyDead ?? isDeadForGm(mastermind);
@@ -1016,100 +1106,142 @@ async function giveFinalVerdict({ correct, accusedId, alreadyDead }) {
        it after the sentence, the public card and the GMs' whisper - three awaited round trips in which a second GM's
        `verdictRefusal` read no verdict, and a second Final verdict posted a second banner. Written now before any of
        them, as the ordinary verdict writes its record first (`applyVerdict`): marked final, in progress, by whom and
-       when, and naming nobody, the shape below's but its stage. A throw after it leaves the record "applying", which
-       says so and keeps the lock; a Final verdict has no Finish (`verdictStopped`), so no console offers one - its
-       GM's leads to the chapter's end, another GM's names that GM while they are connected (`verdictRunner`). A throw
-       in this write gives nothing. */
-    await setTrialProgress({
-        verdictApplied: true,
-        verdict: { stage: "applying", final: true, by: game.user.id, at, done: [], failed: [] }
-    });
+       when, and naming nobody. A throw in this write gives nothing.
 
-    /* THE MASTERMIND DIES WHEN THE TRIAL ENDS, AS ANY CONVICT (E70 C4, 28.10.2026; DC36, the plan's point (g)).
-       This killed the Mastermind in the verdict (E11 fix r2-H1 gave the death the trial's phase, so no walk past
-       the body found it). The sentence waits now for the trial's end (trial-progress.mjs `executeAtExit`, which keeps that
-       phase), and lives in the GMs' store, never in the world's record, which every console reads and which
-       names nobody (the owner's Q2 answer, 27.10.2026; mastermind.mjs's header): `finalSentenced` under the verdict's
-       `at` (`finalAt`). A verdict given after End the trial is carried out at once, below. */
-    if (executed) {
-        try {
-            await verdictStore.whenHydrated();
-            await verdictStore.patch(RECORD, { finalAt: at, finalSentenced: [mastermind.id] });
-        } catch (err) {
-            error("Could not keep the Final Trial's sentence for the trial's end", err);
-        }
-    }
+       AND THE RECORD A FINISH READS (E42 C1c, 1.2.97; E42-06). The steps follow on the one runner (`runVerdict`,
+       `FINAL_VERDICT_STEPS`), the record written after each, its stage "done" once every step is; one that stops
+       leaves it "applying" with the steps not done, and Finish the verdict runs them (`finishVerdict`). Whether the
+       sentence waits (`sentencePending`) is written here with the lock, so a Finish knows it without a name: the
+       record holds that boolean and the step keys, as it held `sentencePending` since E70 C4, and never `correct`,
+       an id or a name (the Mastermind's identity is the GMs'; mastermind.mjs's header). */
+    const record = { stage: "applying", final: true, by: game.user.id, at, done: [], failed: [], sentencePending: executed };
+    await setTrialProgress({ verdictApplied: true, verdict: record });
+    await runVerdict(record, [], { executed, dead, mastermind: { id: mastermind.id, name: mastermind.name }, accused: accused?.name ?? null });
+    return { executed, dead };
+}
 
-    // ONE CARD, ONE SUMMARY (E41 C10b; S17-28): the ordinary verdict's builders, with the Mastermind's words.
+/*
+ * THE FINAL VERDICT'S CONTEXT FOR A FINISH (E42 C1c; E42-06). The record names nobody, so a Finish reads the rest
+ * off the GMs' side: whether the sentence waits off the record (`sentencePending`), the Mastermind off the pick while
+ * it stands (`mastermindActor`), and once its step cleared it off this browser's `verdictStore` (`finalSentenced`
+ * under the verdict's `finalAt`, held only when the verdict sentenced them). Neither: the steps that need no name
+ * run, the sentence's step fails (`finalVerdictSentence`), and the summary names nobody. The accused is not kept.
+ */
+async function finalContext(record) {
+    const { mastermindActor } = await import("./mastermind.mjs");
+    await verdictStore.whenHydrated();
+    const kept = verdictStore.record();
+    const id = mastermindActor()?.id ?? (kept.finalAt === record.at ? kept.finalSentenced?.[0] : null) ?? null;
+    const actor = id ? game.actors.get(id) : null;
+    const executed = Boolean(record.sentencePending);
+    return { executed, dead: Boolean(actor && !executed && isDeadForGm(actor)), mastermind: actor ? { id: actor.id, name: actor.name } : null,
+        accused: null };
+}
+
+/** The Final Trial's summary to the GMs (`verdictSummaryContent`'s fields), with where it stopped (`stepsReport`'s warnings). */
+function finalSummary(final, report) {
+    const esc = foundry.utils.escapeHTML;
+    return {
+        title: "DRPG.Mastermind.verdictTitle",
+        summary: game.i18n.format("DRPG.Mastermind.verdictSummary", {
+            mastermind: esc(final.mastermind?.name ?? "-"),
+            accused: esc(final.accused ?? "-"),
+            outcome: game.i18n.localize(final.executed ? "DRPG.Mastermind.outcomeExecuted"
+                : final.dead ? "DRPG.Mastermind.outcomeAlreadyDead" : "DRPG.Mastermind.outcomeEscaped")
+        }),
+        warning: report.warnings.join(" ")
+    };
+}
+
+/*
+ * THE MASTERMIND DIES WHEN THE TRIAL ENDS, AS ANY CONVICT (E70 C4, 28.10.2026; DC36, the plan's point (g)).
+ * This killed the Mastermind in the verdict (E11 fix r2-H1 gave the death the trial's phase, so no walk past
+ * the body found it). The sentence waits now for the trial's end (trial-progress.mjs `executeAtExit`, which keeps that
+ * phase), and lives in the GMs' store, never in the world's record, which every console reads and which
+ * names nobody (the owner's Q2 answer, 27.10.2026; mastermind.mjs's header): `finalSentenced` under the verdict's
+ * `at` (`finalAt`). A verdict given after End the trial is carried out at once (`finalVerdictExecution`).
+ * A write that fails fails the step since E42 C1c (it was logged and passed over, and the trial's end then told the
+ * GMs the sentence was missing): the verdict stops here, and Finish the verdict writes it.
+ */
+async function finalVerdictSentence(context) {
+    const { executed, mastermind } = context.final;
+    if (!executed) return;
+    if (!mastermind?.id) throw new Error("the Mastermind sentenced is not known on this browser");
+    await verdictStore.whenHydrated();
+    await verdictStore.patch(RECORD, { finalAt: context.record.at, finalSentenced: [mastermind.id] });
+}
+
+/*
+ * ONE CARD (E41 C10b; S17-28): the ordinary verdict's builder, with the Mastermind's words. It carries the verdict's
+ * `at` (`verdictAt`, a time) since E42 C1c, so a Finish after a GM left between the card and its record posts no
+ * second banner (`verdictCardPosted`, as the ordinary card's step reads it).
+ */
+async function finalVerdictCard(context) {
+    if (verdictCardPosted(context.record)) return;
+    const { executed } = context.final;
     await announce(verdictCardContent({
         banner: executed ? "DRPG.Mastermind.defeatedBanner" : "DRPG.Mastermind.revealedBanner",
         lines: [game.i18n.localize(executed ? "DRPG.Mastermind.defeatedText" : "DRPG.Mastermind.revealedText")],
+        flags: { [MODULE_ID]: { verdictAt: context.record.at ?? null } },
         tone: "objection"
     }));
+}
 
-    await whisperToGms(verdictSummaryContent({
-        title: "DRPG.Mastermind.verdictTitle",
-        summary: game.i18n.format("DRPG.Mastermind.verdictSummary", {
-            mastermind: foundry.utils.escapeHTML(mastermind.name),
-            accused: foundry.utils.escapeHTML(accused?.name ?? "-"),
-            outcome: game.i18n.localize(executed ? "DRPG.Mastermind.outcomeExecuted"
-                : dead ? "DRPG.Mastermind.outcomeAlreadyDead" : "DRPG.Mastermind.outcomeEscaped")
-        })
-    }));
+/*
+ * THE FLAG COMES DOWN WITH THE VERDICT (E10 C10, 1.2.71; audit S06-16). After the Mastermind's verdict the console
+ * still offered the ordinary one as the next step, and "This trial is the Final Trial." stayed on it - into the next
+ * season's first trial as well, since a reset's clock step merged over the flag (season-setup.mjs `wipeSeason`).
+ */
+async function finalVerdictClose() {
+    const { setFinalTrial } = await import("./mastermind.mjs");
+    await setFinalTrial(false);
+}
 
-    /*
-     * THE TRIAL'S RECORD KNOWS THE FINAL VERDICT, AND THE FLAG COMES DOWN WITH IT (E10 C10,
-     * 1.2.71; audit S06-16). Neither was written: after the Mastermind's verdict the console still
-     * offered the ordinary one as the next step, and "This trial is the Final Trial." stayed on it -
-     * into the next season's first trial as well, since a reset's clock step merged over the flag
-     * (season-setup.mjs `wipeSeason`). Completed after the sentence and the cards, and before the Level
-     * Ups that waited, whose windows can stay open for minutes; `verdictApplied` stands since the
-     * record's first write above (E41 fix FG1), and closes the ordinary verdict's button for all of
-     * it. The record names nobody - no `executedIds`, no
-     * `correct` - because `trialProgress` is a world setting every client reads and the
-     * Mastermind's identity is kept on GM browsers only (mastermind.mjs's header); the card above says
-     * what the table learns. Its `done` is empty, so the Daily Life panel's "after the verdict"
-     * card, which waits for a chapter verdict's "card" step (events.mjs `afterVerdictCard`), does
-     * not retell a Final Trial as a chapter's verdict (read in the code).
-     */
-    try {
-        await setTrialProgress({
-            verdict: { stage: "done", final: true, by: game.user.id, at, done: [], failed: [], sentencePending: executed }
-        });
-        await setFinalTrial(false);
-    } catch (err) {
-        error("Could not record the Final Trial's verdict in the trial's progress", err);
-    }
-    // Given after End the trial: no exit is left to carry the sentence out, so it is carried out now (E70 C4).
-    if (executed && getClock().phase !== "classTrial") {
-        try {
-            await executeAtExit();
-        } catch (err) {
-            error("Could not carry out the Final Trial's sentence", err);
+// Given after End the trial: no exit is left to carry the sentence out, so it is carried out now (E70 C4).
+async function finalVerdictExecution(context) {
+    if (!context.final.executed || getClock().phase === "classTrial") return;
+    await executeAtExit();
+}
+
+/*
+ * THE LEVEL UPS THAT WAITED FOR THE CLASS ARE PICKED NOW (E05 C11, 27.09.2026; the
+ * owner's Q7, option b). A Reinforced Level Up left by a wrong verdict waits for the
+ * class's next correct one, and a season can end on the Final Trial before there is one:
+ * the season's secrets are out here anyway, and a table that keeps advancement across
+ * seasons would otherwise lose it. Only what waited - the Final Trial hands out nothing
+ * of its own - and never to a Mastermind sentenced to die (E70 C4: alive until the trial ends, whose
+ * kill drops their row).
+ *
+ * ONCE, WHOEVER FINISHES (E42 C1c; E42-06). The batch's throw was logged and passed over, under a record that
+ * said done: what waited was never given. A throw or a window that does not open fails the step now, and a
+ * Finish runs it again over what this batch already gave - kept in the GMs' store, never the world's record,
+ * which names nobody (`verdictStore.finalGiven`: the verdict's `at` and the students given) - and the row it was
+ * giving (`verdictStore.giving`, as the ordinary verdict's batch).
+ */
+async function finalVerdictLevelUps(context) {
+    const { executed, mastermind } = context.final;
+    const at = context.record.at;
+    await verdictStore.whenHydrated();
+    const givenOf = () => {
+        const kept = verdictStore.record()?.finalGiven;
+        return kept?.at === at && Array.isArray(kept.ids) ? kept.ids : [];
+    };
+    const done = await promptAdvancements(livingStudentsForGm().filter(actor => !(executed && actor.id === mastermind?.id)), null, {
+        given: givenOf(),
+        giving: givingOf(at),
+        onGiving: (actor, counts) => keepGiving(at, actor, counts),
+        onGiven: async actor => {
+            await verdictStore.patch(RECORD, { finalGiven: { at, ids: [...givenOf(), actor.id] } });
+            await keepGiving(at, null);
         }
-    }
+    });
+    if (done === null) throw new Error("the Level Ups that waited did not open");
+}
 
-    /*
-     * THE LEVEL UPS THAT WAITED FOR THE CLASS ARE PICKED NOW (E05 C11, 27.09.2026; the
-     * owner's Q7, option b). A Reinforced Level Up left by a wrong verdict waits for the
-     * class's next correct one, and a season can end on the Final Trial before there is one:
-     * the season's secrets are out here anyway, and a table that keeps advancement across
-     * seasons would otherwise lose it. Only what waited - the Final Trial hands out nothing
-     * of its own - and never to a Mastermind sentenced to die (E70 C4: alive until the trial ends, whose
-     * kill drops their row).
-     */
-    try {
-        const { runAdvancementBatch } = await import("./level-up.mjs");
-        await runAdvancementBatch(livingStudentsForGm().filter(actor => !(executed && actor.id === mastermind.id)), null);
-    } catch (err) {
-        error("Could not open the Level Ups that waited for the Final Trial", err);
-    }
-
-    // The season is over either way - a Final Trial is the guide's ending, not
-    // a chapter like the others. Clearing the pick here rather than leaving it
-    // set is what makes `mastermindActor()` honestly answer "nobody" afterwards.
+// The season is over either way - a Final Trial is the guide's ending, not
+// a chapter like the others. Clearing the pick here rather than leaving it
+// set is what makes `mastermindActor()` honestly answer "nobody" afterwards.
+async function finalVerdictMastermind() {
+    const { clearMastermind } = await import("./mastermind.mjs");
     await clearMastermind();
-
-    log(`Final Trial verdict applied: ${executed ? "executed" : "revealed, not executed"}.`);
-    return { executed, dead };
 }
