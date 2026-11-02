@@ -64,6 +64,8 @@ character.mjs is a cut route the tool does not count: a wave that moves one coun
 | `scripts/bridge-wire.mjs` | the bridge's wire names (E41 C5a): the module's socket name (`SOCKET_EVENT`) and every `ACTION_` constant with its comment, each exported; a leaf importing config.mjs's `MODULE_ID` alone - beside the table they would make table -> run -> table a cycle | `gm-bridge.mjs` |
 | `scripts/bridge-runs-acts.mjs` | the runs of BRIDGE_ACTIONS that carry out what a student does (E41 C5a), with their derives: Observe, Analyze, the cleanable traces, the Level Up and its offers (`sendOffersTo`), a handover, the passages, the stashes, Plant, Steal, Frisk and Palm with their rolls (`friskRolls`, `palmRolls` ...), the opening result, the crisis, the park, the betrayal, the clean-up, a Monocub's ability, the rulings asked by card; `sendOffersTo` re-exported | `gm-bridge.mjs` |
 | `scripts/bridge-runs-records.mjs` | the runs of BRIDGE_ACTIONS that write a record the GMs keep (E41 C5a), with their derives: a project's progress, share, sabotage, change, undo and send-back, the Remnants (`traceBandOf`, `dynamicRulingOf`), the loot, the Calls armed (`armPaidByPlayer` with its jobs' callees), the Overflow, Despair, an Eclipse move, notes, bookmarks, the Reroll, the audit's decision, the Keys' fee, the trial's record, floor, vote, Objection, turn, claim and Present, the readiness round, the reshape ruling, the observe pick, a card's claim and post; `dynamicRulingOf` re-exported | `gm-bridge.mjs` |
+| `scripts/bridge-table.mjs` | the bridge's table (E41 C5b): BRIDGE_ACTIONS with the two helpers its declarations call (`handover`, `hardestRepair`), the primary's listener `onSocket` (`judge(BRIDGE_ACTIONS, payload, senderId)`; the one bridge file that imports `judge`, R1b) and `ask`, the one road every request takes; BRIDGE_ACTIONS re-exported | `gm-bridge.mjs` |
+| `scripts/bridge-asks.mjs` | asking the GM (E41 C5b): every `requestX`, in gm-bridge.mjs's order, and the asks a card or a GM's window makes through `ask` (`sendDespairToPrimary`, `askObservePick`, `answerTraitRuling`, `answerHopeCall`, `askReshapeRuling`, `answerDynamic`, `askCardClaim`, `claimCard`); every name it exported re-exported | `gm-bridge.mjs` |
 
 That is wave 1 (E34, 1.2.70) whole: five families, eleven new files, 133 module
 files in `scripts/` where 1.2.69 had 122. A stage that changes the incident, the
@@ -105,7 +107,7 @@ numbers came out plausible and wrong.
 
 **A request that reaches the GM is a declaration, judged by one runner.** Every
 action a player's client asks of the primary GM is a row in one of three tables,
-`BRIDGE_ACTIONS` (gm-bridge.mjs), `TRAP_ACTIONS` (traps.mjs) and
+`BRIDGE_ACTIONS` (bridge-table.mjs), `TRAP_ACTIONS` (traps.mjs) and
 `SEARCH_ACTIONS` (search-tokens.mjs), and `judge` in `bridge-guards.mjs` carries
 each out: who sent it, its guards in order, then its run with a whitelisted copy
 of the packet. R1b reads the tables and holds every id a run receives to a guard

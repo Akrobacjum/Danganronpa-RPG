@@ -45,20 +45,21 @@ const RULES = { "no-undef": ["error", { typeof: true }], "no-import-assign": "er
  * would read a refusal as success, two hops from where anybody could see it. So a
  * call of a producer - `bridgeRequest`, `ask`, `sendDespairToPrimary`, or a
  * `request[A-Z]...` imported (statically, or destructured from `await import()`)
- * from gm-bridge.mjs, bridge-guards.mjs or search-tokens.mjs, but not the two that
+ * from gm-bridge.mjs, bridge-table.mjs, bridge-asks.mjs, bridge-guards.mjs or
+ * search-tokens.mjs, but not the two that
  * answer their value (`requestCleanableTraces`, `requestObserveTarget`) - may be a
  * bare statement, `void`, or a variable read only as `.ok`, `.value`, `.refused`,
  * `.reason` or `.pending`.
  * Anything else is reported, outside the files that define requests (gm-bridge.mjs,
- * bridge-guards.mjs) and the helpers that do (`askTraps` in traps.mjs; `askSearch`,
+ * bridge-table.mjs, bridge-asks.mjs - E41 C5b - and bridge-guards.mjs) and the helpers that do (`askTraps` in traps.mjs; `askSearch`,
  * `requestSpend` and `requestPlantCheck` in search-tokens.mjs), whose own callers
  * are held to the rule like any other. Its fixture,
  * audit/harness/lint-fixtures/bridge-result.mjs, holds seven reported uses and
  * three allowed ones, and run-all's lint part is red unless exactly the seven are.
  */
-const PRODUCER_FILES = new Set(["./gm-bridge.mjs", "./bridge-guards.mjs", "./search-tokens.mjs"]);
+const PRODUCER_FILES = new Set(["./gm-bridge.mjs", "./bridge-table.mjs", "./bridge-asks.mjs", "./bridge-guards.mjs", "./search-tokens.mjs"]);
 const READS = new Set(["ok", "value", "refused", "reason", "pending"]);
-const DEFINING = /(?:^|[\\/])scripts[\\/](?:gm-bridge|bridge-guards)\.mjs$/;
+const DEFINING = /(?:^|[\\/])scripts[\\/](?:gm-bridge|bridge-guards|bridge-table|bridge-asks)\.mjs$/;
 const HELPERS = { "traps.mjs": ["askTraps"], "search-tokens.mjs": ["askSearch", "requestSpend", "requestPlantCheck"] };
 const isProducerName = name => ["bridgeRequest", "ask", "sendDespairToPrimary"].includes(name)
     || (/^request[A-Z]/.test(name) && !["requestCleanableTraces", "requestObserveTarget"].includes(name));

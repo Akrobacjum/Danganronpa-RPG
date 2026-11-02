@@ -5997,6 +5997,59 @@ const REGRESSIONS = [
         ok(declared.size >= 200 && runs.length >= 70, `only ${declared.size} functions and ${runs.length} runs were read - the family is not where this test looks`);
     }],
 
+    ["R1239 - where a bridge action's parts live: its wire name in bridge-wire.mjs, its row in bridge-table.mjs beside the primary's listener and `ask`, its run in a runs file, its request in bridge-asks.mjs, and none of them in gm-bridge.mjs", async () => {
+        /*
+         * E41 C5b, 02.11.2026 (E41-26). E41 split gm-bridge.mjs (the owner's answer to Q-E41-1, 01.11.2026): C5 the GM's
+         * cards into call-gm.mjs, C5a the wire names into bridge-wire.mjs and the runs into bridge-runs-acts.mjs and
+         * bridge-runs-records.mjs, C5b the table, `onSocket` and `ask` into bridge-table.mjs and every request into
+         * bridge-asks.mjs. "How to add a bridge action" (.claude/rules/trust-model.md) names those places; this holds
+         * them whatever the recipe's words say, so a later stage's action cannot put a part back into the facade, which
+         * keeps the GM -> player wire and the registration. Read off the bridge's family (`bridgeFamily`, `bridgeRead`:
+         * each file's text, comments stripped) and the live table (`bridgeTables`).
+         */
+        const kit = await import("./tests-kit.mjs");
+        const { texts, why } = kit.bridgeRead(new Map(await otherSources()));
+        must(!why, why);
+        const text = new Map(texts);
+        const PARTS = ["gm-bridge.mjs", "bridge-wire.mjs", "bridge-table.mjs", "bridge-runs-acts.mjs", "bridge-runs-records.mjs", "bridge-asks.mjs"];
+        const absent = PARTS.filter(file => !text.has(file));
+        ok(!absent.length, `the bridge's family does not hold ${absent.join(", ")} - the parts of a bridge action are not where the recipe says`);
+        const declared = re => new Map([...text].map(([file, src]) => [file, [...src.matchAll(re)].map(m => m[1])]));
+        const outside = (map, home) => [...map].filter(([file, names]) => !home.includes(file) && names.length).map(([file, names]) => `${file} (${names.join(", ")})`);
+        // The wire names: every `ACTION_` constant of the family, and the socket's name, in bridge-wire.mjs alone.
+        const wire = declared(/^(?:export )?const (ACTION_\w+|SOCKET_EVENT) = /gm);
+        const wireOut = outside(wire, ["bridge-wire.mjs"]);
+        ok(!wireOut.length, `wire names declared outside bridge-wire.mjs: ${wireOut.join("; ")}`);
+        // The table: BRIDGE_ACTIONS declared in bridge-table.mjs alone, beside the primary's listener and `ask`.
+        const tables = declared(/^(?:export )?const (BRIDGE_ACTIONS) = /gm);
+        const tableAt = [...tables].filter(([, names]) => names.length).map(([file]) => file);
+        equal(JSON.stringify(tableAt), JSON.stringify(["bridge-table.mjs"]), "BRIDGE_ACTIONS is not declared in bridge-table.mjs, and there alone");
+        for (const name of ["onSocket", "ask"]) {
+            ok(topLevelFunction(text.get("bridge-table.mjs") ?? "", name), `bridge-table.mjs declares no ${name}() - the table, its listener and its one road are not together`);
+        }
+        const rows = [...text].filter(([file, src]) => file !== "bridge-table.mjs" && /^\s+\[ACTION_\w+\]\s*:/m.test(src)).map(([file]) => file);
+        ok(!rows.length, `a row of the bridge's table outside bridge-table.mjs: ${rows.join(", ")}`);
+        // The runs: each a top-level function of one runs file.
+        const bridge = (await bridgeTables()).find(t => t.name === "BRIDGE_ACTIONS");
+        const runs = [...new Set(Object.values(bridge?.table ?? {}).map(decl => decl.run?.name).filter(Boolean))];
+        const runAt = new Map(runs.map(name => [name, [...text].filter(([, src]) => topLevelFunction(src, name)).map(([file]) => file)]));
+        const astray = [...runAt].filter(([, files]) => files.length !== 1 || !["bridge-runs-acts.mjs", "bridge-runs-records.mjs"].includes(files[0]))
+            .map(([name, files]) => `${name} (${files.join(", ") || "nowhere"})`);
+        ok(!astray.length, `runs of BRIDGE_ACTIONS that are not a function of bridge-runs-acts.mjs or bridge-runs-records.mjs alone: ${astray.join("; ")}`);
+        // The requests: every exported `request[A-Z]...` of the family in bridge-asks.mjs.
+        const requests = declared(/^export (?:async )?function (request[A-Z]\w*)\(/gm);
+        const requestsOut = outside(requests, ["bridge-asks.mjs"]);
+        ok(!requestsOut.length, `requests declared outside bridge-asks.mjs: ${requestsOut.join("; ")}`);
+        const count = (map, file) => map.get(file)?.length ?? 0;
+        const inActs = runs.filter(name => runAt.get(name)?.[0] === "bridge-runs-acts.mjs").length;
+        log(`R1239: ${count(wire, "bridge-wire.mjs")} wire names in bridge-wire.mjs; BRIDGE_ACTIONS (${Object.keys(bridge?.table ?? {}).length} rows) in bridge-table.mjs with onSocket and ask; `
+            + `${runs.length} runs, ${inActs} in bridge-runs-acts.mjs and ${runs.length - inActs} in bridge-runs-records.mjs; ${count(requests, "bridge-asks.mjs")} requests in bridge-asks.mjs; `
+            + `gm-bridge.mjs declares ${count(wire, "gm-bridge.mjs")} wire names, ${count(tables, "gm-bridge.mjs")} tables, ${runs.filter(n => runAt.get(n)?.includes("gm-bridge.mjs")).length} runs and ${count(requests, "gm-bridge.mjs")} requests`);
+        // 86 wire names, 80 rows, 79 runs and 65 requests at E41 C5b, measured 02.11.2026.
+        ok(count(wire, "bridge-wire.mjs") >= 80 && runs.length >= 70 && count(requests, "bridge-asks.mjs") >= 60,
+            "too few wire names, runs or requests were read - the family is not where this test looks");
+    }],
+
     ["R171 - nothing outside the engine reads or writes a GM store, a frozen legacy key or a player copy", async () => {
         /*
          * E04, 26.09.2026; audit S05-01, S05-09. The GM store (gm-store.mjs) keeps each

@@ -17,7 +17,7 @@ Protection comes in two layers, and every change should know which one it
 touches.
 
 **Layer one (E03, 1.2.60).** Every request that reaches a GM's client is judged
-there: the bridge's three tables (gm-bridge.mjs, traps.mjs, search-tokens.mjs),
+there: the bridge's three tables (bridge-table.mjs, traps.mjs, search-tokens.mjs),
 the fog socket, and Daggerheart's own GM relay (`relay-guard.mjs`). The
 judgement uses who Foundry says sent it (`senderOf(senderId)`), what that user
 owns (`ownsActor`, `canSee`, `testUserPermission`), and what the world says now:

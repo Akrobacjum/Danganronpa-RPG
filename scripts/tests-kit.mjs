@@ -1157,7 +1157,9 @@ async function bridgeTables() {
  * or `["file", "NAME", [...]]`.
  */
 const BRIDGE_TABLE_FILES = Object.freeze([
-    ["gm-bridge.mjs", "BRIDGE_ACTIONS", ["call-gm.mjs", "bridge-wire.mjs", "bridge-runs-acts.mjs", "bridge-runs-records.mjs"]],
+    ["bridge-table.mjs", "BRIDGE_ACTIONS", [
+        "call-gm.mjs", "bridge-wire.mjs", "bridge-runs-acts.mjs", "bridge-runs-records.mjs", "bridge-asks.mjs"
+    ]],
     ["traps.mjs", "TRAP_ACTIONS", []], ["search-tokens.mjs", "SEARCH_ACTIONS", []], ["private-rolls.mjs", "ROLL_ACTIONS", []]
 ]);
 
