@@ -22,7 +22,7 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText, expectedRed, stripStrings, bridgeFn, bridgeText, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, musicText, sfxText
+    worldDump, dumpDiff, lfText, expectedRed, stripStrings, bridgeFn, bridgeText, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, musicText, sfxText, voteText
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -6380,7 +6380,8 @@ const INVARIANTS = [
         ]), "a closed incident's writes to the register do not name its victim on a new row, add it to a killer's row, "
             + "or leave a row from before 1.2.64 and a victim already named alone");
 
-        const vote = stripComments(new Map(await otherSources()).get("vote.mjs") ?? "");
+        // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; the vote's family's text (the kit's `voteText`).
+        const vote = stripComments(voteText(await otherSources()));
         ok(!/\bblackened(Ids|Actors)\(/.test(vote) && /\btrialBlackenedIds\(\)/.test(vote) && /\btrialBlackenedActors\(\)/.test(vote),
             "vote.mjs reads the register whole, or the ballot and the verdict no longer ask the trial's list");
     }],
@@ -6461,7 +6462,8 @@ const INVARIANTS = [
             ["overflow.mjs", "resetOverflow", "await overflowStore.whenHydrated();", "overflowStore.patch("],
             // E10 C1: the vote opens on the primary GM, in `runVoteOp` (`openVote` asks it).
             ["vote.mjs", "runVoteOp", "await whenTrialReadable();", "trialBlackenedIds("],
-            ["vote.mjs", "openVerdictDialog", "await whenTrialReadable();", "trialBlackenedActors("]
+            // E41 C10a (1.2.97): the verdict's window is verdict.mjs's.
+            ["verdict.mjs", "openVerdictDialog", "await whenTrialReadable();", "trialBlackenedActors("]
         ];
         const early = WAITS.filter(([file, name, wait, read]) => {
             const fn = fnSource(src(file), name);

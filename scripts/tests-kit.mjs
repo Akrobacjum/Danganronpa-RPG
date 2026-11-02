@@ -1472,6 +1472,30 @@ function sfxText(sources, family = SFX_FAMILY) {
 }
 
 /**
+ * The vote's family (E41 C10a): vote.mjs - the facade, which keeps the ballots, the rounds, the count and
+ * `trialParticipants` - and the files its code moved into, in the order their first statement stood there: the trial's
+ * record and the sentence (trial-progress.mjs), then the ordinary verdict (verdict.mjs). A reader of vote.mjs's text
+ * reads the family through `voteText` and follows each file here without a repoint of its own.
+ */
+const VOTE_FAMILY = Object.freeze(["vote.mjs", "trial-progress.mjs", "verdict.mjs"]);
+
+/** The line `voteText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
+const VOTE_FAMILY_END = "const VOTE_FAMILY_END = {};";
+
+/**
+ * The vote's family's texts, raw, in VOTE_FAMILY's order (or the order a reader hands in), joined by the line
+ * `const VOTE_FAMILY_END = {};` (E41 C10a): what a read of vote.mjs's whole text read while the vote, the record and the
+ * verdict were one file. A reader strips the comments itself, as it did; a `fnSource` or `topLevelFunction` of the text
+ * cuts a function in its own file. A file of the family that is not among `sources` refuses by `must`, by name.
+ */
+function voteText(sources, family = VOTE_FAMILY) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string");
+    must(!gone.length, `${gone.join(", ")}, of the vote's family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`);
+    return family.map(file => map.get(file)).join(`\n${VOTE_FAMILY_END}\n`);
+}
+
+/**
  * Everything wrong with the bridge's tables, one sentence each (R1b). Pure: it
  * is handed the tables (as `bridgeTables()` gives them), the language keys of
  * each file, flattened, and bridge-guards.mjs's namespace, so R1b can run it on
@@ -2340,7 +2364,7 @@ export {
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, styleCascade, bodyOf, topLevelFunction, fnSource, lineAround,
-    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeDeclarationCalls, bridgeCut, bridgeLookup, bridgeCrawl, bridgeFamily, bridgeRead, bridgeFn, bridgeText, censusFile, BRIDGE_FAMILY_END, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
+    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeDeclarationCalls, bridgeCut, bridgeLookup, bridgeCrawl, bridgeFamily, bridgeRead, bridgeFn, bridgeText, censusFile, BRIDGE_FAMILY_END, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
     flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem, TEXT_BASELINES, textAgainstBaseline, textStaleRow,
     textTableWords, textLegacyLists,

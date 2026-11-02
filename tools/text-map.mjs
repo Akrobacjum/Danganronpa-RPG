@@ -110,7 +110,7 @@ export const SCREENS = Object.freeze([
     row("investigation", "the GM's side of an Investigation", "window", "gm", ["scripts/investigation.mjs:*"], { note: "investigation.mjs: \"the GM's side\"" }),
     row("observe", "Observe and Analyze", "flow", "both", ["scripts/observe.mjs:*", "scripts/analyze.mjs:*"], { stage: "E09" }),
     row("advancement", "Advancement", "window", "both", ["scripts/level-up.mjs:*"], { stage: "E10" }),
-    row("vote", "the vote and the verdict", "window", "both", ["scripts/vote.mjs:*"], { stage: "E10" }),
+    row("vote", "the vote and the verdict", "window", "both", ["scripts/vote.mjs:*", "scripts/trial-progress.mjs:*", "scripts/verdict.mjs:*"], { stage: "E10" }),
     row("clock", "the GM's clock and its corrections", "window", "gm", ["scripts/gm-campaign.mjs:openClockDialog", "scripts/gm-campaign.mjs:confirmCorrection"], { stage: "E11" }),
     row("project-start", "a project started from an action", "window", "both", ["scripts/action-project.mjs:startProject"], { stage: "E12" }),
     row("move-body", "moving a body", "window", "player", ["scripts/cleanup.mjs:openMoveBodyDialog"], { stage: "E12" }),

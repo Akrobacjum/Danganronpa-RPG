@@ -15,7 +15,7 @@ import {
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
-    bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
+    bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists
 } from "./tests-kit.mjs";
@@ -1889,7 +1889,9 @@ const REGRESSIONS = [
          * window and the Blackened's rule had closed, so a second verdict could start in the
          * meantime. The check and the write have to come before the first execution.
          */
-        const vote = stripComments(new Map(await otherSources()).get("vote.mjs") ?? "");
+        // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; applyVerdict read to the end of
+        // the text as it was: the verdict's rest, then the sentence (the kit's `voteText`, in that order).
+        const vote = stripComments(voteText(await otherSources(), ["verdict.mjs", "trial-progress.mjs"]));
         const apply = bodyOf(vote, "export async function applyVerdict");
         const lock = apply.indexOf("verdictApplied: true");
         const kill = apply.indexOf("killCharacter(");
@@ -3020,7 +3022,8 @@ const REGRESSIONS = [
         // Since E10 C1 (1.2.71) a ballot is a row of the GMs' store and the count is
         // the primary's `closeRound`, which writes the vote closed before it counts;
         // since E10 C2 a ballot is recorded by the bridge's run (`recordBallot`).
-        const vote = stripComments(sources.get("vote.mjs") ?? "");
+        // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; the vote's family's text (the kit's `voteText`).
+        const vote = stripComments(voteText(sources));
         const EMIT = 'Hooks.callAll("drpgBallotsChanged")';
         ok(vote.split(EMIT).length - 1 >= 4,
             "one of the four vote events stopped being reported");
@@ -7792,7 +7795,7 @@ const REGRESSIONS = [
             ["STORE gm-stores.mjs#remnantStore", "not a source: a GM store on GM browsers (plan 1b a); C3's Save writes it only where `drawn` equals the ledger"],
             ["STORE gm-stores.mjs#keyPlanStore", "not a source: a GM store (1b e); since C6 also each chapter's `:case` row, the closed case's Key count, written by closeIncident on the closing GM (recordCaseKeys) and read by caseKeyCount; under the chapter the case opened in, and dropped by a reset that keeps the plan, since fix r1-G3"],
             ["STORE gm-stores.mjs#cleanupAttemptStore", "not a source: a GM store (1b a); C10 adds the proposal and `ruled`"],
-            ["STORE vote.mjs#trialProgress", "not a source: a world setting only a GM writes (1b e); C7 leaves keysCharged as it is (E10 inherits)"],
+            ["STORE trial-progress.mjs#trialProgress", "not a source: a world setting only a GM writes (1b e); C7 leaves keysCharged as it is (E10 inherits)"],
             ["STORE settings.mjs#observePending", "not a source: a client setting on the primary (1b f); since C12 a focused gaze's row is written there only from a pick the primary read again"],
             ["STORE remnants.mjs#TOKEN_KEEPS", "not a source: the token keeps no ledger field (1b a)"]
         ];
@@ -7803,7 +7806,7 @@ const REGRESSIONS = [
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
         const CARD = /Reshape|observe|Remnant|Observe|keyRemnant/;
         const STORES = [["gm-stores.mjs", "remnantStore"], ["gm-stores.mjs", "keyPlanStore"], ["gm-stores.mjs", "cleanupAttemptStore"],
-            ["vote.mjs", "trialProgress"], ["settings.mjs", "observePending"], ["remnants.mjs", "TOKEN_KEEPS"]];
+            ["trial-progress.mjs", "trialProgress"], ["settings.mjs", "observePending"], ["remnants.mjs", "TOKEN_KEEPS"]];
         const censusOf = (bridge, sources) => {
             const found = [];
             for (const [action, decl] of Object.entries(bridge)) {
@@ -8017,14 +8020,14 @@ const REGRESSIONS = [
             ["CHAT trial.mjs#presentedThisChapter", "out of scope: a GM's log of the chapter's Present and Objection cards (trial.mjs:778, 798, GM only); a display, feeds no write"],
             ["SHEET events.mjs#bodyCard", "out of scope for the trial: the Investigation's body card (every client, display) draws only the bodies dead as the GMs hold them (`isDeceased` of `flagsHeldNow`), since E11 fix r1-G2; R346 judges it"],
             ["CHAT events.mjs#safewordCard", "out of scope: the safeword card (E10 changes only its handbook line, C17); GM gate"],
-            ["CHAT vote.mjs#verdictCardPosted", "judged (fix r1-G1): a Finish posts no second card when the verdict's card is in the chat - its `verdictAt` the record's `at` and its author a GM (`message.author?.isGM`); a player's message with the flag counts for nothing"],
+            ["CHAT verdict.mjs#verdictCardPosted", "judged (fix r1-G1): a Finish posts no second card when the verdict's card is in the chat - its `verdictAt` the record's `at` and its author a GM (`message.author?.isGM`); a player's message with the flag counts for nothing"],
             ["SHEET vote.mjs#candidatesFor", "out of scope: a display and a list (R4 per 1b.2): `isDeceased` marks; the dead may be named (`allowVotingForDead`, guide p. 32), so a forged death names nobody new; the voter is decided by `eligibleVoters`, and since C2 a cast's names are held to this list on the primary (`ballotRefusal`) [F1]"],
-            ["SHEET vote.mjs#trialSizeNow", "held (E70 fix p1-G2): the trial's size N, a count - `flagsHeldNow(actor)` once per student in one synchronous pass, the Monocub and the death as the GMs hold them, and the trial's list handed in; it writes nothing itself (the reset's step and the primary's settle write it) [1b.2]"],
+            ["SHEET trial-progress.mjs#trialSizeNow", "held (E70 fix p1-G2): the trial's size N, a count - `flagsHeldNow(actor)` once per student in one synchronous pass, the Monocub and the death as the GMs hold them, and the trial's list handed in; it writes nothing itself (the reset's step and the primary's settle write it) [1b.2]"],
             ["SHEET vote.mjs#trialParticipants", "judged (C2; `eligibleVoters` until E70 C5): `isDeceased(flagsHeldNow(actor))`, and since E70 C5 the trial's list of the dead (`isMutedDead`, the primary's after its deaths store hydrated) and no Monocub, in one synchronous pass after `studentsJudged` (`judgedFor` of every student), which a step (`runVoteOp`), a cast (`recordBallot`) and an ask (`ballotFor`) each await outside the vote's turn; on a GM that is not the primary the document, as before [1b.2]"],
-            ["SHEET vote.mjs#openVerdictDialog", "judged (C4, fix r1-G4): who is dead is read once as the GMs hold it - `flagsHeldNow(actor)` after `judgedFor` of every student, in one synchronous pass - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)): the dead stay listed with \" - dead\" as disabled options and `read` refuses one submitted anyway (Q-E10-1 (c)); a death the GMs hold and nobody has found is a living choice, named to the GM alone; the select opens on the world's `accusedIds` [1b.2]"],
-            ["SHEET vote.mjs#verdictHeld", "judged (C5, fix r2-G3): who is executed, who advances and which Blackened a wrong verdict keeps, read once as the GMs hold them - `flagsHeldNow(actor)` in one synchronous pass, after `verdictReading` awaits `judgedFor` of the executed, the Blackened and every student - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)) in all three, the Blackened's since fix r2-G3; `isDeadForGm` names only `unfound`, the kept Blackened whose death the GMs hold, for the rule's window on the GM [1b.2]"],
-            ["SHEET vote.mjs#carryOutSentence", "judged (C5, fix r1-G4; since E70 C4 at the trial's end, not in the verdict): each execution awaits `judgedFor(id)`, reads `flagsHeldNow(actor)` and, with nothing awaited after that read (H3), calls `killCharacter`, whose own head check is `isDeadForGm`, or for a death the GMs hold and nobody has found `publishDeath`, whose head reads the GMs' row (Q-E10-2 (a)); one the table knows dead is passed over, not killed twice; `killCharacter` is told `secret: false`, so an execution is public, an open incident's living victim's too (fix r2-G3), and `phase: \"classTrial\"` on both branches, so a verdict given after End the trial is no body to discover (E11 fix r1-G1); and `cause: \"executed\"`, in the trial's own chapter, once (`executedAt`) [1b.2]"],
-            ["SHEET vote.mjs#pendingSentence", "out of scope: a display on the GM's own End the trial question (GM gate); names the sentenced the table does not know dead (`isDeceased` of the document) and decides nothing - the execution reads them held (`carryOutSentence`) (E70 C4)"],
+            ["SHEET verdict.mjs#openVerdictDialog", "judged (C4, fix r1-G4): who is dead is read once as the GMs hold it - `flagsHeldNow(actor)` after `judgedFor` of every student, in one synchronous pass - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)): the dead stay listed with \" - dead\" as disabled options and `read` refuses one submitted anyway (Q-E10-1 (c)); a death the GMs hold and nobody has found is a living choice, named to the GM alone; the select opens on the world's `accusedIds` [1b.2]"],
+            ["SHEET verdict.mjs#verdictHeld", "judged (C5, fix r2-G3): who is executed, who advances and which Blackened a wrong verdict keeps, read once as the GMs hold them - `flagsHeldNow(actor)` in one synchronous pass, after `verdictReading` awaits `judgedFor` of the executed, the Blackened and every student - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)) in all three, the Blackened's since fix r2-G3; `isDeadForGm` names only `unfound`, the kept Blackened whose death the GMs hold, for the rule's window on the GM [1b.2]"],
+            ["SHEET trial-progress.mjs#carryOutSentence", "judged (C5, fix r1-G4; since E70 C4 at the trial's end, not in the verdict): each execution awaits `judgedFor(id)`, reads `flagsHeldNow(actor)` and, with nothing awaited after that read (H3), calls `killCharacter`, whose own head check is `isDeadForGm`, or for a death the GMs hold and nobody has found `publishDeath`, whose head reads the GMs' row (Q-E10-2 (a)); one the table knows dead is passed over, not killed twice; `killCharacter` is told `secret: false`, so an execution is public, an open incident's living victim's too (fix r2-G3), and `phase: \"classTrial\"` on both branches, so a verdict given after End the trial is no body to discover (E11 fix r1-G1); and `cause: \"executed\"`, in the trial's own chapter, once (`executedAt`) [1b.2]"],
+            ["SHEET trial-progress.mjs#pendingSentence", "out of scope: a display on the GM's own End the trial question (GM gate); names the sentenced the table does not know dead (`isDeceased` of the document) and decides nothing - the execution reads them held (`carryOutSentence`) (E70 C4)"],
             ["SHEET level-up.mjs#buildDetail", "out of scope: the picker's display on the player's own browser (R4); the GM decides in `handleAdvancement` [1b.2]"],
             ["SHEET level-up.mjs#applyAdvancement", "judged (C8): one `meansWrite` from `numberHeld` (E29 r2-H24/H25); a statistic not among TRAITS, an experience to raise with none named, or one not on the sheet the GMs hold (read in the job) stops the whole Level Up, nothing written; the `actor.system.experiences[id].name` read is a label in the GM's summary; R318 pins it [1b.2]"],
             ["SHEET trial.mjs#presentDialog", "out of scope: the presenter's own browser (R4): since C16 a dead presenter refused before it opens (document `isDeceased`, a courtesy); since E79 C16 a Present only, with no target list"],
@@ -8040,7 +8043,7 @@ const REGRESSIONS = [
             ["SHEET chapter.mjs#livingStudents", "out of scope as a function (document `isDeceased`); its R1 caller `applyVerdict` stopped using it in C5 (`verdictHeld`) [1b.2]"],
             ["SHEET chapter.mjs#killCharacter", "judged: GATED by E33 C1a (R220), its head check `isDeadForGm`. Since E11 C1 the record it writes (through `markDeceased`, and the `deaths` row through `recordSecretDeath`) carries the death's `phase` (the caller's when it passes one: the verdict's `classTrial`, E11 fix r1-G1), `epoch: seasonEpoch()` and a random `deathId`; it reads nothing new [1b.1 death record]"],
             ["SHEET season-setup.mjs#wipeStudent", "out of scope: a GM gate, reached from the reset's `wipeSeason` on the primary (E33 C1a's GM-side rows) and from tier 2's sandbox; it writes a student's values back (`deaths`: Health and Sanity, `despair`: Hope) and reads the death and the items off the document only to wipe them (E11 C10). The clock step (C10: `season` + 1, `finalTrial: false`) stays `wipeSeason`'s"],
-            ["STORE vote.mjs#trialProgress", "not a source: a world setting only a GM writes (`setTrialProgress`; the vote's fields on the primary GM, `runVoteOp`); C1 added `vote`, `accused`, `total`, `accusedIds` and `verdict`, which C5 writes: the stage, right or wrong, the executed, who gave it and when, the steps done and failed - never a Blackened; C10: a Final Trial's verdict, `{ stage: \"done\", final: true, by, at }`, naming nobody [F3/F4/F6]"],
+            ["STORE trial-progress.mjs#trialProgress", "not a source: a world setting only a GM writes (`setTrialProgress`; the vote's fields on the primary GM, `runVoteOp`); C1 added `vote`, `accused`, `total`, `accusedIds` and `verdict`, which C5 writes: the stage, right or wrong, the executed, who gave it and when, the steps done and failed - never a Blackened; C10: a Final Trial's verdict, `{ stage: \"done\", final: true, by, at }`, naming nobody [F3/F4/F6]"],
             ["STORE gm-stores.mjs#ballotStore", "not a source: a GM store (`gmBallots`) the primary GM writes (`recordBallot`, the run of the bridge's `vote.cast` since C2) and syncs between the GMs only; a count reads the rows of the world's chapter and round (C1) [F1/F2]"],
             ["STORE gm-stores.mjs#offerStore", "not a source: a GM store the primary writes (`recordOffer`, `dropOffer`); a row is a list per character since C6, a 1.2.70 row read as a list of one (`offerList`) [F7]"],
             ["STORE gm-stores.mjs#deferredOfferStore", "not a source: a GM store [F7]"],
@@ -8049,7 +8052,9 @@ const REGRESSIONS = [
         ];
         // `trial.*` and `floor.repoint` since E79 C16: the Objection raised, proved and re-pointed on the primary.
         const ROADS = /^(?:(?:vote|advancement|trial)\.|floor\.repoint$)/;
-        const FILES = ["vote.mjs", "level-up.mjs", "trial.mjs", "trial-floor.mjs", "trial-floor-ui.mjs", "events.mjs", "mastermind.mjs", "trial-speakers.mjs"];
+        // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; the census reads both, and keys a row by
+        // the file its function stands in.
+        const FILES = ["vote.mjs", "trial-progress.mjs", "verdict.mjs", "level-up.mjs", "trial.mjs", "trial-floor.mjs", "trial-floor-ui.mjs", "events.mjs", "mastermind.mjs", "trial-speakers.mjs"];
         const NAMED = { "character.mjs": ["stampStartingSheet"], "gm-bridge.mjs": ["handleAdvancement", "handleAdvancementOffer", "askForOffers", "onAdvancementOffers"],
             "sheet.mjs": ["addPresentButton", "injectAdvanceButton"], "chapter.mjs": ["livingStudents", "killCharacter", "openChapterEndDialog"],
             "season-setup.mjs": ["wipeStudent"], "clock.mjs": ["reconcilePhase"] };
@@ -8061,7 +8066,7 @@ const REGRESSIONS = [
         const RAW = /\b(?:isDeceased|isDeadForGm|livingStudents|resourceMax)\s*\(|\bactor\.system\b|\.system\.(?:traits|experiences|resources|levelData)\b|getFlag\(\s*MODULE_ID\s*,\s*FLAGS\.(?:deceased|advances)/;
         const CHAT = /\b(?:m|msg|message|chatMessage)\??\.getFlag\(\s*MODULE_ID\s*,|\b(?:m|msg|message)\??\.speaker\??\.actor\b/;
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
-        const STORES = [["vote.mjs", "ballots"], ["vote.mjs", "trialProgress"], ["gm-stores.mjs", "ballotStore"], ["gm-stores.mjs", "offerStore"],
+        const STORES = [["vote.mjs", "ballots"], ["trial-progress.mjs", "trialProgress"], ["gm-stores.mjs", "ballotStore"], ["gm-stores.mjs", "offerStore"],
             ["gm-stores.mjs", "deferredOfferStore"], ["gm-stores.mjs", "verdictStore"], ["settings.mjs", "trialQueue"]];
         const censusOf = (bridge, sources) => {
             const found = [];
@@ -11471,7 +11476,8 @@ const REGRESSIONS = [
         equal(run.sanitize({ op: "count" }).op, null, "vote.run passes a step that is not one of the five");
         equal(run.answer, "reply", "vote.run does not hand back the primary's reply");
 
-        const vote = stripComments(new Map(await otherSources()).get("vote.mjs") ?? "");
+        // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; the vote's family's text (the kit's `voteText`).
+        const vote = stripComments(voteText(await otherSources()));
         const ask = fnSource(vote, "askVote"), step = fnSource(vote, "runVoteOp");
         ok(ask.length > 100 && step.length > 100, "askVote or runVoteOp is gone - the reads below would measure nothing");
         ok(/bridgeRequest\("vote\.run"/.test(ask) && /\bonPrimary: true\b/.test(ask),
@@ -11506,7 +11512,8 @@ const REGRESSIONS = [
         equal(JSON.stringify(shape(asked)), JSON.stringify([true, "playersOnly", {}, "reply", false, false, true]),
             "vote.ask is not a known player's alone, an empty packet answered by the primary, quietly");
 
-        const vote = stripComments(new Map(await otherSources()).get("vote.mjs") ?? "");
+        // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; the vote's family's text (the kit's `voteText`).
+        const vote = stripComments(voteText(await otherSources()));
         const register = fnSource(vote, "registerVote"), send = fnSource(vote, "sendBallot");
         ok(register.length > 100 && send.length > 100, "registerVote or sendBallot is gone - the reads below would measure nothing");
         equal(JSON.stringify([...register.matchAll(/payload\??\.action\s*===\s*([\w$."]+)/g)].map(m => m[1])), JSON.stringify(["ACTION_OPEN"]),
@@ -11534,7 +11541,8 @@ const REGRESSIONS = [
          * executes the Blackened the GM names"). Red at E10 C3's tree (A1, 09.10.2026): six actions
          * (the tie's footer and the other), the right verdict first.
          */
-        const vote = stripComments(new Map(await otherSources()).get("vote.mjs") ?? "");
+        // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; the vote's family's text (the kit's `voteText`).
+        const vote = stripComments(voteText(await otherSources()));
         const win = fnSource(vote, "openVerdictDialog"), read = fnSource(vote, "read");
         ok(win.length > 500 && read.length > 100, "openVerdictDialog or read is gone - the reads below would measure nothing");
         const footer = bodyOf(win, "buttons:", { until: "rejectClose" });
@@ -11563,7 +11571,8 @@ const REGRESSIONS = [
          * 63 G the audit's window. Red at C4's tree (A1, 09.10.2026): the lock written twice. Since E70 C4 the
          * executions are the trial's end's (`carryOutSentence`, the step of `executeAtExit`; R1033), read the same way.
          */
-        const vote = stripComments(new Map(await otherSources()).get("vote.mjs") ?? "");
+        // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; the vote's family's text (the kit's `voteText`).
+        const vote = stripComments(voteText(await otherSources()));
         ok(vote.length > 10000, "vote.mjs was not read - the reads below would measure nothing");
         equal(vote.match(/verdictApplied:\s*true/g)?.length ?? 0, 1,
             "the verdict's lock is written more than once in vote.mjs, or not at all (S06-39)");
@@ -11591,7 +11600,8 @@ const REGRESSIONS = [
          * verdict says what was given after the fact"), and 63 I on gm2.
          */
         const sources = new Map(await otherSources());
-        const level = stripComments(sources.get("level-up.mjs") ?? ""), vote = stripComments(sources.get("vote.mjs") ?? "");
+        // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; the vote's family's text (the kit's `voteText`).
+        const level = stripComments(sources.get("level-up.mjs") ?? ""), vote = stripComments(voteText(sources));
         const batch = fnSource(level, "runAdvancementBatch"), ask = fnSource(level, "askWhoPicks"), line = fnSource(vote, "verdictLevelUps");
         ok(batch.length > 400 && ask.length > 400 && line.length > 200,
             "runAdvancementBatch, askWhoPicks or verdictLevelUps is cut short - the reads below would measure nothing");
@@ -11774,7 +11784,8 @@ const REGRESSIONS = [
          * the API: "the verdict's API in a Final Trial opens the Final Trial's window".
          */
         const sources = new Map(await otherSources());
-        const vote = stripComments(sources.get("vote.mjs") ?? "");
+        // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; the vote's family's text (the kit's `voteText`).
+        const vote = stripComments(voteText(sources));
         ok(vote.length > 0, "vote.mjs was not read - this test measured nothing");
         const body = fnSource(vote, "openVerdictDialog");
         const route = body.search(/if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/);
@@ -12197,7 +12208,8 @@ const REGRESSIONS = [
             ok(text.length > 0, `${file} was not read - this test measured nothing`);
             return text;
         };
-        const vote = code("vote.mjs"), levelUp = code("level-up.mjs"), floorUi = code("trial-floor-ui.mjs");
+        // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; the vote's family's text (the kit's `voteText`).
+        const vote = stripComments(voteText(sources)), levelUp = code("level-up.mjs"), floorUi = code("trial-floor-ui.mjs");
         // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
         const panel = stripComments(panelText(sources)), floorCode = code("trial-floor.mjs");
         const finalRoute = /if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/;
@@ -15745,7 +15757,7 @@ const REGRESSIONS = [
 
         const sources = new Map((await otherSources()).filter(([file]) => file.endsWith(".mjs")));
         must(["despair.mjs", "search-tokens.mjs", "clock.mjs", "overflow.mjs", "eclipse.mjs", "movement.mjs", "passages-gm.mjs", "trial.mjs",
-            "trial-floor.mjs", "vote.mjs", "season-setup.mjs"].every(file => sources.has(file)),
+            "trial-floor.mjs", "vote.mjs", "trial-progress.mjs", "season-setup.mjs"].every(file => sources.has(file)),
             "a file of the census is not served - this test reads nothing until it is");
         const { broken, read, table } = censusOf(sources);
         ok(read.despair >= 6 && read.searchTokens >= 4 && read.clock >= 1 && read.overflow >= 4 && read.seize >= 5 && read.crossing >= 4
@@ -15771,7 +15783,8 @@ const REGRESSIONS = [
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
         const ROWS = [["floor", /^SETTINGS\s*\.\s*trialQueue$/], ["record", /^SETTINGS\s*\.\s*trialProgress$/]];
         const WRITERS = ["floor season-setup.mjs#wipeSeason", "floor trial-floor.mjs#endFloorInStep", "floor trial-floor.mjs#writeFloor",
-            "record season-setup.mjs#wipeSeason", "record vote.mjs#writeTrialProgressInStep"];
+            "record season-setup.mjs#wipeSeason", "record trial-progress.mjs#writeTrialProgressInStep"];
+        // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; the record's writer is trial-progress.mjs's.
         const writersOf = sources => {
             const found = new Set();
             for (const [file, raw] of sources) {
@@ -15796,7 +15809,7 @@ const REGRESSIONS = [
                 "export function trialFloor() { return game.settings.get(MODULE_ID, SETTINGS.trialQueue); }",
                 "// game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});"
             ].join("\n")],
-            ["vote.mjs", "async function writeTrialProgressInStep(p) { await game.settings.set(MODULE_ID, SETTINGS.trialProgress, p); }"],
+            ["trial-progress.mjs", "async function writeTrialProgressInStep(p) { await game.settings.set(MODULE_ID, SETTINGS.trialProgress, p); }"],
             ["season-setup.mjs", [
                 "async function wipeSeason(plan) {",
                 "    const rows = { trialFloor: () => game.settings.set(MODULE_ID, SETTINGS.trialQueue, {}),",
@@ -15811,7 +15824,7 @@ const REGRESSIONS = [
             "the writers' reader misses a planted writer of the floor");
 
         const sources = new Map((await otherSources()).filter(([file]) => file.endsWith(".mjs")));
-        must(["trial-floor.mjs", "vote.mjs", "season-setup.mjs"].every(file => sources.has(file)), "a file of the census is not served - this test reads nothing until it is");
+        must(["trial-floor.mjs", "trial-progress.mjs", "season-setup.mjs"].every(file => sources.has(file)), "a file of the census is not served - this test reads nothing until it is");
         const found = writersOf(sources);
         log(`R1020: the writers read in the module: ${found.join("; ")}`);
         equal(JSON.stringify(found), JSON.stringify(WRITERS),
@@ -15933,7 +15946,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(misread), "[]", "the reach reader misses a planted fault, or reads one more ([read, planted])");
 
         const sources = new Map((await otherSources()).filter(([file]) => file.endsWith(".mjs")));
-        must(["trial-floor.mjs", "trial.mjs", "vote.mjs", "season-setup.mjs"].every(file => sources.has(file)), "a file of the census is not served - this test reads nothing until it is");
+        must(["trial-floor.mjs", "trial.mjs", "vote.mjs", "trial-progress.mjs", "season-setup.mjs"].every(file => sources.has(file)), "a file of the census is not served - this test reads nothing until it is");
         const { broken, counted } = reachOf(sources);
         log(`R1021: steps read ${JSON.stringify(counted)}`);
         ok(counted.seize >= 7 && counted.progress >= 2, `${JSON.stringify(counted)} steps read in the module - this would measure nothing`);
@@ -16149,7 +16162,8 @@ const REGRESSIONS = [
         equal(JSON.stringify(readOf(planted, early)), JSON.stringify({ ...all, trial: false, chapter: false, vote: false, order: false }),
             "the reader misses a planted lifetime, a chapter's field blanked, the vote on the browser's clock or the question written before the floor");
         const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
-        equal(JSON.stringify(readOf(await read("vote.mjs"), await read("trial-floor-ui.mjs"))), JSON.stringify(all),
+        // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; the vote's family's text (the kit's `voteText`).
+        equal(JSON.stringify(readOf(voteText(new Map(await Promise.all(VOTE_FAMILY.map(async f => [f, await read(f)])))), await read("trial-floor-ui.mjs"))), JSON.stringify(all),
             "a trial's field outlives its trial, a chapter's dies with it, the vote opens on a browser's clock, or the question is written before the floor opens (read: cut, trial, chapter, vote, order)");
     }],
 
@@ -16213,7 +16227,8 @@ const REGRESSIONS = [
             steps: false, reconcile: false, close: false, reset: false }),
             "the reader misses a planted kill in the verdict, a step of executions, an exit that asks too late or not at all, or a reset that keeps the sentence");
         const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
-        const real = { vote: await read("vote.mjs"), mastermind: await read("mastermind.mjs"), clock: await read("clock.mjs"),
+        // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; the vote's family's text (the kit's `voteText`).
+        const real = { vote: voteText(new Map(await Promise.all(VOTE_FAMILY.map(async f => [f, await read(f)])))), mastermind: await read("mastermind.mjs"), clock: await read("clock.mjs"),
             ui: await read("trial-floor-ui.mjs"), season: await read("season-setup.mjs") };
         equal(JSON.stringify(readOf(real)), JSON.stringify(all),
             "the sentence is carried out somewhere other than the trial's end, the verdict still executes, or a road out of the trial asks for it too late or not at all (read: cut, [vote.mjs's killers, mastermind.mjs's], steps, reconcile, close, reset)");
@@ -16303,7 +16318,8 @@ const REGRESSIONS = [
             ok(text.length > 0, `${file} was not read - this test measured nothing`);
             return text;
         };
-        const floorCode = code("trial-floor.mjs"), machine = code("floor-machine.mjs"), vote = code("vote.mjs");
+        // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; the vote's family's text (the kit's `voteText`).
+        const floorCode = code("trial-floor.mjs"), machine = code("floor-machine.mjs"), vote = stripComments(voteText(sources));
         const clock = code("clock.mjs"), floorUi = code("trial-floor-ui.mjs"), config = code("config.mjs"), voice = code("voice.mjs");
         const next = fnSource(machine, "nextFloor"), reconcile = fnSource(clock, "reconcilePhase");
         const facts = {
@@ -16433,10 +16449,11 @@ const REGRESSIONS = [
          * blanked, and the language files. Red at d1f01644 on the HUD's line, the bar's card and the words.
          */
         const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
-        const files = Object.fromEntries(await Promise.all(["trial-floor-ui.mjs", "vote.mjs", "sfx.mjs", "hud.mjs"].map(async f => [f, await read(f)])));
+        // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; `postExecutionCard` read there.
+        const files = Object.fromEntries(await Promise.all(["trial-floor-ui.mjs", "trial-progress.mjs", "sfx.mjs", "hud.mjs"].map(async f => [f, await read(f)])));
         must(Object.values(files).every(src => src.length > 1000), "a file of this test was not served - it reads nothing until it is");
         const fn = (file, name) => topLevelFunction(files[file], name) ?? "";
-        const close = fn("trial-floor-ui.mjs", "closeTrial"), card = fn("vote.mjs", "postExecutionCard"), floor = fn("sfx.mjs", "onFloorChanged");
+        const close = fn("trial-floor-ui.mjs", "closeTrial"), card = fn("trial-progress.mjs", "postExecutionCard"), floor = fn("sfx.mjs", "onFloorChanged");
         const time = fn("hud.mjs", "buildTimeRow"), bar = fn("trial-floor-ui.mjs", "trialBar"), console_ = fn("trial-floor-ui.mjs", "manageClassTrial");
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
@@ -18666,6 +18683,7 @@ const REGRESSIONS = [
             }
         }
         must(found.length >= Object.keys(ANOTHER).length, `the scan found ${found.length} function(s) - it reads nothing until it is pointed at the code again`);
+        // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; `trialSizeNow` is cut there.
         const mono = code("monokuma.mjs"), status = code("player-status.mjs"), eclipse = code("eclipse.mjs"), vote = code("vote.mjs");
         const roster = fnSource(mono, "actingStudents");
         const doc = bodyOf(sources.get("monokuma.mjs"), "export function actingStudents", { back: 1500 });
@@ -18677,7 +18695,7 @@ const REGRESSIONS = [
             next: /\bactingStudents\(\)/.test(fnSource(code("gm-panel.mjs"), "nextStep")),
             placement: [/\bactingStudents\(\{ dead: isDeadForGm \}\)/.test(fnSource(eclipse, "placementStatus")),
                 /\bactingStudents\(\{ dead: isDeceased \}\)/.test(fnSource(eclipse, "startEclipse")), topLevelFunction(eclipse, "placingActors") === null],
-            trial: ["trialParticipants", "trialSizeNow"].map(name => /\bactingStudents\(\{ dead: /.test(fnSource(vote, name))),
+            trial: [fnSource(vote, "trialParticipants"), fnSource(code("trial-progress.mjs"), "trialSizeNow")].map(body => /\bactingStudents\(\{ dead: /.test(body)),
             others: found.filter(key => key !== "monokuma.mjs#actingStudents" && !Object.hasOwn(ANOTHER, key)),
             stale: Object.keys(ANOTHER).filter(key => !found.includes(key))
         }), JSON.stringify({
