@@ -101,13 +101,20 @@ public clock setting every player's browser holds).
 
 ## 9. Per release (a train of stages)
 
-1. **The CRLF dispatch** - the CI workflow dispatched with `crlf` ticked: `npm test` whole, in one job, on a checkout
-   with Windows line ends, as a Windows GM's copy reads. It is the only run of tier 2 after 01-runtests' parts A and B,
-   in one order, in one process; the shards never run that way. Since 25.10 it is owed by a train that changes a test
-   reading source text (the tier 0-1 readers, `tools/check.mjs`, `tools/`) and before 1.3.0, and otherwise the notes
-   say why it did not run; every train from 1.2.84 to 1.2.89 owed it and ran it, 5572-6147 s from 1.2.86 on. Its first
-   run (20.10) failed ten tests that read source text through markers a CRLF breaks; on 26.10 it alone found E16-T24's
-   order dependence; on 27.10 it failed on the clock-bus race the push run had found (Lessons, below).
+1. **The CRLF runs** (decision D198 (2), the owner, 01.11.2026). Two runs on a checkout with Windows line ends, as a
+   Windows GM's copy reads. *The CRLF dispatch* - the CI workflow dispatched with `crlf` ticked: `crlf-quick` (lint,
+   check and gate) and `crlf-suite`, the suite in the push run's eight shards, merged by `suite-merge.mjs` in `verdict`
+   (the whole suite once, the skips exactly the baseline's); about 25 minutes by D198's estimate (not measured before
+   the first such dispatch), owed by every train before its PR, and a red one blocks the release like the push run.
+   Scenarios are not in it: none of the three finds below was a scenario's. *The whole run* -
+   `.github/workflows/crlf-whole.yml`: `npm test` whole, in one job and one process, the only run of tier 2 after
+   01-runtests' parts A and B, in one order; the shards never run that way. It runs weekly (Sundays 03:17 UTC, on
+   `main`) and is owed before 1.3.0, and it blocks nothing: neither `ci.yml` nor `release.yml` calls it. Until D198 the
+   whole run was the dispatch, owed by a train that changed a test reading source text and before 1.3.0; every train
+   from 1.2.84 to 1.2.89 owed it and ran it, 5572-6147 s from 1.2.86 on, and 7229 s at 1.2.96. Its first run (20.10)
+   failed ten tests that read source text through markers a CRLF breaks (tiers 0-1: the shards' shard 1); on 26.10 it
+   alone found E16-T24's order dependence (the whole run's reason to stay); on 27.10 it failed on the clock-bus race the
+   push run had found (Lessons, below).
 2. **Release notes** (`.github/release-notes/vX.Y.Z.md`): every sentence has a source (a commit, a test, a ledger row,
    a file at a line), listed beside the draft. A fresh reviewer, the skeptic, reads each claim against its source and
    marks it HOLDS or CORRECTED, and the notes ship only on "SKEPTIC OK". It corrected 7 of 59 claims at 1.2.84, 3 at
@@ -140,6 +147,7 @@ the last). A stage adds its LIVE rows there before its train ships; the release 
 | 26.10 | CI red on scenario 66 I1-I4, P2 at 204a5d72 | E12's checks read "stands unlawfully where it jumped"; E17 C1 puts the jump back (`3efafbd0`) | older scenarios that name a changed rule, message or bridge code run in quick, two at most |
 | 26.10 | E16-T24 red in the CRLF run, green in every shard | 01's parts A and B refill the students to the rules' 2/2; T24 wrote the seed's 3 actions, and a refund stops at the maximum, so it read 0 given back (`0b8dd4aa`) | a fixture sets what it reads (T24 fills the student's own maximum); only the CRLF run puts tier 2 after parts A and B |
 | 26-27.10 | A restore leaving a chat card, alone 3 runs of 3 | since E17 C6 the clock's bus is a trailing debounce (120 ms, at most 360): the hook a test's last clock write asks for came inside the runner's restore; a per-test wait (`823174bc`) fixed one test | tier 2's restore waits for the bus (`syncIdle` for the clock and the Eclipse, then `traceDigestIdle`, at most 3.6 s; `c9df4dd4`): over a whole probe run 1146 restores waited 222 s in all, 296 found a clock run pending |
+| 01.11 | The single-process CRLF run held each train about 1.5-2 h at its end, and the stages waiting on it | 5572-6147 s a run from 1.2.86 on; 7229 s at 1.2.96 (the crlf job of CI run 41330603959, 01.11) | D198 (2): the CRLF dispatch is lint, check, gate and the suite's eight shards, blocking; the whole run is `crlf-whole.yml`, weekly and before 1.3.0, non-blocking (E37 C8) |
 
 ## What the method does not catch
 

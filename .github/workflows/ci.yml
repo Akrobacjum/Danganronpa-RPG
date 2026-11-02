@@ -11,8 +11,11 @@
 #   107-365 s, quick 36-56 s, verdict 10-12 s. Why suite 1/8 took 647 s on the fourth run and 930-952 s on the
 #   first three is not measured.
 #
-# Jobs (17-19 at once at most, 20 on a crlf dispatch; the Free plan allows 20 concurrent jobs on standard runners, free for a
-# public repository):
+# Jobs (17 at once on a push: quick, 8 buckets and 8 shards, after plan alone. 1.2.96's crlf dispatch, run 41330603959
+# on 01.11.2026, the last with one crlf job, started 18 within 9 s. A crlf dispatch now starts crlf-quick in that first
+# wave, 18 at once, and crlf-suite's 8 shards only when every bucket has ended (its needs), beside at most quick, the 8
+# shards and crlf-quick: 18 at most by construction, not yet measured on a dispatch. The Free plan allows 20 concurrent
+# jobs on standard runners, free for a public repository, and queues the rest):
 #   plan       reads the ci scenarios off the source exactly as run-all.mjs does (LAYERS_RE) and deals them into
 #              BUCKETS by weight, longest first - a scenario added by a stage is picked up with no edit here
 #   quick      run-all.mjs lint check gate
@@ -21,9 +24,21 @@
 #              by position over shards 2..N, 01-runtests.mjs runs tiers 0-1 and its parts A and B in shard 1 alone;
 #              tier 2 was dealt over all N on the four runs below, and suite 1/8 was the last job on each)
 #   verdict    after all of them: the shards' union is the whole suite, once (audit/harness/suite-merge.mjs, which
-#              reads shards/results-suite-<i>/01-runtests.json), every job green
-#   crlf       only on a dispatch with crlf = true (once per train, before its PR; METHOD-lessons change 4): the whole
-#              chain, unsharded, on a checkout with Windows line ends (core.autocrlf true), as a Windows GM's copy reads
+#              reads shards/results-suite-<i>/01-runtests.json), and on a crlf dispatch the crlf shards' union too
+#              (crlf-shards/results-crlf-suite-<i>/); every job green, each crlf job green or skipped. The CRLF merge
+#              is a step here rather than a crlf-verdict job: a run keeps one answer, verdict's (the job the PR's
+#              check and the session's ci-status read), and such a job would be one more need of verdict anyway
+#   crlf-quick only on a dispatch with crlf = true (once per train, before its PR; decision D198 (2), 01.11.2026,
+#              METHOD.md section 9 item 1): run-all.mjs lint check gate on a checkout with Windows line ends
+#              (core.autocrlf true), as a Windows GM's copy reads
+#   crlf-suite the same dispatch: suite's shards, DRPG_SUITE_SHARD=i/8, on that CRLF checkout, after every scenarios
+#              bucket (the job count above). From 1.2.96's dispatch (the buckets ended by 448 s, suite 1/8 took
+#              1108 s) the last crlf shard should end about 26-27 minutes after plan; not measured until a dispatch.
+#              No scenarios run on CRLF: the single-process run's three finds were tier 0-1 tests reading source text
+#              (shard 1 runs tiers 0-1), E16-T24's order dependence, which only one process running tier 2 after
+#              01-runtests' parts A and B shows, and the clock-bus race the push run found too (METHOD.md's Lessons,
+#              20.10, 26.10 and 26-27.10). That single-process run is .github/workflows/crlf-whole.yml since E37 C8:
+#              weekly and before 1.3.0, non-blocking; neither this file nor release.yml calls it.
 #
 # Triggers: a push to main or to a line branch (claude/**), a dispatch, and release.yml's call. No pull_request
 # trigger: a PR from a line branch would run every job twice on the same commit (34 jobs against the plan's 20).
@@ -35,8 +50,8 @@
 # this repository).
 #
 # The suite job's limit stays 115 minutes, above run-all.mjs's own 108-minute bound on the suite (its comment says
-# why), so that a hung shard is ended by run-all, whose verdict names the test, rather than by the runner's cancel.
-# The crlf job's 200 holds that bound and the scenarios after it (about 41-45 minutes on 30-31.10.2026).
+# why), so that a hung shard is ended by run-all, whose verdict names the test, rather than by the runner's cancel;
+# crlf-suite's is the same 115. crlf-whole.yml's job keeps the 200 the single crlf job had.
 name: CI
 
 on:
@@ -45,7 +60,7 @@ on:
   workflow_dispatch:
     inputs:
       crlf:
-        description: "Also run the whole chain on a CRLF checkout (once per train, before its PR)"
+        description: "Also run lint, check, gate and the suite in shards on a CRLF checkout (once per train, before its PR)"
         type: boolean
         default: false
   workflow_call:
@@ -196,10 +211,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with: { name: "results-suite-${{ matrix.shard }}", path: audit/harness/results/, if-no-files-found: ignore, retention-days: 14 }
 
-  crlf:
+  crlf-quick:
     if: github.event_name == 'workflow_dispatch' && inputs.crlf
+    name: crlf lint, check, gate
     runs-on: ubuntu-24.04
-    timeout-minutes: 200
+    timeout-minutes: 10
     steps:
       - name: Windows line ends for the checkout below
         run: git config --global core.autocrlf true
@@ -212,15 +228,51 @@ jobs:
         working-directory: audit/harness
         env: { PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1" }
         run: npm ci
-      - name: npm test on the CRLF tree
+      - name: run-all lint check gate on the CRLF tree
         working-directory: audit/harness
         run: |
-          node run-all.mjs && exit 0
-          (node -e "$NAME_FAILS" || echo "results/run-all.json is missing") | head -10 | sed 's/^/::error title=crlf::/'
+          node run-all.mjs lint check gate && exit 0
+          (node -e "$NAME_FAILS" || echo "results/run-all.json is missing") | head -10 | sed 's/^/::error title=crlf lint check gate::/'
           exit 1
 
+  crlf-suite:
+    # After every scenarios bucket, whatever their result, so that a crlf dispatch stays under 20 jobs at once (the
+    # header); !cancelled() lets a red bucket through, and plan's shards must exist for the matrix.
+    needs: [plan, scenarios]
+    if: ${{ !cancelled() && needs.plan.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.crlf }}
+    name: crlf suite ${{ matrix.shard }}/${{ strategy.job-total }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 115
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    steps:
+      - name: Windows line ends for the checkout below
+        run: git config --global core.autocrlf true
+      - uses: actions/checkout@v4
+      - name: The tree really has CRLF line ends
+        run: grep -c $'\r$' README.md | grep -qv '^0$'
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm, cache-dependency-path: audit/harness/package-lock.json }
+      - name: Install the harness
+        working-directory: audit/harness
+        env: { PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1" }
+        run: npm ci
+      - name: run-all suite on the CRLF tree (shard ${{ matrix.shard }})
+        working-directory: audit/harness
+        env: { DRPG_SUITE_SHARD: "${{ matrix.shard }}/${{ env.SHARDS }}" }
+        run: |
+          node run-all.mjs suite && exit 0
+          (node -e "$NAME_FAILS" || echo "results/run-all.json is missing") | head -10 | sed 's/^/::error title=crlf suite ${{ matrix.shard }}::/'
+          exit 1
+      - name: Keep the results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: "results-crlf-suite-${{ matrix.shard }}", path: audit/harness/results/, if-no-files-found: ignore, retention-days: 14 }
+
   verdict:
-    needs: [quick, scenarios, suite, crlf]
+    needs: [quick, scenarios, suite, crlf-quick, crlf-suite]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -232,12 +284,22 @@ jobs:
         with: { pattern: "results-suite-*", path: shards }
       - name: The shards together are the whole suite (INFRA I2)
         run: node audit/harness/suite-merge.mjs shards
+      # Only when crlf-suite ran: skipped on a push and in release.yml's call, where no crlf job runs. !cancelled()
+      # reads the CRLF shards even when the step above went red, so that one run names both.
+      - uses: actions/download-artifact@v4
+        if: ${{ !cancelled() && needs.crlf-suite.result != 'skipped' }}
+        with: { pattern: "results-crlf-suite-*", path: crlf-shards }
+      - name: The CRLF shards together are the whole suite (D198)
+        if: ${{ !cancelled() && needs.crlf-suite.result != 'skipped' }}
+        run: node audit/harness/suite-merge.mjs crlf-shards
       - name: Every job green
         env:
           QUICK: ${{ needs.quick.result }}
           SCEN: ${{ needs.scenarios.result }}
           SUITE: ${{ needs.suite.result }}
-          CRLF: ${{ needs.crlf.result }}
+          CRLFQ: ${{ needs.crlf-quick.result }}
+          CRLFS: ${{ needs.crlf-suite.result }}
         run: |
-          echo "quick $QUICK, scenarios $SCEN, suite $SUITE, crlf $CRLF"
-          [ "$QUICK" = success ] && [ "$SCEN" = success ] && [ "$SUITE" = success ] && { [ "$CRLF" = success ] || [ "$CRLF" = skipped ]; }
+          echo "quick $QUICK, scenarios $SCEN, suite $SUITE, crlf-quick $CRLFQ, crlf-suite $CRLFS"
+          ok() { [ "$1" = success ] || [ "$1" = skipped ]; }
+          [ "$QUICK" = success ] && [ "$SCEN" = success ] && [ "$SUITE" = success ] && ok "$CRLFQ" && ok "$CRLFS"

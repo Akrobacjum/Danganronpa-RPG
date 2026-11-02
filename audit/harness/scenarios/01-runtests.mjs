@@ -233,8 +233,9 @@ export async function run({ gm, p1, p2, p3, check, note, settle, socketTraffic, 
        export (k1c), the scenario 1993 s wall; Actions ran 1.2.68's suite in 1532 s wall (CI
        run 19 on main, 06.10.2026). So 3600, about twice k1c's reading (fix r1-G3), beside
        run-all's 72 minutes (E33 fix r2-G4: 60 until then, which ended a hung run before
-       this bound could name the test). The fifth: a crlf dispatch runs tier 2 unsharded on
-       one Actions runner - 1.2.92's run (80bec60f, CI run 41112037572, 30.10.2026) green at
+       this bound could name the test). The fifth: the crlf run (a crlf dispatch until E37 C8,
+       crlf-whole.yml since) runs tier 2 unsharded on one Actions runner - 1.2.92's run
+       (80bec60f, CI run 41112037572, 30.10.2026) green at
        3979 s for the scenario, tier 2 about 3490 s of it, 3% under this bound. 1.2.93's
        (c0ac849b, run 41169227859, 31.10.2026) ended here at 3600 s, and was first read as
        that growth; with 5400 here (3053d9f7, run 41177991100) it ended at 5400 s, so it

@@ -67,8 +67,9 @@ const SUITE = "01-runtests";
    say which test hung (review round 2's cor D1). So 72 since E33 fix r2-G4: 1.2 times the
    eval's 3600 s, which ends at about 3960 s wall by k3's overhead. So 108 since 1.2.93's
    crlf run (31.10.2026; 01-runtests' comment has the readings): 1.2 times the eval's 5400 s,
-   with the same ratio kept; ci.yml's suite job holds 115 minutes and its crlf job 200, above
-   this one. The other scenarios took 0.4-62 s
+   with the same ratio kept; ci.yml's suite and crlf-suite jobs hold 115 minutes and
+   crlf-whole.yml's job 200 (E37 C8; ci.yml's crlf job until then), above this one.
+   The other scenarios took 0.4-62 s
    on 24.09.2026; on 02.10.2026 the slowest were 61 at 255-259 s and 30 at 85-86 s,
    inside their 5 minutes, 61 not by much. A scenario may say otherwise with
    `export const timeoutMs`. */
