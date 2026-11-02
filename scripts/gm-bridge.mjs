@@ -14,7 +14,7 @@
 
 import {
     MODULE_ID, TRAITS, HOPE_CALLS, DESPAIR_CALLS, STARTING, PROJECT_SCALE, TIMING,
-    LEVEL_UP, LEVEL_UP_OPTIONS, ACTIONS, DYNAMIC_THRESHOLDS
+    LEVEL_UP, LEVEL_UP_OPTIONS, ACTIONS, DYNAMIC_THRESHOLDS, TIMES_OF_DAY
 } from "./config.mjs";
 import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, primaryGmId, dialogContent, debug, warn, error, cardHead, esc, serverNow, localeFormat } from "./utils.mjs";
 import {
@@ -1758,7 +1758,9 @@ async function handleOverflowTake(payload, sender, ctx) {
 /** The run of `overflow.check` (E37 C7): the primary's own `checkOverflow`, the stamp it armed (null when nothing fired). */
 async function handleOverflowCheck(payload, sender, ctx) {
     const { checkOverflow } = await import("./overflow.mjs");
-    const armed = await checkOverflow({ ahead: payload.ahead === true });
+    // The asker's boundary (E37 fix FG4, C-m3): a GM's claim, held to this clock's own in `checkOverflow`.
+    const target = payload.timeOfDay ? { session: payload.session, day: payload.day, timeOfDay: payload.timeOfDay } : null;
+    const armed = await checkOverflow({ ahead: payload.ahead === true, target });
     return { reply: { armed } };
 }
 
@@ -2777,9 +2779,12 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_OVERFLOW_CHECK]: {
         label: "DRPG.Bridge.what.overflow.check",
         guards: [gmOnly("only a GM checks the overflow")],
-        sanitize: pick({ ahead: as.bool }),
+        sanitize: pick({ ahead: as.bool, session: as.num, day: as.num, timeOfDay: as.oneOf(...TIMES_OF_DAY) }),
         run: handleOverflowCheck,
-        answer: "reply"
+        answer: "reply",
+        claims: {
+            timeOfDay: "with session and day, the boundary the asking GM checks (E37 fix FG4): a GM's claim, held by overflow.mjs checkOverflow to the primary's own target before it reads the count; another arms nothing"
+        }
     },
     [ACTION_ECLIPSE_MOVE]: {
         label: "DRPG.Bridge.what.eclipse.move",
@@ -3641,8 +3646,8 @@ export function requestOverflowTake(amount, reason) {
     return ask(ACTION_OVERFLOW_TAKE, { amount, reason });
 }
 
-export function requestOverflowCheck(ahead) {
-    return ask(ACTION_OVERFLOW_CHECK, { ahead: ahead === true });
+export function requestOverflowCheck(ahead, target = null) {
+    return ask(ACTION_OVERFLOW_CHECK, { ahead: ahead === true, ...(target ? { session: target.session, day: target.day, timeOfDay: target.timeOfDay } : {}) });
 }
 
 /**

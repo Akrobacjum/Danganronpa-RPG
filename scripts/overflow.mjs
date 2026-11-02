@@ -25,7 +25,7 @@
 
 import { MODULE_ID, OVERFLOW, TIMES_OF_DAY } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
-import { announce, log, error, esc, isPrimaryGm, primaryGmId, serialWrite, plural, wholeNumber } from "./utils.mjs";
+import { announce, log, debug, error, esc, isPrimaryGm, primaryGmId, serialWrite, plural, wholeNumber } from "./utils.mjs";
 import { HOPE_REFUND } from "./resource-guard.mjs";
 import { overflowStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
@@ -320,12 +320,24 @@ async function askPrimaryToTake(n, reason) {
     return res.ok ? (res.value?.taken ?? 0) : 0;
 }
 
-/** `checkOverflow` asked of the primary from another GM: the stamp it armed, null when none or refused, undefined when this GM's. */
-async function askPrimaryToCheck(ahead) {
+/*
+ * THE CHECK CARRIES ITS BOUNDARY, AND IS NOT DROPPED (E37 fix FG4, 02.11.2026; the end review's C-m3 (STATUS Open 37) and
+ * C-m6). The primary read its own clock: a second clock write landing there between the asker's write and its packet
+ * (two GMs pressing Next within a round trip) armed the newer time of day, and the boundary asked was skipped. The ask
+ * names its target now (`stampOf` or `upcoming` of the asker's clock), a GM's claim the primary holds to its own target,
+ * arming nothing on a difference (`checkOverflow`'s `target`). And a primary that did not answer - connected, busy past
+ * the bridge's clock - left the boundary unchecked, so the next one armed for its own time of day: with no answer the
+ * check runs here, as it does with no other GM connected (`HERE`), said in the debug line. Tier 2 E37-T8.
+ */
+const HERE = Symbol("the primary GM did not answer: the check runs here");
+
+/** `checkOverflow` asked of the primary from another GM: the stamp it armed, null when none or refused, undefined when this GM's, `HERE` with no answer. */
+async function askPrimaryToCheck(ahead, target) {
     if (!game.user?.isGM || isPrimaryGm() || !primaryElsewhere()) return undefined;
     const { requestOverflowCheck } = await import("./gm-bridge.mjs");
-    const res = await requestOverflowCheck(ahead);
-    return res.ok ? (res.value?.armed ?? null) : null;
+    const res = await requestOverflowCheck(ahead, target);
+    if (res.ok) return res.value?.armed ?? null;
+    return res.reason === "noAnswer" || res.reason === "noGm" ? HERE : null;
 }
 
 export async function addOverflow(amount, { reason = "spill" } = {}) {
@@ -710,25 +722,33 @@ export function overflowPool() {
  *   had its actions dealt and its rooms stocked. It was called `opening` while
  *   the Eclipse was the only caller, which described the caller instead of the
  *   behaviour.
+ * @param {object} [options.target]  The boundary another GM asked about (`overflow.check`, E37 fix FG4): on the
+ *   primary, a GM's claim held to this clock's own target; nothing is armed when they differ.
  * @returns {Promise<object|null>} the stamp armed, or null if nothing fired.
  */
-export async function checkOverflow({ ahead = false } = {}) {
+export async function checkOverflow({ ahead = false, target: claimed = null } = {}) {
     if (!game.user.isGM) return null;
 
     try {
-        // On the primary GM (E37 C7): the count paid, the stamp armed and an event run where every write of the count is.
-        const asked = await askPrimaryToCheck(ahead);
-        if (asked !== undefined) return asked;
         const clock = getClock();
         const target = ahead ? upcoming(clock) : stampOf(clock);
         if (!target) return null;
+        if (claimed && !same(claimed, target)) {
+            log(`Despair overflow: a check asked for ${claimed.timeOfDay} (day ${claimed.day}), and this clock's boundary is ${target.timeOfDay}: nothing armed.`);
+            return null;
+        }
+        // On the primary GM (E37 C7): the count paid, the stamp armed and an event run where every write of the count is.
+        const asked = await askPrimaryToCheck(ahead, target);
+        if (asked !== undefined && asked !== HERE) return asked;
+        if (asked === HERE) debug("Despair overflow: the primary GM did not answer the boundary's check; it runs on this GM's browser.");
 
         await overflowStore.whenHydrated();
         // The count read and paid, and the stamp armed, in one step of `OVERFLOW_KEY` (E17 C0): a spill queued
         // beside the payment lands on the count it leaves, not on the one it read.
         const plan = await serialWrite(OVERFLOW_KEY, async () => {
-            // The primary asked again in the step (E37 C7, as `addOverflow`): a handover while it waited sends it on.
-            if (primaryElsewhere()) return HANDED;
+            // The primary asked again in the step (E37 C7, as `addOverflow`): a handover while it waited sends it on - but
+            // not a check the primary did not answer (E37 fix FG4), which is this GM's now.
+            if (asked !== HERE && primaryElsewhere()) return HANDED;
             const now = state();
 
             // The darkening a verdict kept waiting (S09-07): this boundary is the next time of day, and
@@ -779,7 +799,10 @@ export async function checkOverflow({ ahead = false } = {}) {
             await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: { ...target, effect: drawn } });
             return { drawn, left, threshold };
         });
-        if (plan === HANDED) return (await askPrimaryToCheck(ahead)) ?? null;
+        if (plan === HANDED) {
+            const again = await askPrimaryToCheck(ahead, target);
+            return again === HERE || again === undefined ? null : again;
+        }
         if (!plan) return null;
         if (plan.armed) return plan.armed;
         const { drawn, left, threshold } = plan;

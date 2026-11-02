@@ -79254,13 +79254,24 @@ const SCENARIOS = [
          * anything moved. The pools, their names and extras, the owed rows, the overflow's count and its stamp are put
          * back after. Red at 1f6fcf89: nothing was sent, every value had moved here before A judged anything, and the
          * five rows were no rows.
+         *
+         * E37 fix FG4, 02.11.2026 (the end review's C-m3 - STATUS Open 37 -, C-m6 and Open 40). The check names the
+         * boundary it asks about (`overflow.check`'s session, day and time of day, the asker's `upcoming` here): `asked.check`
+         * sends it, and a packet naming another boundary, judged here as the primary judges a second GM's, arms nothing and
+         * answers null (`mismatch`). A check A does not answer (its packet held and never judged): after the bridge's clock
+         * (TIMING.ackMs) it runs on this GM, as with no other GM connected (`silent`). And a handover mid-step: `setDespair`
+         * called with A away while a step of `DESPAIR_KEY` holds the queue, A arriving before the step is let go - the step
+         * asks again, hands it on, and A writes it (`handover`). Red at 2b5527e1: the check sent no boundary, the
+         * mismatched one armed, and the silent one armed nothing.
          */
         const G = await import("./bridge-guards.mjs");
         const D = await import("./despair.mjs");
         const O = await import("./overflow.mjs");
         const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
         const { overflowStore, despairOwedStore } = await import("./gm-stores.mjs");
-        const { isPrimaryGm } = await import("./utils.mjs");
+        const { isPrimaryGm, serialWrite } = await import("./utils.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const upcomingTime = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(getClock().timeOfDay) + 1) % TIMES_OF_DAY.length];
         must(isPrimaryGm(), "this browser is not the primary GM, which the second GM is set beside - this would measure nothing");
         const me = game.user.id, max = D.despairMax();
         must(D.monokumas().some(u => u.id === me), "this GM holds no Despair pool - this would measure nothing");
@@ -79285,7 +79296,7 @@ const SCENARIOS = [
         socket.emit = function (event, packet, options, ...rest) {
             const to = options?.recipients ?? [];
             if (inPlay && event === EVENT && ROWS.includes(packet?.action) && to.includes(A.id)) {
-                sentToA.push([packet.action, ...["op", "targetUserId", "value", "label", "amount", "ahead"].filter(k => packet[k] !== undefined).map(k => packet[k])]);
+                sentToA.push([packet.action, ...["op", "targetUserId", "value", "label", "amount", "ahead", "timeOfDay"].filter(k => packet[k] !== undefined).map(k => packet[k])]);
                 queued.push(packet);
                 return socket;
             }
@@ -79335,6 +79346,53 @@ const SCENARIOS = [
                 const answer = await asked;
                 await settle();
                 read.asked[name] = { sent, before, after: READ[name](), answer: (ANSWER[name] ?? (a => a))(answer) };
+            }
+            // A packet naming another boundary, judged as the primary judges a second GM's: nothing armed.
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: WAITING });
+            await settle();
+            {
+                const replies = [], other = upcomingTime === "morning" ? "noon" : "morning";
+                depart();
+                try {
+                    await G.judge(BRIDGE_ACTIONS, { action: "overflow.check", requestId: "suite-e37t8-mismatch", userId: A.id, ahead: true,
+                        session: getClock().session, day: getClock().day ?? 1, timeOfDay: other }, game.user.id, { send: (who, reply) => replies.push(reply) });
+                } finally {
+                    arrive();
+                }
+                await settle();
+                read.mismatch = [stamp(), replies.filter(r => r?.action !== "bridge.ack").map(r => (r?.action === "bridge.done" ? (r.value?.armed ?? null) : (r?.reason ?? r?.action ?? null)))];
+            }
+            // A check A never answers: held, never judged; after the bridge's clock it runs here.
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: WAITING });
+            await settle();
+            {
+                const asked = O.checkOverflow({ ahead: true });
+                await settle();
+                const sent = sentToA.splice(0), before = stamp();
+                const answer = await asked;
+                queued.splice(0);
+                await settle();
+                read.silent = { sent: sent.map(([action]) => action), before, after: stamp(), answer: answer?.effect ?? null };
+            }
+            // A handover mid-step: A away as setDespair queues behind a held step, A here before the step is let go.
+            {
+                depart();
+                await game.settings.set(MODULE_ID, SETTINGS.despairPools, { ...(getSetting(SETTINGS.despairPools) ?? {}), [me]: 1 });
+                await settle();
+                let release = null;
+                const held = serialWrite(D.DESPAIR_KEY, () => new Promise(resolve => { release = resolve; }));
+                await until(() => release, 4000);
+                const call = D.setDespair(me, 3);
+                await settle();
+                arrive();
+                release?.();
+                await held;
+                await until(() => queued.length > 0, 8000);
+                const sent = sentToA.splice(0), before = D.getDespair(me);
+                await drain();
+                const answer = await call;
+                await settle();
+                read.handover = { sent, before, after: D.getDespair(me), answer };
             }
             inPlay = false;
             depart();
@@ -79390,8 +79448,11 @@ const SCENARIOS = [
                 label: { sent: [["despair.roster", "label", me, label("asked")]], before: null, after: label("asked"), answer: label("asked") },
                 remove: { sent: [["despair.roster", "remove", ASSIST.id]], before: true, after: false, answer: true },
                 take: { sent: [["overflow.take", 1]], before: 3, after: 2, answer: 1 },
-                check: { sent: [["overflow.check", true]], before: ["panic", true], after: ["panic", false], answer: "panic" }
+                check: { sent: [["overflow.check", true, upcomingTime]], before: ["panic", true], after: ["panic", false], answer: "panic" }
             },
+            mismatch: [["panic", true], [null]],
+            silent: { sent: ["overflow.check"], before: ["panic", true], after: ["panic", false], answer: "panic" },
+            handover: { sent: [["despair.set", me, 3]], before: 1, after: 3, answer: 3 },
             here: { set: [4, 4], fill: [max, max], zero: [0, 0], add: [true, true], label: [label("here"), label("here")], remove: [false, true],
                 take: [1, 1], check: [["panic", false], "panic"], sent: 0 },
             player: ROWS.map(action => [action, "gmOnly", true])
