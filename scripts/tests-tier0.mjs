@@ -1897,8 +1897,9 @@ const REGRESSIONS = [
         const kill = apply.indexOf("killCharacter(");
         ok(lock > 0 && kill > 0, "applyVerdict no longer writes the lock or no longer executes anybody");
         ok(lock < kill, "applyVerdict executes before it writes the verdict lock");
-        ok(apply.indexOf("trialProgress().verdictApplied") > 0
-            && apply.indexOf("trialProgress().verdictApplied") < lock,
+        // E41 C10b (1.2.97): the refusal is the one lock of both verdicts, `verdictRefusal`, which reads the record's lock.
+        ok(apply.indexOf("verdictRefusal()") > 0 && apply.indexOf("verdictRefusal()") < lock
+            && /\btrialProgress\(\)\.verdictApplied\b/.test(fnSource(vote, "verdictRefusal")),
             "applyVerdict no longer refuses a second verdict itself");
     }],
     ["R31 - Room Setup's Apply writes only what the GM changed, and refuses before writing", async () => {
@@ -8036,8 +8037,8 @@ const REGRESSIONS = [
             ["SHEET sheet.mjs#addPresentButton", "out of scope: a display on the sheet's own browser (R4, C16): no Present button for a dead student (document `isDeceased`)"],
             ["SHEET trial-floor-ui.mjs#startClassTrial", "judged (C12): who is alive for 'nobody for the trial' is read as the GMs hold it - `isDeceased(flagsHeldNow(actor))` in one synchronous pass after `judgedFor` of every student, as `eligibleVoters`; the card's budget line after the write still counts `livingStudents()` (a display, R4) [1b.2]"],
             ["SHEET trial-floor-ui.mjs#readTrial", "out of scope: the trial console's display (R4, GM only, C12): the register's count (`blackenedIds`) and whether a student died this chapter of this season (`isDeadForGm`, `deathRecordFor` and since E11 C12 `sameSeason`, a death the GMs keep included), to warn of an empty register; it decides nothing - `manageClassTrial`, its only caller, answers a player with a warning before anything is read"],
-            ["SHEET mastermind.mjs#openFinalVerdictDialog", "out of scope: the Final Trial's window (display, GM only); `isDeadForGm` reads the GM deaths store beside the flag; since C10 the trial console's verdict opens it in a Final Trial (`TRIAL_ACTIONS.verdict`)"],
-            ["SHEET mastermind.mjs#applyFinalVerdict", "out of scope: `isDeadForGm` = the document flag or the GM deaths store - the same class as `applyVerdict`'s, left to E40; C10 adds two GM writes, the trial's record (`verdictApplied` and a `verdict` with `final: true` that names nobody) and the clock's `finalTrial: false`"],
+            ["SHEET verdict.mjs#openFinalVerdictDialog", "out of scope: the Final Trial's window (display, GM only); `isDeadForGm` reads the GM deaths store beside the flag; since C10 the trial console's verdict opens it in a Final Trial (`TRIAL_ACTIONS.verdict`); since E41 C10b it is verdict.mjs's and marks the dead as the table knows them (`isDeceased(flagsHeldNow(a))` after `judgedFor`), every student choosable - who it names decides only the GMs' summary"],
+            ["SHEET verdict.mjs#giveFinalVerdict", "out of scope: `isDeadForGm` = the document flag or the GM deaths store - the same class as `applyVerdict`'s, left to E40; C10 adds two GM writes, the trial's record (`verdictApplied` and a `verdict` with `final: true` that names nobody) and the clock's `finalTrial: false`; since E41 C10b `applyFinalVerdict`'s writes, behind `verdictRefusal` and `verdictRunning`"],
             ["SHEET character.mjs#stampStartingSheet", "judged (C8): the spread read as the GMs hold it (`numberHeld`) in one `meansWrite` job of the student's queue, not off the prepared `actor.system`; R318 [1b.2]"],
             ["SHEET gm-bridge.mjs#handleAdvancement", "judged (C8): S03-22 - a statistic among TRAITS and an `experienceUp` id on the held sheet (`numberHeld` at the experiences' root), read synchronously before the latch, else refused and told; `applyAdvancement` checks the experiences again in its job [F7, 1b.2]"],
             ["SHEET chapter.mjs#livingStudents", "out of scope as a function (document `isDeceased`); its R1 caller `applyVerdict` stopped using it in C5 (`verdictHeld`) [1b.2]"],
@@ -11574,8 +11575,10 @@ const REGRESSIONS = [
         // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; the vote's family's text (the kit's `voteText`).
         const vote = stripComments(voteText(await otherSources()));
         ok(vote.length > 10000, "vote.mjs was not read - the reads below would measure nothing");
-        equal(vote.match(/verdictApplied:\s*true/g)?.length ?? 0, 1,
-            "the verdict's lock is written more than once in vote.mjs, or not at all (S06-39)");
+        // E41 C10b (1.2.97): the Final Trial's verdict, which writes its own lock, is verdict.mjs's too: once in each verdict, twice in all.
+        const locks = text => text.match(/verdictApplied:\s*true/g)?.length ?? 0;
+        equal(JSON.stringify([locks(fnSource(vote, "applyVerdict")), locks(fnSource(vote, "giveFinalVerdict")), locks(vote)]), JSON.stringify([1, 1, 2]),
+            "a verdict's lock is written more than once, or not at all (S06-39) - [the ordinary verdict's, the Final Trial's, the family's]");
         const execute = fnSource(vote, "carryOutSentence"), card = fnSource(vote, "postVerdictCard");
         ok(execute.length > 200 && card.length > 200, "carryOutSentence or postVerdictCard is cut short - the reads below would measure nothing");
         const judged = execute.indexOf("judgedFor("), held = execute.indexOf("flagsHeldNow("), kill = execute.indexOf("killCharacter(");
@@ -11797,7 +11800,8 @@ const REGRESSIONS = [
            written. Tier 2 drives it: "the verdict's own API in a Final Trial opens the Final Trial's window". */
         const apply = fnSource(vote, "applyVerdict");
         const applyRoute = apply.search(/if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/);
-        const lock = apply.search(/verdictRunning \|\| trialProgress\(\)\.verdictApplied/), written = apply.search(/setTrialProgress\(/);
+        // E41 C10b (1.2.97): the lock is the one of both verdicts, `verdictRefusal`.
+        const lock = apply.search(/\bverdictRefusal\(\)/), written = apply.search(/setTrialProgress\(/);
         equal(JSON.stringify([applyRoute >= 0, lock > applyRoute, written > applyRoute]), JSON.stringify([true, true, true]),
             "applyVerdict does not send a Final Trial to the Final Trial's window before it reads or writes the verdict's lock "
             + "(read: the route there, the lock read after it, the record written after it)");
@@ -19098,6 +19102,44 @@ const REGRESSIONS = [
             extra: Object.keys(C.DRPG).filter(name => !Object.hasOwn(C, name) || name === "DRPG")
         }), JSON.stringify({ missing: [], other: [], extra: [] }),
         `{missing: the exports DRPG lacks; other: the keys whose value is not the export's; extra: DRPG's keys that are no export} - ${exports.length} export(s) read`);
+    }],
+    ["R1236 - one owner of the verdict (E41 C10b, E41-18; audit S17-28): verdict.mjs declares `openVerdictDialog`, `applyVerdict`, `openFinalVerdictDialog`, `applyFinalVerdict`, `verdictRefusal`, `verdictCandidates`, `verdictCardContent` and `verdictSummaryContent`, vote.mjs and mastermind.mjs declare none of them and re-export the four public ones; both opens ask `verdictCandidates` and `verdictRefusal`, both applies ask `verdictRefusal` and set `verdictRunning`; the two verdicts' cards go through `verdictCardContent` and their GM summaries through `verdictSummaryContent`", async () => {
+        /*
+         * E41 C10b, 02.11.2026; E41-18, audit S17-28. The Final Trial's verdict was a road of its own in mastermind.mjs:
+         * its window listed every student with nobody preselected and no "Nobody", it asked a GM and nothing else - no
+         * verdict running, none applied to this trial - and its card and its GM summary were spelt apart from the
+         * ordinary verdict's. Read off the source, comments stripped: what verdict.mjs, vote.mjs and mastermind.mjs
+         * declare, the names the two facades re-export from verdict.mjs, and each function's calls. The reader is shown
+         * the tree with a second `applyFinalVerdict` planted in mastermind.mjs, which it must name. Nothing is written.
+         * Red at C10a's tree: the Final Trial's two functions in mastermind.mjs, no lock, list or builder.
+         */
+        const sources = new Map(await otherSources());
+        const NAMES = ["openVerdictDialog", "applyVerdict", "openFinalVerdictDialog", "applyFinalVerdict", "verdictRefusal", "verdictCandidates",
+            "verdictCardContent", "verdictSummaryContent"];
+        const PUBLIC = { "vote.mjs": ["openVerdictDialog", "applyVerdict"], "mastermind.mjs": ["openFinalVerdictDialog", "applyFinalVerdict"] };
+        const readOf = files => {
+            const fn = name => topLevelFunction(files["verdict.mjs"], name) ?? "";
+            const reexported = file => [...files[file].matchAll(/\bexport\s*\{([^}]*)\}\s*from\s*"\.\/verdict\.mjs"/g)]
+                .flatMap(m => m[1].split(",").map(name => name.trim()).filter(Boolean));
+            const BUILT = [["postVerdictCard", /\bannounce\(verdictCardContent\(/], ["runVerdict", /\bwhisperToGms\(verdictSummaryContent\(/],
+                ["giveFinalVerdict", /\bannounce\(verdictCardContent\(/], ["giveFinalVerdict", /\bwhisperToGms\(verdictSummaryContent\(/]];
+            return {
+                missing: NAMES.filter(name => topLevelFunction(files["verdict.mjs"], name) === null),
+                elsewhere: ["vote.mjs", "mastermind.mjs"].flatMap(file => NAMES.filter(name => topLevelFunction(files[file], name) !== null).map(name => `${file}#${name}`)),
+                unexported: Object.entries(PUBLIC).flatMap(([file, names]) => names.filter(name => !reexported(file).includes(name)).map(name => `${file}#${name}`)),
+                opens: ["openVerdictDialog", "openFinalVerdictDialog"].filter(name => !(/\bverdictCandidates\(/.test(fn(name)) && /\bverdictRefusal\(\)/.test(fn(name)))),
+                applies: ["applyVerdict", "applyFinalVerdict"].filter(name => !(/\bverdictRefusal\(\)/.test(fn(name)) && /\bverdictRunning = true;/.test(fn(name)))),
+                builders: BUILT.filter(([name, re]) => !re.test(fn(name))).map(([name, re]) => `${name} ${re.source}`)
+            };
+        };
+        const real = Object.fromEntries(["verdict.mjs", "vote.mjs", "mastermind.mjs"].map(file => [file, stripComments(sources.get(file) ?? "")]));
+        must(Object.values(real).every(text => text.length > 5000), "verdict.mjs, vote.mjs or mastermind.mjs was not read - this test measured nothing");
+        const planted = { ...real, "mastermind.mjs": `${real["mastermind.mjs"]}\nexport async function applyFinalVerdict() {\n    return null;\n}\n` };
+        ok(readOf(planted).elsewhere.includes("mastermind.mjs#applyFinalVerdict"), "the reader does not name a second applyFinalVerdict planted in mastermind.mjs");
+        equal(JSON.stringify(readOf(real)), JSON.stringify({ missing: [], elsewhere: [], unexported: [], opens: [], applies: [], builders: [] }),
+            "the verdict has more than one owner, or a verdict skips the one lock, the one list or a builder (missing: what verdict.mjs does not declare; "
+            + "elsewhere: what vote.mjs or mastermind.mjs still declare; unexported: what a facade does not re-export; opens: an open without "
+            + "verdictCandidates and verdictRefusal; applies: an apply without verdictRefusal and verdictRunning; builders: a card or a summary built by hand)");
     }],
 ];
 

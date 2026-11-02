@@ -279,7 +279,7 @@ async function clearSentenceHere() {
  * The two writers are both in this file, which is why the record lives here
  * rather than with the floor: `runVoteOp`, on the primary GM, is the only thing
  * that opens a vote or produces a count, and `applyVerdict` the only thing that
- * acts on one. The Final Trial's verdict (mastermind.mjs `applyFinalVerdict`)
+ * acts on one. The Final Trial's verdict (verdict.mjs `applyFinalVerdict`)
  * closes the record too since E10 C10, without acting on the vote: a record of
  * `{ stage: "done", final: true }` that names nobody.
  * ========================================================================== */

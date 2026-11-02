@@ -758,7 +758,7 @@ export const ballotStore = defineGmStore({
  * by the reset's "trialProgress" group with the ballots; not backed up, as they are not.
  * And the Final Trial's sentence (E70 C4; the owner's Q2 answer, 27.10.2026): `finalSentenced`, the Mastermind's
  * id, under the Final verdict's `at` (`finalAt`), carried out at the trial's end (vote.mjs `executeAtExit`) - the
- * world's record says only that it waits (`sentencePending`), as it names nobody (mastermind.mjs `applyFinalVerdict`).
+ * world's record says only that it waits (`sentencePending`), as it names nobody (verdict.mjs `applyFinalVerdict`).
  * BACKED UP SINCE E70 fix p1-G2 (the review's E70P1-R10): "not backed up, as a ballot means nothing once counted" held
  * for the Blackened, not for a sentence that waits for the trial's end - a GM who moved to another browser before End
  * the trial executed nobody. In the backup and the health check now; a record that says a Final sentence waits and a

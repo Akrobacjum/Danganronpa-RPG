@@ -26,13 +26,13 @@ import { MODULE_ID, TRIAL } from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { monokumas, fillAllDespair, poolLabel } from "./despair.mjs";
-import { isDeceased, isDeadForGm } from "./chapter.mjs";
+import { isDeceased, isDeadForGm, livingStudentsForGm } from "./chapter.mjs";
 import { trialBlackenedIds, trialBlackenedActors, whenTrialReadable } from "./murder.mjs";
 import { deferredOfferStore, verdictStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
 import { announce, dialogContent, whisperToGms, primaryGmId, log, warn, error, plural } from "./utils.mjs";
-import { trialProgress, setTrialProgress, executionLines } from "./trial-progress.mjs";
+import { trialProgress, setTrialProgress, executionLines, executeAtExit } from "./trial-progress.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -67,17 +67,20 @@ export async function openVerdictDialog() {
        Level Ups, Despair and a rule the guide does not give it, with the Final Trial's flag left up
        (tier 2 "the verdict's API in a Final Trial opens the Final Trial's window", red at c494855). The
        console keeps its own line, which R321 reads; R340 reads this one. Imported when asked, as the
-       console imports it. */
-    const { inFinalTrial, openFinalVerdictDialog } = await import("./mastermind.mjs");
+       console imports it. The Final Trial's window is this file's since E41 C10b; the Mastermind's state is read from
+       mastermind.mjs by `import()`, which re-exports the window (the facade rule's named exception). */
+    const { inFinalTrial } = await import("./mastermind.mjs");
     if (inFinalTrial()) return openFinalVerdictDialog();
 
     // ONE VERDICT PER TRIAL (17.09, F2). The trial console kept this button live after
     // the verdict, and nothing here or in `applyVerdict` asked - a second press executed
     // whoever the dropdown held, refilled every Despair pool and opened a second round of
     // Level Ups. The console now disables it too; this is the boundary for every other
-    // way in.
-    if (trialProgress().verdictApplied) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Vote.verdictAlreadyApplied"));
+    // way in. Since E41 C10b the one lock of both verdicts, which also refuses while a
+    // verdict is being given on this browser (`verdictRefusal`).
+    const refused = verdictRefusal();
+    if (refused) {
+        ui.notifications.warn(game.i18n.localize(refused));
         return null;
     }
 
@@ -115,10 +118,6 @@ export async function openVerdictDialog() {
     const dead = new Set(students.filter(a => isDeceased(held.get(a.id))).map(a => a.id));
     const unfound = students.filter(a => !dead.has(a.id) && isDeadForGm(held.get(a.id)));
     const knownIds = new Set(known.map(a => a.id));
-    const deadShort = game.i18n.localize("DRPG.Chapter.deadShort");
-    const option = (a, chosen, { lockDead = false } = {}) => `<option value="${a.id}"${
-        a.id === chosen ? " selected" : ""}${lockDead && dead.has(a.id) ? " disabled" : ""}>${esc(a.name)}${
-        dead.has(a.id) ? ` - ${deadShort}` : ""}</option>`;
 
     /* THE ACCUSED, SELECTED; NOBODY BY DEFAULT (E10 C4, 1.2.71; audit S06-04). The executed
        select listed every student with the first one selected and no "nobody": the accused was
@@ -126,14 +125,17 @@ export async function openVerdictDialog() {
        first. It opens on the name the count accused now (`accusedIds`, written by `closeRound`)
        and its first option is "Nobody is executed" (value ""), which is what it opens on after a
        tie, with no majority, with nobody accused, or with an accused who is dead (Q-E10-1 (c)) -
-       the window says which. The register's Blackened are left out of "executed if wrong": a
-       table that named one of them got it right. Measured on the harness (tier 2, "the verdict
-       window opens on the accused"); at E10 C3's tree it opened on the first student. */
+       the window says which. Measured on the harness (tier 2, "the verdict window opens on the
+       accused"); at E10 C3's tree it opened on the first student.
+       NOBODY LEFT OUT (E41 C10b, 1.2.97; the owner's Q-E41-2 of 01.11.2026, "Nikt nie jest
+       pominięty"). The register's Blackened were left out of "executed if wrong" - a table that
+       named one of them got it right - so the GM's list was not every student. They are listed,
+       and a living one can be picked; the select still opens on nobody when the accused is one of
+       them, since it names who dies if the table was wrong. The list is `verdictCandidates`', the
+       Final Trial's too (tier 1 R1237, tier 2 E41-T4). */
     const accusedIds = (progress.accusedIds ?? []).filter(Boolean);
     const named = id => id === "monokuma"
         ? game.i18n.localize("DRPG.Vote.monokuma") : (game.actors.get(id)?.name ?? "?");
-    const accusedFirst = students.find(a => a.id === accusedIds[0]) ?? null;
-    const preselect = accusedFirst && !dead.has(accusedFirst.id) && !knownIds.has(accusedFirst.id) ? accusedFirst.id : "";
     const votesFor = id => (progress.accused ?? []).find(r => r?.id === id)?.n ?? 0;
     const namedLine = accusedIds.length
         ? `<p>${game.i18n.format("DRPG.Vote.namedByTable", {
@@ -150,13 +152,13 @@ export async function openVerdictDialog() {
             names: unfound.map(a => esc(a.name)).join(", ") })}</p>`
         : "";
     const executedOptions = `<option value="">${game.i18n.localize("DRPG.Vote.nobodyExecuted")}</option>${
-        students.filter(a => !knownIds.has(a.id)).map(a => option(a, preselect, { lockDead: true })).join("")}`;
+        candidateOptions(verdictCandidates(students, { accusedIds, known: knownIds, dead }))}`;
     // Without a register the right verdict executes the Blackened named here (`read`), so this
     // select may not open on a student either: on the accused, whom a right verdict names, or on
     // nobody. The dead stay choosable - the Blackened may be one of them; `applyVerdict` kills
-    // nobody twice.
+    // nobody twice. The Final Trial's rule, then: everyone choosable, the accused whoever they are.
     const blackenedOptions = `<option value="">${game.i18n.localize("DRPG.Vote.nobodyNamed")}</option>${
-        students.map(a => option(a, accusedFirst?.id ?? "")).join("")}`;
+        candidateOptions(verdictCandidates(students, { accusedIds, dead, final: true }))}`;
 
     // What the register says, stated rather than asked. Two names here is an
     // ordinary evening now: one incident, then the betrayal.
@@ -217,6 +219,32 @@ export async function openVerdictDialog() {
 
     if (!result || result === "cancel") return null;
     return applyVerdict(result);
+}
+
+/**
+ * WHO A VERDICT LISTS (E41 C10b, 1.2.97; S17-28; the owner's Q-E41-2 of 01.11.2026, "Nikt nie jest pominięty", and
+ * Q-E10-1 (c) of 08.10.2026). One list for both verdicts, pure: "Nobody" first (`id` ""), then every student of
+ * `students` in their order, the known Blackened among them; `dead` (ids) are marked. In the ordinary verdict a dead
+ * student is disabled - the GM may execute only a living one, and `read` refuses one submitted anyway - and the list
+ * opens on the first accused when they are living and not a known Blackened, else on "Nobody" (it names who dies if
+ * the table was wrong). With `final` - the Final Trial's window, and the ordinary verdict's select of the Blackened
+ * when there is no register - everyone listed can be picked and the first accused is selected whoever they are.
+ * `accusedIds` is the count's (`trialProgress().accusedIds`); an accused who is no student (Monokuma) selects nobody.
+ * Answers `[{ id, name, dead, disabled, selected }]`.
+ */
+export function verdictCandidates(students, { accusedIds = [], known = [], dead = [], final = false } = {}) {
+    const isDead = new Set(dead), isKnown = new Set(known);
+    const first = students.find(a => a.id === (accusedIds ?? []).filter(Boolean)[0]) ?? null;
+    const chosen = first && (final || (!isDead.has(first.id) && !isKnown.has(first.id))) ? first.id : "";
+    return [{ id: "", name: null, dead: false, disabled: false, selected: chosen === "" },
+        ...students.map(a => ({ id: a.id, name: a.name, dead: isDead.has(a.id), disabled: !final && isDead.has(a.id), selected: a.id === chosen }))];
+}
+
+/** The students' `<option>`s of a `verdictCandidates` list, its "Nobody" row left to the window, which words it. */
+function candidateOptions(rows) {
+    const esc = foundry.utils.escapeHTML, deadShort = game.i18n.localize("DRPG.Chapter.deadShort");
+    return rows.filter(row => row.id).map(row => `<option value="${row.id}"${row.selected ? " selected" : ""}${
+        row.disabled ? " disabled" : ""}>${esc(row.name)}${row.dead ? ` - ${deadShort}` : ""}</option>`).join("");
 }
 
 /**
@@ -318,11 +346,24 @@ async function askBlackenedRule(unfound = []) {
 }
 
 /*
- * A verdict being given on this browser (`applyVerdict`, `finishVerdict`). The record's stage alone
- * cannot tell a GM still in the verdict's windows from one whose browser was reloaded under it
+ * A verdict being given on this browser (`applyVerdict`, `finishVerdict`, and since E41 C10b
+ * `applyFinalVerdict`). The record's stage alone cannot tell a GM still in the verdict's windows from one
+ * whose browser was reloaded under it
  * (`verdictStopped`), and it closes the door to a second verdict here while the first write is on its way.
  */
 let verdictRunning = false;
+
+/**
+ * ONE LOCK FOR BOTH VERDICTS (E41 C10b, 1.2.97; S17-28). What refuses a verdict, as the key of what the GM is told:
+ * not a GM (`DRPG.Panel.gmOnly`), or a verdict being given on this browser (`verdictRunning`) or applied to this trial
+ * (`trialProgress().verdictApplied`: `DRPG.Vote.verdictAlreadyApplied`); null when nothing does. Both opens and both
+ * applies ask it - the Final Trial's asked for a GM alone until E41 C10b. It refuses more than either did, never less.
+ */
+export function verdictRefusal() {
+    if (!game.user.isGM) return "DRPG.Panel.gmOnly";
+    if (verdictRunning || trialProgress().verdictApplied) return "DRPG.Vote.verdictAlreadyApplied";
+    return null;
+}
 
 /**
  * Execute somebody, and hand out what the guide says the table has earned.
@@ -349,16 +390,18 @@ export async function applyVerdict({
        opened, with the Final Trial's flag left up (tier 2 "the verdict's own API in a Final Trial opens the
        Final Trial's window", red at 616d1e2). It opens the Final Trial's window instead, Cancel the default, and the
        arguments are not read: that verdict asks its own questions. R340 reads that this comes first. */
-    const { inFinalTrial, openFinalVerdictDialog } = await import("./mastermind.mjs");
+    const { inFinalTrial } = await import("./mastermind.mjs");
     if (inFinalTrial()) return openFinalVerdictDialog();
 
     // MARKED BEFORE ANYTHING IS ASKED (17.09, review of F2). The record used to be written
     // at the very end, after every Level Up window and the Blackened's rule had closed -
     // minutes in which the console, another GM or the API could start a second verdict.
     // Written first, the lock holds for the whole of it; the same check stands here for
-    // every caller that does not come through `openVerdictDialog`.
-    if (verdictRunning || trialProgress().verdictApplied) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Vote.verdictAlreadyApplied"));
+    // every caller that does not come through `openVerdictDialog`. The one lock of both
+    // verdicts since E41 C10b (`verdictRefusal`).
+    const refused = verdictRefusal();
+    if (refused) {
+        ui.notifications.warn(game.i18n.localize(refused));
         return null;
     }
     verdictRunning = true;
@@ -467,12 +510,12 @@ async function runVerdict(record, blackenedIds) {
     await setTrialProgress({ verdict: { ...context.record, stage: left.length ? "applying" : "done", failed } });
 
     try {
-        await whisperToGms(`
-            <h3>${game.i18n.localize("DRPG.Vote.verdictTitle")}</h3>
-            <p>${game.i18n.localize(record.correct ? "DRPG.Vote.correctSummary" : "DRPG.Vote.wrongSummary")}</p>
-            <ul>${context.lines.map(line => `<li>${line}</li>`).join("")}</ul>
-            ${left.length ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.verdictStopped", {
-                steps: stepLabels(failed.length ? failed : left) })}</p>` : ""}`);
+        await whisperToGms(verdictSummaryContent({
+            title: "DRPG.Vote.verdictTitle",
+            summary: game.i18n.localize(record.correct ? "DRPG.Vote.correctSummary" : "DRPG.Vote.wrongSummary"),
+            lines: context.lines,
+            warning: left.length ? game.i18n.format("DRPG.Vote.verdictStopped", { steps: stepLabels(failed.length ? failed : left) }) : ""
+        }));
     } catch (err) {
         error("Could not tell the GMs what the verdict did", err);
     }
@@ -568,14 +611,39 @@ export async function postVerdictCard(record) {
     const lines = executed.length
         ? [game.i18n.format(getClock().phase === "classTrial" ? "DRPG.Vote.executionPending" : "DRPG.Vote.executionNow", { names })]
         : [game.i18n.localize("DRPG.Vote.nobodyExecuted")];
-    await announce({
-        flags: { [MODULE_ID]: { verdictCard: getClock().chapter ?? null, verdictAt: record?.at ?? null } },
-        content: `<div class="drpg-evidence-card">
-            <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Vote.verdictCardTitle")}</div>
+    await announce(verdictCardContent({
+        banner: "DRPG.Vote.verdictCardTitle",
+        lines: [...lines, game.i18n.localize(record.correct ? "DRPG.Vote.verdictRight" : "DRPG.Vote.verdictWrong")],
+        flags: { [MODULE_ID]: { verdictCard: getClock().chapter ?? null, verdictAt: record?.at ?? null } }
+    }));
+}
+
+/**
+ * A VERDICT'S PUBLIC CARD (E41 C10b, 1.2.97; S17-28): the ordinary verdict's (`postVerdictCard`) and the Final
+ * Trial's (`applyFinalVerdict`), one shape - the banner `banner` (a key), each of `lines` (HTML, already in the
+ * table's words) a paragraph, `tone` "objection" for the Final Trial's red card - and `flags` when the card carries
+ * any. The words are each verdict's own, as they were. Answers `announce`'s data.
+ */
+export function verdictCardContent({ banner, lines = [], flags = null, tone = "" }) {
+    const content = `<div class="drpg-evidence-card${tone ? ` ${tone}` : ""}">
+            <div class="drpg-objection-banner">${game.i18n.localize(banner)}</div>
             ${lines.map(line => `<p>${line}</p>`).join("")}
-            <p>${game.i18n.localize(record.correct ? "DRPG.Vote.verdictRight" : "DRPG.Vote.verdictWrong")}</p>
-        </div>`
-    });
+        </div>`;
+    return flags ? { flags, content } : { content };
+}
+
+/**
+ * A VERDICT'S SUMMARY TO THE GMS (E41 C10b, 1.2.97; S17-28): the ordinary verdict's (`runVerdict`) and the Final
+ * Trial's (`applyFinalVerdict`), one shape - the title `title` (a key), the sentence `summary` (HTML), the steps'
+ * `lines` when the verdict has any (the Final Trial's has none), and a `warning` paragraph (where the verdict
+ * stopped). Answers the whisper's HTML.
+ */
+export function verdictSummaryContent({ title, summary, lines = null, warning = "" }) {
+    return `
+            <h3>${game.i18n.localize(title)}</h3>
+            <p>${summary}</p>
+            ${lines ? `<ul>${lines.map(line => `<li>${line}</li>`).join("")}</ul>` : ""}
+            ${warning ? `<p class="drpg-warning">${warning}</p>` : ""}`;
 }
 
 /*
@@ -808,4 +876,222 @@ async function promptAdvancements(actors, kind, options) {
         error("Could not open the verdict's Level Ups", err);
         return null;
     }
+}
+
+/* ==========================================================================
+ * THE FINAL TRIAL'S VERDICT (E41 C10b, 1.2.97; S17-28)
+ * --------------------------------------------------------------------------
+ * Moved here from mastermind.mjs, which re-exports both, onto the ordinary
+ * verdict's lock, list, card and summary. The Mastermind's pick, its clearing
+ * and the Final Trial's flag stay mastermind.mjs's, read by `import()` - its
+ * split is not E41's - so the static graph holds mastermind.mjs -> verdict.mjs
+ * and no edge back (R161).
+ * ========================================================================== */
+
+/**
+ * The Final Trial's verdict.
+ *
+ * Deliberately not `applyVerdict`: the guide's consequences here
+ * are a different shape entirely. A normal wrong guess executes an innocent
+ * and pays the Monokumas; a wrong Final Trial guess does neither - it reveals
+ * that the game was never what it looked like, and nobody new dies for it.
+ *
+ * "Correct" branches on the Mastermind being alive to answer for it - if they
+ * already died earlier in the season, the guide's own text is the reveal
+ * branch regardless of who the table names: "W wypadku gdy ten nie żyje -
+ * zdemaskować, że gra w którą grają właściwie już się nie toczy."
+ */
+export async function openFinalVerdictDialog() {
+    // ONE LOCK (E41 C10b, 1.2.97; S17-28): a GM, no verdict running here, none applied to this trial (`verdictRefusal`).
+    const refused = verdictRefusal();
+    if (refused) {
+        ui.notifications.warn(game.i18n.localize(refused));
+        return null;
+    }
+
+    const { mastermindActor } = await import("./mastermind.mjs");
+    const mastermind = mastermindActor();
+    if (!mastermind) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Mastermind.noneSet"));
+        return null;
+    }
+
+    const alreadyDead = isDeadForGm(mastermind);
+    /* EVERY STUDENT, "NOBODY" FIRST, ON THE ACCUSED (E41 C10b, 1.2.97; S17-28; the owner's Q-E41-2 of 01.11.2026,
+       "Nikt nie jest pominięty"). The select listed every student with the first one selected and no "Nobody", so a GM
+       who pressed a verdict without reading it recorded whoever sorted first as the accused. It is the ordinary
+       verdict's list now (`verdictCandidates`): "Nobody named" first, then every student, the known Blackened among
+       them, each one choosable - the window is the GM's alone, and the guide's Final Trial asks only whether the vote
+       named the Mastermind - the dead marked as the table knows them (as the ordinary verdict reads them, after the
+       audit of every student), and the count's first accused selected, dead or alive. */
+    const students = studentActors();
+    await judgedFor(...students.map(a => a.id));
+    const dead = new Set(students.filter(a => isDeceased(flagsHeldNow(a))).map(a => a.id));
+    const accusedIds = (trialProgress().accusedIds ?? []).filter(Boolean);
+    const options = `<option value="">${game.i18n.localize("DRPG.Vote.nobodyNamed")}</option>${
+        candidateOptions(verdictCandidates(students, { accusedIds, dead, final: true }))}`;
+
+    const result = await DialogV2.wait({
+        window: { title: game.i18n.localize("DRPG.Mastermind.verdictTitle") },
+        classes: ["drpg-panel"],
+        content: dialogContent(`<form>
+            <p>${game.i18n.localize("DRPG.Mastermind.verdictIntro")}</p>
+            ${alreadyDead
+                ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Mastermind.alreadyDeadNote")}</p>`
+                : ""}
+            <label>${game.i18n.localize("DRPG.Mastermind.whoWasAccused")}
+                <select name="accused">${options}</select></label>
+            <p class="notes">${game.i18n.localize("DRPG.Mastermind.verdictNote")}</p>
+        </form>`),
+        /*
+         * CANCEL FIRST, AND CANCEL THE DEFAULT (MM-01, Dawid 17.09).
+         *
+         * Both verdicts are irreversible and public - the Mastermind dies, the
+         * banner goes up, the pick is cleared - and the one that answered Enter
+         * or Space the moment the window opened was "They named the Mastermind".
+         * Enter presses the first submit button in DOM order and `default` only
+         * decides the focus, so Cancel has to be both. The two verdicts stay one
+         * click each; the ordinary trial verdict (G-31) kept defaulting to the
+         * likely outcome until E10 C4, which gave it Cancel first and default too.
+         */
+        buttons: [
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true },
+            {
+                action: "correct", label: game.i18n.localize("DRPG.Mastermind.correctlyNamed"),
+                disabled: alreadyDead,
+                callback: (e, b, d) => ({
+                    correct: true, accusedId: d.element.querySelector("[name=accused]").value
+                })
+            },
+            {
+                action: "wrong", label: game.i18n.localize("DRPG.Mastermind.notCorrectlyNamed"),
+                callback: (e, b, d) => ({
+                    correct: false, accusedId: d.element.querySelector("[name=accused]").value
+                })
+            }
+        ],
+        rejectClose: false
+    });
+
+    if (!result || result === "cancel") return null;
+    return applyFinalVerdict({ ...result, alreadyDead });
+}
+
+export async function applyFinalVerdict({ correct, accusedId, alreadyDead = null } = {}) {
+    /* ONE LOCK, AND HELD WHILE IT GIVES (E41 C10b, 1.2.97; S17-28). This asked for a GM and nothing else: a second Final
+       verdict from the API, once a GM had picked the Mastermind again, wrote the record and the sentence a second time
+       and posted a second banner, and one asked while the first was still being given ran beside it. It asks the
+       ordinary verdict's lock (`verdictRefusal`) and holds `verdictRunning` until it is done, its Level Up window
+       included. */
+    const refused = verdictRefusal();
+    if (refused) {
+        ui.notifications.warn(game.i18n.localize(refused));
+        return null;
+    }
+    verdictRunning = true;
+    try {
+        return await giveFinalVerdict({ correct, accusedId, alreadyDead });
+    } finally {
+        verdictRunning = false;
+    }
+}
+
+/** `applyFinalVerdict`'s writes, inside its lock. */
+async function giveFinalVerdict({ correct, accusedId, alreadyDead }) {
+    const { mastermindActor, clearMastermind, setFinalTrial } = await import("./mastermind.mjs");
+    const mastermind = mastermindActor();
+    if (!mastermind) return null;
+    const dead = alreadyDead ?? isDeadForGm(mastermind);
+    const accused = accusedId ? game.actors.get(accusedId) : null;
+
+    const executed = correct && !dead;
+
+    /* THE MASTERMIND DIES WHEN THE TRIAL ENDS, AS ANY CONVICT (E70 C4, 28.10.2026; DC36, the plan's point (g)).
+       This killed the Mastermind in the verdict (E11 fix r2-H1 gave the death the trial's phase, so no walk past
+       the body found it). The sentence waits now for the trial's end (trial-progress.mjs `executeAtExit`, which keeps that
+       phase), and lives in the GMs' store, never in the world's record, which every console reads and which
+       names nobody (the owner's Q2 answer, 27.10.2026; mastermind.mjs's header): `finalSentenced` under the verdict's
+       `at` (`finalAt`). A verdict given after End the trial is carried out at once, below. */
+    const at = Date.now();
+    if (executed) {
+        try {
+            await verdictStore.whenHydrated();
+            await verdictStore.patch(RECORD, { finalAt: at, finalSentenced: [mastermind.id] });
+        } catch (err) {
+            error("Could not keep the Final Trial's sentence for the trial's end", err);
+        }
+    }
+
+    // ONE CARD, ONE SUMMARY (E41 C10b; S17-28): the ordinary verdict's builders, with the Mastermind's words.
+    await announce(verdictCardContent({
+        banner: executed ? "DRPG.Mastermind.defeatedBanner" : "DRPG.Mastermind.revealedBanner",
+        lines: [game.i18n.localize(executed ? "DRPG.Mastermind.defeatedText" : "DRPG.Mastermind.revealedText")],
+        tone: "objection"
+    }));
+
+    await whisperToGms(verdictSummaryContent({
+        title: "DRPG.Mastermind.verdictTitle",
+        summary: game.i18n.format("DRPG.Mastermind.verdictSummary", {
+            mastermind: foundry.utils.escapeHTML(mastermind.name),
+            accused: foundry.utils.escapeHTML(accused?.name ?? "-"),
+            outcome: game.i18n.localize(executed ? "DRPG.Mastermind.outcomeExecuted"
+                : dead ? "DRPG.Mastermind.outcomeAlreadyDead" : "DRPG.Mastermind.outcomeEscaped")
+        })
+    }));
+
+    /*
+     * THE TRIAL'S RECORD KNOWS THE FINAL VERDICT, AND THE FLAG COMES DOWN WITH IT (E10 C10,
+     * 1.2.71; audit S06-16). Neither was written: after the Mastermind's verdict the console still
+     * offered the ordinary one as the next step, and "This trial is the Final Trial." stayed on it -
+     * into the next season's first trial as well, since a reset's clock step merged over the flag
+     * (season-setup.mjs `wipeSeason`). Written after the sentence and the cards, and before the Level
+     * Ups that waited, whose windows can stay open for minutes: `verdictApplied` closes the
+     * ordinary verdict's button for that time too. The record names nobody - no `executedIds`, no
+     * `correct` - because `trialProgress` is a world setting every client reads and the
+     * Mastermind's identity is kept on GM browsers only (mastermind.mjs's header); the card above says
+     * what the table learns. Its `done` is empty, so the Daily Life panel's "after the verdict"
+     * card, which waits for a chapter verdict's "card" step (events.mjs `afterVerdictCard`), does
+     * not retell a Final Trial as a chapter's verdict (read in the code).
+     */
+    try {
+        await setTrialProgress({
+            verdictApplied: true,
+            verdict: { stage: "done", final: true, by: game.user.id, at, done: [], failed: [], sentencePending: executed }
+        });
+        await setFinalTrial(false);
+    } catch (err) {
+        error("Could not record the Final Trial's verdict in the trial's progress", err);
+    }
+    // Given after End the trial: no exit is left to carry the sentence out, so it is carried out now (E70 C4).
+    if (executed && getClock().phase !== "classTrial") {
+        try {
+            await executeAtExit();
+        } catch (err) {
+            error("Could not carry out the Final Trial's sentence", err);
+        }
+    }
+
+    /*
+     * THE LEVEL UPS THAT WAITED FOR THE CLASS ARE PICKED NOW (E05 C11, 27.09.2026; the
+     * owner's Q7, option b). A Reinforced Level Up left by a wrong verdict waits for the
+     * class's next correct one, and a season can end on the Final Trial before there is one:
+     * the season's secrets are out here anyway, and a table that keeps advancement across
+     * seasons would otherwise lose it. Only what waited - the Final Trial hands out nothing
+     * of its own - and never to a Mastermind sentenced to die (E70 C4: alive until the trial ends, whose
+     * kill drops their row).
+     */
+    try {
+        const { runAdvancementBatch } = await import("./level-up.mjs");
+        await runAdvancementBatch(livingStudentsForGm().filter(actor => !(executed && actor.id === mastermind.id)), null);
+    } catch (err) {
+        error("Could not open the Level Ups that waited for the Final Trial", err);
+    }
+
+    // The season is over either way - a Final Trial is the guide's ending, not
+    // a chapter like the others. Clearing the pick here rather than leaving it
+    // set is what makes `mastermindActor()` honestly answer "nobody" afterwards.
+    await clearMastermind();
+
+    log(`Final Trial verdict applied: ${executed ? "executed" : "revealed, not executed"}.`);
+    return { executed, dead };
 }

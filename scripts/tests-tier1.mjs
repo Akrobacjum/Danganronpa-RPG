@@ -6195,7 +6195,8 @@ const INVARIANTS = [
         // The Final Trial's verdict is not driven here or in tier 2 (a Mastermind, a public banner,
         // the pick cleared): its call is read. Since E70 C4 the Mastermind dies when the trial ends, not in the
         // verdict, so the batch leaves out a Mastermind it sentenced, whose kill drops their row (R1033).
-        const finalVerdict = bodyOf(stripComments(new Map(await otherSources()).get("mastermind.mjs") ?? ""), "export async function applyFinalVerdict");
+        // E41 C10b (1.2.97): the Final Trial's verdict is verdict.mjs's; its writes are `giveFinalVerdict`'s.
+        const finalVerdict = bodyOf(stripComments(new Map(await otherSources()).get("verdict.mjs") ?? ""), "async function giveFinalVerdict");
         const sentence = finalVerdict.indexOf("finalSentenced: [mastermind.id]"),
             batch = finalVerdict.indexOf("runAdvancementBatch(livingStudentsForGm().filter(actor => !(executed && actor.id === mastermind.id)), null)");
         ok(sentence > 0 && batch > sentence, "the Final Trial's verdict does not hand out what waited for the class (Q7), or hands it to the Mastermind it sentenced");
@@ -31617,6 +31618,33 @@ const INVARIANTS = [
         }), JSON.stringify(EXPECTED), "{frozen: DRAW_STEPS is frozen; steps: each [name, frozen, answers through resultFrom alone, reaches Math.random]; "
             + "resultFrom: it builds the room's and the pool's entries; shuffles: the two `sort(() => ctx.rng() - 0.5)`; mathRandom: randomItem "
             + "calls Math.random itself; roads: each [road, the steps run, the answer's name, category, tier, goal, roles, substitute, fromTable]}");
+    }],
+    ["R1237 - who a verdict lists (E41 C10b, E41-18; the owner's Q-E41-2, Q-E10-1 (c)): `verdictCandidates(students, { accusedIds, known, dead, final })` puts \"Nobody\" first and then every student, the known Blackened among them, in both verdicts; the ordinary verdict marks the dead, disables them and opens on the first accused only when they are living and not a known Blackened; the Final Trial's enables everyone listed, marks the dead and opens on the first accused whoever they are", async () => {
+        /*
+         * E41 C10b, 02.11.2026; E41-18, audit S17-28; the owner's answer to Q-E41-2 of 01.11.2026 ("Nikt nie jest
+         * pominięty": nobody is left out of either list). The ordinary verdict's executed select left the register's
+         * Blackened out (`!knownIds.has`) and the Final Trial's listed every student and opened on the first. Driven on
+         * five students that are no actors: s3 a known Blackened, alive; s5 a known Blackened, dead; s4 dead. Read: each
+         * row's id, whether it is marked dead, disabled and selected, for each accused in turn. Pure: nothing is read
+         * from the world or written. Red at C10a's tree: verdict.mjs has no verdictCandidates.
+         */
+        const V = await import("./verdict.mjs");
+        must(typeof V.verdictCandidates === "function", "verdict.mjs has no verdictCandidates - each verdict builds its own list");
+        const students = ["s1", "s2", "s3", "s4", "s5"].map(id => ({ id: `R1237${id}`, name: id }));
+        const id = n => `R1237s${n}`;
+        const known = new Set([id(3), id(5)]), dead = new Set([id(4), id(5)]);
+        const rowsOf = (accused, final) => V.verdictCandidates(students, { accusedIds: accused, known, dead, final })
+            .map(row => [row.id, row.dead, row.disabled, row.selected]);
+        const want = (final, chosen) => [["", false, false, chosen === ""],
+            ...students.map(s => [s.id, dead.has(s.id), !final && dead.has(s.id), s.id === chosen])];
+        const ordinary = [[[id(2)], id(2)], [[id(1)], id(1)], [[id(3)], ""], [[id(4)], ""], [[id(5)], ""], [[], ""], [["monokuma"], ""]];
+        const final = [[[id(2)], id(2)], [[id(3)], id(3)], [[id(4)], id(4)], [[id(5)], id(5)], [[], ""], [["monokuma", id(2)], ""]];
+        equal(JSON.stringify([ordinary.map(([accused]) => rowsOf(accused, false)), final.map(([accused]) => rowsOf(accused, true))]),
+            JSON.stringify([ordinary.map(([, chosen]) => want(false, chosen)), final.map(([, chosen]) => want(true, chosen))]),
+            "a verdict's list leaves somebody out, or marks, disables or preselects the wrong student (per case [id, dead, disabled, selected]; "
+            + "ordinary: accused s2, s1, s3, s4, s5, nobody, Monokuma; Final: accused s2, s3, s4, s5, nobody, Monokuma before s2)");
+        equal(JSON.stringify([[...known], [...dead], students.map(s => s.id)]), JSON.stringify([[id(3), id(5)], [id(4), id(5)], students.map(s => s.id)]),
+            "verdictCandidates changed what it was handed");
     }],
 ];
 

@@ -23,22 +23,27 @@
  *                         reinforced by its own config entry
  *   the Final Trial       the SAME floor, Present/OBJECTION and vote as any
  *                         other Class Trial (Stage 9) - only the verdict's
- *                         consequences differ, so only the verdict is new here
+ *                         consequences differ, so only the verdict is new; it
+ *                         is verdict.mjs's since E41 C10b, re-exported here
  */
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, myMastermindLair, sameSeason } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
-import { isDeadForGm, livingStudentsForGm } from "./chapter.mjs";
 import { remnantsOn, remnantData } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 // No cycle: walked 27.09.2026, the 16 modules assignments.mjs reaches through its
 // static imports do not include this file.
 import { feedsNobody } from "./assignments.mjs";
-import { announce, dialogContent, whisperToGms, ownerOf, primaryGmId, isPrimaryGm, log, error, wholeNumber } from "./utils.mjs";
-import { mastermindStore, doorCopy, mastermindUndecided, verdictStore } from "./gm-stores.mjs";
+import { announce, dialogContent, ownerOf, primaryGmId, isPrimaryGm, log, error, wholeNumber } from "./utils.mjs";
+import { mastermindStore, doorCopy, mastermindUndecided } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
+// E41 C10b (1.2.97): the Final Trial's verdict is verdict.mjs's, on the ordinary verdict's lock, list, card and summary;
+// re-exported here for every importer, and imported for the Mastermind window's button. verdict.mjs reads this file by
+// `import()` alone, so the static graph has no cycle (R161).
+import { openFinalVerdictDialog } from "./verdict.mjs";
+export { openFinalVerdictDialog, applyFinalVerdict } from "./verdict.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -802,181 +807,6 @@ export async function setFinalTrial(value) {
     return setClock({ finalTrial: Boolean(value) });
 }
 
-/**
- * The Final Trial's verdict.
- *
- * Deliberately not `vote.mjs`'s `applyVerdict`: the guide's consequences here
- * are a different shape entirely. A normal wrong guess executes an innocent
- * and pays the Monokumas; a wrong Final Trial guess does neither - it reveals
- * that the game was never what it looked like, and nobody new dies for it.
- *
- * "Correct" branches on the Mastermind being alive to answer for it - if they
- * already died earlier in the season, the guide's own text is the reveal
- * branch regardless of who the table names: "W wypadku gdy ten nie żyje -
- * zdemaskować, że gra w którą grają właściwie już się nie toczy."
- */
-export async function openFinalVerdictDialog() {
-    if (!game.user.isGM) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
-        return null;
-    }
-
-    const mastermind = mastermindActor();
-    if (!mastermind) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Mastermind.noneSet"));
-        return null;
-    }
-
-    const alreadyDead = isDeadForGm(mastermind);
-    const students = studentActors();
-    const options = students
-        .map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}</option>`).join("");
-
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Mastermind.verdictTitle") },
-        classes: ["drpg-panel"],
-        content: dialogContent(`<form>
-            <p>${game.i18n.localize("DRPG.Mastermind.verdictIntro")}</p>
-            ${alreadyDead
-                ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Mastermind.alreadyDeadNote")}</p>`
-                : ""}
-            <label>${game.i18n.localize("DRPG.Mastermind.whoWasAccused")}
-                <select name="accused">${options}</select></label>
-            <p class="notes">${game.i18n.localize("DRPG.Mastermind.verdictNote")}</p>
-        </form>`),
-        /*
-         * CANCEL FIRST, AND CANCEL THE DEFAULT (MM-01, Dawid 17.09).
-         *
-         * Both verdicts are irreversible and public - the Mastermind dies, the
-         * banner goes up, the pick is cleared - and the one that answered Enter
-         * or Space the moment the window opened was "They named the Mastermind".
-         * Enter presses the first submit button in DOM order and `default` only
-         * decides the focus, so Cancel has to be both. The two verdicts stay one
-         * click each; the ordinary trial verdict (G-31, vote.mjs) keeps defaulting
-         * to the likely outcome, because a GM meets that window every chapter.
-         */
-        buttons: [
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true },
-            {
-                action: "correct", label: game.i18n.localize("DRPG.Mastermind.correctlyNamed"),
-                disabled: alreadyDead,
-                callback: (e, b, d) => ({
-                    correct: true, accusedId: d.element.querySelector("[name=accused]").value
-                })
-            },
-            {
-                action: "wrong", label: game.i18n.localize("DRPG.Mastermind.notCorrectlyNamed"),
-                callback: (e, b, d) => ({
-                    correct: false, accusedId: d.element.querySelector("[name=accused]").value
-                })
-            }
-        ],
-        rejectClose: false
-    });
-
-    if (!result || result === "cancel") return null;
-    return applyFinalVerdict({ ...result, alreadyDead });
-}
-
-export async function applyFinalVerdict({ correct, accusedId, alreadyDead = null } = {}) {
-    if (!game.user.isGM) return null;
-
-    const mastermind = mastermindActor();
-    if (!mastermind) return null;
-    const dead = alreadyDead ?? isDeadForGm(mastermind);
-    const accused = accusedId ? game.actors.get(accusedId) : null;
-
-    const executed = correct && !dead;
-
-    /* THE MASTERMIND DIES WHEN THE TRIAL ENDS, AS ANY CONVICT (E70 C4, 28.10.2026; DC36, the plan's point (g)).
-       This killed the Mastermind in the verdict (E11 fix r2-H1 gave the death the trial's phase, so no walk past
-       the body found it). The sentence waits now for the trial's end (vote.mjs `executeAtExit`, which keeps that
-       phase), and lives in the GMs' store, never in the world's record, which every console reads and which
-       names nobody (the owner's Q2 answer, 27.10.2026; this file's header): `finalSentenced` under the verdict's
-       `at` (`finalAt`). A verdict given after End the trial is carried out at once, below. */
-    const at = Date.now();
-    if (executed) {
-        try {
-            await verdictStore.whenHydrated();
-            await verdictStore.patch(RECORD, { finalAt: at, finalSentenced: [mastermind.id] });
-        } catch (err) {
-            error("Could not keep the Final Trial's sentence for the trial's end", err);
-        }
-    }
-
-    await announce({
-        content: `<div class="drpg-evidence-card objection">
-            <div class="drpg-objection-banner">${game.i18n.localize(
-                executed ? "DRPG.Mastermind.defeatedBanner" : "DRPG.Mastermind.revealedBanner")}</div>
-            <p>${game.i18n.localize(
-                executed ? "DRPG.Mastermind.defeatedText" : "DRPG.Mastermind.revealedText")}</p>
-        </div>`
-    });
-
-    await whisperToGms(`
-        <h3>${game.i18n.localize("DRPG.Mastermind.verdictTitle")}</h3>
-        <p>${game.i18n.format("DRPG.Mastermind.verdictSummary", {
-            mastermind: foundry.utils.escapeHTML(mastermind.name),
-            accused: foundry.utils.escapeHTML(accused?.name ?? "-"),
-            outcome: game.i18n.localize(executed ? "DRPG.Mastermind.outcomeExecuted"
-                : dead ? "DRPG.Mastermind.outcomeAlreadyDead" : "DRPG.Mastermind.outcomeEscaped")
-        })}</p>`);
-
-    /*
-     * THE TRIAL'S RECORD KNOWS THE FINAL VERDICT, AND THE FLAG COMES DOWN WITH IT (E10 C10,
-     * 1.2.71; audit S06-16). Neither was written: after the Mastermind's verdict the console still
-     * offered the ordinary one as the next step, and "This trial is the Final Trial." stayed on it -
-     * into the next season's first trial as well, since a reset's clock step merged over the flag
-     * (season-setup.mjs `wipeSeason`). Written after the sentence and the cards, and before the Level
-     * Ups that waited, whose windows can stay open for minutes: `verdictApplied` closes the
-     * ordinary verdict's button for that time too. The record names nobody - no `executedIds`, no
-     * `correct` - because `trialProgress` is a world setting every client reads and the
-     * Mastermind's identity is kept on GM browsers only (this file's header); the card above says
-     * what the table learns. Its `done` is empty, so the Daily Life panel's "after the verdict"
-     * card, which waits for a chapter verdict's "card" step (events.mjs `afterVerdictCard`), does
-     * not retell a Final Trial as a chapter's verdict (read in the code).
-     */
-    try {
-        const { setTrialProgress } = await import("./vote.mjs");
-        await setTrialProgress({
-            verdictApplied: true,
-            verdict: { stage: "done", final: true, by: game.user.id, at, done: [], failed: [], sentencePending: executed }
-        });
-        await setFinalTrial(false);
-    } catch (err) {
-        error("Could not record the Final Trial's verdict in the trial's progress", err);
-    }
-    // Given after End the trial: no exit is left to carry the sentence out, so it is carried out now (E70 C4).
-    if (executed && getClock().phase !== "classTrial") {
-        try {
-            const { executeAtExit } = await import("./vote.mjs");
-            await executeAtExit();
-        } catch (err) {
-            error("Could not carry out the Final Trial's sentence", err);
-        }
-    }
-
-    /*
-     * THE LEVEL UPS THAT WAITED FOR THE CLASS ARE PICKED NOW (E05 C11, 27.09.2026; the
-     * owner's Q7, option b). A Reinforced Level Up left by a wrong verdict waits for the
-     * class's next correct one, and a season can end on the Final Trial before there is one:
-     * the season's secrets are out here anyway, and a table that keeps advancement across
-     * seasons would otherwise lose it. Only what waited - the Final Trial hands out nothing
-     * of its own - and never to a Mastermind sentenced to die (E70 C4: alive until the trial ends, whose
-     * kill drops their row).
-     */
-    try {
-        const { runAdvancementBatch } = await import("./level-up.mjs");
-        await runAdvancementBatch(livingStudentsForGm().filter(actor => !(executed && actor.id === mastermind.id)), null);
-    } catch (err) {
-        error("Could not open the Level Ups that waited for the Final Trial", err);
-    }
-
-    // The season is over either way - a Final Trial is the guide's ending, not
-    // a chapter like the others. Clearing the pick here rather than leaving it
-    // set is what makes `mastermindActor()` honestly answer "nobody" afterwards.
-    await clearMastermind();
-
-    log(`Final Trial verdict applied: ${executed ? "executed" : "revealed, not executed"}.`);
-    return { executed, dead };
-}
+// The Final Trial's verdict (`openFinalVerdictDialog`, `applyFinalVerdict`) is verdict.mjs's since E41 C10b, on the
+// ordinary verdict's lock, list, card and summary; it reads `mastermindActor`, `clearMastermind` and `setFinalTrial`
+// here by `import()`, and this file re-exports it under its imports.

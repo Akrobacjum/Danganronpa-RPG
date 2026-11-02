@@ -147,7 +147,8 @@ export const SCREENS = Object.freeze([
     row("messenger", "the messenger", "window", "both", ["scripts/messenger-app.mjs:*", "scripts/messenger.mjs:*"]),
     row("gm-stores", "the GM stores: back up, restore, the health check", "window", "gm", ["scripts/gm-stores.mjs:*"]),
     row("gm-team", "the GM team panel (Despair Flow)", "window", "gm", ["scripts/gm-team-dialog.mjs:*"]),
-    row("mastermind", "the Mastermind and the Final Trial", "window", "both", ["scripts/mastermind.mjs:*"]),
+    row("mastermind", "the Mastermind and the Final Trial", "window", "both", ["scripts/mastermind.mjs:*", "scripts/verdict.mjs:openFinalVerdictDialog",
+        "scripts/verdict.mjs:applyFinalVerdict", "scripts/verdict.mjs:giveFinalVerdict"]),
     row("diagnostics", "the GM's reports (diagnostics and the map's checks)", "window", "gm", ["scripts/diagnostics.mjs:*", "scripts/fog-diagnostics.mjs:*"]),
     row("sheet", "the character sheet", "window", "both", ["scripts/sheet.mjs:*", "scripts/sheet-audit.mjs:*", "scripts/anonymity.mjs:*"]),
     // E41 C7b (1.2.97): the stopwatch and the clock it shows, in their own file.

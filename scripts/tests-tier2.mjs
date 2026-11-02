@@ -2641,6 +2641,68 @@ async function verdictWindow(record, act) {
 }
 
 /**
+ * A verdict's fixture on this GM (E41 C10b): the clock's phase the Class Trial's and the Final Trial's flag `final`
+ * (written raw, so no phase write runs its roads, and a correct Final verdict's sentence waits for the trial's end),
+ * `mastermind` picked through the store, `known` a known Blackened of this chapter (a register row naming no victim),
+ * `dead` a student the table knows dead (the flag), and the trial's record over `withVerdictOpen`'s with `record`
+ * merged in. Every window is answered by `answer(cfg)` and kept in `windows`; `fresh()` is the messages posted since.
+ * The flag of the dead, the register row, the Final Trial's sentence in the GMs' store, the pick, the messages posted
+ * and the clock are put back. Answers what `run` answered.
+ */
+async function withVerdictFixture({ mastermind = null, final = false, known = null, dead = null, record = {}, answer = () => null }, run) {
+    const V = await import("./vote.mjs");
+    const { mastermindStore, blackenedStore, verdictStore } = await import("./gm-stores.mjs");
+    const { RECORD } = await import("./gm-store.mjs");
+    const D = foundry.applications.api.DialogV2, ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+    const clock = foundry.utils.deepClone(getClock());
+    const pickBefore = mastermindStore.record()?.actorId ?? null;
+    await verdictStore.whenHydrated();
+    const kept = foundry.utils.deepClone(verdictStore.record());
+    const before = new Set(game.messages.map(m => m.id));
+    const windows = [];
+    must(!dead || !dead._source.flags?.[MODULE_ID]?.[FLAGS.deceased], `${dead?.name} is dead already - the fixture would take a real death back`);
+    must(!known || !blackenedStore.has(known.id), `${known?.name} has a register row already - the fixture would drop it`);
+    D.wait = async cfg => { windows.push(cfg); return answer(cfg); };
+    try {
+        await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, phase: "classTrial", finalTrial: final });
+        if (mastermind) await mastermindStore.patch("record", { actorId: mastermind.id, room: null });
+        if (known) await blackenedStore.patch(known.id, { chapter: clock.chapter, epoch: seasonEpoch(), at: Date.now(), victims: [] });
+        if (dead) await dead.setFlag(MODULE_ID, FLAGS.deceased, { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay });
+        await settle();
+        return await withVerdictOpen(async () => {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), ...record, verdictApplied: false });
+            return run({ windows, fresh: () => game.messages.filter(m => !before.has(m.id)) });
+        });
+    } finally {
+        if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+        if (dead?.getFlag(MODULE_ID, FLAGS.deceased)) await dead.unsetFlag(MODULE_ID, FLAGS.deceased);
+        if (known && blackenedStore.has(known.id)) await blackenedStore.drop(known.id);
+        await verdictStore.patch(RECORD, { finalAt: kept.finalAt ?? null, finalSentenced: kept.finalSentenced ?? [] });
+        if ((mastermindStore.record()?.actorId ?? null) !== pickBefore) await mastermindStore.patch("record", { actorId: pickBefore });
+        for (const m of game.messages.filter(m => !before.has(m.id))) {
+            try { await m.delete(); } catch { /* already gone */ }
+        }
+        await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+        await settle();
+    }
+}
+
+/**
+ * Students for a verdict's case (E41 C10b): `n` living students, none of them listed first by `studentActors()` - a
+ * window that opens on its first student cannot pass for one that opens on the accused - nor a known Blackened.
+ */
+async function verdictCast(n) {
+    const { studentActors } = await import("./monokuma.mjs");
+    const { trialBlackenedActors } = await import("./murder.mjs");
+    needs(world.atLeast("livingStudents", n + 1), `this case casts ${n} students besides the one listed first`);
+    const first = studentActors()[0]?.id;
+    const known = new Set(trialBlackenedActors().map(a => a.id));
+    const pool = cast(n + 1).filter(a => a.id !== first && !known.has(a.id));
+    must(pool.length >= n, `${pool.length} living student(s) neither listed first nor a known Blackened - the case needs ${n}`);
+    return pool.slice(0, n);
+}
+
+/**
  * A safeword press measured on this GM's browser, and put back (E06 C9). `act(fresh)` presses;
  * `fresh()` is the safeword cards posted since; `read(cards)` turns them into plain readings
  * before they are deleted. The pause, the popups the press raised and `player`'s entry in the
@@ -79600,6 +79662,223 @@ const SCENARIOS = [
         }), "{asked: for each road with a second GM the primary [what was sent to it, the value here before it judged, the value after, what "
             + "the call answered]; here: the same roads with no other GM [the value, the answer], and the packets sent; player: a player's ask of "
             + "each row [what was told, nothing moved]} - a GM that is not the primary wrote Despair or the overflow itself, or a player's ask moved either");
+    }],
+    ["E41-T1 - the Final Trial's window lists every student and opens on the accused (E41 C10b, E41-18; audit S17-28, the owner's Q-E41-2): over a count that accused s2, with s3 a known Blackened and s4 dead, its select opens on s2 with \"Nobody named\" first, lists s3 choosable and s4 \" - dead\" and choosable, and Cancel is its first button and its default; over [s4] it opens on s4, over [s3] on s3", async () => {
+        /*
+         * E41 C10b, 02.11.2026; E41-18, audit S17-28; the owner's answer to Q-E41-2 of 01.11.2026 ("Nikt nie jest
+         * pominięty"). The Final Trial's window (`game.drpg.finalVerdictDialog`) listed every student with the first one
+         * selected and no "Nobody": a GM who pressed a verdict without reading the select recorded whoever sorted first as
+         * the accused. Drawn as content on this GM over a Final Trial (a Mastermind through the store, the flag up), a
+         * register row naming s3 and s4's death flag; each window answered as Cancel answers it, so nothing is decided.
+         * Read: the select's value, its first option, whether every student is listed, s3's option enabled, s4's words and
+         * whether it is disabled, the first button and the defaults. Red at C10a's tree: the select opened on the first
+         * student and its first option was one.
+         */
+        const [s2, s3, s4] = await verdictCast(3);
+        const [mastermind] = cast(1);
+        const V = await import("./vote.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const title = game.i18n.localize("DRPG.Mastermind.verdictTitle");
+        const read = cfg => {
+            // The window's content is the element `dialogContent` built, or its markup.
+            const el = cfg?.content instanceof HTMLElement ? cfg.content : document.createElement("div");
+            if (!(cfg?.content instanceof HTMLElement)) el.innerHTML = String(cfg?.content ?? "");
+            const select = el.querySelector('select[name="accused"]');
+            const option = id => [...(select?.options ?? [])].find(o => o.value === id) ?? null;
+            const buttons = cfg?.buttons ?? [];
+            return [select?.value ?? null, select?.options[0] ? [select.options[0].value, select.options[0].textContent] : null,
+                studentActors().every(a => option(a.id)), option(s3.id) ? !option(s3.id).disabled : null,
+                option(s4.id) ? [option(s4.id).textContent, option(s4.id).disabled] : null,
+                [buttons[0]?.action ?? null, buttons.filter(b => b.default).map(b => b.action)]];
+        };
+        const seen = await withVerdictFixture({ mastermind, final: true, known: s3, dead: s4 }, async ({ windows }) => {
+            const out = [];
+            for (const accused of [s2, s4, s3]) {
+                await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), accusedIds: [accused.id] });
+                const from = windows.length;
+                await game.drpg.finalVerdictDialog();
+                const cfg = windows.slice(from).find(c => c?.window?.title === title);
+                out.push(cfg ? read(cfg) : null);
+            }
+            return out;
+        });
+        const want = id => [id, ["", game.i18n.localize("DRPG.Vote.nobodyNamed")], true, true,
+            [`${s4.name} - ${game.i18n.localize("DRPG.Chapter.deadShort")}`, false], ["cancel", ["cancel"]]];
+        equal(stableJson(seen), stableJson([want(s2.id), want(s4.id), want(s3.id)]),
+            "the Final Trial's window did not open on the accused, leaves somebody out, does not let every listed student be picked, does not mark the dead, "
+            + "or does not put Cancel first and default (per accused s2, s4, s3: the select's value, its first option, every student listed, s3 choosable, "
+            + "s4's words and disabled, the first button and the defaults)");
+    }],
+
+    ["E41-T2 - one lock for both verdicts (E41 C10b, E41-18; audit S17-28): a Final verdict applied, then the Mastermind picked again and a second Final verdict asked through `game.drpg` - refused with `DRPG.Vote.verdictAlreadyApplied`, no second card, the record and the pick as the first left them; while a Final verdict's card is on its way, before its record is written, a second Final verdict, the ordinary verdict's API and its window are refused the same way; and outside a Final Trial the ordinary verdict's lock as before", async () => {
+        /*
+         * E41 C10b, 02.11.2026; E41-18, audit S17-28. The Final Trial's verdict asked only for a GM: once a GM picked
+         * the Mastermind again (the Mastermind window, the store), `game.drpg.applyFinalVerdict` gave a second Final
+         * verdict - a second banner, the record and the sentence written again - and a verdict asked while the first was
+         * still being given ran beside it. Both verdicts ask `verdictRefusal` now and the Final one holds `verdictRunning`
+         * while it gives. Played on this GM over a Final Trial (a Mastermind through the store, the flag up), each
+         * verdict wrong (nobody new dies), every window answered as Cancel answers it; the case on its way holds the
+         * first verdict's card in `ChatMessage.create` until the three asks have answered. Read: the banners posted, what
+         * each ask answered, the record's stamp, the pick, the lock in the world while the first was on its way, the
+         * warnings. Red at C10a's tree: the second Final verdict ran.
+         */
+        const [accused] = await verdictCast(1);
+        const [mastermind] = cast(1);
+        const V = await import("./vote.mjs");
+        const { mastermindStore } = await import("./gm-stores.mjs");
+        const banners = ["DRPG.Mastermind.defeatedBanner", "DRPG.Mastermind.revealedBanner"].map(key => game.i18n.localize(key));
+        const already = game.i18n.localize("DRPG.Vote.verdictAlreadyApplied");
+        const warn = ui.notifications.warn, warned = [];
+        const create = ChatMessage.create, ownCreate = Object.getOwnPropertyDescriptor(ChatMessage, "create");
+        ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return warn.call(ui.notifications, message, ...rest); };
+        let reading = null;
+        try {
+            reading = await withVerdictFixture({ mastermind, final: true }, async ({ fresh }) => {
+                const cards = () => fresh().filter(m => banners.some(b => String(m.content ?? "").includes(b))).length;
+                const wrong = { correct: false, accusedId: accused.id };
+                await game.drpg.applyFinalVerdict(wrong);
+                await settle();
+                const firstAt = V.trialProgress().verdict?.at ?? null;
+                await mastermindStore.patch("record", { actorId: mastermind.id, room: null });
+                let from = warned.length;
+                const second = await game.drpg.applyFinalVerdict(wrong);
+                await settle();
+                const applied = [cards(), second ?? null, V.trialProgress().verdict?.at === firstAt, mastermindStore.record()?.actorId ?? null, warned.slice(from)];
+
+                // On its way: the record put back to no verdict, the flag up again, the first card held.
+                await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), verdictApplied: false, verdict: null });
+                await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), finalTrial: true });
+                let held = false, release = null;
+                const gate = new Promise(resolve => { release = resolve; });
+                ChatMessage.create = async function (data, ...rest) {
+                    if (!held && banners.some(b => String(data?.content ?? "").includes(b))) {
+                        held = true;
+                        await gate;
+                    }
+                    return create.call(this, data, ...rest);
+                };
+                const giving = game.drpg.applyFinalVerdict(wrong);
+                await until(() => held, 4000);
+                from = warned.length;
+                const asked = [await game.drpg.applyFinalVerdict(wrong) ?? null,
+                    await game.drpg.applyVerdict({ correct: true, executedIds: [], blackenedIds: [] }) ?? null, await game.drpg.verdictDialog() ?? null];
+                const lockDuring = V.trialProgress().verdictApplied;
+                release();
+                await giving;
+                await settle();
+                const onItsWay = [held, asked, lockDuring, warned.slice(from), cards()];
+
+                // Outside a Final Trial, a verdict applied: the ordinary verdict's API is refused.
+                await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), finalTrial: false });
+                await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), verdictApplied: true });
+                from = warned.length;
+                const ordinary = [await game.drpg.applyVerdict({ correct: true, executedIds: [], blackenedIds: [] }) ?? null, warned.slice(from)];
+                return { applied, onItsWay, ordinary };
+            });
+        } finally {
+            ui.notifications.warn = warn;
+            if (ownCreate) Object.defineProperty(ChatMessage, "create", ownCreate); else delete ChatMessage.create;
+        }
+        equal(stableJson(reading), stableJson({ applied: [1, null, true, mastermind.id, [already]],
+            onItsWay: [true, [null, null, null], false, [already, already, already], 2], ordinary: [null, [already]] }),
+            "a second Final verdict ran, a verdict asked while one was on its way was not refused, or the ordinary verdict's lock is not as it was "
+            + "(applied: the banners, the second's answer, the record's stamp kept, the pick kept, the warnings; on its way: held, the three answers, the "
+            + "world's lock meanwhile, the warnings, the banners; ordinary: the answer, the warnings)");
+    }],
+
+    ["E41-T3 - one card and one summary (E41 C10b, E41-18; audit S17-28): a correct Final verdict posts one public card and one whisper to the GMs, each what the ordinary verdict's builders make of the Mastermind's words (`verdictCardContent`, `verdictSummaryContent`), and writes the record `{ verdictApplied: true, verdict: { stage: \"done\", final: true, sentencePending: true } }` naming nobody; the ordinary verdict's card is the same builder's", async () => {
+        /*
+         * E41 C10b, 02.11.2026; E41-18, audit S17-28. The Final Trial's card (`announce` with its banner) and its GM
+         * summary (`whisperToGms` with `Mastermind.verdictSummary`) were spelt apart from the ordinary verdict's
+         * `postVerdictCard` and `runVerdict`'s summary. A correct Final verdict on this GM over a Final Trial in its
+         * phase (a Mastermind through the store, the flag up), so the sentence waits for the trial's end and nobody dies;
+         * every window answered as Cancel answers it. Then the ordinary verdict's card posted for a record that sentences
+         * nobody. Read: the public cards and the GMs' whispers since, against the builders' output for the same words
+         * (both read back through a parsed element, spaces folded), and the record. The sentence, the pick, the messages
+         * and the clock are put back. Red at C10a's tree: verdict.mjs has no builder.
+         */
+        const [accused] = await verdictCast(1);
+        const [mastermind] = cast(1);
+        const V = await import("./vote.mjs");
+        const B = await import("./verdict.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const say = key => game.i18n.localize(key), esc = foundry.utils.escapeHTML;
+        const norm = html => {
+            const el = document.createElement("div");
+            el.innerHTML = String(html ?? "");
+            return el.innerHTML.replace(/\s+/g, " ").replace(/> </g, "><").trim();
+        };
+        const built = typeof B.verdictCardContent === "function" && typeof B.verdictSummaryContent === "function";
+        const reading = await withVerdictFixture({ mastermind, final: true }, async ({ fresh }) => {
+            await game.drpg.applyFinalVerdict({ correct: true, accusedId: accused.id });
+            await settle();
+            const posted = fresh();
+            const p = V.trialProgress();
+            const summaries = (await Promise.all(posted.filter(m => m.whisper?.length).map(m => wordsOf(m, 2000))))
+                .filter(words => String(words).includes(say("DRPG.Mastermind.verdictTitle")));
+            const out = { cards: posted.filter(m => !m.whisper?.length).map(m => norm(m.content)), summaries: summaries.map(norm),
+                record: [p.verdictApplied, p.verdict?.stage ?? null, p.verdict?.final ?? null, p.verdict?.sentencePending ?? null,
+                    ["executedIds", "correct", "accusedId", "sentenced"].filter(key => key in (p.verdict ?? {}))] };
+            const from = new Set(game.messages.map(m => m.id));
+            await V.postVerdictCard({ sentenced: [], correct: true, at: 4141 });
+            out.ordinary = game.messages.filter(m => !from.has(m.id)).map(m => norm(m.content));
+            return out;
+        });
+        const want = built ? {
+            cards: [norm(B.verdictCardContent({ banner: "DRPG.Mastermind.defeatedBanner", lines: [say("DRPG.Mastermind.defeatedText")], tone: "objection" }).content)],
+            summaries: [norm(B.verdictSummaryContent({ title: "DRPG.Mastermind.verdictTitle", summary: game.i18n.format("DRPG.Mastermind.verdictSummary", {
+                mastermind: esc(mastermind.name), accused: esc(accused.name), outcome: say("DRPG.Mastermind.outcomeExecuted") }) }))],
+            record: [true, "done", true, true, []],
+            ordinary: [norm(B.verdictCardContent({ banner: "DRPG.Vote.verdictCardTitle", lines: [say("DRPG.Vote.nobodyExecuted"), say("DRPG.Vote.verdictRight")] }).content)]
+        } : "verdict.mjs has no card or summary builder";
+        equal(stableJson(reading), stableJson(want),
+            "the Final verdict's card or GM summary is not the ordinary verdict's builders' (the public cards since, the GMs' summaries since, the record "
+            + "[verdictApplied, stage, final, sentencePending, the names it holds], the ordinary card)");
+    }],
+
+    ["E41-T4 - nobody is left out of the ordinary verdict (E41 C10b, E41-18; the owner's Q-E41-2, Q-E10-1 (c)): over a count that accused s2, with s3 a known Blackened who is alive and s4 dead, the executed select lists s3, choosable, beside every other student, s4 \" - dead\" and disabled, and opens on s2; over [s3] it lists s3 and opens on \"Nobody is executed\"; the window cancelled writes nothing", async () => {
+        /*
+         * E41 C10b, 02.11.2026; E41-18, audit S17-28; the owner's answer to Q-E41-2 of 01.11.2026 ("Nikt nie jest
+         * pominięty"). The executed select ("Executed if they got it wrong") left the register's Blackened out
+         * (`students.filter(a => !knownIds.has(a.id))`): a table that named a Blackened got it right, so the select had
+         * no use for them - but the GM's list was no longer every student. They stay listed; a living one is
+         * choosable, and the select still opens on "Nobody is executed" when the accused is a known Blackened, as it
+         * names who dies if the table was wrong. Drawn as content on this GM outside a Final Trial, with a register row
+         * naming s3 and s4's death flag; each window answered as Cancel answers it. Read: the select's value, its first
+         * option, every student listed, s3's option enabled, s4's words and disabled; then the record's lock and the
+         * messages since. Red at C10a's tree: s3 absent.
+         */
+        const [s2, s3, s4] = await verdictCast(3);
+        const V = await import("./vote.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const title = game.i18n.localize("DRPG.Vote.verdictTitle");
+        const read = cfg => {
+            // The window's content is the element `dialogContent` built, or its markup.
+            const el = cfg?.content instanceof HTMLElement ? cfg.content : document.createElement("div");
+            if (!(cfg?.content instanceof HTMLElement)) el.innerHTML = String(cfg?.content ?? "");
+            const select = el.querySelector('select[name="executed"]');
+            const option = id => [...(select?.options ?? [])].find(o => o.value === id) ?? null;
+            return [select?.value ?? null, select?.options[0] ? [select.options[0].value, select.options[0].textContent] : null,
+                studentActors().every(a => option(a.id)), option(s3.id) ? !option(s3.id).disabled : null,
+                option(s4.id) ? [option(s4.id).textContent, option(s4.id).disabled] : null];
+        };
+        const seen = await withVerdictFixture({ final: false, known: s3, dead: s4 }, async ({ windows, fresh }) => {
+            const out = [];
+            for (const accused of [s2, s3]) {
+                await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), voteClosed: true, accusedIds: [accused.id] });
+                const from = windows.length;
+                await game.drpg.verdictDialog();
+                const cfg = windows.slice(from).find(c => c?.window?.title === title);
+                out.push(cfg ? read(cfg) : null);
+            }
+            return [...out, [V.trialProgress().verdictApplied, fresh().length]];
+        });
+        const dead = [`${s4.name} - ${game.i18n.localize("DRPG.Chapter.deadShort")}`, true];
+        const nobody = ["", game.i18n.localize("DRPG.Vote.nobodyExecuted")];
+        equal(stableJson(seen), stableJson([[s2.id, nobody, true, true, dead], ["", nobody, true, true, dead], [false, 0]]),
+            "the ordinary verdict's executed list leaves a known Blackened out, lets a dead student be picked, or does not open where it did "
+            + "(per accused s2, s3: the select's value, its first option, every student listed, s3 choosable, s4's words and disabled; then the lock and "
+            + "the messages since)");
     }],
     ...GRID
 ];
