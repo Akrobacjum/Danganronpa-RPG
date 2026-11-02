@@ -31650,8 +31650,14 @@ const INVARIANTS = [
         } finally {
             for (const [level, d] of Object.entries(kept)) if (d) Object.defineProperty(notes, level, d); else delete notes[level];
         }
-        equal(stableJson(read), stableJson(keys.map(key => [key, null, [`error:${game.i18n.format("DRPG.Action.unknown", { key })}`]])),
-            "an action key ACTIONS does not hold as its own is not refused as unknown - [key, the answer, the notices]");
+        /* The suite runs these tiers inside a Class Trial as well (01-runtests part A2): there the phase's lock above
+           the lookup answers every key first, with its own notice, and the lookup is not reached - so this reads, for
+           the phase it runs in, what each key is answered and told (fix FG2b: CI on 85e8b0e2, suite 1/8, A2 red). */
+        const locked = getClock().phase === "classTrial";
+        const told = key => locked ? `warn:${game.i18n.localize("DRPG.Trial.actionsLocked")}`
+            : `error:${game.i18n.format("DRPG.Action.unknown", { key })}`;
+        equal(stableJson(read), stableJson(keys.map(key => [key, null, [told(key)]])),
+            `an action key ACTIONS does not hold as its own is not refused as ${locked ? "the trial's lock refuses every action" : "unknown"} - [key, the answer, the notices]`);
     }],
 
     ["R1237 - who a verdict lists (E41 C10b, E41-18; the owner's Q-E41-2, Q-E10-1 (c)): `verdictCandidates(students, { accusedIds, known, dead, final })` puts \"Nobody\" first and then every student, the known Blackened among them, in both verdicts; the ordinary verdict marks the dead, disables them and opens on the first accused only when they are living and not a known Blackened; the Final Trial's enables everyone listed, marks the dead and opens on the first accused whoever they are", async () => {
