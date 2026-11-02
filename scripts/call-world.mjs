@@ -140,9 +140,15 @@ export async function restrict(actor, patch) {
  * Called when a time of day ends - every restriction lasts one. That is the
  * Eclipse opening (CALL-09), or the clock moving on a table that uses no
  * Eclipse; a rewind and a season reset call it too.
+ *
+ * NOTHING TO END, NOTHING WRITTEN (E37 C6, 01.11.2026; E37 STATUS Open 22). With no room sealed and no restriction
+ * standing it wrote both settings empty again and announced them (`SYNC.restrictions`: every browser's sheets and HUD
+ * once more), so a move of the time of day drew the HUD and the sheets twice on every browser - 2 and 2 in scenario
+ * 81 part B's forward move at 15f46794. It answers false then, and writes and tells nothing.
  */
 export async function clearSeals() {
     if (!game.user.isGM) return null;
+    if (!sealedRooms().length && !Object.keys(restrictions()).length) return false;
     await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, []);
     await game.settings.set(MODULE_ID, SETTINGS.restrictions, {});
     await announceRestrictions();

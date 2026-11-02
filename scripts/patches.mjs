@@ -549,12 +549,27 @@ export const PATCHES = [
         owner: "daggerheart",
         file: "projects-ui.mjs",
         symbol: "wrapCountdownMenu",
-        why: "A project's row in the countdown tray offers no Reveal or Hide, and its Delete deletes the project (E36).",
+        why: "A project's row in the countdown tray offers no Reveal or Hide, and its Delete deletes the project (E36); another row's Reveal, Hide and Delete wait in the projects' queue (E37).",
         when: "at init when the system has set its class, else at ready",
         fallback: "not wrapped: a project row's menu is Daggerheart's, its Reveal and Hide shown and its Delete removing only the countdown",
         probe: () => {
             const fn = trayClass()?.prototype?._getCountdownContextOptions;
             return { present: typeof fn === "function", ours: Boolean(fn?.[Symbol.for("drpgProjectRowMenu")]) };
+        }
+    },
+    {
+        id: "countdown-update",
+        kind: "override",
+        target: "DhCountdowns.updateCountdowns",
+        owner: "daggerheart",
+        file: "projects-ui.mjs",
+        symbol: "wrapCountdownUpdate",
+        why: "Daggerheart's own whole write of the countdowns on a GM's browser (a roll's tick, a combat turn) waits in the projects' queue, so a project's change is not written over (E37).",
+        when: "at init when the system has set its class, else at ready",
+        fallback: "not wrapped: the system's tick writes the countdowns outside the projects' queue, and a project's change made in the same moment can be lost",
+        probe: () => {
+            const fn = trayClass()?.updateCountdowns;
+            return { present: typeof fn === "function", ours: Boolean(fn?.[Symbol.for("drpgCountdownUpdateQueued")]) };
         }
     },
     {

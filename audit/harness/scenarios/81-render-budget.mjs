@@ -19,8 +19,8 @@
  *      whose actor sheet registers in neither) - each browser's kind is noted. Every sheet counts its renders.
  *   B. the time of day moved and put back (`setTimeOfDay`, then `setClock` with the old time and stamp): one
  *      `visibility.applyAll` a browser and `drpgTimeOfDayChanged` heard once each; one `hud.renderHud` and one
- *      `clock.refreshSheets` for the clock's write back, and at most one more of each for the move forward, whose end of
- *      the seals and silences is `SYNC.restrictions`'s row (B3's note).
+ *      `clock.refreshSheets` for each (since E37 C6: the move forward's end of the seals and silences writes and tells
+ *      nothing when none stands, B3's note).
  *   C. a pause (a clock write of `pausedAt` alone) and its end: no `drpgTimeOfDayChanged`, no `visibility.applyAll`.
  *   D. with Botan written into Dorm A beside Aiko (so the Eclipse changes what p1 shows), an Eclipse's start
  *      (`game.drpg.startEclipse`) and its end (`endEclipse({ advance: true })`): one `visibility.applyAll` each and
@@ -182,14 +182,15 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
             day: ${J(start.clock.day)} });
         return C.getClock().timeOfDay;`, { timeout: 60000 })));
     await stateHolds("B2", "the time of day put back");
-    /* `setTimeOfDay` also ends the time of day's seals and silences (call-effects.mjs `clearSeals`: `sealedRooms` and
-       `restrictions` written and announced), which is `SYNC.restrictions`'s row - the sheets and the HUD once more, no
-       pass: read off the bus's debug lines on p1 and the GM, 01.11.2026. The clock written back by `setClock` asks the
-       clock's row alone. */
+    /* `setTimeOfDay` also ends the time of day's seals and silences (call-world.mjs `clearSeals`). Until E37 C6 it wrote
+       `sealedRooms` and `restrictions` and announced them whether or not any stood - `SYNC.restrictions`'s row, the sheets
+       and the HUD once more, no pass: read off the bus's debug lines on p1 and the GM, 01.11.2026; 2 and 2 on every
+       browser at 7dcd13e6. With none standing (this world's at B) it writes and tells nothing now, so the move forward is
+       held to exactly one of each, as the write back is (STATUS E37 Open 22). */
     const [forward, back] = moves;
-    check(`B3: the time of day moved (${forward.acted}): one visibility pass on each browser, drpgTimeOfDayChanged heard once, the HUD and a sheet pass for the clock and at most once more for the seals' end (E37-20)`,
+    check(`B3: the time of day moved (${forward.acted}): one visibility pass, one HUD and one sheet pass on each browser, drpgTimeOfDayChanged heard once - no second draw for seals that do not stand (E37-20; E37 C6)`,
         each(forward.read, who => n(forward.read, who, "visibility.applyAll") === 1 && forward.read[who].heard.timeOfDay === 1
-            && [n(forward.read, who, "hud.renderHud"), n(forward.read, who, "clock.refreshSheets")].every(v => v >= 1 && v <= 2)),
+            && n(forward.read, who, "hud.renderHud") === 1 && n(forward.read, who, "clock.refreshSheets") === 1),
         counts(forward.read, "visibility.applyAll", "hud.renderHud", "clock.refreshSheets"));
     check(`B4: the time of day put back (${back.acted}): one visibility pass, one HUD and one sheet pass on each browser, drpgTimeOfDayChanged heard once (E37-20)`,
         each(back.read, who => n(back.read, who, "visibility.applyAll") === 1 && n(back.read, who, "hud.renderHud") === 1

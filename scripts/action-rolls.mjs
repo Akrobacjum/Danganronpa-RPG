@@ -20,7 +20,7 @@ import {
     OBSERVE_DC, ANALYZE_DC, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, RESOLUTION_STRESS_COST, OBSERVE_FAIL_STRESS, TIMING,
     PRICE_CHAINS, MONOCUB
 } from "./config.mjs";
-import { actionsLeft, spendAction, refundAction, hasFreeMove, canPayFor } from "./actions.mjs";
+import { actionsLeft, spendAction, refundAction, canPayFor, nextCrossingPrice } from "./actions.mjs";
 import { leavesTraceFor, carriedFor, TRANSFER_REFUSED, repairable, rolesOf } from "./inventory.mjs";
 import { isEclipse } from "./eclipse.mjs";
 // The phase, from the file that owns the clock setting and imports nothing but
@@ -398,6 +398,24 @@ export function briefingBlock(actor, actionKey, def, { extraFacts = [] } = {}) {
     </div>`;
 }
 
+/**
+ * WHAT THE NEXT ROOM TAKES (E37 C6, 01.11.2026; E37-28, audit S10-48). The Move briefing said "the next room costs an
+ * action" whenever the Free Move was gone, and a crossing pays a Sprint and then a banked Burst before an action
+ * (actions.mjs `takeMove`, D21: the order is unchanged): a player who had bought a Burst for their next action read that
+ * it would cost an action and found the Burst spent by the walk. The line now names the price the next crossing takes,
+ * read by actions.mjs `nextCrossingPrice` in `takeMove`'s order; with nothing left to pay, `Move.noBudget`. Exported for
+ * the suite (R1200).
+ */
+export function moveLine(actor) {
+    switch (nextCrossingPrice(actor)) {
+        case "free": return game.i18n.localize("DRPG.Move.freeAvailable");
+        case "sprint": return game.i18n.localize("DRPG.Move.nextSprint");
+        case "burst": return game.i18n.localize("DRPG.Move.nextBurst");
+        case "action": return game.i18n.format("DRPG.Move.freeSpent", { left: actionsLeft(actor) });
+        default: return game.i18n.localize("DRPG.Move.noBudget");
+    }
+}
+
 /** The cost / statistics / room lines every briefing ends with. */
 function briefingFacts(actor, actionKey, def, extraFacts = []) {
     const place = locateActor(actor);
@@ -406,9 +424,7 @@ function briefingFacts(actor, actionKey, def, extraFacts = []) {
     const facts = [];
 
     if (actionKey === "move") {
-        facts.push(hasFreeMove(actor)
-            ? game.i18n.localize("DRPG.Move.freeAvailable")
-            : game.i18n.format("DRPG.Move.freeSpent", { left: actionsLeft(actor) }));
+        facts.push(moveLine(actor));
     } else if (actionKey === "rest") {
         // No cost line at all. Rest is the one action whose price depends on a
         // choice made further down the same window, and the two rows below it
@@ -2092,14 +2108,32 @@ async function searchSpecific(actor, def, roll, { room, scene, category, request
         label: def.label, room, request
     });
 
-    await report(actor, def, roll, {
+    const outcome = {
         success: Boolean(hit) || roll.isCritical,
         text: game.i18n.localize("DRPG.Action.specificSent"),
         extra,
         stash,
         room, tokensLeft: SearchTokens.left(room, scene)
-    });
+    };
+    await report(actor, def, roll, outcome);
+    // A Search that ran, told as the ordinary one is (E37 C6; `searchTold`): what the dice said, whatever the GM answers.
+    searchTold(actor, roll, outcome);
     return { calledGm: true, roll, tier, request };
+}
+
+/**
+ * EVERY SEARCH THAT RAN TELLS (E37 C6, 01.11.2026; E37-25, audit S02-48). `performSearch`'s road through the room's table
+ * ended with `drpgActionResolved`, and the two roads beside it - a Search that took something out of a stash
+ * (`searchStash`) and one for something specific, handed to a GM (`searchSpecific`) - ended without it, so a trap armed
+ * for "somebody searches" a room (traps.mjs `onActionResolved`, on the primary GM; a player's browser relays the event,
+ * `trap.event`) never heard either. Both now tell it after their card, with the ordinary Search's shape: `actionKey`
+ * "search" and the outcome, whose `success` is what the dice said (a specific Search: a hit or a critical, as its card
+ * says, whatever the GM answers later - the token was spent and the room was searched) and whose `room` is the room
+ * searched; a trap reads only a `success` (traps.mjs). A miss of the room's table (`searchNothing`) and a Search whose
+ * token was refused tell nothing, as before. Tier 2 E37-T5.
+ */
+function searchTold(actor, roll, outcome) {
+    Hooks.callAll("drpgActionResolved", { actor, actionKey: "search", roll, outcome });
 }
 
 /** A miss: recorded for Reroll, sounded, and reported as the action's own failure line. */
@@ -2196,9 +2230,9 @@ async function searchStash(actor, def, roll, { room, scene, category, goalKey, t
         : got === null
             ? game.i18n.localize("DRPG.Vault.foundStashNothing")
             : game.i18n.localize("DRPG.Vault.foundStashPending");
-    await report(actor, def, roll, {
-        success: true, text, extra, stash, leftTrace, room, tokensLeft: SearchTokens.left(room, scene)
-    });
+    const outcome = { success: true, text, extra, stash, leftTrace, room, tokensLeft: SearchTokens.left(room, scene) };
+    await report(actor, def, roll, outcome);
+    searchTold(actor, roll, outcome);
     return { success: true, roll, tier, fromVault: true, leftTrace };
 }
 

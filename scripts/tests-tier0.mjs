@@ -17619,7 +17619,8 @@ const REGRESSIONS = [
          * road (use-items.mjs whispers it only for a tool that did not break, so 2 or more). Nothing is written. Red at
          * 900b1b99: 45 flat values the allow table does not hold (the families this commit made). E66 C4 (01.11.2026) put
          * numbers where digits stood (R1159, R1160): six before Health or Sanity (U) and three before "s" (S), 102 rows; its fix round r1
-         * (F9) put two more seconds on `TRIAL` (S), 104 rows.
+         * (F9) put two more seconds on `TRIAL` (S), 104 rows. E37 C6 (01.11.2026) deleted `Despair.notEnoughPool` with its one
+         * caller (despair.mjs `convertDespairToHope` trims a request to the pool now, E37-27), and its U row with it: 103 rows.
          */
         const COUNTED_EN = "actions?|crossings?|turns?|times?|tokens?|Search Tokens?|Remnants?|Key Remnants?|files?|entries|entry|tables?|students?|players?|items?|projects?|rooms?|seconds?|minutes?|s|min|days?|points?|marks?|Hope|Sanity|Health|Despair|picks?|ballots?|cards?|clues?|traces?|bullets?|Truth Bullets?|messages?|rows?|progress|uses?|dice|die|GMs?|copies|copy|steps?|rolls?|votes?|keys?|doors?|walls?|notices?|names?|people|persons?|others?|fewer|more|left|of";
         const W = "[\\w\\u00c0-\\u017f]*";
@@ -17656,7 +17657,8 @@ const REGRESSIONS = [
                 "Config.DESPAIR_CALLS.gameProtection.effect", "Config.DESPAIR_CALLS.paranoia.effect",
                 "Config.DESPAIR_CALLS.thisWillHurt.effect",
                 // E66 C7: Config.HOPE_CALLS.contribution.effect left the table - B01a's Polish puts no count before a noun.
-                "Despair.hopeConverted", "Despair.notEnough", "Despair.notEnoughPool", "Despair.removePoolAsk",
+                // E37 C6: Despair.notEnoughPool left with its one caller, `convertDespairToHope`'s whole refusal (it trims now).
+                "Despair.hopeConverted", "Despair.notEnough", "Despair.removePoolAsk",
                 "Despair.spent", "Diagnostics.cast.starting", "Items.choiceBonus", "Monocub.hopeShort",
                 "Murder.briefCostStress", "Murder.indirectCost", "Observe.failedStress", "Overflow.what.earthquake",
                 "Project.customScale", "Remnant.projectNote", "Remnant.projectNoteUncovered",
@@ -17704,7 +17706,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 53, S: 25, R: 23, D: 1, P: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 52, S: 25, R: 23, D: 1, P: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
@@ -18464,6 +18466,106 @@ const REGRESSIONS = [
             + "the same chain with no HourTokenRuler, the module's class on top, no class");
         equal(JSON.stringify([CONFIG.Token === token, CONFIG.Token?.rulerClass === ruler]), JSON.stringify([true, true]),
             "the test did not put CONFIG.Token.rulerClass back as it found it");
+    }],
+    ["R1199 - the search ledger keeps no dead code and no stale spend (E37 C6, E37-26; audit S07-44): search-tokens.mjs declares no `exhaust` and no module file calls one, and search-tokens.mjs `runSpend` prunes `searchedBy` of its entries older than `PLANT_WINDOW_MS` before it sets the new one", async () => {
+        /*
+         * E37 C6, 01.11.2026; E37-26, audit S07-44. `SearchTokens.exhaust` zeroed a room "for the rest of the day (project
+         * 'Tidy the room')", a project that does not exist, and nothing in the module called it (tier 0's R991 names it
+         * only in a planted fixture). And the primary's ledger of spends, `searchedBy` (user, scene and room -> when), was
+         * set at every spend and taken out only by that spend's plant check or its token's return: a Search that asked
+         * neither left its entry for the rest of the load. Read off the source, comments out: whether `exhaust` is
+         * declared in search-tokens.mjs or called anywhere; in `runSpend`, where the first call of a function that
+         * prunes `searchedBy` stands against the `searchedBy.set(` - a pruner is a top-level function of the file that
+         * walks `searchedBy`, deletes from it and compares an age with `PLANT_WINDOW_MS` by `>` - and that pruner's
+         * comparison. Nothing is written. Red at 7dcd13e6: `exhaust` declared, no pruner.
+         */
+        const sources = new Map(await otherSources());
+        const tokens = stripComments(sources.get("search-tokens.mjs") ?? "");
+        must(tokens.length > 5000, "search-tokens.mjs was not read - this test measured nothing");
+        const spend = fnSource(tokens, "runSpend");
+        const pruners = [...tokens.matchAll(/^(?:export )?(?:async )?function ([\w$]+)\(/gm)].map(m => m[1])
+            .filter(name => {
+                const body = topLevelFunction(tokens, name) ?? "";
+                return /\bof searchedBy\b/.test(body) && /\bsearchedBy\.delete\(/.test(body) && /\bPLANT_WINDOW_MS\b/.test(body);
+            });
+        const pruneAt = Math.min(...pruners.map(name => spend.search(new RegExp(`(?<![\\w$.])${name}\\(\\)`))).filter(i => i >= 0), Infinity);
+        const setAt = spend.search(/\bsearchedBy\.set\(/);
+        const callers = [...sources].filter(([file]) => /\.\s*exhaust\s*\(/.test(stripComments(sources.get(file) ?? ""))).map(([file]) => file);
+        equal(JSON.stringify({
+            declared: /\bstatic\s+async\s+exhaust\s*\(|\bexhaust\s*\([^)]*\)\s*\{/.test(tokens), callers,
+            pruners, set: setAt > 0, prunedFirst: Number.isFinite(pruneAt) && pruneAt < setAt,
+            age: pruners.map(name => /Date\.now\(\)\s*-\s*[\w$.]+\s*>\s*PLANT_WINDOW_MS/.test(topLevelFunction(tokens, name) ?? ""))
+        }), JSON.stringify({ declared: false, callers: [], pruners: ["pruneSpends"], set: true, prunedFirst: true, age: [true] }),
+        "{declared: search-tokens.mjs declares exhaust; callers: the files that call one; pruners: the functions that prune searchedBy by "
+            + "PLANT_WINDOW_MS; set: runSpend sets an entry; prunedFirst: runSpend calls a pruner before it sets; age: each pruner drops an "
+            + "entry older than the window, by >}");
+    }],
+    ["R1201 - nothing calls Daggerheart's `updateCountdowns` inside a step of `COUNTDOWNS_KEY` (E37 C6, E37-29; the deferred D100): no `updateCountdowns(` in the module stands inside the arguments of a `serialWrite(COUNTDOWNS_KEY, ...)` or in a function such a step calls, the reader catching both when planted; the contract's row \"countdown-update\" names projects-ui.mjs `wrapCountdownUpdate`, which runs the system's write as a step of the key and is wrapped at init and at ready", async () => {
+        /*
+         * E37 C6, 01.11.2026; E37-29. On a GM's browser projects-ui.mjs `wrapCountdownUpdate` makes Daggerheart's static
+         * `DhCountdowns.updateCountdowns` a step of `COUNTDOWNS_KEY` (utils.mjs `serialWrite`), so a project's step and the
+         * system's whole write of the countdowns no longer interleave (tier 2 E37-T7). A call of it from inside a step of
+         * the same key would wait for the step it stands in, and the key would never be let go: every project change
+         * after it would hang. R977 (the Countdowns' writers, each in a step) stands beside this, unchanged: the wrapper
+         * writes nothing itself. Read in the module's files without the suite's own, comments and literals blanked: each
+         * `serialWrite(` whose first argument is COUNTDOWNS_KEY (or `x.COUNTDOWNS_KEY`), its arguments' span; the calls
+         * `updateCountdowns(` and the top-level functions holding one; a call in a span, or a call in a span of a
+         * function that holds one, is named. The reader is shown a planted step that calls it and one that calls a
+         * function that does first, and a clean twin. Then patches.mjs's row and projects-ui.mjs's wrapper, as source.
+         * Nothing is written. Red at 7dcd13e6: no row, no wrapper.
+         */
+        const SUITE = /^tests(?:-[\w-]+)?\.mjs$/;
+        const QUEUE_KEY = /^(?:[\w$]+\s*\.\s*)?COUNTDOWNS_KEY$/;
+        const CALL = /(?<![\w$])updateCountdowns\s*\(/g, CALLS = /(?<![\w$])updateCountdowns\s*\(/;
+        const TOP = /^(?:export\s+)?(?:async\s+)?function\*?\s*([\w$]+)\s*\(/gm;
+        const stepsIn = sources => [...sources].filter(([file]) => file.endsWith(".mjs") && !SUITE.test(file)).flatMap(([file, raw]) => {
+            const code = blankComments(raw), blank = blankLiterals(code);
+            const decls = [...blank.matchAll(TOP)].map(m => ({ name: m[1], start: m.index }));
+            decls.forEach((d, i) => { d.end = decls[i + 1]?.start ?? blank.length; });
+            const holders = decls.filter(d => [...blank.slice(d.start, d.end).matchAll(CALL)].length).map(d => d.name);
+            const found = [];
+            for (const m of blank.matchAll(/(?<![\w$])serialWrite\s*\(/g)) {
+                const { args, close } = callArgs(blank, m.index + m[0].length - 1);
+                if (!args[0] || !QUEUE_KEY.test(code.slice(args[0].start, args[0].end).trim())) continue;
+                const span = blank.slice(args[0].end, close);
+                if (CALLS.test(span)) found.push(`${file}: a step calls updateCountdowns`);
+                for (const name of holders) if (new RegExp(`(?<![\\w$])${name}\\s*\\(`).test(span)) found.push(`${file}: a step calls ${name}, which calls updateCountdowns`);
+            }
+            return found.map(f => ({ f, holders }));
+        });
+        const named = sources => stepsIn(sources).map(r => r.f);
+        const PLANT = "import { serialWrite } from './utils.mjs';\nconst COUNTDOWNS_KEY = 'daggerheart.Countdowns';\n";
+        const fixtures = {
+            clean: named(new Map([["a.mjs", `${PLANT}export async function tick() { await DhCountdowns.updateCountdowns("fear"); }\nexport function step() { return serialWrite(COUNTDOWNS_KEY, async () => 1); }\n`]])),
+            direct: named(new Map([["a.mjs", `${PLANT}export function step() { return serialWrite(COUNTDOWNS_KEY, async () => { await DhCountdowns.updateCountdowns("fear"); }); }\n`]])),
+            through: named(new Map([["a.mjs", `${PLANT}async function tick() { await DhCountdowns.updateCountdowns("fear"); }\nexport function step() { return serialWrite(S.COUNTDOWNS_KEY, () => tick()); }\n`]])),
+            suite: named(new Map([["tests-x.mjs", `${PLANT}export function step() { return serialWrite(COUNTDOWNS_KEY, () => DhCountdowns.updateCountdowns()); }\n`]]))
+        };
+        const sources = new Map(await otherSources());
+        const ui = stripComments(sources.get("projects-ui.mjs") ?? "");
+        must(ui.length > 5000, "projects-ui.mjs was not read - this test measured nothing");
+        const callsIn = [...sources].filter(([file]) => file.endsWith(".mjs") && !SUITE.test(file))
+            .filter(([, raw]) => CALLS.test(blankLiterals(blankComments(raw)))).map(([file]) => file).sort();
+        const { PATCHES } = await import("./patches.mjs");
+        const row = PATCHES.find(r => r.id === "countdown-update") ?? null;
+        const wrapper = topLevelFunction(ui, "wrapCountdownUpdate") ?? "";
+        const queued = topLevelFunction(ui, "queuedCountdownWrite") ?? "";
+        const register = topLevelFunction(ui, "registerProjectsUi") ?? "";
+        equal(JSON.stringify({
+            inStep: named(sources), callsIn, fixtures,
+            row: row ? [row.target, row.owner, row.file, row.symbol, typeof row.probe] : null,
+            wrapper: [/\bqueuedCountdownWrite\(\s*\(\)\s*=>\s*own\.apply\(Tray, args\)\s*\)/.test(wrapper), /\.updateCountdowns\s*=\s*wrapped\b/.test(wrapper),
+                /serialWrite\(COUNTDOWNS_KEY, write\)/.test(queued)],
+            registered: (register.match(/\bwrapCountdownUpdate\(\)/g) ?? []).length
+        }), JSON.stringify({
+            inStep: [], callsIn: ["reroll.mjs"],
+            fixtures: { clean: [], direct: ["a.mjs: a step calls updateCountdowns"], through: ["a.mjs: a step calls tick, which calls updateCountdowns"], suite: [] },
+            row: ["DhCountdowns.updateCountdowns", "daggerheart", "projects-ui.mjs", "wrapCountdownUpdate", "function"],
+            wrapper: [true, true, true], registered: 2
+        }), "{inStep: the module's steps of COUNTDOWNS_KEY that call updateCountdowns, or a function that does; callsIn: the files that call it; "
+            + "fixtures: what the reader names in a clean twin, a step calling it, a step calling a function that calls it, a suite file; row: the "
+            + "contract row countdown-update's target, owner, file, symbol and probe; wrapper: it runs the system's own in the queue, puts itself on "
+            + "the class, and the queue is COUNTDOWNS_KEY's on a GM; registered: its calls in registerProjectsUi (init and ready)}");
     }],
 ];
 

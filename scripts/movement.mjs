@@ -3099,11 +3099,15 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
     // Three prices now, and the third has to be named: a Sprint is not the
     // day's free Move and it is not an action, and a card calling it either
     // would be telling the player their budget is somewhere it is not.
+    // And a fourth (E37 C6; E37-28): a banked Burst pays before an action (`takeMove`), and the card said "That cost an
+    // action" for it, with the actions it had left untouched.
     const price = cost === "free"
         ? game.i18n.localize("DRPG.Move.wasFree")
         : cost === "sprint"
             ? plural("DRPG.Move.wasSprint", { n: freeMovesLeft(actor) })
-            : plural("DRPG.Move.costAction", { left: actionsLeft(actor) }, "left");
+            : cost === "burst"
+                ? game.i18n.localize("DRPG.Move.wasBurst")
+                : plural("DRPG.Move.costAction", { left: actionsLeft(actor) }, "left");
 
     if (tokenDoc) lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
 

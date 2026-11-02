@@ -347,19 +347,6 @@ export class SearchTokens {
         });
     }
 
-    /** Zero out a single room for the rest of the day (project "Tidy the room"). */
-    static async exhaust(roomName, scene) {
-        if (!game.user.isGM || !roomName) return false;
-        return serialWrite(SEARCH_KEY, async () => {
-            const store = foundry.utils.duplicate(this.store);
-            const key = this.key(roomName, scene);
-            store[key] = 0;
-            if (key !== roomName) delete store[roomName];   // same reasoning as above
-            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, store);
-            return true;
-        });
-    }
-
     /**
      * Set one room's counter outright.
      *
@@ -511,6 +498,21 @@ function forgetTokenReturns() {
     for (const [id, entry] of handedOut) if (entry?.kind === "token") handedOut.delete(id);
 }
 
+/**
+ * THE SPENDS' LEDGER PRUNED TOO (E37 C6, 01.11.2026; E37-26, audit S07-44). `searchedBy` was set at every spend and
+ * deleted only by that spend's plant check and its token's return, so a Search that asked neither - every Search a
+ * player's browser ends without a find, every console that skips the check - left its entry on the primary GM for the
+ * rest of the load. An entry older than `PLANT_WINDOW_MS` answers no plant check (`runTakePlant` reads it only inside
+ * the window) and no return (`takeEntry` refuses one older), so it is dropped before the next spend sets one: what the
+ * plant check and the return answer is unchanged. Tier 0 R1199 reads the order; E37-T5's ledger control holds that a
+ * fresh entry of another spend stays.
+ */
+function pruneSpends() {
+    for (const [key, at] of searchedBy) {
+        if (Date.now() - at > PLANT_WINDOW_MS) searchedBy.delete(key);
+    }
+}
+
 /** The ledger's entries older than a return is taken for, gone. */
 function pruneLedger() {
     for (const [id, entry] of handedOut) {
@@ -646,6 +648,7 @@ async function runSpend(payload, sender, ctx) {
     // marks the Search's record a find may stand on (`SearchTokens.markSpent`).
     if (ok) {
         const at = Date.now();
+        pruneSpends();
         searchedBy.set(searchKey(sender.id, sceneId, payload.roomName), at);
         if (ctx?.requestId) {
             pruneLedger();

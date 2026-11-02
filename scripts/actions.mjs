@@ -346,6 +346,21 @@ export async function takeMove(actor, { quiet = false } = {}) {
 }
 
 /**
+ * What the next crossing takes, read in `takeMove`'s order without paying it (E37 C6, 01.11.2026; E37-28, audit S10-48):
+ * "free" (the Free Move), "sprint" (a banked Sprint), "burst" (a banked Burst, which `spendAction` takes before an
+ * action), "action", or null when nothing is left to pay with. The Move briefing says it (action-rolls.mjs `moveLine`),
+ * so a player who banked a Burst reads that the walk will take it; `takeMove` itself is unchanged (D21). R1200 holds the
+ * two to one order, read off `takeMove`'s source and run on fixtures.
+ */
+export function nextCrossingPrice(actor) {
+    if (!actor) return null;
+    if (hasFreeMove(actor)) return "free";
+    if (freeMovesLeft(actor) > 0) return "sprint";
+    if (freeActionsLeft(actor) > 0) return "burst";
+    return actionsLeft(actor) >= 1 ? "action" : null;
+}
+
+/**
  * Give back what `takeMove` took, `cost` its answer (E80 C2): a 'Go through' the primary paid for and could not
  * write (movement.mjs `refundCrossingOnGm`). Each on the road named `refund`, which the GMs' audit covers
  * (sheet-audit.mjs); tier 2 "A10-18" reads the purse after a failed write for each.

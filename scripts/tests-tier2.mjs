@@ -35650,7 +35650,7 @@ const SCENARIOS = [
         const { despairOwedStore } = await import("./gm-stores.mjs");
         const { TIMES_OF_DAY } = await import("./config.mjs");
         const { trustedWrite } = await import("./resource-guard.mjs");
-        const { resourceValue } = await import("./character.mjs");
+        const { resourceValue, resourceMax } = await import("./character.mjs");
         const donor = D.monokumas().find(u => u.id === game.user.id) ?? D.monokumas()[0];
         ok(Boolean(donor), "no Monokuma's pool to convert from - this measures nothing");
         const [who] = cast(1);
@@ -35676,21 +35676,27 @@ const SCENARIOS = [
             await settle();
             equal(stableJson(state()), stableJson([5, 2, 3]), "a write of the clock that left the time of day where it was paid what the pool owes (pool, owed, spendable)");
 
+            /* E37 C6 (01.11.2026; E37-27): a conversion beyond what the pool can spend is trimmed to it now, where it was
+               refused whole - so the 4 asked of a pool that can spend 3 grants what the pool can spend and the student's
+               Hope can hold, owed with the rest, and the Call after it finds nothing to spend. Until C6 this read
+               [0, false, 5, 2, 3]; the income and the time of day's move below pay the larger debt. */
+            const third = Math.min(4, 3, (resourceMax(who, "hope") || STARTING.hopeMax) - resourceValue(who, "hope"));
+            must(third > 0, `${who.name}'s Hope has no room after the first conversion - this would measure nothing`);
             equal(stableJson([await D.convertDespairToHope(donor.id, who, 4), await D.spendDespairCall(donor.id, "silence", { announce: false }), ...state()]),
-                stableJson([0, false, 5, 2, 3]), "a conversion or a Call beyond what the pool can spend went through: the owed Despair was spent twice");
+                stableJson([third, false, 5, 2 + third, 3 - third]), "a conversion beyond what the pool can spend was not trimmed to it, or a Call after it spent the owed Despair a second time");
 
             const spilled = o.overflowCount();
             await D.setDespair(donor.id, D.despairMax());
             await D.adjustDespair(donor.id, 1);
             await settle();
-            equal(stableJson([...state(), o.overflowCount()]), stableJson([D.despairMax(), 1, D.despairMax() - 1, spilled]),
+            equal(stableJson([...state(), o.overflowCount()]), stableJson([D.despairMax(), 1 + third, D.despairMax() - 1 - third, spilled]),
                 "income into a full pool spilled before it paid what the pool owes (pool, owed, spendable, the overflow's count)");
 
             const next = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(clock.timeOfDay) + 1) % TIMES_OF_DAY.length];
             await setClock({ timeOfDay: next });
             await until(() => D.owedOf(donor.id) === 0, 4000);
             await settle();
-            equal(stableJson(state()), stableJson([D.despairMax() - 1, 0, D.despairMax() - 1]),
+            equal(stableJson(state()), stableJson([D.despairMax() - 1 - third, 0, D.despairMax() - 1 - third]),
                 "the time of day moved on and the pool did not pay what it owed, or paid it twice (pool, owed, spendable)");
 
             for (const [what, run, pool] of [["a fill", () => D.fillAllDespair(), D.despairMax()], ["a zero", () => D.zeroAllDespair(), 0]]) {
@@ -35768,8 +35774,13 @@ const SCENARIOS = [
             await trustedWrite(who, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
             const converted = await heldAcross(S.despairOwedStore, () => D.convertDespairToHope(donor.id, who, 2),
                 () => S.despairOwedStore.patch(donor.id, { owed: 2, since }));
-            equal(stableJson([...converted, resourceValue(who, "hope")]), stableJson(["waiting", 0, 0]),
+            /* E37 C6 (01.11.2026; E37-27): a conversion is trimmed to what the pool can spend now, where it was refused
+               whole - so the 2 asked of a pool of 3 owing 2 elsewhere grants the 1 left, not 0 (["waiting", 0, 0] until C6);
+               one decided before the store held the other GM's row would grant 2. */
+            equal(stableJson([...converted, resourceValue(who, "hope")]), stableJson(["waiting", 1, 1]),
                 "a conversion was decided before the store held the other GMs' rows, or spent what the pool owes there (before, granted, Hope)");
+            // The 1 granted is owed in a row of its own (`recordOwed`), which the pool's id names no more than the other GM's: both go.
+            await S.despairOwedStore.dropMany(Object.keys(S.despairOwedStore.entries()).filter(k => k === donor.id || k.startsWith(`${donor.id}:`)));
 
             await S.despairOwedStore.drop(donor.id);
             await D.setDespair(donor.id, cost);
@@ -47327,9 +47338,12 @@ const SCENARIOS = [
             "the step reads the wrong dice off a roll: a replaced result, the penalty die's faces, or a die nobody threw");
         // The other two cards a Search can end in, read in the source as E06 C11's test read them,
         // and the GM's card for "something specific", which shows the tier beside the dice (E06 fix r2-G4).
+        // Since E37 C6 the stash's and the specific's card is built as `outcome` first, which `drpgActionResolved`
+        // carries too (`searchTold`): either shape holds the line and the step.
         const actions = stripComments((await moduleSources()).get("action-rolls.mjs") ?? "");
         equal(stableJson(["searchNothing", "searchStash", "searchSpecific"].map(name =>
-            /report\(actor, def, roll, \{[^}]*\bextra\b[^}]*\bstash\b/.test(fnSource(actions, name)))
+            /report\(actor, def, roll, \{[^}]*\bextra\b[^}]*\bstash\b|const outcome = \{[^}]*\bextra\b[^}]*\bstash\b[^}]*\};\s*await report\(actor, def, roll, outcome\)/
+                .test(fnSource(actions, name)))
             .concat(/gmBody: `[\s\S]*?<\/p>\$\{extra\}`/.test(fnSource(actions, "searchSpecific")),
                 /\bextra,\s*stash,/.test(fnSource(actions, "performSearch")))),
         stableJson([true, true, true, true, true]),
@@ -78570,6 +78584,379 @@ const SCENARIOS = [
             + "day's morning; eclipse: [an Eclipse, popups after its start]; same: [the Next summary's rows, the Eclipse's summary the same "
             + "card]; card: the Next summary's title, lede (the morning, a GM's), rows and totals (three actions, one find, one trace); end: "
             + "[an Eclipse after its end, the time of day, popups after it]}");
+    }],
+    ["E37-T5 - every Search that ran tells (E37 C6, E37-25; audit S02-48): a trap armed for \"somebody searches\" a room fires once for a Search that takes a thing out of a stash there and once for a Search for something specific there, each telling `drpgActionResolved` with the ordinary Search's shape on this GM's road and set off by the relay a player's browser sends for that event; and the primary's search ledger keeps another spend's fresh entry when it prunes", async () => {
+        /*
+         * E37 C6, 01.11.2026; E37-25, audit S02-48. action-rolls.mjs `performSearch` told `drpgActionResolved` only on its
+         * road through the room's table: a Search that opened somebody's stash (`searchStash`) and one for something
+         * specific, handed to a GM (`searchSpecific`), returned without it, so traps.mjs `onActionResolved` - which fires a
+         * room's "somebody searches" trap on a successful Search, on the primary GM - never heard either. Driven on this
+         * primary GM: a student with a connected player stood alone in a room (`standAlone`), another student's open
+         * stash there holding one usable thing, and a trap of a third party's built in that room for a Search (the
+         * builder not the searcher); this GM searches for the student, free, on a roll of 30 (every band), first the
+         * room's usable things (the stash is gone through), then something specific (the GM's card posted, unanswered).
+         * Read for each: the events told (`actionKey`, `outcome.success`, `outcome.room`) and whether the trap fired
+         * (re-armed after); then each event as the player's browser relays it (traps.mjs `relay`: kind "action", the
+         * actor, `actionKey`, `hit` from `outcome.success`), judged as the bridge judges a packet from that player
+         * (`TRAP_ACTIONS`): whether it fired the trap. The relay's own code is not run here - a GM's browser hands the
+         * event to the trap itself - so its packet is built as traps.mjs builds it; scenario 40's trap-fire flow runs it
+         * between browsers. Then the ledger's control (search-tokens.mjs `runSpend`, E37-26): two spends of that player in
+         * two rooms of the suite's own on a scene id no scene has, then the first's token asked back
+         * (`searchTokens.returnToken`, as E17-T7 asks it): taken while the second spend's prune kept the first's entry.
+         * Put back: the trap, the stash, the thing, every item the Search granted, the cards, the room's tokens, the
+         * student's place and the rifles' memory. Red at 7dcd13e6: neither road tells, so no trap fires and no relay is sent.
+         */
+        needs(world.atLeast("studentTokensOnScreen"), "the searcher stands in a room by their token");
+        needs(world.atLeast("livingStudents", 3), "a searcher, a student whose stash is searched and one who builds the trap");
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the relay is a connected player's");
+        const A = await import("./action-rolls.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const P = await import("./projects.mjs");
+        const T = await import("./traps.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const ST = await import("./search-tokens.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which a trap and the search ledger answer on - this would measure nothing");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const onScreen = a => canvas?.scene?.tokens?.some(t => t.actorId === a.id);
+        const everyone = cast(3);
+        const actor = everyone.find(a => onScreen(a) && playerOf(a));
+        const [owner, builder] = everyone.filter(a => a.id !== actor?.id);
+        must(actor && owner && builder, "no searcher with a connected player on screen and two other students - this would measure nothing");
+        const player = playerOf(actor);
+        const phase = getClock()?.phase ?? "dailyLife";
+        const stood = await standAlone(actor);
+        const region = V.regionsByName(canvas.scene).get(stood.room);
+        must(region, `${stood.room} has no region to hold a stash`);
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k)));
+        const path = k => `flags.${MODULE_ID}.${k}`;
+        const had = new Map(everyone.map(a => [a.id, new Set(a.items.map(i => i.id))]));
+        const seen = new Set(game.messages.map(m => m.id));
+        const tokensWas = foundry.utils.deepClone(getSetting(SETTINGS.searchTokens) ?? {});
+        const metaWas = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+        let variant = "healing";
+        const windows = answerWindows((cfg, root) => {
+            const pick = root.querySelector(`input[name="variant"][value="${variant}"]`);
+            if (pick) {
+                for (const each of root.querySelectorAll('input[name="variant"]')) each.checked = each === pick;
+                const request = root.querySelector('[name="request"]');
+                if (request) request.value = "SUITE E37-T5 a spare key";
+            }
+            return press(cfg, root);
+        });
+        const told = [];
+        const heard = Hooks.on("drpgActionResolved", e => { if (e?.actor?.id === actor.id) told.push(e); });
+        let trap = null, armed = null;
+        const read = { roads: [], relay: [], ledger: null };
+        try {
+            if (phase === "classTrial") await setClock({ phase: "investigation" });
+            await region.update({ [path(V.VAULT_FLAGS.stashes)]: [{ actorId: owner.id, concealed: false }],
+                [path(V.VAULT_FLAGS.hinders)]: [], [path(V.VAULT_FLAGS.favours)]: [] });
+            const thing = await INV.grantItem(owner, { name: "SUITE E37-T5 an apple", category: "usable", tier: 1, override: true, quiet: true,
+                location: INV.LOCATIONS.vault, extraFlags: { [INV.ITEM_FLAGS.stashRoom]: stood.room } });
+            await settle();
+            must(thing && V.stashItemsIn(owner, stood.room, canvas.scene).length === 1, "the apple is not alone in the stash - this would measure nothing");
+            trap = (await P.createProject({ name: "SUITE E37-T5 trap", target: 1, room: stood.room, indirectMurder: true, killerId: builder.id,
+                condition: "SUITE E37-T5", trigger: { kind: "search", afterDark: false, notBuilder: true } }))?.id ?? null;
+            must(trap, "could not build the trap - this would measure nothing");
+            await P.addProgress(trap, 1, { by: builder.id });
+            await settle();
+            armed = T.diagnoseTraps().armed;
+            must(Boolean(P.secretsOf(trap).trigger?.armed) && P.projectScene(trap)?.id === canvas.scene.id,
+                `the trap is not armed in ${stood.room} on the scene on screen - this would measure nothing`);
+            const fired = () => Boolean(P.secretsOf(trap).trigger?.firedAt);
+            const rearm = async () => {
+                if (!fired()) return;
+                await T.rearmTrap(trap);
+                await until(() => !fired() && T.diagnoseTraps().armed === armed);
+            };
+            actor.rollTrait = async () => ({ roll: { total: 30, isCritical: false, result: { duality: 1, total: 30 },
+                options: { roll: { trait: "eye" } } } });
+            for (const road of ["healing", "specific"]) {
+                variant = road;
+                await forgetRifles(actor);
+                must(ST.SearchTokens.left(stood.room, canvas.scene) > 0, `${stood.room} has no search left - this would measure nothing`);
+                const from = told.length;
+                await A.performAction(actor, "search", { free: true });
+                const spoke = await until(fired, 2500);
+                await settle();
+                const events = told.slice(from).map(e => [e.actionKey ?? null, e.outcome?.success ?? null, e.outcome?.room ?? null]);
+                read.roads.push([road, events, spoke]);
+                await rearm();
+                for (const e of told.slice(from)) {
+                    await G.judge(T.TRAP_ACTIONS, { action: "trap.event", kind: "action", actorId: e.actor?.id ?? null, actionKey: e.actionKey,
+                        hit: Boolean(e.outcome?.success ?? e.outcome?.hit), projectId: e.projectId ?? e.outcome?.projectId ?? null },
+                    player.id, { send: () => {} });
+                    read.relay.push([road, await until(fired, 2500)]);
+                    await rearm();
+                }
+            }
+            delete actor.rollTrait;
+            read.stash = !V.stashItemsIn(owner, stood.room, canvas.scene).some(i => i.name === "SUITE E37-T5 an apple");
+
+            // The ledger's control: a second spend's prune keeps the first spend's fresh entry, so its token comes back.
+            const spendAs = ST.SEARCH_ACTIONS["searchTokens.spend"];
+            const SCENE = "zE37T5noScene00", ROOMS = ["SUITE E37-T5 room a", "SUITE E37-T5 room b"];
+            for (const [i, room] of ROOMS.entries()) {
+                await spendAs.run(spendAs.sanitize({ roomName: room, sceneId: SCENE }, player), player, { requestId: `suite-e37t5-${i}` });
+            }
+            const back = await G.judge(ST.SEARCH_ACTIONS, { action: "searchTokens.returnToken", spendRequestId: "suite-e37t5-0", userId: player.id },
+                player.id, { send: () => {} });
+            await settle();
+            read.ledger = [back === true ? "taken" : back === null ? "refused" : "no row",
+                ROOMS.map(room => ST.SearchTokens.store[ST.SearchTokens.key(room, SCENE)] ?? "full")];
+        } finally {
+            Hooks.off("drpgActionResolved", heard);
+            windows.restore();
+            delete actor.rollTrait;
+            if (trap) await P.deleteProject(trap).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, metaWas);
+            T.forgetArmedTraps();
+            for (const who of everyone) for (const item of who.items.filter(i => !had.get(who.id).has(i.id))) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete().catch(() => {});
+            await region.update(Object.fromEntries(keys.map((k, i) => [path(k), before[i] === undefined ? forcedDeletion() : before[i]])));
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, tokensWas);
+            await forgetRifles(actor);
+            await stood.back();
+            await setClock({ phase });
+            await settle();
+        }
+        const R = stood.room, max = ST.SearchTokens.max;
+        equal(stableJson(read), stableJson({
+            roads: [["healing", [["search", true, R]], true], ["specific", [["search", true, R]], true]],
+            relay: [["healing", true], ["specific", true]],
+            ledger: ["taken", [max, max - 1]],
+            stash: true
+        }), "{roads: per Search [what was looked for, the events told as [actionKey, success, room], the trap fired]; relay: per event "
+            + "relayed as the player's browser sends it, the trap fired; ledger: the first of two spends' token asked back, and each room's "
+            + "count after; stash: the apple came out of the stash}");
+    }],
+    ["E37-T6 - one road of Despair to Hope (E37 C6, E37-27; audit S09-38, Q-E37-5): `convertDespairToHope` of 3 from a pool that can spend 2 to a student 1 under the Hope maximum grants 1 and owes 1, and of 3 to a student at 0 grants the 1 the pool can still spend; from a pool of 0 it refuses with \"That pool has no Despair to give.\"; Fuel a Monocub's Hope comes on a veiled card naming the paying pool, as a conversion's does; and both are refused under the Despair darkening", async () => {
+        /*
+         * E37 C6, 01.11.2026; E37-27, audit S09-38. Two roads credited Hope from Despair: despair.mjs
+         * `convertDespairToHope` (the Students window, the Monocub and Mastermind windows), which refused a request above
+         * what the pool could spend whole ("That pool holds 2 Despair; 3 was asked for.") while it trimmed one above the
+         * receiver's Hope maximum, recorded the debt and sent a veiled card naming the pool; and Fuel a Monocub's Call
+         * (call-effects.mjs `hopeFromDespairEffect`), which whispered unveiled with the Monokuma's actor's name. Both
+         * credit through `creditHopeFromDespair` now. Driven on this GM, a Monokuma's pool of this GM's (or the first)
+         * and a student: the pool at 2 owing nothing, the student's Hope at its maximum less 1, a conversion of 3; the
+         * Hope at 0, a conversion of 3; the pool at 0, a conversion of 1 (its warning read); the pool at its Call's price owing nothing,
+         * the student's Hope at 0, Fuel a Monocub bought for the Monokuma actor whose pool that is (calls.mjs
+         * `spendDespairCallFor`, the GM's purchase); then the Despair darkening stamped for this time of day, a
+         * conversion and the Call again. Read: what each granted, the pool, what it owes, the Hope, and the cards each
+         * made (veiled, naming the pool's label, naming the actor). Put back: the pool, what it owes, the darkening, the
+         * Hope; the cards deleted. Red at 7dcd13e6: the first conversion refused whole, the Call's card unveiled with
+         * the actor's name.
+         */
+        needs(world.atLeast("monokumas", 1), "a Monokuma whose pool pays the Call");
+        const D = await import("./despair.mjs");
+        const M = await import("./monokuma.mjs");
+        const { spendDespairCallFor } = await import("./calls.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { overflowBlocksHope } = await import("./overflow.mjs");
+        const { despairOwedStore } = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { resourceValue, resourceMax } = await import("./character.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const kuma = M.monokumaActors().find(a => M.poolUserFor(a)?.id === game.user.id) ?? M.monokumaActors().find(a => M.poolUserFor(a)) ?? null;
+        const donor = kuma ? M.poolUserFor(kuma) : null;
+        must(kuma && donor, "no Monokuma actor draws on a pool - this would measure nothing");
+        must(!overflowBlocksHope(), "the Despair darkening holds Hope down already - this would measure nothing");
+        must(!getClock().eclipse, "an Eclipse is open, where no Despair Call is bought - this would measure nothing");
+        const phase = getClock().phase ?? "dailyLife";
+        const [who] = cast(1);
+        const max = resourceMax(who, "hope") || STARTING.hopeMax;
+        must(max >= 2, `${who.name}'s Hope maximum is ${max} - this would measure nothing`);
+        const HOPE = "system.resources.hope.value";
+        const hopeWas = foundry.utils.getProperty(who._source, HOPE);
+        const despairWas = D.getDespair(donor.id);
+        const overflowWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {});
+        const label = D.poolLabel(donor);
+        const seen = new Set(game.messages.map(m => m.id)), made = new Set();
+        const fresh = () => {
+            const news = game.messages.filter(m => !seen.has(m.id));
+            news.forEach(m => { seen.add(m.id); made.add(m.id); });
+            return news;
+        };
+        // A card of the credit: its words hold the sentence's own middle ("... converts some of their Despair - you gain ").
+        const marker = game.i18n.localize("DRPG.Despair.hopeConverted").split("{n}")[0].split("{who}").pop();
+        must(marker.trim().length > 5, "the conversion's sentence has no words between its two placeholders - this would measure nothing");
+        must(kuma.name !== label, `the Monokuma's actor and its pool are both called ${label} - the card's name would measure nothing`);
+        const cardsOf = made => made.map(m => String(contentOf(m) ?? "")).filter(text => text.includes(marker))
+            .map((text, i) => [made.filter(m => String(contentOf(m) ?? "").includes(marker))[i].getFlag(MODULE_ID, "veiled") === true,
+                text.includes(foundry.utils.escapeHTML(label)), text.includes(foundry.utils.escapeHTML(kuma.name))]);
+        const warned = [];
+        const ownWarn = ui.notifications.warn;
+        const state = () => [D.getDespair(donor.id), D.owedOf(donor.id), resourceValue(who, "hope")];
+        const hope = n => trustedWrite(who, { [HOPE]: n }, { reason: "gmRuling" });
+        // Every row the pool owes: a conversion's debt is a row of its own (despair.mjs `recordOwed`), not the pool's id.
+        const dropOwed = async () => {
+            const rows = Object.keys(despairOwedStore.entries()).filter(k => k === donor.id || k.startsWith(`${donor.id}:`));
+            if (rows.length) await despairOwedStore.dropMany(rows);
+        };
+        const read = {};
+        try {
+            if (phase === "classTrial") await setClock({ phase: "investigation" });
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return ownWarn.call(ui.notifications, text, ...rest); };
+            await dropOwed();
+            await D.setDespair(donor.id, 2);
+            await hope(max - 1);
+            await settle();
+            fresh();
+            read.trimmedByHope = [await D.convertDespairToHope(donor.id, who, 3), ...state().map((v, i) => (i === 2 ? v - (max - 1) : v))];
+            await settle();
+            read.cardOne = cardsOf(fresh());
+            await hope(0);
+            read.trimmedByPool = [await D.convertDespairToHope(donor.id, who, 3), ...state()];
+            await settle();
+            fresh();
+            await dropOwed();
+            await D.setDespair(donor.id, 0);
+            warned.length = 0;
+            read.empty = [await D.convertDespairToHope(donor.id, who, 1), warned.includes(game.i18n.localize("DRPG.Despair.poolEmpty"))];
+            await dropOwed();
+            await D.setDespair(donor.id, DESPAIR_CALLS.fuelTheCub.cost);
+            await hope(0);
+            await settle();
+            fresh();
+            const bought = await spendDespairCallFor(kuma, "fuelTheCub", { choice: { target: who } });
+            await settle();
+            read.fuel = [Boolean(bought), resourceValue(who, "hope"), cardsOf(fresh())];
+            const c = getClock();
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, { ...overflowWas,
+                active: { session: c.session, day: c.day ?? 1, timeOfDay: c.timeOfDay, effect: "despair" } });
+            await settle();
+            must(overflowBlocksHope(), "the Despair darkening could not be stamped for this time of day - this would measure nothing");
+            await D.setDespair(donor.id, DESPAIR_CALLS.fuelTheCub.cost);
+            await dropOwed();
+            await hope(0);
+            await settle();
+            fresh();
+            const { applyCall } = await import("./call-effects.mjs");
+            read.dark = [await D.convertDespairToHope(donor.id, who, 1), Boolean(await spendDespairCallFor(kuma, "fuelTheCub", { choice: { target: who } })),
+                // The Call's effect itself, past the check before paying (a darkening that began while its picker was open).
+                (await applyCall(kuma, "fuelTheCub", "despair", { target: who }))?.failed ?? null,
+                resourceValue(who, "hope"), D.owedOf(donor.id)];
+        } finally {
+            ui.notifications.warn = ownWarn;
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, overflowWas);
+            await dropOwed();
+            await D.setDespair(donor.id, despairWas);
+            await trustedWrite(who, { [HOPE]: hopeWas }, { reason: "gmRuling" });
+            fresh();
+            for (const m of game.messages.filter(m => made.has(m.id))) await m.delete().catch(() => {});
+            await setClock({ phase });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            trimmedByHope: [1, 2, 1, 1], cardOne: [[true, true, false]],
+            trimmedByPool: [1, 2, 2, 1],
+            empty: [0, true],
+            fuel: [true, 1, [[true, true, false]]],
+            dark: [0, false, true, 0, 0]
+        }), "{trimmedByHope: a conversion of 3 from a pool spendable 2 to a student 1 under the maximum - [granted, pool, owed, Hope gained]; "
+            + "cardOne: its cards [veiled, naming the pool's label, naming the Monokuma's actor]; trimmedByPool: a conversion of 3 to a student "
+            + "at 0 then - [granted, pool, owed, Hope]; empty: a conversion of 1 from a pool of 0 - [granted, warned that it has none to give]; "
+            + "fuel: Fuel a Monocub - [bought, Hope, its cards as above]; dark: under the Despair darkening - [a conversion granted, the Call "
+            + "bought, its effect failed, Hope, owed]}");
+    }],
+    ["E37-T7 - Daggerheart's own whole writes of the countdowns wait in the projects' queue (E37 C6, E37-29; the deferred D100): a model of the system's `updateCountdowns` (read the setting, wait, write it whole), wrapped by projects-ui.mjs `wrapCountdownUpdate` and called while a project's step holds `COUNTDOWNS_KEY`, leaves the project's +1 standing; so do the tray menu's Delete and Reveal of a row that is no project", async () => {
+        /*
+         * E37 C6, 01.11.2026; E37-29, D100 ("Daggerheart's whole writes inside the key", deferred 31.10). Since E36 every
+         * module write of `daggerheart.Countdowns` is a step of projects-secrecy.mjs `COUNTDOWNS_KEY`, but Daggerheart's
+         * own - the automation's static `DhCountdowns.updateCountdowns` on a GM's roll or a combat turn, the tray menu's
+         * Reveal, Hide and Delete on a row that is no project - read the setting, await, and wrote it whole outside it: a
+         * project's change landing between that read and that write was written over. The harness's tray class is a stub
+         * (client-entry.mjs: `updateCountdowns` does nothing, the menu has no entries), so the system's write is a model of
+         * this test's own, as E36's design notes read 2.10.5's: read the setting, wait 1.5 s, write it whole (the menu's
+         * Delete without its row, its Reveal with the row's `hidden` turned). Driven on this primary GM: a public project
+         * of 6 and a countdown of the suite's own that is no project; three times, a step of utils.mjs `serialWrite` holds
+         * the key (a gate), the project's +1 is asked (`addProgress`), the system's write is called - the class's
+         * `updateCountdowns` replaced by the model and wrapped by `wrapCountdownUpdate` (as its init does), then the
+         * Delete's and the Reveal's entries as projects-ui.mjs `projectRowMenu` hands them back, clicked on a planted row
+         * of that countdown - and the gate let go a moment later. Read: what the wrapper answered, the project's bar
+         * moved by, and the row (gone, hidden). The class's own `updateCountdowns`, the project and the row are put back.
+         * Red at 7dcd13e6: no wrapper, and each model write took the project's +1 back.
+         */
+        const P = await import("./projects.mjs");
+        const S = await import("./projects-secrecy.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const { serialWrite, isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this GM is not the primary, whose queue every project change waits in - run the suite on the primary GM");
+        const Tray = game.system?.api?.applications?.ui?.DhCountdowns ?? CONFIG.ui?.countdowns ?? null;
+        must(typeof Tray === "function" && typeof Tray.updateCountdowns === "function", "no countdown tray class with an updateCountdowns here - this would measure nothing");
+        const ownUpdate = Object.getOwnPropertyDescriptor(Tray, "updateCountdowns");
+        const raw = () => { const v = game.settings.get(S.DH, S.COUNTDOWNS); return typeof v?.toObject === "function" ? v.toObject() : foundry.utils.deepClone(v); };
+        const WAIT = 1500;
+        const model = change => async () => {
+            const data = raw();
+            await new Promise(resolve => setTimeout(resolve, WAIT));
+            change(data);
+            await game.settings.set(S.DH, S.COUNTDOWNS, data);
+        };
+        const bar = id => P.allProjects().find(p => p.id === id)?.current ?? null;
+        const ROW = "suiteE37T7row00";
+        let project = null, element = null;
+        const read = {};
+        try {
+            project = (await P.createProject({ name: "SUITE E37-T7 project", target: 6 }))?.id ?? null;
+            must(project, "could not create the project - this would measure nothing");
+            await serialWrite(S.COUNTDOWNS_KEY, async () => {
+                const data = raw();
+                data.countdowns[ROW] = { ...foundry.utils.deepClone(data.countdowns[project]), name: "SUITE E37-T7 not a project", hidden: false };
+                await game.settings.set(S.DH, S.COUNTDOWNS, data);
+            });
+            await settle();
+            must(S.rawCountdown(ROW) && !Object.hasOwn(P.projectMeta(), ROW), "the suite's countdown is missing or is a project - this would measure nothing");
+            element = document.createElement("div");
+            element.innerHTML = `<div class="countdown-container" data-countdown="${ROW}"><span class="drpg-suite-e37t7"></span></div>`;
+            document.body.append(element);
+            const target = element.querySelector(".drpg-suite-e37t7");
+            const race = async write => {
+                const was = bar(project);
+                let release = () => {};
+                const gate = new Promise(resolve => { release = resolve; });
+                const hold = serialWrite(S.COUNTDOWNS_KEY, () => gate);
+                const change = P.addProgress(project, 1);
+                const system = Promise.resolve().then(write);
+                await new Promise(resolve => setTimeout(resolve, 50));
+                release();
+                await Promise.all([hold, change, system]);
+                for (let i = 0; i < 3; i++) await settle();
+                return bar(project) - was;
+            };
+
+            Tray.updateCountdowns = model(() => {});
+            const wrapped = typeof UI.wrapCountdownUpdate === "function" ? UI.wrapCountdownUpdate() : "no wrapper";
+            read.update = [wrapped, await race(() => Tray.updateCountdowns("actionRoll"))];
+
+            const [del, reveal] = UI.projectRowMenu([
+                { label: "CONTROLS.CommonDelete", visible: true, onClick: model(data => { delete data.countdowns[ROW]; }) },
+                { label: "DAGGERHEART.APPLICATIONS.Countdowns.reveal", visible: true,
+                    onClick: model(data => { if (data.countdowns[ROW]) data.countdowns[ROW].hidden = true; }) }
+            ]);
+            read.reveal = [await race(() => reveal.onClick(new Event("click"), target)), S.rawCountdown(ROW)?.hidden ?? null];
+            read.del = [await race(() => del.onClick(new Event("click"), target)), Boolean(S.rawCountdown(ROW))];
+        } finally {
+            if (ownUpdate) Object.defineProperty(Tray, "updateCountdowns", ownUpdate);
+            element?.remove();
+            if (S.rawCountdown(ROW)) {
+                await serialWrite(S.COUNTDOWNS_KEY, async () => {
+                    const data = raw();
+                    delete data.countdowns[ROW];
+                    await game.settings.set(S.DH, S.COUNTDOWNS, data);
+                });
+            }
+            if (project) await P.deleteProject(project).catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ update: [true, 1], reveal: [1, true], del: [1, false] }),
+            "{update: [what wrapCountdownUpdate answered, the project's bar moved by while the system's tick raced its +1]; reveal: [the bar "
+            + "moved by beside the menu's Reveal of a row that is no project, that row hidden]; del: [the same beside its Delete, the row still there]}");
     }],
     ...GRID
 ];

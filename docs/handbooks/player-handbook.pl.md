@@ -113,8 +113,9 @@ Szkoła narysowana jest jako pokoje. Wszystko - ruch, Search, Listen, to, kto ci
 | Każde kolejne przejście | **1 akcja** za każde |
 | Po schodach w górę lub w dół do innego pokoju | przejście jak każde inne; zmiana piętra na klatce schodowej to ruch wewnątrz własnego pokoju |
 | Przejście kupione Hope Callem Sprint | za darmo |
+| Przejście, gdy nie masz już Free Move ani Sprint, a masz Burst | twój **Burst**, zanim pójdzie akcja |
 
-Przeciągnij token; koszt naliczany jest, gdy dotrzesz. Przejście, którego nie masz czym opłacić, zostaje odrzucone, a token wraca.
+Przeciągnij token; koszt naliczany jest, gdy dotrzesz. Opis akcji Move mówi, co zabierze następny pokój - Free Move, Sprint, twój Burst albo akcję. Przejście, którego nie masz czym opłacić, zostaje odrzucone, a token wraca.
 
 Zawraca cię:
 

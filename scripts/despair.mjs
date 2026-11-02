@@ -654,6 +654,14 @@ export function donorLabel(user) {
  * real pool, never a self-service button. One function, so both callers stay
  * one honest despair-check away from a duplicate bug.
  *
+ * TRIMMED, NOT REFUSED WHOLE (E37 C6, 01.11.2026; E37-27, audit S09-38). A request above what the pool can spend was
+ * refused whole ("That pool holds 2 Despair; 3 was asked for."), while one above the room under the receiver's Hope
+ * maximum was trimmed to it: the same window gave one answer for the receiver's cap and another for the pool's. It
+ * grants `min(amount, the room under the Hope maximum, what the pool can spend)` now - the trim never more than the
+ * pool less what it owes (`spendableDespair`) - and refuses only when the pool can spend nothing
+ * (`DRPG.Despair.poolEmpty`) or the receiver has no room (`hopeAlreadyFull`, as before). The credit itself is
+ * `creditHopeFromDespair`, the one road Fuel a Monocub's Call takes too.
+ *
  * @param {string} monokumaUserId  Whose pool pays.
  * @param {Actor} actor            Who receives the Hope.
  * @param {number} amount          Requested. May be trimmed to what the pool
@@ -670,19 +678,8 @@ export async function convertDespairToHope(monokumaUserId, actor, amount) {
     // on this GM's client or another's - read once the store holds the other GMs' rows (fix r2-G2).
     await despairOwedStore.whenHydrated();
     const held = spendableDespair(monokumaUserId);
-    if (held < amount) {
-        ui.notifications.warn(game.i18n.format("DRPG.Despair.notEnoughPool", {
-            held, needed: amount
-        }));
-        return 0;
-    }
-
-    // While the "Despair" darkening runs no Hope can be earned: the actor hook
-    // deletes the increase, and this used to take the Despair and report a
-    // grant that never landed (DESP-04). Asked before anything is paid.
-    const { overflowBlocksHope } = await import("./overflow.mjs");
-    if (overflowBlocksHope()) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Overflow.hopeBlocked"));
+    if (held <= 0) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Despair.poolEmpty"));
         return 0;
     }
 
@@ -693,29 +690,56 @@ export async function convertDespairToHope(monokumaUserId, actor, amount) {
      * receives. The drop is owed now (`recordOwed`; paid by `settleOwed`), recorded before the
      * Hope so no window redrawn by the Hope's write offers the Despair again, and the card
      * speaks as nobody (secret.mjs).
-     * From the Hope the GMs hold (sheet-audit.mjs `meansWrite`, E29 fix r2-H24): a console's
-     * raised Hope, not put back yet, was converted onto, and trimmed what the pool paid.
      */
+    const user = game.users.get(monokumaUserId);
+    const { granted } = await creditHopeFromDespair(actor, Math.min(amount, held), { payer: user ?? null, owes: monokumaUserId, reason: "gmRuling" });
+    if (granted > 0) log(`Converted ${granted} Despair from ${user?.name} into Hope for ${actor.name}; the pool pays at the next time of day.`);
+    return granted;
+}
+
+/**
+ * ONE ROAD OF DESPAIR TO HOPE (E37 C6, 01.11.2026; E37-27, audit S09-38). Two roads credited a student's Hope from a
+ * Monokuma's Despair: `convertDespairToHope` (the Students window, the Monocub and Mastermind windows) with a veiled
+ * card naming the paying pool, and Fuel a Monocub's Call (call-effects.mjs `hopeFromDespairEffect`, its pool charged at
+ * once by `spendDespairCall`) with an unveiled whisper naming the Monokuma's actor. Both credit here now: refused under
+ * the Despair darkening (no Hope can be earned there: the actor hook deletes the increase, DESP-04, CALL-05), then from
+ * the Hope the GMs hold (sheet-audit.mjs `meansWrite`, E29 fix r2-H24: a console's raised Hope, not put back yet, was
+ * credited onto) at most `amount`, never above the Hope maximum; the debt recorded in E05's buffer (`recordOwed`) for
+ * what is granted and before the Hope, when `owes` names the pool that pays at the next time of day (the window's road;
+ * the Call's pool has paid already); and one veiled card to the receiver's owners and the GMs naming the pool's label
+ * (`poolLabel(payer)`; "Monokuma" when no pool is found, as the Call's card said before). Each refusal is told here (`Overflow.hopeBlocked`, `Despair.hopeAlreadyFull`) and answered as
+ * `blocked`: "darkening" or "full". The Call keeps its own price and its public card (Q-E37-5). Tier 2 E37-T6.
+ *
+ * `reason` is the write's: "call" for the Call, else "gmRuling".
+ *
+ * @returns {Promise<{granted: number, held?: number, blocked?: "darkening"|"full"}>}
+ */
+export async function creditHopeFromDespair(actor, amount, { payer = null, owes = null, reason = "gmRuling" } = {}) {
+    if (!game.user.isGM || !actor || !(amount > 0)) return { granted: 0 };
+    const { overflowBlocksHope } = await import("./overflow.mjs");
+    if (overflowBlocksHope()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Overflow.hopeBlocked"));
+        return { granted: 0, blocked: "darkening" };
+    }
     const { meansWrite } = await import("./sheet-audit.mjs");
-    const granted = await meansWrite(actor, async ({ hope }, maxOf) => {
+    const { held, granted } = await meansWrite(actor, async ({ hope }, maxOf) => {
         const room = Math.min(amount, (maxOf("hope") || STARTING.hopeMax) - hope);
-        if (room <= 0) return 0;
-        await recordOwed(monokumaUserId, room);
-        await trustedWrite(actor, { "system.resources.hope.value": hope + room }, { reason: "gmRuling" });
-        return room;
+        if (room <= 0) return { held: hope, granted: 0 };
+        if (owes) await recordOwed(owes, room);
+        // A reason of the closed list, a literal each (tests-tier0.mjs R220): the Call's, or a GM's ruling.
+        const write = { "system.resources.hope.value": hope + room };
+        if (reason === "call") await trustedWrite(actor, write, { reason: "call" });
+        else await trustedWrite(actor, write, { reason: "gmRuling" });
+        return { held: hope, granted: room };
     });
     if (granted <= 0) {
         ui.notifications.warn(game.i18n.localize("DRPG.Despair.hopeAlreadyFull"));
-        return 0;
+        return { granted: 0, held, blocked: "full" };
     }
-
-    const user = game.users.get(monokumaUserId);
     await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Despair.hopeConverted", {
-        n: granted, who: foundry.utils.escapeHTML(poolLabel(user))
+        n: granted, who: foundry.utils.escapeHTML(payer ? poolLabel(payer) : "Monokuma")
     })}</p>`, { veiled: true });
-
-    log(`Converted ${granted} Despair from ${user?.name} into Hope for ${actor.name}; the pool pays at the next time of day.`);
-    return granted;
+    return { granted, held };
 }
 
 /**

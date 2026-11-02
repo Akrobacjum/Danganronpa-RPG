@@ -31261,6 +31261,72 @@ const INVARIANTS = [
             + "murderState, trialQueue, trialProgress, the cast copy through murderState's road with drpgCastChanged, the incident's row "
             + "[sheets, hud, visibility], the trial's [floor, hud, voice tile], the clock's hooks visibility.mjs still runs a pass on}");
     }],
+    ["R1200 - the Move briefing says what the next room takes (E37 C6, E37-28; audit S10-48, D21): actions.mjs `nextCrossingPrice` reads the Free Move, a Sprint, a Burst and an action in the order `takeMove` pays them, and on five stand-in students (a Free Move; a Sprint; a Burst with actions; actions only; nothing) answers that order; the briefing's line for each names that price - \"the next room takes your Burst, and your actions stay\" with a Burst banked - and the crossing's card names a Burst it paid", async () => {
+        /*
+         * E37 C6, 01.11.2026; E37-28, audit S10-48. A crossing pays the Free Move, then a Sprint, then `spendAction`,
+         * which takes a banked Burst before an action (actions.mjs `takeMove`; D21 keeps that order). The Move briefing
+         * said "Free Move used - the next room costs an action" whatever paid, and the crossing's card "That cost an
+         * action" for a Burst, so a player who had bought a Burst for their next action read that the walk would cost an
+         * action and found the Burst gone. Read: the order of the four in `takeMove`'s and `spendAction`'s source and in
+         * `nextCrossingPrice`'s (`fnSource`); `nextCrossingPrice` and the briefing's first line (action-rolls.mjs
+         * `briefingBlock`, the window's own text) on five stand-ins of this test's own - an id no token has, the flags and
+         * the actions as given, nothing written; and movement.mjs `chargeForCrossing`'s card for a cost "burst". Under a
+         * darkening that takes the Free Move away (`overflowBlocksFreeMove`) the first stand-in reads the next price, as a
+         * crossing would pay. Red at 7dcd13e6: no `nextCrossingPrice`, and the Burst's line "costs an action".
+         */
+        const A = await import("./actions.mjs");
+        const R = await import("./action-rolls.mjs");
+        const { ACTIONS_RESOURCE } = await import("./config.mjs");
+        const { overflowBlocksFreeMove } = await import("./overflow.mjs");
+        const sources = new Map(await moduleSources());
+        const actions = stripComments(sources.get("actions.mjs") ?? "");
+        const take = fnSource(actions, "takeMove"), spend = fnSource(actions, "spendAction");
+        const at = (src, re) => src.search(re);
+        const order = src => [/\bhasFreeMove\(actor\)/, /\bfreeMovesLeft\(actor\) > 0/, /\bfreeActionsLeft\(actor\) > 0/, /\bactionsLeft\(actor\)/].map(re => at(src, re));
+        const paid = [at(take, /\bhasFreeMove\(actor\)/), at(take, /\bfreeMovesLeft\(actor\) > 0/), at(take, /\bspendAction\(/)];
+        const spends = [at(spend, /\bfreeActionsLeft\(actor\) > 0/), at(spend, /\bactionsLeft\(actor\)/)];
+        const priceSrc = topLevelFunction(actions, "nextCrossingPrice");
+        const ascending = list => list.every(i => i >= 0) && list.every((i, k) => k === 0 || i > list[k - 1]);
+        const stand = (key, flags, left) => ({ id: `R1200${key}`.padEnd(16, "0"), name: `R1200 ${key}`, type: "character",
+            getFlag: (scope, name) => (scope === MODULE_ID ? flags[name] : undefined),
+            system: { resources: { [ACTIONS_RESOURCE]: { value: left, max: 2 } } } });
+        const fog = overflowBlocksFreeMove();
+        const fixtures = [
+            ["free", stand("free", {}, 2)],
+            ["sprint", stand("sprint", { [FLAGS.freeMoveUsed]: true, [FLAGS.freeMoveGrants]: 1, [FLAGS.freeActionGrants]: 1 }, 2)],
+            ["burst", stand("burst", { [FLAGS.freeMoveUsed]: true, [FLAGS.freeActionGrants]: 1 }, 2)],
+            ["action", stand("action", { [FLAGS.freeMoveUsed]: true }, 2)],
+            ["nothing", stand("nothing", { [FLAGS.freeMoveUsed]: true }, 0)]
+        ];
+        // What each fixture pays, in takeMove's order; a darkening's lost Free Move leaves the first to its Sprint-less next: actions.
+        const want = { free: fog ? "action" : "free", sprint: "sprint", burst: "burst", action: "action", nothing: null };
+        const line = actor => {
+            const box = document.createElement("div");
+            box.innerHTML = R.briefingBlock(actor, "move", ACTIONS.move);
+            return box.querySelector(".drpg-briefing-facts li")?.textContent.trim() ?? null;
+        };
+        const lineOf = {
+            free: game.i18n.localize("DRPG.Move.freeAvailable"), sprint: game.i18n.localize("DRPG.Move.nextSprint"),
+            burst: game.i18n.localize("DRPG.Move.nextBurst"), action: game.i18n.format("DRPG.Move.freeSpent", { left: 2 }),
+            nothing: game.i18n.localize("DRPG.Move.noBudget")
+        };
+        const card = fnSource(stripComments(sources.get("movement.mjs") ?? ""), "chargeForCrossing");
+        equal(stableJson({
+            takeMove: ascending(paid), spendAction: ascending(spends),
+            nextCrossingPrice: priceSrc ? ascending(order(priceSrc)) : null,
+            prices: fixtures.map(([key, actor]) => [key, typeof A.nextCrossingPrice === "function" ? A.nextCrossingPrice(actor) : "no function"]),
+            lines: fixtures.map(([key, actor]) => [key, line(actor) === lineOf[want[key] ?? "nothing"] ? "its price" : line(actor)]),
+            keys: ["nextSprint", "nextBurst", "wasBurst"].map(k => game.i18n.has(`DRPG.Move.${k}`)),
+            card: /cost === "burst"\s*\?\s*game\.i18n\.localize\("DRPG\.Move\.wasBurst"\)/.test(card)
+        }), stableJson({
+            takeMove: true, spendAction: true, nextCrossingPrice: true,
+            prices: fixtures.map(([key]) => [key, want[key]]),
+            lines: fixtures.map(([key]) => [key, "its price"]),
+            keys: [true, true, true], card: true
+        }), "{takeMove: it pays the Free Move, a Sprint, then spendAction; spendAction: a Burst before an action; nextCrossingPrice: it asks "
+            + "the four in that order; prices: what it answers for each stand-in; lines: the briefing's first line for each, \"its price\" when it "
+            + "names what the next room takes; keys: the three new lines exist; card: the crossing's card names a Burst it paid}");
+    }],
 ];
 
 /**

@@ -961,38 +961,28 @@ export function grantWords(grants, kase = "acc") {
 // --- Despair spent as somebody else's Hope ---
 //
 // The pool has ALREADY been charged by `spendDespairCall`, so this only
-// credits the Hope. Routing it through `convertDespairToHope` would take
-// the Despair a second time - the exchange rate is the Call's own cost.
+// credits the Hope - through despair.mjs `creditHopeFromDespair`, the one
+// road of Despair to Hope (E37 C6, 01.11.2026; E37-27, audit S09-38), with
+// nothing owed: the exchange rate is the Call's own cost, and the debt
+// `convertDespairToHope` records would take the Despair a second time. Its
+// card was a whisper naming the Monokuma's actor, unveiled; it is the
+// credit's veiled card now, naming the paying pool (monokuma.mjs
+// `poolUserFor`, the pool `spendDespairCallFor` charged), as the Students
+// window's is. The Call's own public card stays (Q-E37-5).
 async function hopeFromDespairEffect(actor, call, choice, done) {
-    // No Hope is earned under the Despair darkening, and this is Hope earned:
-    // the write would be stripped and the Call would still report "gains 1
-    // Hope" and keep its Despair (DESP-04, CALL-05). `refusalBeforePaying`
-    // asks first; this is the far side of it, for a darkening that began while
-    // the picker was open. Not a fault, so no "tell the GM".
-    if (overflowBlocksHope()) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Overflow.hopeBlocked"));
-        throw new NothingToDo("the darkening blocks Hope");
-    }
-    // From the Hope the GMs hold (sheet-audit.mjs `meansWrite`, E29 fix r2-H24): a console's raised Hope,
-    // not put back yet, was granted on top.
-    const { meansWrite } = await import("./sheet-audit.mjs");
-    const { held, next } = await meansWrite(choice.target, async ({ hope }, maxOf) => {
-        const next = Math.min(maxOf("hope") || STARTING.hopeMax, hope + call.grantsHope);
-        if (next !== hope) await trustedWrite(choice.target, { "system.resources.hope.value": next }, { reason: "call" });
-        return { held: hope, next };
-    });
-
-    if (next === held) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Despair.hopeAlreadyFull"));
-        throw new NothingToDo(`${choice.target.name} is already at maximum Hope`);
-    }
+    const { creditHopeFromDespair } = await import("./despair.mjs");
+    const { poolUserFor } = await import("./monokuma.mjs");
+    // The darkening (DESP-04, CALL-05; `refusalBeforePaying` asks first, this is the far side of it, for a darkening
+    // that began while the picker was open) and a Hope at its maximum are refused there, and told; not a fault, so no
+    // "tell the GM".
+    const { granted, blocked } = await creditHopeFromDespair(choice.target, call.grantsHope,
+        { payer: poolUserFor(actor), reason: "call" });
+    if (blocked === "darkening") throw new NothingToDo("the darkening blocks Hope");
+    if (!(granted > 0)) throw new NothingToDo(`${choice.target.name} is already at maximum Hope`);
 
     done.push(game.i18n.format("DRPG.Calls.hopeGranted", {
-        name: choice.target.name, n: next - held
+        name: choice.target.name, n: granted
     }));
-    await whisperToOwner(choice.target, `<p>${game.i18n.format("DRPG.Despair.hopeConverted", {
-        n: next - held, who: foundry.utils.escapeHTML(actor?.name ?? "Monokuma")
-    })}</p>`);
 }
 
 /*

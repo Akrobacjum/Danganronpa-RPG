@@ -22,7 +22,9 @@ import {
     applyProjectChange, combineChanges, projectEditChange, sightChange, projectMeta, addProgress, projectLabel
 } from "./projects.mjs";
 import { placeRoomNames } from "./rooms.mjs";
-import { dialogContent, error, markFired, markLanguage, tableDialog, wirePortraitPickers } from "./utils.mjs";
+import { dialogContent, error, markFired, markLanguage, serialWrite, tableDialog, wirePortraitPickers } from "./utils.mjs";
+// The projects' queue key, from the file that keeps it (projects.mjs does not re-export it), as traps.mjs and fog.mjs read it.
+import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { alreadyOpen, keepFresh } from "./live.mjs";
 import {
     leaveIconOnly, localiseRawKeys, hideUndiscovered, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl
@@ -34,9 +36,14 @@ const DialogV2 = foundry.applications.api.DialogV2;
 export function registerProjectsUi() {
     // The countdown tray is its own ApplicationV2; label it on every render.
     Hooks.on("renderDhCountdowns", onRenderCountdowns);
-    // Its row menu, before the tray's first render builds it (E36 C2), and once more at ready for a class set late.
+    // Its row menu, before the tray's first render builds it (E36 C2), and once more at ready for a class set late;
+    // and its automation's whole write of the countdowns, the same way (E37 C6).
     wrapCountdownMenu();
-    Hooks.once("ready", wrapCountdownMenu);
+    wrapCountdownUpdate();
+    Hooks.once("ready", () => {
+        wrapCountdownMenu();
+        wrapCountdownUpdate();
+    });
 }
 
 /**
@@ -132,7 +139,28 @@ function onRenderCountdowns(app, element) {
  * player's click still goes the system's way, to the GM's relay, which lands
  * nothing on a project (relay-guard.mjs `judgeCountdowns`). Read in 2.10.5's
  * source, not on v14 at a table (LIVE-E36-02, AUDIT 9.2 item 300).
+ *
+ * AND THE SYSTEM'S OWN WHOLE WRITES IN THE PROJECTS' QUEUE (E37 C6, 01.11.2026;
+ * E37-29, the deferred D100). On a GM's browser the menu's Reveal, Hide and
+ * Delete on a row that is no project, and the automation's static
+ * `DhCountdowns.updateCountdowns` (a GM's own roll, a combat turn, reroll.mjs
+ * `settleDualityReroll`), each read the setting, await, and write it whole,
+ * outside `COUNTDOWNS_KEY`: a project's step landing between that read and that
+ * write was written over. Each runs as a step of the key now
+ * (`queuedCountdownWrite`), so a project's change lands before or after it,
+ * never under it. Nothing calls `updateCountdowns` inside a step of the key - it
+ * would wait on itself (R1201). The -/+ on a row that is no project stays the
+ * system's private handler, outside the key (projects-secrecy.mjs's header;
+ * LIVE-E37-03).
  * ========================================================================== */
+
+/**
+ * The system's own whole write of the Countdowns, run on a GM's browser as a step of `COUNTDOWNS_KEY` (E37 C6), and
+ * as it was on a player's, whose write goes to the GM's relay (relay-guard.mjs `applyOps`, its own step there).
+ */
+function queuedCountdownWrite(write) {
+    return game.user?.isGM ? serialWrite(COUNTDOWNS_KEY, write) : write();
+}
 
 /** Is this tray row's countdown one of the module's projects? */
 function isProjectRow(countdownId) {
@@ -186,17 +214,41 @@ export function projectRowMenu(entries) {
         const click = entry[clickKey];
         if (/\.Countdowns\.(?:reveal|hide)$/.test(label)) {
             entry[showKey] = element => !projectOf(element) && (typeof show === "function" ? show(element) : show ?? true);
+            // Shown only on a row that is no project, so its click is the system's whole write: in the queue (E37 C6).
+            if (typeof click === "function") entry[clickKey] = function (...args) { return queuedCountdownWrite(() => click.apply(this, args)); };
         } else if (label === "CONTROLS.CommonDelete") {
-            entry[clickKey] = (event, target) => {
+            entry[clickKey] = function (event, target) {
                 const element = target ?? (event instanceof HTMLElement ? event : null);
                 const id = projectOf(element);
                 if (id) return deleteProject(id);
-                return typeof click === "function" ? click(event, target) : undefined;
+                return typeof click === "function" ? queuedCountdownWrite(() => click.call(this, event, target)) : undefined;
             };
         }
         entry[MENU_DONE] = true;
     }
     return entries;
+}
+
+/* The mark on the wrapped `updateCountdowns`, registered so the contract register's probe (patches.mjs, "countdown-update") reads it. */
+const UPDATE_DONE = Symbol.for("drpgCountdownUpdateQueued");
+
+/**
+ * The tray class's static `updateCountdowns`, wrapped once (E37 C6; at init when the system has set its class, else at
+ * ready, as `wrapCountdownMenu`): on a GM's browser a step of `COUNTDOWNS_KEY`. Called as the class's method or read off
+ * it and called bare (Daggerheart's dualityRoll.mjs destructures it), so the system's own runs with the class for
+ * `this`. Exported for the suite, which wraps a model of the system's write with it (E37-T7). Answers whether it wrapped
+ * now.
+ */
+export function wrapCountdownUpdate() {
+    const Tray = game.system?.api?.applications?.ui?.DhCountdowns ?? CONFIG.ui?.countdowns ?? null;
+    const own = typeof Tray === "function" ? Tray.updateCountdowns : null;
+    if (typeof own !== "function" || own[UPDATE_DONE]) return false;
+    const wrapped = function (...args) {
+        return queuedCountdownWrite(() => own.apply(Tray, args));
+    };
+    wrapped[UPDATE_DONE] = true;
+    Tray.updateCountdowns = wrapped;
+    return true;
 }
 
 /** The tray class's menu builder, wrapped once: at init when the system has set its class, else at ready. */

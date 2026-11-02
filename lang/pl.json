@@ -515,7 +515,7 @@
       "spent": "{name} wydaje {cost} Despair",
       "notEnough": "{call} kosztuje {cost} Despair, a masz {held}.",
       "unknownCall": "Nieznany Despair Call: {key}.",
-      "notEnoughPool": "Ta pula ma {held} Despair; poproszono o {needed}.",
+      "poolEmpty": "Ta pula nie ma Despair do oddania.",
       "hopeAlreadyFull": "Ich Hope jest już na maksimum.",
       "hopeConverted": "{who} zamienia część swojego Despair - zyskujesz {n} Hope.",
       "owed": {
@@ -3393,6 +3393,8 @@
       "title": "Move",
       "freeAvailable": "Twój Free Move na tę porę dnia wciąż jest.",
       "freeSpent": "Free Move zużyty - następny pokój kosztuje akcję. Masz {left}.",
+      "nextSprint": "Free Move zużyty. Następny pokój zabierze Sprint, a akcje zostaną.",
+      "nextBurst": "Free Move zużyty. Następny pokój zabierze twój Burst, a akcje zostaną.",
       "entered": "Wchodzisz do: {room}.",
       "leftRooms": "Opuszczasz pokój.",
       "wasSprint": {
@@ -3402,6 +3404,7 @@
         "other": "Opłacone przez Sprint. Zostało {n}."
       },
       "wasFree": "To był twój Free Move na tę porę dnia.",
+      "wasBurst": "Zapłacone Burstem.",
       "costAction": {
         "one": "To kosztowało akcję - została {left} akcja.",
         "few": "To kosztowało akcję - zostały {left} akcje.",
@@ -6851,6 +6854,7 @@
         "selection-drag-rectangle": "ramka przeciągania zostaje pomarańczowa, jak w Foundry",
         "selection-controlled-colour": "ramki tokenów zostają pomarańczowe, jak w Foundry",
         "countdown-row-menu": "menu wiersza projektu jest menu Daggerheart: widać Reveal i Hide, a Delete usuwa tylko odliczanie",
+        "countdown-update": "Daggerheart przesuwa swoje odliczania poza kolejką projektów, a zmiana projektu zrobiona w tej samej chwili może przepaść",
         "door-controls": "każdy znacznik drzwi jest pokazywany tak, jak pokazuje go Foundry",
         "token-ruler": "linijka ruchu żetonu zostaje w kolorze, który daje jej Foundry albo inny moduł",
         "actions-resource": "postać nie ma zasobu Akcji",
