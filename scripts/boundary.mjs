@@ -34,6 +34,16 @@
  * Measured headless (tier 2 E37-T3, scenario 40 part R); a reload mid-round and how long a round takes at a table are
  * LIVE-E37-02.
  *
+ * ONE ROUND, ONE MOVE OF THE CLOCK (E37 fix FG1, 02.11.2026; the end review's C-M1, S-m3, C-m5, G-m2, G-m3). Two GMs on
+ * one round both went on - the last Done reached both windows - and each moved the clock: the primary refused the second
+ * end, but the end only logged it. A caller moves the clock only when its own end of the round is the one the primary
+ * took ("go", `close` answering true; true with no round), and the primary takes a "go" only while the round is open
+ * over its clock and allowed (`roundAllowed`, asked again: an incident begun meanwhile ends the round "stop", and so does
+ * its start, `endBarredRound`). A round whose GM is not connected is ended by the next press of either road, and that GM
+ * is told in one line; the panel's next line names an open round with its "Do it" (gm-panel.mjs `nextStep`). A player who
+ * closed the window, or whose answer was refused, gets a card that opens it again while the round stands. Scenario 61
+ * part RR (two GMs, one round), tier 2 E37-T3 and E37-T9, tier 1 R1204.
+ *
  * In the clock's family (clock.mjs, eclipse.mjs), and imported by the HUD and the panel with `import()`, as they import
  * eclipse.mjs; the bridge and the GM stores by `import()` as well, where a static import would close a cycle.
  */
@@ -43,7 +53,8 @@ import { SETTINGS } from "./settings.mjs";
 import { getClock, timeOfDayLabel, boundaryStamp, advanceTimeOfDay } from "./clock.mjs";
 import { isEclipse, incomingTimeOfDay, startEclipse, endEclipse, startRefusal, placementStatus, eclipseLabel } from "./eclipse.mjs";
 import { actingStudents } from "./monokuma.mjs";
-import { tableDialog, dialogContent, serialWrite, isPrimaryGm, serverNow, listOf, plural, esc, error } from "./utils.mjs";
+import { tableDialog, dialogContent, serialWrite, isPrimaryGm, serverNow, listOf, plural, esc, error, debug } from "./utils.mjs";
+import { showPopup } from "./popup.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
 /**
@@ -74,23 +85,23 @@ export async function toggleEclipse() {
         if (!await askEclipse(incomingTimeOfDay(getClock()))) return null;
         const ready = await askReadiness("eclipseStart");
         if (!ready.go) return null;
-        await ready.close("go");
+        if (!await ready.close("go")) return null;
         return startEclipse();
     }
 
     const ready = await askReadiness("eclipseEnd");
     if (!ready.go) return null;
     if (ready.choice) {
-        await ready.close("go");
+        if (!await ready.close("go")) return null;
         return endEclipse({ advance: ready.choice !== "endOnly" });
     }
     const rows = placementStatus();
     if (rows.every(s => s.moved > 0)) {
-        await ready.close("go");
+        if (!await ready.close("go")) return null;
         return endEclipse({ advance: true });
     }
     const choice = await placementTable(rows);
-    await ready.close(choice === "end" || choice === "endOnly" ? "go" : "stop");
+    if (!await ready.close(choice === "end" || choice === "endOnly" ? "go" : "stop")) return null;
     if (choice === "end") return endEclipse({ advance: true });
     if (choice === "endOnly") return endEclipse({ advance: false });
     return null;
@@ -109,7 +120,7 @@ export async function nextTimeOfDay() {
     }
     const ready = await askReadiness("next");
     if (!ready.go) return null;
-    await ready.close("go");
+    if (!await ready.close("go")) return null;
     return advanceTimeOfDay({ resetActions: true });
 }
 
@@ -287,15 +298,27 @@ export async function openRoundOnPrimary({ kind, by = null } = {}) {
     return serialWrite(READY_KEY, async () => {
         const clock = getClock();
         if (!READY_KINDS.includes(kind) || !kindFits(kind, clock)) return { refused: "the clock is not at that boundary" };
-        if (!await roundAllowed(clock)) return { reply: { round: null } };
+        let open = roundOf(readyRecord(), clock);
+        /* A ROUND WHOSE GM IS GONE (E37 fix FG1; the end review's C-m5 and G-m3). The GM who pressed reloaded or left,
+           and the record stayed open: a press of the other kind was refused ("another readiness round is open") with
+           nothing saying how to clear it. The next press of either road by another GM ends it ("stop") - replaced by
+           the new round in the same write, or ended alone when nobody is to be asked - and `cleared` tells that GM. The
+           same GM back after a reload is connected again and joins it. */
+        const cleared = Boolean(open && open.by !== by && !game.users.get(open.by ?? "")?.active);
+        let write = cleared ? { ...open, ended: "stop" } : null;
+        if (cleared) open = null;
+        let reply = { round: null, cleared };
         const users = roundUsers();
-        if (!users.some(user => user.active)) return { reply: { round: null } };
-        const open = roundOf(readyRecord(), clock);
-        if (open && open.kind !== kind) return { refused: "another readiness round is open" };
-        if (open) return { reply: { round: open } };
-        const record = { id: foundry.utils.randomID(), kind, boundary: boundaryStamp(clock), by, at: serverNow(), answers: {} };
-        await game.settings.set(MODULE_ID, SETTINGS.readyRound, record);
-        return { reply: { round: record } };
+        if (await roundAllowed(clock) && users.some(user => user.active)) {
+            if (open && open.kind !== kind) return { refused: "another readiness round is open" };
+            if (open) reply = { round: open, cleared };
+            else {
+                write = { id: foundry.utils.randomID(), kind, boundary: boundaryStamp(clock), by, at: serverNow(), answers: {} };
+                reply = { round: write, cleared };
+            }
+        }
+        if (write) await game.settings.set(MODULE_ID, SETTINGS.readyRound, write);
+        return { reply };
     });
 }
 
@@ -330,10 +353,27 @@ export async function endRoundOnPrimary({ roundId, outcome } = {}) {
     return serialWrite(READY_KEY, async () => {
         const record = readyRecord();
         if (!record?.id || record.id !== roundId || record.ended) return { refused: "nothing was carried out: that readiness round is not open" };
-        const ended = outcome === "go" ? "go" : "stop";
+        /* A "go" only over the round open at this clock, and while a round may run here (E37 fix FG1; the end review's
+           C-M1 and S-m3): a round the clock has left was moved past by another road, and an incident begun since the
+           round opened moves the clock in private - that round ends "stop", and its caller moves nothing. */
+        const clock = getClock();
+        if (outcome === "go" && roundOf(record, clock)?.id !== record.id) return { refused: "nothing was carried out: that readiness round is not open" };
+        const ended = outcome === "go" && await roundAllowed(clock) ? "go" : "stop";
         await game.settings.set(MODULE_ID, SETTINGS.readyRound, { ...record, ended });
         return { reply: { ended } };
     });
+}
+
+/**
+ * AN INCIDENT'S START ENDS AN OPEN ROUND (E37 fix FG1, 02.11.2026; the end review's S-m3), on the primary GM, at every
+ * write of `murderState`: a round open while a round may no longer run (`roundAllowed`) is ended "stop", through
+ * `endRoundOnPrimary`, so its windows close and nothing moves - the clock is the incident's now, and moves in private.
+ */
+export async function endBarredRound() {
+    if (!game.user.isGM || !isPrimaryGm()) return null;
+    const round = roundOf(readyRecord(), getClock());
+    if (!round || await roundAllowed(getClock())) return null;
+    return endRoundOnPrimary({ roundId: round.id, outcome: "stop" });
 }
 
 /** The window's title: the Eclipse's name (`Eclipse.named`), or the end of this time of day. */
@@ -377,17 +417,23 @@ async function confirmGo(n, title) {
  * false }` when the GM stopped (Not now, a closed window), the round went away (another GM ended it, the clock moved) or
  * the primary refused; otherwise `{ go: true, choice, close }` - `choice` the button that went on (null with no round,
  * and at an end with a student nobody has placed for, which the placement table decides), `close(outcome)` the round's
- * end on the primary, called by the caller right before it moves the clock (a no-op with no round).
+ * end on the primary, called by the caller right before it moves the clock, answering whether the primary took this
+ * GM's "go" (true with no round): the caller moves the clock only then.
  */
 async function askReadiness(kind) {
     const { requestReadyOpen, requestReadyEnd } = await import("./gm-bridge.mjs");
     const res = await requestReadyOpen({ kind });
     if (!res.ok || !res.value) return { go: false };
+    if (res.value.cleared) ui.notifications.info(game.i18n.localize("DRPG.Ready.goneEnded"));
     const round = res.value.round ?? null;
-    if (!round) return { go: true, choice: null, close: async () => {} };
+    if (!round) return { go: true, choice: null, close: async () => true };
+    // True only when the primary took this GM's "go" (E37 fix FG1, C-M1): another GM's end, or a "stop" it made of it, moves nothing here.
     const close = async outcome => {
         const ended = await requestReadyEnd({ roundId: round.id, outcome });
         if (!ended.ok) error(`The readiness round ${round.id} was not ended on the primary GM (${ended.reason ?? "refused"})`);
+        const went = ended.ok && ended.value?.ended === "go";
+        if (outcome === "go" && !went) debug(`The readiness round ${round.id} was ended elsewhere, or stopped: this GM does not move the clock`);
+        return went;
     };
     // The window is up on this browser already (a second press of the same GM): raised, and this press goes nowhere.
     if (alreadyOpen(GM_CLASS)) return { go: false };
@@ -509,13 +555,47 @@ async function promptPlayer(round, waited) {
         rejectClose: false
     });
     // A GM is never asked (`roundUsers`); the check stands over the ask so a GM's answer can never go down its own socket (R6).
-    if (game.user.isGM || (choice !== "done" && choice !== "wait") || !still()) return;
+    if (game.user.isGM || !still()) return;
+    if (choice !== "done" && choice !== "wait") return void answerAgain(round, waited);
     const { requestReadyAnswer } = await import("./gm-bridge.mjs");
     const res = await requestReadyAnswer({ roundId: round.id, ready: choice === "done" });
-    if (choice === "wait" && res.ok && still()) await promptPlayer(round, true);
+    if (!res.ok) {
+        if (still()) answerAgain(round, waited);
+        return;
+    }
+    if (choice === "wait" && still()) await promptPlayer(round, true);
 }
 
-/** The hook: the page ready (the setting's own changes come through sync.mjs). */
+/**
+ * THE WINDOW AGAIN, FROM A CARD (E37 fix FG1, 02.11.2026; the end review's G-m2). A player who closed the window (its X,
+ * Escape) or whose answer was refused was never asked again for that round: the GM saw "No answer yet" until going on
+ * past them. The smallest road there was: a sticky card of the popup stack (popup.mjs `showPopup` and its `onClick`),
+ * kept nowhere, that opens the window again while the round stands and takes itself down when the round ends.
+ */
+function answerAgain(round, waited) {
+    const still = () => roundOf(readyRecord(), getClock())?.id === round.id;
+    let watch = null;
+    const dismiss = showPopup(`<p>${game.i18n.localize("DRPG.Ready.answerAgain")}</p>`, {
+        title: roundTitle(round.kind), sticky: true, record: false,
+        onClick: () => {
+            clearInterval(watch);
+            if (still() && !alreadyOpen(PLAYER_CLASS)) promptPlayer(round, waited).catch(err => error("Could not open the readiness round's window", err));
+        }
+    });
+    watch = setInterval(() => {
+        if (still()) return;
+        clearInterval(watch);
+        try { dismiss?.(); } catch { /* already gone */ }
+    }, 500);
+}
+
+/** The hooks: the page ready (the setting's own changes come through sync.mjs), and an incident's start on the primary. */
 export function registerReadyRound() {
     Hooks.once("ready", () => { renderReadyRound(); });
+    const incident = setting => {
+        if (setting?.key !== `${MODULE_ID}.${SETTINGS.murderState}`) return;
+        endBarredRound().catch(err => error("Could not end the readiness round at the incident's start", err));
+    };
+    Hooks.on("createSetting", incident);
+    Hooks.on("updateSetting", incident);
 }

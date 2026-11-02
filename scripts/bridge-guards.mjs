@@ -162,7 +162,7 @@ export const REASONS = Object.freeze([
     "notEligible", "sameTwice", "wrongCount", "notKnown", "recipientDead", "floorClosed", "noSpeaker", "noBullet",
     "objectionOver", "relay", "sheetPutBack", "failed",
     "notAtPassage", "doorLocked", "roomSealed", "chained", "cannotLeave", "trialLocked", "noBudget", "eclipseSpent",
-    "oneWay", "refused", "noGm", "noAnswer"
+    "oneWay", "roundMovedOn", "notInRound", "refused", "noGm", "noAnswer"
 ]);
 
 /**
@@ -441,8 +441,9 @@ export const REASON_PATTERNS = Object.freeze([
     ["cannotNow", /^the clock is not at that boundary$/],
     ["cannotNow", /^another readiness round is open$/],
     ["cannotNow", /^no readiness round is open$/],
-    ["movedOn", /^the readiness round has moved on since that answer$/],
-    ["notEligible", /^the sender plays no student the round asks$/]
+    // E37 fix FG1 (the end review's S-m2): the round's own codes, not the incident's and the vote's sentences.
+    ["roundMovedOn", /^the readiness round has moved on since that answer$/],
+    ["notInRound", /^the sender plays no student the round asks$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
 /** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */

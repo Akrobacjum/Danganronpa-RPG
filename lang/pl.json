@@ -3882,7 +3882,9 @@
         "cannotLeave": "Jesteś w incydencie. Jedyne wyjście to akcja kryzysowa - Survive, Escape Together, Finishing Blow albo, jeśli to tylko przypadkowe wejście, Averted Eyes.",
         "trialLocked": "Class Trial trwa. Nikt nie opuszcza sali, dopóki się nie skończy.",
         "noBudget": "Brak Free Move i brak akcji.",
-        "eclipseSpent": "Przejścia Eclipse wyczerpane."
+        "eclipseSpent": "Przejścia Eclipse wyczerpane.",
+        "roundMovedOn": "GM pyta ponownie: odpowiedz na nowe pytanie.",
+        "notInRound": "To pytanie jest do graczy, których uczniowie są w grze, a twój nie jest."
       },
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",
       "send": "Wyślij do GM-a",
@@ -4170,7 +4172,8 @@
       "nextVerdict": "Głosy policzone. Ogłoś werdykt.",
       "nextChapterEnd": "Werdykt zapadł. Zakończ rozdział.",
       "nextTrialOutlived": "Rozdział poszedł dalej, a Class Trial wciąż trwa. Zakończ Class Trial.",
-      "refilled": "Akcje i Search Tokens odnowione. Motive, pieczęcie i overflow zostały nietknięte, a na czat nie trafiła karta pory dnia."
+      "refilled": "Akcje i Search Tokens odnowione. Motive, pieczęcie i overflow zostały nietknięte, a na czat nie trafiła karta pory dnia.",
+      "nextReady": "Gracze dostali pytanie przed przesunięciem zegara. Otwórz je ponownie."
     },
     "Character": {
       "notACharacter": "To działa tylko na postaci.",
@@ -4968,7 +4971,9 @@
         "other": "Jeszcze {n} gracza nie skończyło. Iść dalej mimo to?"
       },
       "goAnyway": "Dalej",
-      "wait2": "Poczekaj"
+      "wait2": "Poczekaj",
+      "answerAgain": "GM wciąż czeka na twoją odpowiedź. Kliknij tutaj, by odpowiedzieć.",
+      "goneEnded": "GM, który wcześniej zapytał graczy, nie ma połączenia, więc to pytanie zostało zamknięte."
     },
     "Summary": {
       "title": "Pora dnia dobiegła końca",

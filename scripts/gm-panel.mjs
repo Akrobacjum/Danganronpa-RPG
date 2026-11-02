@@ -23,6 +23,7 @@ import { keyPlanStatus, keysToPlace } from "./investigation.mjs";
 import { isTruthBullet, secretOf } from "./truth-bullets.mjs";
 import { caseMark, caseWarning, healthLine, keyPlanStore, crossingStore } from "./gm-stores.mjs";
 import { firstOutstandingStep } from "./season-setup.mjs";
+import { roundOf, readyRecord } from "./boundary.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -1145,12 +1146,21 @@ export async function applyAliveStates(chosen = {}) {
  *
  * @returns {{text: string, action: string|null}}
  */
-export function nextStep(clock, { setupList, incident = game.drpg?.murderState?.()?.active, eclipse = isEclipse() } = {}) {
+export function nextStep(clock, { setupList, incident = game.drpg?.murderState?.()?.active, eclipse = isEclipse(), round = roundOf(readyRecord(), clock) } = {}) {
     const students = actingStudents();
     const stillActing = students.filter(a => actionsLeft(a) > 0);
 
     if (incident) {
         return { text: game.i18n.localize("DRPG.Panel.nextIncident"), action: "murder" };
+    }
+
+    /* A READINESS ROUND STANDS OPEN (E37 fix FG1, 02.11.2026; the end review's G-m3, the slice's edge "nextStep says a
+       round is open"). A GM whose page loaded mid-round - a reload, a second GM - had nothing saying the players were
+       asked. The line names it, and its "Do it" is the same road the round was opened by (boundary.mjs `nextTimeOfDay`
+       or `toggleEclipse`): it joins the round and opens the window, or, when the GM who opened it is not connected,
+       ends it and asks again. `round` is the world's unless handed (R1204). */
+    if (round) {
+        return { text: game.i18n.localize("DRPG.Panel.nextReady"), action: round.kind === "next" ? "advance" : "eclipse" };
     }
 
     if (eclipse) {

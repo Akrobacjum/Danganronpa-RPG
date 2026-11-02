@@ -3549,7 +3549,9 @@
         "cannotLeave": "You are in an incident. The only way out is a crisis action - Survive, Escape Together, a Finishing Blow, or, if you only walked in on it, Averted Eyes.",
         "trialLocked": "The Class Trial is in session. Nobody leaves the courtroom until it ends.",
         "noBudget": "No Free Move and no actions left.",
-        "eclipseSpent": "Your Eclipse crossings are used up."
+        "eclipseSpent": "Your Eclipse crossings are used up.",
+        "roundMovedOn": "The GM is asking again: answer the new question.",
+        "notInRound": "This question is for the players whose students are in play, and yours is not."
       },
       "criticalHint": "Critical - this player is owed a substantial hint.",
       "send": "Send to GM",
@@ -3800,7 +3802,8 @@
       "refundCrossingNote": "{to} back to {from}",
       "nextVerdict": "The vote is counted. Deliver the verdict.",
       "nextChapterEnd": "The verdict is in. End the chapter.",
-      "nextTrialOutlived": "The chapter has moved on and the trial is still sitting. End the trial."
+      "nextTrialOutlived": "The chapter has moved on and the trial is still sitting. End the trial.",
+      "nextReady": "The players have been asked before the clock moves. Open the question again."
     },
     "Character": {
       "notACharacter": "That only works on a character.",
@@ -4533,7 +4536,9 @@
         "other": "{n} players are not done yet. Go on anyway?"
       },
       "goAnyway": "Go on",
-      "wait2": "Wait"
+      "wait2": "Wait",
+      "answerAgain": "The GM is still waiting for your answer. Click here to answer.",
+      "goneEnded": "The GM who asked the players before is not connected, so that question is closed."
     },
     "Summary": {
       "title": "The time of day is over",

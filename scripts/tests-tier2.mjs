@@ -78346,6 +78346,17 @@ const SCENARIOS = [
          * as the API: the press answered null, no round open, its window gone, the clock one step on. Put back: the clock,
          * every character's actions, the round's setting, the seals, the restrictions, the motive, the search tokens and
          * the body's record. Red at 2e06ae13: boundary.mjs has no `nextTimeOfDay`.
+         *
+         * E37 fix FG1, 02.11.2026 (the end review's G-m1, S-m2, C-m5). The first press is the panel's own "Next time of
+         * day" now (gm-panel.mjs `openGmPanel`, its window answered here: its content and render handed a detached
+         * element, its `.drpg-gmp-advance` clicked there, the panel's reopening after the run counted), not
+         * `nextTimeOfDay` called: an `advanceTimeOfDay` planted at the panel moves the clock with no round and no window,
+         * and this reads it (the fix round's mutant fg1-m3). The answer for another round and the sender who plays
+         * nobody are told the round's own codes (`roundMovedOn`, `notInRound`), not the incident's and the vote's. And a
+         * round whose GM is not connected (a record written by a user planted inactive, `GONE`, for the Eclipse's start at
+         * this boundary): the next press of the other road ends it, this GM is told in one line (`DRPG.Ready.goneEnded`)
+         * and its own round opens. Red at 2b5527e1: told movedOn and notEligible, and the gone GM's round refused the press
+         * ("another readiness round is open").
          */
         needs(env.primaryGm(), "the round is opened and judged on the primary GM");
         needs(env.dialogs(), "the GM's window is read as drawn");
@@ -78368,6 +78379,21 @@ const SCENARIOS = [
         const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound"]
             .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS[key]) ?? null)]));
         const NOBODY = { id: "!E37T3nobody0000", name: "E37 T3 nobody", role: CONST.USER_ROLES.PLAYER, isGM: false, active: true };
+        const GONE = { id: "zE37T3goneGm0000", name: "E37 T3 gone GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: false };
+        const P = await import("./gm-panel.mjs");
+        const waitOwn = Object.getOwnPropertyDescriptor(D, "wait"), wait0 = D.wait, info0 = ui.notifications.info;
+        let panels = 0, pressPanel = false;
+        const infos = [];
+        for (const app of [...foundry.applications.instances.values()]) {
+            if (app?.options?.classes?.includes("drpg-window-panel")) await app.close();
+        }
+        // The panel's "Next time of day", pressed as a GM presses it: the panel's own window, its button clicked.
+        const panelNext = async () => {
+            pressPanel = true;
+            const from = panels;
+            P.openGmPanel();
+            await until(() => panels >= from + 2, 30000);
+        };
         const win = () => [...foundry.applications.instances.values()].find(app => app?.options?.classes?.includes("drpg-ready-gm")
             && app.element?.isConnected) ?? null;
         const rows = () => [...(win()?.element?.querySelectorAll("tr[data-drpg-user]") ?? [])].map(tr => [tr.dataset.drpgUser, tr.dataset.drpgStatus]);
@@ -78387,6 +78413,21 @@ const SCENARIOS = [
                 confirms.push([config?.no?.default === true, config?.yes?.default === true]);
                 return false;
             };
+            D.wait = async function (config) {
+                if (!config?.classes?.includes?.("drpg-gm-panel-window")) return wait0.call(this, config);
+                panels++;
+                if (!pressPanel) return null;
+                pressPanel = false;
+                const element = config.content instanceof HTMLElement ? config.content
+                    : Object.assign(document.createElement("div"), { innerHTML: String(config.content ?? "") });
+                config.render?.(new Event("render"), { element, close: async () => {} });
+                element.querySelector(".drpg-gmp-advance")?.click();
+                return null;
+            };
+            ui.notifications.info = (message, ...rest) => {
+                infos.push(String(message));
+                return info0.call(ui.notifications, message, ...rest);
+            };
             if (E.isEclipse()) await E.endEclipse({ advance: false });
             await setClock({ phase: "dailyLife", timeOfDay: "noon", refilledFor: null });
             await game.settings.set(MODULE_ID, SETTINGS.readyRound, {});
@@ -78395,7 +78436,7 @@ const SCENARIOS = [
             must(asked.length >= 2, `${asked.length} connected player(s) own a student of the cast - this would measure little`);
             const [first, second, ...rest] = asked;
 
-            pressed = B.nextTimeOfDay();
+            pressed = panelNext();
             await until(() => win() && rows().length > 0, 12000);
             const round = B.readyRecord();
             read.opened = [round.kind, Boolean(round.id), round.by === game.user.id,
@@ -78438,9 +78479,30 @@ const SCENARIOS = [
             pressed = null;
             await settle();
             read.api = [again.id !== round.id, out ?? null, B.roundOf(B.readyRecord(), getClock()), getClock().timeOfDay, Boolean(win())];
+
+            // A round whose GM is not connected: the Eclipse's start opened by GONE, at this boundary; then Next pressed.
+            game.users.set(GONE.id, GONE);
+            const goneRound = { id: "zE37T3goneRnd000", kind: "eclipseStart", boundary: C.boundaryStamp(getClock()), by: GONE.id, at: Date.now(), answers: {} };
+            await game.settings.set(MODULE_ID, SETTINGS.readyRound, goneRound);
+            await settle();
+            const toldBefore = infos.length;
+            pressed = B.nextTimeOfDay();
+            await until(() => win(), 12000);
+            const fresh = B.readyRecord();
+            read.gone = [infos.slice(toldBefore).filter(m => m === game.i18n.localize("DRPG.Ready.goneEnded")).length,
+                fresh.id !== goneRound.id, fresh.kind ?? null, fresh.by === game.user.id, Boolean(win())];
+            win()?.element?.querySelector('footer button[data-action="notNow"]')?.click();
+            await until(() => !win(), 8000);
+            await pressed;
+            pressed = null;
+            await settle();
+            read.gone.push(B.readyRecord().ended ?? null, getClock().timeOfDay);
         } finally {
             if (confirmOwn) Object.defineProperty(D, "confirm", confirmOwn); else delete D.confirm;
+            if (waitOwn) Object.defineProperty(D, "wait", waitOwn); else delete D.wait;
+            ui.notifications.info = info0;
             game.users.delete(NOBODY.id);
+            game.users.delete(GONE.id);
             if (pressed) {
                 await win()?.close();
                 await pressed.catch(() => null);
@@ -78455,18 +78517,123 @@ const SCENARIOS = [
         }
         equal(J(read), J({
             opened: ["next", true, true, true, true],
-            told: ["bridge.ack,bridge.done", "bridge.ack,bridge.done", "bridge.ack,movedOn", "bridge.ack,notEligible"],
+            told: ["bridge.ack,bridge.done", "bridge.ack,bridge.done", "bridge.ack,roundMovedOn", "bridge.ack,notInRound"],
             counted: ["done", "wait", 2],
             window: [true, "done", "wait", "noon"],
             goOn: [[true, false], true, "noon"],
             auto: ["go", "afternoon", false],
-            api: [true, null, null, "evening", false]
+            api: [true, null, null, "evening", false],
+            gone: [1, true, "next", true, true, "stop", "evening"]
         }), "{opened: [the round's kind, an id, opened by this GM, a row for every player of the cast, connected ones No answer yet and "
             + "the rest Not connected]; told: what the first player's Done, the second's One moment, the second's answer for another round and "
             + "a sender who plays nobody were told; counted: the record's answers of the first two and how many it holds; window: [open, the "
             + "first's row, the second's, the time of day]; goOn: [the confirmation's [Wait the default, Go on the default], the window again "
             + "after Wait, the time of day]; auto: [the record's end after the last Done, the time of day, a window]; api: [a new round at the "
-            + "next press, what the press answered after advanceTimeOfDay, a round open after it, the time of day, a window]}");
+            + "next press, what the press answered after advanceTimeOfDay, a round open after it, the time of day, a window]; gone: [this GM told "
+            + "goneEnded, a new round over the gone GM's, its kind, opened by this GM, its window; after Not now: its end, the time of day]}");
+    }],
+    ["E37-T9 - an incident ends the readiness round (E37 fix FG1; the end review's S-m3): a round open for Next time of day when an incident opens is ended \"stop\" on the primary, its window gone, the press answered null and the clock unmoved; a GM's \"go\" for a round open while the incident runs is taken as \"stop\"; and a \"go\" for a round the clock has left is refused", async () => {
+        /*
+         * E37 fix FG1, 02.11.2026; the end review's S-m3 (security lens). `roundAllowed` was asked at the round's open
+         * alone, and an incident does not make a round stale (`roundOf`): a round opened in daily life stayed open when a
+         * killer's action opened an incident, and the GM's window went on and moved the clock - now in private - closing
+         * every outsider's window at that moment. Driven on this GM, the primary, from Daily Life at noon: boundary.mjs
+         * `nextTimeOfDay` pressed and not awaited, its window read as drawn; then murder.mjs `openMurder` (a direct murder,
+         * its opening's trait answered as the body) - the primary's `endBarredRound`, on the incident's setting, ends the
+         * round. Then a record of a round written open during the incident, and `endRoundOnPrimary` asked for "go" as the
+         * GM's window asks it; the incident closed (`endMurder`), a round written open, the clock moved by the API, and
+         * "go" asked for it. Read: the round, its end, the window, what the press answered, the time of day, and each
+         * "go"'s answer and the record's end. Put back: the incident closed, the clock, every character's actions, the
+         * round's setting, the seals, the restrictions, the motive, the search tokens and the body's record. Red at
+         * 2b5527e1: the round stayed open through the incident's start, and both "go"s were taken as "go".
+         */
+        needs(env.primaryGm(), "the round is opened and ended on the primary GM");
+        needs(env.dialogs(), "the GM's window is read as drawn");
+        needs(env.playersConnected(), "the round asks the connected players of the cast");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const J = stableJson;
+        const B = await import("./boundary.mjs");
+        const C = await import("./clock.mjs");
+        const E = await import("./eclipse.mjs");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        must(!M.murderState(), "an incident is open already - this would measure nothing");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        must(killer && victim, "no two living students with a connected player - this would measure nothing");
+        const was = foundry.utils.deepClone(getClock());
+        const roundWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.readyRound) ?? {});
+        const characters = game.actors.filter(a => a.type === "character");
+        const actionsWas = characters.map(a => [a, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]);
+        const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound"]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS[key]) ?? null)]));
+        const win = () => [...foundry.applications.instances.values()].find(app => app?.options?.classes?.includes("drpg-ready-gm")
+            && app.element?.isConnected) ?? null;
+        const record = id => ({ id, kind: "next", boundary: C.boundaryStamp(getClock()), by: game.user.id, at: Date.now(), answers: {} });
+        const read = {};
+        let pressed = null;
+        try {
+            if (E.isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife", timeOfDay: "noon", refilledFor: null });
+            await game.settings.set(MODULE_ID, SETTINGS.readyRound, {});
+            await settle();
+
+            pressed = B.nextTimeOfDay();
+            await until(() => win(), 12000);
+            const round = B.readyRecord();
+            must(round.id && !round.ended, "no round opened at the press - this would measure nothing");
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            await settle();
+            await until(() => !win(), 8000);
+            // Read before anything ends it here; a window still up (the round left open) is let go with its Not now.
+            const endedThere = B.readyRecord().ended ?? null, stillUp = Boolean(win());
+            if (stillUp) {
+                win()?.element?.querySelector('footer button[data-action="notNow"]')?.click();
+                await until(() => !win(), 8000);
+            }
+            const out = await pressed;
+            pressed = null;
+            await settle();
+            read.opened = [round.kind, B.readyRecord().id === round.id, endedThere, stillUp, out ?? null, getClock().timeOfDay, Boolean(M.murderState())];
+
+            const during = record("zE37T9during0000");
+            await game.settings.set(MODULE_ID, SETTINGS.readyRound, during);
+            await settle();
+            const goDuring = await B.endRoundOnPrimary({ roundId: during.id, outcome: "go" });
+            await settle();
+            read.during = [goDuring?.reply?.ended ?? goDuring?.refused ?? null, B.readyRecord().ended ?? null, getClock().timeOfDay];
+
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+            const stale = record("zE37T9stale00000");
+            await game.settings.set(MODULE_ID, SETTINGS.readyRound, stale);
+            await settle();
+            await setClock({ timeOfDay: "afternoon" });
+            await settle();
+            const goStale = await B.endRoundOnPrimary({ roundId: stale.id, outcome: "go" });
+            await settle();
+            read.stale = [goStale?.reply?.ended ?? goStale?.refused ?? null, B.readyRecord().ended ?? null];
+        } finally {
+            if (pressed) {
+                await win()?.close();
+                await pressed.catch(() => null);
+            }
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await setClock(was);
+            for (const [actor, value, max] of actionsWas) {
+                await actor.update({ "system.resources.actions.value": value, ...(max === null ? {} : { "system.resources.actions.max": max }) });
+            }
+            for (const [key, value] of Object.entries(settingsWas)) if (value !== null) await game.settings.set(MODULE_ID, SETTINGS[key], value);
+            await game.settings.set(MODULE_ID, SETTINGS.readyRound, roundWas);
+            await settle();
+        }
+        equal(J(read), J({
+            opened: ["next", true, "stop", false, null, "noon", true],
+            during: ["stop", "stop", "noon"],
+            stale: ["nothing was carried out: that readiness round is not open", null]
+        }), "{opened: [the round's kind, the record still that round, its end after the incident opened, a window, what the press "
+            + "answered, the time of day, an incident]; during: [what a \"go\" for a round open in the incident answered, the record's end, "
+            + "the time of day]; stale: [what a \"go\" for a round the clock has left answered, the record's end]}");
     }],
     ["E37-T4 - the summary at every boundary (E37 C4, E37-16, E37-17; D44c, S10-79): with three cards of a time of day in the GM's store, Next time of day (`advanceTimeOfDay`) shows one summary with their rows; the same cards and an Eclipse's start show the same summary - title, lede, rows and totals; and the Eclipse's end that moves the clock after it shows none", async () => {
         /*

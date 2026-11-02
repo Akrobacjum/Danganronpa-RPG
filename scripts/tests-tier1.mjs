@@ -31077,6 +31077,39 @@ const INVARIANTS = [
             + "and A's covered by A's Done; the first row; stale: the clock moved on, ended, a start in the Eclipse, an end outside one, no "
             + "record, an unknown kind; who is asked: one row for the player with two students, no row for the Assistant GM");
     }],
+    ["R1204 - the GM panel's next line names an open readiness round (E37 fix FG1; the end review's G-m3, the slice's edge \"nextStep says a round is open\"): gm-panel.mjs `nextStep` handed a round of Next time of day answers `DRPG.Panel.nextReady` with the panel's \"advance\", a round of an Eclipse's start or end the same line with \"eclipse\"; an incident's line still comes first, and with no round the line is not that one", async () => {
+        /*
+         * E37 fix FG1, 02.11.2026; the end review's G-m3 (goal lens) and STATUS Open 15. A GM's page that loads while a
+         * round stands open - a reload of the GM who pressed, another GM - had nothing saying the players had been asked:
+         * the slice's edge "`nextStep`'s line says a round is open" was not built at C3. Read: `nextStep` in Daily Life
+         * handed a checklist whose required rows hold, no incident and no Eclipse but where the case asks for one, and a
+         * round of each kind (the shape `roundOf` answers: an id and a kind), then an incident beside a round, then no
+         * round. Pure; nothing is written. The "Do it" each line names is the road the round was opened by (boundary.mjs
+         * `nextTimeOfDay` behind "advance", `toggleEclipse` behind "eclipse"), which joins the round or, its GM gone, ends
+         * it and asks again (tier 2 E37-T3 `gone`). Red at 2b5527e1: `nextStep` reads no round, and each line was another.
+         */
+        const GP = await import("./gm-panel.mjs");
+        const CFG = await import("./config.mjs");
+        must(typeof GP.nextStep === "function", "gm-panel.mjs exports no nextStep - this would measure nothing");
+        const clock = { ...getClock(), phase: "dailyLife", chapter: 1, day: 1, session: 1, timeOfDay: CFG.TIMES_OF_DAY[1], eclipse: false, refilledFor: null };
+        const held = [{ key: "name", done: true, optional: false, missing: () => [] }, { key: "cast", done: true, optional: false, missing: () => [] }];
+        const ask = (round, extra = {}) => {
+            const step = GP.nextStep(clock, { setupList: held, incident: false, eclipse: false, round, ...extra });
+            return [step?.text ?? null, step?.action ?? null];
+        };
+        const ready = game.i18n.localize("DRPG.Panel.nextReady");
+        const none = ask(null);
+        equal(stableJson({
+            next: ask({ id: "zR1204next000000", kind: "next" }),
+            start: ask({ id: "zR1204start00000", kind: "eclipseStart" }),
+            end: ask({ id: "zR1204end0000000", kind: "eclipseEnd" }, { eclipse: true }),
+            incident: ask({ id: "zR1204next000000", kind: "next" }, { incident: true })[1],
+            none: none[0] === ready
+        }), stableJson({
+            next: [ready, "advance"], start: [ready, "eclipse"], end: [ready, "eclipse"], incident: "murder", none: false
+        }), "{next, start, end: the line and its action for a round of Next time of day, an Eclipse's start, its end; incident: the action "
+            + "with an incident beside a round; none: the line with no round is nextReady}");
+    }],
     ["R1197 - the summary at every boundary (E37 C4, E37-16; D44c, S10-79): day-summary.mjs `summaryWindow(before, after, shownFor)` gives an Eclipse's start and a move of the clock with no Eclipse open the same window - the ended time of day's start, the boundary, its name and the boundary's stamp - and none for a move out of an Eclipse, a boundary this page summed up already, a rewind, a new season or chapter, a pause, a clock with no stamp or one put back with an older stamp; and the same boundary reached again from a time of day begun again is a window of its own", async () => {
         /*
          * E37 C4, 01.11.2026; E37-16, audit S10-79 (the summary only through an Eclipse). The day summary showed on
