@@ -76,10 +76,13 @@ const KEYISH = /^DRPG\.[\w-]+(?:\.[\w-]*)*$/;
 const row = (id, name, kind, reader, entries, more = {}) => Object.freeze({ id, name, kind, reader, entries: Object.freeze(entries), ...more });
 export const SCREENS = Object.freeze([
     /* The windows the slice names first. */
-    row("room-setup", "Room Setup", "window", "gm", ["scripts/vault.mjs:openRoomSetupDialog", "scripts/passages-tab.mjs:*"],
+    row("room-setup", "Room Setup", "window", "gm", ["scripts/room-setup.mjs:openRoomSetupDialog", "scripts/passages-tab.mjs:*"],
         { stage: "E12", note: "a GM's window (passages-tab.mjs: \"the GMs' table\"); its Passages tab is E79's" }),
-    row("stash-inspector", "the stashes, every one (game.drpg.inspectVaults)", "window", "gm", ["scripts/vault.mjs:openVaultInspector"], { stage: "E13" }),
-    row("stash", "the stash: a character's items and gear", "window", "both", ["scripts/vault.mjs:*"]),
+    row("stash-inspector", "the stashes, every one (game.drpg.inspectVaults)", "window", "gm", ["scripts/stash-reach.mjs:openVaultInspector"], { stage: "E13" }),
+    // E41 C6 (1.2.97): vault.mjs's units, in the four files its code moved to; of palm.mjs, the three of vault.mjs's that are
+    // entry points (`pocketsAsHeld` and `pocketsFrom` say nothing: named, each would be one).
+    row("stash", "the stash: a character's items and gear", "window", "both", ["scripts/vault-store.mjs:*", "scripts/stash-reach.mjs:*",
+        "scripts/room-setup.mjs:*", "scripts/palm.mjs:tellPalmVictim", "scripts/palm.mjs:stealFromPerson", "scripts/palm.mjs:plantOnPerson"]),
     row("season-setup", "Season setup", "window", "gm", ["scripts/season-setup.mjs:*"], { note: "setting a season up and taking one down: the GM's" }),
     row("gm-panel", "the GM panel", "window", "gm", ["scripts/gm-panel.mjs:*"], { stage: "E13" }),
     row("trial-console", "the trial console: the GM's controls for a Class Trial", "window", "gm", ["scripts/trial-floor-ui.mjs:*"], { stage: "E10" }),

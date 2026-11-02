@@ -1328,6 +1328,32 @@ function actionText(sources, family = ACTION_FAMILY) {
 }
 
 /**
+ * The stash's family (E41 C6): vault.mjs - the facade, which holds no code since C6 - and the files its code moved
+ * into, in the order it stood there: the stash's record and the rooms' flags (vault-store.mjs), what a character does
+ * at a stash and a GM judges of it (stash-reach.mjs), the GM's side of a Palm (palm.mjs, which holds the player's half
+ * as well and is of the action family too) and Room Setup (room-setup.mjs). passages-tab.mjs is not of the family (E79
+ * C5: a file of its own, which Room Setup reaches by `import()`). A reader of vault.mjs's text reads the family through
+ * `vaultText` and follows each file here without a repoint of its own.
+ */
+const VAULT_FAMILY = Object.freeze(["vault.mjs", "vault-store.mjs", "stash-reach.mjs", "palm.mjs", "room-setup.mjs"]);
+
+/** The line `vaultText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
+const VAULT_FAMILY_END = "const VAULT_FAMILY_END = {};";
+
+/**
+ * The stash's family's texts, raw, in VAULT_FAMILY's order, joined by the line `const VAULT_FAMILY_END = {};` (E41 C6):
+ * what a read of vault.mjs's whole text read while the stash was one file, and palm.mjs's player half beside it. A
+ * reader strips the comments itself, as it did; a `fnSource` or `topLevelFunction` of the text cuts a function in its
+ * own file. A file of the family that is not among `sources` refuses by `must`, by name.
+ */
+function vaultText(sources, family = VAULT_FAMILY) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string");
+    must(!gone.length, `${gone.join(", ")}, of the stash's family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`);
+    return family.map(file => map.get(file)).join(`\n${VAULT_FAMILY_END}\n`);
+}
+
+/**
  * Everything wrong with the bridge's tables, one sentence each (R1b). Pure: it
  * is handed the tables (as `bridgeTables()` gives them), the language keys of
  * each file, flattened, and bridge-guards.mjs's namespace, so R1b can run it on
@@ -2196,7 +2222,7 @@ export {
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, styleCascade, bodyOf, topLevelFunction, fnSource, lineAround,
-    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeDeclarationCalls, bridgeCut, bridgeLookup, bridgeCrawl, bridgeFamily, bridgeRead, bridgeFn, bridgeText, censusFile, BRIDGE_FAMILY_END, ACTION_FAMILY, actionText, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
+    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeDeclarationCalls, bridgeCut, bridgeLookup, bridgeCrawl, bridgeFamily, bridgeRead, bridgeFn, bridgeText, censusFile, BRIDGE_FAMILY_END, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
     flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem, TEXT_BASELINES, textAgainstBaseline, textStaleRow,
     textTableWords, textLegacyLists,

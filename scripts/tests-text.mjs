@@ -424,7 +424,7 @@ const around = (text, at) => text.slice(Math.max(0, at - 10), at + 11).replace(/
  * value, literal or line. Measured on 52eacb9c (31.10.2026): 11 of them, every
  * one written before E65 and in the baseline - the U+2212 sites the stage named
  * (config.mjs's two `meddle` prose strings, read as prose and as literals, their
- * pl.json twins, vault.mjs's spend button, action-rolls.mjs's two signs) and two
+ * pl.json twins, room-setup.mjs's spend button, action-report.mjs's two signs) and two
  * it had not, because they are written as escapes: roll-dialog.mjs's signed
  * source ("\u2212") and season-setup.mjs's mark for an optional step ("\u2013").
  */
@@ -2406,7 +2406,7 @@ export const BASELINES = Object.freeze({
         ]),
         Object.freeze({ in: "script", file: "scripts/config.mjs", quote: "You inflict \u22121", issue: "S02-66", empties: "E25" }),
         Object.freeze({ in: "script", file: "scripts/config.mjs", quote: "rattles you: \u22121", issue: "S02-66", empties: "E25" }),
-        Object.freeze({ in: "script", file: "scripts/vault.mjs", quote: "\">\u2212</button>", issue: "S02-66", empties: "E25", why: "the Search Token spend button's label" }),
+        Object.freeze({ in: "script", file: "scripts/room-setup.mjs", quote: "\">\u2212</button>", issue: "S02-66", empties: "E25", why: "the Search Token spend button's label (vault.mjs until E41 C6)" }),
         Object.freeze({ in: "script", file: "scripts/action-report.mjs", quote: "\u2212", issue: "S02-66", empties: "E25", why: "`signed`, a roll's bonus (action-rolls.mjs until E41 C3)" }),
         Object.freeze({ in: "script", file: "scripts/action-report.mjs", quote: "\u2212", issue: "S02-66", empties: "E25", why: "the duality formula's operator (action-rolls.mjs until E41 C3)" }),
         Object.freeze({ in: "script", file: "scripts/roll-dialog.mjs", quote: "\u2212", issue: "S02-66", empties: "E25", why: "a situational source's sign, written as an escape" }),

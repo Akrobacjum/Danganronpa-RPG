@@ -897,7 +897,7 @@
         },
         {
           "fact": "Noticed, the other person is told who reached into their pocket, and what was taken when something was; unnoticed, they are told nothing.",
-          "file": "scripts/vault.mjs",
+          "file": "scripts/palm.mjs",
           "fn": "stealFromPerson",
           "note": null
         },
@@ -4184,13 +4184,13 @@
         },
         {
           "fact": "Find Stash is a Head roll scored on a GM's browser: a total of {n} or more, or a critical, finds one concealed stash of another character in this room that this character has not found yet, preferring one with something in it.",
-          "file": "scripts/vault.mjs",
+          "file": "scripts/stash-reach.mjs",
           "fn": "resolveStashSearch",
           "note": null
         },
         {
           "fact": "Found, the stash is remembered for this character, and the player is told whose it is; below {n}, or with no such stash here, the player reads that nothing was found.",
-          "file": "scripts/vault.mjs",
+          "file": "scripts/stash-reach.mjs",
           "fn": "resolveStashSearch",
           "note": null
         },

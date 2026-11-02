@@ -22,7 +22,7 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText, expectedRed, stripStrings, bridgeFn, bridgeText, ACTION_FAMILY, actionText
+    worldDump, dumpDiff, lfText, expectedRed, stripStrings, bridgeFn, bridgeText, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -1925,7 +1925,8 @@ const INVARIANTS = [
         equal(preservedFlags(fakeKey).bedroomKey, "Test Room", "a key loses its room when it changes hands");
 
         // A removed stash is forgotten by whoever had found it.
-        const vault = src("vault.mjs");
+        // E41 C6 (1.2.97): vault.mjs holds no code; the stash's family's text (the kit's `vaultText`), where its alone was read.
+        const vault = stripComments(vaultText(sources));
         const set = bodyOf(vault, "export async function setStash", { until: "\n}" });
         ok(set.indexOf("forgetStashFound(") > 0 && set.indexOf("forgetStashFound(") < set.lastIndexOf("return list"),
             "setStash forgets the finders after it has already returned");
@@ -7633,8 +7634,9 @@ const INVARIANTS = [
         ok(typeof R.schoolScene === "function", "rooms.mjs has no `schoolScene` - the school is still a guess");
         if (typeof R.schoolScene !== "function") return;
         const sources = await moduleSources();
-        must(sources.get("rooms.mjs")?.length && sources.get("vault.mjs")?.length, "rooms.mjs or vault.mjs is not among the module's sources - this would measure nothing");
-        const rooms = stripComments(sources.get("rooms.mjs")), vault = stripComments(sources.get("vault.mjs"));
+        must(sources.get("rooms.mjs")?.length, "rooms.mjs is not among the module's sources - this would measure nothing");
+        // E41 C6 (1.2.97): vault.mjs holds no code; the stash's family's text (the kit's `vaultText`, which refuses a file not served).
+        const rooms = stripComments(sources.get("rooms.mjs")), vault = stripComments(vaultText(sources));
         const home = fnSource(rooms, "homeScene").split("\n").slice(1, 3).map(line => line.trim());
         const open = fnSource(vault, "openRoomSetupDialog");
         const [camera, swap, read] = ["let scene = workingScene();", "if (isTrialScene(scene)) scene = homeScene();", "namedByName(scene)"].map(text => open.indexOf(text));
@@ -14981,7 +14983,8 @@ const INVARIANTS = [
         J([true, true, true, [true, true, true], true, true]),
         "[the wall's move watched, its deletion, the routes, each on the primary alone, a move read as a change of its segment, a route "
             + "announced before it stood read only once it stands (E79 fix r3-G3; scenario 76 E runs it)]");
-        const vault = await fetch(`/modules/${MODULE_ID}/scripts/vault.mjs`).then(lfText).then(stripComments);
+        // E41 C6 (1.2.97): Room Setup moved out of vault.mjs into room-setup.mjs.
+        const vault = await fetch(`/modules/${MODULE_ID}/scripts/room-setup.mjs`).then(lfText).then(stripComments);
         const opener = fnSource(vault, "openRoomSetupDialog");
         ok(/passagesTab\.passagesTabHtml\(scene, \{ students \}\)/.test(opener) && /passagesTab\.wirePassagesTab\(root, scene, \{ dialog, students \}\)/.test(opener),
             "Room Setup does not draw and wire the Passages tab for the scene it was opened on");
@@ -17302,7 +17305,8 @@ const INVARIANTS = [
         // The stash hunt, and the rollers' browsers: read in the module's sources (the hunt itself is tier 2's "A10-7 stash").
         const code = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
         // E41 C4 (1.2.97): `locateStash` and `locatePassage` moved into action-analyze.mjs.
-        const [rolls, vault, reroll] = [await code("action-analyze.mjs"), await code("vault.mjs"), await code("reroll.mjs")];
+        // E41 C6 (1.2.97): `resolveStashSearch` moved out of vault.mjs into stash-reach.mjs.
+        const [rolls, vault, reroll] = [await code("action-analyze.mjs"), await code("stash-reach.mjs"), await code("reroll.mjs")];
         const stash = fnSource(vault, "resolveStashSearch");
         const at = re => stash.search(re);
         const [noRoom, hunt, scored] = [at(/reason: "noRoom"/), at(/if \(!replay\) hunted\(\{ actor, room: where\.room \}\);/), at(/const beat = /)];
@@ -23877,8 +23881,9 @@ const INVARIANTS = [
                 note.includes(W.found)];
             read[`${lang}Sheet`] = [sheetNote.includes(W.once), W.gone.filter(w => sheetNote.includes(w))];
         }
-        const dialog = fnSource(stripComments(new Map(await otherSources()).get("vault.mjs") ?? ""), "rifleStashDialog");
-        must(dialog, "vault.mjs has no rifleStashDialog - this reads nothing");
+        // E41 C6 (1.2.97): vault.mjs holds no code; the stash's family's text (the kit's `vaultText`), where its alone was read.
+        const dialog = fnSource(stripComments(vaultText(await otherSources())), "rifleStashDialog");
+        must(dialog, "the stash's family has no rifleStashDialog - this reads nothing");
         read.dialog = /DRPG\.Vault\.rifleIntro", \{\s*who: esc\(stocked\.map\(entry => entry\.owner\.name\)\.join\(", "\)\),\s*room: esc\(room\)/.test(dialog);
         equal(stableJson(read), stableJson({ en: [true, true, [], true], pl: [true, true, [], true], enSheet: [true, []], plSheet: [true, []], dialog: true }),
             "the rifle's window or the sheet's note does not say what a reach takes (per language: [both placeholders, once each time of day, the old "
@@ -27767,8 +27772,9 @@ const INVARIANTS = [
         const after = line();
         const want = (rooms, pending) => `${V.roomRatioLine(V.roomCensusOf(rooms.map(name => ({ name, room: true }))), 2)} ${U.plural("DRPG.Vault.roomCensusUndecided", { n: pending })}`;
         const sources = new Map(await otherSources());
-        const vault = stripComments(sources.get("vault.mjs") ?? "");
-        must(vault.length, "vault.mjs is not among the module's sources - this would measure nothing");
+        // E41 C6 (1.2.97): vault.mjs holds no code; the stash's family's text (the kit's `vaultText`), where its alone was read.
+        const vault = stripComments(vaultText(sources));
+        must(vault.length, "the stash's family is not among the module's sources - this would measure nothing");
         equal(stableJson({ first, after, marked: /data-drpg-undecided/.test(fnSource(vault, "roomCells")) }),
             stableJson({ first: want(["R1528 Hall"], 2), after: want(["R1528 Hall", "R1528 Gym"], 1), marked: true }),
             "the Doors tab counts regions nobody decided as rooms [the line as the window opens | after the GM changes one box | Room Setup marks an undecided box]");
@@ -30872,8 +30878,8 @@ const INVARIANTS = [
         const rest = stripComments(sources.get("rest.mjs") ?? "");
         const config = sources.get("config.mjs") ?? "";
         read.sources = {
-            ratio: /localeFormat\("number",\s*census\.count \/ living/.test(fn("vault.mjs", "roomRatioLine")) && /localeFormat\("number",\s*ROOMS_PER_PLAYER\)/.test(fn("vault.mjs", "roomRatioLine"))
-                && !/toFixed/.test(fn("vault.mjs", "roomRatioLine")),
+            ratio: /localeFormat\("number",\s*census\.count \/ living/.test(fn("vault-store.mjs", "roomRatioLine")) && /localeFormat\("number",\s*ROOMS_PER_PLAYER\)/.test(fn("vault-store.mjs", "roomRatioLine"))
+                && !/toFixed/.test(fn("vault-store.mjs", "roomRatioLine")),
             ballots: /voteMetaLine\(back,\s*back \+ out\)/.test(fn("events.mjs", "trialCard")),
             pass: /"DRPG\.Trial\.turn\.closingPassEarly"[^]{0,160}seconds:\s*TRIAL\.modes\.closing\.passWindowSeconds/.test(fn("trial-prompt.mjs", "promptTurn")),
             note: /"DRPG\.Floor\.modeNote"[^]{0,200}step:\s*adjustStep\(floor\)/.test(stripComments(sources.get("trial-floor-ui.mjs") ?? "")),

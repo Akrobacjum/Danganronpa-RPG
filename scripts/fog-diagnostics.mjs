@@ -47,7 +47,7 @@ import {
 import { roomOutline } from "./fog-reveal.mjs";
 import { secretDoorsOn } from "./passages.mjs";
 import { plural, localeFormat } from "./utils.mjs";
-import { VAULT_FLAGS } from "./vault.mjs";
+import { VAULT_FLAGS } from "./vault-store.mjs";
 
 /** Depth-first, by display-object name. */
 function findNamed(node, name) {

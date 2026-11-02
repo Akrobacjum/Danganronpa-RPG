@@ -85,7 +85,7 @@ import {
 } from "./fog-reveal.mjs";
 import { sceneUncoveredShare } from "./fog-diagnostics.mjs";
 // The one census of rooms (E20 C1): vault.mjs reaches fog.mjs by no static import, so this makes no cycle (R161).
-import { roomCensus } from "./vault.mjs";
+import { roomCensus } from "./vault-store.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
 export { seamWidth, rezoomRoomOutline } from "./fog-reveal.mjs";

@@ -15,7 +15,7 @@ import {
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
-    bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
+    bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists
 } from "./tests-kit.mjs";
@@ -1400,14 +1400,14 @@ const REGRESSIONS = [
          * place that raises each - one raised on the roller's browser again is a
          * trap a console can skip, or set off with no search. A Find Passage is
          * judged on the primary (passages-gm.mjs `resolvePassageSearch`) and needs
-         * no relay; a stash hunt is judged on any GM (vault.mjs
-         * `resolveStashSearch`), and one who is not the primary relays it. Red at
+         * no relay; a stash hunt is judged on any GM (stash-reach.mjs
+         * `resolveStashSearch`, vault.mjs until E41 C6), and one who is not the primary relays it. Red at
          * the parent (4263c09): both raised in action-rolls.mjs.
          */
         const src = await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(lfText);
         const clean = stripComments(src);
         // [the one file that raises it, relayed from a GM who is not the primary]
-        const ON_GM = { drpgPassageHunted: ["passages-gm.mjs", false], drpgStashHunted: ["vault.mjs", true] };
+        const ON_GM = { drpgPassageHunted: ["passages-gm.mjs", false], drpgStashHunted: ["stash-reach.mjs", true] };
 
         const subscribed = [...clean.matchAll(/Hooks\.on\("(drpg\w+)"/g)].map(m => m[1]);
         ok(subscribed.length >= 4, `traps.mjs subscribes to only ${subscribed.length} module hooks`);
@@ -1906,7 +1906,8 @@ const REGRESSIONS = [
          * tab. What they did was verified in the sandbox; this keeps the wiring.
          */
         const sources = new Map(await otherSources());
-        const vault = stripComments(sources.get("vault.mjs") ?? "");
+        // E41 C6 (1.2.97): vault.mjs holds no code; the stash's family's text (the kit's `vaultText`), where its alone was read.
+        const vault = stripComments(vaultText(sources));
         const open = bodyOf(vault, "export async function openRoomSetupDialog");
         ok(open.length > 1000, "openRoomSetupDialog is gone");
         // fog.mjs still exports it - suite fixtures seed a scene's ledger through
@@ -2017,8 +2018,11 @@ const REGRESSIONS = [
          * refused every trace somebody else had left, after the menu offered it.
          */
         const sources = new Map(await otherSources());
-        const vault = stripComments(sources.get("vault.mjs") ?? "");
-        const plant = bodyOf(vault, "export async function plantOnPerson", { until: "\nexport " });
+        // E41 C6 (1.2.97): vault.mjs holds no code; the stash's family's text (the kit's `vaultText`), where its alone
+        // was read. `plantOnPerson` is palm.mjs's last function now, cut by name: an `until: "\nexport "` would run on
+        // into room-setup.mjs.
+        const vault = stripComments(vaultText(sources));
+        const plant = fnSource(vault, "plantOnPerson");
         ok(/def\.plant\?\.threshold/.test(plant) && /def\.plant\?\.unseen/.test(plant),
             "a plant is judged against the steal thresholds again");
         const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
@@ -7578,8 +7582,9 @@ const REGRESSIONS = [
             ["utils.mjs", "replaceFlag", "settleNoteFlags"],
             ["utils.mjs", "replaceFlag", "liftNotes"],
             ["utils.mjs", "replaceFlag", "wipeSeason"],
-            ["vault.mjs", "forgetStashFound", "setStash"],
-            ["vault.mjs", "forgetAllStashesFound", "wipeStudent"]
+            // E41 C6 (1.2.97): the stash's record moved to vault-store.mjs.
+            ["vault-store.mjs", "forgetStashFound", "setStash"],
+            ["vault-store.mjs", "forgetAllStashesFound", "wipeStudent"]
         ];
 
         // The reader over a planted file first: a bare write, a road, a gate before, a gate after, a gate
@@ -8276,9 +8281,9 @@ const REGRESSIONS = [
             ["SHEET projects-map.mjs#findProjectActor", "not a source: the project actor (PROJECT_ACTOR, OBSERVER for players) - a player cannot update it (plan 1b.1, read in projects-map.mjs); C7's `projectTokenPlan` reads tokens by their project id, not this actor's items (E11 C7)"],
             ["SHEET gm-bridge.mjs#handleAdvancement", "judged (E10 C8): the picks on the held sheet (`numberHeld`), refused and told."],
             ["SHEET level-up.mjs#applyAdvancement", "held (E10 C8): one `meansWrite` from `numberHeld`. Since E11 C11 a new experience's id joins the GM flag `levelUpExperiences` (in GM_FLAGS, so a player's write of it is put back), read with `flagsHeldNow`, in the same write. R355 [1b.1, 1b.2] (E11 C11)"],
-            ["SHEET vault.mjs#keysHeldBy", "held (E11 C10): on a GM `itemsHeldNow(actor)` - a key's room as the primary's mark holds it, so a room a player's browser wrote on an item is no key there - and a player's browser its own document; `grantBedroomKey` waits for `judgedFor` before it asks; since E14 part 1 C2 a key in hand only (bedroom-keys.mjs `keyRooms`), the stash's too when `grantBedroomKey` asks whether one is held (`stashed: true`) [1b.2]"],
-            ["SHEET vault.mjs#grantKeyNow", "out of scope as a reader - `grantBedroomKey`'s step in its queue since H84 (one grant at a time per student), the reads moved with it (through `keysHeldBy`, row above, after `judgedFor`: a key it made a moment ago is in the mark; one a player deleted is flagged, not put back, and made again); since E11 C10 the reset's `items` group calls it for each student through `reconcileBedroomKeys({ silent: true, owners })` (`grantItem`, `gmRuling`), no new road"],
-            ["SHEET vault.mjs#repointDeadKey", "out of scope as a reader (H84): `itemsHeldNow` inside `grantKeyNow`'s step, after its `judgedFor`; for the room's owner alone it points their one dead key at the room (`trustedWrite`, `setup`), no new road"],
+            ["SHEET vault-store.mjs#keysHeldBy", "held (E11 C10): on a GM `itemsHeldNow(actor)` - a key's room as the primary's mark holds it, so a room a player's browser wrote on an item is no key there - and a player's browser its own document; `grantBedroomKey` waits for `judgedFor` before it asks; since E14 part 1 C2 a key in hand only (bedroom-keys.mjs `keyRooms`), the stash's too when `grantBedroomKey` asks whether one is held (`stashed: true`) [1b.2]"],
+            ["SHEET vault-store.mjs#grantKeyNow", "out of scope as a reader - `grantBedroomKey`'s step in its queue since H84 (one grant at a time per student), the reads moved with it (through `keysHeldBy`, row above, after `judgedFor`: a key it made a moment ago is in the mark; one a player deleted is flagged, not put back, and made again); since E11 C10 the reset's `items` group calls it for each student through `reconcileBedroomKeys({ silent: true, owners })` (`grantItem`, `gmRuling`), no new road"],
+            ["SHEET vault-store.mjs#repointDeadKey", "out of scope as a reader (H84): `itemsHeldNow` inside `grantKeyNow`'s step, after its `judgedFor`; for the room's owner alone it points their one dead key at the room (`trustedWrite`, `setup`), no new road"],
             ["SHEET murder-rules.mjs#registerMurder", "judged where it acts: the `updateToken` hook runs on the primary (`maybeBodyFound` -> `checkBodyFound`); its `isDeadForGm`/resources reads are the incident's (E05). E11 C1 changed only the discovery it calls, whose walk-in tier 2 measures (\"a living convict the verdict executes after End the trial is no body to find\", \"a student revived and killed again in the chapter is found again - once\") and 65-season's B"],
             ["SHEET murder-rules.mjs#closeIncident", "out of scope as a reader (`isDeadForGm` of the victim, E05). C9 adds `conclude: false` for the reset only: the self-inflicted kill, ties, register, broken tool, case keys and the close's card are skipped [3.1] (E11 C9)"],
             ["SHEET settings.mjs#deathRecordFor", "out of scope: the GM's record (flag or `deaths` row); since E11 C1 it answers the row's `phase` and `epoch` too, since fix r1-G1 its `deathId` (the death a discovery's stamp names, `announcedIn`), and C12's `sameSeason` reads `epoch` (E11 C12)"],
@@ -8296,7 +8301,7 @@ const REGRESSIONS = [
         const ROADS = /^(?:advancement\.apply|call\.arm|token\.sendBack|project\.\w+|vault\.findStash)$/;
         const FILES = ["chapter.mjs", "character.mjs", "season-setup.mjs", "call-world.mjs", "projects.mjs", "projects-map.mjs", "projects-secrecy.mjs", "eclipse.mjs"];
         const NAMED = { "gm-bridge.mjs": ["handleAdvancement"], "level-up.mjs": ["applyAdvancement"],
-            "vault.mjs": ["keysHeldBy", "grantBedroomKey", "grantKeyNow", "repointDeadKey", "reconcileBedroomKeys", "setStash", "allBedroomsAnywhere"], "events.mjs": ["bodyCard"],
+            "vault-store.mjs": ["keysHeldBy", "grantBedroomKey", "grantKeyNow", "repointDeadKey", "reconcileBedroomKeys", "setStash", "allBedroomsAnywhere"], "events.mjs": ["bodyCard"],
             "gm-panel.mjs": ["nextStep", "openClockDialog"], "clock.mjs": ["setClock", "reconcilePhase", "setPhase"],
             "murder-rules.mjs": ["endMurder", "closeIncident", "registerMurder"], "visibility.mjs": ["applyToProjectToken", "applyToToken"],
             "sync.mjs": ["registerSync"], "mastermind.mjs": ["finalTruthPlacedThisChapter"], "settings.mjs": ["bodyDiscoveryFresh", "deathRecordFor"] };
@@ -8380,7 +8385,7 @@ const REGRESSIONS = [
             ["chapter.mjs", "export function judged(actor) {\n    return isDeceased(actor);\n}\n"
                 + "function unread(actor) {\n    // its FLAGS.deceased is read elsewhere\n    return actor.name;\n}\n"
                 + "const forged = msg => msg.getFlag(MODULE_ID, \"bodyFound\");\n"],
-            ["vault.mjs", "export function notNamed(actor) {\n    return keysHeldBy(actor);\n}\n"],
+            ["vault-store.mjs", "export function notNamed(actor) {\n    return keysHeldBy(actor);\n}\n"],
             ["gm-stores.mjs", "export const offerStore = defineGmStore({});\n"]
         ]);
         equal(JSON.stringify(planted), JSON.stringify(["PACKET gm-bridge.mjs#project.planted#countdownId", "SOCKET sync.mjs#registerSync#room",
@@ -8586,7 +8591,7 @@ const REGRESSIONS = [
             ["HOOK movement.mjs#registerMovement#createRegion:inline", "judged on the primary: records a non-GM's region in `playerRegions` (`noteRegionCreated`); every GM remembers a GM's room flag"],
             ["HOOK movement.mjs#registerMovement#updateRegion:inline", "put back on the primary: a non-GM's change to the room flag (`judgeRoomFlagChange`, `keepRoomFlag`), logged and told to the GMs"],
             ["HOOK movement.mjs#registerMovement#updateScene:inline", "put back on the primary: a region changed through its scene's own update is judged as `updateRegion` judges it (`regionPatches` -> `judgeRoomFlagChange`): a GM's mark remembered, a non-GM's change put back (scenario 66 X5) (E12 fix r2-S2)"],
-            ["HOOK vault.mjs#registerRoomPieces#preUpdateRegion:inline", "judged on the client that writes it: a GM's rename of one piece of a room that keeps other pieces takes the room's flags off that piece in the same update, told to the GMs (`clearSplitPiece`; a player's rename is not judged, LIVE-E12-04) (E12 fix r1-G1); since E12 fix r2-H4 so does a GM's rename onto a room that stands on the scene (rooms.mjs `joinsAnotherRoom`); since E12 fix k3-K2 judged from the world, not the writing GM's memory: the writer writes the old name on a room's piece renamed off a room of several in the same update (rooms.mjs `RENAMED_FROM`), the primary takes it off once the room is carried"],
+            ["HOOK vault-store.mjs#registerRoomPieces#preUpdateRegion:inline", "judged on the client that writes it: a GM's rename of one piece of a room that keeps other pieces takes the room's flags off that piece in the same update, told to the GMs (`clearSplitPiece`; a player's rename is not judged, LIVE-E12-04) (E12 fix r1-G1); since E12 fix r2-H4 so does a GM's rename onto a room that stands on the scene (rooms.mjs `joinsAnotherRoom`); since E12 fix k3-K2 judged from the world, not the writing GM's memory: the writer writes the old name on a room's piece renamed off a room of several in the same update (rooms.mjs `RENAMED_FROM`), the primary takes it off once the room is carried"],
             ["HOOK fog.mjs#registerFog#createRegion:inline", "out of scope: no rule reads it; on the primary a GM's region that gives its scene its first room puts that scene into room-based vision (`prepareRoomScene` -> `applySceneVisionMode(region.parent)`), a non-GM's is left to movement.mjs's record; every client repaints the scene it views (`repaintRoomScene`); since E12 C7"],
             ["HOOK fog.mjs#registerFog#updateRegion:inline", "out of scope: as createRegion; since E12 C8 a GM's rename of a room's last piece of its name carries, on the primary, the discovery record, the stashed items' and the keys' room and the notes of a stash found (`noteRegionName` -> `carryRename`, vault.mjs `carryRoomOnSheets`), the old name from every GM's memory (`regionNameSeen`); a non-GM's rename carries nothing; since E12 fix r2-H4 whether it carries is judged at the hook, never onto a room that stands on the scene (rooms.mjs `joinsAnotherRoom`), and it also carries a project's room, a trap's plant, the Mastermind's room, a called assembly and the scene's Neighbours lists (`carryRoomInWorld`); since E12 fix k3-K2 also a Despair Call's seal and the room of the bodies found there (call-world.mjs `carrySealedRoom`, settings.mjs `carryBodyRooms`)"],
             ["HOOK fog.mjs#registerFog#deleteRegion:inline", "out of scope: as createRegion; a scene that loses its last room keeps the vision the module gave it until the setting goes off; since E12 C7"],
@@ -8629,7 +8634,7 @@ const REGRESSIONS = [
             ["SHEET movement.mjs#noteCrossing", "judged on the primary (E17 C3): the Monokuma flag of the student `judgeArrival` hands it, as the GMs hold it (`flagsHeldNow`), and the purse of the document as the move reaches the primary - the free Move, the Sprints, the Bursts and the actions a crossing's price comes out of - kept to read the price off the player's next write of it (`noteCrossingPrice`); a lawful crossing only, recorded in the GMs' store (`crossingStore`), nothing written to the student"],
             ["SHEET movement.mjs#countsAsPresent", "out of scope as a reader: the Monokuma flag and `isDeadForGm` of tokens in a room; its callers count the located scene's token documents (`othersInNamedRoom`, since E12 C3; `occupantsOf` for Listen and a Monocub's dice, since E12 fix r1-G4)"],
             ["SHEET murder-rules.mjs#registerMurder", "judged where it acts: the `updateToken` hook runs on the primary; `isDeadForGm` is the GM's record; since E12 C12 `maybeThirdParty` counts a token only in its lawful room (`lawfulRoomOf`)"],
-            ["SHEET vault.mjs#keysHeldBy", "held on the GM's branch (`itemsHeldNow`, E11 C10), the document elsewhere; the bedroom rule of `judgeArrival` (E12 C12, `bedroomShut`) reads the items it was handed, `itemsHeldNow` in the same synchronous step; since E14 part 1 C2 the keys in hand only (bedroom-keys.mjs `keyRooms`: a stashed key opens nothing, its place judged as its room is, `placeStands`), the stash's too only with `stashed: true` (`grantBedroomKey`, the GMs' list of keys to give) [1b.2]"],
+            ["SHEET vault-store.mjs#keysHeldBy", "held on the GM's branch (`itemsHeldNow`, E11 C10), the document elsewhere; the bedroom rule of `judgeArrival` (E12 C12, `bedroomShut`) reads the items it was handed, `itemsHeldNow` in the same synchronous step; since E14 part 1 C2 the keys in hand only (bedroom-keys.mjs `keyRooms`: a stashed key opens nothing, its place judged as its room is, `placeStands`), the stash's too only with `stashed: true` (`grantBedroomKey`, the GMs' list of keys to give) [1b.2]"],
             ["STORE Region#name", "not a source: a GM document (whether a player can author a Region in v14 outside the relay: NOT MEASURED, LIVE-E12-04; the relay refuses one, relay-guard.mjs:502). Since C1 a room is a named region a GM marked (rooms.mjs `isRoom`, which refuses a region the primary recorded as a non-GM's); the readers that still take every named region move onto it in C2a and C2b; a non-GM's rename, reshape or added behaviour of a GM's region is not put back, only the mark is (`judgeRoomFlagChange`; E12 fix r1-G5) [1b.1 room flag] MARKED (E12 C2a, E12 C2b)"],
             ["STORE Region#roomFlag", "put back: a non-GM's change to the room flag is put back by the primary from its memory of what a GM left (`judgeRoomFlagChange`, the `updateRegion` hook's `userId`), logged and told, while a GM is connected (a change made with none is taken by the next GM's ready pass as a GM's, read in the code); a region whose mark the GM never saw is left as it is and told (E12 fix r1-G5); `isRoom` refuses a recorded player region; its tier-2 test and scenario 66 J [1b.1] MARKED"],
             ["STORE settings.mjs#playerRegions", "not a source: a world setting only the primary writes (`noteRegionCreated`: a non-GM's `createRegion`, by the hook's `userId`, while a GM is connected - a region a player draws with none is never recorded, read in the code, LIVE-E12-04) [1b.1]"],
@@ -8643,10 +8648,10 @@ const REGRESSIONS = [
         ];
         const FAMILIES = /^(?:token\.sendBack|eclipse\.move|action\.steal|action\.plant|action\.frisk\w+|vault\.steal|vault\.findStash|call\.arm|project\.\w+|remnant\.place)$/;
         const SOCKET_FILES = ["movement.mjs", "fog.mjs", "eclipse.mjs", "search-tokens.mjs", "traps.mjs", "call-effects.mjs", "mastermind.mjs",
-            "voice.mjs", "bridge-guards.mjs", "sync.mjs", "call-world.mjs", "chapter.mjs", "vault.mjs", "projects-map.mjs", "frisk.mjs"];
+            "voice.mjs", "bridge-guards.mjs", "sync.mjs", "call-world.mjs", "chapter.mjs", "vault-store.mjs", "stash-reach.mjs", "palm.mjs", "room-setup.mjs", "projects-map.mjs", "frisk.mjs"];
         // The declarations whose reads of a student's sheet the crossing and the witness judge rest on; null = every one in the file.
         const SHEET_NAMED = { "movement.mjs": null, "chapter.mjs": ["witnessesOf", "checkBodyFound"], "murder-rules.mjs": ["registerMurder"],
-            "vault.mjs": ["keysHeldBy"] };
+            "vault-store.mjs": ["keysHeldBy"] };
         const EVENTS = /Hooks\.(?:on|once)\(\s*"(preUpdateToken|updateToken|createToken|createRegion|updateRegion|deleteRegion|preCreateRegion|preUpdateRegion|createRegionBehavior|deleteRegionBehavior|updateScene)"\s*,\s*(?:([A-Za-z_]\w*)\s*\)|(?:async\s*)?\(?)/g;
         const SHEET = [/\bisDeceased\(|\bisDeadForGm\(|\blivingStudents(?:ForGm)?\(|\bdeathRecordFor\(|FLAGS\.(?:deceased|monocub|monokuma)\b/,
             /\brestrictedFrom\(|FLAGS\.restrict\w*/, /\bkeysHeldBy\(|\bitemsHeldNow\(|\bactor\.items\b/];
@@ -8654,9 +8659,9 @@ const REGRESSIONS = [
         const RAW = /\b(?:isDeceased|isDeadForGm|livingStudents|livingStudentsForGm|deathRecordFor|keysHeldBy|restrictedFrom)\s*\(|\bactor\.items\b|getFlag\(\s*MODULE_ID\s*,\s*FLAGS\.(?:deceased|monocub|monokuma)\b/;
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         // Where each field lives, found by the name that holds it in its file.
-        const STORES = [["STORE Region#name", "vault.mjs", "regionsByName"], ["STORE Region#vaultFlags", "vault.mjs", "VAULT_FLAGS"],
+        const STORES = [["STORE Region#name", "vault-store.mjs", "regionsByName"], ["STORE Region#vaultFlags", "vault-store.mjs", "VAULT_FLAGS"],
             ["STORE settings.mjs#discoveredRooms", "settings.mjs", "discoveredRooms"], ["STORE projects-secrecy.mjs#projectMeta", "projects-secrecy.mjs", "projectMeta"],
-            ["STORE settings.mjs#bodiesFound", "settings.mjs", "bodiesFound"], ["STORE Item#keyRoom", "vault.mjs", "KEY_FLAG"],
+            ["STORE settings.mjs#bodiesFound", "settings.mjs", "bodiesFound"], ["STORE Item#keyRoom", "vault-store.mjs", "KEY_FLAG"],
             // E12 C1: the room flag and the record of a player's regions.
             ["STORE Region#roomFlag", "rooms.mjs", "ROOM_FLAG"], ["STORE settings.mjs#playerRegions", "settings.mjs", "playerRegions"],
             // E12 C12: the witness judge's standing map.
@@ -9298,7 +9303,7 @@ const REGRESSIONS = [
          * the GM's own form), place (where a Foundry window stands). Nine kinds, read live in the module's files with
          * comments blanked, each place keyed by the top-level declaration it stands in (a top-level
          * `Hooks.on("<event>", ...)` by its event), a second place of a key in one declaration "(2)":
-         * READ - every call of `roomDescription(` or `roomImage(` (vault.mjs's own declaration of either aside), its sinks
+         * READ - every call of `roomDescription(` or `roomImage(` (vault-store.mjs's own declaration of either aside, vault.mjs's until E41 C6), its sinks
          * by file - movement.mjs's the card, explain.mjs's the window, the picture's src, any other text - and which;
          * FIELD - every `VAULT_FLAGS.description` (text) and `VAULT_FLAGS.image` (src); FORM - every template whose text
          * before an expression ends in `desc:` or `img:`, Room Setup's cells (setup, and text or src); WRITER - every call
@@ -9358,30 +9363,30 @@ const REGRESSIONS = [
             // ---- the writers (the GM's)
             ["WRITER api.mjs#DrpgApi -> text", "`game.drpg.setVaultRoom` hands its options to `setVaultRoom`, which writes nothing for a player (`if (!game.user.isGM) return null`); the description and the picture pass the spread; the description is stored as a string"],
             ["WRITER api.mjs#DrpgApi -> src", "`image` passes the spread to `setVaultRoom`, which writes for a GM only, through `safeRoomImage`; a refused path is not written and the GM is told (`imageRefused`)"],
-            ["WRITER vault.mjs#applyRoomRows -> text", "Room Setup is the GM's, and `setVaultRoom` writes for a GM only; the description is trimmed (`readRoomSetupForm`) and stored as a string"],
-            ["WRITER vault.mjs#applyRoomRows -> src", "Room Setup's picture is judged by `safeRoomImage` before the row is compared: a refused path is not handed on and the GM is told which room (`imageRefused`)"],
+            ["WRITER room-setup.mjs#applyRoomRows -> text", "Room Setup is the GM's, and `setVaultRoom` writes for a GM only; the description is trimmed (`readRoomSetupForm`) and stored as a string"],
+            ["WRITER room-setup.mjs#applyRoomRows -> src", "Room Setup's picture is judged by `safeRoomImage` before the row is compared: a refused path is not handed on and the GM is told which room (`imageRefused`)"],
             // E79 C11: the trial hall's name, picture and words, a flag of the hall scene (trial-scene.mjs `HALL_ROOM_FLAG`; R583)
             ["WRITER trial-scene.mjs#applyScenesTab -> text", "the Scenes tab's Apply, a GM's (`if (!game.user?.isGM || !read) return null`), and `setHallRoom` writes for a GM only: the name and the words as trimmed strings, drawn later as text only (R583)"],
             ["WRITER trial-scene.mjs#applyScenesTab -> src", "`setHallRoom` writes the picture only as `safeRoomImage` gives it; a refused path is not written, the old one stays and the GM is told (`imageRefused`; R583)"],
-            ["FIELD vault.mjs#setVaultRoom#description -> text", "the writer, GM only, `String(description ?? \"\")`; whether a player can write a region's flags by another road in v14 is not measured (LIVE-E12-04), so every reader takes the text as untrusted"],
-            ["FIELD vault.mjs#pieceData#description -> text", "the list of flags a renamed piece carries; nothing is drawn"],
-            ["FIELD vault.mjs#setVaultRoom#image -> src", "the one writer, GM only: `safeRoomImage(image)` at the write, null clears; whether a player can write a region's flags by another road in v14 is not measured (LIVE-E12-04), so the reader checks again"],
-            ["FIELD vault.mjs#pieceData#image -> src", "the list of flags a renamed piece carries, the picture beside the description; nothing is drawn"],
-            ["FIELD vault.mjs#roomImage#image -> src", "the reader answers `safeRoomImage` of the stored value, so a console's or an old value is no picture"],
-            ["FIELD vault.mjs#applyRoomRows#image -> src", "the before-state Room Setup compares a row against, as stored; not drawn"],
-            ["FIELD vault.mjs#roomDescription#description -> text", "the reader returns the raw string; each caller draws it escaped (`roomBlock`'s `esc`) - the move card no longer reads it (E77 C2), and C3's tile sets it as textContent"],
-            ["FIELD vault.mjs#applyRoomRows#description -> text", "the before-state Room Setup compares a row against; not drawn"],
+            ["FIELD vault-store.mjs#setVaultRoom#description -> text", "the writer, GM only, `String(description ?? \"\")`; whether a player can write a region's flags by another road in v14 is not measured (LIVE-E12-04), so every reader takes the text as untrusted"],
+            ["FIELD vault-store.mjs#pieceData#description -> text", "the list of flags a renamed piece carries; nothing is drawn"],
+            ["FIELD vault-store.mjs#setVaultRoom#image -> src", "the one writer, GM only: `safeRoomImage(image)` at the write, null clears; whether a player can write a region's flags by another road in v14 is not measured (LIVE-E12-04), so the reader checks again"],
+            ["FIELD vault-store.mjs#pieceData#image -> src", "the list of flags a renamed piece carries, the picture beside the description; nothing is drawn"],
+            ["FIELD vault-store.mjs#roomImage#image -> src", "the reader answers `safeRoomImage` of the stored value, so a console's or an old value is no picture"],
+            ["FIELD room-setup.mjs#applyRoomRows#image -> src", "the before-state Room Setup compares a row against, as stored; not drawn"],
+            ["FIELD vault-store.mjs#roomDescription#description -> text", "the reader returns the raw string; each caller draws it escaped (`roomBlock`'s `esc`) - the move card no longer reads it (E77 C2), and C3's tile sets it as textContent"],
+            ["FIELD room-setup.mjs#applyRoomRows#description -> text", "the before-state Room Setup compares a row against; not drawn"],
             // ---- Room Setup (the GM's own form)
-            ["FORM vault.mjs#roomCells#desc -> setup", "the Description tab's textarea: its body `escapeHTML`, its name the escaped room (`escRoom`)"],
-            ["FORM vault.mjs#roomCells#desc -> text", "as on setup: the GM reads their own words"],
-            ["FIELD vault.mjs#roomCells#description -> text", "the textarea's body, `escapeHTML`"],
-            ["FORM vault.mjs#roomCells#img -> setup", "the picture's hidden field, named by the escaped room (`escRoom`), its value `escapeHTML`; on the GM's own Room Setup"],
-            ["FORM vault.mjs#roomCells#img -> src", "the thumbnail's `src` only from what `safeRoomImage` accepts of the stored value, `escapeHTML`; the file picker then shows the GM's own choice"],
-            ["FIELD vault.mjs#roomCells#image -> src", "read through `safeRoomImage` for the thumbnail and the field; a refused value is drawn as no picture"],
-            ["FORM vault.mjs#readRoomSetupForm#desc -> setup", "read back as the textarea's `.value`, trimmed; paragraphs kept as newlines"],
-            ["FORM vault.mjs#readRoomSetupForm#desc -> text", "a string handed to `setVaultRoom` and drawn later only as text (E77 C2 keeps its paragraphs with pre-line)"],
-            ["FORM vault.mjs#readRoomSetupForm#img -> setup", "the hidden field's `.value`, trimmed; judged by `safeRoomImage` in `applyRoomRows` before anything is written"],
-            ["FORM vault.mjs#readRoomSetupForm#img -> src", "as on setup: a path, never fetched before `safeRoomImage` accepts it"],
+            ["FORM room-setup.mjs#roomCells#desc -> setup", "the Description tab's textarea: its body `escapeHTML`, its name the escaped room (`escRoom`)"],
+            ["FORM room-setup.mjs#roomCells#desc -> text", "as on setup: the GM reads their own words"],
+            ["FIELD room-setup.mjs#roomCells#description -> text", "the textarea's body, `escapeHTML`"],
+            ["FORM room-setup.mjs#roomCells#img -> setup", "the picture's hidden field, named by the escaped room (`escRoom`), its value `escapeHTML`; on the GM's own Room Setup"],
+            ["FORM room-setup.mjs#roomCells#img -> src", "the thumbnail's `src` only from what `safeRoomImage` accepts of the stored value, `escapeHTML`; the file picker then shows the GM's own choice"],
+            ["FIELD room-setup.mjs#roomCells#image -> src", "read through `safeRoomImage` for the thumbnail and the field; a refused value is drawn as no picture"],
+            ["FORM room-setup.mjs#readRoomSetupForm#desc -> setup", "read back as the textarea's `.value`, trimmed; paragraphs kept as newlines"],
+            ["FORM room-setup.mjs#readRoomSetupForm#desc -> text", "a string handed to `setVaultRoom` and drawn later only as text (E77 C2 keeps its paragraphs with pre-line)"],
+            ["FORM room-setup.mjs#readRoomSetupForm#img -> setup", "the hidden field's `.value`, trimmed; judged by `safeRoomImage` in `applyRoomRows` before anything is written"],
+            ["FORM room-setup.mjs#readRoomSetupForm#img -> src", "as on setup: a path, never fetched before `safeRoomImage` accepts it"],
             // ---- the readers
             ["READ explain.mjs#roomBlock#roomDescription -> explain", "'Where are we' draws it escaped (`esc`) in an <em>, its paragraphs kept by `white-space: pre-line` (E77 C2)"],
             ["READ explain.mjs#roomBlock#roomDescription -> which", "the room of `locateActor(subjectActor())` on that token's own scene: a player's own character (`viewerActor`, E77 C2); a GM's selected token by design, else their Monokuma"],
@@ -9455,8 +9460,8 @@ const REGRESSIONS = [
                 for (const m of blank.matchAll(/(?<![\w$])(roomDescription|roomImage|setVaultRoom|hallRoom|setHallRoom|hudActor|viewerActor|subjectActor)\s*\(/g)) {
                     if (declared(m.index)) continue;
                     const decl = declAt(m.index), name = m[1], member = /\.\s*$/.test(blank.slice(Math.max(0, m.index - 8), m.index));
-                    if (name === "setVaultRoom" || name === "setHallRoom") { if (!(file === "vault.mjs" && decl === name)) add("WRITER", file, decl, null); }
-                    else if (name === "roomDescription" || name === "roomImage" || name === "hallRoom") { if (!(file === "vault.mjs" && decl === name)) add("READ", file, decl, name); }
+                    if (name === "setVaultRoom" || name === "setHallRoom") { if (!(file === "vault-store.mjs" && decl === name)) add("WRITER", file, decl, null); }
+                    else if (name === "roomDescription" || name === "roomImage" || name === "hallRoom") { if (!(file === "vault-store.mjs" && decl === name)) add("READ", file, decl, name); }
                     else if (!member && WHO_FILES.test(file)) add("WHO", file, decl, name);
                 }
                 for (const m of blank.matchAll(/(?<![\w$.])VAULT_FLAGS\s*\??\.\s*(description|image)\b/g)) add("FIELD", file, declAt(m.index), m[1]);
@@ -9495,7 +9500,7 @@ const REGRESSIONS = [
         };
         const KINDS = ["READ", "FIELD", "FORM", "WRITER", "WHO", "HOOK", "SRC", "MARKUP", "STORE"];
         const planted = censusOf([
-            ["vault.mjs", "// roomDescription(\"a comment is no road\");\nexport function roomDescription(room, scene) {\n    return roomFlag(scene, room, VAULT_FLAGS.description) ?? \"\";\n}\n"
+            ["vault-store.mjs", "// roomDescription(\"a comment is no road\");\nexport function roomDescription(room, scene) {\n    return roomFlag(scene, room, VAULT_FLAGS.description) ?? \"\";\n}\n"
                 + "export async function setVaultRoom(room, { description } = {}) {\n    if (!game.user.isGM) return null;\n}\n"],
             ["planted.mjs", "export function shown(room, scene) {\n    const said = \"roomDescription(\";\n    return roomDescription(room, scene) + game.drpg.roomImage(room, scene) + hallRoom(scene).name;\n}\n"
                 + "async function kept(room) {\n    await setVaultRoom(room, {});\n    await game.drpg.setVaultRoom(room, {});\n    await setHallRoom(room, {});\n}\n"
@@ -9508,7 +9513,7 @@ const REGRESSIONS = [
                 + "    el.dataset.note = \"data-tooltip\";\n    return new foundry.applications.apps.ImagePopout({ src: path });\n}\n"]
         ], { foundryWindows: "foundryWindows" });
         equal(JSON.stringify(planted), JSON.stringify([
-            "FIELD vault.mjs#roomDescription#description -> text",
+            "FIELD vault-store.mjs#roomDescription#description -> text",
             "READ planted.mjs#shown#roomDescription -> text", "READ planted.mjs#shown#roomDescription -> which",
             "READ planted.mjs#shown#roomImage -> src", "READ planted.mjs#shown#roomImage -> which", "READ planted.mjs#shown#hallRoom -> setup",
             "WRITER planted.mjs#kept -> text", "WRITER planted.mjs#kept -> src", "WRITER planted.mjs#kept (2) -> text", "WRITER planted.mjs#kept (2) -> src",
@@ -9521,7 +9526,7 @@ const REGRESSIONS = [
             "MARKUP room-tile.mjs#paintRoomTile#innerHTML -> text", "MARKUP room-tile.mjs#paintRoomTile#data-tooltip -> text",
             ...STORE_SOURCES.map(source => `STORE settings.mjs#foundryWindows#${source} -> place`)]),
             "the census reader does not read the planted fixture as planted - the live census below would measure the wrong roads");
-        equal(JSON.stringify(judge(planted.slice(0, 3), [["FIELD vault.mjs#roomDescription#description -> text", ""],
+        equal(JSON.stringify(judge(planted.slice(0, 3), [["FIELD vault-store.mjs#roomDescription#description -> text", ""],
             ["READ planted.mjs#shown#roomDescription -> text", ""], ["HOOK hud.mjs#registerHud#gone -> which", ""]])),
             JSON.stringify({ unclassified: ["READ planted.mjs#shown#roomDescription -> which"], stale: ["HOOK hud.mjs#registerHud#gone -> which"] }),
             "the census judge does not tell a planted road without a row, or a row without its road");
@@ -10618,13 +10623,16 @@ const REGRESSIONS = [
             JSON.stringify([[true, true, true, true, true], [true, false, true, true, true]]),
             "the reader does not read its fixture whole, or does not miss the picture taken out of `same`");
         const sources = new Map(await otherSources());
-        const vault = stripComments(sources.get("vault.mjs") ?? "");
-        must(vault.length > 1000, "vault.mjs is not among the module's sources - this would measure nothing");
-        const elsewhere = [...sources].filter(([file, text]) => file !== "vault.mjs" && /drpgRoomImage|VAULT_FLAGS\.image\}/.test(stripComments(text)))
+        // E41 C6 (1.2.97): vault.mjs holds no code; the stash's family's text (the kit's `vaultText`) is read where its alone was, and
+        // "elsewhere" is every other file - palm.mjs among them, whose player's half was elsewhere before the move.
+        const vault = stripComments(vaultText(sources));
+        must(vault.length > 1000, "the stash's family is not among the module's sources - this would measure nothing");
+        const ownFile = file => VAULT_FAMILY.includes(file) && file !== "palm.mjs";
+        const elsewhere = [...sources].filter(([file, text]) => !ownFile(file) && /drpgRoomImage|VAULT_FLAGS\.image\}/.test(stripComments(text)))
             .map(([file]) => file);
         equal(JSON.stringify([shape(vault), elsewhere]), JSON.stringify([[true, true, true, true, true], []]),
             "[the field drawn and read by the room's name; Apply judging the picture, comparing it in `same` and handing it on; setVaultRoom the one "
-            + "writer, through safeRoomImage; pieceData carrying it; roomImage checking it on read] and the files other than vault.mjs that write it or name its flag");
+            + "writer, through safeRoomImage; pieceData carrying it; roomImage checking it on read] and the files other than the stash's that write it or name its flag");
     }],
     ["R506 - a route is announced on the update that names its final destination, in the room that update names, never while its put-back is on its way, and the at-rest read announces again only when it finds another room: movement.mjs alone fires drpgRouteSettled, from onUpdateToken; a route this browser judges is marked before its first await and answered at the spot before it; and the move card says where and the price, with no description of the room; the room tile repaints on it for its own token, and nothing listens on updateToken in its stead; the clock tells the tile each time it is drawn", async () => {
         /*
@@ -12487,10 +12495,11 @@ const REGRESSIONS = [
         equal(JSON.stringify(unscened("f", topLevelFunction(plain(FIXTURE), "f"), fixNames)), JSON.stringify(["f:w@2"]),
             "the reader does not find the call without the scene in its fixture, or finds the one that hands it on");
         const sources = await moduleSources();
-        const FILES = ["vault.mjs", "rest.mjs", "fog.mjs", "fog-diagnostics.mjs", "rooms.mjs", "search-tokens.mjs"];
-        must(FILES.every(file => sources.get(file)?.length), "the six files are among the module's sources - this would measure nothing");
+        // E41 C6 (1.2.97): vault.mjs holds no code; the stash's family (the kit's VAULT_FAMILY, `vaultText`) is read where it was.
+        const FILES = [...VAULT_FAMILY, "rest.mjs", "fog.mjs", "fog-diagnostics.mjs", "rooms.mjs", "search-tokens.mjs"];
+        must(FILES.every(file => sources.get(file)?.length), "the files are among the module's sources - this would measure nothing");
         const names = sceneTaking(FILES.map(file => sources.get(file)));
-        const vault = plain(sources.get("vault.mjs"));
+        const vault = plain(vaultText(sources));
         const open = fnSource(vault, "openRoomSetupDialog");
         const handed = [...new Set([...open.matchAll(/(?<![\w$.])(\w+)\(/g)].map(m => m[1])
             .filter(name => names.has(name) && topLevelFunction(vault, name) !== null))];
@@ -12558,7 +12567,7 @@ const REGRESSIONS = [
             "call-world.mjs": ["scheduleGather", "runPendingGather", "gatherEveryone", "gatherSceneOf"],
             "call-effects.mjs": ["gatherRefusal", "gatherEffect"], "call-pickers.mjs": ["pickRoom"],
             "chapter.mjs": ["runDiscovery", "openBodyDiscoveryDialog"], "mastermind.mjs": ["placeFinalRemnant", "openMastermindDialog"],
-            "vault.mjs": ["openVaultInspector"], "gm-items.mjs": ["giveTruthBulletDialog", "bulletFromRemnant"],
+            "stash-reach.mjs": ["openVaultInspector"], "gm-items.mjs": ["giveTruthBulletDialog", "bulletFromRemnant"],
             "investigation.mjs": ["caseHtml", "openInvestigationDashboard", "placeFinalFromDashboard"],
             "traps.mjs": ["openPlantDialog"], "utils.mjs": ["placeRoomOptions"], "season-setup.mjs": ["undecidedRegionNames"] };
         const sources = await moduleSources();
@@ -12611,11 +12620,15 @@ const REGRESSIONS = [
         const CAMERA = /\bcanvas\??\.(?:scene|level)\b|\b(?:viewedScene|viewedLevel|workingScene)\s*\(|\bgame\.scenes\??\.(?:current|viewed)\b/;
         const TOP = /^(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s+(\w+)|class\s+(\w+)|(?:const|let|var)\s+(\w+))/gm;
         const KINDS = new Set(["definition", "draw", "window", "diagnose", "own"]);
+        /* E41 C6 (1.2.97): rooms.mjs's row "vault.mjs#openRoomSetupDialog" names the stash's facade, and a pure move
+           rewrites no row of rooms.mjs; a reader in a file vault.mjs's code moved to (the kit's VAULT_FAMILY, palm.mjs
+           aside, which holds the player's half of a Palm as well) is keyed by vault.mjs, as the row is. */
+        const rowFile = file => VAULT_FAMILY.includes(file) && file !== "palm.mjs" ? "vault.mjs" : file;
         const readersIn = (file, raw) => {
             const code = stripStrings(stripComments(raw));
             const pieces = [{ at: 0, name: "(top level)" }, ...[...code.matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[3] }))];
             return pieces.filter((piece, i) => CAMERA.test(code.slice(piece.at, pieces[i + 1]?.at ?? code.length)))
-                .map(piece => `${file}#${piece.name}`);
+                .map(piece => `${rowFile(file)}#${piece.name}`);
         };
         const judge = (found, registry) => ({
             unregistered: found.filter(key => !(key in registry)).sort(),
@@ -12867,7 +12880,8 @@ const REGRESSIONS = [
             ok(text.length > 0, `${file} was not read - this test measured nothing`);
             return text;
         };
-        const movement = code("movement.mjs"), fog = code("fog.mjs"), vault = code("vault.mjs"), api = code("api.mjs");
+        // E41 C6 (1.2.97): vault.mjs holds no code; the stash's family's text (the kit's `vaultText`), where its alone was read.
+        const movement = code("movement.mjs"), fog = code("fog.mjs"), vault = stripComments(vaultText(sources)), api = code("api.mjs");
         const verdict = fnSource(movement, "crossingVerdict");
         const at = text => verdict.indexOf(text), refusal = "crossingRefused(scene, from, to, floors)";
         const gate = at("if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) return true;");
@@ -13977,7 +13991,8 @@ const REGRESSIONS = [
            its "wyłamany"): the flag `ROOM_FLAGS.broken` named in movement.mjs alone, inside `roomBroken` (the read) and
            `setRoomBroken` (the write) alone, its key spelt once; and the three rules a forced room lifts ask the reader. */
         const { ROOM_FLAGS } = await import("./movement.mjs");
-        const mv = stripComments(sources.get("movement.mjs") ?? ""), vault = stripComments(sources.get("vault.mjs") ?? "");
+        // E41 C6 (1.2.97): vault.mjs holds no code; the stash's family's text (the kit's `vaultText`), where its alone was read.
+        const mv = stripComments(sources.get("movement.mjs") ?? ""), vault = stripComments(vaultText(sources));
         const count = (text, re) => (text.match(re) ?? []).length;
         const inFns = count(fnSource(mv, "roomBroken"), /ROOM_FLAGS\.broken/g) + count(fnSource(mv, "setRoomBroken"), /ROOM_FLAGS\.broken/g);
         equal(JSON.stringify([ROOM_FLAGS?.broken ?? null, declaring(/ROOM_FLAGS\.broken|drpgBroken/), count(mv, /ROOM_FLAGS\.broken/g) === inFns && inFns > 0,
@@ -15019,8 +15034,8 @@ const REGRESSIONS = [
             "sheet-audit.mjs#decideNow": "one sheet: the GM's Undo on a flagged change puts back an item the student's own write created or deleted, on the actor the row names (E29 C7)"
         };
         const ROADS = {
-            "handover.mjs#giveItem": "give", "handover.mjs#lootBody": "loot", "vault.mjs#stealFromVault": "rifle",
-            "vault.mjs#stealFromPerson": "steal", "vault.mjs#plantOnPerson": "plant"
+            "handover.mjs#giveItem": "give", "handover.mjs#lootBody": "loot", "stash-reach.mjs#stealFromVault": "rifle",
+            "palm.mjs#stealFromPerson": "steal", "palm.mjs#plantOnPerson": "plant"
         };
         const DECL = /^(?:export\s+)?(?:async\s+)?(?:function\s*\*?\s*([\w$]+)|(?:const|let|var|class)\s+([\w$]+))/gm;
         const CREATE = /\b(grantItem|trustedCreate)\s*\(|\.(createEmbeddedDocuments)\s*\(|\bItem(?:\.implementation)?\.(?:create|createDocuments)\s*\(/g;
@@ -15088,8 +15103,8 @@ const REGRESSIONS = [
 
         read = { creates: 0, deletes: 0 };
         const sources = new Map((await otherSources()).filter(([file]) => file.endsWith(".mjs")));
-        must(sources.has("inventory.mjs") && sources.has("handover.mjs") && sources.has("vault.mjs") && sources.has("reroll.mjs"),
-            "inventory.mjs, handover.mjs, vault.mjs or reroll.mjs is not served - this test reads nothing until they are");
+        must(["inventory.mjs", "handover.mjs", "stash-reach.mjs", "palm.mjs", "reroll.mjs"].every(file => sources.has(file)),
+            "inventory.mjs, handover.mjs, stash-reach.mjs, palm.mjs or reroll.mjs is not served - this test reads nothing until they are");
         const found = pairsIn(sources);
         ok(read.creates >= 10 && read.deletes >= 10, `${read.creates} item creates and ${read.deletes} deletes read in the module - this would measure nothing`);
         const outside = found.filter(at => at !== "inventory.mjs#transferItem");
