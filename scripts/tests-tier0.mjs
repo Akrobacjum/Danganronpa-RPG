@@ -5813,7 +5813,7 @@ const REGRESSIONS = [
          * cut, and every table's every run is reached by the crawl.
          */
         const kit = await import("./tests-kit.mjs");
-        for (const name of ["bridgeCrawlSources", "bridgeCut", "bridgeLookup", "bridgeCrawl"]) {
+        for (const name of ["bridgeCrawlSources", "bridgeCut", "bridgeLookup", "bridgeCrawl", "bridgeDeclarationCalls"]) {
             ok(typeof kit[name] === "function", `the kit has no ${name} - the bridge's crawls read a table's own file alone`);
         }
         const G = await import("./bridge-guards.mjs");
@@ -5821,7 +5821,10 @@ const REGRESSIONS = [
         function guardFixtureLiving() { return null; }
         const decl = { label: "DRPG.Bridge.what.fixture.helped", guards: [G.knownSender], runGuards: [guardFixtureLiving],
             sanitize: G.pick({ helped: G.as.num }), run: function fixtureRun(payload, sender) { return fixtureHelper(payload, sender); }, answer: "ack" };
+        // E41 C5a0: the table's declaration stands first, as BRIDGE_ACTIONS does in bridge-table.mjs, and calls a derive
+        // that only the family declares - no function's cut runs on into it, so only the declarations' calls reach it.
         const TABLE_TEXT = [
+            "export const FIXTURE = table({", "    \"fixture.helped\": { rolled: fixtureDerive(\"helped\") }", "});",
             "function fixtureRun(payload, sender) {", "    return fixtureHelper(payload, sender);", "}",
             "function fixtureTwice() {", "    return \"table\";", "}", ""].join("\n");
         const FAMILY_TEXT = [
@@ -5829,7 +5832,8 @@ const REGRESSIONS = [
             "function fixtureHelper(payload, sender) {",
             "    if (guardFixtureLiving(sender, payload)) return { refused: \"fixture: the helper refused it\" };",
             "    return fixtureTwice() + payload.helped;", "}",
-            "function fixtureTwice() {", "    return \"family\";", "}", ""].join("\n");
+            "function fixtureTwice() {", "    return \"family\";", "}",
+            "function fixtureDerive(field) {", "    return field;", "}", ""].join("\n");
         const entry = { file: "fixture-table.mjs", name: "FIXTURE", module: { guardFixtureLiving }, table: { "fixture.helped": decl },
             text: TABLE_TEXT, family: [["fixture-family.mjs", FAMILY_TEXT]] };
         const alone = { ...entry, family: [] };
@@ -5847,8 +5851,10 @@ const REGRESSIONS = [
 
         // R164's crawl: the helper, and the reason it refuses with.
         const crawl = table => kit.bridgeCrawl(table).map(fn => `${fn.file} ${fn.name}`);
-        equal(JSON.stringify(crawl(entry)), JSON.stringify(["fixture-table.mjs fixtureRun", "fixture-family.mjs fixtureHelper", "fixture-table.mjs fixtureTwice"]),
-            "R164's crawl does not reach the helper in the table's family, in order");
+        equal(JSON.stringify(crawl(entry)), JSON.stringify(["fixture-table.mjs fixtureRun", "fixture-family.mjs fixtureDerive", "fixture-family.mjs fixtureHelper",
+            "fixture-table.mjs fixtureTwice"]), "R164's crawl does not reach the helper in the table's family, and the derive the table's declaration calls, in order");
+        equal(JSON.stringify(kit.bridgeDeclarationCalls?.(entry) ?? null), JSON.stringify(["table", "fixtureDerive"]),
+            "the calls the table's own declaration makes are not read off its statement");
         equal(JSON.stringify(crawl(alone)), JSON.stringify(["fixture-table.mjs fixtureRun"]), "R164's crawl reaches past the table's file with no family");
         const refusals = table => refusalProblems({ functions: kit.bridgeCrawl(table).map(fn => ({ name: `${fn.file} ${fn.name}`, source: fn.source, reads: "refused" })),
             patterns: [["fixtureHelped", /^fixture: the helper refused it$/]], reasons: ["fixtureHelped"] });

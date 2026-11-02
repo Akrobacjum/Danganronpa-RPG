@@ -1188,14 +1188,34 @@ function bridgeLookup(entry, leaf) {
 }
 
 /**
- * R164's crawl of one table (E31; the kit's since E41 C2, so R1235 runs it on a fixture): from the table's runs, every
- * name called in a function it cut (string literals blanked), cut again, in the table's crawl sources - each function
- * once, as `{ file, name, source }`, in the order it was reached. A name no crawl source declares is passed by:
- * a global, a method, or a function of another file, which this does not follow.
+ * The names the table's own declarations call (E41 C5a0), in the order they stand: every `name(` of the statement
+ * `const <NAME> = ...` in the table's file (`entry.text`, cut to the next top-level declaration), string literals
+ * blanked - a helper that builds a declaration (BRIDGE_ACTIONS' `handover(...)`), a `rolled` derive (`palmRolls(...)`,
+ * `friskRolls(...)`), a bound a guard reads (`hardestRepair()`). Empty when the file holds no such statement.
+ */
+function bridgeDeclarationCalls(entry) {
+    const text = String(entry.text ?? "");
+    const at = text.search(new RegExp(`^(?:export )?const ${entry.name} = `, "m"));
+    if (at < 0) return [];
+    const line = text.indexOf("\n", at);
+    const next = line < 0 ? -1 : text.slice(line).search(/^(?:export )?(?:async )?function |^(?:export )?(?:const|let|class) /m);
+    const statement = text.slice(at, line < 0 || next < 0 ? text.length : line + next);
+    return [...stripStrings(statement).matchAll(/\b([A-Za-z_$][\w$]*)\s*\(/g)].map(m => m[1]);
+}
+
+/**
+ * R164's crawl of one table (E31; the kit's since E41 C2, so R1235 runs it on a fixture): from the table's runs, and
+ * since E41 C5a0 from the names its own declarations call (`bridgeDeclarationCalls`), every name called in a function
+ * it cut (string literals blanked), cut again, in the table's crawl sources - each function once, as
+ * `{ file, name, source }`, in the order it was reached. A name no crawl source declares is passed by: a global, a
+ * method, or a function of another file, which this does not follow. The declarations' calls were read until E41 C5a
+ * only because gm-bridge.mjs's last run, `handleCardPost`, stood before BRIDGE_ACTIONS and its cut ran on through the
+ * table (`topLevelFunction` stops at the next function); a split that moves the runs away from the table leaves them
+ * read by nothing else (`handover`, `hardestRepair`, `friskRolls`, `palmRolls`, measured on C5a's tree).
  */
 function bridgeCrawl(entry) {
     const out = [], seen = new Set();
-    const queue = Object.values(entry.table ?? {}).map(decl => decl.run?.name);
+    const queue = [...Object.values(entry.table ?? {}).map(decl => decl.run?.name), ...bridgeDeclarationCalls(entry)];
     while (queue.length) {
         const name = queue.shift();
         if (!name || seen.has(name)) continue;
@@ -2174,7 +2194,7 @@ export {
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, styleCascade, bodyOf, topLevelFunction, fnSource, lineAround,
-    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeCut, bridgeLookup, bridgeCrawl, bridgeFamily, bridgeRead, bridgeFn, bridgeText, censusFile, BRIDGE_FAMILY_END, ACTION_FAMILY, actionText, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
+    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeDeclarationCalls, bridgeCut, bridgeLookup, bridgeCrawl, bridgeFamily, bridgeRead, bridgeFn, bridgeText, censusFile, BRIDGE_FAMILY_END, ACTION_FAMILY, actionText, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
     flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem, TEXT_BASELINES, textAgainstBaseline, textStaleRow,
     textTableWords, textLegacyLists,

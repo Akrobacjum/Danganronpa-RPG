@@ -61,7 +61,9 @@
  *             the cut in the bridge's family, plant P18), the name as a key of an object a const with an upper-case
  *             name holds (tier 0's DELEGATES), a function the bridge tables' callee crawls cut (tier 0's refusal
  *             reading, the kit's runGuards: in the table's own file, then in each file of its family, the third element
- *             of its BRIDGE_TABLE_FILES row - E41 C2, the kit's `bridgeCrawlSources`), a callee R290's crawl cuts (tier
+ *             of its BRIDGE_TABLE_FILES row - E41 C2, the kit's `bridgeCrawlSources` - from the table's runs and,
+ *             since E41 C5a0, the names its own declarations call, the kit's `bridgeDeclarationCalls`), a callee
+ *             R290's crawl cuts (tier
  *             1: each gmMeansWrite or meansWrite job's callees, cut only in the job's own file; round 2, m4), or a
  *             `guard...` name when a tier file calls withGuards - because a test would then read code it was not
  *             written for, or, where the cut only shrank (a statement it ran on into stayed behind), less than it was
@@ -97,7 +99,9 @@
  * file holds a job and callee of the same names, and one whose cut grew); and E41 C2's P17 (the kit lists a family file
  * for the second table, and of the two callees its run calls, the one moved into that file is not reported and the one
  * moved into a file the row does not list is); and E41 C2b's P18 (a function the tier file reads through the kit's
- * bridgeFn, whose cut grows when the function after it moves away). Forty-two problems, each at its file and line and,
+ * bridgeFn, whose cut grows when the function after it moves away); and E41 C5a0's P19 (a function the second table's
+ * declaration calls, and nothing else, moved into a file the row does not list). Forty-three problems, each at its file
+ * and line and,
  * where a line carries two, by a piece of its message; the fixture also moves, promotes and copies an alias line, and
  * shrinks a cut it lists with its own lengths, which must pass. `node tools/check.mjs moves` runs this part alone, so
  * CI keeps the tool honest between the waves that use it.
@@ -137,6 +141,13 @@
  * Measured on 02.11.2026 (E41 C2b, every reader of the bridge's code reads its family through the kit's bridgeFn,
  * bridgeText and censusFile): the planted pairs, forty-two of forty-two, and forty-one of forty-two with P18's fixture
  * and `named` as C2 left it (P18 not reported).
+ *
+ * Measured on 02.11.2026 (E41 C5a0, the bridge crawl starts from the names a table's declarations call as well as its
+ * runs, as the kit's `bridgeCrawl` does): the planted pairs, forty-three of forty-three, and forty-two of forty-three on
+ * the tool as C2b left it with P19's fixture (P19 not reported). Until E41 C5a those calls were read only because
+ * gm-bridge.mjs's last run, `handleCardPost`, stood before BRIDGE_ACTIONS and its cut ran on through the table; C5a's
+ * move of the runs, measured on its tree with the crawl as C2b left it, lost four functions at the head (`handover`,
+ * `hardestRepair`, `friskRolls`, `palmRolls`), and R164 read 255 functions where it read 259.
  */
 
 import fs from "node:fs";
@@ -159,7 +170,15 @@ const SUITE_FILE = /^scripts\/tests[^/]*\.mjs$/;
 // Keyed to what was read, not to the name (E34 review round 2, m3): the base's file and function and both lengths, so
 // the excuse covers C7a's shrink alone - measured 279 -> 252 on the real C7a (f15fa43), as on the dry run - and any
 // other shrink of the name, in another file, to other lengths or in a later wave, is red like any other.
-const SHRINK_LISTED = new Map([["scripts/murder.mjs#retireOpeningNotices", { from: 279, to: 252, why: "C7a, R220 read by hand" }]]);
+// E41 C5a moves gm-bridge.mjs's runs into bridge-runs-acts.mjs and bridge-runs-records.mjs; the last of them,
+// `handleCardPost`, stood before BRIDGE_ACTIONS and its cut ran on through the whole table (44598 characters at E41 C5's
+// tree, 559 at C5a's, measured on a dry run of C5a). What the run-on gave the crawls - the names the table's
+// declarations call - they read off the declaration since C5a0, and R164's reasons and places read the same with it and
+// without it (293 and 435, measured on C5a's tree with the crawl as C2b left it): read by hand for C5a.
+const SHRINK_LISTED = new Map([
+    ["scripts/murder.mjs#retireOpeningNotices", { from: 279, to: 252, why: "C7a, R220 read by hand" }],
+    ["scripts/gm-bridge.mjs#handleCardPost", { from: 44598, to: 559, why: "E41 C5a, R164 and the crawls read by hand" }]
+]);
 const PARTS = ["self", "lines", "statements", "bindings", "api", "cuts", "jsdoc", "imports"];
 
 /** espree and eslint-scope from audit/harness (`npm ci` there); eslint-scope is resolved through ESLint, which owns it. */
@@ -829,16 +848,27 @@ function cutsPart(B, H, { baseFamily, headFamily, pairs, shrinkListed }, report,
     const bridgeReach = rev => {
         const kit = rev.text("scripts/tests-kit.mjs");
         const list = kit?.match(/\bBRIDGE_TABLE_FILES = Object\.freeze\(\[([\s\S]*?)\]\);/)?.[1] ?? "";
-        const rows = [...list.matchAll(/\[\s*"([\w.-]+\.mjs)"\s*,\s*"\w+"\s*(?:,\s*\[([^\[\]]*)\]\s*)?\]/g)]
-            .map(m => ({ file: m[1], family: [...(m[2] ?? "").matchAll(/"([\w.-]+\.mjs)"/g)].map(f => f[1]) }));
+        const rows = [...list.matchAll(/\[\s*"([\w.-]+\.mjs)"\s*,\s*"(\w+)"\s*(?:,\s*\[([^\[\]]*)\]\s*)?\]/g)]
+            .map(m => ({ file: m[1], name: m[2], family: [...(m[3] ?? "").matchAll(/"([\w.-]+\.mjs)"/g)].map(f => f[1]) }));
         if (rev === H && kit !== null && !rows.length) out.push("scripts/tests-kit.mjs:1: BRIDGE_TABLE_FILES is not read here, so the functions the bridge crawls cut are not known");
         const named = (list.match(/"[\w.-]+\.mjs"/g) ?? []).length, read = rows.reduce((n, r) => n + 1 + r.family.length, 0);
         if (rev === H && named !== read) out.push(`scripts/tests-kit.mjs:1: BRIDGE_TABLE_FILES names ${named} files and ${read} are read here, so the functions the bridge crawls cut are not known`);
         const reach = new Map();
-        for (const { file, family } of rows) {
+        for (const { file, name: table, family } of rows) {
             const texts = [file, ...family].map(f => [`scripts/${f}`, lint.stripComments(rev.text(`scripts/${f}`) ?? "")]);
             const queue = [...texts[0][1].matchAll(/^\s*run: ([A-Za-z_$][\w$]*),?\s*$/gm)].map(m => m[1]);
             if (rev === H && !queue.length) out.push(`scripts/${file}:1: no \`run: <name>\` line is read in the bridge table file, so its crawl is not known`);
+            // E41 C5a0 (plant P19): and the names the table's own declarations call, read off its `const <NAME> = `
+            // statement as the kit's bridgeDeclarationCalls reads them, so a derive or a helper the table calls is
+            // crawled wherever the function before the table is.
+            const declaration = texts[0][1].search(new RegExp(`^(?:export )?const ${table} = `, "m"));
+            if (rev === H && declaration < 0) out.push(`scripts/${file}:1: no \`const ${table} = \` statement is read in the bridge table file, so the calls its declarations make are not known`);
+            if (declaration >= 0) {
+                const from = texts[0][1].slice(declaration), line = from.indexOf("\n");
+                const next = line < 0 ? -1 : from.slice(line).search(/^(?:export )?(?:async )?function |^(?:export )?(?:const|let|class) /m);
+                const statement = from.slice(0, line < 0 || next < 0 ? from.length : line + next);
+                for (const m of lint.blankLiterals(statement).matchAll(/\b([A-Za-z_$][\w$]*)\s*\(/g)) queue.push(m[1]);
+            }
             const seen = new Set();
             while (queue.length) {
                 const name = queue.shift();
@@ -1111,6 +1141,7 @@ function marks() {
 export const MORE = {
     more: {
         run: runMore,
+        check: declared("x"),
     }
 };
 
@@ -1124,6 +1155,10 @@ function helped() {
 
 function strayed() {
     return 22;
+}
+
+function declared(field) {
+    return field;
 }
 `,
     "scripts/table.mjs": `/**
@@ -1314,11 +1349,12 @@ const FIXTURE_HEAD = {
  */
 
 import { helped } from "./fam-table-help.mjs";
-import { strayed } from "./elsewhere.mjs";
+import { strayed, declared } from "./elsewhere.mjs";
 
 export const MORE = {
     more: {
         run: runMore,
+        check: declared("x"),
     }
 };
 
@@ -1340,6 +1376,10 @@ export function helped() {
 
 export function strayed() {
     return 22;
+}
+
+export function declared(field) {
+    return field;
 }
 `,
     "scripts/reader.mjs": FIXTURE_BASE["scripts/reader.mjs"],
@@ -1621,7 +1661,10 @@ const PLANTED = [
     // elsewhere.mjs, which the row does not list, and the crawl reads less.
     ["cuts", "head", "scripts/elsewhere.mjs", "export function strayed", "does not at the head"],
     // E41 C2b's P18: the tier file reads `bridged` through the kit's bridgeFn, and its cut grows when `departs` leaves.
-    ["cuts", "head", "scripts/fam.mjs", "export function bridged", "by name"]
+    ["cuts", "head", "scripts/fam.mjs", "export function bridged", "by name"],
+    // E41 C5a0's P19: `declared` is called by table2.mjs's declaration and by no run; it moves into elsewhere.mjs, which
+    // the row does not list, and the crawl - started from the declaration's calls as well - reads less.
+    ["cuts", "head", "scripts/elsewhere.mjs", "export function declared", "does not at the head"]
 ];
 // The fixture's SHRINK_LISTED: `trimmed`'s own reading (55 -> 33 characters), and P15b's two near misses of `shrinks`
 // (90 -> 32 characters in fam.mjs).
