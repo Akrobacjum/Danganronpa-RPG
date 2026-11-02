@@ -8,7 +8,7 @@
  * Only the fields named in `PROSE_KEYS` are considered, and only when their
  * value reads as a sentence or a name rather than an identifier - `hope` is a
  * sentence in CRISIS_ACTIONS and a bare key in OVERFLOW, `critical` is prose
- * in one table and an object in another. Identifiers (`dcTable: "OBSERVE_DC"`,
+ * in one table and an object in another. Identifiers (`failureRemnant: "hidden"`,
  * `reader: "SearchTokens.max"`, the playlist name) never match, because they
  * are read back by code and a translated identifier is a broken lookup.
  */

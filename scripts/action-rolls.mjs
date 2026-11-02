@@ -2350,6 +2350,8 @@ export async function traceTheFind(actor, def, roll, { hit, category, tier, goal
 
 async function leaveSearchTrace(actor, def, roll, { hit, category, drawn, granted, room, tier }) {
     const leaves = leavesTraceFor(category, drawn?.roles);
+    // The trace's type and its Faint mark are the Search's `leavesRemnant` (config.mjs), not spelt here (E41 C1b).
+    const { type, faint } = def.leavesRemnant;
     const visibility = roll.isCritical ? def.critical?.remnant : hit?.remnant;
 
     let placed = null;
@@ -2358,9 +2360,9 @@ async function leaveSearchTrace(actor, def, roll, { hit, category, drawn, grante
         const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
         const catLabel = ITEM_CATEGORIES[category]?.label ?? category;
         placed = await dropRemnant(actor, {
-            type: "prep",
+            type,
             visibility,
-            faint: true,
+            faint,
             /*
              * NOT TIED BY CATEGORY ANY MORE (Dawid, 28.08).
              *
@@ -3963,12 +3965,14 @@ export function sabotageHit(roll, { penalty = 0, relief = 0 } = {}, def = ACTION
     // The 12 band was creating a 4-progress "everyday" repair, one scale
     // step harder than the guide asks for.
 export function sabotageRepairScale(roll, score, relief) {
+    // The complex band is the Sabotage table's top row, read off config.mjs `ACTIONS.sabotage.thresholds` (18 there)
+    // rather than written again here (E41 C1b; audit S02-65). It is the same band `easedBy` just lowered, read a
+    // second time - so it comes down by the same amount, or a good tool would buy the band without buying the
+    // repair it names.
+    const complex = Math.max(...ACTIONS.sabotage.thresholds.map(band => band.min));
     return roll.isCritical
         ? PROJECT_SCALE.desperate.progress
-        // This 18 is the same band `easedBy` just lowered, read a second
-        // time by hand - so it comes down by the same amount, or a good
-        // tool would buy the band without buying the repair it names.
-        : score >= 18 - relief
+        : score >= complex - relief
             ? PROJECT_SCALE.complex.progress
             : PROJECT_SCALE.trivial.progress;
 }
@@ -3977,14 +3981,16 @@ export function sabotageRepairScale(roll, score, relief) {
 async function dropSabotageTrace(actor, def, roll, { project, room, success, hit, repair }) {
     const { dropRemnant } = await import("./remnants.mjs");
     const visibility = success ? hit.remnant : def.failureRemnant;
+    // The type and the Faint mark are the Sabotage's `leavesRemnant` (config.mjs), not spelt here (E41 C1b).
+    const { type, faint } = def.leavesRemnant;
     return dropRemnant(actor, {
-        type: "prep",
+        type,
         // Sabotaging a murder project is working on the murder too - the saboteur's own: a
         // bystander's Sabotage of somebody else's trap is untied (the E09 plan's C5), and on a GM's
         // own client it was tied until E09 fix r1-G4 (`buildsOwnMurder`, as the bridge asks it).
         tiedToCrime: project && buildsOwnMurder(project.id, actor.id) ? true : null,
         visibility,
-        faint: true,
+        faint,
         action: "sabotage",
         rollId: rollInHand(actor)?.messageId ?? null,
         subject: project.name,

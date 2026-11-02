@@ -10,7 +10,7 @@
  */
 
 import { MODULE_ID, ITEM_CATEGORIES, ITEM_DURABILITY, LIMIT_GROUPS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS, itemIcon,
-    BEDROOM_KEY_FLAG }
+    BEDROOM_KEY_FLAG, ACTIONS }
     from "./config.mjs";
 import { whisperToOwner, whisperToGms, log, warn, error, serialWrite } from "./utils.mjs";
 import { trustedWrite, trustedCreate, trustedDelete } from "./resource-guard.mjs";
@@ -129,10 +129,12 @@ export const ITEM_FLAGS = {
  * evidence of having handled an OBJECT, so it is read off what was found -
  * the category plus the roles the table entry declared - and never off the
  * intention. One copy, used by the Search and by the Reroll that replays it.
+ * The roles are config.mjs `ACTIONS.search.leavesRemnant.onlyFor`, read here
+ * rather than spelt a second time (E41 C1b; audit S02-64).
  */
 export function leavesTraceFor(category, roles = []) {
     const all = new Set([category, ...(roles ?? [])]);
-    return all.has("crimeTool") || all.has("cleaningTool");
+    return ACTIONS.search.leavesRemnant.onlyFor.some(role => all.has(role));
 }
 
 export function preservedFlags(item) {

@@ -18662,6 +18662,78 @@ const REGRESSIONS = [
             + "files naming DRPG.Action.murderConfirm; eclipseKey: a file names murderConfirmEclipse; en, pl: [murderConfirm, chooseTrait, "
             + "murderConfirmEclipse, unknown] held as strings}");
     }],
+    ["R1231 - config.mjs has no dead field (E41 C1b, E41-03; audit S02-64): no `STATES.*.trigger` or `.effect`, `LEVEL_UP.*.when`, `REMNANT_TYPES.*.hint`, `dcTable` or `dcFromVisibility`, nor pl.json their DRPG.Config keys; inventory.mjs `leavesTraceFor` reads `ACTIONS.search.leavesRemnant.onlyFor` and spells no role; the Search's and the Sabotage's trace (`leaveSearchTrace`, `dropSabotageTrace`, and their Reroll's `settleSearch`, `settleSabotage`) read their `def.leavesRemnant` and spell no `\"prep\"` or `faint: true`; `moveBody.rooms` is kept and its comment names E64", async () => {
+        /*
+         * E41 C1b, 02.11.2026; E41-03, audit S02-64. Fields nothing read: each condition's `trigger` and `effect` (states.mjs
+         * registers the two by `DRPG.States.<id>.*`), each Level Up's `when` (level-up.mjs reads `picks`), each Remnant
+         * type's `hint` (every reader takes `label` or `reinforced`), Observe's and Analyze's `dcTable` and Erase a Trace's
+         * `dcFromVisibility`; and the two `leavesRemnant` the Search and the Sabotage wrote again in their code (the roles
+         * in inventory.mjs, `type: "prep"` and `faint: true` at four drops). Read from the module's own config and both
+         * lang files, and off the source with comments out; each function wherever the module declares it (E41 C3 and C4
+         * split action-rolls.mjs). `moveBody.rooms` stays by the amend of 26.09 (E64 makes the critical's two rooms work).
+         * Red at the parent: every field there, the 12 Polish keys, the roles spelt, the four drops spelling both.
+         */
+        const C = await import("./config.mjs");
+        const sources = new Map(await otherSources());
+        must(sources.size > 100, `${sources.size} module file(s) read - this test measured nothing`);
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const PL = pl.DRPG?.Config ?? {};
+        must(Object.keys(C.STATES).length === 2 && Object.keys(C.LEVEL_UP).length === 2 && Object.keys(C.REMNANT_TYPES).length >= 8
+            && Object.keys(PL.REMNANT_TYPES ?? {}).length >= 8, "the tables this test reads are not the ones it was written for - it reads nothing until it is pointed at them again");
+        const held = (table, field) => Object.entries(table ?? {}).filter(([, row]) => row && Object.hasOwn(row, field)).map(([key]) => key);
+        const fnIn = name => {
+            const at = [...sources].filter(([, raw]) => topLevelFunction(stripComments(raw), name) !== null).map(([file]) => file);
+            must(at.length === 1, `${name} is declared in ${at.length} module file(s) - this test reads one`);
+            return fnSource(stripComments(sources.get(at[0])), name);
+        };
+        const traceOf = name => {
+            const body = fnIn(name);
+            return [/\bdef\.leavesRemnant\b/.test(body), /(?<![\w$.])"prep"/.test(body), /\bfaint\s*:\s*true\b/.test(body)];
+        };
+        const leaves = fnIn("leavesTraceFor");
+        const config = stripComments(sources.get("config.mjs") ?? "");
+        const raw = sources.get("config.mjs") ?? "";
+        const moveBodyNote = bodyOf(raw, "Morderca próbuje przenieść ciało", { until: "moveBody: {" });
+        equal(JSON.stringify({
+            config: {
+                trigger: held(C.STATES, "trigger"), effect: held(C.STATES, "effect"), when: held(C.LEVEL_UP, "when"), hint: held(C.REMNANT_TYPES, "hint"),
+                dcTable: held(C.ACTIONS, "dcTable"), dcFromVisibility: held(C.CLEANUP.actions, "dcFromVisibility"),
+                spelt: ["trigger:", "dcTable", "dcFromVisibility"].filter(word => config.includes(word))
+            },
+            pl: { effect: held(PL.STATES, "effect"), when: held(PL.LEVEL_UP, "when"), hint: held(PL.REMNANT_TYPES, "hint") },
+            leavesTraceFor: [/\bACTIONS\.search\.leavesRemnant\.onlyFor\b/.test(leaves), /"(crimeTool|cleaningTool)"/.test(leaves)],
+            traces: ["leaveSearchTrace", "dropSabotageTrace", "settleSearch", "settleSabotage"].map(name => [name, traceOf(name)]),
+            leavesRemnant: [C.ACTIONS.search.leavesRemnant, C.ACTIONS.sabotage.leavesRemnant],
+            moveBody: [C.CLEANUP.actions.moveBody?.rooms ?? null, /\bE64\b/.test(moveBodyNote)]
+        }), JSON.stringify({
+            config: { trigger: [], effect: [], when: [], hint: [], dcTable: [], dcFromVisibility: [], spelt: [] },
+            pl: { effect: [], when: [], hint: [] },
+            leavesTraceFor: [true, false],
+            traces: ["leaveSearchTrace", "dropSabotageTrace", "settleSearch", "settleSabotage"].map(name => [name, [true, false, false]]),
+            leavesRemnant: [{ type: "prep", faint: true, onlyFor: ["crimeTool", "cleaningTool"] }, { type: "prep", faint: true }],
+            moveBody: [{ hope: 1, despair: 1, critical: 2 }, true]
+        }), "{config: the rows holding each dead field, and which of trigger:, dcTable, dcFromVisibility config.mjs still spells; pl: the "
+            + "Polish rows holding effect, when, hint; leavesTraceFor: [reads ACTIONS.search.leavesRemnant.onlyFor, spells a role]; traces: each "
+            + "drop's [reads def.leavesRemnant, spells \"prep\", spells faint: true]; leavesRemnant: the two as at the parent; moveBody: [rooms, "
+            + "its comment names E64]}");
+    }],
+    ["R1233 - the aggregate holds every export of config.mjs (E41 C1b, E41-05; audit S02-76): `DRPG` (`game.drpg.config`) has each export of config.mjs but itself as a key, the same value by identity, and nothing config.mjs does not export", async () => {
+        /*
+         * E41 C1b, 02.11.2026; E41-05, audit S02-76. "Aggregate export so macros can reach everything through one object"
+         * held 68 of config.mjs's 95 other exports; a macro reading `game.drpg.config.TIMING` or `.OVERFLOW` got
+         * undefined. Read off the module namespace, so an export added later without its line in `DRPG` is named here.
+         * Red at the parent: 27 missing (AFTER_DARK ... staleStamp).
+         */
+        const C = await import("./config.mjs");
+        const exports = Object.keys(C).filter(name => name !== "DRPG").sort();
+        must(exports.length > 90 && C.DRPG && typeof C.DRPG === "object", `${exports.length} export(s) of config.mjs read - this test measured nothing`);
+        equal(JSON.stringify({
+            missing: exports.filter(name => !Object.hasOwn(C.DRPG, name)),
+            other: exports.filter(name => Object.hasOwn(C.DRPG, name) && C.DRPG[name] !== C[name]),
+            extra: Object.keys(C.DRPG).filter(name => !Object.hasOwn(C, name) || name === "DRPG")
+        }), JSON.stringify({ missing: [], other: [], extra: [] }),
+        `{missing: the exports DRPG lacks; other: the keys whose value is not the export's; extra: DRPG's keys that are no export} - ${exports.length} export(s) read`);
+    }],
 ];
 
 

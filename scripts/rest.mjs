@@ -190,7 +190,7 @@ export function restVariants(actor) {
             icon: kind === "long" ? "fa-bed" : "fa-mug-hot",
             label: game.i18n.localize(kind === "long" ? "DRPG.Rest.long" : "DRPG.Rest.short"),
             hint: `${plural("DRPG.Action.willCost",
-                { n: kind === "long" ? 2 : 1, left: actionsLeft(actor) })} · ${
+                { n: REST[kind].actionCost, left: actionsLeft(actor) })} · ${
                 allowed
                     ? game.i18n.format("DRPG.Rest.allowedHere", { room: room ?? "" })
                     : elsewhere}`,

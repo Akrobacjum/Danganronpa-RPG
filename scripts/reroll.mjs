@@ -1328,9 +1328,10 @@ export async function settleSearch(actor, bookmark, after, done, rerolled = null
         : null;
 
     const { ITEM_CATEGORIES } = await import("./config.mjs");
+    // The type and the Faint mark are the Search's `leavesRemnant`, as the first throw's (E41 C1b).
     const trace = await settleRemnant(actor, bookmark, leaves ? (visibility ?? null) : null, done, {
-        type: "prep",
-        faint: true,
+        type: def.leavesRemnant.type,
+        faint: def.leavesRemnant.faint,
         tiedToCrime: null,
         itemIdentity: granted?.getFlag?.(MODULE_ID, "drpgItemId") ?? null,
         action: "search",
@@ -1420,9 +1421,10 @@ async function settleSabotage(actor, bookmark, after, done) {
     const visibility = success ? hit.remnant : def.failureRemnant;
     const name = allProjects().find(p => p.id === bookmark.targetProjectId)?.name ?? "?";
 
+    // The type and the Faint mark are the Sabotage's `leavesRemnant`, as the first throw's (E41 C1b).
     const trace = await settleRemnant(actor, bookmark, visibility, done, {
-        type: "prep",
-        faint: true,
+        type: def.leavesRemnant.type,
+        faint: def.leavesRemnant.faint,
         action: "sabotage",
         subject: name,
         note: game.i18n.format("DRPG.Remnant.sabotageNote", {

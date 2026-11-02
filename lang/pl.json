@@ -5794,36 +5794,28 @@
       },
       "REMNANT_TYPES": {
         "key": {
-          "label": "Key Remnant",
-          "hint": "Stawiany przez GM-a, nieusuwalny. Znaleziony od razu pokazuje się jako Key Truth Bullet; jego analiza czeka na Analyze."
+          "label": "Key Remnant"
         },
         "neutral": {
-          "label": "Neutral Remnant",
-          "hint": "Nieustalone pochodzenie. Analiza zamienia go w prawdziwą kategorię."
+          "label": "Neutral Remnant"
         },
         "faint": {
-          "label": "Faint Remnant",
-          "hint": "Wątpliwy. Sprzątany na koniec rozdziału, chyba że powiązany z morderstwem."
+          "label": "Faint Remnant"
         },
         "prep": {
-          "label": "Prep Remnant",
-          "hint": "Zostawiony przy przygotowaniu morderstwa albo zbieraniu narzędzi."
+          "label": "Prep Remnant"
         },
         "incident": {
-          "label": "Incident Remnant",
-          "hint": "Zostawiony podczas konfrontacji albo śmierci ofiary."
+          "label": "Incident Remnant"
         },
         "resolution": {
-          "label": "Tamper Remnant",
-          "hint": "Zostawiony przez majstrowanie - zbyt czysta plama, rzecz odłożona odrobinę nie tak. Sprzątanie zawsze zostawia własny rodzaj śladu."
+          "label": "Tamper Remnant"
         },
         "autopsy": {
-          "label": "Autopsy Remnant",
-          "hint": "Stan ciała. Wydawany jako pierwszy, bez rzutu."
+          "label": "Autopsy Remnant"
         },
         "final": {
-          "label": "Final Truth Remnant",
-          "hint": "Jeden na rozdział. Wskazuje Masterminda."
+          "label": "Final Truth Remnant"
         }
       },
       "TRUTH_BULLET_TYPES": {
@@ -6278,12 +6270,10 @@
       },
       "STATES": {
         "breakdown": {
-          "label": "Breakdown",
-          "effect": "Utrudnienie na każdym rzucie."
+          "label": "Breakdown"
         },
         "wounded": {
-          "label": "Wounded",
-          "effect": "-1 akcja na porę dnia."
+          "label": "Wounded"
         }
       },
       "LEVEL_UP_OPTIONS": {
@@ -6301,14 +6291,6 @@
         },
         "experienceNew": {
           "label": "Dodaj nowe doświadczenie warte +{worth}"
-        }
-      },
-      "LEVEL_UP": {
-        "standard": {
-          "when": "Trafnie wskazaliście Blackened."
-        },
-        "reinforced": {
-          "when": "Blackened wyszedł z błędnego głosowania."
         }
       },
       "MONOCUB": {

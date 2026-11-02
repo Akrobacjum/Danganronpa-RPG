@@ -960,25 +960,19 @@ export const REMNANT_VISIBILITY_LABELS = {
 export const REMNANT_TYPES = {
     key: {
         label: "Key Remnant",
-        hint: "GM-placed, unremovable. Found, it shows as a Key Truth Bullet at once; "
-            + "its analysis waits for an Analyze.",
         reinforced: true
     },
     neutral: {
-        label: "Neutral Remnant",
-        hint: "Undetermined origin. Analysis turns it into a real category."
+        label: "Neutral Remnant"
     },
     faint: {
-        label: "Faint Remnant",
-        hint: "Doubtful. Swept at chapter end unless tied to the murder."
+        label: "Faint Remnant"
     },
     prep: {
-        label: "Prep Remnant",
-        hint: "Left while preparing a murder or gathering tools."
+        label: "Prep Remnant"
     },
     incident: {
-        label: "Incident Remnant",
-        hint: "Left during the confrontation or the victim's death."
+        label: "Incident Remnant"
     },
     /*
      * "TAMPER REMNANT", AND THE KEY STAYS `resolution` (D8) - the lesson Z14
@@ -992,17 +986,13 @@ export const REMNANT_TYPES = {
      * that legible at the trial.
      */
     resolution: {
-        label: "Tamper Remnant",
-        hint: "Left behind by tampering - the too-clean patch, the thing moved back "
-            + "slightly wrong. Cleaning up always leaves its own kind of trace."
+        label: "Tamper Remnant"
     },
     autopsy: {
-        label: "Autopsy Remnant",
-        hint: "The state of the body. Handed out first, no roll needed."
+        label: "Autopsy Remnant"
     },
     final: {
         label: "Final Truth Remnant",
-        hint: "One per chapter. Points at the Mastermind.",
         // Placed once a chapter and meant to survive the whole season, not just
         // this case - `placeRemnant` already reads this flag to set the token's
         // own `reinforced` flag, so nothing else has to know "final" is special.
@@ -1012,9 +1002,10 @@ export const REMNANT_TYPES = {
 
 /**
  * Truth Bullet types - same keys as REMNANT_TYPES, since every Truth Bullet
- * traces back to exactly one Remnant type. Kept as a separate table because the
- * two are worded for different readers: a Remnant's hint is the GM's note on
- * the map, a Truth Bullet's is what ends up on a player's inventory card.
+ * traces back to exactly one Remnant type. Kept as a separate table because a
+ * Truth Bullet's hint is what ends up on a player's inventory card, and a
+ * Remnant's type is its label and whether it is reinforced: the Remnant types'
+ * hints, read by nothing, went in E41 C1b (audit S02-64).
  */
 export const TRUTH_BULLET_TYPES = {
     key: {
@@ -1507,7 +1498,6 @@ export const ACTIONS = {
         description: "First you choose how you look. On a hit, you copy a Remnant in this room into your inventory as "
             + "a Neutral Truth Bullet; a critical also shows its type. Looking past the obvious can also find a secret "
             + "project.",
-        dcTable: "OBSERVE_DC",
         failStress: OBSERVE_FAIL_STRESS
     },
     /**
@@ -1546,7 +1536,6 @@ export const ACTIONS = {
         description: "Learn what a Truth Bullet really is. A miss locks it for you this chapter, and it stays in play "
             + "as it was. Outside a Class Trial, you can ask the GM for a hint instead; a higher total gets a clearer "
             + "one.",
-        dcTable: "ANALYZE_DC",
         /** Used when the player asks for a hint rather than analysing evidence. */
         hintThresholds: [
             { min: 14, result: "A subtle hint - e.g. “You are far from the target.”" },
@@ -1955,7 +1944,8 @@ export const INDIRECT_MURDER = {
  *   stash it        in your own bedroom, which costs nothing and hides nothing
  *                   from anybody who searches the room (see vault.mjs).
  *
- * The table is `INDIRECT_MURDER.hideTraces` verbatim, and deliberately so:
+ * The table is `INDIRECT_MURDER.hideTraces`' own rows - the same objects, not
+ * a copy of them (E41 C1b; audit S02-65) - and deliberately so:
  * dropping the knife in a bin is the same kind of act as wiping the bench, it
  * is rolled on the same statistic, and a second scale for it would be a second
  * thing to keep in step for no gain.
@@ -1995,12 +1985,8 @@ export const BROKEN_ITEMS = {
      * to the trial, whoever is tidying up.
      */
     faint: false,
-    thresholds: [
-        { min: 0, remnant: "obvious" },
-        { min: 12, remnant: "evident" },
-        { min: 18, remnant: "subtle" }
-    ],
-    critical: { remnant: "hidden" }
+    thresholds: INDIRECT_MURDER.hideTraces.thresholds,
+    critical: INDIRECT_MURDER.hideTraces.critical
 };
 
 /**
@@ -2358,9 +2344,9 @@ export const OVERFLOW = {
     effects: {
         /* ---- states: read by the one place that decides the number ------- */
 
-        /** Eclipse crossings. Free placement is pulled back to the ordinary two. */
+        /** Eclipse crossings. Free placement is pulled back to the ordinary `ECLIPSE_MOVES`. */
         darkness: {
-            kind: "state", on: true, by: 1, floor: 1, freeBecomes: 2,
+            kind: "state", on: true, by: 1, floor: 1, freeBecomes: ECLIPSE_MOVES,
             reader: "eclipseAllowance"
         },
         /** Search tokens per room. */
@@ -3036,17 +3022,13 @@ export const STATES = {
         resource: "stress",
         // The `-red` variant of this icon does not exist in the core set; the
         // Breakdown condition was showing a broken image on every token.
-        img: "icons/magic/control/fear-fright-monster-grin-red-orange.webp",
-        trigger: "stress === 0",
-        effect: "Disadvantage on every roll."
+        img: "icons/magic/control/fear-fright-monster-grin-red-orange.webp"
     },
     wounded: {
         id: "drpgWounded",
         label: "Wounded",
         resource: "hitPoints",
-        img: "icons/skills/wounds/injury-triple-slash-bleed.webp",
-        trigger: "hp === 0",
-        effect: "-1 action per time of day."
+        img: "icons/skills/wounds/injury-triple-slash-bleed.webp"
     }
 };
 
@@ -3066,8 +3048,8 @@ export const LEVEL_UP_OPTIONS = {
 };
 
 export const LEVEL_UP = {
-    standard: { picks: 1, when: "Named the Blackened correctly." },
-    reinforced: { picks: 3, when: "The Blackened walked out of a wrong vote." }
+    standard: { picks: 1 },
+    reinforced: { picks: 3 }
 };
 
 /* ==========================================================================
@@ -4187,8 +4169,6 @@ export const CLEANUP = {
     actions: {
         eraseTrace: {
             label: "Erase a Trace", icon: "fa-eraser",
-            /** DC comes from the trace itself - see `dc` above. */
-            dcFromVisibility: true,
             targets: "remnant"
         },
 
@@ -4233,8 +4213,10 @@ export const CLEANUP = {
          * Stat Ciało - the one Stage 6 action that is not Shadow, because
          * carrying a body is exactly the physical problem it looks like.
          *
-         * `rooms` is how far it travels: an adjacent room on Hope, a connected
-         * one on Despair, and two rooms away on a critical. All three leave an
+         * `rooms` is the guide's reach - an adjacent room on Hope, a connected
+         * one on Despair, two rooms away on a critical; the game offers the
+         * connected rooms (cleanup.mjs `bodyDestinations`), and E64 makes the
+         * critical's two rooms work (the amend of 26.09). All three leave an
          * Evident Resolution Remnant - you cannot drag a body quietly.
          */
         moveBody: {
@@ -4869,7 +4851,11 @@ export const SFX_EVENTS = {
  * setting keeping MISIUBOMBO, which is what their players have been told.
  */
 
-/** Aggregate export so macros can reach everything through one object. */
+/**
+ * The aggregate (`game.drpg.config`): every export of this file, for macros, each
+ * by identity. Until E41 C1b it held 68 of the other 95 (audit S02-76); R1233 holds
+ * the list to the file's exports, so an export added without its line here is red.
+ */
 export const DRPG = {
     MODULE_ID,
     SOCKET,
@@ -4939,4 +4925,31 @@ export const DRPG = {
     SFX_SLIDERS,
     SFX_VOLUME_KEYS,
     SFX_EVENTS,
+    AFTER_DARK,
+    BEDROOM_KEY_FLAG,
+    EPOCH_FLOOR_MS,
+    HOSTILE_GRACE,
+    ITEM_DURABILITY,
+    LEGAL_ROLL_MODIFIERS,
+    OVERFLOW,
+    PRICE_CHAINS,
+    PROJECT_OBSERVE,
+    PROSE_NUMBERS,
+    RESOLUTION_HEALTH_COST,
+    ROOM_IMAGE_LIMITS,
+    ROOM_OWNER_FLAG,
+    SFX_VARIATION,
+    SHEET_SIZE,
+    TABLE_COPY_WORDS,
+    TABLE_NAME_WORDS,
+    TIMING,
+    UNCOVERED_LIMIT_PCT,
+    VAULT_LIMIT,
+    callEffect,
+    epochClock,
+    fillProse,
+    isEpochStamp,
+    itemIcon,
+    moduleVersion,
+    staleStamp,
 };

@@ -23,7 +23,7 @@
  * for the finale.
  */
 
-import { MODULE_ID, OVERFLOW, TIMES_OF_DAY } from "./config.mjs";
+import { MODULE_ID, OVERFLOW, TIMES_OF_DAY, ECLIPSE_MOVES } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { announce, log, debug, error, esc, isPrimaryGm, primaryGmId, serialWrite, plural, wholeNumber } from "./utils.mjs";
 import { HOPE_REFUND } from "./resource-guard.mjs";
@@ -1037,8 +1037,9 @@ export function overflowCrossings(allowance) {
     // Free placement has no "minus one" to take, so the darkening hands it a
     // number instead of a subtraction: the run of the whole map becomes the
     // ordinary two rooms. A real loss, without being a smaller number than the
-    // penalised ordinary allowance - which would read as nonsense.
-    if (allowance === null) return rule.freeBecomes ?? 2;
+    // penalised ordinary allowance - which would read as nonsense. The two is
+    // `ECLIPSE_MOVES`, config's `freeBecomes` and the fallback alike (E41 C1b).
+    if (allowance === null) return rule.freeBecomes ?? ECLIPSE_MOVES;
     return Math.max(rule.floor ?? 1, allowance - rule.by);
 }
 

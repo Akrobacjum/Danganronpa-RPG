@@ -22,7 +22,7 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText, expectedRed
+    worldDump, dumpDiff, lfText, expectedRed, stripStrings
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -501,13 +501,15 @@ const INVARIANTS = [
         ok(/easedBy\(def\.thresholds,\s*relief\)/.test(project),
             "project work stopped easing its thresholds with the readied Tool");
 
-        // Sabotage: the same, and its repair scale reads the 18 band a second
-        // time by hand, so that copy has to move with it.
+        // Sabotage: the same, and its repair scale reads the complex band a
+        // second time, so that reading has to move with it. Since E41 C1b the
+        // band is the table's top row read off config (`complex`, R1232), not a
+        // literal 18; the reading is the same `- relief`.
         const sabotage = between("async function performSabotage", "async function performTamper");
         ok(/easedBy\(def\.thresholds,\s*relief\)/.test(sabotage),
             "sabotage stopped easing its thresholds with the readied Tool");
-        ok(/18\s*-\s*relief/.test(sabotage),
-            "the sabotage repair scale still reads a bare 18 - a good tool would buy the "
+        ok(/\bcomplex\s*=\s*Math\.max\(\.\.\.ACTIONS\.sabotage\.thresholds\.map\(/.test(sabotage) && /\bcomplex\s*-\s*relief/.test(sabotage),
+            "the sabotage repair scale no longer lowers the table's complex band by the relief - a good tool would buy the "
             + "band without buying the repair it names");
     }],
 
@@ -31411,6 +31413,83 @@ const INVARIANTS = [
         }), "{takeMove: it pays the Free Move, a Sprint, then spendAction; spendAction: a Burst before an action; nextCrossingPrice: it asks "
             + "the four in that order; prices: what it answers for each stand-in; lines: the briefing's first line for each, \"its price\" when it "
             + "names what the next room takes; keys: the three new lines exist; card: the crossing's card names a Burst it paid}");
+    }],
+    ["R1232 - one source a number (E41 C1b, E41-04; audit S02-65): the broken item's discard table is `INDIRECT_MURDER.hideTraces`' own rows, the darkening's free placement and `overflowCrossings`' fallback are `ECLIPSE_MOVES`, `sabotageRepairScale`'s complex band is `ACTIONS.sabotage`'s top row, the Rest window's price is `REST[kind].actionCost`, and inventory.mjs `leavesTraceFor` answers as before; every value as at the parent", async () => {
+        /*
+         * E41 C1b, 02.11.2026; E41-04, audit S02-65. Four numbers each written twice: `BROKEN_ITEMS.thresholds` and
+         * `.critical`, `INDIRECT_MURDER.hideTraces`' rows again ("verbatim"); `OVERFLOW.effects.darkness.freeBecomes: 2` and
+         * overflow.mjs `overflowCrossings`' `?? 2`, `ECLIPSE_MOVES` again; action-rolls.mjs `sabotageRepairScale`'s 18,
+         * `ACTIONS.sabotage.thresholds`' complex row again; rest.mjs `restVariants`' `kind === "long" ? 2 : 1`, `REST`'s
+         * `actionCost` again. Read: the identities; `overflowCrossings` called with the darkening running - this
+         * browser's `game.settings.get` answers a clock and an Overflow stamp of its own for the length of one
+         * synchronous call and is put back in `finally` (nothing written, nothing awaited between); `sabotageRepairScale`
+         * at the complex row's `min - relief` and one below it, for reliefs 0-2, and on a critical; the bodies (`fnSource`,
+         * comments out): `overflowCrossings`' fallback for free placement, `sabotageRepairScale` for a numeric literal,
+         * `restVariants` for its count; `leavesTraceFor` over every category x every category as its
+         * role. The parent's values, quoted: hideTraces [0 obvious, 12 evident, 18 subtle], critical hidden;
+         * ECLIPSE_MOVES 2, so 2 for a free-placement Eclipse and 1 for the ordinary two under a darkening by 1; the
+         * Sabotage's complex row 18, PROJECT_SCALE complex 6, trivial 3, desperate 8; REST long 2, short 1; a trace for a
+         * crime tool or a cleaning tool, by category or by role. Red at the parent: the copies, the `?? 2`, the 18 and
+         * `kind === "long" ? 2 : 1`.
+         */
+        const C = await import("./config.mjs");
+        const A = await import("./action-rolls.mjs");
+        const O = await import("./overflow.mjs");
+        const { leavesTraceFor } = await import("./inventory.mjs");
+        const sources = new Map(await otherSources());
+        const fnIn = name => {
+            const at = [...sources].filter(([, raw]) => topLevelFunction(stripComments(raw), name) !== null).map(([file]) => file);
+            must(at.length === 1, `${name} is declared in ${at.length} module file(s) - this test reads one`);
+            return fnSource(stripComments(sources.get(at[0])), name);
+        };
+        // A string's digits are its text, not a number of the rules: strings blanked first.
+        const numbers = body => [...stripStrings(body).matchAll(/(?<![\w$.])\d+(?:\.\d+)?(?![\w$])/g)].map(m => m[0]);
+        const S = C.ACTIONS.sabotage;
+        const complexMin = Math.max(...S.thresholds.map(band => band.min));
+        const scale = (total, relief, isCritical = false) => A.sabotageRepairScale({ isCritical, total }, total, relief);
+        const repair = [0, 1, 2].map(relief => [scale(complexMin - relief, relief), scale(complexMin - relief - 1, relief), scale(0, relief, true)]);
+        const crossings = (() => {
+            const real = game.settings.get;
+            const stamp = { session: 1, day: 1, timeOfDay: "noon" };
+            try {
+                game.settings.get = function (module, key, ...rest) {
+                    if (module === MODULE_ID && key === SETTINGS.clock) return { ...stamp, eclipse: false };
+                    if (module === MODULE_ID && key === SETTINGS.overflow) return { active: { ...stamp, effect: "darkness" } };
+                    if (module === MODULE_ID && key === SETTINGS.overflowRules) return {};
+                    return real.call(this, module, key, ...rest);
+                };
+                return [O.overflowIs("darkness"), O.overflowCrossings(null), O.overflowCrossings(C.ECLIPSE_MOVES)];
+            } finally {
+                game.settings.get = real;
+            }
+        })();
+        const categories = Object.keys(C.ITEM_CATEGORIES);
+        must(categories.length >= 5, `${categories.length} item categories read - this test measured nothing`);
+        const parentTrace = (category, roles) => [category, ...roles].some(x => x === "crimeTool" || x === "cleaningTool");
+        const traceWrong = categories.flatMap(category => [[], ...categories.map(role => [role])]
+            .filter(roles => leavesTraceFor(category, roles) !== parentTrace(category, roles)).map(roles => `${category}/${roles.join(",")}`));
+        const rest = fnIn("restVariants");
+        equal(JSON.stringify({
+            broken: [C.BROKEN_ITEMS.thresholds === C.INDIRECT_MURDER.hideTraces.thresholds, C.BROKEN_ITEMS.critical === C.INDIRECT_MURDER.hideTraces.critical],
+            hideTraces: [C.INDIRECT_MURDER.hideTraces.thresholds.map(t => [t.min, t.remnant]), C.INDIRECT_MURDER.hideTraces.critical.remnant],
+            darkness: [C.OVERFLOW.effects.darkness.freeBecomes === C.ECLIPSE_MOVES, C.ECLIPSE_MOVES, crossings],
+            fallback: [/\bfreeBecomes\s*\?\?\s*ECLIPSE_MOVES\b/.test(fnIn("overflowCrossings")), /\bfreeBecomes\s*\?\?\s*\d/.test(fnIn("overflowCrossings"))],
+            sabotage: [complexMin, repair, numbers(fnIn("sabotageRepairScale"))],
+            rest: [/\bREST\[kind\]\.actionCost\b/.test(rest), /kind\s*===\s*"long"\s*\?\s*2\s*:\s*1/.test(rest), C.REST.long.actionCost, C.REST.short.actionCost],
+            traceWrong
+        }), JSON.stringify({
+            broken: [true, true],
+            hideTraces: [[[0, "obvious"], [12, "evident"], [18, "subtle"]], "hidden"],
+            darkness: [true, 2, [true, 2, 1]],
+            fallback: [true, false],
+            sabotage: [18, [0, 1, 2].map(() => [6, 3, 8]), []],
+            rest: [true, false, 2, 1],
+            traceWrong: []
+        }), "{broken: BROKEN_ITEMS' thresholds and critical are hideTraces' own; hideTraces: its rows; darkness: [freeBecomes is ECLIPSE_MOVES, "
+            + "ECLIPSE_MOVES, [the darkening runs, crossings for a free placement, for the ordinary two]]; fallback: [overflowCrossings falls back "
+            + "to ECLIPSE_MOVES, to a number written in]; sabotage: [the complex row's min, for reliefs 0-2 the scale [at min - relief, one below, "
+            + "a critical], sabotageRepairScale's numeric literals]; rest: [restVariants reads REST[kind].actionCost, counts 2 : 1 itself, long, "
+            + "short]; traceWrong: category/role pairs leavesTraceFor answers otherwise than the parent's rule}");
     }],
 ];
 
