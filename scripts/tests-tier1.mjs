@@ -24802,7 +24802,10 @@ const INVARIANTS = [
         const row = S.KIND_REFRESH?.[S.SYNC?.clock] ?? [];
         const gate = name => row.find(entry => entry?.name === name)?.when ?? null;
         // Read where it stands, so that the tree before C5 (a `case`, no reading) shows the whole of what it measured.
-        const eclipseNews = src.includes("[SYNC.eclipse]: data =>") ? bodyOf(src, "[SYNC.eclipse]: data =>", { until: "\n    }" }) : "";
+        // Since E37 fix FG3 the Eclipse's reading is `eclipsePacketNews`, handed `heard` (its `before`); before it, the row's own body.
+        const handed = /\[SYNC\.eclipse\]: data => eclipsePacketNews\(heard\b/.test(src);
+        const eclipseNews = handed ? (topLevelFunction(src, "eclipsePacketNews") ?? "").replace(/\bbefore\b/g, "heard")
+            : src.includes("[SYNC.eclipse]: data =>") ? bodyOf(src, "[SYNC.eclipse]: data =>", { until: "\n    }" }) : "";
         const ran = c => (typeof S.refreshNames === "function" && heard ? S.refreshNames(S.SYNC.clock, S.clockNews(heard, c)) : null);
         got.passes = [{ ...C0, pausedAt: 5 }, { ...C0, campaignName: "B" }, { ...C0, day: 2 }, { ...C0, phase: "investigation" }, { ...C0, eclipse: true }]
             .map(c => ran(c)?.includes("visibility") ?? null);
@@ -31190,6 +31193,43 @@ const INVARIANTS = [
             + "Eclipse; putBack: a clock put back with an older stamp; again: Next after a rewind restamped the morning, the boundary summed up before; "
             + "after: Next and an Eclipse begun again after an Eclipse ended without advancing, its window shown up to B, then Next with the window "
             + "shown up to C and with no end; none: no clock before, none after}");
+    }],
+    ["R1205 - an Eclipse packet ahead of its setting runs nothing, and the clock's row runs the pass once the setting lands (E37 fix FG3; the end review's S-m1 = C-m1, STATUS Open 23, LIVE-E37-05): sync.mjs `refresh` of `SYNC.eclipse` naming the flag this browser's clock setting does not hold yet runs no name and keeps what this browser last told (`clockHeard`), and `clockNews` of that told reading against the clock with the flag reads the Eclipse moved, so the clock's row runs the visibility pass and the Eclipse's hook", async () => {
+        /*
+         * E37 fix FG3, 02.11.2026; the end review's S-m1 (security) and C-m1 (correctness). The order measured by the
+         * security lens on the pure functions at 2b5527e1: an Eclipse's packet that lands before its clock setting ran
+         * the Eclipse's row - its visibility pass reading the old flag off the setting - and moved `heard.eclipse`, so
+         * when the setting landed the clock's reading named nothing (`moved` false) and no pass ran on the new flag. On
+         * this browser, nothing written: `refresh(SYNC.eclipse, { active: <the flag the clock does not hold> })` with every
+         * refresh a stub that records its name (the reading is the module's own, `KIND_NEWS`, on this browser's `heard`),
+         * then `clockNews` of the reading told after it against this clock with the flag set as the setting will hold it,
+         * and the clock's row for that news (`refreshNames`). Then the packet of the flag the clock holds, as the setting's
+         * own run would find it, so `heard` is what it was (at 2b5527e1 that hands to the clock's own row). Red at
+         * 2b5527e1: the packet ran the Eclipse's row whole, `heard` moved, and the clock's reading named nothing.
+         */
+        const Y = await import("./sync.mjs");
+        const before = Y.clockHeard();
+        must(before, "this browser has told its listeners nothing of the clock yet (no ready) - this would measure nothing");
+        const now = getClock()?.eclipse === true;
+        const ran = [];
+        const stubs = Object.fromEntries(Object.keys(Y.REFRESHES).map(name => [name, () => { ran.push(name); }]));
+        let packet = null, told = null, news = null;
+        try {
+            packet = Y.refresh(Y.SYNC.eclipse, { active: !now }, { refreshes: stubs });
+            told = Y.clockHeard();
+            news = Y.clockNews(told, { ...getClock(), eclipse: !now });
+        } finally {
+            Y.refresh(Y.SYNC.eclipse, { active: now }, { refreshes: stubs });
+        }
+        const row = news ? Y.refreshNames(Y.SYNC.clock, news) : [];
+        equal(stableJson({
+            packet, ran: [...new Set(ran)].length, kept: stableJson(told) === stableJson(before),
+            moved: [news?.moved ?? null, news?.eclipse ?? null], row: ["visibility", "eclipseHook"].map(name => row.includes(name)),
+            after: stableJson(Y.clockHeard()) === stableJson(before)
+        }), stableJson({ packet: [], ran: 0, kept: true, moved: [true, true], row: [true, true], after: true }),
+        "{packet: the names the packet ahead of its setting ran; ran: the stubs it called; kept: what this browser last told unchanged by it; "
+            + "moved: [the clock's reading of the setting with the flag: moved, the Eclipse]; row: [the clock's row runs the visibility pass, "
+            + "the Eclipse's hook]; after: what this browser last told, after the test}");
     }],
     ["R1198 - the bus is a table (E37 C5, E37-19 to E37-23; audit S17-19, S07-26): sync.mjs `KIND_REFRESH` gives every `SYNC` kind a frozen row of names of `REFRESHES` and every refresh a row; `refresh` runs a kind's row and nothing else; the clock's row runs the visibility pass and the hooks only for what moved; `SYNC.despair` renders the Monokumas' sheets and no student's; the incident's world half and its cast copy reach `SYNC.incident`, whose row runs the pass; `trialQueue` and `trialProgress` reach the trial's row with the voice tile; visibility.mjs runs no pass of its own on the clock's hooks", async () => {
         /*

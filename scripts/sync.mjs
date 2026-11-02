@@ -19,7 +19,7 @@
 
 import { MODULE_ID, TIMING } from "./config.mjs";
 import { debug, error } from "./utils.mjs";
-import { getClock, isEclipse } from "./settings.mjs";
+import { getClock } from "./settings.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION = "sync";
@@ -320,8 +320,8 @@ export async function syncIdle({ kinds = null, timeout = COALESCE_MAX_WAIT_MS * 
  * (the owed Despair paid, the betrayal windows swept, the trace digest sent). Read at
  * `ready` (`registerSync`), so a browser that loads mid-Eclipse is not told the
  * Eclipse began (`clockHeard`, R995, reads that it was); the Eclipse's reading
- * (`KIND_NEWS`) reads and writes its `eclipse` too, so whichever of the clock's
- * write and the Eclipse's own packet lands first tells the listeners, once. That
+ * (`KIND_NEWS`) reads its `eclipse` too, and since E37 fix FG3 hands a change to
+ * the clock's row or waits for it, so the clock's write tells the listeners, once. That
  * packet is eclipse.mjs `broadcastEclipse` at a start, sent after the whispers, and
  * clock.mjs `reconcileEclipseEnded` at an end, sent from the clock's write itself:
  * since E37 C2 `endEclipse` sends none of its own (tier 2 E37-T2 counts one).
@@ -556,23 +556,35 @@ const KIND_NEWS = {
     /* ONCE PER CHANGE (E17 C6, 26.10.2026; audit S01-30). The clock's own write of the flag reaches the clock's row,
        which redraws all of what follows and tells `drpgEclipseChanged`; the Eclipse's own packet comes later - at a
        start eclipse.mjs `broadcastEclipse`, after the whispers; at an end clock.mjs `reconcileEclipseEnded`, after the
-       clock's write (E37 C2) - and finds the change told (`heard.eclipse`). Whichever lands first tells it. Before
-       `ready` (no `heard`) every one runs, as before.
+       clock's write (E37 C2) - and finds the change told (`heard.eclipse`). Before `ready` (no `heard`) every one runs,
+       as before.
        AND A PACKET THAT FINDS THE CLOCK HERE ALREADY HOLDING THE FLAG HANDS OVER TO THE CLOCK'S READING (E37 C5,
        01.11.2026; E37-20). An Eclipse's end that moves the clock is one write, and this row ran its pass and then the
        clock's row ran its own, because the clock's reading still named the time of day: 2 passes on each of the four
        browsers in scenario 81 part D before this, 1 after. The setting standing here means its `onChange` has pushed
        the clock's run, so its row - the time of day's, the phase's and the Eclipse's work at once - runs now, and the
-       clock's own run finds nothing new. A packet ahead of its setting (a socket faster than the setting's update) still
-       runs this row, as before. */
-    [SYNC.eclipse]: data => {
-        const active = data.active ?? isEclipse();
-        if (heard && heard.eclipse === active) return null;
-        if (heard && (getClock()?.eclipse === true) === active) return CLOCK_READS_IT;
-        if (heard) heard = { ...heard, eclipse: active };
-        return { active };
-    }
+       clock's own run finds nothing new.
+       AND A PACKET AHEAD OF ITS SETTING RUNS NOTHING (E37 fix FG3, 02.11.2026; the end review's S-m1 = C-m1). It ran this
+       row, whose visibility pass reads the flag off the setting - still the old one - and moved `heard`, so the clock's
+       run that followed found the flag told and `moved` false: one pass on the old flag and none on the new, other
+       players' tokens left as they stood (measured on the pure functions by the security lens; R1205). The setting always
+       follows its packet here (its `onChange` runs the clock's row), so the packet answers nothing and leaves `heard`
+       alone, and the clock's row tells the flag and runs the pass, once. Before `ready` (no `heard`) every one runs. */
+    [SYNC.eclipse]: data => eclipsePacketNews(heard, getClock(), data)
 };
+
+/**
+ * THE ECLIPSE PACKET'S READING (E37 fix FG3; R1205), pure over what this browser last told (`before`, `heard`) and the
+ * clock its setting holds: null when the flag it names is told already, or when the setting does not hold it yet (the
+ * clock's row will, once it lands); `CLOCK_READS_IT` when the setting holds it and the clock's row has not told it; and
+ * `{ active }` before `ready`, when every run is whole.
+ */
+export function eclipsePacketNews(before, clock, data = {}) {
+    const active = data.active ?? (clock?.eclipse === true);
+    if (before && before.eclipse === active) return null;
+    if (before) return (clock?.eclipse === true) === active ? CLOCK_READS_IT : null;
+    return { active };
+}
 
 /* `KIND_NEWS`'s answer for an Eclipse's packet the clock's row tells (above). */
 const CLOCK_READS_IT = Object.freeze({ clock: true });
