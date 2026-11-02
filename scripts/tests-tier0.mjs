@@ -4117,7 +4117,9 @@ const REGRESSIONS = [
         ok(/return sent === false \? null : text;/.test(prompt),
             "a request nobody was there to take is still reported as sent");
 
-        const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
+        // E41 C4 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read -
+        // the proposal stands in action-project.mjs `startProject`, the Misleading trail's tile in action-tamper.mjs.
+        const rolls = stripComments(actionText(sources));
         // The 400 characters before the proposal's title and everything from it to the "sent" line.
         const proposal = bodyOf(rolls, "DRPG.Project.proposalTitle", { back: 400 })
             + bodyOf(rolls, "DRPG.Project.proposalTitle", { until: "DRPG.Project.proposalSent" });
@@ -4190,7 +4192,9 @@ const REGRESSIONS = [
         ok(/dispatchable: \["move"\]/.test(cfg),
             "the list of what a Monocub may dispatch is gone, or it has grown");
 
-        const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
+        // E41 C4 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read: from
+        // `performAction` (the facade) on to `performBetrayal` (action-murder.mjs), as the one file read it.
+        const rolls = stripComments(actionText(sources));
         const perform = bodyOf(rolls, "export async function performAction", { until: "async function performBetrayal" });
         ok(/MONOCUB\.dispatchable\.includes\(actionKey\)/.test(perform),
             "nothing refuses a Monocub the rest of the grid");
@@ -6797,10 +6801,11 @@ const REGRESSIONS = [
         // definition's list whole and takes a statistic from it only where it lists one; Tamper's door
         // takes Tamper's first with a `slice`, as `cleanupTrait` takes it - no `[0]` for this to read.
         // E51 C1 added `palmHand`, the hand's statistic in a Palm's window title (`palmTitle`), off Palm's one trait.
+        // E41 C4 (1.2.97): keyed by the files the three moved into (action-search.mjs, palm.mjs).
         const FIRSTS = {
-            "action-rolls.mjs chooseSearchCategory": ACTIONS.search,
-            "action-rolls.mjs palmHand": ACTIONS.palm,
-            "action-rolls.mjs performPalm": ACTIONS.palm,
+            "action-search.mjs chooseSearchCategory": ACTIONS.search,
+            "palm.mjs palmHand": ACTIONS.palm,
+            "palm.mjs performPalm": ACTIONS.palm,
             "cleanup.mjs cleanupTrait": ACTIONS.tamper
         };
         const sites = [];
@@ -9007,7 +9012,7 @@ const REGRESSIONS = [
             ["SURFACE popup.mjs#showWaiting", "the sticky waiting card, the caller's own i18n; never kept - it passes `record: false` (R293)"],
             ["SURFACE boundary.mjs#answerAgain", "the readiness round's card for a player who closed its window or whose answer was refused (E37 fix FG1, G-m2): the module's own i18n (`DRPG.Ready.answerAgain`) under the round's title, sticky, opening the window again on a click and taken down when the round ends; never kept - it passes `record: false` (R293)"],
             ["SURFACE gm-bridge.mjs#sayRefusedHere", "a refusal said to this browser's own user since E18 fix e1-G3: a card claim's (`claimCard`: already ruled, ruling now, already answered - a GM's name from the users list) and an empty request's (`askForRequest`), the module's own i18n escaped into one paragraph; kind error, source notDone, kept in this browser's history as a request not carried out is (R838, tier 2's E18 C3 test)"],
-            ["SURFACE action-rolls.mjs#performDynamic#showWaiting", "a waiting card of the module's own i18n and the action's label; never kept, as `showWaiting` keeps nothing (R293)"],
+            ["SURFACE action-dynamic.mjs#performDynamic#showWaiting", "a waiting card of the module's own i18n and the action's label; never kept, as `showWaiting` keeps nothing (R293)"],
             ["SURFACE calls.mjs#showWaitingCard#showWaiting", "a waiting card of the module's own i18n and the Call's label; never kept, as `showWaiting` keeps nothing (R293)"],
             ["SURFACE trait-ruling.mjs#askGms#showWaiting", "a waiting card of the module's own i18n; never kept, as `showWaiting` keeps nothing (R293)"],
             ["SURFACE day-summary.mjs#showDaySummary", "this client's own day summary, the names escaped (`showDaySummary`); kept as a summary (`source: \"summary\"`, R297) - at most 4 full ones in a section since E81 C1, the older ones clipped (R292) - and cleaned at save like every snapshot (R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
@@ -9022,16 +9027,16 @@ const REGRESSIONS = [
             ["RECORD popup.mjs#showPopup", "the recorder: `recordNotice` in try/catch after the body is filled and before a host takes the card; the snapshot followed while the card is on screen and its state set by the close's reason; a history error never stops the card (R293); an entry the history cannot save is kept in memory until this page closes, the window's footer saying so (`status`, R292)"],
             ["RECORD popup.mjs#showPopup#updateNotice", "the card's close: its own entry's state only - read for its reader's close, unread for any other reason - in try/catch; no words (R293)"],
             ["RECORD popup.mjs#watchCard#updateNotice", "the body of a card on screen followed after a change (`watchCard`, 250 ms), into its own entry only, in try/catch; the html cleaned as at `record` and the entry weighed again against its author's bound (R293, R294, R297)"],
-            ["NOTDONE action-rolls.mjs#performAnalyze", "composed on this client from closed lists (`sayNotDone`: the action one of `ANALYZE_ROW_REQUEST`'s literals, the reason checked against `REASONS`; a row the Class Trial filter shuts, E16 part 2 C3); kept as a notDone entry: read, these words and no others (R297)"],
-            ["NOTDONE action-rolls.mjs#performAnalyze (2)", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
-            ["NOTDONE action-rolls.mjs#performSearch", "composed on this client from closed lists (`sayNotDone`: the action a literal here, `gm.call`, the reason the literal noGm); a Search for something specific with no GM connected, before the price (E18 fix e1-G5); kept as a notDone entry: read, these words and no others (R297)"],
-            ["NOTDONE action-rolls.mjs#performSearch (2)", "composed on this client from closed lists (`sayNotDone`: the action a literal here, `gm.call`, the reason the literal noGm); the same after the dice, before the room's search token is taken (E18 fix e1-G5); kept as a notDone entry: read, these words and no others (R297)"],
-            ["NOTDONE action-rolls.mjs#analyseBullet", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
-            ["NOTDONE action-rolls.mjs#locateStash", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
-            ["NOTDONE action-rolls.mjs#locateStash (2)", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason `trialLocked`; a Class Trial opened while the dice were in the air, E16 part 2 C3); kept as a notDone entry: read, these words and no others (R297)"],
-            ["NOTDONE action-rolls.mjs#locatePassage", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
-            ["NOTDONE action-rolls.mjs#performBetrayal", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
-            ["NOTDONE action-rolls.mjs#performDirectMurder", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
+            ["NOTDONE action-analyze.mjs#performAnalyze", "composed on this client from closed lists (`sayNotDone`: the action one of `ANALYZE_ROW_REQUEST`'s literals, the reason checked against `REASONS`; a row the Class Trial filter shuts, E16 part 2 C3); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE action-analyze.mjs#performAnalyze (2)", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE action-search.mjs#performSearch", "composed on this client from closed lists (`sayNotDone`: the action a literal here, `gm.call`, the reason the literal noGm); a Search for something specific with no GM connected, before the price (E18 fix e1-G5); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE action-search.mjs#performSearch (2)", "composed on this client from closed lists (`sayNotDone`: the action a literal here, `gm.call`, the reason the literal noGm); the same after the dice, before the room's search token is taken (E18 fix e1-G5); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE action-analyze.mjs#analyseBullet", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE action-analyze.mjs#locateStash", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE action-analyze.mjs#locateStash (2)", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason `trialLocked`; a Class Trial opened while the dice were in the air, E16 part 2 C3); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE action-analyze.mjs#locatePassage", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE action-murder.mjs#performBetrayal", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
+            ["NOTDONE action-murder.mjs#performDirectMurder", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
             ["NOTDONE bridge-guards.mjs#waiter", "composed on this client from closed lists (`sayNotDone`: the waiter's action, or for a refusal it is not waiting on the GM's packet's `what`, named only by a label the language file holds and else as an unnamed request (`requestLabel`, E81 fix r1-G3); the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE calls.mjs#askReroll", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE calls.mjs#askReroll (2)", "the request's own refusal (`res.reason`), composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
@@ -9931,8 +9936,8 @@ const REGRESSIONS = [
             ["ACT gm-bridge.mjs#ACTION_PASSAGE_SHARE#passage.share -> *", "judged on the primary GM: `knownSender` and `owns(\"actorId\")`, then passages-gm.mjs `shareRefusal` - the phase, the giver alive, in no incident and no Monocub, the giver's own cell of a secret passage (a closed, unknown or made-up one refused alike), both in one room, scene and floor now, the one shown it alive; `sharePassage` writes the records and pushes the copies (R562; 76 G)"],
             ["ACT gm-bridge.mjs#ACTION_PASSAGE_CROSS#passage.cross -> write", "E80 C2's 'Go through', judged on the primary GM: `knownSender` and `owns(\"actorId\")`, then passages-gm.mjs `crossTunnel` in its serial write - a secret tunnel of the GMs' records the character knows (the Mastermind's through `actsAsMastermind`), the token at an end where the GMs read it (movement.mjs `gmSpotOf`), the doors' rules (`tunnelVerdict`), the price taken first and given back on a failed write (`settleCrossingOnGm`); the packet names no end, room, floor or spot (R597, A10-18; 76 U)"],
             ["ACT gm-bridge.mjs#ACTION_PASSAGE_FIND#passage.find -> *", "E80 C3's Find Passage, judged on the primary GM: `knownSender` and `owns(\"actorId\")`, the roll the GM drew for that character's Analyze thrown as a Find Passage (`rolled`, `findPassageRoll`; the packet's total and critical are the record's), then passages-gm.mjs `resolvePassageSearch` - the phase, the character, its room and floor where the GMs read it (`gmPlaceOf`), the passages it does not know - writes the found cell and pushes the copies (R598, R604, R612; A10-7)"],
-            ["ACT action-rolls.mjs#ANALYZE_ROW_REQUEST#passage.find -> *", "a label, no road: the request `sayNotDone` names in the roller's own refusal of a row the Class Trial filter shuts (`performAnalyze`, E16 part 2 C3; a Find Passage since E80 C3), before the price; nothing is sent (the primary refuses it again, `resolvePassageSearch`'s phase)"],
-            ["ACT action-rolls.mjs#locatePassage#passage.find -> *", "a label, no road: `sayNotDone` names the action in the roller's own word that no GM is online, after the price is given back; nothing is sent"],
+            ["ACT action-analyze.mjs#ANALYZE_ROW_REQUEST#passage.find -> *", "a label, no road: the request `sayNotDone` names in the roller's own refusal of a row the Class Trial filter shuts (`performAnalyze`, E16 part 2 C3; a Find Passage since E80 C3), before the price; nothing is sent (the primary refuses it again, `resolvePassageSearch`'s phase)"],
+            ["ACT action-analyze.mjs#locatePassage#passage.find -> *", "a label, no road: `sayNotDone` names the action in the roller's own word that no GM is online, after the price is given back; nothing is sent"],
             // ---- the Passages tab's watch on a passage's wall (E79 C5)
             ["HOOK passages-gm.mjs#registerPassagesGm#updateWall/onWallMoved -> record", "the primary GM only (`isPrimaryGm`), and only when the change carries `c`: a passage whose stretch is no longer on its wall's segment is marked broken in the GMs' records and drops out of every copy; the wall is never written (R561; 76 E)"],
             // ---- the standing outline drawn again by a door (E51 C3, E51-22)
@@ -10089,7 +10094,8 @@ const REGRESSIONS = [
                 + "        Hooks.on(\"drpgSomethingNew\", () => retell());\n        onGmStoresAudible(() => retell());\n    });\n}\n"],
             ["sheet-audit.mjs", "export function registerSheetAudit() {\n    Hooks.on(\"updateActor\", audit);\n    onGmStoresAudible(audit);\n"
                 + "    Hooks.on(\"drpgRouteSettled\", paint);\n}\n"],
-            ["action-rolls.mjs", "async function locatePassage() {\n    sayNotDone(\"passage.find\", \"noGm\");\n}\nconst ACTION_PASSAGE_CROSS = 'passage.cross';\n"]
+            // E41 C4 (1.2.97): the planted Find Passage stands in the file the real one moved into, which the rows name.
+            ["action-analyze.mjs", "async function locatePassage() {\n    sayNotDone(\"passage.find\", \"noGm\");\n}\nconst ACTION_PASSAGE_CROSS = 'passage.cross';\n"]
         ], { minePassages: "minePassages", moveAudit: "moveAudit" });
         equal(JSON.stringify(planted), JSON.stringify([
             "HOOK movement.mjs#registerMovement#updateToken/noteGmPosition -> judge", "HOOK movement.mjs#registerMovement#createToken/inline -> judge",
@@ -10104,8 +10110,8 @@ const REGRESSIONS = [
             "STORE gm-stores.mjs#passageMapStore#passageMap -> record", "STORE gm-stores.mjs#passageCopy#passages -> copy",
             "HOOK passages-tab.mjs#registerPassagesTab#updateActor/retell -> copy", "HOOK passages-tab.mjs#registerPassagesTab#drpgSomethingNew/inline -> unsorted",
             "HOOK passages-tab.mjs#registerPassagesTab#gmStoresAudible/inline -> copy", "HOOK sheet-audit.mjs#registerSheetAudit#drpgRouteSettled/paint -> record",
-            "ACT action-rolls.mjs#locatePassage#passage.find -> record", "ACT action-rolls.mjs#locatePassage#passage.find -> copy",
-            "ACT action-rolls.mjs#ACTION_PASSAGE_CROSS#passage.cross -> write",
+            "ACT action-analyze.mjs#locatePassage#passage.find -> record", "ACT action-analyze.mjs#locatePassage#passage.find -> copy",
+            "ACT action-analyze.mjs#ACTION_PASSAGE_CROSS#passage.cross -> write",
             "SET settings.mjs#minePassages#primary -> screen", "SET settings.mjs#minePassages#console -> screen", "SET settings.mjs#minePassages#stale -> screen",
             "SET settings.mjs#moveAudit#gm -> mode"]),
             "the census reader does not read the planted fixture as planted - the live census below would measure the wrong roads");
@@ -10114,8 +10120,8 @@ const REGRESSIONS = [
             "the census judge does not tell a planted road without a row, a source's \"-> *\" row from its sinks, or a row without its road");
         // E80 fix r1-G8 (the review's E80-SEC-6): a second road of `passage.cross` or `passage.find`, in a declaration the table has
         // no row for, is a road without a row; the label of the roller's own refusal is its own row's.
-        const planted80 = planted.filter(key => key.startsWith("ACT action-rolls.mjs#"));
-        equal(JSON.stringify(judge(planted80, PASSAGE_CENSUS).unclassified), JSON.stringify(["ACT action-rolls.mjs#ACTION_PASSAGE_CROSS#passage.cross -> write"]),
+        const planted80 = planted.filter(key => key.startsWith("ACT action-analyze.mjs#"));
+        equal(JSON.stringify(judge(planted80, PASSAGE_CENSUS).unclassified), JSON.stringify(["ACT action-analyze.mjs#ACTION_PASSAGE_CROSS#passage.cross -> write"]),
             "the census takes a second road of 'Go through' without a row, or refuses the row of Find Passage's label");
 
         const found = censusOf(await otherSources(), SETTINGS);
@@ -14720,11 +14726,11 @@ const REGRESSIONS = [
          * one. Read on every module file with comments and literals blanked; a planted source is read first.
          */
         const CALL_CENSUS = [
-            ["action-rolls.mjs#searchSpecific", "player", "abort(", "a Search for something specific, after the dice: the action's price comes back (`abort`), and the roll is noted as no search made"],
-            ["action-rolls.mjs#startProject", "player", null, "a project proposal: nothing is spent before it, and null is no proposal - no 'sent' line follows"],
-            ["action-rolls.mjs#ruleObserve", "player", "abort(", "an Observe the GM rules, after the dice: the action's price comes back (`abort`)"],
-            ["action-rolls.mjs#askForHint", "player", "refundPrice(", "an Analyze hint, after the dice: the step that paid comes back (`refundPrice`)"],
-            ["action-rolls.mjs#offerDynamicFind", "player", null, "a Dynamic success's card for the GMs, after the dice (E16 C2), and a miss's since E51 C1: the result is the roll's and stands, so nothing is handed back; with no GM the refusal is said once (`callGm`)"],
+            ["action-search.mjs#searchSpecific", "player", "abort(", "a Search for something specific, after the dice: the action's price comes back (`abort`), and the roll is noted as no search made"],
+            ["action-project.mjs#startProject", "player", null, "a project proposal: nothing is spent before it, and null is no proposal - no 'sent' line follows"],
+            ["action-observe.mjs#ruleObserve", "player", "abort(", "an Observe the GM rules, after the dice: the action's price comes back (`abort`)"],
+            ["action-analyze.mjs#askForHint", "player", "refundPrice(", "an Analyze hint, after the dice: the step that paid comes back (`refundPrice`)"],
+            ["action-dynamic.mjs#offerDynamicFind", "player", null, "a Dynamic success's card for the GMs, after the dice (E16 C2), and a miss's since E51 C1: the result is the roll's and stands, so nothing is handed back; with no GM the refusal is said once (`callGm`)"],
             ["use-items.mjs#useCreatively", "player", null, "a Tier 0 item's creative use: the item is spent only on the GM's ruling, and null ends the use"],
             ["gm-bridge.mjs#promptAndCallGm", "player", null, "the window's words handed to `callGm`: its false is answered as null, which each caller above reads"],
             ["analyze.mjs#identify", "gm", null, "`resolveAnalyze` runs on a GM: the run of `analyze.resolve`, or a GM's own (`local`)"],
@@ -16837,7 +16843,8 @@ const REGRESSIONS = [
          * reads its shape in projects.mjs. Red at C1's parent: no `projectLabel`, and four hand-built templates.
          */
         const read = file => fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText).then(stripComments);
-        const files = ["action-rolls.mjs", "call-pickers.mjs", "projects-ui.mjs"];
+        // E41 C4 (1.2.97): `projectOptionsHtml` moved into action-project.mjs.
+        const files = ["action-project.mjs", "call-pickers.mjs", "projects-ui.mjs"];
         const srcs = await Promise.all(files.map(read));
         const projects = await read("projects.mjs");
         const BY_HAND = /\.current\s*\}\s*\/\s*\$\{\s*[\w?.]*\.start\b/;
@@ -18154,7 +18161,7 @@ const REGRESSIONS = [
         }
         // The digit rule, over every config sentence and its Polish.
         const ALLOW = new Map([
-            ["INDIRECT_MURDER.concealIntent.successWithDespair", "the +1 is action-rolls.mjs CONCEALED_WITH_DESPAIR, a constant of that file; the entry's 1 is `aloneBonus`, the other bonus"]
+            ["INDIRECT_MURDER.concealIntent.successWithDespair", "the +1 is action-project.mjs CONCEALED_WITH_DESPAIR (action-rolls.mjs until E41 C4), a constant of that file; the entry's 1 is `aloneBonus`, the other bonus"]
         ]);
         const carried = entry => {
             const out = new Set();
@@ -18201,9 +18208,10 @@ const REGRESSIONS = [
             callEffect: [...sources.keys()].filter(f => f.endsWith(".mjs") && !f.startsWith("tests") && f !== "config.mjs" && /\bcallEffect\(/.test(src(f))),
             proseOf: [["calls.mjs", /proseOf\(call, "effect"\)/g, 3], ["call-pickers.mjs", /proseOf\(call, "effect"\)/g, 1], ["despair.mjs", /proseOf\(call, "effect"\)/g, 1],
                 ["sheet.mjs", /proseOf\(call, "effect"\)/g, 1], ["murder-rules.mjs", /proseOf\(def, "effect"\) \|\| proseOf\(def, "hint"\)/g, 1],
-                ["action-rolls.mjs", /proseOf\(def, "(hint|failure)"\)/g, 2], ["explain.mjs", /proseOf\(PHASES\[key\], "hint"\)/g, 1], ["level-up.mjs", /proseOf\(opt, "label"\)/g, 1]]
+                ["action-murder.mjs", /proseOf\(def, "(hint|failure)"\)/g, 2], ["explain.mjs", /proseOf\(PHASES\[key\], "hint"\)/g, 1], ["level-up.mjs", /proseOf\(opt, "label"\)/g, 1]]
                 .filter(([file, re, n]) => (src(file).match(re) ?? []).length !== n).map(([file]) => file),
-            raw: [/\bdef\.failure\b(?![^\n]*proseOf)/.test(fnSource(src("action-rolls.mjs"), "crisisDetails") ?? "x def.failure"),
+            // E41 C4 (1.2.97): `crisisDetails` (and the menu's hint beside it) moved into action-murder.mjs.
+            raw: [/\bdef\.failure\b(?![^\n]*proseOf)/.test(fnSource(src("action-murder.mjs"), "crisisDetails") ?? "x def.failure"),
                 /PHASES\[key\]\?\.hint/.test(src("explain.mjs"))]
         };
         equal(JSON.stringify(read), JSON.stringify({
@@ -18834,7 +18842,7 @@ const REGRESSIONS = [
             + "each road [asks the primary before its step, the step's key, asks primaryElsewhere() inside the step, asks the primary again after it]; "
             + "rows: each row's [first guard, answer, its label is DRPG.Bridge.what.<row>]}");
     }],
-    ["R1230 - no dead action code (E41 C1a, E41-02; audit S02-60): no module file declares `performGeneric` or `chooseTrait`, `performAction`'s switch has no `default` (an unknown key is refused above it, `DRPG.Action.unknown`), no module file names `DRPG.Action.murderConfirm` (a Direct Murder runs only in an Eclipse, so its window asks `DRPG.Action.murderConfirmEclipse` alone), and neither lang file holds `DRPG.Action.murderConfirm` or `DRPG.Action.chooseTrait`", async () => {
+    ["R1230 - no dead action code (E41 C1a, E41-02; audit S02-60): no module file declares `performGeneric` or `chooseTrait`, `performAction`'s switch has no `default` (an unknown key is refused above it, `DRPG.Action.unknown`), no module file names `DRPG.Action.murderConfirm` (a Direct Murder runs only in an Eclipse, so its window asks `DRPG.Action.murderConfirmEclipse` alone), and neither lang file holds `DRPG.Action.murderConfirm` or `DRPG.Action.chooseTrait`; and Frisk stays a file of its own: `performFrisk` is declared in frisk.mjs alone, and palm.mjs `performPalm` reaches it by `import()` of frisk.mjs (E41 C4, the owner's A11)", async () => {
         /*
          * E41 C1a, 02.11.2026; E41-02, audit S02-60. `performAction` has a `case` for each of ACTIONS' twelve keys and
          * refuses a key ACTIONS does not hold before its switch, so the switch's `default: return performGeneric(...)`
@@ -18845,6 +18853,11 @@ const REGRESSIONS = [
          * `DRPG.Action.murderConfirm` not followed by a word character; and both lang files. Read wherever the action
          * family keeps them (E41 C3 and C4 split action-rolls.mjs), so a move does not make it pass by reading nothing.
          * Red at c7c4ee2d: both functions declared, the `default`, the key named once and held by both lang files.
+         * E41 C4, 02.11.2026 (the owner's A11 of 13.10: frisk.mjs stays a file of its own, and palm.mjs imports
+         * `performFrisk` from it): the split's test knows both files. Every module file that declares `performFrisk`,
+         * and whether palm.mjs's `performPalm` takes it from `import("./frisk.mjs")`; a move that put Frisk back into
+         * palm.mjs, or a Palm that stopped asking frisk.mjs, is red here. Red once with `performFrisk` copied into
+         * palm.mjs (the commit's message).
          */
         const sources = new Map(await otherSources());
         must(sources.size > 100 && sources.has("action-rolls.mjs"), `${sources.size} module file(s) read - this test measured nothing`);
@@ -18863,11 +18876,16 @@ const REGRESSIONS = [
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
         const held = lang => ["murderConfirm", "chooseTrait", "murderConfirmEclipse", "unknown"].map(key => typeof lang.DRPG?.Action?.[key] === "string");
-        equal(JSON.stringify({ dead, defaultBranch: /\bdefault\s*:/.test(perform), named, eclipseKey: eclipseKey.length > 0, en: held(en), pl: held(pl) }),
-            JSON.stringify({ dead: [], defaultBranch: false, named: [], eclipseKey: true, en: [false, false, true, true], pl: [false, false, true, true] }),
+        const friskAt = [...sources].filter(([, raw]) => topLevelFunction(stripComments(raw), "performFrisk") !== null).map(([file]) => file).sort();
+        const palm = fnSource(stripComments(sources.get("palm.mjs") ?? ""), "performPalm");
+        const frisk = { declared: friskAt, reached: /\{\s*performFrisk\s*\}\s*=\s*await\s+import\(\s*"\.\/frisk\.mjs"\s*\)/.test(palm) };
+        equal(JSON.stringify({ dead, defaultBranch: /\bdefault\s*:/.test(perform), named, eclipseKey: eclipseKey.length > 0, en: held(en), pl: held(pl), frisk }),
+            JSON.stringify({ dead: [], defaultBranch: false, named: [], eclipseKey: true, en: [false, false, true, true], pl: [false, false, true, true],
+                frisk: { declared: ["frisk.mjs"], reached: true } }),
             "{dead: the module files declaring performGeneric or chooseTrait; defaultBranch: performAction's body holds a default; named: the "
             + "files naming DRPG.Action.murderConfirm; eclipseKey: a file names murderConfirmEclipse; en, pl: [murderConfirm, chooseTrait, "
-            + "murderConfirmEclipse, unknown] held as strings}");
+            + "murderConfirmEclipse, unknown] held as strings; frisk: the module files declaring performFrisk, and whether palm.mjs "
+            + "performPalm takes it from import(\"./frisk.mjs\")}");
     }],
     ["R1231 - config.mjs has no dead field (E41 C1b, E41-03; audit S02-64): no `STATES.*.trigger` or `.effect`, `LEVEL_UP.*.when`, `REMNANT_TYPES.*.hint`, `dcTable` or `dcFromVisibility`, nor pl.json their DRPG.Config keys; inventory.mjs `leavesTraceFor` reads `ACTIONS.search.leavesRemnant.onlyFor` and spells no role; the Search's and the Sabotage's trace (`leaveSearchTrace`, `dropSabotageTrace`, and their Reroll's `settleSearch`, `settleSabotage`) read their `def.leavesRemnant` and spell no `\"prep\"` or `faint: true`; `moveBody.rooms` is kept and its comment names E64", async () => {
         /*

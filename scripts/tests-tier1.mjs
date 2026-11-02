@@ -1904,7 +1904,8 @@ const INVARIANTS = [
         // E08+E28 fix r1-G4, its Reroll's lines (built on the roller's browser, reroll.mjs
         // `listenLines`), through the one rule (`listenLabels`), on the scene the character
         // stands on (E12 fix r1-G4; what a player's browser answers is scenario 66 K1).
-        const listen = src("action-rolls.mjs");
+        // E41 C4 (1.2.97): `performListen` moved into action-listen.mjs.
+        const listen = src("action-listen.mjs");
         const body = bodyOf(listen, "async function performListen", { until: "\n}" });
         const rerolled = bodyOf(src("reroll.mjs"), "async function listenLines", { until: "\n}" });
         const doors = /listenLabels\(neighbours, roomsKnownToMe\(scene\)\)/;
@@ -8150,7 +8151,8 @@ const INVARIANTS = [
             "[pips and \"Single use\" for a tier 0, 1 and 3 Tool, a tier 0 Murder Weapon, Cleaning Tool and usable]");
 
         const files = new Map(await otherSources());
-        must(["use-items.mjs", "action-rolls.mjs", "cleanup.mjs", "murder-rules.mjs"].every(file => files.has(file)), "the files the roads live in are not served - this would measure nothing");
+        // E41 C4 (1.2.97): `workOnProject` and `performSabotage` moved into action-project.mjs.
+        must(["use-items.mjs", "action-project.mjs", "cleanup.mjs", "murder-rules.mjs"].every(file => files.has(file)), "the files the roads live in are not served - this would measure nothing");
         const src = file => stripComments(files.get(file));
         // A statement of its own: a road that asked a Fear of its own first (`if (roll.withFear) await ...`) would
         // spend a tier 0 tool on a Despair alone again, and still "call" it.
@@ -8158,7 +8160,7 @@ const INVARIANTS = [
         const wears = /\b(?:breakOnDespair|rollSpends|wearItem|breakItem)\(/;
         const breaks = fnSource(src("use-items.mjs"), "breakOnDespair");
         equal(JSON.stringify([breaks.indexOf("rollSpends(held, roll)") > 0 && breaks.indexOf("rollSpends(held, roll)") < breaks.indexOf("wearItem("),
-            calls("action-rolls.mjs", "workOnProject"), calls("action-rolls.mjs", "performSabotage"), calls("cleanup.mjs", "attemptCleanup"),
+            calls("action-project.mjs", "workOnProject"), calls("action-project.mjs", "performSabotage"), calls("cleanup.mjs", "attemptCleanup"),
             calls("cleanup.mjs", "attemptStageSix"), calls("murder-rules.mjs", "wearSwing"),
             wears.test(fnSource(src("use-items.mjs"), "useItem")), wears.test(fnSource(src("use-items.mjs"), "useCreatively"))]),
             JSON.stringify([true, true, true, true, true, true, false, false]),
@@ -17299,7 +17301,8 @@ const INVARIANTS = [
 
         // The stash hunt, and the rollers' browsers: read in the module's sources (the hunt itself is tier 2's "A10-7 stash").
         const code = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
-        const [rolls, vault, reroll] = [await code("action-rolls.mjs"), await code("vault.mjs"), await code("reroll.mjs")];
+        // E41 C4 (1.2.97): `locateStash` and `locatePassage` moved into action-analyze.mjs.
+        const [rolls, vault, reroll] = [await code("action-analyze.mjs"), await code("vault.mjs"), await code("reroll.mjs")];
         const stash = fnSource(vault, "resolveStashSearch");
         const at = re => stash.search(re);
         const [noRoom, hunt, scored] = [at(/reason: "noRoom"/), at(/if \(!replay\) hunted\(\{ actor, room: where\.room \}\);/), at(/const beat = /)];
@@ -21250,7 +21253,8 @@ const INVARIANTS = [
         const sources = await moduleSources();
         const needsWords = {};
         // A Dynamic action asks its words through `promptForRequest` since E16 part 2 C1 (its one card is the difficulty's).
-        for (const [file, fn, asks] of [["action-rolls.mjs", "performDynamic", "promptForRequest("], ["use-items.mjs", "useCreatively", "promptAndCallGm("]]) {
+        // E41 C4 (1.2.97): `performDynamic` moved into action-dynamic.mjs.
+        for (const [file, fn, asks] of [["action-dynamic.mjs", "performDynamic", "promptForRequest("], ["use-items.mjs", "useCreatively", "promptAndCallGm("]]) {
             const call = bodyOf(fnSource(stripComments(sources.get(file) ?? ""), fn), asks, { until: "\n    });" });
             needsWords[fn] = /\brequired: true\b/.test(call);
         }
@@ -24421,7 +24425,8 @@ const INVARIANTS = [
         }
         equal(stableJson(rule), stableJson([[0, 0, "rule"], [0, 1, "rule"], [SABOTAGE_CONCEAL.despairPenalty, 0, "rule"], [SABOTAGE_CONCEAL.despairPenalty, 1, "rule"]]),
             "a bar's number is not the guide's number less the relief and the penalty [penalty, relief, the bar where it is not]");
-        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText));
+        // E41 C4 (1.2.97): `performSabotage` and `sabotageHit` moved into action-project.mjs.
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-project.mjs`).then(lfText));
         const perform = fnSource(src, "performSabotage"), judge = fnSource(src, "sabotageHit");
         equal(stableJson([/dc:\s*sabotageBar\(def,\s*relief,\s*penalty\)/.test(perform), /sabotageBar\(/.test(judge)]), stableJson([true, true]),
             "the window's numbers (performSabotage's `dc`) or the judge (`sabotageHit`) do not read `sabotageBar` [window, judge]");
@@ -24539,7 +24544,9 @@ const INVARIANTS = [
          * asked.
          */
         const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
-        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText));
+        // E41 C4 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read -
+        // `locateStash` stands in action-analyze.mjs, `searchStash` in action-search.mjs.
+        const src = stripComments(actionText(await moduleSources()));
         const locate = fnSource(src, "locateStash"), search = fnSource(src, "searchStash");
         must(locate.length > 200 && search.length > 200, "locateStash or searchStash is gone - the reads below would measure nothing");
         const at = (body, re) => body.search(re);
@@ -30204,7 +30211,9 @@ const INVARIANTS = [
             const own = shown(theme, value, value), other = shown(theme, value, "drpg-r1142-other");
             if (own === "none" || own === null || other !== "none") wrong.push(`${theme} ${value}: ${own} / ${other}`);
         }
-        const code = stripComments(sources.get("action-rolls.mjs") ?? "");
+        // E41 C4 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read -
+        // `performProject` stands in action-project.mjs, `chooseTamper` in action-tamper.mjs.
+        const code = stripComments(actionText(sources));
         const labelOf = (fn, name) => {
             const body = fnSource(code, fn) ?? "";
             const m = body.match(new RegExp(`<label class="drpg-specific-note"(?: data-drpg-when="([\\w-]+)")?>\\s*<span>\\$\\{[^}]*\\}</span>\\s*<select name="${name}">`));

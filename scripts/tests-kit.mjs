@@ -1272,12 +1272,21 @@ function censusFile(file, family = bridgeFamily()) {
 }
 
 /**
- * The action family (E41 C3): action-rolls.mjs - the facade, which keeps `performAction`, its dispatch and the actions
- * not moved yet - and the files the split moved code into: the roll and its record (action-pipeline.mjs), the roll's
- * card (action-report.mjs), the briefing (action-briefing.mjs) and the variant menu with its fields
- * (action-menus.mjs). E41 C4 adds the actions' files here, so a reader of the family is not repointed again.
+ * The action family (E41 C3, C4): action-rolls.mjs - the facade, which keeps `performAction` and its dispatch - and the
+ * files the split moved code into. C3's shared layer: the roll and its record (action-pipeline.mjs), the roll's card
+ * (action-report.mjs), the briefing (action-briefing.mjs) and the variant menu with its fields (action-menus.mjs).
+ * C4's actions, in the order they stood in action-rolls.mjs: the Search (action-search.mjs), Work on Project with the
+ * Sabotage (action-project.mjs), Tamper (action-tamper.mjs), Palm's player half (palm.mjs), Observe, Analyze, Listen
+ * and Rest (action-observe.mjs, action-analyze.mjs, action-listen.mjs, action-rest.mjs), Direct Murder with the
+ * betrayal and the fight's menu (action-murder.mjs) and the Dynamic action (action-dynamic.mjs). frisk.mjs is not of
+ * the family (E80, the owner's A11 of 13.10: a file of its own; R1230). A reader of the family follows each file
+ * here without a repoint of its own.
  */
-const ACTION_FAMILY = Object.freeze(["action-rolls.mjs", "action-pipeline.mjs", "action-report.mjs", "action-briefing.mjs", "action-menus.mjs"]);
+const ACTION_FAMILY = Object.freeze([
+    "action-rolls.mjs", "action-pipeline.mjs", "action-report.mjs", "action-briefing.mjs", "action-menus.mjs",
+    "action-search.mjs", "action-project.mjs", "action-tamper.mjs", "palm.mjs", "action-observe.mjs", "action-analyze.mjs",
+    "action-listen.mjs", "action-rest.mjs", "action-murder.mjs", "action-dynamic.mjs"
+]);
 
 /** The line `actionText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
 const ACTION_FAMILY_END = "const ACTION_FAMILY_END = {};";

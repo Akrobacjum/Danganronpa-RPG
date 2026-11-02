@@ -17,7 +17,7 @@ import { gmStoresIdle, gmStoreNow } from "./gm-store.mjs";
 import {
     ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource,
     STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, watchLog, cast, systemSheetsAvailable, lfText, expectedRed,
-    bridgeFn, bridgeText
+    bridgeFn, bridgeText, actionText
 } from "./tests-kit.mjs";
 import { GRID } from "./tests-grid.mjs";
 
@@ -47243,7 +47243,8 @@ const SCENARIOS = [
             const odds = typeof rolls.searchOdds === "function" ? rolls.searchOdds(who, room, "usable", V) : null;
             equal(stableJson(odds && [odds.situational, odds.stashDie, odds.stashOwner?.id, odds.stashLoot.map(i => i.id)]),
                 stableJson([-1, true, owner.id, [item.id]]), "the window's count holds the stash, or the stash lost its step");
-            const search = fnSource(stripComments((await moduleSources()).get("action-rolls.mjs") ?? ""), "performSearch");
+            // E41 C4 (1.2.97): `performSearch` moved into action-search.mjs.
+            const search = fnSource(stripComments((await moduleSources()).get("action-search.mjs") ?? ""), "performSearch");
             ok(/\{ situational, stashDie\b[^}]*\} = searchOdds\(/.test(search)
                 && [...search.matchAll(/armSituational\(([^)]*)\)/g)].map(m => m[1]).join() === "situational",
                 "performSearch arms something other than searchOdds' situational part");
@@ -47341,7 +47342,8 @@ const SCENARIOS = [
         // and the GM's card for "something specific", which shows the tier beside the dice (E06 fix r2-G4).
         // Since E37 C6 the stash's and the specific's card is built as `outcome` first, which `drpgActionResolved`
         // carries too (`searchTold`): either shape holds the line and the step.
-        const actions = stripComments((await moduleSources()).get("action-rolls.mjs") ?? "");
+        // E41 C4 (1.2.97): the Search's four ends and `performSearch` moved into action-search.mjs.
+        const actions = stripComments((await moduleSources()).get("action-search.mjs") ?? "");
         equal(stableJson(["searchNothing", "searchStash", "searchSpecific"].map(name =>
             /report\(actor, def, roll, \{[^}]*\bextra\b[^}]*\bstash\b|const outcome = \{[^}]*\bextra\b[^}]*\bstash\b[^}]*\};\s*await report\(actor, def, roll, outcome\)/
                 .test(fnSource(actions, name)))
@@ -70905,7 +70907,8 @@ const SCENARIOS = [
 
             // The defaults, off the source.
             const sources = await moduleSources();
-            const standard = [["projects-ui.mjs", "openProjectDialog"], ["messenger-app.mjs", "ruleApproveProject"], ["action-rolls.mjs", "startProject"]]
+            // E41 C4 (1.2.97): `startProject` moved into action-project.mjs.
+            const standard = [["projects-ui.mjs", "openProjectDialog"], ["messenger-app.mjs", "ruleApproveProject"], ["action-project.mjs", "startProject"]]
                 .map(([file, fn]) => {
                     const body = stripComments(fnSource(sources.get(file), fn));
                     return [fn, /(\|\||\?\?)\s*4\b/.test(body), body.includes("PROJECT_SCALE.everyday.progress")];
@@ -71856,7 +71859,8 @@ const SCENARIOS = [
             await stood.back();
         }
         const dc = Cl.cleanupDc("evident", student);
-        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText));
+        // E41 C4 (1.2.97): `runTamperChoice` moved into action-tamper.mjs.
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-tamper.mjs`).then(lfText));
         const menu = fnSource(src, "runTamperChoice");
         equal(stableJson({ row: row?.dc ?? null, window: titles.map(t => String(t).includes(game.i18n.format("DRPG.Action.beat", { n: dc }))),
             back: back ?? null, menu: (menu.match(/dc:\s*row\?\.dc/g) ?? []).length }),
@@ -72981,7 +72985,10 @@ const SCENARIOS = [
          * Plant's refund of a `noGm` answer. Nothing is written.
          */
         const { ACTIONS } = await import("./config.mjs");
-        const src = stripComments((await moduleSources()).get("action-rolls.mjs") ?? "");
+        // E41 C4 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read -
+        // `performAction` and THROWS_NO_DICE stay in action-rolls.mjs, the Palm's `performPalm`, `resolvePlant` and
+        // `nobodyTook` stand in palm.mjs.
+        const src = stripComments(actionText(await moduleSources()));
         const bridge = bridgeText(await moduleSources());
         must(src && bridge && Object.keys(ACTIONS).length > 3, "the sources or the action table were not read - this would measure nothing");
         // Its body, past the signature: the name itself reads as a call of a performer.
