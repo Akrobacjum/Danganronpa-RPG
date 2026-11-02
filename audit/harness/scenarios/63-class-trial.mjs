@@ -98,6 +98,9 @@
  *      Objection gm2 holds: gm2 and gm3 read one floor after each press, moved as the bar promises.
  *   Q  (run after O; E70 C3, 27.10.2026) gm3 opens a debate with its question by game.drpg: gm2's floor holds it, and
  *      p1 reads it on its Event card and on the debate's opening card.
+ *   K  (run inside R, before the primary leaves; E41 fix FG1, 02.11.2026) gm2 gives a Final verdict whose banner is held
+ *      on its way, and gm3, not the primary, presses one too inside that seam: gm3 reads the world's lock and is refused,
+ *      and p1 holds one banner.
  *
  * Headless limits: no layout (the Objection card's stacking, the select widths, the text's
  * hierarchy - LIVE-E10-03); no real Enter on Foundry's DialogV2 (F reads the DOM order of the
@@ -144,6 +147,8 @@
  * E10 fix r2-G7 added X2 (from c51d2bd's 55), gm3's Now held 3 s twice: 56 checks in 60.8 s and 59.7 s (its two fast
  * sets, each beside other lanes, 10.10.2026). Red at c51d2bd: in both crossings gm2 wrote the objection, the rebuttal
  * and an empty floor, no floor was left, and gm3 was told nothing.
+ * E41 fix FG1 added K1 (from 69f8f661's 69): 70 checks in 102.9 s (one run alone, 02.11.2026). Red at 69f8f661's
+ * verdict.mjs: gm3 read no lock in 3 s, gave its own verdict, and p1 held two banners.
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -1343,6 +1348,69 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         await game.settings.set("${MOD}", "clock", globalThis.__s63rClock);
         await game.settings.set("${MOD}", "trialProgress", globalThis.__s63rProgress); return true;`, { timeout: 60000 });
     await settle(500);
+
+    /* E41 fix FG1 (02.11.2026; the end review's C-m1 = S-m1). The Final verdict's lock across browsers: gm2, the
+       primary, gives a wrong Final verdict and its banner is held in `ChatMessage.create`; inside that seam gm3, a GM
+       that is not the primary and holds the same pick, presses the Final verdict too, once the world's lock has
+       reached it (3 s at most: at 69f8f661 it never came, as the record was written after the card). One banner on
+       p1, gm3 refused with `DRPG.Vote.verdictAlreadyApplied`. Over the dead victim as the Mastermind (no player's copy
+       of the part, and a wrong verdict sentences nobody); the Level Ups that waited are not this phase's, so each GM's
+       `deferredOfferStore.entries` answers none while it runs, and the batch draws no window. Everything put back. */
+    begin("K", "the Final verdict from two GMs, the second pressed while the first's banner is on its way: one banner, the second refused");
+    const kBanners = `const banners = ["DRPG.Mastermind.defeatedBanner", "DRPG.Mastermind.revealedBanner"].map(key => game.i18n.localize(key));
+        const isBanner = m => banners.some(b => String(m?.content ?? "").includes(b));`;
+    const kQuiet = on => `const { deferredOfferStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        ${on ? "globalThis.__s63kEntries = deferredOfferStore.entries; deferredOfferStore.entries = () => ({});"
+        : "if (globalThis.__s63kEntries) deferredOfferStore.entries = globalThis.__s63kEntries; delete globalThis.__s63kEntries;"} return true;`;
+    await mark(p1);
+    await gm2.eval(`const { mastermindStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        globalThis.__s63k = { clock: foundry.utils.deepClone(game.settings.get("${MOD}", "clock")),
+            progress: foundry.utils.deepClone(game.settings.get("${MOD}", "trialProgress") ?? {}),
+            pick: mastermindStore.record()?.actorId ?? null, messages: new Set(game.messages.map(m => m.id)) };
+        await game.settings.set("${MOD}", "clock", { ...globalThis.__s63k.clock, phase: "classTrial", finalTrial: true });
+        await game.settings.set("${MOD}", "trialProgress", { chapter: globalThis.__s63k.clock.chapter });
+        await mastermindStore.patch("record", { actorId: "${victimId}", room: null });
+        return true;`);
+    await gm2.eval(kQuiet(true));
+    await gm3.eval(kQuiet(true));
+    const kPick = await gm3.eval(`${until} const M = await import("${repoUrl}/scripts/mastermind.mjs");
+        return await until(() => M.mastermindActor()?.id ?? null, 8000);`, { timeout: 20000 });
+    const kFirst = await gm2.eval(`${until} ${kBanners}
+        const create = ChatMessage.create;
+        const hold = globalThis.__s63kHold = { own: Object.getOwnPropertyDescriptor(ChatMessage, "create"), held: false, release: null };
+        const gate = new Promise(resolve => { hold.release = resolve; });
+        ChatMessage.create = async function (data, ...rest) {
+            if (!hold.held && isBanner(data)) { hold.held = true; await gate; }
+            return create.call(this, data, ...rest);
+        };
+        globalThis.__s63kGiving = game.drpg.applyFinalVerdict({ correct: false, accusedId: "${IDS.botan}" });
+        return Boolean(await until(() => hold.held || null, 8000));`, { timeout: 20000 });
+    const kSecond = await gm3.eval(`${until} const V = await import("${repoUrl}/scripts/vote.mjs");
+        const lockSeen = Boolean(await until(() => V.trialProgress().verdictApplied || null, 3000));
+        const n = globalThis.__notifications.length;
+        const answer = await game.drpg.applyFinalVerdict({ correct: false, accusedId: "${IDS.botan}" }) ?? null;
+        return { lockSeen, answer, told: globalThis.__notifications.slice(n).map(note => note.msg),
+            already: game.i18n.localize("DRPG.Vote.verdictAlreadyApplied") };`, { timeout: 30000 });
+    const kGiven = await gm2.eval(`const hold = globalThis.__s63kHold;
+        hold.release();
+        const out = await globalThis.__s63kGiving;
+        if (hold.own) Object.defineProperty(ChatMessage, "create", hold.own); else delete ChatMessage.create;
+        return out ?? null;`, { timeout: 30000 });
+    await settle(1500);
+    const kSeen = await p1.eval(`${kBanners} return game.messages.filter(m => !globalThis.__s63m.has(m.id) && isBanner(m)).length;`);
+    verdict("gm2's Final verdict writes its lock before its banner, so gm3, pressing while that banner is on its way, is refused and p1 holds one banner",
+        kPick === victimId && kFirst === true && kSecond.lockSeen === true && kSecond.answer === null
+            && J(kSecond.told) === J([kSecond.already]) && kGiven?.executed === false && kSeen === 1, J({ kPick, kFirst, kSecond, kGiven, kSeen }));
+    await gm2.eval(kQuiet(false));
+    await gm3.eval(kQuiet(false));
+    await gm2.eval(`const { mastermindStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const was = globalThis.__s63k;
+        for (const m of game.messages.filter(x => !was.messages.has(x.id))) { try { await m.delete(); } catch { /* already gone */ } }
+        if ((mastermindStore.record()?.actorId ?? null) !== was.pick) await mastermindStore.patch("record", { actorId: was.pick });
+        await game.settings.set("${MOD}", "clock", was.clock);
+        await game.settings.set("${MOD}", "trialProgress", was.progress);
+        delete globalThis.__s63k; delete globalThis.__s63kHold; delete globalThis.__s63kGiving; return true;`, { timeout: 60000 });
+    await settle(800);
 
     /* E70 fix p1-G3 (1.2.90; the review's E70P1-R09 = E70P1-R12 goal, E70-21 "a new primary survives"): the primary
        (gm2) mutes p1 for the trial - Aiko dead and listed - and leaves mid-trial; gm3 becomes the primary and the trial's

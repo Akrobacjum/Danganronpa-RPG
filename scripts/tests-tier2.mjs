@@ -79710,7 +79710,7 @@ const SCENARIOS = [
             + "s4's words and disabled, the first button and the defaults)");
     }],
 
-    ["E41-T2 - one lock for both verdicts (E41 C10b, E41-18; audit S17-28): a Final verdict applied, then the Mastermind picked again and a second Final verdict asked through `game.drpg` - refused with `DRPG.Vote.verdictAlreadyApplied`, no second card, the record and the pick as the first left them; while a Final verdict's card is on its way, before its record is written, a second Final verdict, the ordinary verdict's API and its window are refused the same way; and outside a Final Trial the ordinary verdict's lock as before", async () => {
+    ["E41-T2 - one lock for both verdicts (E41 C10b, E41-18; audit S17-28): a Final verdict applied, then the Mastermind picked again and a second Final verdict asked through `game.drpg` - refused with `DRPG.Vote.verdictAlreadyApplied`, no second card, the record and the pick as the first left them; while a Final verdict's card is on its way, its record already written, a second Final verdict, the ordinary verdict's API and its window are refused the same way; a second GM's browser, its own latch clear, reading the record as it stood while that card was on its way, refuses a second Final verdict and offers no Finish; and outside a Final Trial the ordinary verdict's lock as before", async () => {
         /*
          * E41 C10b, 02.11.2026; E41-18, audit S17-28. The Final Trial's verdict asked only for a GM: once a GM picked
          * the Mastermind again (the Mastermind window, the store), `game.drpg.applyFinalVerdict` gave a second Final
@@ -79721,6 +79721,14 @@ const SCENARIOS = [
          * first verdict's card in `ChatMessage.create` until the three asks have answered. Read: the banners posted, what
          * each ask answered, the record's stamp, the pick, the lock in the world while the first was on its way, the
          * warnings. Red at C10a's tree: the second Final verdict ran.
+         *
+         * E41 fix FG1 (02.11.2026; the end review's C-m1 = S-m1): `verdictRunning` is this browser's, so the lock a
+         * second GM's browser can see is the world's record alone - and the Final verdict wrote it last, after the
+         * sentence, the card and the whisper. The record read while the card is held is the one a second GM's console
+         * reads in that seam: written back after the first verdict is done (this browser's latch clear again, the flag
+         * up, the Mastermind picked again), it must refuse a second Final verdict, and, a Final verdict in progress, offer
+         * no Finish (`verdictStopped`), whose steps are the ordinary verdict's. Red at 69f8f661: the record in the seam
+         * read no verdict, and the second Final verdict ran and posted its banner.
          */
         const [accused] = await verdictCast(1);
         const [mastermind] = cast(1);
@@ -79763,27 +79771,44 @@ const SCENARIOS = [
                 const asked = [await game.drpg.applyFinalVerdict(wrong) ?? null,
                     await game.drpg.applyVerdict({ correct: true, executedIds: [], blackenedIds: [] }) ?? null, await game.drpg.verdictDialog() ?? null];
                 const lockDuring = V.trialProgress().verdictApplied;
+                const seen = foundry.utils.deepClone(V.trialProgress());
                 release();
                 await giving;
                 await settle();
                 const onItsWay = [held, asked, lockDuring, warned.slice(from), cards()];
+
+                // A second GM's browser in that seam: its latch clear, the world's record as `seen`, the flag up, the pick again.
+                await game.settings.set(MODULE_ID, SETTINGS.trialProgress, seen);
+                await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), finalTrial: true });
+                await mastermindStore.patch("record", { actorId: mastermind.id, room: null });
+                await settle();
+                from = warned.length;
+                const cardsBefore = cards(), stopped = V.verdictStopped();
+                const elsewhere = await game.drpg.applyFinalVerdict(wrong) ?? null;
+                await settle();
+                const secondView = [seen.verdictApplied ?? null, seen.verdict?.stage ?? null, seen.verdict?.final ?? null,
+                    ["executedIds", "correct", "accusedId", "sentenced"].filter(key => key in (seen.verdict ?? {})), stopped, elsewhere,
+                    warned.slice(from), cards() - cardsBefore];
 
                 // Outside a Final Trial, a verdict applied: the ordinary verdict's API is refused.
                 await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), finalTrial: false });
                 await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), verdictApplied: true });
                 from = warned.length;
                 const ordinary = [await game.drpg.applyVerdict({ correct: true, executedIds: [], blackenedIds: [] }) ?? null, warned.slice(from)];
-                return { applied, onItsWay, ordinary };
+                return { applied, onItsWay, secondView, ordinary };
             });
         } finally {
             ui.notifications.warn = warn;
             if (ownCreate) Object.defineProperty(ChatMessage, "create", ownCreate); else delete ChatMessage.create;
         }
         equal(stableJson(reading), stableJson({ applied: [1, null, true, mastermind.id, [already]],
-            onItsWay: [true, [null, null, null], false, [already, already, already], 2], ordinary: [null, [already]] }),
-            "a second Final verdict ran, a verdict asked while one was on its way was not refused, or the ordinary verdict's lock is not as it was "
+            onItsWay: [true, [null, null, null], true, [already, already, already], 2],
+            secondView: [true, "applying", true, [], null, null, [already], 0], ordinary: [null, [already]] }),
+            "a second Final verdict ran, a verdict asked while one was on its way was not refused, a second GM's view of the record in that seam "
+            + "let a second Final verdict through, or the ordinary verdict's lock is not as it was "
             + "(applied: the banners, the second's answer, the record's stamp kept, the pick kept, the warnings; on its way: held, the three answers, the "
-            + "world's lock meanwhile, the warnings, the banners; ordinary: the answer, the warnings)");
+            + "world's lock meanwhile, the warnings, the banners; the second view: the record's lock, stage, final and the names it holds, the "
+            + "Finish offered, the answer, the warnings, the banners since; ordinary: the answer, the warnings)");
     }],
 
     ["E41-T3 - one card and one summary (E41 C10b, E41-18; audit S17-28): a correct Final verdict posts one public card and one whisper to the GMs, each what the ordinary verdict's builders make of the Mastermind's words (`verdictCardContent`, `verdictSummaryContent`), and writes the record `{ verdictApplied: true, verdict: { stage: \"done\", final: true, sentencePending: true } }` naming nobody; the ordinary verdict's card is the same builder's", async () => {

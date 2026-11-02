@@ -358,6 +358,8 @@ let verdictRunning = false;
  * not a GM (`DRPG.Panel.gmOnly`), or a verdict being given on this browser (`verdictRunning`) or applied to this trial
  * (`trialProgress().verdictApplied`: `DRPG.Vote.verdictAlreadyApplied`); null when nothing does. Both opens and both
  * applies ask it - the Final Trial's asked for a GM alone until E41 C10b. It refuses more than either did, never less.
+ * Another GM's browser sees only the second half, so both verdicts write `verdictApplied` before anything else they
+ * write or post (the Final one since E41 fix FG1).
  */
 export function verdictRefusal() {
     if (!game.user.isGM) return "DRPG.Panel.gmOnly";
@@ -784,7 +786,9 @@ const VERDICT_STEP = {
  */
 export function verdictStopped(progress = trialProgress()) {
     const verdict = progress?.verdict;
-    if (verdict?.stage !== "applying" || verdictRunning) return null;
+    // A Final verdict's steps are not `runVerdict`'s: its record reads "applying" while it is given and after a throw
+    // (E41 fix FG1), and a Finish would run the ordinary verdict's steps on it.
+    if (verdict?.stage !== "applying" || verdict.final || verdictRunning) return null;
     const failed = Array.isArray(verdict.failed) ? verdict.failed : [];
     const by = game.users.get(verdict.by);
     if (!failed.length && by?.active && by.id !== game.user.id) return null;
@@ -1005,6 +1009,21 @@ async function giveFinalVerdict({ correct, accusedId, alreadyDead }) {
     const accused = accusedId ? game.actors.get(accusedId) : null;
 
     const executed = correct && !dead;
+    const at = Date.now();
+
+    /* THE LOCK EVERY GM'S BROWSER CAN SEE, WRITTEN FIRST (E41 fix FG1, 02.11.2026; the end review's C-m1 = S-m1).
+       `verdictRunning` is this browser's: the lock another GM's browser reads is the world's record, and this wrote
+       it after the sentence, the public card and the GMs' whisper - three awaited round trips in which a second GM's
+       `verdictRefusal` read no verdict, and a second Final verdict posted a second banner. Written now before any of
+       them, as the ordinary verdict writes its record first (`applyVerdict`): marked final, in progress, by whom and
+       when, and naming nobody, the shape below's but its stage. A throw after it leaves the record "applying", which
+       says so and keeps the lock; a Final verdict has no Finish (`verdictStopped`), so no console offers one - its
+       GM's leads to the chapter's end, another GM's names that GM while they are connected (`verdictRunner`). A throw
+       in this write gives nothing. */
+    await setTrialProgress({
+        verdictApplied: true,
+        verdict: { stage: "applying", final: true, by: game.user.id, at, done: [], failed: [] }
+    });
 
     /* THE MASTERMIND DIES WHEN THE TRIAL ENDS, AS ANY CONVICT (E70 C4, 28.10.2026; DC36, the plan's point (g)).
        This killed the Mastermind in the verdict (E11 fix r2-H1 gave the death the trial's phase, so no walk past
@@ -1012,7 +1031,6 @@ async function giveFinalVerdict({ correct, accusedId, alreadyDead }) {
        phase), and lives in the GMs' store, never in the world's record, which every console reads and which
        names nobody (the owner's Q2 answer, 27.10.2026; mastermind.mjs's header): `finalSentenced` under the verdict's
        `at` (`finalAt`). A verdict given after End the trial is carried out at once, below. */
-    const at = Date.now();
     if (executed) {
         try {
             await verdictStore.whenHydrated();
@@ -1044,9 +1062,10 @@ async function giveFinalVerdict({ correct, accusedId, alreadyDead }) {
      * 1.2.71; audit S06-16). Neither was written: after the Mastermind's verdict the console still
      * offered the ordinary one as the next step, and "This trial is the Final Trial." stayed on it -
      * into the next season's first trial as well, since a reset's clock step merged over the flag
-     * (season-setup.mjs `wipeSeason`). Written after the sentence and the cards, and before the Level
-     * Ups that waited, whose windows can stay open for minutes: `verdictApplied` closes the
-     * ordinary verdict's button for that time too. The record names nobody - no `executedIds`, no
+     * (season-setup.mjs `wipeSeason`). Completed after the sentence and the cards, and before the Level
+     * Ups that waited, whose windows can stay open for minutes; `verdictApplied` stands since the
+     * record's first write above (E41 fix FG1), and closes the ordinary verdict's button for all of
+     * it. The record names nobody - no `executedIds`, no
      * `correct` - because `trialProgress` is a world setting every client reads and the
      * Mastermind's identity is kept on GM browsers only (mastermind.mjs's header); the card above says
      * what the table learns. Its `done` is empty, so the Daily Life panel's "after the verdict"
@@ -1055,7 +1074,6 @@ async function giveFinalVerdict({ correct, accusedId, alreadyDead }) {
      */
     try {
         await setTrialProgress({
-            verdictApplied: true,
             verdict: { stage: "done", final: true, by: game.user.id, at, done: [], failed: [], sentencePending: executed }
         });
         await setFinalTrial(false);
