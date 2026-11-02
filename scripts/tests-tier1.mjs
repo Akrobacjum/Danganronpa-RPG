@@ -31687,6 +31687,128 @@ const INVARIANTS = [
         equal(JSON.stringify([[...known], [...dead], students.map(s => s.id)]), JSON.stringify([[id(3), id(5)], [id(4), id(5)], students.map(s => s.id)]),
             "verdictCandidates changed what it was handed");
     }],
+
+    ["R1250 - `runSteps` keeps its contract (E42 C1b, E42-02; audit S17-30): each step in its own try/catch, a throw and a `false` failed and the rest run; the record saved, and awaited, after every step that ran and once at the end; a step the record calls done not run again; `ask` false kept with its `keep` run; a `needs` not done not run; `stop` asked before every step, true not running that step or any later; a `save` that throws failing its step and stopping the run; `after` run once its step is done and saved; steps.mjs imports utils.mjs alone", async () => {
+        /*
+         * E42 C1b, 02.11.2026; E42-02, audit S17-30. The verdict, the chapter's end and the season's reset each ran
+         * their own loop of steps (verdict.mjs `runVerdict`, chapter.mjs `endChapterNow`, season-setup.mjs `wipeSeason`)
+         * and each kept a different part of the contract. One runner now, driven here on steps in memory that write
+         * nothing: each case's steps log what ran, in order, with the record each `save` was handed and whether the
+         * save before had finished (a save that waits a tick). Six planted runners (c1b-m1 .. m6: a throw ends the run,
+         * `save` not awaited, a done step run again, `ask` false running the step, `stop` asked once, a failing save
+         * read as done) each read red here. Red before C1b: steps.mjs absent.
+         */
+        let S = null;
+        try { S = await import("./steps.mjs"); } catch { S = null; }
+        must(typeof S?.runSteps === "function", "no runSteps: scripts/steps.mjs is absent or exports none");
+        const tick = () => new Promise(resolve => setTimeout(resolve, 5));
+        const play = async ({ steps, record = { done: [], failed: [] }, stop = null, saveFails = [] }) => {
+            const log = [], saves = [];
+            let saving = false;
+            const save = async (rec, at) => {
+                saving = true;
+                await tick();
+                saving = false;
+                saves.push([at?.end ? "end" : at?.key, [...rec.done], [...rec.failed]]);
+                if (saveFails.includes(at?.key)) throw new Error(`R1250: the save after "${at.key}" is refused`);
+            };
+            const step = (key, how = null, extra = {}) => ({ key, ...extra, run: async () => {
+                log.push(`${key}${saving ? " (save still running)" : ""}`);
+                if (how === "throw") throw new Error(`R1250: "${key}" throws`);
+                if (how === "false") return false;
+                return how;
+            } });
+            const result = await S.runSteps({ steps: steps(step, log), record, save, stop, label: "R1250 procedure", context: { log } });
+            return { log, saves, result: { done: result.done, kept: result.kept, failed: result.failed, notRun: result.notRun,
+                lines: result.lines, record: { done: result.record.done, failed: result.record.failed } } };
+        };
+        const quiet = console.error;
+        const read = {};
+        try {
+            console.error = () => {};
+            read.order = await play({ steps: s => [s("a", "line a"), s("b", "throw"), s("c", ["line c1", "line c2"]), s("d", "false"), s("e")] });
+            read.resume = await play({ record: { done: ["a", "c"], failed: ["b"] }, steps: s => [s("a"), s("b"), s("c"), s("d")] });
+            read.kept = await play({ steps: (s, log) => [s("a"), { key: "b", ask: () => false, keep: () => { log.push("keep b"); return "kept b"; },
+                run: () => { log.push("b"); } }, s("c", null, { ask: () => true })] });
+            read.needs = await play({ steps: s => [s("a", "throw"), s("b", null, { needs: "a" }), s("c", null, { needs: "x" }), s("d")] });
+            let asked = 0;
+            read.stop = await play({ stop: () => ++asked > 2, steps: s => [s("a"), s("b"), s("c"), s("d")] });
+            read.stopAsked = asked;
+            read.saveFails = await play({ saveFails: ["b"], steps: s => [s("a"), s("b"), s("c"), s("d")] });
+            read.after = await play({ steps: (s, log) => [s("a", null, { after: () => { log.push("after a"); return "after a"; } }),
+                s("b", "throw", { after: () => { log.push("after b"); } }),
+                s("c", null, { after: () => { throw new Error("R1250: after c throws"); } }), s("d")] });
+        } finally {
+            console.error = quiet;
+        }
+        const want = {
+            order: { log: ["a", "b", "c", "d", "e"],
+                saves: [["a", ["a"], []], ["b", ["a"], ["b"]], ["c", ["a", "c"], ["b"]], ["d", ["a", "c"], ["b", "d"]], ["e", ["a", "c", "e"], ["b", "d"]],
+                    ["end", ["a", "c", "e"], ["b", "d"]]],
+                result: { done: ["a", "c", "e"], kept: [], failed: ["b", "d"], notRun: [], lines: ["line a", "line c1", "line c2"],
+                    record: { done: ["a", "c", "e"], failed: ["b", "d"] } } },
+            resume: { log: ["b", "d"], saves: [["b", ["a", "c", "b"], []], ["d", ["a", "c", "b", "d"], []], ["end", ["a", "c", "b", "d"], []]],
+                result: { done: ["b", "d"], kept: [], failed: [], notRun: [], lines: [], record: { done: ["a", "c", "b", "d"], failed: [] } } },
+            kept: { log: ["a", "keep b", "c"], saves: [["a", ["a"], []], ["b", ["a"], []], ["c", ["a", "c"], []], ["end", ["a", "c"], []]],
+                result: { done: ["a", "c"], kept: ["b"], failed: [], notRun: [], lines: ["kept b"], record: { done: ["a", "c"], failed: [] } } },
+            needs: { log: ["a", "d"], saves: [["a", [], ["a"]], ["d", ["d"], ["a"]], ["end", ["d"], ["a"]]],
+                result: { done: ["d"], kept: [], failed: ["a"], notRun: ["b", "c"], lines: [], record: { done: ["d"], failed: ["a"] } } },
+            stop: { log: ["a", "b"], saves: [["a", ["a"], []], ["b", ["a", "b"], []], ["end", ["a", "b"], []]],
+                result: { done: ["a", "b"], kept: [], failed: [], notRun: ["c", "d"], lines: [], record: { done: ["a", "b"], failed: [] } } },
+            stopAsked: 3,
+            saveFails: { log: ["a", "b"], saves: [["a", ["a"], []], ["b", ["a", "b"], []], ["end", ["a"], ["b"]]],
+                result: { done: ["a"], kept: [], failed: ["b"], notRun: ["c", "d"], lines: [], record: { done: ["a"], failed: ["b"] } } },
+            after: { log: ["a", "after a", "b", "c", "d"],
+                saves: [["a", ["a"], []], ["b", ["a"], ["b"]], ["c", ["a", "c"], ["b"]], ["d", ["a", "c", "d"], ["b"]], ["end", ["a", "c", "d"], ["b"]]],
+                result: { done: ["a", "c", "d"], kept: [], failed: ["b"], notRun: [], lines: ["after a"], record: { done: ["a", "c", "d"], failed: ["b"] } } }
+        };
+        for (const name of Object.keys(want)) {
+            equal(stableJson(read[name]), stableJson(want[name]), `runSteps breaks its contract in the case "${name}" (what ran, in order; each save's [step, done, failed]; the groups, the lines and the record)`);
+        }
+        const res = await fetch(`/modules/${MODULE_ID}/scripts/steps.mjs`);
+        const text = stripComments(res.ok ? await lfText(res) : "");
+        const imports = [...text.matchAll(/(?:from|import\()\s*"\.\/([\w-]+\.mjs)"/g)].map(m => m[1]);
+        equal(stableJson([res.ok, imports]), stableJson([true, ["utils.mjs"]]), "steps.mjs imports more than utils.mjs - it is not the leaf every procedure takes statically (R161)");
+    }],
+
+    ["R1251 - one report shape for every procedure (E42 C1b, E42-03): `stepsReport` puts the procedure's lines first and then one sentence per group that holds a step, in the order done, kept, failed, notRun, each with the procedure's own key and its steps' labels in one list; a group with no key is not said; the toast is an error with the failed and notRun sentences exactly when either holds a step, else the procedure's done words", async () => {
+        /*
+         * E42 C1b, 02.11.2026; E42-03. The verdict whispered its lines and one warning, the chapter's end named what
+         * failed or did not run in a toast and a card of its own, the reset a card of four lines: three shapes for one
+         * question. Driven on results in memory with the reset's four keys (`DRPG.Season.reportCard.*`, whose list is
+         * `{groups}`) and the verdict's (`DRPG.Vote.verdictStopped`, `{steps}`): a result with every group, one with
+         * failed and notRun alone, one with nothing stopped, and the verdict's with failed alone. Pure: nothing is read
+         * from the world or written. Red before C1b: steps.mjs absent.
+         */
+        let S = null;
+        try { S = await import("./steps.mjs"); } catch { S = null; }
+        must(typeof S?.stepsReport === "function", "no stepsReport: scripts/steps.mjs is absent or exports none");
+        const { listOf } = await import("./utils.mjs");
+        const label = key => `[${key}]`;
+        const card = name => ({ key: `DRPG.Season.reportCard.${name}`, list: "groups" });
+        const groups = { done: card("done"), kept: card("kept"), failed: card("failed"), notRun: card("notRun") };
+        const say = (name, keys) => game.i18n.format(`DRPG.Season.reportCard.${name}`, { groups: listOf(keys.map(label)) });
+        const all = S.stepsReport({ done: ["a", "b"], kept: ["c"], failed: ["d"], notRun: ["e", "f"], lines: ["one", "two"] },
+            { groups, label, done: game.i18n.localize("DRPG.Season.resetDone") });
+        const stopped = S.stepsReport({ done: [], kept: [], failed: ["d"], notRun: ["e"], lines: [] }, { groups, label, done: game.i18n.localize("DRPG.Season.resetDone") });
+        const clean = S.stepsReport({ done: ["a"], kept: ["c"], failed: [], notRun: [], lines: ["one"] }, { groups, label, done: game.i18n.localize("DRPG.Season.resetDone") });
+        const verdict = S.stepsReport({ done: ["x"], kept: [], failed: ["d"], notRun: ["e"], lines: ["v"] },
+            { groups: { failed: "DRPG.Vote.verdictStopped" }, label });
+        const shape = r => [r.lines, r.notes, r.toast.level, r.toast.text];
+        equal(stableJson([shape(all), shape(stopped), shape(clean), shape(verdict)]), stableJson([
+            [["one", "two"], [say("done", ["a", "b"]), say("kept", ["c"]), say("failed", ["d"]), say("notRun", ["e", "f"])], "error",
+                `${say("failed", ["d"])} ${say("notRun", ["e", "f"])}`],
+            [[], [say("failed", ["d"]), say("notRun", ["e"])], "error", `${say("failed", ["d"])} ${say("notRun", ["e"])}`],
+            [["one"], [say("done", ["a"]), say("kept", ["c"])], "info", game.i18n.localize("DRPG.Season.resetDone")],
+            [["v"], [game.i18n.format("DRPG.Vote.verdictStopped", { steps: listOf(["[d]"]) })], "error",
+                game.i18n.format("DRPG.Vote.verdictStopped", { steps: listOf(["[d]"]) })]
+        ]), "stepsReport does not say a result as one report (per result: lines, the groups' sentences in order, the toast's level and text)");
+        const html = document.createElement("div");
+        html.innerHTML = all.content;
+        equal(stableJson([[...html.querySelectorAll("li")].map(li => li.textContent), [...html.querySelectorAll("p")].map(p => p.classList.contains("drpg-warning"))]),
+            stableJson([["one", "two"], [false, false, true, true]]),
+            "the report's card does not list the lines and say each group, the failed and the not run as warnings");
+    }],
 ];
 
 /**
