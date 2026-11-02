@@ -828,7 +828,6 @@
         "statistic": "Statistic modifier",
         "bonus": "Advantage, disadvantage and experience"
       },
-      "chooseTrait": "{action} - which statistic?",
       "costActions": { "one": "{n} action", "other": "{n} actions" },
       "costFree": "free",
       "cannotAfford": {
@@ -891,7 +890,6 @@
         "directMurder": "Who, where and how - as agreed beforehand."
       },
       "analyzeGm": "Score this against the Analyze table for that Truth Bullet. A failure locks it for them until the chapter ends.",
-      "murderConfirm": "This opens a direct murder. It needs prior agreement with the GM and the consent of the other player. The action is spent even if the conditions fail.",
       "murderNobody": "Nobody here to kill. The attempt is spent; try again another time of day.",
       "murderWitness": {
         "one": "You are not alone with your victim - {n} other person would see it. The attempt is spent; try again another time of day.",

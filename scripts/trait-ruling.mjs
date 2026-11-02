@@ -36,8 +36,10 @@
  * stored without one, which both forms allowed until 1.2.66: no world data says which
  * statistic the GM meant, so the first roll on it asks a GM once (kind `project`, key
  * the project's id) and the pick is written to the project (`keepProjectPick`), its
- * statistic from then on. An action of the generic table (`performGeneric`) asks when
- * its definition lists several; none does at 1.2.66.
+ * statistic from then on. An action of the generic table - a key of ACTIONS with no
+ * performer of its own, the kind `generic` that roll-draw.mjs and bridge-guards.mjs name -
+ * would ask when its definition lists several; every key has a performer of its own
+ * (`OWN_PERFORMERS`), so the table is empty (E41 C1a deleted its fallback, R1230).
  */
 import { TRAITS, CRISIS_ACTIONS, MURDER_OPENING, CLEANUP, ACTIONS } from "./config.mjs";
 import { pendingCalls } from "./call-effects.mjs";
@@ -46,9 +48,9 @@ import { dialogContent, esc } from "./utils.mjs";
 
 /**
  * The actions action-rolls.mjs `performAction` hands to a performer of their own, which
- * decides the statistic its own way; every other key of ACTIONS falls through to
- * `performGeneric`, the kind `generic` here. A copy of that switch's cases, and R213
- * holds the two together.
+ * decides the statistic its own way; a key of ACTIONS not listed here would be the kind
+ * `generic` here, and `performAction`'s switch has no default for one (E41 C1a). A copy
+ * of that switch's cases, and R213 holds the two together.
  */
 export const OWN_PERFORMERS = Object.freeze(["move", "dynamic", "search", "project", "sabotage", "tamper", "palm",
     "analyze", "rest", "listen", "observe", "directMurder"]);

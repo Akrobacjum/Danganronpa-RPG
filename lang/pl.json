@@ -839,7 +839,6 @@
         "statistic": "Modyfikator statystyki",
         "bonus": "Przewaga, utrudnienie i doświadczenie"
       },
-      "chooseTrait": "{action} - która statystyka?",
       "costActions": {
         "one": "{n} akcja",
         "few": "{n} akcje",
@@ -916,7 +915,6 @@
         "directMurder": "Kogo, gdzie i jak - tak, jak uzgodniono wcześniej."
       },
       "analyzeGm": "Oceń to według tabeli Analyze dla tego Truth Bulleta. Porażka blokuje ten Truth Bullet do końca rozdziału.",
-      "murderConfirm": "To otwiera Direct Murder. Wymaga wcześniejszej zgody GM-a i zgody drugiego gracza. Akcja przepada nawet, jeśli warunki nie są spełnione.",
       "murderNobody": "Nie ma tu kogo zabić. Próba przepada; spróbuj o innej porze dnia.",
       "murderWitness": {
         "one": "Nie jesteś z ofiarą sam na sam - zobaczyłaby to {n} inna osoba. Próba przepada; spróbuj o innej porze dnia.",

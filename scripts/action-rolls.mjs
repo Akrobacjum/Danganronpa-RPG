@@ -335,6 +335,9 @@ export async function performAction(actor, actionKey, options = {}) {
             if (!go) return null;
         }
 
+        // A case for every key of ACTIONS (and `dynamic`); a key ACTIONS does not hold was refused above
+        // (`DRPG.Action.unknown`), so the switch has no default (E41 C1a: `performGeneric`, the default's
+        // performer, ran for nothing and is deleted with `chooseTrait`; R1230).
         switch (actionKey) {
             case "move": return null;                    // handled by the briefing
             case "dynamic": return performDynamic(actor, options);
@@ -348,7 +351,6 @@ export async function performAction(actor, actionKey, options = {}) {
             case "listen": return performListen(actor, def, options);
             case "observe": return performObserve(actor, def, options);
             case "directMurder": return performDirectMurder(actor, def, options);
-            default: return performGeneric(actor, actionKey, def, options);
         }
     } catch (err) {
         error(`Action "${actionKey}" failed`, err);
@@ -634,9 +636,7 @@ async function briefing(actor, actionKey, def) {
  * This used to be the inverse: a list of the nine actions that DO fold, which
  * had to be edited every time an action gained a dialog and silently gave a
  * second window to any key not on it. Stated the other way round, an action
- * nobody remembered to list gets the folded behaviour by default - including
- * anything falling through to `performGeneric`, which asks for a statistic and
- * so has a window to carry the briefing.
+ * nobody remembered to list gets the folded behaviour by default.
  */
 const NEEDS_OWN_BRIEFING = new Set(["move"]);
 
@@ -1685,42 +1685,6 @@ function readTraitField(element, traits) {
 }
 
 /**
- * The trait a generic action rolls, for an action with nothing else to ask:
- * `{ trait, byGm }`, or null when it is not to be rolled.
- *
- * `intro` is the briefing. An action that folds its briefing in (every one
- * but the keys in NEEDS_OWN_BRIEFING) has a window of its own to carry it; one that does not
- * used to get a briefing window, then this one, then the roll dialog - three
- * windows to answer "Body or Leg?". Passing the briefing here makes it two.
- *
- * NOT THE PLAYER'S CHOICE (E32+E07 C11d; the owner's ruling of 28.09.2026). This
- * window used to carry a Statistic select when the definition listed several. A
- * definition that lists several asks a GM now (trait-ruling.mjs `traitFor`, kind
- * `generic`), after this window and before anything is paid; none of the generic
- * table's does at 1.2.66, so the window is the briefing and its Roll button.
- */
-async function chooseTrait(actor, actionKey, def, { intro = "" } = {}) {
-    const allowed = def.traits ?? [];
-    if (!allowed.length) return null;
-
-    if (intro) {
-        const go = await DialogV2.wait({
-            window: { title: game.i18n.format("DRPG.Action.chooseTrait", { action: def.label }) },
-            classes: ["drpg-panel", "drpg-narrow"],
-            content: dialogContent(intro),
-            buttons: [
-                { action: "ok", label: game.i18n.localize("DRPG.Action.roll"), default: true },
-                { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-            ],
-            rejectClose: false
-        });
-        if (go !== "ok") return null;
-    }
-    const { traitFor } = await import("./trait-ruling.mjs");
-    return traitFor(actor, { kind: "generic", key: actionKey });
-}
-
-/**
  * Give the action back and stop.
  *
  * Used by the actions that must pay before rolling - an indirect murder or a
@@ -1730,8 +1694,8 @@ async function chooseTrait(actor, actionKey, def, { intro = "" } = {}) {
  *
  * AND THE ONE-ROLL ACTIONS PAY FIRST TOO (ACT-07, 17.09).
  *
- * Search, Observe, Analyze, Listen, the generic actions and a Dynamic action
- * used to charge after the dice and ignore the answer. The sheet disables only
+ * Search, Observe, Analyze, Listen and a Dynamic action used to charge after
+ * the dice and ignore the answer. The sheet disables only
  * the tile that was clicked and none of these windows is modal, so a student
  * with one action could open two, roll both, and get both results for one
  * action - and with more windows, keep every roll's Hope while the spend was
@@ -6048,6 +6012,9 @@ async function performDirectMurder(actor, def, options) {
     // whisper it sends.
     const room = roomOfActor(actor);
 
+    // The Eclipse's words alone (E41 C1a; audit S02-60): this runs only in an Eclipse - `performAction` refuses a
+    // Direct Murder outside one (`DRPG.Eclipse.murderOnlyInEclipse`) and hands a betrayal to `performBetrayal` before
+    // it - so the other key, `DRPG.Action.murderConfirm`, was never shown and is deleted.
     const confirmed = await DialogV2.confirm({
         yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
         no: { label: game.i18n.localize("DRPG.Dialog.no") },
@@ -6055,7 +6022,7 @@ async function performDirectMurder(actor, def, options) {
         window: { title: def.label },
         content: `${briefingBlock(actor, "directMurder", def)}
             <p class="notes">${game.i18n.localize("DRPG.Action.murderSpendsAnyway")}</p>
-            <p>${game.i18n.localize(isEclipse() ? "DRPG.Action.murderConfirmEclipse" : "DRPG.Action.murderConfirm")}</p>`,
+            <p>${game.i18n.localize("DRPG.Action.murderConfirmEclipse")}</p>`,
         rejectClose: false
     });
     if (!confirmed) return null;
@@ -6150,41 +6117,8 @@ async function promptForNote(actor, { title, prompt, placeholder }) {
 }
 
 /* ==========================================================================
- * GENERIC + DYNAMIC
+ * DYNAMIC
  * ========================================================================== */
-
-async function performGeneric(actor, actionKey, def, options) {
-    const cost = options.free ? 0 : (def.cost ?? 1);
-    if (!canAfford(actor, cost)) return null;
-
-    // The briefing rides in the statistic picker rather than in front of it -
-    // this branch has no other window of its own, and two in a row for one
-    // choice is exactly what NEEDS_OWN_BRIEFING exists to stop.
-    const ruled = await chooseTrait(actor, actionKey, def, {
-        intro: options.skipBriefing ? "" : briefingBlock(actor, actionKey, def)
-    });
-    if (!ruled) return null;
-
-    // Paid before the dice - see `abort` and ACT-07 above it.
-    const paid = cost > 0 ? await spendAction(actor, cost) : null;
-    if (cost > 0 && !paid) return null;
-    const roll = await rollTrait(actor, ruled.trait, { actionKey, byGm: ruled.byGm });
-    if (!roll) return abort(actor, paid);
-
-    const hit = roll.isCritical ? def.critical : resolveThreshold(roll.total, def.thresholds ?? []);
-    const outcome = {
-        success: Boolean(hit),
-        text: hit?.result ?? def.failure ?? game.i18n.localize("DRPG.Action.nothing")
-        // No `leftTrace`: this generic fallback never actually calls
-        // `dropRemnant`, so `hit?.remnant` used to report a trace that was
-        // never placed - a lie `traceFeedback`'s contract (nothing to
-        // report if nothing was placed) does not allow.
-    };
-
-    await report(actor, def, roll, outcome);
-    Hooks.callAll("drpgActionResolved", { actor, actionKey, roll, outcome });
-    return outcome;
-}
 
 async function performDynamic(actor, options) {
     const def = dynamicDef();

@@ -16458,9 +16458,9 @@ const REGRESSIONS = [
          * MURDER_OPENING for `murderOpening`. KEPT: Observe (the trace's visibility is the answer key, and the window
          * shows no number on purpose) - measured as no `dc` on any Observe roll - and an Analyze's identification (no
          * dc in the rules: the bullet's real type is what the roll finds) - measured as the Analyze roll's `dc`
-         * answering null for a bullet. A call whose action key is no literal must stand in `performGeneric`, whose
-         * claim is that every ACTIONS key has a performer of its own (performAction's switch, read). Red at C1's
-         * parent: crisis and murderOpening passed none.
+         * answering null for a bullet. A call whose action key is no literal fails, and every ACTIONS key has a
+         * performer of its own (performAction's switch, read; E41 C1a deleted `performGeneric`, the one call whose key
+         * was a variable, R1230). Red at C1's parent: crisis and murderOpening passed none.
          */
         const FILES = ["action-rolls.mjs", "frisk.mjs", "murder-rules.mjs", "cleanup.mjs", "use-items.mjs", "observe.mjs"];
         const palm = ACTIONS.palm;
@@ -16505,7 +16505,7 @@ const REGRESSIONS = [
             observeKept: observe.length > 0 && observe.every(c => !c.dc), analyzeKept: analyze.length > 0 && analyze.every(c => /:\s*null\s*,/.test(c.args)),
             kept: Object.keys(KEPT)
         }), JSON.stringify({
-            missing: [], variable: ["action-rolls.mjs#performGeneric"], performers: [],
+            missing: [], variable: [], performers: [],
             crisis: [true], opening: [true], useItem: true, observeKept: true, analyzeKept: true, kept: ["observe", "analyzeIdentify"]
         }), "[the rolls whose rules hold a number and whose window is not handed it; the calls with no literal action key; ACTIONS keys with no "
             + "performer of their own; the crisis and the opening rolls' dc; the sheet's item button going through takeCrisisAction; Observe kept "
@@ -18626,6 +18626,41 @@ const REGRESSIONS = [
         }), "{fixtures: what the reader makes of a road that asks nobody, of one whose step does not ask again, and of a whole one; despair, overflow: "
             + "each road [asks the primary before its step, the step's key, asks primaryElsewhere() inside the step, asks the primary again after it]; "
             + "rows: each row's [first guard, answer, its label is DRPG.Bridge.what.<row>]}");
+    }],
+    ["R1230 - no dead action code (E41 C1a, E41-02; audit S02-60): no module file declares `performGeneric` or `chooseTrait`, `performAction`'s switch has no `default` (an unknown key is refused above it, `DRPG.Action.unknown`), no module file names `DRPG.Action.murderConfirm` (a Direct Murder runs only in an Eclipse, so its window asks `DRPG.Action.murderConfirmEclipse` alone), and neither lang file holds `DRPG.Action.murderConfirm` or `DRPG.Action.chooseTrait`", async () => {
+        /*
+         * E41 C1a, 02.11.2026; E41-02, audit S02-60. `performAction` has a `case` for each of ACTIONS' twelve keys and
+         * refuses a key ACTIONS does not hold before its switch, so the switch's `default: return performGeneric(...)`
+         * ran for nothing, and `chooseTrait` (called by `performGeneric` alone) with it; `performDirectMurder` runs only
+         * past `performAction`'s refusal outside an Eclipse, so its `isEclipse() ? ... : "DRPG.Action.murderConfirm"`
+         * never showed the second key. Read off every module file, comments out: the declarations, `performAction`'s
+         * body with its strings blanked (a `default:` there is a branch, not a button's default), every
+         * `DRPG.Action.murderConfirm` not followed by a word character; and both lang files. Read wherever the action
+         * family keeps them (E41 C3 and C4 split action-rolls.mjs), so a move does not make it pass by reading nothing.
+         * Red at c7c4ee2d: both functions declared, the `default`, the key named once and held by both lang files.
+         */
+        const sources = new Map(await otherSources());
+        must(sources.size > 100 && sources.has("action-rolls.mjs"), `${sources.size} module file(s) read - this test measured nothing`);
+        const dead = [], named = [], performs = [];
+        for (const [file, raw] of sources) {
+            const code = stripComments(raw);
+            for (const m of code.matchAll(/^(?:export )?(?:async )?function (performGeneric|chooseTrait)\(/gm)) dead.push(`${file}#${m[1]}`);
+            if (/DRPG\.Action\.murderConfirm(?![\w$])/.test(code)) named.push(file);
+            if (topLevelFunction(code, "performAction") !== null) performs.push(file);
+        }
+        must(performs.length === 1, `performAction is declared in ${performs.length} module file(s) (${performs.join(", ")}) - this test reads one`);
+        const body = fnSource(stripComments(sources.get(performs[0])), "performAction"), perform = stripStrings(body);
+        must(/\bswitch\s*\(\s*actionKey\s*\)/.test(body) && /\bcase\s+"directMurder"\s*:/.test(body),
+            "performAction no longer dispatches on actionKey - this test reads nothing until it is pointed at the code again");
+        const eclipseKey = [...sources].filter(([, raw]) => /DRPG\.Action\.murderConfirmEclipse\b/.test(stripComments(raw))).map(([file]) => file);
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const held = lang => ["murderConfirm", "chooseTrait", "murderConfirmEclipse", "unknown"].map(key => typeof lang.DRPG?.Action?.[key] === "string");
+        equal(JSON.stringify({ dead, defaultBranch: /\bdefault\s*:/.test(perform), named, eclipseKey: eclipseKey.length > 0, en: held(en), pl: held(pl) }),
+            JSON.stringify({ dead: [], defaultBranch: false, named: [], eclipseKey: true, en: [false, false, true, true], pl: [false, false, true, true] }),
+            "{dead: the module files declaring performGeneric or chooseTrait; defaultBranch: performAction's body holds a default; named: the "
+            + "files naming DRPG.Action.murderConfirm; eclipseKey: a file names murderConfirmEclipse; en, pl: [murderConfirm, chooseTrait, "
+            + "murderConfirmEclipse, unknown] held as strings}");
     }],
 ];
 
