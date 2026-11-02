@@ -436,7 +436,7 @@ function sliderToVolume(slider, position) {
 }
 
 /**
- * How loud a slider is on this browser, 0–1.
+ * How loud a slider is on this browser, 0-1.
  *
  * `music` reads Foundry's setting instead of ours. Two independent music
  * volumes would fight each other and the loser would be whichever one the
