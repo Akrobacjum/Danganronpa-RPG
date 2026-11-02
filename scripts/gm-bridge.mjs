@@ -3182,7 +3182,8 @@ export const BRIDGE_ACTIONS = table({
     },
     /*
      * THE ROUND'S END (E37 C3; E37-14): the GM's window went on ("go") or the GM said Not now ("stop"); the record keeps
-     * which, so every player's window closes and says it (boundary.mjs `endRoundOnPrimary`). A GM's alone, as the open.
+     * which, so every player's window closes and says it (boundary.mjs `endRoundOnPrimary`); a barred "go" is written
+     * "go" and answered `barred` (E37 fix FG1c). A GM's alone, as the open.
      */
     [ACTION_READY_END]: {
         label: "DRPG.Bridge.what.ready.end",
@@ -3551,7 +3552,8 @@ export function requestReadyAnswer({ roundId, ready }) {
 
 /**
  * The round's end, from the GM's window (E37 C3; boundary.mjs `askReadiness`): `outcome` "go" or "stop". Its value is
- * `{ ended }`; null on the primary's own refusal, which is told here.
+ * `{ ended }`, with `barred: true` for a "go" an incident or a Class Trial bars from moving the clock (E37 fix FG1c);
+ * null on the primary's own refusal, which is told here.
  */
 export function requestReadyEnd({ roundId, outcome }) {
     return ask(ACTION_READY_END, { roundId, outcome }, {

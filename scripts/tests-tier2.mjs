@@ -78532,7 +78532,7 @@ const SCENARIOS = [
             + "next press, what the press answered after advanceTimeOfDay, a round open after it, the time of day, a window]; gone: [this GM told "
             + "goneEnded, a new round over the gone GM's, its kind, opened by this GM, its window; after Not now: its end, the time of day]}");
     }],
-    ["E37-T9 - an incident's start leaves the readiness round as it stands, and the GM's own press ends it without moving the clock (E37 fix FG1, FG1b; the end review's S-m3, STATUS E37 Open 52): a round open for Next time of day when an incident opens is not written, its window stays and the record every player's window holds to stays open; the GM's Move the clock then ends it \"stop\", the press answered null, the clock unmoved and that GM told in one line; a GM's \"go\" for a round open while the incident runs is taken as \"stop\"; and a \"go\" for a round the clock has left is refused", async () => {
+    ["E37-T9 - an incident's start leaves the readiness round as it stands, and a barred \"go\" ends it for the players as any \"go\" does, without moving the clock (E37 fix FG1, FG1b, FG1c; the end review's S-m3, STATUS E37 Open 52, 55): a round open for Next time of day when an incident opens is not written, its window stays and the record every player's window holds to stays open; the GM's Move the clock then ends it \"go\", a player's window closed and told nothing - as an unbarred \"go\" - the press answered null, the clock unmoved and that GM told in one line; the same through the window's own go-on at the last Done in a Class Trial; a GM's \"go\" for a round open while the incident runs is written \"go\" and answered barred; and a \"go\" for a round the clock has left is refused", async () => {
         /*
          * E37 fix FG1, 02.11.2026; the end review's S-m3 (security lens). `roundAllowed` was asked at the round's open
          * alone, and an incident does not make a round stale (`roundOf`): a round opened in daily life stayed open when a
@@ -78558,6 +78558,19 @@ const SCENARIOS = [
          * (`DialogV2.confirm` answered yes here): the round ends "stop", the press answers null, the clock stays, and
          * this GM is told `DRPG.Ready.barred`. Red at 4276d247: the round ended "stop" at the incident's start, one
          * write, the window gone.
+         *
+         * A BARRED "GO" READS AS ANY "GO" (E37 fix FG1c, 02.11.2026; STATUS E37 Open 55 and 56, the orchestrator's line).
+         * FG1b's "stop" at the GM's press, and at the window's own go-on at the last Done, told every player of the round
+         * that the GM was waiting a little longer where an unbarred round ends with nothing told: to an outsider, a sign
+         * that something holds the clock. A player's page is posed here as E37-T10 poses it (`game.user.isGM` reading
+         * false while boundary.mjs `renderReadyRound` runs its synchronous part): once with the round open, which draws
+         * the player's window on this page and keeps the round's id as shown, and once after its end, which tells what a
+         * player's page tells. Read at the barred press: the record's end, its fields, the player's window and the words
+         * told; the same for a round ended "go" with nothing barring it (`endRoundOnPrimary` after the incident closed,
+         * the caller's move of the clock aside: the record is the primary's either way); and a trial's bar (Open 57):
+         * a round opened in Daily Life, the phase set to the Class Trial under it, every connected player's Done
+         * answered on the primary (`answerOnPrimary`, Foundry's sender being that user), so the GM's window goes on by
+         * itself. Red at cb80d5ae: both barred ends "stop", each player's page told `DRPG.Ready.cancelled`.
          */
         needs(env.primaryGm(), "the round is opened and ended on the primary GM");
         needs(env.dialogs(), "the GM's window is read as drawn");
@@ -78587,6 +78600,34 @@ const SCENARIOS = [
         const infos = [], confirms = [];
         let writes = 0;
         const counted = setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.readyRound}`) writes++; };
+        /* A player's page, posed (FG1c): `renderReadyRound`'s synchronous part run with `game.user.isGM` reading false, and
+           this user read as the owner of one student of the cast - a bystander's when there is one - by that actor's own
+           `testUserPermission` for as long (a GM owns every actor through `isGM` alone). */
+        const posed = livingStudents().find(a => a !== killer && a !== victim) ?? killer;
+        const asPlayer = fn => {
+            const own = posed.testUserPermission;
+            Object.defineProperty(game.user, "isGM", { value: false, configurable: true });
+            Object.defineProperty(posed, "testUserPermission", { configurable: true,
+                value: (user, ...rest) => user === game.user || own.call(posed, user, ...rest) });
+            try { return fn(); } finally {
+                delete game.user.isGM;
+                delete posed.testUserPermission;
+            }
+        };
+        const playerWin = () => [...foundry.applications.instances.values()].find(app => app?.options?.classes?.includes("drpg-ready-player")
+            && app.element?.isConnected) ?? null;
+        const shown = async () => {
+            asPlayer(() => { B.renderReadyRound(); });
+            await until(() => playerWin(), 8000);
+            return playerWin();
+        };
+        const told = () => {
+            const before = infos.length;
+            asPlayer(() => { B.renderReadyRound(); });
+            return infos.slice(before);
+        };
+        const fields = r => Object.keys(r ?? {}).sort().join(",");
+        const barredTold = from => infos.slice(from).filter(m => m === game.i18n.localize("DRPG.Ready.barred")).length;
         const read = {};
         let pressed = null;
         try {
@@ -78608,6 +78649,8 @@ const SCENARIOS = [
             const round = foundry.utils.deepClone(B.readyRecord());
             const drawn = win();
             must(round.id && !round.ended && drawn, "no round opened at the press - this would measure nothing");
+            const pdrawn = await shown();
+            must(pdrawn, "no player's window drawn for the open round - this would measure nothing");
             Hooks.on("createSetting", counted);
             Hooks.on("updateSetting", counted);
             await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
@@ -78615,7 +78658,7 @@ const SCENARIOS = [
             // Three seconds for an end that should not come (FG1 ended it within one settle of the incident's write).
             await until(() => B.readyRecord().ended || !win(), 3000);
             read.opened = [round.kind, J(B.readyRecord()) === J(round), writes, win() === drawn,
-                B.roundOf(B.readyRecord(), getClock())?.id === round.id, getClock().timeOfDay, Boolean(M.murderState())];
+                B.roundOf(B.readyRecord(), getClock())?.id === round.id, getClock().timeOfDay, Boolean(M.murderState()), playerWin() === pdrawn];
 
             // The GM's own press: the window's Move the clock, past the players not done (its confirmation answered Go on).
             const toldBefore = infos.length, writesBefore = writes;
@@ -78625,8 +78668,9 @@ const SCENARIOS = [
             const out = await pressed;
             pressed = null;
             await settle();
+            await until(() => !playerWin(), 3000);
             read.press = [confirms.length, out ?? null, B.readyRecord().id === round.id, B.readyRecord().ended ?? null, writes - writesBefore,
-                getClock().timeOfDay, infos.slice(toldBefore).filter(m => m === game.i18n.localize("DRPG.Ready.barred")).length];
+                getClock().timeOfDay, barredTold(toldBefore), fields(B.readyRecord()), Boolean(playerWin()), told()];
             Hooks.off("createSetting", counted);
             Hooks.off("updateSetting", counted);
 
@@ -78635,10 +78679,45 @@ const SCENARIOS = [
             await settle();
             const goDuring = await B.endRoundOnPrimary({ roundId: during.id, outcome: "go" });
             await settle();
-            read.during = [goDuring?.reply?.ended ?? goDuring?.refused ?? null, B.readyRecord().ended ?? null, getClock().timeOfDay];
+            read.during = [goDuring?.reply?.ended ?? goDuring?.refused ?? null, goDuring?.reply?.barred ?? null, B.readyRecord().ended ?? null,
+                getClock().timeOfDay];
 
             await M.endMurder({ reason: "test", followUp: false });
             await settle();
+
+            // An unbarred "go", the one a barred "go" must read as on a player's page.
+            const free = record("zE37T9free000000");
+            await game.settings.set(MODULE_ID, SETTINGS.readyRound, free);
+            await settle();
+            must(await shown(), "no player's window drawn for the unbarred round - this would measure nothing");
+            const goFree = await B.endRoundOnPrimary({ roundId: free.id, outcome: "go" });
+            await settle();
+            await until(() => !playerWin(), 3000);
+            read.free = [goFree?.reply?.ended ?? goFree?.refused ?? null, goFree?.reply?.barred ?? null, B.readyRecord().ended ?? null,
+                fields(B.readyRecord()), Boolean(playerWin()), told()];
+
+            // A trial's bar (Open 57), through the GM's window going on by itself at the last Done.
+            pressed = B.nextTimeOfDay();
+            await until(() => win(), 12000);
+            const trialRound = foundry.utils.deepClone(B.readyRecord());
+            must(trialRound.id && !trialRound.ended && win(), "no round opened for the trial's case - this would measure nothing");
+            must(await shown(), "no player's window drawn for the trial's round - this would measure nothing");
+            await setClock({ phase: "classTrial" });
+            await settle();
+            const trialBefore = infos.length, confirmsBefore = confirms.length;
+            const asked = B.roundUsers().filter(user => user.active);
+            must(asked.length > 0, "nobody connected to answer the trial's round - this would measure nothing");
+            for (const user of asked) await B.answerOnPrimary(game.users.get(user.id), { roundId: trialRound.id, ready: true });
+            await until(() => !win(), 8000);
+            const outTrial = await pressed;
+            pressed = null;
+            await settle();
+            await until(() => !playerWin(), 3000);
+            read.trial = [confirms.length - confirmsBefore, outTrial ?? null, B.readyRecord().id === trialRound.id, B.readyRecord().ended ?? null,
+                getClock().timeOfDay, getClock().phase, barredTold(trialBefore), Boolean(playerWin()), told()];
+            await setClock({ phase: "dailyLife" });
+            await settle();
+
             const stale = record("zE37T9stale00000");
             await game.settings.set(MODULE_ID, SETTINGS.readyRound, stale);
             await settle();
@@ -78656,6 +78735,7 @@ const SCENARIOS = [
                 await win()?.close();
                 await pressed.catch(() => null);
             }
+            await playerWin()?.close();
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             await setClock(was);
             for (const [actor, value, max] of actionsWas) {
@@ -78665,16 +78745,23 @@ const SCENARIOS = [
             await game.settings.set(MODULE_ID, SETTINGS.readyRound, roundWas);
             await settle();
         }
+        const FIELDS = "answers,at,boundary,by,ended,id,kind";
         equal(J(read), J({
-            opened: ["next", true, 0, true, true, "noon", true],
-            press: [1, null, true, "stop", 1, "noon", 1],
-            during: ["stop", "stop", "noon"],
+            opened: ["next", true, 0, true, true, "noon", true, true],
+            press: [1, null, true, "go", 1, "noon", 1, FIELDS, false, []],
+            during: ["go", true, "go", "noon"],
+            free: ["go", null, "go", FIELDS, false, []],
+            trial: [0, null, true, "go", "noon", "classTrial", 1, false, []],
             stale: ["nothing was carried out: that readiness round is not open", null]
         }), "{opened: [the round's kind, the record as at the press, the round's setting written since the press, the GM's window the "
-            + "same and drawn, the round every player's window holds to still open, the time of day, an incident]; press: [the "
-            + "confirmations asked, what the press answered, the record still that round, its end, the round's setting written by the "
-            + "press, the time of day, this GM told barred]; during: [what a \"go\" for a round open in the incident answered, the record's end, "
-            + "the time of day]; stale: [what a \"go\" for a round the clock has left answered, the record's end]}");
+            + "same and drawn, the round every player's window holds to still open, the time of day, an incident, the player's window "
+            + "the same]; press: [the confirmations asked, what the press answered, the record still that round, its end, the round's "
+            + "setting written by the press, the time of day, this GM told barred, the record's fields, a player's window still up, "
+            + "what a player's page told]; during: [what a \"go\" for a round open in the incident answered, barred, the record's end, "
+            + "the time of day]; free: [an unbarred \"go\" answered, barred, the record's end, its fields, a player's window still up, "
+            + "what a player's page told]; trial: [confirmations asked, what the press answered, the record still that round, its "
+            + "end, the time of day, the phase, this GM told barred, a player's window still up, what a player's page told]; "
+            + "stale: [what a \"go\" for a round the clock has left answered, the record's end]}");
     }],
     ["E37-T4 - the summary at every boundary (E37 C4, E37-16, E37-17; D44c, S10-79): with three cards of a time of day in the GM's store, Next time of day (`advanceTimeOfDay`) shows one summary with their rows; the same cards and an Eclipse's start show the same summary - title, lede, rows and totals; and the Eclipse's end that moves the clock after it shows none", async () => {
         /*

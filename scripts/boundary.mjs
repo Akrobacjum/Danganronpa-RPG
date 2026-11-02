@@ -38,8 +38,8 @@
  * one round both went on - the last Done reached both windows - and each moved the clock: the primary refused the second
  * end, but the end only logged it. A caller moves the clock only when its own end of the round is the one the primary
  * took ("go", `close` answering true; true with no round), and the primary takes a "go" only while the round is open
- * over its clock and allowed (`roundAllowed`, asked again: an incident begun meanwhile ends the round "stop" at the GM's
- * "go", and nothing moves). A round whose GM is not connected is ended by the next press of either road, and that GM
+ * over its clock and allowed (`roundAllowed`, asked again: an incident begun meanwhile bars the GM's "go" from moving
+ * the clock, below). A round whose GM is not connected is ended by the next press of either road, and that GM
  * is told in one line; the panel's next line names an open round with its "Do it" (gm-panel.mjs `nextStep`). A player who
  * closed the window, or whose answer was refused, gets a card that opens it again while the round stands. Scenario 61
  * part RR (two GMs, one round), tier 2 E37-T3 and E37-T9, tier 1 R1204.
@@ -49,8 +49,17 @@
  * that moment that the GM was waiting a little longer: a timing signal to the bystanders, beside the clock the incident
  * hides from them. The incident's start writes nothing to the round now - no write of `readyRound`, so no window closes
  * and nobody is told - and the round stands until the GM's own press: its "go" is asked of `roundAllowed` again on the
- * primary and ends the round "stop" with nothing moved, and that GM is told in one line (`DRPG.Ready.barred`),
- * at a moment the GM chose. Tier 2 E37-T9; a bystander's own page is LIVE-E37-06.
+ * primary, nothing moves, and that GM is told in one line (`DRPG.Ready.barred`), at a moment the GM chose. Tier 2
+ * E37-T9; a bystander's own page is LIVE-E37-06.
+ *
+ * A BARRED "GO" ENDS THE ROUND AS ANY "GO" (E37 fix FG1c, 02.11.2026; STATUS E37 Open 55 and 56). FG1b wrote that "go"
+ * "stop", at the GM's press and at the window's own go-on at the last Done alike, and every player of the round was
+ * told that the GM was waiting a little longer - where a round that goes on tells nothing: to an outsider, a sign that
+ * something holds the clock. The primary writes a barred "go" as "go" now - the same record, the same packet, nothing
+ * told on a player's page - and answers it `barred`, so the caller moves nothing and its GM alone reads the line. What
+ * the outsider sees of the clock is the HUD's, frozen for the incident (hud.mjs `clockForDisplay`, incident-store.mjs
+ * `clockHiddenHere`), so a "go" that moves nothing reads there as any "go" of the incident. In a Class Trial nobody's
+ * HUD is frozen, and the trial is the table's to see. Tier 2 E37-T9 (a player's page posed on the GM's).
  *
  * In the clock's family (clock.mjs, eclipse.mjs), and imported by the HUD and the panel with `import()`, as they import
  * eclipse.mjs; the bridge and the GM stores by `import()` as well, where a static import would close a cycle.
@@ -354,21 +363,24 @@ export async function answerOnPrimary(sender, { roundId, ready } = {}) {
 /**
  * END A ROUND, ON THE PRIMARY GM (the run of `ready.end`, and the primary's own): the GM went on (`outcome` "go") or
  * stopped it ("stop", the GM's Not now). The record stays with `ended` set, so a player's window closes and says which;
- * a round already ended, or another's id, is refused and writes nothing.
+ * a round already ended, or another's id, is refused and writes nothing. Answers `{ ended }`, with `barred: true` for a
+ * "go" written while a round may no longer run here (E37 fix FG1c): the caller moves nothing.
  */
 export async function endRoundOnPrimary({ roundId, outcome } = {}) {
     if (!game.user.isGM || !isPrimaryGm()) return { refused: "nothing was carried out: this browser is not the primary GM" };
     return serialWrite(READY_KEY, async () => {
         const record = readyRecord();
         if (!record?.id || record.id !== roundId || record.ended) return { refused: "nothing was carried out: that readiness round is not open" };
-        /* A "go" only over the round open at this clock, and while a round may run here (E37 fix FG1; the end review's
-           C-M1 and S-m3): a round the clock has left was moved past by another road, and an incident begun since the
-           round opened moves the clock in private - that round ends "stop", and its caller moves nothing. */
+        /* A "go" only over the round open at this clock (E37 fix FG1; the end review's C-M1): a round the clock has left
+           was moved past by another road. An incident or a Class Trial begun since the round opened bars the move (S-m3):
+           the round is written "go" all the same, as every player's page reads an unbarred one (E37 fix FG1c), and the
+           answer's `barred` tells the caller to move nothing. */
         const clock = getClock();
         if (outcome === "go" && roundOf(record, clock)?.id !== record.id) return { refused: "nothing was carried out: that readiness round is not open" };
-        const ended = outcome === "go" && await roundAllowed(clock) ? "go" : "stop";
+        const ended = outcome === "go" ? "go" : "stop";
+        const barred = ended === "go" && !await roundAllowed(clock);
         await game.settings.set(MODULE_ID, SETTINGS.readyRound, { ...record, ended });
-        return { reply: { ended } };
+        return { reply: barred ? { ended, barred } : { ended } };
     });
 }
 
@@ -423,14 +435,15 @@ async function askReadiness(kind) {
     if (res.value.cleared) ui.notifications.info(game.i18n.localize("DRPG.Ready.goneEnded"));
     const round = res.value.round ?? null;
     if (!round) return { go: true, choice: null, close: async () => true };
-    // True only when the primary took this GM's "go" (E37 fix FG1, C-M1): another GM's end, or a "stop" it made of it, moves nothing here.
+    // True only when the primary took this GM's "go" and nothing bars the move (E37 fix FG1, C-M1; FG1c): another GM's end, or a barred "go", moves nothing here.
     const close = async outcome => {
         const ended = await requestReadyEnd({ roundId: round.id, outcome });
         if (!ended.ok) error(`The readiness round ${round.id} was not ended on the primary GM (${ended.reason ?? "refused"})`);
-        const went = ended.ok && ended.value?.ended === "go";
-        if (outcome === "go" && !went) debug(`The readiness round ${round.id} was ended elsewhere, or stopped: this GM does not move the clock`);
-        // The primary made this GM's "go" a "stop": a round may no longer run here (an incident or a Class Trial began during it; FG1b).
-        if (outcome === "go" && ended.ok && ended.value?.ended === "stop") ui.notifications.info(game.i18n.localize("DRPG.Ready.barred"));
+        const barred = ended.ok && ended.value?.barred === true;
+        const went = ended.ok && ended.value?.ended === "go" && !barred;
+        if (outcome === "go" && !went) debug(`The readiness round ${round.id} was ended elsewhere, or barred: this GM does not move the clock`);
+        // The players read it as any "go"; this GM is told the clock stays (an incident or a Class Trial began during the round; FG1b, FG1c).
+        if (outcome === "go" && barred) ui.notifications.info(game.i18n.localize("DRPG.Ready.barred"));
         return went;
     };
     // The window is up on this browser already (a second press of the same GM): raised, and this press goes nowhere.
