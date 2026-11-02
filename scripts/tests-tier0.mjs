@@ -398,6 +398,24 @@ const REGRESSIONS = [
             // the one packet its listener still takes, a GM's ballot, names no id.
         };
 
+        /* THE FACADE'S ROW, PINNED (E41 fix FG3, 02.11.2026; the end review's S-n2). An exempt file is skipped whole
+           below, so gm-bridge.mjs's row holds only while what it excuses is what was read when it was written: the five
+           listeners gm-bridge.mjs registers at 69f8f661 (a GM's ready, the table file's `onSocket`, the opening roll's
+           ask and its withdrawal, the Level Up offers) and no run of BRIDGE_ACTIONS imported - a sixth listener acting
+           on a packet's id, or a run called past `judge`, would pass under the row unread. */
+        const facade = stripComments((await otherSources()).find(([file]) => file === "gm-bridge.mjs")?.[1] ?? "");
+        must(facade.length > 1000, "gm-bridge.mjs did not load - its row below would excuse nothing that was read");
+        const bridgeRuns = new Set(Object.values(tables.find(t => t.name === "BRIDGE_ACTIONS")?.table ?? {}).map(d => d.run?.name).filter(Boolean));
+        must(bridgeRuns.size >= 70, `${bridgeRuns.size} runs of BRIDGE_ACTIONS read (79 functions for its 88 rows at 69f8f661) - the pin below would compare nothing`);
+        const facadeImports = [...facade.matchAll(/^import\s*\{([^}]*)\}\s*from/gm)]
+            .flatMap(m => m[1].split(",").map(part => part.trim().split(/\s+as\s+/)[0])).filter(Boolean);
+        equal(JSON.stringify({ on: (facade.match(/game\.socket\.on\(/g) ?? []).length,
+            listeners: [...facade.matchAll(/game\.socket\.on\(\s*SOCKET_EVENT\s*,\s*(\w+)\s*\)/g)].map(m => m[1]).sort(),
+            runs: facadeImports.filter(name => bridgeRuns.has(name)) }),
+        JSON.stringify({ on: 5, listeners: ["onAdvancementOffers", "onGmReady", "onOpeningAsk", "onOpeningCancel", "onSocket"], runs: [] }),
+            "gm-bridge.mjs registers other listeners than its exemption row was written for, or imports a run of BRIDGE_ACTIONS - the row excuses what nobody read "
+            + "({ on: its game.socket.on calls, listeners: the handlers they name, runs: the runs it imports })");
+
         const tableFiles = new Set(tables.map(t => t.file));
         const leafSrc = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/bridge-guards.mjs`).then(lfText));
         const blind = [], idle = [];
@@ -4364,7 +4382,8 @@ const REGRESSIONS = [
             "the lost road refunds an action on a socket payload's word, which is ACT-12 "
             + "with the names changed");
 
-        const bridge = bridgeText(sources);
+        // The resolve's run itself (E41 fix FG3; STATUS E41 Open 13): the family's text matched 28 places of the field.
+        const bridge = bridgeFn(sources, "handleObserveResolve");
         ok(/actorId: payload\.actorId/.test(bridge),
             "the resolve packet's actor never reaches the resolver, so a lost record "
             + "cannot name who is waiting");
@@ -5594,14 +5613,30 @@ const REGRESSIONS = [
          * - fails rather than being skipped. The reader is shown planted faults first.
          */
         const G = await import("./bridge-guards.mjs");
+        /* A HANDED FUNCTION IT CANNOT FIND FAILS (E41 fix FG3, 02.11.2026; the end review's S-m2, STATUS E41 Open 31).
+           The lookup is the table's file, its family and bridge-guards.mjs; a run's helper moved into a file outside
+           them was skipped without a word, and what it reads of the packet with it. The names handed the packet that
+           are no function a file declares are listed, each with its reason, and a listed name nothing hands it any more
+           fails, so the list cannot outlive what it excuses. Measured at 69f8f661: `guard` alone. */
+        const NOT_A_FUNCTION = {
+            guard: "bridge-guards.mjs `firstRefusal`'s parameter: each guard it is handed is named by the run that hands it (call.arm's `handleArm`) and is a guard of the leaf, read by R1b and R164"
+        };
+        const excused = new Set();
+        const unfound = (label, what, names) => {
+            for (const name of names) if (Object.hasOwn(NOT_A_FUNCTION, name)) excused.add(name);
+            const left = names.filter(name => !Object.hasOwn(NOT_A_FUNCTION, name));
+            must(!left.length, `${label}: its ${what} hands the packet to ${left.join(", ")}, which neither its table's family nor bridge-guards.mjs declares - this reads nothing of what it reads`);
+        };
         const problemsOf = (label, decl, lookup) => {
             const r = payloadReads(decl, lookup);
+            unfound(label, "run", r.missing);
             // The runner reads the roll a result comes from in the run's copy (E08+E28 C14, bridge-guards.mjs `judge`):
             // since C15 each of a list, and the fields a path, `when` and `kindAt` start from; since C16 what a
             // `derive` reads of the copy it is handed (bridge-runs-records.mjs `progressOf`), read as a run's reads are; since
             // fix r2-H1 the paths a `named` field is compared with (a crisis roll's `key`).
             for (const rolled of G.rollsOf(decl)) {
-                const derived = rolled.derive ? payloadReads({ run: rolled.derive }, lookup) : { fields: [], unreadable: [] };
+                const derived = rolled.derive ? payloadReads({ run: rolled.derive }, lookup) : { fields: [], unreadable: [], missing: [] };
+                unfound(label, "derive", derived.missing);
                 r.unreadable.push(...derived.unreadable);
                 r.fields = [...new Set([...r.fields, rolled.field, ...derived.fields,
                     ...[rolled.actor, rolled.when, rolled.kindAt, ...Object.values(rolled.named ?? {})].filter(Boolean).map(path => path.split(".")[0])])];
@@ -5642,7 +5677,11 @@ const REGRESSIONS = [
             }
         }
         log(`R163: ${runs} runs read, and ${handed} functions they hand their payload to`);
-        ok(runs >= 37, `only ${runs} runs were read - the tables are not where this test looks`);
+        // Floors at the counts measured at 69f8f661 (E41 fix FG3): a stage that adds a run or a handed function raises them, one that loses either fails.
+        ok(runs >= 88, `only ${runs} runs were read, at least 88 measured at 69f8f661 - the tables are not where this test looks`);
+        ok(handed >= 9, `only ${handed} functions a run hands its payload to were followed, at least 9 measured at 69f8f661 - a helper left the files this reads`);
+        equal(JSON.stringify([...excused].sort()), JSON.stringify(Object.keys(NOT_A_FUNCTION).sort()),
+            "a name R163 excuses as no function is handed no packet any more - the list outlives what it excuses");
         ok(!problems.length, `a run and its whitelist disagree: ${problems.join("; ")}`);
     }],
 
@@ -5811,7 +5850,10 @@ const REGRESSIONS = [
             ["e", /^(?:x|y) tail$/]])), JSON.stringify(["a", "d"]),
             "the reader of the patterns' first words does not find the two planted for it");
         equal(JSON.stringify(wildStart(G.REASON_PATTERNS)), "[]", "a reason's pattern begins with a wildcard, which a value could fill");
-        ok(distinct >= 75, `only ${distinct} reasons were read - the reader has lost the guards, the runs or the functions they ask`);
+        // Floors at the counts measured at 69f8f661 (E41 fix FG3; the end review's S-m2): a stage that adds raises them, one that loses fails.
+        ok(distinct >= 293, `only ${distinct} reasons were read, at least 293 measured at 69f8f661 - the reader has lost the guards, the runs or the functions they ask`);
+        ok(read.texts.length >= 435, `only ${read.texts.length} places a reason is given were read, at least 435 measured at 69f8f661 - a function that refuses left the files this reads`);
+        ok(functions.length >= 259, `only ${functions.length} functions were read for their reasons, at least 259 measured at 69f8f661 - the crawl lost a file`);
         ok(!read.problems.length, `the bridge's reasons: ${read.problems.join("; ")}`);
     }],
 
@@ -5931,8 +5973,9 @@ const REGRESSIONS = [
         const byFile = new Map();
         for (const file of cutIn.values()) byFile.set(file, (byFile.get(file) ?? 0) + 1);
         log(`R1235: the crawl over BRIDGE_ACTIONS cuts ${cutIn.size} functions: ${[...byFile].map(([file, n]) => `${n} in ${file}`).join(", ")}`);
-        // 161 functions over the four tables, measured at E41 C2 (02.11.2026; a name two tables reach is counted twice).
-        ok(runs >= 37 && reached >= 150, `only ${runs} runs and ${reached} crawled functions were read - the tables are not where this test looks`);
+        // 161 functions over the four tables, measured at E41 C2 (02.11.2026; a name two tables reach is counted twice) and at
+        // 69f8f661; the floors are those counts since E41 fix FG3 (the end review's S-m2): a stage that adds raises them, one that loses fails.
+        ok(runs >= 88 && reached >= 161, `only ${runs} runs and ${reached} crawled functions were read, at least 88 and 161 measured at 69f8f661 - the tables are not where this test looks, or a function left the files the crawl cuts`);
     }],
 
     ["R1238 - every reader of the bridge's code reads its family: a function is cut in the one file of it that declares it, a search reads every file of it, and a census key names gm-bridge.mjs", async () => {

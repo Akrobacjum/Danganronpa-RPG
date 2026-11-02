@@ -1613,10 +1613,13 @@ function bridgeTableProblems(tables, { en, pl, guards, reasons = [], told = [] }
  * function's source by name or null), and in its `runGuards`, which are asked
  * with the run's copy. `unreadable` names the forms a text reader cannot follow
  * - a computed read, a spread, a destructuring of the whole packet - which R163
- * fails rather than skips.
+ * fails rather than skips; `missing` the names it hands `payload` to that `lookup`
+ * cannot find, which R163 fails on too (E41 fix FG3, the end review's S-m2): a helper
+ * moved into a file outside the table's family was skipped here without a word, and
+ * a field the whitelist drops read as nothing.
  */
 function payloadReads(decl, lookup) {
-    const sources = [], seen = new Set();
+    const sources = [], seen = new Set(), missing = [];
     const queue = [stripComments(String(decl.run ?? ""))];
     while (queue.length) {
         const source = queue.shift();
@@ -1627,6 +1630,7 @@ function payloadReads(decl, lookup) {
             seen.add(m[1]);
             const found = lookup(m[1]);
             if (found) queue.push(stripComments(found));
+            else missing.push(m[1]);
         }
     }
     for (const guard of decl.runGuards ?? []) sources.push(stripComments(String(guard)));
@@ -1637,7 +1641,7 @@ function payloadReads(decl, lookup) {
         if (/\.\.\.\s*payload\b(?!\s*\??\.)/.test(source)) unreadable.add("...payload");
         if (/\}\s*=\s*payload\b(?!\s*\??\.)/.test(source)) unreadable.add("{ ... } = payload");
     }
-    return { fields: [...fields].sort(), unreadable: [...unreadable], handedTo: [...seen] };
+    return { fields: [...fields].sort(), unreadable: [...unreadable], handedTo: [...seen], missing };
 }
 
 /*
