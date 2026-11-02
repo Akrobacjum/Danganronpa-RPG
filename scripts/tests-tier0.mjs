@@ -15,7 +15,7 @@ import {
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
-    bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
+    bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists
 } from "./tests-kit.mjs";
@@ -1951,7 +1951,8 @@ const REGRESSIONS = [
          * ACT-07 (17.09). Seven actions charged after the roll and ignored a refused
          * charge, so one action bought as many results as there were windows open.
          */
-        const rolls = stripComments(new Map(await otherSources()).get("action-rolls.mjs") ?? "");
+        // E41 C3 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read.
+        const rolls = stripComments(actionText(await otherSources()));
         ok(!/if\s*\(cost\s*>\s*0\)\s*await spendAction\(/.test(rolls),
             "an action charges without reading whether the charge went through");
         ok(!/if\s*\(!options\.free\)\s*await spendAction\(/.test(rolls),
@@ -1973,7 +1974,8 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const tokens = stripComments(sources.get("search-tokens.mjs") ?? "");
-        const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
+        // E41 C3 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read.
+        const rolls = stripComments(actionText(sources));
         // The two are runs of SEARCH_ACTIONS since E31 (25.09.2026), each a function of its own.
         ok(!/takePlant/.test(fnSource(tokens, "runSpend")), "the token spend takes the plant out of the room again");
         ok(/searchedBy\.get\(/.test(fnSource(tokens, "runTakePlant")),
@@ -2069,9 +2071,10 @@ const REGRESSIONS = [
          * has landed (see `abort`'s `rolled`).
          */
         const sources = new Map(await otherSources());
-        const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
+        // E41 C3 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read.
+        const rolls = stripComments(actionText(sources));
         const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
-        for (const [file, src] of [["action-rolls.mjs", rolls], ["cleanup.mjs", cleanup]]) {
+        for (const [file, src] of [["the action family", rolls], ["cleanup.mjs", cleanup]]) {
             ok(!/DialogV2\.confirm\([\s\S]{0,400}?(carryOn|CarryOn)/.test(src),
                 `${file} asks whether to carry on after a concealment roll again`);
         }
@@ -2143,7 +2146,8 @@ const REGRESSIONS = [
         const sources = new Map(await otherSources());
         const forced = stripComments(sources.get("forced-roll.mjs") ?? "");
         const dialog = stripComments(sources.get("roll-dialog.mjs") ?? "");
-        const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
+        // E41 C3 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read.
+        const rolls = stripComments(actionText(sources));
         ok(!/let armed\b/.test(forced) && !/armOneMaximum/.test(rolls),
             "the Loaded Die is armed for the whole client again");
         ok(/function onConfigured\(roll,\s*config\)[\s\S]{0,80}LOADED_DIE/.test(forced),
@@ -2304,7 +2308,8 @@ const REGRESSIONS = [
         // The question alone, never the one that toasts: a window opening with no
         // GM connected must not warn every player who opens it (audit A16).
         ok(trialSrc.includes("gmOnline("), "the Objection stopped asking whether a GM is connected");
-        for (const file of ["trial", "sheet", "action-rolls", "cleanup"]) {
+        // E41 C3 (1.2.97): every file of the action family (the kit's ACTION_FAMILY), where action-rolls.mjs alone was read.
+        for (const file of ["trial", "sheet", ...ACTION_FAMILY.map(f => f.replace(/\.mjs$/, "")), "cleanup"]) {
             const src = stripComments(
                 await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(lfText));
             ok(!/[^A-Za-z]hasGm\(/.test(src),
@@ -2365,8 +2370,8 @@ const REGRESSIONS = [
          * ruling card that offers a refund carries the NAME of the step rather than
          * an amount - because that card is authored on the player's own client.
          */
-        const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText));
+        // E41 C3 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read.
+        const src = stripComments(actionText(await otherSources()));
         const analyze = bodyOf(src, "async function performAnalyze", { until: "async function analyseBullet" });
         ok(analyze.length > 500, "performAnalyze moved or vanished");
 
@@ -4250,7 +4255,8 @@ const REGRESSIONS = [
          * asking a human was the cheaper way to look.
          */
         const sources = new Map(await otherSources());
-        const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
+        // E41 C3 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read.
+        const rolls = stripComments(actionText(sources));
 
         const builder = bodyOf(rolls, "function declineAction", { until: "function missAction" });
         ok(builder.length > 200, "the refusal button is hand-written again");
@@ -11964,7 +11970,8 @@ const REGRESSIONS = [
                 daily: { player: /Na wierszu Daily Life nie jest też liczony żaden rzut: żaden ślad nie jest tego rodzaju\. To drabina, którą briefing Observe/,
                     gm: /Na kolumnie Daily Life nie jest liczony żaden rzut: żaden ślad nie jest tego rodzaju\. To drabina, którą briefing Observe/ } }
         };
-        const rolls = stripComments(new Map(await otherSources()).get("action-rolls.mjs") ?? "");
+        // E41 C3 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read.
+        const rolls = stripComments(actionText(await otherSources()));
         const menu = bodyOf(fnSource(rolls, "chooseTamper"), "options: [", { until: "...(stageSix" });
         const things = [...menu.matchAll(/\bvalue:\s*"\w+"/g)].length;
         ok(things > 0, "chooseTamper's menu was read and offers nothing - this test measured nothing");
@@ -14167,8 +14174,9 @@ const REGRESSIONS = [
         equal(JSON.stringify(found('const outcome = { text: res.ok ? game.i18n.format("DRPG.Planted.sent", { name: esc(victim.name) }) : "" };')),
             JSON.stringify(["DRPG.Planted.sent"]), "the reader misses a planted double escape - it would measure nothing");
         const sources = new Map(await otherSources());
-        const read = ["action-rolls.mjs", "frisk.mjs"].map(file => [file, sources.get(file) ?? ""]);
-        must(read.every(([, text]) => text.length > 1000), "action-rolls.mjs or frisk.mjs was not read - this would measure nothing");
+        // E41 C3 (1.2.97): every file of the action family (the kit's ACTION_FAMILY), where action-rolls.mjs alone was read.
+        const read = [...ACTION_FAMILY, "frisk.mjs"].map(file => [file, sources.get(file) ?? ""]);
+        must(read.every(([, text]) => text.length > 1000), "a file of the action family or frisk.mjs was not read - this would measure nothing");
         equal(JSON.stringify(read.flatMap(([file, text]) => found(text).map(key => `${file} ${key}`))), JSON.stringify([]),
             "an outcome's line formats an escaped name, and report escapes it again: the card shows the entity");
     }],
@@ -16611,7 +16619,8 @@ const REGRESSIONS = [
          * drawn by call-pickers.mjs `callWindow`, which names `drpg-panel` for every Call window (R1110 holds both), so
          * this crawl reads 30 (counted 30.10.2026) and the plant's place is any of the other windows.
          */
-        const FILES = ["action-rolls.mjs", "observe.mjs", "frisk.mjs", "search-tokens.mjs", "use-items.mjs", "murder-ui.mjs",
+        // E41 C3 (1.2.97): every file of the action family (the kit's ACTION_FAMILY), where action-rolls.mjs alone was read.
+        const FILES = [...ACTION_FAMILY, "observe.mjs", "frisk.mjs", "search-tokens.mjs", "use-items.mjs", "murder-ui.mjs",
             "projects-ui.mjs", "monocub.mjs", "cleanup.mjs"];
         const KEPT = {};
         const OPENS = /\b(DialogV2\.(?:wait|confirm|prompt|input)|new\s+(?:foundry\.applications\.api\.)?DialogV2|tableDialog|new\s+\w*Application\w*)\s*\(/g;
@@ -16658,7 +16667,8 @@ const REGRESSIONS = [
          * performer of its own (performAction's switch, read; E41 C1a deleted `performGeneric`, the one call whose key
          * was a variable, R1230). Red at C1's parent: crisis and murderOpening passed none.
          */
-        const FILES = ["action-rolls.mjs", "frisk.mjs", "murder-rules.mjs", "cleanup.mjs", "use-items.mjs", "observe.mjs"];
+        // E41 C3 (1.2.97): every file of the action family (the kit's ACTION_FAMILY), where action-rolls.mjs alone was read.
+        const FILES = [...ACTION_FAMILY, "frisk.mjs", "murder-rules.mjs", "cleanup.mjs", "use-items.mjs", "observe.mjs"];
         const palm = ACTIONS.palm;
         const num = v => Number.isFinite(v);
         const RULED = {
@@ -16731,7 +16741,8 @@ const REGRESSIONS = [
          * (styles/danganronpa.css, the variant menu). The slice calls the picker `chooseAnalyze`; it is
          * `askWhatToAnalyze` here. Red at C1's parent: no `when` on the block, and no rule for `hint`.
          */
-        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText));
+        // E41 C3 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read.
+        const src = stripComments(actionText(await otherSources()));
         const picker = fnSource(src, "askWhatToAnalyze");
         const field = fnSource(src, "requestFieldHtml");
         const block = bodyOf(picker, "requestFieldHtml(", { until: "}`" });

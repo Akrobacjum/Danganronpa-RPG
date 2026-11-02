@@ -127,7 +127,8 @@ export const SCREENS = Object.freeze([
     row("which-resource", "which resource an item restores", "window", "both", ["scripts/use-items.mjs:askWhichResource"], { stage: "E18" }),
     row("camera-views", "the camera dock's views", "tiles", "both", ["scripts/camera-view.mjs:*"], { stage: "E19" }),
     /* The rest of the module's windows and flows, a row a file or a family. */
-    row("action-tiles", "the action tiles and the actions", "tiles", "both", ["scripts/action-rolls.mjs:*", "scripts/actions.mjs:*"],
+    row("action-tiles", "the action tiles and the actions", "tiles", "both", ["scripts/action-rolls.mjs:*", "scripts/action-pipeline.mjs:*",
+        "scripts/action-report.mjs:*", "scripts/action-briefing.mjs:*", "scripts/action-menus.mjs:*", "scripts/actions.mjs:*"],
         { texts: "rule", prefixes: ["DRPG.Config.ACTIONS."], note: "an action's hint states its rule" }),
     row("calls", "Hope and Despair Calls", "flow", "both", ["scripts/calls.mjs:*", "scripts/call-effects.mjs:*", "scripts/call-pickers.mjs:*", "scripts/call-world.mjs:*"],
         { texts: "rule", note: "a Call's effect states its rule" }),

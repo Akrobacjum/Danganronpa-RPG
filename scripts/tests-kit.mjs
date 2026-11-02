@@ -1272,6 +1272,30 @@ function censusFile(file, family = bridgeFamily()) {
 }
 
 /**
+ * The action family (E41 C3): action-rolls.mjs - the facade, which keeps `performAction`, its dispatch and the actions
+ * not moved yet - and the files the split moved code into: the roll and its record (action-pipeline.mjs), the roll's
+ * card (action-report.mjs), the briefing (action-briefing.mjs) and the variant menu with its fields
+ * (action-menus.mjs). E41 C4 adds the actions' files here, so a reader of the family is not repointed again.
+ */
+const ACTION_FAMILY = Object.freeze(["action-rolls.mjs", "action-pipeline.mjs", "action-report.mjs", "action-briefing.mjs", "action-menus.mjs"]);
+
+/** The line `actionText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
+const ACTION_FAMILY_END = "const ACTION_FAMILY_END = {};";
+
+/**
+ * The action family's texts, raw, in ACTION_FAMILY's order, joined by the line `const ACTION_FAMILY_END = {};` (E41 C3):
+ * what a read of action-rolls.mjs's whole text read while the actions were one file. A reader strips the comments
+ * itself, as it did; a `fnSource` or `topLevelFunction` of the text cuts a function in its own file. A file of the
+ * family that is not among `sources` refuses by `must`, by name.
+ */
+function actionText(sources, family = ACTION_FAMILY) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string");
+    must(!gone.length, `${gone.join(", ")}, of the action family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`);
+    return family.map(file => map.get(file)).join(`\n${ACTION_FAMILY_END}\n`);
+}
+
+/**
  * Everything wrong with the bridge's tables, one sentence each (R1b). Pure: it
  * is handed the tables (as `bridgeTables()` gives them), the language keys of
  * each file, flattened, and bridge-guards.mjs's namespace, so R1b can run it on
@@ -2140,7 +2164,7 @@ export {
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, styleCascade, bodyOf, topLevelFunction, fnSource, lineAround,
-    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeCut, bridgeLookup, bridgeCrawl, bridgeFamily, bridgeRead, bridgeFn, bridgeText, censusFile, BRIDGE_FAMILY_END, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
+    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeCut, bridgeLookup, bridgeCrawl, bridgeFamily, bridgeRead, bridgeFn, bridgeText, censusFile, BRIDGE_FAMILY_END, ACTION_FAMILY, actionText, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
     flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem, TEXT_BASELINES, textAgainstBaseline, textStaleRow,
     textTableWords, textLegacyLists,

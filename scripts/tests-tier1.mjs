@@ -22,7 +22,7 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText, expectedRed, stripStrings, bridgeFn, bridgeText
+    worldDump, dumpDiff, lfText, expectedRed, stripStrings, bridgeFn, bridgeText, ACTION_FAMILY, actionText
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -477,7 +477,8 @@ const INVARIANTS = [
          */
         const sources = new Map(await otherSources());
         const config = stripComments(sources.get("config.mjs") ?? "");
-        const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
+        // E41 C3 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read.
+        const rolls = stripComments(actionText(sources));
         const items = stripComments(sources.get("use-items.mjs") ?? "");
         ok(config.length > 1000 && rolls.length > 1000, "the sources did not load");
 
@@ -1562,7 +1563,8 @@ const INVARIANTS = [
         const sources = new Map(await otherSources());
         const effects = stripComments(sources.get("call-effects.mjs") ?? "");
         const dialog = stripComments(sources.get("roll-dialog.mjs") ?? "");
-        const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
+        // E41 C3 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read.
+        const rolls = stripComments(actionText(sources));
         const bridge = bridgeText(sources);
 
         ok(/export function pendingCalls\(/.test(effects), "the armed Calls are a single slot again");
@@ -9164,7 +9166,8 @@ const INVARIANTS = [
         const list = name => JSON.parse(bodyOf(popup, `const ${name} = `, { until: ";" }).replace(`const ${name} = `, ""));
         const FORBIDDEN = /^(drpg-popup|drpg-notices-|drpg-corner-tail|application$|window-|inline-roll$|content-link$|fa-)/;
         const grep = new Set();
-        for (const file of ["day-summary.mjs", "popup.mjs", "secret.mjs", "messenger-app.mjs", "trial.mjs", "safeword.mjs", "action-rolls.mjs"]) {
+        // E41 C3 (1.2.97): every file of the action family (the kit's ACTION_FAMILY), where action-rolls.mjs alone was read.
+        for (const file of ["day-summary.mjs", "popup.mjs", "secret.mjs", "messenger-app.mjs", "trial.mjs", "safeword.mjs", ...ACTION_FAMILY]) {
             const src = stripComments(sources.get(file) ?? "");
             must(src.length > 0, `${file} was not read - the class grep would be measured on nothing`);
             for (const m of src.matchAll(/class=(["'])/g)) {

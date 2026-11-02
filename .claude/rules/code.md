@@ -46,6 +46,10 @@ character.mjs is a cut route the tool does not count: a wave that moves one coun
 | `scripts/call-effects.mjs` | the Calls' core: the shield and the situational dice, the armed Calls, the Confusions' store, copy and socket, the effects and `applyCall`; 33 names of its own, 12 re-exported | itself (the family's top) |
 | `scripts/call-pickers.mjs` | the windows a Call opens to ask what it is pointed at (`pickTarget` and its pickers) | `call-effects.mjs` |
 | `scripts/call-world.mjs` | sealed rooms, the silence and the chain, and the called assembly: their readers and writers | `call-effects.mjs` |
+| `scripts/action-pipeline.mjs` | an action's roll and what is kept of it (E41 C3): `rollTrait`, `throwDice` and the marks on its config, `toolRelief`, `neededNote`, the roll this browser holds and tells the GMs of (its bookmarks, claims and facts), the GMs' Reroll bookmark, `dualityOf`, `commitResources`, an action's price and its refund (`canAfford`, `abort`, `spentAfterRoll`), and the buttons of a card a GM rules on (`roomAudience`, `declineAction`, `ruledMissAction`, `missAction`, `gmRulingActions`); 31 names exported, 24 of them re-exported | `action-rolls.mjs` |
+| `scripts/action-report.mjs` | the card an action's roll ends on (E41 C3): `report`, `rollHead`, `rollCardFlags`, `rollTone`, the duality bar, the dice's settle and the card named on the GMs' bookmark (`nameReportCard`) | `action-rolls.mjs` |
+| `scripts/action-briefing.mjs` | the briefing an action opens with (E41 C3): `briefingBlock`, `briefingFacts` with the Move's line (`moveLine`), the ladders and thresholds, Move's own briefing window (`briefing`) and Tamper's erase ladder (`tamperThresholdFacts`) | `action-rolls.mjs` |
+| `scripts/action-menus.mjs` | the windows an action asks its question in (E41 C3): `chooseVariant` and its confirm label, the statistic picker, the request box (`requestFieldHtml`, `readRequestField`) and a parked declaration's sentence (`promptForNote`) | `action-rolls.mjs` |
 
 That is wave 1 (E34, 1.2.70) whole: five families, eleven new files, 133 module
 files in `scripts/` where 1.2.69 had 122. A stage that changes the incident, the

@@ -30,7 +30,7 @@
  * extra of the three whispers), read the same way through local variables:
  *   - `owner`    whisperToOwner / whisperToOwnerOnly: the actor's owners (whisperToOwner adds the GMs a copy: `copy`);
  *   - `gms`      whisperToGms, or `gmIds()` / `activeGmIds()` in a list;
- *   - `room`     `roomAudience(...)` (action-rolls.mjs: the GMs, the actor's player and everyone in the room);
+ *   - `room`     `roomAudience(...)` (action-pipeline.mjs: the GMs, the actor's player and everyone in the room);
  *   - `incident` `incidentAudienceIds(...)` (incident-store.mjs: the incident's cast as it may know it);
  *   - `everyone` a card with no whisper list (the world voice);
  *   - `browser`  a notification: this browser's user alone;
