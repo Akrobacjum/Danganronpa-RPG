@@ -15,7 +15,7 @@ import {
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
-    bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
+    bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists
 } from "./tests-kit.mjs";
@@ -640,7 +640,8 @@ const REGRESSIONS = [
          */
         const guilty = [];
         for (const [file, raw] of await otherSources()) {
-            if (file === "sfx.mjs") continue;   // the player itself, GM-agnostic
+            // E41 C9a (1.2.97): the player moved from sfx.mjs into sfx-play.mjs; both are the player, as sfx.mjs was.
+            if (file === "sfx.mjs" || file === "sfx-play.mjs") continue;   // the player itself, GM-agnostic
             const text = stripComments(raw);
             const starts = [...text.matchAll(
                 /^(?:export\s+)?(?:async\s+)?function\s+(\w+)|^(?:export\s+)?const\s+(\w+)\s*=/gm)];
@@ -3560,7 +3561,8 @@ const REGRESSIONS = [
         // NOT NARROWED TO THE WINDOW IT WAS FOUND IN. The Sound window's cue picker
         // is the same shape - a select and a button in one fieldset - where Enter was
         // merely dead rather than destructive.
-        const music = stripComments(sources.get("music.mjs") ?? "");
+        // E41 C9a (1.2.97): music.mjs's code left it for music-play, music-states, sound-panel and murder-music.mjs; the music's family's text (the kit's `musicText`).
+        const music = stripComments(musicText(sources));
         ok(/name="playTrack"[\s\S]{0,80}data-drpg-enter="\[data-drpg-play\]"/.test(music),
             "the cue picker's Enter still does nothing");
     }],
@@ -3577,7 +3579,8 @@ const REGRESSIONS = [
          * makes live.mjs reject every module setting key, and the playlist documents
          * are what it actually listens to.
          */
-        const music = stripComments(new Map(await otherSources()).get("music.mjs") ?? "");
+        // E41 C9a (1.2.97): music.mjs's code left it for music-play, music-states, sound-panel and murder-music.mjs; the music's family's text (the kit's `musicText`).
+        const music = stripComments(musicText(await otherSources()));
         const pane = bodyOf(music, "function soundPlayPane(", { length: 600 });
         ok(/function soundPlayPane\(\)\s*\{/.test(music) && /situationalPlaylist\(\)/.test(pane),
             "the cue pane is handed its playlist when the window opens, so the picker cannot see a "
@@ -7539,11 +7542,11 @@ const REGRESSIONS = [
             ["movement.mjs", "sendBack", "tokenDoc", "a token put back where it stood before a refused move"],
             ["murder-rules.mjs", "undoLastCrisis", "scene.tokens.get()", "the trace token the crisis action left"],
             ["murder-rules.mjs", "undoLastCrisis", "game.messages.get()", "the crisis action's card"],
-            ["music.mjs", "pausePlaylist", "playlist", "a playlist paused"],
-            ["music.mjs", "clearHeld", "playlist", "a playlist let go"],
-            ["music.mjs", "rewindTo", "playlist", "a playlist moved to a track"],
-            ["music.mjs", "stopPlaylistDead", "playlist", "a playlist stopped"],
-            ["music.mjs", "wireSoundPlay", "Playlist", "the situational playlist, made from the sound window"],
+            // E41 C9a (1.2.97): the music's engine moved to music-play.mjs, the Sound window to sound-panel.mjs.
+            ["music-play.mjs", "pausePlaylist", "playlist", "a playlist paused"],
+            ["music-play.mjs", "clearHeld", "playlist", "a playlist let go"],
+            ["music-play.mjs", "rewindTo", "playlist", "a playlist moved to a track"],
+            ["music-play.mjs", "stopPlaylistDead", "playlist", "a playlist stopped"],
             ["notice-history.mjs", "updateNotice", "engine", "the notice history's own engine, not a document: a kept entry's state or snapshot, in this browser's setting (E81 C3; R293)"],
             ["passages-gm.mjs", "crossTunnel", "doc", "a token moved through a tunnel by the primary GM: 'Go through', its default write, the crossing judged and paid before it (E80 C2; a bridge run, gated on the primary)"],
             ["projects-tray.mjs", "leaveIconOnly", "game.user", "the user's own view of the projects tray"],
@@ -7559,6 +7562,7 @@ const REGRESSIONS = [
             ["season-setup.mjs", "wipeSeason", "scene", "the season's tokens on the scene"],
             ["season-setup.mjs", "wipeSeason", "region", "a room's region flags"],
             ["secret.mjs", "post", "ChatMessage", "a secret's card"],
+            ["sound-panel.mjs", "wireSoundPlay", "Playlist", "the situational playlist, made from the sound window"],
             ["tables-editor.mjs", "addResult", "table", "a pool table's result"],
             ["tables-editor.mjs", "editResult", "result", "a pool table's result"],
             ["tables-editor.mjs", "dropResult", "table", "a pool table's result"],
@@ -16679,8 +16683,10 @@ const REGRESSIONS = [
          * The reader is run first on a planted body. Red at C3's parent: the eight reasons, the warning's join and the
          * report's lines.
          */
-        const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
-        const [sfx, music] = await Promise.all([read("sfx.mjs"), read("music.mjs")]);
+        // E41 C9a (1.2.97): `testSfx` left sfx.mjs for sfx-play.mjs, and music.mjs's code its family; each family's files
+        // served, read as one text (the kit's `sfxText`, `musicText`).
+        const served = new Map(await Promise.all([...SFX_FAMILY, ...MUSIC_FAMILY].map(async file => [file, await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText)])));
+        const [sfx, music] = [sfxText(served), musicText(served)].map(text => stripComments(text));
         must(sfx.length > 1000 && music.length > 1000, "sfx.mjs or music.mjs was not served - this test reads nothing until it is");
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());

@@ -22,7 +22,7 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText, expectedRed, stripStrings, bridgeFn, bridgeText, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText
+    worldDump, dumpDiff, lfText, expectedRed, stripStrings, bridgeFn, bridgeText, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, musicText, sfxText
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -1260,8 +1260,8 @@ const INVARIANTS = [
 
         const files = [
             // E41 C6 and C8 (1.2.97): Room Setup and the stashes' inspector left vault.mjs, the item tables window
-            // tables.mjs; each is read in the file it stands in.
-            "music", "investigation", "trial-floor-ui", "projects-ui", "room-setup", "stash-reach",
+            // tables.mjs; each is read in the file it stands in. E41 C9a: the Sound window left music.mjs.
+            "sound-panel", "investigation", "trial-floor-ui", "projects-ui", "room-setup", "stash-reach",
             "tables-editor", "season-setup", "mastermind", "rules", "monocub",
             "gm-team-dialog", "gm-items", "gm-panel", "gm-students", "gm-campaign", "murder", "murder-ui", "voice", "trial"
         ];
@@ -20841,7 +20841,8 @@ const INVARIANTS = [
             await M.restoreDuckedMusic({ parked: () => parked, setVolume: v => writes.push(["volume", v]), park: v => writes.push(["park", v]) });
             return writes;
         };
-        const music = stripComments((await moduleSources()).get("music.mjs") ?? "");
+        // E41 C9a (1.2.97): music.mjs's code left it for music-play, music-states, sound-panel and murder-music.mjs; the music's family's text (the kit's `musicText`).
+        const music = stripComments(musicText(await moduleSources()));
         must(music.length, "music.mjs is not among the module's sources - this would measure nothing");
         const writes = pattern => [...music.matchAll(pattern)].map(m => lineAround(music, m.index).trim());
         const restore = fnSource(music, "restoreDuckedMusic");
@@ -20944,7 +20945,8 @@ const INVARIANTS = [
         now2.playing = true; fire(now2);
         const afterRelease2 = read()[0].length;
 
-        const music = stripComments((await moduleSources()).get("music.mjs") ?? "");
+        // E41 C9a (1.2.97): music.mjs's code left it for music-play, music-states, sound-panel and murder-music.mjs; the music's family's text (the kit's `musicText`).
+        const music = stripComments(musicText(await moduleSources()));
         must(music.length, "music.mjs is not among the module's sources - this would measure nothing");
         const mapFollowed = /SETTINGS\.musicMap\}`\)[\s\S]{0,120}?applyMurderMusic\(/.test(fnSource(music, "registerMusic"));
         equal(stableJson([
@@ -21019,7 +21021,8 @@ const INVARIANTS = [
             ["a mapped state", M.cueGivesWay("trial.discussion", "time.afternoon", { mapped: true, silent: false })],
             ["an unmapped state", M.cueGivesWay("time.evening", "time.afternoon", { mapped: false, silent: false })],
             ["the body's silence", M.cueGivesWay("bodyFound", "time.afternoon", { mapped: false, silent: true })]];
-        const music = stripComments((await moduleSources()).get("music.mjs") ?? "");
+        // E41 C9a (1.2.97): music.mjs's code left it for music-play, music-states, sound-panel and murder-music.mjs; the music's family's text (the kit's `musicText`).
+        const music = stripComments(musicText(await moduleSources()));
         must(music.length, "music.mjs is not among the module's sources - this would measure nothing");
         const apply = fnSource(music, "apply"), crossfade = fnSource(music, "crossfade");
         const takeover = /await stopInterruption\(\);[\s\S]{0,900}?clearHeld\(/.test(apply);
@@ -21126,7 +21129,8 @@ const INVARIANTS = [
          * lang/pl.json's DRPG.Config row; the Safety group's own note repeated the row under it (S11-21).
          */
         const raw = (await moduleSources()).get("config.mjs") ?? "";
-        const sfx = stripComments((await moduleSources()).get("sfx.mjs") ?? "");
+        // E41 C9a (1.2.97): sfx.mjs's player left it for sfx-play.mjs; the sound engine's family's text (the kit's `sfxText`).
+        const sfx = stripComments(sfxText(await moduleSources()));
         must(raw.length && sfx.length, "config.mjs or sfx.mjs is not among the module's sources - this would measure nothing");
         const hintOf = block => (block.match(/hint: "([^"]*)"/) ?? [])[1] ?? "";
         const enEvent = hintOf(bodyOf(raw, "    safeword: {", { until: "}," }));

@@ -175,10 +175,15 @@ const SUITE_FILE = /^scripts\/tests[^/]*\.mjs$/;
 // tree, 559 at C5a's, measured on a dry run of C5a). What the run-on gave the crawls - the names the table's
 // declarations call - they read off the declaration since C5a0, and R164's reasons and places read the same with it and
 // without it (293 and 435, measured on C5a's tree with the crawl as C2b left it): read by hand for C5a.
+// E41 C9a moves music.mjs's `dropCueMappings` into music-states.mjs, whose statements after it - the settle window
+// and `playingState` - went to music-play.mjs: in its base order its cut grew into the map's write queue (779 -> 811),
+// so the mover writes it last in the file and the cut is the function alone (779 -> 551, measured on C9a's tree).
+// The one tier file that names it, R1067, calls it through music.mjs and cuts nothing of it: read by hand for C9a.
 const SHRINK_LISTED = new Map([
     ["scripts/murder.mjs#retireOpeningNotices", { from: 279, to: 252, why: "C7a, R220 read by hand" }],
     ["scripts/gm-bridge.mjs#handleCardPost", { from: 44598, to: 559, why: "E41 C5a, R164 and the crawls read by hand" }],
-    ["scripts/hud.mjs#paintElapsed", { from: 747, to: 638, why: "E41 C7b, R319 and R996 read by hand" }]
+    ["scripts/hud.mjs#paintElapsed", { from: 747, to: 638, why: "E41 C7b, R319 and R996 read by hand" }],
+    ["scripts/music.mjs#dropCueMappings", { from: 779, to: 551, why: "E41 C9a, R1067 read by hand" }]
 ]);
 const PARTS = ["self", "lines", "statements", "bindings", "api", "cuts", "jsdoc", "imports"];
 
