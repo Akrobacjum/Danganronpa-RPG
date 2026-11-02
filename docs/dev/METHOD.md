@@ -104,8 +104,9 @@ public clock setting every player's browser holds).
 1. **The CRLF runs** (decision D198 (2), the owner, 01.11.2026). Two runs on a checkout with Windows line ends, as a
    Windows GM's copy reads. *The CRLF dispatch* - the CI workflow dispatched with `crlf` ticked: `crlf-quick` (lint,
    check and gate) and `crlf-suite`, the suite in the push run's eight shards, merged by `suite-merge.mjs` in `verdict`
-   (the whole suite once, the skips exactly the baseline's); about 25 minutes by D198's estimate (not measured before
-   the first such dispatch), owed by every train before its PR, and a red one blocks the release like the push run.
+   (the whole suite once, the skips exactly the baseline's); measured on the first dispatch, 02.11.2026 (run 41377151746, 2b5527e1): 1509 s from the first job's start to the last job's end, 28 jobs (crlf suite 1/8 1008 s, the other shards 432-509 s, crlf lint, check, gate 119 s); 2699 s from the dispatch to the run's end, queued behind the push run of the same commit. Owed by every train before
+   its PR, and a red one blocks the release by the method - the train waits for it green - not by `release.yml`, which
+   calls `ci.yml` without the `crlf` input and reads no dispatch's verdict (nor does `audit/gate/verify-gate.mjs`).
    Scenarios are not in it: none of the three finds below was a scenario's. *The whole run* -
    `.github/workflows/crlf-whole.yml`: `npm test` whole, in one job and one process, the only run of tier 2 after
    01-runtests' parts A and B, in one order; the shards never run that way. It runs weekly (Sundays 03:17 UTC, on

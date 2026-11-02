@@ -79076,6 +79076,10 @@ const SCENARIOS = [
             const rows = Object.keys(despairOwedStore.entries()).filter(k => k === donor.id || k.startsWith(`${donor.id}:`));
             if (rows.length) await despairOwedStore.dropMany(rows);
         };
+        // The pool's owed rows as found, put back after (E37 fix FG5; the correctness review's Tests note): a world that
+        // holds some - the local gate's sandbox - kept none of them through this test, and the harness world holds none.
+        const owedWas = foundry.utils.deepClone(Object.fromEntries(Object.entries(despairOwedStore.entries())
+            .filter(([k]) => k === donor.id || k.startsWith(`${donor.id}:`))));
         const read = {};
         try {
             if (phase === "classTrial") await setClock({ phase: "investigation" });
@@ -79123,6 +79127,7 @@ const SCENARIOS = [
             ui.notifications.warn = ownWarn;
             await game.settings.set(MODULE_ID, SETTINGS.overflow, overflowWas);
             await dropOwed();
+            for (const [key, row] of Object.entries(owedWas)) if (!despairOwedStore.has(key)) await despairOwedStore.patch(key, row);
             await D.setDespair(donor.id, despairWas);
             await trustedWrite(who, { [HOPE]: hopeWas }, { reason: "gmRuling" });
             fresh();
