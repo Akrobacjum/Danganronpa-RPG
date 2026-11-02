@@ -38,11 +38,19 @@
  * one round both went on - the last Done reached both windows - and each moved the clock: the primary refused the second
  * end, but the end only logged it. A caller moves the clock only when its own end of the round is the one the primary
  * took ("go", `close` answering true; true with no round), and the primary takes a "go" only while the round is open
- * over its clock and allowed (`roundAllowed`, asked again: an incident begun meanwhile ends the round "stop", and so does
- * its start, `endBarredRound`). A round whose GM is not connected is ended by the next press of either road, and that GM
+ * over its clock and allowed (`roundAllowed`, asked again: an incident begun meanwhile ends the round "stop" at the GM's
+ * "go", and nothing moves). A round whose GM is not connected is ended by the next press of either road, and that GM
  * is told in one line; the panel's next line names an open round with its "Do it" (gm-panel.mjs `nextStep`). A player who
  * closed the window, or whose answer was refused, gets a card that opens it again while the round stands. Scenario 61
  * part RR (two GMs, one round), tier 2 E37-T3 and E37-T9, tier 1 R1204.
+ *
+ * AN INCIDENT'S START TELLS NOTHING (E37 fix FG1b, 02.11.2026; STATUS E37 Open 52). FG1 ended an open round "stop" at
+ * the incident's start (`endBarredRound`, on every write of `murderState`), and every player of the round was told at
+ * that moment that the GM was waiting a little longer: a timing signal to the bystanders, beside the clock the incident
+ * hides from them. The incident's start writes nothing to the round now - no write of `readyRound`, so no window closes
+ * and nobody is told - and the round stands until the GM's own press: its "go" is asked of `roundAllowed` again on the
+ * primary and ends the round "stop" with nothing moved, and that GM is told in one line (`DRPG.Ready.barred`),
+ * at a moment the GM chose. Tier 2 E37-T9; a bystander's own page is LIVE-E37-06.
  *
  * In the clock's family (clock.mjs, eclipse.mjs), and imported by the HUD and the panel with `import()`, as they import
  * eclipse.mjs; the bridge and the GM stores by `import()` as well, where a static import would close a cycle.
@@ -364,18 +372,6 @@ export async function endRoundOnPrimary({ roundId, outcome } = {}) {
     });
 }
 
-/**
- * AN INCIDENT'S START ENDS AN OPEN ROUND (E37 fix FG1, 02.11.2026; the end review's S-m3), on the primary GM, at every
- * write of `murderState`: a round open while a round may no longer run (`roundAllowed`) is ended "stop", through
- * `endRoundOnPrimary`, so its windows close and nothing moves - the clock is the incident's now, and moves in private.
- */
-export async function endBarredRound() {
-    if (!game.user.isGM || !isPrimaryGm()) return null;
-    const round = roundOf(readyRecord(), getClock());
-    if (!round || await roundAllowed(getClock())) return null;
-    return endRoundOnPrimary({ roundId: round.id, outcome: "stop" });
-}
-
 /** The window's title: the Eclipse's name (`Eclipse.named`), or the end of this time of day. */
 function roundTitle(kind, clock = getClock()) {
     return kind === "next" ? game.i18n.localize("DRPG.Ready.titleNext") : eclipseLabel(clock);
@@ -433,6 +429,8 @@ async function askReadiness(kind) {
         if (!ended.ok) error(`The readiness round ${round.id} was not ended on the primary GM (${ended.reason ?? "refused"})`);
         const went = ended.ok && ended.value?.ended === "go";
         if (outcome === "go" && !went) debug(`The readiness round ${round.id} was ended elsewhere, or stopped: this GM does not move the clock`);
+        // The primary made this GM's "go" a "stop": a round may no longer run here (an incident or a Class Trial began during it; FG1b).
+        if (outcome === "go" && ended.ok && ended.value?.ended === "stop") ui.notifications.info(game.i18n.localize("DRPG.Ready.barred"));
         return went;
     };
     // The window is up on this browser already (a second press of the same GM): raised, and this press goes nowhere.
@@ -589,13 +587,10 @@ function answerAgain(round, waited) {
     }, 500);
 }
 
-/** The hooks: the page ready (the setting's own changes come through sync.mjs), and an incident's start on the primary. */
+/**
+ * The hook: the page ready (the setting's own changes come through sync.mjs). Nothing hangs on an incident's start: the
+ * round stands until the GM's press (E37 fix FG1b, above).
+ */
 export function registerReadyRound() {
     Hooks.once("ready", () => { renderReadyRound(); });
-    const incident = setting => {
-        if (setting?.key !== `${MODULE_ID}.${SETTINGS.murderState}`) return;
-        endBarredRound().catch(err => error("Could not end the readiness round at the incident's start", err));
-    };
-    Hooks.on("createSetting", incident);
-    Hooks.on("updateSetting", incident);
 }

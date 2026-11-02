@@ -78532,7 +78532,7 @@ const SCENARIOS = [
             + "next press, what the press answered after advanceTimeOfDay, a round open after it, the time of day, a window]; gone: [this GM told "
             + "goneEnded, a new round over the gone GM's, its kind, opened by this GM, its window; after Not now: its end, the time of day]}");
     }],
-    ["E37-T9 - an incident ends the readiness round (E37 fix FG1; the end review's S-m3): a round open for Next time of day when an incident opens is ended \"stop\" on the primary, its window gone, the press answered null and the clock unmoved; a GM's \"go\" for a round open while the incident runs is taken as \"stop\"; and a \"go\" for a round the clock has left is refused", async () => {
+    ["E37-T9 - an incident's start leaves the readiness round as it stands, and the GM's own press ends it without moving the clock (E37 fix FG1, FG1b; the end review's S-m3, STATUS E37 Open 52): a round open for Next time of day when an incident opens is not written, its window stays and the record every player's window holds to stays open; the GM's Move the clock then ends it \"stop\", the press answered null, the clock unmoved and that GM told in one line; a GM's \"go\" for a round open while the incident runs is taken as \"stop\"; and a \"go\" for a round the clock has left is refused", async () => {
         /*
          * E37 fix FG1, 02.11.2026; the end review's S-m3 (security lens). `roundAllowed` was asked at the round's open
          * alone, and an incident does not make a round stale (`roundOf`): a round opened in daily life stayed open when a
@@ -78546,6 +78546,18 @@ const SCENARIOS = [
          * "go"'s answer and the record's end. Put back: the incident closed, the clock, every character's actions, the
          * round's setting, the seals, the restrictions, the motive, the search tokens and the body's record. Red at
          * 2b5527e1: the round stayed open through the incident's start, and both "go"s were taken as "go".
+         *
+         * THE INCIDENT'S START TELLS NOTHING (E37 fix FG1b, 02.11.2026; STATUS E37 Open 52, the orchestrator's line). FG1's
+         * `endBarredRound` ended the round "stop" at the incident's start, and every player of the round was told at that
+         * moment that the GM was waiting a little longer - a timing signal to the bystanders, beside the hidden clock. Now
+         * the incident's start writes nothing: from the press to three seconds after `openMurder` the writes of the
+         * round's setting are counted (`createSetting`, `updateSetting`), and read are the record (the same as at the
+         * press), the GM's window (the same one, still drawn) and what every player's window holds itself to - the round
+         * `roundOf` reads over this clock, the `still()` of boundary.mjs `promptPlayer` (a player's page is not driven
+         * here: LIVE-E37-06). Then the window's own Move the clock, its confirmation answered Go on
+         * (`DialogV2.confirm` answered yes here): the round ends "stop", the press answers null, the clock stays, and
+         * this GM is told `DRPG.Ready.barred`. Red at 4276d247: the round ended "stop" at the incident's start, one
+         * write, the window gone.
          */
         needs(env.primaryGm(), "the round is opened and ended on the primary GM");
         needs(env.dialogs(), "the GM's window is read as drawn");
@@ -78570,6 +78582,11 @@ const SCENARIOS = [
         const win = () => [...foundry.applications.instances.values()].find(app => app?.options?.classes?.includes("drpg-ready-gm")
             && app.element?.isConnected) ?? null;
         const record = id => ({ id, kind: "next", boundary: C.boundaryStamp(getClock()), by: game.user.id, at: Date.now(), answers: {} });
+        const D = foundry.applications.api.DialogV2;
+        const confirmOwn = Object.getOwnPropertyDescriptor(D, "confirm"), info0 = ui.notifications.info;
+        const infos = [], confirms = [];
+        let writes = 0;
+        const counted = setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.readyRound}`) writes++; };
         const read = {};
         let pressed = null;
         try {
@@ -78577,24 +78594,41 @@ const SCENARIOS = [
             await setClock({ phase: "dailyLife", timeOfDay: "noon", refilledFor: null });
             await game.settings.set(MODULE_ID, SETTINGS.readyRound, {});
             await settle();
+            D.confirm = async config => {
+                confirms.push(config?.yes?.label ?? null);
+                return true;
+            };
+            ui.notifications.info = (message, ...rest) => {
+                infos.push(String(message));
+                return info0.call(ui.notifications, message, ...rest);
+            };
 
             pressed = B.nextTimeOfDay();
             await until(() => win(), 12000);
-            const round = B.readyRecord();
-            must(round.id && !round.ended, "no round opened at the press - this would measure nothing");
+            const round = foundry.utils.deepClone(B.readyRecord());
+            const drawn = win();
+            must(round.id && !round.ended && drawn, "no round opened at the press - this would measure nothing");
+            Hooks.on("createSetting", counted);
+            Hooks.on("updateSetting", counted);
             await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
             await settle();
+            // Three seconds for an end that should not come (FG1 ended it within one settle of the incident's write).
+            await until(() => B.readyRecord().ended || !win(), 3000);
+            read.opened = [round.kind, J(B.readyRecord()) === J(round), writes, win() === drawn,
+                B.roundOf(B.readyRecord(), getClock())?.id === round.id, getClock().timeOfDay, Boolean(M.murderState())];
+
+            // The GM's own press: the window's Move the clock, past the players not done (its confirmation answered Go on).
+            const toldBefore = infos.length, writesBefore = writes;
+            if (win() === drawn) drawn.element?.querySelector('footer button[data-action="go"]')?.click();
+            else win()?.element?.querySelector('footer button[data-action="notNow"]')?.click();
             await until(() => !win(), 8000);
-            // Read before anything ends it here; a window still up (the round left open) is let go with its Not now.
-            const endedThere = B.readyRecord().ended ?? null, stillUp = Boolean(win());
-            if (stillUp) {
-                win()?.element?.querySelector('footer button[data-action="notNow"]')?.click();
-                await until(() => !win(), 8000);
-            }
             const out = await pressed;
             pressed = null;
             await settle();
-            read.opened = [round.kind, B.readyRecord().id === round.id, endedThere, stillUp, out ?? null, getClock().timeOfDay, Boolean(M.murderState())];
+            read.press = [confirms.length, out ?? null, B.readyRecord().id === round.id, B.readyRecord().ended ?? null, writes - writesBefore,
+                getClock().timeOfDay, infos.slice(toldBefore).filter(m => m === game.i18n.localize("DRPG.Ready.barred")).length];
+            Hooks.off("createSetting", counted);
+            Hooks.off("updateSetting", counted);
 
             const during = record("zE37T9during0000");
             await game.settings.set(MODULE_ID, SETTINGS.readyRound, during);
@@ -78614,6 +78648,10 @@ const SCENARIOS = [
             await settle();
             read.stale = [goStale?.reply?.ended ?? goStale?.refused ?? null, B.readyRecord().ended ?? null];
         } finally {
+            Hooks.off("createSetting", counted);
+            Hooks.off("updateSetting", counted);
+            if (confirmOwn) Object.defineProperty(D, "confirm", confirmOwn); else delete D.confirm;
+            ui.notifications.info = info0;
             if (pressed) {
                 await win()?.close();
                 await pressed.catch(() => null);
@@ -78628,11 +78666,14 @@ const SCENARIOS = [
             await settle();
         }
         equal(J(read), J({
-            opened: ["next", true, "stop", false, null, "noon", true],
+            opened: ["next", true, 0, true, true, "noon", true],
+            press: [1, null, true, "stop", 1, "noon", 1],
             during: ["stop", "stop", "noon"],
             stale: ["nothing was carried out: that readiness round is not open", null]
-        }), "{opened: [the round's kind, the record still that round, its end after the incident opened, a window, what the press "
-            + "answered, the time of day, an incident]; during: [what a \"go\" for a round open in the incident answered, the record's end, "
+        }), "{opened: [the round's kind, the record as at the press, the round's setting written since the press, the GM's window the "
+            + "same and drawn, the round every player's window holds to still open, the time of day, an incident]; press: [the "
+            + "confirmations asked, what the press answered, the record still that round, its end, the round's setting written by the "
+            + "press, the time of day, this GM told barred]; during: [what a \"go\" for a round open in the incident answered, the record's end, "
             + "the time of day]; stale: [what a \"go\" for a round the clock has left answered, the record's end]}");
     }],
     ["E37-T4 - the summary at every boundary (E37 C4, E37-16, E37-17; D44c, S10-79): with three cards of a time of day in the GM's store, Next time of day (`advanceTimeOfDay`) shows one summary with their rows; the same cards and an Eclipse's start show the same summary - title, lede, rows and totals; and the Eclipse's end that moves the clock after it shows none", async () => {

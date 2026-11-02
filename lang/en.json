@@ -4538,7 +4538,8 @@
       "goAnyway": "Go on",
       "wait2": "Wait",
       "answerAgain": "The GM is still waiting for your answer. Click here to answer.",
-      "goneEnded": "The GM who asked the players before is not connected, so that question is closed."
+      "goneEnded": "The GM who asked the players before is not connected, so that question is closed.",
+      "barred": "The round is over and the clock has not moved: an incident or a Class Trial began during it."
     },
     "Summary": {
       "title": "The time of day is over",

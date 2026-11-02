@@ -4973,7 +4973,8 @@
       "goAnyway": "Dalej",
       "wait2": "Poczekaj",
       "answerAgain": "GM wciąż czeka na twoją odpowiedź. Kliknij tutaj, by odpowiedzieć.",
-      "goneEnded": "GM, który wcześniej zapytał graczy, nie ma połączenia, więc to pytanie zostało zamknięte."
+      "goneEnded": "GM, który wcześniej zapytał graczy, nie ma połączenia, więc to pytanie zostało zamknięte.",
+      "barred": "Runda się skończyła, a zegar się nie przesunął: w jej trakcie zaczął się incydent albo Class Trial."
     },
     "Summary": {
       "title": "Pora dnia dobiegła końca",
