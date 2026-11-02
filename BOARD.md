@@ -21,7 +21,7 @@ Updated 01.11.2026 (20:05 UTC) by line A (and line B for its own sections).
 | E65 | shipped in 1.2.95 | lint, tools, docs (text guidelines, glossary) | from now on: read docs/text-style.md and docs/glossary.json before writing user-facing text (CLAUDE.md) |
 | E66 | shipped in 1.2.96 | i18n across many files, the rename | line B: E66's names are in; read docs/glossary.json before naming anything; `listOf`/`localeFormat`/`plural()` for every count, list and date |
 | E50, E51 | shipped in 1.2.94 | messenger, music, sfx, Take; action windows, Calls, map (fog, fog-doorways), HUD, panel, trace digest | E63 left the plan; E67 merged into E72 |
-| E37 | BUILD on branch e37, pushed to the line: C1-C8 (C3 readiness round, C4 summary at every boundary, C5 the bus as a table, C6 small gaps, C7 five GM-only Despair rows, C8 CRLF in 8 shards) and the end review's fix round FG1-FG5 (4276d247, CI green); FG1b (no timing signal at an incident's start) building; LEDGER next | clock, Eclipse (boundary.mjs), sync, readiness round (bridge rows ready.*, readyRound), Despair on the primary (5 rows), CI | 1.2.97 with E41 and E42 (variant A) |
+| E37 | DONE, unreleased: C1-C8 and fixes FG1-FG5, FG1b, FG1c on the line (c7c4ee2d, CI green run 41403338788); LEDGER 23 ANSWERED, 2 PARTIAL (LIVE-E37-01, -03); 16 of 17 review findings fixed, 2 kept | clock, Eclipse (boundary.mjs), sync, readiness round (bridge rows ready.*, readyRound), Despair on the primary (5 rows), CI | 1.2.97 with E41 and E42 (variant A) |
 
 R numbers: line A R1049-R1499.
 
