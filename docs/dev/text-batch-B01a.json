@@ -487,7 +487,7 @@
       ],
       "needsCode": [],
       "disagreements": [
-        "Fact 0 is false for the propose row: it has no disabled field and is always offered (scripts/action-rolls.mjs performProject, the \"start\" row; mechanics reviewer). Correction: \"Work and Sabotage are greyed out with their reason when there is nothing here for them; Propose is always offered.\" No text states the greying.",
+        "Fact 0 is false for the propose row: it has no disabled field and is always offered (scripts/action-project.mjs performProject, the \"start\" row; mechanics reviewer). Correction: \"Work and Sabotage are greyed out with their reason when there is nothing here for them; Propose is always offered.\" No text states the greying.",
         "Fact 1 may be false for a project with no room: a proposal may set none (DRPG.Project.anyRoom), and the note on sabotageTargetsIn calls a roomless project work you can do anywhere; projectsListedIn, which decides, was not read (mechanics reviewer, not settled). The hint says \"here\", true either way; the fact is to be read and corrected by hand.",
         "Name: en_before called the step \"Push\"; the description, item 17 and the code's note (\"Work on Project\") call it Work. Both hints now say Work; the owner confirms the name the Projects window shows."
       ],
@@ -568,7 +568,7 @@
         "How much progress a Work adds (1 at 12+, 2 at 18+) and how much a project needs by its scale (PROJECT_SCALE) have no placeholder in this text, so it says \"a little progress\"; a number would need PROSE_NUMBERS rows."
       ],
       "disagreements": [
-        "Fact 1 is false for an indirect murder: the concealment bonus is added to the band's progress on any outcome, so 18+ alone pays 3 (scripts/action-rolls.mjs projectProgress; mechanics reviewer). Correction: \"adds 1 at 12+, 2 at 18+; an indirect murder worked alone adds its bonus on top\".",
+        "Fact 1 is false for an indirect murder: the concealment bonus is added to the band's progress on any outcome, so 18+ alone pays 3 (scripts/action-project.mjs projectProgress; mechanics reviewer). Correction: \"adds 1 at 12+, 2 at 18+; an indirect murder worked alone adds its bonus on top\".",
         "Fact 2 may be false for a project with no room (as on the tile hint, item 05); projectsListedIn was not read. The text no longer states the room rule.",
         "Name: the text says Work, as the tile hint now does (item 05); en_before's tile said Push."
       ],

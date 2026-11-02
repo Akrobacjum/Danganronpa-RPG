@@ -1062,8 +1062,8 @@ export function startLocked(region) {
 /**
  * Is the BEDROOM OWNER's stash in this room hidden?
  *
- * Kept because `game.drpg` exports it and a GM's macro may be calling it - see
- * the compatibility note at the bottom of this file. It now answers through
+ * Kept because `game.drpg` exports it (api.mjs) and a GM's macro may be calling
+ * it. It now answers through
  * `stashesIn`, so it means the same thing it always did on an untouched world
  * and the right thing on an edited one. Anything asking about a specific
  * person's stash should call `stashIn(room, actorId).concealed` instead: this

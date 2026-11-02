@@ -2107,11 +2107,13 @@ const REGRESSIONS = [
                 `${file} asks whether to carry on after a concealment roll again`);
         }
         ok(!/sabotageCarryOn/.test(rolls), "the walk-away question is back in Sabotage");
-        const sabotage = bodyOf(rolls, "async function performSabotage", { until: "async function performTamper" });
-        ok(sabotage.length > 400, "performSabotage is gone or has moved past Tamper");
-        // Only the branch the room watched. The concealment roll's own cancel still
-        // refunds - nothing was rolled there - and that is `abort` further up.
-        const watched = bodyOf(sabotage, "sabotageWatched");
+        // E41 fix FG5 (the end review's C-nit 3): each function cut by its name - `until: "async function performTamper"`
+        // ran from action-project.mjs on into action-tamper.mjs once the family was split.
+        const sabotage = fnSource(rolls, "performSabotage");
+        ok(sabotage.length > 400, "performSabotage is gone or cut short");
+        // Only the branch the room watched (`concealSabotage`, where the watched line is). The concealment roll's own
+        // cancel still refunds - nothing was rolled there - and that is `abort` further up.
+        const watched = bodyOf(fnSource(rolls, "concealSabotage"), "sabotageWatched");
         ok(!/^[\s\S]{0,700}?abort\(/.test(watched),
             "a watched Sabotage hands the action back again instead of going ahead");
     }],
@@ -4233,10 +4235,11 @@ const REGRESSIONS = [
         ok(/dispatchable: \["move"\]/.test(cfg),
             "the list of what a Monocub may dispatch is gone, or it has grown");
 
-        // E41 C4 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read: from
-        // `performAction` (the facade) on to `performBetrayal` (action-murder.mjs), as the one file read it.
+        // E41 C4 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read. Since
+        // E41 fix FG5 (the end review's C-nit 3) `performAction` alone, where every read below stands: the cut on to
+        // `performBetrayal` (action-murder.mjs) ran across the family's files.
         const rolls = stripComments(actionText(sources));
-        const perform = bodyOf(rolls, "export async function performAction", { until: "async function performBetrayal" });
+        const perform = fnSource(rolls, "performAction");
         ok(/MONOCUB\.dispatchable\.includes\(actionKey\)/.test(perform),
             "nothing refuses a Monocub the rest of the grid");
         const gate = perform.indexOf("MONOCUB.dispatchable");

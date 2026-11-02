@@ -1,8 +1,8 @@
 /**
  * Danganronpa RPG - GM panel.
  * ---------------------------------------------------------------------------
- * The handful of things a GM does every time of day, behind one button in the
- * token toolbar: move the clock, refill actions, restock search tokens, check
+ * The handful of things a GM does every time of day, behind one button, a red
+ * hexagon in the corner cluster (E77 C6): move the clock, refill actions, restock search tokens, check
  * where everyone stands.
  *
  * Two of its windows live in files of their own since E41 C7a (1.2.97): the

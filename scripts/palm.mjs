@@ -689,7 +689,7 @@ export async function stealFromPerson({
            read. Nothing moved and nobody is told of a hand. AFTER THE ROLLS (E14 fix e1-G4; the review's E14R-07): the
            owner's Q3 gives the action back for a refusal before the rolls are read, and this one comes after - the dice
            were read and paid out. Told as nothing carried out (the closed list's `refused`), not by the gate's code, so
-           the thief's browser, which refunds on the gate's codes (action-rolls.mjs `TRANSFER_REFUSED`), keeps it spent;
+           the thief's browser, which refunds on the gate's codes (inventory.mjs `TRANSFER_REFUSED`), keeps it spent;
            the GM's log keeps why. Read in the code: no test parts the two between the two askings. */
         if (moved?.refused) return { refused: `nothing was carried out: ${moved.refused}` };
     }
