@@ -29,8 +29,9 @@ import { MODULE_ID, TRAITS, HOPE_CALLS, TIMING } from "./config.mjs";
 import {
     whisperToGms, ownerOf, isPrimaryGm, dialogContent, debug, warn, error, esc, serverNow, localeFormat
 } from "./utils.mjs";
-import { forgetCallYes, sayNotDone, gmOnline } from "./bridge-guards.mjs";
+import { forgetCallYes, sayNotDone, gmOnline, noteCallYes } from "./bridge-guards.mjs";
 import { contentOf, cardFlag, cardMeta } from "./secret.mjs";
+import { SOCKET_EVENT, ACTION_DONE } from "./bridge-wire.mjs";
 
 /** The request a call on the GM names when its caller names none (`DRPG.Bridge.what.gm.call`). */
 export const CALL_GM_WHAT = "gm.call";
@@ -397,6 +398,103 @@ export async function askObserveByCard({ actor, room, request = "", userId = nul
     return { refused: "the ruling card could not be posted" };
 }
 
+/**
+ * A GM's pick (`tokenId`) or Refuse (`refuse`) on an Observe card, on the primary (E09 C12).
+ * Held to the ask kept under `rid`: none kept, another character's, one answered already, or one
+ * past the time its card shows (`expires`, E18 fix e1-G4; `TIMING.rulingMs` from its arrival here)
+ * is "gone". An answered ask stays held until its asker's receipt (`receivedOnPrimary`) or its card's end. The ask is marked as being answered before anything waits, so of two GMs' picks at
+ * once the second is "gone" too. A pick the primary does not find among the traces the
+ * character could be shown now is "notThere", and the card stays open. Answers `{ value, told }`:
+ * value "picked", "refused", "gone" or "notThere"; told, the notice for the GM who pressed.
+ * The asker is answered here, once: `{ ok: true, key }`, or `{ ok: false, reason: "refused" }`
+ * as a GM's closed picker always answered.
+ */
+export async function observePickOnPrimary({ rid, actorId, tokenId = null, refuse = false }, by) {
+    const asked = observeAsks.get(rid ?? "");
+    const who = game.users.get(by ?? "")?.name ?? by;
+    const late = (asked?.expires != null && serverNow() > asked.expires) || Date.now() - (asked?.at ?? 0) > TIMING.rulingMs;
+    if (!asked || asked.answering || asked.answered || asked.actorId !== actorId || late) {
+        warn(`An Observe card's ${refuse ? "refusal" : "pick"} by ${who} was not taken: this primary GM keeps no Observe waiting under that request for that character.`);
+        if (asked && !asked.answering && !asked.answered && asked.actorId === actorId) observeAsks.delete(rid);
+        return { value: "gone", told: "DRPG.Observe.pickGone" };
+    }
+    asked.answering = true;
+    const answer = value => {
+        asked.answered = true;
+        game.socket.emit(SOCKET_EVENT, { action: ACTION_DONE, requestId: rid, userId: asked.userId, value }, { recipients: [asked.userId] });
+    };
+    try {
+        if (refuse) {
+            answer({ ok: false, reason: "refused" });
+            return { value: "refused", told: null };
+        }
+        const { pickObserveTarget } = await import("./observe.mjs");
+        const picked = await pickObserveTarget({ actorId, room: asked.room, tokenId, userId: asked.observer ?? null, request: asked.request });
+        if (!picked.ok) {
+            warn(`An Observe card's pick by ${who} was not taken: that trace is not one ${game.actors.get(actorId)?.name ?? actorId} could be shown in ${asked.room} now (${picked.reason}).`);
+            return { value: "notThere", told: "DRPG.Observe.pickNotThere", held: picked.held ?? [] };
+        }
+        answer({ ok: true, key: picked.key });
+        return { value: "picked", told: null };
+    } finally {
+        asked.answering = false;
+    }
+}
+
+/**
+ * A GM's yes to a Call's ask, on the primary (E29 fix r2-H4): kept for the ask this primary holds
+ * under that request (bridge-guards.mjs `noteCallYes`), then sent to the player who asked, once.
+ * False for an ask it does not hold - one already answered yes, or one a primary that has gone put
+ * up (the player's browser gives up on it at its clock and nothing is spent; it asks again) - and
+ * for a yes pressed on another card than the one the ask is held on (fix early-C2-G2).
+ */
+export async function yesOnPrimary(requestId, asker, by = game.user.id, messageId = null) {
+    const asked = callAsks.get(requestId ?? "");
+    if (!asked || asked.userId !== asker) {
+        warn(`A GM's yes to a Call was not kept: this primary GM holds no ask of ${game.users.get(asker ?? "")?.name ?? asker} under that request.`);
+        return false;
+    }
+    if (messageId && asked.messageId !== messageId) {
+        warn(`A GM's yes to a Call was not kept: the card pressed is not the one this primary GM holds ${game.users.get(asker)?.name ?? asker}'s ask on under that request.`);
+        return false;
+    }
+    callAsks.delete(requestId);
+    noteCallYes(asked);
+    const sentOn = { by, text: "DRPG.Bridge.settledApproved", at: Date.now() };
+    // The card's buttons go and its mark says a yes went (fix e1-G1); a card that is gone keeps nothing, and the yes still goes.
+    if (asked.messageId) await keepRuling(asked.messageId, null, sentOn, { quiet: true });
+    sendOnFromPrimary(requestId, asked, true, { ...sentOn, yes: asked });
+    return true;
+}
+
+/**
+ * A GM's ruling on a Dynamic action's card, on the primary (E18 C1): sent on for the ask it holds under that request,
+ * by that user, pressed on the card that ask is held on (fix early-C2-G2) - a difficulty only once it is kept on the
+ * card (`keepRuling`).
+ */
+export async function dynamicOnPrimary(requestId, asker, ruling, by, messageId = null) {
+    const held = dynamicAsks.get(requestId ?? "");
+    if (held?.userId !== asker) {
+        warn(`A GM's ruling on a Dynamic action was not sent on: this primary GM holds no ask of ${game.users.get(asker ?? "")?.name ?? asker} under that request.`);
+        return false;
+    }
+    if (messageId && held.messageId !== messageId) {
+        warn(`A GM's ruling on a Dynamic action was not sent on: the card pressed is not the one this primary GM holds ${game.users.get(asker)?.name ?? asker}'s ask on under that request.`);
+        return false;
+    }
+    dynamicAsks.delete(requestId);
+    if (!ruling) {
+        sendOnFromPrimary(requestId, held, false, { text: "DRPG.Bridge.settledDeclined", by });
+        return true;
+    }
+    const tier = Number(ruling.tier);
+    const kept = { type: "dynamic", actorId: held.actorId, tier };
+    const sentOn = { by, text: "DRPG.Bridge.settledAnswered", at: Date.now() };
+    if (!(await keepRuling(held.messageId, kept, sentOn))) return false;
+    sendOnFromPrimary(requestId, held, { tier, trait: ruling.trait ?? null }, { ...sentOn, ruling: kept });
+    return true;
+}
+
 /*
  * THE DIFFICULTY IS THE GMS' RECORD AS IT LEAVES, NOT WHEN ITS ASKER SAYS IT ARRIVED (E18 fix early-C1-G1,
  * 20.10.2026; the early review's E18-C1-1). C1 wrote a Dynamic ruling into its card's meta on its asker's
@@ -436,6 +534,16 @@ export async function keepRuling(messageId, ruling, sentOn = null, { quiet = fal
  * that reloads between the answer and the receipt holds neither.
  */
 export const answeredAsks = new Map();
+
+function sendOnFromPrimary(requestId, held, value, { text, by, yes = null, ruling = null, at = Date.now() }) {
+    game.socket.emit(SOCKET_EVENT, {
+        action: ACTION_DONE, requestId, userId: held.userId, value
+    }, { recipients: [held.userId] });
+    const sent = { userId: held.userId, actorId: held.actorId ?? null, messageId: held.messageId ?? null, text, by, yes, ruling, at, timer: null };
+    answeredAsks.set(requestId, sent);
+    while (answeredAsks.size > CALL_ASKS_KEPT) answeredAsks.delete(answeredAsks.keys().next().value);
+    sent.timer = setTimeout(() => void unreceivedOnPrimary(requestId), TIMING.ackMs);
+}
 
 /** A card ends as its ask's player no longer waiting: the line for everyone, and the GMs' own - by key, which each reader writes in its language. */
 function endExpired(messageId) {

@@ -5878,7 +5878,11 @@ const REGRESSIONS = [
             for (const [member, text] of table.family) {
                 members++;
                 const first = text.match(/^(?:export )?(?:async )?function (\w+)\(/m)?.[1];
-                ok(first && topLevelFunction(text, first), `${member}, in the family of ${table.file}, holds no top-level function the crawls cut`);
+                // E41 C5a: bridge-wire.mjs is a file of names (`export const ACTION_...`), which every reader of the
+                // bridge's text reads through `bridgeText`; it declares no function for the crawls to cut.
+                const names = !first && /^export const [A-Z_]+ = /m.test(text);
+                ok((first && topLevelFunction(text, first)) || names,
+                    `${member}, in the family of ${table.file}, holds no top-level function the crawls cut, and is no file of names`);
             }
             const names = new Set(kit.bridgeCrawl(table).map(fn => fn.name));
             reached += names.size;
@@ -5896,6 +5900,11 @@ const REGRESSIONS = [
         for (const name of ["callGm", "settleCall", "claimOnPrimary"]) {
             equal(cutIn.get(name), "call-gm.mjs", `the crawl over BRIDGE_ACTIONS does not cut ${name}() in call-gm.mjs, where E41 C5 moved it`);
         }
+        // E41 C5a: the runs are bridge-runs-acts.mjs's (what a student does) and bridge-runs-records.mjs's (the records
+        // the GMs keep) - the crawl cuts every run of BRIDGE_ACTIONS in one of the two.
+        const runFiles = [...new Set(Object.values(bridge?.table ?? {}).map(d => cutIn.get(d.run?.name) ?? "(not cut)"))].sort();
+        equal(JSON.stringify(runFiles), JSON.stringify(["bridge-runs-acts.mjs", "bridge-runs-records.mjs"]),
+            "the crawl over BRIDGE_ACTIONS does not cut every run in bridge-runs-acts.mjs or bridge-runs-records.mjs, where E41 C5a moved them");
         const byFile = new Map();
         for (const file of cutIn.values()) byFile.set(file, (byFile.get(file) ?? 0) + 1);
         log(`R1235: the crawl over BRIDGE_ACTIONS cuts ${cutIn.size} functions: ${[...byFile].map(([file, n]) => `${n} in ${file}`).join(", ")}`);
