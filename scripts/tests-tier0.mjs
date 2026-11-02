@@ -15,7 +15,7 @@ import {
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
-    bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
+    bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists
 } from "./tests-kit.mjs";
@@ -3614,7 +3614,8 @@ const REGRESSIONS = [
          * since 26.08 is not cosmetic but the rules, because the kind IS what the item
          * does.
          */
-        const tables = stripComments(new Map(await otherSources()).get("tables.mjs") ?? "");
+        // E41 C8 (1.2.97): tables.mjs's code left it for tables-pools.mjs and tables-editor.mjs; the item tables' family's text (the kit's `tablesText`).
+        const tables = stripComments(tablesText(await otherSources()));
         const body = bodyOf(tables, "export function classifyTableName", { until: "\nexport " });
         ok(/ITEM_TIERS\.includes\(tier\)/.test(body),
             "the tier is unbounded, so \"DRPG Tools - Tier 9\" would be recognised as a tier "
@@ -3660,7 +3661,8 @@ const REGRESSIONS = [
         ok(body.indexOf("app.close(") < body.indexOf("opener()"),
             "reopen opens before it closes, which is the defect with an extra window");
 
-        const tables = stripComments(sources.get("tables.mjs") ?? "");
+        // E41 C8 (1.2.97): tables.mjs's code left it for tables-pools.mjs and tables-editor.mjs; the item tables' family's text (the kit's `tablesText`).
+        const tables = stripComments(tablesText(sources));
         const tail = bodyOf(tables, "typeof action.newPool === \"string\"");
         equal((tail.match(/reopen\("drpg-window-tables"/g) ?? []).length, 3,
             "the three paths that warn and go straight back to the window do not all use "
@@ -7557,13 +7559,13 @@ const REGRESSIONS = [
             ["season-setup.mjs", "wipeSeason", "scene", "the season's tokens on the scene"],
             ["season-setup.mjs", "wipeSeason", "region", "a room's region flags"],
             ["secret.mjs", "post", "ChatMessage", "a secret's card"],
-            ["tables.mjs", "addResult", "table", "a pool table's result"],
-            ["tables.mjs", "editResult", "result", "a pool table's result"],
-            ["tables.mjs", "dropResult", "table", "a pool table's result"],
-            ["tables.mjs", "wirePaneHeading", "current()", "a pool table, renamed"],
-            ["tables.mjs", "wirePaneHeading", "gone", "a pool table, deleted"],
-            ["tables.mjs", "wirePaneRows", "result", "a pool table's result and its flags"],
-            ["tables.mjs", "createPoolFrom", "RollTable", "a new pool table"],
+            ["tables-editor.mjs", "addResult", "table", "a pool table's result"],
+            ["tables-editor.mjs", "editResult", "result", "a pool table's result"],
+            ["tables-editor.mjs", "dropResult", "table", "a pool table's result"],
+            ["tables-editor.mjs", "wirePaneHeading", "current()", "a pool table, renamed"],
+            ["tables-editor.mjs", "wirePaneHeading", "gone", "a pool table, deleted"],
+            ["tables-editor.mjs", "wirePaneRows", "result", "a pool table's result and its flags"],
+            ["tables-editor.mjs", "createPoolFrom", "RollTable", "a new pool table"],
             ["trial.mjs", "objectOnPrimary", "message", "an Objection's own card, taken back when the floor did not move (E79 C16; a bridge run, on the primary GM)"],
             ["trial.mjs", "evidenceOnPrimary", "message", "an Objection's card, filled with its Truth Bullet (E79 C16; a bridge run, on the primary GM)"],
             ["trial.mjs", "repointOnPrimary", "message", "an Objection's card, its target's line rewritten (E79 C16; a bridge run, on the primary GM)"],
@@ -17561,8 +17563,9 @@ const REGRESSIONS = [
         const t = await import("./tables.mjs");
         const { walkConfigProse } = await import("./i18n-config.mjs");
         const sources = await moduleSources();
-        must(sources.has("tables.mjs"), "tables.mjs was not served - T14 has no legacy lists to read");
-        const lists = textLegacyLists(sources.get("tables.mjs"));
+        // E41 C8 (1.2.97): the legacy lists moved with the names to tables-pools.mjs, where tools/check.mjs part `text` reads them too.
+        must(sources.has("tables-pools.mjs"), "tables-pools.mjs was not served - T14 has no legacy lists to read");
+        const lists = textLegacyLists(sources.get("tables-pools.mjs"));
         const held = textTableWords({ words: C.TABLE_NAME_WORDS, ...lists });
 
         const res = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" });
@@ -17605,7 +17608,7 @@ const REGRESSIONS = [
         equal(JSON.stringify({ words: held.found.map(f => f.what), read: held.read > 0, lists: [lists.legacyPlurals !== null, lists.legacyGoalLabels !== null],
             notEnglish, lost, putBack: livePlurals() === asFound }),
         JSON.stringify({ words: [], read: true, lists: [true, true], notEnglish: [], lost: [], putBack: true }),
-        "[T14's findings over the live words and the served lists; whether it read any; both lists found in tables.mjs; the names not "
+        "[T14's findings over the live words and the served lists; whether it read any; both lists found in tables-pools.mjs; the names not "
             + "built in English under Polish; the Polish-built names that are no candidate; config.mjs put back as found]");
     }],
 

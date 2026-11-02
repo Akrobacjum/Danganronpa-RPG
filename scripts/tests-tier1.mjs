@@ -22,7 +22,7 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText, expectedRed, stripStrings, bridgeFn, bridgeText, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText
+    worldDump, dumpDiff, lfText, expectedRed, stripStrings, bridgeFn, bridgeText, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -395,7 +395,8 @@ const INVARIANTS = [
          * TableResult, and what regresses is three lines of wiring.
          */
         const sources = new Map(await otherSources());
-        const tables = stripComments(sources.get("tables.mjs") ?? "");
+        // E41 C8 (1.2.97): tables.mjs's code left it for tables-pools.mjs and tables-editor.mjs; the item tables' family's text (the kit's `tablesText`).
+        const tables = stripComments(tablesText(sources));
         ok(tables.length > 1000, "tables.mjs did not load");
 
         const edit = bodyOf(tables, "async function editResult", { until: "async function dropResult" });
@@ -1258,8 +1259,10 @@ const INVARIANTS = [
         ]);
 
         const files = [
-            "music", "investigation", "trial-floor-ui", "projects-ui", "vault",
-            "tables", "season-setup", "mastermind", "rules", "monocub",
+            // E41 C6 and C8 (1.2.97): Room Setup and the stashes' inspector left vault.mjs, the item tables window
+            // tables.mjs; each is read in the file it stands in.
+            "music", "investigation", "trial-floor-ui", "projects-ui", "room-setup", "stash-reach",
+            "tables-editor", "season-setup", "mastermind", "rules", "monocub",
             "gm-team-dialog", "gm-items", "gm-panel", "gm-students", "gm-campaign", "murder", "murder-ui", "voice", "trial"
         ];
 
@@ -2028,7 +2031,8 @@ const INVARIANTS = [
             try { await opening; } catch { /* closed rather than answered */ }
             await settle();
         }
-        const heading = src("tables.mjs");
+        // E41 C8 (1.2.97): tables.mjs's code left it for tables-pools.mjs and tables-editor.mjs; the item tables' family's text (the kit's `tablesText`).
+        const heading = stripComments(tablesText(sources));
         const body = bodyOf(heading, "function wirePaneHeading(", { until: "\n}" });
         ok(/const renameButton = pane\.querySelector/.test(body) && /const deleteButton = pane\.querySelector/.test(body),
             "the table heading's buttons are used where nothing looks them up");
@@ -24135,7 +24139,8 @@ const INVARIANTS = [
             + "under it, or a table was made [Tier pools: value, aria-invalid, its tab open, a sentence; Room pools: the same; "
             + "the tables a create was asked for; no table made]");
 
-        const tablesSrc = stripComments(new Map(await otherSources()).get("tables.mjs") ?? "");
+        // E41 C8 (1.2.97): tables.mjs's code left it for tables-pools.mjs and tables-editor.mjs; the item tables' family's text (the kit's `tablesText`).
+        const tablesSrc = stripComments(tablesText(await otherSources()));
         const create = bodyOf(tablesSrc, "async function createPoolFrom(", { until: "\n}\n" });
         const heading = bodyOf(tablesSrc, "function wirePaneHeading(", { until: "\n}\n" });
         const opener = bodyOf(tablesSrc, "export async function openItemTables(", { until: "\n}\n" });
@@ -31580,8 +31585,9 @@ const INVARIANTS = [
             ]
         };
         const steps = Array.isArray(T.DRAW_STEPS) ? T.DRAW_STEPS : null;
-        const tablesSrc = stripComments((await otherSources()).find(([file]) => file === "tables.mjs")?.[1] ?? "");
-        must(tablesSrc.length > 5000, "tables.mjs was not read - this test measured nothing");
+        // E41 C8 (1.2.97): the draw, its steps and `resultFrom` moved with the pools to tables-pools.mjs.
+        const tablesSrc = stripComments((await otherSources()).find(([file]) => file === "tables-pools.mjs")?.[1] ?? "");
+        must(tablesSrc.length > 5000, "tables-pools.mjs was not read - this test measured nothing");
         const stepShape = steps ? steps.map(step => {
             const body = topLevelFunction(tablesSrc, step?.run?.name ?? "") ?? "";
             return [step.name, Object.isFrozen(step), /\bresultFrom\(/.test(body) && !/\breturn\s*\{/.test(body), /\bMath\.random\b/.test(body)];

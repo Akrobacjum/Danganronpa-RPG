@@ -1401,6 +1401,30 @@ function hudText(sources, family = HUD_FAMILY) {
 }
 
 /**
+ * The item tables' family (E41 C8): tables.mjs - the facade, which holds no code since C8 - and the files its code
+ * moved into, in the order it stood there: a table's names, the pools, the roles, the draw and the index
+ * (tables-pools.mjs), then Install and the item tables window (tables-editor.mjs). A reader of tables.mjs's text reads
+ * the family through `tablesText` and follows each file here without a repoint of its own.
+ */
+const TABLES_FAMILY = Object.freeze(["tables.mjs", "tables-pools.mjs", "tables-editor.mjs"]);
+
+/** The line `tablesText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
+const TABLES_FAMILY_END = "const TABLES_FAMILY_END = {};";
+
+/**
+ * The item tables' family's texts, raw, in TABLES_FAMILY's order, joined by the line `const TABLES_FAMILY_END = {};`
+ * (E41 C8): what a read of tables.mjs's whole text read while the tables were one file. A reader strips the comments
+ * itself, as it did; a `fnSource` or `topLevelFunction` of the text cuts a function in its own file. A file of the
+ * family that is not among `sources` refuses by `must`, by name.
+ */
+function tablesText(sources, family = TABLES_FAMILY) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string");
+    must(!gone.length, `${gone.join(", ")}, of the item tables' family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`);
+    return family.map(file => map.get(file)).join(`\n${TABLES_FAMILY_END}\n`);
+}
+
+/**
  * Everything wrong with the bridge's tables, one sentence each (R1b). Pure: it
  * is handed the tables (as `bridgeTables()` gives them), the language keys of
  * each file, flattened, and bridge-guards.mjs's namespace, so R1b can run it on
@@ -2269,7 +2293,7 @@ export {
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, styleCascade, bodyOf, topLevelFunction, fnSource, lineAround,
-    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeDeclarationCalls, bridgeCut, bridgeLookup, bridgeCrawl, bridgeFamily, bridgeRead, bridgeFn, bridgeText, censusFile, BRIDGE_FAMILY_END, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
+    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeDeclarationCalls, bridgeCut, bridgeLookup, bridgeCrawl, bridgeFamily, bridgeRead, bridgeFn, bridgeText, censusFile, BRIDGE_FAMILY_END, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
     flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem, TEXT_BASELINES, textAgainstBaseline, textStaleRow,
     textTableWords, textLegacyLists,
