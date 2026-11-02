@@ -15,7 +15,7 @@ import {
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
-    bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
+    bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists
 } from "./tests-kit.mjs";
@@ -3861,7 +3861,8 @@ const REGRESSIONS = [
         ok(!/playlist\.playing/.test(body),
             "the reader is back on the world's opinion, which is the leak");
 
-        const hud = stripComments(sources.get("hud.mjs") ?? "");
+        // E41 C7b (1.2.97): the stopwatch and the clock it shows left hud.mjs; the HUD's family's text (the kit's `hudText`).
+        const hud = stripComments(hudText(sources));
         ok(/function paintTrackLine\(/.test(hud), "the clock has no band to paint");
         ok(/drpg-hud-track/.test(hud), "the band has no class, so the stylesheet cannot reach it");
         const wiring = bodyOf(hud, "export function registerHud", { length: 2000 });
@@ -10806,7 +10807,8 @@ const REGRESSIONS = [
             "the listener reader does not read its fixture whole, or does not miss the tile on updateToken, the clock's hook put back or the clock silent");
         const tile = stripComments(sources.get("room-tile.mjs") ?? "");
         must(/\bexport function registerRoomTile\(/.test(tile), "room-tile.mjs has no `registerRoomTile` among the module's sources - this would measure nothing");
-        equal(JSON.stringify(listens(tile, stripComments(sources.get("hud.mjs") ?? ""))), JSON.stringify([true, true, true]),
+        // E41 C7b (1.2.97): the stopwatch and the clock it shows left hud.mjs; the HUD's family's text (the kit's `hudText`).
+        equal(JSON.stringify(listens(tile, stripComments(hudText(sources)))), JSON.stringify([true, true, true]),
             "[the tile repaints on drpgRouteSettled for the viewer's own token and never on updateToken; hud.mjs listens on updateToken no more; "
             + "renderHud fires drpgHudRendered and the tile listens to it]");
     }],
@@ -10948,7 +10950,8 @@ const REGRESSIONS = [
         "the window reader does not read its fixture whole, or does not see a clip-path, an overflow: hidden or a display: none on a frame's rule");
         ok([...sheets.values()].some(text => FRAMED.test(text)), "no stylesheet styles Foundry's windows (E77 C5), and with no rule there is nothing to read");
         equal(JSON.stringify(framed(sheets)), "[]", "[the rules naming Foundry's windows that clip them, cut off their overflow or hide them]");
-        const files = new Map(["hud.mjs", "explain.mjs", "room-tile.mjs"].map(file => [file, stripComments(sources.get(file) ?? "")]));
+        // E41 C7b (1.2.97): the stopwatch and the clock it shows left hud.mjs; the HUD's family's text (the kit's `hudText`).
+        const files = new Map(["hud.mjs", "explain.mjs", "room-tile.mjs"].map(file => [file, stripComments(file === "hud.mjs" ? hudText(sources) : sources.get(file) ?? "")]));
         const named = [...sources].filter(([, text]) => /\bhudActor\b/.test(stripComments(text))).map(([file]) => file);
         equal(JSON.stringify([shape(files), named]), JSON.stringify([[true, true, true, [], true, true], []]),
             "[viewerActor exported, reading the pool and the student; subjectActor's selection for a GM only, else viewerActor(); viewerRoom asking "
@@ -11654,7 +11657,8 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const floor = stripComments(sources.get("trial-floor.mjs") ?? ""), clock = stripComments(sources.get("clock.mjs") ?? "");
-        const hud = stripComments(sources.get("hud.mjs") ?? ""), ui = stripComments(sources.get("trial-floor-ui.mjs") ?? "");
+        // E41 C7b (1.2.97): the stopwatch and the clock it shows left hud.mjs; the HUD's family's text (the kit's `hudText`).
+        const hud = stripComments(hudText(sources)), ui = stripComments(sources.get("trial-floor-ui.mjs") ?? "");
         const season = stripComments(sources.get("season-setup.mjs") ?? ""), utils = stripComments(sources.get("utils.mjs") ?? "");
         const now = topLevelFunction(utils, "serverNow") ?? "";
         ok(/game\.time\?\.serverTime/.test(now), "utils.mjs has no serverNow, or it no longer reads the server's clock Foundry gives");
@@ -13882,7 +13886,8 @@ const REGRESSIONS = [
             "[what evidenceOnPrimary hands truthBulletData; the functions of trial.mjs that read a bullet's data or its holder's view]");
         ok(/if \(objection && !game\.user\.isGM\)/.test(stripComments(fnSource(src("trial.mjs"), "presentBullet"))),
             "presentBullet refuses an Objection on a player's browser");
-        const hudImports = [...stripComments(src("hud.mjs")).matchAll(/^import [^;]*? from "\.\/([\w-]+\.mjs)";/gm)].map(m => m[1]);
+        // E41 C7b (1.2.97): the stopwatch and the clock it shows left hud.mjs; the HUD's family's text (the kit's `hudText`).
+        const hudImports = [...stripComments(hudText(sources)).matchAll(/^import [^;]*? from "\.\/([\w-]+\.mjs)";/gm)].map(m => m[1]);
         equal(JSON.stringify(hudImports.filter(file => file === "trial.mjs" || file === "trial-speakers.mjs")), "[]",
             "hud.mjs's static imports of trial.mjs or trial-speakers.mjs");
         ok(hudImports.length > 3, `hud.mjs's static imports were read (${hudImports.length})`);
@@ -16239,7 +16244,7 @@ const REGRESSIONS = [
 
         const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
         // E41 C2b: the bridge's family in gm-bridge.mjs's place.
-        const names = ["voice.mjs", "voice-tile.mjs", "vote.mjs", "clock.mjs", ...bridgeFamily(), "gm-stores.mjs", "hud.mjs", "trial-floor.mjs", "trial.mjs",
+        const names = ["voice.mjs", "voice-tile.mjs", "vote.mjs", "clock.mjs", ...bridgeFamily(), "gm-stores.mjs", ...HUD_FAMILY, "trial-floor.mjs", "trial.mjs",
             "monocub.mjs", "chapter.mjs", "movement.mjs", "season-setup.mjs", "api.mjs", "settings.mjs"];
         const real = Object.fromEntries(await Promise.all(names.map(async f => [f, await read(f)])));
         must(Object.values(real).every(src => src.length > 1000), "a file of the census was not served - this test reads nothing until it is");
@@ -18685,7 +18690,8 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
-        const hud = stripComments(sources.get("hud.mjs") ?? ""), panel = stripComments(panelText(sources));
+        // E41 C7b (1.2.97): the stopwatch and the clock it shows left hud.mjs; the HUD's family's text (the kit's `hudText`).
+        const hud = stripComments(hudText(sources)), panel = stripComments(panelText(sources));
         must(hud.length > 1000 && panel.length > 1000, "hud.mjs or gm-panel.mjs was not read - this test measured nothing");
         const boundary = stripComments(sources.get("boundary.mjs") ?? "");
         const chevron = bodyOf(fnSource(hud, "buildTimeRow"), "eclipseRunning ? \"fa-play\" : \"fa-chevron-right\"", { until: "\n        ));" });

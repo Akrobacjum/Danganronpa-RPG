@@ -22,7 +22,7 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText, expectedRed, stripStrings, bridgeFn, bridgeText, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText
+    worldDump, dumpDiff, lfText, expectedRed, stripStrings, bridgeFn, bridgeText, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -2094,7 +2094,8 @@ const INVARIANTS = [
         // The debate's clock is the trial card's line, not the campaign clock's.
         ok(/drpg-event-clock/.test(src("events.mjs")) && /paintTrialClock/.test(src("events.mjs")),
             "the trial card lost its countdown");
-        ok(!/paintFloorClock|is-trial-clock/.test(src("hud.mjs")),
+        // E41 C7b (1.2.97): the stopwatch and the clock it shows left hud.mjs; the HUD's family's text (the kit's `hudText`).
+        ok(!/paintFloorClock|is-trial-clock/.test(stripComments(hudText(sources))),
             "the campaign clock is drawing the debate's countdown again");
 
         // Who knows a project is a matrix, one column per player, in counting order.
@@ -24904,7 +24905,8 @@ const INVARIANTS = [
             since: typeof DS.summarySince === "function" ? [DS.summarySince(c()), DS.summarySince(c({ timeOfDayStartedAt: null })), DS.summarySince(null)] : null
         };
         const sources = new Map(await moduleSources());
-        const hud = stripComments(sources.get("hud.mjs") ?? ""), summary = stripComments(sources.get("day-summary.mjs") ?? "");
+        // E41 C7b (1.2.97): the stopwatch and the clock it shows left hud.mjs; the HUD's family's text (the kit's `hudText`).
+        const hud = stripComments(hudText(sources)), summary = stripComments(sources.get("day-summary.mjs") ?? "");
         got.source = [/elapsedOf\(/.test(fnSource(hud, "paintElapsed")), /unpausePatch\(/.test(fnSource(hud, "settleElapsedPause")),
             /timeOfDayStartedAt\s*:/.test(fnSource(hud, "settleElapsedPause")), /showsStopwatch\(/.test(fnSource(hud, "renderHud")),
             /summarySince\(/.test(fnSource(summary, "showDaySummary"))];

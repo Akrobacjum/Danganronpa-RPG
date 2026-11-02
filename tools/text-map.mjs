@@ -149,7 +149,8 @@ export const SCREENS = Object.freeze([
     row("mastermind", "the Mastermind and the Final Trial", "window", "both", ["scripts/mastermind.mjs:*"]),
     row("diagnostics", "the GM's reports (diagnostics and the map's checks)", "window", "gm", ["scripts/diagnostics.mjs:*", "scripts/fog-diagnostics.mjs:*"]),
     row("sheet", "the character sheet", "window", "both", ["scripts/sheet.mjs:*", "scripts/sheet-audit.mjs:*", "scripts/anonymity.mjs:*"]),
-    row("hud", "the HUD", "tiles", "both", ["scripts/hud.mjs:*"]),
+    // E41 C7b (1.2.97): the stopwatch and the clock it shows, in their own file.
+    row("hud", "the HUD", "tiles", "both", ["scripts/hud.mjs:*", "scripts/hud-elapsed.mjs:*"]),
     row("settings", "Foundry's settings window: the module's settings", "window", "both", ["scripts/settings.mjs:registerSettings"],
         { prefixes: ["DRPG.Settings."], note: "world settings a GM sets, client settings every user" }),
     row("daggerheart", "Daggerheart's own windows: the system's keys this module's files override", "window", "both", [], { prefixes: ["DAGGERHEART.", "GAME."] }),

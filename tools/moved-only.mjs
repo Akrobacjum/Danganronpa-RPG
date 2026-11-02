@@ -177,7 +177,8 @@ const SUITE_FILE = /^scripts\/tests[^/]*\.mjs$/;
 // without it (293 and 435, measured on C5a's tree with the crawl as C2b left it): read by hand for C5a.
 const SHRINK_LISTED = new Map([
     ["scripts/murder.mjs#retireOpeningNotices", { from: 279, to: 252, why: "C7a, R220 read by hand" }],
-    ["scripts/gm-bridge.mjs#handleCardPost", { from: 44598, to: 559, why: "E41 C5a, R164 and the crawls read by hand" }]
+    ["scripts/gm-bridge.mjs#handleCardPost", { from: 44598, to: 559, why: "E41 C5a, R164 and the crawls read by hand" }],
+    ["scripts/hud.mjs#paintElapsed", { from: 747, to: 638, why: "E41 C7b, R319 and R996 read by hand" }]
 ]);
 const PARTS = ["self", "lines", "statements", "bindings", "api", "cuts", "jsdoc", "imports"];
 
