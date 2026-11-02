@@ -15,7 +15,7 @@ import {
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
-    bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
+    bridgeTables, bridgeLookup, bridgeCrawl, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists
 } from "./tests-kit.mjs";
@@ -5594,10 +5594,12 @@ const REGRESSIONS = [
         must(leaf.length > 1000, "bridge-guards.mjs did not load");
         const problems = [];
         let runs = 0, handed = 0;
-        for (const { file, table, text } of await bridgeTables()) {
+        for (const entry of await bridgeTables()) {
+            const { file, table } = entry;
+            // E41 C2: in the table's file, then its family (`bridgeCrawlSources`), then the leaf (R1235).
+            const lookup = bridgeLookup(entry, leaf);
             for (const [action, decl] of Object.entries(table)) {
                 runs++;
-                const lookup = name => topLevelFunction(text, name) ?? topLevelFunction(leaf, name);
                 handed += payloadReads(decl, lookup).handedTo.filter(name => lookup(name)).length;
                 problems.push(...problemsOf(`${file} ${action}`, decl, lookup));
             }
@@ -5743,19 +5745,15 @@ const REGRESSIONS = [
             must(typeof why === "string" && why.length > 0, `a ${guard.factory} guard carries no reason - the factories no longer say what they refuse with`);
             texts.push({ text: why, from: `a ${guard.factory} guard` });
         }
-        for (const { file, table, text } of tables) {
-            const seen = new Set();
-            const queue = Object.values(table).map(decl => decl.run.name);
-            for (const name of queue) must(topLevelFunction(text, name), `${file}: the run ${name || "(unnamed)"} is not a function of its own file - this reads nothing of it`);
-            while (queue.length) {
-                const name = queue.shift();
-                if (seen.has(name)) continue;
-                seen.add(name);
-                const source = topLevelFunction(text, name);
-                if (!source) continue;
-                functions.push({ name: `${file} ${name}`, source, reads: "refused" });
-                for (const m of stripStrings(source).matchAll(/\b([A-Za-z_$][\w$]*)\s*\(/g)) queue.push(m[1]);
+        for (const entry of tables) {
+            const { file, table, text } = entry;
+            for (const decl of Object.values(table)) {
+                const name = decl.run.name;
+                must(topLevelFunction(text, name), `${file}: the run ${name || "(unnamed)"} is not a function of its own file - this reads nothing of it`);
             }
+            // The kit's crawl since E41 C2 (R1235 shows it planted faults): the runs, and what they call, cut in the
+            // table's file and then its family.
+            for (const fn of bridgeCrawl(entry)) functions.push({ name: `${fn.file} ${fn.name}`, source: fn.source, reads: "refused" });
         }
         const leaf = sources.find(([file]) => file === "bridge-guards.mjs")?.[1] ?? "";
         functions.push({ name: "bridge-guards.mjs judge", source: fnSource(leaf, "judge"), reads: "refuse" });
@@ -5775,6 +5773,100 @@ const REGRESSIONS = [
         equal(JSON.stringify(wildStart(G.REASON_PATTERNS)), "[]", "a reason's pattern begins with a wildcard, which a value could fill");
         ok(distinct >= 75, `only ${distinct} reasons were read - the reader has lost the guards, the runs or the functions they ask`);
         ok(!read.problems.length, `the bridge's reasons: ${read.problems.join("; ")}`);
+    }],
+
+    ["R1235 - the bridge's crawls read a table's family as well as its own file", async () => {
+        /*
+         * E41 C2, 02.11.2026 (E41-08). Three readers cut the functions a bridge table's runs reach - R163's lookup
+         * (what a run reads of its packet, followed into the functions it hands the packet to), R164's crawl (every
+         * reason a run and what it calls can refuse with) and `bridgeTableProblems`' reading of `runGuards` (a guard
+         * the run says it asks, looked for in the run and what it names) - and until this commit each cut in the
+         * table's own file alone. E41 splits gm-bridge.mjs (the owner's answer to Q-E41-1, 01.11.2026): from C5 the
+         * runs' callees live in call-gm.mjs, from C5a the runs in two run files. A callee moved out of the table's
+         * file is not refused by these readers - it is not read: its payload reads, its refusals and its guards drop
+         * out of the three tests, which stay green while reading less. So each table's row in the kit names its
+         * family (the files its runs reach into, `[]` until C5), and the three cut in the table's own file, then in
+         * each family file (`bridgeCrawlSources`).
+         *
+         * The fixture is one table whose run hands its packet to a helper that lives only in a family file; the
+         * helper reads `payload.helped`, refuses with its own words and asks the run's guard. Read with the family,
+         * each of the three finds them; read with the family left out, none does - so this shows the readers read
+         * the family, and not only that the family is there. A name both files declare is cut in the table's file.
+         * Live: every family file of the kit is served (`bridgeTables` musts it by name) and a function of it is
+         * cut, and every table's every run is reached by the crawl.
+         */
+        const kit = await import("./tests-kit.mjs");
+        for (const name of ["bridgeCrawlSources", "bridgeCut", "bridgeLookup", "bridgeCrawl"]) {
+            ok(typeof kit[name] === "function", `the kit has no ${name} - the bridge's crawls read a table's own file alone`);
+        }
+        const G = await import("./bridge-guards.mjs");
+        const fixtureHelper = () => null;
+        function guardFixtureLiving() { return null; }
+        const decl = { label: "DRPG.Bridge.what.fixture.helped", guards: [G.knownSender], runGuards: [guardFixtureLiving],
+            sanitize: G.pick({ helped: G.as.num }), run: function fixtureRun(payload, sender) { return fixtureHelper(payload, sender); }, answer: "ack" };
+        const TABLE_TEXT = [
+            "function fixtureRun(payload, sender) {", "    return fixtureHelper(payload, sender);", "}",
+            "function fixtureTwice() {", "    return \"table\";", "}", ""].join("\n");
+        const FAMILY_TEXT = [
+            "import { other } from \"./other.mjs\";",
+            "function fixtureHelper(payload, sender) {",
+            "    if (guardFixtureLiving(sender, payload)) return { refused: \"fixture: the helper refused it\" };",
+            "    return fixtureTwice() + payload.helped;", "}",
+            "function fixtureTwice() {", "    return \"family\";", "}", ""].join("\n");
+        const entry = { file: "fixture-table.mjs", name: "FIXTURE", module: { guardFixtureLiving }, table: { "fixture.helped": decl },
+            text: TABLE_TEXT, family: [["fixture-family.mjs", FAMILY_TEXT]] };
+        const alone = { ...entry, family: [] };
+
+        // The order of the crawl sources, and a name both files declare cut in the table's own file.
+        equal(JSON.stringify(kit.bridgeCrawlSources(entry).map(([file]) => file)), JSON.stringify(["fixture-table.mjs", "fixture-family.mjs"]),
+            "the crawl sources are not the table's file, then its family");
+        equal(kit.bridgeCut(entry, "fixtureTwice")?.file, "fixture-table.mjs", "a name the table's file and its family both declare is not cut in the table's file first");
+        equal(kit.bridgeCut(entry, "fixtureHelper")?.file, "fixture-family.mjs", "a function only the family declares is not cut there");
+
+        // R163's lookup: the helper's read of the packet, through the family.
+        const reads = table => JSON.stringify(payloadReads(decl, kit.bridgeLookup(table, "")).fields);
+        equal(reads(entry), JSON.stringify(["helped"]), "R163's lookup does not follow the packet into a helper of the table's family");
+        equal(reads(alone), "[]", "R163's lookup reads a helper the table's family no longer lists - this fixture shows nothing");
+
+        // R164's crawl: the helper, and the reason it refuses with.
+        const crawl = table => kit.bridgeCrawl(table).map(fn => `${fn.file} ${fn.name}`);
+        equal(JSON.stringify(crawl(entry)), JSON.stringify(["fixture-table.mjs fixtureRun", "fixture-family.mjs fixtureHelper", "fixture-table.mjs fixtureTwice"]),
+            "R164's crawl does not reach the helper in the table's family, in order");
+        equal(JSON.stringify(crawl(alone)), JSON.stringify(["fixture-table.mjs fixtureRun"]), "R164's crawl reaches past the table's file with no family");
+        const refusals = table => refusalProblems({ functions: kit.bridgeCrawl(table).map(fn => ({ name: `${fn.file} ${fn.name}`, source: fn.source, reads: "refused" })),
+            patterns: [["fixtureHelped", /^fixture: the helper refused it$/]], reasons: ["fixtureHelped"] });
+        equal(JSON.stringify(refusals(entry).texts.map(t => t.text)), JSON.stringify(["fixture: the helper refused it"]),
+            "R164's reader does not read the reason the family's helper refuses with");
+        equal(JSON.stringify(refusals(alone).problems), JSON.stringify(["fixtureHelped: no reason read takes its pattern - it is dead, or a reason moved out of its reach"]),
+            "with the family left out, the helper's reason is still read - this fixture shows nothing");
+
+        // The kit's runGuards reading: the guard the run asks through its helper.
+        const keys = new Set(["DRPG.Bridge.what.fixture.helped", "DRPG.Bridge.notDone", "DRPG.Bridge.nothingSpent"]);
+        const guarded = table => JSON.stringify(bridgeTableProblems([table], { en: keys, pl: keys, guards: G }).problems);
+        equal(guarded(entry), "[]", "the runGuards reading does not find the guard the run asks through its family's helper");
+        equal(guarded(alone), JSON.stringify(["fixture-table.mjs fixture.helped: runGuards names guardFixtureLiving, which its run never asks"]),
+            "with the family left out, the runGuards reading still finds the guard - this fixture shows nothing");
+
+        // Live: each family file served and cut, and every run reached.
+        const tables = await bridgeTables();
+        let members = 0, reached = 0, runs = 0;
+        for (const table of tables) {
+            ok(Array.isArray(table.family), `${table.file}: bridgeTables hands no family`);
+            for (const [member, text] of table.family) {
+                members++;
+                const first = text.match(/^(?:export )?(?:async )?function (\w+)\(/m)?.[1];
+                ok(first && topLevelFunction(text, first), `${member}, in the family of ${table.file}, holds no top-level function the crawls cut`);
+            }
+            const names = new Set(kit.bridgeCrawl(table).map(fn => fn.name));
+            reached += names.size;
+            for (const [action, d] of Object.entries(table.table)) {
+                runs++;
+                ok(names.has(d.run.name), `${table.file} ${action}: the crawl does not reach its run ${d.run.name || "(unnamed)"}`);
+            }
+        }
+        log(`R1235: ${tables.length} tables, ${members} family file(s) served and cut, ${runs} runs, ${reached} functions the crawl reaches`);
+        // 161 functions over the four tables, measured at E41 C2 (02.11.2026; a name two tables reach is counted twice).
+        ok(runs >= 37 && reached >= 150, `only ${runs} runs and ${reached} crawled functions were read - the tables are not where this test looks`);
     }],
 
     ["R171 - nothing outside the engine reads or writes a GM store, a frozen legacy key or a player copy", async () => {

@@ -1116,26 +1116,88 @@ function importCycles(files) {
  * are declarations now, so it reads the declarations themselves. The table files
  * are imported, which also proves each still exports its table; the source text
  * is read only where a declaration names a function whose body matters (the
- * run, and what the run hands its packet to).
+ * run, and what the run hands its packet to) - in the table's own file and,
+ * since E41 C2, in its family: the files its runs reach into, which a split of
+ * the table's file moves them to (`bridgeCrawlSources`, R1235).
  */
 async function bridgeTables() {
     const out = [];
-    for (const [file, name] of BRIDGE_TABLE_FILES) {
+    const served = async (file, whose) => {
+        const res = await fetch(`/modules/${MODULE_ID}/scripts/${file}`);
+        must(res.ok, `${file}${whose} is not served (HTTP ${res.status})`);
+        return stripComments(await lfText(res));
+    };
+    for (const [file, name, family] of BRIDGE_TABLE_FILES) {
         const module = await import(`./${file}`);
         must(module[name] && typeof module[name] === "object",
             `${file} no longer exports ${name} - the bridge's tables cannot be read until it does`);
-        const res = await fetch(`/modules/${MODULE_ID}/scripts/${file}`);
-        must(res.ok, `${file} is not served (HTTP ${res.status})`);
-        out.push({ file, name, table: module[name], module, text: stripComments(await lfText(res)) });
+        must(Array.isArray(family), `${file}'s row in BRIDGE_TABLE_FILES names no family list - its crawl cannot be read`);
+        const text = await served(file, "");
+        const kin = [];
+        for (const member of family) kin.push([member, await served(member, `, in the family of ${file}'s ${name},`)]);
+        out.push({ file, name, table: module[name], module, text, family: kin });
     }
     return out;
 }
 
-/** The tables and the files that hold them (E31: the bridge, the trap relay, the search tokens; E06 C5a: a roll's subject). */
+/**
+ * The tables, the files that hold them, and each table's family (E31: the bridge, the trap relay, the search tokens;
+ * E06 C5a: a roll's subject; E41 C2: the family). A family is the files a table's runs reach into beyond its own file:
+ * the run files and helpers a split of the table's file moves code to, read by the crawls after the table's own file
+ * (`bridgeCrawlSources`). Every family is empty until the bridge's moves (E41 C5) list theirs; tools/moved-only.mjs
+ * `bridgeReach` reads these rows off this text, in either form, `["file", "NAME"]` or `["file", "NAME", [...]]`.
+ */
 const BRIDGE_TABLE_FILES = Object.freeze([
-    ["gm-bridge.mjs", "BRIDGE_ACTIONS"], ["traps.mjs", "TRAP_ACTIONS"], ["search-tokens.mjs", "SEARCH_ACTIONS"],
-    ["private-rolls.mjs", "ROLL_ACTIONS"]
+    ["gm-bridge.mjs", "BRIDGE_ACTIONS", []], ["traps.mjs", "TRAP_ACTIONS", []], ["search-tokens.mjs", "SEARCH_ACTIONS", []],
+    ["private-rolls.mjs", "ROLL_ACTIONS", []]
 ]);
+
+/**
+ * The texts a crawl of one table's runs cuts in (E41 C2), as `[file, text]` in order: the table's own file, then each
+ * file of its family, comments stripped (as `bridgeTables()` hands them). A name declared in two of them is cut in the
+ * first - the table's own file before its family.
+ */
+function bridgeCrawlSources(entry) {
+    return [[entry.file, entry.text ?? ""], ...(entry.family ?? [])];
+}
+
+/** The cut of `name` in one table's crawl sources, `{ file, source }`, or null when none of them declares it. */
+function bridgeCut(entry, name) {
+    for (const [file, text] of bridgeCrawlSources(entry)) {
+        const source = topLevelFunction(text, name);
+        if (source) return { file, source };
+    }
+    return null;
+}
+
+/**
+ * R163's lookup for one table's runs (E41 C2): a function's cut by name in the table's crawl sources, else in
+ * bridge-guards.mjs's text (`leaf`), else null - what `payloadReads` follows a packet into.
+ */
+function bridgeLookup(entry, leaf) {
+    return name => bridgeCut(entry, name)?.source ?? topLevelFunction(leaf, name);
+}
+
+/**
+ * R164's crawl of one table (E31; the kit's since E41 C2, so R1235 runs it on a fixture): from the table's runs, every
+ * name called in a function it cut (string literals blanked), cut again, in the table's crawl sources - each function
+ * once, as `{ file, name, source }`, in the order it was reached. A name no crawl source declares is passed by:
+ * a global, a method, or a function of another file, which this does not follow.
+ */
+function bridgeCrawl(entry) {
+    const out = [], seen = new Set();
+    const queue = Object.values(entry.table ?? {}).map(decl => decl.run?.name);
+    while (queue.length) {
+        const name = queue.shift();
+        if (!name || seen.has(name)) continue;
+        seen.add(name);
+        const found = bridgeCut(entry, name);
+        if (!found) continue;
+        out.push({ file: found.file, name, source: found.source });
+        for (const m of stripStrings(found.source).matchAll(/\b([A-Za-z_$][\w$]*)\s*\(/g)) queue.push(m[1]);
+    }
+    return out;
+}
 
 /**
  * Everything wrong with the bridge's tables, one sentence each (R1b). Pure: it
@@ -1159,7 +1221,7 @@ const BRIDGE_TABLE_FILES = Object.freeze([
  *      and a field named as an id (`...Id`) is sanitized `as.id`, so it is one of
  *      them (E31 review: as text it would pass this step unjudged);
  *   7. every `runGuards` entry is named in the run, or in a function of the
- *      table's file the run names;
+ *      table's file or its family the run names (`bridgeCut`, E41 C2);
  *   8. every code of `reasons` has its sentence, `DRPG.Bridge.why.<code>`, in en
  *      and pl, and so has the message they are said in (`notDone`,
  *      `nothingSpent`); every request named to `tellRefused` outside the runner
@@ -1178,7 +1240,8 @@ function bridgeTableProblems(tables, { en, pl, guards, reasons = [], told = [] }
     // Past the parameter list: every guard takes `sender`, and only a body can be said to read it.
     const readsSender = fn => /\bsender\b/.test(source(fn).replace(/^[^)]*\)/, ""));
     const readsField = (fn, field) => new RegExp(`\\bpayload\\??\\.${field}\\b`).test(source(fn));
-    for (const { file, table, module, text } of tables) {
+    for (const entry of tables) {
+        const { file, table, module } = entry;
         for (const [action, decl] of Object.entries(table)) {
             actions++;
             const at = `${file} ${action}`;
@@ -1231,7 +1294,7 @@ function bridgeTableProblems(tables, { en, pl, guards, reasons = [], told = [] }
 
             if (decl.runGuards?.length) {
                 const run = source(decl.run);
-                const named = [...run.matchAll(/\b([A-Za-z_]\w*)\(/g)].map(m => topLevelFunction(text, m[1])).filter(Boolean).join("\n");
+                const named = [...run.matchAll(/\b([A-Za-z_]\w*)\(/g)].map(m => bridgeCut(entry, m[1])?.source).filter(Boolean).join("\n");
                 for (const guard of decl.runGuards) {
                     if (!new RegExp(`\\b${guard.name}\\b`).test(`${run}\n${named}`)) problems.push(`${at}: runGuards names ${guard.name}, which its run never asks`);
                 }
@@ -2005,7 +2068,7 @@ export {
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, styleCascade, bodyOf, topLevelFunction, fnSource, lineAround,
-    withGuards, staticImports, importCycles, bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
+    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeCut, bridgeLookup, bridgeCrawl, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
     flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem, TEXT_BASELINES, textAgainstBaseline, textStaleRow,
     textTableWords, textLegacyLists,

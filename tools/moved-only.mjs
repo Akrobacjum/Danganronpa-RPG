@@ -53,22 +53,24 @@
  *             "Where the code lives"). A name a target that was there at the base stops exporting (a demotion) is imported by
  *             no file under scripts/ or audit/harness: `import` and `export ... from`, and the import() forms
  *             `importsOf` reads (round 2, m2; it says which it does not).
- *   cuts      tests-kit's `topLevelFunction` cut of every function of every family file of the base equals its cut
- *             at the head, comments stripped and `export ` taken off every line start (a cut runs on to the next
- *             function or `const X = {`, so the statements after a function are inside it, a promoted const among
- *             them). Red where the cut changed and a tier file reads the function - its name's string literal in an
- *             array (a row, or a list a loop cuts) or as an argument of fnSource or topLevelFunction, the name as a
- *             key of an object a const with an upper-case name holds (tier 0's DELEGATES), a function the bridge
- *             tables' callee crawls cut (tier 0's refusal reading, the kit's runGuards: always in the table's own
- *             file), a callee R290's crawl cuts (tier 1: each gmMeansWrite or meansWrite job's callees, cut only in
- *             the job's own file; round 2, m4), or a `guard...` name when a tier file calls withGuards - because a
- *             test would then read code it was not written for, or, where the cut only shrank (a statement it ran
- *             on into stayed behind), less than it was written for (m3). Listed otherwise, and listed for a shrink
- *             SHRINK_LISTED names by its base file and both lengths (round 2, m3). The two crawls are read at both
- *             ends, and a function one cuts at one end and not at the other is red too: a callee moved out of its
- *             job's or table's file keeps its cut and leaves the test reading less (round 2, m4). Not counted: tier
- *             0's read of every function of character.mjs (no E34 commit moves one), and a crawl's reach through
- *             a function that is not a top-level `function` (an arrow helper), which the crawls do not follow either.
+ *   cuts      tests-kit's `topLevelFunction` cut of every function of every family file of the base equals its cut at
+ *             the head, comments stripped and `export ` taken off every line start (a cut runs on to the next function
+ *             or `const X = {`, so the statements after a function are inside it, a promoted const among them). Red
+ *             where the cut changed and a tier file reads the function - its name's string literal in an array (a row,
+ *             or a list a loop cuts) or as an argument of fnSource or topLevelFunction, the name as a key of an object
+ *             a const with an upper-case name holds (tier 0's DELEGATES), a function the bridge tables' callee crawls
+ *             cut (tier 0's refusal reading, the kit's runGuards: in the table's own file, then in each file of its
+ *             family, the third element of its BRIDGE_TABLE_FILES row - E41 C2, the kit's `bridgeCrawlSources`), a
+ *             callee R290's crawl cuts (tier 1: each gmMeansWrite or meansWrite job's callees, cut only in the job's
+ *             own file; round 2, m4), or a `guard...` name when a tier file calls withGuards - because a test would
+ *             then read code it was not written for, or, where the cut only shrank (a statement it ran on into stayed
+ *             behind), less than it was written for (m3). Listed otherwise, and listed for a shrink SHRINK_LISTED names
+ *             by its base file and both lengths (round 2, m3). The two crawls are read at both ends, and a function one
+ *             cuts at one end and not at the other is red too: a callee moved out of its job's or table's file keeps
+ *             its cut and leaves the test reading less (round 2, m4), unless it moved into a file of the table's family
+ *             (E41 C2, plant P17). Not counted: tier 0's read of every function of character.mjs (no E34 commit moves
+ *             one), and a crawl's reach through a function that is not a top-level `function` (an arrow helper), which
+ *             the crawls do not follow either.
  *   jsdoc     a JSDoc `@param` that is not a parameter of the function under it is red when the base did not have
  *             the same mismatch (by the statement's first name and the parameter); one the base had is listed, so a
  *             block that sat over the wrong function before the stage (fog.mjs's findNamed at 1.2.69) is not red
@@ -80,21 +82,23 @@
  *             file holds a CR byte.
  *
  * THE PLANTED PAIRS. A checker that reports nothing has proved nothing until it has been shown to report something, so
- * every run first judges a fixture of eleven files - three facades (one of them a GM job), the files they moved into, a
- * helper, another GM job of the same names, a file outside the family that imports from a target, a tier file, a bridge
- * table and a kit that lists it - with these planted: a moved line changed, a comment line lost, a promotion with
- * `export default ` (not `export `), a shadowing import, a dropped re-export, a cut that grew under a name a tier file
- * reads, an `@param` over the wrong function, an unused import and a CR; and the review's P1-P8 (two lines exchanged in
- * a moved function, a line moved between functions, a moved array's elements exchanged, code after a header and on an
- * import line, a re-export's names exchanged, two side-effect imports, a write to a moved `let`) and its cut routes
- * (cuts read as a key and as a quoted key grew, one read by name shrank, one a crawl cuts grew); and round 2's P9, P10,
- * P15b and P16 (a moved function's alias swapped for another of its name that reads another thing, a demoted name a
- * file outside the family imports statically and through import(), a listed shrink at other lengths and under another
- * file, a callee R290's crawl cut moved out of its job's file while another file holds a job and callee of the same
- * names, and one whose cut grew). Forty problems, each at its file and line and, where a line carries two, by a piece
- * of its message; the fixture also moves, promotes and copies an alias line, and shrinks a cut it lists with its own
- * lengths, which must pass. `node tools/check.mjs moves` runs this part alone, so CI keeps the tool honest between the
- * waves that use it.
+ * every run first judges a fixture of fourteen files - four facades (one of them a GM job, one a bridge table), the
+ * files they moved into, a helper, another GM job of the same names, a file outside the family that imports from a
+ * target, a tier file, two bridge tables and a kit that lists them - with these planted: a moved line changed, a
+ * comment line lost, a promotion with `export default ` (not `export `), a shadowing import, a dropped re-export, a cut
+ * that grew under a name a tier file reads, an `@param` over the wrong function, an unused import and a CR; and the
+ * review's P1-P8 (two lines exchanged in a moved function, a line moved between functions, a moved array's elements
+ * exchanged, code after a header and on an import line, a re-export's names exchanged, two side-effect imports, a write
+ * to a moved `let`) and its cut routes (cuts read as a key and as a quoted key grew, one read by name shrank, one a
+ * crawl cuts grew); and round 2's P9, P10, P15b and P16 (a moved function's alias swapped for another of its name that
+ * reads another thing, a demoted name a file outside the family imports statically and through import(), a listed
+ * shrink at other lengths and under another file, a callee R290's crawl cut moved out of its job's file while another
+ * file holds a job and callee of the same names, and one whose cut grew); and E41 C2's P17 (the kit lists a family file
+ * for the second table, and of the two callees its run calls, the one moved into that file is not reported and the one
+ * moved into a file the row does not list is). Forty-one problems, each at its file and line and, where a line carries
+ * two, by a piece of its message; the fixture also moves, promotes and copies an alias line, and shrinks a cut it lists
+ * with its own lengths, which must pass. `node tools/check.mjs moves` runs this part alone, so CI keeps the tool honest
+ * between the waves that use it.
  *
  * Measured on 07.10.2026: the planted pairs, eleven of eleven. Over a scratch run of E34's mover - its nine commits
  * C2-C9 over 1.2.69's five family files, without the headers and tests a commit session adds - the lines part's counts
@@ -120,6 +124,13 @@
  * -> 5680 (the review's m5), where the tool as r1-G1 left it was red on part 2's bindings too, for two DialogV2
  * aliases that read the same thing (m1). The bridge crawls cut 84 functions and R290's crawl 7 callees at every one of
  * them; 55 s for the nineteen runs, the four plants among them.
+ *
+ * Measured on 02.11.2026 (E41 C2, the bridge's crawls read a table's family): the planted pairs, forty-one of
+ * forty-one, and forty of forty-one on the tool as E34 left it with P17's fixture (P17 not reported); with the family
+ * ignored (`[file]` for `[file, ...family]`) forty-two reported, the forty-one and the callee moved into the listed
+ * file. Over the kit's new rows (every family `[]`), from 482224b to this commit's tree, the bridge crawls cut 161
+ * functions at both ends, as they did from 3ab6f7a to 482224b on the tool as E34 left it, which over the new rows reads
+ * no row ("BRIDGE_TABLE_FILES is not read here") and every crawled function lost.
  */
 
 import fs from "node:fs";
@@ -799,28 +810,37 @@ function cutsPart(B, H, { baseFamily, headFamily, pairs, shrinkListed }, report,
             && /\bconst [A-Z][A-Z0-9_]* = $/.test(brackets.slice(Math.max(0, at - 60), at));
     };
     // The callee crawls of the bridge's tables (tier 0's refusal reading, the kit's runGuards): from each table's runs,
-    // every name called in a function they cut, cut again - always in the table's own file, so what the crawls read is
-    // the functions of those files they reach. Read here with the crawls' own regex. Each crawl's reach is a map from
+    // every name called in a function they cut, cut again - in the table's own file, then in each file of its family
+    // (E41 C2: the kit's `bridgeCrawlSources`, the third element of a BRIDGE_TABLE_FILES row), the first that declares
+    // it, so what the crawls read is the functions of those files they reach. Read here with the crawls' own regex,
+    // each row in either form, `["file", "NAME"]` or `["file", "NAME", ["a.mjs", ...]]`, and a file named in the list
+    // in any other form is red at the head (it would be read by the kit and not here). Each crawl's reach is a map from
     // what it cuts to the files it cuts it in: a key met twice (one name in two table files, one job and callee pair in
-    // two files) is kept twice, so that losing one of the two is seen.
+    // two files) is kept twice, so that losing one of the two is seen; a callee moved from the table's file into a file
+    // of its family is the same key in another file, and one moved into a file the row does not list is lost (plant
+    // P17).
     const put = (reach, key, r) => reach.set(key, [...reach.get(key) ?? [], r]);
     const bridgeReach = rev => {
         const kit = rev.text("scripts/tests-kit.mjs");
-        const tableFiles = [...(kit?.match(/\bBRIDGE_TABLE_FILES = Object\.freeze\(\[([\s\S]*?)\]\);/)?.[1] ?? "").matchAll(/\[\s*"([\w.-]+\.mjs)"\s*,\s*"\w+"\s*\]/g)].map(m => m[1]);
-        if (rev === H && kit !== null && !tableFiles.length) out.push("scripts/tests-kit.mjs:1: BRIDGE_TABLE_FILES is not read here, so the functions the bridge crawls cut are not known");
+        const list = kit?.match(/\bBRIDGE_TABLE_FILES = Object\.freeze\(\[([\s\S]*?)\]\);/)?.[1] ?? "";
+        const rows = [...list.matchAll(/\[\s*"([\w.-]+\.mjs)"\s*,\s*"\w+"\s*(?:,\s*\[([^\[\]]*)\]\s*)?\]/g)]
+            .map(m => ({ file: m[1], family: [...(m[2] ?? "").matchAll(/"([\w.-]+\.mjs)"/g)].map(f => f[1]) }));
+        if (rev === H && kit !== null && !rows.length) out.push("scripts/tests-kit.mjs:1: BRIDGE_TABLE_FILES is not read here, so the functions the bridge crawls cut are not known");
+        const named = (list.match(/"[\w.-]+\.mjs"/g) ?? []).length, read = rows.reduce((n, r) => n + 1 + r.family.length, 0);
+        if (rev === H && named !== read) out.push(`scripts/tests-kit.mjs:1: BRIDGE_TABLE_FILES names ${named} files and ${read} are read here, so the functions the bridge crawls cut are not known`);
         const reach = new Map();
-        for (const file of tableFiles) {
-            const text = lint.stripComments(rev.text(`scripts/${file}`) ?? "");
-            const queue = [...text.matchAll(/^\s*run: ([A-Za-z_$][\w$]*),?\s*$/gm)].map(m => m[1]);
+        for (const { file, family } of rows) {
+            const texts = [file, ...family].map(f => [`scripts/${f}`, lint.stripComments(rev.text(`scripts/${f}`) ?? "")]);
+            const queue = [...texts[0][1].matchAll(/^\s*run: ([A-Za-z_$][\w$]*),?\s*$/gm)].map(m => m[1]);
             if (rev === H && !queue.length) out.push(`scripts/${file}:1: no \`run: <name>\` line is read in the bridge table file, so its crawl is not known`);
             const seen = new Set();
             while (queue.length) {
                 const name = queue.shift();
                 if (seen.has(name)) continue;
                 seen.add(name);
-                const source = topLevelFunction(text, name);
+                const [where, source] = texts.map(([f, text]) => [f, topLevelFunction(text, name)]).find(([, cut]) => cut) ?? [];
                 if (!source) continue;
-                put(reach, name, { name, file: `scripts/${file}`, by: "the bridge crawl" });
+                put(reach, name, { name, file: where, by: "the bridge crawl" });
                 for (const m of lint.blankLiterals(source).matchAll(/\b([A-Za-z_$][\w$]*)\s*\(/g)) queue.push(m[1]);
             }
         }
@@ -1073,8 +1093,30 @@ function marks() {
 }
 `,
     "scripts/tests-kit.mjs": `const BRIDGE_TABLE_FILES = Object.freeze([
-    ["table.mjs", "ACTIONS"]
+    ["table.mjs", "ACTIONS"], ["table2.mjs", "MORE", []]
 ]);
+`,
+    "scripts/table2.mjs": `/**
+ * table2.mjs - the fixture's second bridge table, whose family the kit lists at the head (P17).
+ */
+
+export const MORE = {
+    more: {
+        run: runMore,
+    }
+};
+
+function runMore() {
+    return helped() + strayed();
+}
+
+function helped() {
+    return 21;
+}
+
+function strayed() {
+    return 22;
+}
 `,
     "scripts/table.mjs": `/**
  * table.mjs - the fixture's bridge table.
@@ -1245,7 +1287,43 @@ const QUOTED_TAIL = 12;
 const FIXTURE_HEAD = {
     "scripts/util.mjs": FIXTURE_BASE["scripts/util.mjs"],
     "scripts/tests-tier0.mjs": FIXTURE_BASE["scripts/tests-tier0.mjs"],
-    "scripts/tests-kit.mjs": FIXTURE_BASE["scripts/tests-kit.mjs"],
+    "scripts/tests-kit.mjs": `const BRIDGE_TABLE_FILES = Object.freeze([
+    ["table.mjs", "ACTIONS"], ["table2.mjs", "MORE", ["fam-table-help.mjs"]]
+]);
+`,
+    "scripts/table2.mjs": `/**
+ * table2.mjs - the fixture's second bridge table, whose family the kit lists at the head (P17).
+ */
+
+import { helped } from "./fam-table-help.mjs";
+import { strayed } from "./elsewhere.mjs";
+
+export const MORE = {
+    more: {
+        run: runMore,
+    }
+};
+
+function runMore() {
+    return helped() + strayed();
+}
+`,
+    "scripts/fam-table-help.mjs": `/**
+ * fam-table-help.mjs - the family file the kit lists for table2.mjs's table (P17).
+ */
+
+export function helped() {
+    return 21;
+}
+`,
+    "scripts/elsewhere.mjs": `/**
+ * elsewhere.mjs - a file the kit's row for table2.mjs does not list (P17).
+ */
+
+export function strayed() {
+    return 22;
+}
+`,
     "scripts/reader.mjs": FIXTURE_BASE["scripts/reader.mjs"],
     "scripts/jobs2.mjs": FIXTURE_BASE["scripts/jobs2.mjs"],
     "scripts/jobs.mjs": `/**
@@ -1509,7 +1587,11 @@ const PLANTED = [
     ["api", "head", "scripts/reader.mjs", "import { lastOne }"],
     ["api", "head", "scripts/tests-tier0.mjs", "lastOne()"],
     ["cuts", "head", "scripts/fam-new.mjs", "export function restore", "R290's crawl"],
-    ["cuts", "head", "scripts/jobs.mjs", "function marks", "by crawl"]
+    ["cuts", "head", "scripts/jobs.mjs", "function marks", "by crawl"],
+    // E41 C2's P17: a bridge table's family (the kit's third element). table2.mjs's run calls two callees; one moves
+    // into fam-table-help.mjs, which the kit's row lists at the head, and is not reported; the other moves into
+    // elsewhere.mjs, which the row does not list, and the crawl reads less.
+    ["cuts", "head", "scripts/elsewhere.mjs", "export function strayed", "does not at the head"]
 ];
 // The fixture's SHRINK_LISTED: `trimmed`'s own reading (55 -> 33 characters), and P15b's two near misses of `shrinks`
 // (90 -> 32 characters in fam.mjs).
