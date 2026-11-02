@@ -240,8 +240,10 @@ export async function startEclipse() {
 
     // Named by when it began (`eclipseId`): what is declared and crossed in it counts
     // in it alone, so the last Eclipse's crossings need no clearing (E05). The memory keeps
-    // the `refilledFor` it found and the boundary before it (clock.mjs `boundaryMemory`).
-    await setClock({ eclipse: true, eclipseStartedAt: Date.now(), refilledFor: boundary,
+    // the `refilledFor` it found and the boundary before it (clock.mjs `boundaryMemory`). On the server's clock (E37 fix FG2;
+    // the end review's C-m4): the day summary closes the time of day there (day-summary.mjs `summaryWindow`), and its start
+    // and its cards are stamped on that clock - a GM's clock behind it cut the last cards off, or every one.
+    await setClock({ eclipse: true, eclipseStartedAt: serverNow(), refilledFor: boundary,
         lastAdvance: boundaryMemory(opening, boundary, snapshot) });
 
     /*

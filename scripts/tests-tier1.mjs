@@ -31129,6 +31129,14 @@ const INVARIANTS = [
          * had moved the GM's page through the same day's morning-to-noon and back. The stamp is the boundary and the
          * window's start now: `again` is that second Next, and `shown` still holds the Eclipse ended without advancing
          * (its time of day keeps its start). Red at 15f46794: `again` null.
+         *
+         * WHAT CAME AFTER AN ECLIPSE ENDED WITHOUT ADVANCING (E37 fix FG2, 02.11.2026; the end review's C-m2). The
+         * Eclipse's start summed up [T, B), its end without advancing kept the stamp, and play went on in the morning:
+         * Next at C then had the stamp summed up already and showed nothing, so what was played between B and C was summed
+         * up on no browser. `shownFor` is the window's stamp and its end now (`{ stamp, until }`; a stamp alone reads as a
+         * window with no end, as `shown` passes it): `after` is that Next - [B, C) - and an Eclipse begun again at the same
+         * boundary at D - [B, D) - and the same Next with the window shown up to C already, or with no end, shows none.
+         * Red at 2b5527e1: `after` was the whole [T, C) and [T, D) again.
          */
         const DS = await import("./day-summary.mjs");
         const { boundaryStamp } = await import("./clock.mjs");
@@ -31156,6 +31164,8 @@ const INVARIANTS = [
             stampless: [w({ ...morning, timeOfDayStartedAt: null }, noon), w({ ...morning, timeOfDayStartedAt: null }, { ...dark, timeOfDayStartedAt: null })],
             putBack: w(morning, { ...noon, timeOfDayStartedAt: T - 60_000 }),
             again: w({ ...morning, timeOfDayStartedAt: R }, { ...noon, timeOfDayStartedAt: C }, stamp),
+            after: [w(morning, { ...noon, timeOfDayStartedAt: C }, { stamp, until: B }), w(morning, { ...dark, eclipseStartedAt: C + 60_000 }, { stamp, until: B }),
+                w(morning, { ...noon, timeOfDayStartedAt: C }, { stamp, until: C }), w(morning, { ...noon, timeOfDayStartedAt: C }, { stamp, until: null })],
             none: [w(null, noon), w(morning, null)]
         };
         const closed = { since: T, until: B, timeOfDay: "morning", stamp };
@@ -31171,13 +31181,15 @@ const INVARIANTS = [
             stampless: [null, null],
             putBack: null,
             again: { since: R, until: C, timeOfDay: "morning", stamp: JSON.stringify([boundaryStamp(morning), R]) },
+            after: [{ since: B, until: C, timeOfDay: "morning", stamp }, { since: B, until: C + 60_000, timeOfDay: "morning", stamp }, null, null],
             none: [null, null]
         }), "{next: morning moved to noon; eclipse: the same morning's Eclipse begun at the same moment - the same window; wrap: a Night into the "
             + "next day's morning; jump: setTimeOfDay to the evening; outOfEclipse: an Eclipse ended with the clock moved, and without; shown: the "
             + "boundary summed up already - by Next, by an Eclipse, and Next after an Eclipse ended without advancing; rewind: noon back to the "
             + "morning, a morning back to last night; calendar: a new season, a new chapter; pause; stampless: no stamp at a move and at an "
             + "Eclipse; putBack: a clock put back with an older stamp; again: Next after a rewind restamped the morning, the boundary summed up before; "
-            + "none: no clock before, none after}");
+            + "after: Next and an Eclipse begun again after an Eclipse ended without advancing, its window shown up to B, then Next with the window "
+            + "shown up to C and with no end; none: no clock before, none after}");
     }],
     ["R1198 - the bus is a table (E37 C5, E37-19 to E37-23; audit S17-19, S07-26): sync.mjs `KIND_REFRESH` gives every `SYNC` kind a frozen row of names of `REFRESHES` and every refresh a row; `refresh` runs a kind's row and nothing else; the clock's row runs the visibility pass and the hooks only for what moved; `SYNC.despair` renders the Monokumas' sheets and no student's; the incident's world half and its cast copy reach `SYNC.incident`, whose row runs the pass; `trialQueue` and `trialProgress` reach the trial's row with the voice tile; visibility.mjs runs no pass of its own on the clock's hooks", async () => {
         /*

@@ -78647,6 +78647,12 @@ const SCENARIOS = [
          * read as its title, its lede, its rows' words and its totals. Put back: the clock, every character's actions,
          * the crossings' rows, the seals, the restrictions, the motive, the search tokens, the body's record and the
          * round; the cards deleted, the popups dismissed. Red at 2230c1fa: no popup on Next.
+         *
+         * THE ECLIPSE'S START ON THE SERVER'S CLOCK (E37 fix FG2, 02.11.2026; the end review's C-m4). `eclipseStartedAt` was
+         * this GM's `Date.now()` while the window's start and its cards are on the server's: a GM's clock behind the server
+         * cut the last cards off, or the whole summary. From the Eclipse's start to its end the server's clock reads an hour
+         * ahead of this browser's (`game.time.serverTime` planted, put back after): the start is stamped on it, and the
+         * summary still holds the three cards. Red at 2b5527e1: the stamp was this browser's own.
          */
         needs(env.primaryGm(), "an Eclipse is started and ended on the primary GM");
         const J = stableJson;
@@ -78681,6 +78687,11 @@ const SCENARIOS = [
         };
         const cards = [];
         const read = {};
+        const AHEAD = 3_600_000, timeOwn = Object.getOwnPropertyDescriptor(game.time, "serverTime");
+        const plantServer = () => Object.defineProperty(game.time, "serverTime", { configurable: true, get: () => Date.now() + AHEAD });
+        const unplantServer = () => {
+            if (timeOwn) Object.defineProperty(game.time, "serverTime", timeOwn); else delete game.time.serverTime;
+        };
         try {
             if (isEclipse()) await E.endEclipse({ advance: false });
             const T0 = Date.now();
@@ -78706,10 +78717,13 @@ const SCENARIOS = [
             await setClock({ day: (getClock().day ?? 1) + 1, timeOfDay: "morning", timeOfDayStartedAt: T0 });
             await settle();
             read.between = summaries().length;
+            plantServer();
+            const startedNear = Date.now() + AHEAD;
             await E.startEclipse();
             await until(() => summaries().length > 0, 8000);
             await settle();
             read.eclipse = [isEclipse(), summaries().length];
+            read.startedAt = Math.abs(Number(getClock().eclipseStartedAt) - startedNear) < AHEAD / 2;
             const dark = readCard(summaries()[0]);
             read.same = [next?.rows?.length ?? null, J(next) === J(dark)];
             read.card = next;
@@ -78721,7 +78735,9 @@ const SCENARIOS = [
             await settle();
             await until(() => summaries().length > 0, 3000);
             read.end = [isEclipse(), getClock().timeOfDay, summaries().length];
+            unplantServer();
         } finally {
+            unplantServer();
             dismiss();
             for (const card of cards) await card?.delete?.();
             if (isEclipse()) await E.endEclipse({ advance: false });
@@ -78743,14 +78759,109 @@ const SCENARIOS = [
             next: ["noon", 1],
             between: 0,
             eclipse: [true, 1],
+            startedAt: true,
             same: [3, true],
             card: read.card ? { ...read.card, title: game.i18n.localize("DRPG.Summary.title"), lede: words(holder),
                 totals: D.summaryTotals({ actions: 3, found: 1, traces: 1 }) } : "a summary",
             end: [false, "noon", 0]
         }), "{next: [the time of day after Next, summary popups naming the cards]; between: popups after the clock was put at the next "
-            + "day's morning; eclipse: [an Eclipse, popups after its start]; same: [the Next summary's rows, the Eclipse's summary the same "
+            + "day's morning; eclipse: [an Eclipse, popups after its start]; startedAt: the Eclipse's start stamped on the server's clock, an "
+            + "hour ahead of this browser's; same: [the Next summary's rows, the Eclipse's summary the same "
             + "card]; card: the Next summary's title, lede (the morning, a GM's), rows and totals (three actions, one find, one trace); end: "
             + "[an Eclipse after its end, the time of day, popups after it]}");
+    }],
+    ["E37-T10 - no summary on a bystander's screen while the incident hides the clock (E37 fix FG2; the end review's S-M1): with an incident running, day-summary.mjs's listener of `drpgTimeOfDayChanged` handed a move of the clock forward shows the GM the summary of the time of day that ended, and on a browser that is a bystander of the incident it shows none", async () => {
+        /*
+         * E37 fix FG2, 02.11.2026; the end review's S-M1 (security lens). While an incident runs before its end the clock
+         * moves in private: the time of day's card goes to the incident's audience alone (clock.mjs `announceTimeOfDay`)
+         * and a bystander's HUD and explainer stay frozen (hud.mjs `clockForDisplay`, incident-store.mjs
+         * `clockHiddenHere`). Since C4 the summary hung on every forward move, and a bystander with a card of their own
+         * was shown "Your <time of day>" at the moment of the private move, naming the time of day that ended. Driven on
+         * this GM, the primary: a direct murder opened (`openMurder`, its opening's trait the body); the clock at a morning
+         * stamped now; two cards whispered to the GMs with their facts (no student named, so a player's filter keeps them);
+         * day-summary.mjs's own listener, taken off `Hooks.events` (the one whose source calls `sumUp`) and called alone
+         * with the clock one time of day on - as the GM, then, after two more cards, as a browser whose user is no GM and
+         * owns none of the incident's seats (`game.user.isGM` reading false while the listener runs: its reading and its
+         * popup are synchronous) - so no other listener of the hook is handed a clock the world does not hold. Read: the
+         * popups that name the cards after each call. Put back: the listener handed the clock the world holds (a rewind,
+         * no window), the incident closed, the clock, the cards deleted, the popups dismissed. Red at 2b5527e1: the
+         * bystander was shown the summary.
+         */
+        needs(env.primaryGm(), "the incident is opened on the primary GM");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const J = stableJson;
+        const M = await import("./murder.mjs");
+        const U = await import("./utils.mjs");
+        const D = await import("./day-summary.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        must(!M.murderState(), "an incident is open already - this would measure nothing");
+        const listener = (Hooks.events?.drpgTimeOfDayChanged ?? []).map(entry => entry.fn).find(fn => /\bsumUp\(/.test(String(fn)));
+        must(typeof listener === "function", "day-summary.mjs's listener of drpgTimeOfDayChanged is not on Hooks.events - this would measure nothing");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        must(killer && victim, "no two living students with a connected player - this would measure nothing");
+        const was = foundry.utils.deepClone(getClock());
+        const MARK = "E37T10 room";
+        const words = el => el?.textContent?.replace(/\s+/g, " ").trim() ?? "";
+        const summaries = () => [...document.querySelectorAll(".drpg-popup")]
+            .filter(card => card.querySelector(".drpg-day-summary") && card.textContent.includes(MARK));
+        const dismiss = () => {
+            for (const card of document.querySelectorAll(".drpg-popup")) {
+                if (card.querySelector(".drpg-day-summary")) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            }
+        };
+        const cards = [];
+        const post = async n => {
+            for (let i = 0; i < 2; i++) {
+                cards.push(await U.whisperToGms(`<p>E37T10 card ${n}.${i}</p>`, { summary: { actorId: null, action: `E37T10 action ${n}.${i}`,
+                    room: MARK, total: 10 + i, critical: false, item: null, tier: null, leftTrace: false, at: Date.now() } }));
+            }
+        };
+        const read = {};
+        try {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            await settle();
+            must(M.murderState(), "the incident did not open - this would measure nothing");
+            const T0 = Date.now();
+            await setClock({ timeOfDay: "morning", timeOfDayStartedAt: T0 });
+            await settle();
+            dismiss();
+            await post(1);
+            await until(() => D.entriesSince(T0).filter(e => e.room === MARK).length === 2, 8000);
+            await settle();
+            const T1 = Date.now() + 5;
+            listener({ ...getClock(), timeOfDay: "noon", timeOfDayStartedAt: T1 });
+            await settle();
+            read.gm = summaries().map(card => [...card.querySelectorAll(".drpg-sum-row")].length);
+            dismiss();
+            await new Promise(resolve => setTimeout(resolve, 20));
+            await post(2);
+            await until(() => D.entriesSince(T1).filter(e => e.room === MARK).length === 2, 8000);
+            await settle();
+            const T2 = Date.now() + 5;
+            Object.defineProperty(game.user, "isGM", { value: false, configurable: true });
+            try {
+                read.hidden = (await import("./murder.mjs")).clockHiddenHere(M.murderState());
+                listener({ ...getClock(), timeOfDay: "afternoon", timeOfDayStartedAt: T2 });
+            } finally {
+                delete game.user.isGM;
+            }
+            await settle();
+            read.bystander = summaries().length;
+        } finally {
+            delete game.user.isGM;
+            listener(getClock());
+            dismiss();
+            for (const card of cards) await card?.delete?.();
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await setClock(was);
+            await settle();
+            listener(getClock());
+            dismiss();
+        }
+        equal(J(read), J({ gm: [2], hidden: true, bystander: 0 }),
+            "{gm: the rows of each summary popup the GM was shown at the move; hidden: the bystander's clock hidden for the incident; "
+            + "bystander: the summary popups a bystander was shown at the next move}");
     }],
     ["E37-T5 - every Search that ran tells (E37 C6, E37-25; audit S02-48): a trap armed for \"somebody searches\" a room fires once for a Search that takes a thing out of a stash there and once for a Search for something specific there, each telling `drpgActionResolved` with the ordinary Search's shape on this GM's road and set off by the relay a player's browser sends for that event; and the primary's search ledger keeps another spend's fresh entry when it prunes", async () => {
         /*

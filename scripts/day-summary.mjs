@@ -28,6 +28,7 @@ import { SETTINGS } from "./settings.mjs";
 import { secretSummaries } from "./secret.mjs";
 import { error, esc, plural } from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
+import { murderState, clockHiddenHere } from "./murder.mjs";
 
 /*
  * WHAT THIS PAGE LAST SAW OF THE CLOCK, AND THE LAST BOUNDARY IT SUMMED UP (E37 C4, 01.11.2026; E37-16, D44c, audit
@@ -39,6 +40,18 @@ import { showPopup } from "./popup.mjs";
  * correction of the stamp). `shownFor` is the stamp of the last window this page summed up - its boundary and its
  * start - so a window is summed up once on each browser: an Eclipse ended without advancing and opened again, or Next
  * after it, show nothing new. Both are this page's own, in memory; nothing is written.
+ *
+ * AND WHAT CAME AFTER THE WINDOW SHOWN (E37 fix FG2, 02.11.2026; the end review's C-m2). An Eclipse's start sums up
+ * [the time of day's start, the Eclipse's start); ended without advancing, it keeps the stamp, and play goes on in the
+ * same time of day - so Next's window had the same stamp and showed nothing, and the cards played after the Eclipse's end
+ * were summed up on no browser. `shownFor` keeps the window's end too (`until`): the same stamp again shows
+ * [that end, the new end) - nothing when it holds no card - and none when the window shown had no end. R1197 `after`.
+ *
+ * NOT ON A BYSTANDER'S SCREEN (E37 fix FG2, 02.11.2026; the end review's S-M1). While an incident runs, the clock moves
+ * in private (clock.mjs `announceTimeOfDay`, hud.mjs `clockForDisplay`), and since C4 a bystander's browser still put up
+ * "Your <time of day>" at that very moment, naming the time of day that ended. A browser whose clock is hidden for the
+ * incident (incident-store.mjs `clockHiddenHere`, the HUD's own question) shows no summary: the window is taken as
+ * shown and dropped. Tier 2 E37-T10.
  *
  * THE BOUNDARY ALONE WAS NOT THE WINDOW (E37 C5b, 01.11.2026). `shownFor` was the `boundaryStamp` alone, so Next, a
  * rewind and Next again summed nothing up the second time: E37-T4 was red in suite shard 8/8 (CI run 41354325721) and
@@ -70,7 +83,8 @@ function sumUp(clock) {
     const window = seen ? summaryWindow(seen, clock, shownFor) : null;
     seen = clock;
     if (!window) return;
-    shownFor = window.stamp;
+    shownFor = { stamp: window.stamp, until: window.until };
+    if (clockHiddenHere(murderState())) return;
     showDaySummary(window).catch(err => error("Could not show the day summary", err));
 }
 
@@ -78,9 +92,10 @@ const calendarOf = clock => JSON.stringify([clock?.season ?? null, clock?.chapte
     clock?.day ?? null, clock?.timeOfDay ?? null]);
 
 /**
- * The window of the time of day that `after` closes, read against `before` (the clock this page saw) and `shownFor`
- * (the window it summed up last): `{ since, until, timeOfDay, stamp }`, or null with none to sum up. `stamp` is the
- * boundary (`boundaryStamp`) and `since` together, as JSON. Pure (R1197).
+ * The window of the time of day that `after` closes, read against `before` (the clock this page saw) and `shown` (the
+ * window it summed up last: `{ stamp, until }`, or its stamp alone, read as a window with no end): `{ since, until,
+ * timeOfDay, stamp }`, or null with none to sum up. `stamp` is the boundary (`boundaryStamp`) and the time of day's
+ * start together, as JSON. Pure (R1197).
  *
  * - A move of the clock forward in the same season and chapter, with no Eclipse open before it - Next time of day,
  *   `setTimeOfDay` to a later time, the night's wrap into the next day: `before`'s time of day ends, over [its
@@ -91,7 +106,7 @@ const calendarOf = clock => JSON.stringify([clock?.season ?? null, clock?.chapte
  *   own to close), a rewind (an earlier day, or an earlier time of the same day), a new season or chapter (the season's
  *   reset, the chapter's step), a write that moves neither (a pause), a clock with no stamp (R996's rule: no stamp, no
  *   summary), a window that closes before it opens (a clock put back with an older stamp), or a window `shownFor`
- *   names already (the same boundary from the same start).
+ *   names already (the same boundary from the same start), but for what came after that window's end.
  */
 export function summaryWindow(before, after, shown = null) {
     if (!before || !after) return null;
@@ -109,7 +124,12 @@ export function summaryWindow(before, after, shown = null) {
     }
     if (!window || window.since === null) return null;
     if (window.until !== null && window.until <= window.since) return null;
-    return window.stamp === shown ? null : window;
+    const shownStamp = typeof shown === "string" ? shown : shown?.stamp ?? null;
+    if (window.stamp !== shownStamp) return window;
+    // The same stamp: only what came after the window shown last (C-m2), none when that one had no end.
+    const shownUntil = typeof shown === "string" ? null : finite(shown?.until);
+    if (shownUntil === null || (window.until !== null && window.until <= shownUntil)) return null;
+    return { ...window, since: shownUntil };
 }
 
 /**
