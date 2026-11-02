@@ -60,6 +60,7 @@ character.mjs is a cut route the tool does not count: a wave that moves one coun
 | `scripts/action-rest.mjs` | Rest's window (E41 C4): `performRest`; the rest itself is rest.mjs's | `action-rolls.mjs` |
 | `scripts/action-murder.mjs` | Direct Murder (E41 C4): the fight's menu (`openCrisisMenu`, `crisisDetails`), the betrayal (`performBetrayal`) and the declaration in an Eclipse (`performDirectMurder`) | `action-rolls.mjs` |
 | `scripts/action-dynamic.mjs` | the Dynamic action (E41 C4): `dynamicDef`, `performDynamic`, the GM's window and its number (`askDynamicDifficulty`, `dynamicBar`), and the GMs' card a success offers and a Reroll ends (`offerDynamicFind`, `withdrawDynamicFind`) | `action-rolls.mjs` |
+| `scripts/call-gm.mjs` | the GM's cards (E41 C5): `callGm` with its card (`callCardHtml`, `expiresHtml`, `CALL_GM_WHAT`) and its thread, the claims on a card (`claimOnPrimary`) and its settle (`settleCall`), the request window (`askForRequest`, `promptForRequest`, `promptAndCallGm`), and the ask-by-card machinery that asks nothing of the bridge's table: the asks the primary holds and their cards, a card ended at its time (`sweepAskCards`), the cards of a Call, a Dynamic action, a trait ruling and an Observe (`askObserveByCard` ...), a ruling kept, received or expired on the primary; 25 names exported, 10 of them re-exported | `gm-bridge.mjs` |
 
 That is wave 1 (E34, 1.2.70) whole: five families, eleven new files, 133 module
 files in `scripts/` where 1.2.69 had 122. A stage that changes the incident, the

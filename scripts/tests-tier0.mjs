@@ -5882,6 +5882,17 @@ const REGRESSIONS = [
             }
         }
         log(`R1235: ${tables.length} tables, ${members} family file(s) served and cut, ${runs} runs, ${reached} functions the crawl reaches`);
+        // E41 C5: the GM's cards are call-gm.mjs's, the first file of BRIDGE_ACTIONS' family - the crawl over that table
+        // cuts the runs' callees there (R164 reads their reasons, R163 what they read of a packet), as many as it cut in
+        // gm-bridge.mjs before the move (logged by file).
+        const bridge = tables.find(t => t.name === "BRIDGE_ACTIONS");
+        const cutIn = new Map((bridge ? kit.bridgeCrawl(bridge) : []).map(fn => [fn.name, fn.file]));
+        for (const name of ["callGm", "settleCall", "claimOnPrimary"]) {
+            equal(cutIn.get(name), "call-gm.mjs", `the crawl over BRIDGE_ACTIONS does not cut ${name}() in call-gm.mjs, where E41 C5 moved it`);
+        }
+        const byFile = new Map();
+        for (const file of cutIn.values()) byFile.set(file, (byFile.get(file) ?? 0) + 1);
+        log(`R1235: the crawl over BRIDGE_ACTIONS cuts ${cutIn.size} functions: ${[...byFile].map(([file, n]) => `${n} in ${file}`).join(", ")}`);
         // 161 functions over the four tables, measured at E41 C2 (02.11.2026; a name two tables reach is counted twice).
         ok(runs >= 37 && reached >= 150, `only ${runs} runs and ${reached} crawled functions were read - the tables are not where this test looks`);
     }],

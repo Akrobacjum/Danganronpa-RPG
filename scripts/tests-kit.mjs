@@ -1152,11 +1152,12 @@ async function bridgeTables() {
  * The tables, the files that hold them, and each table's family (E31: the bridge, the trap relay, the search tokens;
  * E06 C5a: a roll's subject; E41 C2: the family). A family is the files a table's runs reach into beyond its own file:
  * the run files and helpers a split of the table's file moves code to, read by the crawls after the table's own file
- * (`bridgeCrawlSources`). Every family is empty until the bridge's moves (E41 C5) list theirs; tools/moved-only.mjs
- * `bridgeReach` reads these rows off this text, in either form, `["file", "NAME"]` or `["file", "NAME", [...]]`.
+ * (`bridgeCrawlSources`). Every family was empty until the bridge's moves (E41 C5, C5a, C5b), which list theirs in
+ * BRIDGE_ACTIONS' row; tools/moved-only.mjs `bridgeReach` reads these rows off this text, in either form, `["file", "NAME"]`
+ * or `["file", "NAME", [...]]`.
  */
 const BRIDGE_TABLE_FILES = Object.freeze([
-    ["gm-bridge.mjs", "BRIDGE_ACTIONS", []], ["traps.mjs", "TRAP_ACTIONS", []], ["search-tokens.mjs", "SEARCH_ACTIONS", []],
+    ["gm-bridge.mjs", "BRIDGE_ACTIONS", ["call-gm.mjs"]], ["traps.mjs", "TRAP_ACTIONS", []], ["search-tokens.mjs", "SEARCH_ACTIONS", []],
     ["private-rolls.mjs", "ROLL_ACTIONS", []]
 ]);
 
