@@ -299,7 +299,9 @@ export async function performAction(actor, actionKey, options = {}) {
             return null;
         }
 
-        const def = actionKey === "dynamic" ? dynamicDef() : ACTIONS[actionKey];
+        // ACTIONS' own keys alone (E41 fix FG2; R1240): "constructor", "toString" or "__proto__" is inherited by a plain
+        // object, passed `!def` and matched no case below, so the call answered undefined and said nothing.
+        const def = actionKey === "dynamic" ? dynamicDef() : (Object.hasOwn(ACTIONS, actionKey) ? ACTIONS[actionKey] : null);
         if (!def) {
             ui.notifications.error(game.i18n.format("DRPG.Action.unknown", { key: actionKey }));
             return null;

@@ -31619,6 +31619,41 @@ const INVARIANTS = [
             + "resultFrom: it builds the room's and the pool's entries; shuffles: the two `sort(() => ctx.rng() - 0.5)`; mathRandom: randomItem "
             + "calls Math.random itself; roads: each [road, the steps run, the answer's name, category, tier, goal, roles, substitute, fromTable]}");
     }],
+    ["R1240 - an action key ACTIONS holds only by inheritance is refused as unknown (E41 fix FG2; the end review's C-m2 = S-n1, STATUS E41 Open 6): `performAction` over \"constructor\", \"toString\" and \"__proto__\", and over a key no object holds, answers null and tells the GM `DRPG.Action.unknown` once each, and nothing else", async () => {
+        /*
+         * E41 fix FG2, 02.11.2026; the end review's correctness m2 and security n1 (STATUS E41 Open 6). `ACTIONS` is a
+         * plain object literal (config.mjs), so `ACTIONS["constructor"]` - and "toString", and "__proto__" - is
+         * inherited from Object.prototype and truthy: the lookup let it through, no `case` of the switch matched, and
+         * since E41 C1a, which dropped the switch's `default`, `performAction` answered undefined and said nothing (at
+         * c7c4ee2d `performGeneric` answered null). The lookup takes own keys alone now (`Object.hasOwn`). Driven on this
+         * GM with a living student and the notices caught: the guards above the lookup write nothing (a character, a GM,
+         * not a Monocub, not dead, no Eclipse, no fight, no trial), so outside an Eclipse and a trial the only notice is
+         * the lookup's. Red at 69f8f661: the three inherited keys answered undefined with no notice; the control key was
+         * refused as it is.
+         */
+        needs(world.atLeast("livingStudents", 1), "a living student is the actor the keys are asked for");
+        const { performAction } = await import("./action-rolls.mjs");
+        const { isDeadForGm } = await import("./chapter.mjs");
+        const actor = studentActors().find(a => !isDeadForGm(a));
+        must(actor, "no living student among studentActors() - this asks for nothing");
+        const keys = ["constructor", "toString", "__proto__", "R1240 no such action"];
+        const notes = ui.notifications, said = [];
+        const kept = Object.fromEntries(["error", "warn", "info"].map(level => [level, Object.getOwnPropertyDescriptor(notes, level)]));
+        const read = [];
+        try {
+            for (const level of ["error", "warn", "info"]) notes[level] = message => { said.push(`${level}:${message}`); return null; };
+            for (const key of keys) {
+                const from = said.length;
+                const answer = await performAction(actor, key);
+                read.push([key, answer === undefined ? "(undefined)" : answer, said.slice(from)]);
+            }
+        } finally {
+            for (const [level, d] of Object.entries(kept)) if (d) Object.defineProperty(notes, level, d); else delete notes[level];
+        }
+        equal(stableJson(read), stableJson(keys.map(key => [key, null, [`error:${game.i18n.format("DRPG.Action.unknown", { key })}`]])),
+            "an action key ACTIONS does not hold as its own is not refused as unknown - [key, the answer, the notices]");
+    }],
+
     ["R1237 - who a verdict lists (E41 C10b, E41-18; the owner's Q-E41-2, Q-E10-1 (c)): `verdictCandidates(students, { accusedIds, known, dead, final })` puts \"Nobody\" first and then every student, the known Blackened among them, in both verdicts; the ordinary verdict marks the dead, disables them and opens on the first accused only when they are living and not a known Blackened; the Final Trial's enables everyone listed, marks the dead and opens on the first accused whoever they are", async () => {
         /*
          * E41 C10b, 02.11.2026; E41-18, audit S17-28; the owner's answer to Q-E41-2 of 01.11.2026 ("Nikt nie jest
