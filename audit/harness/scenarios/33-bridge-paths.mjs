@@ -21,7 +21,8 @@
  *      roller's browser, with 80 ms added each way: started at the GM's message, before its answer, once (A17); and
  *      since H82 C6 on the GM's own screen: started at its throw, before its message's echo, once, the audience told.
  *      Since E37 C3 also the readiness round before the clock moves: opened and ended by the Assistant GM on the primary,
- *      and a player's own Done (A18).
+ *      and a player's own Done (A18). Since E37 C7 also every road of the Despair pools and the Overflow from the
+ *      Assistant GM, written on the primary (A19).
  *   B  what E31 adds, each written red (`expectedRed`, with what it measured) until the commit that
  *      made it so, and a plain check since: a refusal carries its reason, in the player's own
  *      language; a refused request is not acknowledged; an exception on the GM's side ends as one
@@ -274,6 +275,55 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     check("A7: an Assistant GM's Despair goes to the primary and is written there once",
         a7.after === pool1 + 2 && JSON.stringify(a7.writes) === JSON.stringify(["gm"]) && !a7.logged.length && notFailed(a7answer),
         JSON.stringify(a7));
+
+    /* A19. EVERY ROAD OF THE POOLS AND THE OVERFLOW, BY THE ASSISTANT GM (E37 C7, 02.11.2026; E37-30, the deferred D061).
+       The Assistant, not the primary, sets the GM's pool, fills and empties every pool, grants itself a pool, names it and
+       revokes it, takes a point off the Overflow and checks it, each through the module's own function: each asks the
+       primary (`despair.set`, `despair.all`, `despair.roster`, `overflow.take`, `overflow.check`), is answered with what the
+       primary did, and the pools' settings and the Overflow's stamp are written by the GM alone, with no refusal logged.
+       The check reads a darkening a verdict kept waiting (a Panic of a session that never ran), which it arms for the time
+       of day ahead with no draw; the count is 2 before. Put back after: the pool, the count and the stamp. */
+    phase("an Assistant GM's Despair pools and Overflow", { flow: "despair" });
+    const a19Was = await gm.eval(`const { overflowStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const was = { pool: game.drpg.getDespair(game.user.id), count: (await import("${repoUrl}/scripts/overflow.mjs")).overflowCount(),
+            overflow: foundry.utils.deepClone(game.settings.get("${MOD}", "overflow") ?? {}) };
+        await overflowStore.patch("record", { count: 2 });
+        await game.settings.set("${MOD}", "overflow", { active: { effect: "panic", session: -1, day: 1, timeOfDay: "morning", pending: true } });
+        return was;`, { timeout: 30000 });
+    await settle(800);
+    await clearFailures(gm);
+    written = settingLog.length;
+    const a19Answers = await ag.eval(`const D = await import("${repoUrl}/scripts/despair.mjs"); const O = await import("${repoUrl}/scripts/overflow.mjs");
+        const out = { primary: ${utils}.isPrimaryGm(), max: D.despairMax() };
+        out.set = await D.setDespair("${IDS.gm}", 7);
+        out.fill = (await D.fillAllDespair())?.["${IDS.gm}"] ?? null;
+        out.zero = (await D.zeroAllDespair())?.["${IDS.gm}"] ?? null;
+        out.add = await D.addPool(game.user.id);
+        out.label = await D.setPoolLabel(game.user.id, "E37 Assistant pool");
+        out.remove = await D.removePool(game.user.id);
+        out.take = await O.takeOverflow(1, { reason: "33 A19" });
+        out.check = (await O.checkOverflow({ ahead: true }))?.effect ?? null;
+        return out;`, { timeout: 90000 });
+    await settle(1500);
+    const a19 = { answers: a19Answers, after: await gm.eval(`return { pool: game.drpg.getDespair(game.user.id),
+            extra: game.settings.get("${MOD}", "extraPoolUsers").includes("${IDS.ag}"), name: game.settings.get("${MOD}", "poolNames")["${IDS.ag}"] ?? null,
+            count: (await import("${repoUrl}/scripts/overflow.mjs")).overflowCount(), stamp: game.settings.get("${MOD}", "overflow")?.active ?? null };`),
+        writers: [...new Set(settingLog.slice(written).filter(w => /\.(?:despairPools|poolNames|extraPoolUsers|overflow)$/.test(w.key)).map(w => w.who))],
+        logged: (await Promise.all(["despair.set", "despair.all", "despair.roster", "overflow.take", "overflow.check"].map(a => refusalsLogged(gm, a)))).flat() };
+    check("A19: an Assistant GM's set, fill and empty of the Despair pools, its own pool granted, named and revoked, and a point taken off the Overflow and its check each go to the primary, are answered with what it did, and are written by the GM alone, nothing refused (E37 C7)",
+        a19.answers?.primary === false && a19.answers.set === 7 && a19.answers.fill === a19.answers.max && a19.answers.zero === 0
+            && a19.answers.add === true && a19.answers.label === "E37 Assistant pool" && a19.answers.remove === true
+            && a19.answers.take === 1 && a19.answers.check === "panic"
+            && a19.after.pool === 0 && a19.after.extra === false && a19.after.name === null && a19.after.count === 1
+            && a19.after.stamp?.effect === "panic" && !a19.after.stamp?.pending
+            && JSON.stringify(a19.writers) === JSON.stringify(["gm"]) && !a19.logged.length,
+        JSON.stringify(a19), { flow: "despair" });
+    await gm.eval(`const { overflowStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        await game.drpg.setDespair(game.user.id, ${JSON.stringify(a19Was?.pool ?? 0)});
+        await overflowStore.patch("record", { count: ${JSON.stringify(a19Was?.count ?? 0)} });
+        await game.settings.set("${MOD}", "overflow", ${JSON.stringify(a19Was?.overflow ?? {})});
+        return true;`, { timeout: 30000 });
+    await settle(800);
 
     /* E36 C1 (25.10.2026; E36-03): a project changes in the primary's queue alone (projects.mjs `applyProjectChange`), and
        another GM's change goes there by `project.change`. The Assistant asks +1 on the second project: answered with the

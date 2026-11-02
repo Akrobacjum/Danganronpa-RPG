@@ -18567,6 +18567,65 @@ const REGRESSIONS = [
             + "contract row countdown-update's target, owner, file, symbol and probe; wrapper: it runs the system's own in the queue, puts itself on "
             + "the class, and the queue is COUNTDOWNS_KEY's on a GM; registered: its calls in registerProjectsUi (init and ready)}");
     }],
+    ["R1202 - one writer for every road of Despair (E37 C7, E37-30; the deferred D061): each of despair.mjs `setDespair`, `fillAllDespair`, `zeroAllDespair`, `addPool`, `removePool`, `setPoolLabel` and overflow.mjs `takeOverflow`, `checkOverflow` asks the primary before its step (through a function of its file that asks `primaryElsewhere()` and a request of gm-bridge.mjs), asks `primaryElsewhere()` again inside its step of `serialWrite(DESPAIR_KEY` or `OVERFLOW_KEY, ...)` and asks the primary again after a step that handed it on, the reader catching a road that asks nobody and a step without the second question when planted; and the bridge's rows `despair.set`, `despair.all`, `despair.roster`, `overflow.take` and `overflow.check` are a GM's alone (gmOnly first), each answered \"reply\" and labelled `DRPG.Bridge.what.<row>`", async () => {
+        /*
+         * E37 C7, 02.11.2026; E37-30, the Write roads of S/stages/E37/STAGE.md. The pools, their names and extras are three
+         * world settings and the overflow's count a GM store row, each read and written whole; since DESP-12 and E17 C5 a
+         * change of a pool by a pip and an addition to the overflow went to the primary, and these eight roads still wrote
+         * on the GM's browser that asked (tier 2 E37-T8 measures the roads). Read off the source, comments out: the file's
+         * ask functions (a top-level function holding `primaryElsewhere()` and `import("./gm-bridge.mjs")`); then, for each
+         * road, whether it calls one before its first `serialWrite(`, the key of that step, whether `primaryElsewhere()`
+         * stands inside the step, and whether it calls an ask function again after the step. The reader is shown a road
+         * that asks nobody and one whose step does not ask again first. Then the five rows as the bridge holds them.
+         * Nothing is written. Red at 1f6fcf89: no road asked, no step asked again, and no rows.
+         */
+        const TOP = /^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)\s*\(/gm;
+        const census = (text, names) => {
+            const helpers = [...text.matchAll(TOP)].map(m => m[1])
+                .filter(name => { const fn = topLevelFunction(text, name) ?? ""; return /\bprimaryElsewhere\(\)/.test(fn) && /import\("\.\/gm-bridge\.mjs"\)/.test(fn); });
+            const calls = (part, list) => list.some(h => new RegExp(`(?<![\\w$.])${h}\\(`).test(part));
+            return names.map(name => {
+                const fn = topLevelFunction(text, name);
+                if (!fn) return [name, null];
+                const blank = blankLiterals(fn);
+                const [step] = blank.matchAll(/(?<![\w$])serialWrite\s*\(/g);
+                if (!step) return [name, "no step"];
+                const { args, close } = callArgs(blank, step.index + step[0].length - 1);
+                const own = helpers.filter(h => h !== name);
+                return [name, [calls(fn.slice(0, step.index), own), fn.slice(args[0].start, args[0].end).trim(),
+                    /\bprimaryElsewhere\(\)/.test(fn.slice(args[0].end, close)), calls(fn.slice(close), own)]];
+            });
+        };
+        const PLANT = "async function askF() {\n    if (!primaryElsewhere()) return undefined;\n    const { requestF } = await import(\"./gm-bridge.mjs\");\n    return (await requestF()).value;\n}\n";
+        const fixtures = {
+            asksNobody: census(`${PLANT}export async function f() {\n    return serialWrite(KEY, async () => { if (primaryElsewhere()) return 1; await write(); });\n}\n`, ["f"]),
+            noSecond: census(`${PLANT}export async function f() {\n    const a = await askF();\n    if (a !== undefined) return a;\n    return serialWrite(KEY, () => write());\n}\n`, ["f"]),
+            whole: census(`${PLANT}export async function f() {\n    const a = await askF();\n    if (a !== undefined) return a;\n    const o = await serialWrite(KEY, () => primaryElsewhere() ? H : write());\n    if (o === H) return askF();\n    return o;\n}\n`, ["f"])
+        };
+        const sources = new Map(await otherSources());
+        const despair = stripComments(sources.get("despair.mjs") ?? ""), overflow = stripComments(sources.get("overflow.mjs") ?? "");
+        must(despair.length > 5000 && overflow.length > 5000, "despair.mjs or overflow.mjs was not read - this test measured nothing");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const ROWS = ["despair.set", "despair.all", "despair.roster", "overflow.take", "overflow.check"];
+        const rows = ROWS.map(action => {
+            const row = BRIDGE_ACTIONS[action];
+            return row ? [row.guards?.[0]?.factory ?? null, row.answer ?? null, row.label === `DRPG.Bridge.what.${action}`] : null;
+        });
+        const shape = key => [true, key, true, true];
+        equal(JSON.stringify({
+            fixtures,
+            despair: census(despair, ["setDespair", "fillAllDespair", "zeroAllDespair", "addPool", "removePool", "setPoolLabel"]),
+            overflow: census(overflow, ["takeOverflow", "checkOverflow"]),
+            rows
+        }), JSON.stringify({
+            fixtures: { asksNobody: [["f", [false, "KEY", true, false]]], noSecond: [["f", [true, "KEY", false, false]]], whole: [["f", [true, "KEY", true, true]]] },
+            despair: ["setDespair", "fillAllDespair", "zeroAllDespair", "addPool", "removePool", "setPoolLabel"].map(name => [name, shape("DESPAIR_KEY")]),
+            overflow: ["takeOverflow", "checkOverflow"].map(name => [name, shape("OVERFLOW_KEY")]),
+            rows: ROWS.map(() => ["gmOnly", "reply", true])
+        }), "{fixtures: what the reader makes of a road that asks nobody, of one whose step does not ask again, and of a whole one; despair, overflow: "
+            + "each road [asks the primary before its step, the step's key, asks primaryElsewhere() inside the step, asks the primary again after it]; "
+            + "rows: each row's [first guard, answer, its label is DRPG.Bridge.what.<row>]}");
+    }],
 ];
 
 

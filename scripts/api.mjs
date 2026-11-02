@@ -386,6 +386,8 @@ export const DrpgApi = {
     monokumas,
     despairMax,
     getDespair,
+    /** Set one Monokuma's pool to a number (0 to the maximum). Written by the primary GM: another GM's call asks it and
+     *  answers the pool it wrote, null when it was not written (E37 C7). */
     setDespair,
     adjustDespair,
 

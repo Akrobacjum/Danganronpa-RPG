@@ -128,8 +128,13 @@ export const FLOWS = Object.freeze([
     // E17 C5 (26.10.2026): another GM's overflow added on the primary (`overflow.add`, gmOnly); tier 2 E17-T8 judges a
     // player's and a second GM's. No scenario sends one yet. H84-06 (27.10.2026): a GM's Clear of the count on the primary
     // (`overflow.clear`, gmOnly); tier 2 "a GM clears the overflow ... (H84-06)" judges a player's and a second GM's.
+    // E37 C7 (02.11.2026): every other road of the pools and the overflow from a GM that is not the primary - a pool set,
+    // the fill and the zero, the roster, a point taken off the overflow and its check (`despair.set`, `despair.all`,
+    // `despair.roster`, `overflow.take`, `overflow.check`, each gmOnly); 30-security forges each from a player's console,
+    // 33-bridge-paths A19 drives each from the Assistant GM, tier 2 E37-T8 judges a player's and a second GM's.
     { id: "despair", what: "Despair: an Assistant GM's correction written by the primary, a Despair Call from a GM, the pools every screen shows",
-        entry: { bridge: ["despair.adjust", "overflow.add", "overflow.clear"] }, scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
+        entry: { bridge: ["despair.adjust", "overflow.add", "overflow.clear", "despair.set", "despair.all", "despair.roster", "overflow.take", "overflow.check"] },
+        scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     { id: "discovery-ledger", what: "Which rooms each character has found: written by the GM, pulled and rebuilt by the clients",
         entry: { sockets: ["fog.mjs"] }, scenarios: ["60-ledger", "30-security", "61-gmstore-case"], status: "covered", stage: "<=1.2.50" },
     { id: "eclipse-route-veto", what: "A move during an Eclipse: asked of the GM, allowed or refused",

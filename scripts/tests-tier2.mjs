@@ -78958,6 +78958,169 @@ const SCENARIOS = [
             "{update: [what wrapCountdownUpdate answered, the project's bar moved by while the system's tick raced its +1]; reveal: [the bar "
             + "moved by beside the menu's Reveal of a row that is no project, that row hidden]; del: [the same beside its Delete, the row still there]}");
     }],
+    ["E37-T8 - every any-GM road of Despair writes on the primary GM (E37 C7, E37-30; the deferred D061): with a second GM the primary, `setDespair`, `fillAllDespair`, `zeroAllDespair`, `addPool`, `setPoolLabel`, `removePool`, `takeOverflow` and `checkOverflow` on this GM each send one request to it (`despair.set`, `despair.all`, `despair.roster`, `overflow.take`, `overflow.check`) and write nothing here, the change made where it is judged and its answer handed back; with no other GM connected each writes here and sends nothing; and a player's ask of each row is refused, nothing moved", async () => {
+        /*
+         * E37 C7, 02.11.2026; E37-30, D061 (S/stages/AUDIT-DEFERRED-31.10.md; the owner, 31.10: a change of a built rule).
+         * E17 C5 took a pip of the Despair bar, a prune and the overflow's additions to the primary (E17-T8); a pool set by
+         * hand, the fill, the zero, a pool granted, renamed or revoked, a point taken off the overflow and the overflow's
+         * check at a boundary still wrote on the browser that asked, each whole from its own copy, beside the primary's own
+         * writes of the same settings. E17-T8's shape: a second GM is a user set in the users' list (`A`, a Gamemaster
+         * whose id sorts first, so the primary while it is there); the requests this GM sends it are read off the socket,
+         * held until each reading is taken, then judged on this browser as the primary judges them, `A` out of the list
+         * for the judgement, and the answers handed to this browser's listeners as A's. An Assistant GM with no pool is a
+         * user set in the list as well (`ASSIST`, not connected), for the roster's grant and revoke. The overflow's check
+         * is read on a darkening a verdict kept waiting (`pending`, a Panic of a session that never ran): the check arms it
+         * for the time of day ahead with no draw, no payment and no card. Read, for each of the eight with A there: what
+         * was sent to A, the value here before A judged it, the value after, and what the call answered; then each again
+         * with A gone (no packet; written here); then a player's ask of each row, judged: what was told, and whether
+         * anything moved. The pools, their names and extras, the owed rows, the overflow's count and its stamp are put
+         * back after. Red at 1f6fcf89: nothing was sent, every value had moved here before A judged anything, and the
+         * five rows were no rows.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const D = await import("./despair.mjs");
+        const O = await import("./overflow.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { overflowStore, despairOwedStore } = await import("./gm-stores.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which the second GM is set beside - this would measure nothing");
+        const me = game.user.id, max = D.despairMax();
+        must(D.monokumas().some(u => u.id === me), "this GM holds no Despair pool - this would measure nothing");
+        must(max >= 5, `a pool holds ${max} - a set to 5 would measure nothing`);
+        const player = game.users.find(u => !u.isGM);
+        must(player, "the world has no player, whose asks are judged");
+        const EVENT = `module.${MODULE_ID}`, ROWS = ["despair.set", "despair.all", "despair.roster", "overflow.take", "overflow.check"];
+        const A = { id: "!E37T8primaryGM", name: "E37 T8 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const ASSIST = { id: "zE37T8assistant0", name: "E37 T8 Assistant GM", role: CONST.USER_ROLES.ASSISTANT, isGM: true, active: false };
+        must(!game.users.get(ASSIST.id) && !game.users.get(A.id), "the suite's own users are already in the list - this would measure nothing");
+        const arrive = () => game.users.set(A.id, A);
+        const depart = () => game.users.delete(A.id);
+        const saved = {
+            pools: foundry.utils.deepClone(getSetting(SETTINGS.despairPools) ?? {}), names: foundry.utils.deepClone(getSetting(SETTINGS.poolNames) ?? {}),
+            extra: foundry.utils.deepClone(getSetting(SETTINGS.extraPoolUsers) ?? []), overflow: foundry.utils.deepClone(getSetting(SETTINGS.overflow) ?? {}),
+            count: O.overflowCount(), owed: foundry.utils.deepClone(despairOwedStore.entries())
+        };
+        const WAITING = { effect: "panic", session: -1, day: 1, timeOfDay: "morning", pending: true };
+        const sentToA = [], queued = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        let inPlay = false;
+        socket.emit = function (event, packet, options, ...rest) {
+            const to = options?.recipients ?? [];
+            if (inPlay && event === EVENT && ROWS.includes(packet?.action) && to.includes(A.id)) {
+                sentToA.push([packet.action, ...["op", "targetUserId", "value", "label", "amount", "ahead"].filter(k => packet[k] !== undefined).map(k => packet[k])]);
+                queued.push(packet);
+                return socket;
+            }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const drain = async () => {
+            for (const packet of queued.splice(0)) {
+                const replies = [];
+                depart();
+                try {
+                    await G.judge(BRIDGE_ACTIONS, packet, game.user.id, { send: (who, reply) => replies.push(reply) });
+                } finally {
+                    if (inPlay) arrive();
+                }
+                for (const reply of replies) for (const listener of [...socket.listeners(EVENT)]) listener(reply, A.id);
+            }
+            await settle();
+        };
+        const stamp = () => { const a = getSetting(SETTINGS.overflow)?.active ?? null; return a ? [a.effect ?? null, Boolean(a.pending)] : null; };
+        const READ = {
+            set: () => D.getDespair(me), fill: () => D.getDespair(me), zero: () => D.getDespair(me),
+            add: () => D.extraPoolUserIds().includes(ASSIST.id), label: () => getSetting(SETTINGS.poolNames)?.[me] ?? null,
+            remove: () => D.extraPoolUserIds().includes(ASSIST.id), take: () => O.overflowCount(), check: stamp
+        };
+        const ANSWER = { fill: a => a?.[me] ?? null, zero: a => a?.[me] ?? null, check: a => a?.effect ?? null };
+        const CALLS = label => ({
+            set: () => D.setDespair(me, label === "here" ? 4 : 5), fill: () => D.fillAllDespair(), zero: () => D.zeroAllDespair(),
+            add: () => D.addPool(ASSIST.id), label: () => D.setPoolLabel(me, `SUITE E37-T8 ${label}`), remove: () => D.removePool(ASSIST.id),
+            take: () => O.takeOverflow(1, { reason: "suite E37-T8" }), check: () => O.checkOverflow({ ahead: true })
+        });
+        const read = { asked: {}, here: {} };
+        try {
+            game.users.set(ASSIST.id, ASSIST);
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, { ...saved.pools, [me]: 2 });
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: WAITING });
+            await overflowStore.patch("record", { count: 3 });
+            await settle();
+            inPlay = true;
+            arrive();
+            ok(!isPrimaryGm(), "with the second GM in the list this browser is still the primary - this would measure nothing");
+            const calls = CALLS("asked");
+            for (const name of Object.keys(calls)) {
+                const asked = calls[name]();
+                await settle();
+                const sent = sentToA.splice(0), before = READ[name]();
+                await drain();
+                const answer = await asked;
+                await settle();
+                read.asked[name] = { sent, before, after: READ[name](), answer: (ANSWER[name] ?? (a => a))(answer) };
+            }
+            inPlay = false;
+            depart();
+
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: WAITING });
+            await settle();
+            const here = CALLS("here");
+            for (const name of Object.keys(here)) {
+                const answer = await here[name]();
+                await settle();
+                read.here[name] = [READ[name](), (ANSWER[name] ?? (a => a))(answer)];
+            }
+            read.here.sent = sentToA.splice(0).length + queued.length;
+
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: WAITING });
+            await overflowStore.patch("record", { count: 3 });
+            await settle();
+            const all = () => stableJson([getSetting(SETTINGS.despairPools), getSetting(SETTINGS.poolNames), getSetting(SETTINGS.extraPoolUsers),
+                getSetting(SETTINGS.overflow), O.overflowCount()]);
+            const asks = [];
+            for (const [action, fields] of [["despair.set", { targetUserId: me, value: 1 }], ["despair.all", { op: "fill" }],
+                ["despair.roster", { op: "label", targetUserId: me, label: "SUITE E37-T8 player" }], ["overflow.take", { amount: 1, reason: "suite" }],
+                ["overflow.check", { ahead: true }]]) {
+                const before = all(), told = [];
+                const verdict = await G.judge(BRIDGE_ACTIONS, { action, requestId: `suite-e37t8-${action}`, userId: player.id, ...fields }, player.id,
+                    { send: (who, reply) => told.push(reply?.reason ?? reply?.action ?? null) });
+                await settle();
+                asks.push([action, verdict === false ? "no row" : told.join(","), all() === before]);
+            }
+            read.player = asks;
+        } finally {
+            inPlay = false;
+            depart();
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await drain().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, saved.pools);
+            await game.settings.set(MODULE_ID, SETTINGS.poolNames, saved.names);
+            await game.settings.set(MODULE_ID, SETTINGS.extraPoolUsers, saved.extra);
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, saved.overflow);
+            await overflowStore.patch("record", { count: saved.count });
+            for (const [key, row] of Object.entries(saved.owed)) if (!despairOwedStore.has(key)) await despairOwedStore.patch(key, row);
+            game.users.delete(ASSIST.id);
+            await settle();
+            D.renderDespairBar();
+        }
+        const label = name => `SUITE E37-T8 ${name}`;
+        equal(stableJson(read), stableJson({
+            asked: {
+                set: { sent: [["despair.set", me, 5]], before: 2, after: 5, answer: 5 },
+                fill: { sent: [["despair.all", "fill"]], before: 5, after: max, answer: max },
+                zero: { sent: [["despair.all", "zero"]], before: max, after: 0, answer: 0 },
+                add: { sent: [["despair.roster", "add", ASSIST.id]], before: false, after: true, answer: true },
+                label: { sent: [["despair.roster", "label", me, label("asked")]], before: null, after: label("asked"), answer: label("asked") },
+                remove: { sent: [["despair.roster", "remove", ASSIST.id]], before: true, after: false, answer: true },
+                take: { sent: [["overflow.take", 1]], before: 3, after: 2, answer: 1 },
+                check: { sent: [["overflow.check", true]], before: ["panic", true], after: ["panic", false], answer: "panic" }
+            },
+            here: { set: [4, 4], fill: [max, max], zero: [0, 0], add: [true, true], label: [label("here"), label("here")], remove: [false, true],
+                take: [1, 1], check: [["panic", false], "panic"], sent: 0 },
+            player: ROWS.map(action => [action, "gmOnly", true])
+        }), "{asked: for each road with a second GM the primary [what was sent to it, the value here before it judged, the value after, what "
+            + "the call answered]; here: the same roads with no other GM [the value, the answer], and the packets sent; player: a player's ask of "
+            + "each row [what was told, nothing moved]} - a GM that is not the primary wrote Despair or the overflow itself, or a player's ask moved either");
+    }],
     ...GRID
 ];
 

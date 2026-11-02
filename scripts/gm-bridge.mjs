@@ -50,6 +50,16 @@ const ACTION_DESPAIR = "despair.adjust";
 const ACTION_OVERFLOW_ADD = "overflow.add";
 /** GM -> primary GM: a GM's Clear of the overflow's count (H84-06) - see overflow.mjs `clearOverflowAsGm`. */
 const ACTION_OVERFLOW_CLEAR = "overflow.clear";
+/** GM -> primary GM: one pool set to a number (E37 C7; despair.mjs `setDespair`). */
+const ACTION_DESPAIR_SET = "despair.set";
+/** GM -> primary GM: every pool filled or emptied (E37 C7; despair.mjs `fillAllDespair`, `zeroAllDespair`). */
+const ACTION_DESPAIR_ALL = "despair.all";
+/** GM -> primary GM: a pool granted, revoked or named (E37 C7; despair.mjs `addPool`, `removePool`, `setPoolLabel`). */
+const ACTION_DESPAIR_ROSTER = "despair.roster";
+/** GM -> primary GM: Despair taken off the overflow's count (E37 C7; overflow.mjs `takeOverflow`). */
+const ACTION_OVERFLOW_TAKE = "overflow.take";
+/** GM -> primary GM: the overflow checked at a boundary (E37 C7; overflow.mjs `checkOverflow`). */
+const ACTION_OVERFLOW_CHECK = "overflow.check";
 const ACTION_DIFFICULTY = "dynamic.difficulty";
 /** GM -> primary GM: Undo or Keep on the GMs' card of a player's write (E29 C5; sheet-audit.mjs). */
 const ACTION_AUDIT_DECIDE = "audit.decide";
@@ -1705,6 +1715,53 @@ async function handleOverflowClear(payload, sender, ctx) {
     return { reply: { cleared: true } };
 }
 
+/** The run of `despair.set` (E37 C7): the primary's own `setDespair`, the pool it wrote. */
+async function handleDespairSet(payload, sender, ctx) {
+    const { setDespair } = await import("./despair.mjs");
+    const value = await setDespair(payload.targetUserId, payload.value);
+    if (value === null) return { refused: "nothing was carried out: the pool was not set" };
+    return { reply: { value } };
+}
+
+/** The run of `despair.all` (E37 C7): the primary's own `fillAllDespair` or `zeroAllDespair`, the pools it wrote. */
+async function handleDespairAll(payload, sender, ctx) {
+    const { fillAllDespair, zeroAllDespair } = await import("./despair.mjs");
+    const pools = payload.op === "fill" ? await fillAllDespair() : payload.op === "zero" ? await zeroAllDespair() : null;
+    if (!pools) return { refused: "nothing was carried out: the pools were not written" };
+    return { reply: { pools } };
+}
+
+/**
+ * The run of `despair.roster` (E37 C7): the primary's own `addPool`, `removePool` or `setPoolLabel`. A grant or a revoke
+ * that changed nothing (the pool granted already, or not granted) carried nothing out; a label is written for a user of
+ * this world, and answers the label it holds now, null when cleared.
+ */
+async function handleDespairRoster(payload, sender, ctx) {
+    const { addPool, removePool, setPoolLabel } = await import("./despair.mjs");
+    const id = payload.targetUserId;
+    if (payload.op === "label") {
+        if (!game.users.get(id ?? "")) return { refused: "nothing was carried out: no such user" };
+        return { reply: { label: await setPoolLabel(id, payload.label) } };
+    }
+    const done = payload.op === "add" ? await addPool(id) : payload.op === "remove" ? await removePool(id) : null;
+    if (!done) return { refused: "nothing was carried out: the pool was not granted or revoked" };
+    return { reply: { done: true } };
+}
+
+/** The run of `overflow.take` (E37 C7): the primary's own `takeOverflow`, the points it took (0 when the count held none). */
+async function handleOverflowTake(payload, sender, ctx) {
+    const { takeOverflow } = await import("./overflow.mjs");
+    const taken = await takeOverflow(Math.trunc(payload.amount), { reason: payload.reason || `asked by ${sender.name}` });
+    return { reply: { taken } };
+}
+
+/** The run of `overflow.check` (E37 C7): the primary's own `checkOverflow`, the stamp it armed (null when nothing fired). */
+async function handleOverflowCheck(payload, sender, ctx) {
+    const { checkOverflow } = await import("./overflow.mjs");
+    const armed = await checkOverflow({ ahead: payload.ahead === true });
+    return { reply: { armed } };
+}
+
 async function handleDespair(payload, sender, ctx) {
     // A GM's alone since E08+E28 C8, as a Reroll's point is the GM's own (reroll.mjs); the size
     // and the pool are the declaration's guards.
@@ -2671,6 +2728,59 @@ export const BRIDGE_ACTIONS = table({
         run: handleOverflowClear,
         answer: "reply"
     },
+    /*
+     * EVERY ROAD OF THE POOLS AND THE OVERFLOW, ON THE PRIMARY GM (E37 C7, 02.11.2026; E37-30, the deferred D061). A GM that
+     * is not the primary asks it to set a pool (despair.mjs `setDespair`), fill or empty every pool (`fillAllDespair`,
+     * `zeroAllDespair`), grant, revoke or name one (`addPool`, `removePool`, `setPoolLabel`), take Despair off the overflow
+     * (overflow.mjs `takeOverflow`) and check it at a boundary (`checkOverflow`); each run is the primary's own function, in
+     * its step of `DESPAIR_KEY` or `OVERFLOW_KEY`, and "reply" answers what it did, which the asking function answers its
+     * caller. A GM's alone: a player's console that could ask would empty a Monokuma's pool, or take back or arm a
+     * darkening. Tier 2 E37-T8 judges a player's ask of each (refused) and a second GM's (made on the primary);
+     * 30-security forges each from a player's console, 33-bridge-paths A19 drives each from the Assistant GM.
+     */
+    [ACTION_DESPAIR_SET]: {
+        label: "DRPG.Bridge.what.despair.set",
+        guards: [gmOnly("only a GM sets a Despair pool"), guardDespairPool],
+        // `value` is clamped to the pool's range by despair.mjs `writePool` (as.num: never NaN).
+        sanitize: pick({ targetUserId: as.id, value: as.num }),
+        run: handleDespairSet,
+        answer: "reply",
+        claims: { targetUserId: guardDespairPool }
+    },
+    [ACTION_DESPAIR_ALL]: {
+        label: "DRPG.Bridge.what.despair.all",
+        guards: [gmOnly("only a GM fills or empties the Despair pools")],
+        sanitize: pick({ op: as.oneOf("fill", "zero") }),
+        run: handleDespairAll,
+        answer: "reply",
+        claims: { op: "one of fill, zero (as.oneOf); any other is null, and the run carries nothing out" }
+    },
+    [ACTION_DESPAIR_ROSTER]: {
+        label: "DRPG.Bridge.what.despair.roster",
+        guards: [gmOnly("only a GM grants, revokes or names a Despair pool")],
+        sanitize: pick({ op: as.oneOf("add", "remove", "label"), targetUserId: as.id, label: as.maybeText }),
+        run: handleDespairRoster,
+        answer: "reply",
+        claims: {
+            op: "one of add, remove, label (as.oneOf); any other is null, and the run carries nothing out",
+            targetUserId: "judged on the primary in the step of DESPAIR_KEY: despair.mjs addPool grants only an Assistant GM of this world who holds none, removePool revokes only a pool granted, and the run names only a user of this world"
+        }
+    },
+    [ACTION_OVERFLOW_TAKE]: {
+        label: "DRPG.Bridge.what.overflow.take",
+        guards: [gmOnly("only a GM takes Despair off the overflow"),
+            inRange("amount", n => Number.isFinite(n) && n >= 1 && n <= STARTING.despairMax, value => `amount ${value} is out of range`)],
+        sanitize: pick({ amount: as.num, reason: as.text }),
+        run: handleOverflowTake,
+        answer: "reply"
+    },
+    [ACTION_OVERFLOW_CHECK]: {
+        label: "DRPG.Bridge.what.overflow.check",
+        guards: [gmOnly("only a GM checks the overflow")],
+        sanitize: pick({ ahead: as.bool }),
+        run: handleOverflowCheck,
+        answer: "reply"
+    },
     [ACTION_ECLIPSE_MOVE]: {
         label: "DRPG.Bridge.what.eclipse.move",
         // `knownSender` is new here (E31), as for token.sendBack.
@@ -3507,6 +3617,32 @@ export function requestOverflowAdd(amount, reason) {
  */
 export function requestOverflowClear() {
     return ask(ACTION_OVERFLOW_CLEAR, {});
+}
+
+/*
+ * The pools' and the overflow's roads from a GM that is not the primary (E37 C7; despair.mjs `askToSet`, `askAll`,
+ * `askRoster`, overflow.mjs `askPrimaryToTake`, `askPrimaryToCheck`), each asked only once the asker knows the primary is
+ * connected and is somebody else. Their values: `{ value }` the pool written; `{ pools }` the pools written; `{ done }` or
+ * `{ label }`; `{ taken }` the points taken; `{ armed }` the stamp armed, or null.
+ */
+export function requestDespairSet(targetUserId, value) {
+    return ask(ACTION_DESPAIR_SET, { targetUserId, value });
+}
+
+export function requestDespairAll(op) {
+    return ask(ACTION_DESPAIR_ALL, { op });
+}
+
+export function requestDespairRoster(op, targetUserId, label = null) {
+    return ask(ACTION_DESPAIR_ROSTER, { op, targetUserId, ...(op === "label" ? { label } : {}) });
+}
+
+export function requestOverflowTake(amount, reason) {
+    return ask(ACTION_OVERFLOW_TAKE, { amount, reason });
+}
+
+export function requestOverflowCheck(ahead) {
+    return ask(ACTION_OVERFLOW_CHECK, { ahead: ahead === true });
 }
 
 /**

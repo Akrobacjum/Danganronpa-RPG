@@ -287,7 +287,7 @@ export const OVERFLOW_KEY = "overflow";
  * not distinguish them, and should not: what darkens the world is the quantity
  * of Despair loose in it, not the mood in which it got there.
  */
-/** Whether this GM is not the primary while another GM, connected, is (`addOverflow`). */
+/** Whether this GM is not the primary while another GM, connected, is (`addOverflow`; E37 C7 `takeOverflow`, `checkOverflow`). */
 function primaryElsewhere() {
     if (isPrimaryGm()) return false;
     const primary = game.users.get(primaryGmId() ?? "");
@@ -301,6 +301,31 @@ async function askPrimaryToAdd(n, reason) {
     const { requestOverflowAdd } = await import("./gm-bridge.mjs");
     const res = await requestOverflowAdd(n, reason);
     return res.ok ? (res.value?.after ?? null) : null;
+}
+
+/*
+ * THE REST OF THE COUNT'S ROADS ON THE PRIMARY (E37 C7, 02.11.2026; E37-30, the deferred D061). E17 C5 took an addition to
+ * the primary; a point a Reroll gives back (`takeOverflow`) and a boundary's check (`checkOverflow` - the count paid, the
+ * stamp armed, an event run and its card posted) still ran on the GM's browser that asked, on its own copy of the count.
+ * Each asks the primary now (gm-bridge.mjs `overflow.take`, `overflow.check`, a GM's alone) and answers what it answered;
+ * with no other GM connected it runs here; and each asks again inside its step, as `addOverflow` does. Tier 2 E37-T8.
+ */
+const HANDED = Symbol("handed to the primary GM");
+
+/** `takeOverflow` asked of the primary from another GM: the points it took, 0 when none or refused, undefined when this GM's. */
+async function askPrimaryToTake(n, reason) {
+    if (!game.user?.isGM || isPrimaryGm() || !primaryElsewhere()) return undefined;
+    const { requestOverflowTake } = await import("./gm-bridge.mjs");
+    const res = await requestOverflowTake(n, reason);
+    return res.ok ? (res.value?.taken ?? 0) : 0;
+}
+
+/** `checkOverflow` asked of the primary from another GM: the stamp it armed, null when none or refused, undefined when this GM's. */
+async function askPrimaryToCheck(ahead) {
+    if (!game.user?.isGM || isPrimaryGm() || !primaryElsewhere()) return undefined;
+    const { requestOverflowCheck } = await import("./gm-bridge.mjs");
+    const res = await requestOverflowCheck(ahead);
+    return res.ok ? (res.value?.armed ?? null) : null;
 }
 
 export async function addOverflow(amount, { reason = "spill" } = {}) {
@@ -399,13 +424,19 @@ export async function takeOverflow(amount, { reason = "given back" } = {}) {
     if (!game.user.isGM) return 0;
     const n = Math.round(Number(amount));
     if (!Number.isFinite(n) || n <= 0) return 0;
+    // On the primary GM (E37 C7): another GM asks it, and a handover while the step waited asks again.
+    const asked = await askPrimaryToTake(n, reason);
+    if (asked !== undefined) return asked;
     await overflowStore.whenHydrated();
-    const { before, taken } = await serialWrite(OVERFLOW_KEY, async () => {
+    const out = await serialWrite(OVERFLOW_KEY, async () => {
+        if (primaryElsewhere()) return HANDED;
         const was = state().count;
         const take = Math.min(was, n);
         if (take) await overflowStore.patch(RECORD, { count: was - take });
         return { before: was, taken: take };
     });
+    if (out === HANDED) return (await askPrimaryToTake(n, reason)) ?? 0;
+    const { before, taken } = out;
     if (!taken) return 0;
     log(`Despair overflow -${taken} (${reason}) -> ${before - taken}/${overflowThreshold()}.`);
     return taken;
@@ -685,6 +716,9 @@ export async function checkOverflow({ ahead = false } = {}) {
     if (!game.user.isGM) return null;
 
     try {
+        // On the primary GM (E37 C7): the count paid, the stamp armed and an event run where every write of the count is.
+        const asked = await askPrimaryToCheck(ahead);
+        if (asked !== undefined) return asked;
         const clock = getClock();
         const target = ahead ? upcoming(clock) : stampOf(clock);
         if (!target) return null;
@@ -693,6 +727,8 @@ export async function checkOverflow({ ahead = false } = {}) {
         // The count read and paid, and the stamp armed, in one step of `OVERFLOW_KEY` (E17 C0): a spill queued
         // beside the payment lands on the count it leaves, not on the one it read.
         const plan = await serialWrite(OVERFLOW_KEY, async () => {
+            // The primary asked again in the step (E37 C7, as `addOverflow`): a handover while it waited sends it on.
+            if (primaryElsewhere()) return HANDED;
             const now = state();
 
             // The darkening a verdict kept waiting (S09-07): this boundary is the next time of day, and
@@ -743,6 +779,7 @@ export async function checkOverflow({ ahead = false } = {}) {
             await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: { ...target, effect: drawn } });
             return { drawn, left, threshold };
         });
+        if (plan === HANDED) return (await askPrimaryToCheck(ahead)) ?? null;
         if (!plan) return null;
         if (plan.armed) return plan.armed;
         const { drawn, left, threshold } = plan;

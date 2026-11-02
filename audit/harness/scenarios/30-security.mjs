@@ -1798,6 +1798,41 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("SECURITY: a player's Despair correction after a rewrite of Aiko's roll into Despair moves no pool either",
         paidPoint.unchanged && paidPoint.reasons.some(r => /an undo is the GM's own Reroll's/.test(r)), JSON.stringify(paidPoint));
 
+    /* 7d2. THE DESPAIR POOLS AND THE OVERFLOW, ON THE PRIMARY (E37 C7, 02.11.2026; E37-30, the deferred D061). A GM that is
+       not the primary asks it to set a pool, fill or empty every pool, grant, revoke or name one, take Despair off the
+       Overflow and check it (`despair.set`, `despair.all`, `despair.roster`, `overflow.take`, `overflow.check`), each a
+       GM's alone. p1 sends each from its console: refused as a GM's, told, and nothing moves - the pools, their names and
+       extras, the Overflow's count and its stamp. So that a check would have something to move, the GM's pool is 6, the
+       count 2 and the stamp a darkening a verdict kept waiting (a Panic of a session that never ran), all put back after. */
+    phase("the Despair pools' rows from a player's console", { flow: "despair" });
+    const poolsWas = await gm.eval(`const { overflowStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const was = { count: (await import("${repoUrl}/scripts/overflow.mjs")).overflowCount(), overflow: foundry.utils.deepClone(game.settings.get("${MOD}", "overflow") ?? {}),
+            pool: game.drpg.getDespair(game.user.id) };
+        await game.drpg.setDespair(game.user.id, 6);
+        await overflowStore.patch("record", { count: 2 });
+        await game.settings.set("${MOD}", "overflow", { active: { effect: "panic", session: -1, day: 1, timeOfDay: "morning", pending: true } });
+        return was;`);
+    await settle(500);
+    const readPools = `return { pools: game.settings.get("${MOD}", "despairPools"), names: game.settings.get("${MOD}", "poolNames"),
+        extra: game.settings.get("${MOD}", "extraPoolUsers"), count: (await import("${repoUrl}/scripts/overflow.mjs")).overflowCount(),
+        stamp: game.settings.get("${MOD}", "overflow")?.active ?? null };`;
+    const poolForgeries = {};
+    for (const [action, fields] of [["despair.set", { targetUserId: gm.userId, value: 0 }], ["despair.all", { op: "zero" }],
+        ["despair.roster", { op: "label", targetUserId: gm.userId, label: "SEC p1's pool name" }], ["overflow.take", { amount: 2, reason: "SEC" }],
+        ["overflow.check", { ahead: true }]]) {
+        poolForgeries[action] = await forge(action, fields, readPools);
+    }
+    check("SECURITY: a player's console cannot set, fill or empty a Despair pool, grant, revoke or name one, or take Despair off the Overflow or check it - each refused as a GM's, told, and nothing moves (E37 C7)",
+        Object.entries(poolForgeries).every(([action, f]) => f.unchanged && f.reasons.some(r => r.includes("only a GM")) && f.told.some(t => t.what === action))
+            && poolForgeries["overflow.take"].before.count === 2 && poolForgeries["overflow.check"].before.stamp?.pending === true,
+        JSON.stringify(poolForgeries).slice(0, 3000), { flow: "despair" });
+    await gm.eval(`const { overflowStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        await game.drpg.setDespair(game.user.id, ${JSON.stringify(poolsWas?.pool ?? 0)});
+        await overflowStore.patch("record", { count: ${JSON.stringify(poolsWas?.count ?? 0)} });
+        await game.settings.set("${MOD}", "overflow", ${JSON.stringify(poolsWas?.overflow ?? {})});
+        return true;`);
+    await settle(500);
+
     // 7e. token.sendBack to somewhere the token never stood.
     phase("a send-back", { flow: "crossing-fee-refund" });
     const readToken = `const t = canvas.scene.tokens.get("TOKAIKO000000000"); return { x: t.x, y: t.y, elevation: t.elevation ?? 0 };`;

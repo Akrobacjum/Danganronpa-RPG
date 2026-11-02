@@ -801,10 +801,10 @@ export const closingClaimStore = defineGmStore({
  * THE DESPAIR OVERFLOW'S COUNT (E05 C12, 27.09.2026; audit S01-60). A record, `{ count }`: the
  * spilled Despair waiting to be spent - half of the world setting `overflow` until 1.2.64, which
  * every browser held while a player's caption masked it as "?". The other half, the darkening's
- * stamp, stays in the world (it is announced when it fires). Written by `addOverflow`,
- * `checkOverflow` and `resetOverflow` on whichever GM runs them; two GMs adding within one
- * exchange's latency keep the newer write - the race the world setting had, which the pools'
- * one writer (DESP-12) could be extended to. Each of the three reads the count once the store
+ * stamp, stays in the world (it is announced when it fires). Written by `addOverflow` (E17 C5),
+ * `takeOverflow` and `checkOverflow` (E37 C7) on the primary GM, which another GM asks, and by
+ * `resetOverflow` on the GM that runs it (the verdict's and the season reset's, both the primary's;
+ * a GM's Clear asks the primary, `clearOverflowAsGm`). Each reads the count once the store
  * holds the other GMs' copies (E05 fix r2-G2; review S2-m7). Cut by the reset's "overflow"
  * group beside `resetOverflow`. No old key: an older world's count comes out of the world by
  * `liftOverflowCount`.
