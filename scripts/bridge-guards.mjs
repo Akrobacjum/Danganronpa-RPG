@@ -1289,10 +1289,10 @@ export function tokenActorOf(payload) {
  * one this client was viewing, as the handler's was.
  */
 export async function remnantSourceOf(payload) {
-    const { remnantData, sceneOfRemnant } = await import("./remnants.mjs");
+    const { remnantData, remnantById, sceneOfRemnant } = await import("./remnants.mjs");
     const scene = game.scenes.get(payload?.sceneId ?? "") ?? sceneOfRemnant(payload?.tokenId);
-    const token = scene?.tokens?.get(payload?.tokenId ?? "");
-    return remnantData(token)?.sourceActor ?? null;
+    // The trace's ref (E60 C1b): its row, with or without a token.
+    return remnantData(remnantById(scene?.id, payload?.tokenId ?? ""))?.sourceActor ?? null;
 }
 
 /*

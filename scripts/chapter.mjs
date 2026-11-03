@@ -1746,7 +1746,9 @@ export async function clearChapterKeyRemnants(chapter) {
         });
         if (!doomed.length) continue;
         for (const token of doomed) await dropRemnantSecret(token);
-        await scene.deleteEmbeddedDocuments("Token", doomed.map(t => t.id));
+        // The refs that hold a token (E60 C1b): a row alone goes with its tombstone above.
+        const ids = doomed.filter(t => t.document).map(t => t.id);
+        if (ids.length) await scene.deleteEmbeddedDocuments("Token", ids);
         cleared += doomed.length;
     }
     log(`Took ${cleared} Key Remnant(s) off the map at the end of chapter ${chapter}.`);

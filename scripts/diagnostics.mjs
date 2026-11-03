@@ -13,6 +13,8 @@ import { MODULE_ID, moduleVersion, STARTING } from "./config.mjs";
 import { SETTINGS, STALE_SILENCES, staleSilencesCleared, pixelFontOn } from "./settings.mjs";
 import { glassOn } from "./motion.mjs";
 import { bulletStore, remnantStore } from "./gm-stores.mjs";
+// Synchronous, for `diagnoseTruthBullets`; remnants.mjs reaches this file by no import (R161).
+import { remnantsOn } from "./remnants.mjs";
 import { monokumas, getDespair, despairMax, poolCandidates } from "./despair.mjs";
 import { monokumaFor, students, unassigned, feedsNobody, explicitPool, assignments } from "./assignments.mjs";
 import { studentActors, studentCensus } from "./monokuma.mjs";
@@ -1223,9 +1225,9 @@ export function diagnoseTruthBullets({ toChat = true } = {}) {
     // token carries no type (`placeRemnant`).
     const neutral = [];
     for (const scene of game.scenes) {
-        for (const token of scene.tokens) {
-            if (!token.getFlag(MODULE_ID, "isRemnant")) continue;
-            const type = remnantStore.get(`${scene.id}.${token.id}`)?.type ?? token.getFlag(MODULE_ID, "remnantType");
+        // Every trace's ref (E60 C1b): its row, with or without a token.
+        for (const ref of remnantsOn(scene)) {
+            const type = remnantStore.get(ref.key)?.type ?? ref.document?.getFlag(MODULE_ID, "remnantType");
             if (type !== "neutral") continue;
             neutral.push(scene.name);
         }

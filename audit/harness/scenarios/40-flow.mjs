@@ -1223,7 +1223,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         const traces = left.map(t => R.remnantData(t)).map(d => [d.type, d.visibility]);
         // Tied to the crime: the GM reads it off the project the packet names (gm-bridge.mjs \`worksOwnMurder\`, fix r2-G3).
         const tied = left.map(t => R.remnantData(t)?.tiedToCrime ?? null);
-        for (const t of left) { try { await R.dropRemnantSecret(t); } catch {} await t.delete(); }
+        for (const t of left) { try { await R.dropRemnantSecret(t); } catch {} await t.document?.delete(); }
         if ("${trapProject}") await P.deleteProject("${trapProject}");
         return { traces, tied };`, { timeout: 30000 });
     /* The trace is the crime's (E32+E07 fix r2-G3, 03.10.2026; the round-2 review's C2-m9 (a)): C13 dropped this
@@ -1684,7 +1684,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             const out = { tool: aiko.items.get(${JSON.stringify(dayItems.tool)})?.getFlag("${MOD}", "location") ?? null, broken: aiko.items.has(${JSON.stringify(dayItems.broken)}) };
             const left = R.remnantsOn(canvas.scene).filter(t => R.remnantData(t)?.subject === "Scenario 40 broken tool");
             out.traces = left.length;
-            for (const t of left) { try { await R.dropRemnantSecret(t); } catch {} await t.delete(); }
+            for (const t of left) { try { await R.dropRemnantSecret(t); } catch {} await t.document?.delete(); }
             for (const id of [${JSON.stringify(dayItems.tool)}, ${JSON.stringify(dayItems.broken)}]) await aiko.items.get(id ?? "")?.delete();
             if (${JSON.stringify(dayItems.room)} && !${dayItems.had}) await V.setStash(${JSON.stringify(dayItems.room)}, aiko.id, { present: false, scene: canvas?.scene });
             await (await import("${REPO}/scripts/sheet-audit.mjs")).sheetAuditIdle();

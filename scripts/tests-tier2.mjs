@@ -33,6 +33,7 @@ import { GRID } from "./tests-grid.mjs";
  * runs from `finally` in the runner rather than at the end of the test.
  */
 async function snapshot(cast) {
+    const { remnantsOn } = await import("./remnants.mjs");
     /*
      * DESPAIR AND THE OVERFLOW, for the same reason Hope is here.
      *
@@ -127,10 +128,10 @@ async function snapshot(cast) {
         // snapshot, and the runner reported one failure and skipped every
         // scenario. A suite that silently runs nothing reads almost the same as
         // a suite that passes, which is why the runner names the step.
+        // Every trace's ref (E60 C1b): a trace token's key and a row's with no token of its own alike (remnants.mjs
+        // `remnantsOn`), so a fixture's trace is read by its row as well as by its token.
         remnants: new Set(game.scenes.reduce((ids, scene) => {
-            for (const token of scene.tokens) {
-                if (token.getFlag(MODULE_ID, "isRemnant")) ids.push(`${scene.id}.${token.id}`);
-            }
+            for (const ref of remnantsOn(scene)) ids.push(ref.key);
             return ids;
         }, [])),
         messages: new Set(game.messages.map(m => m.id)),
@@ -186,6 +187,7 @@ async function thrown(fn) {
 
 async function restore(snap) {
     const { reviveCharacter } = await import("./chapter.mjs");
+    const { remnantsOn } = await import("./remnants.mjs");
     const { setDespair, getDespair } = await import("./despair.mjs");
 
     /*
@@ -235,9 +237,8 @@ async function restore(snap) {
      * and the store let settle, the settings below are written over the tombstones.
      */
     for (const scene of game.scenes) {
-        const strays = scene.tokens
-            .filter(t => t.getFlag(MODULE_ID, "isRemnant") && !snap.remnants.has(`${scene.id}.${t.id}`))
-            .map(t => t.id);
+        // The refs that carry a token (E60 C1b): a row of a trace that appeared is the store hold's to put back.
+        const strays = remnantsOn(scene).filter(r => r.document && !snap.remnants.has(r.key)).map(r => r.id);
         if (strays.length) await scene.deleteEmbeddedDocuments("Token", strays);
     }
     await gmStoresIdle();
@@ -6669,7 +6670,7 @@ const SCENARIOS = [
             // The traces placed here, and the one the Reroll put back under a new id.
             const back = remnantsOn(scene).filter(t => /^SUITE C13 a trace the killer scrubs/.test(remnantData(t)?.note ?? ""));
             for (const doc of [...traces, ...back]) {
-                try { await doc?.delete(); } catch { /* already gone */ }
+                try { await (doc?.document ?? doc)?.delete(); } catch { /* already gone */ }
             }
             await killer.update({ "system.resources.stress.value": 0 });
         }
@@ -58406,7 +58407,7 @@ const SCENARIOS = [
                 placed = MM.finalRemnants().filter(f => !before.has(f.token.id));
                 reading = [placed.map(f => f.token.parent?.id ?? null), R.roomNames(school).every(r => offered.includes(r))];
             } finally {
-                for (const f of placed) if (f.token.parent?.tokens?.has(f.token.id)) await f.token.delete();
+                for (const f of placed) if (f.token.parent?.tokens?.has(f.token.id)) await f.token.document?.delete();
                 await home?.view();
                 await annex?.delete();
                 await settle();
@@ -70701,7 +70702,7 @@ const SCENARIOS = [
             stand?.putBack();
             if (actor.system.resources.hope.value !== hope) await trustedWrite(actor, { "system.resources.hope.value": hope }, { reason: "gmRuling" });
             for (const t of game.scenes.contents.flatMap(s => remnantsOn(s)).filter(t => remnantData(t)?.subject === name)) {
-                try { await t.delete(); } catch { /* already gone */ }
+                try { await t.document?.delete(); } catch { /* already gone */ }
             }
             for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
             if (rerollBookmarkStore.has(actor.id)) await rerollBookmarkStore.drop(actor.id);
@@ -72868,7 +72869,7 @@ const SCENARIOS = [
             windows.restore();
             delete actor.rollTrait;
             for (const t of remnantsOn(canvas.scene).filter(t => !traces.has(t.id))) {
-                try { await t.delete(); } catch { /* already gone */ }
+                try { await t.document?.delete(); } catch { /* already gone */ }
             }
             for (const who of [actor, owner]) for (const item of who.items.filter(i => !had.get(who.id).has(i.id))) {
                 try { await item.delete(); } catch { /* already gone */ }
@@ -76197,7 +76198,7 @@ const SCENARIOS = [
             windows.restore();
             if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
             for (const scene of game.scenes) for (const t of remnantsOn(scene).filter(t => remnantData(t)?.subject === name)) {
-                try { await t.delete(); } catch { /* already gone */ }
+                try { await t.document?.delete(); } catch { /* already gone */ }
             }
             made.push(...P.allProjects().filter(p => made.includes(P.repairs(p.id))).map(p => p.id));
             for (const id of made) await P.deleteProject(id).catch(() => {});
@@ -77642,7 +77643,7 @@ const SCENARIOS = [
             windows.restore();
             if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
             for (const scene of game.scenes) for (const t of remnantsOn(scene).filter(t => remnantData(t)?.subject === name)) {
-                try { await t.delete(); } catch { /* already gone */ }
+                try { await t.document?.delete(); } catch { /* already gone */ }
             }
             made.push(...P.allProjects().filter(p => made.includes(P.repairs(p.id))).map(p => p.id));
             for (const id of made) await P.deleteProject(id).catch(() => {});
@@ -81238,6 +81239,93 @@ const SCENARIOS = [
         }), stableJson({ cleared: ["assignments"], own: true, beyond: [], clock: [] }),
             "a reset with one group ticked changed the world beyond that group and the reset's bookkeeping (cleared; own: the group's setting among the "
             + `differences; beyond: the other units that differ; clock: its paths beyond the group's cut) - ${diff.slice(0, 12).map(d => K.describeDiff(d)).join("; ")}`);
+    }],
+    ["E60-T1 - every placed trace's row holds its spot, and the readers answer on refs (E60 C1b; E60-02, E60-03): three traces placed - a student's Faint Prep through `dropRemnant` (on the student's floor), a Key and a Final through `placeRemnant` - each have a row with `x`, `y` (the token's), `level` (the source's floor, else null) and `foundAt` null, the spot stamped as a real write; the readers list each as a ref carrying its token (`remnantsOn`, `remnantById`, `sceneOfRemnant`, Observe's candidates, the clean-up's list, the chapter's Faint Prep, the finals, the Keys still to find); a find writes `foundAt` and the road on the row, a GM's Reveal \"gm\", and the ref reads it found", async () => {
+        /*
+         * E60 C1b, 03.11.2026; D38 = 2, S17-64. From E60 on the row is the trace: its spot is written with it at placement
+         * (remnants.mjs `traceRowOf`), and every reader reads one ref per trace (`traceRefsOf`) - here the token is still
+         * made, so a ref carries it and the reader answers what it answered on the token. The student stands on a floor
+         * of this test's own for the placement (the token's `level` shadowed on this browser alone, put back after: no
+         * world write), so a floor the source does not stand on is read as null. The spot is stamped as a real write, above
+         * the store's weak stamp (`weak()`): a derived write of it, a migration's or another GM's default, loses to it in
+         * every merge (gm-store.mjs WEAK). Then the Key found (`revealRemnantToFinder`,
+         * as Observe's copy un-hides it) and the Final revealed by the GM's hand (`revealRemnant`). Put back: the three
+         * traces, their rows, the floor. Red at C1a: no spot on any row. Mutants c1b-m3 (no floor written), c1b-m4 (the
+         * spot written weak) and c1b-m7 (an un-hide that writes no `foundAt`) read red here.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the traces are placed on the scene on screen");
+        needs(world.atLeast("occupiedRooms", 1), "the traces are left in a room with a student in it");
+        const R = await import("./remnants.mjs");
+        const { remnantStore } = await import("./gm-stores.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { cleanableRemnants } = await import("./cleanup.mjs");
+        const { faintPrepCandidates } = await import("./chapter.mjs");
+        const { finalRemnants } = await import("./mastermind.mjs");
+        const { missingKeyRows } = await import("./investigation.mjs");
+        const scene = canvas?.scene;
+        // Read so that 1.2.97's code answers a reading, not a TypeError (the red run at C1a): no ref, no `remnantById`.
+        const isRef = r => typeof R.isTraceRef === "function" && R.isTraceRef(r);
+        const byIds = (sceneId, id) => (typeof R.remnantById === "function" ? R.remnantById(sceneId, id) : null);
+        const student = cast(4).find(a => { const at = locateActor(a); return at?.room && at.scene === scene; });
+        must(student, "no student of the cast stands in a room on the scene on screen - this would measure nothing");
+        const where = locateActor(student);
+        const tokenDoc = where.tokenDoc, room = where.room;
+        const FLOOR = "e60T1floor";
+        const heldLevel = Object.getOwnPropertyDescriptor(tokenDoc, "level");
+        const chapter = getClock().chapter;
+        const placed = [];
+        let reading = null;
+        try {
+            Object.defineProperty(tokenDoc, "level", { value: FLOOR, configurable: true, writable: true });
+            must(locateActor(student)?.level === FLOOR, "the student's floor could not be set on this browser - this would measure nothing");
+            const drop = await R.dropRemnant(student, { type: "prep", faint: true, visibility: "evident", note: "SUITE E60-T1 drop" });
+            if (heldLevel) Object.defineProperty(tokenDoc, "level", heldLevel); else delete tokenDoc.level;
+            const key = await R.placeRemnant({ type: "key", visibility: "subtle", scene, x: tokenDoc.x, y: tokenDoc.y, room, chapter, note: "SUITE E60-T1 key" });
+            const final = await R.placeRemnant({ type: "final", visibility: "evident", scene, x: tokenDoc.x, y: tokenDoc.y, room, chapter, note: "SUITE E60-T1 final" });
+            for (const t of [drop, key, final]) if (t) placed.push(t);
+            must(placed.length === 3, `${placed.length} of the three traces were placed - this would measure nothing`);
+            const keyOf = t => `${scene.id}.${t.id}`;
+            const rowOf = t => remnantStore.get(keyOf(t));
+            const spot = t => { const row = rowOf(t), tok = scene.tokens.get(t.id);
+                return [row?.x === tok?.x && row?.y === tok?.y && Number.isFinite(row?.x), row?.level ?? null,
+                    Boolean(row) && "foundAt" in row && row.foundAt === null, remnantStore.stampOf(keyOf(t), "x") > remnantStore.weak()]; };
+            const spots = placed.map(spot);
+            const ids = placed.map(t => t.id);
+            const ours = list => ids.map(id => list.some(id2 => id2 === id));
+            const refs = R.remnantsOn(scene).filter(r => ids.includes(r.id));
+            const refShape = refs.map(r => [r.id, isRef(r), r.document === scene.tokens.get(r.id), r.x === r.document?.x, r.parent === scene]);
+            const byId = [byIds(scene.id, key.id)?.key === keyOf(key), R.sceneOfRemnant(final.id) === scene, byIds(scene.id, "e60NoSuchTrace") === null];
+            const observe = R.rankForObserve(room, scene).map(c => c.token.id);
+            const cleanable = cleanableRemnants(student, { room, scene }).map(c => c.token.id);
+            const faint = faintPrepCandidates(chapter).map(c => c.token.id);
+            const finals = finalRemnants().map(f => f.token.id);
+            const missing = missingKeyRows().map(r => r.id);
+            const readers = {
+                observe: ours(observe), cleanable: ours(cleanable), faint: ours(faint), finals: ours(finals),
+                missingKey: missing.includes(keyOf(key)), refsTyped: [R.rankForObserve(room, scene).every(c => isRef(c.token))]
+            };
+            await R.revealRemnantToFinder(byIds(scene.id, key.id) ?? scene.tokens.get(key.id), { tell: false });
+            await R.revealRemnant(byIds(scene.id, final.id) ?? scene.tokens.get(final.id));
+            const foundRow = t => [Number.isFinite(rowOf(t)?.foundAt), rowOf(t)?.foundVia ?? null, byIds(scene.id, t.id)?.found ?? null];
+            reading = { spots, refShape, byId, readers, found: placed.map(foundRow) };
+        } finally {
+            if (heldLevel) Object.defineProperty(tokenDoc, "level", heldLevel); else if (Object.hasOwn(tokenDoc, "level")) delete tokenDoc.level;
+            for (const trace of placed) {
+                await R.dropRemnantSecret(trace);
+                if (scene.tokens.has(trace.id)) await scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            }
+        }
+        const [d, k, f] = placed.map(t => t.id);
+        equal(stableJson(reading), stableJson({
+            spots: [[true, FLOOR, true, true], [true, null, true, true], [true, null, true, true]],
+            refShape: [[d, true, true, true, true], [k, true, true, true, true], [f, true, true, true, true]],
+            byId: [true, true, true],
+            readers: { observe: [true, true, true], cleanable: [true, true, true], faint: [true, false, false], finals: [false, false, true],
+                missingKey: true, refsTyped: [true] },
+            found: [[false, null, false], [true, "find", true], [true, "gm", true]]
+        }), "[each trace's row: its spot the token's, its floor, foundAt null, the spot's stamp real (above the store's weak stamp); "
+            + "the refs (id, a ref, its token, the token's spot, the scene); by id; the readers listing ours (Observe, the clean-up, "
+            + "the chapter's Faint Prep, the finals, the Keys still to find, Observe's candidates refs); the found rows (foundAt, the road, the ref's found)]");
     }],
     ...GRID
 ];

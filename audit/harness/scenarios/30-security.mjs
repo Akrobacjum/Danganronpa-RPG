@@ -3253,7 +3253,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             await A.sheetAuditIdle();
             const aiko = game.actors.get("${ids.aiko}");
             for (const t of R.remnantsOn(canvas.scene).filter(t => String(R.remnantData(t)?.subject ?? "").startsWith("E51 FG5 30 "))) {
-                try { await R.dropRemnantSecret(t); } catch {} await t.delete();
+                try { await R.dropRemnantSecret(t); } catch {} await t.document?.delete();
             }
             for (const id of ${JSON.stringify(Object.values(discardSet))}) await aiko.items.get(id ?? "")?.delete();
             await game.settings.set("${MOD}", "clock", ${JSON.stringify(discardClock)});

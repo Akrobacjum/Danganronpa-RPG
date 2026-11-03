@@ -31950,6 +31950,108 @@ const INVARIANTS = [
         equal(JSON.stringify([words.map(text => /\bprimaryOnly\b/.test(text)), entries.filter(entry => "primaryOnly" in entry).length]), "[[true,true],0]",
             `a registration naming primaryOnly was not refused for it, or an entry holds the key (refusals: ${JSON.stringify(words)})`);
     }],
+    ["R1280 - one read of traces: remnants.mjs `traceRefsOf(rows, scene, tokens)` answers one frozen ref per trace of that scene - each trace token's (flagged `isRemnant`) in the scene's order, with its row or none, then each row of the scene with a spot and no token - and none of another scene, a scene being a row's when its key's part before the first dot is its id; a ref carrying its token takes the token's spot, floor and size over the row's; `found` is the row's `foundAt` or `incidentFound`, or the token un-hidden and not an incident's drawn for its cast (1.2.97's rule, for a row with no `foundAt`); a row with neither a spot nor a token is left out; a ref has no `update` or `delete`; pure (E60 C1b; E60-03, S17-64)", async () => {
+        /*
+         * E60 C1b, 03.11.2026; D38 = 2, S17-64. Every reader of a trace asked the scene's tokens until E60, and from C2a an
+         * unfound trace has no token, so remnants.mjs answers a ref per trace from the rows and the tokens together
+         * (`remnantsOn`, `remnantById` and every reader through them). Read here on fixtures alone - two scenes, the
+         * second's id beginning with the first's ("e60r" and "e60rB"), so a key matched by a bare prefix is caught; six
+         * tokens and seven rows: a found token whose row holds another spot (a GM dragged it), a hidden token with a row of
+         * 1.2.97 (no spot, no `foundAt`), an unflagged token, a flagged token with no row, an incident's un-hidden token
+         * not found, a row with a spot and no token, one found with no token, one with neither, and the other scene's
+         * row. Red at C1a: no `traceRefsOf`. Mutants c1b-m2 (the row's spot over the token's) and c1b-m5 (a bare prefix)
+         * read red here.
+         */
+        const R = await import("./remnants.mjs");
+        must(typeof R.traceRefsOf === "function", "remnants.mjs exports no traceRefsOf - nothing builds a trace's ref");
+        const flags = (more = {}) => ({ [MODULE_ID]: { isRemnant: true, ...more } });
+        const A = { id: "e60r", name: "A" }, B = { id: "e60rB", name: "B" };
+        const tokens = [
+            { id: "t1", x: 10, y: 20, level: "L1", width: 2, height: 2, elevation: 5, hidden: false, flags: flags() },
+            { id: "t2", x: 30, y: 40, hidden: true, flags: flags() },
+            { id: "t3", x: 1, y: 1, hidden: true, flags: {} },
+            { id: "t4", x: 70, y: 80, hidden: true, flags: flags() },
+            { id: "t8", x: 90, y: 95, hidden: false, flags: flags({ fromIncident: true }) },
+            { id: "t10", x: 91, y: 96, hidden: false, flags: flags({ fromIncident: true }) }
+        ];
+        const rows = {
+            "e60r.t1": { type: "prep", x: 999, y: 999, level: "L0", foundAt: null },
+            "e60r.t2": { type: "prep" },
+            "e60r.t5": { type: "key", x: 50, y: 60, level: null, foundAt: null },
+            "e60r.t6": { type: "prep", foundAt: null },
+            "e60r.t7": { type: "prep", x: 55, y: 65, level: "L2", foundAt: 123, foundVia: "find" },
+            "e60r.t8": { type: "incident", foundAt: null },
+            "e60r.t10": { type: "incident", incidentFound: true },
+            "e60rB.t9": { type: "prep", x: 5, y: 6, foundAt: null }
+        };
+        const refs = R.traceRefsOf(rows, A, tokens);
+        const other = R.traceRefsOf(rows, B, []);
+        const byId = Object.fromEntries(refs.map(r => [r.id, r]));
+        const shape = r => [r.key, r.sceneId, r.parent === A, r.x, r.y, r.level, r.width, r.height, r.found,
+            r.document ? r.document.id : null];
+        equal(stableJson({
+            order: refs.map(r => r.id),
+            refs: refs.map(shape),
+            other: other.map(r => [r.key, r.parent === B, r.x, r.y]),
+            ref: [refs.every(r => R.isTraceRef(r) && Object.isFrozen(r)), refs.some(r => typeof r.update === "function" || typeof r.delete === "function"),
+                R.isTraceRef(tokens[0]), byId.t1?.elevation ?? null, byId.t5?.elevation ?? null],
+            none: R.traceRefsOf(rows, null, tokens).length
+        }), stableJson({
+            order: ["t1", "t2", "t4", "t8", "t10", "t5", "t7"],
+            refs: [
+                ["e60r.t1", "e60r", true, 10, 20, "L1", 2, 2, true, "t1"],
+                ["e60r.t2", "e60r", true, 30, 40, null, 1, 1, false, "t2"],
+                ["e60r.t4", "e60r", true, 70, 80, null, 1, 1, false, "t4"],
+                ["e60r.t8", "e60r", true, 90, 95, null, 1, 1, false, "t8"],
+                ["e60r.t10", "e60r", true, 91, 96, null, 1, 1, true, "t10"],
+                ["e60r.t5", "e60r", true, 50, 60, null, 1, 1, false, null],
+                ["e60r.t7", "e60r", true, 55, 65, "L2", 1, 1, true, null]
+            ],
+            other: [["e60rB.t9", true, 5, 6]],
+            ref: [true, false, false, 5, null],
+            none: 0
+        }), "[the refs' order; each ref (key, scene, parent, x, y, level, width, height, found, its token); the other scene's; "
+            + "every ref a frozen ref, any with update or delete, a token read as a ref, the elevations; a ref for no scene]");
+    }],
+
+    ["R1282 - a placed trace's row holds its spot: remnants.mjs `traceRowOf(data, { x, y, level, id, sceneId, ... })` answers the ledger's key `<sceneId>.<id>` and a row of every field `placeRemnant` wrote at 55f03746 (type, visibility, faint, reinforced, note, action, subject, pointsAt, tiedToCrime, tieWaitsFor, itemIdentity, sourceActor, sourceName, room, chapter, day, timeOfDay, epoch, label, placedAt) and `x`, `y`, `level` (null for every floor) and `foundAt` null, by 1.2.97's rules (a type's reinforcement, a tie's wait only for a tie that is true, no `placedAt` from the future); `placeRemnant` writes that row with its spot and the probe's floor; pure (E60 C1b; E60-02)", async () => {
+        /*
+         * E60 C1b, 03.11.2026; D38 = 2. The row is the trace from E60 on, and an unfound trace gets no token at C2a - so the
+         * row carries the spot: `placeRemnant` builds it with `traceRowOf` and writes it whole, and nothing of it but the
+         * spot and `foundAt` is new. Read: two rows built (a Final Key, reinforced by its type and tied, with a placedAt
+         * ahead of `now`; a Prep left by a student, undecided, on a floor), their keys and fields against 55f03746's list,
+         * and `placeRemnant`'s source, comments stripped. Red at C1a: no `traceRowOf`. Mutant c1b-m6 (no `foundAt: null`)
+         * reads red here.
+         */
+        const R = await import("./remnants.mjs");
+        must(typeof R.traceRowOf === "function", "remnants.mjs exports no traceRowOf - a trace's row is built nowhere");
+        const HEAD = ["type", "visibility", "faint", "reinforced", "note", "action", "subject", "pointsAt", "tiedToCrime", "tieWaitsFor",
+            "itemIdentity", "sourceActor", "sourceName", "room", "chapter", "day", "timeOfDay", "epoch", "label", "placedAt"];
+        const now = 1700000000000;
+        const final = R.traceRowOf({ type: "final", visibility: "subtle", note: "n", tiedToCrime: true, room: "Hall", chapter: 2, placedAt: now + 5 },
+            { x: 100, y: 200, level: null, id: "tokA", sceneId: "scA", label: "L", tieWaitsFor: "fight", epoch: 3, now });
+        const prep = R.traceRowOf({ type: "prep", faint: true, sourceActor: "a1", sourceName: "Aiko", tiedToCrime: null, placedAt: now - 10 },
+            { x: 5, y: 6, level: "floor2", id: "tokB", sceneId: "scA", label: "M", tieWaitsFor: "fight", epoch: 3, now });
+        const place = fnSource(stripComments((await moduleSources()).get("remnants.mjs") ?? ""), "placeRemnant");
+        const pick = (row, keys) => keys.map(k => row?.[k] ?? null);
+        equal(stableJson({
+            keys: [final.key, prep.key, R.traceRowOf({}, { x: 1, y: 1 }).key],
+            fields: Object.keys(final.row).sort(),
+            final: pick(final.row, ["type", "reinforced", "tiedToCrime", "tieWaitsFor", "placedAt", "x", "y", "level", "epoch", "label"]),
+            prep: pick(prep.row, ["faint", "reinforced", "tiedToCrime", "tieWaitsFor", "sourceActor", "placedAt", "x", "y", "level"]),
+            foundAt: ["foundAt" in final.row && final.row.foundAt === null, "foundAt" in prep.row && prep.row.foundAt === null],
+            placed: [/traceRowOf\(\s*data\s*,/.test(place), /x:\s*spot\.x,\s*y:\s*spot\.y,\s*level:\s*probe\.level\b/.test(place),
+                /setRemnantSecret\(\s*created\s*,\s*row\s*\)/.test(place)]
+        }), stableJson({
+            keys: ["scA.tokA", "scA.tokB", null],
+            fields: [...HEAD, "x", "y", "level", "foundAt"].sort(),
+            final: ["final", true, true, "fight", now, 100, 200, null, 3, "L"],
+            prep: [true, false, null, null, "a1", now - 10, 5, 6, "floor2"],
+            foundAt: [true, true],
+            placed: [true, true, true]
+        }), "[the keys (a Final, a Prep, none without ids); the row's fields; the Final's; the Prep's; foundAt null on each; "
+            + "placeRemnant builds the row from its data, its spot and the probe's floor, and writes it whole]");
+    }],
 ];
 
 /**

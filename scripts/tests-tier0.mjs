@@ -7600,13 +7600,14 @@ const REGRESSIONS = [
         };
         const NOT_A_STUDENT = [
             ["call-world.mjs", "fallbackGather", "scene", "the room's tokens, drawn round the assembly point (Token documents)"],
-            ["cleanup.mjs", "undoLastCleanup", "scene.tokens.get()", "the trace token a clean-up left behind"],
+            // The trace's token through its ref since E60 C1b (remnants.mjs `remnantById`), `scene.tokens.get()` until then.
+            ["cleanup.mjs", "undoLastCleanup", "remnantById().document", "the trace token a clean-up left behind"],
             ["gm-bridge.mjs", "handleSendback", "token", "a token sent back out of a locked room"],
             ["incident-store.mjs", "retireOpeningNotices", "game.messages.get()", "the GMs' opening notices"],
             ["migrate.mjs", "CLAUSES", "table", "a pool table's results, given their roles"],
             ["monocub.mjs", "postCubRoll", "ChatMessage", "the Monocub ability roll's chat card (E33 C10; postMeddleRoll until 1.2.68)"],
             ["movement.mjs", "sendBack", "tokenDoc", "a token put back where it stood before a refused move"],
-            ["murder-rules.mjs", "undoLastCrisis", "scene.tokens.get()", "the trace token the crisis action left"],
+            ["murder-rules.mjs", "undoLastCrisis", "remnantById().document", "the trace token the crisis action left (its ref's token since E60 C1b)"],
             ["murder-rules.mjs", "undoLastCrisis", "game.messages.get()", "the crisis action's card"],
             // E41 C9a (1.2.97): the music's engine moved to music-play.mjs, the Sound window to sound-panel.mjs.
             ["music-play.mjs", "pausePlaylist", "playlist", "a playlist paused"],
@@ -19634,7 +19635,92 @@ const REGRESSIONS = [
         }), `a write of chapterEnd or seasonReset outside its road (chapterEnd: the files writing it, at least 4; outside: the functions of chapter.mjs that write it `
             + `on no road through chapterEnds; counted: every write in such a function; seasonReset: the files, at least 1; reset: every write in wipeSeason, in its `
             + `writer, behind isPrimaryGm) - holders ${JSON.stringify(read.holders)}, writes ${JSON.stringify([read.chapterEnd, read.seasonReset])}`);
-    }]
+    }],
+    ["R1281 - one read of traces (E60 C1b; E60-03, S17-64): outside remnants.mjs and the placeables' three readers (remnant-ring.mjs, remnant-icons.mjs, visibility.mjs) no module file's code names the trace flag `isRemnant`, and no top-level declaration gets a token by `tokens.get(` but the sixteen measured at E60 C1b, none of them a trace's (a sendback, a relay, a project's, the trial hall's, `remnantStore`'s tombstone check `exists`); and no declaration calls `update(` or `delete(` on a value it bound from `remnantsOn`, `remnantsInRoom`, `remnantById` or `findRemnantToken` - a found trace's token is written as the ref's `document`", async () => {
+        /*
+         * E60 C1b, 03.11.2026; D38 = 2, S17-64. From C2a an unfound trace has no token, so every reader of a trace reads
+         * its ref (remnants.mjs `remnantsOn`, `remnantById` ...), built from the rows and the tokens together: a reader
+         * that asks the scene's tokens itself would not see an unfound trace, or would see a found one apart from its
+         * row. Read in every module file the module loads but the tier files, comments blanked (blankComments): the flag
+         * (strings kept), and `tokens.get(` with the top-level declaration holding it (strings blanked too). The sixteen
+         * holders allowed are listed, and each is held to still be there, so a row once written cannot keep a later
+         * read green. Then the refs' writes: in each declaration, the names bound from the four readers (`const x =
+         * reader(`, `for (const x of reader(`, and the first arrow parameter of a call chained on one), and a call of
+         * `update(` or `delete(` on such a name; a planted pair of declarations that write a ref is named, and a clean
+         * twin writing `ref.document` is not. Not caught: a ref reached through a field (`entry.token`) or through a
+         * helper's answer. Red at C1a: ten declarations read a trace's token directly - bridge-guards.mjs
+         * `remnantSourceOf`, cleanup.mjs `findRemnantToken` and `undoLastCleanup`, diagnostics.mjs
+         * `diagnoseTruthBullets` (the flag), gm-stores.mjs `gmStoreHealth` (the flag), handover.mjs
+         * `markBodyDisturbed`, investigation.mjs `saveKeyPlan`, murder-rules.mjs `undoLastCrisis`, reroll.mjs
+         * `traceKept`, trial-modes.mjs `revealInStep`. Mutant c1b-m1 (gmStoreHealth back on `scene.tokens`) reads red.
+         */
+        const sources = await moduleSources();
+        const PLACEABLES = new Set(["remnants.mjs", "remnant-ring.mjs", "remnant-icons.mjs", "visibility.mjs"]);
+        const ALLOWED = new Set([
+            "bridge-guards.mjs#guardSendbackPlace", "bridge-guards.mjs#tokenActorOf", "bridge-runs-records.mjs#handleSendback",
+            "call-world.mjs#panToGathered", "dice-sync.mjs#putBackToken", "gm-stores.mjs#remnantStore", "movement-audit.mjs#onSentBack",
+            "movement.mjs#refundLastCrossing", "private-rolls.mjs#rollSubjectNow", "projects-map.mjs#projectTokenOf",
+            "projects-map.mjs#removeProjectToken", "projects-map.mjs#sweepOnce", "relay-guard.mjs#tokenFor", "trial-scene.mjs#stageHall",
+            "trial-scene.mjs#standingTwice", "trial-scene.mjs#scenesReportOf"
+        ]);
+        const DECL = /^(?:export\s+)?(?:async\s+)?function\*?\s*([\w$]+)|^(?:export\s+)?(?:const|let)\s+([\w$]+)\s*=/gm;
+        const READER = "(?:[\\w$]+\\.)?(?:remnantsOn|remnantsInRoom|remnantById|findRemnantToken)\\(";
+        const BOUND = [
+            new RegExp(`(?:const|let)\\s+([\\w$]+)\\s*=\\s*(?:await\\s+)?${READER}`, "g"),
+            new RegExp(`for\\s*\\(\\s*(?:const|let)\\s+([\\w$]+)\\s+of\\s+${READER}`, "g"),
+            new RegExp(`${READER}[^()]*(?:\\([^()]*\\)[^()]*)*\\)\\s*\\.\\s*(?:filter|map|find|some|every|forEach|flatMap)\\(\\s*\\(?\\s*([\\w$]+)`, "g")
+        ];
+        const declsOf = bare => {
+            const decls = [...bare.matchAll(DECL)].map(m => ({ name: m[1] ?? m[2], at: m.index }));
+            decls.forEach((d, i) => { d.end = decls[i + 1]?.at ?? bare.length; });
+            return decls;
+        };
+        const refWrites = (file, raw) => {
+            const bare = blankLiterals(blankComments(raw));
+            let bound = 0;
+            const hits = [];
+            for (const d of declsOf(bare)) {
+                const span = bare.slice(d.at, d.end);
+                const names = new Set(BOUND.flatMap(re => [...span.matchAll(re)].map(m => m[1])));
+                bound += names.size;
+                for (const name of names) {
+                    if (new RegExp(`(?<![\\w$.])${name.replace(/\$/g, "\\$")}\\s*\\??\\.\\s*(?:update|delete)\\s*\\(`).test(span)) hits.push(`${file}#${d.name} (${name})`);
+                }
+            }
+            return { bound, hits };
+        };
+        const flag = [], gets = new Set(), writes = [];
+        let bound = 0, files = 0;
+        for (const [file, raw] of sources) {
+            if (!file.endsWith(".mjs") || /^tests/.test(file)) continue;
+            files++;
+            const code = blankComments(raw), bare = blankLiterals(code);
+            const decls = declsOf(bare);
+            const holder = at => decls.filter(d => d.at <= at).pop()?.name ?? "(top level)";
+            if (!PLACEABLES.has(file)) for (const m of code.matchAll(/\bisRemnant\b/g)) flag.push(`${file}#${holder(m.index)}`);
+            if (file === "remnants.mjs") continue;
+            for (const m of bare.matchAll(/\btokens\s*\??\.\s*get\s*\(/g)) gets.add(`${file}#${holder(m.index)}`);
+            const w = refWrites(file, raw);
+            bound += w.bound;
+            writes.push(...w.hits);
+        }
+        must(files >= 150 && sources.has("remnants.mjs"), `the module's sources read ${files} files - this would measure nothing`);
+        must(bound >= 10, `only ${bound} names bound from the trace readers were found - the write check reads next to nothing`);
+        const planted = refWrites("planted.mjs", [
+            "function plantedOne(sceneId, id) {\n    const ref = remnantById(sceneId, id);\n    return ref.delete();\n}",
+            "async function plantedLoop(scene) {\n    for (const t of R.remnantsOn(scene)) await t?.update({ hidden: false });\n}",
+            "function cleanTwin(sceneId, id) {\n    const ref = remnantById(sceneId, id);\n    return ref.document?.delete();\n}"
+        ].join("\n\n"));
+        equal(JSON.stringify({
+            flag,
+            unlisted: [...gets].filter(h => !ALLOWED.has(h)).sort(),
+            stale: [...ALLOWED].filter(h => !gets.has(h)).sort(),
+            writes,
+            planted: planted.hits
+        }), JSON.stringify({ flag: [], unlisted: [], stale: [], writes: [], planted: ["planted.mjs#plantedOne (ref)", "planted.mjs#plantedLoop (t)"] }),
+            "[code outside remnants.mjs and the placeables naming the trace flag; tokens.get( in a declaration not listed; a listed "
+            + "declaration no longer there; a ref written; the planted writes named]");
+    }],
 ];
 
 

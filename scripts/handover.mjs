@@ -568,10 +568,9 @@ async function markBodyDisturbed(body, itemName) {
     const record = lootTraceStore.get(body.id) ?? body.getFlag(MODULE_ID, FLAGS.lootTrace) ?? null;
     const taken = [...(record?.taken ?? []), itemName];
 
-    const { setRemnantSecretById } = await import("./remnants.mjs");
-    const existing = record?.tokenId
-        ? game.scenes.get(record.sceneId)?.tokens?.get(record.tokenId)
-        : null;
+    const { setRemnantSecretById, remnantById } = await import("./remnants.mjs");
+    // The trace's ref (E60 C1b): the row, with or without a token.
+    const existing = record?.tokenId ? remnantById(record.sceneId, record.tokenId) : null;
 
     if (existing) {
         // The same trace, saying that one more thing has gone.
@@ -714,7 +713,7 @@ async function mintLootBullet(taker, body, loot) {
          * arrives (visibility.mjs, on `drpgBulletRefsChanged`); the drawing needs a canvas,
          * which the harness has not, so that order is read in the code, not seen.
          */
-        if (loot.sceneId && loot.tokenId) await revealRemnantToFinderById(loot.sceneId, loot.tokenId);
+        if (loot.sceneId && loot.tokenId) await revealRemnantToFinderById(loot.sceneId, loot.tokenId, { via: "loot" });
 
         await createTruthBullet(taker, {
             name: game.i18n.format("DRPG.Loot.bulletName", { item: loot.item }),

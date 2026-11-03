@@ -561,38 +561,22 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null, d
 
         // The answer key, off the token and onto the GM's own shelf.
         if (created) {
-            await setRemnantSecret(created, {
-                type, visibility, faint,
-                reinforced: reinforced || Boolean(REMNANT_TYPES[type]?.reinforced),
-                note, action, subject, pointsAt,
-                tiedToCrime: tieState(tiedToCrime),
+            /* THE ROW HOLDS THE SPOT (E60 C1b, 03.11.2026; D38 = 2): `x`, `y`, the floor (the source's on this scene,
+               the probe's, else null) and `foundAt` null, beside every field this wrote at 1.2.97 (`traceRowOf`).
+               The token is still made, under the id Foundry gives it, and the row keyed by it; from C2a the row
+               alone is made, and the token at the first find. A plain write: the spot is the trace's, not derived. */
+            const { row } = traceRowOf(data, {
+                x: spot.x, y: spot.y, level: probe.level, id: created.id, sceneId: target.id, label,
                 // A tie to a crime nobody has found yet waits to reach the copies
                 // (`tieWaitNow`, E09 fix r1-G1): a copy made in the meantime is undecided.
                 tieWaitsFor: tieState(tiedToCrime) === true ? await tieWaitNow(deathOf) : null,
-                // Which object this trace handed over, if it handed one over.
-                // Read by `tieTraceForItem` when that object turns out to have
-                // been the murder weapon.
-                itemIdentity,
-                sourceActor, sourceName, room, chapter, day, timeOfDay,
                 // AND THE SEASON (E11 C12, 1.2.73; audit S06-42): `chapter` alone named last season's
                 // chapter of the same number after a reset that kept the traces (settings.mjs
                 // `sameSeason`). A trace put back under its id (`keepId`, GM-side only) keeps the
                 // season it was left in; anything else is this season's, a packet's word unread.
-                epoch: keepId && Number.isFinite(data.epoch) ? data.epoch : seasonEpoch(),
-                // Kept for the GM's own screens, which used to read it off the
-                // token's name - see `label` above.
-                label,
-                // WHEN, in real time, so a Reroll can be held to a trace it
-                // could have made (`removalRefusal`, bridge-guards.mjs, asked by
-                // reroll.mjs `traceKept`).
-                // Written here rather than read off `_stats.createdTime`, which
-                // no table has shown to be on a token (E03 second review). A
-                // trace a cleanup Reroll puts back keeps the age it had
-                // (`recreationDataFor`); a player's placement never carries one
-                // (`narrowPlayerRemnant` builds it afresh), and no date is taken
-                // from the future.
-                placedAt: Number.isFinite(data.placedAt) && data.placedAt <= Date.now() ? data.placedAt : Date.now()
+                epoch: keepId && Number.isFinite(data.epoch) ? data.epoch : seasonEpoch()
             });
+            await setRemnantSecret(created, row);
         }
 
         if (givenId && created && !remnantStore.has(keyOf(created))) {
@@ -606,6 +590,54 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null, d
         error("Could not place the Remnant", err);
         return null;
     }
+}
+
+/**
+ * THE ROW A TRACE IS PLACED WITH (E60 C1b, 03.11.2026; R1282): every field `placeRemnant` wrote at 1.2.97, from
+ * `data` with its defaults, and the trace's spot - `x`, `y`, `level` (the floor, or null for every floor) - with
+ * `foundAt` null: nobody has found it. `key` is `<sceneId>.<id>`, the ledger's. What `placeRemnant` works out for
+ * itself is handed in: the GMs' `label`, the tie's wait (`tieWaitsFor`, kept only for a tie that is true), the season
+ * (`epoch`) and the clock (`now`, for `placedAt`). Pure.
+ */
+export function traceRowOf(data = {}, { x, y, level = null, id = null, sceneId = null, label = "", tieWaitsFor = null,
+    epoch = null, now = Date.now() } = {}) {
+    const {
+        type = "prep", visibility = "evident", faint = false, reinforced = false, note = "", action = "manual",
+        subject = "", pointsAt = null, tiedToCrime = null, sourceActor = null, sourceName = "",
+        room = null, chapter = null, day = null, timeOfDay = null, itemIdentity = null
+    } = data ?? {};
+    const tie = tieState(tiedToCrime);
+    return {
+        key: sceneId && id ? `${sceneId}.${id}` : null,
+        row: {
+            type, visibility, faint,
+            reinforced: reinforced || Boolean(REMNANT_TYPES[type]?.reinforced),
+            note, action, subject, pointsAt,
+            tiedToCrime: tie,
+            tieWaitsFor: tie === true ? tieWaitsFor : null,
+            // Which object this trace handed over, if it handed one over.
+            // Read by `tieTraceForItem` when that object turns out to have
+            // been the murder weapon.
+            itemIdentity,
+            sourceActor, sourceName, room, chapter, day, timeOfDay,
+            epoch,
+            // Kept for the GM's own screens, which used to read it off the
+            // token's name - see `label` in `placeRemnant`.
+            label,
+            // WHEN, in real time, so a Reroll can be held to a trace it
+            // could have made (`removalRefusal`, bridge-guards.mjs, asked by
+            // reroll.mjs `traceKept`).
+            // Written here rather than read off `_stats.createdTime`, which
+            // no table has shown to be on a token (E03 second review). A
+            // trace a cleanup Reroll puts back keeps the age it had
+            // (`recreationDataFor`); a player's placement never carries one
+            // (`narrowPlayerRemnant` builds it afresh), and no date is taken
+            // from the future.
+            placedAt: Number.isFinite(data?.placedAt) && data.placedAt <= now ? data.placedAt : now,
+            x, y, level: level ?? null,
+            foundAt: null
+        }
+    };
 }
 
 /** Human-readable name for the action that produced a Remnant. */
@@ -886,8 +918,8 @@ export async function markRemnantEdited(tokenDoc) {
 }
 
 export async function markRemnantEditedById(sceneId, tokenId) {
-    const tokenDoc = tokenById(sceneId, tokenId);
-    return tokenDoc ? markRemnantEdited(tokenDoc) : null;
+    const ref = remnantById(sceneId, tokenId);
+    return ref ? markRemnantEdited(ref) : null;
 }
 
 /**
@@ -1026,7 +1058,7 @@ export async function adoptQuestionMark(actor = findRemnantActor()) {
 
         let moved = 0;
         for (const scene of game.scenes) {
-            const stale = remnantsOn(scene).filter(t => t.texture?.src === OLD_ICON);
+            const stale = traceTokensOn(scene).filter(t => t.texture?.src === OLD_ICON);
             if (!stale.length) continue;
             await scene.updateEmbeddedDocuments("Token", stale.map(t => ({
                 _id: t.id, "texture.src": ICON
@@ -1159,9 +1191,9 @@ registerSeasonState({ group: "remnants", clear: clearSeasonRemnants, tally: tall
  */
 export async function setRemnantSecretById(sceneId, tokenId, patch = {}) {
     if (!game.user.isGM || !sceneId || !tokenId) return null;
-    const tokenDoc = game.scenes.get(sceneId)?.tokens?.get(tokenId) ?? null;
-    if (!tokenDoc) return null;
-    return setRemnantSecret(tokenDoc, patch, { ifLive: true });
+    const ref = remnantById(sceneId, tokenId);
+    if (!ref) return null;
+    return setRemnantSecret(ref, patch, { ifLive: true });
 }
 
 /**
@@ -1391,17 +1423,18 @@ export async function setRemnantPublic(tokenDoc, patch = {}, { propagate = true 
  * ledger). `changed` is what a GM's write changed (E09 fix r2-G1), and only that goes to the
  * copies: a later write of another field leaves a reshaped trace's copies their own words.
  */
-async function propagatePublic(tokenDoc, changed, { copies = true } = {}) {
+async function propagatePublic(trace, changed, { copies = true } = {}) {
+    const tokenDoc = tokenOf(trace);
     if (copies && Object.keys(changed ?? {}).length) {
         try {
             const { propagateRemnantPublic } = await import("./truth-bullets.mjs");
-            await propagateRemnantPublic(tokenDoc.id, changed);
+            await propagateRemnantPublic(trace.id, changed);
         } catch (err) {
             error("Could not propagate `public` to the Truth Bullets copied from this trace", err);
         }
     }
 
-    if (!saysMore(tokenDoc)) return;
+    if (!tokenDoc || !saysMore(tokenDoc)) return;
     try {
         await tokenDoc.update({ name: traceLabel(null), "texture.src": ICON });
     } catch (err) {
@@ -1445,7 +1478,7 @@ function saysMore(token) {
 export async function neutralTraceNames({ tokens = null } = {}) {
     if (!isPrimaryGm()) return { notPrimary: true };
     const word = traceLabel(null);
-    const telling = () => (tokens ?? (game.scenes?.contents ?? []).flatMap(scene => remnantsOn(scene))).filter(saysMore);
+    const telling = () => (tokens ?? (game.scenes?.contents ?? []).flatMap(scene => traceTokensOn(scene))).filter(saysMore);
     const found = telling();
     if (!found.length) return null;
     const byScene = new Map();
@@ -1479,7 +1512,8 @@ export async function neutralTraceNames({ tokens = null } = {}) {
  * `visible = false` back down on `refreshToken` for anyone who does not
  * qualify, not by keeping the token `hidden` for everyone.
  */
-export async function revealRemnantToFinder(tokenDoc, { tell = true } = {}) {
+export async function revealRemnantToFinder(trace, { tell = true, via = "find" } = {}) {
+    const tokenDoc = tokenOf(trace);
     if (!game.user.isGM || !tokenDoc) return null;
     /* AN INCIDENT'S TRACE IS FOUND LIKE ANY OTHER (E51 C5, 31.10.2026; audit S05-52). It is created un-hidden for its
        cast (D11, `placeRemnant`), and this returned for every token not hidden: a find of one raised no "say what it is"
@@ -1490,8 +1524,12 @@ export async function revealRemnantToFinder(tokenDoc, { tell = true } = {}) {
     const incident = Boolean(tokenDoc.getFlag?.(MODULE_ID, REMNANT_FLAGS.fromIncident));
     if (!tokenDoc.hidden && (!incident || readRemnantLedger()[keyOf(tokenDoc)]?.incidentFound)) return tokenDoc;
 
+    /* THE ROW SAYS IT IS FOUND (E60 C1b, 03.11.2026): `foundAt` and the road (`via`), where the token is un-hidden
+       or an incident's trace first found - so a ref reads the trace found from its row (`traceRefsOf`), and from C2a,
+       when an unfound trace has no token, the row is where that is read. */
     if (tokenDoc.hidden) await tokenDoc.update({ hidden: false });
     else await setRemnantSecret(tokenDoc, { incidentFound: true }, { ifLive: true });
+    await markFound(tokenDoc, via);
     /* THE TOKEN KEPT NEUTRAL, AND THE COPIES LEFT (E09 fix r2-G1, 08.10.2026). A reveal changes
        no word of the trace, and it sent every copy the whole record: a trace hidden again with
        copies held - an erase's Reroll places it back hidden - put a reshape's words on the copies
@@ -1528,27 +1566,35 @@ export async function revealRemnantToFinder(tokenDoc, { tell = true } = {}) {
 }
 
 /**
- * By ids rather than a document - Observe resolves on the GM's client, which
- * is very often looking at a scene other than the one the trace is on, the
- * same reason `setRemnantSecretById` exists.
+ * A TRACE'S FIRST FIND, ON ITS ROW (E60 C1b, 03.11.2026): `foundAt` once - a later find keeps the first's - and the
+ * road it came by (`foundVia`: "find", "reveal", "loot", "gm" ...), for the log and the dashboard. A live row only
+ * (`ifLive`): a trace this GM holds no row of is not started as one of two fields.
  */
-function tokenById(sceneId, tokenId) {
-    return game.scenes.get(sceneId)?.tokens?.get(tokenId) ?? null;
+async function markFound(trace, via) {
+    const key = keyOf(trace);
+    if (!key || readRemnantLedger()[key]?.foundAt) return;
+    await setRemnantSecret(trace, { foundAt: Date.now(), foundVia: via || "find" }, { ifLive: true });
 }
 
+/*
+ * By ids rather than a document - Observe resolves on the GM's client, which
+ * is very often looking at a scene other than the one the trace is on, the
+ * same reason `setRemnantSecretById` exists. Each reads the trace's ref
+ * (`remnantById`, E60 C1b), as every reader of a trace does.
+ */
 export function remnantPublicById(sceneId, tokenId) {
-    const tokenDoc = tokenById(sceneId, tokenId);
-    return tokenDoc ? remnantPublic(tokenDoc) : null;
+    const ref = remnantById(sceneId, tokenId);
+    return ref ? remnantPublic(ref) : null;
 }
 
 export async function setRemnantPublicById(sceneId, tokenId, patch = {}) {
-    const tokenDoc = tokenById(sceneId, tokenId);
-    return tokenDoc ? setRemnantPublic(tokenDoc, patch) : null;
+    const ref = remnantById(sceneId, tokenId);
+    return ref ? setRemnantPublic(ref, patch) : null;
 }
 
 export async function revealRemnantToFinderById(sceneId, tokenId, options = {}) {
-    const tokenDoc = tokenById(sceneId, tokenId);
-    return tokenDoc ? revealRemnantToFinder(tokenDoc, options) : null;
+    const ref = remnantById(sceneId, tokenId);
+    return ref ? revealRemnantToFinder(ref, options) : null;
 }
 
 /**
@@ -1561,10 +1607,10 @@ export async function revealRemnantToFinderById(sceneId, tokenId, options = {}) 
  */
 export async function markKeyFound({ sceneId = null, tokenId = null } = {}, { source = "find" } = {}) {
     if (!game.user.isGM) return null;
-    const tokenDoc = tokenById(sceneId, tokenId);
-    if (!tokenDoc) return null;
-    const first = Boolean(tokenDoc.hidden);
-    await revealRemnantToFinder(tokenDoc, { tell: source !== "reveal" });
+    const ref = remnantById(sceneId, tokenId);
+    if (!ref?.document) return null;
+    const first = Boolean(ref.document.hidden);
+    await revealRemnantToFinder(ref, { tell: source !== "reveal", via: source });
     return { first, source };
 }
 
@@ -1598,8 +1644,9 @@ async function incidentCastSees(type) {
  * left alone. A GM's own write: `writeKind` runs it for `setRemnantFlags` (the dashboard and the
  * console) and `retuneRemnant` (a reshape, its Reroll's undo, a GM's edit over the bridge).
  */
-async function followIncidentKind(tokenDoc, type) {
-    if (!game.user.isGM || !bulletStore.isHydrated()) return false;
+async function followIncidentKind(trace, type) {
+    const tokenDoc = tokenOf(trace);
+    if (!game.user.isGM || !tokenDoc || !bulletStore.isHydrated()) return false;
     const { ownBulletRefs } = await import("./truth-bullets.mjs");
     const key = keyOf(tokenDoc);
     if (ownBulletRefs().some(({ ref }) => ref === key)) return false;
@@ -1678,7 +1725,7 @@ export async function retireIncidentTraces({ before = null, tokens = null } = {}
     if (!game.user.isGM) return null;
     const flag = REMNANT_FLAGS.fromIncident;
     const old = token => before === null || remnantStore.stampOf(keyOf(token), "type") < before;
-    const marked = scene => (tokens ? tokens.filter(token => token.parent === scene) : remnantsOn(scene))
+    const marked = scene => (tokens ? tokens.filter(token => token.parent === scene) : traceTokensOn(scene))
         .filter(token => token.getFlag(MODULE_ID, flag) && old(token));
     const scenes = (game.scenes?.contents ?? []).filter(scene => marked(scene).length);
     if (!scenes.length) return null;
@@ -1817,15 +1864,17 @@ function oldTokenTie(value) {
     return value === true ? true : null;
 }
 
-export function remnantData(tokenDoc) {
-    if (!tokenDoc?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) return null;
+export function remnantData(trace) {
+    // A ref (E60 C1b) is a trace by construction; a token is one when flagged.
+    const tokenDoc = tokenOf(trace);
+    if (!isTraceRef(trace) && !tokenDoc?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) return null;
 
     // `{}` for anyone who is not a GM - not an error, the honest answer to
     // "what do you know about this". A player's client holds the token; it has
     // never held what the token means, and `null` here is what enforces that.
     if (!game.user.isGM) return null;
 
-    const key = keyOf(tokenDoc);
+    const key = keyOf(trace);
     const entry = key ? readRemnantLedger()[key] : null;
     if (!entry) {
         // A trace this GM has no record of. Says so rather than inventing a
@@ -1835,7 +1884,7 @@ export function remnantData(tokenDoc) {
     }
 
     return {
-        id: tokenDoc.id,
+        id: trace.id,
         type: entry.type,
         typeLabel: REMNANT_TYPES[entry.type]?.label ?? entry.type,
         visibility: entry.visibility,
@@ -1872,11 +1921,15 @@ export function remnantData(tokenDoc) {
         placedAt: entry.placedAt ?? null,
         // Put back by a cleanup Reroll (cleanup.mjs `undoLastCleanup`).
         restored: Boolean(entry.restored),
-        hidden: tokenDoc.hidden,
+        // A trace with no token is hidden from everyone (E60 C1b: none such before C2a but a row's own spot).
+        hidden: tokenDoc ? tokenDoc.hidden : true,
+        // Its first find (E60 C1b): when and by which road, null while nobody has found it or before 1.2.98.
+        foundAt: entry.foundAt ?? null,
+        foundVia: entry.foundVia ?? null,
         // What a player is shown, or would be once they find it - see
         // `remnantPublic`. Included here so a GM screen reading `remnantData`
         // does not have to make a second pass over the ledger for it.
-        public: remnantPublic(tokenDoc)
+        public: remnantPublic(trace)
     };
 }
 
@@ -2272,7 +2325,7 @@ export async function tieWaitNow(about = null) {
  * discovery ...", its last two copies). GM-side.
  */
 export function tieForCopy(data, { sceneId = null, tokenId = null } = {}) {
-    const token = tokenId ? tokenById(sceneId, tokenId) : null;
+    const token = tokenId ? remnantById(sceneId, tokenId) : null;
     const row = (token && remnantData(token)) ?? data;
     return row?.tieWaitsFor ? null : tieState(row?.tiedToCrime);
 }
@@ -2643,7 +2696,7 @@ export async function migrateRemnantsOnce({ tokens = null } = {}) {
     }
     const flagsOf = token => token._source?.flags?.[MODULE_ID] ?? token.flags?.[MODULE_ID] ?? {};
     const labelledDelta = token => typeof token.delta?.name === "string" && token.delta.name !== "" && !isNeutralName(token.delta.name);
-    const found = (tokens ?? (game.scenes?.contents ?? []).flatMap(scene => remnantsOn(scene)))
+    const found = (tokens ?? (game.scenes?.contents ?? []).flatMap(scene => traceTokensOn(scene)))
         .filter(token => ANSWER_KEY_FLAGS.some(flag => flag in flagsOf(token)) || labelledDelta(token));
     if (!found.length) return null;
     const counts = { moved: 0, filled: 0, kept: 0, already: 0, noRow: 0 };
@@ -3021,20 +3074,124 @@ async function seedPublicIfMissing(tokenDoc) {
     return 1;
 }
 
-/** Every Remnant token on a scene. */
-export function remnantsOn(scene) {
-    if (!scene) return [];
-    return scene.tokens.filter(t => t.getFlag(MODULE_ID, REMNANT_FLAGS.isRemnant));
+/* ==========================================================================
+ * ONE READ OF TRACES: THE REF (E60 C1b, 03.11.2026; D38 = 2, S17-64)
+ * --------------------------------------------------------------------------
+ * Every reader asked a scene's tokens until E60: `remnantsOn` filtered them by the flag, and 51 reads in 17 files
+ * outside this one walked a scene's tokens by id or by the flag (the spec's probe, trace-readers-outside.txt). The
+ * row is the trace from E60 on, and an unfound one gets no token at C2a - so every reader reads one **ref** per
+ * trace, built here from the rows and the tokens together (`traceRefsOf`), and from C1b on nothing outside this
+ * file and the placeables' three readers (the rings, the icons, visibility.mjs) names the flag or gets a trace by
+ * `scene.tokens.get` (tier 0 R1281).
+ *
+ * A ref answers what a reader asked a trace's token for: `id` and `parent` (`keyOf`, the bridge's ids), `x`, `y`,
+ * `level`, `width`, `height` and `elevation` (movement.mjs `roomOfToken` / `roomAt`), and `remnantData` /
+ * `remnantPublic` take it as they take a token. `document` is the trace's token where the scene holds one, and then
+ * the spot, the floor and the size are the token's (a GM may have dragged it); null where it holds none, and the
+ * row's spot is read (`x`, `y`, `level`, written since C1b by `placeRemnant`). `found` is the row's `foundAt` (or
+ * `incidentFound`), or HEAD's rule on the token: un-hidden and not one of an incident's drawn for its cast - so a
+ * world of 1.2.97, whose rows hold no `foundAt`, reads as it read. A ref is frozen and has no `update` or `delete`:
+ * the writes go through this file's functions, and a found trace's token is written as `ref.document`.
+ *
+ * In token order first, the rows with no token after them: every reader that lists traces lists them in the order
+ * it did on a world whose traces all have tokens. A token flagged with no row here (a row another GM holds, or a
+ * player's browser, which holds none) is a ref with `document` and no row, as it was a trace token at 1.2.97; a row
+ * with neither a token nor a spot is left out (the health check counts it, gm-stores.mjs `gmStoreHealth`).
+ * ========================================================================== */
+
+const TRACE_REF = Symbol("drpg.traceRef");
+
+/** Whether `value` is a trace's ref (`traceRefsOf`) rather than a token. */
+export function isTraceRef(value) {
+    return Boolean(value?.[TRACE_REF]);
+}
+
+/** The token a trace stands for: a ref's `document` (null while it has none), a token as it is. */
+function tokenOf(trace) {
+    return isTraceRef(trace) ? trace.document : (trace ?? null);
+}
+
+/** A module flag of a token, or of a plain object shaped like one (R1280's fixtures). */
+function flagOf(token, flag) {
+    return typeof token?.getFlag === "function" ? token.getFlag(MODULE_ID, flag) : token?.flags?.[MODULE_ID]?.[flag];
+}
+
+function traceRef(scene, id, row, token) {
+    const spot = token ?? row;
+    return Object.freeze({
+        [TRACE_REF]: true,
+        key: `${scene.id}.${id}`, id, sceneId: scene.id, parent: scene,
+        x: spot.x, y: spot.y, level: (token ? token.level : row.level) ?? null,
+        width: token?.width ?? 1, height: token?.height ?? 1, elevation: token?.elevation ?? null,
+        found: Boolean(row?.foundAt || row?.incidentFound
+            || (token && !token.hidden && !flagOf(token, REMNANT_FLAGS.fromIncident))),
+        document: token ?? null
+    });
 }
 
 /**
- * The scene a Remnant token stands on, by its id: for a reader holding a trace's id and no
- * scene (a Reroll's bookmark from before it carried one, a packet that named none). Null when
- * no scene has it - never the scene on screen (E12 C6).
+ * The refs of one scene's traces, from the rows (`remnantStore.entries()`, keyed `<sceneId>.<id>`) and the scene's
+ * tokens. A row is the scene's when its key's part before the first dot is the scene's id - never by a bare prefix,
+ * which a scene whose id begins another's would take. Pure over what it is handed (R1280).
+ *
+ * @param {object} rows  the ledger's live rows by key
+ * @param {object} scene  the scene (its `id`)
+ * @param {Iterable} [tokens]  its tokens; the trace tokens among them are those flagged `isRemnant`
+ */
+export function traceRefsOf(rows, scene, tokens = scene?.tokens ?? []) {
+    if (!scene?.id) return [];
+    const here = new Map();
+    for (const [key, row] of Object.entries(rows ?? {})) {
+        const dot = key.indexOf(".");
+        if (dot < 1 || key.slice(0, dot) !== scene.id) continue;
+        const id = key.slice(dot + 1);
+        if (id) here.set(id, row);
+    }
+    const out = [];
+    for (const token of tokens ?? []) {
+        if (!token?.id || !flagOf(token, REMNANT_FLAGS.isRemnant)) continue;
+        out.push(traceRef(scene, token.id, here.get(token.id) ?? null, token));
+        here.delete(token.id);
+    }
+    for (const [id, row] of here) {
+        if (Number.isFinite(row?.x) && Number.isFinite(row?.y)) out.push(traceRef(scene, id, row, null));
+    }
+    return out;
+}
+
+/** Every trace on a scene, one ref each (`traceRefsOf`): the store's rows read once a call. */
+export function remnantsOn(scene) {
+    if (!scene) return [];
+    return traceRefsOf(readRemnantLedger(), scene, scene.tokens);
+}
+
+/** The trace tokens on a scene, for this file's own token writes (the clauses, the sweeps, the incident's marks). */
+function traceTokensOn(scene) {
+    return scene?.tokens?.filter(t => t.getFlag(MODULE_ID, REMNANT_FLAGS.isRemnant)) ?? [];
+}
+
+/**
+ * One trace's ref by its scene's id and its own (`tokenById` until E60 C1b, which answered the token): the row and the
+ * token of that key, read without building the scene's other refs. Null for a scene that is not there, or an id with
+ * neither a row nor a trace token on it.
+ */
+export function remnantById(sceneId, tokenId) {
+    const scene = sceneId && tokenId ? game.scenes?.get(sceneId) ?? null : null;
+    if (!scene) return null;
+    const key = `${scene.id}.${tokenId}`;
+    const row = readRemnantLedger()[key];
+    const token = scene.tokens?.get(tokenId) ?? null;
+    return traceRefsOf(row ? { [key]: row } : {}, scene, token ? [token] : [])[0] ?? null;
+}
+
+/**
+ * The scene a trace is on, by its id: for a reader holding a trace's id and no scene (a Reroll's
+ * bookmark from before it carried one, a packet that named none). Null when no scene has it -
+ * never the scene on screen (E12 C6). A trace of a row or of a trace token (E60 C1b).
  */
 export function sceneOfRemnant(tokenId) {
     if (!tokenId) return null;
-    return (game.scenes?.contents ?? []).find(scene => scene.tokens?.get(tokenId)) ?? null;
+    return (game.scenes?.contents ?? []).find(scene => remnantById(scene.id, tokenId)) ?? null;
 }
 
 /**
@@ -3057,25 +3214,30 @@ export function remnantsInRoom(room, scene) {
  * and receives a Truth Bullet, leaving the Remnant itself the GM's note. This
  * exists for the cases where the GM genuinely wants the token on the table.
  */
-export async function revealRemnant(tokenDoc) {
+export async function revealRemnant(trace) {
+    const tokenDoc = tokenOf(trace);
     if (!game.user.isGM || !tokenDoc) return null;
     ui.notifications.warn(game.i18n.localize("DRPG.Remnant.revealWarning"));
+    // Found by the GM's hand (E60 C1b): the row says so where the token was hidden, as a find's does.
+    if (tokenDoc.hidden) await markFound(trace, "gm");
     return tokenDoc.update({ hidden: false });
 }
 
 /** Remove one - the killer wiped it clean. */
-export async function removeRemnant(tokenDoc) {
-    if (!game.user.isGM || !tokenDoc) return null;
+export async function removeRemnant(trace) {
+    if (!game.user.isGM || !trace) return null;
     // The ledger row goes with it. Left behind, the ledger grows for the life of
     // the world and a reused token id would inherit a dead trace's meaning.
-    if (remnantData(tokenDoc)?.reinforced) {
+    if (remnantData(trace)?.reinforced) {
         ui.notifications.warn(game.i18n.localize("DRPG.Remnant.reinforced"));
         return null;
     }
     // Only once the refusal above has not fired: dropping the row for a trace
     // that then survives would leave a Remnant the GM can see and not read.
-    await dropRemnantSecret(tokenDoc);
-    return tokenDoc.delete();
+    await dropRemnantSecret(trace);
+    // A ref with no token is the row alone (E60 C1b), gone with the tombstone above.
+    const tokenDoc = tokenOf(trace);
+    return tokenDoc ? tokenDoc.delete() : true;
 }
 
 /**
@@ -3107,7 +3269,7 @@ export async function clearFaintRemnants(scene = null, { tokens = null } = {}) {
     let cleared = 0;
 
     for (const target of scenes) {
-        const doomed = (tokens ? tokens.filter(t => t.parent === target && target.tokens?.get(t.id)) : remnantsOn(target)).filter(clearable);
+        const doomed = (tokens ? tokens.filter(t => t.parent === target && target.tokens?.get(t.id)) : traceTokensOn(target)).filter(clearable);
 
         if (!doomed.length) continue;
         await target.deleteEmbeddedDocuments("Token", doomed.map(t => t.id));

@@ -410,9 +410,9 @@ export async function revealInStep({ slot = null, text = "", beyondPaid = false 
     const words = row.text || String(text ?? "").trim();
     const { trialParticipants } = await import("./vote.mjs");
     const { createTruthBullet, copiedRemnants } = await import("./truth-bullets.mjs");
-    const { remnantData, tieForCopy, markKeyFound } = await import("./remnants.mjs");
+    const { remnantData, remnantById, tieForCopy, markKeyFound } = await import("./remnants.mjs");
     const { observeFindKey } = await import("./observe.mjs");
-    const tokenDoc = row.hasTrace ? game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null : null;
+    const tokenDoc = row.hasTrace ? remnantById(row.sceneId, row.tokenId) : null;
     const data = tokenDoc ? remnantData(tokenDoc) : null;
     const name = row.name || game.i18n.localize("DRPG.Reveal.defaultName");
     let copies = 0;

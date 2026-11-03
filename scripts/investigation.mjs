@@ -29,7 +29,7 @@ import {
 import { SETTINGS, isEclipse, sameSeason } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import {
-    remnantsOn, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited,
+    remnantsOn, remnantById, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited,
     confirmClearFaint,
     traceContextLine, traceLabel
 } from "./remnants.mjs";
@@ -821,7 +821,7 @@ async function saveKeyPlan(plan, rows) {
            what the tab drew, where F6 compared with the stored plan), or the row was
            pointed at a different trace, which takes the plan's words; and the stored plan
            then takes the trace's words for what was pushed. */
-        const token = tokenId ? game.scenes.get(sceneId)?.tokens?.get(tokenId) ?? null : null;
+        const token = tokenId ? remnantById(sceneId, tokenId) : null;
         if (token) {
             const repointed = "token" in take;
             const words = {
