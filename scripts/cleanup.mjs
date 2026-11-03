@@ -2849,11 +2849,17 @@ async function undoLastCleanup(actor, tokenId) {
     // invented name on it - a state no roll has ever produced.
     if (receipt.transformed?.from) {
         try {
-            const { retuneRemnant, setRemnantPublic, sceneOfRemnant } = await import("./remnants.mjs");
+            const { retuneRemnant, setRemnantPublic, sceneOfRemnant, gmSetBand } = await import("./remnants.mjs");
             // `from` carries the tie (E08+E28 C3), so a reshape's tie goes back with it.
             const from = receipt.transformed.from;
+            /* A band a GM set since the reshape stays (E60 fix FG2, 03.11.2026; the end review's C-m4): `from` holds
+               the band before the reshape, and the GM's band on the Traces tab or the card after it went back with the
+               rest. The kind, the tie and the words go back; the band is the GM's while the trace stands at it
+               (remnants.mjs `gmSetBand`). */
+            const at = receipt.transformed.sceneId ? game.scenes.get(receipt.transformed.sceneId) : sceneOfRemnant(receipt.transformed.id);
+            const gmBand = at ? gmSetBand(remnantById(at.id, receipt.transformed.id)) : null;
             await retuneRemnant(receipt.transformed.sceneId, receipt.transformed.id,
-                { ...from, tiedToCrime: receiptTie(actor.id, "transformed", from.tiedToCrime) });
+                { ...from, ...(gmBand ? { visibility: null } : {}), tiedToCrime: receiptTie(actor.id, "transformed", from.tiedToCrime) });
 
             // `publicFrom` is null when nothing had ever been written for a
             // finder, and that is a real state rather than a missing one: the

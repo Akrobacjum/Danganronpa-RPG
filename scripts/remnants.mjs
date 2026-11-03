@@ -915,6 +915,18 @@ export function narrowPlayerRemnant(data, actor, where, clock = {}) {
     } };
 }
 
+/**
+ * The band a GM set on this trace (E60 fix FG2): `{ band, at }` where the Traces tab or the GM's card wrote it
+ * (`setRemnantFlags`) and the trace still stands at it, else null - a band another road moved since is not the GM's
+ * any more. A Reroll leaves it (reroll.mjs `traceKept`, cleanup.mjs `undoLastCleanup`); the find's whisper does not
+ * read it (`gmEdited` is the GM's words alone).
+ */
+export function gmSetBand(trace) {
+    const key = trace ? keyOf(trace) : null;
+    const row = key ? readRemnantLedger()[key] : null;
+    return row?.gmBand && row.gmBand === row.visibility ? { band: row.gmBand, at: row.gmBandAt ?? null } : null;
+}
+
 /** Has a GM written on this trace by hand (`markRemnantEdited`)? */
 export function remnantGmEdited(tokenDoc) {
     const key = tokenDoc ? keyOf(tokenDoc) : null;
@@ -2144,7 +2156,18 @@ export async function setRemnantFlags(tokenDoc,
        left alone, as a type the list does not know is). On the row alone: the copies already made keep the band they
        were made with, so `propagateVerdicts` below is not asked for it, and the next finder's copy is made at the new
        one (observe.mjs `createFind` reads the row). */
-    if (visibility !== null && REMNANT_VISIBILITY.includes(visibility)) patch.visibility = visibility;
+    if (visibility !== null && REMNANT_VISIBILITY.includes(visibility)) {
+        patch.visibility = visibility;
+        /* THE BAND A GM SET, AND WHEN (E60 fix FG2, 03.11.2026; the end review's C-m4 and G-m4; the owner's "Domyslnie":
+           a band change marks nothing GM-edited, on the card or the dashboard). The two roads wrote one band and left two
+           states: the card marked the trace edited (`markRemnantEdited`), which silences the "say what it is" whisper
+           at its next find for words nobody wrote, and keeps it from a Reroll; the Traces tab did not, so a Reroll of the
+           action that left it (reroll.mjs `settleRemnant`) or of the clean-up that reshaped it (cleanup.mjs
+           `undoLastCleanup`) put the band back over the GM's. Both roads come here, and the row names the band and when
+           (`gmBand`, `gmBandAt`), read by `gmSetBand` while the trace still stands at it; nothing else reads it. */
+        patch.gmBand = visibility;
+        patch.gmBandAt = Date.now();
+    }
     // A GM's verdict is sent now, so it takes the trace off any wait (`tieWaitNow`, E09 fix r1-G1).
     if (tiedToCrime !== undefined) Object.assign(patch, { tiedToCrime: tieState(tiedToCrime), tieWaitsFor: null });
     if (reinforced !== null) patch.reinforced = Boolean(reinforced);

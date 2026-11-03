@@ -4644,7 +4644,7 @@
       "remnantLeft": "Nowy wynik zostawia ślad.",
       "remnantRemoved": "Ślad z pierwszego rzutu zostaje usunięty.",
       "remnantManual": "Śladu z pierwszego rzutu nie da się stąd dostosować - poproś GM-a o ponowną ocenę.",
-      "traceKept": "Reroll postaci {name} zostawił ślad z pierwszego rzutu bez zmian ({trace}): GM coś na nim zapisał, przywrócił go Reroll, jest zbyt stary, by Reroll go sięgał, albo - gdy nowy wynik by go usunął - ktoś już go znalazł. Konsola mówi, który powód. Jeśli nowy wynik ({total}) powinien go zmienić, oceń go ponownie albo usuń ręcznie.",
+      "traceKept": "Reroll postaci {name} zostawił ślad z pierwszego rzutu bez zmian ({trace}): GM coś na nim zapisał albo ustawił jego widoczność, przywrócił go Reroll, jest zbyt stary, by Reroll go sięgał, albo - gdy nowy wynik by go usunął - ktoś już go znalazł. Konsola mówi, który powód. Jeśli nowy wynik ({total}) powinien go zmienić, oceń go ponownie albo usuń ręcznie.",
       "sabotageUndone": "Pierwsza próba cofnięta: cel odmrożony, a jego projekt naprawy usunięty.",
       "sabotageRedone": "{name} znów się psuje - naprawa wymaga teraz {n} postępu.",
       "sabotageNowFails": "Nowy wynik to porażka: cel zostaje sprawny.",

@@ -3788,6 +3788,8 @@ const INVARIANTS = [
         const fresh = { _stats: { createdTime: now - 60_000 } };
         ok(!removalRefusal(fresh, { now }), "a fresh trace of your own is not lifted by your Reroll");
         ok(removalRefusal(fresh, { now, gmEdited: true }), "a trace a GM wrote on is lifted");
+        // E60 fix FG2: a band a GM set, on the Traces tab or the trace's card, is a Reroll's to leave as well.
+        ok(removalRefusal(fresh, { now, gmBand: true }), "a trace whose band a GM set is lifted");
         ok(removalRefusal(fresh, { now, copied: true }), "a trace somebody found is lifted");
         ok(removalRefusal({ _stats: { createdTime: now - 3 * 3600_000 } }, { now }), "a trace three hours old is lifted");
         ok(!removalRefusal({}, { now, placedAt: now - 60_000 }), "a trace the ledger says was left a minute ago is not lifted");

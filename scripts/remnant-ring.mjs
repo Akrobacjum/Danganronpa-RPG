@@ -253,14 +253,15 @@ export function wireCardEditing(body, tokenOrActor) {
     /* THE BAND, ON THE CARD TOO (E60 C4a, 03.11.2026; the owner: "zmiana trudnosci niech bedzie tez w panelu tokena
        remnanta"). The GM's card drew the band as a badge; a select now, for every trace, found or not, saved on
        change and written through `setRemnantFlags` - the Traces tab's own write, one road - so the copies keep the
-       band they were made with as there. Marked as the GM's word on the trace, as the fields below are (E7). */
+       band they were made with as there. Not marked as the GM's word on the trace (E60 fix FG2; the owner's
+       "Domyslnie" of 03.11): `gmEdited` is about the words, and silenced the next find's whisper; the row names the
+       band a GM set (`gmBand`), which a Reroll leaves, as the Traces tab's Save does. */
     const band = body.querySelector("select[data-drpg-band]");
     band?.addEventListener("change", async () => {
         const value = band.value;
         if (value === (band.dataset.drpgWas ?? "")) return;
         try {
             if (!await setRemnantFlags(tokenOrActor, { visibility: value })) throw new Error("no row of the trace on this GM");
-            await markRemnantEdited(tokenOrActor);
             band.dataset.drpgWas = value;
             band.classList.add("drpg-saved");
             setTimeout(() => band.classList.remove("drpg-saved"), 1200);

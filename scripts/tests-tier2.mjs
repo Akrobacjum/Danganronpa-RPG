@@ -81332,7 +81332,7 @@ const SCENARIOS = [
             + "the chapter's Faint Prep, the finals, the Keys still to find, Observe's candidates refs); the found rows (foundAt, the road, the ref's found)]");
     }],
 
-    ["E60-T8 - the band for every trace, from the Traces tab and from the GM's card (E60 C4a; E60-11): a trace nobody has found and one a student found, both in a room with the student; the dashboard's Save (`applyDashboardSave` as the form hands it on) writes each one's band on its row (`visibility`) and Observe ranks each at the new band's number (`rankForObserve`, `observeDc`), while the found one's copy keeps the band it was made with; a Save drawn from a band another write has moved since is refused and the band stays; the GM's card of each (remnant-ring.mjs `gmRemnantCard`, wired as `showRemnantCard` wires it) shows the band chosen, and a change of its select writes the row's band the same way, marks the trace edited, and leaves the copy's band; a player's card draws no band to change", async () => {
+    ["E60-T8 - the band for every trace, from the Traces tab and from the GM's card (E60 C4a; E60-11): a trace nobody has found and one a student found, both in a room with the student; the dashboard's Save (`applyDashboardSave` as the form hands it on) writes each one's band on its row (`visibility`) and Observe ranks each at the new band's number (`rankForObserve`, `observeDc`), while the found one's copy keeps the band it was made with; a Save drawn from a band another write has moved since is refused and the band stays; the GM's card of each (remnant-ring.mjs `gmRemnantCard`, wired as `showRemnantCard` wires it) shows the band chosen, and a change of its select writes the row's band the same way and leaves the copy's band; both roads leave one state - the band a GM set named on the row (`gmBand`), the trace not marked edited (E60 fix FG2) - and the unfound one's next find still whispers the GMs to say what it is; a player's card draws no band to change", async () => {
         /*
          * E60 C4a, 03.11.2026; the owner's ask of 28.10, his answer to Q-E60-3 (every Remnant's band, found or not; the
          * copies keep theirs, and the next finder's copy is made at the new band) and his addition of 03.11 (the card of
@@ -81344,7 +81344,11 @@ const SCENARIOS = [
          * answer key, both traces and their rows. Red at C1c: no band in the form or on the card (the Save writes
          * nothing of it, and remnant-ring.mjs exports no card). Mutants c4a-m1 (the band written into the copies too),
          * c4a-m4 (the band written where Observe does not read it) and c4a-m5 (the card writing it around
-         * `setRemnantFlags`) read red here.
+         * `setRemnantFlags`) read red here. E60's fix round (FG2; the end review's C-m4, G-m4; the owner's "Domyslnie" of
+         * 03.11: a band change marks nothing GM-edited, on the card or the dashboard): the card marked the trace edited
+         * and the Save did not, so the same band left two states; both now leave the band a GM set on the row and the
+         * trace unmarked, and the unfound one's find (`revealRemnantToFinder`) whispers the GMs. Red on C5e's code: the
+         * card's `edited` true, no `gmBand` on either road, no whisper.
          */
         needs(world.atLeast("sceneOnScreen"), "the traces are placed on the scene on screen");
         needs(world.atLeast("occupiedRooms", 1), "the traces are left in a room with a student in it, where Observe ranks them");
@@ -81360,7 +81364,7 @@ const SCENARIOS = [
         const student = cast(4).find(a => { const at = locateActor(a); return at?.room && at.scene === scene; });
         must(student, "no student of the cast stands in a room on the scene on screen - this would measure nothing");
         const { tokenDoc, room } = locateActor(student);
-        const placed = [];
+        const placed = [], whispers = [];
         let copy = null, reading = null;
         try {
             for (const note of ["unfound", "found"]) {
@@ -81386,6 +81390,9 @@ const SCENARIOS = [
                 { key: row(found), fields: { vis: { value: "subtle", drawn: "evident" } } }] }, { traces: shown(), plan: I.keyPlan() });
             await settle();
             const afterSave = read();
+            const marks = () => placed.map(t => { const r = remnantStore.get(`${scene.id}.${t.id}`);
+                return [r?.gmEdited === true, r?.gmBand ?? null, Number.isFinite(r?.gmBandAt)]; });
+            const savedMarks = marks();
             const stale = await I.applyDashboardSave({ keyRows: [], traces: [
                 { key: row(unfound), fields: { vis: { value: "obvious", drawn: "evident" } } }] }, { traces: shown(), plan: I.keyPlan() });
             await settle();
@@ -81408,11 +81415,17 @@ const SCENARIOS = [
                 cards.push({ drawn, edited: remnantStore.get(`${scene.id}.${t.id}`)?.gmEdited === true });
             }
             const afterCards = read();
+            const cardMarks = marks();
+            const told = [];
+            const hook = Hooks.on("createChatMessage", m => { if (m.whisper?.length) told.push(m.id); });
+            try { await R.revealRemnantToFinder(ref(unfound), { tell: true }); await settle(); }
+            finally { Hooks.off("createChatMessage", hook); }
+            whispers.push(...told);
             const playerCard = typeof RR.playerRemnantCard === "function" ? RR.playerRemnantCard(scene.tokens.get(found.id), esc) : null;
             reading = {
                 saved: [saved?.tracesChanged ?? null, saved?.refused ?? null], afterSave,
                 stale: stale?.refused ?? null, afterStale,
-                cards, afterCards,
+                cards, afterCards, marks: { saved: savedMarks, cards: cardMarks }, found: told.length,
                 playerCard: playerCard === null ? "no card" : /<select\b|data-drpg-band/.test(playerCard)
             };
         } finally {
@@ -81424,18 +81437,22 @@ const SCENARIOS = [
                 await R.dropRemnantSecret(trace);
                 if (scene.tokens.has(trace.id)) await scene.deleteEmbeddedDocuments("Token", [trace.id]);
             }
+            for (const id of whispers) await game.messages.get(id)?.delete();
             await settle();
         }
         const order = ["obvious", "evident", "subtle", "hidden"];
         equal(stableJson(reading), stableJson({
             saved: [2, 0], afterSave: { bands: ["hidden", "subtle"], dcs: [observeDc("hidden", "prep"), observeDc("subtle", "prep")], copy: "evident" },
             stale: 1, afterStale: { bands: ["hidden", "subtle"], dcs: [observeDc("hidden", "prep"), observeDc("subtle", "prep")], copy: "evident" },
-            cards: [{ drawn: [order, "hidden"], edited: true }, { drawn: [order, "subtle"], edited: true }],
+            cards: [{ drawn: [order, "hidden"], edited: false }, { drawn: [order, "subtle"], edited: false }],
             afterCards: { bands: ["subtle", "obvious"], dcs: [observeDc("subtle", "prep"), observeDc("obvious", "prep")], copy: "evident" },
+            marks: { saved: [[false, "hidden", true], [false, "subtle", true]], cards: [[false, "subtle", true], [false, "obvious", true]] },
+            found: 1,
             playerCard: false
         }), "[the Save's count and refusals; after it each trace's band, Observe's number for each, the found one's copy's band; "
             + "the stale Save's refusals and the same after it; each card's band select (its options, the one chosen) and the trace "
-            + "marked edited after its change; the bands, numbers and copy's band after both cards; a band select on the player's card]");
+            + "marked edited after its change; the bands, numbers and copy's band after both cards; each trace's marks after the Save and "
+            + "after the cards (edited, the band a GM set, when); the GMs' whispers at the unfound one's find; a band select on the player's card]");
     }],
 
     ["E60-T9 - one copy of a trace per receiver, whoever hands it at the same moment (E60 C4b; E60-12, D153): two hand-overs of one trace's bullet to one receiver at once (handover.mjs `mintCopy`, a Share's core, from two givers who each hold a copy) make one copy and answer the other held; a Give a Truth Bullet from a Remnant (gm-items.mjs `giveBullet`, the window's write) beside an Observe's find of the same trace (observe.mjs `mintFindCopy`) for one receiver make one copy, and the give answers `GIVEN_ALREADY` when the find came first", async () => {
@@ -81861,6 +81878,49 @@ const SCENARIOS = [
         }), "[placed: each reader lists ours (the scene's refs, by id, its scene, Observe's candidates, the clean-up's list, the finals), "
             + "no orphan; after the reset's cut no row; after \"restore anyway\" with the tokens gone: no reader lists either row, and the "
             + "health check counts both orphans]");
+    }],
+    ["E60-T20 - a clean-up's Reroll leaves a band a GM set (E60 fix FG2; the end review's C-m4): a trace reshaped by an approved clean-up, its band then set by a GM (`setRemnantFlags`, the Traces tab's and the card's road), and the clean-up rerolled to a miss (cleanup.mjs `undoLastCleanup`): the kind goes back to the trace's own and the band stays the GM's; with no band set by a GM the Reroll puts the band from before the reshape back", async () => {
+        /*
+         * E60 fix FG2, 03.11.2026. The Reroll that takes an approved reshape back writes `from` - the kind, the band and the
+         * tie the trace had before it - so a band a GM set after the reshape went back with the rest. The trace keeps the GM's
+         * band while it stands at it (remnants.mjs `gmSetBand`); the kind and the words go back. Two fixtures as tier 2 "the
+         * Undo restores the trace and leaves the copies" builds one (`reshapeCopiesFixture`, the reshape a Tamper's transform
+         * approved): one whose band a GM sets between the reshape and the Reroll, and the control, untouched. Read: each
+         * trace's kind and band before the reshape, after it, and after the Reroll. Red on C5e's code: the GM's band went
+         * back to the band before the reshape.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
+        const [who] = cast(1);
+        const R = await import("./remnants.mjs");
+        const { REMNANT_VISIBILITY } = await import("./config.mjs");
+        const read = {};
+        for (const label of ["gm", "control"]) {
+            const F = await reshapeCopiesFixture(who, [], `SUITE E60-T20 ${label}`);
+            try {
+                must(F.trace, "the fixture placed no trace - this would measure nothing");
+                const shape = () => { const d = R.remnantData(R.remnantById(F.scene.id, F.trace.id)); return [d?.type ?? null, d?.visibility ?? null]; };
+                const before = shape();
+                const { applied } = await F.reshape();
+                must(applied === true, "the approval was refused - this would measure nothing");
+                const reshaped = shape();
+                let band = null;
+                if (label === "gm") {
+                    band = REMNANT_VISIBILITY.find(v => v !== before[1] && v !== reshaped[1]);
+                    await R.setRemnantFlags(R.remnantById(F.scene.id, F.trace.id), { visibility: band });
+                    await settle();
+                }
+                const set = shape();
+                await F.scrub(0, { mode: "transform", change: C9_STORY, undo: true });
+                await settle();
+                read[label] = { kindBack: shape()[0] === before[0] && reshaped[0] !== before[0], band: shape()[1] === (band ?? before[1]),
+                    set: label === "gm" ? set[1] === band : set[1] === reshaped[1] };
+            } finally {
+                await F.putBack();
+            }
+        }
+        equal(stableJson(read), stableJson({ gm: { kindBack: true, band: true, set: true }, control: { kindBack: true, band: true, set: true } }),
+            "[with a GM's band set after the reshape, and without: the kind put back by the Reroll (and changed by the reshape); the band "
+            + "after the Reroll the GM's, or the one before the reshape; the band before the Reroll the GM's, or the reshape's]");
     }],
     ...GRID
 ];
