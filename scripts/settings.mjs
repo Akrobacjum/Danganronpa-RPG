@@ -823,10 +823,10 @@ export const SETTINGS = {
     readyRound: "readyRound",
     /**
      * The last End of chapter's record (E42 C2; chapter.mjs `chapterEndRecord`): `{ stage, by, at, opened, choices,
-     * ending, done, failed, notRun }`, or `{}`. World-scoped so the GM panel's next line and the End of chapter window
-     * read a stopped end on any GM's browser; written by the primary GM alone, inside chapter.mjs `applyChapterEnd`'s
-     * queue. Nothing secret: step keys, the clock's numbers and phases, the window's boxes and the GM's id
-     * (world-secrets.mjs names it).
+     * ending, done, failed, notRun }`, and once dropped `droppedBy` and `droppedAt`, or `{}`. World-scoped so the GM
+     * panel's next line and the End of chapter window read a stopped end on any GM's browser; written by the primary GM
+     * alone, inside chapter.mjs `applyChapterEnd`'s queue. Nothing secret: step keys, the clock's numbers and phases, the
+     * window's boxes, GM ids and times (world-secrets.mjs names it).
      */
     chapterEnd: "chapterEnd",
     /**

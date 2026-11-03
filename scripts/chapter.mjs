@@ -1958,8 +1958,8 @@ let endRunning = false;
 /**
  * THE END'S RECORD (E42 C2, 1.2.97; E42-08; audit S17-30). The world setting `chapterEnd`, written by the primary GM
  * alone, inside `applyChapterEnd`'s queue: `{ stage, by, at, opened, choices, ending: { chapter, session, day, phase,
- * stands }, done, failed, notRun }` - step keys, the clock's numbers and phases, the boxes as booleans and the GM's id,
- * no text and no secret (world-secrets.mjs names it). Written "applying" once the guards have passed and before the
+ * stands }, done, failed, notRun }`, and once dropped `droppedBy` and `droppedAt` (`finishChapterEnd`) - step keys, the
+ * clock's numbers and phases, the boxes as booleans, GM ids and times, no text and no secret (world-secrets.mjs names it). Written "applying" once the guards have passed and before the
  * first step, again after every step that changed it, and at the end "done" when every step the GM asked for ran, or
  * left "applying": an end that stopped, which `finishChapterEnd` finishes or drops ("dropped"). `{}` before the first.
  * Until 1.2.97 an end kept no record: a step that failed was named and the GMs told to finish by hand, and ending the
@@ -1969,9 +1969,24 @@ export function chapterEndRecord() {
     return game.settings.get(MODULE_ID, SETTINGS.chapterEnd) ?? {};
 }
 
-/** The end that stopped part way and waits to be finished, or null: its record "applying", and no end running on this browser. */
+/**
+ * The end that stopped part way and waits to be finished, or null: its record "applying", no end running on this
+ * browser, and none running on another.
+ *
+ * ANOTHER GM'S END THAT STILL RUNS IS NOT ONE (E42 fix FG2, 03.11.2026; the end review's C-m2 = S-M2, STATUS Open 16).
+ * `endRunning` is this browser's, so another GM's panel read the primary's end "applying" for the seconds it ran as
+ * stopped, and a GM who became the primary meanwhile was offered Finish over an end still running on the old one. An
+ * end runs on the primary alone and stops once its browser is no longer the primary (`runChapterEnd`'s `stop`), so a
+ * record whose `by` is a connected GM that is the primary now, and that names no step failed, is running there - as
+ * the verdict reads its `by` (verdict.mjs `verdictStopped`); one whose `by` left, reloaded or is no longer the primary
+ * is stopped. Tier 2 E42-T12.
+ */
 export function chapterEndStopped(record = chapterEndRecord()) {
-    return record?.stage === "applying" && !endRunning ? record : null;
+    if (record?.stage !== "applying" || endRunning) return null;
+    const by = game.users.get(record.by);
+    const failed = Array.isArray(record.failed) ? record.failed : [];
+    if (!failed.length && by?.active && by.isGM && by.id !== game.user.id && by.id === primaryGmId()) return null;
+    return record;
 }
 
 /**
@@ -2292,7 +2307,11 @@ async function endChapterNow(choices) {
         return null;
     }
 
-    // The record first, once the guards have passed (E42 C2): a tab closed at any step after this leaves an end to finish.
+    /* The record first, once the guards have passed (E42 C2): a tab closed at any step after this leaves an end to finish.
+       NOTHING WITHOUT IT (E42 fix FG2, 03.11.2026; the end review's C-m4, STATUS Open 17): a first write that failed was
+       logged and the end went on, so a step's work could land under no record, and the report then sent the GM to a
+       Finish that found none. The end stops here and the GM is told nothing was done, as the season reset stops when its
+       cut cannot be written (season-wipe.mjs `wipeSeason`). Tier 2 E42-T12. */
     const record = {
         stage: "applying", by: game.user.id, at: serverNow(), opened: opened ? endMark(opened) : null,
         choices: Object.fromEntries(END_CHOICES.map(key => [key, Boolean(choices[key])])),
@@ -2302,7 +2321,9 @@ async function endChapterNow(choices) {
     try {
         await game.settings.set(MODULE_ID, SETTINGS.chapterEnd, record);
     } catch (err) {
-        error("Could not write the record of the chapter's end before its first step", err);
+        error("Could not write the record of the chapter's end before its first step, so nothing was done", err);
+        ui.notifications.error(game.i18n.format("DRPG.Chapter.endNotRecorded", { error: String(err?.message ?? err) }));
+        return null;
     }
     return runChapterEnd(record);
 }
@@ -2318,8 +2339,15 @@ async function endChapterNow(choices) {
 async function runChapterEnd(record) {
     const context = { choices: { ...(record.choices ?? {}) }, ending: { ...record.ending }, failed: [], stopped: null };
     let written = record;
+    /* THE PRIMARY'S RECORD, AND ITS END (E42 fix FG2, 03.11.2026; the end review's C-m2 = S-M2, STATUS Open 16). The end
+       held the phase before every step and not primacy, and wrote its record wherever it ran: a GM with a lower id
+       connecting mid-end left the old primary running every step and writing `chapterEnd` while the new primary was
+       offered Finish over it, two browsers on the same steps. A write off the primary is not made now, as the season
+       reset's record is not (season-wipe.mjs `writeRecord`): the new primary reads what this one wrote; and the end stops
+       before its next step once this browser is no longer the primary, the steps it left named with whose browser
+       finishes them. Tier 2 E42-T12. */
     const write = async next => {
-        if (JSON.stringify(next) === JSON.stringify(written)) return;
+        if (!isPrimaryGm() || JSON.stringify(next) === JSON.stringify(written)) return;
         await game.settings.set(MODULE_ID, SETTINGS.chapterEnd, next);
         written = next;
     };
@@ -2346,6 +2374,10 @@ async function runChapterEnd(record) {
                 run: () => step.run(context)
             })),
             stop: () => {
+                if (!isPrimaryGm()) {
+                    context.stopped = { primary: primaryGmId() };
+                    return true;
+                }
                 const phase = getClock().phase;
                 if (phase === context.ending.stands) return false;
                 context.stopped = { from: context.ending.stands, to: phase };
@@ -2373,13 +2405,12 @@ async function runChapterEnd(record) {
        three procedures (steps.mjs `stepsReport`): the GM who pressed Do it is shown which, and the GMs' card lists it
        after what was done. Since E42 C2 the words say Finish the chapter's end does the rest. The steps a phase move
        left are named with the phase; those a record that could not be written left are the failed step's, named with it. */
+    const stoppedBy = !context.stopped ? null : "primary" in context.stopped
+        ? { key: "DRPG.Chapter.endStoppedPrimary", data: { name: game.users.get(context.stopped.primary)?.name ?? "?" } }
+        : { key: "DRPG.Chapter.endStopped", data: { opened: phaseLabel(context.stopped.from), now: phaseLabel(context.stopped.to) } };
     const report = stepsReport({ ...result, notRun: context.stopped ? notRun : [] }, {
         label: stepWords,
-        groups: {
-            failed: "DRPG.Chapter.endFailed",
-            notRun: context.stopped ? { key: "DRPG.Chapter.endStopped",
-                data: { opened: phaseLabel(context.stopped.from), now: phaseLabel(context.stopped.to) } } : null
-        }
+        groups: { failed: "DRPG.Chapter.endFailed", notRun: stoppedBy }
     });
     if (report.toast.level === "error" && report.toast.text) ui.notifications.error(report.toast.text);
     if (!result.lines.length && !report.notes.length) return null;
@@ -2395,7 +2426,7 @@ async function runChapterEnd(record) {
  * (`chapterEndStopped`) runs on from its record: what it did is not done again, the clock's and the morning's targets
  * are its own (`endMoves`), and its `keys` step takes the Key Remnants of the chapter that was ending - a record a
  * primary left when it reloaded mid-end is finished the same way. The phase must be the one the end stands on
- * (`endHeldPhase`), or the Finish is refused with the words of a window drawn on another phase (`endPhaseMoved`).
+ * (`endHeldPhase`), or the Finish is refused and the GM told in which phase it runs (`finishPhaseMoved`).
  * `{ drop: true }` runs nothing: the record stands "dropped" and the GMs' card names what stays undone. Answers the
  * Finish's lines (null when it said nothing), the dropped steps' keys, or null. `game.drpg.finishChapterEnd()`.
  */
@@ -2427,8 +2458,10 @@ async function finishEndNow({ drop }) {
     }
     const clock = getClock();
     const stands = endHeldPhase(record, clock);
+    // Its own words since E42 fix FG2 (the end review's G-F8): `endPhaseMoved` is a window's drawn on another phase, and
+    // sent the GM to open End of chapter again, whose Finish was refused again.
     if (!stands) {
-        ui.notifications.warn(game.i18n.format("DRPG.Chapter.endPhaseMoved", { opened: phaseLabel(record.ending?.stands), now: phaseLabel(clock.phase) }));
+        ui.notifications.warn(game.i18n.format("DRPG.Chapter.finishPhaseMoved", { opened: phaseLabel(record.ending?.stands), now: phaseLabel(clock.phase) }));
         return null;
     }
     return runChapterEnd({ ...record, ending: { ...record.ending, stands } });

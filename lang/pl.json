@@ -2624,6 +2624,9 @@
       "dropped": "Porzucone, niewykonane: {steps}.",
       "doneEarlier": "Wykonane przed zatrzymaniem: {steps}.",
       "notStopped": "Żaden koniec rozdziału nie czeka na dokończenie.",
+      "finishPhaseMoved": "Koniec rozdziału zatrzymał się w fazie {opened}, a zegar pokazuje {now}. Po powrocie do fazy {opened} przycisk Dokończ koniec rozdziału wykona resztę; Porzuć resztę zostawi ją niewykonaną.",
+      "endStoppedPrimary": "Koniec rozdziału się zatrzymał: ta przeglądarka nie jest już przeglądarką głównego GM-a - jest nim {name} - więc nie wykonano: {steps}. To, co się wykonało, zostaje; w przeglądarce GM-a {name} przycisk Dokończ koniec rozdziału wykona resztę.",
+      "endNotRecorded": "Koniec rozdziału nie mógł zapisać, jak daleko doszedł ({error}). Nic nie zostało wykonane.",
       "step": {
         "reveal": "ujawnianie Truth Bullets",
         "sweep": "zbieranie Truth Bullets",

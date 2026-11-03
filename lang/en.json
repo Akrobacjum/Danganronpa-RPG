@@ -2402,6 +2402,9 @@
       "dropped": "Dropped, not done: {steps}.",
       "doneEarlier": "Done before it stopped: {steps}.",
       "notStopped": "No end of the chapter waits to be finished.",
+      "finishPhaseMoved": "The end of the chapter stopped in {opened}, and the clock reads {now}. Back in {opened}, Finish the chapter's end does the rest; Drop the rest leaves it undone.",
+      "endStoppedPrimary": "The end of the chapter stopped: this browser is no longer the primary GM's - {name} is - so these did not run: {steps}. What ran stays done; on {name}'s browser, Finish the chapter's end does the rest.",
+      "endNotRecorded": "The end of the chapter could not write down how far it has got ({error}). Nothing was done.",
       "step": {
         "reveal": "revealing the Truth Bullets",
         "sweep": "collecting the Truth Bullets",

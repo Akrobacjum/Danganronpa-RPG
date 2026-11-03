@@ -80350,6 +80350,10 @@ const SCENARIOS = [
          * stopped at and the one done before it; after Drop, the record's undone steps, the GMs' card naming them, and
          * whether an end still reads as stopped. Red at cef11276: no record, the new end moves the session, no line, no
          * Finish, the window the end's form.
+         *
+         * E42 fix FG2 (03.11.2026; the end review's G-F8): the Finish refused in another phase is told in words of its own
+         * (`DRPG.Chapter.finishPhaseMoved`), not a window's that was drawn on another phase (`endPhaseMoved`, which sent the
+         * GM to open End of chapter again, whose Finish was refused again). Red at 7129a316: the window's words.
          */
         needs(env.primaryGm(), "the chapter's end runs on the primary GM alone (`applyChapterEnd`)");
         const C = await import("./chapter.mjs");
@@ -80422,7 +80426,7 @@ const SCENARIOS = [
             const finish = typeof C.finishChapterEnd === "function" ? C.finishChapterEnd : async () => "no finishChapterEnd";
             await setClock({ phase: "investigation" });
             await settle();
-            const moved = game.i18n.format("DRPG.Chapter.endPhaseMoved", { opened: phaseLabel("dailyLife"), now: phaseLabel("investigation") });
+            const moved = game.i18n.format("DRPG.Chapter.finishPhaseMoved", { opened: phaseLabel("dailyLife"), now: phaseLabel("investigation") });
             read.otherPhase = [await finish() ?? null, runs, warns.includes(moved), record()?.stage ?? null];
             await setClock({ phase: "dailyLife" });
             await settle();
@@ -80932,6 +80936,141 @@ const SCENARIOS = [
             + "sentence failed ran on past it, cleared the pick or could not be finished (card: stage, failed, sentencePending in the record, banners, "
             + "then after Finish: banners, the executed one's, stage, sentencePending; sentence: stage, failed, the steps not done, the pick standing, "
             + "then after Finish: stage, failed, the sentence kept for this verdict, the pick)");
+    }],
+    ["E42-T12 - a chapter's end is the primary GM's from its record's first write to its last: a GM whose id sorts first connecting mid-end stops it before its next step, and the old primary writes no record after and names on the GM's screen what did not run, which Finish the chapter's end on the primary then does; an end whose record another connected GM writes as the primary reads as running there, not stopped, and one whose `by` is no longer the primary reads as stopped; and an end whose record's first write is refused does nothing and says so (E42 fix FG2; the end review's C-m2 = S-M2, C-m4, STATUS Open 16, 17)", async () => {
+        /*
+         * E42 fix FG2, 03.11.2026; the end review's C-m2 = S-M2 and C-m4 (STATUS Open 16, 17). The end held the phase
+         * before every step and not primacy, and wrote its record on whichever browser ran it, so a GM with a lower id
+         * connecting mid-end left the old primary running every step and writing `chapterEnd` while the new primary's
+         * panel read the record "applying", with nothing running there, as stopped and offered Finish over it - two
+         * browsers running the same steps. And a record whose first write failed was logged and the end went on. The
+         * end stops on lost primacy now and writes its record on the primary alone (as the reset's record, season-wipe.mjs
+         * `writeRecord`), a record whose `by` is a connected GM that is the primary reads as running there
+         * (`chapterEndStopped`, as the verdict reads `by`), and a first write that fails ends the end before any step.
+         * Each part from Daily Life with no trial, the faint step's `run` stubbed (no Remnant of the world touched), Clear
+         * the Faint Remnants, the next session and the next morning asked. A second GM is a user set in the users' list,
+         * as E37-T8 sets one: `A` (id sorting first, so the primary while it is there) arrives inside the faint step and
+         * leaves after the end; read: the errors shown, the record [stage, done, failed, notRun], the sessions on and the
+         * faint step's runs; then Finish the chapter's end, A gone: the sessions and days on and the record's stage. Then
+         * the record written as another GM's: `by` a connected GM that sorts first (the primary), and one that sorts last;
+         * read: whether each reads as stopped. Then the record's first write refused once (`game.settings.set` on
+         * `chapterEnd`); read: the errors, the faint step's runs, the sessions on and the record. The clock and the record
+         * are put back. Red at 7129a316: the old primary ran the clock's and the morning's steps and wrote the record
+         * "done", the primary's running end read as stopped, and the refused first write was followed by every step.
+         */
+        needs(env.primaryGm(), "the chapter's end runs on the primary GM alone (`applyChapterEnd`)");
+        const C = await import("./chapter.mjs");
+        const { trialFloor } = await import("./trial-floor.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        const { listOf, isPrimaryGm } = await import("./utils.mjs");
+        must(!murderState() && !isEclipse() && !trialFloor(), "an incident, an Eclipse or a trial is open - the end would not run as asked, and this would measure nothing");
+        const faint = C.CHAPTER_END_STEPS.find(step => step.key === "faint");
+        must(faint, "the chapter's end has no faint step - this would measure nothing");
+        const KEY = SETTINGS.chapterEnd;
+        const record = () => foundry.utils.deepClone(game.settings.get(MODULE_ID, KEY) ?? {});
+        const shape = r => [r.stage ?? null, r.done ?? null, r.failed ?? null, r.notRun ?? null];
+        const clock = foundry.utils.deepClone(getClock());
+        const run = faint.run;
+        const ownSet = Object.getOwnPropertyDescriptor(game.settings, "set"), set = game.settings.set;
+        const errorNote = ui.notifications.error, quiet = console.error;
+        const A = { id: "!E42T12primaryGM", name: "E42 T12 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const LAST = { id: "zzzzE42T12oldGM", name: "E42 T12 old GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        must(!game.users.get(A.id) && !game.users.get(LAST.id), "the suite's own users are already in the list - this would measure nothing");
+        const choices = { reveal: false, sweep: false, faint: true, keys: false, endTrial: false, nextChapter: false, nextSession: true, nextMorning: true };
+        const errors = [];
+        const why = "E42-T12: the record's first write is refused once";
+        let runs = 0;
+        const putBack = () => {
+            faint.run = run;
+            if (ownSet) Object.defineProperty(game.settings, "set", ownSet); else delete game.settings.set;
+            ui.notifications.error = errorNote;
+            console.error = quiet;
+            game.users.delete(A.id);
+            game.users.delete(LAST.id);
+        };
+        const fresh = async () => {
+            await setClock({ ...clock, phase: "dailyLife" });
+            await game.settings.set(MODULE_ID, KEY, {});
+            await settle();
+            errors.length = 0;
+            runs = 0;
+            return foundry.utils.deepClone(getClock());
+        };
+        const opened = start => ({ chapter: start.chapter, session: start.session, day: start.day ?? 1, phase: start.phase });
+        const read = {};
+        try {
+            ui.notifications.error = (text, ...rest) => { errors.push(String(text)); return errorNote.call(ui.notifications, text, ...rest); };
+            console.error = () => {};
+
+            // A GM whose id sorts first connects inside the faint step.
+            let start = await fresh();
+            faint.run = async () => {
+                runs++;
+                game.users.set(A.id, A);
+                return null;
+            };
+            await C.applyChapterEnd({ ...choices, opened: opened(start) });
+            await settle();
+            const notPrimary = !isPrimaryGm();
+            game.users.delete(A.id);
+            const left = record();
+            read.primacy = [notPrimary, [...errors], shape(left), getClock().session - start.session, runs];
+            faint.run = async () => {
+                runs++;
+                return null;
+            };
+            await C.finishChapterEnd();
+            await settle();
+            read.primacy.push(getClock().session - start.session, (getClock().day ?? 1) - (start.day ?? 1), record().stage ?? null, runs);
+
+            // The record as another GM's: by the connected primary, and by a connected GM that is no longer it.
+            start = await fresh();
+            const standing = { stage: "applying", by: A.id, at: 1, opened: null, choices, done: [], failed: [], notRun: [],
+                ending: { chapter: start.chapter, session: start.session, day: start.day ?? 1, phase: "dailyLife", stands: "dailyLife" } };
+            await game.settings.set(MODULE_ID, KEY, standing);
+            await settle();
+            game.users.set(A.id, A);
+            const byPrimary = C.chapterEndStopped();
+            game.users.delete(A.id);
+            await game.settings.set(MODULE_ID, KEY, { ...standing, by: LAST.id });
+            await settle();
+            game.users.set(LAST.id, LAST);
+            const byOther = C.chapterEndStopped();
+            game.users.delete(LAST.id);
+            read.view = [byPrimary === null, byOther?.by === LAST.id];
+
+            // The record's first write refused once.
+            start = await fresh();
+            let refuse = true;
+            game.settings.set = function (scope, key, value, ...rest) {
+                if (refuse && scope === MODULE_ID && key === KEY && value?.stage === "applying" && !(value.done ?? []).length) {
+                    refuse = false;
+                    throw new Error(why);
+                }
+                return set.call(this, scope, key, value, ...rest);
+            };
+            await C.applyChapterEnd({ ...choices, opened: opened(start) });
+            await settle();
+            if (ownSet) Object.defineProperty(game.settings, "set", ownSet); else delete game.settings.set;
+            read.unwritten = [[...errors], runs, getClock().session - start.session, record().stage ?? null];
+        } finally {
+            putBack();
+            await setClock(clock);
+            await game.settings.set(MODULE_ID, KEY, {});
+            await settle();
+        }
+        const L = key => game.i18n.localize(`DRPG.Chapter.step.${key}`);
+        equal(stableJson(read), stableJson({
+            primacy: [true, [game.i18n.format("DRPG.Chapter.endStoppedPrimary", { name: A.name, steps: listOf([L("clock"), L("morning")]) })],
+                ["applying", [], [], []], 0, 1, 1, 1, "done", 2],
+            view: [true, true],
+            unwritten: [[game.i18n.format("DRPG.Chapter.endNotRecorded", { error: why })], 0, 0, null]
+        }), "a chapter's end ran on after this browser stopped being the primary, wrote its record there or did not say what it left, its Finish did not do "
+            + "the rest, an end the primary runs read as stopped or one whose GM is no longer the primary did not, or an end whose record could not be written "
+            + "ran a step (primacy: not the primary after, the errors, the record [stage, done, failed, notRun], sessions on, faint runs, then after Finish: "
+            + "sessions on, days on, stage, faint runs - the faint step's work landed and its record did not, so it runs again; view: by the primary not stopped, by another GM stopped; unwritten: the errors, faint runs, sessions on, "
+            + "the record's stage)");
     }],
     ...GRID
 ];
