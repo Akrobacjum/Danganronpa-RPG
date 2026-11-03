@@ -32054,6 +32054,52 @@ const INVARIANTS = [
         }), "[the keys (a Final, a Prep, none without ids); the row's fields; the Final's; the Prep's; foundAt null on each; "
             + "placeRemnant builds the row from its data, its spot and the probe's floor, and writes it whole]");
     }],
+
+    ["R1288 - the band for every trace (E60 C4a; E60-11): investigation.mjs `caseTraceRows` draws each trace's visibility band as a select named `vis.<row>` of the four bands in REMNANT_VISIBILITY's order under their labels, the trace's own chosen (a band the list does not know as the first, remnants.mjs `shownBand`), for a trace nobody has found (its Found column says so) and for a found one (its finders) alike; the GM's card of a trace (remnant-ring.mjs `gmRemnantCard`) draws the same options (remnants.mjs `bandOptions`) in a select its wiring (`wireCardEditing`) writes through `setRemnantFlags` with `visibility`, the dashboard's own write; a player's card (`playerRemnantCard`) draws no band to change", async () => {
+        /*
+         * E60 C4a, 03.11.2026; the owner's ask of 28.10 ("the GM can change a Remnant's difficulty"), his answer to
+         * Q-E60-3 (every Remnant's band, found or not; the copies keep theirs) and his addition of 03.11 ("zmiana
+         * trudnosci niech bedzie tez w panelu tokena remnanta"). Read on fixtures: three synthetic traces handed to
+         * `caseTraceRows` (as the C16 test hands one) - a Subtle one nobody found, a Hidden one Aiko found, one of a band
+         * no list knows - the rows parsed, each band's select read (options, labels, the one chosen) and the Found
+         * column; then remnant-ring.mjs's three card functions, comments stripped: the GM's card's select and its
+         * options' builder, the wiring's write, and nothing of either in the player's card. Red at C1c: no band column
+         * (and remnants.mjs exports no `bandOptions`).
+         */
+        const R = await import("./remnants.mjs");
+        const I = await import("./investigation.mjs");
+        const { REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS } = await import("./config.mjs");
+        const scene = { id: "SCNE60R128800001" };
+        const trace = (id, visibility) => ({ token: { id }, scene, data: { type: "prep", visibility, public: {} } });
+        const html = I.caseTraceRows([trace("TOKE60R12880000U", "subtle"), trace("TOKE60R12880000F", "hidden"),
+            trace("TOKE60R12880000X", "e60NoSuchBand")], new Map([["TOKE60R12880000F", new Set(["Aiko"])]]));
+        const doc = document.createElement("table");
+        doc.innerHTML = `<tbody>${html}</tbody>`;
+        const band = id => {
+            const select = doc.querySelector(`select[name="vis.${scene.id}__${id}"]`);
+            return select ? [[...select.options].map(o => [o.value, o.textContent.trim()]), select.value] : null;
+        };
+        const src = stripComments((await moduleSources()).get("remnant-ring.mjs") ?? "");
+        const card = fnSource(src, "gmRemnantCard"), wire = fnSource(src, "wireCardEditing"), player = fnSource(src, "playerRemnantCard");
+        const options = REMNANT_VISIBILITY.map(v => [v, REMNANT_VISIBILITY_LABELS[v] ?? v]);
+        equal(stableJson({
+            bands: ["TOKE60R12880000U", "TOKE60R12880000F", "TOKE60R12880000X"].map(band),
+            found: [...doc.querySelectorAll("tbody > tr")].map(tr => tr.lastElementChild?.textContent.trim() ?? null),
+            builder: typeof R.bandOptions === "function" ? R.bandOptions("hidden") === REMNANT_VISIBILITY.map(v =>
+                `<option value="${v}"${v === "hidden" ? " selected" : ""}>${REMNANT_VISIBILITY_LABELS[v] ?? v}</option>`).join("") : "no bandOptions",
+            card: [/<select data-drpg-band\b/.test(card), /bandOptions\(\s*data\.visibility\s*\)/.test(card),
+                /setRemnantFlags\(\s*tokenOrActor\s*,\s*\{\s*visibility:\s*value\s*\}\s*\)/.test(wire), /markRemnantEdited\(\s*tokenOrActor\s*\)/.test(wire)],
+            player: [/<select\b|data-drpg-band|bandOptions\(/.test(player), player.length > 0]
+        }), stableJson({
+            bands: [[options, "subtle"], [options, "hidden"], [options, REMNANT_VISIBILITY[0]]],
+            found: [game.i18n.localize("DRPG.Investigation.notFound"), "Aiko", game.i18n.localize("DRPG.Investigation.notFound")],
+            builder: true,
+            card: [true, true, true, true],
+            player: [false, true]
+        }), "[each row's band select (its options and labels, the one chosen: Subtle, Hidden, the first for a band no list knows); "
+            + "the Found column (nobody, Aiko, nobody); bandOptions's options; the GM's card: a band select, of bandOptions, written "
+            + "through setRemnantFlags with visibility and marked edited; the player's card: no band to change, and read]");
+    }],
 ];
 
 /**

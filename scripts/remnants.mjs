@@ -13,7 +13,7 @@
  * to manipulate.
  */
 
-import { MODULE_ID, ACTIONS, REMNANT_TYPES, REMNANT_VISIBILITY_LABELS, TIME_OF_DAY_LABELS,
+import { MODULE_ID, ACTIONS, REMNANT_TYPES, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIME_OF_DAY_LABELS,
     BROKEN_ITEMS, observeDc, TIMING } from "./config.mjs";
 // Statically imported: `remnantsInRoom` and `tokenFor` are synchronous, and movement.mjs does
 // not reach back into this file, so there is no cycle to break.
@@ -592,6 +592,22 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null, d
         error("Could not place the Remnant", err);
         return null;
     }
+}
+
+/**
+ * THE BAND AS A SCREEN SHOWS IT (E60 C4a, 03.11.2026): a trace's visibility band, or the first of the four for a band
+ * the list does not know - what a select of them shows, so a Save compares what was drawn with what is there in one
+ * shape. `bandOptions` is that select's options, easiest first, each under its label: the Traces tab's column and the
+ * GM's card of a trace draw the same list, and both write through `setRemnantFlags`.
+ */
+export function shownBand(visibility) {
+    return REMNANT_VISIBILITY.includes(visibility) ? visibility : REMNANT_VISIBILITY[0];
+}
+
+export function bandOptions(visibility) {
+    const chosen = shownBand(visibility);
+    return REMNANT_VISIBILITY.map(band => `<option value="${esc(band)}"${band === chosen ? " selected" : ""}>${
+        esc(REMNANT_VISIBILITY_LABELS[band] ?? band)}</option>`).join("");
 }
 
 /**
@@ -2116,11 +2132,19 @@ export async function tieTraceForItem(identity) {
  * other three keep `null` for "leave alone"; none of them has a third state.
  */
 export async function setRemnantFlags(tokenDoc,
-    { faint = null, tiedToCrime, reinforced = null, type = null } = {}) {
+    { faint = null, tiedToCrime, reinforced = null, type = null, visibility = null } = {}) {
     if (!game.user.isGM || !tokenDoc) return null;
 
     const patch = {};
     if (faint !== null) patch.faint = Boolean(faint);
+    /* THE BAND, FOR EVERY TRACE (E60 C4a, 03.11.2026; the owner's ask of 28.10 and his answer to Q-E60-3). How hard
+       a trace is to spot - the visibility band Observe reads its number from (config.mjs `observeDc`, through
+       `rankForObserve`) - was set where the trace was left and moved only by a Reroll (`retuneRemnant`). The Traces
+       tab's column and the GM's card of a trace change it here, found or not, one band of the four (anything else is
+       left alone, as a type the list does not know is). On the row alone: the copies already made keep the band they
+       were made with, so `propagateVerdicts` below is not asked for it, and the next finder's copy is made at the new
+       one (observe.mjs `createFind` reads the row). */
+    if (visibility !== null && REMNANT_VISIBILITY.includes(visibility)) patch.visibility = visibility;
     // A GM's verdict is sent now, so it takes the trace off any wait (`tieWaitNow`, E09 fix r1-G1).
     if (tiedToCrime !== undefined) Object.assign(patch, { tiedToCrime: tieState(tiedToCrime), tieWaitsFor: null });
     if (reinforced !== null) patch.reinforced = Boolean(reinforced);

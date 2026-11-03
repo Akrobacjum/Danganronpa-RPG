@@ -81328,6 +81328,112 @@ const SCENARIOS = [
             + "the refs (id, a ref, its token, the token's spot, the scene); by id; the readers listing ours (Observe, the clean-up, "
             + "the chapter's Faint Prep, the finals, the Keys still to find, Observe's candidates refs); the found rows (foundAt, the road, the ref's found)]");
     }],
+
+    ["E60-T8 - the band for every trace, from the Traces tab and from the GM's card (E60 C4a; E60-11): a trace nobody has found and one a student found, both in a room with the student; the dashboard's Save (`applyDashboardSave` as the form hands it on) writes each one's band on its row (`visibility`) and Observe ranks each at the new band's number (`rankForObserve`, `observeDc`), while the found one's copy keeps the band it was made with; a Save drawn from a band another write has moved since is refused and the band stays; the GM's card of each (remnant-ring.mjs `gmRemnantCard`, wired as `showRemnantCard` wires it) shows the band chosen, and a change of its select writes the row's band the same way, marks the trace edited, and leaves the copy's band; a player's card draws no band to change", async () => {
+        /*
+         * E60 C4a, 03.11.2026; the owner's ask of 28.10, his answer to Q-E60-3 (every Remnant's band, found or not; the
+         * copies keep theirs, and the next finder's copy is made at the new band) and his addition of 03.11 (the card of
+         * the trace's token too). The band was set where a trace was left and moved only by a Reroll (`retuneRemnant`).
+         * Two Prep traces placed at the student's spot: one left unfound, one found by a copy made on the student
+         * (`createTruthBullet`, which un-hides its source as an Observe's copy does). The Save first (Evident to Hidden
+         * and to Subtle), then a Save drawn at Evident over the Hidden one, then the card's select on each (to Subtle
+         * and to Obvious), each change read once the row says it (up to two seconds) or not. Put back: the copy and its
+         * answer key, both traces and their rows. Red at C1c: no band in the form or on the card (the Save writes
+         * nothing of it, and remnant-ring.mjs exports no card). Mutants c4a-m1 (the band written into the copies too),
+         * c4a-m4 (the band written where Observe does not read it) and c4a-m5 (the card writing it around
+         * `setRemnantFlags`) read red here.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the traces are placed on the scene on screen");
+        needs(world.atLeast("occupiedRooms", 1), "the traces are left in a room with a student in it, where Observe ranks them");
+        const R = await import("./remnants.mjs");
+        const I = await import("./investigation.mjs");
+        const RR = await import("./remnant-ring.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const { remnantStore } = await import("./gm-stores.mjs");
+        const { observeDc } = await import("./config.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { esc } = await import("./utils.mjs");
+        const scene = canvas?.scene;
+        const student = cast(4).find(a => { const at = locateActor(a); return at?.room && at.scene === scene; });
+        must(student, "no student of the cast stands in a room on the scene on screen - this would measure nothing");
+        const { tokenDoc, room } = locateActor(student);
+        const placed = [];
+        let copy = null, reading = null;
+        try {
+            for (const note of ["unfound", "found"]) {
+                const t = await R.placeRemnant({ type: "prep", visibility: "evident", scene, x: tokenDoc.x, y: tokenDoc.y, room, note: `SUITE E60-T8 ${note}` });
+                if (t) placed.push(t);
+            }
+            must(placed.length === 2, `${placed.length} of the two traces were placed - this would measure nothing`);
+            const [unfound, found] = placed;
+            copy = await T.createTruthBullet(student, { name: "SUITE E60-T8 copy", realType: "prep", visibility: "evident",
+                playerText: "SUITE E60-T8", remnantId: found.id, sceneId: scene.id, analyzed: true });
+            await settle();
+            const ref = t => R.remnantById(scene.id, t.id);
+            must(copy && ref(found)?.found === true && ref(unfound)?.found === false,
+                "the copy was not made, or the found trace does not read found and the other unfound - this would measure nothing");
+            const band = t => remnantStore.get(`${scene.id}.${t.id}`)?.visibility ?? null;
+            const dc = t => R.rankForObserve(room, scene).find(c => c.token.id === t.id)?.dc ?? null;
+            const copyBand = () => student.items.get(copy.id)?.getFlag(MODULE_ID, T.TRUTH_BULLET_FLAGS.visibility) ?? null;
+            const read = () => ({ bands: placed.map(band), dcs: placed.map(dc), copy: copyBand() });
+            const shown = () => placed.map(t => ({ token: ref(t), data: R.remnantData(ref(t)), scene }));
+            const row = t => `${scene.id}__${t.id}`;
+            const saved = await I.applyDashboardSave({ keyRows: [], traces: [
+                { key: row(unfound), fields: { vis: { value: "hidden", drawn: "evident" } } },
+                { key: row(found), fields: { vis: { value: "subtle", drawn: "evident" } } }] }, { traces: shown(), plan: I.keyPlan() });
+            await settle();
+            const afterSave = read();
+            const stale = await I.applyDashboardSave({ keyRows: [], traces: [
+                { key: row(unfound), fields: { vis: { value: "obvious", drawn: "evident" } } }] }, { traces: shown(), plan: I.keyPlan() });
+            await settle();
+            const afterStale = read();
+            const cards = [];
+            for (const [t, to] of [[unfound, "subtle"], [found, "obvious"]]) {
+                const node = document.createElement("div");
+                const html = typeof RR.gmRemnantCard === "function" ? RR.gmRemnantCard(scene.tokens.get(t.id), esc) : null;
+                node.innerHTML = html ?? "";
+                if (typeof RR.wireCardEditing === "function") RR.wireCardEditing(node, scene.tokens.get(t.id));
+                const select = node.querySelector("select[data-drpg-band]");
+                const drawn = select ? [[...select.options].map(o => o.value), select.value] : null;
+                if (select) {
+                    select.value = to;
+                    select.dispatchEvent(new Event("change", { bubbles: true }));
+                    const end = Date.now() + 2000;
+                    while (band(t) !== to && Date.now() < end) await new Promise(r => setTimeout(r, 50));
+                }
+                await settle();
+                cards.push({ drawn, edited: remnantStore.get(`${scene.id}.${t.id}`)?.gmEdited === true });
+            }
+            const afterCards = read();
+            const playerCard = typeof RR.playerRemnantCard === "function" ? RR.playerRemnantCard(scene.tokens.get(found.id), esc) : null;
+            reading = {
+                saved: [saved?.tracesChanged ?? null, saved?.refused ?? null], afterSave,
+                stale: stale?.refused ?? null, afterStale,
+                cards, afterCards,
+                playerCard: playerCard === null ? "no card" : /<select\b|data-drpg-band/.test(playerCard)
+            };
+        } finally {
+            if (copy) {
+                if (student.items.has(copy.id)) await student.items.get(copy.id).delete().catch(() => {});
+                await T.dropSecret(copy.uuid).catch(() => {});
+            }
+            for (const trace of placed) {
+                await R.dropRemnantSecret(trace);
+                if (scene.tokens.has(trace.id)) await scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            }
+            await settle();
+        }
+        const order = ["obvious", "evident", "subtle", "hidden"];
+        equal(stableJson(reading), stableJson({
+            saved: [2, 0], afterSave: { bands: ["hidden", "subtle"], dcs: [observeDc("hidden", "prep"), observeDc("subtle", "prep")], copy: "evident" },
+            stale: 1, afterStale: { bands: ["hidden", "subtle"], dcs: [observeDc("hidden", "prep"), observeDc("subtle", "prep")], copy: "evident" },
+            cards: [{ drawn: [order, "hidden"], edited: true }, { drawn: [order, "subtle"], edited: true }],
+            afterCards: { bands: ["subtle", "obvious"], dcs: [observeDc("subtle", "prep"), observeDc("obvious", "prep")], copy: "evident" },
+            playerCard: false
+        }), "[the Save's count and refusals; after it each trace's band, Observe's number for each, the found one's copy's band; "
+            + "the stale Save's refusals and the same after it; each card's band select (its options, the one chosen) and the trace "
+            + "marked edited after its change; the bands, numbers and copy's band after both cards; a band select on the player's card]");
+    }],
     ...GRID
 ];
 
