@@ -32301,6 +32301,44 @@ const INVARIANTS = [
         }), "[each die of the laid copy: class, appearance, model file; the roll handed in unchanged; a copy; a plain roll; no look; an empty look]");
     }],
 
+    ["R1301 - the dice look's two preset findings know the table's look (E60 fix FG3; the end review's C-m5, G-m5): where this browser lays the table's Hope and Despair look (`browser.tableLook`), dice-look.mjs `lookFindings` words a duality die with no preset as drawn in the table's look (`presetMissing`, its own sentence) and holds a die's preset to the table's look rather than this browser's Daggerheart preset (`presetDiffers`, its own sentence; none where the two agree); with no table look laid both say what they said at C5b", async () => {
+        /*
+         * E60 fix FG3, 03.11.2026. C5d lays the table's look on each throw this browser draws and never on the message, so
+         * after C5d a drawn roll's Hope die still read "carries no Daggerheart preset, so it is drawn in its thrower's Dice
+         * So Nice look" while this browser drew it in the table's look - the tool meant to tell whether C5d worked reported
+         * the old cause. Fixtures of a view as R1294 builds one: a Hope die with no preset and a Fear die with this
+         * browser's preset, with the table's look laid and without; a Fear die with the table's look. Red on C5e's code:
+         * the laid views raised the C5b sentences, and the Fear die with this browser's preset raised nothing.
+         */
+        const L = await import("./dice-look.mjs");
+        const own = { system: "standard", colorset: "inspired", texture: "astralsea", material: "metal", font: "auto", foreground: "#ffffff", background: "#ffe760" };
+        const table = { system: "standard", colorset: "spectrum", texture: "marble", material: "pristine", font: "auto", foreground: "#ffffff", background: "#ff00aa" };
+        const die = (cls, duality, preset) => ({ class: cls, faces: 12, modifiers: [], duality, preset, modelFile: null, role: null });
+        const view = (laid, fearPreset) => ({
+            gm: false, me: "u1", forcing: true, sourceId: "g1",
+            users: [{ id: "u1", name: "R1301 u1", here: true, gm: false, active: true, forced: true, holds: true, stopped: null, overlays: [],
+                display: { visibility: "all", showOthersSFX: true, imageQuality: "high", read: true } }],
+            browser: { module: "1.2.98", foundry: "14.360", system: { id: "daggerheart", version: "2.9.4", roles: false },
+                dsn: { version: "6.2.9", active: true, ready: true, api: { allCustomization: true } },
+                display: { visibility: "all", showOthersSFX: true, imageQuality: "high", read: true },
+                dhPreset: { hope: own, fear: own, advantage: null, disadvantage: null },
+                tableLook: laid ? { hope: table, fear: table, advantage: null, disadvantage: null } : null, registry: { missing: [] }, lastThrows: [] },
+            roll: { messageId: "m1", by: "u1", dice: [die("HopeDie", "hope", null), die("FearDie", "fear", fearPreset)], audience: null }
+        });
+        const read = v => L.lookFindings(v).map(f => [f.code, f.words]);
+        const say = (key, kind) => game.i18n.format(key, { duality: game.i18n.localize(`DRPG.DiceLook.diag.die.${kind}`) });
+        const K = "DRPG.DiceLook.diag.finding.";
+        equal(stableJson({
+            laidOwn: read(view(true, { ...own })), laidTable: read(view(true, { ...table })),
+            plainOwn: read(view(false, { ...own })), plainTable: read(view(false, { ...table }))
+        }), stableJson({
+            laidOwn: [["presetMissing", say(`${K}presetMissingLaid`, "hope")], ["presetDiffers", say(`${K}presetDiffersLaid`, "fear")]],
+            laidTable: [["presetMissing", say(`${K}presetMissingLaid`, "hope")]],
+            plainOwn: [["presetMissing", say(`${K}presetMissing`, "hope")]],
+            plainTable: [["presetMissing", say(`${K}presetMissing`, "hope")], ["presetDiffers", say(`${K}presetDiffers`, "fear")]]
+        }), "[the findings (code, words) with the table's look laid and a Fear die of this browser's preset, of the table's; with none laid, the same two]");
+        ok([`${K}presetMissingLaid`, `${K}presetDiffersLaid`].every(key => game.i18n.localize(key) !== key), "the two sentences of a laid look have no words");
+    }],
     ["R1299 - the GMs who see a player's dice (E60 C5e; E60-18, Q-C5-4): private-rolls.mjs `gmsInRoomOf(subject)` answers each GM one of whose own Monokumas stands in the roller's room on the roller's scene - a Monokuma in another room, on another scene or on no scene admits nobody, nor does one whose GM cannot be told or whose pool is a player's; two GMs each by their own; a roller on no scene has none", async () => {
         /*
          * E60 C5e, 03.11.2026; the owner: a player's action roll on the GM's screen, "Nie powinien ich widziec, chyba ze

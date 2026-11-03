@@ -1143,7 +1143,7 @@ Wynik to licznik "passed, failed, skipped" - z dopiskiem ", red until a later st
 | `hook-countdowns-render` | taca odliczań jest rysowana tak, jak rysuje ją Daggerheart, a HUD nie jest przerysowywany razem z nią |
 | `hook-dice-so-nice-ready` | wyglądy kości nie są porządkowane |
 | `hook-dice-so-nice-message` | Dice So Nice rzuca taki rzut na każdym ekranie, w kolorach GM-a |
-| `hook-dice-so-nice-roll-start` | raport wyglądu kości nie wymienia żadnego rzutu widzianego w tej przeglądarce |
+| `hook-dice-so-nice-roll-start` | każda kość Hope i Despair rysuje się w wyglądzie, który nadał jej Daggerheart osoby rzucającej, a raport wyglądu kości nie wymienia żadnego rzutu widzianego w tej przeglądarce |
 | `hook-livekit-initialized` | pokoje głosowe, kafel głosu i mówcy rozprawy nie podążają za klientem głosu |
 | `hook-image-popout-header` | okno zdjęcia pokoju pokazuje przycisk udostępniania Foundry i każdy, który doda moduł |
 | `user-permission-broadcast-audio` | niczyj mikrofon nie jest blokowany: przycisk GM-a mówi dlaczego, rozprawa również |

@@ -1143,7 +1143,7 @@ The result is a "passed, failed, skipped" count - with ", red until a later stag
 | `hook-countdowns-render` | the countdown tray is drawn as Daggerheart draws it, and the HUD is not redrawn with it |
 | `hook-dice-so-nice-ready` | the dice looks are not swept |
 | `hook-dice-so-nice-message` | Dice So Nice throws such a roll on every screen, in the GM's colours |
-| `hook-dice-so-nice-roll-start` | the dice look's report names no throw seen on this browser |
+| `hook-dice-so-nice-roll-start` | every Hope and Despair die is drawn in the look its thrower's Daggerheart gave it, and the dice look's report names no throw seen on this browser |
 | `hook-livekit-initialized` | the voice rooms, the voice tile and the trial's speakers do not follow the voice client |
 | `hook-image-popout-header` | a room picture's window shows Foundry's share control and any a module adds |
 | `user-permission-broadcast-audio` | nobody's microphone is blocked: the GM's button says why, and so does the trial |

@@ -59,6 +59,16 @@ const FINDING_KEYS = Object.freeze({
     otherBrowser: "DRPG.DiceLook.diag.finding.otherBrowser"
 });
 export const LOOK_CODES = Object.freeze(Object.keys(FINDING_KEYS));
+/** Two findings' sentences where this browser lays the table's Hope and Despair look (`tableLookHere`, E60 fix FG3). */
+const LAID_KEYS = Object.freeze({
+    presetMissing: "DRPG.DiceLook.diag.finding.presetMissingLaid", presetDiffers: "DRPG.DiceLook.diag.finding.presetDiffersLaid"
+});
+/**
+ * What Dice So Nice stamps on the roll it is about to draw before `diceSoNiceRollStart` (6.2.9 Dice3D.js `showForRoll`:
+ * `ghost` for a message whose content this screen may not read, `secret` for a whispered one, each under "hide 3D dice
+ * on secret rolls" or the API's options) and reads off the roll it draws (DiceNotation.js) - kept by no `toJSON`.
+ */
+const DSN_ROLL_MARKS = Object.freeze(["ghost", "secret"]);
 /** A duality die's name in a sentence. */
 const DIE_KEYS = Object.freeze({ hope: "DRPG.DiceLook.diag.die.hope", fear: "DRPG.DiceLook.diag.die.fear",
     advantage: "DRPG.DiceLook.diag.die.advantage", disadvantage: "DRPG.DiceLook.diag.die.disadvantage" });
@@ -75,8 +85,9 @@ function onRollStart(messageId, context) {
     markFired("diceSoNiceRollStart");
     try {
         const laid = layOnThrow(context);
+        // The roll as this screen draws it (E60 fix FG3; the end review's C-m5): the laid copy where the look was laid.
         lastThrows.push({ messageId: typeof messageId === "string" ? messageId : null, by: context?.user?.id ?? null, at: Date.now(),
-            dice: throwLook(context?.roll), laid });
+            dice: throwLook(context?.dsnRoll ?? context?.roll), laid });
         while (lastThrows.length > THROWS_KEPT) lastThrows.shift();
     } catch (err) {
         error("Could not keep a throw's look", err);
@@ -92,13 +103,8 @@ function onRollStart(messageId, context) {
  */
 function layOnThrow(context) {
     if (!context?.roll) return false;
-    let look = null;
-    try {
-        if (game.settings.get(MODULE_ID, SETTINGS.forceDiceLook) !== true) return false;
-        look = game.settings.get(MODULE_ID, SETTINGS.diceDualityLook);
-    } catch { return false; }
-    const version = game.system?.version;
-    if (game.system?.id === "daggerheart" && typeof version === "string" && foundry.utils.isNewerVersion(version, "2.9.99")) return false;
+    const look = tableDualityLook();
+    if (!look) return false;
     const json = layDualityLook(context.dsnRoll ?? context.roll, look);
     if (!json) return false;
     const laid = Roll.fromData(json);
@@ -106,8 +112,37 @@ function layOnThrow(context) {
     (laid.terms ?? []).forEach((term, i) => {
         if (typeof term?.faces === "number" && json.terms?.[i]?.options) term.options = json.terms[i].options;
     });
+    /* THE MARKS DICE SO NICE STAMPED ON THE ROLL (E60 fix FG3, 03.11.2026; the end review's C-m1). `toJSON` keeps neither
+       `ghost` nor `secret`, so the copy drew a whispered roll unmuted and a roll this screen may not read with its real
+       faces where Dice So Nice would draw ghost dice. Copied from the roll Dice So Nice stamped, else from the one laid.
+       A die's own marks - its damage type, type and flavour, the merged appearance - are its options, a hidden result
+       its results: the copy keeps both. */
+    for (const mark of DSN_ROLL_MARKS) {
+        const value = context.roll[mark] ?? context.dsnRoll?.[mark];
+        if (value !== undefined) laid[mark] = value;
+    }
     context.dsnRoll = laid;
     return true;
+}
+
+/** The table's Hope and Despair look this browser lays on each throw, or null: the switch off, no look kept, or Daggerheart 2.10 and later (roles). */
+function tableDualityLook() {
+    let look = null;
+    try {
+        if (game.settings.get(MODULE_ID, SETTINGS.forceDiceLook) !== true) return null;
+        look = game.settings.get(MODULE_ID, SETTINGS.diceDualityLook);
+    } catch { return null; }
+    const version = game.system?.version;
+    if (game.system?.id === "daggerheart" && typeof version === "string" && foundry.utils.isNewerVersion(version, "2.9.99")) return null;
+    return look && typeof look === "object" ? look : null;
+}
+
+/** The table's look as the diagnostic reads it, per duality die (`presetOf`), or null where this browser lays none (E60 fix FG3). */
+function tableLookHere() {
+    const look = tableDualityLook();
+    if (!look) return null;
+    const out = Object.fromEntries(Object.values(DUALITY).map(kind => [kind, presetOf(look[kind])]));
+    return Object.values(out).some(Boolean) ? out : null;
 }
 
 /**
@@ -120,8 +155,12 @@ export function layDualityLook(roll, look) {
     let laid = false;
     for (const term of Array.isArray(json?.terms) ? json.terms : []) {
         const kind = typeof term?.faces === "number" ? dualityOf(term) : null;
-        const preset = kind ? look[kind] : null;
-        if (!preset || typeof preset !== "object" || !Object.keys(preset).length) continue;
+        // Only a preset's names and colours, each a string of at most 64 characters, whatever the world's copy holds
+        // (E60 fix FG3; the end review's S-n2): the copy is written by a GM, and read on every browser.
+        const preset = kind && look[kind] && typeof look[kind] === "object"
+            ? Object.fromEntries(PRESET_KEYS.filter(key => typeof look[kind][key] === "string" && look[kind][key].length <= 64).map(key => [key, look[kind][key]]))
+            : null;
+        if (!preset || !Object.keys(preset).length) continue;
         const own = term.options?.appearance && typeof term.options.appearance === "object" ? term.options.appearance : {};
         term.options = { ...(term.options ?? {}), appearance: { ...own, ...preset } };
         laid = true;
@@ -238,6 +277,8 @@ export function browserLook({ looks = [] } = {}) {
             api: { allCustomization: typeof game.dice3d?.constructor?.ALL_CUSTOMIZATION === "function" } },
         display: displayOf(game.user, { here: true }),
         dhPreset: preset,
+        // The table's Hope and Despair look laid on every throw here (C5d), per die, or null (E60 fix FG3).
+        tableLook: tableLookHere(),
         registry: { missing: missingNames([...looks, ...(preset ? [preset] : [])]) },
         lastThrows: lastThrowsSeen(),
         // What opened this browser's last roll window (roll-dialog.mjs `noteOpening`, E60 C5c).
@@ -313,7 +354,7 @@ const sameShown = (a, b) => ["system", "colorset", "texture", "material", "foreg
  */
 export function lookFindings(view) {
     const out = [];
-    const say = (userId, code, data = {}) => out.push({ userId, code, words: game.i18n.format(FINDING_KEYS[code], data) });
+    const say = (userId, code, data = {}, key = FINDING_KEYS[code]) => out.push({ userId, code, words: game.i18n.format(key, data) });
     const dieName = kind => game.i18n.localize(DIE_KEYS[kind] ?? DIE_KEYS.hope);
     for (const user of view?.users ?? []) {
         const name = user.name ?? "?";
@@ -328,9 +369,16 @@ export function lookFindings(view) {
     const me = view?.me ?? null;
     const browser = view?.browser ?? {};
     const duality = (view?.roll?.dice ?? []).filter(die => die.duality);
+    /* WITH THE TABLE'S LOOK LAID HERE (E60 fix FG3, 03.11.2026; the end review's C-m5, G-m5): C5d lays the table's look on
+       each throw this browser draws and never on the message, so a drawn roll's die still carries no preset, and one
+       thrown elsewhere its thrower's - and this browser draws both in the table's look. The two findings say so, and the
+       preset is held to the table's look, not to this browser's own Daggerheart setting, which it does not draw. */
     for (const die of duality) {
-        if (!die.preset) say(view.roll.by ?? me, "presetMissing", { duality: dieName(die.duality) });
-        else if (browser.dhPreset?.[die.duality] && !sameShown(die.preset, browser.dhPreset[die.duality])) say(me, "presetDiffers", { duality: dieName(die.duality) });
+        const table = browser.tableLook?.[die.duality] ?? null;
+        const data = { duality: dieName(die.duality) };
+        if (!die.preset) say(view.roll.by ?? me, "presetMissing", data, table ? LAID_KEYS.presetMissing : FINDING_KEYS.presetMissing);
+        else if (table) { if (!sameShown(die.preset, table)) say(me, "presetDiffers", data, LAID_KEYS.presetDiffers); }
+        else if (browser.dhPreset?.[die.duality] && !sameShown(die.preset, browser.dhPreset[die.duality])) say(me, "presetDiffers", data);
     }
     const kinds = { system: "missingSystem", colorset: "missingColorset", texture: "missingTexture", material: "missingMaterial" };
     for (const row of browser.registry?.missing ?? []) if (kinds[row.kind]) say(me, kinds[row.kind], { name: row.name });
@@ -383,6 +431,7 @@ function viewLines(view, findings) {
     const lines = [`${word("DRPG.DiceLook.diag.browser")}: Danganronpa RPG ${b.module} - Foundry ${b.foundry ?? "?"} - ${b.system.id ?? "?"} ${b.system.version ?? "?"}`
         + ` - Dice So Nice ${b.dsn.active ? b.dsn.version ?? "?" : word("DRPG.DiceLook.diag.dsnOff")}`];
     lines.push(`${word("DRPG.DiceLook.diag.preset")}: ${b.dhPreset ? Object.entries(b.dhPreset).map(([k, p]) => `${k} ${p ? [p.system, p.colorset, p.texture, p.material].join("/") : "-"}`).join("; ") : word("DRPG.DiceLook.diag.presetNone")}`);
+    if (b.tableLook) lines.push(`${word("DRPG.DiceLook.diag.tableLook")}: ${Object.entries(b.tableLook).filter(([, p]) => p).map(([k, p]) => `${k} ${[p.system, p.colorset, p.texture, p.material].join("/")}`).join("; ")}`);
     for (const user of view.users) {
         lines.push(`${user.name}: ${forcedCell(view, user)}; ${word("DRPG.DiceLook.diag.display")} ${user.display.visibility}${user.display.showOthersSFX ? "" : ", -sfx"}`
             + `${user.display.imageQuality ? `, ${user.display.imageQuality}` : ""}`);
@@ -398,7 +447,8 @@ function viewLines(view, findings) {
         lines.push(`${word("DRPG.DiceLook.diag.lastWindow")}: ${w.actor ?? "?"} - actionRoll ${w.actionRoll}, nonce ${w.nonce}, `
             + `${w.actionKey ?? "-"}, ${w.actionType ?? "-"}, ${w.held ?? "-"}`);
     }
-    if (b.lastThrows.length) lines.push(`${word("DRPG.DiceLook.diag.lastThrows")}: ${b.lastThrows.map(t => t.dice.filter(d => d.duality).map(dieLine).join(", ") || "-").join(" | ")}`);
+    if (b.lastThrows.length) lines.push(`${word("DRPG.DiceLook.diag.lastThrows")}: ${b.lastThrows.map(t => (t.laid ? `${word("DRPG.DiceLook.diag.laid")} ` : "")
+        + (t.dice.filter(d => d.duality).map(dieLine).join(", ") || "-")).join(" | ")}`);
     for (const f of findings) lines.push(`- ${f.words}`);
     if (!findings.length) lines.push(word("DRPG.DiceLook.diag.nothingFound"));
     return lines;

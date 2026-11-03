@@ -772,10 +772,10 @@ export const PATCHES = [
         owner: "dice-so-nice",
         file: "dice-look.mjs",
         symbol: "registerDiceLook",
-        why: "The last throws this browser's Dice So Nice drew are kept for game.drpg.diagnoseDiceLook().",
+        why: "The table's Hope and Despair look is laid on each throw this browser's Dice So Nice draws, and the last throws are kept for game.drpg.diagnoseDiceLook().",
         when: "only while Dice So Nice is active",
         road: "Dice So Nice starts a throw on this screen",
-        fallback: "none: the dice look's report names no throw seen here",
+        fallback: "none: every Hope and Despair die is drawn in the look its thrower's Daggerheart gave it, and the dice look's report names no throw seen here",
         inUse: () => moduleActive("dice-so-nice")
     }, () => moduleActive("dice-so-nice")),
     hookRow({

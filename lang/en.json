@@ -234,7 +234,7 @@
     "Settings": {
       "forceDiceLook": {
         "name": "One dice look for the table",
-        "hint": "Every player and Assistant GM throws Dice So Nice dice in the look of one full Gamemaster, fixed the first time the game runs with it on, with no special effects but those a Gamemaster marks as global, and a change of their own goes back to it. Another full Gamemaster's own look stays theirs and changes nothing for the table beyond the effects they mark as global. Every Hope and Despair die takes the look that Gamemaster set in Daggerheart, whoever throws it. Each keeps their own display and performance settings. Switching this off gives nobody their old look back."
+        "hint": "Every player and Assistant GM throws Dice So Nice dice in the look of one full Gamemaster, fixed the first time the game runs with it on, with no special effects but those a Gamemaster marks as global, and a change of their own goes back to it. Another full Gamemaster's own look stays theirs and changes nothing for the table beyond the effects they mark as global. Every Hope and Despair die takes the look that Gamemaster set in Daggerheart, whoever throws it (Daggerheart 2.9 and older). Each keeps their own display and performance settings. Switching this off gives nobody their old look back."
       },
       "forcePrivateRolls": {
         "name": "Force private player rolls",
@@ -3363,6 +3363,8 @@
         "audience": "Its dice were sent to",
         "test": "Test throw",
         "lastThrows": "Last throws on this browser",
+        "laid": "(the table's look laid)",
+        "tableLook": "The table's Hope and Despair look, laid on each throw here",
         "lastWindow": "Last roll window on this browser",
         "nothingFound": "Nothing found that makes this browser draw the dice differently.",
         "die": {
@@ -3380,6 +3382,8 @@
           "lowQuality": "{name} draws dice at low image quality.",
           "presetDiffers": "{duality} of the roll read carries another preset than this browser's Daggerheart setting: it was thrown on another browser.",
           "presetMissing": "{duality} of the roll read carries no Daggerheart preset, so it is drawn in its thrower's Dice So Nice look.",
+          "presetMissingLaid": "{duality} of the roll read carries no Daggerheart preset of its own; with One dice look for the table on, this browser draws it in the table's Hope and Despair look.",
+          "presetDiffersLaid": "{duality} of the roll read carries another preset than the table's Hope and Despair look; with One dice look for the table on, this browser draws it in the table's look over its own.",
           "missingSystem": "Dice So Nice on this browser has no dice system \"{name}\", so dice that use it are drawn as standard dice here.",
           "missingColorset": "Dice So Nice on this browser has no colorset \"{name}\", so dice that use it are drawn in a custom colour here.",
           "missingTexture": "Dice So Nice on this browser has no texture \"{name}\", so dice that use it are drawn with no texture here.",
@@ -5229,7 +5233,7 @@
         "hook-countdowns-render": "the countdown tray is drawn as Daggerheart draws it, and the HUD is not redrawn with it",
         "hook-dice-so-nice-ready": "the dice looks are not swept",
         "hook-dice-so-nice-message": "Dice So Nice throws such a roll on every screen, in the GM's colours",
-        "hook-dice-so-nice-roll-start": "the dice look's report names no throw seen on this browser",
+        "hook-dice-so-nice-roll-start": "every Hope and Despair die is drawn in the look its thrower's Daggerheart gave it, and the dice look's report names no throw seen on this browser",
         "hook-livekit-initialized": "the voice rooms, the voice tile and the trial's speakers do not follow the voice client",
         "hook-image-popout-header": "a room picture's window shows Foundry's share control and any a module adds",
         "user-permission-broadcast-audio": "nobody's microphone is blocked: the GM's button says why, and so does the trial",

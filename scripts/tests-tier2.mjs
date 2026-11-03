@@ -81593,7 +81593,7 @@ const SCENARIOS = [
             + "the GMs' store reads in the player's run; packets sent; hooks heard; the test throw's dice; the throws shown]");
     }],
 
-    ["E60-T16 - one Hope and Despair look for the table (E60 C5d; E60-17, Q-C5-2): the source Gamemaster's browser keeps its Daggerheart Hope and Despair preset in the world (`diceDualityLook`) as it changes; a player's drawn roll, its Reroll and a GM's own roll each reach Dice So Nice's `diceSoNiceRollStart` with that look on their Hope and Fear dice, and the message's rolls keep their own; with the table's look switched off none is laid; and a player's write of the world's copy is put back by the primary", async () => {
+    ["E60-T16 - one Hope and Despair look for the table (E60 C5d; E60-17, Q-C5-2): the source Gamemaster's browser keeps its Daggerheart Hope and Despair preset in the world (`diceDualityLook`) as it changes; a player's drawn roll, its Reroll and a GM's own roll each reach Dice So Nice's `diceSoNiceRollStart` with that look on their Hope and Fear dice (the message's rolls keeping their own is R1298's, on the roll handed in: the harness keeps no die's options in a message's rolls, so its reading here cannot fail); the laid copy keeps the ghost and secret marks Dice So Nice stamped on the roll, and the throw history keeps the roll as drawn; with the table's look switched off none is laid; and a player's write of the world's copy is put back by the primary", async () => {
         /*
          * E60 C5d, 03.11.2026; the owner's answer to Q-C5-2 ("tak"); the investigation's cause 2 (dice/findings.md: the
          * Hope/Despair preset is Daggerheart 2.9's client setting, so a roll evaluated on a player's browser wears that
@@ -81610,6 +81610,12 @@ const SCENARIOS = [
          * each throw's Hope and Fear dice as laid (`throwLook` of `dsnRoll`), the message's own dice, the copy after the
          * player's write. Put back: every setting as found, the draw. Red before C5d: no `diceDualityLook`. Mutants c5d-m2
          * (laid with the switch off) and c5d-m3 (a player's write of the copy stands) read red here.
+         * E60's fix round (FG3; the end review's C-m1, C-m5, C-m7): the stand-in stamps `ghost` and `secret` on the roll
+         * before the hook from its options, as 6.2.9's `showForRoll` does, and two of the GM's own throws ask for each, read
+         * on `dsnRoll`; the throw history's newest row (`lastThrowsSeen`) is read after the GM's own throw. `message` reads
+         * the harness's summary of a message's rolls, whose dice keep no options (shim.mjs `Die.toJSON`), so it reads false
+         * whatever the code does: R1298 holds the roll handed in unchanged. Red on C5e's code: neither mark on the copy,
+         * the history's Hope die the roll's own (no preset). Mutant fg3-m1 (the copy without the ghost mark) reads red here.
          */
         needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
         needs(env.primaryGm());
@@ -81632,11 +81638,15 @@ const SCENARIOS = [
         const appearanceWas = game.settings.get("daggerheart", "Appearance");
         const forceWas = game.settings.get(MODULE_ID, SETTINGS.forceDiceLook), sourceWas = game.settings.get(MODULE_ID, SETTINGS.diceLookSource);
         const copyWas = game.settings.get(MODULE_ID, KEY);
-        const throws = [];
+        const throws = [], marks = [];
         const dice3d = game.dice3d, showForRoll = dice3d.showForRoll;
-        dice3d.showForRoll = async (roll, user = game.user, synchronize = false, users = null, blind = false, messageID = null) => {
+        dice3d.showForRoll = async (roll, user = game.user, synchronize = false, users = null, blind = false, messageID = null, speaker = null, options = {}) => {
             const context = { roll, user, blind };
+            // Stamped on the roll before the hook, as 6.2.9's `showForRoll` does from its options (Dice3D.js).
+            if (options?.ghost) context.roll.ghost = true;
+            if (options?.secret) context.roll.secret = true;
             Hooks.callAll("diceSoNiceRollStart", messageID, context);
+            marks.push([Boolean(context.dsnRoll), context.dsnRoll?.ghost === true, context.dsnRoll?.secret === true]);
             throws.push((context.dsnRoll ? L.throwLook(context.dsnRoll) : []).filter(d => d.duality === "hope" || d.duality === "fear")
                 .map(d => [d.duality, d.preset?.background ?? null]));
             return showForRoll.call(dice3d, roll, user, synchronize, users, blind, messageID);
@@ -81671,12 +81681,22 @@ const SCENARIOS = [
             throws.length = 0;
             await game.dice3d.showForRoll(own(), game.user, true);
             read.own = laidOf(throws);
+            const newest = L.lastThrowsSeen().at(-1) ?? null;
+            read.history = [newest?.laid === true, (newest?.dice ?? []).filter(d => d.duality === "hope" || d.duality === "fear").map(d => d.preset?.background ?? null)];
+            marks.length = 0;
+            await game.dice3d.showForRoll(own(), game.user, false, null, false, null, null, { ghost: true });
+            await game.dice3d.showForRoll(own(), game.user, false, null, false, null, null, { secret: true });
+            read.marks = marks.slice();
             await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, false);
             throws.length = 0;
             await game.dice3d.showForRoll(own(), game.user, true);
             read.off = laidOf(throws);
             await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, true);
             await wait(600);
+            // A stand-in (the end review's S-n4): the GM writes with `noHook` and Foundry's hook is called with the player's
+            // id, so this reads `onSwitchWritten`'s judgement of a write below full Gamemaster, not a write a player's
+            // browser made - Foundry lets no player write a world setting by default; at a table the guarded writer is an
+            // Assistant GM.
             const forged = { hope: { ...hope, background: "#123456" } };
             await game.settings.set(MODULE_ID, KEY, forged, { noHook: true });
             Hooks.callAll("updateSetting", { key: `${MODULE_ID}.${KEY}`, value: forged }, { value: forged }, {}, player.id);
@@ -81693,9 +81713,11 @@ const SCENARIOS = [
             await wait(600);
         }
         const laid = stableJson([["hope", hope.background], ["fear", fear.background]]);
-        equal(stableJson(read), stableJson({ copy: true, drawn: true, message: false, reroll: true, own: [laid], off: ["[]"], forged: true }),
-            "[the world's copy took the source's look; the drawn roll's throws laid; the message's own dice painted; the Reroll's throws laid; "
-            + "the GM's own throw; with the switch off; a player's write put back]");
+        equal(stableJson(read), stableJson({ copy: true, drawn: true, message: false, reroll: true, own: [laid],
+            history: [true, [hope.background, fear.background]], marks: [[true, true, false], [true, false, true]], off: ["[]"], forged: true }),
+            "[the world's copy took the source's look; the drawn roll's throws laid; the message's own dice painted (the harness's summary: "
+            + "cannot fail here); the Reroll's throws laid; the GM's own throw; the throw history's newest row (laid, its Hope and Fear dice's "
+            + "look); the laid copy of a ghost throw and of a secret one (laid, ghost, secret); with the switch off; a player's write put back]");
     }],
 
     ["E60-T17 - a GM sees a player's drawn dice only with that GM's Monokuma in the roller's room (E60 C5e; E60-18, Q-C5-4): with the Monokuma's token in the roller's room this GM's screen throws the drawn roll and its audience names this GM; moved out, no throw and this GM is not in its audience; the roller is in it either way, and the GM reads the roll's card either way", async () => {
