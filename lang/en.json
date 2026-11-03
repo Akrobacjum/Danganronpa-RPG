@@ -3337,7 +3337,57 @@
       "setByGm": "Your dice look is set by the GM.",
       "settingBack": "{name} changed the table's dice look settings, which only a full Gamemaster may change, so they were put back.",
       "settingBackUnheard": "The table's dice look settings were changed with no trace of who changed them, and only a full Gamemaster may change them, so they were put back.",
-      "stopped": "{name}'s dice look keeps changing straight back, so it is left as it is for a minute, then put back at its next change or throw."
+      "stopped": "{name}'s dice look keeps changing straight back, so it is left as it is for a minute, then put back at its next change or throw.",
+      "diag": {
+        "title": "Dice look",
+        "tile": "Dice look",
+        "introGm": "What this browser reads of every user's dice look. Another person's browser is read only on that browser: ask them to run game.drpg.diagnoseDiceLook() in the console and send you the text at the foot of the window.",
+        "introPlayer": "What this browser reads of your dice look. Copy the text at the foot of the window and send it to your GM.",
+        "who": "User",
+        "forcedHead": "The table's look",
+        "display": "Display",
+        "findings": "Why the dice may look different",
+        "forced": {
+          "off": "not forced: the setting is off",
+          "notForced": "their own: a full Gamemaster",
+          "unknown": "cannot be read here",
+          "held": "holds it",
+          "notHeld": "does not hold it"
+        },
+        "browser": "This browser",
+        "preset": "Daggerheart's Hope and Despair dice on this browser",
+        "presetNone": "none (Daggerheart 2.10 and later colour them by Dice So Nice roles)",
+        "dsnOff": "off",
+        "noPreset": "no preset",
+        "roll": "The roll read",
+        "audience": "Its dice were sent to",
+        "test": "Test throw",
+        "lastThrows": "Last throws on this browser",
+        "nothingFound": "Nothing found that makes this browser draw the dice differently.",
+        "die": {
+          "hope": "The Hope die",
+          "fear": "The Despair die",
+          "advantage": "The advantage die",
+          "disadvantage": "The disadvantage die"
+        },
+        "finding": {
+          "notForced": "{name} does not hold the table's dice look yet. The primary GM puts it back at their next change or throw.",
+          "fuseStopped": "{name}'s dice look kept changing back, so it is left as it is for a minute.",
+          "overlay": "A character of {name}'s carries a dice look of its own: {actors}.",
+          "onlyMine": "{name} has Dice So Nice's \"only my dice\" on, so nobody else's dice are drawn on their screen.",
+          "othersSfxOff": "{name} has other players' special effects switched off.",
+          "lowQuality": "{name} draws dice at low image quality.",
+          "presetDiffers": "{duality} of the roll read carries another preset than this browser's Daggerheart setting: it was thrown on another browser.",
+          "presetMissing": "{duality} of the roll read carries no Daggerheart preset, so it is drawn in its thrower's Dice So Nice look.",
+          "missingSystem": "Dice So Nice on this browser has no dice system \"{name}\", so dice that use it are drawn as standard dice here.",
+          "missingColorset": "Dice So Nice on this browser has no colorset \"{name}\", so dice that use it are drawn in a custom colour here.",
+          "missingTexture": "Dice So Nice on this browser has no texture \"{name}\", so dice that use it are drawn with no texture here.",
+          "missingMaterial": "Dice So Nice on this browser has no material \"{name}\", so dice that use it are drawn in the automatic material here.",
+          "dsnApiMoved": "Dice So Nice {version} on this browser has no ALL_CUSTOMIZATION, so the forced look copies the GM's saved look only, and each thrower fills what it lacks with their own colour.",
+          "rolesUnforced": "Daggerheart {version} colours its Hope and Despair dice by Dice So Nice roles, which the table's forced look does not set.",
+          "otherBrowser": "{name}'s browser is not read here. Ask them to run game.drpg.diagnoseDiceLook() and send you its text."
+        }
+      }
     },
     "RollDialog": {
       "locked": "Not yours to choose. Advantage and experiences are Hope Calls - ask the GM.",
@@ -5190,6 +5240,7 @@
         "hook-countdowns-render": "the countdown tray is drawn as Daggerheart draws it, and the HUD is not redrawn with it",
         "hook-dice-so-nice-ready": "the dice looks are not swept",
         "hook-dice-so-nice-message": "Dice So Nice throws such a roll on every screen, in the GM's colours",
+        "hook-dice-so-nice-roll-start": "the dice look's report names no throw seen on this browser",
         "hook-livekit-initialized": "the voice rooms, the voice tile and the trial's speakers do not follow the voice client",
         "hook-image-popout-header": "a room picture's window shows Foundry's share control and any a module adds",
         "user-permission-broadcast-audio": "nobody's microphone is blocked: the GM's button says why, and so does the trial",

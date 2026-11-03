@@ -175,7 +175,7 @@ The tiles, by section:
 
 | Section | Tiles |
 |---|---|
-| Right now (always open) | **Students** (alive / dead / Monocub, Hope for Monocubs, and one **Items** button at the foot of the window), **Projects**, **Sound**, **Killing game rules** |
+| Right now (always open) | **Students** (alive / dead / Monocub, Hope for Monocubs, and one **Items** button at the foot of the window), **Projects**, **Sound**, **Killing game rules**, **Dice look** (why the dice look different between browsers: `diagnoseDiceLook()`, below; since 1.2.98) |
 | The case (Daily Life, Investigation, Class Trial) | **Murder** (greyed out during an Eclipse), **Investigation** dashboard, **Class Trial** console |
 | Between sessions (collapsed) | **Edit campaign**, **Despair Flow**, **Room Setup**, **Item tables**, **Re-send everybody's voice room**, **Set the season up**, **The Mastermind**, **End the chapter**, **Reset the season** (red) |
 | Diagnostics (collapsed, dim) | **Debug log** - everything this browser has failed at since the page loaded, with Copy and Clear |
@@ -1058,7 +1058,7 @@ The **pre-session note** in the messenger (seven questions a player answers befo
 
 Everything is under `game.drpg` in the browser console; actor arguments accept a document, an id or a name.
 
-**One report for whoever is helping you.** `game.drpg.diagnose()` opens a window with everything this browser can check, as one text, and returns the same text, so a macro has it too. The window's **Copy report** puts it on the clipboard, to paste wherever somebody is helping you. The text is English, like the console, and its parts come in this order: The contract with Foundry, Daggerheart and the modules; Data migration; Failures since this page loaded; Silenced warnings; Dice; Despair; Styles; Windows; Truth Bullets; GM stores; Voice; Characters; Scenes; Fog; Room visibility; Token frames; Windows that keep themselves true; Music; Sound effects; Private cards; Traps. On a player's browser the parts that read what only GMs may know (Despair, Truth Bullets, GM stores, Characters, Scenes, Room visibility, Music, Traps) are named and say *GM only*; nothing of the GMs' is in a player's report. The window also lists the warnings this browser silenced, each by its id with **Show again**; the one the module keeps is the warning that Daggerheart is newer than the version the module was tested on, silenced for that version. Every `diagnose...()` call below is one part of this report on its own.
+**One report for whoever is helping you.** `game.drpg.diagnose()` opens a window with everything this browser can check, as one text, and returns the same text, so a macro has it too. The window's **Copy report** puts it on the clipboard, to paste wherever somebody is helping you. The text is English, like the console, and its parts come in this order: The contract with Foundry, Daggerheart and the modules; Data migration; Failures since this page loaded; Silenced warnings; Dice; Dice look; Despair; Styles; Windows; Truth Bullets; GM stores; Voice; Characters; Scenes; Fog; Room visibility; Token frames; Windows that keep themselves true; Music; Sound effects; Private cards; Traps. On a player's browser the parts that read what only GMs may know (Despair, Truth Bullets, GM stores, Characters, Scenes, Room visibility, Music, Traps) are named and say *GM only*; nothing of the GMs' is in a player's report. The window also lists the warnings this browser silenced, each by its id with **Show again**; the one the module keeps is the warning that Daggerheart is newer than the version the module was tested on, silenced for that version. Every `diagnose...()` call below is one part of this report on its own.
 
 **The regression suite.**
 
@@ -1088,7 +1088,7 @@ The result is a "passed, failed, skipped" count - with ", red until a later stag
 | `seedDiscovery()` | records the room every character already stands in |
 | `diagnoseVisibility()` | on the complaining client, explains why a token in another room is visible |
 
-**Despair and dice.** `diagnoseDespair()` and `diagnoseDice()`; `diagnoseCharacters()` is the setup report. Despair not arriving usually means no primary GM connected, *Rolls grant Despair* off, or the roll was a reaction. Since 1.2.65 a roll the module throws names nobody on its document (section 1), and the primary GM's browser learns whose it was from the roller's browser; when that word is lost to a reload, the roll counts for the roller's one living character, and without one it awards no Despair.
+**Despair and dice.** `diagnoseDespair()` and `diagnoseDice()`; `diagnoseCharacters()` is the setup report. When the dice look different on two screens, each person runs `diagnoseDiceLook()` on their own browser (a GM also through the panel's **Dice look** tile, since 1.2.98): it reads only that browser - its Dice So Nice and Daggerheart versions, its display, its Hope and Despair preset, the names it lacks, the last roll's dice - and on a GM every user's Dice So Nice settings and whether they hold the table's look; a player copies the text at the foot of its window and sends it to the GM. `diagnoseDiceLook({ test: true })` also throws a Hope and a Despair die on that screen alone. Despair not arriving usually means no primary GM connected, *Rolls grant Despair* off, or the roll was a reaction. Since 1.2.65 a roll the module throws names nobody on its document (section 1), and the primary GM's browser learns whose it was from the roller's browser; when that word is lost to a reload, the roll counts for the roller's one living character, and without one it awards no Despair.
 
 **Other tools.** `diagnoseVoice()`, `diagnoseSfx()`, `testSfx()`, `diagnoseMusic()`, and:
 
@@ -1142,6 +1142,7 @@ The result is a "passed, failed, skipped" count - with ", red until a later stag
 | `hook-countdowns-render` | the countdown tray is drawn as Daggerheart draws it, and the HUD is not redrawn with it |
 | `hook-dice-so-nice-ready` | the dice looks are not swept |
 | `hook-dice-so-nice-message` | Dice So Nice throws such a roll on every screen, in the GM's colours |
+| `hook-dice-so-nice-roll-start` | the dice look's report names no throw seen on this browser |
 | `hook-livekit-initialized` | the voice rooms, the voice tile and the trial's speakers do not follow the voice client |
 | `hook-image-popout-header` | a room picture's window shows Foundry's share control and any a module adds |
 | `user-permission-broadcast-audio` | nobody's microphone is blocked: the GM's button says why, and so does the trial |

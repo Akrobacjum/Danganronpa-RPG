@@ -19809,6 +19809,36 @@ const REGRESSIONS = [
             "[the panel's family's names of the public roll; DRPG.Panel.publicRoll's keys in English and in Polish; the two keys private-rolls.mjs "
             + "does not read; api.mjs names publicRoll, game.drpg.publicRoll's kind, the surface's row]");
     }],
+
+    ["R1296 - the dice look in the report asks nobody (E60 C5b; E60-15): diagnostics.mjs `REPORT_SECTIONS` has a part `diceLook` covering `diagnoseDiceLook`, run on a player too; dice-look.mjs's code names no socket, emit, chat message or write of a document, a flag or a setting; and the part run here sends no packet and posts no message", async () => {
+        /*
+         * E60 C5b, 03.11.2026; the owner's answer of 03.11 ("lekka"): the dice look is read by each browser of itself, and
+         * nothing is asked of another browser - no bridge row, no socket. R1550 holds every exported diagnose* to a part of
+         * the report; this holds the part to its promise. Read: the part's row; dice-look.mjs, comments and literals blanked,
+         * for `socket`, `.emit(`, `ChatMessage`, `toMessage(`, `.create(`, `.update(`, `.delete(`, `setFlag(`, `unsetFlag(`
+         * and `settings.set(`; then the part run with `game.socket.emit` counted and the messages counted. Red before C5b: no
+         * part, no file. Mutant c5b-m7 (the part asks the players over the socket) reads red here.
+         */
+        const D = await import("./diagnostics.mjs");
+        const part = D.REPORT_SECTIONS.find(s => s.id === "diceLook") ?? null;
+        const sources = await moduleSources();
+        const raw = sources.get("dice-look.mjs") ?? "";
+        const bare = blankLiterals(blankComments(raw));
+        const writes = ["socket", ".emit(", "ChatMessage", "toMessage(", ".create(", ".update(", ".delete(", "setFlag(", "unsetFlag(", "settings.set("]
+            .filter(word => bare.includes(word));
+        let emitted = 0, text = null;
+        const before = game.messages.size;
+        const emit = game.socket.emit;
+        if (part) {
+            game.socket.emit = (...args) => { emitted++; return emit.apply(game.socket, args); };
+            try { text = await part.run({ gm: true }); } finally { game.socket.emit = emit; }
+        }
+        equal(JSON.stringify({
+            part: part ? [part.covers, part.gmOnly] : null, file: raw.length > 2000, writes, emitted, messages: game.messages.size - before,
+            text: typeof text === "string" && text.length > 0
+        }), JSON.stringify({ part: [["diagnoseDiceLook"], false], file: true, writes: [], emitted: 0, messages: 0, text: true }),
+            "[the report's diceLook part (covers, GM only); dice-look.mjs read; the writes and sends its code names; packets sent; messages posted; the part's text]");
+    }],
 ];
 
 

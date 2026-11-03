@@ -4,6 +4,7 @@
  * Answers "why isn't this working" without guesswork. Run from the console:
  *
  *     game.drpg.diagnoseDice()        dice skins
+ *     game.drpg.diagnoseDiceLook()    why the dice look differ between browsers (dice-look.mjs)
  *     game.drpg.diagnoseDespair()     Despair from rolls
  *     game.drpg.diagnoseCharacters()  who has not been set up yet
  *     game.drpg.diagnose()            all of them as one report, with Copy report
@@ -137,11 +138,15 @@ export function diagnoseDice({ toChat = true, gm = game.user?.isGM === true } = 
         appearance = null;
     }
 
+    // The preset is Daggerheart 2.9's and older's, a client setting read on this browser alone (E60 C5b; 2.9.4
+    // settings.mjs registers Appearance `scope: 'client'`); from 2.10 the Hope and Despair dice are Dice So Nice roles.
     const dsnConfig = appearance?.diceSoNiceData ?? appearance?.diceSoNice;
+    const dh = `Daggerheart ${game.system?.version ?? "?"}`;
     if (!dsnConfig) {
-        lines.push("Could not read Daggerheart's Appearance settings.");
+        lines.push(`${dh}: no Hope/Despair preset here - from 2.10 the look is Dice So Nice roles; see game.drpg.diagnoseDiceLook().`);
         return report("Dice diagnostics", lines, { toChat });
     }
+    lines.push(`${dh} (2.9 and older): the Hope/Despair preset below is this browser's own; another browser may hold another - game.drpg.diagnoseDiceLook() there.`);
 
     for (const key of ["hope", "fear"]) {
         const chosen = dsnConfig[key]?.system;
@@ -2103,6 +2108,8 @@ export const REPORT_SECTIONS = Object.freeze([
     part("failures", "Failures since this page loaded", [], () => failureText()),
     part("silences", "Silenced warnings", [], () => silenceText()),
     part("dice", "Dice", ["diagnoseDice"], ({ gm }) => diagnoseDice({ toChat: false, gm })),
+    // E60 C5b: this browser's own dice look, read here; nothing is asked of another browser (R1296).
+    part("diceLook", "Dice look", ["diagnoseDiceLook"], async ({ gm }) => (await import("./dice-look.mjs")).diceLookLines({ gm })),
     part("despair", "Despair", ["diagnoseDespair"], () => diagnoseDespair({ toChat: false }), { gmOnly: true }),
     part("styles", "Styles", ["diagnoseStyles"], () => diagnoseStyles({ toChat: false })),
     part("windows", "Windows", ["diagnoseWindows"], () => diagnoseWindows({ toChat: false })),

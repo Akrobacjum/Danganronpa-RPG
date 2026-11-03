@@ -343,6 +343,7 @@
     "explainStatus": "function",
     "explainProjects": "function",
     "diagnoseDice": "function",
+    "diagnoseDiceLook": "function",
     "rollFlags": "function",
     "sheetWrites": "function",
     "publicRoll": "function",

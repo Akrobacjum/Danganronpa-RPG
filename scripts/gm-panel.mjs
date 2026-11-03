@@ -213,7 +213,11 @@ const PANEL_SECTIONS = [
             { key: "sound", icon: "fa-volume-high", labelKey: "DRPG.Sound.title",
               run: () => import("./music.mjs").then(m => m.openSoundDialog()) },
             { key: "rules", icon: "fa-gavel", labelKey: "DRPG.Rules.manageTitle",
-              run: () => import("./rules.mjs").then(m => m.openRulesManager()) }
+              run: () => import("./rules.mjs").then(m => m.openRulesManager()) },
+            // WHY THE DICE LOOK DIFFERENT (E60 C5b, 03.11.2026), where Public roll stood: this browser's read of
+            // every user's dice look (dice-look.mjs `diagnoseDiceLook`); each player runs it on their own browser.
+            { key: "diceLook", icon: "fa-dice-d20", labelKey: "DRPG.DiceLook.diag.tile",
+              run: () => import("./dice-look.mjs").then(m => m.diagnoseDiceLook()) }
             // GONE FROM HERE:
             //   Public roll - removed (the owner, 03.11.2026: "Usunmy funkcje public roll
             //     z gm panel"; E60 C5a). E33 C12 put it here with its window; the roll

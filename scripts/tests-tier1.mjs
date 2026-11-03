@@ -32100,6 +32100,104 @@ const INVARIANTS = [
             + "the Found column (nobody, Aiko, nobody); bandOptions's options; the GM's card: a band select, of bandOptions, written "
             + "through setRemnantFlags with visibility and marked edited; the player's card: no band to change, and read]");
     }],
+
+    ["R1294 - the dice look's findings (E60 C5b; E60-14): dice-look.mjs `lookFindings(view)` raises each code of its closed list from its own fact alone - a forced user not holding the table's look, its fuse stopped, a character's overlay, \"only my dice\", others' effects off, low image quality, a duality die's preset differing from this browser's Daggerheart preset, a duality die with no preset, a system, colorset, texture or material not registered here, Dice So Nice without ALL_CUSTOMIZATION, Daggerheart's roles, another user's browser on a GM's run - and a clean view raises none", async () => {
+        /*
+         * E60 C5b, 03.11.2026; the owner's "Kostki ... wyglad miedzy graczami sie nie zgadzaja ... Potrzebujemy diagnostyki"
+         * and his answer of 03.11 (C5b light: each browser reads itself, nothing is asked of another). `lookFindings` judges
+         * one run's view (`lookView`): a row per user it may read and this browser's own report. Here a clean view - one
+         * player who holds the table's look, sees everyone's dice and effects at high quality, a roll whose Hope and Fear
+         * dice carry this browser's own preset, nothing missing, Dice So Nice 6.2.9 and Daggerheart 2.9.4 - raises nothing,
+         * and each fact planted alone raises its code alone, with words. Red before C5b: no dice-look.mjs. Mutant c5b-m6
+         * (`presetMissing` raised for a die that carries a preset) reads red here.
+         */
+        const L = await import("./dice-look.mjs");
+        {
+            ok(typeof L.lookFindings === "function" && Array.isArray(L.LOOK_CODES), "dice-look.mjs exports no lookFindings or LOOK_CODES");
+            if (typeof L.lookFindings !== "function") return;
+            const hope = { system: "standard", colorset: "inspired", texture: "astralsea", material: "metal", font: "auto", foreground: "#ffffff", background: "#ffe760" };
+            const fear = { ...hope, foreground: "#000000", background: "#0032b1" };
+            const die = (cls, duality, preset) => ({ class: cls, faces: 12, modifiers: [], duality, preset, modelFile: null, role: null });
+            const user = (id, here) => ({ id, name: `R1294 ${id}`, here, gm: false, active: true, forced: true, holds: true, stopped: null, overlays: [],
+                display: { visibility: "all", showOthersSFX: true, imageQuality: "high", read: true } });
+            const clean = () => ({
+                gm: false, me: "u1", forcing: true, sourceId: "g1", users: [user("u1", true)],
+                browser: { module: "1.2.98", foundry: "14.360", system: { id: "daggerheart", version: "2.9.4", roles: false },
+                    dsn: { version: "6.2.9", active: true, ready: true, api: { allCustomization: true } },
+                    display: { visibility: "all", showOthersSFX: true, imageQuality: "high", read: true },
+                    dhPreset: { hope, fear, advantage: null, disadvantage: null }, registry: { missing: [] }, lastThrows: [] },
+                roll: { messageId: "m1", by: "u1", dice: [die("HopeDie", "hope", { ...hope }), die("FearDie", "fear", { ...fear })], audience: null }
+            });
+            const planted = {
+                notForced: v => { v.users[0].holds = false; },
+                fuseStopped: v => { v.users[0].stopped = true; },
+                overlay: v => { v.users[0].overlays = ["R1294 Aiko"]; },
+                onlyMine: v => { v.users[0].display.visibility = "mine"; },
+                othersSfxOff: v => { v.users[0].display.showOthersSFX = false; },
+                lowQuality: v => { v.users[0].display.imageQuality = "low"; },
+                presetDiffers: v => { v.roll.dice[0].preset.colorset = "spectrum"; },
+                presetMissing: v => { v.roll.dice[1].preset = null; },
+                missingSystem: v => { v.browser.registry.missing = [{ kind: "system", name: "R1294 dots" }]; },
+                missingColorset: v => { v.browser.registry.missing = [{ kind: "colorset", name: "R1294 neon" }]; },
+                missingTexture: v => { v.browser.registry.missing = [{ kind: "texture", name: "R1294 skulls" }]; },
+                missingMaterial: v => { v.browser.registry.missing = [{ kind: "material", name: "R1294 glass" }]; },
+                dsnApiMoved: v => { v.browser.dsn.api.allCustomization = false; v.browser.dsn.version = "6.4.4"; },
+                rolesUnforced: v => { v.browser.system.roles = true; v.browser.system.version = "2.12.4"; v.browser.dhPreset = null; },
+                otherBrowser: v => { v.gm = true; v.users.push(user("u2", false)); }
+            };
+            const read = view => L.lookFindings(view);
+            const codes = view => read(view).map(f => f.code).sort();
+            const words = Object.entries(planted).flatMap(([code, plant]) => {
+                const view = clean();
+                plant(view);
+                return read(view).filter(f => !f.words || f.words.startsWith("DRPG.")).map(() => code);
+            });
+            equal(stableJson({
+                list: [...L.LOOK_CODES].sort(),
+                clean: codes(clean()),
+                planted: Object.fromEntries(Object.entries(planted).map(([code, plant]) => { const view = clean(); plant(view); return [code, codes(view)]; })),
+                wordless: words
+            }), stableJson({
+                list: Object.keys(planted).sort(),
+                clean: [],
+                planted: Object.fromEntries(Object.keys(planted).map(code => [code, [code]])),
+                wordless: []
+            }), "[the closed list; the clean view's codes; each planted fact's codes; a finding with no words]");
+        }
+    }],
+
+    ["R1295 - a throw's look (E60 C5b; E60-14): dice-look.mjs `throwLook` reads per die of a roll's JSON its class, faces, modifiers, which duality die it is (by its class, or a Daggerheart modifier on a plain die), the preset its options carry (Daggerheart's names and colours, none for a die with no `options.appearance`), its model file and its role, and leaves the numbers out", async () => {
+        /*
+         * E60 C5b, 03.11.2026. Daggerheart 2.9.4 lays its Hope/Despair preset on a die's options when the die is evaluated
+         * (baseDie.mjs `#setDualityDiePreset`: `this.options = await getDiceSoNicePreset(...)`, which answers `{ modelFile,
+         * appearance: { ...system.appearance, ...type } }`), on the browser that evaluates it, and the preset travels in the
+         * roll's JSON. Whether a throw's dice carried one, and which, is what the diagnostic reads off a message and off each
+         * throw Dice So Nice is handed here. A fixed roll: a HopeDie with Daggerheart's preset, a FearDie with none, a plain
+         * d12 with the `a` modifier, a d6. Red before C5b: no dice-look.mjs.
+         */
+        const L = await import("./dice-look.mjs");
+        {
+            ok(typeof L.throwLook === "function", "dice-look.mjs exports no throwLook");
+            if (typeof L.throwLook !== "function") return;
+            const preset = { system: "standard", colorset: "inspired", texture: "astralsea", material: "metal", font: "auto",
+                foreground: "#ffffff", background: "#ffe760", outline: "#000000", edge: "#ffffff", sfx: { higher: { class: null } } };
+            const term = (cls, faces, modifiers, options) => ({ class: cls, options, evaluated: true, number: 1, faces, modifiers, results: [{ result: 7, active: true }] });
+            const json = { class: "Roll", options: {}, evaluated: true, formula: "1d12 + 1d12 + 1d12a + 1d6", terms: [
+                term("HopeDie", 12, ["h"], { appearance: preset, modelFile: "R1295/d12.glb" }), { class: "OperatorTerm", operator: "+" },
+                term("FearDie", 12, ["f"], {}), { class: "OperatorTerm", operator: "+" },
+                term("Die", 12, ["a"], { role: "R1295 role" }), { class: "OperatorTerm", operator: "+" }, term("Die", 6, [], {})
+            ] };
+            const row = (cls, faces, modifiers, duality, p, modelFile = null, role = null) => ({ class: cls, faces, modifiers, duality, preset: p, modelFile, role });
+            equal(stableJson(L.throwLook(json)), stableJson([
+                row("HopeDie", 12, ["h"], "hope", { system: "standard", colorset: "inspired", texture: "astralsea", material: "metal", font: "auto",
+                    foreground: "#ffffff", background: "#ffe760", outline: "#000000", edge: "#ffffff" }, "R1295/d12.glb"),
+                row("FearDie", 12, ["f"], "fear", null),
+                row("Die", 12, ["a"], "advantage", null, null, "R1295 role"),
+                row("Die", 6, [], null, null)
+            ]), "[per die: class, faces, modifiers, duality, preset, model file, role]");
+            equal(stableJson([L.throwLook(null), L.throwLook({ terms: [] })]), stableJson([[], []]), "a missing or empty roll is read as dice");
+        }
+    }],
 ];
 
 /**

@@ -81505,6 +81505,73 @@ const SCENARIOS = [
             "[the receiver's copies of the shared trace; the two hand-overs' answers; the receiver's copies of the given trace; "
             + "whether the find made its bullet; what the give answered]");
     }],
+
+    ["E60-T14 - the dice look read by each browser of itself (E60 C5b; E60-14, E60-15): `game.drpg.diagnoseDiceLook()` on the GM reads a row for every user and names each other user's browser as not read here; a player's run (stood in) reads its own row alone, with no audience and no read of the GMs' store; neither run sends a packet, posts a message or writes a user, an actor or a setting; the test throw is a Hope and a Fear d12 thrown on this screen alone, as this user's and not synchronised", async () => {
+        /*
+         * E60 C5b, 03.11.2026; the owner's answer of 03.11 ("lekka"): no bridge row, no socket - each person runs the
+         * diagnostic on their own browser and sends the GM its text. Here, on the GM: one run as the GM, then one stood in
+         * for a player (`gm: false`, `user`: a connected player, as R1551 stands in), with the test throw. Counted while
+         * they run: `game.socket.emit`, the messages, the `updateUser`, `updateActor` and `updateSetting` hooks, every GM
+         * store read (`gmStoreHandles`, put back after), and Dice So Nice's `showForRoll` (stood in, put back after). Red
+         * before C5b: no `diagnoseDiceLook`. Mutant c5b-m5 (the player's run reads every user's row) reads red here.
+         */
+        const player = game.users.find(u => !u.isGM && u.active) ?? game.users.find(u => !u.isGM) ?? null;
+        must(player, "no player user - this would measure nothing");
+        ok(typeof game.drpg?.diagnoseDiceLook === "function", "game.drpg has no diagnoseDiceLook");
+        if (typeof game.drpg?.diagnoseDiceLook !== "function") return;
+        const L = await import("./dice-look.mjs");
+        const { gmStoreHandles } = await import("./gm-store.mjs");
+        let emitted = 0;
+        const hooked = [], storeReads = [], shown = [], undo = [];
+        const emit = game.socket.emit;
+        game.socket.emit = (...args) => { emitted++; return emit.apply(game.socket, args); };
+        undo.push(() => { game.socket.emit = emit; });
+        for (const hook of ["updateUser", "updateActor", "updateSetting", "createSetting", "createChatMessage"]) {
+            const heard = () => hooked.push(hook);
+            Hooks.on(hook, heard);
+            undo.push(() => Hooks.off(hook, heard));
+        }
+        const dice3d = game.dice3d, showForRoll = dice3d?.showForRoll;
+        if (dice3d) {
+            dice3d.showForRoll = async (roll, user, synchronize = false) => { shown.push({ user: user?.id ?? null, synchronize: Boolean(synchronize), dice: roll?.dice?.length ?? 0 }); return true; };
+            undo.push(() => { dice3d.showForRoll = showForRoll; });
+        }
+        let gmRun = null, playerRun = null, playerReads = [];
+        try {
+            gmRun = await game.drpg.diagnoseDiceLook({ show: false });
+            for (const handle of gmStoreHandles()) {
+                for (const key of ["get", "has", "entries"]) {
+                    const original = handle[key];
+                    if (typeof original !== "function") continue;
+                    undo.push(() => { handle[key] = original; });
+                    handle[key] = (...args) => { storeReads.push(`${handle.name}.${key}`); return original(...args); };
+                }
+            }
+            playerRun = await L.diagnoseDiceLook({ show: false, test: true, gm: false, user: player });
+            // The fog's discovery ledger picks the GMs' store by `game.user.isGM` (R1551's note): not this run's.
+            playerReads = [...new Set(storeReads)].filter(read => !read.startsWith("discovery."));
+        } finally {
+            for (const put of undo.reverse()) put();
+        }
+        const others = game.users.contents.filter(u => u.id !== game.user.id).map(u => u.id).sort();
+        equal(stableJson({
+            gmRows: (gmRun?.view?.users ?? []).map(u => u.id).sort(),
+            gmOthers: (gmRun?.findings ?? []).filter(f => f.code === "otherBrowser").map(f => f.userId).sort(),
+            playerRows: (playerRun?.view?.users ?? []).map(u => u.id),
+            playerAudience: playerRun?.view?.roll?.audience ?? null,
+            playerFindingsOf: [...new Set((playerRun?.findings ?? []).map(f => f.userId))].filter(id => id !== player.id),
+            playerReads, emitted, hooked,
+            test: (playerRun?.view?.test?.dice ?? []).map(d => [d.duality, d.faces]),
+            shown: shown.map(s => [s.user, s.synchronize, s.dice])
+        }), stableJson({
+            gmRows: game.users.contents.map(u => u.id).sort(), gmOthers: others,
+            playerRows: [player.id], playerAudience: null, playerFindingsOf: [],
+            playerReads: [], emitted: 0, hooked: [],
+            test: [["hope", 12], ["fear", 12]],
+            shown: dice3d ? [[game.user.id, false, 2]] : []
+        }), "[the GM's rows; the users the GM's run names as not read here; the player's rows; its audience; findings about another user; "
+            + "the GMs' store reads in the player's run; packets sent; hooks heard; the test throw's dice; the throws shown]");
+    }],
     ...GRID
 ];
 

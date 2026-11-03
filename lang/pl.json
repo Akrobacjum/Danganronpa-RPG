@@ -3659,7 +3659,57 @@
       "setByGm": "Twój wygląd kości ustala GM.",
       "settingBack": "{name}: zmiana ustawień wyglądu kości przy stole cofnięta - zmienić je może tylko pełny Gamemaster.",
       "settingBackUnheard": "Ustawienia wyglądu kości przy stole zmieniono, nie wiadomo przez kogo, a zmienić je może tylko pełny Gamemaster, więc je cofnięto.",
-      "stopped": "{name}: wygląd kości wciąż od razu zmienia się z powrotem, więc przez minutę zostaje taki, jaki jest, a potem zostaje cofnięty przy najbliższej zmianie albo rzucie."
+      "stopped": "{name}: wygląd kości wciąż od razu zmienia się z powrotem, więc przez minutę zostaje taki, jaki jest, a potem zostaje cofnięty przy najbliższej zmianie albo rzucie.",
+      "diag": {
+        "title": "Wygląd kości",
+        "tile": "Wygląd kości",
+        "introGm": "Co ta przeglądarka odczytuje z wyglądu kości każdego użytkownika. Przeglądarkę innej osoby odczytuje się tylko na niej: poproś, by wpisała w konsoli game.drpg.diagnoseDiceLook() i przesłała ci tekst z dołu okna.",
+        "introPlayer": "Co ta przeglądarka odczytuje z wyglądu twoich kości. Skopiuj tekst z dołu okna i wyślij go GM-owi.",
+        "who": "Użytkownik",
+        "forcedHead": "Wygląd stołu",
+        "display": "Wyświetlanie",
+        "findings": "Dlaczego kości mogą wyglądać inaczej",
+        "forced": {
+          "off": "niewymuszony: ustawienie jest wyłączone",
+          "notForced": "własny: pełny Gamemaster",
+          "unknown": "nie da się tu odczytać",
+          "held": "ma go",
+          "notHeld": "nie ma go"
+        },
+        "browser": "Ta przeglądarka",
+        "preset": "Kości Hope i Despair Daggerhearta w tej przeglądarce",
+        "presetNone": "brak (Daggerheart 2.10 i nowszy koloruje je rolami Dice So Nice)",
+        "dsnOff": "wyłączony",
+        "noPreset": "bez presetu",
+        "roll": "Odczytany rzut",
+        "audience": "Jego kości wysłano do",
+        "test": "Rzut próbny",
+        "lastThrows": "Ostatnie rzuty w tej przeglądarce",
+        "nothingFound": "Nie znaleziono niczego, przez co ta przeglądarka rysowałaby kości inaczej.",
+        "die": {
+          "hope": "Kość Hope",
+          "fear": "Kość Despair",
+          "advantage": "Kość przewagi",
+          "disadvantage": "Kość utrudnienia"
+        },
+        "finding": {
+          "notForced": "{name} nie ma jeszcze wyglądu kości stołu. Główny GM przywróci go przy najbliższej zmianie albo rzucie.",
+          "fuseStopped": "Wygląd kości użytkownika {name} wciąż się zmieniał z powrotem, więc na minutę zostaje bez zmian.",
+          "overlay": "Postać użytkownika {name} ma własny wygląd kości: {actors}.",
+          "onlyMine": "{name} ma włączone w Dice So Nice „tylko moje kości”, więc na jego ekranie nie rysują się niczyje inne kości.",
+          "othersSfxOff": "{name} ma wyłączone efekty specjalne innych graczy.",
+          "lowQuality": "{name} rysuje kości w niskiej jakości obrazu.",
+          "presetDiffers": "{duality} odczytanego rzutu ma inny preset niż ustawienie Daggerhearta w tej przeglądarce: rzucono ją w innej przeglądarce.",
+          "presetMissing": "{duality} odczytanego rzutu nie ma presetu Daggerhearta, więc rysuje się w wyglądzie Dice So Nice osoby, która rzuca.",
+          "missingSystem": "Dice So Nice w tej przeglądarce nie ma systemu kości „{name}”, więc kości, które go używają, rysują się tu jako standardowe.",
+          "missingColorset": "Dice So Nice w tej przeglądarce nie ma zestawu kolorów „{name}”, więc kości, które go używają, rysują się tu we własnym kolorze.",
+          "missingTexture": "Dice So Nice w tej przeglądarce nie ma tekstury „{name}”, więc kości, które jej używają, rysują się tu bez tekstury.",
+          "missingMaterial": "Dice So Nice w tej przeglądarce nie ma materiału „{name}”, więc kości, które go używają, rysują się tu z materiałem automatycznym.",
+          "dsnApiMoved": "Dice So Nice {version} w tej przeglądarce nie ma ALL_CUSTOMIZATION, więc wymuszony wygląd kopiuje tylko zapisany wygląd GM-a, a czego w nim brakuje, każdy rzucający uzupełnia własnym kolorem.",
+          "rolesUnforced": "Daggerheart {version} koloruje kości Hope i Despair rolami Dice So Nice, których wymuszony wygląd stołu nie ustawia.",
+          "otherBrowser": "Przeglądarki użytkownika {name} nie odczytuje się tutaj. Poproś, by uruchomił game.drpg.diagnoseDiceLook() i przesłał ci tekst."
+        }
+      }
     },
     "RollDialog": {
       "locked": "Nie ty o tym decydujesz. Przewaga i doświadczenia to Hope Calls - zapytaj GM-a.",
@@ -6883,6 +6933,7 @@
         "hook-countdowns-render": "taca odliczań jest rysowana tak, jak rysuje ją Daggerheart, a HUD nie jest przerysowywany razem z nią",
         "hook-dice-so-nice-ready": "wyglądy kości nie są porządkowane",
         "hook-dice-so-nice-message": "Dice So Nice rzuca taki rzut na każdym ekranie, w kolorach GM-a",
+        "hook-dice-so-nice-roll-start": "raport wyglądu kości nie wymienia żadnego rzutu widzianego w tej przeglądarce",
         "hook-livekit-initialized": "pokoje głosowe, kafel głosu i mówcy rozprawy nie podążają za klientem głosu",
         "hook-image-popout-header": "okno zdjęcia pokoju pokazuje przycisk udostępniania Foundry i każdy, który doda moduł",
         "user-permission-broadcast-audio": "niczyj mikrofon nie jest blokowany: przycisk GM-a mówi dlaczego, rozprawa również",

@@ -553,6 +553,11 @@ function lookSource({ write = false } = {}) {
 
 const isSource = user => Boolean(user) && lookSource()?.id === user.id;
 
+/** The full Gamemaster whose look is the table's, as `lookSource` names it, written nowhere: dice-look.mjs's read (E60 C5b). */
+export function tableLookSource() {
+    return lookSource();
+}
+
 /** The id `diceLookSource` holds, as written, or null. */
 function namedSourceId() {
     try { return game.settings.get(MODULE_ID, SETTINGS.diceLookSource) || null; } catch { return null; }
@@ -789,6 +794,14 @@ function stopped(key) {
     blown.delete(key);
     putBacks.delete(key);
     return false;
+}
+
+/**
+ * Whether the fuse holds a user's put-back stopped now, read without re-arming it (`stopped` re-arms past the window):
+ * dice-look.mjs's read (E60 C5b). Memory of this browser's, so false on any browser but the primary that blew it.
+ */
+export function fuseStoppedFor(key) {
+    return blown.has(key) && Date.now() - ((putBacks.get(key) ?? []).at(-1) ?? 0) < FUSE_WINDOW_MS;
 }
 
 /** An actor's overlay as its flags hold it, or null for none. */

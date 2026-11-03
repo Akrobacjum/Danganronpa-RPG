@@ -175,7 +175,7 @@ Kafelki, według sekcji:
 
 | Sekcja | Kafelki |
 |---|---|
-| Teraz (zawsze otwarta) | **Uczniowie** (żyje / nie żyje / Monocub, Hope Monocubów i jeden przycisk **Przedmioty** u dołu okna), **Projects**, **Dźwięk**, **Zasady killing game** |
+| Teraz (zawsze otwarta) | **Uczniowie** (żyje / nie żyje / Monocub, Hope Monocubów i jeden przycisk **Przedmioty** u dołu okna), **Projects**, **Dźwięk**, **Zasady killing game**, **Wygląd kości** (dlaczego kości wyglądają inaczej w różnych przeglądarkach: `diagnoseDiceLook()`, niżej; od 1.2.98) |
 | Sprawa (Daily Life, Investigation, Class Trial) | **Morderstwo** (wyszarzone podczas Eclipse), pulpit **Investigation**, konsola **Class Trial** |
 | Między sesjami (zwinięta) | **Edytuj kampanię**, **Despair Flow**, **Ustawienia pokoi**, **Tabele przedmiotów**, **Wyślij wszystkim ponownie ich pokój głosowy**, **Ustaw sezon**, **Mastermind**, **Zakończ rozdział**, **Zresetuj sezon** (czerwony) |
 | Diagnostyka (zwinięta, przyciemniona) | **Dziennik debugowania** - wszystko, co w tej przeglądarce poszło nie tak od załadowania strony, z Kopiuj i Wyczyść |
@@ -1058,7 +1058,7 @@ Nikomu innemu nie mówi się kto: naciśnięcie gracza prosi przeglądarkę gł�
 
 Wszystko jest pod `game.drpg` w konsoli przeglądarki; argumenty aktora przyjmują dokument, id albo nazwę.
 
-**Jeden raport dla tego, kto ci pomaga.** `game.drpg.diagnose()` otwiera okno ze wszystkim, co ta przeglądarka potrafi sprawdzić, jako jeden tekst, i zwraca ten sam tekst, więc makro też go ma. Przycisk **Kopiuj raport** w oknie wkłada go do schowka, żeby wkleić tam, gdzie ktoś ci pomaga. Tekst jest po angielsku, jak konsola, a jego części idą w tej kolejności: The contract with Foundry, Daggerheart and the modules; Data migration; Failures since this page loaded; Silenced warnings; Dice; Despair; Styles; Windows; Truth Bullets; GM stores; Voice; Characters; Scenes; Fog; Room visibility; Token frames; Windows that keep themselves true; Music; Sound effects; Private cards; Traps. W przeglądarce gracza części czytające to, co wolno wiedzieć tylko GM-om (Despair, Truth Bullets, GM stores, Characters, Scenes, Room visibility, Music, Traps), są wymienione i mówią *GM only*; nic z tego, co należy do GM-ów, nie trafia do raportu gracza. Okno wylicza też ostrzeżenia, które ta przeglądarka wyciszyła, każde po swoim id z przyciskiem **Pokaż znowu**; moduł trzyma jedno: ostrzeżenie, że Daggerheart jest nowszy od wersji, na której moduł testowano, wyciszone dla tej wersji. Każde wywołanie `diagnose...()` poniżej to jedna część tego raportu osobno.
+**Jeden raport dla tego, kto ci pomaga.** `game.drpg.diagnose()` otwiera okno ze wszystkim, co ta przeglądarka potrafi sprawdzić, jako jeden tekst, i zwraca ten sam tekst, więc makro też go ma. Przycisk **Kopiuj raport** w oknie wkłada go do schowka, żeby wkleić tam, gdzie ktoś ci pomaga. Tekst jest po angielsku, jak konsola, a jego części idą w tej kolejności: The contract with Foundry, Daggerheart and the modules; Data migration; Failures since this page loaded; Silenced warnings; Dice; Dice look; Despair; Styles; Windows; Truth Bullets; GM stores; Voice; Characters; Scenes; Fog; Room visibility; Token frames; Windows that keep themselves true; Music; Sound effects; Private cards; Traps. W przeglądarce gracza części czytające to, co wolno wiedzieć tylko GM-om (Despair, Truth Bullets, GM stores, Characters, Scenes, Room visibility, Music, Traps), są wymienione i mówią *GM only*; nic z tego, co należy do GM-ów, nie trafia do raportu gracza. Okno wylicza też ostrzeżenia, które ta przeglądarka wyciszyła, każde po swoim id z przyciskiem **Pokaż znowu**; moduł trzyma jedno: ostrzeżenie, że Daggerheart jest nowszy od wersji, na której moduł testowano, wyciszone dla tej wersji. Każde wywołanie `diagnose...()` poniżej to jedna część tego raportu osobno.
 
 **Zestaw testów regresji.**
 
@@ -1088,7 +1088,7 @@ Wynik to licznik "passed, failed, skipped" - z dopiskiem ", red until a later st
 | `seedDiscovery()` | zapisuje pokój, w którym każda postać już stoi |
 | `diagnoseVisibility()` | na skarżącym się kliencie tłumaczy, czemu token z innego pokoju jest widoczny |
 
-**Despair i kości.** `diagnoseDespair()` i `diagnoseDice()`; `diagnoseCharacters()` to raport ustawienia obsady. Despair, który nie dochodzi, to zwykle brak połączonego głównego GMa, wyłączone *rzuty dają Despair* albo rzut reakcji. Od 1.2.65 rzut, który rzuca moduł, nie nazywa nikogo w swoim dokumencie (sekcja 1), a przeglądarka głównego GMa dowiaduje się, czyj był, od przeglądarki rzucającego; gdy ta wiadomość przepadnie przy przeładowaniu, rzut liczy się jednej żyjącej postaci rzucającego, a bez takiej nie daje Despair.
+**Despair i kości.** `diagnoseDespair()` i `diagnoseDice()`; `diagnoseCharacters()` to raport ustawienia obsady. Gdy kości wyglądają inaczej na dwóch ekranach, każdy uruchamia `diagnoseDiceLook()` w swojej przeglądarce (GM także kafelkiem **Wygląd kości** w panelu, od 1.2.98): odczytuje on tylko tę przeglądarkę - jej wersje Dice So Nice i Daggerhearta, wyświetlanie, preset Hope i Despair, brakujące nazwy, kości ostatniego rzutu - a u GMa także ustawienia Dice So Nice każdego użytkownika i to, czy ma wygląd stołu; gracz kopiuje tekst z dołu okna i wysyła go GMowi. `diagnoseDiceLook({ test: true })` rzuca też kość Hope i kość Despair tylko na tym ekranie. Despair, który nie dochodzi, to zwykle brak połączonego głównego GMa, wyłączone *rzuty dają Despair* albo rzut reakcji. Od 1.2.65 rzut, który rzuca moduł, nie nazywa nikogo w swoim dokumencie (sekcja 1), a przeglądarka głównego GMa dowiaduje się, czyj był, od przeglądarki rzucającego; gdy ta wiadomość przepadnie przy przeładowaniu, rzut liczy się jednej żyjącej postaci rzucającego, a bez takiej nie daje Despair.
 
 **Inne narzędzia.** `diagnoseVoice()`, `diagnoseSfx()`, `testSfx()`, `diagnoseMusic()` oraz:
 
@@ -1142,6 +1142,7 @@ Wynik to licznik "passed, failed, skipped" - z dopiskiem ", red until a later st
 | `hook-countdowns-render` | taca odliczań jest rysowana tak, jak rysuje ją Daggerheart, a HUD nie jest przerysowywany razem z nią |
 | `hook-dice-so-nice-ready` | wyglądy kości nie są porządkowane |
 | `hook-dice-so-nice-message` | Dice So Nice rzuca taki rzut na każdym ekranie, w kolorach GM-a |
+| `hook-dice-so-nice-roll-start` | raport wyglądu kości nie wymienia żadnego rzutu widzianego w tej przeglądarce |
 | `hook-livekit-initialized` | pokoje głosowe, kafel głosu i mówcy rozprawy nie podążają za klientem głosu |
 | `hook-image-popout-header` | okno zdjęcia pokoju pokazuje przycisk udostępniania Foundry i każdy, który doda moduł |
 | `user-permission-broadcast-audio` | niczyj mikrofon nie jest blokowany: przycisk GM-a mówi dlaczego, rozprawa również |
