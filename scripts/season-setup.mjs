@@ -1229,8 +1229,15 @@ async function runPreSessionChecks() {
         window: { title: game.i18n.localize("DRPG.Panel.seasonChecks") },
         content: dialogContent(body),
         buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true }],
-        // Set them to Observer (E20 C2, S11-19): the audit's own fix, drawn again in place.
-        render: (event, dialog) => wireAnonymityFix(dialog.element.querySelector("[data-drpg-anon]")),
+        render: (event, dialog) => {
+            // Set them to Observer (E20 C2, S11-19): the audit's own fix, drawn again in place.
+            wireAnonymityFix(dialog.element.querySelector("[data-drpg-anon]"));
+            // The dice look's whole window (E60 C5b2): this browser's read, with no test throw.
+            dialog.element.querySelector("[data-drpg-dice-look]")?.addEventListener("click", ev => {
+                ev.preventDefault();
+                import("./dice-look.mjs").then(m => m.diagnoseDiceLook({ test: false })).catch(err => error("Could not open the dice look", err));
+            });
+        },
         rejectClose: false
     });
 }
@@ -1239,13 +1246,14 @@ async function runPreSessionChecks() {
  * The Pre-season checks window's body (E20 C3, from `runPreSessionChecks`, so the suite reads it without a window):
  * the cast, the scenes, the voice rows, the room pictures and the anonymity audit. `av` hands the A/V facts in
  * (`{ mode, on, available }`, R1510), `scenes` the scenes whose room pictures are checked and `head` their HEAD
- * request (R1510, R1511, E20-T2), `contract` a run of the contract (patches.mjs `runContract`; R1541); each is the
- * world's unless handed.
+ * request (R1510, R1511, E20-T2), `contract` a run of the contract (patches.mjs `runContract`; R1541), `diceLook` the
+ * dice look's findings (dice-look.mjs `lookFindings`; R1566); each is the world's unless handed.
  *
  * @param {object} [options]
  * @returns {Promise<string>} HTML
  */
-export async function preSessionReport({ av = {}, scenes = game.scenes, head, probeMs, givenBack = foundryGivenBack(), contract = null } = {}) {
+export async function preSessionReport({ av = {}, scenes = game.scenes, head, probeMs, givenBack = foundryGivenBack(), contract = null,
+    diceLook } = {}) {
     const [{ diagnoseCharacters }, { auditAnonymity }, { diagnoseScenes }, { videoUnwatched, avOffForTile, videoWithoutAudio },
         { checkRoomImages }, { runContract }] = await Promise.all([
         import("./diagnostics.mjs"), import("./anonymity.mjs"), import("./fog.mjs"), import("./voice-tile.mjs"), import("./room-tile.mjs"),
@@ -1272,6 +1280,7 @@ export async function preSessionReport({ av = {}, scenes = game.scenes, head, pr
     const held = givenBack ? `<p class="drpg-check-report">${esc(game.i18n.localize("DRPG.GiveBack.preSeason"))}</p>` : "";
     // The contract (E52 C2, E52-05): run now, the rows the load's notice names, so the report says what holds today.
     const reaches = contractSection(contract ?? runContract(), esc);
+    const dice = diceLookSection(diceLook === undefined ? await diceLookFindingsHere() : diceLook, esc);
 
     // The marks in the state's colour (E20 fix round, the goal review's G-8): `checkMarks`.
     return `<div>
@@ -1283,9 +1292,38 @@ export async function preSessionReport({ av = {}, scenes = game.scenes, head, pr
             ${pictures}
             ${video}
             ${reaches}
+            ${dice}
             <h3>${game.i18n.localize("DRPG.Anonymity.audit.title")}</h3>
             <div data-drpg-anon>${checkMarks(anon.body ?? "")}</div>
         </div>`;
+}
+
+/*
+ * THE DICE LOOK, BEFORE THE SESSION (E60 C5b2, 03.11.2026; the owner on C5b's GM-panel tile: "ten kafelek raczej
+ * powinien byc w season setup jak juz"). What this GM's browser raises of dice-look.mjs `lookFindings` - every user's
+ * forced look, fuse, overlays and display as this browser holds them, and this browser's own versions, preset and
+ * registry - one cross a finding, a check when none. The line that another person's browser is not read here is left
+ * out: a GM's run says it of every other user, every time, and the part's note says it once. Nothing is asked of
+ * another browser (C5b is light). Its button opens the whole window, `diagnoseDiceLook({ test: false })`.
+ */
+async function diceLookFindingsHere() {
+    try {
+        const { lookView, lookFindings } = await import("./dice-look.mjs");
+        return lookFindings(await lookView({ gm: true })).filter(finding => finding.code !== "otherBrowser");
+    } catch (err) {
+        error("Could not read the dice look for Pre-season's checks", err);
+        return null;
+    }
+}
+
+/** Pre-season's Dice look part: its note, a line a finding (none read: no line), and the button for the whole window. */
+function diceLookSection(findings, esc) {
+    const lines = !Array.isArray(findings) ? []
+        : findings.length ? findings.map(finding => `✗ ${finding.words}`) : [`✓ ${game.i18n.localize("DRPG.DiceLook.diag.nothingFound")}`];
+    return `<h3>${esc(game.i18n.localize("DRPG.DiceLook.diag.title"))}</h3>
+            <p class="notes">${esc(game.i18n.localize("DRPG.DiceLook.diag.introGm"))}</p>
+            ${lines.map(line => `<p class="drpg-check-report">${checkMarks(esc(line))}</p>`).join("")}
+            <p><button type="button" data-drpg-dice-look>${esc(game.i18n.localize("DRPG.DiceLook.diag.open"))}</button></p>`;
 }
 
 /**

@@ -3340,7 +3340,7 @@
       "stopped": "{name}'s dice look keeps changing straight back, so it is left as it is for a minute, then put back at its next change or throw.",
       "diag": {
         "title": "Dice look",
-        "tile": "Dice look",
+        "open": "Open the dice look",
         "introGm": "What this browser reads of every user's dice look. Another person's browser is read only on that browser: ask them to run game.drpg.diagnoseDiceLook() in the console and send you the text at the foot of the window.",
         "introPlayer": "What this browser reads of your dice look. Copy the text at the foot of the window and send it to your GM.",
         "who": "User",

@@ -32198,6 +32198,61 @@ const INVARIANTS = [
             equal(stableJson([L.throwLook(null), L.throwLook({ terms: [] })]), stableJson([[], []]), "a missing or empty roll is read as dice");
         }
     }],
+
+    ["R1566 - the Dice look check in Season setup, not on the GM panel (E60 C5b2; E60-14, the owner's word of 03.11): no tile of the GM panel's family names `diceLook`, `diagnoseDiceLook` or DRPG.DiceLook.diag.tile, a key gone from lang/en.json and lang/pl.json for DRPG.DiceLook.diag.open; Pre-season checks (season-setup.mjs `preSessionReport`) draw a Dice look part - a cross for each finding this GM's browser raises, a check for none, never the other browsers' line - with a button that opens `diagnoseDiceLook({ test: false })`", async () => {
+        /*
+         * E60 C5b2, 03.11.2026; the owner on C5b: "ten kafelek raczej powinien byc w season setup jak juz". C5b put a
+         * Dice look tile in the GM panel's "Right now" section, where Public roll stood; it goes, and the check stands
+         * with Season setup's other before-the-session checks, in the Pre-season checks window: its findings on this
+         * GM's browser as the report's rows and a button for the whole window. Read here: the panel's family's code,
+         * comments stripped (the kit's `panelText`); both language files as served; season-setup.mjs's code; the
+         * report drawn with findings handed in, with none, and as this browser reads them. Red at C5c: the tile was
+         * there, the key was `tile`, and the report had no such part.
+         */
+        const sources = await moduleSources();
+        const panel = stripComments(panelText(sources));
+        const season = stripComments(sources.get("season-setup.mjs") ?? "");
+        must(panel.length > 1000 && season.length > 1000, "the GM panel's family or season-setup.mjs was not read - this would read nothing");
+        const lang = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" });
+            lang[code] = res.ok ? await res.json() : null;
+        }
+        must(lang.en && lang.pl, "lang/en.json or lang/pl.json was not served - this would read nothing");
+        const keys = file => ["tile", "open"].filter(key => typeof file?.DRPG?.DiceLook?.diag?.[key] === "string");
+        const SS = await import("./season-setup.mjs");
+        const draw = async diceLook => {
+            const el = document.createElement("div");
+            el.innerHTML = await SS.preSessionReport({ av: {}, scenes: [], head: async () => ({ status: 200, bytes: 1 }), ...(diceLook === undefined ? {} : { diceLook }) });
+            const heads = [...el.querySelectorAll("h3")].map(h => h.textContent.trim());
+            const button = el.querySelector("button[data-drpg-dice-look]");
+            return { el, heads, text: el.textContent, button: button ? button.textContent.trim() : null };
+        };
+        const title = game.i18n.localize("DRPG.DiceLook.diag.title");
+        const clean = game.i18n.localize("DRPG.DiceLook.diag.nothingFound");
+        const open = game.i18n.localize("DRPG.DiceLook.diag.open");
+        const found = await draw([{ userId: "R1566", code: "onlyMine", words: "R1566 shows only their own dice" }]);
+        const none = await draw([]);
+        const here = await draw();
+        const others = game.users.contents.filter(u => u.id !== game.user.id)
+            .map(u => game.i18n.format("DRPG.DiceLook.diag.finding.otherBrowser", { name: u.name }));
+        const marked = report => [...report.el.querySelectorAll("p.drpg-check-report")].map(p => p.textContent.trim()).filter(t => t.includes("R1566") || t.includes(clean));
+        equal(JSON.stringify({
+            panel: ["diceLook", "diagnoseDiceLook", "DRPG.DiceLook.diag.tile"].filter(name => panel.includes(name)),
+            en: keys(lang.en), pl: keys(lang.pl),
+            season: [season.includes("diagnoseDiceLook({ test: false })"), season.includes("data-drpg-dice-look")],
+            found: [found.heads.includes(title), marked(found), found.button],
+            none: [none.heads.includes(title), marked(none), none.button],
+            here: [here.heads.includes(title), here.button, others.filter(words => here.text.includes(words)).length]
+        }), JSON.stringify({
+            panel: [], en: ["open"], pl: ["open"], season: [true, true],
+            found: [true, ["✗ R1566 shows only their own dice"], open],
+            none: [true, [`✓ ${clean}`], open],
+            here: [true, open, 0]
+        }), "[the panel's family's names of the dice look; DRPG.DiceLook.diag's tile and open keys in English and in Polish; season-setup.mjs "
+            + "opens diagnoseDiceLook({ test: false }) from its button; the report with a finding handed in, with none, and as this browser "
+            + "reads it: the part's heading, its marked lines, its button, the other browsers' lines in it]");
+    }],
 ];
 
 /**

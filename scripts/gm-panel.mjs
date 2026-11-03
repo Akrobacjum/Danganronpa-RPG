@@ -213,15 +213,14 @@ const PANEL_SECTIONS = [
             { key: "sound", icon: "fa-volume-high", labelKey: "DRPG.Sound.title",
               run: () => import("./music.mjs").then(m => m.openSoundDialog()) },
             { key: "rules", icon: "fa-gavel", labelKey: "DRPG.Rules.manageTitle",
-              run: () => import("./rules.mjs").then(m => m.openRulesManager()) },
-            // WHY THE DICE LOOK DIFFERENT (E60 C5b, 03.11.2026), where Public roll stood: this browser's read of
-            // every user's dice look (dice-look.mjs `diagnoseDiceLook`); each player runs it on their own browser.
-            { key: "diceLook", icon: "fa-dice-d20", labelKey: "DRPG.DiceLook.diag.tile",
-              run: () => import("./dice-look.mjs").then(m => m.diagnoseDiceLook()) }
+              run: () => import("./rules.mjs").then(m => m.openRulesManager()) }
             // GONE FROM HERE:
             //   Public roll - removed (the owner, 03.11.2026: "Usunmy funkcje public roll
             //     z gm panel"; E60 C5a). E33 C12 put it here with its window; the roll
             //     itself stays a GM's macro, `game.drpg.publicRoll` (private-rolls.mjs).
+            //   Dice look - E60 C5b put it where Public roll stood; it is a check before
+            //     the session, so it went to Season setup's Pre-season checks (the owner,
+            //     03.11.2026: "ten kafelek raczej powinien byc w season setup"; E60 C5b2).
             //   Give / take items - it is the Items button in the footer of
             //     Players, and a tile as well was a second door to the same
             //     window (Dawid, 03.09). The hub itself is unchanged; only this
