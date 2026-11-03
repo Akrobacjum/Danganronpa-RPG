@@ -604,15 +604,20 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
     for (const c of [p1, p2, p3]) await c.eval(`globalThis.__s87Auto = globalThis.__dialogAuto; globalThis.__dialogAuto = false; return true;`);
     await p1.eval(`globalThis.__s87Held = [];
         game.actors.get("${IDS.aiko}").rollTrait = function () { return new Promise(r => globalThis.__s87Held.push(r)); }; return true;`);
-    const dOpened = await gm.eval(`const opened = (await game.drpg.openMurder({ killerId: "${IDS.aiko}", victimId: "${IDS.botan}", openingTrait: "body" }))?.stage ?? null;
-        await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
-        return { opened, stage: game.drpg.murderState()?.stage ?? null };`, { timeout: 60000 });
-    await settle(900);
+    const dOpenedStage = await gm.eval(`return (await game.drpg.openMurder({ killerId: "${IDS.aiko}", victimId: "${IDS.botan}", openingTrait: "body" }))?.stage ?? null;`,
+        { timeout: 60000 });
     /* The opening roll reaches p1 when its invitation lands, which a fixed 900 ms missed once under load (fix FG2's quick
-       run, dHeld 0 with every browser on the same track): waited for, up to 4 s. */
-    const dHeld = await p1.eval(`${UNTIL} await until(() => (globalThis.__s87Held ?? []).length > 0, 4000);
-        delete game.actors.get("${IDS.aiko}").rollTrait; const held = globalThis.__s87Held ?? []; delete globalThis.__s87Held;
+       run, dHeld 0 with every browser on the same track): waited for, now up to 8 s. Until the 1.2.97 train the GM ruled the
+       roll in the call that opened the murder, so the ruling could come before the invitation reached p1, which then held
+       nothing: dHeld 0 with `off` [] (CI run 41589475249 on e7ef1075, and 1 run in 3 here, 03.11.2026). The roll is now
+       waited for on p1 first, ruled after, and let go last, as before. */
+    const dHeld = await p1.eval(`${UNTIL} await until(() => (globalThis.__s87Held ?? []).length > 0, 8000);
+        return (globalThis.__s87Held ?? []).length;`, { timeout: 30000 });
+    const dOpened = { opened: dOpenedStage, stage: await gm.eval(`await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        return game.drpg.murderState()?.stage ?? null;`, { timeout: 60000 }) };
+    await p1.eval(`delete game.actors.get("${IDS.aiko}").rollTrait; const held = globalThis.__s87Held ?? []; delete globalThis.__s87Held;
         for (const r of held) r(null); return held.length;`);
+    await settle(900);
     const MURDER_HERE = wait => `${DMUSIC} const end = Date.now() + 4000;
         while (${wait ? "!M.murderMusicHere().playing" : "false"} && Date.now() < end) await new Promise(r => setTimeout(r, 100));
         const m = M.murderMusicHere(); return { witness: S.incidentWitness().witness, playing: m.playing, track: m.track, playlist: m.playlist };`;
