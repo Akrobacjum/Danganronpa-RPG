@@ -1156,6 +1156,10 @@ export const GIVEN_ALREADY = Symbol("drpg.givenAlready");
  * receiver's queue now (utils.mjs `serialWrite` under observe.mjs `observeFindKey`), as Observe's find, Monokuma's
  * Reveal and a hand-over are (tier 0 R1289). A bullet written by hand names no trace and is only queued. Answers the
  * bullet, `GIVEN_ALREADY`, or null when none could be made. Exported for the suite.
+ * ON ONE GM'S BROWSER (E60's fix round, FG6; the end review's C-m8, S-m4): the queue is this browser's memory, and the
+ * give runs on whichever GM opened the window, while Observe's find and a hand-over run on the primary - a give on a
+ * second GM's browser beside the primary's find of the same trace for the same receiver can still make two copies.
+ * No road a GM's give could take to the primary exists; the race across GMs is E38's (row 1.2.125).
  */
 export async function giveBullet(who, payload) {
     const { observeFindKey } = await import("./observe.mjs");

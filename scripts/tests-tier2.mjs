@@ -81455,7 +81455,7 @@ const SCENARIOS = [
             + "after the cards (edited, the band a GM set, when); the GMs' whispers at the unfound one's find; a band select on the player's card]");
     }],
 
-    ["E60-T9 - one copy of a trace per receiver, whoever hands it at the same moment (E60 C4b; E60-12, D153): two hand-overs of one trace's bullet to one receiver at once (handover.mjs `mintCopy`, a Share's core, from two givers who each hold a copy) make one copy and answer the other held; a Give a Truth Bullet from a Remnant (gm-items.mjs `giveBullet`, the window's write) beside an Observe's find of the same trace (observe.mjs `mintFindCopy`) for one receiver make one copy, and the give answers `GIVEN_ALREADY` when the find came first", async () => {
+    ["E60-T9 - one copy of a trace per receiver, whoever hands it at the same moment on one GM's browser (E60 C4b; E60-12, D153; across two GMs' browsers E38's): two hand-overs of one trace's bullet to one receiver at once (handover.mjs `mintCopy`, a Share's core, from two givers who each hold a copy) make one copy and answer the other held; a Give a Truth Bullet from a Remnant (gm-items.mjs `giveBullet`, the window's write) beside an Observe's find of the same trace (observe.mjs `mintFindCopy`) for one receiver make one copy, and the give answers `GIVEN_ALREADY` when the find came first", async () => {
         /*
          * E60 C4b, 03.11.2026; D153 (SIER-R1 of 31.10, from H84/STATUS.md:103). A hand-over checked whether the receiver
          * held a copy and then made one, with awaits between (`mintCopy`), and the GM's give made its bullet with no check

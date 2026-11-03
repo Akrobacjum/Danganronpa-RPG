@@ -244,6 +244,9 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
     return copy;
 }
 
+/** What `mintCopy`'s queued step answers for a receiver who holds a copy of the trace already (E60 C4b). */
+const HELD_COPY = Symbol("drpg.heldCopy");
+
 /**
  * A copy of the Truth Bullet `item` of `from` minted onto `to`, on a GM's browser: Share's core (`shareBullet`), and
  * Present's for every participant (trial.mjs `presentOnPrimary`; E70 C10, B6: "Present udostępnia kopie tak, jak zostały
@@ -252,9 +255,6 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
  * giver's whispers back (a Present tells its presenter once). Answers `{ copy, data }`, `{ refused }` while the answer
  * keys are not open here, or `{ skipped: "noKey" | "held" | "failed", data }`.
  */
-/** What `mintCopy`'s queued step answers for a receiver who holds a copy of the trace already (E60 C4b). */
-const HELD_COPY = Symbol("drpg.heldCopy");
-
 export async function mintCopy(from, to, item, { analysis = true, quiet = false } = {}) {
     if (!game.user.isGM || !from || !to || !isTruthBullet(item)) return { skipped: "failed", data: null };
     /* NO ANSWER KEY, NO COPY (E04's fix round; the review's C-m17). The copy below was
@@ -297,7 +297,9 @@ export async function mintCopy(from, to, item, { analysis = true, quiet = false 
        hand-over beside an Observe's find of the same trace (tier 2 E60-T9 at C4a's tree: two copies). An Observe's
        find runs its check and its bullet in the receiver's step of utils.mjs `serialWrite` under observe.mjs
        `observeFindKey` (`mintFindCopy`), as Monokuma's Reveal does (trial-modes.mjs `revealInStep`), and so does
-       this now: the second reads the first's copy. Tier 0 R1289 holds every such bullet to the queue. */
+       this now: the second reads the first's copy. Tier 0 R1289 holds every such bullet to the queue - on one GM's
+       browser: the queue is that browser's memory (a hand-over and a Present run on the primary; a GM's Give on another
+       GM's browser races it still, E38's, row 1.2.125; E60's fix round, FG6). */
     const { copiedRemnants } = await import("./truth-bullets.mjs");
     const { observeFindKey } = await import("./observe.mjs");
     const copy = await serialWrite(observeFindKey(to.id), () => secret.remnantId && copiedRemnants(to).has(secret.remnantId) ? HELD_COPY : createTruthBullet(to, {

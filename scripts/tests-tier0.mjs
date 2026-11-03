@@ -19726,7 +19726,7 @@ const REGRESSIONS = [
             + "declaration no longer there; a ref written; the planted writes named]");
     }],
 
-    ["R1289 - D153's census (E60 C4b; E60-12): in scripts/ outside the suite every call of `createTruthBullet(` stands inside a step of utils.mjs `serialWrite(observeFindKey(...), ...)`, the receiver's finds' queue, with a `copiedRemnants(` check in that step before it - but the two that name no trace to check: truth-bullets.mjs `issueAutopsy` (an Autopsy has none) and handover.mjs `mintLootBullet` (one bullet per thing taken off a body, each naming its thing, so a taker who takes twice holds two of the body's trace by design)", async () => {
+    ["R1289 - D153's census (E60 C4b; E60-12): in scripts/ outside the suite every call of `createTruthBullet(` stands inside a step of utils.mjs `serialWrite(observeFindKey(...), ...)`, the receiver's finds' queue on one GM's browser, with a `copiedRemnants(` check in that step before it - but the two that name no trace to check: truth-bullets.mjs `issueAutopsy` (an Autopsy has none) and handover.mjs `mintLootBullet` (one bullet per thing taken off a body, each naming its thing, so a taker who takes twice holds two of the body's trace by design)", async () => {
         /*
          * E60 C4b, 03.11.2026; D153 (SIER-R1 of 31.10, from H84): two hand-overs of one trace's bullet to one receiver at
          * once, and the GM's give from a Remnant, skipped the queue an Observe's find and Monokuma's Reveal make their copy
@@ -19737,6 +19737,11 @@ const REGRESSIONS = [
          * the queue, one in the queue with no check and a clean twin. Not read: a queue under another key, or a check
          * through a helper of another name. Red at C4a: handover.mjs `mintCopy` (a hand-over's core) and gm-items.mjs
          * `giveTruthBulletDialog` stood outside it. Mutants c4b-m1, c4b-m2 and c4b-m3 read red here.
+         * The queue is this browser's memory (`serialWrite`), so it holds one GM's browser to one copy (E60's fix round,
+         * FG6; the end review's C-m8, S-m4): Observe's find, a hand-over, a Present and Monokuma's Reveal run on the
+         * primary, and Give a Truth Bullet on whichever GM opened it - a give on a second GM's browser beside the
+         * primary's find of the same trace for the same receiver can still make two copies, and is E38's (row 1.2.125,
+         * the stage of two GMs; STATUS Open 50).
          */
         const sources = await moduleSources();
         const EXEMPT = ["handover.mjs#mintLootBullet", "truth-bullets.mjs#issueAutopsy"];
