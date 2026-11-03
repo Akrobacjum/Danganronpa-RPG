@@ -34,7 +34,7 @@
 import { MODULE_ID, moduleVersion } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { esc, error, dialogContent, markFired } from "./utils.mjs";
-import { canonicalLook, holdsTableLook, isForced, fuseStoppedFor, tableLookSource } from "./dice-sync.mjs";
+import { canonicalLook, holdsTableLook, isForced, fuseStoppedFor, tableLookSource, dualityPresetHere } from "./dice-sync.mjs";
 import { lastRollWindow } from "./roll-dialog.mjs";
 
 const DSN = "dice-so-nice";
@@ -74,12 +74,59 @@ function onRollStart(messageId, context) {
     // The contract register's row `hook-dice-so-nice-roll-start` reads it fired (R1545).
     markFired("diceSoNiceRollStart");
     try {
+        const laid = layOnThrow(context);
         lastThrows.push({ messageId: typeof messageId === "string" ? messageId : null, by: context?.user?.id ?? null, at: Date.now(),
-            dice: throwLook(context?.roll) });
+            dice: throwLook(context?.roll), laid });
         while (lastThrows.length > THROWS_KEPT) lastThrows.shift();
     } catch (err) {
         error("Could not keep a throw's look", err);
     }
+}
+
+/*
+ * THE TABLE'S HOPE AND DESPAIR DICE ON EVERY THROW (E60 C5d; dice-sync.mjs "THE TABLE'S HOPE AND DESPAIR DICE"). Dice
+ * So Nice draws `context.dsnRoll` where a listener set one, else `context.roll` (6.2.9 Dice3D.js `showForRoll`), so with
+ * the table's look forced each throw this browser draws - a roll the GM drew, a Reroll's, Daggerheart's own, one thrown
+ * with no GM - is handed a copy whose Hope, Fear and advantage dice carry the world's copy of the source's preset. The
+ * roll itself, the message's, is never touched: display only. Not on Daggerheart 2.10 and later (roles).
+ */
+function layOnThrow(context) {
+    if (!context?.roll) return false;
+    let look = null;
+    try {
+        if (game.settings.get(MODULE_ID, SETTINGS.forceDiceLook) !== true) return false;
+        look = game.settings.get(MODULE_ID, SETTINGS.diceDualityLook);
+    } catch { return false; }
+    const version = game.system?.version;
+    if (game.system?.id === "daggerheart" && typeof version === "string" && foundry.utils.isNewerVersion(version, "2.9.99")) return false;
+    const json = layDualityLook(context.dsnRoll ?? context.roll, look);
+    if (!json) return false;
+    const laid = Roll.fromData(json);
+    // Each die's options as laid, wherever `fromData` leaves them out (the harness's Die keeps none; Foundry's keeps them).
+    (laid.terms ?? []).forEach((term, i) => {
+        if (typeof term?.faces === "number" && json.terms?.[i]?.options) term.options = json.terms[i].options;
+    });
+    context.dsnRoll = laid;
+    return true;
+}
+
+/**
+ * A copy of `roll` (a Roll or its JSON) as JSON, whose duality dice carry `look[kind]` over their own appearance, or
+ * null where no die of it is one or `look` names none of theirs. Pure: the roll handed in is not changed (R1298).
+ */
+export function layDualityLook(roll, look) {
+    if (!roll || !look || typeof look !== "object") return null;
+    const json = foundry.utils.deepClone(typeof roll.toJSON === "function" ? roll.toJSON() : roll);
+    let laid = false;
+    for (const term of Array.isArray(json?.terms) ? json.terms : []) {
+        const kind = typeof term?.faces === "number" ? dualityOf(term) : null;
+        const preset = kind ? look[kind] : null;
+        if (!preset || typeof preset !== "object" || !Object.keys(preset).length) continue;
+        const own = term.options?.appearance && typeof term.options.appearance === "object" ? term.options.appearance : {};
+        term.options = { ...(term.options ?? {}), appearance: { ...own, ...preset } };
+        laid = true;
+    }
+    return laid ? json : null;
 }
 
 /** The throws this browser was handed, newest last (a copy). */
@@ -127,13 +174,9 @@ export function throwLook(roll) {
 
 /** This browser's Daggerheart Hope/Despair preset (2.9 and older), or null where the system keeps none (2.10+: roles). */
 function dhPresetHere() {
-    let appearance = null;
-    try { appearance = game.settings.get("daggerheart", "Appearance"); } catch { return null; }
-    const dsn = appearance?.diceSoNice;
-    if (!dsn || typeof dsn !== "object") return null;
-    const out = {};
-    for (const kind of Object.values(DUALITY)) out[kind] = presetOf(dsn[kind]);
-    return out;
+    const preset = dualityPresetHere();
+    if (!preset) return null;
+    return Object.fromEntries(Object.values(DUALITY).map(kind => [kind, presetOf(preset[kind])]));
 }
 
 /**

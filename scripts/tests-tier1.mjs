@@ -32253,6 +32253,45 @@ const INVARIANTS = [
             + "opens diagnoseDiceLook({ test: false }) from its button; the report with a finding handed in, with none, and as this browser "
             + "reads it: the part's heading, its marked lines, its button, the other browsers' lines in it]");
     }],
+
+    ["R1298 - the table's Hope and Despair dice laid on a throw (E60 C5d; E60-17): dice-look.mjs `layDualityLook(roll, look)` answers a copy of the roll whose HopeDie, FearDie and advantage dice carry the table's look over what their options held, leaves every other die as it was, answers null for a roll with no duality die or no look, and changes nothing of the roll it was handed", async () => {
+        /*
+         * E60 C5d, 03.11.2026; the owner's answer of 03.11 to Q-C5-2 ("tak"): while "One dice look for the table" is on,
+         * every screen draws every Hope and Despair die in the look the source Gamemaster set in Daggerheart, whoever throws.
+         * Daggerheart 2.9 keeps that look per browser (its Appearance setting is client-scoped) and lays it on a die as it
+         * is evaluated, there; so the module lays the table's on the throw each browser's Dice So Nice is about to draw
+         * (`diceSoNiceRollStart`'s `context.dsnRoll`), and never on the roll itself, which is the message's. Here on fixed
+         * JSONs: a duality roll (a HopeDie carrying Daggerheart's own preset and a model file, a FearDie with none, a d6
+         * AdvantageDie, a plain d12), a plain Roll of a d20 and a d6, and the duality roll with no look. Red before C5d: no
+         * `layDualityLook`. Mutants c5d-m1 (the look laid on the roll handed in) and c5d-m4 (a plain die painted) read red here.
+         */
+        const L = await import("./dice-look.mjs");
+        ok(typeof L.layDualityLook === "function", "dice-look.mjs exports no layDualityLook");
+        if (typeof L.layDualityLook !== "function") return;
+        const look = {
+            hope: { system: "standard", colorset: "spectrum", texture: "marble", material: "pristine", font: "auto", foreground: "#ffffff", background: "#ff00aa" },
+            fear: { system: "standard", colorset: "spectrum", texture: "marble", material: "pristine", font: "auto", foreground: "#000000", background: "#00ffaa" },
+            advantage: { system: "standard", colorset: "inspired", texture: "none", material: "metal", font: "auto", foreground: "#ffffff", background: "#008000" }
+        };
+        const term = (cls, faces, options = {}, modifiers = []) => ({ class: cls, options, evaluated: true, number: 1, faces, modifiers, results: [{ result: 5, active: true }] });
+        const plus = { class: "OperatorTerm", options: {}, evaluated: true, operator: "+" };
+        const duality = () => ({ class: "DualityRoll", options: {}, evaluated: true, formula: "1d12 + 1d12 + 1d6 + 1d12", terms: [
+            term("HopeDie", 12, { appearance: { system: "standard", colorset: "inspired", background: "#ffe760", sfx: { higher: {} } }, modelFile: "R1298/d12.glb" }, ["h"]),
+            plus, term("FearDie", 12, {}, ["f"]), plus, term("AdvantageDie", 6, {}, ["a"]), plus, term("Die", 12)] });
+        const plain = () => ({ class: "Roll", options: {}, evaluated: true, formula: "1d20 + 1d6", terms: [term("Die", 20), plus, term("Die", 6)] });
+        const handed = duality(), was = stableJson(handed);
+        const laid = L.layDualityLook(handed, look);
+        const dice = laid?.terms?.filter(t => typeof t.faces === "number") ?? [];
+        equal(stableJson({
+            dice: dice.map(t => [t.class, t.options?.appearance ?? null, t.options?.modelFile ?? null]),
+            handed: stableJson(handed) === was, copy: laid !== handed,
+            plain: L.layDualityLook(plain(), look), none: L.layDualityLook(duality(), null), empty: L.layDualityLook(duality(), {})
+        }), stableJson({
+            dice: [["HopeDie", { system: "standard", colorset: "spectrum", background: "#ff00aa", sfx: { higher: {} }, texture: "marble", material: "pristine", font: "auto", foreground: "#ffffff" }, "R1298/d12.glb"],
+                ["FearDie", look.fear, null], ["AdvantageDie", look.advantage, null], ["Die", null, null]],
+            handed: true, copy: true, plain: null, none: null, empty: null
+        }), "[each die of the laid copy: class, appearance, model file; the roll handed in unchanged; a copy; a plain roll; no look; an empty look]");
+    }],
 ];
 
 /**

@@ -81562,6 +81562,111 @@ const SCENARIOS = [
         }), "[the GM's rows; the users the GM's run names as not read here; the player's rows; its audience; findings about another user; "
             + "the GMs' store reads in the player's run; packets sent; hooks heard; the test throw's dice; the throws shown]");
     }],
+
+    ["E60-T16 - one Hope and Despair look for the table (E60 C5d; E60-17, Q-C5-2): the source Gamemaster's browser keeps its Daggerheart Hope and Despair preset in the world (`diceDualityLook`) as it changes; a player's drawn roll, its Reroll and a GM's own roll each reach Dice So Nice's `diceSoNiceRollStart` with that look on their Hope and Fear dice, and the message's rolls keep their own; with the table's look switched off none is laid; and a player's write of the world's copy is put back by the primary", async () => {
+        /*
+         * E60 C5d, 03.11.2026; the owner's answer to Q-C5-2 ("tak"); the investigation's cause 2 (dice/findings.md: the
+         * Hope/Despair preset is Daggerheart 2.9's client setting, so a roll evaluated on a player's browser wears that
+         * player's, and one the GM draws wears the GM's only where it landed in time). On this GM, the table's source: its
+         * Daggerheart Appearance (a world setting in the harness, a client one at a table) given a Hope and a Fear look and
+         * its change told as Foundry tells a client setting's (`clientSettingChanged`). Dice So Nice's hook is stood in:
+         * `game.dice3d.showForRoll` calls `diceSoNiceRollStart` with `{ roll, user }` as 6.2.9's `showForRoll` does and
+         * keeps what the listeners left in `context.dsnRoll`. Then a player's roll drawn here (`drawnForPlayer`; the GM's
+         * throw on its own screen), its Reroll's dice (private-rolls.mjs `relayRerolledDice`, on that message with a Roll of a Hope and a Fear d12 for its
+         * rolls: the harness keeps a message's rolls as summaries without terms), a GM's own duality roll
+         * handed to Dice So Nice as its message road does; the switch off and the GM's roll again; and the world's copy
+         * written as a player's console would (`noHook`, then `updateSetting` with the player's id). The world's Monokuma stands in
+         * the roller's room meanwhile, so this GM's screen throws the player's dice (E60 C5e). Read: the world's copy,
+         * each throw's Hope and Fear dice as laid (`throwLook` of `dsnRoll`), the message's own dice, the copy after the
+         * player's write. Put back: every setting as found, the draw. Red before C5d: no `diceDualityLook`. Mutants c5d-m2
+         * (laid with the switch off) and c5d-m3 (a player's write of the copy stands) read red here.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const L = await import("./dice-look.mjs");
+        const M = await import("./monokuma.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        // The GM's Monokuma stands in the roller's room, so this GM's screen throws the player's dice (E60 C5e's rule).
+        const monokuma = M.monokumaActors().find(m => locateActor(m)?.tokenDoc) ?? null;
+        const roller = locateActor(theirs);
+        must(monokuma && roller?.tokenDoc, "no placed Monokuma, or the player's character is on no scene - this would measure nothing");
+        const token = locateActor(monokuma).tokenDoc, tokenWas = { x: token.x, y: token.y };
+        const P = await import("./private-rolls.mjs");
+        ok(Object.hasOwn(SETTINGS, "diceDualityLook") && typeof L.layDualityLook === "function", "no diceDualityLook setting, or no layDualityLook");
+        if (!Object.hasOwn(SETTINGS, "diceDualityLook")) return;
+        const KEY = SETTINGS.diceDualityLook;
+        const hope = { foreground: "#ffffff", background: "#ff00aa", outline: "#000000", edge: "#ffffff", texture: "marble", colorset: "spectrum", material: "pristine", system: "standard", font: "auto" };
+        const fear = { ...hope, foreground: "#000000", background: "#00ffaa" };
+        const appearanceWas = game.settings.get("daggerheart", "Appearance");
+        const forceWas = game.settings.get(MODULE_ID, SETTINGS.forceDiceLook), sourceWas = game.settings.get(MODULE_ID, SETTINGS.diceLookSource);
+        const copyWas = game.settings.get(MODULE_ID, KEY);
+        const throws = [];
+        const dice3d = game.dice3d, showForRoll = dice3d.showForRoll;
+        dice3d.showForRoll = async (roll, user = game.user, synchronize = false, users = null, blind = false, messageID = null) => {
+            const context = { roll, user, blind };
+            Hooks.callAll("diceSoNiceRollStart", messageID, context);
+            throws.push((context.dsnRoll ? L.throwLook(context.dsnRoll) : []).filter(d => d.duality === "hope" || d.duality === "fear")
+                .map(d => [d.duality, d.preset?.background ?? null]));
+            return showForRoll.call(dice3d, roll, user, synchronize, users, blind, messageID);
+        };
+        const read = {};
+        let F = null;
+        const laidOf = list => list.map(t => stableJson(t));
+        try {
+            if (sourceWas !== game.user.id) await game.settings.set(MODULE_ID, SETTINGS.diceLookSource, game.user.id);
+            if (forceWas !== true) await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, true);
+            await token.update({ x: roller.tokenDoc.x + 100, y: roller.tokenDoc.y }, { animate: false });
+            const appearance = { ...(appearanceWas ?? {}), diceSoNice: { hope, fear } };
+            await game.settings.set("daggerheart", "Appearance", appearance);
+            Hooks.callAll("clientSettingChanged", "daggerheart.Appearance", appearance);
+            read.copy = await until(() => game.settings.get(MODULE_ID, KEY)?.hope?.background === hope.background, 3000);
+            const want = stableJson([["hope", hope.background], ["fear", fear.background]]);
+            throws.length = 0;
+            F = await drawnForPlayer(player, theirs);
+            await settle();
+            read.drawn = laidOf(throws).every(t => t === want) && throws.length > 0;
+            read.message = (F.message?.rolls?.[0]?.dice ?? []).some(d => d.options?.appearance?.background === hope.background);
+            const own = () => Roll.fromData({ class: "Roll", options: {}, evaluated: true, formula: "1d12 + 1d12", total: 12, terms: [
+                { class: "HopeDie", options: {}, evaluated: true, number: 1, faces: 12, modifiers: ["h"], results: [{ result: 7, active: true }] },
+                { class: "OperatorTerm", options: {}, evaluated: true, operator: "+" },
+                { class: "FearDie", options: {}, evaluated: true, number: 1, faces: 12, modifiers: ["f"], results: [{ result: 5, active: true }] }] });
+            throws.length = 0;
+            // The harness keeps a message's rolls as summaries (class, formula, total, dice), not Rolls with terms as
+            // Foundry does; the Reroll's road is read on the drawn message with a Roll of the same dice standing in for them.
+            P.relayRerolledDice(Object.create(F.message, { rolls: { value: [own()] } }), player.id);
+            await settle();
+            read.reroll = laidOf(throws).every(t => t === want) && throws.length > 0;
+            throws.length = 0;
+            await game.dice3d.showForRoll(own(), game.user, true);
+            read.own = laidOf(throws);
+            await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, false);
+            throws.length = 0;
+            await game.dice3d.showForRoll(own(), game.user, true);
+            read.off = laidOf(throws);
+            await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, true);
+            await wait(600);
+            const forged = { hope: { ...hope, background: "#123456" } };
+            await game.settings.set(MODULE_ID, KEY, forged, { noHook: true });
+            Hooks.callAll("updateSetting", { key: `${MODULE_ID}.${KEY}`, value: forged }, { value: forged }, {}, player.id);
+            read.forged = await until(() => game.settings.get(MODULE_ID, KEY)?.hope?.background === hope.background, 3000);
+        } finally {
+            dice3d.showForRoll = showForRoll;
+            await F?.putBack?.();
+            if (token.x !== tokenWas.x || token.y !== tokenWas.y) await token.update(tokenWas, { animate: false });
+            await game.settings.set("daggerheart", "Appearance", appearanceWas);
+            if (game.settings.get(MODULE_ID, SETTINGS.forceDiceLook) !== forceWas) await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, forceWas);
+            if (game.settings.get(MODULE_ID, SETTINGS.diceLookSource) !== sourceWas) await game.settings.set(MODULE_ID, SETTINGS.diceLookSource, sourceWas);
+            await wait(600);
+            if (stableJson(game.settings.get(MODULE_ID, KEY)) !== stableJson(copyWas)) await game.settings.set(MODULE_ID, KEY, copyWas);
+            await wait(600);
+        }
+        const laid = stableJson([["hope", hope.background], ["fear", fear.background]]);
+        equal(stableJson(read), stableJson({ copy: true, drawn: true, message: false, reroll: true, own: [laid], off: ["[]"], forged: true }),
+            "[the world's copy took the source's look; the drawn roll's throws laid; the message's own dice painted; the Reroll's throws laid; "
+            + "the GM's own throw; with the switch off; a player's write put back]");
+    }],
     ...GRID
 ];
 

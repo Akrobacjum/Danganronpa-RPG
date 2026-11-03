@@ -19509,8 +19509,9 @@ const REGRESSIONS = [
             season: ["bodiesFound", "bodyFound", "chapterEnd", "clock", "despairPools", "discoveredRooms", "gmAssignments", "killingGameRules",
                 "motive", "murderState", "overflow", "pendingGather", "projectMeta", "readyRound", "restrictions", "sealedRooms", "searchTokens",
                 "trialProgress", "trialQueue"],
-            counts: [19, 11, 34], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
-        }), "the season's settings are not the nineteen the reset clears, the lifetimes do not count 19, 11 and 34, the clock's entry does not "
+            // 35 table settings since E60 C5d: `diceDualityLook`, the table's Hope and Despair dice, outlives a season.
+            counts: [19, 11, 35], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
+        }), "the season's settings are not the nineteen the reset clears, the lifetimes do not count 19, 11 and 35, the clock's entry does not "
             + "name the readiness round and the End of chapter's record, the assignments' entry does not name gmAssignments, or the reset's own record is not kept as the campaign's");
     }],
 
