@@ -49,6 +49,7 @@
 import { MODULE_ID, FLAGS, TIMING } from "./config.mjs";
 import { SETTINGS, getSetting, isDeadForGm, incidentSeats } from "./settings.mjs";
 import { locateActor, occupantsOf } from "./movement.mjs";
+import { monokumaActors, poolOwnerOf } from "./monokuma.mjs";
 import { gmIds, ownerIdsOf, error, warn, debug, isPrimaryGm, MESSAGE_FLAG, markFired } from "./utils.mjs";
 import { judge, table, pick, as, knownSender, owns, gmOnly, guardRollAuthor, guardDrawnRoll, guardDrawnCosts, bridgeRequest } from "./bridge-guards.mjs";
 import { play, ENTER, ARRIVE } from "./motion.mjs";
@@ -1528,6 +1529,8 @@ export const REROLL_SHOWN = "drpgRerollShown";
  * off, and only when rolls are forced private - a table that shows its rolls
  * keeps Dice So Nice's own choice.
  *
+ * And on a GM's browser a player's message whose roller has none of this GM's Monokumas in their room (E60 C5e).
+ *
  * Except for a roll the GM drew (E08+E28 C13; the owner's note of 27.09: nobody is ever
  * shown "the GM rolled"), off on every browser, forced private or not: its author is the
  * GM, so Dice So Nice would throw it in the GM's colours wherever it animates it. Its dice
@@ -1543,6 +1546,11 @@ function keepDiceToReaders(messageId, interception) {
     if (isDrawnRoll(message)) return void (interception.willTrigger3DRoll = false);
     if (!game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls)) return;
     if (message && !message.isContentVisible) interception.willTrigger3DRoll = false;
+    // A player's roll not drawn (no GM at its throw, Daggerheart's own) on a GM's screen: only with one of this GM's
+    // Monokumas in the roller's room (E60 C5e, `gmsInRoomOf`); the card is read either way.
+    else if (message && game.user?.isGM && !gmsOwnRoll(message) && !gmsInRoomOf(rollSubjectNow(message)).includes(game.user.id)) {
+        interception.willTrigger3DRoll = false;
+    }
 }
 
 /*
@@ -1738,15 +1746,51 @@ function incidentDiceAudience(message, state) {
     return incidentAudienceIds(state);
 }
 
+/*
+ * THE GMS IN THE ROLLER'S ROOM (E60 C5e, 03.11.2026; the owner: a player's action roll on the GM's screen, "Nie powinien
+ * ich widziec, chyba ze jest w tym samym pokoju" - "GM ma token monokumy ktorym sie porusza"; Q-C5-4's default). Until
+ * C5e every GM's screen threw every player's dice. Now a GM sees a player's 3D dice only while one of that GM's own
+ * Monokumas stands in the roller's room on the same scene: the Monokuma's GM is the one whose Despair pool it is, as
+ * monokuma.mjs `poolOwnerOf` tells it whoever asks, and a Monokuma whose GM cannot be told (several full Gamemasters, no
+ * pool set, no owner named) admits nobody; where each stands is movement.mjs `locateActor`, its token's room, as
+ * `sameRoomAudience` reads the roller. Several GMs: each by their own. The 3D dice only: the whisper and who may read
+ * the card are unchanged, so every GM still reads the roll. `monokumas`, `gmOf` and `locate` are stood in by R1299. At a
+ * table: LIVE-E60-09.
+ */
+export function gmsInRoomOf(subject, { monokumas = monokumaActors(), gmOf = poolOwnerOf, locate = locateActor } = {}) {
+    if (!subject) return [];
+    const place = locate(subject);
+    if (!place?.room || !place.scene?.id) return [];
+    const ids = new Set();
+    for (const monokuma of monokumas) {
+        const gm = gmOf(monokuma);
+        if (!gm?.isGM) continue;
+        const at = locate(monokuma, { sceneId: place.scene.id });
+        if (at?.room === place.room && at.scene?.id === place.scene.id) ids.add(gm.id);
+    }
+    return [...ids];
+}
+
+/** The Monokumas whose GM cannot be told, by name (the diagnostic's line: they admit no GM). */
+export function untoldMonokumas({ monokumas = monokumaActors(), gmOf = poolOwnerOf } = {}) {
+    return monokumas.filter(m => !gmOf(m)?.isGM).map(m => m.name);
+}
+
+/** Whether a message is a GM's own roll - written by a GM and not one it drew for a player - whose dice every GM sees. */
+function gmsOwnRoll(message) {
+    return Boolean(message?.author?.isGM) && !isDrawnRoll(message);
+}
+
 /**
- * WHO SEES A ROLL'S DICE, as user ids: every GM, the message's author, and the
- * incident's audience of `incidentDiceAudience`. Read on the primary GM, which is
- * told every roll's subject; another client knows the subjects of its own rolls
- * alone. Exported for E28.
+ * WHO SEES A ROLL'S DICE, as user ids: the GMs - for a player's roll only those in the roller's room (`gmsInRoomOf`, E60
+ * C5e), every GM for a GM's own - the message's author where it is the roller (not the GM that drew a player's roll),
+ * and the incident's audience of `incidentDiceAudience`. Read on the primary GM, which is told every roll's subject;
+ * another client knows the subjects of its own rolls alone. Exported for E28.
  */
 export function diceAudienceIds(message, state = murderState()) {
-    const authorId = message?.author?.id ?? message?.user?.id ?? null;
-    return [...new Set([...gmIds(), ...(authorId ? [authorId] : []), ...incidentDiceAudience(message, state)])];
+    const authorId = isDrawnRoll(message) ? null : message?.author?.id ?? message?.user?.id ?? null;
+    const gms = gmsOwnRoll(message) ? gmIds() : gmsInRoomOf(game.actors.get(keptRollSubject(message) ?? "") ?? null);
+    return [...new Set([...gms, ...(authorId ? [authorId] : []), ...incidentDiceAudience(message, state)])];
 }
 
 /**
@@ -1781,14 +1825,16 @@ export function drawnDiceAudienceIds(message, by = null, state = murderState()) 
 function relayDrawnDice(message, byId, { shown = false } = {}) {
     if (!message?.id || !isPrimaryGm()) return;
     const by = game.users.get(byId ?? "") ?? null;
-    const recipients = drawnDiceAudienceIds(message, by?.id ?? null).filter(id => id !== game.user?.id && id !== by?.id);
+    const audience = drawnDiceAudienceIds(message, by?.id ?? null);
+    const recipients = audience.filter(id => id !== game.user?.id && id !== by?.id);
     const subject = isClaimedRoll(message) ? null : keptRollSubject(message);
     try {
         if (recipients.length) game.socket.emit(SOCKET_EVENT, { action: DICE_SHOW, id: message.id, by: by?.id ?? null, ...(subject ? { subject } : {}) }, { recipients });
     } catch (err) {
         error("Could not send the dice of a roll the GM drew", err);
     }
-    if (!shown) void playRolls(message, by ?? game.user);
+    // This screen only where it is of the audience: a GM with no Monokuma of theirs in the roller's room sees none (E60 C5e).
+    if (!shown && audience.includes(game.user?.id)) void playRolls(message, by ?? game.user);
 }
 
 /**
@@ -1847,7 +1893,8 @@ export function relayRerolledDice(message, byId = null) {
     } catch (err) {
         error("Could not send a Reroll's dice", err);
     }
-    void playRolls(message, by ?? game.user);
+    // The GM that made it watches them only where it is of their audience (E60 C5e): a player's roll, its Monokuma elsewhere.
+    if (audience.includes(game.user?.id)) void playRolls(message, by ?? game.user);
 }
 
 /** A message's rolls on this screen as `user`'s dice, or the dice sound where Dice So Nice is not. */

@@ -14866,13 +14866,15 @@ const REGRESSIONS = [
          * the tier-2 test "a roll the GM drew whose message is not written ..." drives the failed write). Held here: the
          * throw is this screen's own drawing (no packet, no write, no request), after every refusal and the evaluation and
          * before the write, so a refused or unevaluated roll throws nothing; and the relay's own throw stands aside for it,
-         * so one throw a roll. Read with comments blanked; each reader is shown a planted fault first.
+         * so one throw a roll. Read with comments blanked; each reader is shown a planted fault first. E60 C5e: both throws
+         * stand only where this GM sees the player's dice - `throwDrawn`'s behind `seesPlayersDice(actor)`, the relay's
+         * behind `audience.includes(game.user?.id)` (private-rolls.mjs `gmsInRoomOf`; E60-T17).
          */
         const WRITES = /\bsocket\s*\.\s*emit\s*\(|\bbridgeRequest\s*\(|\.\s*(?:setFlag|unsetFlag|update|updateSource|createEmbeddedDocuments|updateEmbeddedDocuments|deleteEmbeddedDocuments)\s*\(|\bsettings\s*\.\s*set\s*\(|\bChatMessage\b|\breadHere\s*\(/;
         const AS_ROLLER = /\bgame\.dice3d\.showForRoll\(\s*roll\s*,\s*user\s*,\s*false\s*\)/;
         const AWAITED = /\bawait\s+(?:Promise\.resolve\(\s*)?game\.dice3d\.showForRoll\(/;
         const FAILED = /\bcatch\s*\(\s*err\s*\)\s*\{\s*if\s*\(\s*shown\s*\)\s*debug\(/;
-        const GUARD = /\bif\s*\(\s*!shown\s*\)\s*void\s+playRolls\(\s*message\s*,/;
+        const GUARD = /\bif\s*\(\s*!shown\s*&&\s*audience\.includes\(\s*game\.user\?\.id\s*\)\s*\)\s*void\s+playRolls\(\s*message\s*,/;
         const SENT = /\bgame\.socket\.emit\(\s*SOCKET_EVENT\s*,\s*\{\s*action:\s*DICE_SHOW\b/;
         equal(JSON.stringify([WRITES.test("game.socket.emit(EVENT, {});"), AWAITED.test("await game.dice3d.showForRoll(roll, user, false);"),
             AS_ROLLER.test("game.dice3d.showForRoll(roll, game.user, false)"), GUARD.test("void playRolls(message, by ?? game.user);"),
@@ -14885,7 +14887,7 @@ const REGRESSIONS = [
         const here = topLevelFunction(draw, "throwOnThisScreen") ?? "", thrown = fnSource(draw, "throwDrawn"), write = fnSource(draw, "writeDrawnMessage");
         const relay = fnSource(rolls, "relayDrawnDice"), report = fnSource(rolls, "reportRollSubject"), claimed = fnSource(rolls, "reportClaimedRoll");
         const at = re => thrown.search(re);
-        const [evaluated, shown, written] = [at(/\bawait\s+cls\.buildEvaluate\(/), at(/\bconst\s+shown\s*=\s*throwOnThisScreen\(\s*roll\s*,\s*sender\s*\)/), at(/\bwriteDrawnMessage\(/)];
+        const [evaluated, shown, written] = [at(/\bawait\s+cls\.buildEvaluate\(/), at(/\bconst\s+shown\s*=\s*seesPlayersDice\(\s*actor\s*\)\s*\?\s*throwOnThisScreen\(\s*roll\s*,\s*sender\s*\)\s*:\s*false\b/), at(/\bwriteDrawnMessage\(/)];
         equal(JSON.stringify([here.length > 0, WRITES.test(here), AS_ROLLER.test(here), AWAITED.test(here), evaluated >= 0 && evaluated < shown && shown < written,
             /\bwriteDrawnMessage\([^;]*\bshown\b/.test(thrown), FAILED.test(thrown), /\bsupersedingRoll\([\s\S]*\bshown\b/.test(write),
             /\bshown:\s*claim\.shown\b/.test(claimed), /\brelayDrawnDice\(\s*message\s*,\s*by\s*,\s*\{\s*shown\s*\}\s*\)/.test(report),

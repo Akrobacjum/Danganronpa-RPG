@@ -210,6 +210,32 @@ export async function setPoolFor(actor, userId) {
  */
 export function poolUserFor(actor) {
     if (!actor) return null;
+    const owner = poolOwnerOf(actor);
+    if (owner) return owner;
+
+    const holders = poolHolders();
+    const gms = holders.length ? holders : game.users.filter(u => u.role === CONST.USER_ROLES.GAMEMASTER);
+    if (!gms.length) return game.user.isGM ? game.user : null;
+
+    // Genuinely ambiguous. The acting GM spends their own, and the panel exists
+    // to stop the table ever being in this state.
+    const OWNER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+    const ownership = actor.ownership ?? {};
+    const declared = gms.filter(u => ownership[u.id] === OWNER);
+    return declared.find(u => u.id === game.user.id)
+        ?? gms.find(u => u.id === game.user.id)
+        ?? gms[0];
+}
+
+/**
+ * The Gamemaster whose Monokuma this is, where it can be told whoever asks (E60 C5e): `poolUserFor`'s configured pool,
+ * the one pool holder (or the one full Gamemaster), or the one with an explicit OWNER entry on the actor - and null
+ * where `poolUserFor` falls back to the acting GM (several, nothing configured, no owner named) or there is no GM at
+ * all. The Monokuma whose GM cannot be told admits no GM to a player's dice (Q-C5-4's default; private-rolls.mjs
+ * `gmsInRoomOf`).
+ */
+export function poolOwnerOf(actor) {
+    if (!actor) return null;
 
     // "Has a pool" is despair.mjs's question, not a role test. An Assistant GM
     // explicitly granted one (`addPool`) is offered as a pool in the GM team
@@ -220,7 +246,7 @@ export function poolUserFor(actor) {
     if (configured && holders.some(u => u.id === configured.id)) return configured;
 
     const gms = holders.length ? holders : game.users.filter(u => u.role === CONST.USER_ROLES.GAMEMASTER);
-    if (!gms.length) return game.user.isGM ? game.user : null;
+    if (!gms.length) return null;
 
     // One Gamemaster, one pool - nothing to disambiguate.
     if (gms.length === 1) return gms[0];
@@ -232,12 +258,7 @@ export function poolUserFor(actor) {
     const ownership = actor.ownership ?? {};
     const declared = gms.filter(u => ownership[u.id] === OWNER);
     if (declared.length === 1) return declared[0];
-
-    // Genuinely ambiguous. The acting GM spends their own, and the panel exists
-    // to stop the table ever being in this state.
-    return declared.find(u => u.id === game.user.id)
-        ?? gms.find(u => u.id === game.user.id)
-        ?? gms[0];
+    return null;
 }
 
 /**

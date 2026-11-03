@@ -470,6 +470,15 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
        Chie, the killer, first: the incident opens on the victim's. */
     const chieTurn = await gm.eval(`for (let i = 0; i < 4 && game.drpg.murderState()?.turnSide !== "killer"; i++) await game.drpg.passTurn();
         return game.drpg.murderState()?.turnSide ?? null;`, { timeout: 60000 });
+    /* WHO IS SENT THE DICE (E60 C5e, 03.11.2026; E60-18): since C5e a GM is sent a player's dice only with one of its
+       Monokumas in the roller's room; a bystander was never sent them, and the change must not send them. p1's
+       browser counts every `dice.show` packet it is handed from here. */
+    await p1.eval(`globalThis.__diceShown72 = [];
+        if (!globalThis.__diceShown72On) {
+            globalThis.__diceShown72On = true;
+            game.socket.on("module.${MOD}", p => { if (p?.action === "dice.show") globalThis.__diceShown72?.push(p.id ?? null); });
+        }
+        return true;`);
     await p3.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
         globalThis.__forceRoll = { hope: 8, fear: 3 };
         try { await A.rollTrait(game.actors.get("${IDS.chie}"), "body", { actionKey: "crisis", context: { crisis: "finishingBlow" } }); }
@@ -498,6 +507,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
             && drawnCopy.named.length === 0, JSON.stringify(drawnCopy));
     check("p1: a bystander's browser cannot read the GM's message of p3's drawn crisis roll",
         Boolean(drawnCopy.id) && drawnCopy.readable === false, JSON.stringify(drawnCopy));
+    const bystanderShown = await p1.eval(`return [...(globalThis.__diceShown72 ?? [])];`);
+    check("p1: a bystander's browser is sent no dice of p3's drawn crisis roll (E60 C5e)",
+        Boolean(drawnCopy.id) && !bystanderShown.includes(drawnCopy.id), JSON.stringify({ id: drawnCopy.id, bystanderShown }));
     /* A DEATH IN TWO PHASES (E05 C10, 26.09.2026; audit S06-11). Botan carries a Truth Bullet
        into the incident; the blow kills him for the GMs and for his own player (p2), and p1's
        browser reads him alive - no flag, no marker, his bullet still on the sheet - until the

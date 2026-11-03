@@ -25,7 +25,7 @@ import { competingModuleWarnings, liveKitSecretWarning, liveKitConnectionSetting
 import { isPrimaryGm, log, debug, error, esc, gmReport, plural, dialogContent, sessionFailures } from "./utils.mjs";
 import { systemWarningSilence, showSystemWarningAgain } from "./requirements.mjs";
 import { gmOnline } from "./bridge-guards.mjs";
-import { rollSubjectNow } from "./private-rolls.mjs";
+import { rollSubjectNow, gmsInRoomOf, untoldMonokumas, isDrawnRoll } from "./private-rolls.mjs";
 
 /**
  * WHO WAS ALLOWED TO WATCH THE LAST FEW ROLLS.
@@ -70,6 +70,8 @@ function rollAudienceLines(gm = game.user?.isGM === true) {
         return lines;
     }
 
+    const untold = gm && forced ? untoldMonokumas() : [];
+    if (untold.length) lines.push(`  Monokumas whose GM cannot be told admit no GM to a player's dice: ${untold.join(", ")} - set their pool in the Monokuma panel`);
     for (const message of rolls) {
         // Who the roll is about as this browser can tell (E06 C5a): what its roller reported, then the speaker.
         const subject = rollSubjectNow(message);
@@ -82,6 +84,12 @@ function rollAudienceLines(gm = game.user?.isGM === true) {
 
         lines.push(`  "${subject?.name ?? "no actor"}" rolled by ${author} → ${names}`
             + `${mine ? "   ← you hear this one" : ""}`);
+        // Whose screen throws a player's dice (E60 C5e): a GM's only with one of their Monokumas in the roller's room.
+        if (gm && forced && (!message.author?.isGM || isDrawnRoll(message))) {
+            const seen = gmsInRoomOf(subject).map(id => game.users.get(id)?.name ?? id);
+            lines.push(seen.length ? `      3D dice on a GM's screen: ${seen.join(", ")} (their Monokuma stands in the roller's room)`
+                : "      3D dice on no GM's screen: no GM's Monokuma stands in the roller's room");
+        }
 
         // The accident, named on the spot. Every player who owns the character
         // is a candidate for `ownerOf`, and only the first active one is used.

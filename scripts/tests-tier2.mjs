@@ -10255,11 +10255,13 @@ const SCENARIOS = [
          * each public roll until C13. Read: Dice So Nice's decision as it asks it of this GM, each
          * throw on this screen (as whose dice, synchronised or not), and each packet with its
          * recipients. Until C13 Dice So Nice decided for itself here, in the GM's colours, and no
-         * packet left.
+         * packet left. E60 C5e: with rolls forced private the GMs of that audience are those with a Monokuma of theirs in
+         * the roller's room (private-rolls.mjs `gmsInRoomOf`), this one too: its own throw and the packets are read
+         * against that (E60-T17 moves the Monokuma in and out).
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
         needs(world.moduleActive("dice-so-nice"), "the dice of a drawn roll are thrown through Dice So Nice");
-        const { gmIds } = await import("./utils.mjs");
+        const { gmsInRoomOf } = await import("./private-rolls.mjs");
         const { player, theirs } = playerAndCharacters();
         const dice3d = game.dice3d, show = dice3d.showForRoll, emit = game.socket.emit;
         const readings = [], expected = [];
@@ -10280,9 +10282,11 @@ const SCENARIOS = [
                 const interception = { willTrigger3DRoll: true };
                 Hooks.callAll("diceSoNiceMessagePreProcess", F.message.id, interception);
                 readings.push([forced, interception.willTrigger3DRoll, thrown.map(args => [args[1]?.id ?? args[1] ?? null, args[2] === true]), sent]);
-                const others = (forced ? gmIds() : game.users.filter(u => u.active).map(u => u.id))
+                const inRoom = gmsInRoomOf(theirs);
+                const others = (forced ? inRoom : game.users.filter(u => u.active).map(u => u.id))
                     .filter(id => id !== game.user.id && id !== player.id).sort();
-                expected.push([forced, false, [[player.id, false]], others.length ? [[{ action: "dice.show", id: F.message.id, by: player.id }, others]] : []]);
+                const here = !forced || inRoom.includes(game.user.id);
+                expected.push([forced, false, here ? [[player.id, false]] : [], others.length ? [[{ action: "dice.show", id: F.message.id, by: player.id }, others]] : []]);
             } finally {
                 await F.putBack();
             }
@@ -10300,7 +10304,9 @@ const SCENARIOS = [
          * (the roller is told, nothing is recorded), and the Debug log says what this screen showed. `drawnForPlayer`'s
          * packet, with Daggerheart's `toMessage` failing while the GM judges it. Read: each throw here (as whose dice,
          * synchronised or not), what the roller was sent, the message and the record, and this browser's Debug lines
-         * that name the roll. Until C6 nothing was thrown here and nothing logged.
+         * that name the roll. Until C6 nothing was thrown here and nothing logged. E60 C5e: this GM throws a player's dice
+         * only with a Monokuma of theirs in the roller's room (private-rolls.mjs `gmsInRoomOf`), so the world's placed
+         * Monokuma stands beside the roller for the draw and goes back after.
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
         needs(world.moduleActive("dice-so-nice"), "the dice of a drawn roll are thrown through Dice So Nice");
@@ -10309,10 +10315,16 @@ const SCENARIOS = [
         const dice3d = game.dice3d, show = dice3d.showForRoll;
         const own = Object.getOwnPropertyDescriptor(cls, "toMessage");
         const debugWas = game.settings.get(MODULE_ID, SETTINGS.debug), consoleDebug = console.debug;
+        const { monokumaActors } = await import("./monokuma.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const monokuma = monokumaActors().find(m => locateActor(m)?.tokenDoc) ?? null, roller = locateActor(theirs);
+        must(monokuma && roller?.tokenDoc, "no placed Monokuma, or the player's character is on no scene - this would measure nothing");
+        const token = locateActor(monokuma).tokenDoc, tokenWas = { x: token.x, y: token.y };
         const thrown = [], lines = [];
         if (!debugWas) await game.settings.set(MODULE_ID, SETTINGS.debug, true);
         let F = null;
         try {
+            await token.update({ x: roller.tokenDoc.x + 100, y: roller.tokenDoc.y }, { animate: false });
             const watch = () => {
                 dice3d.showForRoll = async (...args) => { thrown.push([args[1]?.id ?? args[1] ?? null, args[2] === true]); return true; };
                 Object.defineProperty(cls, "toMessage", { configurable: true, writable: true, value: async () => { throw new Error("H82 C6 planted: the message's write failed"); } });
@@ -10339,6 +10351,7 @@ const SCENARIOS = [
             console.debug = consoleDebug;
             if (game.settings.get(MODULE_ID, SETTINGS.debug) !== debugWas) await game.settings.set(MODULE_ID, SETTINGS.debug, debugWas);
             await F?.putBack();
+            if (token.x !== tokenWas.x || token.y !== tokenWas.y) await token.update(tokenWas, { animate: false });
         }
     }],
 
@@ -81666,6 +81679,110 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ copy: true, drawn: true, message: false, reroll: true, own: [laid], off: ["[]"], forged: true }),
             "[the world's copy took the source's look; the drawn roll's throws laid; the message's own dice painted; the Reroll's throws laid; "
             + "the GM's own throw; with the switch off; a player's write put back]");
+    }],
+
+    ["E60-T17 - a GM sees a player's drawn dice only with that GM's Monokuma in the roller's room (E60 C5e; E60-18, Q-C5-4): with the Monokuma's token in the roller's room this GM's screen throws the drawn roll and its audience names this GM; moved out, no throw and this GM is not in its audience; the roller is in it either way, and the GM reads the roll's card either way", async () => {
+        /*
+         * E60 C5e, 03.11.2026; the owner: "Nie powinien ich widziec, chyba ze jest w tym samym pokoju" and "GM ma token
+         * monokumy ktorym sie porusza". Until C5e the primary threw every player's drawn roll on its own screen (roll-draw.mjs
+         * `throwOnThisScreen`, H82 C6) and every GM was in its dice's audience (private-rolls.mjs `diceAudienceIds`). The
+         * world's Monokuma, whose GM is this one (`poolOwnerOf`: the world's one full Gamemaster, no pool set), has its token
+         * moved into the room the player's character stands in, then back where it stood; a roll drawn for the player each
+         * time (`drawnForPlayer`). Read: the throws Dice So Nice was asked for on this screen (`showForRoll`, stood in and put
+         * back), the drawn audience (`drawnDiceAudienceIds`), whether this GM reads the message. Red before C5e: thrown and in
+         * the audience both times. Mutants c5e-m1 (every GM kept in the audience) and c5e-m2 (the GM's throw ungated) read
+         * red here; c5e-m4 (the whisper narrowed too) in E60-T18, since a drawn roll's message is the GM's.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        needs(world.atLeast("monokumas"), "a Monokuma stands for the GM");
+        const { player, theirs } = playerAndCharacters();
+        const P = await import("./private-rolls.mjs");
+        const M = await import("./monokuma.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const monokuma = M.monokumaActors().find(m => locateActor(m)?.tokenDoc) ?? null;
+        const roller = locateActor(theirs);
+        must(monokuma && roller?.room && roller.tokenDoc, "no placed Monokuma, or the player's character stands in no room - this would measure nothing");
+        must(typeof M.poolOwnerOf !== "function" || M.poolOwnerOf(monokuma)?.id === game.user.id, "the Monokuma's GM is not this one - this would measure nothing");
+        const token = locateActor(monokuma).tokenDoc;
+        const was = { x: token.x, y: token.y };
+        const shown = [];
+        const dice3d = game.dice3d, showForRoll = dice3d.showForRoll;
+        dice3d.showForRoll = async (...args) => { shown.push(args[1]?.id ?? null); return showForRoll.apply(dice3d, args); };
+        const read = {};
+        const draw = async label => {
+            shown.length = 0;
+            const F = await drawnForPlayer(player, theirs);
+            try {
+                await settle();
+                const audience = F.message ? P.drawnDiceAudienceIds(F.message, player.id) : [];
+                read[label] = { room: locateActor(monokuma)?.room === roller.room, thrown: shown.length > 0,
+                    gm: audience.includes(game.user.id), roller: audience.includes(player.id), card: F.message?.isContentVisible === true };
+            } finally {
+                await F.putBack();
+            }
+        };
+        try {
+            await token.update({ x: roller.tokenDoc.x + 100, y: roller.tokenDoc.y }, { animate: false });
+            await settle();
+            await draw("in");
+            await token.update({ x: was.x, y: was.y }, { animate: false });
+            await settle();
+            await draw("out");
+        } finally {
+            dice3d.showForRoll = showForRoll;
+            if (token.x !== was.x || token.y !== was.y) await token.update({ x: was.x, y: was.y }, { animate: false });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            in: { room: true, thrown: true, gm: true, roller: true, card: true },
+            out: { room: false, thrown: false, gm: false, roller: true, card: true }
+        }), "[with the Monokuma in the room and moved out: it stands in the room; this screen threw the dice; this GM in the audience; the roller in it; this GM reads the card]");
+    }],
+
+    ["E60-T18 - a player's roll not drawn on a GM's screen (E60 C5e; E60-18): a duality roll the player's own browser wrote (no GM at its throw, Daggerheart's own) is animated by this GM's Dice So Nice only while this GM's Monokuma stands in the roller's room, and its card is read either way", async () => {
+        /*
+         * E60 C5e, 03.11.2026. A roll the player's browser throws itself is the player's message, which Dice So Nice animates
+         * wherever its content is visible (the harness's model of 6.3.1's `shouldInterceptMessage`, `__dsnAnimated`), and a
+         * GM reads every whisper, so until C5e every GM's screen threw it. Now private-rolls.mjs `keepDiceToReaders` turns
+         * Dice So Nice's decision off on a GM's browser that is not among `gmsInRoomOf` the roll's subject. A player's
+         * duality card about their character (`playerRollCard`, the player as author), with the world's Monokuma moved into
+         * the character's room and then back. Read: whether this browser's Dice So Nice would animate each, and whether the
+         * card is readable here and its whisper names this GM. Red before C5e: animated both times. Mutant c5e-m4 (the
+         * whisper narrowed to the GMs in the room, so the card lost too) reads red here: it survived the first run, which
+         * read only `isContentVisible` - a card left unwhispered is visible to all.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the roll is a connected player's");
+        needs(world.atLeast("monokumas"), "a Monokuma stands for the GM");
+        const { player, theirs } = playerAndCharacters();
+        const M = await import("./monokuma.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const monokuma = M.monokumaActors().find(m => locateActor(m)?.tokenDoc) ?? null;
+        const roller = locateActor(theirs);
+        must(monokuma && roller?.room && roller.tokenDoc, "no placed Monokuma, or the player's character stands in no room - this would measure nothing");
+        const token = locateActor(monokuma).tokenDoc;
+        const was = { x: token.x, y: token.y };
+        const made = [], read = {};
+        const card = async label => {
+            const message = await playerRollCard(player, theirs);
+            made.push(message);
+            await settle();
+            read[label] = [globalThis.__dsnAnimated.includes(message.id), message.isContentVisible === true,
+                (game.messages.get(message.id)?.whisper ?? []).includes(game.user.id)];
+        };
+        try {
+            await token.update({ x: roller.tokenDoc.x + 100, y: roller.tokenDoc.y }, { animate: false });
+            await settle();
+            await card("in");
+            await token.update({ x: was.x, y: was.y }, { animate: false });
+            await settle();
+            await card("out");
+        } finally {
+            for (const message of made) await game.messages.get(message.id)?.delete();
+            if (token.x !== was.x || token.y !== was.y) await token.update({ x: was.x, y: was.y }, { animate: false });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ in: [true, true, true], out: [false, true, true] }),
+            "[with the Monokuma in the room and moved out: this GM's Dice So Nice animates the roll; this GM reads its card; its whisper names this GM]");
     }],
     ...GRID
 ];

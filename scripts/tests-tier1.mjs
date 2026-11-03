@@ -32292,6 +32292,41 @@ const INVARIANTS = [
             handed: true, copy: true, plain: null, none: null, empty: null
         }), "[each die of the laid copy: class, appearance, model file; the roll handed in unchanged; a copy; a plain roll; no look; an empty look]");
     }],
+
+    ["R1299 - the GMs who see a player's dice (E60 C5e; E60-18, Q-C5-4): private-rolls.mjs `gmsInRoomOf(subject)` answers each GM one of whose own Monokumas stands in the roller's room on the roller's scene - a Monokuma in another room, on another scene or on no scene admits nobody, nor does one whose GM cannot be told or whose pool is a player's; two GMs each by their own; a roller on no scene has none", async () => {
+        /*
+         * E60 C5e, 03.11.2026; the owner: a player's action roll on the GM's screen, "Nie powinien ich widziec, chyba ze
+         * jest w tym samym pokoju", and "GM ma token monokumy ktorym sie porusza"; Q-C5-4's default (a Monokuma whose GM
+         * cannot be told admits no GM). Fixtures, nothing of the world: three GMs and a player as users, seven Monokumas
+         * and where each stands (`locate`, stood in for movement.mjs `locateActor`), whose GM each is (`gmOf`, stood in
+         * for monokuma.mjs `poolOwnerOf`), and a roller in the Gym of scene S1. Red before C5e: no `gmsInRoomOf`. Mutants
+         * c5e-m3 (the room matched on any scene) and c5e-m5 (one GM's Monokuma admits every GM) read red here.
+         */
+        const P = await import("./private-rolls.mjs");
+        ok(typeof P.gmsInRoomOf === "function", "private-rolls.mjs exports no gmsInRoomOf");
+        if (typeof P.gmsInRoomOf !== "function") return;
+        const user = (id, isGM) => ({ id, isGM });
+        const g1 = user("R1299G1", true), g2 = user("R1299G2", true), g3 = user("R1299G3", true), pl = user("R1299P1", false);
+        const s1 = { id: "R1299S1" }, s2 = { id: "R1299S2" };
+        const at = { roller: { scene: s1, room: "Gym" }, mGym: { scene: s1, room: "Gym" }, mLibrary: { scene: s1, room: "Library" }, mNowhere: null,
+            mOtherScene: { scene: s2, room: "Gym" }, mUntold: { scene: s1, room: "Gym" }, mPlayers: { scene: s1, room: "Gym" }, mGym3: { scene: s1, room: "Gym" } };
+        const gmOfIt = { mGym: g1, mLibrary: g2, mNowhere: g2, mOtherScene: g2, mUntold: null, mPlayers: pl, mGym3: g3 };
+        const actor = name => ({ name, id: name });
+        const locate = who => at[who?.name] ?? null;
+        const gmOf = m => gmOfIt[m.name] ?? null;
+        const run = (names, subject = actor("roller")) => [...P.gmsInRoomOf(subject, { monokumas: names.map(actor), gmOf, locate })].sort();
+        equal(stableJson({
+            inRoom: run(["mGym"]), library: run(["mLibrary"]), nowhere: run(["mNowhere"]), otherScene: run(["mOtherScene"]),
+            untold: run(["mUntold"]), players: run(["mPlayers"]), two: run(["mGym", "mGym3", "mLibrary"]),
+            noRoller: run(["mGym"], actor("nobody")), none: run([])
+        }), stableJson({
+            inRoom: [g1.id], library: [], nowhere: [], otherScene: [], untold: [], players: [], two: [g1.id, g3.id].sort(),
+            noRoller: [], none: []
+        }), "[a GM's Monokuma in the room; in another room; on no scene; in a room of that name on another scene; its GM not told; "
+            + "its pool a player's; two GMs' in the room and a third's elsewhere; a roller on no scene; no Monokuma]");
+        const M = await import("./monokuma.mjs");
+        ok(typeof M.poolOwnerOf === "function", "monokuma.mjs exports no poolOwnerOf");
+    }],
 ];
 
 /**
