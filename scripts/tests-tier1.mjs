@@ -31952,9 +31952,10 @@ const INVARIANTS = [
     }],
     ["R1280 - one read of traces: remnants.mjs `traceRefsOf(rows, scene, tokens)` answers one frozen ref per trace of that scene - each trace token's (flagged `isRemnant`) in the scene's order, with its row or none, then each row of the scene with a spot and no token - and none of another scene, a scene being a row's when its key's part before the first dot is its id; a ref carrying its token takes the token's spot, floor and size over the row's; `found` is the row's `foundAt` or `incidentFound`, or the token un-hidden and not an incident's drawn for its cast (1.2.97's rule, for a row with no `foundAt`); a row with neither a spot nor a token is left out; a ref has no `update` or `delete`; pure (E60 C1b; E60-03, S17-64)", async () => {
         /*
-         * E60 C1b, 03.11.2026; D38 = 2, S17-64. Every reader of a trace asked the scene's tokens until E60, and from C2a an
-         * unfound trace has no token, so remnants.mjs answers a ref per trace from the rows and the tokens together
-         * (`remnantsOn`, `remnantById` and every reader through them). Read here on fixtures alone - two scenes, the
+         * E60 C1b, 03.11.2026; S17-64. Every reader of a trace asked the scene's tokens until E60, and from C1b
+         * remnants.mjs answers a ref per trace from the rows and the tokens together (`remnantsOn`, `remnantById` and
+         * every reader through them; every trace keeps its hidden token, the owner's D38 = 1 of 03.11.2026, and a row with
+         * no token is one whose token is gone). Read here on fixtures alone - two scenes, the
          * second's id beginning with the first's ("e60r" and "e60rB"), so a key matched by a bare prefix is caught; six
          * tokens and seven rows: a found token whose row holds another spot (a GM dragged it), a hidden token with a row of
          * 1.2.97 (no spot, no `foundAt`), an unflagged token, a flagged token with no row, an incident's un-hidden token
@@ -32016,10 +32017,11 @@ const INVARIANTS = [
 
     ["R1282 - a placed trace's row holds its spot: remnants.mjs `traceRowOf(data, { x, y, level, id, sceneId, ... })` answers the ledger's key `<sceneId>.<id>` and a row of every field `placeRemnant` wrote at 55f03746 (type, visibility, faint, reinforced, note, action, subject, pointsAt, tiedToCrime, tieWaitsFor, itemIdentity, sourceActor, sourceName, room, chapter, day, timeOfDay, epoch, label, placedAt) and `x`, `y`, `level` (null for every floor) and `foundAt` null, by 1.2.97's rules (a type's reinforcement, a tie's wait only for a tie that is true, no `placedAt` from the future); `placeRemnant` writes that row with its spot and the probe's floor; pure (E60 C1b; E60-02)", async () => {
         /*
-         * E60 C1b, 03.11.2026; D38 = 2. The row is the trace from E60 on, and an unfound trace gets no token at C2a - so the
-         * row carries the spot: `placeRemnant` builds it with `traceRowOf` and writes it whole, and nothing of it but the
-         * spot and `foundAt` is new. Read: two rows built (a Final Key, reinforced by its type and tied, with a placedAt
-         * ahead of `now`; a Prep left by a student, undecided, on a floor), their keys and fields against 55f03746's list,
+         * E60 C1b, 03.11.2026. The row holds the trace's spot from E60 on (written for D38 = 2; the owner chose D38 = 1 the
+         * same day, so the token is still made at placement, at that spot): `placeRemnant` builds it with `traceRowOf`
+         * and writes it whole, and nothing of it but the spot and `foundAt` is new. Read: two rows built (a Final Key,
+         * reinforced by its type and tied, with a placedAt ahead of `now`; a Prep left by a student, undecided, on a
+         * floor), their keys and fields against 55f03746's list,
          * and `placeRemnant`'s source, comments stripped. Red at C1a: no `traceRowOf`. Mutant c1b-m6 (no `foundAt: null`)
          * reads red here.
          */

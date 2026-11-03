@@ -2073,7 +2073,7 @@ async function undoLastCrisis({ actorId, key, before = null }) {
     // that no longer happened.
     if (receipt.remnant?.id) {
         try {
-            // A found trace's token through its ref (E60 C1b); C2a moves the write into remnants.mjs.
+            // The trace's token through its ref (E60 C1b): every trace has one (D38 = 1), found or not.
             await remnantById(receipt.remnant.sceneId, receipt.remnant.id)?.document?.delete();
         } catch (err) {
             error("Could not take back the Remnant a rerolled crisis action left", err);

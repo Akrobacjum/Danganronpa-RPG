@@ -10356,7 +10356,7 @@ const REGRESSIONS = [
          *
          * E79 C6, 15.10.2026 (A10-9's overlay clause; the plan's F3): the GMs' overlay draws every secret passage of the
          * scene on screen, so a copy of it on a player's browser would be the whole map of them. `gmOverlay` is declared
-         * once, exported, in gm-overlay.mjs (E60 adds its layer 'traces' there); in that file a `new PIXI.Container`
+         * once, exported, in gm-overlay.mjs (no layer for traces: D38 = 1, 03.11.2026); in that file a `new PIXI.Container`
          * stands in `gmOverlay` only after `if (!game.user?.isGM) return null` and in any other declaration only after
          * a call of `gmOverlay()` (a layer is the overlay's child, never the canvas's); and the overlay's name,
          * "drpgGmOverlay", is written as a string in no other module file. A container made under another class's name
@@ -19638,11 +19638,12 @@ const REGRESSIONS = [
     }],
     ["R1281 - one read of traces (E60 C1b; E60-03, S17-64): outside remnants.mjs and the placeables' three readers (remnant-ring.mjs, remnant-icons.mjs, visibility.mjs) no module file's code names the trace flag `isRemnant`, and no top-level declaration gets a token by `tokens.get(` but the sixteen measured at E60 C1b, none of them a trace's (a sendback, a relay, a project's, the trial hall's, `remnantStore`'s tombstone check `exists`); and no declaration calls `update(` or `delete(` on a value it bound from `remnantsOn`, `remnantsInRoom`, `remnantById` or `findRemnantToken` - a found trace's token is written as the ref's `document`", async () => {
         /*
-         * E60 C1b, 03.11.2026; D38 = 2, S17-64. From C2a an unfound trace has no token, so every reader of a trace reads
-         * its ref (remnants.mjs `remnantsOn`, `remnantById` ...), built from the rows and the tokens together: a reader
-         * that asks the scene's tokens itself would not see an unfound trace, or would see a found one apart from its
-         * row. Read in every module file the module loads but the tier files, comments blanked (blankComments): the flag
-         * (strings kept), and `tokens.get(` with the top-level declaration holding it (strings blanked too). The sixteen
+         * E60 C1b, 03.11.2026; S17-64. Written for D38 = 2, in which an unfound trace was to have no token; the owner chose
+         * D38 = 1 the same day, so every trace keeps its hidden token, and the one read stays: every reader of a trace
+         * reads its ref (remnants.mjs `remnantsOn`, `remnantById` ...), built from the rows and the tokens together, so a
+         * trace is read with its row and its spot in one place. Read in every module file the module loads but the tier
+         * files, comments blanked (blankComments): the flag (strings kept), and `tokens.get(` with the top-level
+         * declaration holding it (strings blanked too). The sixteen
          * holders allowed are listed, and each is held to still be there, so a row once written cannot keep a later
          * read green. Then the refs' writes: in each declaration, the names bound from the four readers (`const x =
          * reader(`, `for (const x of reader(`, and the first arrow parameter of a call chained on one), and a call of

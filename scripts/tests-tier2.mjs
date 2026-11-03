@@ -81242,9 +81242,10 @@ const SCENARIOS = [
     }],
     ["E60-T1 - every placed trace's row holds its spot, and the readers answer on refs (E60 C1b; E60-02, E60-03): three traces placed - a student's Faint Prep through `dropRemnant` (on the student's floor), a Key and a Final through `placeRemnant` - each have a row with `x`, `y` (the token's), `level` (the source's floor, else null) and `foundAt` null, the spot stamped as a real write; the readers list each as a ref carrying its token (`remnantsOn`, `remnantById`, `sceneOfRemnant`, Observe's candidates, the clean-up's list, the chapter's Faint Prep, the finals, the Keys still to find); a find writes `foundAt` and the road on the row, a GM's Reveal \"gm\", and the ref reads it found", async () => {
         /*
-         * E60 C1b, 03.11.2026; D38 = 2, S17-64. From E60 on the row is the trace: its spot is written with it at placement
-         * (remnants.mjs `traceRowOf`), and every reader reads one ref per trace (`traceRefsOf`) - here the token is still
-         * made, so a ref carries it and the reader answers what it answered on the token. The student stands on a floor
+         * E60 C1b, 03.11.2026; S17-64. From E60 on the row holds the trace's spot, written with it at placement
+         * (remnants.mjs `traceRowOf`), and every reader reads one ref per trace (`traceRefsOf`) - the token is made at
+         * placement (D38 = 1, the owner's choice of 03.11.2026), so a ref carries it and the reader answers what it
+         * answered on the token. The student stands on a floor
          * of this test's own for the placement (the token's `level` shadowed on this browser alone, put back after: no
          * world write), so a floor the source does not stand on is read as null. The spot is stamped as a real write, above
          * the store's weak stamp (`weak()`): a derived write of it, a migration's or another GM's default, loses to it in

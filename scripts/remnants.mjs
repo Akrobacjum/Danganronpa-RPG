@@ -561,10 +561,12 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null, d
 
         // The answer key, off the token and onto the GM's own shelf.
         if (created) {
-            /* THE ROW HOLDS THE SPOT (E60 C1b, 03.11.2026; D38 = 2): `x`, `y`, the floor (the source's on this scene,
-               the probe's, else null) and `foundAt` null, beside every field this wrote at 1.2.97 (`traceRowOf`).
-               The token is still made, under the id Foundry gives it, and the row keyed by it; from C2a the row
-               alone is made, and the token at the first find. A plain write: the spot is the trace's, not derived. */
+            /* THE ROW HOLDS THE SPOT (E60 C1b, 03.11.2026): `x`, `y`, the floor (the source's on this scene, the
+               probe's, else null) and `foundAt` null, beside every field this wrote at 1.2.97 (`traceRowOf`). The
+               token is made here, hidden, under the id Foundry gives it, and the row keyed by it - for every trace,
+               found or not: the owner chose D38 = 1 on 03.11.2026 (an unfound trace stays a hidden token, which
+               every browser holds with its spot, known-leaks S17-64, a Foundry limit), so no road makes a row alone.
+               A plain write: the spot is the trace's, not derived. */
             const { row } = traceRowOf(data, {
                 x: spot.x, y: spot.y, level: probe.level, id: created.id, sceneId: target.id, label,
                 // A tie to a crime nobody has found yet waits to reach the copies
@@ -1525,8 +1527,8 @@ export async function revealRemnantToFinder(trace, { tell = true, via = "find" }
     if (!tokenDoc.hidden && (!incident || readRemnantLedger()[keyOf(tokenDoc)]?.incidentFound)) return tokenDoc;
 
     /* THE ROW SAYS IT IS FOUND (E60 C1b, 03.11.2026): `foundAt` and the road (`via`), where the token is un-hidden
-       or an incident's trace first found - so a ref reads the trace found from its row (`traceRefsOf`), and from C2a,
-       when an unfound trace has no token, the row is where that is read. */
+       or an incident's trace first found - so a ref reads the trace found from its row (`traceRefsOf`) as well as
+       from its token, and the row keeps when and by which road it was first found. */
     if (tokenDoc.hidden) await tokenDoc.update({ hidden: false });
     else await setRemnantSecret(tokenDoc, { incidentFound: true }, { ifLive: true });
     await markFound(tokenDoc, via);
@@ -1921,7 +1923,8 @@ export function remnantData(trace) {
         placedAt: entry.placedAt ?? null,
         // Put back by a cleanup Reroll (cleanup.mjs `undoLastCleanup`).
         restored: Boolean(entry.restored),
-        // A trace with no token is hidden from everyone (E60 C1b: none such before C2a but a row's own spot).
+        // A trace with no token is hidden from everyone (E60 C1b): a row whose token is gone with no tombstone - no
+        // primary GM's `deleteToken` hook saw it go (D38 = 1: every trace is placed with a token).
         hidden: tokenDoc ? tokenDoc.hidden : true,
         // Its first find (E60 C1b): when and by which road, null while nobody has found it or before 1.2.98.
         foundAt: entry.foundAt ?? null,
@@ -3075,11 +3078,13 @@ async function seedPublicIfMissing(tokenDoc) {
 }
 
 /* ==========================================================================
- * ONE READ OF TRACES: THE REF (E60 C1b, 03.11.2026; D38 = 2, S17-64)
+ * ONE READ OF TRACES: THE REF (E60 C1b, 03.11.2026; S17-64)
  * --------------------------------------------------------------------------
  * Every reader asked a scene's tokens until E60: `remnantsOn` filtered them by the flag, and 51 reads in 17 files
  * outside this one walked a scene's tokens by id or by the flag (the spec's probe, trace-readers-outside.txt). The
- * row is the trace from E60 on, and an unfound one gets no token at C2a - so every reader reads one **ref** per
+ * row holds the trace's spot from E60 on - built for D38 = 2, in which an unfound trace was to have no token; the
+ * owner chose D38 = 1 on 03.11.2026, so every trace keeps the hidden token it is placed with, and on a GM's browser
+ * a scene's trace tokens each give their ref its `document`. Every reader reads one **ref** per
  * trace, built here from the rows and the tokens together (`traceRefsOf`), and from C1b on nothing outside this
  * file and the placeables' three readers (the rings, the icons, visibility.mjs) names the flag or gets a trace by
  * `scene.tokens.get` (tier 0 R1281).
@@ -3087,8 +3092,9 @@ async function seedPublicIfMissing(tokenDoc) {
  * A ref answers what a reader asked a trace's token for: `id` and `parent` (`keyOf`, the bridge's ids), `x`, `y`,
  * `level`, `width`, `height` and `elevation` (movement.mjs `roomOfToken` / `roomAt`), and `remnantData` /
  * `remnantPublic` take it as they take a token. `document` is the trace's token where the scene holds one, and then
- * the spot, the floor and the size are the token's (a GM may have dragged it); null where it holds none, and the
- * row's spot is read (`x`, `y`, `level`, written since C1b by `placeRemnant`). `found` is the row's `foundAt` (or
+ * the spot, the floor and the size are the token's (a GM may have dragged it); null where it holds none - a row
+ * whose token is gone with no tombstone (no primary GM's `deleteToken` hook saw it go) - and the row's spot is read
+ * (`x`, `y`, `level`, written since C1b by `placeRemnant`). `found` is the row's `foundAt` (or
  * `incidentFound`), or HEAD's rule on the token: un-hidden and not one of an incident's drawn for its cast - so a
  * world of 1.2.97, whose rows hold no `foundAt`, reads as it read. A ref is frozen and has no `update` or `delete`:
  * the writes go through this file's functions, and a found trace's token is written as `ref.document`.

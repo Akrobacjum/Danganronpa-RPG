@@ -2085,7 +2085,7 @@ export async function gmStoreHealth() {
     const flagged = traces.filter(token => !onToken.includes(token)
         && ANSWER_KEY_FLAGS.some(flag => flag in (token._source?.flags?.[MODULE_ID] ?? token.flags?.[MODULE_ID] ?? {})));
     if (flagged.length) add("tracesKept", "conflict", "DRPG.Case.row.tracesKept", { n: flagged.length, of: traces.length });
-    // A row with neither a token nor a spot of its own (E60 C1b; a row whose token is gone, until then): no ref reaches
+    // A row with neither a token nor a spot of its own (E60 C1b; a row of 1.2.97 whose token is gone): no ref reaches
     // it, so nothing reads it - counted, never removed on its own.
     const reached = new Set(refs.map(ref => ref.key));
     const orphans = Object.keys(remnantStore.entries()).filter(key => !reached.has(key)).length;

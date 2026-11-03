@@ -13,7 +13,8 @@
  * drawn again gets one new container and never a second. The drawers' data is the GMs' own: a
  * player's browser has no overlay to draw on and nothing to draw.
  *
- * E60 takes this file and adds the layer 'traces'. No import: everything here is PIXI and the DOM.
+ * No layer for traces: an unfound trace stays a hidden token, which the GMs see on the map (D38 = 1,
+ * the owner's choice of 03.11.2026). No import: everything here is PIXI and the DOM.
  */
 
 /** The overlay container's name on `canvas.interface` - read here and nowhere else (R560). */

@@ -2810,7 +2810,7 @@ async function undoLastCleanup(actor, tokenId) {
             const scene = receipt.leftBehind.sceneId
                 ? game.scenes.get(receipt.leftBehind.sceneId)
                 : null;
-            // A found trace's token through its ref (E60 C1b); C2a moves the write into remnants.mjs.
+            // The trace's token through its ref (E60 C1b): every trace has one (D38 = 1), found or not.
             await remnantById(scene?.id, receipt.leftBehind.id)?.document?.delete();
         } catch (err) {
             error("Could not take back the trace a rerolled clean-up left", err);

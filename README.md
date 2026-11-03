@@ -280,7 +280,7 @@ inventory. Every character's items, with their names, still reach every
 browser; a Frisk lists another student's pockets only to the searcher and the
 GMs. <!-- leak:foundry-actor-items --> Where the traces lie, the GM's plan for
 the key clues and, until the lights come up, a murder declared during the
-Eclipse are all world data. A
+Eclipse are all world data. <!-- leak:S17-64 --> A
 token the GM hides is hidden from view only: Foundry sends every token, with its
 name and position, to every browser. <!-- leak:foundry-hidden-tokens --> A
 secret passage, and who knows it, stay with the GMs and the students who know

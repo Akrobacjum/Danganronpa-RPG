@@ -314,7 +314,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
         JSON.stringify({ key: traceKey, gm: foundGm.ref, p1: foundP1.ref, p2: foundP2.ref, flags: [foundGm.flag, foundP1.flag, foundP2.flag] }), { flow: "truth-bullets" });
 
     /* An unfound trace is a token, and a token reaches every browser (S17-64): not a
-       marker in a field, so it is asked of the scene itself. */
+       marker in a field, so it is asked of the scene itself. A Foundry limit since the
+       owner's D38 = 1 (03.11.2026): red for good, and its note and subject stay on the GMs'. */
     const holders = [];
     for (const p of [p1, p2, p3]) {
         if (await p.eval(`return Boolean((game.scenes.active ?? canvas.scene)?.tokens.get("${traceId ?? "none"}"));`)) holders.push(p.who);
