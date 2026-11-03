@@ -24937,7 +24937,7 @@ const SCENARIOS = [
          * rows whole: a fresh season's chapter N read as planned (`plannedChapters()`)
          * before anybody opened the planner this season, and `chargeForUnfoundKeys` billed
          * its unfound slots against a plan nobody made here. `keepOnlyKeyPlanChapter` is
-         * what the reset (season-setup.mjs `wipeSeason`; investigation.mjs `keepSeasonKeyPlan`, the
+         * what the reset (season-wipe.mjs `wipeSeason`; investigation.mjs `keepSeasonKeyPlan`, the
          * keyPlan entry's keep, since E42 C3) calls instead of `clearKeyPlan` when the
          * "keyPlan" group is unticked: the one chapter the clock was on when the reset ran
          * survives, as 1.2.63's single stored plan did, and no other chapter's rows do.
@@ -53211,7 +53211,7 @@ const SCENARIOS = [
          * back the values of the experiences a season began with and kept every other entry (character.mjs
          * `restoreStartingSheet`, read at 4aad1fd), so an experience a Level Up added outlived the season it was
          * earned in. Run here with no reset (the plan's M10), on an actor of the test's own, through the reset's
-         * part for one sheet (season-setup.mjs `wipeStudent`) and the restore itself. Three sheets in turn:
+         * part for one sheet (season-wipe.mjs `wipeStudent`) and the restore itself. Three sheets in turn:
          * (a) one stamped by this version - an experience it began with and raised by the Level Up, one the GM
          * wrote by hand, one the Level Up added; (b) a starting sheet stamped before 1.2.73 (no `levelUpsMarked`)
          * holding the first experience - with an entry made then, nothing written down; (c) the same with no
@@ -58945,7 +58945,7 @@ const SCENARIOS = [
     ["a cast point that is no room moves nobody: a Teleport, a player's region or a region nobody marked", async () => {
         /*
          * E12 fix r1-G5, 11.10.2026; review goal-r1 N1, audit S07-06. The reset's "everyone to one
-         * room" offered every named region of every map (season-setup.mjs `castPoints`), and
+         * room" offered every named region of every map (season-wipe.mjs `castPoints`), and
          * `placeCast` moved the cast into whichever region the choice named: a Teleport's, a region a
          * player drew, a region no GM marked a room. Both read rooms.mjs now. Here a scene of the
          * suite's own holds a Teleport marked a room, a region marked a room and recorded as a
@@ -62862,7 +62862,7 @@ const SCENARIOS = [
                 await settle();
                 out.closed = [J(scene.walls.get(W)?.toObject()) === before, look()];
                 /* Cut once more, the passage below secret again first (the GMs' close left it public: the hole was seen), then
-                   the season's reset as it runs: the cut of the season's store first (season-setup.mjs `wipeSeason`, "THE CUT
+                   the season's reset as it runs: the cut of the season's store first (season-wipe.mjs `wipeSeason`, "THE CUT
                    FIRST"), so the breach's row is gone when its passages step closes every breach (fix e1-G2; E15p2-END-02). */
                 await P.makePassageSecret(low);
                 await PR.applyProjectChange(projectId, { delta: -1 }, { by });

@@ -13,7 +13,7 @@
  * ONE ROW PER STEP, and that is the invariant a test holds: a step nobody named
  * here would be ungated, and the GM's tick would silently not apply to it. The
  * order here is the window's, by section; the order the wipe runs in is
- * season-setup.mjs `RESET_STEPS` since E11 C9 (the incident first), and R50 holds the
+ * season-wipe.mjs `RESET_STEPS` since E11 C9 (the incident first), and R50 holds the
  * two lists to the same keys.
  *
  * THE EXCEPTIONS ARE REMEMBERED, AND THEY COME BACK UNTICKED (Dawid, 18.09:

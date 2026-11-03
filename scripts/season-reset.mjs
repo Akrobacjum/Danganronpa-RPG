@@ -4,7 +4,7 @@
  * Every owner of something a season reset clears registers it here, at its
  * module's top level: the group of the reset's window it belongs to, what the
  * window counts of it (`tally`), how it is cleared (`clear`) and what an
- * unticked group still does (`keep`). The reset (season-setup.mjs `wipeSeason`)
+ * unticked group still does (`keep`). The reset (season-wipe.mjs `wipeSeason`)
  * walks these entries in its order, `RESET_STEPS`, and its window draws its
  * counts from the same entries - one place for what goes, where until E42 the
  * reset held a run per group in its own body and the window a hand list of

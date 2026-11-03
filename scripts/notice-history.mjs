@@ -1205,7 +1205,7 @@ export function keepRoom(err) {
  * obvious one - remove on a deletion, keep on Clear chat - because Foundry 14.365 takes `deleteAll`
  * out of the options before the hook (client-backend.mjs:439, :466; the design's reading of Foundry's
  * file, not this repository's, and on a real 14.x LIVE-E81-11), so a cleared log and the reset's
- * batches (season-setup.mjs `deleteMessages`) reach the hook as single deletions do. Only the option
+ * batches (season-wipe.mjs `deleteMessages`) reach the hook as single deletions do. Only the option
  * removes an entry; every other deletion leaves it, marked `deleted`. Registered by
  * `registerNoticeHistory` on `deleteChatMessage`, after the popups' own hook has taken the card off
  * the screen (popup.mjs `onDeleteChatMessage`).

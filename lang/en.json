@@ -4789,7 +4789,7 @@
         "one": "The season has been reset, with 1 exception left as it was.",
         "other": "The season has been reset, with {n} exceptions left as they were."
       },
-      "failed": "The reset did not finish: {groups}. Everything else went. Open the reset again: it opens with only those ticked.",
+      "failed": "The reset did not finish: {groups}. Everything else went. Open the reset again: it opens with only what did not finish ticked.",
       "failedCast": "The reset did not move every token of the cast where you chose. Move them by hand: a reset with nothing ticked does not run, so it cannot be run again for the tokens alone.",
       "stoppedPrimary": "The reset stopped: this browser is no longer the primary GM's - {name} is - so these did not run: {groups}. What ran stays done; {name} can finish the rest with another reset.",
       "reportCard": {

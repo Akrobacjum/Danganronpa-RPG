@@ -395,7 +395,7 @@ export async function retellPassages({ primary = isPrimaryGm, ...ctx } = {}) {
  * The minimal form of the reset entry (A10-9, E79 fix r4-G7): E42 takes this function over and
  * extends it rather than writing a second reset step for the passages. R560 holds it to one
  * declaration, exported, here; its one caller is the passages entry's clear, `clearSeasonPassages` (E42 C3), which
- * season-setup.mjs `wipeSeason` walks.
+ * season-wipe.mjs `wipeSeason` walks.
  */
 export async function passagesAfterReset({ stores = PASSAGE_STORES } = {}) {
     // The season's passages, a project's, go with who knows them (E15 part 2 C1, D3); the map's stay.

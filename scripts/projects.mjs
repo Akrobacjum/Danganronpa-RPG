@@ -1945,7 +1945,7 @@ export async function deleteProject(countdownId) {
 export async function clearAllProjects() {
     if (!game.user.isGM) return null;
     /* THE PRIMARY'S ALONE (E36 fix e1-G3, 25.10.2026; findings E36-R3, F5). Another GM's reset (a console: the
-       reset window asks for the primary before it writes, season-setup.mjs) queued its step on its own browser,
+       reset window asks for the primary before it writes, season-wipe.mjs) queued its step on its own browser,
        which orders nothing the primary's queue does, and dropped only the secrets that browser held. Refused here
        with the window's own words, nothing cleared (E36-T8). */
     if (!isPrimaryGm()) {

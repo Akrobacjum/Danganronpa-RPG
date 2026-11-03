@@ -265,7 +265,7 @@ export async function pendingSentence() {
  * THE SEASON'S RESET TAKES THE SENTENCE BACK FIRST (E70 C4). Its clock step puts the phase back to Daily
  * Life, and a trial left with a verdict would be ended by it - the sentence carried out on a student its
  * "deaths" step had just brought back, in a season that is over. Called before that write
- * (season-setup.mjs `wipeSeason`), whatever groups were ticked: the record of the trial's chapter loses
+ * (season-wipe.mjs `wipeSeason`), whatever groups were ticked: the record of the trial's chapter loses
  * its sentence, and a Final Trial's waits no longer.
  */
 export async function clearSentence() {
@@ -294,7 +294,7 @@ async function clearSentenceHere() {
  * The season reset's trialProgress group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): the trial's
  * record written empty in a step of its key (E70 C0; tier 0 R991, R1020), so a vote's step on its way is not written
  * over with last season's record after the reset. Raw, as before. The sentence waiting at a running trial's way out
- * is taken back by the clock's step (season-setup.mjs `clearSeasonClock`, `clearSentence`), whichever groups were
+ * is taken back by the clock's step (season-wipe.mjs `clearSeasonClock`, `clearSentence`), whichever groups were
  * ticked.
  */
 export async function clearSeasonTrialRecord() {

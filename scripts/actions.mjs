@@ -475,7 +475,7 @@ export async function resetAllActions({ keepGrants = false } = {}) {
  * the advance. Reported as B-F6-1, from a full reset on a cold copy. The same writer the "refill actions" checkbox in
  * Edit campaign uses, so there is one definition of what a full budget is. It runs after the advancement step on
  * purpose: `resetActionsFor` sizes the budget from the character's own state, and that state is only correct once the
- * starting sheet has been restored. Then each student's stamps (season-setup.mjs `wipeStudent`'s `actions` part).
+ * starting sheet has been restored. Then each student's stamps (season-wipe.mjs `wipeStudent`'s `actions` part).
  * Search tokens need no step of their own beyond the `searchTokens` group: an empty store reads as a full room.
  */
 export async function clearSeasonActions(ctx) {

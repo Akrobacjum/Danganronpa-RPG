@@ -849,7 +849,7 @@ const STEPS = {
         run.offer = null;
     },
 
-    /* The season reset's incident step (season-setup.mjs `resetSeason`, "the incident"): its
+    /* The season reset's incident step (season-wipe.mjs `resetSeason`, "the incident"): its
        close and the offer's. The rest of the reset - the Blackened among it - is not run,
        for the world the runner has to put back. */
     async seasonReset(run) {

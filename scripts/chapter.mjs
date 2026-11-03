@@ -654,7 +654,7 @@ export async function reviveCharacter(actor, { quiet = false } = {}) {
 
 /**
  * The season reset's deaths group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): every student comes
- * back whole (season-setup.mjs `wipeStudent`'s `deaths` part), and the deaths nobody found (E05 C10) - the group's
+ * back whole (season-wipe.mjs `wipeStudent`'s `deaths` part), and the deaths nobody found (E05 C10) - the group's
  * cut, written before every step, takes the GMs' rows on every GM and every player's copy; this drops what this
  * browser holds.
  */
@@ -897,7 +897,7 @@ export function discoverBody(options = {}) {
    found body and named on the Investigation card (measured by the review at 0d860df, with a
    second GM put first in the users); and two GMs announcing one body at once each posted a card
    and each wrote the stamp from its own copy (`bodyWorkQueue` orders one browser only; 17-assistant
-   F1). One browser decides, as the season's reset does (season-setup.mjs), and another GM is told
+   F1). One browser decides, as the season's reset does (season-wipe.mjs), and another GM is told
    whose the announcement is. Refused rather than sent on to the primary: a forwarded press would
    be a new GM-to-GM request with its own checks and census row, for a window the primary GM can
    open just as well. Tier 2 "a GM who is not the primary announces no body and is told whose it is". */
@@ -2239,7 +2239,7 @@ export const CHAPTER_END_STEPS = [
  *   (11.10.2026), the second GM's end held in its first step until the primary's move
  *   arrived (the day moved once there: both mornings read day 1 before either landed;
  *   a day counted twice would need only other timing - read in the code, not measured). So the end runs on the primary only, as the season reset
- *   does (season-setup.mjs `resetSeason`), and another GM is told whose it is, both
+ *   does (season-wipe.mjs `resetSeason`), and another GM is told whose it is, both
  *   here and at the window (`openChapterEndDialog`, which the panel and the trial
  *   console's End the chapter open).
  *
@@ -2261,7 +2261,7 @@ export async function applyChapterEnd(choices = {}) {
 let chapterEnds = Promise.resolve();
 
 /**
- * THE END'S RECORD GOES WITH THE SEASON (E42 C4, 1.2.97; E42-16): the season reset's clock group (season-setup.mjs
+ * THE END'S RECORD GOES WITH THE SEASON (E42 C4, 1.2.97; E42-16): the season reset's clock group (season-wipe.mjs
  * `clearSeasonClock`) writes `chapterEnd` empty, in this queue like every write of it, so an end that stopped last season
  * is offered to nobody in the next one and its targets - last season's chapter, session and day - are never moved to. A
  * record already empty is not written. The reset is the primary GM's; on any other browser this throws, and the reset's

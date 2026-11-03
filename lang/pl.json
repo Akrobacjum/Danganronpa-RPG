@@ -5330,7 +5330,7 @@
         "many": "Sezon zresetowany. {n} wyjątków pozostało bez zmian.",
         "other": "Sezon zresetowany. {n} wyjątków pozostało bez zmian."
       },
-      "failed": "Reset się nie dokończył: {groups}. Cała reszta poszła. Otwórz reset ponownie: zaznaczone będą tylko te grupy.",
+      "failed": "Reset się nie dokończył: {groups}. Cała reszta poszła. Otwórz reset ponownie: zaznaczone będzie tylko to, co się nie dokończyło.",
       "failedCast": "Reset nie przeniósł każdego żetonu obsady tam, gdzie wybrano. Przenieś je ręcznie: reset bez niczego zaznaczonego się nie uruchamia, więc nie da się go powtórzyć dla samych żetonów.",
       "stoppedPrimary": "Reset się zatrzymał: ta przeglądarka nie jest już przeglądarką głównego GM-a - jest nim {name} - więc nie wykonano: {groups}. To, co się wykonało, zostaje; {name} może dokończyć resztę kolejnym resetem.",
       "reportCard": {

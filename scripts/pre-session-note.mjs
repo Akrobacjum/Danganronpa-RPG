@@ -312,7 +312,7 @@ export async function retellNotes() {
 /*
  * A flag that says a note was written after the row this browser holds: the row is not
  * the note the player last wrote. `written` only - a flag saying nothing is written is a
- * reset's (season-setup.mjs's preNotes step writes `{ written: false }` with no date).
+ * reset's (season-wipe.mjs's preNotes step writes `{ written: false }` with no date).
  */
 function flagAhead(flag, row) {
     if (flag.written !== true || !Number.isFinite(flag.updatedAt)) return false;

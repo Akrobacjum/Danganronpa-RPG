@@ -160,7 +160,7 @@ export async function clearSeals() {
 /**
  * The season reset's seals group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): the sealed rooms and the
  * restrictions, and each student's Call armed for a roll - the board's, as a seal is (D12), unset before the clock's
- * step so nothing armed is spent on a roll of the new season (season-setup.mjs `wipeStudent`'s `seals` part).
+ * step so nothing armed is spent on a roll of the new season (season-wipe.mjs `wipeStudent`'s `seals` part).
  */
 export async function clearSeasonSeals(ctx) {
     await clearSeals();
@@ -537,7 +537,7 @@ export async function gatherEveryone(room, onScene = null, { held = null, box = 
 
 /**
  * Tokens of one scene into one of its rooms, for the season reset's choice of where the cast goes
- * (season-setup.mjs `placeCast`, E11 C10b, 1.2.73): the region's own teleport, as the gather above,
+ * (season-wipe.mjs `placeCast`, E11 C10b, 1.2.73): the region's own teleport, as the gather above,
  * and `fallbackGather` when the region cannot - handed the room's box as movement.mjs `boundsOf`
  * reads it. The gather hands it none and the fallback reads `region.object?.bounds ?? region.bounds`:
  * a region on a scene nobody's canvas draws has no placeable, and where the document has no `bounds`

@@ -385,7 +385,7 @@ export async function endRoundOnPrimary({ roundId, outcome } = {}) {
 }
 
 /**
- * THE ROUND GOES WITH THE SEASON (E42 C4, 1.2.97; E42-16): the season reset's clock group (season-setup.mjs
+ * THE ROUND GOES WITH THE SEASON (E42 C4, 1.2.97; E42-16): the season reset's clock group (season-wipe.mjs
  * `clearSeasonClock`) writes the record empty, in a step of `READY_KEY` like every write of it, so a round asked before
  * the reset - open, or ended and still read by a player's window - is not read against the new season's clock. A record
  * already empty is not written. The reset is the primary GM's; on any other browser this throws, and the reset's step

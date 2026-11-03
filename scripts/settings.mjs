@@ -830,9 +830,9 @@ export const SETTINGS = {
      */
     chapterEnd: "chapterEnd",
     /**
-     * The last season reset's record (E42 C4; season-setup.mjs `seasonResetRecord`): `{ stage, by, at, groups, done,
+     * The last season reset's record (E42 C4; season-wipe.mjs `seasonResetRecord`): `{ stage, by, at, groups, done,
      * failed, notRun, season }` (the season since E42 fix FG3), or `{}`. World-scoped so the reset's window reads a reset that did not finish on whichever
-     * browser is the primary GM's now; written by the primary GM alone, inside season-setup.mjs `wipeSeason` - after the
+     * browser is the primary GM's now; written by the primary GM alone, inside season-wipe.mjs `wipeSeason` - after the
      * cut, after every step and at the end. Nothing secret: the reset's group keys and step keys and the GM's id
      * (world-secrets.mjs names it).
      */
@@ -1049,7 +1049,7 @@ export const DEFAULT_CLOCK = {
     campaignName: "",
     /**
      * Which season this is: 1, and one more at every season reset that wipes the
-     * clock (season-setup.mjs `wipeSeason`; E10 C10, D12 option 1). A count: no other
+     * clock (season-wipe.mjs `wipeSeason`; E10 C10, D12 option 1). A count: no other
      * reader at 1.2.71 (grep of scripts/ on 10.10.2026) - the season's epoch is
      * `seasonStartedAt` - until user-match.mjs's record of which accounts a GM has word
      * on stamped its rows with it (E79 fix r3-G1, 17.10.2026).

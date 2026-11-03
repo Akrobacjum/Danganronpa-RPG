@@ -3290,7 +3290,7 @@ const closing = new Set();
 async function closeIncident(state, { reason, followUp, conclude = true }) {
     /*
      * A RESET ABANDONS AN INCIDENT; IT DOES NOT CONCLUDE ONE (E11 C9, 10.10.2026; audit S06-15,
-     * the plan's 3.1). `conclude: false` is the season reset's alone (season-setup.mjs, the
+     * the plan's 3.1). `conclude: false` is the season reset's alone (season-wipe.mjs, the
      * `incident` step): it skips what a close says about the crime - the self-inflicted death,
      * the fight's ties, the Blackened register, the killer's broken tool, the case's Key
      * count and the participants' card - and keeps what ends the incident: the wipe, the hook,

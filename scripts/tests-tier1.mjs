@@ -30268,7 +30268,7 @@ const INVARIANTS = [
             "[a row-bound value not shown with its row, or shown under another (theme value: its row checked / another checked); the rows the Projects "
                 + "window's project and sabotage selects show with; the rows Tamper's trace, Reshape trace and frame selects show with]");
     }],
-    ["R1144 - the season's resets and fixes report once: season-setup.mjs `wipeStudent`'s deaths part takes the Monocub off and revives with `quiet: true`, and monocub.mjs `setMonocub`'s toast stands under `!quiet` (E51 fix FG9; E51-38, audit S06-46, review goal G9)", async () => {
+    ["R1144 - the season's resets and fixes report once: season-wipe.mjs `wipeStudent`'s deaths part takes the Monocub off and revives with `quiet: true`, and monocub.mjs `setMonocub`'s toast stands under `!quiet` (E51 fix FG9; E51-38, audit S06-46, review goal G9)", async () => {
         /*
          * E51 fix round FG9, 31.10.2026; review goal G9: row E51-38's "fixes quietly" was read by no test. The reset said
          * "X is no longer a Monocub" once per cub beside its own report (C6 gave `setMonocub` a `quiet`); the checklist's
@@ -31886,7 +31886,7 @@ const INVARIANTS = [
             + "(the record's own; out of the Investigation with the session moved; with it not moved; into a trial; with the clock step done; "
             + "the trial closed by its step; with no trial asked; a trial opened over Daily Life)");
     }],
-    ["R1255 - the reset window counts from the registry's entries alone (E42 C3, E42-14; audit S17-30): `resetGoesHtml(plan, tallies)` shows under a group the lines its entry's tally gave and nothing else - a planted tally's lines under its group, a group whose tally gave none no count - and each descriptive entry's line with no tick and no count; the window's counts are `resetTallies()`, every entry's `tally` asked and nothing else; and season-setup.mjs keeps no hand list of counts (`resetTally`, `GOES_DETAIL`)", async () => {
+    ["R1255 - the reset window counts from the registry's entries alone (E42 C3, E42-14; audit S17-30): `resetGoesHtml(plan, tallies)` shows under a group the lines its entry's tally gave and nothing else - a planted tally's lines under its group, a group whose tally gave none no count - and each descriptive entry's line with no tick and no count; the window's counts are `resetTallies()`, every entry's `tally` asked and nothing else; and season-setup.mjs and season-wipe.mjs keep no hand list of counts (`resetTally`, `GOES_DETAIL`)", async () => {
         /*
          * E42 C3, 03.11.2026. Until C3 the window's counts were `resetTally()` and `GOES_DETAIL` in season-setup.mjs,
          * a hand list of ten groups beside the reset's runs: a group whose owner added state counted none of it until
@@ -32000,7 +32000,7 @@ const LITERAL_KEYS = [
     ...["hope", "despair", "critical"].map(band => `DRPG.Action.duality.${band}`),
     // chapter.mjs names a failed step of the chapter's end `DRPG.Chapter.step.<key>` (E11 C5): `CHAPTER_END_STEPS`' nine keys.
     ...["reveal", "sweep", "faint", "keys", "tools", "clock", "trial", "morning", "hold"].map(key => `DRPG.Chapter.step.${key}`),
-    // season-setup.mjs `wipeSeason` writes the report of a reset that did not finish `DRPG.Season.reportCard.<line>` (E11 C9).
+    // season-wipe.mjs `wipeSeason` writes the report of a reset that did not finish `DRPG.Season.reportCard.<line>` (E11 C9).
     ...["failed", "done", "kept"].map(line => `DRPG.Season.reportCard.${line}`),
     // requirements.mjs `requirementsContent` (E20 C5): each required module's reason by its id, and the intro by its count.
     ...["dice-so-nice", "isometric-perspective", "avclient-livekit"].map(id => `DRPG.Requirements.reason.${id}`),
