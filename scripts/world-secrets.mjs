@@ -36,7 +36,7 @@ export const WORLD_SECRET_MODULE = "danganronpa-rpg";
  * `chapterEnd` (E42 C2) holds an End of chapter's step keys, the clock's numbers and
  * phases, the window's boxes, the GM's id and, once dropped, the dropping GM's id and
  * the time (`droppedBy`, `droppedAt`); `seasonReset` (E42 C4) a season reset's
- * group and step keys and the GM's id - nothing a player may not see.
+ * group and step keys, the GM's id and the season's number - nothing a player may not see.
  *
  * The rule. `settings` is keyed by a module world setting's key, without the
  * namespace: `fields` it may never hold at any depth, `empty` (it holds nothing at

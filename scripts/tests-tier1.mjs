@@ -31911,6 +31911,38 @@ const INVARIANTS = [
         equal(JSON.stringify([topLevelFunction(src, "resetTally") === null, !/\bGOES_DETAIL\b/.test(src), /\bseasonStateEntries\(/.test(fnSource(src, "resetTallies"))]),
             "[true,true,true]", "season-setup.mjs or season-wipe.mjs still counts a group by hand (resetTally gone, GOES_DETAIL gone, resetTallies asks the registry)");
     }],
+    ["R1258 - the registry of season state takes no `primaryOnly` (E42 fix FG3; the end review's S-M5): a registration that names it is refused with an error naming it, for a group already taken and for one the window does not offer alike, before either check; and no entry holds the key", async () => {
+        /*
+         * E42 fix FG3, 03.11.2026; the end review's S-M5. `registerSeasonState` took `primaryOnly` (default true) and kept it
+         * on every entry, documented as a guard a later entry would have to argue against - and nothing read it: the
+         * walker's stop is the reset's own, for every step (season-wipe.mjs `wipeSeason`: `stop: () => !isPrimaryGm()`), so
+         * an entry registered with `false` ran exactly as one with `true`. The key is gone from the shape, and a
+         * registration that names it is refused, so no entry can claim a guard the walk does not hold. Each call here is
+         * one the registry refuses whatever it says of `primaryOnly` (a group already registered, a group the window does
+         * not offer), so nothing is registered, red or green: the error is read for its words. Red at 7129a316: refused
+         * for the group alone, the error naming no `primaryOnly`, and every entry holding the key.
+         */
+        const R = await import("./season-reset.mjs");
+        const taken = R.seasonStateFor("motive");
+        must(taken, "the motive group has no entry - the first call would register one");
+        const refusal = spec => {
+            try {
+                R.registerSeasonState(spec);
+                return "registered";
+            } catch (err) {
+                return String(err?.message ?? err);
+            }
+        };
+        const words = [
+            refusal({ group: "motive", clear: () => null, primaryOnly: false }),
+            refusal({ group: "R1258-no-such-group", clear: () => null, primaryOnly: true })
+        ];
+        must(R.seasonStateFor("motive") === taken, "the motive group's entry was replaced - the registry took a second entry");
+        const entries = R.seasonStateEntries();
+        must(entries.length >= 30, `the registry holds ${entries.length} entries - the shape is read on next to nothing`);
+        equal(JSON.stringify([words.map(text => /\bprimaryOnly\b/.test(text)), entries.filter(entry => "primaryOnly" in entry).length]), "[[true,true],0]",
+            `a registration naming primaryOnly was not refused for it, or an entry holds the key (refusals: ${JSON.stringify(words)})`);
+    }],
 ];
 
 /**

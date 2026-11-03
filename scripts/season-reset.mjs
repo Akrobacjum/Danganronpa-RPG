@@ -38,6 +38,10 @@
  * its role, never through `import()` at load: an entry registered late is a
  * reset that ran without it.
  *
+ * NO ENTRY ARGUES ITS OWN GUARD (E42 fix FG3; the end review's S-M5): the walk runs on the primary GM alone and stops
+ * before any step once this browser is no longer it (season-wipe.mjs `wipeSeason`'s `stop`), so an entry has no
+ * `primaryOnly` of its own - the key, kept until the fix and read by nothing, is refused (R1258).
+ *
  * Every `clear`, `tally` and `keep` is a named top-level function of its
  * owner's file, handed by name: the census tests read the writes by the
  * function that holds them (R191, R220, R311, R346, R1020), and a function
@@ -66,12 +70,14 @@ const DESCRIBED = new Map();
  *   through `ctx.everyStudent`, so no owner imports the reset. What it answers is not read: a throw is its failure.
  * - `tally()`: the lines the window's row shows (each a `plural()` of the group's), or []; none, no count.
  * - `keep(ctx)`: what an unticked group still does (the Key Remnant plan's trim), before the clock's step.
- * - `primaryOnly`: true for every entry - the reset is the primary's, and a lost primacy stops every step (E11
- *   fix r2-J1). Written so that a later entry has to argue for `false`.
  * - `settings`: the world settings the entry clears (E42 C4's lifetimes read it).
+ * A registration naming `primaryOnly` throws (the header's last paragraph): the one key this checks for being there at all.
  */
-export function registerSeasonState({ group = null, label = null, tally = null, clear = null, keep = null, primaryOnly = true,
-    settings = [], describes = null } = {}) {
+export function registerSeasonState(spec = {}) {
+    if (spec && Object.hasOwn(spec, "primaryOnly")) {
+        throw new Error("A season state entry names primaryOnly, which the registry does not take: the walk is the primary GM's for every entry");
+    }
+    const { group = null, label = null, tally = null, clear = null, keep = null, settings = [], describes = null } = spec ?? {};
     const named = (what, fn) => {
         if (fn !== null && typeof fn !== "function") throw new Error(`A season state entry's ${what} is not a function`);
     };
@@ -84,8 +90,7 @@ export function registerSeasonState({ group = null, label = null, tally = null, 
         }
         if (DESCRIBED.has(describes)) throw new Error(`A second season state entry describes "${describes}"`);
         if (tally || clear || keep) throw new Error(`The descriptive season state entry "${describes}" counts or clears something`);
-        const entry = { group: null, describes, label, tally: null, clear: null, keep: null, primaryOnly: Boolean(primaryOnly),
-            settings: Object.freeze([]) };
+        const entry = { group: null, describes, label, tally: null, clear: null, keep: null, settings: Object.freeze([]) };
         DESCRIBED.set(describes, entry);
         return entry;
     }
@@ -93,7 +98,7 @@ export function registerSeasonState({ group = null, label = null, tally = null, 
     if (ENTRIES.has(group)) throw new Error(`A second season state entry for the reset group "${group}"`);
     if (!clear) throw new Error(`The season state entry for the reset group "${group}" clears nothing`);
     const entry = { group, describes: null, label: label ?? `DRPG.Season.group.${group}`, tally, clear, keep,
-        primaryOnly: Boolean(primaryOnly), settings: Object.freeze([...(settings ?? [])].map(String)) };
+        settings: Object.freeze([...(settings ?? [])].map(String)) };
     ENTRIES.set(group, entry);
     return entry;
 }

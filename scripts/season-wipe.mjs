@@ -235,7 +235,9 @@ export async function resetSeason() {
      * A RESET THAT DID NOT FINISH OPENS THE NEXT WINDOW (E42 C4, 1.2.97; E42-18). Its record names the groups it left -
      * failed, not run, or never reached by a tab that closed - and the window says so and ticks those alone, not the
      * remembered exceptions' complement; a reset run from it leaves the remembered exceptions as they are, since nothing
-     * the GM unticks there is a decision about the next season. A reset that finished opens the window as before.
+     * the GM unticks there is a decision about the next season. A reset that finished opens the window as before. Since
+     * E42 fix FG3 that window does not say the choice is remembered (`resetGroupsNote`): there it is not (the end review's
+     * G-F7 = C-n1, STATUS Open 32).
      */
     const unfinished = unfinishedGroups();
     const ticks = key => unfinished.length ? unfinished.includes(key) : !remembered.keys.has(key);
@@ -292,7 +294,7 @@ export async function resetSeason() {
                  was remembered, because a GM must never have to work out why a
                  box is already clear. -->
             <p><strong>${esc(game.i18n.localize("DRPG.Season.resetGroupsTitle"))}</strong></p>
-            <p class="notes">${esc(game.i18n.localize("DRPG.Season.resetGroupsNote"))}</p>
+            ${unfinished.length ? "" : `<p class="notes">${esc(game.i18n.localize("DRPG.Season.resetGroupsNote"))}</p>`}
             ${memoryLine}
             <div class="drpg-reset-groups">${rows}</div>
             ${castFieldset()}
@@ -690,9 +692,9 @@ let wiping = false;
 
 /**
  * THE RESET'S RECORD (E42 C4, 1.2.97; E42-18; audit S17-30). The world setting `seasonReset`, written by the primary GM
- * alone, inside `wipeSeason`: `{ stage, by, at, groups, done, failed, notRun }` - the groups the GM ticked, the steps
- * that ran, failed or did not run (step keys, `placeCast` among them) and the GM's id, no text and no secret
- * (world-secrets.mjs names it). Written "applying" once the cut stands and before the first step, again after every
+ * alone, inside `wipeSeason`: `{ stage, by, at, groups, done, failed, notRun, season }` - the groups the GM ticked, the
+ * steps that ran, failed or did not run (step keys, `placeCast` among them), the GM's id and the season the clock read at
+ * the write, no text and no secret (world-secrets.mjs names it). Written "applying" once the cut stands and before the first step, again after every
  * step that changed it, and at the end "done" when every ticked group ran, or left "applying". `{}` before the first
  * reset. Until 1.2.97 a reset kept no record: its card named what failed, and a tab closed half way told nobody which
  * groups had run.
@@ -710,9 +712,17 @@ export function seasonResetRecord() {
  * running on this browser, and of the groups it was given those it did not do - failed, not run, or never reached by a
  * tab that closed. A group a later release no longer knows is dropped, as `rememberedExceptions` drops one. The record
  * is read whoever wrote it: the primary GM now finishes a reset another primary began.
+ *
+ * ONLY IN THE SEASON IT LEFT (E42 fix FG3, 03.11.2026; the end review's C-m3). A record "applying" never went stale: a
+ * reset whose chat group failed, then a season played to its end, opened that season's reset on the chat alone, every
+ * other group struck through. The record names the season the clock read at its write (`season`: the clock's group
+ * writes it one on, the cut never - measured in `clearSeasonClock` and `resetCutPatch`), so the season it began in when
+ * its clock group did not run and the next one when it did; a record of any other season, or of none, is read as
+ * finished, and the window opens as before (tier 2 E42-T13).
  */
 export function unfinishedGroups(record = seasonResetRecord()) {
     if (wiping || record?.stage !== "applying") return [];
+    if (record.season !== (getClock().season ?? 1)) return [];
     const asked = new Set(Array.isArray(record.groups) ? record.groups : []);
     const done = new Set(Array.isArray(record.done) ? record.done : []);
     return RESET_GROUPS.map(group => group.key).filter(key => asked.has(key) && !done.has(key));
@@ -765,7 +775,9 @@ async function wipeSeason(plan) {
      * nothing - the record serves the next window, and a group it misses is offered again, ticked, for the GM to read.
      */
     let written = null;
-    const writeRecord = async next => {
+    // Each write names the season the clock reads then (`unfinishedGroups`, E42 fix FG3).
+    const writeRecord = async record => {
+        const next = { ...record, season: getClock().season ?? 1 };
         if (!isPrimaryGm() || JSON.stringify(next) === JSON.stringify(written)) return;
         try {
             await game.settings.set(MODULE_ID, SETTINGS.seasonReset, next);
