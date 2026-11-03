@@ -1352,8 +1352,8 @@ export function isPublicRoll(message) {
 /**
  * THE ONE PUBLIC ROLL OF A TABLE WHOSE ROLLS ARE FORCED PRIVATE (E33 C12, 07.10.2026; audit
  * S02-72; the owner's Q2 (a) of 05.10: a module road, public only for a GM author with the
- * module's flag). `game.drpg.publicRoll(formula, { flavor })` and the GM panel's "Public roll"
- * tile: the roll is thrown and posted on this GM's browser with `publicRoll` on it, an empty
+ * module's flag). `game.drpg.publicRoll(formula, { flavor })`, a macro's road (the GM panel's
+ * tile, E33 C12's, went in E60 C5a): the roll is thrown and posted on this GM's browser with `publicRoll` on it, an empty
  * whisper and v14's public mode named on the create as Daggerheart 2.10.5 names a mode
  * (`cls.create(msgData, { messageMode })`, dhRoll.mjs :162; `'public'` is the name its
  * damageRoll.mjs :72 passes), so neither Foundry's own default mode nor `whisperRoll` (which

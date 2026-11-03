@@ -238,7 +238,7 @@
       },
       "forcePrivateRolls": {
         "name": "Wymuszaj prywatne rzuty graczy",
-        "hint": "Każdy rzut gracza jest szeptany do tego gracza i do GM-ów, a rzut GM-a do GM-ów. Nikt nie widzi cudzych kości. Jedyny rzut widoczny dla wszystkich to Rzut publiczny z panelu GM-a (game.drpg.publicRoll) - remis w głosowaniu, loteria Monokumy."
+        "hint": "Każdy rzut gracza jest szeptany do tego gracza i do GM-ów, a rzut GM-a do GM-ów. Nikt nie widzi cudzych kości. Jedyny rzut widoczny dla wszystkich to rzut GM-a z makra game.drpg.publicRoll - remis w głosowaniu, loteria Monokumy."
       },
       "enforceAnonymity": {
         "name": "Anonimowe karty postaci",
@@ -4129,10 +4129,6 @@
       },
       "voiceReset": "Wyślij wszystkim ponownie ich pokój głosowy",
       "publicRoll": {
-        "label": "Rzut publiczny",
-        "formula": "Formuła",
-        "flavour": "Opis",
-        "roll": "Rzuć",
         "gmOnly": "Tylko GM może wykonać rzut publiczny.",
         "badFormula": "\"{formula}\" to nie jest formuła rzutu."
       },

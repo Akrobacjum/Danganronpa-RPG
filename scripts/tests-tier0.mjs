@@ -19772,6 +19772,43 @@ const REGRESSIONS = [
             "[the declarations whose createTruthBullet stands outside the receiver's finds' queue or has no copiedRemnants check in its step; "
             + "an exempt declaration no longer there; the planted three]");
     }],
+    ["R1291 - the GM panel has no Public roll (E60 C5a; E60-13): no tile of its sections and no code of the panel's family names `publicRoll`, `openPublicRollDialog` or a DRPG.Panel.publicRoll key; that key's label, formula, flavour and roll are gone from lang/en.json and lang/pl.json and its gmOnly and badFormula stay, both read by private-rolls.mjs; `game.drpg.publicRoll` stays, in api.mjs and in tools/api-surface.json as a function (a macro's road)", async () => {
+        /*
+         * E60 C5a, 03.11.2026; the owner after installing 1.2.97: "Usunmy funkcje public roll z gm panel". E33 C12 put a
+         * Public roll tile in the panel's "Right now" section (`openPublicRollDialog`: a formula, a flavour, then
+         * private-rolls.mjs `publicRoll`). The tile and its window go; the roll itself stays a GM's macro road
+         * (`game.drpg.publicRoll`, which 12-social and tier 2's C12 rows drive), with the two keys it reads. Read here:
+         * the panel's family's code, comments stripped (the kit's `panelText`); the two language files as served; the
+         * names private-rolls.mjs and api.mjs read; tools/api-surface.json's row; the live `game.drpg`. Red at C4b: the
+         * tile, the window and its four keys were there.
+         */
+        needs(env.tools(), "tools/api-surface.json is read from the repository's tools/");
+        const sources = await moduleSources();
+        const panel = stripComments(panelText(sources));
+        const named = ["publicRoll", "openPublicRollDialog", "DRPG.Panel.publicRoll", "drpg-window-public-roll"].filter(name => panel.includes(name));
+        const lang = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" });
+            lang[code] = res.ok ? await res.json() : null;
+        }
+        must(lang.en && lang.pl, "lang/en.json or lang/pl.json was not served - this would read nothing");
+        const keysOf = file => Object.keys(file?.DRPG?.Panel?.publicRoll ?? {}).sort();
+        const rolls = stripComments(sources.get("private-rolls.mjs") ?? "");
+        const api = stripComments(sources.get("api.mjs") ?? "");
+        must(rolls.length > 1000 && api.length > 1000, "private-rolls.mjs or api.mjs was not read - this would read nothing");
+        let surface = null;
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/tools/api-surface.json`, { cache: "no-cache" });
+            if (res.ok) surface = await res.json();
+        } catch { /* the assertion below says it is missing */ }
+        equal(JSON.stringify({
+            panel: named, en: keysOf(lang.en), pl: keysOf(lang.pl),
+            read: ["DRPG.Panel.publicRoll.gmOnly", "DRPG.Panel.publicRoll.badFormula"].filter(key => !rolls.includes(`"${key}"`)),
+            api: [/\bpublicRoll\b/.test(api), typeof game.drpg?.publicRoll, surface?.keys?.publicRoll ?? null]
+        }), JSON.stringify({ panel: [], en: ["badFormula", "gmOnly"], pl: ["badFormula", "gmOnly"], read: [], api: [true, "function", "function"] }),
+            "[the panel's family's names of the public roll; DRPG.Panel.publicRoll's keys in English and in Polish; the two keys private-rolls.mjs "
+            + "does not read; api.mjs names publicRoll, game.drpg.publicRoll's kind, the surface's row]");
+    }],
 ];
 
 

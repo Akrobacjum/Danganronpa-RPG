@@ -1145,8 +1145,9 @@ export const DrpgApi = {
     rollFlags,
     /** The writes on a student the GMs put back or listed (E29 C3), newest first, from the last day. GM only. */
     sheetWrites,
-    /** The one roll everybody reads while rolls are forced private (E33 C12): `publicRoll("2d6", { flavor })`,
-     *  the GM panel's "Public roll" tile - a vote's tie, Monokuma's lottery. GM only; a bare `/r` still goes to the GMs. */
+    /** The one roll everybody reads while rolls are forced private (E33 C12): `publicRoll("2d6", { flavor })`, a
+     *  macro's road since the GM panel's tile went (E60 C5a) - a vote's tie, Monokuma's lottery. GM only; a bare `/r`
+     *  still goes to the GMs. */
     publicRoll,
     /** Why can this player see a token in another room? Run it on THEIR
      *  client: it prints every character's room beside whether the token is

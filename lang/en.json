@@ -238,7 +238,7 @@
       },
       "forcePrivateRolls": {
         "name": "Force private player rolls",
-        "hint": "Every player roll is whispered to that player and the GMs, and a GM's roll to the GMs. Nobody sees anyone else's dice. The one roll everybody sees is the GM panel's Public roll (game.drpg.publicRoll) - a vote's tie, Monokuma's lottery."
+        "hint": "Every player roll is whispered to that player and the GMs, and a GM's roll to the GMs. Nobody sees anyone else's dice. The one roll everybody sees is a GM's game.drpg.publicRoll (a macro) - a vote's tie, Monokuma's lottery."
       },
       "enforceAnonymity": {
         "name": "Keep character sheets anonymous",
@@ -3769,10 +3769,6 @@
       },
       "voiceReset": "Re-send everybody's voice room",
       "publicRoll": {
-        "label": "Public roll",
-        "formula": "Formula",
-        "flavour": "Flavour",
-        "roll": "Roll",
         "gmOnly": "Only a GM can make a public roll.",
         "badFormula": "\"{formula}\" is not a roll formula."
       },
