@@ -81434,6 +81434,77 @@ const SCENARIOS = [
             + "the stale Save's refusals and the same after it; each card's band select (its options, the one chosen) and the trace "
             + "marked edited after its change; the bands, numbers and copy's band after both cards; a band select on the player's card]");
     }],
+
+    ["E60-T9 - one copy of a trace per receiver, whoever hands it at the same moment (E60 C4b; E60-12, D153): two hand-overs of one trace's bullet to one receiver at once (handover.mjs `mintCopy`, a Share's core, from two givers who each hold a copy) make one copy and answer the other held; a Give a Truth Bullet from a Remnant (gm-items.mjs `giveBullet`, the window's write) beside an Observe's find of the same trace (observe.mjs `mintFindCopy`) for one receiver make one copy, and the give answers `GIVEN_ALREADY` when the find came first", async () => {
+        /*
+         * E60 C4b, 03.11.2026; D153 (SIER-R1 of 31.10, from H84/STATUS.md:103). A hand-over checked whether the receiver
+         * held a copy and then made one, with awaits between (`mintCopy`), and the GM's give made its bullet with no check
+         * at all (`giveTruthBulletDialog`), while Observe's find and Monokuma's Reveal ran theirs in the receiver's finds'
+         * queue (`observeFindKey`). Three students: two givers and a receiver. Two Prep traces placed in a corner no room
+         * holds (`placedTrace`); each giver gets a copy of the first (`createTruthBullet`, as a find makes one), then both
+         * hand it to the receiver at once; then the give and the find of the second at once, the find asked first. Read:
+         * the receiver's copies of each trace (by the answer key's `remnantId`), the hand-overs' answers, and the give's.
+         * At C4a's tree the give is the window's `createTruthBullet(who, payload)` (no `giveBullet`). Put back: every
+         * bullet the test made, with its answer key, and both traces. Mutants c4b-m1 (a hand-over outside the queue) and
+         * c4b-m2 (the give outside it) read red here.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the traces are placed on the scene on screen");
+        const [giverA, giverB, receiver] = cast(3);
+        const T = await import("./truth-bullets.mjs");
+        const H = await import("./handover.mjs");
+        const G = await import("./gm-items.mjs");
+        const O = await import("./observe.mjs");
+        const R = await import("./remnants.mjs");
+        const scene = canvas.scene;
+        const traces = [], made = [];
+        let reading = null;
+        const copiesOf = trace => T.bulletsOf(receiver).filter(i => T.secretOf(i.uuid)?.remnantId === trace.id);
+        const bullet = (actor, trace, label) => T.createTruthBullet(actor, { name: `SUITE E60-T9 ${label}`, realType: "prep",
+            visibility: "evident", playerText: "SUITE E60-T9", remnantId: trace.id, sceneId: scene.id });
+        try {
+            for (const note of ["shared", "given"]) {
+                const t = await placedTrace(`E60-T9 ${note}`);
+                if (t) traces.push(t);
+            }
+            must(traces.length === 2, `${traces.length} of the two traces were placed - this would measure nothing`);
+            const [shared, given] = traces;
+            const a = await bullet(giverA, shared, "A's"), b = await bullet(giverB, shared, "B's");
+            if (a) made.push([giverA, a]);
+            if (b) made.push([giverB, b]);
+            await settle();
+            must(a && b && copiesOf(shared).length === 0 && copiesOf(given).length === 0,
+                "the givers' copies were not made, or the receiver holds a copy already - this would measure nothing");
+            const handed = await Promise.all([H.mintCopy(giverA, receiver, a, { quiet: true }), H.mintCopy(giverB, receiver, b, { quiet: true })]);
+            await settle();
+            const ref = R.remnantById(scene.id, given.id);
+            const payload = { name: "SUITE E60-T9 given", realType: "prep", visibility: "evident", playerText: "SUITE E60-T9",
+                remnantId: given.id, sceneId: scene.id };
+            const [found, gave] = await Promise.all([
+                O.mintFindCopy(receiver, { tokenId: given.id, sceneId: scene.id, room: null, data: R.remnantData(ref) },
+                    { name: "SUITE E60-T9 found", playerText: "SUITE E60-T9", tell: false }),
+                typeof G.giveBullet === "function" ? G.giveBullet(receiver, payload) : T.createTruthBullet(receiver, payload)
+            ]);
+            await settle();
+            reading = {
+                shared: copiesOf(shared).length,
+                handed: handed.map(h => h?.copy ? "copy" : h?.skipped ?? h?.refused ?? null).sort(),
+                given: copiesOf(given).length,
+                found: Boolean(found && typeof found === "object" && found.id),
+                gave: gave === G.GIVEN_ALREADY ? "given already" : gave?.id ? "a bullet" : String(gave)
+            };
+        } finally {
+            for (const trace of traces) for (const item of copiesOf(trace)) made.push([receiver, item]);
+            for (const [actor, item] of made) {
+                if (actor.items.has(item.id)) await actor.items.get(item.id).delete().catch(() => {});
+                await T.dropSecret(item.uuid).catch(() => {});
+            }
+            for (const trace of traces) await dropTrace(trace);
+            await settle();
+        }
+        equal(stableJson(reading), stableJson({ shared: 1, handed: ["copy", "held"], given: 1, found: true, gave: "given already" }),
+            "[the receiver's copies of the shared trace; the two hand-overs' answers; the receiver's copies of the given trace; "
+            + "whether the find made its bullet; what the give answered]");
+    }],
     ...GRID
 ];
 

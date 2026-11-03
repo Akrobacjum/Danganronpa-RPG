@@ -2674,6 +2674,7 @@
       "remnantEmpty": "No Remnants on any scene. Place one on a map, or write a bullet by hand on the other tab.",
       "remnantGone": "That Remnant is no longer on the map.",
       "alreadyHeld": "already has a copy",
+      "alreadyGiven": "{actor} already holds a Truth Bullet of this Remnant, so they get no second one.",
       "needsName": "The Truth Bullet needs a name.",
       "gave": "{actor} received the Truth Bullet {item}.",
       "name": "Name - this is what the player sees",

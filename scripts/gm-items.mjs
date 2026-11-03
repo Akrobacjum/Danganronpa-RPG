@@ -35,7 +35,7 @@ function recipientOptions(students, selectedId) {
         .join("");
 }
 import { whisperToOwner, dialogContent, panelTabs, wirePanelTabs,
-    log, error, plural, cardHead, esc} from "./utils.mjs";
+    log, error, plural, cardHead, esc, serialWrite } from "./utils.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 import { homeScene } from "./rooms.mjs";
 
@@ -1145,6 +1145,24 @@ async function tellBulletGiven(who, payload) {
         <p><small>${game.i18n.localize("DRPG.TruthBullet.whereToFind")}</small></p>`);
 }
 
+/** What `giveBullet` answers for a receiver who holds a copy of the trace already (E60 C4b). */
+export const GIVEN_ALREADY = Symbol("drpg.givenAlready");
+
+/**
+ * THE GM'S GIVE, IN THE RECEIVER'S FINDS' QUEUE (E60 C4b, 03.11.2026; D153, SIER-R1 of 31.10). Give a Truth Bullet
+ * made its bullet with no queue and no check: a give from a Remnant beside an Observe's find of the same trace, or
+ * beside a hand-over of a copy of it, made two copies on one receiver (tier 2 E60-T9 at C4a's tree). The check -
+ * whether `who` holds a copy of the trace `payload.remnantId` names already - and the bullet are one step of the
+ * receiver's queue now (utils.mjs `serialWrite` under observe.mjs `observeFindKey`), as Observe's find, Monokuma's
+ * Reveal and a hand-over are (tier 0 R1289). A bullet written by hand names no trace and is only queued. Answers the
+ * bullet, `GIVEN_ALREADY`, or null when none could be made. Exported for the suite.
+ */
+export async function giveBullet(who, payload) {
+    const { observeFindKey } = await import("./observe.mjs");
+    return serialWrite(observeFindKey(who.id), () =>
+        payload?.remnantId && copiedRemnants(who).has(payload.remnantId) ? GIVEN_ALREADY : createTruthBullet(who, payload));
+}
+
 export async function giveTruthBulletDialog(actor, { scenes: only = null } = {}) {
 
     const students = studentActors();
@@ -1222,8 +1240,12 @@ export async function giveTruthBulletDialog(actor, { scenes: only = null } = {})
         : bulletFromForm(result);
     if (!payload) return false;
 
-    const item = await createTruthBullet(who, payload);
+    const item = await giveBullet(who, payload);
 
+    if (item === GIVEN_ALREADY) {
+        ui.notifications.warn(game.i18n.format("DRPG.TruthBullet.alreadyGiven", { actor: who.name }));
+        return false;
+    }
     if (!item) {
         ui.notifications.error(game.i18n.localize("DRPG.Items.failed"));
         return false;

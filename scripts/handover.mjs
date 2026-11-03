@@ -23,7 +23,7 @@
 import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG } from "./config.mjs";
 import { capacityLabel, isStashed, transferItem, transferRefusal } from "./inventory.mjs";
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet, bulletAsHeld, unanalysedType } from "./truth-bullets.mjs";
-import { dialogContent, whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion, plural } from "./utils.mjs";
+import { dialogContent, whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion, plural, serialWrite } from "./utils.mjs";
 import { answerKeysRefusal, lootTraceStore, deathStore } from "./gm-stores.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -252,6 +252,9 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
  * giver's whispers back (a Present tells its presenter once). Answers `{ copy, data }`, `{ refused }` while the answer
  * keys are not open here, or `{ skipped: "noKey" | "held" | "failed", data }`.
  */
+/** What `mintCopy`'s queued step answers for a receiver who holds a copy of the trace already (E60 C4b). */
+const HELD_COPY = Symbol("drpg.heldCopy");
+
 export async function mintCopy(from, to, item, { analysis = true, quiet = false } = {}) {
     if (!game.user.isGM || !from || !to || !isTruthBullet(item)) return { skipped: "failed", data: null };
     /* NO ANSWER KEY, NO COPY (E04's fix round; the review's C-m17). The copy below was
@@ -287,18 +290,17 @@ export async function mintCopy(from, to, item, { analysis = true, quiet = false 
     // Only checkable when the bullet came from a Remnant. A bullet the GM
     // invented by hand has no source to compare, and duplicating one of those
     // is the GM's business rather than a rule to enforce.
-    if (secret.remnantId) {
-        const { copiedRemnants } = await import("./truth-bullets.mjs");
-        if (copiedRemnants(to).has(secret.remnantId)) {
-            if (!quiet) await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.alreadyHasIt", {
-                who: foundry.utils.escapeHTML(to.name),
-                name: foundry.utils.escapeHTML(data.name)
-            })}</p>`);
-            return { skipped: "held", data };
-        }
-    }
-
-    const copy = await createTruthBullet(to, {
+    //
+    /* THE CHECK AND THE COPY IN ONE STEP OF THE RECEIVER'S FINDS' QUEUE (E60 C4b, 03.11.2026; D153, SIER-R1 of
+       31.10). They were two steps with awaits between them - this import, then `createTruthBullet`'s own writes - so
+       two hand-overs of one trace's bullet to one receiver at once each found no copy and each made one, and so did a
+       hand-over beside an Observe's find of the same trace (tier 2 E60-T9 at C4a's tree: two copies). An Observe's
+       find runs its check and its bullet in the receiver's step of utils.mjs `serialWrite` under observe.mjs
+       `observeFindKey` (`mintFindCopy`), as Monokuma's Reveal does (trial-modes.mjs `revealInStep`), and so does
+       this now: the second reads the first's copy. Tier 0 R1289 holds every such bullet to the queue. */
+    const { copiedRemnants } = await import("./truth-bullets.mjs");
+    const { observeFindKey } = await import("./observe.mjs");
+    const copy = await serialWrite(observeFindKey(to.id), () => secret.remnantId && copiedRemnants(to).has(secret.remnantId) ? HELD_COPY : createTruthBullet(to, {
         name: data.name,
         realType: secret.realType,
         // Shown without the Analyze result (E70 C10; B2, B6): born as the bullet was before any Analyze - its
@@ -342,8 +344,15 @@ export async function mintCopy(from, to, item, { analysis = true, quiet = false 
         faint: typeof secret.faint === "boolean"
             ? secret.faint
             : Boolean(data.faint)
-    });
+    }));
 
+    if (copy === HELD_COPY) {
+        if (!quiet) await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.alreadyHasIt", {
+            who: foundry.utils.escapeHTML(to.name),
+            name: foundry.utils.escapeHTML(data.name)
+        })}</p>`);
+        return { skipped: "held", data };
+    }
     if (!copy) {
         if (!quiet) await whisperToOwner(from, `<p>${game.i18n.localize("DRPG.Handover.failed")}</p>`);
         return { skipped: "failed", data };

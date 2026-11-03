@@ -19722,6 +19722,56 @@ const REGRESSIONS = [
             "[code outside remnants.mjs and the placeables naming the trace flag; tokens.get( in a declaration not listed; a listed "
             + "declaration no longer there; a ref written; the planted writes named]");
     }],
+
+    ["R1289 - D153's census (E60 C4b; E60-12): in scripts/ outside the suite every call of `createTruthBullet(` stands inside a step of utils.mjs `serialWrite(observeFindKey(...), ...)`, the receiver's finds' queue, with a `copiedRemnants(` check in that step before it - but the two that name no trace to check: truth-bullets.mjs `issueAutopsy` (an Autopsy has none) and handover.mjs `mintLootBullet` (one bullet per thing taken off a body, each naming its thing, so a taker who takes twice holds two of the body's trace by design)", async () => {
+        /*
+         * E60 C4b, 03.11.2026; D153 (SIER-R1 of 31.10, from H84): two hand-overs of one trace's bullet to one receiver at
+         * once, and the GM's give from a Remnant, skipped the queue an Observe's find and Monokuma's Reveal make their copy
+         * in, so a race could mint a second copy of one trace. Read in every module file but the tier files, comments and
+         * literals blanked: each `createTruthBullet(` call (the definition aside), the top-level declaration holding it,
+         * and in that declaration the last `serialWrite(observeFindKey(` before it - still open at the call (more `(`
+         * than `)` between them) and with `copiedRemnants(` between them. Then a planted declaration with a call outside
+         * the queue, one in the queue with no check and a clean twin. Not read: a queue under another key, or a check
+         * through a helper of another name. Red at C4a: handover.mjs `mintCopy` (a hand-over's core) and gm-items.mjs
+         * `giveTruthBulletDialog` stood outside it. Mutants c4b-m1, c4b-m2 and c4b-m3 read red here.
+         */
+        const sources = await moduleSources();
+        const EXEMPT = ["handover.mjs#mintLootBullet", "truth-bullets.mjs#issueAutopsy"];
+        const DECL = /^(?:export\s+)?(?:async\s+)?function\*?\s*([\w$]+)|^(?:export\s+)?(?:const|let)\s+([\w$]+)\s*=/gm;
+        const QUEUE = /serialWrite(\(observeFindKey\((?:(?!serialWrite\(observeFindKey\()[\s\S])*)$/;
+        const depth = text => [...text].reduce((n, c) => n + (c === "(" ? 1 : c === ")" ? -1 : 0), 0);
+        const callsIn = (file, raw) => {
+            const bare = blankLiterals(blankComments(raw));
+            const decls = [...bare.matchAll(DECL)].map(m => ({ name: m[1] ?? m[2], at: m.index }));
+            const out = [];
+            for (const m of bare.matchAll(/\bcreateTruthBullet\s*\(/g)) {
+                if (/\bfunction\s*$/.test(bare.slice(Math.max(0, m.index - 16), m.index))) continue;
+                const d = decls.filter(x => x.at <= m.index).pop();
+                const span = bare.slice(d?.at ?? 0, m.index);
+                // What follows the last queue's opening in the declaration, from its `(` (no queue: no match).
+                const after = span.match(QUEUE)?.[1] ?? null;
+                const queued = after !== null && depth(after) > 0 && /\bcopiedRemnants\s*\(/.test(after);
+                out.push({ where: `${file}#${d?.name ?? "(top level)"}`, queued });
+            }
+            return out;
+        };
+        const calls = [];
+        for (const [file, raw] of sources) {
+            if (!file.endsWith(".mjs") || /^tests/.test(file)) continue;
+            calls.push(...callsIn(file, raw));
+        }
+        must(calls.length >= 6 && calls.some(c => c.queued), `${calls.length} calls of createTruthBullet were read - this would measure nothing`);
+        const planted = callsIn("planted.mjs", [
+            "async function plantedOutside(to, data) {\n    if (copiedRemnants(to).has(data.remnantId)) return null;\n    return createTruthBullet(to, data);\n}",
+            "async function plantedUnchecked(to, data) {\n    return serialWrite(observeFindKey(to.id), () => createTruthBullet(to, data));\n}",
+            "async function cleanTwin(to, data) {\n    return serialWrite(observeFindKey(to.id), () => copiedRemnants(to).has(data.remnantId) ? null : createTruthBullet(to, data));\n}"
+        ].join("\n\n"));
+        const outside = [...new Set(calls.filter(c => !c.queued).map(c => c.where))].sort();
+        equal(JSON.stringify({ outside, exemptGone: EXEMPT.filter(e => !calls.some(c => c.where === e)), planted: planted.map(c => [c.where, c.queued]) }),
+            JSON.stringify({ outside: EXEMPT, exemptGone: [], planted: [["planted.mjs#plantedOutside", false], ["planted.mjs#plantedUnchecked", false], ["planted.mjs#cleanTwin", true]] }),
+            "[the declarations whose createTruthBullet stands outside the receiver's finds' queue or has no copiedRemnants check in its step; "
+            + "an exempt declaration no longer there; the planted three]");
+    }],
 ];
 
 

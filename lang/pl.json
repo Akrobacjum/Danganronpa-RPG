@@ -2928,6 +2928,7 @@
       "remnantEmpty": "Brak Remnantów na żadnej scenie. Postaw jakiś na mapie albo napisz bullet ręcznie w drugiej zakładce.",
       "remnantGone": "Tego Remnantu nie ma już na mapie.",
       "alreadyHeld": "ma już kopię",
+      "alreadyGiven": "{actor} ma już Truth Bullet z tego Remnantu, więc drugiego nie dostaje.",
       "needsName": "Truth Bullet potrzebuje nazwy.",
       "gave": "{actor} dostaje Truth Bullet: {item}.",
       "name": "Nazwa - to widzi gracz",
