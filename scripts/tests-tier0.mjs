@@ -18428,7 +18428,7 @@ const REGRESSIONS = [
          * Leave a Clue and Secure a Trace hints end "a critical leaves two" / „a krytyk zostawia dwa”, the entry's
          * `indirectVictim.count.critical`, and the digit rule cannot see a word. 2 to 12 only: "one" and „jeden” stand
          * in every other sentence as an article or a pronoun (Sprint's "one more" is section 13's, E71). Measured on
-         * this tree: these four places and no other. Their placeholder needs the owner's text change: E71 (row 1.2.128).
+         * this tree: these four places and no other. Their placeholder needs the owner's text change: E71 (row 1.2.119).
          */
         const NUMBER_WORDS = { en: ["", "", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"],
             pl: ["", "", "dwa|dwie|dwóch|dwoma|dwu", "trzy|trzech|trzema", "cztery|czterech", "pięć|pięciu", "sześć|sześciu", "siedem|siedmiu",
