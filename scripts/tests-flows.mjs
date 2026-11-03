@@ -115,11 +115,13 @@ export const FLOWS = Object.freeze([
     // (`ready.open`, `ready.end`, gmOnly), answered by each player of the cast (`ready.answer`). 40-flow's part R drives it on
     // four browsers; 30-security sends a player's open and end and an answer for another round; 33-bridge-paths the
     // Assistant GM's open and end and a player's legal answer; tier 2 E37-T3 judges the answers on the primary. E37 fix FG1:
-    // 61-gmstore-case's part RR drives two GMs on one round (the suite's clients hold one GM).
+    // 61-gmstore-case's part RR drives two GMs on one round (the suite's clients hold one GM). Covered as of 1.2.97 (E37's
+    // train): each entry is driven by a scenario of the list - setClock and endEclipse in 40, 30, 33 and 61, advanceTimeOfDay
+    // in 40 and 61, startEclipse in 61, ready.open, ready.answer and ready.end in 30 and 33.
     { id: "clock-day", what: "The clock: a GM moves the time of day or opens an Eclipse, the players asked first, every client redraws and refills",
         entry: { api: ["setClock", "advanceTimeOfDay", "startEclipse", "endEclipse"], bridge: ["ready.open", "ready.answer", "ready.end"] },
         scenarios: ["40-flow", "14-quiet", "30-security", "33-bridge-paths", "61-gmstore-case"],
-        status: "partial", stage: "E37" },
+        status: "covered", stage: "1.2.97" },
     // E17 C3 (26.10.2026): a GM's "Refund last crossing" (`token.refundCrossing`, gmOnly), given back on the primary from the
     // GMs' record of the crossing; tier 2 E17-T6 judges the row as a player's ask and as a GM's. No scenario drives it yet.
     { id: "crossing-fee-refund", what: "A token sent back to where it stood, and the crossing it paid for handed back",
