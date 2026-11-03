@@ -1247,7 +1247,7 @@ async function runPreSessionChecks() {
  * the cast, the scenes, the voice rows, the room pictures and the anonymity audit. `av` hands the A/V facts in
  * (`{ mode, on, available }`, R1510), `scenes` the scenes whose room pictures are checked and `head` their HEAD
  * request (R1510, R1511, E20-T2), `contract` a run of the contract (patches.mjs `runContract`; R1541), `diceLook` the
- * dice look's findings (dice-look.mjs `lookFindings`; R1566); each is the world's unless handed.
+ * dice look's findings (dice-look.mjs `lookFindings`; R1300); each is the world's unless handed.
  *
  * @param {object} [options]
  * @returns {Promise<string>} HTML

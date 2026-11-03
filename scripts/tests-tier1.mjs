@@ -32199,7 +32199,7 @@ const INVARIANTS = [
         }
     }],
 
-    ["R1566 - the Dice look check in Season setup, not on the GM panel (E60 C5b2; E60-14, the owner's word of 03.11): no tile of the GM panel's family names `diceLook`, `diagnoseDiceLook` or DRPG.DiceLook.diag.tile, a key gone from lang/en.json and lang/pl.json for DRPG.DiceLook.diag.open; Pre-season checks (season-setup.mjs `preSessionReport`) draw a Dice look part - a cross for each finding this GM's browser raises, a check for none, never the other browsers' line - with a button that opens `diagnoseDiceLook({ test: false })`", async () => {
+    ["R1300 - the Dice look check in Season setup, not on the GM panel (E60 C5b2; E60-14, the owner's word of 03.11): no tile of the GM panel's family names `diceLook`, `diagnoseDiceLook` or DRPG.DiceLook.diag.tile, a key gone from lang/en.json and lang/pl.json for DRPG.DiceLook.diag.open; Pre-season checks (season-setup.mjs `preSessionReport`) draw a Dice look part - a cross for each finding this GM's browser raises, a check for none, never the other browsers' line - with a button that opens `diagnoseDiceLook({ test: false })`", async () => {
         /*
          * E60 C5b2, 03.11.2026; the owner on C5b: "ten kafelek raczej powinien byc w season setup jak juz". C5b put a
          * Dice look tile in the GM panel's "Right now" section, where Public roll stood; it goes, and the check stands
@@ -32231,12 +32231,12 @@ const INVARIANTS = [
         const title = game.i18n.localize("DRPG.DiceLook.diag.title");
         const clean = game.i18n.localize("DRPG.DiceLook.diag.nothingFound");
         const open = game.i18n.localize("DRPG.DiceLook.diag.open");
-        const found = await draw([{ userId: "R1566", code: "onlyMine", words: "R1566 shows only their own dice" }]);
+        const found = await draw([{ userId: "R1300", code: "onlyMine", words: "R1300 shows only their own dice" }]);
         const none = await draw([]);
         const here = await draw();
         const others = game.users.contents.filter(u => u.id !== game.user.id)
             .map(u => game.i18n.format("DRPG.DiceLook.diag.finding.otherBrowser", { name: u.name }));
-        const marked = report => [...report.el.querySelectorAll("p.drpg-check-report")].map(p => p.textContent.trim()).filter(t => t.includes("R1566") || t.includes(clean));
+        const marked = report => [...report.el.querySelectorAll("p.drpg-check-report")].map(p => p.textContent.trim()).filter(t => t.includes("R1300") || t.includes(clean));
         equal(JSON.stringify({
             panel: ["diceLook", "diagnoseDiceLook", "DRPG.DiceLook.diag.tile"].filter(name => panel.includes(name)),
             en: keys(lang.en), pl: keys(lang.pl),
@@ -32246,7 +32246,7 @@ const INVARIANTS = [
             here: [here.heads.includes(title), here.button, others.filter(words => here.text.includes(words)).length]
         }), JSON.stringify({
             panel: [], en: ["open"], pl: ["open"], season: [true, true],
-            found: [true, ["✗ R1566 shows only their own dice"], open],
+            found: [true, ["✗ R1300 shows only their own dice"], open],
             none: [true, [`✓ ${clean}`], open],
             here: [true, open, 0]
         }), "[the panel's family's names of the dice look; DRPG.DiceLook.diag's tile and open keys in English and in Polish; season-setup.mjs "
