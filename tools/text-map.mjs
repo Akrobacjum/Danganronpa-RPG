@@ -83,7 +83,9 @@ export const SCREENS = Object.freeze([
     // entry points (`pocketsAsHeld` and `pocketsFrom` say nothing: named, each would be one).
     row("stash", "the stash: a character's items and gear", "window", "both", ["scripts/vault-store.mjs:*", "scripts/stash-reach.mjs:*",
         "scripts/room-setup.mjs:*", "scripts/palm.mjs:tellPalmVictim", "scripts/palm.mjs:stealFromPerson", "scripts/palm.mjs:plantOnPerson"]),
-    row("season-setup", "Season setup", "window", "gm", ["scripts/season-setup.mjs:*"], { note: "setting a season up and taking one down: the GM's" }),
+    row("season-setup", "Season setup", "window", "gm", ["scripts/season-setup.mjs:*"], { note: "setting a season up: the GM's" }),
+    // E42 C5 (1.2.97): the reset left season-setup.mjs for season-wipe.mjs, a pure move.
+    row("season-wipe", "the season reset", "window", "gm", ["scripts/season-wipe.mjs:*"], { note: "taking a season down: the GM's" }),
     // E41 C7a (1.2.97): the Students window, one of the panel's windows, in its own file.
     row("gm-panel", "the GM panel", "window", "gm", ["scripts/gm-panel.mjs:*", "scripts/gm-students.mjs:*"], { stage: "E13" }),
     row("trial-console", "the trial console: the GM's controls for a Class Trial", "window", "gm", ["scripts/trial-floor-ui.mjs:*"], { stage: "E10" }),

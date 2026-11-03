@@ -324,7 +324,7 @@ export const FLOWS = Object.freeze([
     // too (three `resetSeason` calls), but tags those checks gm-store, the flow it is about, so it is no longer named here:
     // tools/registry.mjs asks a covered flow's scenarios to tag a check with it.
     { id: "season-reset", what: "The season reset, from the GM panel",
-        entry: { calls: ["season-setup.mjs#resetSeason"] }, scenarios: ["65-season"], status: "covered", stage: "1.2.73" },
+        entry: { calls: ["season-wipe.mjs#resetSeason"] }, scenarios: ["65-season"], status: "covered", stage: "1.2.73" },
     // E50 C4 (30.10.2026): covered. 87-messenger-sound's part S counts where sfx-play.mjs `fire` hands a file to the audio layer
     // (`sfx.played`) on every browser: a GM's sound for one player plays there alone, and a player's forged packets nowhere.
     { id: "sound", what: "A sound played for other browsers",

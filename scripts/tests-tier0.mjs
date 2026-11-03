@@ -2636,7 +2636,7 @@ const REGRESSIONS = [
          * it is - every group once, the incident first, the clock last, the Calls before the
          * clock and the chat after every step that could post a card.
          */
-        const setup = stripComments(sources.get("season-setup.mjs") ?? "");
+        const setup = stripComments(sources.get("season-wipe.mjs") ?? "");
         const wipe = bodyOf(setup, "async function wipeSeason");
         const { RESET_STEPS, RESET_CHOICES } = await import("./season-setup.mjs");
         ok(Array.isArray(RESET_STEPS), "season-setup.mjs does not export the reset's order as RESET_STEPS");
@@ -6320,7 +6320,7 @@ const REGRESSIONS = [
          * cut.
          */
         const sources = new Map(await otherSources());
-        const setup = stripComments(sources.get("season-setup.mjs") ?? "");
+        const setup = stripComments(sources.get("season-wipe.mjs") ?? "");
         const beforeWindow = bodyOf(setup, "export async function resetSeason", { until: "DialogV2.wait(" });
         ok(/isPrimaryGm\(\)/.test(beforeWindow), "resetSeason opens its window without asking whether this is the primary GM");
         ok(/whenGmStoresHydrated\(\)/.test(beforeWindow), "the reset window opens before this browser has the other GMs' copies");
@@ -6724,7 +6724,7 @@ const REGRESSIONS = [
         // The keys the two windows' sources name, the checklist's own rows (`DRPG.Season.step.<key>`,
         // `.hint.<key>`) being every DRPG.Season string.
         const named = new Set();
-        for (const file of ["gm-team-dialog.mjs", "season-setup.mjs"]) {
+        for (const file of ["gm-team-dialog.mjs", "season-setup.mjs", "season-wipe.mjs"]) {
             const src = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText);
             for (const m of src.matchAll(/["`](DRPG\.[A-Za-z0-9_.]*[A-Za-z0-9_])["`]/g)) named.add(m[1]);
         }
@@ -7624,7 +7624,7 @@ const REGRESSIONS = [
             ["reroll.mjs", "makeReroll", "message", "the rerolled roll's chat card"],
             ["reroll.mjs", "markReplacedCard", "card", "the replaced card's flag"],
             ["reroll.mjs", "putFirstRollBack", "message", "the first roll's card, put back"],
-            ["season-setup.mjs", "deleteMessages", "ChatMessage", "the chat log, cleared by the reset"],
+            ["season-wipe.mjs", "deleteMessages", "ChatMessage", "the chat log, cleared by the reset"],
             // The reset's "scene" and "region" rows of `wipeSeason` went with E42 C3: the traces' tokens and the doors'
             // flags are written by their entries' clears (remnants.mjs, vault-store.mjs), each gated on the primary GM.
             ["secret.mjs", "post", "ChatMessage", "a secret's card"],
@@ -8106,7 +8106,7 @@ const REGRESSIONS = [
             ["SHEET gm-bridge.mjs#handleAdvancement", "judged (C8): S03-22 - a statistic among TRAITS and an `experienceUp` id on the held sheet (`numberHeld` at the experiences' root), read synchronously before the latch, else refused and told; `applyAdvancement` checks the experiences again in its job [F7, 1b.2]"],
             ["SHEET chapter.mjs#livingStudents", "out of scope as a function (document `isDeceased`); its R1 caller `applyVerdict` stopped using it in C5 (`verdictHeld`) [1b.2]"],
             ["SHEET chapter.mjs#killCharacter", "judged: GATED by E33 C1a (R220), its head check `isDeadForGm`. Since E11 C1 the record it writes (through `markDeceased`, and the `deaths` row through `recordSecretDeath`) carries the death's `phase` (the caller's when it passes one: the verdict's `classTrial`, E11 fix r1-G1), `epoch: seasonEpoch()` and a random `deathId`; it reads nothing new [1b.1 death record]"],
-            ["SHEET season-setup.mjs#wipeStudent", "out of scope: a GM gate, reached from the reset's `wipeSeason` on the primary (E33 C1a's GM-side rows) and from tier 2's sandbox; it writes a student's values back (`deaths`: Health and Sanity, `despair`: Hope) and reads the death and the items off the document only to wipe them (E11 C10). The clock step (C10: `season` + 1, `finalTrial: false`) stays `wipeSeason`'s"],
+            ["SHEET season-wipe.mjs#wipeStudent", "out of scope: a GM gate, reached from the reset's `wipeSeason` on the primary (E33 C1a's GM-side rows) and from tier 2's sandbox; it writes a student's values back (`deaths`: Health and Sanity, `despair`: Hope) and reads the death and the items off the document only to wipe them (E11 C10). The clock step (C10: `season` + 1, `finalTrial: false`) stays `wipeSeason`'s"],
             ["STORE trial-progress.mjs#trialProgress", "not a source: a world setting only a GM writes (`setTrialProgress`; the vote's fields on the primary GM, `runVoteOp`); C1 added `vote`, `accused`, `total`, `accusedIds` and `verdict`, which C5 writes: the stage, right or wrong, the executed, who gave it and when, the steps done and failed - never a Blackened; C10: a Final Trial's verdict, `{ stage: \"done\", final: true, by, at }`, naming nobody [F3/F4/F6]"],
             ["STORE gm-stores.mjs#ballotStore", "not a source: a GM store (`gmBallots`) the primary GM writes (`recordBallot`, the run of the bridge's `vote.cast` since C2) and syncs between the GMs only; a count reads the rows of the world's chapter and round (C1) [F1/F2]"],
             ["STORE gm-stores.mjs#offerStore", "not a source: a GM store the primary writes (`recordOffer`, `dropOffer`); a row is a list per character since C6, a 1.2.70 row read as a list of one (`offerList`) [F7]"],
@@ -8121,7 +8121,7 @@ const REGRESSIONS = [
         const FILES = ["vote.mjs", "trial-progress.mjs", "verdict.mjs", "level-up.mjs", "trial.mjs", "trial-floor.mjs", "trial-floor-ui.mjs", "events.mjs", "mastermind.mjs", "trial-speakers.mjs"];
         const NAMED = { "character.mjs": ["stampStartingSheet"], "gm-bridge.mjs": ["handleAdvancement", "handleAdvancementOffer", "askForOffers", "onAdvancementOffers"],
             "sheet.mjs": ["addPresentButton", "injectAdvanceButton"], "chapter.mjs": ["livingStudents", "killCharacter", "openChapterEndDialog"],
-            "season-setup.mjs": ["wipeStudent"], "clock.mjs": ["reconcilePhase"] };
+            "season-wipe.mjs": ["wipeStudent"], "clock.mjs": ["reconcilePhase"] };
         // Where gm-bridge.mjs registers its sockets and answers an owner: read for handlers, never a row of their own.
         const BRIDGE_TOPS = /^(?:BRIDGE_ACTIONS|ACTION_\w*|registerGmBridge|replyForMe)$/;
         const SHEET = [/\bisDeceased\(|\bisDeadForGm\(|\blivingStudents\(|\bdeceased\b/, /\badvances\b/, /system\.traits\b|\bTRAITS\b/,
@@ -8340,7 +8340,7 @@ const REGRESSIONS = [
             ["SOCKET eclipse.mjs#onMovesSocket#stamps", "out of scope: a GM -> player packet (the Eclipse's placements); no E11 commit changes it"],
             ["SOCKET sync.mjs#registerSync#kind", "judged: the handler applies a packet only from a GM sender (`game.users.get(senderId)?.isGM`, sync.mjs:137) and touches no actor. Since E11 C3 the gather's camera rides it (and since E11 fix r2-H4 the reset's `placeCast` sends it too, 65 U0): `SYNC.gather` carries `{ room, scene, tokenIds }` and each client pans to its own student's token (call-world.mjs `panToGathered`, `canvas.animatePan`; none without a drawn canvas) - the GM-sender check is that one, not the plan's `senderOf(senderId)?.isGM` (it does not ask `active`; Foundry stamps `senderId`), and a player's packet pans nobody (65 B1b)"],
             ["SOCKET sync.mjs#registerSync#data", "judged: as `#kind` (a GM sender only); since E11 C3 `SYNC.gather`'s `tokenIds` are read only to find this client's own token on its canvas, and nothing is written"],
-            ["CHAT season-setup.mjs#moduleMessages", "out of scope: the reset's `cards`/`chatRest` steps select the module's chat by its flag to delete it; a player's card carrying the flag is deleted with them, which is what the reset means. C9 moves the step into `RESET_STEPS` and 65 F reads a failing delete (`ChatMessage.deleteDocuments` stubbed to throw) (E11 C9)"],
+            ["CHAT season-wipe.mjs#moduleMessages", "out of scope: the reset's `cards`/`chatRest` steps select the module's chat by its flag to delete it; a player's card carrying the flag is deleted with them, which is what the reset means. C9 moves the step into `RESET_STEPS` and 65 F reads a failing delete (`ChatMessage.deleteDocuments` stubbed to throw) (E11 C9)"],
             ["SHEET chapter.mjs#livingStudents", "out of scope: rule A, the table's fact (`isDeceased`, document): a display and a count; a player's own `deceased` write is put back (GM_FLAGS); no E11 commit changes it"],
             ["SHEET chapter.mjs#livingStudentsForGm", "out of scope: rule B, the GM's judgement (`isDeadForGm`: the flag or the `deaths` store); no E11 commit changes it"],
             ["SHEET chapter.mjs#killCharacter", "judged: GATED by E33 C1a (R220), its head check `isDeadForGm`. C1 adds `phase` and `epoch: seasonEpoch()` to the record it writes (through `markDeceased` and the `deaths` row) and reads nothing new; fix r1-G1 a `phase` the caller passes (a chapter verdict's; since fix r2-H1 the Final Trial's too) and a random `deathId`, which a discovery's stamp names. [1b.1 death record] (E11 C1)"],
@@ -8361,10 +8361,10 @@ const REGRESSIONS = [
             ["SHEET character.mjs#restoreStartingSheet", "held (E11 C11; E10 C8's owed (3)): `sheetAtStart`, `levelUpExperiences` and the advances through `flagsHeldNow` and the experiences through `numberHeld`, in one `meansWrite` job before its one write - `flagsAsHeld`'s wait is the job's start; deletes a Level Up's experiences (`seasonExperiences`; Q1 (a) for a starting sheet stamped before 1.2.73). R355 [1b.2]"],
             ["SHEET season-setup.mjs#hasOpeningItem", "out of scope: Season Setup's opening items (GM window); no E11 commit changes it"],
             ["SHEET season-setup.mjs#despairSplitCounts", "out of scope: Season Setup's Despair split (GM window, `isDeadForGm`); no E11 commit changes it"],
-            ["SHEET season-setup.mjs#seasonItems", "out of scope: the reset's `items` step lists the cast's items to delete on the primary; a player's own item write is audited (E29). Since E11 C10 each student's bedroom keys are handed back at once, in the same group (`wipeStudent`: `reconcileBedroomKeys({ silent: true, owners })`)"],
+            ["SHEET season-wipe.mjs#seasonItems", "out of scope: the reset's `items` step lists the cast's items to delete on the primary; a player's own item write is audited (E29). Since E11 C10 each student's bedroom keys are handed back at once, in the same group (`wipeStudent`: `reconcileBedroomKeys({ silent: true, owners })`)"],
             // "SHEET season-setup.mjs#wipeSeason" struck in E42 C3: the Truth Bullets it read off each actor to delete them are the bullets entry's clear (truth-bullets.mjs, a file this list does not read), and the walker reads no sheet.
-            ["SHEET season-setup.mjs#wipeStudent", "out of scope: a GM gate, reached from the reset on the primary (`wipeSeason`) and from tier 2's sandbox; its document reads (`isDeceased`, `monocub`, `pendingCall`, the rests' and betrayal stamps, the season's items) decide only whether to write. Health and Sanity 0 in `deaths` and Hope `STARTING.hope` in `despair` (D12, `trustedWrite`, `setup`) are constants with no read: the reset's value supersedes a pending put-back [1b.2]. Since E11 C11 its `advancement` part hands the reset what the restore kept and could not tell apart (`left`, the report's line); the reads are the restore's, row above (E11 C11)"],
-            ["SHEET season-setup.mjs#placeCast", "judged (E11 C10b): the reset's step on the primary only (`isPrimaryGm`; on a second GM it moves nobody, 65 P3); who is dead is read off the primary's mark (`flagsHeldNow`, then `isDeadForGm` and `isMonocub`) in the one synchronous pass that decides every move before the first is made (H3) [1b.2]; the bedrooms through `allBedroomsAnywhere`, every scene and never the GM's camera (ITEM-16, R354); the moves are a GM's token updates, no player road. E11 fix r2-H4: its null off the primary is a failed step the reset's report names (65 U2), the reset asks for the primary again when its window closes (65 U1), and each room's moves are followed by the gather's pan, `SYNC.gather` (65 U0)"],
+            ["SHEET season-wipe.mjs#wipeStudent", "out of scope: a GM gate, reached from the reset on the primary (`wipeSeason`) and from tier 2's sandbox; its document reads (`isDeceased`, `monocub`, `pendingCall`, the rests' and betrayal stamps, the season's items) decide only whether to write. Health and Sanity 0 in `deaths` and Hope `STARTING.hope` in `despair` (D12, `trustedWrite`, `setup`) are constants with no read: the reset's value supersedes a pending put-back [1b.2]. Since E11 C11 its `advancement` part hands the reset what the restore kept and could not tell apart (`left`, the report's line); the reads are the restore's, row above (E11 C11)"],
+            ["SHEET season-wipe.mjs#placeCast", "judged (E11 C10b): the reset's step on the primary only (`isPrimaryGm`; on a second GM it moves nobody, 65 P3); who is dead is read off the primary's mark (`flagsHeldNow`, then `isDeadForGm` and `isMonocub`) in the one synchronous pass that decides every move before the first is made (H3) [1b.2]; the bedrooms through `allBedroomsAnywhere`, every scene and never the GM's camera (ITEM-16, R354); the moves are a GM's token updates, no player road. E11 fix r2-H4: its null off the primary is a failed step the reset's report names (65 U2), the reset asks for the primary again when its window closes (65 U1), and each room's moves are followed by the gather's pan, `SYNC.gather` (65 U0)"],
             ["SHEET call-world.mjs#gatherEveryone", "out of scope: GM gate; `isDeadForGm` picks whose token moves (the dead stay). since E11 C3 it ends with the gather's camera packet after the moves (SOCKET sync.mjs#registerSync); C1's witnesses are read elsewhere. Since E13 C3b a caller may hand a held reader, and the return from the trial does: R432's row of this key judges it"],
             ["SHEET projects-map.mjs#findProjectActor", "not a source: the project actor (PROJECT_ACTOR, OBSERVER for players) - a player cannot update it (plan 1b.1, read in projects-map.mjs); C7's `projectTokenPlan` reads tokens by their project id, not this actor's items (E11 C7)"],
             ["SHEET gm-bridge.mjs#handleAdvancement", "judged (E10 C8): the picks on the held sheet (`numberHeld`), refused and told."],
@@ -8387,7 +8387,7 @@ const REGRESSIONS = [
             ["STORE gm-stores.mjs#passageSeasonStore", "not a source: a GM store (E15 part 2 C1, D3), the passages a project made, written on the primary and by the GMs' buttons on the row's own store (passages-gm.mjs `rowsOf`); cut by the reset's `passages` group, whose step (`passagesAfterReset`) clears it on the primary with the access record and the log (E15-T10)"],
         ];
         const ROADS = /^(?:advancement\.apply|call\.arm|token\.sendBack|project\.\w+|vault\.findStash)$/;
-        const FILES = ["chapter.mjs", "character.mjs", "season-setup.mjs", "call-world.mjs", "projects.mjs", "projects-map.mjs", "projects-secrecy.mjs", "eclipse.mjs"];
+        const FILES = ["chapter.mjs", "character.mjs", "season-setup.mjs", "season-wipe.mjs", "call-world.mjs", "projects.mjs", "projects-map.mjs", "projects-secrecy.mjs", "eclipse.mjs"];
         const NAMED = { "gm-bridge.mjs": ["handleAdvancement"], "level-up.mjs": ["applyAdvancement"],
             "vault-store.mjs": ["keysHeldBy", "grantBedroomKey", "grantKeyNow", "repointDeadKey", "reconcileBedroomKeys", "setStash", "allBedroomsAnywhere"], "events.mjs": ["bodyCard"],
             "gm-panel.mjs": ["nextStep"], "gm-campaign.mjs": ["openClockDialog"], "clock.mjs": ["setClock", "reconcilePhase", "setPhase"],
@@ -9254,7 +9254,7 @@ const REGRESSIONS = [
             ["FLAG popup.mjs#onCreateChatMessage#popupTone", "a closed list (`TONES`) on draw; a tone outside it refused on read (E81 C2)"],
             ["DELETE incident-store.mjs#retireOpeningNotices", "the module takes back the opening's request cards with its withdraw option: every browser's entry of them goes with the card (R295, 13-murder-signals)"],
             ["DELETE murder-rules.mjs#undoLastCrisis", "a crisis taken back deletes its receipt card with the withdraw option: every browser's entry of it goes with the card (R295)"],
-            ["DELETE season-setup.mjs#deleteMessages", "the season reset deletes in batches without the withdraw option (R295): an entry stays, marked deleted, until the epoch clears every section of this world at the next read or write (R297)"],
+            ["DELETE season-wipe.mjs#deleteMessages", "the season reset deletes in batches without the withdraw option (R295): an entry stays, marked deleted, until the epoch clears every section of this world at the next read or write (R297)"],
             ["HOOK popup.mjs#registerPopups#createChatMessage", "the catch-all's registration; the road is the catch-all's SURFACE row (R297)"],
             ["HOOK popup.mjs#registerPopups#deleteChatMessage", "a deleted message closes its card on screen as withdrawn - `onDeleteChatMessage`, a `drpg-dismiss` and no click on its X, so the entry is not read (R295); whether the entry stays is the history's own hook"],
             ["HOOK popup.mjs#registerPopups#updateChatMessage", "an Objection card a GM marked overruled closes its cards on screen as by code - `onUpdateChatMessage`, a `drpg-dismiss` with reason \"code\", so the entry is kept unread with the stamp its body gained before the close (`watchCard`, R293); a player's card is not one: the mark is read only on a GM's message (E70 C2)"],
@@ -11414,7 +11414,7 @@ const REGRESSIONS = [
             ok(at("placeCast") < at(key), `the cast is placed after "${key}"`);
         }
 
-        const setup = stripComments(new Map(await otherSources()).get("season-setup.mjs") ?? "");
+        const setup = stripComments(new Map(await otherSources()).get("season-wipe.mjs") ?? "");
         const place = fnSource(setup, "placeCast");
         ok(/allBedroomsAnywhere\(\)/.test(place), "placeCast does not read the bedrooms of every scene");
         ok(!/\ballBedrooms\(|\bworkingScene\(|\bcanvas\??\.scene\b/.test(place),
@@ -11747,7 +11747,7 @@ const REGRESSIONS = [
         const floor = stripComments(sources.get("trial-floor.mjs") ?? ""), clock = stripComments(sources.get("clock.mjs") ?? "");
         // E41 C7b (1.2.97): the stopwatch and the clock it shows left hud.mjs; the HUD's family's text (the kit's `hudText`).
         const hud = stripComments(hudText(sources)), ui = stripComments(sources.get("trial-floor-ui.mjs") ?? "");
-        const season = stripComments(sources.get("season-setup.mjs") ?? ""), utils = stripComments(sources.get("utils.mjs") ?? "");
+        const season = stripComments(sources.get("season-wipe.mjs") ?? ""), utils = stripComments(sources.get("utils.mjs") ?? "");
         const now = topLevelFunction(utils, "serverNow") ?? "";
         ok(/game\.time\?\.serverTime/.test(now), "utils.mjs has no serverNow, or it no longer reads the server's clock Foundry gives");
         // The floor's writes are the in-step twins since E70 C0 (trial-floor.mjs `FLOOR_OPS`); the public writers hand them on.
@@ -12287,7 +12287,7 @@ const REGRESSIONS = [
         const panel = stripComments(panelText(sources)), floorCode = code("trial-floor.mjs");
         const finalRoute = /if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/;
         const verdict = fnSource(vote, "openVerdictDialog"), batch = fnSource(levelUp, "runAdvancementBatch");
-        const card = fnSource(vote, "postVerdictCard"), wipe = fnSource(code("season-setup.mjs"), "clearSeasonClock");
+        const card = fnSource(vote, "postVerdictCard"), wipe = fnSource(code("season-wipe.mjs"), "clearSeasonClock");
         const cancelFirst = /buttons: \[\s*\{ action: "cancel", [^}]*default: true \}/;
         const facts = {
             onePerPerson: [/!u\.isGM/, /if \(!user \|\| seated\.has\(user\.id\)\) continue;/, /!TRIAL\.deadCastBallots/]
@@ -12511,8 +12511,8 @@ const REGRESSIONS = [
          * the typed word compared as it is, the cast's step throwing on a null answer, and `placeCast` sending
          * the gather's pan after its moves. What they do at a table of five browsers is scenario 65's U.
          */
-        const setup = stripComments(new Map(await otherSources()).get("season-setup.mjs") ?? "");
-        ok(setup.length > 1000, "season-setup.mjs did not load - the reads below would measure nothing");
+        const setup = stripComments(new Map(await otherSources()).get("season-wipe.mjs") ?? "");
+        ok(setup.length > 1000, "season-wipe.mjs did not load - the reads below would measure nothing");
         const reset = fnSource(setup, "resetSeason");
         const window = reset.indexOf("DialogV2.wait("), plan = reset.indexOf("planFrom(typed.ticked)");
         const asked = [...reset.matchAll(/if \(!isPrimaryGm\(\)\) \{/g)].map(hit => hit.index);
@@ -12931,8 +12931,8 @@ const REGRESSIONS = [
         equal(JSON.stringify(reads("fixture", "// scene.regions\nfunction a(scene) {\n    return scene.regions.size;\n}\n")),
             JSON.stringify(["fixture:3"]), "the reader does not find a `.regions` read in its fixture, or finds the one in a comment");
         const sources = await moduleSources();
-        const FILES = ["season-setup.mjs", "projects-map.mjs"];
-        must(FILES.every(file => sources.get(file)?.length), "the two files are among the module's sources - this would measure nothing");
+        const FILES = ["season-setup.mjs", "season-wipe.mjs", "projects-map.mjs"];
+        must(FILES.every(file => sources.get(file)?.length), "the three files are among the module's sources - this would measure nothing");
         equal(JSON.stringify(FILES.flatMap(file => reads(file, sources.get(file)))), JSON.stringify([]),
             "Season setup or the project map lists a scene's regions itself instead of asking rooms.mjs (file:line of each `.regions` read)");
     }],
@@ -16319,7 +16319,7 @@ const REGRESSIONS = [
         const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
         // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; the vote's family's text (the kit's `voteText`).
         const real = { vote: voteText(new Map(await Promise.all(VOTE_FAMILY.map(async f => [f, await read(f)])))), mastermind: await read("mastermind.mjs"), clock: await read("clock.mjs"),
-            ui: await read("trial-floor-ui.mjs"), season: await read("season-setup.mjs") };
+            ui: await read("trial-floor-ui.mjs"), season: await read("season-wipe.mjs") };
         equal(JSON.stringify(readOf(real)), JSON.stringify(all),
             "the sentence is carried out somewhere other than the trial's end, the verdict still executes, or a road out of the trial asks for it too late or not at all (read: cut, [vote.mjs's killers, mastermind.mjs's], steps, reconcile, close, reset)");
     }],
@@ -18754,7 +18754,7 @@ const REGRESSIONS = [
             "gm-students.mjs#openWhoIsAliveDialog": "the Students window: every student with their state, the dead included, for the GM to change it",
             "monocub.mjs#eligibleForMonocub": "the dead who are not a Monocub yet: who may become one",
             "monocub.mjs#openMonocubDialog": "the Monocubs' window, drawn over the dead",
-            "season-setup.mjs#placeCast": "the season reset's placement of the tokens, by the GMs' record of who is dead",
+            "season-wipe.mjs#placeCast": "the season reset's placement of the tokens, by the GMs' record of who is dead",
             "trial-scene.mjs#leftBehind": "whom the trial's return carries, by the gather's rule as the GMs hold it",
             "voice.mjs#deadForTrial": "the trial's dead, whose microphones are off: the other side of the cast",
             "trial-scene.mjs#standingTwice": "the students the trial's return finds on two scenes, by `leftBehind`'s rule",
@@ -19325,8 +19325,8 @@ const REGRESSIONS = [
             // D36 = 2 (E42 C4): the students' division between the Monokumas.
             assignments: "assignments.mjs",
             // The reset's own: a cast group's part on each sheet, the chat and the clock.
-            items: "season-setup.mjs", advancement: "season-setup.mjs", stashesFound: "season-setup.mjs", cards: "season-setup.mjs",
-            chatRest: "season-setup.mjs", clock: "season-setup.mjs"
+            items: "season-wipe.mjs", advancement: "season-wipe.mjs", stashesFound: "season-wipe.mjs", cards: "season-wipe.mjs",
+            chatRest: "season-wipe.mjs", clock: "season-wipe.mjs"
         };
         const DESCRIBED = { noticeHistory: "notice-history.mjs" };
         const sources = new Map(await otherSources());
@@ -19433,7 +19433,7 @@ const REGRESSIONS = [
         must(groups.length >= 14, `only ${groups.length} GM stores and copies name a reset group - the table was not read`);
         equal(JSON.stringify([...new Set(groups.filter(group => !R.seasonStateFor(group)))]), "[]", "a GM store's reset group has no entry");
         // And the reset walks them in RESET_STEPS' order, through the registry, not its own table.
-        const wipe = fnSource(code.get("season-setup.mjs"), "wipeSeason");
+        const wipe = fnSource(code.get("season-wipe.mjs"), "wipeSeason");
         ok(/\bRESET_STEPS\s*\.\s*(?:filter|map)\(/.test(wipe) && /\bseasonStateFor\(/.test(wipe) && !/\bseasonStateEntries\(\s*\)/.test(wipe)
             && !/const runs = \{/.test(wipe), "wipeSeason does not walk the registry's entries in RESET_STEPS' order");
     }],

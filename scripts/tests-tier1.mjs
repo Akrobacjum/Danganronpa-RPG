@@ -1263,7 +1263,7 @@ const INVARIANTS = [
             // E41 C6 and C8 (1.2.97): Room Setup and the stashes' inspector left vault.mjs, the item tables window
             // tables.mjs; each is read in the file it stands in. E41 C9a: the Sound window left music.mjs.
             "sound-panel", "investigation", "trial-floor-ui", "projects-ui", "room-setup", "stash-reach",
-            "tables-editor", "season-setup", "mastermind", "rules", "monocub",
+            "tables-editor", "season-setup", "season-wipe", "mastermind", "rules", "monocub",
             "gm-team-dialog", "gm-items", "gm-panel", "gm-students", "gm-campaign", "murder", "murder-ui", "voice", "trial"
         ];
 
@@ -7373,8 +7373,8 @@ const INVARIANTS = [
         const { RESET_GROUPS } = await import("./season-exceptions.mjs");
         const wrong = [];
         if (RESET_GROUPS.some(group => group.key === "sheetNotes")) wrong.push("the window still offers the cast's sheet notes");
-        const setup = stripComments(new Map(await otherSources()).get("season-setup.mjs") ?? "");
-        if (setup.length < 1000) wrong.push("season-setup.mjs did not load");
+        const setup = stripComments(new Map(await otherSources()).get("season-wipe.mjs") ?? "");
+        if (setup.length < 1000) wrong.push("season-wipe.mjs did not load");
         if (/system\.notes|biography\.notes/.test(setup)) wrong.push("the reset still clears a notes field a Daggerheart character does not have");
         const betrayal = { en: /betray/i, pl: /zdrad/i };
         for (const lang of ["en", "pl"]) {
@@ -9656,7 +9656,7 @@ const INVARIANTS = [
         const sites = [["murder-rules.mjs", "undoLastCrisis"], ["incident-store.mjs", "retireOpeningNotices"]]
             .map(([file, fn]) => WITHDRAW.test(fnSource(code(file), fn)));
         const passing = [...sources.keys()].filter(file => file.endsWith(".mjs") && !file.startsWith("tests") && /\bwithdraw:\s*true\b/.test(code(file))).sort();
-        equal(JSON.stringify([sites, passing, /\bwithdraw\b/.test(fnSource(code("season-setup.mjs"), "deleteMessages"))]),
+        equal(JSON.stringify([sites, passing, /\bwithdraw\b/.test(fnSource(code("season-wipe.mjs"), "deleteMessages"))]),
             JSON.stringify([[true, true], ["incident-store.mjs", "murder-rules.mjs"], false]),
             "[undoLastCrisis and retireOpeningNotices delete with the withdraw option; the files that pass it; the reset's batches pass it]");
         const popups = fnSource(code("popup.mjs"), "registerPopups"), history = fnSource(code("notice-history.mjs"), "registerNoticeHistory");
@@ -30270,9 +30270,9 @@ const INVARIANTS = [
          * it): what it holds is measured by mutants (S/stages/E51/FIX-C.md).
          */
         const sources = await moduleSources();
-        const setup = stripComments(sources.get("season-setup.mjs") ?? "");
+        const setup = stripComments(sources.get("season-wipe.mjs") ?? "");
         const cub = stripComments(sources.get("monocub.mjs") ?? "");
-        must(setup.length > 1000 && cub.length > 1000, "season-setup.mjs or monocub.mjs is not among the module's sources - this would measure nothing");
+        must(setup.length > 1000 && cub.length > 1000, "season-wipe.mjs or monocub.mjs is not among the module's sources - this would measure nothing");
         const deaths = bodyOf(fnSource(setup, "wipeStudent"), "deaths:", { until: "items:" });
         const setter = fnSource(cub, "setMonocub");
         equal(JSON.stringify([/setMonocub\(actor,\s*false,\s*\{\s*quiet:\s*true\s*\}\)/.test(deaths), /reviveCharacter\(actor,\s*\{\s*quiet:\s*true\s*\}\)/.test(deaths),
@@ -31907,9 +31907,9 @@ const INVARIANTS = [
         equal(JSON.stringify(Object.keys(tallies)), JSON.stringify(counted), "the window's counts are not the tallies of the entries that have one, in their order");
         ok(Object.values(tallies).every(list => Array.isArray(list) && list.every(line => typeof line === "string" && line.length > 0)),
             `an entry's tally gave something that is not a list of lines: ${JSON.stringify(tallies).slice(0, 300)}`);
-        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/season-setup.mjs`).then(lfText));
+        const src = stripComments((await Promise.all(["season-setup.mjs", "season-wipe.mjs"].map(file => fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText)))).join("\n"));
         equal(JSON.stringify([topLevelFunction(src, "resetTally") === null, !/\bGOES_DETAIL\b/.test(src), /\bseasonStateEntries\(/.test(fnSource(src, "resetTallies"))]),
-            "[true,true,true]", "season-setup.mjs still counts a group by hand (resetTally gone, GOES_DETAIL gone, resetTallies asks the registry)");
+            "[true,true,true]", "season-setup.mjs or season-wipe.mjs still counts a group by hand (resetTally gone, GOES_DETAIL gone, resetTallies asks the registry)");
     }],
 ];
 
