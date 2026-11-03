@@ -57,6 +57,8 @@ import { SETTINGS, getClock } from "./settings.mjs";
 import { debug, warn, error, forgeAsset, localeFormat } from "./utils.mjs";
 import { cleanCardHtml, cardMeta } from "./secret.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 
 const FORMAT = 1;
 
@@ -87,6 +89,13 @@ const RANK = Object.freeze({ open: 0, unread: 1, read: 2 });
  * only, say, the remnants does not. R297 holds each to a key of `RESET_GROUPS` (season-exceptions.mjs).
  */
 export const EPOCH_GROUPS = Object.freeze(["clock", "incident", "cards", "chatRest"]);
+
+/*
+ * THE NOTICE HISTORY IN THE REGISTRY, DESCRIBED (E42 C3, the plan's amend A7). Each player's history is client state,
+ * cleared on its own browser by the epoch's fingerprint over the reset's cuts of `EPOCH_GROUPS`: a GM neither sees
+ * nor clears it, so its entry has no tally and no clear - the reset window shows its line and counts nothing of it.
+ */
+registerSeasonState({ describes: "noticeHistory", label: "DRPG.Season.state.noticeHistory" });
 
 /**
  * The texts an entry or the store's state carries; the window (E81 C7) draws them. `source` names where an entry

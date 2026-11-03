@@ -39,6 +39,8 @@ import { announce, dialogContent, ownerOf, primaryGmId, isPrimaryGm, log, error,
 import { mastermindStore, doorCopy, mastermindUndecided } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 // E41 C10b (1.2.97): the Final Trial's verdict is verdict.mjs's, on the ordinary verdict's lock, list, card and summary;
 // re-exported here for every importer, and imported for the Mastermind window's button. verdict.mjs reads this file by
 // `import()` alone, so the static graph has no cycle (R161).
@@ -289,6 +291,13 @@ export async function clearMastermind() {
     if (!game.user.isGM) return;
     await writeStore(null, null);
 }
+
+/** The season reset's Mastermind group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): `clearMastermind`. */
+export async function clearSeasonMastermind() {
+    await clearMastermind();
+}
+
+registerSeasonState({ group: "mastermind", clear: clearSeasonMastermind });
 
 /**
  * Ask the primary GM whether this browser holds the part (a player's client).

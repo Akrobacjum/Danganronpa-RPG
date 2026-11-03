@@ -1275,7 +1275,7 @@ export const diceLookStore = defineGmStore({
  * writes only what it changes). No `exists`: a row outlives the trace it names, as the
  * world key's entries did - a chapter's plan stays until a reset's cut takes it. A reset
  * that keeps the plan (E05 fix r1-G5, M3) keeps ONE chapter's rows, not every chapter's:
- * investigation.mjs's `keepOnlyKeyPlanChapter`, which `season-setup.mjs`'s `wipeSeason` calls
+ * investigation.mjs's `keepOnlyKeyPlanChapter`, which the reset calls (the keyPlan entry's keep, `keepSeasonKeyPlan`)
  * instead of `clearKeyPlan` when the group is kept, drops the rest - so the next season's
  * chapter of that same number opens with them, as 1.2.63's one stored plan did, and a row has
  * no season stamped on it, so any chapter left standing would otherwise have read as planned

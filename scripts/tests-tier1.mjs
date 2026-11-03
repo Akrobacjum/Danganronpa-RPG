@@ -328,7 +328,7 @@ const INVARIANTS = [
          * 20/20, zero cards, no effect; and a boundary crossed with the stamp
          * pre-armed left the counter at 20 and posted nothing.
          *
-         * TWO. `wipeSeason` emptied every Despair pool and left the spill from
+         * TWO. The reset (`wipeSeason`) emptied every Despair pool and left the spill from
          * them standing, so a new season opened carrying the old one's pressure
          * AND its armed stamp - dated to a time of day the new clock reaches
          * again on day one.
@@ -356,9 +356,10 @@ const INVARIANTS = [
             "the counter arms the hour already in progress, where Shift, Panic "
             + "and Darkness have nothing left to reduce");
 
-        // TWO: the season reset clears it, through the one definition of empty.
-        const wipe = bodyOf(season, "async function wipeSeason");
-        ok(wipe.length > 500, "wipeSeason is gone");
+        // TWO: the season reset clears it, through the one definition of empty - the overflow entry's clear since
+        // E42 C3 (the registry's, in overflow.mjs), which the reset walks (R50, R1254).
+        const { seasonStateFor } = await import("./season-reset.mjs");
+        const wipe = fnSource(overflow, seasonStateFor("overflow")?.clear?.name ?? "clearSeasonOverflow");
         ok(/resetOverflow\(/.test(wipe),
             "a season reset empties the Despair pools and leaves their overflow standing");
 
@@ -4172,10 +4173,11 @@ const INVARIANTS = [
          * E11 C9, 10.10.2026; audit S06-49. The "This goes" list above the ticks was twelve
          * hand-written lines that went whatever was ticked - one of them five groups at once,
          * half the groups on none - so a GM who unticked the incident still read "the incident"
-         * among what goes. `resetGoesHtml(plan, tally)` draws it from RESET_GROUPS: one row per
+         * among what goes. `resetGoesHtml(plan, tallies)` draws it from RESET_GROUPS: one row per
          * group, `data-group` its key, a group the plan keeps struck through and
          * `aria-disabled`, the projects row counting the project tokens on the maps. Pure:
-         * a plan and a made-up tally in, markup out; nothing in the world is read or written.
+         * a plan and made-up tallies in, markup out; nothing in the world is read or written. Since
+         * E42 C3 the tallies are each entry's lines, by group (`resetTallies`; R1255).
          */
         const S = await import("./season-setup.mjs");
         ok(typeof S.resetGoesHtml === "function", "season-setup.mjs draws no \"This goes\" list from the ticks (resetGoesHtml)");
@@ -4183,8 +4185,11 @@ const INVARIANTS = [
         const { plural } = await import("./utils.mjs");
         const keys = RESET_GROUPS.map(group => group.key);
         const ticked = keys.filter(key => !["incident", "advancement", "chatRest"].includes(key));
-        const tally = { projects: 2, projectTokens: 4, remnants: 3, bullets: 1, dead: 1, items: 5, advances: 2,
-            preNotes: 1, cards: 7, chat: 9, despair: 1 };
+        const tally = { projects: [plural("DRPG.Season.resetProjects", { n: 2 }), plural("DRPG.Season.resetProjectTokens", { n: 4 })],
+            remnants: [plural("DRPG.Season.resetRemnants", { n: 3 })], bullets: [plural("DRPG.Season.resetBullets", { n: 1 })],
+            deaths: [plural("DRPG.Season.resetDead", { n: 1 })], items: [plural("DRPG.Season.resetItems", { n: 5 })],
+            advancement: [plural("DRPG.Season.resetAdvances", { n: 2 })], preNotes: [plural("DRPG.Season.resetPreNotes", { n: 1 })],
+            cards: [plural("DRPG.Season.resetCards", { n: 7 })] };
         const host = document.createElement("div");
         host.innerHTML = S.resetGoesHtml(planFrom(ticked), tally);
         const rows = [...host.querySelectorAll("li[data-group]")];
@@ -4238,16 +4243,21 @@ const INVARIANTS = [
         const counted = P.passageResetTally({ stores, scenes });
         equal(JSON.stringify(counted), JSON.stringify({ built: 1, breaches: 1, knowers: 2 }),
             "[the passages projects made, the breaches standing, the students who know a passage] - a breach's row read as a passage, a touch or door row or a stranger as a knower, or a student counted twice");
-        // The window's row: the three counts under the passages group, in the reset's own words.
+        // The window's row: the three counts under the passages group, in the reset's own words - the passages entry's
+        // tally over the same stores and scenes (E42 C3: `tallySeasonPassages`, the lines the window draws).
         const keys = RESET_GROUPS.map(group => group.key);
         const host = document.createElement("div");
-        host.innerHTML = S.resetGoesHtml(planFrom(keys), { passagesBuilt: 3, breaches: 1, passageKnowers: 4 });
+        const lines = [plural("DRPG.Season.resetPassageKnowers", { n: 2 }), plural("DRPG.Season.resetPassagesBuilt", { n: 1 }), plural("DRPG.Season.resetBreaches", { n: 1 })];
+        equal(JSON.stringify(P.tallySeasonPassages?.({ stores, scenes }) ?? null), JSON.stringify(lines),
+            "the passages entry's tally does not say the three counts in the reset's own words (knowers, built, breaches)");
+        host.innerHTML = S.resetGoesHtml(planFrom(keys), { passages: lines });
         const row = host.querySelector('li[data-group="passages"]')?.textContent ?? "";
-        const lines = [plural("DRPG.Season.resetPassagesBuilt", { n: 3 }), plural("DRPG.Season.resetBreaches", { n: 1 }), plural("DRPG.Season.resetPassageKnowers", { n: 4 })];
         equal(JSON.stringify(lines.map(line => row.includes(line))), "[true,true,true]", `the passages row does not count what it takes: "${row.trim()}"`);
-        // The window's tally reads this count: the source of season-setup.mjs's `resetTally`, comments blanked.
-        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/season-setup.mjs`).then(lfText));
-        ok(/\bpassageResetTally\(/.test(fnSource(src, "resetTally")), "season-setup.mjs `resetTally` does not ask passageResetTally - the window counts nothing of the passages");
+        // The window's tally is the registry's passages entry, and it reads this count (passages-gm.mjs, comments blanked).
+        const { seasonStateFor } = await import("./season-reset.mjs");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/passages-gm.mjs`).then(lfText));
+        ok(seasonStateFor("passages")?.tally === P.tallySeasonPassages && /\bpassageResetTally\(/.test(fnSource(src, "tallySeasonPassages")),
+            "the passages entry's tally is not passages-gm.mjs `tallySeasonPassages` asking passageResetTally - the window counts nothing of the passages");
     }],
 
     ["R162 - the runner judges before it answers, answers once, and tells an exception as failed", async () => {
@@ -31868,6 +31878,38 @@ const INVARIANTS = [
             "endHeldPhase does not read the phase the end's own step left as the end's, or reads a phase another hand moved as it "
             + "(the record's own; out of the Investigation with the session moved; with it not moved; into a trial; with the clock step done; "
             + "the trial closed by its step; with no trial asked; a trial opened over Daily Life)");
+    }],
+    ["R1255 - the reset window counts from the registry's entries alone (E42 C3, E42-14; audit S17-30): `resetGoesHtml(plan, tallies)` shows under a group the lines its entry's tally gave and nothing else - a planted tally's lines under its group, a group whose tally gave none no count - and each descriptive entry's line with no tick and no count; the window's counts are `resetTallies()`, every entry's `tally` asked and nothing else; and season-setup.mjs keeps no hand list of counts (`resetTally`, `GOES_DETAIL`)", async () => {
+        /*
+         * E42 C3, 03.11.2026. Until C3 the window's counts were `resetTally()` and `GOES_DETAIL` in season-setup.mjs,
+         * a hand list of ten groups beside the reset's runs: a group whose owner added state counted none of it until
+         * somebody remembered the list. Each entry's `tally` is its row's lines now. Pure over a plan and tallies of
+         * the test's own; then the window's own tallies, read off this world without writing (each entry's lines, by
+         * group). Red before C3: the planted line under the motive row missing (`GOES_DETAIL` has no motive).
+         */
+        const S = await import("./season-setup.mjs");
+        const { RESET_GROUPS, planFrom } = await import("./season-exceptions.mjs");
+        const keys = RESET_GROUPS.map(group => group.key);
+        const host = document.createElement("div");
+        host.innerHTML = S.resetGoesHtml(planFrom(keys), { motive: ["R1255 planted line"], projects: [] });
+        const notes = key => host.querySelector(`li[data-group="${key}"] .notes`)?.textContent ?? null;
+        equal(JSON.stringify([notes("motive"), notes("projects"), notes("rules")]), JSON.stringify(["(R1255 planted line)", null, null]),
+            "the window does not show a planted tally's lines under its group, or counts a group whose tally gave none (motive, projects, rules)");
+        const R = await import("./season-reset.mjs");
+        const described = R.seasonStateEntries().filter(entry => entry.group === null);
+        must(described.length >= 1, "the registry holds no descriptive entry - the window's line for one is read on nothing");
+        const lines = [...host.querySelectorAll("li[data-describes]")];
+        equal(JSON.stringify(lines.map(li => [li.dataset.describes, li.textContent.trim(), li.querySelector("input, .notes, s") === null])),
+            JSON.stringify(described.map(entry => [entry.describes, game.i18n.localize(entry.label), true])),
+            "a descriptive entry's line is missing, says something else, or carries a tick, a count or a strike (describes, text, bare)");
+        const tallies = await S.resetTallies();
+        const counted = R.seasonStateEntries().filter(entry => entry.tally).map(entry => entry.group);
+        equal(JSON.stringify(Object.keys(tallies)), JSON.stringify(counted), "the window's counts are not the tallies of the entries that have one, in their order");
+        ok(Object.values(tallies).every(list => Array.isArray(list) && list.every(line => typeof line === "string" && line.length > 0)),
+            `an entry's tally gave something that is not a list of lines: ${JSON.stringify(tallies).slice(0, 300)}`);
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/season-setup.mjs`).then(lfText));
+        equal(JSON.stringify([topLevelFunction(src, "resetTally") === null, !/\bGOES_DETAIL\b/.test(src), /\bseasonStateEntries\(/.test(fnSource(src, "resetTallies"))]),
+            "[true,true,true]", "season-setup.mjs still counts a group by hand (resetTally gone, GOES_DETAIL gone, resetTallies asks the registry)");
     }],
 ];
 

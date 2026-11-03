@@ -25,7 +25,7 @@
 
 import { MODULE_ID, PROJECT_SCALE, TRAP_TRIGGERS, TRAITS, isProjectGlyph } from "./config.mjs";
 import { SETTINGS, iAmTheMastermind } from "./settings.mjs";
-import { announce, log, error, whisperToOwner, whisperToGms, gmIds, esc, isPrimaryGm, primaryGmId, serialWrite } from "./utils.mjs";
+import { announce, log, error, whisperToOwner, whisperToGms, gmIds, esc, isPrimaryGm, primaryGmId, serialWrite, plural } from "./utils.mjs";
 // Statically: gm-stores.mjs reaches this file only by dynamic import, so the edge closes no cycle (R161).
 import { projectSecretStore, rerollBookmarkStore } from "./gm-stores.mjs";
 /* `discoveredFor` is the per-character record of which rooms somebody has
@@ -40,6 +40,8 @@ import { cardMeta } from "./secret.mjs";
 // A leaf (it imports config.mjs alone): the scenes a project's room is on, for `knowsProject` (E12 C5),
 // and the one it stands on, for `projectScene` (E12 fix r1-G3).
 import { placeScenes, roomRegions, sceneOfRoom } from "./rooms.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 import {
     DH, COUNTDOWNS, COUNTDOWNS_KEY, projectMeta, metaFor, secretsOf, setProjectMeta, canSee, OBSERVER, ownerIdsOfId, ownershipMap,
     insidersOf, viewersOf, isSecret, rawCountdown, writeAllCountdowns, builderIds,
@@ -1993,6 +1995,31 @@ export async function clearAllProjects() {
     log(`Season reset: cleared ${gone} project(s).`);
     return gone;
 }
+
+/** The season reset's projects group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): `clearAllProjects`. */
+export async function clearSeasonProjects() {
+    await clearAllProjects();
+}
+
+/**
+ * What the reset window counts of the projects (E42 C3; season-setup.mjs `resetTally` until then): the projects
+ * standing and, since E11 C7, every project token on the maps, the orphans included - what `clearAllProjects`
+ * takes off them. The tokens are projects-map.mjs's, reached by `import()` as `clearAllProjects` reaches it.
+ */
+export async function tallySeasonProjects() {
+    let projects = 0;
+    try {
+        projects = Object.keys(game.settings.get(DH, COUNTDOWNS)?.countdowns
+            ?? game.settings.get(MODULE_ID, SETTINGS.projectMeta) ?? {}).length;
+    } catch {
+        projects = 0;
+    }
+    const { projectTokensOn } = await import("./projects-map.mjs");
+    return [plural("DRPG.Season.resetProjects", { n: projects }),
+        plural("DRPG.Season.resetProjectTokens", { n: projectTokensOn(game.scenes).length })];
+}
+
+registerSeasonState({ group: "projects", clear: clearSeasonProjects, tally: tallySeasonProjects, settings: [SETTINGS.projectMeta] });
 
 /**
  * A SECRET PROJECT'S REPAIR AS 1.2.65 MAKES IT (E06 fix r2-G1, 28.09.2026; review round 2's

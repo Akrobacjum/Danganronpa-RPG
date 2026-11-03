@@ -38,6 +38,8 @@ import { RECORD } from "./gm-store.mjs";
 import { bridgeRequest } from "./bridge-guards.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
 import { runSteps } from "./steps.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 import {
     announce, whisperToGms, whisperToOwner, isPrimaryGm, log, warn, error, serialWrite, serverNow
 } from "./utils.mjs";
@@ -287,6 +289,19 @@ async function clearSentenceHere() {
     }
     return true;
 }
+
+/**
+ * The season reset's trialProgress group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): the trial's
+ * record written empty in a step of its key (E70 C0; tier 0 R991, R1020), so a vote's step on its way is not written
+ * over with last season's record after the reset. Raw, as before. The sentence waiting at a running trial's way out
+ * is taken back by the clock's step (season-setup.mjs `clearSeasonClock`, `clearSentence`), whichever groups were
+ * ticked.
+ */
+export async function clearSeasonTrialRecord() {
+    await serialWrite(TRIAL_PROGRESS_KEY, () => game.settings.set(MODULE_ID, SETTINGS.trialProgress, {}));
+}
+
+registerSeasonState({ group: "trialProgress", clear: clearSeasonTrialRecord, settings: [SETTINGS.trialProgress] });
 
 /* ==========================================================================
  * HOW FAR THROUGH THE TRIAL THE TABLE HAS GOT

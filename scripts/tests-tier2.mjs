@@ -24935,7 +24935,8 @@ const SCENARIOS = [
          * rows whole: a fresh season's chapter N read as planned (`plannedChapters()`)
          * before anybody opened the planner this season, and `chargeForUnfoundKeys` billed
          * its unfound slots against a plan nobody made here. `keepOnlyKeyPlanChapter` is
-         * what `wipeSeason` (season-setup.mjs) calls instead of `clearKeyPlan` when the
+         * what the reset (season-setup.mjs `wipeSeason`; investigation.mjs `keepSeasonKeyPlan`, the
+         * keyPlan entry's keep, since E42 C3) calls instead of `clearKeyPlan` when the
          * "keyPlan" group is unticked: the one chapter the clock was on when the reset ran
          * survives, as 1.2.63's single stored plan did, and no other chapter's rows do.
          * Measured directly against the store, not through the reset dialog (S1's DialogV2
@@ -80460,6 +80461,74 @@ const SCENARIOS = [
             + "off the primary, or drop as asked (stopped: [stage, faint runs]; newEnd: [answer, sessions on, told]; panel: [the stopped line, its action]; "
             + "otherPhase and notPrimary: [answer, faint runs, (told,) stage]; cancel: [answer, runs, stage]; drop: [answer, runs, stage, undone, cards naming them, "
             + "stopped after, the panel's stopped line after, sessions on]; windows: [buttons [action, default], names its stop, names what was done])");
+    }],
+    ["E42-T6 - a season reset whose registry holds a planted entry with a throwing clear runs every other ticked group, names the planted one failed on the GMs' card and in its error, and leaves the cut standing (E42 C3, E42-13; audit S17-30)", async () => {
+        /*
+         * E42 C3, 03.11.2026. The reset walks the registry (season-reset.mjs) in RESET_STEPS' order on steps.mjs
+         * `runSteps`: a clear that throws is that group failed, and every other group still runs. Planted: the motive
+         * group's entry stands in a clear that throws for the length of one reset (a stub, put back in `finally`, as the
+         * reset tests above stub the window), and the reset is run through its own window on the primary GM with four
+         * groups ticked that hold no GM store - bodyFound, motive, rules, assembly - so the cut the reset writes first
+         * takes nothing another test reads. Read: how often the planted clear ran, what the reset answers, the GMs'
+         * card and the error it posted, the three other groups' settings and the motive group's cut on the clock. The
+         * settings, the clock and the remembered exceptions are put back, and the card deleted. Red before C3: the
+         * walker has no registry (season-reset.mjs absent), so a planted entry is never run.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "a season reset is the primary GM's, and this browser is not it - this would measure nothing");
+        const R = await import("./season-reset.mjs").catch(() => null);
+        const entry = R?.seasonStateFor?.("motive") ?? null;
+        must(typeof entry?.clear === "function", "the reset has no registry of season state with an entry for the motive group (season-reset.mjs `seasonStateFor`) - a planted entry would never run");
+        const { resetSeason } = await import("./season-setup.mjs");
+        const { groupLabel } = await import("./season-exceptions.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const KEYS = [SETTINGS.motive, SETTINGS.killingGameRules, SETTINGS.pendingGather, SETTINGS.bodyFound, SETTINGS.bodiesFound, SETTINGS.seasonExceptions];
+        const held = Object.fromEntries(KEYS.map(key => [key, foundry.utils.deepClone(getSetting(key))]));
+        const clock = getClock();
+        const word = game.i18n.localize("DRPG.Season.resetWord");
+        const D = foundry.applications.api.DialogV2, heldWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const notify = ui.notifications, heldError = notify.error, errors = [];
+        const cardsBefore = new Set(game.messages.map(m => m.id));
+        const clear = entry.clear;
+        let planted = 0, result = null, read = null;
+        entry.clear = async function plantedClear() {
+            planted++;
+            throw new Error("E42-T6: the planted entry's clear throws");
+        };
+        D.wait = async cfg => (cfg?.classes ?? []).includes("drpg-window-season-reset")
+            ? { word, ticked: ["bodyFound", "motive", "rules", "assembly"], cast: { to: "stay" } } : null;
+        notify.error = (message, ...rest) => {
+            errors.push(String(message));
+            return heldError.call(notify, message, ...rest);
+        };
+        try {
+            result = await resetSeason();
+            await gmStoresIdle();
+            const cards = game.messages.filter(m => !cardsBefore.has(m.id)).map(m => String(contentOf(m) ?? ""));
+            const E = foundry.utils.escapeHTML;
+            read = {
+                planted, cleared: result?.cleared ?? null, failed: result?.failed ?? null, notRun: result?.notRun ?? null, kept: result?.kept?.length ?? null,
+                card: cards.filter(c => c.includes(E(game.i18n.format("DRPG.Season.reportCard.failed", { groups: groupLabel("motive") })))).length,
+                error: errors.some(e => e.includes(game.i18n.format("DRPG.Season.failed", { groups: groupLabel("motive") }))),
+                emptied: [getSetting(SETTINGS.killingGameRules), getSetting(SETTINGS.pendingGather), getSetting(SETTINGS.bodyFound), getSetting(SETTINGS.bodiesFound)]
+                    .map(value => stableJson(value)),
+                cut: Number.isFinite(getClock().resetCuts?.motive) && getClock().resetCuts.motive !== clock.resetCuts?.motive
+            };
+        } finally {
+            entry.clear = clear;
+            if (heldWait) Object.defineProperty(D, "wait", heldWait);
+            else delete D.wait;
+            notify.error = heldError;
+            const made = game.messages.filter(m => !cardsBefore.has(m.id)).map(m => m.id);
+            if (made.length) await ChatMessage.deleteDocuments(made);
+            for (const key of KEYS) await game.settings.set(MODULE_ID, key, held[key]);
+            await setClock(clock);
+        }
+        equal(stableJson(read), stableJson({
+            planted: 1, cleared: ["bodyFound", "rules", "assembly"], failed: ["motive"], notRun: [], kept: 25, card: 1, error: true,
+            emptied: [stableJson([]), stableJson({}), stableJson({}), stableJson({})], cut: true
+        }), "a reset with a planted entry whose clear throws did not run it once, stopped another group, did not name it failed on the GMs' card and in its error, "
+            + "or lost the cut (planted: the clear's runs; cleared, failed, notRun, kept: the answer; card, error: the words; emptied: rules, assembly, bodyFound, bodiesFound; cut: motive's)");
     }],
     ...GRID
 ];

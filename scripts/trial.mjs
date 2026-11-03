@@ -59,6 +59,8 @@ import { gmOnline } from "./bridge-guards.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
 import { contentOf } from "./secret.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 const DialogV2 = foundry.applications.api.DialogV2;
 
 /** Flags that make a chat message a presentation. */
@@ -752,6 +754,17 @@ async function refusePlayersCard(message, kind = "objection") {
  * seizure, the heartbeat and a GM's button read and write the floor one after another.
  */
 export const SEIZE_KEY = "trial.seize";
+
+/**
+ * The season reset's trialFloor group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): the floor written
+ * empty in a step of its key (E70 C0; tier 0 R991, R1020), so a seizure, the heartbeat or a vote's step on its way is
+ * not written over with last season's floor after the reset. Written raw, as before: nothing is withdrawn or told.
+ */
+export async function clearSeasonFloor() {
+    await serialWrite(SEIZE_KEY, () => game.settings.set(MODULE_ID, SETTINGS.trialQueue, {}));
+}
+
+registerSeasonState({ group: "trialFloor", clear: clearSeasonFloor, settings: [SETTINGS.trialQueue] });
 
 /**
  * Take the floor for an objection card, and charge for it.

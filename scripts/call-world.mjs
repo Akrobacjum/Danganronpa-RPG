@@ -33,6 +33,8 @@ import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { announce, log, warn, error, plural, isPrimaryGm, forcedDeletion } from "./utils.mjs";
 import { roomRegions, homeScene, sceneOfRoom } from "./rooms.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 
 /* ==========================================================================
  * ROOM EFFECTS AND RESTRICTIONS
@@ -154,6 +156,28 @@ export async function clearSeals() {
     await announceRestrictions();
     return true;
 }
+
+/**
+ * The season reset's seals group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): the sealed rooms and the
+ * restrictions, and each student's Call armed for a roll - the board's, as a seal is (D12), unset before the clock's
+ * step so nothing armed is spent on a roll of the new season (season-setup.mjs `wipeStudent`'s `seals` part).
+ */
+export async function clearSeasonSeals(ctx) {
+    await clearSeals();
+    await ctx.everyStudent("seals");
+}
+
+/**
+ * The season reset's assembly group (E42 C3). A standing assembly is stamped with the time of day and session it was
+ * called in; the new season's first advance would otherwise find the stamp stale and teleport the whole new cast into
+ * last season's room. Written directly - `cancelGather` posts a card and a sound into a chat that is being deleted.
+ */
+export async function clearSeasonAssembly() {
+    await game.settings.set(MODULE_ID, SETTINGS.pendingGather, {});
+}
+
+registerSeasonState({ group: "seals", clear: clearSeasonSeals, settings: [SETTINGS.sealedRooms, SETTINGS.restrictions] });
+registerSeasonState({ group: "assembly", clear: clearSeasonAssembly, settings: [SETTINGS.pendingGather] });
 
 /**
  * The seals and restrictions as a boundary found them, written back (E17 C7, 26.10.2026; audit S10-42): clock.mjs

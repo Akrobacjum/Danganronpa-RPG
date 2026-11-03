@@ -5342,6 +5342,9 @@
         "log": "Dziennik",
         "world": "Świat"
       },
+      "state": {
+        "noticeHistory": "Historia powiadomień każdego gracza - trzymana w jego przeglądarce, zaczyna się od nowa, gdy reset czyści zegar, incydent albo czat"
+      },
       "group": {
         "remnants": "Remnants na mapach i to, czym każdy z nich naprawdę był",
         "bullets": "Truth Bullets w pakietach obsady",

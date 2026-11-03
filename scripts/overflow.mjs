@@ -29,6 +29,8 @@ import { announce, log, debug, error, esc, isPrimaryGm, primaryGmId, serialWrite
 import { HOPE_REFUND } from "./resource-guard.mjs";
 import { overflowStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 
 /* ==========================================================================
  * THE RULES - config, then the GM's edits on top
@@ -513,6 +515,20 @@ export async function resetOverflow({ reason = VERDICT, countOnly = false } = {}
     log(`Despair overflow cleared by ${reason}${kept ? `; ${kept.effect} waits for the next time of day` : ""}${countOnly ? "; the drawn darkening, if any, stands" : ""}.`);
     return true;
 }
+
+/**
+ * THE SPILL GOES WITH THE POOLS IT SPILLED OUT OF (Dawid, 30.08; the reset's overflow group, a run of season-setup.mjs
+ * `wipeSeason` until E42 C3). The reset emptied every Despair pool and left the overflow counter standing, so a new
+ * season opened carrying the last one's pressure - and carrying its armed stamp too, which is worse: a darkening dated
+ * to a time of day the new clock will reach again. Reported from a real reset. Through `resetOverflow` rather than a
+ * settings write, for the same reason the pools go through `zeroAllDespair`: one definition of empty, and it already
+ * clears both halves of the record.
+ */
+export async function clearSeasonOverflow() {
+    await resetOverflow({ reason: "the season reset" });
+}
+
+registerSeasonState({ group: "overflow", clear: clearSeasonOverflow, settings: [SETTINGS.overflow] });
 
 /**
  * A GM's Clear on Despair Flow's Overflow tab (gm-team-dialog.mjs `clearOverflowFromTab`, which asks first): the count

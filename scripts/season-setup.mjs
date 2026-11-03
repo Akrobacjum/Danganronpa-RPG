@@ -55,17 +55,19 @@ import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { foundryGivenBack, openGiveBackFoundry } from "./enforced.mjs";
 // The hall's report, the one the Scenes tab prints (E51 C8, the First session screen): trial-scene.mjs never reaches back here.
 import { scenesReportOf } from "./trial-scene.mjs";
-import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, replaceFlag, serverNow, whisperToGms, serialWrite, wholeNumber, localeFormat } from "./utils.mjs";
+import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, serverNow, whisperToGms, wholeNumber, localeFormat } from "./utils.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { cardFlag } from "./secret.mjs";
-import { NOTE_FLAG, hasNote } from "./pre-session-note.mjs";
 import { alreadyOpen, handOff } from "./live.mjs";
-import { projectTokensOn } from "./projects-map.mjs";
 // Foundry's secret doors and the players' rulers (E80 C5): the doors as the map holds them, their
 // conversion, and the permissions in force where `core.permissions` names none.
 import { secretDoorsOn } from "./passages.mjs";
-import { convertSecretDoors, passageResetTally } from "./passages-gm.mjs";
+import { convertSecretDoors } from "./passages-gm.mjs";
 import { permissionsInForce } from "./enforced.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks and its window counts (E42 C3).
+import { registerSeasonState, seasonStateEntries, seasonStateFor } from "./season-reset.mjs";
+// A leaf (utils.mjs alone): the one runner of the procedures that cannot be taken back (E42 C1b).
+import { runSteps } from "./steps.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -1407,74 +1409,27 @@ function moduleMessages() {
         m.getFlag(MODULE_ID, MESSAGE_FLAG) || cardFlag(m, MESSENGER_FLAGS.thread));
 }
 
-/** What a reset would destroy, counted now rather than described in general. */
-function resetTally() {
-    const remnants = game.scenes.reduce((n, scene) =>
-        n + scene.tokens.filter(t => t.getFlag(MODULE_ID, "isRemnant")).length, 0);
-    // What the projects step takes off the maps since E11 C7: every project token, the orphans included.
-    const projectTokens = projectTokensOn(game.scenes).length;
-
-    const bullets = game.actors.reduce((n, a) =>
-        n + a.items.filter(i => i.getFlag(MODULE_ID, "isTruthBullet")).length, 0);
-
-    const dead = studentActors().filter(isDeadForGm).length;
-
-    let projects = 0;
-    try {
-        projects = (game.settings.get("daggerheart", "Countdowns")?.countdowns
-            ?? game.settings.get(MODULE_ID, SETTINGS.projectMeta) ?? {});
-        projects = Object.keys(projects).length;
-    } catch {
-        projects = 0;
+/**
+ * WHAT A RESET WOULD DESTROY, COUNTED NOW (E42 C3; audit S17-30). Each entry's `tally` (season-reset.mjs), asked once
+ * as the window opens: the lines under its group's row, keyed by the group, in the window's order. Until C3 a hand list
+ * here (`resetTally` and `GOES_DETAIL`) counted ten groups beside the reset's runs, and a group whose owner added state
+ * counted none of it until somebody remembered the list. A tally that throws counts nothing and is logged: the window
+ * still opens.
+ */
+export async function resetTallies() {
+    const out = {};
+    for (const entry of seasonStateEntries()) {
+        if (!entry.tally) continue;
+        try {
+            const lines = await entry.tally();
+            out[entry.group] = Array.isArray(lines) ? lines.filter(text => typeof text === "string" && text.length > 0) : [];
+        } catch (err) {
+            error(`Season reset: could not count the group "${entry.group}"`, err);
+            out[entry.group] = [];
+        }
     }
-
-    const students = studentActors();
-    const items = students.reduce((n, a) => n + seasonItems(a).length, 0);
-    const advances = students.reduce((n, a) =>
-        n + Number(a.getFlag(MODULE_ID, FLAGS.advances) ?? 0), 0);
-    // The GMs' notes alone (E11 C9): until then one number added the cast's sheet notes to
-    // them, under a line that went whichever box was ticked. The cast's count went with its
-    // group (E11 fix r2-H4, season-exceptions.mjs `RESET_GROUPS`).
-    const preNotes = game.users.filter(u => hasNote(u.id)).length;
-
-    const cards = moduleMessages().length;
-    const chat = game.messages.size;
-
-    let despair = 0;
-    try {
-        despair = Object.values(game.settings.get(MODULE_ID, SETTINGS.despairPools) ?? {})
-            .filter(v => Number(v) > 0).length;
-    } catch {
-        despair = 0;
-    }
-
-    // What the passages group takes (E15 part 2 C6): the passages projects made, the breaches given back, who knows one.
-    const passages = passageResetTally();
-
-    return { projects, projectTokens, remnants, bullets, dead, items, advances, preNotes, cards, chat, despair,
-        passagesBuilt: passages.built, breaches: passages.breaches, passageKnowers: passages.knowers };
+    return out;
 }
-
-/** The counts `resetTally` has for a group, as the lines under its row. */
-const GOES_DETAIL = {
-    projects: tally => [
-        plural("DRPG.Season.resetProjects", { n: tally.projects }),
-        plural("DRPG.Season.resetProjectTokens", { n: tally.projectTokens })
-    ],
-    passages: tally => [
-        plural("DRPG.Season.resetPassageKnowers", { n: tally.passageKnowers ?? 0 }),
-        plural("DRPG.Season.resetPassagesBuilt", { n: tally.passagesBuilt ?? 0 }),
-        plural("DRPG.Season.resetBreaches", { n: tally.breaches ?? 0 })
-    ],
-    remnants: tally => [plural("DRPG.Season.resetRemnants", { n: tally.remnants })],
-    bullets: tally => [plural("DRPG.Season.resetBullets", { n: tally.bullets })],
-    deaths: tally => [plural("DRPG.Season.resetDead", { n: tally.dead })],
-    items: tally => [plural("DRPG.Season.resetItems", { n: tally.items })],
-    advancement: tally => [plural("DRPG.Season.resetAdvances", { n: tally.advances })],
-    preNotes: tally => [plural("DRPG.Season.resetPreNotes", { n: tally.preNotes })],
-    cards: tally => [plural("DRPG.Season.resetCards", { n: tally.cards })],
-    despair: tally => [game.i18n.format("DRPG.Season.resetPools", { n: tally.despair, hope: STARTING.hope })]
-};
 
 /**
  * THE "THIS GOES" LIST, FROM THE TICKS (E11 C9; audit S06-49, the plan's 3.3).
@@ -1483,22 +1438,27 @@ const GOES_DETAIL = {
  * ticked, one of them ("the incident, the Mastermind, the trial queue, ...") six things
  * at once, and twelve of the twenty-nine groups on no line (counted off 4fcc2b4's list,
  * 10.10.2026). Now one row per group in
- * `RESET_GROUPS`, its label the tick's label and its counts `resetTally`'s; a group
+ * `RESET_GROUPS`, its label the tick's label and its counts `resetTally`'s (until E42 C3); a group
  * the plan keeps is struck through and `aria-disabled`, so a screen reader is told what
  * the line through it says. `resetSeason` draws it again whenever a box changes.
- * Pure over its two arguments, which is what tier 1's R353 reads.
+ * Since E42 C3 the counts are the entries' (`resetTallies`: a group's lines, none for a group whose entry counts
+ * nothing), and each descriptive entry of the registry - the notice history's (A7) - is a line of its own, with no
+ * tick and no count: what goes with the clock, the incident or the chat on each player's own browser. Pure over its two
+ * arguments and the registry, which is what tier 1's R353 and R1255 read.
  */
-export function resetGoesHtml(plan, tally = {}) {
+export function resetGoesHtml(plan, tallies = {}) {
     const rows = RESET_GROUPS.map(({ key }) => {
         const goes = plan?.groups?.has(key) ?? false;
-        const counts = GOES_DETAIL[key]?.(tally) ?? [];
+        const counts = Array.isArray(tallies?.[key]) ? tallies[key] : [];
         const text = `${esc(groupLabel(key))}${counts.length
             ? ` <span class="notes">(${counts.map(esc).join("; ")})</span>` : ""}`;
         return goes
             ? `<li data-group="${key}">${text}</li>`
             : `<li data-group="${key}" aria-disabled="true"><s>${text}</s></li>`;
     });
-    return `<ul class="drpg-reset-goes">${rows.join("")}</ul>`;
+    const described = seasonStateEntries().filter(entry => !entry.group)
+        .map(entry => `<li data-describes="${esc(entry.describes)}">${esc(game.i18n.localize(entry.label))}</li>`);
+    return `<ul class="drpg-reset-goes">${[...rows, ...described].join("")}</ul>`;
 }
 
 /**
@@ -1598,7 +1558,7 @@ export async function resetSeason() {
     await whenGmStoresHydrated();
     if (alreadyOpen("drpg-window-season-reset")) return null;
 
-    const tally = resetTally();
+    const tallies = await resetTallies();
     const word = game.i18n.localize("DRPG.Season.resetWord");
     const remembered = rememberedExceptions();
 
@@ -1641,7 +1601,7 @@ export async function resetSeason() {
             ${offlineLine}
             <p><strong>${esc(game.i18n.localize("DRPG.Season.resetGoes"))}</strong></p>
             <div class="drpg-reset-goes-list">${resetGoesHtml(
-                planFrom(RESET_GROUPS.map(group => group.key).filter(key => !remembered.keys.has(key))), tally)}</div>
+                planFrom(RESET_GROUPS.map(group => group.key).filter(key => !remembered.keys.has(key))), tallies)}</div>
             <p><strong>${esc(game.i18n.localize("DRPG.Season.resetKeeps"))}</strong></p>
 
             <!-- R-1. Every step of the wipe, ticked. An unticked box is an
@@ -1663,7 +1623,7 @@ export async function resetSeason() {
             const root = dialog.element;
             root?.querySelector(".drpg-reset-groups")?.addEventListener("change", () => {
                 const list = root.querySelector(".drpg-reset-goes-list");
-                if (list) list.innerHTML = resetGoesHtml(planFrom(tickedIn(root)), tally);
+                if (list) list.innerHTML = resetGoesHtml(planFrom(tickedIn(root)), tallies);
             });
         },
         buttons: [
@@ -1735,9 +1695,10 @@ async function deleteMessages(ids) {
 
 /**
  * THE RESET'S ORDER, AS ONE LIST (E11 C9, 10.10.2026; audit S06-15, the plan's 3.1 and
- * p10change). `wipeSeason` runs the ticked groups in this order, once each, after its cut;
- * `RESET_GROUPS` (season-exceptions.mjs) is the window's order, by section, and R50 holds the
- * two to the same keys.
+ * p10change). `wipeSeason` runs the ticked groups in this order, once each, after its cut -
+ * each group's entry of the registry (season-reset.mjs) since E42 C3; `RESET_GROUPS`
+ * (season-exceptions.mjs) is the window's order, by section, and R50 holds the two to the same
+ * keys and every key to its entry.
  *
  * The incident first: a reset abandons the running incident before anything it could write
  * about is wiped, so whatever a kept group still holds afterwards was not written by the reset.
@@ -1766,8 +1727,8 @@ export const RESET_CHOICES = Object.freeze(["placeCast"]);
 
 /**
  * THE CAST'S GROUPS, ONE STUDENT AT A TIME (E11 C10, 10.10.2026; audit S06-21, S06-41, S08-32;
- * D12 option 1). What a cast group takes off one student, under the group's key: the reset's runs
- * below call it for every student, and tier 2's "each cast group of the reset takes what its label
+ * D12 option 1). What a cast group takes off one student, under the group's key: the owners' clears
+ * call it for every student through the reset's `ctx.everyStudent` (E42 C3), and tier 2's "each cast group of the reset takes what its label
  * says off one student and nothing else" calls it for one actor of its own - a reset of a real
  * world is not the suite's to run, and the cut `wipeSeason` writes first is the whole world's.
  *
@@ -1925,6 +1886,113 @@ export async function placeCast(choice, actors = studentActors()) {
 }
 
 /**
+ * THE RESET'S OWN ENTRIES (E42 C3). Six groups have no owner but the reset: three cast groups whose part on each
+ * student's sheet is `wipeStudent`'s, the chat in two groups, and the clock. Each a named function, registered below
+ * like any owner's; their bodies and their comments are the runs of `wipeSeason` they were until C3. And the cast's
+ * step (`placeCastStep`), which is the window's choice rather than a group, the walker's own.
+ */
+
+/** The season's items on every student, the bedroom keys handed back at once (`wipeStudent`'s `items` part, D12). */
+async function clearSeasonItems(ctx) {
+    await ctx.everyStudent("items");
+}
+
+/** What the window counts of the items: the season's on every student (`seasonItems`). */
+function tallySeasonItems() {
+    return [plural("DRPG.Season.resetItems", { n: studentActors().reduce((n, a) => n + seasonItems(a).length, 0) })];
+}
+
+/*
+ * The most irreversible thing here, and the reason the dialog names the number of advances before the word is typed.
+ * The Level Ups on offer go with it (E04, the owner's Q4), and not in this step: the reset's cut withdraws them from
+ * every GM's store and every owner's copy - a GM or an owner away now included - and an owner's sheet is drawn again
+ * when its copy is cut (gm-stores.mjs `offerCopy`).
+ */
+async function clearSeasonAdvancement(ctx) {
+    await ctx.everyStudent("advancement");
+}
+
+/** What the window counts of the advancement: every student's advances. */
+function tallySeasonAdvancement() {
+    const advances = studentActors().reduce((n, a) => n + Number(a.getFlag(MODULE_ID, FLAGS.advances) ?? 0), 0);
+    return [plural("DRPG.Season.resetAdvances", { n: advances })];
+}
+
+/** The hiding places found and the stashes concealed, on every student (`wipeStudent`'s `stashesFound` part). */
+async function clearSeasonStashesFound(ctx) {
+    await ctx.everyStudent("stashesFound");
+}
+
+/** The module's own cards and the messenger threads under them (`moduleMessages`). */
+async function clearSeasonCards() {
+    await deleteMessages(moduleMessages().map(m => m.id));
+}
+
+/** What the window counts of the cards: the module's own in the chat. */
+function tallySeasonCards() {
+    return [plural("DRPG.Season.resetCards", { n: moduleMessages().length })];
+}
+
+/*
+ * Separate group, and separate from the one above it: if the module's own cards fail to clear, the rest of the log
+ * should still go when it was asked for, and the other way round. It is the one line of this reset that reaches outside
+ * the module, which is why it has always been asked for on its own - and since R-1 it is asked for as a group like
+ * every other.
+ */
+async function clearSeasonChat() {
+    await deleteMessages(game.messages.map(m => m.id));
+}
+
+/*
+ * A PATCH, NOT A NEW CLOCK (E10 C10, 1.2.71; audit S06-16, D12 option 1). The season counter went nowhere - a patch
+ * that does not name `season` keeps 1 for ever - and the Final Trial's flag rode into the next season's first trial
+ * ("This trial is the Final Trial."). Both are named now. The audit's fix built the step from `{ ...DEFAULT_CLOCK,
+ * campaignName, ... }`: that would have put DEFAULT_CLOCK's `seasonStartedAt: null` and empty `resetCuts` over what
+ * the cut wrote a moment before (season-exceptions.mjs `resetCutPatch`) - the cuts every store and the fog's ledger
+ * are read under (settings.mjs reads `resetCuts.discovered`) - and a fresh `Date.now()` is not the cut's stamp, the
+ * season's epoch (`seasonEpoch`) the Blackened register, the stores' compaction and an Eclipse's name read. So
+ * `setClock` merges as before, and both stay the cut's (tier 2, "a reset counts the season and keeps the fog epoch").
+ * The clock is kept out of the settings written whole, campaign name kept, because the name belongs to the table.
+ *
+ * THE SENTENCE BEFORE THE PHASE (E70 C4): this write leaves a running trial, and the way out of one carries out its
+ * sentence (trial-progress.mjs `executeAtExit`) - on a student the "deaths" step may just have brought back, in a
+ * season that is over. Taken back first, whichever groups were ticked.
+ */
+async function clearSeasonClock() {
+    const { clearSentence } = await import("./vote.mjs");
+    await clearSentence();
+    const clock = getClock();
+    await setClock({
+        chapter: 1, day: 1, session: 1, timeOfDay: "morning",
+        phase: "dailyLife", eclipse: false, pausedAt: null,
+        timeOfDayStartedAt: serverNow(),
+        // Kept: the season is new, the campaign is not.
+        campaignName: clock.campaignName,
+        season: (clock.season ?? 1) + 1,
+        finalTrial: false
+    });
+}
+
+registerSeasonState({ group: "items", clear: clearSeasonItems, tally: tallySeasonItems });
+registerSeasonState({ group: "advancement", clear: clearSeasonAdvancement, tally: tallySeasonAdvancement });
+registerSeasonState({ group: "stashesFound", clear: clearSeasonStashesFound });
+registerSeasonState({ group: "cards", clear: clearSeasonCards, tally: tallySeasonCards });
+registerSeasonState({ group: "chatRest", clear: clearSeasonChat });
+registerSeasonState({ group: "clock", clear: clearSeasonClock, settings: [SETTINGS.clock] });
+
+/*
+ * A cast that could not be placed is a failed step (E11 fix r2-H4; sec S4, COR2-8): `placeCast` answers null off the
+ * primary - a GM with a lower id arrived after the window closed - and until then the step read that as "nobody
+ * stayed", was filed done and named nobody, while the GM had picked a place. Thrown, the report names it with the
+ * failed groups. 65 U2. Who stayed where they were goes on the reset's report (`ctx.stayed`).
+ */
+async function placeCastStep(ctx) {
+    const placed = await placeCast(ctx.plan.cast);
+    if (!placed) throw new Error("the cast was not placed: this browser is no longer the primary GM's");
+    ctx.stayed.push(...placed.stayed);
+}
+
+/**
  * The wipe itself.
  *
  * Each step is guarded on its own. A world where one of these settings was never
@@ -1933,15 +2001,10 @@ export async function placeCast(choice, actors = studentActors()) {
  * half-cleared, which is a worse state than either end.
  */
 async function wipeSeason(plan) {
-    const done = [];
-    const kept = [];
-    const failed = [];
     // The students `placeCast` could not move (E11 C10b): the report names them.
     const stayed = [];
     // The experiences `advancement` kept because nothing told a Level Up's from the GM's (E11 C11): named likewise.
     const left = [];
-    // The steps a lost primacy stopped before they ran (E11 fix r2-J1): named on the report, never rolled back.
-    const notRun = [];
 
     /*
      * THE CUT FIRST, AND OUTSIDE EVERY STEP (E04 C10; the design's 2.10, D12 option 1).
@@ -1970,396 +2033,63 @@ async function wipeSeason(plan) {
         return null;
     }
 
-    // A cast group's part on each student's sheet (`wipeStudent`, E11 C10).
-    const everyStudent = async key => {
-        for (const actor of studentActors()) await wipeStudent(actor, key, { left });
-    };
-    // World settings that hold nothing but this season's bookkeeping, written whole.
-    const emptied = (key, value) => () => game.settings.set(MODULE_ID, key, value);
-    // A group stored in several places: each part is tried, so one that throws (a setting an
-    // older world never registered) does not keep the others, and the group fails if any did.
-    // Until C9 each part was a step of its own; this keeps what that bought.
-    const each = (...parts) => async () => {
-        let failure = null;
-        for (const part of parts) {
-            try {
-                await part();
-            } catch (err) {
-                failure ??= err;
-            }
-        }
-        if (failure) throw failure;
-    };
-
-    /*
-     * ONE RUN PER GROUP, IN `RESET_STEPS`' ORDER (E11 C9). A group stored in more than one
-     * place - the incident, the bodies found, the discovered rooms - is cleared in all of
-     * them by its one run; until C9 those were several steps under one key, spread through
-     * the wipe.
-     */
-    const runs = {
-        incident: each(async () => {
-            const { endMurder, clearBlackened, clearBetrayalOffer } = await import("./murder.mjs");
-            const { clearParkedMurders } = await import("./eclipse.mjs");
-            /* ABANDONED, NOT CONCLUDED (E11 C9; audit S06-15). `conclude: false` skips what a
-               close says about the crime (murder-rules.mjs `closeIncident`): a self-inflicted
-               victim at Stage 6 is not killed into the new season, and no register row, broken
-               tool, case keys, ties or card come of an incident nobody finished. */
-            await endMurder({ reason: "seasonReset", followUp: false, conclude: false });
-            await clearBlackened();
-            // The betrayal outlives the incident by design (D18); not the season.
-            await clearBetrayalOffer();
-            // A murder declared in the dark and never judged is an incident that
-            // has not happened yet. The declarations are a GM store of this group
-            // since E05 (`pendingMurderStore`): the cut written above takes them on
-            // every GM, one away now included, and this drops what this browser
-            // holds. Each is named for its Eclipse, so no later lights would judge
-            // it - they drop it - but a reset is where it is gone for good.
-            await clearParkedMurders();
-        }, async () => {
-            /*
-             * AN INCIDENT LEFT RUNNING OUTLIVED THE SEASON IT BELONGED TO.
-             *
-             * A season wiped mid-incident kept `active: true` pointing at a killer and a
-             * victim who may not exist any more: `openMurder` refused every new murder
-             * ("one at a time"), the GM panel's next step read "incident", and every trace
-             * anybody left anywhere was tied to a crime from last season. `endMurder` above
-             * wipes the record when it closes one; this is for a record no close took - one
-             * another GM's write left in its place - written whole, as the motive and the
-             * assembly are.
-             *
-             * The cast is not here since E04 (1.2.63): it is a GM store, and the close above
-             * clears it through the store - `endMurder` stamps its fields null,
-             * `clearBetrayalOffer` the offer - where a raw write of this GM's copy would have
-             * come back from any other GM's at the next exchange. A participant's copy is
-             * told by the same stamps.
-             */
-            await game.settings.set(MODULE_ID, SETTINGS.murderState, {});
-        }),
-
-        seals: async () => {
-            const { clearSeals } = await import("./call-effects.mjs");
-            await clearSeals();
-            await everyStudent("seals");
-        },
-
-        projects: async () => {
-            const { clearAllProjects } = await import("./projects.mjs");
-            await clearAllProjects();
-        },
-
-        mastermind: async () => {
-            const { clearMastermind } = await import("./mastermind.mjs");
-            await clearMastermind();
-        },
-        // Who knows each secret passage and the GMs' log of them (E79 C1): the cut written first takes both on
-        // every GM and every player's copy; this gives each passage's start access back (E79 C8) and tells the
-        // players their copies again. The passages stay. A project's breach (E15 part 2 C3) is a hole in a world's wall,
-        // not a row the cut can take: every one is closed first, its wall given back, read off the walls themselves.
-        passages: async () => {
-            const P = await import("./passages-gm.mjs");
-            await P.closeEveryBreach();
-            return P.passagesAfterReset();
-        },
-
-        deaths: async () => {
-            await everyStudent("deaths");
-            /* The deaths nobody found (E05 C10): the group's cut, written above, takes the GMs'
-               rows on every GM and every player's copy; this drops what this browser holds. */
-            const { deathStore } = await import("./gm-stores.mjs");
-            if (isPrimaryGm()) await deathStore.clear();
-            else await deathStore.dropMany(Object.keys(deathStore.entries()));
-        },
-
-        remnants: async () => {
-            for (const scene of game.scenes) {
-                const ids = scene.tokens.filter(t => t.getFlag(MODULE_ID, "isRemnant")).map(t => t.id);
-                // `drpgReset`: the tombstone a deleted trace's row gets (remnants.mjs,
-                // CASE-12) is not written for each of these - the cut above and the
-                // clear below take every row at once. Nothing passed the option until
-                // E04 C10 (the review's C-m5): every trace was tombstoned one by one,
-                // and the clear ran only when a live row was left for it to see.
-                if (ids.length) await scene.deleteEmbeddedDocuments("Token", ids, { drpgReset: true });
-            }
-            // The tokens are the half everyone can see. The register of what each
-            // one really was is the half that matters, and it does not go with them:
-            // these were deleted with `drpgReset`, so their rows are left to the cut
-            // and to this clear.
-            const { clearRemnantLedger } = await import("./remnants.mjs");
-            await clearRemnantLedger();
-        },
-
-        bullets: async () => {
-            const { dropSecret } = await import("./truth-bullets.mjs");
-            for (const actor of game.actors) {
-                const bullets = actor.items.filter(i => i.getFlag(MODULE_ID, "isTruthBullet"));
-                for (const bullet of bullets) await dropSecret(bullet.uuid);
-                if (bullets.length) {
-                    await actor.deleteEmbeddedDocuments("Item", bullets.map(b => b.id));
-                }
-            }
-        },
-
-        // Each in a step of its key (E70 C0; tier 0 R991, R1020): the floor's (trial.mjs `SEIZE_KEY`) and the record's
-        // (trial-progress.mjs `TRIAL_PROGRESS_KEY`), so a seizure, the heartbeat or a vote's step on its way is not written over
-        // with last season's floor or record after the reset. Written raw, as before: nothing is withdrawn or told.
-        trialFloor: () => import("./trial.mjs").then(m => serialWrite(m.SEIZE_KEY,
-            () => game.settings.set(MODULE_ID, SETTINGS.trialQueue, {}))),
-        trialProgress: () => import("./vote.mjs").then(m => serialWrite(m.TRIAL_PROGRESS_KEY,
-            () => game.settings.set(MODULE_ID, SETTINGS.trialProgress, {}))),
-        // And the season's stamps of the bodies found (E11 C1), under the same tick: both say
-        // what this season found, and its chapter 1 is not the next season's.
-        bodyFound: each(emptied(SETTINGS.bodyFound, {}), emptied(SETTINGS.bodiesFound, {})),
-        // The fog ledger is a GM store since E04 (D2 took it off the world); the
-        // world row only clears what a world the lift has not reached may still
-        // carry. Both are the `discovered` group - the same fact, stored in two
-        // places - and the store's players are sent the cleared rows here.
-        discovered: each(
-            emptied(SETTINGS.discoveredRooms, {}),
-            () => import("./fog.mjs").then(m => m.resetLedger())
-        ),
-        // In a step of SEARCH_KEY (E17 fix e1-G3; the review's E17P1-R3): written here outside it, a reset landing while the
-        // primary's spend step ran could be written over by that step's copy of the old counts. The keyed refill, quiet.
-        searchTokens: () => import("./search-tokens.mjs").then(m => m.SearchTokens.reset({ notify: false })),
-        // The Key Remnant plan is a GM store since E05 (a row per chapter and slot): the cut
-        // written first takes every chapter's rows on every GM, one away now included, and
-        // this clears what this browser holds. Kept, it is trimmed (`keeping` below).
-        keyPlan: () => import("./investigation.mjs").then(m => m.clearKeyPlan()),
-        // The Eclipse's crossings are a GM store since E05: the cut written first takes them
-        // on every GM and every owner's copy, and this clears what this browser holds. Each
-        // is named for its Eclipse, so none would count in the new season.
-        eclipseMoves: () => import("./eclipse.mjs").then(m => m.clearEclipseMoves()),
-        // Written directly rather than through `setMotive("")`, which announces
-        // the withdrawal in chat. Nobody needs to be told a motive is over
-        // during a reset that is also clearing the chat it would be posted in.
-        motive: emptied(SETTINGS.motive, {}),
-        /*
-         * MONOKUMA'S STANDING RULES GO WITH THE SEASON (R-1, Dawid 18.09:
-         * "Domyslnie znikac").
-         *
-         * They used to survive it, which is the one thing in this list a table
-         * would notice by accident: a new cast walking into a killing game already
-         * governed by rules written for people who are dead - rules bought with
-         * the Despair this reset zeroes. Ticked by default like every other group,
-         * and a GM who wants to carry them over unticks the box. An empty ARRAY,
-         * because that is the setting's type.
-         */
-        rules: emptied(SETTINGS.killingGameRules, []),
-        // A standing assembly is stamped with the time of day and session it
-        // was called in; the new season's first advance would otherwise find
-        // the stamp stale and teleport the whole new cast into last season's
-        // room. Written directly - `cancelGather` posts a card and a sound
-        // into a chat that is being deleted.
-        assembly: emptied(SETTINGS.pendingGather, {}),
-
-        items: () => everyStudent("items"),
-
-        // The most irreversible thing here, and the reason the dialog names the
-        // number of advances before the word is typed. The Level Ups on offer go
-        // with it (E04, the owner's Q4), and not in this step: the cut written above
-        // withdraws them from every GM's store and every owner's copy - a GM or an
-        // owner away now included - and an owner's sheet is drawn again when its
-        // copy is cut (gm-stores.mjs `offerCopy`).
-        advancement: () => everyStudent("advancement"),
-
-        /* THE ACTION BUDGET, REFILLED - AFTER the sheet is back.
-           -----------------------------------------------------------------------
-           A character who had spent their actions started the new season on 0 / 2
-           at Chapter 1 · Day 1 · Morning, because the reset moves the clock by
-           writing it rather than by advancing it, and the refill rides on the
-           advance. Reported as B-F6-1, from a full reset on a cold copy.
-
-           The same writer the "refill actions" checkbox in Edit campaign uses, so
-           there is one definition of what a full budget is. It runs after the
-           advancement step above on purpose: `resetActionsFor` sizes the budget
-           from the character's own state, and that state is only correct once the
-           starting sheet has been restored. Search tokens need no step of their
-           own beyond the `searchTokens` row: an empty store reads as a full room. */
-        actions: async () => {
-            const { resetAllActions } = await import("./actions.mjs");
-            await resetAllActions();
-            await everyStudent("actions");
-        },
-
-        despair: async () => {
-            const { zeroAllDespair } = await import("./despair.mjs");
-            await zeroAllDespair();
-            await everyStudent("despair");
-        },
-
-        /* THE SPILL GOES WITH THE POOLS IT SPILLED OUT OF (Dawid, 30.08).
-           -----------------------------------------------------------------------
-           The reset emptied every Despair pool and left the overflow counter
-           standing, so a new season opened carrying the last one's pressure - and
-           carrying its armed stamp too, which is worse: a darkening dated to a time
-           of day the new clock will reach again. Reported from a real reset.
-
-           Through `resetOverflow` rather than a settings write, for the same reason
-           the pools go through `zeroAllDespair`: one definition of empty, and it
-           already clears both halves of the record. */
-        overflow: async () => {
-            const { resetOverflow } = await import("./overflow.mjs");
-            await resetOverflow({ reason: "the season reset" });
-        },
-
-        doors: async () => {
-            const { ROOM_FLAGS } = await import("./movement.mjs");
-            const { startLocked } = await import("./vault.mjs");
-            for (const scene of game.scenes) {
-                // Every piece of every room (rooms.mjs); a region that is no room keeps whatever it carries.
-                for (const region of roomPieces(scene)) {
-                    const shouldBe = startLocked(region);
-                    if (Boolean(region.getFlag(MODULE_ID, ROOM_FLAGS.locked)) !== shouldBe) {
-                        await region.setFlag(MODULE_ID, ROOM_FLAGS.locked, shouldBe);
-                    }
-                }
-            }
-        },
-
-        stashesFound: () => everyStudent("stashesFound"),
-
-        // TWO KINDS OF NOTE, TWO GROUPS (R-1). A GM keeping their own pre-session
-        // notes is not the same decision as keeping what the cast wrote on their
-        // sheets, and one tick for both would have forced them together.
-        // The notes are a GM store since E05: the cut written first takes them on every
-        // GM and every player's copy. What is left is the flag that tells the roster a
-        // note is written - replaced whole, so an older world's text still in one goes too.
-        preNotes: async () => {
-            for (const user of game.users) {
-                const flag = user.getFlag(MODULE_ID, NOTE_FLAG);
-                if (flag && typeof flag === "object" && (flag.written || Object.hasOwn(flag, "text"))) {
-                    await replaceFlag(user, NOTE_FLAG, { written: false });
-                }
-            }
-        },
-
-        cards: async () => {
-            await deleteMessages(moduleMessages().map(m => m.id));
-        },
-
-        // Separate group, and separate from the one above it: if the module's own cards
-        // fail to clear, the rest of the log should still go when it was asked for, and
-        // the other way round. It is the one line of this reset that reaches outside
-        // the module, which is why it has always been asked for on its own - and since
-        // R-1 it is asked for as a group like every other.
-        chatRest: async () => {
-            await deleteMessages(game.messages.map(m => m.id));
-        },
-
-        /* A cast that could not be placed is a failed step (E11 fix r2-H4; sec S4, COR2-8): `placeCast`
-           answers null off the primary - a GM with a lower id arrived after the window closed - and
-           until then the step read that as "nobody stayed", was filed done and named nobody, while the
-           GM had picked a place. Thrown, the report names it with the failed groups. 65 U2. */
-        placeCast: async () => {
-            const placed = await placeCast(plan.cast);
-            if (!placed) throw new Error("the cast was not placed: this browser is no longer the primary GM's");
-            stayed.push(...placed.stayed);
-        },
-
-        /*
-         * A PATCH, NOT A NEW CLOCK (E10 C10, 1.2.71; audit S06-16, D12 option 1). The season counter
-         * went nowhere - a patch that does not name `season` keeps 1 for ever - and the Final Trial's
-         * flag rode into the next season's first trial ("This trial is the Final Trial."). Both are named
-         * now. The audit's fix built the step from `{ ...DEFAULT_CLOCK, campaignName, ... }`: that would
-         * have put DEFAULT_CLOCK's `seasonStartedAt: null` and empty `resetCuts` over what the cut above
-         * wrote a moment before (season-exceptions.mjs `resetCutPatch`) - the cuts every store and the
-         * fog's ledger are read under (settings.mjs reads `resetCuts.discovered`) - and a fresh
-         * `Date.now()` is not the cut's stamp, the season's epoch (`seasonEpoch`) the Blackened register,
-         * the stores' compaction and an Eclipse's name read. So `setClock` merges as before, and both
-         * stay the cut's (tier 2, "a reset counts the season and keeps the fog epoch"). The clock is
-         * kept out of the settings written whole, campaign name kept, because the name belongs to the table.
-         */
-        clock: async () => {
-            /* THE SENTENCE BEFORE THE PHASE (E70 C4): this write leaves a running trial, and the way out of one carries
-               out its sentence (trial-progress.mjs `executeAtExit`) - on a student the "deaths" step may just have brought back,
-               in a season that is over. Taken back first, whichever groups were ticked. */
-            const { clearSentence } = await import("./vote.mjs");
-            await clearSentence();
-            const clock = getClock();
-            await setClock({
-                chapter: 1, day: 1, session: 1, timeOfDay: "morning",
-                phase: "dailyLife", eclipse: false, pausedAt: null,
-                timeOfDayStartedAt: serverNow(),
-                // Kept: the season is new, the campaign is not.
-                campaignName: clock.campaignName,
-                season: (clock.season ?? 1) + 1,
-                finalTrial: false
-            });
+    // A cast group's part on each student's sheet (`wipeStudent`, E11 C10), reached by an owner's clear through `ctx`.
+    const context = {
+        plan, left, stayed,
+        everyStudent: async key => {
+            for (const actor of studentActors()) await wipeStudent(actor, key, { left });
         }
     };
 
     /*
-     * KEPT IS NOT WHOLE (E05 fix r1-G5, M3). Ticked, the Key Remnant plan is cleared as any
-     * other group. Unticked, every chapter's rows would ride into the new season - which is
-     * not what 1.2.63's single stored plan ever did: it held one chapter's plan and showed
-     * it again only once the clock reached that number, so a season that never revisited it
-     * never had it "planned". Read before the "clock" step sends the chapter back to 1,
-     * because after that every chapter is "other than the clock's".
+     * ONE STEP PER GROUP, IN `RESET_STEPS`' ORDER, FROM THE REGISTRY (E11 C9; E42 C3, audit S17-30). Each group's step
+     * is its entry's `clear` (season-reset.mjs), registered by the file that owns the state - a group stored in more
+     * than one place, the incident, the bodies found, the discovered rooms, is cleared in all of them by its one
+     * clear. Until C3 the clears were the members of one table here, `runs`, and a group's owner had to remember it.
+     * The entry is read as its step runs, so the clear that runs is the one registered then. A group with no entry
+     * throws at its step and is reported as failed; R1254 says so before a GM ever meets it.
+     *
+     * EVERY STEP IS GATED BY ITS OWN GROUP (R-1, Dawid 18.09). A group the GM unticked is an exception: it is kept
+     * (`ask` false), its entry's `keep` runs instead (the Key Remnant plan's trim, before the clock's step), and the
+     * log says what was kept as well as what went - because "cleared: nine things" with no mention of the seven that
+     * stayed is the half of the sentence that gets misread later. The cast's step is the window's choice (E11 C10b):
+     * left at "stay" it is not a step at all - it runs nothing and keeps nothing.
+     *
+     * A STEP THAT FAILS IS TOLD (E11 C9; audit S06-49, the plan's 3.4). Until then its error went to the console
+     * alone and the GM read "The season has been reset"; at 4fcc2b4 scenario 65 F measured a reset whose chat could
+     * not be deleted reporting success. The rest still runs (steps.mjs `runSteps`: each step in its own try/catch),
+     * and the cut stays written: a group already cut reads empty, so running the reset again with only the failed
+     * groups ticked is safe.
+     *
+     * THE PRIMARY'S TO THE LAST STEP (E11 fix r2-J1; r2-H4's open road, the orchestrator's ruling of 11.10.2026).
+     * `resetSeason` asks before its window and again as it closes; the steps after the cut await documents for
+     * seconds, and a GM with a lower id connecting meanwhile made another browser the primary while this one went on -
+     * the deaths step dropped this browser's rows instead of clearing the store, and the clock was counted on from a
+     * browser that no longer answers for the table: 65-season U2 read the deaths and the clock cleared there, the
+     * cast's step failed and the season counted on, with the code before that fix (11.10.2026, e11run/r2j1red). So
+     * every step asks again (`stop`), a kept one too (the Key Remnant plan's trim writes); lost, the reset stops
+     * there. What ran stays done, nothing is rolled back, and the steps still asked for are named as not run, for the
+     * primary GM to finish with another reset; a group the GM unticked is kept, as it was before the stop.
      */
-    const keeping = {
-        keyPlan: async () => {
-            const keptChapter = getClock().chapter;
-            try {
-                const dropped = await import("./investigation.mjs").then(m => m.keepOnlyKeyPlanChapter(keptChapter));
-                if (dropped) log(`Season reset: the Key Remnant plan is kept for chapter ${keptChapter} only (${dropped} other row(s) dropped).`);
-            } catch (err) {
-                error(`Season reset: could not trim the kept Key Remnant plan to chapter ${keptChapter}`, err);
+    const chosen = key => RESET_CHOICES.includes(key);
+    const steps = RESET_STEPS.filter(key => !chosen(key) || (plan.cast?.to ?? "stay") !== "stay").map(key => chosen(key)
+        ? { key, run: placeCastStep }
+        : {
+            key,
+            ask: () => plan.groups.has(key),
+            keep: ctx => seasonStateFor(key)?.keep?.(ctx),
+            run: async ctx => {
+                const entry = seasonStateFor(key);
+                if (typeof entry?.clear !== "function") throw new Error(`no entry of the registry clears the group "${key}"`);
+                await entry.clear(ctx);
             }
-        }
-    };
-
-    /*
-     * EVERY STEP IS GATED BY ITS OWN GROUP (R-1, Dawid 18.09).
-     *
-     * A group the GM unticked is an exception: this returns before the work, and
-     * the log says what was kept as well as what went - because "cleared: nine
-     * things" with no mention of the seven that stayed is the half of the sentence
-     * that gets misread later. R50 holds `RESET_STEPS`, `RESET_GROUPS` and the runs
-     * above to the same keys: a run nobody listed would never be asked for, and a tick
-     * with no run would silently not apply.
-     *
-     * A STEP THAT FAILS IS TOLD (E11 C9; audit S06-49, the plan's 3.4). Until then its
-     * error went to the console alone and the GM read "The season has been reset"; at
-     * 4fcc2b4 scenario 65 F measured a reset whose chat could not be deleted reporting
-     * success. The rest still runs, and the cut stays written: a group already cut
-     * reads empty, so running the reset again with only the failed groups ticked is safe.
-     *
-     * THE PRIMARY'S TO THE LAST STEP (E11 fix r2-J1; r2-H4's open road, the orchestrator's ruling of
-     * 11.10.2026). `resetSeason` asks before its window and again as it closes; the steps after the
-     * cut await documents for seconds, and a GM with a lower id connecting meanwhile made another
-     * browser the primary while this one went on - the deaths step dropped this browser's rows
-     * instead of clearing the store, and the clock was counted on from a browser that no longer
-     * answers for the table: 65-season U2 read the deaths and the clock cleared there, the cast's
-     * step failed and the season counted on, with the code before this (11.10.2026, e11run/r2j1red).
-     * So every step asks again, a kept one too (the Key Remnant plan's trim
-     * writes); lost, the reset stops there. What ran stays done, nothing is rolled back, and the steps
-     * still asked for are named as not run, for the primary GM to finish with another reset.
-     */
-    let stopped = false;
-    const step = async key => {
-        const choice = RESET_CHOICES.includes(key);
-        // A choice's step (E11 C10b) is asked for by its choice; left at "stay" it runs nothing and keeps nothing.
-        if (choice && (plan.cast?.to ?? "stay") === "stay") return;
-        stopped ||= !isPrimaryGm();
-        if (!choice && !plan.groups.has(key)) {
-            kept.push(key);
-            if (!stopped) await keeping[key]?.();
-            return;
-        }
-        if (stopped) {
-            notRun.push(key);
-            return;
-        }
-        try {
-            if (typeof runs[key] !== "function") throw new Error(`no run clears the group "${key}"`);
-            await runs[key]();
-            done.push(key);
-        } catch (err) {
-            error(`Season reset: could not clear ${key}`, err);
-            failed.push(key);
-        }
-    };
-    for (const key of RESET_STEPS) await step(key);
+        });
+    const walked = await runSteps({ steps, context, label: "season reset", stop: () => !isPrimaryGm() });
+    const asked = key => chosen(key) || plan.groups.has(key);
+    const done = walked.done;
+    const failed = walked.failed;
+    const kept = [...walked.kept, ...walked.notRun.filter(key => !asked(key))];
+    const notRun = walked.notRun.filter(asked);
 
     log(`Season reset. Cleared: ${done.join(", ") || "nothing"}.${
         kept.length ? ` Kept: ${kept.join(", ")}.` : ""}${failed.length ? ` Failed: ${failed.join(", ")}.` : ""}${

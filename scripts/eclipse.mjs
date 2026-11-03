@@ -31,6 +31,8 @@ import { pendingMurderStore, eclipseMoveStore, eclipseMoveCopy } from "./gm-stor
 import { actingStudents } from "./monokuma.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { replyForMe } from "./bridge-guards.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -1327,6 +1329,17 @@ export async function clearEclipseMoves() {
     if (isPrimaryGm()) await eclipseMoveStore.clear();
     else await eclipseMoveStore.dropMany(Object.keys(eclipseMoveStore.entries()));
 }
+
+/**
+ * The season reset's eclipseMoves group (E42 C3; a run of season-setup.mjs `wipeSeason` until then). The Eclipse's
+ * crossings are a GM store since E05: the reset's cut takes them on every GM and every owner's copy, and this clears
+ * what this browser holds. Each is named for its Eclipse, so none would count in the new season.
+ */
+export async function clearSeasonEclipseMoves() {
+    await clearEclipseMoves();
+}
+
+registerSeasonState({ group: "eclipseMoves", clear: clearSeasonEclipseMoves });
 
 /**
  * Tell every client the Eclipse changed.

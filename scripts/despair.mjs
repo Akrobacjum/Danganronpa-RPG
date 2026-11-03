@@ -24,6 +24,8 @@ import { despairOwedStore } from "./gm-stores.mjs";
 import { overflowStatus } from "./overflow.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { narrowColumn } from "./narrow.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 
 const WIDGET_ID = "drpg-despair";
 
@@ -495,6 +497,29 @@ export async function zeroAllDespair() {
     log("Every Despair pool emptied.");
     return store;
 }
+
+/**
+ * The season reset's despair group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): every pool to zero
+ * (`zeroAllDespair`, on the primary since E37 C7), then every student's Hope back to the start (season-setup.mjs
+ * `wipeStudent`'s `despair` part).
+ */
+export async function clearSeasonDespair(ctx) {
+    await zeroAllDespair();
+    await ctx.everyStudent("despair");
+}
+
+/** What the reset window counts of the Despair: the pools holding any (season-setup.mjs `resetTally` until E42 C3). */
+export function tallySeasonDespair() {
+    let held = 0;
+    try {
+        held = Object.values(game.settings.get(MODULE_ID, SETTINGS.despairPools) ?? {}).filter(v => Number(v) > 0).length;
+    } catch {
+        held = 0;
+    }
+    return [game.i18n.format("DRPG.Season.resetPools", { n: held, hope: STARTING.hope })];
+}
+
+registerSeasonState({ group: "despair", clear: clearSeasonDespair, tally: tallySeasonDespair, settings: [SETTINGS.despairPools] });
 
 /* ==========================================================================
  * THE OWED DESPAIR (E05 C12, 27.09.2026; audit S09-28)

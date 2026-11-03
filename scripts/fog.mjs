@@ -90,6 +90,8 @@ import { sceneUncoveredShare } from "./fog-diagnostics.mjs";
 import { roomCensus } from "./vault-store.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState, everyPart } from "./season-reset.mjs";
 export { seamWidth, rezoomRoomOutline } from "./fog-reveal.mjs";
 export { whatIsHere, checkRegions, sceneUncoveredPercent } from "./fog-diagnostics.mjs";
 
@@ -1203,6 +1205,18 @@ export async function resetLedger() {
     shareLedger();
     return true;
 }
+
+/**
+ * The season reset's discovered group (E42 C3; a run of season-setup.mjs `wipeSeason` until then). The fog ledger is a
+ * GM store since E04 (D2 took it off the world); the world row only clears what a world the lift has not reached may
+ * still carry. Both are the group - the same fact, stored in two places - each tried (`everyPart`), and the store's
+ * players are sent the cleared rows (`resetLedger`).
+ */
+export async function clearSeasonDiscovered() {
+    await everyPart(() => game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, {}), () => resetLedger());
+}
+
+registerSeasonState({ group: "discovered", clear: clearSeasonDiscovered, settings: [SETTINGS.discoveredRooms] });
 
 /**
  * A world that updated mid-season may still hold its ledger in the world setting,

@@ -2652,23 +2652,26 @@ const REGRESSIONS = [
         }
 
         /*
-         * Each key's run is a member of `runs` in wipeSeason, and that half is still read from
-         * the source: the runs close over the plan and this browser's stores, so they are not
-         * a value a test can import without running a reset. A key with no run throws at its
-         * step and is reported as failed; this says so before a GM ever meets it.
+         * Each key's clear is its entry of the registry since E42 C3 (season-reset.mjs `seasonStateFor`), read as the
+         * value it is; until then a member of `runs` in wipeSeason, read from the source. A key with no entry throws at
+         * its step and is reported as failed; this says so before a GM ever meets it. Who registers each, and how, is
+         * R1254's.
          */
-        const runs = bodyOf(wipe, "const runs = {", { until: "\n    };" });
-        const ran = new Set([...runs.matchAll(/^ {8}(\w+): /gm)].map(m => m[1]));
-        ok(ran.size >= 20, `only ${ran.size} runs read in wipeSeason - the source was not read`);
-        for (const key of steps) ok(ran.has(key), `the group "${key}" is in RESET_STEPS and wipeSeason has no run for it`);
-        for (const key of ran) ok(steps.includes(key), `wipeSeason has a run for "${key}" that no step asks for`);
-        ok(/for \(const key of RESET_STEPS\) await step\(key\)/.test(wipe),
-            "wipeSeason does not walk RESET_STEPS in order");
-        /* And the incident's run abandons it (S06-15): read in the source too, because no world can show it -
+        const R = await import("./season-reset.mjs");
+        const cleared = steps.filter(key => !(RESET_CHOICES ?? []).includes(key));
+        const entries = R.seasonStateEntries().filter(entry => entry.group);
+        ok(entries.length >= 20, `only ${entries.length} entries in the registry - the owners did not register`);
+        for (const key of cleared) ok(typeof R.seasonStateFor(key)?.clear === "function", `the group "${key}" is in RESET_STEPS and no entry of the registry clears it`);
+        for (const entry of entries) ok(steps.includes(entry.group), `the registry clears "${entry.group}", which no step asks for`);
+        ok(/\bRESET_STEPS\s*\.\s*filter\(/.test(wipe) && /\bseasonStateFor\(key\)/.test(wipe) && /\brunSteps\(\{/.test(wipe),
+            "wipeSeason does not walk RESET_STEPS in order, each group's entry on runSteps");
+        /* And the incident's clear abandons it (S06-15): read in the source too, because no world can show it -
            the cut, written first, takes the cast before the close reads it (65 R4's note), so a reset that
            concluded the incident would kill and register nobody in any scenario. Tier 2 "a reset abandons an
-           incident: ..." holds what `conclude: false` does; this holds that the reset passes it. */
-        ok(/endMurder\(\{[^}]*\bconclude: false\b[^}]*\}\)/.test(bodyOf(runs, "incident:", { until: "seals:" })),
+           incident: ..." holds what `conclude: false` does; this holds that the reset passes it - in the incident's
+           entry, incident-store.mjs's clear, since E42 C3. */
+        const incident = stripComments(sources.get("incident-store.mjs") ?? "");
+        ok(/endMurder\(\{[^}]*\bconclude: false\b[^}]*\}\)/.test(fnSource(incident, R.seasonStateFor("incident")?.clear?.name ?? "clearSeasonIncident")),
             "the reset's incident step concludes the incident it should abandon (endMurder without conclude: false)");
         // A step that fails is told (S06-49's report, the plan's 3.4): the line and the card.
         for (const key of ["DRPG.Season.failed", "DRPG.Season.failedCast", "DRPG.Season.reportCard.title", "DRPG.Season.reportCard.failed"]) {
@@ -6314,9 +6317,12 @@ const REGRESSIONS = [
         ok(/isPrimaryGm\(\)/.test(beforeWindow), "resetSeason opens its window without asking whether this is the primary GM");
         ok(/whenGmStoresHydrated\(\)/.test(beforeWindow), "the reset window opens before this browser has the other GMs' copies");
         const wipe = fnSource(setup, "wipeSeason");
-        ok(/resetCutPatch\(/.test(bodyOf(wipe, "async function wipeSeason", { until: "const step =" })),
+        ok(/resetCutPatch\(/.test(bodyOf(wipe, "async function wipeSeason", { until: "runSteps(" })),
             "wipeSeason does not write the reset's cut before its first step, outside every step");
-        ok(/deleteEmbeddedDocuments\("Token", ids, \{ drpgReset: true \}\)/.test(wipe),
+        // The traces' tokens are the remnants entry's since E42 C3 (remnants.mjs, the clear the registry holds).
+        const R = await import("./season-reset.mjs");
+        const traces = fnSource(stripComments(sources.get("remnants.mjs") ?? ""), R.seasonStateFor("remnants")?.clear?.name ?? "clearSeasonRemnants");
+        ok(/deleteEmbeddedDocuments\("Token", ids, \{ drpgReset: true \}\)/.test(traces),
             "the reset's trace tokens are deleted without drpgReset, so each row is tombstoned on its own and the cut is not what takes them");
 
         const { RESET_GROUPS, resetCutPatch, planFrom } = await import("./season-exceptions.mjs");
@@ -6338,9 +6344,10 @@ const REGRESSIONS = [
             "the store diceLooks": "a character's dice look is the GMs' choice and no season's; its row goes with its actor",
             "the store clockBeat": "the primary's last beat is no season's; one older than the time of day's start reads as none"
         };
-        const strays = named.filter(([what, group]) => !groups.has(group) && !(group === undefined && Object.hasOwn(UNCUT, what)))
+        // A group the window offers and an entry of the registry clears (E42 C3: read through `seasonStateFor`).
+        const strays = named.filter(([what, group]) => !(groups.has(group) && R.seasonStateFor(group)) && !(group === undefined && Object.hasOwn(UNCUT, what)))
             .map(([what, group]) => `${what} (${group})`);
-        ok(!strays.length, `a reset can never cut ${strays.join(", ")}: its reset group is none the window offers`);
+        ok(!strays.length, `a reset can never cut ${strays.join(", ")}: its reset group is none the window offers, or no entry of the registry clears it`);
         const unlisted = Object.keys(UNCUT).filter(what => !named.some(([w, group]) => w === what && group === undefined));
         ok(!unlisted.length, `kept out of every reset, and gone or given a group since - take it off the list: ${unlisted.join(", ")}`);
         // The owner's Q4: a reset withdraws the Level Ups on offer by its cut alone, and sends nothing to draw that.
@@ -6468,7 +6475,8 @@ const REGRESSIONS = [
          * murder-rules.mjs names - a `writeState({ ... })` literal, a `patch` built for one - is
          * listed on one side. A computed key (`[store]`, "hindered" or "blocked") is not read.
          * The season reset writes `{}` (season-setup.mjs: through a table until E11 C9, from its
-         * `incident` run's second part since; an empty write has no field to split). The reader is
+         * `incident` run's second part since; the incident's entry, incident-store.mjs
+         * `clearSeasonIncident`, since E42 C3; an empty write has no field to split). The reader is
          * shown a planted write of each kind first. E32 C2 (28.09.2026) shrank the list to
          * `active` and `stage`: the fight's twelve fields are the cast's (`INCIDENT_FIGHT`),
          * so a write naming one still lands on a side - the cast's - and this reads the same.
@@ -6495,7 +6503,7 @@ const REGRESSIONS = [
 
         const SET = /(?:\.set\(\s*[\w.]+\s*,\s*(?:SETTINGS\.murderState\b|"murderState")|\bsetSetting\(\s*SETTINGS\.murderState\b)/g;
         const DECL = /^(?:export )?(?:async )?function\s+(\w+)/gm;
-        const ALLOWED = ["incident-store.mjs writeState", "incident-store.mjs restoreState", "incident-store.mjs liftIncidentSecrets", "incident-store.mjs liftIntoCast", "season-setup.mjs wipeSeason"];
+        const ALLOWED = ["incident-store.mjs writeState", "incident-store.mjs restoreState", "incident-store.mjs liftIncidentSecrets", "incident-store.mjs liftIntoCast", "incident-store.mjs clearSeasonIncident"];
         const writers = files => {
             const out = [];
             for (const [file, text] of files) {
@@ -7609,8 +7617,8 @@ const REGRESSIONS = [
             ["reroll.mjs", "markReplacedCard", "card", "the replaced card's flag"],
             ["reroll.mjs", "putFirstRollBack", "message", "the first roll's card, put back"],
             ["season-setup.mjs", "deleteMessages", "ChatMessage", "the chat log, cleared by the reset"],
-            ["season-setup.mjs", "wipeSeason", "scene", "the season's tokens on the scene"],
-            ["season-setup.mjs", "wipeSeason", "region", "a room's region flags"],
+            // The reset's "scene" and "region" rows of `wipeSeason` went with E42 C3: the traces' tokens and the doors'
+            // flags are written by their entries' clears (remnants.mjs, vault-store.mjs), each gated on the primary GM.
             ["secret.mjs", "post", "ChatMessage", "a secret's card"],
             ["sound-panel.mjs", "wireSoundPlay", "Playlist", "the situational playlist, made from the sound window"],
             ["tables-editor.mjs", "addResult", "table", "a pool table's result"],
@@ -7638,7 +7646,6 @@ const REGRESSIONS = [
             ["murder-rules.mjs", "undoLastCrisis", "applyCrisisAction"],
             ["observe.mjs", "undoPrevious", "scoreObserve"],
             ["observe.mjs", "scoreObserve", "resolveObserve"],
-            ["season-setup.mjs", "wipeSeason", "resetSeason"],
             ["states.mjs", "syncOnce", "syncStates"],
             ["states.mjs", "clearSystemConditions", "syncOnce"],
             ["truth-bullets.mjs", "publishReading", "identify"],
@@ -7647,7 +7654,8 @@ const REGRESSIONS = [
             ["utils.mjs", "replaceFlag", "writeNote"],
             ["utils.mjs", "replaceFlag", "settleNoteFlags"],
             ["utils.mjs", "replaceFlag", "liftNotes"],
-            ["utils.mjs", "replaceFlag", "wipeSeason"],
+            // E42 C3: the notes' flag is the preNotes entry's clear (pre-session-note.mjs), gated on the primary GM.
+            ["utils.mjs", "replaceFlag", "clearSeasonNotes"],
             // E41 C6 (1.2.97): the stash's record moved to vault-store.mjs.
             ["vault-store.mjs", "forgetStashFound", "setStash"],
             ["vault-store.mjs", "forgetAllStashesFound", "wipeStudent"]
@@ -8281,6 +8289,9 @@ const REGRESSIONS = [
          * `actingStudents`, a file this list does not read; R1192): the placement and its whispers hand it the death to
          * ask, by name and with no call, so neither reads as a place here: 80 rows counted in the source (31 PACKET,
          * 4 SOCKET, 1 CHAT, 34 SHEET, 10 STORE), 81 at its parent.
+         * E42 C3 (03.11.2026) struck one SHEET place, season-setup.mjs `wipeSeason`: the reset walks the registry of
+         * season state, and the Truth Bullets it read off each actor are the bullets entry's clear, truth-bullets.mjs
+         * `clearSeasonBullets` (a file this list does not read): 79 rows counted in the source (33 SHEET).
          * The reader is run first on a fixture with a packet of each family and of none, an inline
          * socket arrow, a judged reader, a reader whose flag is only in a comment, a chat reader
          * without a row, a declaration of a named file that is not named, a store and a stale row.
@@ -8343,7 +8354,7 @@ const REGRESSIONS = [
             ["SHEET season-setup.mjs#hasOpeningItem", "out of scope: Season Setup's opening items (GM window); no E11 commit changes it"],
             ["SHEET season-setup.mjs#despairSplitCounts", "out of scope: Season Setup's Despair split (GM window, `isDeadForGm`); no E11 commit changes it"],
             ["SHEET season-setup.mjs#seasonItems", "out of scope: the reset's `items` step lists the cast's items to delete on the primary; a player's own item write is audited (E29). Since E11 C10 each student's bedroom keys are handed back at once, in the same group (`wipeStudent`: `reconcileBedroomKeys({ silent: true, owners })`)"],
-            ["SHEET season-setup.mjs#wipeSeason", "out of scope: on the primary only (E04), E33 C1a's GM-side rows; document reads of the items it deletes (the Truth Bullets). C9 runs it as `RESET_STEPS` (the incident first); since E11 C10 every cast group's part on a student's sheet is `wipeStudent`'s, called for each student. C10b adds the cast's tokens' step (E11 C10b)"],
+            // "SHEET season-setup.mjs#wipeSeason" struck in E42 C3: the Truth Bullets it read off each actor to delete them are the bullets entry's clear (truth-bullets.mjs, a file this list does not read), and the walker reads no sheet.
             ["SHEET season-setup.mjs#wipeStudent", "out of scope: a GM gate, reached from the reset on the primary (`wipeSeason`) and from tier 2's sandbox; its document reads (`isDeceased`, `monocub`, `pendingCall`, the rests' and betrayal stamps, the season's items) decide only whether to write. Health and Sanity 0 in `deaths` and Hope `STARTING.hope` in `despair` (D12, `trustedWrite`, `setup`) are constants with no read: the reset's value supersedes a pending put-back [1b.2]. Since E11 C11 its `advancement` part hands the reset what the restore kept and could not tell apart (`left`, the report's line); the reads are the restore's, row above (E11 C11)"],
             ["SHEET season-setup.mjs#placeCast", "judged (E11 C10b): the reset's step on the primary only (`isPrimaryGm`; on a second GM it moves nobody, 65 P3); who is dead is read off the primary's mark (`flagsHeldNow`, then `isDeadForGm` and `isMonocub`) in the one synchronous pass that decides every move before the first is made (H3) [1b.2]; the bedrooms through `allBedroomsAnywhere`, every scene and never the GM's camera (ITEM-16, R354); the moves are a GM's token updates, no player road. E11 fix r2-H4: its null off the primary is a failed step the reset's report names (65 U2), the reset asks for the primary again when its window closes (65 U1), and each room's moves are followed by the gather's pan, `SYNC.gather` (65 U0)"],
             ["SHEET call-world.mjs#gatherEveryone", "out of scope: GM gate; `isDeadForGm` picks whose token moves (the dead stay). since E11 C3 it ends with the gather's camera packet after the moves (SOCKET sync.mjs#registerSync); C1's witnesses are read elsewhere. Since E13 C3b a caller may hand a held reader, and the return from the trial does: R432's row of this key judges it"],
@@ -11277,6 +11288,9 @@ const REGRESSIONS = [
          * `carryBodyRooms`, which a GM's rename of the room a body was found in calls on the primary
          * (fog.mjs `carryRoomInWorld`). It rewrites the `room` of the stamps that name the renamed room
          * and nothing else, so the stamp's shape and chapter are still decided in one place.
+         * And the season reset's (E42 C3): the bodyFound entry's clear, chapter.mjs `clearSeasonBodies`, writes the
+         * stamps empty - a reset decides no stamp's shape or chapter; until C3 the same write stood in
+         * season-setup.mjs `wipeSeason` in a form this reader did not see (`emptied(SETTINGS.bodiesFound, {})`).
          */
         const callers = (name, pattern) => [...sources].flatMap(([file, text]) => {
             const code = stripComments(text);
@@ -11288,7 +11302,7 @@ const REGRESSIONS = [
         must(fnSource(sources.get("settings.mjs"), "recordBodyFound"), "settings.mjs declares no recordBodyFound");
         equal(JSON.stringify([callers("recordBodyFound", /\brecordBodyFound\s*\(/g), callers("announceBody", /\bannounceBody\s*\(/g),
             callers("recordBodyFound", /settings\.set\(\s*MODULE_ID\s*,\s*SETTINGS\.bodiesFound\b/g)]),
-            JSON.stringify([["chapter.mjs#announceBody"], ["chapter.mjs#runDiscovery"], ["settings.mjs#carryBodyRooms"]]),
+            JSON.stringify([["chapter.mjs#announceBody"], ["chapter.mjs#runDiscovery"], ["settings.mjs#carryBodyRooms", "chapter.mjs#clearSeasonBodies"]]),
             "the stamp of a body found has a writer besides `announceBody`, or `announceBody` a caller besides `runDiscovery` "
             + "(the callers of recordBodyFound, of announceBody, and the other writes of SETTINGS.bodiesFound)");
     }],
@@ -11730,7 +11744,7 @@ const REGRESSIONS = [
         ok(/game\.time\?\.serverTime/.test(now), "utils.mjs has no serverNow, or it no longer reads the server's clock Foundry gives");
         // The floor's writes are the in-step twins since E70 C0 (trial-floor.mjs `FLOOR_OPS`); the public writers hand them on.
         const floorFns = ["startFloorInStep", "openObjectionInStep", "openRebuttalInStep", "returnToDebateInStep", "extendFloorInStep", "secondsLeft"];
-        const timeFns = [[clock, "setClock"], [hud, "settleElapsedPause"], [hud, "paintElapsed"], [ui, "startClassTrial"], [ui, "closeTrial"], [season, "wipeSeason"]];
+        const timeFns = [[clock, "setClock"], [hud, "settleElapsedPause"], [hud, "paintElapsed"], [ui, "startClassTrial"], [ui, "closeTrial"], [season, "clearSeasonClock"]];
         const cut = [...floorFns.map(name => [name, fnSource(floor, name)]), ...timeFns.map(([src, name]) => [name, fnSource(src, name)])];
         ok(cut.every(([, body]) => body.length > 150), `a function this reads is cut short: ${cut.filter(([, b]) => b.length <= 150).map(([n]) => n).join(", ")}`);
         const local = cut.filter(([, body]) => /\bDate\.now\(/.test(body)).map(([name]) => name);
@@ -12265,7 +12279,7 @@ const REGRESSIONS = [
         const panel = stripComments(panelText(sources)), floorCode = code("trial-floor.mjs");
         const finalRoute = /if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/;
         const verdict = fnSource(vote, "openVerdictDialog"), batch = fnSource(levelUp, "runAdvancementBatch");
-        const card = fnSource(vote, "postVerdictCard"), wipe = fnSource(code("season-setup.mjs"), "wipeSeason");
+        const card = fnSource(vote, "postVerdictCard"), wipe = fnSource(code("season-setup.mjs"), "clearSeasonClock");
         const cancelFirst = /buttons: \[\s*\{ action: "cancel", [^}]*default: true \}/;
         const facts = {
             onePerPerson: [/!u\.isGM/, /if \(!user \|\| seated\.has\(user\.id\)\) continue;/, /!TRIAL\.deadCastBallots/]
@@ -12498,8 +12512,8 @@ const REGRESSIONS = [
             "the reset does not ask again, between its window and its plan, whether this browser is still the primary GM's");
         ok(/if \(typed\.word !== word\)/.test(reset) && !/toLowerCase|toUpperCase|localeCompare/.test(reset),
             "the reset compares the typed word case-blind under \"type it exactly\"");
-        const wipe = fnSource(setup, "wipeSeason");
-        const step = /placeCast: async \(\) => \{([^}]*)\}/.exec(wipe)?.[1] ?? "";
+        // The cast's step is the walker's own named function since E42 C3 (`placeCastStep`).
+        const step = fnSource(setup, "placeCastStep");
         ok(/if \(!placed\) throw/.test(step), "the cast's step files a placeCast that moved nobody off the primary as done");
         const place = fnSource(setup, "placeCast");
         const moved = place.indexOf("await teleportInto("), told = place.indexOf("broadcast(SYNC.gather,");
@@ -15824,7 +15838,7 @@ const REGRESSIONS = [
             "the census of the one queue: each of these writes shared state on the primary outside a step of its key, or a road that must queue does not (rule, where)");
     }],
 
-    ["R1020 - the trial's floor and its record have named writers (E70 C0): `SETTINGS.trialQueue` is written only in trial-floor.mjs `writeFloor` and `endFloorInStep` and the season reset (`wipeSeason`), `SETTINGS.trialProgress` only in trial-progress.mjs `writeTrialProgressInStep` and the season reset; a planted writer is caught; and the GMs' row trial.gm names exactly the floor's ops", async () => {
+    ["R1020 - the trial's floor and its record have named writers (E70 C0): `SETTINGS.trialQueue` is written only in trial-floor.mjs `writeFloor` and `endFloorInStep` and the season reset's entry (trial.mjs `clearSeasonFloor`), `SETTINGS.trialProgress` only in trial-progress.mjs `writeTrialProgressInStep` and the season reset's entry (`clearSeasonTrialRecord`); a planted writer is caught; and the GMs' row trial.gm names exactly the floor's ops", async () => {
         /*
          * E70 C0, 27.10.2026; E70-01 (amend 5 (d)). R991 holds each write of the two settings to a step of its key; this
          * holds who writes them at all, so a new writer is a decision a test has to be changed for, not a line that
@@ -15838,8 +15852,9 @@ const REGRESSIONS = [
         const SUITE = /^tests(?:-[\w-]+)?\.mjs$/;
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
         const ROWS = [["floor", /^SETTINGS\s*\.\s*trialQueue$/], ["record", /^SETTINGS\s*\.\s*trialProgress$/]];
-        const WRITERS = ["floor season-setup.mjs#wipeSeason", "floor trial-floor.mjs#endFloorInStep", "floor trial-floor.mjs#writeFloor",
-            "record season-setup.mjs#wipeSeason", "record trial-progress.mjs#writeTrialProgressInStep"];
+        // E42 C3: the season reset's two writes are its entries' clears, in the files that own the floor and the record.
+        const WRITERS = ["floor trial-floor.mjs#endFloorInStep", "floor trial-floor.mjs#writeFloor", "floor trial.mjs#clearSeasonFloor",
+            "record trial-progress.mjs#clearSeasonTrialRecord", "record trial-progress.mjs#writeTrialProgressInStep"];
         // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; the record's writer is trial-progress.mjs's.
         const writersOf = sources => {
             const found = new Set();
@@ -15865,13 +15880,13 @@ const REGRESSIONS = [
                 "export function trialFloor() { return game.settings.get(MODULE_ID, SETTINGS.trialQueue); }",
                 "// game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});"
             ].join("\n")],
-            ["trial-progress.mjs", "async function writeTrialProgressInStep(p) { await game.settings.set(MODULE_ID, SETTINGS.trialProgress, p); }"],
-            ["season-setup.mjs", [
-                "async function wipeSeason(plan) {",
-                "    const rows = { trialFloor: () => game.settings.set(MODULE_ID, SETTINGS.trialQueue, {}),",
-                "        trialProgress: () => game.settings.set(MODULE_ID, SETTINGS.trialProgress, {}) };",
+            ["trial-progress.mjs", [
+                "async function writeTrialProgressInStep(p) { await game.settings.set(MODULE_ID, SETTINGS.trialProgress, p); }",
+                "export async function clearSeasonTrialRecord() {",
+                "    await serialWrite(TRIAL_PROGRESS_KEY, () => game.settings.set(MODULE_ID, SETTINGS.trialProgress, {}));",
                 "}"
             ].join("\n")],
+            ["trial.mjs", "export async function clearSeasonFloor() {\n    await serialWrite(SEIZE_KEY, () => game.settings.set(MODULE_ID, SETTINGS.trialQueue, {}));\n}"],
             ["tests-tier2.mjs", "export const T = () => game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});"]
         ]);
         equal(JSON.stringify(writersOf(clean)), JSON.stringify(WRITERS), "the writers' reader does not read its clean twin as the named writers");
@@ -15880,7 +15895,7 @@ const REGRESSIONS = [
             "the writers' reader misses a planted writer of the floor");
 
         const sources = new Map((await otherSources()).filter(([file]) => file.endsWith(".mjs")));
-        must(["trial-floor.mjs", "trial-progress.mjs", "season-setup.mjs"].every(file => sources.has(file)), "a file of the census is not served - this test reads nothing until it is");
+        must(["trial-floor.mjs", "trial-progress.mjs", "trial.mjs"].every(file => sources.has(file)), "a file of the census is not served - this test reads nothing until it is");
         const found = writersOf(sources);
         log(`R1020: the writers read in the module: ${found.join("; ")}`);
         equal(JSON.stringify(found), JSON.stringify(WRITERS),
@@ -16248,7 +16263,8 @@ const REGRESSIONS = [
             const reconcile = topLevelFunction(clock, "reconcilePhase") ?? "";
             const out = reconcile.slice(0, Math.max(at(reconcile, /\bif \(to === "classTrial"\)/), 0));
             const close = topLevelFunction(ui, "closeTrial") ?? "";
-            const reset = bodyOf(season, "clock: async () => {", { until: "\n        }" });
+            // The clock's step is the clock entry's clear since E42 C3 (season-setup.mjs `clearSeasonClock`).
+            const reset = topLevelFunction(season, "clearSeasonClock") ?? "";
             return {
                 cut: [reconcile, close].every(body => body.length > 60) && out.length > 40,
                 killers: [killersIn(vote), killersIn(mastermind)],
@@ -16267,7 +16283,7 @@ const REGRESSIONS = [
             clock: `async function reconcilePhase(from, to) {\n    if (from === "classTrial") {\n${pad}        await endFloor();\n        await executeAtExit();\n    }\n`
                 + `    if (to === "classTrial") {\n${pad}    }\n    await followPhase(from, to);\n}\n`,
             ui: `export async function closeTrial() {\n${pad}    await executeAtExit();\n    await setClock({ phase: "dailyLife" });\n}\n`,
-            season: `const steps = {\n        clock: async () => {\n            await clearSentence();\n            await setClock({ phase: "dailyLife" });\n        }\n};\n`
+            season: `async function clearSeasonClock() {\n    await clearSentence();\n    await setClock({ phase: "dailyLife" });\n}\n`
         };
         const all = { cut: true, killers: [["carryOutSentence"], []], steps: true, reconcile: true, close: true, reset: true };
         equal(JSON.stringify(readOf(twin)), JSON.stringify(all), "the reader does not read its clean twin as clean");
@@ -16277,7 +16293,7 @@ const REGRESSIONS = [
             mastermind: twin.mastermind.replace("    await verdictStore", "    await killCharacter(mastermind);\n    await verdictStore"),
             clock: twin.clock.replace("        await executeAtExit();\n", "").replace("    await followPhase(from, to);\n", "    await followPhase(from, to);\n    await executeAtExit();\n"),
             ui: twin.ui.replace("    await executeAtExit();\n", "").replace("\n}\n", "\n    await executeAtExit();\n}\n"),
-            season: twin.season.replace("            await clearSentence();\n", "")
+            season: twin.season.replace("    await clearSentence();\n", "")
         };
         equal(JSON.stringify(readOf(planted)), JSON.stringify({ cut: true, killers: [["carryOutSentence", "executeSentenced"], ["applyFinalVerdict"]],
             steps: false, reconcile: false, close: false, reset: false }),
@@ -19266,6 +19282,139 @@ const REGRESSIONS = [
             unlabelled: [], runner: [true, true, true, true]
         }), "the chapter's end is not E11's nine steps on the one runner (keys in order; asked: those the choices ask for; unlabelled: a key with no "
             + "text in a language; runner: runChapterEnd on runSteps, with stop, save and stepsReport)");
+    }],
+    ["R1254 - the registry of season state (E42 C3, E42-11, E42-12; audit S17-30): scripts/season-reset.mjs is a leaf - it imports no more than config.mjs, utils.mjs, settings.mjs and season-exceptions.mjs, and its static closure holds no file that registers - and refuses a second entry for a group, an entry for no group that describes nothing and a descriptive entry that clears or counts; every group of RESET_GROUPS has exactly one entry, registered at the top level of its owner's file (the owners below) through a static import, its clear, tally and keep named top-level functions of that file; every registering file is inside module.mjs's static closure and no file reaches the registry by `import()`; the notice history's is the one descriptive entry (A7), the passages' stands after the Mastermind's in the reset's order (A10); every GM store's and copy's reset group names an entry; and `wipeSeason` walks the entries in `RESET_STEPS`' order", async () => {
+        /*
+         * E42 C3, 03.11.2026; audit S17-30 ("each new feature must remember the reset"). Until C3 the reset held one run
+         * per group in its own body (season-setup.mjs `wipeSeason`'s `runs`) and the window a hand list of counts beside
+         * it, and nothing said which file owned a group's state: a group's clear lived wherever the reset's author put it.
+         * Each owner registers its entry now (`registerSeasonState`), and this holds the registry whole. Read off the
+         * source (comments blanked): the registry's imports and the static closure of each, from module.mjs and from the
+         * registry; each top-level `registerSeasonState({ ... })` with its group or what it describes and its named
+         * functions; and, live, the entries themselves and the GM stores' groups. The reader of the registrations is
+         * shown a planted list first - one group missing, one registered twice, one in a file that is no owner. Red
+         * before C3: season-reset.mjs absent.
+         */
+        const LEAF = ["config.mjs", "utils.mjs", "settings.mjs", "season-exceptions.mjs"];
+        const OWNERS = {
+            incident: "incident-store.mjs", seals: "call-world.mjs", assembly: "call-world.mjs", projects: "projects.mjs",
+            mastermind: "mastermind.mjs", passages: "passages-gm.mjs", deaths: "chapter.mjs", bodyFound: "chapter.mjs",
+            remnants: "remnants.mjs", bullets: "truth-bullets.mjs", trialFloor: "trial.mjs", trialProgress: "trial-progress.mjs",
+            discovered: "fog.mjs", searchTokens: "search-tokens.mjs", keyPlan: "investigation.mjs", eclipseMoves: "eclipse.mjs",
+            motive: "rules.mjs", rules: "rules.mjs", actions: "actions.mjs", despair: "despair.mjs", overflow: "overflow.mjs",
+            doors: "vault-store.mjs", preNotes: "pre-session-note.mjs",
+            // The reset's own: a cast group's part on each sheet, the chat and the clock.
+            items: "season-setup.mjs", advancement: "season-setup.mjs", stashesFound: "season-setup.mjs", cards: "season-setup.mjs",
+            chatRest: "season-setup.mjs", clock: "season-setup.mjs"
+        };
+        const DESCRIBED = { noticeHistory: "notice-history.mjs" };
+        const sources = new Map(await otherSources());
+        must(sources.has("season-reset.mjs"), "scripts/season-reset.mjs is not among the module's sources - there is no registry of season state");
+        const code = new Map([...sources].map(([file, text]) => [file, blankComments(text)]));
+        const closure = (start, files) => {
+            const seen = new Set(), queue = [start];
+            while (queue.length) {
+                const file = queue.pop();
+                if (seen.has(file) || !files.has(file)) continue;
+                seen.add(file);
+                queue.push(...staticImports(files.get(file)));
+            }
+            return seen;
+        };
+        // Each top-level registration: its group or what it describes, and the names it hands.
+        const registrations = files => {
+            const out = [];
+            for (const [file, text] of files) {
+                for (const m of text.matchAll(/^registerSeasonState\(\{([^]*?)\}\);/gm)) {
+                    const named = key => m[1].match(new RegExp(`\\b${key}:\\s*([A-Za-z_$][\\w$]*)\\b`))?.[1] ?? null;
+                    out.push({ file, group: m[1].match(/\bgroup:\s*"(\w+)"/)?.[1] ?? null, describes: m[1].match(/\bdescribes:\s*"(\w+)"/)?.[1] ?? null,
+                        clear: named("clear"), tally: named("tally"), keep: named("keep") });
+                }
+            }
+            return out;
+        };
+        const problemsOf = found => {
+            const out = [];
+            for (const [group, owner] of Object.entries(OWNERS)) {
+                const mine = found.filter(entry => entry.group === group);
+                if (!mine.length) out.push(`${group}: no entry`);
+                else if (mine.length > 1) out.push(`${group}: ${mine.length} entries`);
+                else if (mine[0].file !== owner) out.push(`${group}: registered in ${mine[0].file}, not ${owner}`);
+            }
+            for (const entry of found) if (entry.group && !Object.hasOwn(OWNERS, entry.group)) out.push(`${entry.group}: no group of the reset`);
+            return out;
+        };
+        const plantedFiles = new Map([
+            ["rules.mjs", "export function clearSeasonMotive() {}\nregisterSeasonState({ group: \"motive\", clear: clearSeasonMotive });\n"
+                + "registerSeasonState({ group: \"motive\", clear: clearSeasonMotive });\n"],
+            ["trial.mjs", "// registerSeasonState({ group: \"trialFloor\", clear: x });\nfunction f() {\n    registerSeasonState({ group: \"rules\", clear: x });\n}\n"],
+            ["fog.mjs", "registerSeasonState({ group: \"keyPlan\", clear: clearSeasonKeyPlan });\n"]
+        ]);
+        const plantedProblems = problemsOf(registrations(new Map([...plantedFiles].map(([f, t]) => [f, blankComments(t)]))));
+        ok(["motive: 2 entries", "rules: no entry", "trialFloor: no entry", "keyPlan: registered in fog.mjs, not investigation.mjs"]
+            .every(line => plantedProblems.includes(line)) && !plantedProblems.some(line => line.startsWith("bodyFound: registered")),
+            `the reader of the registrations does not see the planted ones as they are: ${plantedProblems.slice(0, 8).join("; ")}`);
+
+        // The leaf: its imports, and its closure free of every registering file.
+        const found = registrations(code);
+        const registering = new Set(found.map(entry => entry.file));
+        const imports = staticImports(code.get("season-reset.mjs"));
+        equal(JSON.stringify(imports.filter(file => !LEAF.includes(file))), "[]",
+            "season-reset.mjs imports a file beyond config.mjs, utils.mjs, settings.mjs and season-exceptions.mjs - it is no leaf");
+        const leaf = closure("season-reset.mjs", code);
+        equal(JSON.stringify([...leaf].filter(file => registering.has(file))), "[]",
+            "a file that registers season state is in season-reset.mjs's static closure, so its import of the registry closes a cycle");
+        equal(JSON.stringify(problemsOf(found)), "[]", "a group of the reset has no entry, two, or one outside its owner's file (group: what was read)");
+        const described = found.filter(entry => entry.group === null);
+        equal(JSON.stringify(described.map(entry => [entry.describes, entry.file, entry.clear, entry.tally, entry.keep])),
+            JSON.stringify(Object.entries(DESCRIBED).map(([what, file]) => [what, file, null, null, null])),
+            "the descriptive entries are not the notice history's alone, in notice-history.mjs, clearing and counting nothing (A7)");
+        // Each owner imports the registry by a static line, registers at load, and hands named top-level functions.
+        const fromModule = closure("module.mjs", code);
+        const unnamed = [], late = [];
+        for (const entry of found) {
+            const text = code.get(entry.file);
+            if (!staticImports(text).includes("season-reset.mjs") || !fromModule.has(entry.file)) late.push(entry.file);
+            for (const role of ["clear", "tally", "keep"]) {
+                if (entry[role] && !topLevelFunction(text, entry[role])) unnamed.push(`${entry.file} ${role} ${entry[role]}`);
+            }
+            if (entry.group && !entry.clear) unnamed.push(`${entry.file} ${entry.group} has no named clear`);
+        }
+        equal(JSON.stringify([...new Set(late)]), "[]",
+            "a file registers season state without a static import of season-reset.mjs, or outside module.mjs's static closure - its entry is not there by init");
+        equal(JSON.stringify(unnamed), "[]", "an entry's clear, tally or keep is not a top-level function of its owner's file (file role name)");
+        const dynamic = [...code].filter(([, text]) => /\bimport\(\s*"\.\/season-reset\.mjs"\s*\)/.test(text)).map(([file]) => file);
+        equal(JSON.stringify(dynamic), "[]", "a file reaches the registry by import(), so what it registers comes after the reset may have run");
+
+        // Live: the registry refuses what it must, holds what the source registers, in the reset's order.
+        const R = await import("./season-reset.mjs");
+        const X = await import("./season-exceptions.mjs");
+        const { RESET_STEPS, RESET_CHOICES } = await import("./season-setup.mjs");
+        const refused = spec => { try { R.registerSeasonState(spec); return false; } catch { return true; } };
+        const before = R.seasonStateFor("incident");
+        equal(JSON.stringify([refused({ group: "incident", clear: function plantedClear() {} }), refused({ clear: function plantedClear() {} }),
+            refused({ describes: "noticeHistory" }), refused({ describes: "plantedR1254", clear: function plantedClear() {} }),
+            refused({ group: "plantedR1254", clear: function plantedClear() {} }), R.seasonStateFor("incident") === before]),
+        JSON.stringify([true, true, true, true, true, true]),
+        "the registry takes a second entry for a group, one for no group that describes nothing, a second description, a descriptive entry that clears, or a group the window does not offer");
+        const live = X.RESET_GROUPS.map(group => [group.key, R.seasonStateFor(group.key)?.clear?.name ?? null]);
+        equal(JSON.stringify(live), JSON.stringify(X.RESET_GROUPS.map(group => [group.key, found.find(entry => entry.group === group.key)?.clear ?? null])),
+            "a group's live entry is not the clear its owner's file registers (group, the clear's name)");
+        const ordered = R.seasonStateEntries(RESET_STEPS).map(entry => entry.group ?? entry.describes);
+        equal(JSON.stringify(ordered), JSON.stringify([...RESET_STEPS.filter(key => !RESET_CHOICES.includes(key)), ...Object.keys(DESCRIBED)]),
+            "the entries in the reset's order are not RESET_STEPS' groups with the descriptive entries last");
+        ok(ordered.indexOf("passages") > ordered.indexOf("mastermind"), "the passages entry does not stand after the Mastermind's (A10)");
+        // Every GM store's and copy's group names an entry (R177 keeps the three left out on purpose).
+        const E = await import("./gm-store.mjs");
+        await import("./gm-stores.mjs");
+        const groups = [...E.gmStoreHandles().map(h => h.spec.resetGroup), ...E.gmCopyNames().map(name => E.gmCopySpec(name)?.resetGroup)]
+            .filter(group => group !== undefined);
+        must(groups.length >= 14, `only ${groups.length} GM stores and copies name a reset group - the table was not read`);
+        equal(JSON.stringify([...new Set(groups.filter(group => !R.seasonStateFor(group)))]), "[]", "a GM store's reset group has no entry");
+        // And the reset walks them in RESET_STEPS' order, through the registry, not its own table.
+        const wipe = fnSource(code.get("season-setup.mjs"), "wipeSeason");
+        ok(/\bRESET_STEPS\s*\.\s*(?:filter|map)\(/.test(wipe) && /\bseasonStateFor\(/.test(wipe) && !/\bseasonStateEntries\(\s*\)/.test(wipe)
+            && !/const runs = \{/.test(wipe), "wipeSeason does not walk the registry's entries in RESET_STEPS' order");
     }],
 ];
 

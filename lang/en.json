@@ -4803,6 +4803,9 @@
         "log": "The log",
         "world": "The world"
       },
+      "state": {
+        "noticeHistory": "Each player's notice history - kept on their own browser, it starts again when the reset clears the clock, the incident or the chat"
+      },
       "group": {
         "remnants": "Remnants on the maps, and what each one really was",
         "bullets": "Truth Bullets in the cast's packs",

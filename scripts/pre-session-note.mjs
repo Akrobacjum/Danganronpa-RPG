@@ -44,6 +44,8 @@ import { noteStore, noteCopy } from "./gm-stores.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { replyForMe } from "./bridge-guards.mjs";
 import { MAX_PLAYER_BYTES } from "./secret.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 
 /** User flag: `{ updatedAt, written }` - when the note was last written, and whether it says anything. Never its text since E05. */
 export const NOTE_FLAG = "preSessionNote";
@@ -122,6 +124,30 @@ export function noteUpdatedAt(userId) {
 export function hasNote(userId) {
     return stateOf(userId).written;
 }
+
+/**
+ * TWO KINDS OF NOTE, TWO GROUPS (R-1; the reset's preNotes group, a run of season-setup.mjs `wipeSeason` until E42 C3).
+ * A GM keeping their own pre-session notes is not the same decision as keeping what the cast wrote on their sheets,
+ * and one tick for both would have forced them together. The notes are a GM store since E05: the reset's cut takes
+ * them on every GM and every player's copy. What is left is the flag that tells the roster a note is written -
+ * replaced whole, so an older world's text still in one goes too. The primary GM's alone.
+ */
+export async function clearSeasonNotes() {
+    if (!isPrimaryGm()) throw new Error("the season's notes are cleared on the primary GM's browser alone");
+    for (const user of game.users) {
+        const flag = user.getFlag(MODULE_ID, NOTE_FLAG);
+        if (flag && typeof flag === "object" && (flag.written || Object.hasOwn(flag, "text"))) {
+            await replaceFlag(user, NOTE_FLAG, { written: false });
+        }
+    }
+}
+
+/** What the reset window counts of the notes: the GMs' notes alone (E11 C9; season-setup.mjs `resetTally` until E42 C3). */
+export function tallySeasonNotes() {
+    return [plural("DRPG.Season.resetPreNotes", { n: game.users.filter(u => hasNote(u.id)).length })];
+}
+
+registerSeasonState({ group: "preNotes", clear: clearSeasonNotes, tally: tallySeasonNotes });
 
 /** Past the player text cap (secret.mjs `MAX_PLAYER_BYTES`) a note is not sent, and the GM's client refuses one. */
 export function noteTooLong(text) {

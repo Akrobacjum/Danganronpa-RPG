@@ -539,7 +539,7 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
         // The stamps' setting is C1's: before it, reading it throws, so the count is null and R1 fails as a check.
         const told = globalThis.__notifications.length, seasons = () => { try { return Object.keys(game.settings.get("${MOD}", "bodiesFound") ?? {}).length; } catch { return null; } };
         const stampedBefore = seasons();
-        // The window's own count of the project tokens (E11 C7, \`resetTally\`), read off the content it was opened with -
+        // The window's own count of the project tokens (E11 C7; projects.mjs \`tallySeasonProjects\` since E42 C3), read off the content it was opened with -
         // an element (\`dialogContent\`), not a string: read as a string it was "[object ...]" and the count null.
         let counted = null, closes = 0, castAnswer = null;
         const closed = Hooks.on("drpgIncidentClosed", () => { closes++; });

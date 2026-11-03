@@ -44,6 +44,8 @@ import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, warn, error
     serverNow, listOf } from "./utils.mjs";
 // A leaf (utils.mjs alone): the one runner of the procedures that cannot be taken back, and its report (E42 C2).
 import { runSteps, stepsReport } from "./steps.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState, everyPart } from "./season-reset.mjs";
 import { caseMark, deathStore, deferredOfferStore, lootTraceStore } from "./gm-stores.mjs";
 // A leaf (config.mjs alone): the scenes of the discovery window and a discovery handed no scene (E12 C5).
 import { placeScenes, roomNames, sceneOfRoom } from "./rooms.mjs";
@@ -649,6 +651,36 @@ export async function reviveCharacter(actor, { quiet = false } = {}) {
     if (!quiet) ui.notifications.info(game.i18n.format("DRPG.Chapter.revived", { name: actor.name }));
     return true;
 }
+
+/**
+ * The season reset's deaths group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): every student comes
+ * back whole (season-setup.mjs `wipeStudent`'s `deaths` part), and the deaths nobody found (E05 C10) - the group's
+ * cut, written before every step, takes the GMs' rows on every GM and every player's copy; this drops what this
+ * browser holds.
+ */
+export async function clearSeasonDeaths(ctx) {
+    await ctx.everyStudent("deaths");
+    if (isPrimaryGm()) await deathStore.clear();
+    else await deathStore.dropMany(Object.keys(deathStore.entries()));
+}
+
+/** What the reset window counts of the deaths: the students dead for the GMs (season-setup.mjs `resetTally` until E42 C3). */
+export function tallySeasonDeaths() {
+    return [plural("DRPG.Season.resetDead", { n: studentActors().filter(isDeadForGm).length })];
+}
+
+/**
+ * The season reset's bodyFound group (E42 C3): the body found, and the season's stamps of the bodies found (E11 C1)
+ * under the same tick - both say what this season found, and its chapter 1 is not the next season's. Each tried
+ * (`everyPart`), written whole.
+ */
+export async function clearSeasonBodies() {
+    await everyPart(() => game.settings.set(MODULE_ID, SETTINGS.bodyFound, {}),
+        () => game.settings.set(MODULE_ID, SETTINGS.bodiesFound, {}));
+}
+
+registerSeasonState({ group: "deaths", clear: clearSeasonDeaths, tally: tallySeasonDeaths });
+registerSeasonState({ group: "bodyFound", clear: clearSeasonBodies, settings: [SETTINGS.bodyFound, SETTINGS.bodiesFound] });
 
 /** Mark somebody dead, from the GM panel. */
 export async function openDeathDialog({ actor = null } = {}) {

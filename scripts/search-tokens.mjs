@@ -16,6 +16,8 @@ import { isPrimaryGm, whisperToGms, debug, error, serialWrite, plural } from "./
 import { ownsActor, judge, table, pick, as, knownSender, bridgeRequest } from "./bridge-guards.mjs";
 import { overflowTokenPenalty, overflowFloor } from "./overflow.mjs";
 import { roomFlag, roomNames, viewedScene } from "./rooms.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 
 /**
  * Region flags this file owns.
@@ -429,6 +431,17 @@ export class SearchTokens {
         return whisperToGms(`<h3>${game.i18n.localize("DRPG.SearchTokens.title")}</h3>${content}`);
     }
 }
+
+/**
+ * The season reset's searchTokens group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): the keyed refill,
+ * quiet - in a step of SEARCH_KEY (E17 fix e1-G3; the review's E17P1-R3): written outside it, a reset landing while
+ * the primary's spend step ran could be written over by that step's copy of the old counts.
+ */
+export async function clearSeasonSearchTokens() {
+    await SearchTokens.reset({ notify: false });
+}
+
+registerSeasonState({ group: "searchTokens", clear: clearSeasonSearchTokens, settings: [SETTINGS.searchTokens] });
 
 /** `game.drpg.showTokens()`: the readout for the scene on this GM's screen, the scene a GM asking means. */
 export function showSearchTokens() {

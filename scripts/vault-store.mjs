@@ -76,6 +76,8 @@ import {
 // Statically since E12 fix r1-G1 (11.10.2026), for `clearSplitPiece`'s list of a room's flags: rest.mjs read
 // its rooms through `regionsByName` here until then, which made the import a cycle; it reads rooms.mjs now.
 import { REST_FLAGS } from "./rest.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 
 /**
  * Region flags. Prefixed like the other room flags a GM might read by hand.
@@ -1058,6 +1060,25 @@ export function startLocked(region) {
     }
     return Boolean(stored);
 }
+
+/**
+ * The season reset's doors group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): every piece of every
+ * room (rooms.mjs) locked or open as it starts (`startLocked`); a region that is no room keeps whatever it carries. The
+ * primary GM's alone.
+ */
+export async function clearSeasonDoors() {
+    if (!isPrimaryGm()) throw new Error("the season's doors are set on the primary GM's browser alone");
+    for (const scene of game.scenes) {
+        for (const region of roomPieces(scene)) {
+            const shouldBe = startLocked(region);
+            if (Boolean(region.getFlag(MODULE_ID, ROOM_FLAGS.locked)) !== shouldBe) {
+                await region.setFlag(MODULE_ID, ROOM_FLAGS.locked, shouldBe);
+            }
+        }
+    }
+}
+
+registerSeasonState({ group: "doors", clear: clearSeasonDoors });
 
 /**
  * Is the BEDROOM OWNER's stash in this room hidden?
