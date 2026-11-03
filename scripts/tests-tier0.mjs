@@ -175,6 +175,11 @@ function functionsOnly(text) {
     for (const m of text.matchAll(/\(([^()]{0,300})\)\s*(?:=>|\{)/g)) {
         for (const w of m[1].match(/[A-Za-z_$][\w$]*/g) ?? []) params.add(w);
     }
+    // A BARE ARROW'S PARAMETER IS ONE TOO (E42 C5a0, 03.11.2026). `text => String(text ?? "")` has no parentheses for
+    // the loop above to read, so in a file whose only other `text` was a function the parameter's `text ?? ""` read as
+    // the function's: season-setup.mjs `preSessionReport`'s `esc` beside `hallReady`'s `const text = html => ...`, once
+    // E42 C5's move of the reset to season-wipe.mjs took the file's one `const text = ...` value away with it.
+    for (const m of text.matchAll(/(?<![\w$.])([A-Za-z_$][\w$]*)\s*=>/g)) params.add(m[1]);
 
     for (const name of [...fns]) {
         if (params.has(name)) { fns.delete(name); continue; }
@@ -1550,6 +1555,9 @@ const REGRESSIONS = [
             const fns = functionsOnly(fixture);
             for (const name of fns) if (truthyReads(fixture, name).length) proof.push(name);
             ok(proof.length === 1, "this test cannot see its own example fault");
+            // A function's name that is also a bare arrow's parameter is a value too, as a parenthesised one is (E42 C5a0).
+            const twin = "const text = html => html.trim();\nconst esc = text => String(text ?? \"\");\n";
+            ok(!functionsOnly(twin).has("text"), "a bare arrow's parameter is read as the function of the same name, so its `?? \"\"` is reported");
         }
 
         const wrong = [];
