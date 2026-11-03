@@ -81159,6 +81159,71 @@ const SCENARIOS = [
             + "opened the window on what it left (first: cleared, failed, the record [stage, failed, its season the clock's], seasons on; resumed and stale: "
             + "the window's ticks, whether it names the reset unfinished)");
     }],
+    ["E42-T9 - a reset with one group ticked changes nothing in the world but that group's own and the reset's bookkeeping: with Despair Flow's assignments ticked alone, the whole-world dump before and after differs in `gmAssignments`, the clock's cut for that group, the reset's record and the remembered exceptions, and in nothing else (E42 fix FG4; the end review's G-F10, the plan's verify)", async () => {
+        /*
+         * E42 fix FG4, 03.11.2026; the end review's G-F10. The plan's verify was a reset on a copy of the owner's world
+         * with `worldDump` showing no difference beyond the intended; the owner replaced the copy with the harness
+         * (Q-E42-3, "Bierzemy C"), and 65-season reads chosen fields per part, so no test read the whole world around a
+         * reset. Here the suite's own dump (tests-kit.mjs `worldDump`: every module and system setting, every document,
+         * the client-stored keys) is taken before and after a reset with the group `assignments` ticked alone (D36 = 2;
+         * its entry's `settings` is `gmAssignments`), a student assigned by hand first so the group has something to
+         * clear, and the window answered with the word. Read: the units that differ, and for the clock the paths. The
+         * bookkeeping a reset always writes is allowed by name - the clock's `resetCuts` for the ticked group, the
+         * reset's record (`seasonReset`), the remembered exceptions (`seasonExceptions`: every group not ticked), the clock's
+         * `writtenAt` (the stamp of every clock write, measured: the first run of this test named it) - and
+         * anything else is a group clearing what its label does not name. The settings and the cards are put back.
+         * Measured first at 86aa7ac1: this reading green, with the group's own unit among the differences.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "a season reset is the primary GM's, and this browser is not it - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const R = await import("./season-reset.mjs");
+        const { resetSeason } = await import("./season-setup.mjs");
+        const entry = R.seasonStateFor("assignments");
+        must(entry && entry.settings.includes(SETTINGS.gmAssignments), "the assignments group's entry names no `gmAssignments` - this would measure nothing");
+        const [student] = cast(1);
+        const KEYS = [SETTINGS.gmAssignments, SETTINGS.seasonExceptions, SETTINGS.seasonReset].filter(Boolean);
+        const held = Object.fromEntries(KEYS.map(key => [key, foundry.utils.deepClone(getSetting(key))]));
+        const clock = getClock();
+        const word = game.i18n.localize("DRPG.Season.resetWord");
+        const D = foundry.applications.api.DialogV2, heldWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const cardsBefore = new Set(game.messages.map(m => m.id));
+        const unit = key => `world:${MODULE_ID}.${key}`;
+        let diff = null, answer = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.gmAssignments, { [student.id]: game.user.id });
+            await settle();
+            await gmStoresIdle();
+            D.wait = async cfg => ((cfg?.classes ?? []).includes("drpg-window-season-reset") ? { word, ticked: ["assignments"], cast: { to: "stay" } } : null);
+            const before = await K.worldDump();
+            answer = await resetSeason();
+            await gmStoresIdle();
+            await settle();
+            const after = await K.worldDump();
+            // The report's card, if any, is a chat message the reset posts by design: compared with the cards taken out.
+            for (const m of game.messages.filter(m => !cardsBefore.has(m.id))) after.delete(`ChatMessage.${m.id}`);
+            diff = K.dumpDiff(before, after);
+        } finally {
+            if (heldWait) Object.defineProperty(D, "wait", heldWait);
+            else delete D.wait;
+            const made = game.messages.filter(m => !cardsBefore.has(m.id)).map(m => m.id);
+            if (made.length) await ChatMessage.deleteDocuments(made);
+            for (const key of KEYS) await game.settings.set(MODULE_ID, key, held[key]);
+            await setClock(clock);
+        }
+        const allowed = new Set([...entry.settings.map(unit), unit(SETTINGS.seasonReset), unit(SETTINGS.seasonExceptions)]);
+        const units = [...new Set(diff.map(d => d.unit))].sort();
+        const clockPaths = diff.filter(d => d.unit === unit(SETTINGS.clock)).map(d => d.path.slice(unit(SETTINGS.clock).length + 1));
+        equal(stableJson({
+            cleared: answer?.cleared ?? null, own: units.includes(unit(SETTINGS.gmAssignments)),
+            beyond: units.filter(u => !allowed.has(u) && u !== unit(SETTINGS.clock)),
+            // The cut for the group: one stamp under `resetCuts`, or the whole map where the clock held none before; and the
+            // stamp every write of the clock carries (clock.mjs `setClock`'s `writtenAt`).
+            clock: clockPaths.filter(path => !["resetCuts.assignments", "resetCuts", "writtenAt"].includes(path))
+        }), stableJson({ cleared: ["assignments"], own: true, beyond: [], clock: [] }),
+            "a reset with one group ticked changed the world beyond that group and the reset's bookkeeping (cleared; own: the group's setting among the "
+            + `differences; beyond: the other units that differ; clock: its paths beyond the group's cut) - ${diff.slice(0, 12).map(d => K.describeDiff(d)).join("; ")}`);
+    }],
     ...GRID
 ];
 

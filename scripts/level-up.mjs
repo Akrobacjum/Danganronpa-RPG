@@ -1115,7 +1115,7 @@ export async function runAdvancementBatch(actors, kind = "standard", { given = [
     const handled = new Set(given);
     const { entries: planned, drop } = advancementPlan([...byId.keys()], deferredOfferStore.entries(), kind);
     const flying = giving?.actorId && !handled.has(giving.actorId) ? byId.get(giving.actorId) : null;
-    if (flying && rowGrew(flying, giving)) {
+    if (flying && await rowGrew(flying, giving)) {
         if (planned.find(entry => entry.actorId === flying.id)?.deferred) await deferredOfferStore.drop(flying.id);
         handled.add(flying.id);
         await onGiven?.(flying);
@@ -1132,7 +1132,7 @@ export async function runAdvancementBatch(actors, kind = "standard", { given = [
     const who = await askWhoPicks(rows);
     for (const { entry, actor, playable, here } of rows) {
         try {
-            await onGiving?.(actor, givenCounts(actor));
+            await onGiving?.(actor, await givenCounts(actor));
             const choice = !who ? (playable ? "player" : null) : who[actor.id] ?? (playable && here ? "player" : "gm");
             if (choice === "gm" && await openAdvancement(actor, entry.kind, { extraPicks: entry.extraPicks, reasons: entry.reasons })) {
                 done.applied++;
@@ -1158,14 +1158,22 @@ export async function runAdvancementBatch(actors, kind = "standard", { given = [
     return done;
 }
 
-/** What a row's Level Up raises (E42 C1c): the offers standing on the student and their `advances`, as this GM holds them. */
-function givenCounts(actor) {
-    return { offers: standingOffers(actor).length, advances: Math.max(0, Math.trunc(Number(actor?.getFlag?.(MODULE_ID, FLAGS.advances)) || 0)) };
+/*
+ * What a row's Level Up raises (E42 C1c): the offers standing on the student and their `advances`, as this GM holds
+ * them. The advances AS THE GMS HOLD THEM since E42 fix FG4 (the end review's S-M3): they were read off the document,
+ * where a player's own raised value stands until the primary puts it back, and a Finish then read that row as given.
+ * Read through the GMs' mark after the student's audit (`judgedFor`, `flagsHeldNow`; R311).
+ */
+async function givenCounts(actor) {
+    const { judgedFor, flagsHeldNow } = await import("./sheet-audit.mjs");
+    await judgedFor(actor.id);
+    const advances = flagsHeldNow(actor).getFlag(MODULE_ID, FLAGS.advances);
+    return { offers: standingOffers(actor).length, advances: Math.max(0, Math.trunc(Number(advances) || 0)) };
 }
 
 /** Whether a row's Level Up landed since `snapshot` (`givenCounts` before its write): either count grew. */
-function rowGrew(actor, snapshot) {
-    const now = givenCounts(actor);
+async function rowGrew(actor, snapshot) {
+    const now = await givenCounts(actor);
     return now.offers > (Number(snapshot?.offers) || 0) || now.advances > (Number(snapshot?.advances) || 0);
 }
 

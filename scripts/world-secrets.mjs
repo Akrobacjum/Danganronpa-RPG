@@ -32,11 +32,11 @@ export const WORLD_SECRET_MODULE = "danganronpa-rpg";
  * A module world setting with no row of its own here holds nothing the rule
  * keeps out, and `everySetting` reads it still: `documentLanguage` (E66 C1) holds a
  * language code alone; `readyRound` (E37 C3) holds a readiness round's user ids, the
- * GM who pressed and each player's Done or One moment - what the GM's window lists;
- * `chapterEnd` (E42 C2) holds an End of chapter's step keys, the clock's numbers and
- * phases, the window's boxes, the GM's id and, once dropped, the dropping GM's id and
- * the time (`droppedBy`, `droppedAt`); `seasonReset` (E42 C4) a season reset's
- * group and step keys, the GM's id and the season's number - nothing a player may not see.
+ * GM who pressed and each player's Done or One moment - what the GM's window lists -
+ * nothing a player may not see. `chapterEnd` (E42 C2) and `seasonReset` (E42 C4) hold
+ * nothing a player may not see either, and have a row since E42 fix FG4 (the end
+ * review's S-M4): the keys each may hold (`only`), so a field added to either is found
+ * here before it ships.
  *
  * The rule. `settings` is keyed by a module world setting's key, without the
  * namespace: `fields` it may never hold at any depth, `empty` (it holds nothing at
@@ -112,6 +112,17 @@ export const WORLD_SECRET_RULES = Object.freeze({
         trialQueue: Object.freeze({
             fields: Object.freeze(["volunteers", "drawn"]),
             since: "E70 C8", why: "who volunteered for the Closing Argument and whom the draw named, which the GM may change unseen (E70-52)"
+        }),
+        /* E42's two records (E42 fix FG4; the end review's S-M4), each the primary GM's to write (R1259). */
+        chapterEnd: Object.freeze({
+            only: Object.freeze(["stage", "by", "at", "opened", "choices", "ending", "done", "failed", "notRun", "droppedBy", "droppedAt"]),
+            since: "E42 fix FG4",
+            why: "an End of chapter's record holds step keys, the clock's numbers and phases, the window's boxes as booleans, GM ids and times; any other field would be one nobody judged for a player's eyes"
+        }),
+        seasonReset: Object.freeze({
+            only: Object.freeze(["stage", "by", "at", "groups", "done", "failed", "notRun", "season"]),
+            since: "E42 fix FG4",
+            why: "a season reset's record holds group and step keys, the GM's id, a time and the season's number; any other field would be one nobody judged for a player's eyes"
         }),
         murderState: Object.freeze({
             only: Object.freeze(["active", "stage"]),

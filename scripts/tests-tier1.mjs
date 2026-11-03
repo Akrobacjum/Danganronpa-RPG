@@ -6012,6 +6012,13 @@ const INVARIANTS = [
             ["murderState: only active, stage",
                 s => { s.settings.murderState = { active: true, stage: "incident", turn: 0 }; },
                 h => h.kind === "only" && h.doc === "setting" && h.id === "murderState" && h.path === "turn"],
+            // E42 fix FG4 (the end review's S-M4): E42's two records hold their own keys alone - a field a later commit adds is found.
+            ["chapterEnd: only stage, by, at, opened, choices, ending, done, failed, notRun, droppedBy, droppedAt",
+                s => { s.settings.chapterEnd = { stage: "done", by: "R190GAMEMASTER001", memo: "R190" }; },
+                h => h.kind === "only" && h.doc === "setting" && h.id === "chapterEnd" && h.path === "memo"],
+            ["seasonReset: only stage, by, at, groups, done, failed, notRun, season",
+                s => { s.settings.seasonReset = { stage: "done", season: 2, memo: "R190" }; },
+                h => h.kind === "only" && h.doc === "setting" && h.id === "seasonReset" && h.path === "memo"],
             // E17 fix ci-2: the clock keeps no boundary's take-back - its snapshot named every character by id.
             ["clock.lastAdvance",
                 s => { s.settings.clock.lastAdvance = { for: "[1,1,1,1,\"noon\"]", at: 1, snapshot: { actions: { R190BYSTANDER001: { value: 1 } } } }; },

@@ -8015,6 +8015,13 @@ const REGRESSIONS = [
          * The merge of E11's side fix line into its main line (1.2.73) holds both: C10's `wipeStudent` and
          * fix r1-G2's `bodyCard` - 52 rows counted in the source on 11.10.2026 (15 PACKET, 5 SOCKET,
          * 5 CHAT, 21 SHEET, 6 STORE), and this test passed against them on the merged tree.
+         * E42 fix FG4 (1.2.97; the end review's S-M3): RAW counts the optional call as well (`getFlag?.(`, which
+         * `?.getFlag?.(` holds), so E42 C1c's level-up.mjs `givenCounts`, reading a Level Up row's `advances` off the
+         * document, was a place with no row and is one now (red on 86aa7ac1 with the pattern alone: the one place
+         * without a row). It reads them as the GMs hold them (`flagsHeldNow` after `judgedFor`), and a row that
+         * says "held" is read against the places that read through the mark (`held`): the old read planted back on a
+         * scratch copy is red here. HELD counts a `judgedFor(` alone, so the document read after the audit with the mark
+         * taken out still reads as held (measured on a scratch copy: green).
          */
         const TRIAL_CENSUS = [
             ["PACKET gm-bridge.mjs#advancement.apply#actorId", "judged: knownSender + owns(actorId) (E28) [F7]"],
@@ -8092,6 +8099,7 @@ const REGRESSIONS = [
             ["SHEET trial-progress.mjs#carryOutSentence", "judged (C5, fix r1-G4; since E70 C4 at the trial's end, not in the verdict): each execution awaits `judgedFor(id)`, reads `flagsHeldNow(actor)` and, with nothing awaited after that read (H3), calls `killCharacter`, whose own head check is `isDeadForGm`, or for a death the GMs hold and nobody has found `publishDeath`, whose head reads the GMs' row (Q-E10-2 (a)); one the table knows dead is passed over, not killed twice; `killCharacter` is told `secret: false`, so an execution is public, an open incident's living victim's too (fix r2-G3), and `phase: \"classTrial\"` on both branches, so a verdict given after End the trial is no body to discover (E11 fix r1-G1); and `cause: \"executed\"`, in the trial's own chapter, once (`executedAt`) [1b.2]"],
             ["SHEET trial-progress.mjs#pendingSentence", "out of scope: a display on the GM's own End the trial question (GM gate); names the sentenced the table does not know dead (`isDeceased` of the document) and decides nothing - the execution reads them held (`carryOutSentence`) (E70 C4)"],
             ["SHEET level-up.mjs#buildDetail", "out of scope: the picker's display on the player's own browser (R4); the GM decides in `handleAdvancement` [1b.2]"],
+            ["SHEET level-up.mjs#givenCounts", "held (E42 fix FG4; the end review's S-M3): a Level Up row's `advances` before its write and at a Finish (`rowGrew`), read as the GMs hold them (`flagsHeldNow` after `judgedFor`) - a player's own raised value, standing until its put-back lands, no longer reads as the row given; the offers are the GMs' store's (`standingOffers`) [1b.2]"],
             ["SHEET level-up.mjs#applyAdvancement", "judged (C8): one `meansWrite` from `numberHeld` (E29 r2-H24/H25); a statistic not among TRAITS, an experience to raise with none named, or one not on the sheet the GMs hold (read in the job) stops the whole Level Up, nothing written; the `actor.system.experiences[id].name` read is a label in the GM's summary; R318 pins it [1b.2]"],
             ["SHEET trial.mjs#presentDialog", "out of scope: the presenter's own browser (R4): since C16 a dead presenter refused before it opens (document `isDeceased`, a courtesy); since E79 C16 a Present only, with no target list"],
             ["SHEET trial.mjs#presentBullet", "out of scope: the presenter's own browser (R4): since C16 a dead presenter's card is refused on the API's road (document `isDeceased`); since E79 C16 an Objection only on a GM's browser, judged by `seizeFloor` on the primary, and a Present has no GM-side judge - its popup (`registerTrial`) reads no death, left to E70's `isMutedDead`"],
@@ -8127,13 +8135,13 @@ const REGRESSIONS = [
         const SHEET = [/\bisDeceased\(|\bisDeadForGm\(|\blivingStudents\(|\bdeceased\b/, /\badvances\b/, /system\.traits\b|\bTRAITS\b/,
             /system\.experiences\b|\bexperiences?(?:New|Up)\b/, /system\.resources\b|\bresourceMax\(|hitPoints|stress\.max/];
         const HELD = /\b(?:judgedFor|flagsAsHeld|flagsHeldNow|actorHeldNow|actorAsHeld|numberHeld|meansWrite|gmMeansWrite|itemAsHeld|meansHeld|heldMark)\s*\(/;
-        const RAW = /\b(?:isDeceased|isDeadForGm|livingStudents|resourceMax)\s*\(|\bactor\.system\b|\.system\.(?:traits|experiences|resources|levelData)\b|getFlag\(\s*MODULE_ID\s*,\s*FLAGS\.(?:deceased|advances)/;
+        const RAW = /\b(?:isDeceased|isDeadForGm|livingStudents|resourceMax)\s*\(|\bactor\.system\b|\.system\.(?:traits|experiences|resources|levelData)\b|getFlag(?:\?\.)?\(\s*MODULE_ID\s*,\s*FLAGS\.(?:deceased|advances)/;
         const CHAT = /\b(?:m|msg|message|chatMessage)\??\.getFlag\(\s*MODULE_ID\s*,|\b(?:m|msg|message)\??\.speaker\??\.actor\b/;
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const STORES = [["vote.mjs", "ballots"], ["trial-progress.mjs", "trialProgress"], ["gm-stores.mjs", "ballotStore"], ["gm-stores.mjs", "offerStore"],
             ["gm-stores.mjs", "deferredOfferStore"], ["gm-stores.mjs", "verdictStore"], ["settings.mjs", "trialQueue"]];
         const censusOf = (bridge, sources) => {
-            const found = [];
+            const found = [], held = new Set();
             for (const [action, decl] of Object.entries(bridge)) {
                 if (!ROADS.test(action)) continue;
                 const fields = Object.keys(decl?.sanitize?.fields ?? {});
@@ -8177,11 +8185,13 @@ const REGRESSIONS = [
                 if (top.binding && !/=>|function/.test(top.text)) continue;
                 if (!SHEET.some(re => re.test(top.text))) continue;
                 if (HELD.test(top.text) || RAW.test(top.text) || NAMED[top.file]?.includes(top.name)) found.push(`SHEET ${top.file}#${top.name}`);
+                if (HELD.test(top.text)) held.add(`SHEET ${top.file}#${top.name}`);
             }
             for (const [file, name] of STORES) {
                 if (files.has(file) && new RegExp(`\\b${name}\\b`).test(blankComments(files.get(file)))) found.push(`STORE ${file}#${name}`);
             }
-            return found;
+            // The places that read through the GMs' mark, beside the list (E42 fix FG4): a row that says "held" is read against them.
+            return Object.assign(found, { held });
         };
         const judge = (found, table) => {
             const rows = new Set(table.map(([key]) => key)), seen = new Set(found);
@@ -8210,6 +8220,10 @@ const REGRESSIONS = [
             ["SHEET vote.mjs#judged", ""], ["SHEET vote.mjs#gone", ""], ["STORE vote.mjs#ballots", ""]])),
             JSON.stringify({ unclassified: ["CHAT vote.mjs#forged"], stale: ["SHEET vote.mjs#gone"] }),
             "the census judge does not tell a planted reader without a row, or a row without its reader");
+        // A row that says "held" names a place that reads through the GMs' mark (E42 fix FG4): the planted `judged` reads the document.
+        const unheld = (places, table) => table.filter(([key, verdict]) => /^held\b/.test(verdict) && places.includes(key) && !places.held.has(key)).map(([key]) => key);
+        equal(JSON.stringify(unheld(planted, [["SHEET vote.mjs#judged", "held: planted"]])), JSON.stringify(["SHEET vote.mjs#judged"]),
+            "the census does not tell a row that says held from a place that reads the document");
 
         const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
         const found = censusOf(BRIDGE_ACTIONS, await otherSources());
@@ -8221,6 +8235,7 @@ const REGRESSIONS = [
             + `against ${TRIAL_CENSUS.length} row(s); ${verdict.unclassified.length} without a row, ${verdict.stale.length} row(s) without a place`);
         equal(JSON.stringify(verdict), JSON.stringify({ unclassified: [], stale: [] }),
             "a trial road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E10 commit that will) and strike the gone one");
+        equal(JSON.stringify(unheld(found, TRIAL_CENSUS)), "[]", "a row says held and its place reads the document, not the GMs' mark: read it through the mark, or give the row the verdict it earns");
     }],
 
     ["R346 - a season road has a census row, and every row judges a road", async () => {
@@ -12316,8 +12331,9 @@ const REGRESSIONS = [
                 && /given: context\.record\.given \?\? \[\]/.test(fnSource(vote, "verdictLevelUps"))
                 && /planned\.filter\(entry => !handled\.has\(entry\.actorId\)\)/.test(batch),
             givenGap: /done\.applied\+\+;\s*if \(entry\.deferred\) await deferredOfferStore\.drop\(actor\.id\);\s*await onGiven\?\.\(actor\);/.test(batch)
-                // E42 C1c (1.2.97): the gap is closed - the row in flight is written before its Level Up and settled on a Finish.
-                && /await onGiving\?\.\(actor, givenCounts\(actor\)\);/.test(batch) && /if \(flying && rowGrew\(flying, giving\)\)/.test(batch),
+                // E42 C1c (1.2.97): the gap is closed - the row in flight is written before its Level Up and settled on a Finish;
+                // both readings awaited since E42 fix FG4, the advances read through the GMs' mark.
+                && /await onGiving\?\.\(actor, await givenCounts\(actor\)\);/.test(batch) && /if \(flying && await rowGrew\(flying, giving\)\)/.test(batch),
             takeBackBusy: /if \(advancing\.has\(actor\.id\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Advance\.takeBackBusy"/
                 .test(fnSource(levelUp, "takeBackOffer")),
             enterGives: /buttons: \[\s*\{ action: "give", [^}]*default: true,/.test(fnSource(levelUp, "askWhoPicks")),
@@ -19553,6 +19569,71 @@ const REGRESSIONS = [
         const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/trial-progress.mjs`).then(lfText));
         ok(/\bentryPatch\(/.test(topLevelFunction(src, "resetInStep") ?? "") && /\bTRIAL_RECORD\b/.test(topLevelFunction(src, "trialProgress") ?? ""),
             "resetInStep does not write the table's entry patch, or trialProgress does not build its blank from the table");
+    }],
+    ["R1259 - E42's two records are the primary's to write (E42 fix FG4; the end review's S-M4): every write of the world setting `chapterEnd` in the module is in chapter.mjs, inside a step of the end's queue `chapterEnds` - in the step's own body, or in a function every road to which runs through one - at least 4, measured at 86aa7ac1; every write of `seasonReset` is in season-wipe.mjs, inside `wipeSeason`'s record writer behind its `isPrimaryGm()`, at least 1, measured there", async () => {
+        /*
+         * E42 fix FG4, 03.11.2026; the end review's S-M4. E42 C2 and C4 made two world settings every browser reads,
+         * each written by the primary GM alone - the chapter's end in its queue (`chapterEnds`, so one end runs at a time
+         * on the one browser that writes its record), the reset's record in `wipeSeason`'s writer, skipped off the primary
+         * - and nothing held either but a reading of the code (STATUS Open 28), where `readyRound` has R1196. Read off the
+         * source, comments out: every `game.settings.set(...)` naming each setting, by file; for `chapterEnd`, each
+         * top-level function of chapter.mjs that writes it and the road it runs on - "step" when every write is in the
+         * body of its own `chapterEnds.then(async () => {`, "queued" when every caller in the file reaches it through
+         * `chapterEnds.then(() => name(` or is queued itself, null otherwise; for `seasonReset`, the writes in
+         * `wipeSeason`, in its writer, and whether the writer asks `isPrimaryGm()` before it writes. The counts are floors:
+         * a write added in its road keeps this green, one outside it does not. The reader is shown chapter.mjs with a
+         * write planted in a function nothing queues, which it must name. Nothing is written. Red on a scratch copy with
+         * a write of either moved outside its road (STATUS, the fix round).
+         */
+        const sources = new Map(await otherSources());
+        const END = /game\.settings\.set\(\s*MODULE_ID\s*,\s*SETTINGS\.chapterEnd\b/g;
+        const RESET = /game\.settings\.set\(\s*MODULE_ID\s*,\s*SETTINGS\.seasonReset\b/g;
+        const count = (text, re) => (String(text ?? "").match(re) ?? []).length;
+        const readOf = files => {
+            const writes = re => [...files].map(([file, raw]) => [file, count(stripComments(raw), re)]).filter(([, n]) => n > 0);
+            const chapter = stripComments(files.get("chapter.mjs") ?? "");
+            const names = [...chapter.matchAll(/^(?:export )?(?:async )?function ([\w$]+)\(/gm)].map(m => m[1]);
+            const fn = name => topLevelFunction(chapter, name) ?? "";
+            const queued = (name, seen = new Set()) => {
+                if (seen.has(name)) return false;
+                seen.add(name);
+                const callers = names.filter(other => other !== name && new RegExp(`\\b${name}\\(`).test(fn(other)));
+                return callers.length > 0 && callers.every(other => new RegExp(`chapterEnds\\.then\\(\\(\\) => ${name}\\(`).test(fn(other))
+                    || queued(other, seen));
+            };
+            const STEP = "chapterEnds.then(async () => {";
+            const inStep = name => (fn(name).includes(STEP) ? count(bodyOf(fn(name), STEP), END) : 0) === count(fn(name), END);
+            const holders = names.filter(name => count(fn(name), END) > 0).map(name => [name, inStep(name) ? "step" : queued(name) ? "queued" : null]);
+            const wipe = stripComments(files.get("season-wipe.mjs") ?? "");
+            const season = topLevelFunction(wipe, "wipeSeason") ?? "";
+            const writer = bodyOf(season, "const writeRecord = async", { until: "\n    };" });
+            const guard = writer.indexOf("if (!isPrimaryGm()"), write = writer.search(RESET);
+            return {
+                chapterEnd: writes(END), holders,
+                seasonReset: writes(RESET), reset: [count(season, RESET), count(writer, RESET), guard >= 0 && write > guard]
+            };
+        };
+        must((sources.get("chapter.mjs") ?? "").length > 10000 && (sources.get("season-wipe.mjs") ?? "").length > 10000,
+            "chapter.mjs or season-wipe.mjs was not read - this test measured nothing");
+        const planted = (sources.get("chapter.mjs") ?? "") + "\nasync function plantedR1259() {\n    await game.settings.set(MODULE_ID, SETTINGS.chapterEnd, {});\n}\n"
+            + "export function plantedCaller() {\n    return plantedR1259();\n}\n";
+        const twin = readOf(new Map([...sources, ["chapter.mjs", planted]]));
+        ok(twin.holders.some(([name, road]) => name === "plantedR1259" && road === null),
+            `the reader does not name a write of chapterEnd planted in a function nothing queues (${JSON.stringify(twin.holders)})`);
+        const read = readOf(sources);
+        const total = list => list.reduce((n, [, k]) => n + k, 0);
+        equal(JSON.stringify({
+            chapterEnd: [read.chapterEnd.map(([file]) => file), total(read.chapterEnd) >= 4],
+            outside: read.holders.filter(([, road]) => road === null).map(([name]) => name),
+            counted: read.holders.reduce((n, [name]) => n + count(topLevelFunction(stripComments(sources.get("chapter.mjs")), name), END), 0) === total(read.chapterEnd),
+            seasonReset: [read.seasonReset.map(([file]) => file), total(read.seasonReset) >= 1],
+            reset: [read.reset[0] === total(read.seasonReset), read.reset[1] === total(read.seasonReset), read.reset[2]]
+        }), JSON.stringify({
+            chapterEnd: [["chapter.mjs"], true], outside: [], counted: true,
+            seasonReset: [["season-wipe.mjs"], true], reset: [true, true, true]
+        }), `a write of chapterEnd or seasonReset outside its road (chapterEnd: the files writing it, at least 4; outside: the functions of chapter.mjs that write it `
+            + `on no road through chapterEnds; counted: every write in such a function; seasonReset: the files, at least 1; reset: every write in wipeSeason, in its `
+            + `writer, behind isPrimaryGm) - holders ${JSON.stringify(read.holders)}, writes ${JSON.stringify([read.chapterEnd, read.seasonReset])}`);
     }]
 ];
 
