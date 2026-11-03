@@ -505,7 +505,7 @@ export function floorOnPrimary(op, args = {}) {
 
 /**
  * A GM's change of the floor, wherever it is asked: on the primary its step (`floorOnPrimary`), on another GM the
- * request "trial.gm" to the primary (gm-bridge.mjs `requestTrialGm`), whose answer is the floor written or null; the
+ * request "trial.gm" to the primary (bridge-asks.mjs `requestTrialGm`), whose answer is the floor written or null; the
  * bridge has told this GM why when it is refused. Null on a player's browser.
  */
 export async function floorStep(op, args = {}) {

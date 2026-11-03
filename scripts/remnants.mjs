@@ -23,6 +23,8 @@ import { isPrimaryGm, log, warn, error, plural, esc, forcedDeletion, serverNow }
 // The ledger's store. gm-stores.mjs reaches this file only by a dynamic `import()`,
 // so a static import here is no cycle (R161).
 import { remnantStore, bulletStore, traceDigestStore, upgradeMark } from "./gm-stores.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 
 /**
  * Everything the guide says a Remnant carries, so an investigation two sessions
@@ -223,13 +225,13 @@ export async function dropRemnant(actor, {
     itemIdentity = null,
     /*
      * The project a Work trace was left by. Kept nowhere: a player's packet carries it so the
-     * GM can judge the tie to the crime on its own record (gm-bridge.mjs `handleRemnant`,
+     * GM can judge the tie to the crime on its own record (bridge-runs-records.mjs `handleRemnant`,
      * E32+E07 fix r2-G3), since the packet's own `tiedToCrime` is never taken.
      */
     projectId = null,
     /*
      * The message of the roll this trace is that roll's own trace of - a Search's, a Sabotage's,
-     * a Dynamic action's - so the GM writes it on that roll's row and no other (gm-bridge.mjs
+     * a Dynamic action's - so the GM writes it on that roll's row and no other (bridge-runs-records.mjs
      * `handleRemnant`, E08+E28 fix r1-G1). Null for a trace no roll's replay owns (a discarded
      * item's, an indirect murder's covering, a GM's own). Travels beside the packet's data.
      */
@@ -1121,6 +1123,31 @@ export async function clearRemnantLedger() {
 }
 
 /**
+ * THE SEASON RESET'S REMNANTS GROUP (E42 C3; a run of season-setup.mjs `wipeSeason` until then). The trace tokens on
+ * every scene, deleted with `drpgReset`: the tombstone a deleted trace's row gets (CASE-12) is not written for each of
+ * these - the reset's cut and the clear below take every row at once. Nothing passed the option until E04 C10 (the
+ * review's C-m5): every trace was tombstoned one by one, and the clear ran only when a live row was left for it to
+ * see. The tokens are the half everyone can see; the register of what each one really was is the half that matters,
+ * and it does not go with them: their rows are left to the cut and to `clearRemnantLedger`. The primary GM's alone.
+ */
+export async function clearSeasonRemnants() {
+    if (!isPrimaryGm()) throw new Error("the season's traces are cleared on the primary GM's browser alone");
+    for (const scene of game.scenes) {
+        const ids = scene.tokens.filter(t => t.getFlag(MODULE_ID, "isRemnant")).map(t => t.id);
+        if (ids.length) await scene.deleteEmbeddedDocuments("Token", ids, { drpgReset: true });
+    }
+    await clearRemnantLedger();
+}
+
+/** What the reset window counts of the traces: the trace tokens on every scene (season-setup.mjs `resetTally` until E42 C3). */
+export function tallySeasonRemnants() {
+    const n = game.scenes.reduce((sum, scene) => sum + scene.tokens.filter(t => t.getFlag(MODULE_ID, "isRemnant")).length, 0);
+    return [plural("DRPG.Season.resetRemnants", { n })];
+}
+
+registerSeasonState({ group: "remnants", clear: clearSeasonRemnants, tally: tallySeasonRemnants });
+
+/**
  * The same write as `setRemnantSecret`, addressed by ids rather than a document.
  *
  * Observe resolves on the GM's client, which is very often looking at a
@@ -1594,7 +1621,7 @@ async function followIncidentKind(tokenDoc, type) {
  * round-2 reviews' cor N5 and sec S2-4). C13 put the Faint box and `followIncidentKind` in
  * `setRemnantFlags` alone, and `retuneRemnant` writes the kind too - a reshape (cleanup.mjs
  * `reshapeTrace`), its Reroll's undo (`undoLastCleanup`) and a GM's edit over the bridge
- * (gm-bridge.mjs `handleRemnantEdit`, which passes a GM sender every kind CLEANUP.transform lists,
+ * (bridge-runs-records.mjs `handleRemnantEdit`, which passes a GM sender every kind CLEANUP.transform lists,
  * "faint" and "incident" among them). So a kind retuned to Faint Remnant was not Faint, and an
  * uncopied Incident Remnant the killer reshaped stayed drawn for the cast as theirs (tier 2 "a
  * trace retuned to Faint Remnant is Faint ..." and "an uncopied Incident Remnant reshaped and

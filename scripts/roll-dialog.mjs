@@ -1060,7 +1060,7 @@ function stateGrant(actor) {
  * given. And the arithmetic being thrown away was real - `performSearch` sums a
  * favouring room and a hindering room (a concealed stash was the third term until E06 C11;
  * since E32+E07 C11e it is the same step of disadvantage, taken on the dice once they have
- * landed - action-rolls.mjs `stashStep`, which reads this cap); a crisis roll sums a
+ * landed - action-search.mjs `stashStep`, which reads this cap); a crisis roll sums a
  * weapon in hand, a second try after a miss and the guide's compensation for
  * dying alone to a trap. All of it computed, then rounded to a sign.
  *

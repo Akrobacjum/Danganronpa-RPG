@@ -539,7 +539,7 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
         // The stamps' setting is C1's: before it, reading it throws, so the count is null and R1 fails as a check.
         const told = globalThis.__notifications.length, seasons = () => { try { return Object.keys(game.settings.get("${MOD}", "bodiesFound") ?? {}).length; } catch { return null; } };
         const stampedBefore = seasons();
-        // The window's own count of the project tokens (E11 C7, \`resetTally\`), read off the content it was opened with -
+        // The window's own count of the project tokens (E11 C7; projects.mjs \`tallySeasonProjects\` since E42 C3), read off the content it was opened with -
         // an element (\`dialogContent\`), not a string: read as a string it was "[object ...]" and the count null.
         let counted = null, closes = 0, castAnswer = null;
         const closed = Hooks.on("drpgIncidentClosed", () => { closes++; });
@@ -581,8 +581,9 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
     // E11 C9: the result lists group keys, `failed` among them; the running incident closed once and nothing of it is left.
     // E11 fix r2-H4: 28 groups - the cast's sheet notes went (a Daggerheart character has no notes field to clear).
     // E79 C1: 29 - who knows each secret passage (`passages`); this read 28 from C1 to C8, which first ran 65 again.
+    // E42 C4: 30 - Despair Flow's division of the students (`assignments`, D36 = 2).
     check("R1: after the reset no Level Up is offered, the Final Trial is off, the season is the second, no body's stamp is left, the incident closed once and is gone, and nothing failed or was told as an error",
-        Array.isArray(reset.cleared) && reset.cleared.length === 29 && reset.kept?.length === 0 && J(reset.failed) === "[]" && reset.offers === 0
+        Array.isArray(reset.cleared) && reset.cleared.length === 30 && reset.kept?.length === 0 && J(reset.failed) === "[]" && reset.offers === 0
             && reset.finalTrial === false && reset.season === 2 && reset.stamped[0] > 0 && reset.stamped[1] === 0
             && reset.incident.before === true && reset.incident.closes === 1 && reset.incident.after === null
             && reset.reports === 0 && reset.errors.length === 0, J(reset), { flow: "season-reset" });
@@ -1250,18 +1251,20 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
     phase("J: a trial opened while the chapter's end runs, the reset card's cast line, a cast step that throws, a memory of the sheet notes alone, an end from the trial", { flow: "clock-day" });
     /* J1 (E11 fix r2-J1 (a); r2-H3's open road). H3's guard compares the window's phase once, before the steps; the reveal,
        the sweep, the Remnants and the tools await documents after it. Here the primary answers its End of chapter window in
-       the Investigation with the next session and the next morning, its Faint Remnants' step is held until the second GM
+       the Investigation with the next session and the next morning, its tools' step (its Faint Remnants' until E42 C2) is held until the second GM
        (at the table since H) has opened a Class Trial, and the end goes on. Read: what the end answered, the session, the
        day and the phase against the clock it began on, and the GMs' whisper naming what did not run. */
     const heldJ = await gm.eval(`${UNTIL} const C = await import("${repoUrl}/scripts/chapter.mjs");
         const { getClock } = await import("${repoUrl}/scripts/settings.mjs"); const { setClock } = await import("${repoUrl}/scripts/clock.mjs");
         await setClock({ phase: "investigation" });
-        const faint = C.CHAPTER_END_STEPS.find(step => step.key === "faint"), run = faint.run;
+        /* E42 C2: the step held is the tools', which runs whatever is ticked; the Faint Remnants' step, held until then,
+           is not run when its box is unticked (steps.mjs \`runSteps\` keeps a step its \`asked\` says no to). */
+        const tools = C.CHAPTER_END_STEPS.find(step => step.key === "tools"), run = tools.run;
         // The notifications counted from here: the end warns as it stops, before the read below starts.
         globalThis.__j = { held: false, told: globalThis.__notifications.length, before: { session: getClock().session, day: getClock().day ?? 1, phase: getClock().phase } };
-        faint.run = async (...args) => { globalThis.__j.held = true; await until(() => getClock().phase === "classTrial", 15000); return run(...args); };
+        tools.run = async (...args) => { globalThis.__j.held = true; await until(() => getClock().phase === "classTrial", 15000); return run(...args); };
         globalThis.__dialogAnswers.push(async () => ({ reveal: false, sweep: false, faint: false, keys: false, endTrial: false, nextChapter: false, nextSession: true, nextMorning: true }));
-        globalThis.__j.end = C.openChapterEndDialog().finally(() => { faint.run = run; });
+        globalThis.__j.end = C.openChapterEndDialog().finally(() => { tools.run = run; });
         return Boolean(await until(() => globalThis.__j.held, 15000));`, { timeout: 30000 });
     const trialJ = await gm2.eval(`const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
         const F = await import("${repoUrl}/scripts/trial-floor.mjs");
@@ -1272,16 +1275,21 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
         const told = globalThis.__j.told;
         const ended = await globalThis.__j.end.catch(err => "threw: " + err?.message);
         await new Promise(r => setTimeout(r, 500));
-        const steps = ["clock", "morning"].map(key => game.i18n.localize(\`DRPG.Chapter.step.\${key}\`)).join(", ");
+        const { listOf } = await import("${repoUrl}/scripts/utils.mjs");
+        // E42 C2: one list (\`listOf\`) in the one report of the procedures (steps.mjs \`stepsReport\`), its toast an error.
+        const steps = listOf(["clock", "morning"].map(key => game.i18n.localize(\`DRPG.Chapter.step.\${key}\`)));
         const words = game.i18n.format("DRPG.Chapter.endStopped", { opened: phaseLabel("investigation"), now: phaseLabel("classTrial"), steps });
         const read = { before: globalThis.__j.before, ended: ended ?? null, after: { session: getClock().session, day: getClock().day ?? 1, phase: getClock().phase },
             told: game.messages.filter(m => String(contentOf(m)).includes(foundry.utils.escapeHTML(words))).length,
-            warned: globalThis.__notifications.slice(told).filter(n => n.level === "warn" && n.msg === words).length };
+            warned: globalThis.__notifications.slice(told).filter(n => n.level === "error" && n.msg === words).length };
         await (await import("${repoUrl}/scripts/trial-floor-ui.mjs")).closeTrial();
+        // E42 C2: the stopped end stands until it is finished or dropped, and holds off every end after it (J5's): dropped here.
+        read.dropped = await (await import("${repoUrl}/scripts/chapter.mjs")).finishChapterEnd({ drop: true });
         return read;`, { timeout: 60000 });
     check("J1: a Class Trial a second GM opens while the primary's End of chapter runs stops the end before its clock - the session, the day and the trial's phase stand, and the GMs are told which steps did not run (E11 fix r2-J1)",
         heldJ === true && trialJ.phase === "classTrial" && endJ.before.phase === "investigation" && endJ.ended === null
-            && J(endJ.after) === J({ session: endJ.before.session, day: endJ.before.day, phase: "classTrial" }) && endJ.told === 1 && endJ.warned === 1,
+            && J(endJ.after) === J({ session: endJ.before.session, day: endJ.before.day, phase: "classTrial" }) && endJ.told === 1 && endJ.warned === 1
+            && J(endJ.dropped) === J(["clock", "morning"]),
         J({ heldJ, trialJ, endJ }), { flow: "clock-day" });
 
     /* J2 (E11 fix r2-J1 (d); r2-H6's doubt). A reset of the chat's cards and the clock, the cast sent to the Storage room and

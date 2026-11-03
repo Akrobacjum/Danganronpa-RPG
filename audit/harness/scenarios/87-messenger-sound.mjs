@@ -76,8 +76,8 @@
  *     E4 (fix FG2, G4) p1's page answers no character of its own for the click's read: "no character" once, no
  *        "took" toast, the Take open again, nothing sent.
  *     E3 the Take lands: the toast once, the Take stays shut, a second press sends nothing (one packet counted on gm).
- *   S (E50 C4; E50-33, flow "sound") - sfx.mjs's socket road, counted where `fire` hands a file to the audio layer
- *     (`sfx.played`), a key mapped and every browser's Sound slider at 0.8:
+ *   S (E50 C4; E50-33, flow "sound") - the sounds' socket road (sfx-play.mjs sends, sfx.mjs listens), counted where
+ *     `fire` hands a file to the audio layer (`sfx.played`), a key mapped and every browser's Sound slider at 0.8:
  *     S1 gm plays a sound for p1 (`playSfxForUsers`): 1 on p1, 0 on gm, gm2, p2 and p3.
  *     S2 p2's page sends `playSfxFor` packets, one to p1 and one to everybody: 0 everywhere.
  *
@@ -604,15 +604,20 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
     for (const c of [p1, p2, p3]) await c.eval(`globalThis.__s87Auto = globalThis.__dialogAuto; globalThis.__dialogAuto = false; return true;`);
     await p1.eval(`globalThis.__s87Held = [];
         game.actors.get("${IDS.aiko}").rollTrait = function () { return new Promise(r => globalThis.__s87Held.push(r)); }; return true;`);
-    const dOpened = await gm.eval(`const opened = (await game.drpg.openMurder({ killerId: "${IDS.aiko}", victimId: "${IDS.botan}", openingTrait: "body" }))?.stage ?? null;
-        await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
-        return { opened, stage: game.drpg.murderState()?.stage ?? null };`, { timeout: 60000 });
-    await settle(900);
+    const dOpenedStage = await gm.eval(`return (await game.drpg.openMurder({ killerId: "${IDS.aiko}", victimId: "${IDS.botan}", openingTrait: "body" }))?.stage ?? null;`,
+        { timeout: 60000 });
     /* The opening roll reaches p1 when its invitation lands, which a fixed 900 ms missed once under load (fix FG2's quick
-       run, dHeld 0 with every browser on the same track): waited for, up to 4 s. */
-    const dHeld = await p1.eval(`${UNTIL} await until(() => (globalThis.__s87Held ?? []).length > 0, 4000);
-        delete game.actors.get("${IDS.aiko}").rollTrait; const held = globalThis.__s87Held ?? []; delete globalThis.__s87Held;
+       run, dHeld 0 with every browser on the same track): waited for, now up to 8 s. Until the 1.2.97 train the GM ruled the
+       roll in the call that opened the murder, so the ruling could come before the invitation reached p1, which then held
+       nothing: dHeld 0 with `off` [] (CI run 41589475249 on e7ef1075, and 1 run in 3 here, 03.11.2026). The roll is now
+       waited for on p1 first, ruled after, and let go last, as before. */
+    const dHeld = await p1.eval(`${UNTIL} await until(() => (globalThis.__s87Held ?? []).length > 0, 8000);
+        return (globalThis.__s87Held ?? []).length;`, { timeout: 30000 });
+    const dOpened = { opened: dOpenedStage, stage: await gm.eval(`await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        return game.drpg.murderState()?.stage ?? null;`, { timeout: 60000 }) };
+    await p1.eval(`delete game.actors.get("${IDS.aiko}").rollTrait; const held = globalThis.__s87Held ?? []; delete globalThis.__s87Held;
         for (const r of held) r(null); return held.length;`);
+    await settle(900);
     const MURDER_HERE = wait => `${DMUSIC} const end = Date.now() + 4000;
         while (${wait ? "!M.murderMusicHere().playing" : "false"} && Date.now() < end) await new Promise(r => setTimeout(r, 100));
         const m = M.murderMusicHere(); return { witness: S.incidentWitness().witness, playing: m.playing, track: m.track, playlist: m.playlist };`;
@@ -625,7 +630,12 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
         dSetup.running === false && dSetup.tracks.length === 8 && dOpened.opened === "openingRoll" && dOpened.stage === "incident" && dHeld === 1
             && dSetup.tracks.includes(d1Track) && inIt.every(k => d1[k].witness === true && d1[k].playing === true && d1[k].track === d1Track)
             && d1.p3.witness === false && d1.p3.playing === false && d1.p3.track === null,
-        J({ dSetup, dOpened, dHeld, d1 }), { flow: "murder-incident" });
+        /* The readings that decide first, the eight track names last (E37 C5b, 01.11.2026): CI's annotation keeps 300
+           characters of these details, and three red D1s (FG2's quick run; CI runs 41270613334 and 41354325721) were cut
+           inside the track list, so none said which browser did not play: `off` names them. */
+        J({ dHeld, dOpened, off: Object.entries(d1).filter(([k, r]) => (inIt.includes(k)
+            ? !(r.witness === true && r.playing === true && r.track === d1Track) : !(r.witness === false && r.playing === false && r.track === null)))
+            .map(([k]) => k), d1, running: dSetup.running, tracks: dSetup.tracks.length, list: dSetup.tracks }), { flow: "murder-incident" });
 
     phase("D3: what p1's band names during the incident", { flow: "murder-incident" });
     const d3 = await p1.eval(`${DMUSIC} const was = game.settings.get("core", "globalPlaylistVolume");

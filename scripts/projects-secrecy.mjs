@@ -36,6 +36,15 @@
  * a step, and relay-guard.mjs `applyOps`' own write, in one (tests-tier0.mjs R977);
  * E36 fix e1-G2 added `sightChange` and `SIGHT_KEYS`, the step's arithmetic of who
  * sees a project.
+ * WHAT ELSE IS IN THE KEY, AND WHAT IS NOT (E37 C6, 01.11.2026; E37-29, the deferred D100). Daggerheart's own whole
+ * writes on a GM's browser that the module can reach run as steps of `COUNTDOWNS_KEY` since E37 C6: the automation's
+ * static `DhCountdowns.updateCountdowns` (a GM's roll, a combat turn, reroll.mjs `settleDualityReroll`), wrapped once
+ * by projects-ui.mjs `wrapCountdownUpdate` (patches.mjs's row "countdown-update"), and the tray menu's Reveal, Hide
+ * and Delete on a row that is no project (projects-ui.mjs `projectRowMenu`). Outside it still: the tray's -/+ on a row
+ * that is no project, the system's private handler (`editCountdown`), which the module does not wrap - a whole write
+ * that can land between a project's step's read and its write (LIVE-E37-03, audit/AUDIT-1.2.42.md 9.2); a player's
+ * clicks go to the GM's relay, whose write is in a step (relay-guard.mjs `applyOps`). Nothing calls `updateCountdowns`
+ * inside a step of the key: it would wait on itself (tests-tier0.mjs R1201).
  * `liftProjectSecrets` stands last on purpose: R172 reads it by name, a
  * function's cut (`fnSource`) runs on to the next function, and last keeps the
  * cut the text it was before the move. No module state.

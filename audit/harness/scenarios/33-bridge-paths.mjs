@@ -20,6 +20,9 @@
  *      way back refused in the Class Trial with its reason (A16). Since H82 C5 also a drawn roll's dice on its
  *      roller's browser, with 80 ms added each way: started at the GM's message, before its answer, once (A17); and
  *      since H82 C6 on the GM's own screen: started at its throw, before its message's echo, once, the audience told.
+ *      Since E37 C3 also the readiness round before the clock moves: opened and ended by the Assistant GM on the primary,
+ *      and a player's own Done (A18). Since E37 C7 also every road of the Despair pools and the Overflow from the
+ *      Assistant GM, written on the primary (A19).
  *   B  what E31 adds, each written red (`expectedRed`, with what it measured) until the commit that
  *      made it so, and a plain check since: a refusal carries its reason, in the player's own
  *      language; a refused request is not acknowledged; an exception on the GM's side ends as one
@@ -104,7 +107,7 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         { action: "${action}", userId: "${IDS.p2}", requestId: "${requestId}", ...${JSON.stringify(fields)} }, ${toGms}); return true;`);
     const progressOf = id => `return { current: ${projects}.allProjects().find(p => p.id === "${id}")?.current ?? null };`;
     /* A PLAYER'S SABOTAGE NAMES ITS ROLL (E08+E28 C16, 04.10.2026): the GM makes the repair the GMs' record
-       of that roll earned (gm-bridge.mjs `repairOf`). Code that throws a Sabotage of `actorId`'s at `targetId` the GM
+       of that roll earned (bridge-runs-records.mjs `repairOf`). Code that throws a Sabotage of `actorId`'s at `targetId` the GM
        draws, on faces that earn a repair, and leaves the message it wrote in `rollId` - drawn for that project, the one
        its record lets it freeze since fix r2-H2. */
     const sabotageRoll = (actorId, targetId) => `const A = await import("${repoUrl}/scripts/action-rolls.mjs");
@@ -272,6 +275,55 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     check("A7: an Assistant GM's Despair goes to the primary and is written there once",
         a7.after === pool1 + 2 && JSON.stringify(a7.writes) === JSON.stringify(["gm"]) && !a7.logged.length && notFailed(a7answer),
         JSON.stringify(a7));
+
+    /* A19. EVERY ROAD OF THE POOLS AND THE OVERFLOW, BY THE ASSISTANT GM (E37 C7, 02.11.2026; E37-30, the deferred D061).
+       The Assistant, not the primary, sets the GM's pool, fills and empties every pool, grants itself a pool, names it and
+       revokes it, takes a point off the Overflow and checks it, each through the module's own function: each asks the
+       primary (`despair.set`, `despair.all`, `despair.roster`, `overflow.take`, `overflow.check`), is answered with what the
+       primary did, and the pools' settings and the Overflow's stamp are written by the GM alone, with no refusal logged.
+       The check reads a darkening a verdict kept waiting (a Panic of a session that never ran), which it arms for the time
+       of day ahead with no draw; the count is 2 before. Put back after: the pool, the count and the stamp. */
+    phase("an Assistant GM's Despair pools and Overflow", { flow: "despair" });
+    const a19Was = await gm.eval(`const { overflowStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const was = { pool: game.drpg.getDespair(game.user.id), count: (await import("${repoUrl}/scripts/overflow.mjs")).overflowCount(),
+            overflow: foundry.utils.deepClone(game.settings.get("${MOD}", "overflow") ?? {}) };
+        await overflowStore.patch("record", { count: 2 });
+        await game.settings.set("${MOD}", "overflow", { active: { effect: "panic", session: -1, day: 1, timeOfDay: "morning", pending: true } });
+        return was;`, { timeout: 30000 });
+    await settle(800);
+    await clearFailures(gm);
+    written = settingLog.length;
+    const a19Answers = await ag.eval(`const D = await import("${repoUrl}/scripts/despair.mjs"); const O = await import("${repoUrl}/scripts/overflow.mjs");
+        const out = { primary: ${utils}.isPrimaryGm(), max: D.despairMax() };
+        out.set = await D.setDespair("${IDS.gm}", 7);
+        out.fill = (await D.fillAllDespair())?.["${IDS.gm}"] ?? null;
+        out.zero = (await D.zeroAllDespair())?.["${IDS.gm}"] ?? null;
+        out.add = await D.addPool(game.user.id);
+        out.label = await D.setPoolLabel(game.user.id, "E37 Assistant pool");
+        out.remove = await D.removePool(game.user.id);
+        out.take = await O.takeOverflow(1, { reason: "33 A19" });
+        out.check = (await O.checkOverflow({ ahead: true }))?.effect ?? null;
+        return out;`, { timeout: 90000 });
+    await settle(1500);
+    const a19 = { answers: a19Answers, after: await gm.eval(`return { pool: game.drpg.getDespair(game.user.id),
+            extra: game.settings.get("${MOD}", "extraPoolUsers").includes("${IDS.ag}"), name: game.settings.get("${MOD}", "poolNames")["${IDS.ag}"] ?? null,
+            count: (await import("${repoUrl}/scripts/overflow.mjs")).overflowCount(), stamp: game.settings.get("${MOD}", "overflow")?.active ?? null };`),
+        writers: [...new Set(settingLog.slice(written).filter(w => /\.(?:despairPools|poolNames|extraPoolUsers|overflow)$/.test(w.key)).map(w => w.who))],
+        logged: (await Promise.all(["despair.set", "despair.all", "despair.roster", "overflow.take", "overflow.check"].map(a => refusalsLogged(gm, a)))).flat() };
+    check("A19: an Assistant GM's set, fill and empty of the Despair pools, its own pool granted, named and revoked, and a point taken off the Overflow and its check each go to the primary, are answered with what it did, and are written by the GM alone, nothing refused (E37 C7)",
+        a19.answers?.primary === false && a19.answers.set === 7 && a19.answers.fill === a19.answers.max && a19.answers.zero === 0
+            && a19.answers.add === true && a19.answers.label === "E37 Assistant pool" && a19.answers.remove === true
+            && a19.answers.take === 1 && a19.answers.check === "panic"
+            && a19.after.pool === 0 && a19.after.extra === false && a19.after.name === null && a19.after.count === 1
+            && a19.after.stamp?.effect === "panic" && !a19.after.stamp?.pending
+            && JSON.stringify(a19.writers) === JSON.stringify(["gm"]) && !a19.logged.length,
+        JSON.stringify(a19), { flow: "despair" });
+    await gm.eval(`const { overflowStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        await game.drpg.setDespair(game.user.id, ${JSON.stringify(a19Was?.pool ?? 0)});
+        await overflowStore.patch("record", { count: ${JSON.stringify(a19Was?.count ?? 0)} });
+        await game.settings.set("${MOD}", "overflow", ${JSON.stringify(a19Was?.overflow ?? {})});
+        return true;`, { timeout: 30000 });
+    await settle(800);
 
     /* E36 C1 (25.10.2026; E36-03): a project changes in the primary's queue alone (projects.mjs `applyProjectChange`), and
        another GM's change goes there by `project.change`. The Assistant asks +1 on the second project: answered with the
@@ -563,7 +615,7 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         return true;`);
 
     /* A SABOTAGE'S TRACE OF THE SABOTEUR'S OWN TRAP (E09 C5, 08.10.2026; audit S10-17). p2's browser does what
-       action-rolls.mjs `performSabotage` does after its windows: Botan's roll drawn and kept on the GMs' row
+       action-project.mjs `performSabotage` does after its windows: Botan's roll drawn and kept on the GMs' row
        (`remember`, as the action's own roll is), the Sabotage naming it and awaited, then the trace in the shape
        `dropSabotageTrace` sends - asked tied, as it asks for any indirect murder. The GM decides the tie from the
        target its Sabotage noted on that roll's row: tied for the trap Botan is the killer of, not for Aiko's (shared
@@ -925,7 +977,7 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     // zabronione w trial grounds"; Q1: the Class Trial's phase). A broken lockpick on Aiko, the clock in the Class Trial.
     // p1's own road (use-items.mjs `discardBroken`) refuses before its window, says why and asks nothing of the GM; then
     // p1's console forges the discard's trace packet (`remnant.place`, action "discard") past it, as a discard begun
-    // before the trial and landing in it would arrive. The primary refuses it (gm-bridge.mjs `handleRemnant`), told once
+    // before the trial and landing in it would arrive. The primary refuses it (bridge-runs-records.mjs `handleRemnant`), told once
     // with cannotNow and logged; no trace is placed and the item stays. Red at C6's parent: the window asked and the
     // discard carried out on p1's road, and the forged trace placed.
     phase("a discard in the Class Trial", { flow: "trace-remnant" });
@@ -1342,6 +1394,53 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     check("A17: a draw the GM refuses throws nothing on the GM's screen and sends no dice",
         refused17?.gm?.asks === 1 && refused17.gm.shows.length === 0 && refused17.gm.told.length === 0 && refused17.gm.ag.length === 0,
         JSON.stringify(refused17?.gm ?? null), { flow: "gm-rolls-total" });
+
+    /* A18. THE READINESS ROUND, ASKED BY THE ASSISTANT GM AND ANSWERED BY A PLAYER (E37 C3, 01.11.2026; E37-15). The
+       round is the primary's to write: the Assistant opens it (`ready.open`) and ends it (`ready.end`) by asking the
+       primary, and p1 answers Done for itself (`ready.answer`). The players sit still meanwhile (`__dialogAuto` false), so
+       only these three requests write the round. Read: each answer, the record after each step, who wrote the setting,
+       what p1 was told, and the GM's log of refusals. p1's window stays open while it sits still, so the end that stops the
+       round tells it once that the GM is waiting a little longer (`DRPG.Ready.cancelled`) - the first run (01.11.2026)
+       measured that sentence where the check had asked for none. Put back: the round, the clock and the players' dialogs. */
+    phase("the readiness round, by the Assistant GM and a player", { flow: "clock-day" });
+    const a18Auto = {};
+    for (const c of players) a18Auto[c.who] = await c.eval(`const was = globalThis.__dialogAuto; globalThis.__dialogAuto = false; return was ?? null;`);
+    const a18Clock = await gm.eval(`const C = await import("${repoUrl}/scripts/clock.mjs"); const E = await import("${repoUrl}/scripts/eclipse.mjs");
+        const was = foundry.utils.deepClone(C.getClock());
+        if (E.isEclipse()) await E.endEclipse({ advance: false });
+        await C.setClock({ phase: "dailyLife", timeOfDay: "noon", eclipse: false });
+        // Not registered on a tree before C3: read as no round there, so the check says what it measured.
+        if (game.settings.settings.has("${MOD}.readyRound")) await game.settings.set("${MOD}", "readyRound", {});
+        return was;`, { timeout: 60000 });
+    await settle(500);
+    await clearFailures(gm);
+    const a18Round = `const r = game.settings.settings.has("${MOD}.readyRound") ? (game.settings.get("${MOD}", "readyRound") ?? {}) : {}; return { id: r.id ?? null, kind: r.kind ?? null, by: r.by ?? null, answers: r.answers ?? null, ended: r.ended ?? null };`;
+    const a18Written = settingLog.length;
+    const a18n = await noticeCount(p1);
+    const a18Refused = (await refusedSince(p1)).length;
+    const a18Open = await ag.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs"); if (typeof B.requestReadyOpen !== "function") return { ok: false, round: null }; const r = await B.requestReadyOpen({ kind: "next" }); return { ok: r.ok, round: r.value?.round?.id ?? null };`, { timeout: 30000 });
+    await settle(800);
+    const a18AfterOpen = await gm.eval(a18Round);
+    const a18Answer = await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs"); if (typeof B.requestReadyAnswer !== "function") return { ok: false, answer: null }; const r = await B.requestReadyAnswer({ roundId: ${JSON.stringify(a18Open.round)}, ready: true }); return { ok: r.ok, answer: r.value?.answer ?? null };`, { timeout: 30000 });
+    await settle(800);
+    const a18AfterAnswer = await gm.eval(a18Round);
+    const a18End = await ag.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs"); if (typeof B.requestReadyEnd !== "function") return { ok: false, ended: null }; const r = await B.requestReadyEnd({ roundId: ${JSON.stringify(a18Open.round)}, outcome: "stop" }); return { ok: r.ok, ended: r.value?.ended ?? null };`, { timeout: 30000 });
+    await settle(800);
+    const a18 = { open: a18Open, afterOpen: a18AfterOpen, answer: a18Answer, afterAnswer: a18AfterAnswer, end: a18End, afterEnd: await gm.eval(a18Round),
+        writers: [...new Set(settingLog.slice(a18Written).filter(w => /readyRound$/.test(w.key)).map(w => w.who))],
+        said: (await noticesSince(p1, a18n)).map(x => x.msg), refused: (await refusedSince(p1)).length - a18Refused,
+        logged: [...await refusalsLogged(gm, "ready.open"), ...await refusalsLogged(gm, "ready.answer"), ...await refusalsLogged(gm, "ready.end")] };
+    check("A18: the Assistant GM opens the readiness round on the primary, p1's Done is counted for p1, and the Assistant's end is written there - each answered, the setting written by the GM alone, nothing refused, and p1 - shown the round's window - told once that the GM is waiting a little longer (E37 C3)",
+        a18.open.ok === true && Boolean(a18.open.round) && a18.afterOpen.id === a18.open.round && a18.afterOpen.kind === "next" && a18.afterOpen.by === ag.userId
+            && a18.answer.ok === true && a18.answer.answer === "done" && JSON.stringify(a18.afterAnswer.answers) === JSON.stringify({ [p1.userId]: "done" })
+            && a18.end.ok === true && a18.end.ended === "stop" && a18.afterEnd.ended === "stop"
+            && JSON.stringify(a18.writers) === JSON.stringify(["gm"]) && JSON.stringify(a18.said) === JSON.stringify(["The GM is waiting a little longer."]) && a18.refused === 0 && a18.logged.length === 0,
+        JSON.stringify(a18), { flow: "clock-day" });
+    await gm.eval(`if (game.settings.settings.has("${MOD}.readyRound")) await game.settings.set("${MOD}", "readyRound", {});
+        await (await import("${repoUrl}/scripts/clock.mjs")).setClock(${JSON.stringify(a18Clock)});
+        return true;`, { timeout: 60000 });
+    for (const c of players) await c.eval(`const was = ${JSON.stringify(a18Auto[c.who])}; if (was === null) delete globalThis.__dialogAuto; else globalThis.__dialogAuto = was; return true;`);
+    await settle(500);
 
     /* ------------------------------------------- A. the Assistant as the primary */
 

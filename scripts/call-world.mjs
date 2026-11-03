@@ -33,6 +33,8 @@ import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { announce, log, warn, error, plural, isPrimaryGm, forcedDeletion } from "./utils.mjs";
 import { roomRegions, homeScene, sceneOfRoom } from "./rooms.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 
 /* ==========================================================================
  * ROOM EFFECTS AND RESTRICTIONS
@@ -140,14 +142,42 @@ export async function restrict(actor, patch) {
  * Called when a time of day ends - every restriction lasts one. That is the
  * Eclipse opening (CALL-09), or the clock moving on a table that uses no
  * Eclipse; a rewind and a season reset call it too.
+ *
+ * NOTHING TO END, NOTHING WRITTEN (E37 C6, 01.11.2026; E37 STATUS Open 22). With no room sealed and no restriction
+ * standing it wrote both settings empty again and announced them (`SYNC.restrictions`: every browser's sheets and HUD
+ * once more), so a move of the time of day drew the HUD and the sheets twice on every browser - 2 and 2 in scenario
+ * 81 part B's forward move at 15f46794. It answers false then, and writes and tells nothing.
  */
 export async function clearSeals() {
     if (!game.user.isGM) return null;
+    if (!sealedRooms().length && !Object.keys(restrictions()).length) return false;
     await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, []);
     await game.settings.set(MODULE_ID, SETTINGS.restrictions, {});
     await announceRestrictions();
     return true;
 }
+
+/**
+ * The season reset's seals group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): the sealed rooms and the
+ * restrictions, and each student's Call armed for a roll - the board's, as a seal is (D12), unset before the clock's
+ * step so nothing armed is spent on a roll of the new season (season-wipe.mjs `wipeStudent`'s `seals` part).
+ */
+export async function clearSeasonSeals(ctx) {
+    await clearSeals();
+    await ctx.everyStudent("seals");
+}
+
+/**
+ * The season reset's assembly group (E42 C3). A standing assembly is stamped with the time of day and session it was
+ * called in; the new season's first advance would otherwise find the stamp stale and teleport the whole new cast into
+ * last season's room. Written directly - `cancelGather` posts a card and a sound into a chat that is being deleted.
+ */
+export async function clearSeasonAssembly() {
+    await game.settings.set(MODULE_ID, SETTINGS.pendingGather, {});
+}
+
+registerSeasonState({ group: "seals", clear: clearSeasonSeals, settings: [SETTINGS.sealedRooms, SETTINGS.restrictions] });
+registerSeasonState({ group: "assembly", clear: clearSeasonAssembly, settings: [SETTINGS.pendingGather] });
 
 /**
  * The seals and restrictions as a boundary found them, written back (E17 C7, 26.10.2026; audit S10-42): clock.mjs
@@ -507,7 +537,7 @@ export async function gatherEveryone(room, onScene = null, { held = null, box = 
 
 /**
  * Tokens of one scene into one of its rooms, for the season reset's choice of where the cast goes
- * (season-setup.mjs `placeCast`, E11 C10b, 1.2.73): the region's own teleport, as the gather above,
+ * (season-wipe.mjs `placeCast`, E11 C10b, 1.2.73): the region's own teleport, as the gather above,
  * and `fallbackGather` when the region cannot - handed the room's box as movement.mjs `boundsOf`
  * reads it. The gather hands it none and the fallback reads `region.object?.bounds ?? region.bounds`:
  * a region on a scene nobody's canvas draws has no placeable, and where the document has no `bounds`

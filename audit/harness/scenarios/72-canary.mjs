@@ -464,7 +464,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
        roll is thrown, and the GM rules the blow as before. Until 1.2.64 the bookmark was Chie's
        actor flag, which this phase's world scan found on p1 and p2 (measured on the C6 tree with
        this roll); E05 C7 made it p3's own client setting, and E08+E28 C4a the GMs' row, which
-       p3's browser reports the roll to (action-rolls.mjs `tellGmsOfRoll`). Since E08+E28 fix
+       p3's browser reports the roll to (action-pipeline.mjs `tellGmsOfRoll`). Since E08+E28 fix
        r2-H1 the GM draws a crisis roll only at its character's turn, so the turn is passed to
        Chie, the killer, first: the incident opens on the victim's. */
     const chieTurn = await gm.eval(`for (let i = 0; i < 4 && game.drpg.murderState()?.turnSide !== "killer"; i++) await game.drpg.passTurn();

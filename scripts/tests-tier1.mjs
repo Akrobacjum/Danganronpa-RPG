@@ -22,7 +22,7 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText, expectedRed
+    worldDump, dumpDiff, lfText, expectedRed, stripStrings, bridgeFn, bridgeText, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, musicText, sfxText, voteText
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -328,7 +328,7 @@ const INVARIANTS = [
          * 20/20, zero cards, no effect; and a boundary crossed with the stamp
          * pre-armed left the counter at 20 and posted nothing.
          *
-         * TWO. `wipeSeason` emptied every Despair pool and left the spill from
+         * TWO. The reset (`wipeSeason`) emptied every Despair pool and left the spill from
          * them standing, so a new season opened carrying the old one's pressure
          * AND its armed stamp - dated to a time of day the new clock reaches
          * again on day one.
@@ -356,9 +356,10 @@ const INVARIANTS = [
             "the counter arms the hour already in progress, where Shift, Panic "
             + "and Darkness have nothing left to reduce");
 
-        // TWO: the season reset clears it, through the one definition of empty.
-        const wipe = bodyOf(season, "async function wipeSeason");
-        ok(wipe.length > 500, "wipeSeason is gone");
+        // TWO: the season reset clears it, through the one definition of empty - the overflow entry's clear since
+        // E42 C3 (the registry's, in overflow.mjs), which the reset walks (R50, R1254).
+        const { seasonStateFor } = await import("./season-reset.mjs");
+        const wipe = fnSource(overflow, seasonStateFor("overflow")?.clear?.name ?? "clearSeasonOverflow");
         ok(/resetOverflow\(/.test(wipe),
             "a season reset empties the Despair pools and leaves their overflow standing");
 
@@ -395,7 +396,8 @@ const INVARIANTS = [
          * TableResult, and what regresses is three lines of wiring.
          */
         const sources = new Map(await otherSources());
-        const tables = stripComments(sources.get("tables.mjs") ?? "");
+        // E41 C8 (1.2.97): tables.mjs's code left it for tables-pools.mjs and tables-editor.mjs; the item tables' family's text (the kit's `tablesText`).
+        const tables = stripComments(tablesText(sources));
         ok(tables.length > 1000, "tables.mjs did not load");
 
         const edit = bodyOf(tables, "async function editResult", { until: "async function dropResult" });
@@ -477,7 +479,8 @@ const INVARIANTS = [
          */
         const sources = new Map(await otherSources());
         const config = stripComments(sources.get("config.mjs") ?? "");
-        const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
+        // E41 C3 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read.
+        const rolls = stripComments(actionText(sources));
         const items = stripComments(sources.get("use-items.mjs") ?? "");
         ok(config.length > 1000 && rolls.length > 1000, "the sources did not load");
 
@@ -501,13 +504,15 @@ const INVARIANTS = [
         ok(/easedBy\(def\.thresholds,\s*relief\)/.test(project),
             "project work stopped easing its thresholds with the readied Tool");
 
-        // Sabotage: the same, and its repair scale reads the 18 band a second
-        // time by hand, so that copy has to move with it.
+        // Sabotage: the same, and its repair scale reads the complex band a
+        // second time, so that reading has to move with it. Since E41 C1b the
+        // band is the table's top row read off config (`complex`, R1232), not a
+        // literal 18; the reading is the same `- relief`.
         const sabotage = between("async function performSabotage", "async function performTamper");
         ok(/easedBy\(def\.thresholds,\s*relief\)/.test(sabotage),
             "sabotage stopped easing its thresholds with the readied Tool");
-        ok(/18\s*-\s*relief/.test(sabotage),
-            "the sabotage repair scale still reads a bare 18 - a good tool would buy the "
+        ok(/\bcomplex\s*=\s*Math\.max\(\.\.\.ACTIONS\.sabotage\.thresholds\.map\(/.test(sabotage) && /\bcomplex\s*-\s*relief/.test(sabotage),
+            "the sabotage repair scale no longer lowers the table's complex band by the relief - a good tool would buy the "
             + "band without buying the repair it names");
     }],
 
@@ -524,30 +529,30 @@ const INVARIANTS = [
          * touching the counter are the clock moving past the stamp and the
          * Eclipse flag flipping.
          *
-         * Read from source. Driving it needs a boundary on a live world, and
-         * what regresses here is one line in a switch: it is deleted by anyone
-         * tidying "the pools did not change, why redraw the pools".
+         * Read off the bus's table (E37 C5: sync.mjs `KIND_REFRESH`, a row of
+         * names a kind, where this read a `switch`'s cases until then; red at
+         * 2b2707ec, which has no table). Driving it needs a boundary on a live
+         * world, and what regresses here is one name in a row: it is deleted by
+         * anyone tidying "the pools did not change, why redraw the pools".
          */
-        const sources = new Map(await otherSources());
-        const sync = stripComments(sources.get("sync.mjs") ?? "");
-        ok(sync.length > 1000, "sync.mjs did not load");
-
-        // Cut with the kit (E30), which asks for each case with `must`, not `ok`.
-        const caseOf = (name, next) => bodyOf(sync, `case SYNC.${name}:`, { until: `case SYNC.${next}:` });
+        const S = await import("./sync.mjs");
+        must(S.KIND_REFRESH && S.REFRESHES, "sync.mjs has no KIND_REFRESH or REFRESHES - the rows this test reads");
+        must(/renderDespairBar/.test(String(S.REFRESHES.bar ?? "")), "REFRESHES.bar no longer draws the Despair caption (renderDespairBar)");
+        const draws = kind => (S.KIND_REFRESH[kind] ?? []).some(entry => entry === "bar");
 
         // The stamp stands still and the clock walks out from under it.
-        ok(/renderDespairBar/.test(caseOf("clock", "eclipse")),
+        ok(draws(S.SYNC.clock),
             "a time of day ending no longer redraws the Despair caption - "
             + "\"Darkened\" outlives the darkening, which is how this was reported");
 
-        // And the branch that reads `clock.eclipse` rather than the time of day.
-        ok(/renderDespairBar/.test(caseOf("eclipse", "visibility")),
+        // And the row that reads `clock.eclipse` rather than the time of day.
+        ok(draws(S.SYNC.eclipse),
             "an Eclipse starting or ending no longer redraws the Despair caption, "
             + "and overflowEffect() answers differently on both sides of it");
 
         // The road that was always there, so a tidy-up cannot move the redraw
         // out of the other two by putting it all here.
-        ok(/renderDespairBar/.test(caseOf("overflow", "searchTokens")),
+        ok(draws(S.SYNC.overflow),
             "the counter changing no longer redraws its own caption");
     }],
 
@@ -1012,7 +1017,7 @@ const INVARIANTS = [
          * Cheap to write down and it covers the whole module, not this stage.
          */
         const guilty = [];
-        for (const file of ["traps", "projects", "projects-secrecy", "gm-panel", "sheet", "murder", "incident-store", "murder-rules", "murder-ui"]) {
+        for (const file of ["traps", "projects", "projects-secrecy", "gm-panel", "gm-students", "gm-campaign", "sheet", "murder", "incident-store", "murder-rules", "murder-ui"]) {
             const src = await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(lfText);
             for (const m of src.matchAll(/game\.i18n\.localize\([^)]*\)\s*\|\|/g)) {
                 guilty.push(`${file}.mjs :: ${m[0].slice(0, 60)}`);
@@ -1255,9 +1260,11 @@ const INVARIANTS = [
         ]);
 
         const files = [
-            "music", "investigation", "trial-floor-ui", "projects-ui", "vault",
-            "tables", "season-setup", "mastermind", "rules", "monocub",
-            "gm-team-dialog", "gm-items", "gm-panel", "murder", "murder-ui", "voice", "trial"
+            // E41 C6 and C8 (1.2.97): Room Setup and the stashes' inspector left vault.mjs, the item tables window
+            // tables.mjs; each is read in the file it stands in. E41 C9a: the Sound window left music.mjs.
+            "sound-panel", "investigation", "trial-floor-ui", "projects-ui", "room-setup", "stash-reach",
+            "tables-editor", "season-setup", "season-wipe", "mastermind", "rules", "monocub",
+            "gm-team-dialog", "gm-items", "gm-panel", "gm-students", "gm-campaign", "murder", "murder-ui", "voice", "trial"
         ];
 
         const missing = [];
@@ -1560,8 +1567,9 @@ const INVARIANTS = [
         const sources = new Map(await otherSources());
         const effects = stripComments(sources.get("call-effects.mjs") ?? "");
         const dialog = stripComments(sources.get("roll-dialog.mjs") ?? "");
-        const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
-        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        // E41 C3 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read.
+        const rolls = stripComments(actionText(sources));
+        const bridge = bridgeText(sources);
 
         ok(/export function pendingCalls\(/.test(effects), "the armed Calls are a single slot again");
         ok(/Array\.isArray\(stored\)/.test(effects),
@@ -1900,7 +1908,8 @@ const INVARIANTS = [
         // E08+E28 fix r1-G4, its Reroll's lines (built on the roller's browser, reroll.mjs
         // `listenLines`), through the one rule (`listenLabels`), on the scene the character
         // stands on (E12 fix r1-G4; what a player's browser answers is scenario 66 K1).
-        const listen = src("action-rolls.mjs");
+        // E41 C4 (1.2.97): `performListen` moved into action-listen.mjs.
+        const listen = src("action-listen.mjs");
         const body = bodyOf(listen, "async function performListen", { until: "\n}" });
         const rerolled = bodyOf(src("reroll.mjs"), "async function listenLines", { until: "\n}" });
         const doors = /listenLabels\(neighbours, roomsKnownToMe\(scene\)\)/;
@@ -1920,7 +1929,8 @@ const INVARIANTS = [
         equal(preservedFlags(fakeKey).bedroomKey, "Test Room", "a key loses its room when it changes hands");
 
         // A removed stash is forgotten by whoever had found it.
-        const vault = src("vault.mjs");
+        // E41 C6 (1.2.97): vault.mjs holds no code; the stash's family's text (the kit's `vaultText`), where its alone was read.
+        const vault = stripComments(vaultText(sources));
         const set = bodyOf(vault, "export async function setStash", { until: "\n}" });
         ok(set.indexOf("forgetStashFound(") > 0 && set.indexOf("forgetStashFound(") < set.lastIndexOf("return list"),
             "setStash forgets the finders after it has already returned");
@@ -2022,7 +2032,8 @@ const INVARIANTS = [
             try { await opening; } catch { /* closed rather than answered */ }
             await settle();
         }
-        const heading = src("tables.mjs");
+        // E41 C8 (1.2.97): tables.mjs's code left it for tables-pools.mjs and tables-editor.mjs; the item tables' family's text (the kit's `tablesText`).
+        const heading = stripComments(tablesText(sources));
         const body = bodyOf(heading, "function wirePaneHeading(", { until: "\n}" });
         ok(/const renameButton = pane\.querySelector/.test(body) && /const deleteButton = pane\.querySelector/.test(body),
             "the table heading's buttons are used where nothing looks them up");
@@ -2088,7 +2099,8 @@ const INVARIANTS = [
         // The debate's clock is the trial card's line, not the campaign clock's.
         ok(/drpg-event-clock/.test(src("events.mjs")) && /paintTrialClock/.test(src("events.mjs")),
             "the trial card lost its countdown");
-        ok(!/paintFloorClock|is-trial-clock/.test(src("hud.mjs")),
+        // E41 C7b (1.2.97): the stopwatch and the clock it shows left hud.mjs; the HUD's family's text (the kit's `hudText`).
+        ok(!/paintFloorClock|is-trial-clock/.test(stripComments(hudText(sources))),
             "the campaign clock is drawing the debate's countdown again");
 
         // Who knows a project is a matrix, one column per player, in counting order.
@@ -4161,10 +4173,11 @@ const INVARIANTS = [
          * E11 C9, 10.10.2026; audit S06-49. The "This goes" list above the ticks was twelve
          * hand-written lines that went whatever was ticked - one of them five groups at once,
          * half the groups on none - so a GM who unticked the incident still read "the incident"
-         * among what goes. `resetGoesHtml(plan, tally)` draws it from RESET_GROUPS: one row per
+         * among what goes. `resetGoesHtml(plan, tallies)` draws it from RESET_GROUPS: one row per
          * group, `data-group` its key, a group the plan keeps struck through and
          * `aria-disabled`, the projects row counting the project tokens on the maps. Pure:
-         * a plan and a made-up tally in, markup out; nothing in the world is read or written.
+         * a plan and made-up tallies in, markup out; nothing in the world is read or written. Since
+         * E42 C3 the tallies are each entry's lines, by group (`resetTallies`; R1255).
          */
         const S = await import("./season-setup.mjs");
         ok(typeof S.resetGoesHtml === "function", "season-setup.mjs draws no \"This goes\" list from the ticks (resetGoesHtml)");
@@ -4172,8 +4185,11 @@ const INVARIANTS = [
         const { plural } = await import("./utils.mjs");
         const keys = RESET_GROUPS.map(group => group.key);
         const ticked = keys.filter(key => !["incident", "advancement", "chatRest"].includes(key));
-        const tally = { projects: 2, projectTokens: 4, remnants: 3, bullets: 1, dead: 1, items: 5, advances: 2,
-            preNotes: 1, cards: 7, chat: 9, despair: 1 };
+        const tally = { projects: [plural("DRPG.Season.resetProjects", { n: 2 }), plural("DRPG.Season.resetProjectTokens", { n: 4 })],
+            remnants: [plural("DRPG.Season.resetRemnants", { n: 3 })], bullets: [plural("DRPG.Season.resetBullets", { n: 1 })],
+            deaths: [plural("DRPG.Season.resetDead", { n: 1 })], items: [plural("DRPG.Season.resetItems", { n: 5 })],
+            advancement: [plural("DRPG.Season.resetAdvances", { n: 2 })], preNotes: [plural("DRPG.Season.resetPreNotes", { n: 1 })],
+            cards: [plural("DRPG.Season.resetCards", { n: 7 })] };
         const host = document.createElement("div");
         host.innerHTML = S.resetGoesHtml(planFrom(ticked), tally);
         const rows = [...host.querySelectorAll("li[data-group]")];
@@ -4227,16 +4243,21 @@ const INVARIANTS = [
         const counted = P.passageResetTally({ stores, scenes });
         equal(JSON.stringify(counted), JSON.stringify({ built: 1, breaches: 1, knowers: 2 }),
             "[the passages projects made, the breaches standing, the students who know a passage] - a breach's row read as a passage, a touch or door row or a stranger as a knower, or a student counted twice");
-        // The window's row: the three counts under the passages group, in the reset's own words.
+        // The window's row: the three counts under the passages group, in the reset's own words - the passages entry's
+        // tally over the same stores and scenes (E42 C3: `tallySeasonPassages`, the lines the window draws).
         const keys = RESET_GROUPS.map(group => group.key);
         const host = document.createElement("div");
-        host.innerHTML = S.resetGoesHtml(planFrom(keys), { passagesBuilt: 3, breaches: 1, passageKnowers: 4 });
+        const lines = [plural("DRPG.Season.resetPassageKnowers", { n: 2 }), plural("DRPG.Season.resetPassagesBuilt", { n: 1 }), plural("DRPG.Season.resetBreaches", { n: 1 })];
+        equal(JSON.stringify(P.tallySeasonPassages?.({ stores, scenes }) ?? null), JSON.stringify(lines),
+            "the passages entry's tally does not say the three counts in the reset's own words (knowers, built, breaches)");
+        host.innerHTML = S.resetGoesHtml(planFrom(keys), { passages: lines });
         const row = host.querySelector('li[data-group="passages"]')?.textContent ?? "";
-        const lines = [plural("DRPG.Season.resetPassagesBuilt", { n: 3 }), plural("DRPG.Season.resetBreaches", { n: 1 }), plural("DRPG.Season.resetPassageKnowers", { n: 4 })];
         equal(JSON.stringify(lines.map(line => row.includes(line))), "[true,true,true]", `the passages row does not count what it takes: "${row.trim()}"`);
-        // The window's tally reads this count: the source of season-setup.mjs's `resetTally`, comments blanked.
-        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/season-setup.mjs`).then(lfText));
-        ok(/\bpassageResetTally\(/.test(fnSource(src, "resetTally")), "season-setup.mjs `resetTally` does not ask passageResetTally - the window counts nothing of the passages");
+        // The window's tally is the registry's passages entry, and it reads this count (passages-gm.mjs, comments blanked).
+        const { seasonStateFor } = await import("./season-reset.mjs");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/passages-gm.mjs`).then(lfText));
+        ok(seasonStateFor("passages")?.tally === P.tallySeasonPassages && /\bpassageResetTally\(/.test(fnSource(src, "tallySeasonPassages")),
+            "the passages entry's tally is not passages-gm.mjs `tallySeasonPassages` asking passageResetTally - the window counts nothing of the passages");
     }],
 
     ["R162 - the runner judges before it answers, answers once, and tells an exception as failed", async () => {
@@ -5256,7 +5277,8 @@ const INVARIANTS = [
         const sources = new Map(await otherSources());
         const found = [];
         for (const [file, fn, own] of SENDERS) {
-            const src = stripComments(sources.get(file) ?? "");
+            // E41 C2b: a row of gm-bridge.mjs is read in the bridge's family - the sender and its calls.
+            const src = file === "gm-bridge.mjs" ? bridgeText(sources) : stripComments(sources.get(file) ?? "");
             const body = fnSource(src, fn);
             if (!/\bemit\([^;]*\bstamps?\b/.test(body)) found.push(`${file} ${fn} emits no stamp`);
             const calls = [...src.matchAll(new RegExp(`\\b${fn}\\(([^;]*)\\);`, "g"))].filter(m => !/^\s*function\b/.test(src.slice(Math.max(0, m.index - 9), m.index + 1)));
@@ -5493,13 +5515,13 @@ const INVARIANTS = [
         const src = file => stripComments(sources.get(file) ?? "");
         const found = [];
         for (const [file, fn] of [["mastermind.mjs", "sendDoorFlag"], ["incident-store.mjs", "sendCast"], ["gm-bridge.mjs", "sendOffersTo"], ["fog.mjs", "sendStoreTo"]]) {
-            const body = fnSource(src(file), fn);
+            const body = file === "gm-bridge.mjs" ? bridgeFn(sources, fn) : fnSource(src(file), fn);
             const asked = body.indexOf("gmStoresQuiet()"), sent = body.search(/\bemit\(/);
             if (asked < 0 || sent < asked) found.push(`${file} ${fn} sends without asking whether the suite holds the stores`);
         }
         for (const [file, fn, reads] of [["mastermind.mjs", "registerMastermind", "const mine = readStore();"], ["incident-store.mjs", "registerIncidentCastSync", "const cast = readCast();"],
             ["fog.mjs", "registerLedgerRoad", "sendStoreTo(sender);"], ["gm-bridge.mjs", "handleAdvancementAsk", "sendOffersTo(sender.id)"]]) {
-            const body = fnSource(src(file), fn);
+            const body = file === "gm-bridge.mjs" ? bridgeFn(sources, fn) : fnSource(src(file), fn);
             const waited = body.indexOf("whenGmStoresAudible()"), read = body.indexOf(reads);
             if (waited < 0 || read < waited) found.push(`${file} ${fn} answers a player's request before the suite lets the stores go`);
         }
@@ -5990,6 +6012,13 @@ const INVARIANTS = [
             ["murderState: only active, stage",
                 s => { s.settings.murderState = { active: true, stage: "incident", turn: 0 }; },
                 h => h.kind === "only" && h.doc === "setting" && h.id === "murderState" && h.path === "turn"],
+            // E42 fix FG4 (the end review's S-M4): E42's two records hold their own keys alone - a field a later commit adds is found.
+            ["chapterEnd: only stage, by, at, opened, choices, ending, done, failed, notRun, droppedBy, droppedAt",
+                s => { s.settings.chapterEnd = { stage: "done", by: "R190GAMEMASTER001", memo: "R190" }; },
+                h => h.kind === "only" && h.doc === "setting" && h.id === "chapterEnd" && h.path === "memo"],
+            ["seasonReset: only stage, by, at, groups, done, failed, notRun, season, chapter, session, day, timeOfDay",
+                s => { s.settings.seasonReset = { stage: "done", season: 2, chapter: 1, session: 1, day: 1, timeOfDay: "morning", memo: "R190" }; },
+                h => h.kind === "only" && h.doc === "setting" && h.id === "seasonReset" && h.path === "memo"],
             // E17 fix ci-2: the clock keeps no boundary's take-back - its snapshot named every character by id.
             ["clock.lastAdvance",
                 s => { s.settings.clock.lastAdvance = { for: "[1,1,1,1,\"noon\"]", at: 1, snapshot: { actions: { R190BYSTANDER001: { value: 1 } } } }; },
@@ -6183,10 +6212,14 @@ const INVARIANTS = [
         // The Final Trial's verdict is not driven here or in tier 2 (a Mastermind, a public banner,
         // the pick cleared): its call is read. Since E70 C4 the Mastermind dies when the trial ends, not in the
         // verdict, so the batch leaves out a Mastermind it sentenced, whose kill drops their row (R1033).
-        const finalVerdict = bodyOf(stripComments(new Map(await otherSources()).get("mastermind.mjs") ?? ""), "export async function applyFinalVerdict");
-        const sentence = finalVerdict.indexOf("finalSentenced: [mastermind.id]"),
-            batch = finalVerdict.indexOf("runAdvancementBatch(livingStudentsForGm().filter(actor => !(executed && actor.id === mastermind.id)), null)");
-        ok(sentence > 0 && batch > sentence, "the Final Trial's verdict does not hand out what waited for the class (Q7), or hands it to the Mastermind it sentenced");
+        // E41 C10b (1.2.97): the Final Trial's verdict is verdict.mjs's. E42 C1c (1.2.97): its sentence and its batch are steps
+        // (`finalVerdictSentence`, `finalVerdictLevelUps`), the sentence's first in `FINAL_VERDICT_STEPS`.
+        const verdictCode = stripComments(new Map(await otherSources()).get("verdict.mjs") ?? "");
+        const table = bodyOf(verdictCode, "const FINAL_VERDICT_STEPS = ", { until: ";" });
+        const sentence = fnSource(verdictCode, "finalVerdictSentence").indexOf("finalSentenced: [mastermind.id]"),
+            batch = fnSource(verdictCode, "finalVerdictLevelUps").indexOf("promptAdvancements(livingStudentsForGm().filter(actor => !(executed && actor.id === mastermind?.id)), null,");
+        ok(sentence > 0 && batch > 0 && table.indexOf('"finalLevelUps"') > table.indexOf('"finalSentence"') && table.indexOf('"finalSentence"') > 0,
+            "the Final Trial's verdict does not hand out what waited for the class (Q7), or hands it to the Mastermind it sentenced");
         equal(stableJson([deferredOfferStore.spec?.resetGroup, deferredOfferStore.spec?.backup, deferredOfferStore.spec?.sync]),
             stableJson(["advancement", true, true]), "the waiting Level Ups are not cut by the reset's advancement group, backed up and synced");
     }],
@@ -6368,7 +6401,8 @@ const INVARIANTS = [
         ]), "a closed incident's writes to the register do not name its victim on a new row, add it to a killer's row, "
             + "or leave a row from before 1.2.64 and a victim already named alone");
 
-        const vote = stripComments(new Map(await otherSources()).get("vote.mjs") ?? "");
+        // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; the vote's family's text (the kit's `voteText`).
+        const vote = stripComments(voteText(await otherSources()));
         ok(!/\bblackened(Ids|Actors)\(/.test(vote) && /\btrialBlackenedIds\(\)/.test(vote) && /\btrialBlackenedActors\(\)/.test(vote),
             "vote.mjs reads the register whole, or the ballot and the verdict no longer ask the trial's list");
     }],
@@ -6449,7 +6483,8 @@ const INVARIANTS = [
             ["overflow.mjs", "resetOverflow", "await overflowStore.whenHydrated();", "overflowStore.patch("],
             // E10 C1: the vote opens on the primary GM, in `runVoteOp` (`openVote` asks it).
             ["vote.mjs", "runVoteOp", "await whenTrialReadable();", "trialBlackenedIds("],
-            ["vote.mjs", "openVerdictDialog", "await whenTrialReadable();", "trialBlackenedActors("]
+            // E41 C10a (1.2.97): the verdict's window is verdict.mjs's.
+            ["verdict.mjs", "openVerdictDialog", "await whenTrialReadable();", "trialBlackenedActors("]
         ];
         const early = WAITS.filter(([file, name, wait, read]) => {
             const fn = fnSource(src(file), name);
@@ -6873,7 +6908,8 @@ const INVARIANTS = [
             "a refusal after the clock did not go to `lateRefused` with its code (an unknown one as `refused`), or a request without one heard it (the clock's answer, heard, said)");
 
         const sources = new Map(await otherSources());
-        const body = (file, fn) => fnSource(stripComments(sources.get(file) ?? ""), fn);
+        // E41 C2b: gm-bridge.mjs's functions are cut where the bridge's family holds them.
+        const body = (file, fn) => file === "gm-bridge.mjs" ? bridgeFn(sources, fn) : fnSource(stripComments(sources.get(file) ?? ""), fn);
         const ask = body("gm-bridge.mjs", "requestReroll"), caller = body("calls.mjs", "askReroll"), pass = body("reroll.mjs", "recoverRerollJournal");
         equal(JSON.stringify([/quiet:\s*true/.test(ask), /\blate\b/.test(ask), /\blateRefused\b/.test(ask), /\blateMs:/.test(ask),
             /DRPG\.Reroll\.stillMaking/.test(caller) && /"noAnswer"/.test(caller), /isPrimaryGm\(\{\s*leaving:\s*gone\s*\}\)/.test(pass)]),
@@ -6989,7 +7025,7 @@ const INVARIANTS = [
         // E80 fix r1-G4 (the review's goal-P2-02): a Frisk's four requests, whose asks the primary alone holds (R621).
         const named = [["gm-bridge.mjs", "requestReroll"], ["roll-draw.mjs", "askToDecide"], ["gm-bridge.mjs", "requestFriskUnseen"],
             ["gm-bridge.mjs", "requestFriskAsk"], ["gm-bridge.mjs", "requestFriskAnswer"], ["gm-bridge.mjs", "requestFriskFollow"]]
-            .filter(([file, fn]) => !/\bonPrimary:\s*true\b/.test(fnSource(stripComments(sources.get(file) ?? ""), fn)));
+            .filter(([file, fn]) => !/\bonPrimary:\s*true\b/.test(file === "gm-bridge.mjs" ? bridgeFn(sources, fn) : fnSource(stripComments(sources.get(file) ?? ""), fn)));
         ok(!named.length, `these are decided on whichever GM asks, not on the primary: ${named.map(([f, fn]) => `${f} ${fn}`).join(", ")}`);
         const feeAsk = topLevelFunction(stripComments(sources.get("investigation.mjs") ?? ""), "askToChargeForUnfoundKeys") ?? "";
         const opening = fnSource(stripComments(sources.get("clock.mjs") ?? ""), "reconcilePhase");
@@ -7344,8 +7380,8 @@ const INVARIANTS = [
         const { RESET_GROUPS } = await import("./season-exceptions.mjs");
         const wrong = [];
         if (RESET_GROUPS.some(group => group.key === "sheetNotes")) wrong.push("the window still offers the cast's sheet notes");
-        const setup = stripComments(new Map(await otherSources()).get("season-setup.mjs") ?? "");
-        if (setup.length < 1000) wrong.push("season-setup.mjs did not load");
+        const setup = stripComments(new Map(await otherSources()).get("season-wipe.mjs") ?? "");
+        if (setup.length < 1000) wrong.push("season-wipe.mjs did not load");
         if (/system\.notes|biography\.notes/.test(setup)) wrong.push("the reset still clears a notes field a Daggerheart character does not have");
         const betrayal = { en: /betray/i, pl: /zdrad/i };
         for (const lang of ["en", "pl"]) {
@@ -7626,8 +7662,9 @@ const INVARIANTS = [
         ok(typeof R.schoolScene === "function", "rooms.mjs has no `schoolScene` - the school is still a guess");
         if (typeof R.schoolScene !== "function") return;
         const sources = await moduleSources();
-        must(sources.get("rooms.mjs")?.length && sources.get("vault.mjs")?.length, "rooms.mjs or vault.mjs is not among the module's sources - this would measure nothing");
-        const rooms = stripComments(sources.get("rooms.mjs")), vault = stripComments(sources.get("vault.mjs"));
+        must(sources.get("rooms.mjs")?.length, "rooms.mjs is not among the module's sources - this would measure nothing");
+        // E41 C6 (1.2.97): vault.mjs holds no code; the stash's family's text (the kit's `vaultText`, which refuses a file not served).
+        const rooms = stripComments(sources.get("rooms.mjs")), vault = stripComments(vaultText(sources));
         const home = fnSource(rooms, "homeScene").split("\n").slice(1, 3).map(line => line.trim());
         const open = fnSource(vault, "openRoomSetupDialog");
         const [camera, swap, read] = ["let scene = workingScene();", "if (isTrialScene(scene)) scene = homeScene();", "namedByName(scene)"].map(text => open.indexOf(text));
@@ -8084,7 +8121,8 @@ const INVARIANTS = [
 
         const files = new Map(await otherSources());
         must(["trial-floor-ui.mjs", "gm-panel.mjs", "trial-scene.mjs"].every(file => files.has(file)), "the files the window and the doors live in are not served - this would measure nothing");
-        const ui = stripComments(files.get("trial-floor-ui.mjs")), panel = stripComments(files.get("gm-panel.mjs"));
+        // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
+        const ui = stripComments(files.get("trial-floor-ui.mjs")), panel = stripComments(panelText(files));
         const start = fnSource(ui, "startClassTrial"), edit = fnSource(panel, "openClockDialog");
         const at = text => start.indexOf(text);
         equal(JSON.stringify([en.includes("the dead listen but do not speak in the trial"), pl.includes("umarli słuchają, ale nie mówią w rozprawie"),
@@ -8114,7 +8152,7 @@ const INVARIANTS = [
          * critical; sheet.mjs `wearMarkup` for a tier 0, 1 and 3 Tool, a tier 0 Murder Weapon and Cleaning Tool and a
          * tier 0 usable (no track, and no "Single use" either: it is not readied for a roll). Then, in the source with
          * comments blanked: `breakOnDespair` asks `rollSpends` before it wears; the five roads that wear a tool after
-         * their dice still call it, as a statement of its own (action-rolls.mjs `workOnProject`, `performSabotage`; cleanup.mjs `attemptCleanup`,
+         * their dice still call it, as a statement of its own (action-project.mjs `workOnProject`, `performSabotage`; cleanup.mjs `attemptCleanup`,
          * `attemptStageSix`; murder-rules.mjs `wearSwing`); and creative use (`useItem`, `useCreatively`) reaches no
          * wear. The tier-2 tests "a tier-0 tool is spent by any roll it was used in and a tier-1 tool only by a
          * Despair" and "a tier-0 knife swung on a hit with Hope is spent and a Reroll gives it back for the replay
@@ -8144,7 +8182,8 @@ const INVARIANTS = [
             "[pips and \"Single use\" for a tier 0, 1 and 3 Tool, a tier 0 Murder Weapon, Cleaning Tool and usable]");
 
         const files = new Map(await otherSources());
-        must(["use-items.mjs", "action-rolls.mjs", "cleanup.mjs", "murder-rules.mjs"].every(file => files.has(file)), "the files the roads live in are not served - this would measure nothing");
+        // E41 C4 (1.2.97): `workOnProject` and `performSabotage` moved into action-project.mjs.
+        must(["use-items.mjs", "action-project.mjs", "cleanup.mjs", "murder-rules.mjs"].every(file => files.has(file)), "the files the roads live in are not served - this would measure nothing");
         const src = file => stripComments(files.get(file));
         // A statement of its own: a road that asked a Fear of its own first (`if (roll.withFear) await ...`) would
         // spend a tier 0 tool on a Despair alone again, and still "call" it.
@@ -8152,7 +8191,7 @@ const INVARIANTS = [
         const wears = /\b(?:breakOnDespair|rollSpends|wearItem|breakItem)\(/;
         const breaks = fnSource(src("use-items.mjs"), "breakOnDespair");
         equal(JSON.stringify([breaks.indexOf("rollSpends(held, roll)") > 0 && breaks.indexOf("rollSpends(held, roll)") < breaks.indexOf("wearItem("),
-            calls("action-rolls.mjs", "workOnProject"), calls("action-rolls.mjs", "performSabotage"), calls("cleanup.mjs", "attemptCleanup"),
+            calls("action-project.mjs", "workOnProject"), calls("action-project.mjs", "performSabotage"), calls("cleanup.mjs", "attemptCleanup"),
             calls("cleanup.mjs", "attemptStageSix"), calls("murder-rules.mjs", "wearSwing"),
             wears.test(fnSource(src("use-items.mjs"), "useItem")), wears.test(fnSource(src("use-items.mjs"), "useCreatively"))]),
             JSON.stringify([true, true, true, true, true, true, false, false]),
@@ -8288,6 +8327,32 @@ const INVARIANTS = [
         must(e.entries().length === 5, `the summary case kept ${e.entries().length} of 5`);
         equal(JSON.stringify(e.entries().map(x => x.clipped)), JSON.stringify([true, false, false, false, false]),
             "a fifth day summary in a section did not clip the oldest of the five");
+
+        /*
+         * A WHOLE DAY'S SUMMARIES IN A GM'S SECTION (E37 C4, 01.11.2026; E37-18, the A7 amend of 11.10). Since C4 a
+         * summary shows at every boundary of a time of day, five a day, and a GM's summary table reaches the 26 000
+         * budget: four whole ones are more than the GM's 100 000 characters with anything else beside them. The cut
+         * took the oldest entry of the section, which was the GM's own card, not a summary. Now the older summaries
+         * are clipped to their words before any other entry leaves for the characters' budget, the newest whole. A
+         * GM's section, four cards of its own before each of five summaries of 24 000 characters of html: every card
+         * stays, and the summaries are clipped oldest first until the section fits. Red at 2230c1fa (quoted in C4).
+         */
+        e = bench(fresh(), U1, { gm: true });
+        e.open();
+        for (let day = 0; day < 5; day++) {
+            for (let i = 0; i < 4; i++) { tick(); e.record(card(`gm ${day}.${i}`)); }
+            tick();
+            e.record(card(`summary ${day}`, { source: "summary", html: `<p>${"s".repeat(23990)}</p>` }));
+        }
+        const daySums = e.entries().filter(x => x.source === "summary");
+        must(e.entries().length > 0, "the GM's section kept nothing - nothing below would be measured");
+        const newest = daySums.at(-1);
+        equal(JSON.stringify([e.entries().filter(x => x.source === "mine").length, daySums.map(x => x.title),
+            daySums.map(x => x.clipped), Boolean(newest && !newest.clipped && JSON.stringify(newest).length > 24000),
+            JSON.stringify(e.entries()).length <= 100000]),
+        JSON.stringify([20, ["card summary 0", "card summary 1", "card summary 2", "card summary 3", "card summary 4"], [true, true, false, false, false], true, true]),
+            "[a GM's own cards kept of 20, beside five summaries of one day; the summaries kept; each one clipped, oldest first; the newest "
+            + "whole and over 24 000 characters (at the budget); the section within 100 000]");
 
         // The 251st entry, and a GM's 151st.
         const counts = [];
@@ -9134,7 +9199,8 @@ const INVARIANTS = [
         const list = name => JSON.parse(bodyOf(popup, `const ${name} = `, { until: ";" }).replace(`const ${name} = `, ""));
         const FORBIDDEN = /^(drpg-popup|drpg-notices-|drpg-corner-tail|application$|window-|inline-roll$|content-link$|fa-)/;
         const grep = new Set();
-        for (const file of ["day-summary.mjs", "popup.mjs", "secret.mjs", "messenger-app.mjs", "trial.mjs", "safeword.mjs", "action-rolls.mjs"]) {
+        // E41 C3 (1.2.97): every file of the action family (the kit's ACTION_FAMILY), where action-rolls.mjs alone was read.
+        for (const file of ["day-summary.mjs", "popup.mjs", "secret.mjs", "messenger-app.mjs", "trial.mjs", "safeword.mjs", ...ACTION_FAMILY]) {
             const src = stripComments(sources.get(file) ?? "");
             must(src.length > 0, `${file} was not read - the class grep would be measured on nothing`);
             for (const m of src.matchAll(/class=(["'])/g)) {
@@ -9597,7 +9663,7 @@ const INVARIANTS = [
         const sites = [["murder-rules.mjs", "undoLastCrisis"], ["incident-store.mjs", "retireOpeningNotices"]]
             .map(([file, fn]) => WITHDRAW.test(fnSource(code(file), fn)));
         const passing = [...sources.keys()].filter(file => file.endsWith(".mjs") && !file.startsWith("tests") && /\bwithdraw:\s*true\b/.test(code(file))).sort();
-        equal(JSON.stringify([sites, passing, /\bwithdraw\b/.test(fnSource(code("season-setup.mjs"), "deleteMessages"))]),
+        equal(JSON.stringify([sites, passing, /\bwithdraw\b/.test(fnSource(code("season-wipe.mjs"), "deleteMessages"))]),
             JSON.stringify([[true, true], ["incident-store.mjs", "murder-rules.mjs"], false]),
             "[undoLastCrisis and retireOpeningNotices delete with the withdraw option; the files that pass it; the reset's batches pass it]");
         const popups = fnSource(code("popup.mjs"), "registerPopups"), history = fnSource(code("notice-history.mjs"), "registerNoticeHistory");
@@ -14540,7 +14606,9 @@ const INVARIANTS = [
         equal(J([setting?.scope, setting?.config, setting?.default, Object.keys(setting?.choices ?? {})]), J(["world", true, "log", ["log", "sendBack"]]),
             "[the setting's scope, shown in the settings, its default, its choices]");
         const src = file => fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText).then(stripComments);
-        const [movement, bridge, own] = await Promise.all([src("movement.mjs"), src("gm-bridge.mjs"), src("movement-audit.mjs")]);
+        const [movement, own] = await Promise.all([src("movement.mjs"), src("movement-audit.mjs")]);
+        // E41 C2b: the bridge's family, served as the module's sources.
+        const bridge = bridgeText(await moduleSources());
         const seen = fnSource(movement, "noteGmPosition");
         equal(J([/constrainOptions: \{ ignoreWalls: true \}/.test(fnSource(movement, "sendBack")), /constrainOptions: \{ ignoreWalls: true \}/.test(fnSource(bridge, "handleSendback")),
             /auditMove\(tokenDoc, changes, options, userId, gmSeen\.get\(tokenDoc\.id\),/.test(seen) && seen.search(/auditMove\(/) < seen.search(/gmSeen\.set\(/),
@@ -14944,7 +15012,8 @@ const INVARIANTS = [
         J([true, true, true, [true, true, true], true, true]),
         "[the wall's move watched, its deletion, the routes, each on the primary alone, a move read as a change of its segment, a route "
             + "announced before it stood read only once it stands (E79 fix r3-G3; scenario 76 E runs it)]");
-        const vault = await fetch(`/modules/${MODULE_ID}/scripts/vault.mjs`).then(lfText).then(stripComments);
+        // E41 C6 (1.2.97): Room Setup moved out of vault.mjs into room-setup.mjs.
+        const vault = await fetch(`/modules/${MODULE_ID}/scripts/room-setup.mjs`).then(lfText).then(stripComments);
         const opener = fnSource(vault, "openRoomSetupDialog");
         ok(/passagesTab\.passagesTabHtml\(scene, \{ students \}\)/.test(opener) && /passagesTab\.wirePassagesTab\(root, scene, \{ dialog, students \}\)/.test(opener),
             "Room Setup does not draw and wire the Passages tab for the scene it was opened on");
@@ -16733,7 +16802,7 @@ const INVARIANTS = [
          * GMs of every miss or a third player of a show, a sound or a card at a GM's revoke or Close that tells the
          * table a passage existed, and a reset that keeps a season's finds or loses the GMs' map. Run on an engine of
          * the suite's own (R562's): the search and the show with their whispers injected, each card's sound read as
-         * sfx.mjs `soundFromMessage` reads a GM's card, its hearers by that file's audience rule (a whisper reaches its
+         * sfx-play.mjs `soundFromMessage` reads a GM's card, its hearers by that file's audience rule (a whisper reaches its
          * names; a GM of them only for a sound marked for the GMs). The revoke, the Close and the reset on the same
          * stores, with this browser's chat and its sounds watched. Make public is not built (the stage's
          * C6). Red at the parent (879d6d5): no `resolvePassageSearch`.
@@ -17204,7 +17273,7 @@ const INVARIANTS = [
     ["R604 - a trap hears of a Find Passage from the primary GM that judges it: every first throw that stands, a miss as a find, in the room the GMs read the character in, before its card; a Reroll's replay, a refusal and a search off the primary tell it nothing; a stash hunt is told by the GM that judges it, once the room is read and before the roll is scored, and never for a replay; the roller's browser raises neither any more", async () => {
         /*
          * E80 fix r1-G1 (18.10.2026; the review's E80-SEC-1). The harm: a trap watching for a Find Passage or a stash hunt
-         * (traps.mjs triggers 8 and 9) heard of it from the roller's own browser (action-rolls.mjs `locatePassage`,
+         * (traps.mjs triggers 8 and 9) heard of it from the roller's own browser (action-analyze.mjs `locatePassage`,
          * `locateStash`), so a console that asked the GM for the search without raising the hook searched past every
          * trap, and the room the trap read was that browser's word. Run on an engine of the suite's own (R598's), with
          * characters, people and a world of its own, the search's card and the trap's word injected and logged in one
@@ -17264,7 +17333,9 @@ const INVARIANTS = [
 
         // The stash hunt, and the rollers' browsers: read in the module's sources (the hunt itself is tier 2's "A10-7 stash").
         const code = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
-        const [rolls, vault, reroll] = [await code("action-rolls.mjs"), await code("vault.mjs"), await code("reroll.mjs")];
+        // E41 C4 (1.2.97): `locateStash` and `locatePassage` moved into action-analyze.mjs.
+        // E41 C6 (1.2.97): `resolveStashSearch` moved out of vault.mjs into stash-reach.mjs.
+        const [rolls, vault, reroll] = [await code("action-analyze.mjs"), await code("stash-reach.mjs"), await code("reroll.mjs")];
         const stash = fnSource(vault, "resolveStashSearch");
         const at = re => stash.search(re);
         const [noRoom, hunt, scored] = [at(/reason: "noRoom"/), at(/if \(!replay\) hunted\(\{ actor, room: where\.room \}\);/), at(/const beat = /)];
@@ -17597,7 +17668,7 @@ const INVARIANTS = [
         /*
          * E80 fix r1-G8 (19.10.2026; the review's E80-C1-03). `tunnelMarks` (fog-doorways.mjs) named every unfound room
          * beyond a tunnel 'Unexplored room 1', so two tunnels from one room to two rooms the student has not found looked
-         * like two ways into the same room - as the Listen labels (action-rolls.mjs `listenLabels`) and the sheet's rows
+         * like two ways into the same room - as the Listen labels (action-listen.mjs `listenLabels`) and the sheet's rows
          * (passages-gm.mjs `roomsAsKnown`) do not. Read here on a copy of the suite's own, handed to the marks; nothing of
          * the world is read or written. Red at the parent (529e404): the Kitchen's mark reads 'Unexplored room 1' too.
          */
@@ -17879,7 +17950,7 @@ const INVARIANTS = [
          * E80 part 2 C1, 19.10.2026; the A11 design's step 4 (S17-16: one pool, no further copy). The harm: a list that
          * names a stashed item tells a frisker a stash exists and what is in it (the rule "a Palm does not reach a stash"
          * broken); one that names a Truth Bullet hands over knowledge as a thing; and a theft whose pool drifted from the
-         * list takes what was never shown. vault.mjs `pocketsFrom` is the rule, read on items made here (each an id and
+         * list takes what was never shown. palm.mjs `pocketsFrom` is the rule, read on items made here (each an id and
          * its module flags): the categories out of order, a stashed one, a Truth Bullet, a broken one, one with no
          * category, and one an `undecided` reader names. Then the world: each character holding a stashed item, read as
          * `pocketsAsHeld` reads it on this GM, against its own items filtered here off the documents. Nothing is written.
@@ -17916,7 +17987,7 @@ const INVARIANTS = [
         /*
          * E80 part 2 C2, 19.10.2026; the A11 design's step 1 and its A11-3. The harm: a Palm window that shows a
          * player what the person they picked carries before any roll (the whole point of a Frisk is that the list comes
-         * from the GM after the verdict), or one that says a bar the GM does not judge. action-rolls.mjs `choosePalm`
+         * from the GM after the verdict), or one that says a bar the GM does not judge. palm.mjs `choosePalm`
          * drawn for a character and, as its target, one holding a stashed item, with `DialogV2.wait` answered with
          * nothing: its rows, the Frisk row's words, the Unseen line under it for the config's `ACTIONS.palm` and for a
          * copy whose two numbers are moved (17 and 11), the confirm button's label after each row is picked as the
@@ -18132,7 +18203,7 @@ const INVARIANTS = [
          * bare 400 px dialog beside the Palm window's 544 and without Glass's frame (mk-3); and the Frisk row's
          * `fa-hand-pointer` had no pixel glyph, the one Palm row Stained Glass would draw in Font Awesome's style (mk-4).
          * jsdom has no layout, so this reads what decides each, as the cascade test of the room tile does: the Palm
-         * window as action-rolls.mjs `choosePalm` draws it (`DialogV2.wait` answered with nothing, nothing shown) set in
+         * window as palm.mjs `choosePalm` draws it (`DialogV2.wait` answered with nothing, nothing shown) set in
          * Foundry's DialogV2 frame (window-content > dialog-form > dialog-content + form-footer) on a document of its
          * own, and for its footer the `position` of every style rule of module.json's sheets whose selector the footer
          * matches by its own `matches`; the same frame round a table and round a short paragraph, the two controls; the
@@ -18533,7 +18604,7 @@ const INVARIANTS = [
         const theirs = def(engine("R901U1", false), S.passageMapStore, "MapOfAPlayer");
         await theirs.patch(T, { oneWay: 0 });
         equal(J([theirs.get(T) ?? null, await P.setPassageWay(W, 0, { stores }), stores.map.get(W)?.oneWay ?? null, await P.setPassageWay(T, 2, { stores }),
-            stores.map.get(T)?.oneWay, /setPassageWay/.test(stripComments(sources.get("gm-bridge.mjs")))]),
+            stores.map.get(T)?.oneWay, /setPassageWay/.test(bridgeText(sources))]),
             J([null, false, null, false, null, false]),
             "[a player's engine's write, a wall's way refused, the wall's row, a third end refused, the tunnel's row, a bridge road that sets a way]");
     }],
@@ -20667,7 +20738,7 @@ const INVARIANTS = [
          * the track, so a 404 (`AudioHelper.play` answers a sound with `failed`, it does not throw) left a participant
          * in silence, and a browser not clicked yet kept the room down while the track waited on the first click - and
          * started it, looped, after the incident had ended, with nothing left to stop it. The overlay is now a small
-         * machine (music.mjs `createMurderOverlay`) driven here with its effects as lists: `play` answers a promise the
+         * machine (murder-music.mjs `createMurderOverlay`) driven here with its effects as lists: `play` answers a promise the
          * test settles, so each case says when the track "starts".
          * E19 fix r1-G3 (the review's E19-COR-5): a file that failed was skipped until another one played, so with a
          * murder playlist of one track a 404 in one incident (a late upload, a fetch that hiccuped) meant no murder
@@ -20783,7 +20854,7 @@ const INVARIANTS = [
          * music stayed at 0 on that browser for good. The overlay no longer moves the Music volume at all (the 04.10
          * answer: the Music channel, the room's playlists held), so the parked number is only what an earlier version
          * left: `restoreDuckedMusic` gives it back at ready, in an incident too, with its two writes as lists here.
-         * The writes are read in music.mjs with comments blanked: the one write of the Music volume
+         * The writes are read in music.mjs's family with comments blanked: the one write of the Music volume
          * (`core.globalPlaylistVolume`) and the one of the parked volume (`musicDuckedFrom`) are `restoreDuckedMusic`'s.
          */
         const M = await import("./music.mjs");
@@ -20793,7 +20864,8 @@ const INVARIANTS = [
             await M.restoreDuckedMusic({ parked: () => parked, setVolume: v => writes.push(["volume", v]), park: v => writes.push(["park", v]) });
             return writes;
         };
-        const music = stripComments((await moduleSources()).get("music.mjs") ?? "");
+        // E41 C9a (1.2.97): music.mjs's code left it for music-play, music-states, sound-panel and murder-music.mjs; the music's family's text (the kit's `musicText`).
+        const music = stripComments(musicText(await moduleSources()));
         must(music.length, "music.mjs is not among the module's sources - this would measure nothing");
         const writes = pattern => [...music.matchAll(pattern)].map(m => lineAround(music, m.index).trim());
         const restore = fnSource(music, "restoreDuckedMusic");
@@ -20825,7 +20897,7 @@ const INVARIANTS = [
          * room's music had (a player who had turned the clicks down heard no murder music), each browser drew its own
          * track at random (killer and victim heard different ones), and the room's music was ducked by setting the
          * Music volume to 0 - which on the Music channel would silence the murder track too. The room's sounds are now
-         * held on that browser alone (music.mjs `createRoomHold`): each playing sound's own volume to 0 and back,
+         * held on that browser alone (murder-music.mjs `createRoomHold`): each playing sound's own volume to 0 and back,
          * a sound that starts later held as it starts. Held in place rather than paused: a GM's browser is always in
          * the incident, and a playlist moves to its next track when a GM's browser hears the last one end. Fakes here,
          * no audio: the sandbox's audio is locked.
@@ -20896,7 +20968,8 @@ const INVARIANTS = [
         now2.playing = true; fire(now2);
         const afterRelease2 = read()[0].length;
 
-        const music = stripComments((await moduleSources()).get("music.mjs") ?? "");
+        // E41 C9a (1.2.97): music.mjs's code left it for music-play, music-states, sound-panel and murder-music.mjs; the music's family's text (the kit's `musicText`).
+        const music = stripComments(musicText(await moduleSources()));
         must(music.length, "music.mjs is not among the module's sources - this would measure nothing");
         const mapFollowed = /SETTINGS\.musicMap\}`\)[\s\S]{0,120}?applyMurderMusic\(/.test(fnSource(music, "registerMusic"));
         equal(stableJson([
@@ -20961,7 +21034,7 @@ const INVARIANTS = [
          * paused time, so a Reset in a later silence brought back music from hours before; leaving the body's silence
          * for a mapped Investigation resumed the afternoon (a fade in) and then stopped it; and the silent state, having
          * no playlist, was "nothing to take over with", so a GM's track played on through the announcement. Who gives
-         * way is `cueGivesWay`, driven here; the hand-offs are read in music.mjs with comments blanked; the Sound
+         * way is `cueGivesWay`, driven here; the hand-offs are read in music.mjs's family with comments blanked; the Sound
          * window's note says it in both languages.
          */
         const M = await import("./music.mjs");
@@ -20971,7 +21044,8 @@ const INVARIANTS = [
             ["a mapped state", M.cueGivesWay("trial.discussion", "time.afternoon", { mapped: true, silent: false })],
             ["an unmapped state", M.cueGivesWay("time.evening", "time.afternoon", { mapped: false, silent: false })],
             ["the body's silence", M.cueGivesWay("bodyFound", "time.afternoon", { mapped: false, silent: true })]];
-        const music = stripComments((await moduleSources()).get("music.mjs") ?? "");
+        // E41 C9a (1.2.97): music.mjs's code left it for music-play, music-states, sound-panel and murder-music.mjs; the music's family's text (the kit's `musicText`).
+        const music = stripComments(musicText(await moduleSources()));
         must(music.length, "music.mjs is not among the module's sources - this would measure nothing");
         const apply = fnSource(music, "apply"), crossfade = fnSource(music, "crossfade");
         const takeover = /await stopInterruption\(\);[\s\S]{0,900}?clearHeld\(/.test(apply);
@@ -21078,7 +21152,8 @@ const INVARIANTS = [
          * lang/pl.json's DRPG.Config row; the Safety group's own note repeated the row under it (S11-21).
          */
         const raw = (await moduleSources()).get("config.mjs") ?? "";
-        const sfx = stripComments((await moduleSources()).get("sfx.mjs") ?? "");
+        // E41 C9a (1.2.97): sfx.mjs's player left it for sfx-play.mjs; the sound engine's family's text (the kit's `sfxText`).
+        const sfx = stripComments(sfxText(await moduleSources()));
         must(raw.length && sfx.length, "config.mjs or sfx.mjs is not among the module's sources - this would measure nothing");
         const hintOf = block => (block.match(/hint: "([^"]*)"/) ?? [])[1] ?? "";
         const enEvent = hintOf(bodyOf(raw, "    safeword: {", { until: "}," }));
@@ -21145,7 +21220,7 @@ const INVARIANTS = [
          * window's Send answers `{ text }` (`askForRequest`), an empty request is asked again where the caller says it
          * needs words (`required`), and the body is a `div.drpg-call-body` (`callCardHtml`). Measured on this browser with
          * DialogV2.wait answered here and the toasts caught, both put back; nothing is posted. Since E18 fix e1-G3 the empty
-         * request is said as a refusal card (gm-bridge.mjs `sayRefusedHere`), read here and taken down, and no toast.
+         * request is said as a refusal card (call-gm.mjs `sayRefusedHere`), read here and taken down, and no toast.
          */
         const B = await import("./gm-bridge.mjs");
         ok(typeof B.askForRequest === "function" && typeof B.callCardHtml === "function",
@@ -21215,7 +21290,8 @@ const INVARIANTS = [
         const sources = await moduleSources();
         const needsWords = {};
         // A Dynamic action asks its words through `promptForRequest` since E16 part 2 C1 (its one card is the difficulty's).
-        for (const [file, fn, asks] of [["action-rolls.mjs", "performDynamic", "promptForRequest("], ["use-items.mjs", "useCreatively", "promptAndCallGm("]]) {
+        // E41 C4 (1.2.97): `performDynamic` moved into action-dynamic.mjs.
+        for (const [file, fn, asks] of [["action-dynamic.mjs", "performDynamic", "promptForRequest("], ["use-items.mjs", "useCreatively", "promptAndCallGm("]]) {
             const call = bodyOf(fnSource(stripComments(sources.get(file) ?? ""), fn), asks, { until: "\n    });" });
             needsWords[fn] = /\brequired: true\b/.test(call);
         }
@@ -21278,7 +21354,7 @@ const INVARIANTS = [
          * player whose ask reached no GM's listener (the primary mid-reload, a socket that dropped it) looked at
          * "Awaiting a ruling." until the ruling's own clock - five minutes for a Hope Call. Now each waits
          * `TIMING.ackMs` for the "got it", as every request that is not a ballot does. Driven as R165 drives the
-         * waiter - fakes, nothing leaves this client - with each row's own policy as `ask` (gm-bridge.mjs) reads it,
+         * waiter - fakes, nothing leaves this client - with each row's own policy as `ask` (bridge-table.mjs) reads it,
          * a "got it" clock of 40 ms for TIMING.ackMs and a ruling clock of 3000 ms. Read per row: whether it is patient,
          * the result, whether it came before half the ruling's clock, what was said, and what was sent after the ask.
          */
@@ -21347,7 +21423,7 @@ const INVARIANTS = [
     ["R1006 - a Frisk's wait ends at once when its primary leaves for another GM, and keeps its clock when that primary was the only GM: then the clock ends it and tells the GMs it expired, and the leaving tells nobody (E18 fix c7-G1)", async () => {
         /*
          * E18 fix c7-G1, 26.10.2026; the review's C7-R1 (twice) and C7-SEC-2. C7 marked the searcher's wait on an open
-         * Frisk's ask (gm-bridge.mjs `requestFriskAsk`) `untilPrimaryLeaves` and said the wait ended 'at once' when the
+         * Frisk's ask (bridge-asks.mjs `requestFriskAsk`) `untilPrimaryLeaves` and said the wait ended 'at once' when the
          * primary left; registerBridgeReplies runs `primaryGone` only when `primaryLeft` - when another GM is here to take
          * the primary - so at a one-GM table the wait runs its clock, friskAnswerMs + friskMarginMs (75 s), and only that
          * clock hands the action back. The tier-2 test read the option in the source and drove nothing. Driven here with
@@ -22611,7 +22687,7 @@ const INVARIANTS = [
     ["R979 - an indirect murder's concealment bonus is paid on any outcome: a lone miss pays +1, a hit and a critical their band plus it, a plain project's miss nothing; the trap's budget is read off its two parts, 7-10 (E15 C2)", async () => {
         /*
          * E15 C2, 25.10.2026; audit S02-08 (the owner's D13) and S12-74; E15-T2. `projectProgress` is the one
-         * reading of a Work's roll the roller's browser, the GM (gm-bridge.mjs `progressOf`) and the Reroll
+         * reading of a Work's roll the roller's browser, the GM (bridge-runs-records.mjs `progressOf`) and the Reroll
          * (reroll.mjs `settleProgress`) share; the bonus rode only on a band reached, so a lone killer's miss paid 0
          * beside a card that said the project gains +1. Read with ACTIONS.project's bands (12 and 18) and its
          * critical: a miss at 8, a 13, an 18 and a critical at 4, each with the alone bonus of INDIRECT_MURDER and
@@ -22924,7 +23000,7 @@ const INVARIANTS = [
         }), "[per card: the bar's words, the body's words, a heading left in the body, the kept title, a heading in the kept html]");
         /* E18 fix e1-G3 (24.10.2026; the end review's E18-END-8 and F7): a card posted with its title and opening with the
            same heading ("same") read it in the bar and again under it - a call on the GM with no thread to post into
-           (gm-bridge.mjs `callGm`); and the time of day's card, its heading lifted into the bar, said the time of day again
+           (call-gm.mjs `callGm`); and the time of day's card, its heading lifted into the bar, said the time of day again
            at the end of the clock line under it (clock.mjs `announceTimeOfDay`). */
         const CL = await import("./clock.mjs");
         const clock = getClock();
@@ -23654,7 +23730,7 @@ const INVARIANTS = [
         };
         const rest = [game.i18n.format("DRPG.Bridge.settledApproved", { name: "R852 GM" }), game.i18n.localize("DRPG.Bridge.settledGone"), "R852 kept words"];
         const sources = new Map(await moduleSources());
-        const fn = (file, name) => fnSource(stripComments(sources.get(file) ?? ""), name);
+        const fn = (file, name) => file === "gm-bridge.mjs" ? bridgeFn(sources, name) : fnSource(stripComments(sources.get(file) ?? ""), name);
         equal(stableJson([drawn("pl"), drawn("en"),
             /readersLines\(body\)/.test(fn("secret.mjs", "drawPrivateCard")), /readersLines\(body\)/.test(fn("messenger-app.mjs", "buildBubble")),
             /readersLines\(wrap\)/.test(fn("messenger-app.mjs", "cardPreview")), /drpgLine/.test(fn("gm-bridge.mjs", "settleCall")),
@@ -23667,7 +23743,7 @@ const INVARIANTS = [
          * E35 C0, 24.10.2026; audit S08-31, S17-17: a skeleton of E14's, red until E14 lands. The harm: a key in a stash
          * on the far side of the building opens its bedroom door, against the handbook's "A key opens its door whoever
          * holds it". The door (movement.mjs `bedroomShut`, asked by `crossingVerdict` through `restrictedFrom`) counts
-         * every item with the key's flag, and so does vault.mjs `keysHeldBy`, which `mayEnterBedroom` asks for
+         * every item with the key's flag, and so does vault-store.mjs `keysHeldBy`, which `mayEnterBedroom` asks for
          * game.drpg. Read on a scene of plain objects, a Hall whose list names a Bedroom some other character owns,
          * with three plain movers who are neither a GM nor the Mastermind: one carrying the key, one whose key is in a
          * stash, one with no key - so the two controls hold the reading to the door and the key itself. Nothing of this
@@ -23770,7 +23846,7 @@ const INVARIANTS = [
          * E35 C6, 24.10.2026; E35-24, D42 (the owner's option 1). Until C6 the handbook's stash list said that
          * something "slipped into your pocket" while your hands were full goes into your stash, and the Palm's section
          * that what does not fit in a full pocket goes into "their stash" - both what Base did, both what D42 ended
-         * (vault.mjs `plantOnPerson`, E35 C3). Read: TRANSFER_POLICY as the code holds it, the planter's line in both
+         * (palm.mjs `plantOnPerson`, E35 C3). Read: TRANSFER_POLICY as the code holds it, the planter's line in both
          * languages' files, and in each language's player handbook the stash list's full-hands line and the Palm's
          * paragraph on outcomes, cut by their first words. Red at 7fd0772 (C5): both books said the stash took the
          * Plant.
@@ -23814,7 +23890,7 @@ const INVARIANTS = [
          * side never kept (S08-06), "not hidden" over a hidden stash its thief had found or the Mastermind's (S08-48), and
          * "Kaede, Makoto's stash" over two. Read: `DRPG.Vault.rifleIntro` and `rifleNote` in lang/en.json and
          * lang/pl.json, fetched as served - the placeholders, the time of day, the words that must be gone - and in
-         * vault.mjs `rifleStashDialog` that the line is formatted with the list of owners and the room. Red at 7a766612
+         * stash-reach.mjs `rifleStashDialog` that the line is formatted with the list of owners and the room. Red at 7a766612
          * (c4-t6-red.log): both languages said "not hidden" and named no time of day.
          *
          * E14 fix e1-G1 (the review's E14R-02): the sheet's note under the open stashes it lists (sheet.mjs
@@ -23838,8 +23914,9 @@ const INVARIANTS = [
                 note.includes(W.found)];
             read[`${lang}Sheet`] = [sheetNote.includes(W.once), W.gone.filter(w => sheetNote.includes(w))];
         }
-        const dialog = fnSource(stripComments(new Map(await otherSources()).get("vault.mjs") ?? ""), "rifleStashDialog");
-        must(dialog, "vault.mjs has no rifleStashDialog - this reads nothing");
+        // E41 C6 (1.2.97): vault.mjs holds no code; the stash's family's text (the kit's `vaultText`), where its alone was read.
+        const dialog = fnSource(stripComments(vaultText(await otherSources())), "rifleStashDialog");
+        must(dialog, "the stash's family has no rifleStashDialog - this reads nothing");
         read.dialog = /DRPG\.Vault\.rifleIntro", \{\s*who: esc\(stocked\.map\(entry => entry\.owner\.name\)\.join\(", "\)\),\s*room: esc\(room\)/.test(dialog);
         equal(stableJson(read), stableJson({ en: [true, true, [], true], pl: [true, true, [], true], enSheet: [true, []], plSheet: [true, []], dialog: true }),
             "the rifle's window or the sheet's note does not say what a reach takes (per language: [both placeholders, once each time of day, the old "
@@ -24089,7 +24166,8 @@ const INVARIANTS = [
             + "under it, or a table was made [Tier pools: value, aria-invalid, its tab open, a sentence; Room pools: the same; "
             + "the tables a create was asked for; no table made]");
 
-        const tablesSrc = stripComments(new Map(await otherSources()).get("tables.mjs") ?? "");
+        // E41 C8 (1.2.97): tables.mjs's code left it for tables-pools.mjs and tables-editor.mjs; the item tables' family's text (the kit's `tablesText`).
+        const tablesSrc = stripComments(tablesText(await otherSources()));
         const create = bodyOf(tablesSrc, "async function createPoolFrom(", { until: "\n}\n" });
         const heading = bodyOf(tablesSrc, "function wirePaneHeading(", { until: "\n}\n" });
         const opener = bodyOf(tablesSrc, "export async function openItemTables(", { until: "\n}\n" });
@@ -24337,14 +24415,14 @@ const INVARIANTS = [
             + "[per language: names the call, a {placeholder} left]");
     }],
 
-    ["R985 - Sabotage's window shows the bar it judges (E16-T20; audit S02-14): for a concealment thrown with Despair (SABOTAGE_CONCEAL.despairPenalty) and none, with no tool, a tier-1 tool and a tier-2 tool, each number action-rolls.mjs `sabotageBar` gives is the least total `sabotageHit` puts in that band, and the window's numbers and the judge both read that one bar", async () => {
+    ["R985 - Sabotage's window shows the bar it judges (E16-T20; audit S02-14): for a concealment thrown with Despair (SABOTAGE_CONCEAL.despairPenalty) and none, with no tool, a tier-1 tool and a tier-2 tool, each number action-project.mjs `sabotageBar` gives is the least total `sabotageHit` puts in that band, and the window's numbers and the judge both read that one bar", async () => {
         /*
          * E16 part 2 C0, 26.10.2026. performSabotage wrote the roll window's numbers as
          * `t.min - relief + penalty`, and the judge (`sabotageHit`) scores `total + penalty`
          * against the bands eased by the relief: with the Despair concealment's -1 the window said
          * "beat 11 / 17" while a total of 13 / 19 was needed, so a player who threw 11 or 12 read a
          * success and got "Nothing happens.". Each total from 0 to 40 is judged as the GM judges a
-         * Sabotage (`sabotageHit`, also gm-bridge.mjs `traceBandOf`'s reading) and the least total
+         * Sabotage (`sabotageHit`, also bridge-runs-records.mjs `traceBandOf`'s reading) and the least total
          * reaching each band is held to the bar's number for it; then the two places that show and
          * judge are read in the source for the one bar. Nothing is written; no phase is asked.
          */
@@ -24386,7 +24464,8 @@ const INVARIANTS = [
         }
         equal(stableJson(rule), stableJson([[0, 0, "rule"], [0, 1, "rule"], [SABOTAGE_CONCEAL.despairPenalty, 0, "rule"], [SABOTAGE_CONCEAL.despairPenalty, 1, "rule"]]),
             "a bar's number is not the guide's number less the relief and the penalty [penalty, relief, the bar where it is not]");
-        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText));
+        // E41 C4 (1.2.97): `performSabotage` and `sabotageHit` moved into action-project.mjs.
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-project.mjs`).then(lfText));
         const perform = fnSource(src, "performSabotage"), judge = fnSource(src, "sabotageHit");
         equal(stableJson([/dc:\s*sabotageBar\(def,\s*relief,\s*penalty\)/.test(perform), /sabotageBar\(/.test(judge)]), stableJson([true, true]),
             "the window's numbers (performSabotage's `dc`) or the judge (`sabotageHit`) do not read `sabotageBar` [window, judge]");
@@ -24495,7 +24574,7 @@ const INVARIANTS = [
         equal(JSON.stringify([seat("seatRoomArt", "#drpg-room-tile"), seat("seatVoiceArt", "#drpg-voice-tile")]), "[[true,true],[true,true]]",
             "[[the room's picture laid by paneLayer at its tile's turn, its turn taken off when it goes back], [the same for the voice tile's portrait]]");
     }],
-    ["R989 - a player's stash hunt gives its price back on the GMs' refusal, and a Search's trace out of a stash waits for the GMs' word that the thing moved (E16-T39; the review's E16p2-BEH-1, E16R-04, E16P2-R4; E16p2-BEH-2, E16R-03, E16P2-R2): both rows answer once carried out, action-rolls.mjs `locateStash` refunds a refusal in either shape before it notes the roll, its card goes out before the request, and `searchStash`'s player's `got` follows the answer's `taken`", async () => {
+    ["R989 - a player's stash hunt gives its price back on the GMs' refusal, and a Search's trace out of a stash waits for the GMs' word that the thing moved (E16-T39; the review's E16p2-BEH-1, E16R-04, E16P2-R4; E16p2-BEH-2, E16R-03, E16P2-R2): both rows answer once carried out, action-analyze.mjs `locateStash` refunds a refusal in either shape before it notes the roll, its card goes out before the request, and `searchStash`'s player's `got` follows the answer's `taken`", async () => {
         /*
          * E16 fix e1-G2, 26.10.2026. On "ack" a refusal of the run came to a player's browser once `locateStash` and
          * `searchStash` had returned: a Class Trial opened while a hunt was in flight kept its price, and a reach refused
@@ -24504,7 +24583,9 @@ const INVARIANTS = [
          * asked.
          */
         const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
-        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText));
+        // E41 C4 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read -
+        // `locateStash` stands in action-analyze.mjs, `searchStash` in action-search.mjs.
+        const src = stripComments(actionText(await moduleSources()));
         const locate = fnSource(src, "locateStash"), search = fnSource(src, "searchStash");
         must(locate.length > 200 && search.length > 200, "locateStash or searchStash is gone - the reads below would measure nothing");
         const at = (body, re) => body.search(re);
@@ -24764,26 +24845,38 @@ const INVARIANTS = [
         const heard = typeof S.clockNews === "function" ? S.clockNews(null, C0).heard : null;
         const news = c => {
             const n = S.clockNews(heard, c);
-            return [n.same, n.timeOfDay, n.phase, n.eclipse].map(Number).join("");
+            return [n.same, n.timeOfDay, n.phase, n.eclipse, n.moved].map(Number).join("");
         };
         got.news = heard ? [{ ...C0 }, { ...C0, pausedAt: 5 }, { ...C0, campaignName: "B" }, { ...C0, day: 2 }, { ...C0, timeOfDay: "noon" },
             { ...C0, chapter: 2 }, { ...C0, session: 2 }, { ...C0, phase: "investigation" }, { ...C0, eclipse: true }].map(news) : null;
+        /* E37 C5 (01.11.2026; E37-20): the clock's work is a row of sync.mjs `KIND_REFRESH`, each hook run by the field of
+           the reading that names it, and the visibility pass by `moved` - so a write that moves no calendar, phase or Eclipse
+           (a pause, a name) runs no pass, where the clock's case ran one on every run (scenario 81 at 2b2707ec: 1 a browser
+           for a pause). Red at 2b2707ec: no `moved`, no table. */
         const src = stripComments(new Map(await moduleSources()).get("sync.mjs") ?? "");
-        const clockCase = bodyOf(src, "case SYNC.clock:", { until: "case SYNC.eclipse:" });
-        const eclipseCase = bodyOf(src, "case SYNC.eclipse:", { until: "case SYNC.visibility:" });
-        got.source = [/const apply = coalescer\(/.test(src), /clockNews\(/.test(clockCase),
-            /if \(news\.timeOfDay\)[^]*?"drpgTimeOfDayChanged"/.test(clockCase), /"drpgPhaseChanged"/.test(clockCase),
-            /if \(news\.eclipse\)[^]*?"drpgEclipseChanged"/.test(clockCase), /heard\.eclipse/.test(eclipseCase),
-            typeof S.clockHeard === "function" && S.clockHeard() !== null];
+        const row = S.KIND_REFRESH?.[S.SYNC?.clock] ?? [];
+        const gate = name => row.find(entry => entry?.name === name)?.when ?? null;
+        // Read where it stands, so that the tree before C5 (a `case`, no reading) shows the whole of what it measured.
+        // Since E37 fix FG3 the Eclipse's reading is `eclipsePacketNews`, handed `heard` (its `before`); before it, the row's own body.
+        const handed = /\[SYNC\.eclipse\]: data => eclipsePacketNews\(heard\b/.test(src);
+        const eclipseNews = handed ? (topLevelFunction(src, "eclipsePacketNews") ?? "").replace(/\bbefore\b/g, "heard")
+            : src.includes("[SYNC.eclipse]: data =>") ? bodyOf(src, "[SYNC.eclipse]: data =>", { until: "\n    }" }) : "";
+        const ran = c => (typeof S.refreshNames === "function" && heard ? S.refreshNames(S.SYNC.clock, S.clockNews(heard, c)) : null);
+        got.passes = [{ ...C0, pausedAt: 5 }, { ...C0, campaignName: "B" }, { ...C0, day: 2 }, { ...C0, phase: "investigation" }, { ...C0, eclipse: true }]
+            .map(c => ran(c)?.includes("visibility") ?? null);
+        got.source = [/const apply = coalescer\(/.test(src), gate("timeOfDayHook"), gate("phaseHook"), gate("eclipseHook"), gate("visibility"),
+            /heard\.eclipse/.test(eclipseNews), typeof S.clockHeard === "function" && S.clockHeard() !== null];
         equal(J(got), J({
             pair: [["clock", 150, { clock: { day: 2 }, summary: { rolledOver: false } }], ["eclipse", 150, { active: true }]],
             stream: [[360, 3], [760, 7], [1020, 9]],
-            news: ["1000", "0000", "0000", "0100", "0100", "0100", "0100", "0010", "0001"],
-            source: [true, true, true, true, true, true, true]
+            news: ["10000", "00000", "00000", "01001", "01001", "01001", "01001", "00101", "00011"],
+            passes: [false, false, true, true, true],
+            source: [true, "timeOfDay", "phase", "eclipse", "moved", true, true]
         }), "{pair: the runs of an onChange and its broadcast 30 ms apart, and another kind's; stream: [ms after the first, the run's n] for ten "
-            + "events 100 ms apart; news: [same, time of day, phase, Eclipse] for the clock unchanged, paused, renamed, day, time of day, chapter, "
-            + "session, phase, Eclipse; source: apply is the coalescer, the clock branch reads clockNews and fires the time of day's, the phase's and "
-            + "the Eclipse's hooks by it, the Eclipse branch reads what was heard, this browser holds what it heard of the clock since its ready}");
+            + "events 100 ms apart; news: [same, time of day, phase, Eclipse, moved] for the clock unchanged, paused, renamed, day, time of day, "
+            + "chapter, session, phase, Eclipse; passes: the clock's row runs the visibility pass for a pause, a name, a day, a phase, an Eclipse; "
+            + "source: apply is the coalescer, the clock's row runs the time of day's, the phase's and the Eclipse's hooks and the pass by the "
+            + "fields that name them, the Eclipse's reading reads what was heard, this browser holds what it heard of the clock since its ready}");
     }],
 
     ["R996 - the stopwatch's reading (E17 C6): a pause is frozen and then subtracted, the start of the time of day never moves, a reload and the gap since the primary's last beat add nothing, an Eclipse shows none, and no summary without a stamp", async () => {
@@ -24844,7 +24937,8 @@ const INVARIANTS = [
             since: typeof DS.summarySince === "function" ? [DS.summarySince(c()), DS.summarySince(c({ timeOfDayStartedAt: null })), DS.summarySince(null)] : null
         };
         const sources = new Map(await moduleSources());
-        const hud = stripComments(sources.get("hud.mjs") ?? ""), summary = stripComments(sources.get("day-summary.mjs") ?? "");
+        // E41 C7b (1.2.97): the stopwatch and the clock it shows left hud.mjs; the HUD's family's text (the kit's `hudText`).
+        const hud = stripComments(hudText(sources)), summary = stripComments(sources.get("day-summary.mjs") ?? "");
         got.source = [/elapsedOf\(/.test(fnSource(hud, "paintElapsed")), /unpausePatch\(/.test(fnSource(hud, "settleElapsedPause")),
             /timeOfDayStartedAt\s*:/.test(fnSource(hud, "settleElapsedPause")), /showsStopwatch\(/.test(fnSource(hud, "renderHud")),
             /summarySince\(/.test(fnSource(summary, "showDaySummary"))];
@@ -24874,10 +24968,11 @@ const INVARIANTS = [
          * chevron's question still said "Everyone's actions refill", and the GM was told what the module then did not do.
          * Read pure: hud.mjs `eclipseQuestion(clock, name)`, the key and the words the question prints, for a clock whose
          * boundary refilled already and for one whose did not; and askEclipse's source asks it. Red at 3fa1f5b4: no
-         * `eclipseQuestion`.
+         * `eclipseQuestion`. E37 C2 moved both to boundary.mjs (the chevron's and the panel's one road, `toggleEclipse`): the
+         * import and the source read are boundary.mjs's, a guard that cannot be red on its own (a moved import).
          */
         const J = stableJson;
-        const H = await import("./hud.mjs");
+        const H = await import("./boundary.mjs");
         const { boundaryStamp } = await import("./clock.mjs");
         const base = { season: 1, chapter: 1, session: 2, day: 2, timeOfDay: "noon", eclipse: false, refilledFor: null };
         const refilled = { ...base, refilledFor: boundaryStamp(base) };
@@ -24886,7 +24981,7 @@ const INVARIANTS = [
         const got = has ? [base, refilled, other].map(c => H.eclipseQuestion(c, "Afternoon Eclipse").key) : null;
         const words = has ? H.eclipseQuestion(refilled, "Afternoon Eclipse").text : null;
         const sources = new Map(await moduleSources());
-        const hud = stripComments(sources.get("hud.mjs") ?? "");
+        const hud = stripComments(sources.get("boundary.mjs") ?? "");
         equal(J({ got, named: typeof words === "string" && words.includes("Afternoon Eclipse"), asks: /eclipseQuestion\(/.test(fnSource(hud, "askEclipse")) }),
             J({ got: ["DRPG.Hud.eclipseAsk", "DRPG.Hud.eclipseAskRefilled", "DRPG.Hud.eclipseAsk"], named: true, asks: true }),
             "{got: [the question's key for a boundary not refilled, refilled already, another boundary refilled]; named: the words name the "
@@ -25803,10 +25898,10 @@ const INVARIANTS = [
             hold: [null, ["deadMuted", true], null]
         }), "an account's voice character in the trial is not its living one (voice: one listed, both listed, none listed, a GM; micHold the same three)");
     }],
-    ["R1039 - another GM's write of the trial's record is held to the record's own fields on the primary (E70 fix p1-G2; the review's SEC-4): vote.mjs `recordPatchOf` keeps a patch's fields of the record and drops the chapter, the trial's list of the dead, the receipts and anything else, and answers null for a patch that names none, a function or an array", async () => {
+    ["R1039 - another GM's write of the trial's record is held to the record's own fields on the primary (E70 fix p1-G2; the review's SEC-4): trial-progress.mjs `recordPatchOf` keeps a patch's fields of the record and drops the chapter, the trial's list of the dead, the receipts and anything else, and answers null for a patch that names none, a function or an array", async () => {
         /*
          * E70 fix p1-G2, 28.10.2026. A GM that is not the primary asks the primary for its write of the record ("trial.record",
-         * vote.mjs `recordOnPrimary`), which spreads the patch over the record its one queue finds. The list of the dead and
+         * trial-progress.mjs `recordOnPrimary`), which spreads the patch over the record its one queue finds. The list of the dead and
          * the receipts are the primary's own steps' (the settle, `keepReceipt`), and the chapter the step's: a patch that
          * named them would write over them. Read without a world. Red at 5ee86113: no `recordPatchOf`.
          */
@@ -26244,7 +26339,7 @@ const INVARIANTS = [
         /*
          * E70 C13, 28.10.2026. Part 2 put three modes on the floor with no playlist of their own, and the trial's three
          * music states each tested one mode by name, so a new mode played whatever state came next and nothing said so.
-         * music.mjs answers from one table over floor-machine.mjs MODES now (`TRIAL_MODE_MUSIC`, `trialMusicState`). Read
+         * music-states.mjs answers from one table over floor-machine.mjs MODES now (`TRIAL_MODE_MUSIC`, `trialMusicState`). Read
          * here: every mode has its row and the row is the spec's; a floor with no mode in the trial is the discussion,
          * none outside it; and the Closing's exchange, built by `nextFloor` itself from a speaker objected at, is the
          * Objection's. Red at 4c58d5a7: music.mjs had neither export - the behaviour was the same for today's six modes
@@ -26404,7 +26499,7 @@ const INVARIANTS = [
             + "the decision: its line, each button [op, actor, time]; Resume [op, the rest]; after the vote; outside a trial; the Reveal: the count, a button per row, the no-trace marks, "
             + "nothing to say, outside a trial; roundLength]");
     }],
-    ["R1500 - one census of rooms and students, read by the Doors tab, the season checklist and Pre-season checks (E20 C1, E20-01, E20-24; S07-38, Q-3): vault.mjs `roomCensus` (marked, no owner, not No privacy, locked counted), monokuma.mjs `studentCensus` (the living), the Doors tab's line off its form, the checklist's roomCount line and Pre-season's scene line give one number, in one wording", async () => {
+    ["R1500 - one census of rooms and students, read by the Doors tab, the season checklist and Pre-season checks (E20 C1, E20-01, E20-24; S07-38, Q-3): vault-store.mjs `roomCensus` (marked, no owner, not No privacy, locked counted), monokuma.mjs `studentCensus` (the living), the Doors tab's line off its form, the checklist's roomCount line and Pre-season's scene line give one number, in one wording", async () => {
         /*
          * E20 C1, 29.10.2026; the owner's Q-3. The harm (S07-38): one map read "17 shared rooms open for 3 living
          * students" in the Doors tab (locked rooms left out, the living), "Rooms: 17. Players: 4" on the checklist
@@ -27712,8 +27807,9 @@ const INVARIANTS = [
         const after = line();
         const want = (rooms, pending) => `${V.roomRatioLine(V.roomCensusOf(rooms.map(name => ({ name, room: true }))), 2)} ${U.plural("DRPG.Vault.roomCensusUndecided", { n: pending })}`;
         const sources = new Map(await otherSources());
-        const vault = stripComments(sources.get("vault.mjs") ?? "");
-        must(vault.length, "vault.mjs is not among the module's sources - this would measure nothing");
+        // E41 C6 (1.2.97): vault.mjs holds no code; the stash's family's text (the kit's `vaultText`), where its alone was read.
+        const vault = stripComments(vaultText(sources));
+        must(vault.length, "the stash's family is not among the module's sources - this would measure nothing");
         equal(stableJson({ first, after, marked: /data-drpg-undecided/.test(fnSource(vault, "roomCells")) }),
             stableJson({ first: want(["R1528 Hall"], 2), after: want(["R1528 Hall", "R1528 Gym"], 1), marked: true }),
             "the Doors tab counts regions nobody decided as rooms [the line as the window opens | after the GM changes one box | Room Setup marks an undecided box]");
@@ -29233,7 +29329,7 @@ const INVARIANTS = [
             /extraPoolUserIds\(\)/.test(pools), docOver("\n    monokumas,").includes("Assistant GM"),
             REST.long.perSession === true && /roomFlag\(/.test(fnSource(rest, "roomAllows") ?? ""),
             docOver("\n    takeRest,").includes("once per session") && docOver("\n    takeRest,").includes("roomAllows") && !/bedroom/i.test(docOver("\n    takeRest,")),
-            /diagnoseCharacters\(\{ toChat: false \}\)/.test(sources.get("season-setup.mjs") ?? "") && !/diagnoseCharacters/.test(sources.get("gm-panel.mjs") ?? ""),
+            /diagnoseCharacters\(\{ toChat: false \}\)/.test(sources.get("season-setup.mjs") ?? "") && !/diagnoseCharacters/.test(panelText(sources)),
             docOver("\n    diagnoseCharacters,").includes("pre-session checks") && !/GM panel/.test(docOver("\n    diagnoseCharacters,")),
             /migrateTruthBullets/.test(migrate) && /migrateRemnants/.test(migrate), /the data migration runs\s+\*?\s*them too/.test(docOver("\n    migrateTruthBullets,"))
         ]), stableJson([true, true, true, true, true, true, true, true, true, true]),
@@ -29243,8 +29339,9 @@ const INVARIANTS = [
 
     ["R1561 - tools/api-surface.json says what ECLIPSE_FREE_PLACEMENT holds and when eclipseMovesLeft answers null, as config.mjs and eclipse.mjs do now (E52 C6, S18-90)", async () => {
         /*
-         * E52 C6, 30.10.2026; amend 05.10 A (S18-90), E52-22, owner's Q-5: E37 withdraws free placement; until it
-         * ships the surface lists the aggregate's key as it is, and eclipseMovesLeft's null with it. A note that
+         * E52 C6, 30.10.2026; amend 05.10 A (S18-90), E52-22, owner's Q-5. The owner's decision D197 (01.11.2026)
+         * keeps the Night Eclipse's free placement, so the surface lists the aggregate's key as it is, and
+         * eclipseMovesLeft's null with it. A note that
          * outlived the code would tell a macro author a number where null comes. Held: the file's value is the live
          * `config.ECLIPSE_FREE_PLACEMENT`, its `nullAt` the times of day whose Eclipse `isFreePlacement` answers true
          * for, measured on a stand-in clock per time of day, and `movesLeft` answers null only from a null allowance.
@@ -29353,7 +29450,7 @@ const INVARIANTS = [
         equal(stableJson(missing), "[]", "the handbook lacks something the code has");
     }],
 
-    ["R1104 - the Palm and Frisk roll windows are named by their part: action-rolls.mjs `palmTitle` reads \"Palm - Shadow, beat 15\", \"Palm - Hand, beat 10\", \"Palm - Body, beat 12\" and the Plant's and the unseen Frisk's numbers off ACTIONS.palm, and a part the table does not hold falls back to the action's label (E51 C1; E51-05, the owner's A11 of 13.10)", async () => {
+    ["R1104 - the Palm and Frisk roll windows are named by their part: palm.mjs `palmTitle` reads \"Palm - Shadow, beat 15\", \"Palm - Hand, beat 10\", \"Palm - Body, beat 12\" and the Plant's and the unseen Frisk's numbers off ACTIONS.palm, and a part the table does not hold falls back to the action's label (E51 C1; E51-05, the owner's A11 of 13.10)", async () => {
         /*
          * E51 C1, 30.10.2026; the owner's A11 (13.10): roll titles "Palm - Hand, beat 10", Frisk included, the numbers
          * from config. The cover's window read "Keep your hands out of sight · beat 15" and the hand's "Palm · beat 10";
@@ -29387,7 +29484,7 @@ const INVARIANTS = [
         /*
          * E51 C1, 30.10.2026; audit S02-51 (g). The row was filtered out of the victim's list, so the menu lost Role
          * reversal with no word of why; since C1 it stays, `denied`, shut like a blocked row and drawn struck through
-         * (action-rolls.mjs `openCrisisMenu`, `.drpg-row-denied`), with `DRPG.Murder.deniedByIncident`. The GM's
+         * (action-murder.mjs `openCrisisMenu`, `.drpg-row-denied`), with `DRPG.Murder.deniedByIncident`. The GM's
          * judgement refuses it as before (`crisisRefusal`'s `offered.denied`, under the same code). Asked of fixture
          * states as R211's: the victim on their turn with Role reversal unlocked, denied and not. Pure; nothing is
          * written. Red at C1's parent: the denied state gave no row.
@@ -29416,7 +29513,7 @@ const INVARIANTS = [
         /*
          * E51 C1, 30.10.2026; the owner, 14.10: the module told nobody the thresholds. The roll window said "beat N";
          * the card the roll reports went out with the total alone. `cardHead` takes the roll's `dc` (kept on the roll
-         * by `rollTrait`, read by action-rolls.mjs `rollHead` and `report`) and writes `DRPG.Action.needed` in the total's
+         * by `rollTrait`, read by action-report.mjs `rollHead` and `report`) and writes `DRPG.Action.needed` in the total's
          * slot. Pure; nothing is written. Red at C1's parent: no "needed" in any of the heads.
          */
         const { cardHead } = await import("./utils.mjs");
@@ -30088,7 +30185,7 @@ const INVARIANTS = [
         /*
          * E51 fix FG5, 31.10.2026; the end review's S1. The discard stamp stood on the GMs' copy being broken, which a
          * console sets one write earlier; it stands now on the ticket the primary writes as it places the discard's
-         * trace (gm-bridge.mjs `handleRemnant`), taken by the audit at the deletion. Read with the module's own pair on
+         * trace (bridge-runs-records.mjs `handleRemnant`), taken by the audit at the deletion. Read with the module's own pair on
          * this browser's memory, with ids no actor has; the old ticket is written with `Date.now` read 61 s back and
          * put back at once. Every ticket written here is taken before the end, so nothing is left. Red at the fix's
          * parent: neither function exported.
@@ -30112,7 +30209,7 @@ const INVARIANTS = [
         equal(JSON.stringify({ first, cut, old, ms: A.DISCARD_TICKET_MS }), JSON.stringify({ first: [false, false, true, false], cut: true, old: false, ms: 60000 }),
             "[another student's take, another name's, the ticket's own, the second time; a name past 80 read as cut; a ticket older than the minute; the minute]");
     }],
-    ["R1142 - a field of one row shows with that row alone, in both themes: each `data-drpg-when` value the module's windows write (and each `when` handed to action-rolls.mjs `requestFieldHtml`) is drawn, by the module's sheets' cascade under Monokuma Legacy and Stained Glass, when its row is checked and hidden under another row; the Projects window's two selects carry `work` and `sabotage`, Tamper's Reshape trace `reshape` (E51 fix FG4; the owner's item of 31.10, review correctness \"item 1 wider\")", async () => {
+    ["R1142 - a field of one row shows with that row alone, in both themes: each `data-drpg-when` value the module's windows write (and each `when` handed to action-menus.mjs `requestFieldHtml`) is drawn, by the module's sheets' cascade under Monokuma Legacy and Stained Glass, when its row is checked and hidden under another row; the Projects window's two selects carry `work` and `sabotage`, Tamper's Reshape trace `reshape` (E51 fix FG4; the owner's item of 31.10, review correctness \"item 1 wider\")", async () => {
         /*
          * E51 fix round FG4, 31.10.2026; the owner at the table ("Which project?" and "Sabotage which project?" shown at
          * once whatever row is picked) and the correctness review's "item 1 wider". The Projects window
@@ -30155,7 +30252,9 @@ const INVARIANTS = [
             const own = shown(theme, value, value), other = shown(theme, value, "drpg-r1142-other");
             if (own === "none" || own === null || other !== "none") wrong.push(`${theme} ${value}: ${own} / ${other}`);
         }
-        const code = stripComments(sources.get("action-rolls.mjs") ?? "");
+        // E41 C4 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read -
+        // `performProject` stands in action-project.mjs, `chooseTamper` in action-tamper.mjs.
+        const code = stripComments(actionText(sources));
         const labelOf = (fn, name) => {
             const body = fnSource(code, fn) ?? "";
             const m = body.match(new RegExp(`<label class="drpg-specific-note"(?: data-drpg-when="([\\w-]+)")?>\\s*<span>\\$\\{[^}]*\\}</span>\\s*<select name="${name}">`));
@@ -30169,7 +30268,7 @@ const INVARIANTS = [
             "[a row-bound value not shown with its row, or shown under another (theme value: its row checked / another checked); the rows the Projects "
                 + "window's project and sabotage selects show with; the rows Tamper's trace, Reshape trace and frame selects show with]");
     }],
-    ["R1144 - the season's resets and fixes report once: season-setup.mjs `wipeStudent`'s deaths part takes the Monocub off and revives with `quiet: true`, and monocub.mjs `setMonocub`'s toast stands under `!quiet` (E51 fix FG9; E51-38, audit S06-46, review goal G9)", async () => {
+    ["R1144 - the season's resets and fixes report once: season-wipe.mjs `wipeStudent`'s deaths part takes the Monocub off and revives with `quiet: true`, and monocub.mjs `setMonocub`'s toast stands under `!quiet` (E51 fix FG9; E51-38, audit S06-46, review goal G9)", async () => {
         /*
          * E51 fix round FG9, 31.10.2026; review goal G9: row E51-38's "fixes quietly" was read by no test. The reset said
          * "X is no longer a Monocub" once per cub beside its own report (C6 gave `setMonocub` a `quiet`); the checklist's
@@ -30178,9 +30277,9 @@ const INVARIANTS = [
          * it): what it holds is measured by mutants (S/stages/E51/FIX-C.md).
          */
         const sources = await moduleSources();
-        const setup = stripComments(sources.get("season-setup.mjs") ?? "");
+        const setup = stripComments(sources.get("season-wipe.mjs") ?? "");
         const cub = stripComments(sources.get("monocub.mjs") ?? "");
-        must(setup.length > 1000 && cub.length > 1000, "season-setup.mjs or monocub.mjs is not among the module's sources - this would measure nothing");
+        must(setup.length > 1000 && cub.length > 1000, "season-wipe.mjs or monocub.mjs is not among the module's sources - this would measure nothing");
         const deaths = bodyOf(fnSource(setup, "wipeStudent"), "deaths:", { until: "items:" });
         const setter = fnSource(cub, "setMonocub");
         equal(JSON.stringify([/setMonocub\(actor,\s*false,\s*\{\s*quiet:\s*true\s*\}\)/.test(deaths), /reviveCharacter\(actor,\s*\{\s*quiet:\s*true\s*\}\)/.test(deaths),
@@ -30400,7 +30499,7 @@ const INVARIANTS = [
         }), `[i18n.mjs's LANGUAGES, moduleLanguage and pageLanguage the leaf's; LANGUAGES frozen; the choices of the language and documents' settings; the language setting's reload; the files that write the list out; with the setting answering "${other}" on a page built in "${page}": the setting read as told, the plural forms asked for 2 and 5, a list, a time, the handbook's language; "xx" stored]`);
     }],
 
-    ["R1152 - a date, a time and a number on screen are the page's language through utils.mjs `localeFormat`, with the browser's locale and Foundry's language both different: gm-stores.mjs's case rows, messenger-app.mjs `bubbleTime`, secret.mjs `readersLines`, notice-history.mjs `noticeTime` by a call each, gm-bridge.mjs `expiresHtml`, gm-panel.mjs's failure log, trial.mjs's evidence log and season-setup.mjs's megabytes by their source (E66 C1; S18-40, E66-05)", async () => {
+    ["R1152 - a date, a time and a number on screen are the page's language through utils.mjs `localeFormat`, with the browser's locale and Foundry's language both different: gm-stores.mjs's case rows, messenger-app.mjs `bubbleTime`, secret.mjs `readersLines`, notice-history.mjs `noticeTime` by a call each, call-gm.mjs `expiresHtml`, gm-panel.mjs's failure log, trial.mjs's evidence log and season-setup.mjs's megabytes by their source (E66 C1; S18-40, E66-05)", async () => {
         /*
          * E66 C1, 01.11.2026; S18-40, E66-05. T20 counted ten calls that wrote a date or a time in the browser's locale
          * or in Foundry's language, and three Intl formats on their own: the case health check's dates in the browser's
@@ -30449,7 +30548,7 @@ const INVARIANTS = [
             S.setPageLanguage(was);
         }
         const sources = new Map(await moduleSources());
-        const fn = (file, name) => fnSource(stripComments(sources.get(file) ?? ""), name) ?? "";
+        const fn = (file, name) => (file === "gm-bridge.mjs" ? bridgeFn(sources, name) : fnSource(stripComments(sources.get(file) ?? ""), name)) ?? "";
         const through = (body, call) => body.includes(call) && !/toLocale(?:Date|Time)?String|\bIntl\s*\./.test(body);
         const pagePrefs = { hour: "2-digit", minute: "2-digit" };
         equal(stableJson({ ...read,
@@ -30764,7 +30863,7 @@ const INVARIANTS = [
             + "with its action step skipped and without]");
     }],
 
-    ["R1163 - the fix round's numbers reach their texts by the road, in English and Polish (E66 fix r1 F4, F7, F8, F9): vault.mjs `roomRatioLine` writes its quotient and the season's rooms per student through `localeFormat` (\"1,5\" on a Polish page); events.mjs `voteMetaLine` agrees with both its counts - the noun with the total, the Polish predicate with the ballots back - a total of 1 included; `Trial.turn.closingPassEarly` and `Floor.modeNote` say the seconds `TRIAL` holds, filled where they are drawn; the Rest's \"half\" is the half rest.mjs heals", async () => {
+    ["R1163 - the fix round's numbers reach their texts by the road, in English and Polish (E66 fix r1 F4, F7, F8, F9): vault-store.mjs `roomRatioLine` writes its quotient and the season's rooms per student through `localeFormat` (\"1,5\" on a Polish page); events.mjs `voteMetaLine` agrees with both its counts - the noun with the total, the Polish predicate with the ballots back - a total of 1 included; `Trial.turn.closingPassEarly` and `Floor.modeNote` say the seconds `TRIAL` holds, filled where they are drawn; the Rest's \"half\" is the half rest.mjs heals", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 13 (F4), 17 (F7), 24 and 49 (F8), 26 (F9). `roomRatioLine` wrote its
          * quotient by `toFixed(1)`, "1.5" on a Polish page, and the 1.5 rooms per student as it is; `Events.voteMetaGm`
@@ -30814,8 +30913,8 @@ const INVARIANTS = [
         const rest = stripComments(sources.get("rest.mjs") ?? "");
         const config = sources.get("config.mjs") ?? "";
         read.sources = {
-            ratio: /localeFormat\("number",\s*census\.count \/ living/.test(fn("vault.mjs", "roomRatioLine")) && /localeFormat\("number",\s*ROOMS_PER_PLAYER\)/.test(fn("vault.mjs", "roomRatioLine"))
-                && !/toFixed/.test(fn("vault.mjs", "roomRatioLine")),
+            ratio: /localeFormat\("number",\s*census\.count \/ living/.test(fn("vault-store.mjs", "roomRatioLine")) && /localeFormat\("number",\s*ROOMS_PER_PLAYER\)/.test(fn("vault-store.mjs", "roomRatioLine"))
+                && !/toFixed/.test(fn("vault-store.mjs", "roomRatioLine")),
             ballots: /voteMetaLine\(back,\s*back \+ out\)/.test(fn("events.mjs", "trialCard")),
             pass: /"DRPG\.Trial\.turn\.closingPassEarly"[^]{0,160}seconds:\s*TRIAL\.modes\.closing\.passWindowSeconds/.test(fn("trial-prompt.mjs", "promptTurn")),
             note: /"DRPG\.Floor\.modeNote"[^]{0,200}step:\s*adjustStep\(floor\)/.test(stripComments(sources.get("trial-floor-ui.mjs") ?? "")),
@@ -30920,7 +31019,937 @@ const INVARIANTS = [
         read.reported = reported.length;
         equal(stableJson(read), stableJson({ refused: [null, "en"], missing: [null, "en"], loaded: [["R1166"], "pl"], reported: 2 }),
             "[the file's answer and the page's language after a refused fetch, a 404 and a file that loads, on a page stood in as Polish; how many times the failure was reported]");
-    }]
+    }],
+    ["R1193 - the GM's strip and the panel's Next line count one cast (E37 C2, E37-09; S10-45): with a Monocub holding an action and every other student spent, both say one student still has actions, \"Still placing\" counts the Monocub in an Eclipse, and the trial's ballots go to whom they went before", async () => {
+        /*
+         * E37 C2, 01.11.2026; E37-09, audit S10-45. The panel's Next line counted `actingStudents()` (the living, and the
+         * Monocubs) and the GM's strip chapter.mjs `livingStudents()`, so with a Monocub holding the only action left the
+         * line said "1 student still has actions to spend." over a strip reading "Still to act 0 / 2". Read on four
+         * stand-in students, nothing written: `game.actors.filter` answers them while the test reads, and the clock is
+         * read as an Eclipse for the second strip (`game.settings.get` of the clock), both put back in `finally` and the
+         * strip drawn again from the world. D is dead and not a Monocub (2 actions), A and B living and spent, C dead and
+         * back as a Monocub (1 action); A and C belong to one player, B and D to another, D listed first. Read:
+         * `nextStep` with no incident, no Eclipse and the season's rows held; the strip's two rows as
+         * `renderPlayerStatus` draws them on this GM; `trialParticipants({ connected: false })`, which E37 points at the
+         * roster with its own filter kept: what 84fdb5af's code answers on the same stand-ins (A's player and B's).
+         * Red at 84fdb5af: "Still to act 0 / 2" and "Still placing 2 / 2".
+         */
+        needs(world.atLeast("playerAccounts", 2), "two player accounts to own the stand-ins");
+        const PS = await import("./player-status.mjs");
+        const GP = await import("./gm-panel.mjs");
+        const V = await import("./vote.mjs");
+        const { TRIAL } = await import("./config.mjs");
+        const { plural } = await import("./utils.mjs");
+        must(game.user.isGM, "the strip's table view is a GM's - this would measure nothing");
+        const [one, two] = game.users.filter(u => !u.isGM);
+        const stand = (key, { dead = false, cub = false, actions = 0, owner }) => ({
+            id: `R1193${key}`, name: `R1193 ${key}`, type: "character", isOwner: false,
+            system: { resources: { actions: { value: actions, max: 3 } } },
+            getFlag: (scope, flag) => (scope === MODULE_ID ? { [FLAGS.deceased]: dead || undefined, [FLAGS.monocub]: cub || undefined }[flag] : undefined),
+            testUserPermission: (user, level) => level === "OWNER" && user?.id === owner.id
+        });
+        const D = stand("D", { dead: true, actions: 2, owner: two }), A = stand("A", { owner: one }), B = stand("B", { owner: two });
+        const C = stand("C", { dead: true, cub: true, actions: 1, owner: one });
+        const stands = [D, A, B, C];
+        const clock = { ...getClock(), phase: "dailyLife", eclipse: false };
+        const held = [{ key: "name", done: true, optional: false, missing: () => [] }];
+        const ownFilter = Object.getOwnPropertyDescriptor(game.actors, "filter");
+        const ownGet = Object.getOwnPropertyDescriptor(game.settings, "get"), get = game.settings.get;
+        const strip = () => {
+            PS.renderPlayerStatus();
+            const el = document.getElementById(PS.WIDGET_ID);
+            const value = cls => el?.querySelector(`.${cls} .drpg-status-value`)?.textContent?.trim() ?? null;
+            return [value("is-actions"), value("is-move")];
+        };
+        const read = {};
+        try {
+            game.actors.filter = fn => stands.filter(fn);
+            const line = GP.nextStep(clock, { setupList: held, incident: false, eclipse: false });
+            read.next = [line?.text ?? null, line?.action ?? null];
+            read.strip = strip();
+            read.trial = V.trialParticipants({ connected: false }).map(p => [p.actor.name, p.user.id]);
+            game.settings.get = function (scope, key, ...rest) {
+                const value = get.call(this, scope, key, ...rest);
+                return scope === MODULE_ID && key === SETTINGS.clock ? { ...value, phase: "dailyLife", timeOfDay: "noon", eclipse: true, eclipseStartedAt: Date.now() } : value;
+            };
+            read.eclipse = strip();
+        } finally {
+            if (ownGet) Object.defineProperty(game.settings, "get", ownGet); else delete game.settings.get;
+            if (ownFilter) Object.defineProperty(game.actors, "filter", ownFilter); else delete game.actors.filter;
+            PS.renderPlayerStatus();
+        }
+        must(read.strip[0] !== null && read.eclipse[1] !== null, `the GM's strip drew no row to read (${stableJson(read)}) - this would measure nothing`);
+        const ballots = TRIAL.deadCastBallots ? [[D.name, two.id], [A.name, one.id]] : [[A.name, one.id], [B.name, two.id]];
+        equal(stableJson(read), stableJson({
+            next: [plural("DRPG.Panel.nextStillActing", { n: 1 }), null], strip: ["1 / 3", null], trial: ballots, eclipse: [null, "3 / 3"]
+        }), "{next: the panel's Next line and its action; strip: [Still to act, Still placing] out of an Eclipse; trial: the ballots "
+            + "[student, player]; eclipse: [Still to act, Still placing] in one}");
+    }],
+    ["R1195 - the readiness round's reading (E37 C3, E37-14; the owner's ask of 28.10, Q-E37-2): each asked player reads Done, One moment, No answer yet or Not connected, counted as done; the round is ready only when every connected player said Done, and at an Eclipse's end also when every placing student crossed or its player said Done; an ended round, one whose boundary the clock has left or whose Eclipse flag no longer matches its kind reads as no round; and the asked are the players of the cast, once each, never a GM", async () => {
+        /*
+         * E37 C3, 01.11.2026; E37-12, E37-14. boundary.mjs `roundReading(record, { users, clock, placement })` is the GM's
+         * window's whole judgement - its rows, its lede's count, and whether it goes on by itself - and `roundUsers(actors,
+         * users)` who is asked. Read on stand-ins, nothing written: three players (A with two students, B, C not connected),
+         * a clock at noon and the same clock in its Eclipse; a record per case. Then `roundUsers` on two stand-in students
+         * and a player and an Assistant GM who both own the first. Red at 2e06ae13: boundary.mjs has no `roundReading`.
+         */
+        const B = await import("./boundary.mjs");
+        const { boundaryStamp } = await import("./clock.mjs");
+        must(typeof B.roundReading === "function" && typeof B.roundUsers === "function", "boundary.mjs has no roundReading or roundUsers - there is no readiness round");
+        const clock = { season: 1, chapter: 2, session: 3, day: 4, timeOfDay: "noon", phase: "dailyLife", eclipse: false };
+        const dark = { ...clock, eclipse: true };
+        const users = [{ id: "uA", name: "A", active: true, actors: [{ id: "a1", name: "Aiko" }, { id: "a2", name: "Ana" }] },
+            { id: "uB", name: "B", active: true, actors: [{ id: "b1", name: "Botan" }] },
+            { id: "uC", name: "C", active: false, actors: [{ id: "c1", name: "Chie" }] }];
+        const record = (kind, answers = {}, extra = {}) => ({ id: "r1", kind, boundary: boundaryStamp(clock), by: "gm", at: 1, answers, ...extra });
+        const read = (rec, at = clock, placement = null) => {
+            const r = B.roundReading(rec, { users, clock: at, placement });
+            return [r.open, r.rows.map(row => row.status), r.notDone, r.unplaced, r.ready];
+        };
+        const moved = (...ids) => ["a1", "a2", "b1", "c1"].map(actorId => ({ actorId, moved: ids.includes(actorId) ? 1 : 0 }));
+        equal(JSON.stringify({
+            asked: read(record("next")),
+            wait: read(record("eclipseStart", { uA: "wait" })),
+            oneDone: read(record("next", { uA: "done" })),
+            allDone: read(record("eclipseStart", { uA: "done", uB: "done" })),
+            endUnplaced: read(record("eclipseEnd", { uA: "done", uB: "done" }), dark, moved("b1")),
+            endPlaced: read(record("eclipseEnd", { uA: "done" }), dark, moved("a1", "a2", "b1", "c1")),
+            endDone: read(record("eclipseEnd", { uA: "done", uB: "done" }), dark, moved("b1", "c1")),
+            row: B.roundReading(record("next", { uB: "wait" }), { users, clock }).rows[0],
+            stale: [read(record("next"), { ...clock, timeOfDay: "afternoon" })[0], read(record("next", {}, { ended: "go" }))[0],
+                read(record("eclipseStart"), dark)[0], read(record("eclipseEnd"))[0], read({})[0], read(record("lunch"))[0]],
+            users: B.roundUsers([
+                { id: "a1", name: "Aiko", testUserPermission: user => ["uP", "uG"].includes(user.id) },
+                { id: "a2", name: "Ana", testUserPermission: user => user.id === "uP" },
+                { id: "b1", name: "Botan", testUserPermission: () => false }
+            ], [{ id: "uP", name: "P", isGM: false, active: true }, { id: "uG", name: "Assistant", isGM: true, active: true }])
+        }), JSON.stringify({
+            asked: [true, ["none", "none", "away"], 2, [], false],
+            wait: [true, ["wait", "none", "away"], 2, [], false],
+            oneDone: [true, ["done", "none", "away"], 1, [], false],
+            allDone: [true, ["done", "done", "away"], 0, [], true],
+            endUnplaced: [true, ["done", "done", "away"], 0, ["c1"], false],
+            endPlaced: [true, ["done", "none", "away"], 1, [], false],
+            endDone: [true, ["done", "done", "away"], 0, [], true],
+            row: { userId: "uA", name: "A", actors: ["Aiko", "Ana"], status: "none" },
+            stale: [false, false, false, false, false, false],
+            users: [{ id: "uP", name: "P", active: true, actors: [{ id: "a1", name: "Aiko" }, { id: "a2", name: "Ana" }] }]
+        }), "[open, each user's status, the connected players not done, the unplaced students, ready]: no answer; One moment; one Done; "
+            + "both Done with C away; an end with C's unplaced student; an end everyone placed and B silent; an end with B's and C's crossed "
+            + "and A's covered by A's Done; the first row; stale: the clock moved on, ended, a start in the Eclipse, an end outside one, no "
+            + "record, an unknown kind; who is asked: one row for the player with two students, no row for the Assistant GM");
+    }],
+    ["R1204 - the GM panel's next line names an open readiness round (E37 fix FG1; the end review's G-m3, the slice's edge \"nextStep says a round is open\"): gm-panel.mjs `nextStep` handed a round of Next time of day answers `DRPG.Panel.nextReady` with the panel's \"advance\", a round of an Eclipse's start or end the same line with \"eclipse\"; an incident's line still comes first, and with no round the line is not that one", async () => {
+        /*
+         * E37 fix FG1, 02.11.2026; the end review's G-m3 (goal lens) and STATUS Open 15. A GM's page that loads while a
+         * round stands open - a reload of the GM who pressed, another GM - had nothing saying the players had been asked:
+         * the slice's edge "`nextStep`'s line says a round is open" was not built at C3. Read: `nextStep` in Daily Life
+         * handed a checklist whose required rows hold, no incident and no Eclipse but where the case asks for one, and a
+         * round of each kind (the shape `roundOf` answers: an id and a kind), then an incident beside a round, then no
+         * round. Pure; nothing is written. The "Do it" each line names is the road the round was opened by (boundary.mjs
+         * `nextTimeOfDay` behind "advance", `toggleEclipse` behind "eclipse"), which joins the round or, its GM gone, ends
+         * it and asks again (tier 2 E37-T3 `gone`). Red at 2b5527e1: `nextStep` reads no round, and each line was another.
+         */
+        const GP = await import("./gm-panel.mjs");
+        const CFG = await import("./config.mjs");
+        must(typeof GP.nextStep === "function", "gm-panel.mjs exports no nextStep - this would measure nothing");
+        const clock = { ...getClock(), phase: "dailyLife", chapter: 1, day: 1, session: 1, timeOfDay: CFG.TIMES_OF_DAY[1], eclipse: false, refilledFor: null };
+        const held = [{ key: "name", done: true, optional: false, missing: () => [] }, { key: "cast", done: true, optional: false, missing: () => [] }];
+        const ask = (round, extra = {}) => {
+            const step = GP.nextStep(clock, { setupList: held, incident: false, eclipse: false, round, ...extra });
+            return [step?.text ?? null, step?.action ?? null];
+        };
+        const ready = game.i18n.localize("DRPG.Panel.nextReady");
+        const none = ask(null);
+        equal(stableJson({
+            next: ask({ id: "zR1204next000000", kind: "next" }),
+            start: ask({ id: "zR1204start00000", kind: "eclipseStart" }),
+            end: ask({ id: "zR1204end0000000", kind: "eclipseEnd" }, { eclipse: true }),
+            incident: ask({ id: "zR1204next000000", kind: "next" }, { incident: true })[1],
+            none: none[0] === ready
+        }), stableJson({
+            next: [ready, "advance"], start: [ready, "eclipse"], end: [ready, "eclipse"], incident: "murder", none: false
+        }), "{next, start, end: the line and its action for a round of Next time of day, an Eclipse's start, its end; incident: the action "
+            + "with an incident beside a round; none: the line with no round is nextReady}");
+    }],
+    ["R1197 - the summary at every boundary (E37 C4, E37-16; D44c, S10-79): day-summary.mjs `summaryWindow(before, after, shownFor)` gives an Eclipse's start and a move of the clock with no Eclipse open the same window - the ended time of day's start, the boundary, its name and the boundary's stamp - and none for a move out of an Eclipse, a boundary this page summed up already, a rewind, a new season or chapter, a pause, a clock with no stamp or one put back with an older stamp; and the same boundary reached again from a time of day begun again is a window of its own", async () => {
+        /*
+         * E37 C4, 01.11.2026; E37-16, audit S10-79 (the summary only through an Eclipse). The day summary showed on
+         * `drpgEclipseChanged(true)` alone, so "Next time of day", `setTimeOfDay` and the API closed a time of day with no
+         * summary. Now each page reads the clock it last saw (`before`) against the clock it is told of (`after`) and the
+         * boundary it last summed up (`shownFor`): a move forward with no Eclipse open closes `before`'s time of day, over
+         * [its `timeOfDayStartedAt`, the new one's); an Eclipse's start closes the clock's own, up to the Eclipse's start.
+         * Read on plain clocks, nothing written: morning (stamp T) moved to noon at B, the same morning's Eclipse begun at
+         * B, a Night wrapping into the next day's morning, a jump to the evening (`setTimeOfDay`), and the cases that give
+         * none. Pure; R996 holds the stamp's rule (no stamp, no summary). Red at 2230c1fa: day-summary.mjs has no
+         * `summaryWindow`, and a move of the clock with no Eclipse showed nothing.
+         *
+         * THE SAME BOUNDARY FROM A TIME OF DAY BEGUN AGAIN (E37 C5b, 01.11.2026). The window's stamp was the boundary
+         * alone, so after Next, a rewind and Next again, the second Next summed nothing up - though a rewind restamps the
+         * time of day (clock.mjs `setClock`), so its window holds only what was done after the rewind and repeats no row.
+         * Found by E37-T4, red in suite shard 8/8 (CI run 41354325721) and green alone: E17-T10 before it in the shard
+         * had moved the GM's page through the same day's morning-to-noon and back. The stamp is the boundary and the
+         * window's start now: `again` is that second Next, and `shown` still holds the Eclipse ended without advancing
+         * (its time of day keeps its start). Red at 15f46794: `again` null.
+         *
+         * WHAT CAME AFTER AN ECLIPSE ENDED WITHOUT ADVANCING (E37 fix FG2, 02.11.2026; the end review's C-m2). The
+         * Eclipse's start summed up [T, B), its end without advancing kept the stamp, and play went on in the morning:
+         * Next at C then had the stamp summed up already and showed nothing, so what was played between B and C was summed
+         * up on no browser. `shownFor` is the window's stamp and its end now (`{ stamp, until }`; a stamp alone reads as a
+         * window with no end, as `shown` passes it): `after` is that Next - [B, C) - and an Eclipse begun again at the same
+         * boundary at D - [B, D) - and the same Next with the window shown up to C already, or with no end, shows none.
+         * Red at 2b5527e1: `after` was the whole [T, C) and [T, D) again.
+         */
+        const DS = await import("./day-summary.mjs");
+        const { boundaryStamp } = await import("./clock.mjs");
+        must(typeof DS.summaryWindow === "function", "day-summary.mjs has no summaryWindow - a move of the clock with no Eclipse sums nothing up (S10-79)");
+        const T = 1_000_000_000, B = T + 3_600_000;
+        const morning = { season: 1, chapter: 2, session: 3, day: 4, timeOfDay: "morning", phase: "dailyLife", eclipse: false,
+            eclipseStartedAt: null, timeOfDayStartedAt: T, pausedTotalMs: 0, pausedAt: null };
+        const noon = { ...morning, timeOfDay: "noon", timeOfDayStartedAt: B };
+        const dark = { ...morning, eclipse: true, eclipseStartedAt: B };
+        const night = { ...morning, timeOfDay: "night" };
+        const dawn = { ...morning, session: 4, day: 5, timeOfDay: "morning", timeOfDayStartedAt: B };
+        const w = (before, after, shownFor = null) => DS.summaryWindow(before, after, shownFor);
+        const stamp = JSON.stringify([boundaryStamp(morning), T]);
+        const R = B + 120_000, C = R + 3_600_000;
+        const got = {
+            next: w(morning, noon),
+            eclipse: w(morning, dark),
+            wrap: w(night, dawn),
+            jump: w(morning, { ...morning, timeOfDay: "evening", timeOfDayStartedAt: B }),
+            outOfEclipse: [w(dark, { ...noon, eclipseStartedAt: null }), w(dark, { ...dark, eclipse: false, eclipseStartedAt: null })],
+            shown: [w(morning, noon, stamp), w(morning, dark, stamp), w({ ...dark, eclipse: false, eclipseStartedAt: null }, noon, stamp)],
+            rewind: [w(noon, { ...morning, timeOfDayStartedAt: B + 60_000 }), w(dawn, { ...night, timeOfDayStartedAt: B + 60_000 })],
+            calendar: [w(morning, { ...noon, season: 2 }), w(morning, { ...noon, chapter: 3 })],
+            pause: w(morning, { ...morning, pausedAt: T + 60_000 }),
+            stampless: [w({ ...morning, timeOfDayStartedAt: null }, noon), w({ ...morning, timeOfDayStartedAt: null }, { ...dark, timeOfDayStartedAt: null })],
+            putBack: w(morning, { ...noon, timeOfDayStartedAt: T - 60_000 }),
+            again: w({ ...morning, timeOfDayStartedAt: R }, { ...noon, timeOfDayStartedAt: C }, stamp),
+            after: [w(morning, { ...noon, timeOfDayStartedAt: C }, { stamp, until: B }), w(morning, { ...dark, eclipseStartedAt: C + 60_000 }, { stamp, until: B }),
+                w(morning, { ...noon, timeOfDayStartedAt: C }, { stamp, until: C }), w(morning, { ...noon, timeOfDayStartedAt: C }, { stamp, until: null })],
+            none: [w(null, noon), w(morning, null)]
+        };
+        const closed = { since: T, until: B, timeOfDay: "morning", stamp };
+        equal(stableJson(got), stableJson({
+            next: closed, eclipse: closed,
+            wrap: { since: T, until: B, timeOfDay: "night", stamp: JSON.stringify([boundaryStamp(night), T]) },
+            jump: closed,
+            outOfEclipse: [null, null],
+            shown: [null, null, null],
+            rewind: [null, null],
+            calendar: [null, null],
+            pause: null,
+            stampless: [null, null],
+            putBack: null,
+            again: { since: R, until: C, timeOfDay: "morning", stamp: JSON.stringify([boundaryStamp(morning), R]) },
+            after: [{ since: B, until: C, timeOfDay: "morning", stamp }, { since: B, until: C + 60_000, timeOfDay: "morning", stamp }, null, null],
+            none: [null, null]
+        }), "{next: morning moved to noon; eclipse: the same morning's Eclipse begun at the same moment - the same window; wrap: a Night into the "
+            + "next day's morning; jump: setTimeOfDay to the evening; outOfEclipse: an Eclipse ended with the clock moved, and without; shown: the "
+            + "boundary summed up already - by Next, by an Eclipse, and Next after an Eclipse ended without advancing; rewind: noon back to the "
+            + "morning, a morning back to last night; calendar: a new season, a new chapter; pause; stampless: no stamp at a move and at an "
+            + "Eclipse; putBack: a clock put back with an older stamp; again: Next after a rewind restamped the morning, the boundary summed up before; "
+            + "after: Next and an Eclipse begun again after an Eclipse ended without advancing, its window shown up to B, then Next with the window "
+            + "shown up to C and with no end; none: no clock before, none after}");
+    }],
+    ["R1205 - an Eclipse packet ahead of its setting runs nothing, and the clock's row runs the pass once the setting lands (E37 fix FG3; the end review's S-m1 = C-m1, STATUS Open 23, LIVE-E37-05): sync.mjs `refresh` of `SYNC.eclipse` naming the flag this browser's clock setting does not hold yet runs no name and keeps what this browser last told (`clockHeard`), and `clockNews` of that told reading against the clock with the flag reads the Eclipse moved, so the clock's row runs the visibility pass and the Eclipse's hook", async () => {
+        /*
+         * E37 fix FG3, 02.11.2026; the end review's S-m1 (security) and C-m1 (correctness). The order measured by the
+         * security lens on the pure functions at 2b5527e1: an Eclipse's packet that lands before its clock setting ran
+         * the Eclipse's row - its visibility pass reading the old flag off the setting - and moved `heard.eclipse`, so
+         * when the setting landed the clock's reading named nothing (`moved` false) and no pass ran on the new flag. On
+         * this browser, nothing written: `refresh(SYNC.eclipse, { active: <the flag the clock does not hold> })` with every
+         * refresh a stub that records its name (the reading is the module's own, `KIND_NEWS`, on this browser's `heard`),
+         * then `clockNews` of the reading told after it against this clock with the flag set as the setting will hold it,
+         * and the clock's row for that news (`refreshNames`). Then the packet of the flag the clock holds, as the setting's
+         * own run would find it, so `heard` is what it was (at 2b5527e1 that hands to the clock's own row). Red at
+         * 2b5527e1: the packet ran the Eclipse's row whole, `heard` moved, and the clock's reading named nothing.
+         */
+        const Y = await import("./sync.mjs");
+        const before = Y.clockHeard();
+        must(before, "this browser has told its listeners nothing of the clock yet (no ready) - this would measure nothing");
+        const now = getClock()?.eclipse === true;
+        const ran = [];
+        const stubs = Object.fromEntries(Object.keys(Y.REFRESHES).map(name => [name, () => { ran.push(name); }]));
+        let packet = null, told = null, news = null;
+        try {
+            packet = Y.refresh(Y.SYNC.eclipse, { active: !now }, { refreshes: stubs });
+            told = Y.clockHeard();
+            news = Y.clockNews(told, { ...getClock(), eclipse: !now });
+        } finally {
+            Y.refresh(Y.SYNC.eclipse, { active: now }, { refreshes: stubs });
+        }
+        const row = news ? Y.refreshNames(Y.SYNC.clock, news) : [];
+        equal(stableJson({
+            packet, ran: [...new Set(ran)].length, kept: stableJson(told) === stableJson(before),
+            moved: [news?.moved ?? null, news?.eclipse ?? null], row: ["visibility", "eclipseHook"].map(name => row.includes(name)),
+            after: stableJson(Y.clockHeard()) === stableJson(before)
+        }), stableJson({ packet: [], ran: 0, kept: true, moved: [true, true], row: [true, true], after: true }),
+        "{packet: the names the packet ahead of its setting ran; ran: the stubs it called; kept: what this browser last told unchanged by it; "
+            + "moved: [the clock's reading of the setting with the flag: moved, the Eclipse]; row: [the clock's row runs the visibility pass, "
+            + "the Eclipse's hook]; after: what this browser last told, after the test}");
+    }],
+    ["R1198 - the bus is a table (E37 C5, E37-19 to E37-23; audit S17-19, S07-26): sync.mjs `KIND_REFRESH` gives every `SYNC` kind a frozen row of names of `REFRESHES` and every refresh a row; `refresh` runs a kind's row and nothing else; the clock's row runs the visibility pass and the hooks only for what moved; `SYNC.despair` renders the Monokumas' sheets and no student's; the incident's world half and its cast copy reach `SYNC.incident`, whose row runs the pass; `trialQueue` and `trialProgress` reach the trial's row with the voice tile; visibility.mjs runs no pass of its own on the clock's hooks", async () => {
+        /*
+         * E37 C5, 01.11.2026. `refresh` was a `switch` of thirteen kinds whose cases each listed their redraws, the clock's
+         * ran the visibility pass on every run while visibility.mjs ran it again on the clock's two hooks, and the
+         * incident's world half travelled `SYNC.restrictions`, which runs no pass, so a participant's cast copy landing
+         * after a trace was drawn left it hidden from them (scenario 81 part G). Read here: the table's shape against `SYNC`
+         * and `REFRESHES`; `refresh` run on a stub table of the test's own (it reads no clock and writes nothing); the
+         * clock's row through `refreshNames` for readings `clockNews` makes of plain clocks; the Despair row's sheet
+         * refresh run on two stand-in sheets in `ui.windows` for the length of the test (a student's, a Monokuma's, each
+         * counting its renders; as R1013); and three tables of the source - `SETTING_KINDS`, settings.mjs's
+         * `onCastChange` and visibility.mjs's `registerVisibility` - cut with the kit. Nothing is written. Red at
+         * 2b2707ec: no table.
+         */
+        const J = stableJson;
+        const S = await import("./sync.mjs");
+        must(S.KIND_REFRESH && S.REFRESHES && typeof S.refreshNames === "function" && typeof S.refresh === "function",
+            "sync.mjs has no KIND_REFRESH, REFRESHES, refreshNames or refresh - the bus is still a switch (S17-19)");
+        const table = S.KIND_REFRESH, refreshes = S.REFRESHES;
+        const kinds = Object.values(S.SYNC);
+        const nameOf = entry => (typeof entry === "string" ? entry : entry?.name);
+        const rowNames = kind => (table[kind] ?? []).map(nameOf);
+        const got = {};
+        got.shape = {
+            rowless: kinds.filter(kind => !Array.isArray(table[kind])),
+            strangers: Object.keys(table).filter(kind => !kinds.includes(kind)),
+            frozen: Object.isFrozen(table) && Object.isFrozen(refreshes) && kinds.every(kind => !table[kind] || Object.isFrozen(table[kind])),
+            unknown: [...new Set(kinds.flatMap(rowNames))].filter(name => typeof refreshes[name] !== "function"),
+            unused: Object.keys(refreshes).filter(name => !kinds.some(kind => rowNames(kind).includes(name)))
+        };
+
+        // A row of stubs: run in its order with the burst's data, a `when` the reading does not name left out, nothing else.
+        const calls = [];
+        const stubs = {
+            first: data => { calls.push(["first", data.n]); return Promise.resolve(); },
+            second: data => { calls.push(["second", data.n]); },
+            gated: () => { calls.push(["gated"]); },
+            other: () => { calls.push(["other"]); }
+        };
+        const stub = Object.freeze({ "R1198 kind": Object.freeze(["first", "second", Object.freeze({ name: "gated", when: "moved" })]),
+            "R1198 other": Object.freeze(["other"]) });
+        got.stub = {
+            ran: S.refresh("R1198 kind", { n: 7 }, { table: stub, refreshes: stubs }),
+            calls: calls.splice(0),
+            unknown: S.refresh("R1198 no row", {}, { table: stub, refreshes: stubs }),
+            after: calls.splice(0),
+            gated: S.refreshNames("R1198 kind", { moved: true }, stub),
+            none: S.refreshNames("R1198 no row", {}, stub)
+        };
+
+        // The clock's row: the pass when the time of day, the phase or the Eclipse moved; each hook for what it names.
+        const C0 = { season: 1, chapter: 1, session: 1, day: 1, timeOfDay: "morning", phase: "dailyLife", eclipse: false, pausedAt: null, campaignName: "A" };
+        const heard = S.clockNews(null, C0).heard;
+        const HOOKS = ["timeOfDayHook", "phaseHook", "eclipseHook"];
+        const reading = names => [names.includes("visibility"), names.filter(name => HOOKS.includes(name))];
+        const clock = c => reading(S.refreshNames(S.SYNC.clock, S.clockNews(heard, c)));
+        got.clock = {
+            pause: clock({ ...C0, pausedAt: 5 }), name: clock({ ...C0, campaignName: "B" }), day: clock({ ...C0, day: 2 }),
+            phase: clock({ ...C0, phase: "investigation" }), eclipse: clock({ ...C0, eclipse: true }),
+            beforeReady: reading(S.refreshNames(S.SYNC.clock, S.clockNews(null, C0))),
+            always: rowNames(S.SYNC.clock).filter(name => !["visibility", ...HOOKS].includes(name))
+        };
+
+        // The Despair row on two stand-ins: the Monokuma's sheet rendered, the student's not.
+        const student = studentActors()[0];
+        must(student, "no student in this world - the Despair row would be run past nobody's sheet");
+        const renders = {};
+        const sheet = (id, doc) => ({ appId: id, id, document: doc, rendered: true, element: null, position: {},
+            render() { renders[id] = (renders[id] ?? 0) + 1; return this; }, bringToTop() {}, async close() {} });
+        const monokuma = { type: "character", name: "R1198 Monokuma", getFlag: (scope, key) => (key === FLAGS.monokuma ? true : undefined) };
+        const ids = ["R1198-student", "R1198-monokuma"];
+        const windows = ui.windows ?? {};
+        must(ids.every(id => !(id in windows)), "a window of this world already holds one of the stand-ins' ids");
+        const sheetNames = rowNames(S.SYNC.despair).filter(name => /sheets/i.test(name));
+        try {
+            windows[ids[0]] = sheet(ids[0], student);
+            windows[ids[1]] = sheet(ids[1], monokuma);
+            for (const name of sheetNames) await refreshes[name]({}, {});
+        } finally {
+            ids.forEach(id => { if (windows[id]?.appId === id) delete windows[id]; });
+        }
+        got.despair = { sheetNames, renders: ids.map(id => renders[id] ?? 0) };
+
+        // The incident (S07-26) and the trial, by the tables that route their settings.
+        const sources = new Map(await moduleSources());
+        const kindsOf = bodyOf(stripComments(sources.get("sync.mjs") ?? ""), "const SETTING_KINDS", { until: "};" });
+        const kindOf = key => kindsOf.match(new RegExp(`^\\s*${key}:\\s*SYNC\\.(\\w+)`, "m"))?.[1] ?? null;
+        const cast = bodyOf(stripComments(sources.get("settings.mjs") ?? ""), "const onCastChange", { until: "};" });
+        const listens = bodyOf(stripComments(sources.get("visibility.mjs") ?? ""), "export function registerVisibility", { until: "\n}\n" });
+        got.routes = {
+            murderState: kindOf("murderState"), trialQueue: kindOf("trialQueue"), trialProgress: kindOf("trialProgress"),
+            castCopy: /onWorldChange\(SETTINGS\.murderState\)/.test(cast) && /"drpgCastChanged"/.test(cast),
+            incident: ["sheets", "hud", "visibility"].map(name => rowNames(S.SYNC.incident).includes(name)),
+            trial: ["trialFloor", "hud", "voiceTile"].map(name => rowNames(S.SYNC.trial).includes(name)),
+            ownPasses: ["drpgTimeOfDayChanged", "drpgEclipseChanged"].filter(hook => listens.includes(`"${hook}"`))
+        };
+
+        equal(J(got), J({
+            shape: { rowless: [], strangers: [], frozen: true, unknown: [], unused: [] },
+            stub: { ran: ["first", "second"], calls: [["first", 7], ["second", 7]], unknown: [], after: [], gated: ["first", "second", "gated"], none: null },
+            clock: {
+                pause: [false, []], name: [false, []], day: [true, ["timeOfDayHook"]], phase: [true, ["phaseHook"]], eclipse: [true, ["eclipseHook"]],
+                beforeReady: [true, HOOKS], always: ["assembly", "bar", "hud", "sheets", "eclipse"]
+            },
+            despair: { sheetNames: ["monokumaSheets"], renders: [0, 1] },
+            routes: {
+                murderState: "incident", trialQueue: "trial", trialProgress: "trial", castCopy: true,
+                incident: [true, true, true], trial: [true, true, true], ownPasses: []
+            }
+        }), "{shape: SYNC kinds with no row, rows of no kind, all frozen, names no refresh holds, refreshes no row names; stub: a stub "
+            + "row run with {n: 7} - the names run, the calls, a kind with no row, the gated name when the reading names it, no row; clock: "
+            + "[the pass, the hooks] for a pause, a name, a day, a phase, an Eclipse, before ready, and the names every run of the clock "
+            + "runs; despair: the Despair row's sheet refreshes and the renders of [a student's sheet, a Monokuma's]; routes: the kinds of "
+            + "murderState, trialQueue, trialProgress, the cast copy through murderState's road with drpgCastChanged, the incident's row "
+            + "[sheets, hud, visibility], the trial's [floor, hud, voice tile], the clock's hooks visibility.mjs still runs a pass on}");
+    }],
+    ["R1200 - the Move briefing says what the next room takes (E37 C6, E37-28; audit S10-48, D21): actions.mjs `nextCrossingPrice` reads the Free Move, a Sprint, a Burst and an action in the order `takeMove` pays them, and on five stand-in students (a Free Move; a Sprint; a Burst with actions; actions only; nothing) answers that order; the briefing's line for each names that price - \"the next room takes your Burst, and your actions stay\" with a Burst banked - and the crossing's card names a Burst it paid", async () => {
+        /*
+         * E37 C6, 01.11.2026; E37-28, audit S10-48. A crossing pays the Free Move, then a Sprint, then `spendAction`,
+         * which takes a banked Burst before an action (actions.mjs `takeMove`; D21 keeps that order). The Move briefing
+         * said "Free Move used - the next room costs an action" whatever paid, and the crossing's card "That cost an
+         * action" for a Burst, so a player who had bought a Burst for their next action read that the walk would cost an
+         * action and found the Burst gone. Read: the order of the four in `takeMove`'s and `spendAction`'s source and in
+         * `nextCrossingPrice`'s (`fnSource`); `nextCrossingPrice` and the briefing's first line (action-briefing.mjs
+         * `briefingBlock`, the window's own text) on five stand-ins of this test's own - an id no token has, the flags and
+         * the actions as given, nothing written; and movement.mjs `chargeForCrossing`'s card for a cost "burst". Under a
+         * darkening that takes the Free Move away (`overflowBlocksFreeMove`) the first stand-in reads the next price, as a
+         * crossing would pay. Red at 7dcd13e6: no `nextCrossingPrice`, and the Burst's line "costs an action".
+         */
+        const A = await import("./actions.mjs");
+        const R = await import("./action-rolls.mjs");
+        const { ACTIONS_RESOURCE } = await import("./config.mjs");
+        const { overflowBlocksFreeMove } = await import("./overflow.mjs");
+        const sources = new Map(await moduleSources());
+        const actions = stripComments(sources.get("actions.mjs") ?? "");
+        const take = fnSource(actions, "takeMove"), spend = fnSource(actions, "spendAction");
+        const at = (src, re) => src.search(re);
+        const order = src => [/\bhasFreeMove\(actor\)/, /\bfreeMovesLeft\(actor\) > 0/, /\bfreeActionsLeft\(actor\) > 0/, /\bactionsLeft\(actor\)/].map(re => at(src, re));
+        const paid = [at(take, /\bhasFreeMove\(actor\)/), at(take, /\bfreeMovesLeft\(actor\) > 0/), at(take, /\bspendAction\(/)];
+        const spends = [at(spend, /\bfreeActionsLeft\(actor\) > 0/), at(spend, /\bactionsLeft\(actor\)/)];
+        const priceSrc = topLevelFunction(actions, "nextCrossingPrice");
+        const ascending = list => list.every(i => i >= 0) && list.every((i, k) => k === 0 || i > list[k - 1]);
+        const stand = (key, flags, left) => ({ id: `R1200${key}`.padEnd(16, "0"), name: `R1200 ${key}`, type: "character",
+            getFlag: (scope, name) => (scope === MODULE_ID ? flags[name] : undefined),
+            system: { resources: { [ACTIONS_RESOURCE]: { value: left, max: 2 } } } });
+        const fog = overflowBlocksFreeMove();
+        const fixtures = [
+            ["free", stand("free", {}, 2)],
+            ["sprint", stand("sprint", { [FLAGS.freeMoveUsed]: true, [FLAGS.freeMoveGrants]: 1, [FLAGS.freeActionGrants]: 1 }, 2)],
+            ["burst", stand("burst", { [FLAGS.freeMoveUsed]: true, [FLAGS.freeActionGrants]: 1 }, 2)],
+            ["action", stand("action", { [FLAGS.freeMoveUsed]: true }, 2)],
+            ["nothing", stand("nothing", { [FLAGS.freeMoveUsed]: true }, 0)]
+        ];
+        // What each fixture pays, in takeMove's order; a darkening's lost Free Move leaves the first to its Sprint-less next: actions.
+        const want = { free: fog ? "action" : "free", sprint: "sprint", burst: "burst", action: "action", nothing: null };
+        const line = actor => {
+            const box = document.createElement("div");
+            box.innerHTML = R.briefingBlock(actor, "move", ACTIONS.move);
+            return box.querySelector(".drpg-briefing-facts li")?.textContent.trim() ?? null;
+        };
+        const lineOf = {
+            free: game.i18n.localize("DRPG.Move.freeAvailable"), sprint: game.i18n.localize("DRPG.Move.nextSprint"),
+            burst: game.i18n.localize("DRPG.Move.nextBurst"), action: game.i18n.format("DRPG.Move.freeSpent", { left: 2 }),
+            nothing: game.i18n.localize("DRPG.Move.noBudget")
+        };
+        const card = fnSource(stripComments(sources.get("movement.mjs") ?? ""), "chargeForCrossing");
+        equal(stableJson({
+            takeMove: ascending(paid), spendAction: ascending(spends),
+            nextCrossingPrice: priceSrc ? ascending(order(priceSrc)) : null,
+            prices: fixtures.map(([key, actor]) => [key, typeof A.nextCrossingPrice === "function" ? A.nextCrossingPrice(actor) : "no function"]),
+            lines: fixtures.map(([key, actor]) => [key, line(actor) === lineOf[want[key] ?? "nothing"] ? "its price" : line(actor)]),
+            keys: ["nextSprint", "nextBurst", "wasBurst"].map(k => game.i18n.has(`DRPG.Move.${k}`)),
+            card: /cost === "burst"\s*\?\s*game\.i18n\.localize\("DRPG\.Move\.wasBurst"\)/.test(card)
+        }), stableJson({
+            takeMove: true, spendAction: true, nextCrossingPrice: true,
+            prices: fixtures.map(([key]) => [key, want[key]]),
+            lines: fixtures.map(([key]) => [key, "its price"]),
+            keys: [true, true, true], card: true
+        }), "{takeMove: it pays the Free Move, a Sprint, then spendAction; spendAction: a Burst before an action; nextCrossingPrice: it asks "
+            + "the four in that order; prices: what it answers for each stand-in; lines: the briefing's first line for each, \"its price\" when it "
+            + "names what the next room takes; keys: the three new lines exist; card: the crossing's card names a Burst it paid}");
+    }],
+    ["R1232 - one source a number (E41 C1b, E41-04; audit S02-65): the broken item's discard table is `INDIRECT_MURDER.hideTraces`' own rows, the darkening's free placement and `overflowCrossings`' fallback are `ECLIPSE_MOVES`, `sabotageRepairScale`'s complex band is `ACTIONS.sabotage`'s top row, the Rest window's price is `REST[kind].actionCost`, and inventory.mjs `leavesTraceFor` answers as before; every value as at the parent", async () => {
+        /*
+         * E41 C1b, 02.11.2026; E41-04, audit S02-65. Four numbers each written twice: `BROKEN_ITEMS.thresholds` and
+         * `.critical`, `INDIRECT_MURDER.hideTraces`' rows again ("verbatim"); `OVERFLOW.effects.darkness.freeBecomes: 2` and
+         * overflow.mjs `overflowCrossings`' `?? 2`, `ECLIPSE_MOVES` again; action-project.mjs `sabotageRepairScale`'s 18,
+         * `ACTIONS.sabotage.thresholds`' complex row again; rest.mjs `restVariants`' `kind === "long" ? 2 : 1`, `REST`'s
+         * `actionCost` again. Read: the identities; `overflowCrossings` called with the darkening running - this
+         * browser's `game.settings.get` answers a clock and an Overflow stamp of its own for the length of one
+         * synchronous call and is put back in `finally` (nothing written, nothing awaited between); `sabotageRepairScale`
+         * at the complex row's `min - relief` and one below it, for reliefs 0-2, and on a critical; the bodies (`fnSource`,
+         * comments out): `overflowCrossings`' fallback for free placement, `sabotageRepairScale` for a numeric literal,
+         * `restVariants` for its count; `leavesTraceFor` over every category x every category as its
+         * role. The parent's values, quoted: hideTraces [0 obvious, 12 evident, 18 subtle], critical hidden;
+         * ECLIPSE_MOVES 2, so 2 for a free-placement Eclipse and 1 for the ordinary two under a darkening by 1; the
+         * Sabotage's complex row 18, PROJECT_SCALE complex 6, trivial 3, desperate 8; REST long 2, short 1; a trace for a
+         * crime tool or a cleaning tool, by category or by role. Red at the parent: the copies, the `?? 2`, the 18 and
+         * `kind === "long" ? 2 : 1`.
+         */
+        const C = await import("./config.mjs");
+        const A = await import("./action-rolls.mjs");
+        const O = await import("./overflow.mjs");
+        const { leavesTraceFor } = await import("./inventory.mjs");
+        const sources = new Map(await otherSources());
+        const fnIn = name => {
+            const at = [...sources].filter(([, raw]) => topLevelFunction(stripComments(raw), name) !== null).map(([file]) => file);
+            must(at.length === 1, `${name} is declared in ${at.length} module file(s) - this test reads one`);
+            return fnSource(stripComments(sources.get(at[0])), name);
+        };
+        // A string's digits are its text, not a number of the rules: strings blanked first.
+        const numbers = body => [...stripStrings(body).matchAll(/(?<![\w$.])\d+(?:\.\d+)?(?![\w$])/g)].map(m => m[0]);
+        const S = C.ACTIONS.sabotage;
+        const complexMin = Math.max(...S.thresholds.map(band => band.min));
+        const scale = (total, relief, isCritical = false) => A.sabotageRepairScale({ isCritical, total }, total, relief);
+        const repair = [0, 1, 2].map(relief => [scale(complexMin - relief, relief), scale(complexMin - relief - 1, relief), scale(0, relief, true)]);
+        const crossings = (() => {
+            const real = game.settings.get;
+            const stamp = { session: 1, day: 1, timeOfDay: "noon" };
+            try {
+                game.settings.get = function (module, key, ...rest) {
+                    if (module === MODULE_ID && key === SETTINGS.clock) return { ...stamp, eclipse: false };
+                    if (module === MODULE_ID && key === SETTINGS.overflow) return { active: { ...stamp, effect: "darkness" } };
+                    if (module === MODULE_ID && key === SETTINGS.overflowRules) return {};
+                    return real.call(this, module, key, ...rest);
+                };
+                return [O.overflowIs("darkness"), O.overflowCrossings(null), O.overflowCrossings(C.ECLIPSE_MOVES)];
+            } finally {
+                game.settings.get = real;
+            }
+        })();
+        const categories = Object.keys(C.ITEM_CATEGORIES);
+        must(categories.length >= 5, `${categories.length} item categories read - this test measured nothing`);
+        const parentTrace = (category, roles) => [category, ...roles].some(x => x === "crimeTool" || x === "cleaningTool");
+        const traceWrong = categories.flatMap(category => [[], ...categories.map(role => [role])]
+            .filter(roles => leavesTraceFor(category, roles) !== parentTrace(category, roles)).map(roles => `${category}/${roles.join(",")}`));
+        const rest = fnIn("restVariants");
+        equal(JSON.stringify({
+            broken: [C.BROKEN_ITEMS.thresholds === C.INDIRECT_MURDER.hideTraces.thresholds, C.BROKEN_ITEMS.critical === C.INDIRECT_MURDER.hideTraces.critical],
+            hideTraces: [C.INDIRECT_MURDER.hideTraces.thresholds.map(t => [t.min, t.remnant]), C.INDIRECT_MURDER.hideTraces.critical.remnant],
+            darkness: [C.OVERFLOW.effects.darkness.freeBecomes === C.ECLIPSE_MOVES, C.ECLIPSE_MOVES, crossings],
+            fallback: [/\bfreeBecomes\s*\?\?\s*ECLIPSE_MOVES\b/.test(fnIn("overflowCrossings")), /\bfreeBecomes\s*\?\?\s*\d/.test(fnIn("overflowCrossings"))],
+            sabotage: [complexMin, repair, numbers(fnIn("sabotageRepairScale"))],
+            rest: [/\bREST\[kind\]\.actionCost\b/.test(rest), /kind\s*===\s*"long"\s*\?\s*2\s*:\s*1/.test(rest), C.REST.long.actionCost, C.REST.short.actionCost],
+            traceWrong
+        }), JSON.stringify({
+            broken: [true, true],
+            hideTraces: [[[0, "obvious"], [12, "evident"], [18, "subtle"]], "hidden"],
+            darkness: [true, 2, [true, 2, 1]],
+            fallback: [true, false],
+            sabotage: [18, [0, 1, 2].map(() => [6, 3, 8]), []],
+            rest: [true, false, 2, 1],
+            traceWrong: []
+        }), "{broken: BROKEN_ITEMS' thresholds and critical are hideTraces' own; hideTraces: its rows; darkness: [freeBecomes is ECLIPSE_MOVES, "
+            + "ECLIPSE_MOVES, [the darkening runs, crossings for a free placement, for the ordinary two]]; fallback: [overflowCrossings falls back "
+            + "to ECLIPSE_MOVES, to a number written in]; sabotage: [the complex row's min, for reliefs 0-2 the scale [at min - relief, one below, "
+            + "a critical], sabotageRepairScale's numeric literals]; rest: [restVariants reads REST[kind].actionCost, counts 2 : 1 itself, long, "
+            + "short]; traceWrong: category/role pairs leavesTraceFor answers otherwise than the parent's rule}");
+    }],
+    ["R1234 - a draw is a list of steps (E41 C1c, E41-07; audit S17-29): tables-pools.mjs `drawItem` runs `DRAW_STEPS` - the room's tables by name, the room's every table shuffled, the GM's tier pools, the built-in pool, a spare category - in order, each answering through `resultFrom`, on the draw's `rng` and `tables`; on a shim of the tables and a fixed sequence each road takes the parent's steps and answers what the parent's `drawItem` answered with `Math.random` on the same sequence", async () => {
+        /*
+         * E41 C1c, 02.11.2026; E41-07, audit S17-29. `drawItem` was one function: its steps in line, the answer built
+         * inline on five roads, `Math.random` reached directly (two `sort(() => Math.random() - 0.5)` and `randomItem`),
+         * so no test read the order without a world's tables. Now `DRAW_STEPS` (frozen) runs in order, each step
+         * answering through `resultFrom`, and the draw hands `rng` (both shuffles and `randomItem`) and `tables` (what
+         * every step reads). The shuffle is today's (D21: Fisher-Yates waits for E64).
+         *
+         * Read on a shim, nothing written and nothing of this browser's replaced: each road's own tables (a stand-in
+         * collection with `getName`, `contents` and an iterator; tables whose `draw` answers a fixed result, or throws),
+         * a stand-in scene whose one room points at its tables (vault-store.mjs `roomTable`, reached through `tableForRoom`),
+         * and a fresh fixed sequence for `rng`. For each road: the steps run (`trail`) and the answer's name, category,
+         * tier, goal, roles, substitute and fromTable. The parent's answers, quoted below, are what the parent's
+         * `drawItem` answered on the same shims with `game.tables` set to each road's collection and `Math.random` to the
+         * same sequence (S/stages/E41/scratch/c1/c1c/probe-head.txt, a run of the parent's code that is not in the
+         * suite); its steps are its code's order, the road's step and every one before it. Red at the parent: no
+         * `DRAW_STEPS`, and `rng` and `tables` not read.
+         */
+        const T = await import("./tables.mjs");
+        const plural = category => T.tableNameCandidates(category, 0)[0].replace(/^DRPG /, "").replace(/ - Tier 0$/, "");
+        const sequence = () => { let at = 0; const values = [0.91, 0.12, 0.73, 0.34, 0.55, 0.06, 0.87, 0.28, 0.49, 0.65]; return () => values[at++ % values.length]; };
+        let made = 0;
+        const result = (name, roles = []) => ({ name, img: null, description: null, getFlag: (module, key) => module === MODULE_ID && key === "roles" ? roles : undefined });
+        const table = (name, results, flags = {}, broken = false) => ({
+            id: `zR1234table${made++}`, name, getFlag: (module, key) => module === MODULE_ID ? flags[key] : undefined,
+            draw: async () => { if (broken) throw new Error("R1234: a broken table"); return { results }; }
+        });
+        const shelf = list => ({ contents: list, getName: name => list.find(t => t.name === name) ?? null, [Symbol.iterator]: () => list[Symbol.iterator]() });
+        const sceneFor = (room, base) => ({ id: "zR1234scene", regions: [{ id: "zR1234region", name: room, behaviors: [],
+            getFlag: (module, key) => module !== MODULE_ID ? undefined : key === "room" ? true : key === "drpgItemTable" ? base : undefined }] });
+        const ROADS = [
+            { road: "room's table by name (a broken one asked first)", asked: ["crimeTool", 1, null], room: "R1234 Kitchen",
+              tables: [table("R1234 Kitchen - Tier 1", [result("R1234 cleaver", ["crimeTool"])], {}, true),
+                       table(`R1234 Kitchen - ${plural("crimeTool")}`, [result("R1234 knife", ["crimeTool", "tool"])])] },
+            { road: "room's other tables, shuffled", asked: ["crimeTool", 2, null], room: "R1234 Library",
+              tables: [table("R1234 Library - Tier 0", [result("R1234 book")]), table("R1234 Library - Tier 1", [result("R1234 lamp", ["tool"])]),
+                       table(`R1234 Library - ${plural("tool")}`, [result("R1234 ladder", ["tool"])]), table("R1234 Library - Back room", [result("R1234 not the Library's")])] },
+            { road: "a tier pool by its flags", asked: ["tool", 1, null], room: null,
+              tables: [table("R1234 wrenches", [result("R1234 wrench", ["tool"])], { category: "tool", tier: 1 })] },
+            { road: "a tier pool by its name", asked: ["cleaningTool", 1, null], room: null,
+              tables: [table(T.tableNameCandidates("cleaningTool", 1)[0], [result("R1234 mop")])] },
+            { road: "the built-in pool", asked: ["usable", 1, "healing"], room: null, tables: [] },
+            { road: "a spare category", asked: ["bedroomKey", 1, null], room: null, tables: [] }
+        ];
+        const pick = answer => answer && ["name", "category", "tier", "goal", "roles", "substitute", "fromTable"].map(key => answer[key] ?? null);
+        // The parent's answers on these shims (probe-head.txt, twice the same), and its steps: the road's and every one before it.
+        const NAMES = ["roomNamed", "roomAny", "tierPools", "builtIn", "spare"];
+        const upTo = n => NAMES.slice(0, n);
+        const EXPECTED = {
+            frozen: true,
+            steps: NAMES.map(name => [name, true, true, false]),
+            resultFrom: [true, true],
+            shuffles: 2,
+            mathRandom: false,
+            roads: [
+                ["room's table by name (a broken one asked first)", upTo(1), ["R1234 knife", "crimeTool", 1, null, ["crimeTool", "tool"], null, true]],
+                ["room's other tables, shuffled", upTo(2), ["R1234 book", "crimeTool", 0, null, [], true, true]],
+                ["a tier pool by its flags", upTo(3), ["R1234 wrench", "tool", 1, null, ["tool"], null, true]],
+                ["a tier pool by its name", upTo(3), ["R1234 mop", "cleaningTool", 1, null, [], null, true]],
+                ["the built-in pool", upTo(4), ["Sports drink", "usable", 1, "healing", [], null, false]],
+                ["a spare category", upTo(5), ["Cold tea", "usable", 1, null, [], true, false]]
+            ]
+        };
+        const steps = Array.isArray(T.DRAW_STEPS) ? T.DRAW_STEPS : null;
+        // E41 C8 (1.2.97): the draw, its steps and `resultFrom` moved with the pools to tables-pools.mjs.
+        const tablesSrc = stripComments((await otherSources()).find(([file]) => file === "tables-pools.mjs")?.[1] ?? "");
+        must(tablesSrc.length > 5000, "tables-pools.mjs was not read - this test measured nothing");
+        const stepShape = steps ? steps.map(step => {
+            const body = topLevelFunction(tablesSrc, step?.run?.name ?? "") ?? "";
+            return [step.name, Object.isFrozen(step), /\bresultFrom\(/.test(body) && !/\breturn\s*\{/.test(body), /\bMath\.random\b/.test(body)];
+        }) : null;
+        const roads = [];
+        for (const road of ROADS) {
+            const [category, tier, goal] = road.asked;
+            const trail = [];
+            const answer = await T.drawItem(category, tier, { goal, room: road.room, scene: road.room ? sceneFor(road.room, road.room) : null,
+                rng: sequence(), tables: shelf(road.tables), trail });
+            roads.push([road.road, trail, pick(answer)]);
+        }
+        const built = /\bfunction resultFrom\(/.test(tablesSrc) ? fnSource(tablesSrc, "resultFrom") : "";
+        equal(JSON.stringify({
+            frozen: steps ? Object.isFrozen(steps) : null,
+            steps: stepShape,
+            resultFrom: [/\broomEntryAs\(/, /\bpoolEntryAs\(/].map(re => re.test(built)),
+            shuffles: (tablesSrc.match(/\.sort\(\(\) => ctx\.rng\(\) - 0\.5\)/g) ?? []).length,
+            mathRandom: /\bMath\.random\(\)/.test(fnSource(tablesSrc, "randomItem")),
+            roads
+        }), JSON.stringify(EXPECTED), "{frozen: DRAW_STEPS is frozen; steps: each [name, frozen, answers through resultFrom alone, reaches Math.random]; "
+            + "resultFrom: it builds the room's and the pool's entries; shuffles: the two `sort(() => ctx.rng() - 0.5)`; mathRandom: randomItem "
+            + "calls Math.random itself; roads: each [road, the steps run, the answer's name, category, tier, goal, roles, substitute, fromTable]}");
+    }],
+    ["R1240 - an action key ACTIONS holds only by inheritance is refused as unknown (E41 fix FG2; the end review's C-m2 = S-n1, STATUS E41 Open 6): `performAction` over \"constructor\", \"toString\" and \"__proto__\", and over a key no object holds, answers null and tells the GM `DRPG.Action.unknown` once each, and nothing else", async () => {
+        /*
+         * E41 fix FG2, 02.11.2026; the end review's correctness m2 and security n1 (STATUS E41 Open 6). `ACTIONS` is a
+         * plain object literal (config.mjs), so `ACTIONS["constructor"]` - and "toString", and "__proto__" - is
+         * inherited from Object.prototype and truthy: the lookup let it through, no `case` of the switch matched, and
+         * since E41 C1a, which dropped the switch's `default`, `performAction` answered undefined and said nothing (at
+         * c7c4ee2d `performGeneric` answered null). The lookup takes own keys alone now (`Object.hasOwn`). Driven on this
+         * GM with a living student and the notices caught: the guards above the lookup write nothing (a character, a GM,
+         * not a Monocub, not dead, no Eclipse, no fight, no trial), so outside an Eclipse and a trial the only notice is
+         * the lookup's. Red at 69f8f661: the three inherited keys answered undefined with no notice; the control key was
+         * refused as it is.
+         */
+        needs(world.atLeast("livingStudents", 1), "a living student is the actor the keys are asked for");
+        const { performAction } = await import("./action-rolls.mjs");
+        const { isDeadForGm } = await import("./chapter.mjs");
+        const actor = studentActors().find(a => !isDeadForGm(a));
+        must(actor, "no living student among studentActors() - this asks for nothing");
+        const keys = ["constructor", "toString", "__proto__", "R1240 no such action"];
+        const notes = ui.notifications, said = [];
+        const kept = Object.fromEntries(["error", "warn", "info"].map(level => [level, Object.getOwnPropertyDescriptor(notes, level)]));
+        const read = [];
+        try {
+            for (const level of ["error", "warn", "info"]) notes[level] = message => { said.push(`${level}:${message}`); return null; };
+            for (const key of keys) {
+                const from = said.length;
+                const answer = await performAction(actor, key);
+                read.push([key, answer === undefined ? "(undefined)" : answer, said.slice(from)]);
+            }
+        } finally {
+            for (const [level, d] of Object.entries(kept)) if (d) Object.defineProperty(notes, level, d); else delete notes[level];
+        }
+        /* The suite runs these tiers inside a Class Trial as well (01-runtests part A2): there the phase's lock above
+           the lookup answers every key first, with its own notice, and the lookup is not reached - so this reads, for
+           the phase it runs in, what each key is answered and told (fix FG2b: CI on 85e8b0e2, suite 1/8, A2 red). */
+        const locked = getClock().phase === "classTrial";
+        const told = key => locked ? `warn:${game.i18n.localize("DRPG.Trial.actionsLocked")}`
+            : `error:${game.i18n.format("DRPG.Action.unknown", { key })}`;
+        equal(stableJson(read), stableJson(keys.map(key => [key, null, [told(key)]])),
+            `an action key ACTIONS does not hold as its own is not refused as ${locked ? "the trial's lock refuses every action" : "unknown"} - [key, the answer, the notices]`);
+    }],
+
+    ["R1237 - who a verdict lists (E41 C10b, E41-18; the owner's Q-E41-2, Q-E10-1 (c)): `verdictCandidates(students, { accusedIds, known, dead, final })` puts \"Nobody\" first and then every student, the known Blackened among them, in both verdicts; the ordinary verdict marks the dead, disables them and opens on the first accused only when they are living and not a known Blackened; the Final Trial's enables everyone listed, marks the dead and opens on the first accused whoever they are", async () => {
+        /*
+         * E41 C10b, 02.11.2026; E41-18, audit S17-28; the owner's answer to Q-E41-2 of 01.11.2026 ("Nikt nie jest
+         * pominięty": nobody is left out of either list). The ordinary verdict's executed select left the register's
+         * Blackened out (`!knownIds.has`) and the Final Trial's listed every student and opened on the first. Driven on
+         * five students that are no actors: s3 a known Blackened, alive; s5 a known Blackened, dead; s4 dead. Read: each
+         * row's id, whether it is marked dead, disabled and selected, for each accused in turn. Pure: nothing is read
+         * from the world or written. Red at C10a's tree: verdict.mjs has no verdictCandidates.
+         */
+        const V = await import("./verdict.mjs");
+        must(typeof V.verdictCandidates === "function", "verdict.mjs has no verdictCandidates - each verdict builds its own list");
+        const students = ["s1", "s2", "s3", "s4", "s5"].map(id => ({ id: `R1237${id}`, name: id }));
+        const id = n => `R1237s${n}`;
+        const known = new Set([id(3), id(5)]), dead = new Set([id(4), id(5)]);
+        const rowsOf = (accused, final) => V.verdictCandidates(students, { accusedIds: accused, known, dead, final })
+            .map(row => [row.id, row.dead, row.disabled, row.selected]);
+        const want = (final, chosen) => [["", false, false, chosen === ""],
+            ...students.map(s => [s.id, dead.has(s.id), !final && dead.has(s.id), s.id === chosen])];
+        const ordinary = [[[id(2)], id(2)], [[id(1)], id(1)], [[id(3)], ""], [[id(4)], ""], [[id(5)], ""], [[], ""], [["monokuma"], ""]];
+        const final = [[[id(2)], id(2)], [[id(3)], id(3)], [[id(4)], id(4)], [[id(5)], id(5)], [[], ""], [["monokuma", id(2)], ""]];
+        equal(JSON.stringify([ordinary.map(([accused]) => rowsOf(accused, false)), final.map(([accused]) => rowsOf(accused, true))]),
+            JSON.stringify([ordinary.map(([, chosen]) => want(false, chosen)), final.map(([, chosen]) => want(true, chosen))]),
+            "a verdict's list leaves somebody out, or marks, disables or preselects the wrong student (per case [id, dead, disabled, selected]; "
+            + "ordinary: accused s2, s1, s3, s4, s5, nobody, Monokuma; Final: accused s2, s3, s4, s5, nobody, Monokuma before s2)");
+        equal(JSON.stringify([[...known], [...dead], students.map(s => s.id)]), JSON.stringify([[id(3), id(5)], [id(4), id(5)], students.map(s => s.id)]),
+            "verdictCandidates changed what it was handed");
+    }],
+
+    ["R1250 - `runSteps` keeps its contract (E42 C1b, E42-02; audit S17-30): each step in its own try/catch, a throw and a `false` failed and the rest run; the record saved, and awaited, after every step that ran and once at the end; a step the record calls done not run again; `ask` false kept with its `keep` run; a `needs` not done not run; `stop` asked before every step, true not running that step or any later; a `save` that throws failing its step and stopping the run; `after` run once its step is done and saved; steps.mjs imports utils.mjs alone", async () => {
+        /*
+         * E42 C1b, 02.11.2026; E42-02, audit S17-30. The verdict, the chapter's end and the season's reset each ran
+         * their own loop of steps (verdict.mjs `runVerdict`, chapter.mjs `endChapterNow`, season-setup.mjs `wipeSeason`)
+         * and each kept a different part of the contract. One runner now, driven here on steps in memory that write
+         * nothing: each case's steps log what ran, in order, with the record each `save` was handed and whether the
+         * save before had finished (a save that waits a tick). Six planted runners (c1b-m1 .. m6: a throw ends the run,
+         * `save` not awaited, a done step run again, `ask` false running the step, `stop` asked once, a failing save
+         * read as done) each read red here. Red before C1b: steps.mjs absent.
+         */
+        let S = null;
+        try { S = await import("./steps.mjs"); } catch { S = null; }
+        must(typeof S?.runSteps === "function", "no runSteps: scripts/steps.mjs is absent or exports none");
+        const tick = () => new Promise(resolve => setTimeout(resolve, 5));
+        const play = async ({ steps, record = { done: [], failed: [] }, stop = null, saveFails = [] }) => {
+            const log = [], saves = [];
+            let saving = false;
+            const save = async (rec, at) => {
+                saving = true;
+                await tick();
+                saving = false;
+                saves.push([at?.end ? "end" : at?.key, [...rec.done], [...rec.failed]]);
+                if (saveFails.includes(at?.key)) throw new Error(`R1250: the save after "${at.key}" is refused`);
+            };
+            const step = (key, how = null, extra = {}) => ({ key, ...extra, run: async () => {
+                log.push(`${key}${saving ? " (save still running)" : ""}`);
+                if (how === "throw") throw new Error(`R1250: "${key}" throws`);
+                if (how === "false") return false;
+                return how;
+            } });
+            const result = await S.runSteps({ steps: steps(step, log), record, save, stop, label: "R1250 procedure", context: { log } });
+            return { log, saves, result: { done: result.done, kept: result.kept, failed: result.failed, notRun: result.notRun,
+                lines: result.lines, record: { done: result.record.done, failed: result.record.failed } } };
+        };
+        const quiet = console.error;
+        const read = {};
+        try {
+            console.error = () => {};
+            read.order = await play({ steps: s => [s("a", "line a"), s("b", "throw"), s("c", ["line c1", "line c2"]), s("d", "false"), s("e")] });
+            read.resume = await play({ record: { done: ["a", "c"], failed: ["b"] }, steps: s => [s("a"), s("b"), s("c"), s("d")] });
+            read.kept = await play({ steps: (s, log) => [s("a"), { key: "b", ask: () => false, keep: () => { log.push("keep b"); return "kept b"; },
+                run: () => { log.push("b"); } }, s("c", null, { ask: () => true })] });
+            read.needs = await play({ steps: s => [s("a", "throw"), s("b", null, { needs: "a" }), s("c", null, { needs: "x" }), s("d")] });
+            let asked = 0;
+            read.stop = await play({ stop: () => ++asked > 2, steps: s => [s("a"), s("b"), s("c"), s("d")] });
+            read.stopAsked = asked;
+            read.saveFails = await play({ saveFails: ["b"], steps: s => [s("a"), s("b"), s("c"), s("d")] });
+            read.after = await play({ steps: (s, log) => [s("a", null, { after: () => { log.push("after a"); return "after a"; } }),
+                s("b", "throw", { after: () => { log.push("after b"); } }),
+                s("c", null, { after: () => { throw new Error("R1250: after c throws"); } }), s("d")] });
+        } finally {
+            console.error = quiet;
+        }
+        const want = {
+            order: { log: ["a", "b", "c", "d", "e"],
+                saves: [["a", ["a"], []], ["b", ["a"], ["b"]], ["c", ["a", "c"], ["b"]], ["d", ["a", "c"], ["b", "d"]], ["e", ["a", "c", "e"], ["b", "d"]],
+                    ["end", ["a", "c", "e"], ["b", "d"]]],
+                result: { done: ["a", "c", "e"], kept: [], failed: ["b", "d"], notRun: [], lines: ["line a", "line c1", "line c2"],
+                    record: { done: ["a", "c", "e"], failed: ["b", "d"] } } },
+            resume: { log: ["b", "d"], saves: [["b", ["a", "c", "b"], []], ["d", ["a", "c", "b", "d"], []], ["end", ["a", "c", "b", "d"], []]],
+                result: { done: ["b", "d"], kept: [], failed: [], notRun: [], lines: [], record: { done: ["a", "c", "b", "d"], failed: [] } } },
+            kept: { log: ["a", "keep b", "c"], saves: [["a", ["a"], []], ["b", ["a"], []], ["c", ["a", "c"], []], ["end", ["a", "c"], []]],
+                result: { done: ["a", "c"], kept: ["b"], failed: [], notRun: [], lines: ["kept b"], record: { done: ["a", "c"], failed: [] } } },
+            needs: { log: ["a", "d"], saves: [["a", [], ["a"]], ["d", ["d"], ["a"]], ["end", ["d"], ["a"]]],
+                result: { done: ["d"], kept: [], failed: ["a"], notRun: ["b", "c"], lines: [], record: { done: ["d"], failed: ["a"] } } },
+            stop: { log: ["a", "b"], saves: [["a", ["a"], []], ["b", ["a", "b"], []], ["end", ["a", "b"], []]],
+                result: { done: ["a", "b"], kept: [], failed: [], notRun: ["c", "d"], lines: [], record: { done: ["a", "b"], failed: [] } } },
+            stopAsked: 3,
+            saveFails: { log: ["a", "b"], saves: [["a", ["a"], []], ["b", ["a", "b"], []], ["end", ["a"], ["b"]]],
+                result: { done: ["a"], kept: [], failed: ["b"], notRun: ["c", "d"], lines: [], record: { done: ["a"], failed: ["b"] } } },
+            after: { log: ["a", "after a", "b", "c", "d"],
+                saves: [["a", ["a"], []], ["b", ["a"], ["b"]], ["c", ["a", "c"], ["b"]], ["d", ["a", "c", "d"], ["b"]], ["end", ["a", "c", "d"], ["b"]]],
+                result: { done: ["a", "c", "d"], kept: [], failed: ["b"], notRun: [], lines: ["after a"], record: { done: ["a", "c", "d"], failed: ["b"] } } }
+        };
+        for (const name of Object.keys(want)) {
+            equal(stableJson(read[name]), stableJson(want[name]), `runSteps breaks its contract in the case "${name}" (what ran, in order; each save's [step, done, failed]; the groups, the lines and the record)`);
+        }
+        const res = await fetch(`/modules/${MODULE_ID}/scripts/steps.mjs`);
+        const text = stripComments(res.ok ? await lfText(res) : "");
+        const imports = [...text.matchAll(/(?:from|import\()\s*"\.\/([\w-]+\.mjs)"/g)].map(m => m[1]);
+        equal(stableJson([res.ok, imports]), stableJson([true, ["utils.mjs"]]), "steps.mjs imports more than utils.mjs - it is not the leaf every procedure takes statically (R161)");
+    }],
+
+    ["R1251 - one report shape for every procedure (E42 C1b, E42-03): `stepsReport` puts the procedure's lines first and then one sentence per group that holds a step, in the order done, kept, failed, notRun, each with the procedure's own key and its steps' labels in one list; a group with no key is not said; the toast is an error with the failed and notRun sentences exactly when either holds a step, else the procedure's done words", async () => {
+        /*
+         * E42 C1b, 02.11.2026; E42-03. The verdict whispered its lines and one warning, the chapter's end named what
+         * failed or did not run in a toast and a card of its own, the reset a card of four lines: three shapes for one
+         * question. Driven on results in memory with the reset's four keys (`DRPG.Season.reportCard.*`, whose list is
+         * `{groups}`) and the verdict's (`DRPG.Vote.verdictStopped`, `{steps}`): a result with every group, one with
+         * failed and notRun alone, one with nothing stopped, and the verdict's with failed alone. Pure: nothing is read
+         * from the world or written. Red before C1b: steps.mjs absent.
+         */
+        let S = null;
+        try { S = await import("./steps.mjs"); } catch { S = null; }
+        must(typeof S?.stepsReport === "function", "no stepsReport: scripts/steps.mjs is absent or exports none");
+        const { listOf } = await import("./utils.mjs");
+        const label = key => `[${key}]`;
+        const card = name => ({ key: `DRPG.Season.reportCard.${name}`, list: "groups" });
+        const groups = { done: card("done"), kept: card("kept"), failed: card("failed"), notRun: card("notRun") };
+        const say = (name, keys) => game.i18n.format(`DRPG.Season.reportCard.${name}`, { groups: listOf(keys.map(label)) });
+        const all = S.stepsReport({ done: ["a", "b"], kept: ["c"], failed: ["d"], notRun: ["e", "f"], lines: ["one", "two"] },
+            { groups, label, done: game.i18n.localize("DRPG.Season.resetDone") });
+        const stopped = S.stepsReport({ done: [], kept: [], failed: ["d"], notRun: ["e"], lines: [] }, { groups, label, done: game.i18n.localize("DRPG.Season.resetDone") });
+        const clean = S.stepsReport({ done: ["a"], kept: ["c"], failed: [], notRun: [], lines: ["one"] }, { groups, label, done: game.i18n.localize("DRPG.Season.resetDone") });
+        const verdict = S.stepsReport({ done: ["x"], kept: [], failed: ["d"], notRun: ["e"], lines: ["v"] },
+            { groups: { failed: "DRPG.Vote.verdictStopped" }, label });
+        const shape = r => [r.lines, r.notes, r.toast.level, r.toast.text];
+        equal(stableJson([shape(all), shape(stopped), shape(clean), shape(verdict)]), stableJson([
+            [["one", "two"], [say("done", ["a", "b"]), say("kept", ["c"]), say("failed", ["d"]), say("notRun", ["e", "f"])], "error",
+                `${say("failed", ["d"])} ${say("notRun", ["e", "f"])}`],
+            [[], [say("failed", ["d"]), say("notRun", ["e"])], "error", `${say("failed", ["d"])} ${say("notRun", ["e"])}`],
+            [["one"], [say("done", ["a"]), say("kept", ["c"])], "info", game.i18n.localize("DRPG.Season.resetDone")],
+            [["v"], [game.i18n.format("DRPG.Vote.verdictStopped", { steps: listOf(["[d]"]) })], "error",
+                game.i18n.format("DRPG.Vote.verdictStopped", { steps: listOf(["[d]"]) })]
+        ]), "stepsReport does not say a result as one report (per result: lines, the groups' sentences in order, the toast's level and text)");
+        const html = document.createElement("div");
+        html.innerHTML = all.content;
+        equal(stableJson([[...html.querySelectorAll("li")].map(li => li.textContent), [...html.querySelectorAll("p")].map(p => p.classList.contains("drpg-warning"))]),
+            stableJson([["one", "two"], [false, false, true, true]]),
+            "the report's card does not list the lines and say each group, the failed and the not run as warnings");
+    }],
+    ["R1253 - the chapter's end moves the clock to targets its record holds (E42 C2, E42-09; audit S17-30): `endMoves(ending, choices, clock)` answers the next chapter and the next session as the ending's own plus one, out of the Investigation into Daily Life with them, and the next morning as the ending's day plus one, each only while the clock still reads the ending's value - nothing once it reads the target - and `endHeldPhase(record, clock)` reads a phase the end's own clock or trial step left as the end's, and any other as moved", async () => {
+        /*
+         * E42 C2, 03.11.2026; E42-09. The clock and morning steps read the clock as it stood at the step and moved it on
+         * (`clock.session + 1`, `getClock().day + 1`): run twice - a Finish after the work landed and before the record
+         * said so - they moved it twice. Now each target is the ending's own (the record's `ending`), and a counter or
+         * the day already moved is left alone. Driven on numbers: an ending in chapter 2, session 5, day 3 against the
+         * clock as the end found it, after each move landed and after both, from the Investigation, with one box ticked,
+         * with none; the reading HEAD's steps made (relative) is planted and must be named on the clock after both moves
+         * landed. Then the phase a Finish checks: the phase the record stands on, Daily Life after the end's own clock
+         * step left the Investigation or its trial step closed the trial with the record not saying so, and a phase
+         * moved by anybody else. Pure: nothing is read from the world or written. Red at cef11276: neither exists.
+         */
+        let C = null;
+        try { C = await import("./chapter.mjs"); } catch { C = null; }
+        must(typeof C?.endMoves === "function" && typeof C?.endHeldPhase === "function",
+            "chapter.mjs exports no endMoves or endHeldPhase - the chapter's end has no targets of its own to test");
+        const ending = { chapter: 2, session: 5, day: 3, phase: "dailyLife", stands: "dailyLife" };
+        const all = { nextChapter: true, nextSession: true, nextMorning: true };
+        const at = (chapter, session, day) => ({ chapter, session, day, phase: "dailyLife", timeOfDay: "night" });
+        const CASES = [
+            [ending, all, at(2, 5, 3), { clock: { chapter: 3, session: 6 }, morning: { day: 4 } }],
+            [ending, all, at(3, 6, 3), { clock: null, morning: { day: 4 } }],
+            [ending, all, { ...at(3, 6, 4), timeOfDay: "morning" }, { clock: null, morning: null }],
+            [ending, all, at(3, 5, 3), { clock: { session: 6 }, morning: { day: 4 } }],
+            [{ ...ending, phase: "investigation", stands: "investigation" }, all, { ...at(2, 5, 3), phase: "investigation" },
+                { clock: { chapter: 3, session: 6, phase: "dailyLife" }, morning: { day: 4 } }],
+            [ending, { nextSession: true }, at(2, 5, 3), { clock: { session: 6 }, morning: null }],
+            [ending, {}, at(2, 5, 3), { clock: null, morning: null }]
+        ];
+        const wrong = moves => CASES.map(([e, choices, clock, want], i) => [i, moves(e, choices, clock), want])
+            .filter(([, got, want]) => stableJson(got) !== stableJson(want)).map(([i]) => i);
+        const relative = (e, choices, clock) => {
+            const move = {};
+            if (choices.nextChapter) move.chapter = clock.chapter + 1;
+            if (choices.nextSession) move.session = clock.session + 1;
+            if (Object.keys(move).length && e.phase === "investigation") move.phase = "dailyLife";
+            return { clock: Object.keys(move).length ? move : null, morning: choices.nextMorning ? { day: (clock.day ?? 1) + 1 } : null };
+        };
+        ok(wrong(relative).includes(2), "the cases do not name the relative reading on a clock both moves already reached - they would pass a step that moves twice");
+        equal(stableJson(wrong(C.endMoves)), stableJson([]), "endMoves does not answer the ending's own targets, or moves a counter the clock already reads "
+            + "(the cases it answers wrongly, by index)");
+        const inv = { ending: { ...ending, phase: "investigation", stands: "investigation" }, choices: { nextSession: true }, done: [] };
+        const trial = { ending: { ...ending, phase: "classTrial", stands: "classTrial" }, choices: { endTrial: true }, done: [] };
+        equal(stableJson([
+            C.endHeldPhase({ ending, choices: all, done: [] }, at(2, 5, 3)),
+            C.endHeldPhase(inv, { ...at(2, 6, 3) }),
+            C.endHeldPhase(inv, { ...at(2, 5, 3) }),
+            C.endHeldPhase(inv, { ...at(2, 6, 3), phase: "classTrial" }),
+            C.endHeldPhase({ ...inv, done: ["clock"] }, at(2, 6, 3)),
+            C.endHeldPhase(trial, at(2, 5, 3)),
+            C.endHeldPhase({ ...trial, choices: {} }, at(2, 5, 3)),
+            C.endHeldPhase({ ending, choices: all, done: [] }, { ...at(2, 5, 3), phase: "classTrial" })
+        ]), stableJson(["dailyLife", "dailyLife", null, null, null, "dailyLife", null, null]),
+            "endHeldPhase does not read the phase the end's own step left as the end's, or reads a phase another hand moved as it "
+            + "(the record's own; out of the Investigation with the session moved; with it not moved; into a trial; with the clock step done; "
+            + "the trial closed by its step; with no trial asked; a trial opened over Daily Life)");
+    }],
+    ["R1255 - the reset window counts from the registry's entries alone (E42 C3, E42-14; audit S17-30): `resetGoesHtml(plan, tallies)` shows under a group the lines its entry's tally gave and nothing else - a planted tally's lines under its group, a group whose tally gave none no count - and each descriptive entry's line with no tick and no count; the window's counts are `resetTallies()`, every entry's `tally` asked and nothing else; and season-setup.mjs and season-wipe.mjs keep no hand list of counts (`resetTally`, `GOES_DETAIL`)", async () => {
+        /*
+         * E42 C3, 03.11.2026. Until C3 the window's counts were `resetTally()` and `GOES_DETAIL` in season-setup.mjs,
+         * a hand list of ten groups beside the reset's runs: a group whose owner added state counted none of it until
+         * somebody remembered the list. Each entry's `tally` is its row's lines now. Pure over a plan and tallies of
+         * the test's own; then the window's own tallies, read off this world without writing (each entry's lines, by
+         * group). Red before C3: the planted line under the motive row missing (`GOES_DETAIL` has no motive).
+         */
+        const S = await import("./season-setup.mjs");
+        const { RESET_GROUPS, planFrom } = await import("./season-exceptions.mjs");
+        const keys = RESET_GROUPS.map(group => group.key);
+        const host = document.createElement("div");
+        host.innerHTML = S.resetGoesHtml(planFrom(keys), { motive: ["R1255 planted line"], projects: [] });
+        const notes = key => host.querySelector(`li[data-group="${key}"] .notes`)?.textContent ?? null;
+        equal(JSON.stringify([notes("motive"), notes("projects"), notes("rules")]), JSON.stringify(["(R1255 planted line)", null, null]),
+            "the window does not show a planted tally's lines under its group, or counts a group whose tally gave none (motive, projects, rules)");
+        const R = await import("./season-reset.mjs");
+        const described = R.seasonStateEntries().filter(entry => entry.group === null);
+        must(described.length >= 1, "the registry holds no descriptive entry - the window's line for one is read on nothing");
+        const lines = [...host.querySelectorAll("li[data-describes]")];
+        equal(JSON.stringify(lines.map(li => [li.dataset.describes, li.textContent.trim(), li.querySelector("input, .notes, s") === null])),
+            JSON.stringify(described.map(entry => [entry.describes, game.i18n.localize(entry.label), true])),
+            "a descriptive entry's line is missing, says something else, or carries a tick, a count or a strike (describes, text, bare)");
+        const tallies = await S.resetTallies();
+        const counted = R.seasonStateEntries().filter(entry => entry.tally).map(entry => entry.group);
+        equal(JSON.stringify(Object.keys(tallies)), JSON.stringify(counted), "the window's counts are not the tallies of the entries that have one, in their order");
+        ok(Object.values(tallies).every(list => Array.isArray(list) && list.every(line => typeof line === "string" && line.length > 0)),
+            `an entry's tally gave something that is not a list of lines: ${JSON.stringify(tallies).slice(0, 300)}`);
+        const src = stripComments((await Promise.all(["season-setup.mjs", "season-wipe.mjs"].map(file => fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText)))).join("\n"));
+        equal(JSON.stringify([topLevelFunction(src, "resetTally") === null, !/\bGOES_DETAIL\b/.test(src), /\bseasonStateEntries\(/.test(fnSource(src, "resetTallies"))]),
+            "[true,true,true]", "season-setup.mjs or season-wipe.mjs still counts a group by hand (resetTally gone, GOES_DETAIL gone, resetTallies asks the registry)");
+    }],
+    ["R1258 - the registry of season state takes no `primaryOnly` (E42 fix FG3; the end review's S-M5): a registration that names it is refused with an error naming it, for a group already taken and for one the window does not offer alike, before either check; and no entry holds the key", async () => {
+        /*
+         * E42 fix FG3, 03.11.2026; the end review's S-M5. `registerSeasonState` took `primaryOnly` (default true) and kept it
+         * on every entry, documented as a guard a later entry would have to argue against - and nothing read it: the
+         * walker's stop is the reset's own, for every step (season-wipe.mjs `wipeSeason`: `stop: () => !isPrimaryGm()`), so
+         * an entry registered with `false` ran exactly as one with `true`. The key is gone from the shape, and a
+         * registration that names it is refused, so no entry can claim a guard the walk does not hold. Each call here is
+         * one the registry refuses whatever it says of `primaryOnly` (a group already registered, a group the window does
+         * not offer), so nothing is registered, red or green: the error is read for its words. Red at 7129a316: refused
+         * for the group alone, the error naming no `primaryOnly`, and every entry holding the key.
+         */
+        const R = await import("./season-reset.mjs");
+        const taken = R.seasonStateFor("motive");
+        must(taken, "the motive group has no entry - the first call would register one");
+        const refusal = spec => {
+            try {
+                R.registerSeasonState(spec);
+                return "registered";
+            } catch (err) {
+                return String(err?.message ?? err);
+            }
+        };
+        const words = [
+            refusal({ group: "motive", clear: () => null, primaryOnly: false }),
+            refusal({ group: "R1258-no-such-group", clear: () => null, primaryOnly: true })
+        ];
+        must(R.seasonStateFor("motive") === taken, "the motive group's entry was replaced - the registry took a second entry");
+        const entries = R.seasonStateEntries();
+        must(entries.length >= 30, `the registry holds ${entries.length} entries - the shape is read on next to nothing`);
+        equal(JSON.stringify([words.map(text => /\bprimaryOnly\b/.test(text)), entries.filter(entry => "primaryOnly" in entry).length]), "[[true,true],0]",
+            `a registration naming primaryOnly was not refused for it, or an entry holds the key (refusals: ${JSON.stringify(words)})`);
+    }],
 ];
 
 /**
@@ -30971,7 +32000,7 @@ const LITERAL_KEYS = [
     ...["hope", "despair", "critical"].map(band => `DRPG.Action.duality.${band}`),
     // chapter.mjs names a failed step of the chapter's end `DRPG.Chapter.step.<key>` (E11 C5): `CHAPTER_END_STEPS`' nine keys.
     ...["reveal", "sweep", "faint", "keys", "tools", "clock", "trial", "morning", "hold"].map(key => `DRPG.Chapter.step.${key}`),
-    // season-setup.mjs `wipeSeason` writes the report of a reset that did not finish `DRPG.Season.reportCard.<line>` (E11 C9).
+    // season-wipe.mjs `wipeSeason` writes the report of a reset that did not finish `DRPG.Season.reportCard.<line>` (E11 C9).
     ...["failed", "done", "kept"].map(line => `DRPG.Season.reportCard.${line}`),
     // requirements.mjs `requirementsContent` (E20 C5): each required module's reason by its id, and the intro by its count.
     ...["dice-so-nice", "isometric-perspective", "avclient-livekit"].map(id => `DRPG.Requirements.reason.${id}`),

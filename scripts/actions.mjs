@@ -17,6 +17,8 @@ import { trustedWrite } from "./resource-guard.mjs";
 import { debug, plural } from "./utils.mjs";
 import { overflowActionPenalty, overflowFloor, overflowBlocksFreeMove } from "./overflow.mjs";
 import { playSfx } from "./sfx.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 
 /** The actions a Wounded student does without, each time of day (the guide's "-1 action per time of day"). */
 const WOUNDED_ACTIONS_LOST = 1;
@@ -346,6 +348,21 @@ export async function takeMove(actor, { quiet = false } = {}) {
 }
 
 /**
+ * What the next crossing takes, read in `takeMove`'s order without paying it (E37 C6, 01.11.2026; E37-28, audit S10-48):
+ * "free" (the Free Move), "sprint" (a banked Sprint), "burst" (a banked Burst, which `spendAction` takes before an
+ * action), "action", or null when nothing is left to pay with. The Move briefing says it (action-briefing.mjs `moveLine`),
+ * so a player who banked a Burst reads that the walk will take it; `takeMove` itself is unchanged (D21). R1200 holds the
+ * two to one order, read off `takeMove`'s source and run on fixtures.
+ */
+export function nextCrossingPrice(actor) {
+    if (!actor) return null;
+    if (hasFreeMove(actor)) return "free";
+    if (freeMovesLeft(actor) > 0) return "sprint";
+    if (freeActionsLeft(actor) > 0) return "burst";
+    return actionsLeft(actor) >= 1 ? "action" : null;
+}
+
+/**
  * Give back what `takeMove` took, `cost` its answer (E80 C2): a 'Go through' the primary paid for and could not
  * write (movement.mjs `refundCrossingOnGm`). Each on the road named `refund`, which the GMs' audit covers
  * (sheet-audit.mjs); tier 2 "A10-18" reads the purse after a failed write for each.
@@ -450,6 +467,23 @@ export async function resetAllActions({ keepGrants = false } = {}) {
     }
     return results;
 }
+
+/**
+ * THE ACTION BUDGET, REFILLED - AFTER the sheet is back (the reset's actions group; a run of season-setup.mjs
+ * `wipeSeason` until E42 C3). A character who had spent their actions started the new season on 0 / 2 at Chapter 1 -
+ * Day 1 - Morning, because the reset moves the clock by writing it rather than by advancing it, and the refill rides on
+ * the advance. Reported as B-F6-1, from a full reset on a cold copy. The same writer the "refill actions" checkbox in
+ * Edit campaign uses, so there is one definition of what a full budget is. It runs after the advancement step on
+ * purpose: `resetActionsFor` sizes the budget from the character's own state, and that state is only correct once the
+ * starting sheet has been restored. Then each student's stamps (season-wipe.mjs `wipeStudent`'s `actions` part).
+ * Search tokens need no step of their own beyond the `searchTokens` group: an empty store reads as a full room.
+ */
+export async function clearSeasonActions(ctx) {
+    await resetAllActions();
+    await ctx.everyStudent("actions");
+}
+
+registerSeasonState({ group: "actions", clear: clearSeasonActions });
 
 /**
  * THE GRANTS END AT A BOUNDARY THAT REFILLS NOBODY (E17 fix p2-G2, 26.10.2026; the end review's E17p2-R7 of both

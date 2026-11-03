@@ -21,6 +21,8 @@ import { SETTINGS, seasonEpoch, sameSeason } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { announce, dialogContent, log, error, plural, tableDialog, esc} from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 
 /* ==========================================================================
  * READING
@@ -305,6 +307,29 @@ export async function untickMotive() {
     await game.settings.set(MODULE_ID, SETTINGS.motive, next);
     return { ...next, due: remaining <= 0 };
 }
+
+/**
+ * The season reset's motive group (E42 C3; a run of season-setup.mjs `wipeSeason` until then). Written directly rather
+ * than through `setMotive("")`, which announces the withdrawal in chat: nobody needs to be told a motive is over
+ * during a reset that is also clearing the chat it would be posted in.
+ */
+export async function clearSeasonMotive() {
+    await game.settings.set(MODULE_ID, SETTINGS.motive, {});
+}
+
+/**
+ * MONOKUMA'S STANDING RULES GO WITH THE SEASON (R-1, Dawid 18.09: "Domyslnie znikac"; the reset's rules group, E42 C3).
+ * They used to survive it, which is the one thing in the reset a table would notice by accident: a new cast walking
+ * into a killing game already governed by rules written for people who are dead - rules bought with the Despair the
+ * reset zeroes. Ticked by default like every other group, and a GM who wants to carry them over unticks the box. An
+ * empty ARRAY, because that is the setting's type.
+ */
+export async function clearSeasonRules() {
+    await game.settings.set(MODULE_ID, SETTINGS.killingGameRules, []);
+}
+
+registerSeasonState({ group: "motive", clear: clearSeasonMotive, settings: [SETTINGS.motive] });
+registerSeasonState({ group: "rules", clear: clearSeasonRules, settings: [SETTINGS.killingGameRules] });
 
 /* ==========================================================================
  * WRITING - GM only, like every other world setting in the module

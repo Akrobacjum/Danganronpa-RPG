@@ -46,6 +46,8 @@ import { bulletStore, bulletRefCopy, backupCase, restoreCase, lootTraceStore, de
 import { gmStoresQuiet, whenGmStoresAudible, stableJson } from "./gm-store.mjs";
 import { replyForMe } from "./bridge-guards.mjs";
 import { itemMarkedBefore, itemsWritten, judgedFor, reachOf } from "./sheet-audit.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 
 /** The one inventory category a Truth Bullet ever has. */
 export const BULLET_CATEGORY = "truthBullet";
@@ -205,6 +207,27 @@ export async function dropSecret(uuid) {
     if (!game.user.isGM || !uuid) return;
     await bulletStore.drop(uuid);
 }
+
+/**
+ * The season reset's bullets group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): every Truth Bullet on
+ * every actor, its answer key dropped behind it (`dropSecret`) before the item is deleted. The primary GM's alone.
+ */
+export async function clearSeasonBullets() {
+    if (!isPrimaryGm()) throw new Error("the season's Truth Bullets are cleared on the primary GM's browser alone");
+    for (const actor of game.actors) {
+        const bullets = actor.items.filter(i => i.getFlag(MODULE_ID, "isTruthBullet"));
+        for (const bullet of bullets) await dropSecret(bullet.uuid);
+        if (bullets.length) await actor.deleteEmbeddedDocuments("Item", bullets.map(b => b.id));
+    }
+}
+
+/** What the reset window counts of the Truth Bullets, on every actor (season-setup.mjs `resetTally` until E42 C3). */
+export function tallySeasonBullets() {
+    const n = game.actors.reduce((sum, a) => sum + a.items.filter(i => i.getFlag(MODULE_ID, "isTruthBullet")).length, 0);
+    return [plural("DRPG.Season.resetBullets", { n })];
+}
+
+registerSeasonState({ group: "bullets", clear: clearSeasonBullets, tally: tallySeasonBullets });
 
 /**
  * The answer key's own backup and import until E04: `backupCase` and

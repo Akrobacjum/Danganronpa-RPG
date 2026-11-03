@@ -581,7 +581,7 @@ const uniformFor = (face, faces) => 1 - (face - 0.5) / faces;
  * `__forceRoll` (`buildEvaluate`). Nothing in the module reads the field - the guards and the
  * run see only what the declaration lists - and nothing like it exists at a table, where the
  * GM's randomiser is the GM's. The roller's copy, played back from the GM's faces, reads no
- * `__forceRoll` of its own (`config.drpgDrawn`, action-rolls.mjs `DRAWN_ROLL`).
+ * `__forceRoll` of its own (`config.drpgDrawn`, action-pipeline.mjs `DRAWN_ROLL`).
  */
 const relayedFaces = new Map();
 const relayedFacesOf = roll => {

@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.96, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.97, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
@@ -91,8 +91,10 @@ Before each time of day the lights go out. That placement window is the **Eclips
 - Nobody's screen shows anybody else's token, in any room. No player is in voice: you hear nobody and nobody hears you until the lights come back. (The dark is the screens': where every token stands still reaches every browser, as Foundry sends it.)
 - You place your token: up to **2 connected room crossings**, doors and gaps still apply. The **Night Eclipse** is the exception - pick **any room on the map**. The GM's browser counts your crossings as it sees them: one past the allowance goes back, and with no GM connected a crossing is refused.
 - Your actions are already refilled when the Eclipse opens, but nothing spends them except a **Direct Murder**. No Calls until the lights come up.
-- A summary card of what you did during the previous time of day opens for you - what you found, what you left behind.
+- A summary card of what you did during the time of day that just ended opens for you - what you found, what you left behind. The same card opens when a time of day ends without an Eclipse, as the GM moves the clock on; it opens once for each time of day.
 - The Eclipse is the game's one moment of total cover, and it is where a murder usually starts. It is not part of the day: the clock does not move until the GM ends it.
+
+**Before the clock moves**, the GM may ask whether you are done: a window says what the GM wants to do - start the Eclipse, end it, or end this time of day - with **Done** and **One moment**. One moment tells the GM you need a little longer, and the window stays with Done alone. Once every player has said Done the game goes on by itself; the GM may also go on earlier. The window closes when the GM goes on or decides to wait a little longer. If you close it yourself, a card stays on your screen while the GM is waiting; click it to answer.
 
 A darkened time of day (see the overflow, chapter 6) can pull the crossings down or take the free placement away.
 
@@ -111,8 +113,9 @@ The school is drawn as rooms. Everything - movement, Search, Listen, who can hea
 | Every further crossing | **1 action** each |
 | Up or down the stairs into another room | a crossing like any other; changing floor inside a stairwell is moving inside your own room |
 | A crossing bought with the Sprint Hope Call | free |
+| A crossing with no Free Move and no Sprint left, while you hold a Burst | your **Burst**, before an action |
 
-Drag your token; the cost is applied when you arrive. A crossing that you cannot pay for is refused and the token goes back.
+Drag your token; the cost is applied when you arrive. The Move briefing says what the next room takes - the Free Move, a Sprint, your Burst or an action. A crossing that you cannot pay for is refused and the token goes back.
 
 You are turned back by:
 
@@ -819,7 +822,7 @@ Bottom-left of your character sheet is a button with a word on it - **Safe Word*
 
 **The book**, under it at the bottom right against the edge of the screen, the size of the gear on its left, opens the handbooks in the game: this Player Handbook and the Student Brochure, in the language you picked for the module. The contents list on the left jumps to any section.
 
-**Cards and popups:** results of your actions arrive as notice cards, and a card stays until you close it - a click on it, or its X for evidence and other cards that must be read. The newest goes on top and pushes the older ones down; when there are more than fit, the rest wait underneath behind a "+N" beside the close button, and closing a card brings the next one back; a click on "+N" closes every card at once, except the ones you must read. A "waiting for the GM" card closes itself when the answer arrives. A closed card can be read again: the stack-of-cards button in the bottom-right corner of the notice tile (with Monokuma Legacy on a computer, under the clock, even with no card on screen; on a narrow screen, at the bottom-right corner of the lowest card while a card is on screen) opens the **Notice history** - the notices this browser showed you, the cards about a murder too, the newest of them and 250 at most. It keeps them, 40 at most from any one sender, until a season reset that clears the clock, the incident, this module's cards or the rest of the chat log; a card the module takes back leaves it. When this browser runs short of room, or other accounts' histories on it fill its share, it keeps fewer or stops saving, and its window says when it has stopped. A key in Foundry's Controls opens it too, once you bind one. **Clear** in its window empties it: do that before you share your screen. On a shared computer another account logged in on this browser can read your history, so clear it before you hand the computer over. During an Eclipse a summary of the time of day opens for you.
+**Cards and popups:** results of your actions arrive as notice cards, and a card stays until you close it - a click on it, or its X for evidence and other cards that must be read. The newest goes on top and pushes the older ones down; when there are more than fit, the rest wait underneath behind a "+N" beside the close button, and closing a card brings the next one back; a click on "+N" closes every card at once, except the ones you must read. A "waiting for the GM" card closes itself when the answer arrives. A closed card can be read again: the stack-of-cards button in the bottom-right corner of the notice tile (with Monokuma Legacy on a computer, under the clock, even with no card on screen; on a narrow screen, at the bottom-right corner of the lowest card while a card is on screen) opens the **Notice history** - the notices this browser showed you, the cards about a murder too, the newest of them and 250 at most. It keeps them, 40 at most from any one sender, until a season reset that clears the clock, the incident, this module's cards or the rest of the chat log; a card the module takes back leaves it. When this browser runs short of room, or other accounts' histories on it fill its share, it keeps fewer or stops saving, and its window says when it has stopped. A key in Foundry's Controls opens it too, once you bind one. **Clear** in its window empties it: do that before you share your screen. On a shared computer another account logged in on this browser can read your history, so clear it before you hand the computer over. When a time of day ends - at an Eclipse, or when the GM moves the clock on - a summary of it opens for you.
 
 **The Look dialog:** the gear in the bottom-right corner opens settings that are this browser's own - nobody else sees or hears the difference:
 - **Language** - English or Polski for the module's windows, cards and sheet. Separate from Foundry's own language on purpose. Takes effect after a reload. The glossary stays English in both.

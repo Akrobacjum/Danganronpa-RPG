@@ -49,7 +49,7 @@ export async function run({ gm, p1, check, phase, settle, repoUrl }) {
 
     /* ---- 2. the elapsed line is NOT checked here, and that is on purpose ----
        It prints whole minutes on a ten-second interval, so five ticks in six say
-       what the line already said, and `setText` in hud.mjs now compares before
+       what the line already said, and `setText` in hud-elapsed.mjs now compares before
        writing. Asserting it needs the interval itself - `paintElapsed` is not
        exported, and rebuilding the HUD replaces the element, so an observer put
        on the line before a redraw is watching a detached node and would report a

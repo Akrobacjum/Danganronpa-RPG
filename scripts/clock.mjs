@@ -152,12 +152,12 @@ export async function setClock(patch = {}) {
             /* AND ITS PAUSES START AT NONE (E17 C6, 26.10.2026; audit S10-16): the stopwatch is the time since the stamp
                less `pausedTotalMs`, so the last time of day's pauses go with it. A pause running across the change
                belongs from now on to the new time of day: its stamp moves to the new start, and the unpause adds only
-               what came after (hud.mjs `unpausePatch` reads from the later of the two as well). */
+               what came after (hud-elapsed.mjs `unpausePatch` reads from the later of the two as well). */
             if (patch.pausedTotalMs === undefined) next.pausedTotalMs = 0;
             if (next.pausedAt && patch.pausedAt === undefined) next.pausedAt = next.timeOfDayStartedAt;
         }
         /* WHEN THE CLOCK WAS LAST WRITTEN (E17 fix p2-G1, 26.10.2026): a moment a GM was at the table, which every GM's
-           `ready` can read (settings.mjs `DEFAULT_CLOCK.writtenAt`, hud.mjs `readyPatch`); `patch` wins, so a restored
+           `ready` can read (settings.mjs `DEFAULT_CLOCK.writtenAt`, hud-elapsed.mjs `readyPatch`); `patch` wins, so a restored
            clock keeps its own. */
         if (patch.writtenAt === undefined) next.writtenAt = serverNow();
         // The trial's end, for the discovery stamps read after it (settings.mjs `bodyFoundSinceTrial`,
@@ -714,7 +714,7 @@ async function announceTimeOfDay(clock, summary, { sfx = null } = {}) {
      * doing SOMETHING at this hour - which is most of the secret. So the
      * announcement narrows to the people already inside it: the GMs and the
      * participants' owners. The HUD's copy of the time freezes for everyone
-     * else (see `clockForDisplay` in hud.mjs) and catches up the moment the
+     * else (see `clockForDisplay` in hud-elapsed.mjs) and catches up the moment the
      * incident ends. Everything else the change did - refills, restocks -
      * happened either way; only who is TOLD changes.
      *
@@ -837,7 +837,7 @@ async function reconcilePhase(from, to) {
            executed die in the hall and do not gather at school. End the trial carried it out before its write
            (trial-floor-ui.mjs `closeTrial`), and this finds it stamped; Edit campaign, `setClock` and any other
            road out reach it here - in the trial's own chapter, which Edit campaign may move in this same write
-           (vote.mjs `executeAtExit` reads the record by its own chapter). */
+           (trial-progress.mjs `executeAtExit` reads the record by its own chapter). */
         /* THE DEAD'S MICROPHONES GIVEN BACK (E70 C5), before the sentence: the trial's list taken out of the record and
            every block it wrote put back on the primary, so the convicted, who spoke until now, are not listed as they
            die, and nobody leaves the trial muted (voice.mjs `settleTrialVoices`, asked of the primary by "trial.enter"). */
@@ -856,7 +856,7 @@ async function reconcilePhase(from, to) {
     }
 
     /* A SENTENCE THAT COULD NOT BE CARRIED OUT, ASKED AGAIN (E70 fix p1-G2; the review's BEH-2) at every change of phase
-       outside the trial: the primary carries it out once (vote.mjs `executeAtExit`), and a record with nothing waiting
+       outside the trial: the primary carries it out once (trial-progress.mjs `executeAtExit`), and a record with nothing waiting
        answers null. */
     if (from !== "classTrial" && to !== "classTrial") {
         try {

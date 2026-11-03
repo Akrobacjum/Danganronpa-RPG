@@ -162,7 +162,7 @@ export const REASONS = Object.freeze([
     "notEligible", "sameTwice", "wrongCount", "notKnown", "recipientDead", "floorClosed", "noSpeaker", "noBullet",
     "objectionOver", "relay", "sheetPutBack", "failed",
     "notAtPassage", "doorLocked", "roomSealed", "chained", "cannotLeave", "trialLocked", "noBudget", "eclipseSpent",
-    "oneWay", "refused", "noGm", "noAnswer"
+    "oneWay", "roundMovedOn", "notInRound", "refused", "noGm", "noAnswer"
 ]);
 
 /**
@@ -209,7 +209,7 @@ export const REASON_PATTERNS = Object.freeze([
     ["badRequest", /^that is not the table the character rolls$/],
     ["badRequest", /^that plant was handed to somebody else$/],
     ["badRequest", /^that token was spent by somebody else$/],
-    // E05: a pre-session note past the player text cap (gm-bridge.mjs handleNoteSave).
+    // E05: a pre-session note past the player text cap (bridge-runs-records.mjs handleNoteSave).
     ["badRequest", /^the note is longer than a player's words may be$/],
     // E08+E28 fix r2-H5: a card a player asks the GM to post (gm-bridge.mjs `card.post`).
     ["badRequest", /^the card is longer than a player's words may be$/],
@@ -276,10 +276,10 @@ export const REASON_PATTERNS = Object.freeze([
     ["notWhereItStood", /^the token did not stand there a moment ago$/],
     ["alreadyDone", /^that Observe has already been resolved$/],
     ["alreadyDone", /^that betrayal is already declared$/],
-    // E18 C2: an ask asked again whose card a GM has ruled or ended meanwhile (gm-bridge.mjs `askAgain`).
+    // E18 C2: an ask asked again whose card a GM has ruled or ended meanwhile (call-gm.mjs `askAgain`).
     ["alreadyDone", /^that ask's card has already been settled$/],
     // E18 fix early-C2-G2: an ask asked again whose card's mark names another Call, purchase, character or kind
-    // (gm-bridge.mjs `askAgain`, `sameAsk`).
+    // (call-gm.mjs `askAgain`, `sameAsk`).
     ["badRequest", /^that ask's card was posted for another ask$/],
     ["nothingToUndo", /^that Observe has no result to take back$/],
     // E08+E28 fix r1-G2: a crisis row whose fact never reached it (reroll.mjs `replayRefusal`).
@@ -292,7 +292,7 @@ export const REASON_PATTERNS = Object.freeze([
     ["cannotNow", /^that bullet cannot be analysed now$/],
     // E05 C10: rule D - a refusal caused by a death, a body nobody has found among them (guardArmLiving).
     ["cannotNow", /^that cannot be done now$/],
-    // E05 fix r1-G3: a Direct Murder parked with no Eclipse running (gm-bridge.mjs handleParkMurder).
+    // E05 fix r1-G3: a Direct Murder parked with no Eclipse running (bridge-runs-acts.mjs handleParkMurder).
     ["cannotNow", /^no Eclipse is running$/],
     // E32+E07 C11b: a statistic ruling for a clean-up the character may not make now (guardTraitRuling).
     ["cannotNow", /^the character may not clean up now$/],
@@ -308,12 +308,12 @@ export const REASON_PATTERNS = Object.freeze([
     // an ask this primary does not hold - ended, or held by a primary that reloaded - and an answer after the first.
     ["missing", /^no such Frisk ask$/],
     ["alreadyDone", /^that Frisk ask has been answered already$/],
-    // E14 part 1 C4: a stash's free reach, once a time of day per thief (vault.mjs `stealFromVault`).
+    // E14 part 1 C4: a stash's free reach, once a time of day per thief (stash-reach.mjs `stealFromVault`).
     ["alreadyDone", /^that stash has been gone through already this time of day$/],
     // E17 C3: "Refund last crossing" (movement.mjs `refundLastCrossing`), a GM's ask of the primary.
     ["nothingToUndo", /^the GMs hold no crossing of that character to give back$/],
     ["alreadyDone", /^that crossing was given back already$/],
-    // E14 fix e1-G1: the stash's own refusals (vault.mjs `stealFromVault`); a hidden stash not found reads as none here.
+    // E14 fix e1-G1: the stash's own refusals (stash-reach.mjs `stealFromVault`); a hidden stash not found reads as none here.
     ["missing", /^no such stash where the character stands$/],
     ["missing", /^no such thing in that stash$/],
     ["cannotFrame", /^that student cannot be framed$/],
@@ -350,10 +350,10 @@ export const REASON_PATTERNS = Object.freeze([
     ["rollOtherAction", /^that roll was not thrown for that action$/],
     ["rollStale", /^that roll is too old to settle anything$/],
     ["rollUsed", /^that roll has already settled that action$/],
-    // E08+E28 C15: what a roll earned, read off the GMs' record of it (gm-bridge.mjs `searchTheftOf`, `traceBandOf`).
+    // E08+E28 C15: what a roll earned, read off the GMs' record of it (bridge-runs-acts.mjs `searchTheftOf`, bridge-runs-records.mjs `traceBandOf`).
     ["rollMissed", /^that roll did not find the stash$/],
     ["rollMissed", /^that roll leaves no trace$/],
-    // E08+E28 C16: a Work on a Project's roll that earned nothing (gm-bridge.mjs `progressOf`), and a frozen project (guardProjectFrozen).
+    // E08+E28 C16: a Work on a Project's roll that earned nothing (bridge-runs-records.mjs `progressOf`), and a frozen project (guardProjectFrozen).
     ["rollMissed", /^that roll earned no progress$/],
     ["projectFrozen", /^that project is frozen until its repair is finished$/],
     ["missing", /^no ruling of a GM's sets that roll's band$/],
@@ -436,7 +436,14 @@ export const REASON_PATTERNS = Object.freeze([
     ["alreadyDone", /^that character has already volunteered$/],
     ["cannotNow", /^a dead student does not present$/],
     ["cannotNow", /^that character may not present now$/],
-    ["failed", /^the Present's card could not be posted$/]
+    ["failed", /^the Present's card could not be posted$/],
+    // E37 C3: the readiness round before the clock moves ("ready.open", "ready.answer", "ready.end"; boundary.mjs).
+    ["cannotNow", /^the clock is not at that boundary$/],
+    ["cannotNow", /^another readiness round is open$/],
+    ["cannotNow", /^no readiness round is open$/],
+    // E37 fix FG1 (the end review's S-m2): the round's own codes, not the incident's and the vote's sentences.
+    ["roundMovedOn", /^the readiness round has moved on since that answer$/],
+    ["notInRound", /^the sender plays no student the round asks$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
 /** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */
@@ -607,7 +614,7 @@ export async function guardCrisisAction(sender, payload, ctx) {
  * party's (`noRoll`) and a free take a critical Self-defence bought (`free`, a resolution
  * action's, which the run checks against the incident). Every other one a player sends has
  * to name its roll, or it is refused here as one naming no roll the GM drew; what passes with
- * none is scored on no dice (gm-bridge.mjs `handleCrisis`), as its asker sends it.
+ * none is scored on no dice (bridge-runs-acts.mjs `handleCrisis`), as its asker sends it.
  */
 export function guardCrisisRoll(sender, payload, ctx) {
     if (sender.isGM || payload?.rollId) return null;
@@ -689,7 +696,7 @@ export function guardShareGuest(sender, payload, ctx) {
 
 /*
  * PROGRESS A PLAYER ADDS (E08+E28 C16, 04.10.2026; audit S10-08; the plan's 3.5). A Work on a
- * Project names its roll, and what the roll earned is read off the GMs' record of it (gm-bridge.mjs
+ * Project names its roll, and what the roll earned is read off the GMs' record of it (bridge-runs-records.mjs
  * `progressOf`). A frozen project is refused, where it was answered "did not move": the picker
  * never offers one (projects.mjs `projectsListedIn`), and a refusal spends no roll. Progress is
  * added by a character standing in the project's room when it has one, as the picker lists them,
@@ -914,7 +921,7 @@ export async function guardArmPlayerCall(sender, payload, ctx) {
  * AND ON THE BUYER'S OWN CHARACTER (E29 C8, 05.10.2026; the plan's 3.3). A Call that arms the
  * buyer's own next roll - Experience, Ultimate, Resolve, a Loaded Die - was written and paid on
  * the player's browser until 1.2.68; it comes here now as a Support does, and is checked, paid
- * and armed on the same road (gm-bridge.mjs `armPaidByPlayer`). Which of the two roads a packet
+ * and armed on the same road (bridge-runs-records.mjs `armPaidByPlayer`). Which of the two roads a packet
  * is on is read from the packet's two ids, the buyer's and the beneficiary's: the same character,
  * and only a Call aimed at nobody else passes (`ownArmRefusal`); two, and only one aimed at
  * another player (`playerArmRefusal`). `owns` has tied the buyer to the sender before either.
@@ -934,7 +941,7 @@ function armedOnBuyer(payload) {
  * Support for a body nobody had found and one for a living student was told "cannot now"
  * for the first and "not enough Hope" for the second, free, as often as asked. The
  * player's road asks it after every refusal a living beneficiary gets too
- * (gm-bridge.mjs `armPaidByPlayer`), so the two answers differ only where the living
+ * (bridge-runs-records.mjs `armPaidByPlayer`), so the two answers differ only where the living
  * one is armed and paid for. The judgement is this GM's, as before.
  */
 export async function guardArmLiving(sender, payload, ctx) {
@@ -1006,7 +1013,7 @@ export async function guardArmBuyerHope(sender, payload, ctx) {
  * player's Call itself (`call.arm`), and nothing it held said that a GM had said yes - the review's
  * probe (98, Q1) armed an Ultimate and an Experience from p1's console with no ruling asked, each
  * answered "armed", Aiko's Hope 3 -> 1. Now the primary keeps each yes a GM gives on the ruling card
- * (gm-bridge.mjs `yesOnPrimary`), for the user who asked, the character, the Call and the purchase's
+ * (call-gm.mjs `yesOnPrimary`), for the user who asked, the character, the Call and the purchase's
  * own name (its nonce: the asking browser sends it with the ask and again with the arm, calls.mjs
  * `spendHopeCall`), and a player's arm of such a Call takes it, once. In memory on the primary, as
  * each roll's first dice are (reroll-receipts.mjs): a primary that reloads between the yes and the
@@ -1025,7 +1032,7 @@ function callYesKey(userId, actorId, key, nonce) {
     return [userId, actorId, key, String(nonce ?? "").slice(0, 32)].join("|");
 }
 
-/** The primary keeps a GM's yes to one user's ask (gm-bridge.mjs `yesOnPrimary`); the oldest go first. */
+/** The primary keeps a GM's yes to one user's ask (call-gm.mjs `yesOnPrimary`); the oldest go first. */
 export function noteCallYes({ userId, actorId, key, nonce }) {
     const yes = callYesKey(userId, actorId, key, nonce);
     callYeses.delete(yes);
@@ -1035,7 +1042,7 @@ export function noteCallYes({ userId, actorId, key, nonce }) {
 
 /**
  * A yes that did not reach its asker is taken back (E18 C1, 19.10.2026; audit S11-13): the primary sent it
- * on and no receipt came within `TIMING.ackMs` (gm-bridge.mjs `unreceivedOnPrimary`), so no arm takes it.
+ * on and no receipt came within `TIMING.ackMs` (call-gm.mjs `unreceivedOnPrimary`), so no arm takes it.
  *
  * AND SAYS WHAT BECAME OF IT (E18 fix e1-G1, 24.10.2026; the end review's E18-END-1). The asker's own browser
  * decides whether its receipt goes, and an arm can take the yes before the receipt is due: p1's console armed
@@ -1301,7 +1308,7 @@ export function guardRelayActor(sender, payload, ctx) {
 
 /*
  * A STASH HUNT IS TOLD BY THE GM THAT JUDGED IT (E80 fix r1-G1, 18.10.2026; the review's E80-SEC-1).
- * vault.mjs `resolveStashSearch` raises it on the GM that scores the search, and a GM's browser that is
+ * stash-reach.mjs `resolveStashSearch` raises it on the GM that scores the search, and a GM's browser that is
  * not the primary relays it as its own report; the finder's browser raised it until then, so a console
  * that left it out hunted past every trap, and one that sent it alone set one off with no search. A
  * player's report of a stash hunt is no road any more, and is refused. (A Find Passage is no report at
@@ -1438,7 +1445,7 @@ export function pick(spec) {
  * hold against. Since C12a the GM draws a player's roll and keeps its record (roll-draw.mjs `drawOnGm`,
  * `rollStore`). So a declaration that takes a roll's result says where its roll is named
  * (`rolled`): the field that names the roll's message (`field` - the one the resolver's
- * fact already went by, action-rolls.mjs `noteFactOfRoll`), the field that names the
+ * fact already went by, action-pipeline.mjs `noteFactOfRoll`), the field that names the
  * character (`actor`), and the action the roll was thrown for (`kind`, the record's
  * `actionKey`). The runner asks `rollRefusal` once the guards have passed: the record
  * exists, it is that character's and the sender's (a GM may name a player's), it was
@@ -1481,7 +1488,7 @@ export function pick(spec) {
  * A DERIVE READS THE PACKET TOO (E08+E28 C16, 04.10.2026). A project's progress and a
  * Sabotage's repair are what the roll earned with what only the roller's browser saw - a
  * concealment's bonus or penalty, the tool readied - so `derive` is handed the run's copy
- * as well, and holds each of those to what the rules allow (gm-bridge.mjs `progressOf`,
+ * as well, and holds each of those to what the rules allow (bridge-runs-records.mjs `progressOf`,
  * `repairOf`). `when` may name the roll's own field: progress that names no roll is a
  * Call's, which the declaration's guards bound instead (`guardCallProgress`).
  *
@@ -1971,7 +1978,7 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
      * `expired`, sent when a clock runs out on a request nothing answered, so the card stops asking and a
      * later yes is not kept; and `received`, sent when the answer reaches this waiter, so the card is
      * written as ruled only once the player has the ruling. Each goes to the GMs with the ask's id as
-     * `rid`; the primary acts only for the asker it holds (gm-bridge.mjs `expiredOnPrimary`,
+     * `rid`; the primary acts only for the asker it holds (call-gm.mjs `expiredOnPrimary`,
      * `receivedOnPrimary`). An answer after the clock gets no receipt: its card ends as expired. R839.
      */
     function tellGms(entry, action) {
@@ -1994,7 +2001,7 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
  * no such packet, so the ask went to a GM who had left and waited out its clock. Now the waiter asks
  * again on either, with the same id, and counts: three times covers a primary's reload, a handover to
  * another GM and a second reload within one ruling's clock, and bounds a GM whose world keeps reloading.
- * The primary finds the card it posted for an ask by its mark (gm-bridge.mjs `askAgain`). R841.
+ * The primary finds the card it posted for an ask by its mark (call-gm.mjs `askAgain`). R841.
  */
 const RESENDS = 3;
 

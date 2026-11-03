@@ -1,0 +1,158 @@
+/**
+ * Danganronpa RPG - Listen.
+ * ---------------------------------------------------------------------------
+ * The Listen action (`performListen`) and the names its picker and its lines
+ * give the rooms next door, a room this viewer has not been in unnamed
+ * (`listenLabels`, which a new project's passage options read too).
+ *
+ * WHERE IT SITS. Moved out of action-rolls.mjs by E41 C4 (1.2.97), a pure move
+ * that `node tools/moved-only.mjs` proves line by line. action-rolls.mjs
+ * re-exports `listenLabels`, the one name here it exported before, and nothing
+ * here imports it back (the facade rule, .claude/rules/code.md).
+ * `performListen` is exported now because `performAction`, which stays there,
+ * dispatches to it; action-rolls.mjs does not re-export it. Of the action
+ * family it reads the shared layer alone.
+ */
+
+import { spendAction } from "./actions.mjs";
+import { roomOfActor, locateActor } from "./movement.mjs";
+import { resolveThreshold, whisperToOwner, plural } from "./utils.mjs";
+import { rollTrait, noteRollContext, abort, canAfford } from "./action-pipeline.mjs";
+import { rollCardFlags, rollHead } from "./action-report.mjs";
+import { briefingBlock } from "./action-briefing.mjs";
+
+const DialogV2 = foundry.applications.api.DialogV2;
+
+/**
+ * THE DOORS, NOT THE ROOMS BEHIND THEM (22.09). The picker named every neighbouring room,
+ * discovered or not, so opening Listen in a room with an unexplored neighbour printed that
+ * room's name - the one thing the fog and the refused crossing (`notConnectedText`) are
+ * careful never to say. A room this viewer has not been in is "Unexplored room 1, 2...",
+ * in the picker and in the answer alike, and the option values are indices, so the page
+ * carries no name either. A GM and the Mastermind, who know the map, see every name
+ * (`known` is `roomsKnownToMe()`, `null` for them). One function since E08+E28 fix r1-G4
+ * (04.10.2026): a Reroll's lines are built on the roller's browser from the same rooms
+ * (reroll.mjs `heardLines`), so the same door gets the same number twice.
+ */
+export function listenLabels(neighbours, known) {
+    let unexplored = 0;
+    return new Map(neighbours.map(r => [r, !known || known.has(r)
+        ? r
+        : game.i18n.format("DRPG.Listen.unknownRoom", { n: ++unexplored })]));
+}
+
+/**
+ * Listen - fully automatic, no GM.
+ *
+ * The guide's three outcomes map onto three amounts of information:
+ *   pass      you learn how many people are in the chosen room, not who
+ *   strong    you learn who they are
+ *   critical  every neighbouring room at once
+ *
+ * The anonymous tier matters: "someone is in the kitchen" is a very different
+ * piece of information from "Kaede is in the kitchen", and the guide draws that
+ * line deliberately.
+ */
+export async function performListen(actor, def, options) {
+    const cost = options.free ? 0 : def.cost;
+    if (!canAfford(actor, cost)) return null;
+
+    const { neighbouringRooms, occupantsOf, roomsKnownToMe } = await import("./movement.mjs");
+    const here = roomOfActor(actor);
+    // The rooms next to this one on the scene the character stands on (E12 C2a), not the camera's;
+    // who is in them and which of them this player has found, on the same scene (E12 fix r1-G4).
+    const scene = locateActor(actor)?.scene ?? null;
+    const neighbours = neighbouringRooms(scene, here);
+
+    if (!neighbours.length) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Listen.noNeighbours"));
+        return null;
+    }
+
+    const labelOf = listenLabels(neighbours, roomsKnownToMe(scene));
+
+    const options_ = neighbours
+        .map((r, i) => `<option value="${i}">${foundry.utils.escapeHTML(labelOf.get(r))}</option>`)
+        .join("");
+
+    const target = await DialogV2.wait({
+        window: { title: def.label },
+        classes: ["drpg-panel"],
+        content: `${briefingBlock(actor, "listen", def)}<form>
+            <p>${game.i18n.format("DRPG.Listen.prompt", { room: foundry.utils.escapeHTML(here ?? "-") })}</p>
+            <label>${game.i18n.localize("DRPG.Listen.which")}
+                <select name="room">${options_}</select></label>
+        </form>`,
+        buttons: [
+            {
+                action: "ok", label: game.i18n.localize("DRPG.Action.roll"), default: true,
+                callback: (e, b, d) => neighbours[Number(d.element.querySelector("[name=room]").value)] ?? null
+            },
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+        ],
+        rejectClose: false
+    });
+
+    if (!target || target === "cancel") return null;
+    const shownAs = labelOf.get(target) ?? target;
+
+    // Paid before the dice - see `abort` and ACT-07 above it.
+    const paid = cost > 0 ? await spendAction(actor, cost) : null;
+    if (cost > 0 && !paid) return null;
+    const roll = await rollTrait(actor, "shadow", {
+        actionKey: "listen",
+        dc: (def.thresholds ?? []).map(t => t.min).join(" / "),
+        context: { room: here, target }
+    });
+    if (!roll) return abort(actor, paid);
+
+    // Listen produces information and nothing else, so Reroll has nothing to
+    // undo - it simply asks the walls again with the new number.
+    await noteRollContext(actor, { actionKey: "listen", room: here, target });
+
+    const hit = resolveThreshold(roll.total, def.thresholds);
+    const lines = [];
+    let outcome;
+
+    // The "named" tier is the highest threshold the action declares, read from
+    // the table rather than repeated here. The old hardcoded `>= 18` was a copy
+    // of a config value: retuning Listen in config.mjs silently left the code
+    // handing out names at the old number.
+    const namedFrom = Math.max(...def.thresholds.map(t => t.min));
+
+    if (roll.isCritical) {
+        // Everything, everywhere.
+        const sweep = neighbours.map(room => {
+            const who = occupantsOf(room, actor, scene).map(a => a.name);
+            return `<li><strong>${foundry.utils.escapeHTML(labelOf.get(room) ?? room)}</strong> - ${
+                who.length ? who.map(n => foundry.utils.escapeHTML(n)).join(", ") : game.i18n.localize("DRPG.Listen.empty")
+            }</li>`;
+        }).join("");
+        lines.push(`<p>${game.i18n.localize("DRPG.Listen.critical")}</p><ul>${sweep}</ul>`);
+        outcome = { success: true, isCritical: true, rooms: neighbours };
+    } else if (hit && hit.min >= namedFrom) {
+        // Named.
+        const who = occupantsOf(target, actor, scene).map(a => a.name);
+        lines.push(`<p>${game.i18n.format("DRPG.Listen.named", {
+            room: foundry.utils.escapeHTML(shownAs),
+            who: who.length ? who.map(n => foundry.utils.escapeHTML(n)).join(", ") : game.i18n.localize("DRPG.Listen.empty")
+        })}</p>`);
+        outcome = { success: true, room: target, named: who };
+    } else if (hit) {
+        // Anonymous: a count, no identities.
+        const count = occupantsOf(target, actor, scene).length;
+        lines.push(`<p>${count
+            ? plural("DRPG.Listen.anonymous", { room: foundry.utils.escapeHTML(shownAs), n: count })
+            : game.i18n.format("DRPG.Listen.emptyRoom", { room: foundry.utils.escapeHTML(shownAs) })
+        }</p>`);
+        outcome = { success: true, room: target, count };
+    } else {
+        lines.push(`<p>${def.failure}</p>`);
+        outcome = { success: false };
+    }
+
+    await whisperToOwner(actor, `${rollHead(def, roll)}${lines.join("")}`, rollCardFlags(def, roll));
+
+    Hooks.callAll("drpgActionResolved", { actor, actionKey: "listen", roll, outcome });
+    return outcome;
+}

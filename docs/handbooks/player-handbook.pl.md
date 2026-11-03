@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.96, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.97, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z twojego krzesła: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co kliknąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje".
 
@@ -91,8 +91,10 @@ Przed każdą porą dnia gasną światła. To okno ustawiania to **Eclipse**:
 - Niczyj ekran nie pokazuje cudzego tokenu, w żadnym pokoju. Żaden gracz nie jest w głosie: nikogo nie słyszysz i nikt nie słyszy ciebie, dopóki nie wrócą światła. (Ciemność jest ekranów: to, gdzie stoi każdy token, i tak dociera do każdej przeglądarki, bo tak wysyła to Foundry.)
 - Ustawiasz swój token: do **2 przejść między połączonymi pokojami**, drzwi i przejścia wciąż obowiązują. Wyjątkiem jest **Eclipse przed Nocą** - wybierasz **dowolny pokój na mapie**. Przeglądarka GMa liczy twoje przejścia, gdy je widzi: przejście ponad limit wraca, a gdy żaden GM nie jest połączony, przejście jest odrzucane.
 - Twoje akcje są już odnowione, gdy Eclipse się otwiera, ale nic ich nie wydaje poza **Direct Murder**. Żadnych Calli, dopóki nie zapali się światło.
-- Otwiera ci się karta z podsumowaniem poprzedniej pory dnia - co znalazłeś, co zostawiłeś.
+- Otwiera ci się karta z podsumowaniem pory dnia, która właśnie się skończyła - co znalazłeś, co zostawiłeś. Ta sama karta otwiera się, gdy pora dnia kończy się bez Eclipse, kiedy GM przesuwa zegar dalej; dla każdej pory dnia otwiera się raz.
 - Eclipse to jedyny moment pełnej osłony w grze i zwykle tu zaczyna się morderstwo. Nie jest częścią dnia: zegar nie rusza, dopóki GM go nie zakończy.
+
+**Zanim zegar się przesunie**, GM może zapytać, czy już kończysz: okno mówi, co GM chce zrobić - zacząć Eclipse, zakończyć Eclipse albo zakończyć tę porę dnia - i ma przyciski **Gotowe** i **Jeszcze chwila**. „Jeszcze chwila” mówi GM-owi, że potrzebujesz trochę więcej czasu, a okno zostaje z samym „Gotowe”. Gdy wszyscy gracze odpowiedzą „Gotowe”, gra rusza dalej sama; GM może też ruszyć wcześniej. Okno zamyka się, gdy GM rusza dalej albo postanawia jeszcze chwilę poczekać. Jeśli zamkniesz je sam, na ekranie zostaje karta, dopóki GM czeka; kliknij ją, by odpowiedzieć.
 
 Zaciemniona pora dnia (overflow, rozdział 6) może odjąć przejść albo zabrać dowolne ustawianie.
 
@@ -111,8 +113,9 @@ Szkoła narysowana jest jako pokoje. Wszystko - ruch, Search, Listen, to, kto ci
 | Każde kolejne przejście | **1 akcja** za każde |
 | Po schodach w górę lub w dół do innego pokoju | przejście jak każde inne; zmiana piętra na klatce schodowej to ruch wewnątrz własnego pokoju |
 | Przejście kupione Hope Callem Sprint | za darmo |
+| Przejście, gdy nie masz już Free Move ani Sprint, a masz Burst | twój **Burst**, zanim pójdzie akcja |
 
-Przeciągnij token; koszt naliczany jest, gdy dotrzesz. Przejście, którego nie masz czym opłacić, zostaje odrzucone, a token wraca.
+Przeciągnij token; koszt naliczany jest, gdy dotrzesz. Opis akcji Move mówi, co zabierze następny pokój - Free Move, Sprint, twój Burst albo akcję. Przejście, którego nie masz czym opłacić, zostaje odrzucone, a token wraca.
 
 Zawraca cię:
 
@@ -819,7 +822,7 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 
 **Książka**, pod nim w prawym dolnym rogu, przy samej krawędzi ekranu, tej samej wielkości co zębatka po jej lewej, otwiera podręczniki w grze: ten Podręcznik gracza i Ulotkę ucznia, w języku wybranym dla modułu. Spis treści po lewej przenosi do dowolnego rozdziału.
 
-**Karty i wyskakujące okna:** wyniki twoich akcji przychodzą jako karty powiadomień, a karta zostaje, dopóki jej nie zamkniesz - kliknięciem w nią, a przy dowodach i innych kartach, które trzeba przeczytać, przyciskiem X. Najnowsza ląduje na górze i spycha starsze w dół; gdy nie mieszczą się wszystkie, reszta czeka pod spodem za "+N" obok przycisku zamknięcia, a zamknięcie karty przywraca następną; kliknięcie w "+N" zamyka naraz wszystkie karty poza kartami do przeczytania. Karta "czekamy na GM-a" zamyka się sama, gdy przyjdzie odpowiedź. Zamkniętą kartę można przeczytać jeszcze raz: przycisk ze stosem kart w prawym dolnym rogu kafelka powiadomień (pod Monokuma Legacy na komputerze pod zegarem, także bez kart; na wąskim ekranie w prawym dolnym rogu najniższej karty, gdy jakaś karta jest na ekranie) otwiera okno **Historia powiadomień** - powiadomienia, które pokazała ci ta przeglądarka, także karty o morderstwie, najnowsze, najwyżej 250. Trzyma je, najwyżej 40 od jednego nadawcy, do resetu sezonu, który czyści zegar, incydent, własne karty tego modułu albo resztę dziennika czatu; karta, którą moduł wycofa, znika i stąd. Gdy w tej przeglądarce zabraknie miejsca albo historie innych kont zapełnią jej udział, zostaje mniej albo zapis staje, a okno mówi, kiedy stanął. Otwiera je też klawisz w ustawieniach sterowania Foundry, jeśli go przypiszesz. **Wyczyść** w tym oknie je opróżnia: zrób to, zanim udostępnisz ekran. Na wspólnym komputerze inne konto zalogowane w tej przeglądarce może przeczytać twoją historię, więc wyczyść ją, zanim oddasz komputer. Podczas Eclipse otwiera ci się podsumowanie pory dnia.
+**Karty i wyskakujące okna:** wyniki twoich akcji przychodzą jako karty powiadomień, a karta zostaje, dopóki jej nie zamkniesz - kliknięciem w nią, a przy dowodach i innych kartach, które trzeba przeczytać, przyciskiem X. Najnowsza ląduje na górze i spycha starsze w dół; gdy nie mieszczą się wszystkie, reszta czeka pod spodem za "+N" obok przycisku zamknięcia, a zamknięcie karty przywraca następną; kliknięcie w "+N" zamyka naraz wszystkie karty poza kartami do przeczytania. Karta "czekamy na GM-a" zamyka się sama, gdy przyjdzie odpowiedź. Zamkniętą kartę można przeczytać jeszcze raz: przycisk ze stosem kart w prawym dolnym rogu kafelka powiadomień (pod Monokuma Legacy na komputerze pod zegarem, także bez kart; na wąskim ekranie w prawym dolnym rogu najniższej karty, gdy jakaś karta jest na ekranie) otwiera okno **Historia powiadomień** - powiadomienia, które pokazała ci ta przeglądarka, także karty o morderstwie, najnowsze, najwyżej 250. Trzyma je, najwyżej 40 od jednego nadawcy, do resetu sezonu, który czyści zegar, incydent, własne karty tego modułu albo resztę dziennika czatu; karta, którą moduł wycofa, znika i stąd. Gdy w tej przeglądarce zabraknie miejsca albo historie innych kont zapełnią jej udział, zostaje mniej albo zapis staje, a okno mówi, kiedy stanął. Otwiera je też klawisz w ustawieniach sterowania Foundry, jeśli go przypiszesz. **Wyczyść** w tym oknie je opróżnia: zrób to, zanim udostępnisz ekran. Na wspólnym komputerze inne konto zalogowane w tej przeglądarce może przeczytać twoją historię, więc wyczyść ją, zanim oddasz komputer. Gdy pora dnia się kończy - w Eclipse albo gdy GM przesuwa zegar dalej - otwiera ci się jej podsumowanie.
 
 **Okno Wygląd:** zębatka w prawym dolnym rogu otwiera ustawienia, które należą do tej przeglądarki - nikt inny nie widzi ani nie słyszy różnicy:
 - **Język** - English albo Polski dla okien, kart i arkusza modułu. Celowo osobno od języka Foundry. Działa po przeładowaniu. Nazwy własne zostają po angielsku w obu.

@@ -788,7 +788,8 @@ async function text() {
     if (listed === null || docList === null) { problems.push("not a git checkout: the scripts and docs could not be listed - nothing was read"); return problems; }
     const scripts = new Map(listed.filter(f => f.endsWith(".mjs") && !/^tests(-[\w-]+)?\.mjs$/.test(path.basename(f))).map(f => [f, read(f)]));
     const docs = new Map(docList.filter(f => f.endsWith(".md")).map(f => [f, read(f)]));
-    /* T14's bag (E65 C3): the words a table's name is built from, as config.mjs freezes them, and tables.mjs's legacy lists. */
+    /* T14's bag (E65 C3): the words a table's name is built from, as config.mjs freezes them, and the legacy lists, in
+       tables-pools.mjs since E41 C8 (tables.mjs's until then). */
     /* T8's and T28's (E65 C4): docs/glossary.json, held to its shape first (a fault in it is red: a file E65 owns, not text
        debt), and the stages that have shipped by tools/stages.mjs's rule - an entry holds only from its stage. */
     const ledger = stagesLib.loadStages(REPO), modVersion = stagesLib.moduleVersion(REPO);
@@ -814,7 +815,7 @@ async function text() {
                 + `${Array.isArray(budgets.allow) ? budgets.allow.length : 0} allow row(s); ${faults.length} schema fault(s)`);
         }
     }
-    const inputs = { en, pl, prose, scripts, docs, lexer, words: config.TABLE_NAME_WORDS, ...T.legacyListsFrom(read("scripts/tables.mjs")), glossary, shipped, budgets };
+    const inputs = { en, pl, prose, scripts, docs, lexer, words: config.TABLE_NAME_WORDS, ...T.legacyListsFrom(read("scripts/tables-pools.mjs")), glossary, shipped, budgets };
     /* The screen map and the render (E65 C10): tools/text-map.mjs reads the scripts with espree (a SCREENS row that names
        no unit is red: the hand table is a file E65 writes), tools/text-render.mjs fills every string with its fixtures in
        memory; T15 reads the render, T19 the map's marks (decision 52). The files themselves only by the two tools. */

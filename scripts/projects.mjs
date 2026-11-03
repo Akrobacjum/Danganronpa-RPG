@@ -25,7 +25,7 @@
 
 import { MODULE_ID, PROJECT_SCALE, TRAP_TRIGGERS, TRAITS, isProjectGlyph } from "./config.mjs";
 import { SETTINGS, iAmTheMastermind } from "./settings.mjs";
-import { announce, log, error, whisperToOwner, whisperToGms, gmIds, esc, isPrimaryGm, primaryGmId, serialWrite } from "./utils.mjs";
+import { announce, log, error, whisperToOwner, whisperToGms, gmIds, esc, isPrimaryGm, primaryGmId, serialWrite, plural } from "./utils.mjs";
 // Statically: gm-stores.mjs reaches this file only by dynamic import, so the edge closes no cycle (R161).
 import { projectSecretStore, rerollBookmarkStore } from "./gm-stores.mjs";
 /* `discoveredFor` is the per-character record of which rooms somebody has
@@ -40,6 +40,8 @@ import { cardMeta } from "./secret.mjs";
 // A leaf (it imports config.mjs alone): the scenes a project's room is on, for `knowsProject` (E12 C5),
 // and the one it stands on, for `projectScene` (E12 fix r1-G3).
 import { placeScenes, roomRegions, sceneOfRoom } from "./rooms.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 import {
     DH, COUNTDOWNS, COUNTDOWNS_KEY, projectMeta, metaFor, secretsOf, setProjectMeta, canSee, OBSERVER, ownerIdsOfId, ownershipMap,
     insidersOf, viewersOf, isSecret, rawCountdown, writeAllCountdowns, builderIds,
@@ -63,11 +65,11 @@ export function isIndirectMurder(countdownId) {
 /**
  * Is this project an indirect murder that this character is building - its killer or the one who
  * proposed it? The question a Work's or a Sabotage's trace is tied to the crime by (E32+E07 fix
- * r2-G3, E09 C5): asked by the bridge of a player's trace (gm-bridge.mjs `worksOwnMurder`) and,
+ * r2-G3, E09 C5): asked by the bridge of a player's trace (bridge-runs-records.mjs `worksOwnMurder`) and,
  * since E09 fix r1-G4 (08.10.2026; the round-1 goal check's G2b), by the drop itself on a GM's own
- * client (action-rolls.mjs `hideProjectTraces`, `dropSabotageTrace`), which tied a bystander's
+ * client (action-project.mjs `hideProjectTraces`, `dropSabotageTrace`), which tied a bystander's
  * trace of anybody's trap. False on a player's browser, which holds no secrets (`secretsOf`): its
- * packet's tie is never read (gm-bridge.mjs `handleRemnant`).
+ * packet's tie is never read (bridge-runs-records.mjs `handleRemnant`).
  */
 export function buildsOwnMurder(countdownId, actorId) {
     if (!actorId || !isIndirectMurder(countdownId)) return false;
@@ -558,7 +560,7 @@ export async function addProgress(countdownId, amount, { by = null, actorId = nu
         // Progress taken BACK is a Reroll's undo, which the GM's own Reroll makes
         // on its own client: a player's is refused (`undoIsTheGms`, E08+E28 C8).
         // The character whose action this is still travels with it. A Work on a Project names its roll as well (E08+E28 C2), so the GMs'
-        // bookmark of that roll keeps what it added (gm-bridge.mjs `noteProgressFact`), and since C16 the GM adds what that roll
+        // bookmark of that roll keeps what it added (bridge-runs-records.mjs `noteProgressFact`), and since C16 the GM adds what that roll
         // earned on its record, with the tool's `relief` and the concealment's `bonus` held to the rules (`progressOf`).
         // A Hope Call's names its `call`, whose price the GM saw paid (fix r2-H2: bridge-guards.mjs `guardCallProgress`).
         const { requestProjectProgress } = await import("./gm-bridge.mjs");
@@ -940,7 +942,7 @@ function cleanBy(by) {
  * `{ ownership }` or `{ remove: true }`, combined as a caller combines them, or `{ create: true }` with the
  * new project's name, target, img, ownership and meta under the id its caller drew (createProject, E36 C2);
  * `by` is `{ kind, userId, actorId }`. On the primary GM the change is a step of
- * `serialWrite(COUNTDOWNS_KEY, ...)`; another GM's goes there by `project.change` (gm-bridge.mjs
+ * `serialWrite(COUNTDOWNS_KEY, ...)`; another GM's goes there by `project.change` (bridge-asks.mjs
  * `requestProjectChange`), and a player's browser never runs it: off a GM this answers null and logs.
  * Answers `{ id, name, from, to, target, changed, reason?, crossed, uncrossed, removed }` once the step
  * and what follows it have run, or null for no such project; a step that throws rejects this caller's
@@ -1484,7 +1486,7 @@ export function repairs(countdownId) {
 export async function sabotageProject(targetId, difficulty = 3, { saboteur = null, requestId = null, rollId = null, actorId = null, penalty = 0, relief = 0 } = {}) {
     if (!game.user.isGM) {
         const { requestSabotage } = await import("./gm-bridge.mjs");
-        // `rollId`: the Sabotage roll's message, whose row on the GMs takes the freeze (gm-bridge.mjs `handleSabotage`),
+        // `rollId`: the Sabotage roll's message, whose row on the GMs takes the freeze (bridge-runs-records.mjs `handleSabotage`),
         // and since E08+E28 C16 whose record the GM reads the repair off (`repairOf`). A difficulty of 0 is a miss:
         // it freezes nothing, and says nothing to the player if it cannot be sent (`quiet`).
         const res = await requestSabotage(targetId, difficulty, { rollId, actorId, penalty, relief, quiet: !difficulty });
@@ -1554,7 +1556,7 @@ export async function sabotageProject(targetId, difficulty = 3, { saboteur = nul
 /**
  * What a player's Sabotage under `requestId` answered (E18 C7, 26.10.2026; audit S10-43 part 2): `{ repair, target }`, as
  * `sabotageProject` answered it, for the repair whose GMs' row names that saboteur and that request, while it still
- * repairs its target; null otherwise. GM only (`secretsOf`): gm-bridge.mjs `sabotageAgain` reads it on the primary.
+ * repairs its target; null otherwise. GM only (`secretsOf`): bridge-runs-records.mjs `sabotageAgain` reads it on the primary.
  */
 export function sabotageOfRequest(saboteur, requestId) {
     if (!game.user?.isGM || typeof saboteur !== "string" || !saboteur || typeof requestId !== "string" || !requestId) return null;
@@ -1943,7 +1945,7 @@ export async function deleteProject(countdownId) {
 export async function clearAllProjects() {
     if (!game.user.isGM) return null;
     /* THE PRIMARY'S ALONE (E36 fix e1-G3, 25.10.2026; findings E36-R3, F5). Another GM's reset (a console: the
-       reset window asks for the primary before it writes, season-setup.mjs) queued its step on its own browser,
+       reset window asks for the primary before it writes, season-wipe.mjs) queued its step on its own browser,
        which orders nothing the primary's queue does, and dropped only the secrets that browser held. Refused here
        with the window's own words, nothing cleared (E36-T8). */
     if (!isPrimaryGm()) {
@@ -1993,6 +1995,31 @@ export async function clearAllProjects() {
     log(`Season reset: cleared ${gone} project(s).`);
     return gone;
 }
+
+/** The season reset's projects group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): `clearAllProjects`. */
+export async function clearSeasonProjects() {
+    await clearAllProjects();
+}
+
+/**
+ * What the reset window counts of the projects (E42 C3; season-setup.mjs `resetTally` until then): the projects
+ * standing and, since E11 C7, every project token on the maps, the orphans included - what `clearAllProjects`
+ * takes off them. The tokens are projects-map.mjs's, reached by `import()` as `clearAllProjects` reaches it.
+ */
+export async function tallySeasonProjects() {
+    let projects = 0;
+    try {
+        projects = Object.keys(game.settings.get(DH, COUNTDOWNS)?.countdowns
+            ?? game.settings.get(MODULE_ID, SETTINGS.projectMeta) ?? {}).length;
+    } catch {
+        projects = 0;
+    }
+    const { projectTokensOn } = await import("./projects-map.mjs");
+    return [plural("DRPG.Season.resetProjects", { n: projects }),
+        plural("DRPG.Season.resetProjectTokens", { n: projectTokensOn(game.scenes).length })];
+}
+
+registerSeasonState({ group: "projects", clear: clearSeasonProjects, tally: tallySeasonProjects, settings: [SETTINGS.projectMeta] });
 
 /**
  * A SECRET PROJECT'S REPAIR AS 1.2.65 MAKES IT (E06 fix r2-G1, 28.09.2026; review round 2's

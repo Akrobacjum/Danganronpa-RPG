@@ -41,7 +41,11 @@ import {
 import { remnantsOn, remnantData, setRemnantFlagsMany, publishTiesFor, handTiesOn, fightKey } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc, isPrimaryGm, primaryGmId,
-    serverNow } from "./utils.mjs";
+    serverNow, listOf } from "./utils.mjs";
+// A leaf (utils.mjs alone): the one runner of the procedures that cannot be taken back, and its report (E42 C2).
+import { runSteps, stepsReport } from "./steps.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState, everyPart } from "./season-reset.mjs";
 import { caseMark, deathStore, deferredOfferStore, lootTraceStore } from "./gm-stores.mjs";
 // A leaf (config.mjs alone): the scenes of the discovery window and a discovery handed no scene (E12 C5).
 import { placeScenes, roomNames, sceneOfRoom } from "./rooms.mjs";
@@ -147,7 +151,7 @@ export async function markDeceased(actor, { record: when = null, phase = null, c
     // not the time, which would tell every console when a death the GMs kept happened.
     // WHY, AND WHOSE CHAPTER (E70 C4; amend 4 (b)). An execution at the trial's end says so (`cause: "executed"`), and
     // is the trial's chapter's even when the chapter's end has moved the clock on before closing the trial
-    // (vote.mjs `executeAtExit`). A death with no cause writes none, as before.
+    // (trial-progress.mjs `executeAtExit`). A death with no cause writes none, as before.
     const clock = getClock();
     const record = when ?? { chapter: chapter ?? clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay, phase: phase ?? clock.phase, epoch: seasonEpoch(),
         deathId: foundry.utils.randomID(), sinceVerdict: verdictBefore(chapter ?? clock.chapter), ...(cause ? { cause } : {}) };
@@ -502,9 +506,9 @@ async function tellDeathKnowers(actor, known = [], { dropped = false } = {}) {
  * tombstone is what a copy weighs its loss against - and whoever held a copy is told.
  * Idempotent: its head reads the GMs' row (`deathStore`), so a death already public answers
  * its record and a body nobody killed null. Run by the body's discovery (`runDiscovery`, through
- * `publishFoundBodies`), by a GM's hand - the Players window's "dead" (gm-panel.mjs
+ * `publishFoundBodies`), by a GM's hand - the Players window's "dead" (gm-students.mjs
  * `applyAliveStates`) and the console's `game.drpg.publishDeath` (api.mjs) - and by a verdict
- * that executes a student whose death the GMs hold (vote.mjs `executeAtExit`, E10 fix r1-G4:
+ * that executes a student whose death the GMs hold (trial-progress.mjs `executeAtExit`, E10 fix r1-G4:
  * the GM named them in the verdict's window, which told that GM whose death it is). Nothing
  * else: no trial and no chapter's end publishes a death on its own (the owner's Q3, 26.09.2026;
  * callers read with `git grep` on 10.10.2026, E10 fix r2-G3). Last, each loot of the body before this
@@ -520,7 +524,7 @@ export async function publishDeath(actor, { phase = null, cause = null } = {}) {
     if (!row) return isDeceased(actor) ? deathRecord(actor) : null;
     const removed = row.keepBullets ? 0 : await destroyBullets(actor);
     /* THE KILL'S RECORD, AND THE EXECUTION'S PHASE (E11 C1, 1.2.73). A verdict that executes a
-       death the GMs held passes `phase: "classTrial"` (vote.mjs `executeAtExit`): the record
+       death the GMs held passes `phase: "classTrial"` (trial-progress.mjs `executeAtExit`): the record
        keeps the kill's chapter, day and time, and says the death is the execution, so after End
        the trial two students walking past it do not discover it (`bodiesToDiscover`). Reading this
        chapter's verdict instead was weighed and refused: a second trial blanks the record (D17). */
@@ -647,6 +651,36 @@ export async function reviveCharacter(actor, { quiet = false } = {}) {
     if (!quiet) ui.notifications.info(game.i18n.format("DRPG.Chapter.revived", { name: actor.name }));
     return true;
 }
+
+/**
+ * The season reset's deaths group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): every student comes
+ * back whole (season-wipe.mjs `wipeStudent`'s `deaths` part), and the deaths nobody found (E05 C10) - the group's
+ * cut, written before every step, takes the GMs' rows on every GM and every player's copy; this drops what this
+ * browser holds.
+ */
+export async function clearSeasonDeaths(ctx) {
+    await ctx.everyStudent("deaths");
+    if (isPrimaryGm()) await deathStore.clear();
+    else await deathStore.dropMany(Object.keys(deathStore.entries()));
+}
+
+/** What the reset window counts of the deaths: the students dead for the GMs (season-setup.mjs `resetTally` until E42 C3). */
+export function tallySeasonDeaths() {
+    return [plural("DRPG.Season.resetDead", { n: studentActors().filter(isDeadForGm).length })];
+}
+
+/**
+ * The season reset's bodyFound group (E42 C3): the body found, and the season's stamps of the bodies found (E11 C1)
+ * under the same tick - both say what this season found, and its chapter 1 is not the next season's. Each tried
+ * (`everyPart`), written whole.
+ */
+export async function clearSeasonBodies() {
+    await everyPart(() => game.settings.set(MODULE_ID, SETTINGS.bodyFound, {}),
+        () => game.settings.set(MODULE_ID, SETTINGS.bodiesFound, {}));
+}
+
+registerSeasonState({ group: "deaths", clear: clearSeasonDeaths, tally: tallySeasonDeaths });
+registerSeasonState({ group: "bodyFound", clear: clearSeasonBodies, settings: [SETTINGS.bodyFound, SETTINGS.bodiesFound] });
 
 /** Mark somebody dead, from the GM panel. */
 export async function openDeathDialog({ actor = null } = {}) {
@@ -863,7 +897,7 @@ export function discoverBody(options = {}) {
    found body and named on the Investigation card (measured by the review at 0d860df, with a
    second GM put first in the users); and two GMs announcing one body at once each posted a card
    and each wrote the stamp from its own copy (`bodyWorkQueue` orders one browser only; 17-assistant
-   F1). One browser decides, as the season's reset does (season-setup.mjs), and another GM is told
+   F1). One browser decides, as the season's reset does (season-wipe.mjs), and another GM is told
    whose the announcement is. Refused rather than sent on to the primary: a forwarded press would
    be a new GM-to-GM request with its own checks and census row, for a window the primary GM can
    open just as well. Tier 2 "a GM who is not the primary announces no body and is told whose it is". */
@@ -1793,6 +1827,12 @@ export async function openChapterEndDialog() {
     // Before anything is asked or counted: the end is the primary GM's (`applyChapterEnd`, ONE BROWSER).
     if (!chapterEndHere()) return null;
 
+    /* A STOPPED END IS ANSWERED FIRST (E42 C2, 1.2.97; E42-10). While an end that stopped part way stands, this window
+       asks what to do with it - Finish the chapter's end, Drop the rest, or Cancel, the default - instead of drawing
+       the form of a new end, which `applyChapterEnd` would refuse (`endStands`). */
+    const stopped = chapterEndStopped();
+    if (stopped) return askStoppedEnd(stopped);
+
     /* AN INCIDENT STILL OPEN ASKS FIRST (E10 C12, 1.2.71; audit S06-18): the register takes its
        killers when it is closed. Since E09 fix r2-G4 the row goes under the chapter the incident
        opened in, so a late close no longer lands on the next chapter's verdict - but this window ends
@@ -1909,6 +1949,93 @@ function endMark(clock) {
     return { chapter: clock.chapter, session: clock.session, day: clock.day ?? 1, phase: clock.phase };
 }
 
+/** The boxes an end is asked with, as its record keeps them (E42 C2): booleans alone. */
+const END_CHOICES = Object.freeze(["reveal", "sweep", "faint", "keys", "endTrial", "nextChapter", "nextSession", "nextMorning"]);
+
+/** Whether an end runs on this browser now (`runChapterEnd`): its record says "applying" while it runs, and is not stopped. */
+let endRunning = false;
+
+/**
+ * THE END'S RECORD (E42 C2, 1.2.97; E42-08; audit S17-30). The world setting `chapterEnd`, written by the primary GM
+ * alone, inside `applyChapterEnd`'s queue: `{ stage, by, at, opened, choices, ending: { chapter, session, day, phase,
+ * stands }, done, failed, notRun }`, and once dropped `droppedBy` and `droppedAt` (`finishChapterEnd`) - step keys, the
+ * clock's numbers and phases, the boxes as booleans, GM ids and times, no text and no secret (world-secrets.mjs names it). Written "applying" once the guards have passed and before the
+ * first step, again after every step that changed it, and at the end "done" when every step the GM asked for ran, or
+ * left "applying": an end that stopped, which `finishChapterEnd` finishes or drops ("dropped"). `{}` before the first.
+ * Until 1.2.97 an end kept no record: a step that failed was named and the GMs told to finish by hand, and ending the
+ * chapter again - the one road back - redid every step (E42-T4, measured at cef11276: the session and the day moved twice).
+ */
+export function chapterEndRecord() {
+    return game.settings.get(MODULE_ID, SETTINGS.chapterEnd) ?? {};
+}
+
+/**
+ * The end that stopped part way and waits to be finished, or null: its record "applying", no end running on this
+ * browser, and none running on another.
+ *
+ * ANOTHER GM'S END THAT STILL RUNS IS NOT ONE (E42 fix FG2, 03.11.2026; the end review's C-m2 = S-M2, STATUS Open 16).
+ * `endRunning` is this browser's, so another GM's panel read the primary's end "applying" for the seconds it ran as
+ * stopped, and a GM who became the primary meanwhile was offered Finish over an end still running on the old one. An
+ * end runs on the primary alone and stops once its browser is no longer the primary (`runChapterEnd`'s `stop`), so a
+ * record whose `by` is a connected GM that is the primary now, and that names no step failed, is running there - as
+ * the verdict reads its `by` (verdict.mjs `verdictStopped`); one whose `by` left, reloaded or is no longer the primary
+ * is stopped. Tier 2 E42-T12.
+ */
+export function chapterEndStopped(record = chapterEndRecord()) {
+    if (record?.stage !== "applying" || endRunning) return null;
+    const by = game.users.get(record.by);
+    const failed = Array.isArray(record.failed) ? record.failed : [];
+    if (!failed.length && by?.active && by.isGM && by.id !== game.user.id && by.id === primaryGmId()) return null;
+    return record;
+}
+
+/**
+ * WHERE THE END MOVES THE CLOCK, FROM ITS RECORD (E42 C2, 1.2.97; E42-09; R1253). Pure. The next chapter and the next
+ * session are the ending's own plus one, out of the Investigation into Daily Life with them (E11 C5), and the next
+ * morning is the ending's day plus one - each only while the clock still reads the ending's value. The `clock` and
+ * `morning` steps read the clock as it stood and added one (`clock.session + 1`, `getClock().day + 1`), so a step run
+ * again after its work had landed - a Finish after a tab closed between the work and its record - moved it again.
+ * Now such a step finds nothing to move, and a counter somebody else moved meanwhile is left as they left it.
+ * Answers `{ clock: the patch or null, morning: { day } or null }`.
+ */
+export function endMoves(ending = {}, choices = {}, clock = {}) {
+    const move = {};
+    if (choices.nextChapter && clock.chapter === ending.chapter) move.chapter = ending.chapter + 1;
+    if (choices.nextSession && clock.session === ending.session) move.session = ending.session + 1;
+    if (Object.keys(move).length && ending.phase === "investigation") move.phase = "dailyLife";
+    const morning = choices.nextMorning && (clock.day ?? 1) === ending.day ? { day: ending.day + 1 } : null;
+    return { clock: Object.keys(move).length ? move : null, morning };
+}
+
+/**
+ * THE PHASE A FINISH HOLDS THE END TO (E42 C2, 1.2.97; R1253). Pure. An end stops when the phase moves off the one it
+ * stands on (`ending.stands`: the phase it began in, or the one its own clock or trial step left). A tab closed between
+ * that step's move and its record leaves Daily Life with the record still on the Investigation or the trial - the
+ * end's own move, read so when that step is not done, was asked for, and its work reads landed: the counters off the
+ * ending's (`endMoves` has nothing left to move), or the trial no longer sitting. Any other phase has moved: null.
+ */
+export function endHeldPhase(record = {}, clock = {}) {
+    const { ending = {}, choices = {}, done = [] } = record ?? {};
+    if (clock.phase === ending.stands) return clock.phase;
+    if (clock.phase !== "dailyLife") return null;
+    if (ending.stands === "investigation" && !done.includes("clock") && (choices.nextChapter || choices.nextSession)
+        && !endMoves(ending, choices, clock).clock) return "dailyLife";
+    if (ending.stands === "classTrial" && !done.includes("trial") && choices.endTrial) return "dailyLife";
+    return null;
+}
+
+/** A step of the end in the GM's words (`DRPG.Chapter.step.*`). */
+function stepWords(key) {
+    return game.i18n.localize(`DRPG.Chapter.step.${key}`);
+}
+
+/** The steps a record's choices asked for (`asked`), done or not as `done` says, in order: the tools and the hold are never named. */
+function askedSteps(record, done) {
+    const context = { choices: record?.choices ?? {}, ending: record?.ending ?? {}, failed: record?.failed ?? [] };
+    const held = record?.done ?? [];
+    return CHAPTER_END_STEPS.filter(step => step.asked?.(context) && held.includes(step.key) === done).map(step => step.key);
+}
+
 /**
  * THE CHAPTER'S END, ONE ORDERED LIST (E11 C5, 1.2.73; audit S06-13, S06-40; the plan's p10change).
  *
@@ -1919,7 +2046,7 @@ function endMark(clock) {
  * an end that stops part-way names the steps it did not run, and only those the GM asked for. A step
  * that moves the phase itself writes the phase it leaves on `ending.stands` (the clock's move out of
  * the Investigation, the trial's close), which the next step's check compares against.
- * `applyChapterEnd` runs them in this order, one try/catch each: a step that fails is logged and named,
+ * `runChapterEnd` runs them in this order on steps.mjs `runSteps` (E42 C2), each in its own try/catch: a step that fails is logged and named,
  * and the steps after it still run - the morning aside, which does not open over a trial that did not close. Until 1.2.73 the same
  * work was one function of nine steps, three of them in a try/catch and six not, so a clock move
  * that threw stopped the end there with the rest undone and the GM told nothing, and a trial that would not
@@ -1985,12 +2112,11 @@ export const CHAPTER_END_STEPS = [
        A Class Trial is not left here: `closeTrial` below does that, after the move, and only when
        the GM ticked it. */
     { key: "clock", asked: ({ choices }) => Boolean(choices.nextChapter || choices.nextSession), run: async ({ choices, ending }) => {
+        /* To the ending's own targets (E42 C2, 1.2.97; E42-09): a Finish after the move landed and before the record
+           said so finds nothing to move (`endMoves`), where the move read off the clock moved it a second time. */
         const clock = getClock();
-        const move = {};
-        if (choices.nextChapter) move.chapter = clock.chapter + 1;
-        if (choices.nextSession) move.session = clock.session + 1;
-        if (!Object.keys(move).length) return null;
-        if (ending.phase === "investigation") move.phase = "dailyLife";
+        const move = endMoves(ending, choices, clock).clock;
+        if (!move) return null;
         const { setClock } = await import("./clock.mjs");
         if (!(await setClock(move))) return false;
         if (move.phase) ending.stands = move.phase;
@@ -2018,6 +2144,8 @@ export const CHAPTER_END_STEPS = [
        fails is named and no morning opens over a trial that did not close"). */
     { key: "trial", asked: ({ choices, ending }) => Boolean(choices.endTrial) && ending.phase === "classTrial", run: async ({ choices, ending }) => {
         if (!choices.endTrial || ending.phase !== "classTrial") return null;
+        // A Finish after the trial closed and before the record said so (E42 C2): nothing is left to close.
+        if (getClock().phase !== "classTrial") return null;
         const { closeTrial } = await import("./trial-floor-ui.mjs");
         if (!(await closeTrial())) return false;
         ending.stands = "dailyLife";
@@ -2046,14 +2174,18 @@ export const CHAPTER_END_STEPS = [
        morning opens over a trial that did not close" read the day moved on in a trial with the code
        before this (11.10.2026). It is left undone and named with the failed steps, for the GM to open by
        hand once the trial is closed. */
-    { key: "morning", asked: ({ choices }) => Boolean(choices.nextMorning), run: async ({ choices, failed }) => {
+    { key: "morning", asked: ({ choices }) => Boolean(choices.nextMorning), run: async ({ choices, ending, failed }) => {
         if (!choices.nextMorning) return null;
         if (failed.includes("trial")) return false;
+        /* The ending's day plus one, once (E42 C2, 1.2.97; E42-09): a Finish after the morning landed and before the record
+           said so finds the clock on it (`endMoves`) and opens no second morning, card or day's summary. */
+        const { morning } = endMoves(ending, choices, getClock());
+        if (!morning) return null;
         const { setTimeOfDay } = await import("./clock.mjs");
         // One write for the day and the hour: each write is a full redraw on every client (CORE-12).
         await setTimeOfDay("morning", {
             resetActions: true, resetSearchTokens: true, announce: true,
-            also: { day: (getClock().day ?? 1) + 1 }
+            also: { day: morning.day }
         });
         return game.i18n.format("DRPG.Chapter.doneNextMorning", { day: getClock().day });
     } },
@@ -2107,7 +2239,7 @@ export const CHAPTER_END_STEPS = [
  *   (11.10.2026), the second GM's end held in its first step until the primary's move
  *   arrived (the day moved once there: both mornings read day 1 before either landed;
  *   a day counted twice would need only other timing - read in the code, not measured). So the end runs on the primary only, as the season reset
- *   does (season-setup.mjs `resetSeason`), and another GM is told whose it is, both
+ *   does (season-wipe.mjs `resetSeason`), and another GM is told whose it is, both
  *   here and at the window (`openChapterEndDialog`, which the panel and the trial
  *   console's End the chapter open).
  *
@@ -2115,6 +2247,9 @@ export const CHAPTER_END_STEPS = [
  *   caller can ask for one step without knowing about the others. `opened` is
  *   the window's `endMark`; a call without it (the console, the suite) is not
  *   compared.
+ *
+ * AND NONE WHILE ONE STANDS STOPPED (E42 C2, 1.2.97; E42-10): an end that stopped part way is finished or dropped
+ * first (`finishChapterEnd`); a new one is refused and the GM told which steps wait (`endStands`).
  */
 export async function applyChapterEnd(choices = {}) {
     if (!game.user.isGM || !chapterEndHere()) return null;
@@ -2125,6 +2260,22 @@ export async function applyChapterEnd(choices = {}) {
 
 let chapterEnds = Promise.resolve();
 
+/**
+ * THE END'S RECORD GOES WITH THE SEASON (E42 C4, 1.2.97; E42-16): the season reset's clock group (season-wipe.mjs
+ * `clearSeasonClock`) writes `chapterEnd` empty, in this queue like every write of it, so an end that stopped last season
+ * is offered to nobody in the next one and its targets - last season's chapter, session and day - are never moved to. A
+ * record already empty is not written. The reset is the primary GM's; on any other browser this throws, and the reset's
+ * step says it failed.
+ */
+export async function clearChapterEndRecord() {
+    if (!game.user.isGM || !isPrimaryGm()) throw new Error("only the primary GM's browser writes the chapter's end record");
+    const run = chapterEnds.then(async () => {
+        if (Object.keys(chapterEndRecord()).length) await game.settings.set(MODULE_ID, SETTINGS.chapterEnd, {});
+    });
+    chapterEnds = run.catch(() => null);
+    return run;
+}
+
 /** Whether this browser ends the chapter: the primary GM's does; another GM is told whose (`applyChapterEnd`, ONE BROWSER). */
 function chapterEndHere() {
     if (isPrimaryGm()) return true;
@@ -2134,6 +2285,16 @@ function chapterEndHere() {
 }
 
 async function endChapterNow(choices) {
+    /* ONE END AT A TIME, A STOPPED ONE INCLUDED (E42 C2, 1.2.97; E42-10). An end that stopped part way - a step that
+       failed, the phase moved, a tab closed - stands until it is finished or dropped: a new end over it would read a
+       clock the stopped one has half moved, and leave nobody able to tell what the first one did. Refused, and the GM
+       told which steps wait; the window asks Finish the chapter's end or Drop the rest instead (`askStoppedEnd`). */
+    const standing = chapterEndStopped();
+    if (standing) {
+        ui.notifications.warn(game.i18n.format("DRPG.Chapter.endStands", { steps: listOf(askedSteps(standing, false).map(stepWords)) }));
+        return null;
+    }
+
     const now = getClock();
     const { opened } = choices;
     const mark = endMark(now);
@@ -2146,61 +2307,182 @@ async function endChapterNow(choices) {
         return null;
     }
 
-    const ending = { chapter: now.chapter, phase: now.phase, stands: now.phase };
-    const done = [], failed = [], notRun = [];
-    /* THE PHASE HOLDS FOR THE WHOLE LIST, NOT ONLY AT ITS FIRST STEP (E11 fix r2-J1; r2-H3's open
-       road, the orchestrator's ruling of 11.10.2026). The comparison above runs once, and the reveal,
-       the sweep, the Remnants and the tools await documents after it: a Class Trial another GM opened
-       meanwhile got the morning over it, and an end begun in the Investigation had its clock step write
-       `phase: "dailyLife"` over that trial with nothing closing it - 65-season J1 read the session
-       counted, the day moved on and the phase back in Daily Life over the trial the second GM had just
-       opened, and no word to the GMs, with the code before this (11.10.2026, e11run/r2j1red: session
-       and day 1 to 2). So the phase is read again before every step, against the one this end
-       began on or the one its own clock and trial steps left (`ending.stands`); moved, the end stops
-       there. What ran stays done and nothing is rolled back; the steps the GM asked for that did not
-       run are named. The tools and the hold are never named: the tools go with the chapter's move,
-       which did not run either, and any phase change takes the hold (C2). */
-    let stopped = null;
-    for (const step of CHAPTER_END_STEPS) {
-        const phase = getClock().phase;
-        if (!stopped && phase !== ending.stands) stopped = { from: ending.stands, to: phase };
-        if (stopped) {
-            if (step.asked?.({ choices, ending, failed })) notRun.push(step.key);
-            continue;
-        }
+    /* The record first, once the guards have passed (E42 C2): a tab closed at any step after this leaves an end to finish.
+       NOTHING WITHOUT IT (E42 fix FG2, 03.11.2026; the end review's C-m4, STATUS Open 17): a first write that failed was
+       logged and the end went on, so a step's work could land under no record, and the report then sent the GM to a
+       Finish that found none. The end stops here and the GM is told nothing was done, as the season reset stops when its
+       cut cannot be written (season-wipe.mjs `wipeSeason`). Tier 2 E42-T12. */
+    const record = {
+        stage: "applying", by: game.user.id, at: serverNow(), opened: opened ? endMark(opened) : null,
+        choices: Object.fromEntries(END_CHOICES.map(key => [key, Boolean(choices[key])])),
+        ending: { chapter: now.chapter, session: now.session, day: now.day ?? 1, phase: now.phase, stands: now.phase },
+        done: [], failed: [], notRun: []
+    };
+    try {
+        await game.settings.set(MODULE_ID, SETTINGS.chapterEnd, record);
+    } catch (err) {
+        error("Could not write the record of the chapter's end before its first step, so nothing was done", err);
+        ui.notifications.error(game.i18n.format("DRPG.Chapter.endNotRecorded", { error: String(err?.message ?? err) }));
+        return null;
+    }
+    return runChapterEnd(record);
+}
+
+/**
+ * THE END'S STEPS ON THE ONE RUNNER (E42 C2, 1.2.97; E42-08, E42-09; audit S17-30). An end (`endChapterNow`) and its
+ * Finish (`finishChapterEnd`) hand this the record, and CHAPTER_END_STEPS run on steps.mjs `runSteps`: a step the
+ * record calls done is not run again, one the GM's choices do not ask for is kept (`asked`), and the record is written
+ * after every step that changed it and once at the end - "done" when every step asked for ran, else "applying". Each
+ * step reads its target from the record (`ending`), so one whose work landed and whose record did not runs as nothing
+ * the second time (`endMoves`; the trial step finds no trial to close). Answers the lines the GMs' card lists, or null.
+ */
+async function runChapterEnd(record) {
+    const context = { choices: { ...(record.choices ?? {}) }, ending: { ...record.ending }, failed: [], stopped: null };
+    let written = record;
+    /* THE PRIMARY'S RECORD, AND ITS END (E42 fix FG2, 03.11.2026; the end review's C-m2 = S-M2, STATUS Open 16). The end
+       held the phase before every step and not primacy, and wrote its record wherever it ran: a GM with a lower id
+       connecting mid-end left the old primary running every step and writing `chapterEnd` while the new primary was
+       offered Finish over it, two browsers on the same steps. A write off the primary is not made now, as the season
+       reset's record is not (season-wipe.mjs `writeRecord`): the new primary reads what this one wrote; and the end stops
+       before its next step once this browser is no longer the primary, the steps it left named with whose browser
+       finishes them. Tier 2 E42-T12. */
+    const write = async next => {
+        if (!isPrimaryGm() || JSON.stringify(next) === JSON.stringify(written)) return;
+        await game.settings.set(MODULE_ID, SETTINGS.chapterEnd, next);
+        written = next;
+    };
+    endRunning = true;
+    let result = null, notRun = [];
+    try {
+        /* THE PHASE HOLDS FOR THE WHOLE LIST, NOT ONLY AT ITS FIRST STEP (E11 fix r2-J1; r2-H3's open
+           road, the orchestrator's ruling of 11.10.2026). The comparison in `endChapterNow` runs once, and the reveal,
+           the sweep, the Remnants and the tools await documents after it: a Class Trial another GM opened
+           meanwhile got the morning over it, and an end begun in the Investigation had its clock step write
+           `phase: "dailyLife"` over that trial with nothing closing it - 65-season J1 read the session
+           counted, the day moved on and the phase back in Daily Life over the trial the second GM had just
+           opened, and no word to the GMs, with the code before this (11.10.2026, e11run/r2j1red: session
+           and day 1 to 2). So the phase is read again before every step (`stop`), against the one this end
+           began on or the one its own clock and trial steps left (`ending.stands`); moved, the end stops
+           there. What ran stays done and nothing is rolled back; the steps the GM asked for that did not
+           run are named. The tools and the hold are never named: the tools go with the chapter's move,
+           which did not run either, and any phase change takes the hold (C2). */
+        result = await runSteps({
+            label: "chapter's end", record, context,
+            steps: CHAPTER_END_STEPS.map(step => ({
+                key: step.key,
+                ask: step.asked ? () => step.asked(context) : null,
+                run: () => step.run(context)
+            })),
+            stop: () => {
+                if (!isPrimaryGm()) {
+                    context.stopped = { primary: primaryGmId() };
+                    return true;
+                }
+                const phase = getClock().phase;
+                if (phase === context.ending.stands) return false;
+                context.stopped = { from: context.ending.stands, to: phase };
+                return true;
+            },
+            save: async (run, { end = false } = {}) => {
+                // `failed` holds the steps of this run that failed, for the morning's (it waits on a trial that did not close).
+                context.failed = [...run.failed];
+                if (!end) await write({ ...written, stage: "applying", ending: { ...context.ending }, done: [...run.done], failed: [...run.failed] });
+            }
+        });
+        const asked = new Set(CHAPTER_END_STEPS.filter(step => step.asked?.(context)).map(step => step.key));
+        notRun = result.notRun.filter(key => asked.has(key));
         try {
-            const line = await step.run({ choices, ending, failed });
-            if (line === false) failed.push(step.key);
-            else if (line) done.push(line);
+            await write({ ...written, stage: result.record.failed.length || notRun.length ? "applying" : "done", ending: { ...context.ending },
+                done: [...result.record.done], failed: [...result.record.failed], notRun });
         } catch (err) {
-            error(`The end of the chapter could not finish its step "${step.key}"`, err);
-            failed.push(step.key);
+            error("Could not write the record of the chapter's end at its end", err);
         }
+    } finally {
+        endRunning = false;
     }
 
-    /* A FAILED STEP IS TOLD, the way the season reset tells one (the plan's section 3.4): the GM
-       who pressed Do it is shown which, and the GMs' card lists it after what was done. Not "run it
-       again": a second end of a chapter whose clock has moved is refused above, and one whose clock
-       has not would redo every clean-up - the words say to finish those by hand. */
-    let report = "";
-    if (failed.length) {
-        const text = game.i18n.format("DRPG.Chapter.endFailed", {
-            steps: failed.map(key => game.i18n.localize(`DRPG.Chapter.step.${key}`)).join(", ")
-        });
-        ui.notifications.error(text);
-        report = `<p class="drpg-warning">${esc(text)}</p>`;
-    }
-    if (notRun.length) {
-        const text = game.i18n.format("DRPG.Chapter.endStopped", {
-            opened: phaseLabel(stopped.from), now: phaseLabel(stopped.to),
-            steps: notRun.map(key => game.i18n.localize(`DRPG.Chapter.step.${key}`)).join(", ")
-        });
-        ui.notifications.warn(text);
-        report += `<p class="drpg-warning">${esc(text)}</p>`;
-    }
-    if (!done.length && !report) return null;
+    /* A FAILED STEP IS TOLD, the way the season reset tells one (the plan's section 3.4), in the one report of the
+       three procedures (steps.mjs `stepsReport`): the GM who pressed Do it is shown which, and the GMs' card lists it
+       after what was done. Since E42 C2 the words say Finish the chapter's end does the rest. The steps a phase move
+       left are named with the phase; those a record that could not be written left are the failed step's, named with it. */
+    const stoppedBy = !context.stopped ? null : "primary" in context.stopped
+        ? { key: "DRPG.Chapter.endStoppedPrimary", data: { name: game.users.get(context.stopped.primary)?.name ?? "?" } }
+        : { key: "DRPG.Chapter.endStopped", data: { opened: phaseLabel(context.stopped.from), now: phaseLabel(context.stopped.to) } };
+    const report = stepsReport({ ...result, notRun: context.stopped ? notRun : [] }, {
+        label: stepWords,
+        groups: { failed: "DRPG.Chapter.endFailed", notRun: stoppedBy }
+    });
+    if (report.toast.level === "error" && report.toast.text) ui.notifications.error(report.toast.text);
+    if (!result.lines.length && !report.notes.length) return null;
 
     await whisperToGms(`<h3>${game.i18n.localize("DRPG.Chapter.endTitle")}</h3>
-        <ul>${done.map(d => `<li>${d}</li>`).join("")}</ul>${report}`);
-    return done.length ? done : null;
+        <ul>${result.lines.map(line => `<li>${line}</li>`).join("")}</ul>${report.notes.map(note => `<p class="drpg-warning">${esc(note)}</p>`).join("")}`);
+    return result.lines.length ? result.lines : null;
+}
+
+/**
+ * FINISH THE CHAPTER'S END, OR DROP THE REST (E42 C2, 1.2.97; E42-09, E42-10). On the primary GM alone (`chapterEndHere`)
+ * and in `applyChapterEnd`'s queue, so one end runs at a time on the one browser that writes the record. A stopped end
+ * (`chapterEndStopped`) runs on from its record: what it did is not done again, the clock's and the morning's targets
+ * are its own (`endMoves`), and its `keys` step takes the Key Remnants of the chapter that was ending - a record a
+ * primary left when it reloaded mid-end is finished the same way. The phase must be the one the end stands on
+ * (`endHeldPhase`), or the Finish is refused and the GM told in which phase it runs (`finishPhaseMoved`).
+ * `{ drop: true }` runs nothing: the record stands "dropped" and the GMs' card names what stays undone. Answers the
+ * Finish's lines (null when it said nothing), the dropped steps' keys, or null. `game.drpg.finishChapterEnd()`.
+ */
+export async function finishChapterEnd({ drop = false } = {}) {
+    if (!game.user.isGM || !chapterEndHere()) return null;
+    const run = chapterEnds.then(() => finishEndNow({ drop }));
+    chapterEnds = run.catch(() => null);
+    return run;
+}
+
+async function finishEndNow({ drop }) {
+    const record = chapterEndStopped();
+    if (!record) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Chapter.notStopped"));
+        return null;
+    }
+    if (drop) {
+        const undone = askedSteps(record, false);
+        const text = game.i18n.format("DRPG.Chapter.dropped", { steps: listOf(undone.map(stepWords)) });
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.chapterEnd, { ...record, stage: "dropped", notRun: undone, droppedBy: game.user.id, droppedAt: serverNow() });
+        } catch (err) {
+            error("Could not write the chapter's end as dropped", err);
+            return null;
+        }
+        ui.notifications.warn(text);
+        await whisperToGms(`<h3>${game.i18n.localize("DRPG.Chapter.endTitle")}</h3><p class="drpg-warning">${esc(text)}</p>`);
+        return undone;
+    }
+    const clock = getClock();
+    const stands = endHeldPhase(record, clock);
+    // Its own words since E42 fix FG2 (the end review's G-F8): `endPhaseMoved` is a window's drawn on another phase, and
+    // sent the GM to open End of chapter again, whose Finish was refused again.
+    if (!stands) {
+        ui.notifications.warn(game.i18n.format("DRPG.Chapter.finishPhaseMoved", { opened: phaseLabel(record.ending?.stands), now: phaseLabel(clock.phase) }));
+        return null;
+    }
+    return runChapterEnd({ ...record, ending: { ...record.ending, stands } });
+}
+
+/** The End of chapter window while a stopped end stands (E42 C2; E42-10): Finish the chapter's end, Drop the rest, or Cancel, the default. */
+async function askStoppedEnd(record) {
+    const undone = askedSteps(record, false), earlier = askedSteps(record, true);
+    const answer = await DialogV2.wait({
+        window: { title: game.i18n.localize("DRPG.Chapter.endTitle") },
+        classes: ["drpg-panel"],
+        content: dialogContent(`<p class="drpg-warning">${esc(game.i18n.format("DRPG.Chapter.endStands", { steps: listOf(undone.map(stepWords)) }))}</p>${
+            earlier.length ? `<p>${esc(game.i18n.format("DRPG.Chapter.doneEarlier", { steps: listOf(earlier.map(stepWords)) }))}</p>` : ""}`),
+        buttons: [
+            { action: "finish", label: game.i18n.localize("DRPG.Chapter.finishEnd") },
+            { action: "drop", label: game.i18n.localize("DRPG.Chapter.dropRest") },
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true }
+        ],
+        rejectClose: false
+    });
+    if (answer === "finish") return finishChapterEnd();
+    if (answer === "drop") return finishChapterEnd({ drop: true });
+    return null;
 }

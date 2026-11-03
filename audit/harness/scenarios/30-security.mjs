@@ -120,7 +120,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
        and a search for a hidden stash are scored on the GMs' record of the roll their packet names
        (bridge-guards.mjs `rollRefusal`), so a packet of this scenario's names one: `client` throws
        `actorId`'s statistic for `actionKey` on `faces`, the GM draws it, and the message the GM wrote
-       for it is read off the roll (action-rolls.mjs `DRAWN_ROLL`) - null when it was not drawn. A roll is drawn for
+       for it is read off the roll (action-pipeline.mjs `DRAWN_ROLL`) - null when it was not drawn. A roll is drawn for
        an action being taken (E08+E28 fix r2-H1, roll-draw.mjs `drawRefusal`): unless `pay` is false, `client` first pays
        one action as an action's own code does (actions.mjs `spendAction`), handing the character one if it has none;
        a crisis action's roll is its turn's and names its crisis action (`context`), and pays nothing. */
@@ -1037,7 +1037,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     // 7a. project.unsabotage: a repair id that is not the one the sabotage made.
     phase("projects", { flow: "projects" });
     /* A PLAYER'S SABOTAGE IS THE REPAIR ITS ROLL EARNED (E08+E28 C16, 04.10.2026): the GM reads it off
-       its record of the roll the packet names (gm-bridge.mjs `repairOf`), and a roll settles one. So p2
+       its record of the roll the packet names (bridge-runs-records.mjs `repairOf`), and a roll settles one. So p2
        throws a Sabotage of Botan's the GM draws, on faces that earn a repair, before p1's chat is
        marked - this phase scans what p1 is shown of the sabotages, not of a roll thrown for the test -
        and the first freeze below names it; each later one throws its own just before (since fix r2-H1
@@ -1132,7 +1132,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
 
     /* 7b0. project.change (E36 C1, 25.10.2026): a change one GM asks the primary GM to make in its queue. A console's
        packet naming it - a new target, which a frozen project takes as any other - is refused as a GM's own and changes
-       nothing (gm-bridge.mjs `ACTION_PROJECT_CHANGE`, `gmOnly`). */
+       nothing (bridge-wire.mjs `ACTION_PROJECT_CHANGE`, its row's `gmOnly` in bridge-table.mjs). */
     const readBar = `const P = await import("${repoUrl}/scripts/projects.mjs");
         const c = P.allProjects().find(p => p.id === "${projects.pub}"); return { current: c?.current ?? null, target: c?.start ?? null };`;
     const forgedChange = await forge("project.change", { countdownId: projects.pub, change: { target: 12, delta: -1 }, by: { kind: "gm" } }, readBar);
@@ -1141,7 +1141,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         && forgedChange.reasons.some(r => /only a GM changes a project/.test(r)), JSON.stringify(forgedChange));
 
     /* 7b+. WHAT A CONSOLE'S PROGRESS ADDS (E08+E28 C16, 04.10.2026; audit S10-08). A Work on a Project
-       names its roll, and the GM adds what that roll earned on its record (gm-bridge.mjs `progressOf`),
+       names its roll, and the GM adds what that roll earned on its record (bridge-runs-records.mjs `progressOf`),
        the character standing in the project's room when it has one (bridge-guards.mjs `guardProjectRoom`).
        p1 throws two Work on a Project rolls of Aiko's that the GM draws, on 9 and 5; the GM makes a
        public project in Aiko's room and one in a room nobody stands in; p1's console asks +12 on the
@@ -1162,7 +1162,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     const earned = Math.max(0, ...worked.bands.filter(b => (workRolls[0].total ?? 0) >= b.min).map(b => b.progress));
     const plus12 = await forge("project.progress", { countdownId: worked.near, amount: 12, actorId: ids.aiko, rollId: workRolls[0].messageId }, barOf(worked.near));
     /* The bar moves after forge's 900 ms: the run first waits up to 1500 ms for the sender's bookmark of the roll
-       (gm-bridge.mjs `handleProgress`, `rollOfSenderNaming`), and a roll thrown for the test is bookmarked by
+       (bridge-runs-records.mjs `handleProgress`, action-pipeline.mjs `rollOfSenderNaming`), and a roll thrown for the test is bookmarked by
        nobody - measured on A1's first run (04.10.2026): "0 -> 1" was logged after the check had read 0. */
     const settled = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
         const read = () => P.allProjects().find(p => p.id === "${worked.near}")?.current ?? null;
@@ -1290,7 +1290,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && statAfter.cards === 1 && statAfter.pressed === 1 && statAfter.logged === 3 && statAfter.kept === "hand",
         JSON.stringify({ statProjects, statAsked, statAfter }), { flow: "trait-ruling" });
     /* A RULING IS A GM'S CARD'S (E29 fix r2-H2, 05.10.2026; the round-2 security review's B2). The GM read a statistic's pick
-       (roll-draw.mjs `gmPickOf`) and a Dynamic action's difficulty (gm-bridge.mjs `dynamicRulingOf`) off any card carrying a
+       (roll-draw.mjs `gmPickOf`) and a Dynamic action's difficulty (bridge-runs-records.mjs `dynamicRulingOf`) off any card carrying a
        `ruling`, the document's flag first, whoever wrote it: the review's console posted one and the GM threw Body for a
        clean-up, which does not list it, as the GM's pick (its probe 96 H, at 070b72b's runtime). Here p1's console posts a pick
        card for a project stored without a statistic, naming the highest of the four a project lists as Aiko's sheet holds
@@ -1571,7 +1571,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         JSON.stringify({ consoleStash, stashPassageRoll, stashOnPassage }), { flow: "give-take-stash" });
 
     /* A CONSOLE'S FIND PASSAGE (E80 C3, 18.10.2026; the stage's write road "found cell"). A search is scored on the GMs'
-       record of the roll its packet names, and only a roll thrown as a Find Passage counts (gm-bridge.mjs
+       record of the roll its packet names, and only a roll thrown as a Find Passage counts (bridge-runs-acts.mjs
        `findPassageRoll`). The GM makes a tunnel with an end in Aiko's room (the GM's API, not under test); from p1's
        browser, Aiko's search saying 30 and a critical names no roll, then a Find Passage roll the GM drew on 2 and 1,
        then a Search's roll and a hint Analyze's on 12 and 11: Aiko's cell stays empty each time. The control, a Find
@@ -1619,7 +1619,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     /*
      * A CONSOLE'S STEAL (E08+E28 C15, 04.10.2026; audit S10-06). A Palm was scored on the two
      * totals its packet carried, and a critical hand lets the thief pick the item. Both are the
-     * GMs' record of the rolls the packet names now (gm-bridge.mjs `palmRolls`). Botan holds an
+     * GMs' record of the rolls the packet names now (bridge-runs-acts.mjs `palmRolls`). Botan holds an
      * item; from p1's browser a Steal of it by Aiko saying 30 and a critical for both rolls, first
      * naming no roll - refused, Botan keeps it - then naming a hand's roll and an unseen roll of
      * Aiko's the GM drew on 2 and 1: no refusal, the GM's log says the packet's numbers were not
@@ -1649,7 +1649,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
 
     /*
      * A CONSOLE'S FRISK (E80 part 2 C2, 19.10.2026; P2-11, P2-19). An unseen Frisk is judged on the primary on the GMs'
-     * record of its two rolls (gm-bridge.mjs `friskRolls`), and one that sees lists the target's pockets to the
+     * record of its two rolls (bridge-runs-acts.mjs `friskRolls`), and one that sees lists the target's pockets to the
      * searcher. From p1's browser a Frisk of Botan by Aiko saying 30 and a critical for both rolls: first naming no
      * roll - refused, no card - then naming a cover and a hand of Aiko's the GM drew on 2 and 1: no refusal, and the
      * GM's card for Aiko is the miss, not the list. Read as the GM holds the cards' words (secret.mjs `secretHtml`).
@@ -1797,6 +1797,41 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     const paidPoint = await forge("despair.adjust", { targetUserId: gm.userId, delta: 1, actorId: ids.aiko }, readPool);
     check("SECURITY: a player's Despair correction after a rewrite of Aiko's roll into Despair moves no pool either",
         paidPoint.unchanged && paidPoint.reasons.some(r => /an undo is the GM's own Reroll's/.test(r)), JSON.stringify(paidPoint));
+
+    /* 7d2. THE DESPAIR POOLS AND THE OVERFLOW, ON THE PRIMARY (E37 C7, 02.11.2026; E37-30, the deferred D061). A GM that is
+       not the primary asks it to set a pool, fill or empty every pool, grant, revoke or name one, take Despair off the
+       Overflow and check it (`despair.set`, `despair.all`, `despair.roster`, `overflow.take`, `overflow.check`), each a
+       GM's alone. p1 sends each from its console: refused as a GM's, told, and nothing moves - the pools, their names and
+       extras, the Overflow's count and its stamp. So that a check would have something to move, the GM's pool is 6, the
+       count 2 and the stamp a darkening a verdict kept waiting (a Panic of a session that never ran), all put back after. */
+    phase("the Despair pools' rows from a player's console", { flow: "despair" });
+    const poolsWas = await gm.eval(`const { overflowStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const was = { count: (await import("${repoUrl}/scripts/overflow.mjs")).overflowCount(), overflow: foundry.utils.deepClone(game.settings.get("${MOD}", "overflow") ?? {}),
+            pool: game.drpg.getDespair(game.user.id) };
+        await game.drpg.setDespair(game.user.id, 6);
+        await overflowStore.patch("record", { count: 2 });
+        await game.settings.set("${MOD}", "overflow", { active: { effect: "panic", session: -1, day: 1, timeOfDay: "morning", pending: true } });
+        return was;`);
+    await settle(500);
+    const readPools = `return { pools: game.settings.get("${MOD}", "despairPools"), names: game.settings.get("${MOD}", "poolNames"),
+        extra: game.settings.get("${MOD}", "extraPoolUsers"), count: (await import("${repoUrl}/scripts/overflow.mjs")).overflowCount(),
+        stamp: game.settings.get("${MOD}", "overflow")?.active ?? null };`;
+    const poolForgeries = {};
+    for (const [action, fields] of [["despair.set", { targetUserId: gm.userId, value: 0 }], ["despair.all", { op: "zero" }],
+        ["despair.roster", { op: "label", targetUserId: gm.userId, label: "SEC p1's pool name" }], ["overflow.take", { amount: 2, reason: "SEC" }],
+        ["overflow.check", { ahead: true }]]) {
+        poolForgeries[action] = await forge(action, fields, readPools);
+    }
+    check("SECURITY: a player's console cannot set, fill or empty a Despair pool, grant, revoke or name one, or take Despair off the Overflow or check it - each refused as a GM's, told, and nothing moves (E37 C7)",
+        Object.entries(poolForgeries).every(([action, f]) => f.unchanged && f.reasons.some(r => r.includes("only a GM")) && f.told.some(t => t.what === action))
+            && poolForgeries["overflow.take"].before.count === 2 && poolForgeries["overflow.check"].before.stamp?.pending === true,
+        JSON.stringify(poolForgeries).slice(0, 3000), { flow: "despair" });
+    await gm.eval(`const { overflowStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        await game.drpg.setDespair(game.user.id, ${JSON.stringify(poolsWas?.pool ?? 0)});
+        await overflowStore.patch("record", { count: ${JSON.stringify(poolsWas?.count ?? 0)} });
+        await game.settings.set("${MOD}", "overflow", ${JSON.stringify(poolsWas?.overflow ?? {})});
+        return true;`);
+    await settle(500);
 
     // 7e. token.sendBack to somewhere the token never stood.
     phase("a send-back", { flow: "crossing-fee-refund" });
@@ -1954,7 +1989,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
      * A TRACE'S BAND IS THE GM'S (E08+E28 C15, 04.10.2026; audit S10-06). A Search's trace was
      * placed at the visibility its packet named, so a console could leave every trace of its
      * Searches hidden. It names its roll now and is placed at the band the GMs' record of that
-     * roll earns (gm-bridge.mjs `traceBandOf`). From p1's browser, a Search's trace asking
+     * roll earns (bridge-runs-records.mjs `traceBandOf`). From p1's browser, a Search's trace asking
      * "hidden": first naming no roll - refused, nothing placed - then naming a Search roll of
      * Aiko's the GM drew on 12 and 11 (18 or more: "evident" in the Search's table). Read on the
      * GM: the visibility of each trace placed, the refusals and the GM's log of the packet's band.
@@ -3150,7 +3185,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
      * roll and no trace. Each is read on the GM: one row flagged for the tool, one card naming it, no trace placed - and
      * the GMs' Undo makes the tool again. Then the honest road, in the Investigation: p1's discardBroken of a broken tool
      * rolls, leaves one trace, and its deletion stands with no row flagged, on the ticket the primary wrote as it placed
-     * the trace (gm-bridge.mjs `handleRemnant`, sheet-audit.mjs `noteDiscardTrace`). Red at the fix's parent: D1, D3 and
+     * the trace (bridge-runs-records.mjs `handleRemnant`, sheet-audit.mjs `noteDiscardTrace`). Red at the fix's parent: D1, D3 and
      * D4 gone with no row, no card and no trace (the review's probe on 47b63d64, and this phase on 99226e59).
      */
     phase("a console's discard", { flow: "sheet-audit" });
@@ -4900,7 +4935,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
      * its Health flagged, the tier put back. Then p2's console, behind a blocker of Botan's, writes a key to Dorm B on a
      * Tool of Botan's and at once asks to hand it to Aiko (`key`): no key is to be made for Aiko, the key put back and the
      * GMs told. Dorm B, where Chie stands, and not Aiko's own room: she is the receiver, and a key to her own room is one
-     * she never needs (vault.mjs `mayEnterBedroom`). Each read on every client once the GM's audit is idle, with p1's and
+     * she never needs (vault-store.mjs `mayEnterBedroom`). Each read on every client once the GM's audit is idle, with p1's and
      * p2's rows on the GM. The GM's hooks record each write on the kit and the key's Tool, the use and the ask as they
      * were heard; a case counts only where the player's write was heard before the use or the ask that reads it, and no
      * put-back of it before. At 68150ec (e29run/r2h19red, 06.10.2026) both were red, each heard in its order: `kit` left
@@ -5132,7 +5167,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     /*
      * A CRISIS SWING AND A WORK'S RELIEF ON A WRITE OF A PLAYER'S CONSOLE (E29 fix r2-H22, 06.10.2026; fix r2-H21's seam
      * (a)). Fixes r2-H18 and r2-H20 read the killer's weapon and the worker's tools as the GMs hold them
-     * (murder-rules.mjs `applyCrisisAction`'s `held`, `carriesWeapon`, `swungWeapon`; action-rolls.mjs `reliefHeld`),
+     * (murder-rules.mjs `applyCrisisAction`'s `held`, `carriesWeapon`, `swungWeapon`; action-project.mjs `reliefHeld`),
      * and tier 2 measures each on a GM's write the GMs' mark does not see. These drive them from a player's console,
      * through the bridge, on the GMs' record of a roll the GM drew. A write the audit puts back stands on the document
      * until its put-back lands, and for good where the put-back fails; so that every run reads the second state, the
@@ -5153,7 +5188,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
      * the other cases as they read here: with murder-rules.mjs `applyCrisisAction` reading the killer's document (m9)
      * the stashed knife swung, [2,"weaponAttack",true,0]; with `carriesWeapon` reading it (m10) the knife the console
      * took out counted as one carried and none was improvised, [1,"weaponAttack",false,0]; with `swungWeapon` swinging
-     * a broken weapon (m12) the broken knife swung, [2,"weaponAttack",true,0]; with action-rolls.mjs `reliefHeld`
+     * a broken weapon (m12) the broken knife swung, [2,"weaponAttack",true,0]; with action-project.mjs `reliefHeld`
      * reading the worker's document (m11) the bar moved 2.
      */
     const h22Was = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
@@ -6248,6 +6283,50 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         for (const [i, id] of ["${ids.aiko}", "${ids.botan}"].entries()) await game.actors.get(id).items.get(${JSON.stringify(objSetup?.items ?? [])}[i] ?? "")?.delete();
         await game.webrtc.disconnect?.();
         return true;`, { timeout: 60000 });
+    await settle(500);
+
+    /* THE READINESS ROUND FROM A PLAYER'S CONSOLE (E37 C3, 01.11.2026; E37-15). The round before the clock moves is opened
+       and ended by a GM (`ready.open`, `ready.end`, gmOnly) and answered by each player of the cast for that player alone
+       (`ready.answer`, the sender as Foundry names it). p1 sends, with p2's id as the packet's own `userId` as every forgery
+       here: an open - refused, nothing written; then, with a round the GM opened on the primary (boundary.mjs
+       `openRoundOnPrimary`), an answer for another round's id - refused, nothing written; Done for the open round - counted
+       for p1, never for p2, and the clock unmoved; and its end - refused, the round still open. The players sit still
+       meanwhile (`__dialogAuto` false), so no window of theirs answers between the reads. Put back: the round and the clock. */
+    phase("the readiness round from a player's console", { flow: "clock-day" });
+    const readyAuto = {};
+    for (const c of [p1, p3]) readyAuto[c.who] = await c.eval(`const was = globalThis.__dialogAuto; globalThis.__dialogAuto = false; return was ?? null;`);
+    const readyClockWas = await gm.eval(`const C = await import("${repoUrl}/scripts/clock.mjs"); const E = await import("${repoUrl}/scripts/eclipse.mjs");
+        const was = foundry.utils.deepClone(C.getClock());
+        if (E.isEclipse()) await E.endEclipse({ advance: false });
+        await C.setClock({ phase: "dailyLife", timeOfDay: "noon", eclipse: false });
+        // Not registered on a tree before C3: read as no round there, so the check says what it measured.
+        if (game.settings.settings.has("${MOD}.readyRound")) await game.settings.set("${MOD}", "readyRound", {});
+        return was;`, { timeout: 60000 });
+    await settle(500);
+    const readRound = `const C = await import("${repoUrl}/scripts/clock.mjs");
+        const r = game.settings.settings.has("${MOD}.readyRound") ? (game.settings.get("${MOD}", "readyRound") ?? {}) : {};
+        return { id: r.id ?? null, answers: r.answers ?? null, ended: r.ended ?? null, clock: C.getClock().timeOfDay };`;
+    const readyOpen = await forge("ready.open", { kind: "next" }, readRound);
+    const opened = await gm.eval(`const B = await import("${repoUrl}/scripts/boundary.mjs");
+        if (typeof B.openRoundOnPrimary !== "function") return null;
+        const out = await B.openRoundOnPrimary({ kind: "next", by: game.user.id }); return out?.reply?.round?.id ?? null;`);
+    await settle(600);
+    const readyOther = await forge("ready.answer", { roundId: "SECotherRound000", ready: true }, readRound);
+    const readyOwn = await forge("ready.answer", { roundId: opened, ready: true }, readRound);
+    const readyEnd = await forge("ready.end", { roundId: opened, outcome: "stop" }, readRound);
+    const readyTold = f => f.told.map(t => t.what ?? null);
+    check("SECURITY: a player's console cannot open or end the readiness round, an answer for another round is refused, and its own Done is counted for its sender alone - never for the user its packet names - with the clock unmoved (E37 C3)",
+        readyOpen.unchanged && readyOpen.before.id === null && readyOpen.reasons.some(r => r.includes("only a GM opens a readiness round"))
+            && JSON.stringify(readyTold(readyOpen)) === JSON.stringify(["ready.open"])
+        && Boolean(opened)
+        && readyOther.unchanged && readyOther.reasons.some(r => r.includes("the readiness round has moved on since that answer"))
+        && !readyOwn.reasons.length && JSON.stringify(readyOwn.after.answers) === JSON.stringify({ [p1.userId]: "done" }) && readyOwn.after.clock === "noon"
+        && readyEnd.unchanged && readyEnd.after.ended === null && readyEnd.reasons.some(r => r.includes("only a GM ends a readiness round")),
+        JSON.stringify({ readyOpen, opened, readyOther, readyOwn, readyEnd }).slice(0, 3000), { flow: "clock-day" });
+    await gm.eval(`if (game.settings.settings.has("${MOD}.readyRound")) await game.settings.set("${MOD}", "readyRound", {});
+        await (await import("${repoUrl}/scripts/clock.mjs")).setClock(${JSON.stringify(readyClockWas)});
+        return true;`, { timeout: 60000 });
+    for (const c of [p1, p3]) await c.eval(`globalThis.__dialogAuto = ${JSON.stringify(readyAuto[c.who])} ?? undefined; if (globalThis.__dialogAuto === undefined) delete globalThis.__dialogAuto; return true;`);
     await settle(500);
 
     /* A PLAYER'S CARD IN THE GM'S NOTICE HISTORY (E81 C7, 12.10.2026). A public card of the module's, posted from p1's

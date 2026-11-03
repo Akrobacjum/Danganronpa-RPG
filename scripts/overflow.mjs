@@ -23,12 +23,14 @@
  * for the finale.
  */
 
-import { MODULE_ID, OVERFLOW, TIMES_OF_DAY } from "./config.mjs";
+import { MODULE_ID, OVERFLOW, TIMES_OF_DAY, ECLIPSE_MOVES } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
-import { announce, log, error, esc, isPrimaryGm, primaryGmId, serialWrite, plural, wholeNumber } from "./utils.mjs";
+import { announce, log, debug, error, esc, isPrimaryGm, primaryGmId, serialWrite, plural, wholeNumber } from "./utils.mjs";
 import { HOPE_REFUND } from "./resource-guard.mjs";
 import { overflowStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 
 /* ==========================================================================
  * THE RULES - config, then the GM's edits on top
@@ -287,7 +289,7 @@ export const OVERFLOW_KEY = "overflow";
  * not distinguish them, and should not: what darkens the world is the quantity
  * of Despair loose in it, not the mood in which it got there.
  */
-/** Whether this GM is not the primary while another GM, connected, is (`addOverflow`). */
+/** Whether this GM is not the primary while another GM, connected, is (`addOverflow`; E37 C7 `takeOverflow`, `checkOverflow`). */
 function primaryElsewhere() {
     if (isPrimaryGm()) return false;
     const primary = game.users.get(primaryGmId() ?? "");
@@ -301,6 +303,43 @@ async function askPrimaryToAdd(n, reason) {
     const { requestOverflowAdd } = await import("./gm-bridge.mjs");
     const res = await requestOverflowAdd(n, reason);
     return res.ok ? (res.value?.after ?? null) : null;
+}
+
+/*
+ * THE REST OF THE COUNT'S ROADS ON THE PRIMARY (E37 C7, 02.11.2026; E37-30, the deferred D061). E17 C5 took an addition to
+ * the primary; a point a Reroll gives back (`takeOverflow`) and a boundary's check (`checkOverflow` - the count paid, the
+ * stamp armed, an event run and its card posted) still ran on the GM's browser that asked, on its own copy of the count.
+ * Each asks the primary now (gm-bridge.mjs `overflow.take`, `overflow.check`, a GM's alone) and answers what it answered;
+ * with no other GM connected it runs here; and each asks again inside its step, as `addOverflow` does. Tier 2 E37-T8.
+ */
+const HANDED = Symbol("handed to the primary GM");
+
+/** `takeOverflow` asked of the primary from another GM: the points it took, 0 when none or refused, undefined when this GM's. */
+async function askPrimaryToTake(n, reason) {
+    if (!game.user?.isGM || isPrimaryGm() || !primaryElsewhere()) return undefined;
+    const { requestOverflowTake } = await import("./gm-bridge.mjs");
+    const res = await requestOverflowTake(n, reason);
+    return res.ok ? (res.value?.taken ?? 0) : 0;
+}
+
+/*
+ * THE CHECK CARRIES ITS BOUNDARY, AND IS NOT DROPPED (E37 fix FG4, 02.11.2026; the end review's C-m3 (STATUS Open 37) and
+ * C-m6). The primary read its own clock: a second clock write landing there between the asker's write and its packet
+ * (two GMs pressing Next within a round trip) armed the newer time of day, and the boundary asked was skipped. The ask
+ * names its target now (`stampOf` or `upcoming` of the asker's clock), a GM's claim the primary holds to its own target,
+ * arming nothing on a difference (`checkOverflow`'s `target`). And a primary that did not answer - connected, busy past
+ * the bridge's clock - left the boundary unchecked, so the next one armed for its own time of day: with no answer the
+ * check runs here, as it does with no other GM connected (`HERE`), said in the debug line. Tier 2 E37-T8.
+ */
+const HERE = Symbol("the primary GM did not answer: the check runs here");
+
+/** `checkOverflow` asked of the primary from another GM: the stamp it armed, null when none or refused, undefined when this GM's, `HERE` with no answer. */
+async function askPrimaryToCheck(ahead, target) {
+    if (!game.user?.isGM || isPrimaryGm() || !primaryElsewhere()) return undefined;
+    const { requestOverflowCheck } = await import("./gm-bridge.mjs");
+    const res = await requestOverflowCheck(ahead, target);
+    if (res.ok) return res.value?.armed ?? null;
+    return res.reason === "noAnswer" || res.reason === "noGm" ? HERE : null;
 }
 
 export async function addOverflow(amount, { reason = "spill" } = {}) {
@@ -399,13 +438,19 @@ export async function takeOverflow(amount, { reason = "given back" } = {}) {
     if (!game.user.isGM) return 0;
     const n = Math.round(Number(amount));
     if (!Number.isFinite(n) || n <= 0) return 0;
+    // On the primary GM (E37 C7): another GM asks it, and a handover while the step waited asks again.
+    const asked = await askPrimaryToTake(n, reason);
+    if (asked !== undefined) return asked;
     await overflowStore.whenHydrated();
-    const { before, taken } = await serialWrite(OVERFLOW_KEY, async () => {
+    const out = await serialWrite(OVERFLOW_KEY, async () => {
+        if (primaryElsewhere()) return HANDED;
         const was = state().count;
         const take = Math.min(was, n);
         if (take) await overflowStore.patch(RECORD, { count: was - take });
         return { before: was, taken: take };
     });
+    if (out === HANDED) return (await askPrimaryToTake(n, reason)) ?? 0;
+    const { before, taken } = out;
     if (!taken) return 0;
     log(`Despair overflow -${taken} (${reason}) -> ${before - taken}/${overflowThreshold()}.`);
     return taken;
@@ -434,7 +479,7 @@ async function armAhead() {
     }
 }
 
-/** The reason `resetOverflow` is given by the verdict (vote.mjs `verdictOverflow` passes none). */
+/** The reason `resetOverflow` is given by the verdict (verdict.mjs `verdictOverflow` passes none). */
 const VERDICT = "the verdict";
 
 /**
@@ -470,6 +515,20 @@ export async function resetOverflow({ reason = VERDICT, countOnly = false } = {}
     log(`Despair overflow cleared by ${reason}${kept ? `; ${kept.effect} waits for the next time of day` : ""}${countOnly ? "; the drawn darkening, if any, stands" : ""}.`);
     return true;
 }
+
+/**
+ * THE SPILL GOES WITH THE POOLS IT SPILLED OUT OF (Dawid, 30.08; the reset's overflow group, a run of season-setup.mjs
+ * `wipeSeason` until E42 C3). The reset emptied every Despair pool and left the overflow counter standing, so a new
+ * season opened carrying the last one's pressure - and carrying its armed stamp too, which is worse: a darkening dated
+ * to a time of day the new clock will reach again. Reported from a real reset. Through `resetOverflow` rather than a
+ * settings write, for the same reason the pools go through `zeroAllDespair`: one definition of empty, and it already
+ * clears both halves of the record.
+ */
+export async function clearSeasonOverflow() {
+    await resetOverflow({ reason: "the season reset" });
+}
+
+registerSeasonState({ group: "overflow", clear: clearSeasonOverflow, settings: [SETTINGS.overflow] });
 
 /**
  * A GM's Clear on Despair Flow's Overflow tab (gm-team-dialog.mjs `clearOverflowFromTab`, which asks first): the count
@@ -679,20 +738,33 @@ export function overflowPool() {
  *   had its actions dealt and its rooms stocked. It was called `opening` while
  *   the Eclipse was the only caller, which described the caller instead of the
  *   behaviour.
+ * @param {object} [options.target]  The boundary another GM asked about (`overflow.check`, E37 fix FG4): on the
+ *   primary, a GM's claim held to this clock's own target; nothing is armed when they differ.
  * @returns {Promise<object|null>} the stamp armed, or null if nothing fired.
  */
-export async function checkOverflow({ ahead = false } = {}) {
+export async function checkOverflow({ ahead = false, target: claimed = null } = {}) {
     if (!game.user.isGM) return null;
 
     try {
         const clock = getClock();
         const target = ahead ? upcoming(clock) : stampOf(clock);
         if (!target) return null;
+        if (claimed && !same(claimed, target)) {
+            log(`Despair overflow: a check asked for ${claimed.timeOfDay} (day ${claimed.day}), and this clock's boundary is ${target.timeOfDay}: nothing armed.`);
+            return null;
+        }
+        // On the primary GM (E37 C7): the count paid, the stamp armed and an event run where every write of the count is.
+        const asked = await askPrimaryToCheck(ahead, target);
+        if (asked !== undefined && asked !== HERE) return asked;
+        if (asked === HERE) debug("Despair overflow: the primary GM did not answer the boundary's check; it runs on this GM's browser.");
 
         await overflowStore.whenHydrated();
         // The count read and paid, and the stamp armed, in one step of `OVERFLOW_KEY` (E17 C0): a spill queued
         // beside the payment lands on the count it leaves, not on the one it read.
         const plan = await serialWrite(OVERFLOW_KEY, async () => {
+            // The primary asked again in the step (E37 C7, as `addOverflow`): a handover while it waited sends it on - but
+            // not a check the primary did not answer (E37 fix FG4), which is this GM's now.
+            if (asked !== HERE && primaryElsewhere()) return HANDED;
             const now = state();
 
             // The darkening a verdict kept waiting (S09-07): this boundary is the next time of day, and
@@ -743,6 +815,10 @@ export async function checkOverflow({ ahead = false } = {}) {
             await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: { ...target, effect: drawn } });
             return { drawn, left, threshold };
         });
+        if (plan === HANDED) {
+            const again = await askPrimaryToCheck(ahead, target);
+            return again === HERE || again === undefined ? null : again;
+        }
         if (!plan) return null;
         if (plan.armed) return plan.armed;
         const { drawn, left, threshold } = plan;
@@ -977,8 +1053,9 @@ export function overflowCrossings(allowance) {
     // Free placement has no "minus one" to take, so the darkening hands it a
     // number instead of a subtraction: the run of the whole map becomes the
     // ordinary two rooms. A real loss, without being a smaller number than the
-    // penalised ordinary allowance - which would read as nonsense.
-    if (allowance === null) return rule.freeBecomes ?? 2;
+    // penalised ordinary allowance - which would read as nonsense. The two is
+    // `ECLIPSE_MOVES`, config's `freeBecomes` and the fallback alike (E41 C1b).
+    if (allowance === null) return rule.freeBecomes ?? ECLIPSE_MOVES;
     return Math.max(rule.floor ?? 1, allowance - rule.by);
 }
 

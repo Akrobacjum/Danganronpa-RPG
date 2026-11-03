@@ -38,12 +38,14 @@ import { studentActors } from "./monokuma.mjs";
 import { livingStudentsForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs";
 import {
     dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
-    workingScene, esc, wireDashboardTabs, placeRoomOptions, listOf } from "./utils.mjs";
+    workingScene, esc, wireDashboardTabs, placeRoomOptions, listOf, error } from "./utils.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty } from "./live.mjs";
 import { keyPlanStore, remnantStore } from "./gm-stores.mjs";
 import { murderState } from "./incident-store.mjs";
 import { bridgeRequest } from "./bridge-guards.mjs";
 import { roomRegions } from "./rooms.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -325,6 +327,34 @@ export async function keepOnlyKeyPlanChapter(chapter) {
     if (drop.length) await keyPlanStore.dropMany(drop);
     return drop.length;
 }
+
+/**
+ * The season reset's keyPlan group (E42 C3; a run of season-setup.mjs `wipeSeason` until then). The Key Remnant plan
+ * is a GM store since E05 (a row per chapter and slot): the reset's cut takes every chapter's rows on every GM, one
+ * away now included, and this clears what this browser holds.
+ */
+export async function clearSeasonKeyPlan() {
+    await clearKeyPlan();
+}
+
+/**
+ * KEPT IS NOT WHOLE (E05 fix r1-G5, M3; the reset's keep hook since E42 C3). Unticked, every chapter's rows would ride
+ * into the new season - which is not what 1.2.63's single stored plan ever did: it held one chapter's plan and showed
+ * it again only once the clock reached that number, so a season that never revisited it never had it "planned". Read
+ * before the "clock" step sends the chapter back to 1, because after that every chapter is "other than the clock's".
+ * Its failure is logged and the group stays kept.
+ */
+export async function keepSeasonKeyPlan() {
+    const keptChapter = getClock().chapter;
+    try {
+        const dropped = await keepOnlyKeyPlanChapter(keptChapter);
+        if (dropped) log(`Season reset: the Key Remnant plan is kept for chapter ${keptChapter} only (${dropped} other row(s) dropped).`);
+    } catch (err) {
+        error(`Season reset: could not trim the kept Key Remnant plan to chapter ${keptChapter}`, err);
+    }
+}
+
+registerSeasonState({ group: "keyPlan", clear: clearSeasonKeyPlan, keep: keepSeasonKeyPlan });
 
 /**
  * THE CASE'S KEY COUNT OUTLIVES THE CLOSE (E09 C6, 08.10.2026; audit S05-17). The opening

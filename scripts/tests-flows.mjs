@@ -97,7 +97,7 @@ export const FLOWS = Object.freeze([
     // E70 C5 (1.2.90): the trial's voices - its dead listed and muted at the entry, given back at the exit - are settled on
     // the primary, asked of it through `trial.enter` by a GM that is not (voice.mjs `askTrialVoices`); 30 sends a forged one.
     // E70 fix p1-G2 (1.2.90): every write of the trial's record by a GM that is not the primary - a patch, the reset, the
-    // execution, the sentence taken back - is asked of it through `trial.record` (vote.mjs `recordOnPrimary`); 63 R sends it
+    // execution, the sentence taken back - is asked of it through `trial.record` (trial-progress.mjs `recordOnPrimary`); 63 R sends it
     // from gm3, 30 a forged one from p1.
     // E70 C7 (1.2.90): a round's step from a participant's browser - the speaker's Done or Pass, anyone's step over once
     // the turn has run out - is asked of the primary through `trial.turn` (trial-prompt.mjs); 67 drives it from the players.
@@ -111,9 +111,17 @@ export const FLOWS = Object.freeze([
             "trial.claim", "trial.present"],
             sockets: ["vote.mjs"] },
         scenarios: ["10-murder", "11-killer-secrecy", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial", "67-trial-modes", "88-flow-length"], status: "partial", stage: "E40" },
-    { id: "clock-day", what: "The clock: a GM moves the time of day or opens an Eclipse, every client redraws and refills",
-        entry: { api: ["setClock", "advanceTimeOfDay", "startEclipse", "endEclipse"] }, scenarios: ["40-flow", "14-quiet"],
-        status: "partial", stage: "E37" },
+    // E37 C3 (01.11.2026): the readiness round before a GM's press moves the clock - opened and ended by a GM
+    // (`ready.open`, `ready.end`, gmOnly), answered by each player of the cast (`ready.answer`). 40-flow's part R drives it on
+    // four browsers; 30-security sends a player's open and end and an answer for another round; 33-bridge-paths the
+    // Assistant GM's open and end and a player's legal answer; tier 2 E37-T3 judges the answers on the primary. E37 fix FG1:
+    // 61-gmstore-case's part RR drives two GMs on one round (the suite's clients hold one GM). Covered as of 1.2.97 (E37's
+    // train): each entry is driven by a scenario of the list - setClock and endEclipse in 40, 30, 33 and 61, advanceTimeOfDay
+    // in 40 and 61, startEclipse in 61, ready.open, ready.answer and ready.end in 30 and 33.
+    { id: "clock-day", what: "The clock: a GM moves the time of day or opens an Eclipse, the players asked first, every client redraws and refills",
+        entry: { api: ["setClock", "advanceTimeOfDay", "startEclipse", "endEclipse"], bridge: ["ready.open", "ready.answer", "ready.end"] },
+        scenarios: ["40-flow", "14-quiet", "30-security", "33-bridge-paths", "61-gmstore-case"],
+        status: "covered", stage: "1.2.97" },
     // E17 C3 (26.10.2026): a GM's "Refund last crossing" (`token.refundCrossing`, gmOnly), given back on the primary from the
     // GMs' record of the crossing; tier 2 E17-T6 judges the row as a player's ask and as a GM's. No scenario drives it yet.
     { id: "crossing-fee-refund", what: "A token sent back to where it stood, and the crossing it paid for handed back",
@@ -123,8 +131,13 @@ export const FLOWS = Object.freeze([
     // E17 C5 (26.10.2026): another GM's overflow added on the primary (`overflow.add`, gmOnly); tier 2 E17-T8 judges a
     // player's and a second GM's. No scenario sends one yet. H84-06 (27.10.2026): a GM's Clear of the count on the primary
     // (`overflow.clear`, gmOnly); tier 2 "a GM clears the overflow ... (H84-06)" judges a player's and a second GM's.
+    // E37 C7 (02.11.2026): every other road of the pools and the overflow from a GM that is not the primary - a pool set,
+    // the fill and the zero, the roster, a point taken off the overflow and its check (`despair.set`, `despair.all`,
+    // `despair.roster`, `overflow.take`, `overflow.check`, each gmOnly); 30-security forges each from a player's console,
+    // 33-bridge-paths A19 drives each from the Assistant GM, tier 2 E37-T8 judges a player's and a second GM's.
     { id: "despair", what: "Despair: an Assistant GM's correction written by the primary, a Despair Call from a GM, the pools every screen shows",
-        entry: { bridge: ["despair.adjust", "overflow.add", "overflow.clear"] }, scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
+        entry: { bridge: ["despair.adjust", "overflow.add", "overflow.clear", "despair.set", "despair.all", "despair.roster", "overflow.take", "overflow.check"] },
+        scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     { id: "discovery-ledger", what: "Which rooms each character has found: written by the GM, pulled and rebuilt by the clients",
         entry: { sockets: ["fog.mjs"] }, scenarios: ["60-ledger", "30-security", "61-gmstore-case"], status: "covered", stage: "<=1.2.50" },
     { id: "eclipse-route-veto", what: "A move during an Eclipse: asked of the GM, allowed or refused",
@@ -193,7 +206,7 @@ export const FLOWS = Object.freeze([
     // E50 fix FG2 (30.10.2026; the end review's G7): 87-messenger-sound reads the read state, the counts and a failed send.
     { id: "messenger", what: "The messenger and every private card: the words travel only to the people on the card",
         entry: { bridge: ["card.post"], sockets: ["secret.mjs"] }, scenarios: ["40-flow", "30-security", "13-murder-signals", "87-messenger-sound"], status: "covered", stage: "<=1.2.50" },
-    // E18 C3 (19.10.2026): a GM's click on a card sent to the GMs is claimed on the primary (`card.claim`, gm-bridge.mjs
+    // E18 C3 (19.10.2026): a GM's click on a card sent to the GMs is claimed on the primary (`card.claim`, bridge-asks.mjs
     // `claimCard`) - 61's CL clicks one card on two GMs at once, reopens it, and forges p1's claim; 30-security's 4b2e forges
     // p2's take and done of p1's card (E18 fix e1-G2).
     { id: "card-claim", what: "A GM's ruling on a card sent to the GMs, made once whichever GM clicks",
@@ -313,8 +326,8 @@ export const FLOWS = Object.freeze([
     // too (three `resetSeason` calls), but tags those checks gm-store, the flow it is about, so it is no longer named here:
     // tools/registry.mjs asks a covered flow's scenarios to tag a check with it.
     { id: "season-reset", what: "The season reset, from the GM panel",
-        entry: { calls: ["season-setup.mjs#resetSeason"] }, scenarios: ["65-season"], status: "covered", stage: "1.2.73" },
-    // E50 C4 (30.10.2026): covered. 87-messenger-sound's part S counts where sfx.mjs `fire` hands a file to the audio layer
+        entry: { calls: ["season-wipe.mjs#resetSeason"] }, scenarios: ["65-season"], status: "covered", stage: "1.2.73" },
+    // E50 C4 (30.10.2026): covered. 87-messenger-sound's part S counts where sfx-play.mjs `fire` hands a file to the audio layer
     // (`sfx.played`) on every browser: a GM's sound for one player plays there alone, and a player's forged packets nowhere.
     { id: "sound", what: "A sound played for other browsers",
         entry: { sockets: ["sfx.mjs"] }, scenarios: ["87-messenger-sound"], status: "covered", stage: "1.2.94" },

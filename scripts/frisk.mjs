@@ -87,7 +87,7 @@ export const FRISK_ROLL_MS = TIMING.friskRollMs;
 
 /**
  * The last moment (epoch ms) a force of `row`'s may be drawn: its window, the grace and the roll's window. Also
- * gm-bridge.mjs `friskForceRoll`'s; the sweep keeps the row `FRISK_MARGIN_MS` past it for the follow on its way.
+ * bridge-runs-acts.mjs `friskForceRoll`'s; the sweep keeps the row `FRISK_MARGIN_MS` past it for the follow on its way.
  */
 export function forceDrawnBy(row) {
     return Number(row?.forceUntil) + FRISK_GRACE_MS + FRISK_ROLL_MS;
@@ -216,7 +216,7 @@ function listOfLines(target, lines, heading = "DRPG.Frisk.listHeading") {
 
 /**
  * An unseen Frisk, judged on the primary GM: `{ outcome: "settled" }` once its cards are posted, or `{ refused }` with
- * an English reason of the bridge's closed list. The totals are the GMs' records' (gm-bridge.mjs `friskRolls`, read in
+ * an English reason of the bridge's closed list. The totals are the GMs' records' (bridge-runs-acts.mjs `friskRolls`, read in
  * by the runner before this runs); a GM's own Frisk brings its own. `asker` is the user who asked: a death that user
  * knows is a body's road, not a pocket's.
  *
@@ -236,7 +236,7 @@ function listOfLines(target, lines, heading = "DRPG.Frisk.listHeading") {
  *
  * Every card is veiled (utils.mjs `whisperToOwner(..., { veiled: true })`): its document is addressed to every
  * browser in nobody's voice, and its words go only to its readers. The list is the pockets as the GMs hold them now
- * (vault.mjs `pocketsAsHeld`, an undecided item left out with a line in the GM's log), never sent anywhere but that
+ * (palm.mjs `pocketsAsHeld`, an undecided item left out with a line in the GM's log), never sent anywhere but that
  * card. Beside the cards it writes only the GMs' fact on the hand's roll (E80 part 2 C4, `replayRummage`), in their
  * store: no flag, no item, no setting.
  */
@@ -269,7 +269,7 @@ export async function friskPerson({ searcherId, targetId, total = 0, isCritical 
     log(`${searcher.name} frisked ${target.name} unseen: ${sees ? `saw ${pockets.length} item(s)` : "got no proper look"}, ${
         noticed ? (body ? "noticed as a living target would be, a body the GMs keep (its card's words to the GMs alone)" : "noticed") : "unnoticed"}.`);
     // The GMs' fact on the hand's row (the design's step 11), which its Reroll replays from (`replayRummage`): written
-    // for the roll the packet named and the user who sent it, never claimed by the searcher's browser (action-rolls.mjs
+    // for the roll the packet named and the user who sent it, never claimed by the searcher's browser (action-pipeline.mjs
     // `ROLL_CLAIMS` has no Frisk). A Frisk that names no roll leaves none, and its Reroll replays nothing.
     const here = gmPlaceOf(searcher);
     const rolls = await import("./action-rolls.mjs");
@@ -323,7 +323,7 @@ export async function replayRummage(searcher, fact, { total = 0, isCritical = fa
 }
 
 /**
- * The searcher's browser, an unseen Frisk of `victim` once the Palm window named it (action-rolls.mjs `performPalm`).
+ * The searcher's browser, an unseen Frisk of `victim` once the Palm window named it (palm.mjs `performPalm`).
  * The action is paid before the first roll, as a Palm's; the cover is thrown first (`palm`, Shadow, a supporting roll:
  * no Call is eaten by it and a closed window gives the action back), then the hand (`rummage`, Hand, remembered: it eats
  * an armed Call, and a closed window leaves the action spent, ROLL-05), and the primary GM judges the two on its records
@@ -337,7 +337,7 @@ export async function performFrisk(actor, def, victim, mode, { cost = def?.cost 
     const part = def.rummage;
     const paid = cost > 0 ? await spendAction(actor, cost) : null;
     if (cost > 0 && !paid) return null;
-    // "Palm - Shadow, beat 15" and "Palm - Hand, beat 10" (action-rolls.mjs `palmTitle`, E51 C1; the owner's A11).
+    // "Palm - Shadow, beat 15" and "Palm - Hand, beat 10" (palm.mjs `palmTitle`, E51 C1; the owner's A11).
     const shadow = await A.rollTrait(actor, def.unseen.trait, {
         remember: false, actionKey: "palm", title: A.palmTitle("rummageUnseen", def), titled: true, dc: part.unseen
     });
@@ -385,7 +385,7 @@ export async function performFrisk(actor, def, victim, mode, { cost = def?.cost 
  * and no answer, as a reload would (`sweepFriskAsks`; E80 fix r1-G1, the review's E80-C3-6). Since E18 C7 the ask is on
  * E18's one road for its ends: the searcher's wait running out ends it here (`expireFriskAsk`, judged since E18 fix
  * c7-G1: an unanswered ask once that wait could have run out, an answered one as 'Leave it'), and the wait ends at once
- * when the primary that holds it leaves for another GM who takes over (gm-bridge.mjs `requestFriskAsk`; with no GM left
+ * when the primary that holds it leaves for another GM who takes over (bridge-asks.mjs `requestFriskAsk`; with no GM left
  * the wait runs its clock); a GM whose socket comes back without a reload drops what it holds (`friskSocketBack`).
  * Nothing enters world data
  * but the veiled cards: no flag, no item, no setting, no store.
@@ -399,7 +399,7 @@ const FRISK_CANCEL = "frisk.cancel";
 /** The outcomes that end an ask before its row is written, the action handed back by the searcher's browser. */
 export const FRISK_REFUNDED = Object.freeze(["askedAlready", "targetBusy", "youBusy", "isBody"]);
 /**
- * The outcomes whose action the searcher's browser hands back, by what it paid (action-rolls.mjs `abort`, its receipt):
+ * The outcomes whose action the searcher's browser hands back, by what it paid (action-pipeline.mjs `abort`, its receipt):
  * those above, and an ask `interrupted` with no dice thrown. Handed back there and not by the primary, which cannot tell
  * a Burst from an action nor a GM's free Frisk from a paid one (E80 fix r1-G1, the review's E80-C3-3). The cards of the
  * four above say 'Your action is back.', as they are answered while that browser waits; an interrupted ask can end when
@@ -644,7 +644,7 @@ export async function sweepFriskAsks(now = Date.now()) {
  * answering one ask at a time (targetBusy, its window only, so nobody shields a suspect with ask after ask), one ask a
  * pair a time of day (askedAlready); the row written before anything is awaited, then the ticket of the asker's payment
  * claimed (roll-draw.mjs `claimTicket`; a GM's own pays nothing this GM counts) and the snapshot of the pockets taken
- * (vault.mjs `pocketsAsHeld`, cut to lines here: what is listed later is what they carried now). While the claim waits
+ * (palm.mjs `pocketsAsHeld`, cut to lines here: what is listed later is what they carried now). While the claim waits
  * for the payment the row is "opening", which no move ends (`friskRouteSettled`): once it has landed, the row gone
  * meanwhile closes the ticket it claimed (`endTicket`), and the two read where they stand (`standing`) end it before
  * anybody is asked - so no end leaves a payment claimed for an ask nobody holds (E80 fix r1-G1, the review's E80-C3-2).
@@ -734,7 +734,7 @@ export async function askToFrisk({ searcherId, targetId } = {}, { asker = null, 
 }
 
 /**
- * A GM's own ask on the primary (gm-bridge.mjs `requestFriskAsk`, `local`): `{ refused }`, or `{ value }` once the ask has
+ * A GM's own ask on the primary (bridge-asks.mjs `requestFriskAsk`, `local`): `{ refused }`, or `{ value }` once the ask has
  * the answer a player's bridge wait would get. The ask's own clocks answer it (`sweepFriskAsks`); one forgotten under it
  * answers null once both clocks and their margins are past, so no GM's Frisk waits forever.
  */
@@ -786,7 +786,7 @@ export async function answerFrisk({ askId, allow = false } = {}, sender = null) 
 /**
  * After a refusal or no answer, the searcher's 'Make them' or 'Leave it' (the design's step 7), on the primary:
  * `{ outcome }` or `{ refused }`. Only the searcher's own ask, and only while its force is open (a refused or unanswered
- * row; `friskForceOpen` held the draw to `forceDrawnBy` and to the gate, and gm-bridge.mjs `friskForceRoll` holds a
+ * row; `friskForceOpen` held the draw to `forceDrawnBy` and to the gate, and bridge-runs-acts.mjs `friskForceRoll` holds a
  * player's roll to this ask's window). No `rollId` - 'Leave it', a close, the clock, or a force whose draw was refused -
  * is read where the two stand: the target 'lets it go', or walked away ('gone'), or, where the gate has shut since the
  * refusal (an Eclipse, the Class Trial, a death or an incident), `interrupted`: no dice were thrown, and the searcher's
@@ -804,7 +804,7 @@ export async function answerFrisk({ askId, allow = false } = {}, sender = null) 
  * thrown on its own browser, never drawn) of such an ask is `interrupted` too: that GM read the gate before its dice
  * (`gmForceShut`), and the ask went while its roll window was open, so the roll counts for nothing and its browser hands
  * the action back (E80 fix r2-G3, the review's r2fix-1). A player's never gets here: the bridge holds its roll to an ask
- * this primary holds (gm-bridge.mjs `friskForceRoll`).
+ * this primary holds (bridge-runs-acts.mjs `friskForceRoll`).
  */
 export async function followFrisk({ searcherId, askId, rollId = null, total = 0, isCritical = false } = {}, sender = null) {
     const row = friskAsks.get(askId ?? "");
@@ -840,12 +840,12 @@ export async function followFrisk({ searcherId, askId, rollId = null, total = 0,
 
 /**
  * THE SEARCHER STOPPED WAITING (E18 C7, 26.10.2026; amend 5, the stage's row E18-31). The searcher's browser waits on its
- * ask for the answer's clock and a margin (gm-bridge.mjs `requestFriskAsk`), and when that wait runs out it hands the
+ * ask for the answer's clock and a margin (bridge-asks.mjs `requestFriskAsk`), and when that wait runs out it hands the
  * action back. Nothing told this primary, which still held the ask: the target's yes after it posted the list to a
  * searcher whose action was back, and a refusal's force window stayed open until it ended 'lets it go' to the target and
  * the room (tier 2 "a Frisk's ask its searcher stopped waiting for ends on the primary", red at f7ac1e9d). The wait now
  * names E18's expiry (`ruling.expired`, bridge-guards.mjs `createWaiter`'s `expired`, with the ask's request id as `rid`),
- * and gm-bridge.mjs `expiredOnPrimary` hands it here: the ask held under that request id for that sender - Foundry's,
+ * and call-gm.mjs `expiredOnPrimary` hands it here: the ask held under that request id for that sender - Foundry's,
  * never the packet's - ends as `interrupted`, as a reload of this GM would have ended it: no dice thrown, the target's
  * window withdrawn, the searcher's card 'The moment has passed', no word to the target or the room (`endAsk`). One being
  * ended already, or another's, is left alone. Answers whether it ended one.

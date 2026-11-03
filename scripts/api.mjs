@@ -386,6 +386,8 @@ export const DrpgApi = {
     monokumas,
     despairMax,
     getDespair,
+    /** Set one Monokuma's pool to a number (0 to the maximum). Written by the primary GM: another GM's call asks it and
+     *  answers the pool it wrote, null when it was not written (E37 C7). */
     setDespair,
     adjustDespair,
 
@@ -855,6 +857,8 @@ export const DrpgApi = {
     // The same screen without the screen: what a macro, the console or a test
     // needs. See `applyChapterEnd` in chapter.mjs for why it is a function.
     applyChapterEnd: (...a) => import("./chapter.mjs").then(m => m.applyChapterEnd(...a)),
+    // A chapter's end that stopped, finished from its record, or `{ drop: true }` to leave the rest undone (E42 C2).
+    finishChapterEnd: (...a) => import("./chapter.mjs").then(m => m.finishChapterEnd(...a)),
 
     /* ---- the GM's Investigation workshop -----------------------------------
      * Five clues, scaled trivial to desperate, and a read-out of who has
@@ -937,7 +941,7 @@ export const DrpgApi = {
      *  browser beside the primary's: in scenario 62 before the fix, gm2's console
      *  Approve and the GM's own, made at once, both answered true and the player was
      *  told twice (D3), and gm2's Decline was ruled on gm2 (D2). Now they ask the
-     *  primary GM as the card's buttons do (gm-bridge.mjs `askReshapeRuling`): one
+     *  primary GM as the card's buttons do (bridge-asks.mjs `askReshapeRuling`): one
      *  claim, kept as the caller's ruling, a second one refused and told who ruled;
      *  on the primary itself the call claims locally. A console caller passes what
      *  the card's buttons carry, `{ actorId, tokenId, attempt }`: the character who

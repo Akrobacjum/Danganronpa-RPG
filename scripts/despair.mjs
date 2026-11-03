@@ -24,6 +24,8 @@ import { despairOwedStore } from "./gm-stores.mjs";
 import { overflowStatus } from "./overflow.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { narrowColumn } from "./narrow.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 
 const WIDGET_ID = "drpg-despair";
 
@@ -155,13 +157,16 @@ export function extraPoolUserIds() {
     }
 }
 
-/** Grant an Assistant GM their own pool. GM only. */
+/** Grant an Assistant GM their own pool. GM only; written by the primary GM (E37 C7: another GM asks it, `despair.roster`). */
 export async function addPool(userId) {
     if (!game.user.isGM) return null;
     const user = game.users.get(userId);
     if (!user?.isGM || user.role === CONST.USER_ROLES.GAMEMASTER) return null;
+    const asked = await askRoster("add", userId);
+    if (asked !== undefined) return asked;
 
-    return serialWrite(DESPAIR_KEY, async () => {
+    const out = await serialWrite(DESPAIR_KEY, async () => {
+        if (primaryElsewhere()) return HANDED;
         const extra = new Set(extraPoolUserIds());
         if (extra.has(userId)) return null;
         extra.add(userId);
@@ -169,6 +174,7 @@ export async function addPool(userId) {
         log(`${user.name} granted a Despair pool.`);
         return true;
     });
+    return out === HANDED ? ((await askRoster("add", userId)) ?? null) : out;
 }
 
 /**
@@ -178,8 +184,12 @@ export async function addPool(userId) {
  */
 export async function removePool(userId) {
     if (!game.user.isGM) return null;
+    // Written by the primary GM (E37 C7): another GM asks it (`despair.roster`), and a handover while the step waited asks again.
+    const asked = await askRoster("remove", userId);
+    if (asked !== undefined) return asked;
 
-    return serialWrite(DESPAIR_KEY, async () => {
+    const out = await serialWrite(DESPAIR_KEY, async () => {
+        if (primaryElsewhere()) return HANDED;
         const extra = new Set(extraPoolUserIds());
         if (!extra.delete(userId)) return null;
         await game.settings.set(MODULE_ID, SETTINGS.extraPoolUsers, Array.from(extra));
@@ -193,6 +203,7 @@ export async function removePool(userId) {
         log(`Despair pool revoked for user ${userId}.`);
         return true;
     });
+    return out === HANDED ? ((await askRoster("remove", userId)) ?? null) : out;
 }
 
 /* ---- naming --------------------------------------------------------------
@@ -217,10 +228,13 @@ export function poolLabel(user) {
     return poolNames()[user?.id]?.trim() || user?.name || "?";
 }
 
-/** Set (or clear, with `null`/empty) a pool's custom label. GM only. */
+/** Set (or clear, with `null`/empty) a pool's custom label. GM only; written by the primary GM (E37 C7: another GM asks it). */
 export async function setPoolLabel(userId, label) {
     if (!game.user.isGM) return null;
-    return serialWrite(DESPAIR_KEY, () => writePoolLabel(userId, label));
+    const asked = await askRoster("label", userId, label ?? null);
+    if (asked !== undefined) return asked;
+    const out = await serialWrite(DESPAIR_KEY, () => primaryElsewhere() ? HANDED : writePoolLabel(userId, label));
+    return out === HANDED ? ((await askRoster("label", userId, label ?? null)) ?? null) : out;
 }
 
 /** `setPoolLabel`'s write, inside a step of `DESPAIR_KEY` (its own, or `removePool`'s). */
@@ -264,10 +278,17 @@ export function getDespair(userId) {
  */
 export const DESPAIR_KEY = "despair";
 
-/** Set one Monokuma's pool. GM only. */
+/**
+ * Set one Monokuma's pool. GM only. Written by the primary GM (E37 C7): another GM asks it (`despair.set`) and answers
+ * the pool the primary wrote, null when it was not written; asked again in the step, as `adjustDespair` is.
+ */
 export async function setDespair(userId, value) {
     if (!game.user.isGM) return null;
-    return serialWrite(DESPAIR_KEY, () => writePool(userId, value));
+    const key = typeof userId === "string" ? userId : userId?.id;
+    const asked = await askToSet(key, value);
+    if (asked !== undefined) return asked;
+    const out = await serialWrite(DESPAIR_KEY, () => primaryElsewhere() ? HANDED : writePool(userId, value));
+    return out === HANDED ? ((await askToSet(key, value)) ?? null) : out;
 }
 
 /** One pool written, inside a step of `DESPAIR_KEY`: `setDespair`'s, and `adjustDespair`'s read and write. */
@@ -314,7 +335,7 @@ export async function adjustDespair(userId, delta, { clamp = false } = {}) {
        connected while this step waited is the primary now, and its own steps write the same setting from its own copy -
        a step begun here goes to it instead, as one asked from here would. */
     const out = await serialWrite(DESPAIR_KEY, async () => {
-        if (primaryElsewhere(userId)) return { handed: true };
+        if (userId && primaryElsewhere()) return { handed: true };
         const held = getDespair(userId);
         return { before: held, wanted: held + delta, applied: await writePool(userId, held + delta) };
     });
@@ -340,16 +361,60 @@ export async function adjustDespair(userId, delta, { clamp = false } = {}) {
     return applied;
 }
 
-/** Whether this GM is not the primary while another GM, connected, is: a change of a pool goes to that one (`adjustDespair`). */
-function primaryElsewhere(userId) {
-    if (!game.user?.isGM || !userId || isPrimaryGm()) return false;
+/**
+ * Whether this GM is not the primary while another GM, connected, is: every change of the pools goes to that one - a
+ * pool's adjustment (`adjustDespair`, DESP-12), its setting, the fill, the zero and the roster (E37 C7).
+ */
+function primaryElsewhere() {
+    if (!game.user?.isGM || isPrimaryGm()) return false;
     const primary = game.users.get(primaryGmId() ?? "");
     return Boolean(primary?.active && primary.id !== game.user.id);
 }
 
+/*
+ * ONE WRITER FOR EVERY ROAD OF THE POOLS (E37 C7, 02.11.2026; E37-30, the deferred D061; the owner, 31.10). DESP-12 sent a
+ * pool's adjustment to the primary and E17 C5 a pip and a prune; a pool set by hand (`setDespair`, the console's), the
+ * verdict's fill, the season's zero and the roster - a pool granted, revoked or named - still read the three settings in a
+ * step of this browser's queue and wrote them whole there, beside the primary's own steps on its own copy: a change landing
+ * in the same round trip was written over. Each asks the primary now (gm-bridge.mjs `despair.set`, `despair.all`,
+ * `despair.roster`, a GM's alone) and answers what it answered; with no other GM connected it writes here; and each asks
+ * again inside its step, so a GM whose id sorts first connecting while the step waited takes it (E17 fix e1-G4's rule). Each
+ * ask answers undefined when the write is this GM's, else the primary's value, null when it was not written. Tier 2 E37-T8.
+ */
+const HANDED = Symbol("handed to the primary GM");
+
+/** `setDespair` asked of the primary from another GM: the pool it wrote, null when it wrote none, undefined when it is this GM's to write. */
+async function askToSet(key, value) {
+    // Only a GM that is not the primary asks, while another connected GM is (R6: a GM never asks itself down the socket).
+    if (!key || !game.user?.isGM || isPrimaryGm() || !primaryElsewhere()) return undefined;
+    const { requestDespairSet } = await import("./gm-bridge.mjs");
+    const res = await requestDespairSet(key, value);
+    return res.ok ? (res.value?.value ?? null) : null;
+}
+
+/** `fillAllDespair` or `zeroAllDespair` (`op` "fill" or "zero") asked of the primary: the pools it wrote, null when none, undefined when this GM's. */
+async function askAll(op) {
+    if (!game.user?.isGM || isPrimaryGm() || !primaryElsewhere()) return undefined;
+    const { requestDespairAll } = await import("./gm-bridge.mjs");
+    const res = await requestDespairAll(op);
+    return res.ok ? (res.value?.pools ?? null) : null;
+}
+
+/**
+ * `addPool`, `removePool` or `setPoolLabel` (`op` "add", "remove" or "label") asked of the primary: true for a pool granted
+ * or revoked, the label written (null for one cleared); null when nothing was carried out; undefined when this GM's.
+ */
+async function askRoster(op, userId, label = null) {
+    if (!userId || !game.user?.isGM || isPrimaryGm() || !primaryElsewhere()) return undefined;
+    const { requestDespairRoster } = await import("./gm-bridge.mjs");
+    const res = await requestDespairRoster(op, userId, label);
+    if (!res.ok) return null;
+    return op === "label" ? (res.value?.label ?? null) : (res.value?.done ?? null);
+}
+
 /** A change of a pool asked of the primary from another GM (`adjustDespair`): the pool as this GM expects it, or null when it is this GM's to write. */
 async function routeToPrimary(userId, delta, clamp) {
-    if (!primaryElsewhere(userId)) return null;
+    if (!userId || !primaryElsewhere()) return null;
     try {
         // `sendDespairToPrimary`, not `requestDespairAdjust` (retired in E08+E28 C8):
         // that one handed a GM straight back here. And no `hasGm` - it was never exported, so asking
@@ -367,16 +432,19 @@ async function routeToPrimary(userId, delta, clamp) {
  * Fill every Monokuma to maximum. The guide does this when the vote convicts
  * the wrong person: "Each GM (Monokuma) fills their Despair pool to max (12)."
  *
- * NOT ROUTED TO THE PRIMARY (E17 C5, 26.10.2026; audit S09-32). A fill, like `zeroAllDespair` and `removePool`
- * (a pool's revoke), is a GM's one deliberate setting of every pool - the verdict's, the season's, a roster
- * change - not a change on top of what a pool held, so it reads the pools in its own step and writes them whole
- * on the GM's browser that asked. Another GM's change landing in the same round trip can be written over; one
- * GM runs these at a time at a table, and none of them is asked of the primary over the bridge.
+ * ON THE PRIMARY GM (E37 C7, 02.11.2026; E37-30, D061). From E17 C5 until this commit a fill, like `zeroAllDespair` and
+ * `removePool`, was "a GM's one deliberate setting of every pool" and was written on the GM's browser that asked: another
+ * GM's change landing in the same round trip was written over. It is asked of the primary now (`despair.all`), as every
+ * road of the pools is ("ONE WRITER FOR EVERY ROAD OF THE POOLS", above), and answers the pools the primary wrote; a GM
+ * that asks waits for that answer (the verdict's fill, the season's zero), bounded as every request to the GM is.
  */
 export async function fillAllDespair() {
     if (!game.user.isGM) return null;
+    const asked = await askAll("fill");
+    if (asked !== undefined) return asked;
 
     const store = await serialWrite(DESPAIR_KEY, async () => {
+        if (primaryElsewhere()) return HANDED;
         const full = { ...pools() };
         for (const user of monokumas()) full[user.id] = despairMax();
         await game.settings.set(MODULE_ID, SETTINGS.despairPools, full);
@@ -385,6 +453,7 @@ export async function fillAllDespair() {
         await clearOwed();
         return full;
     });
+    if (store === HANDED) return (await askAll("fill")) ?? null;
 
     log("Every Monokuma's Despair pool filled to maximum.");
     return store;
@@ -409,8 +478,12 @@ export async function fillAllDespair() {
  */
 export async function zeroAllDespair() {
     if (!game.user.isGM) return null;
+    // On the primary GM, as the fill (E37 C7).
+    const asked = await askAll("zero");
+    if (asked !== undefined) return asked;
 
     const store = await serialWrite(DESPAIR_KEY, async () => {
+        if (primaryElsewhere()) return HANDED;
         const empty = { ...pools() };
         for (const id of Object.keys(empty)) if (id !== SETTLED) empty[id] = 0;
         for (const user of monokumas()) empty[user.id] = 0;
@@ -419,10 +492,34 @@ export async function zeroAllDespair() {
         await clearOwed();
         return empty;
     });
+    if (store === HANDED) return (await askAll("zero")) ?? null;
 
     log("Every Despair pool emptied.");
     return store;
 }
+
+/**
+ * The season reset's despair group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): every pool to zero
+ * (`zeroAllDespair`, on the primary since E37 C7), then every student's Hope back to the start (season-setup.mjs
+ * `wipeStudent`'s `despair` part).
+ */
+export async function clearSeasonDespair(ctx) {
+    await zeroAllDespair();
+    await ctx.everyStudent("despair");
+}
+
+/** What the reset window counts of the Despair: the pools holding any (season-setup.mjs `resetTally` until E42 C3). */
+export function tallySeasonDespair() {
+    let held = 0;
+    try {
+        held = Object.values(game.settings.get(MODULE_ID, SETTINGS.despairPools) ?? {}).filter(v => Number(v) > 0).length;
+    } catch {
+        held = 0;
+    }
+    return [game.i18n.format("DRPG.Season.resetPools", { n: held, hope: STARTING.hope })];
+}
+
+registerSeasonState({ group: "despair", clear: clearSeasonDespair, tally: tallySeasonDespair, settings: [SETTINGS.despairPools] });
 
 /* ==========================================================================
  * THE OWED DESPAIR (E05 C12, 27.09.2026; audit S09-28)
@@ -654,6 +751,14 @@ export function donorLabel(user) {
  * real pool, never a self-service button. One function, so both callers stay
  * one honest despair-check away from a duplicate bug.
  *
+ * TRIMMED, NOT REFUSED WHOLE (E37 C6, 01.11.2026; E37-27, audit S09-38). A request above what the pool can spend was
+ * refused whole ("That pool holds 2 Despair; 3 was asked for."), while one above the room under the receiver's Hope
+ * maximum was trimmed to it: the same window gave one answer for the receiver's cap and another for the pool's. It
+ * grants `min(amount, the room under the Hope maximum, what the pool can spend)` now - the trim never more than the
+ * pool less what it owes (`spendableDespair`) - and refuses only when the pool can spend nothing
+ * (`DRPG.Despair.poolEmpty`) or the receiver has no room (`hopeAlreadyFull`, as before). The credit itself is
+ * `creditHopeFromDespair`, the one road Fuel a Monocub's Call takes too.
+ *
  * @param {string} monokumaUserId  Whose pool pays.
  * @param {Actor} actor            Who receives the Hope.
  * @param {number} amount          Requested. May be trimmed to what the pool
@@ -670,19 +775,8 @@ export async function convertDespairToHope(monokumaUserId, actor, amount) {
     // on this GM's client or another's - read once the store holds the other GMs' rows (fix r2-G2).
     await despairOwedStore.whenHydrated();
     const held = spendableDespair(monokumaUserId);
-    if (held < amount) {
-        ui.notifications.warn(game.i18n.format("DRPG.Despair.notEnoughPool", {
-            held, needed: amount
-        }));
-        return 0;
-    }
-
-    // While the "Despair" darkening runs no Hope can be earned: the actor hook
-    // deletes the increase, and this used to take the Despair and report a
-    // grant that never landed (DESP-04). Asked before anything is paid.
-    const { overflowBlocksHope } = await import("./overflow.mjs");
-    if (overflowBlocksHope()) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Overflow.hopeBlocked"));
+    if (held <= 0) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Despair.poolEmpty"));
         return 0;
     }
 
@@ -693,29 +787,56 @@ export async function convertDespairToHope(monokumaUserId, actor, amount) {
      * receives. The drop is owed now (`recordOwed`; paid by `settleOwed`), recorded before the
      * Hope so no window redrawn by the Hope's write offers the Despair again, and the card
      * speaks as nobody (secret.mjs).
-     * From the Hope the GMs hold (sheet-audit.mjs `meansWrite`, E29 fix r2-H24): a console's
-     * raised Hope, not put back yet, was converted onto, and trimmed what the pool paid.
      */
+    const user = game.users.get(monokumaUserId);
+    const { granted } = await creditHopeFromDespair(actor, Math.min(amount, held), { payer: user ?? null, owes: monokumaUserId, reason: "gmRuling" });
+    if (granted > 0) log(`Converted ${granted} Despair from ${user?.name} into Hope for ${actor.name}; the pool pays at the next time of day.`);
+    return granted;
+}
+
+/**
+ * ONE ROAD OF DESPAIR TO HOPE (E37 C6, 01.11.2026; E37-27, audit S09-38). Two roads credited a student's Hope from a
+ * Monokuma's Despair: `convertDespairToHope` (the Students window, the Monocub and Mastermind windows) with a veiled
+ * card naming the paying pool, and Fuel a Monocub's Call (call-effects.mjs `hopeFromDespairEffect`, its pool charged at
+ * once by `spendDespairCall`) with an unveiled whisper naming the Monokuma's actor. Both credit here now: refused under
+ * the Despair darkening (no Hope can be earned there: the actor hook deletes the increase, DESP-04, CALL-05), then from
+ * the Hope the GMs hold (sheet-audit.mjs `meansWrite`, E29 fix r2-H24: a console's raised Hope, not put back yet, was
+ * credited onto) at most `amount`, never above the Hope maximum; the debt recorded in E05's buffer (`recordOwed`) for
+ * what is granted and before the Hope, when `owes` names the pool that pays at the next time of day (the window's road;
+ * the Call's pool has paid already); and one veiled card to the receiver's owners and the GMs naming the pool's label
+ * (`poolLabel(payer)`; "Monokuma" when no pool is found, as the Call's card said before). Each refusal is told here (`Overflow.hopeBlocked`, `Despair.hopeAlreadyFull`) and answered as
+ * `blocked`: "darkening" or "full". The Call keeps its own price and its public card (Q-E37-5). Tier 2 E37-T6.
+ *
+ * `reason` is the write's: "call" for the Call, else "gmRuling".
+ *
+ * @returns {Promise<{granted: number, held?: number, blocked?: "darkening"|"full"}>}
+ */
+export async function creditHopeFromDespair(actor, amount, { payer = null, owes = null, reason = "gmRuling" } = {}) {
+    if (!game.user.isGM || !actor || !(amount > 0)) return { granted: 0 };
+    const { overflowBlocksHope } = await import("./overflow.mjs");
+    if (overflowBlocksHope()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Overflow.hopeBlocked"));
+        return { granted: 0, blocked: "darkening" };
+    }
     const { meansWrite } = await import("./sheet-audit.mjs");
-    const granted = await meansWrite(actor, async ({ hope }, maxOf) => {
+    const { held, granted } = await meansWrite(actor, async ({ hope }, maxOf) => {
         const room = Math.min(amount, (maxOf("hope") || STARTING.hopeMax) - hope);
-        if (room <= 0) return 0;
-        await recordOwed(monokumaUserId, room);
-        await trustedWrite(actor, { "system.resources.hope.value": hope + room }, { reason: "gmRuling" });
-        return room;
+        if (room <= 0) return { held: hope, granted: 0 };
+        if (owes) await recordOwed(owes, room);
+        // A reason of the closed list, a literal each (tests-tier0.mjs R220): the Call's, or a GM's ruling.
+        const write = { "system.resources.hope.value": hope + room };
+        if (reason === "call") await trustedWrite(actor, write, { reason: "call" });
+        else await trustedWrite(actor, write, { reason: "gmRuling" });
+        return { held: hope, granted: room };
     });
     if (granted <= 0) {
         ui.notifications.warn(game.i18n.localize("DRPG.Despair.hopeAlreadyFull"));
-        return 0;
+        return { granted: 0, held, blocked: "full" };
     }
-
-    const user = game.users.get(monokumaUserId);
     await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Despair.hopeConverted", {
-        n: granted, who: foundry.utils.escapeHTML(poolLabel(user))
+        n: granted, who: foundry.utils.escapeHTML(payer ? poolLabel(payer) : "Monokuma")
     })}</p>`, { veiled: true });
-
-    log(`Converted ${granted} Despair from ${user?.name} into Hope for ${actor.name}; the pool pays at the next time of day.`);
-    return granted;
+    return { granted, held };
 }
 
 /**

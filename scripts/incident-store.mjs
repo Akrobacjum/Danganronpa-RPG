@@ -84,6 +84,8 @@ import { castStore, blackenedStore, castCopy, deathStore, deathCopy, CAST_FIELDS
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible, gmStoreStamp, stableJson } from "./gm-store.mjs";
 import { getClock } from "./clock.mjs";
 import { ownerOf, ownerIdsOf, isPrimaryGm, primaryGmId, log, warn, error, debug } from "./utils.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState, everyPart } from "./season-reset.mjs";
 
 /* ==========================================================================
  * STATE
@@ -191,7 +193,7 @@ export function murderState() {
 /**
  * WHETHER THIS BROWSER IS A BYSTANDER OF THE RUNNING INCIDENT (E17 fix p2-G3, 26.10.2026): an incident runs, this is
  * no GM, and none of the seats of `incidentSeats` at the stage running is a character this user owns - the reading
- * hud.mjs `clockForDisplay` freezes the clock by (E06 C2, D6), moved here so that the Event panel's motive card
+ * hud-elapsed.mjs `clockForDisplay` freezes the clock by (E06 C2, D6), moved here so that the Event panel's motive card
  * (events.mjs `motiveCard`) asks the same question: the panel is drawn by hud.mjs, which imports events.mjs.
  */
 export function clockHiddenHere(state = murderState()) {
@@ -922,6 +924,43 @@ export async function clearBetrayalOffer() {
         await writeCast(rest, cast);
     });
 }
+
+/**
+ * THE SEASON RESET'S INCIDENT GROUP (E42 C3; until then a run of season-setup.mjs `wipeSeason`, E11 C9). Two parts,
+ * each tried (`everyPart`): one that throws does not keep the other, and the group fails if either did.
+ *
+ * ABANDONED, NOT CONCLUDED (E11 C9; audit S06-15). `conclude: false` skips what a close says about the crime
+ * (murder-rules.mjs `closeIncident`): a self-inflicted victim at Stage 6 is not killed into the new season, and no
+ * register row, broken tool, case keys, ties or card come of an incident nobody finished. The betrayal outlives the
+ * incident by design (D18); not the season. A murder declared in the dark and never judged is an incident that has
+ * not happened yet: the declarations are a GM store of this group since E05 (`pendingMurderStore`), the reset's cut
+ * takes them on every GM, one away now included, and `clearParkedMurders` drops what this browser holds. Each is
+ * named for its Eclipse, so no later lights would judge it - they drop it - but a reset is where it is gone for good.
+ *
+ * AN INCIDENT LEFT RUNNING OUTLIVED THE SEASON IT BELONGED TO. A season wiped mid-incident kept `active: true`
+ * pointing at a killer and a victim who may not exist any more: `openMurder` refused every new murder ("one at a
+ * time"), the GM panel's next step read "incident", and every trace anybody left anywhere was tied to a crime from
+ * last season. `endMurder` wipes the record when it closes one; the second part is for a record no close took - one
+ * another GM's write left in its place - written whole, as the motive and the assembly are. The cast is not here
+ * since E04 (1.2.63): it is a GM store, and the close clears it through the store - `endMurder` stamps its fields
+ * null, `clearBetrayalOffer` the offer - where a raw write of this GM's copy would have come back from any other
+ * GM's at the next exchange. A participant's copy is told by the same stamps.
+ */
+export async function clearSeasonIncident() {
+    await everyPart(async () => {
+        const { endMurder } = await import("./murder-rules.mjs");
+        const { clearParkedMurders } = await import("./eclipse.mjs");
+        await endMurder({ reason: "seasonReset", followUp: false, conclude: false });
+        await clearBlackened();
+        await clearBetrayalOffer();
+        await clearParkedMurders();
+    }, async () => {
+        // In the incident's queue (R205): behind any write of the incident still on its way, as every writer of it is.
+        await incidentWrite(() => game.settings.set(MODULE_ID, SETTINGS.murderState, {}));
+    });
+}
+
+registerSeasonState({ group: "incident", clear: clearSeasonIncident, settings: [SETTINGS.murderState] });
 
 /** The weapon this actor swung in the running incident, if it is still on them. GM-side. */
 export function swungWeaponOf(actor) {
@@ -1840,7 +1879,7 @@ export function betrayalCandidate(state, killer) {
  *
  * THE IDS ARE THE GMS' (E32+E07 fix r2-G4, 03.10.2026; the correctness review's m3). Until
  * this fix they were kept in a Set on the browser that posted the cards, and a player's result
- * is judged on the primary GM alone (gm-bridge.mjs `handleOpeningResult`): a murder opened on
+ * is judged on the primary GM alone (bridge-runs-acts.mjs `handleOpeningResult`): a murder opened on
  * another GM, a re-ask from one, or the posting GM's reload left the deciding browser's Set
  * empty, and "This roll is yours" stayed through the fight (scenario 61 F9: a second GM's
  * re-ask stayed on the killer's player's browser after the primary closed the murder). They

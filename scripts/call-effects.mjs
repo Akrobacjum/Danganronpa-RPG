@@ -414,7 +414,7 @@ export async function appendArmedCall(actor, payload, { by = game.user } = {}) {
  *
  * ON THE ROAD, NAMED `call` (E33 C1b, 06.10.2026; R220's census). This and
  * `spendCallsByNonce` wrote the armed list with a bare `setFlag`/`unsetFlag`, which a
- * roll on a player's browser still makes (roll-dialog.mjs, action-rolls.mjs `throwDice`
+ * roll on a player's browser still makes (roll-dialog.mjs, action-pipeline.mjs `throwDice`
  * when the GM drew nothing); the GMs' audit judges that write by the entries it takes
  * off (sheet-audit.mjs `actorFindings`, `callsOwed`), not by its reason (read on this day), so
  * the name changes no verdict - it says on the row what the write was. No `ref`: no judge reads
@@ -961,38 +961,28 @@ export function grantWords(grants, kase = "acc") {
 // --- Despair spent as somebody else's Hope ---
 //
 // The pool has ALREADY been charged by `spendDespairCall`, so this only
-// credits the Hope. Routing it through `convertDespairToHope` would take
-// the Despair a second time - the exchange rate is the Call's own cost.
+// credits the Hope - through despair.mjs `creditHopeFromDespair`, the one
+// road of Despair to Hope (E37 C6, 01.11.2026; E37-27, audit S09-38), with
+// nothing owed: the exchange rate is the Call's own cost, and the debt
+// `convertDespairToHope` records would take the Despair a second time. Its
+// card was a whisper naming the Monokuma's actor, unveiled; it is the
+// credit's veiled card now, naming the paying pool (monokuma.mjs
+// `poolUserFor`, the pool `spendDespairCallFor` charged), as the Students
+// window's is. The Call's own public card stays (Q-E37-5).
 async function hopeFromDespairEffect(actor, call, choice, done) {
-    // No Hope is earned under the Despair darkening, and this is Hope earned:
-    // the write would be stripped and the Call would still report "gains 1
-    // Hope" and keep its Despair (DESP-04, CALL-05). `refusalBeforePaying`
-    // asks first; this is the far side of it, for a darkening that began while
-    // the picker was open. Not a fault, so no "tell the GM".
-    if (overflowBlocksHope()) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Overflow.hopeBlocked"));
-        throw new NothingToDo("the darkening blocks Hope");
-    }
-    // From the Hope the GMs hold (sheet-audit.mjs `meansWrite`, E29 fix r2-H24): a console's raised Hope,
-    // not put back yet, was granted on top.
-    const { meansWrite } = await import("./sheet-audit.mjs");
-    const { held, next } = await meansWrite(choice.target, async ({ hope }, maxOf) => {
-        const next = Math.min(maxOf("hope") || STARTING.hopeMax, hope + call.grantsHope);
-        if (next !== hope) await trustedWrite(choice.target, { "system.resources.hope.value": next }, { reason: "call" });
-        return { held: hope, next };
-    });
-
-    if (next === held) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Despair.hopeAlreadyFull"));
-        throw new NothingToDo(`${choice.target.name} is already at maximum Hope`);
-    }
+    const { creditHopeFromDespair } = await import("./despair.mjs");
+    const { poolUserFor } = await import("./monokuma.mjs");
+    // The darkening (DESP-04, CALL-05; `refusalBeforePaying` asks first, this is the far side of it, for a darkening
+    // that began while the picker was open) and a Hope at its maximum are refused there, and told; not a fault, so no
+    // "tell the GM".
+    const { granted, blocked } = await creditHopeFromDespair(choice.target, call.grantsHope,
+        { payer: poolUserFor(actor), reason: "call" });
+    if (blocked === "darkening") throw new NothingToDo("the darkening blocks Hope");
+    if (!(granted > 0)) throw new NothingToDo(`${choice.target.name} is already at maximum Hope`);
 
     done.push(game.i18n.format("DRPG.Calls.hopeGranted", {
-        name: choice.target.name, n: next - held
+        name: choice.target.name, n: granted
     }));
-    await whisperToOwner(choice.target, `<p>${game.i18n.format("DRPG.Despair.hopeConverted", {
-        n: next - held, who: foundry.utils.escapeHTML(actor?.name ?? "Monokuma")
-    })}</p>`);
 }
 
 /*
@@ -1095,7 +1085,7 @@ async function progressEffect(actor, call, choice, done, { key, kind }) {
          * 25.10.2026; audit S09-06, the owner's D13: "Contribution do pułapki woła ten sam rzut
          * ukrycia"). It added its progress and nothing else, so a killer with witnesses in the room
          * finished the trap with Hope Calls, no Shadow rolled and no trace left. The same roll and
-         * trace as a Work's (action-rolls.mjs `hideProjectTraces`), after the progress and only when
+         * trace as a Work's (action-project.mjs `hideProjectTraces`), after the progress and only when
          * the bar was not refused outright, on the roller's browser as a Work's is - its lines into
          * the Call's receipt, which is plain text. A Hope Call only: a Despair Call (Patronage) is a
          * Monokuma's, bought on a GM's client, and builds nothing in the room. The picker stays

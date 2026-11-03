@@ -45,7 +45,7 @@ const DialogV2 = foundry.applications.api.DialogV2;
  *   End of chapter          reachable before the verdict, the default after it.
  *   End the Class Trial     and Daily Life comes back.
  *
- * The gates are `trialProgress()` in vote.mjs. They disable rather than hide:
+ * The gates are `trialProgress()` in trial-progress.mjs. They disable rather than hide:
  * a GM needs to see that the verdict is coming and why it is not available yet,
  * which is what the note under each section says.
  * ========================================================================== */
@@ -626,7 +626,7 @@ export async function closeTrial({ sceneId = null, room = null } = {}) {
 
     /* THE SENTENCE FIRST (E70 C4; DC36, the plan's point (g) road 1): the convicted die as the trial ends - here, in the
        hall, before the phase moves and the living gather at school (trial-scene.mjs `followPhase`), in the trial's own
-       chapter, which the chapter's end has already moved the clock past (vote.mjs `executeAtExit`). Once: the phase
+       chapter, which the chapter's end has already moved the clock past (trial-progress.mjs `executeAtExit`). Once: the phase
        write's `reconcilePhase` asks again and finds it stamped. A throw is logged and ends nothing here: that road
        tries it again. */
     try {
@@ -710,9 +710,9 @@ function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress, verdic
             // buttons for it have gone with the phase.
             afterwards: running || progress.voteClosed || progress.verdictApplied,
             // A verdict that stopped halfway (E10 C5, S06-39): the steps it did
-            // not finish, named, or null - see `verdictStopped` in vote.mjs.
+            // not finish, named, or null - see `verdictStopped` in verdict.mjs.
             stopped: verdictStopped(progress),
-            // The GM who may finish a verdict not yet done (E10 fix r2-G2) - see `verdictRunner` in vote.mjs.
+            // The GM who may finish a verdict not yet done (E10 fix r2-G2) - see `verdictRunner` in verdict.mjs.
             runner: verdictRunner(progress),
             /* THE BLACKENED REGISTER, COUNTED (E10 C12, 1.2.71; audit S06-18). The register takes a
                killer when their incident is closed, and the vote asks as many names as it holds, so

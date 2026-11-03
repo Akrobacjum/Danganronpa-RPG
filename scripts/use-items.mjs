@@ -824,7 +824,7 @@ async function consume(item, { reason, held = item }) {
  * `bodyFoundSinceTrial`): through the Investigation and the trial it says "after"; once that
  * trial has ended, a discard is preparation again, for a murder that has not happened. A discard
  * in the Investigation is filed here; one in the Class Trial is refused since E51 C6 (`discardBroken`,
- * gm-bridge.mjs `handleRemnant`), so the trial's branch below files only what reaches it another way. Tier 2
+ * bridge-runs-records.mjs `handleRemnant`), so the trial's branch below files only what reaches it another way. Tier 2
  * "a chapter's second Investigation reads its own body on the card and in a discard".
  *
  * THE PHASE, AND THE INCIDENT'S OWN SIDES (E14 part 1 C5, 24.10.2026; audit S08-13). Two readings were still wrong:
@@ -834,7 +834,7 @@ async function consume(item, { reason, held = item }) {
  * first (Investigation, Class Trial: after), then a running incident for its sides alone (`sideOf`: the killer, the
  * victim, a third party as cast), then the body as before. `actor` is the one throwing it away; with none, the
  * incident counts for nobody. Read on the discarder's browser for what it sends, and on the GM, who files the type
- * by this reading and not the packet's (gm-bridge.mjs `handleRemnant`): a side's browser holds its copy of the cast,
+ * by this reading and not the packet's (bridge-runs-records.mjs `handleRemnant`): a side's browser holds its copy of the cast,
  * the GMs the whole of it.
  *
  * Both reads are wrapped: a world mid-migration, or a client that has not been
@@ -864,7 +864,7 @@ export async function discardRemnantType(actor = null) {
  * "Wyrzucanie itemow tez powinno byc zabronione w trial grounds"; Q1: the trial's grounds are the phase,
  * `clock.phase === "classTrial"`, not the hall's scene; E51-41). Asked before the window, so nothing is asked or rolled;
  * the sheet's button is greyed with the same sentence (sheet.mjs `addDiscardButton`), and the primary GM refuses the
- * trace of a discard that reaches it in the trial (gm-bridge.mjs `handleRemnant`, `cannotNow`). An Eclipse is no trial:
+ * trace of a discard that reaches it in the trial (bridge-runs-records.mjs `handleRemnant`, `cannotNow`). An Eclipse is no trial:
  * a discard in one goes as before.
  */
 export function noDiscardNow(clock = getClock()) {
@@ -925,7 +925,7 @@ export async function discardBroken(actor, item) {
     const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
     const { roomOfActor } = await import("./movement.mjs");
     const placed = await dropRemnant(actor, {
-        // The packet's type is a claim: the GM files a discard by this reading of its own (gm-bridge.mjs `handleRemnant`).
+        // The packet's type is a claim: the GM files a discard by this reading of its own (bridge-runs-records.mjs `handleRemnant`).
         type: await discardRemnantType(actor),
         visibility,
         faint: BROKEN_ITEMS.faint,

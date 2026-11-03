@@ -733,7 +733,7 @@ export const deferredOfferStore = defineGmStore({
  * THE BALLOTS OF THE VOTE (E10 C1, 1.2.71; audit S06-17, S06-04; the plan's V1 and V3). A row per
  * voter, keyed by the user Foundry says sent the ballot: `{ chapter, round, actorId, choice: [id],
  * at }` - the names on it, the student it was cast with, and the chapter and round of the vote in
- * the world's trial record (vote.mjs `trialProgress`). Until 1.2.71 the ballots were a Map in the
+ * the world's trial record (trial-progress.mjs `trialProgress`). Until 1.2.71 the ballots were a Map in the
  * collecting GM's memory, and a reload of that browser lost them: the GM who came back counted
  * none (scenario 63's D and E at 1e9871c). Written by the primary alone (`recordBallot`, the run
  * of the bridge's `vote.cast` since E10 C2), synced between the GMs and never sent to a player -
@@ -749,7 +749,7 @@ export const ballotStore = defineGmStore({
 
 /**
  * THE BLACKENED A VERDICT WAS GIVEN WITH (E10 fix r1-G1, 1.2.71; the round-1 security review's F3).
- * A record, `{ at, blackenedIds }`: the verdict record's `at` (vote.mjs `trialProgress().verdict`)
+ * A record, `{ at, blackenedIds }`: the verdict record's `at` (trial-progress.mjs `trialProgress().verdict`)
  * and the Blackened its GM named in the verdict's window. A Finish of a verdict that stopped read
  * them from the register alone, which names nobody when the GM named them by hand: a wrong verdict
  * stopped before its Level Up or its rule kept nobody's Level Up and asked no rule. Written by
@@ -757,16 +757,24 @@ export const ballotStore = defineGmStore({
  * never the world's record, which every console reads and which C5 keeps free of a Blackened. Cut
  * by the reset's "trialProgress" group with the ballots; not backed up, as they are not.
  * And the Final Trial's sentence (E70 C4; the owner's Q2 answer, 27.10.2026): `finalSentenced`, the Mastermind's
- * id, under the Final verdict's `at` (`finalAt`), carried out at the trial's end (vote.mjs `executeAtExit`) - the
- * world's record says only that it waits (`sentencePending`), as it names nobody (mastermind.mjs `applyFinalVerdict`).
+ * id, under the Final verdict's `at` (`finalAt`), carried out at the trial's end (trial-progress.mjs `executeAtExit`) - the
+ * world's record says only that it waits (`sentencePending`), as it names nobody (verdict.mjs `applyFinalVerdict`).
  * BACKED UP SINCE E70 fix p1-G2 (the review's E70P1-R10): "not backed up, as a ballot means nothing once counted" held
  * for the Blackened, not for a sentence that waits for the trial's end - a GM who moved to another browser before End
  * the trial executed nobody. In the backup and the health check now; a record that says a Final sentence waits and a
- * store that holds none is told to the GMs (vote.mjs `sentenceOf`).
+ * store that holds none is told to the GMs (trial-progress.mjs `sentenceOf`).
+ * And the Level Ups a verdict is giving (E42 C1c, 1.2.97; E42-05, E42-06): `giving`, the row of a verdict's batch in
+ * flight - `{ at, actorId, offers, advances }`, the verdict's `at`, the student, and the offers standing on them and
+ * their `advances` before the row's write, null once its `given` is written (verdict.mjs `keepGiving`) - and
+ * `finalGiven`, whom the Final Trial's batch has given what waited, `{ at, ids }` (verdict.mjs `finalVerdictLevelUps`):
+ * the world's record names nobody in a Final Trial, so a Finish reads them here. Both counts and ids, the GMs' alone.
+ * And the Final verdict's outcome (E42 fix FG1, 03.11.2026; the end review's S-M1): `finalOutcome`, `{ at, executed }`,
+ * whether it sentenced the Mastermind, kept from the record's first write until the card has told the table, when the
+ * world's record takes `sentencePending` (verdict.mjs `keepFinalOutcome`, `finalContext`).
  */
 export const verdictStore = defineGmStore({
     name: "verdict", key: SETTINGS.gmVerdict,
-    kind: "record", fields: ["at", "blackenedIds", "finalAt", "finalSentenced"], resetGroup: "trialProgress", backup: true, sync: true
+    kind: "record", fields: ["at", "blackenedIds", "finalAt", "finalSentenced", "giving", "finalGiven", "finalOutcome"], resetGroup: "trialProgress", backup: true, sync: true
 });
 
 /**
@@ -801,10 +809,10 @@ export const closingClaimStore = defineGmStore({
  * THE DESPAIR OVERFLOW'S COUNT (E05 C12, 27.09.2026; audit S01-60). A record, `{ count }`: the
  * spilled Despair waiting to be spent - half of the world setting `overflow` until 1.2.64, which
  * every browser held while a player's caption masked it as "?". The other half, the darkening's
- * stamp, stays in the world (it is announced when it fires). Written by `addOverflow`,
- * `checkOverflow` and `resetOverflow` on whichever GM runs them; two GMs adding within one
- * exchange's latency keep the newer write - the race the world setting had, which the pools'
- * one writer (DESP-12) could be extended to. Each of the three reads the count once the store
+ * stamp, stays in the world (it is announced when it fires). Written by `addOverflow` (E17 C5),
+ * `takeOverflow` and `checkOverflow` (E37 C7) on the primary GM, which another GM asks, and by
+ * `resetOverflow` on the GM that runs it (the verdict's and the season reset's, both the primary's;
+ * a GM's Clear asks the primary, `clearOverflowAsGm`). Each reads the count once the store
  * holds the other GMs' copies (E05 fix r2-G2; review S2-m7). Cut by the reset's "overflow"
  * group beside `resetOverflow`. No old key: an older world's count comes out of the world by
  * `liftOverflowCount`.
@@ -894,7 +902,7 @@ export const traceDigestStore = defineGmStore({
 
 /**
  * THE STASHES RIFLED (E14 part 1 C4, 24.10.2026; audit S08-06, the owner's D15: one rifle a character, a stash and a
- * time of day). A row per thief and stash, keyed `<thief>:<owner>:<scene>:<room>` (vault.mjs `rifleKey`): `{ at }`, the
+ * time of day). A row per thief and stash, keyed `<thief>:<owner>:<scene>:<room>` (stash-reach.mjs `rifleKey`): `{ at }`, the
  * time of day of the thief's last free reach into that stash (`rifleMark`: the season, chapter, session, day and time
  * of day), which a second reach of the same mark is refused on (`stealFromVault`, as `alreadyDone`). A Search's find
  * writes and reads none: it paid an action for its reach. The audit's fix named an actor flag (`FLAGS.rifled`) on
@@ -933,7 +941,7 @@ export const crossingStore = defineGmStore({
 /**
  * THE PRIMARY'S BEAT (E17 C6, 26.10.2026; audit S10-16). A record, `{ at }`: `serverNow()` written by the primary GM
  * every `CLOCK_BEAT_MS` (60 s, a design number: the stopwatch's error bound across two sessions) while the world runs
- * (hud.mjs `beatClock`) - the last moment a primary is known to have been at the table. A world that loads paused fires
+ * (hud-elapsed.mjs `beatClock`) - the last moment a primary is known to have been at the table. A world that loads paused fires
  * no `pauseGame`, so the week between two sessions was time of day; at `ready` the primary reads this and counts the gap
  * since it as a pause (`settleClockAtReady`). Synced to the GMs online at the time it is written, so a GM who was not
  * online, or who opens the world on another computer, holds none or an older one: `readyPatch` reads it beside the
@@ -1087,8 +1095,8 @@ export const confusionCopy = defineGmCopy({
  * Reroll marks (C5); then `facts`, written by the GM that did a thing
  * for that roll - the trace it placed, the plant it handed over, the crisis action's item and the
  * resources before it, the clean-up attempt - and `claims`, what only the roller's browser saw
- * (its Search's item on its own sheet, a Project's relief), picked per action (action-rolls.mjs
- * `ROLL_CLAIMS`). Written by `keepGmBookmark` and `noteRollFact` (action-rolls.mjs), and read by
+ * (its Search's item on its own sheet, a Project's relief), picked per action (action-pipeline.mjs
+ * `ROLL_CLAIMS`). Written by `keepGmBookmark` and `noteRollFact` (action-pipeline.mjs), and read by
  * the Reroll the GM makes (reroll.mjs `rerollOnGm`, E08+E28 C4a). Synced between the
  * GMs and not backed up: a row is worth one Reroll, minutes long. Cut by the reset's "actions"
  * group, beside the Confusions. No player copy - R182 has nothing to ask of it - and no old key.
@@ -1142,7 +1150,7 @@ export const cleanupAttemptStore = defineGmStore({
  * ruled on, keyed by its message id: `{ by, at }` - the GM whose click ruled it and when. Each GM's
  * click used to rule on that GM's browser, so two GMs - or one GM's chat log and messenger window -
  * both ruled one card; and a card a player posted is that player's document, whose `settled` its
- * author can take off. The primary claims every click first (gm-bridge.mjs `claimOnPrimary`) and
+ * author can take off. The primary claims every click first (call-gm.mjs `claimOnPrimary`) and
  * writes the row once the ruling is made; a card with a row is not ruled again, whatever its own
  * flags say. Synced between the GMs, so a primary that reloads, or the next one, reads it; not
  * backed up: a row is worth one card. Dropped when its card is deleted, and cut by the reset's
@@ -1270,7 +1278,7 @@ export const diceLookStore = defineGmStore({
  * writes only what it changes). No `exists`: a row outlives the trace it names, as the
  * world key's entries did - a chapter's plan stays until a reset's cut takes it. A reset
  * that keeps the plan (E05 fix r1-G5, M3) keeps ONE chapter's rows, not every chapter's:
- * investigation.mjs's `keepOnlyKeyPlanChapter`, which `season-setup.mjs`'s `wipeSeason` calls
+ * investigation.mjs's `keepOnlyKeyPlanChapter`, which the reset calls (the keyPlan entry's keep, `keepSeasonKeyPlan`)
  * instead of `clearKeyPlan` when the group is kept, drops the rest - so the next season's
  * chapter of that same number opens with them, as 1.2.63's one stored plan did, and a row has
  * no season stamped on it, so any chapter left standing would otherwise have read as planned

@@ -3,7 +3,7 @@
  *
  * Who may walk through another student's bedroom door was written twice: the door itself (movement.mjs `bedroomShut`,
  * which the veto on the mover's browser and the primary's judge of an arrival both ask) and game.drpg's answer with the
- * GMs' key count (vault.mjs `mayEnterBedroom`, `keysHeldBy`). Both counted every item with the key's flag, a key put
+ * GMs' key count (vault-store.mjs `mayEnterBedroom`, `keysHeldBy`). Both counted every item with the key's flag, a key put
  * away in a stash on the far side of the building too (S08-31), and neither knew that a victim's bedroom is searched in
  * the Investigation (S08-55). Both read this file now.
  *
@@ -21,7 +21,7 @@ import { isStashed } from "./inventory.mjs";
 /**
  * The rooms the keys among `items` open: a key counts while it is in hand. `stashed: true` counts the stash's too -
  * for the questions that are not the door's: whether a student already holds a key at all, so that the GMs' grant and
- * the sweep make no second one for a key the student put away (vault.mjs `grantBedroomKey`, gm-items.mjs's list).
+ * the sweep make no second one for a key the student put away (vault-store.mjs `grantBedroomKey`, gm-items.mjs's list).
  */
 export function keyRooms(items, { stashed = false } = {}) {
     const rooms = new Set();

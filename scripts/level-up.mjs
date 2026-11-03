@@ -47,7 +47,7 @@ export async function openAdvancementFor(actor) {
         return null;
     }
 
-    // The module's one menu shape - see `chooseVariant` in action-rolls.mjs.
+    // The module's one menu shape - see `chooseVariant` in action-menus.mjs.
     // Imported dynamically because this window is opened from a sheet button
     // and a GM console, neither of which is on a path that has already paid
     // for that module.
@@ -350,7 +350,7 @@ async function withdrawOffer(actorId, offerId) {
 
 /**
  * Characters whose Level Up is being written on this browser - the primary GM's, which judges a
- * player's picks (gm-bridge.mjs `handleAdvancement` takes and lets go of the latch) and every
+ * player's picks (bridge-runs-acts.mjs `handleAdvancement` takes and lets go of the latch) and every
  * take-back of an offer (`takeBackOffer` here, the bridge's `take` for another GM, which read it
  * and hold it from their check to their drop).
  */
@@ -1003,7 +1003,7 @@ async function tellPlayer(actor, reasons, summary, taken) {
  * maxima and `advances` on the actor and a card spoken by it with the Level Up's sound,
  * all of it world data every console holds - the one student the class had just failed
  * to name, named by the reward. D4 gives everybody's advancement at the chapter's end,
- * which exists only at a correct verdict (vote.mjs `applyVerdict`), so the Reinforced
+ * which exists only at a correct verdict (verdict.mjs `applyVerdict`), so the Reinforced
  * waits for the class's next correct verdict and is picked with that survivor's
  * Standard, 1 + 3 picks in one window and one write; or for the Final Trial's verdict,
  * when the season's secrets are out anyway (the owner's Q7, option b). It lapses at a
@@ -1096,16 +1096,30 @@ export async function deferAdvancement(actor, kind = "reinforced", chapter = nul
  * and wrote, how many wait for their players, the names not yet given, the rows that lapsed.
  *
  * `given` are the students a verdict's batch gave one already before it stopped, and `onGiven`
- * is told each row given here, written or offered, once its waiting row is gone (vote.mjs
+ * is told each row given here, written or offered, once its waiting row is gone (verdict.mjs
  * `verdictLevelUps`; E10 fix r1-G1). The given are still among the living: their rows are
  * not drawn, and their waiting rows do not lapse.
+ *
+ * THE ROW IN FLIGHT (E42 C1c, 1.2.97; E42-05). `onGiving(actor, { offers, advances })` is told each row before
+ * its write - the offers standing on the student and their `advances` as this GM holds them (`givenCounts`) - and
+ * `giving` is that snapshot of a batch that stopped (verdict.mjs `verdictStore.giving`). A `giving` row not in
+ * `given` is settled first: given when either count grew since the snapshot - its write landed and its record did
+ * not, a closed tab between the two - and then its waiting Reinforced is dropped if it still stands and `onGiven`
+ * told; drawn again otherwise. A GM who also gave that student a Level Up by hand between the snapshot and the
+ * Finish reads as given too (the counts grew): said here, not measured.
  */
-export async function runAdvancementBatch(actors, kind = "standard", { given = [], onGiven = null } = {}) {
+export async function runAdvancementBatch(actors, kind = "standard", { given = [], giving = null, onGiving = null, onGiven = null } = {}) {
     if (!game.user.isGM) return null;
     await deferredOfferStore.whenHydrated();
     const byId = new Map((actors ?? []).filter(Boolean).map(a => [a.id, a]));
     const handled = new Set(given);
     const { entries: planned, drop } = advancementPlan([...byId.keys()], deferredOfferStore.entries(), kind);
+    const flying = giving?.actorId && !handled.has(giving.actorId) ? byId.get(giving.actorId) : null;
+    if (flying && await rowGrew(flying, giving)) {
+        if (planned.find(entry => entry.actorId === flying.id)?.deferred) await deferredOfferStore.drop(flying.id);
+        handled.add(flying.id);
+        await onGiven?.(flying);
+    }
     const entries = planned.filter(entry => !handled.has(entry.actorId));
     if (drop.length) await deferredOfferStore.dropMany(drop);
     const done = { opened: entries.length, applied: 0, offered: 0, notGiven: [], lapsed: drop.length };
@@ -1118,6 +1132,7 @@ export async function runAdvancementBatch(actors, kind = "standard", { given = [
     const who = await askWhoPicks(rows);
     for (const { entry, actor, playable, here } of rows) {
         try {
+            await onGiving?.(actor, await givenCounts(actor));
             const choice = !who ? (playable ? "player" : null) : who[actor.id] ?? (playable && here ? "player" : "gm");
             if (choice === "gm" && await openAdvancement(actor, entry.kind, { extraPicks: entry.extraPicks, reasons: entry.reasons })) {
                 done.applied++;
@@ -1143,6 +1158,25 @@ export async function runAdvancementBatch(actors, kind = "standard", { given = [
     return done;
 }
 
+/*
+ * What a row's Level Up raises (E42 C1c): the offers standing on the student and their `advances`, as this GM holds
+ * them. The advances AS THE GMS HOLD THEM since E42 fix FG4 (the end review's S-M3): they were read off the document,
+ * where a player's own raised value stands until the primary puts it back, and a Finish then read that row as given.
+ * Read through the GMs' mark after the student's audit (`judgedFor`, `flagsHeldNow`; R311).
+ */
+async function givenCounts(actor) {
+    const { judgedFor, flagsHeldNow } = await import("./sheet-audit.mjs");
+    await judgedFor(actor.id);
+    const advances = flagsHeldNow(actor).getFlag(MODULE_ID, FLAGS.advances);
+    return { offers: standingOffers(actor).length, advances: Math.max(0, Math.trunc(Number(advances) || 0)) };
+}
+
+/** Whether a row's Level Up landed since `snapshot` (`givenCounts` before its write): either count grew. */
+async function rowGrew(actor, snapshot) {
+    const now = await givenCounts(actor);
+    return now.offers > (Number(snapshot?.offers) || 0) || now.advances > (Number(snapshot?.advances) || 0);
+}
+
 /**
  * The class's one Level Up window (E10 C7): a row per entry, who picks it. Answers each row's
  * choice by actor id - "player" or "gm" - or null when the window is closed. A row with nobody
@@ -1151,7 +1185,7 @@ export async function runAdvancementBatch(actors, kind = "standard", { given = [
  * "HAND THEM OUT" FIRST (E10 fix r1-G2, 1.2.71; the round-1 goal verifier's item (b)). C7 marked
  * it the default - the window's answer is what its rows say - but listed "All: the players pick"
  * first, and Enter in a DialogV2 presses the first submit button in DOM order whatever carries
- * `default` (vote.mjs `openVerdictDialog`, E10 C4): a GM who set rows to "I pick" and pressed
+ * `default` (verdict.mjs `openVerdictDialog`, E10 C4): a GM who set rows to "I pick" and pressed
  * Enter handed every row to its player. Measured on the harness at 1a9a07e (tier 2, "Enter in
  * the class's Level Up window gives what its rows say"): every row "I pick", the form submitted
  * by its first button, the answer was "player" for each. The key itself in Foundry's window is

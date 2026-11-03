@@ -1311,7 +1311,7 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
     phase("Q: a room renamed piece by piece, and a bedroom renamed onto it, by a GM who is not the primary");
     /* E12 fix r2-H4 (early review EARLY-C8-1, widened by the correctness review r2). gm0 is the primary while it is here,
        and the seeded GM writes: the client that writes a rename judges, before the update, whether the piece joins another
-       room (vault.mjs `clearSplitPiece`), and the primary, after it, whether to carry (fog.mjs `noteRegionName`) - each
+       room (vault-store.mjs `clearSplitPiece`), and the primary, after it, whether to carry (fog.mjs `noteRegionName`) - each
        from its own memory of which piece was renamed from which name (rooms.mjs `joinsAnotherRoom`). On a scene made
        here: Aiko's bedroom, the 66 Den, drawn first, and Daichi's 66 Wing in two pieces with his stash; Aiko has
        discovered both. The seeded GM renames the Wing's pieces to the 66 Q Hall one after the other, then the Den. */

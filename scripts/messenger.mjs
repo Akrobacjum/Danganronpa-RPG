@@ -16,7 +16,7 @@
  * with `threadMessages` instead of scrolling past it) and a window instead of
  * the sidebar.
  *
- * `callGm()` in gm-bridge.mjs posts into these same threads - an action that
+ * `callGm()` in call-gm.mjs posts into these same threads - an action that
  * needs a human ruling (Observe, Analyze, Think…) shows up right next to the
  * player's own typed messages, in the same conversation.
  *
@@ -72,7 +72,7 @@ export const MESSENGER_FLAGS = {
      *  bridge writes a parked murder's card from the GM's own session - and
      *  an author check reads those as the GM talking to themselves. */
     gmAsk: "gmAsk",
-    /** This card HAS been answered - see `settleCall` in gm-bridge.mjs. The
+    /** This card HAS been answered - see `settleCall` in call-gm.mjs. The
      *  card's own text already says so; the flag is what lets a renderer know
      *  without reading the HTML back. */
     settled: "settled"
@@ -265,7 +265,7 @@ export async function sendMessage(playerUserId, text, { kind = THREAD_KIND.dm, o
  * The caller is responsible for escaping anything it interpolated. `veiled`: a
  * card whose place in this thread is itself the secret (see the header). `rid`:
  * the mark of the ask the card was posted for - its id and asker, its kind and
- * what it was asked for (gm-bridge.mjs `callGm`, E18 C2; `askMark`, fix
+ * what it was asked for (call-gm.mjs `callGm`, E18 C2; `askMark`, fix
  * early-C2-G2) - in the meta its words travel with, never on the document.
  */
 export async function postToThread(playerUserId, html, { kind = THREAD_KIND.action, gmAsk = false, veiled = false, rid = null } = {}) {

@@ -16,6 +16,8 @@ import { isPrimaryGm, whisperToGms, debug, error, serialWrite, plural } from "./
 import { ownsActor, judge, table, pick, as, knownSender, bridgeRequest } from "./bridge-guards.mjs";
 import { overflowTokenPenalty, overflowFloor } from "./overflow.mjs";
 import { roomFlag, roomNames, viewedScene } from "./rooms.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 
 /**
  * Region flags this file owns.
@@ -150,7 +152,7 @@ export class SearchTokens {
      * `takePlant` takes the plant out of the store before anybody knows whether it fits: a student
      * with full hands and no stash found the plant, `grantItem` refused it, and the plant, its row
      * in the trap's ledger and the killer's project went with it, the GMs told nothing until
-     * `diagnoseTraps`. action-rolls.mjs `grantDrawn` hands a refused plant here: on a GM it goes
+     * `diagnoseTraps`. action-search.mjs `grantDrawn` hands a refused plant here: on a GM it goes
      * back at once (`putPlantBack`), on a player's client the GM is asked as a late plant is
      * (`ACTION_RETURN_PLANT`, judged by `guardPlantReturn`: only the plant handed to that user, once,
      * inside `PLANT_WINDOW_MS`). Answers whether it went back, or was asked to.
@@ -265,7 +267,7 @@ export class SearchTokens {
      * Spend one token and say why not: `{ ok, why }`, `why` one of "sealed", "empty", "unanswered", "refused", null
      * when spent (E17 C4, 26.10.2026; audit S07-20). The GM's refusal of a sealed room came back to the player as a
      * bare false, read as an unanswered request ("The search was not counted."); the reply names it now
-     * (`runSpend`) and the Search says the seal (action-rolls.mjs `unclaimedOutcome`).
+     * (`runSpend`) and the Search says the seal (action-search.mjs `unclaimedOutcome`).
      */
     static async claim(roomName, sceneId, { actorId = null, onPrimary = false } = {}) {
         if (!roomName) return { ok: false, why: "empty" };
@@ -343,19 +345,6 @@ export class SearchTokens {
             if (key !== roomName) delete store[roomName];
             await game.settings.set(MODULE_ID, SETTINGS.searchTokens, store);
             debug(`Search token spent in "${roomName}". Left: ${store[key]}`);
-            return true;
-        });
-    }
-
-    /** Zero out a single room for the rest of the day (project "Tidy the room"). */
-    static async exhaust(roomName, scene) {
-        if (!game.user.isGM || !roomName) return false;
-        return serialWrite(SEARCH_KEY, async () => {
-            const store = foundry.utils.duplicate(this.store);
-            const key = this.key(roomName, scene);
-            store[key] = 0;
-            if (key !== roomName) delete store[roomName];   // same reasoning as above
-            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, store);
             return true;
         });
     }
@@ -443,6 +432,17 @@ export class SearchTokens {
     }
 }
 
+/**
+ * The season reset's searchTokens group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): the keyed refill,
+ * quiet - in a step of SEARCH_KEY (E17 fix e1-G3; the review's E17P1-R3): written outside it, a reset landing while
+ * the primary's spend step ran could be written over by that step's copy of the old counts.
+ */
+export async function clearSeasonSearchTokens() {
+    await SearchTokens.reset({ notify: false });
+}
+
+registerSeasonState({ group: "searchTokens", clear: clearSeasonSearchTokens, settings: [SETTINGS.searchTokens] });
+
 /** `game.drpg.showTokens()`: the readout for the scene on this GM's screen, the scene a GM asking means. */
 export function showSearchTokens() {
     return SearchTokens.report(viewedScene());
@@ -509,6 +509,21 @@ const searchKey = (userId, sceneId, room) => `${userId}::${sceneId ?? "-"}::${ro
  */
 function forgetTokenReturns() {
     for (const [id, entry] of handedOut) if (entry?.kind === "token") handedOut.delete(id);
+}
+
+/**
+ * THE SPENDS' LEDGER PRUNED TOO (E37 C6, 01.11.2026; E37-26, audit S07-44). `searchedBy` was set at every spend and
+ * deleted only by that spend's plant check and its token's return, so a Search that asked neither - every Search a
+ * player's browser ends without a find, every console that skips the check - left its entry on the primary GM for the
+ * rest of the load. An entry older than `PLANT_WINDOW_MS` answers no plant check (`runTakePlant` reads it only inside
+ * the window) and no return (`takeEntry` refuses one older), so it is dropped before the next spend sets one: what the
+ * plant check and the return answer is unchanged. Tier 0 R1199 reads the order; E37-T5's ledger control holds that a
+ * fresh entry of another spend stays.
+ */
+function pruneSpends() {
+    for (const [key, at] of searchedBy) {
+        if (Date.now() - at > PLANT_WINDOW_MS) searchedBy.delete(key);
+    }
 }
 
 /** The ledger's entries older than a return is taken for, gone. */
@@ -646,6 +661,7 @@ async function runSpend(payload, sender, ctx) {
     // marks the Search's record a find may stand on (`SearchTokens.markSpent`).
     if (ok) {
         const at = Date.now();
+        pruneSpends();
         searchedBy.set(searchKey(sender.id, sceneId, payload.roomName), at);
         if (ctx?.requestId) {
             pruneLedger();
@@ -661,7 +677,7 @@ async function runSpend(payload, sender, ctx) {
 /*
  * A SEARCH WHOSE TOKEN WAS REFUSED FINDS NOTHING (E29 fix r2-H9, 06.10.2026; review round 2 cor m3).
  * The searcher's browser ends a Search whose token this GM refused - a room picked clean, or sealed -
- * without a find (action-rolls.mjs `searchUnclaimed`), but the GMs' record of its roll stayed as the
+ * without a find (action-search.mjs `searchUnclaimed`), but the GMs' record of its roll stayed as the
  * draw wrote it, and an item a player's console created named after that record stood as the Search's
  * find (sheet-audit.mjs `searchFind`; red at 2f2747d, the tier-2 test "a Search whose token the GM
  * refused"). The refusal settles the record's "search" now, as a stash's theft does (bridge-guards.mjs
@@ -678,7 +694,7 @@ async function runSpend(payload, sender, ctx) {
  * what the refusal above closes. A spend that succeeds marks the same record - the newest Search
  * of the character drawn for the sender (`SearchTokens.markSpent`) - and the find's judge asks for
  * that mark. A player's Search draws its roll, then spends, and only then draws the find
- * (action-rolls.mjs `performSearch`, and `grantDrawn`, the one road that names a record): the
+ * (action-search.mjs `performSearch`, and `grantDrawn`, the one road that names a record): the
  * Daily Life day of 40-flow flags its find when the spend marks nothing. The rest by reading, not
  * measured: a plant is handed only after a spend (`runTakePlant`); a Reroll keeps the record and
  * its mark, and grants as `reroll`; a spend that reaches this GM before its roll's record does
@@ -861,7 +877,7 @@ export const SEARCH_ACTIONS = table({
         run: runTakePlant,
         answer: "reply", timeoutMs: TIMING.plantRequestMs,
         claims: { sceneId: guardSearchRoom, actorId: guardSearchRoom,
-            rollId: "written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and a Search" }
+            rollId: "written on only by noteFactOfRoll (action-pipeline.mjs): the sender's own row of that message, its character and a Search" }
     },
     [ACTION_RETURN_PLANT]: {
         label: "DRPG.Bridge.what.searchTokens.returnPlant",
@@ -881,7 +897,7 @@ export const SEARCH_ACTIONS = table({
     }
 });
 
-/** Ask the primary GM for a search action as SEARCH_ACTIONS says (`ask` in gm-bridge.mjs is the same); both clocks are its one. */
+/** Ask the primary GM for a search action as SEARCH_ACTIONS says (`ask` in bridge-table.mjs is the same); both clocks are its one. */
 function askSearch(action, payload, opts = {}) {
     const decl = SEARCH_ACTIONS[action];
     return bridgeRequest(action, payload, {

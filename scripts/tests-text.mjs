@@ -424,7 +424,7 @@ const around = (text, at) => text.slice(Math.max(0, at - 10), at + 11).replace(/
  * value, literal or line. Measured on 52eacb9c (31.10.2026): 11 of them, every
  * one written before E65 and in the baseline - the U+2212 sites the stage named
  * (config.mjs's two `meddle` prose strings, read as prose and as literals, their
- * pl.json twins, vault.mjs's spend button, action-rolls.mjs's two signs) and two
+ * pl.json twins, room-setup.mjs's spend button, action-report.mjs's two signs) and two
  * it had not, because they are written as escapes: roll-dialog.mjs's signed
  * source ("\u2212") and season-setup.mjs's mark for an optional step ("\u2013").
  */
@@ -489,12 +489,12 @@ export const TABLE_WORDS_AT_BASE = Object.freeze({
 });
 
 /**
- * tables.mjs's `LEGACY_PLURALS` and `LEGACY_GOAL_LABELS`, read off its text:
- * each `const NAME = { key: ["...", ...], ... }` at the start of a line (so a
- * copy in a "//" comment is not it) as an object of string lists, null where
- * the literal is not there. tables.mjs cannot be imported in Node
- * ("Hooks is not defined"), and the lists are not exported, so check.mjs and a
- * tier read the same text the same way.
+ * tables-pools.mjs's `LEGACY_PLURALS` and `LEGACY_GOAL_LABELS` (tables.mjs's
+ * until E41 C8), read off its text: each `const NAME = { key: ["...", ...],
+ * ... }` at the start of a line (so a copy in a "//" comment is not it) as an
+ * object of string lists, null where the literal is not there. tables-pools.mjs
+ * cannot be imported in Node ("Hooks is not defined"), and the lists are not
+ * exported, so check.mjs and a tier read the same text the same way.
  */
 export function legacyListsFrom(text) {
     const out = {};
@@ -510,7 +510,7 @@ export function legacyListsFrom(text) {
  * T14 (plan, DB13): a table is found by its name, and its name is built from
  * words that are ordinary display copy; every time one was reworded, worlds'
  * tables stopped being found and `drawItem` fell through to the built-in pools
- * in silence (tables.mjs, the comment above LEGACY_PLURALS). So every word the
+ * in silence (tables-pools.mjs, the comment above LEGACY_PLURALS). So every word the
  * names carried at Base (`known`, TABLE_WORDS_AT_BASE) is today's word or in
  * the legacy list of its category or kind, and every legacy word of Base is
  * still in its list - the lists only grow (N5, "Add to this list - do not edit
@@ -527,7 +527,7 @@ export function tableWordProblems({ words, legacyPlurals, legacyGoalLabels, know
     let read = 0;
     const was = knownLegacy ?? { plurals: known.legacyPlurals ?? {}, goalLabels: known.legacyGoalLabels ?? {} };
     for (const [list, name] of [[legacyPlurals, "LEGACY_PLURALS"], [legacyGoalLabels, "LEGACY_GOAL_LABELS"]]) {
-        if (!list || typeof list !== "object") found.push({ key: name, kind: "unread", what: `tables.mjs's ${name} could not be read - T14 has nothing to hold the words to` });
+        if (!list || typeof list !== "object") found.push({ key: name, kind: "unread", what: `tables-pools.mjs's ${name} could not be read - T14 has nothing to hold the words to` });
     }
     const sides = [
         ["plural", words?.plural, legacyPlurals ?? {}, "LEGACY_PLURALS", w => `"DRPG ${w} - Tier n"`, was.plurals ?? {}],
@@ -541,14 +541,14 @@ export function tableWordProblems({ words, legacyPlurals, legacyGoalLabels, know
                 found.push({ key: `${side}.${key}`, kind: "gone", what: `TABLE_NAME_WORDS.${side} has no ${key} now; its tables were named ${nameOf(old)}, and nothing builds that name` });
             } else if (current !== old && !(legacy[key] ?? []).includes(old)) {
                 found.push({ key: `${side}.${key}`, kind: "lost",
-                    what: `TABLE_NAME_WORDS.${side}.${key} is "${current}" now, and "${old}", which it was, is not in tables.mjs ${listName}.${key}: a world's ${nameOf(old)} is not found any more - add the old word to the list, never rename the table` });
+                    what: `TABLE_NAME_WORDS.${side}.${key} is "${current}" now, and "${old}", which it was, is not in tables-pools.mjs ${listName}.${key}: a world's ${nameOf(old)} is not found any more - add the old word to the list, never rename the table` });
             }
         }
         for (const [key, olds] of Object.entries(before)) {
             for (const old of olds) {
                 read++;
                 if (!(legacy[key] ?? []).includes(old)) {
-                    found.push({ key: `${listName}.${key}`, kind: "shrunk", what: `tables.mjs ${listName}.${key} no longer holds "${old}" - the lists only grow (N5): a world's ${nameOf(old)} is not found any more` });
+                    found.push({ key: `${listName}.${key}`, kind: "shrunk", what: `tables-pools.mjs ${listName}.${key} no longer holds "${old}" - the lists only grow (N5): a world's ${nameOf(old)} is not found any more` });
                 }
             }
         }
@@ -706,7 +706,7 @@ const BUDGET_FIELDS = Object.freeze({
     rule: Object.freeze({ required: ["surface"], optional: ["keys", "sender", "note"] }),
     allow: Object.freeze({ required: ["key", "rule", "why", "until"], optional: [] })
 });
-/** The functions a key reaches its reader through (the audience map's senders, E65 C11; utils.mjs, action-rolls.mjs, incident-store.mjs, murder-rules.mjs). */
+/** The functions a key reaches its reader through (the audience map's senders, E65 C11; utils.mjs, action-pipeline.mjs, incident-store.mjs, murder-rules.mjs). */
 export const SENDERS = Object.freeze(["ui.notifications", "announce", "announceCrisis", "whisperToOwner", "whisperToOwnerOnly", "whisperToGms", "roomAudience", "incidentAudienceIds"]);
 const ALLOW_RULE = /^(?:T4|X(?:[1-9]|1\d|2[01]))$/;
 const KEY_NAME = /^[A-Za-z][\w-]*(?:\.[\w-]+)+$/;
@@ -2406,9 +2406,9 @@ export const BASELINES = Object.freeze({
         ]),
         Object.freeze({ in: "script", file: "scripts/config.mjs", quote: "You inflict \u22121", issue: "S02-66", empties: "E25" }),
         Object.freeze({ in: "script", file: "scripts/config.mjs", quote: "rattles you: \u22121", issue: "S02-66", empties: "E25" }),
-        Object.freeze({ in: "script", file: "scripts/vault.mjs", quote: "\">\u2212</button>", issue: "S02-66", empties: "E25", why: "the Search Token spend button's label" }),
-        Object.freeze({ in: "script", file: "scripts/action-rolls.mjs", quote: "\u2212", issue: "S02-66", empties: "E25", why: "`signed`, a roll's bonus" }),
-        Object.freeze({ in: "script", file: "scripts/action-rolls.mjs", quote: "\u2212", issue: "S02-66", empties: "E25", why: "the duality formula's operator" }),
+        Object.freeze({ in: "script", file: "scripts/room-setup.mjs", quote: "\">\u2212</button>", issue: "S02-66", empties: "E25", why: "the Search Token spend button's label (vault.mjs until E41 C6)" }),
+        Object.freeze({ in: "script", file: "scripts/action-report.mjs", quote: "\u2212", issue: "S02-66", empties: "E25", why: "`signed`, a roll's bonus (action-rolls.mjs until E41 C3)" }),
+        Object.freeze({ in: "script", file: "scripts/action-report.mjs", quote: "\u2212", issue: "S02-66", empties: "E25", why: "the duality formula's operator (action-rolls.mjs until E41 C3)" }),
         Object.freeze({ in: "script", file: "scripts/roll-dialog.mjs", quote: "\u2212", issue: "S02-66", empties: "E25", why: "a situational source's sign, written as an escape" }),
         Object.freeze({ in: "script", file: "scripts/season-setup.mjs", quote: "\u2013", issue: "S06-52", empties: "E25", why: "an optional setup step's mark, written as an escape" })
     ])

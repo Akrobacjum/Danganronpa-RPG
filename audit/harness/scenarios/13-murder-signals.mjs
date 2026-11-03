@@ -376,7 +376,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     /* A WITNESS'S F5 MID-INCIDENT (E19 C5; audit S11-07 (1), E19-26). Until C5 a reload read the Music volume the
        incident had turned down (0) as the volume before and parked it: the room's music stayed at 0 for good after
        the incident. Not a real reload - the harness reloads no page: the killer's browser is left as an earlier
-       version's duck left it (Music 0, 0.8 parked) and its ready path is run again (music.mjs `restoreDuckedMusic`,
+       version's duck left it (Music 0, 0.8 parked) and its ready path is run again (murder-music.mjs `restoreDuckedMusic`,
        then `applyMurderMusic`), as registerMusic's `ready` runs it. */
     const reloaded = await p3.eval(`
         const M = await import("${repoUrl}/scripts/music.mjs");
@@ -393,7 +393,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
 
     /* ---- 1a. the clock moves in private (E05 C15, S01-11) --------------------
        The GM moves the time of day while the incident runs. The bystander's HUD keeps
-       the hour the incident began at (hud.mjs `clockForDisplay`); the explainer a click
+       the hour the incident began at (hud-elapsed.mjs `clockForDisplay`); the explainer a click
        on the HUD opens ("Where things stand") read the clock itself and marked the new
        hour. Its window is caught by a queued answer, which reads what it would show.
        The clock is put back afterwards, stamp and all. */
@@ -472,7 +472,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         }
         return true;`;
     /* Each action is taken from the tile, as a player takes it (E32+E07 C15, 03.10.2026): Direct
-       Murder in a fight opens the crisis menu (action-rolls.mjs `openCrisisMenu`), whose row is
+       Murder in a fight opens the crisis menu (action-murder.mjs `openCrisisMenu`), whose row is
        checked and whose default button is pressed by the queued answer; nothing else is queued,
        so a second window - the confirmation the menu was followed by until C15 - is closed, as a
        player who sits still closes it. `windows` is every window the press opened, in order. */

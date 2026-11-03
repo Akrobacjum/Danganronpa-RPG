@@ -419,7 +419,7 @@ export const SETTINGS = {
     /**
      * THE STASHES RIFLED (E14 part 1 C4, 24.10.2026; audit S08-06, D15): a GM store (gm-stores.mjs `rifleStore`),
      * a row per thief, stash owner, scene and room `{ at }` - the time of day of that thief's last free reach into
-     * that stash (vault.mjs `rifleMark`). Synced, not backed up; no player copy.
+     * that stash (stash-reach.mjs `rifleMark`). Synced, not backed up; no player copy.
      */
     gmRifles: "gmRifles",
     /**
@@ -438,7 +438,7 @@ export const SETTINGS = {
     gmTraceDigest: "gmTraceDigest",
     /**
      * THE PRIMARY'S BEAT (E17 C6, 26.10.2026; audit S10-16): a GM store (gm-stores.mjs `clockBeatStore`), one record
-     * `{ at }` - `serverNow()` every 60 s while the world runs (hud.mjs `beatClock`), the last moment a primary GM is
+     * `{ at }` - `serverNow()` every 60 s while the world runs (hud-elapsed.mjs `beatClock`), the last moment a primary GM is
      * known to have been there. At the next `ready` the gap since it is no time of day's (`settleClockAtReady`). A GM
      * store and no world setting: a world write every minute would redraw every player's HUD. Synced, not backed up;
      * no player copy.
@@ -785,7 +785,7 @@ export const SETTINGS = {
      */
     trialQueue: "trialQueue",
     /**
-     * How far through the trial the table has got (vote.mjs `trialProgress`):
+     * How far through the trial the table has got (trial-progress.mjs `trialProgress`):
      * `{ chapter, seconds, keysCharged, voteClosed, verdictApplied, tied,
      * majority, noMajority, vote: { open, round, picks, issued, openedAt,
      * closedAt }, accused: [{ id, n }], total, accusedIds, verdict }`.
@@ -814,6 +814,30 @@ export const SETTINGS = {
      * plain at the table. The ballots are in the GMs' store (`gmBallots`).
      */
     trialProgress: "trialProgress",
+    /**
+     * The readiness round before the clock moves (E37 C3; boundary.mjs): `{ id, kind, boundary, by, at, answers: {
+     * [userId]: "done"|"wait" }, ended? }`, or `{}`. World-scoped because every player's window opens and closes from it;
+     * written by the primary GM alone, in a step of boundary.mjs `READY_KEY`. Nothing secret: user ids, the GM who
+     * pressed, and Done or One moment - what the GM's window lists and the table can see (world-secrets.mjs names it).
+     */
+    readyRound: "readyRound",
+    /**
+     * The last End of chapter's record (E42 C2; chapter.mjs `chapterEndRecord`): `{ stage, by, at, opened, choices,
+     * ending, done, failed, notRun }`, and once dropped `droppedBy` and `droppedAt`, or `{}`. World-scoped so the GM
+     * panel's next line and the End of chapter window read a stopped end on any GM's browser; written by the primary GM
+     * alone, inside chapter.mjs `applyChapterEnd`'s queue. Nothing secret: step keys, the clock's numbers and phases, the
+     * window's boxes, GM ids and times (world-secrets.mjs names it).
+     */
+    chapterEnd: "chapterEnd",
+    /**
+     * The last season reset's record (E42 C4; season-wipe.mjs `seasonResetRecord`): `{ stage, by, at, groups, done,
+     * failed, notRun, season, chapter, session, day, timeOfDay }` (the clock's position at the write: the season since E42
+     * fix FG3, the rest since FG3b; season-wipe.mjs `unfinishedGroups`), or `{}`. World-scoped so the reset's window reads a reset that did not finish on whichever
+     * browser is the primary GM's now; written by the primary GM alone, inside season-wipe.mjs `wipeSeason` - after the
+     * cut, after every step and at the end. Nothing secret: the reset's group keys and step keys and the GM's id
+     * (world-secrets.mjs names it).
+     */
+    seasonReset: "seasonReset",
     /**
      * Who the Mastermind is, on GM browsers only.
      *
@@ -942,6 +966,61 @@ export const SETTINGS = {
     regionFog: "regionFog"
 };
 
+/*
+ * THE LIFETIME OF EVERY WORLD SETTING (E42 C4, 1.2.97; E42-16; D36 = option 2, Q-E42-2; audit S17-30). Foundry sends every
+ * world setting to every browser and keeps it until somebody writes it: nothing says whether a value belongs to this
+ * season, to the campaign or to the table, so a new setting of the season that no reset group wrote rode into the next
+ * season and failed no test (`readyRound`, E37 C3, was one). Every world setting this module registers is tagged here,
+ * and tier 0 R1256 holds the tags to the registrations and to the registry of season state (season-reset.mjs
+ * `lifetimeProblems`):
+ * - "season": the reset clears it - exactly one entry of the registry names it in its `settings` and clears it;
+ * - "campaign": what the GMs built for this campaign and its maps, kept by every reset;
+ * - "table": how this table plays, and the module's own bookkeeping, kept by every reset.
+ * A client setting takes no tag: it is each browser's own (the notice history's entry describes it, A7). Every setting
+ * the reset kept at 1.2.96 is kept (Q-E42-2); the reset clears three it did not: the students' division between the
+ * Monokumas (`gmAssignments`, D36 = 2) and the clock's two transient records, the readiness round (`readyRound`) and
+ * the End of chapter's (`chapterEnd`).
+ */
+const SEASON_SETTINGS = [
+    SETTINGS.murderState, SETTINGS.sealedRooms, SETTINGS.restrictions, SETTINGS.projectMeta, SETTINGS.trialQueue,
+    SETTINGS.trialProgress, SETTINGS.bodyFound, SETTINGS.bodiesFound, SETTINGS.discoveredRooms, SETTINGS.searchTokens,
+    SETTINGS.motive, SETTINGS.killingGameRules, SETTINGS.pendingGather, SETTINGS.gmAssignments, SETTINGS.despairPools,
+    SETTINGS.overflow, SETTINGS.clock, SETTINGS.readyRound, SETTINGS.chapterEnd
+];
+/*
+ * The campaign's. The remembered exceptions and the scenes' roles, Room Setup's players' regions, the item tables' music
+ * and sound maps (D36's list). And what 1.2.96's reset kept that D36's list does not name (Q-E42-2): the overflow's rules
+ * - set once a season when the GMs decide how hard their table wants it, before the reset's next season starts - the
+ * Despair roster (the pools' names, the Assistant GMs granted a pool, the Monokuma characters' pools), the season each
+ * player account was last seen with (E79: it is how a reset is told from an account moved on), and the reset's own
+ * record, which the next reset reads.
+ */
+const CAMPAIGN_SETTINGS = [
+    SETTINGS.seasonExceptions, SETTINGS.sceneRoles, SETTINGS.playerRegions, SETTINGS.overflowRules, SETTINGS.poolNames,
+    SETTINGS.extraPoolUsers, SETTINGS.monokumaPools, SETTINGS.accountCharacters, SETTINGS.musicMap, SETTINGS.sfxMap,
+    SETTINGS.seasonReset
+];
+/*
+ * The table's. The Configure Settings rows and what the module holds for every browser (the dice look and its source,
+ * the language, voice, music, the safeword, the fog, the rules of play the GM switches), the held Foundry settings and
+ * their before-values, the migration's version, and the frozen keys a GM store's claim reads once (`legacy*`).
+ */
+const TABLE_SETTINGS = [
+    SETTINGS.forcePrivateRolls, SETTINGS.forceDiceLook, SETTINGS.diceLookSource, SETTINGS.diceLookWorld, SETTINGS.enforceAnonymity,
+    SETTINGS.searchTokensPerRoom, SETTINGS.enforceIsoWelcome, SETTINGS.enforceDhWelcome, SETTINGS.enforcePlayerFiles,
+    SETTINGS.liveKitInFoundry, SETTINGS.hideSystemFear, SETTINGS.documentLanguage, SETTINGS.voiceEnabled, SETTINGS.voiceTile,
+    SETTINGS.foundryBefore, SETTINGS.foundryGivenBack, SETTINGS.musicEnabled, SETTINGS.sfxVary, SETTINGS.safeword,
+    SETTINGS.migratedVersion, SETTINGS.caseMark, SETTINGS.moveAudit, SETTINGS.foundryToolWindows, SETTINGS.isoTokenShield,
+    SETTINGS.regionFog, SETTINGS.despairFromRolls, SETTINGS.lockRollDialog, SETTINGS.roomVisibility, SETTINGS.lockPlayerResources,
+    SETTINGS.friskForce, SETTINGS.chargeMovement, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves
+];
+/** Every world setting the module registers, by its key -> "season", "campaign" or "table" (above). */
+export const WORLD_LIFETIMES = Object.freeze(Object.fromEntries([
+    ...SEASON_SETTINGS.map(key => [key, "season"]),
+    ...CAMPAIGN_SETTINGS.map(key => [key, "campaign"]),
+    ...TABLE_SETTINGS.map(key => [key, "table"])
+]));
+
 /**
  * The word a table gets if it never chooses one.
  *
@@ -971,7 +1050,7 @@ export const DEFAULT_CLOCK = {
     campaignName: "",
     /**
      * Which season this is: 1, and one more at every season reset that wipes the
-     * clock (season-setup.mjs `wipeSeason`; E10 C10, D12 option 1). A count: no other
+     * clock (season-wipe.mjs `wipeSeason`; E10 C10, D12 option 1). A count: no other
      * reader at 1.2.71 (grep of scripts/ on 10.10.2026) - the season's epoch is
      * `seasonStartedAt` - until user-match.mjs's record of which accounts a GM has word
      * on stamped its rows with it (E79 fix r3-G1, 17.10.2026).
@@ -1008,14 +1087,14 @@ export const DEFAULT_CLOCK = {
      * elapsed timer freezes here, and the break's length goes into
      * `pausedTotalMs` when play resumes - a pause is not time the table spent
      * on this time of day. Written by the primary GM on `pauseGame` and, for a
-     * world that loads paused (no `pauseGame` fires then), at `ready` (hud.mjs
+     * world that loads paused (no `pauseGame` fires then), at `ready` (hud-elapsed.mjs
      * `settleClockAtReady`).
      */
     pausedAt: null,
     /**
      * THE PAUSES OF THIS TIME OF DAY, in ms (E17 C6, 26.10.2026; audit S10-16):
      * what the stopwatch subtracts from the time since `timeOfDayStartedAt`.
-     * Added to on an unpause (hud.mjs `unpausePatch`) and at the primary's
+     * Added to on an unpause (hud-elapsed.mjs `unpausePatch`) and at the primary's
      * `ready`, when the gap since its last beat (the GMs' "clockBeat", every
      * 60 s while the world runs) was nobody's play; 0 again with every new
      * time of day (`setClock`). E37's summary at every boundary reads it by
@@ -1026,7 +1105,7 @@ export const DEFAULT_CLOCK = {
      * WHEN A GM LAST WROTE THE CLOCK, as `serverNow()` (E17 fix p2-G1, 26.10.2026; the end
      * review's E17p2-R1 and R5): stamped by clock.mjs `setClock` on every write it makes, unless
      * the patch names it (a restore keeps its own). The primary's `ready` reads it beside the
-     * GMs' beat (hud.mjs `readyPatch`): the beat is one GM's browser's (a client setting), so a
+     * GMs' beat (hud-elapsed.mjs `readyPatch`): the beat is one GM's browser's (a client setting), so a
      * GM who opens the world on another computer had none and the gap between two sessions was
      * counted, and a reload in the minute after an unpause, before the next beat, counted the
      * pause a second time. Every unpause writes the clock, so this is at or after the end of
@@ -1068,7 +1147,7 @@ export const DEFAULT_CLOCK = {
      * calendar and the stopwatch's fields of the clock when `openMurder` opened the
      * running incident (clock.mjs `frozenClockOf`), or null. A bystander's HUD shows
      * it while the incident runs and the browser has no copy of its own from before
-     * (a reload; hud.mjs `shownClock`). On the clock, not in the incident's world
+     * (a reload; hud-elapsed.mjs `shownClock`). On the clock, not in the incident's world
      * half: it names nobody and says nothing every screen did not show at the open,
      * and the incident's world half stays the two fields `PUBLIC_INCIDENT` lists.
      */
@@ -1865,7 +1944,7 @@ export function registerSettings() {
         default: {}
     });
     // The stashes rifled (E14 part 1 C4): no `onChange` - shown nowhere, read by the next free reach into a stash, on
-    // the GM that serves it (vault.mjs `stealFromVault`).
+    // the GM that serves it (stash-reach.mjs `stealFromVault`).
     game.settings.register(MODULE_ID, SETTINGS.gmRifles, {
         scope: "client",
         config: false,
@@ -1934,7 +2013,7 @@ export function registerSettings() {
         default: {}
     });
     // Who ruled each card to the GMs (E18 C3): no `onChange` - shown nowhere, read by the claim on a
-    // card (gm-bridge.mjs `claimOnPrimary`).
+    // card (call-gm.mjs `claimOnPrimary`).
     game.settings.register(MODULE_ID, SETTINGS.gmRuledCards, {
         scope: "client",
         config: false,
@@ -2288,7 +2367,10 @@ export function registerSettings() {
     /* A change of the cast repaints what the world half's change repaints, and since E32 C2
        says so as well (`drpgCastChanged`): a pass of the turn writes the cast alone, and a
        client setting's write fires no `updateSetting` - the GM's incident tracker and the
-       "your turn" chime (sfx.mjs) listened there for the turn. */
+       "your turn" chime (sfx.mjs) listened there for the turn. The repaint is sync.mjs
+       `SYNC.incident`'s row since E37 C5 (`SETTING_KINDS.murderState`, through `applyFor`):
+       the sheets, the HUD and the visibility pass that shows a participant the incident's
+       Remnants once its copy lands (audit S07-26; 81 part G). */
     const onCastChange = () => {
         onWorldChange(SETTINGS.murderState);
         Hooks.callAll("drpgCastChanged");
@@ -2365,6 +2447,32 @@ export function registerSettings() {
         type: Object,
         default: {},
         onChange: () => onWorldChange(SETTINGS.trialProgress)
+    });
+
+    // The readiness round (E37 C3): every browser's window follows it through sync.mjs `SYNC.ready`.
+    game.settings.register(MODULE_ID, SETTINGS.readyRound, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onWorldChange(SETTINGS.readyRound)
+    });
+
+    // The End of chapter's record (E42 C2): the trial console and the GM panel follow it through sync.mjs `SYNC.trial`.
+    game.settings.register(MODULE_ID, SETTINGS.chapterEnd, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onWorldChange(SETTINGS.chapterEnd)
+    });
+
+    // The last season reset's record (E42 C4): read by the reset's window as it opens, so nothing redraws on its change.
+    game.settings.register(MODULE_ID, SETTINGS.seasonReset, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {}
     });
 
     // Client-scoped, deliberately: see the note on SETTINGS.mastermind.

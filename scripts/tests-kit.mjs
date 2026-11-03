@@ -568,6 +568,11 @@ const env = Object.freeze({
        GMs' audit run on. Which GM that is is a fact about this browser at this table, so a test of those roads run from a
        second GM skips instead of failing; the harness's GM is the primary, so nothing skips for it there. */
     primaryGm: () => probe("env.primaryGm", isPrimaryGm(), "this browser is not the primary GM"),
+    /* Two players connected who own a living student (E37 C3): who is at the table now, which the readiness round asks
+       (boundary.mjs `roundUsers`). The harness connects three; a GM alone at a sandbox has none, and a test of the round
+       skips there instead of failing. */
+    playersConnected: () => probe("env.playersConnected", game.users.filter(u => !u.isGM && u.active
+        && living().some(a => a.testUserPermission(u, "OWNER"))).length >= 2, "fewer than two players who own a living student are connected here"),
     /* jsdom answers every element's fontFamily with the words "depends on user agent" (the
        note in "the theme speaks two faces" has the story); a browser names a face. */
     fonts: () => {
@@ -1111,26 +1116,385 @@ function importCycles(files) {
  * are declarations now, so it reads the declarations themselves. The table files
  * are imported, which also proves each still exports its table; the source text
  * is read only where a declaration names a function whose body matters (the
- * run, and what the run hands its packet to).
+ * run, and what the run hands its packet to) - in the table's own file and,
+ * since E41 C2, in its family: the files its runs reach into, which a split of
+ * the table's file moves them to (`bridgeCrawlSources`, R1235).
+ *
+ * Every other reader of the bridge's code reads its family too, since E41 C2b
+ * (R1238): gm-bridge.mjs, then BRIDGE_ACTIONS' table file and that row's family
+ * (`bridgeFamily`). A function is cut in the one file of it that declares it
+ * (`bridgeFn`), a search of the whole text reads every file of it (`bridgeText`),
+ * and a census key names its family's file as gm-bridge.mjs (`censusFile`), so a
+ * move of the bridge's code between those files changes no key and leaves no
+ * reader reading less.
  */
 async function bridgeTables() {
     const out = [];
-    for (const [file, name] of BRIDGE_TABLE_FILES) {
+    const served = async (file, whose) => {
+        const res = await fetch(`/modules/${MODULE_ID}/scripts/${file}`);
+        must(res.ok, `${file}${whose} is not served (HTTP ${res.status})`);
+        return stripComments(await lfText(res));
+    };
+    for (const [file, name, family] of BRIDGE_TABLE_FILES) {
         const module = await import(`./${file}`);
         must(module[name] && typeof module[name] === "object",
             `${file} no longer exports ${name} - the bridge's tables cannot be read until it does`);
-        const res = await fetch(`/modules/${MODULE_ID}/scripts/${file}`);
-        must(res.ok, `${file} is not served (HTTP ${res.status})`);
-        out.push({ file, name, table: module[name], module, text: stripComments(await lfText(res)) });
+        must(Array.isArray(family), `${file}'s row in BRIDGE_TABLE_FILES names no family list - its crawl cannot be read`);
+        const text = await served(file, "");
+        const kin = [];
+        for (const member of family) kin.push([member, await served(member, `, in the family of ${file}'s ${name},`)]);
+        out.push({ file, name, table: module[name], module, text, family: kin });
     }
     return out;
 }
 
-/** The tables and the files that hold them (E31: the bridge, the trap relay, the search tokens; E06 C5a: a roll's subject). */
+/**
+ * The tables, the files that hold them, and each table's family (E31: the bridge, the trap relay, the search tokens;
+ * E06 C5a: a roll's subject; E41 C2: the family). A family is the files a table's runs reach into beyond its own file:
+ * the run files and helpers a split of the table's file moves code to, read by the crawls after the table's own file
+ * (`bridgeCrawlSources`). Every family was empty until the bridge's moves (E41 C5, C5a, C5b), which list theirs in
+ * BRIDGE_ACTIONS' row; tools/moved-only.mjs `bridgeReach` reads these rows off this text, in either form, `["file", "NAME"]`
+ * or `["file", "NAME", [...]]`.
+ */
 const BRIDGE_TABLE_FILES = Object.freeze([
-    ["gm-bridge.mjs", "BRIDGE_ACTIONS"], ["traps.mjs", "TRAP_ACTIONS"], ["search-tokens.mjs", "SEARCH_ACTIONS"],
-    ["private-rolls.mjs", "ROLL_ACTIONS"]
+    ["bridge-table.mjs", "BRIDGE_ACTIONS", [
+        "call-gm.mjs", "bridge-wire.mjs", "bridge-runs-acts.mjs", "bridge-runs-records.mjs", "bridge-asks.mjs"
+    ]],
+    ["traps.mjs", "TRAP_ACTIONS", []], ["search-tokens.mjs", "SEARCH_ACTIONS", []], ["private-rolls.mjs", "ROLL_ACTIONS", []]
 ]);
+
+/**
+ * The texts a crawl of one table's runs cuts in (E41 C2), as `[file, text]` in order: the table's own file, then each
+ * file of its family, comments stripped (as `bridgeTables()` hands them). A name declared in two of them is cut in the
+ * first - the table's own file before its family.
+ */
+function bridgeCrawlSources(entry) {
+    return [[entry.file, entry.text ?? ""], ...(entry.family ?? [])];
+}
+
+/** The cut of `name` in one table's crawl sources, `{ file, source }`, or null when none of them declares it. */
+function bridgeCut(entry, name) {
+    for (const [file, text] of bridgeCrawlSources(entry)) {
+        const source = topLevelFunction(text, name);
+        if (source) return { file, source };
+    }
+    return null;
+}
+
+/**
+ * R163's lookup for one table's runs (E41 C2): a function's cut by name in the table's crawl sources, else in
+ * bridge-guards.mjs's text (`leaf`), else null - what `payloadReads` follows a packet into.
+ */
+function bridgeLookup(entry, leaf) {
+    return name => bridgeCut(entry, name)?.source ?? topLevelFunction(leaf, name);
+}
+
+/**
+ * The names the table's own declarations call (E41 C5a0), in the order they stand: every `name(` of the statement
+ * `const <NAME> = ...` in the table's file (`entry.text`, cut to the next top-level declaration), string literals
+ * blanked - a helper that builds a declaration (BRIDGE_ACTIONS' `handover(...)`), a `rolled` derive (`palmRolls(...)`,
+ * `friskRolls(...)`), a bound a guard reads (`hardestRepair()`). Empty when the file holds no such statement.
+ */
+function bridgeDeclarationCalls(entry) {
+    const text = String(entry.text ?? "");
+    const at = text.search(new RegExp(`^(?:export )?const ${entry.name} = `, "m"));
+    if (at < 0) return [];
+    const line = text.indexOf("\n", at);
+    const next = line < 0 ? -1 : text.slice(line).search(/^(?:export )?(?:async )?function |^(?:export )?(?:const|let|class) /m);
+    const statement = text.slice(at, line < 0 || next < 0 ? text.length : line + next);
+    return [...stripStrings(statement).matchAll(/\b([A-Za-z_$][\w$]*)\s*\(/g)].map(m => m[1]);
+}
+
+/**
+ * R164's crawl of one table (E31; the kit's since E41 C2, so R1235 runs it on a fixture): from the table's runs, and
+ * since E41 C5a0 from the names its own declarations call (`bridgeDeclarationCalls`), every name called in a function
+ * it cut (string literals blanked), cut again, in the table's crawl sources - each function once, as
+ * `{ file, name, source }`, in the order it was reached. A name no crawl source declares is passed by: a global, a
+ * method, or a function of another file, which this does not follow. The declarations' calls were read until E41 C5a
+ * only because gm-bridge.mjs's last run, `handleCardPost`, stood before BRIDGE_ACTIONS and its cut ran on through the
+ * table (`topLevelFunction` stops at the next function); a split that moves the runs away from the table leaves them
+ * read by nothing else (`handover`, `hardestRepair`, `friskRolls`, `palmRolls`, measured on C5a's tree).
+ */
+function bridgeCrawl(entry) {
+    const out = [], seen = new Set();
+    const queue = [...Object.values(entry.table ?? {}).map(decl => decl.run?.name), ...bridgeDeclarationCalls(entry)];
+    while (queue.length) {
+        const name = queue.shift();
+        if (!name || seen.has(name)) continue;
+        seen.add(name);
+        const found = bridgeCut(entry, name);
+        if (!found) continue;
+        out.push({ file: found.file, name, source: found.source });
+        for (const m of stripStrings(found.source).matchAll(/\b([A-Za-z_$][\w$]*)\s*\(/g)) queue.push(m[1]);
+    }
+    return out;
+}
+
+/**
+ * The bridge's family (E41 C2b, R1238): gm-bridge.mjs - the facade, which keeps the GM -> player wire and the
+ * registration - then BRIDGE_ACTIONS' table file and the family its row lists, each once. `rows` is the kit's own
+ * BRIDGE_TABLE_FILES unless a test hands a fixture. The bridge's moves (E41 C5, C5a, C5b) list their new files in that
+ * row, and every reader of the bridge's code reads them through this, so none of those moves repoints a test.
+ */
+function bridgeFamily(rows = BRIDGE_TABLE_FILES) {
+    const row = rows.find(([, name]) => name === "BRIDGE_ACTIONS");
+    return [...new Set(["gm-bridge.mjs", ...(row ? [row[0], ...(row[2] ?? [])] : [])])];
+}
+
+/** The line `bridgeText` puts between two files: the second of `topLevelFunction`'s two ends, so no cut runs on into the next file. */
+const BRIDGE_FAMILY_END = "const BRIDGE_FAMILY_END = {};";
+
+/**
+ * Each file of the family with its text, comments stripped, and the sentence a reader refuses with - a file of the
+ * family that is not among `sources` (named), no file of it that declares `name`, or two that do - or null. Pure, so
+ * R1238 reads each refusal without one being thrown; `bridgeFn` and `bridgeText` refuse with it.
+ */
+function bridgeRead(sources, name = null, family = bridgeFamily()) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string");
+    const texts = family.filter(file => !gone.includes(file)).map(file => [file, stripComments(map.get(file))]);
+    const found = name === null ? [] : texts.map(([file, text]) => [file, topLevelFunction(text, name)]).filter(([, cut]) => cut !== null);
+    const why = gone.length ? `${gone.join(", ")}, of the bridge's family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`
+        : name === null ? null
+        : found.length > 1 ? `${name}() is declared in ${found.length} files of the bridge's family (${found.map(([file]) => file).join(", ")}) - this cannot tell which is read`
+        : !found.length ? `the bridge's family (${family.join(", ")}) no longer declares a top-level function ${name}() - this test reads nothing until it is pointed at the code again`
+        : null;
+    return { texts, cut: found.length === 1 ? found[0][1] : null, why };
+}
+
+/**
+ * The cut of the top-level function `name` in the one file of the bridge's family that declares it (E41 C2b), comments
+ * stripped: what `fnSource(stripComments(sources.get("gm-bridge.mjs")), name)` read while the bridge was one file. A
+ * `must` names the family when no file of it declares the name, and the files when two do (a cut of either would be
+ * a guess).
+ */
+function bridgeFn(sources, name, family = bridgeFamily()) {
+    const { cut, why } = bridgeRead(sources, name, family);
+    must(!why, why);
+    return cut;
+}
+
+/**
+ * The family's texts, comments stripped, joined by a line `const BRIDGE_FAMILY_END = {};` (E41 C2b): what a search of
+ * gm-bridge.mjs's whole text read while the bridge was one file. The line ends every cut at its file's end, so a
+ * `fnSource` or `topLevelFunction` of this text cuts as `bridgeFn` does, but takes the first of two declarations.
+ */
+function bridgeText(sources, family = bridgeFamily()) {
+    const { texts, why } = bridgeRead(sources, null, family);
+    must(!why, why);
+    return texts.map(([, text]) => text).join(`\n${BRIDGE_FAMILY_END}\n`);
+}
+
+/**
+ * The file a census key names for a top-level statement of `file` (E41 C2b): "gm-bridge.mjs" for every file of the
+ * bridge's family, as the PACKET keys built from the table already are, and the file itself otherwise - so a move
+ * between the family's files renames no key.
+ */
+function censusFile(file, family = bridgeFamily()) {
+    return family.includes(file) ? "gm-bridge.mjs" : file;
+}
+
+/**
+ * The action family (E41 C3, C4): action-rolls.mjs - the facade, which keeps `performAction` and its dispatch - and the
+ * files the split moved code into. C3's shared layer: the roll and its record (action-pipeline.mjs), the roll's card
+ * (action-report.mjs), the briefing (action-briefing.mjs) and the variant menu with its fields (action-menus.mjs).
+ * C4's actions, in the order they stood in action-rolls.mjs: the Search (action-search.mjs), Work on Project with the
+ * Sabotage (action-project.mjs), Tamper (action-tamper.mjs), Palm's player half (palm.mjs), Observe, Analyze, Listen
+ * and Rest (action-observe.mjs, action-analyze.mjs, action-listen.mjs, action-rest.mjs), Direct Murder with the
+ * betrayal and the fight's menu (action-murder.mjs) and the Dynamic action (action-dynamic.mjs). frisk.mjs is not of
+ * the family (E80, the owner's A11 of 13.10: a file of its own; R1230). A reader of the family follows each file
+ * here without a repoint of its own.
+ */
+const ACTION_FAMILY = Object.freeze([
+    "action-rolls.mjs", "action-pipeline.mjs", "action-report.mjs", "action-briefing.mjs", "action-menus.mjs",
+    "action-search.mjs", "action-project.mjs", "action-tamper.mjs", "palm.mjs", "action-observe.mjs", "action-analyze.mjs",
+    "action-listen.mjs", "action-rest.mjs", "action-murder.mjs", "action-dynamic.mjs"
+]);
+
+/** The line `actionText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
+const ACTION_FAMILY_END = "const ACTION_FAMILY_END = {};";
+
+/**
+ * The action family's texts, raw, in ACTION_FAMILY's order, joined by the line `const ACTION_FAMILY_END = {};` (E41 C3):
+ * what a read of action-rolls.mjs's whole text read while the actions were one file. A reader strips the comments
+ * itself, as it did; a `fnSource` or `topLevelFunction` of the text cuts a function in its own file. A file of the
+ * family that is not among `sources` refuses by `must`, by name.
+ */
+function actionText(sources, family = ACTION_FAMILY) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string");
+    must(!gone.length, `${gone.join(", ")}, of the action family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`);
+    return family.map(file => map.get(file)).join(`\n${ACTION_FAMILY_END}\n`);
+}
+
+/**
+ * The stash's family (E41 C6): vault.mjs - the facade, which holds no code since C6 - and the files its code moved
+ * into, in the order it stood there: the stash's record and the rooms' flags (vault-store.mjs), what a character does
+ * at a stash and a GM judges of it (stash-reach.mjs), the GM's side of a Palm (palm.mjs, which holds the player's half
+ * as well and is of the action family too) and Room Setup (room-setup.mjs). passages-tab.mjs is not of the family (E79
+ * C5: a file of its own, which Room Setup reaches by `import()`). A reader of vault.mjs's text reads the family through
+ * `vaultText` and follows each file here without a repoint of its own.
+ */
+const VAULT_FAMILY = Object.freeze(["vault.mjs", "vault-store.mjs", "stash-reach.mjs", "palm.mjs", "room-setup.mjs"]);
+
+/** The line `vaultText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
+const VAULT_FAMILY_END = "const VAULT_FAMILY_END = {};";
+
+/**
+ * The stash's family's texts, raw, in VAULT_FAMILY's order, joined by the line `const VAULT_FAMILY_END = {};` (E41 C6):
+ * what a read of vault.mjs's whole text read while the stash was one file, and palm.mjs's player half beside it. A
+ * reader strips the comments itself, as it did; a `fnSource` or `topLevelFunction` of the text cuts a function in its
+ * own file. A file of the family that is not among `sources` refuses by `must`, by name.
+ */
+function vaultText(sources, family = VAULT_FAMILY) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string");
+    must(!gone.length, `${gone.join(", ")}, of the stash's family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`);
+    return family.map(file => map.get(file)).join(`\n${VAULT_FAMILY_END}\n`);
+}
+
+/**
+ * The GM panel's family (E41 C7a): gm-panel.mjs - the facade, which keeps the panel, its sections and its other
+ * windows - and the files two of its windows moved into, in the order they stood there: the Students window
+ * (gm-students.mjs) and Edit campaign (gm-campaign.mjs). A reader of gm-panel.mjs's text reads the family through
+ * `panelText` and follows each file here without a repoint of its own.
+ */
+const PANEL_FAMILY = Object.freeze(["gm-panel.mjs", "gm-students.mjs", "gm-campaign.mjs"]);
+
+/** The line `panelText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
+const PANEL_FAMILY_END = "const PANEL_FAMILY_END = {};";
+
+/**
+ * The GM panel's family's texts, raw, in PANEL_FAMILY's order, joined by the line `const PANEL_FAMILY_END = {};` (E41
+ * C7a): what a read of gm-panel.mjs's whole text read while the panel was one file. A reader strips the comments
+ * itself, as it did; a `fnSource` or `topLevelFunction` of the text cuts a function in its own file. A file of the
+ * family that is not among `sources` refuses by `must`, by name.
+ */
+function panelText(sources, family = PANEL_FAMILY) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string");
+    must(!gone.length, `${gone.join(", ")}, of the GM panel's family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`);
+    return family.map(file => map.get(file)).join(`\n${PANEL_FAMILY_END}\n`);
+}
+
+/**
+ * The HUD's family (E41 C7b): hud.mjs - the facade, which keeps the clock's widget, its rows and its controls - and
+ * the file the stopwatch moved into with the clock it shows (hud-elapsed.mjs). A reader of hud.mjs's text reads the
+ * family through `hudText` and follows each file here without a repoint of its own.
+ */
+const HUD_FAMILY = Object.freeze(["hud.mjs", "hud-elapsed.mjs"]);
+
+/** The line `hudText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
+const HUD_FAMILY_END = "const HUD_FAMILY_END = {};";
+
+/**
+ * The HUD's family's texts, raw, in HUD_FAMILY's order, joined by the line `const HUD_FAMILY_END = {};` (E41 C7b):
+ * what a read of hud.mjs's whole text read while the HUD was one file. A reader strips the comments itself, as it
+ * did; a `fnSource` or `topLevelFunction` of the text cuts a function in its own file. A file of the family that is
+ * not among `sources` refuses by `must`, by name.
+ */
+function hudText(sources, family = HUD_FAMILY) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string");
+    must(!gone.length, `${gone.join(", ")}, of the HUD's family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`);
+    return family.map(file => map.get(file)).join(`\n${HUD_FAMILY_END}\n`);
+}
+
+/**
+ * The item tables' family (E41 C8): tables.mjs - the facade, which holds no code since C8 - and the files its code
+ * moved into, in the order it stood there: a table's names, the pools, the roles, the draw and the index
+ * (tables-pools.mjs), then Install and the item tables window (tables-editor.mjs). A reader of tables.mjs's text reads
+ * the family through `tablesText` and follows each file here without a repoint of its own.
+ */
+const TABLES_FAMILY = Object.freeze(["tables.mjs", "tables-pools.mjs", "tables-editor.mjs"]);
+
+/** The line `tablesText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
+const TABLES_FAMILY_END = "const TABLES_FAMILY_END = {};";
+
+/**
+ * The item tables' family's texts, raw, in TABLES_FAMILY's order, joined by the line `const TABLES_FAMILY_END = {};`
+ * (E41 C8): what a read of tables.mjs's whole text read while the tables were one file. A reader strips the comments
+ * itself, as it did; a `fnSource` or `topLevelFunction` of the text cuts a function in its own file. A file of the
+ * family that is not among `sources` refuses by `must`, by name.
+ */
+function tablesText(sources, family = TABLES_FAMILY) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string");
+    must(!gone.length, `${gone.join(", ")}, of the item tables' family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`);
+    return family.map(file => map.get(file)).join(`\n${TABLES_FAMILY_END}\n`);
+}
+
+/**
+ * The music's family (E41 C9a): music.mjs - the facade, which keeps `nowPlayingHere` and `diagnoseMusic` - and the
+ * files its code moved into, in the order their first statement stood there: the engine (music-play.mjs), the states
+ * and the map (music-states.mjs), the Sound window (sound-panel.mjs) and the murder music (murder-music.mjs). A reader
+ * of music.mjs's text reads the family through `musicText` and follows each file here without a repoint of its own.
+ */
+const MUSIC_FAMILY = Object.freeze(["music.mjs", "music-play.mjs", "music-states.mjs", "sound-panel.mjs", "murder-music.mjs"]);
+
+/** The line `musicText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
+const MUSIC_FAMILY_END = "const MUSIC_FAMILY_END = {};";
+
+/**
+ * The music's family's texts, raw, in MUSIC_FAMILY's order, joined by the line `const MUSIC_FAMILY_END = {};` (E41
+ * C9a): what a read of music.mjs's whole text read while the music was one file. A reader strips the comments itself,
+ * as it did; a `fnSource` or `topLevelFunction` of the text cuts a function in its own file. A file of the family that
+ * is not among `sources` refuses by `must`, by name.
+ */
+function musicText(sources, family = MUSIC_FAMILY) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string");
+    must(!gone.length, `${gone.join(", ")}, of the music's family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`);
+    return family.map(file => map.get(file)).join(`\n${MUSIC_FAMILY_END}\n`);
+}
+
+/**
+ * The sound engine's family (E41 C9a): sfx.mjs - the facade, which keeps `registerSfx`, its listeners, the unlock and
+ * `diagnoseSfx`, and the Sound window's sliders, Effects tab and launcher (they stay: in sound-panel.mjs they close a
+ * static import cycle; E41-16, carried to E73) - and the file its player moved into (sfx-play.mjs). A reader of
+ * sfx.mjs's text reads the family through `sfxText`.
+ */
+const SFX_FAMILY = Object.freeze(["sfx.mjs", "sfx-play.mjs"]);
+
+/** The line `sfxText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
+const SFX_FAMILY_END = "const SFX_FAMILY_END = {};";
+
+/**
+ * The sound engine's family's texts, raw, in SFX_FAMILY's order, joined by the line `const SFX_FAMILY_END = {};` (E41
+ * C9a): what a read of sfx.mjs's whole text read while the engine was one file. A reader strips the comments itself, as
+ * it did; a `fnSource` or `topLevelFunction` of the text cuts a function in its own file. A file of the family that is
+ * not among `sources` refuses by `must`, by name.
+ */
+function sfxText(sources, family = SFX_FAMILY) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string");
+    must(!gone.length, `${gone.join(", ")}, of the sound engine's family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`);
+    return family.map(file => map.get(file)).join(`\n${SFX_FAMILY_END}\n`);
+}
+
+/**
+ * The vote's family (E41 C10a): vote.mjs - the facade, which keeps the ballots, the rounds, the count and
+ * `trialParticipants` - and the files its code moved into, in the order their first statement stood there: the trial's
+ * record and the sentence (trial-progress.mjs), then the ordinary verdict (verdict.mjs). A reader of vote.mjs's text
+ * reads the family through `voteText` and follows each file here without a repoint of its own.
+ */
+const VOTE_FAMILY = Object.freeze(["vote.mjs", "trial-progress.mjs", "verdict.mjs"]);
+
+/** The line `voteText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
+const VOTE_FAMILY_END = "const VOTE_FAMILY_END = {};";
+
+/**
+ * The vote's family's texts, raw, in VOTE_FAMILY's order (or the order a reader hands in), joined by the line
+ * `const VOTE_FAMILY_END = {};` (E41 C10a): what a read of vote.mjs's whole text read while the vote, the record and the
+ * verdict were one file. A reader strips the comments itself, as it did; a `fnSource` or `topLevelFunction` of the text
+ * cuts a function in its own file. A file of the family that is not among `sources` refuses by `must`, by name.
+ */
+function voteText(sources, family = VOTE_FAMILY) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string");
+    must(!gone.length, `${gone.join(", ")}, of the vote's family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`);
+    return family.map(file => map.get(file)).join(`\n${VOTE_FAMILY_END}\n`);
+}
 
 /**
  * Everything wrong with the bridge's tables, one sentence each (R1b). Pure: it
@@ -1154,7 +1518,7 @@ const BRIDGE_TABLE_FILES = Object.freeze([
  *      and a field named as an id (`...Id`) is sanitized `as.id`, so it is one of
  *      them (E31 review: as text it would pass this step unjudged);
  *   7. every `runGuards` entry is named in the run, or in a function of the
- *      table's file the run names;
+ *      table's file or its family the run names (`bridgeCut`, E41 C2);
  *   8. every code of `reasons` has its sentence, `DRPG.Bridge.why.<code>`, in en
  *      and pl, and so has the message they are said in (`notDone`,
  *      `nothingSpent`); every request named to `tellRefused` outside the runner
@@ -1173,7 +1537,8 @@ function bridgeTableProblems(tables, { en, pl, guards, reasons = [], told = [] }
     // Past the parameter list: every guard takes `sender`, and only a body can be said to read it.
     const readsSender = fn => /\bsender\b/.test(source(fn).replace(/^[^)]*\)/, ""));
     const readsField = (fn, field) => new RegExp(`\\bpayload\\??\\.${field}\\b`).test(source(fn));
-    for (const { file, table, module, text } of tables) {
+    for (const entry of tables) {
+        const { file, table, module } = entry;
         for (const [action, decl] of Object.entries(table)) {
             actions++;
             const at = `${file} ${action}`;
@@ -1226,7 +1591,7 @@ function bridgeTableProblems(tables, { en, pl, guards, reasons = [], told = [] }
 
             if (decl.runGuards?.length) {
                 const run = source(decl.run);
-                const named = [...run.matchAll(/\b([A-Za-z_]\w*)\(/g)].map(m => topLevelFunction(text, m[1])).filter(Boolean).join("\n");
+                const named = [...run.matchAll(/\b([A-Za-z_]\w*)\(/g)].map(m => bridgeCut(entry, m[1])?.source).filter(Boolean).join("\n");
                 for (const guard of decl.runGuards) {
                     if (!new RegExp(`\\b${guard.name}\\b`).test(`${run}\n${named}`)) problems.push(`${at}: runGuards names ${guard.name}, which its run never asks`);
                 }
@@ -1248,10 +1613,13 @@ function bridgeTableProblems(tables, { en, pl, guards, reasons = [], told = [] }
  * function's source by name or null), and in its `runGuards`, which are asked
  * with the run's copy. `unreadable` names the forms a text reader cannot follow
  * - a computed read, a spread, a destructuring of the whole packet - which R163
- * fails rather than skips.
+ * fails rather than skips; `missing` the names it hands `payload` to that `lookup`
+ * cannot find, which R163 fails on too (E41 fix FG3, the end review's S-m2): a helper
+ * moved into a file outside the table's family was skipped here without a word, and
+ * a field the whitelist drops read as nothing.
  */
 function payloadReads(decl, lookup) {
-    const sources = [], seen = new Set();
+    const sources = [], seen = new Set(), missing = [];
     const queue = [stripComments(String(decl.run ?? ""))];
     while (queue.length) {
         const source = queue.shift();
@@ -1262,6 +1630,7 @@ function payloadReads(decl, lookup) {
             seen.add(m[1]);
             const found = lookup(m[1]);
             if (found) queue.push(stripComments(found));
+            else missing.push(m[1]);
         }
     }
     for (const guard of decl.runGuards ?? []) sources.push(stripComments(String(guard)));
@@ -1272,7 +1641,7 @@ function payloadReads(decl, lookup) {
         if (/\.\.\.\s*payload\b(?!\s*\??\.)/.test(source)) unreadable.add("...payload");
         if (/\}\s*=\s*payload\b(?!\s*\??\.)/.test(source)) unreadable.add("{ ... } = payload");
     }
-    return { fields: [...fields].sort(), unreadable: [...unreadable], handedTo: [...seen] };
+    return { fields: [...fields].sort(), unreadable: [...unreadable], handedTo: [...seen], missing };
 }
 
 /*
@@ -2000,7 +2369,7 @@ export {
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, styleCascade, bodyOf, topLevelFunction, fnSource, lineAround,
-    withGuards, staticImports, importCycles, bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
+    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeDeclarationCalls, bridgeCut, bridgeLookup, bridgeCrawl, bridgeFamily, bridgeRead, bridgeFn, bridgeText, censusFile, BRIDGE_FAMILY_END, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
     flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem, TEXT_BASELINES, textAgainstBaseline, textStaleRow,
     textTableWords, textLegacyLists,

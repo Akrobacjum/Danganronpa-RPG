@@ -57,6 +57,8 @@ import { SETTINGS, getClock } from "./settings.mjs";
 import { debug, warn, error, forgeAsset, localeFormat } from "./utils.mjs";
 import { cleanCardHtml, cardMeta } from "./secret.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 
 const FORMAT = 1;
 
@@ -88,6 +90,13 @@ const RANK = Object.freeze({ open: 0, unread: 1, read: 2 });
  */
 export const EPOCH_GROUPS = Object.freeze(["clock", "incident", "cards", "chatRest"]);
 
+/*
+ * THE NOTICE HISTORY IN THE REGISTRY, DESCRIBED (E42 C3, the plan's amend A7). Each player's history is client state,
+ * cleared on its own browser by the epoch's fingerprint over the reset's cuts of `EPOCH_GROUPS`: a GM neither sees
+ * nor clears it, so its entry has no tally and no clear - the reset window shows its line and counts nothing of it.
+ */
+registerSeasonState({ describes: "noticeHistory", label: "DRPG.Season.state.noticeHistory" });
+
 /**
  * The texts an entry or the store's state carries; the window (E81 C7) draws them. `source` names where an entry
  * came from, for the three sources whose entry says it nowhere else (E81 C4; the A7 design's P12-3): a request
@@ -107,7 +116,8 @@ export const NOTICE_TEXTS = Object.freeze({
  * 26 000 characters, the design's reading); an entry over its limit keeps its title and
  * text and drops the html (`clipped`). A player's section keeps 250 entries and 200 000
  * characters, a GM's 150 and 100 000; the whole value 500 000. A section holds at most 4
- * full day summaries (E37 gives one at every boundary of a time of day), and at most 40
+ * full day summaries (E37 gives one at every boundary of a time of day), fewer where its
+ * characters run short (the older ones clipped to their words before any entry is cut, E37 C4), and at most 40
  * entries and a quarter of the section's characters from each other user (`authorShare`, E81
  * fix r1-G1). None of these is a measurement of a browser's quota:
  * localStorage is shared with the private cards and the GM stores, and the history gives way
@@ -210,7 +220,7 @@ const CELL_SPAN = /^[1-9]\d{0,2}$/;
  * 68 at E70 part 2 (28.10.2026; CI at fffe49e6 counted them, the list did not): the Closing's decision line on an
  * Objection's card (C8) and the Present window's "with the Analyze result" checkbox label (C10), in trial.mjs;
  * 69 at E51 C1 (30.10.2026, counted in the list): the crisis menu's struck row of an action the incident denies
- * (action-rolls.mjs `chooseVariant`, `drpg-row-denied`);
+ * (action-menus.mjs `chooseVariant`, `drpg-row-denied`);
  * R294 runs the same grep and fails on a difference, so a class a card body gains is either added here or
  * drawn bare in the window.
  */
@@ -605,6 +615,25 @@ export function createNoticeEngine(env) {
             if (now.n > Math.floor(BUDGET.perAuthor * room) || now.size > cap.chars * BUDGET.authorShare * room) drop.add(entry);
         }
         if (drop.size) section.entries = section.entries.filter(entry => !drop.has(entry));
+        /*
+         * AND THE OLDER SUMMARIES GO TO THEIR WORDS BEFORE ANY ENTRY GOES (E37 C4, 01.11.2026; E37-18, the A7 amend of
+         * 11.10). Since E37 C4 a summary shows at every boundary of a time of day, five a day, and a GM's summary table
+         * reaches the 26 000 budget: four whole ones are more than the GM's 100 000 characters with anything beside
+         * them, and the cut below took the section's oldest entries - the GM's own cards - to keep them whole (R292 at
+         * 2230c1fa: 12 of 20 cards kept beside five summaries of one day). Over its characters, the section clips its
+         * summaries oldest first, the newest left whole, and only then cuts anything.
+         */
+        let over = sizeOf(section) - chars;
+        if (over > 0) {
+            const full = section.entries.map((entry, i) => (entry.source === "summary" && !entry.clipped ? i : -1)).filter(i => i >= 0);
+            for (const i of full.slice(0, -1)) {
+                if (over <= 0) break;
+                const entry = section.entries[i], clipped = { ...entry, html: "", clipped: true };
+                over -= sizeOf(entry) - sizeOf(clipped);
+                section.entries[i] = clipped;
+                weight.set(clipped, sizeOf(clipped) + 1);
+            }
+        }
         const groups = new Map();
         for (const entry of section.entries) {
             const group = groups.get(entry.author ?? "") ?? { n: 0, size: 0 };
@@ -1176,7 +1205,7 @@ export function keepRoom(err) {
  * obvious one - remove on a deletion, keep on Clear chat - because Foundry 14.365 takes `deleteAll`
  * out of the options before the hook (client-backend.mjs:439, :466; the design's reading of Foundry's
  * file, not this repository's, and on a real 14.x LIVE-E81-11), so a cleared log and the reset's
- * batches (season-setup.mjs `deleteMessages`) reach the hook as single deletions do. Only the option
+ * batches (season-wipe.mjs `deleteMessages`) reach the hook as single deletions do. Only the option
  * removes an entry; every other deletion leaves it, marked `deleted`. Registered by
  * `registerNoticeHistory` on `deleteChatMessage`, after the popups' own hook has taken the card off
  * the screen (popup.mjs `onDeleteChatMessage`).
@@ -1199,7 +1228,7 @@ function fromGm(userId) {
 
 /**
  * A chat card changed after it was shown (E81 C5; the A7 design's P5-1): a Reroll's mark on the card it
- * replaced (`rerolled`, reroll.mjs `markReplacedCard`) or a GM's ruling on a call (`settled`, gm-bridge.mjs
+ * replaced (`rerolled`, reroll.mjs `markReplacedCard`) or a GM's ruling on a call (`settled`, call-gm.mjs
  * `settleCall`). A mark is one of a closed list; what the card showed is not drawn again from it.
  * Two roads, one handler each. A card that is not private carries its mark on its document, written by a
  * GM's update: `noticeCardChanged`, on `updateChatMessage`. A private card's mark travels in the meta that

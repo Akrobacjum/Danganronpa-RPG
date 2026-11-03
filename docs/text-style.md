@@ -446,7 +446,7 @@ dało się je policzyć.
 - **N4** The console's names, and diagnostics.mjs's console in English (DB12), stay. [rebuilt 30.10 from the number
   alone, to confirm in E71 (row 1.2.128)]
 - **N5** The key-labels `ITEM_CATEGORIES.*.plural` and `.label`, `USABLE_KINDS.*.label` and `USABLE_GOALS.*.label`
-  change only with the old wording added to `LEGACY_PLURALS` or `LEGACY_GOAL_LABELS` (scripts/tables.mjs), and those
+  change only with the old wording added to `LEGACY_PLURALS` or `LEGACY_GOAL_LABELS` (scripts/tables-pools.mjs), and those
   lists are only appended to (DB13; T14). [survives: the plan, „etykiety-klucze ITEM_CATEGORIES.*.plural i .label,
   USABLE_KINDS.*.label i USABLE_GOALS.*.label zmienia się tylko z dopisaniem starej wersji do LEGACY_PLURALS albo
   LEGACY_GOAL_LABELS, a te listy wolno tylko uzupełniać”]
@@ -781,7 +781,7 @@ item names an unshipped stage with a row in `tools/stages.json`; a stage number 
   T4's report count, 3410 before B01a landed and 3510 after (Open 59), when T4 turns to FAIL; the roller's Polish line,
   which puts what the GM counted after „GM policzył” as an accusative list no Polish reader has read (Open 60); the
   approved Sabotage hint's "This room has {n} projects" / „w tym pokoju”, which a Monokuma's count does not keep to
-  (action-rolls.mjs `sabotageTargetsIn` with `anyRoom`; the correctness review's m4; the owner on page Q-R2, #3,
+  (projects.mjs `sabotageTargetsIn` with `anyRoom`; the correctness review's m4; the owner on page Q-R2, #3,
   01.11.2026: E71), and the approved Contribution effect's "in your room", while the picker also offers projects with
   no room (its n4) - both text changes for the owner; British spelling outside the names - "neighbour(ing)",
   "behaviour", "recognise", "favour", "cancelled", "catalogue" (D33e and the rest of DB9; the glossary's entries
@@ -806,7 +806,7 @@ host with every fragment it takes, in English and Polish. Read on this tree on 0
 
 | Fragment keys | Polish case | Hosts that take it | Inserted by |
 | --- | --- | --- | --- |
-| `DRPG.Calls.grants.*` | accusative („przewagę”, „stałą premię albo karę”) | `Calls.armedByMonokuma`, `Calls.armedForYou`, `Calls.armedByNobody` | call-effects.mjs `grantWords(kind, "acc")`; gm-bridge.mjs `tellBeneficiary` |
+| `DRPG.Calls.grants.*` | accusative („przewagę”, „stałą premię albo karę”) | `Calls.armedByMonokuma`, `Calls.armedForYou`, `Calls.armedByNobody` | call-effects.mjs `grantWords(kind, "acc")`; bridge-runs-records.mjs `tellBeneficiary` |
 | `DRPG.Calls.grantsGen.*` | genitive („przewagi”, „stałej premii albo kary”) | `Calls.armed` („może teraz użyć {what}”) | call-effects.mjs `grantWords(kind, "gen")` |
 | `DRPG.Calls.grantsNom.*` | nominative („przewaga”, „stała premia albo kara”) | `Calls.pendingTooltip`, `Calls.waitsNextRoll` (after a colon; several joined by `listOf`), the sheet's badge (standing alone) | sheet.mjs, roll-dialog.mjs |
 | `DRPG.Price.label.*` | nominative („1 akcja”, „2 akcje”) | `Price.refunded` and `Cleanup.refundUnheld` (after a colon), `Trial.objectionRefunded` and `Trial.objectionRefundLost` (in brackets); `Price.refundLost` takes the Hope label alone, which does not inflect | price.mjs `priceLabel`; cleanup.mjs; trial.mjs `objectionRefusedLine` |
@@ -814,6 +814,7 @@ host with every fragment it takes, in English and Polish. Read on this tree on 0
 | `CRISIS_ACTIONS.*.label` | names, indeclinable (PL-k) | `Murder.hinderedActions`, `Murder.blockedActions` (`listOf`, the negated list for a block: „A ani B”) | murder-rules.mjs `applyHindrance` |
 | `DRPG.Advance.kind.*` | names („Level Up”, „Reinforced Level Up”), after a colon or opening the sentence; the kind's picks in brackets, `{picks}` from config.mjs `LEVEL_UP` (E66 C7) | `Advance.offered`, `Advance.offerTooltip`, `Advance.takeBack`, `Advance.takenBack`, `Vote.blackenedRewarded` | level-up.mjs `advanceKindName` (its callers in level-up.mjs, sheet.mjs, vote.mjs) |
 | `DRPG.Overflow.name.*` | names, indeclinable | `Overflow.gmHintQueued`, `Overflow.currentDrawn` (after a colon), `Overflow.currentWaiting` | overflow.mjs |
+| `DRPG.Eclipse.named` | a name, indeclinable („Eclipse (Noc)”, PL-b: Eclipse neuter): every case reads the same, after a verb („Zacząć teraz Eclipse (Noc)?”, „GM chce zakończyć Eclipse (Noc).”) | `Hud.eclipseAsk`, `Hud.eclipseAskRefilled`, `Ready.askStart`, `Ready.askEnd` | boundary.mjs `askEclipse` (`eclipseQuestion`) and `promptPlayer` (E37 C3; rendered by R1158) |
 | `DRPG.Rolls.flagKind.*` | nominative, opening the line; in the roller's line, each with its value, a list after a colon („nie policzono: statystyka Head, kości 2”) | `Rolls.flagLine`; `Rolls.notCounted` {list} (E66 C7) | roll-draw.mjs `flagText`; `rollerLine` (`listOf`) |
 | `DRPG.Events.voteMetaGmBallots` | genitive after „z {total}” („głosu”, „głosów”), counted on the total; the host's predicate is counted on the ballots back | `Events.voteMetaGm` {ballots} | events.mjs `voteMetaLine` (E66 fix r1; rendered by R1163) |
 | `DRPG.Unit.action` | nominative („1 akcja”, „2 akcje”, „5 akcji”) | `Config.PHASES.dailyLife.hint` (opening the sentence), `Explain.status.actionsWhat` {actions} | utils.mjs `proseOf` (`PROSE_NUMBERS.actions`); explain.mjs `actionsExplained` |

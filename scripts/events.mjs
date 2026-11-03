@@ -300,7 +300,7 @@ export function safewordCard(clock) {
 }
 
 /**
- * IS THERE A VOTE OPEN: the world's trial record says (vote.mjs `trialProgress().vote.open`).
+ * IS THERE A VOTE OPEN: the world's trial record says (trial-progress.mjs `trialProgress().vote.open`).
  *
  * The ballots are on the GMs' side and nowhere else, so a player's browser
  * cannot count them - which is the gap `pendingVoters` exists for: a player
@@ -332,7 +332,7 @@ function voteIsOpen(clock) {
  * tell the table a sentence the chat has not shown yet - and it says what that
  * card says and nothing more: who was executed and whether the class got it
  * right. The record it reads (`trialProgress().verdict`) is the world's, and it
- * never holds a Blackened the verdict did not reveal (vote.mjs `applyVerdict`).
+ * never holds a Blackened the verdict did not reveal (verdict.mjs `applyVerdict`).
  */
 function afterVerdictCard(clock) {
     try {
@@ -341,7 +341,7 @@ function afterVerdictCard(clock) {
         if (!Array.isArray(verdict?.done) || !verdict.done.includes("card")) return null;
         const executed = (verdict.sentenced ?? verdict.executedIds ?? []).map(id => game.actors.get(id)).filter(Boolean);
         // The sentence waits for the trial's end (E70 C4): executed once the execution is stamped, until then the
-        // card's own line (vote.mjs `postVerdictCard`).
+        // card's own line (verdict.mjs `postVerdictCard`).
         const names = executed.map(actor => actor.name).join(", ");
         return {
             kind: "trial",

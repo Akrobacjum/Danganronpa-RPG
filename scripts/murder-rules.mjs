@@ -510,7 +510,7 @@ export async function openMurder({ killerId, victimId, indirect = false, opening
         return null;
     }
     /* THE CLOCK A BYSTANDER KEEPS (E17 C7, 26.10.2026; audit S10-07). A bystander's HUD freezes the clock at the open
-       (hud.mjs `clockForDisplay`) from the page's own copy, which a reload loses: the HUD showed the hour the incident
+       (hud-elapsed.mjs `clockForDisplay`) from the page's own copy, which a reload loses: the HUD showed the hour the incident
        had moved to. The clock as it stands now is written on the clock (`clockAtOpen`, clock.mjs `frozenClockOf`) -
        the calendar and the stopwatch, which every screen showed a moment ago and which name nobody - and the HUD
        reads it when it has no copy. Tier 2 "the Eclipse and the incident (E17-T10)". */
@@ -984,7 +984,7 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
      * The crisis actions once went straight to the dice, so a briefing was put here -
      * what it is, its statistic, its price, what a miss does - and it became the second
      * of three windows to one roll, repeating the menu's row with Cancel as its default.
-     * Those facts unfold under the picked row of the menu now (action-rolls.mjs
+     * Those facts unfold under the picked row of the menu now (action-murder.mjs
      * `openCrisisMenu`), so the GM's pick below follows the menu directly. The sheet's
      * "use" button on an item reaches this with no menu: the item is the choice.
      */
@@ -1349,7 +1349,7 @@ async function chooseWeapon(actor, weapon) {
  * The player's browser names it (`swungId`, taken before the dice by `takeCrisisAction`),
  * and the name is a claim: it counts only on an action that swings (the same two markers)
  * and for a Crime Tool the actor carries and holds ready - as the bridge's own check
- * (gm-bridge.mjs `handleCrisis`) it cannot name somebody else's. A Reroll's replay swings
+ * (bridge-runs-acts.mjs `handleCrisis`) it cannot name somebody else's. A Reroll's replay swings
  * what its receipt recorded (`recorded`), whether or not it is still readied.
  *
  * NOT A BROKEN ONE (E29 fix r2-H20, 06.10.2026; found by fix r2-H18). The module's own rule
@@ -1593,7 +1593,7 @@ async function applyCrisisAction({
 } = {}) {
     if (!game.user.isGM) return null;
     // The roll this action is for (E08+E28 C2): the one its packet names, and its sender's (fix
-    // r1-G2; action-rolls.mjs `rollOfFact`) - none for an action taken without dice. A replay
+    // r1-G2; action-pipeline.mjs `rollOfFact`) - none for an action taken without dice. A replay
     // keeps the facts of the throw it replays.
     const rolls = await import("./action-rolls.mjs");
     const roll = undo ? null : rolls.rollOfFact({ rollId, by, actorId, actions: ["crisis"] });
@@ -3290,7 +3290,7 @@ const closing = new Set();
 async function closeIncident(state, { reason, followUp, conclude = true }) {
     /*
      * A RESET ABANDONS AN INCIDENT; IT DOES NOT CONCLUDE ONE (E11 C9, 10.10.2026; audit S06-15,
-     * the plan's 3.1). `conclude: false` is the season reset's alone (season-setup.mjs, the
+     * the plan's 3.1). `conclude: false` is the season reset's alone (season-wipe.mjs, the
      * `incident` step): it skips what a close says about the crime - the self-inflicted death,
      * the fight's ties, the Blackened register, the killer's broken tool, the case's Key
      * count and the participants' card - and keeps what ends the incident: the wipe, the hook,
@@ -3765,7 +3765,7 @@ export async function betrayAsPlayer(actorId, { note = "" } = {}) {
      * an Eclipse it costs an action and starts after the Eclipse, like any action declared
      * there. It is parked with the GMs' declarations (eclipse.mjs `parkBetrayal`), which
      * `judgePendingMurders` opens when the lights come up. The action was paid on the asking
-     * client (action-rolls.mjs `performBetrayal`), which gets it back on a null here.
+     * client (action-murder.mjs `performBetrayal`), which gets it back on a null here.
      *
      * THE OFFER STAYS IN THE CAST UNTIL THE LIGHTS (E32+E07 fix r1-G2, 01.10.2026; the
      * round-1 security review's m4). C5b took it here, and the take moved the cast's
@@ -4500,7 +4500,7 @@ export async function throwOpeningRoll(side, actorId, trait = null) {
         withHope: Boolean(roll.withHope),
         // The message the GM wrote for the roll it drew, whose record it scores the opening on
         // (E08+E28 C17). Not remembered for a Reroll, so read off the roll itself, as a Palm's
-        // unseen roll is (action-rolls.mjs `performPalm`).
+        // unseen roll is (palm.mjs `performPalm`).
         rollId: roll.raw?.message?.id ?? roll.raw?.message?._id ?? null
     });
     // Read here and not handed on (E31): a GM's own client answers what it

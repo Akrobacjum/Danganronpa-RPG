@@ -515,7 +515,7 @@
       "spent": "{name} wydaje {cost} Despair",
       "notEnough": "{call} kosztuje {cost} Despair, a masz {held}.",
       "unknownCall": "Nieznany Despair Call: {key}.",
-      "notEnoughPool": "Ta pula ma {held} Despair; poproszono o {needed}.",
+      "poolEmpty": "Ta pula nie ma Despair do oddania.",
       "hopeAlreadyFull": "Ich Hope jest już na maksimum.",
       "hopeConverted": "{who} zamienia część swojego Despair - zyskujesz {n} Hope.",
       "owed": {
@@ -839,7 +839,6 @@
         "statistic": "Modyfikator statystyki",
         "bonus": "Przewaga, utrudnienie i doświadczenie"
       },
-      "chooseTrait": "{action} - która statystyka?",
       "costActions": {
         "one": "{n} akcja",
         "few": "{n} akcje",
@@ -916,7 +915,6 @@
         "directMurder": "Kogo, gdzie i jak - tak, jak uzgodniono wcześniej."
       },
       "analyzeGm": "Oceń to według tabeli Analyze dla tego Truth Bulleta. Porażka blokuje ten Truth Bullet do końca rozdziału.",
-      "murderConfirm": "To otwiera Direct Murder. Wymaga wcześniejszej zgody GM-a i zgody drugiego gracza. Akcja przepada nawet, jeśli warunki nie są spełnione.",
       "murderNobody": "Nie ma tu kogo zabić. Próba przepada; spróbuj o innej porze dnia.",
       "murderWitness": {
         "one": "Nie jesteś z ofiarą sam na sam - zobaczyłaby to {n} inna osoba. Próba przepada; spróbuj o innej porze dnia.",
@@ -1759,7 +1757,13 @@
         "offers": "Level Up Blackened",
         "despair": "pule Despair",
         "rule": "zasada Blackened",
-        "overflow": "Despair overflow"
+        "overflow": "Despair overflow",
+        "finalSentence": "wyrok Final Trial",
+        "finalCard": "karta Final Trial",
+        "finalClose": "zamknięcie Final Trial",
+        "finalExecution": "egzekucja",
+        "finalLevelUps": "Level Upy, które czekały",
+        "mastermind": "czyszczenie wyboru Masterminda"
       }
     },
     "Music": {
@@ -2612,8 +2616,17 @@
       "endTwice": "To okno końca rozdziału otwarto przy rozdziale {chapter}, sesji {session}, dniu {day}, a rozdział, sesja lub dzień na zegarze od tego czasu się zmieniły - przez inny koniec rozdziału, przez edycję kampanii albo przez porę dnia przechodzącą w nowy dzień. Nic nie wykonano: otwórz koniec rozdziału ponownie, żeby wybrać według zegara takiego, jaki jest teraz.",
       "endPhaseMoved": "To okno końca rozdziału otwarto w fazie {opened}, a zegar od tego czasu pokazuje {now} - faza zmieniła się po otwarciu okna, więc to, co okno proponowało zamknąć, nie jest tym, co trwa teraz. Nic nie wykonano: otwórz koniec rozdziału ponownie, żeby wybrać według zegara takiego, jaki jest teraz.",
       "endPrimaryOnly": "Rozdział kończy tylko główny GM, {name}, żeby jedna przeglądarka policzyła go raz. Poproś o to GM-a {name} albo zakończ go, gdy będziesz jedynym połączonym GM-em.",
-      "endFailed": "Koniec rozdziału nie dobiegł końca: {steps}. Cała reszta została wykonana - dokończ to ręcznie, zamiast kończyć rozdział jeszcze raz.",
-      "endStopped": "Faza zmieniła się z {opened} na {now}, gdy rozdział się kończył, więc nie wykonano: {steps}. To, co się wykonało, zostaje - resztę dokończ ręcznie, gdy stół będzie na to gotowy, zamiast kończyć rozdział jeszcze raz.",
+      "endFailed": "Koniec rozdziału zatrzymał się na: {steps}. Przycisk Dokończ koniec rozdziału wykona resztę.",
+      "endStopped": "Faza zmieniła się z {opened} na {now}, gdy rozdział się kończył, więc nie wykonano: {steps}. Po powrocie do fazy {opened} przycisk Dokończ koniec rozdziału wykona resztę; Porzuć resztę zostawi je niewykonane.",
+      "finishEnd": "Dokończ koniec rozdziału",
+      "dropRest": "Porzuć resztę",
+      "endStands": "Ostatni koniec rozdziału zatrzymał się na: {steps}.",
+      "dropped": "Porzucone, niewykonane: {steps}.",
+      "doneEarlier": "Wykonane przed zatrzymaniem: {steps}.",
+      "notStopped": "Żaden koniec rozdziału nie czeka na dokończenie.",
+      "finishPhaseMoved": "Koniec rozdziału zatrzymał się w fazie {opened}, a zegar pokazuje {now}. Po powrocie do fazy {opened} przycisk Dokończ koniec rozdziału wykona resztę; Porzuć resztę zostawi ją niewykonaną.",
+      "endStoppedPrimary": "Koniec rozdziału się zatrzymał: ta przeglądarka nie jest już przeglądarką głównego GM-a - jest nim {name} - więc nie wykonano: {steps}. To, co się wykonało, zostaje; w przeglądarce GM-a {name} przycisk Dokończ koniec rozdziału wykona resztę.",
+      "endNotRecorded": "Koniec rozdziału nie mógł zapisać, jak daleko doszedł ({error}). Nic nie zostało wykonane.",
       "step": {
         "reveal": "ujawnianie Truth Bullets",
         "sweep": "zbieranie Truth Bullets",
@@ -3360,7 +3373,7 @@
       },
       "noMovesLeft": "Przejścia Eclipse wyczerpane. Twój token wrócił na miejsce.",
       "actionsLocked": "Tylko ustawianie. Akcje już wróciły; nic ich nie wydaje poza Direct Murder, dopóki nie zapali się światło.",
-      "endPrompt": "Zakończyć Eclipse i zacząć następną porę dnia? Wszyscy ustawili się tak:",
+      "endPrompt": "Nie wszyscy się jeszcze ustawili: wyszarzone wiersze nie przeszły jeszcze żadnego pokoju. Zakończyć teraz Eclipse?",
       "endAndAdvance": "Zakończ i przesuń zegar",
       "endOnly": "Zakończ bez przesuwania zegara",
       "ended": "Eclipse się kończy.",
@@ -3393,6 +3406,8 @@
       "title": "Move",
       "freeAvailable": "Twój Free Move na tę porę dnia wciąż jest.",
       "freeSpent": "Free Move zużyty - następny pokój kosztuje akcję. Masz {left}.",
+      "nextSprint": "Free Move zużyty. Następny pokój zabierze Sprint, a akcje zostaną.",
+      "nextBurst": "Free Move zużyty. Następny pokój zabierze twój Burst, a akcje zostaną.",
       "entered": "Wchodzisz do: {room}.",
       "leftRooms": "Opuszczasz pokój.",
       "wasSprint": {
@@ -3402,6 +3417,7 @@
         "other": "Opłacone przez Sprint. Zostało {n}."
       },
       "wasFree": "To był twój Free Move na tę porę dnia.",
+      "wasBurst": "Zapłacone Burstem.",
       "costAction": {
         "one": "To kosztowało akcję - została {left} akcja.",
         "few": "To kosztowało akcję - zostały {left} akcje.",
@@ -3715,6 +3731,11 @@
         "despair.adjust": "Despair",
         "overflow.add": "Dodanie do overflow",
         "overflow.clear": "Wyczyszczenie overflow",
+        "despair.set": "Ustawienie puli Despair",
+        "despair.all": "Napełnienie albo opróżnienie wszystkich pul Despair",
+        "despair.roster": "Przyznanie, odebranie albo nazwanie puli Despair",
+        "overflow.take": "Zdjęcie Despair z Overflow",
+        "overflow.check": "Sprawdzenie Overflow",
         "observe.resolve": "Observe",
         "analyze.resolve": "Analyze",
         "handover.bullet": "Przekazanie Truth Bulleta",
@@ -3792,7 +3813,10 @@
         "bridge.ack": "Potwierdzenie GM-a, że prośba dotarła",
         "trial.turn": "Twoja tura w rundzie",
         "trial.claim": "Zgłoszenie do Closing Argument",
-        "trial.present": "Przedstawienie Truth Bulletu"
+        "trial.present": "Przedstawienie Truth Bulletu",
+        "ready.open": "Pytanie graczy, czy skończyli",
+        "ready.answer": "Twoja odpowiedź dla GM-a",
+        "ready.end": "Zamknięcie pytania do graczy"
       },
       "notDone": "Prośba „{what}” nie została wykonana. {why}",
       "nothingSpent": "Nic nie wydano.",
@@ -3871,7 +3895,9 @@
         "cannotLeave": "Jesteś w incydencie. Jedyne wyjście to akcja kryzysowa - Survive, Escape Together, Finishing Blow albo, jeśli to tylko przypadkowe wejście, Averted Eyes.",
         "trialLocked": "Class Trial trwa. Nikt nie opuszcza sali, dopóki się nie skończy.",
         "noBudget": "Brak Free Move i brak akcji.",
-        "eclipseSpent": "Przejścia Eclipse wyczerpane."
+        "eclipseSpent": "Przejścia Eclipse wyczerpane.",
+        "roundMovedOn": "GM pyta ponownie: odpowiedz na nowe pytanie.",
+        "notInRound": "To pytanie jest do graczy, których uczniowie są w grze, a twój nie jest."
       },
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",
       "send": "Wyślij do GM-a",
@@ -4158,8 +4184,10 @@
       "refundCrossingNote": "{to} z powrotem do {from}",
       "nextVerdict": "Głosy policzone. Ogłoś werdykt.",
       "nextChapterEnd": "Werdykt zapadł. Zakończ rozdział.",
+      "nextChapterEndStopped": "Koniec rozdziału zatrzymał się przed wykonaniem wszystkich kroków. Dokończ go w oknie Zakończ rozdział.",
       "nextTrialOutlived": "Rozdział poszedł dalej, a Class Trial wciąż trwa. Zakończ Class Trial.",
-      "refilled": "Akcje i Search Tokens odnowione. Motive, pieczęcie i overflow zostały nietknięte, a na czat nie trafiła karta pory dnia."
+      "refilled": "Akcje i Search Tokens odnowione. Motive, pieczęcie i overflow zostały nietknięte, a na czat nie trafiła karta pory dnia.",
+      "nextReady": "Gracze dostali pytanie przed przesunięciem zegara. Otwórz je ponownie."
     },
     "Character": {
       "notACharacter": "To działa tylko na postaci.",
@@ -4926,6 +4954,42 @@
       "q6": "Jak planuję grać? Jakie mam cele?",
       "q7": "Planuję spróbować: … (złożone projekty zmieniające grę)"
     },
+    "Ready": {
+      "titleNext": "Koniec tej pory dnia",
+      "askStart": "GM chce zacząć {name}. Czy kończysz już tę porę dnia?",
+      "askEnd": "GM chce zakończyć {name}. Czy twój token stoi tam, gdzie chcesz?",
+      "askNext": "GM chce zakończyć tę porę dnia. Czy już kończysz?",
+      "done": "Gotowe",
+      "wait": "Jeszcze chwila",
+      "waiting": "GM widzi, że potrzebujesz chwili. Naciśnij „Gotowe”, gdy skończysz.",
+      "cancelled": "GM jeszcze chwilę poczeka.",
+      "notDone": {
+        "one": "Jeszcze {n} gracz nie odpowiedział „Gotowe”.",
+        "few": "Jeszcze {n} gracze nie odpowiedzieli „Gotowe”.",
+        "many": "Jeszcze {n} graczy nie odpowiedziało „Gotowe”.",
+        "other": "Jeszcze {n} gracza nie odpowiedziało „Gotowe”."
+      },
+      "allDone": "Wszyscy odpowiedzieli „Gotowe”.",
+      "status": {
+        "done": "Gotowe",
+        "wait": "Jeszcze chwila",
+        "none": "Jeszcze bez odpowiedzi",
+        "away": "Brak połączenia - liczy się jako „Gotowe”"
+      },
+      "goNext": "Przesuń zegar",
+      "notNow": "Nie teraz",
+      "confirmGo": {
+        "one": "Jeszcze {n} gracz nie skończył. Iść dalej mimo to?",
+        "few": "Jeszcze {n} gracze nie skończyli. Iść dalej mimo to?",
+        "many": "Jeszcze {n} graczy nie skończyło. Iść dalej mimo to?",
+        "other": "Jeszcze {n} gracza nie skończyło. Iść dalej mimo to?"
+      },
+      "goAnyway": "Dalej",
+      "wait2": "Poczekaj",
+      "answerAgain": "GM wciąż czeka na twoją odpowiedź. Kliknij tutaj, by odpowiedzieć.",
+      "goneEnded": "GM, który wcześniej zapytał graczy, nie ma połączenia, więc to pytanie zostało zamknięte.",
+      "barred": "Runda się skończyła, a zegar się nie przesunął: w jej trakcie zaczął się incydent albo Class Trial."
+    },
     "Summary": {
       "title": "Pora dnia dobiegła końca",
       "lede": "Co się u ciebie działo w porze: {phase}.",
@@ -5134,6 +5198,13 @@
         "many": "{n} śmierci i każdy Monocub, cofnięte",
         "other": "{n} śmierci i każdy Monocub, cofnięte"
       },
+      "resetAssigned": {
+        "one": "{n} uczeń przypisany ręcznie",
+        "few": "{n} uczniowie przypisani ręcznie",
+        "many": "{n} uczniów przypisanych ręcznie",
+        "other": "{n} ucznia przypisanego ręcznie"
+      },
+      "resetUnfinished": "Ostatni reset się nie dokończył: {groups}. Zaznaczone są tylko te grupy, a ten reset nie zmienia zapamiętanych wyjątków.",
       "resetItems": {
         "one": "{n} przedmiot, który obsada nosi albo schowała",
         "few": "{n} przedmioty, które obsada nosi albo schowała",
@@ -5259,7 +5330,7 @@
         "many": "Sezon zresetowany. {n} wyjątków pozostało bez zmian.",
         "other": "Sezon zresetowany. {n} wyjątków pozostało bez zmian."
       },
-      "failed": "Reset się nie dokończył: {groups}. Cała reszta poszła. Uruchom reset ponownie, zaznaczając tylko te grupy.",
+      "failed": "Reset się nie dokończył: {groups}. Cała reszta poszła. Otwórz reset ponownie: zaznaczone będzie tylko to, co się nie dokończyło.",
       "failedCast": "Reset nie przeniósł każdego żetonu obsady tam, gdzie wybrano. Przenieś je ręcznie: reset bez niczego zaznaczonego się nie uruchamia, więc nie da się go powtórzyć dla samych żetonów.",
       "stoppedPrimary": "Reset się zatrzymał: ta przeglądarka nie jest już przeglądarką głównego GM-a - jest nim {name} - więc nie wykonano: {groups}. To, co się wykonało, zostaje; {name} może dokończyć resztę kolejnym resetem.",
       "reportCard": {
@@ -5280,6 +5351,9 @@
         "board": "Plansza",
         "log": "Dziennik",
         "world": "Świat"
+      },
+      "state": {
+        "noticeHistory": "Historia powiadomień każdego gracza - trzymana w jego przeglądarce, zaczyna się od nowa, gdy reset czyści zegar, incydent albo czat"
       },
       "group": {
         "remnants": "Remnants na mapach i to, czym każdy z nich naprawdę był",
@@ -5309,6 +5383,7 @@
         "cards": "Własne karty tego modułu i komunikator",
         "chatRest": "Reszta dziennika czatu, której ten moduł nie napisał",
         "despair": "Pule Despair i każdy Hope z powrotem do wartości startowej",
+        "assignments": "Podział uczniów między Monokumy w Despair Flow - każdy uczeń wraca do pierwszej puli",
         "overflow": "Despair overflow i jego zaciemnienie",
         "clock": "Zegar, z powrotem na rozdział 1, dzień 1, rano"
       }
@@ -5746,36 +5821,28 @@
       },
       "REMNANT_TYPES": {
         "key": {
-          "label": "Key Remnant",
-          "hint": "Stawiany przez GM-a, nieusuwalny. Znaleziony od razu pokazuje się jako Key Truth Bullet; jego analiza czeka na Analyze."
+          "label": "Key Remnant"
         },
         "neutral": {
-          "label": "Neutral Remnant",
-          "hint": "Nieustalone pochodzenie. Analiza zamienia go w prawdziwą kategorię."
+          "label": "Neutral Remnant"
         },
         "faint": {
-          "label": "Faint Remnant",
-          "hint": "Wątpliwy. Sprzątany na koniec rozdziału, chyba że powiązany z morderstwem."
+          "label": "Faint Remnant"
         },
         "prep": {
-          "label": "Prep Remnant",
-          "hint": "Zostawiony przy przygotowaniu morderstwa albo zbieraniu narzędzi."
+          "label": "Prep Remnant"
         },
         "incident": {
-          "label": "Incident Remnant",
-          "hint": "Zostawiony podczas konfrontacji albo śmierci ofiary."
+          "label": "Incident Remnant"
         },
         "resolution": {
-          "label": "Tamper Remnant",
-          "hint": "Zostawiony przez majstrowanie - zbyt czysta plama, rzecz odłożona odrobinę nie tak. Sprzątanie zawsze zostawia własny rodzaj śladu."
+          "label": "Tamper Remnant"
         },
         "autopsy": {
-          "label": "Autopsy Remnant",
-          "hint": "Stan ciała. Wydawany jako pierwszy, bez rzutu."
+          "label": "Autopsy Remnant"
         },
         "final": {
-          "label": "Final Truth Remnant",
-          "hint": "Jeden na rozdział. Wskazuje Masterminda."
+          "label": "Final Truth Remnant"
         }
       },
       "TRUTH_BULLET_TYPES": {
@@ -6230,12 +6297,10 @@
       },
       "STATES": {
         "breakdown": {
-          "label": "Breakdown",
-          "effect": "Utrudnienie na każdym rzucie."
+          "label": "Breakdown"
         },
         "wounded": {
-          "label": "Wounded",
-          "effect": "-1 akcja na porę dnia."
+          "label": "Wounded"
         }
       },
       "LEVEL_UP_OPTIONS": {
@@ -6253,14 +6318,6 @@
         },
         "experienceNew": {
           "label": "Dodaj nowe doświadczenie warte +{worth}"
-        }
-      },
-      "LEVEL_UP": {
-        "standard": {
-          "when": "Trafnie wskazaliście Blackened."
-        },
-        "reinforced": {
-          "when": "Blackened wyszedł z błędnego głosowania."
         }
       },
       "MONOCUB": {
@@ -6815,8 +6872,9 @@
         "selection-drag-rectangle": "ramka przeciągania zostaje pomarańczowa, jak w Foundry",
         "selection-controlled-colour": "ramki tokenów zostają pomarańczowe, jak w Foundry",
         "countdown-row-menu": "menu wiersza projektu jest menu Daggerheart: widać Reveal i Hide, a Delete usuwa tylko odliczanie",
+        "countdown-update": "Daggerheart przesuwa swoje odliczania poza kolejką projektów, a zmiana projektu zrobiona w tej samej chwili może przepaść",
         "door-controls": "każdy znacznik drzwi jest pokazywany tak, jak pokazuje go Foundry",
-        "token-ruler": "linijka ruchu żetonu zostaje w kolorze Foundry",
+        "token-ruler": "linijka ruchu żetonu zostaje w kolorze, który daje jej Foundry albo inny moduł",
         "actions-resource": "postać nie ma zasobu Akcji",
         "sidebar-calls": "własne wywołania Foundry ani nie pokazują, ani nie ustawiają okna narzędzi Foundry",
         "relay-guard": "prośby z Daggerheart gracza, których moduł nie przejrzał, są odrzucane w przeglądarce GM-a, a GM-owie dostają o tym wiadomość raz na wersję; gdzie strażnik nie może stanąć wcale, przekaźnik nie jest strzeżony, a GM-owie są o tym informowani przy każdym wczytaniu",

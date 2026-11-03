@@ -181,7 +181,7 @@ export function debug(...args) {
  * measured: this repository has no Forge page, so `ForgeVTT.usingTheForge` and `ASSETS_LIBRARY_URL_PREFIX`
  * are read as that guide names them, the prefix only for its origin, and the guide's host when the field
  * is no URL. One origin, `https:` only, never a pattern of hosts; off The Forge always false. Read by
- * vault.mjs `safeRoomImage` (the room picture and the voice tile's portraits) and notice-history.mjs
+ * vault-store.mjs `safeRoomImage` (the room picture and the voice tile's portraits) and notice-history.mjs
  * `imageAllowed` - the module's two checks of "a picture of this game's files".
  *
  * THE NAME, NOT A PROPERTY OF THE PAGE (E78 fix r2-H2, 14.10.2026; review round 2's SEC-R2-1). This read
@@ -1664,7 +1664,7 @@ export function wirePortraitPickers(root, { defaultImg = null, prefix = "img." }
          * marked decorative, so a screen reader skipped it in silence. Four call
          * sites build this markup (investigation.mjs, projects-ui.mjs twice,
          * tables.mjs) and every one of them had the same hole. (Three since
-         * 1.2.86: tables.mjs's new item picks its picture from radio cells, H83.)
+         * 1.2.86: tables-editor.mjs's new item picks its picture from radio cells, H83.)
          *
          * WORSE, `game.drpg.a11y()` REPORTED IT CLEAN. Its sweep looks at
          * `button, a[href], [role=button], input, select, textarea` - an image

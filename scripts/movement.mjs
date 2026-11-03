@@ -96,7 +96,7 @@ export const ROOM_FLAGS = {
      * A room forced open (E15 part 2 C4, 25.10.2026; A10 step 15, the owner's answer of 11.10: "E74 przyjmie
      * `ROOM_FLAGS.broken`"): a Breach the Wall finished into it. `true` on every piece of the room, written by
      * `setRoomBroken` alone and read by `roomBroken` alone; while it stands the GM's lock and the bedroom's key are
-     * lifted for everyone (`isLocked`, `bedroomShut`, vault.mjs `mayEnterBedroom`), never a chain, a seal set after
+     * lifted for everyone (`isLocked`, `bedroomShut`, vault-store.mjs `mayEnterBedroom`), never a chain, a seal set after
      * it or the courtroom. Taken off when the wall is given back (passages-gm.mjs `restoreBreach`) and by the
      * season's reset. A value with no builder, user or project in it: every browser holds the scene's regions.
      */
@@ -815,7 +815,7 @@ export function sendBackRefusal(position, { scene = null, history = [], centres 
  * A REVERT is a player's claim. It is honoured only where `sendBackRefusal` passes it
  * against the primary's record (`recentPositions`), and the token then stands as the
  * judge last left it on that spot, lawful or not; any other is judged as a crossing.
- * A send-back the bridge writes for a player (gm-bridge.mjs `handleSendback`, marked
+ * A send-back the bridge writes for a player (bridge-runs-records.mjs `handleSendback`, marked
  * `SENT_BACK`) is the player's revert, though a GM writes it.
  *
  * The student is read as the GMs hold it (`flagsHeldNow`, `itemsHeldNow`), in one
@@ -899,7 +899,7 @@ function droppedFrom(tokenDoc) {
 /** sheet-audit.mjs's held readers, once `registerMovement`'s import lands. */
 let judgeReaders = null;
 
-/** Marks the bridge's send-back (gm-bridge.mjs `handleSendback`): a player's revert that a GM writes. */
+/** Marks the bridge's send-back (bridge-runs-records.mjs `handleSendback`): a player's revert that a GM writes. */
 export const SENT_BACK = "drpgSentBack";
 
 /** Marks the GMs' audit's put-back of a move through a wall (movement-audit.mjs), for every GM's record (`sightingsAfter`). */
@@ -1247,7 +1247,7 @@ function pricePaid(before, now) {
     return null;
 }
 
-/** The time of day a crossing is made in: the season, chapter, session, day and time of day (vault.mjs `rifleMark`'s shape). */
+/** The time of day a crossing is made in: the season, chapter, session, day and time of day (stash-reach.mjs `rifleMark`'s shape). */
 function timeOfDayMark(clock = getClock()) {
     return [clock?.seasonStartedAt ?? 0, clock?.chapter ?? 1, clock?.session ?? 0, clock?.day ?? 1, clock?.timeOfDay ?? ""].join(".");
 }
@@ -1949,7 +1949,7 @@ export function isLocked(scene, room) {
 /**
  * Is this somebody else's bedroom, and are they carrying no key to it?
  *
- * The rule is bedroom-keys.mjs's, the one game.drpg's answer and the GMs' key count read (vault.mjs `mayEnterBedroom`,
+ * The rule is bedroom-keys.mjs's, the one game.drpg's answer and the GMs' key count read (vault-store.mjs `mayEnterBedroom`,
  * `keysHeldBy`; E14 part 1 C2): a key in a stash opens nothing (S08-31), and in the Investigation a dead owner's room
  * opens once the death is published (S08-55, D15). This reads the world it is handed, synchronously, as the veto inside
  * `preUpdateToken` must: the owner as the room's pieces carry it on the mover's scene (as `isLocked`), the clock, the
@@ -3099,11 +3099,15 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
     // Three prices now, and the third has to be named: a Sprint is not the
     // day's free Move and it is not an action, and a card calling it either
     // would be telling the player their budget is somewhere it is not.
+    // And a fourth (E37 C6; E37-28): a banked Burst pays before an action (`takeMove`), and the card said "That cost an
+    // action" for it, with the actions it had left untouched.
     const price = cost === "free"
         ? game.i18n.localize("DRPG.Move.wasFree")
         : cost === "sprint"
             ? plural("DRPG.Move.wasSprint", { n: freeMovesLeft(actor) })
-            : plural("DRPG.Move.costAction", { left: actionsLeft(actor) }, "left");
+            : cost === "burst"
+                ? game.i18n.localize("DRPG.Move.wasBurst")
+                : plural("DRPG.Move.costAction", { left: actionsLeft(actor) }, "left");
 
     if (tokenDoc) lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
 

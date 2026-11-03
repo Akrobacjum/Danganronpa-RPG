@@ -17,7 +17,7 @@ Protection comes in two layers, and every change should know which one it
 touches.
 
 **Layer one (E03, 1.2.60).** Every request that reaches a GM's client is judged
-there: the bridge's three tables (gm-bridge.mjs, traps.mjs, search-tokens.mjs),
+there: the bridge's four tables (bridge-table.mjs, traps.mjs, search-tokens.mjs, private-rolls.mjs),
 the fog socket, and Daggerheart's own GM relay (`relay-guard.mjs`). The
 judgement uses who Foundry says sent it (`senderOf(senderId)`), what that user
 owns (`ownsActor`, `canSee`, `testUserPermission`), and what the world says now:
@@ -180,9 +180,12 @@ A request from a player's client to the primary GM, since E31 (1.2.62). Five
 steps; R1b, R162-R166 and the lint rule are there to catch a skipped one.
 
 1. **Name it and say it.** A wire name `domain.verb` as an `ACTION_` constant
-   beside its table (gm-bridge.mjs for the bridge; traps.mjs and
-   search-tokens.mjs keep their own), and `DRPG.Bridge.what.<action>` in
-   lang/en.json and lang/pl.json.
+   in bridge-wire.mjs, the bridge's names (traps.mjs and search-tokens.mjs
+   keep theirs beside their tables), and `DRPG.Bridge.what.<action>` in
+   lang/en.json and lang/pl.json. Not beside the bridge's table: its file
+   imports every run, and the runs, the ask cards' senders and the asks all
+   read the names, so there they would make table -> run -> table a cycle
+   (E41 C5a).
 2. **Declare it.** One row `{ label, guards, sanitize, run, answer }` in the
    table. Guards come from `scripts/bridge-guards.mjs`, in the order they are
    asked: `knownSender` (or `gmOnly`) first; for every id the run receives

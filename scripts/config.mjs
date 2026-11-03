@@ -377,12 +377,12 @@ export const TIMING = {
     friskMarginMs: 15000,
     /** How long past either clock the primary still takes what was pressed at the last second on a window that opened
      *  one trip after the clock started: an answer to an ask (frisk.mjs `sweepFriskAsks` ends an unanswered ask only
-     *  then) and a force's draw (`friskForceOpen`, gm-bridge.mjs `friskForceRoll`). The windows themselves close at
+     *  then) and a force's draw (`friskForceOpen`, bridge-runs-acts.mjs `friskForceRoll`). The windows themselves close at
      *  `friskAnswerMs` and `friskForceMs` after they open. Under `friskMarginMs`, so a late 'does not answer' still
      *  reaches the searcher's wait (E80 fix r1-G1): chosen, not measured - a real round trip is LIVE-E80-05. */
     friskGraceMs: 5000,
     /** How long past the force's clock and its grace a force's roll may still be drawn (frisk.mjs `forceDrawnBy`, for
-     *  `friskForceOpen` and gm-bridge.mjs `friskForceRoll`): 'Make them' pressed at the last second of its window opens
+     *  `friskForceOpen` and bridge-runs-acts.mjs `friskForceRoll`): 'Make them' pressed at the last second of its window opens
      *  Daggerheart's roll window, and the roll is drawn only when that is confirmed - the design counts the draw, so
      *  that what comes after the press does not take the force away. The sweep keeps the row `friskMarginMs` past that
      *  for the follow (E80 fix r1-G2, the review's er-cor-8): chosen, not measured - a real roll window is LIVE-E80-05. */
@@ -748,7 +748,7 @@ export const TIER_EFFECTS = {
  *
  * `resource` is the Daggerheart resource key `use-items.mjs` writes to. The
  * labels feed the table names ("DRPG Usables (Healing) - Tier 2") through
- * USABLE_GOALS in tables.mjs, so renaming one here renames what a fresh world
+ * USABLE_GOALS in tables-pools.mjs, so renaming one here renames what a fresh world
  * installs.
  */
 /**
@@ -774,7 +774,7 @@ export const USABLE_KINDS = {
  * a GM in Polish installed a second set (audit S01-05, S02-05, S08-03, S13-01). A name is a display; this copy is the
  * one it is built from, and it is frozen, so nothing rewrites it. The owner's ruling (E14's risk, "wbudowane pule
  * zostają angielskie") keeps the built-in names English. A world built in Polish before this is found through the
- * Polish plurals in tables.mjs `LEGACY_PLURALS`.
+ * Polish plurals in tables-pools.mjs `LEGACY_PLURALS`.
  */
 export const TABLE_NAME_WORDS = Object.freeze({
     plural: Object.freeze(Object.fromEntries(Object.entries(ITEM_CATEGORIES).map(([key, c]) => [key, c.plural]))),
@@ -960,25 +960,19 @@ export const REMNANT_VISIBILITY_LABELS = {
 export const REMNANT_TYPES = {
     key: {
         label: "Key Remnant",
-        hint: "GM-placed, unremovable. Found, it shows as a Key Truth Bullet at once; "
-            + "its analysis waits for an Analyze.",
         reinforced: true
     },
     neutral: {
-        label: "Neutral Remnant",
-        hint: "Undetermined origin. Analysis turns it into a real category."
+        label: "Neutral Remnant"
     },
     faint: {
-        label: "Faint Remnant",
-        hint: "Doubtful. Swept at chapter end unless tied to the murder."
+        label: "Faint Remnant"
     },
     prep: {
-        label: "Prep Remnant",
-        hint: "Left while preparing a murder or gathering tools."
+        label: "Prep Remnant"
     },
     incident: {
-        label: "Incident Remnant",
-        hint: "Left during the confrontation or the victim's death."
+        label: "Incident Remnant"
     },
     /*
      * "TAMPER REMNANT", AND THE KEY STAYS `resolution` (D8) - the lesson Z14
@@ -992,17 +986,13 @@ export const REMNANT_TYPES = {
      * that legible at the trial.
      */
     resolution: {
-        label: "Tamper Remnant",
-        hint: "Left behind by tampering - the too-clean patch, the thing moved back "
-            + "slightly wrong. Cleaning up always leaves its own kind of trace."
+        label: "Tamper Remnant"
     },
     autopsy: {
-        label: "Autopsy Remnant",
-        hint: "The state of the body. Handed out first, no roll needed."
+        label: "Autopsy Remnant"
     },
     final: {
         label: "Final Truth Remnant",
-        hint: "One per chapter. Points at the Mastermind.",
         // Placed once a chapter and meant to survive the whole season, not just
         // this case - `placeRemnant` already reads this flag to set the token's
         // own `reinforced` flag, so nothing else has to know "final" is special.
@@ -1012,9 +1002,10 @@ export const REMNANT_TYPES = {
 
 /**
  * Truth Bullet types - same keys as REMNANT_TYPES, since every Truth Bullet
- * traces back to exactly one Remnant type. Kept as a separate table because the
- * two are worded for different readers: a Remnant's hint is the GM's note on
- * the map, a Truth Bullet's is what ends up on a player's inventory card.
+ * traces back to exactly one Remnant type. Kept as a separate table because a
+ * Truth Bullet's hint is what ends up on a player's inventory card, and a
+ * Remnant's type is its label and whether it is reinforced: the Remnant types'
+ * hints, read by nothing, went in E41 C1b (audit S02-64).
  */
 export const TRUTH_BULLET_TYPES = {
     key: {
@@ -1507,7 +1498,6 @@ export const ACTIONS = {
         description: "First you choose how you look. On a hit, you copy a Remnant in this room into your inventory as "
             + "a Neutral Truth Bullet; a critical also shows its type. Looking past the obvious can also find a secret "
             + "project.",
-        dcTable: "OBSERVE_DC",
         failStress: OBSERVE_FAIL_STRESS
     },
     /**
@@ -1546,7 +1536,6 @@ export const ACTIONS = {
         description: "Learn what a Truth Bullet really is. A miss locks it for you this chapter, and it stays in play "
             + "as it was. Outside a Class Trial, you can ask the GM for a hint instead; a higher total gets a clearer "
             + "one.",
-        dcTable: "ANALYZE_DC",
         /** Used when the player asks for a hint rather than analysing evidence. */
         hintThresholds: [
             { min: 14, result: "A subtle hint - e.g. “You are far from the target.”" },
@@ -1560,7 +1549,7 @@ export const ACTIONS = {
          * A flat number rather than a table, because there is nothing for a
          * table to say. Beating it does not open anything by itself - the
          * result goes to the GM and they decide what it bought. See
-         * `locateStash` in action-rolls.mjs for why nothing is modelled.
+         * `locateStash` in action-analyze.mjs for why nothing is modelled.
          */
         stashThreshold: 16,
         /**
@@ -1620,7 +1609,7 @@ export const ACTIONS = {
      *
      * Its label, hint and description are localised strings, which cannot be
      * written in this file: `game.i18n` does not exist when config.mjs is
-     * evaluated. `dynamicDef()` in action-rolls.mjs builds the real thing at
+     * evaluated. `dynamicDef()` in action-dynamic.mjs builds the real thing at
      * render time and the grid asks for it when it reaches this row.
      *
      * What the row is FOR is its position. The dynamic tile used to be appended
@@ -1884,7 +1873,7 @@ function workableProjectCount(actor) {
 /**
  * Whether this character's Direct Murder would wait on the GM (E32+E07 C16, 03.10.2026;
  * audit S02-33). The tile is three actions, and only the declaration parks anything: a
- * killing declared in an Eclipse, and a betrayal declared in one (action-rolls.mjs
+ * killing declared in an Eclipse, and a betrayal declared in one (action-murder.mjs
  * `performBetrayal`). In a fight it opens the crisis actions, and at Stage 6 outside an
  * Eclipse the betrayal is the player's own decision - the GM's client writes it and asks
  * nobody. The chip said "GM" on all three, for both sides of a fight and for an accomplice
@@ -1955,7 +1944,8 @@ export const INDIRECT_MURDER = {
  *   stash it        in your own bedroom, which costs nothing and hides nothing
  *                   from anybody who searches the room (see vault.mjs).
  *
- * The table is `INDIRECT_MURDER.hideTraces` verbatim, and deliberately so:
+ * The table is `INDIRECT_MURDER.hideTraces`' own rows - the same objects, not
+ * a copy of them (E41 C1b; audit S02-65) - and deliberately so:
  * dropping the knife in a bin is the same kind of act as wiping the bench, it
  * is rolled on the same statistic, and a second scale for it would be a second
  * thing to keep in step for no gain.
@@ -1995,12 +1985,8 @@ export const BROKEN_ITEMS = {
      * to the trial, whoever is tidying up.
      */
     faint: false,
-    thresholds: [
-        { min: 0, remnant: "obvious" },
-        { min: 12, remnant: "evident" },
-        { min: 18, remnant: "subtle" }
-    ],
-    critical: { remnant: "hidden" }
+    thresholds: INDIRECT_MURDER.hideTraces.thresholds,
+    critical: INDIRECT_MURDER.hideTraces.critical
 };
 
 /**
@@ -2358,9 +2344,9 @@ export const OVERFLOW = {
     effects: {
         /* ---- states: read by the one place that decides the number ------- */
 
-        /** Eclipse crossings. Free placement is pulled back to the ordinary two. */
+        /** Eclipse crossings. Free placement is pulled back to the ordinary `ECLIPSE_MOVES`. */
         darkness: {
-            kind: "state", on: true, by: 1, floor: 1, freeBecomes: 2,
+            kind: "state", on: true, by: 1, floor: 1, freeBecomes: ECLIPSE_MOVES,
             reader: "eclipseAllowance"
         },
         /** Search tokens per room. */
@@ -3036,17 +3022,13 @@ export const STATES = {
         resource: "stress",
         // The `-red` variant of this icon does not exist in the core set; the
         // Breakdown condition was showing a broken image on every token.
-        img: "icons/magic/control/fear-fright-monster-grin-red-orange.webp",
-        trigger: "stress === 0",
-        effect: "Disadvantage on every roll."
+        img: "icons/magic/control/fear-fright-monster-grin-red-orange.webp"
     },
     wounded: {
         id: "drpgWounded",
         label: "Wounded",
         resource: "hitPoints",
-        img: "icons/skills/wounds/injury-triple-slash-bleed.webp",
-        trigger: "hp === 0",
-        effect: "-1 action per time of day."
+        img: "icons/skills/wounds/injury-triple-slash-bleed.webp"
     }
 };
 
@@ -3066,8 +3048,8 @@ export const LEVEL_UP_OPTIONS = {
 };
 
 export const LEVEL_UP = {
-    standard: { picks: 1, when: "Named the Blackened correctly." },
-    reinforced: { picks: 3, when: "The Blackened walked out of a wrong vote." }
+    standard: { picks: 1 },
+    reinforced: { picks: 3 }
 };
 
 /* ==========================================================================
@@ -3818,7 +3800,7 @@ export const TRIAL = {
      *
      * THE WHOLE TABLE (E70 C13, 28.10.2026; E70-82): `gm` (the bar), `topicLength`, `budget`, `round` (Testimony, Panic
      * Round) and `closing` (the Closing Argument), each read where its comment says; the floor's modes have no music of
-     * their own (music.mjs `TRIAL_MODE_MUSIC`). The budget is read only as the console's estimate: what a GM over it
+     * their own (music-states.mjs `TRIAL_MODE_MUSIC`). The budget is read only as the console's estimate: what a GM over it
      * skips first is the GM handbook's advice (section 15), never a rule here, and nothing the module skips by itself.
      *
      * E70 C3 (27.10.2026; S18-70, S18-80): `topicLength` is the longest debate question kept (floor-machine.mjs
@@ -4187,8 +4169,6 @@ export const CLEANUP = {
     actions: {
         eraseTrace: {
             label: "Erase a Trace", icon: "fa-eraser",
-            /** DC comes from the trace itself - see `dc` above. */
-            dcFromVisibility: true,
             targets: "remnant"
         },
 
@@ -4233,8 +4213,10 @@ export const CLEANUP = {
          * Stat Ciało - the one Stage 6 action that is not Shadow, because
          * carrying a body is exactly the physical problem it looks like.
          *
-         * `rooms` is how far it travels: an adjacent room on Hope, a connected
-         * one on Despair, and two rooms away on a critical. All three leave an
+         * `rooms` is the guide's reach - an adjacent room on Hope, a connected
+         * one on Despair, two rooms away on a critical; the game offers the
+         * connected rooms (cleanup.mjs `bodyDestinations`), and E64 makes the
+         * critical's two rooms work (the amend of 26.09). All three leave an
          * Evident Resolution Remnant - you cannot drag a body quietly.
          */
         moveBody: {
@@ -4428,7 +4410,7 @@ export const SFX_CATEGORIES = {
  * How far a repeated sound is allowed to wander.
  *
  * `rate` is the FULL reach of the pitch-and-speed bend and `floor` is how close
- * to unbent a play is allowed to land - see `rateFor` in sfx.mjs, which is
+ * to unbent a play is allowed to land - see `rateFor` in sfx-play.mjs, which is
  * where the second number does its work.
  *
  * TUNED BY EAR, WHICH IS THE ONLY WAY. Dawid, 28.08, on 0.08: "you can hear it,
@@ -4869,7 +4851,11 @@ export const SFX_EVENTS = {
  * setting keeping MISIUBOMBO, which is what their players have been told.
  */
 
-/** Aggregate export so macros can reach everything through one object. */
+/**
+ * The aggregate (`game.drpg.config`): every export of this file, for macros, each
+ * by identity. Until E41 C1b it held 68 of the other 95 (audit S02-76); R1233 holds
+ * the list to the file's exports, so an export added without its line here is red.
+ */
 export const DRPG = {
     MODULE_ID,
     SOCKET,
@@ -4939,4 +4925,31 @@ export const DRPG = {
     SFX_SLIDERS,
     SFX_VOLUME_KEYS,
     SFX_EVENTS,
+    AFTER_DARK,
+    BEDROOM_KEY_FLAG,
+    EPOCH_FLOOR_MS,
+    HOSTILE_GRACE,
+    ITEM_DURABILITY,
+    LEGAL_ROLL_MODIFIERS,
+    OVERFLOW,
+    PRICE_CHAINS,
+    PROJECT_OBSERVE,
+    PROSE_NUMBERS,
+    RESOLUTION_HEALTH_COST,
+    ROOM_IMAGE_LIMITS,
+    ROOM_OWNER_FLAG,
+    SFX_VARIATION,
+    SHEET_SIZE,
+    TABLE_COPY_WORDS,
+    TABLE_NAME_WORDS,
+    TIMING,
+    UNCOVERED_LIMIT_PCT,
+    VAULT_LIMIT,
+    callEffect,
+    epochClock,
+    fillProse,
+    isEpochStamp,
+    itemIcon,
+    moduleVersion,
+    staleStamp,
 };

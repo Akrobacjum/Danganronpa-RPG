@@ -84,10 +84,14 @@ import {
     rezoomRoomOutline, recolourRoomOutline
 } from "./fog-reveal.mjs";
 import { sceneUncoveredShare } from "./fog-diagnostics.mjs";
-// The one census of rooms (E20 C1): vault.mjs reaches fog.mjs by no static import, so this makes no cycle (R161).
-import { roomCensus } from "./vault.mjs";
+// The one census of rooms (E20 C1): vault-store.mjs reaches fog.mjs by no static import, so this makes no cycle
+// (R161). Not through vault.mjs (E41 C6): the facade re-exports palm.mjs, which reaches fog.mjs through
+// action-briefing.mjs and projects.mjs, so an import of the facade here closes a static cycle.
+import { roomCensus } from "./vault-store.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState, everyPart } from "./season-reset.mjs";
 export { seamWidth, rezoomRoomOutline } from "./fog-reveal.mjs";
 export { whatIsHere, checkRegions, sceneUncoveredPercent } from "./fog-diagnostics.mjs";
 
@@ -735,7 +739,7 @@ function repaintRoomScene(scene) {
  * opened nothing - and nothing said so. A GM's rename now carries these four, on the primary, once the room's
  * last piece of the old name on that scene has the new one (a piece renamed while another
  * keeps the old name leaves a room of that name standing, and what names it stays): the record
- * here, the sheets in vault.mjs `carryRoomOnSheets`; then the scene is repainted and the GMs
+ * here, the sheets in vault-store.mjs `carryRoomOnSheets`; then the scene is repainted and the GMs
  * are told what moved. Tier 2 "a GM's rename of a room carries its stash, its keys, the notes
  * of its stash found and its discovery", scenario 66 L. Not carried until E12 fix k3-K2, read in
  * the code on 11.10.2026: the sealed rooms (call-world.mjs `sealedRooms`) and the bodies found
@@ -751,7 +755,7 @@ function repaintRoomScene(scene) {
  * they stood on this scene, the lair (a name with no scene, as a key) when no place scene still
  * has a room of the old name. And a rename onto a room that stands on the scene already is no
  * rename of a room but a piece joining another: nothing is carried, the piece's room flags come
- * off it and the GMs are told (vault.mjs `clearSplitPiece`, rooms.mjs `joinsAnotherRoom`) - C8
+ * off it and the GMs are told (vault-store.mjs `clearSplitPiece`, rooms.mjs `joinsAnotherRoom`) - C8
  * carried every key of Aiko's bedroom into Ben's. Tier 2 "a GM's rename of a bedroom onto another
  * bedroom's name carries nothing into it ..." and "a GM's two renames in a row carry a room's
  * project and plant ...", scenario 66 Q.
@@ -1201,6 +1205,18 @@ export async function resetLedger() {
     shareLedger();
     return true;
 }
+
+/**
+ * The season reset's discovered group (E42 C3; a run of season-setup.mjs `wipeSeason` until then). The fog ledger is a
+ * GM store since E04 (D2 took it off the world); the world row only clears what a world the lift has not reached may
+ * still carry. Both are the group - the same fact, stored in two places - each tried (`everyPart`), and the store's
+ * players are sent the cleared rows (`resetLedger`).
+ */
+export async function clearSeasonDiscovered() {
+    await everyPart(() => game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, {}), () => resetLedger());
+}
+
+registerSeasonState({ group: "discovered", clear: clearSeasonDiscovered, settings: [SETTINGS.discoveredRooms] });
 
 /**
  * A world that updated mid-season may still hold its ledger in the world setting,

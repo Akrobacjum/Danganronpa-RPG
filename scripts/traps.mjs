@@ -534,7 +534,7 @@ export async function plantItem(projectId, room, { sceneId = null, ...item } = {
  * `runTakePlant`) - the plant's name, identity, room and scene go on the GMs' bookmark of
  * that roll, so a Reroll on a GM (C6a) gives back this plant rather than a fresh draw.
  * The roll is the one the Search names (`rollId`), and the fact goes on its row only when
- * that is `by`'s Search of that character (fix r1-G2; action-rolls.mjs `rollOfFact`): the
+ * that is `by`'s Search of that character (fix r1-G2; action-pipeline.mjs `rollOfFact`): the
  * character's newest row, read here, was the roll before whenever the Search's own row
  * was still on its way.
  */
@@ -766,7 +766,7 @@ export function registerTraps() {
      * roller's, a rest likewise. Only `createChatMessage` reaches everybody,
      * which is why the item trigger was the one that worked. Since E80 fix r1-G1
      * (the review's E80-SEC-1) a stash hunt and a passage search are raised by
-     * the GM that judges them (vault.mjs `resolveStashSearch`, passages-gm.mjs
+     * the GM that judges them (stash-reach.mjs `resolveStashSearch`, passages-gm.mjs
      * `resolvePassageSearch`): the searcher's console no longer decides whether
      * a trap hears of it. A stash hunt a GM who is not the primary judged is
      * still relayed, as that GM's report; a player's is refused
@@ -861,7 +861,7 @@ export const TRAP_ACTIONS = table({
     }
 });
 
-/** Ask the primary GM for a trap action, as TRAP_ACTIONS says to wait for it (`ask` in gm-bridge.mjs is the same). */
+/** Ask the primary GM for a trap action, as TRAP_ACTIONS says to wait for it (`ask` in bridge-table.mjs is the same). */
 function askTraps(action, payload) {
     const decl = TRAP_ACTIONS[action];
     return bridgeRequest(action, payload, { settle: decl.answer, quiet: Boolean(decl.quiet) });
@@ -1048,7 +1048,7 @@ async function onRested({ actor, room } = {}) {
  *
  * Dawid, 28.08. The trap answers somebody who is rummaging through other
  * people's hiding places; whether they were any good at it is a different
- * question and not this one. Raised by the GM that judges the search (vault.mjs
+ * question and not this one. Raised by the GM that judges the search (stash-reach.mjs
  * `resolveStashSearch`) since E80 fix r1-G1, before it scores the roll.
  */
 async function onStashHunted({ actor, room } = {}) {

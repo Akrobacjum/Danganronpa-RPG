@@ -24,8 +24,8 @@ import { SETTINGS } from "./settings.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";   // hasFreeMove: player view only
 import { isEclipse, movesLeft as eclipseMovesLeft, movesUsed as eclipseMovesUsed, eclipseAllowance } from "./eclipse.mjs";
 import { hopeHeld } from "./calls.mjs";
-import { isMonokuma } from "./monokuma.mjs";
-import { isDeadForGm, livingStudents } from "./chapter.mjs";
+import { isMonokuma, actingStudents } from "./monokuma.mjs";
+import { isDeadForGm } from "./chapter.mjs";
 import { isMonocub } from "./monocub.mjs";
 import { matchStripToDespair, viewerActor } from "./hud.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
@@ -368,14 +368,14 @@ function safeRow(build) {
  * actions' ("Placement only. Actions are already back ..."); it now names what the row counts: the crossings
  * left, or any room.
  *
- * FREE PLACEMENT LIVES UNTIL E37 (S18-90 takes `ECLIPSE_FREE_PLACEMENT` and `isFreePlacement` out): each branch
- * that reads `null` here and in `stillPlacing` is one `if` that its removal deletes whole.
+ * FREE PLACEMENT STAYS (the owner's decision D197, 01.11.2026: the Night Eclipse keeps its free placement): each
+ * branch that reads `null` here and in `stillPlacing` is that placement's.
  *
  * @param {number|null} moves
  * @returns {{available: boolean, feet: number, solid: boolean, tooltip: string}}
  */
 export function eclipseMoveRow(moves) {
-    if (moves === null) {   // free placement (until E37): one full foot, anywhere
+    if (moves === null) {   // free placement: one full foot, anywhere
         return { available: true, feet: 1, solid: true, tooltip: game.i18n.localize("DRPG.Actions.eclipseFreePlacement") };
     }
     const n = Math.max(0, Number(moves) || 0);
@@ -396,7 +396,7 @@ export function actionsTooltip({ eclipse, monocub, left, max }) {
 
 /**
  * How many of `students` still have to place, for the GM's "Still placing" row: a crossing left, or, in free
- * placement (`null` left, until E37), no crossing made yet (`movesUsed === 0`). Until E17 C8 `null > 0` counted
+ * placement (`null` left), no crossing made yet (`movesUsed === 0`). Until E17 C8 `null > 0` counted
  * nobody, and the GM read "Still placing 0 / N" over a table where nobody had moved.
  *
  * @param {Actor[]} students
@@ -405,7 +405,7 @@ export function actionsTooltip({ eclipse, monocub, left, max }) {
 export function stillPlacing(students, { left = eclipseMovesLeft, used = eclipseMovesUsed } = {}) {
     return students.filter(actor => {
         const n = left(actor);
-        if (n === null) return used(actor) === 0;   // free placement (until E37)
+        if (n === null) return used(actor) === 0;   // free placement
         return n > 0;
     }).length;
 }
@@ -556,11 +556,6 @@ function field(className, label, value, tooltipKey, spent) {
     return wrap;
 }
 
-/** Living students, which is who the two counts below are about. */
-function trackedStudents() {
-    return livingStudents();
-}
-
 /**
  * The table's numbers, for an account with no character of its own.
  *
@@ -573,7 +568,10 @@ function trackedStudents() {
  * "Still to act", not "Actions". The label is the whole fix.
  */
 function buildTableView() {
-    const students = trackedStudents();
+    // The one cast (monokuma.mjs `actingStudents`, E37 C2; S10-45): the living and the Monocubs, as the panel's Next line
+    // counts them. Until E37 this was chapter.mjs `livingStudents()`, with no Monocub: a Monocub holding the last action
+    // read "1 student still has actions to spend." on the panel over "Still to act 0 / 2" here (R1193).
+    const students = actingStudents();
     if (!students.length) return null;
 
     const el = box();
@@ -601,7 +599,7 @@ function buildTableView() {
         //
         // During an Eclipse the same count IS the thing a GM waits for - who has
         // still to place - so it stays, under a label that says that and nothing
-        // about a budget. In free placement (until E37) that is who has not moved
+        // about a budget. In free placement that is who has not moved
         // yet: see `stillPlacing`.
         safeRow(() => {
             if (!eclipse) return null;

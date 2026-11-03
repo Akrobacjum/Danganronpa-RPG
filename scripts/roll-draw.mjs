@@ -454,7 +454,7 @@ export function drawPacketOf(roll, config, claim) {
  * C12b), and this copy only repeats what fell. A total
  * this copy reads differently is the GM's (the record stands) and is logged. What the
  * GM decided beside the dice rides on the config with the record's id (`DRAWN_ROLL`):
- * the hidden stash's step it drew (`stash`, action-rolls.mjs `stashStepOf`) and whether
+ * the hidden stash's step it drew (`stash`, action-search.mjs `stashStepOf`) and whether
  * it loaded the die (`loaded`).
  */
 async function playBack(cls, roll, config, message, answer, subject, start = awaitStart(null, null)) {
@@ -768,7 +768,7 @@ function paidCosts(costs) {
  * two). A Move or a Rest lowers the actions too, and is a ticket nobody honest draws on. The
  * tickets are each GM's own memory, and a draw takes one on the GM that draws it: a payment made
  * before a GM loaded is not seen there, and its roll is refused as a closed window is - the
- * action hands the payment back (action-rolls.mjs `abort`) unless a roll of it has landed
+ * action hands the payment back (action-pipeline.mjs `abort`) unless a roll of it has landed
  * already (`spentAfterRoll`), and the next try pays again. A part that only rides (`RIDES_ONLY`)
  * on a new primary whose GM before it drew the partner is the one exception (`handedOver`, E80
  * fix r1-G3): the partner's record is the GMs' (`rolls`, its `drawnBy`), so the new primary reads
@@ -780,7 +780,7 @@ function paidCosts(costs) {
 /** How long a draw waits for its payment to reach this GM. The roller's browser pays before the roll's window opens, so this is a margin. Chosen, not measured. */
 const PAY_WAIT_MS = 1500;
 /**
- * The rolls one payment buys together: a Palm's unseen roll and its hand (action-rolls.mjs `performPalm`); a Frisk's
+ * The rolls one payment buys together: a Palm's unseen roll and its hand (palm.mjs `performPalm`); a Frisk's
  * cover and its hand; an open Frisk's ask, which the primary claims (`claimTicket`), and its force. Two sets for the
  * cover, not one: one set of three would let a Take's hand and a Frisk's ride the same payment (the A11 design, step 10).
  */
@@ -1483,7 +1483,7 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     if (typeof cls.handleTriggers === "function") await cls.handleTriggers(roll, config);
     if (config.costs.length) config.resourceUpdates.addResources(config.costs.map(c => ({ ...c, value: -c.value })));
     await config.resourceUpdates.updateResources();
-    // The hidden stash's step (action-rolls.mjs `stashStep`), drawn here on this GM's dice
+    // The hidden stash's step (action-search.mjs `stashStep`), drawn here on this GM's dice
     // where the room the GM sees the searcher in holds one; the searcher takes this step and
     // draws none of its own (`stashStepOf`).
     const stash = expected.stashDie && told.context.stashDie === true ? await stashStepFor(roll, actor) : null;
@@ -1566,7 +1566,7 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
  * the draw is applied whether the packet names it or not, and spent with the rest; one armed later is
  * neither, and waits for the next roll, as one armed while a window stood open waits (E08+E28 C7).
  * An entry armed before 1.2.68 carries no time (call-effects.mjs `appendArmedCall`) and counts as
- * armed long before. A roll that spends no Call - a supporting roll (action-rolls.mjs `rollTrait`'s
+ * armed long before. A roll that spends no Call - a supporting roll (action-pipeline.mjs `rollTrait`'s
  * `remember: false`: a Palm's unseen roll, an opening, a concealment, which names no action) - is
  * given none.
  * Monokuma's rolls are not locked by the window (roll-dialog.mjs `isStudentRoll`), and nothing
@@ -1606,7 +1606,7 @@ function appliedCalls(actor, nonces, held = null) {
 
 /** A Call that hinders the roll it is spent on: a disadvantage, or a bonus below nothing (a Meddle's -1). */
 const hinders = call => call?.grants === "disadvantage" || (call?.grants === "bonus" && Number(call.amount) < 0);
-/** The actions whose roll spends no Call (action-rolls.mjs `rollTrait`'s `remember: false`): a Palm's unseen roll and an opening. */
+/** The actions whose roll spends no Call (action-pipeline.mjs `rollTrait`'s `remember: false`): a Palm's unseen roll and an opening. */
 const SPENDS_NO_CALL = new Set(["palm", "murderOpening"]);
 
 /**
@@ -1664,7 +1664,7 @@ function traitKeyOf(trait) {
 
 /**
  * The parts of an action told under a key of their own (`rollTrait`'s `actionKey`): a Palm's cover as "palm", its hand
- * as "steal" (action-rolls.mjs `performPalm`); a Frisk's hand as "rummage" and its force as "frisk" (E80 part 2).
+ * as "steal" (palm.mjs `performPalm`); a Frisk's hand as "rummage" and its force as "frisk" (E80 part 2).
  */
 const TOLD_AS = Object.freeze({ palm: Object.freeze({ key: "palm", part: "unseen" }), steal: Object.freeze({ key: "palm" }),
     rummage: Object.freeze({ key: "palm", part: "rummage" }), frisk: Object.freeze({ key: "palm", part: "frisk" }) });
@@ -1743,7 +1743,7 @@ const pickKeyOf = (kind, key) => (kind === "cleanup" && !CLEANUP.actions?.[key]?
  * A PICK IS A GM'S CARD, FOR THE ROLL'S OWN DEFINITION (E29 fix r2-H2, 05.10.2026; the round-2
  * security review's B2 and m1). Until this fix every card carrying a `ruling` was read, whoever
  * wrote it, and the newest held whichever action of its kind the character rolled next, to
- * whatever statistic it named. A GM keeps a real pick in its card's meta (gm-bridge.mjs
+ * whatever statistic it named. A GM keeps a real pick in its card's meta (call-gm.mjs
  * `settleCall`), which a player's own card may not carry (secret.mjs `GM_META`), but this read the
  * document's flag first: the review's console posted a card with the flag on it and the GM threw
  * Body for a clean-up, which does not list it, recorded as the GM's pick with nothing flagged (its

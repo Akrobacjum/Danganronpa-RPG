@@ -266,7 +266,7 @@ export function piecesByName(scene) {
  * is the renamed room's own only when a GM renamed it from the same old name - the first pieces of a
  * room renamed piece by piece; any other is another room, and the rename joins it. Which piece came
  * from which name is remembered because the client that writes the rename judges it before the
- * update (vault.mjs `clearSplitPiece`) and the primary judges the carry after it, and they need not
+ * update (vault-store.mjs `clearSplitPiece`) and the primary judges the carry after it, and they need not
  * be the same GM (scenario 66 Q).
  *
  * IN THE WORLD, ON THE PIECE (E12 fix k3-K2, 12.10.2026; open road O-a of r2-H4). r2-H4 kept it in
@@ -617,7 +617,7 @@ export const CAMERA_READERS = Object.freeze({
     "investigation.mjs#openKeyRemnantHere": "window",
     "investigation.mjs#placeKeyRow": "window",
     "season-setup.mjs#steps": "window",
-    "vault.mjs#openRoomSetupDialog": "window",
+    "room-setup.mjs#openRoomSetupDialog": "window",
 
     "diagnostics.mjs#voiceDiagnosis": "diagnose",
     "fog-diagnostics.mjs#whatIsHere": "diagnose",

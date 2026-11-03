@@ -47,7 +47,9 @@ import {
 import { roomOutline } from "./fog-reveal.mjs";
 import { secretDoorsOn } from "./passages.mjs";
 import { plural, localeFormat } from "./utils.mjs";
-import { VAULT_FLAGS } from "./vault.mjs";
+// From vault-store.mjs, which reaches this file by no static import; not from its facade vault.mjs (E41 C6), which
+// reaches it through palm.mjs and fog.mjs, so that import would close a static cycle (R161).
+import { VAULT_FLAGS } from "./vault-store.mjs";
 
 /** Depth-first, by display-object name. */
 function findNamed(node, name) {

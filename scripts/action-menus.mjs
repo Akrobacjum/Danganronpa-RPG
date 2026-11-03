@@ -1,0 +1,259 @@
+/**
+ * Danganronpa RPG - the windows an action asks its question in.
+ * ---------------------------------------------------------------------------
+ * The one menu five actions ask "which flavour of this?" with (`chooseVariant`,
+ * its confirm button following the picked row: `followConfirmLabel`), the
+ * statistic picker inside it (`traitFieldHtml`, `readTraitField`), the box for
+ * the player's own words in an action's first window (`requestFieldHtml`,
+ * `readRequestField`), and the sentence a parked declaration asks before it is
+ * sent (`promptForNote`).
+ *
+ * WHERE IT SITS. Moved out of action-rolls.mjs by E41 C3 (1.2.97), a pure move
+ * that `node tools/moved-only.mjs` proves line by line. action-rolls.mjs
+ * re-exports `chooseVariant`, the one name here it exported before (level-up.mjs
+ * reads it through it), and nothing here imports it back (the facade rule,
+ * .claude/rules/code.md). `requestFieldHtml`, `readRequestField` and
+ * `promptForNote` are exported now because the actions that stay in
+ * action-rolls.mjs call them; action-rolls.mjs does not re-export them. It
+ * imports nothing of the action family.
+ */
+
+import { TRAITS } from "./config.mjs";
+import { dialogContent, esc } from "./utils.mjs";
+
+const DialogV2 = foundry.applications.api.DialogV2;
+
+/**
+ * The "which statistic?" field, as HTML to drop into somebody else's form.
+ *
+ * Three windows built this select by hand, which is why the trait choice kept
+ * turning up as a window of its own: it was easier to open a new dialog than to
+ * repeat fifteen lines inside an existing one. As one function it costs a line,
+ * so an action that already asks something can ask this too.
+ *
+ * Returns "" when there is nothing to choose - one allowed trait, or none -
+ * and the caller falls back to it without a field. See `readTraitField`.
+ */
+function traitFieldHtml(actor, traits, { note = "" } = {}) {
+    const allowed = traits ?? [];
+    if (allowed.length < 2) return "";
+
+    const options = allowed.map(key => {
+        const t = TRAITS[key];
+        const value = actor.system.traits?.[t.dh]?.value ?? 0;
+        return `<option value="${key}">${t.label} (${value > 0 ? "+" : ""}${value})</option>`;
+    }).join("");
+
+    return `<label class="drpg-trait-field"><span>${game.i18n.localize("DRPG.Advance.whichTrait")}</span>
+        <select name="trait">${options}</select>
+        ${note ? `<small class="notes">${note}</small>` : ""}
+    </label>`;
+}
+
+/** The other half of `traitFieldHtml`: what the form says, or the only option. */
+function readTraitField(element, traits) {
+    const allowed = traits ?? [];
+    if (!allowed.length) return null;
+    if (allowed.length === 1) return allowed[0];
+    return element.querySelector("[name=trait]")?.value ?? allowed[0];
+}
+
+/* ==========================================================================
+ * ONE MENU, FIVE PLACES
+ * --------------------------------------------------------------------------
+ * Five actions ask the same shape of question - which flavour of this do you
+ * want - and until now each answered it in a different idiom: Search had a
+ * radio list with icons and hints, Observe and Project had rows of footer
+ * buttons, Analyze had a select, Rest had a bulleted list with the buttons
+ * underneath. Same decision, four layouts, and only one of them could say why
+ * an option was not available.
+ *
+ * This is Search's list, lifted out: an icon, a title, a line of explanation,
+ * and the two things the button rows could never carry.
+ *
+ *   UNAVAILABLE OPTIONS STAY ON THE LIST, struck through, with the reason
+ *   where the hint goes. Seeing what you cannot do is half of what a menu is
+ *   for - the same rule the Calls panel already follows.
+ *
+ *   OPTIONS THAT SUMMON A HUMAN ARE RED, with `drpg-gm-route`, the same class
+ *   the buttons carry today. Red already means "this waits for somebody"
+ *   everywhere else in the module.
+ *
+ * @param {object}   config
+ * @param {Actor}    config.actor
+ * @param {string}   config.title      Window title.
+ * @param {string}   [config.intro]    HTML above the list - usually a briefing.
+ * @param {string}   [config.prompt]   One line asking the question.
+ * @param {Array}    config.options    `{ value, label, hint, icon, gmRoute,
+ *                                        disabled, why, details, confirm }` -
+ *                                        `label`/`hint`/`why`/`confirm` are
+ *                                        literal text, already localised;
+ *                                        `details` is markup, already escaped,
+ *                                        unfolded under the row while it is the
+ *                                        one picked; `confirm` names the confirm
+ *                                        button while that row is picked.
+ * @param {string[]} [config.traits]   Show a trait picker for these.
+ * @param {string}   [config.extra]    Extra HTML inside the form, under the list.
+ * @param {string}   [config.confirm]  Label for the confirm button.
+ * @returns {Promise<{value: string, trait: string|null, form: HTMLFormElement}|null>}
+ */
+/* ==========================================================================
+ * THE SENTENCE COMES FIRST
+ * --------------------------------------------------------------------------
+ * Every action that can end in a GM ruling used to ask for the player's own
+ * words AFTER the dice: choose the action, choose the trait, roll, and only
+ * then a second window asking what you were actually trying to do. Search was
+ * the exception - its box sits in the first window, next to the goal - and
+ * Search is the one that reads right.
+ *
+ * The order matters for more than clicks. Typing "I check whether the lock has
+ * been forced" before the roll is a declaration; typing it after a 6 is a
+ * negotiation. The guide asks for the first.
+ *
+ * So the box is offered in the FIRST window of every action that has a GM
+ * branch, and the answer travels with the roll. Nothing else about those
+ * actions changes: the roll still happens where it happened, the card still
+ * carries the same three parts.
+ * ========================================================================== */
+
+/** The textarea, with whatever prompt the action wants above it. */
+export function requestFieldHtml({ prompt, placeholder, optional = true, when = null }) {
+    // `when`: the row whose pick shows it (the stylesheet's `data-drpg-when`), or shown with every row.
+    return `<label class="drpg-specific-note"${when ? ` data-drpg-when="${esc(when)}"` : ""}>
+        <span>${prompt}</span>
+        <textarea name="request" rows="2" placeholder="${
+            foundry.utils.escapeHTML(placeholder ?? "")}"></textarea>
+        ${optional ? `<small class="notes">${
+            game.i18n.localize("DRPG.Action.requestOptional")}</small>` : ""}
+    </label>`;
+}
+
+/** Whatever was typed into that field, from a dialog that has already closed. */
+export function readRequestField(root) {
+    return root?.querySelector('[name="request"]')?.value.trim() ?? "";
+}
+
+export async function chooseVariant({
+    actor, title, intro = "", prompt = "", options = [], traits = null,
+    extra = "", confirm = null, traitNote = "", showShut = false
+} = {}) {
+    const usable = options.filter(o => !o.disabled);
+    // `showShut`: a window whose every row is shut still opens, the rows greyed with their reasons and one button
+    // that closes it (E16 part 2 C4; S02-26, the Rest window) - the reasons are the answer the player needs.
+    if (!usable.length && !(showShut && options.length)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Action.noVariants"));
+        return null;
+    }
+
+    const first = usable[0]?.value ?? null;
+
+    // A row's details are a sibling of its <label>, not a child: a list is no phrasing
+    // content, and the stylesheet unfolds the block right after the picked row.
+    const rows = options.map(o => `
+        <label class="drpg-choice${o.disabled ? " unavailable" : ""}${
+            o.gmRoute ? " drpg-gm-route" : ""}${o.struck ? " drpg-row-denied" : ""}">
+            <input type="radio" name="variant" value="${esc(o.value)}"${
+                o.value === first ? " checked" : ""}${o.disabled ? " disabled" : ""}>
+            <i class="fa-solid ${esc(o.icon ?? "fa-circle")}" inert></i>
+            <span class="drpg-choice-text">
+                <strong>${esc(o.label)}</strong>
+                <small>${esc(o.disabled ? (o.why ?? o.hint ?? "") : (o.hint ?? ""))}</small>
+            </span>
+        </label>${o.details && !o.disabled
+            ? `<div class="drpg-choice-details" data-drpg-for="${esc(o.value)}">${o.details}</div>` : ""}`).join("");
+
+    const fallback = confirm ?? game.i18n.localize("DRPG.Action.proceed");
+    // A row's `confirm` is its label, or a function of the drawn window that reads the row's own fields (a Frisk's mode).
+    const confirmFor = (value, root = null) => {
+        const label = options.find(o => o.value === value)?.confirm;
+        return typeof label === "function" ? label(root) : label ?? fallback;
+    };
+
+    const picked = await DialogV2.wait({
+        window: { title },
+        classes: ["drpg-panel"],
+        content: dialogContent(`${intro}<form>
+            ${prompt ? `<p>${prompt}</p>` : ""}
+            <div class="drpg-choice-list">${rows}</div>
+            ${extra}
+            ${traits?.length ? traitFieldHtml(actor, traits, { note: traitNote })
+                // A window that asks no statistic still says its note (fix r2-G3, 03.10.2026; the
+                // round-2 review's C2-m9 (b)): the Tamper menu's readied Cleaning Tool was only ever
+                // drawn inside the trait field it does not have, so no Tamper window showed it.
+                : traitNote ? `<p class="notes">${traitNote}</p>` : ""}
+        </form>`),
+        render: options.some(o => o.confirm)
+            ? (event, dialog) => followConfirmLabel(dialog, confirmFor) : undefined,
+        buttons: !usable.length ? [
+            { action: "cancel", default: true, label: game.i18n.localize("DRPG.Panel.close") }
+        ] : [
+            {
+                action: "ok", default: true,
+                label: confirmFor(first),
+                callback: (e, b, d) => {
+                    const form = d.element.querySelector("form");
+                    return {
+                        value: form.querySelector('input[name="variant"]:checked')?.value ?? first,
+                        trait: traits?.length ? readTraitField(d.element, traits) : null,
+                        form
+                    };
+                }
+            },
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+        ],
+        rejectClose: false
+    });
+
+    if (!picked || picked === "cancel") return null;
+    return picked;
+}
+
+/**
+ * The confirm button says what the picked row does (E32+E07 C15, 03.10.2026; audit
+ * S04-27): the crisis menu's "Roll it" became "Do it" on a free take, which throws no
+ * dice. Foundry draws a button's label in a <span> beside its icon; the harness's
+ * window draws the bare text, so either is written.
+ */
+function followConfirmLabel(dialog, confirmFor) {
+    const root = dialog?.element;
+    const button = root?.querySelector('footer button[data-action="ok"]');
+    if (!button) return;
+    const sync = () => {
+        const label = confirmFor(root.querySelector('input[name="variant"]:checked')?.value, root);
+        (button.querySelector("span") ?? button).textContent = label;
+    };
+    // A row's own field can change what it does as well as the row (E80 part 2 C2: a Frisk's mode, `friskModes`).
+    root.addEventListener("change", event => {
+        if (["variant", "friskMode"].includes(event.target?.name)) sync();
+    });
+    sync();
+}
+
+/**
+ * Ask for the sentence that goes to the GM, without calling them yet.
+ *
+ * `promptAndCallGm` does both in one step, and a parked declaration needs the
+ * halves separated: the GM hears about this when the Eclipse ends, not now.
+ * Cancelling the box is not cancelling the attempt - the action is already
+ * spent by the time this opens, and a dismissed dialog must never be a way to
+ * get it back.
+ */
+export async function promptForNote(actor, { title, prompt, placeholder }) {
+    const result = await DialogV2.wait({
+        window: { title },
+        classes: ["drpg-panel"],
+        content: dialogContent(`<form>
+            <p>${prompt}</p>
+            <textarea name="note" rows="3" placeholder="${
+                foundry.utils.escapeHTML(placeholder ?? "")}"></textarea>
+        </form>`),
+        buttons: [
+            {
+                action: "ok", label: game.i18n.localize("DRPG.Action.murderParkedConfirm"), default: true,
+                callback: (e, b, d) => d.element.querySelector("[name=note]")?.value.trim() ?? ""
+            }
+        ],
+        rejectClose: false
+    }).catch(() => "");
+    return typeof result === "string" ? result : "";
+}

@@ -1284,6 +1284,94 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         fogRooms.length === 2 && J(fogGm2.digest) === J(fogGm.digest) && J(fogGm2.aiko) === J([fogRooms[1]]) && fogGm2.cell === false,
         J({ fogRooms, fogGm, fogGm2 }));
 
+    /* ------------------- RR. two GMs on one readiness round ------------------- */
+
+    /* RR (E37 fix FG1, 02.11.2026; the end review's C-M1 and G-m2). The suite's tier 2 has no second GM on its clients,
+       so the round with two GMs is driven here, where gm2 is connected (since I). The seed GM presses Next time of day
+       (boundary.mjs `nextTimeOfDay`) and gm2 presses it too, which joins the same round: two GM windows on one round.
+       p1 closes its window with the window's own close (its X, Escape), and the card the round gives (`answerAgain`) is
+       read and clicked; then every player asked says Done, the last Done reaching both GM windows at once. Read: the
+       time of day, the time-of-day cards the moves posted (their heading names the time of day, clock.mjs
+       `announceTimeOfDay`), the round's end and what each GM's press answered; and p1's card, its window again and its
+       answer. Put back: the clock and the round's setting. Red at 2b5527e1: both GMs moved the clock (two moves,
+       two cards), and p1 had no card - its Done was then sent from its console, so the round could still go on. */
+    phase("RR: two GMs on one readiness round move the clock once, and a player who closed the window answers from its card", { flow: "clock-day" });
+    const rrWin = (c, cls) => c.eval(`const app = [...foundry.applications.instances.values()].find(a => a?.options?.classes?.includes("${cls}") && a.element?.isConnected);
+        return app ? { rows: [...app.element.querySelectorAll("tr[data-drpg-user]")].map(tr => tr.dataset.drpgUser) } : null;`);
+    const rrPress = (c, action) => c.eval(`const app = [...foundry.applications.instances.values()].find(a => a?.options?.classes?.includes("drpg-ready-player") && a.element?.isConnected);
+        const b = app?.element?.querySelector('footer button[data-action="${action}"]'); b?.click(); return Boolean(b);`);
+    const rrUntil = async (test, ms = 10000) => { const end = Date.now() + ms; let v = await test(); while (!v && Date.now() < end) { await settle(200); v = await test(); } return v; };
+    const rrPlayers = [p1, p2, p3];
+    const rrSetup = await gm.eval(`const E = await import("${repoUrl}/scripts/eclipse.mjs"); const M = await import("${repoUrl}/scripts/murder.mjs");
+        globalThis.__rrWas = foundry.utils.deepClone(game.drpg.getClock());
+        const C = await import("${repoUrl}/scripts/clock.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        globalThis.__rrBoundary = await C.boundarySnapshot();
+        globalThis.__rrKeep = { overflow: foundry.utils.deepClone(game.settings.get("${MOD}", "overflow") ?? {}),
+            motive: foundry.utils.deepClone(game.settings.get("${MOD}", "motive") ?? null), count: S.overflowStore.get("record")?.count ?? 0,
+            messages: game.messages.map(m => m.id) };
+        if (E.isEclipse()) await E.endEclipse({ advance: false });
+        await game.drpg.setClock({ phase: "dailyLife", timeOfDay: "noon", refilledFor: null });
+        await game.settings.set("${MOD}", "readyRound", {});
+        globalThis.__rrCards = [];
+        globalThis.__rrHook = Hooks.on("createChatMessage", m => globalThis.__rrCards.push(String(m.content ?? "")));
+        return { incident: Boolean(M.murderState()), clock: game.drpg.getClock().timeOfDay };`, { timeout: 60000 });
+    for (const c of [gm, gm2, ...rrPlayers]) await c.eval(`globalThis.__rrWindowsWas = globalThis.__dialogWindows; globalThis.__dialogWindows = true; return true;`);
+    await settle(600);
+    const RR_NEXT = `const B = await import("${repoUrl}/scripts/boundary.mjs");
+        globalThis.__rrNext = B.nextTimeOfDay().then(v => (v ? "moved" : null), err => "threw " + err.message); return true;`;
+    await gm.eval(RR_NEXT);
+    const rrAsked = await rrUntil(async () => ((await rrWin(gm, "drpg-ready-gm"))?.rows?.length ? (await rrWin(gm, "drpg-ready-gm")).rows : null));
+    const rrClients = rrPlayers.filter(c => (rrAsked ?? []).includes(c.userId));
+    await rrUntil(async () => (await Promise.all(rrClients.map(c => rrWin(c, "drpg-ready-player")))).every(Boolean));
+    await gm2.eval(RR_NEXT);
+    const rrBoth = Boolean(await rrUntil(() => rrWin(gm2, "drpg-ready-gm")));
+    const rrRound = await gm.eval(`return game.settings.get("${MOD}", "readyRound") ?? {};`);
+    // p1 closes its window with the window's own close; the card the round gives opens it again.
+    const answerAgain = await p1.eval(`return game.i18n.localize("DRPG.Ready.answerAgain");`);
+    const rrCard = `[...document.querySelectorAll(".drpg-popup")].find(card => card.textContent.includes(${J(answerAgain)}))`;
+    await p1.eval(`const app = [...foundry.applications.instances.values()].find(a => a?.options?.classes?.includes("drpg-ready-player") && a.element?.isConnected);
+        await app?.close(); return Boolean(app);`);
+    const rrCardShown = Boolean(await rrUntil(() => p1.eval(`return Boolean(${rrCard});`), 4000));
+    await p1.eval(`${rrCard}?.click(); return true;`);
+    const rrAgain = Boolean(await rrUntil(() => rrWin(p1, "drpg-ready-player"), 4000));
+    if (!rrAgain) {
+        // No card (the tree before the fix): p1's Done from its console, so the round can still go on and the clock be read.
+        await p1.eval(`const G = await import("${repoUrl}/scripts/gm-bridge.mjs"); await G.requestReadyAnswer({ roundId: ${J(rrRound.id ?? null)}, ready: true }); return true;`);
+    }
+    for (const c of rrClients) if (c !== p1 || rrAgain) await rrPress(c, "done");
+    await rrUntil(async () => !(await rrWin(gm, "drpg-ready-gm")) && !(await rrWin(gm2, "drpg-ready-gm")), 15000);
+    await settle(2500);
+    const rrPresses = [await gm.eval(`return await globalThis.__rrNext;`, { timeout: 60000 }), await gm2.eval(`return await globalThis.__rrNext;`, { timeout: 60000 })];
+    await settle(800);
+    const rrRead = await gm.eval(`const C = await import("${repoUrl}/scripts/clock.mjs");
+        const heads = ["afternoon", "evening"].map(t => globalThis.__rrCards.filter(c => c.includes("<h3>" + C.timeOfDayLabel(t) + "</h3>")).length);
+        return { clock: game.drpg.getClock().timeOfDay, heads, ended: (game.settings.get("${MOD}", "readyRound") ?? {}).ended ?? null,
+            p1: (game.settings.get("${MOD}", "readyRound") ?? {}).answers?.["${p1.userId}"] ?? null };`);
+    // Put back as 81 does (its "put back"): the clock, the budgets, the rooms' Search tokens, the seals, the overflow and the motive
+    // the boundary moved, and the cards it posted - V and M below read p1's budget.
+    await gm.eval(`Hooks.off("createChatMessage", globalThis.__rrHook); await game.drpg.setClock(globalThis.__rrWas); await game.settings.set("${MOD}", "readyRound", {});
+        const A = await import("${repoUrl}/scripts/actions.mjs"); const { SearchTokens } = await import("${repoUrl}/scripts/search-tokens.mjs");
+        const W = await import("${repoUrl}/scripts/call-world.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const b = globalThis.__rrBoundary, k = globalThis.__rrKeep;
+        await A.putBackBudgets(b.actions);
+        await SearchTokens.putBack(b.tokens);
+        await W.putBackSeals({ sealed: b.sealed, restrictions: b.restrictions });
+        await game.settings.set("${MOD}", "overflow", k.overflow);
+        if (k.motive !== null) await game.settings.set("${MOD}", "motive", k.motive);
+        await S.overflowStore.patch("record", { count: k.count });
+        const keep = new Set(k.messages), fresh = game.messages.filter(m => !keep.has(m.id)).map(m => m.id);
+        if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+        delete globalThis.__rrWas; delete globalThis.__rrCards; delete globalThis.__rrHook; delete globalThis.__rrBoundary; delete globalThis.__rrKeep;
+        return true;`, { timeout: 60000 });
+    for (const c of [gm, gm2, ...rrPlayers]) await c.eval(`globalThis.__dialogWindows = globalThis.__rrWindowsWas; delete globalThis.__rrWindowsWas; delete globalThis.__rrNext; return true;`);
+    await settle(600);
+    check("RR1: two GMs' windows on one readiness round go on at the last Done, and the clock moves once - one time-of-day card",
+        rrSetup.incident === false && rrSetup.clock === "noon" && rrClients.length >= 2 && rrBoth && rrRead.clock === "afternoon"
+        && J(rrRead.heads) === J([1, 0]) && rrRead.ended === "go" && rrPresses.filter(v => v === "moved").length === 1 && rrPresses.includes(null),
+        J({ rrSetup, asked: rrClients.map(c => c.who), rrBoth, rrRead, rrPresses }));
+    check("RR2: a player who closed the round's window gets a card that opens it again, and answers from it",
+        rrCardShown && rrAgain && rrRead.p1 === "done", J({ rrCardShown, rrAgain, p1: rrRead.p1 }));
+
     /* ------------------- H1. a Level Up offered, synced ------------------- */
 
     phase("H1: a Level Up offered on the primary lights its owner's button, and the second GM holds it", { flow: "class-trial" });
@@ -2449,7 +2537,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         M.wireCallActions(body, message);
         globalThis.__clButton = body.querySelector('[data-drpg-call="decline"]');
         return Boolean(globalThis.__clButton);`, { timeout: 20000 });
-    /* What the GM who clicked is told: a refusal card (gm-bridge.mjs `sayRefusedHere`, a showPopup of kind error since
+    /* What the GM who clicked is told: a refusal card (call-gm.mjs `sayRefusedHere`, a showPopup of kind error since
        E18 fix e1-G3, which left this read on the toasts alone and CL2/CL3 red at 89095263), or a toast where no card could
        be shown - each in the order shown. */
     const clickCL = client => client.eval(`const told = [], real = ui.notifications.warn;

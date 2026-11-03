@@ -173,7 +173,7 @@ async function sweepPending() {
  * no total. The number arrives separately in `resolveObserve`, after the pick.
  *
  * (The player's own client now rolls before it asks them what they were after -
- * see `observeSpecific` in action-rolls.mjs - so "before any dice are thrown" is
+ * see `observeSpecific` in action-observe.mjs - so "before any dice are thrown" is
  * no longer true and was never what kept this honest.)
  *
  * @returns {Promise<{ok: boolean, key?: string, reason?: string}>}
@@ -231,7 +231,7 @@ export async function chooseObserveTarget({ actorId, declaration, request = "", 
          * S05-27). The picker opened on the primary GM's browser and nowhere else: a second
          * GM never learned the question existed, and a primary whose window was hidden left
          * the player waiting out the whole clock. Now the question is a card in the player's
-         * thread (gm-bridge.mjs `askObserveByCard`), any GM's click opens the picker on that
+         * thread (call-gm.mjs `askObserveByCard`), any GM's click opens the picker on that
          * GM's own browser (`pickFromCard`), and the pick is checked and written here, on the
          * primary (`pickObserveTarget`). The bridge's `{ later: true }` or `{ refused }`, not
          * a target: the player's answer is sent when a GM has picked or refused.
@@ -313,7 +313,7 @@ export async function observeCandidates(actor, { room = null, preferOwn = false 
  *
  * ONLY WHILE THE FIND IS MADE, NOT FOR EVERY ROW WITHOUT A RESULT (H84 fix G1, 27.10.2026; the end review's H84R-01,
  * H84R-1, H84-SEC-01). 385febe7 held back the trace of every row of the character's with no result, for the pending
- * TTL (an hour). A General, Non-obvious or Follow my traces Observe writes its row before the dice (action-rolls.mjs
+ * TTL (an hour). A General, Non-obvious or Follow my traces Observe writes its row before the dice (action-observe.mjs
  * `observeRanked`), and a player who closes the roll window (`abort`), a spend that fails, or an answer that comes after
  * the player's ask gave up leaves a row nothing resolves: the trace was then not offered to that character for the
  * hour - the room's one trace fell to a GM's ruling, of two the other was aimed at (tier 2 "H84-02 ...": offered after
@@ -374,7 +374,7 @@ export async function pickObserveTarget({ actorId, room, tokenId, userId = null,
     const chosen = candidates.find(c => c.token.id === tokenId);
     /* `held`: the traces left out because this character's find of them is being made here (`pendingTracesOf`), so a
        GM who picked on another browser, whose picker read its own rows, is not offered them again (H84 fix G1; the end
-       review's H84R-04): gm-bridge.mjs `observePickOnPrimary` answers them, `pickFromCard` leaves them out. */
+       review's H84R-04): call-gm.mjs `observePickOnPrimary` answers them, `pickFromCard` leaves them out. */
     if (!chosen) return { ok: false, reason: "notThere", held: pendingTracesOf(actor.id) };
     return { ok: true, key: await pendObserve({ actor, userId, where, declaration: DECLARATIONS.specific, request, chosen }) };
 }
@@ -408,12 +408,12 @@ export async function pickFromCard({ rid, by, request = "" } = {}) {
  * The traces the primary GM said it leaves out of an Observe card's pick, by the card's request id (H84 fix G1; the end
  * review's H84R-04): the character's find of them is being made there (`pendingTracesOf` holds the primary's rows, and
  * each GM's rows are its own). Without this a second GM's picker, read from its own rows, led with the trace the primary
- * had just answered "notThere" for, and opened so again. Noted by gm-bridge.mjs `askObservePick` from the primary's
+ * had just answered "notThere" for, and opened so again. Noted by bridge-asks.mjs `askObservePick` from the primary's
  * answer; read by `pickFromCard`; dropped once the card is picked or gone.
  */
 const heldOnPrimary = new Map();
 
-/** The primary's `held` for an Observe card's request `rid` (gm-bridge.mjs `askObservePick`): ids of traces. */
+/** The primary's `held` for an Observe card's request `rid` (bridge-asks.mjs `askObservePick`): ids of traces. */
 export function noteHeldOnPrimary(rid, ids = []) {
     if (!rid) return;
     const known = heldOnPrimary.get(rid) ?? new Set();
@@ -772,7 +772,7 @@ export function observeBeingDescribed(actorId) {
 async function scoreObserve(actor, entry, key, { total, isCritical, undo, rollId = null, by = null }) {
     // The roll this result is for (E08+E28 C2): describing a find can wait on a GM's dialog, and
     // a roll thrown meanwhile is not this one (`keepResult`). The one the resolve's packet names,
-    // and its sender's (fix r1-G2; action-rolls.mjs `rollOfFact`).
+    // and its sender's (fix r1-G2; action-pipeline.mjs `rollOfFact`).
     const rolls = await import("./action-rolls.mjs");
     const roll = rolls.rollOfFact({ undo, rollId, by, actorId: actor.id, actions: ["observe"] });
 

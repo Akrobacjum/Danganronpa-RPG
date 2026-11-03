@@ -67,6 +67,8 @@ import { secretRowsFrom, passageBook, studentIdsOf, sceneGone, endsOf, oneWayOf,
 import { roomPieces, roomRegions, onLevel, floorsOf, isTrialScene, viewedScene, viewedLevel } from "./rooms.mjs";
 import { regionShapes, inFlatPolygons, distanceToSegment } from "./fog-geometry.mjs";
 import { overlayLayer, clearLayer, overlayColour, dashedLine, overlayDrawer, redrawGmOverlay } from "./gm-overlay.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 
@@ -370,7 +372,7 @@ export async function retellPassages({ primary = isPrimaryGm, ...ctx } = {}) {
 }
 
 /**
- * The season reset's "passages" step (season-setup.mjs `wipeSeason`), on the primary GM: who
+ * The season reset's "passages" step (its entry's clear, `clearSeasonPassages`, since E42 C3), on the primary GM: who
  * knows each passage and the log go - the group's cut, written first, takes them on every GM and
  * every player's copy, and this clears what this browser holds - then each passage's start access
  * comes back (a cell `how: "start"`, for each student of this world its row names), and the copies
@@ -392,7 +394,8 @@ export async function retellPassages({ primary = isPrimaryGm, ...ctx } = {}) {
  *
  * The minimal form of the reset entry (A10-9, E79 fix r4-G7): E42 takes this function over and
  * extends it rather than writing a second reset step for the passages. R560 holds it to one
- * declaration, exported, here; season-setup.mjs `wipeSeason` is its one caller.
+ * declaration, exported, here; its one caller is the passages entry's clear, `clearSeasonPassages` (E42 C3), which
+ * season-wipe.mjs `wipeSeason` walks.
  */
 export async function passagesAfterReset({ stores = PASSAGE_STORES } = {}) {
     // The season's passages, a project's, go with who knows them (E15 part 2 C1, D3); the map's stay.
@@ -931,7 +934,7 @@ export async function closeEveryBreach({ stores = PASSAGE_STORES } = {}) {
 
 /**
  * What the season's reset takes of the passages, counted for its window's "This goes" list (season-setup.mjs
- * `resetTally`, E15 part 2 C6; the stage's E15-49 and C3's gap of the tally): `{ built, breaches, knowers }` - the
+ * `resetTally` until E42 C3, `tallySeasonPassages` below since; E15 part 2 C6; the stage's E15-49 and C3's gap of the tally): `{ built, breaches, knowers }` - the
  * passages a project made that are no breach (the season store's rows, which `passagesAfterReset` clears), the breaches
  * standing on the walls of `scenes` (each a hole `closeEveryBreach` gives back, read off the walls as that step reads
  * them, so one whose row is gone is counted too), and the students who know a passage now, each once however many
@@ -950,6 +953,29 @@ export function passageResetTally({ stores = PASSAGE_STORES, scenes = game.scene
     }
     return { built, breaches, knowers: knowers.size };
 }
+
+/**
+ * THE SEASON RESET'S PASSAGES GROUP (E42 C3, the plan's amend A10; a run of season-setup.mjs `wipeSeason` until then).
+ * Who knows each secret passage and the GMs' log of them (E79 C1): the reset's cut, written before every step, takes
+ * both on every GM and every player's copy; this gives each passage's start access back (E79 C8) and tells the
+ * players their copies again. The passages stay - `passageMapStore` keeps no reset group: the map is the campaign's
+ * (D36). A project's breach (E15 part 2 C3) is a hole in a world's wall, not a row the cut can take: every one is
+ * closed first, its wall given back, read off the walls themselves, before anything of the group's own goes.
+ */
+export async function clearSeasonPassages() {
+    await closeEveryBreach();
+    await passagesAfterReset();
+}
+
+/** What the reset window counts of the passages (E15 part 2 C6; season-setup.mjs `GOES_DETAIL` until E42 C3), its lines. */
+export function tallySeasonPassages(options = {}) {
+    const counted = passageResetTally(options);
+    return [plural("DRPG.Season.resetPassageKnowers", { n: counted.knowers ?? 0 }),
+        plural("DRPG.Season.resetPassagesBuilt", { n: counted.built ?? 0 }),
+        plural("DRPG.Season.resetBreaches", { n: counted.breaches ?? 0 })];
+}
+
+registerSeasonState({ group: "passages", clear: clearSeasonPassages, tally: tallySeasonPassages });
 
 /* ----------------------------------------------------------------------------------------- *
  * Seal the passage and Close the breach (E15 part 2 C5, 25.10.2026; the owner's (1) and (2) of
@@ -2081,7 +2107,7 @@ export async function roomNamerFor(actor, sceneId, { mastermind = mastermindStor
 /**
  * The two rooms a passage joins, as `actor` may name them: each room on the map (`world.sides`), else
  * the name the GM gave it, and a room this character has not found "Unexplored room n" as Listen says
- * it (action-rolls.mjs `listenLabels`); `null` for `known` names every room (the GMs, and the owner
+ * it (action-listen.mjs `listenLabels`); `null` for `known` names every room (the GMs, and the owner
  * who acts as the Mastermind through the character - `actsAsMastermind`).
  */
 function roomsAsKnown(row, world, known) {
@@ -2381,7 +2407,7 @@ export async function resolvePassageSearch({ actorId, total = 0, isCritical = fa
         // passage in a room where no Analyze was paid or thrown. A replay handed no such place (null: a row written before
         // the fact was) searches nowhere, so its Reroll is given back whole. And it searches there only while the GMs still
         // read the character in that room, on that scene and floor (E80 fix r1-G5, the review's E80-G-2), as a Find Stash's
-        // replay does (vault.mjs `resolveStashSearch`): until then a miss by a passage, rerolled after a walk away, found
+        // replay does (stash-reach.mjs `resolveStashSearch`): until then a miss by a passage, rerolled after a walk away, found
         // that passage in a room the character had left. A character no longer there is refused, and its Reroll given back.
         if (undo && at !== undefined) {
             const held = heldPlace(at);
@@ -2435,7 +2461,7 @@ function heldPlace(at) {
 }
 
 /**
- * The GMs' facts on the roll a first search was thrown with (action-rolls.mjs `rollOfFact`): its Reroll replays a passage
+ * The GMs' facts on the roll a first search was thrown with (action-pipeline.mjs `rollOfFact`): its Reroll replays a passage
  * search (`findPassage`), in the place the GMs read the searcher at that throw (`findPlace`: scene, room and floor ids).
  */
 async function noteFindFact({ actorId, rollId, by, place = null }) {

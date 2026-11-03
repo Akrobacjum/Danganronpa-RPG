@@ -1,0 +1,77 @@
+# .github/workflows/crlf-whole.yml (E37 C8, decision D198 (2), 01.11.2026). The single-process CRLF run: `npm test`
+# whole (node run-all.mjs, every part, unsharded), in one job, on a checkout with Windows line ends (core.autocrlf
+# true), as a Windows GM's copy reads. Until E37 C8 it was ci.yml's `crlf` job, owed by each train before its PR;
+# ci.yml's crlf dispatch now runs lint, check, gate and the suite in shards on the CRLF checkout instead (blocking a
+# release by the method, METHOD.md section 9 item 1), and this run is owed weekly and before 1.3.0, non-blocking.
+#
+# Why it was moved: 5572-6147 s a run from 1.2.86 on, and 7229 s at 1.2.96 (d05e46a, CI run 41330603959, the crlf job
+# 17:36:02-19:36:31 UTC on 01.11.2026), held at the end of every train while the other stages waited.
+# Why it stays: it is the only run of tier 2 after 01-runtests' parts A and B, in one order, in one process - the
+# shards never run that way - and on 26.10 it alone found E16-T24's order dependence (METHOD.md's Lessons: parts A
+# and B refill the students to the rules' 2/2, and T24 read 0 given back, green in every shard; `0b8dd4aa`).
+#
+# When it runs:
+#   schedule           Sundays 03:17 UTC (Saturday evening Pacific). GitHub runs a schedule on the default branch's
+#                      head only, so it reads main, and only once this file is on main; it may start late under load,
+#                      and GitHub turns a public repository's schedules off after 60 days with no activity there.
+#   workflow_dispatch  before 1.3.0, on the release commit (and whenever a weekly run is wanted sooner).
+# Nothing calls it: ci.yml and release.yml do not, and no required check names it. A red run is read and fixed like
+# any other; it holds no merge and no release by itself.
+#
+# The job's limit is the 200 minutes ci.yml's crlf job had: above run-all.mjs's 108-minute bound on the suite (its
+# comment says why), so that a hung suite is ended by run-all, which names the test, with the scenarios after it.
+# The line's session cannot read job logs or artifacts, so a red run writes its first problems as error annotations
+# (NAME_FAILS, the same text as ci.yml's; a workflow cannot read another's env).
+name: CRLF whole
+
+on:
+  schedule:
+    - cron: "17 3 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crlf-whole-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: 22.22.2
+  NAME_FAILS: >-
+    const fs = require("fs"); const one = s => String(s).replace(/[\r\n]+/g, " ").replace(/%/g, "%25").slice(0, 300);
+    for (const f of (fs.existsSync("results") ? fs.readdirSync("results") : []).filter(f => /^\d\d-.*\.json$/.test(f))) {
+    let s = null; try { s = JSON.parse(fs.readFileSync("results/" + f, "utf8")); } catch { continue; }
+    for (const t of (s.evidence?.suite?.results || [])) if (t.outcome === "fail") console.log(one("test " + t.name + ": " + (t.message || "")));
+    for (const c of (s.results || [])) if (c.status === "fail") console.log(one(f.replace(/\.json$/, "") + " " + c.name + ": " + (c.details || ""))); }
+    const j = JSON.parse(fs.readFileSync("results/run-all.json", "utf8"));
+    for (const r of j.parts) if (r.status === "red") for (const p of (r.problems || []))
+    console.log(r.part + ": " + one(p));
+
+jobs:
+  crlf-whole:
+    name: npm test whole on CRLF
+    runs-on: ubuntu-24.04
+    timeout-minutes: 200
+    steps:
+      - name: Windows line ends for the checkout below
+        run: git config --global core.autocrlf true
+      - uses: actions/checkout@v4
+      - name: The tree really has CRLF line ends
+        run: grep -c $'\r$' README.md | grep -qv '^0$'
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm, cache-dependency-path: audit/harness/package-lock.json }
+      - name: Install the harness
+        working-directory: audit/harness
+        env: { PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1" }
+        run: npm ci
+      - name: npm test on the CRLF tree
+        working-directory: audit/harness
+        run: |
+          node run-all.mjs && exit 0
+          (node -e "$NAME_FAILS" || echo "results/run-all.json is missing") | head -10 | sed 's/^/::error title=crlf whole::/'
+          exit 1
+      - name: Keep the results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: "results-crlf-whole", path: audit/harness/results/, if-no-files-found: ignore, retention-days: 14 }

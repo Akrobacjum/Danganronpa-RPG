@@ -34,7 +34,7 @@ import { presentRefusal, trialFloor } from "./trial-floor.mjs";
 import { stashRoomsFor, stashItemsIn, openStashesHere } from "./vault.mjs";
 import { restShutReason } from "./rest.mjs";
 // `availableCrisisActions` and `isTheirTurn` went to the Direct Murder tile's
-// menu with the crisis grid - see `openCrisisMenu` in action-rolls.mjs.
+// menu with the crisis grid - see `openCrisisMenu` in action-murder.mjs.
 import { murderState, sideOf, betrayalTarget, isTheirTurn, crisisTileLabel } from "./murder.mjs";
 // Two different rules, each under its own name since 1.2.69 (E33 C9, D39): the
 // crime-witness marker on a Monocub (information only - it refuses nothing) and
@@ -1941,8 +1941,8 @@ function paintResourceBars(app, element) {
 /**
  * A row about something that has stopped existing (trap 91).
  *
- * A SILENT STEAL LEAVES ONE. An unseen steal or rifle (vault.mjs
- * `stealFromPerson`, `stealFromVault`, through inventory.mjs `transferItem`
+ * A SILENT STEAL LEAVES ONE. An unseen steal or rifle (palm.mjs
+ * `stealFromPerson`, stash-reach.mjs `stealFromVault`, through inventory.mjs `transferItem`
  * since E35 C3) deletes the item with `render: false` so the victim's open
  * sheet does not redraw for it - the thing has really gone, and what is
  * suppressed is the refresh. Until something else
@@ -2515,7 +2515,7 @@ function itemTags(item, inGearRow) {
      *
      * "Add an item" offers every equippable role as a tick box INCLUDING the
      * item's own category, and that is deliberate - see the note above
-     * `roleChecks` in tables.mjs. The reasoning there is about MECHANICS and it
+     * `roleChecks` in tables-editor.mjs. The reasoning there is about MECHANICS and it
      * still holds: `servesAs` checks the home first, so ticking "Tool" on a
      * tool changes nothing about what the thing can do, and a list that
      * reshuffles as the category dropdown moves is worse to use than one
@@ -2810,7 +2810,7 @@ function buildOtherSection(box, actor, app) {
 function buildOpenStashSection(box, actor, app) {
     if (!app.isEditable || isMonokuma(actor)) return;
     // The dead rifle nothing, a Monocub included (D15, S08-30): it offered a
-    // Rifle the GM's side then refused (vault.mjs `stealFromVault`).
+    // Rifle the GM's side then refused (stash-reach.mjs `stealFromVault`).
     if (deadToViewer(actor)) return;
 
     /*
@@ -4001,7 +4001,7 @@ function budgetLine(actor) {
  * which left one tile in a panel of its own: "Turn on your partner". That has
  * now moved inside Direct Murder, where it belongs - turning on your partner
  * IS a direct murder, and the only one the guide lets you commit without
- * declaring it in an Eclipse first. See `performBetrayal` in action-rolls.mjs.
+ * declaring it in an Eclipse first. See `performBetrayal` in action-murder.mjs.
  *
  * So a killer in Stage 6 reads ONE grid of ten tiles, which is what the grid
  * was always for. Nothing here decides placement any more because there is

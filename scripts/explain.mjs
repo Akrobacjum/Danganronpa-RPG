@@ -200,7 +200,7 @@ async function roomBlock() {
 /**
  * The clock panel, explained. Anyone may open it - and it shows the clock the HUD
  * beside it shows: while an incident runs, an outsider's is the one it began at
- * (hud.mjs `clockForDisplay`; S01-11).
+ * (hud-elapsed.mjs `clockForDisplay`; S01-11).
  */
 export async function openStateExplainer() {
     try {

@@ -10,7 +10,7 @@
  */
 
 import { MODULE_ID, ITEM_CATEGORIES, ITEM_DURABILITY, LIMIT_GROUPS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS, itemIcon,
-    BEDROOM_KEY_FLAG }
+    BEDROOM_KEY_FLAG, ACTIONS }
     from "./config.mjs";
 import { whisperToOwner, whisperToGms, log, warn, error, serialWrite } from "./utils.mjs";
 import { trustedWrite, trustedCreate, trustedDelete } from "./resource-guard.mjs";
@@ -59,7 +59,7 @@ export const ITEM_FLAGS = {
      * in this module works (`roomOfActor`, the key flag, the fog mirror). The
      * cost was that renaming a region orphaned them, as it did the bedroom
      * keys; since E12 C8 (1.2.74) a GM's rename carries both, on the primary
-     * (vault.mjs `carryRoomOnSheets`, from fog.mjs's region listener).
+     * (vault-store.mjs `carryRoomOnSheets`, from fog.mjs's region listener).
      */
     stashRoom: "stashRoom",
     /**
@@ -129,10 +129,12 @@ export const ITEM_FLAGS = {
  * evidence of having handled an OBJECT, so it is read off what was found -
  * the category plus the roles the table entry declared - and never off the
  * intention. One copy, used by the Search and by the Reroll that replays it.
+ * The roles are config.mjs `ACTIONS.search.leavesRemnant.onlyFor`, read here
+ * rather than spelt a second time (E41 C1b; audit S02-64).
  */
 export function leavesTraceFor(category, roles = []) {
     const all = new Set([category, ...(roles ?? [])]);
-    return all.has("crimeTool") || all.has("cleaningTool");
+    return ACTIONS.search.leavesRemnant.onlyFor.some(role => all.has(role));
 }
 
 export function preservedFlags(item) {
@@ -743,7 +745,7 @@ export async function grantItem(actor, {
     let overflowRoom = null;
 
     // THE TABLES FIRST, THE GOAL FOR A NAME THEY DO NOT KNOW (E14 part 1 C5, 24.10.2026; audit S08-14). The kind
-    // is what the item does, and the item tables are the authority on a name (tables.mjs `usableKindFor`): a name
+    // is what the item does, and the item tables are the authority on a name (tables-pools.mjs `usableKindFor`): a name
     // in tables of one kind takes that kind, whatever goal it arrived with. Until C5 the goal answered first -
     // a Search's ("healing", "stress" - but also "crimeTool", which is not a usable kind) or the kind a GM picked
     // in Give - so a First aid kit found "for the nerves" was written "Restores 2 Sanity" and Pills given as
@@ -924,7 +926,7 @@ export async function keepGearShape(actor, item, { quiet = false } = {}) {
         // A BROKEN ARRIVAL CANNOT BE HELD READY (E14 part 1 C5, 24.10.2026; audit S08-36, D4): `toggleEquipped`
         // refuses it, and two Gear stood stowed - a broken knife taken out of the stash beside one stowed tool and an
         // empty hand. The working piece stowed beside it goes into the hand instead (`readyForShape`); with none, the
-        // shape is left as it is and the GM's log says so (vault.mjs `retrieve` refuses that case before it moves).
+        // shape is left as it is and the GM's log says so (stash-reach.mjs `retrieve` refuses that case before it moves).
         const ready = readyForShape(actor, item, group);
         if (!ready) {
             log(`${actor.name} now carries "${item.name}" stowed beside other ${LIMIT_GROUPS[group].label}, and nothing of it can be held ready.`);
@@ -982,7 +984,7 @@ export const TRANSFER_STUCK = Object.freeze({
 
 /**
  * The codes of the closed list the one gate's refusals are told with (`transferRefusal`'s reasons, R164): a Palm's
- * browser gives back the action it paid on one of them (action-rolls.mjs `performPalm`; the owner's Q3), since the gate
+ * browser gives back the action it paid on one of them (palm.mjs `performPalm`; the owner's Q3), since the gate
  * is asked before the rolls are read. A roll's own refusal, an item no GM decided on and a Plant into full pockets are
  * none of them.
  */
@@ -1143,7 +1145,7 @@ export async function transferItem(from, to, item, { mode, quiet = false, asker 
         const keyRoom = held.getFlag(MODULE_ID, BEDROOM_KEY_FLAG);
         if (keyRoom) {
             const { keysHeldBy } = await import("./vault.mjs");
-            // With the stash (H84, 27.10.2026; triage A1 (c)): the grant counts a stashed key as held (vault.mjs
+            // With the stash (H84, 27.10.2026; triage A1 (c)): the grant counts a stashed key as held (vault-store.mjs
             // `grantBedroomKey`), and this rule did not, so a thief whose own key to the room was put away took a copy -
             // tier 2 "H84-01: one key per room ...": 2 keys to the room on the taker at 774b28a9, 1 here.
             if (keysHeldBy(to, { stashed: true }).has(keyRoom)) {
