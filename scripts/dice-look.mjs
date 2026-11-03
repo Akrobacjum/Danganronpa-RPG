@@ -35,6 +35,7 @@ import { MODULE_ID, moduleVersion } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { esc, error, dialogContent, markFired } from "./utils.mjs";
 import { canonicalLook, holdsTableLook, isForced, fuseStoppedFor, tableLookSource } from "./dice-sync.mjs";
+import { lastRollWindow } from "./roll-dialog.mjs";
 
 const DSN = "dice-so-nice";
 /** How many throws this browser keeps, newest last. */
@@ -195,7 +196,9 @@ export function browserLook({ looks = [] } = {}) {
         display: displayOf(game.user, { here: true }),
         dhPreset: preset,
         registry: { missing: missingNames([...looks, ...(preset ? [preset] : [])]) },
-        lastThrows: lastThrowsSeen()
+        lastThrows: lastThrowsSeen(),
+        // What opened this browser's last roll window (roll-dialog.mjs `noteOpening`, E60 C5c).
+        lastWindow: lastRollWindow()
     };
 }
 
@@ -347,6 +350,11 @@ function viewLines(view, findings) {
         if (view.roll.audience) lines.push(`${word("DRPG.DiceLook.diag.audience")}: ${view.roll.audience.map(id => game.users.get(id)?.name ?? id).join(", ") || "-"}`);
     }
     if (view.test) lines.push(`${word("DRPG.DiceLook.diag.test")}: ${view.test.error ?? (view.test.dice.map(dieLine).join("; ") || "-")}`);
+    if (b.lastWindow) {
+        const w = b.lastWindow;
+        lines.push(`${word("DRPG.DiceLook.diag.lastWindow")}: ${w.actor ?? "?"} - actionRoll ${w.actionRoll}, nonce ${w.nonce}, `
+            + `${w.actionKey ?? "-"}, ${w.actionType ?? "-"}, ${w.held ?? "-"}`);
+    }
     if (b.lastThrows.length) lines.push(`${word("DRPG.DiceLook.diag.lastThrows")}: ${b.lastThrows.map(t => t.dice.filter(d => d.duality).map(dieLine).join(", ") || "-").join(" | ")}`);
     for (const f of findings) lines.push(`- ${f.words}`);
     if (!findings.length) lines.push(word("DRPG.DiceLook.diag.nothingFound"));

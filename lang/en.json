@@ -3363,6 +3363,7 @@
         "audience": "Its dice were sent to",
         "test": "Test throw",
         "lastThrows": "Last throws on this browser",
+        "lastWindow": "Last roll window on this browser",
         "nothingFound": "Nothing found that makes this browser draw the dice differently.",
         "die": {
           "hope": "The Hope die",
@@ -3403,18 +3404,6 @@
       "modeGms": "The GMs and you",
       "modeRoom": "The GMs, you and the room",
       "actionLocked": "This roll's Hope or Despair decides what happens next, so it is an action, never a reaction.",
-      "summary": {
-        "none": "no modifiers",
-        "advantage": {
-          "one": "advantage",
-          "other": "advantage ×{n}"
-        },
-        "disadvantage": {
-          "one": "disadvantage",
-          "other": "disadvantage ×{n}"
-        },
-        "bonus": "{bonus} from a Call"
-      },
       "reactionLocked": "A statistic rolled on its own is a reaction: it costs nothing and earns nothing. Hope and Despair come from actions.",
       "unlockedByCall": "Unlocked by a Call you paid for.",
       "freeCritArmed": "Loaded Die is armed. One of the two dice, at random, is set to 12 and the other is thrown - a very high total, and a critical only if that one comes up 12 as well.",

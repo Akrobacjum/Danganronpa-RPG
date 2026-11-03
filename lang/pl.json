@@ -3685,6 +3685,7 @@
         "audience": "Jego kości wysłano do",
         "test": "Rzut próbny",
         "lastThrows": "Ostatnie rzuty w tej przeglądarce",
+        "lastWindow": "Ostatnie okno rzutu w tej przeglądarce",
         "nothingFound": "Nie znaleziono niczego, przez co ta przeglądarka rysowałaby kości inaczej.",
         "die": {
           "hope": "Kość Hope",
@@ -3725,22 +3726,6 @@
       "modeGms": "GM-owie i ty",
       "modeRoom": "GM-owie, ty i pokój",
       "actionLocked": "O tym, co stanie się dalej, decyduje Hope albo Despair tego rzutu, więc to akcja, nigdy reakcja.",
-      "summary": {
-        "none": "bez modyfikatorów",
-        "advantage": {
-          "one": "przewaga",
-          "few": "przewaga ×{n}",
-          "many": "przewaga ×{n}",
-          "other": "przewaga ×{n}"
-        },
-        "disadvantage": {
-          "one": "utrudnienie",
-          "few": "utrudnienie ×{n}",
-          "many": "utrudnienie ×{n}",
-          "other": "utrudnienie ×{n}"
-        },
-        "bonus": "{bonus} z Calla"
-      },
       "reactionLocked": "Statystyka rzucona sama w sobie to reakcja: nic nie kosztuje i nic nie daje. Hope i Despair biorą się z akcji.",
       "unlockedByCall": "Odblokowane przez opłacony Call.",
       "freeCritArmed": "Loaded Die uzbrojony. Jedna z dwóch kości, losowo, ustawiona na 12, druga rzucana - bardzo wysoki wynik, a krytyk tylko, jeśli i ta wypadnie 12.",

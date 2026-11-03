@@ -19839,6 +19839,28 @@ const REGRESSIONS = [
         }), JSON.stringify({ part: [["diagnoseDiceLook"], false], file: true, writes: [], emitted: 0, messages: 0, text: true }),
             "[the report's diceLook part (covers, GM only); dice-look.mjs read; the writes and sends its code names; packets sent; messages posted; the part's text]");
     }],
+    ["R1297 - the roll window does not collapse for a player (E60 C5c; E60-16): no code in scripts/ outside the suite names `collapseLocked` or the collapse's classes (`drpg-locked-away`, `drpg-roll-summary`, `drpg-mode-chip`), and no rule of the module's stylesheets styles them", async () => {
+        /*
+         * E60 C5c, 03.11.2026; the owner: "Nawet gdyby rzucal statystyka, to i tak okno nie powinno sie zmieniac". E16 C2's
+         * collapse of a player's locked roll window (roll-dialog.mjs `collapseLocked`; styles/danganronpa.css "A PLAYER'S
+         * LOCKED WINDOW") is retired, and a class it drew left in a sheet or a script would be a rule styling nothing or a
+         * window that still hides a section. Read: every module file but the tier files, comments stripped, and every
+         * stylesheet the module loads. Red at C5b: roll-dialog.mjs held the function and the classes, danganronpa.css
+         * their rules.
+         */
+        const NAMES = ["collapseLocked", "drpg-locked-away", "drpg-roll-summary", "drpg-mode-chip"];
+        const sources = await moduleSources();
+        const css = await moduleStyles();
+        must(sources.size > 100 && css.length > 10000, `${sources.size} script(s) and ${css.length} characters of the sheets read - this would measure nothing`);
+        const hits = [];
+        for (const [file, raw] of sources) {
+            if (/^tests/.test(file)) continue;
+            const code = stripComments(raw);
+            for (const name of NAMES) if (code.includes(name)) hits.push(`${file}: ${name}`);
+        }
+        for (const name of NAMES) if (css.includes(`.${name}`)) hits.push(`the module's stylesheets: ${name}`);
+        equal(JSON.stringify(hits), "[]", "[the scripts and sheets that still name the collapse]");
+    }],
 ];
 
 

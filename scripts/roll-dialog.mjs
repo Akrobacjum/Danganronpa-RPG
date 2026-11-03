@@ -21,7 +21,7 @@ import { SETTINGS } from "./settings.mjs";
 import { pendingCalls, situationalAdvantage } from "./call-effects.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isBrokenDown } from "./character.mjs";
-import { debug, plural, warn, listOf } from "./utils.mjs";
+import { debug, plural, warn, listOf, esc } from "./utils.mjs";
 // One string, and nothing in action-rolls.mjs reaches back here - the roll
 // dialog is opened BY the system, not by that file.
 import { DRPG_ACTION_ROLL, TRAIT_BY_GM } from "./action-rolls.mjs";
@@ -269,6 +269,37 @@ function forceConfig(app) {
     return redraw;
 }
 
+/*
+ * WHAT OPENED A ROLL WINDOW (E60 C5c, 03.11.2026; the owner: "Gracz rzucal klikajac akcje", on a window whose Reaction
+ * chip was held - the investigation could not tell an action's window from a statistic's off the screenshot). Each
+ * window is recorded once, at its first render: when, whose, whether an action's roll marked it (`DRPG_ACTION_ROLL`)
+ * and a claim's nonce rides on it, the action the claim names, Daggerheart's `actionType` as it opened, and which way
+ * the chip is held. One debug line, and the last one kept for dice-look.mjs's report (`lastRollWindow`). Memory only.
+ */
+const openingsNoted = new WeakSet();
+let lastOpening = null;
+
+function noteOpening(app, actor) {
+    if (!app || openingsNoted.has(app)) return;
+    openingsNoted.add(app);
+    try {
+        const nonce = app.config?.[ROLL_NONCE];
+        lastOpening = {
+            at: Date.now(), actor: actor?.name ?? null, actionRoll: Boolean(app.config?.[DRPG_ACTION_ROLL]), nonce: Boolean(nonce),
+            actionKey: (nonce ? rollClaimOf(nonce)?.actionKey : null) ?? null, actionType: app.config?.actionType ?? null,
+            held: reactionHeld(app) ? "reaction" : actionHeld(app) ? "action" : null
+        };
+        debug(`A roll window opened: ${JSON.stringify(lastOpening)}`);
+    } catch (err) {
+        failed("noting what opened it", err);
+    }
+}
+
+/** The last roll window this browser opened, as `noteOpening` read it, or null (a copy). */
+export function lastRollWindow() {
+    return lastOpening ? { ...lastOpening } : null;
+}
+
 export function onRenderApplication(app, element) {
     const root = element instanceof HTMLElement ? element : element?.[0];
     if (!root?.classList?.contains?.("roll-selection")) return;
@@ -290,6 +321,7 @@ export function onRenderApplication(app, element) {
         hideCostSection(root, drawn);
 
         const actor = actorOf(app);
+        noteOpening(app, actor);
 
         // A Free Critical opens a roll window whose outcome is already
         // decided, and the window should say so before the dice do. Red - the
@@ -843,69 +875,32 @@ function lockControls(root, app) {
 
     lockBonus(root, app, actor, armed);
 
-    // Roll mode: privacy is enforced by the module, not chosen per roll.
+    // Roll mode: privacy is enforced by the module, not chosen per roll. Its tooltip names who sees the roll
+    // (`audienceOf`) over why the select is locked - the chip that said it went with the collapse (E60 C5c).
     const mode = root.querySelector('select[name="selectedMessageMode"]');
-    if (mode) disable(mode, "DRPG.RollDialog.modeLocked");
-
-    if (!game.user?.isGM) collapseLocked(root, app, actor, armed);
+    if (mode) {
+        disable(mode, "DRPG.RollDialog.modeLocked");
+        mode.dataset.tooltip = `${esc(audienceOf(mode, actor))}<br>${esc(mode.dataset.tooltip)}`;
+    }
 }
 
 /*
- * A PLAYER'S LOCKED WINDOW IS ONE LINE AND ROLL (E16 C2, 18.10.2026; audits S02-29, S01-17, S01-22).
- * With the lock on, a student's window was the dice, the experiences, advantage, the trait, the bonus
- * and the roll mode, every one greyed out, and one live Roll: a player looking for the one button that
- * did something read a wall of controls it could not touch, and the locked mode select spilled over
- * three lines into the formula. So for a player every section with no control left to use is put away
- * (a Call that opens one - the experiences, the trait - keeps its section), the mode select becomes a
- * chip that says who sees the roll (`audienceOf`, since E16 fix r1-G2 of round r1c), and one line
- * says what the roll is: the trait, what modifies it, the formula ('Body, no modifiers - 1d12 + 1d12');
- * where advantage is forced its reason is the line's tooltip, as it was the chip's. The locks above
- * stay on whatever is put away. A GM sees the whole window. Read off the cascade jsdom computes (tier 2,
- * "a player's locked roll window is one summary line ..."; at c952b92 every section was shown, with no
- * line and no chip); what a table's Daggerheart draws in both themes at 1366x768 is LIVE-E16-02.
+ * EVERY ROLL WINDOW WHOLE (E60 C5c, 03.11.2026; the owner after installing 1.2.97: "okno rzutu u gma wyglada dobrze
+ * (wieksze), u gracza sie zepsulo i jest malutkie", and "Nawet gdyby rzucal statystyka, to i tak okno nie powinno sie
+ * zmieniac"). From E16 C2 (1.2.80) a player's locked window put away every section with no control left to use, made
+ * the mode select a chip and drew one summary line (`collapseLocked`; audits S02-29, S01-17, S01-22); a GM's stayed
+ * whole. That collapse is retired: a player's window is the GM's, every section drawn, every lock above on it (the
+ * dice, the trait, advantage, the experiences, the bonus, the mode), greyed as on the GM's. Daggerheart hides nothing
+ * for a reaction either (2.9.4 rollSelection.hbs hides only under `isLite`). Read off the cascade jsdom computes
+ * (tier 2, E60-T15); the window at a table is LIVE-E60-08.
  */
-const PUT_AWAY = "drpg-locked-away";
-
-function usable(el) {
-    return !el.disabled && !el.readOnly && !el.classList.contains("drpg-locked");
-}
-
-function collapseLocked(root, app, actor, armed) {
-    root.classList.add("drpg-roll-summary");
-    for (const section of root.querySelectorAll(".dices-section, .dice-select, fieldset")) {
-        const controls = section.querySelectorAll("select, input, button, [data-action]");
-        if (controls.length && ![...controls].some(usable)) section.classList.add(PUT_AWAY);
-    }
-
-    const mode = root.querySelector('select[name="selectedMessageMode"]');
-    if (mode && !usable(mode) && !mode.parentElement?.querySelector(".drpg-mode-chip")) {
-        const chip = document.createElement("span");
-        chip.className = "drpg-mode-chip";
-        chip.textContent = audienceOf(mode, actor);
-        chip.dataset.tooltip = game.i18n.localize("DRPG.RollDialog.modeLocked");
-        mode.classList.add(PUT_AWAY);
-        mode.after(chip);
-    }
-
-    if (root.querySelector(".drpg-roll-summary-line")) return;
-    const formula = root.querySelector(".formula-label");
-    const line = document.createElement("p");
-    line.className = "drpg-roll-summary-line";
-    const { sign, count, capped, sources } = advantageSources(app, actor);
-    line.textContent = summaryOf(app, actor, armed, sign, count, formula?.textContent?.trim() ?? "");
-    if (sign !== 0) line.dataset.tooltip = game.i18n.localize(explainAdvantage(sign, count, capped, sources));
-    const anchor = formula ?? root.querySelector(".roll-dialog-controls");
-    if (anchor) anchor.before(line);
-    else (root.querySelector(".roll-dialog-container") ?? root).append(line);
-    formula?.classList.add(PUT_AWAY);
-}
 
 /**
- * WHO SEES THIS ROLL, ON THE CHIP (E16 fix r1-G2 of round r1c, 19.10.2026; finding E16-goal-07). The chip said what
- * the disabled select held - "Public" for a chat bar on its default - while with `forcePrivateRolls` on (its
- * default) private-rolls.mjs `whisperRoll` sends a student's roll to the GMs and its player whatever that mode
- * says (ROLL-14), and a Monocub's to the room it stands in too. So with rolls forced private the chip names that
- * audience; with them not, the select's own mode, as at C2.
+ * WHO SEES THIS ROLL, ON THE MODE SELECT'S TOOLTIP (E16 fix r1-G2 of round r1c, 19.10.2026; finding E16-goal-07; a
+ * chip of the collapse until E60 C5c). The select says what it holds - "Public" for a chat bar on its default - while
+ * with `forcePrivateRolls` on (its default) private-rolls.mjs `whisperRoll` sends a student's roll to the GMs and its
+ * player whatever that mode says (ROLL-14), and a Monocub's to the room it stands in too. So with rolls forced private
+ * the tooltip names that audience; with them not, the select's own mode.
  */
 function audienceOf(mode, actor) {
     let forced = true;
@@ -921,19 +916,6 @@ function audienceOf(mode, actor) {
     return mode.value === "public"
         ? game.i18n.localize("DRPG.RollDialog.modePublic")
         : (mode.selectedOptions?.[0]?.textContent?.trim() || mode.value);
-}
-
-/** 'Body, no modifiers - 1d12 + 1d12': the trait, what modifies the roll, the formula the window drew. */
-function summaryOf(app, actor, armed, sign, count, formula) {
-    const dh = app.config?.roll?.trait;
-    const trait = TRAITS[TRAIT_BY_DH[dh]]?.label ?? TRAITS[dh]?.label ?? null;
-    const parts = [];
-    if (sign !== 0) parts.push(plural(`DRPG.RollDialog.summary.${sign > 0 ? "advantage" : "disadvantage"}`, { n: count }));
-    const bonus = bonusOf(app, actor, armed);
-    if (bonus) parts.push(game.i18n.format("DRPG.RollDialog.summary.bonus", { bonus }));
-    const what = [trait, parts.length ? parts.join(", ") : game.i18n.localize("DRPG.RollDialog.summary.none")]
-        .filter(Boolean).join(", ");
-    return formula ? `${what} - ${formula}` : what;
 }
 
 /*

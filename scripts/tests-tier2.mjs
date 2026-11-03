@@ -64067,22 +64067,20 @@ const SCENARIOS = [
             "a crisis or opening window let its Reaction chip be clicked or did not say why, or another action's chip was held (each: selected, locked, tooltip, a reaction after the click)");
     }],
 
-    ["a player's locked roll window is one summary line and Roll while a GM's stays whole (S02-29 S01-17 S01-22)", async () => {
+    ["E60-T15 - a player's roll window is the GM's (E60 C5c; E60-16, the owner's rule of 03.11 over E16 C2, S02-29 S01-17 S01-22): a student's action roll window and its statistic window, the lock on, drawn as the GM draws them and as a player reads them, show every section - the dice, the experiences, the modifiers, the formula, the mode select - none put away, with no summary line and no chip, the locks on and Roll live; the statistic's Reaction chip is held as a reaction and the action's is not; the mode select's tooltip names who sees the roll; and the title bar and the titles are as S01-22 and H81-07 ask", async () => {
         /*
-         * E16 p1 C2, 18.10.2026; audits S02-29, S01-17 and S01-22 (E16-11 to E16-13). With the lock on a
-         * student's window was a wall of greyed controls - dice, experiences, advantage, the trait, the bonus,
-         * the roll mode - and one live Roll; the locked mode select spilled over three lines and the title bar
-         * let what is under the window show through. Daggerheart's window (`rollWindow`, the harness's stand-in)
-         * opened by this GM for a student's Body action roll, the lock on: read as the GM drew it, then drawn
-         * again from its own context and handed to the render hook while this browser reads as a player
-         * (`asConsole`); the same with a Support armed, and with an Experience Call armed. A title bar and its
-         * title are planted in the window to read the stylesheet's answer for them (the stand-in draws no frame).
-         * Read, from the cascade jsdom computes (no layout headless; the look on a table is LIVE-E16-02): which
-         * of the dice, experiences and modifiers sections are not displayed, the summary line and its tooltip,
-         * the mode select displayed, the chip beside it, Roll disabled; for the GM the mode select's min-width
-         * and white-space; the title bar's alpha and the title's and the heading's `contain`. At c952b92 the
-         * player's window was the GM's (no section away, no line, the select shown, no chip), the select's
-         * min-width "auto" and white-space "", the bar at 0.7 (the glass's) and both `contain` "none".
+         * E60 C5c, 03.11.2026; the owner after installing 1.2.97: "okno rzutu u gma wyglada dobrze (wieksze), u gracza sie
+         * zepsulo i jest malutkie" and "Nawet gdyby rzucal statystyka, to i tak okno nie powinno sie zmieniac". Until C5c
+         * (E16 C2, audits S02-29, S01-17, S01-22) a player's locked window put away every section with no usable control,
+         * made the mode select a chip and drew one summary line; this test held that collapse ("a player's locked roll
+         * window is one summary line and Roll while a GM's stays whole"). Now it holds the owner's rule. Daggerheart's
+         * window (`rollWindow`, the harness's stand-in) opened by this GM for a student's Body action roll and for a Body
+         * statistic, the lock on, each read as the GM drew it and then drawn again from its own context and handed to the
+         * render hook while this browser reads as a player (`asConsole`); the action again with a Support armed. Read,
+         * from the cascade jsdom computes (no layout headless; the look on a table is LIVE-E60-08): which of the five parts
+         * are not displayed, a summary line or a chip, the mode select disabled and its tooltip, how many controls are
+         * locked, Roll disabled, the Reaction chip (selected, locked). At C5b's tree the player's windows put the dice,
+         * the experiences and the modifiers away, drew a line and a chip, and the select was not displayed.
          * H81-07, 20.10.2026 (the owner's 1.2.80 table: the roll's title stood on end): a box of
          * `contain: inline-size` is 0 wide wherever its width comes from its content, so in a parent that
          * centres it (a flex column, a grid) the heading broke one letter a line (Chromium, 0 px and 17 lines
@@ -64101,19 +64099,21 @@ const SCENARIOS = [
         const [actor] = cast(1);
         const { DRPG_ACTION_ROLL } = await import("./action-rolls.mjs");
         const lockWas = game.settings.get(MODULE_ID, SETTINGS.lockRollDialog);
-        const SECTIONS = [".dices-section", ".experience-container", ".modifier-container"];
+        const PARTS = [".dices-section", ".experience-container", ".modifier-container", ".formula-label", 'select[name="selectedMessageMode"]'];
         const shown = el => Boolean(el) && getComputedStyle(el).display !== "none";
+        const audience = game.i18n.localize(game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls) ? "DRPG.RollDialog.modeGms" : "DRPG.RollDialog.modePublic");
         const view = root => {
-            const line = root.querySelector(".drpg-roll-summary-line");
             const mode = root.querySelector('select[name="selectedMessageMode"]');
+            const chip = root.querySelector('[data-action="toggleReaction"]');
             return {
-                away: SECTIONS.filter(sel => root.querySelector(sel) && !shown(root.querySelector(sel))),
-                line: line ? [line.textContent.trim(), line.dataset.tooltip ?? null] : null,
-                mode: [shown(mode), root.querySelector(".drpg-mode-chip")?.textContent?.trim() ?? null],
-                roll: root.querySelector("button.submit-btn")?.disabled ?? null
+                away: PARTS.filter(sel => !shown(root.querySelector(sel))),
+                extra: [Boolean(root.querySelector(".drpg-roll-summary-line")), Boolean(root.querySelector(".drpg-mode-chip"))],
+                mode: [mode?.disabled === true, String(mode?.dataset?.tooltip ?? "").includes(audience)],
+                locked: root.querySelectorAll(".drpg-locked").length > 2,
+                roll: root.querySelector("button.submit-btn")?.disabled ?? null,
+                chip: chip ? [chip.classList.contains("selected"), chip.classList.contains("drpg-locked")] : null
             };
         };
-        const formulaOf = root => root.querySelector(".formula-label")?.textContent?.trim() ?? null;
         const asPlayer = async win => {
             const context = await win.app._prepareContext({});
             await win.app._replaceHTML(await win.app._renderHTML(context), win.app.element);
@@ -64121,13 +64121,12 @@ const SCENARIOS = [
             return view(win.element);
         };
         const read = {};
-        let call = null, win = null, formula = null, supported = null;
+        let call = null, win = null;
         try {
             if (!lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, true);
             win = await (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true, roll: { trait: "strength" } })).open();
             must(win.element?.querySelector(".experience-container"), `${actor.name}'s window offers no experience - this would measure nothing`);
             read.gm = view(win.element);
-            formula = formulaOf(win.element);
             const mode = win.element.querySelector('select[name="selectedMessageMode"]');
             read.gmMode = mode ? [getComputedStyle(mode).minWidth, getComputedStyle(mode).whiteSpace] : null;
             const header = document.createElement("header");
@@ -64171,40 +64170,30 @@ const SCENARIOS = [
             read.player = await asPlayer(win);
             await win.cancel();
             win = null;
+            win = await (await rollWindow(actor, { roll: { trait: "strength" } })).open();
+            read.statisticGm = view(win.element);
+            read.statistic = await asPlayer(win);
+            await win.cancel();
+            win = null;
             call = await c3Call(actor, C3_SUPPORT);
             win = await (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true, roll: { trait: "strength" } })).open();
             read.support = await asPlayer(win);
-            supported = formulaOf(win.element);
-            await win.cancel();
-            win = null;
-            await call.spend();
-            call = await c3Call(actor, { key: "experience", kind: "hope", grants: "experience" });
-            win = await (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true, roll: { trait: "strength" } })).open();
-            read.experience = (await asPlayer(win)).away;
         } finally {
             await win?.cancel();
             await call?.spend();
             if (game.settings.get(MODULE_ID, SETTINGS.lockRollDialog) !== lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, lockWas);
         }
-        const L = key => game.i18n.localize(key);
-        const { plural } = await import("./utils.mjs");
-        // The chip names who sees the roll (E16 fix r1-G2 of round r1c, finding E16-goal-07): the next test reads it.
-        const chip = L(game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls) ? "DRPG.RollDialog.modeGms" : "DRPG.RollDialog.modePublic");
-        // The Support's die is in the formula its window drew (`supported`), checked below to be more than the plain one.
+        const whole = chip => ({ away: [], extra: [false, false], mode: [true, true], locked: true, roll: false, chip });
         equal(stableJson(read), stableJson({
-            experience: [".dices-section", ".modifier-container"],
-            gm: { away: [], line: null, mode: [true, null], roll: false },
-            gmMode: ["150px", "nowrap"],
-            player: { away: SECTIONS, line: [`Body, ${L("DRPG.RollDialog.summary.none")} - ${formula}`, null], mode: [false, chip], roll: false },
-            support: { away: SECTIONS, line: [`Body, ${plural("DRPG.RollDialog.summary.advantage", { n: 1 })} - ${supported}`, L("DRPG.RollDialog.forcedByCall")],
-                mode: [false, chip], roll: false },
+            gm: whole([false, false]), gmMode: ["150px", "nowrap"],
+            player: whole([false, false]),
+            statisticGm: whole([true, true]), statistic: whole([true, true]),
+            support: whole([false, false]),
             title: [true, ["inline-size", ["100% !important"]], ["inline-size", ["100% !important"]], ["stretch", "stretch"]]
-        }), "a player's locked window kept a locked section or had no summary, a GM's lost one, the mode select or the title bar is not as S01-22 asks, a title can set the width, or a title can stand on end in a parent that centres it (see the comment for each key)");
-        ok(/\dd12/.test(formula ?? "") && typeof supported === "string" && supported.length > formula.length,
-            `the window's formula names no d12, or the Support's adds nothing to it (${formula}; ${supported})`);
+        }), "a roll window put a part away, drew a summary or a chip, left its mode unlocked or unnamed, its controls unlocked, Roll dead, or its Reaction chip held the wrong way; or the mode select, the title bar or a title is not as S01-22 and H81-07 ask (see the comment for each key)");
     }],
 
-    ["a player's locked roll window's mode chip names who sees the roll: the GMs and the player while rolls are forced private, a Monocub's room too (S01-22 ROLL-14)", async () => {
+    ["a player's locked roll window's mode select names who sees the roll in its tooltip: the GMs and the player while rolls are forced private, a Monocub's room too (S01-22 ROLL-14; a chip until E60 C5c)", async () => {
         /*
          * E16 fix r1-G2 of round r1c, 19.10.2026 (finding E16-goal-07). C2's chip said what the disabled mode select
          * held - "Public" for a player whose chat bar is on the default - while `forcePrivateRolls` (on by default)
@@ -64213,7 +64202,8 @@ const SCENARIOS = [
          * roll with the lock on and drawn as a player reads it (`asConsole`, as the test above): with rolls forced
          * private; with them not; and forced private again with the window's actor read as a Monocub (its `getFlag`
          * answers the module's `monocub` flag on this instance only, nothing written). Read: the chip's text. At
-         * e10c60a: "Public" every time.
+         * e10c60a: "Public" every time. E60 C5c retired the chip with the collapse (E60-T15): the same names are read off the
+         * mode select's tooltip, on its first line (`audienceOf`, above the select's locked reason).
          */
         const RD = await import("./roll-dialog.mjs");
         const [actor] = cast(1);
@@ -64225,7 +64215,7 @@ const SCENARIOS = [
             try {
                 await win.app._replaceHTML(await win.app._renderHTML(await win.app._prepareContext({})), win.app.element);
                 asConsole(() => RD.onRenderApplication(win.app, win.app.element));
-                return win.element.querySelector(".drpg-mode-chip")?.textContent?.trim() ?? null;
+                return String(win.element.querySelector('select[name="selectedMessageMode"]')?.dataset?.tooltip ?? "").split("<br>")[0] || null;
             } finally {
                 await win.cancel();
             }
@@ -64249,7 +64239,7 @@ const SCENARIOS = [
         }
         const L = key => game.i18n.localize(key);
         equal(stableJson(read), stableJson({ forced: L("DRPG.RollDialog.modeGms"), monocub: L("DRPG.RollDialog.modeRoom"), open: L("DRPG.RollDialog.modePublic") }),
-            "the locked window's chip does not name who sees the roll (forced: the GMs and you; monocub: the GMs, you and the room; open: Public, the select's own mode)");
+            "the locked window's mode select does not name who sees the roll (forced: the GMs and you; monocub: the GMs, you and the room; open: Public, the select's own mode)");
     }],
 
     ["a roll window opens below the curtain's edge, not over the glass at the top of the screen (S01-22)", async () => {
