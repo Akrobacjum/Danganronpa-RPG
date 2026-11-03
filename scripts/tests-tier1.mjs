@@ -31950,18 +31950,21 @@ const INVARIANTS = [
         equal(JSON.stringify([words.map(text => /\bprimaryOnly\b/.test(text)), entries.filter(entry => "primaryOnly" in entry).length]), "[[true,true],0]",
             `a registration naming primaryOnly was not refused for it, or an entry holds the key (refusals: ${JSON.stringify(words)})`);
     }],
-    ["R1280 - one read of traces: remnants.mjs `traceRefsOf(rows, scene, tokens)` answers one frozen ref per trace of that scene - each trace token's (flagged `isRemnant`) in the scene's order, with its row or none, then each row of the scene with a spot and no token - and none of another scene, a scene being a row's when its key's part before the first dot is its id; a ref carrying its token takes the token's spot, floor and size over the row's; `found` is the row's `foundAt` or `incidentFound`, or the token un-hidden and not an incident's drawn for its cast (1.2.97's rule, for a row with no `foundAt`); a row with neither a spot nor a token is left out; a ref has no `update` or `delete`; pure (E60 C1b; E60-03, S17-64)", async () => {
+    ["R1280 - one read of traces: remnants.mjs `traceRefsOf(rows, scene, tokens)` answers one frozen ref per trace of that scene - each trace token's (flagged `isRemnant`) in the scene's order, with its row or none, and none of another scene, a scene being a row's when its key's part before the first dot is its id; a ref takes its token's spot, floor and size over the row's; `found` is the row's `foundAt` or `incidentFound`, or the token un-hidden and not an incident's drawn for its cast (1.2.97's rule, for a row with no `foundAt`); a row with no trace token is no ref, a spot or none (D38 = 1: a trace is its token, E60 fix FG1); a ref has no `update` or `delete`; pure (E60 C1b; E60-03, S17-64)", async () => {
         /*
          * E60 C1b, 03.11.2026; S17-64. Every reader of a trace asked the scene's tokens until E60, and from C1b
          * remnants.mjs answers a ref per trace from the rows and the tokens together (`remnantsOn`, `remnantById` and
          * every reader through them; every trace keeps its hidden token, the owner's D38 = 1 of 03.11.2026, and a row with
          * no token is one whose token is gone). Read here on fixtures alone - two scenes, the
-         * second's id beginning with the first's ("e60r" and "e60rB"), so a key matched by a bare prefix is caught; six
-         * tokens and seven rows: a found token whose row holds another spot (a GM dragged it), a hidden token with a row of
+         * second's id beginning with the first's ("e60r" and "e60rB"), so a key matched by a bare prefix is caught; seven
+         * tokens and eight rows: a found token whose row holds another spot (a GM dragged it), a hidden token with a row of
          * 1.2.97 (no spot, no `foundAt`), an unflagged token, a flagged token with no row, an incident's un-hidden token
-         * not found, a row with a spot and no token, one found with no token, one with neither, and the other scene's
-         * row. Red at C1a: no `traceRefsOf`. Mutants c1b-m2 (the row's spot over the token's) and c1b-m5 (a bare prefix)
-         * read red here.
+         * not found, an incident's found, a hidden token whose row says found, a row with a spot and no token, one with
+         * neither, and the other scene's row with its token and without. Red at C1a: no `traceRefsOf`. Mutants c1b-m2 (the
+         * row's spot over the token's) and c1b-m5 (a bare prefix) read red here. Rewritten in E60's fix round (FG1): C1b
+         * answered a ref for a row with a spot and no token, D38 = 2's shape; under D38 = 1 such a row is no trace for any
+         * reader (gm-stores.mjs `gmStoreHealth` counts it an orphan, tier 2 E60-T19). Red on C1b's code: t5 and the other
+         * scene's row with no token answered as refs.
          */
         const R = await import("./remnants.mjs");
         must(typeof R.traceRefsOf === "function", "remnants.mjs exports no traceRefsOf - nothing builds a trace's ref");
@@ -31973,7 +31976,8 @@ const INVARIANTS = [
             { id: "t3", x: 1, y: 1, hidden: true, flags: {} },
             { id: "t4", x: 70, y: 80, hidden: true, flags: flags() },
             { id: "t8", x: 90, y: 95, hidden: false, flags: flags({ fromIncident: true }) },
-            { id: "t10", x: 91, y: 96, hidden: false, flags: flags({ fromIncident: true }) }
+            { id: "t10", x: 91, y: 96, hidden: false, flags: flags({ fromIncident: true }) },
+            { id: "t7", x: 57, y: 67, hidden: true, flags: flags() }
         ];
         const rows = {
             "e60r.t1": { type: "prep", x: 999, y: 999, level: "L0", foundAt: null },
@@ -31986,7 +31990,8 @@ const INVARIANTS = [
             "e60rB.t9": { type: "prep", x: 5, y: 6, foundAt: null }
         };
         const refs = R.traceRefsOf(rows, A, tokens);
-        const other = R.traceRefsOf(rows, B, []);
+        const other = R.traceRefsOf(rows, B, [{ id: "t9", x: 7, y: 8, hidden: true, flags: flags() }]);
+        const otherBare = R.traceRefsOf(rows, B, []);
         const byId = Object.fromEntries(refs.map(r => [r.id, r]));
         const shape = r => [r.key, r.sceneId, r.parent === A, r.x, r.y, r.level, r.width, r.height, r.found,
             r.document ? r.document.id : null];
@@ -31994,24 +31999,25 @@ const INVARIANTS = [
             order: refs.map(r => r.id),
             refs: refs.map(shape),
             other: other.map(r => [r.key, r.parent === B, r.x, r.y]),
+            otherBare: otherBare.length,
             ref: [refs.every(r => R.isTraceRef(r) && Object.isFrozen(r)), refs.some(r => typeof r.update === "function" || typeof r.delete === "function"),
-                R.isTraceRef(tokens[0]), byId.t1?.elevation ?? null, byId.t5?.elevation ?? null],
+                R.isTraceRef(tokens[0]), byId.t1?.elevation ?? null, byId.t2?.elevation ?? null],
             none: R.traceRefsOf(rows, null, tokens).length
         }), stableJson({
-            order: ["t1", "t2", "t4", "t8", "t10", "t5", "t7"],
+            order: ["t1", "t2", "t4", "t8", "t10", "t7"],
             refs: [
                 ["e60r.t1", "e60r", true, 10, 20, "L1", 2, 2, true, "t1"],
                 ["e60r.t2", "e60r", true, 30, 40, null, 1, 1, false, "t2"],
                 ["e60r.t4", "e60r", true, 70, 80, null, 1, 1, false, "t4"],
                 ["e60r.t8", "e60r", true, 90, 95, null, 1, 1, false, "t8"],
                 ["e60r.t10", "e60r", true, 91, 96, null, 1, 1, true, "t10"],
-                ["e60r.t5", "e60r", true, 50, 60, null, 1, 1, false, null],
-                ["e60r.t7", "e60r", true, 55, 65, "L2", 1, 1, true, null]
+                ["e60r.t7", "e60r", true, 57, 67, null, 1, 1, true, "t7"]
             ],
-            other: [["e60rB.t9", true, 5, 6]],
+            other: [["e60rB.t9", true, 7, 8]],
+            otherBare: 0,
             ref: [true, false, false, 5, null],
             none: 0
-        }), "[the refs' order; each ref (key, scene, parent, x, y, level, width, height, found, its token); the other scene's; "
+        }), "[the refs' order; each ref (key, scene, parent, x, y, level, width, height, found, its token); the other scene's with its token, and without; "
             + "every ref a frozen ref, any with update or delete, a token read as a ref, the elevations; a ref for no scene]");
     }],
 

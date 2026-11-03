@@ -1238,7 +1238,7 @@ export function diagnoseTruthBullets({ toChat = true } = {}) {
     // token carries no type (`placeRemnant`).
     const neutral = [];
     for (const scene of game.scenes) {
-        // Every trace's ref (E60 C1b): its row, with or without a token.
+        // Every trace's ref (E60 C1b): its trace token, with its row or none (D38 = 1; E60 fix FG1).
         for (const ref of remnantsOn(scene)) {
             const type = remnantStore.get(ref.key)?.type ?? ref.document?.getFlag(MODULE_ID, "remnantType");
             if (type !== "neutral") continue;

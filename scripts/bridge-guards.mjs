@@ -1291,7 +1291,7 @@ export function tokenActorOf(payload) {
 export async function remnantSourceOf(payload) {
     const { remnantData, remnantById, sceneOfRemnant } = await import("./remnants.mjs");
     const scene = game.scenes.get(payload?.sceneId ?? "") ?? sceneOfRemnant(payload?.tokenId);
-    // The trace's ref (E60 C1b): its row, with or without a token.
+    // The trace's ref (E60 C1b): its trace token, with its row or none (D38 = 1; E60 fix FG1).
     return remnantData(remnantById(scene?.id, payload?.tokenId ?? ""))?.sourceActor ?? null;
 }
 

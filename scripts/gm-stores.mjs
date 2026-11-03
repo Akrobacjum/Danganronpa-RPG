@@ -2063,11 +2063,11 @@ export async function gmStoreHealth() {
     const add = (id, level, key, data = {}) => rows.push({ id, level, key, data });
 
     /* EVERY TRACE'S REF (E60 C1b, 03.11.2026): remnants.mjs reads the rows and the tokens together (`remnantsOn`), and
-       this walks a scene's tokens no more (tier 0 R1281). The trace tokens are the refs that hold one - a token
-       flagged with no row among them, as before. */
+       this walks a scene's tokens no more (tier 0 R1281). Every ref holds its trace token (D38 = 1, E60 fix FG1) - a
+       token flagged with no row among them, as before. */
     const { answerKeyOnToken, ANSWER_KEY_FLAGS, remnantsOn } = await import("./remnants.mjs");
     const refs = [...(game.scenes ?? [])].flatMap(scene => remnantsOn(scene));
-    const traces = refs.filter(ref => ref.document).map(ref => ref.document);
+    const traces = refs.map(ref => ref.document);
     const traceKey = token => `${token.parent?.id}.${token.id}`;
     // A trace whose answer key is still on its token is moved, not restored: counted apart (C-m14).
     const noRow = traces.filter(token => !remnantStore.has(traceKey(token)));
@@ -2085,8 +2085,8 @@ export async function gmStoreHealth() {
     const flagged = traces.filter(token => !onToken.includes(token)
         && ANSWER_KEY_FLAGS.some(flag => flag in (token._source?.flags?.[MODULE_ID] ?? token.flags?.[MODULE_ID] ?? {})));
     if (flagged.length) add("tracesKept", "conflict", "DRPG.Case.row.tracesKept", { n: flagged.length, of: traces.length });
-    // A row with neither a token nor a spot of its own (E60 C1b; a row of 1.2.97 whose token is gone): no ref reaches
-    // it, so nothing reads it - counted, never removed on its own.
+    // A row whose trace token is gone, with a spot or none (D38 = 1; E60 fix FG1 put back 1.2.97's count, which C1b had
+    // narrowed to rows with no spot): no ref reaches it, so nothing reads it - counted, never removed on its own.
     const reached = new Set(refs.map(ref => ref.key));
     const orphans = Object.keys(remnantStore.entries()).filter(key => !reached.has(key)).length;
     if (orphans) add("traceOrphans", "info", "DRPG.Case.row.traceOrphans", { n: orphans });

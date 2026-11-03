@@ -578,7 +578,7 @@ async function markBodyDisturbed(body, itemName) {
     const taken = [...(record?.taken ?? []), itemName];
 
     const { setRemnantSecretById, remnantById } = await import("./remnants.mjs");
-    // The trace's ref (E60 C1b): the row, with or without a token.
+    // The trace's ref (E60 C1b): its trace token, with its row or none (D38 = 1; E60 fix FG1).
     const existing = record?.tokenId ? remnantById(record.sceneId, record.tokenId) : null;
 
     if (existing) {

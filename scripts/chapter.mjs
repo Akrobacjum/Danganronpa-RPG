@@ -1746,7 +1746,7 @@ export async function clearChapterKeyRemnants(chapter) {
         });
         if (!doomed.length) continue;
         for (const token of doomed) await dropRemnantSecret(token);
-        // The refs that hold a token (E60 C1b): a row alone goes with its tombstone above.
+        // The refs' tokens (E60 C1b; every ref holds one, D38 = 1, fix FG1): a token gone meanwhile leaves the row, gone with its tombstone above.
         const ids = doomed.filter(t => t.document).map(t => t.id);
         if (ids.length) await scene.deleteEmbeddedDocuments("Token", ids);
         cleared += doomed.length;

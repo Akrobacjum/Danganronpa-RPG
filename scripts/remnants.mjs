@@ -1939,8 +1939,8 @@ export function remnantData(trace) {
         placedAt: entry.placedAt ?? null,
         // Put back by a cleanup Reroll (cleanup.mjs `undoLastCleanup`).
         restored: Boolean(entry.restored),
-        // A trace with no token is hidden from everyone (E60 C1b): a row whose token is gone with no tombstone - no
-        // primary GM's `deleteToken` hook saw it go (D38 = 1: every trace is placed with a token).
+        // A trace with no token is hidden from everyone (E60 C1b). Every ref holds its token (D38 = 1: every trace is
+        // placed with one, and a row whose token is gone is no ref, E60 fix FG1), so this answers a caller's other value.
         hidden: tokenDoc ? tokenDoc.hidden : true,
         // Its first find (E60 C1b): when and by which road, null while nobody has found it or before 1.2.98.
         foundAt: entry.foundAt ?? null,
@@ -3115,18 +3115,22 @@ async function seedPublicIfMissing(tokenDoc) {
  *
  * A ref answers what a reader asked a trace's token for: `id` and `parent` (`keyOf`, the bridge's ids), `x`, `y`,
  * `level`, `width`, `height` and `elevation` (movement.mjs `roomOfToken` / `roomAt`), and `remnantData` /
- * `remnantPublic` take it as they take a token. `document` is the trace's token where the scene holds one, and then
- * the spot, the floor and the size are the token's (a GM may have dragged it); null where it holds none - a row
- * whose token is gone with no tombstone (no primary GM's `deleteToken` hook saw it go) - and the row's spot is read
- * (`x`, `y`, `level`, written since C1b by `placeRemnant`). `found` is the row's `foundAt` (or
+ * `remnantPublic` take it as they take a token. `document` is the trace's token, and the spot, the floor and the size
+ * are the token's (a GM may have dragged it); the row's spot (`x`, `y`, `level`, written since C1b by `placeRemnant`)
+ * is kept and read by no reader. `found` is the row's `foundAt` (or
  * `incidentFound`), or HEAD's rule on the token: un-hidden and not one of an incident's drawn for its cast - so a
  * world of 1.2.97, whose rows hold no `foundAt`, reads as it read. A ref is frozen and has no `update` or `delete`:
  * the writes go through this file's functions, and a found trace's token is written as `ref.document`.
  *
- * In token order first, the rows with no token after them: every reader that lists traces lists them in the order
- * it did on a world whose traces all have tokens. A token flagged with no row here (a row another GM holds, or a
- * player's browser, which holds none) is a ref with `document` and no row, as it was a trace token at 1.2.97; a row
- * with neither a token nor a spot is left out (the health check counts it, gm-stores.mjs `gmStoreHealth`).
+ * Under D38 = 1 a trace is its token (E60 fix FG1, 03.11.2026; the end review's C-M1 and S-m1): a ref per trace token,
+ * in the scene's token order, as every reader listed them at 1.2.97. A token flagged with no row here (a row another
+ * GM holds, or a player's browser, which holds none) is a ref with `document` and no row, as it was a trace token at
+ * 1.2.97. A row with no trace token - its token gone with no tombstone: the season reset's deletions write none, and
+ * a case restored "anyway" brings the rows back without the tokens, world documents; or a tombstone compacted away
+ * after `TIMING.gmStoreTombstoneDays` and the row sent back by a GM offline that long - is no ref, spot or none, so
+ * no reader finds, lists or counts it, and the health check counts it an orphan (gm-stores.mjs `gmStoreHealth`), as
+ * at 1.2.97. C1b answered a ref for such a row with a spot, D38 = 2's shape: Observe minted copies of a trace the map
+ * did not hold (tier 2 E60-T19).
  * ========================================================================== */
 
 const TRACE_REF = Symbol("drpg.traceRef");
@@ -3136,7 +3140,7 @@ export function isTraceRef(value) {
     return Boolean(value?.[TRACE_REF]);
 }
 
-/** The token a trace stands for: a ref's `document` (null while it has none), a token as it is. */
+/** The token a trace stands for: a ref's `document` (every ref holds one, D38 = 1), a token as it is. */
 function tokenOf(trace) {
     return isTraceRef(trace) ? trace.document : (trace ?? null);
 }
@@ -3160,9 +3164,10 @@ function traceRef(scene, id, row, token) {
 }
 
 /**
- * The refs of one scene's traces, from the rows (`remnantStore.entries()`, keyed `<sceneId>.<id>`) and the scene's
- * tokens. A row is the scene's when its key's part before the first dot is the scene's id - never by a bare prefix,
- * which a scene whose id begins another's would take. Pure over what it is handed (R1280).
+ * The refs of one scene's traces, from the scene's trace tokens and their rows (`remnantStore.entries()`, keyed
+ * `<sceneId>.<id>`): one per token, with its row or none; a row with no token is none (D38 = 1, above). A row is the
+ * scene's when its key's part before the first dot is the scene's id - never by a bare prefix, which a scene whose id
+ * begins another's would take. Pure over what it is handed (R1280).
  *
  * @param {object} rows  the ledger's live rows by key
  * @param {object} scene  the scene (its `id`)
@@ -3181,10 +3186,6 @@ export function traceRefsOf(rows, scene, tokens = scene?.tokens ?? []) {
     for (const token of tokens ?? []) {
         if (!token?.id || !flagOf(token, REMNANT_FLAGS.isRemnant)) continue;
         out.push(traceRef(scene, token.id, here.get(token.id) ?? null, token));
-        here.delete(token.id);
-    }
-    for (const [id, row] of here) {
-        if (Number.isFinite(row?.x) && Number.isFinite(row?.y)) out.push(traceRef(scene, id, row, null));
     }
     return out;
 }
@@ -3203,7 +3204,7 @@ function traceTokensOn(scene) {
 /**
  * One trace's ref by its scene's id and its own (`tokenById` until E60 C1b, which answered the token): the row and the
  * token of that key, read without building the scene's other refs. Null for a scene that is not there, or an id with
- * neither a row nor a trace token on it.
+ * no trace token on it, a row or none (D38 = 1, E60 fix FG1).
  */
 export function remnantById(sceneId, tokenId) {
     const scene = sceneId && tokenId ? game.scenes?.get(sceneId) ?? null : null;
@@ -3217,7 +3218,7 @@ export function remnantById(sceneId, tokenId) {
 /**
  * The scene a trace is on, by its id: for a reader holding a trace's id and no scene (a Reroll's
  * bookmark from before it carried one, a packet that named none). Null when no scene has it -
- * never the scene on screen (E12 C6). A trace of a row or of a trace token (E60 C1b).
+ * never the scene on screen (E12 C6). A trace is its trace token, its row or none (E60 C1b; D38 = 1, fix FG1).
  */
 export function sceneOfRemnant(tokenId) {
     if (!tokenId) return null;
@@ -3265,7 +3266,7 @@ export async function removeRemnant(trace) {
     // Only once the refusal above has not fired: dropping the row for a trace
     // that then survives would leave a Remnant the GM can see and not read.
     await dropRemnantSecret(trace);
-    // A ref with no token is the row alone (E60 C1b), gone with the tombstone above.
+    // Every ref holds its token (D38 = 1; E60 fix FG1); one gone meanwhile leaves the row alone, gone with the tombstone above.
     const tokenDoc = tokenOf(trace);
     return tokenDoc ? tokenDoc.delete() : true;
 }

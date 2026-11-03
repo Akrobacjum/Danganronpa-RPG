@@ -81784,6 +81784,84 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ in: [true, true, true], out: [false, true, true] }),
             "[with the Monokuma in the room and moved out: this GM's Dice So Nice animates the roll; this GM reads its card; its whisper names this GM]");
     }],
+    ["E60-T19 - a row with no trace token is no trace (E60 fix FG1; D38 = 1; the correctness review's M1, the security review's S-m1): in a world the stores have never opened, a Key and a Final are placed in a room with a student and the case backed up; the season reset's two steps on them (their tokens deleted with `drpgReset`, so no tombstone, then `clearRemnantLedger`'s cut) and the case restored with \"restore anyway\" (`restoreCase` `beforeCut`) bring both rows back with their spots and no token; no reader answers either (`remnantsOn`, `remnantById`, `sceneOfRemnant`, Observe's candidates, the clean-up's list, the finals), and the health check names both orphans (`traceOrphans`), as at 1.2.97", async () => {
+        /*
+         * E60 fix FG1, 03.11.2026. From C1b the row holds the trace's spot, and `traceRefsOf` answered a ref for a row with
+         * a spot and no token - built for D38 = 2, which the owner dropped (D38 = 1, 03.11.2026). So a row left without its
+         * token and without a tombstone - the reset's deletions write none, and "restore anyway" brings the rows back while
+         * the tokens, world documents, stay gone - was a trace for every reader: Observe minted a copy of it, the clean-up,
+         * the Traces tab, the Key count and the finals listed it, and the health check said nothing. Under D38 = 1 a trace is
+         * its token. The reset's steps are taken on this test's two traces alone (the reset itself would clear every trace
+         * of the world), in a world the stores have never opened (`withGmStoreWorld`), so its cut and its restore touch no
+         * row of this world and no other GM or player is sent anything. Red before FG1: both rows read as refs by every
+         * reader, and no orphan counted. Mutants fg1-m1 (a row-only ref kept for Observe alone) and fg1-m2 (orphans not
+         * counted) read red here.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the traces are placed on the scene on screen");
+        needs(world.atLeast("occupiedRooms", 1), "the traces are left in a room with a student in it");
+        const R = await import("./remnants.mjs");
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { cleanableRemnants } = await import("./cleanup.mjs");
+        const { finalRemnants } = await import("./mastermind.mjs");
+        const scene = canvas?.scene;
+        const student = cast(4).find(a => { const at = locateActor(a); return at?.room && at.scene === scene; });
+        must(student, "no student of the cast stands in a room on the scene on screen - this would measure nothing");
+        const where = locateActor(student);
+        const room = where.room, at = { x: where.tokenDoc.x, y: where.tokenDoc.y };
+        const chapter = getClock().chapter;
+        const saveDataToFile = foundry.utils.saveDataToFile;
+        const placed = [];
+        let reading = null;
+        try {
+            await E.withGmStoreWorld(`suite-e60t19-${foundry.utils.randomID(8)}`, async () => {
+                const key = await R.placeRemnant({ type: "key", visibility: "evident", scene, ...at, room, chapter, note: "SUITE E60-T19 key" });
+                const final = await R.placeRemnant({ type: "final", visibility: "evident", scene, ...at, room, chapter, note: "SUITE E60-T19 final" });
+                for (const t of [key, final]) if (t) placed.push(t);
+                must(placed.length === 2, `${placed.length} of the two traces were placed - this would measure nothing`);
+                const keys = placed.map(t => `${scene.id}.${t.id}`), ids = placed.map(t => t.id);
+                const ours = list => ids.map(id => list.includes(id));
+                const readers = () => ({
+                    on: ours(R.remnantsOn(scene).map(r => r.id)),
+                    byId: ids.map(id => R.remnantById(scene.id, id) !== null),
+                    scene: ids.map(id => R.sceneOfRemnant(id) === scene),
+                    observe: ours(R.rankForObserve(room, scene).map(c => c.token.id)),
+                    cleanable: ours(cleanableRemnants(student, { room, scene }).map(c => c.token.id)),
+                    finals: ours(finalRemnants().map(f => f.token.id))
+                });
+                const orphans = async () => (await S.gmStoreHealth()).rows.find(r => r.id === "traceOrphans")?.data?.n ?? 0;
+                const before = { readers: readers(), orphans: await orphans() };
+                let saved = null;
+                foundry.utils.saveDataToFile = data => { saved = data; };
+                await S.backupCase();
+                foundry.utils.saveDataToFile = saveDataToFile;
+                must(saved, "the backup wrote no case file - this would measure nothing");
+                await scene.deleteEmbeddedDocuments("Token", ids, { drpgReset: true });
+                await R.clearRemnantLedger();
+                await E.gmStoresIdle();
+                const cut = keys.map(k => S.remnantStore.has(k));
+                const restored = await S.restoreCase(saved, { beforeCut: true, recheck: false });
+                must(restored && !restored.refused, `the restore refused its own backup: ${stableJson(restored)}`);
+                const rows = ids.map((id, i) => { const row = S.remnantStore.get(keys[i]); return Number.isFinite(row?.x) && Number.isFinite(row?.y) && !scene.tokens.has(id); });
+                must(rows.every(Boolean), `the restore did not bring back both rows with their spots and no token: ${stableJson(rows)} - this would measure nothing`);
+                reading = { before, cut, after: { readers: readers(), orphans: await orphans() } };
+                await R.clearRemnantLedger();
+            });
+        } finally {
+            foundry.utils.saveDataToFile = saveDataToFile;
+            const left = placed.map(t => t.id).filter(id => scene.tokens.has(id));
+            if (left.length) await scene.deleteEmbeddedDocuments("Token", left);
+        }
+        const all = [true, true], none = [false, false];
+        equal(stableJson(reading), stableJson({
+            before: { readers: { on: all, byId: all, scene: all, observe: all, cleanable: all, finals: [false, true] }, orphans: 0 },
+            cut: none,
+            after: { readers: { on: none, byId: none, scene: none, observe: none, cleanable: none, finals: none }, orphans: 2 }
+        }), "[placed: each reader lists ours (the scene's refs, by id, its scene, Observe's candidates, the clean-up's list, the finals), "
+            + "no orphan; after the reset's cut no row; after \"restore anyway\" with the tokens gone: no reader lists either row, and the "
+            + "health check counts both orphans]");
+    }],
     ...GRID
 ];
 
