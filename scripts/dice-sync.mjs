@@ -634,7 +634,8 @@ const plain = value => (value && typeof value === "object" ? foundry.utils.deepC
 /**
  * The look the source throws in, as every forced user must hold it. The appearance is the one DSN works out for
  * the source (`Dice3D.ALL_CUSTOMIZATION`, read in the 26.09 design: a GM with no flag of their own still has a
- * look, from their colour), or the raw flag where DSN is not built (no canvas; the harness, whose `game.dice3d`
+ * look, from their colour; absent from Dice So Nice 6.3 and later, where the diagnostic says so, `dsnApiMoved`, and
+ * reading it there is E76's, row 1.2.120 - E60's fix round, FG5), or the raw flag where DSN is not built (no canvas; the harness, whose `game.dice3d`
  * has no such method). A library die's owner is written in where it is missing, since DSN looks the die up in
  * its owner's library and a player's own would not hold it. No special effect is part of it (H82 C1, the header): until
  * then the GM's effects were, all but those that run a macro, which would have run on every browser at a player's throw.
@@ -827,7 +828,8 @@ export function fuseStoppedFor(key) {
  * the thrower's Dice So Nice look where it did not, and the GM's own the GM's. Now the source full Gamemaster's browser
  * keeps its preset in the world (`diceDualityLook`) - at its load, at a change of its setting, and when the switch or
  * the source moves to it - while the table's look is forced, and the primary holds it as it holds the switches (a write
- * below full Gamemaster is put back). Every browser lays it on each throw it draws (dice-look.mjs `layDualityLook`, on
+ * below full Gamemaster is put back; a write by any full Gamemaster is held as the copy, as every switch's is - E16's
+ * rule, full Gamemasters are trusted - not only the source's own browser's: the end review's S-n3). Every browser lays it on each throw it draws (dice-look.mjs `layDualityLook`, on
  * `diceSoNiceRollStart`), whatever the thrower's own setting. Daggerheart 2.10 and later colour those dice by Dice So Nice
  * roles and keep no preset: nothing is written, and the diagnostic says `rolesUnforced`. What a table draws is LIVE-E60-06.
  */

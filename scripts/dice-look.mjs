@@ -99,7 +99,9 @@ function onRollStart(messageId, context) {
  * So Nice draws `context.dsnRoll` where a listener set one, else `context.roll` (6.2.9 Dice3D.js `showForRoll`), so with
  * the table's look forced each throw this browser draws - a roll the GM drew, a Reroll's, Daggerheart's own, one thrown
  * with no GM - is handed a copy whose Hope, Fear and advantage dice carry the world's copy of the source's preset. The
- * roll itself, the message's, is never touched: display only. Not on Daggerheart 2.10 and later (roles).
+ * roll itself, the message's, is never touched: display only. Not on Daggerheart 2.10 and later (roles): forcing those is
+ * E76's (row 1.2.120, compatibility with newer Daggerheart and Foundry), with Dice So Nice 6.3's missing
+ * `ALL_CUSTOMIZATION`, 6.4's `DEFAULT_SFX` and Daggerheart 2.12's `MoveContext` (E60's fix round, FG5).
  */
 function layOnThrow(context) {
     if (!context?.roll) return false;

@@ -1597,7 +1597,8 @@ export async function revealRemnantToFinder(trace, { tell = true, via = "find" }
 
 /**
  * A TRACE'S FIRST FIND, ON ITS ROW (E60 C1b, 03.11.2026): `foundAt` once - a later find keeps the first's - and the
- * road it came by (`foundVia`: "find", "reveal", "loot", "gm" ...), for the log and the dashboard. A live row only
+ * road it came by (`foundVia`: "find", "reveal", "loot", "gm" ...), kept on the row and read by no screen (D38 = 1
+ * dropped the roads that were to read it; E60's fix round, FG5). A live row only
  * (`ifLive`): a trace this GM holds no row of is not started as one of two fields.
  */
 async function markFound(trace, via) {
