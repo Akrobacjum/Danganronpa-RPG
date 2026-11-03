@@ -16196,7 +16196,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(readOf(sources)), "[]",
             "the doors' rules on the GM: asked twice, before the walls and floors, behind an option of the update, skipped on a clear or noted move, not handed in, named elsewhere, or a put-back that meets walls");
     }],
-    ["R1032 - the trial's fields live as long as the trial (E70 C3, amend (i)): trial-progress.mjs `resetTrialProgress` blanks the question (`topic`), the vote's opening (`voteOpenedAt`), the debate again (`debateAgain`) and the trial's size (`trialSize`) and stamps `trialStartedAt` on the server's clock, and names none of the chapter's (`objections`, `keysCharged`); `openRound` stamps `voteOpenedAt` on `serverNow()`; trial-floor-ui.mjs `openDebate` writes the question after the floor opens", async () => {
+    ["R1032 - the trial's fields live as long as the trial (E70 C3, amend (i)): trial-progress.mjs `resetTrialProgress` (since E42 C4 the entry's patch of `TRIAL_RECORD`, `entryPatch`) blanks the question (`topic`), the vote's opening (`voteOpenedAt`), the debate again (`debateAgain`) and the trial's size (`trialSize`) and stamps `trialStartedAt` on the server's clock, and names none of the chapter's (`objections`, `keysCharged`); `openRound` stamps `voteOpenedAt` on `serverNow()`; trial-floor-ui.mjs `openDebate` writes the question after the floor opens", async () => {
         /*
          * E70 C3, 27.10.2026; E70-13, E70-14. The plan's amend (i): `topic`, `trialStartedAt`, `voteOpenedAt` are the
          * trial's (a second trial in the chapter, D17, starts without the first one's), `objections` and `keysCharged`
@@ -16204,37 +16204,47 @@ const REGRESSIONS = [
          * browser's own. And the question is written after `startFloor`, which enters the trial and blanks the record
          * there (E10 C12's order: a length written first was eaten a moment later). Read in the module's files,
          * comments blanked; the reader is shown a clean twin first, then one fault of each rule. Red at bf1a076b: no
-         * `topic`, `voteOpenedAt`, `debateAgain` or `trialSize` anywhere.
+         * `topic`, `voteOpenedAt`, `debateAgain` or `trialSize` anywhere. Since E42 C4 (E42-17) the entry writes the trial's
+         * fields of the record's table (trial-progress.mjs `TRIAL_RECORD`, `entryPatch`), so the reset's half reads the
+         * table as the value it is - each field's `atEntry` and lifetime - and R1257 holds `resetInStep` to it; the vote's
+         * and the debate's halves read the source as before.
          */
-        const readOf = (vote, ui) => {
-            // The reset's fields are written by its step on the primary since E70 fix p1-G2 (`resetInStep`), read with it.
-            const reset = (topLevelFunction(vote, "resetTrialProgress") ?? "") + (topLevelFunction(vote, "resetInStep") ?? "");
+        const readOf = (table, vote, ui) => {
+            const entry = key => typeof table?.[key]?.atEntry === "function";
+            const atEntry = key => (entry(key) ? table[key].atEntry({ vote: { round: 0 } }, { seconds: 1 }) : undefined);
             const round = topLevelFunction(vote, "openRound") ?? "";
             const open = topLevelFunction(ui, "openDebate") ?? "";
             const at = (body, re) => { const m = re.exec(body); return m ? m.index : -1; };
             return {
-                cut: [reset, round, open].every(body => body.length > 60),
-                trial: /\btopic: null\b/.test(reset) && /\bvoteOpenedAt: null\b/.test(reset) && /\bdebateAgain: false\b/.test(reset)
-                    && /\btrialSize: /.test(reset) && /\btrialStartedAt: serverNow\(\)/.test(reset),
-                chapter: !/\bobjections\b|\bkeysCharged\b/.test(reset),
+                cut: [round, open].every(body => body.length > 60) && Object.keys(table ?? {}).length > 4,
+                trial: entry("topic") && atEntry("topic") === null && entry("voteOpenedAt") && atEntry("voteOpenedAt") === null
+                    && entry("debateAgain") && atEntry("debateAgain") === false && entry("trialSize")
+                    && entry("trialStartedAt") && /\bserverNow\(\)/.test(String(table.trialStartedAt.atEntry)),
+                chapter: !entry("objections") && !entry("keysCharged") && table.objections?.lives === "chapter" && table.keysCharged?.lives === "chapter",
                 vote: /\bvoteOpenedAt: [^,\n]*\bserverNow\(\)/.test(round) && !/voteOpenedAt: [^,\n]*Date\.now\(\)/.test(round),
                 order: at(open, /\bstartFloor\(/) >= 0 && at(open, /setTrialProgress\(\{[^}]*\btopic\b/) > at(open, /\bstartFloor\(/)
             };
         };
         const pad = "// " + "x".repeat(80) + "\n";
-        const twinVote = `export async function resetTrialProgress() {\n${pad}    return setTrialProgress(now => ({ seconds, topic: null, voteOpenedAt: null, debateAgain: false, trialSize: 4, trialStartedAt: serverNow() }));\n}\n`
-            + `async function openRound(progress) {\n${pad}    await setTrialProgress(now => ({ vote: {}, voteOpenedAt: now.voteOpenedAt ?? serverNow() }));\n}\n`;
+        const serverNow = () => 1;
+        const twinTable = {
+            topic: { lives: "trial", atEntry: () => null }, voteOpenedAt: { lives: "trial", atEntry: () => null },
+            debateAgain: { lives: "trial", atEntry: () => false }, trialSize: { lives: "trial", atEntry: () => 4 },
+            trialStartedAt: { lives: "trial", atEntry: () => serverNow() }, objections: { lives: "chapter" }, keysCharged: { lives: "chapter" }
+        };
+        const twinVote = `async function openRound(progress) {\n${pad}    await setTrialProgress(now => ({ vote: {}, voteOpenedAt: now.voteOpenedAt ?? serverNow() }));\n}\n`;
         const twinUi = `export async function openDebate(options = {}) {\n${pad}    if (!(await startFloor({ seconds: budget }))) return null;\n    await setTrialProgress({ topic });\n}\n`;
         const all = { cut: true, trial: true, chapter: true, vote: true, order: true };
-        equal(JSON.stringify(readOf(twinVote, twinUi)), JSON.stringify(all), "the reader does not read its clean twin as clean");
-        const planted = twinVote.replace("topic: null, ", "").replace("trialSize: 4,", "trialSize: 4, objections: {},")
-            .replace("now.voteOpenedAt ?? serverNow()", "Date.now()");
+        equal(JSON.stringify(readOf(twinTable, twinVote, twinUi)), JSON.stringify(all), "the reader does not read its clean twin as clean");
+        const plantedTable = { ...twinTable, topic: { lives: "trial" }, objections: { lives: "chapter", atEntry: () => ({}) } };
+        const planted = twinVote.replace("now.voteOpenedAt ?? serverNow()", "Date.now()");
         const early = `export async function openDebate(options = {}) {\n${pad}    await setTrialProgress({ topic });\n    if (!(await startFloor({ seconds: budget }))) return null;\n}\n`;
-        equal(JSON.stringify(readOf(planted, early)), JSON.stringify({ ...all, trial: false, chapter: false, vote: false, order: false }),
+        equal(JSON.stringify(readOf(plantedTable, planted, early)), JSON.stringify({ ...all, trial: false, chapter: false, vote: false, order: false }),
             "the reader misses a planted lifetime, a chapter's field blanked, the vote on the browser's clock or the question written before the floor");
         const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const { TRIAL_RECORD } = await import("./trial-progress.mjs");
         // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; the vote's family's text (the kit's `voteText`).
-        equal(JSON.stringify(readOf(voteText(new Map(await Promise.all(VOTE_FAMILY.map(async f => [f, await read(f)])))), await read("trial-floor-ui.mjs"))), JSON.stringify(all),
+        equal(JSON.stringify(readOf(TRIAL_RECORD ?? null, voteText(new Map(await Promise.all(VOTE_FAMILY.map(async f => [f, await read(f)])))), await read("trial-floor-ui.mjs"))), JSON.stringify(all),
             "a trial's field outlives its trial, a chapter's dies with it, the vote opens on a browser's clock, or the question is written before the floor opens (read: cut, trial, chapter, vote, order)");
     }],
 
@@ -18808,7 +18818,7 @@ const REGRESSIONS = [
             + "toggleEclipse, hud.mjs's askEclipse and eclipseQuestion]; toggle: [the start's refusals, E17's question, the start, the placement, "
             + "no window when every placing student moved, End and move the clock, End without advancing]}");
     }],
-    ["R1196 - the readiness round's record is the primary's to write (E37 C3, E37-15): every write of the world setting `readyRound` in the module is in boundary.mjs, one in each of `openRoundOnPrimary`, `answerOnPrimary` and `endRoundOnPrimary`, inside their step of `serialWrite(READY_KEY, ...)`; and the bridge's rows `ready.open` and `ready.end` are a GM's alone (gmOnly first), `ready.answer` opens with knownSender and lets through the round's id and the answer and no user id", async () => {
+    ["R1196 - the readiness round's record is the primary's to write (E37 C3, E37-15): every write of the world setting `readyRound` in the module is in boundary.mjs, one in each of `openRoundOnPrimary`, `answerOnPrimary`, `endRoundOnPrimary` and, since E42 C4, the season reset's `clearReadyRound`, inside their step of `serialWrite(READY_KEY, ...)`; and the bridge's rows `ready.open` and `ready.end` are a GM's alone (gmOnly first), `ready.answer` opens with knownSender and lets through the round's id and the answer and no user id", async () => {
         /*
          * E37 C3, 01.11.2026; E37-15, the Write roads of S/stages/E37/STAGE.md. The round is a world setting every browser
          * reads; a write outside the primary's step would race the answers (two landing within a server round trip, the
@@ -18823,7 +18833,8 @@ const REGRESSIONS = [
         const writes = [...sources].map(([file, raw]) => [file, (stripComments(raw).match(WRITE) ?? []).length]).filter(([, n]) => n > 0);
         const boundary = stripComments(sources.get("boundary.mjs") ?? "");
         must(boundary.length > 1000, "boundary.mjs was not read - this test measured nothing");
-        const steps = ["openRoundOnPrimary", "answerOnPrimary", "endRoundOnPrimary"].map(name => {
+        // E42 C4 (E42-16): the season reset's clock group writes the record empty, in a step of the same key.
+        const steps = ["openRoundOnPrimary", "answerOnPrimary", "endRoundOnPrimary", "clearReadyRound"].map(name => {
             const fn = topLevelFunction(boundary, name);
             if (!fn) return [name, null];
             const inStep = bodyOf(fn, "serialWrite(READY_KEY, async () => {");
@@ -18842,8 +18853,8 @@ const REGRESSIONS = [
             answer: row("ready.answer")?.sanitize?.fields ?? null,
             answers: ["ready.open", "ready.answer", "ready.end"].map(action => row(action)?.answer ?? null)
         }), JSON.stringify({
-            writes: [["boundary.mjs", 3]],
-            steps: [["openRoundOnPrimary", [1, 1]], ["answerOnPrimary", [1, 1]], ["endRoundOnPrimary", [1, 1]]], key: true,
+            writes: [["boundary.mjs", 4]],
+            steps: [["openRoundOnPrimary", [1, 1]], ["answerOnPrimary", [1, 1]], ["endRoundOnPrimary", [1, 1]], ["clearReadyRound", [1, 1]]], key: true,
             guards: ["gmOnly", "knownSender", "gmOnly"],
             answer: { roundId: "id", ready: "bool" },
             answers: ["reply", "reply", "reply"]
@@ -19303,6 +19314,8 @@ const REGRESSIONS = [
             discovered: "fog.mjs", searchTokens: "search-tokens.mjs", keyPlan: "investigation.mjs", eclipseMoves: "eclipse.mjs",
             motive: "rules.mjs", rules: "rules.mjs", actions: "actions.mjs", despair: "despair.mjs", overflow: "overflow.mjs",
             doors: "vault-store.mjs", preNotes: "pre-session-note.mjs",
+            // D36 = 2 (E42 C4): the students' division between the Monokumas.
+            assignments: "assignments.mjs",
             // The reset's own: a cast group's part on each sheet, the chat and the clock.
             items: "season-setup.mjs", advancement: "season-setup.mjs", stashesFound: "season-setup.mjs", cards: "season-setup.mjs",
             chatRest: "season-setup.mjs", clock: "season-setup.mjs"
@@ -19416,6 +19429,122 @@ const REGRESSIONS = [
         ok(/\bRESET_STEPS\s*\.\s*(?:filter|map)\(/.test(wipe) && /\bseasonStateFor\(/.test(wipe) && !/\bseasonStateEntries\(\s*\)/.test(wipe)
             && !/const runs = \{/.test(wipe), "wipeSeason does not walk the registry's entries in RESET_STEPS' order");
     }],
+
+    ["R1256 - every world setting has a lifetime, and every season one a clear (E42 C4, E42-16; D36; audit S17-30): settings.mjs `WORLD_LIFETIMES` tags each of the module's world settings season, campaign or table and names no setting the module does not register; each season setting is named by exactly one entry of the registry (season-reset.mjs) and an entry names season settings only - `gmAssignments` the assignments' entry (D36 = 2), `readyRound` and `chapterEnd` the clock's; the reset keeps every setting it kept at 1.2.96 (Q-E42-2); and `lifetimeProblems` names a planted untagged setting, a planted season setting no entry clears, one two entries clear, a tag that is no lifetime and an entry that clears a campaign setting", async () => {
+        /*
+         * E42 C4, 03.11.2026; audit S17-30, D36 = option 2 ("Jak 1, ale gmAssignments ... czyszczone razem z sezonem").
+         * The reset's registry holds every group to an entry (R1254), but nothing held a world setting to a group: a new
+         * world setting of the season that no entry wrote failed no test (`readyRound`, E37 C3, was one; so was
+         * `chapterEnd`, E42 C2). Every world setting the module registers carries a lifetime now, and a season one names
+         * the entry that clears it. Read live: the module's world settings as Foundry holds them, the tags, and the
+         * registry's entries; the reader (`lifetimeProblems`) is shown a planted world first. The season list is quoted:
+         * the nineteen the reset clears, the sixteen it cleared at 1.2.96 and the three E42 adds (Q-E42-2: a setting the
+         * reset kept stays kept). Red at 184f1385: no `WORLD_LIFETIMES` (all 63 world settings untagged) and no
+         * `lifetimeProblems`.
+         */
+        const S = await import("./settings.mjs");
+        const R = await import("./season-reset.mjs");
+        const prefix = `${MODULE_ID}.`;
+        const registered = [...game.settings.settings.entries()]
+            .filter(([full, def]) => full.startsWith(prefix) && def?.scope === "world").map(([full]) => full.slice(prefix.length)).sort();
+        must(registered.length >= 60, `only ${registered.length} world settings of the module are registered - this would measure nothing`);
+        const tags = S.WORLD_LIFETIMES ?? {};
+        equal(JSON.stringify(registered.filter(key => !Object.hasOwn(tags, key))), "[]",
+            "a world setting of the module has no lifetime in settings.mjs `WORLD_LIFETIMES` (the settings untagged)");
+        ok(Object.isFrozen(tags), "settings.mjs `WORLD_LIFETIMES` is not frozen, so a console or a module can retag a setting the reset reads");
+        ok(typeof R.lifetimeProblems === "function", "season-reset.mjs has no lifetimeProblems - nothing holds a season setting to the entry that clears it");
+        if (typeof R.lifetimeProblems !== "function") return;
+        const clear = function plantedClear() {};
+        const planted = R.lifetimeProblems({
+            registered: ["motive", "killingGameRules", "plantedUntagged", "plantedUncleared", "plantedTwice", "plantedCampaign", "plantedOdd"],
+            lifetimes: { motive: "season", killingGameRules: "season", plantedUncleared: "season", plantedTwice: "season", plantedCampaign: "campaign",
+                plantedOdd: "forever", plantedGone: "table" },
+            entries: [{ group: "motive", settings: ["motive"], clear }, { group: "rules", settings: ["killingGameRules", "plantedCampaign"], clear },
+                { group: "overflow", settings: ["plantedTwice"], clear }, { group: "clock", settings: ["plantedTwice"], clear },
+                { group: null, describes: "planted", settings: [] }]
+        });
+        equal(JSON.stringify(planted), JSON.stringify([
+            "plantedUntagged: no lifetime",
+            "plantedOdd: its lifetime \"forever\" is none of season, campaign, table",
+            "plantedGone: tagged, and the module registers no such world setting",
+            "plantedUncleared: a season setting no entry of the registry clears",
+            "plantedTwice: a season setting 2 entries clear (overflow, clock)",
+            "plantedCampaign: a campaign setting, and the entry \"rules\" clears it"
+        ]), "the reader of the lifetimes does not name the planted faults as they are (untagged, no lifetime, not registered, no clear, two clears, a kept setting cleared)");
+        const entries = R.seasonStateEntries();
+        equal(JSON.stringify(R.lifetimeProblems({ registered, lifetimes: tags, entries })), "[]",
+            "a world setting has no lifetime, a season one is cleared by no entry or by two, or an entry clears a setting the reset keeps");
+        const by = lifetime => registered.filter(key => tags[key] === lifetime);
+        const named = group => [...(R.seasonStateFor(group)?.settings ?? [])].sort();
+        equal(JSON.stringify({
+            season: by("season").sort(), counts: ["season", "campaign", "table"].map(lifetime => by(lifetime).length),
+            clock: named("clock"), assignments: named("assignments"), record: tags.seasonReset ?? null
+        }), JSON.stringify({
+            season: ["bodiesFound", "bodyFound", "chapterEnd", "clock", "despairPools", "discoveredRooms", "gmAssignments", "killingGameRules",
+                "motive", "murderState", "overflow", "pendingGather", "projectMeta", "readyRound", "restrictions", "sealedRooms", "searchTokens",
+                "trialProgress", "trialQueue"],
+            counts: [19, 11, 34], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
+        }), "the season's settings are not the nineteen the reset clears, the lifetimes do not count 19, 11 and 34, the clock's entry does not "
+            + "name the readiness round and the End of chapter's record, the assignments' entry does not name gmAssignments, or the reset's own record is not kept as the campaign's");
+    }],
+
+    ["R1257 - the trial record's fields live as their table says, and the whitelist is HEAD's (E42 C4, E42-17; audit S17-30, the amend of 11.10 (E70)): trial-progress.mjs `TRIAL_RECORD` gives each field of the record its lifetime - the chapter's or the trial's - and who writes it; the blank (`trialProgress`), the entry's patch (`entryPatch`, which `resetInStep` writes) and `RECORD_FIELDS` derive from it, each equal to 1.2.96's; and `trialRecordProblems` names a planted field with no lifetime, a chapter's field the entry writes and a trial's field it leaves", async () => {
+        /*
+         * E42 C4, 03.11.2026. The amend of 11.10 (E70): the trial's fields get a lifetime in one place instead of hand
+         * entries in `resetTrialProgress`. Until C4 the blank (`trialProgress`), the entry's patch (`resetInStep`: twenty
+         * fields written by hand) and the whitelist of another GM's patch (`RECORD_FIELDS`, the blank's keys less
+         * `RECORD_KEPT`) were three lists kept in step by reading. They derive from `TRIAL_RECORD` now, and each is quoted
+         * here as 7d384f26 held it (rule 11 of the stage: no member of `RECORD_FIELDS` changes). `RECORD_KEPT` stays a list
+         * of its own: what another GM may not write is a security read, not a lifetime. Read without a world: the blank of
+         * chapter 0, which no stored record is about, and the entry's patch over that blank with a vote of round 3.
+         * Red at 184f1385: no `TRIAL_RECORD`.
+         */
+        const P = await import("./trial-progress.mjs");
+        const SECONDS = (await import("./config.mjs")).TRIAL.speakSeconds;
+        ok(P.TRIAL_RECORD && typeof P.trialRecordProblems === "function" && typeof P.entryPatch === "function",
+            "trial-progress.mjs has no TRIAL_RECORD, trialRecordProblems or entryPatch - the record's fields have no lifetime, and its three lists are kept by hand");
+        if (!P.TRIAL_RECORD || typeof P.trialRecordProblems !== "function" || typeof P.entryPatch !== "function") return;
+        const T = P.TRIAL_RECORD;
+        ok(Object.isFrozen(T) && Object.values(T).every(row => Object.isFrozen(row)), "TRIAL_RECORD or one of its rows is not frozen");
+        const planted = [
+            P.trialRecordProblems({ ...T, plantedR1257: { by: "R1257", blank: () => 1 } }),
+            P.trialRecordProblems({ ...T, keysCharged: { ...T.keysCharged, atEntry: () => true } }),
+            P.trialRecordProblems({ ...T, topic: { lives: T.topic.lives, by: T.topic.by, blank: T.topic.blank } }),
+            P.trialRecordProblems({ ...T, voteClosed: { lives: "trial", blank: T.voteClosed.blank, atEntry: T.voteClosed.atEntry } })
+        ];
+        equal(JSON.stringify(planted), JSON.stringify([
+            ["plantedR1257: no lifetime"], ["keysCharged: the chapter's, and a trial's entry writes it"], ["topic: the trial's, and a trial's entry leaves it"],
+            ["voteClosed: nobody is named as its writer"]
+        ]), "the reader of the record's table does not name a planted field with no lifetime, a chapter's field the entry writes, a trial's it leaves or a field with no writer");
+        equal(JSON.stringify(P.trialRecordProblems(T)), "[]", "a field of the trial's record has no lifetime or no writer, or the entry writes a chapter's field or leaves a trial's");
+        const BLANK = ["chapter", "seconds", "voteClosed", "verdictApplied", "keysCharged", "tied", "majority", "noMajority", "vote", "accused", "total",
+            "accusedIds", "verdict", "objections", "trialStartedAt", "againAfterOverrule", "topic", "debateAgain", "voteOpenedAt", "trialSize",
+            "lastVerdictAt", "executedAt", "execution", "closing"];
+        const KEPT = ["chapter", "mutedDead", "objections", "closing"];
+        const blank = P.trialProgress(0);
+        const patch = P.entryPatch({ ...blank, vote: { ...blank.vote, round: 3 } }, { seconds: 120 });
+        const lives = lifetime => Object.keys(T).filter(key => T[key].lives === lifetime);
+        equal(JSON.stringify({
+            blank, keys: Object.keys(blank), fields: P.RECORD_FIELDS,
+            entry: { ...patch, trialStartedAt: typeof patch.trialStartedAt, trialSize: typeof patch.trialSize },
+            chapter: lives("chapter"), trial: lives("trial").filter(key => !Object.hasOwn(blank, key))
+        }), JSON.stringify({
+            blank: { chapter: 0, seconds: SECONDS, voteClosed: false, verdictApplied: false, keysCharged: false, tied: false, majority: 0,
+                noMajority: false, vote: { open: false, round: 0, picks: 1, issued: [], openedAt: null, closedAt: null }, accused: [], total: 0,
+                accusedIds: [], verdict: null, objections: {}, trialStartedAt: null, againAfterOverrule: null, topic: null, debateAgain: false,
+                voteOpenedAt: null, trialSize: 0, lastVerdictAt: null, executedAt: null, execution: null, closing: null },
+            keys: BLANK, fields: BLANK.filter(key => !KEPT.includes(key)),
+            entry: { seconds: 120, voteClosed: false, verdictApplied: false, tied: false, majority: 0, noMajority: false,
+                vote: { open: false, round: 3, picks: 1, issued: [], openedAt: null, closedAt: null }, accused: [], total: 0, accusedIds: [], verdict: null,
+                trialStartedAt: "number", againAfterOverrule: null, topic: null, debateAgain: false, voteOpenedAt: null, trialSize: "number",
+                executedAt: null, execution: null, closing: null },
+            chapter: ["chapter", "keysCharged", "objections", "lastVerdictAt"], trial: ["mutedDead"]
+        }), "the blank, the entry's patch or the whitelist of another GM's patch is not 1.2.96's, or the chapter's fields are not the chapter, the Key fee, the receipts "
+            + "and the last verdict's stamp, or a trial's field in no blank is more than the trial's list of the dead (read: blank, its keys, RECORD_FIELDS, the entry's patch, the chapter's, the trial's outside the blank)");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/trial-progress.mjs`).then(lfText));
+        ok(/\bentryPatch\(/.test(topLevelFunction(src, "resetInStep") ?? "") && /\bTRIAL_RECORD\b/.test(topLevelFunction(src, "trialProgress") ?? ""),
+            "resetInStep does not write the table's entry patch, or trialProgress does not build its blank from the table");
+    }]
 ];
 
 

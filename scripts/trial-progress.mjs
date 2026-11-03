@@ -321,6 +321,86 @@ registerSeasonState({ group: "trialProgress", clear: clearSeasonTrialRecord, set
  * `{ stage: "done", final: true }` that names nobody.
  * ========================================================================== */
 
+/*
+ * THE RECORD'S FIELDS, ONE TABLE (E42 C4, 1.2.97; E42-17; the plan's amend of 11.10 (E70): "the registry covers E70's
+ * fields ... with a lifetime tag, instead of hand entries in `resetTrialProgress`"). Each field of the record: how long
+ * it lives - `lives` "chapter" (a second trial in the chapter, D17, keeps it) or "trial" (a trial's entry writes it) -
+ * who writes it (`by`), its value in the blank (`blank`, made fresh each time; a field with none is in no blank) and
+ * what a trial's entry writes (`atEntry(now, { seconds })`, a trial's field's, over the record as the entry's step finds
+ * it). Until C4 the blank below, the entry's patch (`resetInStep`, twenty fields by hand) and the whitelist of another
+ * GM's patch (`RECORD_FIELDS`, the blank's keys less `RECORD_KEPT`) were three lists kept in step by reading; they derive
+ * from this now, each as 1.2.96 held it (tier 0 R1257 quotes all three). A field E73 adds is a row here.
+ */
+/** A value made fresh at every read: an array or an object is never shared between two records. */
+const fresh = value => () => (value !== null && typeof value === "object" ? foundry.utils.deepClone(value) : value);
+const row = fields => Object.freeze(fields);
+export const TRIAL_RECORD = Object.freeze({
+    chapter: row({ lives: "chapter", by: "every write: the step stamps the chapter it is about (`writeTrialProgressInStep`)",
+        blank: ({ chapter }) => chapter }),
+    seconds: row({ lives: "trial", by: "the entry; trial-floor-ui.mjs `openDebate` (the debate's budget)",
+        blank: () => TRIAL.speakSeconds, atEntry: (now, { seconds }) => seconds }),
+    voteClosed: row({ lives: "trial", by: "vote.mjs `openRound`, `closeRound`", blank: fresh(false), atEntry: fresh(false) }),
+    verdictApplied: row({ lives: "trial", by: "verdict.mjs `applyVerdict`, `giveFinalVerdict`", blank: fresh(false), atEntry: fresh(false) }),
+    // The Key fee is the chapter's (E09 C7): a second trial in the chapter does not charge it again.
+    keysCharged: row({ lives: "chapter", by: "investigation.mjs `chargeForUnfoundKeys`", blank: fresh(false) }),
+    tied: row({ lives: "trial", by: "vote.mjs `openRound`, `closeRound`", blank: fresh(false), atEntry: fresh(false) }),
+    majority: row({ lives: "trial", by: "vote.mjs `openRound`, `closeRound`", blank: fresh(0), atEntry: fresh(0) }),
+    noMajority: row({ lives: "trial", by: "vote.mjs `openRound`, `closeRound`", blank: fresh(false), atEntry: fresh(false) }),
+    // The vote's round is kept across a chapter's trials (E10 C1): a ballot of the first trial is of an older round.
+    vote: row({ lives: "trial", by: "vote.mjs (the round's steps: open, ballots, close)", blank: () => blankVote(),
+        atEntry: now => ({ ...blankVote(), round: now.vote.round }) }),
+    accused: row({ lives: "trial", by: "vote.mjs `openRound`, `closeRound`", blank: fresh([]), atEntry: fresh([]) }),
+    total: row({ lives: "trial", by: "vote.mjs `openRound`, `closeRound`", blank: fresh(0), atEntry: fresh(0) }),
+    accusedIds: row({ lives: "trial", by: "vote.mjs `openRound`, `closeRound`", blank: fresh([]), atEntry: fresh([]) }),
+    verdict: row({ lives: "trial", by: "verdict.mjs (the verdict's runner and the Final verdict's)", blank: fresh(null), atEntry: fresh(null) }),
+    // E70 C2: the Objections' receipts, by card, kept for the chapter (D17).
+    objections: row({ lives: "chapter", by: "trial.mjs `keepReceipt`, `dropReceipt`; trial-floor.mjs `overruleInStep`", blank: fresh({}) }),
+    // The trial's own stamp on the server's clock, which tells this trial's receipts from an earlier one's (E70 C2).
+    trialStartedAt: row({ lives: "trial", by: "the entry", blank: fresh(null), atEntry: () => serverNow() }),
+    againAfterOverrule: row({ lives: "trial", by: "trial-floor.mjs `overruleInStep`, `startFloorInStep`", blank: fresh(null), atEntry: fresh(null) }),
+    // E70 C3: the debate's question, the debate again, the vote's first opening and the trial's size (N of 270 x N/16).
+    topic: row({ lives: "trial", by: "trial-floor-ui.mjs `openDebate`", blank: fresh(null), atEntry: fresh(null) }),
+    debateAgain: row({ lives: "trial", by: "trial-floor.mjs `commitFloor`, `startFloorInStep`", blank: fresh(false), atEntry: fresh(false) }),
+    voteOpenedAt: row({ lives: "trial", by: "vote.mjs `openRound`", blank: fresh(null), atEntry: fresh(null) }),
+    trialSize: row({ lives: "trial", by: "the entry; voice.mjs `settleTrialVoices`", blank: fresh(0), atEntry: () => trialSizeNow() }),
+    // E70 C4 (DC36): the chapter's newest verdict's stamp, which a Monocub's case reads for the chapter.
+    lastVerdictAt: row({ lives: "chapter", by: "verdict.mjs `readSentence`", blank: fresh(null) }),
+    executedAt: row({ lives: "trial", by: "`carryOutSentence` (the execution at the trial's end)", blank: fresh(null), atEntry: fresh(null) }),
+    execution: row({ lives: "trial", by: "`carryOutSentence` (the execution at the trial's end)", blank: fresh(null), atEntry: fresh(null) }),
+    // E70 C8: the trial's Closing Argument, one per trial.
+    closing: row({ lives: "trial", by: "trial-floor.mjs `commitFloor`", blank: fresh(null), atEntry: fresh(null) }),
+    // E70 C5: the trial's list of the dead, written by the settle alone and taken out at the exit - in no blank, and
+    // left by the entry (the settle that follows it writes it).
+    mutedDead: row({ lives: "trial", by: "voice.mjs `settleTrialVoices`" })
+});
+
+/**
+ * What a table of the record's fields gets wrong (`TRIAL_RECORD`'s shape), a sentence per fault, [] for none: a field
+ * with no lifetime, one with nobody named as its writer, a chapter's field a trial's entry writes, a trial's field in
+ * the blank the entry leaves, and a field the entry writes that is in no blank. Pure; tier 0 R1257.
+ */
+export function trialRecordProblems(table = TRIAL_RECORD) {
+    const out = [];
+    for (const [key, field] of Object.entries(table ?? {})) {
+        if (!["chapter", "trial"].includes(field?.lives)) {
+            out.push(`${key}: no lifetime`);
+            continue;
+        }
+        if (typeof field.by !== "string" || !field.by) out.push(`${key}: nobody is named as its writer`);
+        const inBlank = typeof field.blank === "function", atEntry = typeof field.atEntry === "function";
+        if (field.lives === "chapter" && atEntry) out.push(`${key}: the chapter's, and a trial's entry writes it`);
+        if (field.lives === "trial" && inBlank && !atEntry) out.push(`${key}: the trial's, and a trial's entry leaves it`);
+        if (atEntry && !inBlank) out.push(`${key}: written at a trial's entry, and in no blank`);
+    }
+    return out;
+}
+
+/** What a trial's entry writes over `now`, the record as its step finds it: every trial's field of `TRIAL_RECORD`. */
+export function entryPatch(now, { seconds = TRIAL.speakSeconds } = {}) {
+    return Object.fromEntries(Object.entries(TRIAL_RECORD).filter(([, field]) => typeof field.atEntry === "function")
+        .map(([key, field]) => [key, field.atEntry(now, { seconds })]));
+}
+
 /**
  * What has happened in THIS chapter's trial. Never throws; never null.
  *
@@ -339,27 +419,10 @@ export function trialProgress(chapter = getClock().chapter) {
        the kind of correctness that stops being correct the first time anyone writes
        `!== false`. The vote's fields are in it for the same reason (E10 C1), and
        `vote` is merged one level down, so a record written before 1.2.71 reads a
-       closed vote of round 0 rather than a `vote` that is not there. */
-    const blank = {
-        chapter, seconds: TRIAL.speakSeconds,
-        voteClosed: false, verdictApplied: false, keysCharged: false,
-        tied: false, majority: 0, noMajority: false,
-        vote: blankVote(), accused: [], total: 0, accusedIds: [], verdict: null,
-        // E70 C2: the Objections' receipts, by card, kept for the chapter (trial.mjs `keepReceipt`); the trial's own
-        // stamp, which tells this trial's receipts from an earlier one's in the chapter (D17); the console's offer of
-        // the debate again after an Overrule (trial-floor.mjs `overruleInStep`).
-        objections: {}, trialStartedAt: null, againAfterOverrule: null,
-        // E70 C3: the debate's question (the last one asked in this trial), the console's offer of the debate again
-        // after its exchange ended it, the vote's first opening on the server's clock, and how many took part at the
-        // trial's start (the clock's N/16) - each the trial's, blanked at its entry (`resetTrialProgress`).
-        topic: null, debateAgain: false, voteOpenedAt: null, trialSize: 0,
-        // E70 C4 (DC36; amend (i)): the stamp of the chapter's newest verdict (`readSentence`), kept for the chapter; the
-        // execution at the trial's end - its stamp on the server's clock and its own `{ done, failed }` - the trial's.
-        lastVerdictAt: null, executedAt: null, execution: null,
-        // E70 C8: the trial's Closing Argument, `{ done, speakers: [{ actorId, via, messageId, leftAtEnd }] }` - one per
-        // trial (blanked at its entry), written by the floor's step on the primary (trial-floor.mjs `commitFloor`).
-        closing: null
-    };
+       closed vote of round 0 rather than a `vote` that is not there. Every field
+       with a blank in `TRIAL_RECORD` is here, in its order (E42 C4). */
+    const blank = Object.fromEntries(Object.entries(TRIAL_RECORD).filter(([, field]) => typeof field.blank === "function")
+        .map(([key, field]) => [key, field.blank({ chapter })]));
     try {
         const stored = game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {};
         // A record from another chapter describes another trial. Read as blank
@@ -510,13 +573,9 @@ function resetInStep(seconds) {
     // the guide's budget scales by - the players with a living student at the table as the trial starts (the
     // ballot's count, `trialParticipants`), read in the step. A second trial in the chapter (D17) starts without the
     // first one's; tier 0 R1032 holds the list.
-    return setTrialProgress(now => ({
-        seconds, voteClosed: false, verdictApplied: false, tied: false, majority: 0, noMajority: false,
-        vote: { ...blankVote(), round: now.vote.round }, accused: [], total: 0, accusedIds: [], verdict: null,
-        trialStartedAt: serverNow(), againAfterOverrule: null,
-        topic: null, debateAgain: false, voteOpenedAt: null, trialSize: trialSizeNow(),
-        executedAt: null, execution: null, closing: null
-    }));
+    // THE PATCH IS THE TABLE'S (E42 C4): every trial's field of `TRIAL_RECORD`, as its `atEntry` writes it over the
+    // record the step finds - the twenty fields this wrote by hand until then (tier 0 R1257 quotes them).
+    return setTrialProgress(now => entryPatch(now, { seconds }));
 }
 
 /**

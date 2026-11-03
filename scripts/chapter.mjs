@@ -2245,6 +2245,22 @@ export async function applyChapterEnd(choices = {}) {
 
 let chapterEnds = Promise.resolve();
 
+/**
+ * THE END'S RECORD GOES WITH THE SEASON (E42 C4, 1.2.97; E42-16): the season reset's clock group (season-setup.mjs
+ * `clearSeasonClock`) writes `chapterEnd` empty, in this queue like every write of it, so an end that stopped last season
+ * is offered to nobody in the next one and its targets - last season's chapter, session and day - are never moved to. A
+ * record already empty is not written. The reset is the primary GM's; on any other browser this throws, and the reset's
+ * step says it failed.
+ */
+export async function clearChapterEndRecord() {
+    if (!game.user.isGM || !isPrimaryGm()) throw new Error("only the primary GM's browser writes the chapter's end record");
+    const run = chapterEnds.then(async () => {
+        if (Object.keys(chapterEndRecord()).length) await game.settings.set(MODULE_ID, SETTINGS.chapterEnd, {});
+    });
+    chapterEnds = run.catch(() => null);
+    return run;
+}
+
 /** Whether this browser ends the chapter: the primary GM's does; another GM is told whose (`applyChapterEnd`, ONE BROWSER). */
 function chapterEndHere() {
     if (isPrimaryGm()) return true;

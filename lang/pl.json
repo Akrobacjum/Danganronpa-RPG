@@ -5195,6 +5195,13 @@
         "many": "{n} śmierci i każdy Monocub, cofnięte",
         "other": "{n} śmierci i każdy Monocub, cofnięte"
       },
+      "resetAssigned": {
+        "one": "{n} uczeń przypisany ręcznie",
+        "few": "{n} uczniowie przypisani ręcznie",
+        "many": "{n} uczniów przypisanych ręcznie",
+        "other": "{n} ucznia przypisanego ręcznie"
+      },
+      "resetUnfinished": "Ostatni reset się nie dokończył: {groups}. Zaznaczone są tylko te grupy, a ten reset nie zmienia zapamiętanych wyjątków.",
       "resetItems": {
         "one": "{n} przedmiot, który obsada nosi albo schowała",
         "few": "{n} przedmioty, które obsada nosi albo schowała",
@@ -5320,7 +5327,7 @@
         "many": "Sezon zresetowany. {n} wyjątków pozostało bez zmian.",
         "other": "Sezon zresetowany. {n} wyjątków pozostało bez zmian."
       },
-      "failed": "Reset się nie dokończył: {groups}. Cała reszta poszła. Uruchom reset ponownie, zaznaczając tylko te grupy.",
+      "failed": "Reset się nie dokończył: {groups}. Cała reszta poszła. Otwórz reset ponownie: zaznaczone będą tylko te grupy.",
       "failedCast": "Reset nie przeniósł każdego żetonu obsady tam, gdzie wybrano. Przenieś je ręcznie: reset bez niczego zaznaczonego się nie uruchamia, więc nie da się go powtórzyć dla samych żetonów.",
       "stoppedPrimary": "Reset się zatrzymał: ta przeglądarka nie jest już przeglądarką głównego GM-a - jest nim {name} - więc nie wykonano: {groups}. To, co się wykonało, zostaje; {name} może dokończyć resztę kolejnym resetem.",
       "reportCard": {
@@ -5373,6 +5380,7 @@
         "cards": "Własne karty tego modułu i komunikator",
         "chatRest": "Reszta dziennika czatu, której ten moduł nie napisał",
         "despair": "Pule Despair i każdy Hope z powrotem do wartości startowej",
+        "assignments": "Podział uczniów między Monokumy w Despair Flow - każdy uczeń wraca do pierwszej puli",
         "overflow": "Despair overflow i jego zaciemnienie",
         "clock": "Zegar, z powrotem na rozdział 1, dzień 1, rano"
       }

@@ -830,6 +830,14 @@ export const SETTINGS = {
      */
     chapterEnd: "chapterEnd",
     /**
+     * The last season reset's record (E42 C4; season-setup.mjs `seasonResetRecord`): `{ stage, by, at, groups, done,
+     * failed, notRun }`, or `{}`. World-scoped so the reset's window reads a reset that did not finish on whichever
+     * browser is the primary GM's now; written by the primary GM alone, inside season-setup.mjs `wipeSeason` - after the
+     * cut, after every step and at the end. Nothing secret: the reset's group keys and step keys and the GM's id
+     * (world-secrets.mjs names it).
+     */
+    seasonReset: "seasonReset",
+    /**
      * Who the Mastermind is, on GM browsers only.
      *
      * The single most important secret in the game, so it gets the strictest
@@ -956,6 +964,61 @@ export const SETTINGS = {
      */
     regionFog: "regionFog"
 };
+
+/*
+ * THE LIFETIME OF EVERY WORLD SETTING (E42 C4, 1.2.97; E42-16; D36 = option 2, Q-E42-2; audit S17-30). Foundry sends every
+ * world setting to every browser and keeps it until somebody writes it: nothing says whether a value belongs to this
+ * season, to the campaign or to the table, so a new setting of the season that no reset group wrote rode into the next
+ * season and failed no test (`readyRound`, E37 C3, was one). Every world setting this module registers is tagged here,
+ * and tier 0 R1256 holds the tags to the registrations and to the registry of season state (season-reset.mjs
+ * `lifetimeProblems`):
+ * - "season": the reset clears it - exactly one entry of the registry names it in its `settings` and clears it;
+ * - "campaign": what the GMs built for this campaign and its maps, kept by every reset;
+ * - "table": how this table plays, and the module's own bookkeeping, kept by every reset.
+ * A client setting takes no tag: it is each browser's own (the notice history's entry describes it, A7). Every setting
+ * the reset kept at 1.2.96 is kept (Q-E42-2); the reset clears three it did not: the students' division between the
+ * Monokumas (`gmAssignments`, D36 = 2) and the clock's two transient records, the readiness round (`readyRound`) and
+ * the End of chapter's (`chapterEnd`).
+ */
+const SEASON_SETTINGS = [
+    SETTINGS.murderState, SETTINGS.sealedRooms, SETTINGS.restrictions, SETTINGS.projectMeta, SETTINGS.trialQueue,
+    SETTINGS.trialProgress, SETTINGS.bodyFound, SETTINGS.bodiesFound, SETTINGS.discoveredRooms, SETTINGS.searchTokens,
+    SETTINGS.motive, SETTINGS.killingGameRules, SETTINGS.pendingGather, SETTINGS.gmAssignments, SETTINGS.despairPools,
+    SETTINGS.overflow, SETTINGS.clock, SETTINGS.readyRound, SETTINGS.chapterEnd
+];
+/*
+ * The campaign's. The remembered exceptions and the scenes' roles, Room Setup's players' regions, the item tables' music
+ * and sound maps (D36's list). And what 1.2.96's reset kept that D36's list does not name (Q-E42-2): the overflow's rules
+ * - set once a season when the GMs decide how hard their table wants it, before the reset's next season starts - the
+ * Despair roster (the pools' names, the Assistant GMs granted a pool, the Monokuma characters' pools), the season each
+ * player account was last seen with (E79: it is how a reset is told from an account moved on), and the reset's own
+ * record, which the next reset reads.
+ */
+const CAMPAIGN_SETTINGS = [
+    SETTINGS.seasonExceptions, SETTINGS.sceneRoles, SETTINGS.playerRegions, SETTINGS.overflowRules, SETTINGS.poolNames,
+    SETTINGS.extraPoolUsers, SETTINGS.monokumaPools, SETTINGS.accountCharacters, SETTINGS.musicMap, SETTINGS.sfxMap,
+    SETTINGS.seasonReset
+];
+/*
+ * The table's. The Configure Settings rows and what the module holds for every browser (the dice look and its source,
+ * the language, voice, music, the safeword, the fog, the rules of play the GM switches), the held Foundry settings and
+ * their before-values, the migration's version, and the frozen keys a GM store's claim reads once (`legacy*`).
+ */
+const TABLE_SETTINGS = [
+    SETTINGS.forcePrivateRolls, SETTINGS.forceDiceLook, SETTINGS.diceLookSource, SETTINGS.diceLookWorld, SETTINGS.enforceAnonymity,
+    SETTINGS.searchTokensPerRoom, SETTINGS.enforceIsoWelcome, SETTINGS.enforceDhWelcome, SETTINGS.enforcePlayerFiles,
+    SETTINGS.liveKitInFoundry, SETTINGS.hideSystemFear, SETTINGS.documentLanguage, SETTINGS.voiceEnabled, SETTINGS.voiceTile,
+    SETTINGS.foundryBefore, SETTINGS.foundryGivenBack, SETTINGS.musicEnabled, SETTINGS.sfxVary, SETTINGS.safeword,
+    SETTINGS.migratedVersion, SETTINGS.caseMark, SETTINGS.moveAudit, SETTINGS.foundryToolWindows, SETTINGS.isoTokenShield,
+    SETTINGS.regionFog, SETTINGS.despairFromRolls, SETTINGS.lockRollDialog, SETTINGS.roomVisibility, SETTINGS.lockPlayerResources,
+    SETTINGS.friskForce, SETTINGS.chargeMovement, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves
+];
+/** Every world setting the module registers, by its key -> "season", "campaign" or "table" (above). */
+export const WORLD_LIFETIMES = Object.freeze(Object.fromEntries([
+    ...SEASON_SETTINGS.map(key => [key, "season"]),
+    ...CAMPAIGN_SETTINGS.map(key => [key, "campaign"]),
+    ...TABLE_SETTINGS.map(key => [key, "table"])
+]));
 
 /**
  * The word a table gets if it never chooses one.
@@ -2401,6 +2464,14 @@ export function registerSettings() {
         type: Object,
         default: {},
         onChange: () => onWorldChange(SETTINGS.chapterEnd)
+    });
+
+    // The last season reset's record (E42 C4): read by the reset's window as it opens, so nothing redraws on its change.
+    game.settings.register(MODULE_ID, SETTINGS.seasonReset, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {}
     });
 
     // Client-scoped, deliberately: see the note on SETTINGS.mastermind.

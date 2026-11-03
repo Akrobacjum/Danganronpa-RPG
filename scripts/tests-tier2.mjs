@@ -80482,7 +80482,9 @@ const SCENARIOS = [
         const { resetSeason } = await import("./season-setup.mjs");
         const { groupLabel } = await import("./season-exceptions.mjs");
         const { contentOf } = await import("./secret.mjs");
-        const KEYS = [SETTINGS.motive, SETTINGS.killingGameRules, SETTINGS.pendingGather, SETTINGS.bodyFound, SETTINGS.bodiesFound, SETTINGS.seasonExceptions];
+        // E42 C4: the reset's record (`seasonReset`) too - this reset does not finish, and the next window would read it.
+        const KEYS = [SETTINGS.motive, SETTINGS.killingGameRules, SETTINGS.pendingGather, SETTINGS.bodyFound, SETTINGS.bodiesFound, SETTINGS.seasonExceptions,
+            SETTINGS.seasonReset].filter(Boolean);
         const held = Object.fromEntries(KEYS.map(key => [key, foundry.utils.deepClone(getSetting(key))]));
         const clock = getClock();
         const word = game.i18n.localize("DRPG.Season.resetWord");
@@ -80525,10 +80527,164 @@ const SCENARIOS = [
             await setClock(clock);
         }
         equal(stableJson(read), stableJson({
-            planted: 1, cleared: ["bodyFound", "rules", "assembly"], failed: ["motive"], notRun: [], kept: 25, card: 1, error: true,
+            // E42 C4: 26 kept - the thirtieth group, `assignments` (D36 = 2).
+            planted: 1, cleared: ["bodyFound", "rules", "assembly"], failed: ["motive"], notRun: [], kept: 26, card: 1, error: true,
             emptied: [stableJson([]), stableJson({}), stableJson({}), stableJson({})], cut: true
         }), "a reset with a planted entry whose clear throws did not run it once, stopped another group, did not name it failed on the GMs' card and in its error, "
             + "or lost the cut (planted: the clear's runs; cleared, failed, notRun, kept: the answer; card, error: the words; emptied: rules, assembly, bodyFound, bodiesFound; cut: motive's)");
+    }],
+    ["E42-T7 - the reset clears Despair Flow's assignments and the window counts them (E42 C4, E42-15; D36 = 2): ticked alone, the group `assignments` empties `gmAssignments` - a student set to a pool and one set to nobody alike - after the window counted the students assigned by hand; unticked beside another group it keeps the map and is remembered; and the clock's group takes the readiness round and the End of chapter's record with it", async () => {
+        /*
+         * E42 C4, 03.11.2026; D36 = option 2 (the owner): the students' division between the Monokumas is the season's,
+         * cleared by the reset and counted by its window like the rest of the registry. Until C4 no group of the reset
+         * named it and no step wrote it: the map rode into every new season. Three resets through the reset's own window
+         * on the primary GM (answered as its Reset button answers, as the reset tests above do): (a) only `assignments`
+         * ticked, over a map of two students of the cast - one to this GM's pool, one to "- nobody -" - and an id that
+         * is no student; (b) only the called assembly ticked, over the same map; (c) only the clock ticked, over a
+         * readiness round already ended and an End of chapter's record already done (E37 C3's and E42 C2's records, which
+         * the clock's group clears since C4). Read: the line the window printed for the group, what each reset answers,
+         * the map after each, whether the unticked group was remembered, and the two records after (c). The settings, the
+         * clock and the cards are put back. Red at 184f1385: no group `assignments` (the reset with it alone ticked runs
+         * nothing and the map stays), and the clock's group leaves both records.
+         */
+        const { isPrimaryGm, plural } = await import("./utils.mjs");
+        must(isPrimaryGm(), "a season reset is the primary GM's, and this browser is not it - this would measure nothing");
+        const { resetSeason } = await import("./season-setup.mjs");
+        const { NO_MONOKUMA } = await import("./assignments.mjs");
+        const [first, second] = cast(2);
+        const KEYS = [SETTINGS.gmAssignments, SETTINGS.pendingGather, SETTINGS.seasonExceptions, SETTINGS.readyRound, SETTINGS.chapterEnd,
+            SETTINGS.seasonReset].filter(Boolean);
+        const held = Object.fromEntries(KEYS.map(key => [key, foundry.utils.deepClone(getSetting(key))]));
+        const clock = getClock();
+        const word = game.i18n.localize("DRPG.Season.resetWord");
+        const D = foundry.applications.api.DialogV2, heldWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const cardsBefore = new Set(game.messages.map(m => m.id));
+        const map = { [first.id]: game.user.id, [second.id]: NO_MONOKUMA, notAStudentE42T7: game.user.id };
+        const texts = [];
+        const run = async ticked => {
+            D.wait = async cfg => {
+                if (!(cfg?.classes ?? []).includes("drpg-window-season-reset")) return null;
+                const c = cfg?.content;
+                texts.push(typeof c === "string" ? Object.assign(document.createElement("div"), { innerHTML: c }).textContent : c?.textContent ?? "");
+                return { word, ticked, cast: { to: "stay" } };
+            };
+            const result = await resetSeason();
+            await gmStoresIdle();
+            return result;
+        };
+        let read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.gmAssignments, map);
+            const a = await run(["assignments"]);
+            const afterA = stableJson(getSetting(SETTINGS.gmAssignments) ?? {});
+            await game.settings.set(MODULE_ID, SETTINGS.gmAssignments, map);
+            const b = await run(["assembly"]);
+            const afterB = stableJson(getSetting(SETTINGS.gmAssignments) ?? {});
+            const remembered = (getSetting(SETTINGS.seasonExceptions) ?? []).includes("assignments");
+            await game.settings.set(MODULE_ID, SETTINGS.readyRound, { id: "e42t7round", kind: "next", boundary: "e42t7", by: game.user.id, at: 1, answers: {}, ended: "stop" });
+            await game.settings.set(MODULE_ID, SETTINGS.chapterEnd, { stage: "done", by: game.user.id, at: 1, done: [], failed: [], notRun: [] });
+            const c = await run(["clock"]);
+            read = {
+                counted: texts[0]?.includes(plural("DRPG.Season.resetAssigned", { n: 2 })) ?? false,
+                a: [a?.cleared ?? null, a?.failed ?? null, afterA],
+                b: [b?.cleared ?? null, b?.kept?.includes("assignments") ?? null, afterB === stableJson(map), remembered],
+                c: [c?.cleared ?? null, stableJson(getSetting(SETTINGS.readyRound) ?? null), stableJson(getSetting(SETTINGS.chapterEnd) ?? null)]
+            };
+        } finally {
+            if (heldWait) Object.defineProperty(D, "wait", heldWait);
+            else delete D.wait;
+            const made = game.messages.filter(m => !cardsBefore.has(m.id)).map(m => m.id);
+            if (made.length) await ChatMessage.deleteDocuments(made);
+            for (const key of KEYS) await game.settings.set(MODULE_ID, key, held[key]);
+            await setClock(clock);
+        }
+        equal(stableJson(read), stableJson({
+            counted: true, a: [["assignments"], [], stableJson({})], b: [["assembly"], true, true, true],
+            c: [["clock"], stableJson({}), stableJson({})]
+        }), "the reset did not clear Despair Flow's assignments when ticked alone, its window did not count the two students assigned by hand, unticked it did not keep and "
+            + "remember the map, or the clock's group left the readiness round or the End of chapter's record (counted: the window's line; a, b, c: what each reset cleared and what it left)");
+    }],
+
+    ["E42-T8 - a reset that stopped is named by the next window, which opens on what did not finish (E42 C4, E42-18; audit S17-30): a reset whose motive clear throws leaves its record `seasonReset` unfinished; the next window says so (`DRPG.Season.resetUnfinished`), has only the motive ticked, and its reset leaves the remembered exceptions as they are and writes its record done; the window after that opens as before, on the remembered exceptions", async () => {
+        /*
+         * E42 C4, 03.11.2026. Until C4 a reset kept no record: its card named what failed and told the GM to run it again
+         * with only those ticked, and a tab closed half way told nobody which groups had run. The reset writes its record
+         * now (`seasonReset`, the primary's alone: after the cut, after every step and at the end), and the next window
+         * reads it. Planted: the motive group's clear throws for one reset (as E42-T6), with the motive and Monokuma's
+         * standing rules ticked; then the window is opened again and answered with what it ticked, then a third time and
+         * cancelled. Read: the record after each reset, the ticks and the line of the second and third windows, and the
+         * remembered exceptions before and after the second reset. The settings, the clock and the cards are put back.
+         * Red at 184f1385: no record, and the second window ticks the remembered exceptions' complement and names nothing.
+         */
+        const { isPrimaryGm, listOf } = await import("./utils.mjs");
+        must(isPrimaryGm(), "a season reset is the primary GM's, and this browser is not it - this would measure nothing");
+        const R = await import("./season-reset.mjs");
+        const entry = R.seasonStateFor("motive");
+        must(typeof entry?.clear === "function", "the reset's registry has no entry for the motive group - nothing to plant");
+        const { resetSeason } = await import("./season-setup.mjs");
+        const { groupLabel } = await import("./season-exceptions.mjs");
+        const KEYS = [SETTINGS.motive, SETTINGS.killingGameRules, SETTINGS.seasonExceptions, SETTINGS.seasonReset].filter(Boolean);
+        const held = Object.fromEntries(KEYS.map(key => [key, foundry.utils.deepClone(getSetting(key))]));
+        const clock = getClock();
+        const word = game.i18n.localize("DRPG.Season.resetWord");
+        const D = foundry.applications.api.DialogV2, heldWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const cardsBefore = new Set(game.messages.map(m => m.id));
+        const record = () => {
+            const r = SETTINGS.seasonReset ? getSetting(SETTINGS.seasonReset) : null;
+            return r?.stage ? [r.stage, r.groups ?? null, r.done ?? null, r.failed ?? null] : null;
+        };
+        const windows = [];
+        const answer = given => {
+            D.wait = async cfg => {
+                if (!(cfg?.classes ?? []).includes("drpg-window-season-reset")) return null;
+                const c = cfg?.content;
+                const root = typeof c === "string" ? Object.assign(document.createElement("div"), { innerHTML: c }) : c;
+                const ticked = [...(root?.querySelectorAll?.('input[type="checkbox"][name^="wipe."]') ?? [])].filter(box => box.checked).map(box => box.name.slice(5));
+                windows.push({ ticked, text: root?.textContent ?? "" });
+                return given === "cancel" ? "cancel" : { word, ticked: given ?? ticked, cast: { to: "stay" } };
+            };
+        };
+        const clear = entry.clear;
+        let read = null;
+        try {
+            entry.clear = async function plantedClear() {
+                throw new Error("E42-T8: the planted entry's clear throws");
+            };
+            answer(["motive", "rules"]);
+            const first = await resetSeason();
+            await gmStoresIdle();
+            entry.clear = clear;
+            const afterFirst = record();
+            const remembered = stableJson(getSetting(SETTINGS.seasonExceptions) ?? []);
+            answer(null);
+            const second = await resetSeason();
+            await gmStoresIdle();
+            const afterSecond = record();
+            const rememberedAfter = stableJson(getSetting(SETTINGS.seasonExceptions) ?? []);
+            answer("cancel");
+            await resetSeason();
+            const line = game.i18n.format("DRPG.Season.resetUnfinished", { groups: listOf([groupLabel("motive")]) });
+            read = {
+                first: [first?.failed ?? null, afterFirst],
+                second: [windows[1]?.ticked ?? null, windows[1]?.text.includes(line) ?? null, second?.cleared ?? null, afterSecond, rememberedAfter === remembered],
+                third: [windows[2]?.ticked ?? null, windows[2]?.text.includes(line) ?? null]
+            };
+        } finally {
+            entry.clear = clear;
+            if (heldWait) Object.defineProperty(D, "wait", heldWait);
+            else delete D.wait;
+            const made = game.messages.filter(m => !cardsBefore.has(m.id)).map(m => m.id);
+            if (made.length) await ChatMessage.deleteDocuments(made);
+            for (const key of KEYS) await game.settings.set(MODULE_ID, key, held[key]);
+            await setClock(clock);
+        }
+        equal(stableJson(read), stableJson({
+            first: [["motive"], ["applying", ["motive", "rules"], ["rules"], ["motive"]]],
+            second: [["motive"], true, ["motive"], ["done", ["motive"], ["motive"], []], true],
+            third: [["motive", "rules"], false]
+        }), "a reset that stopped left no unfinished record, the next window did not name it, ticked more than the group that did not finish or wrote the remembered exceptions, "
+            + "its reset did not write its record done, or the window after it did not open on the remembered exceptions (first: failed and the record; second: ticks, line, cleared, record, "
+            + "exceptions unchanged; third: ticks, line)");
     }],
     ...GRID
 ];

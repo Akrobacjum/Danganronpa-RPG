@@ -4742,6 +4742,11 @@
         "one": "{n} death and every Monocub, undone",
         "other": "{n} deaths and every Monocub, undone"
       },
+      "resetAssigned": {
+        "one": "{n} student assigned by hand",
+        "other": "{n} students assigned by hand"
+      },
+      "resetUnfinished": "The last reset did not finish: {groups}. Only those are ticked, and this reset leaves the remembered exceptions as they are.",
       "resetItems": {
         "one": "{n} item the cast is carrying or has stowed",
         "other": "{n} items the cast is carrying or has stowed"
@@ -4781,7 +4786,7 @@
         "one": "The season has been reset, with 1 exception left as it was.",
         "other": "The season has been reset, with {n} exceptions left as they were."
       },
-      "failed": "The reset did not finish: {groups}. Everything else went. Run the reset again with only those ticked.",
+      "failed": "The reset did not finish: {groups}. Everything else went. Open the reset again: it opens with only those ticked.",
       "failedCast": "The reset did not move every token of the cast where you chose. Move them by hand: a reset with nothing ticked does not run, so it cannot be run again for the tokens alone.",
       "stoppedPrimary": "The reset stopped: this browser is no longer the primary GM's - {name} is - so these did not run: {groups}. What ran stays done; {name} can finish the rest with another reset.",
       "reportCard": {
@@ -4834,6 +4839,7 @@
         "cards": "This module's own cards and the messenger",
         "chatRest": "The rest of the chat log, which this module did not write",
         "despair": "Despair pools, and every Hope back to the start",
+        "assignments": "Despair Flow's division of the students between the Monokumas - every student back to the first pool",
         "overflow": "The Despair overflow and its darkening",
         "clock": "The clock, back to Chapter 1, Day 1, Morning"
       },

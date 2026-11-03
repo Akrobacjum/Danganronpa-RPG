@@ -92,6 +92,9 @@ export const RESET_GROUPS = [
     { key: "chatRest", section: "log" },
 
     { key: "despair", section: "world" },
+    // The students' division between the Monokumas (E42 C4; D36 = 2, the owner): the season's, cleared with it - every
+    // student back to the first pool until Despair Flow divides the class again (assignments.mjs's entry).
+    { key: "assignments", section: "world" },
     { key: "overflow", section: "world" },
     { key: "clock", section: "world" }
 ];

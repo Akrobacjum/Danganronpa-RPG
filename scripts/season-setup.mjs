@@ -55,7 +55,7 @@ import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { foundryGivenBack, openGiveBackFoundry } from "./enforced.mjs";
 // The hall's report, the one the Scenes tab prints (E51 C8, the First session screen): trial-scene.mjs never reaches back here.
 import { scenesReportOf } from "./trial-scene.mjs";
-import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, serverNow, whisperToGms, wholeNumber, localeFormat } from "./utils.mjs";
+import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, serverNow, whisperToGms, wholeNumber, localeFormat, listOf } from "./utils.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { cardFlag } from "./secret.mjs";
 import { alreadyOpen, handOff } from "./live.mjs";
@@ -65,7 +65,7 @@ import { secretDoorsOn } from "./passages.mjs";
 import { convertSecretDoors } from "./passages-gm.mjs";
 import { permissionsInForce } from "./enforced.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks and its window counts (E42 C3).
-import { registerSeasonState, seasonStateEntries, seasonStateFor } from "./season-reset.mjs";
+import { registerSeasonState, seasonStateEntries, seasonStateFor, everyPart } from "./season-reset.mjs";
 // A leaf (utils.mjs alone): the one runner of the procedures that cannot be taken back (E42 C1b).
 import { runSteps } from "./steps.mjs";
 
@@ -1561,6 +1561,14 @@ export async function resetSeason() {
     const tallies = await resetTallies();
     const word = game.i18n.localize("DRPG.Season.resetWord");
     const remembered = rememberedExceptions();
+    /*
+     * A RESET THAT DID NOT FINISH OPENS THE NEXT WINDOW (E42 C4, 1.2.97; E42-18). Its record names the groups it left -
+     * failed, not run, or never reached by a tab that closed - and the window says so and ticks those alone, not the
+     * remembered exceptions' complement; a reset run from it leaves the remembered exceptions as they are, since nothing
+     * the GM unticks there is a decision about the next season. A reset that finished opens the window as before.
+     */
+    const unfinished = unfinishedGroups();
+    const ticks = key => unfinished.length ? unfinished.includes(key) : !remembered.keys.has(key);
 
     /*
      * ONE WINDOW, NEVER TWO (R-1). A chain of dialogs would pay the awaited-close
@@ -1574,7 +1582,7 @@ export async function resetSeason() {
             <legend>${esc(sectionLabel(section))}</legend>
             ${inSection.map(group => `<label class="drpg-inline-check">
                 <input type="checkbox" name="wipe.${group.key}"
-                    ${remembered.keys.has(group.key) ? "" : "checked"} />
+                    ${ticks(group.key) ? "checked" : ""} />
                 ${esc(groupLabel(group.key))}</label>`).join("")}
         </fieldset>`;
     }).join("");
@@ -1587,7 +1595,10 @@ export async function resetSeason() {
         ? `<p class="notes">${esc(plural("DRPG.GmStore.resetOfflineGms", { n: offline.length, names: offline.join(", ") }))}</p>`
         : "";
 
-    const memoryLine = remembered.keys.size
+    const unfinishedLine = unfinished.length
+        ? `<p class="drpg-warning">${esc(game.i18n.format("DRPG.Season.resetUnfinished", { groups: listOf(unfinished.map(groupLabel)) }))}</p>`
+        : "";
+    const memoryLine = remembered.keys.size && !unfinished.length
         ? `<p class="notes">${esc(plural("DRPG.Season.resetRemembered",
             { n: remembered.keys.size }))}${remembered.dropped
                 ? ` ${esc(plural("DRPG.Season.resetForgotten", { n: remembered.dropped }))}` : ""}</p>`
@@ -1599,9 +1610,10 @@ export async function resetSeason() {
         content: dialogContent(`<form>
             <p class="drpg-warning">${esc(game.i18n.localize("DRPG.Season.resetWarning"))}</p>
             ${offlineLine}
+            ${unfinishedLine}
             <p><strong>${esc(game.i18n.localize("DRPG.Season.resetGoes"))}</strong></p>
             <div class="drpg-reset-goes-list">${resetGoesHtml(
-                planFrom(RESET_GROUPS.map(group => group.key).filter(key => !remembered.keys.has(key))), tallies)}</div>
+                planFrom(RESET_GROUPS.map(group => group.key).filter(ticks)), tallies)}</div>
             <p><strong>${esc(game.i18n.localize("DRPG.Season.resetKeeps"))}</strong></p>
 
             <!-- R-1. Every step of the wipe, ticked. An unticked box is an
@@ -1672,8 +1684,8 @@ export async function resetSeason() {
     }
 
     // Remembered BEFORE the wipe: everything stored is what the wipe is about to
-    // leave alone, so nothing it does can lose the decision.
-    await rememberExceptions(plan.keep);
+    // leave alone, so nothing it does can lose the decision. Not by a reset that finishes an unfinished one (E42 C4).
+    if (!unfinished.length) await rememberExceptions(plan.keep);
 
     return wipeSeason(plan);
 }
@@ -1716,7 +1728,7 @@ export const RESET_STEPS = Object.freeze([
     "incident", "seals", "projects", "mastermind", "passages", "deaths",
     "remnants", "bullets", "trialFloor", "trialProgress", "bodyFound", "discovered", "searchTokens",
     "keyPlan", "eclipseMoves", "motive", "rules", "assembly",
-    "items", "advancement", "actions", "despair", "overflow", "doors", "stashesFound",
+    "items", "advancement", "actions", "despair", "assignments", "overflow", "doors", "stashesFound",
     "placeCast",
     "preNotes", "cards", "chatRest",
     "clock"
@@ -1957,19 +1969,30 @@ async function clearSeasonChat() {
  * THE SENTENCE BEFORE THE PHASE (E70 C4): this write leaves a running trial, and the way out of one carries out its
  * sentence (trial-progress.mjs `executeAtExit`) - on a student the "deaths" step may just have brought back, in a
  * season that is over. Taken back first, whichever groups were ticked.
+ *
+ * AND THE CLOCK'S TWO RECORDS WITH IT (E42 C4, 1.2.97; E42-16, Q-E42-2): the readiness round (`readyRound`, E37 C3) and
+ * the End of chapter's record (`chapterEnd`, E42 C2) are read against the clock - a round by its boundary, an end that
+ * stopped by the chapter, session and day it began on - so they go when it does, each written empty by its owner's own
+ * road (boundary.mjs `clearReadyRound` in a step of `READY_KEY`, chapter.mjs `clearChapterEndRecord` in the end's
+ * queue). Until C4 no group cleared either. Every part is tried (`everyPart`): one that fails does not keep the clock
+ * from its new season, and the step fails with it.
  */
 async function clearSeasonClock() {
     const { clearSentence } = await import("./vote.mjs");
     await clearSentence();
-    const clock = getClock();
-    await setClock({
-        chapter: 1, day: 1, session: 1, timeOfDay: "morning",
-        phase: "dailyLife", eclipse: false, pausedAt: null,
-        timeOfDayStartedAt: serverNow(),
-        // Kept: the season is new, the campaign is not.
-        campaignName: clock.campaignName,
-        season: (clock.season ?? 1) + 1,
-        finalTrial: false
+    const { clearReadyRound } = await import("./boundary.mjs");
+    const { clearChapterEndRecord } = await import("./chapter.mjs");
+    await everyPart(clearReadyRound, clearChapterEndRecord, async () => {
+        const clock = getClock();
+        await setClock({
+            chapter: 1, day: 1, session: 1, timeOfDay: "morning",
+            phase: "dailyLife", eclipse: false, pausedAt: null,
+            timeOfDayStartedAt: serverNow(),
+            // Kept: the season is new, the campaign is not.
+            campaignName: clock.campaignName,
+            season: (clock.season ?? 1) + 1,
+            finalTrial: false
+        });
     });
 }
 
@@ -1978,7 +2001,7 @@ registerSeasonState({ group: "advancement", clear: clearSeasonAdvancement, tally
 registerSeasonState({ group: "stashesFound", clear: clearSeasonStashesFound });
 registerSeasonState({ group: "cards", clear: clearSeasonCards, tally: tallySeasonCards });
 registerSeasonState({ group: "chatRest", clear: clearSeasonChat });
-registerSeasonState({ group: "clock", clear: clearSeasonClock, settings: [SETTINGS.clock] });
+registerSeasonState({ group: "clock", clear: clearSeasonClock, settings: [SETTINGS.clock, SETTINGS.readyRound, SETTINGS.chapterEnd] });
 
 /*
  * A cast that could not be placed is a failed step (E11 fix r2-H4; sec S4, COR2-8): `placeCast` answers null off the
@@ -1990,6 +2013,39 @@ async function placeCastStep(ctx) {
     const placed = await placeCast(ctx.plan.cast);
     if (!placed) throw new Error("the cast was not placed: this browser is no longer the primary GM's");
     ctx.stayed.push(...placed.stayed);
+}
+
+/** Whether a reset runs on this browser now (`wipeSeason`): its record says "applying" while it runs, and is not unfinished. */
+let wiping = false;
+
+/**
+ * THE RESET'S RECORD (E42 C4, 1.2.97; E42-18; audit S17-30). The world setting `seasonReset`, written by the primary GM
+ * alone, inside `wipeSeason`: `{ stage, by, at, groups, done, failed, notRun }` - the groups the GM ticked, the steps
+ * that ran, failed or did not run (step keys, `placeCast` among them) and the GM's id, no text and no secret
+ * (world-secrets.mjs names it). Written "applying" once the cut stands and before the first step, again after every
+ * step that changed it, and at the end "done" when every ticked group ran, or left "applying". `{}` before the first
+ * reset. Until 1.2.97 a reset kept no record: its card named what failed, and a tab closed half way told nobody which
+ * groups had run.
+ */
+export function seasonResetRecord() {
+    try {
+        return game.settings.get(MODULE_ID, SETTINGS.seasonReset) ?? {};
+    } catch {
+        return {};
+    }
+}
+
+/**
+ * The groups a reset that did not finish left undone, in the window's order, or []: its record "applying", no reset
+ * running on this browser, and of the groups it was given those it did not do - failed, not run, or never reached by a
+ * tab that closed. A group a later release no longer knows is dropped, as `rememberedExceptions` drops one. The record
+ * is read whoever wrote it: the primary GM now finishes a reset another primary began.
+ */
+export function unfinishedGroups(record = seasonResetRecord()) {
+    if (wiping || record?.stage !== "applying") return [];
+    const asked = new Set(Array.isArray(record.groups) ? record.groups : []);
+    const done = new Set(Array.isArray(record.done) ? record.done : []);
+    return RESET_GROUPS.map(group => group.key).filter(key => asked.has(key) && !done.has(key));
 }
 
 /**
@@ -2032,6 +2088,24 @@ async function wipeSeason(plan) {
         ui.notifications.error(game.i18n.format("DRPG.GmStore.resetCutFailed", { error: String(err?.message ?? err) }));
         return null;
     }
+
+    /*
+     * THE RECORD ONCE THE CUT STANDS (E42 C4; E42-18). The primary's alone: a record write on a browser that lost primacy
+     * is not made (the next primary reads what this one wrote), and a write that fails is logged and costs the reset
+     * nothing - the record serves the next window, and a group it misses is offered again, ticked, for the GM to read.
+     */
+    let written = null;
+    const writeRecord = async next => {
+        if (!isPrimaryGm() || JSON.stringify(next) === JSON.stringify(written)) return;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.seasonReset, next);
+            written = next;
+        } catch (err) {
+            error("Season reset: could not write its record", err);
+        }
+    };
+    const record = { stage: "applying", by: game.user.id, at: serverNow(), groups: [...plan.groups], done: [], failed: [], notRun: [] };
+    await writeRecord(record);
 
     // A cast group's part on each student's sheet (`wipeStudent`, E11 C10), reached by an owner's clear through `ctx`.
     const context = {
@@ -2084,12 +2158,21 @@ async function wipeSeason(plan) {
                 await entry.clear(ctx);
             }
         });
-    const walked = await runSteps({ steps, context, label: "season reset", stop: () => !isPrimaryGm() });
+    wiping = true;
+    let walked;
+    try {
+        walked = await runSteps({ steps, context, record, label: "season reset", stop: () => !isPrimaryGm(),
+            save: (current, { end = false } = {}) => (end ? null : writeRecord(current)) });
+    } finally {
+        wiping = false;
+    }
     const asked = key => chosen(key) || plan.groups.has(key);
     const done = walked.done;
     const failed = walked.failed;
     const kept = [...walked.kept, ...walked.notRun.filter(key => !asked(key))];
     const notRun = walked.notRun.filter(asked);
+    // "done" once every ticked group ran; a cast that could not be placed is told by its own words (`failedCast`).
+    await writeRecord({ ...walked.record, stage: [...plan.groups].every(key => walked.record.done.includes(key)) ? "done" : "applying", notRun });
 
     log(`Season reset. Cleared: ${done.join(", ") || "nothing"}.${
         kept.length ? ` Kept: ${kept.join(", ")}.` : ""}${failed.length ? ` Failed: ${failed.join(", ")}.` : ""}${

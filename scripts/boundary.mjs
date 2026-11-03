@@ -384,6 +384,21 @@ export async function endRoundOnPrimary({ roundId, outcome } = {}) {
     });
 }
 
+/**
+ * THE ROUND GOES WITH THE SEASON (E42 C4, 1.2.97; E42-16): the season reset's clock group (season-setup.mjs
+ * `clearSeasonClock`) writes the record empty, in a step of `READY_KEY` like every write of it, so a round asked before
+ * the reset - open, or ended and still read by a player's window - is not read against the new season's clock. A record
+ * already empty is not written. The reset is the primary GM's; on any other browser this throws, and the reset's step
+ * says it failed.
+ */
+export async function clearReadyRound() {
+    if (!game.user.isGM || !isPrimaryGm()) throw new Error("only the primary GM's browser writes the readiness round");
+    return serialWrite(READY_KEY, async () => {
+        if (Object.keys(readyRecord()).length) await game.settings.set(MODULE_ID, SETTINGS.readyRound, {});
+        return true;
+    });
+}
+
 /** The window's title: the Eclipse's name (`Eclipse.named`), or the end of this time of day. */
 function roundTitle(kind, clock = getClock()) {
     return kind === "next" ? game.i18n.localize("DRPG.Ready.titleNext") : eclipseLabel(clock);

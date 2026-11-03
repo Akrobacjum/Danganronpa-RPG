@@ -16,7 +16,9 @@ import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { monokumas } from "./despair.mjs";
 import { isMonokuma, studentActors } from "./monokuma.mjs";
-import { log, warn } from "./utils.mjs";
+import { log, warn, plural } from "./utils.mjs";
+// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
+import { registerSeasonState } from "./season-reset.mjs";
 
 /**
  * Sentinel meaning "this student feeds nobody's Despair".
@@ -179,3 +181,24 @@ export async function pruneAssignments() {
     await setAssignments(cleaned);
     return cleaned;
 }
+
+/*
+ * THE DIVISION IS THE SEASON'S (E42 C4, 1.2.97; E42-15; D36 = option 2, the owner: "gmAssignments (przypisanie uczniów do
+ * Monokum) czyszczone razem z sezonem"). The season reset's group `assignments` empties the whole map: a student set to a
+ * pool and one set to "- nobody -" alike, and a row of an actor or a GM who is gone. Every student then feeds the first
+ * pool (`monokumaFor`'s fallback) until a GM divides the class again in Despair Flow, which the season's checklist asks
+ * for ("Every student has a Monokuma watching", `explicitPool`). Until 1.2.97 no group of the reset named the map and it
+ * rode into every new season. The reset is the primary GM's, which writes it.
+ */
+export async function clearSeasonAssignments() {
+    if (!game.user.isGM) throw new Error("only a GM's browser writes Despair Flow's assignments");
+    await game.settings.set(MODULE_ID, SETTINGS.gmAssignments, {});
+}
+
+/** What the window counts of the division: the students a GM assigned by hand - to a pool, or to "- nobody -". */
+function tallySeasonAssignments() {
+    const map = assignments();
+    return [plural("DRPG.Season.resetAssigned", { n: students().filter(actor => Object.hasOwn(map, actor.id)).length })];
+}
+
+registerSeasonState({ group: "assignments", clear: clearSeasonAssignments, tally: tallySeasonAssignments, settings: [SETTINGS.gmAssignments] });

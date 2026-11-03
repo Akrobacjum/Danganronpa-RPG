@@ -127,3 +127,38 @@ export async function everyPart(...parts) {
     }
     if (failure) throw failure;
 }
+
+/** The lifetimes a world setting may have (settings.mjs `WORLD_LIFETIMES`). */
+export const LIFETIMES = Object.freeze(["season", "campaign", "table"]);
+
+/**
+ * WHAT THE LIFETIMES SAY AGAINST THE REGISTRY (E42 C4, 1.2.97; E42-16; D36 = option 2). Pure: `registered` is the
+ * module's world settings by key, `lifetimes` settings.mjs `WORLD_LIFETIMES` (key -> lifetime) and `entries` this
+ * registry's (`seasonStateEntries()`). Answers a sentence per fault, [] for none: a registered setting with no
+ * lifetime, a lifetime that is none of `LIFETIMES`, a tag for a setting nobody registers, a season setting no entry
+ * clears or more than one entry clears, and an entry that clears a setting the reset keeps (campaign or table). Tier 0
+ * R1256 reads it on a planted world first, then on the module's.
+ */
+export function lifetimeProblems({ registered = [], lifetimes = {}, entries = [] } = {}) {
+    const out = [];
+    const known = new Set(registered);
+    const clearing = new Map();
+    for (const entry of entries) {
+        if (!entry?.group) continue;
+        for (const key of entry.settings ?? []) clearing.set(key, [...(clearing.get(key) ?? []), entry.group]);
+    }
+    for (const key of registered) if (!Object.hasOwn(lifetimes, key)) out.push(`${key}: no lifetime`);
+    for (const [key, lifetime] of Object.entries(lifetimes)) {
+        if (!LIFETIMES.includes(lifetime)) out.push(`${key}: its lifetime "${lifetime}" is none of ${LIFETIMES.join(", ")}`);
+    }
+    for (const key of Object.keys(lifetimes)) if (!known.has(key)) out.push(`${key}: tagged, and the module registers no such world setting`);
+    for (const [key, lifetime] of Object.entries(lifetimes)) {
+        const groups = clearing.get(key) ?? [];
+        if (lifetime === "season" && !groups.length) out.push(`${key}: a season setting no entry of the registry clears`);
+        else if (lifetime === "season" && groups.length > 1) out.push(`${key}: a season setting ${groups.length} entries clear (${groups.join(", ")})`);
+        else if (lifetime !== "season" && LIFETIMES.includes(lifetime) && groups.length) {
+            out.push(`${key}: a ${lifetime} setting, and the entry "${groups.join(", ")}" clears it`);
+        }
+    }
+    return out;
+}

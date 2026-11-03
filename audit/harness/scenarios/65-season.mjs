@@ -581,8 +581,9 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
     // E11 C9: the result lists group keys, `failed` among them; the running incident closed once and nothing of it is left.
     // E11 fix r2-H4: 28 groups - the cast's sheet notes went (a Daggerheart character has no notes field to clear).
     // E79 C1: 29 - who knows each secret passage (`passages`); this read 28 from C1 to C8, which first ran 65 again.
+    // E42 C4: 30 - Despair Flow's division of the students (`assignments`, D36 = 2).
     check("R1: after the reset no Level Up is offered, the Final Trial is off, the season is the second, no body's stamp is left, the incident closed once and is gone, and nothing failed or was told as an error",
-        Array.isArray(reset.cleared) && reset.cleared.length === 29 && reset.kept?.length === 0 && J(reset.failed) === "[]" && reset.offers === 0
+        Array.isArray(reset.cleared) && reset.cleared.length === 30 && reset.kept?.length === 0 && J(reset.failed) === "[]" && reset.offers === 0
             && reset.finalTrial === false && reset.season === 2 && reset.stamped[0] > 0 && reset.stamped[1] === 0
             && reset.incident.before === true && reset.incident.closes === 1 && reset.incident.after === null
             && reset.reports === 0 && reset.errors.length === 0, J(reset), { flow: "season-reset" });
