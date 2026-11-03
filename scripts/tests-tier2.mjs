@@ -81078,20 +81078,26 @@ const SCENARIOS = [
             + "sessions on, days on, stage, faint runs - the faint step's work landed and its record did not, so it runs again; view: by the primary not stopped, by another GM stopped; unwritten: the errors, faint runs, sessions on, "
             + "the record's stage)");
     }],
-    ["E42-T13 - a reset's record names the season it left, and its next window resumes it only in that season: a reset with the clock's group ticked whose motive clear throws writes the season the clock moved to, and the next window opens on the motive alone; the same record a season earlier is read as finished, and the window opens on the remembered exceptions, as before E42 C4 (E42 fix FG3; the end review's C-m3)", async () => {
+    ["E42-T13 - a reset's record names the clock's position it left, and its next window resumes it only while the clock reads that position: a reset with the clock's group ticked whose motive clear throws writes the season, chapter, session, day and time of day the clock moved to, and the next window opens on the motive alone; once the clock has moved on by one time of day the record is read as finished, and the window opens on the remembered exceptions, as before E42 C4; with the time of day put back it resumes again (E42 fix FG3, FG3b; the end review's C-m3)", async () => {
         /*
          * E42 fix FG3, 03.11.2026; the end review's C-m3. A record "applying" never went stale: a reset in which one group
          * failed, followed by a season played to its end, opened that season's reset window on the one group with every
-         * other struck through, and a GM who typed the word kept the whole season. The record names the season the clock
-         * reads at each of its writes now (`season`) - measured first: the clock's group writes `season` one on
-         * (season-wipe.mjs `clearSeasonClock`), and the cut writes only `seasonStartedAt` and `resetCuts`, so the record
-         * names the season it began in when its clock group did not run and the next one when it did - and the window
-         * resumes it only while the clock reads that season. Planted: the motive group's clear throws for one reset (as
-         * E42-T8), the motive and the clock ticked. Then the window is opened and cancelled twice: as the reset left its
-         * record, and with the record's season one before the clock's. Read: the reset's answer, the record [stage,
-         * failed, whether its season is the clock's], the seasons on; each window's ticks and whether it names the reset
-         * unfinished. The settings, the clock and the cards are put back. Red at 7129a316: the record names no season,
-         * and the window over last season's record still ticks the motive alone and names it.
+         * other struck through, and a GM who typed the word kept the whole season. Planted: the motive group's clear
+         * throws for one reset (as E42-T8), the motive and the clock ticked - the clock's group is `RESET_STEPS`' last, so
+         * it runs after the motive's has failed, and the record's writes after it (its step's and the end's) read the
+         * clock it left: season one on, chapter, session and day 1, the morning.
+         *
+         * E42 fix FG3b, 03.11.2026. FG3 stamped the record with the season alone, and the season moves only in the
+         * reset's own clock clear (season-wipe.mjs `clearSeasonClock`), so this road - the clock's group run, another
+         * failed - left a record of the season the clock then read for the whole of it, and FG3's stale case planted a
+         * record a season before, a state no road writes. The record names the clock's position now (season, chapter,
+         * session, day, time of day), and the window resumes it only while the clock reads all five. Read here: the
+         * reset's answer, the record [stage, failed, whether its position is the clock's], the seasons on; then the
+         * window opened and cancelled three times - as the reset left the clock, with the clock moved on by one time of
+         * day through `setClock` (as the suite's reset tests move it), and with the time of day put back - each window's
+         * ticks and whether it names the reset unfinished. The settings, the clock and the cards are put back. Red at
+         * 7fdfed86: the record names the season and nothing else of the position, and the window a time of day later
+         * still ticks the motive alone and names it.
          */
         const { isPrimaryGm, listOf } = await import("./utils.mjs");
         must(isPrimaryGm(), "a season reset is the primary GM's, and this browser is not it - this would measure nothing");
@@ -81100,6 +81106,7 @@ const SCENARIOS = [
         must(typeof entry?.clear === "function", "the reset's registry has no entry for the motive group - nothing to plant");
         const { resetSeason } = await import("./season-setup.mjs");
         const { groupLabel, RESET_GROUPS } = await import("./season-exceptions.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
         const KEYS = [SETTINGS.motive, SETTINGS.killingGameRules, SETTINGS.seasonExceptions, SETTINGS.seasonReset, SETTINGS.readyRound,
             SETTINGS.chapterEnd].filter(Boolean);
         const held = Object.fromEntries(KEYS.map(key => [key, foundry.utils.deepClone(getSetting(key))]));
@@ -81119,6 +81126,7 @@ const SCENARIOS = [
                 return given === "cancel" ? "cancel" : { word, ticked: given, cast: { to: "stay" } };
             };
         };
+        const POSITION = ["season", "chapter", "session", "day", "timeOfDay"];
         const clear = entry.clear;
         let read = null;
         try {
@@ -81131,15 +81139,20 @@ const SCENARIOS = [
             await gmStoresIdle();
             entry.clear = clear;
             const left = foundry.utils.deepClone(getSetting(SETTINGS.seasonReset) ?? {});
-            const now = getClock().season ?? 1;
-            const first = [reset?.cleared ?? null, reset?.failed ?? null, [left.stage ?? null, left.failed ?? null, left.season === now], now - season];
+            const after = getClock();
+            const first = [reset?.cleared ?? null, reset?.failed ?? null,
+                [left.stage ?? null, left.failed ?? null, POSITION.every(key => left[key] === after[key])], (after.season ?? 1) - season];
             answer("cancel");
             await resetSeason();
             const exceptions = getSetting(SETTINGS.seasonExceptions) ?? [];
-            await game.settings.set(MODULE_ID, SETTINGS.seasonReset, { ...left, season: now - 1 });
+            const was = after.timeOfDay;
+            await setClock({ timeOfDay: TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(was) + 1) % TIMES_OF_DAY.length] });
             await settle();
             await resetSeason();
-            read = { first, resumed: windows[1] ?? null, stale: windows[2] ?? null,
+            await setClock({ timeOfDay: was });
+            await settle();
+            await resetSeason();
+            read = { first, resumed: windows[1] ?? null, moved: windows[2] ?? null, back: windows[3] ?? null,
                 normal: RESET_GROUPS.map(group => group.key).filter(key => !exceptions.includes(key)) };
         } finally {
             entry.clear = clear;
@@ -81150,14 +81163,16 @@ const SCENARIOS = [
             for (const key of KEYS) await game.settings.set(MODULE_ID, key, held[key]);
             await setClock(clock);
         }
-        must(read.normal.length > 1, "the remembered exceptions leave one group ticked or none - the stale window would measure nothing");
-        equal(stableJson({ first: read.first, resumed: read.resumed, stale: read.stale }), stableJson({
+        must(read.normal.length > 1, "the remembered exceptions leave one group ticked or none - the moved window would measure nothing");
+        equal(stableJson({ first: read.first, resumed: read.resumed, moved: read.moved, back: read.back }), stableJson({
             first: [["clock"], ["motive"], ["applying", ["motive"], true], 1],
             resumed: { ticked: ["motive"], named: true },
-            stale: { ticked: read.normal, named: false }
-        }), "a reset's record did not name the season it left, its next window did not resume it in that season, or a record of the season before still "
-            + "opened the window on what it left (first: cleared, failed, the record [stage, failed, its season the clock's], seasons on; resumed and stale: "
-            + "the window's ticks, whether it names the reset unfinished)");
+            moved: { ticked: read.normal, named: false },
+            back: { ticked: ["motive"], named: true }
+        }), "a reset's record did not name the clock's position it left, its next window did not resume it there, a time of day later it still opened "
+            + "the window on what it left, or with the time of day put back it did not resume (first: cleared, failed, the record [stage, failed, its "
+            + "season, chapter, session, day and time of day the clock's], seasons on; resumed, moved and back: the window's ticks, whether it names the "
+            + "reset unfinished)");
     }],
     ["E42-T9 - a reset with one group ticked changes nothing in the world but that group's own and the reset's bookkeeping: with Despair Flow's assignments ticked alone, the whole-world dump before and after differs in `gmAssignments`, the clock's cut for that group, the reset's record and the remembered exceptions, and in nothing else (E42 fix FG4; the end review's G-F10, the plan's verify)", async () => {
         /*

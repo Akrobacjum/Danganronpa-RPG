@@ -831,7 +831,8 @@ export const SETTINGS = {
     chapterEnd: "chapterEnd",
     /**
      * The last season reset's record (E42 C4; season-wipe.mjs `seasonResetRecord`): `{ stage, by, at, groups, done,
-     * failed, notRun, season }` (the season since E42 fix FG3), or `{}`. World-scoped so the reset's window reads a reset that did not finish on whichever
+     * failed, notRun, season, chapter, session, day, timeOfDay }` (the clock's position at the write: the season since E42
+     * fix FG3, the rest since FG3b; season-wipe.mjs `unfinishedGroups`), or `{}`. World-scoped so the reset's window reads a reset that did not finish on whichever
      * browser is the primary GM's now; written by the primary GM alone, inside season-wipe.mjs `wipeSeason` - after the
      * cut, after every step and at the end. Nothing secret: the reset's group keys and step keys and the GM's id
      * (world-secrets.mjs names it).

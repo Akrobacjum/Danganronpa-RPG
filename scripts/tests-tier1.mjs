@@ -6016,8 +6016,8 @@ const INVARIANTS = [
             ["chapterEnd: only stage, by, at, opened, choices, ending, done, failed, notRun, droppedBy, droppedAt",
                 s => { s.settings.chapterEnd = { stage: "done", by: "R190GAMEMASTER001", memo: "R190" }; },
                 h => h.kind === "only" && h.doc === "setting" && h.id === "chapterEnd" && h.path === "memo"],
-            ["seasonReset: only stage, by, at, groups, done, failed, notRun, season",
-                s => { s.settings.seasonReset = { stage: "done", season: 2, memo: "R190" }; },
+            ["seasonReset: only stage, by, at, groups, done, failed, notRun, season, chapter, session, day, timeOfDay",
+                s => { s.settings.seasonReset = { stage: "done", season: 2, chapter: 1, session: 1, day: 1, timeOfDay: "morning", memo: "R190" }; },
                 h => h.kind === "only" && h.doc === "setting" && h.id === "seasonReset" && h.path === "memo"],
             // E17 fix ci-2: the clock keeps no boundary's take-back - its snapshot named every character by id.
             ["clock.lastAdvance",

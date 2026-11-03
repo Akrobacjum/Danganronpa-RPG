@@ -120,9 +120,9 @@ export const WORLD_SECRET_RULES = Object.freeze({
             why: "an End of chapter's record holds step keys, the clock's numbers and phases, the window's boxes as booleans, GM ids and times; any other field would be one nobody judged for a player's eyes"
         }),
         seasonReset: Object.freeze({
-            only: Object.freeze(["stage", "by", "at", "groups", "done", "failed", "notRun", "season"]),
-            since: "E42 fix FG4",
-            why: "a season reset's record holds group and step keys, the GM's id, a time and the season's number; any other field would be one nobody judged for a player's eyes"
+            only: Object.freeze(["stage", "by", "at", "groups", "done", "failed", "notRun", "season", "chapter", "session", "day", "timeOfDay"]),
+            since: "E42 fix FG4; the clock's position since FG3b",
+            why: "a season reset's record holds group and step keys, the GM's id, a time and the clock's position (season, chapter, session, day, time of day), all on the HUD; any other field would be one nobody judged for a player's eyes"
         }),
         murderState: Object.freeze({
             only: Object.freeze(["active", "stage"]),

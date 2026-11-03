@@ -690,14 +690,22 @@ async function placeCastStep(ctx) {
 /** Whether a reset runs on this browser now (`wipeSeason`): its record says "applying" while it runs, and is not unfinished. */
 let wiping = false;
 
+/** The clock's fields a reset's record names at each write, and `unfinishedGroups` holds the clock to (E42 fix FG3b). */
+const RECORD_POSITION = Object.freeze(["season", "chapter", "session", "day", "timeOfDay"]);
+
+/** Where the clock stands now, in `RECORD_POSITION`'s fields: `getClock`'s, every field present; null for one stored null. */
+function clockPosition(clock = getClock()) {
+    return Object.fromEntries(RECORD_POSITION.map(key => [key, clock[key] ?? null]));
+}
+
 /**
  * THE RESET'S RECORD (E42 C4, 1.2.97; E42-18; audit S17-30). The world setting `seasonReset`, written by the primary GM
- * alone, inside `wipeSeason`: `{ stage, by, at, groups, done, failed, notRun, season }` - the groups the GM ticked, the
- * steps that ran, failed or did not run (step keys, `placeCast` among them), the GM's id and the season the clock read at
- * the write, no text and no secret (world-secrets.mjs names it). Written "applying" once the cut stands and before the first step, again after every
- * step that changed it, and at the end "done" when every ticked group ran, or left "applying". `{}` before the first
- * reset. Until 1.2.97 a reset kept no record: its card named what failed, and a tab closed half way told nobody which
- * groups had run.
+ * alone, inside `wipeSeason`: `{ stage, by, at, groups, done, failed, notRun, season, chapter, session, day, timeOfDay }` -
+ * the groups the GM ticked, the steps that ran, failed or did not run (step keys, `placeCast` among them), the GM's id and
+ * the clock's position at the write (`RECORD_POSITION`, `clockPosition`), no text and no secret (world-secrets.mjs names
+ * it). Written "applying" once the cut stands and before the first step, again after every step that changed it, and at
+ * the end "done" when every ticked group ran, or left "applying". `{}` before the first reset. Until 1.2.97 a reset kept
+ * no record: its card named what failed, and a tab closed half way told nobody which groups had run.
  */
 export function seasonResetRecord() {
     try {
@@ -713,16 +721,24 @@ export function seasonResetRecord() {
  * tab that closed. A group a later release no longer knows is dropped, as `rememberedExceptions` drops one. The record
  * is read whoever wrote it: the primary GM now finishes a reset another primary began.
  *
- * ONLY IN THE SEASON IT LEFT (E42 fix FG3, 03.11.2026; the end review's C-m3). A record "applying" never went stale: a
- * reset whose chat group failed, then a season played to its end, opened that season's reset on the chat alone, every
- * other group struck through. The record names the season the clock read at its write (`season`: the clock's group
- * writes it one on, the cut never - measured in `clearSeasonClock` and `resetCutPatch`), so the season it began in when
- * its clock group did not run and the next one when it did; a record of any other season, or of none, is read as
- * finished, and the window opens as before (tier 2 E42-T13).
+ * ONLY WHILE THE CLOCK STANDS WHERE IT LEFT IT (E42 fix FG3 and FG3b, 03.11.2026; the end review's C-m3). A record
+ * "applying" never went stale: a reset whose chat group failed, then a season played to its end, opened that season's
+ * reset on the chat alone, every other group struck through. FG3 stamped the record with the season alone, and the season
+ * moves only in the reset's own clock clear (`clearSeasonClock`; the cut writes `seasonStartedAt` and `resetCuts`, never
+ * the season - `resetCutPatch`): a reset whose clock group ran and another failed left a record of the season the clock
+ * then read for the whole of it, and the next reset resumed it. So each write names the clock's position then - its
+ * season, chapter, session, day and time of day (`clockPosition`); the last write is the reset's end, so the next
+ * season's first morning when its clock group ran, and where the clock stood when it did not - and the window resumes
+ * the record only while the clock reads that same position in all five. Once the clock has moved on in any of them - a
+ * time of day passed, a session or chapter begun, a season counted - the record is read as finished for the window, as
+ * is one that names less than the five (written before FG3b; STATUS Open 48), and the window opens as before (tier 2
+ * E42-T13: a time of day on, then put back). The phase and an Eclipse are not part of the position: neither moves the
+ * record on.
  */
 export function unfinishedGroups(record = seasonResetRecord()) {
     if (wiping || record?.stage !== "applying") return [];
-    if (record.season !== (getClock().season ?? 1)) return [];
+    const now = clockPosition();
+    if (RECORD_POSITION.some(key => record[key] !== now[key])) return [];
     const asked = new Set(Array.isArray(record.groups) ? record.groups : []);
     const done = new Set(Array.isArray(record.done) ? record.done : []);
     return RESET_GROUPS.map(group => group.key).filter(key => asked.has(key) && !done.has(key));
@@ -775,9 +791,9 @@ async function wipeSeason(plan) {
      * nothing - the record serves the next window, and a group it misses is offered again, ticked, for the GM to read.
      */
     let written = null;
-    // Each write names the season the clock reads then (`unfinishedGroups`, E42 fix FG3).
+    // Each write names the clock's position then (`clockPosition`, read by `unfinishedGroups`; E42 fix FG3, FG3b).
     const writeRecord = async record => {
-        const next = { ...record, season: getClock().season ?? 1 };
+        const next = { ...record, ...clockPosition() };
         if (!isPrimaryGm() || JSON.stringify(next) === JSON.stringify(written)) return;
         try {
             await game.settings.set(MODULE_ID, SETTINGS.seasonReset, next);
