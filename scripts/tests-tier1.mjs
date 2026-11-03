@@ -32339,6 +32339,47 @@ const INVARIANTS = [
         }), "[the findings (code, words) with the table's look laid and a Fear die of this browser's preset, of the table's; with none laid, the same two]");
         ok([`${K}presetMissingLaid`, `${K}presetDiffersLaid`].every(key => game.i18n.localize(key) !== key), "the two sentences of a laid look have no words");
     }],
+    ["R1302 - whose Monokuma it is, where it can be told (E60 fix FG4; the end review's C-m6, Q-C5-4): monokuma.mjs `poolOwnerOf(actor, world)` answers the configured pool's user where that user holds a pool, the one pool holder, or the one Gamemaster an explicit OWNER entry names, and null where several hold a pool with nothing configured and no single owner, where the configured user holds none and the rest is ambiguous, or where there is no GM; `poolUserFor` answers the same where it is told and else the acting GM, the first holder for a player, the acting GM where nobody holds a pool and nobody where a player asks; private-rolls.mjs `untoldMonokumas` names the Monokumas whose GM cannot be told", async () => {
+        /*
+         * E60 fix FG4, 03.11.2026. C5e made a player's dice reach a GM only with one of that GM's Monokumas in the roller's
+         * room, and the rule that decides whose Monokuma it is - `poolOwnerOf`, `poolUserFor`'s old body with null where it
+         * fell back to the acting GM - was read by nothing: R1299 stands it in. Fixtures alone (`world`: the pool holders,
+         * the full Gamemasters, the user asking, the configured pool and the users by id): two full GMs, an Assistant GM
+         * and a player. Red on C5e's code: `world` was not read, so every answer was the harness world's.
+         */
+        const M = await import("./monokuma.mjs");
+        const P = await import("./private-rolls.mjs");
+        const OWNER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+        const u = (id, isGM) => ({ id, isGM, name: id });
+        const g1 = u("R1302G1", true), g2 = u("R1302G2", true), ag = u("R1302AG", true), pl = u("R1302P1", false);
+        const users = new Map([g1, g2, ag, pl].map(x => [x.id, x]));
+        const actor = (id, ownership = {}) => ({ id, name: id, ownership });
+        const world = (holders, { pools = {}, me = g1, gamemasters = holders.filter(x => x !== ag) } = {}) =>
+            ({ holders, gamemasters, me, configured: a => pools[a.id] ?? null, user: id => users.get(id) ?? null });
+        const id = x => x?.id ?? null;
+        const plain = actor("mPlain"), ownedG2 = actor("mOwnedG2", { [g2.id]: OWNER }), both = actor("mBoth", { [g1.id]: OWNER, [g2.id]: OWNER });
+        const toAg = actor("mAg"), toPlayer = actor("mPlayer");
+        const pools = { mAg: ag.id, mPlayer: pl.id };
+        equal(stableJson({
+            owner: {
+                oneGm: id(M.poolOwnerOf(plain, world([g1]))), twoNothing: id(M.poolOwnerOf(plain, world([g1, g2]))),
+                oneOwner: id(M.poolOwnerOf(ownedG2, world([g1, g2]))), twoOwners: id(M.poolOwnerOf(both, world([g1, g2]))),
+                assistant: id(M.poolOwnerOf(toAg, world([g1, g2, ag], { pools }))), toPlayer: id(M.poolOwnerOf(toPlayer, world([g1, g2], { pools }))),
+                noGm: id(M.poolOwnerOf(plain, world([], { gamemasters: [] })))
+            },
+            user: {
+                oneGm: id(M.poolUserFor(plain, world([g1]))), twoNothingG2: id(M.poolUserFor(plain, world([g1, g2], { me: g2 }))),
+                twoNothingPlayer: id(M.poolUserFor(plain, world([g1, g2], { me: pl }))), oneOwner: id(M.poolUserFor(ownedG2, world([g1, g2], { me: g1 }))),
+                noGmAssistant: id(M.poolUserFor(plain, world([], { gamemasters: [], me: ag }))), noGmPlayer: id(M.poolUserFor(plain, world([], { gamemasters: [], me: pl })))
+            },
+            untold: P.untoldMonokumas({ monokumas: [plain, ownedG2, both, toAg], gmOf: m => M.poolOwnerOf(m, world([g1, g2, ag], { pools })) })
+        }), stableJson({
+            owner: { oneGm: g1.id, twoNothing: null, oneOwner: g2.id, twoOwners: null, assistant: ag.id, toPlayer: null, noGm: null },
+            user: { oneGm: g1.id, twoNothingG2: g2.id, twoNothingPlayer: g1.id, oneOwner: g2.id, noGmAssistant: ag.id, noGmPlayer: null },
+            untold: ["mPlain", "mBoth"]
+        }), "[poolOwnerOf: one GM; two, nothing set; two, one OWNER; two, both OWNER; the Assistant's configured pool; a pool configured to a player; no GM / "
+            + "poolUserFor: one GM; two, nothing set, asked by the second, by a player; one OWNER; no GM, asked by an Assistant, by a player / untoldMonokumas]");
+    }],
     ["R1299 - the GMs who see a player's dice (E60 C5e; E60-18, Q-C5-4): private-rolls.mjs `gmsInRoomOf(subject)` answers each GM one of whose own Monokumas stands in the roller's room on the roller's scene - a Monokuma in another room, on another scene or on no scene admits nobody, nor does one whose GM cannot be told or whose pool is a player's; two GMs each by their own; a roller on no scene has none", async () => {
         /*
          * E60 C5e, 03.11.2026; the owner: a player's action roll on the GM's screen, "Nie powinien ich widziec, chyba ze

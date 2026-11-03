@@ -208,23 +208,33 @@ export async function setPoolFor(actor, userId) {
  * that has not opened the Monokuma panel yet, and none of it is trusted once
  * an answer exists.
  */
-export function poolUserFor(actor) {
+export function poolUserFor(actor, world = {}) {
     if (!actor) return null;
-    const owner = poolOwnerOf(actor);
+    const owner = poolOwnerOf(actor, world);
     if (owner) return owner;
 
-    const holders = poolHolders();
-    const gms = holders.length ? holders : game.users.filter(u => u.role === CONST.USER_ROLES.GAMEMASTER);
-    if (!gms.length) return game.user.isGM ? game.user : null;
+    const { holders, gamemasters, me } = poolWorld(world || {});
+    const gms = holders.length ? holders : gamemasters;
+    if (!gms.length) return me?.isGM ? me : null;
 
     // Genuinely ambiguous. The acting GM spends their own, and the panel exists
     // to stop the table ever being in this state.
     const OWNER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
     const ownership = actor.ownership ?? {};
     const declared = gms.filter(u => ownership[u.id] === OWNER);
-    return declared.find(u => u.id === game.user.id)
-        ?? gms.find(u => u.id === game.user.id)
+    return declared.find(u => u.id === me?.id)
+        ?? gms.find(u => u.id === me?.id)
         ?? gms[0];
+}
+
+/**
+ * What `poolOwnerOf` and `poolUserFor` read of the world, each stood in where `world` names it (E60 fix FG4: R1302's
+ * fixtures; the end review's C-m6): the pool holders (despair.mjs `poolHolders`), the full Gamemasters, the user asking
+ * and the configured pool's user id of an actor.
+ */
+function poolWorld({ holders = poolHolders(), gamemasters = game.users.filter(u => u.role === CONST.USER_ROLES.GAMEMASTER),
+    me = game.user, configured = actor => poolFor(actor), user = id => game.users.get(id ?? "") } = {}) {
+    return { holders, gamemasters, me, configured, user };
 }
 
 /**
@@ -234,18 +244,18 @@ export function poolUserFor(actor) {
  * all. The Monokuma whose GM cannot be told admits no GM to a player's dice (Q-C5-4's default; private-rolls.mjs
  * `gmsInRoomOf`).
  */
-export function poolOwnerOf(actor) {
+export function poolOwnerOf(actor, world = {}) {
     if (!actor) return null;
 
     // "Has a pool" is despair.mjs's question, not a role test. An Assistant GM
     // explicitly granted one (`addPool`) is offered as a pool in the GM team
     // panel and counted by `monokumasWithoutPool`, so refusing them here meant
     // a Monokuma pointed at that pool silently spent somebody else's Despair.
-    const holders = poolHolders();
-    const configured = game.users.get(poolFor(actor) ?? "");
+    const { holders, gamemasters, configured: poolOf, user } = poolWorld(world || {});
+    const configured = user(poolOf(actor) ?? "");
     if (configured && holders.some(u => u.id === configured.id)) return configured;
 
-    const gms = holders.length ? holders : game.users.filter(u => u.role === CONST.USER_ROLES.GAMEMASTER);
+    const gms = holders.length ? holders : gamemasters;
     if (!gms.length) return null;
 
     // One Gamemaster, one pool - nothing to disambiguate.

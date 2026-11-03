@@ -81944,6 +81944,51 @@ const SCENARIOS = [
             "[with a GM's band set after the reshape, and without: the kind put back by the Reroll (and changed by the reshape); the band "
             + "after the Reroll the GM's, or the one before the reshape; the band before the Reroll the GM's, or the reshape's]");
     }],
+    ["E60-T21 - with rolls not forced private a Reroll's dice reach every GM (E60 fix FG4; the end review's C-m3): a player's roll card (the player's own message), the world's Monokuma in another room than the roller's: with \"Rolls private\" on, its Reroll's dice (private-rolls.mjs `relayRerolledDice`) are not thrown on this GM's screen and this GM is not among the dice's audience (`diceAudienceIds`); with it off they are thrown here and this GM is among it, as the rest of C5e exempts that setting", async () => {
+        /*
+         * E60 fix FG4, 03.11.2026. C5e's room rule is for rolls forced private: roll-draw.mjs `seesPlayersDice` and
+         * private-rolls.mjs `keepDiceToReaders` exempt the setting off, and `diceAudienceIds` did not, so with rolls public a
+         * Reroll's dice went to no GM whose Monokuma stood elsewhere - the GM who made the Reroll included. A player's duality
+         * card (`playerRollCard`), once with the setting on and once off; `game.dice3d.showForRoll` counts the throws on
+         * this screen. Put back: the setting, the cards. Red on C5e's code: no throw and not in the audience with the
+         * setting off. Mutant fg4-m2 (the exemption missing) reads red here.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the roll is a connected player's");
+        needs(world.atLeast("monokumas"), "a Monokuma stands for the GM");
+        needs(world.moduleActive("dice-so-nice"), "the dice are thrown through Dice So Nice");
+        const { player, theirs } = playerAndCharacters();
+        const P = await import("./private-rolls.mjs");
+        const M = await import("./monokuma.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const monokuma = M.monokumaActors().find(m => locateActor(m)?.tokenDoc) ?? null;
+        const roller = locateActor(theirs);
+        must(monokuma && roller?.room && locateActor(monokuma)?.room !== roller.room,
+            "no placed Monokuma, the player's character in no room, or the Monokuma in the roller's room - this would measure nothing");
+        const forcedWas = game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls);
+        const dice3d = game.dice3d, show = dice3d.showForRoll;
+        let thrown = 0;
+        dice3d.showForRoll = async () => { thrown++; return true; };
+        const made = [], read = {};
+        try {
+            for (const forced of [true, false]) {
+                await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, forced);
+                const message = await playerRollCard(player, theirs);
+                made.push(message);
+                await settle();
+                thrown = 0;
+                P.relayRerolledDice(message, player.id);
+                await settle();
+                read[forced ? "forced" : "public"] = [thrown > 0, P.diceAudienceIds(message).includes(game.user.id)];
+            }
+        } finally {
+            dice3d.showForRoll = show;
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, forcedWas);
+            for (const message of made) await game.messages.get(message.id)?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ forced: [false, false], public: [true, true] }),
+            "[with rolls forced private and not: the Reroll's dice thrown on this GM's screen; this GM among the dice's audience]");
+    }],
     ...GRID
 ];
 

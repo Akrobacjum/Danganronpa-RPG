@@ -1483,7 +1483,10 @@ function subjectReported(messageId, ms) {
  * - `keepDiceToReaders`: with rolls forced private, a client that cannot read a
  *   message never animates it, whatever Dice So Nice's own settings say - no real
  *   dice, no ghost dice.
- * - `diceAudienceIds`: who sees a roll's dice - the GMs, its author, and, for a
+ * - `diceAudienceIds`: who sees a roll's dice - the GMs (for a player's roll with
+ *   rolls forced private only those with one of their Monokumas in the roller's room,
+ *   `gmsInRoomOf`, E60 C5e; every GM for a GM's own roll or with rolls public), its
+ *   author where it is the roller (not the GM that drew a player's roll), and, for a
  *   roll the module threw for a character seated in the incident at the opening or
  *   in the fight, the incident's audience at that stage (`incidentAudienceIds`). The one
  *   rule; E28, which throws the players' dice on the GM, asks it too.
@@ -1783,13 +1786,16 @@ function gmsOwnRoll(message) {
 
 /**
  * WHO SEES A ROLL'S DICE, as user ids: the GMs - for a player's roll only those in the roller's room (`gmsInRoomOf`, E60
- * C5e), every GM for a GM's own - the message's author where it is the roller (not the GM that drew a player's roll),
- * and the incident's audience of `incidentDiceAudience`. Read on the primary GM, which is told every roll's subject;
- * another client knows the subjects of its own rolls alone. Exported for E28.
+ * C5e), every GM for a GM's own and, with rolls not forced private, for every roll, as `seesPlayersDice` and
+ * `keepDiceToReaders` exempt that setting (E60 fix FG4; the end review's C-m3: a Reroll's dice, `relayRerolledDice`, went
+ * to the room's GMs alone, its own GM's screen included) - the message's author where it is the roller (not the GM that
+ * drew a player's roll), and the incident's audience of `incidentDiceAudience`. Read on the primary GM, which is told
+ * every roll's subject; another client knows the subjects of its own rolls alone. Exported for E28.
  */
 export function diceAudienceIds(message, state = murderState()) {
     const authorId = isDrawnRoll(message) ? null : message?.author?.id ?? message?.user?.id ?? null;
-    const gms = gmsOwnRoll(message) ? gmIds() : gmsInRoomOf(game.actors.get(keptRollSubject(message) ?? "") ?? null);
+    const everyGm = gmsOwnRoll(message) || !game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls);
+    const gms = everyGm ? gmIds() : gmsInRoomOf(game.actors.get(keptRollSubject(message) ?? "") ?? null);
     return [...new Set([...gms, ...(authorId ? [authorId] : []), ...incidentDiceAudience(message, state)])];
 }
 
@@ -1820,7 +1826,10 @@ export function drawnDiceAudienceIds(message, by = null, state = murderState()) 
  * How it looks at a real table, with and without Dice So Nice, is LIVE-E28-01 and -02. A
  * statistic from the sheet, whose Daggerheart card its readers draw, sends its character too
  * (`subject`, fix r2-H4): each of them heads the card with it (`signAsRoller`). The packet
- * reaches only those the roll's dice reach.
+ * reaches only those the roll's dice reach - and a GM those dice do not reach is sent the
+ * character alone, `dice.show { id, subject, quiet }`, so that GM's card is headed by it too
+ * and no die is thrown there (E60 fix FG4; the end review's C-m2: since C5e a second GM
+ * whose Monokuma stood elsewhere headed it with Daggerheart's mystery man and no name).
  */
 function relayDrawnDice(message, byId, { shown = false } = {}) {
     if (!message?.id || !isPrimaryGm()) return;
@@ -1828,8 +1837,10 @@ function relayDrawnDice(message, byId, { shown = false } = {}) {
     const audience = drawnDiceAudienceIds(message, by?.id ?? null);
     const recipients = audience.filter(id => id !== game.user?.id && id !== by?.id);
     const subject = isClaimedRoll(message) ? null : keptRollSubject(message);
+    const headed = subject ? gmIds().filter(id => id !== game.user?.id && !audience.includes(id)) : [];
     try {
         if (recipients.length) game.socket.emit(SOCKET_EVENT, { action: DICE_SHOW, id: message.id, by: by?.id ?? null, ...(subject ? { subject } : {}) }, { recipients });
+        if (headed.length) game.socket.emit(SOCKET_EVENT, { action: DICE_SHOW, id: message.id, subject, quiet: true }, { recipients: headed });
     } catch (err) {
         error("Could not send the dice of a roll the GM drew", err);
     }
@@ -1934,6 +1945,7 @@ async function playRolls(message, user) {
  * says it does its own notifying. The log's `updateMessage` draws the card again when either changed
  * - a card hidden at its first render, or one drawn before its character was known here:
  * Foundry's API as v13 names it, not read in v14's source, which is not on this machine.
+ * `quiet` (E60 fix FG4): a GM the dice do not reach keeps the character and throws nothing.
  * Exported for the suite, which hands it a packet as the socket would (tests-tier2.mjs).
  */
 export async function showRelayedDice(payload, senderId) {
@@ -1955,6 +1967,7 @@ export async function showRelayedDice(payload, senderId) {
             if (unread) readHere(message.id);
             if ((told || unread) && typeof ui.chat?.updateMessage === "function") void Promise.resolve(ui.chat.updateMessage(message)).catch(() => {});
         }
+        if (payload.quiet === true) return;
         if (rewrite || (drawn && game.user?.isGM)) return await playRolls(message, by ?? message.author);
         if (typeof game.dice3d?.showForRoll !== "function") return;
         for (const roll of message.rolls ?? []) await game.dice3d.showForRoll(roll, by ?? message.author, false);
