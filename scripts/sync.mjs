@@ -140,7 +140,10 @@ const SETTING_KINDS = {
     // the "?/X" every client is reading.
     overflow: SYNC.overflow,
     overflowRules: SYNC.overflow,
-    readyRound: SYNC.ready
+    readyRound: SYNC.ready,
+    // A chapter's end that stopped is a line on the GM panel and a question in the End of chapter window (E42 C2):
+    // the trial's road redraws both, as it does for the verdict that comes before it.
+    chapterEnd: SYNC.trial
 };
 
 export function registerSync() {

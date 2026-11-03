@@ -54026,7 +54026,9 @@ const SCENARIOS = [
             await settle();
         }
         const L = key => game.i18n.localize(`DRPG.Chapter.step.${key}`);
-        const failed = game.i18n.format("DRPG.Chapter.endFailed", { steps: `${L("clock")}, ${L("trial")}, ${L("morning")}` });
+        // Since E42 C2 the steps are one list (`listOf`, steps.mjs `stepsReport`), as every procedure's report names them.
+        const { listOf } = await import("./utils.mjs");
+        const failed = game.i18n.format("DRPG.Chapter.endFailed", { steps: listOf([L("clock"), L("trial"), L("morning")]) });
         // Nothing of this end is done, so it answers null (the morning was its one line before the fix); a throw reads as text.
         equal(stableJson([errors, ended, after]), stableJson([[failed], null, [0, 0, "classTrial", false]]),
             "a step that threw or a trial that would not close was not named to the GM, the steps after them did not run, "
@@ -80224,6 +80226,240 @@ const SCENARIOS = [
             again: [null, [], [1, 1]]
         }), "the execution at the trial's end is not as it was (first: the answer [executed, failed], A dead, B dead, the record's execution, stamped, "
             + "the execution cards since and whom each names, the GM told of A; retry: the same and the deaths written of A and B; again: the answer, cards, deaths)");
+    }],
+    ["E42-T4 - a chapter's end stopped at its third step by a throw, or between a step's work and its record after the clock's move or the morning, names on the GM's screen the step it stopped at, and Finish the chapter's end does the rest once - one session on, one day on, one morning card (E42 C2, E42-09; audit S17-30)", async () => {
+        /*
+         * E42 C2, 03.11.2026; E42-09, audit S17-30, the plan's verify ("a throw in the third step of the chapter's end:
+         * 'failed' in the summary, and running it again finishes it"). The chapter's end kept no record: a step that threw
+         * was named and the GMs told to finish by hand, and the one road back, ending the chapter again, ran every step
+         * again with the clock's moves read off the clock as it stood (relative). Three moments, each from the same clock
+         * (Daily Life, no trial) with Clear the Faint Remnants, the next session and the next morning asked: the third
+         * step (`faint`) throws once - its `run` stubbed on CHAPTER_END_STEPS, so no Remnant of the world is touched - or
+         * the record's write after the `clock` or the `morning` step is refused once (`game.settings.set` on
+         * `chapterEnd`): the work landed and the record does not say so, a closed tab modelled. Then Finish
+         * (`finishChapterEnd`; at a tree with none, the end asked again, the one road back there). Read per moment: the
+         * errors the GM was shown, the record after the stop [stage, done, failed, notRun], and after the Finish the
+         * sessions and the days on, the time of day, the morning cards posted, the faint step's runs and the record's
+         * stage. Red at cef11276: no record and no Finish, and the second end moves the session and the day again.
+         */
+        needs(env.primaryGm(), "the chapter's end runs on the primary GM alone (`applyChapterEnd`)");
+        const C = await import("./chapter.mjs");
+        const { trialFloor } = await import("./trial-floor.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        const { timeOfDayLabel } = await import("./clock.mjs");
+        const { listOf } = await import("./utils.mjs");
+        must(!murderState() && !isEclipse() && !trialFloor(), "an incident, an Eclipse or a trial is open - the end would not run as asked, and this would measure nothing");
+        const faint = C.CHAPTER_END_STEPS.find(step => step.key === "faint");
+        must(faint, "the chapter's end has no faint step - this would measure nothing");
+        const KEY = SETTINGS.chapterEnd ?? null;
+        const record = () => KEY ? foundry.utils.deepClone(game.settings.get(MODULE_ID, KEY) ?? {}) : null;
+        const clock = foundry.utils.deepClone(getClock());
+        const run = faint.run;
+        const ownSet = Object.getOwnPropertyDescriptor(game.settings, "set");
+        const set = game.settings.set;
+        const errorNote = ui.notifications.error;
+        const quiet = console.error;
+        const morningCard = `<h3>${timeOfDayLabel("morning")}</h3>`;
+        const putBack = () => {
+            if (ownSet) Object.defineProperty(game.settings, "set", ownSet); else delete game.settings.set;
+            ui.notifications.error = errorNote;
+            console.error = quiet;
+            faint.run = run;
+        };
+        const read = {};
+        try {
+            for (const moment of ["faint", "clock", "morning"]) {
+                await setClock({ ...clock, phase: "dailyLife" });
+                if (KEY) await game.settings.set(MODULE_ID, KEY, {});
+                await settle();
+                const start = foundry.utils.deepClone(getClock());
+                const opened = { chapter: start.chapter, session: start.session, day: start.day ?? 1, phase: start.phase };
+                const choices = { reveal: false, sweep: false, faint: true, keys: false, endTrial: false, nextChapter: false, nextSession: true, nextMorning: true };
+                const seen = new Set(game.messages.map(m => m.id));
+                let runs = 0, refuse = true;
+                const errors = [];
+                faint.run = async () => {
+                    runs++;
+                    if (moment === "faint" && runs === 1) throw new Error("E42-T4: the third step throws once");
+                    return null;
+                };
+                game.settings.set = function (scope, key, value, ...rest) {
+                    if (refuse && moment !== "faint" && KEY && scope === MODULE_ID && key === KEY && value?.done?.includes(moment)) {
+                        refuse = false;
+                        throw new Error(`E42-T4: the record's write after the ${moment} step refused once`);
+                    }
+                    return set.call(this, scope, key, value, ...rest);
+                };
+                ui.notifications.error = (text, ...rest) => { errors.push(String(text)); return errorNote.call(ui.notifications, text, ...rest); };
+                console.error = () => {};
+                try {
+                    await C.applyChapterEnd({ ...choices, opened });
+                    await settle();
+                    const stopped = record();
+                    if (typeof C.finishChapterEnd === "function") await C.finishChapterEnd();
+                    else await C.applyChapterEnd(choices);
+                    await settle();
+                    const now = getClock();
+                    read[moment] = {
+                        errors,
+                        stopped: stopped ? [stopped.stage ?? null, stopped.done ?? null, stopped.failed ?? null, stopped.notRun ?? null] : null,
+                        after: [now.session - start.session, (now.day ?? 1) - (start.day ?? 1), now.timeOfDay,
+                            game.messages.filter(m => !seen.has(m.id) && String(m.content ?? "").includes(morningCard)).length, runs, record()?.stage ?? null]
+                    };
+                } finally {
+                    putBack();
+                }
+            }
+        } finally {
+            putBack();
+            await setClock(clock);
+            if (KEY) await game.settings.set(MODULE_ID, KEY, {});
+            await settle();
+        }
+        const L = key => game.i18n.localize(`DRPG.Chapter.step.${key}`);
+        const failed = key => game.i18n.format("DRPG.Chapter.endFailed", { steps: listOf([L(key)]) });
+        equal(stableJson(read), stableJson({
+            faint: { errors: [failed("faint")], stopped: ["applying", ["tools", "clock", "morning", "hold"], ["faint"], []], after: [1, 1, "morning", 1, 2, "done"] },
+            clock: { errors: [failed("clock")], stopped: ["applying", ["faint", "tools"], ["clock"], ["morning"]], after: [1, 1, "morning", 1, 1, "done"] },
+            morning: { errors: [failed("morning")], stopped: ["applying", ["faint", "tools", "clock"], ["morning"], []], after: [1, 1, "morning", 1, 1, "done"] }
+        }), "a chapter's end stopped half way did not name the step it stopped at, keep its record, or finish once "
+            + "(per moment: the errors shown, the record after the stop [stage, done, failed, notRun], and after the Finish [sessions on, days on, the time of day, "
+            + "morning cards, the faint step's runs, the record's stage])");
+    }],
+
+    ["E42-T5 - while a stopped chapter's end stands no new end starts and the GM is told why; the GM panel's next line points at it; Finish the chapter's end in another phase, or on a GM who is not the primary, runs nothing; the End of chapter window offers Finish the chapter's end, Drop the rest and Cancel, Cancel the default; Cancel changes nothing, and Drop the rest leaves the record dropped and names on the GMs' card what stays undone (E42 C2, E42-10)", async () => {
+        /*
+         * E42 C2, 03.11.2026; E42-10. A chapter's end that stopped was gone the moment it stopped: the next End of chapter
+         * started a new end over it, and nothing at the table said one was half done. On the primary, a stopped end made
+         * for real: Clear the Faint Remnants and the next morning asked, the faint step's `run` stubbed to throw (no
+         * Remnant of the world touched), so the morning runs and the faint step is left. Then, in order: a new end with
+         * the next session asked, on the clock as it stands; the GM panel's next line (`nextStep`, the incident, the
+         * Eclipse and the round handed in as none); Finish in the Investigation; Finish with a GM whose id sorts first
+         * connected (this browser no longer the primary, as tier 2 "an armed trap whose project a reset takes ..." makes
+         * one); the End of chapter window answered Cancel, then Drop the rest. `DialogV2.wait` is stood in for the
+         * window's title alone and put back. Read: what each answered, the record's stage, the faint step's runs, the
+         * sessions on, the warnings told; the window's buttons [action, default] and whether it named the step it
+         * stopped at and the one done before it; after Drop, the record's undone steps, the GMs' card naming them, and
+         * whether an end still reads as stopped. Red at cef11276: no record, the new end moves the session, no line, no
+         * Finish, the window the end's form.
+         */
+        needs(env.primaryGm(), "the chapter's end runs on the primary GM alone (`applyChapterEnd`)");
+        const C = await import("./chapter.mjs");
+        const { nextStep } = await import("./gm-panel.mjs");
+        const { trialFloor } = await import("./trial-floor.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        const { phaseLabel } = await import("./clock.mjs");
+        const { listOf } = await import("./utils.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        must(!murderState() && !isEclipse() && !trialFloor(), "an incident, an Eclipse or a trial is open - the end would not run as asked, and this would measure nothing");
+        const faint = C.CHAPTER_END_STEPS.find(step => step.key === "faint");
+        must(faint, "the chapter's end has no faint step - this would measure nothing");
+        const KEY = SETTINGS.chapterEnd ?? null;
+        const record = () => KEY ? foundry.utils.deepClone(game.settings.get(MODULE_ID, KEY) ?? {}) : null;
+        const L = key => game.i18n.localize(`DRPG.Chapter.step.${key}`);
+        const title = game.i18n.localize("DRPG.Chapter.endTitle");
+        const stoppedLine = game.i18n.localize("DRPG.Panel.nextChapterEndStopped");
+        const clock = foundry.utils.deepClone(getClock());
+        const run = faint.run;
+        const warnNote = ui.notifications.warn, errorNote = ui.notifications.error, quiet = console.error;
+        const D = foundry.applications.api.DialogV2;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const FIRST = { id: "0E42T5firstGM000", name: "E42 T5 first GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const warns = [], windows = [];
+        let runs = 0, answer = "cancel";
+        const putBack = () => {
+            faint.run = run;
+            ui.notifications.warn = warnNote;
+            ui.notifications.error = errorNote;
+            console.error = quiet;
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            game.users.delete(FIRST.id);
+        };
+        const mark = () => ({ chapter: getClock().chapter, session: getClock().session, day: getClock().day ?? 1, phase: getClock().phase });
+        const read = {};
+        try {
+            await setClock({ ...clock, phase: "dailyLife" });
+            if (KEY) await game.settings.set(MODULE_ID, KEY, {});
+            await settle();
+            faint.run = async () => {
+                runs++;
+                throw new Error("E42-T5: the faint step throws");
+            };
+            ui.notifications.warn = (text, ...rest) => { warns.push(String(text)); return warnNote.call(ui.notifications, text, ...rest); };
+            ui.notifications.error = () => null;
+            console.error = () => {};
+            D.wait = async config => {
+                if (config?.window?.title !== title) return null;
+                const c = config.content, div = typeof c === "string" ? Object.assign(document.createElement("div"), { innerHTML: c }) : c;
+                const text = div?.textContent ?? "";
+                windows.push({ buttons: (config.buttons ?? []).map(b => [b.action, Boolean(b.default)]),
+                    stands: text.includes(game.i18n.format("DRPG.Chapter.endStands", { steps: listOf([L("faint")]) })),
+                    earlier: text.includes(game.i18n.format("DRPG.Chapter.doneEarlier", { steps: listOf([L("morning")]) })) });
+                return answer;
+            };
+            const start = mark();
+            await C.applyChapterEnd({ faint: true, nextMorning: true, opened: start });
+            await settle();
+            read.stopped = [record()?.stage ?? null, runs];
+
+            const before = mark();
+            const told = () => warns.includes(game.i18n.format("DRPG.Chapter.endStands", { steps: listOf([L("faint")]) }));
+            read.newEnd = [await C.applyChapterEnd({ nextSession: true, opened: before }) ?? null, getClock().session - before.session, told()];
+            await settle();
+
+            const line = nextStep(getClock(), { incident: false, eclipse: false, round: null });
+            read.panel = [line?.text === stoppedLine, line?.action ?? null];
+
+            const finish = typeof C.finishChapterEnd === "function" ? C.finishChapterEnd : async () => "no finishChapterEnd";
+            await setClock({ phase: "investigation" });
+            await settle();
+            const moved = game.i18n.format("DRPG.Chapter.endPhaseMoved", { opened: phaseLabel("dailyLife"), now: phaseLabel("investigation") });
+            read.otherPhase = [await finish() ?? null, runs, warns.includes(moved), record()?.stage ?? null];
+            await setClock({ phase: "dailyLife" });
+            await settle();
+
+            game.users.set(FIRST.id, FIRST);
+            try {
+                read.notPrimary = [await finish() ?? null, runs, record()?.stage ?? null];
+            } finally {
+                game.users.delete(FIRST.id);
+            }
+
+            answer = "cancel";
+            read.cancel = [await C.openChapterEndDialog() ?? null, runs, record()?.stage ?? null];
+            answer = "drop";
+            const seen = new Set(game.messages.map(m => m.id));
+            const dropped = await C.openChapterEndDialog();
+            await settle();
+            const droppedText = foundry.utils.escapeHTML(game.i18n.format("DRPG.Chapter.dropped", { steps: listOf([L("faint")]) }));
+            read.drop = [dropped ?? null, runs, record()?.stage ?? null, record()?.notRun ?? null,
+                game.messages.filter(m => !seen.has(m.id) && String(contentOf(m)).includes(droppedText)).length,
+                typeof C.chapterEndStopped === "function" ? C.chapterEndStopped() : "no chapterEndStopped",
+                nextStep(getClock(), { incident: false, eclipse: false, round: null })?.text === stoppedLine,
+                getClock().session - start.session];
+            read.windows = windows;
+        } finally {
+            putBack();
+            await setClock(clock);
+            if (KEY) await game.settings.set(MODULE_ID, KEY, {});
+            await settle();
+        }
+        const buttons = [["finish", false], ["drop", false], ["cancel", true]];
+        equal(stableJson(read), stableJson({
+            stopped: ["applying", 1],
+            newEnd: [null, 0, true],
+            panel: [true, "chapterEnd"],
+            otherPhase: [null, 1, true, "applying"],
+            notPrimary: [null, 1, "applying"],
+            cancel: [null, 1, "applying"],
+            drop: [["faint"], 1, "dropped", ["faint"], 1, null, false, 0],
+            windows: [{ buttons, stands: true, earlier: true }, { buttons, stands: true, earlier: true }]
+        }), "a stopped chapter's end did not hold off a new one, show in the panel's line and the window, refuse a Finish in another phase or "
+            + "off the primary, or drop as asked (stopped: [stage, faint runs]; newEnd: [answer, sessions on, told]; panel: [the stopped line, its action]; "
+            + "otherPhase and notPrimary: [answer, faint runs, (told,) stage]; cancel: [answer, runs, stage]; drop: [answer, runs, stage, undone, cards naming them, "
+            + "stopped after, the panel's stopped line after, sessions on]; windows: [buttons [action, default], names its stop, names what was done])");
     }],
     ...GRID
 ];

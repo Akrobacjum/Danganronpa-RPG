@@ -19,7 +19,7 @@ import { studentActors, actingStudents } from "./monokuma.mjs";
 import { dialogContent, error, plural, esc, primaryGmId, markLanguage } from "./utils.mjs";
 import { keepLive, alreadyOpen } from "./live.mjs";
 import { bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, sameSeason } from "./settings.mjs";
-import { bodiesToDiscover, announcedIn } from "./chapter.mjs";
+import { bodiesToDiscover, announcedIn, chapterEndStopped } from "./chapter.mjs";
 import { flagsHeldNow, itemsHeldNow } from "./sheet-audit.mjs";
 import { roomOfToken } from "./movement.mjs";
 import { keyPlanStatus, keysToPlace } from "./investigation.mjs";
@@ -713,7 +713,8 @@ async function openFailureLog() {
  *
  * @returns {{text: string, action: string|null}}
  */
-export function nextStep(clock, { setupList, incident = game.drpg?.murderState?.()?.active, eclipse = isEclipse(), round = roundOf(readyRecord(), clock) } = {}) {
+export function nextStep(clock, { setupList, incident = game.drpg?.murderState?.()?.active, eclipse = isEclipse(), round = roundOf(readyRecord(), clock),
+    endStopped = Boolean(chapterEndStopped()) } = {}) {
     const students = actingStudents();
     const stillActing = students.filter(a => actionsLeft(a) > 0);
 
@@ -732,6 +733,14 @@ export function nextStep(clock, { setupList, incident = game.drpg?.murderState?.
 
     if (eclipse) {
         return { text: game.i18n.localize("DRPG.Panel.nextEclipse"), action: "eclipse" };
+    }
+
+    /* A CHAPTER'S END THAT STOPPED PART WAY (E42 C2, 1.2.97; E42-10). It stands until it is finished or dropped, and no
+       new end starts meanwhile (chapter.mjs `applyChapterEnd`), so the line says so whatever the phase, and its "Do it"
+       opens End the chapter, which asks Finish the chapter's end, Drop the rest or Cancel. `endStopped` is the world's
+       unless handed (E42-T5). */
+    if (endStopped) {
+        return { text: game.i18n.localize("DRPG.Panel.nextChapterEndStopped"), action: "chapterEnd" };
     }
 
     if (clock.phase === "classTrial") {

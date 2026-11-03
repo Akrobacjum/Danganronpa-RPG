@@ -31812,6 +31812,63 @@ const INVARIANTS = [
             stableJson([["one", "two"], [false, false, true, true]]),
             "the report's card does not list the lines and say each group, the failed and the not run as warnings");
     }],
+    ["R1253 - the chapter's end moves the clock to targets its record holds (E42 C2, E42-09; audit S17-30): `endMoves(ending, choices, clock)` answers the next chapter and the next session as the ending's own plus one, out of the Investigation into Daily Life with them, and the next morning as the ending's day plus one, each only while the clock still reads the ending's value - nothing once it reads the target - and `endHeldPhase(record, clock)` reads a phase the end's own clock or trial step left as the end's, and any other as moved", async () => {
+        /*
+         * E42 C2, 03.11.2026; E42-09. The clock and morning steps read the clock as it stood at the step and moved it on
+         * (`clock.session + 1`, `getClock().day + 1`): run twice - a Finish after the work landed and before the record
+         * said so - they moved it twice. Now each target is the ending's own (the record's `ending`), and a counter or
+         * the day already moved is left alone. Driven on numbers: an ending in chapter 2, session 5, day 3 against the
+         * clock as the end found it, after each move landed and after both, from the Investigation, with one box ticked,
+         * with none; the reading HEAD's steps made (relative) is planted and must be named on the clock after both moves
+         * landed. Then the phase a Finish checks: the phase the record stands on, Daily Life after the end's own clock
+         * step left the Investigation or its trial step closed the trial with the record not saying so, and a phase
+         * moved by anybody else. Pure: nothing is read from the world or written. Red at cef11276: neither exists.
+         */
+        let C = null;
+        try { C = await import("./chapter.mjs"); } catch { C = null; }
+        must(typeof C?.endMoves === "function" && typeof C?.endHeldPhase === "function",
+            "chapter.mjs exports no endMoves or endHeldPhase - the chapter's end has no targets of its own to test");
+        const ending = { chapter: 2, session: 5, day: 3, phase: "dailyLife", stands: "dailyLife" };
+        const all = { nextChapter: true, nextSession: true, nextMorning: true };
+        const at = (chapter, session, day) => ({ chapter, session, day, phase: "dailyLife", timeOfDay: "night" });
+        const CASES = [
+            [ending, all, at(2, 5, 3), { clock: { chapter: 3, session: 6 }, morning: { day: 4 } }],
+            [ending, all, at(3, 6, 3), { clock: null, morning: { day: 4 } }],
+            [ending, all, { ...at(3, 6, 4), timeOfDay: "morning" }, { clock: null, morning: null }],
+            [ending, all, at(3, 5, 3), { clock: { session: 6 }, morning: { day: 4 } }],
+            [{ ...ending, phase: "investigation", stands: "investigation" }, all, { ...at(2, 5, 3), phase: "investigation" },
+                { clock: { chapter: 3, session: 6, phase: "dailyLife" }, morning: { day: 4 } }],
+            [ending, { nextSession: true }, at(2, 5, 3), { clock: { session: 6 }, morning: null }],
+            [ending, {}, at(2, 5, 3), { clock: null, morning: null }]
+        ];
+        const wrong = moves => CASES.map(([e, choices, clock, want], i) => [i, moves(e, choices, clock), want])
+            .filter(([, got, want]) => stableJson(got) !== stableJson(want)).map(([i]) => i);
+        const relative = (e, choices, clock) => {
+            const move = {};
+            if (choices.nextChapter) move.chapter = clock.chapter + 1;
+            if (choices.nextSession) move.session = clock.session + 1;
+            if (Object.keys(move).length && e.phase === "investigation") move.phase = "dailyLife";
+            return { clock: Object.keys(move).length ? move : null, morning: choices.nextMorning ? { day: (clock.day ?? 1) + 1 } : null };
+        };
+        ok(wrong(relative).includes(2), "the cases do not name the relative reading on a clock both moves already reached - they would pass a step that moves twice");
+        equal(stableJson(wrong(C.endMoves)), stableJson([]), "endMoves does not answer the ending's own targets, or moves a counter the clock already reads "
+            + "(the cases it answers wrongly, by index)");
+        const inv = { ending: { ...ending, phase: "investigation", stands: "investigation" }, choices: { nextSession: true }, done: [] };
+        const trial = { ending: { ...ending, phase: "classTrial", stands: "classTrial" }, choices: { endTrial: true }, done: [] };
+        equal(stableJson([
+            C.endHeldPhase({ ending, choices: all, done: [] }, at(2, 5, 3)),
+            C.endHeldPhase(inv, { ...at(2, 6, 3) }),
+            C.endHeldPhase(inv, { ...at(2, 5, 3) }),
+            C.endHeldPhase(inv, { ...at(2, 6, 3), phase: "classTrial" }),
+            C.endHeldPhase({ ...inv, done: ["clock"] }, at(2, 6, 3)),
+            C.endHeldPhase(trial, at(2, 5, 3)),
+            C.endHeldPhase({ ...trial, choices: {} }, at(2, 5, 3)),
+            C.endHeldPhase({ ending, choices: all, done: [] }, { ...at(2, 5, 3), phase: "classTrial" })
+        ]), stableJson(["dailyLife", "dailyLife", null, null, null, "dailyLife", null, null]),
+            "endHeldPhase does not read the phase the end's own step left as the end's, or reads a phase another hand moved as it "
+            + "(the record's own; out of the Investigation with the session moved; with it not moved; into a trial; with the clock step done; "
+            + "the trial closed by its step; with no trial asked; a trial opened over Daily Life)");
+    }],
 ];
 
 /**

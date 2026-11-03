@@ -32,7 +32,9 @@ export const WORLD_SECRET_MODULE = "danganronpa-rpg";
  * A module world setting with no row of its own here holds nothing the rule
  * keeps out, and `everySetting` reads it still: `documentLanguage` (E66 C1) holds a
  * language code alone; `readyRound` (E37 C3) holds a readiness round's user ids, the
- * GM who pressed and each player's Done or One moment - what the GM's window lists.
+ * GM who pressed and each player's Done or One moment - what the GM's window lists;
+ * `chapterEnd` (E42 C2) holds an End of chapter's step keys, the clock's numbers and
+ * phases, the window's boxes and the GM's id - nothing a player may not see.
  *
  * The rule. `settings` is keyed by a module world setting's key, without the
  * namespace: `fields` it may never hold at any depth, `empty` (it holds nothing at

@@ -822,6 +822,14 @@ export const SETTINGS = {
      */
     readyRound: "readyRound",
     /**
+     * The last End of chapter's record (E42 C2; chapter.mjs `chapterEndRecord`): `{ stage, by, at, opened, choices,
+     * ending, done, failed, notRun }`, or `{}`. World-scoped so the GM panel's next line and the End of chapter window
+     * read a stopped end on any GM's browser; written by the primary GM alone, inside chapter.mjs `applyChapterEnd`'s
+     * queue. Nothing secret: step keys, the clock's numbers and phases, the window's boxes and the GM's id
+     * (world-secrets.mjs names it).
+     */
+    chapterEnd: "chapterEnd",
+    /**
      * Who the Mastermind is, on GM browsers only.
      *
      * The single most important secret in the game, so it gets the strictest
@@ -2384,6 +2392,15 @@ export function registerSettings() {
         type: Object,
         default: {},
         onChange: () => onWorldChange(SETTINGS.readyRound)
+    });
+
+    // The End of chapter's record (E42 C2): the trial console and the GM panel follow it through sync.mjs `SYNC.trial`.
+    game.settings.register(MODULE_ID, SETTINGS.chapterEnd, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onWorldChange(SETTINGS.chapterEnd)
     });
 
     // Client-scoped, deliberately: see the note on SETTINGS.mastermind.

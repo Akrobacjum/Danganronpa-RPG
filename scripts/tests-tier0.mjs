@@ -19195,7 +19195,7 @@ const REGRESSIONS = [
             + "verdictCandidates and verdictRefusal; applies: an apply without verdictRefusal and verdictRunning; builders: a card or a summary built by hand)");
     }],
 
-    ["R1252 - the verdict, the Final Trial's verdict and the execution are step tables on the one runner (E42 C1c, E42-04, E42-06, E42-07; audit S17-30): `VERDICT_STEPS` and `VERDICT_NEEDS` as E70 left them (no \"executions\"), `FINAL_VERDICT_STEPS` the Final Trial's six keys in order, none of them `card`, `sentence` or an ordinary verdict's key, every key of both tables a step in `VERDICT_STEP` and a label in both languages, `verdictSteps` answering the Final Trial's table for a `final` record, and `runVerdict` and `carryOutSentence` running on steps.mjs `runSteps`", async () => {
+    ["R1252 - the verdict, the Final Trial's verdict, the execution and the chapter's end are step tables on the one runner (E42 C1c, E42-04, E42-06, E42-07; E42 C2, E42-08; audit S17-30): `VERDICT_STEPS` and `VERDICT_NEEDS` as E70 left them (no \"executions\"), `FINAL_VERDICT_STEPS` the Final Trial's six keys in order, none of them `card`, `sentence` or an ordinary verdict's key, every key of both tables a step in `VERDICT_STEP` and a label in both languages, `verdictSteps` answering the Final Trial's table for a `final` record, and `runVerdict` and `carryOutSentence` running on steps.mjs `runSteps`; `CHAPTER_END_STEPS` its nine keys in E11's order, the seven the GM's choices ask for, each labelled in both languages, run by `runChapterEnd` on `runSteps` with the phase held before every step (`stop`), its record saved (`save`) and its report through `stepsReport`", async () => {
         /*
          * E42 C1c, 02.11.2026; E42-04, E42-06, E42-07, audit S17-30. The ordinary verdict's steps were a table run by a
          * loop of its own (`runVerdict`), the Final Trial's verdict one function whose consequences logged and went on,
@@ -19245,6 +19245,27 @@ const REGRESSIONS = [
         }), "the verdicts' step tables are not as E70 left the ordinary one and E42 wrote the Final Trial's, or a loop is not the one runner "
             + "(ordinary, needs, final: the tables; finalForbidden: a Final key that is card, sentence, executions or an ordinary key; unrun: a key with no "
             + "step function; unlabelled: a key with no label or no text in a language; finalTable: verdictSteps answers the Final's; runners: a loop off runSteps)");
+        /* The chapter's end's half (E42 C2, 03.11.2026; E42-08). Its nine keys in E11's order (rule 4), the seven the GM's
+           choices ask for (`asked`: the tools and the hold go with the chapter's move and the phase, and are never named), a
+           label for each in both languages, and its loop (`runChapterEnd`, the end's and its Finish's) on `runSteps` with the
+           phase held before every step (`stop`), the record written after each (`save`) and the report through
+           `stepsReport`. Red at cef11276: `runChapterEnd` absent, `endChapterNow` a loop of its own. */
+        const chapter = stripComments(sources.get("chapter.mjs") ?? "");
+        must(chapter.length > 10000, "chapter.mjs was not read - the chapter's half measured nothing");
+        const { CHAPTER_END_STEPS } = await import("./chapter.mjs");
+        const runner = topLevelFunction(chapter, "runChapterEnd") ?? "";
+        equal(JSON.stringify({
+            keys: CHAPTER_END_STEPS.map(step => step.key),
+            asked: CHAPTER_END_STEPS.filter(step => typeof step.asked === "function").map(step => step.key),
+            unlabelled: CHAPTER_END_STEPS.map(step => step.key)
+                .filter(key => ["en", "pl"].some(code => typeof foundry.utils.getProperty(lang[code], `DRPG.Chapter.step.${key}`) !== "string")),
+            runner: [/\brunSteps\(\{/.test(runner), /\bstop:/.test(runner), /\bsave:/.test(runner), /\bstepsReport\(/.test(runner)]
+        }), JSON.stringify({
+            keys: ["reveal", "sweep", "faint", "keys", "tools", "clock", "trial", "morning", "hold"],
+            asked: ["reveal", "sweep", "faint", "keys", "clock", "trial", "morning"],
+            unlabelled: [], runner: [true, true, true, true]
+        }), "the chapter's end is not E11's nine steps on the one runner (keys in order; asked: those the choices ask for; unlabelled: a key with no "
+            + "text in a language; runner: runChapterEnd on runSteps, with stop, save and stepsReport)");
     }],
 ];
 

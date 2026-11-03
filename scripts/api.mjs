@@ -857,6 +857,8 @@ export const DrpgApi = {
     // The same screen without the screen: what a macro, the console or a test
     // needs. See `applyChapterEnd` in chapter.mjs for why it is a function.
     applyChapterEnd: (...a) => import("./chapter.mjs").then(m => m.applyChapterEnd(...a)),
+    // A chapter's end that stopped, finished from its record, or `{ drop: true }` to leave the rest undone (E42 C2).
+    finishChapterEnd: (...a) => import("./chapter.mjs").then(m => m.finishChapterEnd(...a)),
 
     /* ---- the GM's Investigation workshop -----------------------------------
      * Five clues, scaled trivial to desperate, and a read-out of who has

@@ -240,6 +240,7 @@
     "bodyDiscoveryDialog": "function",
     "chapterEndDialog": "function",
     "applyChapterEnd": "function",
+    "finishChapterEnd": "function",
     "keyPlan": "function",
     "setKeyPlan": "function",
     "keyPlanStatus": "function",
