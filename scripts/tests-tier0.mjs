@@ -19230,7 +19230,7 @@ const REGRESSIONS = [
             + "verdictCandidates and verdictRefusal; applies: an apply without verdictRefusal and verdictRunning; builders: a card or a summary built by hand)");
     }],
 
-    ["R1252 - the verdict, the Final Trial's verdict, the execution and the chapter's end are step tables on the one runner (E42 C1c, E42-04, E42-06, E42-07; E42 C2, E42-08; audit S17-30): `VERDICT_STEPS` and `VERDICT_NEEDS` as E70 left them (no \"executions\"), `FINAL_VERDICT_STEPS` the Final Trial's six keys in order, none of them `card`, `sentence` or an ordinary verdict's key, every key of both tables a step in `VERDICT_STEP` and a label in both languages, `verdictSteps` answering the Final Trial's table for a `final` record, and `runVerdict` and `carryOutSentence` running on steps.mjs `runSteps`; `CHAPTER_END_STEPS` its nine keys in E11's order, the seven the GM's choices ask for, each labelled in both languages, run by `runChapterEnd` on `runSteps` with the phase held before every step (`stop`), its record saved (`save`) and its report through `stepsReport`", async () => {
+    ["R1252 - the verdict, the Final Trial's verdict, the execution and the chapter's end are step tables on the one runner (E42 C1c, E42-04, E42-06, E42-07; E42 C2, E42-08; audit S17-30): `VERDICT_STEPS` and `VERDICT_NEEDS` as E70 left them (no \"executions\"), the Final Trial's execution and Mastermind's step needing its sentence, `FINAL_VERDICT_STEPS` the Final Trial's six keys in order, none of them `card`, `sentence` or an ordinary verdict's key, every key of both tables a step in `VERDICT_STEP` and a label in both languages, `verdictSteps` answering the Final Trial's table for a `final` record, and `runVerdict` and `carryOutSentence` running on steps.mjs `runSteps`; `CHAPTER_END_STEPS` its nine keys in E11's order, the seven the GM's choices ask for, each labelled in both languages, run by `runChapterEnd` on `runSteps` with the phase held before every step (`stop`), its record saved (`save`) and its report through `stepsReport`", async () => {
         /*
          * E42 C1c, 02.11.2026; E42-04, E42-06, E42-07, audit S17-30. The ordinary verdict's steps were a table run by a
          * loop of its own (`runVerdict`), the Final Trial's verdict one function whose consequences logged and went on,
@@ -19239,7 +19239,8 @@ const REGRESSIONS = [
          * `afterVerdictCard` as a chapter's verdict told, one keyed "sentence" by trial-progress.mjs `sentenceOf` as an
          * ordinary sentence, and a key shared with the ordinary table would mix the two in a Finish. The reader is shown
          * the tree with a Final step keyed "card" planted, which it must name. Nothing is written. Red at C1b's tree: no
-         * `FINAL_VERDICT_STEPS`, and neither loop on `runSteps`. C2 adds the chapter's end's half.
+         * `FINAL_VERDICT_STEPS`, and neither loop on `runSteps`. C2 adds the chapter's end's half. E42 fix FG1 (03.11.2026;
+         * the end review's C-m1): the Final Trial's execution and Mastermind's step need its sentence (`VERDICT_NEEDS`).
          */
         const sources = new Map(await otherSources());
         const FINAL = ["finalSentence", "finalCard", "finalClose", "finalExecution", "finalLevelUps", "mastermind"];
@@ -19275,7 +19276,7 @@ const REGRESSIONS = [
             "the reader does not name a Final step keyed \"card\" planted in FINAL_VERDICT_STEPS");
         equal(JSON.stringify(readOf(vote)), JSON.stringify({
             ordinary: { correct: ["sentence", "card", "levelUps", "overflow"], wrong: ["sentence", "card", "offers", "despair", "rule", "overflow"] },
-            needs: { card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence" },
+            needs: { card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence", finalExecution: "finalSentence", mastermind: "finalSentence" },
             final: FINAL, finalForbidden: [], unrun: [], unlabelled: [], finalTable: true, runners: []
         }), "the verdicts' step tables are not as E70 left the ordinary one and E42 wrote the Final Trial's, or a loop is not the one runner "
             + "(ordinary, needs, final: the tables; finalForbidden: a Final key that is card, sentence, executions or an ordinary key; unrun: a key with no "

@@ -768,10 +768,13 @@ export const ballotStore = defineGmStore({
  * their `advances` before the row's write, null once its `given` is written (verdict.mjs `keepGiving`) - and
  * `finalGiven`, whom the Final Trial's batch has given what waited, `{ at, ids }` (verdict.mjs `finalVerdictLevelUps`):
  * the world's record names nobody in a Final Trial, so a Finish reads them here. Both counts and ids, the GMs' alone.
+ * And the Final verdict's outcome (E42 fix FG1, 03.11.2026; the end review's S-M1): `finalOutcome`, `{ at, executed }`,
+ * whether it sentenced the Mastermind, kept from the record's first write until the card has told the table, when the
+ * world's record takes `sentencePending` (verdict.mjs `keepFinalOutcome`, `finalContext`).
  */
 export const verdictStore = defineGmStore({
     name: "verdict", key: SETTINGS.gmVerdict,
-    kind: "record", fields: ["at", "blackenedIds", "finalAt", "finalSentenced", "giving", "finalGiven"], resetGroup: "trialProgress", backup: true, sync: true
+    kind: "record", fields: ["at", "blackenedIds", "finalAt", "finalSentenced", "giving", "finalGiven", "finalOutcome"], resetGroup: "trialProgress", backup: true, sync: true
 });
 
 /**

@@ -467,7 +467,16 @@ const VERDICT_STEPS = {
     correct: ["sentence", "card", "levelUps", "overflow"],
     wrong: ["sentence", "card", "offers", "despair", "rule", "overflow"]
 };
-const VERDICT_NEEDS = { card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence" };
+/*
+ * THE FINAL TRIAL'S EXECUTION AND PICK WAIT ON ITS SENTENCE (E42 fix FG1, 03.11.2026; the end review's C-m1). A Final
+ * verdict's sentence that failed was followed by its execution, which found no sentence, and by the clearing of the
+ * pick, so a Finish knew the Mastermind nowhere and failed at the sentence every time. Both wait on it now: the pick
+ * stands for the Finish, which writes the sentence first (tier 2 E42-T11).
+ */
+const VERDICT_NEEDS = {
+    card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence",
+    finalExecution: "finalSentence", mastermind: "finalSentence"
+};
 
 /*
  * THE FINAL TRIAL'S VERDICT, STEP BY STEP (E42 C1c, 1.2.97; E42-06, audit S17-30). It was one function: its record
@@ -529,7 +538,8 @@ async function runVerdict(record, blackenedIds, final = null) {
         label: final ? "Final Trial's verdict" : "verdict", context, record,
         steps: verdictSteps(record).map(key => ({
             key, needs: VERDICT_NEEDS[key],
-            run: async () => { await VERDICT_STEP[key](context); },
+            // A step that answers false did not do its work (`verdictDespair`'s fill nobody wrote, E42 fix FG1): failed.
+            run: async () => ((await VERDICT_STEP[key](context)) === false ? false : undefined),
             after: key === "card" ? () => verdictExecutedNow(context) : null
         })),
         save: async (run, { end = false } = {}) => {
@@ -810,10 +820,18 @@ async function verdictOffers(context) {
     }));
 }
 
-/* A wrong verdict: every Monokuma fills their Despair to maximum. */
+/*
+ * A wrong verdict: every Monokuma fills their Despair to maximum.
+ *
+ * A FILL NOBODY WROTE IS A STEP THAT FAILED (E42 fix FG1, 03.11.2026; the end review's C-M1 = G-F1, STATUS Open 2).
+ * `fillAllDespair` answers null when this GM is not the primary and the primary's answer is refused or does not come
+ * (despair.mjs `askAll`), and the step read done whatever it answered: the GMs were told the pools were filled, and no
+ * console offered a Finish over pools as they were. It fails on null now, and the line is said only after a fill that
+ * was written; Finish the verdict runs it again, and a second fill writes the same maxima (tier 2 E42-T10).
+ */
 async function verdictDespair(context) {
     if (!TRIAL.wrong.fillDespair) return;
-    await fillAllDespair();
+    if ((await fillAllDespair()) == null) return false;
     context.lines.push(game.i18n.format("DRPG.Vote.despairFilled", {
         who: monokumas().map(poolLabel).join(", ")
     }));
@@ -1110,22 +1128,48 @@ async function giveFinalVerdict({ correct, accusedId, alreadyDead }) {
 
        AND THE RECORD A FINISH READS (E42 C1c, 1.2.97; E42-06). The steps follow on the one runner (`runVerdict`,
        `FINAL_VERDICT_STEPS`), the record written after each, its stage "done" once every step is; one that stops
-       leaves it "applying" with the steps not done, and Finish the verdict runs them (`finishVerdict`). Whether the
-       sentence waits (`sentencePending`) is written here with the lock, so a Finish knows it without a name: the
-       record holds that boolean and the step keys, as it held `sentencePending` since E70 C4, and never `correct`,
-       an id or a name (the Mastermind's identity is the GMs'; mastermind.mjs's header). */
-    const record = { stage: "applying", final: true, by: game.user.id, at, done: [], failed: [], sentencePending: executed };
+       leaves it "applying" with the steps not done, and Finish the verdict runs them (`finishVerdict`). The record
+       holds the step keys, and never `correct`, an id or a name (the Mastermind's identity is the GMs';
+       mastermind.mjs's header).
+
+       NOR THE OUTCOME BEFORE THE CARD (E42 fix FG1, 03.11.2026; the end review's S-M1). C1c wrote whether the sentence
+       waits (`sentencePending`) with this lock, so a Finish knew it without a name - and every console reads this
+       record, and `sentencePending` true says the Mastermind was named and lives, before the card tells the table
+       (at c0b2118c it came with the record's "done", after the card). This write is c0b2118c's shape again; the
+       outcome waits in the GMs' store (`keepFinalOutcome`), and the card's step writes `sentencePending` into the
+       record once the card is posted (`finalVerdictCard`). Tier 2 E41-T2 reads the record in the card's seam, E42-T11
+       a Finish of a verdict stopped before its card. */
+    const record = { stage: "applying", final: true, by: game.user.id, at, done: [], failed: [] };
     await setTrialProgress({ verdictApplied: true, verdict: record });
+    await keepFinalOutcome(at, executed);
     await runVerdict(record, [], { executed, dead, mastermind: { id: mastermind.id, name: mastermind.name }, accused: accused?.name ?? null });
     return { executed, dead };
 }
 
 /*
+ * THE FINAL VERDICT'S OUTCOME, KEPT FOR A FINISH (E42 fix FG1, 03.11.2026; the end review's S-M1): whether it sentenced
+ * the Mastermind, `finalOutcome: { at, executed }` in the GMs' store (gm-stores.mjs `verdictStore`), never in the
+ * world's record before the card. Written after the lock, so the lock is still the first write, as the ordinary
+ * verdict keeps its Blackened (`keepVerdictBlackened`); a write that fails is logged, and a Finish before the card
+ * then finds no outcome and says so at the step that needs it.
+ */
+async function keepFinalOutcome(at, executed) {
+    try {
+        await verdictStore.whenHydrated();
+        await verdictStore.patch(RECORD, { finalOutcome: { at, executed: Boolean(executed) } });
+    } catch (err) {
+        error("Could not keep the Final Trial's verdict for a Finish", err);
+    }
+}
+
+/*
  * THE FINAL VERDICT'S CONTEXT FOR A FINISH (E42 C1c; E42-06). The record names nobody, so a Finish reads the rest
- * off the GMs' side: whether the sentence waits off the record (`sentencePending`), the Mastermind off the pick while
- * it stands (`mastermindActor`), and once its step cleared it off this browser's `verdictStore` (`finalSentenced`
- * under the verdict's `finalAt`, held only when the verdict sentenced them). Neither: the steps that need no name
- * run, the sentence's step fails (`finalVerdictSentence`), and the summary names nobody. The accused is not kept.
+ * off the GMs' side: whether the sentence waits off the record (`sentencePending`, written once the card is posted)
+ * or, before the card, off the GMs' store (`finalOutcome` under the verdict's `at`, E42 fix FG1), the Mastermind off
+ * the pick while it stands (`mastermindActor`), and once its step cleared it off this browser's `verdictStore`
+ * (`finalSentenced` under the verdict's `finalAt`, held only when the verdict sentenced them). No Mastermind: the
+ * steps that need no name run, the sentence's step fails (`finalVerdictSentence`), and the summary names nobody. No
+ * outcome (`executed` null): the sentence's and the card's steps fail. The accused is not kept.
  */
 async function finalContext(record) {
     const { mastermindActor } = await import("./mastermind.mjs");
@@ -1133,7 +1177,9 @@ async function finalContext(record) {
     const kept = verdictStore.record();
     const id = mastermindActor()?.id ?? (kept.finalAt === record.at ? kept.finalSentenced?.[0] : null) ?? null;
     const actor = id ? game.actors.get(id) : null;
-    const executed = Boolean(record.sentencePending);
+    const outcome = typeof record.sentencePending === "boolean" ? record.sentencePending
+        : kept.finalOutcome?.at === record.at ? kept.finalOutcome.executed : null;
+    const executed = typeof outcome === "boolean" ? outcome : null;
     return { executed, dead: Boolean(actor && !executed && isDeadForGm(actor)), mastermind: actor ? { id: actor.id, name: actor.name } : null,
         accused: null };
 }
@@ -1161,10 +1207,12 @@ function finalSummary(final, report) {
  * names nobody (the owner's Q2 answer, 27.10.2026; mastermind.mjs's header): `finalSentenced` under the verdict's
  * `at` (`finalAt`). A verdict given after End the trial is carried out at once (`finalVerdictExecution`).
  * A write that fails fails the step since E42 C1c (it was logged and passed over, and the trial's end then told the
- * GMs the sentence was missing): the verdict stops here, and Finish the verdict writes it.
+ * GMs the sentence was missing): the verdict stops here - its execution and the clearing of the pick wait on it since
+ * E42 fix FG1 (`VERDICT_NEEDS`) - and Finish the verdict writes it.
  */
 async function finalVerdictSentence(context) {
     const { executed, mastermind } = context.final;
+    if (executed === null) throw new Error("the Final verdict's outcome is not known on this browser");
     if (!executed) return;
     if (!mastermind?.id) throw new Error("the Mastermind sentenced is not known on this browser");
     await verdictStore.whenHydrated();
@@ -1174,17 +1222,21 @@ async function finalVerdictSentence(context) {
 /*
  * ONE CARD (E41 C10b; S17-28): the ordinary verdict's builder, with the Mastermind's words. It carries the verdict's
  * `at` (`verdictAt`, a time) since E42 C1c, so a Finish after a GM left between the card and its record posts no
- * second banner (`verdictCardPosted`, as the ordinary card's step reads it).
+ * second banner (`verdictCardPosted`, as the ordinary card's step reads it). Once the card is posted the record takes
+ * whether the sentence waits (`sentencePending`, saved with the step's done; E42 fix FG1): the table has just read it.
  */
 async function finalVerdictCard(context) {
-    if (verdictCardPosted(context.record)) return;
     const { executed } = context.final;
-    await announce(verdictCardContent({
-        banner: executed ? "DRPG.Mastermind.defeatedBanner" : "DRPG.Mastermind.revealedBanner",
-        lines: [game.i18n.localize(executed ? "DRPG.Mastermind.defeatedText" : "DRPG.Mastermind.revealedText")],
-        flags: { [MODULE_ID]: { verdictAt: context.record.at ?? null } },
-        tone: "objection"
-    }));
+    if (executed === null) throw new Error("the Final verdict's outcome is not known on this browser");
+    if (!verdictCardPosted(context.record)) {
+        await announce(verdictCardContent({
+            banner: executed ? "DRPG.Mastermind.defeatedBanner" : "DRPG.Mastermind.revealedBanner",
+            lines: [game.i18n.localize(executed ? "DRPG.Mastermind.defeatedText" : "DRPG.Mastermind.revealedText")],
+            flags: { [MODULE_ID]: { verdictAt: context.record.at ?? null } },
+            tone: "objection"
+        }));
+    }
+    context.record = { ...context.record, sentencePending: executed };
 }
 
 /*

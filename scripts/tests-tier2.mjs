@@ -2646,8 +2646,8 @@ async function verdictWindow(record, act) {
  * `mastermind` picked through the store, `known` a known Blackened of this chapter (a register row naming no victim),
  * `dead` a student the table knows dead (the flag), and the trial's record over `withVerdictOpen`'s with `record`
  * merged in. Every window is answered by `answer(cfg)` and kept in `windows`; `fresh()` is the messages posted since.
- * The flag of the dead, the register row, the Final Trial's sentence in the GMs' store, the pick, the messages posted
- * and the clock are put back. Answers what `run` answered.
+ * The flag of the dead, the register row, the Final Trial's sentence and outcome in the GMs' store, the pick, the messages
+ * posted and the clock are put back. Answers what `run` answered.
  */
 async function withVerdictFixture({ mastermind = null, final = false, known = null, dead = null, record = {}, answer = () => null }, run) {
     const V = await import("./vote.mjs");
@@ -2678,6 +2678,8 @@ async function withVerdictFixture({ mastermind = null, final = false, known = nu
         if (dead?.getFlag(MODULE_ID, FLAGS.deceased)) await dead.unsetFlag(MODULE_ID, FLAGS.deceased);
         if (known && blackenedStore.has(known.id)) await blackenedStore.drop(known.id);
         await verdictStore.patch(RECORD, { finalAt: kept.finalAt ?? null, finalSentenced: kept.finalSentenced ?? [] });
+        // The Final verdict's outcome, kept for a Finish since E42 fix FG1.
+        if ((verdictStore.spec?.fields ?? []).includes("finalOutcome")) await verdictStore.patch(RECORD, { finalOutcome: kept.finalOutcome ?? null });
         if ((mastermindStore.record()?.actorId ?? null) !== pickBefore) await mastermindStore.patch("record", { actorId: pickBefore });
         for (const m of game.messages.filter(m => !before.has(m.id))) {
             try { await m.delete(); } catch { /* already gone */ }
@@ -79732,6 +79734,10 @@ const SCENARIOS = [
          * up, the Mastermind picked again), it must refuse a second Final verdict, and, a Final verdict in progress, offer
          * no Finish (`verdictStopped`), whose steps are the ordinary verdict's. Red at 69f8f661: the record in the seam
          * read no verdict, and the second Final verdict ran and posted its banner.
+         *
+         * E42 fix FG1 (03.11.2026; the end review's S-M1): the record in that seam holds no outcome either - whether the
+         * sentence waits (`sentencePending`) says whether the Mastermind was named and lives, and the card has not told
+         * the table yet. Red at 7129a316: the seam's record held `sentencePending`.
          */
         const [accused] = await verdictCast(1);
         const [mastermind] = cast(1);
@@ -79803,7 +79809,7 @@ const SCENARIOS = [
                 }
                 await settle();
                 const secondView = [seen.verdictApplied ?? null, seen.verdict?.stage ?? null, seen.verdict?.final ?? null,
-                    ["executedIds", "correct", "accusedId", "sentenced"].filter(key => key in (seen.verdict ?? {})), stopped, elsewhere,
+                    ["executedIds", "correct", "accusedId", "sentenced", "sentencePending"].filter(key => key in (seen.verdict ?? {})), stopped, elsewhere,
                     warned.slice(from), cards() - cardsBefore];
 
                 // Outside a Final Trial, a verdict applied: the ordinary verdict's API is refused.
@@ -80685,6 +80691,247 @@ const SCENARIOS = [
         }), "a reset that stopped left no unfinished record, the next window did not name it, ticked more than the group that did not finish or wrote the remembered exceptions, "
             + "its reset did not write its record done, or the window after it did not open on the remembered exceptions (first: failed and the record; second: ticks, line, cleared, record, "
             + "exceptions unchanged; third: ticks, line)");
+    }],
+    ["E42-T10 - a wrong verdict given on a GM that is not the primary, whose ask to fill the Despair pools the primary refuses once, stops at its Despair step: no GMs' line says the pools were filled, the record reads \"applying\" with `despair` failed and Finish is offered; Finish the verdict, on the primary, fills them and writes the record done, and a second fill changes nothing (E42 fix FG1; the end review's C-M1 = G-F1, STATUS Open 2)", async () => {
+        /*
+         * E42 fix FG1, 03.11.2026; the end review's C-M1 = G-F1 (STATUS Open 2). `verdictDespair` awaited `fillAllDespair()`
+         * and passed its answer over, and that answer is null when this GM is not the primary and the primary's answer to
+         * `despair.all` is refused or does not come (despair.mjs `askAll`): the step was filed done, the GMs were told
+         * "Despair filled to maximum" and no console offered a Finish, with every pool as it was. E37-T8's shape: a second
+         * GM is a user set in the users' list (`A`, a Gamemaster whose id sorts first, so the primary while it is there);
+         * every request of the bridge's table this GM sends it is read off the socket and judged on this browser as the
+         * primary judges it, `A` out of the list for the judgement, and the answers are handed to this browser's listeners
+         * as A's - all but the first `despair.all`, answered with the refusal the primary's runner sends (`tellRefused`).
+         * The headless harness has one GM; `env.primaryGm` holds that this browser is the one A is set beside. A wrong
+         * verdict that executes nobody and names no Blackened, over a Class Trial (`withVerdictFixture`), this GM's pool at
+         * 1; every window answered as Cancel answers it. Read: whether `despair.all` was sent to A, the record (stage,
+         * failed, `despair` done), this GM's pool, and whether a GMs' whisper since says the pools were filled; then, A
+         * gone, Finish the verdict: the record and the pool; then the fill asked once more: the pools and the owed rows
+         * unchanged. The pools are put back. Red at 7129a316: the record "done" with `despair` done, the pool at 1 and the
+         * line in the whisper.
+         */
+        needs(env.primaryGm(), "the second GM is set beside the primary GM, which this browser is not");
+        const G = await import("./bridge-guards.mjs");
+        const D = await import("./despair.mjs");
+        const V = await import("./vote.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { despairOwedStore } = await import("./gm-stores.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const { TRIAL } = await import("./config.mjs");
+        must(TRIAL.wrong.fillDespair, "a wrong verdict fills no pool in this build - this would measure nothing");
+        const me = game.user.id, max = D.despairMax();
+        must(D.monokumas().some(u => u.id === me), "this GM holds no Despair pool - this would measure nothing");
+        must(max > 1, `a pool holds ${max} - a fill from 1 would measure nothing`);
+        const EVENT = `module.${MODULE_ID}`;
+        const A = { id: "!E42T10primaryGM", name: "E42 T10 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        must(!game.users.get(A.id), "the suite's own user is already in the list - this would measure nothing");
+        const arrive = () => game.users.set(A.id, A);
+        const depart = () => game.users.delete(A.id);
+        const pools = foundry.utils.deepClone(getSetting(SETTINGS.despairPools) ?? {});
+        const filledWords = game.i18n.localize("DRPG.Vote.despairFilled").split("{who}")[0];
+        const sent = [], queued = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        let inPlay = false, refuse = 1, running = true;
+        socket.emit = function (event, packet, options, ...rest) {
+            const to = options?.recipients ?? [];
+            if (inPlay && event === EVENT && Object.hasOwn(BRIDGE_ACTIONS, packet?.action ?? "") && to.includes(A.id)) {
+                sent.push(packet.action);
+                queued.push(packet);
+                return socket;
+            }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const drain = async () => {
+            for (const packet of queued.splice(0)) {
+                const replies = [], push = (who, reply) => replies.push(reply);
+                if (packet.action === "despair.all" && refuse > 0) {
+                    refuse--;
+                    G.tellRefused(me, packet.action, packet.requestId ?? null, "refused", push);
+                } else {
+                    depart();
+                    try {
+                        await G.judge(BRIDGE_ACTIONS, packet, me, { send: push });
+                    } finally {
+                        if (inPlay) arrive();
+                    }
+                }
+                for (const reply of replies) for (const listener of [...socket.listeners(EVENT)]) listener(reply, A.id);
+            }
+        };
+        const quiet = console.error, warn = ui.notifications.warn, error = ui.notifications.error;
+        let read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, { ...pools, [me]: 1 });
+            await settle();
+            read = await withVerdictFixture({}, async ({ fresh }) => {
+                inPlay = true;
+                arrive();
+                must(!isPrimaryGm(), "with the second GM in the list this browser is still the primary - this would measure nothing");
+                const pump = (async () => {
+                    while (running || queued.length) {
+                        if (queued.length) await drain();
+                        else await wait(20);
+                    }
+                })();
+                console.error = () => {};
+                ui.notifications.warn = () => {};
+                ui.notifications.error = () => {};
+                try {
+                    await V.applyVerdict({ correct: false, executedIds: [], blackenedIds: [] });
+                    await settle();
+                } finally {
+                    running = false;
+                    await pump;
+                    inPlay = false;
+                    depart();
+                    console.error = quiet;
+                    ui.notifications.warn = warn;
+                    ui.notifications.error = error;
+                }
+                await settle();
+                const p = V.trialProgress().verdict;
+                const said = await Promise.all(fresh().filter(m => m.whisper?.length).map(m => wordsOf(m, 2000)));
+                const whispered = said.filter(words => String(words ?? "").includes(filledWords)).length;
+                const stopped = [sent.includes("despair.all"), p?.stage ?? null, p?.failed ?? null, (p?.done ?? []).includes("despair"),
+                    D.getDespair(me), whispered, V.verdictStopped() ?? null];
+                await V.finishVerdict();
+                await settle();
+                const q = V.trialProgress().verdict;
+                const finished = [q?.stage ?? null, q?.failed ?? null, D.getDespair(me)];
+                const before = stableJson([getSetting(SETTINGS.despairPools), despairOwedStore.entries()]);
+                await D.fillAllDespair();
+                await settle();
+                return { stopped, finished, again: stableJson([getSetting(SETTINGS.despairPools), despairOwedStore.entries()]) === before };
+            });
+        } finally {
+            running = false;
+            inPlay = false;
+            depart();
+            console.error = quiet;
+            ui.notifications.warn = warn;
+            ui.notifications.error = error;
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, pools);
+            await settle();
+            D.renderDespairBar();
+        }
+        equal(stableJson(read), stableJson({
+            stopped: [true, "applying", ["despair"], false, 1, 0, game.i18n.localize("DRPG.Vote.verdictSteps.despair")],
+            finished: ["done", [], max],
+            again: true
+        }), "a wrong verdict whose fill the primary refused filed its Despair step done or told the GMs the pools were filled, its Finish did not fill them, "
+            + "or a second fill moved something (stopped: despair.all sent to the primary, stage, failed, despair done, this GM's pool, whispers saying filled, "
+            + "the stopped steps named; finished: stage, failed, the pool; again: a second fill left the pools and the owed rows as they were)");
+    }],
+
+    ["E42-T11 - a Final verdict that stops before its card or at its sentence keeps its outcome out of the world's record and finishes from the GMs' side: its card refused once, the record holds no `sentencePending` until Finish the verdict posts the card the verdict decided; its sentence's step failing once, its execution and the Mastermind's step wait for it, the pick stands, and Finish writes the sentence and clears the pick (E42 fix FG1; the end review's S-M1 and C-m1)", async () => {
+        /*
+         * E42 fix FG1, 03.11.2026; the end review's S-M1 and C-m1. S-M1: E42 C1c wrote whether the Final Trial's sentence
+         * waits (`sentencePending`, true when the Mastermind was named and alive) into the world's record with its first
+         * write, the lock - before the sentence and before the card that tells the table - and every console reads that
+         * record, so a player's read between the two learnt the outcome (at c0b2118c it came with the record's "done"
+         * write, after the card). The record's first write is c0b2118c's shape again, the outcome waits in the GMs' store
+         * (`verdictStore.finalOutcome`, under the verdict's `at`), and the record takes it once the card's step is done.
+         * C-m1: the steps after the sentence did not wait on it, so a sentence that failed was followed by the execution and
+         * the clearing of the pick, and every Finish then failed at the sentence, the Mastermind known nowhere. The
+         * execution and the Mastermind's step need the sentence now (`VERDICT_NEEDS`). Two correct Final verdicts on this
+         * GM over a Final Trial in its phase (a Mastermind through the store, the flag up; `withVerdictFixture`), the
+         * Mastermind the accused, so the sentence waits for the trial's end and nobody dies; every window answered as
+         * Cancel answers it. The first: the card's message refused once (`ChatMessage.create` throws for its banner). Read:
+         * the record's stage, failed and whether it holds `sentencePending`; after Finish the verdict, the banners posted,
+         * whether the one posted is the executed one's, the record's stage and `sentencePending`. The second, the record,
+         * the flag and the pick put back: the GMs' store refuses the sentence's write once. Read: stage, failed, the steps
+         * not done, the pick; after Finish: stage, failed, the sentence kept for this verdict, the pick. The sentence,
+         * the outcome, the pick, the messages and the clock are put back. Red at 7129a316: `sentencePending` in the
+         * record at the first stop; at the second the pick cleared, and Finish failed at the sentence again.
+         */
+        needs(env.primaryGm(), "a Finish of the Final Trial's verdict runs on the verdict's GM, which this browser is to be");
+        const [mastermind] = cast(1);
+        must(mastermind, "no living student to be the Mastermind");
+        const V = await import("./vote.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { mastermindStore } = S;
+        const banners = ["DRPG.Mastermind.defeatedBanner", "DRPG.Mastermind.revealedBanner"].map(key => game.i18n.localize(key));
+        const create = ChatMessage.create, ownCreate = Object.getOwnPropertyDescriptor(ChatMessage, "create");
+        const patch = S.verdictStore.patch, ownPatch = Object.getOwnPropertyDescriptor(S.verdictStore, "patch");
+        // Both refusals taken off before the fixture puts the GMs' store back.
+        const putBack = () => {
+            if (ownCreate) Object.defineProperty(ChatMessage, "create", ownCreate); else delete ChatMessage.create;
+            if (ownPatch) Object.defineProperty(S.verdictStore, "patch", ownPatch); else delete S.verdictStore.patch;
+        };
+        const quiet = console.error;
+        const correct = { correct: true, accusedId: mastermind.id };
+        const play = async ({ fresh }) => {
+            const bannersOf = () => fresh().filter(m => banners.some(b => String(m.content ?? "").includes(b)));
+            let refuseCard = 1;
+            ChatMessage.create = async function (data, ...rest) {
+                if (refuseCard > 0 && banners.some(b => String(data?.content ?? "").includes(b))) {
+                    refuseCard--;
+                    throw new Error("E42-T11: the card's message is refused once");
+                }
+                return create.call(this, data, ...rest);
+            };
+            console.error = () => {};
+            await game.drpg.applyFinalVerdict(correct);
+            console.error = quiet;
+            await settle();
+            const p = V.trialProgress().verdict;
+            const card = [p?.stage ?? null, p?.failed ?? null, "sentencePending" in (p ?? {}), bannersOf().length];
+            await V.finishVerdict();
+            await settle();
+            const q = V.trialProgress().verdict;
+            const posted = bannersOf();
+            card.push(posted.length, posted.length === 1 && String(posted[0].content).includes(banners[0]), q?.stage ?? null, q?.sentencePending ?? null);
+
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), verdictApplied: false, verdict: null });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), finalTrial: true });
+            await mastermindStore.patch("record", { actorId: mastermind.id, room: null });
+            await settle();
+            let refuseSentence = 1;
+            S.verdictStore.patch = function (key, fields, ...rest) {
+                if (refuseSentence > 0 && fields && "finalSentenced" in fields) {
+                    refuseSentence--;
+                    throw new Error("E42-T11: the sentence's write is refused once");
+                }
+                return patch.call(this, key, fields, ...rest);
+            };
+            console.error = () => {};
+            await game.drpg.applyFinalVerdict(correct);
+            console.error = quiet;
+            await settle();
+            const r = V.trialProgress().verdict;
+            const sentence = [r?.stage ?? null, r?.failed ?? null, ["finalExecution", "mastermind"].filter(step => !(r?.done ?? []).includes(step)),
+                mastermindStore.record()?.actorId === mastermind.id];
+            console.error = () => {};
+            await V.finishVerdict();
+            console.error = quiet;
+            await settle();
+            const s = V.trialProgress().verdict, store = S.verdictStore.record();
+            sentence.push(s?.stage ?? null, s?.failed ?? null, store.finalAt === s?.at && (store.finalSentenced ?? []).includes(mastermind.id),
+                mastermindStore.record()?.actorId ?? null);
+            return { card, sentence };
+        };
+        let reading = null;
+        try {
+            reading = await withVerdictFixture({ mastermind, final: true }, async args => {
+                try {
+                    return await play(args);
+                } finally {
+                    putBack();
+                }
+            });
+        } finally {
+            console.error = quiet;
+            putBack();
+        }
+        equal(stableJson(reading), stableJson({
+            card: ["applying", ["finalCard"], false, 0, 1, true, "done", true],
+            sentence: ["applying", ["finalSentence"], ["finalExecution", "mastermind"], true, "done", [], true, null]
+        }), "a Final verdict stopped before its card held its outcome in the world's record or its Finish did not post the card it decided, or one whose "
+            + "sentence failed ran on past it, cleared the pick or could not be finished (card: stage, failed, sentencePending in the record, banners, "
+            + "then after Finish: banners, the executed one's, stage, sentencePending; sentence: stage, failed, the steps not done, the pick standing, "
+            + "then after Finish: stage, failed, the sentence kept for this verdict, the pick)");
     }],
     ...GRID
 ];
