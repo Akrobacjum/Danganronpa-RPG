@@ -82291,6 +82291,61 @@ const SCENARIOS = [
         }), "[the root (drpg-ui, drpg-panel, the content's language the page's); the footer (dressed; its groups; the first submit button; the autofocus); the buttons shown on Edit; "
             + "on Danger (shown; the first submit button and whether it is disabled; the autofocus; the panes); the live region redrawn; Enter's button and the answer; Escape's answer; the window gone]");
     }],
+    ["E44-T9 - a project's token stands at full opacity (E44 C8b; E44-26, the owner on 1.2.98): a token placed for a project in a room is drawn at PROJECT_TOKEN.alpha, which is 1; a token an older version placed at 0.7 is brought to it by the project's sync, its tint left as it was; finished, its tint turns and its opacity stays", async () => {
+        /*
+         * E44 C8b, 04.11.2026; the H85 diagnosis, part 2. The owner, with a player's screenshot of 1.2.98: "Dlaczego ikona
+         * projektu ma inny kolor? Zmienmy to" - the hammer read at about half the value of its art, its frame clear (0.7
+         * document alpha, "scenery, so it does not compete with the cast", times the board's light).
+         * His answer to the diagnosis, option (a): the icon at full opacity, the tint kept (amber while it is built, green
+         * when done). config.mjs PROJECT_TOKEN.alpha goes to 1, and projects-map.mjs `refreshProjectToken`, which the
+         * sync runs over every project's token (`syncProjectToken`), brings an existing token's alpha to it as it brings
+         * the tint, the icon and the iso scale. Read on this primary's browser, on the scene on screen: the placed
+         * token's alpha, the alpha after it is written 0.7 by hand and the project synced, the tint against
+         * PROJECT_TOKEN's colours before and after the project is finished. What a canvas then draws is not read: the
+         * harness has none (the GM's white icon, read in the code as not the module's, is LIVE-E44-07). Red at ab449796: placed 0.7,
+         * and 0.7 after the sync.
+         */
+        needs(world.atLeast("sceneOnScreen"), "a scene on screen with a named region for a project's token");
+        const P = await import("./projects.mjs");
+        const M = await import("./projects-map.mjs");
+        const { PROJECT_TOKEN } = await import("./config.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this GM is not the primary, whose browser keeps the project tokens - run the suite on the primary GM");
+        const room = (canvas.scene?.regions?.contents ?? []).map(region => region.name).find(Boolean);
+        must(room, "the scene on screen has no named region - this would measure nothing");
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const alpha = id => M.projectTokenOf(id)?.alpha ?? null;
+        const tint = id => String(M.projectTokenOf(id)?.texture?.tint ?? "").toLowerCase();
+        const seen = { constant: PROJECT_TOKEN.alpha };
+        let id = null;
+        try {
+            id = (await P.createProject({ name: "SUITE E44 T9 opacity", target: 2, room }))?.id ?? null;
+            must(id, "could not create the project - this would measure nothing");
+            await settle();
+            must(M.projectTokenOf(id), "the project's token was not placed - this would measure nothing");
+            seen.placed = alpha(id);
+            await M.projectTokenOf(id).update({ alpha: 0.7 });
+            await settle();
+            must(alpha(id) === 0.7, "the token's alpha could not be written 0.7 - this would measure nothing");
+            await M.syncProjectToken(id);
+            await settle();
+            seen.synced = { alpha: alpha(id), working: tint(id) === PROJECT_TOKEN.workingTint.toLowerCase() };
+            await P.applyProjectChange(id, { delta: 2 }, { by: { kind: "gm" } });
+            await settle();
+            seen.finished = { alpha: alpha(id), done: tint(id) === PROJECT_TOKEN.doneTint.toLowerCase() };
+        } finally {
+            if (id && P.allProjects().find(p => p.id === id)) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            await settle();
+        }
+        equal(stableJson(seen), stableJson({
+            constant: 1,
+            placed: 1,
+            synced: { alpha: 1, working: true },
+            finished: { alpha: 1, done: true }
+        }), "a project's token does not stand at full opacity [PROJECT_TOKEN.alpha; the placed token's alpha; after a sync over 0.7: its "
+            + "alpha, the working tint; finished: its alpha, the done tint]");
+    }],
     ...GRID
 ];
 

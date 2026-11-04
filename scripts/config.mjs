@@ -2789,8 +2789,13 @@ export const PROJECT_TOKEN = {
     icon: `modules/${MODULE_ID}/icons/remnant-project.svg`,
     /** What every project token wore before the hammer, for the sync to move off. */
     oldIcon: "icons/svg/hazard.svg",
-    /** Scenery, so it does not compete with the cast for attention. */
-    alpha: 0.7,
+    /** FULL OPACITY (E44 C8b, 04.11.2026; the owner on 1.2.98, with a player's screenshot: "Dlaczego ikona
+        projektu ma inny kolor? Zmienmy to"). It was 0.7, "scenery, so it does not compete with the cast for
+        attention"; under the board's light the hammer then read at about half the value of its art while its
+        frame stayed clear (the H85 diagnosis of 04.11.2026, part 2: pixel means of the shot). The owner chose
+        the icon at full opacity with its tint kept. `refreshProjectToken` brings a token placed at 0.7 to this
+        on the next sync. */
+    alpha: 1,
     sort: -5,
     /** A finished project is still there - it is the thing that got built. */
     doneTint: "#8fd18f",

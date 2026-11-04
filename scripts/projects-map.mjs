@@ -444,6 +444,7 @@ export function warnProjectDuplicates(duplicates) {
 /**
  * The tint follows the bar. Cheap enough to call on every project change, and
  * it writes only when the colour would actually differ. Answers whether it wrote.
+ * The opacity follows `PROJECT_TOKEN.alpha` the same way (E44 C8b).
  */
 export async function refreshProjectToken(countdownId) {
     if (!game.user.isGM) return false;
@@ -459,6 +460,9 @@ export async function refreshProjectToken(countdownId) {
     /* A token placed before 1.2.53 wears Foundry's hazard sign; only that exact default
        moves, as the actor above does. */
     if (token.texture?.src === PROJECT_TOKEN.oldIcon) changes["texture.src"] = PROJECT_TOKEN.icon;
+    /* A token placed before 1.2.99 stands at 0.7, which the owner turned to full opacity (E44 C8b, 04.11.2026;
+       config.mjs PROJECT_TOKEN.alpha); the sync brings it up as it brings the tint - a GM's own alpha on it as well. */
+    if (token.alpha !== PROJECT_TOKEN.alpha) changes.alpha = PROJECT_TOKEN.alpha;
     /* A token placed before 1.2.51 has the picture at full size; the sync that runs on
        every scene draw brings it down to the one that fits its frame. */
     if (isoOn() && token.getFlag?.(ISO_MODULE, "scale") !== PROJECT_TOKEN.isoScale) {
