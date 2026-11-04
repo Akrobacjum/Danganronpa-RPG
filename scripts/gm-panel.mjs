@@ -16,8 +16,9 @@ import { getClock, clockSummary, phaseLabel, campaignName } from "./clock.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { studentActors, actingStudents } from "./monokuma.mjs";
-import { dialogContent, error, plural, esc, primaryGmId, markLanguage } from "./utils.mjs";
+import { dialogContent, error, plural, esc, primaryGmId } from "./utils.mjs";
 import { keepLive, alreadyOpen, RAISED } from "./live.mjs";
+import { launcher } from "./ui-kit.mjs";
 import { SETTINGS, bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, sameSeason } from "./settings.mjs";
 import { bodiesToDiscover, announcedIn, chapterEndStopped } from "./chapter.mjs";
 import { flagsHeldNow, itemsHeldNow } from "./sheet-audit.mjs";
@@ -134,22 +135,12 @@ export function injectLauncher() {
         markGmChrome();
         if (document.getElementById("drpg-gm-launcher")) return;
 
-        const btn = document.createElement("button");
-        btn.id = "drpg-gm-launcher";
-        btn.type = "button";
-        btn.dataset.drpgCluster = "";
-        const label = game.i18n.localize("DRPG.Panel.launcher");
-        btn.setAttribute("aria-label", label);
-        btn.dataset.tooltip = label;
-        // `fa-eye` is the fallback if the pixel mask ever fails to load - the
-        // sprite itself is keyed to `#drpg-gm-launcher i` and ignores the class.
-        const eye = document.createElement("i");
-        eye.className = "fa-solid fa-eye";
-        eye.setAttribute("inert", "");
-        btn.append(eye);
+        /* The kit's launcher (E44 C6): one of the corner's cluster, its name its tooltip, in the page's language - its
+           name is the module's words (E66 C1); the panel it opens is a module window, marked by module.mjs. `fa-eye` is
+           the fallback if the pixel mask ever fails to load - the sprite itself is keyed to `#drpg-gm-launcher i` and
+           ignores the class. */
+        const btn = launcher({ id: "drpg-gm-launcher", cluster: true, label: game.i18n.localize("DRPG.Panel.launcher"), icon: "fa-solid fa-eye", lang: true });
         btn.addEventListener("click", () => openGmPanel());
-        // Its name is the module's words (E66 C1); the panel it opens is a module window, marked by module.mjs.
-        markLanguage(btn);
         document.body.append(btn);
     } catch (err) {
         error("Could not place the GM panel launcher", err);

@@ -530,13 +530,36 @@ const KIT_WIDTH_PROPS = /^(width|min-width|max-width|flex-basis|inline-size|min-
  *   no width above 390 px (the 26.09 amend);
  *   an uppercase box at `line-height: 1.3` or more - in its rule or in that rule's Legacy variant - and never
  *   `overflow: hidden` (docs/design/typography.md).
+ * The sheet's section "The A8 surfaces" (E44 C6: the tiles, the launchers, "Who you hear", the Foundry tools frames,
+ * moved there from the old sheets with no change of look) is held to the sheet's own rules - no `!important`, no colour
+ * literal outside a token, no width above 390 px - and not to a kit component's look, which those surfaces do not
+ * take: R1333 holds their cascade against C5's tree instead. Everything above its banner is the kit's.
  */
+export const A8_BANNER = "THE A8 SURFACES (E44 C6";
+
 export function kitSheetProblems(text) {
     const problems = [];
     const css = stripCssComments(text);
     if (importantCount(css).count) problems.push(`${importantCount(css).count} !important`);
     for (const found of colourLiterals(css).found) problems.push(`a colour literal outside a token: ${found}`);
-    const blocks = blocksOf(css).filter(b => b.prelude && !b.prelude.startsWith("@"));
+    const raw = String(text ?? ""), banner = raw.indexOf(A8_BANNER);
+    const kitPart = banner < 0 ? css : stripCssComments(raw.slice(0, raw.lastIndexOf("/*", banner)));
+    const widthsOf = (prelude, decls) => {
+        for (const d of decls) {
+            const p = d.property.toLowerCase(), v = d.value.trim();
+            if (!KIT_WIDTH_PROPS.test(p)) continue;
+            for (const m of v.matchAll(/(\d+(?:\.\d+)?)(px|rem|em)\b/g)) {
+                const px = Number(m[1]) * (m[2] === "px" ? 1 : 16);
+                if (px > 390) problems.push(`${prelude} sets ${p} to ${m[0]}, above 390 px`);
+            }
+        }
+    };
+    if (banner >= 0) {
+        for (const b of blocksOf(stripCssComments(raw.slice(raw.lastIndexOf("/*", banner))))) {
+            if (b.prelude && !b.prelude.startsWith("@")) widthsOf(b.prelude, declarationsOf(b.own));
+        }
+    }
+    const blocks = blocksOf(kitPart).filter(b => b.prelude && !b.prelude.startsWith("@"));
     const tokensOf = prelude => new Map(blocks.filter(b => !b.context.length && b.prelude === prelude)
         .flatMap(b => declarationsOf(b.own)).filter(d => d.property.startsWith("--")).map(d => [d.property, d.value]));
     const legacy = tokensOf("body"), glass = tokensOf("body.drpg-theme-stained-glass");
@@ -560,6 +583,7 @@ export function kitSheetProblems(text) {
             }
             continue;
         }
+        widthsOf(b.prelude, decls);
         const glassOnly = /\.drpg-theme-stained-glass/.test(b.prelude.replace(/:not\([^)]*\)/g, ""));
         if (glassOnly && !both.has(strip(b.prelude))) problems.push(`${b.prelude} is written for the glass with no rule for Legacy beside it`);
         let upper = false, lineHeight = null, hidden = false;
@@ -570,12 +594,6 @@ export function kitSheetProblems(text) {
                 problems.push(`${b.prelude} gives ${p} without a kit token: ${v}`);
             }
             if (p === "font-size" && !/^var\(--drpg-kit-[\w-]*size\b/.test(v)) problems.push(`${b.prelude} sets font-size without a kit size token: ${v}`);
-            if (KIT_WIDTH_PROPS.test(p)) {
-                for (const m of v.matchAll(/(\d+(?:\.\d+)?)(px|rem|em)\b/g)) {
-                    const px = Number(m[1]) * (m[2] === "px" ? 1 : 16);
-                    if (px > 390) problems.push(`${b.prelude} sets ${p} to ${m[0]}, above 390 px`);
-                }
-            }
             if (p === "text-transform" && v === "uppercase") upper = true;
             if (p === "line-height") lineHeight = Number(v);
             if (/^overflow(-[xy])?$/.test(p) && v === "hidden") hidden = true;

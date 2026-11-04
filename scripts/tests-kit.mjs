@@ -844,7 +844,8 @@ async function moduleStyles() {
  * `:has` count their most specific argument, `:where` nothing), then order. `winner(el, names)` takes a
  * property or a list read as one (a shorthand and its longhand) and answers `{ value, important, file,
  * selector }` or null; an element is matched by its own `matches`, so it may be built on a body of its own,
- * connected to nothing on the page.
+ * connected to nothing on the page. A third argument, "::before" or "::after" (E44 C6, R1333), reads that
+ * pseudo-element: the rules whose selector ends in it, matched by the rest; without it no such rule is read, as before.
  */
 async function styleCascade() {
     const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
@@ -865,7 +866,11 @@ async function styleCascade() {
         indexed = [...rules];
         byProperty = new Map();
         rules.forEach((rule, order) => {
-            const entry = { rule, order, selectors: splitTopLevel(rule.selector, ",").map(selector => ({ selector, specificity: selectorSpecificity(selector), needs: subjectNeeds(selector) })) };
+            const entry = { rule, order, selectors: splitTopLevel(rule.selector, ",").map(selector => {
+                const pseudo = /::?(before|after)$/.exec(selector);
+                return { selector, specificity: selectorSpecificity(selector), needs: subjectNeeds(selector),
+                    pseudo: pseudo ? `::${pseudo[1]}` : null, base: pseudo ? selector.slice(0, pseudo.index) : selector };
+            }) };
             for (const property of new Set(rule.decls.map(d => d.property))) {
                 if (!byProperty.has(property)) byProperty.set(property, []);
                 byProperty.get(property).push(entry);
@@ -873,10 +878,14 @@ async function styleCascade() {
         });
         return byProperty;
     };
-    const ask = (el, { selector, needs }) => {
+    /* `pseudo` (E44 C6): "::before" or "::after" asks for the rules whose selector ends in it, matched by the rest - an
+       element's pseudo-element, which `matches` cannot be asked for; null, the element itself, which no such rule
+       styles. */
+    const ask = (el, { needs, pseudo, base }, want = null) => {
+        if (pseudo !== want) return false;
         if (needs.tag && needs.tag !== el.localName) return false;
         if (needs.classes.some(name => !el.classList.contains(name))) return false;
-        try { return el.matches(selector); } catch { return false; }
+        try { return el.matches(base); } catch { return false; }
     };
     const answer = (el, names, matches) => {
         const wanted = [names].flat();
@@ -884,22 +893,24 @@ async function styleCascade() {
         const entries = new Set(wanted.flatMap(name => by.get(name) ?? []));
         let best = null;
         for (const { rule, order, selectors } of [...entries].sort((a, b) => a.order - b.order)) {
-            const hits = rule.decls.filter(d => wanted.includes(d.property));
-            const decl = hits[hits.length - 1];
+            /* the rule's declaration read only once one of its selectors matches (E44 C6, 05.11.2026: R1333 asks 19153
+               properties, 3.8 million rules in all, and filtering every rule's declarations first took most of its time) */
+            let decl = null;
             for (const one of selectors) {
                 const { selector, specificity } = one;
                 if (!matches(one)) continue;
+                decl ??= rule.decls.filter(d => wanted.includes(d.property)).at(-1);
                 const rank = [decl.important ? 1 : 0, ...specificity, order];
                 if (!best || rankAbove(rank, best.rank)) best = { rank, value: decl.value, important: decl.important, file: rule.file, selector };
             }
         }
         return best ? { value: best.value, important: best.important, file: best.file, selector: best.selector } : null;
     };
-    const winner = (el, names) => answer(el, names, one => ask(el, one));
-    const on = el => {
+    const winner = (el, names, pseudo = null) => answer(el, names, one => ask(el, one, pseudo));
+    const on = (el, pseudo = null) => {
         const known = new Map();
         const matches = one => {
-            if (!known.has(one.selector)) known.set(one.selector, ask(el, one));
+            if (!known.has(one.selector)) known.set(one.selector, ask(el, one, pseudo));
             return known.get(one.selector);
         };
         return names => answer(el, names, matches);
@@ -910,7 +921,8 @@ async function styleCascade() {
 /* What a selector's subject - its last compound, outside any parentheses or brackets - asks of the element itself: a
    tag and the classes it names. An element without one of them cannot match, so `styleCascade` answers no without
    asking jsdom's `matches`, which is where its time went (E44 C3a: 2.9 s of R1323's 3.1 s, 362 readings). Anything
-   else - an attribute, a pseudo-class, an ancestor - is left to `matches`. */
+   else - an attribute, a pseudo-class, an ancestor - is left to `matches`. Exported for R1333 (E44 C6), which asks
+   the rules written for the A8 surfaces of each element the same way. */
 function subjectNeeds(selector) {
     let depth = 0, start = 0, quote = null;
     for (let i = 0; i < selector.length; i++) {
@@ -2436,7 +2448,7 @@ export {
     runOne, registerSuite, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE, UNTIL_FIXTURE, untilProblem, env, world, worldCensus,
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
-    lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, styleCascade, bodyOf, topLevelFunction, fnSource, lineAround,
+    lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, styleCascade, subjectNeeds, bodyOf, topLevelFunction, fnSource, lineAround,
     withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeDeclarationCalls, bridgeCut, bridgeLookup, bridgeCrawl, bridgeFamily, bridgeRead, bridgeFn, bridgeText, censusFile, BRIDGE_FAMILY_END, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
     flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem, TEXT_BASELINES, textAgainstBaseline, textStaleRow,

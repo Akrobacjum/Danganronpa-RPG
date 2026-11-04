@@ -572,7 +572,11 @@ const REGRESSIONS = [
             floor: [plant("--drpg-kit-chip-size: max(11px, var(--drpg-text-xs));", "--drpg-kit-chip-size: var(--drpg-text-xs);"), "under Legacy is not floored at 11 px"],
             width: [plant(".drpg-chips { display: flex;", ".drpg-chips { width: 400px; display: flex;"), "above 390 px"],
             uppercase: [plant(".drpg-chips { display: flex;", ".drpg-chips { text-transform: uppercase; display: flex;"), "under 1.3"],
-            glassAlone: [`${text}\nbody.drpg-theme-stained-glass .drpg-chips > b { color: var(--drpg-kit-ink); }\n`, "written for the glass with no rule for Legacy"]
+            /* in the kit's part of the sheet, above "The A8 surfaces" (E44 C6), whose rules keep today's look and are not a
+               kit component's: there a literal and a width are faults as anywhere in the sheet, a glass rule alone is not */
+            glassAlone: [plant(".drpg-chip > b {", "body.drpg-theme-stained-glass .drpg-chips > b { color: var(--drpg-kit-ink); }\n.drpg-chip > b {"), "written for the glass with no rule for Legacy"],
+            a8Literal: [plant("#drpg-foundry-tools i {", "#drpg-foundry-tools i { color: #ffffff;"), "a colour literal outside a token"],
+            a8Width: [plant("#drpg-foundry-tools i {", "#drpg-foundry-tools i { max-width: 420px;"), "above 390 px"]
         };
         const missed = Object.entries(PLANTS).filter(([, [sheet, words]]) => !cssKitSheetProblems(sheet).some(p => p.includes(words))).map(([name]) => name);
         equal(JSON.stringify(missed), "[]", "the kit sheet's reader did not read these planted faults");
@@ -14090,16 +14094,18 @@ const REGRESSIONS = [
             // assertion, which is how this test reads at the parent (no word, nothing to plant in: red first, 17.10.2026).
             return [name, css.replace(from, to)];
         });
-        const hidden = reading(plant("danganronpa.css", "body.drpg-no-ticker .drpg-voice-tile-state > span,",
+        // The word's rules are components.css's since E44 C6 ("The A8 surfaces"), moved from danganronpa.css and stained-glass.css.
+        const hidden = reading(plant("components.css", "body.drpg-no-ticker .drpg-voice-tile-state > span,",
             "body.drpg-no-ticker .drpg-voice-tile-state { display: none; }\nbody.drpg-no-ticker .drpg-voice-tile-state > span,"));
         const sgWord = "body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-state {\n    font-family: var(--drpg-font-chrome);\n    letter-spacing: 0.04em;\n    color: var(--drpg-glass-accent);";
-        const faint = reading(plant("stained-glass.css", sgWord, sgWord.replace("var(--drpg-glass-accent)", "rgba(var(--drpg-accent-rgb), 0.2)")));
-        const unstopped = reading(plant("danganronpa.css", "body.drpg-stacked .drpg-voice-tile-state > span { animation: none; }",
+        const faint = reading(plant("components.css", sgWord, sgWord.replace("var(--drpg-glass-accent)", "rgba(var(--drpg-accent-rgb), 0.2)")));
+        const unstopped = reading(plant("components.css", "body.drpg-stacked .drpg-voice-tile-state > span { animation: none; }",
             "body.drpg-stacked .drpg-voice-tile-state > span { animation-play-state: running; }"));
-        equal(J([hidden[1], faint[2], unstopped[4].stacked]), J([["danganronpa.css body.drpg-no-ticker .drpg-voice-tile-state"],
-            ["stained-glass.css body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-state"], false]),
+        equal(J([hidden[1], faint[2], unstopped[4].stacked]), J([["components.css body.drpg-no-ticker .drpg-voice-tile-state"],
+            ["components.css body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-state"], false]),
         "the reader does not see the word hidden with the ticker off, its colour at 0.2, or the stacked screen's stop taken out");
-        equal(J(reading(sheets)), J([true, [], [], ["var(--color-text-primary, #efe6d8)", "var(--drpg-glass-accent)"],
+        // Legacy's ink falls back to the literal components.css holds as a token (E44 C6: no literal outside one there).
+        equal(J(reading(sheets)), J([true, [], [], ["var(--color-text-primary, var(--drpg-a8-text-fallback))", "var(--drpg-glass-accent)"],
             { "no ticker": true, "reduced motion": true, stacked: true, "prefers-reduced-motion": true }, true]),
         "[rules name the word; rules that hide it; rules that set it faint; its colours; its runs stopped by each switch; its runs running otherwise]");
         const all = sheets.flatMap(([name, css]) => rulesOf(css).map(rule => ({ ...rule, name, sel: rule.sel.replace(/\s+/g, " ") })));
@@ -14116,7 +14122,7 @@ const REGRESSIONS = [
                 .map(rule => new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;!]+)`).exec(rule.decl)?.[1].trim()).filter(Boolean).at(-1) ?? null),
             rowFace: ["body.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden])", "body.drpg-theme-stained-glass.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden])"]
                 .map(sel => last(sel, "min-width"))
-        }), J({ legacy: ["6px", "auto", "76px", "1", "rgba(var(--drpg-deep-rgb), 0.85)"], full: ["calc(7px - var(--drpg-voice-lift, 0px))", "auto"], compact: ["2px", "auto"], faceRaised: [],
+        }), J({ legacy: ["6px", "auto", "76px", "1", "var(--drpg-a8-deep-85)"], full: ["calc(7px - var(--drpg-voice-lift, 0px))", "auto"], compact: ["2px", "auto"], faceRaised: [],
             still: [["40px", "6px"], ["40px", "6px"]], stillSystem: ["40px", "6px"], rowFace: ["196px", "124px"] }),
         "[Legacy's word: top, bottom, right (left of the two buttons), z-index, its ink band; the wall's full form: top, bottom; its compact form: top, bottom; rules that raise the face; "
         + "the still word's top and right with the ticker off and under reduced motion, and under the system's; the least width of a face shown in the row, Legacy and Stained Glass]");

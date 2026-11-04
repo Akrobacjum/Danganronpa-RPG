@@ -15,6 +15,9 @@
  *                                 this file without Foundry, as room-tile.mjs's class is made)
  *   kitTabs, kitTabBar, wireKitTabs, shownTab, formGrid, dataTable, helpText, stepper, stepperId, stepLabels,
  *   readStepper, wireSteppers, toggle, chip, chips, box, emptyOption, emptyState, scrollNote, kitNode, modeBar
+ *   tile, launcher, launcherState, LAUNCH_STATES, pixelGlyph, sliderList, slider, frame, builtBy
+ *                                 the A8 surfaces' DOM builders (E44 C6: the tiles, the launchers, "Who you hear",
+ *                                 the Foundry tools frames), below
  *   BUTTON_ROLES                  primary, secondary, close, cancel, destructive, gmRoute
  *
  * THE FOOTER CONTRACT (the owner approved it on the pilot, 04.11.2026). The closing word, the secondary buttons and the
@@ -43,7 +46,7 @@
  * the seven bare "-" options its `emptyOption` (R1127, R1329); the rest of the kit waits for E21.
  */
 
-import { esc, error, wholeNumber, dialogContent, eachPane } from "./utils.mjs";
+import { esc, error, wholeNumber, dialogContent, eachPane, markLanguage } from "./utils.mjs";
 import { keepLive } from "./live.mjs";
 
 /* ---- the button roles -------------------------------------------------------------------------------------------- */
@@ -631,6 +634,168 @@ export function wireKit(root, { onMode = null } = {}) {
     }
     const stops = [...root.querySelectorAll(".drpg-kit-body, .drpg-data-table-box")].map(watchScroll);
     return () => stops.forEach(stop => stop());
+}
+
+/* ---- the A8 surfaces: the tiles, the launchers, the list of sliders and the Foundry tools frames (E44 C6) --------- */
+
+/*
+ * THE A8 SURFACES (E44 C6, 05.11.2026; the 11.10 amend A8, E44-20). The room tile and the voice tile (E77, E78), the
+ * voice tile's 30 px mini launchers and their states, its list "Who you hear" with a slider a row, the GM's red
+ * hexagon, the Foundry tools launcher and its two plain frames were each built by hand in their own file; these
+ * builders draw them. Each takes the surface's own classes, id and words as given, so every selector a test, a sheet
+ * or a scenario reads stays, and each builds the element its file built before, attribute for attribute, with the
+ * same listeners left to the caller: nothing here changes what a surface looks like or does (the amend's "with no
+ * change of look or behaviour"; E44 C6's reading of every surface's DOM and computed style before and after). They
+ * build with `createElement` and `textContent`, never markup: room-tile.mjs, voice-tile.mjs and foundry-windows.mjs
+ * write none (R503, R512). Their rules are components.css's section "The A8 surfaces". `builtBy(el)` names the
+ * builder that made an element (R1332); it is kept beside the element, not on it, so the DOM is the one it was.
+ */
+
+/** The builder each element was made by (`builtBy`). */
+const builtByKit = new WeakMap();
+const madeBy = (el, name) => { builtByKit.set(el, name); return el; };
+
+/** Which of this file's DOM builders made `el` ("tile", "launcher", "launcher-mini", "glyph", "sliderList", "slider", "frame"), or null. */
+export function builtBy(el) {
+    return (el && builtByKit.get(el)) ?? null;
+}
+
+/**
+ * A tile of the screen's corner (the room tile, the voice tile): a `section` named for a screen reader, in the page's
+ * language. `id` when the tile has one of its own; `data` its first data attributes (the voice tile's `state`).
+ */
+export function tile({ id = null, className, label, data = {} } = {}) {
+    const el = document.createElement("section");
+    if (id) el.id = id;
+    // Its language, the page's (E66 C3, C1's `lang` on the module's containers); the words inside it inherit it.
+    markLanguage(el);
+    el.className = className;
+    for (const [key, value] of Object.entries(data)) el.dataset[key] = value;
+    el.setAttribute("role", "region");
+    el.setAttribute("aria-label", label);
+    return madeBy(el, "tile");
+}
+
+/** One of the module's pixel glyphs (tools/pixel-icons.py), masked in the current colour and never read aloud. */
+export function pixelGlyph(name) {
+    const icon = document.createElement("i");
+    icon.className = "drpg-pxi";
+    icon.style.setProperty("--drpg-px-mask", `var(--drpg-px-${name})`);
+    icon.setAttribute("aria-hidden", "true");
+    icon.inert = true;
+    return madeBy(icon, "glyph");
+}
+
+/**
+ * The states a mini launcher is drawn in (E78 C3; the A8 design's): held by the module (grey), the GM's lock, no
+ * connection, muted, push to talk - each a class of the button, at most one at a time (`launcherState`).
+ */
+export const LAUNCH_STATES = Object.freeze({ held: "is-held", gmBlock: "is-gm-blocked", offline: "is-offline", muted: "is-muted", ptt: "is-ptt" });
+
+/** Draw `button` in `state` (a key of LAUNCH_STATES), every other state's class taken off; any other state draws none. */
+export function launcherState(button, state) {
+    for (const [name, cls] of Object.entries(LAUNCH_STATES)) button.classList.toggle(cls, state === name);
+    return button;
+}
+
+/**
+ * A launcher: a button of the corner. `mini` is the voice tile's 30 px hexagon of the corner's family (Q6): class
+ * `drpg-launch-mini` before `className`, a pixel glyph (`glyph`, its name) and Foundry's tooltip on
+ * `data-tooltip-text`. Otherwise a corner button of its own `id` (the GM's hexagon, Foundry tools): `cluster` marks it
+ * as one of glass.mjs's cluster, `pressed` gives it `aria-pressed`, `icon` is the classes of its face (`""`: a face with
+ * no class, which pixel-icons.css leaves alone - R512) and its tooltip is `data-tooltip`; `lang` gives it the page's
+ * language. A `label` names it for a screen reader and is its tooltip; a caller that writes both itself (OBJECTION!,
+ * hud.mjs) leaves it out.
+ */
+export function launcher({ id = null, className = "", label = null, mini = false, glyph = null, icon = "", cluster = false, pressed = null, lang = false } = {}) {
+    const button = document.createElement("button");
+    if (id) button.id = id;
+    if (lang) markLanguage(button);
+    if (mini || className) button.className = mini ? ["drpg-launch-mini", className].filter(Boolean).join(" ") : className;
+    button.type = "button";
+    if (cluster) button.dataset.drpgCluster = "";
+    if (label !== null) {
+        button.setAttribute("aria-label", label);
+        button.dataset[mini ? "tooltipText" : "tooltip"] = label;
+    }
+    if (pressed !== null) button.setAttribute("aria-pressed", String(pressed));
+    if (mini) {
+        if (glyph) button.append(pixelGlyph(glyph));
+    } else {
+        const face = document.createElement("i");
+        if (icon) face.className = icon;
+        face.setAttribute("inert", "");
+        button.append(face);
+    }
+    return madeBy(button, mini ? "launcher-mini" : "launcher");
+}
+
+/**
+ * A list of sliders in a window of its own (the voice tile's "Who you hear", E78 C5): a `section` of `className`, `id`,
+ * the page's language, hidden until it is opened, a dialog labelled by its title (`h2` of `titleClass`), then `parts`
+ * (the caller's own lines and buttons) and the rows' list (`ul` of `rowsClass`), which the caller fills. Every class is
+ * the caller's, written out where it is passed, so R2 finds the class a sheet styles in the file that draws it.
+ */
+export function sliderList({ id, className, titleClass, rowsClass, title, parts = [] } = {}) {
+    const list = document.createElement("section");
+    list.className = className;
+    list.id = id;
+    // Its language, the page's: the list stands in the body, not inside its tile (E66 fix r1 F1).
+    markLanguage(list);
+    list.hidden = true;
+    list.setAttribute("role", "dialog");
+    const head = document.createElement("h2");
+    head.className = titleClass;
+    head.textContent = title;
+    head.id = `${list.id}-title`;
+    list.setAttribute("aria-labelledby", head.id);
+    const rows = document.createElement("ul");
+    rows.className = rowsClass;
+    list.append(head, ...parts, rows);
+    return madeBy(list, "sliderList");
+}
+
+/** A row's slider: a range input of `className`, from `min` to `max` by `step`. */
+export function slider({ className, min = 0, max = 1, step = 1 } = {}) {
+    const input = document.createElement("input");
+    Object.assign(input, { type: "range", className, min: String(min), max: String(max), step: String(step) });
+    return madeBy(input, "slider");
+}
+
+/**
+ * A plain frame for a node of somebody else's (foundry-windows.mjs: Foundry's sidebar and scene controls, E77 C5): a
+ * `section` of `classes.frame` and `id` named by `title`, `data` its data attributes, a header (`classes.head`, in the
+ * page's language - its title and close button; not the frame, whose body holds Foundry's own words in Foundry's
+ * language: E66 fix r1 F1) with the title (`h2`, `classes.title`) and a close button (`classes.close`) named
+ * `closeLabel`, and the body (`classes.body`). The classes are the caller's, written out (R2, as `sliderList`'s).
+ * Answers `{ frame, head, body, close }`; the caller hides, places and wires it.
+ */
+export function frame({ id, classes, title, closeLabel, data = {} } = {}) {
+    const el = document.createElement("section");
+    el.id = id;
+    el.className = classes.frame;
+    for (const [key, value] of Object.entries(data)) el.dataset[key] = value;
+    el.setAttribute("role", "region");
+    el.setAttribute("aria-label", title);
+    const head = document.createElement("header");
+    head.className = classes.head;
+    markLanguage(head);
+    const name = document.createElement("h2");
+    name.className = classes.title;
+    name.textContent = title;
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = classes.close;
+    close.setAttribute("aria-label", closeLabel);
+    const mark = document.createElement("i");
+    mark.className = "fa-solid fa-xmark";
+    mark.setAttribute("inert", "");
+    close.append(mark);
+    head.append(name, close);
+    const body = document.createElement("div");
+    body.className = classes.body;
+    el.append(head, body);
+    return { frame: madeBy(el, "frame"), head, body, close };
 }
 
 /* ---- the frame -------------------------------------------------------------------------------------------------- */

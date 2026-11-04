@@ -21,7 +21,7 @@ import { voiceTargets, liveKitRoomFor } from "./voice.mjs";
 import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
-    moduleSources, otherSources, stripComments, moduleStyles, styleCascade, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
+    moduleSources, otherSources, stripComments, moduleStyles, styleCascade, subjectNeeds, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
     worldDump, dumpDiff, lfText, expectedRed, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, musicText, sfxText, voteText
 } from "./tests-kit.mjs";
 
@@ -30629,7 +30629,17 @@ const INVARIANTS = [
             ["foundry-windows.mjs", "buildFrame", "head"], ["foundry-windows.mjs", "buildLauncher", "btn"], ["fog.mjs", "renderFloorSwitcher", "nav"],
             // E66 fix r2: the two buttons the module puts into Daggerheart's countdown window's header, whose other words are Daggerheart's.
             ["projects-ui.mjs", "onRenderCountdowns", "gear"], ["projects-tray.mjs", "addCollapseControl", "button"]];
-        read.roots = ROOTS.filter(([file, name, el]) => !new RegExp(`\\bmarkLanguage\\(\\s*${el}\\s*\\)`).test(fn(file, name))).map(([file, name]) => `${file} ${name}`);
+        /* E44 C6: five of these roots are drawn by ui-kit.mjs's builders, which mark the element they build - `tile` and
+           `sliderList` the section, `frame` the header alone, `launcher` the button when asked (`lang: true`) - so such a
+           builder's call stands for its mark, and the kit's builders are read for theirs. */
+        const KIT = { tile: "el", sliderList: "list", frame: "head" };
+        const kitMarks = Object.entries(KIT).filter(([name, el]) => !new RegExp(`\\bmarkLanguage\\(\\s*${el}\\s*\\)`).test(fn("ui-kit.mjs", name))).map(([name]) => `ui-kit.mjs ${name}`);
+        if (!/\bif \(lang\) markLanguage\(button\)/.test(fn("ui-kit.mjs", "launcher"))) kitMarks.push("ui-kit.mjs launcher");
+        if (/\bmarkLanguage\(\s*el\s*\)/.test(fn("ui-kit.mjs", "frame"))) kitMarks.push("ui-kit.mjs frame marks the frame whole");
+        const viaKit = { "room-tile.mjs ensureRoomTile": /\bkitTile\(\{/, "voice-tile.mjs buildVoiceTile": /\bkitTile\(\{/, "voice-tile.mjs buildVoiceList": /\bsliderList\(\{/,
+            "foundry-windows.mjs buildFrame": /\bkitFrame\(\{/, "foundry-windows.mjs buildLauncher": /\blauncher\(\{[^}]*\blang:\s*true\b/ };
+        read.roots = [...ROOTS.filter(([file, name, el]) => !new RegExp(`\\bmarkLanguage\\(\\s*${el}\\s*\\)`).test(fn(file, name))
+            && !(viaKit[`${file} ${name}`]?.test(fn(file, name)))).map(([file, name]) => `${file} ${name}`), ...kitMarks];
         read.frameMarked = /\bmarkLanguage\(\s*frame\s*\)/.test(fn("foundry-windows.mjs", "buildFrame"));
         const DRAWN = ["drpg-player-status", "drpg-room-tile", "drpg-sound-launcher", "drpg-voice-tile", "drpg-voice-list", "drpg-messenger-launcher",
             "drpg-messenger-roster", "drpg-book-launcher", "drpg-foundry-tools", "drpg-floors"];
@@ -33425,6 +33435,320 @@ const INVARIANTS = [
         equal(stableJson({ found, unstyled: [...new Set(unstyled)], problems }), stableJson({ found: [], unstyled: [], problems: {} }),
             `[the window's parts not drawn; the parts no components.css rule styles, by theme; by theme, an element's property stated by components.css and won elsewhere - element property: the winner] (${checked} reading(s))`);
         must(checked > 100, `${checked} property reading(s) made - the window's elements matched almost no rule`);
+    }],
+    ["R1332 - the A8 surfaces are built by the kit (scripts/ui-kit.mjs; E44 C6, E44-20, the 11.10 amend A8): the room tile and the voice tile by `tile`, the voice tile's microphone, speaker and OBJECTION! by the mini `launcher` with their glyphs by `pixelGlyph`, the microphone's states by `launcherState` - held, the GM's lock and no connection each its one class, muted and push to talk too - the list 'Who you hear' by `sliderList` and its rows' sliders by `slider`, the GM's hexagon and Foundry tools' launcher by `launcher` - Foundry tools' still with no `drpg-` class on it or above it (R512) - and the two Foundry tools frames by `frame`; no builder of theirs draws the surface by hand", async () => {
+        /*
+         * E44 C6, 05.11.2026; the amend A8 ("the room tile ..., the voice tile ..., the small launcher with its states, the
+         * list 'Who you hear' with its sliders, the GM's red hexagon and the Foundry tools launcher, the plain frames of the
+         * Foundry tools and Map tools windows ... move onto kit components with no change of look or behaviour"). Read two
+         * ways: the source of each builder, comments stripped, calls the kit's builder and makes no element of the surface
+         * itself; and each surface as the module draws it - the room tile, the GM's hexagon, Foundry tools' launcher and
+         * frames as this GM's page holds them, a voice tile, its OBJECTION! and its list built loose (`voiceTileRig`, as
+         * R546's) - answers the kit's `builtBy`, which ui-kit.mjs keeps beside each element it made (the DOM is the one it
+         * was: E44 C6's reading of every surface before and after). The states: `paintMic` in each of the microphone's
+         * states leaves exactly that state's class on the button (mutant c6-m3, the offline state dropped, reads here). The
+         * narrow description window (room-tile.mjs `RoomWindow`) is not here: on DrpgApp's frame it would change - its
+         * content's padding 12 -> 10 px, its overflow auto -> hidden with no region to scroll, under Legacy a max-height
+         * where it had none (Chromium, 05.11.2026) - so it stays on its own ApplicationV2 until E21 moves the frames (C6's
+         * STATUS, Open). Red before C6: every builder drew its surface by hand, and ui-kit.mjs had no `builtBy`.
+         */
+        const kit = await import("./ui-kit.mjs");
+        const sources = new Map(await moduleSources());
+        const fn = (file, name) => fnSource(stripComments(sources.get(file) ?? ""), name) ?? "";
+        const read = {};
+        read.source = {
+            ensureRoomTile: [/\bkitTile\(\{\s*id:\s*TILE_ID,\s*className:\s*"drpg-room-tile"/.test(fn("room-tile.mjs", "ensureRoomTile")), /createElement\("section"\)/.test(fn("room-tile.mjs", "ensureRoomTile"))],
+            buildVoiceTile: [/\bkitTile\(\{\s*className:\s*"drpg-voice-tile"/.test(fn("voice-tile.mjs", "buildVoiceTile")), /createElement\("section"\)|textNode\("section"/.test(fn("voice-tile.mjs", "buildVoiceTile"))],
+            miniButton: [/\blauncher\(\{\s*mini:\s*true\b/.test(fn("voice-tile.mjs", "miniButton")), /createElement\("button"\)|textNode\("button"/.test(fn("voice-tile.mjs", "miniButton"))],
+            paintMic: [/\blauncherState\(button,\s*next\.state\)/.test(fn("voice-tile.mjs", "paintMic")), /classList\.toggle\(\s*cls\b|"is-offline"|"is-held"|"is-gm-blocked"/.test(fn("voice-tile.mjs", "paintMic"))],
+            buildVoiceList: [/\bsliderList\(\{/.test(fn("voice-tile.mjs", "buildVoiceList")), /textNode\("section"|createElement\("section"\)|textNode\("h2"/.test(fn("voice-tile.mjs", "buildVoiceList"))],
+            listRow: [/\bkitSlider\(\{\s*className:\s*"drpg-voice-row-volume"/.test(fn("voice-tile.mjs", "listRow")), /createElement\("input"\)/.test(fn("voice-tile.mjs", "listRow"))],
+            objectionControl: [/\blauncher\(\{\s*mini:\s*true,\s*className:\s*"drpg-voice-objection",\s*glyph:\s*"palm"\s*\}\)/.test(fn("hud.mjs", "objectionControl")), /createElement\("i"\)/.test(fn("hud.mjs", "objectionControl"))],
+            injectLauncher: [/\blauncher\(\{\s*id:\s*"drpg-gm-launcher",\s*cluster:\s*true\b/.test(fn("gm-panel.mjs", "injectLauncher")), /createElement\(/.test(fn("gm-panel.mjs", "injectLauncher"))],
+            buildLauncher: [/\blauncher\(\{\s*id:\s*LAUNCHER_ID,\s*cluster:\s*true\b/.test(fn("foundry-windows.mjs", "buildLauncher")), /createElement\(/.test(fn("foundry-windows.mjs", "buildLauncher"))],
+            buildFrame: [/\bkitFrame\(\{/.test(fn("foundry-windows.mjs", "buildFrame")), /createElement\(/.test(fn("foundry-windows.mjs", "buildFrame"))]
+        };
+        const by = el => (typeof kit.builtBy === "function" ? kit.builtBy(el) : "no builtBy");
+        const drawn = {};
+        drawn.roomTile = by(document.getElementById("drpg-room-tile"));
+        drawn.gmLauncher = game.user.isGM ? by(document.getElementById("drpg-gm-launcher")) : "not a GM";
+        const ftools = document.getElementById("drpg-foundry-tools");
+        // no `drpg-` class on it or on an ancestor under the body (R512's reading: pixel-icons.css paints under one)
+        const classed = el => { const out = []; for (let n = el; n && n !== document.body; n = n.parentElement) if (/drpg-/.test(n.getAttribute("class") ?? "")) out.push(n.localName); return out; };
+        drawn.foundryTools = ftools ? [by(ftools), classed(ftools)]
+            : (getSetting(SETTINGS.foundryToolWindows) === false ? "off" : "missing");
+        drawn.frames = [...document.querySelectorAll(".drpg-foundry-window")].map(by);
+        const VT = await import("./voice-tile.mjs");
+        const HUD = await import("./hud.mjs");
+        const tile = VT.buildVoiceTile({ onMic: () => {}, onSpeaker: () => {} });
+        const mic = tile.querySelector(".drpg-voice-mic"), speaker = tile.querySelector(".drpg-voice-speaker");
+        drawn.voiceTile = [by(tile), by(mic), by(speaker), by(mic.querySelector(".drpg-pxi")), by(speaker.querySelector(".drpg-pxi"))];
+        const actor = game.actors.find(a => a.type === "character");
+        const objection = actor ? HUD.objectionControl(actor, { host: "tile", floor: null, phase: "dailyLife", state: async () => ({ text: "", held: true }), raise: async () => {} }) : null;
+        drawn.objection = objection ? [by(objection), by(objection.querySelector(".drpg-pxi")), objection.className] : "no student";
+        const STATES = { held: "is-held", gmBlock: "is-gm-blocked", offline: "is-offline", muted: "is-muted", ptt: "is-ptt", on: null };
+        const ALL = Object.values(STATES).filter(Boolean);
+        drawn.states = Object.fromEntries(Object.keys(STATES).map(state => {
+            VT.paintMic(tile, { state, reason: state === "held" ? "trial" : null, info: null, data: {} }, { key: "V" });
+            return [state, ALL.filter(cls => mic.classList.contains(cls))];
+        }));
+        drawn.launchStates = kit.LAUNCH_STATES ? Object.entries(kit.LAUNCH_STATES).map(([k, v]) => `${k}:${v}`) : null;
+        const [b] = game.users.filter(user => user.id !== game.user.id && !user.isGM);
+        let list = null, rig = null;
+        if (b) {
+            const settings = { client: { muteAll: false, users: {} }, get: () => undefined, set: async () => {}, getUser: () => ({ canBroadcastAudio: true }) };
+            rig = voiceTileRig(VT, [b], { settings: () => settings, mutes: { read: () => ({}), write: async () => {} }, proximity: () => false, gm: () => true, muteAll: () => false });
+            const room = rig.makeRoom([b.id]);
+            VT.attachRoom(rig.clientOf(room), rig.watch);
+            list = VT.openVoiceList(rig.watch);
+            drawn.list = list ? [by(list), by(list.querySelector(".drpg-voice-row-volume")), list.querySelectorAll(".drpg-voice-row").length] : "no list";
+            VT.closeVoiceList(rig.watch, { focus: false });
+            list?.remove();
+            VT.detachRoom(rig.watch);
+        } else drawn.list = "no player";
+        equal(stableJson({ read, drawn }), stableJson({
+            read: { source: Object.fromEntries(Object.keys(read.source).map(k => [k, [true, false]])) },
+            drawn: {
+                roomTile: "tile", gmLauncher: game.user.isGM ? "launcher" : "not a GM", foundryTools: ftools ? ["launcher", []] : drawn.foundryTools,
+                frames: drawn.frames.map(() => "frame"), voiceTile: ["tile", "launcher-mini", "launcher-mini", "glyph", "glyph"],
+                objection: actor ? ["launcher-mini", "glyph", "drpg-launch-mini drpg-voice-objection"] : "no student",
+                states: { held: ["is-held"], gmBlock: ["is-gm-blocked"], offline: ["is-offline"], muted: ["is-muted"], ptt: ["is-ptt"], on: [] },
+                launchStates: ["held:is-held", "gmBlock:is-gm-blocked", "offline:is-offline", "muted:is-muted", "ptt:is-ptt"],
+                list: b ? ["sliderList", "slider", 1] : "no player"
+            }
+        }), "[each builder: calls the kit, draws by hand], [each drawn surface: the kit builder that made it]");
+        must(drawn.frames.length === 2 || !ftools, `${drawn.frames.length} Foundry tools frame(s) on this page beside the launcher - two were built`);
+    }],
+    ["R1333 - the A8 surfaces' cascade is the one it was, from components.css (tests-kit.mjs `styleCascade`; E44 C6, E44-20, the 11.10 amend A8): on the room tile, the voice tile in four states of its microphone with OBJECTION!, the list 'Who you hear', the GM's hexagon, Foundry tools' launcher and frames and the two pictures the curtain seats, placed as a desk, the curtain and a stacked screen place them on a body of each theme, every property the style baseline records and every property a rule written for them states - on each element and its ::before and ::after - is won by the declaration it was won by at C5's tree (a fingerprint per surface, place and theme), and none by a rule written for them in danganronpa.css or stained-glass.css but the seven `!important` that stay and the eye's sprite tools/chrome-icons.mjs writes", async () => {
+        /*
+         * E44 C6, 05.11.2026; the plan's risk ("a kit rule can lose to an old rule carrying !important and the test
+         * still pass while the screen does not change"), on the surfaces whose acceptance is that nothing changes (C6:
+         * "the diff is 0"). The surfaces are the module's own: the room tile painted by `paintRoomTile` (a picture, its
+         * words open, tokens, a project), the voice tile by `buildVoiceTile` with `paintMic` and `paintObjection`, the list
+         * by `openVoiceList` on `voiceTileRig`'s bench, the launchers and frames this GM's page holds, cloned; the two
+         * pictures (`#drpg-room-art`, `#drpg-voice-art`) are glass.mjs's, drawn here as it draws them. Each is placed on a
+         * body of its own - under the clock (a desk), on the curtain (`drpg-curtain-on`: the notes, the right wall, the
+         * wall at its compact fit) and in the stacked row (`drpg-stacked`) - in each theme. For each element and its two
+         * pseudo-elements, the properties are style-snapshot.mjs PROPS (what the style baseline records) and every
+         * property a rule written for these surfaces states on it, each read with its shorthands and longhands as one; the
+         * winner's file, selector, weight and value - a `--drpg-a8-*` token read back to the literal it stands for - are
+         * hashed per surface, place and theme (FNV-1a), and the hashes are those this test measured on C5's tree
+         * (e65fbb33). Top-level rules only, as `styleCascade` reads them: the `@media` rules are the style sweep's and
+         * E44 C6's full reading in Chromium. A winner that is a rule written for these surfaces and stands in danganronpa.css
+         * or stained-glass.css is named, but for the seven `!important` that stay there (components.css holds none). Red
+         * before C6: those rules were the old sheets', every one. No two rules of the section's top level tie on one
+         * element (the same weight and property: none in the glass harness's page in Chromium, 05.11.2026), so their
+         * order inside the section draws nothing; the `@media` overrides do tie with the rules they override, and their
+         * order is read from the sheet's text (mutant c6-m1b, the reduced-motion block above the word's run).
+         */
+        const C = await styleCascade();
+        const { PROPS } = await import("./style-snapshot.mjs");
+        const RT = await import("./room-tile.mjs");
+        const VT = await import("./voice-tile.mjs");
+        const HUD = await import("./hud.mjs");
+        must(C.rules.length > 1000, `${C.rules.length} rule(s) read - the cascade did not load the sheets`);
+        const A8 = /drpg-room-tile|drpg-room-art|drpg-voice-(?!panel)|drpg-launch-mini|drpg-foundry-tools|drpg-foundry-window|drpg-gm-launcher/;
+        const split = text => { const out = []; let d = 0, part = ""; for (const ch of text) { if (ch === "(" || ch === "[") d++; if (ch === ")" || ch === "]") d--; if (ch === "," && !d) { out.push(part.trim()); part = ""; } else part += ch; } return [...out, part.trim()].filter(Boolean); };
+        // a rule written for these surfaces: every selector of its list names one, and no `:is()` of it lists another surface beside one
+        const shared = sel => [...sel.matchAll(/:(?:is|where)\(/g)].some(m => {
+            let d = 1, j = m.index + m[0].length; const from = j;
+            while (d && j < sel.length) { if (sel[j] === "(") d++; else if (sel[j] === ")") d--; j++; }
+            const alts = split(sel.slice(from, j - 1));
+            return alts.some(x => A8.test(x)) && alts.some(x => !A8.test(x) && /[#.]/.test(x));
+        });
+        const theirs = selectorList => split(selectorList).every(sel => A8.test(sel) && !shared(sel));
+        /* What stays in the old sheets: the `!important` declarations, which components.css holds none of, each in a rule of
+           its old selector, and the eye's sprite, in danganronpa.css's section tools/chrome-icons.mjs writes. */
+        const STAY = new Set(["styles/danganronpa.css|#drpg-gm-launcher i::before","styles/danganronpa.css|.drpg-foundry-window-body > #scene-controls", "styles/danganronpa.css|#drpg-foundry-tools",
+            "styles/danganronpa.css|#drpg-foundry-tools:hover, #drpg-foundry-tools[aria-pressed=\"true\"]", "styles/stained-glass.css|body.drpg-theme-stained-glass #drpg-gm-launcher :is(i, .fa, [class*=\"fa-\"])"]);
+        const tokens = new Map(C.rules.filter(r => r.file === "styles/components.css" && r.selector === "body").flatMap(r => r.decls).filter(d => d.property.startsWith("--drpg-a8-")).map(d => [d.property, d.value]));
+        const literal = value => String(value).replace(/var\((--drpg-a8-[\w-]+)\)/g, (m, name) => tokens.get(name) ?? m);
+        const FAMILY = {
+            border: ["border-top", "border-right", "border-bottom", "border-left", "border-width", "border-style", "border-color", "border-top-color", "border-top-width", "border-top-style"],
+            "border-top": ["border-top-color", "border-top-width", "border-top-style"], "border-color": ["border-top-color"], "border-width": ["border-top-width"], "border-style": ["border-top-style"],
+            background: ["background-color", "background-image", "background-size", "background-position", "background-repeat"], padding: ["padding-top", "padding-right", "padding-bottom", "padding-left"],
+            margin: ["margin-top", "margin-right", "margin-bottom", "margin-left"], flex: ["flex-grow", "flex-shrink", "flex-basis"], overflow: ["overflow-x", "overflow-y"], gap: ["row-gap", "column-gap"],
+            inset: ["top", "right", "bottom", "left"], font: ["font-family", "font-size", "font-weight", "line-height"], "flex-flow": ["flex-direction", "flex-wrap"], "grid-template": ["grid-template-columns"],
+            mask: ["mask-image", "mask-size", "mask-position", "mask-repeat"], "border-radius": [], transition: [], animation: []
+        };
+        const group = prop => {
+            const out = new Set([prop, ...(FAMILY[prop] ?? [])]);
+            for (const [short, longs] of Object.entries(FAMILY)) if (longs.includes(prop)) { out.add(short); for (const [s2, l2] of Object.entries(FAMILY)) if (l2.includes(short)) out.add(s2); }
+            return [...out];
+        };
+        /* The rules that name these surfaces, their selectors split once (the tiers' run is near its bound: read once, not
+           per element). */
+        const written = C.rules.filter(rule => A8.test(rule.selector)).map(rule => ({ rule, sels: split(rule.selector).map(sel => {
+            const pm = /::?(before|after)$/.exec(sel);
+            const base = pm ? sel.slice(0, pm.index) : sel;
+            return { pseudo: pm ? `::${pm[1]}` : null, base, needs: subjectNeeds(base) };
+        }) }));
+        const stated = (el, pseudo) => {
+            const out = new Set();
+            for (const { rule, sels } of written) {
+                for (const { pseudo: want, base, needs: subject } of sels) {
+                    if (want !== pseudo) continue;
+                    // what the selector's subject asks of the element itself, as `styleCascade` reads it before `matches`
+                    if ((subject.tag && subject.tag !== el.localName) || subject.classes.some(name => !el.classList.contains(name))) continue;
+                    let hit = false; try { hit = el.matches(base); } catch { hit = false; }
+                    if (hit) { for (const d of rule.decls) if (!d.property.startsWith("--drpg-a8-")) out.add(d.property); break; }
+                }
+            }
+            return out;
+        };
+        /* The rule a winner came from, asked only of the old sheets' winners and kept by file, selector and value. */
+        const ruleOf = new Map();
+        const ruleFor = w => {
+            const key = `${w.file}\n${w.selector}\n${w.value}`;
+            if (!ruleOf.has(key)) ruleOf.set(key, C.rules.find(x => x.file === w.file && split(x.selector).includes(w.selector) && x.decls.some(d => d.value === w.value)) ?? null);
+            return ruleOf.get(key);
+        };
+        /* The surfaces, built once. */
+        const view = { state: "room", room: "R1333 Dorm", sceneId: "SUITER1333SCENE0", description: "Two bunks under a high window.\nA second line.", image: "worlds/suite/hall.png",
+            tokens: { max: 2, left: 1, sealed: false }, project: true };
+        const roomTile = () => {
+            const t = document.createElement("section");
+            t.className = "drpg-room-tile";
+            RT.paintRoomTile(t, view);
+            t.id = "drpg-room-tile";
+            return t;
+        };
+        const actor = game.actors.find(a => a.type === "character");
+        const voiceTile = (state, objection) => {
+            const t = VT.buildVoiceTile({ onMic: () => {}, onSpeaker: () => {} });
+            VT.paintMic(t, { state, reason: state === "held" ? "trial" : null, info: null, data: {} }, { key: "V" });
+            VT.paintSpeakerButton(t, { count: 2, muteAll: state === "muted" });
+            if (objection && actor) VT.paintObjection(t, { actor, phase: "classTrial", floor: null, state: async () => ({ text: "", held: true }), raise: async () => {} });
+            const face = t.querySelector(".drpg-voice-tile-face"); face.hidden = false;
+            t.querySelector(".drpg-voice-tile-name").textContent = "R1333 Speaker";
+            t.id = "drpg-voice-tile";
+            return t;
+        };
+        const [b] = game.users.filter(user => user.id !== game.user.id && !user.isGM);
+        let list = null;
+        if (b) {
+            const settings = { client: { muteAll: false, users: {} }, get: () => undefined, set: async () => {}, getUser: () => ({ canBroadcastAudio: true }) };
+            const rig = voiceTileRig(VT, [b], { settings: () => settings, mutes: { read: () => ({}), write: async () => {} }, proximity: () => false, gm: () => true, muteAll: () => false });
+            const room = rig.makeRoom([b.id]);
+            VT.attachRoom(rig.clientOf(room), rig.watch);
+            const open = VT.openVoiceList(rig.watch);
+            list = open?.cloneNode(true) ?? null;
+            VT.closeVoiceList(rig.watch, { focus: false });
+            open?.remove();
+            VT.detachRoom(rig.watch);
+            if (list) list.hidden = false;
+        }
+        const clone = sel => document.querySelector(sel)?.cloneNode(true) ?? null;
+        const frames = () => [...document.querySelectorAll(".drpg-foundry-window")].map(f => {
+            const c = f.cloneNode(true);
+            c.removeAttribute("hidden");
+            c.querySelector(".drpg-foundry-window-body")?.replaceChildren(...["sidebar", "scene-controls"].map(id => Object.assign(document.createElement("div"), { id })));
+            return c;
+        });
+        const art = id => Object.assign(document.createElement("div"), { id });
+        const parts = {
+            desk: body => {
+                const column = Object.assign(document.createElement("div"), { id: "ui-left-column-1" });
+                const tile = roomTile(); tile.dataset.place = "clock"; tile.classList.add("is-open"); tile.querySelector(".drpg-room-tile-prose").hidden = false;
+                column.append(tile);
+                body.append(column);
+                return { "room-tile": [tile], "voice-tile": [body.appendChild(voiceTile("held", true))] };
+            },
+            curtain: body => {
+                body.classList.add("drpg-curtain-on");
+                const tile = roomTile(); tile.dataset.place = "notes";
+                const wall = voiceTile("offline", false); wall.dataset.place = "wall";
+                const compact = voiceTile("gmBlock", true); compact.dataset.place = "wall"; compact.dataset.fit = "compact";
+                body.append(tile, wall, compact);
+                return { "room-tile": [tile], "voice-tile": [wall, compact] };
+            },
+            stacked: body => {
+                body.classList.add("drpg-stacked");
+                const row = Object.assign(document.createElement("div"), { id: "drpg-tile-row" });
+                const tile = roomTile(), voice = voiceTile("muted", false);
+                row.append(tile, voice);
+                body.append(row);
+                return { "room-tile": [tile], "voice-tile": [voice] };
+            }
+        };
+        const fnv = text => { let h = 0x811c9dc5; for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h.toString(16).padStart(8, "0"); };
+        const prints = {}, left = new Set();
+        let readings = 0;
+        for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
+            for (const [place, build] of Object.entries(parts)) {
+                const html = document.createElement("html"), body = document.createElement("body");
+                body.className = `${theme} drpg-gm`;
+                html.append(body);
+                const surfaces = build(body);
+                if (list) surfaces["voice-list"] = [body.appendChild(list.cloneNode(true))];
+                for (const [name, sel] of [["gm-launcher", "#drpg-gm-launcher"], ["foundry-tools", "#drpg-foundry-tools"]]) { const c = clone(sel); if (c) surfaces[name] = [body.appendChild(c)]; }
+                surfaces["foundry-window"] = frames().map(f => body.appendChild(f));
+                const roomArt = art("drpg-room-art"), voiceArt = art("drpg-voice-art"); roomArt.classList.add("is-open");
+                body.append(roomArt, voiceArt);
+                surfaces["room-art"] = [roomArt]; surfaces["voice-art"] = [voiceArt];
+                for (const [surface, roots] of Object.entries(surfaces)) {
+                    const lines = [];
+                    roots.forEach((root, r) => [root, ...root.querySelectorAll("*")].forEach((el, i) => {
+                        for (const pseudo of [null, "::before", "::after"]) {
+                            const props = new Set([...(pseudo ? [] : PROPS), ...stated(el, pseudo)]);
+                            if (!props.size) continue;
+                            const onEl = C.on(el, pseudo);
+                            for (const prop of [...props].sort()) {
+                                readings++;
+                                const w = onEl(group(prop));
+                                if (!w) continue;
+                                lines.push(`${r}.${i}${pseudo ?? ""} ${prop}=${w.file}|${w.selector}|${w.important ? "!" : ""}${literal(w.value)}`);
+                                if (w.file !== "styles/danganronpa.css" && w.file !== "styles/stained-glass.css") continue;
+                                const rule = ruleFor(w);
+                                if (rule && theirs(rule.selector) && !STAY.has(`${w.file}|${rule.selector}`)) left.add(`${w.file} ${rule.selector}`);
+                            }
+                        }
+                    }));
+                    prints[`${place}|${theme.replace("drpg-theme-", "")}|${surface}`] = `${roots.length}:${fnv(lines.join("\n").replace(/styles\/(danganronpa|stained-glass|components)\.css/g, "SHEET"))}`;
+                }
+            }
+        }
+        /* Measured on C5's tree (e65fbb33) with this test and tests-kit.mjs's pseudo-elements, 05.11.2026: 48 surfaces, 19153 readings. */
+        /* The `@media` rules of the section, which `styleCascade` does not read: each must stand after every rule of the
+           section's top level it overrides - the same selector - or the system's reduced motion stops nothing (E44 C6's
+           mutant c6-m1: the reduced-motion block moved above the word's run). Read from the sheet's text, in order. */
+        const sheet = (await fetch(`/modules/${MODULE_ID}/styles/components.css`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+        /* The whole sheet is read, and a rule counts when it opens after the section's tokens (the kit's part above them
+           is not the section's); a sheet without the tokens is a failure, not a reading of the whole sheet. */
+        const tokensAt = sheet.indexOf("--drpg-a8-text-fallback");
+        must(tokensAt >= 0, "components.css no longer defines --drpg-a8-text-fallback - the section this reads is not found");
+        const order = [];
+        for (let i = 0, depth = 0, from = 0, media = null; i < sheet.length; i++) {
+            if (sheet[i] === "{") {
+                const prelude = sheet.slice(from, i).replace(/\s+/g, " ").trim();
+                if (depth === 0 && prelude.startsWith("@media")) media = prelude;
+                else if (i > tokensAt && !prelude.startsWith("@") && !/^(from|to|\d+%)/.test(prelude)) order.push({ selector: prelude, media: depth > 0 ? media : null });
+                depth++; from = i + 1;
+            } else if (sheet[i] === "}") { depth--; if (depth === 0) media = null; from = i + 1; } else if (sheet[i] === ";" && depth === 0) from = i + 1;
+        }
+        const early = order.flatMap((rule, i) => (rule.media ? order.slice(i + 1).filter(later => !later.media && later.selector === rule.selector).map(later => `${rule.media} ${rule.selector}`) : []));
+        must(order.some(r => r.media), "no @media rule read in the section - the order this reads would hold nothing");
+        const C5 = {
+            "curtain|monokuma-legacy|foundry-tools": "1:38b5be3c", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:999f5b79",
+            "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:50024055", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
+            "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:05bda810", "curtain|stained-glass|foundry-tools": "1:69716968",
+            "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:426d4aa5", "curtain|stained-glass|room-art": "1:b38f7ef7",
+            "curtain|stained-glass|room-tile": "1:ec4e33c4", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
+            "curtain|stained-glass|voice-tile": "2:15eb161d", "desk|monokuma-legacy|foundry-tools": "1:38b5be3c", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
+            "desk|monokuma-legacy|gm-launcher": "1:999f5b79", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:cb259e72",
+            "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:a60107dd",
+            "desk|stained-glass|foundry-tools": "1:69716968", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:426d4aa5",
+            "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:ce0e3f9a", "desk|stained-glass|voice-art": "1:393b7dc4",
+            "desk|stained-glass|voice-list": "1:e9f9c48e", "desk|stained-glass|voice-tile": "1:17af97d5", "stacked|monokuma-legacy|foundry-tools": "1:38b5be3c",
+            "stacked|monokuma-legacy|foundry-window": "2:3ad17c49", "stacked|monokuma-legacy|gm-launcher": "1:999f5b79", "stacked|monokuma-legacy|room-art": "1:b38f7ef7",
+            "stacked|monokuma-legacy|room-tile": "1:c5f25ec6", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:4671c967",
+            "stacked|monokuma-legacy|voice-tile": "1:9b5c0772", "stacked|stained-glass|foundry-tools": "1:69716968", "stacked|stained-glass|foundry-window": "2:8b75b7bd",
+            "stacked|stained-glass|gm-launcher": "1:426d4aa5", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:0a4f36aa",
+            "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:e9f9c48e", "stacked|stained-glass|voice-tile": "1:d4bd73c1"
+        };
+        equal(stableJson({ left: [...left].sort(), prints, early }), stableJson({ left: [], prints: C5, early: [] }),
+            `[a rule written for these surfaces that still wins from danganronpa.css or stained-glass.css; per place, theme and surface, the number of roots and the fingerprint of its winners; an @media rule above the rule it overrides] (${readings} reading(s))`);
+        must(readings > 3000, `${readings} reading(s) made - the surfaces matched almost no rule`);
     }],
 ];
 

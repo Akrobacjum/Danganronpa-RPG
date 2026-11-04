@@ -130,7 +130,8 @@ import { voiceIdentity, voiceActorFor, measureCameraDock } from "./camera-view.m
 import { safeRoomImage } from "./vault.mjs";
 import { cssString } from "./room-tile.mjs";
 import { reducedMotion, TURN } from "./motion.mjs";
-import { error, plural, tickerRuns, markLanguage } from "./utils.mjs";
+import { error, plural, tickerRuns } from "./utils.mjs";
+import { tile as kitTile, launcher, launcherState, pixelGlyph, sliderList, slider as kitSlider } from "./ui-kit.mjs";
 import { refreshGlass, seatVoiceArt } from "./glass.mjs";
 import { tileRow } from "./narrow.mjs";
 import { objectionControl, renderHud } from "./hud.mjs";
@@ -341,14 +342,9 @@ function recutForTile() {
  * @returns {HTMLElement}
  */
 export function buildVoiceTile({ onMic = () => toggleOwnMic(), onSpeaker = tile => toggleVoiceList(watches.get(tile)) } = {}) {
-    const tile = document.createElement("section");
+    // The kit's tile (E44 C6), in the page's language (E66 fix r1 F1); its id is given where it is placed (`ensureVoiceTile`).
+    const tile = kitTile({ className: "drpg-voice-tile", label: game.i18n.localize("DRPG.Voice.tile.label"), data: { state: "offline" } });
     const n = ++tiles;
-    // Its language, the page's (E66 fix r1 F1; C1's `lang` on the module's containers, STATUS Open 3 and 19).
-    markLanguage(tile);
-    tile.className = "drpg-voice-tile";
-    tile.dataset.state = "offline";
-    tile.setAttribute("role", "region");
-    tile.setAttribute("aria-label", game.i18n.localize("DRPG.Voice.tile.label"));
 
     const face = textNode("div", "drpg-voice-tile-face", "");
     face.hidden = true;
@@ -368,7 +364,7 @@ export function buildVoiceTile({ onMic = () => toggleOwnMic(), onSpeaker = tile 
 
     const mic = miniButton("drpg-voice-mic", "mic", game.i18n.localize("DRPG.Voice.mic.mute"));
     mic.setAttribute("aria-pressed", "false");
-    const lock = glyph("lock");
+    const lock = pixelGlyph("lock");
     lock.classList.add("drpg-voice-mic-lock");
     mic.append(lock, textNode("span", "drpg-voice-mic-ptt", game.i18n.localize("DRPG.Voice.mic.pttBadge")));
     mic.addEventListener("click", event => {
@@ -422,23 +418,9 @@ function textNode(tag, className, text) {
     return el;
 }
 
-/** A 30 px hexagon of the corner's family (Q6): a button with a pixel glyph and a label. */
+/** A 30 px hexagon of the corner's family (Q6): the kit's mini launcher, a pixel glyph and a label (E44 C6). */
 function miniButton(className, name, label) {
-    const button = textNode("button", `drpg-launch-mini ${className}`, "");
-    button.type = "button";
-    button.setAttribute("aria-label", label);
-    button.dataset.tooltipText = label;
-    button.append(glyph(name));
-    return button;
-}
-
-/** One of the module's pixel glyphs (pixel-icons.py), masked in the current colour; never read aloud. */
-function glyph(name) {
-    const icon = textNode("i", "drpg-pxi", "");
-    icon.style.setProperty("--drpg-px-mask", `var(--drpg-px-${name})`);
-    icon.setAttribute("aria-hidden", "true");
-    icon.inert = true;
-    return icon;
+    return launcher({ mini: true, className, glyph: name, label });
 }
 
 /**
@@ -1008,8 +990,8 @@ export function paintMic(tile, mic, { key = pushToTalkKey() } = {}) {
     paintedMic.set(tile, next);
 
     if (changed.includes("state")) {
-        for (const [cls, state] of [["is-held", "held"], ["is-gm-blocked", "gmBlock"], ["is-offline", "offline"],
-            ["is-muted", "muted"], ["is-ptt", "ptt"]]) button.classList.toggle(cls, next.state === state);
+        // The kit's states of a mini launcher (E44 C6): held, the GM's lock, no connection, muted, push to talk.
+        launcherState(button, next.state);
         button.setAttribute("aria-pressed", String(next.state === "muted"));
         if (MIC_FREE.includes(next.state)) button.removeAttribute("aria-disabled");
         else button.setAttribute("aria-disabled", "true");
@@ -1306,7 +1288,7 @@ function listAct(watch, fn) {
 function rowButton(className, name) {
     const button = textNode("button", className, "");
     button.type = "button";
-    button.append(glyph(name));
+    button.append(pixelGlyph(name));
     return button;
 }
 
@@ -1318,8 +1300,7 @@ function listRow(watch, userId) {
     art.setAttribute("aria-hidden", "true");
     const dot = textNode("span", "drpg-voice-row-dot", "");
     dot.setAttribute("aria-hidden", "true");
-    const slider = document.createElement("input");
-    Object.assign(slider, { type: "range", className: "drpg-voice-row-volume", min: "0", max: "1", step: String(VOLUME_STEP) });
+    const slider = kitSlider({ className: "drpg-voice-row-volume", min: 0, max: 1, step: VOLUME_STEP });
     slider.addEventListener("input", () => {
         const volume = volumeOfSlider(slider.value);
         setPeerVolume(watch, userId, volume, { save: false }).catch(err => error("Could not change a volume", err));
@@ -1462,22 +1443,16 @@ function listStops(list) {
  * nobody, the rows. Its keys are heard in the capture phase, before anything inside or behind it.
  */
 function buildVoiceList(watch) {
-    const list = textNode("section", "drpg-voice-list", "");
-    list.id = watch.tile?.id === TILE_ID ? LIST_ID : `${LIST_ID}-${++tiles}`;
-    // Its language, the page's: the list stands in the body, not inside its tile (E66 fix r1 F1, STATUS Open 19).
-    markLanguage(list);
-    list.hidden = true;
-    list.setAttribute("role", "dialog");
-    const title = textNode("h2", "drpg-voice-list-title", game.i18n.localize("DRPG.Voice.list.open"));
-    title.id = `${list.id}-title`;
-    list.setAttribute("aria-labelledby", title.id);
     const muteAll = textNode("button", "drpg-voice-list-muteall", game.i18n.localize("DRPG.Voice.list.muteAll"));
     muteAll.type = "button";
     muteAll.setAttribute("aria-pressed", "false");
     muteAll.addEventListener("click", () => listAct(watch, () => toggleMuteAll(watch)));
     const alone = textNode("p", "drpg-voice-list-alone", game.i18n.localize("DRPG.Voice.list.alone"));
     alone.hidden = true;
-    list.append(title, muteAll, alone, textNode("ul", "drpg-voice-list-rows", ""));
+    /* The kit's list of sliders (E44 C6): hidden, a dialog labelled by its title, in the page's language - it stands in
+       the body, not inside its tile (E66 fix r1 F1) - with "mute all", the line for nobody and the rows' list. */
+    const list = sliderList({ id: watch.tile?.id === TILE_ID ? LIST_ID : `${LIST_ID}-${++tiles}`, className: "drpg-voice-list",
+        titleClass: "drpg-voice-list-title", rowsClass: "drpg-voice-list-rows", title: game.i18n.localize("DRPG.Voice.list.open"), parts: [muteAll, alone] });
     list.addEventListener("keydown", event => onListKey(watch, event), true);
     return list;
 }

@@ -9,13 +9,13 @@
     },
     "styles/danganronpa.css": {
       "important": 691,
-      "colourLiterals": 317,
+      "colourLiterals": 291,
       "duplicates": 0,
       "deadClasses": 0
     },
     "styles/stained-glass.css": {
       "important": 211,
-      "colourLiterals": 107,
+      "colourLiterals": 101,
       "duplicates": 0,
       "deadClasses": 0
     },
