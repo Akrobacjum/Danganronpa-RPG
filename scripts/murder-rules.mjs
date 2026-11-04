@@ -78,7 +78,7 @@ import { youOrThem } from "./secret.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { carriedFor, ITEM_FLAGS, isBroken, isStashed, servesAs, wearOf } from "./inventory.mjs";
 import { equippedFor, breakOnDespair, isEquipped, readiedItems, tierOf, EQUIPPED_FLAG } from "./use-items.mjs";
-import { dropRemnant, traceFeedback, publishTiesFor, fightKey } from "./remnants.mjs";
+import { dropRemnant, traceFeedback, publishTiesFor, fightKey, remnantById } from "./remnants.mjs";
 import { closeOpen } from "./live.mjs";
 import {
     announce as announcePlain, dialogContent, whisperToGms, whisperToOwner as whisperToOwnerPlain, ownerOf,
@@ -2073,10 +2073,8 @@ async function undoLastCrisis({ actorId, key, before = null }) {
     // that no longer happened.
     if (receipt.remnant?.id) {
         try {
-            const scene = receipt.remnant.sceneId
-                ? game.scenes.get(receipt.remnant.sceneId)
-                : null;
-            await scene?.tokens?.get(receipt.remnant.id)?.delete();
+            // The trace's token through its ref (E60 C1b): every trace has one (D38 = 1), found or not.
+            await remnantById(receipt.remnant.sceneId, receipt.remnant.id)?.document?.delete();
         } catch (err) {
             error("Could not take back the Remnant a rerolled crisis action left", err);
         }

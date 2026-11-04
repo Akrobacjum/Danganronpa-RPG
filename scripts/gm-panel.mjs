@@ -213,14 +213,14 @@ const PANEL_SECTIONS = [
             { key: "sound", icon: "fa-volume-high", labelKey: "DRPG.Sound.title",
               run: () => import("./music.mjs").then(m => m.openSoundDialog()) },
             { key: "rules", icon: "fa-gavel", labelKey: "DRPG.Rules.manageTitle",
-              run: () => import("./rules.mjs").then(m => m.openRulesManager()) },
-            // THE ONE PUBLIC ROLL (E33 C12, 07.10.2026; audit S02-72). With rolls forced
-            // private a GM's `/r` goes to the GMs, so a vote's tie or Monokuma's lottery
-            // had no roll everybody could watch. Here, in the section that is never out
-            // of season, because the moment for it is mid-scene: formula, flavour, Roll.
-            { key: "publicRoll", icon: "fa-dice", labelKey: "DRPG.Panel.publicRoll.label",
-              run: () => openPublicRollDialog() }
+              run: () => import("./rules.mjs").then(m => m.openRulesManager()) }
             // GONE FROM HERE:
+            //   Public roll - removed (the owner, 03.11.2026: "Usunmy funkcje public roll
+            //     z gm panel"; E60 C5a). E33 C12 put it here with its window; the roll
+            //     itself stays a GM's macro, `game.drpg.publicRoll` (private-rolls.mjs).
+            //   Dice look - E60 C5b put it where Public roll stood; it is a check before
+            //     the session, so it went to Season setup's Pre-season checks (the owner,
+            //     03.11.2026: "ten kafelek raczej powinien byc w season setup"; E60 C5b2).
             //   Give / take items - it is the Items button in the footer of
             //     Players, and a tile as well was a second door to the same
             //     window (Dawid, 03.09). The hub itself is unchanged; only this
@@ -1070,57 +1070,4 @@ function backupAge() {
     if (!at) return game.i18n.localize("DRPG.Case.backupNever");
     const days = Math.floor((Date.now() - at) / 86400000);
     return days < 1 ? game.i18n.localize("DRPG.Case.backupToday") : plural("DRPG.Case.backupAgo", { n: days });
-}
-
-/* ==========================================================================
- * SUB-DIALOGS
- * ========================================================================== */
-
-/**
- * Edit everything the HUD shows: campaign name, chapter, phase, session and
- * time of day. Reachable only from the GM panel - deliberately not on the
- * HUD itself, which every player is looking at for the rest of the session.
- */
-/**
- * The public roll's window (E33 C12): a formula and a flavour, one Roll button, and the roll
- * posted through private-rolls.mjs `publicRoll` - the one road `whisperRoll` leaves public.
- * `1d6` by default: the tie and the lottery are a die each. Answers the message, or null.
- */
-export async function openPublicRollDialog() {
-    if (alreadyOpen("drpg-window-public-roll")) return null;
-
-    if (!game.user.isGM) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Panel.publicRoll.gmOnly"));
-        return null;
-    }
-
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Panel.publicRoll.label") },
-        classes: ["drpg-panel", "drpg-window-public-roll"],
-        content: `<form>
-                    <label>${game.i18n.localize("DRPG.Panel.publicRoll.formula")}
-                        <input type="text" name="formula" value="1d6" autofocus />
-                    </label>
-                    <label>${game.i18n.localize("DRPG.Panel.publicRoll.flavour")}
-                        <input type="text" name="flavor" value="" />
-                    </label>
-                  </form>`,
-        buttons: [
-            {
-                action: "roll",
-                label: game.i18n.localize("DRPG.Panel.publicRoll.roll"),
-                default: true,
-                callback: (event, button, dialog) => {
-                    const form = dialog.element.querySelector("form");
-                    return { formula: form.formula.value.trim() || "1d6", flavor: form.flavor.value.trim() };
-                }
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
-        rejectClose: false
-    });
-
-    if (!result || result === "cancel") return null;
-    const { publicRoll } = await import("./private-rolls.mjs");
-    return publicRoll(result.formula, { flavor: result.flavor });
 }

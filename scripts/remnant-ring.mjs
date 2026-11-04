@@ -23,8 +23,8 @@
  */
 
 import { MODULE_ID, TRUTH_BULLET_TYPES, REMNANT_VISIBILITY_LABELS } from "./config.mjs";
-import { REMNANT_FLAGS, remnantData, setRemnantPublic, markRemnantEdited, keyOf as remnantKeyOf,
-    traceWhen, actionLabelOf } from "./remnants.mjs";
+import { REMNANT_FLAGS, remnantData, setRemnantPublic, setRemnantFlags, markRemnantEdited, keyOf as remnantKeyOf,
+    traceWhen, actionLabelOf, bandOptions } from "./remnants.mjs";
 import { TRUTH_BULLET_FLAGS, isIdentified, hasReading } from "./truth-bullets.mjs";
 // The viewer's own bullets, indexed by the Remnant they came from and memoised
 // there - see `myTruthBulletFor`. visibility.mjs does not reach back into this
@@ -249,7 +249,27 @@ function glyph(action) {
  * wide and has no footer to put one in, and there is nothing here worth a
  * two-step commit - this is a GM correcting a sentence, not a form.
  */
-function wireCardEditing(body, tokenOrActor) {
+export function wireCardEditing(body, tokenOrActor) {
+    /* THE BAND, ON THE CARD TOO (E60 C4a, 03.11.2026; the owner: "zmiana trudnosci niech bedzie tez w panelu tokena
+       remnanta"). The GM's card drew the band as a badge; a select now, for every trace, found or not, saved on
+       change and written through `setRemnantFlags` - the Traces tab's own write, one road - so the copies keep the
+       band they were made with as there. Not marked as the GM's word on the trace (E60 fix FG2; the owner's
+       "Domyslnie" of 03.11): `gmEdited` is about the words, and silenced the next find's whisper; the row names the
+       band a GM set (`gmBand`), which a Reroll leaves, as the Traces tab's Save does. */
+    const band = body.querySelector("select[data-drpg-band]");
+    band?.addEventListener("change", async () => {
+        const value = band.value;
+        if (value === (band.dataset.drpgWas ?? "")) return;
+        try {
+            if (!await setRemnantFlags(tokenOrActor, { visibility: value })) throw new Error("no row of the trace on this GM");
+            band.dataset.drpgWas = value;
+            band.classList.add("drpg-saved");
+            setTimeout(() => band.classList.remove("drpg-saved"), 1200);
+        } catch (err) {
+            error("Could not save the Remnant's band", err);
+            ui.notifications.error(game.i18n.localize("DRPG.Remnant.cardSaveFailed"));
+        }
+    });
     for (const field of body.querySelectorAll("[data-drpg-public]")) {
         field.addEventListener("blur", async () => {
             const key = field.dataset.drpgPublic;
@@ -273,7 +293,8 @@ function wireCardEditing(body, tokenOrActor) {
     }
 }
 
-function gmRemnantCard(tokenOrActor, esc) {
+/** The GM's card of a trace (exported for the suite, which draws it into a node of its own). */
+export function gmRemnantCard(tokenOrActor, esc) {
     const data = remnantData(tokenOrActor);
     if (!data) return null;
 
@@ -282,18 +303,20 @@ function gmRemnantCard(tokenOrActor, esc) {
     const when = traceWhen(data);
 
     // The same badge vocabulary the Truth Bullet rows on the sheet speak:
-    // type in the type's colour, visibility beside it, then the three GM
-    // verdicts as chips - which used to be a whispered line of plain text at
-    // the bottom of the card.
+    // type in the type's colour, then the three GM verdicts as chips - which
+    // used to be a whispered line of plain text at the bottom of the card. The
+    // band was a badge beside the type until E60 C4a; it is a select among the
+    // facts below, which a GM changes here as on the Traces tab.
     const badges = [
         `<span class="drpg-tb-badge type ${esc(data.type)}">${esc(data.typeLabel)}</span>`,
-        `<span class="drpg-tb-badge visibility">${esc(data.visibilityLabel)}</span>`,
         data.tiedToCrime ? `<span class="drpg-tb-badge crime">${esc(t("DRPG.Remnant.crimeColumn"))}</span>` : null,
         data.faint ? `<span class="drpg-tb-badge faint">${esc(t("DRPG.TruthBullet.faint"))}</span>` : null,
         data.reinforced ? `<span class="drpg-tb-badge reinforced">${esc(t("DRPG.Remnant.reinforcedColumn"))}</span>` : null
     ].filter(Boolean).join("");
 
     const rows = [
+        [t("DRPG.Investigation.visibility"), `<select data-drpg-band data-drpg-was="${esc(data.visibility ?? "")}" aria-label="${
+            esc(t("DRPG.Investigation.visibility"))}">${bandOptions(data.visibility)}</select>`],
         [t("DRPG.Remnant.cardWhere"), esc(data.room ?? "-")],
         [t("DRPG.Remnant.cardWhen"), esc(when || "-")],
         [t("DRPG.Remnant.cardWho"), esc(data.sourceName ?? "-")],
@@ -340,7 +363,8 @@ function gmRemnantCard(tokenOrActor, esc) {
     </div>`;
 }
 
-function playerRemnantCard(tokenOrActor, esc) {
+/** A player's card of a trace: their own copy's words and band, nothing to change (exported for the suite). */
+export function playerRemnantCard(tokenOrActor, esc) {
     const tokenDoc = tokenOrActor?.document ?? tokenOrActor;
     const bullet = myTruthBulletFor(tokenDoc);
 

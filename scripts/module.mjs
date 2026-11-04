@@ -90,6 +90,7 @@ import { registerMotion } from "./motion.mjs";
 import { registerSafeword } from "./safeword.mjs";
 import { registerConfusionCopy } from "./call-effects.mjs";
 import { registerDiceSync } from "./dice-sync.mjs";
+import { registerDiceLook } from "./dice-look.mjs";
 import { registerSync } from "./sync.mjs";
 import { registerTraps } from "./traps.mjs";
 import { SETTINGS, getSetting, applyTheme, pixelFontOn } from "./settings.mjs";
@@ -444,6 +445,8 @@ Hooks.once("ready", () => {
     // populated, and asks the other GMs for the pick if this browser has none.
     safely("the Mastermind", registerMastermind);
     safely("dice appearance sync", registerDiceSync);
+    // E60 C5b: the last throws this browser's Dice So Nice was handed, for `game.drpg.diagnoseDiceLook()`.
+    safely("the dice look's throws", registerDiceLook);
     safely("body classes", applyBodyClasses);
     safely("the system check", verifySystem);
     // After the body classes, so the check sees the interface as it will be

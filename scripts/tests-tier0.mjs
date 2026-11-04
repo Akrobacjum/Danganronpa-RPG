@@ -7600,13 +7600,14 @@ const REGRESSIONS = [
         };
         const NOT_A_STUDENT = [
             ["call-world.mjs", "fallbackGather", "scene", "the room's tokens, drawn round the assembly point (Token documents)"],
-            ["cleanup.mjs", "undoLastCleanup", "scene.tokens.get()", "the trace token a clean-up left behind"],
+            // The trace's token through its ref since E60 C1b (remnants.mjs `remnantById`), `scene.tokens.get()` until then.
+            ["cleanup.mjs", "undoLastCleanup", "remnantById().document", "the trace token a clean-up left behind"],
             ["gm-bridge.mjs", "handleSendback", "token", "a token sent back out of a locked room"],
             ["incident-store.mjs", "retireOpeningNotices", "game.messages.get()", "the GMs' opening notices"],
             ["migrate.mjs", "CLAUSES", "table", "a pool table's results, given their roles"],
             ["monocub.mjs", "postCubRoll", "ChatMessage", "the Monocub ability roll's chat card (E33 C10; postMeddleRoll until 1.2.68)"],
             ["movement.mjs", "sendBack", "tokenDoc", "a token put back where it stood before a refused move"],
-            ["murder-rules.mjs", "undoLastCrisis", "scene.tokens.get()", "the trace token the crisis action left"],
+            ["murder-rules.mjs", "undoLastCrisis", "remnantById().document", "the trace token the crisis action left (its ref's token since E60 C1b)"],
             ["murder-rules.mjs", "undoLastCrisis", "game.messages.get()", "the crisis action's card"],
             // E41 C9a (1.2.97): the music's engine moved to music-play.mjs, the Sound window to sound-panel.mjs.
             ["music-play.mjs", "pausePlaylist", "playlist", "a playlist paused"],
@@ -10355,7 +10356,7 @@ const REGRESSIONS = [
          *
          * E79 C6, 15.10.2026 (A10-9's overlay clause; the plan's F3): the GMs' overlay draws every secret passage of the
          * scene on screen, so a copy of it on a player's browser would be the whole map of them. `gmOverlay` is declared
-         * once, exported, in gm-overlay.mjs (E60 adds its layer 'traces' there); in that file a `new PIXI.Container`
+         * once, exported, in gm-overlay.mjs (no layer for traces: D38 = 1, 03.11.2026); in that file a `new PIXI.Container`
          * stands in `gmOverlay` only after `if (!game.user?.isGM) return null` and in any other declaration only after
          * a call of `gmOverlay()` (a layer is the overlay's child, never the canvas's); and the overlay's name,
          * "drpgGmOverlay", is written as a string in no other module file. A container made under another class's name
@@ -14865,13 +14866,15 @@ const REGRESSIONS = [
          * the tier-2 test "a roll the GM drew whose message is not written ..." drives the failed write). Held here: the
          * throw is this screen's own drawing (no packet, no write, no request), after every refusal and the evaluation and
          * before the write, so a refused or unevaluated roll throws nothing; and the relay's own throw stands aside for it,
-         * so one throw a roll. Read with comments blanked; each reader is shown a planted fault first.
+         * so one throw a roll. Read with comments blanked; each reader is shown a planted fault first. E60 C5e: both throws
+         * stand only where this GM sees the player's dice - `throwDrawn`'s behind `seesPlayersDice(actor)`, the relay's
+         * behind `audience.includes(game.user?.id)` (private-rolls.mjs `gmsInRoomOf`; E60-T17).
          */
         const WRITES = /\bsocket\s*\.\s*emit\s*\(|\bbridgeRequest\s*\(|\.\s*(?:setFlag|unsetFlag|update|updateSource|createEmbeddedDocuments|updateEmbeddedDocuments|deleteEmbeddedDocuments)\s*\(|\bsettings\s*\.\s*set\s*\(|\bChatMessage\b|\breadHere\s*\(/;
         const AS_ROLLER = /\bgame\.dice3d\.showForRoll\(\s*roll\s*,\s*user\s*,\s*false\s*\)/;
         const AWAITED = /\bawait\s+(?:Promise\.resolve\(\s*)?game\.dice3d\.showForRoll\(/;
         const FAILED = /\bcatch\s*\(\s*err\s*\)\s*\{\s*if\s*\(\s*shown\s*\)\s*debug\(/;
-        const GUARD = /\bif\s*\(\s*!shown\s*\)\s*void\s+playRolls\(\s*message\s*,/;
+        const GUARD = /\bif\s*\(\s*!shown\s*&&\s*audience\.includes\(\s*game\.user\?\.id\s*\)\s*\)\s*void\s+playRolls\(\s*message\s*,/;
         const SENT = /\bgame\.socket\.emit\(\s*SOCKET_EVENT\s*,\s*\{\s*action:\s*DICE_SHOW\b/;
         equal(JSON.stringify([WRITES.test("game.socket.emit(EVENT, {});"), AWAITED.test("await game.dice3d.showForRoll(roll, user, false);"),
             AS_ROLLER.test("game.dice3d.showForRoll(roll, game.user, false)"), GUARD.test("void playRolls(message, by ?? game.user);"),
@@ -14884,7 +14887,7 @@ const REGRESSIONS = [
         const here = topLevelFunction(draw, "throwOnThisScreen") ?? "", thrown = fnSource(draw, "throwDrawn"), write = fnSource(draw, "writeDrawnMessage");
         const relay = fnSource(rolls, "relayDrawnDice"), report = fnSource(rolls, "reportRollSubject"), claimed = fnSource(rolls, "reportClaimedRoll");
         const at = re => thrown.search(re);
-        const [evaluated, shown, written] = [at(/\bawait\s+cls\.buildEvaluate\(/), at(/\bconst\s+shown\s*=\s*throwOnThisScreen\(\s*roll\s*,\s*sender\s*\)/), at(/\bwriteDrawnMessage\(/)];
+        const [evaluated, shown, written] = [at(/\bawait\s+cls\.buildEvaluate\(/), at(/\bconst\s+shown\s*=\s*seesPlayersDice\(\s*actor\s*\)\s*\?\s*throwOnThisScreen\(\s*roll\s*,\s*sender\s*\)\s*:\s*false\b/), at(/\bwriteDrawnMessage\(/)];
         equal(JSON.stringify([here.length > 0, WRITES.test(here), AS_ROLLER.test(here), AWAITED.test(here), evaluated >= 0 && evaluated < shown && shown < written,
             /\bwriteDrawnMessage\([^;]*\bshown\b/.test(thrown), FAILED.test(thrown), /\bsupersedingRoll\([\s\S]*\bshown\b/.test(write),
             /\bshown:\s*claim\.shown\b/.test(claimed), /\brelayDrawnDice\(\s*message\s*,\s*by\s*,\s*\{\s*shown\s*\}\s*\)/.test(report),
@@ -18428,7 +18431,7 @@ const REGRESSIONS = [
          * Leave a Clue and Secure a Trace hints end "a critical leaves two" / „a krytyk zostawia dwa”, the entry's
          * `indirectVictim.count.critical`, and the digit rule cannot see a word. 2 to 12 only: "one" and „jeden” stand
          * in every other sentence as an article or a pronoun (Sprint's "one more" is section 13's, E71). Measured on
-         * this tree: these four places and no other. Their placeholder needs the owner's text change: E71 (row 1.2.128).
+         * this tree: these four places and no other. Their placeholder needs the owner's text change: E71 (row 1.2.119).
          */
         const NUMBER_WORDS = { en: ["", "", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"],
             pl: ["", "", "dwa|dwie|dwóch|dwoma|dwu", "trzy|trzech|trzema", "cztery|czterech", "pięć|pięciu", "sześć|sześciu", "siedem|siedmiu",
@@ -19508,8 +19511,9 @@ const REGRESSIONS = [
             season: ["bodiesFound", "bodyFound", "chapterEnd", "clock", "despairPools", "discoveredRooms", "gmAssignments", "killingGameRules",
                 "motive", "murderState", "overflow", "pendingGather", "projectMeta", "readyRound", "restrictions", "sealedRooms", "searchTokens",
                 "trialProgress", "trialQueue"],
-            counts: [19, 11, 34], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
-        }), "the season's settings are not the nineteen the reset clears, the lifetimes do not count 19, 11 and 34, the clock's entry does not "
+            // 35 table settings since E60 C5d: `diceDualityLook`, the table's Hope and Despair dice, outlives a season.
+            counts: [19, 11, 35], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
+        }), "the season's settings are not the nineteen the reset clears, the lifetimes do not count 19, 11 and 35, the clock's entry does not "
             + "name the readiness round and the End of chapter's record, the assignments' entry does not name gmAssignments, or the reset's own record is not kept as the campaign's");
     }],
 
@@ -19634,7 +19638,237 @@ const REGRESSIONS = [
         }), `a write of chapterEnd or seasonReset outside its road (chapterEnd: the files writing it, at least 4; outside: the functions of chapter.mjs that write it `
             + `on no road through chapterEnds; counted: every write in such a function; seasonReset: the files, at least 1; reset: every write in wipeSeason, in its `
             + `writer, behind isPrimaryGm) - holders ${JSON.stringify(read.holders)}, writes ${JSON.stringify([read.chapterEnd, read.seasonReset])}`);
-    }]
+    }],
+    ["R1281 - one read of traces (E60 C1b; E60-03, S17-64): outside remnants.mjs and the placeables' three readers (remnant-ring.mjs, remnant-icons.mjs, visibility.mjs) no module file's code names the trace flag `isRemnant`, and no top-level declaration gets a token by `tokens.get(` but the sixteen measured at E60 C1b, none of them a trace's (a sendback, a relay, a project's, the trial hall's, `remnantStore`'s tombstone check `exists`); and no declaration calls `update(` or `delete(` on a value it bound from `remnantsOn`, `remnantsInRoom`, `remnantById` or `findRemnantToken` - a found trace's token is written as the ref's `document`", async () => {
+        /*
+         * E60 C1b, 03.11.2026; S17-64. Written for D38 = 2, in which an unfound trace was to have no token; the owner chose
+         * D38 = 1 the same day, so every trace keeps its hidden token, and the one read stays: every reader of a trace
+         * reads its ref (remnants.mjs `remnantsOn`, `remnantById` ...), built from the rows and the tokens together, so a
+         * trace is read with its row and its spot in one place. Read in every module file the module loads but the tier
+         * files, comments blanked (blankComments): the flag (strings kept), and `tokens.get(` with the top-level
+         * declaration holding it (strings blanked too). The sixteen
+         * holders allowed are listed, and each is held to still be there, so a row once written cannot keep a later
+         * read green. Then the refs' writes: in each declaration, the names bound from the four readers (`const x =
+         * reader(`, `for (const x of reader(`, and the first arrow parameter of a call chained on one), and a call of
+         * `update(` or `delete(` on such a name; a planted pair of declarations that write a ref is named, and a clean
+         * twin writing `ref.document` is not. Not caught: a ref reached through a field (`entry.token`) or through a
+         * helper's answer. Red at C1a: ten declarations read a trace's token directly - bridge-guards.mjs
+         * `remnantSourceOf`, cleanup.mjs `findRemnantToken` and `undoLastCleanup`, diagnostics.mjs
+         * `diagnoseTruthBullets` (the flag), gm-stores.mjs `gmStoreHealth` (the flag), handover.mjs
+         * `markBodyDisturbed`, investigation.mjs `saveKeyPlan`, murder-rules.mjs `undoLastCrisis`, reroll.mjs
+         * `traceKept`, trial-modes.mjs `revealInStep`. Mutant c1b-m1 (gmStoreHealth back on `scene.tokens`) reads red.
+         */
+        const sources = await moduleSources();
+        const PLACEABLES = new Set(["remnants.mjs", "remnant-ring.mjs", "remnant-icons.mjs", "visibility.mjs"]);
+        const ALLOWED = new Set([
+            "bridge-guards.mjs#guardSendbackPlace", "bridge-guards.mjs#tokenActorOf", "bridge-runs-records.mjs#handleSendback",
+            "call-world.mjs#panToGathered", "dice-sync.mjs#putBackToken", "gm-stores.mjs#remnantStore", "movement-audit.mjs#onSentBack",
+            "movement.mjs#refundLastCrossing", "private-rolls.mjs#rollSubjectNow", "projects-map.mjs#projectTokenOf",
+            "projects-map.mjs#removeProjectToken", "projects-map.mjs#sweepOnce", "relay-guard.mjs#tokenFor", "trial-scene.mjs#stageHall",
+            "trial-scene.mjs#standingTwice", "trial-scene.mjs#scenesReportOf"
+        ]);
+        const DECL = /^(?:export\s+)?(?:async\s+)?function\*?\s*([\w$]+)|^(?:export\s+)?(?:const|let)\s+([\w$]+)\s*=/gm;
+        const READER = "(?:[\\w$]+\\.)?(?:remnantsOn|remnantsInRoom|remnantById|findRemnantToken)\\(";
+        const BOUND = [
+            new RegExp(`(?:const|let)\\s+([\\w$]+)\\s*=\\s*(?:await\\s+)?${READER}`, "g"),
+            new RegExp(`for\\s*\\(\\s*(?:const|let)\\s+([\\w$]+)\\s+of\\s+${READER}`, "g"),
+            new RegExp(`${READER}[^()]*(?:\\([^()]*\\)[^()]*)*\\)\\s*\\.\\s*(?:filter|map|find|some|every|forEach|flatMap)\\(\\s*\\(?\\s*([\\w$]+)`, "g")
+        ];
+        const declsOf = bare => {
+            const decls = [...bare.matchAll(DECL)].map(m => ({ name: m[1] ?? m[2], at: m.index }));
+            decls.forEach((d, i) => { d.end = decls[i + 1]?.at ?? bare.length; });
+            return decls;
+        };
+        const refWrites = (file, raw) => {
+            const bare = blankLiterals(blankComments(raw));
+            let bound = 0;
+            const hits = [];
+            for (const d of declsOf(bare)) {
+                const span = bare.slice(d.at, d.end);
+                const names = new Set(BOUND.flatMap(re => [...span.matchAll(re)].map(m => m[1])));
+                bound += names.size;
+                for (const name of names) {
+                    if (new RegExp(`(?<![\\w$.])${name.replace(/\$/g, "\\$")}\\s*\\??\\.\\s*(?:update|delete)\\s*\\(`).test(span)) hits.push(`${file}#${d.name} (${name})`);
+                }
+            }
+            return { bound, hits };
+        };
+        const flag = [], gets = new Set(), writes = [];
+        let bound = 0, files = 0;
+        for (const [file, raw] of sources) {
+            if (!file.endsWith(".mjs") || /^tests/.test(file)) continue;
+            files++;
+            const code = blankComments(raw), bare = blankLiterals(code);
+            const decls = declsOf(bare);
+            const holder = at => decls.filter(d => d.at <= at).pop()?.name ?? "(top level)";
+            if (!PLACEABLES.has(file)) for (const m of code.matchAll(/\bisRemnant\b/g)) flag.push(`${file}#${holder(m.index)}`);
+            if (file === "remnants.mjs") continue;
+            for (const m of bare.matchAll(/\btokens\s*\??\.\s*get\s*\(/g)) gets.add(`${file}#${holder(m.index)}`);
+            const w = refWrites(file, raw);
+            bound += w.bound;
+            writes.push(...w.hits);
+        }
+        must(files >= 150 && sources.has("remnants.mjs"), `the module's sources read ${files} files - this would measure nothing`);
+        must(bound >= 10, `only ${bound} names bound from the trace readers were found - the write check reads next to nothing`);
+        const planted = refWrites("planted.mjs", [
+            "function plantedOne(sceneId, id) {\n    const ref = remnantById(sceneId, id);\n    return ref.delete();\n}",
+            "async function plantedLoop(scene) {\n    for (const t of R.remnantsOn(scene)) await t?.update({ hidden: false });\n}",
+            "function cleanTwin(sceneId, id) {\n    const ref = remnantById(sceneId, id);\n    return ref.document?.delete();\n}"
+        ].join("\n\n"));
+        equal(JSON.stringify({
+            flag,
+            unlisted: [...gets].filter(h => !ALLOWED.has(h)).sort(),
+            stale: [...ALLOWED].filter(h => !gets.has(h)).sort(),
+            writes,
+            planted: planted.hits
+        }), JSON.stringify({ flag: [], unlisted: [], stale: [], writes: [], planted: ["planted.mjs#plantedOne (ref)", "planted.mjs#plantedLoop (t)"] }),
+            "[code outside remnants.mjs and the placeables naming the trace flag; tokens.get( in a declaration not listed; a listed "
+            + "declaration no longer there; a ref written; the planted writes named]");
+    }],
+
+    ["R1289 - D153's census (E60 C4b; E60-12): in scripts/ outside the suite every call of `createTruthBullet(` stands inside a step of utils.mjs `serialWrite(observeFindKey(...), ...)`, the receiver's finds' queue on one GM's browser, with a `copiedRemnants(` check in that step before it - but the two that name no trace to check: truth-bullets.mjs `issueAutopsy` (an Autopsy has none) and handover.mjs `mintLootBullet` (one bullet per thing taken off a body, each naming its thing, so a taker who takes twice holds two of the body's trace by design)", async () => {
+        /*
+         * E60 C4b, 03.11.2026; D153 (SIER-R1 of 31.10, from H84): two hand-overs of one trace's bullet to one receiver at
+         * once, and the GM's give from a Remnant, skipped the queue an Observe's find and Monokuma's Reveal make their copy
+         * in, so a race could mint a second copy of one trace. Read in every module file but the tier files, comments and
+         * literals blanked: each `createTruthBullet(` call (the definition aside), the top-level declaration holding it,
+         * and in that declaration the last `serialWrite(observeFindKey(` before it - still open at the call (more `(`
+         * than `)` between them) and with `copiedRemnants(` between them. Then a planted declaration with a call outside
+         * the queue, one in the queue with no check and a clean twin. Not read: a queue under another key, or a check
+         * through a helper of another name. Red at C4a: handover.mjs `mintCopy` (a hand-over's core) and gm-items.mjs
+         * `giveTruthBulletDialog` stood outside it. Mutants c4b-m1, c4b-m2 and c4b-m3 read red here.
+         * The queue is this browser's memory (`serialWrite`), so it holds one GM's browser to one copy (E60's fix round,
+         * FG6; the end review's C-m8, S-m4): Observe's find, a hand-over, a Present and Monokuma's Reveal run on the
+         * primary, and Give a Truth Bullet on whichever GM opened it - a give on a second GM's browser beside the
+         * primary's find of the same trace for the same receiver can still make two copies, and is E38's (row 1.2.125,
+         * the stage of two GMs; STATUS Open 50).
+         */
+        const sources = await moduleSources();
+        const EXEMPT = ["handover.mjs#mintLootBullet", "truth-bullets.mjs#issueAutopsy"];
+        const DECL = /^(?:export\s+)?(?:async\s+)?function\*?\s*([\w$]+)|^(?:export\s+)?(?:const|let)\s+([\w$]+)\s*=/gm;
+        const QUEUE = /serialWrite(\(observeFindKey\((?:(?!serialWrite\(observeFindKey\()[\s\S])*)$/;
+        const depth = text => [...text].reduce((n, c) => n + (c === "(" ? 1 : c === ")" ? -1 : 0), 0);
+        const callsIn = (file, raw) => {
+            const bare = blankLiterals(blankComments(raw));
+            const decls = [...bare.matchAll(DECL)].map(m => ({ name: m[1] ?? m[2], at: m.index }));
+            const out = [];
+            for (const m of bare.matchAll(/\bcreateTruthBullet\s*\(/g)) {
+                if (/\bfunction\s*$/.test(bare.slice(Math.max(0, m.index - 16), m.index))) continue;
+                const d = decls.filter(x => x.at <= m.index).pop();
+                const span = bare.slice(d?.at ?? 0, m.index);
+                // What follows the last queue's opening in the declaration, from its `(` (no queue: no match).
+                const after = span.match(QUEUE)?.[1] ?? null;
+                const queued = after !== null && depth(after) > 0 && /\bcopiedRemnants\s*\(/.test(after);
+                out.push({ where: `${file}#${d?.name ?? "(top level)"}`, queued });
+            }
+            return out;
+        };
+        const calls = [];
+        for (const [file, raw] of sources) {
+            if (!file.endsWith(".mjs") || /^tests/.test(file)) continue;
+            calls.push(...callsIn(file, raw));
+        }
+        must(calls.length >= 6 && calls.some(c => c.queued), `${calls.length} calls of createTruthBullet were read - this would measure nothing`);
+        const planted = callsIn("planted.mjs", [
+            "async function plantedOutside(to, data) {\n    if (copiedRemnants(to).has(data.remnantId)) return null;\n    return createTruthBullet(to, data);\n}",
+            "async function plantedUnchecked(to, data) {\n    return serialWrite(observeFindKey(to.id), () => createTruthBullet(to, data));\n}",
+            "async function cleanTwin(to, data) {\n    return serialWrite(observeFindKey(to.id), () => copiedRemnants(to).has(data.remnantId) ? null : createTruthBullet(to, data));\n}"
+        ].join("\n\n"));
+        const outside = [...new Set(calls.filter(c => !c.queued).map(c => c.where))].sort();
+        equal(JSON.stringify({ outside, exemptGone: EXEMPT.filter(e => !calls.some(c => c.where === e)), planted: planted.map(c => [c.where, c.queued]) }),
+            JSON.stringify({ outside: EXEMPT, exemptGone: [], planted: [["planted.mjs#plantedOutside", false], ["planted.mjs#plantedUnchecked", false], ["planted.mjs#cleanTwin", true]] }),
+            "[the declarations whose createTruthBullet stands outside the receiver's finds' queue or has no copiedRemnants check in its step; "
+            + "an exempt declaration no longer there; the planted three]");
+    }],
+    ["R1291 - the GM panel has no Public roll (E60 C5a; E60-13): no tile of its sections and no code of the panel's family names `publicRoll`, `openPublicRollDialog` or a DRPG.Panel.publicRoll key; that key's label, formula, flavour and roll are gone from lang/en.json and lang/pl.json and its gmOnly and badFormula stay, both read by private-rolls.mjs; `game.drpg.publicRoll` stays, in api.mjs and in tools/api-surface.json as a function (a macro's road)", async () => {
+        /*
+         * E60 C5a, 03.11.2026; the owner after installing 1.2.97: "Usunmy funkcje public roll z gm panel". E33 C12 put a
+         * Public roll tile in the panel's "Right now" section (`openPublicRollDialog`: a formula, a flavour, then
+         * private-rolls.mjs `publicRoll`). The tile and its window go; the roll itself stays a GM's macro road
+         * (`game.drpg.publicRoll`, which 12-social and tier 2's C12 rows drive), with the two keys it reads. Read here:
+         * the panel's family's code, comments stripped (the kit's `panelText`); the two language files as served; the
+         * names private-rolls.mjs and api.mjs read; tools/api-surface.json's row; the live `game.drpg`. Red at C4b: the
+         * tile, the window and its four keys were there.
+         */
+        needs(env.tools(), "tools/api-surface.json is read from the repository's tools/");
+        const sources = await moduleSources();
+        const panel = stripComments(panelText(sources));
+        const named = ["publicRoll", "openPublicRollDialog", "DRPG.Panel.publicRoll", "drpg-window-public-roll"].filter(name => panel.includes(name));
+        const lang = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" });
+            lang[code] = res.ok ? await res.json() : null;
+        }
+        must(lang.en && lang.pl, "lang/en.json or lang/pl.json was not served - this would read nothing");
+        const keysOf = file => Object.keys(file?.DRPG?.Panel?.publicRoll ?? {}).sort();
+        const rolls = stripComments(sources.get("private-rolls.mjs") ?? "");
+        const api = stripComments(sources.get("api.mjs") ?? "");
+        must(rolls.length > 1000 && api.length > 1000, "private-rolls.mjs or api.mjs was not read - this would read nothing");
+        let surface = null;
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/tools/api-surface.json`, { cache: "no-cache" });
+            if (res.ok) surface = await res.json();
+        } catch { /* the assertion below says it is missing */ }
+        equal(JSON.stringify({
+            panel: named, en: keysOf(lang.en), pl: keysOf(lang.pl),
+            read: ["DRPG.Panel.publicRoll.gmOnly", "DRPG.Panel.publicRoll.badFormula"].filter(key => !rolls.includes(`"${key}"`)),
+            api: [/\bpublicRoll\b/.test(api), typeof game.drpg?.publicRoll, surface?.keys?.publicRoll ?? null]
+        }), JSON.stringify({ panel: [], en: ["badFormula", "gmOnly"], pl: ["badFormula", "gmOnly"], read: [], api: [true, "function", "function"] }),
+            "[the panel's family's names of the public roll; DRPG.Panel.publicRoll's keys in English and in Polish; the two keys private-rolls.mjs "
+            + "does not read; api.mjs names publicRoll, game.drpg.publicRoll's kind, the surface's row]");
+    }],
+
+    ["R1296 - the dice look in the report asks nobody (E60 C5b; E60-15): diagnostics.mjs `REPORT_SECTIONS` has a part `diceLook` covering `diagnoseDiceLook`, run on a player too; dice-look.mjs's code names no socket, emit, chat message or write of a document, a flag or a setting; and the part run here sends no packet and posts no message", async () => {
+        /*
+         * E60 C5b, 03.11.2026; the owner's answer of 03.11 ("lekka"): the dice look is read by each browser of itself, and
+         * nothing is asked of another browser - no bridge row, no socket. R1550 holds every exported diagnose* to a part of
+         * the report; this holds the part to its promise. Read: the part's row; dice-look.mjs, comments and literals blanked,
+         * for `socket`, `.emit(`, `ChatMessage`, `toMessage(`, `.create(`, `.update(`, `.delete(`, `setFlag(`, `unsetFlag(`
+         * and `settings.set(`; then the part run with `game.socket.emit` counted and the messages counted. Red before C5b: no
+         * part, no file. Mutant c5b-m7 (the part asks the players over the socket) reads red here.
+         */
+        const D = await import("./diagnostics.mjs");
+        const part = D.REPORT_SECTIONS.find(s => s.id === "diceLook") ?? null;
+        const sources = await moduleSources();
+        const raw = sources.get("dice-look.mjs") ?? "";
+        const bare = blankLiterals(blankComments(raw));
+        const writes = ["socket", ".emit(", "ChatMessage", "toMessage(", ".create(", ".update(", ".delete(", "setFlag(", "unsetFlag(", "settings.set("]
+            .filter(word => bare.includes(word));
+        let emitted = 0, text = null;
+        const before = game.messages.size;
+        const emit = game.socket.emit;
+        if (part) {
+            game.socket.emit = (...args) => { emitted++; return emit.apply(game.socket, args); };
+            try { text = await part.run({ gm: true }); } finally { game.socket.emit = emit; }
+        }
+        equal(JSON.stringify({
+            part: part ? [part.covers, part.gmOnly] : null, file: raw.length > 2000, writes, emitted, messages: game.messages.size - before,
+            text: typeof text === "string" && text.length > 0
+        }), JSON.stringify({ part: [["diagnoseDiceLook"], false], file: true, writes: [], emitted: 0, messages: 0, text: true }),
+            "[the report's diceLook part (covers, GM only); dice-look.mjs read; the writes and sends its code names; packets sent; messages posted; the part's text]");
+    }],
+    ["R1297 - the roll window does not collapse for a player (E60 C5c; E60-16): no code in scripts/ outside the suite names `collapseLocked` or the collapse's classes (`drpg-locked-away`, `drpg-roll-summary`, `drpg-mode-chip`), and no rule of the module's stylesheets styles them", async () => {
+        /*
+         * E60 C5c, 03.11.2026; the owner: "Nawet gdyby rzucal statystyka, to i tak okno nie powinno sie zmieniac". E16 C2's
+         * collapse of a player's locked roll window (roll-dialog.mjs `collapseLocked`; styles/danganronpa.css "A PLAYER'S
+         * LOCKED WINDOW") is retired, and a class it drew left in a sheet or a script would be a rule styling nothing or a
+         * window that still hides a section. Read: every module file but the tier files, comments stripped, and every
+         * stylesheet the module loads. Red at C5b: roll-dialog.mjs held the function and the classes, danganronpa.css
+         * their rules.
+         */
+        const NAMES = ["collapseLocked", "drpg-locked-away", "drpg-roll-summary", "drpg-mode-chip"];
+        const sources = await moduleSources();
+        const css = await moduleStyles();
+        must(sources.size > 100 && css.length > 10000, `${sources.size} script(s) and ${css.length} characters of the sheets read - this would measure nothing`);
+        const hits = [];
+        for (const [file, raw] of sources) {
+            if (/^tests/.test(file)) continue;
+            const code = stripComments(raw);
+            for (const name of NAMES) if (code.includes(name)) hits.push(`${file}: ${name}`);
+        }
+        for (const name of NAMES) if (css.includes(`.${name}`)) hits.push(`the module's stylesheets: ${name}`);
+        equal(JSON.stringify(hits), "[]", "[the scripts and sheets that still name the collapse]");
+    }],
 ];
 
 

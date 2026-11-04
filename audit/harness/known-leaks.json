@@ -23,10 +23,11 @@
       "class": "answer-key",
       "severity": "medium",
       "what": "An unfound trace is a hidden Token document, which every browser holds with its position; its note and subject stay on the GM's browser.",
-      "closes": "E60",
+      "foundryLimit": "Foundry v14 sends every Token document, hidden or not, with its position, to every connected client; the owner chose on 03.11.2026 that an unfound trace stays a hidden token (D38 = 1), so where the traces lie is world data, while each trace's note and subject stay on the GMs' browsers.",
       "detectedBy": [
         {"scenario": "72-canary", "check": "an unfound trace's token reaches no player's browser"}
       ],
+      "readme": "leak:S17-64",
       "measuredAt": "E30 C20 on 4a83b6b, 24.09.2026: the trace token placed in the Gym was on p1, p2 and p3; the remnant.note and remnant.subject markers were on none of them (72-canary and 10-murder)"
     },
     {

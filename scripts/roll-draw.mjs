@@ -55,7 +55,7 @@ import { bridgeRequest, ownsActor } from "./bridge-guards.mjs";
 import { readDuality, awardRollDespair } from "./despair-award.mjs";
 import { answerKeysOpen, rollStore, sheetMarkStore } from "./gm-stores.mjs";
 import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf, readHere, awaitDrawn, isDrawnRoll, forgedFlagsOf, isReadableHere,
-    rollNonceOf } from "./private-rolls.mjs";
+    rollNonceOf, gmsInRoomOf } from "./private-rolls.mjs";
 import { LOADED_DIE, loadDie, loadedAtOf, standAsideFor } from "./forced-roll.mjs";
 import { DRPG_ACTION_ROLL, DRAWN_ROLL, searchOdds, stashStepFor } from "./action-rolls.mjs";
 import { actionsLeft, freeActionsLeft } from "./actions.mjs";
@@ -1469,7 +1469,8 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     if (loads) loadDie(roll, loaded);
     await cls.buildEvaluate(roll, config, {});
     // The dice on this screen as the roller's, now, at the throw (H82 C6, `throwOnThisScreen`); the relay sends them on.
-    const shown = throwOnThisScreen(roll, sender);
+    // Only where this GM sees a player's dice (E60 C5e): rolls not forced private, or its Monokuma in the roller's room.
+    const shown = seesPlayersDice(actor) ? throwOnThisScreen(roll, sender) : false;
     const rollId = foundry.utils.randomID();
     let message;
     try {
@@ -2148,6 +2149,13 @@ function facesOf(roll) {
  * and how the GM's own work after its message (a Fear result's Despair, the HUD) sits beside falling dice, is
  * LIVE-H82-06.
  */
+/** Whether this GM's screen throws a player's dice about `actor` (E60 C5e; private-rolls.mjs `gmsInRoomOf`). */
+function seesPlayersDice(actor) {
+    let forced = true;
+    try { forced = game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls) !== false; } catch { forced = true; }
+    return !forced || gmsInRoomOf(actor).includes(game.user?.id);
+}
+
 function throwOnThisScreen(roll, user) {
     try {
         if (typeof game.dice3d?.showForRoll !== "function") {

@@ -45,6 +45,9 @@
  *      `approveReshape` at the same moment as the GM's own): each is ruled once, on the primary
  *      GM, and the second Approve is told it was ruled. On the code before the fix (08.10.2026)
  *      gm2's Decline was ruled on gm2, both Approves answered true and p2 was told twice.
+ *      (E60 C4a) The same window has the tied trace's band moved from Evident to Hidden, and the
+ *      Save writes it: both GMs' rows read Hidden, and Aiko's copy keeps the Evident it was made
+ *      with (the owner's Q-E60-3). At C1c the row had no band to change (D1 red).
  *   K  (E09 C7) a chapter-2 trial after a chapter-1 plan: a case of three closed in chapter 2
  *      (its row), two of its Keys found by the living, and the trial entered through the clock
  *      twice - without a Save of the planner for chapter 2, then after one - moves both GMs'
@@ -518,8 +521,13 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
         const name = await until(() => d.app?.element?.querySelector('[name="name.${row}"]'), 10000);
         const drawn = name?.value ?? null;
         if (name) name.value = ${J(MARK.typed)};
-        return { open: Boolean(d.app), listed: Boolean(name), drawn };`, { timeout: 30000 });
-    verdict("the dashboard is open on the GM with a name typed in the Faint trace's row", typed.open && typed.listed, J(typed));
+        // The found trace's band, moved in the same window (E60 C4a).
+        const band = d.app?.element?.querySelector('[name="vis.${IDS.scene}__${ids.tied}"]');
+        const bandDrawn = band?.value ?? null;
+        if (band) band.value = "hidden";
+        return { open: Boolean(d.app), listed: Boolean(name), drawn, bandDrawn };`, { timeout: 30000 });
+    verdict("the dashboard is open on the GM with a name typed in the Faint trace's row and the tied trace's band moved from Evident to Hidden",
+        typed.open && typed.listed && typed.bandDrawn === "evident", J(typed));
     /*
      * A ruling reads its proposal off the attempt's row since E09 C10, so gm2 writes one first, and the GM waits until
      * it holds it. Then the rulings come from the console (`game.drpg.approveReshape` / `declineReshape`), which since
@@ -590,6 +598,15 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
     const others = side => J({ ...after[side], faint: null }) === J({ ...before[side], faint: null });
     verdict("both GMs hold the reshape after the Save, and the other two traces as they were",
         ["gm", "gm2"].every(side => J(after[side].faint) === J([MARK.dName, MARK.dText]) && others(side)), J({ before, after }));
+    const bandOn = client => client.eval(`${until} const R = await import("${repoUrl}/scripts/remnants.mjs");
+        const read = () => R.remnantData(game.scenes.get("${IDS.scene}").tokens.get("${ids.tied}"))?.visibility ?? null;
+        await until(() => read() === "hidden", 6000);
+        return read();`, { timeout: 20000 });
+    const aikoBand = await gm.eval(`${TB} const copy = TB.bulletsOf(game.actors.get("${IDS.aiko}")).find(i => TB.secretOf(i.uuid)?.remnantId === "${ids.tied}") ?? null;
+        return copy ? copy.getFlag("danganronpa-rpg", TB.TRUTH_BULLET_FLAGS.visibility) ?? null : "no copy";`);
+    const bands = { gm: await bandOn(gm), gm2: await bandOn(gm2), aikoCopy: aikoBand };
+    verdict("the Save writes the tied trace's band on both GMs' rows, and Aiko's copy keeps the band it was made with (E60 C4a)",
+        J(bands) === J({ gm: "hidden", gm2: "hidden", aikoCopy: "evident" }), J(bands));
 
     /* ------------------------------ K. the Key fee ------------------------------ */
 

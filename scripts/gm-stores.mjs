@@ -2062,11 +2062,14 @@ export async function gmStoreHealth() {
     const rows = [];
     const add = (id, level, key, data = {}) => rows.push({ id, level, key, data });
 
-    const traces = [];
-    for (const scene of game.scenes ?? []) for (const token of scene.tokens ?? []) if (token.getFlag(MODULE_ID, "isRemnant")) traces.push(token);
+    /* EVERY TRACE'S REF (E60 C1b, 03.11.2026): remnants.mjs reads the rows and the tokens together (`remnantsOn`), and
+       this walks a scene's tokens no more (tier 0 R1281). Every ref holds its trace token (D38 = 1, E60 fix FG1) - a
+       token flagged with no row among them, as before. */
+    const { answerKeyOnToken, ANSWER_KEY_FLAGS, remnantsOn } = await import("./remnants.mjs");
+    const refs = [...(game.scenes ?? [])].flatMap(scene => remnantsOn(scene));
+    const traces = refs.map(ref => ref.document);
     const traceKey = token => `${token.parent?.id}.${token.id}`;
     // A trace whose answer key is still on its token is moved, not restored: counted apart (C-m14).
-    const { answerKeyOnToken, ANSWER_KEY_FLAGS } = await import("./remnants.mjs");
     const noRow = traces.filter(token => !remnantStore.has(traceKey(token)));
     const onToken = noRow.filter(answerKeyOnToken);
     const traceGaps = noRow.filter(token => !answerKeyOnToken(token));
@@ -2082,9 +2085,10 @@ export async function gmStoreHealth() {
     const flagged = traces.filter(token => !onToken.includes(token)
         && ANSWER_KEY_FLAGS.some(flag => flag in (token._source?.flags?.[MODULE_ID] ?? token.flags?.[MODULE_ID] ?? {})));
     if (flagged.length) add("tracesKept", "conflict", "DRPG.Case.row.tracesKept", { n: flagged.length, of: traces.length });
-    // A row whose token is gone: unreachable (every read goes through a token), counted, never removed on its own.
-    const onMap = new Set(traces.map(traceKey));
-    const orphans = Object.keys(remnantStore.entries()).filter(key => !onMap.has(key)).length;
+    // A row whose trace token is gone, with a spot or none (D38 = 1; E60 fix FG1 put back 1.2.97's count, which C1b had
+    // narrowed to rows with no spot): no ref reaches it, so nothing reads it - counted, never removed on its own.
+    const reached = new Set(refs.map(ref => ref.key));
+    const orphans = Object.keys(remnantStore.entries()).filter(key => !reached.has(key)).length;
     if (orphans) add("traceOrphans", "info", "DRPG.Case.row.traceOrphans", { n: orphans });
 
     const bullets = allBullets();

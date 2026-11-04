@@ -4,6 +4,7 @@
  * Answers "why isn't this working" without guesswork. Run from the console:
  *
  *     game.drpg.diagnoseDice()        dice skins
+ *     game.drpg.diagnoseDiceLook()    why the dice look differ between browsers (dice-look.mjs)
  *     game.drpg.diagnoseDespair()     Despair from rolls
  *     game.drpg.diagnoseCharacters()  who has not been set up yet
  *     game.drpg.diagnose()            all of them as one report, with Copy report
@@ -13,6 +14,8 @@ import { MODULE_ID, moduleVersion, STARTING } from "./config.mjs";
 import { SETTINGS, STALE_SILENCES, staleSilencesCleared, pixelFontOn } from "./settings.mjs";
 import { glassOn } from "./motion.mjs";
 import { bulletStore, remnantStore } from "./gm-stores.mjs";
+// Synchronous, for `diagnoseTruthBullets`; remnants.mjs reaches this file by no import (R161).
+import { remnantsOn } from "./remnants.mjs";
 import { monokumas, getDespair, despairMax, poolCandidates } from "./despair.mjs";
 import { monokumaFor, students, unassigned, feedsNobody, explicitPool, assignments } from "./assignments.mjs";
 import { studentActors, studentCensus } from "./monokuma.mjs";
@@ -22,7 +25,7 @@ import { competingModuleWarnings, liveKitSecretWarning, liveKitConnectionSetting
 import { isPrimaryGm, log, debug, error, esc, gmReport, plural, dialogContent, sessionFailures } from "./utils.mjs";
 import { systemWarningSilence, showSystemWarningAgain } from "./requirements.mjs";
 import { gmOnline } from "./bridge-guards.mjs";
-import { rollSubjectNow } from "./private-rolls.mjs";
+import { rollSubjectNow, gmsInRoomOf, untoldMonokumas, isDrawnRoll } from "./private-rolls.mjs";
 
 /**
  * WHO WAS ALLOWED TO WATCH THE LAST FEW ROLLS.
@@ -67,6 +70,8 @@ function rollAudienceLines(gm = game.user?.isGM === true) {
         return lines;
     }
 
+    const untold = gm && forced ? untoldMonokumas() : [];
+    if (untold.length) lines.push(`  Monokumas whose GM cannot be told admit no GM to a player's dice: ${untold.join(", ")} - set their pool in the Monokuma panel`);
     for (const message of rolls) {
         // Who the roll is about as this browser can tell (E06 C5a): what its roller reported, then the speaker.
         const subject = rollSubjectNow(message);
@@ -79,6 +84,12 @@ function rollAudienceLines(gm = game.user?.isGM === true) {
 
         lines.push(`  "${subject?.name ?? "no actor"}" rolled by ${author} → ${names}`
             + `${mine ? "   ← you hear this one" : ""}`);
+        // Whose screen throws a player's dice (E60 C5e): a GM's only with one of their Monokumas in the roller's room.
+        if (gm && forced && (!message.author?.isGM || isDrawnRoll(message))) {
+            const seen = gmsInRoomOf(subject).map(id => game.users.get(id)?.name ?? id);
+            lines.push(seen.length ? `      3D dice on a GM's screen: ${seen.join(", ")} (their Monokuma stands in the roller's room)`
+                : "      3D dice on no GM's screen: no GM's Monokuma stands in the roller's room");
+        }
 
         // The accident, named on the spot. Every player who owns the character
         // is a candidate for `ownerOf`, and only the first active one is used.
@@ -135,11 +146,15 @@ export function diagnoseDice({ toChat = true, gm = game.user?.isGM === true } = 
         appearance = null;
     }
 
+    // The preset is Daggerheart 2.9's and older's, a client setting read on this browser alone (E60 C5b; 2.9.4
+    // settings.mjs registers Appearance `scope: 'client'`); from 2.10 the Hope and Despair dice are Dice So Nice roles.
     const dsnConfig = appearance?.diceSoNiceData ?? appearance?.diceSoNice;
+    const dh = `Daggerheart ${game.system?.version ?? "?"}`;
     if (!dsnConfig) {
-        lines.push("Could not read Daggerheart's Appearance settings.");
+        lines.push(`${dh}: no Hope/Despair preset here - from 2.10 the look is Dice So Nice roles; see game.drpg.diagnoseDiceLook().`);
         return report("Dice diagnostics", lines, { toChat });
     }
+    lines.push(`${dh} (2.9 and older): the Hope/Despair preset below is this browser's own; another browser may hold another - game.drpg.diagnoseDiceLook() there.`);
 
     for (const key of ["hope", "fear"]) {
         const chosen = dsnConfig[key]?.system;
@@ -1223,9 +1238,9 @@ export function diagnoseTruthBullets({ toChat = true } = {}) {
     // token carries no type (`placeRemnant`).
     const neutral = [];
     for (const scene of game.scenes) {
-        for (const token of scene.tokens) {
-            if (!token.getFlag(MODULE_ID, "isRemnant")) continue;
-            const type = remnantStore.get(`${scene.id}.${token.id}`)?.type ?? token.getFlag(MODULE_ID, "remnantType");
+        // Every trace's ref (E60 C1b): its trace token, with its row or none (D38 = 1; E60 fix FG1).
+        for (const ref of remnantsOn(scene)) {
+            const type = remnantStore.get(ref.key)?.type ?? ref.document?.getFlag(MODULE_ID, "remnantType");
             if (type !== "neutral") continue;
             neutral.push(scene.name);
         }
@@ -2101,6 +2116,8 @@ export const REPORT_SECTIONS = Object.freeze([
     part("failures", "Failures since this page loaded", [], () => failureText()),
     part("silences", "Silenced warnings", [], () => silenceText()),
     part("dice", "Dice", ["diagnoseDice"], ({ gm }) => diagnoseDice({ toChat: false, gm })),
+    // E60 C5b: this browser's own dice look, read here; nothing is asked of another browser (R1296).
+    part("diceLook", "Dice look", ["diagnoseDiceLook"], async ({ gm }) => (await import("./dice-look.mjs")).diceLookLines({ gm })),
     part("despair", "Despair", ["diagnoseDespair"], () => diagnoseDespair({ toChat: false }), { gmOnly: true }),
     part("styles", "Styles", ["diagnoseStyles"], () => diagnoseStyles({ toChat: false })),
     part("windows", "Windows", ["diagnoseWindows"], () => diagnoseWindows({ toChat: false })),

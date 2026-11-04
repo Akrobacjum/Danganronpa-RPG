@@ -171,8 +171,13 @@ const ACTOR = "actor:";
 const SOURCE = "source:";
 /** The debounce and fuse key of an unlinked token's own overlay: `token:<sceneId>.<tokenId>`. */
 const TOKEN = "token:";
-/** The world settings only a full Gamemaster sets (the owner's Q5, its default (a)). */
-const SWITCHES = [SETTINGS.forceDiceLook, SETTINGS.diceLookSource];
+/**
+ * The world settings only a full Gamemaster sets (the owner's Q5, its default (a)); and since E60 C5d the table's Hope
+ * and Despair dice, which the source's own browser writes (`keepDualityLook`) and the primary holds as it holds these.
+ */
+const SWITCHES = [SETTINGS.forceDiceLook, SETTINGS.diceLookSource, SETTINGS.diceDualityLook];
+/** Two values of a switch alike: an object (the Hope and Despair look) by its JSON, whatever its keys' order. */
+const sameSwitch = (a, b) => stableJson(a ?? null) === stableJson(b ?? null);
 
 const timers = new Map();
 const putBacks = new Map();
@@ -239,6 +244,10 @@ export function registerDiceSync() {
     // The overlays wait for the other GMs' copies of the store, not for DSN: they are flags, read as they stand.
     if (gmStoresHydrated()) onStoresHydrated();
     else onGmStoresHydrated(onStoresHydrated);
+    // The table's Hope and Despair dice (E60 C5d): the source's own browser keeps them, at its load and as its
+    // Daggerheart setting changes (a client setting: Foundry tells it with `clientSettingChanged`).
+    Hooks.on("clientSettingChanged", key => { if (key === DH_APPEARANCE) void keepDualityLook(); });
+    if (game.user?.isGM) void keepDualityLook();
     // Marked on either road (E52-09): a Dice So Nice already up when this runs fired its hook before it.
     const ready = () => { markFired("diceSoNiceReady"); void sweep(); };
     if (game.dice3d) ready();
@@ -277,7 +286,7 @@ function switchValue(name) {
 
 /** Whether a switch is not this browser's copy of it, or the world's copy of the store moved: a write no listener heard, where a step finds it. */
 function switchesMoved() {
-    return SWITCHES.some(name => switchCopy.has(name) && switchValue(name) !== switchCopy.get(name)) || worldCopyMoved();
+    return SWITCHES.some(name => switchCopy.has(name) && !sameSwitch(switchValue(name), switchCopy.get(name))) || worldCopyMoved();
 }
 
 /**
@@ -295,9 +304,12 @@ function afterSwitchesHeld(step) {
 function copySwitches() {
     for (const name of SWITCHES) {
         const value = switchValue(name);
-        if (value !== undefined) switchCopy.set(name, value);
+        if (value !== undefined) switchCopy.set(name, plainSwitch(value));
     }
 }
+
+/** A switch's value as the copy keeps it: an object cloned, so a later write cannot move the copy under it. */
+const plainSwitch = value => (value && typeof value === "object" ? foundry.utils.deepClone(value) : value);
 
 /**
  * A write of a world setting as every browser hears it. On a GM's browser a full Gamemaster's write of a switch is
@@ -312,9 +324,11 @@ function onSwitchWritten(setting, userId) {
         const writer = game.users.get(userId);
         if (isFullGm(writer) || (writer?.id === game.user.id && isPrimaryGm())) {
             const value = switchValue(name);
-            if (value !== undefined) switchCopy.set(name, value);
+            if (value !== undefined) switchCopy.set(name, plainSwitch(value));
         } else if (isPrimaryGm()) void holdSwitches(writer);
     }
+    // The switch on, or the source moved to this browser's user: the table's Hope and Despair dice are this one's to keep.
+    if (name !== SETTINGS.diceDualityLook) void keepDualityLook();
     schedule(SWEEP);
 }
 
@@ -332,9 +346,9 @@ function holdSwitches(writer = null) {
         let held = false;
         for (let pass = 0; pass < 2 && (pass === 0 || switchesMoved()); pass++) {
             for (const name of SWITCHES) {
-                if (!switchCopy.has(name) || switchValue(name) === switchCopy.get(name)) continue;
+                if (!switchCopy.has(name) || sameSwitch(switchValue(name), switchCopy.get(name))) continue;
                 try {
-                    await game.settings.set(MODULE_ID, name, switchCopy.get(name));
+                    await game.settings.set(MODULE_ID, name, plainSwitch(switchCopy.get(name)));
                     held = true;
                 } catch (err) { error(`Could not put back the setting ${name} of the table's dice look`, err); }
             }
@@ -553,6 +567,11 @@ function lookSource({ write = false } = {}) {
 
 const isSource = user => Boolean(user) && lookSource()?.id === user.id;
 
+/** The full Gamemaster whose look is the table's, as `lookSource` names it, written nowhere: dice-look.mjs's read (E60 C5b). */
+export function tableLookSource() {
+    return lookSource();
+}
+
 /** The id `diceLookSource` holds, as written, or null. */
 function namedSourceId() {
     try { return game.settings.get(MODULE_ID, SETTINGS.diceLookSource) || null; } catch { return null; }
@@ -615,7 +634,8 @@ const plain = value => (value && typeof value === "object" ? foundry.utils.deepC
 /**
  * The look the source throws in, as every forced user must hold it. The appearance is the one DSN works out for
  * the source (`Dice3D.ALL_CUSTOMIZATION`, read in the 26.09 design: a GM with no flag of their own still has a
- * look, from their colour), or the raw flag where DSN is not built (no canvas; the harness, whose `game.dice3d`
+ * look, from their colour; absent from Dice So Nice 6.3 and later, where the diagnostic says so, `dsnApiMoved`, and
+ * reading it there is E76's, row 1.2.120 - E60's fix round, FG5), or the raw flag where DSN is not built (no canvas; the harness, whose `game.dice3d`
  * has no such method). A library die's owner is written in where it is missing, since DSN looks the die up in
  * its owner's library and a player's own would not hold it. No special effect is part of it (H82 C1, the header): until
  * then the GM's effects were, all but those that run a macro, which would have run on every browser at a player's throw.
@@ -789,6 +809,76 @@ function stopped(key) {
     blown.delete(key);
     putBacks.delete(key);
     return false;
+}
+
+/**
+ * Whether the fuse holds a user's put-back stopped now, read without re-arming it (`stopped` re-arms past the window):
+ * dice-look.mjs's read (E60 C5b). Memory of this browser's, so false on any browser but the primary that blew it.
+ */
+export function fuseStoppedFor(key) {
+    return blown.has(key) && Date.now() - ((putBacks.get(key) ?? []).at(-1) ?? 0) < FUSE_WINDOW_MS;
+}
+
+/*
+ * THE TABLE'S HOPE AND DESPAIR DICE (E60 C5d, 03.11.2026; the owner's answer to Q-C5-2, "tak"; the investigation's cause
+ * 2). The forced look above is Dice So Nice's, on the Users; Daggerheart 2.9 and older colour its Hope, Fear and advantage
+ * dice with a preset of its own, a client setting (2.9.4 settings.mjs registers Appearance `scope: 'client'`), laid on a
+ * die when it is evaluated, on the browser that evaluates it (baseDie.mjs `#setDualityDiePreset`, not awaited). So a
+ * player's statistic thrown with no GM wore the player's preset, a roll the GM drew the GM's where it landed in time and
+ * the thrower's Dice So Nice look where it did not, and the GM's own the GM's. Now the source full Gamemaster's browser
+ * keeps its preset in the world (`diceDualityLook`) - at its load, at a change of its setting, and when the switch or
+ * the source moves to it - while the table's look is forced, and the primary holds it as it holds the switches (a write
+ * below full Gamemaster is put back; a write by any full Gamemaster is held as the copy, as every switch's is - E16's
+ * rule, full Gamemasters are trusted - not only the source's own browser's: the end review's S-n3). Every browser lays it on each throw it draws (dice-look.mjs `layDualityLook`, on
+ * `diceSoNiceRollStart`), whatever the thrower's own setting. Daggerheart 2.10 and later colour those dice by Dice So Nice
+ * roles and keep no preset: nothing is written, and the diagnostic says `rolesUnforced`. What a table draws is LIVE-E60-06.
+ */
+const DH_APPEARANCE = "daggerheart.Appearance";
+const DUALITY_KINDS = Object.freeze(["hope", "fear", "advantage", "disadvantage"]);
+const PRESET_FIELDS = Object.freeze(["system", "colorset", "texture", "material", "font", "foreground", "background", "outline", "edge"]);
+
+/** A preset's field as a string: Daggerheart's colours are Foundry's Color (its `css`) at a table, strings in the harness. */
+function presetField(value) {
+    const text = typeof value === "string" ? value : typeof value?.css === "string" ? value.css : null;
+    return text ? text.slice(0, 64) : null;
+}
+
+/**
+ * This browser's Daggerheart Hope and Despair preset, `{ hope, fear, advantage, disadvantage }` with each kind's names
+ * and colours, or null where the system keeps none (2.10 and later, or no Daggerheart). Read only.
+ */
+export function dualityPresetHere() {
+    let appearance = null;
+    try { appearance = game.settings.get("daggerheart", "Appearance"); } catch { return null; }
+    const dsn = appearance?.diceSoNice;
+    if (!dsn || typeof dsn !== "object") return null;
+    const out = {};
+    for (const kind of DUALITY_KINDS) {
+        const row = {};
+        for (const field of PRESET_FIELDS) {
+            const value = presetField(dsn[kind]?.[field]);
+            if (value) row[field] = value;
+        }
+        if (Object.keys(row).length) out[kind] = row;
+    }
+    return Object.keys(out).length ? out : null;
+}
+
+/**
+ * On the source's own browser, the table's Hope and Despair dice written to the world where they are not its preset;
+ * true when written. Nothing on any other browser, with the switch off, or where the system keeps no preset.
+ */
+export async function keepDualityLook() {
+    if (!isFullGm(game.user) || !enforcing() || lookSource()?.id !== game.user.id) return false;
+    const look = dualityPresetHere();
+    if (!look || sameSwitch(switchValue(SETTINGS.diceDualityLook), look)) return false;
+    try {
+        await game.settings.set(MODULE_ID, SETTINGS.diceDualityLook, look);
+        return true;
+    } catch (err) {
+        error("Could not keep the table's Hope and Despair dice", err);
+        return false;
+    }
 }
 
 /** An actor's overlay as its flags hold it, or null for none. */

@@ -1842,7 +1842,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         delete globalThis.__e15c2;
         if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false });
         for (const id of ["${ids.chie}", "${ids.aiko}"]) if (C.isDeadForGm(game.actors.get(id))) await C.reviveCharacter(game.actors.get(id), { quiet: true });
-        for (const t of remnantsOn(canvas.scene).filter(t => remnantData(t)?.subject === ${JSON.stringify(plan.name)})) await t.delete();
+        for (const t of remnantsOn(canvas.scene).filter(t => remnantData(t)?.subject === ${JSON.stringify(plan.name)})) await t.document?.delete();
         if (back.project) await P.deleteProject(back.project).catch(() => {});
         const his = back.botan ? canvas.scene.tokens.get(back.botan.id) : null;
         if (his) await his.update({ x: back.botan.x, y: back.botan.y }, { teleport: true, movementAction: "displace", animate: false });

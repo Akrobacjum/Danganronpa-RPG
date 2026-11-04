@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.97";
+    --drpg-css-version: "1.2.98";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -7344,8 +7344,8 @@ body.drpg-pixel-font .drpg-action-button .drpg-action-cost {
    bound the heading and truncate the title bar, and both still counted toward the width a window
    of `width: auto` takes from its content: a long title widened the window up to its ceiling.
    `contain: inline-size` takes their text out of that sum, and the flex growth gives them the
-   room the rest of the window makes. Only the computed `contain` is read here (tier 2, "a
-   player's locked roll window ..."); what a table's window does with a long title is LIVE-E16-02.
+   room the rest of the window makes. Only the computed `contain` is read here (tier 2, E60-T15,
+   "a player's roll window is the GM's ..."); what a table's window does with a long title is LIVE-E16-02.
 
    AND NO TITLE STANDS ON END (H81-07, the owner's 1.2.80 table, 20.10.2026: "the roll's title is
    vertical"). The contain made each title 0 wide wherever its own width is taken from its content:
@@ -7393,40 +7393,6 @@ body.drpg-theme-stained-glass .application.roll-selection:not(.drpg-panel) > .wi
 .application.roll-selection select[name="selectedMessageMode"] {
     min-width: 150px;
     white-space: nowrap;
-}
-
-/* A PLAYER'S LOCKED WINDOW (E16 C2; audits S02-29, S01-17): what the render hook put away is
-   not drawn (roll-dialog.mjs `collapseLocked`), the mode is a chip, one line says what the
-   roll is, and Roll - the one thing left to press - is full Bone. A Free Critical keeps its red. */
-.application.roll-selection .drpg-locked-away {
-    display: none !important;
-}
-
-.application.roll-selection .drpg-mode-chip {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.15rem 0.6rem;
-    border: 1px solid var(--drpg-line-strong);
-    border-radius: 2px;
-    color: var(--drpg-bone);
-    font-size: var(--drpg-text-xs);
-    white-space: nowrap;
-}
-
-.application.roll-selection .drpg-roll-summary-line {
-    margin: 0.5rem 0;
-    color: var(--drpg-bone);
-    text-align: center;
-}
-
-.application.roll-selection.drpg-roll-summary:not(.drpg-forced-critical) button.submit-btn {
-    background: var(--drpg-bone) !important;
-    border-color: var(--drpg-bone) !important;
-    color: var(--drpg-ink) !important;
-}
-
-.application.roll-selection.drpg-roll-summary:not(.drpg-forced-critical) button.submit-btn:hover:not(:disabled) {
-    background: rgba(var(--drpg-bone-rgb), 0.85) !important;
 }
 
 /* THE ROLL DIALOG SPEAKS BONE, NOT DAGGERHEART'S AMBER.

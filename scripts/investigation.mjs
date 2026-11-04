@@ -29,8 +29,8 @@ import {
 import { SETTINGS, isEclipse, sameSeason } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import {
-    remnantsOn, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited,
-    confirmClearFaint,
+    remnantsOn, remnantById, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited,
+    confirmClearFaint, shownBand, bandOptions,
     traceContextLine, traceLabel
 } from "./remnants.mjs";
 import { bulletsOf, isTruthBullet, secretOf, truthBulletData } from "./truth-bullets.mjs";
@@ -821,7 +821,7 @@ async function saveKeyPlan(plan, rows) {
            what the tab drew, where F6 compared with the stored plan), or the row was
            pointed at a different trace, which takes the plan's words; and the stored plan
            then takes the trace's words for what was pushed. */
-        const token = tokenId ? game.scenes.get(sceneId)?.tokens?.get(tokenId) ?? null : null;
+        const token = tokenId ? remnantById(sceneId, tokenId) : null;
         if (token) {
             const repointed = "token" in take;
             const words = {
@@ -1700,6 +1700,8 @@ function traceShows(data) {
         text: data.public?.playerText || "",
         analysis: data.public?.analyzedText || "",
         type: REMNANT_TYPES[data.type] ? data.type : Object.keys(REMNANT_TYPES).find(findableKind),
+        // The band, for every trace (E60 C4a): what the select shows (remnants.mjs `shownBand`).
+        vis: shownBand(data.visibility),
         faint: Boolean(data.faint),
         crime: tieShown(data.tiedToCrime),
         reinf: Boolean(data.reinforced)
@@ -1719,13 +1721,13 @@ const tieShown = tie => tie === true ? "tied" : tie === false ? "untied" : "";
 const tieTaken = shown => shown === "tied" ? true : shown === "untied" ? false : null;
 
 /** The Traces tab's fields, by the prefix of their names in the form. */
-const TRACE_FIELDS = ["img", "name", "text", "analysis", "type", "faint", "crime", "reinf"];
+const TRACE_FIELDS = ["img", "name", "text", "analysis", "type", "vis", "faint", "crime", "reinf"];
 
 /** What a refusal calls each field: the column it is under. */
 const FIELD_LABELS = {
     img: "DRPG.Investigation.traceImage", name: "DRPG.Investigation.traceName",
     text: "DRPG.Investigation.traceText", analysis: "DRPG.Investigation.traceAnalysis",
-    type: "DRPG.Investigation.traceType", faint: "DRPG.Remnant.faintColumn",
+    type: "DRPG.Investigation.traceType", vis: "DRPG.Investigation.visibility", faint: "DRPG.Remnant.faintColumn",
     crime: "DRPG.Remnant.crimeColumn", reinf: "DRPG.Remnant.reinforcedColumn",
     note: "DRPG.Investigation.keyNoteLabel", token: "DRPG.Investigation.onMap"
 };
@@ -1734,6 +1736,7 @@ const FIELD_LABELS = {
 function refusedAs(field, value, traces) {
     if (typeof value === "boolean") return game.i18n.localize(value ? "DRPG.Live.ticked" : "DRPG.Live.unticked");
     if (field === "type") return REMNANT_TYPES[value]?.label ?? value;
+    if (field === "vis") return REMNANT_VISIBILITY_LABELS[value] ?? value;
     if (field === "crime") return game.i18n.localize(TIE_OPTIONS[value] ?? TIE_OPTIONS[""]);
     if (field === "token") {
         const trace = traces.find(t => `${t.token.id}|${t.scene.id}` === value);
@@ -1803,6 +1806,10 @@ export function caseTraceRows(shown, finders) {
                 .filter(([value]) => findableKind(value) || value === shows.type).map(([value, def]) =>
                 `<option value="${esc(value)}"${value === shows.type ? " selected" : ""}>${
                     esc(def.label)}</option>`).join("")}</select></td>
+            ${/* HOW HARD IT IS TO SPOT, FOR EVERY TRACE (E60 C4a, 03.11.2026; the owner's ask of 28.10, Q-E60-3's
+                  alternative): the band Observe reads its number from, found or not - a found trace's copies keep
+                  the band they were made with (remnants.mjs `setRemnantFlags`). */ ""}
+            <td><select name="vis.${key}"${aria("DRPG.Investigation.visibility")}>${bandOptions(shows.vis)}</select></td>
             <td style="text-align:center"><input type="checkbox" name="faint.${key}"${aria("DRPG.Remnant.faintColumn")} ${shows.faint ? "checked" : ""} /></td>
             <td><select name="crime.${key}"${aria("DRPG.Remnant.crimeColumn")}>${Object.entries(TIE_OPTIONS).map(([value, label]) =>
                 `<option value="${value}"${value === shows.crime ? " selected" : ""}>${esc(game.i18n.localize(label))}</option>`).join("")}</select></td>
@@ -1879,6 +1886,7 @@ function caseTracesPanel({ traces, shown, finders, reading }) {
             <th>${game.i18n.localize("DRPG.Investigation.traceText")}</th>
             <th>${game.i18n.localize("DRPG.Investigation.traceAnalysis")}</th>
             <th>${game.i18n.localize("DRPG.Investigation.traceType")}</th>
+            <th>${game.i18n.localize("DRPG.Investigation.visibility")}</th>
             <th>${game.i18n.localize("DRPG.Remnant.faintColumn")}</th>
             <th>${game.i18n.localize("DRPG.Remnant.crimeColumn")}</th>
             <th>${game.i18n.localize("DRPG.Remnant.reinforcedColumn")}</th>
@@ -2627,7 +2635,7 @@ export async function applyDashboardSave(result, { traces, plan }) {
             tracesChanged++;
         }
 
-        /* THE FOUR VERDICTS, WRITTEN ONE AT A TIME (S1-m7's second half). They used to ride
+        /* THE FOUR VERDICTS AND THE BAND, WRITTEN ONE AT A TIME (S1-m7's second half; the band since E60 C4a). They used to ride
            together: any one of them changing sent all three booleans as the form showed them,
            so ticking Faint on a stale form wrote Tied-to-crime and Reinforced back over another
            GM's verdict of either. `setRemnantFlags` treats a field left out as untouched (see
@@ -2635,6 +2643,8 @@ export async function applyDashboardSave(result, { traces, plan }) {
            written, as `null` (E09 C4). */
         const flagPatch = {};
         if (take.type) flagPatch.type = take.type;
+        // The band (E60 C4a), for a found trace too: written on its row, its copies' left as they were made.
+        if ("vis" in take) flagPatch.visibility = take.vis;
         if ("faint" in take) flagPatch.faint = take.faint;
         if ("crime" in take) flagPatch.tiedToCrime = tieTaken(take.crime);
         if ("reinf" in take) flagPatch.reinforced = take.reinf;

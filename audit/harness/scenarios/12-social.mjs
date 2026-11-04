@@ -186,13 +186,58 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
         return { read, wired, kept: (kept?.[game.world.id + "." + game.user.id] ?? []).includes("${rollRes.id}"), readable: Boolean(m?.isContentVisible) };`);
     check("PRIVACY: after a reload Aiko still reads her statistic the GM drew - kept on her browser for this world and her user",
         Boolean(onP1?.drawn) && reloaded.read >= 1 && reloaded.wired && reloaded.kept && reloaded.readable, JSON.stringify(reloaded));
+    /* WHICH GM SEES THE DICE (E60 C5e, 03.11.2026; E60-18; the owner: a player's roll on the GM's screen, "Nie powinien
+       ich widziec, chyba ze jest w tym samym pokoju" - "GM ma token monokumy ktorym sie porusza"). Until C5e every GM's
+       screen threw every player's dice, and the two DICE checks below read the GM's throw and the GM's sound once. Since
+       C5e a GM's screen throws a player's dice only while one of that GM's own Monokumas stands in the roller's room
+       (private-rolls.mjs `gmsInRoomOf`); the card is read by every GM either way. The seed's Monokuma (the GM's: the
+       world's one full Gamemaster, no pool set, monokuma.mjs `poolOwnerOf`) stands at (2400, 300), Aiko at (300, 300), in
+       another room - so each roll is thrown once as the seed has it (the GM's Monokuma elsewhere) and once with its token
+       moved beside Aiko (`besideAiko`, put back after; the extra roll's messages deleted and Aiko's Hope put back, as
+       33-bridge-paths A17 does). Measured on 4d05269f before this read: the GM's screen threw nothing and heard nothing
+       of Aiko's two rolls with its Monokuma elsewhere, and read the second's card (the first's was not read there). */
+    const besideAiko = async () => gm.eval(`const { locateActor } = await import("${repoUrl}/scripts/movement.mjs");
+        const { monokumaActors } = await import("${repoUrl}/scripts/monokuma.mjs");
+        const m = monokumaActors().find(a => locateActor(a)?.tokenDoc) ?? null, aiko = locateActor(game.actors.get("${ids.aiko}"));
+        const t = m ? locateActor(m).tokenDoc : null;
+        if (!t || !aiko?.tokenDoc) return null;
+        const was = { id: t.id, x: t.x, y: t.y, roomBefore: locateActor(m)?.room ?? null };
+        await t.update({ x: aiko.tokenDoc.x + 100, y: aiko.tokenDoc.y }, { animate: false });
+        return { ...was, room: locateActor(m)?.room ?? null, aikoRoom: aiko.room ?? null,
+                 hope: game.actors.get("${ids.aiko}").system.resources.hope.value, had: game.messages.contents.map(x => x.id) };`, { timeout: 30000 });
+    const putBack = async moved => {
+        if (!moved) return;
+        await gm.eval(`await canvas.scene.tokens.get("${moved.id}")?.update({ x: ${moved.x}, y: ${moved.y} }, { animate: false });
+            const had = new Set(${JSON.stringify(moved.had)});
+            for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+            await game.actors.get("${ids.aiko}").update({ "system.resources.hope.value": ${JSON.stringify(moved.hope)} });
+            return true;`, { timeout: 30000 });
+        await settle(400);
+    };
+    const inRoom = moved => Boolean(moved?.room) && moved.room === moved.aikoRoom && moved.roomBefore !== moved.aikoRoom;
     const DSN_READ = `const shown = globalThis.__dsnShown.filter(c => !c.synchronize).map(c => [c.user, c.total]);
         const animated = globalThis.__dsnAnimated.includes("${rollRes.id}"); globalThis.__dsnHideSecret = true; return { shown, animated };`;
-    const dice = { gm: await gm.eval(DSN_READ), p1: await p1.eval(DSN_READ), p2: await p2.eval(DSN_READ) };
-    const asAiko = r => r.shown.length === 1 && r.shown[0][0] === p1.userId && r.shown[0][1] === rollRes.total;
-    check("DICE: Aiko's drawn roll is thrown on her screen and the GM's as her dice, never as the GM's, and not on p2's - Dice So Nice's own decision animates it nowhere",
-        Boolean(rollRes.id) && asAiko(dice.p1) && asAiko(dice.gm) && dice.p2.shown.length === 0 && [dice.gm, dice.p1, dice.p2].every(r => r.animated === false),
+    const gmCard = id => gm.eval(`return Boolean(game.messages.get(${JSON.stringify(id)})?.isContentVisible);`);
+    const dice = { gm: await gm.eval(DSN_READ), p1: await p1.eval(DSN_READ), p2: await p2.eval(DSN_READ), gmReads: await gmCard(rollRes.id) };
+    const asAiko = (r, total) => r.shown.length === 1 && r.shown[0][0] === p1.userId && r.shown[0][1] === total;
+    check("DICE: Aiko's drawn roll is thrown on her screen as her dice and not on p2's; the GM's screen, its Monokuma in another room, throws none and reads the card - Dice So Nice's own decision animates it nowhere (E60 C5e)",
+        Boolean(rollRes.id) && asAiko(dice.p1, rollRes.total) && dice.gm.shown.length === 0 && dice.gmReads && dice.p2.shown.length === 0
+            && [dice.gm, dice.p1, dice.p2].every(r => r.animated === false),
         JSON.stringify(dice));
+    const movedDsn = await besideAiko();
+    await settle(400);
+    for (const c of [gm, p1, p2]) await c.eval(DSN_OFF);
+    const nearRoll = await p1.eval(`globalThis.__forceRoll = { hope: 7, fear: 4 };
+        const cfg = await game.actors.get("${ids.aiko}").rollTrait("agility", {});
+        return { id: cfg?.message?.id ?? null, total: cfg?.message?.rolls?.[0]?.total ?? null };`, { timeout: 60000 });
+    await settle(400);
+    const DSN_NEAR = DSN_READ.replace(`"${rollRes.id}"`, JSON.stringify(nearRoll.id));
+    const near = { gm: await gm.eval(DSN_NEAR), p1: await p1.eval(DSN_NEAR), p2: await p2.eval(DSN_NEAR), gmReads: await gmCard(nearRoll.id) };
+    await putBack(movedDsn);
+    check("DICE: with the GM's Monokuma moved into Aiko's room her drawn roll is thrown on her screen and the GM's as her dice, never as the GM's, and not on p2's - Dice So Nice's own decision animates it nowhere (E60 C5e)",
+        inRoom(movedDsn) && Boolean(nearRoll.id) && asAiko(near.p1, nearRoll.total) && asAiko(near.gm, nearRoll.total) && near.gmReads
+            && near.p2.shown.length === 0 && [near.gm, near.p1, near.p2].every(r => r.animated === false),
+        JSON.stringify({ movedDsn: movedDsn && { room: movedDsn.room, aikoRoom: movedDsn.aikoRoom, roomBefore: movedDsn.roomBefore }, nearRoll, near }));
 
     /* WITHOUT DICE SO NICE (E08+E28 C13; LIVE-E28-02 is the table's reading). The GM, p1 and p2
        lose `game.dice3d` (put back after) and Aiko throws a second statistic. The GM's message is
@@ -205,7 +250,9 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
        until then nothing drove the GM without Dice So Nice, and a sound branch answering anything
        but true (the `return void AudioHelper.play(...)` shape playRolls uses) would have played the
        dice twice there with every check green. Every sound a browser plays is kept for the window
-       (`__sounds`). */
+       (`__sounds`). Since E60 C5e the GM throws, and so hears, only with its Monokuma in Aiko's room
+       (roll-draw.mjs `seesPlayersDice`): thrown once with it elsewhere, as the seed has it, where the
+       GM hears nothing and reads the card, and once with it beside her, where the GM hears them once. */
     const NO_DSN = `globalThis.__dice3dAway = game.dice3d; delete game.dice3d; globalThis.__sounds = [];
         if (!globalThis.__soundsOn) {
             globalThis.__soundsOn = true;
@@ -213,18 +260,29 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
             H.play = function (data, ...rest) { globalThis.__sounds?.push(String(data?.src ?? "")); return play.call(this, data, ...rest); };
         }
         return true;`;
-    for (const c of [gm, p1, p2]) await c.eval(NO_DSN);
-    const quiet = await p1.eval(`const cfg = await game.actors.get("${ids.aiko}").rollTrait("instinct", {});
-        return { id: cfg?.message?.id ?? null, total: cfg?.message?.rolls?.[0]?.total ?? null };`, { timeout: 60000 });
-    await settle(400);
-    const QUIET_READ = `const m = game.messages.get(${JSON.stringify(quiet.id)});
-        const out = { heard: globalThis.__sounds.filter(s => s === CONFIG.sounds.dice).length, readable: Boolean(m?.isContentVisible), total: m?.rolls?.[0]?.total ?? null };
-        game.dice3d = globalThis.__dice3dAway; delete globalThis.__dice3dAway; globalThis.__sounds = null;
-        return out;`;
-    const heard = { gm: await gm.eval(QUIET_READ), p1: await p1.eval(QUIET_READ), p2: await p2.eval(QUIET_READ) };
-    check("DICE: without Dice So Nice Aiko hears the dice of her drawn roll once and reads its result, the GM hears them once; p2 hears nothing and reads nothing",
-        Boolean(quiet.id) && heard.p1.heard === 1 && heard.p1.readable && heard.p1.total === quiet.total && heard.gm.heard === 1 && heard.p2.heard === 0 && !heard.p2.readable,
+    const quietRoll = async () => {
+        for (const c of [gm, p1, p2]) await c.eval(NO_DSN);
+        const quiet = await p1.eval(`const cfg = await game.actors.get("${ids.aiko}").rollTrait("instinct", {});
+            return { id: cfg?.message?.id ?? null, total: cfg?.message?.rolls?.[0]?.total ?? null };`, { timeout: 60000 });
+        await settle(400);
+        const QUIET_READ = `const m = game.messages.get(${JSON.stringify(quiet.id)});
+            const out = { heard: globalThis.__sounds.filter(s => s === CONFIG.sounds.dice).length, readable: Boolean(m?.isContentVisible), total: m?.rolls?.[0]?.total ?? null };
+            game.dice3d = globalThis.__dice3dAway; delete globalThis.__dice3dAway; globalThis.__sounds = null;
+            return out;`;
+        return { quiet, heard: { gm: await gm.eval(QUIET_READ), p1: await p1.eval(QUIET_READ), p2: await p2.eval(QUIET_READ) } };
+    };
+    const { quiet, heard } = await quietRoll();
+    const rollerHears = (q, h) => Boolean(q.id) && h.p1.heard === 1 && h.p1.readable && h.p1.total === q.total && h.p2.heard === 0 && !h.p2.readable;
+    check("DICE: without Dice So Nice Aiko hears the dice of her drawn roll once and reads its result; the GM, its Monokuma in another room, hears nothing and reads the card; p2 hears nothing and reads nothing (E60 C5e)",
+        rollerHears(quiet, heard) && heard.gm.heard === 0 && heard.gm.readable,
         JSON.stringify({ quiet, heard }));
+    const movedQuiet = await besideAiko();
+    await settle(400);
+    const quietNear = await quietRoll();
+    await putBack(movedQuiet);
+    check("DICE: without Dice So Nice, with the GM's Monokuma moved into Aiko's room, she hears the dice of her drawn roll once and reads its result, the GM hears them once and reads the card; p2 hears nothing and reads nothing (E60 C5e)",
+        inRoom(movedQuiet) && rollerHears(quietNear.quiet, quietNear.heard) && quietNear.heard.gm.heard === 1 && quietNear.heard.gm.readable,
+        JSON.stringify({ movedQuiet: movedQuiet && { room: movedQuiet.room, aikoRoom: movedQuiet.aikoRoom, roomBefore: movedQuiet.roomBefore }, ...quietNear }));
 
     /* A ROLL'S CLAIM IS ITS OWN (E08+E28 C11, 04.10.2026; audit S02-45). The module claims the
        card of a roll it throws as the card is created, and until C11 it claimed the first roll

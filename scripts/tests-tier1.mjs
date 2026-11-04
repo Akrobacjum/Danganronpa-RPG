@@ -3788,6 +3788,8 @@ const INVARIANTS = [
         const fresh = { _stats: { createdTime: now - 60_000 } };
         ok(!removalRefusal(fresh, { now }), "a fresh trace of your own is not lifted by your Reroll");
         ok(removalRefusal(fresh, { now, gmEdited: true }), "a trace a GM wrote on is lifted");
+        // E60 fix FG2: a band a GM set, on the Traces tab or the trace's card, is a Reroll's to leave as well.
+        ok(removalRefusal(fresh, { now, gmBand: true }), "a trace whose band a GM set is lifted");
         ok(removalRefusal(fresh, { now, copied: true }), "a trace somebody found is lifted");
         ok(removalRefusal({ _stats: { createdTime: now - 3 * 3600_000 } }, { now }), "a trace three hours old is lifted");
         ok(!removalRefusal({}, { now, placedAt: now - 60_000 }), "a trace the ledger says was left a minute ago is not lifted");
@@ -31949,6 +31951,468 @@ const INVARIANTS = [
         must(entries.length >= 30, `the registry holds ${entries.length} entries - the shape is read on next to nothing`);
         equal(JSON.stringify([words.map(text => /\bprimaryOnly\b/.test(text)), entries.filter(entry => "primaryOnly" in entry).length]), "[[true,true],0]",
             `a registration naming primaryOnly was not refused for it, or an entry holds the key (refusals: ${JSON.stringify(words)})`);
+    }],
+    ["R1280 - one read of traces: remnants.mjs `traceRefsOf(rows, scene, tokens)` answers one frozen ref per trace of that scene - each trace token's (flagged `isRemnant`) in the scene's order, with its row or none, and none of another scene, a scene being a row's when its key's part before the first dot is its id; a ref takes its token's spot, floor and size over the row's; `found` is the row's `foundAt` or `incidentFound`, or the token un-hidden and not an incident's drawn for its cast (1.2.97's rule, for a row with no `foundAt`); a row with no trace token is no ref, a spot or none (D38 = 1: a trace is its token, E60 fix FG1); a ref has no `update` or `delete`; pure (E60 C1b; E60-03, S17-64)", async () => {
+        /*
+         * E60 C1b, 03.11.2026; S17-64. Every reader of a trace asked the scene's tokens until E60, and from C1b
+         * remnants.mjs answers a ref per trace from the rows and the tokens together (`remnantsOn`, `remnantById` and
+         * every reader through them; every trace keeps its hidden token, the owner's D38 = 1 of 03.11.2026, and a row with
+         * no token is one whose token is gone). Read here on fixtures alone - two scenes, the
+         * second's id beginning with the first's ("e60r" and "e60rB"), so a key matched by a bare prefix is caught; seven
+         * tokens and eight rows: a found token whose row holds another spot (a GM dragged it), a hidden token with a row of
+         * 1.2.97 (no spot, no `foundAt`), an unflagged token, a flagged token with no row, an incident's un-hidden token
+         * not found, an incident's found, a hidden token whose row says found, a row with a spot and no token, one with
+         * neither, and the other scene's row with its token and without. Red at C1a: no `traceRefsOf`. Mutants c1b-m2 (the
+         * row's spot over the token's) and c1b-m5 (a bare prefix) read red here. Rewritten in E60's fix round (FG1): C1b
+         * answered a ref for a row with a spot and no token, D38 = 2's shape; under D38 = 1 such a row is no trace for any
+         * reader (gm-stores.mjs `gmStoreHealth` counts it an orphan, tier 2 E60-T19). Red on C1b's code: t5 and the other
+         * scene's row with no token answered as refs.
+         */
+        const R = await import("./remnants.mjs");
+        must(typeof R.traceRefsOf === "function", "remnants.mjs exports no traceRefsOf - nothing builds a trace's ref");
+        const flags = (more = {}) => ({ [MODULE_ID]: { isRemnant: true, ...more } });
+        const A = { id: "e60r", name: "A" }, B = { id: "e60rB", name: "B" };
+        const tokens = [
+            { id: "t1", x: 10, y: 20, level: "L1", width: 2, height: 2, elevation: 5, hidden: false, flags: flags() },
+            { id: "t2", x: 30, y: 40, hidden: true, flags: flags() },
+            { id: "t3", x: 1, y: 1, hidden: true, flags: {} },
+            { id: "t4", x: 70, y: 80, hidden: true, flags: flags() },
+            { id: "t8", x: 90, y: 95, hidden: false, flags: flags({ fromIncident: true }) },
+            { id: "t10", x: 91, y: 96, hidden: false, flags: flags({ fromIncident: true }) },
+            { id: "t7", x: 57, y: 67, hidden: true, flags: flags() }
+        ];
+        const rows = {
+            "e60r.t1": { type: "prep", x: 999, y: 999, level: "L0", foundAt: null },
+            "e60r.t2": { type: "prep" },
+            "e60r.t5": { type: "key", x: 50, y: 60, level: null, foundAt: null },
+            "e60r.t6": { type: "prep", foundAt: null },
+            "e60r.t7": { type: "prep", x: 55, y: 65, level: "L2", foundAt: 123, foundVia: "find" },
+            "e60r.t8": { type: "incident", foundAt: null },
+            "e60r.t10": { type: "incident", incidentFound: true },
+            "e60rB.t9": { type: "prep", x: 5, y: 6, foundAt: null }
+        };
+        const refs = R.traceRefsOf(rows, A, tokens);
+        const other = R.traceRefsOf(rows, B, [{ id: "t9", x: 7, y: 8, hidden: true, flags: flags() }]);
+        const otherBare = R.traceRefsOf(rows, B, []);
+        const byId = Object.fromEntries(refs.map(r => [r.id, r]));
+        const shape = r => [r.key, r.sceneId, r.parent === A, r.x, r.y, r.level, r.width, r.height, r.found,
+            r.document ? r.document.id : null];
+        equal(stableJson({
+            order: refs.map(r => r.id),
+            refs: refs.map(shape),
+            other: other.map(r => [r.key, r.parent === B, r.x, r.y]),
+            otherBare: otherBare.length,
+            ref: [refs.every(r => R.isTraceRef(r) && Object.isFrozen(r)), refs.some(r => typeof r.update === "function" || typeof r.delete === "function"),
+                R.isTraceRef(tokens[0]), byId.t1?.elevation ?? null, byId.t2?.elevation ?? null],
+            none: R.traceRefsOf(rows, null, tokens).length
+        }), stableJson({
+            order: ["t1", "t2", "t4", "t8", "t10", "t7"],
+            refs: [
+                ["e60r.t1", "e60r", true, 10, 20, "L1", 2, 2, true, "t1"],
+                ["e60r.t2", "e60r", true, 30, 40, null, 1, 1, false, "t2"],
+                ["e60r.t4", "e60r", true, 70, 80, null, 1, 1, false, "t4"],
+                ["e60r.t8", "e60r", true, 90, 95, null, 1, 1, false, "t8"],
+                ["e60r.t10", "e60r", true, 91, 96, null, 1, 1, true, "t10"],
+                ["e60r.t7", "e60r", true, 57, 67, null, 1, 1, true, "t7"]
+            ],
+            other: [["e60rB.t9", true, 7, 8]],
+            otherBare: 0,
+            ref: [true, false, false, 5, null],
+            none: 0
+        }), "[the refs' order; each ref (key, scene, parent, x, y, level, width, height, found, its token); the other scene's with its token, and without; "
+            + "every ref a frozen ref, any with update or delete, a token read as a ref, the elevations; a ref for no scene]");
+    }],
+
+    ["R1282 - a placed trace's row holds its spot: remnants.mjs `traceRowOf(data, { x, y, level, id, sceneId, ... })` answers the ledger's key `<sceneId>.<id>` and a row of every field `placeRemnant` wrote at 55f03746 (type, visibility, faint, reinforced, note, action, subject, pointsAt, tiedToCrime, tieWaitsFor, itemIdentity, sourceActor, sourceName, room, chapter, day, timeOfDay, epoch, label, placedAt) and `x`, `y`, `level` (null for every floor) and `foundAt` null, by 1.2.97's rules (a type's reinforcement, a tie's wait only for a tie that is true, no `placedAt` from the future); `placeRemnant` writes that row with its spot and the probe's floor; pure (E60 C1b; E60-02)", async () => {
+        /*
+         * E60 C1b, 03.11.2026. The row holds the trace's spot from E60 on (written for D38 = 2; the owner chose D38 = 1 the
+         * same day, so the token is still made at placement, at that spot): `placeRemnant` builds it with `traceRowOf`
+         * and writes it whole, and nothing of it but the spot and `foundAt` is new. Read: two rows built (a Final Key,
+         * reinforced by its type and tied, with a placedAt ahead of `now`; a Prep left by a student, undecided, on a
+         * floor), their keys and fields against 55f03746's list,
+         * and `placeRemnant`'s source, comments stripped. Red at C1a: no `traceRowOf`. Mutant c1b-m6 (no `foundAt: null`)
+         * reads red here.
+         */
+        const R = await import("./remnants.mjs");
+        must(typeof R.traceRowOf === "function", "remnants.mjs exports no traceRowOf - a trace's row is built nowhere");
+        const HEAD = ["type", "visibility", "faint", "reinforced", "note", "action", "subject", "pointsAt", "tiedToCrime", "tieWaitsFor",
+            "itemIdentity", "sourceActor", "sourceName", "room", "chapter", "day", "timeOfDay", "epoch", "label", "placedAt"];
+        const now = 1700000000000;
+        const final = R.traceRowOf({ type: "final", visibility: "subtle", note: "n", tiedToCrime: true, room: "Hall", chapter: 2, placedAt: now + 5 },
+            { x: 100, y: 200, level: null, id: "tokA", sceneId: "scA", label: "L", tieWaitsFor: "fight", epoch: 3, now });
+        const prep = R.traceRowOf({ type: "prep", faint: true, sourceActor: "a1", sourceName: "Aiko", tiedToCrime: null, placedAt: now - 10 },
+            { x: 5, y: 6, level: "floor2", id: "tokB", sceneId: "scA", label: "M", tieWaitsFor: "fight", epoch: 3, now });
+        const place = fnSource(stripComments((await moduleSources()).get("remnants.mjs") ?? ""), "placeRemnant");
+        const pick = (row, keys) => keys.map(k => row?.[k] ?? null);
+        equal(stableJson({
+            keys: [final.key, prep.key, R.traceRowOf({}, { x: 1, y: 1 }).key],
+            fields: Object.keys(final.row).sort(),
+            final: pick(final.row, ["type", "reinforced", "tiedToCrime", "tieWaitsFor", "placedAt", "x", "y", "level", "epoch", "label"]),
+            prep: pick(prep.row, ["faint", "reinforced", "tiedToCrime", "tieWaitsFor", "sourceActor", "placedAt", "x", "y", "level"]),
+            foundAt: ["foundAt" in final.row && final.row.foundAt === null, "foundAt" in prep.row && prep.row.foundAt === null],
+            placed: [/traceRowOf\(\s*data\s*,/.test(place), /x:\s*spot\.x,\s*y:\s*spot\.y,\s*level:\s*probe\.level\b/.test(place),
+                /setRemnantSecret\(\s*created\s*,\s*row\s*\)/.test(place)]
+        }), stableJson({
+            keys: ["scA.tokA", "scA.tokB", null],
+            fields: [...HEAD, "x", "y", "level", "foundAt"].sort(),
+            final: ["final", true, true, "fight", now, 100, 200, null, 3, "L"],
+            prep: [true, false, null, null, "a1", now - 10, 5, 6, "floor2"],
+            foundAt: [true, true],
+            placed: [true, true, true]
+        }), "[the keys (a Final, a Prep, none without ids); the row's fields; the Final's; the Prep's; foundAt null on each; "
+            + "placeRemnant builds the row from its data, its spot and the probe's floor, and writes it whole]");
+    }],
+
+    ["R1288 - the band for every trace (E60 C4a; E60-11): investigation.mjs `caseTraceRows` draws each trace's visibility band as a select named `vis.<row>` of the four bands in REMNANT_VISIBILITY's order under their labels, the trace's own chosen (a band the list does not know as the first, remnants.mjs `shownBand`), for a trace nobody has found (its Found column says so) and for a found one (its finders) alike; the GM's card of a trace (remnant-ring.mjs `gmRemnantCard`) draws the same options (remnants.mjs `bandOptions`) in a select its wiring (`wireCardEditing`) writes through `setRemnantFlags` with `visibility`, the dashboard's own write; a player's card (`playerRemnantCard`) draws no band to change", async () => {
+        /*
+         * E60 C4a, 03.11.2026; the owner's ask of 28.10 ("the GM can change a Remnant's difficulty"), his answer to
+         * Q-E60-3 (every Remnant's band, found or not; the copies keep theirs) and his addition of 03.11 ("zmiana
+         * trudnosci niech bedzie tez w panelu tokena remnanta"). Read on fixtures: three synthetic traces handed to
+         * `caseTraceRows` (as the C16 test hands one) - a Subtle one nobody found, a Hidden one Aiko found, one of a band
+         * no list knows - the rows parsed, each band's select read (options, labels, the one chosen) and the Found
+         * column; then remnant-ring.mjs's three card functions, comments stripped: the GM's card's select and its
+         * options' builder, the wiring's write, and nothing of either in the player's card. Red at C1c: no band column
+         * (and remnants.mjs exports no `bandOptions`).
+         */
+        const R = await import("./remnants.mjs");
+        const I = await import("./investigation.mjs");
+        const { REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS } = await import("./config.mjs");
+        const scene = { id: "SCNE60R128800001" };
+        const trace = (id, visibility) => ({ token: { id }, scene, data: { type: "prep", visibility, public: {} } });
+        const html = I.caseTraceRows([trace("TOKE60R12880000U", "subtle"), trace("TOKE60R12880000F", "hidden"),
+            trace("TOKE60R12880000X", "e60NoSuchBand")], new Map([["TOKE60R12880000F", new Set(["Aiko"])]]));
+        const doc = document.createElement("table");
+        doc.innerHTML = `<tbody>${html}</tbody>`;
+        const band = id => {
+            const select = doc.querySelector(`select[name="vis.${scene.id}__${id}"]`);
+            return select ? [[...select.options].map(o => [o.value, o.textContent.trim()]), select.value] : null;
+        };
+        const src = stripComments((await moduleSources()).get("remnant-ring.mjs") ?? "");
+        const card = fnSource(src, "gmRemnantCard"), wire = fnSource(src, "wireCardEditing"), player = fnSource(src, "playerRemnantCard");
+        const options = REMNANT_VISIBILITY.map(v => [v, REMNANT_VISIBILITY_LABELS[v] ?? v]);
+        equal(stableJson({
+            bands: ["TOKE60R12880000U", "TOKE60R12880000F", "TOKE60R12880000X"].map(band),
+            found: [...doc.querySelectorAll("tbody > tr")].map(tr => tr.lastElementChild?.textContent.trim() ?? null),
+            builder: typeof R.bandOptions === "function" ? R.bandOptions("hidden") === REMNANT_VISIBILITY.map(v =>
+                `<option value="${v}"${v === "hidden" ? " selected" : ""}>${REMNANT_VISIBILITY_LABELS[v] ?? v}</option>`).join("") : "no bandOptions",
+            card: [/<select data-drpg-band\b/.test(card), /bandOptions\(\s*data\.visibility\s*\)/.test(card),
+                /setRemnantFlags\(\s*tokenOrActor\s*,\s*\{\s*visibility:\s*value\s*\}\s*\)/.test(wire), /markRemnantEdited\(\s*tokenOrActor\s*\)/.test(wire)],
+            player: [/<select\b|data-drpg-band|bandOptions\(/.test(player), player.length > 0]
+        }), stableJson({
+            bands: [[options, "subtle"], [options, "hidden"], [options, REMNANT_VISIBILITY[0]]],
+            found: [game.i18n.localize("DRPG.Investigation.notFound"), "Aiko", game.i18n.localize("DRPG.Investigation.notFound")],
+            builder: true,
+            card: [true, true, true, true],
+            player: [false, true]
+        }), "[each row's band select (its options and labels, the one chosen: Subtle, Hidden, the first for a band no list knows); "
+            + "the Found column (nobody, Aiko, nobody); bandOptions's options; the GM's card: a band select, of bandOptions, written "
+            + "through setRemnantFlags with visibility and marked edited; the player's card: no band to change, and read]");
+    }],
+
+    ["R1294 - the dice look's findings (E60 C5b; E60-14): dice-look.mjs `lookFindings(view)` raises each code of its closed list from its own fact alone - a forced user not holding the table's look, its fuse stopped, a character's overlay, \"only my dice\", others' effects off, low image quality, a duality die's preset differing from this browser's Daggerheart preset, a duality die with no preset, a system, colorset, texture or material not registered here, Dice So Nice without ALL_CUSTOMIZATION, Daggerheart's roles, another user's browser on a GM's run - and a clean view raises none", async () => {
+        /*
+         * E60 C5b, 03.11.2026; the owner's "Kostki ... wyglad miedzy graczami sie nie zgadzaja ... Potrzebujemy diagnostyki"
+         * and his answer of 03.11 (C5b light: each browser reads itself, nothing is asked of another). `lookFindings` judges
+         * one run's view (`lookView`): a row per user it may read and this browser's own report. Here a clean view - one
+         * player who holds the table's look, sees everyone's dice and effects at high quality, a roll whose Hope and Fear
+         * dice carry this browser's own preset, nothing missing, Dice So Nice 6.2.9 and Daggerheart 2.9.4 - raises nothing,
+         * and each fact planted alone raises its code alone, with words. Red before C5b: no dice-look.mjs. Mutant c5b-m6
+         * (`presetMissing` raised for a die that carries a preset) reads red here.
+         */
+        const L = await import("./dice-look.mjs");
+        {
+            ok(typeof L.lookFindings === "function" && Array.isArray(L.LOOK_CODES), "dice-look.mjs exports no lookFindings or LOOK_CODES");
+            if (typeof L.lookFindings !== "function") return;
+            const hope = { system: "standard", colorset: "inspired", texture: "astralsea", material: "metal", font: "auto", foreground: "#ffffff", background: "#ffe760" };
+            const fear = { ...hope, foreground: "#000000", background: "#0032b1" };
+            const die = (cls, duality, preset) => ({ class: cls, faces: 12, modifiers: [], duality, preset, modelFile: null, role: null });
+            const user = (id, here) => ({ id, name: `R1294 ${id}`, here, gm: false, active: true, forced: true, holds: true, stopped: null, overlays: [],
+                display: { visibility: "all", showOthersSFX: true, imageQuality: "high", read: true } });
+            const clean = () => ({
+                gm: false, me: "u1", forcing: true, sourceId: "g1", users: [user("u1", true)],
+                browser: { module: "1.2.98", foundry: "14.360", system: { id: "daggerheart", version: "2.9.4", roles: false },
+                    dsn: { version: "6.2.9", active: true, ready: true, api: { allCustomization: true } },
+                    display: { visibility: "all", showOthersSFX: true, imageQuality: "high", read: true },
+                    dhPreset: { hope, fear, advantage: null, disadvantage: null }, registry: { missing: [] }, lastThrows: [] },
+                roll: { messageId: "m1", by: "u1", dice: [die("HopeDie", "hope", { ...hope }), die("FearDie", "fear", { ...fear })], audience: null }
+            });
+            const planted = {
+                notForced: v => { v.users[0].holds = false; },
+                fuseStopped: v => { v.users[0].stopped = true; },
+                overlay: v => { v.users[0].overlays = ["R1294 Aiko"]; },
+                onlyMine: v => { v.users[0].display.visibility = "mine"; },
+                othersSfxOff: v => { v.users[0].display.showOthersSFX = false; },
+                lowQuality: v => { v.users[0].display.imageQuality = "low"; },
+                presetDiffers: v => { v.roll.dice[0].preset.colorset = "spectrum"; },
+                presetMissing: v => { v.roll.dice[1].preset = null; },
+                missingSystem: v => { v.browser.registry.missing = [{ kind: "system", name: "R1294 dots" }]; },
+                missingColorset: v => { v.browser.registry.missing = [{ kind: "colorset", name: "R1294 neon" }]; },
+                missingTexture: v => { v.browser.registry.missing = [{ kind: "texture", name: "R1294 skulls" }]; },
+                missingMaterial: v => { v.browser.registry.missing = [{ kind: "material", name: "R1294 glass" }]; },
+                dsnApiMoved: v => { v.browser.dsn.api.allCustomization = false; v.browser.dsn.version = "6.4.4"; },
+                rolesUnforced: v => { v.browser.system.roles = true; v.browser.system.version = "2.12.4"; v.browser.dhPreset = null; },
+                otherBrowser: v => { v.gm = true; v.users.push(user("u2", false)); }
+            };
+            const read = view => L.lookFindings(view);
+            const codes = view => read(view).map(f => f.code).sort();
+            const words = Object.entries(planted).flatMap(([code, plant]) => {
+                const view = clean();
+                plant(view);
+                return read(view).filter(f => !f.words || f.words.startsWith("DRPG.")).map(() => code);
+            });
+            equal(stableJson({
+                list: [...L.LOOK_CODES].sort(),
+                clean: codes(clean()),
+                planted: Object.fromEntries(Object.entries(planted).map(([code, plant]) => { const view = clean(); plant(view); return [code, codes(view)]; })),
+                wordless: words
+            }), stableJson({
+                list: Object.keys(planted).sort(),
+                clean: [],
+                planted: Object.fromEntries(Object.keys(planted).map(code => [code, [code]])),
+                wordless: []
+            }), "[the closed list; the clean view's codes; each planted fact's codes; a finding with no words]");
+        }
+    }],
+
+    ["R1295 - a throw's look (E60 C5b; E60-14): dice-look.mjs `throwLook` reads per die of a roll's JSON its class, faces, modifiers, which duality die it is (by its class, or a Daggerheart modifier on a plain die), the preset its options carry (Daggerheart's names and colours, none for a die with no `options.appearance`), its model file and its role, and leaves the numbers out", async () => {
+        /*
+         * E60 C5b, 03.11.2026. Daggerheart 2.9.4 lays its Hope/Despair preset on a die's options when the die is evaluated
+         * (baseDie.mjs `#setDualityDiePreset`: `this.options = await getDiceSoNicePreset(...)`, which answers `{ modelFile,
+         * appearance: { ...system.appearance, ...type } }`), on the browser that evaluates it, and the preset travels in the
+         * roll's JSON. Whether a throw's dice carried one, and which, is what the diagnostic reads off a message and off each
+         * throw Dice So Nice is handed here. A fixed roll: a HopeDie with Daggerheart's preset, a FearDie with none, a plain
+         * d12 with the `a` modifier, a d6. Red before C5b: no dice-look.mjs.
+         */
+        const L = await import("./dice-look.mjs");
+        {
+            ok(typeof L.throwLook === "function", "dice-look.mjs exports no throwLook");
+            if (typeof L.throwLook !== "function") return;
+            const preset = { system: "standard", colorset: "inspired", texture: "astralsea", material: "metal", font: "auto",
+                foreground: "#ffffff", background: "#ffe760", outline: "#000000", edge: "#ffffff", sfx: { higher: { class: null } } };
+            const term = (cls, faces, modifiers, options) => ({ class: cls, options, evaluated: true, number: 1, faces, modifiers, results: [{ result: 7, active: true }] });
+            const json = { class: "Roll", options: {}, evaluated: true, formula: "1d12 + 1d12 + 1d12a + 1d6", terms: [
+                term("HopeDie", 12, ["h"], { appearance: preset, modelFile: "R1295/d12.glb" }), { class: "OperatorTerm", operator: "+" },
+                term("FearDie", 12, ["f"], {}), { class: "OperatorTerm", operator: "+" },
+                term("Die", 12, ["a"], { role: "R1295 role" }), { class: "OperatorTerm", operator: "+" }, term("Die", 6, [], {})
+            ] };
+            const row = (cls, faces, modifiers, duality, p, modelFile = null, role = null) => ({ class: cls, faces, modifiers, duality, preset: p, modelFile, role });
+            equal(stableJson(L.throwLook(json)), stableJson([
+                row("HopeDie", 12, ["h"], "hope", { system: "standard", colorset: "inspired", texture: "astralsea", material: "metal", font: "auto",
+                    foreground: "#ffffff", background: "#ffe760", outline: "#000000", edge: "#ffffff" }, "R1295/d12.glb"),
+                row("FearDie", 12, ["f"], "fear", null),
+                row("Die", 12, ["a"], "advantage", null, null, "R1295 role"),
+                row("Die", 6, [], null, null)
+            ]), "[per die: class, faces, modifiers, duality, preset, model file, role]");
+            equal(stableJson([L.throwLook(null), L.throwLook({ terms: [] })]), stableJson([[], []]), "a missing or empty roll is read as dice");
+        }
+    }],
+
+    ["R1300 - the Dice look check in Season setup, not on the GM panel (E60 C5b2; E60-14, the owner's word of 03.11): no tile of the GM panel's family names `diceLook`, `diagnoseDiceLook` or DRPG.DiceLook.diag.tile, a key gone from lang/en.json and lang/pl.json for DRPG.DiceLook.diag.open; Pre-season checks (season-setup.mjs `preSessionReport`) draw a Dice look part - a cross for each finding this GM's browser raises, a check for none, never the other browsers' line - with a button that opens `diagnoseDiceLook({ test: false })`", async () => {
+        /*
+         * E60 C5b2, 03.11.2026; the owner on C5b: "ten kafelek raczej powinien byc w season setup jak juz". C5b put a
+         * Dice look tile in the GM panel's "Right now" section, where Public roll stood; it goes, and the check stands
+         * with Season setup's other before-the-session checks, in the Pre-season checks window: its findings on this
+         * GM's browser as the report's rows and a button for the whole window. Read here: the panel's family's code,
+         * comments stripped (the kit's `panelText`); both language files as served; season-setup.mjs's code; the
+         * report drawn with findings handed in, with none, and as this browser reads them. Red at C5c: the tile was
+         * there, the key was `tile`, and the report had no such part.
+         */
+        const sources = await moduleSources();
+        const panel = stripComments(panelText(sources));
+        const season = stripComments(sources.get("season-setup.mjs") ?? "");
+        must(panel.length > 1000 && season.length > 1000, "the GM panel's family or season-setup.mjs was not read - this would read nothing");
+        const lang = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" });
+            lang[code] = res.ok ? await res.json() : null;
+        }
+        must(lang.en && lang.pl, "lang/en.json or lang/pl.json was not served - this would read nothing");
+        const keys = file => ["tile", "open"].filter(key => typeof file?.DRPG?.DiceLook?.diag?.[key] === "string");
+        const SS = await import("./season-setup.mjs");
+        const draw = async diceLook => {
+            const el = document.createElement("div");
+            el.innerHTML = await SS.preSessionReport({ av: {}, scenes: [], head: async () => ({ status: 200, bytes: 1 }), ...(diceLook === undefined ? {} : { diceLook }) });
+            const heads = [...el.querySelectorAll("h3")].map(h => h.textContent.trim());
+            const button = el.querySelector("button[data-drpg-dice-look]");
+            return { el, heads, text: el.textContent, button: button ? button.textContent.trim() : null };
+        };
+        const title = game.i18n.localize("DRPG.DiceLook.diag.title");
+        const clean = game.i18n.localize("DRPG.DiceLook.diag.nothingFound");
+        const open = game.i18n.localize("DRPG.DiceLook.diag.open");
+        const found = await draw([{ userId: "R1300", code: "onlyMine", words: "R1300 shows only their own dice" }]);
+        const none = await draw([]);
+        const here = await draw();
+        const others = game.users.contents.filter(u => u.id !== game.user.id)
+            .map(u => game.i18n.format("DRPG.DiceLook.diag.finding.otherBrowser", { name: u.name }));
+        const marked = report => [...report.el.querySelectorAll("p.drpg-check-report")].map(p => p.textContent.trim()).filter(t => t.includes("R1300") || t.includes(clean));
+        equal(JSON.stringify({
+            panel: ["diceLook", "diagnoseDiceLook", "DRPG.DiceLook.diag.tile"].filter(name => panel.includes(name)),
+            en: keys(lang.en), pl: keys(lang.pl),
+            season: [season.includes("diagnoseDiceLook({ test: false })"), season.includes("data-drpg-dice-look")],
+            found: [found.heads.includes(title), marked(found), found.button],
+            none: [none.heads.includes(title), marked(none), none.button],
+            here: [here.heads.includes(title), here.button, others.filter(words => here.text.includes(words)).length]
+        }), JSON.stringify({
+            panel: [], en: ["open"], pl: ["open"], season: [true, true],
+            found: [true, ["✗ R1300 shows only their own dice"], open],
+            none: [true, [`✓ ${clean}`], open],
+            here: [true, open, 0]
+        }), "[the panel's family's names of the dice look; DRPG.DiceLook.diag's tile and open keys in English and in Polish; season-setup.mjs "
+            + "opens diagnoseDiceLook({ test: false }) from its button; the report with a finding handed in, with none, and as this browser "
+            + "reads it: the part's heading, its marked lines, its button, the other browsers' lines in it]");
+    }],
+
+    ["R1298 - the table's Hope and Despair dice laid on a throw (E60 C5d; E60-17): dice-look.mjs `layDualityLook(roll, look)` answers a copy of the roll whose HopeDie, FearDie and advantage dice carry the table's look over what their options held, leaves every other die as it was, answers null for a roll with no duality die or no look, and changes nothing of the roll it was handed", async () => {
+        /*
+         * E60 C5d, 03.11.2026; the owner's answer of 03.11 to Q-C5-2 ("tak"): while "One dice look for the table" is on,
+         * every screen draws every Hope and Despair die in the look the source Gamemaster set in Daggerheart, whoever throws.
+         * Daggerheart 2.9 keeps that look per browser (its Appearance setting is client-scoped) and lays it on a die as it
+         * is evaluated, there; so the module lays the table's on the throw each browser's Dice So Nice is about to draw
+         * (`diceSoNiceRollStart`'s `context.dsnRoll`), and never on the roll itself, which is the message's. Here on fixed
+         * JSONs: a duality roll (a HopeDie carrying Daggerheart's own preset and a model file, a FearDie with none, a d6
+         * AdvantageDie, a plain d12), a plain Roll of a d20 and a d6, and the duality roll with no look. Red before C5d: no
+         * `layDualityLook`. Mutants c5d-m1 (the look laid on the roll handed in) and c5d-m4 (a plain die painted) read red here.
+         */
+        const L = await import("./dice-look.mjs");
+        ok(typeof L.layDualityLook === "function", "dice-look.mjs exports no layDualityLook");
+        if (typeof L.layDualityLook !== "function") return;
+        const look = {
+            hope: { system: "standard", colorset: "spectrum", texture: "marble", material: "pristine", font: "auto", foreground: "#ffffff", background: "#ff00aa" },
+            fear: { system: "standard", colorset: "spectrum", texture: "marble", material: "pristine", font: "auto", foreground: "#000000", background: "#00ffaa" },
+            advantage: { system: "standard", colorset: "inspired", texture: "none", material: "metal", font: "auto", foreground: "#ffffff", background: "#008000" }
+        };
+        const term = (cls, faces, options = {}, modifiers = []) => ({ class: cls, options, evaluated: true, number: 1, faces, modifiers, results: [{ result: 5, active: true }] });
+        const plus = { class: "OperatorTerm", options: {}, evaluated: true, operator: "+" };
+        const duality = () => ({ class: "DualityRoll", options: {}, evaluated: true, formula: "1d12 + 1d12 + 1d6 + 1d12", terms: [
+            term("HopeDie", 12, { appearance: { system: "standard", colorset: "inspired", background: "#ffe760", sfx: { higher: {} } }, modelFile: "R1298/d12.glb" }, ["h"]),
+            plus, term("FearDie", 12, {}, ["f"]), plus, term("AdvantageDie", 6, {}, ["a"]), plus, term("Die", 12)] });
+        const plain = () => ({ class: "Roll", options: {}, evaluated: true, formula: "1d20 + 1d6", terms: [term("Die", 20), plus, term("Die", 6)] });
+        const handed = duality(), was = stableJson(handed);
+        const laid = L.layDualityLook(handed, look);
+        const dice = laid?.terms?.filter(t => typeof t.faces === "number") ?? [];
+        equal(stableJson({
+            dice: dice.map(t => [t.class, t.options?.appearance ?? null, t.options?.modelFile ?? null]),
+            handed: stableJson(handed) === was, copy: laid !== handed,
+            plain: L.layDualityLook(plain(), look), none: L.layDualityLook(duality(), null), empty: L.layDualityLook(duality(), {})
+        }), stableJson({
+            dice: [["HopeDie", { system: "standard", colorset: "spectrum", background: "#ff00aa", sfx: { higher: {} }, texture: "marble", material: "pristine", font: "auto", foreground: "#ffffff" }, "R1298/d12.glb"],
+                ["FearDie", look.fear, null], ["AdvantageDie", look.advantage, null], ["Die", null, null]],
+            handed: true, copy: true, plain: null, none: null, empty: null
+        }), "[each die of the laid copy: class, appearance, model file; the roll handed in unchanged; a copy; a plain roll; no look; an empty look]");
+    }],
+
+    ["R1301 - the dice look's two preset findings know the table's look (E60 fix FG3; the end review's C-m5, G-m5): where this browser lays the table's Hope and Despair look (`browser.tableLook`), dice-look.mjs `lookFindings` words a duality die with no preset as drawn in the table's look (`presetMissing`, its own sentence) and holds a die's preset to the table's look rather than this browser's Daggerheart preset (`presetDiffers`, its own sentence; none where the two agree); with no table look laid both say what they said at C5b", async () => {
+        /*
+         * E60 fix FG3, 03.11.2026. C5d lays the table's look on each throw this browser draws and never on the message, so
+         * after C5d a drawn roll's Hope die still read "carries no Daggerheart preset, so it is drawn in its thrower's Dice
+         * So Nice look" while this browser drew it in the table's look - the tool meant to tell whether C5d worked reported
+         * the old cause. Fixtures of a view as R1294 builds one: a Hope die with no preset and a Fear die with this
+         * browser's preset, with the table's look laid and without; a Fear die with the table's look. Red on C5e's code:
+         * the laid views raised the C5b sentences, and the Fear die with this browser's preset raised nothing.
+         */
+        const L = await import("./dice-look.mjs");
+        const own = { system: "standard", colorset: "inspired", texture: "astralsea", material: "metal", font: "auto", foreground: "#ffffff", background: "#ffe760" };
+        const table = { system: "standard", colorset: "spectrum", texture: "marble", material: "pristine", font: "auto", foreground: "#ffffff", background: "#ff00aa" };
+        const die = (cls, duality, preset) => ({ class: cls, faces: 12, modifiers: [], duality, preset, modelFile: null, role: null });
+        const view = (laid, fearPreset) => ({
+            gm: false, me: "u1", forcing: true, sourceId: "g1",
+            users: [{ id: "u1", name: "R1301 u1", here: true, gm: false, active: true, forced: true, holds: true, stopped: null, overlays: [],
+                display: { visibility: "all", showOthersSFX: true, imageQuality: "high", read: true } }],
+            browser: { module: "1.2.98", foundry: "14.360", system: { id: "daggerheart", version: "2.9.4", roles: false },
+                dsn: { version: "6.2.9", active: true, ready: true, api: { allCustomization: true } },
+                display: { visibility: "all", showOthersSFX: true, imageQuality: "high", read: true },
+                dhPreset: { hope: own, fear: own, advantage: null, disadvantage: null },
+                tableLook: laid ? { hope: table, fear: table, advantage: null, disadvantage: null } : null, registry: { missing: [] }, lastThrows: [] },
+            roll: { messageId: "m1", by: "u1", dice: [die("HopeDie", "hope", null), die("FearDie", "fear", fearPreset)], audience: null }
+        });
+        const read = v => L.lookFindings(v).map(f => [f.code, f.words]);
+        const say = (key, kind) => game.i18n.format(key, { duality: game.i18n.localize(`DRPG.DiceLook.diag.die.${kind}`) });
+        const K = "DRPG.DiceLook.diag.finding.";
+        equal(stableJson({
+            laidOwn: read(view(true, { ...own })), laidTable: read(view(true, { ...table })),
+            plainOwn: read(view(false, { ...own })), plainTable: read(view(false, { ...table }))
+        }), stableJson({
+            laidOwn: [["presetMissing", say(`${K}presetMissingLaid`, "hope")], ["presetDiffers", say(`${K}presetDiffersLaid`, "fear")]],
+            laidTable: [["presetMissing", say(`${K}presetMissingLaid`, "hope")]],
+            plainOwn: [["presetMissing", say(`${K}presetMissing`, "hope")]],
+            plainTable: [["presetMissing", say(`${K}presetMissing`, "hope")], ["presetDiffers", say(`${K}presetDiffers`, "fear")]]
+        }), "[the findings (code, words) with the table's look laid and a Fear die of this browser's preset, of the table's; with none laid, the same two]");
+        ok([`${K}presetMissingLaid`, `${K}presetDiffersLaid`].every(key => game.i18n.localize(key) !== key), "the two sentences of a laid look have no words");
+    }],
+    ["R1302 - whose Monokuma it is, where it can be told (E60 fix FG4; the end review's C-m6, Q-C5-4): monokuma.mjs `poolOwnerOf(actor, world)` answers the configured pool's user where that user holds a pool, the one pool holder, or the one Gamemaster an explicit OWNER entry names, and null where several hold a pool with nothing configured and no single owner, where the configured user holds none and the rest is ambiguous, or where there is no GM; `poolUserFor` answers the same where it is told and else the acting GM, the first holder for a player, the acting GM where nobody holds a pool and nobody where a player asks; private-rolls.mjs `untoldMonokumas` names the Monokumas whose GM cannot be told", async () => {
+        /*
+         * E60 fix FG4, 03.11.2026. C5e made a player's dice reach a GM only with one of that GM's Monokumas in the roller's
+         * room, and the rule that decides whose Monokuma it is - `poolOwnerOf`, `poolUserFor`'s old body with null where it
+         * fell back to the acting GM - was read by nothing: R1299 stands it in. Fixtures alone (`world`: the pool holders,
+         * the full Gamemasters, the user asking, the configured pool and the users by id): two full GMs, an Assistant GM
+         * and a player. Red on C5e's code: `world` was not read, so every answer was the harness world's.
+         */
+        const M = await import("./monokuma.mjs");
+        const P = await import("./private-rolls.mjs");
+        const OWNER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+        const u = (id, isGM) => ({ id, isGM, name: id });
+        const g1 = u("R1302G1", true), g2 = u("R1302G2", true), ag = u("R1302AG", true), pl = u("R1302P1", false);
+        const users = new Map([g1, g2, ag, pl].map(x => [x.id, x]));
+        const actor = (id, ownership = {}) => ({ id, name: id, ownership });
+        const world = (holders, { pools = {}, me = g1, gamemasters = holders.filter(x => x !== ag) } = {}) =>
+            ({ holders, gamemasters, me, configured: a => pools[a.id] ?? null, user: id => users.get(id) ?? null });
+        const id = x => x?.id ?? null;
+        const plain = actor("mPlain"), ownedG2 = actor("mOwnedG2", { [g2.id]: OWNER }), both = actor("mBoth", { [g1.id]: OWNER, [g2.id]: OWNER });
+        const toAg = actor("mAg"), toPlayer = actor("mPlayer");
+        const pools = { mAg: ag.id, mPlayer: pl.id };
+        equal(stableJson({
+            owner: {
+                oneGm: id(M.poolOwnerOf(plain, world([g1]))), twoNothing: id(M.poolOwnerOf(plain, world([g1, g2]))),
+                oneOwner: id(M.poolOwnerOf(ownedG2, world([g1, g2]))), twoOwners: id(M.poolOwnerOf(both, world([g1, g2]))),
+                assistant: id(M.poolOwnerOf(toAg, world([g1, g2, ag], { pools }))), toPlayer: id(M.poolOwnerOf(toPlayer, world([g1, g2], { pools }))),
+                noGm: id(M.poolOwnerOf(plain, world([], { gamemasters: [] })))
+            },
+            user: {
+                oneGm: id(M.poolUserFor(plain, world([g1]))), twoNothingG2: id(M.poolUserFor(plain, world([g1, g2], { me: g2 }))),
+                twoNothingPlayer: id(M.poolUserFor(plain, world([g1, g2], { me: pl }))), oneOwner: id(M.poolUserFor(ownedG2, world([g1, g2], { me: g1 }))),
+                noGmAssistant: id(M.poolUserFor(plain, world([], { gamemasters: [], me: ag }))), noGmPlayer: id(M.poolUserFor(plain, world([], { gamemasters: [], me: pl })))
+            },
+            untold: P.untoldMonokumas({ monokumas: [plain, ownedG2, both, toAg], gmOf: m => M.poolOwnerOf(m, world([g1, g2, ag], { pools })) })
+        }), stableJson({
+            owner: { oneGm: g1.id, twoNothing: null, oneOwner: g2.id, twoOwners: null, assistant: ag.id, toPlayer: null, noGm: null },
+            user: { oneGm: g1.id, twoNothingG2: g2.id, twoNothingPlayer: g1.id, oneOwner: g2.id, noGmAssistant: ag.id, noGmPlayer: null },
+            untold: ["mPlain", "mBoth"]
+        }), "[poolOwnerOf: one GM; two, nothing set; two, one OWNER; two, both OWNER; the Assistant's configured pool; a pool configured to a player; no GM / "
+            + "poolUserFor: one GM; two, nothing set, asked by the second, by a player; one OWNER; no GM, asked by an Assistant, by a player / untoldMonokumas]");
+    }],
+    ["R1299 - the GMs who see a player's dice (E60 C5e; E60-18, Q-C5-4): private-rolls.mjs `gmsInRoomOf(subject)` answers each GM one of whose own Monokumas stands in the roller's room on the roller's scene - a Monokuma in another room, on another scene or on no scene admits nobody, nor does one whose GM cannot be told or whose pool is a player's; two GMs each by their own; a roller on no scene has none", async () => {
+        /*
+         * E60 C5e, 03.11.2026; the owner: a player's action roll on the GM's screen, "Nie powinien ich widziec, chyba ze
+         * jest w tym samym pokoju", and "GM ma token monokumy ktorym sie porusza"; Q-C5-4's default (a Monokuma whose GM
+         * cannot be told admits no GM). Fixtures, nothing of the world: three GMs and a player as users, seven Monokumas
+         * and where each stands (`locate`, stood in for movement.mjs `locateActor`), whose GM each is (`gmOf`, stood in
+         * for monokuma.mjs `poolOwnerOf`), and a roller in the Gym of scene S1. Red before C5e: no `gmsInRoomOf`. Mutants
+         * c5e-m3 (the room matched on any scene) and c5e-m5 (one GM's Monokuma admits every GM) read red here.
+         */
+        const P = await import("./private-rolls.mjs");
+        ok(typeof P.gmsInRoomOf === "function", "private-rolls.mjs exports no gmsInRoomOf");
+        if (typeof P.gmsInRoomOf !== "function") return;
+        const user = (id, isGM) => ({ id, isGM });
+        const g1 = user("R1299G1", true), g2 = user("R1299G2", true), g3 = user("R1299G3", true), pl = user("R1299P1", false);
+        const s1 = { id: "R1299S1" }, s2 = { id: "R1299S2" };
+        const at = { roller: { scene: s1, room: "Gym" }, mGym: { scene: s1, room: "Gym" }, mLibrary: { scene: s1, room: "Library" }, mNowhere: null,
+            mOtherScene: { scene: s2, room: "Gym" }, mUntold: { scene: s1, room: "Gym" }, mPlayers: { scene: s1, room: "Gym" }, mGym3: { scene: s1, room: "Gym" } };
+        const gmOfIt = { mGym: g1, mLibrary: g2, mNowhere: g2, mOtherScene: g2, mUntold: null, mPlayers: pl, mGym3: g3 };
+        const actor = name => ({ name, id: name });
+        const locate = who => at[who?.name] ?? null;
+        const gmOf = m => gmOfIt[m.name] ?? null;
+        const run = (names, subject = actor("roller")) => [...P.gmsInRoomOf(subject, { monokumas: names.map(actor), gmOf, locate })].sort();
+        equal(stableJson({
+            inRoom: run(["mGym"]), library: run(["mLibrary"]), nowhere: run(["mNowhere"]), otherScene: run(["mOtherScene"]),
+            untold: run(["mUntold"]), players: run(["mPlayers"]), two: run(["mGym", "mGym3", "mLibrary"]),
+            noRoller: run(["mGym"], actor("nobody")), none: run([])
+        }), stableJson({
+            inRoom: [g1.id], library: [], nowhere: [], otherScene: [], untold: [], players: [], two: [g1.id, g3.id].sort(),
+            noRoller: [], none: []
+        }), "[a GM's Monokuma in the room; in another room; on no scene; in a room of that name on another scene; its GM not told; "
+            + "its pool a player's; two GMs' in the room and a third's elsewhere; a roller on no scene; no Monokuma]");
+        const M = await import("./monokuma.mjs");
+        ok(typeof M.poolOwnerOf === "function", "monokuma.mjs exports no poolOwnerOf");
     }],
 ];
 

@@ -234,11 +234,11 @@
     "Settings": {
       "forceDiceLook": {
         "name": "One dice look for the table",
-        "hint": "Every player and Assistant GM throws Dice So Nice dice in the look of one full Gamemaster, fixed the first time the game runs with it on, with no special effects but those a Gamemaster marks as global, and a change of their own goes back to it. Another full Gamemaster's own look stays theirs and changes nothing for the table beyond the effects they mark as global. Each keeps their own display and performance settings. Switching this off gives nobody their old look back."
+        "hint": "Every player and Assistant GM throws Dice So Nice dice in the look of one full Gamemaster, fixed the first time the game runs with it on, with no special effects but those a Gamemaster marks as global, and a change of their own goes back to it. Another full Gamemaster's own look stays theirs and changes nothing for the table beyond the effects they mark as global. Every Hope and Despair die takes the look that Gamemaster set in Daggerheart, whoever throws it (Daggerheart 2.9 and older). Each keeps their own display and performance settings. Switching this off gives nobody their old look back."
       },
       "forcePrivateRolls": {
         "name": "Force private player rolls",
-        "hint": "Every player roll is whispered to that player and the GMs, and a GM's roll to the GMs. Nobody sees anyone else's dice. The one roll everybody sees is the GM panel's Public roll (game.drpg.publicRoll) - a vote's tie, Monokuma's lottery."
+        "hint": "Every player roll is whispered to that player and the GMs, and a GM's roll to the GMs. Nobody sees anyone else's dice. The one roll everybody sees is a GM's game.drpg.publicRoll (a macro) - a vote's tie, Monokuma's lottery."
       },
       "enforceAnonymity": {
         "name": "Keep character sheets anonymous",
@@ -2674,6 +2674,7 @@
       "remnantEmpty": "No Remnants on any scene. Place one on a map, or write a bullet by hand on the other tab.",
       "remnantGone": "That Remnant is no longer on the map.",
       "alreadyHeld": "already has a copy",
+      "alreadyGiven": "{actor} already holds a Truth Bullet of this Remnant, so they get no second one.",
       "needsName": "The Truth Bullet needs a name.",
       "gave": "{actor} received the Truth Bullet {item}.",
       "name": "Name - this is what the player sees",
@@ -3336,7 +3337,62 @@
       "setByGm": "Your dice look is set by the GM.",
       "settingBack": "{name} changed the table's dice look settings, which only a full Gamemaster may change, so they were put back.",
       "settingBackUnheard": "The table's dice look settings were changed with no trace of who changed them, and only a full Gamemaster may change them, so they were put back.",
-      "stopped": "{name}'s dice look keeps changing straight back, so it is left as it is for a minute, then put back at its next change or throw."
+      "stopped": "{name}'s dice look keeps changing straight back, so it is left as it is for a minute, then put back at its next change or throw.",
+      "diag": {
+        "title": "Dice look",
+        "open": "Open the dice look",
+        "introGm": "What this browser reads of every user's dice look. Another person's browser is read only on that browser: ask them to run game.drpg.diagnoseDiceLook() in the console and send you the text at the foot of the window.",
+        "introPlayer": "What this browser reads of your dice look. Copy the text at the foot of the window and send it to your GM.",
+        "who": "User",
+        "forcedHead": "The table's look",
+        "display": "Display",
+        "findings": "Why the dice may look different",
+        "forced": {
+          "off": "not forced: the setting is off",
+          "notForced": "their own: a full Gamemaster",
+          "unknown": "cannot be read here",
+          "held": "holds it",
+          "notHeld": "does not hold it"
+        },
+        "browser": "This browser",
+        "preset": "Daggerheart's Hope and Despair dice on this browser",
+        "presetNone": "none (Daggerheart 2.10 and later colour them by Dice So Nice roles)",
+        "dsnOff": "off",
+        "noPreset": "no preset",
+        "roll": "The roll read",
+        "audience": "Its dice were sent to",
+        "test": "Test throw",
+        "lastThrows": "Last throws on this browser",
+        "laid": "(the table's look laid)",
+        "tableLook": "The table's Hope and Despair look, laid on each throw here",
+        "lastWindow": "Last roll window on this browser",
+        "nothingFound": "Nothing found that makes this browser draw the dice differently.",
+        "die": {
+          "hope": "The Hope die",
+          "fear": "The Despair die",
+          "advantage": "The advantage die",
+          "disadvantage": "The disadvantage die"
+        },
+        "finding": {
+          "notForced": "{name} does not hold the table's dice look yet. The primary GM puts it back at their next change or throw.",
+          "fuseStopped": "{name}'s dice look kept changing back, so it is left as it is for a minute.",
+          "overlay": "A character of {name}'s carries a dice look of its own: {actors}.",
+          "onlyMine": "{name} has Dice So Nice's \"only my dice\" on, so nobody else's dice are drawn on their screen.",
+          "othersSfxOff": "{name} has other players' special effects switched off.",
+          "lowQuality": "{name} draws dice at low image quality.",
+          "presetDiffers": "{duality} of the roll read carries another preset than this browser's Daggerheart setting: it was thrown on another browser.",
+          "presetMissing": "{duality} of the roll read carries no Daggerheart preset, so it is drawn in its thrower's Dice So Nice look.",
+          "presetMissingLaid": "{duality} of the roll read carries no Daggerheart preset of its own; with One dice look for the table on, this browser draws it in the table's Hope and Despair look.",
+          "presetDiffersLaid": "{duality} of the roll read carries another preset than the table's Hope and Despair look; with One dice look for the table on, this browser draws it in the table's look over its own.",
+          "missingSystem": "Dice So Nice on this browser has no dice system \"{name}\", so dice that use it are drawn as standard dice here.",
+          "missingColorset": "Dice So Nice on this browser has no colorset \"{name}\", so dice that use it are drawn in a custom colour here.",
+          "missingTexture": "Dice So Nice on this browser has no texture \"{name}\", so dice that use it are drawn with no texture here.",
+          "missingMaterial": "Dice So Nice on this browser has no material \"{name}\", so dice that use it are drawn in the automatic material here.",
+          "dsnApiMoved": "Dice So Nice {version} on this browser has no ALL_CUSTOMIZATION, so the forced look copies the GM's saved look only, and each thrower fills what it lacks with their own colour.",
+          "rolesUnforced": "Daggerheart {version} colours its Hope and Despair dice by Dice So Nice roles, which the table's forced look does not set.",
+          "otherBrowser": "{name}'s browser is not read here. Ask them to run game.drpg.diagnoseDiceLook() and send you its text."
+        }
+      }
     },
     "RollDialog": {
       "locked": "Not yours to choose. Advantage and experiences are Hope Calls - ask the GM.",
@@ -3352,18 +3408,6 @@
       "modeGms": "The GMs and you",
       "modeRoom": "The GMs, you and the room",
       "actionLocked": "This roll's Hope or Despair decides what happens next, so it is an action, never a reaction.",
-      "summary": {
-        "none": "no modifiers",
-        "advantage": {
-          "one": "advantage",
-          "other": "advantage ×{n}"
-        },
-        "disadvantage": {
-          "one": "disadvantage",
-          "other": "disadvantage ×{n}"
-        },
-        "bonus": "{bonus} from a Call"
-      },
       "reactionLocked": "A statistic rolled on its own is a reaction: it costs nothing and earns nothing. Hope and Despair come from actions.",
       "unlockedByCall": "Unlocked by a Call you paid for.",
       "freeCritArmed": "Loaded Die is armed. One of the two dice, at random, is set to 12 and the other is thrown - a very high total, and a critical only if that one comes up 12 as well.",
@@ -3768,10 +3812,6 @@
       },
       "voiceReset": "Re-send everybody's voice room",
       "publicRoll": {
-        "label": "Public roll",
-        "formula": "Formula",
-        "flavour": "Flavour",
-        "roll": "Roll",
         "gmOnly": "Only a GM can make a public roll.",
         "badFormula": "\"{formula}\" is not a roll formula."
       },
@@ -4200,7 +4240,7 @@
       "remnantLeft": "The new result leaves a trace behind.",
       "remnantRemoved": "The trace the first roll left is removed.",
       "remnantManual": "The trace the first roll left cannot be adjusted from here - ask the GM to re-rate it.",
-      "traceKept": "{name}'s Reroll left the trace of the first roll as it was ({trace}): a GM has written on it, a Reroll put it back, it is too old for a Reroll to reach, or - where the new result would have removed it - somebody has already found it. The console says which. If the new result ({total}) should change it, re-rate or remove it by hand.",
+      "traceKept": "{name}'s Reroll left the trace of the first roll as it was ({trace}): a GM has written on it or set its band, a Reroll put it back, it is too old for a Reroll to reach, or - where the new result would have removed it - somebody has already found it. The console says which. If the new result ({total}) should change it, re-rate or remove it by hand.",
       "sabotageUndone": "The first attempt is undone: the target is unfrozen and its repair project removed.",
       "sabotageRedone": "{name} breaks again - the repair now needs {n} progress.",
       "sabotageNowFails": "The new result fails: the target is left working.",
@@ -5193,6 +5233,7 @@
         "hook-countdowns-render": "the countdown tray is drawn as Daggerheart draws it, and the HUD is not redrawn with it",
         "hook-dice-so-nice-ready": "the dice looks are not swept",
         "hook-dice-so-nice-message": "Dice So Nice throws such a roll on every screen, in the GM's colours",
+        "hook-dice-so-nice-roll-start": "every Hope and Despair die is drawn in the look its thrower's Daggerheart gave it, and the dice look's report names no throw seen on this browser",
         "hook-livekit-initialized": "the voice rooms, the voice tile and the trial's speakers do not follow the voice client",
         "hook-image-popout-header": "a room picture's window shows Foundry's share control and any a module adds",
         "user-permission-broadcast-audio": "nobody's microphone is blocked: the GM's button says why, and so does the trial",

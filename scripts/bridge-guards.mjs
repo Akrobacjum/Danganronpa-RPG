@@ -247,6 +247,7 @@ export const REASON_PATTERNS = Object.freeze([
     // E08+E28 C8: what only the GM's own Reroll takes back, asked by a player (guardUndoIsTheGms, gmOnly in gm-bridge.mjs).
     ["undoIsTheGms", /^an undo is the GM's own Reroll's$/],
     ["traceOutOfReach", /^a GM has written on that trace$/],
+    ["traceOutOfReach", /^a GM set that trace's band$/],
     ["traceOutOfReach", /^a Reroll put that trace back$/],
     ["traceOutOfReach", /^somebody has already found that trace$/],
     ["traceOutOfReach", /^there is no record of when that trace was left$/],
@@ -809,10 +810,12 @@ export async function guardTieTraceHolder(sender, payload, ctx) {
  * player's `remnant.edit` went with the Reroll receipts, and no player edits a
  * trace now (`guardUndoIsTheGms`). The Reroll the GM makes asks it before each
  * removal or retune of the trace its first roll left (reroll.mjs `traceKept`,
- * since fix r1-G3, 04.10.2026).
+ * since fix r1-G3, 04.10.2026). `gmBand`: a GM set the trace's band, on the Traces
+ * tab or its card, and it still stands at it (remnants.mjs `gmSetBand`, E60 fix FG2).
  */
-export function removalRefusal(token, { gmEdited = false, copied = false, placedAt = null, restored = false, now = Date.now() } = {}) {
+export function removalRefusal(token, { gmEdited = false, gmBand = false, copied = false, placedAt = null, restored = false, now = Date.now() } = {}) {
     if (gmEdited) return "a GM has written on that trace";
+    if (gmBand) return "a GM set that trace's band";
     // Put back by a cleanup Reroll under a new id: whether somebody found the
     // original is no longer readable, so it is not a Reroll's to touch.
     if (restored) return "a Reroll put that trace back";
@@ -1289,10 +1292,10 @@ export function tokenActorOf(payload) {
  * one this client was viewing, as the handler's was.
  */
 export async function remnantSourceOf(payload) {
-    const { remnantData, sceneOfRemnant } = await import("./remnants.mjs");
+    const { remnantData, remnantById, sceneOfRemnant } = await import("./remnants.mjs");
     const scene = game.scenes.get(payload?.sceneId ?? "") ?? sceneOfRemnant(payload?.tokenId);
-    const token = scene?.tokens?.get(payload?.tokenId ?? "");
-    return remnantData(token)?.sourceActor ?? null;
+    // The trace's ref (E60 C1b): its trace token, with its row or none (D38 = 1; E60 fix FG1).
+    return remnantData(remnantById(scene?.id, payload?.tokenId ?? ""))?.sourceActor ?? null;
 }
 
 /*

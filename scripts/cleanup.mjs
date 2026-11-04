@@ -69,7 +69,8 @@ import { bodyDiscovery, seasonEpoch } from "./settings.mjs";
 import { murderState, killerIds, blackenedIds, refOf, swungWeaponOf, spendFreeCleanup } from "./murder.mjs";
 import { usedToolStore, blackenedStore, cleanupAttemptStore, caseMark } from "./gm-stores.mjs";
 import {
-    remnantsInRoom, remnantData, removeRemnant, dropRemnant, setRemnantPublic, tieState, remnantPublic
+    remnantsInRoom, remnantData, removeRemnant, dropRemnant, setRemnantPublic, tieState, remnantPublic,
+    remnantById, sceneOfRemnant
 } from "./remnants.mjs";
 import { locateActor, sameRoom, whilePlacing } from "./movement.mjs";
 import { roomRegions } from "./rooms.mjs";
@@ -474,14 +475,11 @@ function isThisChapters(row) {
         && Array.isArray(row.cleaning);
 }
 
-/** One Remnant token by id, from whichever scene it is on. */
+/** One trace by id, from whichever scene it is on: its ref (remnants.mjs `remnantById`, E60 C1b), not its token. */
 function findRemnantToken(tokenId) {
     if (!tokenId) return null;
-    for (const scene of game.scenes) {
-        const token = scene.tokens.get(tokenId);
-        if (token) return token;
-    }
-    return null;
+    const scene = sceneOfRemnant(tokenId);
+    return scene ? remnantById(scene.id, tokenId) : null;
 }
 
 /* ==========================================================================
@@ -2755,7 +2753,7 @@ function recreationDataFor(token) {
         day: d.day ?? null,
         timeOfDay: d.timeOfDay ?? null,
         // How old it is: a trace put back is not a fresh one (E03 third review).
-        placedAt: d.placedAt ?? token._stats?.createdTime ?? null,
+        placedAt: d.placedAt ?? (token.document ?? token)._stats?.createdTime ?? null,
         // What a player was to be shown, re-applied after re-placing.
         public: d.public ?? null
     };
@@ -2812,7 +2810,8 @@ async function undoLastCleanup(actor, tokenId) {
             const scene = receipt.leftBehind.sceneId
                 ? game.scenes.get(receipt.leftBehind.sceneId)
                 : null;
-            await scene?.tokens?.get(receipt.leftBehind.id)?.delete();
+            // The trace's token through its ref (E60 C1b): every trace has one (D38 = 1), found or not.
+            await remnantById(scene?.id, receipt.leftBehind.id)?.document?.delete();
         } catch (err) {
             error("Could not take back the trace a rerolled clean-up left", err);
         }
@@ -2850,11 +2849,17 @@ async function undoLastCleanup(actor, tokenId) {
     // invented name on it - a state no roll has ever produced.
     if (receipt.transformed?.from) {
         try {
-            const { retuneRemnant, setRemnantPublic, sceneOfRemnant } = await import("./remnants.mjs");
+            const { retuneRemnant, setRemnantPublic, sceneOfRemnant, gmSetBand } = await import("./remnants.mjs");
             // `from` carries the tie (E08+E28 C3), so a reshape's tie goes back with it.
             const from = receipt.transformed.from;
+            /* A band a GM set since the reshape stays (E60 fix FG2, 03.11.2026; the end review's C-m4): `from` holds
+               the band before the reshape, and the GM's band on the Traces tab or the card after it went back with the
+               rest. The kind, the tie and the words go back; the band is the GM's while the trace stands at it
+               (remnants.mjs `gmSetBand`). */
+            const at = receipt.transformed.sceneId ? game.scenes.get(receipt.transformed.sceneId) : sceneOfRemnant(receipt.transformed.id);
+            const gmBand = at ? gmSetBand(remnantById(at.id, receipt.transformed.id)) : null;
             await retuneRemnant(receipt.transformed.sceneId, receipt.transformed.id,
-                { ...from, tiedToCrime: receiptTie(actor.id, "transformed", from.tiedToCrime) });
+                { ...from, ...(gmBand ? { visibility: null } : {}), tiedToCrime: receiptTie(actor.id, "transformed", from.tiedToCrime) });
 
             // `publicFrom` is null when nothing had ever been written for a
             // finder, and that is a real state rather than a missing one: the
@@ -2862,7 +2867,7 @@ async function undoLastCleanup(actor, tokenId) {
             const back = receipt.transformed.publicFrom;
             const scene = receipt.transformed.sceneId
                 ? game.scenes.get(receipt.transformed.sceneId) : sceneOfRemnant(receipt.transformed.id);
-            const tokenDoc = scene?.tokens?.get(receipt.transformed.id);
+            const tokenDoc = scene ? remnantById(scene.id, receipt.transformed.id) : null;
             if (tokenDoc) {
                 // The ledger alone (E09 C9): the reshape left the copies already held as they
                 // were found, so there is nothing on them to take back. A copy found between the

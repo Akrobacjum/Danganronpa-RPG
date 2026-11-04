@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.97, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.98, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
@@ -835,7 +835,7 @@ Bottom-left of your character sheet is a button with a word on it - **Safe Word*
 - **Voice**, while you are in voice - your microphone and sound output, the microphone's mode (**Always on** or **Push to talk**) and the push-to-talk key. If no microphone is listed, allow the browser to use it and open the window again.
 
 > [!NOTE]
-> **Rolls are private:** every roll you make is seen by you and the GMs alone. Nobody sees anyone else's dice, with two exceptions. A roll in a murder's fight is shown to the people in it - its dice, what it came to and which action it was - from the moment the incident begins to its end. A trap's builder is not among them: they see none of its dice and none of its cards, the card of the action that ends it included. What the opening roll came to is told to the roller's side alone - the killers of a direct murder, a trap's victim - and the clean-up stays the roller's own. A Monocub's rolls, Confusion included, are seen by everyone in their room. The one roll everybody reads is the GM's **Public roll** from the GM panel (not yet checked at a table) - a vote's tie, Monokuma's lottery (since 1.2.69).
+> **Rolls are private:** every roll you make is seen by you and the GMs alone. A GM sees your dice fall only while that GM's Monokuma stands in your room; the result reaches the GMs either way. Nobody sees anyone else's dice, with two exceptions. A roll in a murder's fight is shown to the people in it - its dice, what it came to and which action it was - from the moment the incident begins to its end. A trap's builder is not among them: they see none of its dice and none of its cards, the card of the action that ends it included. What the opening roll came to is told to the roller's side alone - the killers of a direct murder, a trap's victim - and the clean-up stays the roller's own. A Monocub's rolls, Confusion included, are seen by everyone in their room. The one roll everybody reads is a public roll the GM throws (not yet checked at a table) - a vote's tie, Monokuma's lottery (since 1.2.69).
 
 ---
 

@@ -33,6 +33,7 @@ import { GRID } from "./tests-grid.mjs";
  * runs from `finally` in the runner rather than at the end of the test.
  */
 async function snapshot(cast) {
+    const { remnantsOn } = await import("./remnants.mjs");
     /*
      * DESPAIR AND THE OVERFLOW, for the same reason Hope is here.
      *
@@ -127,10 +128,10 @@ async function snapshot(cast) {
         // snapshot, and the runner reported one failure and skipped every
         // scenario. A suite that silently runs nothing reads almost the same as
         // a suite that passes, which is why the runner names the step.
+        // Every trace's ref (E60 C1b): a trace token's key and a row's with no token of its own alike (remnants.mjs
+        // `remnantsOn`), so a fixture's trace is read by its row as well as by its token.
         remnants: new Set(game.scenes.reduce((ids, scene) => {
-            for (const token of scene.tokens) {
-                if (token.getFlag(MODULE_ID, "isRemnant")) ids.push(`${scene.id}.${token.id}`);
-            }
+            for (const ref of remnantsOn(scene)) ids.push(ref.key);
             return ids;
         }, [])),
         messages: new Set(game.messages.map(m => m.id)),
@@ -186,6 +187,7 @@ async function thrown(fn) {
 
 async function restore(snap) {
     const { reviveCharacter } = await import("./chapter.mjs");
+    const { remnantsOn } = await import("./remnants.mjs");
     const { setDespair, getDespair } = await import("./despair.mjs");
 
     /*
@@ -235,9 +237,8 @@ async function restore(snap) {
      * and the store let settle, the settings below are written over the tombstones.
      */
     for (const scene of game.scenes) {
-        const strays = scene.tokens
-            .filter(t => t.getFlag(MODULE_ID, "isRemnant") && !snap.remnants.has(`${scene.id}.${t.id}`))
-            .map(t => t.id);
+        // The refs that carry a token (E60 C1b): a row of a trace that appeared is the store hold's to put back.
+        const strays = remnantsOn(scene).filter(r => r.document && !snap.remnants.has(r.key)).map(r => r.id);
         if (strays.length) await scene.deleteEmbeddedDocuments("Token", strays);
     }
     await gmStoresIdle();
@@ -6669,7 +6670,7 @@ const SCENARIOS = [
             // The traces placed here, and the one the Reroll put back under a new id.
             const back = remnantsOn(scene).filter(t => /^SUITE C13 a trace the killer scrubs/.test(remnantData(t)?.note ?? ""));
             for (const doc of [...traces, ...back]) {
-                try { await doc?.delete(); } catch { /* already gone */ }
+                try { await (doc?.document ?? doc)?.delete(); } catch { /* already gone */ }
             }
             await killer.update({ "system.resources.stress.value": 0 });
         }
@@ -10254,11 +10255,13 @@ const SCENARIOS = [
          * each public roll until C13. Read: Dice So Nice's decision as it asks it of this GM, each
          * throw on this screen (as whose dice, synchronised or not), and each packet with its
          * recipients. Until C13 Dice So Nice decided for itself here, in the GM's colours, and no
-         * packet left.
+         * packet left. E60 C5e: with rolls forced private the GMs of that audience are those with a Monokuma of theirs in
+         * the roller's room (private-rolls.mjs `gmsInRoomOf`), this one too: its own throw and the packets are read
+         * against that (E60-T17 moves the Monokuma in and out).
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
         needs(world.moduleActive("dice-so-nice"), "the dice of a drawn roll are thrown through Dice So Nice");
-        const { gmIds } = await import("./utils.mjs");
+        const { gmsInRoomOf } = await import("./private-rolls.mjs");
         const { player, theirs } = playerAndCharacters();
         const dice3d = game.dice3d, show = dice3d.showForRoll, emit = game.socket.emit;
         const readings = [], expected = [];
@@ -10279,9 +10282,11 @@ const SCENARIOS = [
                 const interception = { willTrigger3DRoll: true };
                 Hooks.callAll("diceSoNiceMessagePreProcess", F.message.id, interception);
                 readings.push([forced, interception.willTrigger3DRoll, thrown.map(args => [args[1]?.id ?? args[1] ?? null, args[2] === true]), sent]);
-                const others = (forced ? gmIds() : game.users.filter(u => u.active).map(u => u.id))
+                const inRoom = gmsInRoomOf(theirs);
+                const others = (forced ? inRoom : game.users.filter(u => u.active).map(u => u.id))
                     .filter(id => id !== game.user.id && id !== player.id).sort();
-                expected.push([forced, false, [[player.id, false]], others.length ? [[{ action: "dice.show", id: F.message.id, by: player.id }, others]] : []]);
+                const here = !forced || inRoom.includes(game.user.id);
+                expected.push([forced, false, here ? [[player.id, false]] : [], others.length ? [[{ action: "dice.show", id: F.message.id, by: player.id }, others]] : []]);
             } finally {
                 await F.putBack();
             }
@@ -10299,7 +10304,9 @@ const SCENARIOS = [
          * (the roller is told, nothing is recorded), and the Debug log says what this screen showed. `drawnForPlayer`'s
          * packet, with Daggerheart's `toMessage` failing while the GM judges it. Read: each throw here (as whose dice,
          * synchronised or not), what the roller was sent, the message and the record, and this browser's Debug lines
-         * that name the roll. Until C6 nothing was thrown here and nothing logged.
+         * that name the roll. Until C6 nothing was thrown here and nothing logged. E60 C5e: this GM throws a player's dice
+         * only with a Monokuma of theirs in the roller's room (private-rolls.mjs `gmsInRoomOf`), so the world's placed
+         * Monokuma stands beside the roller for the draw and goes back after.
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
         needs(world.moduleActive("dice-so-nice"), "the dice of a drawn roll are thrown through Dice So Nice");
@@ -10308,10 +10315,16 @@ const SCENARIOS = [
         const dice3d = game.dice3d, show = dice3d.showForRoll;
         const own = Object.getOwnPropertyDescriptor(cls, "toMessage");
         const debugWas = game.settings.get(MODULE_ID, SETTINGS.debug), consoleDebug = console.debug;
+        const { monokumaActors } = await import("./monokuma.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const monokuma = monokumaActors().find(m => locateActor(m)?.tokenDoc) ?? null, roller = locateActor(theirs);
+        must(monokuma && roller?.tokenDoc, "no placed Monokuma, or the player's character is on no scene - this would measure nothing");
+        const token = locateActor(monokuma).tokenDoc, tokenWas = { x: token.x, y: token.y };
         const thrown = [], lines = [];
         if (!debugWas) await game.settings.set(MODULE_ID, SETTINGS.debug, true);
         let F = null;
         try {
+            await token.update({ x: roller.tokenDoc.x + 100, y: roller.tokenDoc.y }, { animate: false });
             const watch = () => {
                 dice3d.showForRoll = async (...args) => { thrown.push([args[1]?.id ?? args[1] ?? null, args[2] === true]); return true; };
                 Object.defineProperty(cls, "toMessage", { configurable: true, writable: true, value: async () => { throw new Error("H82 C6 planted: the message's write failed"); } });
@@ -10338,6 +10351,7 @@ const SCENARIOS = [
             console.debug = consoleDebug;
             if (game.settings.get(MODULE_ID, SETTINGS.debug) !== debugWas) await game.settings.set(MODULE_ID, SETTINGS.debug, debugWas);
             await F?.putBack();
+            if (token.x !== tokenWas.x || token.y !== tokenWas.y) await token.update(tokenWas, { animate: false });
         }
     }],
 
@@ -58406,7 +58420,7 @@ const SCENARIOS = [
                 placed = MM.finalRemnants().filter(f => !before.has(f.token.id));
                 reading = [placed.map(f => f.token.parent?.id ?? null), R.roomNames(school).every(r => offered.includes(r))];
             } finally {
-                for (const f of placed) if (f.token.parent?.tokens?.has(f.token.id)) await f.token.delete();
+                for (const f of placed) if (f.token.parent?.tokens?.has(f.token.id)) await f.token.document?.delete();
                 await home?.view();
                 await annex?.delete();
                 await settle();
@@ -64066,22 +64080,20 @@ const SCENARIOS = [
             "a crisis or opening window let its Reaction chip be clicked or did not say why, or another action's chip was held (each: selected, locked, tooltip, a reaction after the click)");
     }],
 
-    ["a player's locked roll window is one summary line and Roll while a GM's stays whole (S02-29 S01-17 S01-22)", async () => {
+    ["E60-T15 - a player's roll window is the GM's (E60 C5c; E60-16, the owner's rule of 03.11 over E16 C2, S02-29 S01-17 S01-22): a student's action roll window and its statistic window, the lock on, drawn as the GM draws them and as a player reads them, show every section - the dice, the experiences, the modifiers, the formula, the mode select - none put away, with no summary line and no chip, the locks on and Roll live; the statistic's Reaction chip is held as a reaction and the action's is not; the mode select's tooltip names who sees the roll; and the title bar and the titles are as S01-22 and H81-07 ask", async () => {
         /*
-         * E16 p1 C2, 18.10.2026; audits S02-29, S01-17 and S01-22 (E16-11 to E16-13). With the lock on a
-         * student's window was a wall of greyed controls - dice, experiences, advantage, the trait, the bonus,
-         * the roll mode - and one live Roll; the locked mode select spilled over three lines and the title bar
-         * let what is under the window show through. Daggerheart's window (`rollWindow`, the harness's stand-in)
-         * opened by this GM for a student's Body action roll, the lock on: read as the GM drew it, then drawn
-         * again from its own context and handed to the render hook while this browser reads as a player
-         * (`asConsole`); the same with a Support armed, and with an Experience Call armed. A title bar and its
-         * title are planted in the window to read the stylesheet's answer for them (the stand-in draws no frame).
-         * Read, from the cascade jsdom computes (no layout headless; the look on a table is LIVE-E16-02): which
-         * of the dice, experiences and modifiers sections are not displayed, the summary line and its tooltip,
-         * the mode select displayed, the chip beside it, Roll disabled; for the GM the mode select's min-width
-         * and white-space; the title bar's alpha and the title's and the heading's `contain`. At c952b92 the
-         * player's window was the GM's (no section away, no line, the select shown, no chip), the select's
-         * min-width "auto" and white-space "", the bar at 0.7 (the glass's) and both `contain` "none".
+         * E60 C5c, 03.11.2026; the owner after installing 1.2.97: "okno rzutu u gma wyglada dobrze (wieksze), u gracza sie
+         * zepsulo i jest malutkie" and "Nawet gdyby rzucal statystyka, to i tak okno nie powinno sie zmieniac". Until C5c
+         * (E16 C2, audits S02-29, S01-17, S01-22) a player's locked window put away every section with no usable control,
+         * made the mode select a chip and drew one summary line; this test held that collapse ("a player's locked roll
+         * window is one summary line and Roll while a GM's stays whole"). Now it holds the owner's rule. Daggerheart's
+         * window (`rollWindow`, the harness's stand-in) opened by this GM for a student's Body action roll and for a Body
+         * statistic, the lock on, each read as the GM drew it and then drawn again from its own context and handed to the
+         * render hook while this browser reads as a player (`asConsole`); the action again with a Support armed. Read,
+         * from the cascade jsdom computes (no layout headless; the look on a table is LIVE-E60-08): which of the five parts
+         * are not displayed, a summary line or a chip, the mode select disabled and its tooltip, how many controls are
+         * locked, Roll disabled, the Reaction chip (selected, locked). At C5b's tree the player's windows put the dice,
+         * the experiences and the modifiers away, drew a line and a chip, and the select was not displayed.
          * H81-07, 20.10.2026 (the owner's 1.2.80 table: the roll's title stood on end): a box of
          * `contain: inline-size` is 0 wide wherever its width comes from its content, so in a parent that
          * centres it (a flex column, a grid) the heading broke one letter a line (Chromium, 0 px and 17 lines
@@ -64100,19 +64112,21 @@ const SCENARIOS = [
         const [actor] = cast(1);
         const { DRPG_ACTION_ROLL } = await import("./action-rolls.mjs");
         const lockWas = game.settings.get(MODULE_ID, SETTINGS.lockRollDialog);
-        const SECTIONS = [".dices-section", ".experience-container", ".modifier-container"];
+        const PARTS = [".dices-section", ".experience-container", ".modifier-container", ".formula-label", 'select[name="selectedMessageMode"]'];
         const shown = el => Boolean(el) && getComputedStyle(el).display !== "none";
+        const audience = game.i18n.localize(game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls) ? "DRPG.RollDialog.modeGms" : "DRPG.RollDialog.modePublic");
         const view = root => {
-            const line = root.querySelector(".drpg-roll-summary-line");
             const mode = root.querySelector('select[name="selectedMessageMode"]');
+            const chip = root.querySelector('[data-action="toggleReaction"]');
             return {
-                away: SECTIONS.filter(sel => root.querySelector(sel) && !shown(root.querySelector(sel))),
-                line: line ? [line.textContent.trim(), line.dataset.tooltip ?? null] : null,
-                mode: [shown(mode), root.querySelector(".drpg-mode-chip")?.textContent?.trim() ?? null],
-                roll: root.querySelector("button.submit-btn")?.disabled ?? null
+                away: PARTS.filter(sel => !shown(root.querySelector(sel))),
+                extra: [Boolean(root.querySelector(".drpg-roll-summary-line")), Boolean(root.querySelector(".drpg-mode-chip"))],
+                mode: [mode?.disabled === true, String(mode?.dataset?.tooltip ?? "").includes(audience)],
+                locked: root.querySelectorAll(".drpg-locked").length > 2,
+                roll: root.querySelector("button.submit-btn")?.disabled ?? null,
+                chip: chip ? [chip.classList.contains("selected"), chip.classList.contains("drpg-locked")] : null
             };
         };
-        const formulaOf = root => root.querySelector(".formula-label")?.textContent?.trim() ?? null;
         const asPlayer = async win => {
             const context = await win.app._prepareContext({});
             await win.app._replaceHTML(await win.app._renderHTML(context), win.app.element);
@@ -64120,13 +64134,12 @@ const SCENARIOS = [
             return view(win.element);
         };
         const read = {};
-        let call = null, win = null, formula = null, supported = null;
+        let call = null, win = null;
         try {
             if (!lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, true);
             win = await (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true, roll: { trait: "strength" } })).open();
             must(win.element?.querySelector(".experience-container"), `${actor.name}'s window offers no experience - this would measure nothing`);
             read.gm = view(win.element);
-            formula = formulaOf(win.element);
             const mode = win.element.querySelector('select[name="selectedMessageMode"]');
             read.gmMode = mode ? [getComputedStyle(mode).minWidth, getComputedStyle(mode).whiteSpace] : null;
             const header = document.createElement("header");
@@ -64170,40 +64183,30 @@ const SCENARIOS = [
             read.player = await asPlayer(win);
             await win.cancel();
             win = null;
+            win = await (await rollWindow(actor, { roll: { trait: "strength" } })).open();
+            read.statisticGm = view(win.element);
+            read.statistic = await asPlayer(win);
+            await win.cancel();
+            win = null;
             call = await c3Call(actor, C3_SUPPORT);
             win = await (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true, roll: { trait: "strength" } })).open();
             read.support = await asPlayer(win);
-            supported = formulaOf(win.element);
-            await win.cancel();
-            win = null;
-            await call.spend();
-            call = await c3Call(actor, { key: "experience", kind: "hope", grants: "experience" });
-            win = await (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true, roll: { trait: "strength" } })).open();
-            read.experience = (await asPlayer(win)).away;
         } finally {
             await win?.cancel();
             await call?.spend();
             if (game.settings.get(MODULE_ID, SETTINGS.lockRollDialog) !== lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, lockWas);
         }
-        const L = key => game.i18n.localize(key);
-        const { plural } = await import("./utils.mjs");
-        // The chip names who sees the roll (E16 fix r1-G2 of round r1c, finding E16-goal-07): the next test reads it.
-        const chip = L(game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls) ? "DRPG.RollDialog.modeGms" : "DRPG.RollDialog.modePublic");
-        // The Support's die is in the formula its window drew (`supported`), checked below to be more than the plain one.
+        const whole = chip => ({ away: [], extra: [false, false], mode: [true, true], locked: true, roll: false, chip });
         equal(stableJson(read), stableJson({
-            experience: [".dices-section", ".modifier-container"],
-            gm: { away: [], line: null, mode: [true, null], roll: false },
-            gmMode: ["150px", "nowrap"],
-            player: { away: SECTIONS, line: [`Body, ${L("DRPG.RollDialog.summary.none")} - ${formula}`, null], mode: [false, chip], roll: false },
-            support: { away: SECTIONS, line: [`Body, ${plural("DRPG.RollDialog.summary.advantage", { n: 1 })} - ${supported}`, L("DRPG.RollDialog.forcedByCall")],
-                mode: [false, chip], roll: false },
+            gm: whole([false, false]), gmMode: ["150px", "nowrap"],
+            player: whole([false, false]),
+            statisticGm: whole([true, true]), statistic: whole([true, true]),
+            support: whole([false, false]),
             title: [true, ["inline-size", ["100% !important"]], ["inline-size", ["100% !important"]], ["stretch", "stretch"]]
-        }), "a player's locked window kept a locked section or had no summary, a GM's lost one, the mode select or the title bar is not as S01-22 asks, a title can set the width, or a title can stand on end in a parent that centres it (see the comment for each key)");
-        ok(/\dd12/.test(formula ?? "") && typeof supported === "string" && supported.length > formula.length,
-            `the window's formula names no d12, or the Support's adds nothing to it (${formula}; ${supported})`);
+        }), "a roll window put a part away, drew a summary or a chip, left its mode unlocked or unnamed, its controls unlocked, Roll dead, or its Reaction chip held the wrong way; or the mode select, the title bar or a title is not as S01-22 and H81-07 ask (see the comment for each key)");
     }],
 
-    ["a player's locked roll window's mode chip names who sees the roll: the GMs and the player while rolls are forced private, a Monocub's room too (S01-22 ROLL-14)", async () => {
+    ["a player's locked roll window's mode select names who sees the roll in its tooltip: the GMs and the player while rolls are forced private, a Monocub's room too (S01-22 ROLL-14; a chip until E60 C5c)", async () => {
         /*
          * E16 fix r1-G2 of round r1c, 19.10.2026 (finding E16-goal-07). C2's chip said what the disabled mode select
          * held - "Public" for a player whose chat bar is on the default - while `forcePrivateRolls` (on by default)
@@ -64212,7 +64215,8 @@ const SCENARIOS = [
          * roll with the lock on and drawn as a player reads it (`asConsole`, as the test above): with rolls forced
          * private; with them not; and forced private again with the window's actor read as a Monocub (its `getFlag`
          * answers the module's `monocub` flag on this instance only, nothing written). Read: the chip's text. At
-         * e10c60a: "Public" every time.
+         * e10c60a: "Public" every time. E60 C5c retired the chip with the collapse (E60-T15): the same names are read off the
+         * mode select's tooltip, on its first line (`audienceOf`, above the select's locked reason).
          */
         const RD = await import("./roll-dialog.mjs");
         const [actor] = cast(1);
@@ -64224,7 +64228,7 @@ const SCENARIOS = [
             try {
                 await win.app._replaceHTML(await win.app._renderHTML(await win.app._prepareContext({})), win.app.element);
                 asConsole(() => RD.onRenderApplication(win.app, win.app.element));
-                return win.element.querySelector(".drpg-mode-chip")?.textContent?.trim() ?? null;
+                return String(win.element.querySelector('select[name="selectedMessageMode"]')?.dataset?.tooltip ?? "").split("<br>")[0] || null;
             } finally {
                 await win.cancel();
             }
@@ -64248,7 +64252,7 @@ const SCENARIOS = [
         }
         const L = key => game.i18n.localize(key);
         equal(stableJson(read), stableJson({ forced: L("DRPG.RollDialog.modeGms"), monocub: L("DRPG.RollDialog.modeRoom"), open: L("DRPG.RollDialog.modePublic") }),
-            "the locked window's chip does not name who sees the roll (forced: the GMs and you; monocub: the GMs, you and the room; open: Public, the select's own mode)");
+            "the locked window's mode select does not name who sees the roll (forced: the GMs and you; monocub: the GMs, you and the room; open: Public, the select's own mode)");
     }],
 
     ["a roll window opens below the curtain's edge, not over the glass at the top of the screen (S01-22)", async () => {
@@ -70701,7 +70705,7 @@ const SCENARIOS = [
             stand?.putBack();
             if (actor.system.resources.hope.value !== hope) await trustedWrite(actor, { "system.resources.hope.value": hope }, { reason: "gmRuling" });
             for (const t of game.scenes.contents.flatMap(s => remnantsOn(s)).filter(t => remnantData(t)?.subject === name)) {
-                try { await t.delete(); } catch { /* already gone */ }
+                try { await t.document?.delete(); } catch { /* already gone */ }
             }
             for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
             if (rerollBookmarkStore.has(actor.id)) await rerollBookmarkStore.drop(actor.id);
@@ -72868,7 +72872,7 @@ const SCENARIOS = [
             windows.restore();
             delete actor.rollTrait;
             for (const t of remnantsOn(canvas.scene).filter(t => !traces.has(t.id))) {
-                try { await t.delete(); } catch { /* already gone */ }
+                try { await t.document?.delete(); } catch { /* already gone */ }
             }
             for (const who of [actor, owner]) for (const item of who.items.filter(i => !had.get(who.id).has(i.id))) {
                 try { await item.delete(); } catch { /* already gone */ }
@@ -76197,7 +76201,7 @@ const SCENARIOS = [
             windows.restore();
             if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
             for (const scene of game.scenes) for (const t of remnantsOn(scene).filter(t => remnantData(t)?.subject === name)) {
-                try { await t.delete(); } catch { /* already gone */ }
+                try { await t.document?.delete(); } catch { /* already gone */ }
             }
             made.push(...P.allProjects().filter(p => made.includes(P.repairs(p.id))).map(p => p.id));
             for (const id of made) await P.deleteProject(id).catch(() => {});
@@ -77642,7 +77646,7 @@ const SCENARIOS = [
             windows.restore();
             if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
             for (const scene of game.scenes) for (const t of remnantsOn(scene).filter(t => remnantData(t)?.subject === name)) {
-                try { await t.delete(); } catch { /* already gone */ }
+                try { await t.document?.delete(); } catch { /* already gone */ }
             }
             made.push(...P.allProjects().filter(p => made.includes(P.repairs(p.id))).map(p => p.id));
             for (const id of made) await P.deleteProject(id).catch(() => {});
@@ -81238,6 +81242,752 @@ const SCENARIOS = [
         }), stableJson({ cleared: ["assignments"], own: true, beyond: [], clock: [] }),
             "a reset with one group ticked changed the world beyond that group and the reset's bookkeeping (cleared; own: the group's setting among the "
             + `differences; beyond: the other units that differ; clock: its paths beyond the group's cut) - ${diff.slice(0, 12).map(d => K.describeDiff(d)).join("; ")}`);
+    }],
+    ["E60-T1 - every placed trace's row holds its spot, and the readers answer on refs (E60 C1b; E60-02, E60-03): three traces placed - a student's Faint Prep through `dropRemnant` (on the student's floor), a Key and a Final through `placeRemnant` - each have a row with `x`, `y` (the token's), `level` (the source's floor, else null) and `foundAt` null, the spot stamped as a real write; the readers list each as a ref carrying its token (`remnantsOn`, `remnantById`, `sceneOfRemnant`, Observe's candidates, the clean-up's list, the chapter's Faint Prep, the finals, the Keys still to find); a find writes `foundAt` and the road on the row, a GM's Reveal \"gm\", and the ref reads it found", async () => {
+        /*
+         * E60 C1b, 03.11.2026; S17-64. From E60 on the row holds the trace's spot, written with it at placement
+         * (remnants.mjs `traceRowOf`), and every reader reads one ref per trace (`traceRefsOf`) - the token is made at
+         * placement (D38 = 1, the owner's choice of 03.11.2026), so a ref carries it and the reader answers what it
+         * answered on the token. The student stands on a floor
+         * of this test's own for the placement (the token's `level` shadowed on this browser alone, put back after: no
+         * world write), so a floor the source does not stand on is read as null. The spot is stamped as a real write, above
+         * the store's weak stamp (`weak()`): a derived write of it, a migration's or another GM's default, loses to it in
+         * every merge (gm-store.mjs WEAK). Then the Key found (`revealRemnantToFinder`,
+         * as Observe's copy un-hides it) and the Final revealed by the GM's hand (`revealRemnant`). Put back: the three
+         * traces, their rows, the floor. Red at C1a: no spot on any row. Mutants c1b-m3 (no floor written), c1b-m4 (the
+         * spot written weak) and c1b-m7 (an un-hide that writes no `foundAt`) read red here.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the traces are placed on the scene on screen");
+        needs(world.atLeast("occupiedRooms", 1), "the traces are left in a room with a student in it");
+        const R = await import("./remnants.mjs");
+        const { remnantStore } = await import("./gm-stores.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { cleanableRemnants } = await import("./cleanup.mjs");
+        const { faintPrepCandidates } = await import("./chapter.mjs");
+        const { finalRemnants } = await import("./mastermind.mjs");
+        const { missingKeyRows } = await import("./investigation.mjs");
+        const scene = canvas?.scene;
+        // Read so that 1.2.97's code answers a reading, not a TypeError (the red run at C1a): no ref, no `remnantById`.
+        const isRef = r => typeof R.isTraceRef === "function" && R.isTraceRef(r);
+        const byIds = (sceneId, id) => (typeof R.remnantById === "function" ? R.remnantById(sceneId, id) : null);
+        const student = cast(4).find(a => { const at = locateActor(a); return at?.room && at.scene === scene; });
+        must(student, "no student of the cast stands in a room on the scene on screen - this would measure nothing");
+        const where = locateActor(student);
+        const tokenDoc = where.tokenDoc, room = where.room;
+        const FLOOR = "e60T1floor";
+        const heldLevel = Object.getOwnPropertyDescriptor(tokenDoc, "level");
+        const chapter = getClock().chapter;
+        const placed = [];
+        let reading = null;
+        try {
+            Object.defineProperty(tokenDoc, "level", { value: FLOOR, configurable: true, writable: true });
+            must(locateActor(student)?.level === FLOOR, "the student's floor could not be set on this browser - this would measure nothing");
+            const drop = await R.dropRemnant(student, { type: "prep", faint: true, visibility: "evident", note: "SUITE E60-T1 drop" });
+            if (heldLevel) Object.defineProperty(tokenDoc, "level", heldLevel); else delete tokenDoc.level;
+            const key = await R.placeRemnant({ type: "key", visibility: "subtle", scene, x: tokenDoc.x, y: tokenDoc.y, room, chapter, note: "SUITE E60-T1 key" });
+            const final = await R.placeRemnant({ type: "final", visibility: "evident", scene, x: tokenDoc.x, y: tokenDoc.y, room, chapter, note: "SUITE E60-T1 final" });
+            for (const t of [drop, key, final]) if (t) placed.push(t);
+            must(placed.length === 3, `${placed.length} of the three traces were placed - this would measure nothing`);
+            const keyOf = t => `${scene.id}.${t.id}`;
+            const rowOf = t => remnantStore.get(keyOf(t));
+            const spot = t => { const row = rowOf(t), tok = scene.tokens.get(t.id);
+                return [row?.x === tok?.x && row?.y === tok?.y && Number.isFinite(row?.x), row?.level ?? null,
+                    Boolean(row) && "foundAt" in row && row.foundAt === null, remnantStore.stampOf(keyOf(t), "x") > remnantStore.weak()]; };
+            const spots = placed.map(spot);
+            const ids = placed.map(t => t.id);
+            const ours = list => ids.map(id => list.some(id2 => id2 === id));
+            const refs = R.remnantsOn(scene).filter(r => ids.includes(r.id));
+            const refShape = refs.map(r => [r.id, isRef(r), r.document === scene.tokens.get(r.id), r.x === r.document?.x, r.parent === scene]);
+            const byId = [byIds(scene.id, key.id)?.key === keyOf(key), R.sceneOfRemnant(final.id) === scene, byIds(scene.id, "e60NoSuchTrace") === null];
+            const observe = R.rankForObserve(room, scene).map(c => c.token.id);
+            const cleanable = cleanableRemnants(student, { room, scene }).map(c => c.token.id);
+            const faint = faintPrepCandidates(chapter).map(c => c.token.id);
+            const finals = finalRemnants().map(f => f.token.id);
+            const missing = missingKeyRows().map(r => r.id);
+            const readers = {
+                observe: ours(observe), cleanable: ours(cleanable), faint: ours(faint), finals: ours(finals),
+                missingKey: missing.includes(keyOf(key)), refsTyped: [R.rankForObserve(room, scene).every(c => isRef(c.token))]
+            };
+            await R.revealRemnantToFinder(byIds(scene.id, key.id) ?? scene.tokens.get(key.id), { tell: false });
+            await R.revealRemnant(byIds(scene.id, final.id) ?? scene.tokens.get(final.id));
+            const foundRow = t => [Number.isFinite(rowOf(t)?.foundAt), rowOf(t)?.foundVia ?? null, byIds(scene.id, t.id)?.found ?? null];
+            reading = { spots, refShape, byId, readers, found: placed.map(foundRow) };
+        } finally {
+            if (heldLevel) Object.defineProperty(tokenDoc, "level", heldLevel); else if (Object.hasOwn(tokenDoc, "level")) delete tokenDoc.level;
+            for (const trace of placed) {
+                await R.dropRemnantSecret(trace);
+                if (scene.tokens.has(trace.id)) await scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            }
+        }
+        const [d, k, f] = placed.map(t => t.id);
+        equal(stableJson(reading), stableJson({
+            spots: [[true, FLOOR, true, true], [true, null, true, true], [true, null, true, true]],
+            refShape: [[d, true, true, true, true], [k, true, true, true, true], [f, true, true, true, true]],
+            byId: [true, true, true],
+            readers: { observe: [true, true, true], cleanable: [true, true, true], faint: [true, false, false], finals: [false, false, true],
+                missingKey: true, refsTyped: [true] },
+            found: [[false, null, false], [true, "find", true], [true, "gm", true]]
+        }), "[each trace's row: its spot the token's, its floor, foundAt null, the spot's stamp real (above the store's weak stamp); "
+            + "the refs (id, a ref, its token, the token's spot, the scene); by id; the readers listing ours (Observe, the clean-up, "
+            + "the chapter's Faint Prep, the finals, the Keys still to find, Observe's candidates refs); the found rows (foundAt, the road, the ref's found)]");
+    }],
+
+    ["E60-T8 - the band for every trace, from the Traces tab and from the GM's card (E60 C4a; E60-11): a trace nobody has found and one a student found, both in a room with the student; the dashboard's Save (`applyDashboardSave` as the form hands it on) writes each one's band on its row (`visibility`) and Observe ranks each at the new band's number (`rankForObserve`, `observeDc`), while the found one's copy keeps the band it was made with; a Save drawn from a band another write has moved since is refused and the band stays; the GM's card of each (remnant-ring.mjs `gmRemnantCard`, wired as `showRemnantCard` wires it) shows the band chosen, and a change of its select writes the row's band the same way and leaves the copy's band; both roads leave one state - the band a GM set named on the row (`gmBand`), the trace not marked edited (E60 fix FG2) - and the unfound one's next find still whispers the GMs to say what it is; a player's card draws no band to change", async () => {
+        /*
+         * E60 C4a, 03.11.2026; the owner's ask of 28.10, his answer to Q-E60-3 (every Remnant's band, found or not; the
+         * copies keep theirs, and the next finder's copy is made at the new band) and his addition of 03.11 (the card of
+         * the trace's token too). The band was set where a trace was left and moved only by a Reroll (`retuneRemnant`).
+         * Two Prep traces placed at the student's spot: one left unfound, one found by a copy made on the student
+         * (`createTruthBullet`, which un-hides its source as an Observe's copy does). The Save first (Evident to Hidden
+         * and to Subtle), then a Save drawn at Evident over the Hidden one, then the card's select on each (to Subtle
+         * and to Obvious), each change read once the row says it (up to two seconds) or not. Put back: the copy and its
+         * answer key, both traces and their rows. Red at C1c: no band in the form or on the card (the Save writes
+         * nothing of it, and remnant-ring.mjs exports no card). Mutants c4a-m1 (the band written into the copies too),
+         * c4a-m4 (the band written where Observe does not read it) and c4a-m5 (the card writing it around
+         * `setRemnantFlags`) read red here. E60's fix round (FG2; the end review's C-m4, G-m4; the owner's "Domyslnie" of
+         * 03.11: a band change marks nothing GM-edited, on the card or the dashboard): the card marked the trace edited
+         * and the Save did not, so the same band left two states; both now leave the band a GM set on the row and the
+         * trace unmarked, and the unfound one's find (`revealRemnantToFinder`) whispers the GMs. Red on C5e's code: the
+         * card's `edited` true, no `gmBand` on either road, no whisper.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the traces are placed on the scene on screen");
+        needs(world.atLeast("occupiedRooms", 1), "the traces are left in a room with a student in it, where Observe ranks them");
+        const R = await import("./remnants.mjs");
+        const I = await import("./investigation.mjs");
+        const RR = await import("./remnant-ring.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const { remnantStore } = await import("./gm-stores.mjs");
+        const { observeDc } = await import("./config.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { esc } = await import("./utils.mjs");
+        const scene = canvas?.scene;
+        const student = cast(4).find(a => { const at = locateActor(a); return at?.room && at.scene === scene; });
+        must(student, "no student of the cast stands in a room on the scene on screen - this would measure nothing");
+        const { tokenDoc, room } = locateActor(student);
+        const placed = [], whispers = [];
+        let copy = null, reading = null;
+        try {
+            for (const note of ["unfound", "found"]) {
+                const t = await R.placeRemnant({ type: "prep", visibility: "evident", scene, x: tokenDoc.x, y: tokenDoc.y, room, note: `SUITE E60-T8 ${note}` });
+                if (t) placed.push(t);
+            }
+            must(placed.length === 2, `${placed.length} of the two traces were placed - this would measure nothing`);
+            const [unfound, found] = placed;
+            copy = await T.createTruthBullet(student, { name: "SUITE E60-T8 copy", realType: "prep", visibility: "evident",
+                playerText: "SUITE E60-T8", remnantId: found.id, sceneId: scene.id, analyzed: true });
+            await settle();
+            const ref = t => R.remnantById(scene.id, t.id);
+            must(copy && ref(found)?.found === true && ref(unfound)?.found === false,
+                "the copy was not made, or the found trace does not read found and the other unfound - this would measure nothing");
+            const band = t => remnantStore.get(`${scene.id}.${t.id}`)?.visibility ?? null;
+            const dc = t => R.rankForObserve(room, scene).find(c => c.token.id === t.id)?.dc ?? null;
+            const copyBand = () => student.items.get(copy.id)?.getFlag(MODULE_ID, T.TRUTH_BULLET_FLAGS.visibility) ?? null;
+            const read = () => ({ bands: placed.map(band), dcs: placed.map(dc), copy: copyBand() });
+            const shown = () => placed.map(t => ({ token: ref(t), data: R.remnantData(ref(t)), scene }));
+            const row = t => `${scene.id}__${t.id}`;
+            const saved = await I.applyDashboardSave({ keyRows: [], traces: [
+                { key: row(unfound), fields: { vis: { value: "hidden", drawn: "evident" } } },
+                { key: row(found), fields: { vis: { value: "subtle", drawn: "evident" } } }] }, { traces: shown(), plan: I.keyPlan() });
+            await settle();
+            const afterSave = read();
+            const marks = () => placed.map(t => { const r = remnantStore.get(`${scene.id}.${t.id}`);
+                return [r?.gmEdited === true, r?.gmBand ?? null, Number.isFinite(r?.gmBandAt)]; });
+            const savedMarks = marks();
+            const stale = await I.applyDashboardSave({ keyRows: [], traces: [
+                { key: row(unfound), fields: { vis: { value: "obvious", drawn: "evident" } } }] }, { traces: shown(), plan: I.keyPlan() });
+            await settle();
+            const afterStale = read();
+            const cards = [];
+            for (const [t, to] of [[unfound, "subtle"], [found, "obvious"]]) {
+                const node = document.createElement("div");
+                const html = typeof RR.gmRemnantCard === "function" ? RR.gmRemnantCard(scene.tokens.get(t.id), esc) : null;
+                node.innerHTML = html ?? "";
+                if (typeof RR.wireCardEditing === "function") RR.wireCardEditing(node, scene.tokens.get(t.id));
+                const select = node.querySelector("select[data-drpg-band]");
+                const drawn = select ? [[...select.options].map(o => o.value), select.value] : null;
+                if (select) {
+                    select.value = to;
+                    select.dispatchEvent(new Event("change", { bubbles: true }));
+                    const end = Date.now() + 2000;
+                    while (band(t) !== to && Date.now() < end) await new Promise(r => setTimeout(r, 50));
+                }
+                await settle();
+                cards.push({ drawn, edited: remnantStore.get(`${scene.id}.${t.id}`)?.gmEdited === true });
+            }
+            const afterCards = read();
+            const cardMarks = marks();
+            const told = [];
+            const hook = Hooks.on("createChatMessage", m => { if (m.whisper?.length) told.push(m.id); });
+            try { await R.revealRemnantToFinder(ref(unfound), { tell: true }); await settle(); }
+            finally { Hooks.off("createChatMessage", hook); }
+            whispers.push(...told);
+            const playerCard = typeof RR.playerRemnantCard === "function" ? RR.playerRemnantCard(scene.tokens.get(found.id), esc) : null;
+            reading = {
+                saved: [saved?.tracesChanged ?? null, saved?.refused ?? null], afterSave,
+                stale: stale?.refused ?? null, afterStale,
+                cards, afterCards, marks: { saved: savedMarks, cards: cardMarks }, found: told.length,
+                playerCard: playerCard === null ? "no card" : /<select\b|data-drpg-band/.test(playerCard)
+            };
+        } finally {
+            if (copy) {
+                if (student.items.has(copy.id)) await student.items.get(copy.id).delete().catch(() => {});
+                await T.dropSecret(copy.uuid).catch(() => {});
+            }
+            for (const trace of placed) {
+                await R.dropRemnantSecret(trace);
+                if (scene.tokens.has(trace.id)) await scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            }
+            for (const id of whispers) await game.messages.get(id)?.delete();
+            await settle();
+        }
+        const order = ["obvious", "evident", "subtle", "hidden"];
+        equal(stableJson(reading), stableJson({
+            saved: [2, 0], afterSave: { bands: ["hidden", "subtle"], dcs: [observeDc("hidden", "prep"), observeDc("subtle", "prep")], copy: "evident" },
+            stale: 1, afterStale: { bands: ["hidden", "subtle"], dcs: [observeDc("hidden", "prep"), observeDc("subtle", "prep")], copy: "evident" },
+            cards: [{ drawn: [order, "hidden"], edited: false }, { drawn: [order, "subtle"], edited: false }],
+            afterCards: { bands: ["subtle", "obvious"], dcs: [observeDc("subtle", "prep"), observeDc("obvious", "prep")], copy: "evident" },
+            marks: { saved: [[false, "hidden", true], [false, "subtle", true]], cards: [[false, "subtle", true], [false, "obvious", true]] },
+            found: 1,
+            playerCard: false
+        }), "[the Save's count and refusals; after it each trace's band, Observe's number for each, the found one's copy's band; "
+            + "the stale Save's refusals and the same after it; each card's band select (its options, the one chosen) and the trace "
+            + "marked edited after its change; the bands, numbers and copy's band after both cards; each trace's marks after the Save and "
+            + "after the cards (edited, the band a GM set, when); the GMs' whispers at the unfound one's find; a band select on the player's card]");
+    }],
+
+    ["E60-T9 - one copy of a trace per receiver, whoever hands it at the same moment on one GM's browser (E60 C4b; E60-12, D153; across two GMs' browsers E38's): two hand-overs of one trace's bullet to one receiver at once (handover.mjs `mintCopy`, a Share's core, from two givers who each hold a copy) make one copy and answer the other held; a Give a Truth Bullet from a Remnant (gm-items.mjs `giveBullet`, the window's write) beside an Observe's find of the same trace (observe.mjs `mintFindCopy`) for one receiver make one copy, and the give answers `GIVEN_ALREADY` when the find came first", async () => {
+        /*
+         * E60 C4b, 03.11.2026; D153 (SIER-R1 of 31.10, from H84/STATUS.md:103). A hand-over checked whether the receiver
+         * held a copy and then made one, with awaits between (`mintCopy`), and the GM's give made its bullet with no check
+         * at all (`giveTruthBulletDialog`), while Observe's find and Monokuma's Reveal ran theirs in the receiver's finds'
+         * queue (`observeFindKey`). Three students: two givers and a receiver. Two Prep traces placed in a corner no room
+         * holds (`placedTrace`); each giver gets a copy of the first (`createTruthBullet`, as a find makes one), then both
+         * hand it to the receiver at once; then the give and the find of the second at once, the find asked first. Read:
+         * the receiver's copies of each trace (by the answer key's `remnantId`), the hand-overs' answers, and the give's.
+         * At C4a's tree the give is the window's `createTruthBullet(who, payload)` (no `giveBullet`). Put back: every
+         * bullet the test made, with its answer key, and both traces. Mutants c4b-m1 (a hand-over outside the queue) and
+         * c4b-m2 (the give outside it) read red here.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the traces are placed on the scene on screen");
+        const [giverA, giverB, receiver] = cast(3);
+        const T = await import("./truth-bullets.mjs");
+        const H = await import("./handover.mjs");
+        const G = await import("./gm-items.mjs");
+        const O = await import("./observe.mjs");
+        const R = await import("./remnants.mjs");
+        const scene = canvas.scene;
+        const traces = [], made = [];
+        let reading = null;
+        const copiesOf = trace => T.bulletsOf(receiver).filter(i => T.secretOf(i.uuid)?.remnantId === trace.id);
+        const bullet = (actor, trace, label) => T.createTruthBullet(actor, { name: `SUITE E60-T9 ${label}`, realType: "prep",
+            visibility: "evident", playerText: "SUITE E60-T9", remnantId: trace.id, sceneId: scene.id });
+        try {
+            for (const note of ["shared", "given"]) {
+                const t = await placedTrace(`E60-T9 ${note}`);
+                if (t) traces.push(t);
+            }
+            must(traces.length === 2, `${traces.length} of the two traces were placed - this would measure nothing`);
+            const [shared, given] = traces;
+            const a = await bullet(giverA, shared, "A's"), b = await bullet(giverB, shared, "B's");
+            if (a) made.push([giverA, a]);
+            if (b) made.push([giverB, b]);
+            await settle();
+            must(a && b && copiesOf(shared).length === 0 && copiesOf(given).length === 0,
+                "the givers' copies were not made, or the receiver holds a copy already - this would measure nothing");
+            const handed = await Promise.all([H.mintCopy(giverA, receiver, a, { quiet: true }), H.mintCopy(giverB, receiver, b, { quiet: true })]);
+            await settle();
+            const ref = R.remnantById(scene.id, given.id);
+            const payload = { name: "SUITE E60-T9 given", realType: "prep", visibility: "evident", playerText: "SUITE E60-T9",
+                remnantId: given.id, sceneId: scene.id };
+            const [found, gave] = await Promise.all([
+                O.mintFindCopy(receiver, { tokenId: given.id, sceneId: scene.id, room: null, data: R.remnantData(ref) },
+                    { name: "SUITE E60-T9 found", playerText: "SUITE E60-T9", tell: false }),
+                typeof G.giveBullet === "function" ? G.giveBullet(receiver, payload) : T.createTruthBullet(receiver, payload)
+            ]);
+            await settle();
+            reading = {
+                shared: copiesOf(shared).length,
+                handed: handed.map(h => h?.copy ? "copy" : h?.skipped ?? h?.refused ?? null).sort(),
+                given: copiesOf(given).length,
+                found: Boolean(found && typeof found === "object" && found.id),
+                gave: gave === G.GIVEN_ALREADY ? "given already" : gave?.id ? "a bullet" : String(gave)
+            };
+        } finally {
+            for (const trace of traces) for (const item of copiesOf(trace)) made.push([receiver, item]);
+            for (const [actor, item] of made) {
+                if (actor.items.has(item.id)) await actor.items.get(item.id).delete().catch(() => {});
+                await T.dropSecret(item.uuid).catch(() => {});
+            }
+            for (const trace of traces) await dropTrace(trace);
+            await settle();
+        }
+        equal(stableJson(reading), stableJson({ shared: 1, handed: ["copy", "held"], given: 1, found: true, gave: "given already" }),
+            "[the receiver's copies of the shared trace; the two hand-overs' answers; the receiver's copies of the given trace; "
+            + "whether the find made its bullet; what the give answered]");
+    }],
+
+    ["E60-T14 - the dice look read by each browser of itself (E60 C5b; E60-14, E60-15): `game.drpg.diagnoseDiceLook()` on the GM reads a row for every user and names each other user's browser as not read here; a player's run (stood in) reads its own row alone, with no audience and no read of the GMs' store; neither run sends a packet, posts a message or writes a user, an actor or a setting; the test throw is a Hope and a Fear d12 thrown on this screen alone, as this user's and not synchronised", async () => {
+        /*
+         * E60 C5b, 03.11.2026; the owner's answer of 03.11 ("lekka"): no bridge row, no socket - each person runs the
+         * diagnostic on their own browser and sends the GM its text. Here, on the GM: one run as the GM, then one stood in
+         * for a player (`gm: false`, `user`: a connected player, as R1551 stands in), with the test throw. Counted while
+         * they run: `game.socket.emit`, the messages, the `updateUser`, `updateActor` and `updateSetting` hooks, every GM
+         * store read (`gmStoreHandles`, put back after), and Dice So Nice's `showForRoll` (stood in, put back after). Red
+         * before C5b: no `diagnoseDiceLook`. Mutant c5b-m5 (the player's run reads every user's row) reads red here.
+         */
+        const player = game.users.find(u => !u.isGM && u.active) ?? game.users.find(u => !u.isGM) ?? null;
+        must(player, "no player user - this would measure nothing");
+        ok(typeof game.drpg?.diagnoseDiceLook === "function", "game.drpg has no diagnoseDiceLook");
+        if (typeof game.drpg?.diagnoseDiceLook !== "function") return;
+        const L = await import("./dice-look.mjs");
+        const { gmStoreHandles } = await import("./gm-store.mjs");
+        let emitted = 0;
+        const hooked = [], storeReads = [], shown = [], undo = [];
+        const emit = game.socket.emit;
+        game.socket.emit = (...args) => { emitted++; return emit.apply(game.socket, args); };
+        undo.push(() => { game.socket.emit = emit; });
+        for (const hook of ["updateUser", "updateActor", "updateSetting", "createSetting", "createChatMessage"]) {
+            const heard = () => hooked.push(hook);
+            Hooks.on(hook, heard);
+            undo.push(() => Hooks.off(hook, heard));
+        }
+        const dice3d = game.dice3d, showForRoll = dice3d?.showForRoll;
+        if (dice3d) {
+            dice3d.showForRoll = async (roll, user, synchronize = false) => { shown.push({ user: user?.id ?? null, synchronize: Boolean(synchronize), dice: roll?.dice?.length ?? 0 }); return true; };
+            undo.push(() => { dice3d.showForRoll = showForRoll; });
+        }
+        let gmRun = null, playerRun = null, playerReads = [];
+        try {
+            gmRun = await game.drpg.diagnoseDiceLook({ show: false });
+            for (const handle of gmStoreHandles()) {
+                for (const key of ["get", "has", "entries"]) {
+                    const original = handle[key];
+                    if (typeof original !== "function") continue;
+                    undo.push(() => { handle[key] = original; });
+                    handle[key] = (...args) => { storeReads.push(`${handle.name}.${key}`); return original(...args); };
+                }
+            }
+            playerRun = await L.diagnoseDiceLook({ show: false, test: true, gm: false, user: player });
+            // The fog's discovery ledger picks the GMs' store by `game.user.isGM` (R1551's note): not this run's.
+            playerReads = [...new Set(storeReads)].filter(read => !read.startsWith("discovery."));
+        } finally {
+            for (const put of undo.reverse()) put();
+        }
+        const others = game.users.contents.filter(u => u.id !== game.user.id).map(u => u.id).sort();
+        equal(stableJson({
+            gmRows: (gmRun?.view?.users ?? []).map(u => u.id).sort(),
+            gmOthers: (gmRun?.findings ?? []).filter(f => f.code === "otherBrowser").map(f => f.userId).sort(),
+            playerRows: (playerRun?.view?.users ?? []).map(u => u.id),
+            playerAudience: playerRun?.view?.roll?.audience ?? null,
+            playerFindingsOf: [...new Set((playerRun?.findings ?? []).map(f => f.userId))].filter(id => id !== player.id),
+            playerReads, emitted, hooked,
+            test: (playerRun?.view?.test?.dice ?? []).map(d => [d.duality, d.faces]),
+            shown: shown.map(s => [s.user, s.synchronize, s.dice])
+        }), stableJson({
+            gmRows: game.users.contents.map(u => u.id).sort(), gmOthers: others,
+            playerRows: [player.id], playerAudience: null, playerFindingsOf: [],
+            playerReads: [], emitted: 0, hooked: [],
+            test: [["hope", 12], ["fear", 12]],
+            shown: dice3d ? [[game.user.id, false, 2]] : []
+        }), "[the GM's rows; the users the GM's run names as not read here; the player's rows; its audience; findings about another user; "
+            + "the GMs' store reads in the player's run; packets sent; hooks heard; the test throw's dice; the throws shown]");
+    }],
+
+    ["E60-T16 - one Hope and Despair look for the table (E60 C5d; E60-17, Q-C5-2): the source Gamemaster's browser keeps its Daggerheart Hope and Despair preset in the world (`diceDualityLook`) as it changes; a player's drawn roll, its Reroll and a GM's own roll each reach Dice So Nice's `diceSoNiceRollStart` with that look on their Hope and Fear dice (the message's rolls keeping their own is R1298's, on the roll handed in: the harness keeps no die's options in a message's rolls, so its reading here cannot fail); the laid copy keeps the ghost and secret marks Dice So Nice stamped on the roll, and the throw history keeps the roll as drawn; with the table's look switched off none is laid; and a player's write of the world's copy is put back by the primary", async () => {
+        /*
+         * E60 C5d, 03.11.2026; the owner's answer to Q-C5-2 ("tak"); the investigation's cause 2 (dice/findings.md: the
+         * Hope/Despair preset is Daggerheart 2.9's client setting, so a roll evaluated on a player's browser wears that
+         * player's, and one the GM draws wears the GM's only where it landed in time). On this GM, the table's source: its
+         * Daggerheart Appearance (a world setting in the harness, a client one at a table) given a Hope and a Fear look and
+         * its change told as Foundry tells a client setting's (`clientSettingChanged`). Dice So Nice's hook is stood in:
+         * `game.dice3d.showForRoll` calls `diceSoNiceRollStart` with `{ roll, user }` as 6.2.9's `showForRoll` does and
+         * keeps what the listeners left in `context.dsnRoll`. Then a player's roll drawn here (`drawnForPlayer`; the GM's
+         * throw on its own screen), its Reroll's dice (private-rolls.mjs `relayRerolledDice`, on that message with a Roll of a Hope and a Fear d12 for its
+         * rolls: the harness keeps a message's rolls as summaries without terms), a GM's own duality roll
+         * handed to Dice So Nice as its message road does; the switch off and the GM's roll again; and the world's copy
+         * written as a player's console would (`noHook`, then `updateSetting` with the player's id). The world's Monokuma stands in
+         * the roller's room meanwhile, so this GM's screen throws the player's dice (E60 C5e). Read: the world's copy,
+         * each throw's Hope and Fear dice as laid (`throwLook` of `dsnRoll`), the message's own dice, the copy after the
+         * player's write. Put back: every setting as found, the draw. Red before C5d: no `diceDualityLook`. Mutants c5d-m2
+         * (laid with the switch off) and c5d-m3 (a player's write of the copy stands) read red here.
+         * E60's fix round (FG3; the end review's C-m1, C-m5, C-m7): the stand-in stamps `ghost` and `secret` on the roll
+         * before the hook from its options, as 6.2.9's `showForRoll` does, and two of the GM's own throws ask for each, read
+         * on `dsnRoll`; the throw history's newest row (`lastThrowsSeen`) is read after the GM's own throw. `message` reads
+         * the harness's summary of a message's rolls, whose dice keep no options (shim.mjs `Die.toJSON`), so it reads false
+         * whatever the code does: R1298 holds the roll handed in unchanged. Red on C5e's code: neither mark on the copy,
+         * the history's Hope die the roll's own (no preset). Mutant fg3-m1 (the copy without the ghost mark) reads red here.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const L = await import("./dice-look.mjs");
+        const M = await import("./monokuma.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        // The GM's Monokuma stands in the roller's room, so this GM's screen throws the player's dice (E60 C5e's rule).
+        const monokuma = M.monokumaActors().find(m => locateActor(m)?.tokenDoc) ?? null;
+        const roller = locateActor(theirs);
+        must(monokuma && roller?.tokenDoc, "no placed Monokuma, or the player's character is on no scene - this would measure nothing");
+        const token = locateActor(monokuma).tokenDoc, tokenWas = { x: token.x, y: token.y };
+        const P = await import("./private-rolls.mjs");
+        ok(Object.hasOwn(SETTINGS, "diceDualityLook") && typeof L.layDualityLook === "function", "no diceDualityLook setting, or no layDualityLook");
+        if (!Object.hasOwn(SETTINGS, "diceDualityLook")) return;
+        const KEY = SETTINGS.diceDualityLook;
+        const hope = { foreground: "#ffffff", background: "#ff00aa", outline: "#000000", edge: "#ffffff", texture: "marble", colorset: "spectrum", material: "pristine", system: "standard", font: "auto" };
+        const fear = { ...hope, foreground: "#000000", background: "#00ffaa" };
+        const appearanceWas = game.settings.get("daggerheart", "Appearance");
+        const forceWas = game.settings.get(MODULE_ID, SETTINGS.forceDiceLook), sourceWas = game.settings.get(MODULE_ID, SETTINGS.diceLookSource);
+        const copyWas = game.settings.get(MODULE_ID, KEY);
+        const throws = [], marks = [];
+        const dice3d = game.dice3d, showForRoll = dice3d.showForRoll;
+        dice3d.showForRoll = async (roll, user = game.user, synchronize = false, users = null, blind = false, messageID = null, speaker = null, options = {}) => {
+            const context = { roll, user, blind };
+            // Stamped on the roll before the hook, as 6.2.9's `showForRoll` does from its options (Dice3D.js).
+            if (options?.ghost) context.roll.ghost = true;
+            if (options?.secret) context.roll.secret = true;
+            Hooks.callAll("diceSoNiceRollStart", messageID, context);
+            marks.push([Boolean(context.dsnRoll), context.dsnRoll?.ghost === true, context.dsnRoll?.secret === true]);
+            throws.push((context.dsnRoll ? L.throwLook(context.dsnRoll) : []).filter(d => d.duality === "hope" || d.duality === "fear")
+                .map(d => [d.duality, d.preset?.background ?? null]));
+            return showForRoll.call(dice3d, roll, user, synchronize, users, blind, messageID);
+        };
+        const read = {};
+        let F = null;
+        const laidOf = list => list.map(t => stableJson(t));
+        try {
+            if (sourceWas !== game.user.id) await game.settings.set(MODULE_ID, SETTINGS.diceLookSource, game.user.id);
+            if (forceWas !== true) await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, true);
+            await token.update({ x: roller.tokenDoc.x + 100, y: roller.tokenDoc.y }, { animate: false });
+            const appearance = { ...(appearanceWas ?? {}), diceSoNice: { hope, fear } };
+            await game.settings.set("daggerheart", "Appearance", appearance);
+            Hooks.callAll("clientSettingChanged", "daggerheart.Appearance", appearance);
+            read.copy = await until(() => game.settings.get(MODULE_ID, KEY)?.hope?.background === hope.background, 3000);
+            const want = stableJson([["hope", hope.background], ["fear", fear.background]]);
+            throws.length = 0;
+            F = await drawnForPlayer(player, theirs);
+            await settle();
+            read.drawn = laidOf(throws).every(t => t === want) && throws.length > 0;
+            read.message = (F.message?.rolls?.[0]?.dice ?? []).some(d => d.options?.appearance?.background === hope.background);
+            const own = () => Roll.fromData({ class: "Roll", options: {}, evaluated: true, formula: "1d12 + 1d12", total: 12, terms: [
+                { class: "HopeDie", options: {}, evaluated: true, number: 1, faces: 12, modifiers: ["h"], results: [{ result: 7, active: true }] },
+                { class: "OperatorTerm", options: {}, evaluated: true, operator: "+" },
+                { class: "FearDie", options: {}, evaluated: true, number: 1, faces: 12, modifiers: ["f"], results: [{ result: 5, active: true }] }] });
+            throws.length = 0;
+            // The harness keeps a message's rolls as summaries (class, formula, total, dice), not Rolls with terms as
+            // Foundry does; the Reroll's road is read on the drawn message with a Roll of the same dice standing in for them.
+            P.relayRerolledDice(Object.create(F.message, { rolls: { value: [own()] } }), player.id);
+            await settle();
+            read.reroll = laidOf(throws).every(t => t === want) && throws.length > 0;
+            throws.length = 0;
+            await game.dice3d.showForRoll(own(), game.user, true);
+            read.own = laidOf(throws);
+            const newest = L.lastThrowsSeen().at(-1) ?? null;
+            read.history = [newest?.laid === true, (newest?.dice ?? []).filter(d => d.duality === "hope" || d.duality === "fear").map(d => d.preset?.background ?? null)];
+            marks.length = 0;
+            await game.dice3d.showForRoll(own(), game.user, false, null, false, null, null, { ghost: true });
+            await game.dice3d.showForRoll(own(), game.user, false, null, false, null, null, { secret: true });
+            read.marks = marks.slice();
+            await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, false);
+            throws.length = 0;
+            await game.dice3d.showForRoll(own(), game.user, true);
+            read.off = laidOf(throws);
+            await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, true);
+            await wait(600);
+            // A stand-in (the end review's S-n4): the GM writes with `noHook` and Foundry's hook is called with the player's
+            // id, so this reads `onSwitchWritten`'s judgement of a write below full Gamemaster, not a write a player's
+            // browser made - Foundry lets no player write a world setting by default; at a table the guarded writer is an
+            // Assistant GM.
+            const forged = { hope: { ...hope, background: "#123456" } };
+            await game.settings.set(MODULE_ID, KEY, forged, { noHook: true });
+            Hooks.callAll("updateSetting", { key: `${MODULE_ID}.${KEY}`, value: forged }, { value: forged }, {}, player.id);
+            read.forged = await until(() => game.settings.get(MODULE_ID, KEY)?.hope?.background === hope.background, 3000);
+        } finally {
+            dice3d.showForRoll = showForRoll;
+            await F?.putBack?.();
+            if (token.x !== tokenWas.x || token.y !== tokenWas.y) await token.update(tokenWas, { animate: false });
+            await game.settings.set("daggerheart", "Appearance", appearanceWas);
+            if (game.settings.get(MODULE_ID, SETTINGS.forceDiceLook) !== forceWas) await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, forceWas);
+            if (game.settings.get(MODULE_ID, SETTINGS.diceLookSource) !== sourceWas) await game.settings.set(MODULE_ID, SETTINGS.diceLookSource, sourceWas);
+            await wait(600);
+            if (stableJson(game.settings.get(MODULE_ID, KEY)) !== stableJson(copyWas)) await game.settings.set(MODULE_ID, KEY, copyWas);
+            await wait(600);
+        }
+        const laid = stableJson([["hope", hope.background], ["fear", fear.background]]);
+        equal(stableJson(read), stableJson({ copy: true, drawn: true, message: false, reroll: true, own: [laid],
+            history: [true, [hope.background, fear.background]], marks: [[true, true, false], [true, false, true]], off: ["[]"], forged: true }),
+            "[the world's copy took the source's look; the drawn roll's throws laid; the message's own dice painted (the harness's summary: "
+            + "cannot fail here); the Reroll's throws laid; the GM's own throw; the throw history's newest row (laid, its Hope and Fear dice's "
+            + "look); the laid copy of a ghost throw and of a secret one (laid, ghost, secret); with the switch off; a player's write put back]");
+    }],
+
+    ["E60-T17 - a GM sees a player's drawn dice only with that GM's Monokuma in the roller's room (E60 C5e; E60-18, Q-C5-4): with the Monokuma's token in the roller's room this GM's screen throws the drawn roll and its audience names this GM; moved out, no throw and this GM is not in its audience; the roller is in it either way, and the GM reads the roll's card either way", async () => {
+        /*
+         * E60 C5e, 03.11.2026; the owner: "Nie powinien ich widziec, chyba ze jest w tym samym pokoju" and "GM ma token
+         * monokumy ktorym sie porusza". Until C5e the primary threw every player's drawn roll on its own screen (roll-draw.mjs
+         * `throwOnThisScreen`, H82 C6) and every GM was in its dice's audience (private-rolls.mjs `diceAudienceIds`). The
+         * world's Monokuma, whose GM is this one (`poolOwnerOf`: the world's one full Gamemaster, no pool set), has its token
+         * moved into the room the player's character stands in, then back where it stood; a roll drawn for the player each
+         * time (`drawnForPlayer`). Read: the throws Dice So Nice was asked for on this screen (`showForRoll`, stood in and put
+         * back), the drawn audience (`drawnDiceAudienceIds`), whether this GM reads the message. Red before C5e: thrown and in
+         * the audience both times. Mutants c5e-m1 (every GM kept in the audience) and c5e-m2 (the GM's throw ungated) read
+         * red here; c5e-m4 (the whisper narrowed too) in E60-T18, since a drawn roll's message is the GM's.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        needs(world.atLeast("monokumas"), "a Monokuma stands for the GM");
+        const { player, theirs } = playerAndCharacters();
+        const P = await import("./private-rolls.mjs");
+        const M = await import("./monokuma.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const monokuma = M.monokumaActors().find(m => locateActor(m)?.tokenDoc) ?? null;
+        const roller = locateActor(theirs);
+        must(monokuma && roller?.room && roller.tokenDoc, "no placed Monokuma, or the player's character stands in no room - this would measure nothing");
+        must(typeof M.poolOwnerOf !== "function" || M.poolOwnerOf(monokuma)?.id === game.user.id, "the Monokuma's GM is not this one - this would measure nothing");
+        const token = locateActor(monokuma).tokenDoc;
+        const was = { x: token.x, y: token.y };
+        const shown = [];
+        const dice3d = game.dice3d, showForRoll = dice3d.showForRoll;
+        dice3d.showForRoll = async (...args) => { shown.push(args[1]?.id ?? null); return showForRoll.apply(dice3d, args); };
+        const read = {};
+        const draw = async label => {
+            shown.length = 0;
+            const F = await drawnForPlayer(player, theirs);
+            try {
+                await settle();
+                const audience = F.message ? P.drawnDiceAudienceIds(F.message, player.id) : [];
+                read[label] = { room: locateActor(monokuma)?.room === roller.room, thrown: shown.length > 0,
+                    gm: audience.includes(game.user.id), roller: audience.includes(player.id), card: F.message?.isContentVisible === true };
+            } finally {
+                await F.putBack();
+            }
+        };
+        try {
+            await token.update({ x: roller.tokenDoc.x + 100, y: roller.tokenDoc.y }, { animate: false });
+            await settle();
+            await draw("in");
+            await token.update({ x: was.x, y: was.y }, { animate: false });
+            await settle();
+            await draw("out");
+        } finally {
+            dice3d.showForRoll = showForRoll;
+            if (token.x !== was.x || token.y !== was.y) await token.update({ x: was.x, y: was.y }, { animate: false });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            in: { room: true, thrown: true, gm: true, roller: true, card: true },
+            out: { room: false, thrown: false, gm: false, roller: true, card: true }
+        }), "[with the Monokuma in the room and moved out: it stands in the room; this screen threw the dice; this GM in the audience; the roller in it; this GM reads the card]");
+    }],
+
+    ["E60-T18 - a player's roll not drawn on a GM's screen (E60 C5e; E60-18): a duality roll the player's own browser wrote (no GM at its throw, Daggerheart's own) is animated by this GM's Dice So Nice only while this GM's Monokuma stands in the roller's room, and its card is read either way", async () => {
+        /*
+         * E60 C5e, 03.11.2026. A roll the player's browser throws itself is the player's message, which Dice So Nice animates
+         * wherever its content is visible (the harness's model of 6.3.1's `shouldInterceptMessage`, `__dsnAnimated`), and a
+         * GM reads every whisper, so until C5e every GM's screen threw it. Now private-rolls.mjs `keepDiceToReaders` turns
+         * Dice So Nice's decision off on a GM's browser that is not among `gmsInRoomOf` the roll's subject. A player's
+         * duality card about their character (`playerRollCard`, the player as author), with the world's Monokuma moved into
+         * the character's room and then back. Read: whether this browser's Dice So Nice would animate each, and whether the
+         * card is readable here and its whisper names this GM. Red before C5e: animated both times. Mutant c5e-m4 (the
+         * whisper narrowed to the GMs in the room, so the card lost too) reads red here: it survived the first run, which
+         * read only `isContentVisible` - a card left unwhispered is visible to all.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the roll is a connected player's");
+        needs(world.atLeast("monokumas"), "a Monokuma stands for the GM");
+        const { player, theirs } = playerAndCharacters();
+        const M = await import("./monokuma.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const monokuma = M.monokumaActors().find(m => locateActor(m)?.tokenDoc) ?? null;
+        const roller = locateActor(theirs);
+        must(monokuma && roller?.room && roller.tokenDoc, "no placed Monokuma, or the player's character stands in no room - this would measure nothing");
+        const token = locateActor(monokuma).tokenDoc;
+        const was = { x: token.x, y: token.y };
+        const made = [], read = {};
+        const card = async label => {
+            const message = await playerRollCard(player, theirs);
+            made.push(message);
+            await settle();
+            read[label] = [globalThis.__dsnAnimated.includes(message.id), message.isContentVisible === true,
+                (game.messages.get(message.id)?.whisper ?? []).includes(game.user.id)];
+        };
+        try {
+            await token.update({ x: roller.tokenDoc.x + 100, y: roller.tokenDoc.y }, { animate: false });
+            await settle();
+            await card("in");
+            await token.update({ x: was.x, y: was.y }, { animate: false });
+            await settle();
+            await card("out");
+        } finally {
+            for (const message of made) await game.messages.get(message.id)?.delete();
+            if (token.x !== was.x || token.y !== was.y) await token.update({ x: was.x, y: was.y }, { animate: false });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ in: [true, true, true], out: [false, true, true] }),
+            "[with the Monokuma in the room and moved out: this GM's Dice So Nice animates the roll; this GM reads its card; its whisper names this GM]");
+    }],
+    ["E60-T19 - a row with no trace token is no trace (E60 fix FG1; D38 = 1; the correctness review's M1, the security review's S-m1): in a world the stores have never opened, a Key and a Final are placed in a room with a student and the case backed up; the season reset's two steps on them (their tokens deleted with `drpgReset`, so no tombstone, then `clearRemnantLedger`'s cut) and the case restored with \"restore anyway\" (`restoreCase` `beforeCut`) bring both rows back with their spots and no token; no reader answers either (`remnantsOn`, `remnantById`, `sceneOfRemnant`, Observe's candidates, the clean-up's list, the finals), and the health check names both orphans (`traceOrphans`), as at 1.2.97", async () => {
+        /*
+         * E60 fix FG1, 03.11.2026. From C1b the row holds the trace's spot, and `traceRefsOf` answered a ref for a row with
+         * a spot and no token - built for D38 = 2, which the owner dropped (D38 = 1, 03.11.2026). So a row left without its
+         * token and without a tombstone - the reset's deletions write none, and "restore anyway" brings the rows back while
+         * the tokens, world documents, stay gone - was a trace for every reader: Observe minted a copy of it, the clean-up,
+         * the Traces tab, the Key count and the finals listed it, and the health check said nothing. Under D38 = 1 a trace is
+         * its token. The reset's steps are taken on this test's two traces alone (the reset itself would clear every trace
+         * of the world), in a world the stores have never opened (`withGmStoreWorld`), so its cut and its restore touch no
+         * row of this world and no other GM or player is sent anything. Red before FG1: both rows read as refs by every
+         * reader, and no orphan counted. Mutants fg1-m1 (a row-only ref kept for Observe alone) and fg1-m2 (orphans not
+         * counted) read red here.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the traces are placed on the scene on screen");
+        needs(world.atLeast("occupiedRooms", 1), "the traces are left in a room with a student in it");
+        const R = await import("./remnants.mjs");
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { cleanableRemnants } = await import("./cleanup.mjs");
+        const { finalRemnants } = await import("./mastermind.mjs");
+        const scene = canvas?.scene;
+        const student = cast(4).find(a => { const at = locateActor(a); return at?.room && at.scene === scene; });
+        must(student, "no student of the cast stands in a room on the scene on screen - this would measure nothing");
+        const where = locateActor(student);
+        const room = where.room, at = { x: where.tokenDoc.x, y: where.tokenDoc.y };
+        const chapter = getClock().chapter;
+        const saveDataToFile = foundry.utils.saveDataToFile;
+        const placed = [];
+        let reading = null;
+        try {
+            await E.withGmStoreWorld(`suite-e60t19-${foundry.utils.randomID(8)}`, async () => {
+                const key = await R.placeRemnant({ type: "key", visibility: "evident", scene, ...at, room, chapter, note: "SUITE E60-T19 key" });
+                const final = await R.placeRemnant({ type: "final", visibility: "evident", scene, ...at, room, chapter, note: "SUITE E60-T19 final" });
+                for (const t of [key, final]) if (t) placed.push(t);
+                must(placed.length === 2, `${placed.length} of the two traces were placed - this would measure nothing`);
+                const keys = placed.map(t => `${scene.id}.${t.id}`), ids = placed.map(t => t.id);
+                const ours = list => ids.map(id => list.includes(id));
+                const readers = () => ({
+                    on: ours(R.remnantsOn(scene).map(r => r.id)),
+                    byId: ids.map(id => R.remnantById(scene.id, id) !== null),
+                    scene: ids.map(id => R.sceneOfRemnant(id) === scene),
+                    observe: ours(R.rankForObserve(room, scene).map(c => c.token.id)),
+                    cleanable: ours(cleanableRemnants(student, { room, scene }).map(c => c.token.id)),
+                    finals: ours(finalRemnants().map(f => f.token.id))
+                });
+                const orphans = async () => (await S.gmStoreHealth()).rows.find(r => r.id === "traceOrphans")?.data?.n ?? 0;
+                const before = { readers: readers(), orphans: await orphans() };
+                let saved = null;
+                foundry.utils.saveDataToFile = data => { saved = data; };
+                await S.backupCase();
+                foundry.utils.saveDataToFile = saveDataToFile;
+                must(saved, "the backup wrote no case file - this would measure nothing");
+                await scene.deleteEmbeddedDocuments("Token", ids, { drpgReset: true });
+                await R.clearRemnantLedger();
+                await E.gmStoresIdle();
+                const cut = keys.map(k => S.remnantStore.has(k));
+                const restored = await S.restoreCase(saved, { beforeCut: true, recheck: false });
+                must(restored && !restored.refused, `the restore refused its own backup: ${stableJson(restored)}`);
+                const rows = ids.map((id, i) => { const row = S.remnantStore.get(keys[i]); return Number.isFinite(row?.x) && Number.isFinite(row?.y) && !scene.tokens.has(id); });
+                must(rows.every(Boolean), `the restore did not bring back both rows with their spots and no token: ${stableJson(rows)} - this would measure nothing`);
+                reading = { before, cut, after: { readers: readers(), orphans: await orphans() } };
+                await R.clearRemnantLedger();
+            });
+        } finally {
+            foundry.utils.saveDataToFile = saveDataToFile;
+            const left = placed.map(t => t.id).filter(id => scene.tokens.has(id));
+            if (left.length) await scene.deleteEmbeddedDocuments("Token", left);
+        }
+        const all = [true, true], none = [false, false];
+        equal(stableJson(reading), stableJson({
+            before: { readers: { on: all, byId: all, scene: all, observe: all, cleanable: all, finals: [false, true] }, orphans: 0 },
+            cut: none,
+            after: { readers: { on: none, byId: none, scene: none, observe: none, cleanable: none, finals: none }, orphans: 2 }
+        }), "[placed: each reader lists ours (the scene's refs, by id, its scene, Observe's candidates, the clean-up's list, the finals), "
+            + "no orphan; after the reset's cut no row; after \"restore anyway\" with the tokens gone: no reader lists either row, and the "
+            + "health check counts both orphans]");
+    }],
+    ["E60-T20 - a clean-up's Reroll leaves a band a GM set (E60 fix FG2; the end review's C-m4): a trace reshaped by an approved clean-up, its band then set by a GM (`setRemnantFlags`, the Traces tab's and the card's road), and the clean-up rerolled to a miss (cleanup.mjs `undoLastCleanup`): the kind goes back to the trace's own and the band stays the GM's; with no band set by a GM the Reroll puts the band from before the reshape back", async () => {
+        /*
+         * E60 fix FG2, 03.11.2026. The Reroll that takes an approved reshape back writes `from` - the kind, the band and the
+         * tie the trace had before it - so a band a GM set after the reshape went back with the rest. The trace keeps the GM's
+         * band while it stands at it (remnants.mjs `gmSetBand`); the kind and the words go back. Two fixtures as tier 2 "the
+         * Undo restores the trace and leaves the copies" builds one (`reshapeCopiesFixture`, the reshape a Tamper's transform
+         * approved): one whose band a GM sets between the reshape and the Reroll, and the control, untouched. Read: each
+         * trace's kind and band before the reshape, after it, and after the Reroll. Red on C5e's code: the GM's band went
+         * back to the band before the reshape.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
+        const [who] = cast(1);
+        const R = await import("./remnants.mjs");
+        const { REMNANT_VISIBILITY } = await import("./config.mjs");
+        const read = {};
+        for (const label of ["gm", "control"]) {
+            const F = await reshapeCopiesFixture(who, [], `SUITE E60-T20 ${label}`);
+            try {
+                must(F.trace, "the fixture placed no trace - this would measure nothing");
+                const shape = () => { const d = R.remnantData(R.remnantById(F.scene.id, F.trace.id)); return [d?.type ?? null, d?.visibility ?? null]; };
+                const before = shape();
+                const { applied } = await F.reshape();
+                must(applied === true, "the approval was refused - this would measure nothing");
+                const reshaped = shape();
+                let band = null;
+                if (label === "gm") {
+                    band = REMNANT_VISIBILITY.find(v => v !== before[1] && v !== reshaped[1]);
+                    await R.setRemnantFlags(R.remnantById(F.scene.id, F.trace.id), { visibility: band });
+                    await settle();
+                }
+                const set = shape();
+                await F.scrub(0, { mode: "transform", change: C9_STORY, undo: true });
+                await settle();
+                read[label] = { kindBack: shape()[0] === before[0] && reshaped[0] !== before[0], band: shape()[1] === (band ?? before[1]),
+                    set: label === "gm" ? set[1] === band : set[1] === reshaped[1] };
+            } finally {
+                await F.putBack();
+            }
+        }
+        equal(stableJson(read), stableJson({ gm: { kindBack: true, band: true, set: true }, control: { kindBack: true, band: true, set: true } }),
+            "[with a GM's band set after the reshape, and without: the kind put back by the Reroll (and changed by the reshape); the band "
+            + "after the Reroll the GM's, or the one before the reshape; the band before the Reroll the GM's, or the reshape's]");
+    }],
+    ["E60-T21 - with rolls not forced private a Reroll's dice reach every GM (E60 fix FG4; the end review's C-m3): a player's roll card (the player's own message), the world's Monokuma in another room than the roller's: with \"Rolls private\" on, its Reroll's dice (private-rolls.mjs `relayRerolledDice`) are not thrown on this GM's screen and this GM is not among the dice's audience (`diceAudienceIds`); with it off they are thrown here and this GM is among it, as the rest of C5e exempts that setting", async () => {
+        /*
+         * E60 fix FG4, 03.11.2026. C5e's room rule is for rolls forced private: roll-draw.mjs `seesPlayersDice` and
+         * private-rolls.mjs `keepDiceToReaders` exempt the setting off, and `diceAudienceIds` did not, so with rolls public a
+         * Reroll's dice went to no GM whose Monokuma stood elsewhere - the GM who made the Reroll included. A player's duality
+         * card (`playerRollCard`), once with the setting on and once off; `game.dice3d.showForRoll` counts the throws on
+         * this screen. Put back: the setting, the cards. Red on C5e's code: no throw and not in the audience with the
+         * setting off. Mutant fg4-m2 (the exemption missing) reads red here.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the roll is a connected player's");
+        needs(world.atLeast("monokumas"), "a Monokuma stands for the GM");
+        needs(world.moduleActive("dice-so-nice"), "the dice are thrown through Dice So Nice");
+        const { player, theirs } = playerAndCharacters();
+        const P = await import("./private-rolls.mjs");
+        const M = await import("./monokuma.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const monokuma = M.monokumaActors().find(m => locateActor(m)?.tokenDoc) ?? null;
+        const roller = locateActor(theirs);
+        must(monokuma && roller?.room && locateActor(monokuma)?.room !== roller.room,
+            "no placed Monokuma, the player's character in no room, or the Monokuma in the roller's room - this would measure nothing");
+        const forcedWas = game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls);
+        const dice3d = game.dice3d, show = dice3d.showForRoll;
+        let thrown = 0;
+        dice3d.showForRoll = async () => { thrown++; return true; };
+        const made = [], read = {};
+        try {
+            for (const forced of [true, false]) {
+                await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, forced);
+                const message = await playerRollCard(player, theirs);
+                made.push(message);
+                await settle();
+                thrown = 0;
+                P.relayRerolledDice(message, player.id);
+                await settle();
+                read[forced ? "forced" : "public"] = [thrown > 0, P.diceAudienceIds(message).includes(game.user.id)];
+            }
+        } finally {
+            dice3d.showForRoll = show;
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, forcedWas);
+            for (const message of made) await game.messages.get(message.id)?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ forced: [false, false], public: [true, true] }),
+            "[with rolls forced private and not: the Reroll's dice thrown on this GM's screen; this GM among the dice's audience]");
     }],
     ...GRID
 ];

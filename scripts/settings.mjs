@@ -35,6 +35,11 @@ export const SETTINGS = {
      * see dice-sync.mjs).
      */
     diceLookWorld: "diceLookWorld",
+    /**
+     * The table's Hope and Despair dice (E60 C5d): the source full Gamemaster's Daggerheart preset (2.9 and older),
+     * written by that browser alone and held as the switches are; every browser lays it on its throws (dice-look.mjs).
+     */
+    diceDualityLook: "diceDualityLook",
     enforceAnonymity: "enforceAnonymity",
     searchTokensPerRoom: "searchTokensPerRoom",
     searchTokens: "searchTokens",
@@ -1006,7 +1011,7 @@ const CAMPAIGN_SETTINGS = [
  * their before-values, the migration's version, and the frozen keys a GM store's claim reads once (`legacy*`).
  */
 const TABLE_SETTINGS = [
-    SETTINGS.forcePrivateRolls, SETTINGS.forceDiceLook, SETTINGS.diceLookSource, SETTINGS.diceLookWorld, SETTINGS.enforceAnonymity,
+    SETTINGS.forcePrivateRolls, SETTINGS.forceDiceLook, SETTINGS.diceLookSource, SETTINGS.diceLookWorld, SETTINGS.diceDualityLook, SETTINGS.enforceAnonymity,
     SETTINGS.searchTokensPerRoom, SETTINGS.enforceIsoWelcome, SETTINGS.enforceDhWelcome, SETTINGS.enforcePlayerFiles,
     SETTINGS.liveKitInFoundry, SETTINGS.hideSystemFear, SETTINGS.documentLanguage, SETTINGS.voiceEnabled, SETTINGS.voiceTile,
     SETTINGS.foundryBefore, SETTINGS.foundryGivenBack, SETTINGS.musicEnabled, SETTINGS.sfxVary, SETTINGS.safeword,
@@ -1215,8 +1220,8 @@ export function staleSilencesCleared() {
 
 export function registerSettings() {
     staleCleared = clearStaleSilences();
-    // The hint names the one roll this leaves public: the GM panel's "Public roll"
-    // (`game.drpg.publicRoll`, E33 C12) - a GM's own `/r` goes to the GMs with it on.
+    // The hint names the one roll this leaves public: a GM's `game.drpg.publicRoll` (E33 C12), a macro
+    // since the GM panel's tile went (E60 C5a) - a GM's own `/r` goes to the GMs with it on.
     game.settings.register(MODULE_ID, SETTINGS.forcePrivateRolls, {
         name: "DRPG.Settings.forcePrivateRolls.name",
         hint: "DRPG.Settings.forcePrivateRolls.hint",
@@ -1247,6 +1252,14 @@ export function registerSettings() {
     // A section of the GM store's shape, `{ e, t, d, cleared }`, and the write stamp `w` (E16 fix r1-G1 of round r1d):
     // the overlays every client already holds on the actors.
     game.settings.register(MODULE_ID, SETTINGS.diceLookWorld, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {}
+    });
+
+    // `{ hope, fear, advantage, disadvantage }`, each Daggerheart's names and colours (E60 C5d, dice-sync.mjs `keepDualityLook`).
+    game.settings.register(MODULE_ID, SETTINGS.diceDualityLook, {
         scope: "world",
         config: false,
         type: Object,

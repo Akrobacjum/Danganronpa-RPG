@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.97, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.98, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z twojego krzesła: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co kliknąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje".
 
@@ -835,7 +835,7 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 - **Głos**, gdy jesteś w głosie - twój mikrofon i wyjście dźwięku, tryb mikrofonu (**Zawsze włączony** albo **Naciśnij, aby mówić**) i klawisz mówienia. Jeśli lista nie ma mikrofonu, pozwól przeglądarce go używać i otwórz okno ponownie.
 
 > [!NOTE]
-> **Rzuty są prywatne:** każdy twój rzut widzisz tylko ty i GMowie. Nikt nie widzi cudzych kości, z dwoma wyjątkami. Rzut w walce podczas morderstwa widzą jego uczestnicy - kości, wynik i to, jaka to akcja - od chwili, gdy incydent się zaczyna, do jego końca. Budowniczy pułapki do nich nie należy: nie widzi z niego żadnych kości ani żadnej karty, także karty akcji, która go kończy. Wynik rzutu otwarcia poznaje tylko strona, która rzuca - zabójcy w Direct Murder, ofiara pułapki - a sprzątanie zostaje przy tym, kto rzuca. Rzuty Monocuba, łącznie z Confusion, widzą wszyscy w jego pokoju. Jedyny rzut, który czytają wszyscy, to **Rzut publiczny** GMa z panelu GMa (jeszcze nie sprawdzone przy stole) - remis w głosowaniu, loteria Monokumy (od 1.2.69).
+> **Rzuty są prywatne:** każdy twój rzut widzisz tylko ty i GMowie. GM widzi, jak padają twoje kości, tylko gdy w twoim pokoju stoi jego Monokuma; wynik i tak dociera do GMów. Nikt nie widzi cudzych kości, z dwoma wyjątkami. Rzut w walce podczas morderstwa widzą jego uczestnicy - kości, wynik i to, jaka to akcja - od chwili, gdy incydent się zaczyna, do jego końca. Budowniczy pułapki do nich nie należy: nie widzi z niego żadnych kości ani żadnej karty, także karty akcji, która go kończy. Wynik rzutu otwarcia poznaje tylko strona, która rzuca - zabójcy w Direct Murder, ofiara pułapki - a sprzątanie zostaje przy tym, kto rzuca. Rzuty Monocuba, łącznie z Confusion, widzą wszyscy w jego pokoju. Jedyny rzut, który czytają wszyscy, to rzut publiczny, który wykonuje GM (jeszcze nie sprawdzone przy stole) - remis w głosowaniu, loteria Monokumy (od 1.2.69).
 
 ---
 

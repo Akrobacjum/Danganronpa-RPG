@@ -1230,7 +1230,10 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
        dice must start within one hop of the request's arrival and a hop before the echo, once a roll, as p1's and
        not synchronised, on the message's total; the Assistant still gets one dice.show a roll (p1 never) and
        throws it once as p1's; a refused draw throws and sends nothing on the GM. Red at dbda7aa (the dice at the
-       echo). */
+       echo).
+       WHO OF THE GMS (E60 C5e, 03.11.2026; E60-18): a GM sees a player's dice only with one of its own Monokumas in the
+       roller's room (private-rolls.mjs `gmsInRoomOf`). The world's Monokuma, the primary's, stands beside Aiko for this
+       part and goes back after; the Assistant GM has no Monokuma there, so it is sent no dice.show and throws none. */
     phase("a drawn roll's dice, with the network's time", { flow: "gm-rolls-total" });
     const A17_LAG = 80;
     const lagged = [gm, ag, p1, p2, p3];
@@ -1267,6 +1270,14 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     const setLag = ms => Promise.all(lagged.map(c => c.eval(`globalThis.__s33lag.delay = ${ms}; return true;`)));
     const hope17 = await gm.eval(`return game.actors.get("${IDS.aiko}").system.resources.hope.value;`);
     const had17 = await gm.eval(`return game.messages.contents.map(m => m.id);`);
+    const monokuma17 = await gm.eval(`const { locateActor } = await import("${repoUrl}/scripts/movement.mjs");
+        const { monokumaActors } = await import("${repoUrl}/scripts/monokuma.mjs");
+        const m = monokumaActors().find(a => locateActor(a)?.tokenDoc) ?? null, aiko = locateActor(game.actors.get("${IDS.aiko}"));
+        const t = m ? locateActor(m).tokenDoc : null;
+        if (!t || !aiko?.tokenDoc) return null;
+        const was = { id: t.id, x: t.x, y: t.y };
+        await t.update({ x: aiko.tokenDoc.x + 100, y: aiko.tokenDoc.y }, { animate: false });
+        return { ...was, room: locateActor(m)?.room ?? null, aikoRoom: aiko.room ?? null };`, { timeout: 30000 });
     // On p1, the GM and the Assistant GM: each throw, each message with rolls as it is created, each roll.draw and
     // dice.show sent (with its recipients); `wall` (Date.now()) is the one clock the processes share, read to the ms.
     const watched = [p1, gm, ag];
@@ -1283,7 +1294,7 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         T.emit = game.socket.emit;
         game.socket.emit = function (event, packet, opts, ...rest) {
             if (packet?.action === "roll.draw") T.sent.push({ at: performance.now(), wall: Date.now(), id: packet.requestId ?? null });
-            if (packet?.action === "dice.show") T.told.push({ id: packet.id ?? null, by: packet.by ?? null, to: [...(opts?.recipients ?? [])].sort() });
+            if (packet?.action === "dice.show") T.told.push({ id: packet.id ?? null, by: packet.by ?? null, quiet: packet.quiet === true, to: [...(opts?.recipients ?? [])].sort() });
             return T.emit.call(this, event, packet, opts, ...rest);
         };
         return true;`);
@@ -1354,6 +1365,7 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
             if (T) { game.dice3d.showForRoll = T.show; game.socket.emit = T.emit; Hooks.off("createChatMessage", T.hook); }
             delete globalThis.__s33a17; return true;`);
         await settle(400);
+        if (monokuma17) await gm.eval(`await canvas.scene.tokens.get("${monokuma17.id}")?.update({ x: ${monokuma17.x}, y: ${monokuma17.y} }, { animate: false }); return true;`);
         await gm.eval(`const had = new Set(${JSON.stringify(had17)});
             for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
             await game.actors.get("${IDS.aiko}").update({ "system.resources.hope.value": ${JSON.stringify(hope17)} });
@@ -1387,13 +1399,113 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     check("A17: each drawn roll is thrown once on the GM's screen, as p1's dice, not synchronised, on its message's total",
         lagHeld && gm17.every(g => g.shows?.length === 1 && g.shows[0].user === IDS.p1 && g.shows[0].sync === false
             && typeof g.messageTotal === "number" && g.shows[0].total === g.messageTotal), saidGm17, { flow: "gm-rolls-total" });
-    check("A17: the audience is still told - one dice.show from the GM a drawn roll, naming its message and p1, to the Assistant GM and never to p1 - and the Assistant throws it once as p1's",
-        lagHeld && gm17.every(g => g.told?.length === 1 && g.told[0].id === g.messageId && g.told[0].by === IDS.p1
-            && g.told[0].to.includes(IDS.ag) && !g.told[0].to.includes(IDS.p1)
-            && g.ag?.length === 1 && g.ag[0].user === IDS.p1 && g.ag[0].sync === false), saidGm17, { flow: "gm-rolls-total" });
+    check("A17: the GM's Monokuma stood in Aiko's room for the drawn rolls (E60 C5e)",
+        Boolean(monokuma17?.room) && monokuma17.room === monokuma17.aikoRoom, JSON.stringify(monokuma17), { flow: "gm-rolls-total" });
+    check("A17: the audience is told as E60 C5e draws it - no dice to the Assistant GM, whose own Monokuma is not in Aiko's room, none to p1 - and the Assistant throws none",
+        lagHeld && gm17.every(g => Array.isArray(g.told) && g.told.every(t => (!t.to.includes(IDS.ag) || t.quiet) && !t.to.includes(IDS.p1))
+            && Array.isArray(g.ag) && g.ag.length === 0), saidGm17, { flow: "gm-rolls-total" });
+    /* The roller's character for the Assistant GM's card (E60 fix FG4; the end review's C-m2): a statistic from the sheet keeps
+       Daggerheart's card, which each reader heads with its character (private-rolls.mjs `signAsRoller`) from the GM's packet.
+       Outside the dice's audience the Assistant is sent that character alone (`quiet`), once a statistic, and nothing for an
+       action's roll, whose card the module's own speaks for. Red on C5e's code: nothing reached it. */
+    check("A17: the Assistant GM outside the dice's audience is sent the roller's character alone for each statistic from the sheet, and nothing for an action's roll (E60 fix FG4)",
+        lagHeld && rows17.every(r => (r.gm?.told ?? []).filter(t => t.quiet && t.to.includes(IDS.ag)).length === (r.kind === "sheet" ? 1 : 0)),
+        saidGm17, { flow: "gm-rolls-total" });
     check("A17: a draw the GM refuses throws nothing on the GM's screen and sends no dice",
         refused17?.gm?.asks === 1 && refused17.gm.shows.length === 0 && refused17.gm.told.length === 0 && refused17.gm.ag.length === 0,
         JSON.stringify(refused17?.gm ?? null), { flow: "gm-rolls-total" });
+
+    /* A17b. A SECOND GM'S OWN MONOKUMA (E60 fix FG4, 03.11.2026; the end review's S-m3 and C-m2, STATUS Open 40). A17 reads
+       the primary's Monokuma; nothing read a drawn roll's dice reaching another GM by that GM's own Monokuma. The world's
+       Monokuma is given to the Assistant GM's pool for this part (despair.mjs `addPool`, monokuma.mjs `setPoolFor`), so it is
+       the Assistant's (`poolOwnerOf`) and the GM has none; it is stood beside Aiko, then where it stood, and p1 throws a
+       statistic from the sheet each time. Read on the GM: the dice.show packets it sends the Assistant and its own screen's
+       throws; on the Assistant: its throws and the character it keeps for the roll (`keptRollSubject`, which heads
+       Daggerheart's card there, `signAsRoller`). Put back: the pool, the token, the messages, Aiko's Hope. Red on C5e's code:
+       elsewhere, nothing reached the Assistant, which kept no character. */
+    phase("a second GM's own Monokuma and a drawn roll's dice", { flow: "gm-rolls-total" });
+    const hope17b = await gm.eval(`return game.actors.get("${IDS.aiko}").system.resources.hope.value;`);
+    const had17b = await gm.eval(`return game.messages.contents.map(m => m.id);`);
+    const set17b = await gm.eval(`const D = await import("${repoUrl}/scripts/despair.mjs");
+        const M = await import("${repoUrl}/scripts/monokuma.mjs");
+        const { locateActor } = await import("${repoUrl}/scripts/movement.mjs");
+        const m = M.monokumaActors().find(a => locateActor(a)?.tokenDoc) ?? null;
+        if (!m) return null;
+        const t = locateActor(m).tokenDoc;
+        const out = { actorId: m.id, tokenId: t.id, x: t.x, y: t.y, room: locateActor(m)?.room ?? null, pool: M.poolFor(m),
+            extra: D.extraPoolUserIds().includes("${IDS.ag}") };
+        if (!out.extra) await D.addPool("${IDS.ag}");
+        await M.setPoolFor(m, "${IDS.ag}");
+        await new Promise(r => setTimeout(r, 300));
+        out.owner = M.poolOwnerOf(m)?.id ?? null;
+        return out;`, { timeout: 30000 });
+    await settle(600);
+    for (const c of [gm, ag]) await c.eval(`const T = globalThis.__s33a17b = { shows: [], told: [], msgs: [] };
+        T.show = game.dice3d.showForRoll;
+        game.dice3d.showForRoll = function (roll, user, sync, ...rest) {
+            T.shows.push({ user: user?.id ?? user ?? null, sync: Boolean(sync) });
+            return T.show.call(this, roll, user, sync, ...rest);
+        };
+        T.emit = game.socket.emit;
+        game.socket.emit = function (event, packet, opts, ...rest) {
+            if (packet?.action === "dice.show") T.told.push({ id: packet.id ?? null, quiet: packet.quiet === true, subject: packet.subject ?? null, to: [...(opts?.recipients ?? [])] });
+            return T.emit.call(this, event, packet, opts, ...rest);
+        };
+        T.hook = Hooks.on("createChatMessage", m => { if ((m.rolls ?? []).length && m.author?.isGM) T.msgs.push(m.id); });
+        return true;`);
+    const marks17b = () => Promise.all([gm, ag].map(c => c.eval(`const T = globalThis.__s33a17b; return [T.shows.length, T.told.length, T.msgs.length];`)));
+    const draw17b = async () => {
+        const [g, a] = await marks17b();
+        const err = await p1.eval(`globalThis.__forceRoll = { hope: 9, fear: 4 };
+            try { await game.actors.get("${IDS.aiko}").rollTrait("strength", {}); return null; }
+            catch (e) { return String(e?.message ?? e).slice(0, 200); } finally { delete globalThis.__forceRoll; }`, { timeout: 60000 });
+        await settle(800);
+        const G = await gm.eval(`const T = globalThis.__s33a17b; const id = T.msgs.slice(${g[2]})[0] ?? null;
+            return { id, shows: T.shows.length - ${g[0]}, told: T.told.slice(${g[1]}).filter(t => t.id === id && t.to.includes("${IDS.ag}")).map(t => ({ quiet: t.quiet, subject: t.subject })) };`);
+        const A = await ag.eval(`const P = await import("${repoUrl}/scripts/private-rolls.mjs"); const T = globalThis.__s33a17b;
+            const m = game.messages.get(${JSON.stringify(G.id)});
+            return { shows: T.shows.slice(${a[0]}).map(s => s.user), kept: m ? P.keptRollSubject(m) ?? null : null };`);
+        return { err, gm: G, ag: A };
+    };
+    let near17b = null, far17b = null, moved17b = null;
+    try {
+        moved17b = set17b ? await gm.eval(`const { locateActor } = await import("${repoUrl}/scripts/movement.mjs");
+            const aiko = locateActor(game.actors.get("${IDS.aiko}")), t = canvas.scene.tokens.get("${set17b.tokenId}");
+            if (!t || !aiko?.tokenDoc) return null;
+            await t.update({ x: aiko.tokenDoc.x + 100, y: aiko.tokenDoc.y }, { animate: false });
+            return { room: locateActor(game.actors.get("${set17b.actorId}"))?.room ?? null, aikoRoom: aiko.room ?? null };`, { timeout: 30000 }) : null;
+        await settle(600);
+        near17b = await draw17b();
+        if (set17b) await gm.eval(`await canvas.scene.tokens.get("${set17b.tokenId}")?.update({ x: ${set17b.x}, y: ${set17b.y} }, { animate: false }); return true;`);
+        await settle(600);
+        far17b = await draw17b();
+    } finally {
+        for (const c of [gm, ag]) await c.eval(`const T = globalThis.__s33a17b;
+            if (T) { game.dice3d.showForRoll = T.show; game.socket.emit = T.emit; Hooks.off("createChatMessage", T.hook); }
+            delete globalThis.__s33a17b; return true;`);
+        if (set17b) await gm.eval(`const D = await import("${repoUrl}/scripts/despair.mjs");
+            const M = await import("${repoUrl}/scripts/monokuma.mjs");
+            const m = game.actors.get("${set17b.actorId}");
+            await canvas.scene.tokens.get("${set17b.tokenId}")?.update({ x: ${set17b.x}, y: ${set17b.y} }, { animate: false });
+            await M.setPoolFor(m, ${JSON.stringify(set17b.pool)});
+            if (!${set17b.extra}) await D.removePool("${IDS.ag}");
+            return true;`, { timeout: 30000 });
+        await gm.eval(`const had = new Set(${JSON.stringify(had17b)});
+            for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+            await game.actors.get("${IDS.aiko}").update({ "system.resources.hope.value": ${JSON.stringify(hope17b)} });
+            return true;`, { timeout: 60000 });
+        await settle(600);
+    }
+    const said17b = JSON.stringify({ set17b, moved17b, near17b, far17b });
+    check("A17b: the world's Monokuma given to the Assistant GM's pool is the Assistant's, and stood beside Aiko it is in her room, where it stood not",
+        set17b?.owner === IDS.ag && Boolean(moved17b?.room) && moved17b.room === moved17b.aikoRoom && set17b.room !== moved17b.aikoRoom, said17b, { flow: "gm-rolls-total" });
+    check("A17b: with the Assistant GM's own Monokuma in Aiko's room the GM sends it her drawn roll's dice and it throws them once as p1's; the GM's screen, with no Monokuma of its own there, throws none (E60 fix FG4)",
+        near17b?.err === null && Boolean(near17b.gm.id) && near17b.gm.told.length === 1 && near17b.gm.told[0].quiet === false
+            && near17b.ag.shows.length === 1 && near17b.ag.shows[0] === IDS.p1 && near17b.gm.shows === 0, said17b, { flow: "gm-rolls-total" });
+    check("A17b: with that Monokuma elsewhere the Assistant GM is sent the roll's character alone, throws nothing, and heads the card with Aiko (E60 fix FG4)",
+        far17b?.err === null && Boolean(far17b.gm.id) && far17b.gm.told.length === 1 && far17b.gm.told[0].quiet === true
+            && far17b.gm.told[0].subject === IDS.aiko && far17b.ag.shows.length === 0 && far17b.ag.kept === IDS.aiko && far17b.gm.shows === 0,
+        said17b, { flow: "gm-rolls-total" });
 
     /* A18. THE READINESS ROUND, ASKED BY THE ASSISTANT GM AND ANSWERED BY A PLAYER (E37 C3, 01.11.2026; E37-15). The
        round is the primary's to write: the Assistant opens it (`ready.open`) and ends it (`ready.end`) by asking the

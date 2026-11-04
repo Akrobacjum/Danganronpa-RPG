@@ -205,7 +205,7 @@ Player Handbook and a one-page Student Brochure for the table. They ship with
 the module. The small book button in the bottom-right corner opens them in the
 game, in the language you picked for the module, and only GMs see the GM
 Handbook. You can also read them here, in [docs/handbooks](docs/handbooks).
-They describe version 1.2.97. If a later version and a handbook ever disagree,
+They describe version 1.2.98. If a later version and a handbook ever disagree,
 trust the module.
 
 ## Installation
@@ -280,7 +280,7 @@ inventory. Every character's items, with their names, still reach every
 browser; a Frisk lists another student's pockets only to the searcher and the
 GMs. <!-- leak:foundry-actor-items --> Where the traces lie, the GM's plan for
 the key clues and, until the lights come up, a murder declared during the
-Eclipse are all world data. A
+Eclipse are all world data. <!-- leak:S17-64 --> A
 token the GM hides is hidden from view only: Foundry sends every token, with its
 name and position, to every browser. <!-- leak:foundry-hidden-tokens --> A
 secret passage, and who knows it, stay with the GMs and the students who know

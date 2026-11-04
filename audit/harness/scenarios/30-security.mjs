@@ -2704,6 +2704,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         const copy = "${how}" === "found" ? await B.createTruthBullet(game.actors.get("${ids.chie}"), { name: "${subject}, a copy",
             realType: "prep", visibility: "obvious", remnantId: trace?.id, sceneId: canvas.scene.id }) : null;
         if ("${how}" === "edited") await R.markRemnantEdited(trace);
+        if ("${how}" === "banded") await R.setRemnantFlags(trace, { visibility: "subtle" });
         if ("${how}" === "stale") await R.setRemnantSecret(trace, { placedAt: Date.now() - 2 * 3600_000 });
         const m = await ChatMessage.create({ content: "SEC a Dynamic to reroll" });
         class Thrown {
@@ -2754,6 +2755,14 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     await settle(300);
     check("SECURITY: the GM's Reroll does not remove a trace somebody has already found",
         keptAsWas(foundTrace), JSON.stringify(foundTrace));
+    /* A BAND A GM SET (E60 fix FG2, 03.11.2026; the end review's C-m4): the Traces tab's and the trace card's road
+       (`setRemnantFlags`) names the band on the row and marks nothing edited; the GM's Reroll leaves it as the GM set it.
+       Red on C5e's code: re-rated to Hidden. */
+    const banded = await rerollOverTrace("SEC dynamic, banded", "banded", RETUNE);
+    await settle(300);
+    check("SECURITY: the GM's Reroll does not re-rate a trace whose band a GM set; the card and the GMs say so (E60 fix FG2)",
+        banded.placed && banded.standing && banded.visibility === "subtle" && banded.rowNames && banded.cardSays && banded.gmsTold,
+        JSON.stringify(banded));
     const stale = await rerollOverTrace("SEC dynamic, stale", "stale", RETUNE);
     await settle(300);
     check("SECURITY: the GM's Reroll does not re-rate a trace older than a Reroll can reach",
@@ -3253,7 +3262,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             await A.sheetAuditIdle();
             const aiko = game.actors.get("${ids.aiko}");
             for (const t of R.remnantsOn(canvas.scene).filter(t => String(R.remnantData(t)?.subject ?? "").startsWith("E51 FG5 30 "))) {
-                try { await R.dropRemnantSecret(t); } catch {} await t.delete();
+                try { await R.dropRemnantSecret(t); } catch {} await t.document?.delete();
             }
             for (const id of ${JSON.stringify(Object.values(discardSet))}) await aiko.items.get(id ?? "")?.delete();
             await game.settings.set("${MOD}", "clock", ${JSON.stringify(discardClock)});

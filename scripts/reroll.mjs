@@ -1998,9 +1998,10 @@ async function settleRemnant(actor, bookmark, visibility, done, drop = null, gat
  * the console. A trace that is gone is not asked about; the retune finds nothing, as before.
  */
 async function traceKept(actor, bookmark, { removal, total }) {
-    const { remnantData, remnantGmEdited, sceneOfRemnant } = await import("./remnants.mjs");
+    const { remnantData, remnantGmEdited, gmSetBand, sceneOfRemnant, remnantById } = await import("./remnants.mjs");
     const scene = (bookmark.remnantScene ? game.scenes.get(bookmark.remnantScene) : null) ?? sceneOfRemnant(bookmark.remnantId);
-    const token = scene?.tokens?.get(bookmark.remnantId) ?? null;
+    // The trace's ref (E60 C1b); its age read off its token where its row holds none (`removalRefusal`).
+    const token = scene ? remnantById(scene.id, bookmark.remnantId) : null;
     if (!token) return false;
     const { removalRefusal } = await import("./bridge-guards.mjs");
     const data = remnantData(token);
@@ -2009,8 +2010,8 @@ async function traceKept(actor, bookmark, { removal, total }) {
         const { copiedRemnants } = await import("./truth-bullets.mjs");
         copied = game.actors.some(a => a.type === "character" && copiedRemnants(a).has(token.id));
     }
-    const why = removalRefusal(token, {
-        gmEdited: remnantGmEdited(token), copied, placedAt: data?.placedAt ?? null, restored: Boolean(data?.restored)
+    const why = removalRefusal(token.document ?? token, {
+        gmEdited: remnantGmEdited(token), gmBand: Boolean(gmSetBand(token)), copied, placedAt: data?.placedAt ?? null, restored: Boolean(data?.restored)
     });
     if (!why) return false;
     log(`${actor.name}'s Reroll leaves the trace ${token.id} as it was: ${why}.`);
