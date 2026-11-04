@@ -82127,6 +82127,95 @@ const SCENARIOS = [
             + "[a select focused, still drawn while focused after a mapping write, redrawn with the write once focus left]; "
             + "[a row's change saved with its marker saying so, the rows redrawn by another write, that row's marker after it]; [Close closes]");
     }],
+    ["E44-T3 - a GM panel tile whose window stands behind the panel raises it and the panel does not come back (E44 C2c; E44-09, S10-59): the Investigation dashboard open, the panel opened over it and its tile pressed - one dashboard, raised, and no panel", async () => {
+        /*
+         * E44 C2c, 04.11.2026; audit S10-59. Here, on this GM's browser with real windows: the dashboard opened as its
+         * tile opens it, then the panel, then the dashboard's tile pressed (the click the panel's delegated listener
+         * reads). Read after the run has had time to answer: how many dashboards stand and whether a panel stands. Both
+         * windows are closed. Red before C2c: the opener answered null and the panel opened again over the dashboard.
+         * The mutant c2c-m1 (the handler opening the panel again on RAISED) reads red here.
+         */
+        needs(env.dialogs(), "the panel and the dashboard are drawn and pressed");
+        must(game.user.isGM, "the GM panel is a GM's");
+        const { openGmPanel } = await import("./gm-panel.mjs");
+        const { openInvestigationDashboard } = await import("./investigation.mjs");
+        const drawn = cls => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes(cls));
+        must(!drawn("drpg-window-panel").length && !drawn("drpg-window-case").length, "a GM panel or a case dashboard is open - close it: this test opens its own");
+        const opened = [];
+        const read = {};
+        try {
+            opened.push(Promise.resolve().then(() => openInvestigationDashboard()).catch(() => null));
+            must(await until(() => drawn("drpg-window-case").length, 6000), "the case dashboard did not open - this would measure nothing");
+            opened.push(Promise.resolve().then(() => openGmPanel()).catch(() => null));
+            const tile = () => drawn("drpg-window-panel")[0]?.element?.querySelector('[data-drpg-run="investigation"]') ?? null;
+            must(await until(() => tile(), 6000), "the GM panel did not open with its dashboard tile");
+            tile().click();
+            await until(() => !drawn("drpg-window-panel").length, 3000);
+            await wait(800);
+            read.after = { dashboards: drawn("drpg-window-case").length, panel: drawn("drpg-window-panel").length };
+        } finally {
+            for (const cls of ["drpg-window-panel", "drpg-window-case"]) for (const app of drawn(cls)) await app.close();
+            await Promise.race([Promise.all(opened), wait(3000)]);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ after: { dashboards: 1, panel: 0 } }),
+            "[after the dashboard's tile was pressed with the dashboard open behind the panel: the dashboards standing, the panels standing]");
+    }],
+
+    ["E44-T4 - D176: two of the GM's own approvals asked at once open one window (E44 C2c; E44-10): two purchases of a Call that waits for a GM's yes, made on the GM's side at once - one approval window, the second purchase answers null with nothing spent, and the first answered No spends and arms nothing", async () => {
+        /*
+         * E44 C2c, 04.11.2026; D176 (from E51 fix FG7's G2). A GM buying a Call that needs a GM's yes for a student
+         * answers it in a window on this browser (calls.mjs `askHopeCallApproval`), and two asked at once opened two.
+         * Here, as the GM with real windows: a student given 6 Hope; Experience bought twice at once through
+         * `spendHopeCall`, as the sheet buys it after its confirmation. Read: the approval windows standing, the second's
+         * answer, the student's Hope; then the first's No pressed: its answer, the Hope and the student's module flags.
+         * The Hope is put back. Red before C2c: two windows, the second unanswered. The mutant c2c-m2 (a raised approval
+         * read as a yes) reads red here.
+         */
+        needs(env.dialogs(), "the approval is a drawn window, read and pressed");
+        must(game.user.isGM, "the purchase is made on the GM's side");
+        const { spendHopeCall, hopeHeld } = await import("./calls.mjs");
+        const { HOPE_CALLS } = await import("./config.mjs");
+        const [who] = cast(1);
+        const key = Object.keys(HOPE_CALLS).find(k => HOPE_CALLS[k].needsGm && !HOPE_CALLS[k].reroll);
+        must(key, "no Hope Call waits for a GM's yes - this would measure nothing");
+        const call = HOPE_CALLS[key];
+        const title = game.i18n.format("DRPG.Calls.approveTitle", { call: call.label });
+        const windows = () => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title);
+        must(!windows().length, "an approval window is open - close it: this test opens its own");
+        const hope = who.system.resources.hope.value;
+        const flags = () => stableJson(who.toObject().flags?.[MODULE_ID] ?? {});
+        const read = {};
+        let first = null, second = null;
+        try {
+            await who.update({ "system.resources.hope.value": 6 });
+            await settle();
+            must(hopeHeld(who) === 6, `the student holds ${hopeHeld(who)} Hope, not 6 - this would measure nothing`);
+            const flagsBefore = flags();
+            first = Promise.resolve().then(() => spendHopeCall(who, key, { note: "E44-T4 first" })).catch(err => `threw: ${err.message}`);
+            if (!await until(() => windows().length === 1, 6000)) read.opened = "no window";
+            else {
+                second = Promise.resolve().then(() => spendHopeCall(who, key, { note: "E44-T4 second" })).catch(err => `threw: ${err.message}`);
+                read.second = await Promise.race([second, wait(3000).then(() => "unanswered")]);
+                read.windows = windows().length;
+                read.hopeAfterSecond = hopeHeld(who);
+                for (const extra of windows().slice(1)) await extra.close();
+                windows()[0]?.element?.querySelector('button[data-action="no"]')?.click();
+                read.first = await Promise.race([first, wait(3000).then(() => "unanswered")]);
+                await settle();
+                read.hope = hopeHeld(who);
+                read.flags = flags() === flagsBefore;
+            }
+        } finally {
+            for (const app of windows()) await app.close();
+            await Promise.race([Promise.all([first, second].filter(Boolean)), wait(3000)]);
+            await who.update({ "system.resources.hope.value": hope });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ second: null, windows: 1, hopeAfterSecond: 6, first: null, hope: 6, flags: true }),
+            "[the second purchase's answer with the first's approval standing]; [the approval windows standing]; [the student's Hope then]; "
+            + "[the first purchase's answer to No]; [the Hope after]; [the student's module flags as before]");
+    }],
     ...GRID
 ];
 

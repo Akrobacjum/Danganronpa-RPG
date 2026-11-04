@@ -15,7 +15,7 @@
 
 import { SETTINGS, getSetting, setSetting, autoScale, moduleLanguage } from "./settings.mjs";
 import { LANGUAGES, confirmLanguageReload } from "./i18n.mjs";
-import { alreadyOpen } from "./live.mjs";
+import { alreadyOpen, RAISED } from "./live.mjs";
 import { error } from "./utils.mjs";
 
 /** True when this browser wears the Stained Glass theme. */
@@ -225,7 +225,7 @@ export async function lookFormHtml() {
  * if already open.
  */
 export async function openLookDialog() {
-    if (alreadyOpen("drpg-window-look")) return null;
+    if (alreadyOpen("drpg-window-look")) return RAISED;
     const { dialogContent, tableDialog } = await import("./utils.mjs");
     const { wireSoundPanel } = await import("./sfx.mjs");
     return tableDialog({

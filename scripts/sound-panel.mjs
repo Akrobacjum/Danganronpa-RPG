@@ -27,7 +27,7 @@
 import { SITUATIONAL_PLAYLIST } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { error } from "./utils.mjs";
-import { alreadyOpen, keepLive } from "./live.mjs";
+import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { MUSIC_STATES, musicMap, isCuePlaylist, saveMusicKey } from "./music-states.mjs";
 import { situationalPlaylist, playTrack, resetMusic } from "./music-play.mjs";
 
@@ -292,7 +292,7 @@ export async function openSoundDialog() {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-sound")) return null;
+    if (alreadyOpen("drpg-window-sound")) return RAISED;
 
     const { dialogContent, tableDialog, panelTabs, wirePanelTabs } = await import("./utils.mjs");
     const { soundSlidersHtml, soundEffectsHtml, wireSoundPanel } = await import("./sfx.mjs");

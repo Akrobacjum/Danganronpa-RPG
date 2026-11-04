@@ -669,6 +669,16 @@ function shownAs(node, value) {
  * ========================================================================== */
 
 /**
+ * What an opener answers when the window it opens was already open and it raised it instead (E44 C2c,
+ * 04.11.2026; audit S10-59). Not null: null is also what a dismissed window answers, and the GM panel,
+ * which reopens itself after every tile, could not tell "the GM closed what this tile opened" from "this
+ * tile raised a window that is still standing" - so it came back over the window it had just raised.
+ * Every opener a panel tile runs answers this on its `alreadyOpen` branch (R1318), and the panel does
+ * not come back when it is answered.
+ */
+export const RAISED = "raised";
+
+/**
  * If this window is already open, raise it and say so.
  *
  * @param {string} className The window's own class, e.g. `"drpg-window-sound"`.

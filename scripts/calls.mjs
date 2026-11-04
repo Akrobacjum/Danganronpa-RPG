@@ -22,6 +22,10 @@ import { getClock } from "./settings.mjs";
 import { announce, whisperToOwner, log, error, esc, proseOf } from "./utils.mjs";
 // The Call windows' one builder and their header (E51 C2): call-pickers.mjs imports nothing of this file back.
 import { callWindow, callHeader, callWindowClass } from "./call-pickers.mjs";
+import { alreadyOpen } from "./live.mjs";
+
+/* The GM's approval window of a Call asked on the GM's own side (`askHopeCallApproval`): one at a time (D176). */
+const APPROVAL_CLASS = "drpg-call-hope-approval";
 
 /* ==========================================================================
  * HOPE CALLS
@@ -733,6 +737,11 @@ async function showWaitingCard(call) {
  */
 export async function askHopeCallApproval(payload = {}) {
     if (!game.user.isGM) return false;
+    /* ONE AT A TIME ON THIS BROWSER (E44 C2c, 04.11.2026; D176, from E51 fix FG7's G2). Two purchases on the GM's own
+       side asked at once opened two approval windows. The second raises the first and answers null - asked of nobody,
+       so nothing is spent and nothing armed (`spendHopeCall` returns on null before the price), and it is never a yes
+       nor the "not allowed" a GM's no is told as. */
+    if (alreadyOpen(APPROVAL_CLASS)) return null;
 
     // A Call window (E51 C2): the Call's header, from the ask's own label, sentence and price as the
     // asker's browser sent them (the same three this window always showed), and the GM's two answers;
@@ -749,7 +758,8 @@ export async function askHopeCallApproval(payload = {}) {
         buttons: [
             { action: "yes", label: game.i18n.localize("DRPG.Calls.approveYes"), default: true },
             { action: "no", label: game.i18n.localize("DRPG.Calls.approveNo") }
-        ]
+        ],
+        once: APPROVAL_CLASS
     });
 
     return result === "yes";

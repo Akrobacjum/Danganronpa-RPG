@@ -25,7 +25,7 @@ import { placeRoomNames } from "./rooms.mjs";
 import { dialogContent, error, markFired, markLanguage, serialWrite, tableDialog, wirePortraitPickers } from "./utils.mjs";
 // The projects' queue key, from the file that keeps it (projects.mjs does not re-export it), as traps.mjs and fog.mjs read it.
 import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
-import { alreadyOpen, keepFresh } from "./live.mjs";
+import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
 import {
     leaveIconOnly, localiseRawKeys, hideUndiscovered, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl
 } from "./projects-tray.mjs";
@@ -476,7 +476,7 @@ export async function openProjectManager() {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-projects")) return null;
+    if (alreadyOpen("drpg-window-projects")) return RAISED;
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));

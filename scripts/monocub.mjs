@@ -50,7 +50,7 @@ import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
 import { seasonEpoch, sameSeason, deathRecord, getSetting, SETTINGS } from "./settings.mjs";
 import { resolveThreshold, dialogContent, whisperToOwner, log, warn, plural, tableDialog, isPrimaryGm, wholeNumber } from "./utils.mjs";
-import { alreadyOpen, keepLive } from "./live.mjs";
+import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 // Confusion's window is a Call window (E51 C2): call-pickers.mjs reaches this file only through a lazy import().
 import { callWindow, callHeader } from "./call-pickers.mjs";
 
@@ -567,8 +567,10 @@ export async function cubAbilityDialog(actor, key) {
      * price; then the tiers it is thrown against (`cubTiersHtml`, the owner's amendment of 14.10).
      * Not the GM's road: the GM throws the dice, but nobody decides anything before it lands.
      */
+    /* ONE OF EACH ON THIS BROWSER (E44 C2c, 04.11.2026; D176). The ability's window carried no `once`, so a second
+       press while one stood opened a second; now it raises the first and answers null, and nothing is thrown. */
     const result = await callWindow({
-        kind: "hope", title: row.label,
+        kind: "hope", title: row.label, once: `drpg-cub-ability-${key}`,
         header: callHeader({ label: row.label, cost: row.hopeCost }, "hope", {
             effect: game.i18n.localize("DRPG.Monocub.meddleIntro"),
             price: plural("DRPG.Monocub.meddleCostShort", { hope: row.hopeCost, actions: row.cost }, "actions")
@@ -714,7 +716,7 @@ export async function openMonocubDialog() {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-monocubs")) return null;
+    if (alreadyOpen("drpg-window-monocubs")) return RAISED;
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));

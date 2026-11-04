@@ -19865,6 +19865,63 @@ const REGRESSIONS = [
         for (const name of NAMES) if (css.includes(`.${name}`)) hits.push(`the module's stylesheets: ${name}`);
         equal(JSON.stringify(hits), "[]", "[the scripts and sheets that still name the collapse]");
     }],
+    ["R1318 - an opener that raised its window says so (E44 C2c; E44-09, S10-59): live.mjs exports RAISED = \"raised\"; every `if (alreadyOpen(\"drpg-window-...\")) return ...;` branch in scripts/ answers RAISED - 22 or more of them, read file by file - and so does openNotices's; the GM panel's tile handler returns before `openGmPanel()` when the tile's run answered RAISED", async () => {
+        /*
+         * E44 C2c, 04.11.2026; audit S10-59. The panel closes, awaits the tile's run and opens itself again whatever the
+         * run answered, and an opener that raised a window standing behind the panel answered null, as a dismissed one
+         * does - so the panel came back over the window the GM had just raised. Measured at C2b's tree: 22 branches in
+         * 19 files answered null. Red before C2c: no RAISED, and every one of them null. The mutant c2c-m3 (one opener
+         * left on `return null`) reads red here.
+         */
+        const live = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/live.mjs`).then(lfText));
+        ok(/export const RAISED = "raised";/.test(live), "live.mjs exports no RAISED = \"raised\"");
+        const branches = [], wrong = [];
+        for (const [file, text] of await otherSources()) {
+            for (const m of stripComments(text).matchAll(/if \(alreadyOpen\("(drpg-window-[\w-]+)"\)\) return ([^;]*);/g)) {
+                branches.push(`${file} ${m[1]}`);
+                if (m[2].trim() !== "RAISED") wrong.push(`${file} ${m[1]}: return ${m[2]}`);
+            }
+        }
+        must(branches.length >= 22, `only ${branches.length} alreadyOpen branches that return were read - this would measure too little`);
+        equal(JSON.stringify(wrong), "[]", `of ${branches.length} openers' alreadyOpen branches in ${new Set(branches.map(b => b.split(" ")[0])).size} files, these do not answer RAISED`);
+        const notices = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/notice-history-app.mjs`).then(lfText));
+        ok(/if \(alreadyOpen\(WINDOW_CLASS\)\) return RAISED;/.test(topLevelFunction(notices, "openNotices") ?? ""),
+            "openNotices does not answer RAISED when it raised the notice history");
+        const panel = topLevelFunction(stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-panel.mjs`).then(lfText)), "openGmPanel") ?? "";
+        const returns = [...panel.matchAll(/if \(answer === RAISED\) return;/g)].map(m => m.index);
+        const reopens = [...panel.matchAll(/openGmPanel\(\)\.catch\(/g)].map(m => m.index);
+        must(reopens.length === 1, `openGmPanel reopens itself ${reopens.length} time(s) in its body, not once - the order below would read nothing`);
+        ok(returns.length === 1 && returns[0] < reopens[0], "the GM panel's handler does not return on RAISED before it opens the panel again");
+        ok(/answer = await item\.run\(\)/.test(panel), "the GM panel's handler does not keep what the tile's run answered");
+    }],
+    ["R1319 - D176: one approval, one Monocub ability and one call-off window at a time on a browser (E44 C2c; E44-10): calls.mjs `askHopeCallApproval` answers null before any window while its own is open and passes `once`; every `callWindow(` call of monocub.mjs `cubAbilityDialog` and of sheet.mjs `runCall` passes `once`", async () => {
+        /*
+         * E44 C2c, 04.11.2026; D176 (S/stages/AUDIT-DEFERRED-31.10.md, from E51 fix FG7's G2): "the GM's approval window
+         * (a stand-in call) and the Confusion and call-off windows carry no `once`". Read from the source; E44-T4 drives
+         * the approval. Red before C2c: none of the three passes `once`.
+         */
+        const cut = async (file, name) => {
+            const text = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText);
+            return blankLiterals(blankComments(topLevelFunction(stripComments(text), name) ?? ""));
+        };
+        const calls = blank => [...blank.matchAll(/\bcallWindow\(/g)].map(m => {
+            const { close } = callArgs(blank, m.index + m[0].length - 1);
+            return /\bonce\s*:/.test(blank.slice(m.index, close));
+        });
+        const read = {};
+        for (const [file, name] of [["calls.mjs", "askHopeCallApproval"], ["monocub.mjs", "cubAbilityDialog"], ["sheet.mjs", "runCall"]]) {
+            const blank = await cut(file, name);
+            must(blank.length > 0, `${file} has no ${name} - this would read nothing`);
+            read[name] = calls(blank);
+        }
+        equal(JSON.stringify(read), JSON.stringify({ askHopeCallApproval: [true], cubAbilityDialog: [true], runCall: [true] }),
+            "[whether each callWindow call passes once: askHopeCallApproval, cubAbilityDialog, runCall]");
+        const approval = stripComments(topLevelFunction(stripComments(await fetch(`/modules/${MODULE_ID}/scripts/calls.mjs`).then(lfText)), "askHopeCallApproval") ?? "");
+        const guard = [...approval.matchAll(/if \(alreadyOpen\(APPROVAL_CLASS\)\) return null;/g)].map(m => m.index);
+        const opens = [...approval.matchAll(/callWindow\(/g)].map(m => m.index);
+        ok(guard.length === 1 && opens.length === 1 && guard[0] < opens[0],
+            "askHopeCallApproval does not answer null before its window while one is open (a raised approval must never read as a GM's no or yes)");
+    }],
 ];
 
 

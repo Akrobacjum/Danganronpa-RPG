@@ -27,7 +27,7 @@ import { isMonokuma, setMonokuma, poolFor, setPools, studentCensus } from "./mon
 import { students, assignments, monokumaFor, setAssignments, autoAssign, NO_MONOKUMA } from "./assignments.mjs";
 import { dialogContent, error, tableDialog, panelTabs, wirePanelTabs } from "./utils.mjs";
 import { setOverflowRules, overflowSection, overflowNowLine, readOverflowForm, overflowStatus, clearOverflowAsGm, overflowSuggestionLine } from "./overflow.mjs";
-import { alreadyOpen, keepFresh, reopen } from "./live.mjs";
+import { alreadyOpen, keepFresh, reopen, RAISED } from "./live.mjs";
 import { SETTINGS } from "./settings.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -256,7 +256,7 @@ export async function openGmTeamDialog({ draft = null } = {}) {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-gmteam")) return null;
+    if (alreadyOpen("drpg-window-gmteam")) return RAISED;
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));

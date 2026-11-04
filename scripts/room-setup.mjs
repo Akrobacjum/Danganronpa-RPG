@@ -38,7 +38,7 @@ import {
     dialogContent, tableDialog, announce, plural, workingScene, pinFooterAcrossScroll, wireDashboardTabs,
     forcedDeletion, wirePortraitPickers
 } from "./utils.mjs";
-import { alreadyOpen, keepFresh } from "./live.mjs";
+import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
 import {
     ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomNames, roomRegions, flagOver,
     listOver, isTrialScene, homeScene, sceneHoldsRooms
@@ -1099,7 +1099,7 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-rooms")) return null;
+    if (alreadyOpen("drpg-window-rooms")) return RAISED;
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));

@@ -28,7 +28,7 @@ import { MODULE_ID, ITEM_CATEGORIES, EQUIPPABLE, ITEM_TIERS, itemIcon } from "./
 import { dialogContent, panelTabs, wirePanelTabs, whisperToGms, log, error, plural, esc}
     from "./utils.mjs";
 import { pickableCategories } from "./inventory.mjs";
-import { alreadyOpen, reopen } from "./live.mjs";
+import { alreadyOpen, reopen, RAISED } from "./live.mjs";
 import {
     classifyTableName, tierTablesFor, existingTableName, tableDescription, isTierPoolTable, poolShapeOf,
     poolNameRefusal, USABLE_GOALS, ITEM_POOLS, MULTI_ROLE_TIER, rolesForPoolItem, tierTableIdFor, roomTableNames,
@@ -1500,7 +1500,7 @@ export async function openItemTables({ preset = null, poolError = null } = {}) {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-tables")) return null;
+    if (alreadyOpen("drpg-window-tables")) return RAISED;
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));

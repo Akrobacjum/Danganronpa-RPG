@@ -39,7 +39,7 @@ import { livingStudentsForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs
 import {
     dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
     workingScene, esc, wireDashboardTabs, placeRoomOptions, listOf, error } from "./utils.mjs";
-import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty } from "./live.mjs";
+import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, RAISED } from "./live.mjs";
 import { keyPlanStore, remnantStore } from "./gm-stores.mjs";
 import { murderState } from "./incident-store.mjs";
 import { bridgeRequest } from "./bridge-guards.mjs";
@@ -2417,7 +2417,7 @@ export async function openInvestigationDashboard({ said = null } = {}) {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-case")) return null;
+    if (alreadyOpen("drpg-window-case")) return RAISED;
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));

@@ -20,7 +20,7 @@ import { getClock, setClock } from "./clock.mjs";
 import { resetAllActions } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { dialogContent, error, esc, wholeNumber } from "./utils.mjs";
-import { alreadyOpen } from "./live.mjs";
+import { alreadyOpen, RAISED } from "./live.mjs";
 import { trialScene } from "./rooms.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -76,7 +76,7 @@ export async function openClockDialog() {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-clock")) return null;
+    if (alreadyOpen("drpg-window-clock")) return RAISED;
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));

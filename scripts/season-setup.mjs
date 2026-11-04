@@ -58,7 +58,7 @@ import { foundryGivenBack, openGiveBackFoundry } from "./enforced.mjs";
 // The hall's report, the one the Scenes tab prints (E51 C8, the First session screen): trial-scene.mjs never reaches back here.
 import { scenesReportOf } from "./trial-scene.mjs";
 import { dialogContent, log, error, plural, workingScene, esc, wholeNumber, localeFormat } from "./utils.mjs";
-import { alreadyOpen, handOff } from "./live.mjs";
+import { alreadyOpen, handOff, RAISED } from "./live.mjs";
 // Foundry's secret doors and the players' rulers (E80 C5): the doors as the map holds them, their
 // conversion, and the permissions in force where `core.permissions` names none.
 import { secretDoorsOn } from "./passages.mjs";
@@ -1069,7 +1069,7 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-season")) return null;
+    if (alreadyOpen("drpg-window-season")) return RAISED;
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));

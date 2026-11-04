@@ -24,7 +24,7 @@
  */
 
 import { plural } from "./utils.mjs";
-import { alreadyOpen, keepLive } from "./live.mjs";
+import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { clockSummary, clockAfter } from "./clock.mjs";
 import { openMessenger } from "./messenger-app.mjs";
 import {
@@ -544,9 +544,12 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
     }
 }
 
-/** Open the notice history, or raise it if it is open: the keybinding, `game.drpg.openNotices()` and (E81 C8) the tile's button. */
+/**
+ * Open the notice history, or raise it if it is open: the keybinding, `game.drpg.openNotices()` and (E81 C8) the tile's
+ * button. The window when it opens; RAISED when it was open and was raised (E44 C2c, the 11.10 amend A7: "alreadyOpen,
+ * now 'raised'"), as every opener of a standing window answers.
+ */
 export async function openNotices() {
-    const open = alreadyOpen(WINDOW_CLASS);
-    if (open) return open;
+    if (alreadyOpen(WINDOW_CLASS)) return RAISED;
     return new NoticeHistoryApp().render({ force: true });
 }

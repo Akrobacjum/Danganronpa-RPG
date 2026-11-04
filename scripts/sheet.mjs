@@ -4251,7 +4251,7 @@ async function runCall(actor, key, kind) {
         // A Call window (E51 C2; call-pickers.mjs `callWindow`): the Despair Call's own, with no header -
         // nothing is bought - and buttons saying what each does: the default calls the assembly off, as the
         // confirm's yes did, and the other keeps it.
-        const { callWindow } = await import("./call-pickers.mjs");
+        const { callWindow, callWindowClass } = await import("./call-pickers.mjs");
         const answer = await callWindow({
             call, kind,
             body: `<p>${game.i18n.format("DRPG.Calls.gatherCancelAsk", {
@@ -4259,7 +4259,10 @@ async function runCall(actor, key, kind) {
             })}</p><p class="notes">${game.i18n.localize("DRPG.Calls.gatherNoRefund")}</p>`,
             buttons: [{ action: "yes", label: game.i18n.localize("DRPG.Calls.gatherCallOff"), default: true }],
             cancel: "DRPG.Calls.gatherKeep",
-            modal: true
+            modal: true,
+            /* ONE AT A TIME (E44 C2c, 04.11.2026; D176): the call-off window as the confirmation step of its Call, so
+               `callWindowOpen` above raises it on a second press, and `callWindow` refuses a twin of it (null: kept). */
+            once: callWindowClass(call, "despair", "confirm")
         });
         if (answer !== "yes") return;
         await cancelGather();

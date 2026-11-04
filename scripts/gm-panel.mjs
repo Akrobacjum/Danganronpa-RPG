@@ -17,7 +17,7 @@ import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { studentActors, actingStudents } from "./monokuma.mjs";
 import { dialogContent, error, plural, esc, primaryGmId, markLanguage } from "./utils.mjs";
-import { keepLive, alreadyOpen } from "./live.mjs";
+import { keepLive, alreadyOpen, RAISED } from "./live.mjs";
 import { SETTINGS, bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, sameSeason } from "./settings.mjs";
 import { bodiesToDiscover, announcedIn, chapterEndStopped } from "./chapter.mjs";
 import { flagsHeldNow, itemsHeldNow } from "./sheet-audit.mjs";
@@ -465,7 +465,7 @@ export async function openGmPanel() {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-panel")) return null;
+    if (alreadyOpen("drpg-window-panel")) return RAISED;
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
@@ -527,12 +527,17 @@ export async function openGmPanel() {
                 const item = lookup.get(button.dataset.drpgRun);
                 if (!item) return;
                 await dialog.close();
+                let answer = null;
                 try {
-                    await item.run();
+                    answer = await item.run();
                 } catch (err) {
                     error(`GM panel action "${item.key}" failed`, err);
                     ui.notifications.error(game.i18n.localize("DRPG.Panel.failed"));
                 }
+                /* NOT BACK OVER A WINDOW THE TILE RAISED (E44 C2c, 04.11.2026; audit S10-59). A tile whose window
+                   was already open behind the panel raises it and answers RAISED (live.mjs) at once - the GM has
+                   not used it yet, and a panel reopened now stood over the window the GM had just asked to see. */
+                if (answer === RAISED) return;
                 openGmPanel().catch(err =>
                     error("Could not reopen the GM panel", err));
             });
@@ -634,7 +639,7 @@ async function openFailureLog() {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-failures")) return null;
+    if (alreadyOpen("drpg-window-failures")) return RAISED;
 
     const { sessionFailures, clearSessionFailures, localeFormat } = await import("./utils.mjs");
     const rows = sessionFailures();

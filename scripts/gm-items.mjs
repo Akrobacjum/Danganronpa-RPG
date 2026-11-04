@@ -36,7 +36,7 @@ function recipientOptions(students, selectedId) {
 }
 import { whisperToOwner, dialogContent, panelTabs, wirePanelTabs,
     log, error, plural, cardHead, esc, serialWrite } from "./utils.mjs";
-import { alreadyOpen, keepLive } from "./live.mjs";
+import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { homeScene } from "./rooms.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -177,7 +177,7 @@ export async function openItemManager(actor = null) {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-items")) return null;
+    if (alreadyOpen("drpg-window-items")) return RAISED;
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));

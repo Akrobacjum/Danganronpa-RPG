@@ -20,7 +20,7 @@
 
 import { studentActors } from "./monokuma.mjs";
 import { dialogContent, error, plural, tableDialog, esc, wholeNumber } from "./utils.mjs";
-import { keepLive, alreadyOpen, handOff } from "./live.mjs";
+import { keepLive, alreadyOpen, handOff, RAISED } from "./live.mjs";
 import { crossingStore } from "./gm-stores.mjs";
 
 /**
@@ -254,7 +254,7 @@ export async function openWhoIsAliveDialog() {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-alive")) return null;
+    if (alreadyOpen("drpg-window-alive")) return RAISED;
 
     // `killCharacter`, `reviveCharacter` and `setSilenced` went with the apply loop
     // (F15): `applyAliveStates` below imports what it writes.

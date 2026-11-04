@@ -21,7 +21,7 @@ import { closingClaimStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
 import { dialogContent, placeRoomOptions, plural, error, esc, serverNow, listOf, wholeNumber } from "./utils.mjs";
 import { getClock, setClock } from "./clock.mjs";
-import { alreadyOpen, keepLive } from "./live.mjs";
+import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -1415,7 +1415,7 @@ export async function manageClassTrial() {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-trial")) return null;
+    if (alreadyOpen("drpg-window-trial")) return RAISED;
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
@@ -1633,7 +1633,7 @@ export async function openVoteDialog() {
     }
     /* ONE OF THESE (E10 C14, 1.2.71; audit S06-26): a second press opened a second window, each with its
        own idea of who was still out - see `alreadyOpen` in live.mjs. */
-    if (alreadyOpen("drpg-window-vote")) return null;
+    if (alreadyOpen("drpg-window-vote")) return RAISED;
 
     const { openVote, closeVote, pendingVoters, remindVoters, votesIn, voteBar, ballotCopyStatus, trialProgress,
         ballotRecipients } = await import("./vote.mjs");

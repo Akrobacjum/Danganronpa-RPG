@@ -30,7 +30,7 @@ import { locateActor, sceneOfActor } from "./movement.mjs";
 // explains why it stopped living in mastermind.mjs.
 import { iAmTheMastermind, isDeadForGm, getClock } from "./settings.mjs";
 import { dialogContent, whisperToOwner, whisperToGms, log, error, esc } from "./utils.mjs";
-import { alreadyOpen } from "./live.mjs";
+import { alreadyOpen, RAISED } from "./live.mjs";
 import { placeScenes } from "./rooms.mjs";
 import {
     VAULT_FLAGS, stashesIn, stashIn, stashRoomsFor, stashRoomOfItem, stashItemsIn, allVaults, foundKey, hasFoundStash,
@@ -754,7 +754,7 @@ export async function openVaultInspector() {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-stashes")) return null;
+    if (alreadyOpen("drpg-window-stashes")) return RAISED;
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
