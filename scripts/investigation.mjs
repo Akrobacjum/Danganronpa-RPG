@@ -30,7 +30,7 @@ import { SETTINGS, isEclipse, sameSeason } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import {
     remnantsOn, remnantById, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited,
-    confirmClearFaint, shownBand, bandOptions,
+    confirmClearFaint, shownBand, bandOptions, removeRemnant,
     traceContextLine, traceLabel
 } from "./remnants.mjs";
 import { bulletsOf, isTruthBullet, secretOf, truthBulletData } from "./truth-bullets.mjs";
@@ -1816,6 +1816,10 @@ export function caseTraceRows(shown, finders) {
                 `<option value="${value}"${value === shows.crime ? " selected" : ""}>${esc(game.i18n.localize(label))}</option>`).join("")}</select></td>
             <td style="text-align:center"><input type="checkbox" name="reinf.${key}"${aria("DRPG.Remnant.reinforcedColumn")} ${shows.reinf ? "checked" : ""} /></td>
             <td>${found}</td>
+            ${/* DELETE, THE GM'S (E44 C8d): asked first, then the row and the token together (`deleteTraceRow`). A plain
+                  button, so it submits nothing: the form's Save is the window's own. */ ""}
+            <td><button type="button" class="drpg-trace-delete" data-drpg-trace-delete="${key}"${aria("DRPG.Investigation.deleteTrace")}>${
+                game.i18n.localize("DRPG.Investigation.deleteTrace")}</button></td>
         </tr>`;
     }).join("");
 }
@@ -1892,6 +1896,7 @@ function caseTracesPanel({ traces, shown, finders, reading }) {
             <th>${game.i18n.localize("DRPG.Remnant.crimeColumn")}</th>
             <th>${game.i18n.localize("DRPG.Remnant.reinforcedColumn")}</th>
             <th>${game.i18n.localize("DRPG.Investigation.foundBy")}</th>
+            <th>${game.i18n.localize("DRPG.Investigation.deleteTrace")}</th>
         </tr></thead><tbody>${traceRows}</tbody></table>`
             : `<p class="notes">${game.i18n.localize(traces.length
                 ? "DRPG.Investigation.noneMatch" : "DRPG.Investigation.noTraces")}</p>`}`;
@@ -2313,6 +2318,42 @@ function wireCase(dialog) {
     // - applied as well as wired, because a redraw restores the tick and not what
     // it unlocked. See `wireKeyLimitOverride`.
     wireKeyLimitOverride(root);
+
+    // A Remnant row's Delete (E44 C8d). Bound on the nodes, which a redraw replaces; the redraw that takes the row away
+    // is the ledger's own (the live region watches `remnantStore`, whose row `removeRemnant` tombstones).
+    for (const button of root.querySelectorAll("[data-drpg-trace-delete]")) {
+        button.addEventListener("click", () => {
+            deleteTraceRow(button.dataset.drpgTraceDelete).catch(err => error("Could not delete a Remnant from the dashboard", err));
+        });
+    }
+}
+
+/**
+ * A Remnant deleted from the dashboard's Remnants tab (E44 C8d, 04.11.2026; E44-29, the owner on 1.2.98: "Do
+ * investigation (gm panel) dodalbym tez opcje usuwania remnantow"). E60 left the tab with no Delete, since a GM deletes
+ * a trace's token on the map (D38 = 1: a trace is its token); the owner wants it here as well. The GM's alone: the
+ * dashboard opens for a GM only and this asks `game.user.isGM` before anything; it is no packet and no bridge row, and
+ * no module file but this one names it, so a player has no road to it. Asked first, in a window naming the Remnant,
+ * as the dashboard's other permanent clean-ups ask; then remnants.mjs `removeRemnant`, the one road that takes the
+ * ledger's row and the token together, which refuses a reinforced trace with its notice and keeps both. A row whose
+ * trace went meanwhile asks nothing. Answers true when the Remnant went, false when the GM said no or it was refused,
+ * null when there was nothing to ask about. Exported for the suite (E44-T10).
+ */
+export async function deleteTraceRow(key) {
+    if (!game.user.isGM || !key) return null;
+    const trace = allTraces().find(t => rowKey(t.scene.id, t.token.id) === key);
+    if (!trace) return null;
+    const name = trace.data.public?.name || traceContextLine(trace.data) || key;
+    const sure = await DialogV2.confirm({
+        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        no: { label: game.i18n.localize("DRPG.Dialog.no") },
+        window: { title: game.i18n.localize("DRPG.Investigation.deleteTraceTitle") },
+        classes: ["drpg-panel"],
+        content: dialogContent(`<p>${esc(game.i18n.format("DRPG.Investigation.deleteTraceAsk", { name }))}</p>`),
+        rejectClose: false
+    });
+    if (!sure) return false;
+    return Boolean(await removeRemnant(trace.token));
 }
 
 /*

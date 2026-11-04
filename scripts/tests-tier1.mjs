@@ -32120,7 +32120,8 @@ const INVARIANTS = [
         const options = REMNANT_VISIBILITY.map(v => [v, REMNANT_VISIBILITY_LABELS[v] ?? v]);
         equal(stableJson({
             bands: ["TOKE60R12880000U", "TOKE60R12880000F", "TOKE60R12880000X"].map(band),
-            found: [...doc.querySelectorAll("tbody > tr")].map(tr => tr.lastElementChild?.textContent.trim() ?? null),
+            // The Found column is the row's last cell but the Delete's (E44 C8d put a Delete cell after it).
+            found: [...doc.querySelectorAll("tbody > tr")].map(tr => [...tr.children].filter(td => !td.querySelector("[data-drpg-trace-delete]")).at(-1)?.textContent.trim() ?? null),
             builder: typeof R.bandOptions === "function" ? R.bandOptions("hidden") === REMNANT_VISIBILITY.map(v =>
                 `<option value="${v}"${v === "hidden" ? " selected" : ""}>${REMNANT_VISIBILITY_LABELS[v] ?? v}</option>`).join("") : "no bandOptions",
             card: [/<select data-drpg-band\b/.test(card), /bandOptions\(\s*data\.visibility\s*\)/.test(card),
@@ -33759,6 +33760,52 @@ const INVARIANTS = [
         equal(stableJson({ left: [...left].sort(), prints, early }), stableJson({ left: [], prints: C5, early: [] }),
             `[a rule written for these surfaces that still wins from danganronpa.css or stained-glass.css; per place, theme and surface, the number of roots and the fingerprint of its winners; an @media rule above the rule it overrides] (${readings} reading(s))`);
         must(readings > 3000, `${readings} reading(s) made - the surfaces matched almost no rule`);
+    }],
+    ["R1337 - a Remnant row's Delete on the dashboard (E44 C8d; E44-29): each row of the Remnants tab holds one plain button with the tab's word, named for the row's Remnant and keyed by the row; the tab's head names its column; wireCase binds the buttons to `deleteTraceRow`, which answers before anything for a player, asks a DialogV2 confirm naming the Remnant before it removes, stops on no, and removes through remnants.mjs `removeRemnant` alone; no module file but investigation.mjs names it; and its three words stand in both languages", async () => {
+        /*
+         * E44 C8d, 04.11.2026; E44-29, the owner on 1.2.98: "Do investigation (gm panel) dodalbym tez opcje usuwania
+         * remnantow". The row's markup from `caseTraceRows` on a synthetic trace (every input an argument, as tier 2
+         * C16's reading hands it), the rest read from the source as tier 1 can: nothing here is pressed, since a Delete
+         * pressed is a world write (the road whole is tier 2 E44-T10). Red at ab449796: no button, no `deleteTraceRow`.
+         */
+        const I = await import("./investigation.mjs");
+        const sources = await moduleSources();
+        const inv = stripComments(sources.get("investigation.mjs") ?? "");
+        must(inv, "investigation.mjs could not be read - this would measure nothing");
+        const KEY = "SCN0000000000001__TOKR1337TRACE001";
+        const holder = document.createElement("tbody");
+        holder.innerHTML = typeof I.caseTraceRows === "function"
+            ? I.caseTraceRows([{ token: { id: "TOKR1337TRACE001" }, scene: { id: "SCN0000000000001" }, data: { type: "neutral", public: { name: "R1337 a torn ticket" } } }], new Map())
+            : "";
+        const buttons = [...holder.querySelectorAll("button[data-drpg-trace-delete]")];
+        const word = game.i18n.localize("DRPG.Investigation.deleteTrace");
+        const row = buttons.map(b => [b.type, b.dataset.drpgTraceDelete, b.textContent.trim(), b.getAttribute("aria-label")]);
+        const panel = fnSource(inv, "caseTracesPanel");
+        const wire = fnSource(inv, "wireCase");
+        const road = fnSource(inv, "deleteTraceRow");
+        const at = re => { const m = re.exec(road); return m ? m.index : -1; };
+        const reads = {
+            head: /localize\("DRPG\.Investigation\.deleteTrace"\)\}<\/th>/.test(panel),
+            bound: /querySelectorAll\("\[data-drpg-trace-delete\]"\)/.test(wire) && /deleteTraceRow\(button\.dataset\.drpgTraceDelete\)/.test(wire),
+            gmFirst: /^[^{]*\{\s*if \(!game\.user\.isGM\b/.test(road),
+            asksBefore: at(/const sure = await DialogV2\.confirm\(/) > 0 && at(/const sure = await DialogV2\.confirm\(/) < at(/removeRemnant\(/),
+            stopsOnNo: at(/if \(!sure\) return false;/) > at(/const sure = await DialogV2\.confirm\(/) && at(/if \(!sure\) return false;/) < at(/removeRemnant\(/),
+            names: /deleteTraceAsk", \{ name \}/.test(road),
+            onlyRemove: !/\.delete\(|deleteEmbeddedDocuments|dropRemnantSecret/.test(road)
+        };
+        const namers = [...sources].filter(([file, text]) => file !== "investigation.mjs" && !/^tests/.test(file)
+            && /\bdeleteTraceRow\b/.test(stripComments(text))).map(([file]) => file);
+        const fetchLang = lang => fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+        const [en, pl] = [await fetchLang("en"), await fetchLang("pl")];
+        const keys = ["deleteTrace", "deleteTraceTitle", "deleteTraceAsk"].map(k => `DRPG.Investigation.${k}`);
+        const both = keys.filter(k => typeof foundry.utils.getProperty(en, k) !== "string" || typeof foundry.utils.getProperty(pl, k) !== "string");
+        equal(stableJson({ row, reads, namers, both }), stableJson({
+            row: [["button", KEY, word, `${word}: R1337 a torn ticket`]],
+            reads: { head: true, bound: true, gmFirst: true, asksBefore: true, stopsOnNo: true, names: true, onlyRemove: true },
+            namers: [], both: []
+        }), "[the row's Delete buttons (type, key, words, label); the tab's head, the binding, the player answered first, the confirm before the "
+            + "removal, a no stopping it, the Remnant named, the removal through removeRemnant alone; the module files beside investigation.mjs "
+            + "that name deleteTraceRow; the keys missing in English or Polish]");
     }],
 ];
 

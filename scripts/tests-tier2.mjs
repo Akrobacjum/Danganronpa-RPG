@@ -82346,6 +82346,90 @@ const SCENARIOS = [
         }), "a project's token does not stand at full opacity [PROJECT_TOKEN.alpha; the placed token's alpha; after a sync over 0.7: its "
             + "alpha, the working tint; finished: its alpha, the done tint]");
     }],
+    ["E44-T10 - Delete a Remnant from the dashboard (E44 C8d; E44-29, the owner on 1.2.98): its row's Delete asks first, in a window naming it, and on No nothing goes; on Yes its token leaves the map and its row the case, the tab redraws without it, and the case health check counts no trace with a row and no token or a token and no row; a reinforced one is refused with its notice and keeps both", async () => {
+        /*
+         * E44 C8d, 04.11.2026. Two traces placed on the scene on screen, one plain and one reinforced, each with a public
+         * name; the dashboard opened and drawn (`__dialogWindows`); each row's Delete pressed with DialogV2.confirm lent a
+         * recorder that answers as the reading needs (the dashboard's own window keeps running): the plain one first
+         * answered No, then Yes, the reinforced one Yes. Read: what each confirm was asked (its title and whether its
+         * words name the trace), the token on its scene, the ledger's row (`remnantStore`), the drawn tab's button for
+         * the row, the warning told, and gm-stores.mjs `gmStoreHealth`'s trace counts before and after (missing: a token
+         * with no row; orphans: a row with no token). Red at ab449796: no Delete button on the tab.
+         */
+        needs(env.dialogs(), "the dashboard is read off its drawn window");
+        needs(world.atLeast("sceneOnScreen"), "the traces are placed on the scene on screen");
+        const I = await import("./investigation.mjs");
+        const R = await import("./remnants.mjs");
+        const { remnantStore, gmStoreHealth } = await import("./gm-stores.mjs");
+        const scene = canvas.scene;
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        const ownWarn = Object.getOwnPropertyDescriptor(ui.notifications, "warn");
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
+        const healthOf = async () => { const c = (await gmStoreHealth())?.counts?.traces ?? {}; return { missing: c.missing ?? null, orphans: c.orphans ?? null }; };
+        const made = [], read = {}, asked = [], warned = [];
+        let answer = false, dashboard = null;
+        const keyOf = token => `${scene.id}__${token.id}`;
+        const rowOf = token => remnantStore.has(`${scene.id}.${token.id}`);
+        const button = token => open()[0]?.element?.querySelector(`[data-drpg-trace-delete="${keyOf(token)}"]`) ?? null;
+        try {
+            const healthBefore = await healthOf();
+            for (const [name, extra] of [["SUITE E44-T10 a torn ticket", {}], ["SUITE E44-T10 a bolted plate", { reinforced: true }]]) {
+                const trace = await R.placeRemnant({ type: "prep", visibility: "evident", faint: false, tiedToCrime: false, scene, x: 60 + 40 * made.length, y: 60, note: "SUITE E44-T10", ...extra });
+                must(trace?.id, `"${name}" was not placed - this would measure nothing`);
+                made.push(trace);
+                await R.setRemnantPublic(trace, { name });
+            }
+            await settle();
+            const [plain, bolted] = made;
+            D.confirm = options => { asked.push([options?.window?.title ?? null, (typeof options?.content === "string" ? options.content : options?.content?.textContent ?? "").includes("SUITE E44-T10 a ")]); return Promise.resolve(answer); };
+            ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return ownWarn?.value?.call(ui.notifications, message, ...rest); };
+            dashboard = Promise.resolve().then(() => I.openInvestigationDashboard()).catch(() => null);
+            /* Every chapter: the tab opens on the chapter running when it holds a trace (`readTracesAs`), and these two,
+               placed by hand with no chapter, are then filtered out (the harness world's own trace is the chapter's). */
+            await until(() => Boolean(open()[0]?.element?.querySelector('[data-drpg-filter="chapter"]')), 6000);
+            const chapter = open()[0]?.element?.querySelector('[data-drpg-filter="chapter"]');
+            if (chapter && chapter.value !== "") { chapter.value = ""; chapter.dispatchEvent(new Event("change", { bubbles: true })); }
+            await until(() => Boolean(button(plain)), 6000);
+            must(button(plain) && button(bolted), "the dashboard drew no Delete for the suite's two traces - is its Remnants tab filtered?");
+            const press = async (token, yes, gone) => {
+                answer = yes;
+                // A row already gone is read as such, never pressed (a Delete that asked nothing took it at the last press).
+                if (!button(token)) return { unpressed: true, token: scene.tokens.has(token.id), row: rowOf(token), drawn: false };
+                button(token).click();
+                if (gone) await until(() => !scene.tokens.has(token.id) && !button(token), 6000);
+                else await until(() => asked.length > 0, 3000);
+                await settle();
+                return { token: scene.tokens.has(token.id), row: rowOf(token), drawn: Boolean(button(token)) };
+            };
+            read.no = { ...(await press(plain, false, false)), asked: asked.splice(0) };
+            read.yes = { ...(await press(plain, true, true)), asked: asked.splice(0) };
+            read.bolted = { ...(await press(bolted, true, false)), asked: asked.splice(0),
+                warned: warned.includes(game.i18n.localize("DRPG.Remnant.reinforced")) };
+            const healthAfter = await healthOf();
+            read.health = stableJson(healthAfter) === stableJson(healthBefore) ? "as before" : { before: healthBefore, after: healthAfter };
+        } finally {
+            if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (ownWarn) Object.defineProperty(ui.notifications, "warn", ownWarn); else delete ui.notifications.warn;
+            for (const a of open()) await a.close();
+            await dashboard;
+            for (const trace of made) {
+                if (scene.tokens.has(trace.id)) {
+                    await R.dropRemnantSecret(trace);
+                    await scene.deleteEmbeddedDocuments("Token", [trace.id]);
+                } else await R.dropRemnantSecret(trace);
+            }
+            await settle();
+        }
+        const title = game.i18n.localize("DRPG.Investigation.deleteTraceTitle");
+        equal(stableJson(read), stableJson({
+            no: { token: true, row: true, drawn: true, asked: [[title, true]] },
+            yes: { token: false, row: false, drawn: false, asked: [[title, true]] },
+            bolted: { token: true, row: true, drawn: true, asked: [[title, true]], warned: true },
+            health: "as before"
+        }), "[answered No: the token, the row, the drawn button, what was asked; answered Yes: the same; the reinforced one answered Yes: the same "
+            + "and the refusal told; the health check's traces with no row and rows with no trace against before]");
+    }],
     ...GRID
 ];
 
