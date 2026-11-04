@@ -20145,6 +20145,95 @@ const REGRESSIONS = [
         ok(guard.length === 1 && opens.length === 1 && guard[0] < opens[0],
             "askHopeCallApproval does not answer null before its window while one is open (a raised approval must never read as a GM's no or yes)");
     }],
+    ["R1334 - what the owner approved is recorded (E44 C7a; E44-22, D31): docs/design/windows.md has one row for each card of the review page DR-E44-M1 (M1-M15, i1, i2) and one for each of its two questions, each with its answer (Approve, Change or Hold) and its date, and a card answered Approve or Change names its screenshots, each a file under audit/design/; and every window name the glossary holds from E44 (`window-*`) is named by a card, quotes its tile label's key and has that key's words in lang/en.json and lang/pl.json, as every entry a card names does", async () => {
+        /*
+         * E44 C7a, 04.11.2026; D31 ("makiety, które akceptujesz przed kodem") and the plan's amend of 05.10 (the window
+         * names enter the glossary in the words of their tile labels). The review page is not in the repository, so its
+         * asks are written here, as the page numbered them (DR-E44-M1 #1-#19: M1's and M15's tabs, M2-M14, the two
+         * questions, i1 and i2; M1 and M15 approved in chat on 04.11 before their tabs, which the page asked again);
+         * windows.md is held to them. E46, E47 and E21 build a window from its row, so a row without its answer, its
+         * date or its pictures is a window built from nothing. Red before C7a: no windows.md, no audit/design/ and no
+         * `window-*` entry.
+         */
+        needs(env.tools(), "docs/design/, audit/ and docs/glossary.json are read from the repository (an installed module's zip leaves them out, as it leaves tools/)");
+        const CARDS = ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10", "M11", "M12", "M13", "M14", "M15", "i1", "i2"];
+        const ASKS = ["q-grow", "q-console"];
+        const get = async path => {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" });
+                return res.ok ? res : null;
+            } catch { return null; }
+        };
+        const page = await get("docs/design/windows.md");
+        ok(page !== null, "docs/design/windows.md is missing");
+        const text = await lfText(page);
+        const rowsOf = heading => bodyOf(text, `\n## ${heading}\n`, { until: "\n## " }).split("\n")
+            .filter(l => /^\| \S/.test(l) && !/^\| -/.test(l)).slice(1)
+            .map(l => l.replace(/^\| | \|$/g, "").split(" | ").map(c => c.trim()));
+        const cards = rowsOf("The cards"), asks = rowsOf("The questions on the page");
+        must(cards.length > 0 && asks.length > 0, `windows.md's two tables read ${cards.length} and ${asks.length} row(s) - this would measure nothing`);
+        equal(JSON.stringify(cards.map(r => r[0])), JSON.stringify(CARDS), "[the cards windows.md names, in order]");
+        equal(JSON.stringify(asks.map(r => r[0])), JSON.stringify(ASKS), "[the questions windows.md names, in order]");
+        /* The cards' columns: card, window, opened by, states, answer, date, note, screenshots, tile label, glossary, built by. */
+        const ANSWER = /^(Approve|Change|Hold)$/, DATE = /^\d\d\.\d\d\.20\d\d$/;
+        const bad = [];
+        const pictures = [];
+        for (const r of cards) {
+            if (r.length !== 11) { bad.push(`${r[0]}: ${r.length} cell(s), not 11`); continue; }
+            const [id, , , , answer, date, note, shots, , , builds] = r;
+            if (!ANSWER.test(answer)) bad.push(`${id}: the answer "${answer}"`);
+            if (!DATE.test(date)) bad.push(`${id}: the date "${date}"`);
+            if (answer === "Change" && note === "-") bad.push(`${id}: a Change with no note`);
+            if (!/^E\d\d( \(C\d+[a-z]?\))?(, E\d\d( \(C\d+[a-z]?\))?)*$/.test(builds)) bad.push(`${id}: built by "${builds}"`);
+            const paths = [...shots.matchAll(/`([^`]+)`/g)].map(m => m[1]);
+            if (answer !== "Hold" && !paths.length) bad.push(`${id}: answered ${answer} and names no screenshot`);
+            for (const p of paths) {
+                if (!/^audit\/design\/[\w.-]+\.(jpg|png)$/.test(p)) bad.push(`${id}: ${p} is not a picture under audit/design/`);
+                else pictures.push([id, p]);
+            }
+        }
+        for (const r of asks) {
+            if (r.length !== 5) { bad.push(`${r[0]}: ${r.length} cell(s), not 5`); continue; }
+            if (!ANSWER.test(r[2])) bad.push(`${r[0]}: the answer "${r[2]}"`);
+            if (!DATE.test(r[3])) bad.push(`${r[0]}: the date "${r[3]}"`);
+        }
+        equal(JSON.stringify(bad), "[]", "[what the rows of windows.md lack]");
+        const missing = [];
+        for (const [id, p] of pictures) {
+            const res = await get(p);
+            const size = res ? (await res.arrayBuffer()).byteLength : 0;
+            if (!size) missing.push(`${id}: ${p}`);
+        }
+        ok(pictures.length >= 2 * (CARDS.length - 2), `windows.md names ${pictures.length} screenshot(s) - fewer than two a window`);
+        equal(JSON.stringify(missing), "[]", "[the screenshots windows.md names that audit/design/ does not hold]");
+        /* The glossary: the entry a card names holds its tile label's words in both languages; one the glossary holds from
+           E44 as a window's name quotes the key in its note, and a card names it. */
+        const lang = {};
+        for (const code of ["en", "pl"]) {
+            const res = await get(`lang/${code}.json`);
+            must(res !== null, `lang/${code}.json is not served`);
+            lang[code] = flatLang(JSON.parse(await lfText(res)));
+        }
+        const glossaryRes = await get("docs/glossary.json");
+        ok(glossaryRes !== null, "docs/glossary.json is missing");
+        const entries = new Map((JSON.parse(await lfText(glossaryRes)).entries ?? []).map(e => [e.id, e]));
+        const words = [], named = new Set();
+        for (const r of cards.filter(c => c.length === 11)) {
+            const [id, , , , , , , , label, term] = r;
+            const key = /^`(DRPG\.[\w.]+)`$/.exec(label)?.[1] ?? null, gid = /^`([a-z0-9-]+)`$/.exec(term)?.[1] ?? null;
+            if (!key && !gid) continue;
+            if (!key || !gid) { words.push(`${id}: a tile label "${label}" and a glossary entry "${term}" - one without the other`); continue; }
+            named.add(gid);
+            const e = entries.get(gid);
+            if (!e) { words.push(`${id}: no glossary entry ${gid}`); continue; }
+            for (const code of ["en", "pl"]) if (e[code] !== lang[code].get(key)) words.push(`${id}: ${gid}'s ${code} "${e[code]}" is not ${key}'s "${lang[code].get(key)}"`);
+            if (e.stage === "E44" && !String(e.note ?? "").includes(`tile label ${key}`)) words.push(`${id}: ${gid}'s note does not quote "tile label ${key}"`);
+        }
+        const windowEntries = [...entries.values()].filter(e => e.stage === "E44" && /^window-/.test(e.id));
+        must(windowEntries.length > 0 && named.size > 0, `${windowEntries.length} window entr(ies) from E44 and ${named.size} named by a card - this would read nothing`);
+        for (const e of windowEntries) if (!named.has(e.id)) words.push(`${e.id}: a window name from E44 that no card of windows.md names`);
+        equal(JSON.stringify(words), "[]", "[the window names of windows.md against the glossary and the lang files]");
+    }],
 ];
 
 
