@@ -32503,6 +32503,84 @@ const INVARIANTS = [
         equal(document.body.className, classes, "the snapshot changed the body's classes");
         equal(JSON.stringify(dumpDiff(before, await worldDump())), "[]", "a snapshot wrote to the world");
     }],
+    ["R1315 - live.mjs on an artificial region (E44 C2a; E44-06, S01-34): a focused checkbox, radio, button or range does not hold a rebuild and a focused text field does; a radio group, redrawn in another order, comes back on the radio the person checked; two fields of one name keep their own values, and neither is marked moved under", async () => {
+        /*
+         * E44 C2a, 04.11.2026; audit S01-34. `isEditing` answered true for any focused INPUT, so a box ticked in a
+         * live region (the Investigation dashboard's Faint) held the region until focus left it; and `keyFor` keyed a
+         * field by its name alone, so a radio group came back on its last radio and two fields of one name took one
+         * value. Red before C2a: the checkbox, the radio and the range held the rebuild, the group came back on "c",
+         * the second twin took the first one's text and was marked moved under. The mutants c2a-m1 (`range` read as
+         * typed) and c2a-m2 (a radio keyed by its name alone) read red here.
+         */
+        const { keepLive } = await import("./live.mjs");
+        let built = 0;
+        /* The group's order turns by one on each build, as a list redrawn in a new order does: a radio is its group's
+           by its value, not by where it stands. */
+        const radios = () => {
+            const order = ["a", "b", "c"];
+            const turned = [...order.slice(built % 3), ...order.slice(0, built % 3)];
+            return turned.map(v => `<input type="radio" name="pick" value="${v}"${v === "a" ? " checked" : ""}>`).join("");
+        };
+        const build = () => {
+            built++;
+            return `<div class="drpg-t-r1315">
+                <input type="checkbox" name="box">
+                ${radios()}
+                <button type="button" name="press">press</button>
+                <input type="range" name="slide" min="0" max="9" value="3">
+                <input type="text" name="words" value="drawn">
+                <input name="twin" value="one"><input name="twin" value="two">
+            </div>`;
+        };
+        const host = document.createElement("div");
+        host.style.cssText = "position:fixed;left:-3000px;top:0;width:200px";
+        host.innerHTML = build();
+        document.body.appendChild(host);
+        const app = { element: host, options: { window: { title: "test" } } };
+        const stop = keepLive(app, { region: ".drpg-t-r1315", build, delay: 0, watch: { hooks: [LIVE_PROBE] } });
+        const region = () => host.querySelector(".drpg-t-r1315");
+        /* Focus one field, ask a redraw of this region alone (LIVE_PROBE), read whether it ran; then let focus go, so a
+           held redraw is answered before the next field is tried. */
+        const holds = async selector => {
+            const field = region().querySelector(selector);
+            field.focus();
+            const focused = document.activeElement === field;
+            const before = built;
+            Hooks.callAll(LIVE_PROBE);
+            await wait(140);
+            const held = built === before;
+            document.activeElement?.blur?.();
+            host.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+            await wait(140);
+            return { focused, held };
+        };
+        try {
+            const read = {};
+            for (const [label, selector] of [["checkbox", '[name="box"]'], ["radio", '[value="b"]'], ["button", '[name="press"]'],
+                ["range", '[name="slide"]'], ["text", '[name="words"]']]) read[label] = await holds(selector);
+            must(Object.values(read).every(r => r.focused), `focus could not be put in every field: ${JSON.stringify(read)}`);
+            equal(JSON.stringify(Object.fromEntries(Object.entries(read).map(([label, r]) => [label, r.held]))),
+                JSON.stringify({ checkbox: false, radio: false, button: false, range: false, text: true }),
+                "[whether a focused field holds the region's rebuild: a checkbox, a radio, a button, a range, a text field]");
+
+            region().querySelector('[value="b"]').checked = true;
+            region().querySelector('[name="twin"]').value = "typed";
+            const before = built;
+            Hooks.callAll(LIVE_PROBE);
+            await wait(140);
+            must(built === before + 1, `the region was rebuilt ${built - before} time(s) after the fields were changed, not once`);
+            const after = region();
+            equal(JSON.stringify({
+                pick: [...after.querySelectorAll('[name="pick"]')].filter(r => r.checked).map(r => r.value),
+                twins: [...after.querySelectorAll('[name="twin"]')].map(i => i.value),
+                movedUnder: after.querySelectorAll(".drpg-moved-under").length
+            }), JSON.stringify({ pick: ["b"], twins: ["typed", "two"], movedUnder: 0 }),
+            "[the radio checked after the rebuild, the two fields of one name, the fields marked moved under]");
+        } finally {
+            stop();
+            host.remove();
+        }
+    }],
 ];
 
 /**

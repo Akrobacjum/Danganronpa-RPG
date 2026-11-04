@@ -299,12 +299,24 @@ function listenFor(watch, schedule) {
  * BUTTON is not: a button keeps focus after it is pressed, and a window whose
  * buttons freeze it the moment anybody clicks one is the stale window again
  * with extra steps.
+ *
+ * NOR IS AN INPUT THAT IS PRESSED RATHER THAN TYPED IN (E44 C2a, 04.11.2026;
+ * audit S01-34). A checkbox keeps focus after its click exactly as a button
+ * does, and until this list every focused INPUT counted as typing: the
+ * Investigation dashboard's Faint box, once ticked, held its whole region until
+ * the GM clicked somewhere else. The types below take a press, a pick or a
+ * drag, never a caret, so a rebuild cannot lose anybody's place in one - and
+ * what they hold is carried (rule 2) when it was changed. `range` and `image`
+ * are beyond the audit's list: a slider is dragged, an image input is a button.
  */
+const PRESSED_INPUTS = new Set(["checkbox", "radio", "button", "submit", "reset", "color", "file", "range", "image"]);
+
 function isEditing(element) {
     const active = document.activeElement;
     if (!active || !element.contains(active)) return false;
     const tag = active.tagName;
-    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+    if (tag === "INPUT") return !PRESSED_INPUTS.has(String(active.type ?? "").toLowerCase());
+    if (tag === "TEXTAREA" || tag === "SELECT") return true;
     return active.isContentEditable === true;
 }
 
@@ -325,10 +337,22 @@ function toElement(built) {
  * while the region's structure is stable and gives up when it is not, which is
  * the right way round - a scroll position restored into the wrong box is worse
  * than one that was not restored.
+ *
+ * A NAME IS NOT ALWAYS ONE FIELD (E44 C2a, 04.11.2026; audit S01-34). Every
+ * radio of a group shares its name, so keyed by the name alone the group's
+ * radios were one entry: each dirty radio overwrote the last, and `restore`
+ * checked them all in turn, leaving the group on its LAST radio whatever the
+ * person picked. A radio is keyed by its name and its value; and a key that
+ * still occurs twice in the region (two fields of one name, two radios of one
+ * value) takes its index among the fields of that key, so two fields never
+ * share a value. `named` is that reading, made once per region by `keysOf`:
+ * a field's key depends on its neighbours, so it cannot be read off the field.
+ * The index is positional within the key and holds as the positional fallback
+ * does - while the region's shape holds.
  */
-function keyFor(element, root) {
-    const named = element.getAttribute?.("name");
-    if (named) return `n:${named}`;
+function keyFor(element, root, named = null) {
+    const field = named?.get(element);
+    if (field) return field;
     const own = element.dataset?.drpgKey;
     if (own) return `k:${own}`;
     if (element.id) return `i:${element.id}`;
@@ -340,6 +364,27 @@ function keyFor(element, root) {
         path.unshift([...parent.children].indexOf(node));
     }
     return `p:${path.join("/")}`;
+}
+
+/** Every named element of the region and its key (see `keyFor`), read in one pass. */
+function keysOf(root) {
+    const fields = [...root.querySelectorAll("[name]")].filter(node => node.getAttribute("name"));
+    const bases = fields.map(node => {
+        const name = node.getAttribute("name");
+        return node.tagName === "INPUT" && node.type === "radio" ? `n:${name}=${node.value}` : `n:${name}`;
+    });
+    const total = new Map();
+    for (const base of bases) total.set(base, (total.get(base) ?? 0) + 1);
+    const seen = new Map();
+    const named = new Map();
+    fields.forEach((node, i) => {
+        const base = bases[i];
+        if (total.get(base) === 1) return named.set(node, base);
+        const index = seen.get(base) ?? 0;
+        seen.set(base, index + 1);
+        named.set(node, `${base}#${index}`);
+    });
+    return named;
 }
 
 /**
@@ -357,20 +402,21 @@ function capture(element) {
     const scrolls = new Map();
     const opens = new Map();
     const dirty = new Map();
+    const named = keysOf(element);
 
     if (element.scrollTop || element.scrollLeft) {
         scrolls.set("self", [element.scrollTop, element.scrollLeft]);
     }
     for (const node of element.querySelectorAll("*")) {
         if (node.scrollTop || node.scrollLeft) {
-            scrolls.set(keyFor(node, element), [node.scrollTop, node.scrollLeft]);
+            scrolls.set(keyFor(node, element, named), [node.scrollTop, node.scrollLeft]);
         }
     }
     for (const node of element.querySelectorAll("details")) {
-        opens.set(keyFor(node, element), node.open);
+        opens.set(keyFor(node, element, named), node.open);
     }
     for (const node of element.querySelectorAll("input, textarea, select")) {
-        if (isDirty(node)) dirty.set(keyFor(node, element), { value: heldIn(node), drawn: drawnOf(node) });
+        if (isDirty(node)) dirty.set(keyFor(node, element, named), { value: heldIn(node), drawn: drawnOf(node) });
     }
 
     /*
@@ -394,24 +440,25 @@ function capture(element) {
 
 /** Put back what `capture` took. Every step is optional and independent. */
 function restore(element, { scrolls, opens, dirty, tab }) {
+    const named = keysOf(element);
     const self = scrolls.get("self");
     if (self) [element.scrollTop, element.scrollLeft] = self;
 
     if (scrolls.size > (self ? 1 : 0)) {
         for (const node of element.querySelectorAll("*")) {
-            const seen = scrolls.get(keyFor(node, element));
+            const seen = scrolls.get(keyFor(node, element, named));
             if (seen) [node.scrollTop, node.scrollLeft] = seen;
         }
     }
     if (opens.size) {
         for (const node of element.querySelectorAll("details")) {
-            const was = opens.get(keyFor(node, element));
+            const was = opens.get(keyFor(node, element, named));
             if (was !== undefined) node.open = was;
         }
     }
     if (dirty.size) {
         for (const node of element.querySelectorAll("input, textarea, select")) {
-            const was = dirty.get(keyFor(node, element));
+            const was = dirty.get(keyFor(node, element, named));
             if (!was) continue;
             /* MOVED UNDER THE PERSON TYPING (E09 C3, S05-26). The new markup's default is
                what the world holds now. Where that is neither what this field was drawn
