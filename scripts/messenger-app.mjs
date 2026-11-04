@@ -21,6 +21,7 @@
 import { MODULE_ID, PRICE_CHAINS, PROJECT_SCALE } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { gmIds, ownerOf, whisperToGms, error, debug, warn, wholeNumber, localeFormat, markLanguage } from "./utils.mjs";
+import { kitTabBar, wireKitTabs } from "./ui-kit.mjs";
 import { showPopup } from "./popup.mjs";
 import {
     MESSENGER_FLAGS, THREAD_KIND,
@@ -249,24 +250,19 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
         return root;
     }
 
-    /** Chat | Note. The note carries a dot when there is something written. */
+    /** Chat | Note, on the kit's bar (E44 C4a). The note carries a dot when there is something written. */
     _buildTabs(context) {
-        const bar = document.createElement("nav");
-        bar.className = "drpg-messenger-tabs";
-
-        for (const [key, labelKey] of [["chat", "DRPG.Messenger.tabChat"], ["note", "DRPG.Note.tab"]]) {
-            const button = document.createElement("button");
-            button.type = "button";
-            button.className = `drpg-messenger-tab${this.tab === key ? " active" : ""}`;
-            button.dataset.drpgTab = key;
-            button.textContent = game.i18n.localize(labelKey);
-            if (key === "note" && context.note.trim()) {
-                const dot = document.createElement("span");
-                dot.className = "drpg-messenger-tab-dot";
-                bar.dataset.hasNote = "true";
-                button.append(dot);
-            }
-            bar.append(button);
+        const made = document.createElement("template");
+        made.innerHTML = kitTabBar([
+            { key: "chat", label: game.i18n.localize("DRPG.Messenger.tabChat") },
+            { key: "note", label: game.i18n.localize("DRPG.Note.tab") }
+        ], { active: this.tab });
+        const bar = made.content.firstElementChild;
+        if (context.note.trim()) {
+            const dot = document.createElement("span");
+            dot.className = "drpg-messenger-tab-dot";
+            bar.dataset.hasNote = "true";
+            bar.querySelector('[data-drpg-tab-key="note"]')?.append(dot);
         }
         return bar;
     }
@@ -366,12 +362,12 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
     }
 
     _onRender(_context, _options) {
-        for (const button of this.element.querySelectorAll("[data-drpg-tab]")) {
-            button.addEventListener("click", () => {
-                this.tab = button.dataset.drpgTab;
+        wireKitTabs(this.element, {
+            onSwitch: key => {
+                this.tab = key;
                 this.render();
-            });
-        }
+            }
+        });
 
         const form = this.element.querySelector(".drpg-messenger-input");
         const textarea = form?.querySelector("textarea");

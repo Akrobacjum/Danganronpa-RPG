@@ -504,7 +504,6 @@
       "noPrice": "This is not something you can do."
     },
     "Assign": {
-      "title": "Despair Flow",
       "outside": "Outside every pool",
       "fallbackOption": "{name} (fallback)",
       "intro": "A roll that lands with Despair feeds that student's Monokuma.",
@@ -533,7 +532,10 @@
         "one": "{n} owed",
         "other": "{n} owed"
       },
-      "poolsTitle": "Despair Pools",
+      "tabPools": "Pools",
+      "tabMonokumas": "Monokumas",
+      "tabStudents": "Students",
+      "tabOverflow": "Overflow",
       "poolsIntro": "Name each pool - it does not have to match the account name. Every full GM holds a pool; an Assistant GM holds one once you grant it below.",
       "poolName": "Pool name",
       "addPool": "Add pool",
@@ -2969,7 +2971,6 @@
       "toggle": "Mark as Monokuma",
       "marked": "{name} is now a Monokuma: no actions, no Hope, Despair Calls instead, and free movement.",
       "unmarked": "{name} is a student again.",
-      "panelTitle": "Monokumas and Despair pools",
       "panelIntro": "Tick the actors that are Monokumas, then say whose Despair pool each draws on. Without this, two Monokumas share the pool of whichever GM is looking at the sheet.",
       "panelNote": "A Monokuma has no actions and no Hope: their sheet shows Despair Calls instead. The pool decides which GM pays for them.",
       "isMonokuma": "Monokuma",

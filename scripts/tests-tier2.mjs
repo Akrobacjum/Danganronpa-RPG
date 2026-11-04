@@ -26363,7 +26363,7 @@ const SCENARIOS = [
             const win = await drawnCaseWindow();
             try {
                 must(win.app?.element, "the dashboard did not open");
-                const panel = win.app.element.querySelector('[data-drpg-panel="key"]');
+                const panel = win.app.element.querySelector('[data-drpg-pane="key"]');
                 const heads = [...(panel?.querySelectorAll("thead th") ?? [])].map(th => th.textContent.trim());
                 const row = panel?.querySelector("tbody tr") ?? null;
                 must(row, "the Key tab drew no row - this would measure nothing");
@@ -26418,7 +26418,7 @@ const SCENARIOS = [
             win.field("keyname:0").value = "SUITE C16 placed by its button";
             win.field("keytext:0").value = "SUITE C16 the row's words";
             const button = win.app.element.querySelector('[data-drpg-key-place="0"]');
-            const select = Boolean(win.app.element.querySelector('[data-drpg-panel="key"] select[name^="room:"]'));
+            const select = Boolean(win.app.element.querySelector('[data-drpg-pane="key"] select[name^="room:"]'));
             if (button) {
                 button.click();
                 await until(() => placeWindows().some(a => a.element?.querySelector("form")), 6000);
@@ -26554,7 +26554,7 @@ const SCENARIOS = [
             must(win.app?.element, "the dashboard did not open");
             must(win.field(`name.${key}`)?.value === "SUITE as drawn", `the dashboard does not list the fixture trace as drawn: ${stableJson({
                 open: Boolean(win.app?.element), value: win.field(`name.${key}`)?.value ?? null,
-                rows: win.app?.element?.querySelectorAll('[data-drpg-panel="traces"] tbody tr').length ?? null })}`);
+                rows: win.app?.element?.querySelectorAll('[data-drpg-pane="traces"] tbody tr').length ?? null })}`);
 
             /* ---- the ruling lands under the open window, and the window shows it ---- */
             ok(await cleanup.applyReshapeRuling({ actorId: who.id, tokenId: token.id,
@@ -26641,7 +26641,7 @@ const SCENARIOS = [
             win = await drawnCaseWindow();
             must(win.field(`name.${key}`)?.value === "SUITE as drawn", `the dashboard does not list the fixture trace as drawn: ${stableJson({
                 open: Boolean(win.app?.element), value: win.field(`name.${key}`)?.value ?? null,
-                rows: win.app?.element?.querySelectorAll('[data-drpg-panel="traces"] tbody tr').length ?? null })}`);
+                rows: win.app?.element?.querySelectorAll('[data-drpg-pane="traces"] tbody tr').length ?? null })}`);
 
             win.field(`name.${key}`).value = "SUITE this GM's name";
             win.field(`text.${key}`).value = "SUITE this GM's words";
@@ -26780,7 +26780,7 @@ const SCENARIOS = [
             win = await drawnCaseWindow();
             must(win.field(`name.${key}`)?.value === "SUITE as drawn", `the dashboard does not list the fixture trace as drawn: ${stableJson({
                 open: Boolean(win.app?.element), value: win.field(`name.${key}`)?.value ?? null,
-                rows: win.app?.element?.querySelectorAll('[data-drpg-panel="traces"] tbody tr').length ?? null })}`);
+                rows: win.app?.element?.querySelectorAll('[data-drpg-pane="traces"] tbody tr').length ?? null })}`);
 
             win.field(`analysis.${key}`).value = "SUITE B's reading";
             await remnants.setRemnantPublic(token, { name: "SUITE A's name" });
@@ -27459,7 +27459,7 @@ const SCENARIOS = [
             const bar = () => dialog.element.querySelector(".drpg-trace-filters");
             ok(bar(), "the dashboard has no filter bar");
             const rows = () => dialog.element
-                .querySelectorAll('[data-drpg-panel="traces"] tbody tr').length;
+                .querySelectorAll('[data-drpg-pane="traces"] tbody tr').length;
             const control = which => bar().querySelector(`[data-drpg-filter="${which}"]`);
             const choose = async (which, value) => {
                 const element = control(which);
@@ -27500,7 +27500,7 @@ const SCENARIOS = [
             await choose("order", "newest");
             equal(rows(), all, "ordering dropped rows; it is an order, not a filter");
             const first = dialog.element
-                .querySelector('[data-drpg-panel="traces"] tbody tr')?.textContent ?? "";
+                .querySelector('[data-drpg-pane="traces"] tbody tr')?.textContent ?? "";
             // The day as `traceWhen` prints it in the client's language (E09 C15: it was "D 3" in every one).
             ok(first.includes(game.i18n.format("DRPG.Remnant.dayShort", { n: 3 })),
                 `newest first put "${first.replace(/\s+/g, " ").trim().slice(0, 60)}" at the top`);
@@ -58104,9 +58104,9 @@ const SCENARIOS = [
             await settle();
             const root = drawn()[0].element;
             const footers = {};
-            for (const tab of root.querySelectorAll("[data-drpg-tab]")) {
+            for (const tab of root.querySelectorAll("nav.drpg-tabs [data-drpg-tab-key]")) {
                 tab.click();
-                footers[tab.dataset.drpgTab] = [...root.querySelectorAll("footer.form-footer button")]
+                footers[tab.dataset.drpgTabKey] = [...root.querySelectorAll("footer.form-footer button")]
                     .filter(button => button.style.display !== "none" && !button.hidden).map(button => button.dataset.action);
             }
             const cell = root.querySelector(".drpg-token-cell");
@@ -58137,7 +58137,7 @@ const SCENARIOS = [
                 clicks = [[...clicks].sort(), clicks[2] === was];
             }
             const tables = [...root.querySelectorAll("table.drpg-vault-table")];
-            const heads = [...root.querySelectorAll('[data-drpg-panel="stashes"] thead th, [data-drpg-panel="fog"] thead th')]
+            const heads = [...root.querySelectorAll('[data-drpg-pane="stashes"] thead th, [data-drpg-pane="fog"] thead th')]
                 .filter(th => th.cellIndex > 0);
             const fogBoxes = () => [...root.querySelectorAll('input[type="checkbox"][name^="fog:"]')];
             const press = which => {
@@ -60848,7 +60848,7 @@ const SCENARIOS = [
                     const box = document.createElement("div");
                     if (typeof cfg?.content === "string") box.innerHTML = cfg.content;
                     else if (cfg?.content) box.append(cfg.content.cloneNode(true));
-                    opened = box.querySelector(".drpg-dashboard-tab.active")?.dataset.drpgTab ?? null;
+                    opened = box.querySelector('nav.drpg-tabs [aria-selected="true"]')?.dataset.drpgTabKey ?? null;
                     return null;
                 };
                 await V.openRoomSetupDialog();
@@ -68838,7 +68838,7 @@ const SCENARIOS = [
                 await until(() => tablesApp());
                 await settle();
                 const el = tablesApp()?.element;
-                const on = (family, table) => Boolean(el?.querySelector(`[data-drpg-pane="${family}"] [data-drpg-table="${table.id}"]`));
+                const on = (family, table) => Boolean(el?.querySelector(`[data-drpg-pool-pane="${family}"] [data-drpg-table="${table.id}"]`));
                 read.window = [knives, calm].map(table => [on("tiers", table), on("rooms", table)]);
             } finally {
                 try { await tablesApp()?.close(); } catch { /* already gone */ }
@@ -69243,9 +69243,9 @@ const SCENARIOS = [
             await until(() => tablesApp());
             await settle();
             let el = tablesApp()?.element;
-            const ticked = [...(el?.querySelectorAll('[data-drpg-gmt-section="newItem"] input[type="checkbox"][name^="target:"]:checked') ?? [])]
+            const ticked = [...(el?.querySelectorAll('[data-drpg-pane="newItem"] input[type="checkbox"][name^="target:"]:checked') ?? [])]
                 .map(box => game.tables.get(box.name.slice("target:".length))?.name).filter(name => name?.startsWith(TAG)).sort();
-            const shown = [el?.querySelector(".drpg-gmt-section.active")?.dataset.drpgGmtSection ?? null, ticked,
+            const shown = [el?.querySelector('.drpg-tab-pane:not([hidden])')?.dataset.drpgPane ?? null, ticked,
                 el?.querySelector('[name="newName"]')?.value ?? null,
                 [...(el?.querySelectorAll("footer button[data-action]") ?? [])].filter(b => !b.hidden).map(b => b.dataset.action)];
             /* What Rename offers: the harness answers a prompt from its queue without drawing it, so the prompt's content is
@@ -69259,11 +69259,11 @@ const SCENARIOS = [
                 return null;
             };
             queue?.push(answer);
-            el?.querySelector('[data-drpg-pane="rooms"] [data-drpg-rename-table]')?.click();
+            el?.querySelector('[data-drpg-pool-pane="rooms"] [data-drpg-rename-table]')?.click();
             await until(() => renaming !== null || appWith(e => e.querySelector('input[name="tableName"]')));
             if (queue?.includes(answer)) queue.splice(queue.indexOf(answer), 1);
             renaming ??= appWith(e => e.querySelector('input[name="tableName"]'))?.element.querySelector('input[name="tableName"]')?.value ?? null;
-            const highlighted = el?.querySelector('[data-drpg-pane="rooms"] .drpg-table-pick.active span')?.textContent.trim() ?? null;
+            const highlighted = el?.querySelector('[data-drpg-pool-pane="rooms"] .drpg-table-pick.active span')?.textContent.trim() ?? null;
             await closeAll(e => e.querySelector('input[name="tableName"]'));
             await closeAll(e => e.classList.contains("drpg-window-tables"));
             try { await Promise.race([opening, wait(2000)]); } catch { /* closed rather than answered */ }
@@ -69273,7 +69273,7 @@ const SCENARIOS = [
             await until(() => tablesApp());
             await settle();
             el = tablesApp()?.element;
-            const noTable = el?.querySelector('[data-drpg-gmt-section="newItem"] [data-drpg-room-note]')?.textContent ?? "";
+            const noTable = el?.querySelector('[data-drpg-pane="newItem"] [data-drpg-room-note]')?.textContent ?? "";
             await closeAll(e => e.classList.contains("drpg-window-tables"));
             try { await Promise.race([second, wait(2000)]); } catch { /* closed rather than answered */ }
             tables = [...shown, renaming === highlighted && renaming === BASE, noTable.includes(NOWHERE)];
@@ -69310,18 +69310,18 @@ const SCENARIOS = [
 
             const traces = Array.from(game.scenes).flatMap(s => remnantsOn(s)).filter(token => remnantData(token)).length;
             const bulletOpening = typeof G.giveTruthBulletDialog === "function" ? G.giveTruthBulletDialog(student) : null;
-            const bulletApp = () => appWith(e => e.querySelector('[data-drpg-gmt-section="create"]') && e.querySelector('[data-drpg-gmt-section="existing"]'));
+            const bulletApp = () => appWith(e => e.querySelector('[data-drpg-pane="create"]') && e.querySelector('[data-drpg-pane="existing"]'));
             await until(() => bulletApp());
             await settle();
-            bullets = [traces > 0, bulletApp()?.element.querySelector(".drpg-gmt-section.active")?.dataset.drpgGmtSection ?? null];
-            await closeAll(e => e.querySelector('[data-drpg-gmt-section="create"]') && e.querySelector('[data-drpg-gmt-section="existing"]'));
+            bullets = [traces > 0, bulletApp()?.element.querySelector('.drpg-tab-pane:not([hidden])')?.dataset.drpgPane ?? null];
+            await closeAll(e => e.querySelector('[data-drpg-pane="create"]') && e.querySelector('[data-drpg-pane="existing"]'));
             try { await Promise.race([bulletOpening, wait(2000)]); } catch { /* closed rather than answered */ }
             // No trace on any scene (no scene handed in).
             const emptyOpening = G.giveTruthBulletDialog(student, { scenes: [] });
             await until(() => bulletApp());
             await settle();
-            noTrace = bulletApp()?.element.querySelector(".drpg-gmt-section.active")?.dataset.drpgGmtSection ?? null;
-            await closeAll(e => e.querySelector('[data-drpg-gmt-section="create"]') && e.querySelector('[data-drpg-gmt-section="existing"]'));
+            noTrace = bulletApp()?.element.querySelector('.drpg-tab-pane:not([hidden])')?.dataset.drpgPane ?? null;
+            await closeAll(e => e.querySelector('[data-drpg-pane="create"]') && e.querySelector('[data-drpg-pane="existing"]'));
             try { await Promise.race([emptyOpening, wait(2000)]); } catch { /* closed rather than answered */ }
         } finally {
             if (hadFlag === undefined || hadFlag === null) await region.unsetFlag(MODULE_ID, FLAG);
@@ -71686,12 +71686,12 @@ const SCENARIOS = [
             const root = open()[0]?.element;
             must(root, "Despair Flow did not open - this would measure nothing");
             const shown = () => [...root.querySelectorAll("footer.form-footer button[data-action]")].filter(b => !b.hidden).map(b => b.dataset.action);
-            const tab = key => root.querySelector(`[data-drpg-gmt-tab="${key}"]`)?.click();
+            const tab = key => root.querySelector(`nav.drpg-tabs [data-drpg-tab-key="${key}"]`)?.click();
             tab("pools");
             read.footer = { pools: shown() };
             tab("students");
             read.footer.students = shown();
-            read.account = root.querySelector('[data-drpg-gmt-section="pools"] thead th')?.textContent?.trim() ?? null;
+            read.account = root.querySelector('[data-drpg-pane="pools"] thead th')?.textContent?.trim() ?? null;
             const mkRow = root.querySelector(`[name="mk.${CSS.escape(ticked.id)}"]`)?.closest("tr");
             read.notMonokuma = [mkRow?.querySelector("[data-drpg-pool-none]")?.hidden ?? null, mkRow?.querySelector("[data-drpg-pool]")?.hidden ?? null];
             const select = actor => root.querySelector(`[name="assign.${CSS.escape(actor.id)}"]`);
@@ -71722,7 +71722,7 @@ const SCENARIOS = [
             await until(() => open()[0]?.element, 6000);
             const again = open()[0]?.element;
             must(again, "Despair Flow did not open again - this would measure nothing");
-            again.querySelector('[data-drpg-gmt-tab="students"]')?.click();
+            again.querySelector('nav.drpg-tabs [data-drpg-tab-key="students"]')?.click();
             const pin = again.querySelector(`[name="assign.${CSS.escape(implicit.id)}"]`);
             must(pin, "the never-assigned student's select is not drawn - this would measure nothing");
             pin.value = gm.id;
@@ -75863,7 +75863,7 @@ const SCENARIOS = [
             const footer = () => [...root().querySelectorAll("footer.form-footer button[data-action]")].filter(b => !b.hidden).map(b => b.dataset.action);
             read.tabs = {};
             for (const tab of ["play", "music", "effects"]) {
-                root().querySelector(`[data-drpg-gmt-tab="${tab}"]`)?.click();
+                root().querySelector(`nav.drpg-tabs [data-drpg-tab-key="${tab}"]`)?.click();
                 read.tabs[tab] = footer();
             }
             read.save = root().querySelectorAll('[data-action="save"]').length;
@@ -82083,7 +82083,7 @@ const SCENARIOS = [
             must(playlist, "the fixture playlist was not made");
             answer = Promise.resolve().then(() => M.openSoundDialog()).catch(err => `threw: ${err.message}`);
             must(await until(() => select(k1), 6000), "the Sound window did not open with its Music tab");
-            root().querySelector('[data-drpg-gmt-tab="music"]')?.click();
+            root().querySelector('nav.drpg-tabs [data-drpg-tab-key="music"]')?.click();
             const drawnK1 = select(k1);
             await setSetting(SETTINGS.musicMap, { ...map(), [k1]: playlist.id });
             read.other = await until(() => select(k1)?.value === playlist.id, 3000) ? [true, !drawnK1.isConnected] : [select(k1)?.value ?? null, !drawnK1.isConnected];

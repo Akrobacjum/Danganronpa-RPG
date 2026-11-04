@@ -578,6 +578,61 @@ const REGRESSIONS = [
         equal(JSON.stringify(missed), "[]", "the kit sheet's reader did not read these planted faults");
     }],
 
+    ["R1324 - one tab system (E44 C4a; E44-14, S17-34): no module file writes the tab classes, attributes or wirings of 1.2.98 (`drpg-gmt-tabs`, `data-drpg-gmt-tab`, `drpg-gmt-section`, `drpg-dashboard-tabs`, `data-drpg-tab`, `data-drpg-panel`, `panelTabs`, `wirePanelTabs`, `wireDashboardTabs`, `drpg-messenger-tabs`, `data-drpg-book`) and no sheet styles them; utils.mjs exports none of the three; each of the ten windows of the tab census draws the kit's bar (`kitTabs` or `kitTabBar`) and wires it with `wireKitTabs`; live.mjs carries the kit's shape and no other", async () => {
+        /*
+         * E44 C4a, 04.11.2026; the stage's acceptance E44-14 and the plan's verify ("nie uzywa drpg-gmt-tabs,
+         * drpg-dashboard-tabs"). At 1.2.98 the module had four tab wirings in two markups: `panelTabs` + `wirePanelTabs`
+         * in six windows (gm-items.mjs x3, gm-team-dialog.mjs, sound-panel.mjs, tables-editor.mjs), `wireDashboardTabs`
+         * in two (investigation.mjs, room-setup.mjs), and the handbooks' and the messenger's own. Read from the source,
+         * comments stripped (a comment may name what was). Red before C4a: every one of the ten windows on the old names.
+         */
+        const OLD = [
+            ["drpg-gmt-tabs", /drpg-gmt-tabs/], ["data-drpg-gmt-tab", /data-drpg-gmt-tab|\bdrpgGmtTab\b/],
+            ["drpg-gmt-section", /drpg-gmt-section|\bdrpgGmtSection\b/], ["drpg-dashboard-tabs", /drpg-dashboard-tab/],
+            ["data-drpg-tab", /data-drpg-tab(?![\w-])|\.drpgTab\b(?!\w)/], ["data-drpg-panel", /data-drpg-panel(?![\w-])|\.drpgPanel\b/],
+            ["panelTabs", /\bpanelTabs\b/], ["wirePanelTabs", /\bwirePanelTabs\b/], ["wireDashboardTabs", /\bwireDashboardTabs\b/],
+            ["drpg-messenger-tabs", /drpg-messenger-tab(?!-dot)/], ["data-drpg-book", /data-drpg-book|\bdrpgBook\b/]
+        ];
+        const written = [];
+        let read = 0;
+        for (const [file, raw] of await otherSources()) {
+            read++;
+            const text = stripComments(raw);
+            for (const [name, re] of OLD) if (re.test(text)) written.push(`${file}: ${name}`);
+        }
+        must(read > 150, `${read} module file(s) read - this would measure too little`);
+        equal(JSON.stringify(written), "[]", "these module files still write a tab class, attribute or wiring of 1.2.98");
+
+        const U = await import("./utils.mjs");
+        equal(JSON.stringify(["panelTabs", "wirePanelTabs", "wireDashboardTabs"].filter(name => name in U)), "[]",
+            "utils.mjs still exports these tab helpers (it is no facade: an importer moves to the kit, code.md)");
+
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const styled = [];
+        for (const sheet of manifest.styles ?? []) {
+            const css = (await fetch(`/modules/${MODULE_ID}/${sheet}`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+            for (const [name, re] of OLD.slice(0, 6).concat([OLD[9], OLD[10]])) if (re.test(css)) styled.push(`${sheet}: ${name}`);
+            if (/drpg-handbook-tabs/.test(css)) styled.push(`${sheet}: drpg-handbook-tabs`);
+        }
+        must((manifest.styles ?? []).length >= 7, "module.json names fewer than seven sheets - this would read too little");
+        equal(JSON.stringify(styled), "[]", "these sheets still style a tab class or attribute of 1.2.98");
+
+        const WINDOWS = { "gm-items.mjs": 3, "gm-team-dialog.mjs": 1, "sound-panel.mjs": 1, "tables-editor.mjs": 1,
+            "investigation.mjs": 1, "room-setup.mjs": 1, "handbooks.mjs": 1, "messenger-app.mjs": 1 };
+        const off = [];
+        for (const [file, wanted] of Object.entries(WINDOWS)) {
+            const text = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+            const bars = (text.match(/\bkitTabs\(|\bkitTabBar\(/g) ?? []).length;
+            const wired = (text.match(/\bwireKitTabs\(/g) ?? []).length;
+            if (bars < wanted || wired < wanted) off.push(`${file}: ${bars} bar(s), ${wired} wiring(s) of ${wanted}`);
+        }
+        equal(JSON.stringify(off), "[]", "these windows of the tab census do not draw and wire the kit's bar [file: bars, wirings of the windows it holds]");
+
+        const live = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/live.mjs`).then(lfText));
+        ok(/data-drpg-tab-key/.test(live) && /aria-selected/.test(live) && /data-drpg-pane/.test(live),
+            "live.mjs does not carry the kit's tab across a rebuild (its bar's `data-drpg-tab-key` and `aria-selected`, its panes)");
+    }],
+
     ["R3 - every sound a card asks for is a sound that exists", async () => {
         /*
          * `onCreateChatMessage` reads `flags.danganronpa-rpg.sfx` and plays it.
@@ -3015,8 +3070,9 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const utils = stripComments(sources.get("utils.mjs") ?? "");
-        const picker = bodyOf(utils, "export function wirePortraitPickers", { until: "export function panelTabs" });
-        ok(picker.length > 300, "wirePortraitPickers is gone or has moved past panelTabs");
+        // Cut to the function after it, `eachPane` since E44 C4a (it stands where `panelTabs` stood).
+        const picker = bodyOf(utils, "export function wirePortraitPickers", { until: "export function eachPane" });
+        ok(picker.length > 300, "wirePortraitPickers is gone or has moved past eachPane");
         const cb = picker.indexOf("callback:");
         ok(cb > 0, "wirePortraitPickers no longer hands the FilePicker a callback");
         ok(bodyOf(picker, "callback:").includes("querySelector"),

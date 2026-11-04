@@ -493,7 +493,6 @@
       "eclipseFreePlacement": "ustaw gdziekolwiek"
     },
     "Assign": {
-      "title": "Despair Flow",
       "outside": "Poza każdą pulą",
       "fallbackOption": "{name} (domyślnie)",
       "intro": "Rzut zakończony Despair zasila Monokumę tego ucznia.",
@@ -524,7 +523,10 @@
         "many": "{n} do spłaty",
         "other": "{n} do spłaty"
       },
-      "poolsTitle": "Pule Despair",
+      "tabPools": "Pule",
+      "tabMonokumas": "Monokumy",
+      "tabStudents": "Uczniowie",
+      "tabOverflow": "Overflow",
       "poolsIntro": "Nazwij każdą pulę - nie musi pasować do nazwy konta. Każdy pełny GM ma pulę; Asystent GM-a ma ją, gdy przyznasz mu ją niżej.",
       "poolName": "Nazwa puli",
       "addPool": "Dodaj pulę",
@@ -3239,7 +3241,6 @@
       "toggle": "Oznacz jako Monokumę",
       "marked": "{name} jest teraz Monokumą: bez akcji, bez Hope, zamiast tego Despair Calls i swobodny ruch.",
       "unmarked": "{name} znów jest uczniem.",
-      "panelTitle": "Monokumy i pule Despair",
       "panelIntro": "Zaznacz aktorów, którzy są Monokumami, potem powiedz, z czyjej puli Despair każdy czerpie. Bez tego dwa Monokumy dzielą pulę tego GM-a, który akurat patrzy na kartę.",
       "panelNote": "Monokuma nie ma akcji ani Hope: jego karta pokazuje zamiast tego Despair Calls. Pula decyduje, który GM za nie płaci.",
       "isMonokuma": "Monokuma",

@@ -24135,7 +24135,7 @@ const INVARIANTS = [
             const first = tablesApp();
             const el = first?.element;
             if (!el) return "no window";
-            el.querySelector(`[data-drpg-gmt-tab="${family === "tiers" ? "editTiers" : "editRooms"}"]`)?.click();
+            el.querySelector(`nav.drpg-tabs [data-drpg-tab-key="${family === "tiers" ? "editTiers" : "editRooms"}"]`)?.click();
             const input = el.querySelector(`[name="newPool:${family}"]`);
             if (input) input.value = name;
             el.querySelector('footer button[data-action="newPool"]')?.click();
@@ -24145,7 +24145,7 @@ const INVARIANTS = [
             const back = now?.querySelector(`[name="newPool:${family}"]`);
             const said = back?.getAttribute("aria-describedby") ? now.querySelector(`#${CSS.escape(back.getAttribute("aria-describedby"))}`) : null;
             return [back?.value ?? null, back?.getAttribute("aria-invalid") ?? null,
-                Boolean(back?.closest(".drpg-gmt-section.active")), (said?.textContent.trim().length ?? 0) > 0];
+                Boolean(back?.closest(".drpg-tab-pane:not([hidden])")), (said?.textContent.trim().length ?? 0) > 0];
         };
         const hadCreate = Object.hasOwn(RollTable, "create"), realCreate = RollTable.create;
         const attempted = [];
@@ -24255,16 +24255,18 @@ const INVARIANTS = [
             .map(sel => won(row.querySelector(`:scope > ${sel}`), "grid-area"));
         const list = paneFrame.querySelector(".drpg-tables-list");
         const pick = list?.querySelector(".drpg-table-pick");
-        equal(stableJson([won(row, "display"), cells, /var\(--drpg-pick-h\)/.test(won(list, "max-height") ?? ""), won(pick, "height"),
+        /* The list's row is at least one row tall, and taller when a pool's name wraps (E44 C4a, S12-56: it was exactly
+           one row while a second rule cut the name to one line; R1326). */
+        equal(stableJson([won(row, "display"), cells, /var\(--drpg-pick-h\)/.test(won(list, "max-height") ?? ""), [won(pick, "height"), won(pick, "min-height")],
             won(paneFrame.querySelector("p.notes"), "text-align")]),
-            stableJson(["grid", ["icon", "name", "note", "roles", "place", "drop"], true, "var(--drpg-pick-h)", "left"]),
+            stableJson(["grid", ["icon", "name", "note", "roles", "place", "drop"], true, ["auto", "var(--drpg-pick-h)"], "left"]),
             "the tables window's entry row is not one grid row with its buttons in their own columns, its list is not in whole rows, "
             + "or its help is centred [row display, grid areas of icon, name, description, roles, place, remove; list height in rows; "
-            + "row height; the help's alignment]");
+            + "row height and its floor of one row; the help's alignment]");
 
         const tablesFrame = frameOf(tablesAsk);
-        const caption = sel => tablesFrame.querySelector(`[data-drpg-gmt-section="newItem"] ${sel} > .notes:first-child`);
-        const newForm = tablesFrame.querySelector('[data-drpg-gmt-section="newItem"] fieldset.drpg-tables-new');
+        const caption = sel => tablesFrame.querySelector(`[data-drpg-pane="newItem"] ${sel} > .notes:first-child`);
+        const newForm = tablesFrame.querySelector('[data-drpg-pane="newItem"] fieldset.drpg-tables-new');
         const fieldRows = [...(newForm?.querySelectorAll(":scope > label") ?? [])];
         equal(stableJson([won(caption(".drpg-tables-roles"), "flex"), won(caption(".drpg-tables-targets"), "flex"),
             won(newForm, "grid-template-columns"), fieldRows.length > 0 && fieldRows.map(l => won(l, "grid-template-columns"))]),
@@ -24272,14 +24274,14 @@ const INVARIANTS = [
             "Create an item's captions are not each on a line above their boxes, or its fields are not in one grid "
             + "[Also works as, Room tables, the form's columns, each field row]");
 
-        /* Give an item: the rows of Create new, opened as its tab's button opens it (`panelTabs` moves `active`; Give existing
+        /* Give an item: the rows of Create new, opened as its tab's button opens it (the kit's `wireKitTabs` moves `hidden`; Give existing
            holds only a line while the world has no item table), the row outside the tabs, and the other tab staying closed.
            The hub: its footer as tiles with Close under them. */
         const giveFrame = frameOf(giveAsk);
-        const open = giveFrame.querySelector('.drpg-gmt-section[data-drpg-gmt-section="create"]');
+        const open = giveFrame.querySelector('.drpg-tab-pane[data-drpg-pane="create"]');
         must(open, "Give an item has no Create new tab - this would measure nothing");
-        for (const section of giveFrame.querySelectorAll(".drpg-gmt-section")) section.classList.toggle("active", section === open);
-        const closed = giveFrame.querySelector(".drpg-gmt-section:not(.active)");
+        for (const section of giveFrame.querySelectorAll(".drpg-tab-pane")) section.hidden = section !== open;
+        const closed = giveFrame.querySelector(".drpg-tab-pane[hidden]");
         const rowsOf = parent => [...(parent?.querySelectorAll(":scope > label:not(.drpg-checkbox)") ?? [])]
             .filter(l => l.querySelector("select, textarea, input:not([type=checkbox])"));
         const giveRows = [...rowsOf(open), ...rowsOf(giveFrame.querySelector(".dialog-content"))];
@@ -24625,7 +24627,7 @@ const INVARIANTS = [
             try {
                 await until(() => tablesApp());
                 await settle();
-                const pane = tablesApp()?.element?.querySelector('[data-drpg-gmt-section="newItem"]');
+                const pane = tablesApp()?.element?.querySelector('[data-drpg-pane="newItem"]');
                 return pane ? await read(pane) : "no Create an item pane";
             } finally {
                 try { await tablesApp()?.close(); } catch { /* already gone */ }
@@ -30065,7 +30067,7 @@ const INVARIANTS = [
             };
             app = await H.openHandbooks();
             const opened = app?.book ?? null, written = writes.slice();
-            app?.element?.querySelector('[data-drpg-book="player-brochure"]')?.click();
+            app?.element?.querySelector('nav.drpg-tabs [data-drpg-tab-key="player-brochure"]')?.click();
             const pressed = writes.slice(), shown = app?.book ?? null;
             await app?.close?.();
             // None stored: the window opens on the first book, and writes nothing either.
@@ -33054,6 +33056,138 @@ const INVARIANTS = [
         }
         must(checked > 150, `${checked} property reading(s) made - the kit's elements matched no rule`);
         equal(stableJson(problems), "{}", "[by theme: a kit element's property, or a token on the body, not won by components.css - element property: the winner]");
+    }],
+    ["R1325 - the kit's tab bar wins its cascade in every tabbed window (tests-kit.mjs `styleCascade`; E44 C4a, E44-14, S12-50): in each window of the tab census, drawn with its own classes on a body of each theme, the bar's and each tab's properties stated by styles/components.css - the bar's equal columns, a tab's case, spacing, ink, ground and edge, the selected tab's - are won by components.css across all the module's sheets", async () => {
+        /*
+         * E44 C4a, 04.11.2026; the plan's risk ("a kit rule can lose to an old rule carrying !important and the test
+         * still pass while the screen does not change"). R1323 reads the kit inside the kit's own frame (`drpg-ui`); the
+         * ten windows of the tab census keep their 1.2.98 frames until E21, so the bar is read here in each of them as
+         * it stands: its classes as its opener asks for them (a DialogV2's, with `dialog`; the handbooks' and the
+         * messenger's ApplicationV2 without), the bar where the window puts it, three tabs, the second selected. A
+         * shorthand is read with its longhands, as R1323 does. Red before C4a: the kit's tab rules named `.drpg-ui`, so
+         * no tab of these windows took the kit's case, ink, ground or edge (and the old bar rules, `!important` under
+         * Legacy, painted them). The mutant c4a-m1 (stained-glass.css's bar rule left in for the new bar) reads red.
+         */
+        const K = await import("./ui-kit.mjs");
+        const C = await styleCascade();
+        const kitRules = C.rules.filter(r => r.file === "styles/components.css");
+        must(kitRules.length > 40, `${kitRules.length} rule(s) of components.css read - the cascade did not load the sheet`);
+        const LONG = {
+            border: ["border-color", "border-width", "border-style", "border-top", "border-right", "border-bottom", "border-left", "border-top-color", "border-right-color", "border-bottom-color", "border-left-color"],
+            "border-bottom": ["border-bottom-color", "border-bottom-width", "border-bottom-style"],
+            background: ["background-color", "background-image"],
+            padding: ["padding-top", "padding-right", "padding-bottom", "padding-left", "padding-block", "padding-inline"],
+            margin: ["margin-top", "margin-right", "margin-bottom", "margin-left", "margin-block", "margin-inline"],
+            gap: ["row-gap", "column-gap"]
+        };
+        const names = prop => [prop, ...(LONG[prop] ?? [])];
+        // Each window's classes as its opener asks for them (tableDialog adds `drpg-table-window`), and where its bar stands.
+        const WINDOWS = {
+            items: { dialog: true, classes: ["drpg-panel", "drpg-window-items"] },
+            give: { dialog: true, classes: ["drpg-panel", "drpg-window-give"] },
+            bullet: { dialog: true, classes: ["drpg-panel", "drpg-window-bullet"] },
+            despairFlow: { dialog: true, classes: ["drpg-panel", "drpg-projects", "drpg-monokuma-panel", "drpg-assign", "drpg-window-gmteam", "drpg-table-window"] },
+            sound: { dialog: true, classes: ["drpg-panel", "drpg-projects", "drpg-wide", "drpg-sound", "drpg-window-sound", "drpg-table-window"] },
+            tables: { dialog: true, classes: ["drpg-panel", "drpg-projects", "drpg-wide", "drpg-window-tables"] },
+            investigation: { dialog: true, classes: ["drpg-panel", "drpg-projects", "drpg-window-case", "drpg-table-window"], inside: "drpg-case-live" },
+            rooms: { dialog: true, classes: ["drpg-panel", "drpg-projects", "drpg-room-setup", "drpg-window-rooms", "drpg-table-window"] },
+            handbooks: { dialog: false, classes: ["drpg-panel", "drpg-handbook"], inside: "drpg-handbook-body" },
+            messenger: { dialog: false, classes: ["drpg-messenger"], inside: "drpg-messenger-body" }
+        };
+        // The bar as `kitTabs` draws it (kitTabBar's is the same), without its panes.
+        const bar = (() => {
+            const d = document.createElement("div");
+            d.innerHTML = K.kitTabs([{ key: "a", label: "Alpha" }, { key: "b", label: "Beta" }, { key: "c", label: "Gamma" }], { active: "b" });
+            return d.querySelector("nav.drpg-tabs")?.outerHTML ?? "";
+        })();
+        must(bar, "kitTabs drew no bar - this would measure nothing");
+        const frame = ({ dialog, classes, inside }) => {
+            const root = document.createElement("div");
+            root.className = ["application", dialog ? "dialog" : null, ...classes].filter(Boolean).join(" ");
+            const holder = dialog ? `<form class="dialog-form standard-form"><div class="dialog-content standard-form">${inside ? `<div class="${inside}">${bar}</div>` : bar}</div></form>`
+                : `<div class="${inside}">${bar}</div>`;
+            root.innerHTML = `<section class="window-content">${holder}</section>`;
+            return root;
+        };
+        const WANT_TAB = ["color", "background", "border", "text-transform", "letter-spacing"];
+        const problems = {}, missing = [];
+        let checked = 0;
+        for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
+            for (const [id, spec] of Object.entries(WINDOWS)) {
+                const html = document.createElement("html"), body = document.createElement("body");
+                body.className = `${theme} drpg-gm`;
+                html.append(body);
+                const root = frame(spec);
+                body.append(root);
+                const nav = root.querySelector("nav.drpg-tabs");
+                const lost = [];
+                for (const el of [nav, ...nav.querySelectorAll('button[role="tab"]')]) {
+                    const stated = new Set();
+                    for (const rule of kitRules) {
+                        if (rule.selector === "body" || rule.selector === "body.drpg-theme-stained-glass") continue;
+                        let hit = false;
+                        for (const sel of rule.selector.split(/,(?![^(]*\))/)) { try { if (el.matches(sel.trim())) { hit = true; break; } } catch { /* a pseudo-element */ } }
+                        if (hit) for (const d of rule.decls) if (!d.property.startsWith("--") || d.property === "--brush-ink") stated.add(d.property);
+                    }
+                    const label = el === nav ? "bar" : el.getAttribute("aria-selected") === "true" ? "selected tab" : "tab";
+                    if (el !== nav) for (const p of WANT_TAB) if (!stated.has(p)) missing.push(`${theme} ${id} ${label}: ${p}`);
+                    if (el === nav && !stated.has("grid-template-columns")) missing.push(`${theme} ${id} bar: grid-template-columns`);
+                    const onEl = C.on(el);
+                    for (const prop of stated) {
+                        checked++;
+                        const w = onEl(names(prop));
+                        if (w?.file !== "styles/components.css") lost.push(`${label} ${prop}: ${w ? `${w.file} ${w.selector}${w.important ? " !important" : ""}` : "nobody"}`);
+                    }
+                    if (el === nav) {
+                        const cols = onEl("grid-template-columns")?.value ?? "";
+                        if (!/\b1fr\b/.test(cols)) lost.push(`bar grid-template-columns not equal columns: ${cols || "nobody"}`);
+                    }
+                }
+                if (lost.length) problems[`${theme} ${id}`] = lost;
+            }
+        }
+        equal(JSON.stringify(missing), "[]", "components.css states none of these on a tab bar in these windows - its tab rules do not reach them [theme window element: property]");
+        must(checked > 300, `${checked} property reading(s) made - the windows' bars matched too few rules`);
+        equal(stableJson(problems), "{}", "[by theme and window: a kit tab bar's property not won by components.css - element property: the winner]");
+    }],
+    ["R1326 - Item tables (E44 C4a; E44-15, S12-56): a pool's name wraps in both themes - its `white-space` is not `nowrap`, its overflow is not hidden and it carries no ellipsis, and danganronpa.css holds one `.drpg-table-pick > span:first-child` rule, not the second that undid the first - and the window's layout follows the window: the tables window states `container-type: inline-size` and `.drpg-tables-layout` collapses under `@container (max-width: 40rem)`, not under `@media`", async () => {
+        /*
+         * E44 C4a, 04.11.2026; audit S12-56. A second `.drpg-table-pick > span:first-child` rule (`overflow: hidden;
+         * text-overflow: ellipsis; white-space: nowrap`) undid the first's wrap and its comment, so two pools whose names
+         * begin alike could not be told apart; and the list and its contents collapsed under `@media (max-width: 40rem)`,
+         * the screen's width, so a narrowed window on a wide screen never did. Read here: the winners on a pool's name in
+         * the window's own markup (`poolPaneHtml`, a pool made as a plain object, never in the world) by the sheets'
+         * cascade (`styleCascade`; the glass's panel button rule gives the button `nowrap`, so the name must state its
+         * own), the window's `container-type`, and the text of danganronpa.css for the `@container` rule, which the
+         * cascade does not read. Red before C4a: the second rule won `white-space` and `overflow`, no container, `@media`.
+         */
+        const T = await import("./tables.mjs");
+        const C = await styleCascade();
+        const pool = { id: "r1326pool", name: "DRPG Room - Library - the shelves by the window", results: new Set(),
+            getFlag: () => undefined };
+        const read = {};
+        for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-gm`;
+            html.append(body);
+            const root = document.createElement("div");
+            root.className = "application dialog drpg-panel drpg-projects drpg-wide drpg-window-tables";
+            root.innerHTML = `<section class="window-content"><form class="dialog-form standard-form"><div class="dialog-content standard-form">${T.poolPaneHtml("rooms", [pool], pool)}</div></form></section>`;
+            body.append(root);
+            const name = root.querySelector(".drpg-table-pick > span:first-child");
+            must(name, "the pane drew no pool button - this would measure nothing");
+            const won = (el, prop) => C.winner(el, prop)?.value ?? null;
+            read[theme] = { whiteSpace: won(name, "white-space"), overflow: won(name, ["overflow", "overflow-x"]), ellipsis: won(name, "text-overflow"),
+                container: won(root, ["container-type", "container"]) };
+        }
+        equal(stableJson(read), stableJson(Object.fromEntries(["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"].map(theme =>
+            [theme, { whiteSpace: "normal", overflow: null, ellipsis: null, container: "inline-size" }]))),
+            "a pool's name does not wrap, or the tables window is no container [by theme: the name's white-space, overflow, text-overflow; the window's container-type]");
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+        const picks = (css.match(/(^|[}\s,])\.drpg-table-pick > span:first-child\s*\{/g) ?? []).length;
+        equal(JSON.stringify([picks, /@container\s*\(max-width:\s*40rem\)\s*\{\s*\.drpg-tables-layout\s*\{\s*grid-template-columns:\s*1fr/.test(css),
+            /@media\s*\(max-width:\s*40rem\)\s*\{\s*\.drpg-tables-layout/.test(css)]), JSON.stringify([1, true, false]),
+            "[the rules of `.drpg-table-pick > span:first-child`, the layout's `@container` collapse, an `@media` one] are not one, yes, no");
     }],
 ];
 

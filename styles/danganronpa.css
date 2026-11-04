@@ -5316,6 +5316,9 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 .application.dialog.drpg-window-tables {
     width: min(58rem, 94vw) !important;
     max-width: min(58rem, 94vw) !important;
+    /* the container `.drpg-tables-layout` collapses in (its `@container` rule): the width above is stated, so the
+       window's inline size never depends on what it holds */
+    container-type: inline-size;
 }
 
 /* The button row wraps. Five buttons in one unbreakable line is what set the
@@ -8102,66 +8105,7 @@ body.drpg-pixel-font .drpg-safeword-button {
    THE PRE-SESSION NOTE
    ========================================================================== */
 
-.drpg-messenger-tabs {
-    display: flex;
-    gap: 2px;
-    padding: 0 6px;
-    border-bottom: 1px solid var(--drpg-line);
-}
-
-/* Investigation dashboard and Room Setup: the same boxed bar the GM Team
-   panel wears (Dawid, 26.08 - every GM-panel window with tabs looks like GM
-   Team's). The declarations mirror `.drpg-gmt-tabs button` at the end of
-   this sheet; kept as its own rule because these two windows build their
-   bars from different markup, not because the look may drift. */
-.drpg-dashboard-tabs {
-    display: flex;
-    gap: 6px;
-    padding-bottom: 8px;
-    margin: 0.6em 0;
-    border-bottom: 1px solid rgba(var(--drpg-bone-rgb), 0.25);
-}
-
-.drpg-dashboard-tab {
-    flex: 1 1 0;
-    padding: 6px 10px;
-    background: rgba(var(--drpg-bone-rgb), 0.08) !important;
-    border: 1px solid rgba(var(--drpg-bone-rgb), 0.3) !important;
-    border-radius: 3px !important;
-    color: var(--drpg-bone) !important;
-    box-shadow: none !important;
-    font-size: var(--drpg-text-sm);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    cursor: pointer;
-}
-
-.drpg-dashboard-tab:hover:not(.active) {
-    background: rgba(var(--drpg-eye-rgb), 0.15) !important;
-}
-
-.drpg-dashboard-tab.active {
-    background: rgba(var(--drpg-eye-rgb), 0.25) !important;
-    border-color: var(--drpg-eye) !important;
-}
-
-.drpg-messenger-tab {
-    flex: 0 0 auto;
-    position: relative;
-    padding: 4px 12px;
-    border: 0;
-    border-bottom: 2px solid transparent;
-    background: none;
-    color: var(--drpg-dim);
-    font-size: var(--font-size-12, 0.75rem);
-    cursor: pointer;
-}
-
-.drpg-messenger-tab.active {
-    color: var(--drpg-eye);
-    border-bottom-color: var(--drpg-eye);
-}
-
+/* The note's tab is the kit's (ui-kit.mjs `kitTabBar`, styles/components.css: E44 C4a). */
 /* A note that has something in it says so without spelling it out. */
 .drpg-messenger-tab-dot {
     display: inline-block;
@@ -13128,8 +13072,12 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
 /* ---- the item tables --------------------------------------------------- */
 
 /* Tables on the left, their contents on the right. Collapses to one column
-   under 40rem rather than scrolling sideways: the list is short and the
-   contents are the part being read. */
+   when the WINDOW is under 40rem rather than scrolling sideways: the list is
+   short and the contents are the part being read. The window's width, not the
+   screen's (E44 C4a; audit S12-56): under `@media` a narrowed window on a
+   1920 px screen never collapsed and its contents were squeezed. The window
+   is the container (`.application.dialog.drpg-window-tables`, below, beside
+   its width). */
 .drpg-tables-layout {
     display: grid;
     grid-template-columns: minmax(10rem, 16rem) 1fr;
@@ -13137,7 +13085,7 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
     align-items: start;
 }
 
-@media (max-width: 40rem) {
+@container (max-width: 40rem) {
     .drpg-tables-layout { grid-template-columns: 1fr; }
 }
 
@@ -13175,21 +13123,20 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
     line-height: 1.3;
 }
 
-/* The name is the half that wraps; the count keeps to the first line beside it. */
+/* The name is the half that wraps; the count keeps to the first line beside it. A second rule after this one cut
+   the name to one line with an ellipsis (`overflow: hidden; white-space: nowrap`), so two pools whose names begin
+   alike could not be told apart without hovering; it went in E44 C4a (audit S12-56, R1326), and the row grows with
+   its name again (the tables window's row, below, is at least one line tall rather than exactly one). `white-space`
+   is stated: the glass's panel button rule gives the button `nowrap` (stained-glass.css, "the brush keeps off the
+   letters"), and the name would inherit it. */
 .drpg-table-pick > span:first-child {
     min-width: 0;
     overflow-wrap: anywhere;
+    white-space: normal;
 }
 
 .drpg-table-pick > span.notes {
     flex: 0 0 auto;
-}
-
-.drpg-table-pick > span:first-child {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .drpg-table-pick:hover {
@@ -16442,10 +16389,11 @@ body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-gm-route:ho
        grey on the selected row's fill.
    What a real Foundry adds on top (its root size, its checkbox, Daggerheart's accent) is the owner's live check. */
 
-/* A row is one line and one height, so the list holds whole rows: eight of them, then a scrollbar that shows. The
-   height is in `em` of the list, and the button takes the list's size (`1em` of its row, which inherits the list's),
-   so the two cannot disagree; the glass's 28 px
-   floor for a panel button is lifted here, where the row's own height is the floor. */
+/* A row is one line high, so the list holds whole rows: eight of them, then a scrollbar that shows. The height is in
+   `em` of the list, and the button takes the list's size (`1em` of its row, which inherits the list's), so the two
+   cannot disagree; the glass's 28 px floor for a panel button is lifted here, where the row's own height is the
+   floor. A pool whose name wraps takes a second line (E44 C4a, S12-56: the name was cut to one line, below), and
+   the eight rows then end part way through the last one - the price of reading the whole name. */
 .drpg-window-tables .drpg-tables-list {
     --drpg-pick-h: calc(1.35em + 10px);
     max-height: calc(8 * var(--drpg-pick-h));
@@ -16458,8 +16406,10 @@ body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-gm-route:ho
 
 .drpg-window-tables .drpg-tables-list .drpg-table-pick {
     box-sizing: border-box;
-    height: var(--drpg-pick-h) !important;
-    min-height: 0 !important;
+    /* at least one row, and taller when a pool's name wraps (S12-56, E44 C4a): it was exactly one row, which held
+       whole rows only because the name was cut to one line */
+    height: auto !important;
+    min-height: var(--drpg-pick-h) !important;
     padding-block: 0 !important;
     align-items: center;
     font-size: 1em !important;
@@ -16541,16 +16491,13 @@ body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-gm-route:ho
     font-size: max(11px, calc(0.72rem * var(--drpg-legacy-scale, 1)));
 }
 
-/* The small buttons and the tabs take the same 11 px floor: at a 13 px root (set by hand in the stand-in; what root
-   size Foundry gives a table was not read) they came out at 10.1 and 10.6 px. The rest of the window's text is the
+/* The small buttons take the same 11 px floor: at a 13 px root (set by hand in the stand-in; what root size Foundry
+   gives a table was not read) they came out at 10.1 px, and the tabs at 10.6 (theirs is the kit's floor since E44
+   C4a, styles/components.css `--drpg-kit-tab-size`). The rest of the window's text is the
    module's rem scale, 10.6 px at that root too (the notes, the legends, the heading): one floor for every window,
    not this one's to set. */
-.drpg-window-tables :is(.drpg-mini-button, .drpg-gmt-tabs button) {
+.drpg-window-tables .drpg-mini-button {
     font-size: max(11px, calc(0.78rem * var(--drpg-legacy-scale, 1)));
-}
-
-.drpg-window-tables .drpg-gmt-tabs button {
-    font-size: max(11px, var(--drpg-text-sm));
 }
 
 /* The heading is the name as the list shows it (`showPoolName` in tables.mjs), in its own case. */
@@ -16590,11 +16537,11 @@ body.drpg-theme-stained-glass .drpg-window-tables :is([data-drpg-delete-table], 
    --------------------------------------------------------------------------
    The murder window's recipe above (two columns, each field row a subgrid), for the windows the Give / take hub
    opens and the hub itself. Read in the same stand-in before this block: Give an item's fields started at four or
-   five different edges, 65 to 372 px wide. A tabbed window's rows sit in its open tab (`.drpg-gmt-section.active`),
-   which is matched by name so a closed tab stays closed. */
+   five different edges, 65 to 372 px wide. A tabbed window's rows sit in its open tab (the kit's pane without
+   `hidden`, `section.drpg-tab-pane:not([hidden])` since E44 C4a), which is matched by name so a closed tab stays closed. */
 .application.dialog:is(.drpg-window-give, .drpg-window-take, .drpg-window-bullet, .drpg-window-autopsy, .drpg-give-key,
     .drpg-window-items) .dialog-form
-    :is(form, div, section.drpg-gmt-section.active):has(> label :is(select, textarea, input:not([type="checkbox"]))),
+    :is(form, div, section.drpg-tab-pane:not([hidden])):has(> label :is(select, textarea, input:not([type="checkbox"]))),
 .drpg-window-tables fieldset.drpg-tables-new {
     display: grid;
     grid-template-columns: 11rem minmax(0, 1fr);
@@ -16604,7 +16551,7 @@ body.drpg-theme-stained-glass .drpg-window-tables :is([data-drpg-delete-table], 
 
 .application.dialog:is(.drpg-window-give, .drpg-window-take, .drpg-window-bullet, .drpg-window-autopsy, .drpg-give-key,
     .drpg-window-items) .dialog-form
-    :is(form, div, section.drpg-gmt-section.active):has(> label :is(select, textarea, input:not([type="checkbox"]))) > *,
+    :is(form, div, section.drpg-tab-pane:not([hidden])):has(> label :is(select, textarea, input:not([type="checkbox"]))) > *,
 .drpg-window-tables fieldset.drpg-tables-new > * {
     grid-column: 1 / -1;
 }
@@ -17896,60 +17843,17 @@ i.drpg-pix-foot {
 }
 
 /* ==========================================================================
-   THE GM TEAM PANEL GETS TABS
+   A FOOTER BUTTON ANOTHER TAB OWNS
    --------------------------------------------------------------------------
-   Pools, Monokumas and the student split were three sections in one scroll;
-   they are three tabs now (Dawid, 26.08). The switching is class-only -
-   every pane stays in the DOM because Save reads all three forms at once.
-   Active tab takes the module's GM red; `!important` for the same reason
-   every module surface states its colours loudly (see THE RED WINS THE
-   ARGUMENT): core's own button rules are unlayered and would repaint these. */
-.drpg-gmt-tabs {
-    display: flex;
-    gap: 6px;
-    padding-bottom: 8px;
-    margin-bottom: 10px;
-    border-bottom: 1px solid rgba(var(--drpg-bone-rgb), 0.25);
-}
-
-.drpg-gmt-tabs button {
-    flex: 1 1 0;
-    padding: 6px 10px;
-    background: rgba(var(--drpg-bone-rgb), 0.08) !important;
-    border: 1px solid rgba(var(--drpg-bone-rgb), 0.3) !important;
-    border-radius: 3px !important;
-    color: var(--drpg-bone) !important;
-    box-shadow: none !important;
-    font-size: var(--drpg-text-sm);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    cursor: pointer;
-}
-
-.drpg-gmt-tabs button:hover:not(.active) {
-    background: rgba(var(--drpg-eye-rgb), 0.15) !important;
-}
-
-.drpg-gmt-tabs button.active {
-    background: rgba(var(--drpg-eye-rgb), 0.25) !important;
-    border-color: var(--drpg-eye) !important;
-}
-
-/* A footer button that does not belong to the visible tab - see
-   `wirePanelTabs`. `[hidden]` alone is a UA-stylesheet `display: none`, and any
+   The tabs themselves are the kit's since E44 C4a (styles/components.css,
+   ui-kit.mjs `kitTabs`); this stays here because it is about Foundry's
+   footer. A footer button that does not belong to the visible tab - see
+   `wireKitTabs`. `[hidden]` alone is a UA-stylesheet `display: none`, and any
    rule that gives dialog footer buttons a display value outranks it; this is
    the one place that has to win, because the alternative is a button that is
    invisible and still clickable at its old size. */
 footer.form-footer button[hidden] {
     display: none !important;
-}
-
-.drpg-gmt-section {
-    display: none;
-}
-
-.drpg-gmt-section.active {
-    display: block;
 }
 
 /* ==========================================================================
@@ -18082,7 +17986,7 @@ body.drpg-explainers :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdo
    to headings only: it is capped at a few lines by the spec and is the wrong
    tool for body text. */
 .application.dialog[class*="drpg-"] :is(h1, h2, h3, h4),
-.drpg-dashboard-tabs + * :is(h3, h4),
+.drpg-tab-pane :is(h3, h4),
 #drpg-gm-panel :is(h2, h3, h4) {
     text-wrap: balance;
 }

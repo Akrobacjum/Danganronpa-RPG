@@ -493,14 +493,14 @@ function capture(element) {
      * while they are reading the fourth is the cure being worse than the stale
      * window - rule 2, in the shape tabs take.
      *
-     * TWO SHAPES, because the module grew two. `panelTabs` in utils.mjs marks
-     * `active` on both the button and the section; the case dashboard has its
-     * own older pair that marks the button and toggles `display` on the panel.
-     * Both are keyed by the same string, so one captured key puts either back.
+     * ONE SHAPE since E44 C4a: the kit's bar (ui-kit.mjs `kitTabs`), the
+     * shown tab `aria-selected`, its pane without `hidden`. Until then there
+     * were two - a class on the button and the section, and the case
+     * dashboard's older pair of a class and inline `display` - each read and
+     * put back here. The kit's attributes are spelt here rather than imported:
+     * the kit imports this file (R161).
      */
-    const tab = element.querySelector("[data-drpg-gmt-tab].active")?.dataset?.drpgGmtTab
-        ?? element.querySelector("[data-drpg-tab].active")?.dataset?.drpgTab
-        ?? null;
+    const tab = element.querySelector('nav.drpg-tabs > button[role="tab"][aria-selected="true"]')?.dataset?.drpgTabKey ?? null;
 
     return { scrolls, opens, dirty, marks, tab };
 }
@@ -555,27 +555,16 @@ function restore(element, { scrolls, opens, dirty, marks, tab }) {
     if (tab) {
         // Only if that tab still exists: a rebuild is allowed to remove one,
         // and forcing a pane that is gone would leave the window blank.
-        const button = element.querySelector(`[data-drpg-gmt-tab="${tab}"]`);
-        const pane = element.querySelector(`[data-drpg-gmt-section="${tab}"]`);
+        // A bar whose tab loads its one pane (the handbooks, the messenger) has
+        // no pane of that key, and is put back by its own window.
+        const button = element.querySelector(`nav.drpg-tabs > button[role="tab"][data-drpg-tab-key="${CSS.escape(tab)}"]`);
+        const pane = element.querySelector(`[data-drpg-pane="${CSS.escape(tab)}"]`);
         if (button && pane) {
-            for (const other of element.querySelectorAll("[data-drpg-gmt-tab]")) {
-                other.classList.toggle("active", other === button);
+            for (const other of element.querySelectorAll('nav.drpg-tabs > button[role="tab"][data-drpg-tab-key]')) {
+                other.setAttribute("aria-selected", String(other === button));
             }
-            for (const other of element.querySelectorAll("[data-drpg-gmt-section]")) {
-                other.classList.toggle("active", other === pane);
-            }
-        }
-
-        // The dashboard's own pair: the button carries `active`, the panel is
-        // shown or hidden outright.
-        const older = element.querySelector(`[data-drpg-tab="${tab}"]`);
-        const olderPane = element.querySelector(`[data-drpg-panel="${tab}"]`);
-        if (older && olderPane) {
-            for (const other of element.querySelectorAll("[data-drpg-tab]")) {
-                other.classList.toggle("active", other === older);
-            }
-            for (const other of element.querySelectorAll("[data-drpg-panel]")) {
-                other.style.display = other === olderPane ? "" : "none";
+            for (const other of element.querySelectorAll("[data-drpg-pane]")) {
+                other.hidden = other !== pane;
             }
         }
     }

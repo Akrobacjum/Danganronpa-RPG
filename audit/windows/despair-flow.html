@@ -1,4 +1,4 @@
-<dialog id="app-8JM17rSi" class="application dialog drpg-panel drpg-projects drpg-monokuma-panel drpg-assign drpg-window-gmteam drpg-table-window" open="" style="left: 312px; top: 384px;" data-drpg-scaled="1" lang="en" data-drpg-text-guard="1"><form class="dialog-form standard-form"><div class="dialog-content standard-form"><nav class="drpg-gmt-tabs"><button type="button" data-drpg-gmt-tab="pools" class="active" data-drpg-named="own">Despair Pools</button><button type="button" data-drpg-gmt-tab="monokumas" data-drpg-named="own">Monokumas and Despair pools</button><button type="button" data-drpg-gmt-tab="students" data-drpg-named="own">Despair Flow</button><button type="button" data-drpg-gmt-tab="overflow" data-drpg-named="own">Despair overflow</button></nav><section class="drpg-gmt-section active" data-drpg-gmt-section="pools">
+<dialog id="app-ZvQrtA2B" class="application dialog drpg-panel drpg-projects drpg-monokuma-panel drpg-assign drpg-window-gmteam drpg-table-window" open="" style="left: 312px; top: 384px;" data-drpg-scaled="1" lang="en" data-drpg-text-guard="1"><form class="dialog-form standard-form"><div class="dialog-content standard-form"><nav class="drpg-tabs" role="tablist" data-drpg-kit-wired="1"><button type="button" role="tab" data-drpg-tab-key="pools" aria-selected="true" data-drpg-named="own">Pools</button><button type="button" role="tab" data-drpg-tab-key="monokumas" aria-selected="false" data-drpg-named="own">Monokumas</button><button type="button" role="tab" data-drpg-tab-key="students" aria-selected="false" data-drpg-named="own">Students</button><button type="button" role="tab" data-drpg-tab-key="overflow" aria-selected="false" data-drpg-named="own">Overflow</button></nav><section class="drpg-tab-pane" role="tabpanel" data-drpg-pane="pools">
         <p>Name each pool - it does not have to match the account name. Every full GM holds a pool; an Assistant GM holds one once you grant it below.</p>
         <table data-drpg-chrome="num">
             <thead><tr>
@@ -12,7 +12,7 @@
         </tr></tbody>
         </table>
         <p class="notes">No Assistant GM to grant a pool to. Every full GM holds one already.</p>
-        </section><section class="drpg-gmt-section" data-drpg-gmt-section="monokumas">
+        </section><section class="drpg-tab-pane" role="tabpanel" data-drpg-pane="monokumas" hidden="">
         <p>Tick the actors that are Monokumas, then say whose Despair pool each draws on. Without this, two Monokumas share the pool of whichever GM is looking at the sheet.</p>
         <div class="drpg-monokuma-warning"></div>
         <table data-drpg-chrome="num">
@@ -83,7 +83,7 @@
             </td>
         </tr></tbody>
         </table>
-        <p class="notes">A Monokuma has no actions and no Hope: their sheet shows Despair Calls instead. The pool decides which GM pays for them.</p></section><section class="drpg-gmt-section" data-drpg-gmt-section="students">
+        <p class="notes">A Monokuma has no actions and no Hope: their sheet shows Despair Calls instead. The pool decides which GM pays for them.</p></section><section class="drpg-tab-pane" role="tabpanel" data-drpg-pane="students" hidden="">
         <p>A roll that lands with Despair feeds that student's Monokuma.</p>
         <div class="drpg-assign-counts"><span class="drpg-assign-count"><strong>GM</strong>: 4</span></div>
         <table data-drpg-chrome="num">
@@ -105,13 +105,13 @@
                     <td><span class="drpg-select"><select name="assign.ACTORDAICHI00000" data-drpg-assign="" data-drpg-was="" data-drpg-fallback="USERGM0000000000" data-drpg-explicit="0" class="drpg-assign-fallback" data-tooltip="Never assigned: this student feeds the first pool until you pick one." aria-label="Monokuma: Daichi Sato" data-drpg-chrome="select" data-drpg-named="own"><option value="" selected="">GM (fallback)</option><option value="USERGM0000000000">GM</option><option value="none">- nobody -</option></select></span></td>
                 </tr></tbody>
         </table>
-        <p class="notes">Despair from a student's rolls goes to the pool of the Monokuma they are assigned to here. “(fallback)” marks a student not assigned to any Monokuma: their Despair goes to the first pool. Set an NPC or a template to “- nobody -” to keep it out of every pool. This is not secret: every player's browser can read who is set to nobody.</p></section><section class="drpg-gmt-section" data-drpg-gmt-section="overflow"><p>Despair that will not fit in a full pool stops evaporating and collects here instead. When it reaches the threshold it pays that much, keeps the rest, and ONE thing is drawn from the pool below - never more than one.</p>
+        <p class="notes">Despair from a student's rolls goes to the pool of the Monokuma they are assigned to here. “(fallback)” marks a student not assigned to any Monokuma: their Despair goes to the first pool. Set an NPC or a template to “- nobody -” to keep it out of every pool. This is not secret: every player's browser can read who is set to nobody.</p></section><section class="drpg-tab-pane" role="tabpanel" data-drpg-pane="overflow" hidden=""><p>Despair that will not fit in a full pool stops evaporating and collects here instead. When it reaches the threshold it pays that much, keeps the rest, and ONE thing is drawn from the pool below - never more than one.</p>
         <p class="notes drpg-overflow-now">Right now: 0 of 20.</p>
         <p><button type="button" data-drpg-overflow-clear="" data-drpg-named="own">Clear the overflow</button></p>
 
-        <label class="drpg-overflow-threshold" for="drpg-step-1PIHfIMv">
+        <label class="drpg-overflow-threshold" for="drpg-step-fjsKozRW">
             <span>Threshold (X)</span>
-            <span class="drpg-stepper"><button type="button" class="drpg-step drpg-step-minus" aria-label="One fewer" data-tooltip="One fewer" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button><input type="number" name="ovf-threshold" value="20" min="6" max="60" data-drpg-chrome="step" id="drpg-step-1PIHfIMv" data-drpg-named="own"><button type="button" class="drpg-step drpg-step-plus" aria-label="One more" data-tooltip="One more" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button></span><span class="drpg-field-msg"></span>
+            <span class="drpg-stepper"><button type="button" class="drpg-step drpg-step-minus" aria-label="One fewer" data-tooltip="One fewer" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button><input type="number" name="ovf-threshold" value="20" min="6" max="60" data-drpg-chrome="step" id="drpg-step-fjsKozRW" data-drpg-named="own"><button type="button" class="drpg-step drpg-step-plus" aria-label="One more" data-tooltip="One more" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button></span><span class="drpg-field-msg"></span>
         </label>
         <p class="notes drpg-overflow-suggested">Suggested for 4 students and 1 pool: 14.</p>
         <p class="notes">Any value from 6 to 60: the table decides.</p>
@@ -125,9 +125,9 @@
                 <strong>Darkness</strong>
             </label>
             
-            <label class="drpg-overflow-by" for="drpg-step-ymFxCiMe">
+            <label class="drpg-overflow-by" for="drpg-step-KjgD9vSW">
                 <span>by</span>
-                <span class="drpg-stepper"><button type="button" class="drpg-step drpg-step-minus" aria-label="One fewer" data-tooltip="One fewer" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button><input type="number" name="ovf-darkness-by" value="1" min="0" max="5" data-drpg-chrome="step" id="drpg-step-ymFxCiMe" data-drpg-named="own"><button type="button" class="drpg-step drpg-step-plus" aria-label="One more" data-tooltip="One more" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button></span><span class="drpg-field-msg"></span>
+                <span class="drpg-stepper"><button type="button" class="drpg-step drpg-step-minus" aria-label="One fewer" data-tooltip="One fewer" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button><input type="number" name="ovf-darkness-by" value="1" min="0" max="5" data-drpg-chrome="step" id="drpg-step-KjgD9vSW" data-drpg-named="own"><button type="button" class="drpg-step drpg-step-plus" aria-label="One more" data-tooltip="One more" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button></span><span class="drpg-field-msg"></span>
             </label>
             <div class="notes">The lights go further down: 1 fewer crossing in the Eclipse, and an Eclipse that would have let you start anywhere is pulled back to two rooms.</div>
         </li><li class="drpg-overflow-rule">
@@ -136,9 +136,9 @@
                 <strong>Shift</strong>
             </label>
             
-            <label class="drpg-overflow-by" for="drpg-step-CoVri6eQ">
+            <label class="drpg-overflow-by" for="drpg-step-1gcmKvPU">
                 <span>by</span>
-                <span class="drpg-stepper"><button type="button" class="drpg-step drpg-step-minus" aria-label="One fewer" data-tooltip="One fewer" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button><input type="number" name="ovf-shift-by" value="1" min="0" max="5" data-drpg-chrome="step" id="drpg-step-CoVri6eQ" data-drpg-named="own"><button type="button" class="drpg-step drpg-step-plus" aria-label="One more" data-tooltip="One more" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button></span><span class="drpg-field-msg"></span>
+                <span class="drpg-stepper"><button type="button" class="drpg-step drpg-step-minus" aria-label="One fewer" data-tooltip="One fewer" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button><input type="number" name="ovf-shift-by" value="1" min="0" max="5" data-drpg-chrome="step" id="drpg-step-1gcmKvPU" data-drpg-named="own"><button type="button" class="drpg-step drpg-step-plus" aria-label="One more" data-tooltip="One more" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button></span><span class="drpg-field-msg"></span>
             </label>
             <div class="notes">Things are not where they were: 1 fewer search token in every room.</div>
         </li><li class="drpg-overflow-rule">
@@ -147,9 +147,9 @@
                 <strong>Panic</strong>
             </label>
             
-            <label class="drpg-overflow-by" for="drpg-step-BYe7Oa8d">
+            <label class="drpg-overflow-by" for="drpg-step-MzP3GQWj">
                 <span>by</span>
-                <span class="drpg-stepper"><button type="button" class="drpg-step drpg-step-minus" aria-label="One fewer" data-tooltip="One fewer" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button><input type="number" name="ovf-panic-by" value="1" min="0" max="5" data-drpg-chrome="step" id="drpg-step-BYe7Oa8d" data-drpg-named="own"><button type="button" class="drpg-step drpg-step-plus" aria-label="One more" data-tooltip="One more" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button></span><span class="drpg-field-msg"></span>
+                <span class="drpg-stepper"><button type="button" class="drpg-step drpg-step-minus" aria-label="One fewer" data-tooltip="One fewer" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button><input type="number" name="ovf-panic-by" value="1" min="0" max="5" data-drpg-chrome="step" id="drpg-step-MzP3GQWj" data-drpg-named="own"><button type="button" class="drpg-step drpg-step-plus" aria-label="One more" data-tooltip="One more" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button></span><span class="drpg-field-msg"></span>
             </label>
             <div class="notes">Nobody gets as much done: 1 fewer action each, on top of anything Wounded already took.</div>
         </li><li class="drpg-overflow-rule">
@@ -182,9 +182,9 @@
                 <strong>Rot</strong>
             </label>
             
-            <label class="drpg-overflow-by" for="drpg-step-sgQcwgn6">
+            <label class="drpg-overflow-by" for="drpg-step-0Yjy4eE3">
                 <span>by</span>
-                <span class="drpg-stepper"><button type="button" class="drpg-step drpg-step-minus" aria-label="One fewer" data-tooltip="One fewer" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button><input type="number" name="ovf-rot-by" value="1" min="0" max="5" data-drpg-chrome="step" id="drpg-step-sgQcwgn6" data-drpg-named="own"><button type="button" class="drpg-step drpg-step-plus" aria-label="One more" data-tooltip="One more" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button></span><span class="drpg-field-msg"></span>
+                <span class="drpg-stepper"><button type="button" class="drpg-step drpg-step-minus" aria-label="One fewer" data-tooltip="One fewer" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button><input type="number" name="ovf-rot-by" value="1" min="0" max="5" data-drpg-chrome="step" id="drpg-step-0Yjy4eE3" data-drpg-named="own"><button type="button" class="drpg-step drpg-step-plus" aria-label="One more" data-tooltip="One more" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button></span><span class="drpg-field-msg"></span>
             </label>
             <div class="notes">Everything the school owns gets worse at once: 1 durability off every item with more than one point left. Nothing breaks.</div>
         </li><li class="drpg-overflow-rule">
@@ -193,9 +193,9 @@
                 <strong>Earthquake</strong>
             </label>
             
-            <label class="drpg-overflow-by" for="drpg-step-VIM8gukx">
+            <label class="drpg-overflow-by" for="drpg-step-7RK0tcUO">
                 <span>by</span>
-                <span class="drpg-stepper"><button type="button" class="drpg-step drpg-step-minus" aria-label="One fewer" data-tooltip="One fewer" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button><input type="number" name="ovf-earthquake-by" value="1" min="0" max="5" data-drpg-chrome="step" id="drpg-step-VIM8gukx" data-drpg-named="own"><button type="button" class="drpg-step drpg-step-plus" aria-label="One more" data-tooltip="One more" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button></span><span class="drpg-field-msg"></span>
+                <span class="drpg-stepper"><button type="button" class="drpg-step drpg-step-minus" aria-label="One fewer" data-tooltip="One fewer" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button><input type="number" name="ovf-earthquake-by" value="1" min="0" max="5" data-drpg-chrome="step" id="drpg-step-7RK0tcUO" data-drpg-named="own"><button type="button" class="drpg-step drpg-step-plus" aria-label="One more" data-tooltip="One more" data-drpg-named="own"><span class="drpg-pxi" inert=""></span></button></span><span class="drpg-field-msg"></span>
             </label>
             <div class="notes">The building shakes and work is undone: every project still under way loses 1 progress.</div>
         </li></ul>

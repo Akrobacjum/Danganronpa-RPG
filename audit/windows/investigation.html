@@ -1,4 +1,4 @@
-<dialog id="app-UOmmgqCM" class="application dialog drpg-panel drpg-projects drpg-window-case drpg-table-window" open="" style="left: 312px; top: 384px;" data-drpg-scaled="1" lang="en" data-drpg-text-guard="1"><form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-case-live">
+<dialog id="app-APVPhLob" class="application dialog drpg-panel drpg-projects drpg-window-case drpg-table-window" open="" style="left: 312px; top: 384px;" data-drpg-scaled="1" lang="en" data-drpg-text-guard="1"><form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-case-live">
         <h4>Who has what</h4>
         <table class="drpg-vault-table drpg-who-table" data-drpg-chrome="num"><thead><tr>
             <th>Student</th>
@@ -33,13 +33,7 @@
             <td class="notes">-</td>
         </tr></tbody></table>
 
-        <nav class="drpg-dashboard-tabs">
-            <button type="button" class="drpg-dashboard-tab active" data-drpg-tab="traces" data-drpg-named="own">Remnants</button>
-            <button type="button" class="drpg-dashboard-tab" data-drpg-tab="key" data-drpg-named="own">Key Remnants</button>
-            <button type="button" class="drpg-dashboard-tab" data-drpg-tab="final" data-drpg-named="own">Final Truth Remnants</button>
-        </nav>
-
-        <div data-drpg-panel="traces">
+        <nav class="drpg-tabs" role="tablist" data-drpg-kit-wired="1"><button type="button" role="tab" data-drpg-tab-key="traces" aria-selected="true" data-drpg-named="own">Remnants</button><button type="button" role="tab" data-drpg-tab-key="key" aria-selected="false" data-drpg-named="own">Key Remnants</button><button type="button" role="tab" data-drpg-tab-key="final" aria-selected="false" data-drpg-named="own">Final Truth Remnants</button></nav><section class="drpg-tab-pane" role="tabpanel" data-drpg-pane="traces">
         <div class="drpg-trace-filters">
         <label>Order
             <span class="drpg-select"><select name="traceOrder" data-drpg-filter="order" data-drpg-chrome="select" data-drpg-named="own">
@@ -92,10 +86,7 @@
             <td><span class="drpg-select"><select name="crime.SCENEANNEX000000__TOKTRACE00000000" aria-label="Tied to crime: Ch. 1 · Day 1 · Morning" data-drpg-chrome="select" data-drpg-named="own"><option value="" selected="">-</option><option value="tied">Tied</option><option value="untied">Not tied</option></select></span></td>
             <td style="text-align:center"><input type="checkbox" name="reinf.SCENEANNEX000000__TOKTRACE00000000" aria-label="Reinforced: Ch. 1 · Day 1 · Morning" data-drpg-named="own"></td>
             <td><em>Nobody has found it</em></td>
-        </tr></tbody></table>
-    </div>
-
-        <div data-drpg-panel="key" style="display:none">
+        </tr></tbody></table></section><section class="drpg-tab-pane" role="tabpanel" data-drpg-pane="key" hidden="">
         <p>5 clues for chapter 1. Together they should narrow the suspects to 2-4 people.</p>
         <p>0 of 5 found, 0 on the map.</p>
         
@@ -192,10 +183,7 @@
         <p class="notes">Place puts a row's Key Remnant on the map at once, in the room you pick: reinforced, tied to the crime, somewhere inside the room, with the words typed on its row. A row already on the map has no Place button.</p>
         <p class="notes">A Key Remnant is the easiest thing in a room to notice, and how easy depends on where you put it, not on the scale above: Obvious 6, Evident 9, Subtle 12, Hidden 15. Ordinary evidence in the same band is three to six harder. The scale is how much a clue gives away.</p>
         <p class="notes">Name and Player description are what a finder holds the moment they pick it up; What analysis reveals waits for their Analyze. The same three fields the Remnants tab edits. Your note stays yours.</p>
-        
-    </div>
-
-        <div data-drpg-panel="final" style="display:none">
+        </section><section class="drpg-tab-pane" role="tabpanel" data-drpg-pane="final" hidden="">
         <p class="notes">The Remnants the endgame turns on. Their type reinforces them, so nobody can clean one away.</p>
         
         <p class="notes drpg-warning">No Final Truth Remnant this chapter. Add one below - it points at the Mastermind.</p>
@@ -214,7 +202,5 @@
             <input type="text" name="finalAnalysis" value="" placeholder="What the lab says that the eye could not - whose blood, which cuff, what the smell is." data-drpg-named="own"></label>
         <label>Your note
             <input type="text" name="finalNote" placeholder="What it points at" data-drpg-named="own"></label>
-        <p class="notes">Save places it on the scene you are looking at, somewhere inside the room you pick. With no room picked, Save places none.</p>
-    </div>
-
+        <p class="notes">Save places it on the scene you are looking at, somewhere inside the room you pick. With no room picked, Save places none.</p></section>
     </div></div><footer class="form-footer"><button type="submit" data-action="save" class="default" data-drpg-named="own">Save</button><button type="submit" data-action="newTrace" data-drpg-named="own">New Remnant</button><button type="submit" data-action="clearFaint" data-drpg-named="own">Clear Faint Remnants</button><button type="submit" data-action="sweepBullets" data-drpg-named="own">Sweep Truth Bullets</button><button type="submit" data-action="autopsy" data-drpg-named="own">Issue Autopsy Truth Bullet</button><button type="submit" data-action="log" data-drpg-named="own">Trial evidence log</button><button type="submit" data-action="bodyFound" data-drpg-named="own">Body found</button><button type="submit" data-action="close" data-drpg-named="own">Close</button></footer></form></dialog>

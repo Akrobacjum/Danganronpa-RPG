@@ -22,6 +22,7 @@ import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { pageLanguage } from "./i18n.mjs";
 import { alreadyOpen } from "./live.mjs";
 import { error, markLanguage } from "./utils.mjs";
+import { kitTabBar, wireKitTabs } from "./ui-kit.mjs";
 
 const LAUNCHER_ID = "drpg-book-launcher";
 const WINDOW_CLASS = "drpg-handbook";
@@ -256,15 +257,11 @@ class HandbookApp extends foundry.applications.api.ApplicationV2 {
         const root = document.createElement("div");
         root.className = "drpg-handbook-body";
 
-        const tabs = document.createElement("nav");
-        tabs.className = "drpg-gmt-tabs drpg-handbook-tabs";
-        for (const book of booksFor()) {
-            const button = document.createElement("button");
-            button.type = "button";
-            button.dataset.drpgBook = book.id;
-            button.textContent = game.i18n.localize(book.label);
-            tabs.append(button);
-        }
+        // The kit's bar (E44 C4a): one tab a book, no pane of its own - `show` fills the one text below.
+        const bar = document.createElement("template");
+        bar.innerHTML = kitTabBar(booksFor().map(book => ({ key: book.id, label: game.i18n.localize(book.label) })),
+            { active: this.book });
+        const tabs = bar.content.firstElementChild;
 
         const main = document.createElement("div");
         main.className = "drpg-handbook-main";
@@ -284,9 +281,7 @@ class HandbookApp extends foundry.applications.api.ApplicationV2 {
     }
 
     _onRender(_context, _options) {
-        for (const button of this.element.querySelectorAll("[data-drpg-book]")) {
-            button.addEventListener("click", () => this.show(button.dataset.drpgBook, { remember: true }));
-        }
+        wireKitTabs(this.element, { onSwitch: id => this.show(id, { remember: true }) });
         this.show(this.book);
     }
 
@@ -294,10 +289,8 @@ class HandbookApp extends foundry.applications.api.ApplicationV2 {
     async show(id, { remember = false } = {}) {
         this.book = id;
         if (remember) rememberBook(id);
-        for (const button of this.element.querySelectorAll("[data-drpg-book]")) {
-            const on = button.dataset.drpgBook === id;
-            button.classList.toggle("active", on);
-            button.setAttribute("aria-pressed", String(on));
+        for (const button of this.element.querySelectorAll('nav.drpg-tabs > button[role="tab"][data-drpg-tab-key]')) {
+            button.setAttribute("aria-selected", String(button.dataset.drpgTabKey === id));
         }
         const text = this.element.querySelector(".drpg-handbook-text");
         const toc = this.element.querySelector(".drpg-handbook-toc");

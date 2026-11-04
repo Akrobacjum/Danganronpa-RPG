@@ -25,8 +25,9 @@
  */
 
 import { MODULE_ID, ITEM_CATEGORIES, EQUIPPABLE, ITEM_TIERS, itemIcon } from "./config.mjs";
-import { dialogContent, panelTabs, wirePanelTabs, whisperToGms, log, error, plural, esc}
+import { dialogContent, whisperToGms, log, error, plural, esc}
     from "./utils.mjs";
+import { kitTabs, wireKitTabs } from "./ui-kit.mjs";
 import { pickableCategories } from "./inventory.mjs";
 import { alreadyOpen, reopen, RAISED } from "./live.mjs";
 import {
@@ -953,7 +954,10 @@ export function poolPaneHtml(family, mine, selected, refusal = null) {
         : `<p class="notes">${esc(game.i18n.localize(family === "tiers"
             ? "DRPG.Tables.noTierPools" : "DRPG.Tables.noRoomPools"))}</p>`;
 
-    return `<div data-drpg-pane="${family}">
+    /* `data-drpg-pool-pane`, not the `data-drpg-pane` it was until E44 C4a: that attribute is the kit's tab pane now
+       (ui-kit.mjs `kitTabs`), and a pool's pane sits inside one - the kit, which hides every pane but the shown one,
+       would have hidden it too. */
+    return `<div data-drpg-pool-pane="${family}">
         <p class="notes">${game.i18n.localize("DRPG.Tables.editorIntro")}</p>
         <div class="drpg-tables-layout">
             <div class="drpg-tables-left">${list}</div>
@@ -1014,8 +1018,8 @@ function readNewPoolName(d) {
     // is showing, so "whichever is not empty" would hand the
     // tier pane's leftover text to a GM looking at the room one.
     const open = d.element
-        .querySelector(".drpg-gmt-section.active [data-drpg-pane]")
-        ?.dataset.drpgPane;
+        .querySelector(".drpg-tab-pane:not([hidden]) [data-drpg-pool-pane]")
+        ?.dataset.drpgPoolPane;
     const families = open ? [open, ...["tiers", "rooms"].filter(f => f !== open)]
         : ["tiers", "rooms"];
     for (const family of families) {
@@ -1123,7 +1127,7 @@ function wirePaneHeading(pane, root, { current, show, nameEl }) {
         if (!current()) return;
 
         // The pane's family, unless the table's flags say it is a tier pool (see `poolNameRefusal`).
-        const family = pane.dataset.drpgPane === "tiers" ? "tiers" : "rooms";
+        const family = pane.dataset.drpgPoolPane === "tiers" ? "tiers" : "rooms";
         const name = await promptForTableName(current().name,
             typed => poolNameRefusal(typed, family, { table: current() }));
         if (name === null || name === current().name) return;
@@ -1536,14 +1540,14 @@ export async function openItemTables({ preset = null, poolError = null } = {}) {
         // tier table holds, the same for room tables, and making a new item.
         // The footer buttons act across tabs - each reads its own pane's
         // inputs, which stay in the DOM whichever tab is showing (see
-        // `panelTabs` in utils.mjs).
+        // `kitTabs` in ui-kit.mjs).
         //
         // A refused table name comes back on the tab it was typed on, kept in its field
         // with the refusal under it (E14 part 2 C5, S13-09): the window used to reopen on
         // the first tab with the field empty, so on the Room pools tab the GM saw neither.
         // A preset opens on Add an item, where its name and tier are (C6, S08-21): it
         // opened on Tier pools, with Create table and Install in the footer.
-        content: dialogContent(`<form>${panelTabs([
+        content: dialogContent(`<form>${kitTabs([
             { key: "editTiers", label: game.i18n.localize("DRPG.Tables.tabTierPools"),
               html: poolPaneHtml("tiers", tierTables, selected, poolError?.family === "tiers" ? poolError : null) },
             { key: "editRooms", label: game.i18n.localize("DRPG.Tables.tabRoomPools"),
@@ -1597,7 +1601,7 @@ export async function openItemTables({ preset = null, poolError = null } = {}) {
              * Which pane the name is read from is decided on the way out, by
              * the tab that is open - see the button's callback.
              */
-            wirePanelTabs(root, {
+            wireKitTabs(root, {
                 buttons: {
                     // "Install the default set" sits on the Tier pools tab
                     // rather than on a tab of its own (E10): the whole Install
@@ -1611,8 +1615,8 @@ export async function openItemTables({ preset = null, poolError = null } = {}) {
             });
             wireItemPicture(root);
 
-            for (const pane of root.querySelectorAll("[data-drpg-pane]")) wirePoolPane(pane, root);
-            root.querySelector('[data-drpg-pane] input[aria-invalid="true"]')?.focus();
+            for (const pane of root.querySelectorAll("[data-drpg-pool-pane]")) wirePoolPane(pane, root);
+            root.querySelector('[data-drpg-pool-pane] input[aria-invalid="true"]')?.focus();
         },
         rejectClose: false
     });

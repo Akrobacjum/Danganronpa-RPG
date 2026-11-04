@@ -1107,7 +1107,7 @@ async function phaseE({ gm, p1, check, phase, settle, dump, socketTraffic, IDS, 
         globalThis.__s76e = { id: passage?.id ?? null, wall: passage?.passageWallId ?? null, el: app?.element ?? null, app, pending, was };
         const el = app?.element;
         return { id: passage?.id ?? null, wall: passage?.passageWallId ?? null, aiko: Boolean(passage?.access?.[${J(IDS.aiko)}]),
-            title: app?.options?.window?.title ?? null, tab: el?.querySelector('[data-drpg-tab="passages"]') ? true : false,
+            title: app?.options?.window?.title ?? null, tab: el?.querySelector('nav.drpg-tabs [data-drpg-tab-key="passages"]') ? true : false,
             row: Boolean(el?.querySelector('[data-drpg-passage="' + passage?.id + '"]')) };`, { timeout: 30000 });
     const scene = await gm.eval(`return game.i18n.format("DRPG.Vault.manageTitleOn", { scene: game.scenes.get(${J(IDS.scene)}).name });`);
     /* p3's world as phase D left it, the measure of this phase: not phase 0's baseline, from which phases C and D part by

@@ -840,7 +840,6 @@ body.drpg-theme-stained-glass .application:not(.drpg-panel) .window-header {
 body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button):not(.header-control),
 body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button,
 body.drpg-theme-stained-glass .drpg-mini-button,
-body.drpg-theme-stained-glass .drpg-gmt-tabs button,
 body.drpg-theme-stained-glass .application.sheet.actor :is(button, li.inventory-item, nav.tabs > a, .tabs > a):not(:where(.header-control, .drpg-action-button, .drpg-call-button)),
 body.drpg-theme-stained-glass .drpg-messenger button:not(.header-control) {
     --brush: var(--drpg-glass-accent);
@@ -884,7 +883,6 @@ body.drpg-theme-stained-glass .drpg-messenger button:not(.header-control) {
 body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button):not(.header-control)::before,
 body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button::before,
 body.drpg-theme-stained-glass .drpg-mini-button::before,
-body.drpg-theme-stained-glass .drpg-gmt-tabs button::before,
 body.drpg-theme-stained-glass .application.sheet.actor :is(button, li.inventory-item, nav.tabs > a, .tabs > a):not(:where(.header-control, .drpg-action-button, .drpg-call-button))::before,
 body.drpg-theme-stained-glass .drpg-messenger button:not(.header-control)::before {
     content: "";
@@ -912,14 +910,14 @@ body.drpg-theme-stained-glass .drpg-messenger button:not(.header-control)::befor
    It was 45 % here, and the mockup paints hover at full opacity - the same stroke the
    selected tab wears, which is the point of "one mark for everything" (Dawid, 07.09). The
    text turns to Ink with it, or a bone label would sit on its own colour and disappear. */
-body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-gmp-button, .drpg-mini-button, .drpg-gmt-tabs button, .drpg-messenger button,
+body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-gmp-button, .drpg-mini-button, .drpg-messenger button,
     .application.sheet.actor :is(button, li.inventory-item, nav.tabs > a, .tabs > a):not(:where(.header-control, .drpg-action-button, .drpg-call-button))):hover:not(:disabled):not(.active) {
     --brush-on: 1;
     --brush-ink: var(--drpg-sg-ink);
     --brush-edge: var(--brush);
 }
 /* selected and the default: the full brush, Ink text */
-body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-gmt-tabs button,
+body.drpg-theme-stained-glass :is(.drpg-panel button,
     .application.sheet.actor :is(button, li.inventory-item, nav.tabs > a, .tabs > a):not(:where(.header-control, .drpg-action-button, .drpg-call-button))):is(.active, .default, [aria-selected="true"], [aria-pressed="true"], [autofocus]) {
     --brush-on: 1;
     --brush-ink: var(--drpg-sg-ink);
@@ -927,7 +925,7 @@ body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-gmt-tabs button,
 }
 body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button):is(.default, [autofocus]) { --brush: var(--drpg-sg-bone); }
 /* pressed: the brush darkened */
-body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-gmp-button, .drpg-mini-button, .drpg-gmt-tabs button,
+body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-gmp-button, .drpg-mini-button,
     .application.sheet.actor :is(button, li.inventory-item, nav.tabs > a, .tabs > a):not(:where(.header-control, .drpg-action-button, .drpg-call-button))):active:not(:disabled) {
     --brush-on: 1;
     --brush-dim: 0.7;
@@ -942,7 +940,7 @@ body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-gmp-button, .drpg-mi
     --brush-ink: var(--drpg-sg-bone-dim);
     cursor: not-allowed;
 }
-body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-mini-button, .drpg-gmt-tabs button,
+body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-mini-button,
     .application.sheet.actor :is(button, li.inventory-item, nav.tabs > a, .tabs > a):not(:where(.header-control, .drpg-action-button, .drpg-call-button))):focus-visible {
     outline: 2px solid var(--brush);
     outline-offset: 1px;
@@ -1884,44 +1882,6 @@ body.drpg-theme-stained-glass .drpg-messenger .window-header .window-title {
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.7);
 }
 body.drpg-theme-stained-glass .drpg-messenger .window-content { background: rgba(9, 8, 13, 0.86); }
-body.drpg-theme-stained-glass .drpg-messenger-tabs {
-    display: inline-flex;
-    gap: 2px;
-    padding: 3px;
-    margin: 8px 8px 0;
-    background: var(--drpg-sg-bone);
-    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
-}
-body.drpg-theme-stained-glass .drpg-messenger-tabs button {
-    --brush: var(--drpg-glass-accent);
-    position: relative;
-    isolation: isolate;
-    padding: 3px 12px;
-    font-family: var(--drpg-font-chrome);
-    font-size: max(var(--drpg-sg-floor), calc(15px * var(--drpg-sg-scale)));
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--drpg-sg-ink) !important;
-    background: none !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    text-shadow: none !important;
-}
-body.drpg-theme-stained-glass .drpg-messenger-tabs button::before {
-    content: "";
-    position: absolute;
-    /* the shared stroke, not a hand-cut one - see `#drpg-brush` */
-    inset: 1px -5px;
-    z-index: -1;
-    background: var(--brush);
-    opacity: 0;
-    filter: url(#drpg-brush);
-    clip-path: none;
-    transition: opacity var(--drpg-t-snap, 120ms);
-}
-body.drpg-theme-stained-glass .drpg-messenger-tabs button:hover:not(.active)::before { opacity: 1; }
-body.drpg-theme-stained-glass .drpg-messenger-tabs button.active::before { opacity: 1; }
 body.drpg-theme-stained-glass .drpg-messenger-bubble {
     border-radius: 0;
     clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
@@ -2106,63 +2066,8 @@ body.drpg-theme-stained-glass .drpg-choice.unavailable > i { color: var(--drpg-s
    margin the family carries is the grid's gap's job instead. */
 body.drpg-theme-stained-glass .drpg-glyph-grid > .drpg-choice { margin: 0; }
 
-/* 2. the other tab bars: the dashboard's and the hubs' become the sheet's Bone strip. Ink text at rest,
-   the active tab a full brush in the state colour, never red. The hub bar's buttons used to be
-   free-standing brushes; a bar is one shape here, so they lose their own edge and ground. */
-body.drpg-theme-stained-glass :is(.drpg-dashboard-tabs, .drpg-gmt-tabs) {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 2px;
-    padding: 3px;
-    margin: 0.6em 0;
-    background: var(--drpg-sg-bone);
-    border: 0;
-    border-radius: 0;
-    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
-}
-body.drpg-theme-stained-glass :is(.drpg-dashboard-tabs .drpg-dashboard-tab, .drpg-gmt-tabs button) {
-    --brush: var(--drpg-glass-accent);
-    --brush-on: 0;
-    --brush-edge: transparent;
-    --brush-ink: var(--drpg-sg-ink);
-    flex: 1 1 auto;
-    position: relative;
-    isolation: isolate;
-    padding: 4px 12px;
-    font-family: var(--drpg-font-chrome);
-    font-size: max(var(--drpg-sg-floor), calc(15px * var(--drpg-sg-scale)));
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--drpg-sg-ink) !important;
-    text-shadow: none !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: none !important;
-    box-shadow: none !important;
-    clip-path: none;
-    transition: color var(--drpg-t-snap, 120ms);
-}
-body.drpg-theme-stained-glass :is(.drpg-dashboard-tabs .drpg-dashboard-tab, .drpg-gmt-tabs button)::before {
-    content: "";
-    position: absolute;
-    inset: 1px -5px;
-    z-index: -1;
-    background: var(--brush);
-    opacity: 0;
-    filter: url(#drpg-brush);
-    clip-path: none;
-    transition: opacity var(--drpg-t-snap, 120ms);
-}
-body.drpg-theme-stained-glass :is(.drpg-dashboard-tabs .drpg-dashboard-tab, .drpg-gmt-tabs button):hover:not(.active)::before { opacity: 1; }
-body.drpg-theme-stained-glass :is(.drpg-dashboard-tabs .drpg-dashboard-tab, .drpg-gmt-tabs button).active::before { opacity: 1; }
-body.drpg-theme-stained-glass :is(.drpg-dashboard-tabs .drpg-dashboard-tab, .drpg-gmt-tabs button).active {
-    color: var(--drpg-sg-ink) !important;
-    background: none !important;
-}
-body.drpg-theme-stained-glass :is(.drpg-dashboard-tabs .drpg-dashboard-tab, .drpg-gmt-tabs button):focus-visible {
-    outline: 2px solid var(--brush);
-    outline-offset: -2px;
-}
+/* 2. the other tab bars are the kit's since E44 C4a (styles/components.css: the Bone strip, Ink text at rest, the
+   active tab a full brush in the state colour). */
 
 /* 3. the footer row: one row, the closing actions on the right; the default a Bone brush at rest,
    the GM route red on a red edge, the destructive one under the raster. The base sheet paints the
@@ -3059,7 +2964,6 @@ body[data-drpg-measuring] #drpg-foundry-tools { transition: none !important; }
 body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button):not(.header-control)::before,
 body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button::before,
 body.drpg-theme-stained-glass .drpg-mini-button::before,
-body.drpg-theme-stained-glass .drpg-gmt-tabs button::before,
 body.drpg-theme-stained-glass .drpg-messenger button:not(.header-control)::before {
     inset: 1px -3px;
     clip-path: none;
@@ -3417,7 +3321,6 @@ body.drpg-theme-stained-glass .character-header-sheet.drpg-glass-band {
    letters. The small icon buttons are exempt - they have no label to keep. */
 body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button):not(.drpg-mini-button):not(.header-control),
 body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button,
-body.drpg-theme-stained-glass .drpg-gmt-tabs button,
 body.drpg-theme-stained-glass .drpg-messenger button:not(.drpg-mini-button):not(.header-control) {
     height: auto;
     min-height: calc(28px * var(--drpg-sg-scale));
@@ -3434,14 +3337,12 @@ body.drpg-theme-stained-glass .drpg-messenger .drpg-messenger-bubble button.drpg
     font-size: max(var(--drpg-text-sm), var(--drpg-sg-floor));
 }
 body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button):not(.drpg-mini-button):not(.header-control):not(.drpg-gmp-button),
-body.drpg-theme-stained-glass .drpg-gmt-tabs button,
 body.drpg-theme-stained-glass .drpg-messenger button:not(.drpg-mini-button):not(.header-control) {
     padding: 3px 14px 2px;
     white-space: nowrap;
 }
 body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button):not(.header-control)::before,
 body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button::before,
-body.drpg-theme-stained-glass .drpg-gmt-tabs button::before,
 body.drpg-theme-stained-glass .drpg-messenger button:not(.header-control)::before {
     inset: -4px -5px;
 }
@@ -4768,12 +4669,12 @@ body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-gm-panel)
 
 /* 4. THE SHEET'S TAB BAR RUNS THE WHOLE WIDTH, as it does on the audit page: four equal
    strokes across the sheet, not four labels bunched at the left. */
-body.drpg-theme-stained-glass .application.sheet.actor :is(nav.tabs, .tabs):not(.drpg-gmt-tabs) {
+body.drpg-theme-stained-glass .application.sheet.actor :is(nav.tabs, .tabs):not(.drpg-tabs) {
     display: flex;
     width: 100%;
     gap: 4px;
 }
-body.drpg-theme-stained-glass .application.sheet.actor :is(nav.tabs, .tabs):not(.drpg-gmt-tabs) > a {
+body.drpg-theme-stained-glass .application.sheet.actor :is(nav.tabs, .tabs):not(.drpg-tabs) > a {
     flex: 1 1 0;
     text-align: center;
     padding: 4px 6px;

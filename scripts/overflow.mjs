@@ -1073,7 +1073,7 @@ export function overflowCrossings(allowance) {
  * checkbox somebody will eventually mis-wire.
  * ========================================================================== */
 
-/** The pane's HTML, for `panelTabs`. */
+/** The pane's HTML, for the Despair Flow window's Overflow tab (gm-team-dialog.mjs, `kitTabs`). */
 /**
  * The one line of `overflowSection` that moves on its own.
  *

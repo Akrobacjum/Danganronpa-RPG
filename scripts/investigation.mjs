@@ -38,7 +38,8 @@ import { studentActors } from "./monokuma.mjs";
 import { livingStudentsForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs";
 import {
     dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
-    workingScene, esc, wireDashboardTabs, placeRoomOptions, listOf, error } from "./utils.mjs";
+    workingScene, esc, placeRoomOptions, listOf, error } from "./utils.mjs";
+import { kitTabs, wireKitTabs } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, RAISED } from "./live.mjs";
 import { keyPlanStore, remnantStore } from "./gm-stores.mjs";
 import { murderState } from "./incident-store.mjs";
@@ -1874,10 +1875,10 @@ function caseTraceFilters(traces, shown, reading) {
     </div>`;
 }
 
-/** The Traces tab: the filter bar, the rule, and the table or the reason it is empty. */
+/** The Traces tab's pane (the kit draws its frame, `kitTabs`): the filter bar, the rule, and the table or the reason it is empty. */
 function caseTracesPanel({ traces, shown, finders, reading }) {
     const traceRows = caseTraceRows(shown, finders);
-    return `<div data-drpg-panel="traces">
+    return `
         ${caseTraceFilters(traces, shown, reading)}
         <p class="notes drpg-clue-rule">${
             game.i18n.localize("DRPG.Investigation.neverOnePerson")}</p>
@@ -1893,8 +1894,7 @@ function caseTracesPanel({ traces, shown, finders, reading }) {
             <th>${game.i18n.localize("DRPG.Investigation.foundBy")}</th>
         </tr></thead><tbody>${traceRows}</tbody></table>`
             : `<p class="notes">${game.i18n.localize(traces.length
-                ? "DRPG.Investigation.noneMatch" : "DRPG.Investigation.noTraces")}</p>`}
-    </div>`;
+                ? "DRPG.Investigation.noneMatch" : "DRPG.Investigation.noTraces")}</p>`}`;
 }
 
 /**
@@ -2009,7 +2009,7 @@ function caseKeyPanel({ plan, status, placed, limit }) {
     // actually unsolvable rather than at the moment it already is.
     const bar = KEY_REMNANTS.minimum + 1;
     const thin = status.foundAny < bar;
-    return `<div data-drpg-panel="key" style="display:none">
+    return `
         <p>${plural("DRPG.Investigation.plannerIntro", {
             chapter: plan.chapter, n: KEY_REMNANTS.prepared,
             min: KEY_REMNANTS.suspectRange[0], max: KEY_REMNANTS.suspectRange[1]
@@ -2058,8 +2058,7 @@ function caseKeyPanel({ plan, status, placed, limit }) {
                 && (r.data.chapter !== plan.chapter || !sameSeason(r.data))).length;
             return old ? `<p class="notes drpg-warning">${
                 plural("DRPG.Investigation.leftoverKeys", { n: old })}</p>` : "";
-        })()}
-    </div>`;
+        })()}`;
 }
 
 /**
@@ -2075,7 +2074,7 @@ function caseKeyPanel({ plan, status, placed, limit }) {
  * held a room would place a Final on every Save of a trace or a Key row. Exported for R358.
  */
 export function caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTruthPlacedThisChapter }) {
-    return `<div data-drpg-panel="final" style="display:none">
+    return `
         <p class="notes">${game.i18n.localize("DRPG.Mastermind.finalRemnantsNote")}</p>
         ${(() => {
             const placedFinals = finalRemnants();
@@ -2123,8 +2122,7 @@ export function caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTr
             <input type="text" name="finalNote"
                 placeholder="${game.i18n.localize(
                     "DRPG.Investigation.finalNotePlaceholder")}" /></label>
-        <p class="notes">${game.i18n.localize("DRPG.Mastermind.finalAddNote")}</p>
-    </div>`;
+        <p class="notes">${game.i18n.localize("DRPG.Mastermind.finalAddNote")}</p>`;
 }
 
 /** The whole dashboard as markup - a function of the world, so `keepLive` can call it again. */
@@ -2167,20 +2165,12 @@ function caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
                 game.i18n.localize("DRPG.Investigation.breakdown")}</th>
         </tr></thead><tbody>${studentRows}</tbody></table>
 
-        <nav class="drpg-dashboard-tabs">
-            <button type="button" class="drpg-dashboard-tab active" data-drpg-tab="traces">${
-                game.i18n.localize("DRPG.Investigation.tabTraces")}</button>
-            <button type="button" class="drpg-dashboard-tab" data-drpg-tab="key">${
-                game.i18n.localize("DRPG.Investigation.tabKeyRemnants")}</button>
-            <button type="button" class="drpg-dashboard-tab" data-drpg-tab="final">${
-                game.i18n.localize("DRPG.Mastermind.finalRemnantsTitle")}</button>
-        </nav>
-
-        ${caseTracesPanel({ traces, shown, finders, reading })}
-
-        ${caseKeyPanel({ plan, status, placed, limit })}
-
-        ${caseFinalPanel({
+        ${kitTabs([
+            { key: "traces", label: game.i18n.localize("DRPG.Investigation.tabTraces"),
+              html: caseTracesPanel({ traces, shown, finders, reading }) },
+            { key: "key", label: game.i18n.localize("DRPG.Investigation.tabKeyRemnants"),
+              html: caseKeyPanel({ plan, status, placed, limit }) },
+            { key: "final", label: game.i18n.localize("DRPG.Mastermind.finalRemnantsTitle"), html: caseFinalPanel({
             /* The Final Key Remnant is always an input - it is being placed, not
                read back - so it takes the plain lists: every room, none chosen,
                and Evident as the default. Every room of every place scene, each
@@ -2188,8 +2178,8 @@ function caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
                r1-G2; utils.mjs `placeRoomOptions`): it listed the camera's rooms
                and placed on the school's room of the name. */
             roomOptions: placeRoomOptions(), visOptions: visOptionsFor(null),
-            finalRemnants, finalTruthPlacedThisChapter })}
-
+            finalRemnants, finalTruthPlacedThisChapter }) }
+        ])}
     </form></div>`;
 }
 
@@ -2312,7 +2302,7 @@ function wireCase(dialog) {
     const root = dialog.element;
     wirePortraitPickers(root, { defaultImg: ICON });
 
-    wireDashboardTabs(root);
+    wireKitTabs(root);
 
     // A Key row's Place button (E09 C16). Bound on the nodes, which a redraw replaces.
     for (const button of root.querySelectorAll("[data-drpg-key-place]")) {

@@ -270,14 +270,14 @@ function wireSoundPlay(root) {
 }
 
 /** Every tab acts or saves at once and the window stays open: one Close, and no Apply anywhere. */
-function wireSoundDialog(root, { wirePanelTabs, wireSoundPanel }) {
+function wireSoundDialog(root, { wireKitTabs, wireSoundPanel }) {
     /*
      * NO APPLY (E50 C3; D45 option 1). The Music tab was the one thing in this window that waited for a button,
      * beside a Play tab that acts where it is and an Effects tab that saves as it is touched - one window, two ways
      * of saving, and a GM who changed a mapping and pressed Close lost it. The mapping saves as it is changed now
      * (`saveMusicKey`), so every tab has the same footer: Close.
      */
-    wirePanelTabs(root, {
+    wireKitTabs(root, {
         buttons: { play: [], music: [], effects: [] },
         always: ["close"]
     });
@@ -294,7 +294,8 @@ export async function openSoundDialog() {
     // twice usually means the window is behind something.
     if (alreadyOpen("drpg-window-sound")) return RAISED;
 
-    const { dialogContent, tableDialog, panelTabs, wirePanelTabs } = await import("./utils.mjs");
+    const { dialogContent, tableDialog } = await import("./utils.mjs");
+    const { kitTabs, wireKitTabs } = await import("./ui-kit.mjs");
     const { soundSlidersHtml, soundEffectsHtml, wireSoundPanel } = await import("./sfx.mjs");
 
     if (!game.user.isGM) {
@@ -329,15 +330,15 @@ export async function openSoundDialog() {
         classes: ["drpg-panel", "drpg-projects", "drpg-wide", "drpg-sound", "drpg-window-sound"],
         // The tabs measure to one size rather than the window jumping between
         // a two-line Play pane and a thirty-five-row table - trap 29. It works
-        // on `panelTabs` markup as of E3; before that it silently measured
-        // only the visible tab.
+        // on the kit's panes (`kitTabs`, E44 C4a; `panelTabs` markup from E3);
+        // before E3 it silently measured only the visible tab.
         fitTabs: true,
         // ABOVE THE TABS, NOT INSIDE ONE. The sliders are not about music or
         // about effects, they are about this browser - and putting them in a
         // tab would leave a player looking at a tab bar with one tab in it.
         content: dialogContent(`<form>
             ${document.body.classList.contains("drpg-theme-stained-glass") ? "" : soundSlidersHtml()}
-            ${panelTabs([
+            ${kitTabs([
                 { key: "play", label: game.i18n.localize("DRPG.Sound.tabPlay"), html: soundPlayPane() },
                 { key: "music", label: game.i18n.localize("DRPG.Sound.tabMusic"), html: playlistsPane },
                 { key: "effects", label: game.i18n.localize("DRPG.Sound.tabEffects"),
@@ -349,7 +350,7 @@ export async function openSoundDialog() {
         // manager's "give Hope": a GM putting a track under a moment at the
         // table is not filling in a form.
         render: (event, dialog) => {
-            wireSoundDialog(dialog.element, { wirePanelTabs, wireSoundPanel });
+            wireSoundDialog(dialog.element, { wireKitTabs, wireSoundPanel });
             /*
              * WHAT WAKES IT: THE PLAYLIST HOOKS (F17).
              *

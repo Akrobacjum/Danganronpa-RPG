@@ -13,7 +13,8 @@
  *   drpgWindow({ id, classes, title, body, tabs, footer, live, render, modal })   a DialogV2 on the kit's frame
  *   DrpgApp()                     the ApplicationV2 class with the same frame (made on first use: tier 0 imports
  *                                 this file without Foundry, as room-tile.mjs's class is made)
- *   kitTabs, formGrid, dataTable, helpText, stepper, readStepper, toggle, chip, chips, box, emptyOption, modeBar
+ *   kitTabs, kitTabBar, wireKitTabs, shownTab, formGrid, dataTable, helpText, stepper, readStepper, toggle, chip,
+ *   chips, box, emptyOption, modeBar
  *   BUTTON_ROLES                  primary, secondary, close, cancel, destructive, gmRoute
  *
  * THE FOOTER CONTRACT (the owner approved it on the pilot, 04.11.2026). The closing word, the secondary buttons and the
@@ -21,7 +22,7 @@
  * when nothing is left to answer, Cancel when a question is withdrawn - the role's own key, never a caller's label.
  * The primary is the default (autofocus); a role whose `mayDefault` is false (destructive) never is, and a footer that
  * names one as its default throws. ENTER IS THE FIRST SUBMIT BUTTON IN TREE ORDER, not the focused or the default one,
- * when focus is in a field (HTML's implicit submission; utils.mjs `wirePanelTabs` measured it on 14.365, and the tier-2
+ * when focus is in a field (HTML's implicit submission; measured against DialogV2 on 14.365 for the tab footers, and the tier-2
  * tests "Enter in the verdict window executes nobody" and E44-T5 press it as a browser does). So the footer is two
  * groups with the right one FIRST in the tree - the primary is the first submit button - and components.css puts the
  * left one first on the screen (`order`). A keyboard's Tab therefore reaches the primary before the left group: the
@@ -32,11 +33,11 @@
  * fields' dressing in chrome.mjs, which C4b replaces with `stepper` (until then the kit's stepper wears
  * `data-drpg-chrome`, so chrome.mjs leaves it alone, and keeps a copy of chrome.mjs's step and message rules).
  *
- * Imports utils.mjs and live.mjs only; nothing in the module imports this file before E44 C4 (the suite does), and
- * none of utils.mjs, live.mjs or config.mjs may (R161).
+ * Imports utils.mjs and live.mjs only, and none of utils.mjs, live.mjs or config.mjs may import it (R161). Since E44
+ * C4a every tabbed window of the module draws its tabs here (R1324); the rest of the kit waits for E21.
  */
 
-import { esc, error, wholeNumber, dialogContent } from "./utils.mjs";
+import { esc, error, wholeNumber, dialogContent, eachPane } from "./utils.mjs";
 import { keepLive } from "./live.mjs";
 
 /* ---- the button roles -------------------------------------------------------------------------------------------- */
@@ -176,13 +177,38 @@ export function kitTabs(sections, { active = null } = {}) {
 }
 
 /**
- * Switch a kit tab bar's panes, and the footer with it (`wirePanelTabs`'s rule, measured there: a hidden button still
- * answers Enter, so a button another tab owns is hidden AND disabled). `buttons` maps a tab's key to the footer
- * actions it shows, `always` lists those every tab shows; without `buttons` the footer does not move. The default of
- * the shown buttons is the primary when it shows, else the first that may be a default. `onSwitch(key)` runs after a
- * tab is shown (a window that loads a pane: the handbooks' book, the messenger's note).
+ * The bar alone, for a window whose one pane is filled again on each switch (the handbooks' book, the messenger's
+ * Chat and Note): the same markup as `kitTabs`'s bar, no pane, so `wireKitTabs` switches nothing but the bar and
+ * its `onSwitch` loads what the tab shows.
  */
-export function wireKitTabs(root, { buttons = null, always = [], onSwitch = null } = {}) {
+export function kitTabBar(sections, { active = null } = {}) {
+    return tabNav(sections, openKey(sections, active));
+}
+
+/** The key of the tab a kit bar inside `root` shows, or null where there is no bar. */
+export function shownTab(root) {
+    return root?.querySelector?.('nav.drpg-tabs > button[role="tab"][aria-selected="true"]')?.dataset.drpgTabKey ?? null;
+}
+
+/**
+ * Switch a kit tab bar's panes, and the footer with it. `buttons` maps a tab's key to the footer actions it shows,
+ * `always` lists those every tab shows; without `buttons` the footer does not move. `onSwitch(key)` runs after a tab
+ * is shown by a press (a window that loads a pane: the handbooks' book, the messenger's note). `fit` runs the
+ * one-line fit (below) once the bar is laid out; `win` is the window it may widen, given only where the kit draws the
+ * frame (drpgWindow): a window whose width another sheet states with `!important` (every window E21 has not moved)
+ * would keep its width while the fit counted on the growth, so there the fit goes to rows instead.
+ *
+ * HIDDEN IS NOT ENOUGH FOR A FOOTER BUTTON, AND THAT IS THE WHOLE TRAP (utils.mjs's `wirePanelTabs`, measured against
+ * DialogV2 on 14.365, which this replaces): the footer's buttons are `type="submit"` inside the dialog's form and
+ * `_onKeyDown` intercepts Escape only, so Enter goes through the browser's implicit submission, which picks the first
+ * submit button in tree order whether or not it shows; `autofocus` does not decide it either. So a button another
+ * tab owns is hidden AND disabled - the spec skips a disabled default button and nothing else in the chain does - and
+ * danganronpa.css's `footer.form-footer button[hidden]` keeps it out of the row. The shown button that takes
+ * `autofocus`: on a kit footer the primary, else the first that may be a default (BUTTON_ROLES); on a footer with no
+ * roles (every window E22 has not given them) the first shown, the one a person would have pressed - and there the
+ * buttons' own classes are left as Foundry drew them.
+ */
+export function wireKitTabs(root, { buttons = null, always = [], onSwitch = null, fit = true, win = null } = {}) {
     const nav = root?.querySelector?.("nav.drpg-tabs");
     if (!nav || nav.dataset.drpgKitWired) return null;
     nav.dataset.drpgKitWired = "1";
@@ -193,14 +219,17 @@ export function wireKitTabs(root, { buttons = null, always = [], onSwitch = null
         const footer = root.querySelector("footer.form-footer");
         if (!footer) return;
         const allowed = new Set([...(buttons[key] ?? []), ...always]);
-        for (const b of footer.querySelectorAll("button[data-action]")) {
+        const all = [...footer.querySelectorAll("button[data-action]")];
+        const roles = all.some(b => b.dataset.drpgRole);
+        for (const b of all) {
             const mine = allowed.has(b.dataset.action);
             b.hidden = !mine;
             b.disabled = !mine;
             b.removeAttribute("autofocus");
-            b.classList.remove("default");
+            if (roles) b.classList.remove("default");
         }
         const shown = pressable(footer);
+        if (!roles) { shown[0]?.setAttribute("autofocus", ""); return; }
         const pick = shown.find(b => b.dataset.drpgRole === "primary")
             ?? shown.find(b => BUTTON_ROLES[b.dataset.drpgRole]?.mayDefault);
         if (pick) { pick.setAttribute("autofocus", ""); pick.classList.add("default"); }
@@ -219,27 +248,34 @@ export function wireKitTabs(root, { buttons = null, always = [], onSwitch = null
     }
     const first = tabs.find(t => t.getAttribute("aria-selected") === "true") ?? tabs[0];
     if (first) show(first.dataset.drpgTabKey);
+    if (fit) fitWhenLaidOut(nav, win);
     return { show, nav };
 }
 
 /**
- * Run `measure` with each pane shown in turn, by the same `hidden` the tabs switch, and put every pane back as it
- * was (`fitWindowToTabs`'s measuring, for the kit's markup). Answers what each call answered, by key.
+ * The fit, after the layout: a bar measured before it was laid out reads 0 and fits nothing. And again once the tab's
+ * own face has loaded: a face is fetched only when text first asks for it, so `document.fonts` read "loaded" while
+ * the first measure was taken in the fallback face, and Legacy's pixel face then left "Description" cut at 390x844 on
+ * a bar fitted to one line at 13 px (the kit gallery, 04.11.2026; measured again with the face in: two rows of two).
+ * On a page with no layout (jsdom) it measures 0 and sets nothing.
  */
-export function eachPane(root, measure) {
-    const panes = [...(root?.querySelectorAll?.("[data-drpg-pane]") ?? [])];
-    const was = panes.map(p => p.hidden);
-    const out = {};
-    try {
-        for (const shown of panes) {
-            for (const p of panes) p.hidden = p !== shown;
-            out[shown.dataset.drpgPane] = measure(shown);
-        }
-    } finally {
-        panes.forEach((p, i) => { p.hidden = was[i]; });
-    }
-    return out;
+function fitWhenLaidOut(nav, win) {
+    if (typeof requestAnimationFrame !== "function") return;
+    const fit = () => { if (nav.isConnected) fitKitTabs(nav, { win }); };
+    requestAnimationFrame(() => {
+        fit();
+        const tab = nav.querySelector('button[role="tab"]');
+        const cs = tab ? getComputedStyle(tab) : null;
+        nav.ownerDocument?.fonts?.load?.(`${cs?.fontSize ?? "13px"} ${cs?.fontFamily ?? "sans-serif"}`)
+            .then(() => requestAnimationFrame(fit), () => null);
+    });
 }
+
+/**
+ * Run `measure` with each pane shown in turn, by the same `hidden` the tabs switch, and put every pane back as it
+ * was (`fitWindowToTabs`'s measuring). It lives in utils.mjs, which may not import this file; the kit hands it on.
+ */
+export { eachPane };
 
 /* THE ONE-LINE FIT (the owner, 04.11.2026, on the pilot: "equal, but a smaller font so they fit one line"; approved
    with the 25 % growth on DR-E44-M1, q-grow). Each strip takes the first that fits its bar on one line of equal
@@ -589,25 +625,8 @@ function dressFrame(root, list, tabs, onMode) {
     if (!root) return;
     for (const c of KIT_CLASSES) root.classList.add(c);
     dressFooter(root, list);
-    if (tabs) {
-        wireKitTabs(root, { buttons: tabs.buttons ?? null, always: tabs.always ?? [], onSwitch: tabs.onSwitch ?? null });
-        const nav = root.querySelector("nav.drpg-tabs");
-        // After the layout: a bar measured before it was laid out reads 0 and fits nothing. And again once the tab's own
-        // face has loaded: a face is fetched only when text first asks for it, so `document.fonts` read "loaded" while
-        // the first measure was taken in the fallback face, and Legacy's pixel face then left "Description" cut at
-        // 390x844 on a bar fitted to one line at 13 px (the kit gallery, 04.11.2026; measured again with the face in:
-        // two rows of two).
-        if (nav) {
-            const fit = () => fitKitTabs(nav, { win: root });
-            requestAnimationFrame(() => {
-                fit();
-                const tab = nav.querySelector('button[role="tab"]');
-                const cs = tab ? getComputedStyle(tab) : null;
-                root.ownerDocument?.fonts?.load?.(`${cs?.fontSize ?? "13px"} ${cs?.fontFamily ?? "sans-serif"}`)
-                    .then(() => requestAnimationFrame(fit), () => null);
-            });
-        }
-    }
+    // The kit draws this frame, so the fit may widen the window (`win`).
+    if (tabs) wireKitTabs(root, { buttons: tabs.buttons ?? null, always: tabs.always ?? [], onSwitch: tabs.onSwitch ?? null, win: root });
     wireKit(root, { onMode });
 }
 

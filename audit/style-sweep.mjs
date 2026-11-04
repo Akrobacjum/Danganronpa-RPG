@@ -88,7 +88,8 @@ async function snap(page) {
 
 async function load(page, u) {
     await page.goto(`${BASE}${u}`, { waitUntil: "load" });
-    // The kit gallery draws in a module script (style-harness.html `?kit=1`): it says when it is done.
+    // The kit gallery draws in a module script (style-harness.html `?kit=1`), and a captured window's tab bar is
+    // fitted in one (E44 C4a): each says when it is done.
     await page.waitForFunction(() => !globalThis.document.body?.hasAttribute("data-drpg-kit-pending"), null, { timeout: 15000 });
     await page.evaluate(() => globalThis.document.fonts?.ready);
     await page.waitForTimeout(300);

@@ -34,8 +34,8 @@ export const PROPS = [
 /**
  * The surfaces, each with the page that shows it (`role`: "gm", "player" or "both" - a player's page shows no GM
  * launcher) and its selector; the first element it matches is read. The windows are the module's as the harness
- * captures them (probe 08, audit/windows/): a DialogV2 frame, its header, content and footer and their buttons, the
- * two tab bars, a table's head and cells, a number field; then the notice history (A7), the corner and the tile's
+ * captures them (probe 08, audit/windows/): a DialogV2 frame, its header, content and footer and their buttons, a
+ * table's head and cells, a number field; then the notice history (A7), the corner and the tile's
  * history button, the launchers, the room and voice tiles (A8), the GM's hexagon and Foundry tools.
  */
 export const STYLE_SURFACES = [
@@ -46,11 +46,6 @@ export const STYLE_SURFACES = [
     { id: "dialog-footer", role: "gm", selector: ".application.dialog .form-footer" },
     { id: "dialog-button", role: "gm", selector: ".application.dialog .form-footer button:not(.default)" },
     { id: "dialog-button-default", role: "gm", selector: ".application.dialog .form-footer button.default" },
-    { id: "gmt-tabs", role: "gm", selector: ".drpg-gmt-tabs" },
-    { id: "gmt-tab", role: "gm", selector: ".drpg-gmt-tabs [data-drpg-gmt-tab]" },
-    { id: "gmt-tab-active", role: "gm", selector: ".drpg-gmt-tabs [data-drpg-gmt-tab].active" },
-    { id: "dashboard-tabs", role: "gm", selector: ".drpg-dashboard-tabs" },
-    { id: "dashboard-tab", role: "gm", selector: ".drpg-dashboard-tabs .drpg-dashboard-tab" },
     { id: "table-head", role: "gm", selector: ".application table thead th" },
     { id: "table-cell", role: "gm", selector: ".application table tbody td" },
     { id: "number-field", role: "gm", selector: ".application input[type=\"number\"]" },
@@ -80,7 +75,9 @@ export const STYLE_SURFACES = [
     { id: "kit-window", role: "both", selector: ".application.drpg-ui" },
     { id: "kit-content", role: "both", selector: ".application.drpg-ui > .window-content" },
     { id: "kit-body", role: "both", selector: ".application.drpg-ui .drpg-kit-body" },
-    { id: "kit-tabs", role: "both", selector: ".application.drpg-ui nav.drpg-tabs" },
+    /* The tab bar is every tabbed window's since E44 C4a (the two bars of 1.2.98, `gmt-tabs` and `dashboard-tabs`, are
+       gone with their markup), so its rows read the bar wherever a page draws one. */
+    { id: "kit-tabs", role: "both", selector: "nav.drpg-tabs" },
     { id: "kit-tab", role: "both", selector: ".drpg-tabs > button[role=\"tab\"]:not([aria-selected=\"true\"])" },
     { id: "kit-tab-active", role: "both", selector: ".drpg-tabs > button[role=\"tab\"][aria-selected=\"true\"]" },
     { id: "kit-footer", role: "both", selector: ".application.drpg-ui footer.drpg-kit-footer" },

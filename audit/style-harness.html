@@ -44,8 +44,9 @@
 </head>
 <body class="drpg-theme-stained-glass drpg-gm drpg-style-harness" data-drpg-time="afternoon" data-drpg-phase="dailyLife">
 <script>
-  /* Set first, so the sweep waits for the gallery's module script to finish (style-sweep.mjs `load`). */
-  if (new URLSearchParams(location.search).get("kit")) document.body.setAttribute("data-drpg-kit-pending", "");
+  /* Set first, so the sweep waits for the module script below to finish (style-sweep.mjs `load`): the gallery's, or
+     the captured windows' tab fit (E44 C4a). */
+  document.body.setAttribute("data-drpg-kit-pending", "");
 </script>
 <script>
   (function () {
@@ -182,6 +183,29 @@
     await document.fonts?.ready;
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     document.body.removeAttribute("data-drpg-kit-pending");
+  } else {
+    /* THE CAPTURED WINDOWS' TAB BARS (E44 C4a). A captured window is markup only, so nothing has run the kit's one-line
+       fit on its bar (ui-kit.mjs `wireKitTabs` runs it in the module once the window is laid out). It is run here as
+       the module runs it in a window the kit does not frame - `fitKitTabs(nav)`, no window to widen - once the faces
+       have loaded, so a shot shows the bar a GM sees. What the kit's imports reach for when they load is stood in
+       as the gallery stands it in, reading nothing. */
+    const hooks = new Map();
+    globalThis.Hooks ??= { on(name, fn) { if (!hooks.has(name)) hooks.set(name, []); hooks.get(name).push(fn); return fn; },
+      once(name, fn) { return this.on(name, fn); }, off() {}, callAll() { return true; } };
+    globalThis.ui ??= {};
+    globalThis.CONFIG ??= {};
+    globalThis.game ??= { ready: true, user: { isGM: !document.body.classList.contains("drpg-player") }, settings: { get: () => undefined, settings: new Map() },
+      i18n: { localize: key => key, has: () => false, format: key => key } };
+    globalThis.foundry ??= { utils: { escapeHTML: v => String(v ?? ""), randomID: () => Math.random().toString(36).slice(2, 10), deepClone: o => structuredClone(o) }, applications: { api: {} } };
+    try {
+      const K = await import("/scripts/ui-kit.mjs");
+      await document.fonts?.ready;
+      await new Promise(r => requestAnimationFrame(r));
+      for (const nav of document.querySelectorAll(".drpg-style-shot nav.drpg-tabs")) K.fitKitTabs(nav);
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    } finally {
+      document.body.removeAttribute("data-drpg-kit-pending");
+    }
   }
 </script>
 </body>

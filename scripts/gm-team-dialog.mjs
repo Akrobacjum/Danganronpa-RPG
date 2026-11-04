@@ -25,7 +25,8 @@ import {
 } from "./despair.mjs";
 import { isMonokuma, setMonokuma, poolFor, setPools, studentCensus } from "./monokuma.mjs";
 import { students, assignments, monokumaFor, setAssignments, autoAssign, NO_MONOKUMA } from "./assignments.mjs";
-import { dialogContent, error, tableDialog, panelTabs, wirePanelTabs } from "./utils.mjs";
+import { dialogContent, error, tableDialog } from "./utils.mjs";
+import { kitTabs, wireKitTabs } from "./ui-kit.mjs";
 import { setOverflowRules, overflowSection, overflowNowLine, readOverflowForm, overflowStatus, clearOverflowAsGm, overflowSuggestionLine } from "./overflow.mjs";
 import { alreadyOpen, keepFresh, reopen, RAISED } from "./live.mjs";
 import { SETTINGS } from "./settings.mjs";
@@ -207,7 +208,7 @@ function gmTeamButtons({ gms, actors, roster, candidates, removable }) {
     return buttons;
 }
 
-/** The footer buttons each tab shows beside Save and Close (`wirePanelTabs`). */
+/** The footer buttons each tab shows beside Save and Close (ui-kit.mjs `wireKitTabs`). */
 const TAB_BUTTONS = Object.freeze({ pools: ["addPool", "removePool"], students: ["auto"] });
 
 /** Write the four things the form edits, in the order the reads depend on. */
@@ -234,7 +235,7 @@ async function saveGmTeam(result) {
         if (result.assignments) await setAssignments(result.assignments);
 
         // Saved through the same button as the rest - every pane stays in the
-        // DOM, which is the whole reason `panelTabs` works this way.
+        // DOM, which is the whole reason the kit's tabs (`kitTabs`) work this way.
         if (result.overflow) await setOverflowRules(result.overflow);
 
         ui.notifications.info(game.i18n.localize("DRPG.Monokuma.saved"));
@@ -302,7 +303,7 @@ export async function openGmTeamDialog({ draft = null } = {}) {
                students between the pools and stood in the footer of every tab, the pools' names among
                them, where a GM new to the window could not tell what it would divide; Add and Remove
                pool are the pools' tab's. Save and Close stay on every tab: one Save reads all four. */
-            wirePanelTabs(dialog.element, { buttons: TAB_BUTTONS, always: ["save", "cancel"] });
+            wireKitTabs(dialog.element, { buttons: TAB_BUTTONS, always: ["save", "cancel"] });
             // Anything typed in the copy that closed to add, revoke or re-divide a
             // pool (TEAM-01). After the tabs, so the panes exist to be painted.
             paintTeamDraft(dialog.element, draft);
@@ -478,12 +479,17 @@ function buildContent(actors, gms, roster, candidates, removable) {
         </table>
         <p class="notes">${game.i18n.localize("DRPG.Assign.footnote")}</p>` : "";
 
-    // Three stacked sections made one long scroll; they are tabs now, with
-    // the old <h3> headings as the tab labels (Dawid, 26.08). The mechanism
-    // lives in utils.mjs (`panelTabs`/`wirePanelTabs`) because Music and the
-    // item tables wear the same bar; the trick it depends on is documented
-    // there - every pane stays in the DOM, so the single Save that reads all
-    // three forms at once keeps working.
+    // Three stacked sections made one long scroll; they are tabs now (Dawid,
+    // 26.08). The mechanism is the kit's (ui-kit.mjs `kitTabs`/`wireKitTabs`)
+    // because every tabbed window wears the same bar; the trick it depends on
+    // is documented there - every pane stays in the DOM, so the single Save
+    // that reads all the forms at once keeps working.
+    //
+    // SHORT LABELS OF THEIR OWN (E44 C4a, the owner's word on DR-E44-M1,
+    // 04.11.2026: "skrocmy nazwy zakladek po prostu"). The tabs wore the old
+    // <h3> headings, "Monokumas and Despair pools" among them, which a bar of
+    // four equal tabs cut or folded; each tab has its own key now, and the
+    // section titles they borrowed stay what they are where else they are read.
     /*
      * FOUR TABS NOW, AND THE FOURTH IS WHY THIS WINDOW IS CALLED DESPAIR FLOW
      * (Dawid, 29.08). Pools, the Monokumas who spend them, the students they
@@ -495,11 +501,11 @@ function buildContent(actors, gms, roster, candidates, removable) {
      * live. It used to be a window of its own with a tile on the GM panel; both
      * are gone, because two doors into one form is one door too many.
      */
-    const body = panelTabs([
-        { key: "pools", label: game.i18n.localize("DRPG.Despair.poolsTitle"), html: poolSection },
-        { key: "monokumas", label: game.i18n.localize("DRPG.Monokuma.panelTitle"), html: monokumaSection },
-        ...(roster.length ? [{ key: "students", label: game.i18n.localize("DRPG.Assign.title"), html: assignSection }] : []),
-        { key: "overflow", label: game.i18n.localize("DRPG.Overflow.title"), html: overflowSection({ suggestion: overflowSuggestionNow() }) }
+    const body = kitTabs([
+        { key: "pools", label: game.i18n.localize("DRPG.Despair.tabPools"), html: poolSection },
+        { key: "monokumas", label: game.i18n.localize("DRPG.Despair.tabMonokumas"), html: monokumaSection },
+        ...(roster.length ? [{ key: "students", label: game.i18n.localize("DRPG.Despair.tabStudents"), html: assignSection }] : []),
+        { key: "overflow", label: game.i18n.localize("DRPG.Despair.tabOverflow"), html: overflowSection({ suggestion: overflowSuggestionNow() }) }
     ]);
 
     // Built as an element, not a string: DialogV2 runs a string `content`
