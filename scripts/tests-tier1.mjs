@@ -22874,7 +22874,7 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson([true, true, true, true]),
             "[cardOnReturn exists, it takes the card off what was asked before it raises it through onCreateChatMessage, the listener hands it a GM's answer asked for, onCreateChatMessage's card carries the message's id]");
     }],
-    ["R847 - the notice tile stands under the windows while every card it shows is a notice to the whole table, and over them with any other card shown: a card for this reader alone, a refusal or an objection keeps it at 99990, a parked card does not count, and the empty tile with its history button stands under them, in both themes and on a stacked screen (E18 C6; S11-17)", async () => {
+    ["R847 - the notice tile by theme: under Stained Glass it stands under the windows whatever it shows - a notice to the whole table, a card for this reader alone, a refusal, an objection, or no card - on a desk and on a stacked screen; under Monokuma Legacy every card stands over them at 99990, a parked card counting for nothing, and only the empty desk tile with its history button stands under them (E18 C6, E44 C8c; S11-17, E44-28)", async () => {
         /*
          * E18 C6, 20.10.2026; audit S11-17 (a) as the owner's amend of 11.10 words it (E18-24): one host, its z-index
          * worked out from what it shows, no second container. A restock or a new time of day landed at 99990 over the
@@ -22887,6 +22887,16 @@ const INVARIANTS = [
          * layout and drops `!important` from a `var()` value), on a tile built on a body of its own for each theme and
          * layout, holding those kinds as cards: the winning `z-index`, "under" for one below Foundry's `--z-index-app`.
          * Not read here: the windows themselves over the tile in a browser (LIVE-E18-03).
+         *
+         * BY THEME SINCE E44 C8c (04.11.2026; E44-28, the owner on 1.2.98: "Powiadomienia nachodza na okna", and "W
+         * stained glass powinny byc pod. W monokuma legacy nad."). The E18 C6 split by kind is gone: under Stained
+         * Glass every stack reads "under", on a desk and stacked; under Monokuma Legacy every stack with a card shown
+         * reads 99990, and the empty one "under" on a desk (E81 C10's rule, which R298 (7) reads) and 99990 on a
+         * stacked screen, where an empty tile draws nothing (the button hidden, narrow.css). The kinds are still
+         * stamped and read, though no sheet reads them now. Red at ab449796: Stained Glass's "mine", "info and
+         * mine", "info and refusal" and "objection" at 99990, Legacy's "info", "two info" and "info, mine parked"
+         * under, and the stacked Legacy tile with no card under. In Chromium, a window over a card: the glass
+         * sweep's `drpgNoticeCheck` (`windows`).
          */
         const P = await import("./popup.mjs");
         const tile = document.getElementById("drpg-popups");
@@ -22937,9 +22947,9 @@ const INVARIANTS = [
             return [name, z === UNDER ? "under" : z];
         });
         const LAYOUTS = ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass", "drpg-theme-monokuma-legacy drpg-stacked", "drpg-theme-stained-glass drpg-stacked"];
-        const want = [["empty", "under"], ["info", "under"], ["two info", "under"], ["mine", "99990"], ["info and mine", "99990"],
-            ["info, mine parked", "under"], ["info and refusal", "99990"], ["objection", "99990"]];
-        equal(stableJson(LAYOUTS.map(read)), stableJson(LAYOUTS.map(() => want)),
+        const every = z => STACKS.map(([name]) => [name, z]);
+        const legacyDesk = STACKS.map(([name]) => [name, name === "empty" ? "under" : "99990"]);
+        equal(stableJson(LAYOUTS.map(read)), stableJson([legacyDesk, every("under"), every("99990"), every("under")]),
             "[for Monokuma Legacy, Stained Glass and each stacked: the tile's winning z-index with no card, one and two notices to the table, a card for this reader, "
             + "both, a notice with a card for this reader parked, a notice and a refusal, an objection]");
     }],

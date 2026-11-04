@@ -326,13 +326,19 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
                 cards stand together at 1920x1080, 1366x768 and 1680x1050 and one parks at 1440x900, and beside the
                 long card the second parks at most desk sizes). Under Monokuma Legacy and on a stacked screen
                 there must be no frame.
+       windows  (E44 C8c, 04.11.2026; E44-28, the owner: "W stained glass powinny byc pod. W monokuma legacy nad.")
+                one card for this reader alone (no source: "mine", which the E18 C6 split kept over the windows in
+                both themes), and over it a window - a fixed `.application.dialog` on the card's box at z-index
+                100, as this page draws its windows - then `elementFromPoint` at the card's centre, the card taking
+                the pointer for the reading: under Stained Glass the window must be on top, under Monokuma Legacy
+                the card, on a desk and on a stacked screen.
      All of it with the tile's turn taken off, as R299 (b) and glass.mjs measure, and in client coordinates, so the
      containing block's offset under Stained Glass (P23; glass.mjs, `LAUNCH_CLEAR`) is the same for both boxes of a
      comparison. The cards are closed and the turn, the dock and the badge put back before it answers. */
   window.drpgNoticeCheck = async () => {
     const host = document.getElementById("drpg-popups"), button = document.getElementById("drpg-notices-corner");
     const body = document.body, stacked = body.classList.contains("drpg-stacked");
-    const out = { ok: false, why: [], stacked, ceiling: null, stack: null, long: null, floor: null, fill: null };
+    const out = { ok: false, why: [], stacked, ceiling: null, stack: null, long: null, floor: null, fill: null, windows: null };
     if (!host || !button) { out.why.push("no notice tile or no history button"); return out; }
     if (host.querySelector(".drpg-popup:not(.leaving)")) { out.why.push("a card is on the tile already (?card=1): the check draws its own"); return out; }
     const P = await import("/scripts/popup.mjs");
@@ -412,6 +418,38 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
           if (edges.length === 2 ? !edges.every(e => e > 0) : edges.length !== 1 || edges[0] !== 0) out.why.push(`fill: with two short cards the left edges read ${JSON.stringify(edges)} px (want two, each over 0, or one shown at 0)`);
           if (!one || !two || none) out.why.push(`fill: the frame drawn ${one}/${two}/${none} with one card, two cards and none (want true/true/false)`);
         }
+      }
+      {
+        const glassOn = body.classList.contains("drpg-theme-stained-glass"), want = glassOn ? "window" : "card";
+        closers.push(P.showPopup("<p>Window words over a card</p>", { title: "Window", record: false }));
+        await frame();
+        const card = shown()[0];
+        if (!card) out.why.push("windows: the card is not shown");
+        else {
+          const c = card.getBoundingClientRect(), win = document.createElement("div");
+          win.className = "application dialog drpg-panel";
+          // Stated `!important` inline: the themes' sheets place and size `.application` windows of their own; the
+          // z-index stays plain, as Foundry writes a window's.
+          for (const [k, v] of [["position", "fixed"], ["margin", "0"], ["left", `${c.left}px`], ["top", `${c.top}px`], ["right", "auto"], ["bottom", "auto"],
+            ["width", `${Math.max(40, c.width)}px`], ["height", `${Math.max(40, c.height)}px`], ["min-width", "0"], ["min-height", "0"], ["max-width", "none"], ["max-height", "none"], ["transform", "none"]]) win.style.setProperty(k, v, "important");
+          win.style.setProperty("z-index", "100");
+          body.append(win);
+          const pe = [card.style.getPropertyValue("pointer-events"), card.style.getPropertyPriority("pointer-events")];
+          card.style.setProperty("pointer-events", "auto", "important");
+          await frame();
+          const x = c.left + c.width / 2, y = c.top + c.height / 2, w = win.getBoundingClientRect();
+          const covers = w.left <= x && x <= w.right && w.top <= y && y <= w.bottom;
+          const at = document.elementFromPoint(x, y);
+          const top = win.contains(at) ? "window" : card.contains(at) ? "card" : at ? `${at.tagName.toLowerCase()}${at.id ? "#" + at.id : ""}` : null;
+          const z = getComputedStyle(host).zIndex;
+          win.remove();
+          if (pe[0]) card.style.setProperty("pointer-events", pe[0], pe[1]); else card.style.removeProperty("pointer-events");
+          out.windows = { want, top, z, kind: card.dataset.kind ?? null };
+          if (!covers) out.why.push(`windows: the window drawn (${[w.left, w.top, w.width, w.height].map(Math.round)}) does not cover the card's centre (${[x, y].map(Math.round)})`);
+          else if (top !== want) out.why.push(`windows: over the card stands the ${top}, want the ${want} (${glassOn ? "Stained Glass: under the windows" : "Monokuma Legacy: over them"}; the tile at z-index ${z})`);
+        }
+        shut();
+        await frame();
       }
       if (stacked) {
         const read = () => px(getComputedStyle(host).maxHeight);

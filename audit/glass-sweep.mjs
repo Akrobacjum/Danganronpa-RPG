@@ -43,7 +43,9 @@
  * ceiling under 96 px on a stacked screen, as it is or with a camera dock (P25); a shown card a sliver of its content
  * beside another, or the shown cards not fitting (P24, P9); a card of 400 words outside the tile or not scrolling where
  * the stack has a ceiling (P24's other road); a line of the bottom card's words, scrolled to its end, under the
- * history's button or its unread badge (P8, P7). Its `why` is printed. R299 reads the same inside Foundry only.
+ * history's button or its unread badge (P8, P7); a window drawn over a card for this reader alone not on top of it
+ * under Stained Glass, or on top of it under Monokuma Legacy (`windows`, E44 C8c: the notices by theme). Its `why` is
+ * printed. R299 reads the same inside Foundry only.
  * `--no-notices` leaves it out.
  * THE CARD ON ITS PANE (E79 C13, 16.10.2026; the owner's N16). The same check's `fill`: on a Stained Glass desk the
  * card's plate is `#drpg-note-frame` on the note pane's polygon within 1 px, the card's words inside the pane, the card
@@ -1052,7 +1054,8 @@ try {
                 else {
                     line += ` | notices ${n.ok ? "ok" : "NOT ok"}` + (n.ceiling ? ` ceiling ${n.ceiling.asIs.toFixed(0)}/${n.ceiling.docked.toFixed(0)}` : "")
                         + (n.stack ? ` shown ${n.stack.shown}+${n.stack.parked}` : "") + (n.long ? ` long ${n.long.judged ? (n.long.inTile && n.long.scrolls ? "in" : "OUT") : "unjudged"}` : "")
-                        + (n.fill?.pane ? ` fill off ${n.fill.off} out ${n.fill.out}/${n.fill.lines}` : n.fill ? ` fill frame ${n.fill.frame}` : "");
+                        + (n.fill?.pane ? ` fill off ${n.fill.off} out ${n.fill.out}/${n.fill.lines}` : n.fill ? ` fill frame ${n.fill.frame}` : "")
+                        + (n.windows ? ` windows ${n.windows.top}/${n.windows.want}` : "");
                     if (!n.ok) fails.push("notices: " + n.why);
                     if (control && !fillControlled && n.fill?.pane) {
                         fillControlled = true;

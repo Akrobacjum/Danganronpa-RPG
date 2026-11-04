@@ -799,12 +799,12 @@ export function showPopup(bodyHtml, {
         sticky ? " drpg-popup-sticky" : ""}${
         TONES.includes(tone) ? ` drpg-popup-tone-${tone}` : ""}`;
     const from = noticeSource(source, messageId ?? fromMessage, author);
-    /* WHAT THE TILE STANDS BY (E18 C6; audit S11-17 (a), the owner's amend of 11.10). A notice to the whole
-       table - drawn from a public card, a GM's or a player's - is "info", and a tile showing only those stands
-       under the windows (danganronpa.css, `#drpg-popups`): a restock or a new time of day stood at 99990 over
-       the sheet's header, the GM's panel and the dashboard's SAVE until somebody closed it. Anything else keeps
-       the tile over them: a card for this reader alone ("mine" - a whisper, a card of no document, the
-       messenger's, the day summary), a refusal, an objection. Worked out whether or not the card is kept. */
+    /* WHO A CARD IS FOR (E18 C6; audit S11-17 (a)). A notice to the whole table - drawn from a public card, a
+       GM's or a player's - is "info"; a card for this reader alone ("mine" - a whisper, a card of no document,
+       the messenger's, the day summary), a refusal and an objection carry their own word. Until 1.2.99 the
+       tile's layer was worked out from it; since E44 C8c the theme alone decides (danganronpa.css,
+       `#drpg-popups`: under the windows under Stained Glass, over them under Monokuma Legacy), no sheet reads
+       it, and it stays the card's reading (R847). Worked out whether or not the card is kept. */
     card.dataset.kind = kind !== "info" ? String(kind) : from.source === "public" || from.source === "player" ? "info" : "mine";
 
     // EVERY CARD HAS A TITLE BAR.

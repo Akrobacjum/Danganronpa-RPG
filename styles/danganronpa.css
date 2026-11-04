@@ -6314,7 +6314,8 @@ body.drpg-player.drpg-resources-locked .character-header-sheet .character-traits
    writes the real offset inline, so the stack clears the Despair rows, the HUD
    and the trial floor bar however tall they happen to be. */
 
-/* ON TOP OF EVERYTHING, and it has to be a number this large.
+/* OVER THE WINDOWS UNDER MONOKUMA LEGACY, and it has to be a number this large (under Stained Glass
+   the rule after this one puts the tile under them: E44 C8c).
    -------------------------------------------------------------------------
    This was `z-index: 80`, which put the whole stack UNDER every application
    window: ApplicationV2 hands out z-indexes from 101 upward and raises whatever
@@ -6340,17 +6341,21 @@ body.drpg-player.drpg-resources-locked .character-header-sheet .character-traits
     pointer-events: none;
 }
 
-/* BUT A NOTICE TO THE WHOLE TABLE STANDS UNDER THE WINDOWS (E18 C6; audit S11-17 (a), the owner's
-   amend of 11.10: one host, its height worked out from what it shows). A restock, a new time of day,
-   a room opened: at 99990 such a card stood over the sheet's header, the GM's panel and, under
-   Stained Glass, the Investigation dashboard's SAVE until somebody closed it. While every card shown
-   is one of those (`data-kind="info"`, popup.mjs `showPopup`) the tile goes one under Foundry's
-   `--z-index-app`, as the evidence stage does; a card for this reader alone, a refusal or an
-   objection takes the whole tile back to 99990, the rule above, and a parked card counts for
-   nothing. The tile with no card shown matches too: the lone history button never stands over a
-   window. Read headless from the sheets' text (R847); over real windows only in a browser
-   (LIVE-E18-03). */
-#drpg-popups:not(:has(> .drpg-popup:not(.drpg-popup-parked):not([data-kind="info"]))) {
+/* NOTICES BY THEME: UNDER STAINED GLASS THE TILE STANDS UNDER THE WINDOWS, every card on it (E44 C8c,
+   04.11.2026; the owner on 1.2.98: "Powiadomienia nachodza na okna - to tez do poprawy", and on the
+   diagnosis: "W stained glass powinny byc pod. W monokuma legacy nad."). One under Foundry's
+   `--z-index-app`, as the evidence stage is, whatever the card - a whisper, a refusal, an objection or a
+   notice to the whole table - on a desk and on a stacked screen. The pane is the curtain's bottom-left
+   corner, so a window covers its cards only where it is dragged over that corner; a card stays until it
+   is closed, and the Notice history keeps it. Under Monokuma Legacy every card stands over the windows,
+   at 99990 (the rule above); the empty tile on a desk still goes under them (E81 C10, near the end of
+   this file), and on a stacked screen nothing of an empty tile is drawn (narrow.css).
+   Until 1.2.99 one split held for both themes (E18 C6; audit S11-17 (a), the owner's amend of 11.10):
+   the tile under the windows while every card shown was a notice to the whole table (`data-kind="info"`,
+   popup.mjs `showPopup`), over them with any other. The owner's words of 04.11 replace it. Read
+   headless from the sheets' text (R847); in Chromium by the glass sweep's `drpgNoticeCheck`, a window
+   drawn over a card (`windows`); at a table LIVE-E18-03. */
+body.drpg-theme-stained-glass #drpg-popups {
     z-index: calc(var(--z-index-app, 30) - 1);
 }
 
@@ -6394,8 +6399,9 @@ body.drpg-player.drpg-resources-locked .character-header-sheet .character-traits
 /* AN OBJECTION OVER THE WINDOWS UNTIL IT IS TOUCHED (E10 C16, 1.2.71; the owner's
    amend of 04.10). popup.mjs puts `is-raised` on the stage while an OBJECTION! on
    it has not had a pointerdown, and takes it off after. One under the notice
-   stack, whose 99990 is the reading above that clears the window layer, so a
-   notice still lands over it. Whether it stands over every window at a real
+   stack's 99990 under Monokuma Legacy, so a notice still lands over it there;
+   under Stained Glass the stack stands under the windows (E44 C8c) and so under
+   a raised objection too. Whether it stands over every window at a real
    table is LIVE-E10-03: the harness draws no stacking. */
 #drpg-evidence.is-raised {
     z-index: 99989;
