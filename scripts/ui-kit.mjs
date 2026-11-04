@@ -639,7 +639,7 @@ export function wireKit(root, { onMode = null } = {}) {
 /* ---- the A8 surfaces: the tiles, the launchers, the list of sliders and the Foundry tools frames (E44 C6) --------- */
 
 /*
- * THE A8 SURFACES (E44 C6, 05.11.2026; the 11.10 amend A8, E44-20). The room tile and the voice tile (E77, E78), the
+ * THE A8 SURFACES (E44 C6, 04.11.2026; the 11.10 amend A8, E44-20). The room tile and the voice tile (E77, E78), the
  * voice tile's 30 px mini launchers and their states, its list "Who you hear" with a slider a row, the GM's red
  * hexagon, the Foundry tools launcher and its two plain frames were each built by hand in their own file; these
  * builders draw them. Each takes the surface's own classes, id and words as given, so every selector a test, a sheet

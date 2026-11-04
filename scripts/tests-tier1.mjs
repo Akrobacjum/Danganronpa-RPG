@@ -33438,7 +33438,7 @@ const INVARIANTS = [
     }],
     ["R1332 - the A8 surfaces are built by the kit (scripts/ui-kit.mjs; E44 C6, E44-20, the 11.10 amend A8): the room tile and the voice tile by `tile`, the voice tile's microphone, speaker and OBJECTION! by the mini `launcher` with their glyphs by `pixelGlyph`, the microphone's states by `launcherState` - held, the GM's lock and no connection each its one class, muted and push to talk too - the list 'Who you hear' by `sliderList` and its rows' sliders by `slider`, the GM's hexagon and Foundry tools' launcher by `launcher` - Foundry tools' still with no `drpg-` class on it or above it (R512) - and the two Foundry tools frames by `frame`; no builder of theirs draws the surface by hand", async () => {
         /*
-         * E44 C6, 05.11.2026; the amend A8 ("the room tile ..., the voice tile ..., the small launcher with its states, the
+         * E44 C6, 04.11.2026; the amend A8 ("the room tile ..., the voice tile ..., the small launcher with its states, the
          * list 'Who you hear' with its sliders, the GM's red hexagon and the Foundry tools launcher, the plain frames of the
          * Foundry tools and Map tools windows ... move onto kit components with no change of look or behaviour"). Read two
          * ways: the source of each builder, comments stripped, calls the kit's builder and makes no element of the surface
@@ -33449,7 +33449,7 @@ const INVARIANTS = [
          * states leaves exactly that state's class on the button (mutant c6-m3, the offline state dropped, reads here). The
          * narrow description window (room-tile.mjs `RoomWindow`) is not here: on DrpgApp's frame it would change - its
          * content's padding 12 -> 10 px, its overflow auto -> hidden with no region to scroll, under Legacy a max-height
-         * where it had none (Chromium, 05.11.2026) - so it stays on its own ApplicationV2 until E21 moves the frames (C6's
+         * where it had none (Chromium, 04.11.2026) - so it stays on its own ApplicationV2 until E21 moves the frames (C6's
          * STATUS, Open). Red before C6: every builder drew its surface by hand, and ui-kit.mjs had no `builtBy`.
          */
         const kit = await import("./ui-kit.mjs");
@@ -33521,7 +33521,7 @@ const INVARIANTS = [
     }],
     ["R1333 - the A8 surfaces' cascade is the one it was, from components.css (tests-kit.mjs `styleCascade`; E44 C6, E44-20, the 11.10 amend A8): on the room tile, the voice tile in four states of its microphone with OBJECTION!, the list 'Who you hear', the GM's hexagon, Foundry tools' launcher and frames and the two pictures the curtain seats, placed as a desk, the curtain and a stacked screen place them on a body of each theme, every property the style baseline records and every property a rule written for them states - on each element and its ::before and ::after - is won by the declaration it was won by at C5's tree (a fingerprint per surface, place and theme), and none by a rule written for them in danganronpa.css or stained-glass.css but the seven `!important` that stay and the eye's sprite tools/chrome-icons.mjs writes", async () => {
         /*
-         * E44 C6, 05.11.2026; the plan's risk ("a kit rule can lose to an old rule carrying !important and the test
+         * E44 C6, 04.11.2026; the plan's risk ("a kit rule can lose to an old rule carrying !important and the test
          * still pass while the screen does not change"), on the surfaces whose acceptance is that nothing changes (C6:
          * "the diff is 0"). The surfaces are the module's own: the room tile painted by `paintRoomTile` (a picture, its
          * words open, tokens, a project), the voice tile by `buildVoiceTile` with `paintMic` and `paintObjection`, the list
@@ -33537,7 +33537,7 @@ const INVARIANTS = [
          * E44 C6's full reading in Chromium. A winner that is a rule written for these surfaces and stands in danganronpa.css
          * or stained-glass.css is named, but for the seven `!important` that stay there (components.css holds none). Red
          * before C6: those rules were the old sheets', every one. No two rules of the section's top level tie on one
-         * element (the same weight and property: none in the glass harness's page in Chromium, 05.11.2026), so their
+         * element (the same weight and property: none in the glass harness's page in Chromium, 04.11.2026), so their
          * order inside the section draws nothing; the `@media` overrides do tie with the rules they override, and their
          * order is read from the sheet's text (mutant c6-m1b, the reduced-motion block above the word's run).
          */
@@ -33708,7 +33708,7 @@ const INVARIANTS = [
                 }
             }
         }
-        /* Measured on C5's tree (e65fbb33) with this test and tests-kit.mjs's pseudo-elements, 05.11.2026: 48 surfaces, 19153 readings. */
+        /* Measured on C5's tree (e65fbb33) with this test and tests-kit.mjs's pseudo-elements, 04.11.2026: 48 surfaces, 19153 readings. */
         /* The `@media` rules of the section, which `styleCascade` does not read: each must stand after every rule of the
            section's top level it overrides - the same selector - or the system's reduced motion stops nothing (E44 C6's
            mutant c6-m1: the reduced-motion block moved above the word's run). Read from the sheet's text, in order. */

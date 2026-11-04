@@ -602,7 +602,7 @@ body.drpg-stacked .drpg-notice-time { grid-column: 2; grid-row: 2; }
 body.drpg-stacked :is(.drpg-notice-text, .drpg-notice-tags) { grid-column: 2; }
 
 /* ==========================================================================
-   THE A8 SURFACES (E44 C6, 05.11.2026; the 11.10 amend A8, E44-20)
+   THE A8 SURFACES (E44 C6, 04.11.2026; the 11.10 amend A8, E44-20)
    --------------------------------------------------------------------------
    The room tile, the voice tile with its 30 px mini launchers and their states, the list "Who you hear", the GM's
    red hexagon, the Foundry tools launcher and its two plain frames (E77, E78), drawn by ui-kit.mjs's `tile`,

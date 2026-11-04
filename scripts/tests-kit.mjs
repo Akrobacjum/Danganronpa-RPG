@@ -893,7 +893,7 @@ async function styleCascade() {
         const entries = new Set(wanted.flatMap(name => by.get(name) ?? []));
         let best = null;
         for (const { rule, order, selectors } of [...entries].sort((a, b) => a.order - b.order)) {
-            /* the rule's declaration read only once one of its selectors matches (E44 C6, 05.11.2026: R1333 asks 19153
+            /* the rule's declaration read only once one of its selectors matches (E44 C6, 04.11.2026: R1333 asks 19153
                properties, 3.8 million rules in all, and filtering every rule's declarations first took most of its time) */
             let decl = null;
             for (const one of selectors) {
