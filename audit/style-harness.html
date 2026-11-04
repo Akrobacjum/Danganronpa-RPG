@@ -11,6 +11,11 @@
        ?w=<id>          one window of audit/windows/manifest.json; with none, every captured window in a column
        ?theme=legacy    Monokuma Legacy (the body's class and the pixel font, as glass-harness.html swaps them)
        ?role=player     a player's page (`drpg-player` on the body), for the windows a player opens
+       ?kit=1           THE KIT GALLERY (E44 C3a): every component of scripts/ui-kit.mjs in each of its states, drawn by
+                        the kit's own `drpgWindow` and builders (a DialogV2 stood in for below, as the harness's draws
+                        one; its render hands the window to the kit, which dresses it), its words from lang/en.json
+                        (`&lang=pl`: lang/pl.json); the kit card's "today" for E44's mockup round, and a page of the
+                        style sweep's baseline. The captions over each window are this page's, not the module's
      THE SHEETS ARE module.json's, in its order, read when the page loads (a synchronous request and a link written
      for each, so they block the first paint as written links do), so a sheet added to module.json is never missed
      here. WHAT THIS PAGE IS NOT: Foundry's frame (the harness's DialogV2 draws its form with no header, so the
@@ -33,9 +38,15 @@
   .drpg-style-harness .drpg-style-shot { display: block; padding: 8px; }
   .drpg-style-harness .drpg-style-shot > .application { position: relative; left: auto; top: auto; max-width: 100%; }
   .drpg-style-harness .drpg-style-missing { font: 14px monospace; }
+  .drpg-style-harness .drpg-style-kit { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+  .drpg-style-harness .drpg-style-caption { font: 12px/1.3 monospace; color: #e4ded8; margin: 0 0 4px; max-width: 520px; }
 </style>
 </head>
 <body class="drpg-theme-stained-glass drpg-gm drpg-style-harness" data-drpg-time="afternoon" data-drpg-phase="dailyLife">
+<script>
+  /* Set first, so the sweep waits for the gallery's module script to finish (style-sweep.mjs `load`). */
+  if (new URLSearchParams(location.search).get("kit")) document.body.setAttribute("data-drpg-kit-pending", "");
+</script>
 <script>
   (function () {
     var q = new URLSearchParams(location.search);
@@ -49,6 +60,7 @@
     };
     var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]; }); };
     var manifest = JSON.parse(get("/audit/windows/manifest.json") || "{\"windows\": []}");
+    if (q.get("kit")) return;
     var wanted = q.get("w");
     var rows = manifest.windows.filter(function (r) { return r.captured && (!wanted || r.id === wanted); });
     if (wanted && !rows.length) document.write('<p class="drpg-style-missing">no captured window "' + esc(wanted) + '" in audit/windows/manifest.json</p>');
@@ -66,6 +78,111 @@
       document.write('<div class="drpg-style-shot" id="shot-' + esc(r.id) + '" data-window="' + esc(r.id) + '">' + app.outerHTML + '</div>');
     });
   })();
+</script>
+<script type="module">
+  /* THE KIT GALLERY (`?kit=1`). The kit's own code, outside Foundry: `game.i18n` reads the page's lang file, and
+     `foundry.applications.api.DialogV2.wait` draws a window as the harness's DialogV2 draws one (a form of the
+     content and a footer of submit buttons, each `class` and the default's `autofocus` as Foundry renders them),
+     then hands it to the config's render, where drpgWindow dresses it - so what is shot is what the kit does. */
+  const q = new URLSearchParams(location.search);
+  if (q.get("kit")) {
+    const get = path => { const req = new XMLHttpRequest(); req.open("GET", path, false); req.send(); return req.status === 200 ? req.responseText : null; };
+    const lang = JSON.parse(get(`/lang/${q.get("lang") === "pl" ? "pl" : "en"}.json`) || "{}");
+    const at = key => key.split(".").reduce((o, k) => o?.[k], lang);
+    const localize = key => (typeof at(key) === "string" ? at(key) : key);
+    const escapeHTML = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#x27;" }[c]));
+    const grid = document.createElement("div");
+    grid.className = "drpg-style-kit";
+    document.body.append(grid);
+    let shot = null;
+    /* What the kit's imports (utils.mjs, live.mjs and theirs) reach for when they load: a hook registry, as
+       glass-harness.html stands one in, and the settings read nothing. */
+    const hooks = new Map();
+    globalThis.Hooks = { on(name, fn) { if (!hooks.has(name)) hooks.set(name, []); hooks.get(name).push(fn); return fn; },
+      once(name, fn) { return this.on(name, fn); }, off(name, fn) { hooks.set(name, (hooks.get(name) ?? []).filter(f => f !== fn)); },
+      callAll(name, ...a) { for (const fn of hooks.get(name) ?? []) fn(...a); return true; } };
+    globalThis.ui = {};
+    globalThis.CONFIG = {};
+    globalThis.game = { ready: true, user: { isGM: !document.body.classList.contains("drpg-player") }, settings: { get: () => undefined, settings: new Map() },
+      i18n: { localize, has: key => typeof at(key) === "string", format: (key, data) => localize(key).replace(/\{(\w+)\}/g, (m, k) => (k in (data ?? {}) ? String(data[k]) : m)) } };
+    globalThis.foundry = { utils: { escapeHTML, randomID: () => Math.random().toString(36).slice(2, 10), deepClone: o => structuredClone(o) }, applications: { api: { DialogV2: { wait(config) {
+      const root = document.createElement("div");
+      root.className = ["application", "dialog", ...(config.classes ?? [])].join(" ");
+      if (config.position?.width) root.style.width = `${config.position.width}px`;
+      root.innerHTML = `<header class="window-header"><h1 class="window-title">${escapeHTML(config.window?.title)}</h1><button type="button" class="header-control" data-action="close">x</button></header>`
+        + `<section class="window-content"><form class="dialog-form standard-form"><div class="dialog-content standard-form"></div><footer class="form-footer"></footer></form></section>`;
+      root.querySelector(".dialog-content").append(...config.content.childNodes);
+      const foot = root.querySelector("footer");
+      for (const b of config.buttons ?? []) {
+        foot.insertAdjacentHTML("beforeend", `<button type="submit" data-action="${escapeHTML(b.action)}" class="${b.default ? "default " : ""}${escapeHTML(b.class ?? "")}"${b.default ? " autofocus" : ""}><span>${escapeHTML(b.label)}</span></button>`);
+      }
+      shot.append(root);
+      config.render?.(new Event("render"), { element: root, addEventListener() {} });
+      return new Promise(() => {});
+    } } } } };
+    const K = await import("/scripts/ui-kit.mjs");
+    const L = localize;
+    const frame = (id, caption, options) => {
+      shot = document.createElement("div");
+      shot.className = "drpg-style-shot";
+      shot.id = `shot-kit-${id}`;
+      shot.dataset.window = `kit-${id}`;
+      shot.insertAdjacentHTML("afterbegin", `<p class="drpg-style-caption">${escapeHTML(caption)}</p>`);
+      grid.append(shot);
+      K.drpgWindow({ classes: [`drpg-window-kit-${id}`], position: { width: options.width ?? 380 }, ...options });
+    };
+    const rooms = ["Cafeteria", "Dorm A", "Dorm B", "Gym", "Hall", "Storage", "Library", "Garden", "Pool", "Lab", "Art room", "Music room"];
+    const columns = [{ key: "room", label: "Room" }, { key: "n", label: "N", num: true }, { key: "act", label: "", act: true }];
+    const row = (name, i) => ({ room: escapeHTML(name), n: String(i + 1), act: `<button type="button" class="drpg-mini-button">${escapeHTML(L("DRPG.Kit.close"))}</button>` });
+    frame("tabs", "kitTabs: three panes, the second open; the footer follows the tab", {
+      title: "kitTabs", width: 480,
+      tabs: { active: "two", sections: [{ key: "one", label: "Bedrooms", html: K.helpText("DRPG.Kit.scrollMore") }, { key: "two", label: "Doors", html: K.helpText("DRPG.Kit.tableEmpty") },
+        { key: "three", label: "Description", html: "<p>-</p>" }], buttons: { one: ["save"], two: ["save"], three: [] }, always: ["close"] },
+      footer: { primary: { action: "save", label: "Save" }, close: "close" }
+    });
+    frame("footer", "the footer: every role (the closing word, a secondary, a destructive one; the GM's road, the primary)", {
+      title: "footer", width: 560, body: K.helpText("DRPG.Kit.scrollMore"),
+      footer: { primary: { action: "save", label: "Save" }, gmRoute: [{ action: "ask", label: "Ask the GM" }], secondary: [{ action: "split", label: "Split evenly" }],
+        destructive: [{ action: "wipe", label: "Reveal" }], close: "close" }
+    });
+    const fields = [{ label: "Campaign name", id: "kit-name", field: "<input type=\"text\" id=\"kit-name\" value=\"DRPG Audit World\">" },
+      { label: "Day", id: "kit-day", field: K.stepper({ name: "day", value: 1, min: 1, id: "kit-day" }) },
+      { label: "Phase", id: "kit-phase", field: `<select id="kit-phase">${K.emptyOption("DRPG.Assign.nobody")}<option>Daily Life</option></select>` },
+      { full: K.helpText("DRPG.Kit.scrollMore") }];
+    frame("form-wide", "formGrid, wide: a label column and a field column", { title: "formGrid", width: 520, body: K.formGrid(fields), footer: { close: "cancel" } });
+    frame("form-narrow", "formGrid, narrow: one column under the container's 30rem", { title: "formGrid", width: 300, body: K.formGrid(fields), footer: { close: "cancel" } });
+    frame("table-empty", "dataTable, empty", { title: "dataTable", body: K.dataTable({ columns, rows: [] }), footer: { close: "close" } });
+    frame("table-short", "dataTable, three rows", { title: "dataTable", body: K.dataTable({ columns, rows: rooms.slice(0, 3).map(row) }), footer: { close: "close" } });
+    frame("table-scroll", "dataTable, more rows than the window: the body scrolls, its head sticks, the signal shows", {
+      title: "dataTable", footer: { close: "close" },
+      body: K.dataTable({ columns, rows: [...rooms, ...rooms].map(row) }).replace("<div class=\"drpg-data-table-box\">", "<div class=\"drpg-data-table-box\" style=\"max-height: 220px; overflow: auto\">")
+    });
+    frame("controls", "stepper at its min, mid and out of range; toggle on, off and disabled", {
+      title: "controls", width: 420,
+      body: K.stepper({ name: "a", value: 0, min: 0, max: 60, label: "Threshold (X)" }) + K.stepper({ name: "b", value: 20, min: 0, max: 60, label: "Threshold (X)" })
+        + K.stepper({ name: "c", value: 61, min: 0, max: 60, label: "Threshold (X)" }) + K.stepper({ name: "d", value: 10, min: 0, max: 50, step: 10, label: "Debate length" })
+        + K.toggle({ name: "t1", checked: true, label: "Indirect murder" }) + K.toggle({ name: "t2", label: "Indirect murder" }) + K.toggle({ name: "t3", disabled: true, label: "Indirect murder" }),
+      footer: { close: "close" }
+    });
+    frame("chips", "chips: pressed, with a count, disabled", {
+      title: "chips", width: 420,
+      body: K.chips([{ label: "All", pressed: true, count: 6 }, { label: "For you", count: 2 }, { label: "From players", count: 0, disabled: true }, { label: "Evidence", count: 1 }]),
+      footer: { close: "close" }
+    });
+    frame("boxes", "the three boxes and the help line", {
+      title: "boxes", width: 420,
+      body: K.box("info", escapeHTML(L("DRPG.Kit.scrollMore"))) + K.box("warning", escapeHTML(L("DRPG.Kit.tableEmpty"))) + K.box("secret", escapeHTML(L("DRPG.Kit.scrollMore"))) + K.helpText("DRPG.Kit.tableEmpty"),
+      footer: { close: "close" }
+    });
+    frame("modes", "modeBar: four modes, the third active", {
+      title: "modeBar", width: 560,
+      body: K.modeBar([{ key: "debate", label: "Open debate" }, { key: "testimony", label: "Testimony" }, { key: "panic", label: "Panic round" }, { key: "closing", label: "Closing argument" }], { active: "panic" }),
+      footer: { close: "close" }
+    });
+    await document.fonts?.ready;
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    document.body.removeAttribute("data-drpg-kit-pending");
+  }
 </script>
 </body>
 </html>

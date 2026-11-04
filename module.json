@@ -53,6 +53,7 @@
     "styles/stained-glass.css",
     "styles/pixel-icons.css",
     "styles/messenger.css",
+    "styles/components.css",
     "styles/narrow.css"
   ],
   "languages": [

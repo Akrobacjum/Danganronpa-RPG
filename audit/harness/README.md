@@ -379,7 +379,8 @@ roll at a table.
   catch is what a table whose renderer failed would log. The fog's checks read
   its ledgers, its regions and its listeners, never pixels; 65-season V3 counts
   a different message (the fog's "reveal on arrival").
-- **CSS** (E30, `lib/css.mjs`). The six stylesheets are attached as one inline
+- **CSS** (E30, `lib/css.mjs`). The seven stylesheets (six until E44 C3a added
+  `components.css`, the window kit's) are attached as one inline
   sheet of `@import ... layer(modules)` in module.json's order, served from the
   checkout (nothing else loads: any other address is a 404), and a client whose
   attach does not complete fails its boot. jsdom 30.0.1's cascade answers:

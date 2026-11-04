@@ -246,7 +246,7 @@ for (const k of ["addEventListener", "removeEventListener", "dispatchEvent"]) {
     if (globalThis[k] === undefined) globalThis[k] = dom.window[k].bind(dom.window);
 }
 
-/* The module's six stylesheets are attached at boot, before the module is imported
+/* The module's stylesheets (module.json's) are attached at boot, before the module is imported
    (lib/css.mjs); custom properties are read through the page's own cascade. */
 globalThis.getComputedStyle = wrapGetComputedStyle(window);
 

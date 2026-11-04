@@ -31,11 +31,12 @@ import {
 } from "./tests-text.mjs";
 /* The CSS lint (E44 C1b): handed on the same way, so R2, R1310 and R1311 run the functions `node tools/check.mjs css`
    runs (R2's dead-class detector lives there since), and the crawl reaches the file through this import; C1c adds the
-   contrast's four for R1312, the functions `node tools/check.mjs contrast` runs. */
+   contrast's four for R1312, the functions `node tools/check.mjs contrast` runs; C3a the kit sheet's reader for R1322. */
 import {
     deadClasses as cssDeadClasses, selfCheck as cssSelfCheck, lintCounts as cssLintCounts, budgetProblems as cssBudgetProblems,
     DETECTORS as CSS_DETECTORS, FIXTURES as CSS_FIXTURES,
-    themeTokens as cssThemeTokens, contrastOf as cssContrastOf, contrastRatio as cssContrastRatio, contrastSelfCheck as cssContrastSelfCheck
+    themeTokens as cssThemeTokens, contrastOf as cssContrastOf, contrastRatio as cssContrastRatio, contrastSelfCheck as cssContrastSelfCheck,
+    kitSheetProblems as cssKitSheetProblems
 } from "./tests-css.mjs";
 
 /* ==========================================================================
@@ -852,24 +853,83 @@ async function styleCascade() {
         const text = (await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
         rules.push(...topLevelStyleRules(text, file));
     }
-    const winner = (el, names) => {
-        const wanted = [names].flat();
-        let best = null;
+    /* Read once, not on every question (E44 C3a, 04.11.2026): each rule's selectors split and weighed, the rules
+       indexed by the properties they declare: the same winner as asking every rule each time, and read again when a
+       test has pushed a rule into `rules` or taken one out (R1007 plants the d99adf4b tray rule so). `on(el)` answers
+       `winner` for one element with its answer to each selector kept, so it holds only while neither the element nor
+       an ancestor changes; R1323 asks some 600 properties of 60 elements that way, and took 4.7 s of the tiers' run
+       before (run-tests --only R1323, 10.4 s wall against 5.7 s for a test that reads nothing). */
+    let indexed = [], byProperty = new Map();
+    const index = () => {
+        if (indexed.length === rules.length && indexed.every((rule, i) => rule === rules[i])) return byProperty;
+        indexed = [...rules];
+        byProperty = new Map();
         rules.forEach((rule, order) => {
-            const hits = rule.decls.filter(d => wanted.includes(d.property));
-            if (!hits.length) return;
-            const decl = hits[hits.length - 1];
-            for (const selector of splitTopLevel(rule.selector, ",")) {
-                let hit = false;
-                try { hit = el.matches(selector); } catch { continue; }
-                if (!hit) continue;
-                const rank = [decl.important ? 1 : 0, ...selectorSpecificity(selector), order];
-                if (!best || rankAbove(rank, best.rank)) best = { rank, value: decl.value, important: decl.important, file: rule.file, selector };
+            const entry = { rule, order, selectors: splitTopLevel(rule.selector, ",").map(selector => ({ selector, specificity: selectorSpecificity(selector), needs: subjectNeeds(selector) })) };
+            for (const property of new Set(rule.decls.map(d => d.property))) {
+                if (!byProperty.has(property)) byProperty.set(property, []);
+                byProperty.get(property).push(entry);
             }
         });
+        return byProperty;
+    };
+    const ask = (el, { selector, needs }) => {
+        if (needs.tag && needs.tag !== el.localName) return false;
+        if (needs.classes.some(name => !el.classList.contains(name))) return false;
+        try { return el.matches(selector); } catch { return false; }
+    };
+    const answer = (el, names, matches) => {
+        const wanted = [names].flat();
+        const by = index();
+        const entries = new Set(wanted.flatMap(name => by.get(name) ?? []));
+        let best = null;
+        for (const { rule, order, selectors } of [...entries].sort((a, b) => a.order - b.order)) {
+            const hits = rule.decls.filter(d => wanted.includes(d.property));
+            const decl = hits[hits.length - 1];
+            for (const one of selectors) {
+                const { selector, specificity } = one;
+                if (!matches(one)) continue;
+                const rank = [decl.important ? 1 : 0, ...specificity, order];
+                if (!best || rankAbove(rank, best.rank)) best = { rank, value: decl.value, important: decl.important, file: rule.file, selector };
+            }
+        }
         return best ? { value: best.value, important: best.important, file: best.file, selector: best.selector } : null;
     };
-    return { rules, winner };
+    const winner = (el, names) => answer(el, names, one => ask(el, one));
+    const on = el => {
+        const known = new Map();
+        const matches = one => {
+            if (!known.has(one.selector)) known.set(one.selector, ask(el, one));
+            return known.get(one.selector);
+        };
+        return names => answer(el, names, matches);
+    };
+    return { rules, winner, on };
+}
+
+/* What a selector's subject - its last compound, outside any parentheses or brackets - asks of the element itself: a
+   tag and the classes it names. An element without one of them cannot match, so `styleCascade` answers no without
+   asking jsdom's `matches`, which is where its time went (E44 C3a: 2.9 s of R1323's 3.1 s, 362 readings). Anything
+   else - an attribute, a pseudo-class, an ancestor - is left to `matches`. */
+function subjectNeeds(selector) {
+    let depth = 0, start = 0, quote = null;
+    for (let i = 0; i < selector.length; i++) {
+        const ch = selector[i];
+        if (quote) { if (ch === quote) quote = null; continue; }
+        if (ch === "\"" || ch === "'") quote = ch;
+        else if (ch === "(" || ch === "[") depth++;
+        else if (ch === ")" || ch === "]") depth--;
+        else if (!depth && /[\s>+~]/.test(ch)) start = i + 1;
+    }
+    let subject = "", level = 0;
+    for (const ch of selector.slice(start)) {
+        if (ch === "(" || ch === "[") level++;
+        if (!level) subject += ch;
+        if (ch === ")" || ch === "]") level--;
+    }
+    const tag = /^[a-z][\w-]*/i.exec(subject)?.[0]?.toLowerCase() ?? null;
+    const classes = [...subject.matchAll(/\.([\w-]+)/g)].map(m => m[1]);
+    return { tag, classes };
 }
 
 function splitTopLevel(text, by) {
@@ -2382,7 +2442,7 @@ export {
     flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem, TEXT_BASELINES, textAgainstBaseline, textStaleRow,
     textTableWords, textLegacyLists,
     cssDeadClasses, cssSelfCheck, cssLintCounts, cssBudgetProblems, CSS_DETECTORS, CSS_FIXTURES,
-    cssThemeTokens, cssContrastOf, cssContrastRatio, cssContrastSelfCheck,
+    cssThemeTokens, cssContrastOf, cssContrastRatio, cssContrastSelfCheck, cssKitSheetProblems,
     stringLiterals, STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, watchWrites, watchLog, cast,
     worldDump, dumpDiff, describeDiff, hashText, dumpOf, dumpPathsOf, DUMP_RULES, DUMP_FOREIGN_SETTINGS
 };

@@ -1448,6 +1448,12 @@
         "caution": "Caution"
       }
     },
+    "Kit": {
+      "close": "Close",
+      "cancel": "Cancel",
+      "tableEmpty": "Nothing to show yet.",
+      "scrollMore": "There is more below. Scroll to see it."
+    },
     "Look": {
       "language": "Language",
       "title": "Settings",

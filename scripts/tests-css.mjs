@@ -503,3 +503,87 @@ export function contrastSelfCheck(of = contrastOf) {
     for (const [id, want] of Object.entries(CONTRAST_FIXTURE.want)) if (got[id] !== want) problems.push(`the fixture's ${id} reads ${got[id]}, not ${want}`);
     return problems;
 }
+
+/*
+ * THE KIT'S SHEET (E44 C3a, 04.11.2026; E44-11): what styles/components.css promises, read off its text. R1322 holds
+ * the served file to it and shows it each fault planted; the Node part `css` holds the same file's `!important` and
+ * literals to their zero budget.
+ */
+
+/* The tokens ui-kit.mjs sets on a tab bar as it fits it (`fitKitTabs`): read with a fallback or under the attribute
+   the fit writes, never declared in the sheet. And the focus ring each role's rule sets for its button. */
+export const KIT_SET_TOKENS = ["--drpg-kit-tab-fit-size", "--drpg-kit-tab-fit-ls", "--drpg-kit-tab-fit-pad", "--drpg-kit-tab-n", "--drpg-kit-ring"];
+/* The colour properties a kit rule may only give through a `--drpg-kit-*` token (or a keyword). */
+const KIT_COLOUR_PROPS = /^(color|background|background-color|border|border-(top|right|bottom|left)|border(-(top|right|bottom|left))?-color|outline|outline-color|box-shadow)$/;
+const KIT_KEYWORDS = /^(transparent|currentcolor|inherit|none|0|initial|unset)$/i;
+const KIT_WIDTH_PROPS = /^(width|min-width|max-width|flex-basis|inline-size|min-inline-size)$/;
+
+/**
+ * The problems of the kit's sheet, each a sentence naming the rule; [] when it holds:
+ *   no `!important`, no colour literal outside a token;
+ *   the Legacy tokens on `body` and the glass's on `body.drpg-theme-stained-glass`, every token the glass declares
+ *   declared for Legacy too (a component with no Legacy variant), every token read declared (or set by ui-kit.mjs);
+ *   every colour a rule gives taken from a `--drpg-kit-*` token or a keyword; a rule written for the glass alone
+ *   stands beside the same rule for both themes (or for Legacy alone);
+ *   every `font-size` a `--drpg-kit-*-size` token, each such token declared in both themes, floored at 11 px under
+ *   Legacy (`max(11px, ...)`) and at the glass's floor under the glass (`max(var(--drpg-sg-floor), ...)`);
+ *   no width above 390 px (the 26.09 amend);
+ *   an uppercase box at `line-height: 1.3` or more - in its rule or in that rule's Legacy variant - and never
+ *   `overflow: hidden` (docs/design/typography.md).
+ */
+export function kitSheetProblems(text) {
+    const problems = [];
+    const css = stripCssComments(text);
+    if (importantCount(css).count) problems.push(`${importantCount(css).count} !important`);
+    for (const found of colourLiterals(css).found) problems.push(`a colour literal outside a token: ${found}`);
+    const blocks = blocksOf(css).filter(b => b.prelude && !b.prelude.startsWith("@"));
+    const tokensOf = prelude => new Map(blocks.filter(b => !b.context.length && b.prelude === prelude)
+        .flatMap(b => declarationsOf(b.own)).filter(d => d.property.startsWith("--")).map(d => [d.property, d.value]));
+    const legacy = tokensOf("body"), glass = tokensOf("body.drpg-theme-stained-glass");
+    if (!legacy.size) problems.push("no Legacy token block (`body { --drpg-kit-...: ... }`)");
+    if (!glass.size) problems.push("no Stained Glass token block (`body.drpg-theme-stained-glass { ... }`)");
+    for (const name of glass.keys()) if (!legacy.has(name)) problems.push(`${name} is declared for the glass and not for Legacy`);
+    const declared = new Set([...legacy.keys(), ...glass.keys(), ...KIT_SET_TOKENS]);
+    const reads = new Set([...css.matchAll(/var\(\s*(--drpg-kit-[\w-]+)/g)].map(m => m[1]));
+    for (const name of reads) if (!declared.has(name)) problems.push(`${name} is read and never declared`);
+    const strip = sel => sel.replace(/\bbody(?:\.drpg-theme-stained-glass|\.drpg-theme-monokuma-legacy|:not\(\.drpg-theme-stained-glass\))?\s*/g, "").replace(/\s+/g, " ").trim();
+    const both = new Set(blocks.filter(b => !/\.drpg-theme-stained-glass(?![^(]*\))/.test(b.prelude.replace(/:not\([^)]*\)/g, ""))).map(b => strip(b.prelude)));
+    const lineHeights = new Map();
+    for (const b of blocks) for (const d of declarationsOf(b.own)) if (d.property === "line-height") lineHeights.set(strip(b.prelude), Number(d.value));
+    for (const b of blocks) {
+        const decls = declarationsOf(b.own);
+        const tokenBlock = !b.context.length && (b.prelude === "body" || b.prelude === "body.drpg-theme-stained-glass");
+        if (tokenBlock) {
+            for (const d of decls.filter(x => /^--drpg-kit-[\w-]*-size$/.test(x.property))) {
+                if (b.prelude === "body" && !/^max\(\s*11px\s*,/.test(d.value)) problems.push(`${d.property} under Legacy is not floored at 11 px: ${d.value}`);
+                if (b.prelude !== "body" && !/^max\(\s*var\(--drpg-sg-floor\)\s*,/.test(d.value)) problems.push(`${d.property} under the glass is not floored at --drpg-sg-floor: ${d.value}`);
+            }
+            continue;
+        }
+        const glassOnly = /\.drpg-theme-stained-glass/.test(b.prelude.replace(/:not\([^)]*\)/g, ""));
+        if (glassOnly && !both.has(strip(b.prelude))) problems.push(`${b.prelude} is written for the glass with no rule for Legacy beside it`);
+        let upper = false, lineHeight = null, hidden = false;
+        for (const d of decls) {
+            const p = d.property.toLowerCase(), v = d.value.trim();
+            if (p.startsWith("--")) continue;
+            if (KIT_COLOUR_PROPS.test(p) && !KIT_KEYWORDS.test(v) && !/var\(--drpg-kit-/.test(v) && !/^\d+(\.\d+)?(px|em|rem)?(\s+(solid|dashed|none))?$/.test(v)) {
+                problems.push(`${b.prelude} gives ${p} without a kit token: ${v}`);
+            }
+            if (p === "font-size" && !/^var\(--drpg-kit-[\w-]*size\b/.test(v)) problems.push(`${b.prelude} sets font-size without a kit size token: ${v}`);
+            if (KIT_WIDTH_PROPS.test(p)) {
+                for (const m of v.matchAll(/(\d+(?:\.\d+)?)(px|rem|em)\b/g)) {
+                    const px = Number(m[1]) * (m[2] === "px" ? 1 : 16);
+                    if (px > 390) problems.push(`${b.prelude} sets ${p} to ${m[0]}, above 390 px`);
+                }
+            }
+            if (p === "text-transform" && v === "uppercase") upper = true;
+            if (p === "line-height") lineHeight = Number(v);
+            if (/^overflow(-[xy])?$/.test(p) && v === "hidden") hidden = true;
+        }
+        // The line may stand in the same rule's Legacy variant: under the glass the glass's button brush draws it (1.35).
+        const variant = lineHeight === null ? lineHeights.get(strip(b.prelude)) ?? null : lineHeight;
+        if (upper && !(variant >= 1.3)) problems.push(`${b.prelude} is uppercase at line-height ${variant ?? "unset"}, under 1.3`);
+        if (upper && hidden) problems.push(`${b.prelude} is uppercase with overflow: hidden`);
+    }
+    return problems;
+}

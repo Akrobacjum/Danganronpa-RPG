@@ -5,7 +5,8 @@
  *   cd audit/harness && npm ci            (once: Playwright comes from there; it downloads no browser)
  *   node audit/style-sweep.mjs            (from the repository's root) every page, size and theme against the baseline
  *   node audit/style-sweep.mjs --accept notices-window --accept dialog-footer
- *                                         the same, with the rows of the surfaces named rewritten from this run
+ *                                         the same, with the rows of the surfaces named rewritten from this run; a page
+ *                                         named (`--accept kit-gallery`) has its rows added when the baseline has none
  *   node audit/style-sweep.mjs --write    the whole baseline written from this run (a new baseline, read before it is committed)
  *   node audit/style-sweep.mjs --shots <dir>   also a screenshot of every page at each size and theme, into <dir>
  *   node audit/style-sweep.mjs --only rooms-bedrooms   one page (repeatable); the baseline's other pages are not read
@@ -14,7 +15,7 @@
  * dead `.drpg-turning` fix's class of error, and the E44 plan's risk. The cascade test (tests-kit.mjs `styleCascade`)
  * sees `!important`, specificity and order but not `@media`, `@container`, `@layer` or a resolved `var()`; this reads
  * what Chromium computes. For each page - every window probe 08 captured (audit/windows/manifest.json), one a page of
- * audit/style-harness.html, and glass-harness.html's own page for a GM (with its GM Panel and messenger windows,
+ * audit/style-harness.html, the same page's kit gallery (`?kit=1`, E44 C3a), and glass-harness.html's own page for a GM (with its GM Panel and messenger windows,
  * `?gmp=1&msgr=1`) and for a player - at 1920x1080, 1366x768, 1024x768 and 390x844, in Stained Glass and Monokuma
  * Legacy, it runs scripts/style-snapshot.mjs `styleSnapshot` and keeps every surface found. A property that differs
  * from the baseline prints the page, the surface, the size, the theme, before and after; a surface found in one and
@@ -70,6 +71,7 @@ function pages() {
     const out = manifest.windows.filter(w => w.captured).map(w => ({
         id: w.id, url: `/audit/style-harness.html?w=${encodeURIComponent(w.id)}${w.client === "gm" ? "" : "&role=player"}`
     }));
+    out.push({ id: "kit-gallery", url: "/audit/style-harness.html?kit=1" });
     out.push({ id: "glass-gm", url: "/audit/glass-harness.html?gmp=1&msgr=1&still=1" });
     out.push({ id: "glass-player", url: "/audit/glass-harness.html?role=player&still=1" });
     return ONLY.size ? out.filter(p => ONLY.has(p.id)) : out;
@@ -86,6 +88,8 @@ async function snap(page) {
 
 async function load(page, u) {
     await page.goto(`${BASE}${u}`, { waitUntil: "load" });
+    // The kit gallery draws in a module script (style-harness.html `?kit=1`): it says when it is done.
+    await page.waitForFunction(() => !globalThis.document.body?.hasAttribute("data-drpg-kit-pending"), null, { timeout: 15000 });
     await page.evaluate(() => globalThis.document.fonts?.ready);
     await page.waitForTimeout(300);
 }
@@ -184,7 +188,9 @@ async function main() {
     const next = { ...before };
     for (const [key, now] of Object.entries(readings)) {
         if (!(key in before)) {
-            if (!WRITE) { problems.push(`${key}: no row in the baseline`); diffs++; }
+            // A page new to the baseline is added by --accept naming the page (E44 C3a: the kit gallery's rows).
+            if (ACCEPT.has(key.split("|")[0])) accepted++;
+            else if (!WRITE) { problems.push(`${key}: no row in the baseline`); diffs++; }
             next[key] = now;
             continue;
         }

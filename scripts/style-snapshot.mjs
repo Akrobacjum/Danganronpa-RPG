@@ -74,7 +74,39 @@ export const STYLE_SURFACES = [
     { id: "foundry-window", role: "gm", selector: ".drpg-foundry-window" },
     { id: "foundry-window-header", role: "gm", selector: ".drpg-foundry-window-header" },
     { id: "hud", role: "both", selector: "#drpg-hud" },
-    { id: "player-status", role: "both", selector: "#drpg-player-status" }
+    { id: "player-status", role: "both", selector: "#drpg-player-status" },
+    /* The window kit (E44 C3a, ui-kit.mjs and components.css): each component once, as the style harness's kit gallery
+       (`?kit=1`) draws it with the kit's own builders, until E21 moves the module's windows onto it. */
+    { id: "kit-window", role: "both", selector: ".application.drpg-ui" },
+    { id: "kit-content", role: "both", selector: ".application.drpg-ui > .window-content" },
+    { id: "kit-body", role: "both", selector: ".application.drpg-ui .drpg-kit-body" },
+    { id: "kit-tabs", role: "both", selector: ".application.drpg-ui nav.drpg-tabs" },
+    { id: "kit-tab", role: "both", selector: ".drpg-tabs > button[role=\"tab\"]:not([aria-selected=\"true\"])" },
+    { id: "kit-tab-active", role: "both", selector: ".drpg-tabs > button[role=\"tab\"][aria-selected=\"true\"]" },
+    { id: "kit-footer", role: "both", selector: ".application.drpg-ui footer.drpg-kit-footer" },
+    { id: "kit-footer-left", role: "both", selector: ".drpg-kit-footer > .drpg-kit-left" },
+    { id: "kit-footer-right", role: "both", selector: ".drpg-kit-footer > .drpg-kit-right" },
+    { id: "kit-primary", role: "both", selector: ".drpg-kit-footer .drpg-role-primary" },
+    { id: "kit-close", role: "both", selector: ".drpg-kit-footer :is(.drpg-role-close, .drpg-role-cancel)" },
+    { id: "kit-secondary", role: "both", selector: ".drpg-kit-footer .drpg-role-secondary" },
+    { id: "kit-destructive", role: "both", selector: ".drpg-kit-footer .drpg-role-destructive" },
+    { id: "kit-gm-route", role: "gm", selector: ".drpg-kit-footer .drpg-role-gm-route" },
+    { id: "kit-form-grid", role: "both", selector: ".drpg-form-grid" },
+    { id: "kit-form-label", role: "both", selector: ".drpg-form-grid > .drpg-form-label" },
+    { id: "kit-table-head", role: "both", selector: "table.drpg-data-table thead th" },
+    { id: "kit-table-cell", role: "both", selector: "table.drpg-data-table tbody td:not(.drpg-data-empty)" },
+    { id: "kit-table-empty", role: "both", selector: "td.drpg-data-empty" },
+    { id: "kit-help", role: "both", selector: ".application.drpg-ui .drpg-help" },
+    { id: "kit-box-info", role: "both", selector: ".drpg-box[data-drpg-box=\"info\"]" },
+    { id: "kit-box-warning", role: "both", selector: ".drpg-box[data-drpg-box=\"warning\"]" },
+    { id: "kit-box-secret", role: "both", selector: ".drpg-box[data-drpg-box=\"secret\"]" },
+    { id: "kit-stepper-input", role: "both", selector: ".drpg-kit-stepper > input[type=\"number\"]" },
+    { id: "kit-stepper-button", role: "both", selector: ".drpg-kit-stepper > button" },
+    { id: "kit-toggle", role: "both", selector: ".drpg-toggle > input[role=\"switch\"]" },
+    { id: "kit-chip", role: "both", selector: ".drpg-chips > .drpg-chip[aria-pressed=\"false\"]:not(:disabled)" },
+    { id: "kit-chip-pressed", role: "both", selector: ".drpg-chips > .drpg-chip[aria-pressed=\"true\"]" },
+    { id: "kit-mode", role: "both", selector: ".drpg-mode-bar > button[aria-pressed=\"false\"]" },
+    { id: "kit-mode-active", role: "both", selector: ".drpg-mode-bar > button[aria-pressed=\"true\"]" }
 ];
 
 /** This page's theme by the body's class: "stained-glass", "monokuma-legacy" or "none". */

@@ -1533,6 +1533,12 @@
         "caution": "Ostrożnie"
       }
     },
+    "Kit": {
+      "close": "Zamknij",
+      "cancel": "Anuluj",
+      "tableEmpty": "Na razie nie ma tu nic do pokazania.",
+      "scrollMore": "Niżej jest więcej. Przewiń, żeby zobaczyć."
+    },
     "Look": {
       "language": "Język",
       "title": "Ustawienia",

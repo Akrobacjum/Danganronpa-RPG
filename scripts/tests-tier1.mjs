@@ -32754,6 +32754,307 @@ const INVARIANTS = [
         equal(stableJson(reads), "{}", "a region held to its settings reads a module key it does not declare: [file region: the keys]");
         ok(readAny > 0, "no region read any key of the module - the spy measured nothing");
     }],
+    ["R1320 - the kit's markup (scripts/ui-kit.mjs; E44 C3a, E44-11, E44-12): drpgWindow hands DialogV2 its classes with `drpg-ui` and `drpg-panel`, its buttons in the kit's tree order with each role's classes, the closing word from the role table and one default, the tab bar above the body that scrolls and every pane in it; footerMarkup's groups (the right one first: the primary is the first submit button) and the throw for a default no role allows; kitTabs and its wiring (one pane shown by `hidden`, the footer following the tab, hidden and disabled both); formGrid; dataTable (colgroup, a head, the empty row across every column in the kit's words, the scroll signal and its line for a screen reader); stepper (its - and +, min, max and step, the message out of range, the label on the input) read through `wholeNumber`; toggle, chip, chips, the three boxes, emptyOption and modeBar; every word through a key both lang files hold", async () => {
+        /*
+         * E44 C3a, 04.11.2026; audit S17-34. The kit E21 and E22 build every window on: its builders are read here as
+         * markup on a page of its own (no window is opened: DialogV2.wait is stood in for and handed back in a
+         * finally), its wirings on elements connected to nothing. What a drawn window does - Enter, Esc, a tab switch
+         * in a real frame, a live region - is E44-T5's (tier 2). Red before C3a: no ui-kit.mjs. The mutant c3a-m1 (the
+         * primary on the left) reads red here.
+         */
+        const K = await import("./ui-kit.mjs");
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json());
+        const [en, pl] = await Promise.all([lang("en"), lang("pl")]);
+        const at = (file, key) => key.split(".").reduce((o, k) => o?.[k], file);
+        const KEYS = ["DRPG.Kit.close", "DRPG.Kit.cancel", "DRPG.Kit.tableEmpty", "DRPG.Kit.scrollMore", "DRPG.Look.stepDown", "DRPG.Look.stepUp",
+            "DRPG.Look.stepDownBy", "DRPG.Look.stepUpBy", "DRPG.Look.atMost", "DRPG.Look.atLeast"];
+        equal(stableJson(KEYS.filter(k => typeof at(en, k) !== "string" || typeof at(pl, k) !== "string")), "[]", "[the kit's keys missing from lang/en.json or lang/pl.json]");
+        const L = key => game.i18n.localize(key);
+        const read = {};
+
+        /* drpgWindow's config, as DialogV2.wait is handed it. */
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let config = null;
+        D.wait = async cfg => { config = cfg; return "stood-in"; };
+        try {
+            const answer = await K.drpgWindow({
+                classes: ["drpg-window-r1320"], title: "R1320", body: "<p class=\"r1320-body\">body</p>",
+                tabs: { sections: [{ key: "a", label: "A", html: "<i>a</i>" }, { key: "b", label: "B", html: "<i>b</i>" }], active: "b" },
+                footer: { primary: { action: "save", label: "Save" }, secondary: [{ action: "split", label: "Split" }], destructive: [{ action: "wipe", label: "Wipe" }], close: "close" }
+            });
+            read.answer = answer;
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        must(config, "drpgWindow handed DialogV2.wait nothing - this would read nothing");
+        const content = config.content;
+        read.classes = config.classes;
+        read.buttons = config.buttons.map(b => [b.action, b.label, b.class, Boolean(b.default)]);
+        read.content = [content?.tagName, content?.firstElementChild?.matches?.("nav.drpg-tabs[role=tablist]"), content?.children?.[1]?.className,
+            [...(content?.querySelectorAll?.(".drpg-kit-body > [data-drpg-pane]") ?? [])].map(p => [p.dataset.drpgPane, p.hidden]),
+            Boolean(content?.querySelector?.(".drpg-kit-body > p.r1320-body")),
+            [...(content?.querySelectorAll?.("nav.drpg-tabs > button") ?? [])].map(b => [b.dataset.drpgTabKey, b.getAttribute("aria-selected")])];
+        equal(stableJson(read), stableJson({
+            answer: "stood-in",
+            classes: ["drpg-window-r1320", "drpg-ui", "drpg-panel"],
+            buttons: [["save", "Save", "drpg-role-primary", true], ["close", L("DRPG.Kit.close"), "drpg-role-close", false],
+                ["split", "Split", "drpg-role-secondary", false], ["wipe", "Wipe", "drpg-role-destructive drpg-destructive", false]],
+            content: ["DIV", true, "drpg-kit-body", [["a", true], ["b", false]], true, [["a", "false"], ["b", "true"]]]
+        }), "[drpgWindow's answer; its classes; its buttons (action, label, class, default) in tree order; its content: a div, the tab bar first, the body after it, the panes in the body (key, hidden), the body's markup in it, the tabs (key, selected)]");
+
+        /* The footer alone: its groups, the closing words, the default rule. */
+        const box = document.createElement("div");
+        box.innerHTML = K.footerMarkup({ primary: { action: "go", label: "Go" }, gmRoute: [{ action: "ask", label: "Ask" }], secondary: [{ action: "more", label: "More" }],
+            close: { role: "cancel", action: "cancel" } });
+        const foot = box.firstElementChild;
+        const throws = footer => { try { K.footerButtons(footer); return false; } catch { return true; } };
+        equal(stableJson({
+            groups: [...(foot?.children ?? [])].map(g => [g.className, [...g.children].map(b => [b.dataset.action, b.dataset.drpgRole, b.hasAttribute("autofocus")])]),
+            firstSubmit: foot?.querySelector("button")?.dataset.action ?? null,
+            cancelWord: foot?.querySelector('[data-action="cancel"]')?.textContent ?? null,
+            closeWord: K.footerButtons({ close: { role: "close", action: "done" } }).map(b => [b.action, b.label, b.default]),
+            namedLabel: K.footerButtons({ close: { role: "close", label: "Got it" } })[0]?.label,
+            noPrimary: K.footerButtons({ secondary: [{ action: "x", label: "X" }], close: "cancel" }).map(b => [b.action, b.default]),
+            throwsDestructive: throws({ destructive: [{ action: "wipe", label: "Wipe" }], close: "close", default: "wipe" }),
+            throwsUnknown: throws({ close: "close", default: "nowhere" })
+        }), stableJson({
+            groups: [["drpg-kit-right", [["go", "primary", true], ["ask", "gmRoute", false]]], ["drpg-kit-left", [["cancel", "cancel", false], ["more", "secondary", false]]]],
+            firstSubmit: "go", cancelWord: L("DRPG.Kit.cancel"),
+            closeWord: [["done", L("DRPG.Kit.close"), true]], namedLabel: L("DRPG.Kit.close"),
+            noPrimary: [["cancel", true], ["x", false]], throwsDestructive: true, throwsUnknown: true
+        }), "[footerMarkup's groups (class; action, role, autofocus); the first button in the tree; the cancel and close words; a caller's own closing label; a footer with no primary; a destructive default and an unknown one throw]");
+
+        /* kitTabs and its wiring: one pane shown, the footer following the tab. */
+        const win = document.createElement("div");
+        win.innerHTML = K.kitTabs([{ key: "one", label: "One", html: "1" }, { key: "two", label: "Two", html: "2" }]) + K.footerMarkup({
+            primary: { action: "save", label: "Save" }, secondary: [{ action: "add", label: "Add" }], close: "close" });
+        K.wireKitTabs(win, { buttons: { one: ["save"], two: ["add"] }, always: ["close"] });
+        const state = () => ({
+            panes: [...win.querySelectorAll("[data-drpg-pane]")].map(p => [p.dataset.drpgPane, p.hidden]),
+            tabs: [...win.querySelectorAll("nav.drpg-tabs > button")].map(b => b.getAttribute("aria-selected")),
+            footer: [...win.querySelectorAll("footer button")].map(b => [b.dataset.action, b.hidden, b.disabled, b.hasAttribute("autofocus")])
+        });
+        const before = state();
+        win.querySelector('[data-drpg-tab-key="two"]').click();
+        equal(stableJson([before, state()]), stableJson([
+            { panes: [["one", false], ["two", true]], tabs: ["true", "false"], footer: [["save", false, false, true], ["close", false, false, false], ["add", true, true, false]] },
+            { panes: [["one", true], ["two", false]], tabs: ["false", "true"], footer: [["save", true, true, false], ["close", false, false, true], ["add", false, false, false]] }
+        ]), "[before and after the second tab is pressed: the panes (key, hidden), the tabs selected, the footer (action, hidden, disabled, autofocus)]");
+        equal(stableJson(K.eachPane(win, pane => [pane.dataset.drpgPane, [...win.querySelectorAll("[data-drpg-pane]")].filter(p => !p.hidden).length])),
+            stableJson({ one: ["one", 1], two: ["two", 1] }), "[eachPane: each pane shown alone in turn]");
+        must(win.querySelector('[data-drpg-pane="one"]').hidden && !win.querySelector('[data-drpg-pane="two"]').hidden, "eachPane did not put the panes back as they were");
+
+        /* formGrid, dataTable and the scroll signal. */
+        const grid = document.createElement("div");
+        grid.innerHTML = K.formGrid([{ label: "Name <b>", field: "<input id=\"r1320-n\">", id: "r1320-n" }, { full: "<p>all</p>" }]);
+        const table = document.createElement("div");
+        table.innerHTML = K.dataTable({ columns: [{ key: "a", label: "A", width: "8rem" }, { key: "n", label: "N", num: true }], rows: [] });
+        const full = document.createElement("div");
+        full.innerHTML = K.dataTable({ columns: [{ key: "a", label: "A" }, { key: "n", label: "N", num: true }], rows: [{ a: "x", n: "2" }], caption: "Cap" });
+        const scrollBox = full.firstElementChild;
+        for (const [k, v] of Object.entries({ scrollHeight: 300, clientHeight: 100, scrollWidth: 100, clientWidth: 100 })) Object.defineProperty(scrollBox, k, { value: v, configurable: true });
+        document.body.append(full);
+        let signal;
+        try {
+            const stop = K.watchScroll(scrollBox);
+            const more = [scrollBox.dataset.drpgScroll ?? null, scrollBox.querySelector("[data-drpg-scroll-note]")?.hidden];
+            Object.defineProperty(scrollBox, "scrollTop", { value: 200, configurable: true });
+            scrollBox.dispatchEvent(new Event("scroll"));
+            signal = [more, [scrollBox.dataset.drpgScroll ?? null, scrollBox.querySelector("[data-drpg-scroll-note]")?.hidden]];
+            stop();
+        } finally { full.remove(); }
+        const empty = table.querySelector("td.drpg-data-empty");
+        equal(stableJson({
+            grid: [grid.firstElementChild?.className, [...grid.firstElementChild.children].map(c => [c.tagName, c.className, c.getAttribute("for")]), grid.querySelector("label")?.textContent],
+            table: [table.firstElementChild?.className, table.querySelectorAll("colgroup > col").length, table.querySelector("col")?.style.width,
+                [...table.querySelectorAll("thead th")].map(th => [th.textContent, th.className]), empty?.getAttribute("colspan"), empty?.textContent,
+                table.querySelector("[data-drpg-scroll-note]")?.textContent, full.querySelector("caption")?.textContent, full.querySelector("tbody td.num")?.textContent],
+            signal
+        }), stableJson({
+            grid: ["drpg-form-grid", [["LABEL", "drpg-form-label", "r1320-n"], ["DIV", "drpg-form-field", null], ["DIV", "drpg-form-full", null]], "Name <b>"],
+            table: ["drpg-data-table-box", 2, "8rem", [["A", ""], ["N", "num"]], "2", L("DRPG.Kit.tableEmpty"), L("DRPG.Kit.scrollMore"), "Cap", "2"],
+            signal: [["more", false], [null, true]]
+        }), "[formGrid (class; each child's tag, class, for; the label's text escaped); dataTable (box, cols, a col's width, the head, the empty row's colspan and words, the scroll line's words, the caption, a number cell); the scroll signal with more below, then scrolled to the end (attribute, the line hidden)]");
+
+        /* stepper: markup, its wiring and its reader. */
+        const host = document.createElement("div");
+        host.innerHTML = K.stepper({ name: "r1320", value: "3", min: 0, max: 4, step: 1, label: "Count", id: "r1320-step" }) + K.stepper({ name: "r1320b", value: "7", min: 0, max: 50, step: 10 });
+        K.wireKit(host);
+        const [one, two] = host.querySelectorAll(".drpg-kit-stepper");
+        const input = one.querySelector("input");
+        let changes = 0;
+        input.addEventListener("change", () => changes++);
+        const plus = one.querySelector('[data-drpg-step="1"]');
+        plus.click(); plus.click();
+        const atTop = [input.value, changes];
+        input.value = "9";
+        input.dispatchEvent(new Event("input"));
+        const message = [host.querySelector(".drpg-field-msg")?.textContent, input.getAttribute("aria-invalid")];
+        equal(stableJson({
+            label: [host.querySelector("label")?.getAttribute("for"), input.id, host.querySelector("label > span")?.textContent],
+            input: [input.name, input.min, input.max, input.step, input.dataset.drpgChrome],
+            words: [one.querySelector('[data-drpg-step="-1"]')?.getAttribute("aria-label"), plus.getAttribute("aria-label"), two.querySelector('[data-drpg-step="1"]')?.getAttribute("aria-label")],
+            atTop, message,
+            reads: [K.readStepper(one), K.readStepper(input), (input.value = "2.7", K.readStepper(input)), (input.value = "-5", K.readStepper(input)), (input.value = "", K.readStepper(input, { fallback: undefined }))]
+        }), stableJson({
+            label: ["r1320-step", "r1320-step", "Count"],
+            input: ["r1320", "0", "4", "1", "step"],
+            words: [L("DRPG.Look.stepDown"), L("DRPG.Look.stepUp"), game.i18n.format("DRPG.Look.stepUpBy", { n: 10 })],
+            atTop: ["4", 1], message: [game.i18n.format("DRPG.Look.atMost", { n: 4 }), "true"],
+            reads: [4, 4, 2, 0, undefined]
+        }), "[the stepper's label (for, the input's id, its words); the input (name, min, max, step, chrome's mark); the - and + words, at a step of 10; plus pressed twice from 3 at max 4 (value, change events); 9 typed (the message, aria-invalid); readStepper on 9, 2.7, -5 and an empty field with no fallback]");
+
+        /* toggle, chip, box, emptyOption, modeBar. */
+        const bits = document.createElement("div");
+        bits.innerHTML = K.toggle({ name: "r1320t", checked: true, label: "On" }) + K.chips([{ label: "All", pressed: true, count: 6 }, { label: "None", disabled: true, value: "n" }], { label: "Filters" })
+            + K.box("info", "i") + K.box("warning", "w") + K.box("secret", "s") + `<select>${K.emptyOption("DRPG.Assign.nobody")}</select>`
+            + K.modeBar([{ key: "debate", label: "Debate" }, { key: "vote", label: "Vote" }], { active: "vote" });
+        let boxThrows = false;
+        try { K.box("danger", "x"); } catch { boxThrows = true; }
+        let picked = null, picks = 0;
+        const bar = bits.querySelector(".drpg-mode-bar");
+        K.wireKit(bits, { onMode: key => { picked = key; picks++; } });
+        K.wireKit(bits, { onMode: () => { picks += 10; } });
+        bar.querySelector('[data-drpg-mode="debate"]').click();
+        equal(stableJson({
+            toggle: [bits.querySelector(".drpg-toggle > input")?.getAttribute("role"), bits.querySelector(".drpg-toggle > input")?.checked],
+            chips: [bits.querySelector(".drpg-chips")?.getAttribute("role"), bits.querySelector(".drpg-chips")?.getAttribute("aria-label"),
+                [...bits.querySelectorAll(".drpg-chip")].map(c => [c.getAttribute("aria-pressed"), c.disabled, c.querySelector("b")?.textContent ?? null, c.dataset.drpgChip ?? null])],
+            boxes: [...bits.querySelectorAll(".drpg-box")].map(b => b.dataset.drpgBox), boxThrows,
+            option: [bits.querySelector("option")?.value, bits.querySelector("option")?.textContent],
+            modes: [[...bar.querySelectorAll("button")].map(b => b.getAttribute("aria-pressed")), picked, picks]
+        }), stableJson({
+            toggle: ["switch", true],
+            chips: ["toolbar", "Filters", [["true", false, "6", null], ["false", true, null, "n"]]],
+            boxes: ["info", "warning", "secret"], boxThrows: true,
+            option: ["", L("DRPG.Assign.nobody")],
+            modes: [["true", "false"], "debate", 1]
+        }), "[toggle (role, checked); chips (role, name; each pressed, disabled, count, value); the boxes; an unknown box throws; emptyOption (value, words); the mode bar after Debate is pressed (pressed, the key handed on; wired twice, it hands on once)]");
+    }],
+
+    ["R1321 - BUTTON_ROLES (scripts/ui-kit.mjs; E44 C3a, E44-13): primary, gmRoute, close, cancel, secondary and destructive, each with its class, today's face class, its side, its place in it, whether it may be the default, its token and its word; destructive and secondary never the default; the close word the same words as DRPG.Panel.close in both lang files and the cancel word Cancel's own; every role's class styled in styles/components.css through its token, the token declared for both themes", async () => {
+        /*
+         * E44 C3a, 04.11.2026; the owner's footer contract (the pilot, 04.11: the closing word left, the primary
+         * right). E22 gives every button of the module one of these roles; this holds the table itself. The words
+         * are read in both lang files; the sheet's rules off styles/components.css's text (its token blocks: `body`
+         * for Legacy, `body.drpg-theme-stained-glass` for the glass). Red before C3a: no ui-kit.mjs. The mutant
+         * c3a-m2 (a destructive default allowed) reads red here.
+         */
+        const { BUTTON_ROLES } = await import("./ui-kit.mjs");
+        equal(stableJson(BUTTON_ROLES), stableJson({
+            primary: { cls: "drpg-role-primary", face: null, side: "right", rank: 2, mayDefault: true, token: "--drpg-kit-role-primary", word: null },
+            gmRoute: { cls: "drpg-role-gm-route", face: "drpg-gm-route", side: "right", rank: 1, mayDefault: true, token: "--drpg-kit-role-gm-route", word: null },
+            close: { cls: "drpg-role-close", face: null, side: "left", rank: 0, mayDefault: true, token: "--drpg-kit-role-close", word: "DRPG.Kit.close" },
+            cancel: { cls: "drpg-role-cancel", face: null, side: "left", rank: 0, mayDefault: true, token: "--drpg-kit-role-cancel", word: "DRPG.Kit.cancel" },
+            secondary: { cls: "drpg-role-secondary", face: null, side: "left", rank: 1, mayDefault: false, token: "--drpg-kit-role-secondary", word: null },
+            destructive: { cls: "drpg-role-destructive", face: "drpg-destructive", side: "left", rank: 2, mayDefault: false, token: "--drpg-kit-role-destructive", word: null }
+        }), "BUTTON_ROLES is not the role table the stage writes");
+        ok(Object.isFrozen(BUTTON_ROLES) && Object.values(BUTTON_ROLES).every(r => Object.isFrozen(r)), "BUTTON_ROLES or a row of it can be changed at run time");
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json());
+        const [en, pl] = await Promise.all([lang("en"), lang("pl")]);
+        const at = (file, key) => key.split(".").reduce((o, k) => o?.[k], file);
+        equal(stableJson([[at(en, "DRPG.Kit.close"), at(pl, "DRPG.Kit.close")], [at(en, "DRPG.Kit.cancel"), at(pl, "DRPG.Kit.cancel")],
+            [at(en, "DRPG.Panel.close"), at(pl, "DRPG.Panel.close")]]), stableJson([["Close", "Zamknij"], ["Cancel", "Anuluj"], ["Close", "Zamknij"]]),
+        "[the close word, the cancel word and DRPG.Panel.close, in English and Polish]");
+        let css = "";
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/styles/components.css`, { cache: "no-cache" });
+            if (res.ok) css = (await lfText(res)).replace(/\/\*[\s\S]*?\*\//g, " ");
+        } catch { /* the assertion below says it is missing */ }
+        must(css.length > 2000, `styles/components.css read ${css.length} characters - this test would read nothing`);
+        const blockOf = prelude => css.match(new RegExp(`(?:^|\\})\\s*${prelude.replace(/[.]/g, "\\.")}\\s*\\{([^}]*)\\}`))?.[1] ?? "";
+        const legacy = blockOf("body"), glass = blockOf("body.drpg-theme-stained-glass");
+        must(legacy.length > 200 && glass.length > 200, "components.css's token blocks were not found - this test would read nothing");
+        const unstyled = Object.entries(BUTTON_ROLES).filter(([, r]) => {
+            const rule = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].find(([, sel, body]) => sel.includes(`.${r.cls}`) && body.includes(`var(${r.token})`));
+            return !rule || !legacy.includes(`${r.token}:`) || !glass.includes(`${r.token}:`);
+        }).map(([role]) => role);
+        equal(stableJson(unstyled), "[]", "[the roles whose class has no rule in components.css reading its token, or whose token is not declared for both themes]");
+    }],
+
+    ["R1323 - the kit wins its cascade (tests-kit.mjs `styleCascade`; E44 C3a, E44-11): on a kit window drawn on a body of each theme - the frame, its content, the body that scrolls, the tab bar, a tab and the selected one, the footer, its two groups and a button of each role, formGrid, dataTable's head and empty row, the help line, the three boxes, a stepper, a toggle, a chip and a pressed one, the mode bar - every property a rule of styles/components.css states on the element is won by styles/components.css across all the module's sheets, and every `--drpg-kit-*` token is declared on that theme's body by it", async () => {
+        /*
+         * E44 C3a, 04.11.2026; the plan's risk ("a kit rule can lose to an old rule carrying !important and the test
+         * still pass while the screen does not change"). The cascade is the text's (`styleCascade`: `!important`, then
+         * specificity, then order; no `@media`, `@container` or `@layer`, which the style sweep reads in Chromium): for
+         * every element of a kit window built from the kit's own builders on a page of its own, for each theme's body
+         * class, each property any components.css rule matching it declares - a shorthand read with its longhands, so
+         * an older `border-color: ... !important` beats a kit `border` here as it does on the screen - must be won by a
+         * rule of components.css. Red before C3a: no components.css. The mutant c3a-m4 (the chip's Legacy tokens gone)
+         * reads red here, on the Legacy body's tokens.
+         */
+        const K = await import("./ui-kit.mjs");
+        const C = await styleCascade();
+        const kitRules = C.rules.filter(r => r.file === "styles/components.css");
+        must(kitRules.length > 40, `${kitRules.length} rule(s) of components.css read - the cascade did not load the sheet`);
+        const LONG = {
+            border: ["border-color", "border-width", "border-style", "border-top", "border-right", "border-bottom", "border-left", "border-top-color", "border-right-color", "border-bottom-color", "border-left-color"],
+            "border-left": ["border-left-color", "border-left-width", "border-left-style"],
+            "border-top": ["border-top-color", "border-top-width", "border-top-style"],
+            background: ["background-color", "background-image"],
+            padding: ["padding-top", "padding-right", "padding-bottom", "padding-left", "padding-block", "padding-inline"],
+            margin: ["margin-top", "margin-right", "margin-bottom", "margin-left", "margin-block", "margin-inline"],
+            flex: ["flex-grow", "flex-shrink", "flex-basis"],
+            overflow: ["overflow-x", "overflow-y"],
+            gap: ["row-gap", "column-gap"]
+        };
+        const names = prop => [prop, ...(LONG[prop] ?? [])];
+        const frame = () => {
+            const tabs = K.kitTabs([{ key: "a", label: "A", html: K.formGrid([{ label: "L", field: K.stepper({ name: "s", value: 1, min: 0, max: 3 }) }])
+                + K.dataTable({ columns: [{ key: "a", label: "A" }], rows: [] }) + K.helpText("DRPG.Kit.tableEmpty")
+                + K.box("info", "i") + K.box("warning", "w") + K.box("secret", "s") + K.toggle({ name: "t", label: "T" })
+                + K.chips([{ label: "On", pressed: true }, { label: "Off" }]) + K.modeBar([{ key: "m", label: "M" }, { key: "n", label: "N" }]) },
+            { key: "b", label: "B", html: "" }]);
+            const [nav, ...panes] = (() => { const d = document.createElement("div"); d.innerHTML = tabs; return [...d.children]; })();
+            const root = document.createElement("div");
+            root.className = "application dialog drpg-window-r1323 drpg-ui drpg-panel";
+            root.innerHTML = `<section class="window-content"><form class="dialog-form standard-form"><div class="dialog-content standard-form"></div>${K.footerMarkup({
+                primary: { action: "save", label: "S" }, gmRoute: [{ action: "ask", label: "A" }], secondary: [{ action: "two", label: "T" }],
+                destructive: [{ action: "wipe", label: "W" }], close: "close" })}</form></section>`;
+            const content = root.querySelector(".dialog-content");
+            const body = document.createElement("div");
+            body.className = "drpg-kit-body";
+            body.append(...panes);
+            content.append(nav, body);
+            return root;
+        };
+        const problems = {};
+        const TOKENS = new Set(kitRules.filter(r => r.selector === "body" || r.selector === "body.drpg-theme-stained-glass").flatMap(r => r.decls.map(d => d.property)).filter(p => p.startsWith("--drpg-kit-")));
+        must(TOKENS.size > 40, `${TOKENS.size} kit token(s) read - the token blocks were not found`);
+        let checked = 0;
+        for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-gm`;
+            html.append(body);
+            const root = frame();
+            body.append(root);
+            const lost = [];
+            const onBody = C.on(body);
+            for (const token of TOKENS) {
+                const w = onBody(token);
+                if (w?.file !== "styles/components.css") lost.push(`body ${token}: ${w ? `${w.file} ${w.selector}` : "nobody"}`);
+            }
+            for (const el of [root, ...root.querySelectorAll("*")]) {
+                const stated = new Set();
+                for (const rule of kitRules) {
+                    if (rule.selector === "body" || rule.selector === "body.drpg-theme-stained-glass") continue;
+                    let hit = false;
+                    for (const sel of rule.selector.split(/,(?![^(]*\))/)) { try { if (el.matches(sel.trim())) { hit = true; break; } } catch { /* a pseudo-element: not this element */ } }
+                    if (hit) for (const d of rule.decls) if (!d.property.startsWith("--") || d.property === "--brush-ink") stated.add(d.property);
+                }
+                const onEl = C.on(el);
+                for (const prop of stated) {
+                    checked++;
+                    const w = onEl(names(prop));
+                    if (w?.file !== "styles/components.css") lost.push(`${el.tagName.toLowerCase()}.${[...el.classList].join(".")}${el.dataset.drpgRole ? `[${el.dataset.drpgRole}]` : ""} ${prop}: ${w ? `${w.file} ${w.selector}${w.important ? " !important" : ""}` : "nobody"}`);
+                }
+            }
+            if (lost.length) problems[theme] = lost;
+        }
+        must(checked > 150, `${checked} property reading(s) made - the kit's elements matched no rule`);
+        equal(stableJson(problems), "{}", "[by theme: a kit element's property, or a token on the body, not won by components.css - element property: the winner]");
+    }],
 ];
 
 /**

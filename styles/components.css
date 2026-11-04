@@ -1,0 +1,402 @@
+/* ==========================================================================
+   THE WINDOW KIT (E44 C3a, 04.11.2026; audit S17-34)
+   --------------------------------------------------------------------------
+   One block per component of scripts/ui-kit.mjs, both themes through tokens: every `--drpg-kit-*` is defined once
+   for Monokuma Legacy on `body` (the base sheet's tokens) and again, where the glass differs, under
+   `body.drpg-theme-stained-glass` (the glass's own). No colour literal and no `!important` (tools/css-budget.json
+   holds this sheet at 0 of each), every font size a `--drpg-kit-*-size` token floored at 11 px under Legacy (D29) and
+   at `--drpg-sg-floor` under the glass, uppercase boxes at `line-height: 1.3`, no width above 390 px (the 26.09
+   amend: no component may assume a desk). R1322 reads this file for each of those; R1323 reads the cascade.
+
+   THE LOOK IS THE ONE THE OWNER APPROVED on the kit card (DR-E44-M1, M15, 04.11.2026): each component as its nearest
+   existing part looks today in each theme (the tabs the GM Team bar, the stepper chrome.mjs's, the chips the notice
+   history's, the boxes the notes and warning lines), with equal tab widths fitted to one line and I1's fine print.
+   A button's own face in a kit window stays today's panel button rule (danganronpa.css, stained-glass.css "the
+   brush") until E22: a kit window keeps `.drpg-panel` on its root, and the kit sets where each button stands.
+
+   HOW IT WINS WITHOUT `!important`. Loaded after messenger.css and before narrow.css (module.json), so a tie in
+   specificity goes to the kit and narrow.css still has the last word. Where an older rule is more specific - the
+   dialog footer's buttons (`.application.dialog:is(.drpg-panel, ...) footer.form-footer button`, 0,4,2) and the
+   frame (`.application.dialog:is(...) .window-content`, 0,4,0) - the kit's selector is written one class or one
+   element above it, named beside each rule.
+
+   WHAT THE KIT DOES NOT STATE, AND WHY (R1323, 04.11.2026). The draft the owner approved (S/stages/E44/mockups/kit/,
+   outside the repository) stated more than it drew: read against all seven sheets by tests-kit.mjs `styleCascade`,
+   77 readings of an element's property it stated (5 under Legacy, 72 under the glass) were won by older rules - under Stained Glass a kit button's padding, line-height, radius, font and colours to
+   the glass's button brush (stained-glass.css, `.drpg-panel button:not(...)`, 0,7,2, and its `!important` sweeps of
+   font-size, font-family and radius), the footer's spacing to the glass's footer rule, the switch to the glass's
+   checkbox, the frame's height to the glass's "windows the size of what is in them"; under both, the toggle's row to
+   `.drpg-panel label` and the help line's margin, in a window with a table, to the table windows' measure. What lost
+   under the glass drew the glass's rule on the approved card, so it is stated here for Legacy alone
+   (`body:not(.drpg-theme-stained-glass)`); what lost under both is not stated; the frame, whose height is the
+   contract, is written to win. So every declaration below is one that draws (R1323 holds it), and the render is the
+   approved one. E22 decides whether a kit button keeps the glass's brush.
+   ========================================================================== */
+
+/* ---- tokens: Monokuma Legacy (on `body`: the base sheet's) ---- */
+body {
+    --drpg-kit-ink: var(--drpg-bone);
+    --drpg-kit-line: rgba(var(--drpg-bone-rgb), 0.25);
+    --drpg-kit-line-strong: rgba(var(--drpg-bone-rgb), 0.3);
+    --drpg-kit-gap: 8px;
+    /* tabs: today's GM Team bar under Legacy; 8 px a side and 0.05em measured on M1 today at 1366x768 */
+    --drpg-kit-tab-bg: rgba(var(--drpg-bone-rgb), 0.08);
+    --drpg-kit-tab-ink: var(--drpg-bone);
+    --drpg-kit-tab-hover: rgba(var(--drpg-eye-rgb), 0.15);
+    --drpg-kit-tab-on-bg: rgba(var(--drpg-eye-rgb), 0.25);
+    --drpg-kit-tab-on-edge: var(--drpg-eye);
+    --drpg-kit-tab-on-ink: var(--drpg-bone);
+    --drpg-kit-tab-bar: transparent;
+    --drpg-kit-tab-radius: 3px;
+    --drpg-kit-tab-size: max(11px, var(--drpg-text-sm));
+    --drpg-kit-tab-pad: 8px;
+    --drpg-kit-tab-ls: 0.05em;
+    /* the smallest a tab goes to fit one line: D29's 11 px (ui-kit.mjs `fitKitTabs` reads it) */
+    --drpg-kit-tab-floor: 11px;
+    /* chips: the notice history's (E81) */
+    --drpg-kit-chip-edge: var(--drpg-line-strong);
+    --drpg-kit-chip-on-bg: var(--drpg-bone);
+    --drpg-kit-chip-on-ink: var(--drpg-ink);
+    --drpg-kit-chip-size: max(11px, var(--drpg-text-xs));
+    /* boxes: the notes and the warning lines */
+    --drpg-kit-warn-edge: var(--drpg-crimson);
+    --drpg-kit-warn-bg: rgba(var(--drpg-crimson-rgb), 0.12);
+    --drpg-kit-info-edge: rgba(var(--drpg-bone-rgb), 0.45);
+    --drpg-kit-info-bg: rgba(var(--drpg-bone-rgb), 0.06);
+    --drpg-kit-secret-edge: var(--drpg-eye);
+    --drpg-kit-secret-bg: rgba(var(--drpg-eye-rgb), 0.1);
+    /* I1, the owner's choice on 04.11.2026: fine print in the bone at 62 %, the glass's own value. Today's
+       `--drpg-dim` measured 4.68:1 on the window and 4.32:1 on a warning at 13 px; this one 5.7:1 on the window
+       (M15 at 1920x1080, the mockup round's reading). */
+    --drpg-kit-help-ink: rgba(var(--drpg-bone-rgb), 0.62);
+    --drpg-kit-help-size: max(11px, var(--drpg-text-sm));
+    --drpg-kit-head-bg: var(--drpg-ink);
+    --drpg-kit-scroll-shade: rgba(var(--drpg-bone-rgb), 0.35);
+    --drpg-kit-switch-off: rgba(var(--drpg-bone-rgb), 0.25);
+    --drpg-kit-switch-on: var(--drpg-eye);
+    --drpg-kit-switch-knob: var(--drpg-bone);
+    /* the mode bar's and the stepper's buttons */
+    --drpg-kit-btn-bg: rgba(var(--drpg-bone-rgb), 0.1);
+    --drpg-kit-btn-edge: var(--drpg-line-strong);
+    --drpg-kit-btn-ink: var(--drpg-bone);
+    --drpg-kit-btn-on-bg: rgba(var(--drpg-eye-rgb), 0.22);
+    --drpg-kit-btn-on-edge: var(--drpg-eye);
+    --drpg-kit-btn-on-ink: var(--drpg-bone);
+    --drpg-kit-btn-radius: 2px;
+    /* the button roles' focus ring (ui-kit.mjs BUTTON_ROLES `token`): the GM's road in D11's red, a destructive
+       one in the warning's crimson, the primary in the eye, the closing word and the rest in the bone */
+    --drpg-kit-role-primary: var(--drpg-eye);
+    --drpg-kit-role-gm-route: var(--drpg-eye);
+    --drpg-kit-role-close: var(--drpg-bone);
+    --drpg-kit-role-cancel: var(--drpg-bone);
+    --drpg-kit-role-secondary: var(--drpg-bone);
+    --drpg-kit-role-destructive: var(--drpg-crimson);
+}
+/* ---- tokens: Stained Glass (the glass's own) ---- */
+body.drpg-theme-stained-glass {
+    --drpg-kit-ink: var(--drpg-sg-bone);
+    --drpg-kit-line: color-mix(in srgb, var(--drpg-sg-bone) 12%, transparent);
+    --drpg-kit-tab-bg: transparent;
+    --drpg-kit-tab-ink: var(--drpg-sg-ink);
+    /* under the glass the lit tab is the brush (stained-glass.css's ::before, the accent): no ground of its own */
+    --drpg-kit-tab-hover: transparent;
+    --drpg-kit-tab-on-bg: transparent;
+    --drpg-kit-tab-on-edge: transparent;
+    --drpg-kit-tab-on-ink: var(--drpg-sg-ink);
+    --drpg-kit-tab-bar: var(--drpg-sg-bone);
+    /* the size and the padding of a tab under the glass are the brush's (below); its spacing, 0.08em measured on M1
+       today at 1366x768, is the kit's, and the one-line fit's lever here */
+    --drpg-kit-tab-ls: 0.08em;
+    /* the glass's own floor, above D29's 11 px: VT323's capital is 0.56 em (stained-glass.css, --drpg-sg-floor) */
+    --drpg-kit-tab-floor: max(11px, var(--drpg-sg-floor));
+    --drpg-kit-warn-edge: var(--drpg-sg-gm);
+    --drpg-kit-warn-bg: color-mix(in srgb, var(--drpg-sg-gm) 12%, transparent);
+    --drpg-kit-info-edge: color-mix(in srgb, var(--drpg-sg-bone) 45%, transparent);
+    --drpg-kit-info-bg: color-mix(in srgb, var(--drpg-sg-bone) 6%, transparent);
+    --drpg-kit-secret-edge: var(--drpg-glass-accent);
+    --drpg-kit-secret-bg: color-mix(in srgb, var(--drpg-glass-accent) 10%, transparent);
+    /* I1: the glass's own --drpg-sg-bone-dim, which today loses to danganronpa.css's --drpg-dim */
+    --drpg-kit-help-ink: var(--drpg-sg-bone-dim);
+    /* a chip's ink, a pressed chip's and the active mode's (the rest of their face is the brush's) */
+    --drpg-kit-btn-ink: var(--drpg-sg-bone);
+    --drpg-kit-chip-on-bg: var(--drpg-sg-bone);
+    --drpg-kit-chip-on-ink: var(--drpg-sg-ink);
+    --drpg-kit-btn-on-bg: var(--drpg-sg-bone);
+    --drpg-kit-btn-on-ink: var(--drpg-sg-ink);
+    --drpg-kit-scroll-shade: color-mix(in srgb, var(--drpg-sg-bone) 35%, transparent);
+    --drpg-kit-role-primary: var(--drpg-glass-accent);
+    --drpg-kit-role-gm-route: var(--drpg-sg-gm);
+    --drpg-kit-role-close: var(--drpg-sg-bone);
+    --drpg-kit-role-cancel: var(--drpg-sg-bone);
+    --drpg-kit-role-secondary: var(--drpg-sg-bone);
+    --drpg-kit-role-destructive: var(--drpg-sg-gm);
+}
+
+/* ---- drpgWindow / DrpgApp: the frame. The screen's height less 8 px a side; the body scrolls, the tab bar and the
+   footer do not. Written at 0,4,1 and 0,5,1, one place above danganronpa.css's dialog frame rule (`max-height: 80vh;
+   overflow: auto` on `.window-content`, 0,4,0) and level with the glass's (`.application.drpg-panel:not(.minimized)`,
+   `calc(100vh - 24px)` and `calc(100vh - 80px)`), which this sheet follows. The width stays the module's popup widths'
+   (danganronpa.css, stained-glass.css, `!important` against Foundry's inline width) until E21. ---- */
+body .application.drpg-ui.drpg-panel:not(.minimized) {
+    max-height: calc(100dvh - 16px);
+    display: flex;
+    flex-direction: column;
+}
+body .application.drpg-ui.drpg-panel:not(.minimized) > .window-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.application.drpg-ui.drpg-panel > .window-content > form.dialog-form,
+.application.drpg-ui.drpg-panel > .window-content > form.dialog-form > .dialog-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+.application.drpg-ui.drpg-panel .drpg-kit-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+.application.drpg-ui.drpg-panel .drpg-tabs { flex: 0 0 auto; }
+
+/* ---- the footer contract: the closing word, the secondary and the destructive ones on the left, the primary on
+   the right. The right group is first in the tree (Enter presses the first submit button: ui-kit.mjs's header);
+   `order` puts it last on the screen. ---- */
+.drpg-kit-footer {
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    align-items: center;
+}
+/* under the glass its footer rule spaces and rules the row (stained-glass.css, 0,4,2) */
+body:not(.drpg-theme-stained-glass) .drpg-kit-footer {
+    display: flex;
+    gap: var(--drpg-kit-gap);
+    padding-top: 10px;
+    margin-top: 10px;
+    border-top: 1px solid var(--drpg-kit-line);
+}
+/* The two sides on one line: the left one's buttons wrap inside it and the primary stays at the right of its last
+   row (with the sides free to wrap, M5's eight buttons put Save alone on a third row under Legacy and took that row
+   from the body; danganronpa.css's `flex-wrap: wrap` on the dialog footer is 0,4,1, this is 0,4,2). The footer wraps
+   only at a phone's width. */
+body .application.dialog footer.form-footer.drpg-kit-footer { flex-wrap: nowrap; align-items: flex-end; }
+.drpg-kit-footer > .drpg-kit-left { order: 1; display: flex; flex-wrap: wrap; gap: var(--drpg-kit-gap); flex: 1 1 auto; min-width: 0; }
+.drpg-kit-footer > .drpg-kit-right { order: 2; display: flex; flex-wrap: wrap; gap: var(--drpg-kit-gap); flex: 0 0 auto; margin-left: auto; }
+@media (max-width: 480px) { body .application.dialog footer.form-footer.drpg-kit-footer { flex-wrap: wrap; } }
+/* Each button as wide as its word (at least today's 8.5rem), never stretched across its side: danganronpa.css's
+   dialog rule (0,4,2, `flex: 1 1 auto`) stretched the lone Cancel to 866 px of M1's 1366 px footer under Legacy; this
+   is 0,4,3. */
+body .application.dialog footer.form-footer.drpg-kit-footer button { flex: 0 1 auto; min-width: 8.5rem; }
+/* The roles (ui-kit.mjs BUTTON_ROLES): each its place in its side and its focus ring. */
+.drpg-kit-footer .drpg-role-close { order: 0; --drpg-kit-ring: var(--drpg-kit-role-close); }
+.drpg-kit-footer .drpg-role-cancel { order: 0; --drpg-kit-ring: var(--drpg-kit-role-cancel); }
+.drpg-kit-footer .drpg-role-secondary { order: 1; --drpg-kit-ring: var(--drpg-kit-role-secondary); }
+.drpg-kit-footer .drpg-role-destructive { order: 2; --drpg-kit-ring: var(--drpg-kit-role-destructive); }
+.drpg-kit-footer .drpg-role-gm-route { order: 1; --drpg-kit-ring: var(--drpg-kit-role-gm-route); }
+.drpg-kit-footer .drpg-role-primary { order: 2; --drpg-kit-ring: var(--drpg-kit-role-primary); }
+.drpg-kit-footer button[data-drpg-role]:focus-visible { outline: 2px solid var(--drpg-kit-ring); outline-offset: 2px; }
+
+/* ---- kitTabs: one markup, equal widths (S12-50) that never cut a label: equal columns at least as wide as the
+   widest label, then the one-line fit (ui-kit.mjs `fitKitTabs`), which sets the bar's count of columns and the size,
+   spacing and padding it measured to fit. ---- */
+.drpg-tabs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 8em), 1fr));
+    gap: 2px;
+    padding: 3px;
+    margin: 0 0 10px;
+    background: var(--drpg-kit-tab-bar);
+    border-bottom: 1px solid var(--drpg-kit-line);
+}
+.drpg-tabs[data-drpg-tab-fit] { grid-template-columns: repeat(var(--drpg-kit-tab-n), minmax(0, 1fr)); }
+body.drpg-theme-stained-glass .drpg-tabs {
+    border-bottom: 0;
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+/* Written against the window so the panel's own button paint, which reaches every button of a .drpg-panel window
+   with five classes, does not repaint a tab. */
+body .application.drpg-ui .drpg-tabs > button[data-drpg-tab-key][role="tab"] {
+    min-width: 0;
+    text-transform: uppercase;
+    letter-spacing: var(--drpg-kit-tab-fit-ls, var(--drpg-kit-tab-ls));
+    color: var(--drpg-kit-tab-ink);
+    background: var(--drpg-kit-tab-bg);
+    border: 1px solid var(--drpg-kit-line-strong);
+}
+/* the brush's ink of a tab not selected (a selected one takes the glass's lit brush) */
+body .application.drpg-ui .drpg-tabs > button[data-drpg-tab-key][role="tab"]:not([aria-selected="true"]) { --brush-ink: var(--drpg-kit-tab-ink); }
+/* the size, the padding, the line and the corners: under the glass the brush's (the fit's size and padding levers
+   move nothing there; its spacing does), whose line is 1.35 (stained-glass.css, `.drpg-panel button:not(...)`) */
+body:not(.drpg-theme-stained-glass) .application.drpg-ui .drpg-tabs > button[data-drpg-tab-key][role="tab"] {
+    white-space: nowrap;
+    padding: 4px var(--drpg-kit-tab-fit-pad, var(--drpg-kit-tab-pad));
+    font-size: var(--drpg-kit-tab-fit-size, var(--drpg-kit-tab-size));
+    line-height: 1.3;
+    border-radius: var(--drpg-kit-tab-radius);
+}
+body.drpg-theme-stained-glass .application.drpg-ui .drpg-tabs > button[data-drpg-tab-key][role="tab"] {
+    border-color: transparent;
+    box-shadow: none;
+}
+body:not(.drpg-theme-stained-glass) .application.drpg-ui .drpg-tabs > button[data-drpg-tab-key][role="tab"]:hover:not([aria-selected="true"]) { background: var(--drpg-kit-tab-hover); }
+body .application.drpg-ui .drpg-tabs > button[data-drpg-tab-key][role="tab"][aria-selected="true"] {
+    color: var(--drpg-kit-tab-on-ink);
+    background: var(--drpg-kit-tab-on-bg);
+    border-color: var(--drpg-kit-tab-on-edge);
+}
+.drpg-tabs > button[data-drpg-tab-key]:focus-visible { outline: 2px solid var(--drpg-kit-tab-on-edge); outline-offset: -2px; }
+.drpg-tab-pane[hidden] { display: none; }
+
+/* ---- formGrid: a label column and a field column; one column under the container's 30rem. ---- */
+.drpg-form-grid {
+    container-type: inline-size;
+    display: grid;
+    /* the label column as wide as its labels up to 45 % of the grid (never under 8rem): `max-content` alone let M7's
+       long checkbox label take the row under Legacy's pixel face and push the fields out of a 480 px panel */
+    grid-template-columns: fit-content(max(8rem, 45%)) minmax(0, 1fr);
+    gap: 6px 12px;
+    /* each label at the top of its row, beside its control's line: centred, M11's "Sound" stood beside the note
+       under the slider instead of the slider */
+    align-items: start;
+}
+body .drpg-form-grid > .drpg-form-label { padding-top: 0.3em; }
+.drpg-form-grid > .drpg-form-full { grid-column: 1 / -1; }
+/* a field never wider than its cell, its padding and border inside (M7's text fields kept a 283 px width in a 274 px
+   cell under Legacy) */
+body .drpg-form-grid :is(input, select, textarea, .drpg-kit-stepper) { min-width: 0; max-width: 100%; box-sizing: border-box; }
+/* a field cell holds its control and what goes with it on one line, the control taking the room, and a note under
+   it on a line of its own (M2's volume rows) */
+body .drpg-form-grid > .drpg-form-field { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+body .drpg-form-grid > .drpg-form-field > :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { flex: 1 1 10rem; }
+body .drpg-form-grid > .drpg-form-field > :is(.drpg-help, p) { flex: 1 0 100%; margin: 0; }
+@container (max-width: 30rem) {
+    .drpg-form-grid > * { grid-column: 1 / -1; }
+}
+
+/* ---- dataTable: colgroup, a sticky head inside its scroll box, the empty state, the scroll signal. Inside a kit
+   window the body is the box that scrolls, and the head sticks to it. ---- */
+.drpg-data-table-box { position: relative; }
+.drpg-data-table-box > table.drpg-data-table > thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+/* under the glass its panel table rule collapses the table and grounds the head */
+body:not(.drpg-theme-stained-glass) .drpg-data-table-box > table.drpg-data-table { border-collapse: collapse; }
+body:not(.drpg-theme-stained-glass) .drpg-data-table-box > table.drpg-data-table > thead th { background: var(--drpg-kit-head-bg); }
+body .application.drpg-ui .drpg-data-table-box > table.drpg-data-table td.drpg-data-empty { text-align: center; color: var(--drpg-kit-help-ink); padding: 12px; }
+.drpg-kit-body[data-drpg-scroll="more"],
+.drpg-data-table-box[data-drpg-scroll="more"] {
+    box-shadow: inset 0 -10px 8px -8px var(--drpg-kit-scroll-shade);
+}
+/* the scroll signal's line for a screen reader: in the tree, out of sight */
+.drpg-kit-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* ---- helpText and the three boxes (info, warning, secret). ---- */
+/* 0,6,1: one place above the table windows' paragraph rule (danganronpa.css, `:has(.dialog-content table) :is(p, ...)`) */
+body .application.dialog.drpg-ui.drpg-panel .dialog-content .drpg-help { color: var(--drpg-kit-help-ink); margin: 0 0 8px; }
+body:not(.drpg-theme-stained-glass) .application.drpg-ui .dialog-content :is(p, div, span).drpg-help { font-size: var(--drpg-kit-help-size); line-height: 1.4; }
+/* under the glass the face and its size are the glass's sweeps' (`!important`); the case and the spacing the kit's */
+body.drpg-theme-stained-glass .application.dialog.drpg-ui.drpg-panel .dialog-content .drpg-help { text-transform: none; letter-spacing: 0; }
+body .application.drpg-ui .drpg-box { padding: 0.4rem 0.6rem; margin: 0 0 8px; border-left: 3px solid var(--drpg-kit-info-edge); background: var(--drpg-kit-info-bg); }
+body .application.drpg-ui .drpg-box[data-drpg-box="warning"] { border-left-color: var(--drpg-kit-warn-edge); background: var(--drpg-kit-warn-bg); }
+body .application.drpg-ui .drpg-box[data-drpg-box="secret"] { border-left-color: var(--drpg-kit-secret-edge); background: var(--drpg-kit-secret-bg); }
+
+/* ---- stepper: the input with its - and +, and its message line (chrome.mjs's dressed field, laid out by the kit in
+   both themes; the browser's arrows gone). ---- */
+.drpg-kit-stepper-label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.drpg-kit-stepper { display: inline-flex; align-items: stretch; gap: 0; }
+.drpg-kit-stepper > input[type="number"] { width: 5em; text-align: center; }
+/* under the glass its number field rule takes the arrows off (stained-glass.css `.drpg-panel input[type="number"]`) */
+body:not(.drpg-theme-stained-glass) .drpg-kit-stepper > input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+.drpg-kit-stepper > input[type="number"]::-webkit-inner-spin-button,
+.drpg-kit-stepper > input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+body .application.drpg-ui .drpg-kit-stepper > button.drpg-step { min-width: 2em; }
+body:not(.drpg-theme-stained-glass) .application.drpg-ui .drpg-kit-stepper > button.drpg-step { padding: 0 6px; }
+/* under the glass its own `.drpg-field-msg:empty` rule hides the empty line */
+body:not(.drpg-theme-stained-glass) .drpg-kit-stepper + .drpg-field-msg:empty { display: none; }
+
+/* ---- toggle: a checkbox drawn as a switch under Legacy; under the glass the glass's own checkbox (stained-glass.css,
+   `.drpg-panel input[type="checkbox"]`), as the approved card drew it. Its row is `.drpg-panel label`'s. ---- */
+.drpg-toggle { cursor: pointer; }
+body:not(.drpg-theme-stained-glass) .drpg-toggle > input[role="switch"] {
+    appearance: none;
+    width: 2.4em;
+    height: 1.3em;
+    margin: 0;
+    border-radius: 0.65em;
+    background: var(--drpg-kit-switch-off);
+    position: relative;
+    flex: 0 0 auto;
+}
+body:not(.drpg-theme-stained-glass) .drpg-toggle > input[role="switch"]::after {
+    content: "";
+    position: absolute;
+    top: 0.15em;
+    left: 0.15em;
+    width: 1em;
+    height: 1em;
+    border-radius: 50%;
+    background: var(--drpg-kit-switch-knob);
+}
+body:not(.drpg-theme-stained-glass) .drpg-toggle > input[role="switch"]:checked { background: var(--drpg-kit-switch-on); }
+body:not(.drpg-theme-stained-glass) .drpg-toggle > input[role="switch"]:checked::after { left: auto; right: 0.15em; }
+.drpg-toggle > input[role="switch"]:disabled { opacity: 0.45; }
+
+/* ---- chip (E81's notice chips): under Legacy the kit's; under the glass the glass's button brush, as the approved
+   card drew it. ---- */
+.drpg-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+body .application.drpg-ui .drpg-chips > button.drpg-chip[type="button"] {
+    color: var(--drpg-kit-btn-ink);
+    background: transparent;
+}
+body:not(.drpg-theme-stained-glass) .application.drpg-ui .drpg-chips > button.drpg-chip[type="button"] {
+    min-height: 24px;
+    padding: 0 8px;
+    border-radius: 12px;
+    font-size: var(--drpg-kit-chip-size);
+    line-height: 1.3;
+    border: 1px solid var(--drpg-kit-chip-edge);
+    white-space: nowrap;
+}
+.drpg-chip > b { font-variant-numeric: tabular-nums; margin-left: 4px; opacity: 0.8; }
+/* a pressed chip's ground and ink are the kit's in both themes; its edge, under the glass, the lit brush's */
+body .application.drpg-ui .drpg-chips > button.drpg-chip[type="button"][aria-pressed="true"] {
+    background: var(--drpg-kit-chip-on-bg);
+    color: var(--drpg-kit-chip-on-ink);
+}
+body:not(.drpg-theme-stained-glass) .application.drpg-ui .drpg-chips > button.drpg-chip[type="button"][aria-pressed="true"] { border-color: var(--drpg-kit-chip-on-bg); }
+.drpg-chip:disabled { opacity: 0.4; }
+
+/* ---- modeBar: one row of modes, the active one pressed (E70's trial console). The stepper's - and + take the
+   same face; under the glass both are the glass's button brush. ---- */
+.drpg-mode-bar { display: flex; flex-wrap: wrap; gap: 4px; }
+body:not(.drpg-theme-stained-glass) .application.drpg-ui :is(.drpg-mode-bar, .drpg-kit-stepper) > button[type="button"] {
+    color: var(--drpg-kit-btn-ink);
+    background: var(--drpg-kit-btn-bg);
+    border: 1px solid var(--drpg-kit-btn-edge);
+    border-radius: var(--drpg-kit-btn-radius);
+}
+body .application.drpg-ui .drpg-mode-bar > button[type="button"] { flex: 1 1 0; min-width: max-content; }
+/* the active mode's ground and ink are the kit's in both themes; its edge, under the glass, the lit brush's */
+body .application.drpg-ui .drpg-mode-bar > button[type="button"][aria-pressed="true"] {
+    color: var(--drpg-kit-btn-on-ink);
+    background: var(--drpg-kit-btn-on-bg);
+}
+body:not(.drpg-theme-stained-glass) .application.drpg-ui .drpg-mode-bar > button[type="button"][aria-pressed="true"] { border-color: var(--drpg-kit-btn-on-edge); }

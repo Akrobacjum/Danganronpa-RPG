@@ -31,6 +31,12 @@
       "duplicates": 0,
       "deadClasses": 0
     },
+    "styles/components.css": {
+      "important": 0,
+      "colourLiterals": 0,
+      "duplicates": 0,
+      "deadClasses": 0
+    },
     "styles/narrow.css": {
       "important": 14,
       "colourLiterals": 1,

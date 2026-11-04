@@ -17,7 +17,8 @@ import {
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
-    TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists, cssDeadClasses, cssLintCounts, cssBudgetProblems, CSS_DETECTORS
+    TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists, cssDeadClasses, cssLintCounts, cssBudgetProblems, CSS_DETECTORS,
+    cssKitSheetProblems
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -535,6 +536,46 @@ const REGRESSIONS = [
         const wanted = [...Object.keys(CSS_DETECTORS), "deadClasses", "21 px", "10 px", "390 px",
             "node tools/check.mjs css", "node tools/check.mjs contrast", "node audit/style-sweep.mjs", "!important", "narrow.css"];
         equal(JSON.stringify(wanted.filter(w => !section.includes(w))), "[]", "the CSS contract does not name these");
+    }],
+
+    ["R1322 - styles/components.css holds the kit's contract (E44 C3a; E44-11): no `!important` and no colour literal; Legacy's tokens on `body` and the glass's on `body.drpg-theme-stained-glass`, none the glass declares missing for Legacy and none read undeclared; every colour through a `--drpg-kit-*` token; no rule for the glass alone without one for both themes beside it; every font-size a kit size token floored at 11 px under Legacy and at `--drpg-sg-floor` under the glass; no width above 390 px; an uppercase box at line-height 1.3 and never overflow: hidden - and each of those faults, planted in a copy of the served file, read", async () => {
+        /*
+         * E44 C3a, 04.11.2026; the stage's acceptance E44-11 and the plan's verify ("no text under the floor"). The
+         * reader is tests-css.mjs `kitSheetProblems`, over the text the module serves (module.json's styles must name
+         * the file). A reader that finds nothing proves as little as a sheet with nothing wrong, so each fault is
+         * planted in a copy and must be read: a literal, an `!important`, the chip's Legacy ink taken out (the
+         * mutant c3a-m4's fault), a font size in pixels, a token under the floor, a width of 400 px, an uppercase box
+         * at the default line-height, a rule for the glass alone. Red before C3a: no components.css.
+         */
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const styles = manifest.styles ?? [];
+        ok(styles.includes("styles/components.css"), "module.json does not serve styles/components.css");
+        equal(JSON.stringify(styles.slice(-2)), JSON.stringify(["styles/components.css", "styles/narrow.css"]),
+            "[module.json's last two sheets] are not components.css then narrow.css (narrow.css loads last, the kit just before it)");
+        let text = "";
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/styles/components.css`, { cache: "no-cache" });
+            if (res.ok) text = await lfText(res);
+        } catch { /* the assertion below says it is missing */ }
+        must(text.length > 2000, `styles/components.css read ${text.length} characters - this test would read nothing`);
+        equal(JSON.stringify(cssKitSheetProblems(text)), "[]", "styles/components.css breaks the kit's contract");
+        const plant = (from, to) => {
+            must(text.includes(from), `the plant's anchor "${from.slice(0, 50)}" is not in components.css - point it at the file again`);
+            return text.replace(from, to);
+        };
+        const chipOff = "    --drpg-kit-btn-ink: var(--drpg-bone);\n";
+        const PLANTS = {
+            literal: [plant(".drpg-chip:disabled { opacity: 0.4; }", ".drpg-chip:disabled { opacity: 0.4; color: #ffffff; }"), "a colour literal outside a token"],
+            important: [plant(".drpg-chip:disabled { opacity: 0.4; }", ".drpg-chip:disabled { opacity: 0.4 !important; }"), "!important"],
+            legacyChip: [plant(chipOff, ""), "--drpg-kit-btn-ink is declared for the glass and not for Legacy"],
+            fontSize: [plant(".drpg-chip > b {", ".drpg-chip > b { font-size: 12px;"), "sets font-size without a kit size token"],
+            floor: [plant("--drpg-kit-chip-size: max(11px, var(--drpg-text-xs));", "--drpg-kit-chip-size: var(--drpg-text-xs);"), "under Legacy is not floored at 11 px"],
+            width: [plant(".drpg-chips { display: flex;", ".drpg-chips { width: 400px; display: flex;"), "above 390 px"],
+            uppercase: [plant(".drpg-chips { display: flex;", ".drpg-chips { text-transform: uppercase; display: flex;"), "under 1.3"],
+            glassAlone: [`${text}\nbody.drpg-theme-stained-glass .drpg-chips > b { color: var(--drpg-kit-ink); }\n`, "written for the glass with no rule for Legacy"]
+        };
+        const missed = Object.entries(PLANTS).filter(([, [sheet, words]]) => !cssKitSheetProblems(sheet).some(p => p.includes(words))).map(([name]) => name);
+        equal(JSON.stringify(missed), "[]", "the kit sheet's reader did not read these planted faults");
     }],
 
     ["R3 - every sound a card asks for is a sound that exists", async () => {
@@ -17442,10 +17483,13 @@ const REGRESSIONS = [
             ["overflow.mjs", "ovf-threshold", /\[name="ovf-threshold"\]'\)\?\.value/g],
             ["season-setup.mjs", "chapter", /\bf\.chapter\.value\b/g],
             ["trial-floor-ui.mjs", "seconds", /\("form"\)\.seconds\.value\b/g],
-            ["trial-floor-ui.mjs", "seconds", /\[name=seconds\]"\)\?\.value/g]
+            ["trial-floor-ui.mjs", "seconds", /\[name=seconds\]"\)\?\.value/g],
+            // E44 C3a: the kit's stepper (ui-kit.mjs `stepper`), whose reader is `readStepper`; C4b moves the fields above onto it.
+            ["ui-kit.mjs", "${name}", /\bwholeNumber\(input\.value\b/g]
         ];
         // A `type="number"` that is not a field of a window: its reason.
-        const LISTED = { "chrome.mjs": "the stepper's selector (`dress('input[type=\"number\"]')`): it dresses every number field and reads no value" };
+        const LISTED = { "chrome.mjs": "the stepper's selector (`dress('input[type=\"number\"]')`): it dresses every number field and reads no value",
+            "ui-kit.mjs": "the kit stepper's selector (`NUMBER_FIELD`): readStepper finds its input by it, and the wiring's step and message read the value as chrome.mjs's do" };
         const census = {}, listed = {};
         for (const [file, text] of src) {
             const inputs = (text.match(/<input\s+type="number"/g) ?? []).length;

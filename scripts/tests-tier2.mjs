@@ -82216,6 +82216,80 @@ const SCENARIOS = [
             "[the second purchase's answer with the first's approval standing]; [the approval windows standing]; [the student's Hope then]; "
             + "[the first purchase's answer to No]; [the Hope after]; [the student's module flags as before]");
     }],
+    ["E44-T5 - a kit window drawn on the GM (scripts/ui-kit.mjs `drpgWindow`; E44 C3a, E44-11): its root carries `drpg-ui` and `drpg-panel` and its content the page's language; the footer stands in its two groups with the primary first in the tree and the only one with autofocus; Enter (the form submitted by its first submit button) answers the primary; on a tab that hides the primary, the first submit button is disabled and a destructive button never has the autofocus; a tab switch shows its own buttons, hidden and disabled the others; a live region redraws; Escape in a field closes the window, which answers null", async () => {
+        /*
+         * E44 C3a, 04.11.2026; the owner's footer contract (the pilot, 04.11) and the kit's frame. Drawn as the GM
+         * draws it (`__dialogWindows`): two windows of the suite's own, opened one after the other, nothing written to
+         * the world. Enter is pressed as a browser presses it in a field - the form submitted by its first submit button
+         * in the tree (HTML's implicit submission; jsdom submits nothing on a synthetic key, as "Enter in the verdict
+         * window executes nobody" says), and where that button is disabled the browser submits nothing, which is read,
+         * not pressed. Escape is the harness's DialogV2 `_onKeyDown`, modelled from the module's note on 14.365 (shim.mjs).
+         * Red before C3a: no ui-kit.mjs. The mutant c3a-m1 (the primary on the left) reads red here.
+         */
+        needs(env.dialogs(), "the kit window is drawn, read and pressed");
+        const K = await import("./ui-kit.mjs");
+        const { pageLanguage } = await import("./i18n.mjs");
+        const HOOK = "drpgE44T5Probe";
+        const title = `E44-T5 ${foundry.utils.randomID(6)}`;
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        let builds = 0;
+        const open = () => K.drpgWindow({
+            classes: ["drpg-window-e44t5"], title,
+            body: "<div class=\"drpg-t-e44t5-live\">0</div>",
+            tabs: {
+                sections: [{ key: "edit", label: "Edit", html: "<input type=\"text\" name=\"words\" value=\"typed\">" }, { key: "danger", label: "Danger", html: "<p>-</p>" }],
+                buttons: { edit: ["save", "split"], danger: ["wipe"] }, always: ["close"]
+            },
+            footer: { primary: { action: "save", label: "Save" }, secondary: [{ action: "split", label: "Split" }], destructive: [{ action: "wipe", label: "Wipe" }], close: "close" },
+            live: { region: ".drpg-t-e44t5-live", build: () => `<div class="drpg-t-e44t5-live">${++builds}</div>`, delay: 0, watch: { hooks: [HOOK] } }
+        });
+        const read = {};
+        let first = null, second = null;
+        try {
+            first = open();
+            if (!await until(() => Boolean(drawn()), 6000)) read.drawn = false;
+            else {
+                const el = drawn().element;
+                const content = el.querySelector(":scope > .window-content") ?? el;
+                read.root = [el.classList.contains("drpg-ui"), el.classList.contains("drpg-panel"), content.getAttribute("lang") === pageLanguage()];
+                const footer = el.querySelector("footer.form-footer");
+                read.footer = [footer?.classList.contains("drpg-kit-footer"), [...(footer?.children ?? [])].map(g => [g.className, [...g.children].map(b => b.dataset.action)]),
+                    el.querySelector('button[type="submit"]')?.dataset.action ?? null, [...el.querySelectorAll("footer [autofocus]")].map(b => b.dataset.action)];
+                const shown = () => [...el.querySelectorAll("footer button[data-action]")].filter(b => !b.hidden && !b.disabled).map(b => b.dataset.action);
+                read.editTab = shown();
+                el.querySelector('nav.drpg-tabs [data-drpg-tab-key="danger"]')?.click();
+                const def = el.querySelector('button[type="submit"]');
+                read.dangerTab = [shown(), [def?.dataset.action ?? null, Boolean(def?.disabled)], [...el.querySelectorAll("footer [autofocus]")].map(b => b.dataset.action),
+                    [...el.querySelectorAll("[data-drpg-pane]")].map(p => [p.dataset.drpgPane, p.hidden])];
+                Hooks.callAll(HOOK);
+                read.live = await until(() => el.querySelector(".drpg-t-e44t5-live")?.textContent === "1", 3000);
+                el.querySelector('nav.drpg-tabs [data-drpg-tab-key="edit"]')?.click();
+                const form = el.querySelector("form");
+                const firstSubmit = el.querySelector('button[type="submit"]');
+                read.enter = firstSubmit?.dataset.action ?? null;
+                if (form && firstSubmit && !firstSubmit.disabled) form.requestSubmit(firstSubmit);
+                read.firstAnswer = await Promise.race([first, wait(3000).then(() => "unanswered")]);
+            }
+            if (await until(() => !drawn(), 3000) === false) await drawn()?.close();
+            second = open();
+            if (await until(() => Boolean(drawn()), 6000)) {
+                drawn().element.querySelector('input[name="words"]')?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+                read.escape = await Promise.race([second, wait(3000).then(() => "unanswered")]);
+                read.closed = await until(() => !drawn(), 3000);
+            }
+        } finally {
+            if (drawn()) await drawn().close();
+            await Promise.race([Promise.all([first, second].filter(Boolean)), wait(3000)]);
+        }
+        equal(stableJson(read), stableJson({
+            root: [true, true, true],
+            footer: [true, [["drpg-kit-right", ["save"]], ["drpg-kit-left", ["close", "split", "wipe"]]], "save", ["save"]],
+            editTab: ["save", "close", "split"],
+            dangerTab: [["close", "wipe"], ["save", true], ["close"], [["edit", true], ["danger", false]]],
+            live: true, enter: "save", firstAnswer: "save", escape: null, closed: true
+        }), "[the root (drpg-ui, drpg-panel, the content's language the page's); the footer (dressed; its groups; the first submit button; the autofocus); the buttons shown on Edit; "
+            + "on Danger (shown; the first submit button and whether it is disabled; the autofocus; the panes); the live region redrawn; Enter's button and the answer; Escape's answer; the window gone]");
+    }],
     ...GRID
 ];
 

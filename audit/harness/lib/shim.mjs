@@ -1500,6 +1500,15 @@ export function buildApplications(ctx) {
             }
             form.append(body, footer);
             form.addEventListener("submit", event => { event.preventDefault(); this._onSubmit(event.submitter, event); });
+            /* Escape dismisses the window, as Foundry's DialogV2 `_onKeyDown` does (utils.mjs `wirePanelTabs` read it on
+               14.365: it intercepts Escape only); heard on the form, where a key in any of its fields arrives (E44 C3a,
+               for E44-T5). Not read off v14's source. */
+            form.addEventListener("keydown", event => {
+                if (event.key !== "Escape") return;
+                event.preventDefault();
+                event.stopPropagation();
+                this.close();
+            });
             form.addEventListener("click", event => {
                 const target = event.target?.closest?.("[data-action]");
                 if (!target) return;
