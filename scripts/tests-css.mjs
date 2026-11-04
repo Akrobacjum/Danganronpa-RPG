@@ -40,6 +40,11 @@
  * `@keyframes`, which duplicateRules reads under their at-rules as different.
  * The budget's numbers are tools/css-budget.json's, written by `--write` from a
  * run, never by hand.
+ *
+ * AND THE CONTRAST (E44 C1c, D29 = 2): `themeTokens`, `resolveColour`,
+ * `contrastRatio` and `contrastOf` read each theme's tokens off the same text and
+ * measure the pairs of tools/contrast-pairs.json by WCAG 2 - tools/contrast.mjs
+ * (`node tools/check.mjs contrast`) in Node, R1312 on the served files.
  */
 
 /** A sheet's text with its comments removed, each replaced by a space - as R2's moduleStyles has always read it. */
@@ -361,5 +366,140 @@ export function selfCheck(detectors = DETECTORS, { deadClassesFn = deadClasses, 
     };
     const want = { above: 1, below: 1, equal: 0, belowAtMost: 0 };
     if (JSON.stringify(verdicts) !== JSON.stringify(want)) problems.push(`the budget's ratchet answers ${JSON.stringify(verdicts)} problems, not ${JSON.stringify(want)} (above, below, equal, below with atMost)`);
+    return problems;
+}
+
+/* ================================ contrast (E44 C1c) ================================ */
+
+/**
+ * The tokens a theme declares, read from the sheets' text: every custom property of a top-level rule whose selector
+ * is `:root` or the theme's body class (`body.drpg-theme-stained-glass`, `body.drpg-theme-monokuma-legacy`), in the
+ * sheets' order, a later one over an earlier one. A rule under `@media`, `@supports` or `@container`, and a token
+ * declared on any other element, are not read: they hang on a layout or on an element, which is the style sweep's.
+ * `sheets` is [[file, text]]; answers { theme: Map(name -> value) }.
+ */
+export const THEME_CLASSES = { "stained-glass": "drpg-theme-stained-glass", "monokuma-legacy": "drpg-theme-monokuma-legacy" };
+
+export function themeTokens(sheets) {
+    const out = Object.fromEntries(Object.keys(THEME_CLASSES).map(theme => [theme, new Map()]));
+    for (const [, text] of sheets) {
+        for (const block of blocksOf(stripCssComments(text))) {
+            if (block.context.length) continue;
+            const selectors = block.prelude.split(",").map(s => s.trim());
+            for (const [theme, cls] of Object.entries(THEME_CLASSES)) {
+                if (!selectors.some(s => s === ":root" || s === `body.${cls}`)) continue;
+                for (const decl of declarationsOf(block.own)) if (decl.property.startsWith("--")) out[theme].set(decl.property, decl.value);
+            }
+        }
+    }
+    return out;
+}
+
+/**
+ * A token's value as a colour `[r, g, b, a]` (0-255, alpha 0-1), or null with the reason: a hex, `rgb()` / `rgba()`
+ * (numbers, or a `var()` of a `-rgb` token that holds them), or a `var()` of a token that resolves; a value Node
+ * cannot resolve - `color-mix()`, `light-dark()`, a keyword, a token not declared on :root or the theme - is null.
+ */
+export function resolveColour(value, tokens, seen = new Set()) {
+    let v = String(value ?? "").trim();
+    const whole = v.match(/^var\(\s*(--[\w-]+)\s*(?:,\s*([^)]*))?\)$/);
+    if (whole) {
+        if (seen.has(whole[1])) return { colour: null, why: `${whole[1]} refers to itself` };
+        if (!tokens.has(whole[1])) return whole[2] ? resolveColour(whole[2], tokens, seen) : { colour: null, why: `${whole[1]} is not declared on :root or the theme's body` };
+        return resolveColour(tokens.get(whole[1]), tokens, new Set([...seen, whole[1]]));
+    }
+    v = v.replace(/var\(\s*(--[\w-]+)\s*\)/g, (m, name) => (tokens.has(name) && !seen.has(name) ? tokens.get(name) : m));
+    const hex = v.match(/^#([0-9a-f]{3,8})$/i);
+    if (hex) {
+        let h = hex[1];
+        if (h.length === 3 || h.length === 4) h = [...h].map(c => c + c).join("");
+        if (h.length !== 6 && h.length !== 8) return { colour: null, why: `${value} is no hex colour` };
+        const n = i => parseInt(h.slice(i, i + 2), 16);
+        return { colour: [n(0), n(2), n(4), h.length === 8 ? n(6) / 255 : 1], why: null };
+    }
+    const fn = v.match(/^rgba?\(([^()]*)\)$/i);
+    if (fn) {
+        const parts = fn[1].split(/[\s,/]+/).filter(Boolean);
+        const nums = parts.map(p => (p.endsWith("%") ? Number(p.slice(0, -1)) / 100 : Number(p)));
+        if ((nums.length === 3 || nums.length === 4) && nums.every(Number.isFinite)) {
+            return { colour: [nums[0], nums[1], nums[2], nums.length === 4 ? nums[3] : 1], why: null };
+        }
+    }
+    return { colour: null, why: `${String(value).slice(0, 60)} does not resolve in Node` };
+}
+
+/** WCAG 2's relative luminance of an opaque [r, g, b]. */
+export function luminance([r, g, b]) {
+    const lin = c => { const s = c / 255; return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+
+/** WCAG 2's contrast ratio of two opaque colours, 1 to 21. */
+export function contrastRatio(a, b) {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+}
+
+/** The AA minimum: 4.5 for small text, 3 for large. */
+export const AA = { small: 4.5, large: 3 };
+
+/**
+ * Every pair of tools/contrast-pairs.json in its theme: `{ id, ratio, need, state, why }` with `state` "ok" (AA met),
+ * "known" (below AA, and the file writes that ratio as `known`: E48's), "low" (below AA, not known - red), "stale"
+ * (written `known`, and now meets AA or reads another ratio - red: take it out or write the new reading) or "unmeasured"
+ * (a value Node cannot resolve - the style sweep's in Chromium). A text with alpha is laid on its ground; a ground with
+ * alpha is unmeasured (what shows through is the page's).
+ */
+export function contrastOf(pairs, tokens) {
+    return (pairs ?? []).map(pair => {
+        const theme = tokens[pair.theme];
+        const need = AA[pair.size];
+        if (!theme || !need) return { id: pair.id, ratio: null, need: need ?? null, state: "low", why: `theme ${pair.theme} or size ${pair.size} is not one this tool knows` };
+        const fg = resolveColour(`var(${pair.text})`, theme), bg = resolveColour(`var(${pair.on})`, theme);
+        if (!fg.colour || !bg.colour) return { id: pair.id, ratio: null, need, state: "unmeasured", why: fg.why ?? bg.why };
+        if (bg.colour[3] < 1) return { id: pair.id, ratio: null, need, state: "unmeasured", why: `${pair.on} has alpha ${bg.colour[3]}: what shows through is the page's` };
+        const a = fg.colour[3];
+        const laid = fg.colour.slice(0, 3).map((c, i) => c * a + bg.colour[i] * (1 - a));
+        const ratio = Math.round(contrastRatio(laid, bg.colour.slice(0, 3)) * 100) / 100;
+        const reading = ratio.toFixed(2);
+        if (pair.known !== undefined) {
+            if (ratio >= need) return { id: pair.id, ratio, need, state: "stale", why: `written known "${pair.known}", and it reads ${reading}, AA met: take known out` };
+            if (String(pair.known) !== reading) return { id: pair.id, ratio, need, state: "stale", why: `written known "${pair.known}", and it reads ${reading}` };
+            return { id: pair.id, ratio, need, state: "known", why: null };
+        }
+        return { id: pair.id, ratio, need, state: ratio >= need ? "ok" : "low", why: ratio >= need ? null : `${reading} under ${need}` };
+    });
+}
+
+/**
+ * The contrast tool's own cases, each with its answer known: WCAG's two ends (black on white 21, a colour on itself
+ * 1), and a fixture theme whose pairs read ok, known, low, stale and unmeasured - a pair below AA that the file does
+ * not write as known must read "low", which is what makes the tool red; a known ratio that moved, "stale".
+ */
+export const CONTRAST_FIXTURE = {
+    sheets: [["fixture.css", ":root { --fx-ink: #000000; --fx-bone: #ffffff; --fx-grey: #777777; --fx-mix: color-mix(in srgb, red, blue); --fx-veil: rgba(0, 0, 0, 0.5); --fx-bone-rgb: 255, 255, 255; }\n"
+        + "body.drpg-theme-monokuma-legacy { --fx-text: rgba(var(--fx-bone-rgb), 0.9); --fx-grey: #808080; }"]],
+    pairs: [
+        { id: "white-on-black", theme: "stained-glass", text: "--fx-bone", on: "--fx-ink", size: "small" },
+        { id: "grey-small", theme: "stained-glass", text: "--fx-grey", on: "--fx-bone", size: "small" },
+        { id: "grey-known", theme: "monokuma-legacy", text: "--fx-grey", on: "--fx-bone", size: "small", known: "3.95" },
+        { id: "grey-stale", theme: "monokuma-legacy", text: "--fx-grey", on: "--fx-bone", size: "small", known: "3.00" },
+        { id: "grey-large", theme: "monokuma-legacy", text: "--fx-grey", on: "--fx-bone", size: "large" },
+        { id: "alpha-text", theme: "monokuma-legacy", text: "--fx-text", on: "--fx-ink", size: "small" },
+        { id: "mixed", theme: "stained-glass", text: "--fx-mix", on: "--fx-ink", size: "small" },
+        { id: "veiled-ground", theme: "stained-glass", text: "--fx-bone", on: "--fx-veil", size: "small" }
+    ],
+    want: { "white-on-black": "ok 21.00", "grey-small": "low 4.48", "grey-known": "known 3.95", "grey-stale": "stale 3.95", "grey-large": "ok 3.95",
+        "alpha-text": "ok 16.75", mixed: "unmeasured", "veiled-ground": "unmeasured" }
+};
+
+/** The contrast tool on its own cases; [] is held. */
+export function contrastSelfCheck(of = contrastOf) {
+    const problems = [];
+    const ends = [contrastRatio([0, 0, 0], [255, 255, 255]), contrastRatio([179, 50, 74], [179, 50, 74])].map(r => r.toFixed(2));
+    if (ends.join() !== "21.00,1.00") problems.push(`WCAG's ends read ${ends.join(" and ")}, not 21.00 and 1.00`);
+    const got = Object.fromEntries(of(CONTRAST_FIXTURE.pairs, themeTokens(CONTRAST_FIXTURE.sheets))
+        .map(r => [r.id, r.ratio === null ? r.state : `${r.state} ${r.ratio.toFixed(2)}`]));
+    for (const [id, want] of Object.entries(CONTRAST_FIXTURE.want)) if (got[id] !== want) problems.push(`the fixture's ${id} reads ${got[id]}, not ${want}`);
     return problems;
 }

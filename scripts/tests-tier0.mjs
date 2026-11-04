@@ -17,7 +17,7 @@ import {
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
-    TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists, cssDeadClasses, cssLintCounts, cssBudgetProblems
+    TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists, cssDeadClasses, cssLintCounts, cssBudgetProblems, CSS_DETECTORS
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -514,6 +514,25 @@ const REGRESSIONS = [
         must(dead.inSheet > 200, `${dead.inSheet} classes read in the sheets - the dead-class count would read nothing`);
         must(Object.values(counts).reduce((n, c) => n + c.important, 0) > 0, "no `!important` counted in any sheet - the counts read nothing");
         equal(JSON.stringify(cssBudgetProblems(counts, budget, { atMost: true })), "[]", "a served sheet is above its budget, or the budget and module.json disagree");
+    }],
+
+    ["R1313 - CONTRIBUTING.md's \"The CSS contract\" names each detector of the CSS lint (importantCount, colourLiterals, strayCommentEnds, duplicateRules, deadClasses), the floor (21 px scaled under Stained Glass, 10 px a rung under Monokuma Legacy), the 390 px rule and the three commands - node tools/check.mjs css, node tools/check.mjs contrast, node audit/style-sweep.mjs (E44 C1c; E44-04)", async () => {
+        /*
+         * E44 C1c, 04.11.2026 (audit S17-35: no CSS contract). The section is what a contributor reads before
+         * touching styles/, so it names what the tools hold them to; a detector added to tests-css.mjs's DETECTORS
+         * with no line there fails here. Red before C1c: no such section.
+         */
+        let text = "";
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/CONTRIBUTING.md`, { cache: "no-cache" });
+            if (res.ok) text = await lfText(res);
+        } catch { /* the assertion below says it is missing */ }
+        ok(text.includes("\n## The CSS contract\n"), "CONTRIBUTING.md has no section \"## The CSS contract\"");
+        const section = bodyOf(text, "\n## The CSS contract\n", { until: "\n## " });
+        must(section.length > 500, `the CSS contract section is ${section.length} characters - this test would read nothing`);
+        const wanted = [...Object.keys(CSS_DETECTORS), "deadClasses", "21 px", "10 px", "390 px",
+            "node tools/check.mjs css", "node tools/check.mjs contrast", "node audit/style-sweep.mjs", "!important", "narrow.css"];
+        equal(JSON.stringify(wanted.filter(w => !section.includes(w))), "[]", "the CSS contract does not name these");
     }],
 
     ["R3 - every sound a card asks for is a sound that exists", async () => {

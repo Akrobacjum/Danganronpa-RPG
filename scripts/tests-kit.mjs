@@ -30,10 +30,12 @@ import {
     tableWordProblems as textTableWords, legacyListsFrom as textLegacyLists
 } from "./tests-text.mjs";
 /* The CSS lint (E44 C1b): handed on the same way, so R2, R1310 and R1311 run the functions `node tools/check.mjs css`
-   runs (R2's dead-class detector lives there since), and the crawl reaches the file through this import. */
+   runs (R2's dead-class detector lives there since), and the crawl reaches the file through this import; C1c adds the
+   contrast's four for R1312, the functions `node tools/check.mjs contrast` runs. */
 import {
     deadClasses as cssDeadClasses, selfCheck as cssSelfCheck, lintCounts as cssLintCounts, budgetProblems as cssBudgetProblems,
-    DETECTORS as CSS_DETECTORS, FIXTURES as CSS_FIXTURES
+    DETECTORS as CSS_DETECTORS, FIXTURES as CSS_FIXTURES,
+    themeTokens as cssThemeTokens, contrastOf as cssContrastOf, contrastRatio as cssContrastRatio, contrastSelfCheck as cssContrastSelfCheck
 } from "./tests-css.mjs";
 
 /* ==========================================================================
@@ -2380,6 +2382,7 @@ export {
     flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem, TEXT_BASELINES, textAgainstBaseline, textStaleRow,
     textTableWords, textLegacyLists,
     cssDeadClasses, cssSelfCheck, cssLintCounts, cssBudgetProblems, CSS_DETECTORS, CSS_FIXTURES,
+    cssThemeTokens, cssContrastOf, cssContrastRatio, cssContrastSelfCheck,
     stringLiterals, STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, watchWrites, watchLog, cast,
     worldDump, dumpDiff, describeDiff, hashText, dumpOf, dumpPathsOf, DUMP_RULES, DUMP_FOREIGN_SETTINGS
 };

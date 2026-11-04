@@ -184,6 +184,13 @@
  *             held to tools/css-budget.json: red above a budget, and red below
  *             it until the budget is lowered in the same commit
  *             (`node tools/css-lint.mjs --write`). Bare Node.
+ *   contrast  the themes' text by WCAG 2 (E44 C1c; tools/contrast.mjs, whose
+ *             header says what it reads): its self-check, then every pair of
+ *             tools/contrast-pairs.json in its theme from the tokens the sheets
+ *             declare on :root and the theme's body class - red below AA (4.5
+ *             small, 3 large) unless written `known` at that ratio, red on a
+ *             `known` that no longer reads; a pair Node cannot resolve printed
+ *             as not measured. Bare Node.
  */
 
 import fs from "node:fs";
@@ -1143,7 +1150,18 @@ async function css() {
     return problems;
 }
 
-const PARTS = { stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode, live, text, css };
+/* -------------------------------- contrast -------------------------------- */
+
+/* THE CONTRAST (E44 C1c, 04.11.2026; D29 = 2): the arithmetic is tests-css.mjs's, which R1312 runs on the served files. */
+async function contrast() {
+    const { contrastCheck } = await import(url.pathToFileURL(path.join(REPO, "tools", "contrast.mjs")).href);
+    const { problems, summary, lines } = await contrastCheck(REPO);
+    for (const line of lines.filter(l => !/, ok$/.test(l))) console.log(line);
+    console.log(summary);
+    return problems;
+}
+
+const PARTS = { stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode, live, text, css, contrast };
 
 const asked = argv.filter((a, i) => !a.startsWith("--") && !(releaseAt >= 0 && i === releaseAt + 1) && !(langAt >= 0 && i === langAt + 1));
 if (RELEASE === "" || (RELEASE !== null && !/^v\d+\.\d+\.\d+$/.test(RELEASE))) {

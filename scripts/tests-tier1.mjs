@@ -22,7 +22,7 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText, expectedRed, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, bridgeFn, bridgeText, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, musicText, sfxText, voteText
+    worldDump, dumpDiff, lfText, expectedRed, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, musicText, sfxText, voteText
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -32431,6 +32431,35 @@ const INVARIANTS = [
             "the self-check does not see every detector stubbed to count and read nothing (its count and its read, each)");
         ok(CSS_FIXTURES.importantCount.sheet.includes("! important") && CSS_FIXTURES.colourLiterals.sheet.includes("--drpg-ink: #"),
             "the fixtures no longer plant `! important` with a space, or a colour in a token's definition");
+    }],
+
+    ["R1312 - the themes' text meets AA where Node resolves it (E44 C1c; E44-03, D29 = 2): WCAG's ratio reads 21 for black on white and 1 for a colour on itself, the contrast tool's own fixture reads ok, low, known, stale and unmeasured as written, and every pair of tools/contrast-pairs.json, in its theme with the tokens the served sheets declare on :root and the theme's body class, is AA (4.5 small, 3 large) or written known at the ratio it reads - none low, none stale, at least one measured in each theme", async () => {
+        /*
+         * E44 C1c, 04.11.2026. The arithmetic is tests-css.mjs's, the same `node tools/check.mjs contrast` runs on the
+         * files on disk; here on the files Foundry serves. Red before C1c: no contrastOf and no pairs file; a pair
+         * planted below AA and not written known (the fixture's grey-small, #777777 on white, 4.48) reads "low".
+         * Measured at C1c: 23 pairs, 20 AA, 2 below it and known (Legacy's bone on the eye's red 3.63, its red on ink
+         * 4.39: E48's), 1 not measured in Node (a ground with alpha).
+         */
+        equal([cssContrastRatio([0, 0, 0], [255, 255, 255]), cssContrastRatio([179, 50, 74], [179, 50, 74])].map(r => r.toFixed(2)).join(), "21.00,1.00",
+            "WCAG's two ends do not read 21 and 1");
+        equal(JSON.stringify(cssContrastSelfCheck()), "[]", "the contrast tool does not read its own fixture as written");
+        let file = null;
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/tools/contrast-pairs.json`, { cache: "no-cache" });
+            if (res.ok) file = await res.json();
+        } catch { /* the assertion below says it is missing */ }
+        ok(Array.isArray(file?.pairs) && file.pairs.length > 0, "tools/contrast-pairs.json is missing or lists no pair");
+        if (!file) return;
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const sheets = [];
+        for (const href of manifest.styles ?? []) sheets.push([href, await fetch(`/modules/${MODULE_ID}/${href}`).then(lfText)]);
+        const results = cssContrastOf(file.pairs, cssThemeTokens(sheets));
+        const bad = results.filter(r => r.state === "low" || r.state === "stale").map(r => `${r.id} ${r.state}: ${r.why}`);
+        equal(JSON.stringify(bad), "[]", "a pair is below AA and not written known, or its known ratio no longer reads");
+        for (const theme of ["stained-glass", "monokuma-legacy"]) {
+            ok(results.some((r, i) => file.pairs[i].theme === theme && (r.state === "ok" || r.state === "known")), `no pair of ${theme} was measured - the test read nothing of that theme`);
+        }
     }],
 ];
 

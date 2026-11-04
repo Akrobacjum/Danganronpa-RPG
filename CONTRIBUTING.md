@@ -69,6 +69,54 @@ it - a comment that no longer matches its code is worse than none.
 
 **Plain hyphens.** `-`, not `—`, in code, comments and prose alike.
 
+## The CSS contract
+
+The stylesheets are held by tools, so a rule that looks right is measured before it is trusted (E44, 04.11.2026).
+What every change to `styles/` keeps:
+
+- **Tokens, not literals.** A colour, a size on the floor's scale, a radius and a shadow are custom properties
+  (`--drpg-*`), defined on `:root` or on a theme's body class. In `styles/components.css` (the window kit, from
+  E44 C3) a literal is not allowed at all; in the older sheets the lint counts them and the count only falls.
+- **One rule per role, per theme.** Stained Glass and Monokuma Legacy are both supported (D29): a component's
+  Legacy variant is the same rule reading the same tokens with Legacy's values, not a second tree of rules.
+- **No `!important` in `components.css`, and the budget falls.** `tools/css-budget.json` holds each sheet's
+  counts; a count above its budget is red (a rule added one), and a count below it is red until the budget is
+  lowered in the same commit (`node tools/css-lint.mjs --write`, which never raises one).
+- **A migrated surface takes its old rules with it.** A surface moved onto the kit loses every rule that styled it
+  in the old sheets in the same commit, and is measured - the cascade test (`tests-kit.mjs` `styleCascade`) and
+  the style sweep - and looked at on a screenshot in both themes. A kit rule that loses to an old `!important` can
+  pass every test while the screen does not change.
+- **No width that assumes a desk.** No component is fixed wider than 390 px, and nothing assumes a screen of
+  1024 px or more: widths go through `min()`, `@container` or the `drpg-stacked` layout. A window a player opens is
+  read at 390x844.
+- **The breakpoints are `scripts/settings.mjs`'s** (`BREAKPOINTS`) and nowhere else; the stylesheet keys off the
+  classes it sets. `styles/narrow.css` loads last.
+- **No text under the floor.** Under Stained Glass the floor is 21 px scaled (`--drpg-sg-floor`); under Monokuma
+  Legacy it is 10 px per rung (the `--font-size-*` rungs and `--drpg-text-xs`).
+- **AA contrast in both themes.** Small text 4.5:1, large text 3:1, for every pair of `tools/contrast-pairs.json`;
+  a pair below it is written there with its ratio as `known`, never raised to pass.
+
+What the lint counts, per sheet (`scripts/tests-css.mjs`, read by the suite too):
+
+| Detector | What it counts |
+| --- | --- |
+| `importantCount` | each `!important`, `! important` with a space as well, comments aside |
+| `colourLiterals` | each declaration that is not a custom property and holds a hex, `rgb(a)()` or `hsl(a)()` colour |
+| `strayCommentEnds` | a comment end with no start - 0, always, with no budget |
+| `duplicateRules` | a rule written again with the same selector list and declarations, under the same at-rules |
+| `deadClasses` | a `.drpg-*` the sheets style that no script writes (the suite's R2, the same function) |
+
+The commands:
+
+```bash
+node tools/check.mjs css         # the lint against tools/css-budget.json (also in npm run quick and CI)
+node tools/check.mjs contrast    # every pair of tools/contrast-pairs.json in both themes
+node audit/style-sweep.mjs       # the computed style of the kit's surfaces in Chromium against audit/style-baseline.json
+```
+
+The sweep needs Chromium (Playwright from `audit/harness`), which CI does not install: whoever changes what a
+surface looks like runs it, accepts only the surfaces that change (`--accept <id>`) and reads the screenshots.
+
 ## What to expect from a review
 
 It will ask where a number came from. Most of the long comments in here exist
