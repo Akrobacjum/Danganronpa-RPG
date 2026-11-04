@@ -32444,6 +32444,7 @@ const INVARIANTS = [
         equal([cssContrastRatio([0, 0, 0], [255, 255, 255]), cssContrastRatio([179, 50, 74], [179, 50, 74])].map(r => r.toFixed(2)).join(), "21.00,1.00",
             "WCAG's two ends do not read 21 and 1");
         equal(JSON.stringify(cssContrastSelfCheck()), "[]", "the contrast tool does not read its own fixture as written");
+        needs(env.tools(), "tools/contrast-pairs.json is read from the repository's tools/ (an installed module's zip leaves it out)");
         let file = null;
         try {
             const res = await fetch(`/modules/${MODULE_ID}/tools/contrast-pairs.json`, { cache: "no-cache" });

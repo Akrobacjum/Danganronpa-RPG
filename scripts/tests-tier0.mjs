@@ -498,6 +498,7 @@ const REGRESSIONS = [
          * tests-css.mjs and no budget; with one `!important` planted in a served sheet, "styles/narrow.css:
          * important 15, above its budget 14".
          */
+        needs(env.tools(), "tools/css-budget.json is read from the repository's tools/ (an installed module's zip leaves it out)");
         const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
         const sheets = [];
         for (const file of manifest.styles ?? []) sheets.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)]);
@@ -522,6 +523,7 @@ const REGRESSIONS = [
          * touching styles/, so it names what the tools hold them to; a detector added to tests-css.mjs's DETECTORS
          * with no line there fails here. Red before C1c: no such section.
          */
+        needs(env.tools(), "CONTRIBUTING.md is read from the repository's root (an installed module's zip leaves it out, as it leaves tools/)");
         let text = "";
         try {
             const res = await fetch(`/modules/${MODULE_ID}/CONTRIBUTING.md`, { cache: "no-cache" });
