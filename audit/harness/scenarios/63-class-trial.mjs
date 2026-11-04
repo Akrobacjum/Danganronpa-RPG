@@ -278,8 +278,10 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         const read = { second, windows: drawnAll().length, same: voteWindow()?.id === globalThis.__s63voteId };
         for (const app of drawnAll()) if (app.id !== globalThis.__s63voteId) await app.close();
         return read;`, { timeout: 20000 });
-    verdict("pressed again, the vote window B drew is raised and no second one is drawn (C14)",
-        raised.second === null && raised.windows === 1 && raised.same === true, J(raised));
+    /* E44 C2c (04.11.2026): an opener whose window is already open answers "raised" (live.mjs `RAISED`), no longer null,
+       so a caller can tell a raise from a refusal (R1318 holds every opener to it). */
+    verdict("pressed again, the vote window B drew is raised and no second one is drawn (C14; E44 C2c: the press answers \"raised\")",
+        raised.second === "raised" && raised.windows === 1 && raised.same === true, J(raised));
     /* THE VOTE'S TRACE ON THE PANEL (E51 C4, 31.10.2026; E51-27, audit S13-33). A player whose ballot the primary has
        recorded was told so in a toast, and the Events panel went on calling them to vote until the count. Read off the
        panel each browser drew itself (its signature: kind, title, sub, ...), not built here: p1's, whose ballot is in, says
