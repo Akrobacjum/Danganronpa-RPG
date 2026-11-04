@@ -32461,6 +32461,47 @@ const INVARIANTS = [
             ok(results.some((r, i) => file.pairs[i].theme === theme && (r.state === "ok" || r.state === "known")), `no pair of ${theme} was measured - the test read nothing of that theme`);
         }
     }],
+
+    ["R1314 - styleSnapshot (scripts/style-snapshot.mjs, `game.drpg.styleSnapshot`): an entry for every surface of STYLE_SURFACES and none other, each found one with exactly PROPS's properties read by getComputedStyle and each not found `found: false` with none; a surface put on the page reads found and taken off reads not found; the theme read off the body's class; `only` answers the surfaces named alone and refuses one that is not a surface; nothing written - the world dump equal, and the page's body classes and the surfaces' elements as they were (E44 C1d; E44-05)", async () => {
+        /*
+         * E44 C1d, 04.11.2026. Headless this reads jsdom's partial cascade (`env: "jsdom"`); the numbers that count are
+         * Chromium's (audit/style-sweep.mjs) and a table's. What this holds is the shape the sweep and its baseline
+         * read, and that a reading writes nothing. Red before C1d: no style-snapshot.mjs.
+         */
+        const M = await import("./style-snapshot.mjs");
+        ok(typeof M.styleSnapshot === "function", "style-snapshot.mjs exports no styleSnapshot");
+        if (typeof M.styleSnapshot !== "function") return;
+        ok(game.drpg?.styleSnapshot === M.styleSnapshot, "game.drpg.styleSnapshot is not style-snapshot.mjs's function");
+        const ids = M.STYLE_SURFACES.map(s => s.id);
+        must(ids.length >= 20 && new Set(ids).size === ids.length, `STYLE_SURFACES holds ${ids.length} surface(s), or one id twice`);
+        const before = await worldDump(), classes = document.body.className;
+        const s = M.styleSnapshot();
+        equal(JSON.stringify(Object.keys(s.surfaces)), JSON.stringify(ids), "the snapshot's surfaces are not STYLE_SURFACES, in its order");
+        const shapeless = Object.entries(s.surfaces).filter(([, v]) => (v.found ? JSON.stringify(Object.keys(v.props ?? {})) !== JSON.stringify(M.PROPS) : "props" in v))
+            .map(([id]) => id);
+        equal(JSON.stringify(shapeless), "[]", "these surfaces are found with other properties than PROPS, or not found with properties");
+        const theme = document.body.classList.contains("drpg-theme-stained-glass") ? "stained-glass" : document.body.classList.contains("drpg-theme-monokuma-legacy") ? "monokuma-legacy" : "none";
+        equal(s.theme, theme, "the snapshot's theme is not the body's");
+        ok(["jsdom", "browser"].includes(s.env) && s.size.width > 0, `the snapshot says env ${s.env} and width ${s.size.width}`);
+        /* A surface put on the page and taken off: the foot of the notice history, which the GM's page shows only with the window open. */
+        const planted = !document.querySelector(".drpg-notices-foot");
+        if (planted) {
+            const el = document.createElement("footer");
+            el.className = "drpg-notices-foot";
+            document.body.append(el);
+            const on = M.styleSnapshot({ only: ["notices-foot"] });
+            el.remove();
+            const off = M.styleSnapshot({ only: ["notices-foot"] });
+            equal(JSON.stringify([Object.keys(on.surfaces), on.surfaces["notices-foot"]?.found, off.surfaces["notices-foot"]?.found]),
+                JSON.stringify([["notices-foot"], true, false]), "[the surfaces `only` answers, put on the page found, taken off found]");
+            ok(typeof on.surfaces["notices-foot"]?.props?.display === "string", "a found surface's display was not read");
+        } else ok(s.surfaces["notices-foot"].found, "the notice history's foot is on the page and the snapshot did not find it");
+        let refused = null;
+        try { M.styleSnapshot({ only: ["no-such-surface"] }); } catch (err) { refused = err.message; }
+        ok(/no surface no-such-surface/.test(refused ?? ""), `an unknown surface was not refused (${refused})`);
+        equal(document.body.className, classes, "the snapshot changed the body's classes");
+        equal(JSON.stringify(dumpDiff(before, await worldDump())), "[]", "a snapshot wrote to the world");
+    }],
 ];
 
 /**

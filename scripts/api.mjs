@@ -197,6 +197,7 @@ import {
     poolUserFor, poolFor, setPoolFor, monokumasWithoutPool
 } from "./monokuma.mjs";
 import { openGmTeamDialog } from "./gm-team-dialog.mjs";
+import { styleSnapshot } from "./style-snapshot.mjs";
 import { rules, addRule, updateRule, removeRule, openRulesManager, motive, setMotive } from "./rules.mjs";
 import { spendHopeCall, spendDespairCallFor, hopeHeld, affordableHopeCalls, despairCallsFor } from "./calls.mjs";
 import { openMessenger } from "./messenger-app.mjs";
@@ -1452,6 +1453,11 @@ export const DrpgApi = {
      *  `game.drpg.perf()` - every performance number in the audit was measured
      *  headlessly, and this is the only one measured where somebody is playing. */
     perf: perfReport,
+    /** What the module's surfaces compute to on THIS page (E44 C1d, style-snapshot.mjs): for each row of its fixed list
+     *  (the windows' frames, footers, tabs, tables and fields, the notice history, the corner, the launchers, the room and
+     *  voice tiles, Foundry tools) the computed colour, type, box and layout of the first match, or `found: false`.
+     *  `game.drpg.styleSnapshot()`, in each theme; it writes nothing. audit/style-sweep.mjs reads the same in Chromium. */
+    styleSnapshot,
     /** Where the frame goes on THIS machine (E88 C0): the frame time over `seconds` (median, p95, fps, frames over
      *  33 and 50 ms), the module's counters over the same window, the filters on the canvas, and each suspect held
      *  alone for `frames` frames or `holdMs` (1 s) - the halos live and baked, the fog's raster and drift, the blur,

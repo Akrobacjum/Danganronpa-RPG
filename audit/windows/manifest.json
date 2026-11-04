@@ -1,0 +1,831 @@
+{
+  "about": "The module's windows as the harness drew them (probe 08, audit/harness/probes/08-capture-windows.mjs): one file a window, its element's HTML; each row its opener, its title, classes and buttons, or why it was not captured. Written by the probe from a run, never by hand.",
+  "windows": [
+    {
+      "id": "rooms-bedrooms",
+      "client": "gm",
+      "opener": "room-setup.mjs m.openRoomSetupDialog({ tab: \"bedrooms\" })",
+      "captured": true,
+      "title": "Room setup - Academy - Floor 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-room-setup",
+        "drpg-window-rooms",
+        "drpg-table-window"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Apply",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "rooms-bedrooms.html"
+    },
+    {
+      "id": "rooms-doors",
+      "client": "gm",
+      "opener": "room-setup.mjs m.openRoomSetupDialog({ tab: \"doors\" })",
+      "captured": true,
+      "title": "Room setup - Academy - Floor 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-room-setup",
+        "drpg-window-rooms",
+        "drpg-table-window"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Apply",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "rooms-doors.html"
+    },
+    {
+      "id": "rooms-passages",
+      "client": "gm",
+      "opener": "room-setup.mjs m.openRoomSetupDialog({ tab: \"passages\" })",
+      "captured": true,
+      "title": "Room setup - Academy - Floor 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-room-setup",
+        "drpg-window-rooms",
+        "drpg-table-window"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Apply",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "rooms-passages.html"
+    },
+    {
+      "id": "rooms-search",
+      "client": "gm",
+      "opener": "room-setup.mjs m.openRoomSetupDialog({ tab: \"search\" })",
+      "captured": true,
+      "title": "Room setup - Academy - Floor 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-room-setup",
+        "drpg-window-rooms",
+        "drpg-table-window"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Apply",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "rooms-search.html"
+    },
+    {
+      "id": "rooms-rest",
+      "client": "gm",
+      "opener": "room-setup.mjs m.openRoomSetupDialog({ tab: \"rest\" })",
+      "captured": true,
+      "title": "Room setup - Academy - Floor 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-room-setup",
+        "drpg-window-rooms",
+        "drpg-table-window"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Apply",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "rooms-rest.html"
+    },
+    {
+      "id": "rooms-stashes",
+      "client": "gm",
+      "opener": "room-setup.mjs m.openRoomSetupDialog({ tab: \"stashes\" })",
+      "captured": true,
+      "title": "Room setup - Academy - Floor 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-room-setup",
+        "drpg-window-rooms",
+        "drpg-table-window"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Apply",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "rooms-stashes.html"
+    },
+    {
+      "id": "rooms-description",
+      "client": "gm",
+      "opener": "room-setup.mjs m.openRoomSetupDialog({ tab: \"description\" })",
+      "captured": true,
+      "title": "Room setup - Academy - Floor 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-room-setup",
+        "drpg-window-rooms",
+        "drpg-table-window"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Apply",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "rooms-description.html"
+    },
+    {
+      "id": "rooms-fog",
+      "client": "gm",
+      "opener": "room-setup.mjs m.openRoomSetupDialog({ tab: \"fog\" })",
+      "captured": true,
+      "title": "Room setup - Academy - Floor 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-room-setup",
+        "drpg-window-rooms",
+        "drpg-table-window"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Apply",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "rooms-fog.html"
+    },
+    {
+      "id": "rooms-scenes",
+      "client": "gm",
+      "opener": "room-setup.mjs m.openRoomSetupDialog({ tab: \"scenes\" })",
+      "captured": true,
+      "title": "Room setup - Academy - Floor 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-room-setup",
+        "drpg-window-rooms",
+        "drpg-table-window"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Apply",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "rooms-scenes.html"
+    },
+    {
+      "id": "sound",
+      "client": "gm",
+      "opener": "sound-panel.mjs m.openSoundDialog()",
+      "captured": true,
+      "title": "Sound",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-wide",
+        "drpg-sound",
+        "drpg-window-sound",
+        "drpg-table-window"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Close",
+          "default": true
+        }
+      ],
+      "file": "sound.html"
+    },
+    {
+      "id": "despair-flow",
+      "client": "gm",
+      "opener": "gm-team-dialog.mjs m.openGmTeamDialog()",
+      "captured": true,
+      "title": "Despair Flow",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-monokuma-panel",
+        "drpg-assign",
+        "drpg-window-gmteam",
+        "drpg-table-window"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Save",
+          "default": true
+        },
+        {
+          "action": "auto",
+          "label": "Split evenly",
+          "default": false
+        },
+        {
+          "action": "cancel",
+          "label": "Close",
+          "default": false
+        }
+      ],
+      "file": "despair-flow.html"
+    },
+    {
+      "id": "season-setup",
+      "client": "gm",
+      "opener": "season-setup.mjs m.openSeasonSetup()",
+      "captured": true,
+      "title": "Set the season up",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-wide",
+        "drpg-window-season"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Save",
+          "default": true
+        },
+        {
+          "action": "checks",
+          "label": "Pre-season checks",
+          "default": false
+        },
+        {
+          "action": "close",
+          "label": "Close",
+          "default": false
+        }
+      ],
+      "file": "season-setup.html"
+    },
+    {
+      "id": "pre-season-checks",
+      "client": "gm",
+      "opener": "season-setup.mjs m.openSeasonSetup()",
+      "captured": true,
+      "title": "Pre-season checks",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-wide"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Close",
+          "default": true
+        }
+      ],
+      "file": "pre-season-checks.html"
+    },
+    {
+      "id": "investigation",
+      "client": "gm",
+      "opener": "investigation.mjs m.openInvestigationDashboard()",
+      "captured": true,
+      "title": "Investigation",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-window-case",
+        "drpg-table-window"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Save",
+          "default": true
+        },
+        {
+          "action": "newTrace",
+          "label": "New Remnant",
+          "default": false
+        },
+        {
+          "action": "clearFaint",
+          "label": "Clear Faint Remnants",
+          "default": false
+        },
+        {
+          "action": "sweepBullets",
+          "label": "Sweep Truth Bullets",
+          "default": false
+        },
+        {
+          "action": "autopsy",
+          "label": "Issue Autopsy Truth Bullet",
+          "default": false
+        },
+        {
+          "action": "log",
+          "label": "Trial evidence log",
+          "default": false
+        },
+        {
+          "action": "bodyFound",
+          "label": "Body found",
+          "default": false
+        },
+        {
+          "action": "close",
+          "label": "Close",
+          "default": false
+        }
+      ],
+      "file": "investigation.html"
+    },
+    {
+      "id": "class-trial",
+      "client": "gm",
+      "opener": "trial-floor-ui.mjs m.manageClassTrial()",
+      "captured": true,
+      "title": "Class Trial",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-trial"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "start",
+          "label": "Start the Class Trial",
+          "default": true
+        },
+        {
+          "action": "toggleFinal",
+          "label": "Start the Final Trial",
+          "default": false
+        },
+        {
+          "action": "close",
+          "label": "Close",
+          "default": false
+        }
+      ],
+      "file": "class-trial.html"
+    },
+    {
+      "id": "edit-campaign",
+      "client": "gm",
+      "opener": "gm-campaign.mjs m.openClockDialog()",
+      "captured": true,
+      "title": "Edit campaign",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-clock"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Apply",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Close",
+          "default": false
+        }
+      ],
+      "file": "edit-campaign.html"
+    },
+    {
+      "id": "murder",
+      "client": "gm",
+      "opener": "murder-ui.mjs m.openMurderDialog()",
+      "captured": true,
+      "title": "Murder",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-murder"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Open it",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "murder.html"
+    },
+    {
+      "id": "incident-tracker",
+      "client": "gm",
+      "opener": "murder-ui.mjs m.openIncidentTracker()",
+      "captured": false,
+      "answered": "null",
+      "threw": null
+    },
+    {
+      "id": "level-up",
+      "client": "gm",
+      "opener": "level-up.mjs m.openAdvancementFor(game.actors.find(a => a.type === \"character\"))",
+      "captured": true,
+      "title": "Level Up - Aiko Hoshino",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Do it",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "level-up.html"
+    },
+    {
+      "id": "item-manager",
+      "client": "gm",
+      "opener": "gm-items.mjs m.openItemManager()",
+      "captured": true,
+      "title": "Give / take items",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-items"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "give",
+          "label": "Give an item",
+          "default": false
+        },
+        {
+          "action": "bullet",
+          "label": "Give a Truth Bullet",
+          "default": false
+        },
+        {
+          "action": "key",
+          "label": "Give a room key",
+          "default": false
+        },
+        {
+          "action": "take",
+          "label": "Take an item away",
+          "default": false
+        },
+        {
+          "action": "takeBullet",
+          "label": "Take a Truth Bullet away",
+          "default": false
+        },
+        {
+          "action": "takeKey",
+          "label": "Take a room key away",
+          "default": false
+        },
+        {
+          "action": "cancel",
+          "label": "Close",
+          "default": false
+        }
+      ],
+      "file": "item-manager.html"
+    },
+    {
+      "id": "item-tables",
+      "client": "gm",
+      "opener": "tables-editor.mjs m.openItemTables()",
+      "captured": true,
+      "title": "Item tables",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-wide",
+        "drpg-window-tables"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "add",
+          "label": "Add an item",
+          "default": true
+        },
+        {
+          "action": "newPool",
+          "label": "Create table",
+          "default": false
+        },
+        {
+          "action": "install",
+          "label": "Install / reinstall",
+          "default": false
+        },
+        {
+          "action": "close",
+          "label": "Close",
+          "default": false
+        }
+      ],
+      "file": "item-tables.html"
+    },
+    {
+      "id": "look-gm",
+      "client": "gm",
+      "opener": "look.mjs m.openLookDialog()",
+      "captured": true,
+      "title": "Settings",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-sound",
+        "drpg-sound-player",
+        "drpg-window-look",
+        "drpg-table-window"
+      ],
+      "tag": "dialog",
+      "width": 560,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Close",
+          "default": false
+        }
+      ],
+      "file": "look-gm.html"
+    },
+    {
+      "id": "notices-gm",
+      "client": "gm",
+      "opener": "notice-history-app.mjs m.openNotices()",
+      "captured": true,
+      "title": "Notice history",
+      "classes": [
+        "application",
+        "drpg-panel",
+        "drpg-window-notices"
+      ],
+      "tag": "div",
+      "width": 420,
+      "buttons": [
+        {
+          "action": null,
+          "label": "Clear",
+          "default": false
+        }
+      ],
+      "file": "notices-gm.html"
+    },
+    {
+      "id": "gm-panel",
+      "client": "gm",
+      "opener": "gm-panel.mjs m.openGmPanel()",
+      "captured": true,
+      "title": "Danganronpa - GM Panel",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-gm-panel-window",
+        "drpg-window-panel"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Close",
+          "default": true
+        }
+      ],
+      "file": "gm-panel.html"
+    },
+    {
+      "id": "sound-player",
+      "client": "p1",
+      "opener": "sound-panel.mjs m.openSoundDialog()",
+      "captured": true,
+      "title": "Sound",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-sound",
+        "drpg-sound-player",
+        "drpg-window-sound",
+        "drpg-table-window"
+      ],
+      "tag": "dialog",
+      "width": 460,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Close",
+          "default": false
+        }
+      ],
+      "file": "sound-player.html"
+    },
+    {
+      "id": "look-player",
+      "client": "p1",
+      "opener": "look.mjs m.openLookDialog()",
+      "captured": true,
+      "title": "Settings",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-sound",
+        "drpg-sound-player",
+        "drpg-window-look",
+        "drpg-table-window"
+      ],
+      "tag": "dialog",
+      "width": 560,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Close",
+          "default": false
+        }
+      ],
+      "file": "look-player.html"
+    },
+    {
+      "id": "notices-player",
+      "client": "p1",
+      "opener": "notice-history-app.mjs m.openNotices()",
+      "captured": true,
+      "title": "Notice history",
+      "classes": [
+        "application",
+        "drpg-panel",
+        "drpg-window-notices"
+      ],
+      "tag": "div",
+      "width": 420,
+      "buttons": [
+        {
+          "action": null,
+          "label": "Clear",
+          "default": false
+        }
+      ],
+      "file": "notices-player.html"
+    }
+  ]
+}

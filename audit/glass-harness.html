@@ -25,7 +25,18 @@
      the clamp of places saved at 1920x1080 and a focused field through a recut; since E79 fix r4-G3 (1.2.79)
      `drpgObjectionCheck()` draws a player's trial row, with OBJECTION!, in the clock's row and measures it. -->
 <!doctype html><html><head><meta charset="utf-8">
-<link rel="stylesheet" href="/styles/motion.css"><link rel="stylesheet" href="/styles/danganronpa.css"><link rel="stylesheet" href="/styles/stained-glass.css"><link rel="stylesheet" href="/styles/pixel-icons.css"><link rel="stylesheet" href="/styles/messenger.css"><link rel="stylesheet" href="/styles/narrow.css">
+<!-- THE SHEETS ARE module.json's, in its order (E44 C1d, 04.11.2026): read when the page loads, by a synchronous request,
+     and written as links, so they block the first paint as the six links written here by hand until then did, and a
+     sheet added to module.json (E44 C3's components.css) is never a hand-kept line here. -->
+<script>
+  (function () {
+    var req = new XMLHttpRequest();
+    req.open("GET", "/module.json", false);
+    req.send();
+    var styles = JSON.parse(req.responseText).styles || [];
+    for (var i = 0; i < styles.length; i++) document.write('<link rel="stylesheet" href="/' + styles[i] + '">');
+  })();
+</script>
 <style>
   html,body{margin:0;background:#2a2430;min-height:100vh;overflow:hidden}
   /* Foundry's dark theme, which the page did not stand in for until E81 C14: the settings and
@@ -1661,7 +1672,12 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
   const player = q.get("role") === "player";
   if (player) { document.getElementById("drpg-gm-launcher")?.remove(); document.body.classList.replace("drpg-gm", "drpg-player"); }
   globalThis.game = { ready: true, i18n: { localize: k => k.split(".").pop(), format: (k, d) => k, has: () => false }, settings: { get: (m, k) => defaults[k], set: async (m, k, v) => { defaults[k] = v; return v; }, settings: new Map() }, user: { isGM: !player } };
-  globalThis.ui = { sidebar: {} }; globalThis.foundry = { utils: { escapeHTML: s => s } }; globalThis.CONFIG = {};
+  /* `deepClone` (E44 C1d, 04.11.2026): voice-tile.mjs's imports call foundry.utils.deepClone when they load, and without it
+     the page's voice tile never loaded - glass-sweep read "voice-tile.mjs did not load here: TypeError:
+     foundry.utils.deepClone is not a function" - at 1920x1080 on c4210b4d's own page, and at every size and role of the
+     full sweep once the page read module.json (100 failing, all of them that). structuredClone is what it does to the
+     plain data those modules clone. */
+  globalThis.ui = { sidebar: {} }; globalThis.foundry = { utils: { escapeHTML: s => s, deepClone: o => structuredClone(o) } }; globalThis.CONFIG = {};
   /* Before the glass, as module.mjs registers it (E77 C5): the GM's two rails into their closed windows. */
   const fw = await import("/scripts/foundry-windows.mjs");
   window.__windows = fw;

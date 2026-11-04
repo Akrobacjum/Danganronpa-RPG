@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Danganronpa RPG - the style harness</title>
+<!-- THE STYLE HARNESS (E44 C1d, 04.11.2026). The module's windows as probe 08 captured them
+     (audit/harness/probes/08-capture-windows.mjs, audit/windows/), under the module's sheets, outside Foundry: what
+     audit/style-sweep.mjs reads `styleSnapshot` on in Chromium, and what E44's mockup round screenshots as "today".
+     Served from the repository's root (`python3 -m http.server 8765`, then /audit/style-harness.html):
+       ?w=<id>          one window of audit/windows/manifest.json; with none, every captured window in a column
+       ?theme=legacy    Monokuma Legacy (the body's class and the pixel font, as glass-harness.html swaps them)
+       ?role=player     a player's page (`drpg-player` on the body), for the windows a player opens
+     THE SHEETS ARE module.json's, in its order, read when the page loads (a synchronous request and a link written
+     for each, so they block the first paint as written links do), so a sheet added to module.json is never missed
+     here. WHAT THIS PAGE IS NOT: Foundry's frame (the harness's DialogV2 draws its form with no header, so the
+     header here is this page's, written as Foundry writes one: `header.window-header` with `h1.window-title`),
+     Foundry's own stylesheet, or a window's live data (the harness's seeded world). Each window stands in the page's
+     flow (`position: relative`, the place the harness wrote inline taken off) at the width it was given, on the glass
+     harness's ground, so a screenshot can take it alone. -->
+<script>
+  (function () {
+    var req = new XMLHttpRequest();
+    req.open("GET", "/module.json", false);
+    req.send();
+    var styles = JSON.parse(req.responseText).styles || [];
+    for (var i = 0; i < styles.length; i++) document.write('<link rel="stylesheet" href="/' + styles[i] + '">');
+  })();
+</script>
+<style>
+  html, body.drpg-style-harness { background: #2a2430; }
+  body.drpg-style-harness { display: block; overflow: auto; padding: 16px; margin: 0; min-height: 100vh; box-sizing: border-box; }
+  .drpg-style-harness .drpg-style-shot { display: block; padding: 8px; }
+  .drpg-style-harness .drpg-style-shot > .application { position: relative; left: auto; top: auto; max-width: 100%; }
+  .drpg-style-harness .drpg-style-missing { font: 14px monospace; }
+</style>
+</head>
+<body class="drpg-theme-stained-glass drpg-gm drpg-style-harness" data-drpg-time="afternoon" data-drpg-phase="dailyLife">
+<script>
+  (function () {
+    var q = new URLSearchParams(location.search);
+    if (q.get("theme") === "legacy") { document.body.classList.replace("drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"); document.body.classList.add("drpg-pixel-font"); }
+    if (q.get("role") === "player") document.body.classList.replace("drpg-gm", "drpg-player");
+    var get = function (path) {
+      var req = new XMLHttpRequest();
+      req.open("GET", path, false);
+      req.send();
+      return req.status === 200 ? req.responseText : null;
+    };
+    var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]; }); };
+    var manifest = JSON.parse(get("/audit/windows/manifest.json") || "{\"windows\": []}");
+    var wanted = q.get("w");
+    var rows = manifest.windows.filter(function (r) { return r.captured && (!wanted || r.id === wanted); });
+    if (wanted && !rows.length) document.write('<p class="drpg-style-missing">no captured window "' + esc(wanted) + '" in audit/windows/manifest.json</p>');
+    rows.forEach(function (r) {
+      var html = get("/audit/windows/" + r.file);
+      if (html === null) { document.write('<p class="drpg-style-missing">audit/windows/' + esc(r.file) + ' did not load</p>'); return; }
+      var holder = document.createElement("div");
+      holder.innerHTML = html.trim();
+      var app = holder.firstElementChild;
+      var header = '<header class="window-header"><h1 class="window-title">' + esc(r.title) + '</h1><button type="button" class="header-control" data-action="close">x</button></header>';
+      app.insertAdjacentHTML("afterbegin", header);
+      /* The harness's setPosition wrote the window's place inline (left, top, its height); the page lays it in its flow. */
+      ["left", "top", "height", "position", "z-index"].forEach(function (p) { app.style.removeProperty(p); });
+      if (typeof r.width === "number") app.style.width = r.width + "px";
+      document.write('<div class="drpg-style-shot" id="shot-' + esc(r.id) + '" data-window="' + esc(r.id) + '">' + app.outerHTML + '</div>');
+    });
+  })();
+</script>
+</body>
+</html>

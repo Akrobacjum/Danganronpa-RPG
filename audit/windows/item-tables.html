@@ -1,0 +1,110 @@
+<dialog id="app-0CDNlWKN" class="application dialog drpg-panel drpg-projects drpg-wide drpg-window-tables" open="" style="left: 312px; top: 384px;" data-drpg-scaled="1" lang="en" data-drpg-text-guard="1"><form class="dialog-form standard-form"><div class="dialog-content standard-form"><nav class="drpg-gmt-tabs"><button type="button" data-drpg-gmt-tab="editTiers" class="active" data-drpg-named="own">Tier pools</button><button type="button" data-drpg-gmt-tab="editRooms" data-drpg-named="own">Room pools</button><button type="button" data-drpg-gmt-tab="newItem" data-drpg-named="own">Create an item</button></nav><section class="drpg-gmt-section active" data-drpg-gmt-section="editTiers"><div data-drpg-pane="tiers">
+        <p class="notes">Everything a Search can turn up. Pick a table on the left to see what is in it; the form below adds one item to as many tables as you tick.</p>
+        <div class="drpg-tables-layout">
+            <div class="drpg-tables-left"><p class="notes">No tier pools yet. Install them with “Install / reinstall” below.</p></div>
+            <div class="drpg-tables-right">
+                <div class="drpg-table-heading">
+                    <h4 data-drpg-table-name="" title=""></h4>
+                    <button type="button" class="drpg-mini-button" data-drpg-rename-table="" data-drpg-named="own" disabled="">Rename table</button>
+                    <button type="button" class="drpg-mini-button" data-drpg-delete-table="" data-drpg-named="own" disabled="">Delete table</button>
+                </div>
+                <div data-drpg-table-body=""></div>
+            </div>
+        </div>
+        <fieldset class="drpg-tables-new">
+            <legend>New tier pool</legend>
+            <label>Name
+                <input type="text" name="newPool:tiers" value="" placeholder="e.g. DRPG Tools - Tier 2" data-drpg-named="own"></label>
+            <p class="notes">A tier pool is named for its category and its tier, as “DRPG Tools - Tier 2” is. Usually you do not make one by hand: “Install / reinstall” below builds them all.</p>
+        </fieldset>
+        
+        <p class="notes">The tables live in the Rollable Tables sidebar, in the “Danganronpa RPG” folder. A Search in a room draws from that room's own tables first, then from the tier pools, then from the module's built-in lists. “Install / reinstall” below builds the default set - one table per category and tier. If they already exist, you choose between keeping yours and rebuilding.</p>
+    </div></section><section class="drpg-gmt-section" data-drpg-gmt-section="editRooms"><div data-drpg-pane="rooms">
+        <p class="notes">Everything a Search can turn up. Pick a table on the left to see what is in it; the form below adds one item to as many tables as you tick.</p>
+        <div class="drpg-tables-layout">
+            <div class="drpg-tables-left"><p class="notes">No room pools yet. Name one below.</p></div>
+            <div class="drpg-tables-right">
+                <div class="drpg-table-heading">
+                    <h4 data-drpg-table-name="" title=""></h4>
+                    <button type="button" class="drpg-mini-button" data-drpg-rename-table="" data-drpg-named="own" disabled="">Rename table</button>
+                    <button type="button" class="drpg-mini-button" data-drpg-delete-table="" data-drpg-named="own" disabled="">Delete table</button>
+                </div>
+                <div data-drpg-table-body=""></div>
+            </div>
+        </div>
+        <fieldset class="drpg-tables-new">
+            <legend>New room table</legend>
+            <label>Name
+                <input type="text" name="newPool:rooms" value="" placeholder="e.g. Kitchen" data-drpg-named="own"></label>
+            <p class="notes">A room table is what a room stocks - point a room at it in Room Setup's “Draws from”. Tier tables answer dice rolls and cannot be assigned to rooms. A room's own tables answer a Search there before the tier pools do, and one named “«Room» - Tier N” answers that roll first.</p>
+        </fieldset>
+        
+    </div></section><section class="drpg-gmt-section" data-drpg-gmt-section="newItem">
+            <fieldset class="drpg-tables-new">
+                <legend>Add an item</legend>
+                <div class="drpg-tables-new-head">
+                    <img src="modules/danganronpa-rpg/icons/item-usable.svg" alt="" class="drpg-tables-preview">
+                    <input type="hidden" name="img.new" value="">
+                    <label>Name
+                        <input type="text" name="newName" value="" placeholder="Type anything, or pick a suggestion" data-drpg-named="own"></label>
+                </div>
+                <div class="drpg-tables-picture">
+                    <span class="drpg-tables-picture-label">Picture</span>
+                    <details class="drpg-glyph-picker drpg-item-picture-picker">
+                        <summary data-drpg-picture-summary="">Category's own</summary>
+                        <div class="drpg-glyph-grid drpg-item-picture-grid" role="radiogroup" aria-label="Picture" data-drpg-item-pictures="" data-drpg-wired="1"><label class="drpg-choice drpg-glyph-choice drpg-item-picture-choice" title="Category's own">
+            <input type="radio" name="newImgChoice" value="" data-drpg-named="own">
+            <img class="drpg-item-picture-swatch" src="modules/danganronpa-rpg/icons/item-usable.svg" alt="" data-drpg-picture-own="">
+            <span class="drpg-glyph-name">Category's own</span>
+        </label><label class="drpg-choice drpg-glyph-choice drpg-item-picture-choice" title="Usable">
+            <input type="radio" name="newImgChoice" value="modules/danganronpa-rpg/icons/item-usable.svg" data-drpg-named="own">
+            <img class="drpg-item-picture-swatch" src="modules/danganronpa-rpg/icons/item-usable.svg" alt="">
+            <span class="drpg-glyph-name">Usable</span>
+        </label><label class="drpg-choice drpg-glyph-choice drpg-item-picture-choice" title="Murder Weapon">
+            <input type="radio" name="newImgChoice" value="modules/danganronpa-rpg/icons/item-crimeTool.svg" data-drpg-named="own">
+            <img class="drpg-item-picture-swatch" src="modules/danganronpa-rpg/icons/item-crimeTool.svg" alt="">
+            <span class="drpg-glyph-name">Murder Weapon</span>
+        </label><label class="drpg-choice drpg-glyph-choice drpg-item-picture-choice" title="Cleaning Tool">
+            <input type="radio" name="newImgChoice" value="modules/danganronpa-rpg/icons/item-cleaningTool.svg" data-drpg-named="own">
+            <img class="drpg-item-picture-swatch" src="modules/danganronpa-rpg/icons/item-cleaningTool.svg" alt="">
+            <span class="drpg-glyph-name">Cleaning Tool</span>
+        </label><label class="drpg-choice drpg-glyph-choice drpg-item-picture-choice" title="Tool">
+            <input type="radio" name="newImgChoice" value="modules/danganronpa-rpg/icons/item-tool.svg" data-drpg-named="own">
+            <img class="drpg-item-picture-swatch" src="modules/danganronpa-rpg/icons/item-tool.svg" alt="">
+            <span class="drpg-glyph-name">Tool</span>
+        </label><label class="drpg-choice drpg-glyph-choice drpg-item-picture-choice" title="Truth Bullet">
+            <input type="radio" name="newImgChoice" value="modules/danganronpa-rpg/icons/item-truthBullet.svg" data-drpg-named="own">
+            <img class="drpg-item-picture-swatch" src="modules/danganronpa-rpg/icons/item-truthBullet.svg" alt="">
+            <span class="drpg-glyph-name">Truth Bullet</span>
+        </label><label class="drpg-choice drpg-glyph-choice drpg-item-picture-choice" title="Room Key">
+            <input type="radio" name="newImgChoice" value="modules/danganronpa-rpg/icons/item-bedroomKey.svg" data-drpg-named="own">
+            <img class="drpg-item-picture-swatch" src="modules/danganronpa-rpg/icons/item-bedroomKey.svg" alt="">
+            <span class="drpg-glyph-name">Room Key</span>
+        </label><label class="drpg-choice drpg-glyph-choice drpg-item-picture-choice" title="Another file...">
+            <input type="radio" name="newImgChoice" value="file" data-drpg-named="own">
+            <img class="drpg-item-picture-swatch" alt="" data-drpg-picture-file="" hidden="">
+            <i class="fa-solid fa-folder-open" inert=""></i>
+            <span class="drpg-glyph-name">Another file...</span>
+        </label></div>
+                    </details>
+                </div>
+                <label>Description (optional)
+                    <textarea name="newText" rows="2" placeholder="What it is, or what it tells them." data-drpg-named="own"></textarea></label>
+                <label>Category
+                    <span class="drpg-select"><select name="newCategory" data-drpg-chrome="select" data-drpg-named="own"><option value="usable:healing">Usable - Healing</option><option value="usable:stress">Usable - Sanity Relief</option><option value="crimeTool">Murder Weapon</option><option value="cleaningTool">Cleaning Tool</option><option value="tool">Tool</option></select></span></label>
+                <label>Tier
+                    <span class="drpg-select"><select name="newTier" data-drpg-chrome="select" data-drpg-named="own"><option value="0">Tier 0</option><option value="1">Tier 1</option><option value="2" selected="">Tier 2</option><option value="3">Tier 3</option></select></span></label>
+                <p class="notes drpg-warning" data-drpg-tier-target="">No tier pool exists for that category and tier - it will only live in the rooms you tick below. Install the pools from the Tier pools tab.</p>
+                <div class="drpg-tables-roles">
+                    <span class="notes" data-drpg-roles-note="">Also works as - tick anything this entry can do besides its own category. A screwdriver under Tools that is also a Murder Weapon gives advantage on an attack as well as on project work, and still takes one slot.</span>
+                    <label class="drpg-check"><input type="checkbox" name="role:crimeTool" data-drpg-named="own">
+            Murder Weapon</label><label class="drpg-check"><input type="checkbox" name="role:cleaningTool" data-drpg-named="own">
+            Cleaning Tool</label><label class="drpg-check"><input type="checkbox" name="role:tool" data-drpg-named="own">
+            Tool</label>
+                </div>
+                <div class="drpg-tables-targets">
+                    <span class="notes">Room tables it also appears in:</span>
+                    <span class="notes">No room tables yet - create one on the Room pools tab.</span>
+                </div>
+                <p class="notes">The icon and the description travel with it: whoever finds this item gets both on their sheet.</p>
+            </fieldset></section></div><footer class="form-footer"><button type="submit" data-action="add" class="default" hidden="" disabled="" data-drpg-named="own">Add an item</button><button type="submit" data-action="newPool" autofocus="" data-drpg-named="own">Create table</button><button type="submit" data-action="install" data-drpg-named="own">Install / reinstall</button><button type="submit" data-action="close" data-drpg-named="own">Close</button></footer></form></dialog>

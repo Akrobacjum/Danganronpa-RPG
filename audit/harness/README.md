@@ -167,6 +167,7 @@ belongs to.
 | 05 | probes/05-playsound.mjs | probe | probe | E30 | a tool (probes/README.md); the number is not reused for a scenario |
 | 06 | probes/06-runtests-music.mjs | probe | probe | E30 | a tool (probes/README.md); the number is not reused for a scenario |
 | 07 | probes/07-apimap.mjs | probe | probe | E30 | a tool (probes/README.md); the number is not reused for a scenario |
+| 08 | probes/08-capture-windows.mjs | probe | probe | E44 | a tool (probes/README.md): the module's windows as the harness draws them, into audit/windows/ for the style harness and the mockups; the number is not reused for a scenario |
 | 10 | scenarios/10-murder.mjs | ci | exists | <=1.2.50 | the crime pipeline on three live clients; the death's and the weapon's tie reaching an identified copy at the body's discovery (E09 C4, fix r1-G1) |
 | 11 | scenarios/11-killer-secrecy.mjs | ci | exists | <=1.2.50 | a bystander cannot read the killer or the accomplice |
 | 12 | scenarios/12-social.mjs | ci | exists | <=1.2.50 | private rolls, inventory limits, movement and Search between clients |
@@ -269,6 +270,19 @@ Storage and cookies, state that never touched the wire, the canvas, audio).
 
 Tools, not tests: `probes/README.md`. A probe is never part of a gate, and its
 number is not reused for a scenario.
+
+The module's windows as this harness draws them are kept by probe 08 (E44 C1d):
+`node cluster.mjs probes/08-capture-windows.mjs` opens each window of its list on
+its client with real windows drawn, writes the element's HTML to
+`audit/windows/<id>.html` and its title, classes and buttons to
+`audit/windows/manifest.json`, and closes it unanswered; the GM's world dump is
+read before and after, and a difference is a note. `audit/style-harness.html`
+shows one capture a page under the module's sheets, and `node
+audit/style-sweep.mjs` (from the repository root, Chromium, as glass-sweep) reads
+scripts/style-snapshot.mjs `styleSnapshot` on each, and on the glass harness's GM
+and player pages, at 1920x1080, 1366x768, 1024x768 and 390x844 in both themes,
+against `audit/style-baseline.json`. The captures are this harness's frame and
+seeded world, with no Foundry stylesheet: a shape to hold, not a table's picture.
 
 The edges of the Stained Glass controls (E89 C5, the owner's Q-E89-2) are read by
 `node audit/glass-sweep.mjs --edges --chromium <executable>` from the repository root, not

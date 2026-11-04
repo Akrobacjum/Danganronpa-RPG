@@ -23,6 +23,7 @@ Run one from `audit/harness`:
 | `05-playsound.mjs` | `Playlist.playSound` on the harness's shim |
 | `06-runtests-music.mjs` | the whole suite, tier 2, with music switched on; prints the suite's FAIL lines |
 | `07-apimap.mjs` | the sorted list of `game.drpg` keys, returned into its results file |
+| `08-capture-windows.mjs` | the module's windows as the harness draws them (E44 C1d): each window of its list opened on its client, its HTML into `audit/windows/<id>.html`, its title, classes and buttons into `audit/windows/manifest.json`, and the GM's world dump before and after |
 
 These six sat among the scenarios as 02-07 until E30 and were counted like
 them: seven of their checks, in 02, 04, 05 and 07, passed on a constant `true`,

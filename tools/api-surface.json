@@ -438,6 +438,7 @@
     "a11y": "function",
     "relayGuard": "function",
     "perf": "function",
+    "styleSnapshot": "function",
     "fps": "function",
     "counters": "function",
     "toggleFoundryTools": "function",
