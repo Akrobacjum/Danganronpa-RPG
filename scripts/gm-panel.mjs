@@ -18,7 +18,7 @@ import { isEclipse } from "./eclipse.mjs";
 import { studentActors, actingStudents } from "./monokuma.mjs";
 import { dialogContent, error, plural, esc, primaryGmId, markLanguage } from "./utils.mjs";
 import { keepLive, alreadyOpen } from "./live.mjs";
-import { bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, sameSeason } from "./settings.mjs";
+import { SETTINGS, bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, sameSeason } from "./settings.mjs";
 import { bodiesToDiscover, announcedIn, chapterEndStopped } from "./chapter.mjs";
 import { flagsHeldNow, itemsHeldNow } from "./sheet-audit.mjs";
 import { roomOfToken } from "./movement.mjs";
@@ -575,9 +575,19 @@ function keepPanelFresh(dialog) {
         watch: { actors: true, items: true, tokens: true, stores: [keyPlanStore] }
     });
 
+    /* THE TILES WAKE ON THEIR OWN KEYS (E44 C2b, 04.11.2026; audit S10-58). Without `settings` every write of a
+       module setting redrew forty buttons, a player's action among them. What the tiles print is the clock (the
+       phase opens a section, `clock.eclipse` shuts the murder tile: `isEclipse`) and the case's backup mark (the
+       Back up tile's age, `backupAge`), read by `buildSections` and nothing else, in every state; R1317 builds the
+       region with `game.settings.get` counted and holds the reads to this list.
+       The standing block above keeps no list, deliberately: `nextStep` reads a different setting on each of its
+       branches (the incident, the readiness round, a stopped chapter's end, the trial's progress and floor, the
+       body's hold), and one build reads only the branch the world is on - a list measured from it would leave the
+       block stale on every other. A press on either region is never lost to a redraw (live.mjs, rule 1 for a hand). */
     keepLive(dialog, {
         region: ".drpg-gmp-sections",
-        build: () => buildSections()
+        build: () => buildSections(),
+        watch: { settings: [SETTINGS.clock, SETTINGS.caseMark] }
     });
 }
 

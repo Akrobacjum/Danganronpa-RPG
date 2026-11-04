@@ -68,6 +68,16 @@ const WORLD_HOOKS = ["drpgTimeOfDayChanged", "drpgEclipseChanged", "drpgPhaseCha
 const ACTOR_HOOKS = ["updateActor", "createActor", "deleteActor"];
 const TOKEN_HOOKS = ["createToken", "deleteToken", "updateToken"];
 const ITEM_HOOKS = ["createItem", "deleteItem", "updateItem"];
+/* What lets go of a press (rule 1, for a hand). Heard on the page's window, in the capture phase, so a press that
+   ends outside the module's window - or on the page's window itself - still ends, as the trial console's own hold
+   hears its release (trial-floor-ui.mjs, E70 fix p1-G3); `lostpointercapture` for a control that captured the pointer
+   and lost it. Heard on the document instead, a release dispatched on the page's window never reached it, and the
+   console's tick stood still (measured on the suite's "the console holds Enter while an Objection runs", 04.11). */
+const RELEASES = ["pointerup", "pointercancel", "lostpointercapture"];
+/* A press is forgotten after this long whatever, as the trial console forgets its own (5 s there too): a release no
+   listener heard - the pointer let go over another frame, a tab switched under it - would otherwise hold the region
+   for good. */
+const HOLD_MAX_MS = 5000;
 
 /** Every window this module has asked to keep live, for the diagnostics. */
 const living = new Set();
@@ -94,7 +104,7 @@ const living = new Set();
 export function keepLive(app, { region, build, watch = {}, delay = TIMING.coalesceMs, after = null } = {}) {
     if (!app || typeof build !== "function" || !region) return () => {};
 
-    const record = { app, region, at: Date.now(), refreshes: 0, deferred: 0 };
+    const record = { app, region, at: Date.now(), refreshes: 0, deferred: 0, watch, build };
     living.add(record);
 
     let stopped = false;
@@ -103,6 +113,20 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
      * `focusout` listener below, because "when they stop typing" is an event
      * and not a duration. */
     let pending = false;
+    /* RULE 1, FOR A HAND (E44 C2b, 04.11.2026; audit S10-58). A press is not a focus: a GM's
+     * click on a GM panel tile, at the moment any module setting was written, met a region
+     * rebuilt between its `pointerdown` and its `click` - the button pressed was gone, and the
+     * window's delegated listener never heard the click (`contains` of a node no longer in it).
+     * So a `pointerdown` inside the region holds it until the press is let go (RELEASES); a
+     * rebuild wanted meanwhile waits, as one under focus does, and is answered ONCE at the
+     * release - after it, on the next turn of the event loop, because the browser sends `click`
+     * after `pointerup` and the click must reach the node it was pressed on. A press outside the
+     * region holds nothing. Measured headless only, on events the harness dispatches (R1316,
+     * E44-T1); a real pointer at a table is not measured yet (the stage's live row
+     * for it is not in AUDIT 9.2). */
+    let held = false;
+    let heldWanted = false;
+    let holdTimer = null;
 
     const root = () => app.element ?? null;
     const target = () => root()?.querySelector(region) ?? null;
@@ -121,6 +145,14 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
         // case, which a null check does not.
         if (!element?.isConnected) return stop();
 
+        // RULE 1, FOR A HAND. A press inside the region is not let go yet; the release answers this.
+        if (held) {
+            heldWanted = true;
+            record.deferred++;
+            debug(`live: ${region} deferred - a press inside it is not let go`);
+            return;
+        }
+
         // RULE 1. The GM is typing in here; come back when they are not.
         if (!force && isEditing(element)) {
             pending = true;
@@ -133,6 +165,7 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
             const carried = capture(element);
             const next = toElement(build());
             if (!next) return;
+            heldWanted = false;
             element.replaceWith(next);
             restore(next, carried);
             record.refreshes++;
@@ -204,6 +237,26 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
     };
     root()?.addEventListener("focusout", onFocusOut);
 
+    const view = () => root()?.ownerDocument?.defaultView ?? window;
+    const release = () => {
+        if (!held) return;
+        held = false;
+        clearTimeout(holdTimer);
+        for (const name of RELEASES) view().removeEventListener(name, release, true);
+        if (!heldWanted) return;
+        // After the release's own turn: `click` comes after `pointerup`, and must find the pressed node.
+        setTimeout(() => rebuild(), 0);
+    };
+    const onPointerDown = event => {
+        if (held || stopped) return;
+        const element = target();
+        if (!element?.isConnected || !event.target?.nodeType || !element.contains(event.target)) return;
+        held = true;
+        holdTimer = setTimeout(release, HOLD_MAX_MS);
+        for (const name of RELEASES) view().addEventListener(name, release, true);
+    };
+    root()?.addEventListener("pointerdown", onPointerDown, true);
+
     const closeId = Hooks.on("closeApplicationV2", closed => {
         if (closed !== app) return;
         stop();
@@ -215,6 +268,10 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
         for (const [name, id] of listeners) Hooks.off(name, id);
         Hooks.off("closeApplicationV2", closeId);
         root()?.removeEventListener("focusout", onFocusOut);
+        root()?.removeEventListener("pointerdown", onPointerDown, true);
+        for (const name of RELEASES) view().removeEventListener(name, release, true);
+        clearTimeout(holdTimer);
+        held = false;
         living.delete(record);
     }
 
@@ -402,6 +459,7 @@ function capture(element) {
     const scrolls = new Map();
     const opens = new Map();
     const dirty = new Map();
+    const marks = new Map();
     const named = keysOf(element);
 
     if (element.scrollTop || element.scrollLeft) {
@@ -417,6 +475,15 @@ function capture(element) {
     }
     for (const node of element.querySelectorAll("input, textarea, select")) {
         if (isDirty(node)) dirty.set(keyFor(node, element, named), { value: heldIn(node), drawn: drawnOf(node) });
+    }
+    /* A SAVE'S MARKER IS CARRIED AS A DIRTY FIELD IS (E44 C2b, 04.11.2026). A row that saves as
+       it is changed says so on a marker (`data-drpg-save`, drawn empty: saving, saved, failed -
+       the Sound window's Music rows). Its state is something the person did, not something the
+       markup prints, so a rebuild in the middle of a save - the save's own echo redraws the rows
+       it was made from - would otherwise draw the marker empty again. Matched by `data-drpg-key`,
+       which the marker carries; only a marker the new markup draws empty takes it back. */
+    for (const node of element.querySelectorAll("[data-drpg-save]")) {
+        if (node.dataset.drpgSave) marks.set(keyFor(node, element, named), { state: node.dataset.drpgSave, text: node.textContent });
     }
 
     /*
@@ -435,11 +502,11 @@ function capture(element) {
         ?? element.querySelector("[data-drpg-tab].active")?.dataset?.drpgTab
         ?? null;
 
-    return { scrolls, opens, dirty, tab };
+    return { scrolls, opens, dirty, marks, tab };
 }
 
 /** Put back what `capture` took. Every step is optional and independent. */
-function restore(element, { scrolls, opens, dirty, tab }) {
+function restore(element, { scrolls, opens, dirty, marks, tab }) {
     const named = keysOf(element);
     const self = scrolls.get("self");
     if (self) [element.scrollTop, element.scrollLeft] = self;
@@ -475,6 +542,14 @@ function restore(element, { scrolls, opens, dirty, tab }) {
             }
             if (node.type === "checkbox" || node.type === "radio") node.checked = was.value;
             else node.value = was.value;
+        }
+    }
+    if (marks.size) {
+        for (const node of element.querySelectorAll("[data-drpg-save]")) {
+            const was = marks.get(keyFor(node, element, named));
+            if (!was || node.dataset.drpgSave) continue;
+            node.dataset.drpgSave = was.state;
+            node.textContent = was.text;
         }
     }
     if (tab) {
@@ -797,6 +872,15 @@ export function closeOpen(className) {
         debug("Could not close a finished window", err);
     }
     return closed;
+}
+
+/**
+ * The regions kept live on one window (every window, with none named): each one's selector, what wakes it and its
+ * build. For R1317, which builds every region that names `watch.settings` once with `game.settings.get` counted, and
+ * holds what it read to what it declared (E44 C2b): a region held to its keys must name every key it prints.
+ */
+export function liveRegions(app = null) {
+    return [...living].filter(r => !app || r.app === app).map(r => ({ region: r.region, watch: r.watch, build: r.build }));
 }
 
 /** What is currently keeping itself true. For the diagnostics window. */

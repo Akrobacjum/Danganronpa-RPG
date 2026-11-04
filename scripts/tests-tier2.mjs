@@ -81989,6 +81989,144 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ forced: [false, false], public: [true, true] }),
             "[with rolls forced private and not: the Reroll's dice thrown on this GM's screen; this GM among the dice's audience]");
     }],
+    ["E44-T1 - a GM panel tile pressed while a module setting is written runs once (E44 C2b; E44-07, S10-58): pressed while `despairPools` is written, the tiles are not redrawn under the press and the tile's window opens once; pressed while `caseMark` (a key the tiles print) is written, the redraw waits for the release and the tile's window opens once", async () => {
+        /*
+         * E44 C2b, 04.11.2026; audit S10-58. The panel's tiles were a live region woken by every module setting, and its
+         * one delegated listener asks whether the pressed button is still inside the window, so a click at the moment
+         * of any write was lost. Here, on this GM's browser with real windows: the panel opened, the Debug log tile (its
+         * run opens the session's failure log and nothing else) pressed by a `pointerdown`, a setting written, 400 ms
+         * let pass, then `pointerup` and the click on the node pressed; the failure log windows counted, and closed (the
+         * panel comes back), twice - `despairPools` (not the tiles' key) and `caseMark` (theirs: the Back up tile's age).
+         * Both settings are put back. Red before C2b: the despairPools write redrew the tiles, the pressed button was
+         * gone and nothing opened. A real pointer at a table is not measured here.
+         */
+        needs(env.dialogs(), "the panel and the tile's window are drawn and pressed");
+        must(game.user.isGM, "the GM panel is a GM's");
+        const { openGmPanel } = await import("./gm-panel.mjs");
+        const { setSetting } = await import("./settings.mjs");
+        const { diagnoseLive } = await import("./live.mjs");
+        const drawn = cls => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes(cls));
+        must(!drawn("drpg-window-panel").length && !drawn("drpg-window-failures").length, "a GM panel or a Debug log is open - close it: this test opens its own");
+        const panel = () => drawn("drpg-window-panel")[0] ?? null;
+        const tile = () => panel()?.element?.querySelector('[data-drpg-run="failureLog"]') ?? null;
+        const Pointer = globalThis.PointerEvent ?? MouseEvent;
+        const fire = (node, type) => node.dispatchEvent(new Pointer(type, { bubbles: true, cancelable: true }));
+        const poolsBefore = foundry.utils.deepClone(getSetting(SETTINGS.despairPools) ?? {});
+        const markBefore = foundry.utils.deepClone(getSetting(SETTINGS.caseMark) ?? {});
+        let opening = null;
+        const read = {};
+        const press = async write => {
+            if (!await until(() => tile(), 6000)) return "no panel";
+            const button = tile();
+            const held = () => diagnoseLive().find(r => r.region === ".drpg-gmp-sections")?.deferred ?? 0;
+            const deferredBefore = held();
+            fire(button, "pointerdown");
+            await write();
+            await wait(400);
+            const out = { kept: button.isConnected, held: held() > deferredBefore };
+            fire(button, "pointerup");
+            button.click();
+            await until(() => drawn("drpg-window-failures").length, 3000);
+            await wait(300);
+            out.opened = drawn("drpg-window-failures").length;
+            for (const app of drawn("drpg-window-failures")) await app.close();
+            return out;
+        };
+        try {
+            opening = Promise.resolve().then(() => openGmPanel()).catch(() => null);
+            read.pools = await press(() => setSetting(SETTINGS.despairPools, { ...poolsBefore, suiteE44T1: 0 }));
+            read.mark = await press(() => setSetting(SETTINGS.caseMark, { ...markBefore, suiteE44T1: 1 }));
+        } finally {
+            await setSetting(SETTINGS.despairPools, poolsBefore);
+            await setSetting(SETTINGS.caseMark, markBefore);
+            for (const app of drawn("drpg-window-failures")) await app.close();
+            await until(() => panel(), 2000);
+            for (const app of drawn("drpg-window-panel")) await app.close();
+            if (opening) await Promise.race([opening, wait(3000)]);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ pools: { kept: true, held: false, opened: 1 }, mark: { kept: true, held: true, opened: 1 } }),
+            "[pressed while despairPools is written: the pressed tile still drawn at the release, a redraw of the tiles held, the tile's windows opened]; "
+            + "[the same while caseMark is written]");
+    }],
+
+    ["E44-T2 - the Sound window's Music rows follow another GM's mapping (E44 C2b; E44-08, the 27.10 amend): a `musicMap` write redraws the rows with the new playlist selected, an `sfxMap` write redraws nothing, a focused select holds the redraw until focus leaves, and a row whose save landed keeps its marker through a redraw", async () => {
+        /*
+         * E44 C2b, 04.11.2026; the 27.10 amend ("keepLive for settings is E44's", E50's STAGE, edge cases): the Music tab's
+         * rows were drawn once, so with the window open on two GMs one's mapping left the other's select on the old
+         * playlist. Here, on this GM's browser with real windows: a fixture playlist; the Sound window opened; the map
+         * written straight into the setting, as another GM's write arrives (a state mapped to the fixture); then the
+         * Effects tab's map written; then a select focused and the map written again; then a row changed as the GM
+         * changes it, its save let land, and another state written. The map, the effects' map and the playlist are put
+         * back. Red before C2b: the select stayed on the old playlist (no region). The mutant c2b-m3 (the region without
+         * `after`: the new selects save nothing) reads red here.
+         */
+        needs(env.dialogs(), "the Sound window is drawn and its selects read and changed");
+        must(game.user.isGM, "the Music tab is a GM's");
+        const M = await import("./music.mjs");
+        const { setSetting } = await import("./settings.mjs");
+        must(!document.querySelector(".drpg-window-sound"), "a Sound window is open - close it: this test opens its own");
+        const mapBefore = foundry.utils.deepClone(getSetting(SETTINGS.musicMap) ?? {});
+        const sfxBefore = foundry.utils.deepClone(getSetting(SETTINGS.sfxMap) ?? {});
+        const state = M.currentState();
+        const keys = M.MUSIC_STATES.map(s => s.key).filter(key => key !== state && key !== "murder" && !mapBefore[key]);
+        must(keys.length >= 4, `only ${keys.length} music states are free to map here`);
+        const [k1, k2, k3, k4] = keys;
+        const map = () => getSetting(SETTINGS.musicMap) ?? {};
+        const root = () => document.querySelector(".drpg-window-sound");
+        const select = key => root()?.querySelector(`select[name="state:${key}"]`) ?? null;
+        const marker = key => select(key)?.closest("tr")?.querySelector("[data-drpg-save]")?.dataset.drpgSave ?? null;
+        let playlist = null, answer = null;
+        const read = {};
+        try {
+            playlist = await Playlist.create({ name: "Suite E44-T2 fixture" });
+            must(playlist, "the fixture playlist was not made");
+            answer = Promise.resolve().then(() => M.openSoundDialog()).catch(err => `threw: ${err.message}`);
+            must(await until(() => select(k1), 6000), "the Sound window did not open with its Music tab");
+            root().querySelector('[data-drpg-gmt-tab="music"]')?.click();
+            const drawnK1 = select(k1);
+            await setSetting(SETTINGS.musicMap, { ...map(), [k1]: playlist.id });
+            read.other = await until(() => select(k1)?.value === playlist.id, 3000) ? [true, !drawnK1.isConnected] : [select(k1)?.value ?? null, !drawnK1.isConnected];
+            const beforeSfx = select(k1);
+            await setSetting(SETTINGS.sfxMap, { ...sfxBefore, suiteE44T2: "sounds/lock.wav" });
+            await wait(400);
+            read.sfx = beforeSfx.isConnected;
+            const focused = select(k2);
+            focused.focus();
+            const isFocused = document.activeElement === focused;
+            await setSetting(SETTINGS.musicMap, { ...map(), [k2]: playlist.id });
+            await wait(400);
+            read.focus = [isFocused, focused.isConnected];
+            focused.blur();
+            focused.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+            read.focus.push(Boolean(await until(() => !focused.isConnected && select(k2)?.value === playlist.id, 3000)));
+            const s3 = select(k3);
+            s3.value = playlist.id;
+            s3.dispatchEvent(new Event("change", { bubbles: true }));
+            const saved = await until(() => map()[k3] === playlist.id && marker(k3) === "saved", 3000);
+            await setSetting(SETTINGS.musicMap, { ...map(), [k4]: playlist.id });
+            const redrawn = await until(() => select(k4)?.value === playlist.id, 3000);
+            await wait(200);
+            read.marker = [Boolean(saved), Boolean(redrawn), marker(k3)];
+            root()?.querySelector('footer.form-footer button[data-action="close"]')?.click();
+            read.closed = await Promise.race([answer, wait(3000).then(() => "still open")]) !== "still open";
+        } finally {
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.classList?.contains("drpg-window-sound"))) await app.close();
+            if (answer) await Promise.race([answer, wait(3000)]);
+            /* As E50-T1 restores: this user's own write of the map within MAP_ECHO_MS of the window's is read 800 ms after
+               and put back again if the echo repair moved it, so the world is left as found either way. */
+            await setSetting(SETTINGS.musicMap, mapBefore);
+            await setSetting(SETTINGS.sfxMap, sfxBefore);
+            await wait(800);
+            if (stableJson(map()) !== stableJson(mapBefore)) await setSetting(SETTINGS.musicMap, mapBefore);
+            if (playlist) await playlist.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ other: [true, true], sfx: true, focus: [true, true, true], marker: [true, true, "saved"], closed: true }),
+            "[another GM's mapping: the row's select on the new playlist, the old select replaced]; [the select drawn before an sfxMap write still drawn after it]; "
+            + "[a select focused, still drawn while focused after a mapping write, redrawn with the write once focus left]; "
+            + "[a row's change saved with its marker saying so, the rows redrawn by another write, that row's marker after it]; [Close closes]");
+    }],
     ...GRID
 ];
 

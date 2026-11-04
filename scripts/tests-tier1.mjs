@@ -32581,6 +32581,179 @@ const INVARIANTS = [
             host.remove();
         }
     }],
+
+    ["R1316 - live.mjs on an artificial region (E44 C2b; E44-07, S10-58): a rebuild wanted between a `pointerdown` inside the region and its `pointerup` waits, runs once after the release, and the `click` that follows lands on the pressed node through the window's delegated listener; a `pointercancel` and a `lostpointercapture` release as well, and so does a `pointerup` heard only on the page's window; a press never let go is forgotten after 5 s; a press outside the region holds nothing", async () => {
+        /*
+         * E44 C2b, 04.11.2026; audit S10-58. The GM panel's tiles are read by one delegated listener on the window, which
+         * asks whether the pressed button is still inside it; a region rebuilt between the press and the click had
+         * replaced that button, so the click reached no listener. Here: a region with one button inside it and one
+         * outside it, a delegated listener on the window counting the clicks it hears and on which node; the press and
+         * its release dispatched by hand (the harness has no pointer; a real one is a table's to measure). Red before C2b: the region was rebuilt
+         * under the press and the click was heard by nobody. The mutant c2b-m1 (`pointercancel` not a release) reads red.
+         */
+        const { keepLive, diagnoseLive } = await import("./live.mjs");
+        let built = 0;
+        const build = () => { built++; return `<div class="drpg-t-r1316"><button type="button" data-drpg-t="in">in</button></div>`; };
+        const host = document.createElement("div");
+        host.style.cssText = "position:fixed;left:-3000px;top:0;width:200px";
+        host.innerHTML = `${build()}<button type="button" data-drpg-t="out">out</button>`;
+        document.body.appendChild(host);
+        const heard = [];
+        host.addEventListener("click", event => {
+            const button = event.target.closest?.("[data-drpg-t]");
+            if (button && host.contains(button)) heard.push(button);
+        });
+        const app = { element: host, options: { window: { title: "test" } } };
+        const stop = keepLive(app, { region: ".drpg-t-r1316", build, delay: 0, watch: { hooks: [LIVE_PROBE] } });
+        const Pointer = globalThis.PointerEvent ?? MouseEvent;
+        const fire = (node, type) => node.dispatchEvent(new Pointer(type, { bubbles: true, cancelable: true }));
+        const inside = () => host.querySelector('.drpg-t-r1316 [data-drpg-t="in"]');
+        /* A press on `node`, two redraws asked while it is held, then `release` on it (on the page's window with `onWindow`);
+           for "pointerup" the click after it. */
+        const press = async (node, release, onWindow = false) => {
+            const before = built;
+            fire(node, "pointerdown");
+            Hooks.callAll(LIVE_PROBE);
+            await wait(140);
+            Hooks.callAll(LIVE_PROBE);
+            await wait(140);
+            const during = built - before;
+            heard.length = 0;
+            if (onWindow) window.dispatchEvent(new Pointer(release, { bubbles: true }));
+            else fire(node, release);
+            if (release === "pointerup" && !onWindow) node.click();
+            const clicked = heard.length === 1 && heard[0] === node;
+            await wait(140);
+            return { during, after: built - before, clicked };
+        };
+        try {
+            const read = {};
+            read.up = await press(inside(), "pointerup");
+            read.deferred = (diagnoseLive().find(r => r.region === ".drpg-t-r1316")?.deferred ?? 0) >= 1;
+            read.cancel = await press(inside(), "pointercancel");
+            read.lost = await press(inside(), "lostpointercapture");
+            read.window = await press(inside(), "pointerup", true);
+            const forgotten = built;
+            fire(inside(), "pointerdown");
+            Hooks.callAll(LIVE_PROBE);
+            await wait(300);
+            const heldAt = built - forgotten;
+            await wait(5200);
+            read.forgotten = [heldAt, built - forgotten];
+            const outside = host.querySelector('[data-drpg-t="out"]');
+            const before = built;
+            fire(outside, "pointerdown");
+            Hooks.callAll(LIVE_PROBE);
+            await wait(140);
+            read.outside = built - before;
+            fire(outside, "pointerup");
+            equal(stableJson(read), stableJson({
+                up: { during: 0, after: 1, clicked: true }, deferred: true,
+                cancel: { during: 0, after: 1, clicked: false }, lost: { during: 0, after: 1, clicked: false },
+                window: { during: 0, after: 1, clicked: false }, forgotten: [0, 1], outside: 1
+            }), "[a press let go by pointerup: rebuilds while held, rebuilds by the end, the click heard on the pressed node]; [the region's deferrals counted]; "
+                + "[the same let go by pointercancel]; [by lostpointercapture]; [by a pointerup on the page's window alone]; "
+                + "[a press never let go: rebuilds 300 ms in, and 5.5 s in]; [rebuilds while a press outside the region is held]");
+        } finally {
+            stop();
+            host.remove();
+        }
+    }],
+
+    ["R1317 - a region held to its settings is held to what it prints (E44 C2b; E44-07): a region with `watch.settings` rebuilds on its own key and not on another key of the module or another module's key of that name; every `keepLive(` call in scripts/ that names `settings` belongs to a window this test opens or to one of the two it names as unopenable in tier 1 (the readiness round's and the incident tracker), and each region it opens, built once with `game.settings.get` counted, reads no key of the module it does not declare - the GM panel's tiles and the Sound window's two regions among them", async () => {
+        /*
+         * E44 C2b, 04.11.2026; the plan's risk ("keepLive with keys may fail to rebuild a region that depends on a key it
+         * did not declare") and audit S10-58 (the panel's tiles redrew on every module setting). The reads are measured,
+         * not listed by hand: each region's own build (live.mjs `liveRegions`) under a spy of `game.settings.get`. One
+         * build reads one state's branch, so a region whose build branches on the world is not held to a list here (the
+         * GM panel's standing block keeps none; gm-panel.mjs `keepPanelFresh` says why). Red before C2b: no
+         * `liveRegions`, and the panel's tiles declared no key. The mutant c2b-m2 (the tiles without `clock`, whose
+         * `eclipse` shuts the murder tile) reads red here.
+         */
+        needs(env.dialogs(), "the GM panel and the Sound window are drawn as windows and their regions built");
+        must(game.user.isGM, "the GM panel and the Sound window's mapping are a GM's");
+        const L = await import("./live.mjs");
+        ok(typeof L.liveRegions === "function", "live.mjs exports no liveRegions");
+        if (typeof L.liveRegions !== "function") return;
+
+        /* The filter, on an artificial region, by the hook a setting's write fires (a key no listener of the module knows). */
+        let built = 0;
+        const build = () => { built++; return `<div class="drpg-t-r1317"></div>`; };
+        const host = document.createElement("div");
+        host.innerHTML = build();
+        document.body.appendChild(host);
+        const stop = L.keepLive({ element: host, options: { window: { title: "test" } } },
+            { region: ".drpg-t-r1317", build, delay: 0, watch: { settings: ["r1317-own"] } });
+        const filter = {};
+        try {
+            for (const [label, key] of [["own", `${MODULE_ID}.r1317-own`], ["other", `${MODULE_ID}.r1317-other`], ["foreign", "r1317-elsewhere.r1317-own"]]) {
+                const before = built;
+                Hooks.callAll("updateSetting", { key, value: 1 }, { value: 1 }, {}, game.user.id);
+                await wait(140);
+                filter[label] = built - before;
+            }
+        } finally {
+            stop();
+            host.remove();
+        }
+        equal(stableJson(filter), stableJson({ own: 1, other: 0, foreign: 0 }),
+            "[rebuilds of a region watching one setting on: its key, another key of the module, another module's key of the same name]");
+
+        /* Every call that names `settings`, by file, read from the source. */
+        const census = {};
+        for (const [file, text] of await otherSources()) {
+            const code = stripComments(text);
+            for (const m of code.matchAll(/\bkeepLive\(/g)) {
+                if (file === "live.mjs") continue;
+                const call = code.slice(m.index, m.index + 900);
+                const watch = /watch:\s*\{([^}]*)\}/.exec(call)?.[1] ?? "";
+                if (/\bsettings\s*:/.test(watch)) census[file] = (census[file] ?? 0) + 1;
+            }
+        }
+        const OPENERS = {
+            "gm-panel.mjs": { cls: "drpg-window-panel", open: () => import("./gm-panel.mjs").then(m => m.openGmPanel()) },
+            "sound-panel.mjs": { cls: "drpg-window-sound", open: () => import("./sound-panel.mjs").then(m => m.openSoundDialog()) }
+        };
+        /* NOT OPENED HERE, and why: each stands only while the world holds what it is about, which is a world write tier 1
+           may not make. The readiness round's GM window (boundary.mjs `roundWindow`) while a round is open; its build reads
+           the round's setting it declares and the clock, whose moves reach every region by the world hooks (live.mjs
+           WORLD_HOOKS). The incident tracker (murder-ui.mjs `openIncidentTracker`) while an incident runs; it declares the
+           incident's setting. */
+        const UNOPENED = { "boundary.mjs": 1, "murder-ui.mjs": 1 };
+        equal(stableJson(Object.keys(census).filter(file => !OPENERS[file] && census[file] !== UNOPENED[file]).sort()), "[]",
+            "a keepLive call names `settings` in a window this test does not open - add its opener here");
+        for (const file of Object.keys(UNOPENED)) delete census[file];
+        const appOf = cls => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes(cls));
+        const reads = {}, declared = {};
+        let readAny = 0;
+        for (const [file, { cls, open }] of Object.entries(OPENERS)) {
+            const was = appOf(cls);
+            const opening = was ? null : Promise.resolve().then(open).catch(() => null);
+            try {
+                must(await until(() => appOf(cls), 6000), `${file}'s window did not open`);
+                const regions = L.liveRegions(appOf(cls)).filter(r => Array.isArray(r.watch?.settings));
+                declared[file] = regions.length;
+                const get = game.settings.get;
+                for (const r of regions) {
+                    const keys = new Set();
+                    game.settings.get = function (namespace, key, ...rest) {
+                        if (namespace === MODULE_ID) keys.add(key);
+                        return get.call(this, namespace, key, ...rest);
+                    };
+                    try { r.build(); } finally { game.settings.get = get; }
+                    readAny += keys.size;
+                    const undeclared = [...keys].filter(key => !r.watch.settings.includes(key)).sort();
+                    if (undeclared.length) reads[`${file} ${r.region}`] = undeclared;
+                }
+            } finally {
+                if (!was) await appOf(cls)?.close?.();
+                if (opening) await Promise.race([opening, wait(3000)]);
+            }
+        }
+        equal(stableJson(declared), stableJson(census), "[the regions with `settings` each window keeps live, by file] are not the calls its source makes");
+        equal(stableJson(reads), "{}", "a region held to its settings reads a module key it does not declare: [file region: the keys]");
+        ok(readAny > 0, "no region read any key of the module - the spy measured nothing");
+    }],
 ];
 
 /**
