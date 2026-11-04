@@ -71,6 +71,15 @@
       var holder = document.createElement("div");
       holder.innerHTML = html.trim();
       var app = holder.firstElementChild;
+      /* A window on the kit's ApplicationV2 frame (ui-kit.mjs DrpgApp: `drpg-ui`, no `dialog`; the notice history since
+         E44 C5) is framed here as Foundry frames an ApplicationV2 - its parts inside `section.window-content` - since the
+         harness's ApplicationV2 draws them straight into the window, and the kit's frame rules name that section. */
+      if (app.classList.contains("drpg-ui") && !app.classList.contains("dialog") && !app.querySelector(":scope > .window-content")) {
+        var section = document.createElement("section");
+        section.className = "window-content";
+        while (app.firstChild) section.appendChild(app.firstChild);
+        app.appendChild(section);
+      }
       var header = '<header class="window-header"><h1 class="window-title">' + esc(r.title) + '</h1><button type="button" class="header-control" data-action="close">x</button></header>';
       app.insertAdjacentHTML("afterbegin", header);
       /* The harness's setPosition wrote the window's place inline (left, top, its height); the page lays it in its flow. */

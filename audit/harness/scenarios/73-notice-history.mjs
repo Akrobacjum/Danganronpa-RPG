@@ -489,8 +489,15 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, disco
                 return { details, title, text, group: group?.textContent.replace(/\u00a0/g, " ") ?? null };
             };
             const foot = root?.querySelector(".drpg-notices-foot");
-            const clear = foot?.querySelector('[data-drpg-do="clear"]');
-            const footWords = visible(foot).replace(clear?.textContent ?? "", "").trim();
+            /* E44 C5: the kit's footer - Clear on the left as destructive and never the default, Close on the right in the
+               kit's one word (the 11.10 amend A7). Its words besides the two buttons' are the foot's prose, which H1 holds to none. */
+            const clear = foot?.querySelector('[data-action="clear"]');
+            const close = foot?.querySelector('[data-action="close"]');
+            const footWords = visible(foot).replace(clear?.textContent ?? "", "").replace(close?.textContent ?? "", "").trim();
+            const side = cls => [...(foot?.querySelectorAll(\`:scope > .\${cls} > button[data-action]\`) ?? [])].map(b => \`\${b.dataset.action}:\${b.dataset.drpgRole}\`);
+            const kit = { left: side("drpg-kit-left"), right: side("drpg-kit-right"),
+                defaults: [...(foot?.querySelectorAll("button[data-action]") ?? [])].filter(b => b.hasAttribute("autofocus") || b.classList.contains("default")).map(b => b.dataset.action),
+                closeWord: (close?.textContent ?? "").trim() === game.i18n.localize("DRPG.Kit.close") };
             const e = row(eclipse), t = row(time);
             const rows = {
                 eclipse: e && { title: e.title, startsWithTitle: e.text.startsWith(e.title), group: e.group,
@@ -521,15 +528,16 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, disco
                 await until(() => live() && !live().open && !live().querySelector(":scope > summary > .drpg-notice-text")?.hidden, 1000);
                 open.closedText = visible(live()?.querySelector(":scope > summary") ?? null).includes(sentence);
             }
-            return { found: [Boolean(eclipse), Boolean(time)], sentence, foot: { words: footWords, clear: Boolean(clear), unsaved: foot?.querySelector(".drpg-notices-unsaved")?.hidden ?? null }, rows, open };
+            return { found: [Boolean(eclipse), Boolean(time)], sentence, foot: { words: footWords, clear: Boolean(clear), unsaved: foot?.querySelector(".drpg-notices-unsaved")?.hidden ?? null, kit }, rows, open };
         } finally {
             await win?.close();
             for (const card of document.querySelectorAll(".drpg-popup")) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
         }`;
     const hSeen = { gm: await gm.eval(hRead(hBefore.gm)), p1: await p1.eval(hRead(hBefore.p1)) };
     const hBoth = test => ["gm", "p1"].every(who => hSeen[who] && test(hSeen[who]));
-    check("H1: the window's foot holds Clear and no prose on how the history keeps a notice, on the GM and on a player - the line that saving stopped hidden while it saves",
-        hRan.started && hRan.ended && hBoth(seen => J(seen.found) === J([true, true]) && seen.foot.words === "" && seen.foot.clear && seen.foot.unsaved === true),
+    check("H1: the window's foot holds Clear and Close and no prose on how the history keeps a notice, on the GM and on a player - the line that saving stopped hidden while it saves; the kit's footer (E44 C5): Clear on the left as destructive and not the default, Close on the right in the kit's word and the default",
+        hRan.started && hRan.ended && hBoth(seen => J(seen.found) === J([true, true]) && seen.foot.words === "" && seen.foot.clear && seen.foot.unsaved === true
+            && J(seen.foot.kit) === J({ left: ["clear:destructive"], right: ["close:close"], defaults: ["close"], closeWord: true })),
         J({ ran: hRan, foot: { gm: hSeen.gm?.foot, p1: hSeen.p1?.foot } }));
     check("H2: an untitled card's row is titled by its heading and its text does not start with it - the Eclipse's in a group named for the time of day it opened into, the time of day's in its own group saying its time of day once",
         hBoth(({ rows: { eclipse, time } }) => eclipse !== null && time !== null

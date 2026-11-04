@@ -14,14 +14,16 @@
  *   DrpgApp()                     the ApplicationV2 class with the same frame (made on first use: tier 0 imports
  *                                 this file without Foundry, as room-tile.mjs's class is made)
  *   kitTabs, kitTabBar, wireKitTabs, shownTab, formGrid, dataTable, helpText, stepper, stepperId, stepLabels,
- *   readStepper, wireSteppers, toggle, chip, chips, box, emptyOption, modeBar
+ *   readStepper, wireSteppers, toggle, chip, chips, box, emptyOption, emptyState, scrollNote, kitNode, modeBar
  *   BUTTON_ROLES                  primary, secondary, close, cancel, destructive, gmRoute
  *
  * THE FOOTER CONTRACT (the owner approved it on the pilot, 04.11.2026). The closing word, the secondary buttons and the
  * destructive ones stand on the left, in that order; the primary on the right, last. One word closes a window: Close
  * when nothing is left to answer, Cancel when a question is withdrawn - the role's own key, never a caller's label.
  * The primary is the default (autofocus); a role whose `mayDefault` is false (destructive) never is, and a footer that
- * names one as its default throws. ENTER IS THE FIRST SUBMIT BUTTON IN TREE ORDER, not the focused or the default one,
+ * names one as its default throws. A window with nothing to answer - no primary, no GM's road - may stand its closing
+ * word on the right, where the answer would stand (`close: { role: "close", side: "right" }`; the notice history,
+ * E44 C5, as the 11.10 amend A7 asks: Clear on the left, Close on the right); beside a primary that throws. ENTER IS THE FIRST SUBMIT BUTTON IN TREE ORDER, not the focused or the default one,
  * when focus is in a field (HTML's implicit submission; measured against DialogV2 on 14.365 for the tab footers, and the tier-2
  * tests "Enter in the verdict window executes nobody" and E44-T5 press it as a browser does). So the footer is two
  * groups with the right one FIRST in the tree - the primary is the first submit button - and components.css puts the
@@ -65,9 +67,10 @@ export const BUTTON_ROLES = Object.freeze({
 const localize = key => game.i18n.localize(key);
 
 /**
- * A footer's buttons in the kit's order, each `{ role, action, label, callback, icon, disabled, default }`, from
+ * A footer's buttons in the kit's order, each `{ role, side, action, label, callback, icon, disabled, default }`, from
  * `{ primary, secondary: [], destructive: [], gmRoute: [], close, default }`. `close` is "close", "cancel", or
- * `{ role: "close" | "cancel", action, callback }`; its label is the role's word whatever the caller wrote. The tree
+ * `{ role: "close" | "cancel", action, callback, side }`; its label is the role's word whatever the caller wrote, and
+ * `side: "right"` stands it on the right in a footer with no primary and no GM's road (the header). The tree
  * order is the right side (primary first, then the GM's road), then the left side (the closing word, the secondary
  * ones, the destructive ones) - see the header. `default` names the action that is the window's default; without one,
  * the primary, else the GM's road, else the closing word. Throws when the default is a role that may never be one.
@@ -79,17 +82,20 @@ export function footerButtons(footer = {}) {
     if (footer.close) {
         const spec = typeof footer.close === "string" ? { role: footer.close } : footer.close;
         const role = spec.role === "cancel" ? "cancel" : "close";
-        closing = [{ callback: spec.callback, icon: spec.icon, action: spec.action ?? role, role, label: localize(BUTTON_ROLES[role].word) }];
+        closing = [{ callback: spec.callback, icon: spec.icon, action: spec.action ?? role, role, label: localize(BUTTON_ROLES[role].word), side: spec.side === "right" ? "right" : "left" }];
     }
-    const right = [...one("primary", footer.primary), ...many("gmRoute", footer.gmRoute)];
-    const left = [...closing, ...many("secondary", footer.secondary), ...many("destructive", footer.destructive)];
+    const answers = [...one("primary", footer.primary), ...many("gmRoute", footer.gmRoute)];
+    const closeRight = closing[0]?.side === "right";
+    if (closeRight && answers.length) throw new Error("ui-kit: a closing word stands on the right only in a footer with no primary and no GM's road");
+    const right = closeRight ? closing : answers;
+    const left = [...(closeRight ? [] : closing), ...many("secondary", footer.secondary), ...many("destructive", footer.destructive)];
     const all = [...right, ...left];
     for (const b of all) if (!b.action) throw new Error(`ui-kit: a ${b.role} button with no action`);
     const named = footer.default ?? (right[0] ?? closing[0])?.action ?? null;
     const chosen = all.find(b => b.action === named) ?? null;
     if (footer.default && !chosen) throw new Error(`ui-kit: the footer's default "${footer.default}" is none of its buttons`);
     if (chosen && !BUTTON_ROLES[chosen.role].mayDefault) throw new Error(`ui-kit: a ${chosen.role} button may never be a window's default ("${chosen.action}")`);
-    return all.map(b => ({ ...b, default: b === chosen }));
+    return all.map(b => ({ ...b, side: b.side ?? BUTTON_ROLES[b.role].side, default: b === chosen }));
 }
 
 /** The DialogV2 `buttons` of a footer: Foundry's own shape, the role's classes in `class`. */
@@ -116,7 +122,7 @@ export function footerMarkup(footer = {}) {
         return `<button type="${b.type ?? "button"}" data-action="${esc(b.action)}" data-drpg-role="${b.role}" class="${classes}"`
             + `${b.default ? " autofocus" : ""}${b.disabled ? " disabled" : ""}>${b.icon ? `<i class="${esc(b.icon)}" inert></i>` : ""}<span>${esc(b.label)}</span></button>`;
     };
-    const side = s => list.filter(b => BUTTON_ROLES[b.role].side === s).map(button).join("");
+    const side = s => list.filter(b => b.side === s).map(button).join("");
     return `<footer class="form-footer drpg-kit-footer"><div class="drpg-kit-right">${side("right")}</div><div class="drpg-kit-left">${side("left")}</div></footer>`;
 }
 
@@ -144,7 +150,7 @@ function dressFooter(root, list) {
         if (role.face) el.classList.add(role.face);
         el.classList.toggle("default", b.default);
         if (b.default) el.setAttribute("autofocus", ""); else el.removeAttribute("autofocus");
-        (role.side === "right" ? right : left).append(el);
+        (b.side === "right" ? right : left).append(el);
     }
     footer.prepend(right, left);
     focused?.focus?.();
@@ -393,8 +399,22 @@ export function watchScroll(box) {
     return () => { box.removeEventListener("scroll", read); observer?.disconnect(); };
 }
 
-/** The screen reader's line of a scroll signal: visually hidden, shown to a reader while more lies out of view. */
-const scrollNote = () => `<span class="drpg-kit-sr" data-drpg-scroll-note hidden>${esc(localize("DRPG.Kit.scrollMore"))}</span>`;
+/**
+ * The screen reader's line of a scroll signal: visually hidden, shown to a reader while more lies out of view. A box
+ * of a window's own that scrolls (the notice history's list) puts it first inside the box, where `watchScroll` finds it.
+ */
+export const scrollNote = () => `<span class="drpg-kit-sr" data-drpg-scroll-note hidden>${esc(localize("DRPG.Kit.scrollMore"))}</span>`;
+
+/**
+ * The first element of a kit builder's markup, as a node: for a window that builds itself from nodes (the notice
+ * history, E44 C5), which writes no markup of its own (R296). Hand it only what this file's builders return - they
+ * escape every label, count and attribute they write - never markup a person or a stored value wrote.
+ */
+export function kitNode(markup) {
+    const template = document.createElement("template");
+    template.innerHTML = markup;
+    return template.content.firstElementChild;
+}
 
 /* ---- the controls ----------------------------------------------------------------------------------------------- */
 
@@ -427,6 +447,14 @@ export function dataTable({ columns, rows = [], empty = "DRPG.Kit.tableEmpty", c
         : `<tr><td class="drpg-data-empty" colspan="${columns.length}">${esc(localize(empty))}</td></tr>`;
     return `<div class="drpg-data-table-box"><table class="drpg-data-table">${caption ? `<caption>${esc(caption)}</caption>` : ""}`
         + `<colgroup>${cols}</colgroup><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>${scrollNote()}</div>`;
+}
+
+/**
+ * A list's empty state: one line in the kit's words, centred in the list it stands for (the notice history's "nothing
+ * kept yet" and "nothing matches", E44 C5). `key` is the line's words; `data`, when given, formats them.
+ */
+export function emptyState(key, data = null) {
+    return `<p class="drpg-kit-empty">${esc(data ? game.i18n.format(key, data) : localize(key))}</p>`;
 }
 
 /** Fine print: one line of help in the kit's fine-print ink (I1, the owner's choice on 04.11.2026). */
@@ -672,7 +700,8 @@ let DrpgAppClass = null;
  * there when tier 0 imports this file). A subclass draws its own body; the frame gives the root the kit's classes,
  * marks the one region that scrolls (`options.scrollRegion`, a selector inside the window: `.drpg-kit-body` on it,
  * the scroll signal wired) and wires the kit's controls on every render. Its footer, when it has one, is
- * `footerMarkup`'s - the same order and groups as a DialogV2's.
+ * `footerMarkup`'s - the same order and groups as a DialogV2's. A window whose region is drawn again under it
+ * (keepLive swaps the element) calls `_dressKit()` after the swap, so the new region is marked and watched.
  */
 export function DrpgApp() {
     DrpgAppClass ??= class DrpgApplication extends foundry.applications.api.ApplicationV2 {
@@ -680,6 +709,10 @@ export function DrpgApp() {
 
         _onRender(context, options) {
             super._onRender?.(context, options);
+            this._dressKit();
+        }
+
+        _dressKit() {
             const root = this.element;
             if (!root) return;
             for (const c of KIT_CLASSES) root.classList.add(c);

@@ -10500,10 +10500,10 @@ const INVARIANTS = [
                 return answers.shift();
             };
             try {
-                root.querySelector('[data-drpg-do="clear"]')?.click();
+                root.querySelector('footer.drpg-kit-footer [data-action="clear"]')?.click();
                 await until(() => answers.length === 1, 1000);
                 const keptAfterCancel = NH.noticeEntries().filter(e => ids.includes(e.id)).length;
-                root.querySelector('[data-drpg-do="clear"]')?.click();
+                root.querySelector('footer.drpg-kit-footer [data-action="clear"]')?.click();
                 await until(() => NH.noticeEntries().length === 0, 1000);
                 found.clear = [dialog, keptAfterCancel, NH.noticeEntries().length];
             } finally {
@@ -10524,9 +10524,9 @@ const INVARIANTS = [
             must(root2 !== null, "the tile's button opened no window - the clauses after it would be measured on nothing");
             const listed = () => [...root2.querySelectorAll("details.drpg-notice-entry")].map(details => details.dataset.drpgKey);
             const entryIn = id => root2.querySelector(`details.drpg-notice-entry[data-drpg-key="${CSS.escape(id)}"]`);
-            const pressed = () => root2.querySelector('[data-drpg-filter][aria-pressed="true"]')?.dataset.drpgFilter ?? null;
+            const pressed = () => root2.querySelector('[data-drpg-chip][aria-pressed="true"]')?.dataset.drpgChip ?? null;
             const box = root2.querySelector(".drpg-notices-search input");
-            const chip = id => root2.querySelector(`[data-drpg-filter="${id}"]`);
+            const chip = id => root2.querySelector(`[data-drpg-chip="${id}"]`);
             const gmId = game.users.find(user => user.isGM)?.id ?? null;
             const withdraw = messageId => NH.noticeCardDeleted({ id: messageId }, { [MODULE_ID]: { withdraw: true } }, gmId);
             const messenger = messageId => NH.recordNotice({ source: "messenger", kind: "info", title: "R296 Koło", text: "R296 a wheel", html: "", messageId, link: { messenger: thread } });
@@ -32825,13 +32825,19 @@ const INVARIANTS = [
             namedLabel: K.footerButtons({ close: { role: "close", label: "Got it" } })[0]?.label,
             noPrimary: K.footerButtons({ secondary: [{ action: "x", label: "X" }], close: "cancel" }).map(b => [b.action, b.default]),
             throwsDestructive: throws({ destructive: [{ action: "wipe", label: "Wipe" }], close: "close", default: "wipe" }),
-            throwsUnknown: throws({ close: "close", default: "nowhere" })
+            throwsUnknown: throws({ close: "close", default: "nowhere" }),
+            // E44 C5: a window with nothing to answer stands its closing word on the right (the notice history, A7).
+            closeRight: (() => { const d = document.createElement("div"); d.innerHTML = K.footerMarkup({ destructive: [{ action: "wipe", label: "Wipe" }], close: { role: "close", side: "right" } });
+                return [...(d.firstElementChild?.children ?? [])].map(g => [g.className, [...g.children].map(x => [x.dataset.action, x.dataset.drpgRole, x.hasAttribute("autofocus")])]); })(),
+            throwsRightBesidePrimary: throws({ primary: { action: "go", label: "Go" }, close: { role: "close", side: "right" } })
         }), stableJson({
             groups: [["drpg-kit-right", [["go", "primary", true], ["ask", "gmRoute", false]]], ["drpg-kit-left", [["cancel", "cancel", false], ["more", "secondary", false]]]],
             firstSubmit: "go", cancelWord: L("DRPG.Kit.cancel"),
             closeWord: [["done", L("DRPG.Kit.close"), true]], namedLabel: L("DRPG.Kit.close"),
-            noPrimary: [["cancel", true], ["x", false]], throwsDestructive: true, throwsUnknown: true
-        }), "[footerMarkup's groups (class; action, role, autofocus); the first button in the tree; the cancel and close words; a caller's own closing label; a footer with no primary; a destructive default and an unknown one throw]");
+            noPrimary: [["cancel", true], ["x", false]], throwsDestructive: true, throwsUnknown: true,
+            closeRight: [["drpg-kit-right", [["close", "close", true]]], ["drpg-kit-left", [["wipe", "destructive", false]]]], throwsRightBesidePrimary: true
+        }), "[footerMarkup's groups (class; action, role, autofocus); the first button in the tree; the cancel and close words; a caller's own closing label; a footer with no primary; a destructive default and an unknown one throw; "
+            + "a closing word asked on the right, beside a destructive one (groups), and beside a primary (throws)]");
 
         /* kitTabs and its wiring: one pane shown, the footer following the tab. */
         const win = document.createElement("div");
@@ -33320,6 +33326,105 @@ const INVARIANTS = [
         }), "[dressChrome's marks on a window with no drpg- class; a module window's table got its number columns (under Stained Glass; under Legacy "
             + "chrome.mjs dresses no table); module files adding a dblclick listener on window; no-collapse.mjs and its registration gone; a double-click "
             + "on a module window's title bar (reached the bar, prevented)]");
+    }],
+    ["R1331 - the notice history's parts win their cascade (tests-kit.mjs `styleCascade`; E44 C5, E44-19, the 11.10 amend A7): on the window as it draws itself, a kept card open and its list once empty, on a body of each theme, the chips, the list, the empty state, the foot and its two buttons are each styled by components.css, and every property a components.css rule states on any element of the window is won by components.css", async () => {
+        /*
+         * E44 C5, 04.11.2026; the plan's risk ("a kit rule can lose to an old rule carrying !important and the test
+         * still pass while the screen does not change"), on the one window E44 moves onto DrpgApp. R1323 reads the kit's
+         * own gallery frame; this reads the notice history's own markup - drawn by `openNotices` with two notices of the
+         * suite's own (held: nothing reaches the setting, as R296 and R299 hold it), the first opened so its kept card is
+         * drawn, and the list drawn once more under a search that finds nothing - placed in Foundry's frame
+         * (`section.window-content`, which the harness's ApplicationV2 does not draw) on a body of each theme. A
+         * shorthand is read with its longhands, as R1323 does. Top-level rules only (`styleCascade`): narrow.css's and
+         * components.css's `@media` are the style sweep's, in Chromium. Red before C5: no part of the window was the
+         * kit's (the chips, the foot and the empty line matched no components.css rule). The mutant c5-m1 (E81's
+         * danganronpa.css block left in) reads red here: its `!important` chips and pill.
+         */
+        const C = await styleCascade();
+        const kitRules = C.rules.filter(r => r.file === "styles/components.css" && r.selector !== "body" && r.selector !== "body.drpg-theme-stained-glass");
+        must(kitRules.length > 40, `${kitRules.length} rule(s) of components.css read - the cascade did not load the sheet`);
+        const NH = await import("./notice-history.mjs");
+        must(!document.querySelector(".drpg-window-notices"), "the notice history window is open - close it: the suite measures a window it opened itself");
+        const { openNotices } = await import("./notice-history-app.mjs");
+        let win = null, drawn = null, emptied = null;
+        await NH.holdNoticeHistory(true);
+        try {
+            NH.recordNotice({ source: "mine", kind: "info", tone: "hope", title: "R1331 kept card", text: "R1331 kept", html: "<p>R1331 body</p><ul><li>R1331 item</li></ul>", state: "unread" });
+            NH.recordNotice({ source: "evidence", kind: "info", title: "R1331 found", text: "R1331 found", html: "" });
+            win = await openNotices();
+            must(win?.element, "the notice history window did not open");
+            const entry = [...win.element.querySelectorAll("details.drpg-notice-entry")].find(d => d.textContent.includes("R1331 kept card"));
+            must(entry, "the suite's notice is not listed - this would read no entry");
+            entry.open = true;
+            entry.dispatchEvent(new Event("toggle"));
+            await until(() => entry.querySelector(".drpg-notice-snapshot"), 1000);
+            drawn = win.element.cloneNode(true);
+            win.query = "r1331-nothing-matches";
+            emptied = win.buildList();
+        } finally {
+            await win?.close();
+            NH.holdNoticeHistory(false);
+        }
+        must(drawn?.querySelector(".drpg-notice-snapshot"), "the kept card was not drawn - this would read no card body");
+        const LONG = {
+            border: ["border-color", "border-width", "border-style", "border-top", "border-right", "border-bottom", "border-left", "border-top-color", "border-right-color", "border-bottom-color", "border-left-color"],
+            "border-left": ["border-left-color", "border-left-width", "border-left-style"],
+            "border-top": ["border-top-color", "border-top-width", "border-top-style"],
+            "border-bottom": ["border-bottom-color", "border-bottom-width", "border-bottom-style"],
+            background: ["background-color", "background-image"],
+            padding: ["padding-top", "padding-right", "padding-bottom", "padding-left", "padding-block", "padding-inline"],
+            margin: ["margin-top", "margin-right", "margin-bottom", "margin-left", "margin-block", "margin-inline"],
+            flex: ["flex-grow", "flex-shrink", "flex-basis"],
+            overflow: ["overflow-x", "overflow-y"],
+            gap: ["row-gap", "column-gap"],
+            mask: ["mask-image", "mask-position", "mask-size", "mask-repeat"]
+        };
+        const names = prop => [prop, ...(LONG[prop] ?? [])];
+        const matches = (el, rule) => rule.selector.split(/,(?![^(]*\))/).some(sel => { try { return el.matches(sel.trim()); } catch { return false; } });
+        const framed = list => {
+            const root = drawn.cloneNode(true);
+            if (list) root.querySelector(".drpg-notices-list")?.replaceWith(list.cloneNode(true));
+            if (!root.querySelector(":scope > .window-content")) {
+                const content = document.createElement("section");
+                content.className = "window-content";
+                content.append(...root.childNodes);
+                root.append(content);
+            }
+            return root;
+        };
+        const PARTS = { chips: ".drpg-chips", chip: ".drpg-chips > button.drpg-chip", list: ".drpg-notices-list", empty: ".drpg-kit-empty", foot: "footer.drpg-kit-footer",
+            clear: 'footer.drpg-kit-footer [data-action="clear"]', close: 'footer.drpg-kit-footer [data-action="close"]', card: ".drpg-notice-snapshot" };
+        const problems = {}, unstyled = [];
+        let checked = 0;
+        for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
+            const lost = [];
+            for (const root of [framed(null), framed(emptied)]) {
+                const html = document.createElement("html"), body = document.createElement("body");
+                body.className = `${theme} ${game.user?.isGM ? "drpg-gm" : "drpg-player"}`;
+                html.append(body);
+                body.append(root);
+                for (const [part, sel] of Object.entries(PARTS)) {
+                    const el = root.querySelector(sel);
+                    if (!el) continue;
+                    if (!kitRules.some(rule => matches(el, rule) && rule.decls.some(d => !d.property.startsWith("--")))) unstyled.push(`${theme} ${part}`);
+                }
+                for (const el of [root, ...root.querySelectorAll("*")]) {
+                    const stated = new Set();
+                    for (const rule of kitRules) if (matches(el, rule)) for (const d of rule.decls) if (!d.property.startsWith("--") || d.property === "--brush-ink" || d.property === "--brush-style") stated.add(d.property);
+                    const onEl = C.on(el);
+                    for (const prop of stated) {
+                        checked++;
+                        const w = onEl(names(prop));
+                        if (w?.file !== "styles/components.css") lost.push(`${el.tagName.toLowerCase()}.${[...el.classList].join(".")} ${prop}: ${w ? `${w.file} ${w.selector}${w.important ? " !important" : ""}` : "nobody"}`);
+                    }
+                }
+            }
+            if (lost.length) problems[theme] = [...new Set(lost)];
+        }
+        const found = Object.entries(PARTS).filter(([, sel]) => !framed(emptied).querySelector(sel) && !framed(null).querySelector(sel)).map(([part]) => part);
+        equal(stableJson({ found, unstyled: [...new Set(unstyled)], problems }), stableJson({ found: [], unstyled: [], problems: {} }),
+            `[the window's parts not drawn; the parts no components.css rule styles, by theme; by theme, an element's property stated by components.css and won elsewhere - element property: the winner] (${checked} reading(s))`);
+        must(checked > 100, `${checked} property reading(s) made - the window's elements matched almost no rule`);
     }],
 ];
 

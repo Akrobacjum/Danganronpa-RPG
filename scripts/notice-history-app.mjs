@@ -18,13 +18,22 @@
  * "Open conversation" hands `openMessenger` the entry's `link.messenger`, which the store's read
  * has already held to an existing user, and nothing else.
  *
- * THE LOOK is the module's windows of today and small on purpose: E44's window kit takes the
- * chips, the empty state and the scroll signal over, and with them this file's CSS block
- * (danganronpa.css, stained-glass.css and narrow.css, each marked for E44).
+ * ON THE KIT (E44 C5, 04.11.2026; the 11.10 amend A7). The window is a `DrpgApp` (ui-kit.mjs): the kit's frame -
+ * `drpg-ui` on the root, at most the screen's height less 8 px a side, one region that scrolls, the list - and the
+ * kit's footer: Clear on the left as a destructive button, never the default, and Close on the right in one word,
+ * since the window has nothing else to answer. The chips are the kit's `chips`, the list's two empty lines its
+ * `emptyState`, and the list wears the kit's scroll signal. Its styles are components.css's alone ("The notice
+ * history"); the blocks danganronpa.css, stained-glass.css and narrow.css held for it went in the same commit (R1330),
+ * and what a kept card's body looks like went with them. What A7 keeps is kept: `openNotices` answers RAISED when it
+ * raised the window, keepLive runs on the list alone and is fed by the history's own change (which the engine also
+ * fires for another tab's `storage` event), a kept card is drawn lazily through `noticeSnapshot`, and nothing here
+ * plays a sound or draws a card. The kit's markup comes in as nodes through ui-kit.mjs `kitNode`, handed only the
+ * kit's builders' markup, so this file still writes no markup (R296): a stored value never comes that way.
  */
 
 import { plural } from "./utils.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
+import { DrpgApp, chips, emptyState, footerMarkup, kitNode, scrollNote } from "./ui-kit.mjs";
 import { clockSummary, clockAfter } from "./clock.mjs";
 import { openMessenger } from "./messenger-app.mjs";
 import {
@@ -138,7 +147,7 @@ function element(tag, className, text) {
     return el;
 }
 
-class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
+class NoticeHistoryApp extends DrpgApp() {
     static DEFAULT_OPTIONS = {
         id: "drpg-notices",
         classes: ["drpg-panel", WINDOW_CLASS],
@@ -147,7 +156,8 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
             resizable: false,
             minimizable: true
         },
-        position: { width: 420 }
+        position: { width: 420 },
+        scrollRegion: ".drpg-notices-list"
     };
 
     /*
@@ -178,19 +188,11 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
     }
 
     async _renderHTML(_context, _options) {
-        const root = element("div", "drpg-notices-body");
+        const root = element("div", "drpg-notices-body drpg-kit-content");
 
-        const chips = element("div", "drpg-notices-chips");
-        chips.setAttribute("role", "toolbar");
-        chips.setAttribute("aria-label", localize("DRPG.Notices.title"));
-        for (const filter of FILTERS) {
-            const chip = element("button", "", localize(filter.label));
-            chip.type = "button";
-            chip.dataset.drpgFilter = filter.id;
-            chip.setAttribute("aria-pressed", String(filter.id === this.filter));
-            chip.append(element("b"));
-            chips.append(chip);
-        }
+        // The kit's chips, one a filter, single choice; `syncChrome` writes each count and which one is pressed.
+        const filters = kitNode(chips(FILTERS.map(filter => ({ label: localize(filter.label), pressed: filter.id === this.filter, count: 0, value: filter.id })), { label: localize("DRPG.Notices.title") }));
+        filters.classList.add("drpg-notices-chips");
 
         const search = element("div", "drpg-notices-search");
         const input = element("input");
@@ -217,13 +219,14 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
            rather than what happened. The owner had it taken out (the shared computer is a risk he accepted in E81's
            Q9, and the handbooks keep the limits); the line that saving stopped stays, as a state, drawn only when
            `noticeHistoryStatus` says so (`syncChrome`). Scenario 73's phase H reads the foot on a GM and a player. */
-        const foot = element("footer", "drpg-notices-foot");
-        const clear = element("button", "", localize("DRPG.Notices.clear"));
-        clear.type = "button";
-        clear.dataset.drpgDo = "clear";
-        foot.append(element("p", "drpg-notices-unsaved"), clear);
+        /* E44 C5: the kit's footer - Clear on the left as a destructive button, which the kit never makes the default,
+           and Close on the right in one word, the kit's own (the 11.10 amend A7). The line that saving stopped stands
+           in the left group, after Clear. */
+        const foot = kitNode(footerMarkup({ destructive: [{ action: "clear", label: localize("DRPG.Notices.clear") }], close: { role: "close", side: "right" } }));
+        foot.classList.add("drpg-notices-foot");
+        foot.querySelector(".drpg-kit-left").append(element("p", "drpg-notices-unsaved"));
 
-        root.append(chips, search, banner, pill, this.buildList(), foot);
+        root.append(filters, search, banner, pill, this.buildList(), foot);
         this.syncChrome(root);
         return root;
     }
@@ -232,7 +235,8 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
         content.replaceChildren(result);
     }
 
-    _onRender(_context, _options) {
+    _onRender(context, options) {
+        super._onRender(context, options);
         this.live?.();
         this.live = keepLive(this, { region: ".drpg-notices-list", build: () => this.buildList(), after: list => this.dressList(list) });
         this.unlisten ??= onNoticeHistoryChange(() => this.changed());
@@ -281,10 +285,16 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
     }
 
     onClick(event) {
-        const chip = event.target.closest?.("[data-drpg-filter]");
+        const chip = event.target.closest?.("[data-drpg-chip]");
         if (chip && !chip.disabled) {
-            this.filter = chip.dataset.drpgFilter;
+            this.filter = chip.dataset.drpgChip;
             this.redraw();
+            return;
+        }
+        /* The kit's footer names its buttons by `data-action`; Foundry's own action answers Close, and this window
+           answers Clear (Foundry has no action of that name, so it does nothing more with the press). */
+        if (event.target.closest?.("footer.drpg-kit-footer [data-action]")?.dataset.action === "clear") {
+            void this.askClear();
             return;
         }
         const what = event.target.closest?.("[data-drpg-do]")?.dataset.drpgDo;
@@ -293,8 +303,7 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
             this.redraw();
             const list = this.element?.querySelector(".drpg-notices-list");
             if (list) list.scrollTop = 0;
-        } else if (what === "clear") void this.askClear();
-        else if (what === "conversation") {
+        } else if (what === "conversation") {
             const id = event.target.closest("details.drpg-notice-entry")?.dataset.drpgKey;
             const userId = this.byId.get(id)?.link?.messenger;
             if (userId) openMessenger(userId);
@@ -340,20 +349,20 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
         const was = this.filter;
         const all = noticeEntries();
         const empty = all.length === 0;
-        for (const chip of root.querySelectorAll("[data-drpg-filter]")) {
-            const filter = FILTERS.find(f => f.id === chip.dataset.drpgFilter);
+        for (const chip of root.querySelectorAll("[data-drpg-chip]")) {
+            const filter = FILTERS.find(f => f.id === chip.dataset.drpgChip);
             const count = filter.sources ? all.filter(entry => filter.sources.includes(entry.source)).length : all.length;
             chip.querySelector("b").textContent = String(count);
             chip.disabled = filter.id !== "all" && count === 0;
             if (chip.disabled && this.filter === filter.id) this.filter = "all";
         }
-        for (const chip of root.querySelectorAll("[data-drpg-filter]")) chip.setAttribute("aria-pressed", String(chip.dataset.drpgFilter === this.filter));
+        for (const chip of root.querySelectorAll("[data-drpg-chip]")) chip.setAttribute("aria-pressed", String(chip.dataset.drpgChip === this.filter));
         root.querySelector(".drpg-notices-search input").disabled = empty;
         const unread = all.filter(entry => entry.state === "unread").length;
         const banner = root.querySelector(".drpg-notices-banner");
         banner.hidden = unread === 0;
         banner.querySelector("span").textContent = unread ? plural("DRPG.Notices.unreadBanner", { n: unread }) : "";
-        root.querySelector('[data-drpg-do="clear"]').disabled = empty;
+        root.querySelector('footer.drpg-kit-footer [data-action="clear"]').disabled = empty;
         const note = noticeHistoryStatus().note;
         const unsaved = root.querySelector(".drpg-notices-unsaved");
         unsaved.textContent = note ? localize(note) : "";
@@ -368,9 +377,11 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
         this.drawn = new Set(this.byId.keys());
         const pill = this.element?.querySelector(".drpg-notices-new");
         if (pill) pill.hidden = true;
-        const list = element("div", "drpg-notices-list");
+        // The region the kit scrolls, with its scroll signal's line for a screen reader (ui-kit.mjs `watchScroll`).
+        const list = element("div", "drpg-notices-list drpg-kit-body");
+        list.append(kitNode(scrollNote()));
         if (!all.length) {
-            list.append(element("p", "drpg-notices-empty", localize("DRPG.Notices.empty")));
+            list.append(kitNode(emptyState("DRPG.Notices.empty")));
             return list;
         }
         const sources = FILTERS.find(f => f.id === this.filter)?.sources ?? null;
@@ -382,7 +393,7 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
             return fold(`${row.title}\n${row.text}`).includes(this.query);
         }).reverse();
         if (!shown.length) {
-            list.append(element("p", "drpg-notices-empty", localize("DRPG.Notices.noMatch")));
+            list.append(kitNode(emptyState("DRPG.Notices.noMatch")));
             return list;
         }
         const latest = Math.max(...all.map(entry => entry.clock.chapter));
@@ -407,8 +418,12 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
         return list;
     }
 
-    /** What a rebuilt list needs that markup cannot carry: the entries `keepLive` opened again get their snapshot back. */
+    /**
+     * What a rebuilt list needs that markup cannot carry: the entries `keepLive` opened again get their snapshot back,
+     * and the kit watches the new list's scroll (keepLive swapped the element its signal was watching).
+     */
     dressList(list) {
+        this._dressKit();
         for (const details of list.querySelectorAll("details.drpg-notice-entry[open]")) {
             this.expand(details);
             this.sayOnce(details);

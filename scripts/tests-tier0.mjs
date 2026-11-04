@@ -565,8 +565,8 @@ const REGRESSIONS = [
         };
         const chipOff = "    --drpg-kit-btn-ink: var(--drpg-bone);\n";
         const PLANTS = {
-            literal: [plant(".drpg-chip:disabled { opacity: 0.4; }", ".drpg-chip:disabled { opacity: 0.4; color: #ffffff; }"), "a colour literal outside a token"],
-            important: [plant(".drpg-chip:disabled { opacity: 0.4; }", ".drpg-chip:disabled { opacity: 0.4 !important; }"), "!important"],
+            literal: [plant(".drpg-chip > b { font-variant-numeric: tabular-nums; margin-left: 4px; opacity: 0.8; }", ".drpg-chip > b { font-variant-numeric: tabular-nums; margin-left: 4px; opacity: 0.8; color: #ffffff; }"), "a colour literal outside a token"],
+            important: [plant(".drpg-chip > b { font-variant-numeric: tabular-nums; margin-left: 4px; opacity: 0.8; }", ".drpg-chip > b { font-variant-numeric: tabular-nums; margin-left: 4px; opacity: 0.8 !important; }"), "!important"],
             legacyChip: [plant(chipOff, ""), "--drpg-kit-btn-ink is declared for the glass and not for Legacy"],
             fontSize: [plant(".drpg-chip > b {", ".drpg-chip > b { font-size: 12px;"), "sets font-size without a kit size token"],
             floor: [plant("--drpg-kit-chip-size: max(11px, var(--drpg-text-xs));", "--drpg-kit-chip-size: var(--drpg-text-xs);"), "under Legacy is not floored at 11 px"],
@@ -684,6 +684,63 @@ const REGRESSIONS = [
         }), "[the module files with a bare \"-\" option; the seven choices without their emptyOption key or with words not \"- word -\" (by language); "
             + "the language keys whose whole text is a bare \"-\"; "
             + "emptyOption's value, selected and disabled kept, its words, a plain one neither]");
+    }],
+
+    ["R1330 - the notice history is on the kit (E44 C5; E44-19, the 11.10 amend A7): its window is a DrpgApp whose one scrolling region is the list, its foot the kit's footer with Clear on the left as destructive and never the default and Close on the right in one word, its chips the kit's chips and its empty list the kit's empty state; it keeps what A7 keeps - RAISED when raised, one keepLive and only on the list, redrawn from the history's change, a kept card drawn lazily through noticeSnapshot, no card, no sound - and no sheet names the window's class or the classes the kit replaced, and no sheet but components.css styles its parts", async () => {
+        /*
+         * E44 C5, 04.11.2026; the 11.10 amend A7 ("E44 moves the window onto the kit ... and in the same commit removes
+         * the window's blocks from danganronpa.css, stained-glass.css and narrow.css"; what it keeps, by name). Read
+         * from the source, comments stripped (the header says what the window never does in words this would find),
+         * and from every sheet module.json serves, comments stripped. The history's own change is the window's one
+         * trigger: notice-history.mjs's engine calls it for this tab's writes and for another tab's `storage` event, so
+         * a `watch` on keepLive would only add a road. `importNode` is noticeSnapshot's (notice-history.mjs), the one
+         * road a kept card's markup comes in by, and `expand` is the one place the window draws one. Red before C5: the
+         * window an ApplicationV2 of its own with its own foot and chips, and its three blocks in the old sheets.
+         */
+        const read = {};
+        const raw = await fetch(`/modules/${MODULE_ID}/scripts/notice-history-app.mjs`).then(lfText);
+        const src = stripComments(raw);
+        const history = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/notice-history.mjs`).then(lfText));
+        const render = bodyOf(src, "async _renderHTML(", { until: "\n    }\n" });
+        const footer = /footerMarkup\(\{([^\n]*)\}\)/.exec(render)?.[1] ?? null;
+        read.frame = [/\bclass NoticeHistoryApp extends DrpgApp\(\)/.test(src), /scrollRegion:\s*"\.drpg-notices-list"/.test(src)];
+        read.foot = footer === null ? null : [/destructive:\s*\[\{\s*action:\s*"clear"/.test(footer), /close:\s*\{\s*role:\s*"close",\s*side:\s*"right"\s*\}/.test(footer),
+            /\bdefault\s*:/.test(footer), /\bprimary\s*:/.test(footer)];
+        read.chips = /\bchips\(FILTERS\.map\(/.test(render);
+        read.empty = (src.match(/\bemptyState\("DRPG\.Notices\.(empty|noMatch)"\)/g) ?? []).length;
+        read.live = [(src.match(/\bkeepLive\(/g) ?? []).length, /\bkeepLive\(this,\s*\{\s*region:\s*"\.drpg-notices-list",\s*build:/.test(src),
+            /\bkeepLive\(this,[^\n]*\bwatch\s*:/.test(src), /\bonNoticeHistoryChange\(\(\) => this\.changed\(\)\)/.test(src)];
+        const expand = bodyOf(src, "    expand(details) {", { until: "\n    }\n" });
+        const build = bodyOf(src, "    buildList() {", { until: "\n    }\n" });
+        read.lazy = [/\bnoticeSnapshot\(entry\.html\)/.test(expand), /document\.importNode\(/.test(fnSource(history, "noticeSnapshot")),
+            /\bexpand\(|\bnoticeSnapshot\(/.test(build)];
+        read.never = ["showPopup", "AudioHelper", "playSound", "\\.play\\(", "new Audio", "drpg-popup", "setHTMLUnsafe", "insertAdjacentHTML", "outerHTML"].filter(word => new RegExp(word).test(src));
+        /* The kit's markup comes in as nodes through ui-kit.mjs `kitNode`, and only the kit's builders' markup is handed
+           to it (their labels and counts escaped): the window writes no markup (R296), and a kept card never comes this way. */
+        read.parsed = [/\binnerHTML\b/.test(src), [...src.matchAll(/\bkitNode\(([\w]+)\(/g)].map(m => m[1]).sort(), (src.match(/\bkitNode\(/g) ?? []).length];
+        read.raised = /if \(alreadyOpen\(WINDOW_CLASS\)\) return RAISED;/.test(fnSource(src, "openNotices"));
+
+        /* The sheets: the window's class and the classes the kit replaced nowhere; the window's parts in components.css alone. */
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const GONE = ["drpg-window-notices", "drpg-notices-chips", "drpg-notices-foot", "drpg-notices-empty"];
+        const PARTS = /\.drpg-notice-[a-z]|\.drpg-notices-(body|search|banner|new|list|group|fold|unsaved)\b/;
+        const named = [], parts = [];
+        let snapshot = false;
+        for (const sheet of manifest.styles ?? []) {
+            const css = (await fetch(`/modules/${MODULE_ID}/${sheet}`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+            for (const name of GONE) if (new RegExp(`${name}(?![\\w-])`).test(css)) named.push(`${sheet}: ${name}`);
+            if (sheet !== "styles/components.css" && PARTS.test(css)) parts.push(sheet);
+            if (sheet === "styles/components.css") snapshot = /\.drpg-notice-snapshot\b[^{]*\{/.test(css);
+        }
+        must((manifest.styles ?? []).length >= 7, "module.json names fewer than seven sheets - this would read too little");
+        read.sheets = { named, parts, snapshot };
+        equal(JSON.stringify(read), JSON.stringify({
+            frame: [true, true], foot: [true, true, false, false], chips: true, empty: 2, live: [1, true, false, true],
+            lazy: [true, true, false], never: [], parsed: [false, ["chips", "emptyState", "emptyState", "footerMarkup", "scrollNote"], 5], raised: true, sheets: { named: [], parts: [], snapshot: true }
+        }), "[the window: a DrpgApp, its scrolling region the list; its footer: Clear destructive, Close on the right, a default named, a primary; "
+            + "its chips from FILTERS through the kit; its two empty states through the kit; keepLive's calls, on the list, with a watch, the history's change; "
+            + "expand through noticeSnapshot, which brings the markup in by importNode, and the list's build drawing a card; the roads it must not take; markup written by the window, and what it hands kitNode (the builders, and how many calls); "
+            + "RAISED when raised; the sheets naming a class that is gone, the sheets but components.css styling the window's parts, components.css styling a kept card's body]");
     }],
 
     ["R3 - every sound a card asks for is a sound that exists", async () => {
@@ -13603,7 +13660,7 @@ const REGRESSIONS = [
             + "the GM's section 16: the window's title in bold]");
     }],
 
-    ["R479 - each interface E81 hands to later stages says beside it which stages take it, and each CSS block of the history window says E44 removes it", async () => {
+    ["R479 - each interface E81 hands to later stages says beside it which stages take it", async () => {
         /*
          * E81 C15, 12.10.2026 (the A7 design's P0-2 to P0-9 and K7; the stage's doneWhen D11 and risk RISK-f). E81 came
          * before the stages it was designed after, so it left them small named interfaces rather than wait for them:
@@ -13615,6 +13672,9 @@ const REGRESSIONS = [
          * each this reads the nearest comment before the definition - in the module's source and in the stylesheets
          * as served, comments kept - requires it to end at most 200 characters above the definition, and requires
          * every stage the design names for it. At E81 C14 the `--drpg-corner*` tokens named none; C15 added it.
+         * E44 C5 (04.11.2026, the 11.10 amend A7): the history window is on the kit and its three blocks are gone, so their
+         * three rows went with them (each named E44, as this test held); R1330 holds that no sheet names the window's
+         * class again and that no sheet but components.css styles its parts.
          */
         const sources = await moduleSources();
         const sheet = name => fetch(`/modules/${MODULE_ID}/styles/${name}`).then(r => (r.ok ? lfText(r) : ""));
@@ -13631,10 +13691,7 @@ const REGRESSIONS = [
             ["danganronpa.css", "--drpg-corner:", TAKE],
             ["danganronpa.css", "--drpg-launch-h:", TAKE],
             ["danganronpa.css", "--drpg-stack-foot:", TAKE],
-            ["narrow.css", "--drpg-column-max:", ["E23"]],
-            ["danganronpa.css", ".application.drpg-window-notices:not(.minimized) {", ["E44"]],
-            ["stained-glass.css", "body.drpg-theme-stained-glass .application.drpg-panel.drpg-window-notices:not(.minimized) {", ["E44"]],
-            ["narrow.css", "body.drpg-stacked .application.drpg-window-notices {", ["E44"]]
+            ["narrow.css", "--drpg-column-max:", ["E23"]]
         ];
         ok([...files.values()].every(src => String(src ?? "").length > 0), "a source or a stylesheet did not load - this test measured nothing");
         const measured = {}, expected = {};

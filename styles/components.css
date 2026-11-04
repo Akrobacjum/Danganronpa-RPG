@@ -58,6 +58,8 @@ body {
     --drpg-kit-chip-on-bg: var(--drpg-bone);
     --drpg-kit-chip-on-ink: var(--drpg-ink);
     --drpg-kit-chip-size: max(11px, var(--drpg-text-xs));
+    /* a chip with nothing under it: under Legacy the chip's ink at the kit's 0.4, under the glass its dim ink */
+    --drpg-kit-chip-off-ink: var(--drpg-bone);
     /* boxes: the notes and the warning lines */
     --drpg-kit-warn-edge: var(--drpg-crimson);
     --drpg-kit-warn-bg: rgba(var(--drpg-crimson-rgb), 0.12);
@@ -91,6 +93,22 @@ body {
     --drpg-kit-role-cancel: var(--drpg-bone);
     --drpg-kit-role-secondary: var(--drpg-bone);
     --drpg-kit-role-destructive: var(--drpg-crimson);
+    /* the notice history (E44 C5): its lines and grounds as E81 drew them, an entry's seam by its tone or source,
+       and its two type sizes */
+    --drpg-kit-notice-edge: var(--drpg-line-strong);
+    --drpg-kit-notice-banner-edge: var(--drpg-bone);
+    --drpg-kit-notice-banner-bg: rgba(var(--drpg-bone-rgb), 0.06);
+    --drpg-kit-notice-entry-bg: rgba(var(--drpg-bone-rgb), 0.035);
+    --drpg-kit-notice-dot: var(--drpg-bone);
+    --drpg-kit-notice-seam: var(--drpg-bone);
+    --drpg-kit-notice-seam-hope: var(--drpg-gold);
+    --drpg-kit-notice-seam-fear: var(--drpg-crimson);
+    --drpg-kit-notice-seam-critical: var(--drpg-crimson-light);
+    --drpg-kit-notice-seam-evidence: var(--drpg-evidence);
+    --drpg-kit-notice-seam-alarm: var(--drpg-crimson-deep);
+    --drpg-kit-seam: var(--drpg-kit-notice-seam);
+    --drpg-kit-notice-sm-size: max(11px, var(--drpg-text-sm));
+    --drpg-kit-notice-xs-size: max(11px, var(--drpg-text-xs));
 }
 /* ---- tokens: Stained Glass (the glass's own) ---- */
 body.drpg-theme-stained-glass {
@@ -121,6 +139,7 @@ body.drpg-theme-stained-glass {
     --drpg-kit-btn-ink: var(--drpg-sg-bone);
     --drpg-kit-chip-on-bg: var(--drpg-sg-bone);
     --drpg-kit-chip-on-ink: var(--drpg-sg-ink);
+    --drpg-kit-chip-off-ink: var(--drpg-sg-bone-dim);
     --drpg-kit-btn-on-bg: var(--drpg-sg-bone);
     --drpg-kit-btn-on-ink: var(--drpg-sg-ink);
     --drpg-kit-scroll-shade: color-mix(in srgb, var(--drpg-sg-bone) 35%, transparent);
@@ -130,6 +149,10 @@ body.drpg-theme-stained-glass {
     --drpg-kit-role-cancel: var(--drpg-sg-bone);
     --drpg-kit-role-secondary: var(--drpg-sg-bone);
     --drpg-kit-role-destructive: var(--drpg-sg-gm);
+    --drpg-kit-notice-seam-hope: var(--drpg-sg-hope);
+    --drpg-kit-notice-seam-fear: var(--drpg-sg-despair);
+    --drpg-kit-notice-seam-evidence: var(--drpg-sg-evidence);
+    --drpg-kit-notice-seam-alarm: var(--drpg-sg-gm);
 }
 
 /* ---- drpgWindow / DrpgApp: the frame. The screen's height less 8 px a side; the body scrolls, the tab bar and the
@@ -392,7 +415,12 @@ body .application.drpg-ui .drpg-chips > button.drpg-chip[type="button"][aria-pre
     color: var(--drpg-kit-chip-on-ink);
 }
 body:not(.drpg-theme-stained-glass) .application.drpg-ui .drpg-chips > button.drpg-chip[type="button"][aria-pressed="true"] { border-color: var(--drpg-kit-chip-on-bg); }
-.drpg-chip:disabled { opacity: 0.4; }
+/* A chip with nothing under it (E44 C5, the A7 amend's refined state; the approved i1 card): dimmed under Legacy, and
+   under the glass the brush's dim ink on a solid edge - the dashed edge the glass gives every disabled button read as
+   "out of reach", and a filter with no notice in it is only empty. */
+body .application.drpg-ui .drpg-chips > button.drpg-chip[type="button"]:disabled { color: var(--drpg-kit-chip-off-ink); }
+body:not(.drpg-theme-stained-glass) .application.drpg-ui .drpg-chips > button.drpg-chip[type="button"]:disabled { opacity: 0.4; }
+body.drpg-theme-stained-glass .application.drpg-ui .drpg-chips > button.drpg-chip[type="button"]:disabled { --brush-style: solid; }
 
 /* ---- modeBar: one row of modes, the active one pressed (E70's trial console). The stepper's - and + take the
    same face; under the glass both are the glass's button brush. ---- */
@@ -410,3 +438,165 @@ body .application.drpg-ui .drpg-mode-bar > button[type="button"][aria-pressed="t
     background: var(--drpg-kit-btn-on-bg);
 }
 body:not(.drpg-theme-stained-glass) .application.drpg-ui .drpg-mode-bar > button[type="button"][aria-pressed="true"] { border-color: var(--drpg-kit-btn-on-edge); }
+
+/* ---- DrpgApp: an ApplicationV2 on the kit's frame (the notice history, E44 C5). Its content is one column - the
+   window's own root, `.drpg-kit-content` - in which the scrolling region (`.drpg-kit-body`) takes what is left and
+   everything else keeps its height, so the footer stays in view however long the region is (R299 (e), in a
+   browser). Its footer is the kit's (`footerMarkup`), ruled and spaced here in both themes: a DialogV2's is spaced
+   by the dialog rules, an ApplicationV2's by nothing else. The width is the window's own, never past the screen
+   less 8 px a side (narrow.css held the notice history to it on a stacked screen until C5). ---- */
+body .application.drpg-ui.drpg-panel:not(.dialog):not(.minimized) { max-width: calc(100vw - 16px); }
+body .application.drpg-ui.drpg-panel:not(.dialog):not(.minimized) > .window-content { padding: 10px 12px; }
+.application.drpg-ui.drpg-panel > .window-content > .drpg-kit-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--drpg-kit-gap);
+}
+.application.drpg-ui.drpg-panel > .window-content > .drpg-kit-content > :not(.drpg-kit-body) { flex: 0 0 auto; }
+body .application.drpg-ui:not(.dialog) footer.form-footer.drpg-kit-footer {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    padding-top: 6px;
+    border-top: 1px solid var(--drpg-kit-notice-edge);
+}
+body:not(.drpg-theme-stained-glass) .application.drpg-ui:not(.dialog) footer.form-footer.drpg-kit-footer { font-size: var(--drpg-kit-notice-xs-size); }
+/* each button as wide as its word, at the height and padding the notice history's Clear had (E81's `!important`,
+   written here one place above the glass's button brush, `.drpg-panel button:not(...)`, 0,7,2); its face is the
+   panel's and the brush's until E22 */
+body .application.drpg-ui.drpg-panel:not(.dialog) footer.form-footer.drpg-kit-footer button[data-drpg-role] { flex: 0 0 auto; height: 24px; padding: 0 8px; }
+body:not(.drpg-theme-stained-glass) .application.drpg-ui:not(.dialog) footer.form-footer.drpg-kit-footer button { font-size: var(--drpg-kit-notice-xs-size); }
+/* emptyState: a list's one line when it has nothing to list */
+.drpg-kit-empty { padding: 28px 12px; text-align: center; opacity: 0.8; line-height: 1.5; }
+body:not(.drpg-theme-stained-glass) .drpg-kit-empty { font-size: var(--drpg-kit-notice-sm-size); }
+
+/* ---- The notice history (E81 C7; on the kit since E44 C5, the 11.10 amend A7): the window's own parts, moved here
+   from danganronpa.css, stained-glass.css and narrow.css with their look. Its chips, foot, empty line and scroll
+   signal are the kit's (above); what is left is the search, the unread banner, the new-entries pill, the list's
+   groups and entries, and a kept card's body (`.drpg-notice-snapshot`: never a `.drpg-popup`, which the scenarios
+   count cards by). The seam of an entry is its tone's or its source's colour, a token per theme. Under the glass its
+   sweeps give the type (`!important`), so a size here is Legacy's; what lost to the glass under 1.2.98 is not stated
+   for it (R1331 holds every declaration here to win). ---- */
+.drpg-notices-body [hidden] { display: none; }
+.drpg-notices-search { display: flex; }
+.drpg-notices-search input { flex: 1; height: 28px; padding: 0 8px; font: inherit; }
+/* the ink under the glass is its field rule's */
+body:not(.drpg-theme-stained-glass) .drpg-notices-search input { font-size: var(--drpg-kit-notice-sm-size); color: inherit; }
+.drpg-notices-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 5px 8px;
+    border-left: 3px solid var(--drpg-kit-notice-banner-edge);
+    background: var(--drpg-kit-notice-banner-bg);
+}
+body:not(.drpg-theme-stained-glass) .drpg-notices-banner { font-size: var(--drpg-kit-notice-sm-size); }
+/* The window's chips, the banner's and a card's buttons and the new-entries pill keep E81's compact size in both
+   themes: written at 0,7,2 against the glass's button brush (later, so the tie is this sheet's), where E81 wrote
+   `!important`. A pill's corners under the glass are its sweep's (`!important`). */
+body .application.drpg-ui.drpg-panel .drpg-notices-body > .drpg-chips > button.drpg-chip[type="button"] { height: 24px; padding: 0 8px; }
+body .application.drpg-ui.drpg-panel .drpg-notices-body > .drpg-notices-banner > button[type="button"][data-drpg-do],
+body .application.drpg-ui.drpg-panel .drpg-notice-more > button.drpg-notice-conversation[type="button"][data-drpg-do] { flex: 0 0 auto; height: 24px; padding: 0 8px; }
+body:not(.drpg-theme-stained-glass) .drpg-ui :is(.drpg-notices-banner button, .drpg-notice-conversation) { font-size: var(--drpg-kit-notice-xs-size); }
+body .application.drpg-ui.drpg-panel .drpg-notices-body > button.drpg-notices-new[type="button"][data-drpg-do] { align-self: center; height: 22px; padding: 0 10px; }
+body:not(.drpg-theme-stained-glass) .drpg-ui .drpg-notices-new { border-radius: 11px; font-size: var(--drpg-kit-notice-xs-size); }
+.drpg-notices-list { display: flex; flex-direction: column; gap: 4px; padding-right: 2px; }
+/* a group's heading: under the glass its panel heading rule's case, spacing and rule */
+.drpg-notices-group { margin: 6px 0 1px; line-height: 1.3; opacity: 0.75; }
+body:not(.drpg-theme-stained-glass) .drpg-notices-group { border: 0; text-transform: uppercase; letter-spacing: 0.08em; line-height: 1.3; font-size: var(--drpg-kit-notice-xs-size); }
+details.drpg-notices-fold > summary { cursor: pointer; text-transform: uppercase; letter-spacing: 0.08em; line-height: 1.3; opacity: 0.75; padding: 4px 0; }
+body:not(.drpg-theme-stained-glass) details.drpg-notices-fold > summary { font-size: var(--drpg-kit-notice-xs-size); }
+details.drpg-notice-entry {
+    --drpg-kit-seam: var(--drpg-kit-notice-seam);
+    border-left: 3px solid var(--drpg-kit-seam);
+    background: var(--drpg-kit-notice-entry-bg);
+    padding: 5px 8px;
+}
+details.drpg-notice-entry > summary { list-style: none; display: grid; grid-template-columns: 14px 1fr auto; gap: 1px 7px; align-items: start; cursor: pointer; }
+details.drpg-notice-entry > summary::-webkit-details-marker { display: none; }
+.drpg-notice-glyph {
+    width: 12px;
+    height: 12px;
+    margin-top: 2px;
+    background: currentColor;
+    opacity: 0.85;
+    -webkit-mask: var(--drpg-px-mask) center / contain no-repeat;
+    mask: var(--drpg-px-mask) center / contain no-repeat;
+    --drpg-px-mask: var(--drpg-px-note);
+}
+.drpg-src-public .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-bell); }
+.drpg-src-player .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-team); }
+.drpg-src-messenger .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-chat); }
+.drpg-src-evidence .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-bullet); }
+.drpg-src-summary .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-calendar); }
+.drpg-src-safeword .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-shield); }
+.drpg-src-notDone .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-checklist); }
+.drpg-notice-title { line-height: 1.3; overflow-wrap: anywhere; }
+body.drpg-theme-stained-glass .drpg-notice-title { letter-spacing: 0.02em; }
+/* under the glass the weight is its type sweep's */
+body:not(.drpg-theme-stained-glass) .drpg-notice-title { font-weight: 700; font-size: var(--drpg-kit-notice-sm-size); }
+.drpg-notice-time { opacity: 0.75; font-variant-numeric: tabular-nums; white-space: nowrap; }
+body:not(.drpg-theme-stained-glass) .drpg-notice-time { font-size: var(--drpg-kit-notice-xs-size); }
+.drpg-notice-text {
+    grid-column: 2 / 4;
+    line-height: 1.3;
+    opacity: 0.85;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+body:not(.drpg-theme-stained-glass) .drpg-notice-text { font-size: var(--drpg-kit-notice-sm-size); }
+details.drpg-notice-entry[open] .drpg-notice-text { -webkit-line-clamp: unset; }
+.drpg-notice-tags { grid-column: 2 / 4; display: flex; flex-wrap: wrap; gap: 6px; opacity: 0.8; }
+body:not(.drpg-theme-stained-glass) .drpg-notice-tags { font-size: var(--drpg-kit-notice-xs-size); }
+.drpg-notice-tags span { border: 1px solid var(--drpg-kit-notice-edge); padding: 0 5px; }
+.drpg-notice-entry.is-unread .drpg-notice-title::before {
+    content: "";
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-right: 6px;
+    border-radius: 50%;
+    background: var(--drpg-kit-notice-dot);
+    vertical-align: 1px;
+}
+.drpg-notice-entry.is-deleted :is(.drpg-notice-title, .drpg-notice-text) { text-decoration: line-through; opacity: 0.6; }
+.drpg-notice-entry.drpg-tone-hope { --drpg-kit-seam: var(--drpg-kit-notice-seam-hope); }
+.drpg-notice-entry.drpg-tone-fear { --drpg-kit-seam: var(--drpg-kit-notice-seam-fear); }
+.drpg-notice-entry.drpg-tone-critical { --drpg-kit-seam: var(--drpg-kit-notice-seam-critical); }
+.drpg-notice-entry.drpg-src-evidence { --drpg-kit-seam: var(--drpg-kit-notice-seam-evidence); }
+.drpg-notice-entry:is(.drpg-src-notDone, .drpg-src-safeword) { --drpg-kit-seam: var(--drpg-kit-notice-seam-alarm); }
+.drpg-notice-more { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+/* A kept card's body, as its card drew it, within the entry. */
+.drpg-notice-snapshot {
+    align-self: stretch;
+    margin: 6px 0 2px;
+    padding: 6px 8px;
+    border: 1px dashed var(--drpg-kit-notice-edge);
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+body:not(.drpg-theme-stained-glass) .drpg-notice-snapshot { font-size: var(--drpg-kit-notice-sm-size); }
+.drpg-notice-snapshot :is(p, ul, ol, dl, blockquote, table) { margin: 0 0 4px; }
+.drpg-notice-snapshot img { max-width: 100%; height: auto; }
+.drpg-notice-snapshot :is(td, th) { padding: 2px 4px; border-bottom: 1px solid var(--drpg-kit-notice-edge); }
+.drpg-notice-clipped { margin: 0; opacity: 0.8; }
+body:not(.drpg-theme-stained-glass) .drpg-notice-clipped { font-size: var(--drpg-kit-notice-xs-size); }
+.drpg-notices-unsaved { margin: 0 auto 0 0; opacity: 0.8; }
+/* A touch screen's buttons a finger's height (E81 C7). */
+@media (pointer: coarse) {
+    body .drpg-ui :is(.drpg-chips > button.drpg-chip, .drpg-notices-banner button, .drpg-kit-footer button, .drpg-notice-conversation) { min-height: 44px; }
+}
+/* On a stacked screen (narrow.css's until C5): the chips in one row that scrolls sideways, the time under the title. */
+body.drpg-stacked .drpg-ui .drpg-notices-body > .drpg-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+body.drpg-stacked .drpg-ui .drpg-notices-body > .drpg-chips > button.drpg-chip { flex: 0 0 auto; }
+body.drpg-stacked details.drpg-notice-entry > summary { grid-template-columns: 14px 1fr; }
+body.drpg-stacked .drpg-notice-time { grid-column: 2; grid-row: 2; }
+body.drpg-stacked :is(.drpg-notice-text, .drpg-notice-tags) { grid-column: 2; }
