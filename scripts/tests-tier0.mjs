@@ -20234,6 +20234,105 @@ const REGRESSIONS = [
         for (const e of windowEntries) if (!named.has(e.id)) words.push(`${e.id}: a window name from E44 that no card of windows.md names`);
         equal(JSON.stringify(words), "[]", "[the window names of windows.md against the glossary and the lang files]");
     }],
+    ["R1335 - every window has a `.drpg-ui` root (E44 C7b; E44-23, the plan's verify, S17-34): every DialogV2 call and every ApplicationV2 class of scripts/ goes through ui-kit.mjs - `drpgWindow` or a `DrpgApp()` class - and the census of those that do not is E21's list; the notice history, which E44 moved, is a DrpgApp", async () => {
+        /*
+         * E44 C7b, 04.11.2026. The kit's frame (drpgWindow, DrpgApp: `drpg-ui` on the root, the screen's height, one
+         * scrolling body, the footer by the button roles) is E44's; moving every other window onto it is E21's (the plan:
+         * "E21 moves the windows onto drpgWindow"), which takes this marker off when the census below is empty. A window
+         * is counted where the code opens it: a DialogV2 call (`DialogV2.wait`, `.confirm`, `.prompt`, `.query`,
+         * `.input`, `new DialogV2`) or a class extending ApplicationV2 - so utils.mjs's `tableDialog`, which 17 windows
+         * open, is one site, as call-pickers.mjs's `callWindow` is. ui-kit.mjs's own are the kit. Read at C7b's tree: 124
+         * DialogV2 calls and 5 classes, 126 sites outside the kit in 54 files (the notice history's Clear question among
+         * them). E44 C6 moves the two Foundry tools frames and the narrow description window, which this census then
+         * stops counting.
+         */
+        const SITE = /\b(?:new\s+(?:[\w$]+\.)*DialogV2\s*\(|DialogV2\s*\.\s*(?:wait|confirm|prompt|query|input)\s*\()/g;
+        const CLASS = /\bclass(?:\s+[\w$]+)?\s+extends\s+([^{]+?)\s*\{/g;
+        const outside = new Map(), kit = [];
+        let sites = 0;
+        for (const [file, text] of await otherSources()) {
+            const blank = blankLiterals(blankComments(text));
+            const add = what => {
+                sites++;
+                if (file === "ui-kit.mjs") kit.push(`${file} ${what}`);
+                else outside.set(file, (outside.get(file) ?? 0) + 1);
+            };
+            for (const m of blank.matchAll(SITE)) add("DialogV2");
+            for (const m of blank.matchAll(CLASS)) {
+                if (!/ApplicationV2|DialogV2|ApplicationMixin|DrpgApp\(\)/.test(m[1])) continue;
+                if (/^DrpgApp\(\)$/.test(m[1].trim())) { kit.push(`${file} DrpgApp`); sites++; continue; }
+                add(m[1].trim());
+            }
+        }
+        must(sites >= 100, `only ${sites} window(s) were read in scripts/ - this would measure too little`);
+        ok(kit.includes("ui-kit.mjs DialogV2") && kit.some(k => /^ui-kit\.mjs .*ApplicationV2/.test(k)),
+            "ui-kit.mjs opens no DialogV2 or builds no ApplicationV2 - the kit's frame was not found");
+        ok(kit.includes("notice-history-app.mjs DrpgApp"), "the notice history (E44 C5) is no DrpgApp class");
+        const list = [...outside].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([f, n]) => `${f} ${n}`);
+        const total = [...outside.values()].reduce((a, b) => a + b, 0);
+        equal(JSON.stringify(list), "[]", `the windows outside the kit, which E21 moves: ${total} in ${outside.size} file(s)`);
+    }, expectedRed("E21", "E21 moves every other window onto drpgWindow or DrpgApp and deletes its old frame rules; the census of the windows outside the kit is its list, and E21 takes this marker off when it is empty", { failing: "the windows outside the kit, which E21 moves" })],
+    ["R1336 - every footer button names a role of BUTTON_ROLES (E44 C7b; E44-23): a kit footer (`drpgWindow`'s `footer`, `footerMarkup`, `footerButtons`) places its buttons only in a role's slot, and every DialogV2 footer outside the kit names a role on each button - the census of those that do not is E22's list", async () => {
+        /*
+         * E44 C7b, 04.11.2026. E44 writes the table of button roles (ui-kit.mjs BUTTON_ROLES: primary, gmRoute, close,
+         * cancel, secondary, destructive) and uses it in what it moved; E22 gives every other button its role (the plan:
+         * "E22 fills the button-role table"), which takes this marker off. A kit footer names its buttons by the slot
+         * each stands in, so its keys must be roles (and `default`). A DialogV2 footer outside the kit is Foundry's
+         * `buttons`: a button names a role there only by the role's class (`drpg-role-...`), which is what the kit's
+         * own DialogV2 footer writes. `confirm` with no buttons of its own draws two (yes, no) and `prompt` one, none with
+         * a role; a footer built in code (`buttons: list`) or a config passed whole is counted as a footer read as
+         * naming none, since nothing in its call says otherwise. An ApplicationV2 window's own markup (the handbooks,
+         * the messenger, the room's window) is not read here: E21 moves those onto DrpgApp's footer. Read at C7b's tree:
+         * 233 buttons in literal arrays and the defaults of confirm and prompt, none with a role's class, and 10 footers
+         * built in code or passed whole - 243 in 52 files; one kit footer outside ui-kit.mjs, the notice history's
+         * (destructive, close).
+         */
+        const kitText = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/ui-kit.mjs`).then(lfText));
+        const table = bodyOf(kitText, "export const BUTTON_ROLES = Object.freeze({", { until: "\n});" });
+        const roles = [...table.matchAll(/^\s+(\w+): Object\.freeze\(/gm)].map(m => m[1]);
+        must(roles.length >= 6, `BUTTON_ROLES reads ${roles.length} role(s) - the table was not found`);
+        equal(JSON.stringify(roles), JSON.stringify(["primary", "gmRoute", "close", "cancel", "secondary", "destructive"]), "[BUTTON_ROLES's roles]");
+        const slots = new Set(["primary", "gmRoute", "close", "secondary", "destructive", "default"]);
+        const SITE = /\bDialogV2\s*\.\s*(wait|confirm|prompt|query|input)\s*\(|\bnew\s+(?:[\w$]+\.)*DialogV2\s*\(/g;
+        const KIT = /\b(?:(?:footerMarkup|footerButtons)\s*\(\s*|footer\s*:\s*)\{/g;
+        const keysOf = (blank, open) => {
+            const { args } = callArgs(blank, open);
+            return args.map(a => /^\s*([\w$]+)\s*:/.exec(blank.slice(a.start, a.end))?.[1] ?? "(spread)");
+        };
+        const noRole = new Map(), wrongSlot = [];
+        let buttons = 0, kitFooters = 0;
+        const count = (file, n) => noRole.set(file, (noRole.get(file) ?? 0) + n);
+        for (const [file, text] of await otherSources()) {
+            if (file === "ui-kit.mjs") continue;
+            const blank = blankLiterals(blankComments(text));
+            for (const m of blank.matchAll(KIT)) {
+                kitFooters++;
+                for (const k of keysOf(blank, m.index + m[0].length - 1)) if (!slots.has(k)) wrongSlot.push(`${file}: a kit footer's "${k}"`);
+            }
+            for (const m of blank.matchAll(SITE)) {
+                const { args } = callArgs(blank, m.index + m[0].length - 1);
+                const cfg = args[0] ? blank.slice(args[0].start, args[0].end) : "";
+                const list = /\bbuttons\s*:\s*\[/.exec(cfg);
+                if (list) {
+                    const open = args[0].start + list.index + list[0].length - 1;
+                    for (const b of callArgs(blank, open).args) {
+                        buttons++;
+                        if (!/\bdrpg-role-/.test(text.slice(b.start, b.end))) count(file, 1);
+                    }
+                } else if (m[1] === "confirm" || m[1] === "prompt") {
+                    const n = m[1] === "confirm" ? 2 : 1;
+                    buttons += n;
+                    count(file, n);
+                } else count(file, 1);
+            }
+        }
+        must(buttons >= 100, `only ${buttons} footer button(s) were read in scripts/ - this would measure too little`);
+        ok(kitFooters >= 1, "no kit footer was read outside ui-kit.mjs (the notice history's, E44 C5)");
+        equal(JSON.stringify(wrongSlot), "[]", "[kit footers holding a button in no role's slot]");
+        const list = [...noRole].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([f, n]) => `${f} ${n}`);
+        const total = [...noRole.values()].reduce((a, b) => a + b, 0);
+        equal(JSON.stringify(list), "[]", `the footer buttons that name no role, which E22 gives one: ${total} in ${noRole.size} file(s)`);
+    }, expectedRed("E22", "E22 fills the button-role table: every footer button of the module gets a role of BUTTON_ROLES, D11's red only for the GM's road; the census of the buttons that name none is its list, and E22 takes this marker off when it is empty", { failing: "the footer buttons that name no role, which E22 gives one" })],
 ];
 
 
