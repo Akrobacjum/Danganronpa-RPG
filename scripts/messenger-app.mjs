@@ -21,7 +21,7 @@
 import { MODULE_ID, PRICE_CHAINS, PROJECT_SCALE } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { gmIds, ownerOf, whisperToGms, error, debug, warn, wholeNumber, localeFormat, markLanguage } from "./utils.mjs";
-import { kitTabBar, wireKitTabs } from "./ui-kit.mjs";
+import { kitTabBar, wireKitTabs, stepper, stepperId } from "./ui-kit.mjs";
 import { showPopup } from "./popup.mjs";
 import {
     MESSENGER_FLAGS, THREAD_KIND,
@@ -428,12 +428,13 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
      * covered it or however long the browser's tab had been hidden: a GM's badge went out on a request nobody saw.
      * Seen now means the window drawn, on its Chat tab, the frontmost window (`ui.activeWindow`) and the page
      * visible; a message that comes otherwise raises its card (the hook below) and is read when the window is
-     * brought forward, switched to Chat or shown again. A window minimised is not reachable (no-collapse.mjs).
-     * What sets `ui.activeWindow` on v14 is LIVE-E50-01: the harness sets it on a first render and on
-     * `bringToFront`, and clears it on close.
+     * brought forward, switched to Chat or shown again. A window folded to its title bar is not seen either (E44
+     * C4b, 04.11.2026: no-collapse.mjs blocked the title bar's double-click until then, the owner's Q-E44-1 lifted the
+     * block), and reads what came when it is opened again (`maximize`, below). What sets `ui.activeWindow` on v14 is
+     * LIVE-E50-01: the harness sets it on a first render and on `bringToFront`, and clears it on close.
      */
     seesThread() {
-        return Boolean(this.rendered) && this.tab === "chat" && ui.activeWindow === this
+        return Boolean(this.rendered) && !this.minimized && this.tab === "chat" && ui.activeWindow === this
             && document.visibilityState === "visible";
     }
 
@@ -443,6 +444,13 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
 
     bringToFront() {
         const out = super.bringToFront();
+        this.markIfSeen();
+        return out;
+    }
+
+    /** Opened again from its title bar: what came while it was folded is in front of the reader now (`seesThread`). */
+    async maximize() {
+        const out = await super.maximize();
         this.markIfSeen();
         return out;
     }
@@ -769,8 +777,8 @@ function settled(key) {
 /** What a Tier 0 item turned out to do: up to three numbers and a tick. */
 async function askItemEffect(item) {
     const DialogV2 = foundry.applications.api.DialogV2;
-    const field = (name, key) => `<label>${game.i18n.localize(key)}
-        <input type="number" name="${name}" min="0" max="12" step="1" value="0"></label>`;
+    const field = (name, key) => { const id = stepperId(); return `<label for="${id}">${game.i18n.localize(key)}
+        ${stepper({ name, value: 0, min: 0, max: 12, step: 1, id })}</label>`; };
     return DialogV2.wait({
         classes: ["drpg-panel"],
         window: { title: game.i18n.format("DRPG.Items.effectTitle", { item: item.name }) },

@@ -23136,14 +23136,17 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ pl: shape(page), en: shape(page) }),
             `[the bubble's time with Foundry's language Polish, then English, on a page built in "${page}"]`);
     }],
-    ["R1061 - a messenger window marks its thread read only when it shows it to its reader: drawn, on the Chat tab, the frontmost window and the page visible, and neither a render nor a new bubble marks it without asking (E50 C1; S11-37, E50-01)", async () => {
+    ["R1061 - a messenger window marks its thread read only when it shows it to its reader: drawn, on the Chat tab, the frontmost window, not folded to its title bar and the page visible, and neither a render nor a new bubble marks it without asking, while opening it again from its bar asks (E50 C1; S11-37, E50-01; E44 C4b)", async () => {
         /*
          * E50 C1, 30.10.2026; audit S11-37 (E50-01; Q-E50-2's default). `_onRender` marked the thread read on every
          * render, the Note tab's too, and `appendMessage` on every bubble, whatever covered the window or however long
          * the page had been hidden: a GM's badge went out on a request nobody saw. `seesThread` is read on stand-ins
          * for the sixteen combinations of drawn, tab, in front and page visible (true for the one with all four), with
          * `ui.activeWindow` and `document.visibilityState` stood in and put back; and the two bodies, comments stripped,
-         * hold no bare `markThreadRead(`. Red at 419d3b42: no `seesThread`, and both bodies called it.
+         * hold no bare `markThreadRead(`. Red at 419d3b42: no `seesThread`, and both bodies called it. E44 C4b,
+         * 04.11.2026: a window can be folded to its title bar again (no-collapse.mjs gone, the owner's Q-E44-1), so the
+         * stand-ins are read folded too (`minimized`), and `maximize` reads what came meanwhile. Red at C4b's parent: a
+         * folded window counted as seeing, and `maximize` was Foundry's own.
          */
         const M = await import("./messenger-app.mjs");
         const sees = M.DrpgMessengerApp.prototype.seesThread;
@@ -23155,10 +23158,10 @@ const INVARIANTS = [
             try {
                 for (const visible of [true, false]) {
                     Object.defineProperty(document, "visibilityState", { configurable: true, get: () => visible ? "visible" : "hidden" });
-                    for (const rendered of [true, false]) for (const tab of ["chat", "note"]) for (const front of [true, false]) {
-                        const app = { rendered, tab };
+                    for (const rendered of [true, false]) for (const tab of ["chat", "note"]) for (const front of [true, false]) for (const minimized of [false, true]) {
+                        const app = { rendered, tab, minimized };
                         ui.activeWindow = front ? app : other;
-                        if (sees.call(app)) read.push([rendered, tab, front, visible]);
+                        if (sees.call(app)) read.push([rendered, tab, front, visible, minimized]);
                     }
                 }
             } finally {
@@ -23170,9 +23173,10 @@ const INVARIANTS = [
         for (const [marker, until] of [["_onRender(_context, _options) {", "\n    }\n"], ["appendMessage(message) {", "\n    }\n"]]) {
             read.push([marker, /\bmarkThreadRead\s*\(/.test(bodyOf(src, marker, { until }))]);
         }
-        equal(stableJson(read), stableJson([[true, "chat", true, true],
-            ["_onRender(_context, _options) {", false], ["appendMessage(message) {", false]]),
-            "[each combination of drawn, tab, in front and visible that seesThread calls seen; whether _onRender, then appendMessage, calls markThreadRead itself]");
+        read.push(["async maximize() {", src.includes("async maximize() {") && /\bthis\.markIfSeen\(\)/.test(bodyOf(src, "async maximize() {", { until: "\n    }\n" }))]);
+        equal(stableJson(read), stableJson([[true, "chat", true, true, false],
+            ["_onRender(_context, _options) {", false], ["appendMessage(message) {", false], ["async maximize() {", true]]),
+            "[each combination of drawn, tab, in front, visible and folded that seesThread calls seen; whether _onRender, then appendMessage, calls markThreadRead itself; whether maximize reads what came]");
     }],
     ["R1062 - a failed send keeps the words in the messenger's field and says so once; a send that lands empties it (E50 C1; S11-38, E50-03)", async () => {
         /*
@@ -27502,21 +27506,23 @@ const INVARIANTS = [
     }],
     ["R1521 - a number field's - and + say the step they move by, \"One more / One fewer\" only at a step of 1 (E20 C6, E20-22; S01-48)", async () => {
         /*
-         * E20 C6, 30.10.2026. The harm (S01-48): the debate length's field moves by 10 (trial-floor-ui.mjs, step="10"),
-         * and its buttons said "One more" and "One fewer". Read: chrome.mjs `stepLabels` over fields of step 10, 1,
-         * none, 0.5 and "any", and, with comments blanked, the stepper taking its labels from it. Nothing is written.
-         * Red at the parent: the function was not exported.
+         * E20 C6, 30.10.2026. The harm (S01-48): the debate length's field moves by 10 (trial-floor-ui.mjs, step 10),
+         * and its buttons said "One more" and "One fewer". Read: `stepLabels` over fields of step 10, 1, none, 0.5 and
+         * "any", and, with comments blanked, the stepper taking its labels from it. Nothing is written. Red at the
+         * parent: the function was not exported. E44 C4b, 04.11.2026: `stepLabels` moved from chrome.mjs to ui-kit.mjs
+         * with the one number control (chrome.mjs `dressNumberField` is gone), so it is read there, the kit's `stepper`
+         * is the one that asks it, and the debate length is a `stepper({ name: "seconds", ... step: 10 })`.
          */
-        let C = null;
-        try { C = await import("./chrome.mjs"); } catch { C = null; }
+        let K = null;
+        try { K = await import("./ui-kit.mjs"); } catch { K = null; }
         const field = step => { const input = document.createElement("input"); input.type = "number"; if (step !== null) input.step = step; return input; };
-        const labels = typeof C?.stepLabels === "function"
-            ? ["10", "1", null, "0.5", "any"].map(step => { const l = C.stepLabels(field(step)); return [l.down, l.up]; }) : null;
+        const labels = typeof K?.stepLabels === "function"
+            ? ["10", "1", null, "0.5", "any"].map(step => { const l = K.stepLabels(field(step)); return [l.down, l.up]; }) : null;
         const sources = new Map(await otherSources());
-        const chrome = stripComments(sources.get("chrome.mjs") ?? ""), floor = sources.get("trial-floor-ui.mjs") ?? "";
-        must(chrome.length && floor.length, "chrome.mjs or trial-floor-ui.mjs is not among the module's sources - this would measure nothing");
+        const kit = stripComments(sources.get("ui-kit.mjs") ?? ""), floor = stripComments(sources.get("trial-floor-ui.mjs") ?? "");
+        must(kit.length && floor.length, "ui-kit.mjs or trial-floor-ui.mjs is not among the module's sources - this would measure nothing");
         const one = [game.i18n.localize("DRPG.Look.stepDown"), game.i18n.localize("DRPG.Look.stepUp")];
-        equal(stableJson({ labels, dress: fnSource(chrome, "dressNumberField").includes("stepLabels("), debate: /name="seconds"[^>]*step="10"/.test(floor) }), stableJson({
+        equal(stableJson({ labels, dress: fnSource(kit, "stepper").includes("stepLabels("), debate: /stepper\(\{\s*name:\s*"seconds"[^}]*\bstep:\s*10\b/.test(floor) }), stableJson({
             labels: [["-10", "+10"], one, one, ["-0.5", "+0.5"], one], dress: true, debate: true
         }), "the stepper's buttons say a step of one whatever the field moves by [the labels for step 10, 1, none, 0.5, any | the stepper reads "
             + "them | the debate length moves by 10]");
@@ -32895,17 +32901,17 @@ const INVARIANTS = [
         const message = [host.querySelector(".drpg-field-msg")?.textContent, input.getAttribute("aria-invalid")];
         equal(stableJson({
             label: [host.querySelector("label")?.getAttribute("for"), input.id, host.querySelector("label > span")?.textContent],
-            input: [input.name, input.min, input.max, input.step, input.dataset.drpgChrome],
+            input: [input.name, input.min, input.max, input.step, input.hasAttribute("data-drpg-chrome")],
             words: [one.querySelector('[data-drpg-step="-1"]')?.getAttribute("aria-label"), plus.getAttribute("aria-label"), two.querySelector('[data-drpg-step="1"]')?.getAttribute("aria-label")],
             atTop, message,
             reads: [K.readStepper(one), K.readStepper(input), (input.value = "2.7", K.readStepper(input)), (input.value = "-5", K.readStepper(input)), (input.value = "", K.readStepper(input, { fallback: undefined }))]
         }), stableJson({
             label: ["r1320-step", "r1320-step", "Count"],
-            input: ["r1320", "0", "4", "1", "step"],
+            input: ["r1320", "0", "4", "1", false],
             words: [L("DRPG.Look.stepDown"), L("DRPG.Look.stepUp"), game.i18n.format("DRPG.Look.stepUpBy", { n: 10 })],
             atTop: ["4", 1], message: [game.i18n.format("DRPG.Look.atMost", { n: 4 }), "true"],
             reads: [4, 4, 2, 0, undefined]
-        }), "[the stepper's label (for, the input's id, its words); the input (name, min, max, step, chrome's mark); the - and + words, at a step of 10; plus pressed twice from 3 at max 4 (value, change events); 9 typed (the message, aria-invalid); readStepper on 9, 2.7, -5 and an empty field with no fallback]");
+        }), "[the stepper's label (for, the input's id, its words); the input (name, min, max, step, a chrome.mjs mark: none since C4b, chrome.mjs dresses no number field); the - and + words, at a step of 10; plus pressed twice from 3 at max 4 (value, change events); 9 typed (the message, aria-invalid); readStepper on 9, 2.7, -5 and an empty field with no fallback]");
 
         /* toggle, chip, box, emptyOption, modeBar. */
         const bits = document.createElement("div");
@@ -33188,6 +33194,132 @@ const INVARIANTS = [
         equal(JSON.stringify([picks, /@container\s*\(max-width:\s*40rem\)\s*\{\s*\.drpg-tables-layout\s*\{\s*grid-template-columns:\s*1fr/.test(css),
             /@media\s*\(max-width:\s*40rem\)\s*\{\s*\.drpg-tables-layout/.test(css)]), JSON.stringify([1, true, false]),
             "[the rules of `.drpg-table-pick > span:first-child`, the layout's `@container` collapse, an `@media` one] are not one, yes, no");
+    }],
+    ["R1327 - one number control in both themes (E44 C4b; E44-16, S10-66): a field drawn by ui-kit.mjs `stepper` in a module window, after chrome.mjs `dressChrome` (what Foundry's render hook runs on every window), steps by its own `step` inside its `min` and `max` on - and +, says under itself when a typed value is out of range, and its label points at the input, not at the minus; `dressChrome` wires it before its theme gate, so Monokuma Legacy gets the same control; and no module file but ui-kit.mjs makes a `drpg-step` element", async () => {
+        /*
+         * E44 C4b, 04.11.2026; audit S10-66. At 1.2.98 three number controls stood for the same data: chrome.mjs
+         * `dressNumberField` put a - and + round the module's twelve number fields under Stained Glass only ("Under
+         * Monokuma Legacy nothing in this file runs"), so under Legacy every one was the browser's spinner, and the kit's
+         * own stepper (C3a) was wired by `wireKit` alone, which no window of those twelve calls. Read here: a planted
+         * module window (two steppers, one inside a label of its own written as the twelve write theirs) handed to
+         * `dressChrome`, then pressed and typed into; and the source of `dressChrome`, comments stripped, for the wiring's
+         * place before `themeOn()` (the harness runs one theme; the other is not yet seen at a v14 table). Nothing is written. Red before
+         * C4b: `dressChrome` leaves a kit stepper alone (its input wore chrome.mjs's mark), so + did nothing, and chrome.mjs
+         * made its own `drpg-step` buttons.
+         */
+        const K = await import("./ui-kit.mjs");
+        const C = await import("./chrome.mjs");
+        must(typeof K.stepper === "function" && typeof C.dressChrome === "function", "ui-kit.mjs stepper or chrome.mjs dressChrome is missing - this would measure nothing");
+        const root = document.createElement("div");
+        root.className = "application dialog drpg-panel drpg-window-r1327";
+        const id = "r1327-day";
+        root.innerHTML = `<form><label for="${id}">Day ${K.stepper({ name: "r1327day", value: 2, min: 1, max: 3, step: 1, id })}</label>`
+            + `<div>${K.stepper({ name: "r1327len", value: 30, min: 30, max: 60, step: 10 })}</div></form>`;
+        document.body.append(root);
+        try {
+            C.dressChrome(root);
+            const [one, two] = root.querySelectorAll(".drpg-kit-stepper");
+            must(one && two, "the planted window drew no kit stepper - this would measure nothing");
+            const day = one.querySelector('input[type="number"]'), len = two.querySelector('input[type="number"]');
+            const press = (wrap, dir, times = 1) => { for (let i = 0; i < times; i++) wrap.querySelector(`button[data-drpg-step="${dir}"]`)?.click(); };
+            let changes = 0;
+            day.addEventListener("change", () => changes++);
+            press(one, "1", 3);
+            const up = [day.value, changes];
+            press(one, "-1", 5);
+            const down = day.value;
+            press(two, "1", 2);
+            const stepped = len.value;
+            press(two, "1", 2);
+            const capped = len.value;
+            day.value = "7";
+            day.dispatchEvent(new Event("input", { bubbles: true }));
+            const message = [one.nextElementSibling?.textContent ?? null, day.getAttribute("aria-invalid")];
+            const reads = [K.readStepper(one), (day.value = "-4", K.readStepper(day)), K.readStepper(two)];
+            const label = root.querySelector("label");
+            equal(stableJson({ up, down, stepped, capped, message, reads, label: [label.control === day, label.control?.tagName ?? null] }), stableJson({
+                up: ["3", 1], down: "1", stepped: "50", capped: "60",
+                message: [game.i18n.format("DRPG.Look.atMost", { n: 3 }), "true"], reads: [3, 1, 60], label: [true, "INPUT"]
+            }), "a kit stepper in a module window, after dressChrome [+ three times from 2 at max 3 (value, change events); - five times (value, at min 1); "
+                + "+ twice at a step of 10 from 30; twice more (at max 60); 7 typed (the message under it, aria-invalid); readStepper on 7 and -4 typed and on 60 "
+                + "(held to the input's own max and min); the label's control is the input]");
+        } finally {
+            root.remove();
+        }
+
+        const sources = new Map((await otherSources()).map(([file, raw]) => [file, stripComments(raw)]));
+        must(sources.size > 150, "the module's sources were not read - this would measure nothing");
+        const dress = fnSource(sources.get("chrome.mjs") ?? "", "dressChrome");
+        const wires = dress.indexOf("wireSteppers("), gate = dress.indexOf("themeOn()");
+        const makers = [...sources].filter(([file, text]) => file !== "ui-kit.mjs" && /(?<![\w-])drpg-step(?:per)?(?![\w-])|drpg-step-(?:minus|plus)/.test(text)).map(([file]) => file);
+        equal(stableJson({ before: wires >= 0 && gate > wires, makers }), stableJson({ before: true, makers: [] }),
+            "[dressChrome wires the kit's steppers before its theme gate; the module files other than ui-kit.mjs that make a stepper or its buttons]");
+    }],
+    ["R1328 - chrome.mjs dresses only the module's windows, and no window's collapse is blocked (E44 C4b; E44-17, S01-58, Q-E44-1 as the owner decided it): `dressChrome` on a window with no `drpg-` class (another module's or the system's, with a table of figures, a select and a number field) leaves it as it was, while the same table in a module window under Stained Glass gets its number columns; no module file adds a `dblclick` listener on `window` and no-collapse.mjs is gone; a double-click on a module window's title bar reaches the bar, not prevented", async () => {
+        /*
+         * E44 C4b, 04.11.2026; audit S01-58. chrome.mjs ran `dressTable` outside its `if (panel)` block, so a table in any
+         * ApplicationV2 - a Daggerheart sheet's, another module's - got `data-drpg-chrome` and `num` / `act` classes; and
+         * no-collapse.mjs blocked the title bar's double-click on every window frame in the client, the module's or not.
+         * The owner (Q-E44-1, 04.11.2026): no window's collapse is blocked. Read here: `dressChrome` on two planted
+         * windows built alike, one with the module's classes and one with none; the module's sources, comments stripped,
+         * for a `dblclick` listener on `window` and for no-collapse.mjs; and a double-click dispatched on a planted module
+         * window's header, registered with Foundry's instances for the moment of the click as no-collapse.mjs looked it
+         * up, then removed. Nothing in the world is written. Red before C4b: the foreign table dressed, the listener
+         * there, the click prevented and stopped before the bar.
+         */
+        const C = await import("./chrome.mjs");
+        const build = classes => {
+            const root = document.createElement("div");
+            root.className = classes;
+            root.innerHTML = `<section class="window-content"><table><thead><tr><th>Name</th><th>Hope</th><th></th></tr></thead><tbody>`
+                + `<tr><td>A</td><td>3</td><td><button type="button">Go</button></td></tr><tr><td>B</td><td>5</td><td><button type="button">Go</button></td></tr>`
+                + `</tbody></table><select name="r1328"><option>x</option></select><input type="number" name="r1328n" value="1"></section>`;
+            document.body.append(root);
+            return root;
+        };
+        const foreign = build("application sheet actor dh-character r1328-foreign");
+        const own = build("application dialog drpg-panel drpg-window-r1328");
+        const marks = root => [...root.querySelectorAll("[data-drpg-chrome], .num, .act, .drpg-select, .drpg-stepper, .drpg-kit-stepper")]
+            .map(el => `${el.tagName.toLowerCase()}${el.dataset.drpgChrome ? `[${el.dataset.drpgChrome}]` : ""}.${[...el.classList].join(".")}`);
+        let dressed;
+        try {
+            C.dressChrome(foreign);
+            C.dressChrome(own);
+            dressed = { foreign: marks(foreign), own: marks(own).filter(m => m.startsWith("table") || m.startsWith("td")).length > 0 };
+        } finally {
+            foreign.remove();
+            own.remove();
+        }
+        const glass = document.body.classList.contains("drpg-theme-stained-glass");
+
+        const sources = new Map((await otherSources()).map(([file, raw]) => [file, stripComments(raw)]));
+        must(sources.size > 150, "the module's sources were not read - this would measure nothing");
+        const listeners = [...sources].filter(([, text]) => /\bwindow\.addEventListener\(\s*["'`]dblclick/.test(text)).map(([file]) => file);
+        const gone = !sources.has("no-collapse.mjs") && !/no-collapse\.mjs|registerNoCollapse/.test(sources.get("module.mjs") ?? "no module.mjs");
+
+        const frame = document.createElement("div");
+        frame.className = "application drpg-panel drpg-window-r1328-frame";
+        frame.id = "r1328-frame";
+        frame.innerHTML = `<header class="window-header"><h1 class="window-title">R1328</h1></header><section class="window-content"></section>`;
+        document.body.append(frame);
+        const instances = foundry.applications.instances;
+        instances.set(frame.id, { id: frame.id, element: frame, minimized: false, rendered: true });
+        let reached = false, prevented = null;
+        const header = frame.querySelector(".window-header");
+        header.addEventListener("dblclick", () => { reached = true; });
+        try {
+            const event = new MouseEvent("dblclick", { bubbles: true, cancelable: true });
+            header.dispatchEvent(event);
+            prevented = event.defaultPrevented;
+        } finally {
+            instances.delete(frame.id);
+            frame.remove();
+        }
+        equal(stableJson({ dressed, listeners, gone, click: [reached, prevented] }), stableJson({
+            dressed: { foreign: [], own: glass }, listeners: [], gone: true, click: [true, false]
+        }), "[dressChrome's marks on a window with no drpg- class; a module window's table got its number columns (under Stained Glass; under Legacy "
+            + "chrome.mjs dresses no table); module files adding a dblclick listener on window; no-collapse.mjs and its registration gone; a double-click "
+            + "on a module window's title bar (reached the bar, prevented)]");
     }],
 ];
 

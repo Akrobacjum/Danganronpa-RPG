@@ -26,6 +26,7 @@
 import { MODULE_ID, OVERFLOW, TIMES_OF_DAY, ECLIPSE_MOVES } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { announce, log, debug, error, esc, isPrimaryGm, primaryGmId, serialWrite, plural, wholeNumber } from "./utils.mjs";
+import { stepper, stepperId } from "./ui-kit.mjs";
 import { HOPE_REFUND } from "./resource-guard.mjs";
 import { overflowStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
@@ -1139,10 +1140,11 @@ export function overflowSection({ suggestion = "" } = {}) {
         // Only some of the eight have a size. Despair, Silence and Fog are on
         // or off, and a spin box beside them would be a control that does
         // nothing - which is worse than no control at all.
+        const byId = stepperId();
         const size = rule.by === undefined ? "" : `
-            <label class="drpg-overflow-by">
+            <label class="drpg-overflow-by" for="${byId}">
                 <span>${esc(game.i18n.localize("DRPG.Overflow.amount"))}</span>
-                <input type="number" name="ovf-${key}-by" value="${rule.by}" min="0" max="${BY_MAX}">
+                ${stepper({ name: `ovf-${key}-by`, value: rule.by, min: 0, max: BY_MAX, id: byId })}
             </label>`;
 
         return `<li class="drpg-overflow-rule${status.effect === key ? " is-drawn" : ""}">
@@ -1161,6 +1163,7 @@ export function overflowSection({ suggestion = "" } = {}) {
         .filter(([, rule]) => rule.kind === "event").map(([key]) => key);
 
     const nowLine = overflowNowLine();
+    const thresholdId = stepperId();
 
     // An empty pool is a real setting and not an error, so it is stated where
     // the GM is looking rather than discovered when nothing ever fires.
@@ -1173,10 +1176,9 @@ export function overflowSection({ suggestion = "" } = {}) {
         <p class="notes drpg-overflow-now">${esc(nowLine)}</p>
         <p><button type="button" data-drpg-overflow-clear>${esc(game.i18n.localize("DRPG.Overflow.clear"))}</button></p>
 
-        <label class="drpg-overflow-threshold">
+        <label class="drpg-overflow-threshold" for="${thresholdId}">
             <span>${esc(game.i18n.localize("DRPG.Overflow.threshold"))}</span>
-            <input type="number" name="ovf-threshold" value="${status.threshold}"
-                   min="${min}" max="${max}">
+            ${stepper({ name: "ovf-threshold", value: status.threshold, min, max, id: thresholdId })}
         </label>
         ${suggestion ? `<p class="notes drpg-overflow-suggested">${esc(suggestion)}</p>` : ""}
         <p class="notes">${esc(game.i18n.format("DRPG.Overflow.thresholdHint", { min, max }))}</p>

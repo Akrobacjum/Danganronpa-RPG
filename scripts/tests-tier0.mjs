@@ -633,6 +633,59 @@ const REGRESSIONS = [
             "live.mjs does not carry the kit's tab across a rebuild (its bar's `data-drpg-tab-key` and `aria-selected`, its panes)");
     }],
 
+    ["R1329 - one empty option (E44 C4b; E44-18, S12-49): no module file writes an `<option value=\"\">` whose text is a bare `-`; the seven choices that had one draw it with ui-kit.mjs `emptyOption`, each with its own key, which reads \"- word -\" in both languages; and `emptyOption` keeps a placeholder's `selected` and `disabled`", async () => {
+        /*
+         * E44 C4b, 04.11.2026; audit S12-49. The empty choice of a select was written three ways: a bare "-" (seven
+         * selects: gm-stores.mjs's cast, investigation.mjs's Key Remnant, mastermind.mjs's lair, projects-ui.mjs's
+         * statistic and trap target, room-setup.mjs's owner, sound-panel.mjs's music rows), a key of the shape
+         * "- word -" (DRPG.Assign.nobody and five more) and a sentence. A bare "-" says nothing to a screen reader and
+         * nothing to a player about what choosing it means. Read from the source, comments stripped, and from both
+         * language files. Red before C4b: the seven.
+         */
+        const BARE = /<option\s+value=""[^>]*>\s*-\s*<\/option>/g;
+        const bare = [];
+        let read = 0;
+        for (const [file, raw] of await otherSources()) {
+            read++;
+            const n = (stripComments(raw).match(BARE) ?? []).length;
+            if (n) bare.push(`${file}: ${n}`);
+        }
+        must(read > 150, `${read} module file(s) read - this would measure too little`);
+        const SITES = [["gm-stores.mjs", "DRPG.Case.castNobody"], ["investigation.mjs", "DRPG.Investigation.noRemnant"],
+            ["mastermind.mjs", "DRPG.Mastermind.noLair"], ["projects-ui.mjs", "DRPG.Project.pickTrait"], ["projects-ui.mjs", "DRPG.Trap.noProject"],
+            ["room-setup.mjs", "DRPG.Vault.noOwner"], ["sound-panel.mjs", "DRPG.Music.notSet"]];
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const at = (tree, key) => key.split(".").reduce((node, part) => node?.[part], tree);
+        const off = [];
+        for (const [file, key] of SITES) {
+            const text = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+            if (!text.includes(`emptyOption("${key}"`)) off.push(`${file}: no emptyOption("${key}")`);
+            for (const code of ["en", "pl"]) {
+                const words = at(lang[code], key);
+                if (typeof words !== "string" || !/^- \S.*\S -$/.test(words)) off.push(`${key} ${code}: ${JSON.stringify(words ?? null)}`);
+            }
+        }
+        // A key whose whole text is a bare "-" is the same empty choice by another road (DRPG.Remnant.tieOpen, the Traces
+        // tab's "Tied to crime" not decided, found by C4b's screenshots).
+        const dashKeys = [];
+        const walk = (node, at, code) => {
+            if (typeof node === "string") { if (node.trim() === "-") dashKeys.push(`${at} ${code}`); return; }
+            for (const [k, v] of Object.entries(node ?? {})) walk(v, at ? `${at}.${k}` : k, code);
+        };
+        for (const code of ["en", "pl"]) walk(lang[code], "", code);
+        const K = await import("./ui-kit.mjs");
+        const select = document.createElement("select");
+        select.innerHTML = K.emptyOption("DRPG.Project.pickTrait", { selected: true, disabled: true }) + K.emptyOption("DRPG.Trap.noProject")
+            + `<option value="x">x</option>`;
+        const [first, second] = select.options;
+        equal(JSON.stringify({ bare, off, dashKeys, kit: [first.value, first.selected, first.disabled, first.textContent, second.disabled, second.hasAttribute("selected")] }), JSON.stringify({
+            bare: [], off: [], dashKeys: [], kit: ["", true, true, game.i18n.localize("DRPG.Project.pickTrait"), false, false]
+        }), "[the module files with a bare \"-\" option; the seven choices without their emptyOption key or with words not \"- word -\" (by language); "
+            + "the language keys whose whole text is a bare \"-\"; "
+            + "emptyOption's value, selected and disabled kept, its words, a plain one neither]");
+    }],
+
     ["R3 - every sound a card asks for is a sound that exists", async () => {
         /*
          * `onCreateChatMessage` reads `flags.danganronpa-rpg.sfx` and plays it.
@@ -3618,10 +3671,10 @@ const REGRESSIONS = [
 
         // AND THE RULE REACHES THE OTHER WINDOW WITH THE SAME CAP. A number input
         // whose value is out of range fails constraint validation, so Apply there
-        // submitted nothing at all.
+        // submitted nothing at all. E44 C4b (04.11.2026): the field is ui-kit.mjs's `stepper`, its cap the `max` it passes.
         const season = stripComments(sources.get("season-setup.mjs") ?? "");
-        const field = bodyOf(season, 'name="chapter"', { length: 240 });
-        ok(/max="\$\{Math\.max\(CHAPTERS_PER_SEASON/.test(field),
+        const field = bodyOf(season, 'stepper({ name: "chapter"', { length: 240 });
+        ok(/\bmax:\s*Math\.max\(CHAPTERS_PER_SEASON/.test(field),
             "the Season setup window still caps its chapter field at six");
     }],
 
@@ -3676,7 +3729,8 @@ const REGRESSIONS = [
 
         const mm = stripComments(sources.get("mastermind.mjs") ?? "");
         const box = bodyOf(mm, "function mastermindHopeBox(", { until: "function wireMastermindGive(" });
-        ok((box.match(/data-drpg-enter="\[data-drpg-give\]"/g) ?? []).length === 2,
+        // E44 C4b (04.11.2026): the amount is ui-kit.mjs's `stepper`, which writes the marker from its `attrs`.
+        ok((box.match(/data-drpg-enter="\[data-drpg-give\]"|"data-drpg-enter":\s*"\[data-drpg-give\]"/g) ?? []).length === 2,
             "both fields in the give-Hope row have to name the button - Enter in a select "
             + "submits exactly like Enter in a number");
         ok(/<button[^>]*type="button"[^>]*data-drpg-give/.test(box),
@@ -17511,7 +17565,7 @@ const REGRESSIONS = [
             "[handleRemnant's calls of noteDiscardTrace; after the trial's refusal, after the placed check; its line asks a player, a discard, and names the "
                 + "trace's student and subject; itemFindings' discard line asks takeDiscardTrace of the student and the held name before it stands; both exported]");
     }],
-    ["R1127 - every GM number field is read through utils.mjs `wholeNumber`: each `<input type=\"number\"` of the module's windows has its reader in this test's table, the reader is found and every line that reads the field's value asks `wholeNumber(`; a `type=\"number\"` that is no field is listed with its reason; `wholeNumber` is built on `clamp`, and despair.mjs `convertDespairToHope` takes the amount through it (E51 C7; E51-44, audit S10-61)", async () => {
+    ["R1127 - every GM number field is a kit stepper read through utils.mjs `wholeNumber`: each `stepper({ name` of the module's windows has its row in this test's table, the field keeps its name, the reader is found and every line that reads the field's value asks `wholeNumber(`; no module file but ui-kit.mjs writes an `<input type=\"number\"`, and a `type=\"number\"` that is no field is listed with its reason; `wholeNumber` is built on `clamp`, and despair.mjs `convertDespairToHope` takes the amount through it (E51 C7; E51-44, audit S10-61; E44 C4b, E44-16, S10-66)", async () => {
         /*
          * E51 C7, 31.10.2026; audit S10-61. The GM's number fields were read with `Number(v) || 1` and the like, so
          * `min="1" step="1"` held nothing a typed value did not: "Day -2" or "Day 2.5" went to the clock as typed in
@@ -17522,7 +17576,10 @@ const REGRESSIONS = [
          * source, so a new number field fails here until it gets a row. Not counted as readers: trial-floor-ui.mjs's
          * round window repaints its length from the field as typed (`field.value`, a read-out), and season-setup.mjs
          * `readDraft` carries the typed chapter across a reopen as a string (the write reads it in `readSeasonForm`).
-         * Comments blanked. Red at C7's parent: no `wholeNumber` in utils.mjs and no reader asks it.
+         * E44 C4b, 04.11.2026; audit S10-66: the twelve fields are drawn by ui-kit.mjs `stepper` (one control in both
+         * themes, chrome.mjs dressing none), so the census counts `stepper({` calls and the name each passes (a
+         * shorthand `name` is the template's `${name}`), and the readers are the same lines as before. Comments blanked.
+         * Red at C7's parent: no `wholeNumber` in utils.mjs and no reader asks it; at C4b's parent, the twelve bare inputs.
          */
         const src = new Map((await otherSources()).map(([file, raw]) => [file, stripComments(raw)]));
         must(src.size > 50, "the module's sources were not read - this would measure nothing");
@@ -17539,22 +17596,22 @@ const REGRESSIONS = [
             ["overflow.mjs", "ovf-threshold", /\[name="ovf-threshold"\]'\)\?\.value/g],
             ["season-setup.mjs", "chapter", /\bf\.chapter\.value\b/g],
             ["trial-floor-ui.mjs", "seconds", /\("form"\)\.seconds\.value\b/g],
-            ["trial-floor-ui.mjs", "seconds", /\[name=seconds\]"\)\?\.value/g],
-            // E44 C3a: the kit's stepper (ui-kit.mjs `stepper`), whose reader is `readStepper`; C4b moves the fields above onto it.
-            ["ui-kit.mjs", "${name}", /\bwholeNumber\(input\.value\b/g]
+            ["trial-floor-ui.mjs", "seconds", /\[name=seconds\]"\)\?\.value/g]
         ];
-        // A `type="number"` that is not a field of a window: its reason.
-        const LISTED = { "chrome.mjs": "the stepper's selector (`dress('input[type=\"number\"]')`): it dresses every number field and reads no value",
-            "ui-kit.mjs": "the kit stepper's selector (`NUMBER_FIELD`): readStepper finds its input by it, and the wiring's step and message read the value as chrome.mjs's do" };
-        const census = {}, listed = {};
+        // A `type="number"` that is not a window's field: its reason. ui-kit.mjs's `<input type="number"` is the stepper's own.
+        const LISTED = { "ui-kit.mjs": "the kit stepper's selector (`NUMBER_FIELD`): readStepper finds its input by it, and the wiring's step and message read the value" };
+        const names = {}, inputs = {}, listed = {};
         for (const [file, text] of src) {
-            const inputs = (text.match(/<input\s+type="number"/g) ?? []).length;
+            const calls = [...text.matchAll(/(?<!function )\bstepper\(\{\s*name(?:\s*:\s*([`"])(.*?)\1)?/g)].map(m => m[2] ?? "${name}");
+            if (calls.length) names[file] = calls.sort();
+            const raw = (text.match(/<input\s+type="number"/g) ?? []).length;
             const all = (text.match(/type="number"/g) ?? []).length;
-            if (inputs) census[file] = inputs;
-            if (all > inputs) listed[file] = all - inputs;
+            if (raw) inputs[file] = raw;
+            if (all > raw) listed[file] = all - raw;
         }
         const rows = {};
-        for (const [file] of FIELDS) rows[file] = (rows[file] ?? 0) + 1;
+        for (const [file, name] of FIELDS) (rows[file] ??= []).push(name);
+        for (const list of Object.values(rows)) list.sort();
         const unread = [], bare = [];
         for (const [file, name, reader] of FIELDS) {
             const text = src.get(file) ?? "";
@@ -17565,19 +17622,22 @@ const REGRESSIONS = [
                 if (!line.includes("wholeNumber(")) bare.push(`${file}:${lineAt(text, m.index)} ${name}`);
             }
         }
+        const kit = src.get("ui-kit.mjs") ?? "";
         const utils = src.get("utils.mjs") ?? "";
         const whole = topLevelFunction(utils, "wholeNumber");
         const convert = topLevelFunction(src.get("despair.mjs") ?? "", "convertDespairToHope") ?? "";
         must(convert.length > 200, "despair.mjs convertDespairToHope was not read - this would measure nothing of the donations' door");
         equal(JSON.stringify({
-            census: Object.fromEntries(Object.entries(census).sort()), listed: Object.fromEntries(Object.entries(listed).sort()), unread, bare,
+            names: Object.fromEntries(Object.entries(names).sort()), inputs, listed: Object.fromEntries(Object.entries(listed).sort()), unread, bare,
+            kit: /\bwholeNumber\(input\.value\b/.test(fnSource(kit, "readStepper")),
             whole: whole ? [/^export function wholeNumber\(/.test(whole), /\bclamp\(/.test(whole)] : null,
             convert: /\bwholeNumber\(amount\b/.test(convert)
         }), JSON.stringify({
-            census: Object.fromEntries(Object.entries(rows).sort()), listed: Object.fromEntries(Object.keys(LISTED).sort().map(f => [f, 1])), unread: [], bare: [],
-            whole: [true, true], convert: true
-        }), "[the number fields per file against FIELDS' rows; the type=\"number\" that are no field against LISTED; a field whose reader was not found; "
-            + "a line that reads a field's value and does not ask wholeNumber; wholeNumber exported and built on clamp; convertDespairToHope takes its amount through wholeNumber]");
+            names: Object.fromEntries(Object.entries(rows).sort()), inputs: { "ui-kit.mjs": 1 }, listed: Object.fromEntries(Object.keys(LISTED).sort().map(f => [f, 1])),
+            unread: [], bare: [], kit: true, whole: [true, true], convert: true
+        }), "[the steppers per file and the name each passes, against FIELDS' rows; the files writing an <input type=\"number\"; the type=\"number\" that are "
+            + "no field against LISTED; a field whose reader was not found; a line that reads a field's value and does not ask wholeNumber; readStepper "
+            + "reads through wholeNumber; wholeNumber exported and built on clamp; convertDespairToHope takes its amount through wholeNumber]");
     }],
 
     ["R1133 - the flows whose length is counted are FLOWS' flows: tests-flows.mjs `FLOW_LENGTHS` names Search, Observe, Analyze, the Hope Call, the Dynamic action, the Refund, the trial console's mode bar a mode at a time, the verdict and the Level Up, each once, each with what stands open when its count starts, and each part of a flow of FLOWS that names 88-flow-length among its scenarios (E51 C8; E51-49, audit S17-49)", async () => {

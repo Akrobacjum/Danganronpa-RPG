@@ -327,8 +327,9 @@ body .application.drpg-ui .drpg-box { padding: 0.4rem 0.6rem; margin: 0 0 8px; b
 body .application.drpg-ui .drpg-box[data-drpg-box="warning"] { border-left-color: var(--drpg-kit-warn-edge); background: var(--drpg-kit-warn-bg); }
 body .application.drpg-ui .drpg-box[data-drpg-box="secret"] { border-left-color: var(--drpg-kit-secret-edge); background: var(--drpg-kit-secret-bg); }
 
-/* ---- stepper: the input with its - and +, and its message line (chrome.mjs's dressed field, laid out by the kit in
-   both themes; the browser's arrows gone). ---- */
+/* ---- stepper: the input with its - and +, and its message line, in both themes and in every window that draws one (the
+   module's twelve number fields since E44 C4b, none of them a kit window yet: these rules ask no `.drpg-ui`); the
+   browser's arrows gone. ---- */
 .drpg-kit-stepper-label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .drpg-kit-stepper { display: inline-flex; align-items: stretch; gap: 0; }
 .drpg-kit-stepper > input[type="number"] { width: 5em; text-align: center; }
@@ -336,8 +337,8 @@ body .application.drpg-ui .drpg-box[data-drpg-box="secret"] { border-left-color:
 body:not(.drpg-theme-stained-glass) .drpg-kit-stepper > input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .drpg-kit-stepper > input[type="number"]::-webkit-inner-spin-button,
 .drpg-kit-stepper > input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-body .application.drpg-ui .drpg-kit-stepper > button.drpg-step { min-width: 2em; }
-body:not(.drpg-theme-stained-glass) .application.drpg-ui .drpg-kit-stepper > button.drpg-step { padding: 0 6px; }
+body .application .drpg-kit-stepper > button.drpg-step[data-drpg-step] { min-width: 2em; }
+body:not(.drpg-theme-stained-glass) .application .drpg-kit-stepper > button.drpg-step[data-drpg-step] { padding: 0 6px; }
 /* under the glass its own `.drpg-field-msg:empty` rule hides the empty line */
 body:not(.drpg-theme-stained-glass) .drpg-kit-stepper + .drpg-field-msg:empty { display: none; }
 
@@ -396,7 +397,7 @@ body:not(.drpg-theme-stained-glass) .application.drpg-ui .drpg-chips > button.dr
 /* ---- modeBar: one row of modes, the active one pressed (E70's trial console). The stepper's - and + take the
    same face; under the glass both are the glass's button brush. ---- */
 .drpg-mode-bar { display: flex; flex-wrap: wrap; gap: 4px; }
-body:not(.drpg-theme-stained-glass) .application.drpg-ui :is(.drpg-mode-bar, .drpg-kit-stepper) > button[type="button"] {
+body:not(.drpg-theme-stained-glass) .application :is(.drpg-ui .drpg-mode-bar, .drpg-kit-stepper) > button[type="button"] {
     color: var(--drpg-kit-btn-ink);
     background: var(--drpg-kit-btn-bg);
     border: 1px solid var(--drpg-kit-btn-edge);

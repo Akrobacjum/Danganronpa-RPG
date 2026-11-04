@@ -50,6 +50,7 @@ import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
 import { seasonEpoch, sameSeason, deathRecord, getSetting, SETTINGS } from "./settings.mjs";
 import { resolveThreshold, dialogContent, whisperToOwner, log, warn, plural, tableDialog, isPrimaryGm, wholeNumber } from "./utils.mjs";
+import { stepper } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 // Confusion's window is a Call window (E51 C2): call-pickers.mjs reaches this file only through a lazy import().
 import { callWindow, callHeader } from "./call-pickers.mjs";
@@ -761,7 +762,7 @@ export async function openMonocubDialog() {
             <td>${cub ? `${hope} / ${resourceMax(a, "hope")}` : "-"}</td>
             <td>${cub ? `
                 <select name="donor:${a.id}">${donors}</select>
-                <input type="number" name="amount:${a.id}" min="1" value="1" style="width:3.5em" />
+                ${stepper({ name: `amount:${a.id}`, value: 1, min: 1, attrs: { style: "width:3.5em" } })}
                 <button type="button" class="drpg-mini-button" data-drpg-give="${a.id}">
                     ${game.i18n.localize("DRPG.Monocub.give")}</button>` : "-"}</td>
             <td style="text-align:center">${cub ? `

@@ -58,6 +58,7 @@ import { foundryGivenBack, openGiveBackFoundry } from "./enforced.mjs";
 // The hall's report, the one the Scenes tab prints (E51 C8, the First session screen): trial-scene.mjs never reaches back here.
 import { scenesReportOf } from "./trial-scene.mjs";
 import { dialogContent, log, error, plural, workingScene, esc, wholeNumber, localeFormat } from "./utils.mjs";
+import { stepper, stepperId } from "./ui-kit.mjs";
 import { alreadyOpen, handOff, RAISED } from "./live.mjs";
 // Foundry's secret doors and the players' rulers (E80 C5): the doors as the map holds them, their
 // conversion, and the permissions in force where `core.permissions` names none.
@@ -795,15 +796,15 @@ export function raiseOpened(before, apps = foundry.applications.instances.values
  * rather than on the footer's Save (S01-19).
  */
 export function campaignFieldsHtml(clock, word) {
+    const chapterId = stepperId();
     return `<fieldset class="drpg-setup-campaign">
             <legend>${esc(game.i18n.localize("DRPG.Season.campaignBlock"))}</legend>
             <label>${esc(game.i18n.localize("DRPG.Season.campaignName"))}
                 <input type="text" name="campaignName" autofocus
                        value="${esc(clock?.campaignName ?? "")}"
                        placeholder="${esc(game.i18n.localize("DRPG.Season.campaignPlaceholder"))}" /></label>
-            <label>${esc(game.i18n.localize("DRPG.Season.chapter"))}
-                <input type="number" name="chapter" min="1" max="${Math.max(CHAPTERS_PER_SEASON, Number(clock?.chapter) || 1)}"
-                       value="${Number(clock?.chapter) || 1}" /></label>
+            <label for="${chapterId}">${esc(game.i18n.localize("DRPG.Season.chapter"))}
+                ${stepper({ name: "chapter", value: Number(clock?.chapter) || 1, min: 1, max: Math.max(CHAPTERS_PER_SEASON, Number(clock?.chapter) || 1), id: chapterId })}</label>
             <!--
               E15: the safeword, next to the campaign's name and not buried in a
               settings menu. It is a decision a table makes once, at the same

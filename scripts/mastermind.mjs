@@ -36,6 +36,7 @@ import { studentActors } from "./monokuma.mjs";
 // static imports do not include this file.
 import { feedsNobody } from "./assignments.mjs";
 import { announce, dialogContent, ownerOf, primaryGmId, isPrimaryGm, log, error, wholeNumber } from "./utils.mjs";
+import { stepper, emptyOption } from "./ui-kit.mjs";
 import { mastermindStore, doorCopy, mastermindUndecided } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
@@ -497,8 +498,7 @@ function mastermindHopeBox({ monokumas, donorLabel }) {
             held: mastermindActor()?.system?.resources?.hope?.value ?? 0
         })}</p>
         <select name="donor" data-drpg-enter="[data-drpg-give]">${buildDonors()}</select>
-        <input type="number" name="amount" min="1" value="1" style="width:4em"
-            data-drpg-enter="[data-drpg-give]" />
+        ${stepper({ name: "amount", value: 1, min: 1, attrs: { style: "width:4em", "data-drpg-enter": "[data-drpg-give]" } })}
         <button type="button" class="drpg-mini-button" data-drpg-give>
             ${game.i18n.localize("DRPG.Monocub.give")}</button>`;
 }
@@ -621,7 +621,7 @@ export async function openMastermindDialog() {
 
             <label>${game.i18n.localize("DRPG.Mastermind.lairLabel")}
                 <select name="lair">
-                    <option value="">-</option>
+                    ${emptyOption("DRPG.Mastermind.noLair")}
                     ${roomOptions}
                 </select></label>
             <p class="notes">${game.i18n.localize("DRPG.Mastermind.lairNote")}</p>

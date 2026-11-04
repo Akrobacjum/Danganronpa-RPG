@@ -1,15 +1,12 @@
 /**
- * Danganronpa RPG - the theme's own controls (theme "Stained Glass").
+ * Danganronpa RPG - the theme's own controls (theme "Stained Glass"), and the kit's number fields wired.
  * ---------------------------------------------------------------------------
- * Three of the audit's families cannot be finished in CSS alone, because what
+ * Two of the audit's families cannot be finished in CSS alone, because what
  * they need is one more element than the markup has:
  *
- *   - the number field's stepper. The audit page draws a pixel minus and plus
- *     beside the value and no browser arrows. `appearance: none` removes the
- *     arrows; nothing puts the two buttons there but code.
- *   - the select's glyph. Same story: the browser's arrow can be removed, and
- *     the sprite's `sort` glyph cannot be drawn on a `select` from a rule -
- *     it has no pseudo-elements to hang it on.
+ *   - the select's glyph. The browser's arrow can be removed, and the
+ *     sprite's `sort` glyph cannot be drawn on a `select` from a rule - it
+ *     has no pseudo-elements to hang it on.
  *   - the table's number columns. The theme has had `td.num { text-align:
  *     right }` since 1.2.18 and not one row anywhere in the module carries the
  *     class, so every table's figures were still ragged. Which columns hold
@@ -18,114 +15,30 @@
  *
  * Everything here is additive and idempotent: it decorates what a window has
  * already rendered, marks what it touched, and never rewrites a value. The
- * input keeps its name, its value and its form, so Foundry's own form handling
+ * select keeps its name, its value and its form, so Foundry's own form handling
  * reads exactly what it read before.
  *
- * Under "Monokuma Legacy" nothing in this file runs.
+ * ONLY THE MODULE'S WINDOWS (E44 C4b, 04.11.2026; audit S01-58): a select and a
+ * table are dressed inside a `.drpg-panel` and nowhere else. Until C4b the
+ * tables were dressed outside that branch, so a Daggerheart sheet's table or
+ * another module's got `data-drpg-chrome` and `num` / `act` classes (R1328).
+ *
+ * THE NUMBER FIELD was a third family here until E44 C4b: `dressNumberField`
+ * put a pixel - and + round every number input under Stained Glass only, so
+ * under Monokuma Legacy each was the browser's spinner. The twelve fields are
+ * ui-kit.mjs `stepper`s now, with their - and + in the markup, and this pass
+ * wires them (`wireSteppers`) in both themes, before its theme gate (R1327).
+ * Under "Monokuma Legacy" nothing else in this file runs.
  */
 
 import { log } from "./utils.mjs";
 import { glassOn } from "./motion.mjs";
+import { wireSteppers } from "./ui-kit.mjs";
 
 const DONE = "drpgChrome";
 
 /** True when this browser wears the Stained Glass theme - the shared reading in motion.mjs. */
 const themeOn = glassOn;
-
-/* ---- the number field: two pixel buttons, and the browser's arrows gone ---- */
-
-/**
- * One step of a number input, respecting its own `min`, `max` and `step`, and
- * telling the window it changed the way a keystroke would.
- */
-function step(input, direction) {
-    const stepSize = Number(input.step) || 1;
-    const min = input.min === "" ? -Infinity : Number(input.min);
-    const max = input.max === "" ? Infinity : Number(input.max);
-    const current = Number(input.value);
-    const from = Number.isFinite(current) ? current : (Number.isFinite(min) ? min : 0);
-    const next = Math.min(max, Math.max(min, from + direction * stepSize));
-    if (next === current) return;
-    input.value = String(next);
-    // `input` for anything listening as it is typed, `change` for the form itself.
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-}
-
-/**
- * What the - and + of a number field say (E20 C6, 30.10.2026; S01-48): "One fewer" and "One more" at a step of 1 (or
- * none, or "any"), and the step itself otherwise - the debate length moves by 10, and its buttons said "One more".
- * The step is read as `step()` above reads it.
- */
-export function stepLabels(input) {
-    const size = Number(input?.step);
-    if (!Number.isFinite(size) || size <= 0 || size === 1) {
-        return { down: game.i18n.localize("DRPG.Look.stepDown"), up: game.i18n.localize("DRPG.Look.stepUp") };
-    }
-    return { down: game.i18n.format("DRPG.Look.stepDownBy", { n: size }), up: game.i18n.format("DRPG.Look.stepUpBy", { n: size }) };
-}
-
-function pixButton(glyph, label) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = `drpg-step drpg-step-${glyph}`;
-    button.setAttribute("aria-label", label);
-    button.dataset.tooltip = label;
-    // `inert` on the mask so the glyph cannot become the click target - the same
-    // guard the launchers carry.
-    button.innerHTML = `<span class="drpg-pxi" inert></span>`;
-    return button;
-}
-
-function dressNumberField(input) {
-    if (input.dataset[DONE] || input.disabled || input.readOnly) return;
-    input.dataset[DONE] = "step";
-    const wrap = document.createElement("span");
-    wrap.className = "drpg-stepper";
-    input.replaceWith(wrap);
-    const labels = stepLabels(input);
-    const minus = pixButton("minus", labels.down);
-    const plus = pixButton("plus", labels.up);
-    wrap.append(minus, input, plus);
-
-    /*
-     * AND THE LABEL KEEPS POINTING AT THE FIELD (21.09). A `<label>` wrapping its
-     * control labels the FIRST labelable element inside it, and a button is one: with
-     * the minus button put in front of the input, "Day" labelled the minus button.
-     * Measured in Edit campaign: the day field had no label at all, and clicking the
-     * word "Day" - as you do to get into the field - pressed minus and moved the
-     * campaign from day 11 to day 10. Since 06.09, on every number field with a label.
-     *
-     * An explicit `for` outranks the first-descendant rule, so the label is pointed at
-     * the input by id (one is made if it has none) and clicking the word focuses the
-     * field again. A label that already names something else is left as it is.
-     */
-    const label = input.closest("label");
-    if (label && !label.htmlFor) {
-        if (!input.id) input.id = `drpg-step-${foundry.utils.randomID(8)}`;
-        label.htmlFor = input.id;
-    }
-    minus.addEventListener("click", () => step(input, -1));
-    plus.addEventListener("click", () => step(input, 1));
-    /* One line of explanation under the field, as the audit page draws it, and only while
-       the value is actually out of range - the browser says this in a tooltip nobody opens. */
-    const message = document.createElement("span");
-    message.className = "drpg-field-msg";
-    wrap.after(message);
-    const check = () => {
-        const value = Number(input.value);
-        const min = input.min === "" ? -Infinity : Number(input.min);
-        const max = input.max === "" ? Infinity : Number(input.max);
-        const bad = Number.isFinite(value) && (value < min || value > max);
-        input.classList.toggle("is-bad", bad);
-        message.textContent = !bad ? ""
-            : value > max ? game.i18n.format("DRPG.Look.atMost", { n: max })
-                : game.i18n.format("DRPG.Look.atLeast", { n: min });
-    };
-    input.addEventListener("input", check);
-    input.addEventListener("change", check);
-    check();
-}
 
 /* ---- the select: the sprite's own arrow ------------------------------------ */
 
@@ -221,10 +134,15 @@ export function injectFilters() {
  * zero is the marking doing its job. So: not a window-open cost, and not worth
  * the risk of rebuilding how every form field in the module is drawn. If it is
  * ever suspected again, re-take these five numbers before touching it.
+ * They were taken while the pass also wrapped every number field (until E44
+ * C4b); it wraps the selects only now, and was not measured again.
  */
 export function dressChrome(root) {
-    if (!themeOn() || !root?.querySelectorAll) return;
+    if (!root?.querySelectorAll) return;
     try {
+        // The kit's steppers, in both themes (E44 C4b): their - and + are in the markup, only the listeners are added.
+        wireSteppers(root);
+        if (!themeOn()) return;
         /* A KEPT CARD IS LEFT AS THE HISTORY DREW IT (E77 fix r2-H9, 13.10.2026). The notice history window draws a
            past card's body lazily, when its entry opens, and no hook reaches that; a redraw of the window's list
            (keepLive, then `drpgWindowUpdated`) opens it again and came through here, so the same card's table read
@@ -236,10 +154,9 @@ export function dressChrome(root) {
         const dress = selector => [...root.querySelectorAll(selector)].filter(el => !el.closest(".drpg-notice-snapshot"));
         const panel = root.classList?.contains("drpg-panel") || root.closest?.(".drpg-panel");
         if (panel) {
-            for (const input of dress('input[type="number"]')) dressNumberField(input);
             for (const select of dress("select")) dressSelect(select);
+            for (const table of dress("table")) dressTable(table);
         }
-        for (const table of dress("table")) dressTable(table);
     } catch (err) {
         log("chrome pass failed", err);
     }

@@ -1183,6 +1183,7 @@
       "giveAtLeast": "Wpisz, ile Despair zamienić w Hope - co najmniej {n}."
     },
     "Mastermind": {
+      "noLair": "- bez pokoju -",
       "dialogTitle": "Mastermind",
       "lairLabel": "Pokój Masterminda",
       "lairNote": "Z tego pokoju widzą każdy token na mapie, tak jak ty; wystarczy wyjść i to znika. Zamknięte drzwi, pieczęcie, cudze sypialnie i ukryte skrytki i tak stoją przed nimi otworem wszędzie - ten pokój to miejsce, gdzie są kamery.",
@@ -1775,6 +1776,7 @@
       }
     },
     "Music": {
+      "notSet": "- nie ustawiono -",
       "intro": "Wybierz, która playlista gra kiedy. Moduł nigdy nie uruchamia playlisty, której tu nie wybrano, i nie zawiera własnej muzyki.",
       "orderNote": "Wygrywa pierwszy pasujący stan, w podanej kolejności. Class Trial nocą używa playlist Class Trial; Eclipse w jego trakcie - playlist Eclipse.",
       "trialNote": "Objection ma pierwszeństwo przed otwartą debatą, a debata przed samym trwaniem Class Trial. Rebuttal nie ma własnego wiersza: przez cały Rebuttal gra dalej muzyka Objection. Każdy losuje utwór, gdy przejmuje grę, nigdy ten sam co ostatnio. Objection trwa minutę, więc daj tej playliście krótkie wyciszenie.",
@@ -2235,6 +2237,7 @@
       "trackerScore": "{total} wobec {n}"
     },
     "Investigation": {
+      "noRemnant": "- bez Remnantu -",
       "room": "Pokój",
       "visibility": "Widoczność",
       "filterOrder": "Kolejność",
@@ -2363,6 +2366,7 @@
       "unticked": "niezaznaczone"
     },
     "Vault": {
+      "noOwner": "- nikt -",
       "foundStashPending": "Znajdujesz czyjąś skrytkę. Co z niej wyjdzie, rozstrzygnie się za chwilę.",
       "foundStashNothing": "Znajdujesz czyjąś skrytkę, ale nic z niej nie zostaje w twoich rękach.",
       "handsFull": "Masz pełne ręce: to, co leży w skrytce, zostaje na miejscu.",
@@ -3011,7 +3015,7 @@
       "faintColumn": "Faint",
       "faintKept": "Faint Remnant jest zawsze Faint, więc jego pole Faint zostało zaznaczone z powrotem. Żeby je odznaczyć, nadaj śladowi inny rodzaj.",
       "crimeColumn": "Powiązany ze zbrodnią",
-      "tieOpen": "-",
+      "tieOpen": "- nie rozstrzygnięto -",
       "tieTied": "Powiązany",
       "tieUntied": "Niepowiązany",
       "reinforcedColumn": "Reinforced",
@@ -3444,6 +3448,7 @@
       "dead": "Nie żyją. Ciało zostaje tam, gdzie upadło."
     },
     "Project": {
+      "pickTrait": "- wybierz statystykę -",
       "passageRefused": "Ten odcinek nie stoi między pokojem budującego a pokojem za ścianą: wskaż go jeszcze raz.",
       "passageNoWall": "Pokój budującego nie dzieli ściany z żadnym innym pokojem na tym piętrze: tajne przejście nie ma dokąd prowadzić.",
       "passageNeedsPick": "Najpierw wskaż odcinek ściany, przez który prowadzi tajne przejście.",
@@ -5687,6 +5692,7 @@
       }
     },
     "Trap": {
+      "noProject": "- bez projektu -",
       "watchFor": "Co ją odpala",
       "watchNote": "Moduł tego pilnuje i mówi ci, gdy to zobaczy. Ty wciąż decydujesz, czy to się stało.",
       "whichProject": "Który projekt",
@@ -7067,6 +7073,7 @@
       }
     },
     "Case": {
+      "castNobody": "- nikt -",
       "gmOnly": "Kopię sprawy robi i przywraca tylko GM.",
       "backupTitle": "Kopia sprawy",
       "backupWhat": "Plik zawiera każdy sekret GM-a w tym świecie: kto jest Mastermindem, odpowiedź każdego Truth Bulletu, prawdziwy typ każdego śladu, obsadę otwartego incydentu i Blackened każdego rozdziału, podłożone przedmioty pułapek, oferowane Level Upy i pokoje odkryte przez każdą postać. Trzymaj go tam, gdzie żaden gracz go nie otworzy.",

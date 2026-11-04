@@ -38,7 +38,7 @@ import {
     dialogContent, tableDialog, announce, plural, workingScene, pinFooterAcrossScroll,
     forcedDeletion, wirePortraitPickers
 } from "./utils.mjs";
-import { kitTabs, wireKitTabs } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, emptyOption } from "./ui-kit.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
 import {
     ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomNames, roomRegions, flagOver,
@@ -298,7 +298,7 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
 
         return {
             name: `<td><strong>${escRoom}</strong></td>`,
-            owner: `<td><select name="owner:${escRoom}"${named("owner")}><option value="">-</option>${people}</select></td>`,
+            owner: `<td><select name="owner:${escRoom}"${named("owner")}>${emptyOption("DRPG.Vault.noOwner")}${people}</select></td>`,
             isroom: `<td style="text-align:center" title="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.isRoomHint"))}"><input
                 type="checkbox" name="isroom:${escRoom}"${named("isroom")} ${isRoomNow ? "checked" : ""}${possible ? "" : " disabled"}${undecidedMark} /></td>`,
             concealed: check("concealed", isConcealed(room, scene)),

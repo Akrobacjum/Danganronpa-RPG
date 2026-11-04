@@ -23,6 +23,7 @@ import {
 } from "./projects.mjs";
 import { placeRoomNames } from "./rooms.mjs";
 import { dialogContent, error, markFired, markLanguage, serialWrite, tableDialog, wirePortraitPickers } from "./utils.mjs";
+import { emptyOption } from "./ui-kit.mjs";
 // The projects' queue key, from the file that keeps it (projects.mjs does not re-export it), as traps.mjs and fog.mjs read it.
 import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
@@ -618,12 +619,12 @@ function glyphGrid(current) {
  * offered "- player chooses -" until 1.2.66, and a roll on such a project let the
  * player pick. A project's roll - Work on it, or a Sabotage of it - takes the
  * project's statistic now, so a form has to name one. With none yet (a new project, or
- * one stored without) the placeholder is blank, disabled and selected: nothing is
+ * one stored without) the placeholder ("- pick a statistic -" since E44 C4b, a bare "-" before) is disabled and selected: nothing is
  * guessed for the writer, and the form's own check refuses it ("DRPG.Project.traitRequired").
  */
 export function projectTraitOptions(current = "") {
     return [
-        `<option value="" disabled${current ? "" : " selected"}>-</option>`,
+        emptyOption("DRPG.Project.pickTrait", { disabled: true, selected: !current }),
         ...Object.entries(TRAITS).map(([k, t]) =>
             `<option value="${k}"${k === current ? " selected" : ""}>${t.label}</option>`)
     ].join("");
@@ -757,7 +758,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                 <small class="notes">${game.i18n.localize("DRPG.Trap.watchNote")}</small></label>
             <label data-drpg-when-trigger="project sabotage">${
                 game.i18n.localize("DRPG.Trap.whichProject")}
-                <select name="triggerTarget"><option value="">-</option>${targetOptions}</select></label>
+                <select name="triggerTarget">${emptyOption("DRPG.Trap.noProject")}${targetOptions}</select></label>
             <label class="drpg-checkbox">
                 <input type="checkbox" name="afterDark"${
                     startTrigger?.afterDark ? " checked" : ""} /> ${

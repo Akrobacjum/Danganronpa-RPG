@@ -2630,25 +2630,11 @@ body.drpg-theme-stained-glass .character-sidebar-sheet :is(h3, h4, .section-head
 }
 
 /* ---- C-C. The number field, the select, and the table's figures --------------------------
-   The three families that needed one more element than the markup had; `scripts/chrome.mjs`
-   adds it, and this is what it looks like. The stepper is the audit page's: a pixel minus
-   and plus either side of the value, the browser's own arrows gone, and one line of
+   The select and the table need one more element than the markup has; `scripts/chrome.mjs`
+   adds it, and this is what it looks like. The number field is ui-kit.mjs's stepper since
+   E44 C4b (components.css lays it out in both themes; chrome.mjs's `.drpg-stepper` and its
+   pixel glyphs are gone): here is its - and + under the glass, and the one line of
    explanation under the field when the value is out of the range the field itself declares. */
-body.drpg-theme-stained-glass .drpg-stepper {
-    display: inline-flex;
-    align-items: stretch;
-    gap: 2px;
-}
-body.drpg-theme-stained-glass .drpg-stepper input[type="number"] {
-    text-align: center;
-    -moz-appearance: textfield;
-    appearance: textfield;
-}
-body.drpg-theme-stained-glass .drpg-stepper input[type="number"]::-webkit-outer-spin-button,
-body.drpg-theme-stained-glass .drpg-stepper input[type="number"]::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
 body.drpg-theme-stained-glass .drpg-step {
     display: inline-grid;
     place-content: center;
@@ -2667,9 +2653,6 @@ body.drpg-theme-stained-glass .drpg-step:hover {
     color: var(--drpg-sg-ink);
     background: color-mix(in srgb, var(--drpg-glass-accent) 70%, transparent);
 }
-body.drpg-theme-stained-glass .drpg-step .drpg-pxi { width: 14px; height: 14px; }
-body.drpg-theme-stained-glass .drpg-step-minus .drpg-pxi { --drpg-px-mask: var(--drpg-px-minus); }
-body.drpg-theme-stained-glass .drpg-step-plus .drpg-pxi { --drpg-px-mask: var(--drpg-px-plus); }
 body.drpg-theme-stained-glass .drpg-field-msg {
     display: block;
     font-family: var(--drpg-font-chrome);

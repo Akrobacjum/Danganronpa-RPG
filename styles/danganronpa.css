@@ -12452,8 +12452,8 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
    screenshots). A grid of two columns - the labels as wide as the widest of them, the fields
    the rest - with each field's row a subgrid of it, so a row is still one `<label>` and
    clicking the word still reaches its field. Everything else in the form (the fine print,
-   the warnings, the trap's box, the rule) spans both. The field may be wrapped by chrome.mjs
-   (`.drpg-select`, `.drpg-stepper` and its message, which goes under the field), so a row is
+   the warnings, the trap's box, the rule) spans both. The field may be wrapped (chrome.mjs's
+   `.drpg-select`; ui-kit.mjs's `.drpg-kit-stepper` and its message, which goes under the field), so a row is
    found by a field anywhere inside it. The rows' parent is named by what it holds, not by its
    tag: the harness's DialogV2 (shim.mjs, "as Foundry's") parses either window's content into
    a `.dialog-content` inside the dialog's own form and drops the content's `<form>`, and

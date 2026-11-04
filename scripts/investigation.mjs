@@ -39,7 +39,7 @@ import { livingStudentsForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs
 import {
     dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
     workingScene, esc, placeRoomOptions, listOf, error } from "./utils.mjs";
-import { kitTabs, wireKitTabs } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, emptyOption } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, RAISED } from "./live.mjs";
 import { keyPlanStore, remnantStore } from "./gm-stores.mjs";
 import { murderState } from "./incident-store.mjs";
@@ -1912,7 +1912,7 @@ function caseTracesPanel({ traces, shown, finders, reading }) {
  * with no button, so a GM who had not built the planner could not see that picking a room and
  * pressing Save put a token on the map. One Status column now says where the row stands (not
  * placed, its Remnant gone or retyped, who found it, nobody yet), holds the picker of placed
- * traces (its empty option "-": the status line says the rest) and, on a row with nothing on the
+ * traces (its empty option "- no Remnant -" since E44 C4b, a bare "-" before) and, on a row with nothing on the
  * map, a Place button that asks the room and the visibility in a small window and places the
  * clue then (`placeKeyRow`). Save places nothing any more. A row past the opening roll's limit
  * draws the button `drpg-key-limited` and disabled, as it drew the two selects.
@@ -1980,7 +1980,7 @@ export function caseKeyRows({ plan, status, placed, limit }) {
             <td class="drpg-key-status">
                 <div class="drpg-key-state">${state}</div>
                 <select name="token:${i}"${aria("DRPG.Investigation.onMap")}>
-                    <option value=""${live ? "" : " selected"}>-</option>
+                    ${emptyOption("DRPG.Investigation.noRemnant", { selected: !live })}
                     ${picker}
                 </select>
                 ${here ? "" : `<button type="button" name="place:${i}" data-drpg-key-place="${i}"${

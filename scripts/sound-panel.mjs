@@ -27,6 +27,7 @@
 import { SITUATIONAL_PLAYLIST } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { error } from "./utils.mjs";
+import { emptyOption } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { MUSIC_STATES, musicMap, isCuePlaylist, saveMusicKey } from "./music-states.mjs";
 import { situationalPlaylist, playTrack, resetMusic } from "./music-play.mjs";
@@ -80,7 +81,7 @@ export function musicMapRows(playlists) {
     const offered = playlists.filter(p => !isCuePlaylist(p));
     return MUSIC_STATES.map(state => {
         const label = state.label ?? game.i18n.localize(state.labelKey);
-        const options = [`<option value="">-</option>`, ...offered.map(p =>
+        const options = [emptyOption("DRPG.Music.notSet"), ...offered.map(p =>
             `<option value="${p.id}"${map[state.key] === p.id ? " selected" : ""}>${
                 foundry.utils.escapeHTML(p.name)}</option>`)].join("");
 

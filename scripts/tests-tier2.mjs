@@ -29172,6 +29172,7 @@ const SCENARIOS = [
          * and a button is one - so "Day" in Edit campaign labelled the minus button,
          * the field had no name, and clicking the word "Day" moved the campaign from
          * day 11 to day 10. Found by the a11y sweep on 21.09, measured by clicking.
+         * E44 C4b (04.11.2026): the field is ui-kit.mjs's `stepper` in both themes, its label pointed at it by `for`.
          */
         const { openClockDialog } = await import("./gm-panel.mjs");
         needs(env.dialogs(), "Edit campaign has no field to click");
@@ -29180,7 +29181,7 @@ const SCENARIOS = [
         let input = null;
         for (let i = 0; i < 40 && !input; i++) {
             await new Promise(resolve => setTimeout(resolve, 100));
-            input = document.querySelector('input[name="day"][data-drpg-chrome="step"]');
+            input = document.querySelector('.drpg-kit-stepper > input[name="day"]');
         }
         try {
             ok(input, "the Edit campaign window did not draw its day stepper");

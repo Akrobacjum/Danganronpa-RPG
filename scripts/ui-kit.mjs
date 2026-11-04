@@ -13,8 +13,8 @@
  *   drpgWindow({ id, classes, title, body, tabs, footer, live, render, modal })   a DialogV2 on the kit's frame
  *   DrpgApp()                     the ApplicationV2 class with the same frame (made on first use: tier 0 imports
  *                                 this file without Foundry, as room-tile.mjs's class is made)
- *   kitTabs, kitTabBar, wireKitTabs, shownTab, formGrid, dataTable, helpText, stepper, readStepper, toggle, chip,
- *   chips, box, emptyOption, modeBar
+ *   kitTabs, kitTabBar, wireKitTabs, shownTab, formGrid, dataTable, helpText, stepper, stepperId, stepLabels,
+ *   readStepper, wireSteppers, toggle, chip, chips, box, emptyOption, modeBar
  *   BUTTON_ROLES                  primary, secondary, close, cancel, destructive, gmRoute
  *
  * THE FOOTER CONTRACT (the owner approved it on the pilot, 04.11.2026). The closing word, the secondary buttons and the
@@ -29,12 +29,16 @@
  * price of Enter meaning the primary, and the same order the default button's autofocus starts from.
  *
  * WHAT IS NOT HERE. A window's own layout (D31: E46 and E47 build each from its approved card), a button's face (the
- * panel's and the glass's button rules stay until E22: a role keeps today's face class, `face`), and the number
- * fields' dressing in chrome.mjs, which C4b replaces with `stepper` (until then the kit's stepper wears
- * `data-drpg-chrome`, so chrome.mjs leaves it alone, and keeps a copy of chrome.mjs's step and message rules).
+ * panel's and the glass's button rules stay until E22: a role keeps today's face class, `face`).
+ *
+ * THE NUMBER FIELDS (E44 C4b, 04.11.2026; audit S10-66). The module's twelve number fields are `stepper`s, in both
+ * themes: chrome.mjs `dressChrome`, which Foundry's render hook runs on every window, calls `wireSteppers` before its
+ * theme gate, and dresses no number field itself (until C4b it put its own - and + round them under Stained Glass
+ * only, so Monokuma Legacy had the browser's spinner; the stepper under Legacy is not yet seen on v14 at a table).
  *
  * Imports utils.mjs and live.mjs only, and none of utils.mjs, live.mjs or config.mjs may import it (R161). Since E44
- * C4a every tabbed window of the module draws its tabs here (R1324); the rest of the kit waits for E21.
+ * C4a every tabbed window of the module draws its tabs here (R1324), since C4b every number field is its stepper and
+ * the seven bare "-" options its `emptyOption` (R1127, R1329); the rest of the kit waits for E21.
  */
 
 import { esc, error, wholeNumber, dialogContent, eachPane } from "./utils.mjs";
@@ -430,10 +434,13 @@ export function helpText(key, data = null) {
     return `<p class="drpg-help">${esc(data ? game.i18n.format(key, data) : localize(key))}</p>`;
 }
 
-/* The words of a stepper's - and +: chrome.mjs `stepLabels`'s rule on the same keys (R1521), until C4b moves that
-   function here and chrome.mjs dresses no number field. */
-function stepWords(step) {
-    const size = Number(step);
+/**
+ * What the - and + of a number field say (E20 C6, 30.10.2026; S01-48): "One fewer" and "One more" at a step of 1 (or
+ * none, or "any"), and the step itself otherwise - the debate length moves by 10, and its buttons said "One more".
+ * `input` is the field or anything with its `step` (R1521). Moved here from chrome.mjs in E44 C4b with the stepper.
+ */
+export function stepLabels(input) {
+    const size = Number(input?.step);
     if (!Number.isFinite(size) || size <= 0 || size === 1) return { down: localize("DRPG.Look.stepDown"), up: localize("DRPG.Look.stepUp") };
     return { down: game.i18n.format("DRPG.Look.stepDownBy", { n: size }), up: game.i18n.format("DRPG.Look.stepUpBy", { n: size }) };
 }
@@ -441,19 +448,33 @@ function stepWords(step) {
 let stepperIds = 0;
 
 /**
+ * A fresh id for a stepper's input, for a window that writes the field's label itself (`<label for>`), as the twelve
+ * number fields do: their rows' layouts (Edit campaign's two-column grid, the Overflow rules) are each window's own, so
+ * the label stays the window's and points at the input by `for` - never at the minus, which a label wrapping its
+ * control would name (the 21.09 fault, tier 2's "clicking a number field's label ...").
+ */
+export function stepperId() {
+    return `drpg-kit-step-${++stepperIds}`;
+}
+
+/**
  * The one number control (E44; C4b moves the module's twelve number fields onto it): the input with its - and + and
  * the line under it that says a value is out of range, all in the markup - no dressing after the draw. The input
  * keeps `name`, `min`, `max` and `step` as given, so a form reads what it read before; `readStepper` reads it through
  * `wholeNumber`. `label` is text; the label points at the input by id, never at the minus (the 21.09 fault: a label
- * wrapping its control labels the first labelable element in it, and a button is one).
+ * wrapping its control labels the first labelable element in it, and a button is one). A window that writes its own
+ * label passes `id` (`stepperId()`) and points it there by `for`. `attrs` are the input's other attributes, by name
+ * (a field's `style`, its `data-drpg-enter`), each escaped; they cannot replace the five above.
  */
-export function stepper({ name, value = "", min = null, max = null, step = 1, label = null, id = null } = {}) {
-    const inputId = id ?? `drpg-kit-step-${++stepperIds}`;
-    const words = stepWords(step);
+export function stepper({ name, value = "", min = null, max = null, step = 1, label = null, id = null, attrs = {} } = {}) {
+    const inputId = id ?? stepperId();
+    const words = stepLabels({ step });
     const attr = (k, v) => (v === null || v === undefined || v === "" ? "" : ` ${k}="${esc(v)}"`);
+    const own = new Set(["type", "id", "name", "value", "min", "max", "step"]);
+    const more = Object.entries(attrs ?? {}).filter(([k]) => !own.has(k) && /^[a-z][a-z0-9-]*$/.test(k)).map(([k, v]) => attr(k, v)).join("");
     const field = `<span class="drpg-kit-stepper">`
         + `<button type="button" class="drpg-step drpg-step-minus" data-drpg-step="-1" aria-label="${esc(words.down)}" data-tooltip="${esc(words.down)}">-</button>`
-        + `<input type="number" id="${esc(inputId)}" data-drpg-chrome="step"${attr("name", name)}${attr("value", value)}${attr("min", min)}${attr("max", max)}${attr("step", step)}>`
+        + `<input type="number" id="${esc(inputId)}"${attr("name", name)}${attr("value", value)}${attr("min", min)}${attr("max", max)}${attr("step", step)}${more}>`
         + `<button type="button" class="drpg-step drpg-step-plus" data-drpg-step="1" aria-label="${esc(words.up)}" data-tooltip="${esc(words.up)}">+</button>`
         + `</span><span class="drpg-field-msg" aria-live="polite"></span>`;
     return label === null ? field : `<label class="drpg-kit-stepper-label" for="${esc(inputId)}"><span>${esc(label)}</span>${field}</label>`;
@@ -473,7 +494,9 @@ export function readStepper(el, options = {}) {
     return wholeNumber(input.value, { min: bound(input.min, -Infinity), max: bound(input.max, Infinity), fallback });
 }
 
-/* One step of a stepper and its message line: chrome.mjs `step` and `dressNumberField`'s check, the same rules. */
+/* One step of a stepper and its message line (chrome.mjs `step` and `dressNumberField`'s check until E44 C4b, the same
+   rules): the step inside `min` and `max`, an empty field starting from `min` (or 0), `input` and `change` as a keystroke
+   sends them; the line under the field only while the value is out of range. */
 function wireStepper(wrap) {
     if (wrap.dataset.drpgKitWired) return;
     wrap.dataset.drpgKitWired = "1";
@@ -537,9 +560,12 @@ export function box(kind, body) {
     return `<div class="drpg-box" data-drpg-box="${kind}" role="note">${body ?? ""}</div>`;
 }
 
-/** A select's empty option, in its key's words ("- nobody -"): one shape for the module's five bare "-" (C4b). */
-export function emptyOption(key) {
-    return `<option value="">${esc(localize(key))}</option>`;
+/**
+ * A select's empty option, in its key's words ("- nobody -"): one shape for the module's seven bare "-" (E44 C4b; audit
+ * S12-49, R1329). `selected` and `disabled` for a placeholder that must be chosen past (a project's statistic).
+ */
+export function emptyOption(key, { selected = false, disabled = false } = {}) {
+    return `<option value=""${disabled ? " disabled" : ""}${selected ? " selected" : ""}>${esc(localize(key))}</option>`;
 }
 
 /**
@@ -552,13 +578,19 @@ export function modeBar(modes, { active = null } = {}) {
         `<button type="button" data-drpg-mode="${esc(m.key)}" aria-pressed="${m.key === on}">${esc(m.label)}</button>`).join("")}</div>`;
 }
 
+/** Wire every stepper inside `root` (idempotent per stepper): `wireKit`'s, and chrome.mjs `dressChrome`'s on every window. */
+export function wireSteppers(root) {
+    if (!root?.querySelectorAll) return;
+    for (const wrap of root.querySelectorAll(".drpg-kit-stepper")) wireStepper(wrap);
+}
+
 /**
  * Wire what the kit drew inside `root`: every stepper, every table's and the body's scroll signal, every mode bar.
  * Answers the function that stops the scroll signals. Idempotent per stepper.
  */
 export function wireKit(root, { onMode = null } = {}) {
     if (!root?.querySelectorAll) return () => {};
-    for (const wrap of root.querySelectorAll(".drpg-kit-stepper")) wireStepper(wrap);
+    wireSteppers(root);
     for (const bar of root.querySelectorAll(".drpg-mode-bar")) {
         if (bar.dataset.drpgKitWired) continue;
         bar.dataset.drpgKitWired = "1";

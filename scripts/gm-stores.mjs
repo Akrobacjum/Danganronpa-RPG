@@ -23,6 +23,7 @@
 import { MODULE_ID, FLAGS, TIMING, LEVEL_UP, moduleVersion } from "./config.mjs";
 import { SETTINGS, getClock, getSetting, setSetting, incidentCast, seasonEpoch, deathRecordFor } from "./settings.mjs";
 import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, dialogContent, whisperToGms, localeFormat } from "./utils.mjs";
+import { emptyOption } from "./ui-kit.mjs";
 import {
     configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated, whenGmStoresHydrated, gmStoresIdle,
     gmStoreHydration, gmStoreSkew, gmStoreNow, onGmStoresHydrated, flatToSection, previewSection, mergeSections, writeFields, dropKey, newerStamps, RECORD,
@@ -2330,7 +2331,7 @@ export function sameDecision(shown, now) {
 export async function enterCastByHand() {
     if (!game.user?.isGM) return null;
     const students = (game.actors?.contents ?? []).filter(a => a.type === "character");
-    const options = [`<option value="">-</option>`,
+    const options = [emptyOption("DRPG.Case.castNobody"),
         ...students.map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`)].join("");
     const seat = (name, key) => `<label>${esc(game.i18n.localize(key))} <select name="${name}">${options}</select></label>`;
     const answer = await DialogV2.wait({

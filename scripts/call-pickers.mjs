@@ -31,6 +31,7 @@
 
 import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, MOTIVE } from "./config.mjs";
 import { dialogContent, esc, wholeNumber, proseOf } from "./utils.mjs";
+import { stepper, stepperId } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -265,16 +266,15 @@ async function pickText(ask) {
  * that costs somebody their time of day.
  */
 async function pickMotive(ask) {
+    const deadline = stepperId();
     const record = await callWindow({
         ...ask,
         body: `<form>
             <label>${game.i18n.localize("DRPG.Motive.demandLabel")}
                 <textarea name="text" rows="3"
                     placeholder="${game.i18n.localize("DRPG.Motive.demandPlaceholder")}"></textarea></label>
-            <label>${game.i18n.localize("DRPG.Motive.deadlineLabel")}
-                <input type="number" name="timesOfDay"
-                    value="${MOTIVE.defaultTimesOfDay}"
-                    min="${MOTIVE.minTimesOfDay}" max="${MOTIVE.maxTimesOfDay}" step="1" /></label>
+            <label for="${deadline}">${game.i18n.localize("DRPG.Motive.deadlineLabel")}
+                ${stepper({ name: "timesOfDay", value: MOTIVE.defaultTimesOfDay, min: MOTIVE.minTimesOfDay, max: MOTIVE.maxTimesOfDay, step: 1, id: deadline })}</label>
             <p class="notes">${game.i18n.localize("DRPG.Motive.deadlineNote")}</p>
             <label>${game.i18n.localize("DRPG.Motive.consequenceLabel")}
                 <textarea name="consequence" rows="2"
