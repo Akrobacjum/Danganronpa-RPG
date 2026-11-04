@@ -29,6 +29,12 @@ import {
     BASELINES as TEXT_BASELINES, againstBaseline as textAgainstBaseline, staleRow as textStaleRow,
     tableWordProblems as textTableWords, legacyListsFrom as textLegacyLists
 } from "./tests-text.mjs";
+/* The CSS lint (E44 C1b): handed on the same way, so R2, R1310 and R1311 run the functions `node tools/check.mjs css`
+   runs (R2's dead-class detector lives there since), and the crawl reaches the file through this import. */
+import {
+    deadClasses as cssDeadClasses, selfCheck as cssSelfCheck, lintCounts as cssLintCounts, budgetProblems as cssBudgetProblems,
+    DETECTORS as CSS_DETECTORS, FIXTURES as CSS_FIXTURES
+} from "./tests-css.mjs";
 
 /* ==========================================================================
  * HARNESS
@@ -2373,6 +2379,7 @@ export {
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
     flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem, TEXT_BASELINES, textAgainstBaseline, textStaleRow,
     textTableWords, textLegacyLists,
+    cssDeadClasses, cssSelfCheck, cssLintCounts, cssBudgetProblems, CSS_DETECTORS, CSS_FIXTURES,
     stringLiterals, STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, watchWrites, watchLog, cast,
     worldDump, dumpDiff, describeDiff, hashText, dumpOf, dumpPathsOf, DUMP_RULES, DUMP_FOREIGN_SETTINGS
 };

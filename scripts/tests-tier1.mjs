@@ -22,7 +22,7 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText, expectedRed, stripStrings, bridgeFn, bridgeText, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, musicText, sfxText, voteText
+    worldDump, dumpDiff, lfText, expectedRed, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, bridgeFn, bridgeText, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, musicText, sfxText, voteText
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -32413,6 +32413,24 @@ const INVARIANTS = [
             + "its pool a player's; two GMs' in the room and a third's elsewhere; a roller on no scene; no Monokuma]");
         const M = await import("./monokuma.mjs");
         ok(typeof M.poolOwnerOf === "function", "monokuma.mjs exports no poolOwnerOf");
+    }],
+
+    ["R1310 - the CSS lint's detectors (scripts/tests-css.mjs) each count exactly their planted faults and nothing in a clean sheet: `!important` in a value holding `var()`, written `! important` and in capitals, none in a comment; a colour literal in a declaration and none in a token's definition; a comment end with no start; a rule written twice and not one repeated under another `@media`; a class nobody writes and not a family written with a trailing dash, a switch inside `:not()` or a stored card's class; and the budget's ratchet red above and below a budget, green at it, below green only `atMost` (E44 C1b; E44-02)", () => {
+        /*
+         * E44 C1b, 04.11.2026. Pure: the fixtures are tests-css.mjs's own (FIXTURES), the same `node tools/check.mjs css`
+         * shows the detectors before it trusts them on the files. Red before C1b: no tests-css.mjs. The mutants of C1b
+         * read red here: c1b-m1 (the ratchet's "below" branch removed), c1b-m2 (`importantCount` blind to `! important`),
+         * c1b-m3 (`colourLiterals` counting a token's definition).
+         */
+        equal(JSON.stringify(cssSelfCheck()), "[]", "a CSS detector does not count its fixture as written");
+        equal(JSON.stringify(Object.keys(CSS_DETECTORS).sort()), JSON.stringify(["colourLiterals", "duplicateRules", "importantCount", "strayCommentEnds"]),
+            "the detectors css-lint counts per sheet are not the four the budget names");
+        /* The self-check's own control: a detector that counts nothing is seen, so a selfCheck answering [] whatever ran is not green. */
+        const blind = Object.fromEntries(Object.keys(CSS_DETECTORS).map(name => [name, () => ({ count: 0, found: [], read: 0 })]));
+        equal(cssSelfCheck(blind).length, Object.keys(CSS_DETECTORS).length * 2,
+            "the self-check does not see every detector stubbed to count and read nothing (its count and its read, each)");
+        ok(CSS_FIXTURES.importantCount.sheet.includes("! important") && CSS_FIXTURES.colourLiterals.sheet.includes("--drpg-ink: #"),
+            "the fixtures no longer plant `! important` with a space, or a colour in a token's definition");
     }],
 ];
 

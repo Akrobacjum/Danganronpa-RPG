@@ -17,7 +17,7 @@ import {
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
-    TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists
+    TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists, cssDeadClasses, cssLintCounts, cssBudgetProblems
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -474,71 +474,46 @@ const REGRESSIONS = [
 
     ["R2 - no styling rule in the sheet has lost its emitter", async () => {
         /*
-         * DEAD CSS IS INVISIBLE BY CONSTRUCTION. `.drpg-tamper-cover` was
-         * written in E12 and replaced by an attribute a day later; the rule
-         * stayed, and nothing about the module's behaviour would ever have said
-         * so. Multiply that by an update this size and the sheet becomes a place
-         * where you cannot tell which half of a selector is load-bearing.
-         *
-         * ONE DIRECTION, NOT TWO, AND THE MEASUREMENT IS WHY. The other
-         * direction - "every class named in a script has a rule" - was built,
-         * run, and dropped: 478 class names in the scripts, 133 of them with no
-         * rule. Narrowed to the 173 that appear inside a `class="…"` attribute
-         * it still reported 8, and all eight are structural: grid children that
-         * take their placement from the parent (`drpg-tables-left`), wrappers
-         * (`drpg-requirements`), live-region markers. A test that fails on those
-         * is a test demanding the markup be made LESS readable - the same trap
-         * as the E21 trigger test that demanded a worse implementation. So the
-         * direction that measured zero and has real teeth is the one that runs.
+         * THE DETECTOR IS tests-css.mjs's `deadClasses` SINCE E44 C1b, moved there unchanged with its comments - why
+         * one direction and not two, the families, the switches, the cards a world still keeps (STORED) - so `node
+         * tools/css-lint.mjs` (the ci layer's `node tools/check.mjs css`) and this test give one verdict. The sheets
+         * are module.json's, comments removed (moduleStyles); the sources the module's scripts, the suite's own out
+         * (otherSources), their comments removed. Read before and after the move on a copy with one rule planted
+         * (`.drpg-e44-planted` in narrow.css): "these rules are styling nothing: drpg-e44-planted" both times.
          */
         const css = await moduleStyles();
-        const inSheet = new Set([...css.matchAll(/\.(drpg-[a-z0-9-]+)/g)].map(m => m[1]));
-        ok(inSheet.size > 200, `only ${inSheet.size} rules were read - the stylesheets did not load`);
-
-        const named = new Set();
-        const families = new Set();
-        for (const [, raw] of await otherSources()) {
-            for (const m of stripComments(raw).matchAll(/drpg-[a-z0-9-]*/g)) {
-                named.add(m[0]);
-                // `drpg-outcome-${tone}` NAMES A FAMILY, not a class, and the
-                // whole family is emitted by that one line. The trailing dash is
-                // what marks it - and `drpg-` on its own is excluded, because
-                // `drpg-${anything}` would otherwise vouch for every rule in the
-                // sheet and this test would pass by saying nothing.
-                if (/^drpg-[a-z0-9]+[a-z0-9-]*-$/.test(m[0])) families.add(m[0]);
-            }
-        }
-        /*
-         * A CLASS THAT ONLY EVER APPEARS IN A NEGATION IS A SWITCH, NOT A STYLE.
-         * `:not(.drpg-compact)` is an opt-out written for a window that wants
-         * the plain treatment; nothing wears it today and the rules it guards
-         * work exactly as intended because of that. Asking for an emitter would
-         * be asking somebody to add a class in order to keep a test quiet.
-         */
-        const switches = new Set();
-        for (const m of css.matchAll(/:not\(([^)]*)\)/g)) {
-            for (const c of m[1].matchAll(/\.(drpg-[a-z0-9-]+)/g)) switches.add(c[1]);
-        }
-        const styled = new Set([...css.replace(/:not\([^)]*\)/g, " ")
-            .matchAll(/\.(drpg-[a-z0-9-]+)/g)].map(m => m[1]));
-
-        /*
-         * A CLASS THE WORLD STILL CARRIES IS NOT DEAD. A chat card is stored as HTML, so a class
-         * a card once wore outlives its last emitter in every world that kept the card. Each row
-         * names the cards and the change that stopped writing it; a row whose rule is gone from
-         * the sheet is a stale row and fails (E77 fix r1-G4, round 1's O4: C2 removed the move
-         * card's description, and with it the only rule its old cards had).
-         */
-        const STORED = {
-            "drpg-room-prose": "the move card's description, written until E77 C2 (movement.mjs chargeForCrossing)"
-        };
-        const stale = Object.keys(STORED).filter(c => !styled.has(c) || named.has(c));
+        const sources = (await otherSources()).map(([file, raw]) => [file, stripComments(raw)]);
+        const { inSheet, orphans, stale } = cssDeadClasses(css, sources);
+        ok(inSheet > 200, `only ${inSheet} rules were read - the stylesheets did not load`);
         ok(!stale.length, `these rows of STORED have no rule left in the sheet, or an emitter again: ${stale.join(", ")}`);
-
-        const orphans = [...inSheet].filter(c =>
-            styled.has(c) && !switches.has(c) && !(c in STORED)
-            && !named.has(c) && ![...families].some(f => c.startsWith(f)));
         ok(!orphans.length, `these rules are styling nothing: ${orphans.join(", ")}`);
+    }],
+
+    ["R1311 - the served sheets hold to tools/css-budget.json: for every sheet of module.json each count of the CSS lint (`!important`, colour literals outside a token, rules written twice, dead classes) at most its budget, no stray comment end, a row for every sheet and no row for a sheet not served (E44 C1b; E44-02)", async () => {
+        /*
+         * E44 C1b, 04.11.2026 (audit S17-35). The same counts `node tools/check.mjs css` holds in Node
+         * (tests-css.mjs `lintCounts`, `budgetProblems`), read here off the files Foundry serves. At most, not
+         * equal: the Node part holds equality - below a budget is red there until the budget is lowered in the
+         * same commit - and a table may serve another checkout's sheets beside this file. Red before C1b: no
+         * tests-css.mjs and no budget; with one `!important` planted in a served sheet, "styles/narrow.css:
+         * important 15, above its budget 14".
+         */
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const sheets = [];
+        for (const file of manifest.styles ?? []) sheets.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)]);
+        must(sheets.length >= 6, `module.json serves ${sheets.length} sheet(s) - this test would hold nothing`);
+        let budget = null;
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/tools/css-budget.json`, { cache: "no-cache" });
+            if (res.ok) budget = await res.json();
+        } catch { /* the assertion below says it is missing */ }
+        ok(budget && typeof budget.sheets === "object", "tools/css-budget.json is missing or holds no sheets");
+        if (!budget) return;
+        const sources = (await otherSources()).map(([file, raw]) => [file, stripComments(raw)]);
+        const { counts, dead } = cssLintCounts(sheets, sources);
+        must(dead.inSheet > 200, `${dead.inSheet} classes read in the sheets - the dead-class count would read nothing`);
+        must(Object.values(counts).reduce((n, c) => n + c.important, 0) > 0, "no `!important` counted in any sheet - the counts read nothing");
+        equal(JSON.stringify(cssBudgetProblems(counts, budget, { atMost: true })), "[]", "a served sheet is above its budget, or the budget and module.json disagree");
     }],
 
     ["R3 - every sound a card asks for is a sound that exists", async () => {
