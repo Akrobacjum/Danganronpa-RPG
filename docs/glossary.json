@@ -1293,6 +1293,45 @@
         "open": true,
         "rule": "The GM's bar on the trial floor (E70): its buttons' names, which the plan's Appendix B lists as \"the GM bar's buttons (E70)\" without the names themselves.",
         "note": "Added at the E65 fix round (01.11.2026; the goal review's m1, STATUS Open 22). Read on this tree: DRPG.Floor.bar.label \"The GM's controls\" / \"Sterowanie GM-a\", skip \"Skip\" / \"Pomiń\", minus and plus \"-30 s\" / \"+30 s\", overrule \"Overrule\" / \"Oddalenie\", endMode \"End this mode\" / \"Zakończ ten tryb\". No source read fixes them as names or forbids a variant, so the entry is open and forbids nothing; E71, which rewrites those strings, decides whether they are names and writes the entry."
+      },
+      {
+        "id": "close-word",
+        "en": "Close",
+        "pl": "Zamknij",
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E44",
+        "source": ["E44 plan"],
+        "open": true,
+        "rule": "A window with nothing left to answer closes with Close, one word.",
+        "note": "The kit's closing role (scripts/ui-kit.mjs BUTTON_ROLES `close`, its word DRPG.Kit.close, the same words as DRPG.Panel.close), added in E44 C3b (04.11.2026) from the E44 plan's amend of 05.10. Read at c4210b4d (the E44 spec's probe/close-words.txt): \"Close\" / \"Zamknij\" (DRPG.Panel.close) on 30 footers, and \"Not now\", \"Got it\" and \"Done\" also closing a window. No source read forbids those as variants, so the entry is open and forbids nothing; E22 gives every button its role and its word."
+      },
+      {
+        "id": "cancel-word",
+        "en": "Cancel",
+        "pl": "Anuluj",
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E44",
+        "source": ["E44 plan"],
+        "open": true,
+        "rule": "A window that asks a question withdraws it with Cancel.",
+        "note": "The kit's cancelling role (scripts/ui-kit.mjs BUTTON_ROLES `cancel`, its word DRPG.Kit.cancel), added in E44 C3b (04.11.2026) from the E44 plan's amend of 05.10. At c4210b4d 55 footers took \"Cancel\" / \"Anuluj\" from DRPG.Advance.cancel, a Level Up key, which stays for Level Up; no source read forbids a variant, so the entry is open and forbids nothing."
+      },
+      {
+        "id": "tab",
+        "en": "tab",
+        "pl": "zakładka",
+        "gender": "f",
+        "inflection": null,
+        "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E44",
+        "source": ["E44 plan"],
+        "open": true,
+        "rule": "One part of a window behind a button of its tab bar is a tab (scripts/ui-kit.mjs `kitTabs`).",
+        "note": "Added in E44 C3b (04.11.2026) from the E44 plan's amend of 05.10. Read on this tree: six Polish texts already say \"zakładka\" (DRPG.Passage.tab.intro \"tej zakładki\", DRPG.Music.noPlaylists \"z zakładki Odtwarzanie\", DRPG.Investigation.keyPublicNote \"zakładka Remnanty\", DRPG.Vault.manageIntro and two settings' hints); no source read forbids a variant, so the entry is open and forbids nothing."
       }
     ],
     "retired": [
