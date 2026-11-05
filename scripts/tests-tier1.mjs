@@ -34006,6 +34006,32 @@ const INVARIANTS = [
         }), "[`minimizable` as tableDialog and drpgWindow hand it to DialogV2; the Room window's; the ten standing windows' options in their source; "
             + "alreadyOpen's answers for a folded and an open window; openMessenger's for a folded conversation; what each stand-in was asked, in order]");
     }],
+    ["R1340 - a description past the limit is refused on every road to a project, never cut (E44 fix FG3, 05.11.2026; the end review's S-m3): projects.mjs `cleanProjectChange`, the cut every change of a project goes through - `applyProjectChange` on a GM's browser and another GM's `project.change` on the primary's (`handleProjectChange`) - answers nothing for a change whose meta holds a description longer than PROJECT_DESCRIPTION_MAX, whatever else it carries, keeps one of 1000 characters as it came, and drops a description that is not text", async () => {
+        /*
+         * E44 fix FG3, 05.11.2026. createProject and updateProject refused one too long; a change made past them carried
+         * its meta whole into projectMeta. Read on the function itself, with changes built here (no world write); the
+         * two callers are read in their source. Red at 3e207d79: the meta came back whole in every case.
+         */
+        const P = await import("./projects.mjs");
+        const long = "d".repeat(1001), full = "e".repeat(1000);
+        const cut = change => stableJson(P.cleanProjectChange(change));
+        const read = [
+            cut({ meta: { description: long } }),
+            cut({ delta: 1, meta: { description: long, room: "R1340 Library" } }),
+            cut({ meta: { description: `  ${full}\n` } }) === stableJson({ meta: { description: `  ${full}\n` } }),
+            cut({ meta: { description: 12, room: "R1340 Library" } }),
+            cut({ delta: 1 })
+        ];
+        const sources = new Map(await otherSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        const callers = [/cleanProjectChange\(change\)/.test(fnSource(src("projects.mjs"), "applyProjectChange")),
+            /cleanProjectChange\(payload\.change\)/.test(fnSource(src("bridge-runs-records.mjs"), "handleProjectChange"))];
+        equal(stableJson({ read, callers }), stableJson({
+            read: ["null", "null", true, stableJson({ meta: { room: "R1340 Library" } }), stableJson({ delta: 1 })],
+            callers: [true, true]
+        }), "[a change with a description of 1001 characters; with a +1 and a room beside it; one of 1000 with spaces round it, as it came; "
+            + "a description that is a number, with a room; a +1 alone; whether applyProjectChange and handleProjectChange cut through it]");
+    }],
 ];
 
 /**

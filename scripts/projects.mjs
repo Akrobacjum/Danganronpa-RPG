@@ -900,7 +900,22 @@ export function cleanProjectChange(change) {
     if (change.target !== undefined && change.target !== null && Number.isFinite(target)) out.target = Math.max(1, Math.trunc(target));
     if (change.name !== undefined && change.name !== null && String(change.name)) out.name = String(change.name);
     if (typeof change.img === "string" && change.img) out.img = change.img;
-    if (plain(change.meta)) out.meta = JSON.parse(JSON.stringify(change.meta));
+    if (plain(change.meta)) {
+        out.meta = JSON.parse(JSON.stringify(change.meta));
+        /* A DESCRIPTION PAST THE LIMIT IS REFUSED ON EVERY ROAD, NEVER CUT (E44 fix FG3, 05.11.2026; the end review's
+           S-m3). createProject and updateProject refused one longer than config.mjs PROJECT_DESCRIPTION_MAX, and a
+           change made any other way - `applyProjectChange` from a GM's console, another GM's `project.change`, which
+           comes here too (bridge-runs-records.mjs `handleProjectChange`) - carried its meta whole. Every write of a
+           description goes through this cut, so here the whole change is refused (nothing of it is made: a change is
+           one decision), and a description that is not text is dropped. */
+        if (Object.hasOwn(out.meta, "description")) {
+            if (typeof out.meta.description !== "string") delete out.meta.description;
+            else if (projectDescriptionProblem(out.meta.description) === "long") {
+                log("A project change was refused: its description is longer than the module keeps.");
+                return null;
+            }
+        }
+    }
     if (plain(change.ownership)) {
         out.ownership = Object.fromEntries(Object.entries(change.ownership)
             .filter(([key, level]) => key && Number.isInteger(level) && level >= 0 && level <= 3));

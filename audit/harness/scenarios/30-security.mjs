@@ -1339,6 +1339,27 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         && cardOn.p1.token && !cardOn.p1.names && cardOn.p1.words === null && cardOn.p1.tokenHolds === false && pageP1 === false
         && followed === DESCRIBED.edit,
         JSON.stringify({ described, cardOn, pageP1, followed }));
+    /* 7b'''b. AFTER CREATION ONLY THE GMS CHANGE IT, AND NEVER PAST THE LIMIT (E44 fix FG3, 05.11.2026; Q-C9-2, the end
+       review's S-m2 and S-m3). On the same project: p1's console sends the primary a project.change naming a description
+       (a GM's own packet), then asks the same change through the bridge's own function (bridge-asks.mjs
+       `requestProjectChange`, as a GM's browser asks it); both are refused and the GM's record keeps the words. Then the
+       GM's own console changes it with 1001 characters through `applyProjectChange`, past the windows' guard: refused
+       whole, never cut. Red at 3e207d79 on the last: the change carried its meta whole. */
+    const readWords = `return (await import("${repoUrl}/scripts/projects.mjs")).allProjects().find(p => p.id === ${JSON.stringify(described)})?.description ?? null;`;
+    const forgedWords = await forge("project.change", { countdownId: described, change: { meta: { description: "SEC forged words" } }, by: { kind: "gm" } }, readWords);
+    const bridgedWords = await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        const res = await B.requestProjectChange(${JSON.stringify(described)}, { meta: { description: "SEC bridged words" } });
+        return { ok: res?.ok ?? null, refused: res?.refused ?? null };`, { timeout: 60000 });
+    await settle(900);
+    const longWords = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        const made = await P.applyProjectChange(${JSON.stringify(described)}, { meta: { description: "f".repeat(1001) } }, { by: { kind: "gm" } });
+        return { made: made ? made.changed ?? true : null };`, { timeout: 60000 });
+    await settle(900);
+    const wordsAfter = { gm: await gm.eval(readWords), p2card: await p2.eval(`return (await import("${repoUrl}/scripts/projects.mjs")).allProjects().find(p => p.id === ${JSON.stringify(described)})?.description ?? null;`) };
+    check("SECURITY: after creation a player changes no project's description - a console's project.change and the bridge's own ask are refused - and a GM's change past 1000 characters is refused whole: the words stay the GM's last",
+        typeof forgedWords.before === "string" && forgedWords.unchanged && forgedWords.reasons.some(r => /only a GM changes a project/.test(r))
+            && bridgedWords.ok === false && longWords.made === null && wordsAfter.gm === DESCRIBED.edit,
+        JSON.stringify({ forgedWords, bridgedWords, longWords, wordsAfter }));
     await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
         if (${JSON.stringify(described)}) await P.deleteProject(${JSON.stringify(described)}).catch(() => {}); return true;`, { timeout: 60000 });
 
