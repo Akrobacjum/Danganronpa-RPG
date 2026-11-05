@@ -833,6 +833,28 @@ async function moduleStyles() {
     return parts.join("\n").replace(/\/\*[\s\S]*?\*\//g, " ");
 }
 
+/* A SHEET'S RULES AND A SELECTOR'S WEIGHT, ONCE A RUN (E44 fix FG7, 05.11.2026). Sixteen tests of tier 1 build a cascade
+   of their own, and each read every sheet's rules from its text again and weighed each selector again (2798 rules and
+   4617 selectors on 05.11.2026; 89 ms and 45 ms of each build in node). The rules of a text already read are handed out
+   again as fresh copies - a rule and its declarations - so a test that changes one changes its own cascade alone; a
+   selector's weight, its subject's needs and its pseudo-element are a fact of its text. A sheet whose text changed is
+   read again (the key is the text). */
+const SHEET_RULES = new Map(), SELECTOR_WEIGHT = new Map();
+const sheetRules = (text, file) => {
+    const key = `${file}\n${text}`;
+    if (!SHEET_RULES.has(key)) SHEET_RULES.set(key, topLevelStyleRules(text, file));
+    return SHEET_RULES.get(key).map(rule => ({ ...rule, decls: rule.decls.map(decl => ({ ...decl })) }));
+};
+const weighFresh = selector => {
+    const pseudo = /::?(before|after)$/.exec(selector);
+    return { selector, specificity: selectorSpecificity(selector), needs: subjectNeeds(selector),
+        pseudo: pseudo ? `::${pseudo[1]}` : null, base: pseudo ? selector.slice(0, pseudo.index) : selector };
+};
+const weighSelector = selector => {
+    if (!SELECTOR_WEIGHT.has(selector)) SELECTOR_WEIGHT.set(selector, Object.freeze(weighFresh(selector)));
+    return SELECTOR_WEIGHT.get(selector);
+};
+
 /**
  * The module's stylesheets as a cascade read without a layout (E18 C6, 20.10.2026): which declaration
  * wins a property on an element, and from which file. Every sheet of module.json in its order, comments
@@ -846,13 +868,16 @@ async function moduleStyles() {
  * selector }` or null; an element is matched by its own `matches`, so it may be built on a body of its own,
  * connected to nothing on the page. A third argument, "::before" or "::after" (E44 C6, R1333), reads that
  * pseudo-element: the rules whose selector ends in it, matched by the rest; without it no such rule is read, as before.
+ * `{ cached: false }` (E21 C1a, R1354) builds the cascade as it was before FG7's caches - each sheet read from its text,
+ * each selector weighed, the rules compared one by one on every reading and the asked names' rules sorted again - the
+ * reference R1354 holds the cached answers to; no test reads the sheets so but R1354.
  */
-async function styleCascade() {
+async function styleCascade({ cached = true } = {}) {
     const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
-    const rules = [];
+    const read = [];
     for (const file of manifest.styles ?? []) {
         const text = (await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
-        rules.push(...topLevelStyleRules(text, file));
+        read.push(...(cached ? sheetRules(text, file) : topLevelStyleRules(text, file)));
     }
     /* Read once, not on every question (E44 C3a, 04.11.2026): each rule's selectors split and weighed, the rules
        indexed by the properties they declare: the same winner as asking every rule each time, and read again when a
@@ -860,17 +885,28 @@ async function styleCascade() {
        `winner` for one element with its answer to each selector kept, so it holds only while neither the element nor
        an ancestor changes; R1323 asks some 600 properties of 60 elements that way, and took 4.7 s of the tiers' run
        before (run-tests --only R1323, 10.4 s wall against 5.7 s for a test that reads nothing). */
-    let indexed = [], byProperty = new Map();
+    /* CHEAPER TO ASK AGAIN (E44 fix FG7, 05.11.2026; the end review's "slow tests", STATUS Open 26/56/88/90: tiers 0-1 read
+       375-397 s on this machine against their 370 s bound). Two costs were paid on every reading: the check that `rules`
+       was unchanged compared every rule with the copy indexed (some thousands, for each of R1333's 19153 readings), and
+       the rules of the asked names were gathered and sorted into sheet order again. Now `rules` is watched - every write
+       to it, a push, a splice, an index set, a length, marks it changed (a Proxy over the same array, which the tests
+       read and change as before) - and each list of names keeps its rules in sheet order once per index: the same
+       winners, read again when a test changes `rules`, as before. */
+    const held = [];
+    let changed = true;
+    const rulesView = new Proxy(held, {
+        set(target, key, value) { target[key] = value; changed = true; return true; },
+        deleteProperty(target, key) { delete target[key]; changed = true; return true; }
+    });
+    let byProperty = new Map(), sortedFor = new Map(), indexed = [];
     const index = () => {
-        if (indexed.length === rules.length && indexed.every((rule, i) => rule === rules[i])) return byProperty;
-        indexed = [...rules];
+        if (cached ? !changed : indexed.length === held.length && indexed.every((rule, i) => rule === held[i])) return byProperty;
+        changed = false;
+        indexed = cached ? [] : [...held];
+        sortedFor = new Map();
         byProperty = new Map();
-        rules.forEach((rule, order) => {
-            const entry = { rule, order, selectors: splitTopLevel(rule.selector, ",").map(selector => {
-                const pseudo = /::?(before|after)$/.exec(selector);
-                return { selector, specificity: selectorSpecificity(selector), needs: subjectNeeds(selector),
-                    pseudo: pseudo ? `::${pseudo[1]}` : null, base: pseudo ? selector.slice(0, pseudo.index) : selector };
-            }) };
+        held.forEach((rule, order) => {
+            const entry = { rule, order, selectors: splitTopLevel(rule.selector, ",").map(cached ? weighSelector : weighFresh) };
             for (const property of new Set(rule.decls.map(d => d.property))) {
                 if (!byProperty.has(property)) byProperty.set(property, []);
                 byProperty.get(property).push(entry);
@@ -890,9 +926,12 @@ async function styleCascade() {
     const answer = (el, names, matches) => {
         const wanted = [names].flat();
         const by = index();
-        const entries = new Set(wanted.flatMap(name => by.get(name) ?? []));
+        const key = wanted.join("\n");
+        const sorted = () => [...new Set(wanted.flatMap(name => by.get(name) ?? []))].sort((a, b) => a.order - b.order);
+        if (!cached) sortedFor.delete(key);
+        if (!sortedFor.has(key)) sortedFor.set(key, sorted());
         let best = null;
-        for (const { rule, order, selectors } of [...entries].sort((a, b) => a.order - b.order)) {
+        for (const { rule, order, selectors } of sortedFor.get(key)) {
             /* the rule's declaration read only once one of its selectors matches (E44 C6, 04.11.2026: R1333 asks 19153
                properties, 3.8 million rules in all, and filtering every rule's declarations first took most of its time) */
             let decl = null;
@@ -915,7 +954,8 @@ async function styleCascade() {
         };
         return names => answer(el, names, matches);
     };
-    return { rules, winner, on };
+    held.push(...read);
+    return { rules: rulesView, winner, on };
 }
 
 /* What a selector's subject - its last compound, outside any parentheses or brackets - asks of the element itself: a

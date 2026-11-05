@@ -34047,6 +34047,136 @@ const INVARIANTS = [
         }), "[a change with a description of 1001 characters; with a +1 and a room beside it; one of 1000 with spaces round it, as it came; "
             + "a description that is a number, with a room; a +1 alone; whether applyProjectChange and handleProjectChange cut through it]");
     }],
+    ["R1354 - styleCascade's caches answer as the uncached cascade does (tests-kit.mjs `styleCascade`; E21 C1a, E21-18, FG7, E44's Open 100): on R1323's kit window and R1333's room tile, each in both themes, every property a components.css rule states on an element (and on the tile's pseudo-elements) - read with its longhands as R1323 reads it - wins the same declaration in the cached cascade (`on` and `winner`) as in `styleCascade({ cached: false })`; a push, an index set and a splice of `rules` are read again; and a rule one cascade changes is not another's", async () => {
+        /*
+         * E21 C1a, 05.11.2026 (FG7: E44's Open 100, the tiers 0-1 time against their 370 s bound). The cached cascade
+         * keeps a sheet's rules and a selector's weight once a run, watches `rules` instead of comparing it rule by rule,
+         * and keeps each list of names' rules sorted once per index; `{ cached: false }` is the cascade as it was before
+         * (7bb71bb9). Read here: the kit window R1323 builds and the room tile R1333 paints (`paintRoomTile`), each on a
+         * body of each theme; for every element (on the room tile also its `::before` and `::after`, which R1333 reads), the
+         * properties the components.css rules that match it state - not R1333's voice tile, list and launchers, which this test does not build. Then the
+         * invalidation: a planted rule pushed, put at an index and spliced away, each read by the next answer; and a
+         * declaration changed in one cascade's rule, which a second cascade built after it does not see. A pure speed-up:
+         * equal on the tree before FG7 (both cascades the old one), and its invalidation half red on a planted cache that
+         * ignores a write to `rules` (mutant c1a-m1, E21 C1a's message).
+         */
+        const K = await import("./ui-kit.mjs");
+        const RT = await import("./room-tile.mjs");
+        const C = await styleCascade();
+        const F = await styleCascade({ cached: false });
+        const kitRules = C.rules.filter(r => r.file === "styles/components.css");
+        must(kitRules.length > 40, `${kitRules.length} rule(s) of components.css read - the cascade did not load the sheet`);
+        must(F.rules.length === C.rules.length, `the uncached cascade read ${F.rules.length} rule(s), the cached ${C.rules.length}`);
+        const LONG = {
+            border: ["border-color", "border-width", "border-style", "border-top", "border-right", "border-bottom", "border-left", "border-top-color", "border-right-color", "border-bottom-color", "border-left-color"],
+            "border-left": ["border-left-color", "border-left-width", "border-left-style"],
+            "border-top": ["border-top-color", "border-top-width", "border-top-style"],
+            background: ["background-color", "background-image"],
+            padding: ["padding-top", "padding-right", "padding-bottom", "padding-left", "padding-block", "padding-inline"],
+            margin: ["margin-top", "margin-right", "margin-bottom", "margin-left", "margin-block", "margin-inline"],
+            flex: ["flex-grow", "flex-shrink", "flex-basis"],
+            overflow: ["overflow-x", "overflow-y"],
+            gap: ["row-gap", "column-gap"]
+        };
+        const names = prop => [prop, ...(LONG[prop] ?? [])];
+        const frame = () => {
+            const tabs = K.kitTabs([{ key: "a", label: "A", html: K.formGrid([{ label: "L", field: K.stepper({ name: "s", value: 1, min: 0, max: 3 }) }])
+                + K.dataTable({ columns: [{ key: "a", label: "A" }], rows: [] }) + K.helpText("DRPG.Kit.tableEmpty")
+                + K.box("info", "i") + K.box("warning", "w") + K.box("secret", "s") + K.toggle({ name: "t", label: "T" })
+                + K.chips([{ label: "On", pressed: true }, { label: "Off" }]) + K.modeBar([{ key: "m", label: "M" }, { key: "n", label: "N" }]) },
+            { key: "b", label: "B", html: "" }]);
+            const holder = document.createElement("div");
+            holder.innerHTML = tabs;
+            const [nav, ...panes] = [...holder.children];
+            const root = document.createElement("div");
+            root.className = "application dialog drpg-window-r1354 drpg-ui drpg-panel";
+            root.innerHTML = `<section class="window-content"><form class="dialog-form standard-form"><div class="dialog-content standard-form"></div>${K.footerMarkup({
+                primary: { action: "save", label: "S" }, gmRoute: [{ action: "ask", label: "A" }], secondary: [{ action: "two", label: "T" }],
+                destructive: [{ action: "wipe", label: "W" }], close: "close" })}</form></section>`;
+            const body = document.createElement("div");
+            body.className = "drpg-kit-body";
+            body.append(...panes);
+            root.querySelector(".dialog-content").append(nav, body);
+            return root;
+        };
+        const tile = () => {
+            const t = document.createElement("section");
+            t.className = "drpg-room-tile";
+            RT.paintRoomTile(t, { state: "room", room: "R1354 Dorm", sceneId: "SUITER1354SCENE0", description: "Two bunks.", image: "worlds/suite/hall.png",
+                tokens: { max: 2, left: 1, sealed: false }, project: true });
+            t.id = "drpg-room-tile";
+            return t;
+        };
+        const sels = kitRules.map(rule => ({ rule, sels: rule.selector.split(/,(?![^(]*\))/).map(sel => {
+            const pm = /::?(before|after)$/.exec(sel.trim());
+            return { pseudo: pm ? `::${pm[1]}` : null, base: pm ? sel.trim().slice(0, pm.index) : sel.trim() };
+        }) }));
+        const stated = (el, pseudo) => {
+            const out = new Set();
+            for (const { rule, sels: list } of sels) {
+                if (rule.selector === "body" || rule.selector === "body.drpg-theme-stained-glass") continue;
+                const hit = list.some(({ pseudo: want, base }) => { if (want !== pseudo) return false; try { return el.matches(base); } catch { return false; } });
+                if (hit) for (const d of rule.decls) if (!d.property.startsWith("--")) out.add(d.property);
+            }
+            return out;
+        };
+        const show = w => w ? `${w.file} ${w.selector} ${w.value}${w.important ? " !important" : ""}` : "nobody";
+        const differ = [], files = new Set();
+        let readings = 0;
+        for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-gm`;
+            html.append(body);
+            const kit = frame(), room = tile();
+            body.append(kit, room);
+            const each = root => [root, ...root.querySelectorAll("*")];
+            // the pseudo-elements on the room tile, where R1333 reads them; the kit window's elements themselves
+            for (const [el, pseudo] of [...each(kit).map(el => [el, null]), ...each(room).flatMap(el => [[el, null], [el, "::before"], [el, "::after"]])]) {
+                {
+                    const onC = C.on(el, pseudo);
+                    for (const prop of stated(el, pseudo)) {
+                        readings++;
+                        const want = show(F.winner(el, names(prop), pseudo));
+                        const got = [show(onC(names(prop))), show(C.winner(el, names(prop), pseudo))];
+                        if (got.some(one => one !== want)) differ.push(`${theme} ${el.localName}.${[...el.classList].join(".")}${pseudo ?? ""} ${prop}: ${want} | ${got.join(" | ")}`);
+                        const w = C.winner(el, names(prop), pseudo);
+                        if (w) files.add(w.file);
+                    }
+                }
+            }
+        }
+        must(readings > 300, `${readings} property reading(s) made - the elements matched no rule of components.css`);
+        must(files.size > 1, `every winner came from ${[...files].join(", ")} - no reading crossed the sheets`);
+        /* The invalidation: a planted rule pushed, at an index, spliced away - each read by the next answer, on the cached
+           cascade, through `winner` and through an `on` made before the write. */
+        const html = document.createElement("html"), body = document.createElement("body");
+        body.className = "drpg-theme-stained-glass drpg-gm";
+        html.append(body);
+        const root = frame();
+        root.id = "r1354-root";
+        body.append(root);
+        const before = show(C.winner(root, "max-height"));
+        const onRoot = C.on(root);
+        const planted = { file: "planted", selector: "#r1354-root.drpg-window-r1354", decls: [{ property: "max-height", value: "1354px", important: true }] };
+        const seen = [];
+        C.rules.push(planted);
+        seen.push(show(C.winner(root, "max-height")), show(onRoot("max-height")));
+        const at = C.rules.indexOf(planted);
+        const swapped = { ...planted, decls: [{ property: "max-height", value: "1355px", important: true }] };
+        C.rules[at] = swapped;
+        seen.push(show(C.winner(root, "max-height")));
+        C.rules.splice(C.rules.indexOf(swapped), 1);
+        seen.push(show(C.winner(root, "max-height")), show(onRoot("max-height")));
+        /* One cascade's rules are its own: a declaration changed in C's first rule is not in a cascade built after it. */
+        const first = C.rules[0].decls[0], kept = first.value;
+        first.value = "r1354-changed";
+        const D = await styleCascade();
+        const other = D.rules[0].decls[0].value;
+        first.value = kept;
+        equal(stableJson({ differ, seen, other: other === "r1354-changed" ? "shared" : "own" }), stableJson({ differ: [],
+            seen: ["planted #r1354-root.drpg-window-r1354 1354px !important", "planted #r1354-root.drpg-window-r1354 1354px !important", "planted #r1354-root.drpg-window-r1354 1355px !important", before, before],
+            other: "own" }), `[readings where the cached cascade (on, winner) differs from the uncached winner (${readings} read); max-height on the window after a push, by an on made before it, after an index set, after the splice and by that on again; whether a later cascade shares a changed rule]`);
+    }],
 ];
 
 /**
