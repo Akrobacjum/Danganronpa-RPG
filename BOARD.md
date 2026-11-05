@@ -48,8 +48,9 @@ R numbers: line B R1500-R1999.
 - Source of truth: E93 in plan.json is stale (it predates 05.11); read the plan artifact's text the owner gives you, or
   the decisions below, which are the owner's (05.11): the Rest tile becomes Facilities, holding Short rest, Long rest
   and room actions. A room action comes from the GM (defined in Room Setup, needs a roll, a failed roll uses it) or from
-  a completed project (no roll; it stands in the project's room). Short and Long rest keep no roll. Each action is once
-  per time of day for all players together (using A leaves B and C open), and every use leaves a trace. Players never
+  a completed project (no roll; it stands in the project's room). Short and Long rest keep no roll. A GM action is used by
+  one person per time of day (anyone, then closed for all); a project action once per person per time of day, not
+  blocking others (owner 05.11). Using A leaves B and C open, and every use leaves a trace. Players never
   create items by an action: soup is a project, and the completed project enables a room action. A project gets a
   lifetime after completion (unlimited, or limited, e.g. a day). The Projects tile stays its own tile (building: Work,
   Propose, Sabotage); a project's action shows its source and lifetime in Facilities, and the Projects window shows
