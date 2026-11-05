@@ -78,10 +78,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     check("gm: a Truth Bullet is made on Aiko's sheet", Boolean(bullet), String(bullet));
 
     /* A secret project that is an indirect murder: the killer's (p3's) and the GM's. */
+    /* Its description since E44 fix FG6 (05.11.2026; the end review's S-M1): the GMs', told to p3 on a private card. */
     const project = { name: canary.marker("project.name", { allowed: ["gm", "p3"] }),
-        condition: canary.marker("project.condition", { allowed: ["gm", "p3"] }) };
+        condition: canary.marker("project.condition", { allowed: ["gm", "p3"] }),
+        description: canary.marker("project.description", { allowed: ["gm", "p3"] }) };
     const made = await gm.eval(`const p = await game.drpg.createProject({ name: "${project.name}", indirectMurder: true, secret: true,
-            killerId: "${IDS.chie}", condition: "${project.condition}" });
+            killerId: "${IDS.chie}", condition: "${project.condition}", description: "${project.description}" });
         return p?.id ?? null;`, { timeout: 60000 });
     check("gm: a secret indirect-murder project is made for Chie", Boolean(made), String(made));
 
@@ -240,13 +242,14 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
        marker, so they are asked of the setting itself - on the two browsers that are not the
        killer's player's. The project's own row has to be there, or its absence measures nothing.
        Red on 93bbde8 (1.2.63) with this check alone, as known leak S09-05: p1 and p2 each held the
-       project's killerId, by, condition and trigger, and Chie's actor id. */
+       project's killerId, by, condition and trigger, and Chie's actor id. And its description since E44 fix FG6: red at
+       3e207d79, where p1 and p2 held it at projectMeta.<id>.description. */
     const metaHolds = p => p.eval(`const meta = game.settings.get("${MOD}", "projectMeta") ?? {};
-        const fields = Object.entries(meta).flatMap(([id, row]) => ["killerId", "by", "condition", "trigger"]
+        const fields = Object.entries(meta).flatMap(([id, row]) => ["killerId", "by", "condition", "trigger", "description"]
             .filter(f => row && typeof row === "object" && Object.hasOwn(row, f)).map(f => id + "." + f));
         return { row: Object.hasOwn(meta, "${made ?? "none"}"), fields, killer: JSON.stringify(meta).includes("${IDS.chie}") };`);
     const metaP1 = await metaHolds(p1), metaP2 = await metaHolds(p2);
-    check("p1 and p2: projectMeta holds no killerId, by, condition or trigger, and no character id of the killer",
+    check("p1 and p2: projectMeta holds no killerId, by, condition, trigger or description of the secret project, and no character id of the killer",
         Boolean(made) && [metaP1, metaP2].every(m => m.row && !m.fields.length && !m.killer), JSON.stringify({ p1: metaP1, p2: metaP2 }));
 
     /* THE PRE-SESSION NOTE IS THE GMS' (E05 C6, 26.09.2026; audit S11-03, S01-08): p3 saved it

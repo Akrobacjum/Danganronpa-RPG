@@ -5908,6 +5908,10 @@ const INVARIANTS = [
             ...["killerId", "by", "condition", "trigger", "saboteur", "sabotageAsk", "passage", "target", "foundBy", "proposerTold"].map(f => [`projectMeta.${f}`,
                 s => { s.settings.projectMeta.R190PROJECT00001[f] = f === "trigger" ? { kind: "enters" } : "R190"; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
+            // E44 fix FG6: a secret project's description (the clean snapshot's project is secret).
+            ...["description"].map(f => [`projectMeta while secret: ${f}`,
+                s => { s.settings.projectMeta.R190PROJECT00001[f] = "R190 the plan, in the killer's words"; },
+                h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E05 C5 added the last four: the Key Remnant plan held all of them.
             ...["sourceActor", "realType", "pointsAt", "dc", "tiedToCrime", "analysis", "analyzedText", "note", "tokenId"].map(f => [`every setting: ${f}`,
                 s => { s.settings.clock.deep = { [f]: 1 }; },
@@ -6035,6 +6039,11 @@ const INVARIANTS = [
             ["trialProgress may hold mutedDead in a Class Trial",
                 s => { s.settings.trialProgress = { chapter: 2, mutedDead: ["R190BYSTANDER001"] }; s.settings.clock.phase = "classTrial"; },
                 hits => !hits.some(h => h.id === "trialProgress")],
+            /* E44 fix FG6, both ways: a secret project's row may not hold its description (the fixture planted in the
+               clean snapshot's secret project, below), and a public project's row may. */
+            ["projectMeta may hold a public project's description",
+                s => { s.settings.projectMeta.R190PROJECT00002 = { room: "Gym", secret: false, description: "R190 a public description" }; },
+                hits => !hits.some(h => h.id === "projectMeta")],
             ["projectMeta may hold tokenId",
                 s => {
                     Object.assign(s.settings.projectMeta.R190PROJECT00001, { tokenId: "R190TOKEN0000002", tokenScene: "R190SCENE0000001" });
@@ -6061,6 +6070,7 @@ const INVARIANTS = [
         const named = new Set([...FIXTURES, ...EXEMPT].map(([what]) => what));
         const unfixtured = [
             ...Object.entries(R.settings).flatMap(([key, rule]) => [...(rule.fields ?? []).map(f => `${key}.${f}`),
+                ...(rule.whileSecret?.fields ?? []).map(f => `${key} while secret: ${f}`),
                 ...(rule.empty ? [`${key}: empty`] : []), ...(rule.only ? [`${key}: only ${rule.only.join(", ")}`] : [])]),
             ...(R.everySetting?.fields ?? []).map(f => `every setting: ${f}`),
             ...Object.entries(R.everySetting?.except ?? {}).flatMap(([key, fields]) => fields.map(f => `${key} may hold ${f}`)),

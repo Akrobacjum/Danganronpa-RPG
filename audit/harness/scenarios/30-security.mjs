@@ -1266,7 +1266,10 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
        (`listenLabels`). Read on every browser: which room of the scene the project's description in projectMeta - a world
        setting each of them holds - names. Then a description naming the Kitchen is planted there by the GM, and the same
        reading must find it on every browser, so it reads what it is meant to read. Red at 3e207d79: the empty field took
-       the preset's summary, "Secret Passage to Kitchen". */
+       the preset's summary, "Secret Passage to Kitchen". Since E44 fix FG6 a secret project's description is the GMs'
+       and reaches its players on a private card, so the words each browser reads for the project (`allProjects`: the
+       GMs' store on the GM, the card on Aiko's player's) are read too: the preset's label, naming no room - the owner's
+       rule of 05.11.2026 keeps the room out of the words even there, since a viewer let in later need not know it. */
     const stoodSP = await standE15(gm, IDS, repoUrl, { botanIn: "Cafeteria" });
     const sceneRooms = await gm.eval(`return (await import("${repoUrl}/scripts/movement.mjs")).allRooms(game.scenes.get("${IDS.scene}"));`);
     const learnKitchen = value => gm.eval(`const F = await import("${repoUrl}/scripts/fog.mjs");
@@ -1282,7 +1285,9 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     await settle(1500);
     const roomsNamed = c => c.eval(`const meta = (game.settings.get("${MOD}", "projectMeta") ?? {})[${JSON.stringify(spId)}] ?? {};
         const words = typeof meta.description === "string" ? meta.description : null;
-        return { words, rooms: ${JSON.stringify(sceneRooms)}.filter(room => (words ?? "").includes(room)) };`);
+        const told = (await import("${repoUrl}/scripts/projects.mjs")).allProjects().find(p => p.id === ${JSON.stringify(spId)})?.description ?? null;
+        return { words, rooms: ${JSON.stringify(sceneRooms)}.filter(room => (words ?? "").includes(room)), told,
+            toldRooms: ${JSON.stringify(sceneRooms)}.filter(room => (told ?? "").includes(room)) };`);
     const namedSP = {}, plantedSP = {};
     for (const [label, c] of [["gm", gm], ["p1", p1], ["p2", p2], ["p3", p3]]) namedSP[label] = await roomsNamed(c);
     await gm.eval(`const meta = foundry.utils.deepClone(game.settings.get("${MOD}", "projectMeta") ?? {});
@@ -1292,9 +1297,10 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     for (const [label, c] of [["gm", gm], ["p1", p1], ["p2", p2], ["p3", p3]]) plantedSP[label] = await roomsNamed(c);
     await learnKitchen(false);
     const satSP = await sitE15(gm, IDS, repoUrl);
-    check("SECURITY: a Secret Passage proposed with its Description left empty, by a player who knows the room beyond the wall, and approved in the GM's window keeps no room of the scene in projectMeta's description on any browser - and the same reading finds the Kitchen in a description planted there on every browser",
+    check("SECURITY: a Secret Passage proposed with its Description left empty, by a player who knows the room beyond the wall, and approved in the GM's window keeps no room of the scene in projectMeta's description on any browser, nor in the words the GM and its proposer read for it (the preset's label, on the proposer's card) - and the same reading finds the Kitchen in a description planted there on every browser",
         stoodSP.kitchen && stoodSP.wall && ledgerSP && knewSP && proposedSP.out?.proposed === true && Boolean(spId)
-            && sceneRooms.includes("Kitchen") && Object.values(namedSP).every(r => r.rooms.length === 0)
+            && sceneRooms.includes("Kitchen") && Object.values(namedSP).every(r => r.rooms.length === 0 && r.toldRooms.length === 0)
+            && Boolean(namedSP.gm.told) && namedSP.p1.told === namedSP.gm.told
             && Object.values(plantedSP).every(r => JSON.stringify(r.rooms) === JSON.stringify(["Kitchen"])) && satSP.projects === 0,
         JSON.stringify({ stoodSP, ledgerSP, knewSP, proposed: proposedSP.out ?? proposedSP.err, made: approvedSP.made ?? null, namedSP, plantedSP, satSP }));
 
@@ -1303,9 +1309,12 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
        Each player's browser draws the project token's card through the module's render hook into a stand-in sheet (no
        Daggerheart sheet renders headless) and is read: p2's card holds the words, line break kept; p1's names nothing -
        no words, no name - and neither the token p1 holds nor p1's page holds them. Then the GM changes the words
-       (`updateProject`) with p2's card left open: the card follows, with no new render. The words stand in the
-       project's open meta on every browser, as its name stands in Daggerheart's Countdowns there (audit S09-05, which
-       E43 takes up): read on p1, not refused. Red at c24da07f: no project keeps a description, so p2's card holds none. */
+       (`updateProject`) with p2's card left open: the card follows, with no new render. Since E44 fix FG6 (05.11.2026;
+       the end review's S-M1, the owner's option (a)) a secret project's words are the GMs' (projects-secrecy.mjs
+       PROJECT_SECRET_WHILE_SECRET) and reach p2 on a private card made for p2 (projects.mjs `tellDescription`): neither
+       player's projectMeta holds them, and p1's chat - every card's document and the words p1 holds - names none.
+       Red at c24da07f: no project keeps a description, so p2's card holds none; red at 3e207d79 on the meta: the words
+       stood in projectMeta on both browsers, read on p1 as the name is (C9's Open 91). */
     const DESCRIBED = { name: "SEC described work", words: "SEC words of the work\nbehind the vent", edit: "SEC words of the work, changed" };
     const described = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
         const made = await P.createProject({ name: ${JSON.stringify(DESCRIBED.name)}, target: 6, room: "Cafeteria", secret: true,
@@ -1327,6 +1336,8 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             meta: (game.settings.get("${MOD}", "projectMeta") ?? {})[id]?.description ?? null };`);
     const cardOn = { p1: await drawCard(p1), p2: await drawCard(p2) };
     const pageP1 = await p1.eval(`return document.body.innerHTML.includes("SEC words");`);
+    const chatP1 = await p1.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+        return game.messages.contents.some(m => JSON.stringify(m.toObject()).includes("SEC words") || String(S.secretHtml(m) ?? "").includes("SEC words"));`);
     await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
         await P.updateProject(${JSON.stringify(described)}, { description: ${JSON.stringify(DESCRIBED.edit)} }); return true;`, { timeout: 60000 });
     const followed = await p2.eval(`const end = Date.now() + 5000; const read = () => globalThis.__s30card?.element?.querySelector(".drpg-project-card-description p")?.innerHTML ?? null;
@@ -1334,11 +1345,11 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         return read();`, { timeout: 30000 });
     for (const c of [p1, p2]) await c.eval(`const held = globalThis.__s30card; if (held) { Hooks.callAll("closeApplicationV2", held.app); held.element.remove(); }
         delete globalThis.__s30card; return true;`);
-    check("SECURITY: a secret project's description is drawn on its token's card for p2, who is in on it, and for nobody else - p1's card names nothing, p1's token and page hold none - and p2's open card follows the GM's change",
+    check("SECURITY: a secret project's description is drawn on its token's card for p2, who is in on it, and for nobody else - p1's card names nothing, p1's token, page and chat hold none, and neither player's projectMeta holds it - and p2's open card follows the GM's change",
         Boolean(described) && cardOn.p2.token && cardOn.p2.names && cardOn.p2.words === "SEC words of the work<br>behind the vent"
         && cardOn.p1.token && !cardOn.p1.names && cardOn.p1.words === null && cardOn.p1.tokenHolds === false && pageP1 === false
-        && followed === DESCRIBED.edit,
-        JSON.stringify({ described, cardOn, pageP1, followed }));
+        && chatP1 === false && cardOn.p1.meta === null && cardOn.p2.meta === null && followed === DESCRIBED.edit,
+        JSON.stringify({ described, cardOn, pageP1, chatP1, followed }));
     /* 7b'''b. AFTER CREATION ONLY THE GMS CHANGE IT, AND NEVER PAST THE LIMIT (E44 fix FG3, 05.11.2026; Q-C9-2, the end
        review's S-m2 and S-m3). On the same project: p1's console sends the primary a project.change naming a description
        (a GM's own packet), then asks the same change through the bridge's own function (bridge-asks.mjs

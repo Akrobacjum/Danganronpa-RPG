@@ -195,6 +195,63 @@ export const PROJECT_KNOWN = "projectKnown";
 /* The projects the GMs' cards on this browser name (`projectsToldHere`); emptied when a card or its words arrive or go. */
 let toldHere = null;
 
+/** The meta key of a GM's private card that carries a secret project's description to its players (`tellDescription`). */
+export const PROJECT_WORDS = "projectWords";
+
+/* The newest description each secret project's cards on this browser carry (`toldDescription`); emptied with `toldHere`. */
+let wordsHere = null;
+
+/**
+ * A SECRET PROJECT'S DESCRIPTION ON A PLAYER'S BROWSER (E44 fix FG6): the newest of the GMs' private cards to this user
+ * that carry it (`PROJECT_WORDS`, posted by `tellDescription`), whose words and meta reach their readers alone
+ * (secret.mjs); null when no card here does. A card a GM did not write counts for nothing.
+ */
+export function toldDescription(countdownId) {
+    if (!wordsHere) {
+        wordsHere = new Map();
+        for (const message of game.messages ?? []) {
+            if (!message?.flags?.[MODULE_ID]?.secret || !message.author?.isGM) continue;
+            const told = cardMeta(message, PROJECT_WORDS);
+            if (typeof told?.id !== "string" || typeof told.text !== "string") continue;
+            const at = Number(message.timestamp) || 0;
+            if (!wordsHere.has(told.id) || wordsHere.get(told.id).at <= at) wordsHere.set(told.id, { text: told.text, at });
+        }
+    }
+    return wordsHere.get(countdownId)?.text ?? null;
+}
+
+/** A project's description as this browser may hold it (E44 C9; fix FG6): projectMeta's for a public one; for a secret one the GMs' store on a GM, the newest card that told it on a player's. */
+function descriptionOf(id) {
+    const words = !isSecret(id) ? metaFor(id).description : game.user?.isGM ? secretsOf(id).description : toldDescription(id);
+    return typeof words === "string" ? words : "";
+}
+
+/**
+ * TELL A SECRET PROJECT'S PLAYERS ITS DESCRIPTION (E44 fix FG6, 05.11.2026; the end review's S-M1, the owner's option (a)).
+ * On the primary GM, after every change of a secret project (`applyProjectChange`): each player in on it (`insidersOf`:
+ * its viewers - a finder by Observe is let in as one - and its builder's) whom the GMs' row does not record as told these
+ * words is sent one private card with them, veiled (its document names no reader, so who is in on the project is not
+ * read off it either), its meta carrying the project and the words (`PROJECT_WORDS`). The road the proposer of a public
+ * project is told by (`tellProposer`): no packet of its own, the words with the card to its readers alone. Who was told
+ * which words is the GMs' (`descriptionTold`, in their row). A project with no description tells nothing. Answers how
+ * many players were told.
+ */
+export async function tellDescription(countdownId) {
+    if (!isPrimaryGm() || !isSecret(countdownId)) return 0;
+    const words = secretsOf(countdownId).description;
+    if (typeof words !== "string" || !words) return 0;
+    const told = { ...(secretsOf(countdownId).descriptionTold ?? {}) };
+    const readers = insidersOf(countdownId).filter(id => game.users.get(id) && !game.users.get(id).isGM && told[id] !== words);
+    if (!readers.length) return 0;
+    const name = rawCountdown(countdownId)?.name ?? "?";
+    const posted = await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Project.descriptionTold", { name }))}</p><p>${esc(words).replace(/\n/g, "<br>")}</p>`,
+        { whisper: [...gmIds(), ...readers], veiled: true, flags: { [MODULE_ID]: { [PROJECT_WORDS]: { id: countdownId, text: words } } } });
+    if (!posted) return 0;
+    for (const id of readers) told[id] = words;
+    await projectSecretStore.patch(countdownId, { descriptionTold: told }, { whole: true });
+    return readers.length;
+}
+
 /** The ids of the projects this browser's private cards from a GM name as its user's own (`PROJECT_KNOWN`). */
 function projectsToldHere() {
     if (toldHere) return toldHere;
@@ -377,10 +434,11 @@ export function allProjects() {
                 condition: secretsOf(id).condition ?? "",
                 killerId: secretsOf(id).killerId ?? null,
                 trait: metaFor(id).trait ?? null,
-                /* WHAT IT IS, IN THE WORDS ITS PROPOSAL OR A GM GAVE IT (E44 C9; the owner's ask of 04.11.2026). The open
-                   meta's, beside the room and the trait, so it reaches the same browsers as the name in the countdown
-                   (Q-C9-1); "" for a project made before 1.2.99, until a GM's edit window asks for one (Q-C9-3). */
-                description: typeof metaFor(id).description === "string" ? metaFor(id).description : "",
+                /* WHAT IT IS, IN THE WORDS ITS PROPOSAL OR A GM GAVE IT (E44 C9; the owner's ask of 04.11.2026). A public
+                   project's in the open meta, beside the room and the trait; a secret one's the GMs' since fix FG6, and a
+                   player in on it reads the card that told it (`descriptionOf`); "" for a project made before 1.2.99,
+                   until a GM's edit window asks for one (Q-C9-3). */
+                description: descriptionOf(id),
                 // WHICH PIXEL GLYPH THE TRAY DRAWS FOR THIS ROW.
                 //
                 // `null` for every project made before this existed, and for
@@ -1012,6 +1070,16 @@ export async function applyProjectChange(countdownId, change, { by = null } = {}
             error(`Could not put the project ${countdownId}'s token right`, err);
         }
     }
+    /* A SECRET PROJECT'S PLAYERS ARE TOLD ITS DESCRIPTION (E44 fix FG6): after a change that made it, changed its words
+       or let somebody in - a create, an edit, a share, an Observe's find, a reseal - each player in on it whose card does
+       not hold the words yet is sent one (`tellDescription`); any other change tells nobody, all being told. */
+    if (result?.changed && !result.removed) {
+        try {
+            await tellDescription(countdownId);
+        } catch (err) {
+            error(`Could not tell the players of the project ${countdownId} its description`, err);
+        }
+    }
     return result;
 }
 
@@ -1289,7 +1357,8 @@ export function registerProjectChanges() {
     });
     /* A proposer's card, or its words, came or went (H84 fix G3): `projectsToldHere` reads again, and the tray and the
        project tokens ask again whom they show when the words name a project. */
-    const forget = () => { toldHere = null; };
+    // A card that tells a secret project's description (`PROJECT_WORDS`, E44 fix FG6) is read again the same way.
+    const forget = () => { toldHere = null; wordsHere = null; };
     Hooks.on("createChatMessage", forget);
     Hooks.on("deleteChatMessage", forget);
     Hooks.on("drpgSecretStored", message => {

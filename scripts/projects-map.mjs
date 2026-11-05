@@ -748,7 +748,8 @@ export async function syncProjectTokens() {
  * napisano w ekranie tworzenia projektu oraz z edycja w zakladce projects"). The card is a live region (live.mjs
  * `keepLive`): a change of the project's row (projectMeta - the description, the room, the secrecy) or of the
  * Countdowns (the name, the bar, who may see it) draws it again on every browser that holds it open, each from what it
- * holds, and `draw` asks `knowsProject` again each time - a player taken off a secret project sees the card that names
+ * holds (a secret project's description, since E44 fix FG6, from the private card that told it: the region hears a card's
+ * words stored as well), and `draw` asks `knowsProject` again each time - a player taken off a secret project sees the card that names
  * nothing. A discovery is not heard (the fog's record is no setting this watches), so a card opened while this browser
  * did not know its project turns into the project's when it is opened again: E43's, which takes up who knows a project
  * (E44's Open 96). Both are world settings, so `updateSetting` reaches every browser with no socket of the module's (sync.mjs's
@@ -775,7 +776,8 @@ function showProjectCard(app, element) {
     liveCards.set(app, keepLive(app, {
         region: ".drpg-project-card",
         build: draw,
-        watch: { settings: ["projectMeta"], settingKeys: [COUNTDOWNS_KEY] },
+        // ... and a card's words stored (secret.mjs `drpgSecretStored`): a secret project's description reaches its players on one (E44 fix FG6).
+        watch: { settings: ["projectMeta"], settingKeys: [COUNTDOWNS_KEY], hooks: ["drpgSecretStored"] },
         after: wireProjectCard
     }));
     // Sized for a stat block; this is a card, exactly as the trace's is - and a frame

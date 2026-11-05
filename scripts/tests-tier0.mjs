@@ -1086,6 +1086,10 @@ const REGRESSIONS = [
         const { PROJECT_SECRET_FIELDS } = await import("./projects.mjs");
         equal(JSON.stringify([...(WORLD_SECRET_RULES.settings.projectMeta?.fields ?? [])].sort()), JSON.stringify([...PROJECT_SECRET_FIELDS].sort()),
             "the world-secrets rule for projectMeta is not the fields projects.mjs keeps on the GMs' side (PROJECT_SECRET_FIELDS)");
+        // And those it keeps there while the project is secret (E44 fix FG6): its `whileSecret`.
+        const { PROJECT_SECRET_WHILE_SECRET } = await import("./projects-secrecy.mjs");
+        equal(JSON.stringify([...(WORLD_SECRET_RULES.settings.projectMeta?.whileSecret?.fields ?? [])].sort()), JSON.stringify([...(PROJECT_SECRET_WHILE_SECRET ?? [])].sort()),
+            "the world-secrets rule's whileSecret for projectMeta is not projects-secrecy.mjs's PROJECT_SECRET_WHILE_SECRET");
         const settings = {};
         for (const [full, def] of game.settings.settings) {
             if (!full.startsWith(`${MODULE_ID}.`) || def.scope !== "world") continue;
@@ -20333,15 +20337,17 @@ const REGRESSIONS = [
         const total = [...noRole.values()].reduce((a, b) => a + b, 0);
         equal(JSON.stringify(list), "[]", `the footer buttons that name no role, which E22 gives one: ${total} in ${noRole.size} file(s)`);
     }, expectedRed("E22", "E22 fills the button-role table: every footer button of the module gets a role of BUTTON_ROLES, D11's red only for the GM's road; the census of the buttons that name none is its list, and E22 takes this marker off when it is empty", { failing: "the footer buttons that name no role, which E22 gives one" })],
-    ["R1351 - a project's description travels by its name's road (E44 C9; Q-C9-1..3): the player's proposal draws the field, guards its Propose, refuses before anything is sent what config.mjs `projectDescriptionProblem` names - a preset's own label standing in for an empty one, wired into the field as the preset is chosen, and its room-naming summary never the description (fix FG1) - and carries the text on the card's Approve; the approval hands it to the GM's window, which draws it, guards Save, refuses the same way before it writes, and writes it by createProject and projectEditChange; createProject refuses one too long and puts it in the open meta of the change that writes the sealed countdown, projectEditChange in the meta, and allProjects reads it back; it is no field of PROJECT_SECRET_FIELDS, of the world-secrets rule or of the token a project places; the manager's table neither reads nor writes it; and the token's card is a live region over projectMeta and the Countdowns that asks knowsProject at every draw", async () => {
+    ["R1351 - a project's description travels by its name's road (E44 C9; Q-C9-1..3): the player's proposal draws the field, guards its Propose, refuses before anything is sent what config.mjs `projectDescriptionProblem` names - a preset's own label standing in for an empty one, wired into the field as the preset is chosen, and its room-naming summary never the description (fix FG1) - and carries the text on the card's Approve; the approval hands it to the GM's window, which draws it, guards Save, refuses the same way before it writes, and writes it by createProject and projectEditChange; createProject refuses one too long and puts it in the meta of the change that writes the sealed countdown, projectEditChange in the meta, and allProjects reads it back through `descriptionOf`; it is no field of PROJECT_SECRET_FIELDS or of the token a project places, and a secret project's is the GMs' (PROJECT_SECRET_WHILE_SECRET, the world-secrets rule's whileSecret: E44 fix FG6), told to its players by `tellDescription` after every change; the manager's table neither reads nor writes it; and the token's card is a live region over projectMeta and the Countdowns that asks knowsProject at every draw", async () => {
         /*
          * E44 C9, 04.11.2026. Where the words live, and why there: the project's open meta (projectMeta, a world setting),
          * beside the room and the trait, written in the one change of the entry that writes its countdown - the name, the
          * bar and the ownership map that seals a secret one - so they reach exactly the browsers the name reaches (Q-C9-1),
          * hidden from the interface of a browser that does not know the project as the name is (audit S09-05, which E43
-         * takes up). The GMs' side (PROJECT_SECRET_FIELDS, projectSecretStore) would keep them from a player who knows the
-         * project; the token would carry them to a browser that does not. Read in the source; the road driven is tier 2
-         * E44-T20 and 30-security. Red at c24da07f: no field in either window, nothing on the card.
+         * takes up). The token would carry them to a browser that does not know the project. Since E44 fix FG6 (05.11.2026;
+         * the end review's S-M1, the owner's option (a)) a secret project's words are the GMs' store's, and its players read
+         * them on a private card the primary sends them (projects.mjs `tellDescription`); a public project's stay in the
+         * open meta. Read in the source; the road driven is tier 2 E44-T20, 30-security and 72-canary. Red at c24da07f: no
+         * field in either window, nothing on the card; at 3e207d79 on the GMs' list, its rule and the telling.
          */
         const sources = new Map(await otherSources());
         const src = file => stripComments(sources.get(file) ?? "");
@@ -20378,8 +20384,11 @@ const REGRESSIONS = [
             },
             create: { long: order(create, /projectDescriptionProblem\(description\) === "long"/, /applyProjectChange\(/), meta: /meta: \{[\s\S]*\.\.\.\(words \? \{ description: words \} : \{\}\)/.test(create) },
             edit: /meta\.description = String\(patch\.description \?\? ""\)\.trim\(\)/.test(edit),
-            read: /description: typeof metaFor\(id\)\.description === "string"/.test(all),
-            secret: [PROJECT_SECRET_FIELDS.includes("description"), (WORLD_SECRET_RULES.settings.projectMeta?.fields ?? []).includes("description")],
+            read: /description: descriptionOf\(id\)/.test(all),
+            secret: [PROJECT_SECRET_FIELDS.includes("description"), (WORLD_SECRET_RULES.settings.projectMeta?.fields ?? []).includes("description"),
+                (await import("./projects-secrecy.mjs")).PROJECT_SECRET_WHILE_SECRET?.includes("description") ?? false,
+                (WORLD_SECRET_RULES.settings.projectMeta?.whileSecret?.fields ?? []).includes("description"),
+                /tellDescription\(countdownId\)/.test(fn("projects.mjs", "applyProjectChange"))],
             token: /description/i.test(place),
             manager,
             card: {
@@ -20393,13 +20402,14 @@ const REGRESSIONS = [
             approval: true,
             window: { field: true, guard: true, refusedFirst: true, written: 2 },
             create: { long: true, meta: true },
-            edit: true, read: true, secret: [false, false], token: false, manager: [], card: { live: true, asks: true }
+            edit: true, read: true, secret: [false, false, true, true, true], token: false, manager: [], card: { live: true, asks: true }
         }), "[the proposal: the field, its guard (a preset's empty field let through), a preset's label for an empty one, wired into the field, "
             + "the summary line never the description, the refusal before the "
             + "card is sent, the text on Approve; the approval passing it on; the GM's window: the field, its guard, the refusal before the edit and "
             + "the create, how many writes name it; createProject's refusal of one too long and its meta; projectEditChange; allProjects; whether "
             + "the GMs' fields or the world-secrets rule name it; whether the token's creation names it; the manager's functions that name it; the "
-            + "card's live region and its draw asking knowsProject]");
+            + "card's live region and its draw asking knowsProject; since fix FG6 the GMs' list of the fields held while secret and its rule, "
+            + "and applyProjectChange telling the players]");
     }],
 ];
 
