@@ -40,6 +40,29 @@ R numbers: line A R1049-R1499.
 
 R numbers: line B R1500-R1999.
 
+### Line B - next task (owner 05.11.2026, budget about $20): the spec of E93 Facilities, docs only
+- What: write `stages/E93/STAGE.md` on this branch (lines-board), in the shape of `examples/E70-p2/STAGE.md`: rows with
+  verify and doneWhen, groups C1..Cn, the red-first tests each group starts with, the files each group touches, and the
+  questions for the owner, each with a default. One commit (two if the questions round needs one). No code, no push to
+  any other branch, no merge of main into your code branch for this task.
+- Source of truth: E93 in plan.json is stale (it predates 05.11); read the plan artifact's text the owner gives you, or
+  the decisions below, which are the owner's (05.11): the Rest tile becomes Facilities, holding Short rest, Long rest
+  and room actions. A room action comes from the GM (defined in Room Setup, needs a roll, a failed roll uses it) or from
+  a completed project (no roll; it stands in the project's room). Short and Long rest keep no roll. Each action is once
+  per time of day for all players together (using A leaves B and C open), and every use leaves a trace. Players never
+  create items by an action: soup is a project, and the completed project enables a room action. A project gets a
+  lifetime after completion (unlimited, or limited, e.g. a day). The Projects tile stays its own tile (building: Work,
+  Propose, Sabotage); a project's action shows its source and lifetime in Facilities, and the Projects window shows
+  what is left of a completed project's lifetime. A fixed, broad effect list (Health, Sanity, Hope, an item's
+  durability, a condition cleared, temporary trait +X, temporary Experience, advantage on the next roll of a trait, a
+  stronger next ultimate Hope Call, shelter from Despair on a roll, a search token, a Free Move, an Eclipse crossing,
+  project progress, an effect for everyone present, Hope to another present, the Overflow counter down, a GM text, a
+  narrative effect). New Overflow effects: Lockdown, Insomnia, Toll, Jitters, Power cut (Sabotage and Spoilage refused).
+- Read at origin/main (1.2.99, 7bb71bb9): scripts/rest.mjs, room-setup.mjs, config.mjs (ACTIONS rest and project,
+  OVERFLOW), overflow.mjs, projects.mjs, the bridge files, and `.claude/rules/trust-model.md` (every effect goes through
+  the GM). Say what you measured; mark what you could not check (e.g. temporary Health in Daggerheart) as a question.
+- Effort: medium. Stop and write what you have if the session's cost passes $15.
+
 ## Line B - proposed
 29.10.2026, read-only, at main 12ff1b62. Method: each candidate's files read by symbol (git grep at HEAD), intersected
 with line A's footprints for E89, E65, E66, E50, E51, E37 and the splits E41/E54. Files every stage touches (lang,
