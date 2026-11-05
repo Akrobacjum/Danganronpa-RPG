@@ -40,7 +40,7 @@ R numbers: line A R1049-R1499.
 
 R numbers: line B R1500-R1999.
 
-### Line B - next task (owner 05.11.2026, budget about $20): the spec of E93 Facilities, docs only
+### Line B - next task, PARKED (owner 05.11.2026: not today; budget about $20): the spec of E93 Facilities, docs only
 - What: write `stages/E93/STAGE.md` on this branch (lines-board), in the shape of `examples/E70-p2/STAGE.md`: rows with
   verify and doneWhen, groups C1..Cn, the red-first tests each group starts with, the files each group touches, and the
   questions for the owner, each with a default. One commit (two if the questions round needs one). No code, no push to
