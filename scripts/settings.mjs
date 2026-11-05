@@ -3999,6 +3999,38 @@ export function applyTheme() {
    for rather than from whatever it is now - so re-rendering never compounds it, and a window
    the user has dragged wider keeps that width until it is rendered again.
    `auto` is left alone: a window that measures itself is already right. */
+
+/**
+ * The box a window asks for (`want`, its width and height), scaled by the slider `scale` and held inside a screen of
+ * `vw` x `vh` less 48 px: what `scaleWindow` hands `setPosition`. Pure, so the fit sweep's sheet stand-in reads the
+ * same numbers (E21 C1c, `sheetBox`). Answers the dimensions it could read, each a whole number of pixels.
+ */
+export function scaledBox(want, vw, vh, scale) {
+    const size = {};
+    for (const dim of ["width", "height"]) {
+        const n = Number(want?.[dim]);
+        if (Number.isFinite(n) && n > 0) size[dim] = Math.round(n * scale);
+    }
+    /* A window may not be taller than the screen it is on. At 140 % a 1160 px sheet asks for
+       1624, and Foundry will happily place a window whose bottom is off the display. */
+    if (size.height) size.height = Math.min(size.height, Math.round(vh - 48));
+    if (size.width) size.width = Math.min(size.width, Math.round(vw - 48));
+    return size;
+}
+
+/** Daggerheart's own size for a character sheet, as the note in `scaleWindow` reads it (850 x 800): Monokuma Legacy
+    keeps it. Read from the sheet class at a table; here for `sheetBox`, which has no class to read. */
+const DAGGERHEART_SHEET = Object.freeze({ width: 850, height: 800 });
+
+/**
+ * The character sheet's box on a screen of `vw` x `vh` at the slider's `scale`, in `theme` ("glass" or "legacy"), as
+ * `scaleWindow` sizes it (E21 C1c): the fit sweep's sheet stand-in (audit/style-harness.html `?sheet=1`) is drawn at
+ * these numbers, since the sheet itself is Daggerheart's and is drawn neither headless nor on a harness page.
+ */
+export function sheetBox(vw, vh, scale = 1, theme = "glass") {
+    return scaledBox(theme === "glass" ? SHEET_SIZE.glass : DAGGERHEART_SHEET, vw, vh, scale);
+}
+
 function scaleWindow(app, element) {
     if (!settingsRegistered()) return;
     const el = element instanceof HTMLElement ? element : element?.[0];
@@ -4045,15 +4077,7 @@ function scaleWindow(app, element) {
         want.width = SHEET_SIZE.glass.width;
         want.height = SHEET_SIZE.glass.height;
     }
-    const size = {};
-    for (const dim of ["width", "height"]) {
-        const n = Number(want[dim]);
-        if (Number.isFinite(n) && n > 0) size[dim] = Math.round(n * s);
-    }
-    /* A window may not be taller than the screen it is on. At 140 % a 1160 px sheet asks for
-       1624, and Foundry will happily place a window whose bottom is off the display. */
-    if (size.height) size.height = Math.min(size.height, Math.round(window.innerHeight - 48));
-    if (size.width) size.width = Math.min(size.width, Math.round(window.innerWidth - 48));
+    const size = scaledBox(want, window.innerWidth, window.innerHeight, s);
     /* THE SHEET IS NOT RESIZED BY HAND UNDER THE GLASS - its size is a statement of that
        theme - and the handle is hidden by a THEME RULE in stained-glass.css rather than
        taken out of the DOM here. Removed here, it stayed gone after a switch to Monokuma

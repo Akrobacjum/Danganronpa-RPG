@@ -20411,6 +20411,46 @@ const REGRESSIONS = [
             + "card's live region and its draw asking knowsProject; since fix FG6 the GMs' list of the fields held while secret and its rule, "
             + "and applyProjectChange telling the players]");
     }],
+    ["R1356 - the fit sweep's reach (audit/style-sweep.mjs `--fit`; E21 C1c, E21-03, E21-13, E21-14): probe 08 keeps every tabbed window once per tab, opens the player's action windows (Observe, Search, Analyze, Tamper, Rest, Projects, Palm), the notice history with 250 notices and the room's description window; the sweep reads every captured window, the kit gallery, the sheet stand-in and the glass harness's A8 frames at 1920x1080, 1366x768, 1280x800 and 1024x768, a player's at 390x844, and names its four controls; the style harness places a window and the sheet stand-in reads settings.mjs `sheetBox`", async () => {
+        /*
+         * E21 C1c, 05.11.2026. "Fits on the screen" is a reading in Chromium, never a headless one: jsdom lays nothing
+         * out. What this holds is the sweep's reach - that the pages, the sizes and the controls the stage names are
+         * there to be read - not the reading, which each commit that moves a window quotes (STAGE.md rule 7). The
+         * sources are read as text: probe 08's list, the sweep's sizes, pages and controls, the harness's placement
+         * and its sheet stand-in, and the captures' manifest (the pages the sweep is given). Red on C1b's tree: no
+         * fit pass in style-sweep.mjs ("no fit pass").
+         */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        const read = async path => {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" });
+                return res.ok ? await lfText(res) : "";
+            } catch { return ""; }
+        };
+        const [sweep, probe, page, manifestText] = await Promise.all(["audit/style-sweep.mjs", "audit/harness/probes/08-capture-windows.mjs",
+            "audit/style-harness.html", "audit/windows/manifest.json"].map(read));
+        must(probe.length > 2000 && page.length > 2000, "probe 08 or the style harness read nothing - this test would read nothing");
+        ok(/const FIT = argv\.includes\("--fit"\)/.test(sweep) && sweep.includes("async function fitPass("), "no fit pass in audit/style-sweep.mjs");
+        const sizes = bodyOf(sweep, "const FIT_SIZES", { until: "\n" }) + bodyOf(sweep, "const FIT_PHONE", { until: "\n" });
+        const controls = ["(a) max-height off", "(b) body overflow visible", "(c) reposition skipped", "(d) Stop pushed down"].filter(name => !sweep.includes(`"${name}"`));
+        let manifest = { windows: [] };
+        try { manifest = JSON.parse(manifestText); } catch { /* read as empty below */ }
+        const rows = manifest.windows ?? [];
+        const ids = new Set(rows.map(r => r.id));
+        const tabbed = ["sound", "despair-flow", "investigation", "item-tables"].map(id => [id, rows.filter(r => r.of === id && r.captured).length]);
+        equal(JSON.stringify({
+            sizes: ["[1920, 1080]", "[1366, 768]", "[1280, 800]", "[1024, 768]", "[390, 844]"].filter(s => !sizes.includes(s)),
+            controls,
+            pages: ["\"kit-gallery\"", "\"sheet\"", "\"glass-gm\"", "\"glass-player\"", "toggleFoundryTools", "drpgVoiceList"].filter(s => !sweep.includes(s)),
+            probe: ["perTab", "ACTION_WINDOWS", "\"observe\", \"search\", \"analyze\", \"tamper\", \"rest\", \"project\", \"palm\"", "notices-player-250", "openRoomWindow", "i <= 250"].filter(s => !probe.includes(s)),
+            harness: ["drpgFit", "byHand", "sheetBox", "drpg-safeword-button", "wireKitTabs(app, { win: app"].filter(s => !page.includes(s)),
+            manifest: ["notices-player-250", "room-window", "action-observe"].filter(id => !ids.has(id)),
+            tabbed: tabbed.filter(([, n]) => n < 1).map(([id]) => id),
+            sheetBox: typeof (await import("./settings.mjs")).sheetBox
+        }), JSON.stringify({ sizes: [], controls: [], pages: [], probe: [], harness: [], manifest: [], tabbed: [], sheetBox: "function" }),
+        "[the sizes FIT_SIZES and FIT_PHONE miss; the controls the sweep does not name; the pages and A8 readers it does not name; what probe 08 does not name; what the style harness does not hold; "
+            + "the windows the manifest has no row for; the tabbed windows with no tab kept beside the first; settings.mjs sheetBox's type]");
+    }],
 ];
 
 

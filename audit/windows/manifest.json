@@ -308,6 +308,64 @@
       "file": "sound.html"
     },
     {
+      "id": "sound--music",
+      "client": "gm",
+      "opener": "sound-panel.mjs m.openSoundDialog()",
+      "of": "sound",
+      "tab": "music",
+      "captured": true,
+      "title": "Sound",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-wide",
+        "drpg-sound",
+        "drpg-window-sound",
+        "drpg-table-window"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Close",
+          "default": true
+        }
+      ],
+      "file": "sound--music.html"
+    },
+    {
+      "id": "sound--effects",
+      "client": "gm",
+      "opener": "sound-panel.mjs m.openSoundDialog()",
+      "of": "sound",
+      "tab": "effects",
+      "captured": true,
+      "title": "Sound",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-wide",
+        "drpg-sound",
+        "drpg-window-sound",
+        "drpg-table-window"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Close",
+          "default": true
+        }
+      ],
+      "file": "sound--effects.html"
+    },
+    {
       "id": "despair-flow",
       "client": "gm",
       "opener": "gm-team-dialog.mjs m.openGmTeamDialog()",
@@ -343,6 +401,113 @@
         }
       ],
       "file": "despair-flow.html"
+    },
+    {
+      "id": "despair-flow--monokumas",
+      "client": "gm",
+      "opener": "gm-team-dialog.mjs m.openGmTeamDialog()",
+      "of": "despair-flow",
+      "tab": "monokumas",
+      "captured": true,
+      "title": "Despair Flow",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-monokuma-panel",
+        "drpg-assign",
+        "drpg-window-gmteam",
+        "drpg-table-window"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Save",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Close",
+          "default": false
+        }
+      ],
+      "file": "despair-flow--monokumas.html"
+    },
+    {
+      "id": "despair-flow--students",
+      "client": "gm",
+      "opener": "gm-team-dialog.mjs m.openGmTeamDialog()",
+      "of": "despair-flow",
+      "tab": "students",
+      "captured": true,
+      "title": "Despair Flow",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-monokuma-panel",
+        "drpg-assign",
+        "drpg-window-gmteam",
+        "drpg-table-window"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Save",
+          "default": true
+        },
+        {
+          "action": "auto",
+          "label": "Split evenly",
+          "default": false
+        },
+        {
+          "action": "cancel",
+          "label": "Close",
+          "default": false
+        }
+      ],
+      "file": "despair-flow--students.html"
+    },
+    {
+      "id": "despair-flow--overflow",
+      "client": "gm",
+      "opener": "gm-team-dialog.mjs m.openGmTeamDialog()",
+      "of": "despair-flow",
+      "tab": "overflow",
+      "captured": true,
+      "title": "Despair Flow",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-monokuma-panel",
+        "drpg-assign",
+        "drpg-window-gmteam",
+        "drpg-table-window"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Save",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Close",
+          "default": false
+        }
+      ],
+      "file": "despair-flow--overflow.html"
     },
     {
       "id": "season-setup",
@@ -460,6 +625,130 @@
         }
       ],
       "file": "investigation.html"
+    },
+    {
+      "id": "investigation--key",
+      "client": "gm",
+      "opener": "investigation.mjs m.openInvestigationDashboard()",
+      "of": "investigation",
+      "tab": "key",
+      "captured": true,
+      "title": "Investigation",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-window-case",
+        "drpg-table-window"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Save",
+          "default": true
+        },
+        {
+          "action": "newTrace",
+          "label": "New Remnant",
+          "default": false
+        },
+        {
+          "action": "clearFaint",
+          "label": "Clear Faint Remnants",
+          "default": false
+        },
+        {
+          "action": "sweepBullets",
+          "label": "Sweep Truth Bullets",
+          "default": false
+        },
+        {
+          "action": "autopsy",
+          "label": "Issue Autopsy Truth Bullet",
+          "default": false
+        },
+        {
+          "action": "log",
+          "label": "Trial evidence log",
+          "default": false
+        },
+        {
+          "action": "bodyFound",
+          "label": "Body found",
+          "default": false
+        },
+        {
+          "action": "close",
+          "label": "Close",
+          "default": false
+        }
+      ],
+      "file": "investigation--key.html"
+    },
+    {
+      "id": "investigation--final",
+      "client": "gm",
+      "opener": "investigation.mjs m.openInvestigationDashboard()",
+      "of": "investigation",
+      "tab": "final",
+      "captured": true,
+      "title": "Investigation",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-window-case",
+        "drpg-table-window"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Save",
+          "default": true
+        },
+        {
+          "action": "newTrace",
+          "label": "New Remnant",
+          "default": false
+        },
+        {
+          "action": "clearFaint",
+          "label": "Clear Faint Remnants",
+          "default": false
+        },
+        {
+          "action": "sweepBullets",
+          "label": "Sweep Truth Bullets",
+          "default": false
+        },
+        {
+          "action": "autopsy",
+          "label": "Issue Autopsy Truth Bullet",
+          "default": false
+        },
+        {
+          "action": "log",
+          "label": "Trial evidence log",
+          "default": false
+        },
+        {
+          "action": "bodyFound",
+          "label": "Body found",
+          "default": false
+        },
+        {
+          "action": "close",
+          "label": "Close",
+          "default": false
+        }
+      ],
+      "file": "investigation--final.html"
     },
     {
       "id": "class-trial",
@@ -639,6 +928,46 @@
       "file": "item-manager.html"
     },
     {
+      "id": "item-manager--take",
+      "client": "gm",
+      "opener": "gm-items.mjs m.openItemManager()",
+      "of": "item-manager",
+      "tab": "take",
+      "captured": true,
+      "title": "Give / take items",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-items"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "take",
+          "label": "Take an item away",
+          "default": false
+        },
+        {
+          "action": "takeBullet",
+          "label": "Take a Truth Bullet away",
+          "default": false
+        },
+        {
+          "action": "takeKey",
+          "label": "Take a room key away",
+          "default": false
+        },
+        {
+          "action": "cancel",
+          "label": "Close",
+          "default": false
+        }
+      ],
+      "file": "item-manager--take.html"
+    },
+    {
       "id": "item-tables",
       "client": "gm",
       "opener": "tables-editor.mjs m.openItemTables()",
@@ -677,6 +1006,70 @@
         }
       ],
       "file": "item-tables.html"
+    },
+    {
+      "id": "item-tables--editRooms",
+      "client": "gm",
+      "opener": "tables-editor.mjs m.openItemTables()",
+      "of": "item-tables",
+      "tab": "editRooms",
+      "captured": true,
+      "title": "Item tables",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-wide",
+        "drpg-window-tables"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "newPool",
+          "label": "Create table",
+          "default": false
+        },
+        {
+          "action": "close",
+          "label": "Close",
+          "default": false
+        }
+      ],
+      "file": "item-tables--editRooms.html"
+    },
+    {
+      "id": "item-tables--newItem",
+      "client": "gm",
+      "opener": "tables-editor.mjs m.openItemTables()",
+      "of": "item-tables",
+      "tab": "newItem",
+      "captured": true,
+      "title": "Item tables",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-wide",
+        "drpg-window-tables"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "add",
+          "label": "Add an item",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Close",
+          "default": false
+        }
+      ],
+      "file": "item-tables--newItem.html"
     },
     {
       "id": "look-gm",
@@ -838,6 +1231,215 @@
         }
       ],
       "file": "notices-player.html"
+    },
+    {
+      "id": "action-observe",
+      "client": "p1",
+      "opener": "action-rolls.mjs m.performAction(game.actors.find(a => a.type === \"character\" && a.isOwner), \"observe\")",
+      "captured": true,
+      "title": "Observe",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Roll",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "action-observe.html"
+    },
+    {
+      "id": "action-search",
+      "client": "p1",
+      "opener": "action-rolls.mjs m.performAction(game.actors.find(a => a.type === \"character\" && a.isOwner), \"search\")",
+      "captured": true,
+      "title": "Search",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Roll",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "action-search.html"
+    },
+    {
+      "id": "action-analyze",
+      "client": "p1",
+      "opener": "action-rolls.mjs m.performAction(game.actors.find(a => a.type === \"character\" && a.isOwner), \"analyze\")",
+      "captured": true,
+      "title": "Analyze",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Do it",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "action-analyze.html"
+    },
+    {
+      "id": "action-tamper",
+      "client": "p1",
+      "opener": "action-rolls.mjs m.performAction(game.actors.find(a => a.type === \"character\" && a.isOwner), \"tamper\")",
+      "captured": true,
+      "title": "Tamper",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Roll",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "action-tamper.html"
+    },
+    {
+      "id": "action-rest",
+      "client": "p1",
+      "opener": "action-rolls.mjs m.performAction(game.actors.find(a => a.type === \"character\" && a.isOwner), \"rest\")",
+      "captured": true,
+      "title": "Rest",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "cancel",
+          "label": "Close",
+          "default": true
+        }
+      ],
+      "file": "action-rest.html"
+    },
+    {
+      "id": "action-project",
+      "client": "p1",
+      "opener": "action-rolls.mjs m.performAction(game.actors.find(a => a.type === \"character\" && a.isOwner), \"project\")",
+      "captured": true,
+      "title": "Projects",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Do it",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "action-project.html"
+    },
+    {
+      "id": "action-palm",
+      "client": "p1",
+      "opener": "action-rolls.mjs m.performAction(game.actors.find(a => a.type === \"character\" && a.isOwner), \"palm\")",
+      "captured": false,
+      "answered": "null",
+      "threw": null
+    },
+    {
+      "id": "notices-player-250",
+      "client": "p1",
+      "opener": "notice-history-app.mjs m.openNotices()",
+      "captured": true,
+      "title": "Notice history",
+      "classes": [
+        "application",
+        "drpg-ui",
+        "drpg-panel",
+        "drpg-window-notices"
+      ],
+      "tag": "div",
+      "width": 420,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Close",
+          "default": true
+        },
+        {
+          "action": "clear",
+          "label": "Clear",
+          "default": false
+        }
+      ],
+      "file": "notices-player-250.html"
+    },
+    {
+      "id": "room-window",
+      "client": "p1",
+      "opener": "room-tile.mjs m.openRoomWindow()",
+      "captured": true,
+      "title": "Description",
+      "classes": [
+        "application",
+        "drpg-panel",
+        "drpg-window-room"
+      ],
+      "tag": "div",
+      "width": 480,
+      "buttons": [],
+      "file": "room-window.html"
     }
   ]
 }

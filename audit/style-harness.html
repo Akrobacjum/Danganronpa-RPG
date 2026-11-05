@@ -16,6 +16,16 @@
                         one; its render hands the window to the kit, which dresses it), its words from lang/en.json
                         (`&lang=pl`: lang/pl.json); the kit card's "today" for E44's mockup round, and a page of the
                         style sweep's baseline. The captions over each window are this page's, not the module's
+       ?sheet=1         THE SHEET STAND-IN (E21 C1c): the character sheet's frame at the size settings.mjs `scaleWindow`
+                        gives it on this screen (its numbers through the exported, pure `sheetBox`), with the Stop as
+                        sheet.mjs `injectSafeword` draws it (the default word), under the module's sheets. Daggerheart's
+                        sheet itself is drawn neither headless nor here: the frame, its content box and the Stop are.
+       ?fit=1           THE PLACEMENT (E21 C1c, for `style-sweep.mjs --fit`): each window stands where Foundry puts a new
+                        one - fixed, centred, its top max(0, (vh - h) / 2), a model of `_updatePosition` (LIVE-E21-01) -
+                        and `window.drpgFit()` reads each window in each tab state: placed with its first tab, then the
+                        tab pressed through the kit's own `wireKitTabs` (which clamps the top here, `keepInScreen`, as no
+                        application is there to ask). `drpgFit({ byHand: true })` switches the panes without the kit's
+                        code: the sweep's control (c), the reposition skipped
      THE SHEETS ARE module.json's, in its order, read when the page loads (a synchronous request and a link written
      for each, so they block the first paint as written links do), so a sheet added to module.json is never missed
      here. WHAT THIS PAGE IS NOT: Foundry's frame (the harness's DialogV2 draws its form with no header, so the
@@ -40,6 +50,11 @@
   .drpg-style-harness .drpg-style-missing { font: 14px monospace; }
   .drpg-style-harness .drpg-style-kit { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
   .drpg-style-harness .drpg-style-caption { font: 12px/1.3 monospace; color: #e4ded8; margin: 0 0 4px; max-width: 520px; }
+  /* ?fit=1: the windows where Foundry places them, not in the page's flow; the page itself does not scroll */
+  body.drpg-style-harness.drpg-style-fit { overflow: hidden; padding: 0; height: 100vh; }
+  .drpg-style-fit .drpg-style-shot { padding: 0; }
+  .drpg-style-fit .drpg-style-shot > .application { position: fixed; margin: 0; max-width: none; }
+  .drpg-style-fit .drpg-style-caption { display: none; }
 </style>
 </head>
 <body class="drpg-theme-stained-glass drpg-gm drpg-style-harness" data-drpg-time="afternoon" data-drpg-phase="dailyLife">
@@ -53,6 +68,7 @@
     var q = new URLSearchParams(location.search);
     if (q.get("theme") === "legacy") { document.body.classList.replace("drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"); document.body.classList.add("drpg-pixel-font"); }
     if (q.get("role") === "player") document.body.classList.replace("drpg-gm", "drpg-player");
+    if (q.get("fit")) document.body.classList.add("drpg-style-fit");
     var get = function (path) {
       var req = new XMLHttpRequest();
       req.open("GET", path, false);
@@ -61,7 +77,7 @@
     };
     var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]; }); };
     var manifest = JSON.parse(get("/audit/windows/manifest.json") || "{\"windows\": []}");
-    if (q.get("kit")) return;
+    if (q.get("kit") || q.get("sheet")) return;
     var wanted = q.get("w");
     var rows = manifest.windows.filter(function (r) { return r.captured && (!wanted || r.id === wanted); });
     if (wanted && !rows.length) document.write('<p class="drpg-style-missing">no captured window "' + esc(wanted) + '" in audit/windows/manifest.json</p>');
@@ -95,7 +111,116 @@
      content and a footer of submit buttons, each `class` and the default's `autofocus` as Foundry renders them),
      then hands it to the config's render, where drpgWindow dresses it - so what is shot is what the kit does. */
   const q = new URLSearchParams(location.search);
-  if (q.get("kit")) {
+  /* What the module's files reach for when they load (the kit's imports, settings.mjs for `sheetBox`): a hook
+     registry, as glass-harness.html stands one in, and settings that read nothing. */
+  const standIns = () => {
+    const hooks = new Map();
+    globalThis.Hooks ??= { on(name, fn) { if (!hooks.has(name)) hooks.set(name, []); hooks.get(name).push(fn); return fn; },
+      once(name, fn) { return this.on(name, fn); }, off() {}, callAll() { return true; } };
+    globalThis.ui ??= {};
+    globalThis.CONFIG ??= {};
+    globalThis.game ??= { ready: true, user: { isGM: !document.body.classList.contains("drpg-player") }, settings: { get: () => undefined, settings: new Map() },
+      i18n: { localize: key => key, has: () => false, format: key => key } };
+    globalThis.foundry ??= { utils: { escapeHTML: v => String(v ?? ""), randomID: () => Math.random().toString(36).slice(2, 10), deepClone: o => structuredClone(o) }, applications: { api: {} } };
+  };
+  /* THE PLACEMENT AND THE READING (`?fit=1`; E21 C1c). Each window is put where Foundry puts a new one; each state is
+     read as rectangles against the viewport: the window, its footer and each shown button of it, the tab bar, and every
+     element inside it that scrolls (its content taller or wider than its box, its overflow auto or scroll). */
+  const place = win => {
+    const r = win.getBoundingClientRect();
+    win.style.left = `${Math.max(0, Math.round((innerWidth - r.width) / 2))}px`;
+    win.style.top = `${Math.max(0, Math.round((innerHeight - r.height) / 2))}px`;
+  };
+  const box = el => { const r = el.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.right), Math.round(r.bottom)]; };
+  const inView = el => { const r = el.getBoundingClientRect(); return r.left >= -0.5 && r.top >= -0.5 && r.right <= innerWidth + 0.5 && r.bottom <= innerHeight + 0.5; };
+  const shown = el => { const r = el.getBoundingClientRect(); return !el.hidden && r.width > 0 && r.height > 0; };
+  const reading = (win, tab) => {
+    const footer = win.querySelector("footer.form-footer");
+    const nav = win.querySelector("nav.drpg-tabs");
+    const scrollers = [win, ...win.querySelectorAll("*")].filter(el => {
+      const cs = getComputedStyle(el);
+      const y = /auto|scroll/.test(cs.overflowY) && el.scrollHeight > el.clientHeight + 1;
+      const x = /auto|scroll/.test(cs.overflowX) && el.scrollWidth > el.clientWidth + 1;
+      return (y || x) && shown(el);
+    }).map(el => (el.classList.contains("drpg-kit-body") ? "kit-body" : `${el.localName}.${[...el.classList].slice(0, 3).join(".")}`));
+    return {
+      tab, box: box(win), window: inView(win),
+      footer: footer ? inView(footer) : null,
+      buttonsOut: footer ? [...footer.querySelectorAll("button")].filter(shown).filter(b => !inView(b)).map(b => b.dataset.action ?? b.textContent.trim()) : [],
+      tabs: nav ? inView(nav) : null,
+      // the kit's body taller than its box with nothing to scroll it: what it holds is cut off (the sweep's control b)
+      cut: (() => { const b = win.querySelector(".drpg-kit-body"); return Boolean(b && b.scrollHeight > b.clientHeight + 1 && !/auto|scroll/.test(getComputedStyle(b).overflowY)); })(),
+      scrollers
+    };
+  };
+  const switchByHand = (win, key) => {
+    for (const t of win.querySelectorAll('nav.drpg-tabs > button[role="tab"]')) t.setAttribute("aria-selected", String(t.dataset.drpgTabKey === key));
+    for (const p of win.querySelectorAll("[data-drpg-pane]")) p.hidden = p.dataset.drpgPane !== key;
+  };
+  window.drpgFit = async ({ byHand = false, only = null } = {}) => {
+    const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const out = [];
+    for (const shot of document.querySelectorAll(".drpg-style-shot")) {
+      const win = shot.querySelector(":scope > .application");
+      if (!win || (only && shot.dataset.window !== only)) continue;
+      const kit = win.classList.contains("drpg-ui");
+      const keys = [...win.querySelectorAll('nav.drpg-tabs > button[role="tab"]')].map(t => t.dataset.drpgTabKey);
+      const press = key => {
+        const t = win.querySelector(`nav.drpg-tabs > button[data-drpg-tab-key="${CSS.escape(key)}"]`);
+        if (byHand) switchByHand(win, key); else t?.click();
+      };
+      const states = [];
+      if (keys.length) press(keys[0]);
+      place(win);
+      await frame();
+      states.push(reading(win, keys[0] ?? null));
+      for (const key of keys.slice(1)) {
+        // opened on its first tab, where Foundry put it, and then this tab pressed
+        if (byHand) switchByHand(win, keys[0]); else press(keys[0]);
+        await frame();
+        place(win);
+        await frame();
+        press(key);
+        await frame();
+        states.push(reading(win, key));
+      }
+      if (keys.length) { press(keys[0]); await frame(); place(win); }
+      out.push({ window: shot.dataset.window, kit, title: win.querySelector(".window-title")?.textContent ?? null, states,
+        stop: win.querySelector(".drpg-safeword-button") ? inView(win.querySelector(".drpg-safeword-button")) : null });
+    }
+    return out;
+  };
+  if (q.get("sheet")) {
+    /* THE SHEET STAND-IN (`?sheet=1`, E21 C1c). The frame Daggerheart's sheet stands in (the classes the module's rules
+       name it by), at `sheetBox`'s size for this screen and theme, its content a column as tall as a sheet's tabs, and
+       the Stop as `injectSafeword` draws it, appended to `.window-content`. */
+    standIns();
+    try {
+      const { sheetBox } = await import("/scripts/settings.mjs");
+      const theme = document.body.classList.contains("drpg-theme-stained-glass") ? "glass" : "legacy";
+      const size = sheetBox(innerWidth, innerHeight, 1, theme);
+      const shot = document.createElement("div");
+      shot.className = "drpg-style-shot";
+      shot.id = "shot-sheet";
+      shot.dataset.window = "sheet";
+      const app = document.createElement("div");
+      app.className = "application sheet daggerheart actor character";
+      app.style.width = `${size.width}px`;
+      app.style.height = `${size.height}px`;
+      app.innerHTML = `<header class="window-header"><h1 class="window-title">Character sheet (stand-in)</h1><button type="button" class="header-control" data-action="close">x</button></header>`
+        + `<section class="window-content" style="height: calc(100% - 32px); overflow: hidden"><div class="drpg-style-sheet-body" style="height: 100%; overflow: auto"><div style="height: 1400px"></div></div></section>`;
+      const stop = document.createElement("button");
+      stop.type = "button";
+      stop.className = "drpg-safeword-button";
+      stop.innerHTML = `<i class="fa-solid fa-hand" inert></i>\n        <span>Safe Word</span>`;
+      app.querySelector(".window-content").append(stop);
+      shot.append(app);
+      document.body.append(shot);
+      document.body.dataset.drpgSheetBox = `${size.width}x${size.height}`;
+    } finally {
+      document.body.removeAttribute("data-drpg-kit-pending");
+    }
+  } else if (q.get("kit")) {
     const get = path => { const req = new XMLHttpRequest(); req.open("GET", path, false); req.send(); return req.status === 200 ? req.responseText : null; };
     const lang = JSON.parse(get(`/lang/${q.get("lang") === "pl" ? "pl" : "en"}.json`) || "{}");
     const at = key => key.split(".").reduce((o, k) => o?.[k], lang);
@@ -211,6 +336,9 @@
       await document.fonts?.ready;
       await new Promise(r => requestAnimationFrame(r));
       for (const nav of document.querySelectorAll(".drpg-style-shot nav.drpg-tabs")) K.fitKitTabs(nav);
+      /* ?fit=1 (E21 C1c): the tabs wired by the kit's own code, the window its `win`, so a press clamps its top
+         (`keepInScreen`) as a press asks Foundry to (`setPosition`) in the module. */
+      if (q.get("fit")) for (const app of document.querySelectorAll(".drpg-style-shot > .application")) K.wireKitTabs(app, { win: app, fit: false });
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     } finally {
       document.body.removeAttribute("data-drpg-kit-pending");
