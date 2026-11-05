@@ -402,9 +402,15 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
     const SOUND = `const root = () => document.querySelector(".drpg-window-sound");
         const windows = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
         const closeSound = async () => { root()?.querySelector('footer.form-footer button[data-action="close"]')?.click(); await until(() => !root(), 3000); };`;
+    // The row's marker is read as the window draws it NOW, found by its key as `showSaveState` finds it, not through the
+    // select changed: another write's echo may redraw the rows between the change and the save's answer (keepLive,
+    // sound-panel.mjs; the marker is carried across, live.mjs `capture`), and the select's old row is then detached,
+    // its marker left at "saving". Measured headless (05.11.2026, 5 runs): in the failing run gm's first write reached
+    // gm2's rows 230 ms into gm2's change, the new marker said "saving" then "saved" 300 ms later, the old one "saving".
     const SELECT = (key, value) => `const s = root()?.querySelector('select[name="state:${key}"]');
         if (s) { s.value = ${J(value)}; s.dispatchEvent(new Event("change", { bubbles: true })); }
-        const marker = () => s?.closest("tr")?.querySelector("[data-drpg-save]")?.dataset.drpgSave ?? null;`;
+        const marker = () => [...(root()?.querySelectorAll("[data-drpg-save]") ?? [])]
+            .find(m => m.dataset.drpgKey === ${J(key)})?.dataset.drpgSave ?? null;`;
     const MAP = `${MU} return ST.getSetting(ST.SETTINGS.musicMap) ?? {};`;
 
     phase("C0: what the harness assumes of Foundry's Music slider");
