@@ -17,7 +17,7 @@
  * the theme is "Monokuma Legacy" this file mounts nothing.
  */
 
-import { SETTINGS, getSetting, shortScreen, BREAKPOINTS } from "./settings.mjs";
+import { SETTINGS, getSetting, shortScreen, keyboardUp, BREAKPOINTS } from "./settings.mjs";
 import { narrowLayout, COLUMN_SEL } from "./narrow.mjs";
 import { log, AV_LIFT_EVENT } from "./utils.mjs";
 import { inFoundryWindow } from "./foundry-windows.mjs";
@@ -3729,7 +3729,10 @@ function pruneWindows() { for (let i = windows.length - 1; i >= 0; i--) if (!win
    there is nothing to rebuild - the curtain has to go, or come back. With one mounted it
    still ends in `rebuild`, and an unchanged signature costs one measurement of the blocks -
    not the partition, not the self-check and no paint (see the fast path in `curtainGeometry`). */
-const schedule = () => { clearTimeout(timer); timer = setTimeout(() => refreshGlass(), 150); };
+/* While an on-screen keyboard is over the page nothing is cut again (E21 C1d; settings.mjs `layoutHeight`): the page's
+   height fell and every block observed with it, but the partition, the gate (`shortScreen`) and the flat layout stay as
+   they were until the keyboard goes - its own resize then cuts once - or the screen really changes. */
+const schedule = () => { if (keyboardUp()) return; clearTimeout(timer); timer = setTimeout(() => refreshGlass(), 150); };
 let resizeWatched = false;
 function observe() {
   observers.forEach(o => o.disconnect()); observers = [];
@@ -3874,7 +3877,7 @@ export function registerGlass() {
   // the sidebar is deliberately NOT a signal: opening it moves nothing and recuts nothing
   // Debounced like everything else on resize: `rebuild` already pins the right column and
   // frees the board, and the raw handler did both on every event of a window drag.
-  addEventListener("resize", () => { if (themeOn()) schedule(); flatSoon(); });
+  addEventListener("resize", () => { if (keyboardUp()) return; if (themeOn()) schedule(); flatSoon(); });
   Hooks.on("drpgHudRendered", flatSoon);
   Hooks.on("renderApplicationV2", dressWindow);
   Hooks.on("closeApplicationV2", pruneWindows);

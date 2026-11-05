@@ -34317,6 +34317,45 @@ const INVARIANTS = [
             fits: [[1, 21, "421px", "400"], [2, 2, 0, "421px"]]
         }), `[positions asked on the first draw; after each of three presses (b, c, a): what was asked, with the pane shown, the footer's shown buttons and the tabs onSwitch was told then (${asked.length} reposition(s) after 3 presses); the panes (key, hidden, inline display); the form's fields; the tops a page with no application clamped (5000 px, -50 px); the first fit (rows, grew, width, first width) and the second (rows, columns, grew, width)]`);
     }],
+    ["R1355 - an on-screen keyboard does not switch the layout (scripts/settings.mjs `layoutHeight`, `shortScreen`, `keyboardUp`; E21 C1d, E21-17; the owner's 26.09 amend and A7): with focus in a text field a fall of the height alone keeps `shortScreen` and `narrowScreen` as they were and `keyboardUp` says so; the height risen, a fall with no field focused and a change of the width are taken; glass.mjs cuts nothing while the keyboard is up, and the keyboard is asked to overlay the page where the browser lets it", async () => {
+        /*
+         * E21 C1d, 05.11.2026. On a tablet the keyboard under a text field shrinks the page, and the module read that as a
+         * smaller screen: `drpg-short` on, the stack and the curtain cut again under the player's finger. Read here: the
+         * page's size stood in (`innerWidth`, `innerHeight` defined on the window for the reading and put back), a
+         * textarea focused and blurred, the answers of settings.mjs at each step; and the source of glass.mjs's `schedule`
+         * and settings.mjs's `watchScreen`. A real keyboard is LIVE-E21-02 and the glass sweep's (`?kbd=1`). Red on C1c's
+         * tree: `shortScreen` answered true at 460 px with focus in a textarea.
+         */
+        const S = await import("./settings.mjs");
+        const owns = ["innerWidth", "innerHeight"].map(k => [k, Object.getOwnPropertyDescriptor(window, k)]);
+        const size = (w, h) => { Object.defineProperty(window, "innerWidth", { value: w, configurable: true, writable: true }); Object.defineProperty(window, "innerHeight", { value: h, configurable: true, writable: true }); };
+        const field = document.createElement("textarea");
+        document.body.append(field);
+        const steps = [];
+        const read = label => steps.push([label, S.shortScreen(), S.narrowScreen(), typeof S.keyboardUp === "function" ? S.keyboardUp() : "none", S.autoScale()]);
+        try {
+            size(1366, 768); read("desk");
+            field.focus(); size(1366, 460); read("typing, 460 high");
+            size(1366, 768); read("typing, back");
+            field.blur(); size(1366, 460); read("no field, 460 high");
+            size(1366, 768); field.focus(); size(1024, 400); read("typing, width changed");
+            field.blur(); size(1366, 768); read("desk again");
+        } finally {
+            field.remove();
+            for (const [k, d] of owns) { if (d) Object.defineProperty(window, k, d); else delete window[k]; }
+            S.shortScreen();
+        }
+        const sources = new Map(await moduleSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        must(src("glass.mjs").length > 10000 && src("settings.mjs").length > 10000, "glass.mjs or settings.mjs read nothing - this test would read nothing");
+        const schedule = lineAround(src("glass.mjs"), src("glass.mjs").indexOf("const schedule = "));
+        const auto = S.autoScale();
+        equal(stableJson({ steps, schedule: /keyboardUp\(\)/.test(schedule), overlay: /virtualKeyboard;\s*if \(vk\) vk\.overlaysContent = true/.test(fnSource(src("settings.mjs"), "watchScreen")) }), stableJson({
+            steps: [["desk", false, false, false, 0.7], ["typing, 460 high", false, false, true, 0.7], ["typing, back", false, false, false, 0.7],
+                ["no field, 460 high", true, false, false, 0.7], ["typing, width changed", true, true, false, 0.7], ["desk again", false, false, false, 0.7]],
+            schedule: true, overlay: true
+        }), `[at each step (label, shortScreen, narrowScreen, keyboardUp, autoScale - ${auto} on the page as it is); whether glass.mjs's schedule asks keyboardUp; whether watchScreen asks the keyboard to overlay]`);
+    }],
 ];
 
 /**

@@ -3753,12 +3753,37 @@ export const BREAKPOINTS = { narrow: 1224, short: 620 };
    shrinks or unmounts on a number nobody has measured. */
 const measured = v => (Number.isFinite(v) && v > 0 ? v : Infinity);
 
+/* THE ON-SCREEN KEYBOARD IS NOT A SMALLER SCREEN (E21 C1d; the owner's 26.09 amend and A7). On a tablet or a phone
+   the keyboard that opens under a text field shrinks the page's height, and until C1d the module read that as a
+   resize: under 620 px `drpg-short` came on, the stack and the curtain were cut again, and the field the player was
+   typing in moved under their finger. The layout's height is now the desk height: the page's height, except that a fall
+   of the height alone - the width unchanged - while focus is in a text field (`input`, `textarea`, a
+   `[contenteditable]`) keeps the height it had. A change of the width (an orientation change, a real resize) takes the
+   page's height again, and so does any change with no field focused; a rise is always taken. Where the browser has
+   the VirtualKeyboard API the keyboard is asked to overlay the page (`overlaysContent`), so the height does not fall at
+   all; the rule above holds either way. What a real tablet's and phone's keyboard does is LIVE-E21-02. */
+let deskWidth = 0, deskHeight = 0;
+const typing = () => {
+    const el = globalThis.document?.activeElement;
+    return Boolean(el?.matches?.("input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=button]):not([type=submit]), textarea, [contenteditable]:not([contenteditable=false]), [contenteditable]:not([contenteditable=false]) *"));
+};
+/** The height the layout counts from (above): the page's, held through a keyboard. */
+export function layoutHeight(h = innerHeight, w = innerWidth) {
+    if (w !== deskWidth || h >= deskHeight || !typing()) { deskWidth = w; deskHeight = h; }
+    return deskHeight;
+}
+/** True while the page is shorter than its layout height: a keyboard over the page (above). */
+export function keyboardUp() {
+    return innerHeight < layoutHeight();
+}
+
 /** True when the module's blocks must leave Foundry's columns and stack in one. */
 export function narrowScreen(w = innerWidth) {
     return measured(w) < BREAKPOINTS.narrow;
 }
-/** True when there is too little height for the desk layout's vertical rhythm. */
-export function shortScreen(h = innerHeight) {
+/** True when there is too little height for the desk layout's vertical rhythm: the layout height, held through an
+    on-screen keyboard (above), unless a height is given. */
+export function shortScreen(h = layoutHeight()) {
     return measured(h) < BREAKPOINTS.short;
 }
 /**
@@ -3772,7 +3797,8 @@ export function shortScreen(h = innerHeight) {
  * dialog shows both numbers so nobody has to guess why 100 % is not 100 %.
  */
 export function autoScale() {
-    const w = Math.max(320, innerWidth || 0), h = Math.max(240, innerHeight || 0);
+    // the layout height, held through an on-screen keyboard (E21 C1d)
+    const w = Math.max(320, innerWidth || 0), h = Math.max(240, layoutHeight() || 0);
     const f = Math.min(w / 2560, h / 1440);
     return Math.round(Math.min(1, Math.max(0.7, f)) * 100) / 100;
 }
@@ -3821,6 +3847,8 @@ function watchScreen() {
     screenShape = shapeKey();
     if (screenWatched) return;
     screenWatched = true;
+    // The keyboard over the page, not under it, where the browser lets a page ask (E21 C1d; Chromium's VirtualKeyboard API).
+    try { const vk = globalThis.navigator?.virtualKeyboard; if (vk) vk.overlaysContent = true; } catch { /* a browser that refuses keeps its own */ }
     addEventListener("resize", () => {
         clearTimeout(screenTimer);
         screenTimer = setTimeout(() => { if (autoScale() !== screenFactor || shapeKey() !== screenShape) applyTheme(); }, 250);

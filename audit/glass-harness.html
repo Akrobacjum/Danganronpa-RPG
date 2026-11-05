@@ -23,7 +23,10 @@
      in its two closed windows, on a player's the body carries `drpg-player` and the stylesheet hides both rails, and
      `drpgFoundryCut()` reads that opening the windows recuts nothing; since E77 C7 `drpgWindowsCheck()` reads a drag,
      the clamp of places saved at 1920x1080 and a focused field through a recut; since E79 fix r4-G3 (1.2.79)
-     `drpgObjectionCheck()` draws a player's trial row, with OBJECTION!, in the clock's row and measures it. -->
+     `drpgObjectionCheck()` draws a player's trial row, with OBJECTION!, in the clock's row and measures it. Since E21 C1d
+     `?kbd=1` puts a text field on the page (`#drpg-kbd-field`) and `drpgKbdState()` answers the body's two shape classes
+     and the curtain's cut (its frame and clip), so the sweep can stand an on-screen keyboard in: the page's height falls
+     by 40 % with focus in the field, then rises (glass-sweep.mjs's keyboard check). -->
 <!doctype html><html><head><meta charset="utf-8">
 <!-- THE SHEETS ARE module.json's, in its order (E44 C1d, 04.11.2026): read when the page loads, by a synchronous request,
      and written as links, so they block the first paint as the six links written here by hand until then did, and a
@@ -1729,6 +1732,9 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
   const st = await import("/scripts/settings.mjs");
   window.__settings = st;
   const stamp = () => {
+    /* A resize that is an on-screen keyboard over the page restamps nothing, as the module's own listeners cut nothing
+       then (E21 C1d: settings.mjs `keyboardUp`, glass.mjs `schedule`). */
+    if (st.keyboardUp()) return;
     const auto = st.autoScale(), type = Math.round(Math.max(0.85, auto) * 100) / 100;
     for (const el of [document.body, document.documentElement]) {
       el.style.setProperty("--drpg-ui-scale", q.get("scale") || String(auto));
@@ -1745,6 +1751,18 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
   window.__a11y = ax;
   stamp();
   addEventListener("resize", stamp);
+  /* ?kbd=1 (E21 C1d): a field to type in, out of every block's way, and what a keyboard must not change. */
+  if (q.get("kbd")) {
+    const field = document.createElement("textarea");
+    field.id = "drpg-kbd-field";
+    field.setAttribute("aria-label", "keyboard check");
+    field.style.cssText = "position:fixed;left:50%;bottom:4px;width:120px;height:24px;z-index:100;opacity:.6";
+    document.body.append(field);
+  }
+  window.drpgKbdState = () => ({
+    classes: ["drpg-stacked", "drpg-short"].filter(c => document.body.classList.contains(c)).join(" ") || "-",
+    cut: JSON.stringify({ frame: m.LAST?.frame ? [m.LAST.frame.W, m.LAST.frame.H] : null, clip: document.getElementById("drpg-curtain")?.style.clipPath?.slice(0, 400) ?? null })
+  });
   m.registerGlass();
   ax.registerA11y();
   const chrome = await import("/scripts/chrome.mjs");
