@@ -200,7 +200,7 @@ export async function performProject(actor, def, options) {
  */
 async function startProject(actor) {
     const { allRooms } = await import("./movement.mjs");
-    const { projectTraitOptions, descriptionField, guardDescription, descriptionRefusal } = await import("./projects-ui.mjs");
+    const { projectTraitOptions, descriptionField, guardDescription, descriptionRefusal, presetDescription, wirePresetDescription } = await import("./projects-ui.mjs");
     const { projectDescriptionProblem } = await import("./config.mjs");
     const room = roomOfActor(actor);
     // The rooms of the scene the character stands on (E12 C2a): the project is started where they are.
@@ -306,7 +306,7 @@ async function startProject(actor) {
                         seal: f.seal?.value ?? null,
                         unbreach: f.unbreach?.value ?? null,
                         mend: f.mend?.value ?? null,
-                        // As typed; a preset's own line stands in for an empty one below (E44 C9).
+                        // As typed; a preset's own label stands in for an empty one below (E44 C9, fix FG1).
                         description: d.element.querySelector('[name="description"]')?.value ?? ""
                     };
                 }
@@ -314,9 +314,13 @@ async function startProject(actor) {
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
         /* Propose refused at the field while the description is empty or too long (E44 C9; Q-C9-3), but for a preset,
-           which arrives filled with its own line when the field is left empty. Cancel goes. */
-        render: (event, dialog) => guardDescription(dialog.element, "create",
-            { optional: () => Boolean(dialog.element.querySelector('[name="preset"]')?.value) }),
+           whose own label fills the untouched field as soon as it is chosen (fix FG1) and stands in for one emptied
+           again. Cancel goes. */
+        render: (event, dialog) => {
+            guardDescription(dialog.element, "create",
+                { optional: () => Boolean(dialog.element.querySelector('[name="preset"]')?.value) });
+            wirePresetDescription(dialog.element);
+        },
         rejectClose: false
     });
 
@@ -347,15 +351,18 @@ async function startProject(actor) {
         ui.notifications.warn(game.i18n.localize("DRPG.Project.traitRequired"));
         return null;
     }
-    /* A PRESET'S OWN LINE, AND THE DESCRIPTION (E44 C9; Q-C9-3). The line the card has always carried for a preset (its
-       summary below) is the preset's description when the field is left empty - "the presets arrive filled with their
-       own summary line" - and the GM's window opens on it, to be changed. Any other proposal needs words of its own:
-       the guard said so at the field, and an answer read past it is refused here, before anything is sent. */
+    /* A PRESET'S OWN LINE, AND THE DESCRIPTION (E44 C9; Q-C9-3; fix FG1, 05.11.2026). The line the card has always
+       carried for a preset (its summary below) names the room beyond the wall, a passage's rooms or an item, so it stays
+       on the card alone; a preset's description, when the field is left empty, is the preset's own label, which names
+       none of them (projects-ui.mjs `presetDescription`: the description is projectMeta's, on every browser - C9 wrote
+       the summary there, the end review's S-B1). The GM's window opens on it, to be changed. Any other proposal needs
+       words of its own: the guard said so at the field, and an answer read past it is refused here, before anything is
+       sent. */
     const presetLine = walled ? game.i18n.format(presetKey === "breach" ? "DRPG.Project.breachSummary" : "DRPG.Project.passageSummary",
         { to: beyond.get(offer.neighbours[toIndex]) ?? "-" })
         : preset ? game.i18n.format(`DRPG.Project.${presetKey}Summary`, { target: presetKey === "repairItem" ? chosen.name : named(chosen.rooms) })
         : null;
-    result.description = String(result.description ?? "").trim() || presetLine || "";
+    result.description = String(result.description ?? "").trim() || (preset ? presetDescription(presetKey) : "");
     const descriptionWhy = projectDescriptionProblem(result.description);
     if (descriptionWhy) {
         ui.notifications.warn(descriptionRefusal(descriptionWhy, result.description));

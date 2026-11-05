@@ -248,7 +248,7 @@ Powolna gra: wiele akcji przez wiele pór dnia i jedyna rzecz, która może zmie
 
 - Projekt mieszka w pokoju. Pracować nad nim może tylko ten, kto tam stoi.
 - **Zaproponowanie projektu** nie kosztuje akcji i wysyła kartę do GMa. Nic nie istnieje, dopóki GM nie zatwierdzi, a wcześniej może zmienić skalę, pokój albo brzmienie.
-- **Opis** (od 1.2.99). Propozycja musi go mieć, najwyżej 1000 znaków: czym jest projekt, twoimi słowami. Projekt ustalonego rodzaju (niżej) zostawiony bez opisu dostaje własne zdanie. GM czyta opis na karcie i może go zmienić przed zatwierdzeniem; potem zmieniają go już tylko GMowie. Każdy, kto zna projekt, czyta opis na karcie jego tokenu.
+- **Opis** (od 1.2.99). Propozycja musi go mieć, najwyżej 1000 znaków: czym jest projekt, twoimi słowami. Gdy wybierzesz projekt ustalonego rodzaju (niżej), w polu staje nazwa tego rodzaju i możesz ją zmienić. GM czyta opis na karcie i może go zmienić przed zatwierdzeniem; potem zmieniają go już tylko GMowie. Każdy, kto zna projekt, czyta opis na karcie jego tokenu.
 - Projekt wymaga jednej statystyki, nadanej przy tworzeniu, i każdy rzut na nim bierze właśnie ją - twój i sabotażysty. Projekt zrobiony bez niej przy pierwszym rzucie pyta GMa i zachowuje jego wybór.
 - **Narzędzie w ręku** daje przewagę i zdejmuje swój Tier z każdego progu rzutu.
 - **Projekty, które zmieniają ścianę albo przedmiot.** W oknie **Zaproponuj projekt** pole **Rodzaj** daje pięć obok własnego projektu, każdy z ustaloną statystyką i rozmiarem, dostępny tylko tam, gdzie da się go zrobić:

@@ -719,6 +719,40 @@ export function guardDescription(root, action, { optional = () => false } = {}) 
 }
 
 /**
+ * A PRESET'S DESCRIPTION NAMES NO ROOM (E44 fix FG1, 05.11.2026; the end review's S-B1, C-M1 and G-m5). C9 let a preset
+ * proposed with an empty field stand in with its summary line - "Secret Passage to {to}", "Seal the passage: {target}" -
+ * and that line named the room beyond the wall, or a passage's two rooms, into projectMeta's description, a world
+ * setting every browser holds; where a Secret Passage opens is exactly what projects-secrecy.mjs keeps in the GMs' half
+ * (`target`, `passage`), and world-secrets.mjs forbids in projectMeta by key. So a preset's description is its own label
+ * (`DRPG.Project.preset.<key>`: "Secret Passage", "Breach the Wall", "Seal the passage", "Close the breach", "Repair an
+ * item"), which names no room, passage or item; the summary that names them stays on the proposal's card alone.
+ */
+export function presetDescription(key) {
+    return key ? game.i18n.localize(`DRPG.Project.preset.${key}`) : "";
+}
+
+/**
+ * THE PRESET'S LINE IN THE FIELD AS SOON AS IT IS CHOSEN (E44 fix FG1; G-m5: "the presets arrive filled with their own
+ * summary line, editable" - the player saw nothing until the GM's window). Wired in the proposal's `render`, on the
+ * window's own element: a change of the Kind select (`preset`) writes that preset's description into the field while the
+ * field is untouched - empty, or still holding the line this wrote last - and the player's own words, once typed, stay
+ * through any later change; back to "A project of your own" an untouched field empties again. The `input` it sends lets
+ * `guardDescription`'s sentence follow. Measured on a form built in tier 1 (R1338).
+ */
+export function wirePresetDescription(root) {
+    const kind = root?.querySelector?.('select[name="preset"]');
+    const field = root?.querySelector?.('textarea[name="description"]');
+    if (!kind || !field) return;
+    let filled = "";
+    kind.addEventListener("change", () => {
+        if (field.value.trim() && field.value !== filled) return;
+        filled = presetDescription(kind.value);
+        field.value = filled;
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+}
+
+/**
  * Create a project, or edit one - the same form either way.
  *
  * Deliberately one function rather than two that drift apart. The GM asks the

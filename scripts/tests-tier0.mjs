@@ -20333,7 +20333,7 @@ const REGRESSIONS = [
         const total = [...noRole.values()].reduce((a, b) => a + b, 0);
         equal(JSON.stringify(list), "[]", `the footer buttons that name no role, which E22 gives one: ${total} in ${noRole.size} file(s)`);
     }, expectedRed("E22", "E22 fills the button-role table: every footer button of the module gets a role of BUTTON_ROLES, D11's red only for the GM's road; the census of the buttons that name none is its list, and E22 takes this marker off when it is empty", { failing: "the footer buttons that name no role, which E22 gives one" })],
-    ["R1351 - a project's description travels by its name's road (E44 C9; Q-C9-1..3): the player's proposal draws the field, guards its Propose, refuses before anything is sent what config.mjs `projectDescriptionProblem` names - a preset's own line standing in for an empty one - and carries the text on the card's Approve; the approval hands it to the GM's window, which draws it, guards Save, refuses the same way before it writes, and writes it by createProject and projectEditChange; createProject refuses one too long and puts it in the open meta of the change that writes the sealed countdown, projectEditChange in the meta, and allProjects reads it back; it is no field of PROJECT_SECRET_FIELDS, of the world-secrets rule or of the token a project places; the manager's table neither reads nor writes it; and the token's card is a live region over projectMeta and the Countdowns that asks knowsProject at every draw", async () => {
+    ["R1351 - a project's description travels by its name's road (E44 C9; Q-C9-1..3): the player's proposal draws the field, guards its Propose, refuses before anything is sent what config.mjs `projectDescriptionProblem` names - a preset's own label standing in for an empty one, wired into the field as the preset is chosen, and its room-naming summary never the description (fix FG1) - and carries the text on the card's Approve; the approval hands it to the GM's window, which draws it, guards Save, refuses the same way before it writes, and writes it by createProject and projectEditChange; createProject refuses one too long and puts it in the open meta of the change that writes the sealed countdown, projectEditChange in the meta, and allProjects reads it back; it is no field of PROJECT_SECRET_FIELDS, of the world-secrets rule or of the token a project places; the manager's table neither reads nor writes it; and the token's card is a live region over projectMeta and the Countdowns that asks knowsProject at every draw", async () => {
         /*
          * E44 C9, 04.11.2026. Where the words live, and why there: the project's open meta (projectMeta, a world setting),
          * beside the room and the trait, written in the one change of the entry that writes its countdown - the name, the
@@ -20363,7 +20363,9 @@ const REGRESSIONS = [
             proposal: {
                 field: /descriptionField\(""\)/.test(start),
                 guard: /guardDescription\(dialog\.element, "create",\s*\{ optional: \(\) => Boolean\(dialog\.element\.querySelector\('\[name="preset"\]'\)\?\.value\) \}\)/.test(start),
-                preset: /result\.description = String\(result\.description \?\? ""\)\.trim\(\) \|\| presetLine \|\| ""/.test(start),
+                preset: /result\.description = String\(result\.description \?\? ""\)\.trim\(\) \|\| \(preset \? presetDescription\(presetKey\) : ""\)/.test(start)
+                    && /render: \(event, dialog\) => \{[\s\S]*wirePresetDescription\(dialog\.element\);[\s\S]*\},\s*rejectClose/.test(start)
+                    && !/description[^\n]*presetLine|presetLine[^\n]*description/.test(start),
                 refusedFirst: order(start, /projectDescriptionProblem\(result\.description\)/, /promptAndCallGm\(/),
                 carried: /description: result\.description,/.test(approveData)
             },
@@ -20392,7 +20394,8 @@ const REGRESSIONS = [
             window: { field: true, guard: true, refusedFirst: true, written: 2 },
             create: { long: true, meta: true },
             edit: true, read: true, secret: [false, false], token: false, manager: [], card: { live: true, asks: true }
-        }), "[the proposal: the field, its guard (a preset's empty field let through), a preset's line for an empty one, the refusal before the "
+        }), "[the proposal: the field, its guard (a preset's empty field let through), a preset's label for an empty one, wired into the field, "
+            + "the summary line never the description, the refusal before the "
             + "card is sent, the text on Approve; the approval passing it on; the GM's window: the field, its guard, the refusal before the edit and "
             + "the create, how many writes name it; createProject's refusal of one too long and its meta; projectEditChange; allProjects; whether "
             + "the GMs' fields or the world-secrets rule name it; whether the token's creation names it; the manager's functions that name it; the "

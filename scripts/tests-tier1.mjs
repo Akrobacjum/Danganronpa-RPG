@@ -33888,6 +33888,47 @@ const INVARIANTS = [
             + "and a right one (the press heard past it, the words under the field, aria-invalid, aria-describedby); the keys missing in "
             + "English or Polish]");
     }],
+    ["R1338 - a preset's description is its own label, in the field as soon as it is chosen (E44 fix FG1, 05.11.2026; the end review's S-B1, C-M1 and G-m5): projects-ui.mjs `presetDescription` answers each preset's label - Secret Passage, Breach the Wall, Seal the passage, Close the breach, Repair an item - a text with no placeholder, so it names no room, passage or item, and nothing for no preset; `wirePresetDescription` writes it into an untouched Description field on a change of the Kind select, follows the next change while the field holds its line, empties it back on A project of your own, and leaves the player's own words through every later change", async () => {
+        /*
+         * E44 fix FG1, 05.11.2026. C9 let a preset proposed with an empty Description take its summary line ("Secret
+         * Passage to {to}", "Seal the passage: {target}"), which named a room into projectMeta, a world setting every
+         * browser holds (30-security reads it there after a Secret Passage proposal and its approval). Read here on a form
+         * built in this page and changed by DOM events, no world write; the proposal window's `render` wiring it is R1351's
+         * reading of the source. Red at 3e207d79: neither function exists.
+         */
+        const UI = await import("./projects-ui.mjs");
+        const keys = ["secretPassage", "breach", "sealPassage", "closeBreach", "repairItem"];
+        const describe = typeof UI.presetDescription === "function" ? UI.presetDescription : () => "no function";
+        const labels = keys.map(key => [describe(key) === game.i18n.localize(`DRPG.Project.preset.${key}`), describe(key).includes("{"),
+            describe(key) === game.i18n.localize(`DRPG.Project.${key === "secretPassage" ? "passage" : key}Summary`)]);
+        const root = document.createElement("div");
+        root.innerHTML = `<form><select name="preset"><option value="">own</option>${keys.map(k => `<option value="${k}">${k}</option>`).join("")}</select>`
+            + `<textarea name="description"></textarea></form>`;
+        document.body.append(root);
+        if (typeof UI.wirePresetDescription === "function") UI.wirePresetDescription(root);
+        const kind = root.querySelector('select[name="preset"]');
+        const field = root.querySelector('textarea[name="description"]');
+        let inputs = 0;
+        field.addEventListener("input", () => { inputs += 1; });
+        const choose = key => {
+            kind.value = key;
+            kind.dispatchEvent(new Event("change", { bubbles: true }));
+            return field.value;
+        };
+        const L = key => game.i18n.localize(`DRPG.Project.preset.${key}`);
+        const steps = [choose("secretPassage"), choose("sealPassage"), choose(""), choose("repairItem")];
+        field.value = "R1338 my own words";
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+        steps.push(choose("breach"), choose(""), choose("closeBreach"));
+        root.remove();
+        equal(stableJson({ labels, none: describe(""), steps, inputs }), stableJson({
+            labels: keys.map(() => [true, false, false]),
+            none: "",
+            steps: [L("secretPassage"), L("sealPassage"), "", L("repairItem"), "R1338 my own words", "R1338 my own words", "R1338 my own words"],
+            inputs: 5
+        }), "[each preset's description: its label, a placeholder in it, its summary line; no preset's; the field after Secret Passage, Seal "
+            + "the passage, own, Repair an item, then the player's words and Breach the Wall, own, Close the breach; the input events the field heard]");
+    }],
 ];
 
 /**

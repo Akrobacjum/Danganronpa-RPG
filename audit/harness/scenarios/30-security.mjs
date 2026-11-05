@@ -11,9 +11,11 @@ export const layers = ["ci"];
    run, so eight minutes. */
 export const timeoutMs = 480000;
 
+import { MARK, standE15, sitE15, proposeE15, approveE15 } from "./76-passages.mjs";
+
 const MOD = "danganronpa-rpg";
 const SOCKET = `module.${MOD}`;
-export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissionDenials, repoUrl, canary }) {
+export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissionDenials, repoUrl, canary, IDS }) {
     const ids = await gm.eval(`return { aiko: game.actors.getName("Aiko Hoshino").id, botan: game.actors.getName("Botan Kage").id, chie: game.actors.getName("Chie Mori").id, daichi: game.actors.getName("Daichi Sato").id };`);
 
     // 1. XSS via messenger free text (player writes hostile markup)
@@ -1256,6 +1258,45 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         && thawed && repairEnd.p1.veiled >= 1 && repairEnd.p1.named === 0 && repairEnd.p2.named >= 1,
         JSON.stringify({ hiddenWork, hiddenRepair, repairOnP1, thawed, repairEnd }));
     await canary.chatScan({ who: ["p1"], titles: [SECRET_WORK], phase: "projects: a secret project's sabotage" });
+
+    /* 7b''''. A PRESET'S DESCRIPTION NAMES NO ROOM (E44 fix FG1, 05.11.2026; the end review's S-B1 and C-M1). Aiko's player
+       proposes a Secret Passage from the Cafeteria with the Description left empty, as scenario 76's phase SP does (its
+       Kitchen under the Cafeteria and their wall, its proposal and its approval with the pick on that wall, imported from
+       76), after the GM's ledger has let Aiko in on the Kitchen, so the room beyond the wall is the one her browser names
+       (`listenLabels`). Read on every browser: which room of the scene the project's description in projectMeta - a world
+       setting each of them holds - names. Then a description naming the Kitchen is planted there by the GM, and the same
+       reading must find it on every browser, so it reads what it is meant to read. Red at 3e207d79: the empty field took
+       the preset's summary, "Secret Passage to Kitchen". */
+    const stoodSP = await standE15(gm, IDS, repoUrl, { botanIn: "Cafeteria" });
+    const sceneRooms = await gm.eval(`return (await import("${repoUrl}/scripts/movement.mjs")).allRooms(game.scenes.get("${IDS.scene}"));`);
+    const learnKitchen = value => gm.eval(`const F = await import("${repoUrl}/scripts/fog.mjs");
+        await F.applyDiscoveryChanges(game.scenes.get("${IDS.scene}"), [{ actorId: "${ids.aiko}", room: "Kitchen", value: ${value} }]);
+        return F.discoveredFor("${IDS.scene}", "${ids.aiko}").includes("Kitchen");`, { timeout: 30000 });
+    const ledgerSP = await learnKitchen(true);
+    const knewSP = await p1.eval(`const Mv = await import("${repoUrl}/scripts/movement.mjs"); const end = Date.now() + 8000;
+        while (!Mv.roomsKnownToMe(canvas.scene)?.has("Kitchen") && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        return Mv.roomsKnownToMe(canvas.scene)?.has("Kitchen") ?? false;`, { timeout: 30000 });
+    const proposedSP = await proposeE15(p1, IDS, repoUrl, "secretPassage");
+    const approvedSP = await approveE15(gm, IDS, repoUrl, [[MARK, 803], [MARK + 200, 797]]);
+    const spId = approvedSP.made?.id ?? null;
+    await settle(1500);
+    const roomsNamed = c => c.eval(`const meta = (game.settings.get("${MOD}", "projectMeta") ?? {})[${JSON.stringify(spId)}] ?? {};
+        const words = typeof meta.description === "string" ? meta.description : null;
+        return { words, rooms: ${JSON.stringify(sceneRooms)}.filter(room => (words ?? "").includes(room)) };`);
+    const namedSP = {}, plantedSP = {};
+    for (const [label, c] of [["gm", gm], ["p1", p1], ["p2", p2], ["p3", p3]]) namedSP[label] = await roomsNamed(c);
+    await gm.eval(`const meta = foundry.utils.deepClone(game.settings.get("${MOD}", "projectMeta") ?? {});
+        meta[${JSON.stringify(spId)}] = { ...(meta[${JSON.stringify(spId)}] ?? {}), description: "SEC planted: behind the Kitchen wall" };
+        await game.settings.set("${MOD}", "projectMeta", meta); return true;`, { timeout: 30000 });
+    await settle(1500);
+    for (const [label, c] of [["gm", gm], ["p1", p1], ["p2", p2], ["p3", p3]]) plantedSP[label] = await roomsNamed(c);
+    await learnKitchen(false);
+    const satSP = await sitE15(gm, IDS, repoUrl);
+    check("SECURITY: a Secret Passage proposed with its Description left empty, by a player who knows the room beyond the wall, and approved in the GM's window keeps no room of the scene in projectMeta's description on any browser - and the same reading finds the Kitchen in a description planted there on every browser",
+        stoodSP.kitchen && stoodSP.wall && ledgerSP && knewSP && proposedSP.out?.proposed === true && Boolean(spId)
+            && sceneRooms.includes("Kitchen") && Object.values(namedSP).every(r => r.rooms.length === 0)
+            && Object.values(plantedSP).every(r => JSON.stringify(r.rooms) === JSON.stringify(["Kitchen"])) && satSP.projects === 0,
+        JSON.stringify({ stoodSP, ledgerSP, knewSP, proposed: proposedSP.out ?? proposedSP.err, made: approvedSP.made ?? null, namedSP, plantedSP, satSP }));
 
     /* 7b'''. A PROJECT'S DESCRIPTION (E44 C9, 04.11.2026; the owner's ask, Q-C9-1: everyone who knows the project reads
        it, as its name). The GM makes a secret project in the Cafeteria with a description and lets p2 in on it, not p1.
