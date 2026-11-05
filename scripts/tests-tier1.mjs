@@ -32797,7 +32797,7 @@ const INVARIANTS = [
         equal(stableJson(reads), "{}", "a region held to its settings reads a module key it does not declare: [file region: the keys]");
         ok(readAny > 0, "no region read any key of the module - the spy measured nothing");
     }],
-    ["R1320 - the kit's markup (scripts/ui-kit.mjs; E44 C3a, E44-11, E44-12): drpgWindow hands DialogV2 its classes with `drpg-ui` and `drpg-panel`, its buttons in the kit's tree order with each role's classes, the closing word from the role table and one default, the tab bar above the body that scrolls and every pane in it; footerMarkup's groups (the right one first: the primary is the first submit button) and the throw for a default no role allows; kitTabs and its wiring (one pane shown by `hidden`, the footer following the tab, hidden and disabled both); formGrid; dataTable (colgroup, a head, the empty row across every column in the kit's words, the scroll signal and its line for a screen reader); stepper (its - and +, min, max and step, the message out of range, the label on the input) read through `wholeNumber`; toggle, chip, chips, the three boxes, emptyOption and modeBar; every word through a key both lang files hold", async () => {
+    ["R1320 - the kit's markup (scripts/ui-kit.mjs; E44 C3a, E44-11, E44-12): drpgWindow hands DialogV2 its classes with `drpg-ui` and `drpg-panel`, its buttons in the kit's tree order with each role's classes, the closing word from the role table and one default, the tab bar above the body that scrolls and every pane in it; footerMarkup's groups (the right one first: the primary is the first submit button) and the throw for a default no role allows; kitTabs and its wiring (one pane shown by `hidden`, the footer following the tab, hidden and disabled both); formGrid; dataTable (colgroup, a head, the empty row across every column in the kit's words, the scroll signal and its line for a screen reader); stepper (its - and +, min, max and step, the message out of range, the label on the input) read through `wholeNumber`; toggle, chip, chips, the three boxes, emptyOption and modeBar; every word through a key both lang files hold; drpgConfirm and drpgPrompt (E21 C1b): their buttons in tree order with each role's classes, the default, what each answers, a destructive yes behind Cancel", async () => {
         /*
          * E44 C3a, 04.11.2026; audit S17-34. The kit E21 and E22 build every window on: its builders are read here as
          * markup on a page of its own (no window is opened: DialogV2.wait is stood in for and handed back in a
@@ -32845,6 +32845,35 @@ const INVARIANTS = [
                 ["split", "Split", "drpg-role-secondary", false], ["wipe", "Wipe", "drpg-role-destructive drpg-destructive", false]],
             content: ["DIV", true, "drpg-kit-body", [["a", true], ["b", false]], true, [["a", "false"], ["b", "true"]]]
         }), "[drpgWindow's answer; its classes; its buttons (action, label, class, default) in tree order; its content: a div, the tab bar first, the body after it, the panes in the body (key, hidden), the body's markup in it, the tabs (key, selected)]");
+
+        /* E21 C1b: drpgConfirm and drpgPrompt as DialogV2.wait is handed them - each window's title, fold, kit class and its
+           buttons in tree order (action, label, class, default, what its callback answers) - and a destructive yes stands
+           after Cancel, Cancel the default (the mutant c1b-m3, a destructive yes made the default, throws here). */
+        const questions = [];
+        let questionThrew = null;
+        D.wait = async cfg => { questions.push(cfg); return "stood-in"; };
+        try {
+            await K.drpgConfirm({ title: "R1320 yes", body: "<p>q</p>", yes: { label: "Do it" } });
+            await K.drpgConfirm({ title: "R1320 gm", body: "<p>q</p>", yes: { role: "gmRoute", label: "Ask the GM" } });
+            try { await K.drpgConfirm({ title: "R1320 wipe", body: "<p>q</p>", yes: { role: "destructive", label: "Wipe", callback: () => "wiped" } }); }
+            catch (err) { questionThrew = err.message; }
+            await K.drpgConfirm({ title: "R1320 close", body: "<p>q</p>", yes: { label: "Go" }, no: "close" });
+            await K.drpgPrompt({ title: "R1320 prompt", body: "<p>q</p>", ok: { label: "OK" } });
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        const asButtons = cfg => cfg.buttons.map(b => [b.action, b.label, b.class, Boolean(b.default), b.callback ? b.callback() : "none"]);
+        const cancelW = L("DRPG.Kit.cancel"), closeW = L("DRPG.Kit.close");
+        equal(stableJson({ questionThrew, windows: questions.map(cfg => [cfg.window?.title, cfg.window?.minimizable, cfg.classes.includes("drpg-ui"), asButtons(cfg)]) }), stableJson({
+            questionThrew: null,
+            windows: [
+                ["R1320 yes", true, true, [["yes", "Do it", "drpg-role-primary", true, true], ["cancel", cancelW, "drpg-role-cancel", false, false]]],
+                ["R1320 gm", true, true, [["yes", "Ask the GM", "drpg-role-gm-route drpg-gm-route", true, true], ["cancel", cancelW, "drpg-role-cancel", false, false]]],
+                ["R1320 wipe", true, true, [["cancel", cancelW, "drpg-role-cancel", true, false], ["yes", "Wipe", "drpg-role-destructive drpg-destructive", false, "wiped"]]],
+                ["R1320 close", true, true, [["yes", "Go", "drpg-role-primary", true, true], ["close", closeW, "drpg-role-close", false, false]]],
+                ["R1320 prompt", true, true, [["ok", "OK", "drpg-role-primary", true, "none"]]]
+            ]
+        }), "[what drpgConfirm or drpgPrompt threw; each question window (title, foldable, kit class; its buttons in tree order: action, label, class, default, what its callback answers - 'none': the action itself)]");
 
         /* The footer alone: its groups, the closing words, the default rule. */
         const box = document.createElement("div");
@@ -32982,7 +33011,7 @@ const INVARIANTS = [
         }), "[toggle (role, checked); chips (role, name; each pressed, disabled, count, value); the boxes; an unknown box throws; emptyOption (value, words); the mode bar after Debate is pressed (pressed, the key handed on; wired twice, it hands on once)]");
     }],
 
-    ["R1321 - BUTTON_ROLES (scripts/ui-kit.mjs; E44 C3a, E44-13): primary, gmRoute, close, cancel, secondary and destructive, each with its class, today's face class, its side, its place in it, whether it may be the default, its token and its word; destructive and secondary never the default; the close word the same words as DRPG.Panel.close in both lang files and the cancel word Cancel's own; every role's class styled in styles/components.css through its token, the token declared for both themes", async () => {
+    ["R1321 - BUTTON_ROLES (scripts/ui-kit.mjs; E44 C3a, E44-13): primary, gmRoute, close, cancel, secondary and destructive, each with its class, today's face class, its side, its place in it, whether it may be the default, its token and its word; destructive and secondary never the default; the close word the same words as DRPG.Panel.close in both lang files and the cancel word Cancel's own; every role's class styled in styles/components.css through its token, the token declared for both themes; the roles a question's answer may take (E21 C1b): drpgConfirm's yes primary, gmRoute or destructive, drpgPrompt's ok primary or gmRoute", async () => {
         /*
          * E44 C3a, 04.11.2026; the owner's footer contract (the pilot, 04.11: the closing word left, the primary
          * right). E22 gives every button of the module one of these roles; this holds the table itself. The words
@@ -33020,6 +33049,22 @@ const INVARIANTS = [
             return !rule || !legacy.includes(`${r.token}:`) || !glass.includes(`${r.token}:`);
         }).map(([role]) => role);
         equal(stableJson(unstyled), "[]", "[the roles whose class has no rule in components.css reading its token, or whose token is not declared for both themes]");
+        /* E21 C1b: which role each question builder takes for its answer (DialogV2.wait stood in for). */
+        const K = await import("./ui-kit.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        D.wait = async () => null;
+        const takes = async build => { try { await build(); return "takes"; } catch { return "throws"; } };
+        const answers = {};
+        try {
+            for (const role of Object.keys(BUTTON_ROLES)) {
+                answers[role] = [await takes(() => K.drpgConfirm({ title: "R1321", yes: { role, label: "Y" } })), await takes(() => K.drpgPrompt({ title: "R1321", ok: { role, label: "Y" } }))];
+            }
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        equal(stableJson(answers), stableJson({ primary: ["takes", "takes"], gmRoute: ["takes", "takes"], close: ["throws", "throws"], cancel: ["throws", "throws"],
+            secondary: ["throws", "throws"], destructive: ["takes", "throws"] }), "[per role: whether drpgConfirm's yes and drpgPrompt's ok take it]");
     }],
 
     ["R1323 - the kit wins its cascade (tests-kit.mjs `styleCascade`; E44 C3a, E44-11): on a kit window drawn on a body of each theme - the frame, its content, the body that scrolls, the tab bar, a tab and the selected one, the footer, its two groups and a button of each role, formGrid, dataTable's head and empty row, the help line, the three boxes, a stepper, a toggle, a chip and a pressed one, the mode bar - every property a rule of styles/components.css states on the element is won by styles/components.css across all the module's sheets, and every `--drpg-kit-*` token is declared on that theme's body by it", async () => {
@@ -33944,7 +33989,7 @@ const INVARIANTS = [
         }), "[each preset's description: its label, a placeholder in it, its summary line; no preset's; the field after Secret Passage, Seal "
             + "the passage, own, Repair an item, then the player's words and Breach the Wall, own, Close the breach; the input events the field heard]");
     }],
-    ["R1339 - every module window may fold, and a folded one is unfolded when it is asked for again (E44 fix FG2, 05.11.2026; the owner's Q-E44-1 and the end review's G-M1 and C-m1): utils.mjs `tableDialog` and ui-kit.mjs `drpgWindow` ask DialogV2 for `minimizable: true`, room-tile.mjs's Room window is minimizable, and so are the ten standing windows a tile raises that are built on DialogV2 directly (the GM panel, Failures, Manage items, Edit campaign, the Mastermind, Season setup, Season reset, the stash inspector, Item tables, the Class Trial console); live.mjs `alreadyOpen` unfolds a folded window (`maximize`) before it raises it and raises an unfolded one alone, and messenger-app.mjs `openMessenger` does the same with a folded conversation", async () => {
+    ["R1339 - every module window may fold, and a folded one is unfolded when it is asked for again (E44 fix FG2, 05.11.2026; the owner's Q-E44-1 and the end review's G-M1 and C-m1): utils.mjs `tableDialog` and ui-kit.mjs `drpgWindow` ask DialogV2 for `minimizable: true`, and so do the kit's question windows, `drpgConfirm` and `drpgPrompt` (E21 C1b, E21-10, E44's Open 101), room-tile.mjs's Room window is minimizable, and so are the ten standing windows a tile raises that are built on DialogV2 directly (the GM panel, Failures, Manage items, Edit campaign, the Mastermind, Season setup, Season reset, the stash inspector, Item tables, the Class Trial console); live.mjs `alreadyOpen` unfolds a folded window (`maximize`) before it raises it and raises an unfolded one alone, and messenger-app.mjs `openMessenger` does the same with a folded conversation", async () => {
         /*
          * E44 fix FG2, 05.11.2026. C4b took no-collapse.mjs away (the owner: "Nie chcialbym blokowac zwijania okien
          * wcale"), and the module's windows built on DialogV2 still kept its default `minimizable: false`, the Room window
@@ -33967,6 +34012,9 @@ const INVARIANTS = [
         try {
             await U.tableDialog({ window: { title: "R1339 table" }, content: "<p>R1339</p>", buttons: [{ action: "ok", label: "OK" }] });
             await K.drpgWindow({ title: "R1339 kit", body: "<p>R1339</p>", footer: { close: true } });
+            await K.drpgConfirm({ title: "R1339 confirm", body: "<p>R1339</p>", yes: { label: "Yes" } });
+            await K.drpgConfirm({ title: "R1339 destructive", body: "<p>R1339</p>", yes: { role: "destructive", label: "Wipe" } });
+            await K.drpgPrompt({ title: "R1339 prompt", body: "<p>R1339</p>", ok: { label: "OK" } });
         } finally {
             if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
         }
@@ -34016,9 +34064,9 @@ const INVARIANTS = [
             thread.element.remove();
         }
         equal(stableJson({ asked, roomFolds, windows, answers, messenger, said }), stableJson({
-            asked: [true, true], roomFolds: true, windows: standing.map(() => true), answers: [true, true], messenger: true,
+            asked: [true, true, true, true, true], roomFolds: true, windows: standing.map(() => true), answers: [true, true], messenger: true,
             said: [["r1339-folded", "unfold"], ["r1339-folded", "raise"], ["r1339-open", "raise"], ["r1339-thread", "unfold"], ["r1339-thread", "raise"]]
-        }), "[`minimizable` as tableDialog and drpgWindow hand it to DialogV2; the Room window's; the ten standing windows' options in their source; "
+        }), "[`minimizable` as tableDialog, drpgWindow, drpgConfirm (a primary yes, a destructive one) and drpgPrompt hand it to DialogV2; the Room window's; the ten standing windows' options in their source; "
             + "alreadyOpen's answers for a folded and an open window; openMessenger's for a folded conversation; what each stand-in was asked, in order]");
     }],
     ["R1340 - a description past the limit is refused on every road to a project, never cut (E44 fix FG3, 05.11.2026; the end review's S-m3): projects.mjs `cleanProjectChange`, the cut every change of a project goes through - `applyProjectChange` on a GM's browser and another GM's `project.change` on the primary's (`handleProjectChange`) - answers nothing for a change whose meta holds a description longer than PROJECT_DESCRIPTION_MAX, whatever else it carries, keeps one of 1000 characters as it came, and drops a description that is not text", async () => {
@@ -34176,6 +34224,98 @@ const INVARIANTS = [
         equal(stableJson({ differ, seen, other: other === "r1354-changed" ? "shared" : "own" }), stableJson({ differ: [],
             seen: ["planted #r1354-root.drpg-window-r1354 1354px !important", "planted #r1354-root.drpg-window-r1354 1354px !important", "planted #r1354-root.drpg-window-r1354 1355px !important", before, before],
             other: "own" }), `[readings where the cached cascade (on, winner) differs from the uncached winner (${readings} read); max-height on the window after a push, by an on made before it, after an index set, after the splice and by that on again; whether a later cascade shares a changed rule]`);
+    }],
+    ["R1353 - a kit tab press puts its window back on the screen, a growth is held to the first width, and a pane is hidden by `hidden` alone (scripts/ui-kit.mjs `wireKitTabs`, `keepInScreen`, `fitKitTabs`; E21 C1b, E21-02, E21-09, E21-19; S01-07, S05-11, q-grow, E44's Open 25 and 34): drpgWindow's tabs ask the window's `setPosition({ height: \"auto\" })` once per press, after the pane, the footer and `onSwitch`, and nothing on the first draw; with no application a press clamps the window's top to the screen itself; a second fit grows a window by at most a quarter of its width before the first growth; a hidden pane carries `hidden` and no inline display, and the form a Save reads holds every pane's fields", async () => {
+        /*
+         * E21 C1b, 05.11.2026. Foundry clamps a window's top only when its position is set (`_updatePosition`), and no kit
+         * code set it after a tab press, so a tabbed window grew down off the screen with its footer (S01-07, S05-11). Read
+         * here, with no layout (jsdom): drpgWindow's config as DialogV2.wait is handed it, its render callback run on a
+         * window built as DialogV2 draws one, with a `setPosition` that records what it is asked and what the window shows
+         * then; three presses. `keepInScreen` on a window with no application, its inline top far below and above the
+         * screen. `fitKitTabs` on a bar whose widths are stated (a bar of four tabs 100 px each in a 400 px window with 380
+         * px of room, then the same bar asking 491 px in the grown window). The panes after the presses, and the form's
+         * fields. What a real window does with the position is LIVE-E21-01 and the fit sweep's (audit/style-sweep.mjs
+         * `--fit`, control c). Red on C1a's tree: no position asked after a press ("0 repositions after 3 presses"), the
+         * second fit grew the window to 512 px. The mutants c1b-m1 (the reposition removed), c1b-m2 (the quarter of the
+         * grown width) and E44's c4a-m2 (panes hidden by an inline `display`, its Open 34) read red here.
+         */
+        const K = await import("./ui-kit.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let config = null;
+        D.wait = async cfg => { config = cfg; return null; };
+        const switched = [];
+        try {
+            await K.drpgWindow({ title: "R1353", classes: ["drpg-window-r1353"],
+                tabs: { sections: [{ key: "a", label: "A", html: "<input name=\"r1353a\" value=\"1\">" }, { key: "b", label: "B", html: "<input name=\"r1353b\" value=\"2\">" },
+                    { key: "c", label: "C", html: "<input name=\"r1353c\" value=\"3\">" }], buttons: { a: ["save"], b: ["add"], c: ["save", "add"] }, always: ["close"], onSwitch: key => switched.push(key) },
+                footer: { primary: { action: "save", label: "Save" }, secondary: [{ action: "add", label: "Add" }], close: "close" } });
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        must(config?.render, "drpgWindow handed DialogV2.wait no render callback - this would read nothing");
+        const root = document.createElement("div");
+        root.className = config.classes.join(" ");
+        root.innerHTML = `<section class="window-content"><form class="dialog-form standard-form"><div class="dialog-content standard-form">${config.content.innerHTML}</div>`
+            + `<footer class="form-footer">${config.buttons.map(b => `<button type="submit" data-action="${b.action}">${b.label}</button>`).join("")}</footer></form></section>`;
+        const shows = () => [[...root.querySelectorAll("[data-drpg-pane]")].filter(p => !p.hidden).map(p => p.dataset.drpgPane).join(""),
+            [...root.querySelectorAll("footer button[data-action]")].filter(b => !b.hidden).map(b => b.dataset.action).join(","), switched.join("")];
+        const asked = [];
+        const dialog = { element: root, setPosition: pos => { asked.push([stableJson(pos), ...shows()]); return {}; }, addEventListener: () => {} };
+        config.render(new Event("render"), dialog);
+        const onDraw = asked.length;
+        for (const key of ["b", "c", "a"]) root.querySelector(`nav.drpg-tabs > button[data-drpg-tab-key="${key}"]`).click();
+        const panes = [...root.querySelectorAll("[data-drpg-pane]")].map(p => [p.dataset.drpgPane, p.hidden, p.style.display]);
+        // the fields a submission of the form carries: named, not disabled (the harness's realm has no FormData of its own page)
+        const fields = [...root.querySelector("form").elements].filter(el => el.name && !el.disabled).map(el => el.name);
+
+        /* No application: the page clamps the top itself. */
+        const bare = (top) => {
+            const w = document.createElement("div");
+            w.style.position = "absolute";
+            w.style.top = top;
+            w.innerHTML = K.kitTabs([{ key: "x", label: "X", html: "x" }, { key: "y", label: "Y", html: "y" }]);
+            document.body.append(w);
+            K.wireKitTabs(w, { win: w, fit: false });
+            return w;
+        };
+        const low = bare("5000px"), high = bare("-50px");
+        let clamped;
+        try {
+            for (const w of [low, high]) w.querySelector('[data-drpg-tab-key="y"]').click();
+            clamped = [low.style.top, high.style.top];
+        } finally { low.remove(); high.remove(); }
+
+        /* The growth: four tabs in a 400 px window, then wider tabs in the grown one. */
+        must(innerWidth - 16 >= 520, `the page is ${innerWidth} px wide - the growth below needs 520 px of screen`);
+        const win = document.createElement("div");
+        win.innerHTML = K.kitTabBar([1, 2, 3, 4].map(n => ({ key: `t${n}`, label: `T${n}` })));
+        const nav = win.querySelector("nav.drpg-tabs");
+        // no gap and no padding of the sheets' between the tabs: the widths below are the whole of what the fit measures
+        nav.style.setProperty("column-gap", "0px", "important");
+        nav.style.setProperty("padding", "0px", "important");
+        let room = 380, per = 100;
+        Object.defineProperty(nav, "clientWidth", { get: () => room, configurable: true });
+        for (const b of nav.querySelectorAll("button")) { b.style.fontSize = "13px"; b.getBoundingClientRect = () => ({ width: per, height: 20, top: 0, left: 0 }); }
+        win.getBoundingClientRect = () => ({ width: parseFloat(win.style.width) || 400, height: 300, top: 0, left: 0 });
+        document.body.append(win);
+        let fits;
+        try {
+            const first = K.fitKitTabs(nav, { win });
+            const afterFirst = [win.style.width, win.dataset.drpgTabW0 ?? null];
+            room = 401; per = 122.75;
+            const second = K.fitKitTabs(nav, { win });
+            fits = [[first?.rows, first?.grew, ...afterFirst], [second?.rows, second?.cols, second?.grew, win.style.width]];
+        } finally { win.remove(); }
+
+        equal(stableJson({ onDraw, asked, panes, fields, clamped, fits }), stableJson({
+            onDraw: 0,
+            asked: [[stableJson({ height: "auto" }), "b", "close,add", "b"], [stableJson({ height: "auto" }), "c", "save,close,add", "bc"], [stableJson({ height: "auto" }), "a", "save,close", "bca"]],
+            panes: [["a", false, ""], ["b", true, ""], ["c", true, ""]],
+            fields: ["r1353a", "r1353b", "r1353c"],
+            clamped: [`${innerHeight - 8}px`, "8px"],
+            fits: [[1, 21, "421px", "400"], [2, 2, 0, "421px"]]
+        }), `[positions asked on the first draw; after each of three presses (b, c, a): what was asked, with the pane shown, the footer's shown buttons and the tabs onSwitch was told then (${asked.length} reposition(s) after 3 presses); the panes (key, hidden, inline display); the form's fields; the tops a page with no application clamped (5000 px, -50 px); the first fit (rows, grew, width, first width) and the second (rows, columns, grew, width)]`);
     }],
 ];
 

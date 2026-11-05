@@ -1455,7 +1455,8 @@
       "close": "Close",
       "cancel": "Cancel",
       "tableEmpty": "Nothing to show yet.",
-      "scrollMore": "There is more below. Scroll to see it."
+      "scrollMore": "There is more below. Scroll to see it.",
+      "allThresholds": "All thresholds"
     },
     "Look": {
       "language": "Language",

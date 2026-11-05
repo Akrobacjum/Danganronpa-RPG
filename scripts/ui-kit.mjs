@@ -11,6 +11,9 @@
  * equal tab widths fitted to one line, and I1's fine print.
  *
  *   drpgWindow({ id, classes, title, body, tabs, footer, live, render, modal })   a DialogV2 on the kit's frame
+ *   drpgConfirm({ title, body, yes, no }), drpgPrompt({ title, body, ok })   a question on it (E21 C1b), answering as
+ *                                 DialogV2.confirm and .prompt do
+ *   keepInScreen(el)              the top clamp a tab press asks for on a page with no application (E21 C1b)
  *   DrpgApp()                     the ApplicationV2 class with the same frame (made on first use: tier 0 imports
  *                                 this file without Foundry, as room-tile.mjs's class is made)
  *   kitTabs, kitTabBar, wireKitTabs, shownTab, formGrid, dataTable, helpText, stepper, stepperId, stepLabels,
@@ -221,8 +224,16 @@ export function shownTab(root) {
  * `autofocus`: on a kit footer the primary, else the first that may be a default (BUTTON_ROLES); on a footer with no
  * roles (every window E22 has not given them) the first shown, the one a person would have pressed - and there the
  * buttons' own classes are left as Foundry drew them.
+ *
+ * A PRESS PUTS THE WINDOW BACK ON THE SCREEN (E21 C1b; S01-07, S05-11: a tabbed window grew down off the screen and hid
+ * its footer, because Foundry clamps a window's top only when its position is set, `_updatePosition`, and nothing set it
+ * after a press). With `win` (the window's element) a press - once the pane is shown, the footer moved and `onSwitch`
+ * run - asks `app.setPosition({ height: "auto" })`: Foundry measures the new height and clamps the top. Never a number:
+ * a height the window does not show would pin its top (R12's risk). With `win` and no application (the style harness's
+ * pages) it clamps the top itself, `keepInScreen` - a model of Foundry's clamp, not Foundry's (LIVE-E21-01 reads that).
+ * Once per press; the first tab shown on the first draw asks nothing (Foundry places a new window itself).
  */
-export function wireKitTabs(root, { buttons = null, always = [], onSwitch = null, fit = true, win = null } = {}) {
+export function wireKitTabs(root, { buttons = null, always = [], onSwitch = null, fit = true, win = null, app = null } = {}) {
     const nav = root?.querySelector?.("nav.drpg-tabs");
     if (!nav || nav.dataset.drpgKitWired) return null;
     nav.dataset.drpgKitWired = "1";
@@ -253,17 +264,39 @@ export function wireKitTabs(root, { buttons = null, always = [], onSwitch = null
         for (const p of panes()) p.hidden = p.dataset.drpgPane !== key;
         footerFor(key);
     };
+    const reposition = () => {
+        if (!win) return;
+        if (typeof app?.setPosition !== "function") { keepInScreen(win); return; }
+        try { app.setPosition({ height: "auto" }); } catch (err) { error("A kit window could not be put back on the screen after a tab press", err); }
+    };
     for (const t of tabs) {
         t.addEventListener("click", () => {
             const key = t.dataset.drpgTabKey;
             show(key);
             try { onSwitch?.(key); } catch (err) { error("A kit tab's onSwitch failed", err); }
+            reposition();
         });
     }
     const first = tabs.find(t => t.getAttribute("aria-selected") === "true") ?? tabs[0];
     if (first) show(first.dataset.drpgTabKey);
     if (fit) fitWhenLaidOut(nav, win);
     return { show, nav };
+}
+
+/**
+ * A window's top held on the screen, 8 px from each edge where it fits: top = max(8, min(top, innerHeight - height - 8)),
+ * read from its inline `top` (else its rectangle) and its height as laid out. For a page with no application to ask
+ * (the style harness's placement, the fit sweep); a window of Foundry's is asked through its `setPosition` instead.
+ * Answers the top it wrote, or null where there is no element.
+ */
+export function keepInScreen(el) {
+    if (typeof el?.getBoundingClientRect !== "function") return null;
+    const rect = el.getBoundingClientRect();
+    const stated = parseFloat(el.style?.top);
+    const top = Number.isFinite(stated) ? stated : rect.top;
+    const next = Math.max(8, Math.min(top, innerHeight - rect.height - 8));
+    el.style.top = `${next}px`;
+    return next;
 }
 
 /**
@@ -297,7 +330,11 @@ export { eachPane };
    under Stained Glass, which is higher); there the letter-spacing down to 0; then the padding down to 4 px; then the
    window up to a quarter wider (never past the screen less 16 px); only then rows, as few as fit. What it took is
    written on the bar (`data-drpg-tab-fit`) and in three custom properties the bar's rule reads. On a page with no
-   layout (jsdom) the bar measures 0 and nothing is set. */
+   layout (jsdom) the bar measures 0 and nothing is set. The quarter is of the window's width before its first growth
+   (E21 C1b, q-grow; E44's Open 25): the fit runs twice on a first draw and again when a window is redrawn, and each
+   run measured the quarter from the width it found, so a grown window could grow again by a quarter of the grown
+   width. The first width is written on the window (`data-drpg-tab-w0`) when it first grows, and every later growth is
+   held to it. */
 const TAB_FLOOR = 11;
 const GROWTH = 0.25;
 
@@ -347,12 +384,14 @@ export function fitKitTabs(nav, { win = null } = {}) {
     };
     const grow = (cols, tries) => {
         if (!win) return null;
-        const maxW = innerWidth - 16, w0 = win.getBoundingClientRect().width;
+        const maxW = innerWidth - 16, now = win.getBoundingClientRect().width;
+        const w0 = Number(win.dataset.drpgTabW0) || now;
         for (const [size, ls, pad] of tries) {
             const need = tabNeed(nav, btns, cols, size, ls, pad);
-            if (w0 + (need - room) <= maxW && need - room <= w0 * GROWTH) {
-                const by = Math.ceil(need - room) + 1;
-                win.style.width = `${Math.ceil(w0 + by)}px`;
+            const by = Math.ceil(need - room) + 1;
+            if (now + by <= maxW && now + by - w0 <= w0 * GROWTH) {
+                if (!win.dataset.drpgTabW0) win.dataset.drpgTabW0 = String(now);
+                win.style.width = `${Math.ceil(now + by)}px`;
                 return { size, ls, pad, grew: by };
             }
         }
@@ -833,9 +872,9 @@ export function drpgWindow({ id = null, classes = [], title = "", body = "", tab
             dressed.add(dialog);
             const root = dialog?.element;
             try {
-                dressFrame(root, list, tabs, onMode);
+                dressFrame(root, list, tabs, onMode, dialog);
                 // A later render of the same window draws Foundry's footer again: it is dressed again.
-                dialog.addEventListener?.("render", () => dressFrame(dialog.element, list, tabs, onMode));
+                dialog.addEventListener?.("render", () => dressFrame(dialog.element, list, tabs, onMode, dialog));
             } catch (err) {
                 error("A kit window could not be dressed", err);
             }
@@ -848,13 +887,55 @@ export function drpgWindow({ id = null, classes = [], title = "", body = "", tab
 }
 
 /** The frame on a drawn window: its footer on the contract, its tabs wired and fitted, its controls wired. */
-function dressFrame(root, list, tabs, onMode) {
+function dressFrame(root, list, tabs, onMode, app = null) {
     if (!root) return;
     for (const c of KIT_CLASSES) root.classList.add(c);
     dressFooter(root, list);
-    // The kit draws this frame, so the fit may widen the window (`win`).
-    if (tabs) wireKitTabs(root, { buttons: tabs.buttons ?? null, always: tabs.always ?? [], onSwitch: tabs.onSwitch ?? null, win: root });
+    // The kit draws this frame, so the fit may widen the window (`win`), and a press repositions it through `app`.
+    if (tabs) wireKitTabs(root, { buttons: tabs.buttons ?? null, always: tabs.always ?? [], onSwitch: tabs.onSwitch ?? null, win: root, app });
     wireKit(root, { onMode });
+}
+
+/* ---- the questions (E21 C1b) ------------------------------------------------------------------------------------- */
+
+/** The roles a question's answer may take: the kit's default, the GM's road, or what cannot be undone. */
+const ANSWER_ROLES = Object.freeze(["primary", "gmRoute", "destructive"]);
+
+/**
+ * A yes-or-no question on the kit's frame, for every `DialogV2.confirm` of the module (E21 moves them here): answers
+ * the yes button's callback (true without one), false for the no, and null when the window is closed, as
+ * `DialogV2.confirm` does with `rejectClose` false. `yes` is `{ role, label, callback, icon, action }`, its role one of
+ * `primary` (the default), `gmRoute` (the player's road through the GM, D11) or `destructive` (what cannot be undone);
+ * `no` is "cancel" (the default), "close", or `{ role, action, callback }`, and its word is the role's. A destructive
+ * yes is never the default: the closing word is (`default`), and with no primary the right group is empty, so the
+ * closing word is the first submit button in the tree and Enter presses it (the header). Every other option goes to
+ * `drpgWindow` (`classes`, `position`, `id`, `render`, `live`). Foldable, as every kit window (`drpgWindow`).
+ */
+export function drpgConfirm({ title = "", body = "", yes = {}, no = "cancel", ...rest } = {}) {
+    const role = yes.role ?? "primary";
+    if (!ANSWER_ROLES.includes(role)) throw new Error(`ui-kit: a question's yes is primary, gmRoute or destructive, not "${role}"`);
+    if (!yes.label) throw new Error("ui-kit: a question's yes has no label");
+    const spec = typeof no === "string" ? { role: no } : { ...no };
+    const close = { role: spec.role === "close" ? "close" : "cancel", action: spec.action ?? (spec.role === "close" ? "close" : "cancel"), callback: spec.callback ?? (() => false) };
+    const answer = { action: yes.action ?? "yes", label: yes.label, callback: yes.callback ?? (() => true), icon: yes.icon };
+    const footer = role === "primary" ? { primary: answer, close }
+        : role === "gmRoute" ? { gmRoute: [answer], close }
+            : { destructive: [answer], close, default: close.action };
+    return drpgWindow({ ...rest, title, body, footer });
+}
+
+/**
+ * A question with one answer on the kit's frame, for the module's `DialogV2.prompt` (one site at 7bb71bb9): answers
+ * the ok button's callback, or its action ("ok") without one, and null when the window is closed. `ok` is `{ label,
+ * callback, icon, action, role }`, its role `primary` or `gmRoute` - the one answer is the default, which a destructive
+ * button may never be. Every other option goes to `drpgWindow`.
+ */
+export function drpgPrompt({ title = "", body = "", ok = {}, ...rest } = {}) {
+    const role = ok.role ?? "primary";
+    if (role !== "primary" && role !== "gmRoute") throw new Error(`ui-kit: a prompt's one answer is primary or gmRoute, not "${role}"`);
+    if (!ok.label) throw new Error("ui-kit: a prompt's answer has no label");
+    const answer = { action: ok.action ?? "ok", label: ok.label, callback: ok.callback, icon: ok.icon };
+    return drpgWindow({ ...rest, title, body, footer: role === "primary" ? { primary: answer } : { gmRoute: [answer] } });
 }
 
 /** The kit windows already dressed on their first render. */

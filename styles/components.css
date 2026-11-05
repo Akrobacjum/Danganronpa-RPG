@@ -158,10 +158,13 @@ body.drpg-theme-stained-glass {
 /* ---- drpgWindow / DrpgApp: the frame. The screen's height less 8 px a side; the body scrolls, the tab bar and the
    footer do not. Written at 0,4,1 and 0,5,1, one place above danganronpa.css's dialog frame rule (`max-height: 80vh;
    overflow: auto` on `.window-content`, 0,4,0) and level with the glass's (`.application.drpg-panel:not(.minimized)`,
-   `calc(100vh - 24px)` and `calc(100vh - 80px)`), which this sheet follows. The width stays the module's popup widths'
-   (danganronpa.css, stained-glass.css, `!important` against Foundry's inline width) until E21. ---- */
+   `calc(100vh - 24px)` and `calc(100vh - 80px)`), which this sheet follows. The width is the window's own (Foundry's
+   inline width; a DialogV2's still the module's popup widths, `!important` in danganronpa.css and stained-glass.css,
+   until its window moves), never past the screen less 8 px a side (E21 C1b, E44's Open 19: the two popup rules that
+   name no window, only `.drpg-panel` among others, take a kit window out of their `max-width`). ---- */
 body .application.drpg-ui.drpg-panel:not(.minimized) {
     max-height: calc(100dvh - 16px);
+    max-width: calc(100vw - 16px);
     display: flex;
     flex-direction: column;
 }
@@ -444,8 +447,8 @@ body:not(.drpg-theme-stained-glass) .application.drpg-ui .drpg-mode-bar > button
    everything else keeps its height, so the footer stays in view however long the region is (R299 (e), in a
    browser). Its footer is the kit's (`footerMarkup`), ruled and spaced here in both themes: a DialogV2's is spaced
    by the dialog rules, an ApplicationV2's by nothing else. The width is the window's own, never past the screen
-   less 8 px a side (narrow.css held the notice history to it on a stacked screen until C5). ---- */
-body .application.drpg-ui.drpg-panel:not(.dialog):not(.minimized) { max-width: calc(100vw - 16px); }
+   less 8 px a side (narrow.css held the notice history to it on a stacked screen until C5; the frame's rule above since
+   E21 C1b, for every kit window). ---- */
 body .application.drpg-ui.drpg-panel:not(.dialog):not(.minimized) > .window-content { padding: 10px 12px; }
 .application.drpg-ui.drpg-panel > .window-content > .drpg-kit-content {
     flex: 1 1 auto;

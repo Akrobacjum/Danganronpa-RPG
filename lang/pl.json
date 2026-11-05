@@ -1540,7 +1540,8 @@
       "close": "Zamknij",
       "cancel": "Anuluj",
       "tableEmpty": "Na razie nie ma tu nic do pokazania.",
-      "scrollMore": "Niżej jest więcej. Przewiń, żeby zobaczyć."
+      "scrollMore": "Niżej jest więcej. Przewiń, żeby zobaczyć.",
+      "allThresholds": "Wszystkie progi"
     },
     "Look": {
       "language": "Język",

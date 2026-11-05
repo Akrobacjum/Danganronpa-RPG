@@ -5119,6 +5119,16 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
        window either opts into measured sizing or into this fixed width - and
        never into both. */
     width: min(var(--drpg-popup), 92vw) !important;
+}
+/* The cap, for every such window but a kit one (E21 C1b, E44's Open 19): a kit window's `max-width` is its frame's,
+   the screen less 8 px a side (components.css); with this rule's `!important` on it the frame's lost on every kit
+   window, which all carry `.drpg-panel`. The width above still holds them all. */
+.application.dialog:is(
+    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
+    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
+    .drpg-summary-dialog, .drpg-safeword-dialog
+):not(.drpg-wide):not(.drpg-gm-panel-window):not(.drpg-table-window):not(.drpg-ui) {
     max-width: min(var(--drpg-popup), 92vw) !important;
 }
 
