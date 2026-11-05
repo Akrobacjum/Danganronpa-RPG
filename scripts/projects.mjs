@@ -23,7 +23,7 @@
  * countdowns or the meta into projects-secrecy.mjs.
  */
 
-import { MODULE_ID, PROJECT_SCALE, TRAP_TRIGGERS, TRAITS, isProjectGlyph } from "./config.mjs";
+import { MODULE_ID, PROJECT_SCALE, TRAP_TRIGGERS, TRAITS, isProjectGlyph, projectDescriptionProblem } from "./config.mjs";
 import { SETTINGS, iAmTheMastermind } from "./settings.mjs";
 import { announce, log, error, whisperToOwner, whisperToGms, gmIds, esc, isPrimaryGm, primaryGmId, serialWrite, plural } from "./utils.mjs";
 // Statically: gm-stores.mjs reaches this file only by dynamic import, so the edge closes no cycle (R161).
@@ -377,6 +377,10 @@ export function allProjects() {
                 condition: secretsOf(id).condition ?? "",
                 killerId: secretsOf(id).killerId ?? null,
                 trait: metaFor(id).trait ?? null,
+                /* WHAT IT IS, IN THE WORDS ITS PROPOSAL OR A GM GAVE IT (E44 C9; the owner's ask of 04.11.2026). The open
+                   meta's, beside the room and the trait, so it reaches the same browsers as the name in the countdown
+                   (Q-C9-1); "" for a project made before 1.2.99, until a GM's edit window asks for one (Q-C9-3). */
+                description: typeof metaFor(id).description === "string" ? metaFor(id).description : "",
                 // WHICH PIXEL GLYPH THE TRAY DRAWS FOR THIS ROW.
                 //
                 // `null` for every project made before this existed, and for
@@ -1332,6 +1336,12 @@ export async function createProject({
      * whatever `secret` says. Not named `target`: that is the bar's.
      */
     presetTarget = null, passage = null,
+    /*
+     * WHAT IT IS (E44 C9): plain text, trimmed, at most config.mjs PROJECT_DESCRIPTION_MAX characters - longer makes
+     * nothing, never a cut. Required in the windows a person fills in (the proposal, the GM's create and edit windows,
+     * Q-C9-3), not here: a repair, a sabotage's or a console's project may have none, and its card then draws none.
+     */
+    description = "",
     // WHO PROPOSED IT, as an actor id.
     //
     // The proposal card has carried this since the bridge was written - the
@@ -1344,6 +1354,11 @@ export async function createProject({
 } = {}) {
     if (!game.user.isGM) return null;
     if (!name) return null;
+    if (projectDescriptionProblem(description) === "long") {
+        log(`No project "${name}" was made: its description is longer than the module keeps.`);
+        return null;
+    }
+    const words = String(description ?? "").trim();
 
     const id = foundry.utils.randomID();
 
@@ -1392,6 +1407,9 @@ export async function createProject({
         // stays explicit in the data, not just in this file's assumptions.
         meta: {
             room, indirectMurder, secret: hidden, trait, countsUp: true,
+            /* Beside the room and the trait, in the step that writes the countdown with its ownership already sealed
+               (`createInStep`): where the name goes, the words go, under the same secrecy (E44 C9, Q-C9-1). */
+            ...(words ? { description: words } : {}),
             // Gated on the way IN, not on the way out: a name the sprite set does
             // not have would reach the tray as `var(--drpg-px-nonsense)`, which is
             // an invalid mask and therefore NO glyph at all - not the hourglass.
@@ -1850,11 +1868,16 @@ export async function setProjectImage(countdownId, img) {
  * current progress is clamped down with it.
  *
  * @param {string} countdownId
- * @param {object} patch  Any of { name, target, img, glyph, room, trait, indirectMurder }
+ * @param {object} patch  Any of { name, target, img, glyph, room, trait, indirectMurder, description }
  */
 export async function updateProject(countdownId, patch = {}) {
     if (!game.user.isGM) return null;
     if (!rawCountdown(countdownId)) return null;
+    // A description too long changes nothing, as at createProject (E44 C9): never cut.
+    if (patch.description !== undefined && projectDescriptionProblem(patch.description) === "long") {
+        log(`Project ${countdownId} was not updated: its description is longer than the module keeps.`);
+        return null;
+    }
     const change = projectEditChange(patch);
     // One change of the entry (E36 C2): the countdown and the meta in one step, on the primary.
     if (change) await applyProjectChange(countdownId, change, { by: { kind: "gm" } });
@@ -1888,6 +1911,8 @@ export function projectEditChange(patch = {}) {
     // change what a trap watches for without going round the back.
     if (patch.trigger !== undefined) meta.trigger = patch.trigger;
     if (patch.condition !== undefined) meta.condition = String(patch.condition ?? "");
+    // The open meta's, trimmed (E44 C9); its length is judged by the caller (`updateProject`, the project window).
+    if (patch.description !== undefined) meta.description = String(patch.description ?? "").trim();
     if (patch.killerId !== undefined) meta.killerId = patch.killerId || null;
     if (Object.keys(meta).length) change.meta = meta;
     return Object.keys(change).length ? change : null;

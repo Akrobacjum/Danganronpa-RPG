@@ -3660,7 +3660,12 @@
       "frozenNoProgress": "{name} jest sabotowany i nie ruszy do przodu, dopóki nie skończy się naprawa.",
       "effectFailed": "{name}: części tego, co robi ukończenie projektu (albo cofnięcie go poniżej celu), nie udało się zrobić ({error}). Pasek zostaje, jak jest; szczegóły są w konsoli.",
       "everyone": "Jawny: widzą go wszyscy. Zaznaczeni to ci, którzy wiedzieli przed ujawnieniem - oni i budujący będą wiedzieć, jeśli projekt znów zostanie utajniony.",
-      "builderStays": "{name} buduje „{project}”: budującego nie można odsunąć od jego własnego projektu."
+      "builderStays": "{name} buduje „{project}”: budującego nie można odsunąć od jego własnego projektu.",
+      "description": "Opis",
+      "descriptionPlaceholder": "np. Fałszywe dno w regale, dość głębokie, by schować notes",
+      "descriptionNote": "Opis czyta na karcie tokenu projektu każdy, kto ten projekt zna. Najwyżej {max} znaków.",
+      "descriptionNeeded": "Projekt potrzebuje opisu.",
+      "descriptionTooLong": "Opis może mieć najwyżej {max} znaków, a ten ma {n}. Skróć go."
     },
     "TraitRuling": {
       "title": "Która statystyka?",

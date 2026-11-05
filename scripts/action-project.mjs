@@ -200,7 +200,8 @@ export async function performProject(actor, def, options) {
  */
 async function startProject(actor) {
     const { allRooms } = await import("./movement.mjs");
-    const { projectTraitOptions } = await import("./projects-ui.mjs");
+    const { projectTraitOptions, descriptionField, guardDescription, descriptionRefusal } = await import("./projects-ui.mjs");
+    const { projectDescriptionProblem } = await import("./config.mjs");
     const room = roomOfActor(actor);
     // The rooms of the scene the character stands on (E12 C2a): the project is started where they are.
     const rooms = allRooms(locateActor(actor)?.scene);
@@ -266,6 +267,7 @@ async function startProject(actor) {
             ${presetFields}
             <label>${game.i18n.localize("DRPG.Project.name")}
                 <input type="text" name="name" placeholder="${game.i18n.localize("DRPG.Project.namePlaceholder")}" autofocus /></label>
+            ${descriptionField("")}
             <label>${game.i18n.localize("DRPG.Project.scale")}
                 <select name="target">${scaleOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Project.room")}
@@ -303,12 +305,18 @@ async function startProject(actor) {
                         to: f.to?.value ?? null,
                         seal: f.seal?.value ?? null,
                         unbreach: f.unbreach?.value ?? null,
-                        mend: f.mend?.value ?? null
+                        mend: f.mend?.value ?? null,
+                        // As typed; a preset's own line stands in for an empty one below (E44 C9).
+                        description: d.element.querySelector('[name="description"]')?.value ?? ""
                     };
                 }
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
+        /* Propose refused at the field while the description is empty or too long (E44 C9; Q-C9-3), but for a preset,
+           which arrives filled with its own line when the field is left empty. Cancel goes. */
+        render: (event, dialog) => guardDescription(dialog.element, "create",
+            { optional: () => Boolean(dialog.element.querySelector('[name="preset"]')?.value) }),
         rejectClose: false
     });
 
@@ -339,6 +347,20 @@ async function startProject(actor) {
         ui.notifications.warn(game.i18n.localize("DRPG.Project.traitRequired"));
         return null;
     }
+    /* A PRESET'S OWN LINE, AND THE DESCRIPTION (E44 C9; Q-C9-3). The line the card has always carried for a preset (its
+       summary below) is the preset's description when the field is left empty - "the presets arrive filled with their
+       own summary line" - and the GM's window opens on it, to be changed. Any other proposal needs words of its own:
+       the guard said so at the field, and an answer read past it is refused here, before anything is sent. */
+    const presetLine = walled ? game.i18n.format(presetKey === "breach" ? "DRPG.Project.breachSummary" : "DRPG.Project.passageSummary",
+        { to: beyond.get(offer.neighbours[toIndex]) ?? "-" })
+        : preset ? game.i18n.format(`DRPG.Project.${presetKey}Summary`, { target: presetKey === "repairItem" ? chosen.name : named(chosen.rooms) })
+        : null;
+    result.description = String(result.description ?? "").trim() || presetLine || "";
+    const descriptionWhy = projectDescriptionProblem(result.description);
+    if (descriptionWhy) {
+        ui.notifications.warn(descriptionRefusal(descriptionWhy, result.description));
+        return null;
+    }
 
     // A PROPOSAL, NOT A PROJECT.
     //
@@ -362,10 +384,7 @@ async function startProject(actor) {
         `${esc(scaleLabel)} · ${result.target} progress`,
         result.room ? esc(result.room) : game.i18n.localize("DRPG.Project.anyRoom"),
         TRAITS[result.trait].label,
-        ...(walled ? [game.i18n.format(presetKey === "breach" ? "DRPG.Project.breachSummary" : "DRPG.Project.passageSummary",
-            { to: esc(beyond.get(offer.neighbours[toIndex]) ?? "-") })] : []),
-        ...(preset && !walled ? [game.i18n.format(`DRPG.Project.${presetKey}Summary`,
-            { target: esc(presetKey === "repairItem" ? chosen.name : named(chosen.rooms)) })] : [])
+        ...(presetLine ? [esc(presetLine)] : [])
     ].join(" · ");
 
     /*
@@ -383,7 +402,8 @@ async function startProject(actor) {
         prompt: game.i18n.localize("DRPG.Project.proposalPrompt"),
         placeholder: game.i18n.localize("DRPG.Project.proposalPlaceholder"),
         room,
-        body: `${summary}${result.condition ? `<br><em>${esc(result.condition)}</em>` : ""}${
+        // The description as the player wrote it, its line breaks kept, under the summary (E44 C9).
+        body: `${summary}<br>${esc(result.description).replace(/\n/g, "<br>")}${result.condition ? `<br><em>${esc(result.condition)}</em>` : ""}${
             result.murder ? `<br><span class="drpg-warning">${
                 esc(game.i18n.localize("DRPG.Project.indirectMine"))}</span>` : ""}`,
         actions: [
@@ -401,6 +421,8 @@ async function startProject(actor) {
                     trait: result.trait ?? "",
                     murder: result.murder ? "1" : "",
                     condition: result.condition ?? "",
+                    // What the player wrote (E44 C9): the GM's window opens on it (messenger-app.mjs `ruleApproveProject`).
+                    description: result.description,
                     // A Secret Passage (E15 part 2 C2) or a breach (C3): the preset and the neighbour's index, never its name.
                     // The owner's three (C5): the passage's, the breach's or the item's id, held by this browser already.
                     ...(preset ? { preset: presetKey, to: walled ? String(toIndex) : String(chosen.id) } : {})

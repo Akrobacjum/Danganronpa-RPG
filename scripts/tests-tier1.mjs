@@ -32689,7 +32689,7 @@ const INVARIANTS = [
         }
     }],
 
-    ["R1317 - a region held to its settings is held to what it prints (E44 C2b; E44-07): a region with `watch.settings` rebuilds on its own key and not on another key of the module or another module's key of that name; every `keepLive(` call in scripts/ that names `settings` belongs to a window this test opens or to one of the two it names as unopenable in tier 1 (the readiness round's and the incident tracker), and each region it opens, built once with `game.settings.get` counted, reads no key of the module it does not declare - the GM panel's tiles and the Sound window's two regions among them", async () => {
+    ["R1317 - a region held to its settings is held to what it prints (E44 C2b; E44-07): a region with `watch.settings` rebuilds on its own key and not on another key of the module or another module's key of that name; every `keepLive(` call in scripts/ that names `settings` belongs to a window this test opens or to one of the three it names as unopenable in tier 1 (the readiness round's, the incident tracker and, since E44 C9, a project token's card), and each region it opens, built once with `game.settings.get` counted, reads no key of the module it does not declare - the GM panel's tiles and the Sound window's two regions among them", async () => {
         /*
          * E44 C2b, 04.11.2026; the plan's risk ("keepLive with keys may fail to rebuild a region that depends on a key it
          * did not declare") and audit S10-58 (the panel's tiles redrew on every module setting). The reads are measured,
@@ -32747,8 +32747,10 @@ const INVARIANTS = [
            may not make. The readiness round's GM window (boundary.mjs `roundWindow`) while a round is open; its build reads
            the round's setting it declares and the clock, whose moves reach every region by the world hooks (live.mjs
            WORLD_HOOKS). The incident tracker (murder-ui.mjs `openIncidentTracker`) while an incident runs; it declares the
-           incident's setting. */
-        const UNOPENED = { "boundary.mjs": 1, "murder-ui.mjs": 1 };
+           incident's setting. And the project token's card (projects-map.mjs `showProjectCard`, E44 C9) while a project
+           stands on the map with its token: a project is a world write tier 1 may not make, and no Daggerheart sheet renders
+           headless; it declares projectMeta, and the Countdowns by `settingKeys`, and E44-T20 and 30-security redraw it. */
+        const UNOPENED = { "boundary.mjs": 1, "murder-ui.mjs": 1, "projects-map.mjs": 1 };
         equal(stableJson(Object.keys(census).filter(file => !OPENERS[file] && census[file] !== UNOPENED[file]).sort()), "[]",
             "a keepLive call names `settings` in a window this test does not open - add its opener here");
         for (const file of Object.keys(UNOPENED)) delete census[file];
@@ -33806,6 +33808,85 @@ const INVARIANTS = [
         }), "[the row's Delete buttons (type, key, words, label); the tab's head, the binding, the player answered first, the confirm before the "
             + "removal, a no stopping it, the Remnant named, the removal through removeRemnant alone; the module files beside investigation.mjs "
             + "that name deleteTraceRow; the keys missing in English or Polish]");
+    }],
+    ["R1350 - a project's description on its token's card, and the field that asks for it (E44 C9; the owner's ask of 04.11.2026, Q-C9-1..3): projects-map.mjs `projectCard` draws a description escaped, its line breaks kept, under the bar and before the facts, and nothing for an empty one; config.mjs `projectDescriptionProblem` answers empty for nothing typed, long past PROJECT_DESCRIPTION_MAX (1000) characters after the trim and nothing in between; projects-ui.mjs `descriptionField` draws one textarea named description with no maxlength, and `guardDescription` stops the window's primary press while the field is empty or too long, with its words under the field, lets every other button go, and lets the press go once the text is right; and its five words stand in both languages", async () => {
+        /*
+         * E44 C9, 04.11.2026. The owner: "Chcialbym by projekty mialy tez swoj wlasny wariant okna tokenu, gdzie jest opis
+         * projektu zsynchronizowany z tym, co napisano w ekranie tworzenia projektu oraz z edycja w zakladce projects"; his
+         * answers the same day: everyone who knows the project reads it, as its name; after creation only the GMs change it;
+         * required, at most 1000 characters. Read on synthetic inputs, as tier 1 can: the card's markup of a project object
+         * handed to it, the problem's table, the field's markup, and its guard on a form built here and pressed (DOM
+         * events, no world write). The road whole - a proposal, its approval, an edit, an open card that follows it, the
+         * field's refusal in a drawn window - is tier 2 E44-T20; what a player's browser draws of a secret project it does
+         * not know, and of one it does, is 30-security's. Red at c24da07f: no description on the card, no problem, no field.
+         */
+        const M = await import("./projects-map.mjs");
+        const C = await import("./config.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const cardOf = description => (typeof M.projectCard === "function"
+            ? M.projectCard({ id: "R1350NOPROJECT01", name: "R1350 a false panel", current: 1, start: 4, room: "R1350 Library", description }) : "");
+        const card = cardOf("  Behind the shelf.\nWide enough for <b>a notebook</b> & a pen.  ");
+        const holder = document.createElement("div");
+        holder.innerHTML = card;
+        const at = needle => card.indexOf(needle);
+        const drawn = {
+            words: holder.querySelector(".drpg-project-card-description p")?.innerHTML ?? null,
+            afterBar: at("drpg-project-card-description") > at("drpg-project-card-bar") && at("drpg-project-card-bar") >= 0,
+            beforeFacts: at("drpg-project-card-description") >= 0 && at("drpg-project-card-description") < at("drpg-remnant-facts"),
+            none: ["", "   \n  ", null, undefined].map(text => cardOf(text).includes("drpg-project-card-description"))
+        };
+        const problem = typeof C.projectDescriptionProblem === "function" ? C.projectDescriptionProblem : () => "no judge";
+        const table = ["", "  \n\t ", null, "a", "a".repeat(1000), ` ${"a".repeat(1000)}\n`, "a".repeat(1001)].map(text => problem(text));
+
+        const form = document.createElement("form");
+        form.innerHTML = typeof UI.descriptionField === "function" ? UI.descriptionField("a <i>draft</i>") : "";
+        const areas = [...form.querySelectorAll("textarea")];
+        const field = { areas: areas.map(a => [a.name, a.value, a.hasAttribute("maxlength"), a.required]) };
+
+        const root = document.createElement("div");
+        root.innerHTML = `<form>${form.innerHTML}<footer><button type="button" data-action="save">Save</button>`
+            + `<button type="button" data-action="cancel">Close</button></footer></form>`;
+        document.body.append(root);
+        const heard = [];
+        root.addEventListener("click", event => heard.push(event.target?.dataset?.action ?? null));
+        if (typeof UI.guardDescription === "function") UI.guardDescription(root, "save");
+        const box = root.querySelector('textarea[name="description"]');
+        const pressAs = (text, action = "save") => {
+            if (!box) return "no field";
+            box.value = text;
+            box.dispatchEvent(new Event("input", { bubbles: true }));
+            heard.length = 0;
+            root.querySelector(`[data-action="${action}"]`).click();
+            return { went: heard.includes(action), said: root.querySelector(".drpg-field-error")?.textContent ?? null,
+                invalid: box.getAttribute("aria-invalid"), pointed: box.getAttribute("aria-describedby") === root.querySelector(".drpg-field-error")?.id };
+        };
+        const guard = { empty: pressAs("   "), long: pressAs("b".repeat(1001)), close: pressAs("   ", "cancel"), right: pressAs("A false panel.") };
+        root.remove();
+
+        const fetchLang = lang => fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+        const [en, pl] = [await fetchLang("en"), await fetchLang("pl")];
+        const keys = ["description", "descriptionPlaceholder", "descriptionNote", "descriptionNeeded", "descriptionTooLong"].map(k => `DRPG.Project.${k}`);
+        const both = keys.filter(k => typeof foundry.utils.getProperty(en, k) !== "string" || typeof foundry.utils.getProperty(pl, k) !== "string");
+        const needed = game.i18n.localize("DRPG.Project.descriptionNeeded");
+        const tooLong = game.i18n.format("DRPG.Project.descriptionTooLong", { max: 1000, n: 1001 });
+        equal(stableJson({ drawn, max: C.PROJECT_DESCRIPTION_MAX ?? null, table, field, guard, both }), stableJson({
+            drawn: { words: "Behind the shelf.<br>Wide enough for &lt;b&gt;a notebook&lt;/b&gt; &amp; a pen.", afterBar: true, beforeFacts: true,
+                none: [false, false, false, false] },
+            max: 1000,
+            table: ["empty", "empty", "empty", null, null, null, "long"],
+            field: { areas: [["description", "a <i>draft</i>", false, false]] },
+            guard: {
+                empty: { went: false, said: needed, invalid: "true", pointed: true },
+                long: { went: false, said: tooLong, invalid: "true", pointed: true },
+                close: { went: true, said: needed, invalid: "true", pointed: true },
+                right: { went: true, said: null, invalid: null, pointed: false }
+            },
+            both: []
+        }), "[the card: its description's markup, under the bar, before the facts, and whether an empty, a blank, a null and a missing one "
+            + "draw one; PROJECT_DESCRIPTION_MAX; the problem of '', a blank, null, one character, 1000, 1000 with spaces round them, 1001; "
+            + "the field's textareas (name, value, maxlength, required); the guard on Save with a blank, 1001 characters, Close with a blank "
+            + "and a right one (the press heard past it, the words under the field, aria-invalid, aria-describedby); the keys missing in "
+            + "English or Polish]");
     }],
 ];
 

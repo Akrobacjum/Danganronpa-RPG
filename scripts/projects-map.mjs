@@ -37,6 +37,8 @@ import { metaFor, rawCountdown, COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { boundsOf, roomAt } from "./movement.mjs";
 import { sceneOfRoom, isMoveChange, roomRegions } from "./rooms.mjs";
 import { log, error, whisperToGms, esc, plural, isPrimaryGm, serialWrite } from "./utils.mjs";
+// The card a project token opens stays true while it is open (E44 C9). live.mjs imports config.mjs and utils.mjs alone (R161).
+import { keepLive } from "./live.mjs";
 
 /** The actor every project token is an unlinked copy of. */
 const PROJECT_ACTOR = "DRPG Project";
@@ -741,6 +743,15 @@ export async function syncProjectTokens() {
  * is read off the token the sheet belongs to and nothing else, and then asked of
  * `knowsProject` - the one predicate that also decides whether the token is drawn
  * for this client at all. Anything else gets a card that names no project.
+ *
+ * IN STEP WITH THE PROJECT WHILE IT IS OPEN (E44 C9, 04.11.2026; the owner: the description "zsynchronizowany z tym, co
+ * napisano w ekranie tworzenia projektu oraz z edycja w zakladce projects"). The card is a live region (live.mjs
+ * `keepLive`): a change of the project's row (projectMeta - the description, the room, the secrecy) or of the
+ * Countdowns (the name, the bar, who may see it) draws it again on every browser that holds it open, each from what it
+ * holds, and `draw` asks `knowsProject` again each time - a player taken off a secret project sees the card that names
+ * nothing. Both are world settings, so `updateSetting` reaches every browser with no socket of the module's (sync.mjs's
+ * `SYNC.projects` redraws the tray, the sheets, the HUD and the visibility, never this sheet). One region an open card:
+ * a render of the same sheet stops the region the last render started.
  */
 function showProjectCard(app, element) {
     const actor = app?.document;
@@ -748,31 +759,55 @@ function showProjectCard(app, element) {
 
     const token = actor.isToken ? actor.token : null;
     const id = token ? projectIdOf(token) : null;
-    const project = typeof id === "string" && knowsProject(id)
-        ? allProjects().find(p => p.id === id) ?? null
-        : null;
+    const draw = () => {
+        const project = typeof id === "string" && knowsProject(id)
+            ? allProjects().find(p => p.id === id) ?? null
+            : null;
+        return project ? projectCard(project) : unknownProjectCard(Boolean(token));
+    };
 
     const body = element.querySelector(".window-content") ?? element;
-    body.innerHTML = project ? projectCard(project) : unknownProjectCard(Boolean(token));
-    if (game.user.isGM && project) {
-        body.querySelector("[data-drpg-project-manager]")?.addEventListener("click", async event => {
-            event.preventDefault();
-            const { openProjectManager } = await import("./projects-ui.mjs");
-            await openProjectManager();
-        });
-    }
+    body.innerHTML = draw();
+    wireProjectCard(body);
+    liveCards.get(app)?.();
+    liveCards.set(app, keepLive(app, {
+        region: ".drpg-project-card",
+        build: draw,
+        watch: { settings: ["projectMeta"], settingKeys: [COUNTDOWNS_KEY] },
+        after: wireProjectCard
+    }));
     // Sized for a stat block; this is a card, exactly as the trace's is - and a frame
     // later for the same reason: set inside the render hook, the application's own
     // first-render positioning overwrote it (see showRemnantCard).
     requestAnimationFrame(() => app.setPosition?.({ height: "auto", width: 480 }));
 }
 
-/** The card itself. Pure: everything it prints is handed to it or asked of game state. */
-function projectCard(project) {
+/** The live region each open card holds (`showProjectCard`), by its sheet: a later render stops the one before. */
+const liveCards = new WeakMap();
+
+/** A GM's door to the manager, on the card as drawn and on every redraw of it. */
+function wireProjectCard(root) {
+    if (!game.user.isGM) return;
+    root?.querySelector?.("[data-drpg-project-manager]")?.addEventListener("click", async event => {
+        event.preventDefault();
+        const { openProjectManager } = await import("./projects-ui.mjs");
+        await openProjectManager();
+    });
+}
+
+/**
+ * The card itself. Pure: everything it prints is handed to it or asked of game state. Exported for the suite (R1350).
+ *
+ * THE DESCRIPTION (E44 C9; Q-C9-1: everyone who knows the project, as its name): under the bar and before the facts, as
+ * the trace card sets its words apart (`drpg-remnant-text` in a box), escaped and its line breaks kept; a project with
+ * none - one made before 1.2.99, a repair - draws nothing there.
+ */
+export function projectCard(project) {
     const t = key => game.i18n.localize(key);
     const target = Number(project.start) || 0;
     const current = Math.max(0, Math.min(target || Infinity, Number(project.current) || 0));
     const share = target > 0 ? Math.round((current / target) * 100) : 0;
+    const description = typeof project.description === "string" ? project.description.trim() : "";
 
     const rows = [
         [t("DRPG.Project.cardProgress"), `${current} / ${target}`],
@@ -808,6 +843,9 @@ function projectCard(project) {
         </header>
         <div class="drpg-project-card-bar" role="progressbar" aria-label="${esc(t("DRPG.Project.cardProgress"))}"
              aria-valuemin="0" aria-valuemax="${target}" aria-valuenow="${current}"><span style="width: ${share}%"></span></div>
+        ${description ? `<section class="drpg-remnant-box drpg-project-card-description">
+            <p class="drpg-remnant-text">${esc(description).replace(/\n/g, "<br>")}</p>
+        </section>` : ""}
         <section class="drpg-remnant-box">
             <dl class="drpg-remnant-facts">
                 ${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join("")}

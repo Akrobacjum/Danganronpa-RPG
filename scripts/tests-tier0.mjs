@@ -20333,6 +20333,71 @@ const REGRESSIONS = [
         const total = [...noRole.values()].reduce((a, b) => a + b, 0);
         equal(JSON.stringify(list), "[]", `the footer buttons that name no role, which E22 gives one: ${total} in ${noRole.size} file(s)`);
     }, expectedRed("E22", "E22 fills the button-role table: every footer button of the module gets a role of BUTTON_ROLES, D11's red only for the GM's road; the census of the buttons that name none is its list, and E22 takes this marker off when it is empty", { failing: "the footer buttons that name no role, which E22 gives one" })],
+    ["R1351 - a project's description travels by its name's road (E44 C9; Q-C9-1..3): the player's proposal draws the field, guards its Propose, refuses before anything is sent what config.mjs `projectDescriptionProblem` names - a preset's own line standing in for an empty one - and carries the text on the card's Approve; the approval hands it to the GM's window, which draws it, guards Save, refuses the same way before it writes, and writes it by createProject and projectEditChange; createProject refuses one too long and puts it in the open meta of the change that writes the sealed countdown, projectEditChange in the meta, and allProjects reads it back; it is no field of PROJECT_SECRET_FIELDS, of the world-secrets rule or of the token a project places; the manager's table neither reads nor writes it; and the token's card is a live region over projectMeta and the Countdowns that asks knowsProject at every draw", async () => {
+        /*
+         * E44 C9, 04.11.2026. Where the words live, and why there: the project's open meta (projectMeta, a world setting),
+         * beside the room and the trait, written in the one change of the entry that writes its countdown - the name, the
+         * bar and the ownership map that seals a secret one - so they reach exactly the browsers the name reaches (Q-C9-1),
+         * hidden from the interface of a browser that does not know the project as the name is (audit S09-05, which E43
+         * takes up). The GMs' side (PROJECT_SECRET_FIELDS, projectSecretStore) would keep them from a player who knows the
+         * project; the token would carry them to a browser that does not. Read in the source; the road driven is tier 2
+         * E44-T20 and 30-security. Red at c24da07f: no field in either window, nothing on the card.
+         */
+        const sources = new Map(await otherSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        const fn = (file, name) => (topLevelFunction(src(file), name) ?? "");
+        const order = (text, ...res) => res.map(re => text.search(re)).every((at, i, all) => at >= 0 && (i === 0 || at > all[i - 1]));
+        const start = fn("action-project.mjs", "startProject");
+        const approveData = start ? bodyOf(start, 'action: "approveProject"', { until: 'action: "declineProject"' }) : "";
+        const approve = fn("messenger-app.mjs", "ruleApproveProject");
+        const dialog = fn("projects-ui.mjs", "openProjectDialog");
+        const create = fn("projects.mjs", "createProject");
+        const edit = fn("projects.mjs", "projectEditChange");
+        const all = fn("projects.mjs", "allProjects");
+        const show = fn("projects-map.mjs", "showProjectCard");
+        const place = fn("projects-map.mjs", "placeProjectToken");
+        const manager = ["projectManagerRows", "readManager", "applyProjectManager", "openProjectManager"].filter(name => /description/i.test(fn("projects-ui.mjs", name)));
+        const { PROJECT_SECRET_FIELDS } = await import("./projects.mjs");
+        const { WORLD_SECRET_RULES } = await import("./world-secrets.mjs");
+        const reads = {
+            proposal: {
+                field: /descriptionField\(""\)/.test(start),
+                guard: /guardDescription\(dialog\.element, "create",\s*\{ optional: \(\) => Boolean\(dialog\.element\.querySelector\('\[name="preset"\]'\)\?\.value\) \}\)/.test(start),
+                preset: /result\.description = String\(result\.description \?\? ""\)\.trim\(\) \|\| presetLine \|\| ""/.test(start),
+                refusedFirst: order(start, /projectDescriptionProblem\(result\.description\)/, /promptAndCallGm\(/),
+                carried: /description: result\.description,/.test(approveData)
+            },
+            approval: /description: data\.description \?\? ""/.test(approve),
+            window: {
+                field: /descriptionField\(start\?\.description \?\? ""\)/.test(dialog),
+                guard: /guardDescription\(dialog\.element, "save"\)/.test(dialog),
+                refusedFirst: order(dialog, /projectDescriptionProblem\(result\.description\)/, /projectEditChange\(/) && order(dialog, /projectDescriptionProblem\(result\.description\)/, /createProject\(/),
+                written: (dialog.match(/description: result\.description,/g) ?? []).length
+            },
+            create: { long: order(create, /projectDescriptionProblem\(description\) === "long"/, /applyProjectChange\(/), meta: /meta: \{[\s\S]*\.\.\.\(words \? \{ description: words \} : \{\}\)/.test(create) },
+            edit: /meta\.description = String\(patch\.description \?\? ""\)\.trim\(\)/.test(edit),
+            read: /description: typeof metaFor\(id\)\.description === "string"/.test(all),
+            secret: [PROJECT_SECRET_FIELDS.includes("description"), (WORLD_SECRET_RULES.settings.projectMeta?.fields ?? []).includes("description")],
+            token: /description/i.test(place),
+            manager,
+            card: {
+                live: /keepLive\(app, \{/.test(show) && /settings: \["projectMeta"\]/.test(show) && /settingKeys: \[COUNTDOWNS_KEY\]/.test(show),
+                asks: /const draw = \(\) => \{[\s\S]*knowsProject\(id\)[\s\S]*\};[\s\S]*build: draw/.test(show)
+            }
+        };
+        must(start && approve && dialog && create && show, "a function this reads is gone - this would measure nothing");
+        equal(JSON.stringify(reads), JSON.stringify({
+            proposal: { field: true, guard: true, preset: true, refusedFirst: true, carried: true },
+            approval: true,
+            window: { field: true, guard: true, refusedFirst: true, written: 2 },
+            create: { long: true, meta: true },
+            edit: true, read: true, secret: [false, false], token: false, manager: [], card: { live: true, asks: true }
+        }), "[the proposal: the field, its guard (a preset's empty field let through), a preset's line for an empty one, the refusal before the "
+            + "card is sent, the text on Approve; the approval passing it on; the GM's window: the field, its guard, the refusal before the edit and "
+            + "the create, how many writes name it; createProject's refusal of one too long and its meta; projectEditChange; allProjects; whether "
+            + "the GMs' fields or the world-secrets rule name it; whether the token's creation names it; the manager's functions that name it; the "
+            + "card's live region and its draw asking knowsProject]");
+    }],
 ];
 
 

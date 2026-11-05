@@ -3338,7 +3338,12 @@
       "frozenNoProgress": "{name} has been sabotaged and cannot move forward until its repair is finished.",
       "effectFailed": "{name}: part of what finishing it (or taking it back under its target) does could not be done ({error}). The bar stands as it is; the console has the details.",
       "everyone": "Public: everyone can see it. Ticked: who knew before it was revealed - they and whoever builds it are who will know if it is sealed again.",
-      "builderStays": "{name} is building “{project}”: a builder cannot be taken off their own project."
+      "builderStays": "{name} is building “{project}”: a builder cannot be taken off their own project.",
+      "description": "Description",
+      "descriptionPlaceholder": "e.g. A false back in the bookcase, deep enough to hide a notebook",
+      "descriptionNote": "Everyone who knows the project reads this on its token's card. At most {max} characters.",
+      "descriptionNeeded": "A project needs a description.",
+      "descriptionTooLong": "A description holds at most {max} characters, and this one has {n}. Shorten it."
     },
     "TraitRuling": {
       "title": "Which statistic?",

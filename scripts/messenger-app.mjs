@@ -967,6 +967,9 @@ async function ruleApproveProject(action, data) {
             trait: data.trait || null,
             indirectMurder: Boolean(data.murder),
             condition: data.condition ?? "",
+            // What the player wrote (E44 C9): the window opens on it, the GM may change it, and the project keeps what
+            // the GM approved.
+            description: data.description ?? "",
             // A Secret Passage's preset and the neighbour's index (E15 part 2 C2), read again in the GM's window.
             preset: data.preset || null,
             to: data.to ?? null,

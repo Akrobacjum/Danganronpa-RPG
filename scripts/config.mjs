@@ -2849,6 +2849,26 @@ export function isProjectGlyph(name) {
     return Boolean(name) && Object.hasOwn(PROJECT_GLYPHS, name);
 }
 
+/*
+ * A PROJECT'S DESCRIPTION (E44 C9, 04.11.2026; the owner: "Chcialbym by projekty mialy tez swoj wlasny wariant okna
+ * tokenu, gdzie jest opis projektu zsynchronizowany z tym, co napisano w ekranie tworzenia projektu oraz z edycja w
+ * zakladce projects"). His answers of the same day: everyone who knows the project reads it, as its name (Q-C9-1); after
+ * creation only the GMs change it (Q-C9-2); it is required, at most this many characters (Q-C9-3). Plain text: the card
+ * escapes it and keeps its line breaks (projects-map.mjs `projectCard`). It is trimmed and never cut - a longer one is
+ * refused at the field with its length (projects-ui.mjs `guardDescription`), and by the window's own reading after it.
+ */
+export const PROJECT_DESCRIPTION_MAX = 1000;
+
+/**
+ * What is wrong with a description as typed, after the trim: "empty", "long" (past PROJECT_DESCRIPTION_MAX), or null.
+ * The one judge of it: the proposal's and the GM's windows, their guards and createProject ask this.
+ */
+export function projectDescriptionProblem(text) {
+    const words = String(text ?? "").trim();
+    if (!words) return "empty";
+    return words.length > PROJECT_DESCRIPTION_MAX ? "long" : null;
+}
+
 /* ==========================================================================
  * WHAT A TRAP WATCHES FOR
  * --------------------------------------------------------------------------
@@ -4912,6 +4932,8 @@ export const DRPG = {
     PROJECT_GLYPHS,
     PROJECT_TOKEN,
     isProjectGlyph,
+    PROJECT_DESCRIPTION_MAX,
+    projectDescriptionProblem,
     TRAP_TRIGGERS,
     TRAP_MODIFIERS,
     STATES,

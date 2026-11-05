@@ -22027,7 +22027,8 @@ const SCENARIOS = [
             const select = root.querySelector('select[name="trait"]');
             const chosen = [...(select?.options ?? [])].find(o => o.selected);
             forms.push([chosen?.value ?? null, Boolean(chosen?.disabled), Boolean(select?.required)]);
-            const common = { name: "SUITE C11D renamed", target: 4, room: null, trait: answer.trait, murder: false, condition: "" };
+            // A description since E44 C9 (required in both windows): the statistic is what this reads.
+            const common = { name: "SUITE C11D renamed", target: 4, room: null, trait: answer.trait, murder: false, condition: "", description: "SUITE C11D its words" };
             return title === startTitle ? common : { ...common, img: null, glyph: null, secret: false, viewers: [],
                 trigger: { kind: "manual", targetId: null, afterDark: false, notBuilder: false } };
         });
@@ -63550,7 +63551,8 @@ const SCENARIOS = [
                     // What a GM's hand can do: untick a box that is not held.
                     if (box && !box.disabled) box.checked = false;
                     const boxes = [...root.querySelectorAll('[name="viewers"]')];
-                    return { name: "SUITE E15 T16 kept", target: 6, room: DORM, trait: "hand", murder: false, condition: "", img: null, glyph: null,
+                    // A description since E44 C9 (required in the edit window): the secrecy is what this reads.
+                    return { name: "SUITE E15 T16 kept", target: 6, room: DORM, trait: "hand", murder: false, condition: "", img: null, glyph: null, description: "SUITE E15 T16 its words",
                         secret: Boolean(box?.checked), viewers: boxes.filter(b => b.checked).map(b => b.value), was: boxes.filter(b => b.defaultChecked).map(b => b.value),
                         trigger: { kind: "manual", targetId: null, afterDark: false, notBuilder: false } };
                 });
@@ -63653,7 +63655,8 @@ const SCENARIOS = [
             drawn.push([Boolean(root.querySelector("[data-drpg-owned-preset] .drpg-warning")), target]);
             return { name: cfg?.content?.querySelector?.('input[name="name"]')?.value || "SUITE E15 T17 approved", target, room: null, trait: "hand", murder: false,
                 condition: "", trigger: { kind: "manual", targetId: null, afterDark: false, notBuilder: false }, secret: false, viewers: [], was: [], img: null, glyph: null,
-                passageTo: null, passage: null };
+                // A description since E44 C9 (required in the approval window): the preset's judgement is what this reads.
+                passageTo: null, passage: null, description: "SUITE E15 T17 its words" };
         });
         const approve = async (preset, to, builder, roomClaim, target = 3) => {
             const before = new Set(PR.allProjects().map(p => p.id)), warnedBefore = warned.length;
@@ -70394,6 +70397,8 @@ const SCENARIOS = [
                 const form = element.querySelector("form");
                 must(form?.name && form.querySelector(`[name="viewers"][value="${guest.id}"]`), "the project window drew no name or no box for the second player");
                 form.name.value = "SUITE E36 T11 window renamed";
+                // A description since E44 C9 (required in the edit window): one change of the entry is what this reads.
+                if (form.querySelector('[name="description"]')) form.querySelector('[name="description"]').value = "SUITE E36 T11 its words";
                 form.querySelector(`[name="viewers"][value="${guest.id}"]`).checked = true;
                 if (!form.trait.value) form.trait.value = Object.keys((await import("./config.mjs")).TRAITS)[0];
                 const save = (cfg.buttons ?? []).find(b => b.action === "save");
@@ -70891,6 +70896,8 @@ const SCENARIOS = [
                 seen.fields ??= shown;
                 form.secret.checked = true;
                 for (const box of form.querySelectorAll('[name="viewers"]')) box.checked = tick && box.value === player.id;
+                // A description since E44 C9 (required in the edit window): the killer and the boxes are what this reads.
+                if (form.querySelector('[name="description"]')) form.querySelector('[name="description"]').value ||= "SUITE E15 T1 its words";
                 const save = (cfg.buttons ?? []).find(b => b.action === "save");
                 return save.callback(new Event("click"), save, { element: root });
             };
@@ -70930,6 +70937,8 @@ const SCENARIOS = [
                 flip(form.murder, true);
                 // As a click: a disabled box does not change.
                 for (const box of form.querySelectorAll('[name="viewers"]')) if (!box.disabled) box.checked = box.value === player.id;
+                // A description since E44 C9 (required in the edit window): the killer and the boxes are what this reads.
+                if (form.querySelector('[name="description"]')) form.querySelector('[name="description"]').value ||= "SUITE E15 T1 its words";
                 const save = (cfg.buttons ?? []).find(b => b.action === "save");
                 return save.callback(new Event("click"), save, { element: root });
             };
@@ -82429,6 +82438,183 @@ const SCENARIOS = [
             health: "as before"
         }), "[answered No: the token, the row, the drawn button, what was asked; answered Yes: the same; the reinforced one answered Yes: the same "
             + "and the refusal told; the health check's traces with no row and rows with no trace against before]");
+    }],
+    ["E44-T20 - a project's description, end to end (E44 C9; the owner's ask of 04.11.2026, Q-C9-1..3): a student's proposal carries what its Description says on the card's Approve; the GM's window opens on it, and what the GM writes there is the project's; the token's card, open, draws it under the bar and follows an edit in the project's window without being opened again; a project with none, as one made before 1.2.99, draws none on its card and the manager's table saves it without a word about one; its edit window, drawn, refuses Save at the field while the description is empty or past 1000 characters and stays open, and Close then leaves it with none", async () => {
+        /*
+         * E44 C9, 04.11.2026. On this primary GM's browser, as the C11d test drives a proposal: the student stood alone in
+         * a room (`standAlone`), Work on Project's Start New answered with a Description, the request window with a
+         * sentence; the card's Approve pressed as the chat log wires it (messenger-app.mjs `wireCallActions`, scenario
+         * 76's way); the GM's create window answered with the GM's own words, read first for what it opened on; the token's
+         * card drawn by the module's render hook into a stand-in sheet (no Daggerheart sheet renders headless, as the trace
+         * card's test hands one), then the project's edit window - the one the manager's pen opens - answered with a third
+         * text, and the open card read again after the redraw's delay. A project made by createProject with no
+         * description stands in for one made before 1.2.99: its card, the manager's Save answered on its own content
+         * (`answerWindows`; the notices said read), and its edit window drawn (`__dialogWindows`) and pressed: Save with
+         * the field empty, Save with 1001 characters, Close. What a player's own browser draws - a secret project's card on
+         * a player in on it and on one who is not - is 30-security's; at a table, LIVE-E44-20. Red at c24da07f: the card's
+         * Approve carries no description and the windows draw no field.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the proposer alone");
+        needs(env.dialogs(), "the edit window's refusal is read off its drawn window");
+        const [actor] = cast(1);
+        const { performAction } = await import("./action-rolls.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const P = await import("./projects.mjs");
+        const M = await import("./projects-map.mjs");
+        const { ACTIONS, TIMING } = await import("./config.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this GM is not the primary, whose browser keeps the project tokens - run the suite on the primary GM");
+        const PLAYER = "SUITE E44-T20 a false back\nin the bookcase";
+        const GM = "SUITE E44-T20 a false back in the bookcase,\ndeep enough for a notebook";
+        const EDIT = "SUITE E44-T20 the false back, painted over";
+        const L = key => game.i18n.localize(key);
+        const titles = { start: L("DRPG.Project.startNew"), create: L("DRPG.Project.createTitle"),
+            edit: L("DRPG.Project.editTitle"), manage: L("DRPG.Project.manageTitle") };
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const before = new Set(P.allProjects().map(p => p.id));
+        const read = {};
+        const told = [];
+        const own = { warn: ui.notifications.warn, info: ui.notifications.info };
+        ui.notifications.warn = (text, ...rest) => { told.push(["warn", String(text)]); return own.warn.call(ui.notifications, text, ...rest); };
+        ui.notifications.info = (text, ...rest) => { told.push(["info", String(text)]); return own.info.call(ui.notifications, text, ...rest); };
+        let stood = null, made = null, older = null, windows = null, sheet = null, drawnEdit = null;
+        const gmAnswer = (description, room) => ({ name: "SUITE E44-T20 the bookcase", target: 4, room, trait: "hand", murder: false, condition: "",
+            trigger: { kind: "manual", targetId: null, afterDark: false, notBuilder: false }, secret: false, viewers: [], was: [], img: null, glyph: null,
+            passageTo: null, passage: null, description });
+        const openCard = id => {
+            const element = document.createElement("div");
+            element.innerHTML = `<div class="window-content"></div>`;
+            document.body.append(element);
+            const token = M.projectTokenOf(id);
+            const app = { document: { getFlag: (scope, key) => (key === M.PROJECT_TOKEN_FLAG ? id : undefined), isToken: true, token }, element, setPosition: () => {} };
+            Hooks.callAll("renderActorSheetV2", app, element);
+            return { app, element, token: Boolean(token),
+                words: () => element.querySelector(".drpg-project-card-description")?.textContent?.trim() ?? null,
+                close: () => { Hooks.callAll("closeApplicationV2", app); element.remove(); } };
+        };
+        try {
+            stood = await standAlone(actor);
+            windows = answerWindows((cfg, root) => {
+                const title = cfg?.window?.title ?? "";
+                // The Projects action's window and the manager share a title: told apart by the action's variants.
+                const start = root.querySelector('input[name="variant"][value="start"]');
+                if (title === ACTIONS.project.label && start) {
+                    start.checked = true;
+                    return press(cfg, root);
+                }
+                // The request window bears the same title as the form (DRPG.Project.proposalTitle): told apart by its field.
+                if (root.querySelector('textarea[name="request"]')) return { text: "SUITE E44-T20 may I build it?" };
+                if (title === titles.start) {
+                    read.form = root.querySelectorAll('textarea[name="description"]').length;
+                    return { name: "SUITE E44-T20 the bookcase", target: 4, room: stood.room, trait: "hand", murder: false, condition: "",
+                        preset: null, to: null, seal: null, unbreach: null, mend: null, description: PLAYER };
+                }
+                if (title === titles.create) {
+                    read.opened = root.querySelector('textarea[name="description"]')?.value ?? null;
+                    return gmAnswer(GM, stood.room);
+                }
+                if (title === titles.edit) {
+                    read.editOpened = root.querySelector('textarea[name="description"]')?.value ?? null;
+                    return gmAnswer(EDIT, stood.room);
+                }
+                if (title === titles.manage) return press(cfg, root);
+                return null;
+            });
+            await performAction(actor, "project", { free: true });
+            const cardOf = () => game.messages.contents.find(m => !had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="approveProject"')) ?? null;
+            await until(() => Boolean(cardOf()), 6000);
+            const card = cardOf();
+            must(card, `the proposal posted no card with Approve - this would measure nothing (windows ${stableJson(windows.asked.map(w => w.title))}, told ${stableJson(told)})`);
+            const body = document.createElement("div");
+            body.innerHTML = String(contentOf(card));
+            read.card = body.querySelector('[data-drpg-call="approveProject"]')?.dataset?.description ?? null;
+            wireCallActions(body, card);
+            body.querySelector('[data-drpg-call="approveProject"]')?.click();
+            const madeOf = () => P.allProjects().find(p => !before.has(p.id)) ?? null;
+            await until(() => Boolean(madeOf()), 8000);
+            const project = madeOf();
+            must(project, "the approval made no project - this would measure nothing");
+            made = project.id;
+            read.made = project.description;
+            await settle();
+            must(M.projectTokenOf(made), "the project's token was not placed - this would measure nothing");
+            sheet = openCard(made);
+            read.drawn = sheet.words();
+            read.under = Boolean(sheet.element.querySelector(".drpg-project-card-bar + .drpg-project-card-description"));
+            await UI.openProjectDialog({ project: P.allProjects().find(p => p.id === made) });
+            await until(() => sheet.words() === EDIT, Math.max(3000, (TIMING.coalesceMs ?? 0) * 10));
+            read.followed = sheet.words();
+            read.stored = P.metaFor(made).description ?? null;
+
+            older = (await P.createProject({ name: "SUITE E44-T20 an older one", target: 3, room: stood.room }))?.id ?? null;
+            must(older, "could not make the project with no description - this would measure nothing");
+            await settle();
+            const olderCard = openCard(older);
+            read.olderCard = [olderCard.token, olderCard.words(), Boolean(olderCard.element.querySelector(".drpg-project-card"))];
+            olderCard.close();
+            told.length = 0;
+            await UI.openProjectManager();
+            read.manager = told.filter(([, text]) => /description/i.test(text) || text === L("DRPG.Project.saved")
+                || text === L("DRPG.Project.descriptionNeeded"));
+            windows.restore();
+            windows = null;
+
+            const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected
+                && a.options?.window?.title === titles.edit) ?? null;
+            drawnEdit = UI.openProjectDialog({ project: P.allProjects().find(p => p.id === older) });
+            must(await until(() => Boolean(drawn()), 6000), "the edit window was not drawn - this would measure nothing");
+            const el = drawn().element;
+            const field = el.querySelector('textarea[name="description"]');
+            const saveBy = text => {
+                if (!field) return;
+                field.value = text;
+                field.dispatchEvent(new Event("input", { bubbles: true }));
+                el.querySelector('footer button[data-action="save"]')?.click();
+            };
+            const state = () => ({ open: Boolean(drawn()), said: el.querySelector(".drpg-field-error")?.textContent ?? null,
+                invalid: field?.getAttribute("aria-invalid") ?? null });
+            read.editField = field?.value ?? null;
+            saveBy("");
+            await settle();
+            read.empty = state();
+            saveBy("c".repeat(1001));
+            await settle();
+            read.long = state();
+            el.querySelector('footer button[data-action="cancel"]')?.click();
+            read.closed = await Promise.race([drawnEdit, wait(3000).then(() => "unanswered")]);
+            read.olderAfter = P.metaFor(older).description ?? null;
+        } finally {
+            ui.notifications.warn = own.warn;
+            ui.notifications.info = own.info;
+            windows?.restore();
+            sheet?.close();
+            if (drawnEdit) {
+                const left = [...foundry.applications.instances.values()].filter(a => a?.rendered && a.options?.window?.title === titles.edit);
+                for (const a of left) await a.close();
+                await Promise.race([drawnEdit, wait(3000)]);
+            }
+            for (const id of [made, older]) if (id && P.allProjects().find(p => p.id === id)) await P.deleteProject(id).catch(() => {});
+            for (const m of game.messages.contents) if (!had.has(m.id)) await m.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            await stood?.back();
+            await settle();
+        }
+        const needed = L("DRPG.Project.descriptionNeeded");
+        equal(stableJson(read), stableJson({
+            form: 1, card: PLAYER, opened: PLAYER, made: GM, drawn: GM.replace("\n", ""), under: true,
+            editOpened: GM, followed: EDIT, stored: EDIT,
+            olderCard: [true, null, true], manager: [["info", L("DRPG.Project.saved")]],
+            editField: "", empty: { open: true, said: needed, invalid: "true" },
+            long: { open: true, said: game.i18n.format("DRPG.Project.descriptionTooLong", { max: 1000, n: 1001 }), invalid: "true" },
+            closed: null, olderAfter: null
+        }), "[the proposal's Description fields; the card's Approve's description; what the GM's window opened on; the project's; the open card's "
+            + "words and whether they stand under the bar; what the edit window opened on; the open card after the edit; the stored one; the older "
+            + "project's card (its token, its words, a card at all); the manager's Save's notices; its edit window drawn: the field, Save with it "
+            + "empty and with 1001 characters (open, the words under the field, aria-invalid), Close's answer; its description after]");
     }],
     ...GRID
 ];

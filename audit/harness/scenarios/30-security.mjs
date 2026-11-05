@@ -1257,6 +1257,50 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         JSON.stringify({ hiddenWork, hiddenRepair, repairOnP1, thawed, repairEnd }));
     await canary.chatScan({ who: ["p1"], titles: [SECRET_WORK], phase: "projects: a secret project's sabotage" });
 
+    /* 7b'''. A PROJECT'S DESCRIPTION (E44 C9, 04.11.2026; the owner's ask, Q-C9-1: everyone who knows the project reads
+       it, as its name). The GM makes a secret project in the Cafeteria with a description and lets p2 in on it, not p1.
+       Each player's browser draws the project token's card through the module's render hook into a stand-in sheet (no
+       Daggerheart sheet renders headless) and is read: p2's card holds the words, line break kept; p1's names nothing -
+       no words, no name - and neither the token p1 holds nor p1's page holds them. Then the GM changes the words
+       (`updateProject`) with p2's card left open: the card follows, with no new render. The words stand in the
+       project's open meta on every browser, as its name stands in Daggerheart's Countdowns there (audit S09-05, which
+       E43 takes up): read on p1, not refused. Red at c24da07f: no project keeps a description, so p2's card holds none. */
+    const DESCRIBED = { name: "SEC described work", words: "SEC words of the work\nbehind the vent", edit: "SEC words of the work, changed" };
+    const described = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        const made = await P.createProject({ name: ${JSON.stringify(DESCRIBED.name)}, target: 6, room: "Cafeteria", secret: true,
+            viewers: ["${p2.userId}"], description: ${JSON.stringify(DESCRIBED.words)} });
+        return made?.id ?? null;`, { timeout: 60000 });
+    await settle(1500);
+    const drawCard = c => c.eval(`const M = await import("${repoUrl}/scripts/projects-map.mjs");
+        const id = ${JSON.stringify(described)};
+        const token = canvas.scene?.tokens?.find(t => t.getFlag("${MOD}", M.PROJECT_TOKEN_FLAG) === id) ?? null;
+        const element = document.createElement("div");
+        element.innerHTML = '<div class="window-content"></div>';
+        document.body.append(element);
+        const app = { document: { getFlag: (scope, key) => (key === M.PROJECT_TOKEN_FLAG ? id : undefined), isToken: true, token }, element, setPosition: () => {} };
+        Hooks.callAll("renderActorSheetV2", app, element);
+        globalThis.__s30card = { app, element };
+        return { token: Boolean(token), names: element.textContent.includes(${JSON.stringify(DESCRIBED.name)}),
+            words: element.querySelector(".drpg-project-card-description p")?.innerHTML ?? null,
+            tokenHolds: token ? JSON.stringify(token.toObject()).includes("SEC words") : null,
+            meta: (game.settings.get("${MOD}", "projectMeta") ?? {})[id]?.description ?? null };`);
+    const cardOn = { p1: await drawCard(p1), p2: await drawCard(p2) };
+    const pageP1 = await p1.eval(`return document.body.innerHTML.includes("SEC words");`);
+    await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        await P.updateProject(${JSON.stringify(described)}, { description: ${JSON.stringify(DESCRIBED.edit)} }); return true;`, { timeout: 60000 });
+    const followed = await p2.eval(`const end = Date.now() + 5000; const read = () => globalThis.__s30card?.element?.querySelector(".drpg-project-card-description p")?.innerHTML ?? null;
+        while (read() !== ${JSON.stringify(DESCRIBED.edit)} && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        return read();`, { timeout: 30000 });
+    for (const c of [p1, p2]) await c.eval(`const held = globalThis.__s30card; if (held) { Hooks.callAll("closeApplicationV2", held.app); held.element.remove(); }
+        delete globalThis.__s30card; return true;`);
+    check("SECURITY: a secret project's description is drawn on its token's card for p2, who is in on it, and for nobody else - p1's card names nothing, p1's token and page hold none - and p2's open card follows the GM's change",
+        Boolean(described) && cardOn.p2.token && cardOn.p2.names && cardOn.p2.words === "SEC words of the work<br>behind the vent"
+        && cardOn.p1.token && !cardOn.p1.names && cardOn.p1.words === null && cardOn.p1.tokenHolds === false && pageP1 === false
+        && followed === DESCRIBED.edit,
+        JSON.stringify({ described, cardOn, pageP1, followed }));
+    await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        if (${JSON.stringify(described)}) await P.deleteProject(${JSON.stringify(described)}).catch(() => {}); return true;`, { timeout: 60000 });
+
     /* 7b''. A PROJECT'S STATISTIC (E32+E07 C11d, 02.10.2026; the owner's rules of 28.09.2026). A
        project's roll - Work on it, or a Sabotage of it - takes the project's statistic, and only a
        project stored without one asks a GM, by its id, on a card that names it in the asker's
