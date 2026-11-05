@@ -35,10 +35,11 @@ import { SearchTokens } from "./search-tokens.mjs";
 // `import("./vault.mjs")`).
 import { roomStockTables } from "./tables.mjs";
 import {
-    dialogContent, tableDialog, announce, plural, workingScene, pinFooterAcrossScroll, wireDashboardTabs,
+    dialogContent, tableDialog, announce, plural, workingScene, pinFooterAcrossScroll,
     forcedDeletion, wirePortraitPickers
 } from "./utils.mjs";
-import { alreadyOpen, keepFresh } from "./live.mjs";
+import { kitTabs, wireKitTabs, emptyOption } from "./ui-kit.mjs";
+import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
 import {
     ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomNames, roomRegions, flagOver,
     listOver, isTrialScene, homeScene, sceneHoldsRooms
@@ -297,7 +298,7 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
 
         return {
             name: `<td><strong>${escRoom}</strong></td>`,
-            owner: `<td><select name="owner:${escRoom}"${named("owner")}><option value="">-</option>${people}</select></td>`,
+            owner: `<td><select name="owner:${escRoom}"${named("owner")}>${emptyOption("DRPG.Vault.noOwner")}${people}</select></td>`,
             isroom: `<td style="text-align:center" title="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.isRoomHint"))}"><input
                 type="checkbox" name="isroom:${escRoom}"${named("isroom")} ${isRoomNow ? "checked" : ""}${possible ? "" : " disabled"}${undecidedMark} /></td>`,
             concealed: check("concealed", isConcealed(room, scene)),
@@ -423,82 +424,79 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
             ${studentHeads(students)}
         </tr></thead><tbody>${rows}</tbody></table>`;
 
-    const nav = ROOM_SETUP_TABS.map(([key, label]) =>
-        `<button type="button" class="drpg-dashboard-tab${key === initial ? " active" : ""}"
-            data-drpg-tab="${key}">${game.i18n.localize(label)}</button>`).join("");
-    const panel = (key, inner) =>
-        `<div data-drpg-panel="${key}"${key === initial ? "" : ' style="display:none"'}>${inner}</div>`;
+    // Each tab's pane, by its key; the bar and the panes are the kit's (`kitTabs`), in ROOM_SETUP_TABS's order.
+    const panes = {
+        bedrooms: `
+            <p>${game.i18n.localize("DRPG.Vault.bedroomsIntro")}</p>
+            <p class="drpg-warning" data-drpg-two-rooms style="display:none"></p>
+            ${tableFor([th("DRPG.Vault.owner")], ["owner"])}
+        `,
+
+        doors: `
+            <p>${game.i18n.localize("DRPG.Vault.doorsIntro")}</p>
+            <p class="notes" data-drpg-ratio></p>
+            ${tableFor([th("DRPG.Vault.isRoomColumn"), th("DRPG.Vault.lockedColumn"),
+                th("DRPG.Vault.lockedAtStartColumn"), th("DRPG.Vault.notSharedColumn"),
+                th("DRPG.Vault.neighboursColumn")],
+                ["isroom", "locked", "startlocked", "notshared", "neighbours"])}
+            <p class="notes">${game.i18n.localize("DRPG.Vault.notSharedNote")}</p>
+            <p class="notes">${game.i18n.localize("DRPG.Vault.neighboursNote")}</p>
+        `,
+
+        passages: passagesPanel,
+
+        search: `
+            <p>${game.i18n.localize("DRPG.Vault.searchIntro")}</p>
+            ${tableFor([
+                th("DRPG.SearchTokens.sealedColumn"), th("DRPG.SearchTokens.title"),
+                th("DRPG.Vault.table"), th("DRPG.Vault.placeColumn")
+            ], ["nosearch", "tokens", "table", "place"])}
+            <p class="notes">${game.i18n.localize("DRPG.Vault.manageNote")}</p>
+            <p class="notes">${game.i18n.format("DRPG.SearchTokens.roomSetupNote",
+                { max: maxTokens })}</p>
+            <p class="notes">${game.i18n.localize("DRPG.SearchTokens.sealedNote")}</p>
+        `,
+
+        rest: `
+            <p>${game.i18n.localize("DRPG.Rest.manageIntro")}</p>
+            ${tableFor([th("DRPG.Rest.shortColumn"), th("DRPG.Rest.longColumn")],
+                ["short", "long"])}
+        `,
+
+        stashes: `
+            <p>${game.i18n.localize("DRPG.Vault.stashesIntro")}</p>
+            ${stashLegend()}
+            ${matrix(stashRows)}
+            <p class="notes">${game.i18n.localize("DRPG.Vault.stashesNote")}</p>
+        `,
+
+        description: `
+            <p>${game.i18n.localize("DRPG.Vault.descriptionIntro")}</p>
+            ${tableFor([th("DRPG.Vault.descriptionColumn"), th("DRPG.Vault.imageColumn")], ["description", "image"])}
+            <p class="notes">${game.i18n.localize("DRPG.Vault.descriptionNote")}</p>
+        `,
+
+        fog: `
+            <p>${game.i18n.localize("DRPG.Vault.fogIntro")}</p>
+            ${uncovered > 0 ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vault.fogUncovered",
+                { pct: uncovered })}</p>` : ""}
+            <div class="drpg-fog-bulk">
+                <button type="button" class="drpg-mini-button" data-drpg-fog-all="discover">${
+                    game.i18n.localize("DRPG.Vault.discoverAll")}</button>
+                <button type="button" class="drpg-mini-button" data-drpg-fog-all="hide">${
+                    game.i18n.localize("DRPG.Vault.hideAll")}</button>
+            </div>
+            ${matrix(fogRows)}
+            <p class="notes">${game.i18n.localize("DRPG.Vault.fogNote")}</p>
+        `,
+
+        scenes: scenesPanel
+    };
 
     return dialogContent(`<form>
             <p class="notes">${game.i18n.localize("DRPG.Vault.manageIntro")}</p>
             ${cells.length ? "" : `<p class="drpg-warning">${game.i18n.localize("DRPG.Vault.noRooms")}</p>`}
-            <nav class="drpg-dashboard-tabs">${nav}</nav>
-
-            ${panel("bedrooms", `
-                <p>${game.i18n.localize("DRPG.Vault.bedroomsIntro")}</p>
-                <p class="drpg-warning" data-drpg-two-rooms style="display:none"></p>
-                ${tableFor([th("DRPG.Vault.owner")], ["owner"])}
-            `)}
-
-            ${panel("doors", `
-                <p>${game.i18n.localize("DRPG.Vault.doorsIntro")}</p>
-                <p class="notes" data-drpg-ratio></p>
-                ${tableFor([th("DRPG.Vault.isRoomColumn"), th("DRPG.Vault.lockedColumn"),
-                    th("DRPG.Vault.lockedAtStartColumn"), th("DRPG.Vault.notSharedColumn"),
-                    th("DRPG.Vault.neighboursColumn")],
-                    ["isroom", "locked", "startlocked", "notshared", "neighbours"])}
-                <p class="notes">${game.i18n.localize("DRPG.Vault.notSharedNote")}</p>
-                <p class="notes">${game.i18n.localize("DRPG.Vault.neighboursNote")}</p>
-            `)}
-
-            ${panel("passages", passagesPanel)}
-
-            ${panel("search", `
-                <p>${game.i18n.localize("DRPG.Vault.searchIntro")}</p>
-                ${tableFor([
-                    th("DRPG.SearchTokens.sealedColumn"), th("DRPG.SearchTokens.title"),
-                    th("DRPG.Vault.table"), th("DRPG.Vault.placeColumn")
-                ], ["nosearch", "tokens", "table", "place"])}
-                <p class="notes">${game.i18n.localize("DRPG.Vault.manageNote")}</p>
-                <p class="notes">${game.i18n.format("DRPG.SearchTokens.roomSetupNote",
-                    { max: maxTokens })}</p>
-                <p class="notes">${game.i18n.localize("DRPG.SearchTokens.sealedNote")}</p>
-            `)}
-
-            ${panel("rest", `
-                <p>${game.i18n.localize("DRPG.Rest.manageIntro")}</p>
-                ${tableFor([th("DRPG.Rest.shortColumn"), th("DRPG.Rest.longColumn")],
-                    ["short", "long"])}
-            `)}
-
-            ${panel("stashes", `
-                <p>${game.i18n.localize("DRPG.Vault.stashesIntro")}</p>
-                ${stashLegend()}
-                ${matrix(stashRows)}
-                <p class="notes">${game.i18n.localize("DRPG.Vault.stashesNote")}</p>
-            `)}
-
-            ${panel("description", `
-                <p>${game.i18n.localize("DRPG.Vault.descriptionIntro")}</p>
-                ${tableFor([th("DRPG.Vault.descriptionColumn"), th("DRPG.Vault.imageColumn")], ["description", "image"])}
-                <p class="notes">${game.i18n.localize("DRPG.Vault.descriptionNote")}</p>
-            `)}
-
-            ${panel("fog", `
-                <p>${game.i18n.localize("DRPG.Vault.fogIntro")}</p>
-                ${uncovered > 0 ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vault.fogUncovered",
-                    { pct: uncovered })}</p>` : ""}
-                <div class="drpg-fog-bulk">
-                    <button type="button" class="drpg-mini-button" data-drpg-fog-all="discover">${
-                        game.i18n.localize("DRPG.Vault.discoverAll")}</button>
-                    <button type="button" class="drpg-mini-button" data-drpg-fog-all="hide">${
-                        game.i18n.localize("DRPG.Vault.hideAll")}</button>
-                </div>
-                ${matrix(fogRows)}
-                <p class="notes">${game.i18n.localize("DRPG.Vault.fogNote")}</p>
-            `)}
-
-            ${panel("scenes", scenesPanel)}
+            ${kitTabs(ROOM_SETUP_TABS.map(([key, label]) => ({ key, label: game.i18n.localize(label), html: panes[key] })), { active: initial })}
         </form>`);
 }
 
@@ -1099,7 +1097,7 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-rooms")) return null;
+    if (alreadyOpen("drpg-window-rooms")) return RAISED;
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
@@ -1214,7 +1212,7 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
             // for the Fog tab is wrong for Bedrooms (C-F5-8). The footer's
             // buttons themselves are Apply and Cancel on every tab (E12 C15).
             wireFogButtons(root);
-            wireDashboardTabs(root, {
+            wireKitTabs(root, {
                 onSwitch: () => requestAnimationFrame(() => pinFooterAcrossScroll(dialog))
             });
             wireTwoRoomsCheck(root, rooms);

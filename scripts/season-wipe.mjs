@@ -38,7 +38,7 @@ import { roomRegions, roomPieces, piecesByName } from "./rooms.mjs";
 import { dialogContent, log, error, plural, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, serverNow, whisperToGms, listOf } from "./utils.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { cardFlag } from "./secret.mjs";
-import { alreadyOpen } from "./live.mjs";
+import { alreadyOpen, RAISED } from "./live.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks and its window counts (E42 C3).
 import { registerSeasonState, seasonStateEntries, seasonStateFor, everyPart } from "./season-reset.mjs";
 // A leaf (utils.mjs alone): the one runner of the procedures that cannot be taken back (E42 C1b).
@@ -224,9 +224,9 @@ export async function resetSeason() {
         return null;
     }
 
-    if (alreadyOpen("drpg-window-season-reset")) return null;
+    if (alreadyOpen("drpg-window-season-reset")) return RAISED;
     await whenGmStoresHydrated();
-    if (alreadyOpen("drpg-window-season-reset")) return null;
+    if (alreadyOpen("drpg-window-season-reset")) return RAISED;
 
     const tallies = await resetTallies();
     const word = game.i18n.localize("DRPG.Season.resetWord");
@@ -278,7 +278,7 @@ export async function resetSeason() {
 
     const typed = await DialogV2.wait({
         classes: ["drpg-panel", "drpg-window-season-reset"],
-        window: { title: game.i18n.localize("DRPG.Season.resetTitle") },
+        window: { title: game.i18n.localize("DRPG.Season.resetTitle"), minimizable: true },
         content: dialogContent(`<form>
             <p class="drpg-warning">${esc(game.i18n.localize("DRPG.Season.resetWarning"))}</p>
             ${offlineLine}

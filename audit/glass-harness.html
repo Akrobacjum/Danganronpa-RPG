@@ -25,7 +25,18 @@
      the clamp of places saved at 1920x1080 and a focused field through a recut; since E79 fix r4-G3 (1.2.79)
      `drpgObjectionCheck()` draws a player's trial row, with OBJECTION!, in the clock's row and measures it. -->
 <!doctype html><html><head><meta charset="utf-8">
-<link rel="stylesheet" href="/styles/motion.css"><link rel="stylesheet" href="/styles/danganronpa.css"><link rel="stylesheet" href="/styles/stained-glass.css"><link rel="stylesheet" href="/styles/pixel-icons.css"><link rel="stylesheet" href="/styles/messenger.css"><link rel="stylesheet" href="/styles/narrow.css">
+<!-- THE SHEETS ARE module.json's, in its order (E44 C1d, 04.11.2026): read when the page loads, by a synchronous request,
+     and written as links, so they block the first paint as the six links written here by hand until then did, and a
+     sheet added to module.json (E44 C3's components.css) is never a hand-kept line here. -->
+<script>
+  (function () {
+    var req = new XMLHttpRequest();
+    req.open("GET", "/module.json", false);
+    req.send();
+    var styles = JSON.parse(req.responseText).styles || [];
+    for (var i = 0; i < styles.length; i++) document.write('<link rel="stylesheet" href="/' + styles[i] + '">');
+  })();
+</script>
 <style>
   html,body{margin:0;background:#2a2430;min-height:100vh;overflow:hidden}
   /* Foundry's dark theme, which the page did not stand in for until E81 C14: the settings and
@@ -315,13 +326,19 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
                 cards stand together at 1920x1080, 1366x768 and 1680x1050 and one parks at 1440x900, and beside the
                 long card the second parks at most desk sizes). Under Monokuma Legacy and on a stacked screen
                 there must be no frame.
+       windows  (E44 C8c, 04.11.2026; E44-28, the owner: "W stained glass powinny byc pod. W monokuma legacy nad.")
+                one card for this reader alone (no source: "mine", which the E18 C6 split kept over the windows in
+                both themes), and over it a window - a fixed `.application.dialog` on the card's box at z-index
+                100, as this page draws its windows - then `elementFromPoint` at the card's centre, the card taking
+                the pointer for the reading: under Stained Glass the window must be on top, under Monokuma Legacy
+                the card, on a desk and on a stacked screen.
      All of it with the tile's turn taken off, as R299 (b) and glass.mjs measure, and in client coordinates, so the
      containing block's offset under Stained Glass (P23; glass.mjs, `LAUNCH_CLEAR`) is the same for both boxes of a
      comparison. The cards are closed and the turn, the dock and the badge put back before it answers. */
   window.drpgNoticeCheck = async () => {
     const host = document.getElementById("drpg-popups"), button = document.getElementById("drpg-notices-corner");
     const body = document.body, stacked = body.classList.contains("drpg-stacked");
-    const out = { ok: false, why: [], stacked, ceiling: null, stack: null, long: null, floor: null, fill: null };
+    const out = { ok: false, why: [], stacked, ceiling: null, stack: null, long: null, floor: null, fill: null, windows: null };
     if (!host || !button) { out.why.push("no notice tile or no history button"); return out; }
     if (host.querySelector(".drpg-popup:not(.leaving)")) { out.why.push("a card is on the tile already (?card=1): the check draws its own"); return out; }
     const P = await import("/scripts/popup.mjs");
@@ -401,6 +418,38 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
           if (edges.length === 2 ? !edges.every(e => e > 0) : edges.length !== 1 || edges[0] !== 0) out.why.push(`fill: with two short cards the left edges read ${JSON.stringify(edges)} px (want two, each over 0, or one shown at 0)`);
           if (!one || !two || none) out.why.push(`fill: the frame drawn ${one}/${two}/${none} with one card, two cards and none (want true/true/false)`);
         }
+      }
+      {
+        const glassOn = body.classList.contains("drpg-theme-stained-glass"), want = glassOn ? "window" : "card";
+        closers.push(P.showPopup("<p>Window words over a card</p>", { title: "Window", record: false }));
+        await frame();
+        const card = shown()[0];
+        if (!card) out.why.push("windows: the card is not shown");
+        else {
+          const c = card.getBoundingClientRect(), win = document.createElement("div");
+          win.className = "application dialog drpg-panel";
+          // Stated `!important` inline: the themes' sheets place and size `.application` windows of their own; the
+          // z-index stays plain, as Foundry writes a window's.
+          for (const [k, v] of [["position", "fixed"], ["margin", "0"], ["left", `${c.left}px`], ["top", `${c.top}px`], ["right", "auto"], ["bottom", "auto"],
+            ["width", `${Math.max(40, c.width)}px`], ["height", `${Math.max(40, c.height)}px`], ["min-width", "0"], ["min-height", "0"], ["max-width", "none"], ["max-height", "none"], ["transform", "none"]]) win.style.setProperty(k, v, "important");
+          win.style.setProperty("z-index", "100");
+          body.append(win);
+          const pe = [card.style.getPropertyValue("pointer-events"), card.style.getPropertyPriority("pointer-events")];
+          card.style.setProperty("pointer-events", "auto", "important");
+          await frame();
+          const x = c.left + c.width / 2, y = c.top + c.height / 2, w = win.getBoundingClientRect();
+          const covers = w.left <= x && x <= w.right && w.top <= y && y <= w.bottom;
+          const at = document.elementFromPoint(x, y);
+          const top = win.contains(at) ? "window" : card.contains(at) ? "card" : at ? `${at.tagName.toLowerCase()}${at.id ? "#" + at.id : ""}` : null;
+          const z = getComputedStyle(host).zIndex;
+          win.remove();
+          if (pe[0]) card.style.setProperty("pointer-events", pe[0], pe[1]); else card.style.removeProperty("pointer-events");
+          out.windows = { want, top, z, kind: card.dataset.kind ?? null };
+          if (!covers) out.why.push(`windows: the window drawn (${[w.left, w.top, w.width, w.height].map(Math.round)}) does not cover the card's centre (${[x, y].map(Math.round)})`);
+          else if (top !== want) out.why.push(`windows: over the card stands the ${top}, want the ${want} (${glassOn ? "Stained Glass: under the windows" : "Monokuma Legacy: over them"}; the tile at z-index ${z})`);
+        }
+        shut();
+        await frame();
       }
       if (stacked) {
         const read = () => px(getComputedStyle(host).maxHeight);
@@ -1628,13 +1677,14 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     }</div></details></div><p class="drpg-gmp-version">Danganronpa RPG v1.2.91</p></div><footer class="form-footer"><button type="button" data-action="close" class="default">Close</button></footer></section></div>`);
   }
   /* `?msgr=1` (E89 fix FG1, the review's G4): a conversation window, the smallest copy of what messenger-app.mjs
-     `DrpgMessengerApp` renders - the class ApplicationV2 gives it, the participants line, the Chat and Note tabs, one
+     `DrpgMessengerApp` renders - the class ApplicationV2 gives it, the participants line, the Chat and Note tabs (the kit's bar
+     since E44 C4a, ui-kit.mjs `kitTabBar`), one
      bubble and the send form - so glass-sweep `--edges` reads its header band and the send button, which wears the
      same cut as the GM Panel's tiles (stained-glass.css, the shared button rule). At the right, under the clock; only
      when asked, since at the small sizes it lies over the despair bar and the panel the other selectors read. */
   if (q.get("msgr")) {
     document.querySelector(".application.drpg-panel").insertAdjacentHTML("afterend", `<div class="application drpg-messenger" style="left:calc(100vw - 460px);top:150px;width:420px;z-index:100"><header class="window-header"><i class="window-icon fa-solid fa-comments" inert></i><h1 class="window-title">Messenger - Kaede</h1><button class="header-control" data-action="close">x</button></header>
-  <section class="window-content"><div class="drpg-messenger-body"><div class="drpg-messenger-participants">Kaede, Monokuma</div><nav class="drpg-messenger-tabs"><button type="button" class="drpg-messenger-tab active" data-drpg-tab="chat">Chat</button><button type="button" class="drpg-messenger-tab" data-drpg-tab="note">Note</button></nav><div class="drpg-messenger-log"><div class="drpg-messenger-bubble gm"><div class="drpg-messenger-author">Monokuma</div><div class="drpg-messenger-text">The Library is open until night.</div></div></div><form class="drpg-messenger-input"><textarea name="text" rows="1" placeholder="Write"></textarea><button type="submit" aria-label="Send"><i class="fa-solid fa-paper-plane" inert></i></button></form></div></section></div>`);
+  <section class="window-content"><div class="drpg-messenger-body"><div class="drpg-messenger-participants">Kaede, Monokuma</div><nav class="drpg-tabs" role="tablist"><button type="button" role="tab" data-drpg-tab-key="chat" aria-selected="true">Chat</button><button type="button" role="tab" data-drpg-tab-key="note" aria-selected="false">Note</button></nav><div class="drpg-messenger-log"><div class="drpg-messenger-bubble gm"><div class="drpg-messenger-author">Monokuma</div><div class="drpg-messenger-text">The Library is open until night.</div></div></div><form class="drpg-messenger-input"><textarea name="text" rows="1" placeholder="Write"></textarea><button type="submit" aria-label="Send"><i class="fa-solid fa-paper-plane" inert></i></button></form></div></section></div>`);
   }
   /* `?mover=1` (E89 C5), or `__mover.start()`: the board redrawn on every frame with a bright block crossing it, as
      Foundry's ticker redraws its canvas under the windows, so every layer with a backdrop filter is repainted from a
@@ -1661,7 +1711,12 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
   const player = q.get("role") === "player";
   if (player) { document.getElementById("drpg-gm-launcher")?.remove(); document.body.classList.replace("drpg-gm", "drpg-player"); }
   globalThis.game = { ready: true, i18n: { localize: k => k.split(".").pop(), format: (k, d) => k, has: () => false }, settings: { get: (m, k) => defaults[k], set: async (m, k, v) => { defaults[k] = v; return v; }, settings: new Map() }, user: { isGM: !player } };
-  globalThis.ui = { sidebar: {} }; globalThis.foundry = { utils: { escapeHTML: s => s } }; globalThis.CONFIG = {};
+  /* `deepClone` (E44 C1d, 04.11.2026): voice-tile.mjs's imports call foundry.utils.deepClone when they load, and without it
+     the page's voice tile never loaded - glass-sweep read "voice-tile.mjs did not load here: TypeError:
+     foundry.utils.deepClone is not a function" - at 1920x1080 on c4210b4d's own page, and at every size and role of the
+     full sweep once the page read module.json (100 failing, all of them that). structuredClone is what it does to the
+     plain data those modules clone. */
+  globalThis.ui = { sidebar: {} }; globalThis.foundry = { utils: { escapeHTML: s => s, deepClone: o => structuredClone(o) } }; globalThis.CONFIG = {};
   /* Before the glass, as module.mjs registers it (E77 C5): the GM's two rails into their closed windows. */
   const fw = await import("/scripts/foundry-windows.mjs");
   window.__windows = fw;

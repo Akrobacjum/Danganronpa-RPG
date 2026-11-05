@@ -20,7 +20,7 @@ import { MODULE_ID, MOTIVE } from "./config.mjs";
 import { SETTINGS, seasonEpoch, sameSeason } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { announce, dialogContent, log, error, plural, tableDialog, esc} from "./utils.mjs";
-import { alreadyOpen } from "./live.mjs";
+import { alreadyOpen, RAISED } from "./live.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
 
@@ -461,7 +461,7 @@ export async function openRulesManager() {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-rules")) return null;
+    if (alreadyOpen("drpg-window-rules")) return RAISED;
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));

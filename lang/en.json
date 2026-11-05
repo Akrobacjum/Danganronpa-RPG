@@ -504,7 +504,6 @@
       "noPrice": "This is not something you can do."
     },
     "Assign": {
-      "title": "Despair Flow",
       "outside": "Outside every pool",
       "fallbackOption": "{name} (fallback)",
       "intro": "A roll that lands with Despair feeds that student's Monokuma.",
@@ -533,7 +532,10 @@
         "one": "{n} owed",
         "other": "{n} owed"
       },
-      "poolsTitle": "Despair Pools",
+      "tabPools": "Pools",
+      "tabMonokumas": "Monokumas",
+      "tabStudents": "Students",
+      "tabOverflow": "Overflow",
       "poolsIntro": "Name each pool - it does not have to match the account name. Every full GM holds a pool; an Assistant GM holds one once you grant it below.",
       "poolName": "Pool name",
       "addPool": "Add pool",
@@ -1137,6 +1139,7 @@
       "invite": "Invite as a Monocub"
     },
     "Mastermind": {
+      "noLair": "- no room -",
       "dialogTitle": "The Mastermind",
       "lairLabel": "The Mastermind's room",
       "lairNote": "From inside this room they see every token on the map, the way you do; step out and it is gone. Locked doors, seals, other bedrooms and hidden stashes already open for them everywhere - the room is where the cameras are.",
@@ -1448,6 +1451,12 @@
         "caution": "Caution"
       }
     },
+    "Kit": {
+      "close": "Close",
+      "cancel": "Cancel",
+      "tableEmpty": "Nothing to show yet.",
+      "scrollMore": "There is more below. Scroll to see it."
+    },
     "Look": {
       "language": "Language",
       "title": "Settings",
@@ -1644,6 +1653,7 @@
       }
     },
     "Music": {
+      "notSet": "- not set -",
       "intro": "Pick which playlist plays when. The module never starts a playlist you have not chosen here, and ships no audio of its own.",
       "orderNote": "The first state that applies wins, in the order listed. A Class Trial at night uses the trial's playlists; an Eclipse during one uses the Eclipse's.",
       "trialNote": "Objection beats the open debate, and the debate beats the trial merely being in session. A rebuttal has no row of its own: the Objection's music keeps playing through it. Each picks a random track when it takes over, never the one it played last. An Objection runs one minute, so give that playlist a short fade.",
@@ -2068,6 +2078,7 @@
       "trackerScore": "{total} against {n}"
     },
     "Investigation": {
+      "noRemnant": "- no Remnant -",
       "room": "Room",
       "visibility": "Visibility",
       "filterOrder": "Order",
@@ -2100,6 +2111,9 @@
       "keySummary": "{found} of {total} found, {placed} on the map.",
       "keyOffPlan": { "one": "One more found Key Remnant is not on the plan and counts toward the threshold of {bar}: {names}.", "other": "{n} more found Key Remnants are not on the plan and count toward the threshold of {bar}: {names}." },
       "foundBy": "Found by",
+      "deleteTrace": "Delete",
+      "deleteTraceTitle": "Delete the Remnant",
+      "deleteTraceAsk": "Delete the Remnant “{name}”? Its token goes from the map and its row from the case.",
       "revealedByMonokuma": "Revealed by Monokuma",
       "tooThin": { "one": "Only {found} Key Remnant has been found. The minimum is {min} - below that the trial has no honest answer. Point the players at what is left, or let it stand and pay for it at the vote.", "other": "Only {found} Key Remnants have been found. The minimum is {min} - below that the trial has no honest answer. Point the players at what is left, or let it stand and pay for it at the vote." },
       "tooThinNone": "No Key Remnant has been found yet. The minimum is {min} - below that the trial has no honest answer. Point the players at what is left, or let it stand and pay for it at the vote.",
@@ -2168,6 +2182,7 @@
       "unticked": "not ticked"
     },
     "Vault": {
+      "noOwner": "- nobody -",
       "foundStashPending": "You find somebody's stash. What comes out of it settles in a moment.",
       "foundStashNothing": "You find somebody's stash, but nothing from it stays in your hands.",
       "handsFull": "Your hands are full: what you found in the stash stays where it was.",
@@ -2743,7 +2758,7 @@
       "faintColumn": "Faint",
       "faintKept": "A Faint Remnant is always Faint, so its Faint box was ticked again. To untick it, give the trace another kind.",
       "crimeColumn": "Tied to crime",
-      "tieOpen": "-",
+      "tieOpen": "- not decided -",
       "tieTied": "Tied",
       "tieUntied": "Not tied",
       "reinforcedColumn": "Reinforced",
@@ -2963,7 +2978,6 @@
       "toggle": "Mark as Monokuma",
       "marked": "{name} is now a Monokuma: no actions, no Hope, Despair Calls instead, and free movement.",
       "unmarked": "{name} is a student again.",
-      "panelTitle": "Monokumas and Despair pools",
       "panelIntro": "Tick the actors that are Monokumas, then say whose Despair pool each draws on. Without this, two Monokumas share the pool of whichever GM is looking at the sheet.",
       "panelNote": "A Monokuma has no actions and no Hope: their sheet shows Despair Calls instead. The pool decides which GM pays for them.",
       "isMonokuma": "Monokuma",
@@ -3123,6 +3137,7 @@
       "dead": "They are dead. The body stays where it fell."
     },
     "Project": {
+      "pickTrait": "- pick a statistic -",
       "passageRefused": "That stretch does not stand between the builder's room and the room beyond: pick it again.",
       "passageNoWall": "The builder's room shares no wall with another room on this floor: a secret passage has nowhere to go.",
       "passageNeedsPick": "Pick the stretch of wall the secret passage goes through first.",
@@ -3299,6 +3314,7 @@
       "proposalPrompt": "Say what you are actually doing and why here. The GM reads this with your answers and decides - they may change the scale, the room or the wording before it starts.",
       "proposalPlaceholder": "What you are building, and what you want out of it…",
       "proposerKnows": "Your project “{name}” is under way in {room}. It shows on your Projects tray and on the map.",
+      "descriptionTold": "The description of the project “{name}”:",
       "proposalSent": "“{name}” has gone to the GM. Nothing starts until they approve it.",
       "approveButton": "Review and approve",
       "declineButton": "Turn it down",
@@ -3323,7 +3339,12 @@
       "frozenNoProgress": "{name} has been sabotaged and cannot move forward until its repair is finished.",
       "effectFailed": "{name}: part of what finishing it (or taking it back under its target) does could not be done ({error}). The bar stands as it is; the console has the details.",
       "everyone": "Public: everyone can see it. Ticked: who knew before it was revealed - they and whoever builds it are who will know if it is sealed again.",
-      "builderStays": "{name} is building “{project}”: a builder cannot be taken off their own project."
+      "builderStays": "{name} is building “{project}”: a builder cannot be taken off their own project.",
+      "description": "Description",
+      "descriptionPlaceholder": "e.g. A false back in the bookcase, deep enough to hide a notebook",
+      "descriptionNote": "Everyone who knows the project reads this on its token's card. At most {max} characters.",
+      "descriptionNeeded": "A project needs a description.",
+      "descriptionTooLong": "A description holds at most {max} characters, and this one has {n}. Shorten it."
     },
     "TraitRuling": {
       "title": "Which statistic?",
@@ -5150,6 +5171,7 @@
       }
     },
     "Trap": {
+      "noProject": "- no project -",
       "watchFor": "What sets it off",
       "watchNote": "The module watches for this and tells you when it sees it. You still decide whether it happened.",
       "whichProject": "Which project",
@@ -5354,6 +5376,7 @@
       }
     },
     "Case": {
+      "castNobody": "- nobody -",
       "gmOnly": "Only a GM can back up or restore the case.",
       "backupTitle": "Back up the case",
       "backupWhat": "The file holds every GM-only secret of this world: who the Mastermind is, every Truth Bullet's answer, every trace's real type, the cast of an open incident and the Blackened of each chapter, the traps' planted objects, the Level Ups on offer and the rooms each character has found. Keep it where no player can open it.",

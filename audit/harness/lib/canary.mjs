@@ -72,6 +72,7 @@ export const SEEDS = Object.freeze({
     "bullet.reading": { cls: "answer-key", field: "a Truth Bullet's reading, held by the GMs until an Analyze", plantedBy: "72-canary" },
     "project.name": { cls: "plan", field: "a secret project's name", plantedBy: "72-canary" },
     "project.condition": { cls: "plan", field: "an indirect murder's condition", plantedBy: "72-canary" },
+    "project.description": { cls: "plan", field: "a secret project's description (E44 fix FG6)", plantedBy: "72-canary" },
     "note.player": { cls: "plan", field: "a player's pre-session note", plantedBy: "72-canary, 11-killer-secrecy" },
     "park.note": { cls: "plan", field: "a Direct Murder parked during an Eclipse: its note", plantedBy: "72-canary" },
     "token.hidden": { cls: "metadata", field: "a hidden token's name", plantedBy: "72-canary" },

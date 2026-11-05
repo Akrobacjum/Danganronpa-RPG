@@ -20,7 +20,8 @@ import { getClock, setClock } from "./clock.mjs";
 import { resetAllActions } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { dialogContent, error, esc, wholeNumber } from "./utils.mjs";
-import { alreadyOpen } from "./live.mjs";
+import { stepper, stepperId } from "./ui-kit.mjs";
+import { alreadyOpen, RAISED } from "./live.mjs";
 import { trialScene } from "./rooms.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -76,7 +77,7 @@ export async function openClockDialog() {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-clock")) return null;
+    if (alreadyOpen("drpg-window-clock")) return RAISED;
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
@@ -106,8 +107,9 @@ export async function openClockDialog() {
         .map(n => `<option value="${n}"${n === now ? " selected" : ""}>${n}</option>`)
         .join("");
 
+    const ids = { day: stepperId(), session: stepperId() };
     const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Panel.jump") },
+        window: { title: game.i18n.localize("DRPG.Panel.jump"), minimizable: true },
         classes: ["drpg-panel", "drpg-window-clock"],
         content: `<form>
                     <label>${game.i18n.localize("DRPG.Clock.campaignName")}
@@ -121,11 +123,11 @@ export async function openClockDialog() {
                     <label>${game.i18n.localize("DRPG.Clock.phase")}
                         <select name="phase">${phases}</select>
                     </label>
-                    <label>${game.i18n.localize("DRPG.Clock.day")}
-                        <input type="number" name="day" value="${clock.day ?? 1}" min="1" step="1" />
+                    <label for="${ids.day}">${game.i18n.localize("DRPG.Clock.day")}
+                        ${stepper({ name: "day", value: clock.day ?? 1, min: 1, step: 1, id: ids.day })}
                     </label>
-                    <label>${game.i18n.localize("DRPG.Clock.session")}
-                        <input type="number" name="session" value="${clock.session}" min="1" step="1" />
+                    <label for="${ids.session}">${game.i18n.localize("DRPG.Clock.session")}
+                        ${stepper({ name: "session", value: clock.session, min: 1, step: 1, id: ids.session })}
                     </label>
                     <label>${game.i18n.localize("DRPG.Clock.timeOfDay")}
                         <select name="timeOfDay">${times}</select>

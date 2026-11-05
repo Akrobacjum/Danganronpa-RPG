@@ -273,7 +273,7 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
             pick("school", academy.id);
             pick("trial", hall.id);
             const box = name => field("cast:" + byName(name));
-            read = { last: [...(el?.querySelectorAll("[data-drpg-tab]") ?? [])].at(-1)?.dataset.drpgTab ?? null,
+            read = { last: [...(el?.querySelectorAll("nav.drpg-tabs [data-drpg-tab-key]") ?? [])].at(-1)?.dataset.drpgTabKey ?? null,
                 warnings: [...(el?.querySelectorAll("[data-drpg-scene-warning]") ?? [])].map(p => p.dataset.drpgSceneWarning),
                 rooms: el?.querySelector('[data-drpg-scene-warning="hallHasRooms"]')?.textContent
                     === game.i18n.format("DRPG.TrialScene.hallHasRooms", { names: "Gallery, Stand" }),

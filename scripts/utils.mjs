@@ -132,7 +132,7 @@ const worldFiles = new Map();
  *
  * NO SITE CALLS IT IN E66. The helper and its setting are D196's, pinned here; the documents that should be written
  * through it - S02-74, config prose written into world documents in the creating client's language - are E57's
- * (row 1.2.122), which switches them over. The interface windows, cards and the sheet stay in each browser's own
+ * (row 1.2.123), which switches them over. The interface windows, cards and the sheet stay in each browser's own
  * language and never go through it.
  */
 export async function worldLocalize(key, data = {}) {
@@ -1150,7 +1150,10 @@ export function tableDialog(options) {
         classes: [...(rest.classes ?? []), "drpg-table-window"],
         // No handle: the size is derived, not chosen. A handle here would only
         // ever be used to correct a size this function should have got right.
-        window: { resizable: false, ...rest.window },
+        // Foldable to its title bar (E44 fix FG2, 05.11.2026; the owner's Q-E44-1, "Nie chcialbym blokowac
+        // zwijania okien wcale"): DialogV2's own default is `minimizable: false` (the harness's shim copies it;
+        // v14's own is LIVE-E44-08), so a module window built here did not fold even once no-collapse.mjs was gone.
+        window: { resizable: false, minimizable: true, ...rest.window },
         // `height: auto` lets the window take its content's height, which the
         // 80vh cap on `.window-content` then bounds - so a long table scrolls
         // rather than growing off the bottom of the screen.
@@ -1393,41 +1396,27 @@ export function fitWindowToTabs(dialog) {
             const content = root.querySelector(".window-content");
             if (!content) return;
 
-            // BOTH tab mechanisms, because this module has two. Room Setup
-            // rolls its own panels with `data-drpg-panel` and inline display;
-            // every other tabbed window uses `panelTabs`, whose sections are
-            // switched by a class. Measuring only the first meant `fitTabs:
-            // true` silently fell through to `fitWindowToTable` on the second
-            // - one tab measured instead of all of them, which is the exact
-            // failure the option exists to prevent.
-            const panels = [...content.querySelectorAll(
-                "[data-drpg-panel], [data-drpg-gmt-section]")];
-            if (!panels.length) return fitWindowToTable(dialog);
+            // ONE TAB SYSTEM (E44 C4a): every tabbed window draws the kit's
+            // panes (ui-kit.mjs `kitTabs`), switched by `hidden`, and `eachPane`
+            // shows each in turn by the same attribute. Until then there were
+            // two markups, one switched by a class and one by inline `display`,
+            // and measuring only the first had let `fitTabs: true` fall through
+            // to `fitWindowToTable` on the second - one tab measured instead of
+            // all of them, which is the exact failure the option exists to
+            // prevent. A window with no pane still falls through, as before.
+            if (!content.querySelector("[data-drpg-pane]")) return fitWindowToTable(dialog);
 
-            const was = panels.map(panel => panel.style.display);
             let widest = 0;
             let tallest = 0;
-
-            try {
-                for (const shown of panels) {
-                    for (const panel of panels) {
-                        // `block`, not `""`. An empty string hands the element
-                        // back to the stylesheet, and `.drpg-gmt-section` is
-                        // `display: none` there unless it carries `.active` -
-                        // so the panel being measured would measure as hidden.
-                        panel.style.display = panel === shown ? "block" : "none";
-                    }
-                    for (const table of shown.querySelectorAll("table")) {
-                        widest = Math.max(widest, table.scrollWidth,
-                            table.getBoundingClientRect().width);
-                    }
-                    // Read off the CONTENT, not the panel: the intro line and
-                    // the tab strip are part of what the window has to hold.
-                    tallest = Math.max(tallest, content.scrollHeight);
+            eachPane(content, shown => {
+                for (const table of shown.querySelectorAll("table")) {
+                    widest = Math.max(widest, table.scrollWidth,
+                        table.getBoundingClientRect().width);
                 }
-            } finally {
-                panels.forEach((panel, i) => { panel.style.display = was[i]; });
-            }
+                // Read off the CONTENT, not the panel: the intro line and
+                // the tab strip are part of what the window has to hold.
+                tallest = Math.max(tallest, content.scrollHeight);
+            });
 
             if (!widest) return;
 
@@ -1703,141 +1692,29 @@ export function wirePortraitPickers(root, { defaultImg = null, prefix = "img." }
 }
 
 /**
- * A tabbed body for a GM-panel window: one bar, one pane per section, the
- * GM Team look everywhere it is used (Dawid, 26.08 - "if a GM panel window
- * has tabs, they look like GM Team's").
- *
- * Markup only; wire it from the dialog's `render` with `wirePanelTabs`, for
- * the same reason `wirePortraitPickers` documents above - DialogV2 stringifies
- * the content, so listeners must be attached to the mounted DOM.
- *
- * Every pane STAYS in the DOM whichever tab is showing: a hidden input still
- * answers a selector, so a single Save/Apply that reads the whole form keeps
- * working. That is the whole trick, and why switching is class-only.
- *
- * The window opens on the first section unless `active` names another (E14 part 2 C5): the Item tables window
- * comes back on the tab whose field refused a name, and `wirePanelTabs` sets the footer from whichever tab is
- * marked active. A key no section has opens the first, as before.
- *
- * @param {Array<{key: string, label: string, html: string}>} sections
- * @param {object} [options]
- * @param {string|null} [options.active]  the key of the section to open on
- * @returns {string} the nav and every section, ready to drop into a <form>.
- */
-export function panelTabs(sections, { active = null } = {}) {
-    const open = sections.some(s => s.key === active) ? active : sections[0]?.key;
-    const nav = `<nav class="drpg-gmt-tabs">${sections.map(s =>
-        `<button type="button" data-drpg-gmt-tab="${s.key}"${s.key === open ? ' class="active"' : ""}>${s.label}</button>`).join("")}</nav>`;
-    const panes = sections.map(s =>
-        `<section class="drpg-gmt-section${s.key === open ? " active" : ""}" data-drpg-gmt-section="${s.key}">${s.html}</section>`).join("");
-    return nav + panes;
-}
-
-/**
- * Make a `panelTabs` bar switch its panes, and its FOOTER follow along.
- *
- *     wirePanelTabs(root, {
- *         buttons: { edit: [], newItem: ["add"], tiers: ["newPool", "install"] },
- *         always:  ["close"]
- *     });
- *
- * Without `buttons` this is what it always was: pure pane switching.
- *
- * WHY THE FOOTER IS THIS FUNCTION'S PROBLEM AT ALL.
- *
- * A DialogV2 has one footer for the whole window, so a four-tab window shows
- * all four tabs' buttons on all four tabs. In Item Tables that produced a
- * default button reading "Add an item" while the pane it reads from was not on
- * screen - the GM pressed the obvious button and the window answered about a
- * form they could not see. It is not that footer's bug: it is a gap here, and
- * the same gap was waiting for every tabbed window added afterwards.
- *
- * HIDDEN IS NOT ENOUGH, AND THAT IS THE WHOLE TRAP. Measured against
- * DialogV2 on 14.365: footer buttons are `type="submit"` inside the dialog's
- * form, and `_onKeyDown` intercepts Escape only - so Enter goes through the
- * browser's implicit submission, which picks the FIRST SUBMIT BUTTON IN TREE
- * ORDER and does not care whether it is visible. `autofocus` (which is all
- * `default: true` sets) does not decide it either. A hidden button therefore
- * still answers the Enter key. It has to be DISABLED as well, because the spec
- * skips a disabled default button and nothing else in the chain does.
- *
- * Assumes the footer's buttons are not disabled for reasons of their own -
- * true everywhere this is used, and `_onSubmit` restores its own temporary
- * disabling from a snapshot, so a submit mid-switch cannot strand one.
- *
- * @param {HTMLElement} root                the dialog element
- * @param {object}      [options]
- * @param {Object<string, string[]>} [options.buttons]  tab key → footer actions
- * @param {string[]}    [options.always]    actions shown on every tab
- */
-export function wirePanelTabs(root, { buttons = null, always = [] } = {}) {
-    const footerButtons = () =>
-        root.querySelectorAll("footer.form-footer button[data-action]");
-
-    const showButtonsFor = key => {
-        if (!buttons) return;
-        const allowed = new Set([...(buttons[key] ?? []), ...always]);
-
-        let first = null;
-        for (const button of footerButtons()) {
-            const mine = allowed.has(button.dataset.action);
-            button.hidden = !mine;
-            button.disabled = !mine;
-            button.removeAttribute("autofocus");
-            if (mine && !first) first = button;
-        }
-        // Enter has to land somewhere sensible, and the leftmost surviving
-        // button of the active tab is the one a person would have pressed.
-        first?.setAttribute("autofocus", "");
-    };
-
-    for (const tab of root.querySelectorAll("[data-drpg-gmt-tab]")) {
-        tab.addEventListener("click", () => {
-            const key = tab.dataset.drpgGmtTab;
-            for (const t of root.querySelectorAll("[data-drpg-gmt-tab]")) {
-                t.classList.toggle("active", t === tab);
-            }
-            for (const pane of root.querySelectorAll("[data-drpg-gmt-section]")) {
-                pane.classList.toggle("active", pane.dataset.drpgGmtSection === key);
-            }
-            showButtonsFor(key);
-        });
-    }
-
-    // The window opens on a tab too, and that tab's footer has to be right
-    // before anybody clicks anything.
-    const active = root.querySelector("[data-drpg-gmt-tab].active")
-        ?? root.querySelector("[data-drpg-gmt-tab]");
-    if (active) showButtonsFor(active.dataset.drpgGmtTab);
-}
-
-/**
- * The other tab mechanism, wired once for the two windows that use it.
- *
- * Room Setup and the Investigation Dashboard switch panels by inline
- * `display` rather than by class, and there is a reason that is not
- * `panelTabs`: both are table windows measured by `fitWindowToTabs`, which
- * shows each panel in turn to size the window, and inline display is what it
- * measures. `panelTabs` is for form windows whose footer follows the tab. Two
- * mechanisms, then - but one wiring, because each window used to carry its own
- * copy of this loop (audit C3). `keepLive` knows both markups.
+ * The kit's tab panes, each shown in turn (E44 C4a, 04.11.2026). `measure(pane)` runs with that pane shown and every
+ * other hidden, by the same `hidden` the tabs switch (ui-kit.mjs `kitTabs`, `wireKitTabs`), and every pane is put
+ * back as it was; answers what each call answered, by the pane's key. Here and not in ui-kit.mjs, which hands it on,
+ * because `fitWindowToTabs` above measures with it and utils.mjs may not import the kit (R161: the kit imports this
+ * file). Nothing is painted in between: a caller runs it inside one task, and the browser paints after it.
  *
  * @param {HTMLElement} root
- * @param {object} [options]
- * @param {(key: string) => void} [options.onSwitch]  After a tab is shown.
+ * @param {(pane: HTMLElement) => any} measure
+ * @returns {Object<string, any>}
  */
-export function wireDashboardTabs(root, { onSwitch = null } = {}) {
-    const tabs = root.querySelectorAll("[data-drpg-tab]");
-    const panels = root.querySelectorAll("[data-drpg-panel]");
-    for (const tab of tabs) {
-        tab.addEventListener("click", () => {
-            for (const t of tabs) t.classList.toggle("active", t === tab);
-            for (const p of panels) {
-                p.style.display = p.dataset.drpgPanel === tab.dataset.drpgTab ? "" : "none";
-            }
-            onSwitch?.(tab.dataset.drpgTab);
-        });
+export function eachPane(root, measure) {
+    const panes = [...(root?.querySelectorAll?.("[data-drpg-pane]") ?? [])];
+    const was = panes.map(p => p.hidden);
+    const out = {};
+    try {
+        for (const shown of panes) {
+            for (const p of panes) p.hidden = p !== shown;
+            out[shown.dataset.drpgPane] = measure(shown);
+        }
+    } finally {
+        panes.forEach((p, i) => { p.hidden = was[i]; });
     }
+    return out;
 }
 
 /**

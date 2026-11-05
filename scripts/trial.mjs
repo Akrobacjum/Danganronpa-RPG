@@ -56,7 +56,7 @@ import { quotePrice, priceLine, payPrice, refundPrice, paidLine, priceLabel } fr
 // The question alone, with no toast: this decides a button, and a window that
 // opens with no GM connected must not warn every player who opens it (audit A16).
 import { gmOnline } from "./bridge-guards.mjs";
-import { alreadyOpen, keepLive } from "./live.mjs";
+import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 
 import { contentOf } from "./secret.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
@@ -1576,7 +1576,7 @@ export async function openObjectionLog() {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-objections")) return null;
+    if (alreadyOpen("drpg-window-objections")) return RAISED;
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));

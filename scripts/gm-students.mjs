@@ -20,7 +20,8 @@
 
 import { studentActors } from "./monokuma.mjs";
 import { dialogContent, error, plural, tableDialog, esc, wholeNumber } from "./utils.mjs";
-import { keepLive, alreadyOpen, handOff } from "./live.mjs";
+import { stepper } from "./ui-kit.mjs";
+import { keepLive, alreadyOpen, handOff, RAISED } from "./live.mjs";
 import { crossingStore } from "./gm-stores.mjs";
 
 /**
@@ -85,7 +86,7 @@ function aliveTableHtml({ roster, stateOf, donors, isCrimeSilenced, resourceValu
             <td>${cub ? `${resourceValue(a, "hope")} / ${resourceMax(a, "hope")}` : "-"}</td>
             <td>${cub && donors ? `
                 <select name="donor:${a.id}">${donors}</select>
-                <input type="number" name="amount:${a.id}" min="1" value="1" style="width:3.5em" />
+                ${stepper({ name: `amount:${a.id}`, value: 1, min: 1, attrs: { style: "width:3.5em" } })}
                 <button type="button" class="drpg-mini-button" data-drpg-give="${a.id}">
                     ${game.i18n.localize("DRPG.Monocub.give")}</button>` : "-"}</td>
             <td style="text-align:center">${cub
@@ -254,7 +255,7 @@ export async function openWhoIsAliveDialog() {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-alive")) return null;
+    if (alreadyOpen("drpg-window-alive")) return RAISED;
 
     // `killCharacter`, `reviveCharacter` and `setSilenced` went with the apply loop
     // (F15): `applyAliveStates` below imports what it writes.

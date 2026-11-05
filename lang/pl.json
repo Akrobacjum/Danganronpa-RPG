@@ -493,7 +493,6 @@
       "eclipseFreePlacement": "ustaw gdziekolwiek"
     },
     "Assign": {
-      "title": "Despair Flow",
       "outside": "Poza każdą pulą",
       "fallbackOption": "{name} (domyślnie)",
       "intro": "Rzut zakończony Despair zasila Monokumę tego ucznia.",
@@ -524,7 +523,10 @@
         "many": "{n} do spłaty",
         "other": "{n} do spłaty"
       },
-      "poolsTitle": "Pule Despair",
+      "tabPools": "Pule",
+      "tabMonokumas": "Monokumy",
+      "tabStudents": "Uczniowie",
+      "tabOverflow": "Overflow",
       "poolsIntro": "Nazwij każdą pulę - nie musi pasować do nazwy konta. Każdy pełny GM ma pulę; Asystent GM-a ma ją, gdy przyznasz mu ją niżej.",
       "poolName": "Nazwa puli",
       "addPool": "Dodaj pulę",
@@ -1181,6 +1183,7 @@
       "giveAtLeast": "Wpisz, ile Despair zamienić w Hope - co najmniej {n}."
     },
     "Mastermind": {
+      "noLair": "- bez pokoju -",
       "dialogTitle": "Mastermind",
       "lairLabel": "Pokój Masterminda",
       "lairNote": "Z tego pokoju widzą każdy token na mapie, tak jak ty; wystarczy wyjść i to znika. Zamknięte drzwi, pieczęcie, cudze sypialnie i ukryte skrytki i tak stoją przed nimi otworem wszędzie - ten pokój to miejsce, gdzie są kamery.",
@@ -1533,6 +1536,12 @@
         "caution": "Ostrożnie"
       }
     },
+    "Kit": {
+      "close": "Zamknij",
+      "cancel": "Anuluj",
+      "tableEmpty": "Na razie nie ma tu nic do pokazania.",
+      "scrollMore": "Niżej jest więcej. Przewiń, żeby zobaczyć."
+    },
     "Look": {
       "language": "Język",
       "title": "Ustawienia",
@@ -1767,6 +1776,7 @@
       }
     },
     "Music": {
+      "notSet": "- nie ustawiono -",
       "intro": "Wybierz, która playlista gra kiedy. Moduł nigdy nie uruchamia playlisty, której tu nie wybrano, i nie zawiera własnej muzyki.",
       "orderNote": "Wygrywa pierwszy pasujący stan, w podanej kolejności. Class Trial nocą używa playlist Class Trial; Eclipse w jego trakcie - playlist Eclipse.",
       "trialNote": "Objection ma pierwszeństwo przed otwartą debatą, a debata przed samym trwaniem Class Trial. Rebuttal nie ma własnego wiersza: przez cały Rebuttal gra dalej muzyka Objection. Każdy losuje utwór, gdy przejmuje grę, nigdy ten sam co ostatnio. Objection trwa minutę, więc daj tej playliście krótkie wyciszenie.",
@@ -2227,6 +2237,7 @@
       "trackerScore": "{total} wobec {n}"
     },
     "Investigation": {
+      "noRemnant": "- bez Remnantu -",
       "room": "Pokój",
       "visibility": "Widoczność",
       "filterOrder": "Kolejność",
@@ -2263,6 +2274,9 @@
       "dashboardTitle": "Investigation",
       "keySummary": "Znaleziono {found} z {total}, {placed} na mapie.",
       "foundBy": "Znalazł",
+      "deleteTrace": "Usuń",
+      "deleteTraceTitle": "Usuń Remnant",
+      "deleteTraceAsk": "Usunąć Remnant „{name}”? Jego token znika z mapy, a jego wiersz ze sprawy.",
       "revealedByMonokuma": "Ujawnione przez Monokumę",
       "tooThin": {
         "one": "Znaleziono tylko {found} Key Remnant. Minimum to {min} - poniżej Class Trial nie ma uczciwej odpowiedzi. Skieruj graczy na resztę albo zostaw to i zapłać przy głosowaniu.",
@@ -2355,6 +2369,7 @@
       "unticked": "niezaznaczone"
     },
     "Vault": {
+      "noOwner": "- nikt -",
       "foundStashPending": "Znajdujesz czyjąś skrytkę. Co z niej wyjdzie, rozstrzygnie się za chwilę.",
       "foundStashNothing": "Znajdujesz czyjąś skrytkę, ale nic z niej nie zostaje w twoich rękach.",
       "handsFull": "Masz pełne ręce: to, co leży w skrytce, zostaje na miejscu.",
@@ -3003,7 +3018,7 @@
       "faintColumn": "Faint",
       "faintKept": "Faint Remnant jest zawsze Faint, więc jego pole Faint zostało zaznaczone z powrotem. Żeby je odznaczyć, nadaj śladowi inny rodzaj.",
       "crimeColumn": "Powiązany ze zbrodnią",
-      "tieOpen": "-",
+      "tieOpen": "- nie rozstrzygnięto -",
       "tieTied": "Powiązany",
       "tieUntied": "Niepowiązany",
       "reinforcedColumn": "Reinforced",
@@ -3233,7 +3248,6 @@
       "toggle": "Oznacz jako Monokumę",
       "marked": "{name} jest teraz Monokumą: bez akcji, bez Hope, zamiast tego Despair Calls i swobodny ruch.",
       "unmarked": "{name} znów jest uczniem.",
-      "panelTitle": "Monokumy i pule Despair",
       "panelIntro": "Zaznacz aktorów, którzy są Monokumami, potem powiedz, z czyjej puli Despair każdy czerpie. Bez tego dwa Monokumy dzielą pulę tego GM-a, który akurat patrzy na kartę.",
       "panelNote": "Monokuma nie ma akcji ani Hope: jego karta pokazuje zamiast tego Despair Calls. Pula decyduje, który GM za nie płaci.",
       "isMonokuma": "Monokuma",
@@ -3437,6 +3451,7 @@
       "dead": "Nie żyją. Ciało zostaje tam, gdzie upadło."
     },
     "Project": {
+      "pickTrait": "- wybierz statystykę -",
       "passageRefused": "Ten odcinek nie stoi między pokojem budującego a pokojem za ścianą: wskaż go jeszcze raz.",
       "passageNoWall": "Pokój budującego nie dzieli ściany z żadnym innym pokojem na tym piętrze: tajne przejście nie ma dokąd prowadzić.",
       "passageNeedsPick": "Najpierw wskaż odcinek ściany, przez który prowadzi tajne przejście.",
@@ -3600,6 +3615,7 @@
       "proposalPrompt": "Powiedz, co naprawdę robisz i po co. GM czyta to razem z twoimi odpowiedziami i decyduje - może zmienić skalę, pokój albo brzmienie, zanim projekt ruszy.",
       "proposalPlaceholder": "Co budujesz i co chcesz z tego mieć…",
       "proposerKnows": "Twój projekt „{name}” jest w toku w pokoju {room}. Widać go w twoim zasobniku Projektów i na mapie.",
+      "descriptionTold": "Opis projektu „{name}”:",
       "proposalSent": "„{name}” poszedł do GM-a. Nic nie rusza, dopóki GM nie zatwierdzi.",
       "approveButton": "Przejrzyj i zatwierdź",
       "declineButton": "Odrzuć",
@@ -3645,7 +3661,12 @@
       "frozenNoProgress": "{name} jest sabotowany i nie ruszy do przodu, dopóki nie skończy się naprawa.",
       "effectFailed": "{name}: części tego, co robi ukończenie projektu (albo cofnięcie go poniżej celu), nie udało się zrobić ({error}). Pasek zostaje, jak jest; szczegóły są w konsoli.",
       "everyone": "Jawny: widzą go wszyscy. Zaznaczeni to ci, którzy wiedzieli przed ujawnieniem - oni i budujący będą wiedzieć, jeśli projekt znów zostanie utajniony.",
-      "builderStays": "{name} buduje „{project}”: budującego nie można odsunąć od jego własnego projektu."
+      "builderStays": "{name} buduje „{project}”: budującego nie można odsunąć od jego własnego projektu.",
+      "description": "Opis",
+      "descriptionPlaceholder": "np. Fałszywe dno w regale, dość głębokie, by schować notes",
+      "descriptionNote": "Opis czyta na karcie tokenu projektu każdy, kto ten projekt zna. Najwyżej {max} znaków.",
+      "descriptionNeeded": "Projekt potrzebuje opisu.",
+      "descriptionTooLong": "Opis może mieć najwyżej {max} znaków, a ten ma {n}. Skróć go."
     },
     "TraitRuling": {
       "title": "Która statystyka?",
@@ -5680,6 +5701,7 @@
       }
     },
     "Trap": {
+      "noProject": "- bez projektu -",
       "watchFor": "Co ją odpala",
       "watchNote": "Moduł tego pilnuje i mówi ci, gdy to zobaczy. Ty wciąż decydujesz, czy to się stało.",
       "whichProject": "Który projekt",
@@ -7060,6 +7082,7 @@
       }
     },
     "Case": {
+      "castNobody": "- nikt -",
       "gmOnly": "Kopię sprawy robi i przywraca tylko GM.",
       "backupTitle": "Kopia sprawy",
       "backupWhat": "Plik zawiera każdy sekret GM-a w tym świecie: kto jest Mastermindem, odpowiedź każdego Truth Bulletu, prawdziwy typ każdego śladu, obsadę otwartego incydentu i Blackened każdego rozdziału, podłożone przedmioty pułapek, oferowane Level Upy i pokoje odkryte przez każdą postać. Trzymaj go tam, gdzie żaden gracz go nie otworzy.",

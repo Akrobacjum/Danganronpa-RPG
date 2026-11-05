@@ -21,6 +21,7 @@
 import { MODULE_ID, PRICE_CHAINS, PROJECT_SCALE } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { gmIds, ownerOf, whisperToGms, error, debug, warn, wholeNumber, localeFormat, markLanguage } from "./utils.mjs";
+import { kitTabBar, wireKitTabs, stepper, stepperId } from "./ui-kit.mjs";
 import { showPopup } from "./popup.mjs";
 import {
     MESSENGER_FLAGS, THREAD_KIND,
@@ -119,6 +120,11 @@ export function openMessenger(playerUserId = game.user.id) {
 
     const existing = DrpgMessengerApp.instances.get(playerUserId);
     if (existing) {
+        /* A conversation folded to its title bar is unfolded before it is raised (E44 fix FG2; the end review's C-m1):
+           the launcher, the roster and a notice's Open conversation raised the bar alone, and the thread stayed unread
+           until the reader found it. It is read once it is seen (`seesThread`): `maximize` marks it when the fold has
+           gone, `bringToFront` before that marks nothing. */
+        if (existing.minimized) Promise.resolve(existing.maximize()).catch(err => debug("Could not unfold the conversation", err));
         existing.bringToFront();
         return existing;
     }
@@ -249,24 +255,19 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
         return root;
     }
 
-    /** Chat | Note. The note carries a dot when there is something written. */
+    /** Chat | Note, on the kit's bar (E44 C4a). The note carries a dot when there is something written. */
     _buildTabs(context) {
-        const bar = document.createElement("nav");
-        bar.className = "drpg-messenger-tabs";
-
-        for (const [key, labelKey] of [["chat", "DRPG.Messenger.tabChat"], ["note", "DRPG.Note.tab"]]) {
-            const button = document.createElement("button");
-            button.type = "button";
-            button.className = `drpg-messenger-tab${this.tab === key ? " active" : ""}`;
-            button.dataset.drpgTab = key;
-            button.textContent = game.i18n.localize(labelKey);
-            if (key === "note" && context.note.trim()) {
-                const dot = document.createElement("span");
-                dot.className = "drpg-messenger-tab-dot";
-                bar.dataset.hasNote = "true";
-                button.append(dot);
-            }
-            bar.append(button);
+        const made = document.createElement("template");
+        made.innerHTML = kitTabBar([
+            { key: "chat", label: game.i18n.localize("DRPG.Messenger.tabChat") },
+            { key: "note", label: game.i18n.localize("DRPG.Note.tab") }
+        ], { active: this.tab });
+        const bar = made.content.firstElementChild;
+        if (context.note.trim()) {
+            const dot = document.createElement("span");
+            dot.className = "drpg-messenger-tab-dot";
+            bar.dataset.hasNote = "true";
+            bar.querySelector('[data-drpg-tab-key="note"]')?.append(dot);
         }
         return bar;
     }
@@ -366,12 +367,12 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
     }
 
     _onRender(_context, _options) {
-        for (const button of this.element.querySelectorAll("[data-drpg-tab]")) {
-            button.addEventListener("click", () => {
-                this.tab = button.dataset.drpgTab;
+        wireKitTabs(this.element, {
+            onSwitch: key => {
+                this.tab = key;
                 this.render();
-            });
-        }
+            }
+        });
 
         const form = this.element.querySelector(".drpg-messenger-input");
         const textarea = form?.querySelector("textarea");
@@ -432,12 +433,13 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
      * covered it or however long the browser's tab had been hidden: a GM's badge went out on a request nobody saw.
      * Seen now means the window drawn, on its Chat tab, the frontmost window (`ui.activeWindow`) and the page
      * visible; a message that comes otherwise raises its card (the hook below) and is read when the window is
-     * brought forward, switched to Chat or shown again. A window minimised is not reachable (no-collapse.mjs).
-     * What sets `ui.activeWindow` on v14 is LIVE-E50-01: the harness sets it on a first render and on
-     * `bringToFront`, and clears it on close.
+     * brought forward, switched to Chat or shown again. A window folded to its title bar is not seen either (E44
+     * C4b, 04.11.2026: no-collapse.mjs blocked the title bar's double-click until then, the owner's Q-E44-1 lifted the
+     * block), and reads what came when it is opened again (`maximize`, below). What sets `ui.activeWindow` on v14 is
+     * LIVE-E50-01: the harness sets it on a first render and on `bringToFront`, and clears it on close.
      */
     seesThread() {
-        return Boolean(this.rendered) && this.tab === "chat" && ui.activeWindow === this
+        return Boolean(this.rendered) && !this.minimized && this.tab === "chat" && ui.activeWindow === this
             && document.visibilityState === "visible";
     }
 
@@ -447,6 +449,13 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
 
     bringToFront() {
         const out = super.bringToFront();
+        this.markIfSeen();
+        return out;
+    }
+
+    /** Opened again from its title bar: what came while it was folded is in front of the reader now (`seesThread`). */
+    async maximize() {
+        const out = await super.maximize();
         this.markIfSeen();
         return out;
     }
@@ -773,8 +782,8 @@ function settled(key) {
 /** What a Tier 0 item turned out to do: up to three numbers and a tick. */
 async function askItemEffect(item) {
     const DialogV2 = foundry.applications.api.DialogV2;
-    const field = (name, key) => `<label>${game.i18n.localize(key)}
-        <input type="number" name="${name}" min="0" max="12" step="1" value="0"></label>`;
+    const field = (name, key) => { const id = stepperId(); return `<label for="${id}">${game.i18n.localize(key)}
+        ${stepper({ name, value: 0, min: 0, max: 12, step: 1, id })}</label>`; };
     return DialogV2.wait({
         classes: ["drpg-panel"],
         window: { title: game.i18n.format("DRPG.Items.effectTitle", { item: item.name }) },
@@ -963,6 +972,9 @@ async function ruleApproveProject(action, data) {
             trait: data.trait || null,
             indirectMurder: Boolean(data.murder),
             condition: data.condition ?? "",
+            // What the player wrote (E44 C9): the window opens on it, the GM may change it, and the project keeps what
+            // the GM approved.
+            description: data.description ?? "",
             // A Secret Passage's preset and the neighbour's index (E15 part 2 C2), read again in the GM's window.
             preset: data.preset || null,
             to: data.to ?? null,

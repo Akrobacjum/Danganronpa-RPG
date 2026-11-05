@@ -16,9 +16,10 @@ import { getClock, clockSummary, phaseLabel, campaignName } from "./clock.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { studentActors, actingStudents } from "./monokuma.mjs";
-import { dialogContent, error, plural, esc, primaryGmId, markLanguage } from "./utils.mjs";
-import { keepLive, alreadyOpen } from "./live.mjs";
-import { bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, sameSeason } from "./settings.mjs";
+import { dialogContent, error, plural, esc, primaryGmId } from "./utils.mjs";
+import { keepLive, alreadyOpen, RAISED } from "./live.mjs";
+import { launcher } from "./ui-kit.mjs";
+import { SETTINGS, bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, sameSeason } from "./settings.mjs";
 import { bodiesToDiscover, announcedIn, chapterEndStopped } from "./chapter.mjs";
 import { flagsHeldNow, itemsHeldNow } from "./sheet-audit.mjs";
 import { roomOfToken } from "./movement.mjs";
@@ -134,22 +135,12 @@ export function injectLauncher() {
         markGmChrome();
         if (document.getElementById("drpg-gm-launcher")) return;
 
-        const btn = document.createElement("button");
-        btn.id = "drpg-gm-launcher";
-        btn.type = "button";
-        btn.dataset.drpgCluster = "";
-        const label = game.i18n.localize("DRPG.Panel.launcher");
-        btn.setAttribute("aria-label", label);
-        btn.dataset.tooltip = label;
-        // `fa-eye` is the fallback if the pixel mask ever fails to load - the
-        // sprite itself is keyed to `#drpg-gm-launcher i` and ignores the class.
-        const eye = document.createElement("i");
-        eye.className = "fa-solid fa-eye";
-        eye.setAttribute("inert", "");
-        btn.append(eye);
+        /* The kit's launcher (E44 C6): one of the corner's cluster, its name its tooltip, in the page's language - its
+           name is the module's words (E66 C1); the panel it opens is a module window, marked by module.mjs. `fa-eye` is
+           the fallback if the pixel mask ever fails to load - the sprite itself is keyed to `#drpg-gm-launcher i` and
+           ignores the class. */
+        const btn = launcher({ id: "drpg-gm-launcher", cluster: true, label: game.i18n.localize("DRPG.Panel.launcher"), icon: "fa-solid fa-eye", lang: true });
         btn.addEventListener("click", () => openGmPanel());
-        // Its name is the module's words (E66 C1); the panel it opens is a module window, marked by module.mjs.
-        markLanguage(btn);
         document.body.append(btn);
     } catch (err) {
         error("Could not place the GM panel launcher", err);
@@ -465,7 +456,7 @@ export async function openGmPanel() {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-panel")) return null;
+    if (alreadyOpen("drpg-window-panel")) return RAISED;
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
@@ -496,7 +487,7 @@ export async function openGmPanel() {
     ]);
 
     await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Panel.title") },
+        window: { title: game.i18n.localize("DRPG.Panel.title"), minimizable: true },
         classes: ["drpg-panel", "drpg-gm-panel-window", "drpg-window-panel"],
         content: body,
         buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true }],
@@ -527,12 +518,17 @@ export async function openGmPanel() {
                 const item = lookup.get(button.dataset.drpgRun);
                 if (!item) return;
                 await dialog.close();
+                let answer = null;
                 try {
-                    await item.run();
+                    answer = await item.run();
                 } catch (err) {
                     error(`GM panel action "${item.key}" failed`, err);
                     ui.notifications.error(game.i18n.localize("DRPG.Panel.failed"));
                 }
+                /* NOT BACK OVER A WINDOW THE TILE RAISED (E44 C2c, 04.11.2026; audit S10-59). A tile whose window
+                   was already open behind the panel raises it and answers RAISED (live.mjs) at once - the GM has
+                   not used it yet, and a panel reopened now stood over the window the GM had just asked to see. */
+                if (answer === RAISED) return;
                 openGmPanel().catch(err =>
                     error("Could not reopen the GM panel", err));
             });
@@ -575,9 +571,19 @@ function keepPanelFresh(dialog) {
         watch: { actors: true, items: true, tokens: true, stores: [keyPlanStore] }
     });
 
+    /* THE TILES WAKE ON THEIR OWN KEYS (E44 C2b, 04.11.2026; audit S10-58). Without `settings` every write of a
+       module setting redrew forty buttons, a player's action among them. What the tiles print is the clock (the
+       phase opens a section, `clock.eclipse` shuts the murder tile: `isEclipse`) and the case's backup mark (the
+       Back up tile's age, `backupAge`), read by `buildSections` and nothing else, in every state; R1317 builds the
+       region with `game.settings.get` counted and holds the reads to this list.
+       The standing block above keeps no list, deliberately: `nextStep` reads a different setting on each of its
+       branches (the incident, the readiness round, a stopped chapter's end, the trial's progress and floor, the
+       body's hold), and one build reads only the branch the world is on - a list measured from it would leave the
+       block stale on every other. A press on either region is never lost to a redraw (live.mjs, rule 1 for a hand). */
     keepLive(dialog, {
         region: ".drpg-gmp-sections",
-        build: () => buildSections()
+        build: () => buildSections(),
+        watch: { settings: [SETTINGS.clock, SETTINGS.caseMark] }
     });
 }
 
@@ -624,7 +630,7 @@ async function openFailureLog() {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-failures")) return null;
+    if (alreadyOpen("drpg-window-failures")) return RAISED;
 
     const { sessionFailures, clearSessionFailures, localeFormat } = await import("./utils.mjs");
     const rows = sessionFailures();
@@ -645,7 +651,7 @@ async function openFailureLog() {
 
     const action = await DialogV2.wait({
         classes: ["drpg-panel", "drpg-wide", "drpg-window-failures"],
-        window: { title: game.i18n.localize("DRPG.Failures.title") },
+        window: { title: game.i18n.localize("DRPG.Failures.title"), minimizable: true },
         content: dialogContent(`<div>
             <p class="notes">${esc(game.i18n.localize("DRPG.Failures.intro"))}</p>
             ${body}

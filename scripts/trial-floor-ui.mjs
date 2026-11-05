@@ -20,8 +20,9 @@ import { keyRevealRecord } from "./investigation.mjs";
 import { closingClaimStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
 import { dialogContent, placeRoomOptions, plural, error, esc, serverNow, listOf, wholeNumber } from "./utils.mjs";
+import { stepper, stepperId } from "./ui-kit.mjs";
 import { getClock, setClock } from "./clock.mjs";
-import { alreadyOpen, keepLive } from "./live.mjs";
+import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -313,14 +314,14 @@ export async function openDebate(options = {}) {
     let budget = Number(given) ? debateSeconds(given) : null;
     let topic = topicOf(typeof options === "object" ? options?.topic : null);
     if (!budget) {
+        const secondsId = stepperId();
         const asked = await DialogV2.wait({
             window: { title: game.i18n.localize("DRPG.Floor.openDebate") },
             classes: ["drpg-panel", "drpg-narrow"],
             content: dialogContent(`<form>
                 <p>${game.i18n.localize("DRPG.Floor.openDebateIntro")}</p>
-                <label>${game.i18n.localize("DRPG.Floor.seconds")}
-                    <input type="number" name="seconds" min="30" step="10"
-                           value="${remembered}" /></label>
+                <label for="${secondsId}">${game.i18n.localize("DRPG.Floor.seconds")}
+                    ${stepper({ name: "seconds", value: remembered, min: 30, step: 10, id: secondsId })}</label>
                 <label>${game.i18n.localize("DRPG.Floor.topic")}
                     <input type="text" name="topic" maxlength="${Number(TRIAL.modes.topicLength) || 200}"
                            placeholder="${esc(game.i18n.localize("DRPG.Floor.topicHint"))}" /></label>
@@ -386,13 +387,14 @@ export async function openRoundWindow(mode) {
                     <button type="button" data-drpg-round-up>${esc(game.i18n.localize("DRPG.Floor.roundWindow.up"))}</button></li>`;
     const byId = new Map(actors.map(a => [a.id, a]));
     const drawn = drawOrder(actors.map(a => a.id)).map(id => byId.get(id));
+    const secondsId = stepperId();
     const asked = await DialogV2.wait({
         window: { title: game.i18n.localize(`DRPG.Floor.mode.${mode}`) },
         classes: ["drpg-panel", "drpg-narrow", "drpg-round-window"],
         content: dialogContent(`<form>
                 <p>${game.i18n.localize("DRPG.Floor.roundWindow.intro")}</p>
-                <label>${game.i18n.localize("DRPG.Floor.roundWindow.seconds")}
-                    <input type="number" name="seconds" min="${range.min}" max="${range.max}" step="1" value="${offered}" /></label>
+                <label for="${secondsId}">${game.i18n.localize("DRPG.Floor.roundWindow.seconds")}
+                    ${stepper({ name: "seconds", value: offered, min: range.min, max: range.max, step: 1, id: secondsId })}</label>
                 <p class="notes">${game.i18n.format("DRPG.Floor.roundWindow.range", range)}</p>
                 <ol class="drpg-round-order">${drawn.map(row).join("")}</ol>
                 <button type="button" data-drpg-round-draw>${esc(game.i18n.localize("DRPG.Floor.roundWindow.draw"))}</button>
@@ -1415,7 +1417,7 @@ export async function manageClassTrial() {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-trial")) return null;
+    if (alreadyOpen("drpg-window-trial")) return RAISED;
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
@@ -1451,7 +1453,7 @@ export async function manageClassTrial() {
 
     const action = await DialogV2.wait({
         classes: ["drpg-panel", "drpg-window-trial"],
-        window: { title: game.i18n.localize("DRPG.Floor.manageTrial") },
+        window: { title: game.i18n.localize("DRPG.Floor.manageTrial"), minimizable: true },
         content: dialogContent(buildConsole()),
         buttons: trialButtons({ floor, running, finalNow, progress, afterwards, stopped, table, isDefault }),
         render: (event, dialog) => {
@@ -1633,7 +1635,7 @@ export async function openVoteDialog() {
     }
     /* ONE OF THESE (E10 C14, 1.2.71; audit S06-26): a second press opened a second window, each with its
        own idea of who was still out - see `alreadyOpen` in live.mjs. */
-    if (alreadyOpen("drpg-window-vote")) return null;
+    if (alreadyOpen("drpg-window-vote")) return RAISED;
 
     const { openVote, closeVote, pendingVoters, remindVoters, votesIn, voteBar, ballotCopyStatus, trialProgress,
         ballotRecipients } = await import("./vote.mjs");

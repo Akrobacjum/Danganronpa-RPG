@@ -25,8 +25,10 @@
  */
 
 import { SITUATIONAL_PLAYLIST } from "./config.mjs";
+import { SETTINGS } from "./settings.mjs";
 import { error } from "./utils.mjs";
-import { alreadyOpen, keepLive } from "./live.mjs";
+import { emptyOption } from "./ui-kit.mjs";
+import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { MUSIC_STATES, musicMap, isCuePlaylist, saveMusicKey } from "./music-states.mjs";
 import { situationalPlaylist, playTrack, resetMusic } from "./music-play.mjs";
 
@@ -70,14 +72,16 @@ async function openPlayerSoundDialog({ tableDialog, dialogContent, soundSlidersH
  * One row per music state: its label, a select of the world's playlists, and the row's marker.
  *
  * Not the cue playlist (E50 C3; S11-47): it is the Play tab's source, never a state's (`playlistFor`). The marker
- * (`data-drpg-save`, empty until the row is changed) says saving, saved or failed, read aloud as it changes.
+ * (`data-drpg-save`, empty until the row is changed) says saving, saved or failed, read aloud as it changes. It
+ * carries its state's key (`data-drpg-key`, E44 C2b): the rows are a live region, and a redraw finds the marker of a
+ * save in flight by it - live.mjs carries its state across, and `showSaveState` writes to the one drawn now.
  */
 export function musicMapRows(playlists) {
     const map = musicMap();
     const offered = playlists.filter(p => !isCuePlaylist(p));
     return MUSIC_STATES.map(state => {
         const label = state.label ?? game.i18n.localize(state.labelKey);
-        const options = [`<option value="">-</option>`, ...offered.map(p =>
+        const options = [emptyOption("DRPG.Music.notSet"), ...offered.map(p =>
             `<option value="${p.id}"${map[state.key] === p.id ? " selected" : ""}>${
                 foundry.utils.escapeHTML(p.name)}</option>`)].join("");
 
@@ -85,7 +89,7 @@ export function musicMapRows(playlists) {
             <td>${foundry.utils.escapeHTML(label)}</td>
             <td><select name="state:${state.key}"
                 aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Music.playlist")}: ${label}`)}">${options}</select>
-                <span class="notes drpg-music-save" data-drpg-save="" aria-live="polite"></span></td>
+                <span class="notes drpg-music-save" data-drpg-save="" data-drpg-key="${foundry.utils.escapeHTML(state.key)}" aria-live="polite"></span></td>
         </tr>`;
     }).join("");
 }
@@ -167,7 +171,7 @@ function soundPlaylistsPane(playlists, rows) {
             <table class="drpg-vault-table"><thead><tr>
                 <th>${game.i18n.localize("DRPG.Music.when")}</th>
                 <th>${game.i18n.localize("DRPG.Music.playlist")}</th>
-            </tr></thead><tbody>${rows}</tbody></table>
+            </tr></thead><tbody class="drpg-music-map">${rows}</tbody></table>
             <p class="notes">${game.i18n.localize("DRPG.Music.fadeNote")}</p>`;
 }
 
@@ -176,21 +180,38 @@ const SAVE_STATE_KEYS = Object.freeze({
     saving: "DRPG.Music.saveState.saving", saved: "DRPG.Music.saveState.saved", failed: "DRPG.Music.saveState.failed"
 });
 
-function showSaveState(select, state) {
-    const marker = select.closest("tr")?.querySelector("[data-drpg-save]");
+/* The marker of `key` as the window draws it NOW, found by its key (E44 C2b): the save's answer can arrive after
+   its own echo redrew the rows, and the row the select was in is then gone. */
+function showSaveState(frame, key, state) {
+    const marker = [...(frame?.querySelectorAll?.("[data-drpg-save]") ?? [])].find(m => m.dataset.drpgKey === key);
     if (!marker) return;
     marker.dataset.drpgSave = state;
     marker.textContent = game.i18n.localize(SAVE_STATE_KEYS[state]);
 }
 
-/** Each mapping select saves its row as it is changed. */
-function wireMusicMap(root) {
+/**
+ * Each mapping select saves its row as it is changed. `root` holds the selects to wire (the window, or the rows
+ * drawn again); `frame` is the window, where the row's marker is looked for when the answer comes.
+ */
+function wireMusicMap(root, frame = root) {
     for (const select of root.querySelectorAll("select[name^='state:']")) {
         const key = select.name.slice("state:".length);
         select.addEventListener("change", () => {
-            saveMusicKey(key, select.value, { onState: state => showSaveState(select, state) });
+            saveMusicKey(key, select.value, { onState: state => showSaveState(frame, key, state) });
         });
     }
+}
+
+/* The world's playlists as the window lists them: by name. */
+const sortedPlaylists = () => Array.from(game.playlists).sort((a, b) => a.name.localeCompare(b.name));
+
+/* The Music tab's rows, drawn again as the live region's build (E44 C2b). A node, not markup: a `<tbody>` written
+   into a `<div>` (live.mjs `toElement`) is dropped by the parser. */
+function musicMapBody() {
+    const body = document.createElement("tbody");
+    body.className = "drpg-music-map";
+    body.innerHTML = musicMapRows(sortedPlaylists());
+    return body;
 }
 
 /*
@@ -250,20 +271,20 @@ function wireSoundPlay(root) {
 }
 
 /** Every tab acts or saves at once and the window stays open: one Close, and no Apply anywhere. */
-function wireSoundDialog(root, { wirePanelTabs, wireSoundPanel }) {
+function wireSoundDialog(root, { wireKitTabs, wireSoundPanel }) {
     /*
      * NO APPLY (E50 C3; D45 option 1). The Music tab was the one thing in this window that waited for a button,
      * beside a Play tab that acts where it is and an Effects tab that saves as it is touched - one window, two ways
      * of saving, and a GM who changed a mapping and pressed Close lost it. The mapping saves as it is changed now
      * (`saveMusicKey`), so every tab has the same footer: Close.
      */
-    wirePanelTabs(root, {
+    wireKitTabs(root, {
         buttons: { play: [], music: [], effects: [] },
         always: ["close"]
     });
     wireSoundPanel(root);
     wireSoundPlay(root);
-    wireMusicMap(root);
+    wireMusicMap(root, root);
 }
 
 export async function openSoundDialog() {
@@ -272,9 +293,10 @@ export async function openSoundDialog() {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-sound")) return null;
+    if (alreadyOpen("drpg-window-sound")) return RAISED;
 
-    const { dialogContent, tableDialog, panelTabs, wirePanelTabs } = await import("./utils.mjs");
+    const { dialogContent, tableDialog } = await import("./utils.mjs");
+    const { kitTabs, wireKitTabs } = await import("./ui-kit.mjs");
     const { soundSlidersHtml, soundEffectsHtml, wireSoundPanel } = await import("./sfx.mjs");
 
     if (!game.user.isGM) {
@@ -295,7 +317,7 @@ export async function openSoundDialog() {
      * tab. Same reasoning as the missing cue playlist: report it where it is,
      * do not refuse the whole screen over it.
      */
-    const playlists = Array.from(game.playlists).sort((a, b) => a.name.localeCompare(b.name));
+    const playlists = sortedPlaylists();
 
     const rows = musicMapRows(playlists);
 
@@ -309,15 +331,15 @@ export async function openSoundDialog() {
         classes: ["drpg-panel", "drpg-projects", "drpg-wide", "drpg-sound", "drpg-window-sound"],
         // The tabs measure to one size rather than the window jumping between
         // a two-line Play pane and a thirty-five-row table - trap 29. It works
-        // on `panelTabs` markup as of E3; before that it silently measured
-        // only the visible tab.
+        // on the kit's panes (`kitTabs`, E44 C4a; `panelTabs` markup from E3);
+        // before E3 it silently measured only the visible tab.
         fitTabs: true,
         // ABOVE THE TABS, NOT INSIDE ONE. The sliders are not about music or
         // about effects, they are about this browser - and putting them in a
         // tab would leave a player looking at a tab bar with one tab in it.
         content: dialogContent(`<form>
             ${document.body.classList.contains("drpg-theme-stained-glass") ? "" : soundSlidersHtml()}
-            ${panelTabs([
+            ${kitTabs([
                 { key: "play", label: game.i18n.localize("DRPG.Sound.tabPlay"), html: soundPlayPane() },
                 { key: "music", label: game.i18n.localize("DRPG.Sound.tabMusic"), html: playlistsPane },
                 { key: "effects", label: game.i18n.localize("DRPG.Sound.tabEffects"),
@@ -329,7 +351,7 @@ export async function openSoundDialog() {
         // manager's "give Hope": a GM putting a track under a moment at the
         // table is not filling in a form.
         render: (event, dialog) => {
-            wireSoundDialog(dialog.element, { wirePanelTabs, wireSoundPanel });
+            wireSoundDialog(dialog.element, { wireKitTabs, wireSoundPanel });
             /*
              * WHAT WAKES IT: THE PLAYLIST HOOKS (F17).
              *
@@ -350,6 +372,20 @@ export async function openSoundDialog() {
                         "createPlaylist", "deletePlaylist", "updatePlaylist"]
                 },
                 after: () => wireSoundPlay(dialog.element)
+            });
+            /*
+             * THE MUSIC ROWS FOLLOW ANOTHER GM'S MAPPING (E44 C2b, 04.11.2026; the 27.10 amend: "keepLive for settings
+             * is E44's", E50's STAGE). With the window open on two GMs, one's mapping left the other's select drawn
+             * with the old playlist - true only until it was read. The rows are a region of their own, woken by the
+             * map's key alone: another key of the module, the Effects tab's `sfxMap` among them, redraws nothing here.
+             * A select being chosen from holds the redraw (rule 1); a dirty select and a row's save marker are
+             * carried across (rule 2); `after` wires the new selects, whose answer finds its marker in the window.
+             */
+            keepLive(dialog, {
+                region: ".drpg-music-map",
+                build: musicMapBody,
+                watch: { settings: [SETTINGS.musicMap] },
+                after: next => wireMusicMap(next, dialog.element)
             });
         },
         rejectClose: false

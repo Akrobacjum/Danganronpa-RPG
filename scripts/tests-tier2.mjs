@@ -22027,7 +22027,8 @@ const SCENARIOS = [
             const select = root.querySelector('select[name="trait"]');
             const chosen = [...(select?.options ?? [])].find(o => o.selected);
             forms.push([chosen?.value ?? null, Boolean(chosen?.disabled), Boolean(select?.required)]);
-            const common = { name: "SUITE C11D renamed", target: 4, room: null, trait: answer.trait, murder: false, condition: "" };
+            // A description since E44 C9 (required in both windows): the statistic is what this reads.
+            const common = { name: "SUITE C11D renamed", target: 4, room: null, trait: answer.trait, murder: false, condition: "", description: "SUITE C11D its words" };
             return title === startTitle ? common : { ...common, img: null, glyph: null, secret: false, viewers: [],
                 trigger: { kind: "manual", targetId: null, afterDark: false, notBuilder: false } };
         });
@@ -26363,7 +26364,7 @@ const SCENARIOS = [
             const win = await drawnCaseWindow();
             try {
                 must(win.app?.element, "the dashboard did not open");
-                const panel = win.app.element.querySelector('[data-drpg-panel="key"]');
+                const panel = win.app.element.querySelector('[data-drpg-pane="key"]');
                 const heads = [...(panel?.querySelectorAll("thead th") ?? [])].map(th => th.textContent.trim());
                 const row = panel?.querySelector("tbody tr") ?? null;
                 must(row, "the Key tab drew no row - this would measure nothing");
@@ -26418,7 +26419,7 @@ const SCENARIOS = [
             win.field("keyname:0").value = "SUITE C16 placed by its button";
             win.field("keytext:0").value = "SUITE C16 the row's words";
             const button = win.app.element.querySelector('[data-drpg-key-place="0"]');
-            const select = Boolean(win.app.element.querySelector('[data-drpg-panel="key"] select[name^="room:"]'));
+            const select = Boolean(win.app.element.querySelector('[data-drpg-pane="key"] select[name^="room:"]'));
             if (button) {
                 button.click();
                 await until(() => placeWindows().some(a => a.element?.querySelector("form")), 6000);
@@ -26554,7 +26555,7 @@ const SCENARIOS = [
             must(win.app?.element, "the dashboard did not open");
             must(win.field(`name.${key}`)?.value === "SUITE as drawn", `the dashboard does not list the fixture trace as drawn: ${stableJson({
                 open: Boolean(win.app?.element), value: win.field(`name.${key}`)?.value ?? null,
-                rows: win.app?.element?.querySelectorAll('[data-drpg-panel="traces"] tbody tr').length ?? null })}`);
+                rows: win.app?.element?.querySelectorAll('[data-drpg-pane="traces"] tbody tr').length ?? null })}`);
 
             /* ---- the ruling lands under the open window, and the window shows it ---- */
             ok(await cleanup.applyReshapeRuling({ actorId: who.id, tokenId: token.id,
@@ -26641,7 +26642,7 @@ const SCENARIOS = [
             win = await drawnCaseWindow();
             must(win.field(`name.${key}`)?.value === "SUITE as drawn", `the dashboard does not list the fixture trace as drawn: ${stableJson({
                 open: Boolean(win.app?.element), value: win.field(`name.${key}`)?.value ?? null,
-                rows: win.app?.element?.querySelectorAll('[data-drpg-panel="traces"] tbody tr').length ?? null })}`);
+                rows: win.app?.element?.querySelectorAll('[data-drpg-pane="traces"] tbody tr').length ?? null })}`);
 
             win.field(`name.${key}`).value = "SUITE this GM's name";
             win.field(`text.${key}`).value = "SUITE this GM's words";
@@ -26780,7 +26781,7 @@ const SCENARIOS = [
             win = await drawnCaseWindow();
             must(win.field(`name.${key}`)?.value === "SUITE as drawn", `the dashboard does not list the fixture trace as drawn: ${stableJson({
                 open: Boolean(win.app?.element), value: win.field(`name.${key}`)?.value ?? null,
-                rows: win.app?.element?.querySelectorAll('[data-drpg-panel="traces"] tbody tr').length ?? null })}`);
+                rows: win.app?.element?.querySelectorAll('[data-drpg-pane="traces"] tbody tr').length ?? null })}`);
 
             win.field(`analysis.${key}`).value = "SUITE B's reading";
             await remnants.setRemnantPublic(token, { name: "SUITE A's name" });
@@ -27459,7 +27460,7 @@ const SCENARIOS = [
             const bar = () => dialog.element.querySelector(".drpg-trace-filters");
             ok(bar(), "the dashboard has no filter bar");
             const rows = () => dialog.element
-                .querySelectorAll('[data-drpg-panel="traces"] tbody tr').length;
+                .querySelectorAll('[data-drpg-pane="traces"] tbody tr').length;
             const control = which => bar().querySelector(`[data-drpg-filter="${which}"]`);
             const choose = async (which, value) => {
                 const element = control(which);
@@ -27500,7 +27501,7 @@ const SCENARIOS = [
             await choose("order", "newest");
             equal(rows(), all, "ordering dropped rows; it is an order, not a filter");
             const first = dialog.element
-                .querySelector('[data-drpg-panel="traces"] tbody tr')?.textContent ?? "";
+                .querySelector('[data-drpg-pane="traces"] tbody tr')?.textContent ?? "";
             // The day as `traceWhen` prints it in the client's language (E09 C15: it was "D 3" in every one).
             ok(first.includes(game.i18n.format("DRPG.Remnant.dayShort", { n: 3 })),
                 `newest first put "${first.replace(/\s+/g, " ").trim().slice(0, 60)}" at the top`);
@@ -29172,6 +29173,7 @@ const SCENARIOS = [
          * and a button is one - so "Day" in Edit campaign labelled the minus button,
          * the field had no name, and clicking the word "Day" moved the campaign from
          * day 11 to day 10. Found by the a11y sweep on 21.09, measured by clicking.
+         * E44 C4b (04.11.2026): the field is ui-kit.mjs's `stepper` in both themes, its label pointed at it by `for`.
          */
         const { openClockDialog } = await import("./gm-panel.mjs");
         needs(env.dialogs(), "Edit campaign has no field to click");
@@ -29180,7 +29182,7 @@ const SCENARIOS = [
         let input = null;
         for (let i = 0; i < 40 && !input; i++) {
             await new Promise(resolve => setTimeout(resolve, 100));
-            input = document.querySelector('input[name="day"][data-drpg-chrome="step"]');
+            input = document.querySelector('.drpg-kit-stepper > input[name="day"]');
         }
         try {
             ok(input, "the Edit campaign window did not draw its day stepper");
@@ -58104,9 +58106,9 @@ const SCENARIOS = [
             await settle();
             const root = drawn()[0].element;
             const footers = {};
-            for (const tab of root.querySelectorAll("[data-drpg-tab]")) {
+            for (const tab of root.querySelectorAll("nav.drpg-tabs [data-drpg-tab-key]")) {
                 tab.click();
-                footers[tab.dataset.drpgTab] = [...root.querySelectorAll("footer.form-footer button")]
+                footers[tab.dataset.drpgTabKey] = [...root.querySelectorAll("footer.form-footer button")]
                     .filter(button => button.style.display !== "none" && !button.hidden).map(button => button.dataset.action);
             }
             const cell = root.querySelector(".drpg-token-cell");
@@ -58137,7 +58139,7 @@ const SCENARIOS = [
                 clicks = [[...clicks].sort(), clicks[2] === was];
             }
             const tables = [...root.querySelectorAll("table.drpg-vault-table")];
-            const heads = [...root.querySelectorAll('[data-drpg-panel="stashes"] thead th, [data-drpg-panel="fog"] thead th')]
+            const heads = [...root.querySelectorAll('[data-drpg-pane="stashes"] thead th, [data-drpg-pane="fog"] thead th')]
                 .filter(th => th.cellIndex > 0);
             const fogBoxes = () => [...root.querySelectorAll('input[type="checkbox"][name^="fog:"]')];
             const press = which => {
@@ -60848,7 +60850,7 @@ const SCENARIOS = [
                     const box = document.createElement("div");
                     if (typeof cfg?.content === "string") box.innerHTML = cfg.content;
                     else if (cfg?.content) box.append(cfg.content.cloneNode(true));
-                    opened = box.querySelector(".drpg-dashboard-tab.active")?.dataset.drpgTab ?? null;
+                    opened = box.querySelector('nav.drpg-tabs [aria-selected="true"]')?.dataset.drpgTabKey ?? null;
                     return null;
                 };
                 await V.openRoomSetupDialog();
@@ -63549,7 +63551,8 @@ const SCENARIOS = [
                     // What a GM's hand can do: untick a box that is not held.
                     if (box && !box.disabled) box.checked = false;
                     const boxes = [...root.querySelectorAll('[name="viewers"]')];
-                    return { name: "SUITE E15 T16 kept", target: 6, room: DORM, trait: "hand", murder: false, condition: "", img: null, glyph: null,
+                    // A description since E44 C9 (required in the edit window): the secrecy is what this reads.
+                    return { name: "SUITE E15 T16 kept", target: 6, room: DORM, trait: "hand", murder: false, condition: "", img: null, glyph: null, description: "SUITE E15 T16 its words",
                         secret: Boolean(box?.checked), viewers: boxes.filter(b => b.checked).map(b => b.value), was: boxes.filter(b => b.defaultChecked).map(b => b.value),
                         trigger: { kind: "manual", targetId: null, afterDark: false, notBuilder: false } };
                 });
@@ -63652,7 +63655,8 @@ const SCENARIOS = [
             drawn.push([Boolean(root.querySelector("[data-drpg-owned-preset] .drpg-warning")), target]);
             return { name: cfg?.content?.querySelector?.('input[name="name"]')?.value || "SUITE E15 T17 approved", target, room: null, trait: "hand", murder: false,
                 condition: "", trigger: { kind: "manual", targetId: null, afterDark: false, notBuilder: false }, secret: false, viewers: [], was: [], img: null, glyph: null,
-                passageTo: null, passage: null };
+                // A description since E44 C9 (required in the approval window): the preset's judgement is what this reads.
+                passageTo: null, passage: null, description: "SUITE E15 T17 its words" };
         });
         const approve = async (preset, to, builder, roomClaim, target = 3) => {
             const before = new Set(PR.allProjects().map(p => p.id)), warnedBefore = warned.length;
@@ -68838,7 +68842,7 @@ const SCENARIOS = [
                 await until(() => tablesApp());
                 await settle();
                 const el = tablesApp()?.element;
-                const on = (family, table) => Boolean(el?.querySelector(`[data-drpg-pane="${family}"] [data-drpg-table="${table.id}"]`));
+                const on = (family, table) => Boolean(el?.querySelector(`[data-drpg-pool-pane="${family}"] [data-drpg-table="${table.id}"]`));
                 read.window = [knives, calm].map(table => [on("tiers", table), on("rooms", table)]);
             } finally {
                 try { await tablesApp()?.close(); } catch { /* already gone */ }
@@ -69243,9 +69247,9 @@ const SCENARIOS = [
             await until(() => tablesApp());
             await settle();
             let el = tablesApp()?.element;
-            const ticked = [...(el?.querySelectorAll('[data-drpg-gmt-section="newItem"] input[type="checkbox"][name^="target:"]:checked') ?? [])]
+            const ticked = [...(el?.querySelectorAll('[data-drpg-pane="newItem"] input[type="checkbox"][name^="target:"]:checked') ?? [])]
                 .map(box => game.tables.get(box.name.slice("target:".length))?.name).filter(name => name?.startsWith(TAG)).sort();
-            const shown = [el?.querySelector(".drpg-gmt-section.active")?.dataset.drpgGmtSection ?? null, ticked,
+            const shown = [el?.querySelector('.drpg-tab-pane:not([hidden])')?.dataset.drpgPane ?? null, ticked,
                 el?.querySelector('[name="newName"]')?.value ?? null,
                 [...(el?.querySelectorAll("footer button[data-action]") ?? [])].filter(b => !b.hidden).map(b => b.dataset.action)];
             /* What Rename offers: the harness answers a prompt from its queue without drawing it, so the prompt's content is
@@ -69259,11 +69263,11 @@ const SCENARIOS = [
                 return null;
             };
             queue?.push(answer);
-            el?.querySelector('[data-drpg-pane="rooms"] [data-drpg-rename-table]')?.click();
+            el?.querySelector('[data-drpg-pool-pane="rooms"] [data-drpg-rename-table]')?.click();
             await until(() => renaming !== null || appWith(e => e.querySelector('input[name="tableName"]')));
             if (queue?.includes(answer)) queue.splice(queue.indexOf(answer), 1);
             renaming ??= appWith(e => e.querySelector('input[name="tableName"]'))?.element.querySelector('input[name="tableName"]')?.value ?? null;
-            const highlighted = el?.querySelector('[data-drpg-pane="rooms"] .drpg-table-pick.active span')?.textContent.trim() ?? null;
+            const highlighted = el?.querySelector('[data-drpg-pool-pane="rooms"] .drpg-table-pick.active span')?.textContent.trim() ?? null;
             await closeAll(e => e.querySelector('input[name="tableName"]'));
             await closeAll(e => e.classList.contains("drpg-window-tables"));
             try { await Promise.race([opening, wait(2000)]); } catch { /* closed rather than answered */ }
@@ -69273,7 +69277,7 @@ const SCENARIOS = [
             await until(() => tablesApp());
             await settle();
             el = tablesApp()?.element;
-            const noTable = el?.querySelector('[data-drpg-gmt-section="newItem"] [data-drpg-room-note]')?.textContent ?? "";
+            const noTable = el?.querySelector('[data-drpg-pane="newItem"] [data-drpg-room-note]')?.textContent ?? "";
             await closeAll(e => e.classList.contains("drpg-window-tables"));
             try { await Promise.race([second, wait(2000)]); } catch { /* closed rather than answered */ }
             tables = [...shown, renaming === highlighted && renaming === BASE, noTable.includes(NOWHERE)];
@@ -69310,18 +69314,18 @@ const SCENARIOS = [
 
             const traces = Array.from(game.scenes).flatMap(s => remnantsOn(s)).filter(token => remnantData(token)).length;
             const bulletOpening = typeof G.giveTruthBulletDialog === "function" ? G.giveTruthBulletDialog(student) : null;
-            const bulletApp = () => appWith(e => e.querySelector('[data-drpg-gmt-section="create"]') && e.querySelector('[data-drpg-gmt-section="existing"]'));
+            const bulletApp = () => appWith(e => e.querySelector('[data-drpg-pane="create"]') && e.querySelector('[data-drpg-pane="existing"]'));
             await until(() => bulletApp());
             await settle();
-            bullets = [traces > 0, bulletApp()?.element.querySelector(".drpg-gmt-section.active")?.dataset.drpgGmtSection ?? null];
-            await closeAll(e => e.querySelector('[data-drpg-gmt-section="create"]') && e.querySelector('[data-drpg-gmt-section="existing"]'));
+            bullets = [traces > 0, bulletApp()?.element.querySelector('.drpg-tab-pane:not([hidden])')?.dataset.drpgPane ?? null];
+            await closeAll(e => e.querySelector('[data-drpg-pane="create"]') && e.querySelector('[data-drpg-pane="existing"]'));
             try { await Promise.race([bulletOpening, wait(2000)]); } catch { /* closed rather than answered */ }
             // No trace on any scene (no scene handed in).
             const emptyOpening = G.giveTruthBulletDialog(student, { scenes: [] });
             await until(() => bulletApp());
             await settle();
-            noTrace = bulletApp()?.element.querySelector(".drpg-gmt-section.active")?.dataset.drpgGmtSection ?? null;
-            await closeAll(e => e.querySelector('[data-drpg-gmt-section="create"]') && e.querySelector('[data-drpg-gmt-section="existing"]'));
+            noTrace = bulletApp()?.element.querySelector('.drpg-tab-pane:not([hidden])')?.dataset.drpgPane ?? null;
+            await closeAll(e => e.querySelector('[data-drpg-pane="create"]') && e.querySelector('[data-drpg-pane="existing"]'));
             try { await Promise.race([emptyOpening, wait(2000)]); } catch { /* closed rather than answered */ }
         } finally {
             if (hadFlag === undefined || hadFlag === null) await region.unsetFlag(MODULE_ID, FLAG);
@@ -70393,6 +70397,8 @@ const SCENARIOS = [
                 const form = element.querySelector("form");
                 must(form?.name && form.querySelector(`[name="viewers"][value="${guest.id}"]`), "the project window drew no name or no box for the second player");
                 form.name.value = "SUITE E36 T11 window renamed";
+                // A description since E44 C9 (required in the edit window): one change of the entry is what this reads.
+                if (form.querySelector('[name="description"]')) form.querySelector('[name="description"]').value = "SUITE E36 T11 its words";
                 form.querySelector(`[name="viewers"][value="${guest.id}"]`).checked = true;
                 if (!form.trait.value) form.trait.value = Object.keys((await import("./config.mjs")).TRAITS)[0];
                 const save = (cfg.buttons ?? []).find(b => b.action === "save");
@@ -70890,6 +70896,8 @@ const SCENARIOS = [
                 seen.fields ??= shown;
                 form.secret.checked = true;
                 for (const box of form.querySelectorAll('[name="viewers"]')) box.checked = tick && box.value === player.id;
+                // A description since E44 C9 (required in the edit window): the killer and the boxes are what this reads.
+                if (form.querySelector('[name="description"]')) form.querySelector('[name="description"]').value ||= "SUITE E15 T1 its words";
                 const save = (cfg.buttons ?? []).find(b => b.action === "save");
                 return save.callback(new Event("click"), save, { element: root });
             };
@@ -70929,6 +70937,8 @@ const SCENARIOS = [
                 flip(form.murder, true);
                 // As a click: a disabled box does not change.
                 for (const box of form.querySelectorAll('[name="viewers"]')) if (!box.disabled) box.checked = box.value === player.id;
+                // A description since E44 C9 (required in the edit window): the killer and the boxes are what this reads.
+                if (form.querySelector('[name="description"]')) form.querySelector('[name="description"]').value ||= "SUITE E15 T1 its words";
                 const save = (cfg.buttons ?? []).find(b => b.action === "save");
                 return save.callback(new Event("click"), save, { element: root });
             };
@@ -71686,12 +71696,12 @@ const SCENARIOS = [
             const root = open()[0]?.element;
             must(root, "Despair Flow did not open - this would measure nothing");
             const shown = () => [...root.querySelectorAll("footer.form-footer button[data-action]")].filter(b => !b.hidden).map(b => b.dataset.action);
-            const tab = key => root.querySelector(`[data-drpg-gmt-tab="${key}"]`)?.click();
+            const tab = key => root.querySelector(`nav.drpg-tabs [data-drpg-tab-key="${key}"]`)?.click();
             tab("pools");
             read.footer = { pools: shown() };
             tab("students");
             read.footer.students = shown();
-            read.account = root.querySelector('[data-drpg-gmt-section="pools"] thead th')?.textContent?.trim() ?? null;
+            read.account = root.querySelector('[data-drpg-pane="pools"] thead th')?.textContent?.trim() ?? null;
             const mkRow = root.querySelector(`[name="mk.${CSS.escape(ticked.id)}"]`)?.closest("tr");
             read.notMonokuma = [mkRow?.querySelector("[data-drpg-pool-none]")?.hidden ?? null, mkRow?.querySelector("[data-drpg-pool]")?.hidden ?? null];
             const select = actor => root.querySelector(`[name="assign.${CSS.escape(actor.id)}"]`);
@@ -71722,7 +71732,7 @@ const SCENARIOS = [
             await until(() => open()[0]?.element, 6000);
             const again = open()[0]?.element;
             must(again, "Despair Flow did not open again - this would measure nothing");
-            again.querySelector('[data-drpg-gmt-tab="students"]')?.click();
+            again.querySelector('nav.drpg-tabs [data-drpg-tab-key="students"]')?.click();
             const pin = again.querySelector(`[name="assign.${CSS.escape(implicit.id)}"]`);
             must(pin, "the never-assigned student's select is not drawn - this would measure nothing");
             pin.value = gm.id;
@@ -75863,7 +75873,7 @@ const SCENARIOS = [
             const footer = () => [...root().querySelectorAll("footer.form-footer button[data-action]")].filter(b => !b.hidden).map(b => b.dataset.action);
             read.tabs = {};
             for (const tab of ["play", "music", "effects"]) {
-                root().querySelector(`[data-drpg-gmt-tab="${tab}"]`)?.click();
+                root().querySelector(`nav.drpg-tabs [data-drpg-tab-key="${tab}"]`)?.click();
                 read.tabs[tab] = footer();
             }
             read.save = root().querySelectorAll('[data-action="save"]').length;
@@ -81988,6 +81998,623 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({ forced: [false, false], public: [true, true] }),
             "[with rolls forced private and not: the Reroll's dice thrown on this GM's screen; this GM among the dice's audience]");
+    }],
+    ["E44-T1 - a GM panel tile pressed while a module setting is written runs once (E44 C2b; E44-07, S10-58): pressed while `despairPools` is written, the tiles are not redrawn under the press and the tile's window opens once; pressed while `caseMark` (a key the tiles print) is written, the redraw waits for the release and the tile's window opens once", async () => {
+        /*
+         * E44 C2b, 04.11.2026; audit S10-58. The panel's tiles were a live region woken by every module setting, and its
+         * one delegated listener asks whether the pressed button is still inside the window, so a click at the moment
+         * of any write was lost. Here, on this GM's browser with real windows: the panel opened, the Debug log tile (its
+         * run opens the session's failure log and nothing else) pressed by a `pointerdown`, a setting written, 400 ms
+         * let pass, then `pointerup` and the click on the node pressed; the failure log windows counted, and closed (the
+         * panel comes back), twice - `despairPools` (not the tiles' key) and `caseMark` (theirs: the Back up tile's age).
+         * Both settings are put back. Red before C2b: the despairPools write redrew the tiles, the pressed button was
+         * gone and nothing opened. A real pointer at a table is not measured here.
+         */
+        needs(env.dialogs(), "the panel and the tile's window are drawn and pressed");
+        must(game.user.isGM, "the GM panel is a GM's");
+        const { openGmPanel } = await import("./gm-panel.mjs");
+        const { setSetting } = await import("./settings.mjs");
+        const { diagnoseLive } = await import("./live.mjs");
+        const drawn = cls => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes(cls));
+        must(!drawn("drpg-window-panel").length && !drawn("drpg-window-failures").length, "a GM panel or a Debug log is open - close it: this test opens its own");
+        const panel = () => drawn("drpg-window-panel")[0] ?? null;
+        const tile = () => panel()?.element?.querySelector('[data-drpg-run="failureLog"]') ?? null;
+        const Pointer = globalThis.PointerEvent ?? MouseEvent;
+        const fire = (node, type) => node.dispatchEvent(new Pointer(type, { bubbles: true, cancelable: true }));
+        const poolsBefore = foundry.utils.deepClone(getSetting(SETTINGS.despairPools) ?? {});
+        const markBefore = foundry.utils.deepClone(getSetting(SETTINGS.caseMark) ?? {});
+        let opening = null;
+        const read = {};
+        const press = async write => {
+            if (!await until(() => tile(), 6000)) return "no panel";
+            const button = tile();
+            const held = () => diagnoseLive().find(r => r.region === ".drpg-gmp-sections")?.deferred ?? 0;
+            const deferredBefore = held();
+            fire(button, "pointerdown");
+            await write();
+            await wait(400);
+            const out = { kept: button.isConnected, held: held() > deferredBefore };
+            fire(button, "pointerup");
+            button.click();
+            await until(() => drawn("drpg-window-failures").length, 3000);
+            await wait(300);
+            out.opened = drawn("drpg-window-failures").length;
+            for (const app of drawn("drpg-window-failures")) await app.close();
+            return out;
+        };
+        try {
+            opening = Promise.resolve().then(() => openGmPanel()).catch(() => null);
+            read.pools = await press(() => setSetting(SETTINGS.despairPools, { ...poolsBefore, suiteE44T1: 0 }));
+            read.mark = await press(() => setSetting(SETTINGS.caseMark, { ...markBefore, suiteE44T1: 1 }));
+        } finally {
+            await setSetting(SETTINGS.despairPools, poolsBefore);
+            await setSetting(SETTINGS.caseMark, markBefore);
+            for (const app of drawn("drpg-window-failures")) await app.close();
+            await until(() => panel(), 2000);
+            for (const app of drawn("drpg-window-panel")) await app.close();
+            if (opening) await Promise.race([opening, wait(3000)]);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ pools: { kept: true, held: false, opened: 1 }, mark: { kept: true, held: true, opened: 1 } }),
+            "[pressed while despairPools is written: the pressed tile still drawn at the release, a redraw of the tiles held, the tile's windows opened]; "
+            + "[the same while caseMark is written]");
+    }],
+
+    ["E44-T2 - the Sound window's Music rows follow another GM's mapping (E44 C2b; E44-08, the 27.10 amend): a `musicMap` write redraws the rows with the new playlist selected, an `sfxMap` write redraws nothing, a focused select holds the redraw until focus leaves, and a row whose save landed keeps its marker through a redraw", async () => {
+        /*
+         * E44 C2b, 04.11.2026; the 27.10 amend ("keepLive for settings is E44's", E50's STAGE, edge cases): the Music tab's
+         * rows were drawn once, so with the window open on two GMs one's mapping left the other's select on the old
+         * playlist. Here, on this GM's browser with real windows: a fixture playlist; the Sound window opened; the map
+         * written straight into the setting, as another GM's write arrives (a state mapped to the fixture); then the
+         * Effects tab's map written; then a select focused and the map written again; then a row changed as the GM
+         * changes it, its save let land, and another state written. The map, the effects' map and the playlist are put
+         * back. Red before C2b: the select stayed on the old playlist (no region). The mutant c2b-m3 (the region without
+         * `after`: the new selects save nothing) reads red here.
+         */
+        needs(env.dialogs(), "the Sound window is drawn and its selects read and changed");
+        must(game.user.isGM, "the Music tab is a GM's");
+        const M = await import("./music.mjs");
+        const { setSetting } = await import("./settings.mjs");
+        must(!document.querySelector(".drpg-window-sound"), "a Sound window is open - close it: this test opens its own");
+        const mapBefore = foundry.utils.deepClone(getSetting(SETTINGS.musicMap) ?? {});
+        const sfxBefore = foundry.utils.deepClone(getSetting(SETTINGS.sfxMap) ?? {});
+        const state = M.currentState();
+        const keys = M.MUSIC_STATES.map(s => s.key).filter(key => key !== state && key !== "murder" && !mapBefore[key]);
+        must(keys.length >= 4, `only ${keys.length} music states are free to map here`);
+        const [k1, k2, k3, k4] = keys;
+        const map = () => getSetting(SETTINGS.musicMap) ?? {};
+        const root = () => document.querySelector(".drpg-window-sound");
+        const select = key => root()?.querySelector(`select[name="state:${key}"]`) ?? null;
+        const marker = key => select(key)?.closest("tr")?.querySelector("[data-drpg-save]")?.dataset.drpgSave ?? null;
+        let playlist = null, answer = null;
+        const read = {};
+        try {
+            playlist = await Playlist.create({ name: "Suite E44-T2 fixture" });
+            must(playlist, "the fixture playlist was not made");
+            answer = Promise.resolve().then(() => M.openSoundDialog()).catch(err => `threw: ${err.message}`);
+            must(await until(() => select(k1), 6000), "the Sound window did not open with its Music tab");
+            root().querySelector('nav.drpg-tabs [data-drpg-tab-key="music"]')?.click();
+            const drawnK1 = select(k1);
+            await setSetting(SETTINGS.musicMap, { ...map(), [k1]: playlist.id });
+            read.other = await until(() => select(k1)?.value === playlist.id, 3000) ? [true, !drawnK1.isConnected] : [select(k1)?.value ?? null, !drawnK1.isConnected];
+            const beforeSfx = select(k1);
+            await setSetting(SETTINGS.sfxMap, { ...sfxBefore, suiteE44T2: "sounds/lock.wav" });
+            await wait(400);
+            read.sfx = beforeSfx.isConnected;
+            const focused = select(k2);
+            focused.focus();
+            const isFocused = document.activeElement === focused;
+            await setSetting(SETTINGS.musicMap, { ...map(), [k2]: playlist.id });
+            await wait(400);
+            read.focus = [isFocused, focused.isConnected];
+            focused.blur();
+            focused.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+            read.focus.push(Boolean(await until(() => !focused.isConnected && select(k2)?.value === playlist.id, 3000)));
+            const s3 = select(k3);
+            s3.value = playlist.id;
+            s3.dispatchEvent(new Event("change", { bubbles: true }));
+            const saved = await until(() => map()[k3] === playlist.id && marker(k3) === "saved", 3000);
+            await setSetting(SETTINGS.musicMap, { ...map(), [k4]: playlist.id });
+            const redrawn = await until(() => select(k4)?.value === playlist.id, 3000);
+            await wait(200);
+            read.marker = [Boolean(saved), Boolean(redrawn), marker(k3)];
+            root()?.querySelector('footer.form-footer button[data-action="close"]')?.click();
+            read.closed = await Promise.race([answer, wait(3000).then(() => "still open")]) !== "still open";
+        } finally {
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.classList?.contains("drpg-window-sound"))) await app.close();
+            if (answer) await Promise.race([answer, wait(3000)]);
+            /* As E50-T1 restores: this user's own write of the map within MAP_ECHO_MS of the window's is read 800 ms after
+               and put back again if the echo repair moved it, so the world is left as found either way. */
+            await setSetting(SETTINGS.musicMap, mapBefore);
+            await setSetting(SETTINGS.sfxMap, sfxBefore);
+            await wait(800);
+            if (stableJson(map()) !== stableJson(mapBefore)) await setSetting(SETTINGS.musicMap, mapBefore);
+            if (playlist) await playlist.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ other: [true, true], sfx: true, focus: [true, true, true], marker: [true, true, "saved"], closed: true }),
+            "[another GM's mapping: the row's select on the new playlist, the old select replaced]; [the select drawn before an sfxMap write still drawn after it]; "
+            + "[a select focused, still drawn while focused after a mapping write, redrawn with the write once focus left]; "
+            + "[a row's change saved with its marker saying so, the rows redrawn by another write, that row's marker after it]; [Close closes]");
+    }],
+    ["E44-T3 - a GM panel tile whose window stands behind the panel raises it and the panel does not come back (E44 C2c; E44-09, S10-59): the Investigation dashboard open, the panel opened over it and its tile pressed - one dashboard, raised, and no panel", async () => {
+        /*
+         * E44 C2c, 04.11.2026; audit S10-59. Here, on this GM's browser with real windows: the dashboard opened as its
+         * tile opens it, then the panel, then the dashboard's tile pressed (the click the panel's delegated listener
+         * reads). Read after the run has had time to answer: how many dashboards stand and whether a panel stands. Both
+         * windows are closed. Red before C2c: the opener answered null and the panel opened again over the dashboard.
+         * The mutant c2c-m1 (the handler opening the panel again on RAISED) reads red here.
+         */
+        needs(env.dialogs(), "the panel and the dashboard are drawn and pressed");
+        must(game.user.isGM, "the GM panel is a GM's");
+        const { openGmPanel } = await import("./gm-panel.mjs");
+        const { openInvestigationDashboard } = await import("./investigation.mjs");
+        const drawn = cls => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes(cls));
+        must(!drawn("drpg-window-panel").length && !drawn("drpg-window-case").length, "a GM panel or a case dashboard is open - close it: this test opens its own");
+        const opened = [];
+        const read = {};
+        try {
+            opened.push(Promise.resolve().then(() => openInvestigationDashboard()).catch(() => null));
+            must(await until(() => drawn("drpg-window-case").length, 6000), "the case dashboard did not open - this would measure nothing");
+            opened.push(Promise.resolve().then(() => openGmPanel()).catch(() => null));
+            const tile = () => drawn("drpg-window-panel")[0]?.element?.querySelector('[data-drpg-run="investigation"]') ?? null;
+            must(await until(() => tile(), 6000), "the GM panel did not open with its dashboard tile");
+            tile().click();
+            await until(() => !drawn("drpg-window-panel").length, 3000);
+            await wait(800);
+            read.after = { dashboards: drawn("drpg-window-case").length, panel: drawn("drpg-window-panel").length };
+        } finally {
+            for (const cls of ["drpg-window-panel", "drpg-window-case"]) for (const app of drawn(cls)) await app.close();
+            await Promise.race([Promise.all(opened), wait(3000)]);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ after: { dashboards: 1, panel: 0 } }),
+            "[after the dashboard's tile was pressed with the dashboard open behind the panel: the dashboards standing, the panels standing]");
+    }],
+
+    ["E44-T4 - D176: two of the GM's own approvals asked at once open one window (E44 C2c; E44-10): two purchases of a Call that waits for a GM's yes, made on the GM's side at once - one approval window, the second purchase answers null with nothing spent, and the first answered No spends and arms nothing", async () => {
+        /*
+         * E44 C2c, 04.11.2026; D176 (from E51 fix FG7's G2). A GM buying a Call that needs a GM's yes for a student
+         * answers it in a window on this browser (calls.mjs `askHopeCallApproval`), and two asked at once opened two.
+         * Here, as the GM with real windows: a student given 6 Hope; Experience bought twice at once through
+         * `spendHopeCall`, as the sheet buys it after its confirmation. Read: the approval windows standing, the second's
+         * answer, the student's Hope; then the first's No pressed: its answer, the Hope and the student's module flags.
+         * The Hope is put back. Red before C2c: two windows, the second unanswered. The mutant c2c-m2 (a raised approval
+         * read as a yes) reads red here.
+         */
+        needs(env.dialogs(), "the approval is a drawn window, read and pressed");
+        must(game.user.isGM, "the purchase is made on the GM's side");
+        const { spendHopeCall, hopeHeld } = await import("./calls.mjs");
+        const { HOPE_CALLS } = await import("./config.mjs");
+        const [who] = cast(1);
+        const key = Object.keys(HOPE_CALLS).find(k => HOPE_CALLS[k].needsGm && !HOPE_CALLS[k].reroll);
+        must(key, "no Hope Call waits for a GM's yes - this would measure nothing");
+        const call = HOPE_CALLS[key];
+        const title = game.i18n.format("DRPG.Calls.approveTitle", { call: call.label });
+        const windows = () => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title);
+        must(!windows().length, "an approval window is open - close it: this test opens its own");
+        const hope = who.system.resources.hope.value;
+        const flags = () => stableJson(who.toObject().flags?.[MODULE_ID] ?? {});
+        const read = {};
+        let first = null, second = null;
+        try {
+            await who.update({ "system.resources.hope.value": 6 });
+            await settle();
+            must(hopeHeld(who) === 6, `the student holds ${hopeHeld(who)} Hope, not 6 - this would measure nothing`);
+            const flagsBefore = flags();
+            first = Promise.resolve().then(() => spendHopeCall(who, key, { note: "E44-T4 first" })).catch(err => `threw: ${err.message}`);
+            if (!await until(() => windows().length === 1, 6000)) read.opened = "no window";
+            else {
+                second = Promise.resolve().then(() => spendHopeCall(who, key, { note: "E44-T4 second" })).catch(err => `threw: ${err.message}`);
+                read.second = await Promise.race([second, wait(3000).then(() => "unanswered")]);
+                read.windows = windows().length;
+                read.hopeAfterSecond = hopeHeld(who);
+                for (const extra of windows().slice(1)) await extra.close();
+                windows()[0]?.element?.querySelector('button[data-action="no"]')?.click();
+                read.first = await Promise.race([first, wait(3000).then(() => "unanswered")]);
+                await settle();
+                read.hope = hopeHeld(who);
+                read.flags = flags() === flagsBefore;
+            }
+        } finally {
+            for (const app of windows()) await app.close();
+            await Promise.race([Promise.all([first, second].filter(Boolean)), wait(3000)]);
+            await who.update({ "system.resources.hope.value": hope });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ second: null, windows: 1, hopeAfterSecond: 6, first: null, hope: 6, flags: true }),
+            "[the second purchase's answer with the first's approval standing]; [the approval windows standing]; [the student's Hope then]; "
+            + "[the first purchase's answer to No]; [the Hope after]; [the student's module flags as before]");
+    }],
+    ["E44-T5 - a kit window drawn on the GM (scripts/ui-kit.mjs `drpgWindow`; E44 C3a, E44-11): its root carries `drpg-ui` and `drpg-panel` and its content the page's language; the footer stands in its two groups with the primary first in the tree and the only one with autofocus; Enter (the form submitted by its first submit button) answers the primary; on a tab that hides the primary, the first submit button is disabled and a destructive button never has the autofocus; a tab switch shows its own buttons, hidden and disabled the others; a live region redraws; Escape in a field closes the window, which answers null", async () => {
+        /*
+         * E44 C3a, 04.11.2026; the owner's footer contract (the pilot, 04.11) and the kit's frame. Drawn as the GM
+         * draws it (`__dialogWindows`): two windows of the suite's own, opened one after the other, nothing written to
+         * the world. Enter is pressed as a browser presses it in a field - the form submitted by its first submit button
+         * in the tree (HTML's implicit submission; jsdom submits nothing on a synthetic key, as "Enter in the verdict
+         * window executes nobody" says), and where that button is disabled the browser submits nothing, which is read,
+         * not pressed. Escape is the harness's DialogV2 `_onKeyDown`, modelled from the module's note on 14.365 (shim.mjs).
+         * Red before C3a: no ui-kit.mjs. The mutant c3a-m1 (the primary on the left) reads red here.
+         */
+        needs(env.dialogs(), "the kit window is drawn, read and pressed");
+        const K = await import("./ui-kit.mjs");
+        const { pageLanguage } = await import("./i18n.mjs");
+        const HOOK = "drpgE44T5Probe";
+        const title = `E44-T5 ${foundry.utils.randomID(6)}`;
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        let builds = 0;
+        const open = () => K.drpgWindow({
+            classes: ["drpg-window-e44t5"], title,
+            body: "<div class=\"drpg-t-e44t5-live\">0</div>",
+            tabs: {
+                sections: [{ key: "edit", label: "Edit", html: "<input type=\"text\" name=\"words\" value=\"typed\">" }, { key: "danger", label: "Danger", html: "<p>-</p>" }],
+                buttons: { edit: ["save", "split"], danger: ["wipe"] }, always: ["close"]
+            },
+            footer: { primary: { action: "save", label: "Save" }, secondary: [{ action: "split", label: "Split" }], destructive: [{ action: "wipe", label: "Wipe" }], close: "close" },
+            live: { region: ".drpg-t-e44t5-live", build: () => `<div class="drpg-t-e44t5-live">${++builds}</div>`, delay: 0, watch: { hooks: [HOOK] } }
+        });
+        const read = {};
+        let first = null, second = null;
+        try {
+            first = open();
+            if (!await until(() => Boolean(drawn()), 6000)) read.drawn = false;
+            else {
+                const el = drawn().element;
+                const content = el.querySelector(":scope > .window-content") ?? el;
+                read.root = [el.classList.contains("drpg-ui"), el.classList.contains("drpg-panel"), content.getAttribute("lang") === pageLanguage()];
+                const footer = el.querySelector("footer.form-footer");
+                read.footer = [footer?.classList.contains("drpg-kit-footer"), [...(footer?.children ?? [])].map(g => [g.className, [...g.children].map(b => b.dataset.action)]),
+                    el.querySelector('button[type="submit"]')?.dataset.action ?? null, [...el.querySelectorAll("footer [autofocus]")].map(b => b.dataset.action)];
+                const shown = () => [...el.querySelectorAll("footer button[data-action]")].filter(b => !b.hidden && !b.disabled).map(b => b.dataset.action);
+                read.editTab = shown();
+                el.querySelector('nav.drpg-tabs [data-drpg-tab-key="danger"]')?.click();
+                const def = el.querySelector('button[type="submit"]');
+                read.dangerTab = [shown(), [def?.dataset.action ?? null, Boolean(def?.disabled)], [...el.querySelectorAll("footer [autofocus]")].map(b => b.dataset.action),
+                    [...el.querySelectorAll("[data-drpg-pane]")].map(p => [p.dataset.drpgPane, p.hidden])];
+                Hooks.callAll(HOOK);
+                read.live = await until(() => el.querySelector(".drpg-t-e44t5-live")?.textContent === "1", 3000);
+                el.querySelector('nav.drpg-tabs [data-drpg-tab-key="edit"]')?.click();
+                const form = el.querySelector("form");
+                const firstSubmit = el.querySelector('button[type="submit"]');
+                read.enter = firstSubmit?.dataset.action ?? null;
+                if (form && firstSubmit && !firstSubmit.disabled) form.requestSubmit(firstSubmit);
+                read.firstAnswer = await Promise.race([first, wait(3000).then(() => "unanswered")]);
+            }
+            if (await until(() => !drawn(), 3000) === false) await drawn()?.close();
+            second = open();
+            if (await until(() => Boolean(drawn()), 6000)) {
+                drawn().element.querySelector('input[name="words"]')?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+                read.escape = await Promise.race([second, wait(3000).then(() => "unanswered")]);
+                read.closed = await until(() => !drawn(), 3000);
+            }
+        } finally {
+            if (drawn()) await drawn().close();
+            await Promise.race([Promise.all([first, second].filter(Boolean)), wait(3000)]);
+        }
+        equal(stableJson(read), stableJson({
+            root: [true, true, true],
+            footer: [true, [["drpg-kit-right", ["save"]], ["drpg-kit-left", ["close", "split", "wipe"]]], "save", ["save"]],
+            editTab: ["save", "close", "split"],
+            dangerTab: [["close", "wipe"], ["save", true], ["close"], [["edit", true], ["danger", false]]],
+            live: true, enter: "save", firstAnswer: "save", escape: null, closed: true
+        }), "[the root (drpg-ui, drpg-panel, the content's language the page's); the footer (dressed; its groups; the first submit button; the autofocus); the buttons shown on Edit; "
+            + "on Danger (shown; the first submit button and whether it is disabled; the autofocus; the panes); the live region redrawn; Enter's button and the answer; Escape's answer; the window gone]");
+    }],
+    ["E44-T9 - a project's token stands at full opacity (E44 C8b; E44-26, the owner on 1.2.98): a token placed for a project in a room is drawn at PROJECT_TOKEN.alpha, which is 1; a token an older version placed at 0.7 is brought to it by the project's sync, its tint left as it was; finished, its tint turns and its opacity stays", async () => {
+        /*
+         * E44 C8b, 04.11.2026; the H85 diagnosis, part 2. The owner, with a player's screenshot of 1.2.98: "Dlaczego ikona
+         * projektu ma inny kolor? Zmienmy to" - the hammer read at about half the value of its art, its frame clear (0.7
+         * document alpha, "scenery, so it does not compete with the cast", times the board's light).
+         * His answer to the diagnosis, option (a): the icon at full opacity, the tint kept (amber while it is built, green
+         * when done). config.mjs PROJECT_TOKEN.alpha goes to 1, and projects-map.mjs `refreshProjectToken`, which the
+         * sync runs over every project's token (`syncProjectToken`), brings an existing token's alpha to it as it brings
+         * the tint, the icon and the iso scale. Read on this primary's browser, on the scene on screen: the placed
+         * token's alpha, the alpha after it is written 0.7 by hand and the project synced, the tint against
+         * PROJECT_TOKEN's colours before and after the project is finished. What a canvas then draws is not read: the
+         * harness has none (the GM's white icon, read in the code as not the module's, is LIVE-E44-07). Red at ab449796: placed 0.7,
+         * and 0.7 after the sync.
+         */
+        needs(world.atLeast("sceneOnScreen"), "a scene on screen with a named region for a project's token");
+        const P = await import("./projects.mjs");
+        const M = await import("./projects-map.mjs");
+        const { PROJECT_TOKEN } = await import("./config.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this GM is not the primary, whose browser keeps the project tokens - run the suite on the primary GM");
+        const room = (canvas.scene?.regions?.contents ?? []).map(region => region.name).find(Boolean);
+        must(room, "the scene on screen has no named region - this would measure nothing");
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const alpha = id => M.projectTokenOf(id)?.alpha ?? null;
+        const tint = id => String(M.projectTokenOf(id)?.texture?.tint ?? "").toLowerCase();
+        const seen = { constant: PROJECT_TOKEN.alpha };
+        let id = null;
+        try {
+            id = (await P.createProject({ name: "SUITE E44 T9 opacity", target: 2, room }))?.id ?? null;
+            must(id, "could not create the project - this would measure nothing");
+            await settle();
+            must(M.projectTokenOf(id), "the project's token was not placed - this would measure nothing");
+            seen.placed = alpha(id);
+            await M.projectTokenOf(id).update({ alpha: 0.7 });
+            await settle();
+            must(alpha(id) === 0.7, "the token's alpha could not be written 0.7 - this would measure nothing");
+            await M.syncProjectToken(id);
+            await settle();
+            seen.synced = { alpha: alpha(id), working: tint(id) === PROJECT_TOKEN.workingTint.toLowerCase() };
+            await P.applyProjectChange(id, { delta: 2 }, { by: { kind: "gm" } });
+            await settle();
+            seen.finished = { alpha: alpha(id), done: tint(id) === PROJECT_TOKEN.doneTint.toLowerCase() };
+        } finally {
+            if (id && P.allProjects().find(p => p.id === id)) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            await settle();
+        }
+        equal(stableJson(seen), stableJson({
+            constant: 1,
+            placed: 1,
+            synced: { alpha: 1, working: true },
+            finished: { alpha: 1, done: true }
+        }), "a project's token does not stand at full opacity [PROJECT_TOKEN.alpha; the placed token's alpha; after a sync over 0.7: its "
+            + "alpha, the working tint; finished: its alpha, the done tint]");
+    }],
+    ["E44-T10 - Delete a Remnant from the dashboard (E44 C8d; E44-29, the owner on 1.2.98): its row's Delete asks first, in a window naming it, and on No nothing goes; on Yes its token leaves the map and its row the case, the tab redraws without it, and the case health check counts no trace with a row and no token or a token and no row; a reinforced one is refused with its notice and keeps both", async () => {
+        /*
+         * E44 C8d, 04.11.2026. Two traces placed on the scene on screen, one plain and one reinforced, each with a public
+         * name; the dashboard opened and drawn (`__dialogWindows`); each row's Delete pressed with DialogV2.confirm lent a
+         * recorder that answers as the reading needs (the dashboard's own window keeps running): the plain one first
+         * answered No, then Yes, the reinforced one Yes. Read: what each confirm was asked (its title and whether its
+         * words name the trace), the token on its scene, the ledger's row (`remnantStore`), the drawn tab's button for
+         * the row, the warning told, and gm-stores.mjs `gmStoreHealth`'s trace counts before and after (missing: a token
+         * with no row; orphans: a row with no token). Red at ab449796: no Delete button on the tab.
+         */
+        needs(env.dialogs(), "the dashboard is read off its drawn window");
+        needs(world.atLeast("sceneOnScreen"), "the traces are placed on the scene on screen");
+        const I = await import("./investigation.mjs");
+        const R = await import("./remnants.mjs");
+        const { remnantStore, gmStoreHealth } = await import("./gm-stores.mjs");
+        const scene = canvas.scene;
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        const ownWarn = Object.getOwnPropertyDescriptor(ui.notifications, "warn");
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
+        const healthOf = async () => { const c = (await gmStoreHealth())?.counts?.traces ?? {}; return { missing: c.missing ?? null, orphans: c.orphans ?? null }; };
+        const made = [], read = {}, asked = [], warned = [];
+        let answer = false, dashboard = null;
+        const keyOf = token => `${scene.id}__${token.id}`;
+        const rowOf = token => remnantStore.has(`${scene.id}.${token.id}`);
+        const button = token => open()[0]?.element?.querySelector(`[data-drpg-trace-delete="${keyOf(token)}"]`) ?? null;
+        try {
+            const healthBefore = await healthOf();
+            for (const [name, extra] of [["SUITE E44-T10 a torn ticket", {}], ["SUITE E44-T10 a bolted plate", { reinforced: true }]]) {
+                const trace = await R.placeRemnant({ type: "prep", visibility: "evident", faint: false, tiedToCrime: false, scene, x: 60 + 40 * made.length, y: 60, note: "SUITE E44-T10", ...extra });
+                must(trace?.id, `"${name}" was not placed - this would measure nothing`);
+                made.push(trace);
+                await R.setRemnantPublic(trace, { name });
+            }
+            await settle();
+            const [plain, bolted] = made;
+            D.confirm = options => { asked.push([options?.window?.title ?? null, (typeof options?.content === "string" ? options.content : options?.content?.textContent ?? "").includes("SUITE E44-T10 a ")]); return Promise.resolve(answer); };
+            ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return ownWarn?.value?.call(ui.notifications, message, ...rest); };
+            dashboard = Promise.resolve().then(() => I.openInvestigationDashboard()).catch(() => null);
+            /* Every chapter: the tab opens on the chapter running when it holds a trace (`readTracesAs`), and these two,
+               placed by hand with no chapter, are then filtered out (the harness world's own trace is the chapter's). */
+            await until(() => Boolean(open()[0]?.element?.querySelector('[data-drpg-filter="chapter"]')), 6000);
+            const chapter = open()[0]?.element?.querySelector('[data-drpg-filter="chapter"]');
+            if (chapter && chapter.value !== "") { chapter.value = ""; chapter.dispatchEvent(new Event("change", { bubbles: true })); }
+            await until(() => Boolean(button(plain)), 6000);
+            must(button(plain) && button(bolted), "the dashboard drew no Delete for the suite's two traces - is its Remnants tab filtered?");
+            const press = async (token, yes, gone) => {
+                answer = yes;
+                // A row already gone is read as such, never pressed (a Delete that asked nothing took it at the last press).
+                if (!button(token)) return { unpressed: true, token: scene.tokens.has(token.id), row: rowOf(token), drawn: false };
+                button(token).click();
+                if (gone) await until(() => !scene.tokens.has(token.id) && !button(token), 6000);
+                else await until(() => asked.length > 0, 3000);
+                await settle();
+                return { token: scene.tokens.has(token.id), row: rowOf(token), drawn: Boolean(button(token)) };
+            };
+            read.no = { ...(await press(plain, false, false)), asked: asked.splice(0) };
+            read.yes = { ...(await press(plain, true, true)), asked: asked.splice(0) };
+            read.bolted = { ...(await press(bolted, true, false)), asked: asked.splice(0),
+                warned: warned.includes(game.i18n.localize("DRPG.Remnant.reinforced")) };
+            const healthAfter = await healthOf();
+            read.health = stableJson(healthAfter) === stableJson(healthBefore) ? "as before" : { before: healthBefore, after: healthAfter };
+        } finally {
+            if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (ownWarn) Object.defineProperty(ui.notifications, "warn", ownWarn); else delete ui.notifications.warn;
+            for (const a of open()) await a.close();
+            await dashboard;
+            for (const trace of made) {
+                if (scene.tokens.has(trace.id)) {
+                    await R.dropRemnantSecret(trace);
+                    await scene.deleteEmbeddedDocuments("Token", [trace.id]);
+                } else await R.dropRemnantSecret(trace);
+            }
+            await settle();
+        }
+        const title = game.i18n.localize("DRPG.Investigation.deleteTraceTitle");
+        equal(stableJson(read), stableJson({
+            no: { token: true, row: true, drawn: true, asked: [[title, true]] },
+            yes: { token: false, row: false, drawn: false, asked: [[title, true]] },
+            bolted: { token: true, row: true, drawn: true, asked: [[title, true]], warned: true },
+            health: "as before"
+        }), "[answered No: the token, the row, the drawn button, what was asked; answered Yes: the same; the reinforced one answered Yes: the same "
+            + "and the refusal told; the health check's traces with no row and rows with no trace against before]");
+    }],
+    ["E44-T20 - a project's description, end to end (E44 C9; the owner's ask of 04.11.2026, Q-C9-1..3): a student's proposal carries what its Description says on the card's Approve; the GM's window opens on it, and what the GM writes there is the project's; the token's card, open, draws it under the bar and follows an edit in the project's window without being opened again; a project with none, as one made before 1.2.99, draws none on its card and the manager's table saves it without a word about one; its edit window, drawn, refuses Save at the field while the description is empty or past 1000 characters and stays open, and Close then leaves it with none", async () => {
+        /*
+         * E44 C9, 04.11.2026. On this primary GM's browser, as the C11d test drives a proposal: the student stood alone in
+         * a room (`standAlone`), Work on Project's Start New answered with a Description, the request window with a
+         * sentence; the card's Approve pressed as the chat log wires it (messenger-app.mjs `wireCallActions`, scenario
+         * 76's way); the GM's create window answered with the GM's own words, read first for what it opened on; the token's
+         * card drawn by the module's render hook into a stand-in sheet (no Daggerheart sheet renders headless, as the trace
+         * card's test hands one), then the project's edit window - the one the manager's pen opens - answered with a third
+         * text, and the open card read again after the redraw's delay. A project made by createProject with no
+         * description stands in for one made before 1.2.99: its card, the manager's Save answered on its own content
+         * (`answerWindows`; the notices said read), and its edit window drawn (`__dialogWindows`) and pressed: Save with
+         * the field empty, Save with 1001 characters, Close. What a player's own browser draws - a secret project's card on
+         * a player in on it and on one who is not - is 30-security's; at a table, LIVE-E44-20. Red at c24da07f: the card's
+         * Approve carries no description and the windows draw no field.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the proposer alone");
+        needs(env.dialogs(), "the edit window's refusal is read off its drawn window");
+        const [actor] = cast(1);
+        const { performAction } = await import("./action-rolls.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const P = await import("./projects.mjs");
+        const M = await import("./projects-map.mjs");
+        const { ACTIONS, TIMING } = await import("./config.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this GM is not the primary, whose browser keeps the project tokens - run the suite on the primary GM");
+        const PLAYER = "SUITE E44-T20 a false back\nin the bookcase";
+        const GM = "SUITE E44-T20 a false back in the bookcase,\ndeep enough for a notebook";
+        const EDIT = "SUITE E44-T20 the false back, painted over";
+        const L = key => game.i18n.localize(key);
+        const titles = { start: L("DRPG.Project.startNew"), create: L("DRPG.Project.createTitle"),
+            edit: L("DRPG.Project.editTitle"), manage: L("DRPG.Project.manageTitle") };
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const before = new Set(P.allProjects().map(p => p.id));
+        const read = {};
+        const told = [];
+        const own = { warn: ui.notifications.warn, info: ui.notifications.info };
+        ui.notifications.warn = (text, ...rest) => { told.push(["warn", String(text)]); return own.warn.call(ui.notifications, text, ...rest); };
+        ui.notifications.info = (text, ...rest) => { told.push(["info", String(text)]); return own.info.call(ui.notifications, text, ...rest); };
+        let stood = null, made = null, older = null, windows = null, sheet = null, drawnEdit = null;
+        const gmAnswer = (description, room) => ({ name: "SUITE E44-T20 the bookcase", target: 4, room, trait: "hand", murder: false, condition: "",
+            trigger: { kind: "manual", targetId: null, afterDark: false, notBuilder: false }, secret: false, viewers: [], was: [], img: null, glyph: null,
+            passageTo: null, passage: null, description });
+        const openCard = id => {
+            const element = document.createElement("div");
+            element.innerHTML = `<div class="window-content"></div>`;
+            document.body.append(element);
+            const token = M.projectTokenOf(id);
+            const app = { document: { getFlag: (scope, key) => (key === M.PROJECT_TOKEN_FLAG ? id : undefined), isToken: true, token }, element, setPosition: () => {} };
+            Hooks.callAll("renderActorSheetV2", app, element);
+            return { app, element, token: Boolean(token),
+                words: () => element.querySelector(".drpg-project-card-description")?.textContent?.trim() ?? null,
+                close: () => { Hooks.callAll("closeApplicationV2", app); element.remove(); } };
+        };
+        try {
+            stood = await standAlone(actor);
+            windows = answerWindows((cfg, root) => {
+                const title = cfg?.window?.title ?? "";
+                // The Projects action's window and the manager share a title: told apart by the action's variants.
+                const start = root.querySelector('input[name="variant"][value="start"]');
+                if (title === ACTIONS.project.label && start) {
+                    start.checked = true;
+                    return press(cfg, root);
+                }
+                // The request window bears the same title as the form (DRPG.Project.proposalTitle): told apart by its field.
+                if (root.querySelector('textarea[name="request"]')) return { text: "SUITE E44-T20 may I build it?" };
+                if (title === titles.start) {
+                    read.form = root.querySelectorAll('textarea[name="description"]').length;
+                    return { name: "SUITE E44-T20 the bookcase", target: 4, room: stood.room, trait: "hand", murder: false, condition: "",
+                        preset: null, to: null, seal: null, unbreach: null, mend: null, description: PLAYER };
+                }
+                if (title === titles.create) {
+                    read.opened = root.querySelector('textarea[name="description"]')?.value ?? null;
+                    return gmAnswer(GM, stood.room);
+                }
+                if (title === titles.edit) {
+                    read.editOpened = root.querySelector('textarea[name="description"]')?.value ?? null;
+                    return gmAnswer(EDIT, stood.room);
+                }
+                if (title === titles.manage) return press(cfg, root);
+                return null;
+            });
+            await performAction(actor, "project", { free: true });
+            const cardOf = () => game.messages.contents.find(m => !had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="approveProject"')) ?? null;
+            await until(() => Boolean(cardOf()), 6000);
+            const card = cardOf();
+            must(card, `the proposal posted no card with Approve - this would measure nothing (windows ${stableJson(windows.asked.map(w => w.title))}, told ${stableJson(told)})`);
+            const body = document.createElement("div");
+            body.innerHTML = String(contentOf(card));
+            read.card = body.querySelector('[data-drpg-call="approveProject"]')?.dataset?.description ?? null;
+            wireCallActions(body, card);
+            body.querySelector('[data-drpg-call="approveProject"]')?.click();
+            const madeOf = () => P.allProjects().find(p => !before.has(p.id)) ?? null;
+            await until(() => Boolean(madeOf()), 8000);
+            const project = madeOf();
+            must(project, "the approval made no project - this would measure nothing");
+            made = project.id;
+            read.made = project.description;
+            await settle();
+            must(M.projectTokenOf(made), "the project's token was not placed - this would measure nothing");
+            sheet = openCard(made);
+            read.drawn = sheet.words();
+            read.under = Boolean(sheet.element.querySelector(".drpg-project-card-bar + .drpg-project-card-description"));
+            await UI.openProjectDialog({ project: P.allProjects().find(p => p.id === made) });
+            await until(() => sheet.words() === EDIT, Math.max(3000, (TIMING.coalesceMs ?? 0) * 10));
+            read.followed = sheet.words();
+            read.stored = P.metaFor(made).description ?? null;
+
+            older = (await P.createProject({ name: "SUITE E44-T20 an older one", target: 3, room: stood.room }))?.id ?? null;
+            must(older, "could not make the project with no description - this would measure nothing");
+            await settle();
+            const olderCard = openCard(older);
+            read.olderCard = [olderCard.token, olderCard.words(), Boolean(olderCard.element.querySelector(".drpg-project-card"))];
+            olderCard.close();
+            told.length = 0;
+            await UI.openProjectManager();
+            read.manager = told.filter(([, text]) => /description/i.test(text) || text === L("DRPG.Project.saved")
+                || text === L("DRPG.Project.descriptionNeeded"));
+            windows.restore();
+            windows = null;
+
+            const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected
+                && a.options?.window?.title === titles.edit) ?? null;
+            drawnEdit = UI.openProjectDialog({ project: P.allProjects().find(p => p.id === older) });
+            must(await until(() => Boolean(drawn()), 6000), "the edit window was not drawn - this would measure nothing");
+            const el = drawn().element;
+            const field = el.querySelector('textarea[name="description"]');
+            const saveBy = text => {
+                if (!field) return;
+                field.value = text;
+                field.dispatchEvent(new Event("input", { bubbles: true }));
+                el.querySelector('footer button[data-action="save"]')?.click();
+            };
+            const state = () => ({ open: Boolean(drawn()), said: el.querySelector(".drpg-field-error")?.textContent ?? null,
+                invalid: field?.getAttribute("aria-invalid") ?? null });
+            read.editField = field?.value ?? null;
+            saveBy("");
+            await settle();
+            read.empty = state();
+            saveBy("c".repeat(1001));
+            await settle();
+            read.long = state();
+            el.querySelector('footer button[data-action="cancel"]')?.click();
+            read.closed = await Promise.race([drawnEdit, wait(3000).then(() => "unanswered")]);
+            read.olderAfter = P.metaFor(older).description ?? null;
+        } finally {
+            ui.notifications.warn = own.warn;
+            ui.notifications.info = own.info;
+            windows?.restore();
+            sheet?.close();
+            if (drawnEdit) {
+                const left = [...foundry.applications.instances.values()].filter(a => a?.rendered && a.options?.window?.title === titles.edit);
+                for (const a of left) await a.close();
+                await Promise.race([drawnEdit, wait(3000)]);
+            }
+            for (const id of [made, older]) if (id && P.allProjects().find(p => p.id === id)) await P.deleteProject(id).catch(() => {});
+            for (const m of game.messages.contents) if (!had.has(m.id)) await m.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            await stood?.back();
+            await settle();
+        }
+        const needed = L("DRPG.Project.descriptionNeeded");
+        equal(stableJson(read), stableJson({
+            form: 1, card: PLAYER, opened: PLAYER, made: GM, drawn: GM.replace("\n", ""), under: true,
+            editOpened: GM, followed: EDIT, stored: EDIT,
+            olderCard: [true, null, true], manager: [["info", L("DRPG.Project.saved")]],
+            editField: "", empty: { open: true, said: needed, invalid: "true" },
+            long: { open: true, said: game.i18n.format("DRPG.Project.descriptionTooLong", { max: 1000, n: 1001 }), invalid: "true" },
+            closed: null, olderAfter: null
+        }), "[the proposal's Description fields; the card's Approve's description; what the GM's window opened on; the project's; the open card's "
+            + "words and whether they stand under the bar; what the edit window opened on; the open card after the edit; the stored one; the older "
+            + "project's card (its token, its words, a card at all); the manager's Save's notices; its edit window drawn: the field, Save with it "
+            + "empty and with 1001 characters (open, the words under the field, aria-invalid), Close's answer; its description after]");
     }],
     ...GRID
 ];

@@ -15,7 +15,9 @@
  * what the tray draws on every render into projects-tray.mjs.
  */
 
-import { PROJECT_SCALE, PROJECT_GLYPHS, isProjectGlyph, TRAITS, TRAP_TRIGGERS, TRAP_MODIFIERS } from "./config.mjs";
+import {
+    PROJECT_SCALE, PROJECT_GLYPHS, isProjectGlyph, TRAITS, TRAP_TRIGGERS, TRAP_MODIFIERS, PROJECT_DESCRIPTION_MAX, projectDescriptionProblem
+} from "./config.mjs";
 import {
     allProjects, metaFor, roomOf, isIndirectMurder, isSecret, shareWith, unshareWith,
     viewersOf, secretsOf, createProject, deleteProject,
@@ -23,9 +25,10 @@ import {
 } from "./projects.mjs";
 import { placeRoomNames } from "./rooms.mjs";
 import { dialogContent, error, markFired, markLanguage, serialWrite, tableDialog, wirePortraitPickers } from "./utils.mjs";
+import { emptyOption } from "./ui-kit.mjs";
 // The projects' queue key, from the file that keeps it (projects.mjs does not re-export it), as traps.mjs and fog.mjs read it.
 import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
-import { alreadyOpen, keepFresh } from "./live.mjs";
+import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
 import {
     leaveIconOnly, localiseRawKeys, hideUndiscovered, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl
 } from "./projects-tray.mjs";
@@ -476,7 +479,7 @@ export async function openProjectManager() {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-projects")) return null;
+    if (alreadyOpen("drpg-window-projects")) return RAISED;
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
@@ -618,15 +621,135 @@ function glyphGrid(current) {
  * offered "- player chooses -" until 1.2.66, and a roll on such a project let the
  * player pick. A project's roll - Work on it, or a Sabotage of it - takes the
  * project's statistic now, so a form has to name one. With none yet (a new project, or
- * one stored without) the placeholder is blank, disabled and selected: nothing is
+ * one stored without) the placeholder ("- pick a statistic -" since E44 C4b, a bare "-" before) is disabled and selected: nothing is
  * guessed for the writer, and the form's own check refuses it ("DRPG.Project.traitRequired").
  */
 export function projectTraitOptions(current = "") {
     return [
-        `<option value="" disabled${current ? "" : " selected"}>-</option>`,
+        emptyOption("DRPG.Project.pickTrait", { disabled: true, selected: !current }),
         ...Object.entries(TRAITS).map(([k, t]) =>
             `<option value="${k}"${k === current ? " selected" : ""}>${t.label}</option>`)
     ].join("");
+}
+
+/**
+ * A PROJECT'S DESCRIPTION FIELD (E44 C9, 04.11.2026; the owner's ask and Q-C9-3: required, at most
+ * PROJECT_DESCRIPTION_MAX characters). One textarea named `description`, in the markup of the window around it - the
+ * player's proposal (action-project.mjs `startProject`) and this file's `openProjectDialog`, neither on the kit yet
+ * (E21 moves them) - with no `maxlength`, which would cut a pasted text without a word: a description too long is
+ * refused instead (`guardDescription`), with its length.
+ */
+export function descriptionField(value = "") {
+    const esc = foundry.utils.escapeHTML;
+    return `<label>${game.i18n.localize("DRPG.Project.description")}
+                <textarea name="description" rows="4"
+                          placeholder="${esc(game.i18n.localize("DRPG.Project.descriptionPlaceholder"))}">${esc(value ?? "")}</textarea>
+                <small class="notes">${esc(game.i18n.format("DRPG.Project.descriptionNote", { max: PROJECT_DESCRIPTION_MAX }))}</small></label>`;
+}
+
+/** The words of a description's problem (config.mjs `projectDescriptionProblem`), for the field and for a toast. */
+export function descriptionRefusal(problem, text = "") {
+    return problem === "long"
+        ? game.i18n.format("DRPG.Project.descriptionTooLong", { max: PROJECT_DESCRIPTION_MAX, n: String(text ?? "").trim().length })
+        : game.i18n.localize("DRPG.Project.descriptionNeeded");
+}
+
+/**
+ * THE REFUSAL AT THE FIELD (E44 C9; Q-C9-3: "refused with words at the field"). Wired in a window's `render`, on the
+ * window's own element: a press of the button whose action is `action` (and a submit it sends - a browser's Enter in a
+ * field presses the first one) is stopped in the capture phase, before the window's own listeners hear it, while the
+ * description is empty or too long; the sentence then stands under the field (`drpg-field-error`, `role="alert"`, the
+ * field `aria-invalid` and pointing at it), the field takes the focus, and the window stays open with everything typed
+ * in it, as Item tables' name field does (tables-editor.mjs `nameFieldHtml`). The sentence goes once the text is right.
+ * Every other button - Close, Delete - goes through. `optional()` answers true where an empty one is allowed: the
+ * proposal of a preset, which arrives filled with its own line (`startProject`). A window whose answer is read without
+ * this guard - a console, the suite's answers - is refused by its caller after it closes (`projectDescriptionProblem`).
+ * Measured headless on the harness's windows (R1350, E44-T20); at a table, LIVE-E44-20.
+ */
+export function guardDescription(root, action, { optional = () => false } = {}) {
+    const field = root?.querySelector?.('textarea[name="description"]');
+    if (!field) return;
+    const id = `drpg-description-error-${foundry.utils.randomID(8)}`;
+    const problem = () => (optional() && !field.value.trim() ? null : projectDescriptionProblem(field.value));
+    const clear = () => {
+        root.querySelector(`#${id}`)?.remove();
+        field.removeAttribute("aria-invalid");
+        field.removeAttribute("aria-describedby");
+    };
+    const say = why => {
+        clear();
+        const line = document.createElement("p");
+        line.id = id;
+        line.className = "drpg-warning drpg-field-error";
+        line.setAttribute("role", "alert");
+        line.textContent = descriptionRefusal(why, field.value);
+        line.dataset.why = why;
+        (field.closest("label") ?? field).after(line);
+        field.setAttribute("aria-invalid", "true");
+        field.setAttribute("aria-describedby", id);
+        field.focus();
+    };
+    const pressed = button => button?.dataset?.action === action;
+    const stop = event => {
+        const why = problem();
+        if (!why) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        say(why);
+    };
+    root.addEventListener("click", event => {
+        if (pressed(event.target?.closest?.("button[data-action]"))) stop(event);
+    }, true);
+    root.addEventListener("submit", event => {
+        if (pressed(event.submitter)) stop(event);
+    }, true);
+    /* Once said, the sentence follows the text: gone once it is right, the other refusal's words when the text crosses
+       from one to the other - not at every key, which would read an alert out again at each one (the count a too long
+       one names is the one it had when it was said). */
+    field.addEventListener("input", () => {
+        const line = root.querySelector(`#${id}`);
+        if (!line) return;
+        const why = problem();
+        if (!why) clear();
+        else if (line.dataset.why !== why) {
+            line.textContent = descriptionRefusal(why, field.value);
+            line.dataset.why = why;
+        }
+    });
+}
+
+/**
+ * A PRESET'S DESCRIPTION NAMES NO ROOM (E44 fix FG1, 05.11.2026; the end review's S-B1, C-M1 and G-m5). C9 let a preset
+ * proposed with an empty field stand in with its summary line - "Secret Passage to {to}", "Seal the passage: {target}" -
+ * and that line named the room beyond the wall, or a passage's two rooms, into projectMeta's description, a world
+ * setting every browser holds; where a Secret Passage opens is exactly what projects-secrecy.mjs keeps in the GMs' half
+ * (`target`, `passage`), and world-secrets.mjs forbids in projectMeta by key. So a preset's description is its own label
+ * (`DRPG.Project.preset.<key>`: "Secret Passage", "Breach the Wall", "Seal the passage", "Close the breach", "Repair an
+ * item"), which names no room, passage or item; the summary that names them stays on the proposal's card alone.
+ */
+export function presetDescription(key) {
+    return key ? game.i18n.localize(`DRPG.Project.preset.${key}`) : "";
+}
+
+/**
+ * THE PRESET'S LINE IN THE FIELD AS SOON AS IT IS CHOSEN (E44 fix FG1; G-m5: "the presets arrive filled with their own
+ * summary line, editable" - the player saw nothing until the GM's window). Wired in the proposal's `render`, on the
+ * window's own element: a change of the Kind select (`preset`) writes that preset's description into the field while the
+ * field is untouched - empty, or still holding the line this wrote last - and the player's own words, once typed, stay
+ * through any later change; back to "A project of your own" an untouched field empties again. The `input` it sends lets
+ * `guardDescription`'s sentence follow. Measured on a form built in tier 1 (R1338).
+ */
+export function wirePresetDescription(root) {
+    const kind = root?.querySelector?.('select[name="preset"]');
+    const field = root?.querySelector?.('textarea[name="description"]');
+    if (!kind || !field) return;
+    let filled = "";
+    kind.addEventListener("change", () => {
+        if (field.value.trim() && field.value !== filled) return;
+        filled = presetDescription(kind.value);
+        field.value = filled;
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
 }
 
 /**
@@ -740,6 +863,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                            value="${foundry.utils.escapeHTML(start?.name ?? "")}"
                            placeholder="${game.i18n.localize("DRPG.Project.namePlaceholder")}" /></label>
             </div>
+            ${descriptionField(start?.description ?? "")}
             ${glyphGrid(start?.glyph ?? null)}
             <label>${game.i18n.localize("DRPG.Project.scale")}
                 <select name="target">${offScale}${scaleOptions}</select></label>
@@ -757,7 +881,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                 <small class="notes">${game.i18n.localize("DRPG.Trap.watchNote")}</small></label>
             <label data-drpg-when-trigger="project sabotage">${
                 game.i18n.localize("DRPG.Trap.whichProject")}
-                <select name="triggerTarget"><option value="">-</option>${targetOptions}</select></label>
+                <select name="triggerTarget">${emptyOption("DRPG.Trap.noProject")}${targetOptions}</select></label>
             <label class="drpg-checkbox">
                 <input type="checkbox" name="afterDark"${
                     startTrigger?.afterDark ? " checked" : ""} /> ${
@@ -828,7 +952,9 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                     glyph: f.glyph?.value || null,
                     // A Secret Passage's neighbour and the stretch its pick made (E15 part 2 C2).
                     passageTo: f.passageTo?.value || null,
-                    passage: f.passage?.value || null
+                    passage: f.passage?.value || null,
+                    // As typed; judged below (E44 C9).
+                    description: d.element.querySelector('[name="description"]')?.value ?? ""
                 };
             }
         }
@@ -847,6 +973,8 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         // it from a string, so the picker has to be wired against the dialog's
         // real element once it exists, not against the div built above.
         render: (event, dialog) => {
+            // Save refused at the field while the description is empty or too long (E44 C9); Delete and Close go.
+            guardDescription(dialog.element, "save");
             wirePortraitPickers(dialog.element, { defaultImg });
             if (editing && !isSecret(project.id)) wireViewerLock(dialog.element);
             if (passageOf?.offer) wirePassagePick(dialog, passageOf.offer, { over: passageOf.preset === "breach" });
@@ -881,6 +1009,13 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         ui.notifications.warn(game.i18n.localize("DRPG.Project.traitRequired"));
         return null;
     }
+    /* REQUIRED IN THIS WINDOW, CREATE AND EDIT (E44 C9; Q-C9-3): an older project with none is asked for one here, the
+       first time a GM opens its edit window; the guard said so at the field, and an answer read past it is refused. */
+    const descriptionWhy = projectDescriptionProblem(result.description);
+    if (descriptionWhy) {
+        ui.notifications.warn(descriptionRefusal(descriptionWhy, result.description));
+        return null;
+    }
 
     if (editing) {
         /*
@@ -909,6 +1044,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
             trait: result.trait,
             indirectMurder: result.murder,
             condition: result.condition,
+            description: result.description,
             // ARMED STATE SURVIVES AN EDIT. A GM who opens a watching trap to
             // fix a typo in its name must not thereby take it off watch - and
             // must not re-arm one that has already spoken either, which is the
@@ -992,6 +1128,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         secret: result.secret || result.murder,
         img: result.img,
         glyph: result.glyph,
+        description: result.description,
         viewers: result.viewers ?? [],
         // Decided just above, together with the refusal that guards it: a murder
         // with neither a proposer nor a ticked player never gets this far.

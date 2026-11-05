@@ -81,7 +81,6 @@ import { registerCameraView } from "./camera-view.mjs";
 import { registerPopups, ensureNoticeTile } from "./popup.mjs";
 import { registerNoticeHistory } from "./notice-history.mjs";
 import { registerStacking } from "./stacking.mjs";
-import { registerNoCollapse } from "./no-collapse.mjs";
 import { registerNoScrollingText } from "./no-scrolling-text.mjs";
 import { registerCriticalRule } from "./critical.mjs";
 import { registerRollDraw, announceRollDraw, registerUnwitnessedRolls, askAboutUnwitnessed } from "./roll-draw.mjs";
@@ -261,7 +260,6 @@ Hooks.once("init", () => {
     // something the game is waiting on, so none of them may end up under the
     // sheet that launched them. See stacking.mjs.
     safely("window stacking", registerStacking);
-    safely("the double-click collapse block", registerNoCollapse);
     // Patches a canvas prototype, so it has to be in place before the first
     // canvas is drawn - and it holds no per-canvas state, so `init` is early
     // enough and every later scene inherits it.

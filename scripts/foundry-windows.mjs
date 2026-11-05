@@ -112,14 +112,16 @@
  * Foundry's columns (`inFoundryWindow`), the frames are no block and stand outside `#interface`, whose changes are
  * what the curtain watches. So opening, closing and the sidebar's own growing recut nothing (R514 in a browser).
  *
- * Imports config.mjs, settings.mjs and utils.mjs alone: glass.mjs and narrow.mjs import `inFoundryWindow` from here,
- * and none of those three reaches them (R161 counts static imports). The corner's selector, glass.mjs's LAUNCHERS, is
+ * Imports config.mjs, settings.mjs, utils.mjs and ui-kit.mjs (its launcher and frame, E44 C6; it imports utils.mjs and
+ * live.mjs) alone: glass.mjs and narrow.mjs import `inFoundryWindow` from here, and none of those reaches them (R161
+ * counts static imports). The corner's selector, glass.mjs's LAUNCHERS, is
  * read through a dynamic import once the windows are built, since a static one would close that cycle.
  */
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { warn, markLanguage } from "./utils.mjs";
+import { warn } from "./utils.mjs";
+import { launcher, frame as kitFrame } from "./ui-kit.mjs";
 
 const FRAME_CLASS = "drpg-foundry-window";
 const BODY_CLASS = "drpg-foundry-windows";
@@ -214,34 +216,13 @@ export function askTokensLayer(controls, user, now = Date.now()) {
 
 function buildFrame(row) {
     if (document.getElementById(row.id)) return;
-    const title = game.i18n.localize(row.title);
-    const frame = document.createElement("section");
-    frame.id = row.id;
-    frame.className = FRAME_CLASS;
-    frame.dataset.window = row.key;
-    frame.setAttribute("role", "region");
-    frame.setAttribute("aria-label", title);
-    const head = document.createElement("header");
-    head.className = "drpg-foundry-window-header";
-    /* The page's language on the frame's own header - its title and close button (E66 fix r1 F1, STATUS Open 19) - and
-       not on the frame: its body holds Foundry's own sidebar or scene controls, whose words are in Foundry's language. */
-    markLanguage(head);
-    const name = document.createElement("h2");
-    name.className = "drpg-foundry-window-title";
-    name.textContent = title;
-    const close = document.createElement("button");
-    close.type = "button";
-    close.className = "drpg-foundry-window-close";
-    close.setAttribute("aria-label", game.i18n.localize("DRPG.FoundryTools.close"));
-    const mark = document.createElement("i");
-    mark.className = "fa-solid fa-xmark";
-    mark.setAttribute("inert", "");
-    close.append(mark);
+    /* The kit's frame (E44 C6): its header, title and close button, and the body Foundry's node goes into. The page's
+       language on the frame's own header - its title and close button (E66 fix r1 F1, STATUS Open 19) - and not on the
+       frame: its body holds Foundry's own sidebar or scene controls, whose words are in Foundry's language. */
+    const { frame, head, close } = kitFrame({ id: row.id, title: game.i18n.localize(row.title), closeLabel: game.i18n.localize("DRPG.FoundryTools.close"),
+        data: { window: row.key }, classes: { frame: FRAME_CLASS, head: "drpg-foundry-window-header", title: "drpg-foundry-window-title",
+            close: "drpg-foundry-window-close", body: "drpg-foundry-window-body" } });
     close.addEventListener("click", () => setFoundryWindow(row.key, false));
-    head.append(name, close);
-    const body = document.createElement("div");
-    body.className = "drpg-foundry-window-body";
-    frame.append(head, body);
     frame.toggleAttribute("hidden", true);
     frame.toggleAttribute("inert", true);
     document.body.append(frame);
@@ -408,19 +389,10 @@ function onEscape(event) {
 /** The corner's Foundry tools button, once (see THE LAUNCHER above). */
 function buildLauncher() {
     if (document.getElementById(LAUNCHER_ID)) return;
-    const label = game.i18n.localize("DRPG.FoundryTools.toggle");
-    const btn = document.createElement("button");
-    btn.id = LAUNCHER_ID;
-    // Its language, the page's (E66 fix r1 F1; C1's `lang` on the module's containers, STATUS Open 3 and 19).
-    markLanguage(btn);
-    btn.type = "button";
-    btn.dataset.drpgCluster = "";
-    btn.setAttribute("aria-label", label);
-    btn.dataset.tooltip = label;
-    btn.setAttribute("aria-pressed", "false");
-    const face = document.createElement("i");
-    face.setAttribute("inert", "");
-    btn.append(face);
+    /* The kit's launcher (E44 C6): one of the corner's cluster, pressed while a window is open, in the page's language
+       (E66 fix r1 F1). Its face is an `i` with no class and no `drpg-` class stands on it or above it: pixel-icons.css
+       paints Font Awesome names only, under any such ancestor (THE LAUNCHER above; R512). */
+    const btn = launcher({ id: LAUNCHER_ID, cluster: true, label: game.i18n.localize("DRPG.FoundryTools.toggle"), pressed: false, icon: "", lang: true });
     btn.addEventListener("click", () => toggleFoundryTools());
     document.body.append(btn);
 }

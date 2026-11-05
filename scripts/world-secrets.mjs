@@ -65,7 +65,11 @@ export const WORLD_SECRET_RULES = Object.freeze({
     settings: Object.freeze({
         projectMeta: Object.freeze({
             fields: Object.freeze(["killerId", "by", "condition", "trigger", "saboteur", "sabotageAsk", "passage", "target", "foundBy", "proposerTold"]),
-            since: "E05 C1", why: "an indirect murder's killer, builder, condition and trigger (S09-05, D3); who sabotaged a project, a user id (S1-m1, E05's fix round), and the request it came under (E18 C7); where a Secret Passage will open and who found its project by Observe (E15 part 2 C2); whether a public project's proposer was told, a fact about who proposed it (H84 fix G3)"
+            since: "E05 C1", why: "an indirect murder's killer, builder, condition and trigger (S09-05, D3); who sabotaged a project, a user id (S1-m1, E05's fix round), and the request it came under (E18 C7); where a Secret Passage will open and who found its project by Observe (E15 part 2 C2); whether a public project's proposer was told, a fact about who proposed it (H84 fix G3)",
+            /* E44 fix FG6 (05.11.2026): what a row may not hold while the project is secret - its `secret` true -, the GMs'
+               then (projects-secrecy.mjs PROJECT_SECRET_WHILE_SECRET); a public project's description stands in its row. */
+            whileSecret: Object.freeze({ fields: Object.freeze(["description"]), since: "E44 fix FG6",
+                why: "a secret project's description, in its builder's or a GM's words - an indirect murder's plan among them (the end review's S-M1)" })
         }),
         // The key before 1.2.64 (settings.mjs `legacyPendingMurders`); the declarations are a GM store.
         pendingMurders: Object.freeze({
@@ -305,6 +309,15 @@ export function findWorldSecrets(snapshot, { ids = [], rules = WORLD_SECRET_RULE
             const rule = ownFields.includes(k) ? own : rules.everySetting;
             out.push({ kind: "field", doc: "setting", id: key, path: p, rule: `${rule.why} (${rule.since})` });
         });
+        // A rule of the rows of a secret project alone (E44 fix FG6): `whileSecret`, read in each top-level row whose `secret` is true.
+        if (own?.whileSecret && isObject(value)) {
+            for (const [id, row] of Object.entries(value)) {
+                if (!isObject(row) || row.secret !== true) continue;
+                for (const f of own.whileSecret.fields) {
+                    if (Object.hasOwn(row, f)) out.push({ kind: "field", doc: "setting", id: key, path: `${id}.${f}`, rule: `${own.whileSecret.why} (${own.whileSecret.since})` });
+                }
+            }
+        }
         if (own?.empty && isObject(value) && Object.keys(value).length) {
             out.push({ kind: "empty", doc: "setting", id: key, path: "", rule: `${own.why} (${own.since})` });
         }

@@ -110,6 +110,20 @@ export const PROJECT_SECRET_FIELDS = Object.freeze(["killerId", "by", "condition
     "proposerTold"]);
 
 /**
+ * A SECRET PROJECT'S DESCRIPTION IS THE GMS' (E44 fix FG6, 05.11.2026; the end review's S-M1, the owner's option (a), the
+ * default while he has not answered). C9 kept every description in projectMeta beside the room, under its name's
+ * secrecy: hidden from the interface of a browser that did not know the project, read by any console all the same
+ * (C9's Open 91) - an indirect murder's plan in its builder's words, the kind of text `condition` was taken out of
+ * projectMeta for (E05 C1). A secret project's description is the GMs' store's now, and a public project's stays in
+ * projectMeta, where every browser that may come to know a public project already reads it. `setProjectMeta` puts each in
+ * its half and moves it when a change of the project's secrecy (a reveal, a reseal) comes with or without it; the
+ * players in on a secret one read it on a private card made for them (projects.mjs `tellDescription`). A list of its
+ * own beside PROJECT_SECRET_FIELDS: world-secrets.mjs holds those out of every projectMeta row (tier 0 holds the two
+ * lists equal), and this one out of a secret project's row alone (its rule's `whileSecret`, R190).
+ */
+export const PROJECT_SECRET_WHILE_SECRET = Object.freeze(["description"]);
+
+/**
  * The secret fields of one project: the store's row on a GM, `{}` on anybody else. A player's browser
  * holds no GM store, and nothing that runs there needs them: the tray, the pickers and the token
  * read projectMeta and the countdown, and every reader of them runs on a GM (the trap's arming
@@ -142,12 +156,32 @@ export async function patchTrigger(countdownId, parts) {
  */
 export async function setProjectMeta(countdownId, data) {
     if (!game.user.isGM) return null;
-    const secret = {}, open = {};
-    for (const [field, value] of Object.entries(data ?? {})) (PROJECT_SECRET_FIELDS.includes(field) ? secret : open)[field] = value;
+    const given = data ?? {}, secret = {}, open = {}, taken = [];
+    for (const [field, value] of Object.entries(given)) (PROJECT_SECRET_FIELDS.includes(field) ? secret : open)[field] = value;
+    /* PROJECT_SECRET_WHILE_SECRET (E44 fix FG6): to the GMs' half while the project is secret - as this write says it
+       (`secret`), else as it stands - and to projectMeta while it is public; a write that changes the secrecy takes the
+       one held across, and the half it leaves loses it (projectMeta's key gone, the GMs' row's set to null). */
+    const hidden = Object.hasOwn(given, "secret") ? Boolean(given.secret) : isSecret(countdownId);
+    for (const field of PROJECT_SECRET_WHILE_SECRET) {
+        if (!Object.hasOwn(given, field) && !Object.hasOwn(given, "secret")) continue;
+        const held = secretsOf(countdownId)[field];
+        const value = Object.hasOwn(given, field) ? given[field] : (held ?? metaFor(countdownId)[field]);
+        if (value === undefined || value === null) continue;
+        if (hidden) {
+            delete open[field];
+            secret[field] = value;
+            taken.push(field);
+        } else {
+            open[field] = value;
+            if (held !== undefined && held !== null) secret[field] = null;
+        }
+    }
     if (Object.keys(secret).length) await projectSecretStore.patch(countdownId, secret, { whole: true });
-    if (Object.keys(open).length) {
-        const all = { ...projectMeta(), [countdownId]: { ...metaFor(countdownId), ...open } };
-        await game.settings.set(MODULE_ID, SETTINGS.projectMeta, all);
+    const row = metaFor(countdownId);
+    if (Object.keys(open).length || taken.some(field => Object.hasOwn(row, field))) {
+        const next = { ...row, ...open };
+        for (const field of taken) delete next[field];
+        await game.settings.set(MODULE_ID, SETTINGS.projectMeta, { ...projectMeta(), [countdownId]: next });
     }
     return { ...metaFor(countdownId), ...secretsOf(countdownId) };
 }

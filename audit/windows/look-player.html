@@ -1,0 +1,41 @@
+<dialog id="app-cBH7pQwu" class="application dialog drpg-panel drpg-projects drpg-sound drpg-sound-player drpg-window-look drpg-table-window" open="" style="left: 232px; top: 384px;" data-drpg-scaled="1" lang="en" data-drpg-text-guard="1"><form class="dialog-form standard-form"><div class="dialog-content standard-form"><fieldset class="drpg-sound-volumes">
+        <legend>Volume</legend>
+        
+        <label class="drpg-sound-slider" data-drpg-slider="sound">
+            <span class="drpg-sound-slider-name">Sound</span>
+            <input type="range" min="0" max="100" step="1" name="vol:sound" value="100" data-drpg-named="own">
+            <output>100%</output>
+            <span class="notes">The sound effects - windows, chat, doors, the trial floor. Not the music.</span>
+        </label>
+        <label class="drpg-sound-slider" data-drpg-slider="music">
+            <span class="drpg-sound-slider-name">Music</span>
+            <input type="range" min="0" max="100" step="1" name="vol:music" value="100" data-drpg-named="own">
+            <output>100%</output>
+            <span class="notes">The playlists. Foundry's own playlist volume, not a second one beside it.</span>
+        </label>
+        <p class="notes">Both live in this browser only.</p>
+        <label class="drpg-sound-switch">
+            <input type="checkbox" name="messengerSound" checked="" data-drpg-named="own">
+            <span>Messenger sounds</span>
+            <span class="notes">The three sounds the messenger plays - sent, received, a question for the GM. Mutes them on this browser alone; nobody else is affected. This client only.</span>
+        </label>
+    </fieldset><fieldset class="drpg-look">
+        <legend>Look</legend>
+        <label><span>Language</span>
+            <span class="drpg-select"><select name="look:language" data-drpg-chrome="select" data-drpg-named="own"><option value="en" selected="">English</option><option value="pl">Polski</option></select></span></label>
+        <label><span>Theme</span>
+            <span class="drpg-select"><select name="look:theme" data-drpg-chrome="select" data-drpg-named="own"><option value="stainedGlass" selected="">Stained Glass</option><option value="monokumaLegacy">Monokuma Legacy</option></select></span></label>
+        
+        <label><span>Interface scale</span>
+            <input type="range" name="look:uiScale" min="0.8" max="1.4" step="0.05" value="1" data-drpg-named="own">
+            <output>100%</output></label>
+        <p class="notes" data-drpg-scale-note="">This screen (1024 x 768) is drawn at 70% of 1440p on its own; with the slider, 70%.</p>
+        <label><span>Glass pulse</span>
+            <input type="checkbox" name="look:glassPulse" checked="" data-drpg-named="own"></label><label><span>State name behind the clock</span>
+            <input type="checkbox" name="look:hudTicker" checked="" data-drpg-named="own"></label><label><span>Glass blurs the map</span>
+            <input type="checkbox" name="look:glassBlur" checked="" data-drpg-named="own"></label><label><span>Reduced motion</span>
+            <input type="checkbox" name="look:reducedMotion" data-drpg-named="own"></label>
+        <label><span>High contrast</span>
+            <input type="checkbox" name="look:highContrast" data-drpg-named="own"></label>
+        <p class="notes">Everything in this window is this browser's own. Nobody else sees or hears the difference.</p>
+    </fieldset></div><footer class="form-footer"><button type="submit" data-action="close" data-drpg-named="own">Close</button></footer></form></dialog>

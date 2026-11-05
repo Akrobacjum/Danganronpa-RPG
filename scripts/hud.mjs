@@ -29,6 +29,7 @@ import { overflowCrossings } from "./overflow.mjs";
 import { getClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay } from "./clock.mjs";
 import { play, TURN, ARRIVE, LEAVE } from "./motion.mjs";
 import { error, debug, tickerRuns, markLanguage, plural } from "./utils.mjs";
+import { launcher } from "./ui-kit.mjs";
 import { isSyncedSetting } from "./sync.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
@@ -1370,21 +1371,19 @@ export function objectionControl(actor = viewerActor(), given = {}) {
     const key = [actor.id, outside ? "outside" : "trial", held, objectionRaising].join("|");
     if (given.unless && given.unless === key) return false;
     const name = game.i18n.localize("DRPG.Trial.objection");
-    const button = document.createElement("button");
-    button.type = "button";
     /* THE TILE'S HEXAGON (E70 C11): the voice tile's controls are the corner's 30 px mini buttons with a pixel glyph
-       (voice-tile.mjs `miniButton`; 'hand' is 'palm' in pixel-icons.py's map), and Foundry's tooltip there is
-       `data-tooltip-text`, as the tile's other two set it. The row keeps the Font Awesome hand it has had since E79. */
-    button.className = tile ? "drpg-launch-mini drpg-voice-objection" : "drpg-hud-button drpg-hud-objection";
+       (the kit's mini launcher since E44 C6, as voice-tile.mjs `miniButton`'s; 'hand' is 'palm' in pixel-icons.py's map),
+       and Foundry's tooltip there is `data-tooltip-text`, as the tile's other two set it. The row keeps the Font Awesome
+       hand it has had since E79. */
+    let button;
+    if (tile) button = launcher({ mini: true, className: "drpg-voice-objection", glyph: "palm" });
+    else {
+        button = document.createElement("button");
+        button.type = "button";
+        button.className = "drpg-hud-button drpg-hud-objection";
+        button.innerHTML = `<i class="fa-solid fa-hand" inert></i>`;
+    }
     const tipKey = tile ? "tooltipText" : "tooltip";
-    if (tile) {
-        const glyph = document.createElement("i");
-        glyph.className = "drpg-pxi";
-        glyph.style.setProperty("--drpg-px-mask", "var(--drpg-px-palm)");
-        glyph.setAttribute("aria-hidden", "true");
-        glyph.inert = true;
-        button.append(glyph);
-    } else button.innerHTML = `<i class="fa-solid fa-hand" inert></i>`;
     button.dataset[tipKey] = outside ?? name;
     button.setAttribute("aria-label", outside ? `${name} ${outside}` : name);
     if (held) button.setAttribute("aria-disabled", "true");

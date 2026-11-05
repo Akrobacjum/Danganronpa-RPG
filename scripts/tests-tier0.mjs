@@ -17,7 +17,8 @@ import {
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
-    TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists
+    TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists, cssDeadClasses, cssLintCounts, cssBudgetProblems, CSS_DETECTORS,
+    cssKitSheetProblems
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -474,71 +475,276 @@ const REGRESSIONS = [
 
     ["R2 - no styling rule in the sheet has lost its emitter", async () => {
         /*
-         * DEAD CSS IS INVISIBLE BY CONSTRUCTION. `.drpg-tamper-cover` was
-         * written in E12 and replaced by an attribute a day later; the rule
-         * stayed, and nothing about the module's behaviour would ever have said
-         * so. Multiply that by an update this size and the sheet becomes a place
-         * where you cannot tell which half of a selector is load-bearing.
-         *
-         * ONE DIRECTION, NOT TWO, AND THE MEASUREMENT IS WHY. The other
-         * direction - "every class named in a script has a rule" - was built,
-         * run, and dropped: 478 class names in the scripts, 133 of them with no
-         * rule. Narrowed to the 173 that appear inside a `class="…"` attribute
-         * it still reported 8, and all eight are structural: grid children that
-         * take their placement from the parent (`drpg-tables-left`), wrappers
-         * (`drpg-requirements`), live-region markers. A test that fails on those
-         * is a test demanding the markup be made LESS readable - the same trap
-         * as the E21 trigger test that demanded a worse implementation. So the
-         * direction that measured zero and has real teeth is the one that runs.
+         * THE DETECTOR IS tests-css.mjs's `deadClasses` SINCE E44 C1b, moved there unchanged with its comments - why
+         * one direction and not two, the families, the switches, the cards a world still keeps (STORED) - so `node
+         * tools/css-lint.mjs` (the ci layer's `node tools/check.mjs css`) and this test give one verdict. The sheets
+         * are module.json's, comments removed (moduleStyles); the sources the module's scripts, the suite's own out
+         * (otherSources), their comments removed. Read before and after the move on a copy with one rule planted
+         * (`.drpg-e44-planted` in narrow.css): "these rules are styling nothing: drpg-e44-planted" both times.
          */
         const css = await moduleStyles();
-        const inSheet = new Set([...css.matchAll(/\.(drpg-[a-z0-9-]+)/g)].map(m => m[1]));
-        ok(inSheet.size > 200, `only ${inSheet.size} rules were read - the stylesheets did not load`);
+        const sources = (await otherSources()).map(([file, raw]) => [file, stripComments(raw)]);
+        const { inSheet, orphans, stale } = cssDeadClasses(css, sources);
+        ok(inSheet > 200, `only ${inSheet} rules were read - the stylesheets did not load`);
+        ok(!stale.length, `these rows of STORED have no rule left in the sheet, or an emitter again: ${stale.join(", ")}`);
+        ok(!orphans.length, `these rules are styling nothing: ${orphans.join(", ")}`);
+    }],
 
-        const named = new Set();
-        const families = new Set();
-        for (const [, raw] of await otherSources()) {
-            for (const m of stripComments(raw).matchAll(/drpg-[a-z0-9-]*/g)) {
-                named.add(m[0]);
-                // `drpg-outcome-${tone}` NAMES A FAMILY, not a class, and the
-                // whole family is emitted by that one line. The trailing dash is
-                // what marks it - and `drpg-` on its own is excluded, because
-                // `drpg-${anything}` would otherwise vouch for every rule in the
-                // sheet and this test would pass by saying nothing.
-                if (/^drpg-[a-z0-9]+[a-z0-9-]*-$/.test(m[0])) families.add(m[0]);
+    ["R1311 - the served sheets hold to tools/css-budget.json: for every sheet of module.json each count of the CSS lint (`!important`, colour literals outside a token, rules written twice, dead classes) at most its budget, no stray comment end, a row for every sheet and no row for a sheet not served (E44 C1b; E44-02)", async () => {
+        /*
+         * E44 C1b, 04.11.2026 (audit S17-35). The same counts `node tools/check.mjs css` holds in Node
+         * (tests-css.mjs `lintCounts`, `budgetProblems`), read here off the files Foundry serves. At most, not
+         * equal: the Node part holds equality - below a budget is red there until the budget is lowered in the
+         * same commit - and a table may serve another checkout's sheets beside this file. Red before C1b: no
+         * tests-css.mjs and no budget; with one `!important` planted in a served sheet, "styles/narrow.css:
+         * important 15, above its budget 14".
+         */
+        needs(env.tools(), "tools/css-budget.json is read from the repository's tools/ (an installed module's zip leaves it out)");
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const sheets = [];
+        for (const file of manifest.styles ?? []) sheets.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)]);
+        must(sheets.length >= 6, `module.json serves ${sheets.length} sheet(s) - this test would hold nothing`);
+        let budget = null;
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/tools/css-budget.json`, { cache: "no-cache" });
+            if (res.ok) budget = await res.json();
+        } catch { /* the assertion below says it is missing */ }
+        ok(budget && typeof budget.sheets === "object", "tools/css-budget.json is missing or holds no sheets");
+        if (!budget) return;
+        const sources = (await otherSources()).map(([file, raw]) => [file, stripComments(raw)]);
+        const { counts, dead } = cssLintCounts(sheets, sources);
+        must(dead.inSheet > 200, `${dead.inSheet} classes read in the sheets - the dead-class count would read nothing`);
+        must(Object.values(counts).reduce((n, c) => n + c.important, 0) > 0, "no `!important` counted in any sheet - the counts read nothing");
+        equal(JSON.stringify(cssBudgetProblems(counts, budget, { atMost: true })), "[]", "a served sheet is above its budget, or the budget and module.json disagree");
+    }],
+
+    ["R1313 - CONTRIBUTING.md's \"The CSS contract\" names each detector of the CSS lint (importantCount, colourLiterals, strayCommentEnds, duplicateRules, deadClasses), the floor (21 px scaled under Stained Glass, 10 px a rung under Monokuma Legacy), the 390 px rule and the three commands - node tools/check.mjs css, node tools/check.mjs contrast, node audit/style-sweep.mjs (E44 C1c; E44-04)", async () => {
+        /*
+         * E44 C1c, 04.11.2026 (audit S17-35: no CSS contract). The section is what a contributor reads before
+         * touching styles/, so it names what the tools hold them to; a detector added to tests-css.mjs's DETECTORS
+         * with no line there fails here. Red before C1c: no such section.
+         */
+        needs(env.tools(), "CONTRIBUTING.md is read from the repository's root (an installed module's zip leaves it out, as it leaves tools/)");
+        let text = "";
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/CONTRIBUTING.md`, { cache: "no-cache" });
+            if (res.ok) text = await lfText(res);
+        } catch { /* the assertion below says it is missing */ }
+        ok(text.includes("\n## The CSS contract\n"), "CONTRIBUTING.md has no section \"## The CSS contract\"");
+        const section = bodyOf(text, "\n## The CSS contract\n", { until: "\n## " });
+        must(section.length > 500, `the CSS contract section is ${section.length} characters - this test would read nothing`);
+        const wanted = [...Object.keys(CSS_DETECTORS), "deadClasses", "21 px", "10 px", "390 px",
+            "node tools/check.mjs css", "node tools/check.mjs contrast", "node audit/style-sweep.mjs", "!important", "narrow.css"];
+        equal(JSON.stringify(wanted.filter(w => !section.includes(w))), "[]", "the CSS contract does not name these");
+    }],
+
+    ["R1322 - styles/components.css holds the kit's contract (E44 C3a; E44-11): no `!important` and no colour literal; Legacy's tokens on `body` and the glass's on `body.drpg-theme-stained-glass`, none the glass declares missing for Legacy and none read undeclared; every colour through a `--drpg-kit-*` token; no rule for the glass alone without one for both themes beside it; every font-size a kit size token floored at 11 px under Legacy and at `--drpg-sg-floor` under the glass; no width above 390 px; an uppercase box at line-height 1.3 and never overflow: hidden - and each of those faults, planted in a copy of the served file, read", async () => {
+        /*
+         * E44 C3a, 04.11.2026; the stage's acceptance E44-11 and the plan's verify ("no text under the floor"). The
+         * reader is tests-css.mjs `kitSheetProblems`, over the text the module serves (module.json's styles must name
+         * the file). A reader that finds nothing proves as little as a sheet with nothing wrong, so each fault is
+         * planted in a copy and must be read: a literal, an `!important`, the chip's Legacy ink taken out (the
+         * mutant c3a-m4's fault), a font size in pixels, a token under the floor, a width of 400 px, an uppercase box
+         * at the default line-height, a rule for the glass alone. Red before C3a: no components.css.
+         */
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const styles = manifest.styles ?? [];
+        ok(styles.includes("styles/components.css"), "module.json does not serve styles/components.css");
+        equal(JSON.stringify(styles.slice(-2)), JSON.stringify(["styles/components.css", "styles/narrow.css"]),
+            "[module.json's last two sheets] are not components.css then narrow.css (narrow.css loads last, the kit just before it)");
+        let text = "";
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/styles/components.css`, { cache: "no-cache" });
+            if (res.ok) text = await lfText(res);
+        } catch { /* the assertion below says it is missing */ }
+        must(text.length > 2000, `styles/components.css read ${text.length} characters - this test would read nothing`);
+        equal(JSON.stringify(cssKitSheetProblems(text)), "[]", "styles/components.css breaks the kit's contract");
+        const plant = (from, to) => {
+            must(text.includes(from), `the plant's anchor "${from.slice(0, 50)}" is not in components.css - point it at the file again`);
+            return text.replace(from, to);
+        };
+        const chipOff = "    --drpg-kit-btn-ink: var(--drpg-bone);\n";
+        const PLANTS = {
+            literal: [plant(".drpg-chip > b { font-variant-numeric: tabular-nums; margin-left: 4px; opacity: 0.8; }", ".drpg-chip > b { font-variant-numeric: tabular-nums; margin-left: 4px; opacity: 0.8; color: #ffffff; }"), "a colour literal outside a token"],
+            important: [plant(".drpg-chip > b { font-variant-numeric: tabular-nums; margin-left: 4px; opacity: 0.8; }", ".drpg-chip > b { font-variant-numeric: tabular-nums; margin-left: 4px; opacity: 0.8 !important; }"), "!important"],
+            legacyChip: [plant(chipOff, ""), "--drpg-kit-btn-ink is declared for the glass and not for Legacy"],
+            fontSize: [plant(".drpg-chip > b {", ".drpg-chip > b { font-size: 12px;"), "sets font-size without a kit size token"],
+            floor: [plant("--drpg-kit-chip-size: max(11px, var(--drpg-text-xs));", "--drpg-kit-chip-size: var(--drpg-text-xs);"), "under Legacy is not floored at 11 px"],
+            width: [plant(".drpg-chips { display: flex;", ".drpg-chips { width: 400px; display: flex;"), "above 390 px"],
+            uppercase: [plant(".drpg-chips { display: flex;", ".drpg-chips { text-transform: uppercase; display: flex;"), "under 1.3"],
+            /* in the kit's part of the sheet, above "The A8 surfaces" (E44 C6), whose rules keep today's look and are not a
+               kit component's: there a literal and a width are faults as anywhere in the sheet, a glass rule alone is not */
+            glassAlone: [plant(".drpg-chip > b {", "body.drpg-theme-stained-glass .drpg-chips > b { color: var(--drpg-kit-ink); }\n.drpg-chip > b {"), "written for the glass with no rule for Legacy"],
+            a8Literal: [plant("#drpg-foundry-tools i {", "#drpg-foundry-tools i { color: #ffffff;"), "a colour literal outside a token"],
+            a8Width: [plant("#drpg-foundry-tools i {", "#drpg-foundry-tools i { max-width: 420px;"), "above 390 px"]
+        };
+        const missed = Object.entries(PLANTS).filter(([, [sheet, words]]) => !cssKitSheetProblems(sheet).some(p => p.includes(words))).map(([name]) => name);
+        equal(JSON.stringify(missed), "[]", "the kit sheet's reader did not read these planted faults");
+    }],
+
+    ["R1324 - one tab system (E44 C4a; E44-14, S17-34): no module file writes the tab classes, attributes or wirings of 1.2.98 (`drpg-gmt-tabs`, `data-drpg-gmt-tab`, `drpg-gmt-section`, `drpg-dashboard-tabs`, `data-drpg-tab`, `data-drpg-panel`, `panelTabs`, `wirePanelTabs`, `wireDashboardTabs`, `drpg-messenger-tabs`, `data-drpg-book`) and no sheet styles them; utils.mjs exports none of the three; each of the ten windows of the tab census draws the kit's bar (`kitTabs` or `kitTabBar`) and wires it with `wireKitTabs`; live.mjs carries the kit's shape and no other", async () => {
+        /*
+         * E44 C4a, 04.11.2026; the stage's acceptance E44-14 and the plan's verify ("nie uzywa drpg-gmt-tabs,
+         * drpg-dashboard-tabs"). At 1.2.98 the module had four tab wirings in two markups: `panelTabs` + `wirePanelTabs`
+         * in six windows (gm-items.mjs x3, gm-team-dialog.mjs, sound-panel.mjs, tables-editor.mjs), `wireDashboardTabs`
+         * in two (investigation.mjs, room-setup.mjs), and the handbooks' and the messenger's own. Read from the source,
+         * comments stripped (a comment may name what was). Red before C4a: every one of the ten windows on the old names.
+         */
+        const OLD = [
+            ["drpg-gmt-tabs", /drpg-gmt-tabs/], ["data-drpg-gmt-tab", /data-drpg-gmt-tab|\bdrpgGmtTab\b/],
+            ["drpg-gmt-section", /drpg-gmt-section|\bdrpgGmtSection\b/], ["drpg-dashboard-tabs", /drpg-dashboard-tab/],
+            ["data-drpg-tab", /data-drpg-tab(?![\w-])|\.drpgTab\b(?!\w)/], ["data-drpg-panel", /data-drpg-panel(?![\w-])|\.drpgPanel\b/],
+            ["panelTabs", /\bpanelTabs\b/], ["wirePanelTabs", /\bwirePanelTabs\b/], ["wireDashboardTabs", /\bwireDashboardTabs\b/],
+            ["drpg-messenger-tabs", /drpg-messenger-tab(?!-dot)/], ["data-drpg-book", /data-drpg-book|\bdrpgBook\b/]
+        ];
+        const written = [];
+        let read = 0;
+        for (const [file, raw] of await otherSources()) {
+            read++;
+            const text = stripComments(raw);
+            for (const [name, re] of OLD) if (re.test(text)) written.push(`${file}: ${name}`);
+        }
+        must(read > 150, `${read} module file(s) read - this would measure too little`);
+        equal(JSON.stringify(written), "[]", "these module files still write a tab class, attribute or wiring of 1.2.98");
+
+        const U = await import("./utils.mjs");
+        equal(JSON.stringify(["panelTabs", "wirePanelTabs", "wireDashboardTabs"].filter(name => name in U)), "[]",
+            "utils.mjs still exports these tab helpers (it is no facade: an importer moves to the kit, code.md)");
+
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const styled = [];
+        for (const sheet of manifest.styles ?? []) {
+            const css = (await fetch(`/modules/${MODULE_ID}/${sheet}`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+            for (const [name, re] of OLD.slice(0, 6).concat([OLD[9], OLD[10]])) if (re.test(css)) styled.push(`${sheet}: ${name}`);
+            if (/drpg-handbook-tabs/.test(css)) styled.push(`${sheet}: drpg-handbook-tabs`);
+        }
+        must((manifest.styles ?? []).length >= 7, "module.json names fewer than seven sheets - this would read too little");
+        equal(JSON.stringify(styled), "[]", "these sheets still style a tab class or attribute of 1.2.98");
+
+        const WINDOWS = { "gm-items.mjs": 3, "gm-team-dialog.mjs": 1, "sound-panel.mjs": 1, "tables-editor.mjs": 1,
+            "investigation.mjs": 1, "room-setup.mjs": 1, "handbooks.mjs": 1, "messenger-app.mjs": 1 };
+        const off = [];
+        for (const [file, wanted] of Object.entries(WINDOWS)) {
+            const text = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+            const bars = (text.match(/\bkitTabs\(|\bkitTabBar\(/g) ?? []).length;
+            const wired = (text.match(/\bwireKitTabs\(/g) ?? []).length;
+            if (bars < wanted || wired < wanted) off.push(`${file}: ${bars} bar(s), ${wired} wiring(s) of ${wanted}`);
+        }
+        equal(JSON.stringify(off), "[]", "these windows of the tab census do not draw and wire the kit's bar [file: bars, wirings of the windows it holds]");
+
+        const live = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/live.mjs`).then(lfText));
+        ok(/data-drpg-tab-key/.test(live) && /aria-selected/.test(live) && /data-drpg-pane/.test(live),
+            "live.mjs does not carry the kit's tab across a rebuild (its bar's `data-drpg-tab-key` and `aria-selected`, its panes)");
+    }],
+
+    ["R1329 - one empty option (E44 C4b; E44-18, S12-49): no module file writes an `<option value=\"\">` whose text is a bare `-`; the seven choices that had one draw it with ui-kit.mjs `emptyOption`, each with its own key, which reads \"- word -\" in both languages; and `emptyOption` keeps a placeholder's `selected` and `disabled`", async () => {
+        /*
+         * E44 C4b, 04.11.2026; audit S12-49. The empty choice of a select was written three ways: a bare "-" (seven
+         * selects: gm-stores.mjs's cast, investigation.mjs's Key Remnant, mastermind.mjs's lair, projects-ui.mjs's
+         * statistic and trap target, room-setup.mjs's owner, sound-panel.mjs's music rows), a key of the shape
+         * "- word -" (DRPG.Assign.nobody and five more) and a sentence. A bare "-" says nothing to a screen reader and
+         * nothing to a player about what choosing it means. Read from the source, comments stripped, and from both
+         * language files. Red before C4b: the seven.
+         */
+        const BARE = /<option\s+value=""[^>]*>\s*-\s*<\/option>/g;
+        const bare = [];
+        let read = 0;
+        for (const [file, raw] of await otherSources()) {
+            read++;
+            const n = (stripComments(raw).match(BARE) ?? []).length;
+            if (n) bare.push(`${file}: ${n}`);
+        }
+        must(read > 150, `${read} module file(s) read - this would measure too little`);
+        const SITES = [["gm-stores.mjs", "DRPG.Case.castNobody"], ["investigation.mjs", "DRPG.Investigation.noRemnant"],
+            ["mastermind.mjs", "DRPG.Mastermind.noLair"], ["projects-ui.mjs", "DRPG.Project.pickTrait"], ["projects-ui.mjs", "DRPG.Trap.noProject"],
+            ["room-setup.mjs", "DRPG.Vault.noOwner"], ["sound-panel.mjs", "DRPG.Music.notSet"]];
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const at = (tree, key) => key.split(".").reduce((node, part) => node?.[part], tree);
+        const off = [];
+        for (const [file, key] of SITES) {
+            const text = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+            if (!text.includes(`emptyOption("${key}"`)) off.push(`${file}: no emptyOption("${key}")`);
+            for (const code of ["en", "pl"]) {
+                const words = at(lang[code], key);
+                if (typeof words !== "string" || !/^- \S.*\S -$/.test(words)) off.push(`${key} ${code}: ${JSON.stringify(words ?? null)}`);
             }
         }
-        /*
-         * A CLASS THAT ONLY EVER APPEARS IN A NEGATION IS A SWITCH, NOT A STYLE.
-         * `:not(.drpg-compact)` is an opt-out written for a window that wants
-         * the plain treatment; nothing wears it today and the rules it guards
-         * work exactly as intended because of that. Asking for an emitter would
-         * be asking somebody to add a class in order to keep a test quiet.
-         */
-        const switches = new Set();
-        for (const m of css.matchAll(/:not\(([^)]*)\)/g)) {
-            for (const c of m[1].matchAll(/\.(drpg-[a-z0-9-]+)/g)) switches.add(c[1]);
-        }
-        const styled = new Set([...css.replace(/:not\([^)]*\)/g, " ")
-            .matchAll(/\.(drpg-[a-z0-9-]+)/g)].map(m => m[1]));
-
-        /*
-         * A CLASS THE WORLD STILL CARRIES IS NOT DEAD. A chat card is stored as HTML, so a class
-         * a card once wore outlives its last emitter in every world that kept the card. Each row
-         * names the cards and the change that stopped writing it; a row whose rule is gone from
-         * the sheet is a stale row and fails (E77 fix r1-G4, round 1's O4: C2 removed the move
-         * card's description, and with it the only rule its old cards had).
-         */
-        const STORED = {
-            "drpg-room-prose": "the move card's description, written until E77 C2 (movement.mjs chargeForCrossing)"
+        // A key whose whole text is a bare "-" is the same empty choice by another road (DRPG.Remnant.tieOpen, the Traces
+        // tab's "Tied to crime" not decided, found by C4b's screenshots).
+        const dashKeys = [];
+        const walk = (node, at, code) => {
+            if (typeof node === "string") { if (node.trim() === "-") dashKeys.push(`${at} ${code}`); return; }
+            for (const [k, v] of Object.entries(node ?? {})) walk(v, at ? `${at}.${k}` : k, code);
         };
-        const stale = Object.keys(STORED).filter(c => !styled.has(c) || named.has(c));
-        ok(!stale.length, `these rows of STORED have no rule left in the sheet, or an emitter again: ${stale.join(", ")}`);
+        for (const code of ["en", "pl"]) walk(lang[code], "", code);
+        const K = await import("./ui-kit.mjs");
+        const select = document.createElement("select");
+        select.innerHTML = K.emptyOption("DRPG.Project.pickTrait", { selected: true, disabled: true }) + K.emptyOption("DRPG.Trap.noProject")
+            + `<option value="x">x</option>`;
+        const [first, second] = select.options;
+        equal(JSON.stringify({ bare, off, dashKeys, kit: [first.value, first.selected, first.disabled, first.textContent, second.disabled, second.hasAttribute("selected")] }), JSON.stringify({
+            bare: [], off: [], dashKeys: [], kit: ["", true, true, game.i18n.localize("DRPG.Project.pickTrait"), false, false]
+        }), "[the module files with a bare \"-\" option; the seven choices without their emptyOption key or with words not \"- word -\" (by language); "
+            + "the language keys whose whole text is a bare \"-\"; "
+            + "emptyOption's value, selected and disabled kept, its words, a plain one neither]");
+    }],
 
-        const orphans = [...inSheet].filter(c =>
-            styled.has(c) && !switches.has(c) && !(c in STORED)
-            && !named.has(c) && ![...families].some(f => c.startsWith(f)));
-        ok(!orphans.length, `these rules are styling nothing: ${orphans.join(", ")}`);
+    ["R1330 - the notice history is on the kit (E44 C5; E44-19, the 11.10 amend A7): its window is a DrpgApp whose one scrolling region is the list, its foot the kit's footer with Clear on the left as destructive and never the default and Close on the right in one word, its chips the kit's chips and its empty list the kit's empty state; it keeps what A7 keeps - RAISED when raised, one keepLive and only on the list, redrawn from the history's change, a kept card drawn lazily through noticeSnapshot, no card, no sound - and no sheet names the window's class or the classes the kit replaced, and no sheet but components.css styles its parts", async () => {
+        /*
+         * E44 C5, 04.11.2026; the 11.10 amend A7 ("E44 moves the window onto the kit ... and in the same commit removes
+         * the window's blocks from danganronpa.css, stained-glass.css and narrow.css"; what it keeps, by name). Read
+         * from the source, comments stripped (the header says what the window never does in words this would find),
+         * and from every sheet module.json serves, comments stripped. The history's own change is the window's one
+         * trigger: notice-history.mjs's engine calls it for this tab's writes and for another tab's `storage` event, so
+         * a `watch` on keepLive would only add a road. `importNode` is noticeSnapshot's (notice-history.mjs), the one
+         * road a kept card's markup comes in by, and `expand` is the one place the window draws one. Red before C5: the
+         * window an ApplicationV2 of its own with its own foot and chips, and its three blocks in the old sheets.
+         */
+        const read = {};
+        const raw = await fetch(`/modules/${MODULE_ID}/scripts/notice-history-app.mjs`).then(lfText);
+        const src = stripComments(raw);
+        const history = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/notice-history.mjs`).then(lfText));
+        const render = bodyOf(src, "async _renderHTML(", { until: "\n    }\n" });
+        const footer = /footerMarkup\(\{([^\n]*)\}\)/.exec(render)?.[1] ?? null;
+        read.frame = [/\bclass NoticeHistoryApp extends DrpgApp\(\)/.test(src), /scrollRegion:\s*"\.drpg-notices-list"/.test(src)];
+        read.foot = footer === null ? null : [/destructive:\s*\[\{\s*action:\s*"clear"/.test(footer), /close:\s*\{\s*role:\s*"close",\s*side:\s*"right"\s*\}/.test(footer),
+            /\bdefault\s*:/.test(footer), /\bprimary\s*:/.test(footer)];
+        read.chips = /\bchips\(FILTERS\.map\(/.test(render);
+        read.empty = (src.match(/\bemptyState\("DRPG\.Notices\.(empty|noMatch)"\)/g) ?? []).length;
+        read.live = [(src.match(/\bkeepLive\(/g) ?? []).length, /\bkeepLive\(this,\s*\{\s*region:\s*"\.drpg-notices-list",\s*build:/.test(src),
+            /\bkeepLive\(this,[^\n]*\bwatch\s*:/.test(src), /\bonNoticeHistoryChange\(\(\) => this\.changed\(\)\)/.test(src)];
+        const expand = bodyOf(src, "    expand(details) {", { until: "\n    }\n" });
+        const build = bodyOf(src, "    buildList() {", { until: "\n    }\n" });
+        read.lazy = [/\bnoticeSnapshot\(entry\.html\)/.test(expand), /document\.importNode\(/.test(fnSource(history, "noticeSnapshot")),
+            /\bexpand\(|\bnoticeSnapshot\(/.test(build)];
+        read.never = ["showPopup", "AudioHelper", "playSound", "\\.play\\(", "new Audio", "drpg-popup", "setHTMLUnsafe", "insertAdjacentHTML", "outerHTML"].filter(word => new RegExp(word).test(src));
+        /* The kit's markup comes in as nodes through ui-kit.mjs `kitNode`, and only the kit's builders' markup is handed
+           to it (their labels and counts escaped): the window writes no markup (R296), and a kept card never comes this way. */
+        read.parsed = [/\binnerHTML\b/.test(src), [...src.matchAll(/\bkitNode\(([\w]+)\(/g)].map(m => m[1]).sort(), (src.match(/\bkitNode\(/g) ?? []).length];
+        read.raised = /if \(alreadyOpen\(WINDOW_CLASS\)\) return RAISED;/.test(fnSource(src, "openNotices"));
+
+        /* The sheets: the window's class and the classes the kit replaced nowhere; the window's parts in components.css alone. */
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const GONE = ["drpg-window-notices", "drpg-notices-chips", "drpg-notices-foot", "drpg-notices-empty"];
+        const PARTS = /\.drpg-notice-[a-z]|\.drpg-notices-(body|search|banner|new|list|group|fold|unsaved)\b/;
+        const named = [], parts = [];
+        let snapshot = false;
+        for (const sheet of manifest.styles ?? []) {
+            const css = (await fetch(`/modules/${MODULE_ID}/${sheet}`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+            for (const name of GONE) if (new RegExp(`${name}(?![\\w-])`).test(css)) named.push(`${sheet}: ${name}`);
+            if (sheet !== "styles/components.css" && PARTS.test(css)) parts.push(sheet);
+            if (sheet === "styles/components.css") snapshot = /\.drpg-notice-snapshot\b[^{]*\{/.test(css);
+        }
+        must((manifest.styles ?? []).length >= 7, "module.json names fewer than seven sheets - this would read too little");
+        read.sheets = { named, parts, snapshot };
+        equal(JSON.stringify(read), JSON.stringify({
+            frame: [true, true], foot: [true, true, false, false], chips: true, empty: 2, live: [1, true, false, true],
+            lazy: [true, true, false], never: [], parsed: [false, ["chips", "emptyState", "emptyState", "footerMarkup", "scrollNote"], 5], raised: true, sheets: { named: [], parts: [], snapshot: true }
+        }), "[the window: a DrpgApp, its scrolling region the list; its footer: Clear destructive, Close on the right, a default named, a primary; "
+            + "its chips from FILTERS through the kit; its two empty states through the kit; keepLive's calls, on the list, with a watch, the history's change; "
+            + "expand through noticeSnapshot, which brings the markup in by importNode, and the list's build drawing a card; the roads it must not take; markup written by the window, and what it hands kitNode (the builders, and how many calls); "
+            + "RAISED when raised; the sheets naming a class that is gone, the sheets but components.css styling the window's parts, components.css styling a kept card's body]");
     }],
 
     ["R3 - every sound a card asks for is a sound that exists", async () => {
@@ -880,6 +1086,10 @@ const REGRESSIONS = [
         const { PROJECT_SECRET_FIELDS } = await import("./projects.mjs");
         equal(JSON.stringify([...(WORLD_SECRET_RULES.settings.projectMeta?.fields ?? [])].sort()), JSON.stringify([...PROJECT_SECRET_FIELDS].sort()),
             "the world-secrets rule for projectMeta is not the fields projects.mjs keeps on the GMs' side (PROJECT_SECRET_FIELDS)");
+        // And those it keeps there while the project is secret (E44 fix FG6): its `whileSecret`.
+        const { PROJECT_SECRET_WHILE_SECRET } = await import("./projects-secrecy.mjs");
+        equal(JSON.stringify([...(WORLD_SECRET_RULES.settings.projectMeta?.whileSecret?.fields ?? [])].sort()), JSON.stringify([...(PROJECT_SECRET_WHILE_SECRET ?? [])].sort()),
+            "the world-secrets rule's whileSecret for projectMeta is not projects-secrecy.mjs's PROJECT_SECRET_WHILE_SECRET");
         const settings = {};
         for (const [full, def] of game.settings.settings) {
             if (!full.startsWith(`${MODULE_ID}.`) || def.scope !== "world") continue;
@@ -2978,8 +3188,9 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const utils = stripComments(sources.get("utils.mjs") ?? "");
-        const picker = bodyOf(utils, "export function wirePortraitPickers", { until: "export function panelTabs" });
-        ok(picker.length > 300, "wirePortraitPickers is gone or has moved past panelTabs");
+        // Cut to the function after it, `eachPane` since E44 C4a (it stands where `panelTabs` stood).
+        const picker = bodyOf(utils, "export function wirePortraitPickers", { until: "export function eachPane" });
+        ok(picker.length > 300, "wirePortraitPickers is gone or has moved past eachPane");
         const cb = picker.indexOf("callback:");
         ok(cb > 0, "wirePortraitPickers no longer hands the FilePicker a callback");
         ok(bodyOf(picker, "callback:").includes("querySelector"),
@@ -3525,10 +3736,10 @@ const REGRESSIONS = [
 
         // AND THE RULE REACHES THE OTHER WINDOW WITH THE SAME CAP. A number input
         // whose value is out of range fails constraint validation, so Apply there
-        // submitted nothing at all.
+        // submitted nothing at all. E44 C4b (04.11.2026): the field is ui-kit.mjs's `stepper`, its cap the `max` it passes.
         const season = stripComments(sources.get("season-setup.mjs") ?? "");
-        const field = bodyOf(season, 'name="chapter"', { length: 240 });
-        ok(/max="\$\{Math\.max\(CHAPTERS_PER_SEASON/.test(field),
+        const field = bodyOf(season, 'stepper({ name: "chapter"', { length: 240 });
+        ok(/\bmax:\s*Math\.max\(CHAPTERS_PER_SEASON/.test(field),
             "the Season setup window still caps its chapter field at six");
     }],
 
@@ -3583,7 +3794,8 @@ const REGRESSIONS = [
 
         const mm = stripComments(sources.get("mastermind.mjs") ?? "");
         const box = bodyOf(mm, "function mastermindHopeBox(", { until: "function wireMastermindGive(" });
-        ok((box.match(/data-drpg-enter="\[data-drpg-give\]"/g) ?? []).length === 2,
+        // E44 C4b (04.11.2026): the amount is ui-kit.mjs's `stepper`, which writes the marker from its `attrs`.
+        ok((box.match(/data-drpg-enter="\[data-drpg-give\]"|"data-drpg-enter":\s*"\[data-drpg-give\]"/g) ?? []).length === 2,
             "both fields in the give-Hope row have to name the button - Enter in a select "
             + "submits exactly like Enter in a number");
         ok(/<button[^>]*type="button"[^>]*data-drpg-give/.test(box),
@@ -13456,7 +13668,7 @@ const REGRESSIONS = [
             + "the GM's section 16: the window's title in bold]");
     }],
 
-    ["R479 - each interface E81 hands to later stages says beside it which stages take it, and each CSS block of the history window says E44 removes it", async () => {
+    ["R479 - each interface E81 hands to later stages says beside it which stages take it", async () => {
         /*
          * E81 C15, 12.10.2026 (the A7 design's P0-2 to P0-9 and K7; the stage's doneWhen D11 and risk RISK-f). E81 came
          * before the stages it was designed after, so it left them small named interfaces rather than wait for them:
@@ -13468,6 +13680,9 @@ const REGRESSIONS = [
          * each this reads the nearest comment before the definition - in the module's source and in the stylesheets
          * as served, comments kept - requires it to end at most 200 characters above the definition, and requires
          * every stage the design names for it. At E81 C14 the `--drpg-corner*` tokens named none; C15 added it.
+         * E44 C5 (04.11.2026, the 11.10 amend A7): the history window is on the kit and its three blocks are gone, so their
+         * three rows went with them (each named E44, as this test held); R1330 holds that no sheet names the window's
+         * class again and that no sheet but components.css styles its parts.
          */
         const sources = await moduleSources();
         const sheet = name => fetch(`/modules/${MODULE_ID}/styles/${name}`).then(r => (r.ok ? lfText(r) : ""));
@@ -13484,10 +13699,7 @@ const REGRESSIONS = [
             ["danganronpa.css", "--drpg-corner:", TAKE],
             ["danganronpa.css", "--drpg-launch-h:", TAKE],
             ["danganronpa.css", "--drpg-stack-foot:", TAKE],
-            ["narrow.css", "--drpg-column-max:", ["E23"]],
-            ["danganronpa.css", ".application.drpg-window-notices:not(.minimized) {", ["E44"]],
-            ["stained-glass.css", "body.drpg-theme-stained-glass .application.drpg-panel.drpg-window-notices:not(.minimized) {", ["E44"]],
-            ["narrow.css", "body.drpg-stacked .application.drpg-window-notices {", ["E44"]]
+            ["narrow.css", "--drpg-column-max:", ["E23"]]
         ];
         ok([...files.values()].every(src => String(src ?? "").length > 0), "a source or a stylesheet did not load - this test measured nothing");
         const measured = {}, expected = {};
@@ -13886,16 +14098,18 @@ const REGRESSIONS = [
             // assertion, which is how this test reads at the parent (no word, nothing to plant in: red first, 17.10.2026).
             return [name, css.replace(from, to)];
         });
-        const hidden = reading(plant("danganronpa.css", "body.drpg-no-ticker .drpg-voice-tile-state > span,",
+        // The word's rules are components.css's since E44 C6 ("The A8 surfaces"), moved from danganronpa.css and stained-glass.css.
+        const hidden = reading(plant("components.css", "body.drpg-no-ticker .drpg-voice-tile-state > span,",
             "body.drpg-no-ticker .drpg-voice-tile-state { display: none; }\nbody.drpg-no-ticker .drpg-voice-tile-state > span,"));
         const sgWord = "body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-state {\n    font-family: var(--drpg-font-chrome);\n    letter-spacing: 0.04em;\n    color: var(--drpg-glass-accent);";
-        const faint = reading(plant("stained-glass.css", sgWord, sgWord.replace("var(--drpg-glass-accent)", "rgba(var(--drpg-accent-rgb), 0.2)")));
-        const unstopped = reading(plant("danganronpa.css", "body.drpg-stacked .drpg-voice-tile-state > span { animation: none; }",
+        const faint = reading(plant("components.css", sgWord, sgWord.replace("var(--drpg-glass-accent)", "rgba(var(--drpg-accent-rgb), 0.2)")));
+        const unstopped = reading(plant("components.css", "body.drpg-stacked .drpg-voice-tile-state > span { animation: none; }",
             "body.drpg-stacked .drpg-voice-tile-state > span { animation-play-state: running; }"));
-        equal(J([hidden[1], faint[2], unstopped[4].stacked]), J([["danganronpa.css body.drpg-no-ticker .drpg-voice-tile-state"],
-            ["stained-glass.css body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-state"], false]),
+        equal(J([hidden[1], faint[2], unstopped[4].stacked]), J([["components.css body.drpg-no-ticker .drpg-voice-tile-state"],
+            ["components.css body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-state"], false]),
         "the reader does not see the word hidden with the ticker off, its colour at 0.2, or the stacked screen's stop taken out");
-        equal(J(reading(sheets)), J([true, [], [], ["var(--color-text-primary, #efe6d8)", "var(--drpg-glass-accent)"],
+        // Legacy's ink falls back to the literal components.css holds as a token (E44 C6: no literal outside one there).
+        equal(J(reading(sheets)), J([true, [], [], ["var(--color-text-primary, var(--drpg-a8-text-fallback))", "var(--drpg-glass-accent)"],
             { "no ticker": true, "reduced motion": true, stacked: true, "prefers-reduced-motion": true }, true]),
         "[rules name the word; rules that hide it; rules that set it faint; its colours; its runs stopped by each switch; its runs running otherwise]");
         const all = sheets.flatMap(([name, css]) => rulesOf(css).map(rule => ({ ...rule, name, sel: rule.sel.replace(/\s+/g, " ") })));
@@ -13912,7 +14126,7 @@ const REGRESSIONS = [
                 .map(rule => new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;!]+)`).exec(rule.decl)?.[1].trim()).filter(Boolean).at(-1) ?? null),
             rowFace: ["body.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden])", "body.drpg-theme-stained-glass.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden])"]
                 .map(sel => last(sel, "min-width"))
-        }), J({ legacy: ["6px", "auto", "76px", "1", "rgba(var(--drpg-deep-rgb), 0.85)"], full: ["calc(7px - var(--drpg-voice-lift, 0px))", "auto"], compact: ["2px", "auto"], faceRaised: [],
+        }), J({ legacy: ["6px", "auto", "76px", "1", "var(--drpg-a8-deep-85)"], full: ["calc(7px - var(--drpg-voice-lift, 0px))", "auto"], compact: ["2px", "auto"], faceRaised: [],
             still: [["40px", "6px"], ["40px", "6px"]], stillSystem: ["40px", "6px"], rowFace: ["196px", "124px"] }),
         "[Legacy's word: top, bottom, right (left of the two buttons), z-index, its ink band; the wall's full form: top, bottom; its compact form: top, bottom; rules that raise the face; "
         + "the still word's top and right with the ticker off and under reduced motion, and under the system's; the least width of a face shown in the row, Legacy and Stained Glass]");
@@ -17418,7 +17632,7 @@ const REGRESSIONS = [
             "[handleRemnant's calls of noteDiscardTrace; after the trial's refusal, after the placed check; its line asks a player, a discard, and names the "
                 + "trace's student and subject; itemFindings' discard line asks takeDiscardTrace of the student and the held name before it stands; both exported]");
     }],
-    ["R1127 - every GM number field is read through utils.mjs `wholeNumber`: each `<input type=\"number\"` of the module's windows has its reader in this test's table, the reader is found and every line that reads the field's value asks `wholeNumber(`; a `type=\"number\"` that is no field is listed with its reason; `wholeNumber` is built on `clamp`, and despair.mjs `convertDespairToHope` takes the amount through it (E51 C7; E51-44, audit S10-61)", async () => {
+    ["R1127 - every GM number field is a kit stepper read through utils.mjs `wholeNumber`: each `stepper({ name` of the module's windows has its row in this test's table, the field keeps its name, the reader is found and every line that reads the field's value asks `wholeNumber(`; no module file but ui-kit.mjs writes an `<input type=\"number\"`, and a `type=\"number\"` that is no field is listed with its reason; `wholeNumber` is built on `clamp`, and despair.mjs `convertDespairToHope` takes the amount through it (E51 C7; E51-44, audit S10-61; E44 C4b, E44-16, S10-66)", async () => {
         /*
          * E51 C7, 31.10.2026; audit S10-61. The GM's number fields were read with `Number(v) || 1` and the like, so
          * `min="1" step="1"` held nothing a typed value did not: "Day -2" or "Day 2.5" went to the clock as typed in
@@ -17429,7 +17643,10 @@ const REGRESSIONS = [
          * source, so a new number field fails here until it gets a row. Not counted as readers: trial-floor-ui.mjs's
          * round window repaints its length from the field as typed (`field.value`, a read-out), and season-setup.mjs
          * `readDraft` carries the typed chapter across a reopen as a string (the write reads it in `readSeasonForm`).
-         * Comments blanked. Red at C7's parent: no `wholeNumber` in utils.mjs and no reader asks it.
+         * E44 C4b, 04.11.2026; audit S10-66: the twelve fields are drawn by ui-kit.mjs `stepper` (one control in both
+         * themes, chrome.mjs dressing none), so the census counts `stepper({` calls and the name each passes (a
+         * shorthand `name` is the template's `${name}`), and the readers are the same lines as before. Comments blanked.
+         * Red at C7's parent: no `wholeNumber` in utils.mjs and no reader asks it; at C4b's parent, the twelve bare inputs.
          */
         const src = new Map((await otherSources()).map(([file, raw]) => [file, stripComments(raw)]));
         must(src.size > 50, "the module's sources were not read - this would measure nothing");
@@ -17448,17 +17665,20 @@ const REGRESSIONS = [
             ["trial-floor-ui.mjs", "seconds", /\("form"\)\.seconds\.value\b/g],
             ["trial-floor-ui.mjs", "seconds", /\[name=seconds\]"\)\?\.value/g]
         ];
-        // A `type="number"` that is not a field of a window: its reason.
-        const LISTED = { "chrome.mjs": "the stepper's selector (`dress('input[type=\"number\"]')`): it dresses every number field and reads no value" };
-        const census = {}, listed = {};
+        // A `type="number"` that is not a window's field: its reason. ui-kit.mjs's `<input type="number"` is the stepper's own.
+        const LISTED = { "ui-kit.mjs": "the kit stepper's selector (`NUMBER_FIELD`): readStepper finds its input by it, and the wiring's step and message read the value" };
+        const names = {}, inputs = {}, listed = {};
         for (const [file, text] of src) {
-            const inputs = (text.match(/<input\s+type="number"/g) ?? []).length;
+            const calls = [...text.matchAll(/(?<!function )\bstepper\(\{\s*name(?:\s*:\s*([`"])(.*?)\1)?/g)].map(m => m[2] ?? "${name}");
+            if (calls.length) names[file] = calls.sort();
+            const raw = (text.match(/<input\s+type="number"/g) ?? []).length;
             const all = (text.match(/type="number"/g) ?? []).length;
-            if (inputs) census[file] = inputs;
-            if (all > inputs) listed[file] = all - inputs;
+            if (raw) inputs[file] = raw;
+            if (all > raw) listed[file] = all - raw;
         }
         const rows = {};
-        for (const [file] of FIELDS) rows[file] = (rows[file] ?? 0) + 1;
+        for (const [file, name] of FIELDS) (rows[file] ??= []).push(name);
+        for (const list of Object.values(rows)) list.sort();
         const unread = [], bare = [];
         for (const [file, name, reader] of FIELDS) {
             const text = src.get(file) ?? "";
@@ -17469,19 +17689,22 @@ const REGRESSIONS = [
                 if (!line.includes("wholeNumber(")) bare.push(`${file}:${lineAt(text, m.index)} ${name}`);
             }
         }
+        const kit = src.get("ui-kit.mjs") ?? "";
         const utils = src.get("utils.mjs") ?? "";
         const whole = topLevelFunction(utils, "wholeNumber");
         const convert = topLevelFunction(src.get("despair.mjs") ?? "", "convertDespairToHope") ?? "";
         must(convert.length > 200, "despair.mjs convertDespairToHope was not read - this would measure nothing of the donations' door");
         equal(JSON.stringify({
-            census: Object.fromEntries(Object.entries(census).sort()), listed: Object.fromEntries(Object.entries(listed).sort()), unread, bare,
+            names: Object.fromEntries(Object.entries(names).sort()), inputs, listed: Object.fromEntries(Object.entries(listed).sort()), unread, bare,
+            kit: /\bwholeNumber\(input\.value\b/.test(fnSource(kit, "readStepper")),
             whole: whole ? [/^export function wholeNumber\(/.test(whole), /\bclamp\(/.test(whole)] : null,
             convert: /\bwholeNumber\(amount\b/.test(convert)
         }), JSON.stringify({
-            census: Object.fromEntries(Object.entries(rows).sort()), listed: Object.fromEntries(Object.keys(LISTED).sort().map(f => [f, 1])), unread: [], bare: [],
-            whole: [true, true], convert: true
-        }), "[the number fields per file against FIELDS' rows; the type=\"number\" that are no field against LISTED; a field whose reader was not found; "
-            + "a line that reads a field's value and does not ask wholeNumber; wholeNumber exported and built on clamp; convertDespairToHope takes its amount through wholeNumber]");
+            names: Object.fromEntries(Object.entries(rows).sort()), inputs: { "ui-kit.mjs": 1 }, listed: Object.fromEntries(Object.keys(LISTED).sort().map(f => [f, 1])),
+            unread: [], bare: [], kit: true, whole: [true, true], convert: true
+        }), "[the steppers per file and the name each passes, against FIELDS' rows; the files writing an <input type=\"number\"; the type=\"number\" that are "
+            + "no field against LISTED; a field whose reader was not found; a line that reads a field's value and does not ask wholeNumber; readStepper "
+            + "reads through wholeNumber; wholeNumber exported and built on clamp; convertDespairToHope takes its amount through wholeNumber]");
     }],
 
     ["R1133 - the flows whose length is counted are FLOWS' flows: tests-flows.mjs `FLOW_LENGTHS` names Search, Observe, Analyze, the Hope Call, the Dynamic action, the Refund, the trial console's mode bar a mode at a time, the verdict and the Level Up, each once, each with what stands open when its count starts, and each part of a flow of FLOWS that names 88-flow-length among its scenarios (E51 C8; E51-49, audit S17-49)", async () => {
@@ -18431,7 +18654,7 @@ const REGRESSIONS = [
          * Leave a Clue and Secure a Trace hints end "a critical leaves two" / „a krytyk zostawia dwa”, the entry's
          * `indirectVictim.count.critical`, and the digit rule cannot see a word. 2 to 12 only: "one" and „jeden” stand
          * in every other sentence as an article or a pronoun (Sprint's "one more" is section 13's, E71). Measured on
-         * this tree: these four places and no other. Their placeholder needs the owner's text change: E71 (row 1.2.119).
+         * this tree: these four places and no other. Their placeholder needs the owner's text change: E71 (row 1.2.120).
          */
         const NUMBER_WORDS = { en: ["", "", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"],
             pl: ["", "", "dwa|dwie|dwóch|dwoma|dwu", "trzy|trzech|trzema", "cztery|czterech", "pięć|pięciu", "sześć|sześciu", "siedem|siedmiu",
@@ -19740,7 +19963,7 @@ const REGRESSIONS = [
          * The queue is this browser's memory (`serialWrite`), so it holds one GM's browser to one copy (E60's fix round,
          * FG6; the end review's C-m8, S-m4): Observe's find, a hand-over, a Present and Monokuma's Reveal run on the
          * primary, and Give a Truth Bullet on whichever GM opened it - a give on a second GM's browser beside the
-         * primary's find of the same trace for the same receiver can still make two copies, and is E38's (row 1.2.125,
+         * primary's find of the same trace for the same receiver can still make two copies, and is E38's (row 1.2.126,
          * the stage of two GMs; STATUS Open 50).
          */
         const sources = await moduleSources();
@@ -19868,6 +20091,325 @@ const REGRESSIONS = [
         }
         for (const name of NAMES) if (css.includes(`.${name}`)) hits.push(`the module's stylesheets: ${name}`);
         equal(JSON.stringify(hits), "[]", "[the scripts and sheets that still name the collapse]");
+    }],
+    ["R1318 - an opener that raised its window says so (E44 C2c; E44-09, S10-59): live.mjs exports RAISED = \"raised\"; every `if (alreadyOpen(\"drpg-window-...\")) return ...;` branch in scripts/ answers RAISED - 22 or more of them, read file by file - and so does openNotices's; the GM panel's tile handler returns before `openGmPanel()` when the tile's run answered RAISED", async () => {
+        /*
+         * E44 C2c, 04.11.2026; audit S10-59. The panel closes, awaits the tile's run and opens itself again whatever the
+         * run answered, and an opener that raised a window standing behind the panel answered null, as a dismissed one
+         * does - so the panel came back over the window the GM had just raised. Measured at C2b's tree: 22 branches in
+         * 19 files answered null. Red before C2c: no RAISED, and every one of them null. The mutant c2c-m3 (one opener
+         * left on `return null`) reads red here.
+         */
+        const live = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/live.mjs`).then(lfText));
+        ok(/export const RAISED = "raised";/.test(live), "live.mjs exports no RAISED = \"raised\"");
+        const branches = [], wrong = [];
+        for (const [file, text] of await otherSources()) {
+            for (const m of stripComments(text).matchAll(/if \(alreadyOpen\("(drpg-window-[\w-]+)"\)\) return ([^;]*);/g)) {
+                branches.push(`${file} ${m[1]}`);
+                if (m[2].trim() !== "RAISED") wrong.push(`${file} ${m[1]}: return ${m[2]}`);
+            }
+        }
+        must(branches.length >= 22, `only ${branches.length} alreadyOpen branches that return were read - this would measure too little`);
+        equal(JSON.stringify(wrong), "[]", `of ${branches.length} openers' alreadyOpen branches in ${new Set(branches.map(b => b.split(" ")[0])).size} files, these do not answer RAISED`);
+        const notices = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/notice-history-app.mjs`).then(lfText));
+        ok(/if \(alreadyOpen\(WINDOW_CLASS\)\) return RAISED;/.test(topLevelFunction(notices, "openNotices") ?? ""),
+            "openNotices does not answer RAISED when it raised the notice history");
+        const panel = topLevelFunction(stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-panel.mjs`).then(lfText)), "openGmPanel") ?? "";
+        const returns = [...panel.matchAll(/if \(answer === RAISED\) return;/g)].map(m => m.index);
+        const reopens = [...panel.matchAll(/openGmPanel\(\)\.catch\(/g)].map(m => m.index);
+        must(reopens.length === 1, `openGmPanel reopens itself ${reopens.length} time(s) in its body, not once - the order below would read nothing`);
+        ok(returns.length === 1 && returns[0] < reopens[0], "the GM panel's handler does not return on RAISED before it opens the panel again");
+        ok(/answer = await item\.run\(\)/.test(panel), "the GM panel's handler does not keep what the tile's run answered");
+    }],
+    ["R1319 - D176: one approval, one Monocub ability and one call-off window at a time on a browser (E44 C2c; E44-10): calls.mjs `askHopeCallApproval` answers null before any window while its own is open and passes `once`; every `callWindow(` call of monocub.mjs `cubAbilityDialog` and of sheet.mjs `runCall` passes `once`", async () => {
+        /*
+         * E44 C2c, 04.11.2026; D176 (S/stages/AUDIT-DEFERRED-31.10.md, from E51 fix FG7's G2): "the GM's approval window
+         * (a stand-in call) and the Confusion and call-off windows carry no `once`". Read from the source; E44-T4 drives
+         * the approval. Red before C2c: none of the three passes `once`.
+         */
+        const cut = async (file, name) => {
+            const text = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText);
+            return blankLiterals(blankComments(topLevelFunction(stripComments(text), name) ?? ""));
+        };
+        const calls = blank => [...blank.matchAll(/\bcallWindow\(/g)].map(m => {
+            const { close } = callArgs(blank, m.index + m[0].length - 1);
+            return /\bonce\s*:/.test(blank.slice(m.index, close));
+        });
+        const read = {};
+        for (const [file, name] of [["calls.mjs", "askHopeCallApproval"], ["monocub.mjs", "cubAbilityDialog"], ["sheet.mjs", "runCall"]]) {
+            const blank = await cut(file, name);
+            must(blank.length > 0, `${file} has no ${name} - this would read nothing`);
+            read[name] = calls(blank);
+        }
+        equal(JSON.stringify(read), JSON.stringify({ askHopeCallApproval: [true], cubAbilityDialog: [true], runCall: [true] }),
+            "[whether each callWindow call passes once: askHopeCallApproval, cubAbilityDialog, runCall]");
+        const approval = stripComments(topLevelFunction(stripComments(await fetch(`/modules/${MODULE_ID}/scripts/calls.mjs`).then(lfText)), "askHopeCallApproval") ?? "");
+        const guard = [...approval.matchAll(/if \(alreadyOpen\(APPROVAL_CLASS\)\) return null;/g)].map(m => m.index);
+        const opens = [...approval.matchAll(/callWindow\(/g)].map(m => m.index);
+        ok(guard.length === 1 && opens.length === 1 && guard[0] < opens[0],
+            "askHopeCallApproval does not answer null before its window while one is open (a raised approval must never read as a GM's no or yes)");
+    }],
+    ["R1334 - what the owner approved is recorded (E44 C7a; E44-22, D31): docs/design/windows.md has one row for each card of the review page DR-E44-M1 (M1-M15, i1, i2) and one for each of its two questions, each with its answer (Approve, Change or Hold) and its date, and a card answered Approve or Change names its screenshots, each a file under audit/design/; and every window name the glossary holds from E44 (`window-*`) is named by a card, quotes its tile label's key and has that key's words in lang/en.json and lang/pl.json, as every entry a card names does", async () => {
+        /*
+         * E44 C7a, 04.11.2026; D31 ("makiety, które akceptujesz przed kodem") and the plan's amend of 05.10 (the window
+         * names enter the glossary in the words of their tile labels). The review page is not in the repository, so its
+         * asks are written here, as the page numbered them (DR-E44-M1 #1-#19: M1's and M15's tabs, M2-M14, the two
+         * questions, i1 and i2; M1 and M15 approved in chat on 04.11 before their tabs, which the page asked again);
+         * windows.md is held to them. E46, E47 and E21 build a window from its row, so a row without its answer, its
+         * date or its pictures is a window built from nothing. Red before C7a: no windows.md, no audit/design/ and no
+         * `window-*` entry.
+         */
+        needs(env.tools(), "docs/design/, audit/ and docs/glossary.json are read from the repository (an installed module's zip leaves them out, as it leaves tools/)");
+        const CARDS = ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10", "M11", "M12", "M13", "M14", "M15", "i1", "i2"];
+        const ASKS = ["q-grow", "q-console"];
+        const get = async path => {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" });
+                return res.ok ? res : null;
+            } catch { return null; }
+        };
+        const page = await get("docs/design/windows.md");
+        ok(page !== null, "docs/design/windows.md is missing");
+        const text = await lfText(page);
+        const rowsOf = heading => bodyOf(text, `\n## ${heading}\n`, { until: "\n## " }).split("\n")
+            .filter(l => /^\| \S/.test(l) && !/^\| -/.test(l)).slice(1)
+            .map(l => l.replace(/^\| | \|$/g, "").split(" | ").map(c => c.trim()));
+        const cards = rowsOf("The cards"), asks = rowsOf("The questions on the page");
+        must(cards.length > 0 && asks.length > 0, `windows.md's two tables read ${cards.length} and ${asks.length} row(s) - this would measure nothing`);
+        equal(JSON.stringify(cards.map(r => r[0])), JSON.stringify(CARDS), "[the cards windows.md names, in order]");
+        equal(JSON.stringify(asks.map(r => r[0])), JSON.stringify(ASKS), "[the questions windows.md names, in order]");
+        /* The cards' columns: card, window, opened by, states, answer, date, note, screenshots, tile label, glossary, built by. */
+        const ANSWER = /^(Approve|Change|Hold)$/, DATE = /^\d\d\.\d\d\.20\d\d$/;
+        const bad = [];
+        const pictures = [];
+        for (const r of cards) {
+            if (r.length !== 11) { bad.push(`${r[0]}: ${r.length} cell(s), not 11`); continue; }
+            const [id, , , , answer, date, note, shots, , , builds] = r;
+            if (!ANSWER.test(answer)) bad.push(`${id}: the answer "${answer}"`);
+            if (!DATE.test(date)) bad.push(`${id}: the date "${date}"`);
+            if (answer === "Change" && note === "-") bad.push(`${id}: a Change with no note`);
+            if (!/^E\d\d( \(C\d+[a-z]?\))?(, E\d\d( \(C\d+[a-z]?\))?)*$/.test(builds)) bad.push(`${id}: built by "${builds}"`);
+            const paths = [...shots.matchAll(/`([^`]+)`/g)].map(m => m[1]);
+            if (answer !== "Hold" && !paths.length) bad.push(`${id}: answered ${answer} and names no screenshot`);
+            for (const p of paths) {
+                if (!/^audit\/design\/[\w.-]+\.(jpg|png)$/.test(p)) bad.push(`${id}: ${p} is not a picture under audit/design/`);
+                else pictures.push([id, p]);
+            }
+        }
+        for (const r of asks) {
+            if (r.length !== 5) { bad.push(`${r[0]}: ${r.length} cell(s), not 5`); continue; }
+            if (!ANSWER.test(r[2])) bad.push(`${r[0]}: the answer "${r[2]}"`);
+            if (!DATE.test(r[3])) bad.push(`${r[0]}: the date "${r[3]}"`);
+        }
+        equal(JSON.stringify(bad), "[]", "[what the rows of windows.md lack]");
+        const missing = [];
+        for (const [id, p] of pictures) {
+            const res = await get(p);
+            const size = res ? (await res.arrayBuffer()).byteLength : 0;
+            if (!size) missing.push(`${id}: ${p}`);
+        }
+        ok(pictures.length >= 2 * (CARDS.length - 2), `windows.md names ${pictures.length} screenshot(s) - fewer than two a window`);
+        equal(JSON.stringify(missing), "[]", "[the screenshots windows.md names that audit/design/ does not hold]");
+        /* The glossary: the entry a card names holds its tile label's words in both languages; one the glossary holds from
+           E44 as a window's name quotes the key in its note, and a card names it. */
+        const lang = {};
+        for (const code of ["en", "pl"]) {
+            const res = await get(`lang/${code}.json`);
+            must(res !== null, `lang/${code}.json is not served`);
+            lang[code] = flatLang(JSON.parse(await lfText(res)));
+        }
+        const glossaryRes = await get("docs/glossary.json");
+        ok(glossaryRes !== null, "docs/glossary.json is missing");
+        const entries = new Map((JSON.parse(await lfText(glossaryRes)).entries ?? []).map(e => [e.id, e]));
+        const words = [], named = new Set();
+        for (const r of cards.filter(c => c.length === 11)) {
+            const [id, , , , , , , , label, term] = r;
+            const key = /^`(DRPG\.[\w.]+)`$/.exec(label)?.[1] ?? null, gid = /^`([a-z0-9-]+)`$/.exec(term)?.[1] ?? null;
+            if (!key && !gid) continue;
+            if (!key || !gid) { words.push(`${id}: a tile label "${label}" and a glossary entry "${term}" - one without the other`); continue; }
+            named.add(gid);
+            const e = entries.get(gid);
+            if (!e) { words.push(`${id}: no glossary entry ${gid}`); continue; }
+            for (const code of ["en", "pl"]) if (e[code] !== lang[code].get(key)) words.push(`${id}: ${gid}'s ${code} "${e[code]}" is not ${key}'s "${lang[code].get(key)}"`);
+            if (e.stage === "E44" && !String(e.note ?? "").includes(`tile label ${key}`)) words.push(`${id}: ${gid}'s note does not quote "tile label ${key}"`);
+        }
+        const windowEntries = [...entries.values()].filter(e => e.stage === "E44" && /^window-/.test(e.id));
+        must(windowEntries.length > 0 && named.size > 0, `${windowEntries.length} window entr(ies) from E44 and ${named.size} named by a card - this would read nothing`);
+        for (const e of windowEntries) if (!named.has(e.id)) words.push(`${e.id}: a window name from E44 that no card of windows.md names`);
+        equal(JSON.stringify(words), "[]", "[the window names of windows.md against the glossary and the lang files]");
+    }],
+    ["R1335 - every window has a `.drpg-ui` root (E44 C7b; E44-23, the plan's verify, S17-34): every DialogV2 call and every ApplicationV2 class of scripts/ goes through ui-kit.mjs - `drpgWindow` or a `DrpgApp()` class - and the census of those that do not is E21's list; the notice history, which E44 moved, is a DrpgApp", async () => {
+        /*
+         * E44 C7b, 04.11.2026. The kit's frame (drpgWindow, DrpgApp: `drpg-ui` on the root, the screen's height, one
+         * scrolling body, the footer by the button roles) is E44's; moving every other window onto it is E21's (the plan:
+         * "E21 moves the windows onto drpgWindow"), which takes this marker off when the census below is empty. A window
+         * is counted where the code opens it: a DialogV2 call (`DialogV2.wait`, `.confirm`, `.prompt`, `.query`,
+         * `.input`, `new DialogV2`) or a class extending ApplicationV2 - so utils.mjs's `tableDialog`, which 17 windows
+         * open, is one site, as call-pickers.mjs's `callWindow` is. ui-kit.mjs's own are the kit. Read at C7b's tree: 124
+         * DialogV2 calls and 5 classes, 126 sites outside the kit in 54 files (the notice history's Clear question among
+         * them). E44 C6 moves the two Foundry tools frames and the narrow description window, which this census then
+         * stops counting.
+         */
+        const SITE = /\b(?:new\s+(?:[\w$]+\.)*DialogV2\s*\(|DialogV2\s*\.\s*(?:wait|confirm|prompt|query|input)\s*\()/g;
+        const CLASS = /\bclass(?:\s+[\w$]+)?\s+extends\s+([^{]+?)\s*\{/g;
+        const outside = new Map(), kit = [];
+        let sites = 0;
+        for (const [file, text] of await otherSources()) {
+            const blank = blankLiterals(blankComments(text));
+            const add = what => {
+                sites++;
+                if (file === "ui-kit.mjs") kit.push(`${file} ${what}`);
+                else outside.set(file, (outside.get(file) ?? 0) + 1);
+            };
+            for (const m of blank.matchAll(SITE)) add("DialogV2");
+            for (const m of blank.matchAll(CLASS)) {
+                if (!/ApplicationV2|DialogV2|ApplicationMixin|DrpgApp\(\)/.test(m[1])) continue;
+                if (/^DrpgApp\(\)$/.test(m[1].trim())) { kit.push(`${file} DrpgApp`); sites++; continue; }
+                add(m[1].trim());
+            }
+        }
+        must(sites >= 100, `only ${sites} window(s) were read in scripts/ - this would measure too little`);
+        ok(kit.includes("ui-kit.mjs DialogV2") && kit.some(k => /^ui-kit\.mjs .*ApplicationV2/.test(k)),
+            "ui-kit.mjs opens no DialogV2 or builds no ApplicationV2 - the kit's frame was not found");
+        ok(kit.includes("notice-history-app.mjs DrpgApp"), "the notice history (E44 C5) is no DrpgApp class");
+        const list = [...outside].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([f, n]) => `${f} ${n}`);
+        const total = [...outside.values()].reduce((a, b) => a + b, 0);
+        equal(JSON.stringify(list), "[]", `the windows outside the kit, which E21 moves: ${total} in ${outside.size} file(s)`);
+    }, expectedRed("E21", "E21 moves every other window onto drpgWindow or DrpgApp and deletes its old frame rules; the census of the windows outside the kit is its list, and E21 takes this marker off when it is empty", { failing: "the windows outside the kit, which E21 moves" })],
+    ["R1336 - every footer button names a role of BUTTON_ROLES (E44 C7b; E44-23): a kit footer (`drpgWindow`'s `footer`, `footerMarkup`, `footerButtons`) places its buttons only in a role's slot, and every DialogV2 footer outside the kit names a role on each button - the census of those that do not is E22's list", async () => {
+        /*
+         * E44 C7b, 04.11.2026. E44 writes the table of button roles (ui-kit.mjs BUTTON_ROLES: primary, gmRoute, close,
+         * cancel, secondary, destructive) and uses it in what it moved; E22 gives every other button its role (the plan:
+         * "E22 fills the button-role table"), which takes this marker off. A kit footer names its buttons by the slot
+         * each stands in, so its keys must be roles (and `default`). A DialogV2 footer outside the kit is Foundry's
+         * `buttons`: a button names a role there only by the role's class (`drpg-role-...`), which is what the kit's
+         * own DialogV2 footer writes. `confirm` with no buttons of its own draws two (yes, no) and `prompt` one, none with
+         * a role; a footer built in code (`buttons: list`) or a config passed whole is counted as a footer read as
+         * naming none, since nothing in its call says otherwise. An ApplicationV2 window's own markup (the handbooks,
+         * the messenger, the room's window) is not read here: E21 moves those onto DrpgApp's footer. Read at C7b's tree:
+         * 233 buttons in literal arrays and the defaults of confirm and prompt, none with a role's class, and 10 footers
+         * built in code or passed whole - 243 in 52 files; one kit footer outside ui-kit.mjs, the notice history's
+         * (destructive, close).
+         */
+        const kitText = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/ui-kit.mjs`).then(lfText));
+        const table = bodyOf(kitText, "export const BUTTON_ROLES = Object.freeze({", { until: "\n});" });
+        const roles = [...table.matchAll(/^\s+(\w+): Object\.freeze\(/gm)].map(m => m[1]);
+        must(roles.length >= 6, `BUTTON_ROLES reads ${roles.length} role(s) - the table was not found`);
+        equal(JSON.stringify(roles), JSON.stringify(["primary", "gmRoute", "close", "cancel", "secondary", "destructive"]), "[BUTTON_ROLES's roles]");
+        const slots = new Set(["primary", "gmRoute", "close", "secondary", "destructive", "default"]);
+        const SITE = /\bDialogV2\s*\.\s*(wait|confirm|prompt|query|input)\s*\(|\bnew\s+(?:[\w$]+\.)*DialogV2\s*\(/g;
+        const KIT = /\b(?:(?:footerMarkup|footerButtons)\s*\(\s*|footer\s*:\s*)\{/g;
+        const keysOf = (blank, open) => {
+            const { args } = callArgs(blank, open);
+            return args.map(a => /^\s*([\w$]+)\s*:/.exec(blank.slice(a.start, a.end))?.[1] ?? "(spread)");
+        };
+        const noRole = new Map(), wrongSlot = [];
+        let buttons = 0, kitFooters = 0;
+        const count = (file, n) => noRole.set(file, (noRole.get(file) ?? 0) + n);
+        for (const [file, text] of await otherSources()) {
+            if (file === "ui-kit.mjs") continue;
+            const blank = blankLiterals(blankComments(text));
+            for (const m of blank.matchAll(KIT)) {
+                kitFooters++;
+                for (const k of keysOf(blank, m.index + m[0].length - 1)) if (!slots.has(k)) wrongSlot.push(`${file}: a kit footer's "${k}"`);
+            }
+            for (const m of blank.matchAll(SITE)) {
+                const { args } = callArgs(blank, m.index + m[0].length - 1);
+                const cfg = args[0] ? blank.slice(args[0].start, args[0].end) : "";
+                const list = /\bbuttons\s*:\s*\[/.exec(cfg);
+                if (list) {
+                    const open = args[0].start + list.index + list[0].length - 1;
+                    for (const b of callArgs(blank, open).args) {
+                        buttons++;
+                        if (!/\bdrpg-role-/.test(text.slice(b.start, b.end))) count(file, 1);
+                    }
+                } else if (m[1] === "confirm" || m[1] === "prompt") {
+                    const n = m[1] === "confirm" ? 2 : 1;
+                    buttons += n;
+                    count(file, n);
+                } else count(file, 1);
+            }
+        }
+        must(buttons >= 100, `only ${buttons} footer button(s) were read in scripts/ - this would measure too little`);
+        ok(kitFooters >= 1, "no kit footer was read outside ui-kit.mjs (the notice history's, E44 C5)");
+        equal(JSON.stringify(wrongSlot), "[]", "[kit footers holding a button in no role's slot]");
+        const list = [...noRole].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([f, n]) => `${f} ${n}`);
+        const total = [...noRole.values()].reduce((a, b) => a + b, 0);
+        equal(JSON.stringify(list), "[]", `the footer buttons that name no role, which E22 gives one: ${total} in ${noRole.size} file(s)`);
+    }, expectedRed("E22", "E22 fills the button-role table: every footer button of the module gets a role of BUTTON_ROLES, D11's red only for the GM's road; the census of the buttons that name none is its list, and E22 takes this marker off when it is empty", { failing: "the footer buttons that name no role, which E22 gives one" })],
+    ["R1351 - a project's description travels by its name's road (E44 C9; Q-C9-1..3): the player's proposal draws the field, guards its Propose, refuses before anything is sent what config.mjs `projectDescriptionProblem` names - a preset's own label standing in for an empty one, wired into the field as the preset is chosen, and its room-naming summary never the description (fix FG1) - and carries the text on the card's Approve; the approval hands it to the GM's window, which draws it, guards Save, refuses the same way before it writes, and writes it by createProject and projectEditChange; createProject refuses one too long and puts it in the meta of the change that writes the sealed countdown, projectEditChange in the meta, and allProjects reads it back through `descriptionOf`; it is no field of PROJECT_SECRET_FIELDS or of the token a project places, and a secret project's is the GMs' (PROJECT_SECRET_WHILE_SECRET, the world-secrets rule's whileSecret: E44 fix FG6), told to its players by `tellDescription` after every change; the manager's table neither reads nor writes it; and the token's card is a live region over projectMeta and the Countdowns that asks knowsProject at every draw", async () => {
+        /*
+         * E44 C9, 04.11.2026. Where the words live, and why there: the project's open meta (projectMeta, a world setting),
+         * beside the room and the trait, written in the one change of the entry that writes its countdown - the name, the
+         * bar and the ownership map that seals a secret one - so they reach exactly the browsers the name reaches (Q-C9-1),
+         * hidden from the interface of a browser that does not know the project as the name is (audit S09-05, which E43
+         * takes up). The token would carry them to a browser that does not know the project. Since E44 fix FG6 (05.11.2026;
+         * the end review's S-M1, the owner's option (a)) a secret project's words are the GMs' store's, and its players read
+         * them on a private card the primary sends them (projects.mjs `tellDescription`); a public project's stay in the
+         * open meta. Read in the source; the road driven is tier 2 E44-T20, 30-security and 72-canary. Red at c24da07f: no
+         * field in either window, nothing on the card; at 3e207d79 on the GMs' list, its rule and the telling.
+         */
+        const sources = new Map(await otherSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        const fn = (file, name) => (topLevelFunction(src(file), name) ?? "");
+        const order = (text, ...res) => res.map(re => text.search(re)).every((at, i, all) => at >= 0 && (i === 0 || at > all[i - 1]));
+        const start = fn("action-project.mjs", "startProject");
+        const approveData = start ? bodyOf(start, 'action: "approveProject"', { until: 'action: "declineProject"' }) : "";
+        const approve = fn("messenger-app.mjs", "ruleApproveProject");
+        const dialog = fn("projects-ui.mjs", "openProjectDialog");
+        const create = fn("projects.mjs", "createProject");
+        const edit = fn("projects.mjs", "projectEditChange");
+        const all = fn("projects.mjs", "allProjects");
+        const show = fn("projects-map.mjs", "showProjectCard");
+        const place = fn("projects-map.mjs", "placeProjectToken");
+        const manager = ["projectManagerRows", "readManager", "applyProjectManager", "openProjectManager"].filter(name => /description/i.test(fn("projects-ui.mjs", name)));
+        const { PROJECT_SECRET_FIELDS } = await import("./projects.mjs");
+        const { WORLD_SECRET_RULES } = await import("./world-secrets.mjs");
+        const reads = {
+            proposal: {
+                field: /descriptionField\(""\)/.test(start),
+                guard: /guardDescription\(dialog\.element, "create",\s*\{ optional: \(\) => Boolean\(dialog\.element\.querySelector\('\[name="preset"\]'\)\?\.value\) \}\)/.test(start),
+                preset: /result\.description = String\(result\.description \?\? ""\)\.trim\(\) \|\| \(preset \? presetDescription\(presetKey\) : ""\)/.test(start)
+                    && /render: \(event, dialog\) => \{[\s\S]*wirePresetDescription\(dialog\.element\);[\s\S]*\},\s*rejectClose/.test(start)
+                    && !/description[^\n]*presetLine|presetLine[^\n]*description/.test(start),
+                refusedFirst: order(start, /projectDescriptionProblem\(result\.description\)/, /promptAndCallGm\(/),
+                carried: /description: result\.description,/.test(approveData)
+            },
+            approval: /description: data\.description \?\? ""/.test(approve),
+            window: {
+                field: /descriptionField\(start\?\.description \?\? ""\)/.test(dialog),
+                guard: /guardDescription\(dialog\.element, "save"\)/.test(dialog),
+                refusedFirst: order(dialog, /projectDescriptionProblem\(result\.description\)/, /projectEditChange\(/) && order(dialog, /projectDescriptionProblem\(result\.description\)/, /createProject\(/),
+                written: (dialog.match(/description: result\.description,/g) ?? []).length
+            },
+            create: { long: order(create, /projectDescriptionProblem\(description\) === "long"/, /applyProjectChange\(/), meta: /meta: \{[\s\S]*\.\.\.\(words \? \{ description: words \} : \{\}\)/.test(create) },
+            edit: /meta\.description = String\(patch\.description \?\? ""\)\.trim\(\)/.test(edit),
+            read: /description: descriptionOf\(id\)/.test(all),
+            secret: [PROJECT_SECRET_FIELDS.includes("description"), (WORLD_SECRET_RULES.settings.projectMeta?.fields ?? []).includes("description"),
+                (await import("./projects-secrecy.mjs")).PROJECT_SECRET_WHILE_SECRET?.includes("description") ?? false,
+                (WORLD_SECRET_RULES.settings.projectMeta?.whileSecret?.fields ?? []).includes("description"),
+                /tellDescription\(countdownId\)/.test(fn("projects.mjs", "applyProjectChange"))],
+            token: /description/i.test(place),
+            manager,
+            card: {
+                live: /keepLive\(app, \{/.test(show) && /settings: \["projectMeta"\]/.test(show) && /settingKeys: \[COUNTDOWNS_KEY\]/.test(show),
+                asks: /const draw = \(\) => \{[\s\S]*knowsProject\(id\)[\s\S]*\};[\s\S]*build: draw/.test(show)
+            }
+        };
+        must(start && approve && dialog && create && show, "a function this reads is gone - this would measure nothing");
+        equal(JSON.stringify(reads), JSON.stringify({
+            proposal: { field: true, guard: true, preset: true, refusedFirst: true, carried: true },
+            approval: true,
+            window: { field: true, guard: true, refusedFirst: true, written: 2 },
+            create: { long: true, meta: true },
+            edit: true, read: true, secret: [false, false, true, true, true], token: false, manager: [], card: { live: true, asks: true }
+        }), "[the proposal: the field, its guard (a preset's empty field let through), a preset's label for an empty one, wired into the field, "
+            + "the summary line never the description, the refusal before the "
+            + "card is sent, the text on Approve; the approval passing it on; the GM's window: the field, its guard, the refusal before the edit and "
+            + "the create, how many writes name it; createProject's refusal of one too long and its meta; projectEditChange; allProjects; whether "
+            + "the GMs' fields or the world-secrets rule name it; whether the token's creation names it; the manager's functions that name it; the "
+            + "card's live region and its draw asking knowsProject; since fix FG6 the GMs' list of the fields held while secret and its rule, "
+            + "and applyProjectChange telling the players]");
     }],
 ];
 

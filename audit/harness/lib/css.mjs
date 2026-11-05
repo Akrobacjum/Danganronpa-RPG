@@ -8,7 +8,7 @@
  * the six files and answered `getPropertyValue("--x")` from a flat map of their
  * custom properties, the last declaration in any of them winning - so a value
  * from inside an `@media` block, or from under the glass theme's class, answered
- * for every element on every page. Now all six are imported in module.json's
+ * for every element on every page. Now all of them are imported in module.json's
  * order through jsdom's resource loader (client-entry.mjs serves the checkout),
  * and jsdom's own cascade answers: selectors, specificity, inheritance. How v14
  * attaches them is LIVE-E30-09.
@@ -22,8 +22,9 @@
  * `screen` and `all` did. `@supports`, `@container` and `@layer` blocks are not
  * read at all (css/helpers/computed-style.js handleSheet walks only imports,
  * `@media` and style rules), and the imports' `layer(modules)` is read as no
- * layer. In the module's six sheets that leaves 28 `@media` blocks (all feature
- * queries), one `@container` and one `@supports` that never apply here.
+ * layer. In the module's six sheets that left 28 `@media` blocks (all feature
+ * queries), one `@container` and one `@supports` that never apply here; in its seven (E44 C3a added the window kit's
+ * components.css, 04.11.2026) 33 `@media`, two `@container` and one `@supports`, counted with comments removed.
  *
  * Nor does it keep `!important` on a declaration whose value holds a var(): such a rule's
  * `getPropertyPriority` reads "" (jsdom 30.0.1, probed 12.10.2026 for R476), so a theme's plain

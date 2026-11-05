@@ -68,6 +68,16 @@ const WORLD_HOOKS = ["drpgTimeOfDayChanged", "drpgEclipseChanged", "drpgPhaseCha
 const ACTOR_HOOKS = ["updateActor", "createActor", "deleteActor"];
 const TOKEN_HOOKS = ["createToken", "deleteToken", "updateToken"];
 const ITEM_HOOKS = ["createItem", "deleteItem", "updateItem"];
+/* What lets go of a press (rule 1, for a hand). Heard on the page's window, in the capture phase, so a press that
+   ends outside the module's window - or on the page's window itself - still ends, as the trial console's own hold
+   hears its release (trial-floor-ui.mjs, E70 fix p1-G3); `lostpointercapture` for a control that captured the pointer
+   and lost it. Heard on the document instead, a release dispatched on the page's window never reached it, and the
+   console's tick stood still (measured on the suite's "the console holds Enter while an Objection runs", 04.11). */
+const RELEASES = ["pointerup", "pointercancel", "lostpointercapture"];
+/* A press is forgotten after this long whatever, as the trial console forgets its own (5 s there too): a release no
+   listener heard - the pointer let go over another frame, a tab switched under it - would otherwise hold the region
+   for good. */
+const HOLD_MAX_MS = 5000;
 
 /** Every window this module has asked to keep live, for the diagnostics. */
 const living = new Set();
@@ -94,7 +104,7 @@ const living = new Set();
 export function keepLive(app, { region, build, watch = {}, delay = TIMING.coalesceMs, after = null } = {}) {
     if (!app || typeof build !== "function" || !region) return () => {};
 
-    const record = { app, region, at: Date.now(), refreshes: 0, deferred: 0 };
+    const record = { app, region, at: Date.now(), refreshes: 0, deferred: 0, watch, build };
     living.add(record);
 
     let stopped = false;
@@ -103,6 +113,19 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
      * `focusout` listener below, because "when they stop typing" is an event
      * and not a duration. */
     let pending = false;
+    /* RULE 1, FOR A HAND (E44 C2b, 04.11.2026; audit S10-58). A press is not a focus: a GM's
+     * click on a GM panel tile, at the moment any module setting was written, met a region
+     * rebuilt between its `pointerdown` and its `click` - the button pressed was gone, and the
+     * window's delegated listener never heard the click (`contains` of a node no longer in it).
+     * So a `pointerdown` inside the region holds it until the press is let go (RELEASES); a
+     * rebuild wanted meanwhile waits, as one under focus does, and is answered ONCE at the
+     * release - after it, on the next turn of the event loop, because the browser sends `click`
+     * after `pointerup` and the click must reach the node it was pressed on. A press outside the
+     * region holds nothing. Measured headless only, on events the harness dispatches (R1316,
+     * E44-T1); a real pointer at a table is not measured yet: LIVE-E44-02. */
+    let held = false;
+    let heldWanted = false;
+    let holdTimer = null;
 
     const root = () => app.element ?? null;
     const target = () => root()?.querySelector(region) ?? null;
@@ -121,6 +144,14 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
         // case, which a null check does not.
         if (!element?.isConnected) return stop();
 
+        // RULE 1, FOR A HAND. A press inside the region is not let go yet; the release answers this.
+        if (held) {
+            heldWanted = true;
+            record.deferred++;
+            debug(`live: ${region} deferred - a press inside it is not let go`);
+            return;
+        }
+
         // RULE 1. The GM is typing in here; come back when they are not.
         if (!force && isEditing(element)) {
             pending = true;
@@ -133,6 +164,7 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
             const carried = capture(element);
             const next = toElement(build());
             if (!next) return;
+            heldWanted = false;
             element.replaceWith(next);
             restore(next, carried);
             record.refreshes++;
@@ -204,6 +236,26 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
     };
     root()?.addEventListener("focusout", onFocusOut);
 
+    const view = () => root()?.ownerDocument?.defaultView ?? window;
+    const release = () => {
+        if (!held) return;
+        held = false;
+        clearTimeout(holdTimer);
+        for (const name of RELEASES) view().removeEventListener(name, release, true);
+        if (!heldWanted) return;
+        // After the release's own turn: `click` comes after `pointerup`, and must find the pressed node.
+        setTimeout(() => rebuild(), 0);
+    };
+    const onPointerDown = event => {
+        if (held || stopped) return;
+        const element = target();
+        if (!element?.isConnected || !event.target?.nodeType || !element.contains(event.target)) return;
+        held = true;
+        holdTimer = setTimeout(release, HOLD_MAX_MS);
+        for (const name of RELEASES) view().addEventListener(name, release, true);
+    };
+    root()?.addEventListener("pointerdown", onPointerDown, true);
+
     const closeId = Hooks.on("closeApplicationV2", closed => {
         if (closed !== app) return;
         stop();
@@ -215,6 +267,10 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
         for (const [name, id] of listeners) Hooks.off(name, id);
         Hooks.off("closeApplicationV2", closeId);
         root()?.removeEventListener("focusout", onFocusOut);
+        root()?.removeEventListener("pointerdown", onPointerDown, true);
+        for (const name of RELEASES) view().removeEventListener(name, release, true);
+        clearTimeout(holdTimer);
+        held = false;
         living.delete(record);
     }
 
@@ -299,12 +355,24 @@ function listenFor(watch, schedule) {
  * BUTTON is not: a button keeps focus after it is pressed, and a window whose
  * buttons freeze it the moment anybody clicks one is the stale window again
  * with extra steps.
+ *
+ * NOR IS AN INPUT THAT IS PRESSED RATHER THAN TYPED IN (E44 C2a, 04.11.2026;
+ * audit S01-34). A checkbox keeps focus after its click exactly as a button
+ * does, and until this list every focused INPUT counted as typing: the
+ * Investigation dashboard's Faint box, once ticked, held its whole region until
+ * the GM clicked somewhere else. The types below take a press, a pick or a
+ * drag, never a caret, so a rebuild cannot lose anybody's place in one - and
+ * what they hold is carried (rule 2) when it was changed. `range` and `image`
+ * are beyond the audit's list: a slider is dragged, an image input is a button.
  */
+const PRESSED_INPUTS = new Set(["checkbox", "radio", "button", "submit", "reset", "color", "file", "range", "image"]);
+
 function isEditing(element) {
     const active = document.activeElement;
     if (!active || !element.contains(active)) return false;
     const tag = active.tagName;
-    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+    if (tag === "INPUT") return !PRESSED_INPUTS.has(String(active.type ?? "").toLowerCase());
+    if (tag === "TEXTAREA" || tag === "SELECT") return true;
     return active.isContentEditable === true;
 }
 
@@ -325,10 +393,22 @@ function toElement(built) {
  * while the region's structure is stable and gives up when it is not, which is
  * the right way round - a scroll position restored into the wrong box is worse
  * than one that was not restored.
+ *
+ * A NAME IS NOT ALWAYS ONE FIELD (E44 C2a, 04.11.2026; audit S01-34). Every
+ * radio of a group shares its name, so keyed by the name alone the group's
+ * radios were one entry: each dirty radio overwrote the last, and `restore`
+ * checked them all in turn, leaving the group on its LAST radio whatever the
+ * person picked. A radio is keyed by its name and its value; and a key that
+ * still occurs twice in the region (two fields of one name, two radios of one
+ * value) takes its index among the fields of that key, so two fields never
+ * share a value. `named` is that reading, made once per region by `keysOf`:
+ * a field's key depends on its neighbours, so it cannot be read off the field.
+ * The index is positional within the key and holds as the positional fallback
+ * does - while the region's shape holds.
  */
-function keyFor(element, root) {
-    const named = element.getAttribute?.("name");
-    if (named) return `n:${named}`;
+function keyFor(element, root, named = null) {
+    const field = named?.get(element);
+    if (field) return field;
     const own = element.dataset?.drpgKey;
     if (own) return `k:${own}`;
     if (element.id) return `i:${element.id}`;
@@ -340,6 +420,27 @@ function keyFor(element, root) {
         path.unshift([...parent.children].indexOf(node));
     }
     return `p:${path.join("/")}`;
+}
+
+/** Every named element of the region and its key (see `keyFor`), read in one pass. */
+function keysOf(root) {
+    const fields = [...root.querySelectorAll("[name]")].filter(node => node.getAttribute("name"));
+    const bases = fields.map(node => {
+        const name = node.getAttribute("name");
+        return node.tagName === "INPUT" && node.type === "radio" ? `n:${name}=${node.value}` : `n:${name}`;
+    });
+    const total = new Map();
+    for (const base of bases) total.set(base, (total.get(base) ?? 0) + 1);
+    const seen = new Map();
+    const named = new Map();
+    fields.forEach((node, i) => {
+        const base = bases[i];
+        if (total.get(base) === 1) return named.set(node, base);
+        const index = seen.get(base) ?? 0;
+        seen.set(base, index + 1);
+        named.set(node, `${base}#${index}`);
+    });
+    return named;
 }
 
 /**
@@ -357,20 +458,31 @@ function capture(element) {
     const scrolls = new Map();
     const opens = new Map();
     const dirty = new Map();
+    const marks = new Map();
+    const named = keysOf(element);
 
     if (element.scrollTop || element.scrollLeft) {
         scrolls.set("self", [element.scrollTop, element.scrollLeft]);
     }
     for (const node of element.querySelectorAll("*")) {
         if (node.scrollTop || node.scrollLeft) {
-            scrolls.set(keyFor(node, element), [node.scrollTop, node.scrollLeft]);
+            scrolls.set(keyFor(node, element, named), [node.scrollTop, node.scrollLeft]);
         }
     }
     for (const node of element.querySelectorAll("details")) {
-        opens.set(keyFor(node, element), node.open);
+        opens.set(keyFor(node, element, named), node.open);
     }
     for (const node of element.querySelectorAll("input, textarea, select")) {
-        if (isDirty(node)) dirty.set(keyFor(node, element), { value: heldIn(node), drawn: drawnOf(node) });
+        if (isDirty(node)) dirty.set(keyFor(node, element, named), { value: heldIn(node), drawn: drawnOf(node) });
+    }
+    /* A SAVE'S MARKER IS CARRIED AS A DIRTY FIELD IS (E44 C2b, 04.11.2026). A row that saves as
+       it is changed says so on a marker (`data-drpg-save`, drawn empty: saving, saved, failed -
+       the Sound window's Music rows). Its state is something the person did, not something the
+       markup prints, so a rebuild in the middle of a save - the save's own echo redraws the rows
+       it was made from - would otherwise draw the marker empty again. Matched by `data-drpg-key`,
+       which the marker carries; only a marker the new markup draws empty takes it back. */
+    for (const node of element.querySelectorAll("[data-drpg-save]")) {
+        if (node.dataset.drpgSave) marks.set(keyFor(node, element, named), { state: node.dataset.drpgSave, text: node.textContent });
     }
 
     /*
@@ -380,38 +492,39 @@ function capture(element) {
      * while they are reading the fourth is the cure being worse than the stale
      * window - rule 2, in the shape tabs take.
      *
-     * TWO SHAPES, because the module grew two. `panelTabs` in utils.mjs marks
-     * `active` on both the button and the section; the case dashboard has its
-     * own older pair that marks the button and toggles `display` on the panel.
-     * Both are keyed by the same string, so one captured key puts either back.
+     * ONE SHAPE since E44 C4a: the kit's bar (ui-kit.mjs `kitTabs`), the
+     * shown tab `aria-selected`, its pane without `hidden`. Until then there
+     * were two - a class on the button and the section, and the case
+     * dashboard's older pair of a class and inline `display` - each read and
+     * put back here. The kit's attributes are spelt here rather than imported:
+     * the kit imports this file (R161).
      */
-    const tab = element.querySelector("[data-drpg-gmt-tab].active")?.dataset?.drpgGmtTab
-        ?? element.querySelector("[data-drpg-tab].active")?.dataset?.drpgTab
-        ?? null;
+    const tab = element.querySelector('nav.drpg-tabs > button[role="tab"][aria-selected="true"]')?.dataset?.drpgTabKey ?? null;
 
-    return { scrolls, opens, dirty, tab };
+    return { scrolls, opens, dirty, marks, tab };
 }
 
 /** Put back what `capture` took. Every step is optional and independent. */
-function restore(element, { scrolls, opens, dirty, tab }) {
+function restore(element, { scrolls, opens, dirty, marks, tab }) {
+    const named = keysOf(element);
     const self = scrolls.get("self");
     if (self) [element.scrollTop, element.scrollLeft] = self;
 
     if (scrolls.size > (self ? 1 : 0)) {
         for (const node of element.querySelectorAll("*")) {
-            const seen = scrolls.get(keyFor(node, element));
+            const seen = scrolls.get(keyFor(node, element, named));
             if (seen) [node.scrollTop, node.scrollLeft] = seen;
         }
     }
     if (opens.size) {
         for (const node of element.querySelectorAll("details")) {
-            const was = opens.get(keyFor(node, element));
+            const was = opens.get(keyFor(node, element, named));
             if (was !== undefined) node.open = was;
         }
     }
     if (dirty.size) {
         for (const node of element.querySelectorAll("input, textarea, select")) {
-            const was = dirty.get(keyFor(node, element));
+            const was = dirty.get(keyFor(node, element, named));
             if (!was) continue;
             /* MOVED UNDER THE PERSON TYPING (E09 C3, S05-26). The new markup's default is
                what the world holds now. Where that is neither what this field was drawn
@@ -430,30 +543,27 @@ function restore(element, { scrolls, opens, dirty, tab }) {
             else node.value = was.value;
         }
     }
+    if (marks.size) {
+        for (const node of element.querySelectorAll("[data-drpg-save]")) {
+            const was = marks.get(keyFor(node, element, named));
+            if (!was || node.dataset.drpgSave) continue;
+            node.dataset.drpgSave = was.state;
+            node.textContent = was.text;
+        }
+    }
     if (tab) {
         // Only if that tab still exists: a rebuild is allowed to remove one,
         // and forcing a pane that is gone would leave the window blank.
-        const button = element.querySelector(`[data-drpg-gmt-tab="${tab}"]`);
-        const pane = element.querySelector(`[data-drpg-gmt-section="${tab}"]`);
+        // A bar whose tab loads its one pane (the handbooks, the messenger) has
+        // no pane of that key, and is put back by its own window.
+        const button = element.querySelector(`nav.drpg-tabs > button[role="tab"][data-drpg-tab-key="${CSS.escape(tab)}"]`);
+        const pane = element.querySelector(`[data-drpg-pane="${CSS.escape(tab)}"]`);
         if (button && pane) {
-            for (const other of element.querySelectorAll("[data-drpg-gmt-tab]")) {
-                other.classList.toggle("active", other === button);
+            for (const other of element.querySelectorAll('nav.drpg-tabs > button[role="tab"][data-drpg-tab-key]')) {
+                other.setAttribute("aria-selected", String(other === button));
             }
-            for (const other of element.querySelectorAll("[data-drpg-gmt-section]")) {
-                other.classList.toggle("active", other === pane);
-            }
-        }
-
-        // The dashboard's own pair: the button carries `active`, the panel is
-        // shown or hidden outright.
-        const older = element.querySelector(`[data-drpg-tab="${tab}"]`);
-        const olderPane = element.querySelector(`[data-drpg-panel="${tab}"]`);
-        if (older && olderPane) {
-            for (const other of element.querySelectorAll("[data-drpg-tab]")) {
-                other.classList.toggle("active", other === older);
-            }
-            for (const other of element.querySelectorAll("[data-drpg-panel]")) {
-                other.style.display = other === olderPane ? "" : "none";
+            for (const other of element.querySelectorAll("[data-drpg-pane]")) {
+                other.hidden = other !== pane;
             }
         }
     }
@@ -547,6 +657,16 @@ function shownAs(node, value) {
  * ========================================================================== */
 
 /**
+ * What an opener answers when the window it opens was already open and it raised it instead (E44 C2c,
+ * 04.11.2026; audit S10-59). Not null: null is also what a dismissed window answers, and the GM panel,
+ * which reopens itself after every tile, could not tell "the GM closed what this tile opened" from "this
+ * tile raised a window that is still standing" - so it came back over the window it had just raised.
+ * Every opener a panel tile runs answers this on its `alreadyOpen` branch (R1318), and the panel does
+ * not come back when it is answered.
+ */
+export const RAISED = "raised";
+
+/**
  * If this window is already open, raise it and say so.
  *
  * @param {string} className The window's own class, e.g. `"drpg-window-sound"`.
@@ -564,6 +684,12 @@ export function alreadyOpen(className) {
             // Raised rather than merely refused. A GM who presses the tile
             // again is telling us they want to look at that window, and the
             // reason they pressed twice is usually that it is behind something.
+            // Or folded to its title bar (E44 fix FG2, 05.11.2026; the end review's C-m1): since Q-E44-1 lifted the
+            // module's block, a window can be folded, and raising the bar alone left the press doing nothing to see.
+            // So it is unfolded first (`maximize`, Foundry's; not awaited, so this stays an answer the caller reads at
+            // once), then raised. `minimized` and `maximize` as ApplicationV2's, read from memory and modelled by
+            // the harness, not read on v14 (LIVE-E44-08).
+            if (app.minimized) Promise.resolve(app.maximize?.()).catch(err => debug("Could not unfold a window", err));
             app.bringToFront?.();
             return app;
         }
@@ -750,6 +876,15 @@ export function closeOpen(className) {
         debug("Could not close a finished window", err);
     }
     return closed;
+}
+
+/**
+ * The regions kept live on one window (every window, with none named): each one's selector, what wakes it and its
+ * build. For R1317, which builds every region that names `watch.settings` once with `game.settings.get` counted, and
+ * holds what it read to what it declared (E44 C2b): a region held to its keys must name every key it prints.
+ */
+export function liveRegions(app = null) {
+    return [...living].filter(r => !app || r.app === app).map(r => ({ region: r.region, watch: r.watch, build: r.build }));
 }
 
 /** What is currently keeping itself true. For the diagnostics window. */

@@ -170,7 +170,7 @@ export const accounts = [
 const J = value => JSON.stringify(value);
 
 /* The passages' marker, as a number and as text: not inside a longer number (11234.5, 1234.55 or 0.1234.5). */
-const MARK = 1234.5;
+export const MARK = 1234.5;
 const MARK_RE = /(?<![\d.])1234\.5(?!\d)/g;
 const PHASE0 = "0: the passages' marker - found on each surface it is planted on, nothing where it is not, and p3's world as found";
 
@@ -1107,7 +1107,7 @@ async function phaseE({ gm, p1, check, phase, settle, dump, socketTraffic, IDS, 
         globalThis.__s76e = { id: passage?.id ?? null, wall: passage?.passageWallId ?? null, el: app?.element ?? null, app, pending, was };
         const el = app?.element;
         return { id: passage?.id ?? null, wall: passage?.passageWallId ?? null, aiko: Boolean(passage?.access?.[${J(IDS.aiko)}]),
-            title: app?.options?.window?.title ?? null, tab: el?.querySelector('[data-drpg-tab="passages"]') ? true : false,
+            title: app?.options?.window?.title ?? null, tab: el?.querySelector('nav.drpg-tabs [data-drpg-tab-key="passages"]') ? true : false,
             row: Boolean(el?.querySelector('[data-drpg-passage="' + passage?.id + '"]')) };`, { timeout: 30000 });
     const scene = await gm.eval(`return game.i18n.format("DRPG.Vault.manageTitleOn", { scene: game.scenes.get(${J(IDS.scene)}).name });`);
     /* p3's world as phase D left it, the measure of this phase: not phase 0's baseline, from which phases C and D part by
@@ -1398,7 +1398,8 @@ async function phaseF({ gm, p1, p2, p3, check, phase, settle, dump, IDS, repoUrl
         const missed = line("[data-drpg-pick-why]");
         f.hands.pointerdown?.(at(1234.5, 803));
         const second = { step: line("[data-drpg-pick-step]"), where: line("[data-drpg-pick-where]"), why: line("[data-drpg-pick-why]"),
-            tucked: f.el?.style.visibility ?? null };
+            // Folded since E44 fix FG2 (Room setup is a tableDialog, minimizable now): hidden only where it may not fold.
+            tucked: f.app?.minimized ? "folded" : f.el?.style.visibility ?? null };
         f.hands.pointermove?.(at(1334.5, 797));
         const preview = (layer("pick")?.children ?? []).flatMap(g => g._calls ?? []).filter(([k]) => k === "drawCircle").map(([, a]) => a.slice(0, 3));
         f.hands.pointerdown?.(at(1334.5, 797));
@@ -1407,12 +1408,12 @@ async function phaseF({ gm, p1, p2, p3, check, phase, settle, dump, IDS, repoUrl
         await until(() => !prompt() && !f.hands.pointerdown);
         await until(() => f.el?.querySelector('[data-drpg-passage="' + made?.id + '"]'));
         f.id = made?.id ?? null;
-        return { missed, second, preview, back: f.el?.style.visibility ?? null, id: made?.id ?? null, seg: made?.passageSeg ?? null, rooms: made?.rooms ?? null, state: made?.state ?? null,
+        return { missed, second, preview, back: f.app?.minimized ? "folded" : f.el?.style.visibility ?? null, id: made?.id ?? null, seg: made?.passageSeg ?? null, rooms: made?.rooms ?? null, state: made?.state ?? null,
             prompt: Boolean(prompt()), board: Object.keys(f.hands), row: Boolean(f.el?.querySelector('[data-drpg-passage="' + made?.id + '"]')),
             told: globalThis.__notifications.slice(noted).map(n => n.msg), overlays: overlays().length, drawn: drawn(), pick: layer("pick")?.children.length ?? null };`, { timeout: 30000 });
-    check("F: 'New passage' in the GM's Room Setup, a click off the wall refused in the pick's window, then two clicks on the Kitchen's wall - the passage is made on the stretch between them, Room Setup hidden meanwhile and back after, the window and the board's listeners gone, and the GMs' overlay draws it",
+    check("F: 'New passage' in the GM's Room Setup, a click off the wall refused in the pick's window, then two clicks on the Kitchen's wall - the passage is made on the stretch between them, Room Setup folded meanwhile (hidden before E44 fix FG2) and back after, the window and the board's listeners gone, and the GMs' overlay draws it",
         opened.kitchen && opened.wall && opened.button === texts.button && J(opened.board) === J(["pointerdown", "pointermove"])
-            && picked.missed === texts.noWall && J(picked.second) === J({ step: texts.step2, where: "Cafeteria - Kitchen", why: null, tucked: "hidden" }) && picked.back === ""
+            && picked.missed === texts.noWall && J(picked.second) === J({ step: texts.step2, where: "Cafeteria - Kitchen", why: null, tucked: "folded" }) && picked.back === ""
             && J(picked.preview) === J([[1234.5, 800, 9], [1334.5, 800, 12]])
             && J(picked.seg) === J({ x1: 1234.5, y1: 800, x2: 1334.5, y2: 800 }) && J(picked.rooms) === J(["Cafeteria", "Kitchen"]) && picked.state === "secret"
             && !picked.prompt && J(picked.board) === "[]" && picked.row && picked.told.includes(texts.made)
@@ -2491,11 +2492,12 @@ async function phaseCO({ gm, p1, p2, p3, check, phase, settle, dump, socketTraff
  * their actions and Aiko's Hope for `sitE15`, which puts them back and takes the Kitchen and its wall away.
  * The Reroll is not thrown: the harness's roll message has no `Roll#reroll` (20-crit-hope rigs one on the GM), so the
  * undo is the primary's change a Reroll's lower dice write (projects.mjs `applyProjectChange`, `by: { kind: "reroll" }`),
- * as E15-T12 drives it; a Reroll at a table is LIVE-E15-03.
+ * as E15-T12 drives it; a Reroll at a table is LIVE-E15-03. Exported since E44 fix FG1 (05.11.2026): 30-security drives
+ * the same proposal and approval to read what a preset leaves in projectMeta's description.
  */
-const E15_UNTIL = `const until = async (test, ms = 8000) => { const end = Date.now() + ms; let v; while (!(v = await test()) && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return v; };`;
+export const E15_UNTIL = `const until = async (test, ms = 8000) => { const end = Date.now() + ms; let v; while (!(v = await test()) && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return v; };`;
 
-const standE15 = (gm, IDS, repoUrl, { botanIn }) => gm.eval(`
+export const standE15 = (gm, IDS, repoUrl, { botanIn }) => gm.eval(`
     const Mv = await import("${repoUrl}/scripts/movement.mjs");
     const scene = game.scenes.get(${J(IDS.scene)});
     const solid = { move: 20, sight: 20, light: 20, sound: 20, dir: 0, door: 0, ds: 0 };
@@ -2517,7 +2519,7 @@ const standE15 = (gm, IDS, repoUrl, { botanIn }) => gm.eval(`
     await new Promise(r => setTimeout(r, 500));
     return { kitchen: Boolean(kitchen), wall: Boolean(wall), rooms: Object.fromEntries(Object.keys(cast).map(who => [who, Mv.roomOfActor(game.actors.get(ids[who]))])) };`, { timeout: 60000 });
 
-const sitE15 = (gm, IDS, repoUrl) => gm.eval(`
+export const sitE15 = (gm, IDS, repoUrl) => gm.eval(`
     const PR = await import("${repoUrl}/scripts/projects.mjs");
     const scene = game.scenes.get(${J(IDS.scene)});
     const s = globalThis.__s76e15 ?? {};
@@ -2535,7 +2537,7 @@ const sitE15 = (gm, IDS, repoUrl) => gm.eval(`
 
 /* Start New on p1: Aiko's Kind is the preset, its "Through the wall to" the first room the offer names (the form's
    index, as a player picks it), every other field left as the window gives it. */
-const proposeE15 = (p1, IDS, repoUrl, preset) => p1.eval(`
+export const proposeE15 = (p1, IDS, repoUrl, preset) => p1.eval(`
     const aiko = game.actors.get(${J(IDS.aiko)});
     globalThis.__dialogLog.length = 0;
     globalThis.__dialogAnswers.push({ value: "start", form: null },
@@ -2551,7 +2553,7 @@ const proposeE15 = (p1, IDS, repoUrl, preset) => p1.eval(`
    the windows drawn (`__dialogWindows`), so the approval's own render wires its pick; Create first with nothing picked,
    then Approve again, the pick's button and two clicks on the Kitchen's wall through the board's listeners (phase F's
    way), and Create. Read: the window's Secret box, its rooms, the refusal, what the pick said, and the project made. */
-const approveE15 = (gm, IDS, repoUrl, clicks) => gm.eval(`${E15_UNTIL}
+export const approveE15 = (gm, IDS, repoUrl, clicks) => gm.eval(`${E15_UNTIL}
     const PR = await import("${repoUrl}/scripts/projects.mjs");
     const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
     const { wireCallActions } = await import("${repoUrl}/scripts/messenger-app.mjs");

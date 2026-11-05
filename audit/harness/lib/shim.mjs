@@ -1420,7 +1420,22 @@ export function buildApplications(ctx) {
             this.dispatchEvent(new globalThis.window.Event("close"));
             return this;
         }
-        async minimize() {} async maximize() {}
+        /* THE FOLD, AS FAR AS A STATE (E44 fix FG2, 05.11.2026): `minimize` folds a framed window whose options allow it -
+           `minimized` true and the class `minimized` on its element - and `maximize` unfolds it, as v13's ApplicationV2
+           does from memory; no height, no animation. They did nothing until FG2, while no module window could fold
+           (DialogV2's `minimizable: false` default, copied below from the module's notes): passages-gm.mjs `tuck` folds
+           Room setup now. What v14's fold does is LIVE-E44-08, in `environment.unconfirmed`. */
+        get minimized() { return Boolean(this._minimized); }
+        async minimize() {
+            if (this._minimized || !this.hasFrame || !this.options.window?.minimizable) return;
+            this._minimized = true;
+            this.element?.classList?.add("minimized");
+        }
+        async maximize() {
+            if (!this._minimized) return;
+            this._minimized = false;
+            this.element?.classList?.remove("minimized");
+        }
         /*
          * Foundry writes the position inline and, on a first render with no left/top,
          * centres the window. jsdom has no layout, so an "auto" height measures 0 here,
@@ -1500,6 +1515,15 @@ export function buildApplications(ctx) {
             }
             form.append(body, footer);
             form.addEventListener("submit", event => { event.preventDefault(); this._onSubmit(event.submitter, event); });
+            /* Escape dismisses the window, as Foundry's DialogV2 `_onKeyDown` does (read on 14.365 for the tab footers,
+               ui-kit.mjs `wireKitTabs`: it intercepts Escape only); heard on the form, where a key in any of its fields arrives (E44 C3a,
+               for E44-T5). Not read off v14's source. */
+            form.addEventListener("keydown", event => {
+                if (event.key !== "Escape") return;
+                event.preventDefault();
+                event.stopPropagation();
+                this.close();
+            });
             form.addEventListener("click", event => {
                 const target = event.target?.closest?.("[data-action]");
                 if (!target) return;

@@ -1,0 +1,191 @@
+{
+  "about": "The text-on-ground pairs tools/contrast.mjs (node tools/check.mjs contrast) and the suite's R1312 measure by WCAG 2 in both themes (E44 C1c, 04.11.2026; D29 = 2): `text` a token on the token `on`, in `theme` (stained-glass or monokuma-legacy: its tokens are :root's and its body class's), `small` (AA 4.5:1) or `large` (AA 3:1), and `where` the rules it was read from. The pairs were measured, not chosen: the tokens the sheets give `color`, beside the ground the same rule or the theme gives them (each theme's body text, notes, labels, button ink on its ground, a chip's count, a box's words, the GM red's ink). A pair below AA is written with its ratio as `known` and goes to E48, whose goal holds Legacy's contrast; it is never raised to pass, and a `known` that no longer reads (AA met, or another ratio) is red. A pair Node cannot resolve (a ground with alpha, color-mix()) is printed 'not measured in Node': Chromium's, through audit/style-sweep.mjs's computed colours.",
+  "pairs": [
+    {
+      "id": "sg-body",
+      "theme": "stained-glass",
+      "text": "--drpg-sg-bone",
+      "on": "--drpg-sg-ink",
+      "size": "small",
+      "where": "body text on the theme's ink (32 rules colour text --drpg-sg-bone in stained-glass.css)"
+    },
+    {
+      "id": "sg-note",
+      "theme": "stained-glass",
+      "text": "--drpg-sg-bone-dim",
+      "on": "--drpg-sg-ink",
+      "size": "small",
+      "where": "notes and hints: body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, ...) and 23 more"
+    },
+    {
+      "id": "sg-label",
+      "theme": "stained-glass",
+      "text": "--drpg-glass-accent",
+      "on": "--drpg-sg-ink",
+      "size": "small",
+      "where": "labels and table heads: body.drpg-theme-stained-glass .drpg-panel table thead th and 21 more"
+    },
+    {
+      "id": "sg-button",
+      "theme": "stained-glass",
+      "text": "--drpg-sg-ink",
+      "on": "--drpg-sg-bone",
+      "size": "small",
+      "where": "button and summary ink on bone: body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-section > summary and 3 more"
+    },
+    {
+      "id": "sg-chip",
+      "theme": "stained-glass",
+      "text": "--drpg-sg-ink",
+      "on": "--drpg-glass-accent",
+      "size": "small",
+      "where": "a chip's count: body.drpg-theme-stained-glass .drpg-voice-count and 2 more"
+    },
+    {
+      "id": "sg-hope",
+      "theme": "stained-glass",
+      "text": "--drpg-sg-ink",
+      "on": "--drpg-sg-hope",
+      "size": "small",
+      "where": "ink on Hope's gold: body.drpg-theme-stained-glass .character-header-sheet .drpg-ultimate-row ... and 1 more"
+    },
+    {
+      "id": "sg-gm-ink",
+      "theme": "stained-glass",
+      "text": "--drpg-sg-gm-light",
+      "on": "--drpg-sg-ink",
+      "size": "small",
+      "where": "the GM red's ink: body.drpg-theme-stained-glass .application.dialog footer.form-footer button:is(.danger, ...) and 3 more"
+    },
+    {
+      "id": "sg-gm-badge",
+      "theme": "stained-glass",
+      "text": "--drpg-sg-ink",
+      "on": "--drpg-sg-gm-light",
+      "size": "small",
+      "where": "ink on the GM red: body.drpg-theme-stained-glass .drpg-tb-badge.type.incident"
+    },
+    {
+      "id": "sg-despair",
+      "theme": "stained-glass",
+      "text": "--drpg-sg-despair",
+      "on": "--drpg-sg-ink",
+      "size": "small",
+      "where": "Despair's words: body.drpg-theme-stained-glass #drpg-despair .drpg-despair-pip and 5 more"
+    },
+    {
+      "id": "sg-evidence",
+      "theme": "stained-glass",
+      "text": "--drpg-sg-ink",
+      "on": "--drpg-sg-evidence",
+      "size": "small",
+      "where": "a box's words on evidence green: body.drpg-theme-stained-glass .drpg-tb-badge.type.key"
+    },
+    {
+      "id": "lg-body",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-bone",
+      "on": "--drpg-ink",
+      "size": "small",
+      "where": "body text: .application.sheet.actor .navigation-container > button ... and 101 more rules colour text --drpg-bone"
+    },
+    {
+      "id": "lg-note",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-dim",
+      "on": "--drpg-ink",
+      "size": "small",
+      "where": "notes, spent and unavailable: .drpg-assign select.drpg-assign-fallback and 51 more"
+    },
+    {
+      "id": "lg-label",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-gold",
+      "on": "--drpg-ink",
+      "size": "small",
+      "where": "Hope's labels: .drpg-hope-panel .drpg-call-button .drpg-action-icon and 29 more"
+    },
+    {
+      "id": "lg-gm-ink",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-eye-light",
+      "on": "--drpg-ink",
+      "size": "small",
+      "where": "the GM red's ink: .drpg-failure-count and 23 more"
+    },
+    {
+      "id": "lg-eye",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-eye",
+      "on": "--drpg-ink",
+      "size": "large",
+      "where": "the eye's red as text, large by its token's comment (\"large text and borders only - never body copy\"): .drpg-camera-dock .camera-view .player-name ... and 14 more"
+    },
+    {
+      "id": "lg-button",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-bone",
+      "on": "--drpg-eye",
+      "size": "small",
+      "where": "button ink on the eye's red: .application.sheet.actor .tab-navigation nav.sheet-tabs a.active and 4 more",
+      "known": "3.63"
+    },
+    {
+      "id": "lg-critical",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-bone",
+      "on": "--drpg-crimson",
+      "size": "small",
+      "where": "a critical card's title: .drpg-popup.drpg-popup-tone-critical .drpg-popup-title and 1 more"
+    },
+    {
+      "id": "lg-chip",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-ink",
+      "on": "--drpg-bone",
+      "size": "small",
+      "where": "a chip's count: #drpg-notices-corner[data-unread]::after (--drpg-notices-badge, which is --drpg-bone)"
+    },
+    {
+      "id": "lg-blood",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-blood",
+      "on": "--drpg-ink",
+      "size": "small",
+      "where": "Despair's words: #drpg-despair .drpg-despair-name and 14 more"
+    },
+    {
+      "id": "lg-red",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-red",
+      "on": "--drpg-ink",
+      "size": "small",
+      "where": "a broken or public passage's word: .drpg-passage-kind[data-kind=\"public\"] and 5 more",
+      "known": "4.39"
+    },
+    {
+      "id": "lg-crimson",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-crimson-light",
+      "on": "--drpg-ink",
+      "size": "small",
+      "where": "a critical on a dark card: .chat-message.duality.critical .roll-result-value ... and 12 more"
+    },
+    {
+      "id": "lg-box",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-ink",
+      "on": "--drpg-paper-alt",
+      "size": "small",
+      "where": "a box's words on paper: body.drpg-theme-monokuma-legacy .drpg-foundry-window:not([hidden])"
+    },
+    {
+      "id": "lg-glassy",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-bone",
+      "on": "--drpg-fill",
+      "size": "small",
+      "where": "words on a translucent fill: .application.sheet.actor .glassy, .application.sheet.actor .legend (the ground has alpha: Chromium's)"
+    }
+  ]
+}

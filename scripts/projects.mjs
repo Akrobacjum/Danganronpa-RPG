@@ -23,7 +23,7 @@
  * countdowns or the meta into projects-secrecy.mjs.
  */
 
-import { MODULE_ID, PROJECT_SCALE, TRAP_TRIGGERS, TRAITS, isProjectGlyph } from "./config.mjs";
+import { MODULE_ID, PROJECT_SCALE, TRAP_TRIGGERS, TRAITS, isProjectGlyph, projectDescriptionProblem } from "./config.mjs";
 import { SETTINGS, iAmTheMastermind } from "./settings.mjs";
 import { announce, log, error, whisperToOwner, whisperToGms, gmIds, esc, isPrimaryGm, primaryGmId, serialWrite, plural } from "./utils.mjs";
 // Statically: gm-stores.mjs reaches this file only by dynamic import, so the edge closes no cycle (R161).
@@ -194,6 +194,63 @@ export const PROJECT_KNOWN = "projectKnown";
 
 /* The projects the GMs' cards on this browser name (`projectsToldHere`); emptied when a card or its words arrive or go. */
 let toldHere = null;
+
+/** The meta key of a GM's private card that carries a secret project's description to its players (`tellDescription`). */
+export const PROJECT_WORDS = "projectWords";
+
+/* The newest description each secret project's cards on this browser carry (`toldDescription`); emptied with `toldHere`. */
+let wordsHere = null;
+
+/**
+ * A SECRET PROJECT'S DESCRIPTION ON A PLAYER'S BROWSER (E44 fix FG6): the newest of the GMs' private cards to this user
+ * that carry it (`PROJECT_WORDS`, posted by `tellDescription`), whose words and meta reach their readers alone
+ * (secret.mjs); null when no card here does. A card a GM did not write counts for nothing.
+ */
+export function toldDescription(countdownId) {
+    if (!wordsHere) {
+        wordsHere = new Map();
+        for (const message of game.messages ?? []) {
+            if (!message?.flags?.[MODULE_ID]?.secret || !message.author?.isGM) continue;
+            const told = cardMeta(message, PROJECT_WORDS);
+            if (typeof told?.id !== "string" || typeof told.text !== "string") continue;
+            const at = Number(message.timestamp) || 0;
+            if (!wordsHere.has(told.id) || wordsHere.get(told.id).at <= at) wordsHere.set(told.id, { text: told.text, at });
+        }
+    }
+    return wordsHere.get(countdownId)?.text ?? null;
+}
+
+/** A project's description as this browser may hold it (E44 C9; fix FG6): projectMeta's for a public one; for a secret one the GMs' store on a GM, the newest card that told it on a player's. */
+function descriptionOf(id) {
+    const words = !isSecret(id) ? metaFor(id).description : game.user?.isGM ? secretsOf(id).description : toldDescription(id);
+    return typeof words === "string" ? words : "";
+}
+
+/**
+ * TELL A SECRET PROJECT'S PLAYERS ITS DESCRIPTION (E44 fix FG6, 05.11.2026; the end review's S-M1, the owner's option (a)).
+ * On the primary GM, after every change of a secret project (`applyProjectChange`): each player in on it (`insidersOf`:
+ * its viewers - a finder by Observe is let in as one - and its builder's) whom the GMs' row does not record as told these
+ * words is sent one private card with them, veiled (its document names no reader, so who is in on the project is not
+ * read off it either), its meta carrying the project and the words (`PROJECT_WORDS`). The road the proposer of a public
+ * project is told by (`tellProposer`): no packet of its own, the words with the card to its readers alone. Who was told
+ * which words is the GMs' (`descriptionTold`, in their row). A project with no description tells nothing. Answers how
+ * many players were told.
+ */
+export async function tellDescription(countdownId) {
+    if (!isPrimaryGm() || !isSecret(countdownId)) return 0;
+    const words = secretsOf(countdownId).description;
+    if (typeof words !== "string" || !words) return 0;
+    const told = { ...(secretsOf(countdownId).descriptionTold ?? {}) };
+    const readers = insidersOf(countdownId).filter(id => game.users.get(id) && !game.users.get(id).isGM && told[id] !== words);
+    if (!readers.length) return 0;
+    const name = rawCountdown(countdownId)?.name ?? "?";
+    const posted = await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Project.descriptionTold", { name }))}</p><p>${esc(words).replace(/\n/g, "<br>")}</p>`,
+        { whisper: [...gmIds(), ...readers], veiled: true, flags: { [MODULE_ID]: { [PROJECT_WORDS]: { id: countdownId, text: words } } } });
+    if (!posted) return 0;
+    for (const id of readers) told[id] = words;
+    await projectSecretStore.patch(countdownId, { descriptionTold: told }, { whole: true });
+    return readers.length;
+}
 
 /** The ids of the projects this browser's private cards from a GM name as its user's own (`PROJECT_KNOWN`). */
 function projectsToldHere() {
@@ -377,6 +434,11 @@ export function allProjects() {
                 condition: secretsOf(id).condition ?? "",
                 killerId: secretsOf(id).killerId ?? null,
                 trait: metaFor(id).trait ?? null,
+                /* WHAT IT IS, IN THE WORDS ITS PROPOSAL OR A GM GAVE IT (E44 C9; the owner's ask of 04.11.2026). A public
+                   project's in the open meta, beside the room and the trait; a secret one's the GMs' since fix FG6, and a
+                   player in on it reads the card that told it (`descriptionOf`); "" for a project made before 1.2.99,
+                   until a GM's edit window asks for one (Q-C9-3). */
+                description: descriptionOf(id),
                 // WHICH PIXEL GLYPH THE TRAY DRAWS FOR THIS ROW.
                 //
                 // `null` for every project made before this existed, and for
@@ -896,7 +958,22 @@ export function cleanProjectChange(change) {
     if (change.target !== undefined && change.target !== null && Number.isFinite(target)) out.target = Math.max(1, Math.trunc(target));
     if (change.name !== undefined && change.name !== null && String(change.name)) out.name = String(change.name);
     if (typeof change.img === "string" && change.img) out.img = change.img;
-    if (plain(change.meta)) out.meta = JSON.parse(JSON.stringify(change.meta));
+    if (plain(change.meta)) {
+        out.meta = JSON.parse(JSON.stringify(change.meta));
+        /* A DESCRIPTION PAST THE LIMIT IS REFUSED ON EVERY ROAD, NEVER CUT (E44 fix FG3, 05.11.2026; the end review's
+           S-m3). createProject and updateProject refused one longer than config.mjs PROJECT_DESCRIPTION_MAX, and a
+           change made any other way - `applyProjectChange` from a GM's console, another GM's `project.change`, which
+           comes here too (bridge-runs-records.mjs `handleProjectChange`) - carried its meta whole. Every write of a
+           description goes through this cut, so here the whole change is refused (nothing of it is made: a change is
+           one decision), and a description that is not text is dropped. */
+        if (Object.hasOwn(out.meta, "description")) {
+            if (typeof out.meta.description !== "string") delete out.meta.description;
+            else if (projectDescriptionProblem(out.meta.description) === "long") {
+                log("A project change was refused: its description is longer than the module keeps.");
+                return null;
+            }
+        }
+    }
     if (plain(change.ownership)) {
         out.ownership = Object.fromEntries(Object.entries(change.ownership)
             .filter(([key, level]) => key && Number.isInteger(level) && level >= 0 && level <= 3));
@@ -991,6 +1068,16 @@ export async function applyProjectChange(countdownId, change, { by = null } = {}
             await (await import("./projects-map.mjs")).syncProjectToken(countdownId);
         } catch (err) {
             error(`Could not put the project ${countdownId}'s token right`, err);
+        }
+    }
+    /* A SECRET PROJECT'S PLAYERS ARE TOLD ITS DESCRIPTION (E44 fix FG6): after a change that made it, changed its words
+       or let somebody in - a create, an edit, a share, an Observe's find, a reseal - each player in on it whose card does
+       not hold the words yet is sent one (`tellDescription`); any other change tells nobody, all being told. */
+    if (result?.changed && !result.removed) {
+        try {
+            await tellDescription(countdownId);
+        } catch (err) {
+            error(`Could not tell the players of the project ${countdownId} its description`, err);
         }
     }
     return result;
@@ -1270,7 +1357,8 @@ export function registerProjectChanges() {
     });
     /* A proposer's card, or its words, came or went (H84 fix G3): `projectsToldHere` reads again, and the tray and the
        project tokens ask again whom they show when the words name a project. */
-    const forget = () => { toldHere = null; };
+    // A card that tells a secret project's description (`PROJECT_WORDS`, E44 fix FG6) is read again the same way.
+    const forget = () => { toldHere = null; wordsHere = null; };
     Hooks.on("createChatMessage", forget);
     Hooks.on("deleteChatMessage", forget);
     Hooks.on("drpgSecretStored", message => {
@@ -1332,6 +1420,12 @@ export async function createProject({
      * whatever `secret` says. Not named `target`: that is the bar's.
      */
     presetTarget = null, passage = null,
+    /*
+     * WHAT IT IS (E44 C9): plain text, trimmed, at most config.mjs PROJECT_DESCRIPTION_MAX characters - longer makes
+     * nothing, never a cut. Required in the windows a person fills in (the proposal, the GM's create and edit windows,
+     * Q-C9-3), not here: a repair, a sabotage's or a console's project may have none, and its card then draws none.
+     */
+    description = "",
     // WHO PROPOSED IT, as an actor id.
     //
     // The proposal card has carried this since the bridge was written - the
@@ -1344,6 +1438,11 @@ export async function createProject({
 } = {}) {
     if (!game.user.isGM) return null;
     if (!name) return null;
+    if (projectDescriptionProblem(description) === "long") {
+        log(`No project "${name}" was made: its description is longer than the module keeps.`);
+        return null;
+    }
+    const words = String(description ?? "").trim();
 
     const id = foundry.utils.randomID();
 
@@ -1392,6 +1491,9 @@ export async function createProject({
         // stays explicit in the data, not just in this file's assumptions.
         meta: {
             room, indirectMurder, secret: hidden, trait, countsUp: true,
+            /* Beside the room and the trait, in the step that writes the countdown with its ownership already sealed
+               (`createInStep`): where the name goes, the words go, under the same secrecy (E44 C9, Q-C9-1). */
+            ...(words ? { description: words } : {}),
             // Gated on the way IN, not on the way out: a name the sprite set does
             // not have would reach the tray as `var(--drpg-px-nonsense)`, which is
             // an invalid mask and therefore NO glyph at all - not the hourglass.
@@ -1850,11 +1952,16 @@ export async function setProjectImage(countdownId, img) {
  * current progress is clamped down with it.
  *
  * @param {string} countdownId
- * @param {object} patch  Any of { name, target, img, glyph, room, trait, indirectMurder }
+ * @param {object} patch  Any of { name, target, img, glyph, room, trait, indirectMurder, description }
  */
 export async function updateProject(countdownId, patch = {}) {
     if (!game.user.isGM) return null;
     if (!rawCountdown(countdownId)) return null;
+    // A description too long changes nothing, as at createProject (E44 C9): never cut.
+    if (patch.description !== undefined && projectDescriptionProblem(patch.description) === "long") {
+        log(`Project ${countdownId} was not updated: its description is longer than the module keeps.`);
+        return null;
+    }
     const change = projectEditChange(patch);
     // One change of the entry (E36 C2): the countdown and the meta in one step, on the primary.
     if (change) await applyProjectChange(countdownId, change, { by: { kind: "gm" } });
@@ -1888,6 +1995,8 @@ export function projectEditChange(patch = {}) {
     // change what a trap watches for without going round the back.
     if (patch.trigger !== undefined) meta.trigger = patch.trigger;
     if (patch.condition !== undefined) meta.condition = String(patch.condition ?? "");
+    // The open meta's, trimmed (E44 C9); its length is judged by the caller (`updateProject`, the project window).
+    if (patch.description !== undefined) meta.description = String(patch.description ?? "").trim();
     if (patch.killerId !== undefined) meta.killerId = patch.killerId || null;
     if (Object.keys(meta).length) change.meta = meta;
     return Object.keys(change).length ? change : null;

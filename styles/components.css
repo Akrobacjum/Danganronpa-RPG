@@ -1,0 +1,2047 @@
+/* ==========================================================================
+   THE WINDOW KIT (E44 C3a, 04.11.2026; audit S17-34)
+   --------------------------------------------------------------------------
+   One block per component of scripts/ui-kit.mjs, both themes through tokens: every `--drpg-kit-*` is defined once
+   for Monokuma Legacy on `body` (the base sheet's tokens) and again, where the glass differs, under
+   `body.drpg-theme-stained-glass` (the glass's own). No colour literal and no `!important` (tools/css-budget.json
+   holds this sheet at 0 of each), every font size a `--drpg-kit-*-size` token floored at 11 px under Legacy (D29) and
+   at `--drpg-sg-floor` under the glass, uppercase boxes at `line-height: 1.3`, no width above 390 px (the 26.09
+   amend: no component may assume a desk). R1322 reads this file for each of those; R1323 reads the cascade.
+
+   THE LOOK IS THE ONE THE OWNER APPROVED on the kit card (DR-E44-M1, M15, 04.11.2026): each component as its nearest
+   existing part looks today in each theme (the tabs the GM Team bar, the stepper chrome.mjs's, the chips the notice
+   history's, the boxes the notes and warning lines), with equal tab widths fitted to one line and I1's fine print.
+   A button's own face in a kit window stays today's panel button rule (danganronpa.css, stained-glass.css "the
+   brush") until E22: a kit window keeps `.drpg-panel` on its root, and the kit sets where each button stands.
+
+   HOW IT WINS WITHOUT `!important`. Loaded after messenger.css and before narrow.css (module.json), so a tie in
+   specificity goes to the kit and narrow.css still has the last word. Where an older rule is more specific - the
+   dialog footer's buttons (`.application.dialog:is(.drpg-panel, ...) footer.form-footer button`, 0,4,2) and the
+   frame (`.application.dialog:is(...) .window-content`, 0,4,0) - the kit's selector is written one class or one
+   element above it, named beside each rule.
+
+   WHAT THE KIT DOES NOT STATE, AND WHY (R1323, 04.11.2026). The draft the owner approved (S/stages/E44/mockups/kit/,
+   outside the repository) stated more than it drew: read against all seven sheets by tests-kit.mjs `styleCascade`,
+   77 readings of an element's property it stated (5 under Legacy, 72 under the glass) were won by older rules - under Stained Glass a kit button's padding, line-height, radius, font and colours to
+   the glass's button brush (stained-glass.css, `.drpg-panel button:not(...)`, 0,7,2, and its `!important` sweeps of
+   font-size, font-family and radius), the footer's spacing to the glass's footer rule, the switch to the glass's
+   checkbox, the frame's height to the glass's "windows the size of what is in them"; under both, the toggle's row to
+   `.drpg-panel label` and the help line's margin, in a window with a table, to the table windows' measure. What lost
+   under the glass drew the glass's rule on the approved card, so it is stated here for Legacy alone
+   (`body:not(.drpg-theme-stained-glass)`); what lost under both is not stated; the frame, whose height is the
+   contract, is written to win. So every declaration below is one that draws (R1323 holds it), and the render is the
+   approved one. E22 decides whether a kit button keeps the glass's brush.
+   ========================================================================== */
+
+/* ---- tokens: Monokuma Legacy (on `body`: the base sheet's) ---- */
+body {
+    --drpg-kit-ink: var(--drpg-bone);
+    --drpg-kit-line: rgba(var(--drpg-bone-rgb), 0.25);
+    --drpg-kit-line-strong: rgba(var(--drpg-bone-rgb), 0.3);
+    --drpg-kit-gap: 8px;
+    /* tabs: today's GM Team bar under Legacy; 8 px a side and 0.05em measured on M1 today at 1366x768 */
+    --drpg-kit-tab-bg: rgba(var(--drpg-bone-rgb), 0.08);
+    --drpg-kit-tab-ink: var(--drpg-bone);
+    --drpg-kit-tab-hover: rgba(var(--drpg-eye-rgb), 0.15);
+    --drpg-kit-tab-on-bg: rgba(var(--drpg-eye-rgb), 0.25);
+    --drpg-kit-tab-on-edge: var(--drpg-eye);
+    --drpg-kit-tab-on-ink: var(--drpg-bone);
+    --drpg-kit-tab-bar: transparent;
+    --drpg-kit-tab-radius: 3px;
+    --drpg-kit-tab-size: max(11px, var(--drpg-text-sm));
+    --drpg-kit-tab-pad: 8px;
+    --drpg-kit-tab-ls: 0.05em;
+    /* the smallest a tab goes to fit one line: D29's 11 px (ui-kit.mjs `fitKitTabs` reads it) */
+    --drpg-kit-tab-floor: 11px;
+    /* chips: the notice history's (E81) */
+    --drpg-kit-chip-edge: var(--drpg-line-strong);
+    --drpg-kit-chip-on-bg: var(--drpg-bone);
+    --drpg-kit-chip-on-ink: var(--drpg-ink);
+    --drpg-kit-chip-size: max(11px, var(--drpg-text-xs));
+    /* a chip with nothing under it: under Legacy the chip's ink at the kit's 0.4, under the glass its dim ink */
+    --drpg-kit-chip-off-ink: var(--drpg-bone);
+    /* boxes: the notes and the warning lines */
+    --drpg-kit-warn-edge: var(--drpg-crimson);
+    --drpg-kit-warn-bg: rgba(var(--drpg-crimson-rgb), 0.12);
+    --drpg-kit-info-edge: rgba(var(--drpg-bone-rgb), 0.45);
+    --drpg-kit-info-bg: rgba(var(--drpg-bone-rgb), 0.06);
+    --drpg-kit-secret-edge: var(--drpg-eye);
+    --drpg-kit-secret-bg: rgba(var(--drpg-eye-rgb), 0.1);
+    /* I1, the owner's choice on 04.11.2026: fine print in the bone at 62 %, the glass's own value. Today's
+       `--drpg-dim` measured 4.68:1 on the window and 4.32:1 on a warning at 13 px; this one 5.7:1 on the window
+       (M15 at 1920x1080, the mockup round's reading). */
+    --drpg-kit-help-ink: rgba(var(--drpg-bone-rgb), 0.62);
+    --drpg-kit-help-size: max(11px, var(--drpg-text-sm));
+    --drpg-kit-head-bg: var(--drpg-ink);
+    --drpg-kit-scroll-shade: rgba(var(--drpg-bone-rgb), 0.35);
+    --drpg-kit-switch-off: rgba(var(--drpg-bone-rgb), 0.25);
+    --drpg-kit-switch-on: var(--drpg-eye);
+    --drpg-kit-switch-knob: var(--drpg-bone);
+    /* the mode bar's and the stepper's buttons */
+    --drpg-kit-btn-bg: rgba(var(--drpg-bone-rgb), 0.1);
+    --drpg-kit-btn-edge: var(--drpg-line-strong);
+    --drpg-kit-btn-ink: var(--drpg-bone);
+    --drpg-kit-btn-on-bg: rgba(var(--drpg-eye-rgb), 0.22);
+    --drpg-kit-btn-on-edge: var(--drpg-eye);
+    --drpg-kit-btn-on-ink: var(--drpg-bone);
+    --drpg-kit-btn-radius: 2px;
+    /* the button roles' focus ring (ui-kit.mjs BUTTON_ROLES `token`): the GM's road in D11's red, a destructive
+       one in the warning's crimson, the primary in the eye, the closing word and the rest in the bone */
+    --drpg-kit-role-primary: var(--drpg-eye);
+    --drpg-kit-role-gm-route: var(--drpg-eye);
+    --drpg-kit-role-close: var(--drpg-bone);
+    --drpg-kit-role-cancel: var(--drpg-bone);
+    --drpg-kit-role-secondary: var(--drpg-bone);
+    --drpg-kit-role-destructive: var(--drpg-crimson);
+    /* the notice history (E44 C5): its lines and grounds as E81 drew them, an entry's seam by its tone or source,
+       and its two type sizes */
+    --drpg-kit-notice-edge: var(--drpg-line-strong);
+    --drpg-kit-notice-banner-edge: var(--drpg-bone);
+    --drpg-kit-notice-banner-bg: rgba(var(--drpg-bone-rgb), 0.06);
+    --drpg-kit-notice-entry-bg: rgba(var(--drpg-bone-rgb), 0.035);
+    --drpg-kit-notice-dot: var(--drpg-bone);
+    --drpg-kit-notice-seam: var(--drpg-bone);
+    --drpg-kit-notice-seam-hope: var(--drpg-gold);
+    --drpg-kit-notice-seam-fear: var(--drpg-crimson);
+    --drpg-kit-notice-seam-critical: var(--drpg-crimson-light);
+    --drpg-kit-notice-seam-evidence: var(--drpg-evidence);
+    --drpg-kit-notice-seam-alarm: var(--drpg-crimson-deep);
+    --drpg-kit-seam: var(--drpg-kit-notice-seam);
+    --drpg-kit-notice-sm-size: max(11px, var(--drpg-text-sm));
+    --drpg-kit-notice-xs-size: max(11px, var(--drpg-text-xs));
+}
+/* ---- tokens: Stained Glass (the glass's own) ---- */
+body.drpg-theme-stained-glass {
+    --drpg-kit-ink: var(--drpg-sg-bone);
+    --drpg-kit-line: color-mix(in srgb, var(--drpg-sg-bone) 12%, transparent);
+    --drpg-kit-tab-bg: transparent;
+    --drpg-kit-tab-ink: var(--drpg-sg-ink);
+    /* under the glass the lit tab is the brush (stained-glass.css's ::before, the accent): no ground of its own */
+    --drpg-kit-tab-hover: transparent;
+    --drpg-kit-tab-on-bg: transparent;
+    --drpg-kit-tab-on-edge: transparent;
+    --drpg-kit-tab-on-ink: var(--drpg-sg-ink);
+    --drpg-kit-tab-bar: var(--drpg-sg-bone);
+    /* the size and the padding of a tab under the glass are the brush's (below); its spacing, 0.08em measured on M1
+       today at 1366x768, is the kit's, and the one-line fit's lever here */
+    --drpg-kit-tab-ls: 0.08em;
+    /* the glass's own floor, above D29's 11 px: VT323's capital is 0.56 em (stained-glass.css, --drpg-sg-floor) */
+    --drpg-kit-tab-floor: max(11px, var(--drpg-sg-floor));
+    --drpg-kit-warn-edge: var(--drpg-sg-gm);
+    --drpg-kit-warn-bg: color-mix(in srgb, var(--drpg-sg-gm) 12%, transparent);
+    --drpg-kit-info-edge: color-mix(in srgb, var(--drpg-sg-bone) 45%, transparent);
+    --drpg-kit-info-bg: color-mix(in srgb, var(--drpg-sg-bone) 6%, transparent);
+    --drpg-kit-secret-edge: var(--drpg-glass-accent);
+    --drpg-kit-secret-bg: color-mix(in srgb, var(--drpg-glass-accent) 10%, transparent);
+    /* I1: the glass's own --drpg-sg-bone-dim, which today loses to danganronpa.css's --drpg-dim */
+    --drpg-kit-help-ink: var(--drpg-sg-bone-dim);
+    /* a chip's ink, a pressed chip's and the active mode's (the rest of their face is the brush's) */
+    --drpg-kit-btn-ink: var(--drpg-sg-bone);
+    --drpg-kit-chip-on-bg: var(--drpg-sg-bone);
+    --drpg-kit-chip-on-ink: var(--drpg-sg-ink);
+    --drpg-kit-chip-off-ink: var(--drpg-sg-bone-dim);
+    --drpg-kit-btn-on-bg: var(--drpg-sg-bone);
+    --drpg-kit-btn-on-ink: var(--drpg-sg-ink);
+    --drpg-kit-scroll-shade: color-mix(in srgb, var(--drpg-sg-bone) 35%, transparent);
+    --drpg-kit-role-primary: var(--drpg-glass-accent);
+    --drpg-kit-role-gm-route: var(--drpg-sg-gm);
+    --drpg-kit-role-close: var(--drpg-sg-bone);
+    --drpg-kit-role-cancel: var(--drpg-sg-bone);
+    --drpg-kit-role-secondary: var(--drpg-sg-bone);
+    --drpg-kit-role-destructive: var(--drpg-sg-gm);
+    --drpg-kit-notice-seam-hope: var(--drpg-sg-hope);
+    --drpg-kit-notice-seam-fear: var(--drpg-sg-despair);
+    --drpg-kit-notice-seam-evidence: var(--drpg-sg-evidence);
+    --drpg-kit-notice-seam-alarm: var(--drpg-sg-gm);
+}
+
+/* ---- drpgWindow / DrpgApp: the frame. The screen's height less 8 px a side; the body scrolls, the tab bar and the
+   footer do not. Written at 0,4,1 and 0,5,1, one place above danganronpa.css's dialog frame rule (`max-height: 80vh;
+   overflow: auto` on `.window-content`, 0,4,0) and level with the glass's (`.application.drpg-panel:not(.minimized)`,
+   `calc(100vh - 24px)` and `calc(100vh - 80px)`), which this sheet follows. The width stays the module's popup widths'
+   (danganronpa.css, stained-glass.css, `!important` against Foundry's inline width) until E21. ---- */
+body .application.drpg-ui.drpg-panel:not(.minimized) {
+    max-height: calc(100dvh - 16px);
+    display: flex;
+    flex-direction: column;
+}
+body .application.drpg-ui.drpg-panel:not(.minimized) > .window-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.application.drpg-ui.drpg-panel > .window-content > form.dialog-form,
+.application.drpg-ui.drpg-panel > .window-content > form.dialog-form > .dialog-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+.application.drpg-ui.drpg-panel .drpg-kit-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+.application.drpg-ui.drpg-panel .drpg-tabs { flex: 0 0 auto; }
+
+/* ---- the footer contract: the closing word, the secondary and the destructive ones on the left, the primary on
+   the right. The right group is first in the tree (Enter presses the first submit button: ui-kit.mjs's header);
+   `order` puts it last on the screen. ---- */
+.drpg-kit-footer {
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    align-items: center;
+}
+/* under the glass its footer rule spaces and rules the row (stained-glass.css, 0,4,2) */
+body:not(.drpg-theme-stained-glass) .drpg-kit-footer {
+    display: flex;
+    gap: var(--drpg-kit-gap);
+    padding-top: 10px;
+    margin-top: 10px;
+    border-top: 1px solid var(--drpg-kit-line);
+}
+/* The two sides on one line: the left one's buttons wrap inside it and the primary stays at the right of its last
+   row (with the sides free to wrap, M5's eight buttons put Save alone on a third row under Legacy and took that row
+   from the body; danganronpa.css's `flex-wrap: wrap` on the dialog footer is 0,4,1, this is 0,4,2). The footer wraps
+   only at a phone's width. */
+body .application.dialog footer.form-footer.drpg-kit-footer { flex-wrap: nowrap; align-items: flex-end; }
+.drpg-kit-footer > .drpg-kit-left { order: 1; display: flex; flex-wrap: wrap; gap: var(--drpg-kit-gap); flex: 1 1 auto; min-width: 0; }
+.drpg-kit-footer > .drpg-kit-right { order: 2; display: flex; flex-wrap: wrap; gap: var(--drpg-kit-gap); flex: 0 0 auto; margin-left: auto; }
+@media (max-width: 480px) { body .application.dialog footer.form-footer.drpg-kit-footer { flex-wrap: wrap; } }
+/* Each button as wide as its word (at least today's 8.5rem), never stretched across its side: danganronpa.css's
+   dialog rule (0,4,2, `flex: 1 1 auto`) stretched the lone Cancel to 866 px of M1's 1366 px footer under Legacy; this
+   is 0,4,3. */
+body .application.dialog footer.form-footer.drpg-kit-footer button { flex: 0 1 auto; min-width: 8.5rem; }
+/* The roles (ui-kit.mjs BUTTON_ROLES): each its place in its side and its focus ring. */
+.drpg-kit-footer .drpg-role-close { order: 0; --drpg-kit-ring: var(--drpg-kit-role-close); }
+.drpg-kit-footer .drpg-role-cancel { order: 0; --drpg-kit-ring: var(--drpg-kit-role-cancel); }
+.drpg-kit-footer .drpg-role-secondary { order: 1; --drpg-kit-ring: var(--drpg-kit-role-secondary); }
+.drpg-kit-footer .drpg-role-destructive { order: 2; --drpg-kit-ring: var(--drpg-kit-role-destructive); }
+.drpg-kit-footer .drpg-role-gm-route { order: 1; --drpg-kit-ring: var(--drpg-kit-role-gm-route); }
+.drpg-kit-footer .drpg-role-primary { order: 2; --drpg-kit-ring: var(--drpg-kit-role-primary); }
+.drpg-kit-footer button[data-drpg-role]:focus-visible { outline: 2px solid var(--drpg-kit-ring); outline-offset: 2px; }
+
+/* ---- kitTabs: one markup, equal widths (S12-50) that never cut a label: equal columns at least as wide as the
+   widest label, then the one-line fit (ui-kit.mjs `fitKitTabs`), which sets the bar's count of columns and the size,
+   spacing and padding it measured to fit. Every tabbed window of the module draws this bar since E44 C4a (R1324),
+   the windows E21 has not moved onto the kit's frame among them, so a rule here names the bar, never `.drpg-ui`. ---- */
+.drpg-tabs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 8em), 1fr));
+    gap: 2px;
+    padding: 3px;
+    margin: 0 0 10px;
+    background: var(--drpg-kit-tab-bar);
+    border-bottom: 1px solid var(--drpg-kit-line);
+}
+.drpg-tabs[data-drpg-tab-fit] { grid-template-columns: repeat(var(--drpg-kit-tab-n), minmax(0, 1fr)); }
+body.drpg-theme-stained-glass .drpg-tabs {
+    border-bottom: 0;
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+/* Written against the window and the bar's role (0,5,2, level with the glass's panel button brush, stained-glass.css
+   `.drpg-panel button:not(...)`, and later than it), so the panel's own button paint, which reaches every button of a
+   .drpg-panel window, does not repaint a tab. */
+body .application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="tab"] {
+    min-width: 0;
+    text-transform: uppercase;
+    letter-spacing: var(--drpg-kit-tab-fit-ls, var(--drpg-kit-tab-ls));
+    color: var(--drpg-kit-tab-ink);
+    background: var(--drpg-kit-tab-bg);
+    border: 1px solid var(--drpg-kit-line-strong);
+}
+/* the brush's ink of a tab not selected (a selected one takes the glass's lit brush) */
+body .application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="tab"]:not([aria-selected="true"]) { --brush-ink: var(--drpg-kit-tab-ink); }
+/* the size, the padding, the line and the corners: under the glass the brush's (the fit's size and padding levers
+   move nothing there; its spacing does), whose line is 1.35 (stained-glass.css, `.drpg-panel button:not(...)`) */
+body:not(.drpg-theme-stained-glass) .application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="tab"] {
+    white-space: nowrap;
+    padding: 4px var(--drpg-kit-tab-fit-pad, var(--drpg-kit-tab-pad));
+    font-size: var(--drpg-kit-tab-fit-size, var(--drpg-kit-tab-size));
+    line-height: 1.3;
+    border-radius: var(--drpg-kit-tab-radius);
+}
+body.drpg-theme-stained-glass .application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="tab"] {
+    border-color: transparent;
+    box-shadow: none;
+}
+/* the lit brush on the selected tab in a window that is no .drpg-panel (the messenger), where the glass's selected
+   rule (stained-glass.css, `:is(.drpg-panel button, ...):is(.active, ..., [aria-selected="true"], ...)`) does not reach */
+body.drpg-theme-stained-glass .application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="tab"][aria-selected="true"] {
+    --brush-on: 1;
+    --brush-ink: var(--drpg-kit-tab-on-ink);
+    --brush-edge: var(--brush);
+}
+body:not(.drpg-theme-stained-glass) .application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="tab"]:hover:not([aria-selected="true"]) { background: var(--drpg-kit-tab-hover); }
+body .application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="tab"][aria-selected="true"] {
+    color: var(--drpg-kit-tab-on-ink);
+    background: var(--drpg-kit-tab-on-bg);
+    border-color: var(--drpg-kit-tab-on-edge);
+}
+.drpg-tabs > button[data-drpg-tab-key]:focus-visible { outline: 2px solid var(--drpg-kit-tab-on-edge); outline-offset: -2px; }
+.drpg-tab-pane[hidden] { display: none; }
+
+/* ---- formGrid: a label column and a field column; one column under the container's 30rem. ---- */
+.drpg-form-grid {
+    container-type: inline-size;
+    display: grid;
+    /* the label column as wide as its labels up to 45 % of the grid (never under 8rem): `max-content` alone let M7's
+       long checkbox label take the row under Legacy's pixel face and push the fields out of a 480 px panel */
+    grid-template-columns: fit-content(max(8rem, 45%)) minmax(0, 1fr);
+    gap: 6px 12px;
+    /* each label at the top of its row, beside its control's line: centred, M11's "Sound" stood beside the note
+       under the slider instead of the slider */
+    align-items: start;
+}
+body .drpg-form-grid > .drpg-form-label { padding-top: 0.3em; }
+.drpg-form-grid > .drpg-form-full { grid-column: 1 / -1; }
+/* a field never wider than its cell, its padding and border inside (M7's text fields kept a 283 px width in a 274 px
+   cell under Legacy) */
+body .drpg-form-grid :is(input, select, textarea, .drpg-kit-stepper) { min-width: 0; max-width: 100%; box-sizing: border-box; }
+/* a field cell holds its control and what goes with it on one line, the control taking the room, and a note under
+   it on a line of its own (M2's volume rows) */
+body .drpg-form-grid > .drpg-form-field { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+body .drpg-form-grid > .drpg-form-field > :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { flex: 1 1 10rem; }
+body .drpg-form-grid > .drpg-form-field > :is(.drpg-help, p) { flex: 1 0 100%; margin: 0; }
+@container (max-width: 30rem) {
+    .drpg-form-grid > * { grid-column: 1 / -1; }
+}
+
+/* ---- dataTable: colgroup, a sticky head inside its scroll box, the empty state, the scroll signal. Inside a kit
+   window the body is the box that scrolls, and the head sticks to it. ---- */
+.drpg-data-table-box { position: relative; }
+.drpg-data-table-box > table.drpg-data-table > thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+/* under the glass its panel table rule collapses the table and grounds the head */
+body:not(.drpg-theme-stained-glass) .drpg-data-table-box > table.drpg-data-table { border-collapse: collapse; }
+body:not(.drpg-theme-stained-glass) .drpg-data-table-box > table.drpg-data-table > thead th { background: var(--drpg-kit-head-bg); }
+body .application.drpg-ui .drpg-data-table-box > table.drpg-data-table td.drpg-data-empty { text-align: center; color: var(--drpg-kit-help-ink); padding: 12px; }
+.drpg-kit-body[data-drpg-scroll="more"],
+.drpg-data-table-box[data-drpg-scroll="more"] {
+    box-shadow: inset 0 -10px 8px -8px var(--drpg-kit-scroll-shade);
+}
+/* the scroll signal's line for a screen reader: in the tree, out of sight */
+.drpg-kit-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* ---- helpText and the three boxes (info, warning, secret). ---- */
+/* 0,6,1: one place above the table windows' paragraph rule (danganronpa.css, `:has(.dialog-content table) :is(p, ...)`) */
+body .application.dialog.drpg-ui.drpg-panel .dialog-content .drpg-help { color: var(--drpg-kit-help-ink); margin: 0 0 8px; }
+body:not(.drpg-theme-stained-glass) .application.drpg-ui .dialog-content :is(p, div, span).drpg-help { font-size: var(--drpg-kit-help-size); line-height: 1.4; }
+/* under the glass the face and its size are the glass's sweeps' (`!important`); the case and the spacing the kit's */
+body.drpg-theme-stained-glass .application.dialog.drpg-ui.drpg-panel .dialog-content .drpg-help { text-transform: none; letter-spacing: 0; }
+body .application.drpg-ui .drpg-box { padding: 0.4rem 0.6rem; margin: 0 0 8px; border-left: 3px solid var(--drpg-kit-info-edge); background: var(--drpg-kit-info-bg); }
+body .application.drpg-ui .drpg-box[data-drpg-box="warning"] { border-left-color: var(--drpg-kit-warn-edge); background: var(--drpg-kit-warn-bg); }
+body .application.drpg-ui .drpg-box[data-drpg-box="secret"] { border-left-color: var(--drpg-kit-secret-edge); background: var(--drpg-kit-secret-bg); }
+
+/* ---- stepper: the input with its - and +, and its message line, in both themes and in every window that draws one (the
+   module's twelve number fields since E44 C4b, none of them a kit window yet: these rules ask no `.drpg-ui`); the
+   browser's arrows gone. ---- */
+.drpg-kit-stepper-label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.drpg-kit-stepper { display: inline-flex; align-items: stretch; gap: 0; }
+.drpg-kit-stepper > input[type="number"] { width: 5em; text-align: center; }
+/* under the glass its number field rule takes the arrows off (stained-glass.css `.drpg-panel input[type="number"]`) */
+body:not(.drpg-theme-stained-glass) .drpg-kit-stepper > input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+.drpg-kit-stepper > input[type="number"]::-webkit-inner-spin-button,
+.drpg-kit-stepper > input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+body .application .drpg-kit-stepper > button.drpg-step[data-drpg-step] { min-width: 2em; }
+body:not(.drpg-theme-stained-glass) .application .drpg-kit-stepper > button.drpg-step[data-drpg-step] { padding: 0 6px; }
+/* under the glass its own `.drpg-field-msg:empty` rule hides the empty line */
+body:not(.drpg-theme-stained-glass) .drpg-kit-stepper + .drpg-field-msg:empty { display: none; }
+
+/* ---- toggle: a checkbox drawn as a switch under Legacy; under the glass the glass's own checkbox (stained-glass.css,
+   `.drpg-panel input[type="checkbox"]`), as the approved card drew it. Its row is `.drpg-panel label`'s. ---- */
+.drpg-toggle { cursor: pointer; }
+body:not(.drpg-theme-stained-glass) .drpg-toggle > input[role="switch"] {
+    appearance: none;
+    width: 2.4em;
+    height: 1.3em;
+    margin: 0;
+    border-radius: 0.65em;
+    background: var(--drpg-kit-switch-off);
+    position: relative;
+    flex: 0 0 auto;
+}
+body:not(.drpg-theme-stained-glass) .drpg-toggle > input[role="switch"]::after {
+    content: "";
+    position: absolute;
+    top: 0.15em;
+    left: 0.15em;
+    width: 1em;
+    height: 1em;
+    border-radius: 50%;
+    background: var(--drpg-kit-switch-knob);
+}
+body:not(.drpg-theme-stained-glass) .drpg-toggle > input[role="switch"]:checked { background: var(--drpg-kit-switch-on); }
+body:not(.drpg-theme-stained-glass) .drpg-toggle > input[role="switch"]:checked::after { left: auto; right: 0.15em; }
+.drpg-toggle > input[role="switch"]:disabled { opacity: 0.45; }
+
+/* ---- chip (E81's notice chips): under Legacy the kit's; under the glass the glass's button brush, as the approved
+   card drew it. ---- */
+.drpg-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+body .application.drpg-ui .drpg-chips > button.drpg-chip[type="button"] {
+    color: var(--drpg-kit-btn-ink);
+    background: transparent;
+}
+body:not(.drpg-theme-stained-glass) .application.drpg-ui .drpg-chips > button.drpg-chip[type="button"] {
+    min-height: 24px;
+    padding: 0 8px;
+    border-radius: 12px;
+    font-size: var(--drpg-kit-chip-size);
+    line-height: 1.3;
+    border: 1px solid var(--drpg-kit-chip-edge);
+    white-space: nowrap;
+}
+.drpg-chip > b { font-variant-numeric: tabular-nums; margin-left: 4px; opacity: 0.8; }
+/* a pressed chip's ground and ink are the kit's in both themes; its edge, under the glass, the lit brush's */
+body .application.drpg-ui .drpg-chips > button.drpg-chip[type="button"][aria-pressed="true"] {
+    background: var(--drpg-kit-chip-on-bg);
+    color: var(--drpg-kit-chip-on-ink);
+}
+body:not(.drpg-theme-stained-glass) .application.drpg-ui .drpg-chips > button.drpg-chip[type="button"][aria-pressed="true"] { border-color: var(--drpg-kit-chip-on-bg); }
+/* A chip with nothing under it (E44 C5, the A7 amend's refined state; the approved i1 card): dimmed under Legacy, and
+   under the glass the brush's dim ink on a solid edge - the dashed edge the glass gives every disabled button read as
+   "out of reach", and a filter with no notice in it is only empty. */
+body .application.drpg-ui .drpg-chips > button.drpg-chip[type="button"]:disabled { color: var(--drpg-kit-chip-off-ink); }
+body:not(.drpg-theme-stained-glass) .application.drpg-ui .drpg-chips > button.drpg-chip[type="button"]:disabled { opacity: 0.4; }
+body.drpg-theme-stained-glass .application.drpg-ui .drpg-chips > button.drpg-chip[type="button"]:disabled { --brush-style: solid; }
+
+/* ---- modeBar: one row of modes, the active one pressed (E70's trial console). The stepper's - and + take the
+   same face; under the glass both are the glass's button brush. ---- */
+.drpg-mode-bar { display: flex; flex-wrap: wrap; gap: 4px; }
+body:not(.drpg-theme-stained-glass) .application :is(.drpg-ui .drpg-mode-bar, .drpg-kit-stepper) > button[type="button"] {
+    color: var(--drpg-kit-btn-ink);
+    background: var(--drpg-kit-btn-bg);
+    border: 1px solid var(--drpg-kit-btn-edge);
+    border-radius: var(--drpg-kit-btn-radius);
+}
+body .application.drpg-ui .drpg-mode-bar > button[type="button"] { flex: 1 1 0; min-width: max-content; }
+/* the active mode's ground and ink are the kit's in both themes; its edge, under the glass, the lit brush's */
+body .application.drpg-ui .drpg-mode-bar > button[type="button"][aria-pressed="true"] {
+    color: var(--drpg-kit-btn-on-ink);
+    background: var(--drpg-kit-btn-on-bg);
+}
+body:not(.drpg-theme-stained-glass) .application.drpg-ui .drpg-mode-bar > button[type="button"][aria-pressed="true"] { border-color: var(--drpg-kit-btn-on-edge); }
+
+/* ---- DrpgApp: an ApplicationV2 on the kit's frame (the notice history, E44 C5). Its content is one column - the
+   window's own root, `.drpg-kit-content` - in which the scrolling region (`.drpg-kit-body`) takes what is left and
+   everything else keeps its height, so the footer stays in view however long the region is (R299 (e), in a
+   browser). Its footer is the kit's (`footerMarkup`), ruled and spaced here in both themes: a DialogV2's is spaced
+   by the dialog rules, an ApplicationV2's by nothing else. The width is the window's own, never past the screen
+   less 8 px a side (narrow.css held the notice history to it on a stacked screen until C5). ---- */
+body .application.drpg-ui.drpg-panel:not(.dialog):not(.minimized) { max-width: calc(100vw - 16px); }
+body .application.drpg-ui.drpg-panel:not(.dialog):not(.minimized) > .window-content { padding: 10px 12px; }
+.application.drpg-ui.drpg-panel > .window-content > .drpg-kit-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--drpg-kit-gap);
+}
+.application.drpg-ui.drpg-panel > .window-content > .drpg-kit-content > :not(.drpg-kit-body) { flex: 0 0 auto; }
+body .application.drpg-ui:not(.dialog) footer.form-footer.drpg-kit-footer {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    padding-top: 6px;
+    border-top: 1px solid var(--drpg-kit-notice-edge);
+}
+body:not(.drpg-theme-stained-glass) .application.drpg-ui:not(.dialog) footer.form-footer.drpg-kit-footer { font-size: var(--drpg-kit-notice-xs-size); }
+/* each button as wide as its word, at the height and padding the notice history's Clear had (E81's `!important`,
+   written here one place above the glass's button brush, `.drpg-panel button:not(...)`, 0,7,2); its face is the
+   panel's and the brush's until E22 */
+body .application.drpg-ui.drpg-panel:not(.dialog) footer.form-footer.drpg-kit-footer button[data-drpg-role] { flex: 0 0 auto; height: 24px; padding: 0 8px; }
+body:not(.drpg-theme-stained-glass) .application.drpg-ui:not(.dialog) footer.form-footer.drpg-kit-footer button { font-size: var(--drpg-kit-notice-xs-size); }
+/* emptyState: a list's one line when it has nothing to list */
+.drpg-kit-empty { padding: 28px 12px; text-align: center; opacity: 0.8; line-height: 1.5; }
+body:not(.drpg-theme-stained-glass) .drpg-kit-empty { font-size: var(--drpg-kit-notice-sm-size); }
+
+/* ---- The notice history (E81 C7; on the kit since E44 C5, the 11.10 amend A7): the window's own parts, moved here
+   from danganronpa.css, stained-glass.css and narrow.css with their look. Its chips, foot, empty line and scroll
+   signal are the kit's (above); what is left is the search, the unread banner, the new-entries pill, the list's
+   groups and entries, and a kept card's body (`.drpg-notice-snapshot`: never a `.drpg-popup`, which the scenarios
+   count cards by). The seam of an entry is its tone's or its source's colour, a token per theme. Under the glass its
+   sweeps give the type (`!important`), so a size here is Legacy's; what lost to the glass under 1.2.98 is not stated
+   for it (R1331 holds every declaration here to win). ---- */
+.drpg-notices-body [hidden] { display: none; }
+.drpg-notices-search { display: flex; }
+.drpg-notices-search input { flex: 1; height: 28px; padding: 0 8px; font: inherit; }
+/* the ink under the glass is its field rule's */
+body:not(.drpg-theme-stained-glass) .drpg-notices-search input { font-size: var(--drpg-kit-notice-sm-size); color: inherit; }
+.drpg-notices-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 5px 8px;
+    border-left: 3px solid var(--drpg-kit-notice-banner-edge);
+    background: var(--drpg-kit-notice-banner-bg);
+}
+body:not(.drpg-theme-stained-glass) .drpg-notices-banner { font-size: var(--drpg-kit-notice-sm-size); }
+/* The window's chips, the banner's and a card's buttons and the new-entries pill keep E81's compact size in both
+   themes: written at 0,7,2 against the glass's button brush (later, so the tie is this sheet's), where E81 wrote
+   `!important`. A pill's corners under the glass are its sweep's (`!important`). */
+body .application.drpg-ui.drpg-panel .drpg-notices-body > .drpg-chips > button.drpg-chip[type="button"] { height: 24px; padding: 0 8px; }
+body .application.drpg-ui.drpg-panel .drpg-notices-body > .drpg-notices-banner > button[type="button"][data-drpg-do],
+body .application.drpg-ui.drpg-panel .drpg-notice-more > button.drpg-notice-conversation[type="button"][data-drpg-do] { flex: 0 0 auto; height: 24px; padding: 0 8px; }
+body:not(.drpg-theme-stained-glass) .drpg-ui :is(.drpg-notices-banner button, .drpg-notice-conversation) { font-size: var(--drpg-kit-notice-xs-size); }
+body .application.drpg-ui.drpg-panel .drpg-notices-body > button.drpg-notices-new[type="button"][data-drpg-do] { align-self: center; height: 22px; padding: 0 10px; }
+body:not(.drpg-theme-stained-glass) .drpg-ui .drpg-notices-new { border-radius: 11px; font-size: var(--drpg-kit-notice-xs-size); }
+.drpg-notices-list { display: flex; flex-direction: column; gap: 4px; padding-right: 2px; }
+/* a group's heading: under the glass its panel heading rule's case, spacing and rule */
+.drpg-notices-group { margin: 6px 0 1px; line-height: 1.3; opacity: 0.75; }
+body:not(.drpg-theme-stained-glass) .drpg-notices-group { border: 0; text-transform: uppercase; letter-spacing: 0.08em; line-height: 1.3; font-size: var(--drpg-kit-notice-xs-size); }
+details.drpg-notices-fold > summary { cursor: pointer; text-transform: uppercase; letter-spacing: 0.08em; line-height: 1.3; opacity: 0.75; padding: 4px 0; }
+body:not(.drpg-theme-stained-glass) details.drpg-notices-fold > summary { font-size: var(--drpg-kit-notice-xs-size); }
+details.drpg-notice-entry {
+    --drpg-kit-seam: var(--drpg-kit-notice-seam);
+    border-left: 3px solid var(--drpg-kit-seam);
+    background: var(--drpg-kit-notice-entry-bg);
+    padding: 5px 8px;
+}
+details.drpg-notice-entry > summary { list-style: none; display: grid; grid-template-columns: 14px 1fr auto; gap: 1px 7px; align-items: start; cursor: pointer; }
+details.drpg-notice-entry > summary::-webkit-details-marker { display: none; }
+.drpg-notice-glyph {
+    width: 12px;
+    height: 12px;
+    margin-top: 2px;
+    background: currentColor;
+    opacity: 0.85;
+    -webkit-mask: var(--drpg-px-mask) center / contain no-repeat;
+    mask: var(--drpg-px-mask) center / contain no-repeat;
+    --drpg-px-mask: var(--drpg-px-note);
+}
+.drpg-src-public .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-bell); }
+.drpg-src-player .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-team); }
+.drpg-src-messenger .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-chat); }
+.drpg-src-evidence .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-bullet); }
+.drpg-src-summary .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-calendar); }
+.drpg-src-safeword .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-shield); }
+.drpg-src-notDone .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-checklist); }
+.drpg-notice-title { line-height: 1.3; overflow-wrap: anywhere; }
+body.drpg-theme-stained-glass .drpg-notice-title { letter-spacing: 0.02em; }
+/* under the glass the weight is its type sweep's */
+body:not(.drpg-theme-stained-glass) .drpg-notice-title { font-weight: 700; font-size: var(--drpg-kit-notice-sm-size); }
+.drpg-notice-time { opacity: 0.75; font-variant-numeric: tabular-nums; white-space: nowrap; }
+body:not(.drpg-theme-stained-glass) .drpg-notice-time { font-size: var(--drpg-kit-notice-xs-size); }
+.drpg-notice-text {
+    grid-column: 2 / 4;
+    line-height: 1.3;
+    opacity: 0.85;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+body:not(.drpg-theme-stained-glass) .drpg-notice-text { font-size: var(--drpg-kit-notice-sm-size); }
+details.drpg-notice-entry[open] .drpg-notice-text { -webkit-line-clamp: unset; }
+.drpg-notice-tags { grid-column: 2 / 4; display: flex; flex-wrap: wrap; gap: 6px; opacity: 0.8; }
+body:not(.drpg-theme-stained-glass) .drpg-notice-tags { font-size: var(--drpg-kit-notice-xs-size); }
+.drpg-notice-tags span { border: 1px solid var(--drpg-kit-notice-edge); padding: 0 5px; }
+.drpg-notice-entry.is-unread .drpg-notice-title::before {
+    content: "";
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-right: 6px;
+    border-radius: 50%;
+    background: var(--drpg-kit-notice-dot);
+    vertical-align: 1px;
+}
+.drpg-notice-entry.is-deleted :is(.drpg-notice-title, .drpg-notice-text) { text-decoration: line-through; opacity: 0.6; }
+.drpg-notice-entry.drpg-tone-hope { --drpg-kit-seam: var(--drpg-kit-notice-seam-hope); }
+.drpg-notice-entry.drpg-tone-fear { --drpg-kit-seam: var(--drpg-kit-notice-seam-fear); }
+.drpg-notice-entry.drpg-tone-critical { --drpg-kit-seam: var(--drpg-kit-notice-seam-critical); }
+.drpg-notice-entry.drpg-src-evidence { --drpg-kit-seam: var(--drpg-kit-notice-seam-evidence); }
+.drpg-notice-entry:is(.drpg-src-notDone, .drpg-src-safeword) { --drpg-kit-seam: var(--drpg-kit-notice-seam-alarm); }
+.drpg-notice-more { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+/* A kept card's body, as its card drew it, within the entry. */
+.drpg-notice-snapshot {
+    align-self: stretch;
+    margin: 6px 0 2px;
+    padding: 6px 8px;
+    border: 1px dashed var(--drpg-kit-notice-edge);
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+body:not(.drpg-theme-stained-glass) .drpg-notice-snapshot { font-size: var(--drpg-kit-notice-sm-size); }
+.drpg-notice-snapshot :is(p, ul, ol, dl, blockquote, table) { margin: 0 0 4px; }
+.drpg-notice-snapshot img { max-width: 100%; height: auto; }
+.drpg-notice-snapshot :is(td, th) { padding: 2px 4px; border-bottom: 1px solid var(--drpg-kit-notice-edge); }
+.drpg-notice-clipped { margin: 0; opacity: 0.8; }
+body:not(.drpg-theme-stained-glass) .drpg-notice-clipped { font-size: var(--drpg-kit-notice-xs-size); }
+.drpg-notices-unsaved { margin: 0 auto 0 0; opacity: 0.8; }
+/* A touch screen's buttons a finger's height (E81 C7). */
+@media (pointer: coarse) {
+    body .drpg-ui :is(.drpg-chips > button.drpg-chip, .drpg-notices-banner button, .drpg-kit-footer button, .drpg-notice-conversation) { min-height: 44px; }
+}
+/* On a stacked screen (narrow.css's until C5): the chips in one row that scrolls sideways, the time under the title. */
+body.drpg-stacked .drpg-ui .drpg-notices-body > .drpg-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+body.drpg-stacked .drpg-ui .drpg-notices-body > .drpg-chips > button.drpg-chip { flex: 0 0 auto; }
+body.drpg-stacked details.drpg-notice-entry > summary { grid-template-columns: 14px 1fr; }
+body.drpg-stacked .drpg-notice-time { grid-column: 2; grid-row: 2; }
+body.drpg-stacked :is(.drpg-notice-text, .drpg-notice-tags) { grid-column: 2; }
+
+/* ==========================================================================
+   THE A8 SURFACES (E44 C6, 04.11.2026; the 11.10 amend A8, E44-20)
+   --------------------------------------------------------------------------
+   The room tile, the voice tile with its 30 px mini launchers and their states, the list "Who you hear", the GM's
+   red hexagon, the Foundry tools launcher and its two plain frames (E77, E78), drawn by ui-kit.mjs's `tile`,
+   `launcher`, `launcherState`, `sliderList`, `slider` and `frame`. Their rules came here from danganronpa.css and
+   stained-glass.css in one move, each sheet's in its own order and danganronpa.css's first, as the two sheets loaded,
+   with the comment above each; narrow.css keeps its own (it loads last on purpose). The move changes no look: in
+   Chromium, every property of every element of these surfaces and of their ::before and ::after, at five sizes, both
+   themes, a GM's and a player's page and 24 states each (the tile open, each state of the microphone, OBJECTION!
+   held and free, the list open with its rows, the frames open, hover and focus, reduced motion), read the same before
+   and after (E44 C6's reading, its STATUS), and so did the style sweep (no `--accept`).
+
+   WHAT CHANGED IN THE TEXT, AND WHY IT DRAWS THE SAME. This sheet holds no colour literal outside a token and no
+   `!important` (tools/css-budget.json holds it at 0 of each, R1322): each literal the rules wrote is a token below,
+   defined on `body` with the same value (a token read in a fallback, `var(--color-text-primary,
+   var(--drpg-a8-text-fallback))`, resolves on the element as the literal did), and the seven `!important`
+   declarations stay where they stood, each in a rule of its old selector (danganronpa.css: Foundry tools' four and
+   its pressed glow, a frame's scene controls' margin; stained-glass.css: the GM's eye's size), because what they
+   win against at a table is Foundry's own sheet, which no harness loads. The rules moved later in the cascade: a rule
+   of the old sheets or of the kit above that they tied with (the same weight, the same property, one element) would
+   now lose to them; none does in the readings above.
+
+   NOT THE KIT'S LOOK CONTRACT. These surfaces keep today's look in each theme (the amend: "with no change of look or
+   behaviour"), so R1322's rules for a kit component - colours from `--drpg-kit-*`, font sizes floored per theme, a
+   Legacy rule beside each glass one, uppercase at line-height 1.3 - read the kit's part of this sheet, above this
+   banner; this part is held by R1333 (its cascade, value for value, against C5's tree) and the style sweep.
+   ========================================================================== */
+
+body {
+    /* the tiles' ink where Foundry's --color-text-primary is not set */
+    --drpg-a8-text-fallback: #efe6d8;
+    /* the opaque stop of the state word's fade */
+    --drpg-a8-mask-ink: #000;
+    /* a frame's rim where the glass's accent is not set */
+    --drpg-a8-accent-fallback: #8a7fa0;
+    /* the Foundry tools frames' ink */
+    --drpg-a8-frame-ink: #ece6f0;
+    /* the Foundry tools frames' ground */
+    --drpg-a8-frame-ground: rgba(9, 8, 13, 0.88);
+    /* their shadow */
+    --drpg-a8-frame-shadow: rgba(0, 0, 0, 0.55);
+    /* their hard shadow under Legacy */
+    --drpg-a8-frame-shadow-legacy: rgba(0, 0, 0, 0.45);
+    /* the glass's ground under a mini launcher, the list and in the GM's hexagon */
+    --drpg-a8-glass-ground: rgb(29, 26, 33);
+    /* the room tile's ground under the glass */
+    --drpg-a8-tile-ground: rgba(7, 7, 10, 0.72);
+    /* its toggle's and its words button's under the glass */
+    --drpg-a8-tile-button-ground: rgba(7, 7, 10, 0.6);
+    /* the ground, line, shadow and glow values the rules wrote with the theme's rgb tokens */
+    --drpg-a8-bone-18: rgba(var(--drpg-bone-rgb), 0.18);
+    --drpg-a8-deep-00: rgba(var(--drpg-deep-rgb), 0);
+    --drpg-a8-deep-20: rgba(var(--drpg-deep-rgb), 0.2);
+    --drpg-a8-deep-35: rgba(var(--drpg-deep-rgb), 0.35);
+    --drpg-a8-deep-45: rgba(var(--drpg-deep-rgb), 0.45);
+    --drpg-a8-deep-55: rgba(var(--drpg-deep-rgb), 0.55);
+    --drpg-a8-deep-60: rgba(var(--drpg-deep-rgb), 0.6);
+    --drpg-a8-deep-72: rgba(var(--drpg-deep-rgb), 0.72);
+    --drpg-a8-deep-80: rgba(var(--drpg-deep-rgb), 0.8);
+    --drpg-a8-deep-85: rgba(var(--drpg-deep-rgb), 0.85);
+    --drpg-a8-deep-88: rgba(var(--drpg-deep-rgb), 0.88);
+    --drpg-a8-deep-90: rgba(var(--drpg-deep-rgb), 0.9);
+    --drpg-a8-eye-35: rgba(var(--drpg-eye-rgb), 0.35);
+    --drpg-a8-shadow-35: rgba(var(--drpg-shadow-rgb), 0.35);
+    --drpg-a8-shadow-45: rgba(var(--drpg-shadow-rgb), 0.45);
+}
+
+/* ---- the A8 surfaces' rules from styles/danganronpa.css (E44 C6), in that sheet's order ---- */
+
+/* The room tile under the clock (E77 C3) rides with it, in the clock's width: the column does
+   not stretch its children, so this one is told to. room-tile.mjs keeps it right after the
+   clock, or after the floor switcher when that follows the clock. */
+#ui-left-column-1 > #drpg-room-tile {
+    order: -1;
+    align-self: stretch;
+    margin: 0 0 4px;
+}
+
+/* UNDER MONOKUMA LEGACY ITS TWO PLACES ARE glass.mjs's TOO (`flatPlacement`, E77 fix r1-M1,
+   13.10.2026), placed with no curtain, and this sheet states only what that wrote, as
+   stained-glass.css does for its own theme: under the clock the clock's width, not the column's;
+   beside the notice stack a fixed box in the body, one under Foundry's window layer as the empty
+   notice stack is (the rule at the end of this file), so a sheet dragged over it stays on top
+   (not measured with Foundry's own windows: LIVE-E77-14). */
+body:not(.drpg-theme-stained-glass) #ui-left-column-1 > #drpg-room-tile[data-place="clock"] {
+    align-self: flex-start;
+    width: var(--drpg-room-w);
+    max-width: none;
+}
+
+body:not(.drpg-theme-stained-glass) > #drpg-room-tile[data-place="notes"] {
+    position: fixed;
+    left: var(--drpg-room-x);
+    top: var(--drpg-room-y);
+    width: var(--drpg-room-w);
+    margin: 0;
+    z-index: calc(var(--z-index-app, 30) - 1);
+}
+
+/* ---- the voice tile ----------------------------------------------------- */
+
+/* THE VOICE TILE (E78 C3, 13.10.2026): the portrait and the name of whoever this player hears
+   speaking, the face hidden when nobody does. Its place here is an interim one, by the right wall
+   over the corner's buttons (`--drpg-roster-foot`, the foot the player list opens from), until E78
+   C6 cuts it a pane of the curtain under the Projects tray. 163x188 is the box the A9 design's
+   prototype P7 read at 1366x768 in the sandbox (not measured here); C6 sizes it from the tray. The tile
+   takes no clicks but on its two buttons (E78 C4, below). */
+#drpg-voice-tile {
+    position: fixed;
+    right: var(--drpg-edge);
+    bottom: var(--drpg-roster-foot);
+    z-index: 69;
+    box-sizing: border-box;
+    width: 163px;
+    height: 188px;
+    pointer-events: none;
+}
+
+/* The face: the picture fills it (cover, 50% 22% - the owner's Q17: the whole pane, centred across,
+   the face kept in it), the caption at its foot. The fade is the face's opacity over
+   `--drpg-t-turn`, which motion.css makes 0 ms under reduced motion (the owner's Q7). */
+.drpg-voice-tile-face {
+    position: relative;
+    isolation: isolate;
+    box-sizing: border-box;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 8px 8px 10px;
+    overflow: hidden;
+    text-align: center;
+    color: var(--color-text-primary, var(--drpg-a8-text-fallback));
+    color-scheme: dark;
+    border-radius: 6px;
+    border: 1px solid var(--drpg-a8-bone-18);
+    background: var(--drpg-a8-deep-72);
+    opacity: 1;
+    transition: opacity var(--drpg-t-turn) var(--drpg-ease-leave);
+}
+
+.drpg-voice-tile.is-fading .drpg-voice-tile-face { opacity: 0; }
+
+.drpg-voice-tile :is(.drpg-voice-tile-face, .drpg-voice-tile-more, .drpg-voice-tile-nobody, .drpg-voice-tile-note,
+    .drpg-voice-tile-state, .drpg-voice-count, .drpg-voice-count-line)[hidden] { display: none; }
+
+.drpg-voice-tile-art {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-size: cover;
+    background-position: 50% 22%;
+    background-repeat: no-repeat;
+}
+
+.drpg-voice-tile-art::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, var(--drpg-a8-deep-80), var(--drpg-a8-deep-45) 22%,
+        var(--drpg-a8-deep-00) 45%);
+}
+
+.drpg-voice-tile-plate {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 100%;
+    gap: 1px;
+}
+
+.drpg-voice-tile-speaking {
+    font-size: var(--drpg-text-xs);
+    letter-spacing: 0.04em;
+    opacity: 0.8;
+}
+
+.drpg-voice-tile-name {
+    max-width: 100%;
+    font-size: var(--drpg-text-sm);
+    letter-spacing: 0.04em;
+    overflow-wrap: anywhere;
+    text-shadow: 0 1px 2px var(--drpg-a8-deep-90);
+}
+
+.drpg-voice-tile-more { font-size: var(--drpg-text-xs); }
+
+/* "has the floor" (E70 C11; amend 3) under the name, in the small letters 'Speaking' wears above it. */
+.drpg-voice-tile-floor {
+    font-size: var(--drpg-text-xs);
+    letter-spacing: 0.04em;
+    opacity: 0.8;
+}
+
+/* Read by a screen reader while nobody speaks, never seen: the sentence of the state word (E79 C15), and the
+   microphone's line, which the note under the buttons showed until C15 and the word says now. */
+.drpg-voice-tile :is(.drpg-voice-tile-nobody, .drpg-voice-tile-note) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* THE TWO BUTTONS (E78 C4, 13.10.2026): the microphone and the speaker, 30 px, in the tile's top
+   corner over the portrait (the owner's Q17), there whether anybody speaks or not (Q7) - the only part
+   of the tile that takes a click. This is Monokuma Legacy's look, the corner's sound launcher in small
+   (a circle, the bone rim, paper-alt or ink); stained-glass.css cuts them to the corner's hexagons
+   (Q6). The states are voice-tile.mjs `paintMic`'s classes: struck for muted by me, a GM's block (with
+   the lock) and a hold, GREY only for the hold - the module's own reason (Q1, Q15) - and a dot with no
+   strike when there is no connection. The note under them is the microphone's line, shown only while
+   it is true. */
+.drpg-voice-tile-controls {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 1;
+    display: flex;
+    gap: 6px;
+}
+
+.drpg-launch-mini {
+    position: relative;
+    isolation: isolate;
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    line-height: 1;
+    border-radius: 50%;
+    border: 2px solid var(--drpg-bone);
+    background: light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+    color: var(--drpg-bone);
+    box-shadow: 0 2px 6px var(--drpg-a8-shadow-35);
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+.drpg-launch-mini > .drpg-pxi:first-child {
+    width: 16px;
+    height: 16px;
+    vertical-align: 0;
+}
+
+.drpg-launch-mini:is(.is-muted, .is-held, .is-gm-blocked)::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 22px;
+    height: 2px;
+    background: currentColor;
+    box-shadow: 0 0 0 1px light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+    transform: translate(-50%, -50%) rotate(-45deg);
+    pointer-events: none;
+}
+
+.drpg-voice-mic.is-held {
+    border-color: var(--drpg-line-strong);
+    color: var(--drpg-line-strong);
+    filter: grayscale(1);
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* OBJECTION! on the tile (E70 C11; the owner's B3): grey while held - outside a trial, with no debate, while an
+   Objection runs - as the held microphone is, but not struck (nothing of the viewer's is switched off); still pressed,
+   and a press says why (hud.mjs `objectionControl`). */
+.drpg-voice-objection[aria-disabled="true"] {
+    border-color: var(--drpg-line-strong);
+    color: var(--drpg-line-strong);
+    filter: grayscale(1);
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Your voice carrying (E78 fix r2-H3, cor F5): a second ring in the bone the list's speaking dot wears under this
+   theme, outside the rim, while LiveKit counts the viewer among the Room's speakers (voice-tile.mjs `paintSelf`). */
+.drpg-voice-mic.is-speaking {
+    box-shadow: 0 0 0 2px light-dark(var(--drpg-paper-alt), var(--drpg-ink)), 0 0 0 4px var(--drpg-bone);
+}
+
+.drpg-voice-mic.is-offline { opacity: 0.75; cursor: default; }
+
+.drpg-voice-mic.is-offline::after {
+    content: "";
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--drpg-line-strong);
+    box-shadow: 0 0 0 1px light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+}
+
+/* Two classes, not one: `.drpg-pxi` (below, the glyphs' own rule) states `display: inline-block` at
+   one class and later in this file, so a one-class rule here lost and the lock showed in every state -
+   scenario 75's B measured it, 14.10.2026. */
+.drpg-voice-mic > .drpg-voice-mic-lock {
+    display: none;
+    position: absolute;
+    right: -1px;
+    bottom: -1px;
+    width: 11px;
+    height: 11px;
+}
+
+.drpg-voice-mic.is-gm-blocked > .drpg-voice-mic-lock { display: inline-block; }
+
+.drpg-voice-mic-ptt {
+    display: none;
+    position: absolute;
+    left: 50%;
+    bottom: -3px;
+    transform: translateX(-50%);
+    padding: 0 2px;
+    font-size: calc(8px * var(--drpg-legacy-scale, 1));
+    line-height: 9px;
+    letter-spacing: 0.04em;
+    border-radius: 2px;
+    background: light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+}
+
+.drpg-voice-mic.is-ptt .drpg-voice-mic-ptt { display: block; }
+
+.drpg-voice-count {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    min-width: 13px;
+    height: 13px;
+    padding: 0 2px;
+    box-sizing: border-box;
+    font-size: calc(9px * var(--drpg-legacy-scale, 1));
+    line-height: 13px;
+    text-align: center;
+    border-radius: 7px;
+    background: var(--drpg-bone);
+    color: var(--drpg-ink);
+}
+
+.drpg-voice-tile-note { margin: 0; }
+
+/* THE STATE WORD (E79 C15, 1.2.79; the owner's N10, N12 and N15; H81-10 below): one word of the
+   tile's state - Connecting, Disconnected, Connected, Eclipsed, Blocked, Own window - on the note's dark
+   plate and in its full ink: not the clock's ticker, which is an outline at 22 %. It runs as the clock's
+   does (utils.mjs `tickerRuns`: two copies, the pair moved by one copy's width), and stands still under
+   reduced motion, with the ticker switched off and on a stacked screen - never hidden by any of them
+   (R589). AT THE TOP, OVER THE PICTURE, WHETHER OR NOT SOMEBODY SPEAKS (H81-10; the owner's 1.2.80 table and
+   answer B, 20.10.2026: the word stood too low, and went while somebody spoke). Until then it stood at the
+   tile's foot under Monokuma Legacy, in the name plate's place, empty only while nobody speaks. Now it stands
+   in the top corner left of the two buttons (6 px a side and between them: right 6 + 30 + 6 + 30, and 4 px
+   to the first), where the band is 69 px wide inside its padding (the owner, 14.10.2026: "text in a corner of
+   the tile"): the six words in this font measured 86-143 px in Chromium on 16.10.2026, so a word is cut there
+   and runs as the ticker does, and is cut to its first letters when still. Its z-index draws it over the face
+   and its picture, on its own ink band; the name plate stays at the foot. Read in Chromium on 20.10.2026 (a
+   scratch probe: the six sheets, the glass harness's tile, 163 x 188): the word at 6..87 x 6..36, clear of the
+   buttons (91..157) and of the plate (139..177). stained-glass.css stands it in the top corner of its pane,
+   where the words measured 41-65 px. */
+.drpg-voice-tile-state {
+    position: absolute;
+    top: 6px;
+    bottom: auto;
+    left: 6px;
+    right: 76px;
+    z-index: 1;
+    box-sizing: border-box;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    white-space: nowrap;
+    padding: 0 6px;
+    font-size: var(--drpg-text-xs);
+    line-height: 1.3;
+    text-transform: uppercase;
+    color: var(--color-text-primary, var(--drpg-a8-text-fallback));
+    border-radius: 4px;
+    background: var(--drpg-a8-deep-85);
+    -webkit-mask-image: linear-gradient(90deg, var(--drpg-a8-mask-ink) 82%, transparent);
+    mask-image: linear-gradient(90deg, var(--drpg-a8-mask-ink) 82%, transparent);
+    pointer-events: auto;
+}
+
+.drpg-voice-tile-state > span {
+    flex: 0 0 auto;
+    padding-right: 0.5em;
+    animation: drpg-voice-word-run 12s linear infinite;
+}
+
+@keyframes drpg-voice-word-run {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-100%); }
+}
+
+/* Still, never gone: with the ticker off, under reduced motion and on a stacked screen. */
+body.drpg-no-ticker .drpg-voice-tile-state > span,
+body.drpg-reduced-motion .drpg-voice-tile-state > span,
+body.drpg-stacked .drpg-voice-tile-state > span { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+    .drpg-voice-tile-state > span { animation: none; }
+}
+
+/* STILL, UNDER THE BUTTONS (H81 fix r1, 20.10.2026; the review's H81C2-02). Standing still in the band left of the
+   buttons, a word is cut: "Connecting" and "Connected" both read "CONNECT", so the one word that tells a Room
+   reconnecting from a Room connected said the same of both. While it stands still - the ticker off, reduced motion
+   asked here or by the system - it stands under the buttons' row (top 40: 6 + 30 + 4) across the tile, 6 px from
+   each side, its last fifth fading as ever (the run goes on past the word: "Word · Word · ..."). Read in Chromium on
+   20.10.2026 (a scratch probe and the glass harness's Legacy check: its tile, 163 x 188, its fonts): the English
+   words 77-132 px of text, the Polish 80-121; the band 69 px inside its padding at the top before, 139 here, the
+   word at 40..70 clear of the buttons (6..36) and of the name plate. Stained Glass's wall keeps its own corner
+   (123 px there, its words 59 at most); on a stacked screen the row's rules place it. */
+body.drpg-no-ticker .drpg-voice-tile-state,
+body.drpg-reduced-motion .drpg-voice-tile-state {
+    top: 40px;
+    right: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .drpg-voice-tile-state {
+        top: 40px;
+        right: 6px;
+    }
+}
+
+/* On a stacked screen, in the tiles' row between the face (hidden while nobody speaks) and the buttons.
+   Here and not in narrow.css, which E79 leaves untouched (the stage's glass check); narrow.css states no
+   rule of this element for it to lose a tie with. */
+body.drpg-stacked #drpg-tile-row .drpg-voice-tile-state {
+    position: static;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 132px;
+    margin-right: 6px;
+}
+
+/* WITH A FACE, OVER THE FACE'S TOP BAND (H81-10): since the word stays while somebody speaks, in the row it would
+   stand between the face and the buttons and take its 132 px from the row. Read in Chromium on 20.10.2026 (a
+   scratch probe: the six sheets, the glass harness's room and voice tiles, the face shown, rows 345, 377 and
+   500 px): standing there it took the room tile from 45, 77 and 200 px to 18, 20 and 62 (Monokuma Legacy; 109,
+   141 and 264 to 21, 23 and 126 under Stained Glass) and the speaker's name from 162 px to 51 and 81 (78 to 28
+   and 58). Over the face it takes nothing: the word in a 16 px band 2 px under the row's top, from the portrait
+   (6 + 32 + 6 px) to the buttons, the name plate at the row's foot - every width as without the word, the word
+   at 2..18 and the plate at 27..44, clear of each other and of the buttons. With no face it stands where it did. */
+body.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden]) ~ .drpg-voice-tile-state {
+    position: absolute;
+    top: 2px;
+    left: 44px;
+    right: calc(var(--drpg-tile-row-h, 44px) * 2);
+    height: 16px;
+    max-width: none;
+    margin: 0;
+}
+
+body.drpg-stacked #drpg-tile-row .drpg-voice-tile-plate {
+    align-self: flex-end;
+    padding-bottom: 3px;
+}
+
+/* A SHORT NAME KEEPS THE WORD'S BAND (H81 fix r1, 20.10.2026; the review's H81C2-03). Over the face the word's band
+   is the name plate's width and 6 px, so a short name left it a letter or two: "Mai" gave it 35 px inside its
+   padding under Monokuma Legacy and 34 under Stained Glass, "Al" 21 and 27 (Chromium, the glass harness's row at
+   393 x 852 and 844 x 390). While the face shows it is at least the portrait's 44 px and a band that holds the
+   widest word, "Disconnected", 132 px of text at the row's 11 px under Legacy (the Polish ones 121 at most), in its
+   6 px paddings: 184, and 12 to spare - 196 px, less than "Aiko Hoshino" takes already (212), so only a short name
+   takes more of the row than it did. The glass harness's row check reads it with a three-letter name: 140 px of
+   band. stained-glass.css sets its own, for its narrower words. The portrait and the name keep the face's left
+   end (the face's own rule ends them at its right, which a face as wide as its content never showed): the band
+   starts at the portrait's right edge, as the rule above stands it. */
+body.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden]) {
+    min-width: 196px;
+    justify-content: flex-start;
+}
+
+/* THE LIST 'WHO YOU HEAR' (E78 C5, 14.10.2026; the owner's Q0): the speaker button's dialog,
+   voice-tile.mjs `openVoiceList`. It floats over the table beside the tile, one below Foundry's window
+   layer as the evidence stage does, and cuts nothing of the curtain (no `drpgGlassCut`). Its width is
+   the search tokens' `max(260px, 300px x --drpg-ui-scale)` (the prep's P7 row), never wider than the
+   screen; a row is 48 px and its buttons 44 px to touch (the design's). Where it sits is measured by
+   `placeVoiceList` from the tile's box; the narrow layout's bottom sheet is E78 C6's, not this commit's. */
+.drpg-voice-list {
+    position: fixed;
+    z-index: calc(var(--z-index-app, 30) - 1);
+    box-sizing: border-box;
+    width: min(max(260px, calc(300px * var(--drpg-ui-scale, 1))), calc(100vw - 16px));
+    max-height: min(60vh, calc(100vh - 16px));
+    overflow: auto;
+    padding: 8px 10px 10px;
+    color: light-dark(var(--drpg-ink), var(--drpg-bone));
+    border-radius: 6px;
+    border: 2px solid var(--drpg-bone);
+    background: light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+    box-shadow: 0 4px 14px var(--drpg-a8-shadow-45);
+}
+
+.drpg-voice-list[hidden],
+.drpg-voice-list :is(.drpg-voice-list-alone, .drpg-voice-row-hidden, .drpg-voice-row-unhide, .drpg-voice-row-held,
+    .drpg-voice-row-volume, .drpg-voice-row-mute)[hidden] { display: none; }
+
+.drpg-voice-list-title {
+    margin: 0 0 6px;
+    border: 0;
+    font-size: var(--drpg-text-sm);
+    letter-spacing: 0.04em;
+}
+
+.drpg-voice-list-muteall { width: 100%; min-height: 44px; margin: 0 0 6px; }
+
+.drpg-voice-list-muteall[aria-pressed="true"] { border-color: var(--drpg-bone); font-weight: bold; }
+
+.drpg-voice-list-alone { margin: 6px 0; font-size: var(--drpg-text-xs); opacity: 0.85; }
+
+.drpg-voice-list-rows { margin: 0; padding: 0; list-style: none; }
+
+.drpg-voice-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 8px;
+    min-height: 48px;
+    padding: 2px 0;
+    border-top: 1px solid var(--drpg-a8-bone-18);
+}
+
+.drpg-voice-row-art {
+    flex: 0 0 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--drpg-a8-deep-60) 50% 22% / cover no-repeat;
+}
+
+.drpg-voice-row-name {
+    flex: 1 1 6ch;
+    min-width: 0;
+    font-size: var(--drpg-text-sm);
+    overflow-wrap: anywhere;
+}
+
+/* The dot of whoever speaks now, from the same speakers the tile shows. */
+.drpg-voice-row-dot {
+    flex: 0 0 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: transparent;
+}
+
+.drpg-voice-row.is-speaking .drpg-voice-row-dot { background: var(--drpg-bone); }
+
+.drpg-voice-row-volume { flex: 1 1 100%; order: 1; min-width: 0; margin: 0; }
+
+.drpg-voice-row :is(.drpg-voice-row-mute, .drpg-voice-row-block) {
+    position: relative;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    line-height: 1;
+}
+
+.drpg-voice-row :is(.drpg-voice-row-mute, .drpg-voice-row-block) > .drpg-pxi { width: 16px; height: 16px; vertical-align: 0; }
+
+.drpg-voice-row :is(.drpg-voice-row-mute.is-muted, .drpg-voice-row-block.is-gm-blocked)::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 22px;
+    height: 2px;
+    background: currentColor;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    pointer-events: none;
+}
+
+.drpg-voice-row-block:disabled { filter: grayscale(1); opacity: 0.6; cursor: not-allowed; }
+
+.drpg-voice-row :is(.drpg-voice-row-hidden, .drpg-voice-row-held) {
+    flex: 1 1 100%;
+    order: 2;
+    font-size: var(--drpg-text-xs);
+    line-height: 1.3;
+}
+
+.drpg-voice-row-unhide { order: 3; min-height: 44px; }
+
+.drpg-foundry-window:not([hidden]) {
+    position: fixed;
+    z-index: var(--z-index-app, 30);
+    display: flex;
+    flex-direction: column;
+    /* The border inside the box (E79 fix r3-G4): `max-width` here and the cap foundry-windows.mjs writes are the
+       frame's whole size. With the content box a capped frame stood its 1 or 2 px borders past the cap, 676 px for a
+       674 px cap over the cluster at 393x852 (Chromium, 17.10.2026), and a frame at this max-width 2 px off the screen. */
+    box-sizing: border-box;
+    max-width: calc(100vw - 16px);
+    background: var(--drpg-a8-frame-ground);
+    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent, var(--drpg-a8-accent-fallback)) 45%, transparent);
+    border-radius: 4px;
+    box-shadow: 0 6px 24px var(--drpg-a8-frame-shadow);
+    color: var(--drpg-a8-frame-ink);
+}
+
+.drpg-foundry-window-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 6px 3px 10px;
+    cursor: move;
+    touch-action: none;
+    user-select: none;
+}
+
+.drpg-foundry-window-title {
+    flex: 1;
+    margin: 0;
+    border: 0;
+    font-size: var(--font-size-16, 1rem);
+    white-space: nowrap;
+}
+
+.drpg-foundry-window-close {
+    flex: none;
+    width: 26px;
+    height: 26px;
+    margin: 0;
+    padding: 0;
+    line-height: 1;
+}
+
+.drpg-foundry-window-body > #sidebar {
+    position: relative;
+    height: min(700px, calc(100vh - 110px));
+}
+
+/* A CAPPED FRAME SHRINKS ITS NODE (E79 fix r3-G4, review round 3's P1). Where neither moving left nor moving up
+   clears the corner cluster, foundry-windows.mjs `clampPlace` cuts the frame to the room above it (`max-height`) or
+   beside it (`max-width`). For the height to reach the node the body is a column that may shrink, and the node with
+   it, from the 700 px stated above: a block body kept the sidebar's height and the frame's foot stood over the
+   cluster's buttons with the sidebar running out of it. Nothing is clipped (R509): what does not fit in Foundry's
+   own sidebar scrolls there as it does in its column. The cap is a placing's and the next placing takes it off. */
+.drpg-foundry-window-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.drpg-foundry-window-body > #sidebar {
+    min-height: 0;
+}
+
+/* COLLAPSED IS NARROW (E79 C12, 16.10.2026; the owner's N7 of 14.10). Foundry's rules that take the sidebar's content
+   away when its caret collapses it hang off #ui-right, and the node stands in this frame, so the caret flipped and
+   the window kept its 358 px (measured in Chromium on the glass harness's stand-in). foundry-windows.mjs marks the
+   frame `data-drpg-collapsed` from the collapseSidebar hook and from ui.sidebar.expanded, and this narrows the content
+   to nothing: the frame comes down to the rail, 90 px on the stand-in, and back to 358 px when it expands. Width and
+   visibility, not display or overflow: R509 holds that no rule here hides or clips anything in a frame, and a
+   context menu drawn from the rail must not be cut. `#sidebar-content` is the stand-in's name for the content, not
+   read from v14's (LIVE-E79-15); R585 reads the cascade under the mark. */
+.drpg-foundry-window[data-drpg-collapsed] .drpg-foundry-window-body > #sidebar #sidebar-content {
+    flex: none;
+    width: 0;
+    min-width: 0;
+    padding-inline: 0;
+    border-inline-width: 0;
+    visibility: hidden;
+}
+
+.drpg-foundry-window-body > #scene-controls {
+    position: relative;
+    padding: 6px;
+    height: auto;
+    max-height: none;
+}
+
+body.drpg-theme-monokuma-legacy .drpg-foundry-window:not([hidden]) {
+    background: var(--drpg-paper-alt);
+    color: var(--drpg-ink);
+    border: 2px solid var(--drpg-ink);
+    border-radius: 0;
+    box-shadow: 4px 4px 0 var(--drpg-a8-frame-shadow-legacy);
+}
+
+/* ==========================================================================
+   STAGE 6 - THE PLAYER'S SIDE
+   --------------------------------------------------------------------------
+   The windows stopped moving in stage 5, so this is where the surfaces a
+   player looks at all session - the HUD, the popups, the messenger, the item
+   card, the pause screen - are brought into the one visual language the sheet
+   and the GM panel already speak: Ink ground, Bone furniture, one accent, flat
+   geometry, the module's own type scale.
+   ========================================================================== */
+
+/* ---- the room tile, under the clock ----------------------------------- */
+
+/* THE ROOM TILE (E77 C3, 13.10.2026). The clock's three room rows became a block of their own
+   under it (room-tile.mjs): the GM's picture fills it, the name, the search tokens and 'Available
+   project' sit at its foot, and the GM's description opens over the picture behind the toggle in
+   its corner. Its height never follows its content - an entry into another room must not move
+   what stands under it (the A8 design's step 6). 250 px is the design's estimate of the smallest
+   box (step 6: about 250 px at a 265 px clock), not measured here; E77 C4 measures it with the
+   curtain and writes `--drpg-room-h`, and under Monokuma Legacy, with no curtain, E77 fix r1-M1
+   does (glass.mjs `flatPlacement`): the 250 px is left only to a tile no pass has placed. Its
+   width here is the column's, which the clock sets (each theme's placed rule states the clock's
+   own), and `contain: inline-size` keeps a long name from widening the column. */
+.drpg-room-tile {
+    position: relative;
+    isolation: isolate;
+    contain: inline-size;
+    box-sizing: border-box;
+    height: var(--drpg-room-h, 250px);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 12px 10px;
+    overflow: hidden;
+    pointer-events: auto;
+    text-align: center;
+    color: var(--color-text-primary, var(--drpg-a8-text-fallback));
+    color-scheme: dark;
+    border-radius: 6px;
+    border: 1px solid var(--drpg-a8-bone-18);
+    background: var(--drpg-a8-deep-72);
+}
+
+/* The picture, cover and centred, under a gradient that runs to the tile's edges: darker at the
+   foot where the name stands, and darker still while the description is open over it (the
+   design's stops, step 4b). A picture that does not load leaves this layer empty and the tile's
+   own dark glass under the name. */
+.drpg-room-tile-art {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-size: cover;
+    background-position: 50% 50%;
+    background-repeat: no-repeat;
+    pointer-events: none;
+}
+
+.drpg-room-tile-art::before,
+.drpg-room-tile-art::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transition: opacity var(--drpg-t-enter);
+}
+
+.drpg-room-tile-art::before {
+    background: linear-gradient(to top, var(--drpg-a8-deep-80), var(--drpg-a8-deep-55) 20%,
+        var(--drpg-a8-deep-20) 40%, var(--drpg-a8-deep-00) 58%);
+}
+
+.drpg-room-tile-art::after {
+    opacity: 0;
+    background: linear-gradient(to top, var(--drpg-a8-deep-88), var(--drpg-a8-deep-80) 33%,
+        var(--drpg-a8-deep-55) 66%, var(--drpg-a8-deep-35));
+}
+
+.drpg-room-tile.is-open .drpg-room-tile-art::after,
+#drpg-room-art.is-open::after { opacity: 1; }
+
+/* Laid on its pane over the curtain (glass.mjs `seatRoomArt`), the layer keeps a layer of its own.
+   Without one, the description's shade fading in and out under the layer's clip-path left Chromium
+   painting parts of the picture past the polygon as an upright rectangle, in 256 px bands
+   (13.10.2026, the glass harness at 1920x1080: the computed clip-path read the pane's four points,
+   the screenshot did not; with `will-change: transform`, or with the fade off, it was clean). */
+#drpg-room-art { will-change: transform; }
+
+/* The picture's button lies over the whole tile and under everything written on it. The toggle
+   is left out of the lift below because it has a place of its own: that rule is 0,2,0 (`:not()`
+   counts its most specific argument) and the toggle's own is 0,1,0, so with the toggle in the
+   lift it stood in the flow under the project line in both themes, not in P11's corner (round 1,
+   cor F2; R530 reads the sheets' cascade for it). */
+.drpg-room-tile-open {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    cursor: zoom-in;
+}
+
+.drpg-room-tile > :not(.drpg-room-tile-art, .drpg-room-tile-open, .drpg-room-tile-more) {
+    position: relative;
+    z-index: 1;
+}
+
+.drpg-room-tile-name {
+    margin: 0;
+    border: 0;
+    font-size: var(--drpg-text-sm);
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    overflow-wrap: anywhere;
+    text-shadow: 0 1px 2px var(--drpg-a8-deep-90);
+}
+
+.drpg-room-tile .drpg-hud-room-project {
+    font-size: var(--drpg-text-xs);
+    opacity: 0.8;
+}
+
+/* THE PROJECT LINE HAS A BAND OF ITS OWN (E79 C12, 16.10.2026; the owner's N8 of 14.10: "the 'available project'
+   line shifts the layout - layout must be fixed whatever lines appear"). The rows pack from the tile's foot, so the
+   line pushed the name and the search tokens up when a project became available and dropped them when it went:
+   13 px under this theme at 1920x1080 and 1366x768, 18 to 20 px under Stained Glass (Chromium, the glass harness,
+   the plan's readings at 33ea568). A tile showing a room keeps the band at its foot whether the line is drawn or
+   not, and the line stands in it, one line cut with an ellipsis (its whole text is its title). On a desk only:
+   the stacked row (narrow.css) lays the line beside the tokens, where it moved nothing. `--drpg-room-band` is the
+   line's own size a fifth again; stained-glass.css states it from that theme's size for the line. The glass
+   harness's drpgRoomCheck reads the name and the tokens with the line and without it. */
+body:not(.drpg-stacked) .drpg-room-tile[data-state^="room"] {
+    --drpg-room-band: calc(var(--drpg-text-xs) * 1.2);
+    padding-bottom: calc(12px + var(--drpg-room-band));
+}
+
+body:not(.drpg-stacked) .drpg-room-tile > .drpg-hud-room-project {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 10px;
+    height: var(--drpg-room-band);
+    line-height: var(--drpg-room-band);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* The toggle: a corner button, only where the room has words. Open, the description fills the
+   tile above the name and scrolls inside it; the tile's box does not change. Over the picture's
+   button, so a click on the corner opens the words and not the picture. */
+.drpg-room-tile-more {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 1;
+    width: 28px;
+    height: 28px;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    line-height: 1;
+}
+
+.drpg-room-tile-more > i { transition: transform var(--drpg-t-enter); }
+
+.drpg-room-tile.is-open .drpg-room-tile-more > i { transform: rotate(180deg); }
+
+.drpg-room-tile-prose {
+    order: -1;
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 30px 0 4px;
+    overflow-y: auto;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+    text-align: center;
+    font-size: var(--drpg-text-sm);
+    text-shadow: 0 1px 2px var(--drpg-a8-deep-90);
+}
+
+.drpg-room-tile-prose[hidden] { display: none; }
+
+/* The narrow row's thumbnail and description button (E77 C8): every paint draws them, and only
+   the row on a stacked screen shows them (narrow.css). */
+.drpg-room-tile > :is(.drpg-room-tile-thumb, .drpg-room-tile-describe) { display: none; }
+
+/* An empty pane: a Class Trial, or a GM without a Monokuma of their own (the design's D9). */
+.drpg-room-tile:is([data-state="trial"], [data-state="none"]) { pointer-events: none; }
+
+.drpg-room-tile .drpg-hud-room-tokens {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+    margin-top: 1px;
+}
+
+/* The dots' words, "2/3 searches", on their line (E17 C8; audit S10-29: the dots unlabelled read as a count of
+   projects). The project line's size and weight, so the two read as one family of small print under the name. */
+.drpg-room-tile .drpg-hud-room-tokens-label {
+    margin-left: 3px;
+    font-size: var(--drpg-text-xs);
+    line-height: 1;
+    opacity: 0.8;
+    white-space: nowrap;
+}
+
+/* ==========================================================================
+   THE CHROME SPEAKS PIXEL, QUIETLY
+   --------------------------------------------------------------------------
+   The scene controls and the sidebar tabs keep Foundry's own iconography,
+   redrawn by hand: every glyph has a 12px sprite in tools/chrome-icons.mjs,
+   whose generated section at the end of this file maps it onto the button's
+   own Font Awesome class. A tool the sprites do not know keeps its vector
+   glyph, so another module degrades gracefully.
+
+   And quietly is the point (Dawid, 26.08): these buttons are furniture, not
+   content. Resting state is washed-out - Bone for players, red for the GM's
+   left rail - hover wakes it, the pressed tool is full strength. The colour
+   scheme lives with the old "icon rails" block further up, where it replaced
+   the Ink-chip treatment in place; the one button allowed to shout in this
+   corner is the GM launcher below.
+   ========================================================================== */
+
+/* ---- the GM panel launcher ---------------------------------------------- */
+
+/* Solid crimson and OUTSIDE the cluster's colour - see the note in gm-panel.mjs.
+   Until E77 C6 a named rectangle at the top of Foundry's left column; now a 44 px
+   circle in the corner over settings (`--drpg-launch-u-bottom`), and the name is
+   its `aria-label` and tooltip. A child of the body, like the cluster's other
+   buttons, so nothing of Foundry's turns its pointer events off. */
+#drpg-gm-launcher {
+    position: fixed;
+    right: calc(var(--drpg-edge) + var(--drpg-launch-s-right));
+    bottom: calc(var(--drpg-edge) + var(--drpg-launch-u-bottom) + var(--drpg-av-lift, 0px));
+    z-index: 70;
+    width: var(--drpg-launcher-small);
+    height: var(--drpg-launcher-small);
+    box-sizing: border-box;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--drpg-eye);
+    border: 2px solid var(--drpg-eye-light);
+    border-radius: 50%;
+    color: var(--drpg-bone);
+    cursor: pointer;
+    box-shadow: 0 0 8px var(--drpg-a8-eye-35);
+}
+
+#drpg-gm-launcher:hover {
+    background: var(--drpg-eye-light);
+    box-shadow: 0 0 12px var(--drpg-eye-glow);
+}
+
+/* The Monokuma eye is the `::before` mask below (the pixel sprites), 1em square:
+   22 px at 100 %, half the 44 px button (the handbooks' glyph is 24 px in theirs).
+   Under Legacy it carries the Interface scale's factor, as every size in this file
+   does (R60 failed at the bare 22px on the first run of tier 0, 13.10.2026); Stained
+   Glass states its own constant 22 px in stained-glass.css. */
+#drpg-gm-launcher i {
+    color: inherit;
+    font-size: calc(22px * var(--drpg-legacy-scale, 1));
+    line-height: 1;
+}
+
+/* ---- the Foundry tools launcher (E77 C6) -------------------------------- */
+
+/* Over the handbooks, two rows up, the same circle as the handbooks. */
+#drpg-foundry-tools {
+    position: fixed;
+    right: var(--drpg-edge);
+    bottom: calc(var(--drpg-edge) + var(--drpg-launch-b-bottom) + var(--drpg-launch-u-bottom) + var(--drpg-av-lift, 0px));
+    z-index: 70;
+    width: var(--drpg-launcher-book);
+    height: var(--drpg-launcher-book);
+    box-sizing: border-box;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+#drpg-foundry-tools:hover,
+#drpg-foundry-tools[aria-pressed="true"] {
+}
+
+/* THE FACE, an anvil from the module's pixel set (E78 fix h76-HF3, 14.10.2026): until
+   then Foundry's own logo through a lightening filter, which the owner read at The
+   Forge as the Forge's icon and the one face in the corner outside the module's white
+   pixel set. Masked exactly as the handbooks' book beside it, at the glyph's own 24 px
+   (one CSS pixel to a cell) and in the button's colour, and outside any theme's scope,
+   so Monokuma Legacy and Stained Glass draw the same white anvil. The `i` has no class:
+   pixel-icons.css paints Font Awesome names only (foundry-windows.mjs THE LAUNCHER). */
+#drpg-foundry-tools i {
+    display: block;
+    width: 24px;
+    height: 24px;
+    background: currentColor;
+    -webkit-mask-image: var(--drpg-px-anvil);
+    mask-image: var(--drpg-px-anvil);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    pointer-events: none;
+}
+
+/* ---- the A8 surfaces' rules from styles/stained-glass.css (E44 C6), in that sheet's order ---- */
+
+/* The voice tile's two buttons (E78 C4; the owner's Q6: "matching the ones in the bottom right
+   corner"): the same hexagon, rim at 60% of the game state's colour (Q18), the ground rgb(29, 26, 33)
+   the design names, the glow. The hexagon is cut on a layer UNDER the glyph rather than on the button,
+   as the corner's are, because a clip-path on the button would cut its lock, its PTT label and its count
+   off at the corners; the glow is a drop-shadow, which follows the cut shape. A held microphone stays
+   grey (danganronpa.css, Q18). */
+body.drpg-theme-stained-glass .drpg-voice-tile-controls { color-scheme: dark; }
+
+body.drpg-theme-stained-glass .drpg-launch-mini {
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    color: var(--drpg-sg-bone);
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--drpg-glass-accent) 35%, transparent));
+}
+
+body.drpg-theme-stained-glass .drpg-launch-mini::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border: 2px solid color-mix(in srgb, var(--drpg-glass-accent) 60%, transparent);
+    background: var(--drpg-a8-glass-ground);
+    clip-path: polygon(50% 0, 100% 28%, 100% 72%, 50% 100%, 0 72%, 0 28%);
+}
+
+body.drpg-theme-stained-glass .drpg-voice-mic.is-held {
+    color: var(--drpg-line-strong);
+    filter: grayscale(1);
+}
+
+body.drpg-theme-stained-glass .drpg-voice-mic.is-held::before { border-color: var(--drpg-line-strong); }
+
+/* OBJECTION! held on the tile (E70 C11): the held microphone's grey rim, no strike. */
+body.drpg-theme-stained-glass .drpg-voice-objection[aria-disabled="true"] {
+    color: var(--drpg-line-strong);
+    filter: grayscale(1);
+}
+
+body.drpg-theme-stained-glass .drpg-voice-objection[aria-disabled="true"]::before { border-color: var(--drpg-line-strong); }
+
+/* YOUR VOICE IS CARRYING (E78 fix r2-H3, 14.10.2026; review round 2's cor F5): Foundry's dock lit the player's own
+   view while they spoke, and with the dock hidden nothing did. The rim takes the game state's colour whole and the
+   glow doubles while LiveKit counts the viewer among the Room's speakers (voice-tile.mjs `paintSelf`). Nothing
+   moves, so there is nothing for reduced motion to stop. */
+body.drpg-theme-stained-glass .drpg-voice-mic.is-speaking {
+    filter: drop-shadow(0 0 6px var(--drpg-glass-accent));
+}
+
+body.drpg-theme-stained-glass .drpg-voice-mic.is-speaking::before { border-color: var(--drpg-glass-accent); }
+
+body.drpg-theme-stained-glass .drpg-voice-count {
+    background: var(--drpg-glass-accent);
+    color: var(--drpg-sg-ink);
+}
+
+body.drpg-theme-stained-glass :is(.drpg-voice-mic-ptt, .drpg-voice-tile-note) { font-family: var(--drpg-font-chrome); }
+
+/* The list 'Who you hear' (E78 C5): the tile's dark glass and the chrome font, the rim at the game state's
+   colour as the buttons'. */
+body.drpg-theme-stained-glass .drpg-voice-list {
+    color-scheme: dark;
+    color: var(--drpg-sg-bone);
+    border: 2px solid color-mix(in srgb, var(--drpg-glass-accent) 60%, transparent);
+    background: var(--drpg-a8-glass-ground);
+    font-family: var(--drpg-font-chrome);
+}
+
+body.drpg-theme-stained-glass .drpg-voice-row.is-speaking .drpg-voice-row-dot { background: var(--drpg-glass-accent); }
+
+/* THE ROOM TILE (E77 C3, 13.10.2026; the A8 design's step 4). Until C3 the room was the clock's
+   last rows, set here in dim Bone under a hairline; it is a tile of its own under the clock now
+   (room-tile.mjs). The state's colour reaches it as on the clock: the name on a brush stroke in
+   `--drpg-glass-accent` with ink on it (the phase stamp's pairing), the pips, the project line and
+   the toggle's edge. The stroke is a copy of the brush's declarations above rather than a member
+   of that list, whose `--brush-on` is 0 until a hover: the name's stroke is always on. Where the
+   curtain has cut no pane for the tile it carries its own dark glass; where it has (`data-place`,
+   E77 C4, or the tiles' row on a stacked screen, E77 C8 - narrow.css), the plate comes off with
+   the other blocks' above.
+   The name and the project line are in capitals, as P11's shots draw them and as this theme's
+   uppercase `#drpg-hud` drew them on the clock until C3 (E77 fix r1-G4, R530): only the drawing -
+   the GM's text is as typed, though Chromium's accessibility tree hands the capitals on (13.10.2026,
+   the glass harness: a heading "DORM" for "Dorm"). */
+body.drpg-theme-stained-glass #drpg-room-tile {
+    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 40%, transparent);
+    border-radius: 0;
+    background: var(--drpg-a8-tile-ground);
+    color: var(--drpg-sg-bone);
+}
+
+/* ITS TWO PLACES ARE glass.mjs's (`placeRoomTile`, E77 C4, 13.10.2026), and the sheet states only
+   what the pass wrote: under the clock, the clock's width and left edge, not the column's (the
+   column is as wide as its widest child); beside the notice tile, a fixed box in the body at the
+   pass's corner. The height is `--drpg-room-h` in both, and the base sheet's. */
+body.drpg-theme-stained-glass #ui-left-column-1 > #drpg-room-tile[data-place="clock"] {
+    align-self: flex-start;
+    width: var(--drpg-room-w);
+    max-width: none;
+}
+
+body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] {
+    position: fixed;
+    left: var(--drpg-room-x);
+    top: var(--drpg-room-y);
+    width: var(--drpg-room-w);
+    margin: 0;
+}
+
+/* BESIDE THE NOTICES THE BOX IS A LANDSCAPE ONE (E78 fix h76-HF4, 14.10.2026): half the height C0's
+   pane stood there, 301x150 at 1366x768 and 301x143 at 1280x720 (glass.mjs `roomNotesH`), where the
+   name, the pips and the project line stacked under the toggle left the open description 37 and 30
+   px - a line and a half (Chromium, the glass harness, the same day). So here the pips stand beside
+   the name, the project line under them (in a band of its own at the foot since E79 C12), and the
+   description, open, fills what is above them from the tile's top, clear of the toggle by its width
+   on each side rather than under it. Since E78 fix r2-H3
+   (14.10.2026) the box stands 31 px over the screen's edge with its pane run past it, 301x129 at 1366x768
+   and 301x122 (`low`, the content's floor) at 1280x720; open, the description shows 2.4 and 2.1 lines
+   there and scrolls (the glass harness's `drpgRoomCheck`, Chromium, the same day). */
+body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, max-content) max-content minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 8px;
+}
+
+body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] .drpg-room-tile-prose {
+    grid-area: 1 / 1 / 2 / -1;
+    align-self: stretch;
+    margin: 6px 30px 4px;
+}
+
+body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] .drpg-room-tile-name { grid-area: 2 / 2; }
+
+body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] .drpg-hud-room-tokens {
+    grid-area: 2 / 3;
+    margin-top: 0;
+}
+
+/* The project line is no row of this grid since E79 C12 (N8): it stands in the band at the tile's foot, which the
+   base sheet keeps whether it is drawn or not (`--drpg-room-band`, below for this theme). */
+body.drpg-theme-stained-glass #drpg-room-tile .drpg-room-tile-name {
+    position: relative;
+    isolation: isolate;
+    padding: 1px 10px 2px;
+    font-family: var(--drpg-font-chrome);
+    letter-spacing: 0.1em;
+    color: var(--drpg-sg-ink);
+    text-shadow: none;
+    text-transform: uppercase;
+    --brush: var(--drpg-glass-accent);
+    --brush-on: 1;
+}
+
+body.drpg-theme-stained-glass #drpg-room-tile .drpg-room-tile-name::before {
+    content: "";
+    position: absolute;
+    inset: 1px -5px;
+    z-index: -1;
+    background: var(--brush);
+    opacity: var(--brush-on, 0);
+    filter: url(#drpg-brush) brightness(var(--brush-dim, 1));
+}
+
+body.drpg-theme-stained-glass #drpg-room-tile:is([data-state="nowhere"], [data-state="noActor"]) .drpg-room-tile-name {
+    color: var(--drpg-sg-bone);
+    --brush-on: 0;
+}
+
+/* The voice tile's caption (E78 C3): the room tile's brush above, in the game state's colour (the
+   owner's Q17 and Q18), under the name and the small 'Speaking' together. */
+body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-plate {
+    position: relative;
+    isolation: isolate;
+    padding: 1px 10px 2px;
+    font-family: var(--drpg-font-chrome);
+    color: var(--drpg-sg-ink);
+    --brush: var(--drpg-glass-accent);
+    --brush-on: 1;
+}
+
+body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-name {
+    letter-spacing: 0.1em;
+    text-shadow: none;
+    text-transform: uppercase;
+}
+
+body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-plate::before {
+    content: "";
+    position: absolute;
+    inset: 1px -5px;
+    z-index: -1;
+    background: var(--brush);
+    opacity: var(--brush-on, 0);
+    filter: url(#drpg-brush) brightness(var(--brush-dim, 1));
+}
+
+/* ON ITS PANE (E78 C6, 14.10.2026): the box glass.mjs `seatVoiceTile` wrote, settled against the
+   tray's column, in place of the base sheet's interim corner; the face is no plate there, the
+   pane is its glass, and the portrait is the layer `seatVoiceArt` clipped to that pane, which
+   fades as the face does (the owner's Q7). */
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"] {
+    left: var(--drpg-voice-x);
+    top: var(--drpg-voice-y);
+    right: auto;
+    bottom: auto;
+    width: var(--drpg-voice-w);
+    height: var(--drpg-voice-h);
+}
+
+body.drpg-curtain-on #drpg-voice-tile[data-place] .drpg-voice-tile-face {
+    background: transparent;
+    border-color: transparent;
+}
+
+/* THE BUTTONS AT THE PANE'S CORNER, ONE OVER THE OTHER (E78 fix r2-H3, 14.10.2026; the owner on HF4's shot at
+   1366x768, in Polish: "przyciski na panelu livekit sa za daleko krawedzi" - the buttons on the voice pane are too
+   far from the edge). P11 (the A9 design's a9-design-1, 1280x720) draws them stacked at the pane's top right
+   corner, their centres about 22 px from the screen's right edge and 22 px under the pane's top edge (its
+   pixels, read in Chromium the same day); at 60741cf they stood side by side 31 and 66 px from the wall and 69 px
+   under that edge at 1366x768. The pane's top is the seam with the tray's pane, `--drpg-voice-lift` over the
+   tile's own top (glass.mjs, written with the cut), so the column starts 7 px under the seam: the microphone
+   on the portrait's glass above the tile's box, 5 px over it with the tray at its five rows (lift 12) and
+   higher when the tray is short. The microphone's line stands left of them. COMPACT (below) keeps H1's row. */
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"]:not([data-fit="compact"]) .drpg-voice-tile-controls {
+    top: calc(7px - var(--drpg-voice-lift, 0px));
+    right: 2px;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* The state word (E79 C15) where the microphone's line stood, left of the buttons; in the game state's colour at
+   full ink on the note's dark plate (the clock's ticker is that colour as an outline at 22 %). On the wall's full
+   form it is lifted with them (H84-03, 27.10.2026; the owner's 1.2.85 table, in Polish: "connected" too low on the
+   LiveKit panel): until then it kept H81-10's 6 px under the tile's own top, 46 px under the microphone it
+   stands beside, level with the speaker's middle (the triage's Chromium read at 53bb2f3e: word 283, microphone 259,
+   pane 228 at 1920x1080). Its top is now the buttons', so its 30 px band is the microphone's row: read in Chromium on
+   the glass harness (`drpgVoiceParts`' `word.row`, the word's top less the microphone's, in the tile's frame), 46 at
+   d99adf4b and 0 here, its corners on the voice pane at every wall size of the sweep. */
+body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-state {
+    font-family: var(--drpg-font-chrome);
+    letter-spacing: 0.04em;
+    color: var(--drpg-glass-accent);
+}
+
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"]:not([data-fit="compact"]) .drpg-voice-tile-state {
+    top: calc(7px - var(--drpg-voice-lift, 0px));
+    bottom: auto;
+    right: 40px;
+}
+
+/* COMPACT, ON A SHORT DESK (E78 fix r2-H1, 14.10.2026; review round 2's cor F1): a tile glass.mjs
+   `settleVoice` left under VOICE_FULL (114 px since E78 fix r2-H3; 91 at H1) is one row, as narrow.css draws it in the tiles' row - the
+   buttons centred down its right end, the name with '+N' on one line at its left foot (the state word over
+   it since H81-10), cut short with an
+   ellipsis, and 'Speaking' and the microphone's line not drawn (the buttons' labels say them). The
+   face keeps 82 px clear at the right: the two 30 px buttons, the 6 px between them and at the wall,
+   and 4 px to the plate. The speaker's count stays on its button. */
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-controls {
+    top: calc(50% - 15px);
+}
+
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-face {
+    justify-content: flex-end;
+    align-items: flex-start;
+    padding: 22px 82px 2px 6px;
+}
+
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] :is(.drpg-voice-tile-speaking, .drpg-voice-tile-note, .drpg-voice-tile-floor) {
+    display: none;
+}
+
+/* A player's tile holds a third button, OBJECTION! (E70 C11): the clear space at the right grows by the button and the
+   6 px before it, 82 + 36. Not read in a browser at this commit (the glass harness's tile has two buttons); LIVE-E70-12. */
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"]:has(.drpg-voice-objection) .drpg-voice-tile-face {
+    padding-right: 118px;
+}
+
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"]:has(.drpg-voice-objection) .drpg-voice-tile-state {
+    right: 118px;
+}
+
+/* The state word at the top, the name plate at the foot (H81-10; the owner's answer B, 20.10.2026: the word at the
+   top of the tile, over the picture, kept while somebody speaks). Until then the word took the plate's place, in
+   the middle of the row, while nobody spoke. Now both stand at once: the word in an 18 px band 2 px under the top,
+   the plate (16 px on one line) 2 px over the foot, both left of the buttons' 82 px. Read in Chromium on
+   20.10.2026 (a scratch probe: the six sheets, the glass harness's tile, no curtain cut): at 181 x 42, VOICE_MIN,
+   the word at 2..20 and the plate at 23..39; at 55 and 93 the plate lower still; neither under the buttons. */
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-state {
+    top: 2px;
+    bottom: auto;
+    right: 82px;
+    height: 18px;
+}
+
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-plate {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 4px;
+    min-width: 0;
+    padding: 1px 6px 2px;
+}
+
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-name {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: normal;
+    letter-spacing: 0.06em;
+}
+
+/* A short name keeps the word's band on a stacked screen (H81 fix r1; danganronpa.css's rule of the same name): this
+   theme's words are narrower - 59 px of text at most, "Disconnected", at the row's 11 px (Chromium, the glass
+   harness's row, 20.10.2026) - so the portrait's 44 px, the word and its 6 px paddings: 115, and 9 to spare. The
+   row check reads 68 px of band with a three-letter name. */
+body.drpg-theme-stained-glass.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden]) {
+    min-width: 124px;
+}
+
+body.drpg-theme-stained-glass > #drpg-voice-art {
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity var(--drpg-t-turn) var(--drpg-ease-leave);
+}
+
+body.drpg-theme-stained-glass > #drpg-voice-art.is-fading { opacity: 0; }
+
+body.drpg-theme-stained-glass #drpg-room-tile .drpg-hud-room-project {
+    color: var(--drpg-glass-accent);
+    opacity: 1;
+    text-transform: uppercase;
+}
+
+/* The band the base sheet keeps for the line (E79 C12, N8): this theme's size for it, the rule further down that
+   lifts it to the floor, a fifth again. */
+body.drpg-theme-stained-glass:not(.drpg-stacked) #drpg-room-tile[data-state^="room"] {
+    --drpg-room-band: calc(max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale))) * 1.2);
+}
+
+body.drpg-theme-stained-glass #drpg-room-tile :is(.drpg-room-tile-more, .drpg-room-tile-describe) {
+    border: 1px solid var(--drpg-glass-accent);
+    color: var(--drpg-glass-accent);
+    background: var(--drpg-a8-tile-button-ground);
+    clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+}
+
+body.drpg-theme-stained-glass #drpg-room-tile .drpg-room-tile-prose {
+    font-family: var(--drpg-font-prose);
+    font-size: max(var(--drpg-sg-floor), calc(14px * var(--drpg-sg-scale)));
+    line-height: 1.3;
+    color: var(--drpg-sg-bone);
+}
+
+/* And the upper row over them (E77 C6): the GM's button over settings, Foundry tools at the wall. */
+body.drpg-theme-stained-glass #drpg-gm-launcher {
+    right: calc(var(--drpg-edge) + var(--drpg-launch-s-right) + var(--drpg-launch-clear, 0px));
+}
+
+body.drpg-theme-stained-glass #drpg-foundry-tools {
+    right: calc(var(--drpg-edge) + var(--drpg-launch-clear, 0px));
+}
+
+/* ---- A6. The three dots under the room line ----------------------------------------------
+   The audit could not name them from the code and listed them as "to check". They are the
+   room's SEARCH TOKENS - three pips saying how many Searches the room has left - drawn as
+   7 px circles by the base sheet. Under this theme they read as an artefact rather than as a
+   count: the theme has no circles anywhere else, and nothing near them says what they are.
+   So they take the theme's own shape and the state's colour, like every other pip family in
+   the module, and a spent one is an outline rather than a fainter dot. The tooltip has always
+   said "2 of 3 left"; now the row looks like something that would have a tooltip. */
+body.drpg-theme-stained-glass #drpg-room-tile .drpg-hud-room-tokens {
+    justify-content: center;
+    gap: 4px;
+    margin-top: 3px;
+}
+
+body.drpg-theme-stained-glass #drpg-room-tile .drpg-hud-pip {
+    width: 9px;
+    height: 9px;
+    border-radius: 0;
+    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 55%, transparent);
+    background: transparent;
+    opacity: 1;
+    clip-path: polygon(2px 0, 100% 0, 100% calc(100% - 2px), calc(100% - 2px) 100%, 0 100%, 0 2px);
+}
+
+body.drpg-theme-stained-glass #drpg-room-tile .drpg-hud-pip.full {
+    background: var(--drpg-glass-accent);
+    border-color: var(--drpg-glass-accent);
+}
+
+body.drpg-theme-stained-glass #drpg-room-tile .drpg-hud-room-tokens.is-sealed .drpg-hud-pip {
+    border-color: color-mix(in srgb, var(--drpg-sg-gm-light) 60%, transparent);
+}
+
+/* THE GM'S BUTTON IS THE CORNER'S RED HEXAGON (E77 C6, 13.10.2026). Until C6 it was a 72x32
+   bar at the top of this column, dropped 20 px clear of the clock's seam; it stands over
+   settings now, the cluster's hexagon at the small token's 44 px, and keeps the module's
+   "this goes through the GM" red where the others wear the state's accent. Its mix is the E77
+   plan's: an opaque red, where the others' ground lets the map through, so it is the one solid
+   button in the corner as the bar was the one solid control in its column. */
+body.drpg-theme-stained-glass #drpg-gm-launcher {
+    color: var(--drpg-sg-bone);
+    background: color-mix(in srgb, var(--drpg-sg-gm) 72%, var(--drpg-a8-glass-ground));
+    border-color: color-mix(in srgb, var(--drpg-sg-gm-light) 85%, transparent);
+    border-radius: 0;
+    clip-path: polygon(50% 0, 100% 28%, 100% 72%, 50% 100%, 0 72%, 0 28%);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--drpg-sg-gm-light) 55%, transparent);
+}
+
+body.drpg-theme-stained-glass #drpg-gm-launcher:hover,
+body.drpg-theme-stained-glass #drpg-gm-launcher:focus-visible {
+    background: color-mix(in srgb, var(--drpg-sg-gm) 88%, var(--drpg-a8-glass-ground));
+    border-color: var(--drpg-sg-gm-light);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--drpg-sg-gm-light) 75%, transparent);
+}
+
+/* ---- THE GM BUTTON'S EYE IS A CONSTANT, LIKE THE CLUSTER'S OTHER GLYPHS -------
+   Until E77 C6 this block held the GM bar to 72x32 px and 13 px type whatever the module's
+   slider said, as Foundry's own tiles under it held 34x34 (measured 74x36 at 100 % and 103x51
+   at 140 % before it did). The bar is the corner's 44 px hexagon now, sized by the token, and
+   holds no text; its Monokuma eye is the 1em `::before` mask (danganronpa.css), 22 px here -
+   half the 44 px button (the handbooks' glyph is 24 px) - outside `--drpg-sg-scale`. */
+body.drpg-theme-stained-glass #drpg-gm-launcher :is(i, .fa, [class*="fa-"]) {
+    line-height: 1;
+}

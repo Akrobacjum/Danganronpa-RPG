@@ -175,6 +175,22 @@
  *             audit/harness/results/text/ (audit/harness/README.md, "The text
  *             tools"). Measured 01.11.2026 at E65 C-pilot (47c18e2b), 4 cores:
  *             16 s alone; 26 detectors, report found 3414.
+ *   css       the CSS lint (E44 C1b; tools/css-lint.mjs, whose header says
+ *             what it reads): scripts/tests-css.mjs's detectors on their own
+ *             fixtures first, the budget's ratchet among them, then every sheet
+ *             of module.json's `styles` counted - `!important`, colour literals
+ *             outside a token, rules written twice, stray comment ends, and R2's
+ *             dead classes against the scripts the suite's crawl reaches - and
+ *             held to tools/css-budget.json: red above a budget, and red below
+ *             it until the budget is lowered in the same commit
+ *             (`node tools/css-lint.mjs --write`). Bare Node.
+ *   contrast  the themes' text by WCAG 2 (E44 C1c; tools/contrast.mjs, whose
+ *             header says what it reads): its self-check, then every pair of
+ *             tools/contrast-pairs.json in its theme from the tokens the sheets
+ *             declare on :root and the theme's body class - red below AA (4.5
+ *             small, 3 large) unless written `known` at that ratio, red on a
+ *             `known` that no longer reads; a pair Node cannot resolve printed
+ *             as not measured. Bare Node.
  */
 
 import fs from "node:fs";
@@ -1123,7 +1139,29 @@ async function text() {
     return problems;
 }
 
-const PARTS = { stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode, live, text };
+/* ---------------------------------- css ----------------------------------- */
+
+/* THE CSS LINT (E44 C1b, 04.11.2026). The detectors are scripts/tests-css.mjs's, which imports nothing, so this part
+   and the suite's R2, R1310 and R1311 run the same functions; tools/css-lint.mjs reads the files and holds the budget. */
+async function css() {
+    const { cssLint } = await import(url.pathToFileURL(path.join(REPO, "tools", "css-lint.mjs")).href);
+    const { problems, summary } = await cssLint(REPO);
+    console.log(summary);
+    return problems;
+}
+
+/* -------------------------------- contrast -------------------------------- */
+
+/* THE CONTRAST (E44 C1c, 04.11.2026; D29 = 2): the arithmetic is tests-css.mjs's, which R1312 runs on the served files. */
+async function contrast() {
+    const { contrastCheck } = await import(url.pathToFileURL(path.join(REPO, "tools", "contrast.mjs")).href);
+    const { problems, summary, lines } = await contrastCheck(REPO);
+    for (const line of lines.filter(l => !/, ok$/.test(l))) console.log(line);
+    console.log(summary);
+    return problems;
+}
+
+const PARTS = { stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode, live, text, css, contrast };
 
 const asked = argv.filter((a, i) => !a.startsWith("--") && !(releaseAt >= 0 && i === releaseAt + 1) && !(langAt >= 0 && i === langAt + 1));
 if (RELEASE === "" || (RELEASE !== null && !/^v\d+\.\d+\.\d+$/.test(RELEASE))) {

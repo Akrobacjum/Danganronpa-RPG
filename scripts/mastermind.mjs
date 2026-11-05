@@ -36,9 +36,10 @@ import { studentActors } from "./monokuma.mjs";
 // static imports do not include this file.
 import { feedsNobody } from "./assignments.mjs";
 import { announce, dialogContent, ownerOf, primaryGmId, isPrimaryGm, log, error, wholeNumber } from "./utils.mjs";
+import { stepper, emptyOption } from "./ui-kit.mjs";
 import { mastermindStore, doorCopy, mastermindUndecided } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
-import { alreadyOpen, keepLive } from "./live.mjs";
+import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
 // E41 C10b (1.2.97): the Final Trial's verdict is verdict.mjs's, on the ordinary verdict's lock, list, card and summary;
@@ -497,8 +498,7 @@ function mastermindHopeBox({ monokumas, donorLabel }) {
             held: mastermindActor()?.system?.resources?.hope?.value ?? 0
         })}</p>
         <select name="donor" data-drpg-enter="[data-drpg-give]">${buildDonors()}</select>
-        <input type="number" name="amount" min="1" value="1" style="width:4em"
-            data-drpg-enter="[data-drpg-give]" />
+        ${stepper({ name: "amount", value: 1, min: 1, attrs: { style: "width:4em", "data-drpg-enter": "[data-drpg-give]" } })}
         <button type="button" class="drpg-mini-button" data-drpg-give>
             ${game.i18n.localize("DRPG.Monocub.give")}</button>`;
 }
@@ -566,7 +566,7 @@ export async function openMastermindDialog() {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-mastermind")) return null;
+    if (alreadyOpen("drpg-window-mastermind")) return RAISED;
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
@@ -608,7 +608,7 @@ export async function openMastermindDialog() {
         foundry.utils.escapeHTML(game.i18n.format("DRPG.Project.roomElsewhere", { room: lair }))}</option>`] : [])].join("");
 
     const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Mastermind.dialogTitle") },
+        window: { title: game.i18n.localize("DRPG.Mastermind.dialogTitle"), minimizable: true },
         classes: ["drpg-panel", "drpg-window-mastermind"],
         content: dialogContent(`<form>
             <p class="drpg-warning">${game.i18n.localize("DRPG.Mastermind.privacyWarning")}</p>
@@ -621,7 +621,7 @@ export async function openMastermindDialog() {
 
             <label>${game.i18n.localize("DRPG.Mastermind.lairLabel")}
                 <select name="lair">
-                    <option value="">-</option>
+                    ${emptyOption("DRPG.Mastermind.noLair")}
                     ${roomOptions}
                 </select></label>
             <p class="notes">${game.i18n.localize("DRPG.Mastermind.lairNote")}</p>

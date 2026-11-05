@@ -30,7 +30,7 @@ import { SETTINGS, isEclipse, sameSeason } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import {
     remnantsOn, remnantById, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited,
-    confirmClearFaint, shownBand, bandOptions,
+    confirmClearFaint, shownBand, bandOptions, removeRemnant,
     traceContextLine, traceLabel
 } from "./remnants.mjs";
 import { bulletsOf, isTruthBullet, secretOf, truthBulletData } from "./truth-bullets.mjs";
@@ -38,8 +38,9 @@ import { studentActors } from "./monokuma.mjs";
 import { livingStudentsForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs";
 import {
     dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
-    workingScene, esc, wireDashboardTabs, placeRoomOptions, listOf, error } from "./utils.mjs";
-import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty } from "./live.mjs";
+    workingScene, esc, placeRoomOptions, listOf, error } from "./utils.mjs";
+import { kitTabs, wireKitTabs, emptyOption } from "./ui-kit.mjs";
+import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, RAISED } from "./live.mjs";
 import { keyPlanStore, remnantStore } from "./gm-stores.mjs";
 import { murderState } from "./incident-store.mjs";
 import { bridgeRequest } from "./bridge-guards.mjs";
@@ -1815,6 +1816,10 @@ export function caseTraceRows(shown, finders) {
                 `<option value="${value}"${value === shows.crime ? " selected" : ""}>${esc(game.i18n.localize(label))}</option>`).join("")}</select></td>
             <td style="text-align:center"><input type="checkbox" name="reinf.${key}"${aria("DRPG.Remnant.reinforcedColumn")} ${shows.reinf ? "checked" : ""} /></td>
             <td>${found}</td>
+            ${/* DELETE, THE GM'S (E44 C8d): asked first, then the row and the token together (`deleteTraceRow`). A plain
+                  button, so it submits nothing: the form's Save is the window's own. */ ""}
+            <td><button type="button" class="drpg-trace-delete" data-drpg-trace-delete="${key}"${aria("DRPG.Investigation.deleteTrace")}>${
+                game.i18n.localize("DRPG.Investigation.deleteTrace")}</button></td>
         </tr>`;
     }).join("");
 }
@@ -1874,10 +1879,10 @@ function caseTraceFilters(traces, shown, reading) {
     </div>`;
 }
 
-/** The Traces tab: the filter bar, the rule, and the table or the reason it is empty. */
+/** The Traces tab's pane (the kit draws its frame, `kitTabs`): the filter bar, the rule, and the table or the reason it is empty. */
 function caseTracesPanel({ traces, shown, finders, reading }) {
     const traceRows = caseTraceRows(shown, finders);
-    return `<div data-drpg-panel="traces">
+    return `
         ${caseTraceFilters(traces, shown, reading)}
         <p class="notes drpg-clue-rule">${
             game.i18n.localize("DRPG.Investigation.neverOnePerson")}</p>
@@ -1891,10 +1896,10 @@ function caseTracesPanel({ traces, shown, finders, reading }) {
             <th>${game.i18n.localize("DRPG.Remnant.crimeColumn")}</th>
             <th>${game.i18n.localize("DRPG.Remnant.reinforcedColumn")}</th>
             <th>${game.i18n.localize("DRPG.Investigation.foundBy")}</th>
+            <th>${game.i18n.localize("DRPG.Investigation.deleteTrace")}</th>
         </tr></thead><tbody>${traceRows}</tbody></table>`
             : `<p class="notes">${game.i18n.localize(traces.length
-                ? "DRPG.Investigation.noneMatch" : "DRPG.Investigation.noTraces")}</p>`}
-    </div>`;
+                ? "DRPG.Investigation.noneMatch" : "DRPG.Investigation.noTraces")}</p>`}`;
 }
 
 /**
@@ -1912,7 +1917,7 @@ function caseTracesPanel({ traces, shown, finders, reading }) {
  * with no button, so a GM who had not built the planner could not see that picking a room and
  * pressing Save put a token on the map. One Status column now says where the row stands (not
  * placed, its Remnant gone or retyped, who found it, nobody yet), holds the picker of placed
- * traces (its empty option "-": the status line says the rest) and, on a row with nothing on the
+ * traces (its empty option "- no Remnant -" since E44 C4b, a bare "-" before) and, on a row with nothing on the
  * map, a Place button that asks the room and the visibility in a small window and places the
  * clue then (`placeKeyRow`). Save places nothing any more. A row past the opening roll's limit
  * draws the button `drpg-key-limited` and disabled, as it drew the two selects.
@@ -1980,7 +1985,7 @@ export function caseKeyRows({ plan, status, placed, limit }) {
             <td class="drpg-key-status">
                 <div class="drpg-key-state">${state}</div>
                 <select name="token:${i}"${aria("DRPG.Investigation.onMap")}>
-                    <option value=""${live ? "" : " selected"}>-</option>
+                    ${emptyOption("DRPG.Investigation.noRemnant", { selected: !live })}
                     ${picker}
                 </select>
                 ${here ? "" : `<button type="button" name="place:${i}" data-drpg-key-place="${i}"${
@@ -2009,7 +2014,7 @@ function caseKeyPanel({ plan, status, placed, limit }) {
     // actually unsolvable rather than at the moment it already is.
     const bar = KEY_REMNANTS.minimum + 1;
     const thin = status.foundAny < bar;
-    return `<div data-drpg-panel="key" style="display:none">
+    return `
         <p>${plural("DRPG.Investigation.plannerIntro", {
             chapter: plan.chapter, n: KEY_REMNANTS.prepared,
             min: KEY_REMNANTS.suspectRange[0], max: KEY_REMNANTS.suspectRange[1]
@@ -2058,8 +2063,7 @@ function caseKeyPanel({ plan, status, placed, limit }) {
                 && (r.data.chapter !== plan.chapter || !sameSeason(r.data))).length;
             return old ? `<p class="notes drpg-warning">${
                 plural("DRPG.Investigation.leftoverKeys", { n: old })}</p>` : "";
-        })()}
-    </div>`;
+        })()}`;
 }
 
 /**
@@ -2075,7 +2079,7 @@ function caseKeyPanel({ plan, status, placed, limit }) {
  * held a room would place a Final on every Save of a trace or a Key row. Exported for R358.
  */
 export function caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTruthPlacedThisChapter }) {
-    return `<div data-drpg-panel="final" style="display:none">
+    return `
         <p class="notes">${game.i18n.localize("DRPG.Mastermind.finalRemnantsNote")}</p>
         ${(() => {
             const placedFinals = finalRemnants();
@@ -2123,8 +2127,7 @@ export function caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTr
             <input type="text" name="finalNote"
                 placeholder="${game.i18n.localize(
                     "DRPG.Investigation.finalNotePlaceholder")}" /></label>
-        <p class="notes">${game.i18n.localize("DRPG.Mastermind.finalAddNote")}</p>
-    </div>`;
+        <p class="notes">${game.i18n.localize("DRPG.Mastermind.finalAddNote")}</p>`;
 }
 
 /** The whole dashboard as markup - a function of the world, so `keepLive` can call it again. */
@@ -2167,20 +2170,12 @@ function caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
                 game.i18n.localize("DRPG.Investigation.breakdown")}</th>
         </tr></thead><tbody>${studentRows}</tbody></table>
 
-        <nav class="drpg-dashboard-tabs">
-            <button type="button" class="drpg-dashboard-tab active" data-drpg-tab="traces">${
-                game.i18n.localize("DRPG.Investigation.tabTraces")}</button>
-            <button type="button" class="drpg-dashboard-tab" data-drpg-tab="key">${
-                game.i18n.localize("DRPG.Investigation.tabKeyRemnants")}</button>
-            <button type="button" class="drpg-dashboard-tab" data-drpg-tab="final">${
-                game.i18n.localize("DRPG.Mastermind.finalRemnantsTitle")}</button>
-        </nav>
-
-        ${caseTracesPanel({ traces, shown, finders, reading })}
-
-        ${caseKeyPanel({ plan, status, placed, limit })}
-
-        ${caseFinalPanel({
+        ${kitTabs([
+            { key: "traces", label: game.i18n.localize("DRPG.Investigation.tabTraces"),
+              html: caseTracesPanel({ traces, shown, finders, reading }) },
+            { key: "key", label: game.i18n.localize("DRPG.Investigation.tabKeyRemnants"),
+              html: caseKeyPanel({ plan, status, placed, limit }) },
+            { key: "final", label: game.i18n.localize("DRPG.Mastermind.finalRemnantsTitle"), html: caseFinalPanel({
             /* The Final Key Remnant is always an input - it is being placed, not
                read back - so it takes the plain lists: every room, none chosen,
                and Evident as the default. Every room of every place scene, each
@@ -2188,8 +2183,8 @@ function caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
                r1-G2; utils.mjs `placeRoomOptions`): it listed the camera's rooms
                and placed on the school's room of the name. */
             roomOptions: placeRoomOptions(), visOptions: visOptionsFor(null),
-            finalRemnants, finalTruthPlacedThisChapter })}
-
+            finalRemnants, finalTruthPlacedThisChapter }) }
+        ])}
     </form></div>`;
 }
 
@@ -2312,7 +2307,7 @@ function wireCase(dialog) {
     const root = dialog.element;
     wirePortraitPickers(root, { defaultImg: ICON });
 
-    wireDashboardTabs(root);
+    wireKitTabs(root);
 
     // A Key row's Place button (E09 C16). Bound on the nodes, which a redraw replaces.
     for (const button of root.querySelectorAll("[data-drpg-key-place]")) {
@@ -2323,6 +2318,42 @@ function wireCase(dialog) {
     // - applied as well as wired, because a redraw restores the tick and not what
     // it unlocked. See `wireKeyLimitOverride`.
     wireKeyLimitOverride(root);
+
+    // A Remnant row's Delete (E44 C8d). Bound on the nodes, which a redraw replaces; the redraw that takes the row away
+    // is the ledger's own (the live region watches `remnantStore`, whose row `removeRemnant` tombstones).
+    for (const button of root.querySelectorAll("[data-drpg-trace-delete]")) {
+        button.addEventListener("click", () => {
+            deleteTraceRow(button.dataset.drpgTraceDelete).catch(err => error("Could not delete a Remnant from the dashboard", err));
+        });
+    }
+}
+
+/**
+ * A Remnant deleted from the dashboard's Remnants tab (E44 C8d, 04.11.2026; E44-29, the owner on 1.2.98: "Do
+ * investigation (gm panel) dodalbym tez opcje usuwania remnantow"). E60 left the tab with no Delete, since a GM deletes
+ * a trace's token on the map (D38 = 1: a trace is its token); the owner wants it here as well. The GM's alone: the
+ * dashboard opens for a GM only and this asks `game.user.isGM` before anything; it is no packet and no bridge row, and
+ * no module file but this one names it, so a player has no road to it. Asked first, in a window naming the Remnant,
+ * as the dashboard's other permanent clean-ups ask; then remnants.mjs `removeRemnant`, the one road that takes the
+ * ledger's row and the token together, which refuses a reinforced trace with its notice and keeps both. A row whose
+ * trace went meanwhile asks nothing. Answers true when the Remnant went, false when the GM said no or it was refused,
+ * null when there was nothing to ask about. Exported for the suite (E44-T10).
+ */
+export async function deleteTraceRow(key) {
+    if (!game.user.isGM || !key) return null;
+    const trace = allTraces().find(t => rowKey(t.scene.id, t.token.id) === key);
+    if (!trace) return null;
+    const name = trace.data.public?.name || traceContextLine(trace.data) || key;
+    const sure = await DialogV2.confirm({
+        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        no: { label: game.i18n.localize("DRPG.Dialog.no") },
+        window: { title: game.i18n.localize("DRPG.Investigation.deleteTraceTitle") },
+        classes: ["drpg-panel"],
+        content: dialogContent(`<p>${esc(game.i18n.format("DRPG.Investigation.deleteTraceAsk", { name }))}</p>`),
+        rejectClose: false
+    });
+    if (!sure) return false;
+    return Boolean(await removeRemnant(trace.token));
 }
 
 /*
@@ -2417,7 +2448,7 @@ export async function openInvestigationDashboard({ said = null } = {}) {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-case")) return null;
+    if (alreadyOpen("drpg-window-case")) return RAISED;
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));

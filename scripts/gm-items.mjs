@@ -34,9 +34,10 @@ function recipientOptions(students, selectedId) {
         .map(a => `<option value="${a.id}"${a.id === selectedId ? " selected" : ""}>${esc(a.name)}</option>`)
         .join("");
 }
-import { whisperToOwner, dialogContent, panelTabs, wirePanelTabs,
+import { whisperToOwner, dialogContent,
     log, error, plural, cardHead, esc, serialWrite } from "./utils.mjs";
-import { alreadyOpen, keepLive } from "./live.mjs";
+import { kitTabs, wireKitTabs, shownTab } from "./ui-kit.mjs";
+import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { homeScene } from "./rooms.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -59,8 +60,8 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * sixth ("Look inside the stashes"). The holdings are on the window now,
  * and the only choice left at this level is the verb.
  *
- * TWO TABS AND A FOOTER THAT FOLLOWS THEM, which is what `wirePanelTabs`
- * is for and what Item Tables and Sound already do. Nothing underneath
+ * TWO TABS AND A FOOTER THAT FOLLOWS THEM, which is what the kit's
+ * `wireKitTabs` is for and what Item Tables and Sound already do. Nothing underneath
  * changed: `gmGiveItemDialog`, `giveTruthBulletDialog`, `giveKeyDialog` and
  * `takeItemDialog` are the same windows, reached from the tab that matches
  * what they do.
@@ -96,7 +97,7 @@ function holdingsHtml(who) {
 
 /** The tabs' buttons, the select that changes whose pockets are shown, and the live read-out. */
 function wireItemManager(dialog, target) {
-    wirePanelTabs(dialog.element, {
+    wireKitTabs(dialog.element, {
         buttons: {
             give: ["give", "bullet", "key"],
             take: ["take", "takeBullet", "takeKey"]
@@ -177,7 +178,7 @@ export async function openItemManager(actor = null) {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-items")) return null;
+    if (alreadyOpen("drpg-window-items")) return RAISED;
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
@@ -211,13 +212,13 @@ export async function openItemManager(actor = null) {
     const whoOptions = recipientOptions(students, target.id);
 
     const choice = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Items.manage") },
+        window: { title: game.i18n.localize("DRPG.Items.manage"), minimizable: true },
         classes: ["drpg-panel", "drpg-window-items"],
         content: dialogContent(`<form>
             <label>${game.i18n.localize("DRPG.Items.whichCharacterHub")}
                 <select name="who">${whoOptions}</select></label>
             <div class="drpg-holdings-live">${holdingsHtml(target)}</div>
-            ${panelTabs([
+            ${kitTabs([
                 { key: "give", label: game.i18n.localize("DRPG.Items.tabGive"),
                   html: `<p class="notes">${game.i18n.localize("DRPG.Items.giveNote")}</p>` },
                 { key: "take", label: game.i18n.localize("DRPG.Items.tabTake"),
@@ -516,7 +517,7 @@ function giveCreatePane({ categories, tiers, suggestions }) {
 
 /** The give form's own rules: the table drives the item list, category and tier; the recipient rebuilds the counts; the roles follow tier and home. */
 function wireGiveForm(dialog) {
-    wirePanelTabs(dialog.element);
+    wireKitTabs(dialog.element);
 
     /*
      * THE TABLE DRIVES THE OTHER THREE.
@@ -639,8 +640,7 @@ function wireKindNotes(dialog) {
 /** What Give hands back: whichever pane is showing, read as one shape with a `mode`. */
 function readGiveForm(d) {
     const f = d.element.querySelector("form");
-    const active = d.element.querySelector(".drpg-gmt-section.active")
-        ?.dataset.drpgGmtSection ?? "create";
+    const active = shownTab(d.element) ?? "create";
 
     if (active === "existing" && f.elements.exTable) {
         const [category, kind = null] = f.elements.exCategory.value.split(":");
@@ -769,7 +769,7 @@ export async function gmGiveItemDialog(actor) {
         // Two tabs, one verb (Dawid, 2026-08-26). The footer's Give reads
         // whichever pane is showing; the tell-player switch and the cap note
         // sit below the tabs because they are true of both.
-        content: dialogContent(`<form>${panelTabs([
+        content: dialogContent(`<form>${kitTabs([
             { key: "existing", label: game.i18n.localize("DRPG.Items.tabGiveExisting"),
               html: existingPane },
             { key: "create", label: game.i18n.localize("DRPG.Items.tabCreateNew"),
@@ -968,7 +968,7 @@ function bulletCreatePane() {
 
 /** The name follows the picked trace; the trace list follows the recipient. */
 function wireBulletForm(dialog, traces, traceContextLine) {
-    wirePanelTabs(dialog.element);
+    wireKitTabs(dialog.element);
     const form = dialog.element.querySelector("form");
     if (!form) return;
 
@@ -997,8 +997,7 @@ function wireBulletForm(dialog, traces, traceContextLine) {
 /** What Give hands back: whichever tab is showing, with the recipient and the tell switch. */
 function readBulletForm(d) {
     const f = d.element.querySelector("form");
-    const active = d.element.querySelector(".drpg-gmt-section.active")
-        ?.dataset.drpgGmtSection ?? "create";
+    const active = shownTab(d.element) ?? "create";
     const common = {
         recipient: f.elements.recipient?.value ?? null,
         tell: f.elements.tell.checked
@@ -1159,7 +1158,7 @@ export const GIVEN_ALREADY = Symbol("drpg.givenAlready");
  * ON ONE GM'S BROWSER (E60's fix round, FG6; the end review's C-m8, S-m4): the queue is this browser's memory, and the
  * give runs on whichever GM opened the window, while Observe's find and a hand-over run on the primary - a give on a
  * second GM's browser beside the primary's find of the same trace for the same receiver can still make two copies.
- * No road a GM's give could take to the primary exists; the race across GMs is E38's (row 1.2.125).
+ * No road a GM's give could take to the primary exists; the race across GMs is E38's (row 1.2.126).
  */
 export async function giveBullet(who, payload) {
     const { observeFindKey } = await import("./observe.mjs");
@@ -1207,7 +1206,7 @@ export async function giveTruthBulletDialog(actor, { scenes: only = null } = {})
         classes: ["drpg-panel", "drpg-window-bullet"],
         // On Write a new one when no trace lies on any scene (E14 part 2 C6, S08-22): From a Remnant then holds only
         // the line saying so, and the window opened there with Give a Truth Bullet live under it.
-        content: dialogContent(`<form>${panelTabs([
+        content: dialogContent(`<form>${kitTabs([
             { key: "existing", label: game.i18n.localize("DRPG.TruthBullet.tabFromRemnant"),
               html: existingPane },
             { key: "create", label: game.i18n.localize("DRPG.TruthBullet.tabWriteNew"),

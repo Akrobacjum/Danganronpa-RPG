@@ -135,6 +135,14 @@ module's blocks as specifically as anything that could be written against them,
 so the narrow layout wins its ties by being later rather than by an arms race in
 selectors.
 
+**A window is drawn by `scripts/ui-kit.mjs`, and its CSS is `styles/components.css`'s** (E44 C3a). `drpgWindow`
+(a DialogV2) and `DrpgApp` (an ApplicationV2) give a window its frame - `drpg-ui` on the root, the screen's height,
+one body that scrolls - its footer by the button roles of `BUTTON_ROLES` (the closing word, the secondary and the
+destructive ones left, the primary right and first in the tree, so Enter presses it), and one tab system (`kitTabs`);
+the controls every window shares are the kit's builders (`formGrid`, `dataTable`, `stepper`, `toggle`, `chip`, `box`,
+`modeBar`). A kit rule wins without `!important` (components.css's budget is 0), and a rule it loses to is found by
+R1323's cascade, not by eye. What a stylesheet may hold is CONTRIBUTING.md's "The CSS contract".
+
 **The curtain has two partitions.** `curtainShapes` for a desk, `stackShapes`
 for a stacked screen. The desk one assembles panes and checks afterwards that
 they tile the screen; the stacked one starts from the screen and cuts it, so it

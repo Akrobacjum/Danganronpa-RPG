@@ -147,7 +147,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
     check("A1: p1's thread starts empty and unread nowhere", start.thread === 0 && start.unread.gm === 0 && start.unread.gm2 === 0 && start.unread.p1 === 0, J(start));
     const opened = await gm2.eval(OPEN);
     await gm2.eval(`${M} ${UNTIL} const app = A.DrpgMessengerApp.instances.get("${P1}");
-        app.element.querySelector('[data-drpg-tab="note"]').click(); await until(() => app.element.querySelector(".drpg-messenger-note-text")); return true;`);
+        app.element.querySelector('nav.drpg-tabs [data-drpg-tab-key="note"]').click(); await until(() => app.element.querySelector(".drpg-messenger-note-text")); return true;`);
     const a1Sent = await p1.eval(`${M} const m = await M.sendMessage("${P1}", ${J(WORDS.a1)}); return m?.id ?? null;`, { timeout: 60000 });
     await settle(900);
     // The Note tab drawn again (a note changed, a click on Note): a render that does not show the chat.
@@ -157,7 +157,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
         opened && Boolean(a1Sent) && a1Note.window.tab === "note" && a1Note.unread.gm2 === 1 && a1Note.unread.gm === 1 && a1Note.unread.p1 === 0,
         J({ opened, a1Sent, a1Note }), { flow: "messenger" });
     await gm2.eval(`${M} ${UNTIL} const app = A.DrpgMessengerApp.instances.get("${P1}");
-        app.element.querySelector('[data-drpg-tab="chat"]').click(); await until(() => app.element.querySelector(".drpg-messenger-log")); await new Promise(r => setTimeout(r, 300)); return true;`);
+        app.element.querySelector('nav.drpg-tabs [data-drpg-tab-key="chat"]').click(); await until(() => app.element.querySelector(".drpg-messenger-log")); await new Promise(r => setTimeout(r, 300)); return true;`);
     const a1Chat = { unread: await unread(), window: await gm2.eval(WINDOW) };
     check("A1: gm2 goes to the Chat tab: read on gm2, still unread on gm - each browser keeps its own read state",
         a1Chat.window.tab === "chat" && a1Chat.unread.gm2 === 0 && a1Chat.unread.gm === 1
