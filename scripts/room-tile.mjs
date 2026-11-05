@@ -380,7 +380,8 @@ function roomWindowClass() {
         static DEFAULT_OPTIONS = {
             id: "drpg-room-window",
             classes: ["drpg-panel", WINDOW_CLASS],
-            window: { icon: "fa-solid fa-align-left", resizable: false, minimizable: false }
+            // Foldable since E44 fix FG2 (the owner's Q-E44-1: no window's collapse blocked; no reason for `false` was written).
+            window: { icon: "fa-solid fa-align-left", resizable: false, minimizable: true }
         };
 
         constructor(options = {}) {

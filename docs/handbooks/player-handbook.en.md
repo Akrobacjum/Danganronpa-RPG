@@ -805,7 +805,7 @@ Bottom-left of your character sheet is a button with a word on it - **Safe Word*
 
 **Foundry's own buttons** are not on a player's screen: there is no bar of scene controls on the left, as there is no sidebar. Your token is selected and dragged as before, and the module changes none of Foundry's keys; what goes with the bar is drawing, map notes and the target button.
 
-**A window's title bar**: a double-click folds the window to its title bar, and a second one opens it again, as everywhere in Foundry (since 1.2.99; until then the module blocked the gesture on every window). A folded window keeps what it held.
+**A window's title bar**: a double-click folds the window to its title bar, and a second one opens it again, as everywhere in Foundry (since 1.2.99; until then the module blocked the gesture on every window). A folded window keeps what it held, and the button that opened it opens it again. A short window that asks one question, such as a confirmation, does not fold.
 
 **The Event panel** (under the Despair rows): what is happening now - the Motive with its countdown and what ignoring it costs, a called assembly, a darkening that is running, a body found, the trial's mode, speaker and time left, an open vote, a stopped scene. A murder's own cards show only to the people in it.
 

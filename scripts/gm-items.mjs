@@ -212,7 +212,7 @@ export async function openItemManager(actor = null) {
     const whoOptions = recipientOptions(students, target.id);
 
     const choice = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Items.manage") },
+        window: { title: game.i18n.localize("DRPG.Items.manage"), minimizable: true },
         classes: ["drpg-panel", "drpg-window-items"],
         content: dialogContent(`<form>
             <label>${game.i18n.localize("DRPG.Items.whichCharacterHub")}

@@ -1092,7 +1092,7 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
 
     const result = await DialogV2.wait({
         classes: ["drpg-panel", "drpg-wide", "drpg-window-season"],
-        window: { title: game.i18n.localize("DRPG.Season.title") },
+        window: { title: game.i18n.localize("DRPG.Season.title"), minimizable: true },
         content: dialogContent(`<form>
             <p>${esc(game.i18n.format(outstanding
                 ? "DRPG.Season.introOutstanding"

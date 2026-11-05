@@ -120,6 +120,11 @@ export function openMessenger(playerUserId = game.user.id) {
 
     const existing = DrpgMessengerApp.instances.get(playerUserId);
     if (existing) {
+        /* A conversation folded to its title bar is unfolded before it is raised (E44 fix FG2; the end review's C-m1):
+           the launcher, the roster and a notice's Open conversation raised the bar alone, and the thread stayed unread
+           until the reader found it. It is read once it is seen (`seesThread`): `maximize` marks it when the fold has
+           gone, `bringToFront` before that marks nothing. */
+        if (existing.minimized) Promise.resolve(existing.maximize()).catch(err => debug("Could not unfold the conversation", err));
         existing.bringToFront();
         return existing;
     }

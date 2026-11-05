@@ -685,6 +685,12 @@ export function alreadyOpen(className) {
             // Raised rather than merely refused. A GM who presses the tile
             // again is telling us they want to look at that window, and the
             // reason they pressed twice is usually that it is behind something.
+            // Or folded to its title bar (E44 fix FG2, 05.11.2026; the end review's C-m1): since Q-E44-1 lifted the
+            // module's block, a window can be folded, and raising the bar alone left the press doing nothing to see.
+            // So it is unfolded first (`maximize`, Foundry's; not awaited, so this stays an answer the caller reads at
+            // once), then raised. `minimized` and `maximize` as ApplicationV2's, read from memory and modelled by
+            // the harness, not read on v14 (LIVE-E44-08).
+            if (app.minimized) Promise.resolve(app.maximize?.()).catch(err => debug("Could not unfold a window", err));
             app.bringToFront?.();
             return app;
         }

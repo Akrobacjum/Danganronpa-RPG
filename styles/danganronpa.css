@@ -5919,7 +5919,10 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    in the middle of a transform transition forces a complete re-layout. That was
    measured at the table: the sheet lurched between sizes on its way out, and it
    is the reason this rule is scoped rather than general. */
-.application.dialog.drpg-closing.minimizing .window-content {
+/* Not a prompt folded to its title bar (E44 fix FG2, 05.11.2026): since every module window may fold (the owner's
+   Q-E44-1), a prompt closed while folded would show its whole contents again for its 90ms out. A folded window closes
+   as Foundry closes one, from its bar; read in the sheets, not measured in a browser (LIVE-E44-08). */
+.application.dialog.drpg-closing.minimizing:not(.minimized) .window-content {
     display: flex;
 }
 

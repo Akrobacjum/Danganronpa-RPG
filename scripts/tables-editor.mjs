@@ -1533,7 +1533,7 @@ export async function openItemTables({ preset = null, poolError = null } = {}) {
     // 400px, and half of what this layout needs. `drpg-wide` is the manual
     // override that exists for exactly this case.
     const action = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Tables.editorTitle") },
+        window: { title: game.i18n.localize("DRPG.Tables.editorTitle"), minimizable: true },
         classes: ["drpg-panel", "drpg-projects", "drpg-wide", "drpg-window-tables"],
         position: { height: "auto" },
         // Three tabs (Dawid, 26.08; trimmed from four in E10): editing what a

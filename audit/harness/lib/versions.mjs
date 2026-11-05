@@ -78,7 +78,11 @@ export const UNCONFIRMED = [
        `document.visibilityState` and its `visibilitychange` (client-entry.mjs `__pageVisibility`, 02). E50 C3: the
        Music slider's curve, AudioHelper's `volumeToInput`/`inputToVolume` read in fvtt-types 14.366 - the harness's
        AudioHelper has neither, so the module's fallback of the same curve runs here (03). */
-    "LIVE-E50-01", "LIVE-E50-02", "LIVE-E50-03"
+    "LIVE-E50-01", "LIVE-E50-02", "LIVE-E50-03",
+    /* E44's (fix FG2, 05.11.2026): a window folded to its title bar - ApplicationV2's `minimized`, `minimize` and `maximize`
+       and DialogV2's default `minimizable: false` - read from memory: lib/shim.mjs's ApplicationV2 has no fold, so R1339
+       reads the options the module hands its windows and `alreadyOpen` on stand-ins (01). */
+    "LIVE-E44-08"
 ];
 
 function readJson(file) {

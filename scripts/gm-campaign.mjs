@@ -109,7 +109,7 @@ export async function openClockDialog() {
 
     const ids = { day: stepperId(), session: stepperId() };
     const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Panel.jump") },
+        window: { title: game.i18n.localize("DRPG.Panel.jump"), minimizable: true },
         classes: ["drpg-panel", "drpg-window-clock"],
         content: `<form>
                     <label>${game.i18n.localize("DRPG.Clock.campaignName")}

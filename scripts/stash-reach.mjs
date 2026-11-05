@@ -803,7 +803,7 @@ export async function openVaultInspector() {
             : `<p class="notes">${game.i18n.localize("DRPG.Vault.noStashesOnScene")}</p>`}`).join("");
 
     return DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Vault.inspectTitle") },
+        window: { title: game.i18n.localize("DRPG.Vault.inspectTitle"), minimizable: true },
         classes: ["drpg-panel", "drpg-window-stashes"],
         content: dialogContent(`<div>${sections}
             <p class="notes">${game.i18n.localize("DRPG.Vault.inspectNote")}</p></div>`),

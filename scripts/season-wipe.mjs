@@ -278,7 +278,7 @@ export async function resetSeason() {
 
     const typed = await DialogV2.wait({
         classes: ["drpg-panel", "drpg-window-season-reset"],
-        window: { title: game.i18n.localize("DRPG.Season.resetTitle") },
+        window: { title: game.i18n.localize("DRPG.Season.resetTitle"), minimizable: true },
         content: dialogContent(`<form>
             <p class="drpg-warning">${esc(game.i18n.localize("DRPG.Season.resetWarning"))}</p>
             ${offlineLine}

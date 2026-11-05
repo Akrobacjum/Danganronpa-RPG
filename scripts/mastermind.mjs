@@ -608,7 +608,7 @@ export async function openMastermindDialog() {
         foundry.utils.escapeHTML(game.i18n.format("DRPG.Project.roomElsewhere", { room: lair }))}</option>`] : [])].join("");
 
     const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Mastermind.dialogTitle") },
+        window: { title: game.i18n.localize("DRPG.Mastermind.dialogTitle"), minimizable: true },
         classes: ["drpg-panel", "drpg-window-mastermind"],
         content: dialogContent(`<form>
             <p class="drpg-warning">${game.i18n.localize("DRPG.Mastermind.privacyWarning")}</p>

@@ -1453,7 +1453,7 @@ export async function manageClassTrial() {
 
     const action = await DialogV2.wait({
         classes: ["drpg-panel", "drpg-window-trial"],
-        window: { title: game.i18n.localize("DRPG.Floor.manageTrial") },
+        window: { title: game.i18n.localize("DRPG.Floor.manageTrial"), minimizable: true },
         content: dialogContent(buildConsole()),
         buttons: trialButtons({ floor, running, finalNow, progress, afterwards, stopped, table, isDefault }),
         render: (event, dialog) => {

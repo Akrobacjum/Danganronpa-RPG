@@ -820,7 +820,8 @@ export function drpgWindow({ id = null, classes = [], title = "", body = "", tab
     const config = {
         ...rest,
         classes: [...classes, ...KIT_CLASSES],
-        window: { title, resizable: false, ...rest.window },
+        // Foldable to its title bar, as every module window since E44 fix FG2 (the owner's Q-E44-1; DialogV2's default is not).
+        window: { title, resizable: false, minimizable: true, ...rest.window },
         position: { height: "auto", ...rest.position },
         modal,
         content: dialogContent(markup),

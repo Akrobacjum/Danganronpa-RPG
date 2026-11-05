@@ -1398,7 +1398,8 @@ async function phaseF({ gm, p1, p2, p3, check, phase, settle, dump, IDS, repoUrl
         const missed = line("[data-drpg-pick-why]");
         f.hands.pointerdown?.(at(1234.5, 803));
         const second = { step: line("[data-drpg-pick-step]"), where: line("[data-drpg-pick-where]"), why: line("[data-drpg-pick-why]"),
-            tucked: f.el?.style.visibility ?? null };
+            // Folded since E44 fix FG2 (Room setup is a tableDialog, minimizable now): hidden only where it may not fold.
+            tucked: f.app?.minimized ? "folded" : f.el?.style.visibility ?? null };
         f.hands.pointermove?.(at(1334.5, 797));
         const preview = (layer("pick")?.children ?? []).flatMap(g => g._calls ?? []).filter(([k]) => k === "drawCircle").map(([, a]) => a.slice(0, 3));
         f.hands.pointerdown?.(at(1334.5, 797));
@@ -1407,12 +1408,12 @@ async function phaseF({ gm, p1, p2, p3, check, phase, settle, dump, IDS, repoUrl
         await until(() => !prompt() && !f.hands.pointerdown);
         await until(() => f.el?.querySelector('[data-drpg-passage="' + made?.id + '"]'));
         f.id = made?.id ?? null;
-        return { missed, second, preview, back: f.el?.style.visibility ?? null, id: made?.id ?? null, seg: made?.passageSeg ?? null, rooms: made?.rooms ?? null, state: made?.state ?? null,
+        return { missed, second, preview, back: f.app?.minimized ? "folded" : f.el?.style.visibility ?? null, id: made?.id ?? null, seg: made?.passageSeg ?? null, rooms: made?.rooms ?? null, state: made?.state ?? null,
             prompt: Boolean(prompt()), board: Object.keys(f.hands), row: Boolean(f.el?.querySelector('[data-drpg-passage="' + made?.id + '"]')),
             told: globalThis.__notifications.slice(noted).map(n => n.msg), overlays: overlays().length, drawn: drawn(), pick: layer("pick")?.children.length ?? null };`, { timeout: 30000 });
-    check("F: 'New passage' in the GM's Room Setup, a click off the wall refused in the pick's window, then two clicks on the Kitchen's wall - the passage is made on the stretch between them, Room Setup hidden meanwhile and back after, the window and the board's listeners gone, and the GMs' overlay draws it",
+    check("F: 'New passage' in the GM's Room Setup, a click off the wall refused in the pick's window, then two clicks on the Kitchen's wall - the passage is made on the stretch between them, Room Setup folded meanwhile (hidden before E44 fix FG2) and back after, the window and the board's listeners gone, and the GMs' overlay draws it",
         opened.kitchen && opened.wall && opened.button === texts.button && J(opened.board) === J(["pointerdown", "pointermove"])
-            && picked.missed === texts.noWall && J(picked.second) === J({ step: texts.step2, where: "Cafeteria - Kitchen", why: null, tucked: "hidden" }) && picked.back === ""
+            && picked.missed === texts.noWall && J(picked.second) === J({ step: texts.step2, where: "Cafeteria - Kitchen", why: null, tucked: "folded" }) && picked.back === ""
             && J(picked.preview) === J([[1234.5, 800, 9], [1334.5, 800, 12]])
             && J(picked.seg) === J({ x1: 1234.5, y1: 800, x2: 1334.5, y2: 800 }) && J(picked.rooms) === J(["Cafeteria", "Kitchen"]) && picked.state === "secret"
             && !picked.prompt && J(picked.board) === "[]" && picked.row && picked.told.includes(texts.made)

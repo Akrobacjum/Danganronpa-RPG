@@ -487,7 +487,7 @@ export async function openGmPanel() {
     ]);
 
     await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Panel.title") },
+        window: { title: game.i18n.localize("DRPG.Panel.title"), minimizable: true },
         classes: ["drpg-panel", "drpg-gm-panel-window", "drpg-window-panel"],
         content: body,
         buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true }],
@@ -651,7 +651,7 @@ async function openFailureLog() {
 
     const action = await DialogV2.wait({
         classes: ["drpg-panel", "drpg-wide", "drpg-window-failures"],
-        window: { title: game.i18n.localize("DRPG.Failures.title") },
+        window: { title: game.i18n.localize("DRPG.Failures.title"), minimizable: true },
         content: dialogContent(`<div>
             <p class="notes">${esc(game.i18n.localize("DRPG.Failures.intro"))}</p>
             ${body}

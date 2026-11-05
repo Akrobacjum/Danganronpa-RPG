@@ -1150,7 +1150,10 @@ export function tableDialog(options) {
         classes: [...(rest.classes ?? []), "drpg-table-window"],
         // No handle: the size is derived, not chosen. A handle here would only
         // ever be used to correct a size this function should have got right.
-        window: { resizable: false, ...rest.window },
+        // Foldable to its title bar (E44 fix FG2, 05.11.2026; the owner's Q-E44-1, "Nie chcialbym blokowac
+        // zwijania okien wcale"): DialogV2's own default is `minimizable: false` (the harness's shim copies it;
+        // v14's own is LIVE-E44-08), so a module window built here did not fold even once no-collapse.mjs was gone.
+        window: { resizable: false, minimizable: true, ...rest.window },
         // `height: auto` lets the window take its content's height, which the
         // 80vh cap on `.window-content` then bounds - so a long table scrolls
         // rather than growing off the bottom of the screen.

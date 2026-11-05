@@ -33929,6 +33929,83 @@ const INVARIANTS = [
         }), "[each preset's description: its label, a placeholder in it, its summary line; no preset's; the field after Secret Passage, Seal "
             + "the passage, own, Repair an item, then the player's words and Breach the Wall, own, Close the breach; the input events the field heard]");
     }],
+    ["R1339 - every module window may fold, and a folded one is unfolded when it is asked for again (E44 fix FG2, 05.11.2026; the owner's Q-E44-1 and the end review's G-M1 and C-m1): utils.mjs `tableDialog` and ui-kit.mjs `drpgWindow` ask DialogV2 for `minimizable: true`, room-tile.mjs's Room window is minimizable, and so are the ten standing windows a tile raises that are built on DialogV2 directly (the GM panel, Failures, Manage items, Edit campaign, the Mastermind, Season setup, Season reset, the stash inspector, Item tables, the Class Trial console); live.mjs `alreadyOpen` unfolds a folded window (`maximize`) before it raises it and raises an unfolded one alone, and messenger-app.mjs `openMessenger` does the same with a folded conversation", async () => {
+        /*
+         * E44 fix FG2, 05.11.2026. C4b took no-collapse.mjs away (the owner: "Nie chcialbym blokowac zwijania okien
+         * wcale"), and the module's windows built on DialogV2 still kept its default `minimizable: false`, the Room window
+         * set it itself; and an opener that found its window folded raised the bar alone. Read here: the options the two
+         * builders hand DialogV2 (its `wait` stood in for, the window never drawn), the Room window's own (opened and
+         * closed), the ten windows' options in their source, and `alreadyOpen` and `openMessenger` on stand-in windows -
+         * a folded one and an open one - put in Foundry's list of windows and the messenger's for the reading alone. A
+         * fold and an unfold of a real window are v14's (LIVE-E44-08): the harness's ApplicationV2 has no fold.
+         * Red at 3e207d79: false, unset and false, and no window unfolded.
+         */
+        const U = await import("./utils.mjs");
+        const K = await import("./ui-kit.mjs");
+        const T = await import("./room-tile.mjs");
+        const L = await import("./live.mjs");
+        const MA = await import("./messenger-app.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const asked = [];
+        D.wait = async cfg => { asked.push(cfg?.window?.minimizable ?? null); return null; };
+        try {
+            await U.tableDialog({ window: { title: "R1339 table" }, content: "<p>R1339</p>", buttons: [{ action: "ok", label: "OK" }] });
+            await K.drpgWindow({ title: "R1339 kit", body: "<p>R1339</p>", footer: { close: true } });
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        const room = await T.openRoomWindow();
+        const roomFolds = room?.options?.window?.minimizable ?? null;
+        await room?.close?.();
+        const source = file => fetch(`/modules/${MODULE_ID}/scripts/${file}`, { cache: "no-cache" }).then(lfText);
+        const standing = [["gm-panel.mjs", "DRPG.Panel.title"], ["gm-panel.mjs", "DRPG.Failures.title"], ["gm-items.mjs", "DRPG.Items.manage"],
+            ["gm-campaign.mjs", "DRPG.Panel.jump"], ["mastermind.mjs", "DRPG.Mastermind.dialogTitle"], ["season-setup.mjs", "DRPG.Season.title"],
+            ["season-wipe.mjs", "DRPG.Season.resetTitle"], ["stash-reach.mjs", "DRPG.Vault.inspectTitle"], ["tables-editor.mjs", "DRPG.Tables.editorTitle"],
+            ["trial-floor-ui.mjs", "DRPG.Floor.manageTrial"]];
+        const windows = [];
+        for (const [file, key] of standing) {
+            const text = await source(file);
+            const at = text.indexOf(`window: { title: game.i18n.localize("${key}")`);
+            windows.push(at < 0 ? "gone" : lineAround(text, at).includes("minimizable: true"));
+        }
+        const said = [];
+        const stand = (minimized, cls) => {
+            const element = document.createElement("div");
+            document.body.append(element);
+            return { id: `r1339-${foundry.utils.randomID(6)}`, rendered: true, element, minimized, options: { classes: [cls] },
+                maximize() { said.push([cls, "unfold"]); this.minimized = false; return Promise.resolve(this); },
+                bringToFront() { said.push([cls, this.minimized ? "raise folded" : "raise"]); } };
+        };
+        const folded = stand(true, "r1339-folded"), open = stand(false, "r1339-open");
+        for (const app of [folded, open]) foundry.applications.instances.set(app.id, app);
+        let answers;
+        try {
+            answers = [L.alreadyOpen("r1339-folded") === folded, L.alreadyOpen("r1339-open") === open];
+        } finally {
+            for (const app of [folded, open]) { foundry.applications.instances.delete(app.id); app.element.remove(); }
+        }
+        const student = studentActors().find(a => game.users.some(u => !u.isGM && a.testUserPermission(u, "OWNER"))) ?? studentActors()[0];
+        needs(world.ownedByPlayer(student), "the messenger's reading needs a player's conversation");
+        const player = game.users.find(u => !u.isGM && student.testUserPermission(u, "OWNER"));
+        const kept = MA.DrpgMessengerApp.instances.get(player?.id);
+        const thread = stand(true, "r1339-thread");
+        let messenger = null;
+        try {
+            if (player) {
+                MA.DrpgMessengerApp.instances.set(player.id, thread);
+                messenger = MA.openMessenger(player.id) === thread;
+            }
+        } finally {
+            if (player) { if (kept) MA.DrpgMessengerApp.instances.set(player.id, kept); else MA.DrpgMessengerApp.instances.delete(player.id); }
+            thread.element.remove();
+        }
+        equal(stableJson({ asked, roomFolds, windows, answers, messenger, said }), stableJson({
+            asked: [true, true], roomFolds: true, windows: standing.map(() => true), answers: [true, true], messenger: true,
+            said: [["r1339-folded", "unfold"], ["r1339-folded", "raise"], ["r1339-open", "raise"], ["r1339-thread", "unfold"], ["r1339-thread", "raise"]]
+        }), "[`minimizable` as tableDialog and drpgWindow hand it to DialogV2; the Room window's; the ten standing windows' options in their source; "
+            + "alreadyOpen's answers for a folded and an open window; openMessenger's for a folded conversation; what each stand-in was asked, in order]");
+    }],
 ];
 
 /**
