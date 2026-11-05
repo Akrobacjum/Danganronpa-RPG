@@ -215,7 +215,8 @@ export function shownTab(root) {
  * DialogV2 on 14.365, which this replaces): the footer's buttons are `type="submit"` inside the dialog's form and
  * `_onKeyDown` intercepts Escape only, so Enter goes through the browser's implicit submission, which picks the first
  * submit button in tree order whether or not it shows; `autofocus` does not decide it either. So a button another
- * tab owns is hidden AND disabled - the spec skips a disabled default button and nothing else in the chain does - and
+ * tab owns is hidden AND disabled - a disabled first submit button makes Enter do nothing at all (the spec does not
+ * fall through to the next one; E44-T5 reads it so), where a hidden one alone would be pressed - and
  * danganronpa.css's `footer.form-footer button[hidden]` keeps it out of the row. The shown button that takes
  * `autofocus`: on a kit footer the primary, else the first that may be a default (BUTTON_ROLES); on a footer with no
  * roles (every window E22 has not given them) the first shown, the one a person would have pressed - and there the

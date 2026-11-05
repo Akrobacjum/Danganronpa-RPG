@@ -85,7 +85,9 @@ What every change to `styles/` keeps:
 - **A migrated surface takes its old rules with it.** A surface moved onto the kit loses every rule that styled it
   in the old sheets in the same commit, and is measured - the cascade test (`tests-kit.mjs` `styleCascade`) and
   the style sweep - and looked at on a screenshot in both themes. A kit rule that loses to an old `!important` can
-  pass every test while the screen does not change.
+  pass every test while the screen does not change. One exception, since E44 C6: seven `!important` declarations of
+  the A8 surfaces stay in the old sheets, each under a "Stays here (E44 C6)" line, because what they are held against
+  is Foundry's own sheet, which no harness reads; E49 reads them at a table and homes them.
 - **No width that assumes a desk.** No component is fixed wider than 390 px, and nothing assumes a screen of
   1024 px or more: widths go through `min()`, `@container` or the `drpg-stacked` layout. A window a player opens is
   read at 390x844.

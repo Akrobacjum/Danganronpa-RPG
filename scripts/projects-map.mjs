@@ -749,7 +749,9 @@ export async function syncProjectTokens() {
  * `keepLive`): a change of the project's row (projectMeta - the description, the room, the secrecy) or of the
  * Countdowns (the name, the bar, who may see it) draws it again on every browser that holds it open, each from what it
  * holds, and `draw` asks `knowsProject` again each time - a player taken off a secret project sees the card that names
- * nothing. Both are world settings, so `updateSetting` reaches every browser with no socket of the module's (sync.mjs's
+ * nothing. A discovery is not heard (the fog's record is no setting this watches), so a card opened while this browser
+ * did not know its project turns into the project's when it is opened again: E43's, which takes up who knows a project
+ * (E44's Open 96). Both are world settings, so `updateSetting` reaches every browser with no socket of the module's (sync.mjs's
  * `SYNC.projects` redraws the tray, the sheets, the HUD and the visibility, never this sheet). One region an open card:
  * a render of the same sheet stops the region the last render started.
  */

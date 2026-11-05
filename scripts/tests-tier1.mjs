@@ -32749,7 +32749,9 @@ const INVARIANTS = [
            WORLD_HOOKS). The incident tracker (murder-ui.mjs `openIncidentTracker`) while an incident runs; it declares the
            incident's setting. And the project token's card (projects-map.mjs `showProjectCard`, E44 C9) while a project
            stands on the map with its token: a project is a world write tier 1 may not make, and no Daggerheart sheet renders
-           headless; it declares projectMeta, and the Countdowns by `settingKeys`, and E44-T20 and 30-security redraw it. */
+           headless; it declares projectMeta, and the Countdowns by `settingKeys`, and E44-T20 and 30-security redraw it.
+           A tier-2 reading of the readiness round's window and the incident tracker is E21's, which moves both onto the
+           kit's frame (E44's Open 10). */
         const UNOPENED = { "boundary.mjs": 1, "murder-ui.mjs": 1, "projects-map.mjs": 1 };
         equal(stableJson(Object.keys(census).filter(file => !OPENERS[file] && census[file] !== UNOPENED[file]).sort()), "[]",
             "a keepLive call names `settings` in a window this test does not open - add its opener here");
@@ -33459,7 +33461,8 @@ const INVARIANTS = [
          * frames as this GM's page holds them, a voice tile, its OBJECTION! and its list built loose (`voiceTileRig`, as
          * R546's) - answers the kit's `builtBy`, which ui-kit.mjs keeps beside each element it made (the DOM is the one it
          * was: E44 C6's reading of every surface before and after). The states: `paintMic` in each of the microphone's
-         * states leaves exactly that state's class on the button (mutant c6-m3, the offline state dropped, reads here). The
+         * states leaves exactly that state's class on the button (mutant c6-m3, the offline state dropped, reads here; scenario 75 reads the held state and the GM's lock and not
+         * this one, and reading it there is E49's, with the tiles: E44's Open 52). The
          * narrow description window (room-tile.mjs `RoomWindow`) is not here: on DrpgApp's frame it would change - its
          * content's padding 12 -> 10 px, its overflow auto -> hidden with no region to scroll, under Legacy a max-height
          * where it had none (Chromium, 04.11.2026) - so it stays on its own ApplicationV2 until E21 moves the frames (C6's
@@ -33684,6 +33687,8 @@ const INVARIANTS = [
                 return { "room-tile": [tile], "voice-tile": [voice] };
             }
         };
+        /* A surface no rule styles prints "1:811c9dc5", FNV-1a's offset basis, the hash of nothing (the end review's C-n4: the
+           three `voice-art` readings under Legacy): it holds that no rule starts styling it, not a styled surface's look. */
         const fnv = text => { let h = 0x811c9dc5; for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h.toString(16).padStart(8, "0"); };
         const prints = {}, left = new Set();
         let readings = 0;

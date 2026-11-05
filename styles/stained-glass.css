@@ -4486,7 +4486,7 @@ body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet 
 
 /* Stays here (E44 C6): the rest of this rule is components.css's "The A8 surfaces" now, and components.css holds no
    !important (tools/css-budget.json, R1322). What the declaration below is held against at a table - Foundry's own sheet -
-   is in no harness, so it keeps its weight here rather than be read without it. */
+   is in no harness, so it keeps its weight here rather than be read without it; E49 reads it at a table and homes it. */
 /* ---- THE GM BUTTON'S EYE IS A CONSTANT, LIKE THE CLUSTER'S OTHER GLYPHS -------
    Until E77 C6 this block held the GM bar to 72x32 px and 13 px type whatever the module's
    slider said, as Foundry's own tiles under it held 34x34 (measured 74x36 at 100 % and 103x51

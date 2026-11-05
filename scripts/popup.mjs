@@ -804,7 +804,8 @@ export function showPopup(bodyHtml, {
        the messenger's, the day summary), a refusal and an objection carry their own word. Until 1.2.99 the
        tile's layer was worked out from it; since E44 C8c the theme alone decides (danganronpa.css,
        `#drpg-popups`: under the windows under Stained Glass, over them under Monokuma Legacy), no sheet reads
-       it, and it stays the card's reading (R847). Worked out whether or not the card is kept. */
+       it, and it stays the card's reading (R847); whether it stays at all is E21's, with the windows' kit (E44's
+       Open 85). Worked out whether or not the card is kept. */
     card.dataset.kind = kind !== "info" ? String(kind) : from.source === "public" || from.source === "player" ? "info" : "mine";
 
     // EVERY CARD HAS A TITLE BAR.

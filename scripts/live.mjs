@@ -122,8 +122,7 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
      * release - after it, on the next turn of the event loop, because the browser sends `click`
      * after `pointerup` and the click must reach the node it was pressed on. A press outside the
      * region holds nothing. Measured headless only, on events the harness dispatches (R1316,
-     * E44-T1); a real pointer at a table is not measured yet (the stage's live row
-     * for it is not in AUDIT 9.2). */
+     * E44-T1); a real pointer at a table is not measured yet: LIVE-E44-02. */
     let held = false;
     let heldWanted = false;
     let holdTimer = null;

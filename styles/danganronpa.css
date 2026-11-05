@@ -7890,7 +7890,7 @@ body.drpg-player #scene-controls {
 
 /* Stays here (E44 C6): the rest of this rule is components.css's "The A8 surfaces" now, and components.css holds no
    !important (tools/css-budget.json, R1322). What the declaration below is held against at a table - Foundry's own sheet -
-   is in no harness, so it keeps its weight here rather than be read without it. */
+   is in no harness, so it keeps its weight here rather than be read without it; E49 reads it at a table and homes it. */
 .drpg-foundry-window-body > #scene-controls {
     margin: 0 !important;
 }
@@ -14417,7 +14417,7 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
 
 /* Stays here (E44 C6): the rest of this rule is components.css's "The A8 surfaces" now, and components.css holds no
    !important (tools/css-budget.json, R1322). What the declaration below is held against at a table - Foundry's own sheet -
-   is in no harness, so it keeps its weight here rather than be read without it. */
+   is in no harness, so it keeps its weight here rather than be read without it; E49 reads it at a table and homes it. */
 /* ---- the Foundry tools launcher (E77 C6) -------------------------------- */
 
 /* Over the handbooks, two rows up, the same circle as the handbooks. */
@@ -14430,7 +14430,7 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
 
 /* Stays here (E44 C6): the rest of this rule is components.css's "The A8 surfaces" now, and components.css holds no
    !important (tools/css-budget.json, R1322). What the declaration below is held against at a table - Foundry's own sheet -
-   is in no harness, so it keeps its weight here rather than be read without it. */
+   is in no harness, so it keeps its weight here rather than be read without it; E49 reads it at a table and homes it. */
 #drpg-foundry-tools:hover,
 #drpg-foundry-tools[aria-pressed="true"] {
     box-shadow: 0 0 10px rgba(var(--drpg-bone-rgb), 0.45) !important;
