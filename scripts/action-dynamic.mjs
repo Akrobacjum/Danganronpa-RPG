@@ -25,8 +25,7 @@ import { whisperToOwner, esc } from "./utils.mjs";
 import { rollTrait, rollInHand, remnantRef, noteRollContext, abort, canAfford } from "./action-pipeline.mjs";
 import { report } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
+import { drpgWindow } from "./ui-kit.mjs";
 
 export function dynamicDef() {
     return {
@@ -281,10 +280,11 @@ export async function askDynamicDifficulty({ description, actorName, room } = {}
     const rows = DYNAMIC_THRESHOLDS.map((t, i) =>
         `<option value="${i}">${game.i18n.format("DRPG.Action.beat", { n: dynamicBar(t) })} · ${t.difficulty}</option>`).join("");
 
-    const picked = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Action.dynamicTitle") },
+    // On the kit's frame (E21 C5a): Set the primary, Refuse - the GM's no, an answer and not a withdrawal - a secondary.
+    const picked = await drpgWindow({
+        title: game.i18n.localize("DRPG.Action.dynamicTitle"),
         classes: ["drpg-panel"],
-        content: `<form>
+        body: `<form>
                     <p>${game.i18n.format("DRPG.Action.dynamicFrom", {
                         actor: foundry.utils.escapeHTML(actorName ?? "?"),
                         room: foundry.utils.escapeHTML(room ?? "-")
@@ -296,16 +296,16 @@ export async function askDynamicDifficulty({ description, actorName, room } = {}
                         <select name="trait">${Object.entries(TRAITS)
                             .map(([k, t]) => `<option value="${k}">${t.label}</option>`).join("")}</select></label>
                   </form>`,
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Action.dynamicSet"), default: true,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.Action.dynamicSet"),
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
                     return { tier: Number(f.tier.value), trait: f.trait.value };
                 }
             },
-            { action: "refuse", label: game.i18n.localize("DRPG.Action.dynamicRefuse") }
-        ],
+            secondary: [{ action: "refuse", label: game.i18n.localize("DRPG.Action.dynamicRefuse") }]
+        },
         rejectClose: false
     });
 

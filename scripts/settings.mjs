@@ -3851,8 +3851,26 @@ function watchScreen() {
     try { const vk = globalThis.navigator?.virtualKeyboard; if (vk) vk.overlaysContent = true; } catch { /* a browser that refuses keeps its own */ }
     addEventListener("resize", () => {
         clearTimeout(screenTimer);
-        screenTimer = setTimeout(() => { if (autoScale() !== screenFactor || shapeKey() !== screenShape) applyTheme(); }, 250);
+        screenTimer = setTimeout(() => {
+            if (autoScale() !== screenFactor || shapeKey() !== screenShape) applyTheme();
+            // The sheets standing open are held to the new height (E21 C5a): `scaleWindow`'s memo says whether it moved.
+            rescaleSheets();
+        }, 250);
     });
+}
+
+/**
+ * Every character sheet standing open, asked again for its box (E21 C5a, 06.11.2026; audit S01-06). A sheet sized on a
+ * taller screen kept that height after a resize - the memo `drpgScaled` keyed on the slider alone - so a window dragged
+ * to a 768 px screen, or a browser made shorter, left the sheet's foot and the Stop below the screen until the slider
+ * moved. Each sheet goes through `scaleWindow`, whose memo (`scaleMemo`) now holds the layout height beside the slider.
+ */
+export function rescaleSheets() {
+    for (const app of globalThis.foundry?.applications?.instances?.values?.() ?? []) {
+        if (app?.document?.type !== "character") continue;
+        const el = app.element instanceof HTMLElement ? app.element : app.element?.[0];
+        if (el) scaleWindow(app, el);
+    }
 }
 
 /**
@@ -4055,11 +4073,20 @@ const DAGGERHEART_SHEET = Object.freeze({ width: 850, height: 800 });
  * `scaleWindow` sizes it (E21 C1c): the fit sweep's sheet stand-in (audit/style-harness.html `?sheet=1`) is drawn at
  * these numbers, since the sheet itself is Daggerheart's and is drawn neither headless nor on a harness page.
  */
+/**
+ * The memo a window's scaled box is kept under (E21 C5a): the slider and the layout height (`layoutHeight`, which an
+ * on-screen keyboard does not lower), so a resize that changes the height sizes the window again and a second render
+ * at the same numbers writes nothing. Until C5a the key was the slider alone.
+ */
+export function scaleMemo(scale, h = layoutHeight()) {
+    return `${scale}@${Math.round(Number(h) || 0)}`;
+}
+
 export function sheetBox(vw, vh, scale = 1, theme = "glass") {
     return scaledBox(theme === "glass" ? SHEET_SIZE.glass : DAGGERHEART_SHEET, vw, vh, scale);
 }
 
-function scaleWindow(app, element) {
+export function scaleWindow(app, element) {
     if (!settingsRegistered()) return;
     const el = element instanceof HTMLElement ? element : element?.[0];
     /*
@@ -4074,7 +4101,8 @@ function scaleWindow(app, element) {
      */
     if (!el) return;
     const s = sliderScale();
-    const key = String(s);
+    const h = layoutHeight();
+    const key = scaleMemo(s, h);
     if (el.dataset.drpgScaled === key) return;
     el.dataset.drpgScaled = key;
     const want = { ...(app?.constructor?.DEFAULT_OPTIONS?.position ?? {}), ...(app?.options?.position ?? {}) };
@@ -4105,7 +4133,7 @@ function scaleWindow(app, element) {
         want.width = SHEET_SIZE.glass.width;
         want.height = SHEET_SIZE.glass.height;
     }
-    const size = scaledBox(want, window.innerWidth, window.innerHeight, s);
+    const size = scaledBox(want, window.innerWidth, h, s);
     /* THE SHEET IS NOT RESIZED BY HAND UNDER THE GLASS - its size is a statement of that
        theme - and the handle is hidden by a THEME RULE in stained-glass.css rather than
        taken out of the DOM here. Removed here, it stayed gone after a switch to Monokuma

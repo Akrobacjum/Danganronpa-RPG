@@ -17102,7 +17102,8 @@ const REGRESSIONS = [
         const FILES = [...ACTION_FAMILY, "observe.mjs", "frisk.mjs", "search-tokens.mjs", "use-items.mjs", "murder-ui.mjs",
             "projects-ui.mjs", "monocub.mjs", "cleanup.mjs"];
         const KEPT = {};
-        const OPENS = /\b(DialogV2\.(?:wait|confirm|prompt|input)|new\s+(?:foundry\.applications\.api\.)?DialogV2|tableDialog|new\s+\w*Application\w*)\s*\(/g;
+        // The kit's openers too (E21 C5a): the action windows are drpgWindow / drpgConfirm calls since, each naming its class.
+        const OPENS = /\b(DialogV2\.(?:wait|confirm|prompt|input)|new\s+(?:foundry\.applications\.api\.)?DialogV2|tableDialog|drpgWindow|drpgConfirm|drpgPrompt|new\s+\w*Application\w*)\s*\(/g;
         const read = (file, raw) => {
             const blank = blankComments(raw);
             const tops = [...blank.matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)\s*\(/gm)].map(m => ({ at: m.index, name: m[1] }));
@@ -17334,7 +17335,7 @@ const REGRESSIONS = [
             files: Object.fromEntries(files.map(file => [file, { imports: true, calls: true, byHand: false }]))
         }), "[projects.mjs exports projectLabel, reading current and start; per reader: imports it from projects.mjs, calls it, still writes current/start by hand]");
     }],
-    ["R1110 - every Call window is built by call-pickers.mjs `callWindow`: no `pendingHeader` in call-pickers.mjs; each DialogV2 wait, confirm, prompt or input in call-pickers.mjs, calls.mjs, monocub.mjs `cubAbilityDialog` and sheet.mjs `runCall` stands in `callWindow` alone, which names drpg-panel, the Hope and the Despair class and drpg-gm-route; each of the seven windows calls it; none labels a button `DRPG.Action.proceed` (E51 C2; E51-16, audit S17-48)", async () => {
+    ["R1110 - every Call window is built by call-pickers.mjs `callWindow`: no `pendingHeader` in call-pickers.mjs; each DialogV2 wait, confirm, prompt or input in call-pickers.mjs, calls.mjs, monocub.mjs `cubAbilityDialog` and sheet.mjs `runCall` stands in `callWindow` alone, which names drpg-panel, the Hope and the Despair class and the GM's road (drpg-gm-route; its kit slot `gmRoute` since E21 C5a); each of the seven windows calls it; none labels a button `DRPG.Action.proceed` (E51 C2; E51-16, audit S17-48)", async () => {
         /*
          * E51 C2, 30.10.2026; audit S17-48. The Call windows were built in seven places, each with its own classes:
          * the pickers (`pickText`, `pickMotive`, `choose`) under one module `let pendingHeader` that `pickTarget` set and
@@ -17382,9 +17383,13 @@ const REGRESSIONS = [
         equal(JSON.stringify({
             pendingHeader: regions[0].pending,
             outside: opens.filter(at => at !== "call-pickers.mjs#callWindow"),
-            inBuilder: opens.includes("call-pickers.mjs#callWindow"),
+            // On the kit's frame since E21 C5a: the builder opens its window through ui-kit.mjs `drpgWindow` (R1352).
+            inBuilder: opens.includes("call-pickers.mjs#callWindow") || /\bdrpgWindow\s*\(/.test(builder),
             exported: /^export (?:async )?function callWindow\(/m.test(src["call-pickers.mjs"]),
-            classes: ["drpg-panel", "drpg-hope-dialog", "drpg-despair-dialog", "drpg-gm-route"].filter(c => !builder.includes(`"${c}"`)),
+            /* The GM's road is the kit's `gmRoute` slot since E21 C5a (the role writes `drpg-gm-route`), so the builder
+               names the slot, not the class. */
+            classes: ["drpg-panel", "drpg-hope-dialog", "drpg-despair-dialog"].filter(c => !builder.includes(`"${c}"`))
+                .concat(/\bslots\.gmRoute\b/.test(builder) ? [] : ["the gmRoute slot"]),
             unbuilt: WINDOWS.filter(fn => !builds.includes(fn)),
             proceed: regions.flatMap(r => r.proceed)
         }), JSON.stringify({ pendingHeader: 0, outside: [], inBuilder: true, exported: true, classes: [], unbuilt: [], proceed: [] }),
@@ -20514,7 +20519,7 @@ const REGRESSIONS = [
         must(probe.length > 2000 && page.length > 2000, "probe 08 or the style harness read nothing - this test would read nothing");
         ok(/const FIT = argv\.includes\("--fit"\)/.test(sweep) && sweep.includes("async function fitPass("), "no fit pass in audit/style-sweep.mjs");
         const sizes = bodyOf(sweep, "const FIT_SIZES", { until: "\n" }) + bodyOf(sweep, "const FIT_PHONE", { until: "\n" });
-        const controls = ["(a) max-height off", "(b) body overflow visible", "(c) reposition skipped", "(d) Stop pushed down"].filter(name => !sweep.includes(`"${name}"`));
+        const controls = ["(a) max-height off", "(b) body overflow visible", "(c) reposition skipped", "(d) Stop's sticky rule off"].filter(name => !sweep.includes(`"${name}"`));
         let manifest = { windows: [] };
         try { manifest = JSON.parse(manifestText); } catch { /* read as empty below */ }
         const rows = manifest.windows ?? [];
@@ -20560,10 +20565,14 @@ const REGRESSIONS = [
             // the readiness round's two windows are named by their own classes below.
             "newtrace", "keyplace", "body", "mastermind", "murder",
             // C4: the trial console and the vote; the trial's other windows are named by their own classes below.
-            "trial", "vote"]
+            "trial", "vote",
+            // C5a: the stashes a GM inspects.
+            "stashes"]
             .map(name => `drpg-window-${name}`).concat(["drpg-gm-panel-window", "drpg-ready-gm", "drpg-ready-player",
                 // C4: a round's start, the Closing's pick, the Reveal, the Objection's picker, Your turn, I volunteer, the ballot.
-                "drpg-round-window", "drpg-closing-pick", "drpg-reveal-confirm", "drpg-objection-pick", "drpg-your-turn", "drpg-closing-claim", "drpg-ballot"]);
+                "drpg-round-window", "drpg-closing-pick", "drpg-reveal-confirm", "drpg-objection-pick", "drpg-your-turn", "drpg-closing-claim", "drpg-ballot",
+                // C5a: an action's briefing, Rest's picks, the Calls' two sides, the safeword's question, the explainers.
+                "drpg-briefing", "drpg-rest", "drpg-hope-dialog", "drpg-despair-dialog", "drpg-safeword-dialog", "drpg-explain"]);
         const FRAME = /^(?:max-height|min-height|height|overflow(?:-[xy])?|position|top|bottom|inset)$/;
         const FOOT = /^(?:display|order|flex(?:-[\w-]+)?|justify-content|align-items|position|width|max-width|margin(?:-[\w-]+)?|padding(?:-[\w-]+)?|bottom|left|right)$/;
         const found = [];
@@ -20596,6 +20605,47 @@ const REGRESSIONS = [
         }
         must(files > 150 && rules > 2000, `${files} file(s) and ${rules} rule(s) read - this would measure too little`);
         equal(JSON.stringify(found), "[]", "[the old frame's functions in a module file, the rules naming .drpg-table-window, and the rules that still frame a moved window]");
+    }],
+    ["R1352 - the wrappers on the kit (E21 C5a; E21-16, STATUS Open 64): action-menus.mjs `chooseVariant` and call-pickers.mjs `callWindow` open their window through ui-kit.mjs `drpgWindow` and no DialogV2 of their own; no caller of either passes Foundry's `buttons`, and every `callWindow` call passes the kit's `footer` slots, which R1336 reads; utils.mjs `tableDialog` is gone (R1357)", async () => {
+        /*
+         * E21 C5a, 06.11.2026. Three functions drew windows for many callers: `tableDialog` (15, gone since C2a),
+         * `chooseVariant` (the action menus: Analyze, Direct Murder's fight, Observe, Project, Rest, Search, Tamper,
+         * Level Up twice, Palm) and `callWindow` (the Calls: the three pickers, the confirmation, the GM's approval,
+         * the Monocub's Confusion, the sheet's call-off). R1335 counts each wrapper as one site and R1336 read none of
+         * their callers' buttons - Foundry's `buttons` arrays handed through (STATUS Open 64). On the kit the callers
+         * name roles: a `callWindow` caller passes `footer` in the kit's slots, R1336 reads every `footer: {` of the
+         * module, and `chooseVariant` builds its footer itself from the confirm label its caller names. Read with
+         * comments and strings blanked; each call's first argument's own keys (a spread reads "(spread)"). Red on C4's
+         * tree: both wrappers opened DialogV2.wait, and the seven `callWindow` callers passed `buttons`.
+         */
+        const wrappers = {};
+        const texts = new Map(await otherSources());
+        for (const [file, name] of [["action-menus.mjs", "chooseVariant"], ["call-pickers.mjs", "callWindow"]]) {
+            const fn = topLevelFunction(blankComments(texts.get(file) ?? ""), name) ?? "";
+            must(fn.length > 200, `${file} ${name} was not found - this would read nothing`);
+            wrappers[name] = { kit: /\bdrpgWindow\s*\(/.test(fn), dialogV2: /\bDialogV2\b/.test(fn) };
+        }
+        const calls = { chooseVariant: [], callWindow: [] };
+        const wrong = [];
+        for (const [file, text] of texts) {
+            const blank = blankLiterals(blankComments(text));
+            for (const m of blank.matchAll(/(?<![\w$.])(chooseVariant|callWindow)\s*\(/g)) {
+                if (/function\s*$/.test(blank.slice(Math.max(0, m.index - 12), m.index))) continue;
+                const { args } = callArgs(blank, m.index + m[0].length - 1);
+                const cfg = args[0] ? blank.slice(args[0].start, args[0].end).trim() : "";
+                if (!cfg.startsWith("{")) { wrong.push(`${file}: a ${m[1]} call whose config is not an object literal`); continue; }
+                const inner = callArgs(cfg, 0).args.map(a => /^\s*([\w$]+)\s*:/.exec(cfg.slice(a.start, a.end))?.[1] ?? (/^\s*\.\.\./.test(cfg.slice(a.start, a.end)) ? "(spread)" : /^\s*([\w$]+)\s*$/.exec(cfg.slice(a.start, a.end))?.[1] ?? "?"));
+                calls[m[1]].push(file);
+                if (inner.includes("buttons")) wrong.push(`${file}: ${m[1]} is handed Foundry's buttons`);
+                if (m[1] === "callWindow" && !inner.includes("footer")) wrong.push(`${file}: a callWindow call with no footer slots`);
+            }
+        }
+        must(calls.chooseVariant.length >= 10 && calls.callWindow.length >= 7,
+            `read ${calls.chooseVariant.length} chooseVariant and ${calls.callWindow.length} callWindow call(s) - fewer than the module's, this would measure too little`);
+        const old = [...texts].filter(([, t]) => /\btableDialog\b/.test(blankLiterals(blankComments(t)))).map(([f]) => f);
+        equal(JSON.stringify({ wrappers, wrong, tableDialog: old }), JSON.stringify({
+            wrappers: { chooseVariant: { kit: true, dialogV2: false }, callWindow: { kit: true, dialogV2: false } }, wrong: [], tableDialog: []
+        }), "[each wrapper on drpgWindow with no DialogV2 of its own; a caller handing it Foundry's buttons, or a callWindow call with no footer; a file still naming tableDialog]");
     }],
 ];
 

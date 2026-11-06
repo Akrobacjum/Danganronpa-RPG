@@ -73,6 +73,7 @@ import { rules } from "./rules.mjs";
 import { safeword } from "./safeword.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { debug, error, plural, proseOf, markLanguage } from "./utils.mjs";
+import { drpgConfirm } from "./ui-kit.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 
 /*
@@ -1540,12 +1541,12 @@ function injectInitButton(app, element) {
     button.innerHTML = `<i class="fa-solid fa-wand-sparkles" inert></i>`;
 
     button.addEventListener("click", async () => {
-        const confirmed = await foundry.applications.api.DialogV2.confirm({
+        // A question on the kit's frame (E21 C5a).
+        const confirmed = await drpgConfirm({
             yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
-            no: { label: game.i18n.localize("DRPG.Dialog.no") },
-            window: { title: game.i18n.localize("DRPG.Character.initTitle") },
+            title: game.i18n.localize("DRPG.Character.initTitle"),
             classes: ["drpg-panel", "drpg-narrow"],
-            content: `<p>${game.i18n.format("DRPG.Character.initConfirm", {
+            body: `<p>${game.i18n.format("DRPG.Character.initConfirm", {
                 actor: foundry.utils.escapeHTML(actor.name),
                 hp: STARTING.hp, stress: STARTING.stress, hope: STARTING.hope
             })}</p>
@@ -2773,12 +2774,13 @@ function buildOtherSection(box, actor, app) {
             button.setAttribute("aria-label", tip);
             button.innerHTML = `<i class="fa-solid fa-trash" inert></i>`;
             button.addEventListener("click", async () => {
-                const sure = await foundry.applications.api.DialogV2.confirm({
+                /* A question on the kit's frame (E21 C5a): the item is deleted, which cannot be undone - the destructive
+                   role, Cancel the default (E22). */
+                const sure = await drpgConfirm({
                     classes: ["drpg-panel"],
-                    yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
-                    no: { label: game.i18n.localize("DRPG.Dialog.no") },
-                    window: { title: tip },
-                    content: `<p>${game.i18n.format("DRPG.Sheet.otherRemoveAsk", {
+                    yes: { role: "destructive", label: game.i18n.localize("DRPG.Dialog.yes") },
+                    title: tip,
+                    body: `<p>${game.i18n.format("DRPG.Sheet.otherRemoveAsk", {
                         item: foundry.utils.escapeHTML(item.name), actor: foundry.utils.escapeHTML(actor.name) })}</p>`,
                     rejectClose: false, modal: true
                 });
@@ -4257,8 +4259,8 @@ async function runCall(actor, key, kind) {
             body: `<p>${game.i18n.format("DRPG.Calls.gatherCancelAsk", {
                 room: foundry.utils.escapeHTML(standing.room)
             })}</p><p class="notes">${game.i18n.localize("DRPG.Calls.gatherNoRefund")}</p>`,
-            buttons: [{ action: "yes", label: game.i18n.localize("DRPG.Calls.gatherCallOff"), default: true }],
-            cancel: "DRPG.Calls.gatherKeep",
+            // The kit's slots (E21 C5a): Call it off the primary; the closing word is the kit's Cancel, which keeps it.
+            footer: { primary: { action: "yes", label: game.i18n.localize("DRPG.Calls.gatherCallOff") } },
             modal: true,
             /* ONE AT A TIME (E44 C2c, 04.11.2026; D176): the call-off window as the confirmation step of its Call, so
                `callWindowOpen` above raises it on a second press, and `callWindow` refuses a twin of it (null: kept). */

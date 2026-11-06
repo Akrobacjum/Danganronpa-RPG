@@ -2856,9 +2856,7 @@
       "spend": "Spend {cost}",
       "send": "Ask the GM - {cost} Hope on a yes",
       "next": "Next",
-      "cancel": "Cancel",
       "gatherCallOff": "Call it off",
-      "gatherKeep": "Keep it",
       "aimedAt": "Aimed at",
       "tellGm": "Tell the GM what you are about to do with it",
       "tellGmPlaceholder": {

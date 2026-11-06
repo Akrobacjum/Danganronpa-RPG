@@ -32,11 +32,10 @@ import { tamperQuote, witnessesTo } from "./cleanup.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { othersInRoom, locateActor } from "./movement.mjs";
 import { projectsAvailableIn, isIndirectMurder } from "./projects.mjs";
-import { dialogContent, error, plural } from "./utils.mjs";
+import { error, plural } from "./utils.mjs";
 import { equippedFor, tierOf } from "./use-items.mjs";
 import { toolRelief } from "./action-pipeline.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
+import { drpgWindow } from "./ui-kit.mjs";
 
 /* ==========================================================================
  * BRIEFING
@@ -287,18 +286,17 @@ function thresholdFacts(actor, actionKey, def) {
  * briefing - there is nothing to confirm, you just drag your token.
  */
 export async function briefing(actor, actionKey, def) {
-    const buttons = actionKey === "move"
-        ? [{ action: "ok", label: game.i18n.localize("DRPG.Action.gotIt"), default: true }]
-        : [
-            { action: "go", label: game.i18n.localize("DRPG.Action.proceed"), default: true },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ];
+    // On the kit's frame (E21 C5a): Move's briefing answers nothing - its one word is the primary "Got it" -, every
+    // other action's goes on through its primary or is withdrawn with Cancel.
+    const footer = actionKey === "move"
+        ? { primary: { action: "ok", label: game.i18n.localize("DRPG.Action.gotIt") } }
+        : { primary: { action: "go", label: game.i18n.localize("DRPG.Action.proceed") }, close: "cancel" };
 
-    const result = await DialogV2.wait({
-        window: { title: def.label },
+    const result = await drpgWindow({
+        title: def.label,
         classes: ["drpg-panel", "drpg-briefing"],
-        content: dialogContent(briefingBlock(actor, actionKey, def)),
-        buttons,
+        body: briefingBlock(actor, actionKey, def),
+        footer,
         rejectClose: false
     });
 

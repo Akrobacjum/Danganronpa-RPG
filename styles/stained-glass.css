@@ -3406,9 +3406,8 @@ body.drpg-theme-stained-glass .application.drpg-messenger .window-header .header
    fight that measurement every frame - see the base sheet's note. So is a kit window that states its
    width (`drpg-kit-width`, ui-kit.mjs WINDOW_WIDTHS, E21 W1; `drpg-wide` and the GM panel's class until then). */
 body.drpg-theme-stained-glass .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-summary-dialog, .drpg-safeword-dialog
+    .drpg-panel, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel, .drpg-summary-dialog
 ):not(.drpg-kit-fit):not(.drpg-kit-width) {
     width: fit-content !important;
     min-width: min(var(--drpg-popup), 92vw) !important;
@@ -3416,9 +3415,8 @@ body.drpg-theme-stained-glass .application.dialog:is(
 /* The cap, for every such window but a kit one (E21 C1b, E44's Open 19; the base sheet's note on its own popup rule):
    a kit window's `max-width` is its frame's, the screen less 8 px a side. */
 body.drpg-theme-stained-glass .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-summary-dialog, .drpg-safeword-dialog
+    .drpg-panel, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel, .drpg-summary-dialog
 ):not(.drpg-kit-fit):not(.drpg-kit-width):not(.drpg-ui) {
     max-width: min(var(--drpg-popup-wide), 92vw) !important;
 }
@@ -3439,9 +3437,8 @@ body.drpg-theme-stained-glass .application.dialog:is(
    table decides its width, and the base sheet's deliberate 42rem measure for dialogs that
    contain a table is left to win on its own selector. */
 body.drpg-theme-stained-glass .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-summary-dialog, .drpg-safeword-dialog
+    .drpg-panel, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel, .drpg-summary-dialog
 ):not(.drpg-kit-fit):not(.drpg-kit-width) .dialog-content {
     max-width: var(--drpg-popup);
 }
@@ -3759,12 +3756,14 @@ body.drpg-theme-stained-glass :is(.application.sheet.actor, .drpg-panel, .drpg-m
 /* THE SAFEWORD KEEPS ITS CORNER. Bringing every clickable thing under the brush gave this one
    `position: relative` (the brush needs a containing block) and it left the bottom-left corner
    the audit page puts it in, stretching across the whole column. Absolute is just as good a
-   containing block for the pseudo-element, and it is where this button belongs. */
+   containing block for the pseudo-element, and it is where this button belongs. Sticky since
+   E21 C5a (the base sheet's "THE SAFEWORD"): a containing block too, and it holds the button to
+   the visible foot of the sheet, where absolute left it below a 768-800 px screen. */
 body.drpg-theme-stained-glass .application.sheet.actor .drpg-safeword-button {
     /* the shout is against the brush base rule above, whose `:not()` chain outweighs any
        honest selector for one button; the button lives in `.window-content`, not in the
        sidebar, which is why the first attempt at this matched nothing at all */
-    position: absolute !important;
+    position: sticky !important;
     width: auto !important;
 }
 

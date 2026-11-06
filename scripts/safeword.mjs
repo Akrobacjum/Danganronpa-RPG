@@ -50,8 +50,7 @@ import { SETTINGS, DEFAULT_SAFEWORD, getSetting } from "./settings.mjs";
 import { announce, gmIds, activeGmIds, isPrimaryGm, log, error } from "./utils.mjs";
 import { senderOf } from "./bridge-guards.mjs";
 import { showPopup } from "./popup.mjs";
-
-const { DialogV2 } = foundry.applications.api;
+import { drpgWindow } from "./ui-kit.mjs";
 
 /** Marks the announcement, so the pause and the card key off one message. */
 export const SAFEWORD_FLAG = "safeword";
@@ -365,13 +364,18 @@ export async function hearSafeword(payload, senderId) {
 
 /** The confirmation. One question, no reason asked. */
 export async function safewordDialog(actor = null) {
-    const confirmed = await DialogV2.confirm({
-        window: { title: game.i18n.localize("DRPG.Safeword.title") },
+    /* On the kit's frame (E21 C5a), answering as the DialogV2.confirm it was: true for Stop it, false for Cancel, null
+       for a closed window - and with confirm's default, Cancel (Foundry's confirm makes its no the default). */
+    const confirmed = await drpgWindow({
+        title: game.i18n.localize("DRPG.Safeword.title"),
         classes: ["drpg-panel", "drpg-safeword-dialog"],
-        content: `<p><strong>${game.i18n.localize("DRPG.Safeword.confirm")}</strong></p>
+        body: `<p><strong>${game.i18n.localize("DRPG.Safeword.confirm")}</strong></p>
                   <p>${game.i18n.localize("DRPG.Safeword.confirmNote")}</p>`,
-        yes: { label: game.i18n.localize("DRPG.Safeword.stopIt") },
-        no: { label: game.i18n.localize("DRPG.Advance.cancel") },
+        footer: {
+            primary: { action: "yes", label: game.i18n.localize("DRPG.Safeword.stopIt"), callback: () => true },
+            close: { role: "cancel", action: "no", callback: () => false },
+            default: "no"
+        },
         rejectClose: false,
         modal: true
     });

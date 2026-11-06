@@ -1673,7 +1673,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             const stowed = await V.stow(aiko, item(${JSON.stringify(dayItems.tool)}));
             const inStash = item(${JSON.stringify(dayItems.tool)})?.getFlag("${MOD}", "location") ?? null;
             // The broken one goes before the Tool comes out: a broken Tool still takes a slot of the two (Gear).
-            await U.discardBroken(aiko, item(${JSON.stringify(dayItems.broken)}));
+            // The throw-away question is the kit's since E21 C5a (destructive, Cancel the default): p1 presses Yes.
+            const D = foundry.applications.api.DialogV2, wait = D.wait;
+            D.wait = async function (cfg) { const yes = (cfg?.buttons ?? []).find(b => b.action === "yes"); if (!yes) return wait.call(this, cfg); return yes.callback ? yes.callback() : "yes"; };
+            try { await U.discardBroken(aiko, item(${JSON.stringify(dayItems.broken)})); } finally { D.wait = wait; }
             const retrieved = await V.retrieve(aiko, item(${JSON.stringify(dayItems.tool)}));
             return { stowed, inStash, retrieved, discarded: !item(${JSON.stringify(dayItems.broken)}) };`, { timeout: 90000 });
         await settle(800);

@@ -55,8 +55,8 @@
  * fit: the control's own ground); (b) the body's `overflow: visible` - "a second scroller" or "footer out"; (c) the 2000
  * px planted in its third pane and the tab switched without the kit's code (`drpgFit({ byHand: true })`, the reposition
  * skipped) - the tallest tab reads "footer out" (and through the kit's code, fit); (d) on the sheet stand-in at
- * 1920x1080, where the Stop stands in view, the Stop pushed 3000 px down - "Stop out". Not the slice's (d): there is no
- * sticky rule on the Stop to take off until E21 C5a writes one; C5a turns (d) into that. Exit 1 on any failure; a page
+ * 1366x768, where the Stop stands in view, the Stop's sticky rule taken off (`position: static`, E21 C5a's rule in
+ * danganronpa.css) - "Stop out": its place at the content's foot is below the sheet's box. Exit 1 on any failure; a page
  * `outside` is not one before C6.
  *
  * It serves the root itself (`python3 -m http.server` on a free port) or reads `--base http://127.0.0.1:8765`.
@@ -272,13 +272,14 @@ async function fitPass(browser) {
         await tall("three");
         const c = await tabsState({ byHand: true }, "three");
         say("(c) reposition skipped", c?.footer === false, `the tall third tab switched by hand reads ${c ? misfits(null, c, false).join("; ") || "fits" : "nothing"}`);
-        await page.setViewportSize({ width: 1920, height: 1080 });
+        await page.setViewportSize({ width: 1366, height: 768 });
         await load(page, "/audit/style-harness.html?sheet=1&fit=1&role=player");
         const d0 = (await page.evaluate(() => globalThis.drpgFit()))[0];
-        say("(d) ground", d0?.stop === true, `the Stop on the sheet stand-in at 1920x1080 reads ${d0?.stop ? "in view" : "out"}`);
-        await page.addStyleTag({ content: ".drpg-safeword-button { bottom: auto !important; top: 3000px !important; }" });
+        say("(d) ground", d0?.stop === true, `the Stop on the sheet stand-in at 1366x768 reads ${d0?.stop ? "in view" : "out"}`);
+        // Above the glass's own `position` rule for the Stop (stained-glass.css, 0,4,1 with `!important`).
+        await page.addStyleTag({ content: "html body .application.sheet.actor .drpg-safeword-button.drpg-safeword-button { position: static !important; }" });
         const d = (await page.evaluate(() => globalThis.drpgFit()))[0];
-        say("(d) Stop pushed down", d?.stop === false, `reads ${d?.stop ? "Stop in view" : "Stop out"}`);
+        say("(d) Stop's sticky rule off", d?.stop === false, `reads ${d?.stop ? "Stop in view" : "Stop out"}`);
         await page.close();
     }
     const rows = [];

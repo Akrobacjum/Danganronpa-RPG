@@ -19,9 +19,8 @@
  */
 
 import { TRAITS } from "./config.mjs";
-import { dialogContent, esc } from "./utils.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
+import { esc } from "./utils.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 
 /**
  * The "which statistic?" field, as HTML to drop into somebody else's form.
@@ -169,10 +168,13 @@ export async function chooseVariant({
         return typeof label === "function" ? label(root) : label ?? fallback;
     };
 
-    const picked = await DialogV2.wait({
-        window: { title },
+    /* ON THE KIT'S FRAME (E21 C5a, 06.11.2026): `drpgWindow`, its footer by roles - the confirm the primary and the
+       default, the closing word Cancel; a window whose every row is shut has the closing word alone, Close. The answer
+       is the one DialogV2.wait gave: the picked row's `{ value, trait, form }`, or null. */
+    const picked = await drpgWindow({
+        title,
         classes: ["drpg-panel"],
-        content: dialogContent(`${intro}<form>
+        body: `${intro}<form>
             ${prompt ? `<p>${prompt}</p>` : ""}
             <div class="drpg-choice-list">${rows}</div>
             ${extra}
@@ -181,14 +183,12 @@ export async function chooseVariant({
                 // round-2 review's C2-m9 (b)): the Tamper menu's readied Cleaning Tool was only ever
                 // drawn inside the trait field it does not have, so no Tamper window showed it.
                 : traitNote ? `<p class="notes">${traitNote}</p>` : ""}
-        </form>`),
+        </form>`,
         render: options.some(o => o.confirm)
             ? (event, dialog) => followConfirmLabel(dialog, confirmFor) : undefined,
-        buttons: !usable.length ? [
-            { action: "cancel", default: true, label: game.i18n.localize("DRPG.Panel.close") }
-        ] : [
-            {
-                action: "ok", default: true,
+        footer: !usable.length ? { close: "close" } : {
+            primary: {
+                action: "ok",
                 label: confirmFor(first),
                 callback: (e, b, d) => {
                     const form = d.element.querySelector("form");
@@ -199,12 +199,12 @@ export async function chooseVariant({
                     };
                 }
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
 
-    if (!picked || picked === "cancel") return null;
+    if (!picked || picked === "cancel" || picked === "close") return null;
     return picked;
 }
 
@@ -239,20 +239,21 @@ function followConfirmLabel(dialog, confirmFor) {
  * get it back.
  */
 export async function promptForNote(actor, { title, prompt, placeholder }) {
-    const result = await DialogV2.wait({
-        window: { title },
+    // On the kit's frame (E21 C5a): one answer, the primary; a closed window answers "" below, as it did.
+    const result = await drpgWindow({
+        title,
         classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p>${prompt}</p>
             <textarea name="note" rows="3" placeholder="${
                 foundry.utils.escapeHTML(placeholder ?? "")}"></textarea>
-        </form>`),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Action.murderParkedConfirm"), default: true,
+        </form>`,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.Action.murderParkedConfirm"),
                 callback: (e, b, d) => d.element.querySelector("[name=note]")?.value.trim() ?? ""
             }
-        ],
+        },
         rejectClose: false
     }).catch(() => "");
     return typeof result === "string" ? result : "";

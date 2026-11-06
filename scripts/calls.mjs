@@ -676,11 +676,12 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {}, 
                 </label>
                 <p class="notes">${game.i18n.localize("DRPG.Calls.waitsForGm")}</p>` : ""}
         </div>`,
-        buttons: [
-            {
+        // The kit's slots (E21 C5a): Spend the primary - the GM's road when `gmRoute` says so -, Cancel the default
+        // when the buyer cannot pay (`cancelDefault`).
+        footer: {
+            primary: {
                 action: "spend",
                 label: game.i18n.format(call.needsGm ? "DRPG.Calls.send" : "DRPG.Calls.spend", { cost: call.cost }),
-                default: affordable,
                 // Refusing at the last step is worse than not offering the step.
                 // The price was already shown in red; leaving the button live
                 // meant the only way to learn you could not pay was to press it.
@@ -695,7 +696,7 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {}, 
                     ? (dialog.element.querySelector("[name=callNote]")?.value.trim() ?? "")
                     : ""
             }
-        ],
+        },
         render: (event, dialog) => wireNoteGate(dialog, call)
     });
 
@@ -755,10 +756,11 @@ export async function askHopeCallApproval(payload = {}) {
             <blockquote>${esc(payload.note)}</blockquote>
             <p class="notes">${game.i18n.localize("DRPG.Calls.approveHint")}</p>
         </div>`,
-        buttons: [
-            { action: "yes", label: game.i18n.localize("DRPG.Calls.approveYes"), default: true },
-            { action: "no", label: game.i18n.localize("DRPG.Calls.approveNo") }
-        ],
+        // M14's card (E21 C5a): It applies the primary, Not this time - the GM's no, an answer - a secondary on the left.
+        footer: {
+            primary: { action: "yes", label: game.i18n.localize("DRPG.Calls.approveYes") },
+            secondary: [{ action: "no", label: game.i18n.localize("DRPG.Calls.approveNo") }]
+        },
         once: APPROVAL_CLASS
     });
 

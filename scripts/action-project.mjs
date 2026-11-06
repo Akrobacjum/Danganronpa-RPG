@@ -38,7 +38,7 @@ import {
     addProgress, isIndirectMurder, isSecret, projectsListedIn, buildsOwnMurder, projectLabel
 } from "./projects.mjs";
 import { promptAndCallGm } from "./gm-bridge.mjs";
-import { announce, resolveThreshold, whisperToOwner, dialogContent, plural, cardHead, esc, easedBy } from "./utils.mjs";
+import { announce, resolveThreshold, whisperToOwner, plural, cardHead, esc, easedBy } from "./utils.mjs";
 import { equippedFor, tierOf } from "./use-items.mjs";
 import { playSfx } from "./sfx.mjs";
 import {
@@ -49,8 +49,7 @@ import { report } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { chooseVariant } from "./action-menus.mjs";
 import { listenLabels } from "./action-listen.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
+import { drpgWindow } from "./ui-kit.mjs";
 
 /**
  * Marks a dialog button that hands the turn to the GM rather than resolving
@@ -259,10 +258,11 @@ async function startProject(actor) {
             ${mendable.length ? choose("mend", "DRPG.Project.repairWhich", mendable.map(i => game.i18n.format("DRPG.Project.repairOption", { item: i.name, tier: tierOf(i) })),
                 ["DRPG.Project.repairNote"]) : ""}` : "";
 
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Project.startNew") },
+    // On the kit's frame (E21 C5a): the proposal is the GM's road (D11), its one answer; Cancel withdraws it.
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Project.startNew"),
         classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p class="drpg-warning">${game.i18n.localize("DRPG.Project.agreedWarning")}</p>
             ${presetFields}
             <label>${game.i18n.localize("DRPG.Project.name")}
@@ -281,9 +281,8 @@ async function startProject(actor) {
                        placeholder="${game.i18n.localize("DRPG.Project.conditionPlaceholder")}" />
                 <small class="notes">${game.i18n.localize("DRPG.Project.conditionNote")}</small></label>
             <p class="notes">${game.i18n.localize("DRPG.Project.startNote")}</p>
-        </form>`),
-        buttons: [
-            {
+        </form>`,
+        footer: { gmRoute: [{
                 action: "create",
                 label: game.i18n.localize("DRPG.Project.proposeButton"),
                 // Red, like the variant that opened this window and like every
@@ -291,7 +290,6 @@ async function startProject(actor) {
                 // a project does not start one - it sends the GM a card and
                 // waits, and the button that does that should say so.
                 class: GM_ROUTE_CLASS,
-                default: true,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
                     return {
@@ -310,9 +308,7 @@ async function startProject(actor) {
                         description: d.element.querySelector('[name="description"]')?.value ?? ""
                     };
                 }
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            }], close: "cancel" },
         /* Propose refused at the field while the description is empty or too long (E44 C9; Q-C9-3), but for a preset,
            whose own label fills the untouched field as soon as it is chosen (fix FG1) and stands in for one emptied
            again. Cancel goes. */
@@ -885,24 +881,24 @@ async function projectTrait(actor, project) {
 async function chooseProject(list, promptKey, actor, def, { disableComplete = false } = {}) {
     const projectOptions = projectOptionsHtml(list, { disableComplete });
 
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Project.title") },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Project.title"),
         classes: ["drpg-panel"],
         // No briefing here: Work-on-Project already showed one on the window
         // before this. Sabotage only reaches this dialog through the API's own
         // door (the Projects window picks its target itself, ROLL-12), and that
         // is when the briefing is shown.
-        content: dialogContent(`${def === ACTIONS.sabotage ? briefingBlock(actor, "sabotage", def) : ""}<form>
+        body: `${def === ACTIONS.sabotage ? briefingBlock(actor, "sabotage", def) : ""}<form>
             <label>${game.i18n.localize(promptKey)}
                 <select name="project">${projectOptions}</select></label>
-        </form>`),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Action.proceed"), default: true,
+        </form>`,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.Action.proceed"),
                 callback: (e, b, d) => ({ id: d.element.querySelector("[name=project]").value })
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
 

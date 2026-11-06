@@ -582,16 +582,17 @@ export async function cubAbilityDialog(actor, key) {
             <label>${game.i18n.localize("DRPG.Monocub.target")}
                 <select name="target">${options}</select></label>
         </form>`,
-        buttons: [
-            // One button per choice of the row, the first the default; their labels are
-            // `DRPG.Monocub.<choice>` (R1's LITERAL_KEYS names the two the table has).
-            ...row.choices.map((choice, i) => ({
-                action: choice, label: game.i18n.localize(`DRPG.Monocub.${choice}`), default: i === 0,
+        // One button per choice of the row, the first the primary and the default, the others secondaries (the kit's
+        // slots, E21 C5a); their labels are `DRPG.Monocub.<choice>` (R1's LITERAL_KEYS names the two the table has).
+        footer: (() => {
+            const buttons = row.choices.map(choice => ({
+                action: choice, label: game.i18n.localize(`DRPG.Monocub.${choice}`),
                 callback: (e, b, d) => ({
                     targetId: d.element.querySelector("[name=target]").value, choice
                 })
-            }))
-        ]
+            }));
+            return { primary: buttons[0], secondary: buttons.slice(1) };
+        })()
     });
 
     if (!result || result === "cancel") return null;

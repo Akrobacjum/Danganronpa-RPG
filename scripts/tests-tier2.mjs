@@ -821,7 +821,8 @@ async function withBetrayalWindows(note, run) {
         return false;
     };
     D.wait = async cfg => {
-        if (cfg?.window?.title === title) return note;
+        // The yes-or-no is the kit's since E21 C5a (`drpgConfirm`, through `wait`): its yes, as the confirm's was.
+        if (cfg?.window?.title === title) return kitQuestion(cfg) ? true : note;
         unanswered.push(cfg?.window?.title ?? "");
         return null;
     };
@@ -20723,6 +20724,10 @@ const SCENARIOS = [
         const had = new Set(game.messages.contents.map(m => m.id));
         const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
         let words = [], after = [], fight = [];
+        /* A use's question ("This will restore X, and the item is gone") is the kit's since E21 C5a, asked through `wait`,
+           which the suite's GM draws: handed to `confirm` as before (tests-kit.mjs `kitQuestions`), which answers yes. */
+        const D = foundry.applications.api.DialogV2, ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        D.wait = kitQuestions(D.wait);
         try {
             words = await wordsSent(async () => {
                 globalThis.__forceRoll = { hope: 11, fear: 5 };
@@ -20750,6 +20755,7 @@ const SCENARIOS = [
                 await settle();
             });
         } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
             if (hadForce) globalThis.__forceRoll = force;
             else delete globalThis.__forceRoll;
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
@@ -68199,7 +68205,8 @@ const SCENARIOS = [
             await actor.update({ [HP]: 3, [HOPE]: 1 });
             await sheetAuditIdle();
             const asked = { wait: 0, confirm: 0 };
-            D.wait = async () => { asked.wait += 1; return null; };
+            // The use's question is the kit's since E21 C5a, asked through `wait`: counted as the confirm it was (`kitQuestion`).
+            D.wait = async config => { if (kitQuestion(config)) { asked.confirm += 1; return true; } asked.wait += 1; return null; };
             D.confirm = async () => { asked.confirm += 1; return true; };
             const restored = await U.useItem(actor, kit);
             answer();
@@ -73004,7 +73011,8 @@ const SCENARIOS = [
         equal(stableJson({ windows: rows.length, rows: rows[0]?.rows?.map(row => [row[0], row[1], row[2].length > 0]) ?? null,
             buttons: rows[0]?.buttons ?? null, toast: warned.includes(game.i18n.localize("DRPG.Action.noVariants")), out: out ?? null,
             tile: typeof tile === "string" && why.length === 2 && why.every(w => tile.includes(w)) }),
-        stableJson({ windows: 1, rows: [[true, true, true], [true, true, true]], buttons: ["cancel"], toast: false, out: null, tile: true }),
+        // The one button is the kit's Close since E21 C5a (nothing to answer: the closing word of the role close).
+        stableJson({ windows: 1, rows: [[true, true, true], [true, true, true]], buttons: ["close"], toast: false, out: null, tile: true }),
             `Rest with neither row open did not open its window with both rows greyed and their reasons, or its tile does not say them `
             + `[windows, each row (greyed, disabled, a reason), the buttons, the "nothing here" toast, the answer, the tile's reason holds both]: tile ${stableJson(tile)}`);
     }],

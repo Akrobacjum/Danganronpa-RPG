@@ -30,15 +30,14 @@ import { createTruthBullet, copiedRemnants, dropSecret } from "./truth-bullets.m
 import { trustedWrite } from "./resource-guard.mjs";
 import { resourceValue } from "./character.mjs";
 import {
-    dialogContent, whisperToOwner, whisperToGms, ownerOf, ownerIdsOf, log, warn, error, debug, serialWrite
+    whisperToOwner, whisperToGms, ownerOf, ownerIdsOf, log, warn, error, debug, serialWrite
 } from "./utils.mjs";
 // The store the declarations are written through (ACT-08). settings.mjs imports
 // config.mjs and nothing else, so this closes no cycle.
 import { SETTINGS } from "./settings.mjs";
 import { observeStore } from "./gm-stores.mjs";
 import { stableJson } from "./gm-store.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
+import { drpgWindow } from "./ui-kit.mjs";
 
 /** How the player said they were looking. */
 export const DECLARATIONS = {
@@ -604,10 +603,11 @@ export function remnantPickLabel({ data = {}, dc = null } = {}) {
 async function askWhichRemnant(actor, room, request, candidates, { refuse = true } = {}) {
     const options = candidates.map((c, i) => `<option value="${i}">${foundry.utils.escapeHTML(remnantPickLabel(c))}</option>`).join("");
 
-    const picked = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Observe.pickTitle") },
+    // On the kit's frame (E21 C5a): the pick the primary; Refuse, the GM's no, a secondary.
+    const picked = await drpgWindow({
+        title: game.i18n.localize("DRPG.Observe.pickTitle"),
         classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p>${game.i18n.format("DRPG.Observe.pickIntro", {
                 actor: foundry.utils.escapeHTML(actor.name),
                 room: foundry.utils.escapeHTML(room)
@@ -616,14 +616,14 @@ async function askWhichRemnant(actor, room, request, candidates, { refuse = true
             <label>${game.i18n.localize("DRPG.Observe.whichRemnant")}
                 <select name="remnant">${options}</select></label>
             <p class="notes">${game.i18n.localize("DRPG.Observe.pickNote")}</p>
-        </form>`),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Observe.pickConfirm"), default: true,
+        </form>`,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.Observe.pickConfirm"),
                 callback: (e, b, d) => d.element.querySelector("[name=remnant]").value
             },
-            ...(refuse ? [{ action: "refuse", label: game.i18n.localize("DRPG.Observe.pickRefuse") }] : [])
-        ],
+            secondary: refuse ? [{ action: "refuse", label: game.i18n.localize("DRPG.Observe.pickRefuse") }] : []
+        },
         rejectClose: false
     });
 
@@ -1159,10 +1159,11 @@ async function alreadyHeld(actor, entry) {
 async function describeFind(actor, entry, isCritical, fallbackName, stored = null) {
     const data = entry.data;
 
-    return DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Observe.describeTitle") },
+    // On the kit's frame (E21 C5a): one answer, the primary.
+    return drpgWindow({
+        title: game.i18n.localize("DRPG.Observe.describeTitle"),
         classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p>${game.i18n.format("DRPG.Observe.describeIntro", {
                 actor: foundry.utils.escapeHTML(actor.name),
                 room: foundry.utils.escapeHTML(entry.room)
@@ -1221,10 +1222,10 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
                     placeholder="${game.i18n.localize("DRPG.TruthBullet.analyzedTextPlaceholder")}"
                     >${foundry.utils.escapeHTML(stored?.analyzedText ?? "")}</textarea></label>
             <p class="notes">${game.i18n.localize("DRPG.TruthBullet.analyzedTextNote")}</p>
-        </form>`),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Observe.describeConfirm"), default: true,
+        </form>`,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.Observe.describeConfirm"),
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
                     return {
@@ -1234,7 +1235,7 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
                     };
                 }
             }
-        ],
+        },
         rejectClose: false
     // Closing the dialog resolves to null, which `createFind` reads as "use the
     // prefilled name and no description" - the find still lands either way.

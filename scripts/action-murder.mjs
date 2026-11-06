@@ -25,8 +25,7 @@ import { whisperToOwner, cardHead, esc, proseOf } from "./utils.mjs";
 import { abort, canAfford } from "./action-pipeline.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { chooseVariant, promptForNote } from "./action-menus.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
+import { drpgConfirm } from "./ui-kit.mjs";
 
 /**
  * The incident's own actions, behind the Direct Murder tile - which a fight draws as
@@ -205,12 +204,12 @@ export async function performBetrayal(actor, partner, def, options = {}) {
     const dark = isEclipse();
     const cost = dark && !options.free ? def.cost : 0;
     if (cost > 0 && !canAfford(actor, cost)) return null;
-    const confirmed = await DialogV2.confirm({
+    // A question on the kit's frame (E21 C5a): yes the primary, Cancel withdraws it; true, false or null as confirm's.
+    const confirmed = await drpgConfirm({
         yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
-        no: { label: game.i18n.localize("DRPG.Dialog.no") },
         classes: ["drpg-panel"],
-        window: { title: game.i18n.localize("DRPG.Murder.betrayalTitle") },
-        content: `<p>${game.i18n.format("DRPG.Murder.betrayalIntro", {
+        title: game.i18n.localize("DRPG.Murder.betrayalTitle"),
+        body: `<p>${game.i18n.format("DRPG.Murder.betrayalIntro", {
                 third: esc(actor.name), killer: esc(partner.name)
             })}</p>
             <p class="notes">${game.i18n.localize("DRPG.Murder.betrayalRule")}</p>${
@@ -267,12 +266,12 @@ export async function performDirectMurder(actor, def, options) {
     // The Eclipse's words alone (E41 C1a; audit S02-60): this runs only in an Eclipse - `performAction` refuses a
     // Direct Murder outside one (`DRPG.Eclipse.murderOnlyInEclipse`) and hands a betrayal to `performBetrayal` before
     // it - so the other key, `DRPG.Action.murderConfirm`, was never shown and is deleted.
-    const confirmed = await DialogV2.confirm({
+    // A question on the kit's frame (E21 C5a).
+    const confirmed = await drpgConfirm({
         yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
-        no: { label: game.i18n.localize("DRPG.Dialog.no") },
         classes: ["drpg-panel"],
-        window: { title: def.label },
-        content: `${briefingBlock(actor, "directMurder", def)}
+        title: def.label,
+        body: `${briefingBlock(actor, "directMurder", def)}
             <p class="notes">${game.i18n.localize("DRPG.Action.murderSpendsAnyway")}</p>
             <p>${game.i18n.localize("DRPG.Action.murderConfirmEclipse")}</p>`,
         rejectClose: false

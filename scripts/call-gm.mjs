@@ -29,11 +29,12 @@
 
 import { MODULE_ID, TRAITS, HOPE_CALLS, TIMING } from "./config.mjs";
 import {
-    whisperToGms, ownerOf, isPrimaryGm, dialogContent, debug, warn, error, esc, serverNow, localeFormat
+    whisperToGms, ownerOf, isPrimaryGm, debug, warn, error, esc, serverNow, localeFormat
 } from "./utils.mjs";
 import { forgetCallYes, sayNotDone, gmOnline, noteCallYes } from "./bridge-guards.mjs";
 import { contentOf, cardFlag, cardMeta } from "./secret.mjs";
 import { SOCKET_EVENT, ACTION_DONE } from "./bridge-wire.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 
 /** The request a call on the GM names when its caller names none (`DRPG.Bridge.what.gm.call`). */
 export const CALL_GM_WHAT = "gm.call";
@@ -1116,24 +1117,23 @@ export async function settleCall(message, text, ruling = null, gmNote = null) {
  * an empty request is not sent - the player is told so and the window opens again.
  */
 export async function askForRequest({ title, prompt, placeholder = "", intro = "", required = false } = {}) {
-    const DialogV2 = foundry.applications.api.DialogV2;
     for (;;) {
-        const answer = await DialogV2.wait({
+        // On the kit's frame (E21 C5a): Send is the GM's road (D11) - the words go to a GM's card - and Cancel withdraws.
+        const answer = await drpgWindow({
             classes: ["drpg-panel"],
-            window: { title },
-            content: dialogContent(`${intro}<form>
+            title,
+            body: `${intro}<form>
                     <p>${prompt}</p>
                     <textarea name="request" rows="3" placeholder="${foundry.utils.escapeHTML(placeholder)}"></textarea>
-                  </form>`),
-            buttons: [
-                {
+                  </form>`,
+            footer: {
+                gmRoute: [{
                     action: "send",
                     label: game.i18n.localize("DRPG.Bridge.send"),
-                    default: true,
                     callback: (event, button, dialog) => ({ text: dialog.element.querySelector("[name=request]").value.trim() })
-                },
-                { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-            ],
+                }],
+                close: "cancel"
+            },
             rejectClose: false
         });
         if (typeof answer?.text !== "string") return null;

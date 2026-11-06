@@ -42,9 +42,9 @@ import { resourceValue, resourceMax } from "./character.mjs";
 import { bodyDiscovery, bodyFoundSinceTrial, isDeadForGm, getClock } from "./settings.mjs";
 import { trustedWrite, trustedDelete } from "./resource-guard.mjs";
 import { overflowBlocksHope } from "./overflow.mjs";
-import { dialogContent, whisperToOwner, resolveThreshold, log, error } from "./utils.mjs";
+import { whisperToOwner, resolveThreshold, log, error } from "./utils.mjs";
+import { drpgWindow, drpgConfirm } from "./ui-kit.mjs";
 
-const DialogV2 = foundry.applications.api.DialogV2;
 
 /** Flag marking the one item of its category the character is holding ready. */
 export const EQUIPPED_FLAG = "equipped";
@@ -620,10 +620,11 @@ async function askWhichResource(item, effect) {
             </span>
         </label>`).join("");
 
-    const picked = await DialogV2.wait({
-        window: { title: game.i18n.format("DRPG.Items.useTitle", { item: item.name }) },
+    // On the kit's frame (E21 C5a).
+    const picked = await drpgWindow({
+        title: game.i18n.format("DRPG.Items.useTitle", { item: item.name }),
         classes: ["drpg-panel", "drpg-narrow"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p>${game.i18n.localize("DRPG.Items.usePrompt")}</p>
             <div class="drpg-choice-list">${rows}</div>
             ${effect.bonus?.hope ? `<p class="notes">${overflowBlocksHope()
@@ -631,15 +632,15 @@ async function askWhichResource(item, effect) {
                 // not promise the Hope `restore` will skip (review of CALL-05).
                 ? game.i18n.localize("DRPG.Overflow.noHopeNow")
                 : game.i18n.format("DRPG.Items.choiceBonus", { n: effect.bonus.hope })}</p>` : ""}
-        </form>`),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Items.useConfirm"), default: true,
+        </form>`,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.Items.useConfirm"),
                 callback: (e, b, d) =>
                     d.element.querySelector('input[name="what"]:checked')?.value ?? null
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
 
@@ -679,12 +680,12 @@ function wouldRestore(actor, amounts) {
 async function confirmUse(item, preview, pointless) {
     const summary = describe(preview);
 
-    return DialogV2.confirm({
+    // A question on the kit's frame (E21 C5a): using it is what the player pressed for, so yes is the primary.
+    return drpgConfirm({
         yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
-        no: { label: game.i18n.localize("DRPG.Dialog.no") },
-        window: { title: game.i18n.format("DRPG.Items.useTitle", { item: item.name }) },
+        title: game.i18n.format("DRPG.Items.useTitle", { item: item.name }),
         classes: ["drpg-panel", "drpg-narrow"],
-        content: `<p>${game.i18n.format("DRPG.Items.confirmUse", {
+        body: `<p>${game.i18n.format("DRPG.Items.confirmUse", {
             item: foundry.utils.escapeHTML(item.name)
         })}</p>
         <p${pointless ? ' class="drpg-warning"' : ""}>${
@@ -891,12 +892,13 @@ export async function discardBroken(actor, item) {
         return null;
     }
 
-    const go = await DialogV2.confirm({
-        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
-        no: { label: game.i18n.localize("DRPG.Dialog.no") },
-        window: { title: game.i18n.format("DRPG.Items.discardTitle", { item: item.name }) },
+    /* A question on the kit's frame (E21 C5a). Throwing a thing away cannot be undone (the item is deleted on a
+       success), so its yes is the destructive role and Cancel the default: Enter keeps the item. */
+    const go = await drpgConfirm({
+        yes: { role: "destructive", label: game.i18n.localize("DRPG.Dialog.yes") },
+        title: game.i18n.format("DRPG.Items.discardTitle", { item: item.name }),
         classes: ["drpg-panel", "drpg-narrow"],
-        content: `<p>${game.i18n.format("DRPG.Items.discardPrompt", {
+        body: `<p>${game.i18n.format("DRPG.Items.discardPrompt", {
             item: foundry.utils.escapeHTML(item.name)
         })}</p>
         <p class="notes">${game.i18n.localize("DRPG.Items.discardNote")}</p>`,

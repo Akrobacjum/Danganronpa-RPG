@@ -136,6 +136,13 @@
   const box = el => { const r = el.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.right), Math.round(r.bottom)]; };
   const inView = el => { const r = el.getBoundingClientRect(); return r.left >= -0.5 && r.top >= -0.5 && r.right <= innerWidth + 0.5 && r.bottom <= innerHeight + 0.5; };
   const shown = el => { const r = el.getBoundingClientRect(); return !el.hidden && r.width > 0 && r.height > 0; };
+  /* The Stop in view (E21 C5a): its rectangle in the viewport AND inside the sheet's content box, which clips what
+     stands below its foot - a Stop under the box's edge is not seen, wherever the viewport ends. */
+  const stopShown = win => {
+    const stop = win.querySelector(".drpg-safeword-button");
+    const box = (win.querySelector(".window-content") ?? win).getBoundingClientRect(), r = stop.getBoundingClientRect();
+    return inView(stop) && r.top >= box.top - 0.5 && r.bottom <= box.bottom + 0.5 && r.left >= box.left - 0.5 && r.right <= box.right + 0.5;
+  };
   const reading = (win, tab) => {
     const footer = win.querySelector("footer.form-footer");
     const nav = win.querySelector("nav.drpg-tabs");
@@ -191,7 +198,7 @@
       }
       if (keys.length) { press(keys[0]); await frame(); place(win); }
       out.push({ window: shot.dataset.window, kit, title: win.querySelector(".window-title")?.textContent ?? null, states,
-        stop: win.querySelector(".drpg-safeword-button") ? inView(win.querySelector(".drpg-safeword-button")) : null });
+        stop: win.querySelector(".drpg-safeword-button") ? stopShown(win) : null });
     }
     return out;
   };
@@ -212,8 +219,12 @@
       app.className = "application sheet daggerheart actor character";
       app.style.width = `${size.width}px`;
       app.style.height = `${size.height}px`;
+      /* Foundry's frame (E21 C5a): the window a flex column, its content box the rest of it under the title bar,
+         whatever the bar's height - the glass's bar is 60 px, and a content box 32 px short of the window overran it. */
+      app.style.display = "flex";
+      app.style.flexDirection = "column";
       app.innerHTML = `<header class="window-header"><h1 class="window-title">Character sheet (stand-in)</h1><button type="button" class="header-control" data-action="close">x</button></header>`
-        + `<section class="window-content" style="height: calc(100% - 32px); overflow: hidden"><div class="drpg-style-sheet-body" style="height: 100%; overflow: auto"><div style="height: 1400px"></div></div></section>`;
+        + `<section class="window-content" style="flex: 1 1 auto; min-height: 0; overflow: hidden"><div class="drpg-style-sheet-body" style="height: 100%; overflow: auto"><div style="height: 1400px"></div></div></section>`;
       const stop = document.createElement("button");
       stop.type = "button";
       stop.className = "drpg-safeword-button";

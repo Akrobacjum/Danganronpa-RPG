@@ -2412,7 +2412,9 @@ section[data-application-part="features"] h4:not(.drpg-keep) {
     display: none !important;
 }
 
-/* A few more pixels of sheet, so the action grid does not force a scrollbar.
+/* A few more pixels of sheet, so the action grid does not force a scrollbar - but never more than the screen holds
+   (E21 C5a; audit S12-09, S01-06): a bare 830 px held the sheet's foot, and the Stop with it, below a 768 or 800 px
+   screen whatever `scaleWindow` asked for.
 
    NOT WHILE THE SHEET IS FOLDED (06.11.2026, the owner at the table, LIVE-E44-08 (1)). Foundry folds a window by
    writing its title bar's height inline and hiding everything under the bar, and an author `min-height` wins over an
@@ -2422,7 +2424,7 @@ section[data-application-part="features"] h4:not(.drpg-keep) {
    inline, so dropping the floor there changes nothing; `.minimized` once it is folded. Read in the sheets, not in
    v14's source. */
 .application.sheet.daggerheart.actor.character:not(.minimized):not(.minimizing) {
-    min-height: 830px;
+    min-height: min(830px, calc(100dvh - 20px));
 }
 
 /* Daggerheart repeats the whole inventory as a flat list below the sections,
@@ -5104,10 +5106,9 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    smallest. A confirm with one sentence in it is now the same window as the
    Search picker, which is the point. */
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel,
-    .drpg-summary-dialog, .drpg-safeword-dialog
+    .drpg-panel, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel,
+    .drpg-summary-dialog
 ):not(.drpg-kit-fit):not(.drpg-kit-width) {
     /* `!important` because ApplicationV2 writes the width as an INLINE style,
        which no stylesheet rule can outrank otherwise - and `DialogV2.confirm`
@@ -5135,10 +5136,9 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    the screen less 8 px a side (components.css); with this rule's `!important` on it the frame's lost on every kit
    window, which all carry `.drpg-panel`. The width above still holds them all. */
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel,
-    .drpg-summary-dialog, .drpg-safeword-dialog
+    .drpg-panel, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel,
+    .drpg-summary-dialog
 ):not(.drpg-kit-fit):not(.drpg-kit-width):not(.drpg-ui) {
     max-width: min(var(--drpg-popup), 92vw) !important;
 }
@@ -5297,9 +5297,8 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 /* The button row wraps. Five buttons in one unbreakable line is what set the
    width of every Observe prompt in the module. */
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel
+    .drpg-panel, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel
 ) footer.form-footer {
     flex-wrap: wrap;
 }
@@ -5372,9 +5371,8 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    the scrollport it is pinning against rather than guessing at it with a
    percentage that resolves against the wrong box. */
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel
+    .drpg-panel, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel
 ):has(.dialog-content table, .dialog-content .drpg-frisk-modes) footer.form-footer {
     position: sticky;
     bottom: calc(-1 * var(--drpg-window-pad));
@@ -5421,9 +5419,8 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    tall one is capped and scrolled. The window itself opens at `height: auto`
    for the same reason. */
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel
+    .drpg-panel, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel
 ) .window-content {
     max-height: 80vh;
     overflow: auto;
@@ -7568,12 +7565,20 @@ body[data-drpg-phase] :is(#drpg-player-status, #countdowns, #players) {
    --------------------------------------------------------------------------
    Bottom-left of the character sheet. Loud enough to find without looking, and
    far enough from the action grid that it is never hit on the way to Search.
+
+   STUCK TO THE VISIBLE BOTTOM, NOT THE CONTENT'S (E21 C5a, 06.11.2026; audit S01-06, the owner's Q-E21-4 default).
+   Absolute, it stood at the bottom of the sheet's content box, which a sheet taller than the screen put below it at
+   768-800 px. Sticky, it stays in the sheet's bottom-left where players know it and holds to the visible foot of
+   whatever scrolls the sheet's content (the window's content box or its own body), so it is in view at any height.
+   The fit sweep's sheet stand-in reads it (style-sweep.mjs `--fit`, control (d) takes this rule off).
    ========================================================================== */
 
 .drpg-safeword-button {
-    position: absolute;
+    position: sticky;
     left: 8px;
     bottom: 8px;
+    align-self: flex-start;
+    width: max-content;
     z-index: 3;
     display: inline-flex;
     align-items: center;
@@ -13371,28 +13376,7 @@ form:has(input[name="secret"]:not(:checked)):has(input[name="murder"]:not(:check
     font-size: var(--drpg-text-sm);
 }
 
-/* The Call window's side (E51 C2, 30.10.2026; audit S17-48). Every Call window is drawn by
-   call-pickers.mjs `callWindow`, in `drpg-hope-dialog` or `drpg-despair-dialog`, and until C2 neither
-   class coloured anything: a Hope picker and a Despair one looked the same. The side's ink is set on the
-   window once - Hope's gold, Despair's blood, each with its deep twin on a pale ground (`light-dark`, as
-   the popups) - and the header takes it on a stripe and on its title. The button that waits for a GM keeps
-   `drpg-gm-route`'s red (A3, above), which neither side's ink touches. Tier 1's R1111 reads this cascade. */
-.application.drpg-hope-dialog {
-    --drpg-call-ink: light-dark(var(--drpg-gold-deep), var(--drpg-gold));
-}
-
-.application.drpg-despair-dialog {
-    --drpg-call-ink: light-dark(var(--drpg-blood-deep), var(--drpg-blood));
-}
-
-.application:is(.drpg-hope-dialog, .drpg-despair-dialog) .drpg-call-header {
-    border-left: 3px solid var(--drpg-call-ink);
-    padding-left: 8px;
-}
-
-.application:is(.drpg-hope-dialog, .drpg-despair-dialog) .drpg-call-header h3 {
-    color: var(--drpg-call-ink);
-}
+/* The Call window's side (E51 C2) is components.css's since E21 C5a (M14's card, by the kit's tokens). */
 
 /* Confusion's tiers, in its window (monocub.mjs `cubTiersHtml`), and the one its total reached on the card. */
 .drpg-cub-tiers {
@@ -15388,10 +15372,9 @@ body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-gm-route:ho
    ========================================================================== */
 
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel,
-    .drpg-summary-dialog, .drpg-safeword-dialog
+    .drpg-panel, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel,
+    .drpg-summary-dialog
 ) .window-header {
     background: var(--drpg-bone) !important;
     background-image: none !important;

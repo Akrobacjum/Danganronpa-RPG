@@ -3118,9 +3118,7 @@
       "spend": "Wydaj {cost}",
       "send": "Zapytaj GM-a - {cost} Hope po zgodzie",
       "next": "Dalej",
-      "cancel": "Anuluj",
       "gatherCallOff": "Odwołaj",
-      "gatherKeep": "Zostaw",
       "aimedAt": "Cel",
       "tellGm": "Powiedz GM-owi, co zamierzasz z tym zrobić",
       "tellGmPlaceholder": {

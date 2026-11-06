@@ -93,6 +93,10 @@ body {
     --drpg-kit-role-cancel: var(--drpg-bone);
     --drpg-kit-role-secondary: var(--drpg-bone);
     --drpg-kit-role-destructive: var(--drpg-crimson);
+    /* a Call's side (M14, E21 C5a): Hope's gold and Despair's blood, each with its deep twin on a pale ground; one
+       pair for both themes - the glass draws the same two inks */
+    --drpg-kit-call-hope: light-dark(var(--drpg-gold-deep), var(--drpg-gold));
+    --drpg-kit-call-despair: light-dark(var(--drpg-blood-deep), var(--drpg-blood));
     /* the notice history (E44 C5): its lines and grounds as E81 drew them, an entry's seam by its tone or source,
        and its two type sizes */
     --drpg-kit-notice-edge: var(--drpg-line-strong);
@@ -2058,3 +2062,18 @@ body.drpg-theme-stained-glass #drpg-gm-launcher:focus-visible {
 body.drpg-theme-stained-glass #drpg-gm-launcher :is(i, .fa, [class*="fa-"]) {
     line-height: 1;
 }
+
+/* ---- a Call's window (M14, E21 C5a, 06.11.2026; audit S09-26, S17-48) ----
+   call-pickers.mjs `callWindow` draws every Call window on the kit's frame, in `drpg-hope-dialog` or
+   `drpg-despair-dialog`. The side's ink is set on the window from the kit's tokens - Hope's gold, Despair's blood -
+   and the header takes it on its stripe and its title, as the approved card draws it in both themes. The button that
+   waits for a GM keeps the GM's road's own face (the role's), which neither ink touches. Moved here from
+   danganronpa.css ("the Call window's side", E51 C2), where it named `.application` alone; R1111 and R1368 read the
+   cascade. */
+.application.drpg-ui.drpg-hope-dialog { --drpg-call-ink: var(--drpg-kit-call-hope); }
+.application.drpg-ui.drpg-despair-dialog { --drpg-call-ink: var(--drpg-kit-call-despair); }
+.application.drpg-ui:is(.drpg-hope-dialog, .drpg-despair-dialog) .drpg-call-header {
+    border-left: 3px solid var(--drpg-call-ink);
+    padding-left: 8px;
+}
+.application.drpg-ui:is(.drpg-hope-dialog, .drpg-despair-dialog) .drpg-call-header h3 { color: var(--drpg-call-ink); }

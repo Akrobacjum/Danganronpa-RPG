@@ -18275,7 +18275,8 @@ const INVARIANTS = [
 
         const frisk = stripComments(new Map(await otherSources()).get("frisk.mjs") ?? "");
         const classesOf = name => {
-            const call = bodyOf(fnSource(frisk, name), "DialogV2.wait({", { until: "buttons:" });
+            // On the kit's frame since E21 C5a (`drpgWindow`, its buttons in `footer`).
+            const call = bodyOf(fnSource(frisk, name), "drpgWindow({", { until: "footer:" });
             return [...(call.match(/classes:\s*\[([^\]]*)\]/)?.[1] ?? "").matchAll(/"([^"]+)"/g)].map(m => m[1]);
         };
 
@@ -18283,8 +18284,9 @@ const INVARIANTS = [
         const glyphless = names => names.filter(name => !new RegExp(`\\.${name}:is\\(i, span\\) \\{ --drpg-px-mask: var\\(--drpg-px-[\\w-]+\\); \\}`).test(css));
         const icons = [...palm.content.querySelectorAll(".drpg-choice i")].map(i => [...i.classList].find(c => c.startsWith("fa-") && c !== "fa-solid") ?? null);
 
-        equal(stableJson([palm.classes ?? [], positions, classesOf("openAskWindow"), classesOf("askToForce"), icons.length, glyphless(icons), glyphless(["fa-r623-no-sprite"])]),
-            stableJson([["drpg-panel"], [["sticky"], ["sticky"], []], ["drpg-panel"], ["drpg-panel"], 3, [], ["fa-r623-no-sprite"]]),
+        // One of each: a kit window carries `drpg-panel` twice, the caller's and the kit's (E21 C5a).
+        equal(stableJson([[...new Set(palm.classes ?? [])], positions, classesOf("openAskWindow"), classesOf("askToForce"), icons.length, glyphless(icons), glyphless(["fa-r623-no-sprite"])]),
+            stableJson([["drpg-panel", "drpg-ui"], [["sticky"], ["sticky"], []], ["drpg-panel"], ["drpg-panel"], 3, [], ["fa-r623-no-sprite"]]),
             "[the Palm window's classes; the footer's position by each rule it matches: the Palm window with its Frisk ways, a table window, a short dialog (the controls); the classes of the target's ask and of 'Make them?'; the Palm rows' icons, those with no pixel glyph, and a name no sprite has (the control)]");
     }],
 
@@ -29625,7 +29627,8 @@ const INVARIANTS = [
             if (typeof cfg.content === "string") root.innerHTML = cfg.content;
             else if (cfg.content) root.append(cfg.content.cloneNode(true));
             const buttons = cfg.buttons ?? [];
-            return { title: cfg.window?.title ?? "", classes: (cfg.classes ?? []).filter(c => /^drpg-(?:hope|despair)-dialog$|^drpg-panel$/.test(c)),
+            // One of each: a kit window carries `drpg-panel` twice (the caller's and the kit's, E21 C5a).
+            return { title: cfg.window?.title ?? "", classes: [...new Set((cfg.classes ?? []).filter(c => /^drpg-(?:hope|despair)-dialog$|^drpg-panel$/.test(c)))],
                 header: root.querySelector(".drpg-call-header h3")?.textContent.trim() ?? null,
                 routed: buttons.filter(b => /\bdrpg-gm-route\b/.test(String(b.class ?? ""))).map(b => b.action),
                 proceed: buttons.some(b => b.label === game.i18n.localize("DRPG.Action.proceed")) };
@@ -29664,11 +29667,15 @@ const INVARIANTS = [
                 const html = document.createElement("html"), body = document.createElement("body");
                 body.className = `${theme} drpg-gm`;
                 html.append(body);
-                body.innerHTML = `<div class="application dialog drpg-panel drpg-${kind}-dialog"><section class="window-content"><form>`
+                // A kit window (E21 C5a: the side's rules name `.drpg-ui`, components.css).
+                body.innerHTML = `<div class="application dialog drpg-ui drpg-panel drpg-${kind}-dialog"><section class="window-content"><form>`
                     + `<div class="dialog-content"><div class="drpg-call-header"><h3>R1111</h3></div></div>`
                     + `<footer class="form-footer"><button type="submit" class="drpg-gm-route" data-action="spend">R1111</button></footer></form></section></div>`;
                 const w = (el, names) => C.winner(el, names);
-                const ink = w(body.firstElementChild, "--drpg-call-ink")?.value ?? "";
+                // The ink is the kit's token since E21 C5a (`var(--drpg-kit-call-hope)`): read through to the token's value.
+                const raw = w(body.firstElementChild, "--drpg-call-ink")?.value ?? "";
+                const token = /var\((--drpg-kit-call-[\w-]+)\)/.exec(raw)?.[1];
+                const ink = token ? w(body, token)?.value ?? raw : raw;
                 const stripe = w(body.querySelector(".drpg-call-header"), ["border-left", "border-left-color"])?.value ?? "";
                 const title = w(body.querySelector(".drpg-call-header h3"), "color")?.value ?? "";
                 const road = w(body.querySelector("button.drpg-gm-route"), ["border", "border-color"]);
@@ -34845,7 +34852,8 @@ const INVARIANTS = [
             if (!props.length) continue;
             for (const part of selector.split(/,(?![^(]*\))/).map(s => s.trim())) {
                 const subject = (part.split(/\s*[>+~]\s*|\s+(?![^(]*\))/).filter(Boolean).pop() ?? "").replace(/:not\((?:[^()]|\([^()]*\))*\)/g, "");
-                const named = KIT.filter(cls => new RegExp(`\\.${cls}(?![\\w])`).test(subject) || (cls === "drpg-kit-width" && /\.drpg-kit-width-[\w-]+/.test(subject)));
+                // A class whole, never the head of a longer one (E21 C5a: `.drpg-rest-option`, `.drpg-explain-body`).
+                const named = KIT.filter(cls => new RegExp(`\\.${cls}(?![\\w-])`).test(subject) || (cls === "drpg-kit-width" && /\.drpg-kit-width-[\w-]+/.test(subject)));
                 if (named.length) found.push(`${named.join(" ")}: ${part.replace(/\s+/g, " ")} { ${props.join(", ")} }`);
             }
         }
@@ -35048,6 +35056,127 @@ const INVARIANTS = [
             reveal: { kit: true, buttons: [["cancel", true, "cancel"], ["reveal", false, "destructive"]], answer: null },
             opened: { turn: true, claim: true, objection: true }
         }), "[each footer built (action, role, default, in tree order); the Reveal's confirmation: on the kit, its buttons (action, default, role), its answer; each window opened through the kit with its footer]");
+    }],
+    ["R1367 - the Stop on the sheet stays in view (E21 C5a; E21-06, audit S01-06, S12-09): settings.mjs `scaleWindow` keys its memo on the slider and the layout height (`scaleMemo`), so the same window asked again at another height is sized again and at the same numbers is not; the screen's resize asks every open sheet again (`rescaleSheets`, from `watchScreen`); the sheet's min-height is bounded by the screen; and the Stop is sticky at the bottom-left of what scrolls, in both themes", async () => {
+        /*
+         * E21 C5a, 06.11.2026. The Stop (sheet.mjs `injectSafeword`) stood `position: absolute` at the foot of the sheet's
+         * content box, and the box was held to `min-height: 830px` - below a 768 or 800 px screen whatever the window
+         * asked for - and `scaleWindow` sized a window once per slider value (`drpgScaled` keyed on the slider alone),
+         * so a resize never moved it. Read here: `scaleWindow` on a stand-in sheet (an application with a `setPosition`
+         * that records and a `document` of type character) at the memo another height left, then at its own; the watcher's
+         * source (comments stripped); the cascade of the sheet and the Stop in each theme. Nothing is written: the
+         * stand-in is no window of Foundry's. Red on C4's tree: no `scaleMemo`, the memo held after a resize, the
+         * min-height a bare 830px and the Stop absolute. What a real sheet scrolls is LIVE-E21-01's.
+         */
+        const S = await import("./settings.mjs");
+        ok(typeof S.scaleMemo === "function" && typeof S.scaleWindow === "function" && typeof S.rescaleSheets === "function",
+            "settings.mjs exports no scaleMemo, scaleWindow or rescaleSheets - the memo cannot be read");
+        const read = {};
+        if (typeof S.scaleMemo === "function" && typeof S.scaleWindow === "function") {
+            const asked = [];
+            const app = { document: { type: "character" }, options: { position: { width: 850, height: 800 } }, setPosition: size => asked.push(size) };
+            const el = document.createElement("div");
+            S.scaleWindow(app, el);
+            const memo = el.dataset.drpgScaled ?? "";
+            const [scale, height] = memo.split("@");
+            read.memo = memo === S.scaleMemo(Number(scale)) && Number(height) > 0 ? "the slider and the height" : memo;
+            const first = asked.length;
+            el.dataset.drpgScaled = S.scaleMemo(Number(scale), 5000);
+            S.scaleWindow(app, el);
+            read.otherHeight = asked.length - first;
+            const second = asked.length;
+            S.scaleWindow(app, el);
+            read.sameHeight = asked.length - second;
+            read.differs = S.scaleMemo(1, 768) !== S.scaleMemo(1, 800);
+        }
+        const settingsText = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/settings.mjs`).then(lfText));
+        read.watcher = /\brescaleSheets\s*\(/.test(bodyOf(settingsText, "function watchScreen() {", { until: "\n}\n" }));
+        const C = await styleCascade();
+        read.paint = Object.fromEntries(["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"].map(theme => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-player`;
+            html.append(body);
+            body.innerHTML = `<div class="application sheet daggerheart actor character"><section class="window-content">`
+                + `<button type="button" class="drpg-safeword-button"><span>R1367</span></button></section></div>`;
+            const minH = C.winner(body.firstElementChild, "min-height")?.value ?? "";
+            const stop = body.querySelector(".drpg-safeword-button");
+            const position = C.winner(stop, "position")?.value ?? "";
+            const bottom = C.winner(stop, "bottom")?.value ?? "";
+            return [theme, { bounded: /min\(\s*830px\s*,\s*calc\(100dvh\s*-\s*\d+px\)\s*\)/.test(minH), position, bottom: Boolean(bottom) && bottom !== "auto" }];
+        }));
+        const yes = { bounded: true, position: "sticky", bottom: true };
+        equal(JSON.stringify(read), JSON.stringify({ memo: "the slider and the height", otherHeight: 1, sameHeight: 0, differs: true, watcher: true,
+            paint: { "drpg-theme-stained-glass": yes, "drpg-theme-monokuma-legacy": yes } }),
+            "[a memo another height left sized the sheet again, the memo now holds the slider and the height, the same numbers write nothing, two heights two memos; watchScreen asks the open sheets again; per theme the sheet's min-height bounded by the screen and the Stop sticky with a bottom]");
+    }],
+    ["R1368 - the Calls on the kit (E21 C5a; E21-12, E21-16, M14's card, audit S09-26): call-pickers.mjs `callWindow` opens on `drpgWindow` - its window a kit window (`drpg-ui`) with the kit's Cancel; the GM's road from its `gmRoute` alone (Experience's Send the gmRoute role, Sprint's Spend the primary); the GM's approval with It applies the primary and Not this time a secondary and no Cancel; and the side's ink is the kit's token - Hope's gold, Despair's blood - on the header's stripe and title, in both themes", async () => {
+        /*
+         * E21 C5a, 06.11.2026. The Call windows were drawn with DialogV2.wait and Foundry's buttons, their side coloured
+         * by danganronpa.css (E51 C2) on `.application`; M14's approved card puts them on the kit's frame, the footer by
+         * roles, and the side's ink by the kit's tokens (components.css). Opened here on this browser with DialogV2.wait
+         * held by a stand-in that keeps each window until the test answers it (as R1111: cancelled or refused, so nothing
+         * is paid, armed or written); the cascade from the sheets' text (`styleCascade`) on stand-in windows. Red on C4's
+         * tree: no `drpg-ui` on any Call window, the cancel no kit role, and no rule of the kit's colouring a Call window.
+         */
+        const { confirmCall, askHopeCallApproval } = await import("./calls.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const held = [];
+        const roleOf = b => /\bdrpg-role-([\w-]+)/.exec(String(b.class ?? ""))?.[1] ?? null;
+        const look = cfg => ({ kit: (cfg.classes ?? []).includes("drpg-ui"), side: (cfg.classes ?? []).find(c => /^drpg-(?:hope|despair)-dialog$/.test(c)) ?? null,
+            buttons: (cfg.buttons ?? []).map(b => [b.action, roleOf(b)]) });
+        const opened = async answer => {
+            const got = await until(() => held.length >= 1, 3000);
+            const seen = got ? look(held[0].config) : "(no window opened)";
+            for (const w of held.splice(0)) w.resolve(answer);
+            return seen;
+        };
+        const read = {};
+        D.wait = config => new Promise(resolve => held.push({ config, resolve }));
+        try {
+            for (const [name, call, kind] of [["experience", HOPE_CALLS.experience, "hope"], ["sprint", HOPE_CALLS.sprint, "hope"], ["feed", DESPAIR_CALLS.feedOverflow, "despair"]]) {
+                const asked = confirmCall(call, { kind, held: 12 });
+                read[name] = await opened("cancel");
+                await asked;
+            }
+            if (game.user.isGM) {
+                const asked = askHopeCallApproval({ callLabel: "R1368", cost: 1, actorName: "R1368", note: "R1368" });
+                read.approval = await opened("no");
+                await asked;
+            }
+        } finally {
+            for (const w of held.splice(0)) w.resolve(null);
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+        }
+        const C = await styleCascade();
+        read.paint = Object.fromEntries(["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"].map(theme => {
+            const sides = Object.fromEntries(["hope", "despair"].map(kind => {
+                const html = document.createElement("html"), body = document.createElement("body");
+                body.className = `${theme} drpg-player`;
+                html.append(body);
+                body.innerHTML = `<div class="application dialog drpg-ui drpg-panel drpg-${kind}-dialog"><section class="window-content"><form>`
+                    + `<div class="dialog-content"><div class="drpg-call-header"><h3>R1368</h3></div></div></form></section></div>`;
+                const ink = C.winner(body.firstElementChild, "--drpg-call-ink");
+                const token = /var\((--drpg-kit-call-(?:hope|despair))\)/.exec(ink?.value ?? "")?.[1] ?? null;
+                const tokenValue = token ? C.winner(body, token)?.value ?? "" : "";
+                const stripe = C.winner(body.querySelector(".drpg-call-header"), ["border-left", "border-left-color"])?.value ?? "";
+                const title = C.winner(body.querySelector(".drpg-call-header h3"), "color")?.value ?? "";
+                return [kind, { token, ink: kind === "hope" ? /--drpg-gold\b/.test(tokenValue) && !/--drpg-blood\b/.test(tokenValue) : /--drpg-blood\b/.test(tokenValue) && !/--drpg-gold\b/.test(tokenValue),
+                    stripe: /var\(--drpg-call-ink\)/.test(stripe), title: /var\(--drpg-call-ink\)/.test(title) }];
+            }));
+            return [theme, sides];
+        }));
+        const side = kind => ({ token: `--drpg-kit-call-${kind}`, ink: true, stripe: true, title: true });
+        const want = {
+            experience: { kit: true, side: "drpg-hope-dialog", buttons: [["spend", "gm-route"], ["cancel", "cancel"]] },
+            sprint: { kit: true, side: "drpg-hope-dialog", buttons: [["spend", "primary"], ["cancel", "cancel"]] },
+            feed: { kit: true, side: "drpg-despair-dialog", buttons: [["spend", "primary"], ["cancel", "cancel"]] },
+            ...(game.user.isGM ? { approval: { kit: true, side: "drpg-hope-dialog", buttons: [["yes", "primary"], ["no", "secondary"]] } } : {}),
+            paint: { "drpg-theme-stained-glass": { hope: side("hope"), despair: side("despair") }, "drpg-theme-monokuma-legacy": { hope: side("hope"), despair: side("despair") } }
+        };
+        equal(JSON.stringify(read), JSON.stringify(want),
+            "[the confirmations of Experience (a GM rules it), Sprint and Feed the Overflow and the GM's approval: a kit window, its side, each button's action and role in the tree; per theme and side: the ink from the kit's token, gold for Hope and blood for Despair, on the header's stripe and title]");
     }],
 ];
 
