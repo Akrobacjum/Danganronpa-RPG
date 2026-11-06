@@ -31,7 +31,8 @@ import { CRISIS_ACTIONS, RESOLUTION_STRESS_COST, TIMING, INDIRECT_MURDER, ACTION
 import { SETTINGS } from "./settings.mjs";
 import { resourceValue, resourceMax, marksOf, reserveNote } from "./character.mjs";
 import { keepLive } from "./live.mjs";
-import { dialogContent, tableDialog, error, plural, esc } from "./utils.mjs";
+import { dialogContent, error, plural, esc } from "./utils.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 import { murderState, killerIds } from "./incident-store.mjs";
 import { openMurder, passTurn, endMurder, openingInvited, rollOpening } from "./murder-rules.mjs";
 
@@ -485,8 +486,13 @@ function incidentSignature(now) {
 }
 
 /** The footer, by stage: re-ask the opening roll, pass the turn, end the incident, close. */
+/*
+ * THE FOOTER BY ROLE (E21 C2a, E22; the owner's Q-E21-1 b): Pass the turn the primary and the default; the re-ask
+ * secondary; End the murder destructive - it asks first, and is never the default; Close, since the tracker answers
+ * nothing (E21 rule 3).
+ */
 function incidentButtons(state) {
-    return [
+    const list = [
         // There is no unconditional "roll the opening" button, and there must not
         // be one - the rate-limited re-ask at the end of this note is the exception.
         //
@@ -527,10 +533,14 @@ function incidentButtons(state) {
             // who had not actually walked in - and to do it twice, since the
             // watcher had usually already fired.
             { action: "pass", label: game.i18n.localize("DRPG.Murder.passTurn"), default: true }
-        ]),
-        { action: "end", label: game.i18n.localize("DRPG.Murder.endMurder") },
-        { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
+        ])
     ];
+    return {
+        primary: list.find(b => b.action === "pass") ?? null,
+        secondary: list.filter(b => b.action === "reask"),
+        destructive: [{ action: "end", label: game.i18n.localize("DRPG.Murder.endMurder") }],
+        close: { role: "close", action: "close" }
+    };
 }
 
 /** Send the opening roll again, once the cooldown allows. */
@@ -605,13 +615,15 @@ export async function openIncidentTracker() {
     const openedWith = signature();
     let settling = false;
 
-    const action = await tableDialog({
+    const action = await drpgWindow({
         // `cleanupSection()` puts a table in this window once Stage 6 has traces to
-        // list - `tableDialog` is what sizes the window to it.
-        window: { title: game.i18n.localize("DRPG.Murder.trackerTitle") },
+        // list - `fit` is what sizes the window to it.
+        title: game.i18n.localize("DRPG.Murder.trackerTitle"),
         classes: ["drpg-panel", "drpg-window-incident"],
-        content: dialogContent(trackerBody()),
-        buttons: incidentButtons(state),
+        // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
+        fit: true,
+        body: trackerBody(),
+        footer: incidentButtons(state),
         render: (event, dialog) => keepLive(dialog, {
             region: ".drpg-incident-live",
             build: trackerBody,

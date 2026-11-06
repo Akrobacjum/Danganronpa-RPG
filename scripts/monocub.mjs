@@ -49,8 +49,8 @@ import { trustedWrite } from "./resource-guard.mjs";
 import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
 import { seasonEpoch, sameSeason, deathRecord, getSetting, SETTINGS } from "./settings.mjs";
-import { resolveThreshold, dialogContent, whisperToOwner, log, warn, plural, tableDialog, isPrimaryGm, wholeNumber } from "./utils.mjs";
-import { stepper } from "./ui-kit.mjs";
+import { resolveThreshold, whisperToOwner, log, warn, plural, isPrimaryGm, wholeNumber } from "./utils.mjs";
+import { stepper, drpgWindow } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 // Confusion's window is a Call window (E51 C2): call-pickers.mjs reaches this file only through a lazy import().
 import { callWindow, callHeader } from "./call-pickers.mjs";
@@ -774,10 +774,12 @@ export async function openMonocubDialog() {
         </tr>`;
     }).join("");
 
-    const result = await tableDialog({
-        window: { title: game.i18n.localize("DRPG.Monocub.manageTitle") },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Monocub.manageTitle"),
         classes: ["drpg-panel", "drpg-window-monocubs"],
-        content: dialogContent(`<div>
+        // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
+        fit: true,
+        body: `<div>
             <p class="notes">${game.i18n.localize("DRPG.Monocub.dialogIntro")}</p>
             <table class="drpg-vault-table"><thead><tr>
                 <th>${game.i18n.localize("DRPG.Monocub.student")}</th>
@@ -787,10 +789,10 @@ export async function openMonocubDialog() {
                 <th data-tooltip="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Monocub.silencedNote"))}">${
                     game.i18n.localize("DRPG.Monocub.silenced")}</th>
             </tr></thead><tbody class="drpg-cub-live">${buildRows()}</tbody></table>
-        </div>`),
-        buttons: [
-            {
-                action: "save", label: game.i18n.localize("DRPG.Panel.apply"), default: true,
+        </div>`,
+        footer: {
+            primary: {
+                action: "save", label: game.i18n.localize("DRPG.Panel.apply"),
                 callback: (event, button, dialog) => rosterOfDead().map(actor => ({
                     id: actor.id,
                     cub: Boolean(dialog.element.querySelector(`[name="cub:${actor.id}"]`)?.checked),
@@ -798,8 +800,8 @@ export async function openMonocubDialog() {
                         dialog.element.querySelector(`[name="silenced:${actor.id}"]`)?.checked)
                 }))
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: { role: "cancel", action: "cancel" }
+        },
         // The per-row "give hope" buttons act immediately rather than waiting
         // for Apply: they spend a real Despair pool, and a GM who then cancels
         // the rest of the form should not find that donation undone with it.

@@ -5101,21 +5101,22 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
     .drpg-summary-dialog, .drpg-safeword-dialog
-):not(.drpg-wide):not(.drpg-gm-panel-window):not(.drpg-table-window) {
+):not(.drpg-wide):not(.drpg-gm-panel-window):not(.drpg-kit-fit) {
     /* `!important` because ApplicationV2 writes the width as an INLINE style,
        which no stylesheet rule can outrank otherwise - and `DialogV2.confirm`
        and `.prompt` both default to `position: {width: 400}`, so every yes/no
        window in the module came out 400px against everything else's 544.
 
-       `:not(.drpg-table-window)` IS THE WHOLE REASON TABLE WINDOWS WORK.
-       A table dialog carries `.drpg-panel` too, so without this exclusion it
+       `:not(.drpg-kit-fit)` IS THE WHOLE REASON TABLE WINDOWS WORK.
+       A table window carries `.drpg-panel` too, so without this exclusion it
        matches here - and this rule's `!important` then outranks the inline
-       width that `tableDialog()`'s measured fit writes through `setPosition`,
-       every frame, forever. That is not hypothetical: an earlier attempt at
-       this stage deleted the separate table-width rule that used to sit below
-       and win on source order, which silently handed every table window to
-       THIS rule and pinned them all at `--drpg-popup` with no way for the
-       measurement to take. The marker class is set in `tableDialog()`, so a
+       width that the measured fit writes through `setPosition`, every frame,
+       forever. That is not hypothetical: an earlier attempt at this stage
+       deleted the separate table-width rule that used to sit below and win on
+       source order, which silently handed every table window to THIS rule and
+       pinned them all at `--drpg-popup` with no way for the measurement to
+       take. The marker class is the kit's `fit` (ui-kit.mjs `drpgWindow`,
+       `fitKitWidth`; `tableDialog()`'s `drpg-table-window` until E21 C2a), so a
        window either opts into measured sizing or into this fixed width - and
        never into both. */
     width: min(var(--drpg-popup), 92vw) !important;
@@ -5128,25 +5129,21 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
     .drpg-summary-dialog, .drpg-safeword-dialog
-):not(.drpg-wide):not(.drpg-gm-panel-window):not(.drpg-table-window):not(.drpg-ui) {
+):not(.drpg-wide):not(.drpg-gm-panel-window):not(.drpg-kit-fit):not(.drpg-ui) {
     max-width: min(var(--drpg-popup), 92vw) !important;
 }
 
-/* A measured window states no width here AT ALL.
-   --------------------------------------------------------------------------
-   Everything about its size comes from `fitWindowToTable()` in utils.mjs,
-   which reads the table's real width out of the DOM and writes it as the
-   window's inline width. The only thing this file contributes is a ceiling -
-   without `!important`, so it bounds the measurement instead of replacing it,
-   and a table wider than the screen scrolls inside `.window-content`. */
-.application.dialog.drpg-table-window {
-    /* W-9: the same ceiling `windowWidthFor` reads, so the measurement and the
-       stylesheet cannot disagree about how wide a table may get. */
-    max-width: min(96vw, var(--drpg-window-max));
-}
+/* A measured window states no width here AT ALL (E21 C2a: its ceiling went with
+   `tableDialog`). Everything about its size comes from the kit's `fitKitWidth`
+   (ui-kit.mjs), which reads the table's real width out of the DOM and writes it
+   as the window's inline width, under `windowWidthFor`'s ceiling (94 % of the
+   screen and `--drpg-window-max`); the kit's frame holds it to the screen less
+   8 px a side (components.css), and a table wider than that scrolls inside the
+   kit's body. */
 
 /* A table window is MEASURED and sized in JavaScript, not here.
-   See `tableDialog()` / `fitWindowToTable()` in utils.mjs.
+   See `fitKitWidth()` in ui-kit.mjs (`tableDialog()` / `fitWindowToTable()` in
+   utils.mjs until E21 C2a).
    --------------------------------------------------------------------------
    This used to be `width: max-content !important; max-width: min(max-content,
    94vw) !important`, and both halves of that were actively breaking the thing
@@ -15945,7 +15942,7 @@ body.drpg-theme-monokuma-legacy .drpg-window-tables fieldset.drpg-tables-new > .
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
-    .drpg-summary-dialog, .drpg-safeword-dialog, .drpg-table-window
+    .drpg-summary-dialog, .drpg-safeword-dialog
 ),
 .application.drpg-messenger,
 #chat-popout {

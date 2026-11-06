@@ -33173,16 +33173,18 @@ const INVARIANTS = [
             gap: ["row-gap", "column-gap"]
         };
         const names = prop => [prop, ...(LONG[prop] ?? [])];
-        // Each window's classes as its opener asks for them (tableDialog adds `drpg-table-window`), and where its bar stands.
+        // Each window's classes as its opener asks for them, and where its bar stands. E21 C2a: Despair Flow, Sound,
+        // Investigation and Room setup are kit windows (drpgWindow adds `drpg-ui` and `drpg-panel`, `fit` adds
+        // `drpg-kit-fit`; `tableDialog` added `drpg-table-window` until then), their bars inside the kit's body.
         const WINDOWS = {
             items: { dialog: true, classes: ["drpg-panel", "drpg-window-items"] },
             give: { dialog: true, classes: ["drpg-panel", "drpg-window-give"] },
             bullet: { dialog: true, classes: ["drpg-panel", "drpg-window-bullet"] },
-            despairFlow: { dialog: true, classes: ["drpg-panel", "drpg-projects", "drpg-monokuma-panel", "drpg-assign", "drpg-window-gmteam", "drpg-table-window"] },
-            sound: { dialog: true, classes: ["drpg-panel", "drpg-projects", "drpg-wide", "drpg-sound", "drpg-window-sound", "drpg-table-window"] },
+            despairFlow: { dialog: true, classes: ["drpg-panel", "drpg-projects", "drpg-monokuma-panel", "drpg-assign", "drpg-window-gmteam", "drpg-ui", "drpg-kit-fit"], inside: "drpg-kit-body" },
+            sound: { dialog: true, classes: ["drpg-panel", "drpg-projects", "drpg-wide", "drpg-sound", "drpg-window-sound", "drpg-ui", "drpg-kit-fit"], inside: "drpg-kit-body" },
             tables: { dialog: true, classes: ["drpg-panel", "drpg-projects", "drpg-wide", "drpg-window-tables"] },
-            investigation: { dialog: true, classes: ["drpg-panel", "drpg-projects", "drpg-window-case", "drpg-table-window"], inside: "drpg-case-live" },
-            rooms: { dialog: true, classes: ["drpg-panel", "drpg-projects", "drpg-room-setup", "drpg-window-rooms", "drpg-table-window"] },
+            investigation: { dialog: true, classes: ["drpg-panel", "drpg-projects", "drpg-window-case", "drpg-ui", "drpg-kit-fit"], inside: "drpg-kit-body drpg-case-live" },
+            rooms: { dialog: true, classes: ["drpg-panel", "drpg-projects", "drpg-room-setup", "drpg-window-rooms", "drpg-ui", "drpg-kit-fit"], inside: "drpg-kit-body" },
             handbooks: { dialog: false, classes: ["drpg-panel", "drpg-handbook"], inside: "drpg-handbook-body" },
             messenger: { dialog: false, classes: ["drpg-messenger"], inside: "drpg-messenger-body" }
         };
@@ -33989,7 +33991,7 @@ const INVARIANTS = [
         }), "[each preset's description: its label, a placeholder in it, its summary line; no preset's; the field after Secret Passage, Seal "
             + "the passage, own, Repair an item, then the player's words and Breach the Wall, own, Close the breach; the input events the field heard]");
     }],
-    ["R1339 - every module window may fold, and a folded one is unfolded when it is asked for again (E44 fix FG2, 05.11.2026; the owner's Q-E44-1 and the end review's G-M1 and C-m1): utils.mjs `tableDialog` and ui-kit.mjs `drpgWindow` ask DialogV2 for `minimizable: true`, and so do the kit's question windows, `drpgConfirm` and `drpgPrompt` (E21 C1b, E21-10, E44's Open 101), room-tile.mjs's Room window is minimizable, and so are the ten standing windows a tile raises that are built on DialogV2 directly (the GM panel, Failures, Manage items, Edit campaign, the Mastermind, Season setup, Season reset, the stash inspector, Item tables, the Class Trial console); live.mjs `alreadyOpen` unfolds a folded window (`maximize`) before it raises it and raises an unfolded one alone, and messenger-app.mjs `openMessenger` does the same with a folded conversation", async () => {
+    ["R1339 - every module window may fold, and a folded one is unfolded when it is asked for again (E44 fix FG2, 05.11.2026; the owner's Q-E44-1 and the end review's G-M1 and C-m1): ui-kit.mjs `drpgWindow` asks DialogV2 for `minimizable: true` (and so did utils.mjs `tableDialog`, until E21 C2a retired it), and so do the kit's question windows, `drpgConfirm` and `drpgPrompt` (E21 C1b, E21-10, E44's Open 101), room-tile.mjs's Room window is minimizable, and so are the ten standing windows a tile raises that are built on DialogV2 directly (the GM panel, Failures, Manage items, Edit campaign, the Mastermind, Season setup, Season reset, the stash inspector, Item tables, the Class Trial console); live.mjs `alreadyOpen` unfolds a folded window (`maximize`) before it raises it and raises an unfolded one alone, and messenger-app.mjs `openMessenger` does the same with a folded conversation", async () => {
         /*
          * E44 fix FG2, 05.11.2026. C4b took no-collapse.mjs away (the owner: "Nie chcialbym blokowac zwijania okien
          * wcale"), and the module's windows built on DialogV2 still kept its default `minimizable: false`, the Room window
@@ -34000,7 +34002,6 @@ const INVARIANTS = [
          * fold and an unfold of a real window are v14's (LIVE-E44-08): the harness's ApplicationV2 has no fold.
          * Red at 3e207d79: false, unset and false, and no window unfolded.
          */
-        const U = await import("./utils.mjs");
         const K = await import("./ui-kit.mjs");
         const T = await import("./room-tile.mjs");
         const L = await import("./live.mjs");
@@ -34010,7 +34011,6 @@ const INVARIANTS = [
         const asked = [];
         D.wait = async cfg => { asked.push(cfg?.window?.minimizable ?? null); return null; };
         try {
-            await U.tableDialog({ window: { title: "R1339 table" }, content: "<p>R1339</p>", buttons: [{ action: "ok", label: "OK" }] });
             await K.drpgWindow({ title: "R1339 kit", body: "<p>R1339</p>", footer: { close: true } });
             await K.drpgConfirm({ title: "R1339 confirm", body: "<p>R1339</p>", yes: { label: "Yes" } });
             await K.drpgConfirm({ title: "R1339 destructive", body: "<p>R1339</p>", yes: { role: "destructive", label: "Wipe" } });
@@ -34064,9 +34064,9 @@ const INVARIANTS = [
             thread.element.remove();
         }
         equal(stableJson({ asked, roomFolds, windows, answers, messenger, said }), stableJson({
-            asked: [true, true, true, true, true], roomFolds: true, windows: standing.map(() => true), answers: [true, true], messenger: true,
+            asked: [true, true, true, true], roomFolds: true, windows: standing.map(() => true), answers: [true, true], messenger: true,
             said: [["r1339-folded", "unfold"], ["r1339-folded", "raise"], ["r1339-open", "raise"], ["r1339-thread", "unfold"], ["r1339-thread", "raise"]]
-        }), "[`minimizable` as tableDialog, drpgWindow, drpgConfirm (a primary yes, a destructive one) and drpgPrompt hand it to DialogV2; the Room window's; the ten standing windows' options in their source; "
+        }), "[`minimizable` as drpgWindow, drpgConfirm (a primary yes, a destructive one) and drpgPrompt hand it to DialogV2; the Room window's; the ten standing windows' options in their source; "
             + "alreadyOpen's answers for a folded and an open window; openMessenger's for a folded conversation; what each stand-in was asked, in order]");
     }],
     ["R1340 - a description past the limit is refused on every road to a project, never cut (E44 fix FG3, 05.11.2026; the end review's S-m3): projects.mjs `cleanProjectChange`, the cut every change of a project goes through - `applyProjectChange` on a GM's browser and another GM's `project.change` on the primary's (`handleProjectChange`) - answers nothing for a change whose meta holds a description longer than PROJECT_DESCRIPTION_MAX, whatever else it carries, keeps one of 1000 characters as it came, and drops a description that is not text", async () => {
@@ -34355,6 +34355,91 @@ const INVARIANTS = [
                 ["no field, 460 high", true, false, false, 0.7], ["typing, width changed", true, true, false, 0.7], ["desk again", false, false, false, 0.7]],
             schedule: true, overlay: true
         }), `[at each step (label, shortScreen, narrowScreen, keyboardUp, autoScale - ${auto} on the page as it is); whether glass.mjs's schedule asks keyboardUp; whether watchScreen asks the keyboard to overlay]`);
+    }],
+    ["R1358 - the GM's tools on the kit (E21 C2; E21-01, E21-07, E21-16, E22-01, E22-04): each window C2 moves calls ui-kit.mjs `drpgWindow` with footer slots, never `buttons`; opened on this GM (DialogV2.wait stood in for), each has a `drpg-ui` root, every footer button a role of BUTTON_ROLES, the role this test names for its action, its closing word the role's own (Close where nothing is left to answer, Cancel where a question is withdrawn) and no `drpg-gm-route` on a GM's screen; a window as wide as its table carries the kit's `fit`", async () => {
+        /*
+         * E21 C2a, 05.11.2026. C2a moves utils.mjs `tableDialog`'s fifteen windows onto the kit's frame (its measured
+         * width is the kit's `fitKitWidth` now, the class `drpg-kit-fit`) and gives each button its role by the stage's
+         * rules 3 and 4: Apply and Save the primary; Close where nothing is left to answer, Cancel where a question is
+         * withdrawn - the role's word, never the caller's label ("Not now" goes); what cannot be undone destructive,
+         * never the default (the case dashboard's Clear Faint and Sweep, the tracker's End the murder: each asks first);
+         * on a GM's screen no button is `drpg-gm-route` (D11). Read twice: each opener's source, cut with the kit
+         * (`fnSource`), calls drpgWindow with `footer`, and those that open on this GM in tier 1's world are opened with
+         * DialogV2.wait stood in for (nothing drawn, nothing written: the stand-in answers null, every opener's "closed")
+         * and their config read. The windows a tier-1 world does not open - the tracker (no incident), the Monocubs (nobody
+         * dead), the Eclipse's end (no Eclipse), the player's Sound (a GM here), the project manager (no project: it opens
+         * the creation window, C6's), the objection log (nothing presented) - are read in source alone. Red on C1's tree:
+         * no window had a `drpg-ui` root and every opener called tableDialog.
+         */
+        const K = await import("./ui-kit.mjs");
+        const sources = new Map(await moduleSources());
+        const SOURCE = [["boundary.mjs", "placementTable"], ["enforced.mjs", "openGiveBackFoundry"], ["enforced.mjs", "askHoldAgain"],
+            ["gm-students.mjs", "openWhoIsAliveDialog"], ["gm-team-dialog.mjs", "openGmTeamDialog"], ["investigation.mjs", "openInvestigationDashboard"],
+            ["look.mjs", "openLookDialog"], ["monocub.mjs", "openMonocubDialog"], ["murder-ui.mjs", "openIncidentTracker"], ["projects-ui.mjs", "openProjectManager"],
+            ["room-setup.mjs", "openRoomSetupDialog"], ["rules.mjs", "openRulesManager"], ["sound-panel.mjs", "openPlayerSoundDialog"],
+            ["sound-panel.mjs", "openSoundDialog"], ["trial.mjs", "openObjectionLog"]];
+        const source = {};
+        for (const [file, fn] of SOURCE) {
+            const body = fnSource(stripComments(sources.get(file) ?? ""), fn);
+            source[`${file} ${fn}`] = !body ? "gone" : [/\bdrpgWindow\(\{/.test(body), /\bfit: true\b/.test(body), /\bfooter\b/.test(body), /\bbuttons:\s*\[/.test(body)];
+        }
+        /* Each opener with its window's class, the role per footer action, and the actions it must show. Give back's
+           and Hold them again's windows share a class; Despair Flow's pool buttons depend on the world's accounts. */
+        const OPEN = [
+            ["./enforced.mjs", "openGiveBackFoundry", undefined, "drpg-window-give-back", { give: "secondary", hold: "secondary", close: "close" }, ["close"]],
+            ["./enforced.mjs", "offerHoldAgain", { user: game.user, givenBack: true, hold: async () => {} }, "drpg-window-give-back", { hold: "primary", close: "cancel" }, ["hold", "close"]],
+            ["./gm-students.mjs", "openWhoIsAliveDialog", undefined, "drpg-window-alive", { save: "primary", items: "secondary", cancel: "cancel" }, ["save", "items", "cancel"]],
+            ["./gm-team-dialog.mjs", "openGmTeamDialog", undefined, "drpg-window-gmteam", { save: "primary", addPool: "secondary", removePool: "secondary", auto: "secondary", cancel: "cancel" }, ["save", "cancel"]],
+            ["./investigation.mjs", "openInvestigationDashboard", undefined, "drpg-window-case",
+                { save: "primary", newTrace: "secondary", autopsy: "secondary", log: "secondary", bodyFound: "secondary", clearFaint: "destructive", sweepBullets: "destructive", close: "cancel" },
+                ["save", "newTrace", "autopsy", "log", "bodyFound", "clearFaint", "sweepBullets", "close"]],
+            ["./look.mjs", "openLookDialog", undefined, "drpg-window-look", { close: "close" }, ["close"]],
+            ["./room-setup.mjs", "openRoomSetupDialog", undefined, "drpg-window-rooms", { ok: "primary", cancel: "cancel" }, ["ok", "cancel"]],
+            ["./rules.mjs", "openRulesManager", undefined, "drpg-window-rules", { save: "primary", cancel: "cancel" }, ["save", "cancel"]],
+            ["./sound-panel.mjs", "openSoundDialog", undefined, "drpg-window-sound", { close: "close" }, ["close"]]
+        ];
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const configs = [];
+        let opener = null;
+        D.wait = async cfg => { configs.push({ opener, cfg }); return null; };
+        try {
+            for (const [file, fn, arg] of OPEN) {
+                opener = fn;
+                try { await (await import(file))[fn](arg); } catch (err) { configs.push({ opener, threw: `${fn}: ${err.message}` }); }
+            }
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        const roleOf = b => /\bdrpg-role-(primary|gm-route|close|cancel|secondary|destructive)\b/.exec(b.class ?? "")?.[1]?.replace("gm-route", "gmRoute") ?? null;
+        const words = { close: game.i18n.localize(K.BUTTON_ROLES.close.word), cancel: game.i18n.localize(K.BUTTON_ROLES.cancel.word) };
+        const read = {}, threw = configs.filter(c => c.threw).map(c => c.threw);
+        for (const { opener: fn, cfg } of configs.filter(c => !c.threw)) {
+            const [, , , cls, roles, need] = OPEN.find(o => o[1] === fn);
+            const spec = { roles, need };
+            const name = fn;
+            const problems = [];
+            if (!cfg.classes?.includes(cls)) problems.push(`not ${cls}: ${(cfg.classes ?? []).join(" ")}`);
+            if (!cfg.classes?.includes("drpg-ui")) problems.push("no drpg-ui root");
+            if (!cfg.classes?.includes(K.FIT_CLASS)) problems.push("not fit");
+            for (const b of cfg.buttons ?? []) {
+                const role = roleOf(b);
+                if (!role) problems.push(`${b.action}: no role`);
+                if (/\bdrpg-gm-route\b/.test(b.class ?? "")) problems.push(`${b.action}: drpg-gm-route on a GM's screen`);
+                if (spec && spec.roles[b.action] !== role) problems.push(`${b.action}: ${role}, not ${spec.roles[b.action] ?? "a button of this window"}`);
+                if ((role === "close" || role === "cancel") && b.label !== words[role]) problems.push(`${b.action}: "${b.label}", not the role's word`);
+                if (role === "destructive" && b.default) problems.push(`${b.action}: destructive and the default`);
+            }
+            for (const action of spec?.need ?? []) if (!(cfg.buttons ?? []).some(b => b.action === action)) problems.push(`${action}: missing`);
+            read[name] = problems;
+        }
+        must(Object.keys(read).length >= 6, `${Object.keys(read).length} window(s) opened on this GM - this would read too little (threw: ${threw.join("; ") || "none"})`);
+        equal(stableJson({ source, threw, read }), stableJson({
+            source: Object.fromEntries(SOURCE.map(([file, fn]) => [`${file} ${fn}`, [true, true, true, false]])),
+            threw: [],
+            read: Object.fromEntries(Object.keys(read).map(name => [name, []]))
+        }), "[each opener's source: drpgWindow, fit, footer, a `buttons: [` list; what an opener threw; each window opened: what is wrong with its frame and its footer]");
+        equal(stableJson(Object.keys(read).sort()), stableJson(OPEN.map(o => o[1]).sort()), "[the openers whose window opened on this GM]");
     }],
 ];
 

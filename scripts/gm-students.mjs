@@ -19,8 +19,8 @@
  */
 
 import { studentActors } from "./monokuma.mjs";
-import { dialogContent, error, plural, tableDialog, esc, wholeNumber } from "./utils.mjs";
-import { stepper } from "./ui-kit.mjs";
+import { error, plural, esc, wholeNumber } from "./utils.mjs";
+import { stepper, drpgWindow } from "./ui-kit.mjs";
 import { keepLive, alreadyOpen, handOff, RAISED } from "./live.mjs";
 import { crossingStore } from "./gm-stores.mjs";
 
@@ -307,13 +307,15 @@ export async function openWhoIsAliveDialog() {
     // it handed over (F7). Set by `wireAliveRow` through the callback below.
     let roundTrip = null;
 
-    const chosen = await tableDialog({
-        window: { title: game.i18n.localize("DRPG.Panel.whoIsAlive") },
+    const chosen = await drpgWindow({
+        title: game.i18n.localize("DRPG.Panel.whoIsAlive"),
         classes: ["drpg-panel", "drpg-projects", "drpg-window-alive"],
-        content: dialogContent(`<form>${table()}</form>`),
-        buttons: [
-            {
-                action: "save", label: game.i18n.localize("DRPG.Panel.apply"), default: true,
+        // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
+        fit: true,
+        body: `<form>${table()}</form>`,
+        footer: {
+            primary: {
+                action: "save", label: game.i18n.localize("DRPG.Panel.apply"),
                 callback: (e, b, d) => Object.fromEntries(roster().map(a => [a.id, {
                     state: d.element.querySelector(`[name="state.${a.id}"]`)?.value ?? null,
                     silenced: Boolean(d.element.querySelector(`[name="silenced:${a.id}"]`)?.checked)
@@ -329,9 +331,10 @@ export async function openWhoIsAliveDialog() {
              * nobody pre-picked. No callback, so the answer is the action's
              * own name, which is what the branch under the window reads.
              */
-            { action: "items", label: game.i18n.localize("DRPG.Items.hubButton") },
-            { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
+            secondary: [{ action: "items", label: game.i18n.localize("DRPG.Items.hubButton") }],
+            // Apply is still to answer: Cancel (E21 rule 3), the answer "cancel" as before.
+            close: { role: "cancel", action: "cancel" }
+        },
         render: (event, dialog) => {
             const wireAll = () => wireAliveTable(dialog, {
                 openDeathDialog, setMonocub, onHandOff: trip => { roundTrip = trip; }

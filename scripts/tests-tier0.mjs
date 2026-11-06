@@ -3585,7 +3585,8 @@ const REGRESSIONS = [
         ok(!/dialog\.close\(\)/.test(row),
             "a row button still closes the window itself, so the close resolves the opener");
 
-        const tail = bodyOf(panel, "const chosen = await tableDialog");
+        // E21 C2a: the window is drawn by the kit (`drpgWindow`), `tableDialog` until then.
+        const tail = bodyOf(panel, "const chosen = await drpgWindow");
         ok(tail.indexOf("if (roundTrip) return roundTrip;") > 0,
             "the round trip is not returned, so the GM panel reopens itself over it");
         ok(tail.indexOf("if (roundTrip)") < tail.indexOf('chosen === "items"'),
@@ -3624,7 +3625,7 @@ const REGRESSIONS = [
             "the repair dropdown runs the whole death procedure again (F16)");
 
         // The whole opener, not its head: `keepLive` is an argument to the
-        // `tableDialog` call, so a slice that stops at that call cannot see the watch.
+        // `drpgWindow` call (`tableDialog`'s until E21 C2a), so a slice that stops at that call cannot see the watch.
         const window = bodyOf(panel, "async function openWhoIsAliveDialog", { until: "export async function applyAliveStates" });
         ok(/const buildDonors = \(\) =>/.test(window),
             "the donation controls are built from a string read once");
@@ -20450,6 +20451,51 @@ const REGRESSIONS = [
         }), JSON.stringify({ sizes: [], controls: [], pages: [], probe: [], harness: [], manifest: [], tabbed: [], sheetBox: "function" }),
         "[the sizes FIT_SIZES and FIT_PHONE miss; the controls the sweep does not name; the pages and A8 readers it does not name; what probe 08 does not name; what the style harness does not hold; "
             + "the windows the manifest has no row for; the tabbed windows with no tab kept beside the first; settings.mjs sheetBox's type]");
+    }],
+    ["R1357 - the old frame is gone (E21 C2a; E21-08): no `tableDialog`, `fitWindowToTabs`, `fitWindowToTable` or `pinFooterAcrossScroll` in the module's scripts, no rule of its sheets names `.drpg-table-window`, and no rule naming a window moved onto the kit's frame (MOVED, which each group of E21 extends) frames it - its height, overflow or position, or its footer's place and layout", async () => {
+        /*
+         * E21 C2a, 05.11.2026. A window E21 moves onto the kit's frame (ui-kit.mjs `drpgWindow`: `drpg-ui` on the root,
+         * the screen's height, one body that scrolls, the footer by roles) loses the frame it had: utils.mjs `tableDialog`
+         * with its measure (`fitWindowToTable`, `fitWindowToTabs` - the width is the kit's `fitKitWidth` now) and its
+         * footer pin (`pinFooterAcrossScroll`), the `.drpg-table-window` rules, and each moved window's own rules that
+         * state its height, overflow or position or place its footer (the stage's rule 2, E44's rule 4). A rule that
+         * styles a moved window's content - a colour, a field's width, a button's face - stays. Read: every module file but
+         * the suite's (comments and strings blanked, so a note that names the old frame is not a use), and every rule of
+         * module.json's sheets, comments removed, inner rules of `@media` and `@container` among them. Red on C1's tree:
+         * the four functions in utils.mjs and their eleven callers' files, and the three `.drpg-table-window` rules.
+         */
+        const OLD = ["tableDialog", "fitWindowToTabs", "fitWindowToTable", "pinFooterAcrossScroll"];
+        // C2a: tableDialog's fifteen callers (boundary's Eclipse end, Give back, the Students window, Despair Flow, the case
+        // dashboard, Look, the Monocubs, the incident tracker, the project manager, Room setup, the rules, Sound, the log).
+        const MOVED = ["eclipse-end", "give-back", "alive", "gmteam", "case", "look", "monocubs", "incident", "projects", "rooms", "rules", "sound", "objections"]
+            .map(name => `drpg-window-${name}`);
+        const FRAME = /^(?:max-height|min-height|height|overflow(?:-[xy])?|position|top|bottom|inset)$/;
+        const FOOT = /^(?:display|order|flex(?:-[\w-]+)?|justify-content|align-items|position|width|max-width|margin(?:-[\w-]+)?|padding(?:-[\w-]+)?|bottom|left|right)$/;
+        const found = [];
+        let files = 0, rules = 0;
+        for (const [file, text] of await otherSources()) {
+            files++;
+            const blank = blankLiterals(blankComments(text));
+            for (const name of OLD) if (new RegExp(`\\b${name}\\b`).test(blank)) found.push(`${file}: ${name}`);
+        }
+        for (const m of (await moduleStyles()).matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+            const selector = m[1].trim();
+            if (!selector || selector.startsWith("@")) continue;
+            rules++;
+            const props = m[2].split(";").map(d => d.split(":")[0].trim().toLowerCase()).filter(Boolean);
+            const parts = selector.split(/,(?![^(]*\))/).map(s => s.trim());
+            for (const part of parts) {
+                if (/\.drpg-table-window(?![\w-])/.test(part)) found.push(`a rule names .drpg-table-window: ${part}`);
+                for (const cls of MOVED) {
+                    if (!new RegExp(`\\.${cls}(?![\\w-])`).test(part)) continue;
+                    const footer = /\bfooter\b|form-footer/.test(part);
+                    const framing = props.filter(p => FRAME.test(p) || (footer && FOOT.test(p)));
+                    if (framing.length) found.push(`${cls}: ${part} { ${framing.join(", ")} }`);
+                }
+            }
+        }
+        must(files > 150 && rules > 2000, `${files} file(s) and ${rules} rule(s) read - this would measure too little`);
+        equal(JSON.stringify(found), "[]", "[the old frame's functions in a module file, the rules naming .drpg-table-window, and the rules that still frame a moved window]");
     }],
 ];
 

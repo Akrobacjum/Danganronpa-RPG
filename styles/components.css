@@ -161,8 +161,12 @@ body.drpg-theme-stained-glass {
    `calc(100vh - 24px)` and `calc(100vh - 80px)`), which this sheet follows. The width is the window's own (Foundry's
    inline width; a DialogV2's still the module's popup widths, `!important` in danganronpa.css and stained-glass.css,
    until its window moves), never past the screen less 8 px a side (E21 C1b, E44's Open 19: the two popup rules that
-   name no window, only `.drpg-panel` among others, take a kit window out of their `max-width`). ---- */
+   name no window, only `.drpg-panel` among others, take a kit window out of their `max-width`). The caps hold the
+   border box (E21 C2a): a DialogV2 of the module carries the dialog's padding and border (16 px and 1 px a side under
+   the glass), and with the content box capped Room setup stood 786 px tall on a 768 px screen, its footer cut (the fit
+   sweep, 05.11.2026). ---- */
 body .application.drpg-ui.drpg-panel:not(.minimized) {
+    box-sizing: border-box;
     max-height: calc(100dvh - 16px);
     max-width: calc(100vw - 16px);
     display: flex;

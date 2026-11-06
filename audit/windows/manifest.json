@@ -14,7 +14,8 @@
         "drpg-projects",
         "drpg-room-setup",
         "drpg-window-rooms",
-        "drpg-table-window"
+        "drpg-ui",
+        "drpg-kit-fit"
       ],
       "tag": "dialog",
       "width": 400,
@@ -45,7 +46,8 @@
         "drpg-projects",
         "drpg-room-setup",
         "drpg-window-rooms",
-        "drpg-table-window"
+        "drpg-ui",
+        "drpg-kit-fit"
       ],
       "tag": "dialog",
       "width": 400,
@@ -76,7 +78,8 @@
         "drpg-projects",
         "drpg-room-setup",
         "drpg-window-rooms",
-        "drpg-table-window"
+        "drpg-ui",
+        "drpg-kit-fit"
       ],
       "tag": "dialog",
       "width": 400,
@@ -107,7 +110,8 @@
         "drpg-projects",
         "drpg-room-setup",
         "drpg-window-rooms",
-        "drpg-table-window"
+        "drpg-ui",
+        "drpg-kit-fit"
       ],
       "tag": "dialog",
       "width": 400,
@@ -138,7 +142,8 @@
         "drpg-projects",
         "drpg-room-setup",
         "drpg-window-rooms",
-        "drpg-table-window"
+        "drpg-ui",
+        "drpg-kit-fit"
       ],
       "tag": "dialog",
       "width": 400,
@@ -169,7 +174,8 @@
         "drpg-projects",
         "drpg-room-setup",
         "drpg-window-rooms",
-        "drpg-table-window"
+        "drpg-ui",
+        "drpg-kit-fit"
       ],
       "tag": "dialog",
       "width": 400,
@@ -200,7 +206,8 @@
         "drpg-projects",
         "drpg-room-setup",
         "drpg-window-rooms",
-        "drpg-table-window"
+        "drpg-ui",
+        "drpg-kit-fit"
       ],
       "tag": "dialog",
       "width": 400,
@@ -231,7 +238,8 @@
         "drpg-projects",
         "drpg-room-setup",
         "drpg-window-rooms",
-        "drpg-table-window"
+        "drpg-ui",
+        "drpg-kit-fit"
       ],
       "tag": "dialog",
       "width": 400,
@@ -262,7 +270,8 @@
         "drpg-projects",
         "drpg-room-setup",
         "drpg-window-rooms",
-        "drpg-table-window"
+        "drpg-ui",
+        "drpg-kit-fit"
       ],
       "tag": "dialog",
       "width": 400,
@@ -294,7 +303,8 @@
         "drpg-wide",
         "drpg-sound",
         "drpg-window-sound",
-        "drpg-table-window"
+        "drpg-ui",
+        "drpg-kit-fit"
       ],
       "tag": "dialog",
       "width": 400,
@@ -323,7 +333,8 @@
         "drpg-wide",
         "drpg-sound",
         "drpg-window-sound",
-        "drpg-table-window"
+        "drpg-ui",
+        "drpg-kit-fit"
       ],
       "tag": "dialog",
       "width": 400,
@@ -352,7 +363,8 @@
         "drpg-wide",
         "drpg-sound",
         "drpg-window-sound",
-        "drpg-table-window"
+        "drpg-ui",
+        "drpg-kit-fit"
       ],
       "tag": "dialog",
       "width": 400,
@@ -379,7 +391,8 @@
         "drpg-monokuma-panel",
         "drpg-assign",
         "drpg-window-gmteam",
-        "drpg-table-window"
+        "drpg-ui",
+        "drpg-kit-fit"
       ],
       "tag": "dialog",
       "width": 400,
@@ -390,13 +403,13 @@
           "default": true
         },
         {
-          "action": "auto",
-          "label": "Split evenly",
+          "action": "cancel",
+          "label": "Cancel",
           "default": false
         },
         {
-          "action": "cancel",
-          "label": "Close",
+          "action": "auto",
+          "label": "Split evenly",
           "default": false
         }
       ],
@@ -418,7 +431,8 @@
         "drpg-monokuma-panel",
         "drpg-assign",
         "drpg-window-gmteam",
-        "drpg-table-window"
+        "drpg-ui",
+        "drpg-kit-fit"
       ],
       "tag": "dialog",
       "width": 400,
@@ -430,7 +444,7 @@
         },
         {
           "action": "cancel",
-          "label": "Close",
+          "label": "Cancel",
           "default": false
         }
       ],
@@ -452,7 +466,8 @@
         "drpg-monokuma-panel",
         "drpg-assign",
         "drpg-window-gmteam",
-        "drpg-table-window"
+        "drpg-ui",
+        "drpg-kit-fit"
       ],
       "tag": "dialog",
       "width": 400,
@@ -463,13 +478,13 @@
           "default": true
         },
         {
-          "action": "auto",
-          "label": "Split evenly",
+          "action": "cancel",
+          "label": "Cancel",
           "default": false
         },
         {
-          "action": "cancel",
-          "label": "Close",
+          "action": "auto",
+          "label": "Split evenly",
           "default": false
         }
       ],
@@ -491,7 +506,8 @@
         "drpg-monokuma-panel",
         "drpg-assign",
         "drpg-window-gmteam",
-        "drpg-table-window"
+        "drpg-ui",
+        "drpg-kit-fit"
       ],
       "tag": "dialog",
       "width": 400,
@@ -503,7 +519,7 @@
         },
         {
           "action": "cancel",
-          "label": "Close",
+          "label": "Cancel",
           "default": false
         }
       ],
@@ -578,7 +594,8 @@
         "drpg-panel",
         "drpg-projects",
         "drpg-window-case",
-        "drpg-table-window"
+        "drpg-ui",
+        "drpg-kit-fit"
       ],
       "tag": "dialog",
       "width": 400,
@@ -589,18 +606,13 @@
           "default": true
         },
         {
+          "action": "close",
+          "label": "Cancel",
+          "default": false
+        },
+        {
           "action": "newTrace",
           "label": "New Remnant",
-          "default": false
-        },
-        {
-          "action": "clearFaint",
-          "label": "Clear Faint Remnants",
-          "default": false
-        },
-        {
-          "action": "sweepBullets",
-          "label": "Sweep Truth Bullets",
           "default": false
         },
         {
@@ -619,8 +631,13 @@
           "default": false
         },
         {
-          "action": "close",
-          "label": "Close",
+          "action": "clearFaint",
+          "label": "Clear Faint Remnants",
+          "default": false
+        },
+        {
+          "action": "sweepBullets",
+          "label": "Sweep Truth Bullets",
           "default": false
         }
       ],
@@ -640,7 +657,8 @@
         "drpg-panel",
         "drpg-projects",
         "drpg-window-case",
-        "drpg-table-window"
+        "drpg-ui",
+        "drpg-kit-fit"
       ],
       "tag": "dialog",
       "width": 400,
@@ -651,18 +669,13 @@
           "default": true
         },
         {
+          "action": "close",
+          "label": "Cancel",
+          "default": false
+        },
+        {
           "action": "newTrace",
           "label": "New Remnant",
-          "default": false
-        },
-        {
-          "action": "clearFaint",
-          "label": "Clear Faint Remnants",
-          "default": false
-        },
-        {
-          "action": "sweepBullets",
-          "label": "Sweep Truth Bullets",
           "default": false
         },
         {
@@ -681,8 +694,13 @@
           "default": false
         },
         {
-          "action": "close",
-          "label": "Close",
+          "action": "clearFaint",
+          "label": "Clear Faint Remnants",
+          "default": false
+        },
+        {
+          "action": "sweepBullets",
+          "label": "Sweep Truth Bullets",
           "default": false
         }
       ],
@@ -702,7 +720,8 @@
         "drpg-panel",
         "drpg-projects",
         "drpg-window-case",
-        "drpg-table-window"
+        "drpg-ui",
+        "drpg-kit-fit"
       ],
       "tag": "dialog",
       "width": 400,
@@ -713,18 +732,13 @@
           "default": true
         },
         {
+          "action": "close",
+          "label": "Cancel",
+          "default": false
+        },
+        {
           "action": "newTrace",
           "label": "New Remnant",
-          "default": false
-        },
-        {
-          "action": "clearFaint",
-          "label": "Clear Faint Remnants",
-          "default": false
-        },
-        {
-          "action": "sweepBullets",
-          "label": "Sweep Truth Bullets",
           "default": false
         },
         {
@@ -743,8 +757,13 @@
           "default": false
         },
         {
-          "action": "close",
-          "label": "Close",
+          "action": "clearFaint",
+          "label": "Clear Faint Remnants",
+          "default": false
+        },
+        {
+          "action": "sweepBullets",
+          "label": "Sweep Truth Bullets",
           "default": false
         }
       ],
@@ -1085,7 +1104,8 @@
         "drpg-sound",
         "drpg-sound-player",
         "drpg-window-look",
-        "drpg-table-window"
+        "drpg-ui",
+        "drpg-kit-fit"
       ],
       "tag": "dialog",
       "width": 560,
@@ -1093,7 +1113,7 @@
         {
           "action": "close",
           "label": "Close",
-          "default": false
+          "default": true
         }
       ],
       "file": "look-gm.html"
@@ -1164,7 +1184,8 @@
         "drpg-sound",
         "drpg-sound-player",
         "drpg-window-sound",
-        "drpg-table-window"
+        "drpg-ui",
+        "drpg-kit-fit"
       ],
       "tag": "dialog",
       "width": 460,
@@ -1172,7 +1193,7 @@
         {
           "action": "close",
           "label": "Close",
-          "default": false
+          "default": true
         }
       ],
       "file": "sound-player.html"
@@ -1191,7 +1212,8 @@
         "drpg-sound",
         "drpg-sound-player",
         "drpg-window-look",
-        "drpg-table-window"
+        "drpg-ui",
+        "drpg-kit-fit"
       ],
       "tag": "dialog",
       "width": 560,
@@ -1199,7 +1221,7 @@
         {
           "action": "close",
           "label": "Close",
-          "default": false
+          "default": true
         }
       ],
       "file": "look-player.html"

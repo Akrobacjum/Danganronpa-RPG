@@ -226,14 +226,17 @@ export async function lookFormHtml() {
  */
 export async function openLookDialog() {
     if (alreadyOpen("drpg-window-look")) return RAISED;
-    const { dialogContent, tableDialog } = await import("./utils.mjs");
+    const { drpgWindow } = await import("./ui-kit.mjs");
     const { wireSoundPanel } = await import("./sfx.mjs");
-    return tableDialog({
-        window: { title: game.i18n.localize("DRPG.Look.title") },
+    return drpgWindow({
+        title: game.i18n.localize("DRPG.Look.title"),
         classes: ["drpg-panel", "drpg-projects", "drpg-sound", "drpg-sound-player", "drpg-window-look"],
+        // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
+        fit: true,
         position: { width: 560 },
-        content: dialogContent(await lookFormHtml()),
-        buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close") }],
+        body: await lookFormHtml(),
+        // Every control saves as it is touched: Close (E21 rule 3).
+        footer: { close: { role: "close", action: "close" } },
         render: (event, dialog) => {
             wireSoundPanel(dialog.element);
             wireLook(dialog.element);

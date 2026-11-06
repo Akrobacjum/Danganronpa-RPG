@@ -71756,7 +71756,8 @@ const SCENARIOS = [
             await settle();
         }
         equal(stableJson(read), stableJson({
-            footer: { pools: ["save", "cancel"], students: ["save", "auto", "cancel"] },
+            // In the kit's tree order since E21 C2a: the primary, then the closing word, then the secondary ones (ui-kit.mjs).
+            footer: { pools: ["save", "cancel"], students: ["save", "cancel", "auto"] },
             account: game.i18n.localize("DRPG.Despair.account"),
             notMonokuma: [false, true],
             rows: [[false, label], [false, game.i18n.localize("DRPG.Assign.nobody")], [true, game.i18n.format("DRPG.Assign.fallbackOption", { name: label })]],
@@ -78332,7 +78333,8 @@ const SCENARIOS = [
                     if (go?.dataset?.drpgRun === "eclipse") go.click(); else panels++;
                     return null;
                 }
-                if (config?.classes?.includes?.("drpg-table-window")) {
+                // The Eclipse's end with somebody who has not crossed (boundary.mjs `placementTable`; its class since E21 C2a).
+                if (config?.classes?.includes?.("drpg-window-eclipse-end")) {
                     tables.push(config);
                     return "endOnly";
                 }
@@ -78374,7 +78376,8 @@ const SCENARIOS = [
                 await settle();
                 const table = tables[t] ?? null;
                 const holder = document.createElement("div");
-                holder.innerHTML = table ? String(table.content ?? "") : "";
+                // An element since E21 C2a (drpgWindow hands DialogV2 its body as `dialogContent`'s div), a string before.
+                holder.innerHTML = !table ? "" : table.content instanceof HTMLElement ? table.content.innerHTML : String(table.content ?? "");
                 r.short = [table ? holder.querySelector("p")?.textContent?.trim() === game.i18n.localize("DRPG.Eclipse.endPrompt") : null,
                     table ? [...holder.querySelectorAll("tbody tr")].filter(tr => /opacity/.test(tr.getAttribute("style") ?? ""))
                         .map(tr => tr.querySelector("td")?.textContent?.trim() ?? null) : null,
@@ -82535,7 +82538,11 @@ const SCENARIOS = [
             wireCallActions(body, card);
             body.querySelector('[data-drpg-call="approveProject"]')?.click();
             const madeOf = () => P.allProjects().find(p => !before.has(p.id)) ?? null;
-            await until(() => Boolean(madeOf()), 8000);
+            /* The countdown and its meta are two writes of one step (projects.mjs `createInStep`: the countdowns, then
+               `setProjectMeta`), so a project can be listed before its words are (E21 C2a, 06.11.2026: in quick's own
+               list, 2 runs of 3 read "" here; alone, 3 of 3 green). Waited for to the same bound: a description lost
+               still reads "" when it runs out. */
+            await until(() => Boolean(madeOf()?.description), 8000);
             const project = madeOf();
             must(project, "the approval made no project - this would measure nothing");
             made = project.id;

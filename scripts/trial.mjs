@@ -49,8 +49,9 @@ import { getClock } from "./clock.mjs";
 import { SETTINGS, isMutedDead } from "./settings.mjs";
 import { truthBulletData, isTruthBullet, bulletDescription, bulletAsHeld, unanalysedType, secretOf } from "./truth-bullets.mjs";
 import { showPopup, OVERRULED_FLAG, overruledStamp } from "./popup.mjs";
-import { announce, dialogContent, isPrimaryGm, log, error, tableDialog,
+import { announce, dialogContent, isPrimaryGm, log, error,
     whisperToOwner, serialWrite, serverNow, esc, localeFormat, plural } from "./utils.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 // The price of an interruption, quoted where it is about to be shown (T-1).
 import { quotePrice, priceLine, payPrice, refundPrice, paidLine, priceLabel } from "./price.mjs";
 // The question alone, with no toast: this decides a button, and a window that
@@ -1650,11 +1651,14 @@ export async function openObjectionLog() {
         </div>`;
     };
 
-    return tableDialog({
-        window: { title: game.i18n.localize("DRPG.Trial.logTitle") },
+    return drpgWindow({
+        title: game.i18n.localize("DRPG.Trial.logTitle"),
         classes: ["drpg-panel", "drpg-window-objections"],
-        content: dialogContent(logBody()),
-        buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true }],
+        // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
+        fit: true,
+        body: logBody(),
+        // A read-out: Close (E21 rule 3).
+        footer: { close: { role: "close", action: "close" } },
         render: (event, dialog) => {
             // By delegation on the window: the region is rebuilt whenever the record or a card changes.
             dialog.element?.addEventListener("click", ev => {

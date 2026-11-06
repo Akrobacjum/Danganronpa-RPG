@@ -19,7 +19,8 @@
 import { MODULE_ID, MOTIVE } from "./config.mjs";
 import { SETTINGS, seasonEpoch, sameSeason } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
-import { announce, dialogContent, log, error, plural, tableDialog, esc} from "./utils.mjs";
+import { announce, log, error, plural, esc} from "./utils.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
@@ -485,10 +486,12 @@ export async function openRulesManager() {
             </td>
         </tr>`).join("");
 
-    const result = await tableDialog({
-        window: { title: game.i18n.localize("DRPG.Rules.manageTitle") },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Rules.manageTitle"),
         classes: ["drpg-panel", "drpg-projects", "drpg-window-rules"],
-        content: dialogContent(`<form>
+        // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
+        fit: true,
+        body: `<form>
             ${motiveSection()}
             <hr />
             <p>${game.i18n.localize("DRPG.Rules.manageIntro")}</p>
@@ -505,10 +508,10 @@ export async function openRulesManager() {
             <p class="notes">${game.i18n.localize("DRPG.Rules.manageNote")}</p>
             <label class="drpg-checkbox"><input type="checkbox" name="announce" checked />
                 ${game.i18n.localize("DRPG.Rules.announce")}</label>
-        </form>`),
-        buttons: [
-            {
-                action: "save", label: game.i18n.localize("DRPG.Assign.save"), default: true,
+        </form>`,
+        footer: {
+            primary: {
+                action: "save", label: game.i18n.localize("DRPG.Assign.save"),
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
                     return {
@@ -523,8 +526,9 @@ export async function openRulesManager() {
                     };
                 }
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
+            // Save still to answer: Cancel (E21 rule 3), the answer "cancel" as before.
+            close: { role: "cancel", action: "cancel" }
+        },
         render: (_event, dialog) => { wireMotiveWithdraw(dialog?.element); },
         rejectClose: false
     });

@@ -25,8 +25,8 @@ import {
 } from "./despair.mjs";
 import { isMonokuma, setMonokuma, poolFor, setPools, studentCensus } from "./monokuma.mjs";
 import { students, assignments, monokumaFor, setAssignments, autoAssign, NO_MONOKUMA } from "./assignments.mjs";
-import { dialogContent, error, tableDialog } from "./utils.mjs";
-import { kitTabs, wireKitTabs } from "./ui-kit.mjs";
+import { dialogContent, error } from "./utils.mjs";
+import { kitTabs, wireKitTabs, drpgWindow } from "./ui-kit.mjs";
 import { setOverflowRules, overflowSection, overflowNowLine, readOverflowForm, overflowStatus, clearOverflowAsGm, overflowSuggestionLine } from "./overflow.mjs";
 import { alreadyOpen, keepFresh, reopen, RAISED } from "./live.mjs";
 import { SETTINGS } from "./settings.mjs";
@@ -152,26 +152,26 @@ export async function clearOverflowFromTab() {
 }
 
 /**
- * Save, the pool add and remove (when there is somebody to add or remove), split
- * evenly, close. Add, Revoke and Split evenly bring the form's draft with their
- * answer, because each of them reopens the window (TEAM-01, `readTeamDraft`).
+ * The footer by role (ui-kit.mjs `footerButtons`, E21 C2a): Save the primary; the pool add and remove (when there is
+ * somebody to add or remove) and Split evenly secondary - the remove asks first (`confirmRemovePool`), its question's
+ * yes is what cannot be undone; Cancel, since Save is still to answer (E21 rule 3), its answer "cancel" as before.
+ * Add, Revoke and Split evenly bring the form's draft with their answer, because each of them reopens the window
+ * (TEAM-01, `readTeamDraft`).
  */
 function gmTeamButtons({ gms, actors, roster, candidates, removable }) {
-    const buttons = [
-        {
+    const secondary = [];
+    const primary = {
             action: "save",
             label: game.i18n.localize("DRPG.Assign.save"),
-            default: true,
             callback: (event, button, dialog) => ({
                 pools: readPoolNameForm(dialog, gms),
                 monokumas: readMonokumaForm(dialog, actors),
                 assignments: roster.length ? readAssignmentForm(dialog, roster) : null,
                 overflow: readOverflowForm(dialog.element)
             })
-        }
-    ];
+    };
     if (candidates.length) {
-        buttons.push({
+        secondary.push({
             action: "addPool",
             label: game.i18n.localize("DRPG.Despair.addPool"),
             callback: (event, button, dialog) => ({
@@ -182,7 +182,7 @@ function gmTeamButtons({ gms, actors, roster, candidates, removable }) {
         });
     }
     if (removable.length) {
-        buttons.push({
+        secondary.push({
             action: "removePool",
             label: game.i18n.localize("DRPG.Despair.removePool"),
             callback: (event, button, dialog) => ({
@@ -193,7 +193,7 @@ function gmTeamButtons({ gms, actors, roster, candidates, removable }) {
         });
     }
     if (roster.length) {
-        buttons.push({
+        secondary.push({
             action: "auto",
             label: game.i18n.localize("DRPG.Assign.splitEvenly"),
             // A callback of its own, only so the form comes back with the answer
@@ -204,8 +204,7 @@ function gmTeamButtons({ gms, actors, roster, candidates, removable }) {
             })
         });
     }
-    buttons.push({ action: "cancel", label: game.i18n.localize("DRPG.Panel.close") });
-    return buttons;
+    return { primary, secondary, close: { role: "cancel", action: "cancel" } };
 }
 
 /** The footer buttons each tab shows beside Save and Close (ui-kit.mjs `wireKitTabs`). */
@@ -286,24 +285,27 @@ export async function openGmTeamDialog({ draft = null } = {}) {
     const extraIds = new Set(extraPoolUserIds());
     const removable = gms.filter(u => extraIds.has(u.id));
 
-    const buttons = gmTeamButtons({ gms, actors, roster, candidates, removable });
+    const footer = gmTeamButtons({ gms, actors, roster, candidates, removable });
 
-    const result = await tableDialog({
-        window: { title: game.i18n.localize("DRPG.Panel.despairFlow") },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Panel.despairFlow"),
         // `drpg-assign` was missing, and with it five stylesheet rules written
         // for exactly this window: the counts box, the asterisk marking an
         // implicit assignment, the dimming of an excluded row, the empty-state
         // line and the table's own spacing. All of them keyed off a class no
         // dialog carried, so this screen has been rendering unstyled.
         classes: ["drpg-panel", "drpg-projects", "drpg-monokuma-panel", "drpg-assign", "drpg-window-gmteam"],
-        content: buildContent(actors, gms, roster, candidates, removable),
-        buttons,
+        // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
+        fit: true,
+        body: buildContent(actors, gms, roster, candidates, removable).innerHTML,
+        footer,
         render: (event, dialog) => {
             /* A FOOTER PER TAB (E15 C6, 25.10.2026; audit S13-11, S10-62). Split evenly divides the
                students between the pools and stood in the footer of every tab, the pools' names among
                them, where a GM new to the window could not tell what it would divide; Add and Remove
                pool are the pools' tab's. Save and Close stay on every tab: one Save reads all four. */
-            wireKitTabs(dialog.element, { buttons: TAB_BUTTONS, always: ["save", "cancel"] });
+            // `win` and `app`: the bar may widen the window, and a press puts it back on the screen (E21 C1b).
+            wireKitTabs(dialog.element, { buttons: TAB_BUTTONS, always: ["save", "cancel"], win: dialog.element, app: dialog });
             // Anything typed in the copy that closed to add, revoke or re-divide a
             // pool (TEAM-01). After the tabs, so the panes exist to be painted.
             paintTeamDraft(dialog.element, draft);

@@ -70,7 +70,8 @@ import { SETTINGS } from "./settings.mjs";
 import { getClock, timeOfDayLabel, boundaryStamp, advanceTimeOfDay } from "./clock.mjs";
 import { isEclipse, incomingTimeOfDay, startEclipse, endEclipse, startRefusal, placementStatus, eclipseLabel } from "./eclipse.mjs";
 import { actingStudents } from "./monokuma.mjs";
-import { tableDialog, dialogContent, serialWrite, isPrimaryGm, serverNow, listOf, plural, esc, error, debug } from "./utils.mjs";
+import { dialogContent, serialWrite, isPrimaryGm, serverNow, listOf, plural, esc, error, debug } from "./utils.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 import { showPopup } from "./popup.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
@@ -189,20 +190,23 @@ function placementTable(rows) {
             }</td>
         </tr>`).join("");
 
-    return tableDialog({
-        window: { title: eclipseLabel() },
-        classes: ["drpg-panel"],
-        content: `<p>${game.i18n.localize("DRPG.Eclipse.endPrompt")}</p>
+    return drpgWindow({
+        title: eclipseLabel(),
+        classes: ["drpg-panel", "drpg-window-eclipse-end"],
+        // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
+        fit: true,
+        body: `<p>${game.i18n.localize("DRPG.Eclipse.endPrompt")}</p>
             <table><thead><tr>
                 <th>${game.i18n.localize("DRPG.Panel.character")}</th>
                 <th>${game.i18n.localize("DRPG.Project.room")}</th>
                 <th>${game.i18n.localize("DRPG.Eclipse.movesColumn")}</th>
             </tr></thead><tbody>${body}</tbody></table>`,
-        buttons: [
-            { action: "end", label: game.i18n.localize("DRPG.Eclipse.endAndAdvance"), default: true },
-            { action: "endOnly", label: game.i18n.localize("DRPG.Eclipse.endOnly") },
-            { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
+        // A question withdrawn: Cancel (E21 rule 3), the answer it was "cancel" before.
+        footer: {
+            primary: { action: "end", label: game.i18n.localize("DRPG.Eclipse.endAndAdvance") },
+            secondary: [{ action: "endOnly", label: game.i18n.localize("DRPG.Eclipse.endOnly") }],
+            close: { role: "cancel", action: "cancel" }
+        },
         rejectClose: false
     });
 }

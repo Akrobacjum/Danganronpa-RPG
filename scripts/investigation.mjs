@@ -37,9 +37,9 @@ import { bulletsOf, isTruthBullet, secretOf, truthBulletData } from "./truth-bul
 import { studentActors } from "./monokuma.mjs";
 import { livingStudentsForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs";
 import {
-    dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
+    dialogContent, plural, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
     workingScene, esc, placeRoomOptions, listOf, error } from "./utils.mjs";
-import { kitTabs, wireKitTabs, emptyOption } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, emptyOption, drpgWindow } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, RAISED } from "./live.mjs";
 import { keyPlanStore, remnantStore } from "./gm-stores.mjs";
 import { murderState } from "./incident-store.mjs";
@@ -2307,7 +2307,8 @@ function wireCase(dialog) {
     const root = dialog.element;
     wirePortraitPickers(root, { defaultImg: ICON });
 
-    wireKitTabs(root);
+    // `win` and `app` (E21 C2a): the bar may widen the window, and a press puts it back on the screen (C1b).
+    wireKitTabs(root, { win: root, app: dialog });
 
     // A Key row's Place button (E09 C16). Bound on the nodes, which a redraw replaces.
     for (const button of root.querySelectorAll("[data-drpg-key-place]")) {
@@ -2507,27 +2508,31 @@ export async function openInvestigationDashboard({ said = null } = {}) {
     const buildCase = () => caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter });
 
     // What the button that reopened this window did (`runDashboardButton`), over the live region, which a redraw rebuilds.
-    const content = dialogContent(`${said ? `<p class="drpg-case-result notes" role="status">${esc(said)}</p>` : ""}${buildCase()}`);
+    const body = `${said ? `<p class="drpg-case-result notes" role="status">${esc(said)}</p>` : ""}${buildCase()}`;
 
-    const action = await tableDialog({
-        window: { title: game.i18n.localize("DRPG.Investigation.dashboardTitle") },
+    /* THE FOOTER BY ROLE (E21 C2a, E22): Save the primary; the views and the body secondary; Clear Faint and Sweep,
+       which take what cannot be put back, destructive - each asks first (`confirmClearFaint`, `confirmSweepBullets`)
+       and is never the default; Cancel, since Save is still to answer (E21 rule 3), its answer "close" as before. */
+    const action = await drpgWindow({
+        title: game.i18n.localize("DRPG.Investigation.dashboardTitle"),
         classes: ["drpg-panel", "drpg-projects", "drpg-window-case"],
-        content,
-        buttons: [
-            {
-                action: "save", label: game.i18n.localize("DRPG.Assign.save"), default: true,
+        // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
+        fit: true,
+        body,
+        footer: {
+            primary: {
+                action: "save", label: game.i18n.localize("DRPG.Assign.save"),
                 callback: (e, b, d) => readDashboardForm(d)
             },
+            secondary: [
             // N-4: the one road to a trace the GM is simply stating exists. Beside
             // the sweeps rather than on a tab, because it is an action rather than a
             // view - the same place "clear the Faint traces" lives.
             { action: "newTrace", label: game.i18n.localize("DRPG.Investigation.newTraceTitle") },
-            { action: "clearFaint", label: game.i18n.localize("DRPG.Panel.clearFaint") },
             // The Truth Bullet sweep lands here for the same reason as the rest
             // of this row (Z7): it stopped being a step in the end-of-chapter
             // window, and a clean-up with no button is a clean-up only somebody
-            // who reads `api.mjs` can run.
-            { action: "sweepBullets", label: game.i18n.localize("DRPG.Panel.sweepBullets") },
+            // who reads `api.mjs` can run. (Its button, and Clear Faint's, are destructive: below.)
             // All three used to be tiles in the GM panel, or windows of their
             // own. They belong here: a GM issues the autopsy, reads the
             // evidence log or reports a body while looking at the case, not
@@ -2538,9 +2543,14 @@ export async function openInvestigationDashboard({ said = null } = {}) {
             // open a window or tidy something; this one starts a case. Its class and icon set it
             // apart in both themes - one of seven equal buttons is what the audit saw.
             { action: "bodyFound", label: game.i18n.localize("DRPG.Chapter.bodyTitle"),
-                icon: "fa-solid fa-skull", class: "drpg-state-change" },
-            { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
+                icon: "fa-solid fa-skull", class: "drpg-state-change" }
+            ],
+            destructive: [
+                { action: "clearFaint", label: game.i18n.localize("DRPG.Panel.clearFaint") },
+                { action: "sweepBullets", label: game.i18n.localize("DRPG.Panel.sweepBullets") }
+            ],
+            close: { role: "cancel", action: "close" }
+        },
         render: (event, dialog) => {
             wireCase(dialog);
             wireCaseFilters(dialog, reading, () => live?.refresh?.());
@@ -2564,8 +2574,8 @@ export async function openInvestigationDashboard({ said = null } = {}) {
              * the subscription for exactly this shape: a node nobody edits, written
              * in place, with no focus rule.
              *
-             * SAFE TO DISABLE because `save` is the first entry in `buttons` and
-             * carries `default: true`. Enter in a field presses the FIRST submit in
+             * SAFE TO DISABLE because `save` is the primary, the first button in the
+             * kit's tree and the default. Enter in a field presses the FIRST submit in
              * DOM order and a disabled first submit kills Enter outright, so the one
              * button that may never be greyed is the first one.
              */

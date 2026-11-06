@@ -35,10 +35,10 @@ import { SearchTokens } from "./search-tokens.mjs";
 // `import("./vault.mjs")`).
 import { roomStockTables } from "./tables.mjs";
 import {
-    dialogContent, tableDialog, announce, plural, workingScene, pinFooterAcrossScroll,
+    dialogContent, announce, plural, workingScene,
     forcedDeletion, wirePortraitPickers
 } from "./utils.mjs";
-import { kitTabs, wireKitTabs, emptyOption } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, emptyOption, drpgWindow } from "./ui-kit.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
 import {
     ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomNames, roomRegions, flagOver,
@@ -1175,46 +1175,42 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
 
     const initial = roomSetupTab(tab, sceneHoldsRooms(scene));
 
-    const result = await tableDialog({
-        window: { title: game.i18n.format("DRPG.Vault.manageTitleOn", { scene: scene?.name ?? "" }) },
+    const result = await drpgWindow({
+        title: game.i18n.format("DRPG.Vault.manageTitleOn", { scene: scene?.name ?? "" }),
         // `drpg-projects` as well as `drpg-panel`: that is the class the
         // stylesheet hangs the table treatment on - full width, a scrolling
         // window-content and sane select sizing. Without it this dialog asked
         // for 860px, lost to the 26rem `.drpg-panel` cap, and clipped its own
         // right-hand columns with no way to scroll to them.
         classes: ["drpg-panel", "drpg-projects", "drpg-room-setup", "drpg-window-rooms"],
-        // One size for all nine tabs, taken from the biggest of them - see
-        // `fitWindowToTabs`. Without it the window is fitted to whichever tab
+        // One width for all nine tabs, taken from the biggest of them - see the
+        // kit's `fitKitWidth`. Without it the window is fitted to whichever tab
         // is showing and jumps between 708px and 1504px as the GM switches.
-        fitTabs: true,
-        content: roomSetupContent({ initial, cells, students, stashRows, fogRows, uncovered, maxTokens,
-            scenesPanel: scenesTab.scenesTabHtml(), passagesPanel: passagesTab.passagesTabHtml(scene, { students }) }),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Panel.apply"), default: true,
+        fit: true,
+        body: roomSetupContent({ initial, cells, students, stashRows, fogRows, uncovered, maxTokens,
+            scenesPanel: scenesTab.scenesTabHtml(), passagesPanel: passagesTab.passagesTabHtml(scene, { students }) }).innerHTML,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.Panel.apply"),
                 callback: (e, b, d) => ({ ...readRoomSetupForm(d, { rooms, students, categories }),
                     scenes: scenesTab.readScenesTab(d.element) })
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: { role: "cancel", action: "cancel" }
+        },
         render: (event, dialog) => {
             wireRoomRatio(dialog, rooms, living);
             const root = dialog.element;
 
-            // Deliberately no REFIT on a switch. The window was measured for
-            // the biggest tab when it opened and keeps that size for all of
+            // Deliberately no REFIT of the width on a switch. The window was measured
+            // for the biggest tab when it opened and keeps that width for all of
             // them: switching tabs is a comparison, and a window that resizes
-            // under a comparison is the thing being complained about.
-            //
-            // The footer pin is a different question and does have to be
-            // redone: each tab holds a different table, so whether this
-            // window scrolls sideways changes with the tab, and a bar pinned
-            // for the Fog tab is wrong for Bedrooms (C-F5-8). The footer's
-            // buttons themselves are Apply and Cancel on every tab (E12 C15).
+            // under a comparison is the thing being complained about. A press puts
+            // the window back on the screen (`app`, E21 C1b); the footer stands
+            // outside the kit's body that scrolls, so nothing pins it across a
+            // sideways scroll any more (C-F5-8's `pinFooterAcrossScroll`, retired by
+            // E21 C2a). The footer's buttons are Apply and Cancel on every tab (E12 C15).
             wireFogButtons(root);
-            wireKitTabs(root, {
-                onSwitch: () => requestAnimationFrame(() => pinFooterAcrossScroll(dialog))
-            });
+            wireKitTabs(root, { win: root, app: dialog });
             wireTwoRoomsCheck(root, rooms);
             scenesTab.wireScenesTab(root, reason => setApplyBlock(root, "scenes", reason));
             passagesTab.wirePassagesTab(root, scene, { dialog, students });

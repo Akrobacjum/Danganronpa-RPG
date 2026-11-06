@@ -87,10 +87,12 @@
       var holder = document.createElement("div");
       holder.innerHTML = html.trim();
       var app = holder.firstElementChild;
-      /* A window on the kit's ApplicationV2 frame (ui-kit.mjs DrpgApp: `drpg-ui`, no `dialog`; the notice history since
-         E44 C5) is framed here as Foundry frames an ApplicationV2 - its parts inside `section.window-content` - since the
-         harness's ApplicationV2 draws them straight into the window, and the kit's frame rules name that section. */
-      if (app.classList.contains("drpg-ui") && !app.classList.contains("dialog") && !app.querySelector(":scope > .window-content")) {
+      /* A window on the kit's frame (ui-kit.mjs DrpgApp: `drpg-ui`, no `dialog`, the notice history since E44 C5; and
+         drpgWindow's DialogV2, `drpg-ui` with `dialog`, since E21 C2a moved the first of them) is framed here as Foundry
+         frames a window - its parts inside `section.window-content` - since the harness draws them straight into the
+         window, and the kit's frame rules name that section (the kit gallery's DialogV2 stand-in draws it too). A window
+         not on the kit is left as captured, so the style sweep reads it as before. */
+      if (app.classList.contains("drpg-ui") && !app.querySelector(":scope > .window-content")) {
         var section = document.createElement("section");
         section.className = "window-content";
         while (app.firstChild) section.appendChild(app.firstChild);
@@ -137,7 +139,10 @@
   const reading = (win, tab) => {
     const footer = win.querySelector("footer.form-footer");
     const nav = win.querySelector("nav.drpg-tabs");
+    /* A field scrolls its own value (E21 C2a: the case dashboard's one-line Key descriptions, `rows="1"`, under Legacy):
+       that is the field, not a second region of the window, so a text field or a list is not counted. */
     const scrollers = [win, ...win.querySelectorAll("*")].filter(el => {
+      if (el.matches("textarea, select, input")) return false;
       const cs = getComputedStyle(el);
       const y = /auto|scroll/.test(cs.overflowY) && el.scrollHeight > el.clientHeight + 1;
       const x = /auto|scroll/.test(cs.overflowX) && el.scrollWidth > el.clientWidth + 1;
@@ -336,6 +341,13 @@
       await document.fonts?.ready;
       await new Promise(r => requestAnimationFrame(r));
       for (const nav of document.querySelectorAll(".drpg-style-shot nav.drpg-tabs")) K.fitKitTabs(nav);
+      /* A `fit` window (E21 C2a: tableDialog's fifteen, `drpg-kit-fit`) as wide as its widest table, by the kit's own
+         `fitKitWidth`, as the module runs it after the render; its `setPosition` is the width written inline, as Foundry
+         writes it (a model: Foundry's own clamp is LIVE-E21-01's). Measured before the placement, as in the module. */
+      for (const app of document.querySelectorAll(".drpg-style-shot > .application.drpg-kit-fit")) {
+        K.fitKitWidth({ element: app, setPosition: ({ width }) => { if (typeof width === "number") app.style.width = `${width}px`; } });
+      }
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))));
       /* ?fit=1 (E21 C1c): the tabs wired by the kit's own code, the window its `win`, so a press clamps its top
          (`keepInScreen`) as a press asks Foundry to (`setPosition`) in the module. */
       if (q.get("fit")) for (const app of document.querySelectorAll(".drpg-style-shot > .application")) K.wireKitTabs(app, { win: app, fit: false });

@@ -1398,7 +1398,7 @@ async function phaseF({ gm, p1, p2, p3, check, phase, settle, dump, IDS, repoUrl
         const missed = line("[data-drpg-pick-why]");
         f.hands.pointerdown?.(at(1234.5, 803));
         const second = { step: line("[data-drpg-pick-step]"), where: line("[data-drpg-pick-where]"), why: line("[data-drpg-pick-why]"),
-            // Folded since E44 fix FG2 (Room setup is a tableDialog, minimizable now): hidden only where it may not fold.
+            // Folded since E44 fix FG2 (Room setup minimizable; a kit window, drpgWindow, since E21 C2a): hidden only where it may not fold.
             tucked: f.app?.minimized ? "folded" : f.el?.style.visibility ?? null };
         f.hands.pointermove?.(at(1334.5, 797));
         const preview = (layer("pick")?.children ?? []).flatMap(g => g._calls ?? []).filter(([k]) => k === "drawCircle").map(([, a]) => a.slice(0, 3));

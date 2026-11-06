@@ -24,8 +24,8 @@ import {
     applyProjectChange, combineChanges, projectEditChange, sightChange, projectMeta, addProgress, projectLabel
 } from "./projects.mjs";
 import { placeRoomNames } from "./rooms.mjs";
-import { dialogContent, error, markFired, markLanguage, serialWrite, tableDialog, wirePortraitPickers } from "./utils.mjs";
-import { emptyOption } from "./ui-kit.mjs";
+import { dialogContent, error, markFired, markLanguage, serialWrite, wirePortraitPickers } from "./utils.mjs";
+import { emptyOption, drpgWindow } from "./ui-kit.mjs";
 // The projects' queue key, from the file that keeps it (projects.mjs does not re-export it), as traps.mjs and fog.mjs read it.
 import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
@@ -505,7 +505,7 @@ export async function openProjectManager() {
     const span = Math.max(1, players.length);
     const two = players.length ? ' rowspan="2"' : "";
 
-    const content = dialogContent(`<form>
+    const content = `<form>
             <p>${game.i18n.localize("DRPG.Project.manageIntro")}</p>
             <table>
                 <thead><tr>
@@ -523,23 +523,23 @@ export async function openProjectManager() {
             </table>
             <p class="notes">${game.i18n.localize("DRPG.Project.secretNote")}</p>
             <p class="notes">${game.i18n.localize("DRPG.Project.deleteNote")}</p>
-        </form>`);
+        </form>`;
 
-    const result = await tableDialog({
-        window: { title: game.i18n.localize("DRPG.Project.manageTitle") },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Project.manageTitle"),
         classes: ["drpg-panel", "drpg-projects", "drpg-window-projects"],
-        content,
-        buttons: [
-            {
-                action: "save",
-                label: game.i18n.localize("DRPG.Assign.save"),
-                default: true,
-                callback: (e, b, d) => readManager(d, projects)
-            },
-            { action: "new", label: game.i18n.localize("DRPG.Project.createButton") },
-            { action: "share", label: game.i18n.localize("DRPG.Project.shareButton") },
-            { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
+        // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
+        fit: true,
+        body: content,
+        // Save still to answer: Cancel (E21 rule 3), the answer "cancel" as before.
+        footer: {
+            primary: { action: "save", label: game.i18n.localize("DRPG.Assign.save"), callback: (e, b, d) => readManager(d, projects) },
+            secondary: [
+                { action: "new", label: game.i18n.localize("DRPG.Project.createButton") },
+                { action: "share", label: game.i18n.localize("DRPG.Project.shareButton") }
+            ],
+            close: { role: "cancel", action: "cancel" }
+        },
         // A FilePicker needs a live click against the dialog's actual DOM -
         // see wirePortraitPickers() for why this cannot be wired any earlier.
         // The per-row edit buttons need the same treatment, and they close the
