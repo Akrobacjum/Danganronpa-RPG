@@ -493,6 +493,8 @@ export async function openGmPanel() {
     await drpgWindow({
         title: game.i18n.localize("DRPG.Panel.title"),
         classes: ["drpg-panel", "drpg-gm-panel-window", "drpg-window-panel"],
+        // The tile grid needs a definite width to resolve into columns (ui-kit.mjs WINDOW_WIDTHS `panel`; E21 W1).
+        width: "panel",
         body,
         footer: { close: { role: "close", action: "close" } },
         // Each tile closes the panel, does its thing, and the panel comes BACK.
@@ -657,7 +659,8 @@ async function openFailureLog() {
     // this browser kept, and nothing brings it back (E22, A4).
     const action = await drpgWindow({
         title: game.i18n.localize("DRPG.Failures.title"),
-        classes: ["drpg-panel", "drpg-wide", "drpg-window-failures"],
+        classes: ["drpg-panel", "drpg-window-failures"],
+        width: "wide",
         body: `<div>
             <p class="notes">${esc(game.i18n.localize("DRPG.Failures.intro"))}</p>
             ${body}

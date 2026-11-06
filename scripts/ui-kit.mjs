@@ -10,8 +10,10 @@
  * the owner approved on the kit card (DR-E44-M1, M15, 04.11.2026): today's look of each component's nearest part,
  * equal tab widths fitted to one line, and I1's fine print.
  *
- *   drpgWindow({ id, classes, title, body, tabs, footer, live, render, modal, fit })   a DialogV2 on the kit's frame
+ *   drpgWindow({ id, classes, title, body, tabs, footer, live, render, modal, fit, width })   a DialogV2 on the kit's frame
  *   fitKitWidth(app)              a `fit` window as wide as its widest table (E21 C2a: tableDialog's measure, moved)
+ *   WINDOW_WIDTHS, kitWidth(spec) the widths a window states by name (`width`), and the inline width one comes to
+ *                                 (E21 W1: the `drpg-wide`, item tables' and GM panel's width rules, moved)
  *   drpgConfirm({ title, body, yes, no }), drpgPrompt({ title, body, ok })   a question on it (E21 C1b), answering as
  *                                 DialogV2.confirm and .prompt do
  *   keepInScreen(el)              the top clamp a tab press asks for on a page with no application (E21 C1b)
@@ -854,20 +856,24 @@ export const KIT_CLASSES = Object.freeze(["drpg-ui", "drpg-panel"]);
  * and wireKitTabs), drawn above the body that scrolls; `footer` is `footerButtons`'s; `live` is keepLive's options,
  * started on the first render; `render(event, dialog)` runs after the kit has dressed the window. Every other option
  * goes to DialogV2 as given (`position`, `window`, `form`, `submit`, `close`, `rejectClose`). `fit` makes the window as
- * wide as its widest table (`fitKitWidth`, below): the windows `tableDialog` drew until E21 C2a.
+ * wide as its widest table (`fitKitWidth`, below): the windows `tableDialog` drew until E21 C2a. `width` is the width the
+ * window states: a name of WINDOW_WIDTHS or a number of pixels (`kitWidth`, below), the window's opening width and,
+ * without `fit`, its width; with `fit` the measure wins and the width is where it starts (E21 W1). No stylesheet states
+ * a kit window's width (R1376): a window without either takes the module's popup width rules.
  */
-export function drpgWindow({ id = null, classes = [], title = "", body = "", tabs = null, footer = {}, live = null, render = null, modal = false, onMode = null, fit = false, ...rest } = {}) {
+export function drpgWindow({ id = null, classes = [], title = "", body = "", tabs = null, footer = {}, live = null, render = null, modal = false, onMode = null, fit = false, width = null, ...rest } = {}) {
     const DialogV2 = foundry.applications.api.DialogV2;
+    const sized = width === null ? null : widthSpec(width);
     const list = footerButtons(footer);
     const open = tabs ? openKey(tabs.sections, tabs.active) : null;
     const markup = (tabs ? tabNav(tabs.sections, open) : "")
         + `<div class="drpg-kit-body">${body}${tabs ? tabPanes(tabs.sections, open) : ""}</div>`;
     const config = {
         ...rest,
-        classes: [...classes, ...KIT_CLASSES, ...(fit ? [FIT_CLASS] : [])],
+        classes: [...classes, ...KIT_CLASSES, ...(fit ? [FIT_CLASS] : []), ...(sized ? sized.classes : [])],
         // Foldable to its title bar, as every module window since E44 fix FG2 (the owner's Q-E44-1; DialogV2's default is not).
         window: { title, resizable: false, minimizable: true, ...rest.window },
-        position: { height: "auto", ...rest.position },
+        position: { height: "auto", ...(sized?.open ? { width: sized.open } : {}), ...rest.position },
         modal,
         content: dialogContent(markup),
         buttons: dialogButtons(list),
@@ -877,6 +883,7 @@ export function drpgWindow({ id = null, classes = [], title = "", body = "", tab
             dressed.add(dialog);
             const root = dialog?.element;
             try {
+                if (sized) stateWidth(root, sized);
                 dressFrame(root, list, tabs, onMode, dialog);
                 // A later render of the same window draws Foundry's footer again: it is dressed again.
                 dialog.addEventListener?.("render", () => dressFrame(dialog.element, list, tabs, onMode, dialog));
@@ -885,6 +892,7 @@ export function drpgWindow({ id = null, classes = [], title = "", body = "", tab
             }
             try { render?.(event, dialog); } catch (err) { error("A kit window's own render hook failed", err); }
             if (fit) fitKitWidth(dialog);
+            else if (sized?.open) settleKitWidth(dialog, sized);
             if (live) keepLive(dialog, live);
         }
     };
@@ -895,9 +903,107 @@ export function drpgWindow({ id = null, classes = [], title = "", body = "", tab
 /**
  * The class of a `fit` window. The module's popup width rules (danganronpa.css, stained-glass.css) state every other
  * window's width with `!important`, which outranks the inline width `fitKitWidth` writes through `setPosition`; a
- * `fit` window is left out of them, as `drpg-table-window` was until E21 C2a (the base sheet's note on its popup rule).
+ * `fit` window is left out of them, as `drpg-table-window` was until E21 C2a (the base sheet's note on its popup rule),
+ * and so is a window that states its width (WIDTH_CLASS, E21 W1).
  */
 export const FIT_CLASS = "drpg-kit-fit";
+
+/**
+ * The widths a kit window states by name (E21 W1, the owner's decision on E21's Open 12, 06.11.2026). Until W1 they were
+ * rules of danganronpa.css, one per window class and each with `!important` (ApplicationV2 writes a window's width inline,
+ * and only `!important` outranks it): `.drpg-wide` (`min(var(--drpg-popup-wide), 94vw)`, the GM's managers and read-outs),
+ * `.drpg-window-tables` (`min(58rem, 94vw)`, the item tables: at 704 px the pool list left a row 430 px, three lines an
+ * entry), `.drpg-gm-panel-window` (`min(var(--drpg-popup-wide), 92vw)`, and `min(calc(60rem * var(--drpg-legacy-scale, 1)),
+ * 46vw)` on a screen wider than 2:1: the panel's grid of `repeat(auto-fit, minmax(15rem, 1fr))` needs a definite width),
+ * and `.drpg-window-projects`'s own `--drpg-window-max: 1800px` (the matrix of sixteen players is a table of about 1400 px).
+ * Per name: `cls`, the class the window carries beside WIDTH_CLASS (the prose rules of the wide windows read it); `rem`,
+ * the width in the root's rem; `legacy`, multiplied by `--drpg-legacy-scale` (the slider under Monokuma Legacy, 1 under
+ * the glass: the two width tokens' factor, danganronpa.css's note on them, W-2); `ultrawide`, the width on
+ * a screen wider than 2:1, its `vw` the share of the screen it stays under; `max`, the ceiling in pixels a `fit` window's
+ * measure stops at (`windowWidthFor` reads it off the window as `--drpg-window-max`). The screen holds each to its width
+ * less 8 px a side, as the frame does (components.css `max-width: calc(100vw - 16px)`), and to `--drpg-window-max`.
+ */
+export const WINDOW_WIDTHS = Object.freeze({
+    wide: Object.freeze({ cls: "drpg-kit-width-wide", rem: 44, legacy: true }),
+    tables: Object.freeze({ cls: "drpg-kit-width-tables", rem: 58 }),
+    panel: Object.freeze({ cls: "drpg-kit-width-panel", rem: 44, legacy: true, ultrawide: Object.freeze({ rem: 60, legacy: true, vw: 46 }) }),
+    matrix: Object.freeze({ cls: "drpg-kit-width-matrix", max: 1800 })
+});
+
+/** The class of every kit window that states its width (`width`), beside its name's `cls`: the popup width rules leave
+ * it out, as they leave out a `fit` window (FIT_CLASS). */
+export const WIDTH_CLASS = "drpg-kit-width";
+
+/** A `width` option read: its classes, its opening width in pixels (none for a ceiling alone) and its ceiling. */
+function widthSpec(width) {
+    if (typeof width === "number") {
+        if (!(width > 0)) throw new Error(`ui-kit: a window's width is a number of pixels above 0, not ${width}`);
+        return { name: null, classes: [WIDTH_CLASS], open: kitWidth(width), max: null };
+    }
+    const row = WINDOW_WIDTHS[width];
+    if (!row) throw new Error(`ui-kit: no window width "${width}" (WINDOW_WIDTHS: ${Object.keys(WINDOW_WIDTHS).join(", ")})`);
+    return { name: width, classes: [WIDTH_CLASS, row.cls], open: row.rem || row.ultrawide ? kitWidth(width) : null, max: row.max ?? null };
+}
+
+/**
+ * The inline width a kit window's `width` comes to on this screen, in whole pixels: a name of WINDOW_WIDTHS or a number
+ * of pixels, under the screen less 8 px a side and `--drpg-window-max` (the frame's own caps, so the width written is the
+ * width drawn). Null for a name with no width (a ceiling alone). Read when the window opens: a later resize is held by
+ * the frame's `max-width`, as every kit window's.
+ */
+export function kitWidth(width, { vw = globalThis.innerWidth || 1200, vh = globalThis.innerHeight || 800 } = {}) {
+    let px;
+    if (typeof width === "number") px = width;
+    else {
+        const row = WINDOW_WIDTHS[width];
+        if (!row) return null;
+        const rootStyle = typeof getComputedStyle === "function" && globalThis.document?.documentElement
+            ? getComputedStyle(document.documentElement) : null;
+        const rem = parseFloat(rootStyle?.fontSize) || 16;
+        const legacy = parseFloat(rootStyle?.getPropertyValue("--drpg-legacy-scale")) || 1;
+        const of = r => r.rem * rem * (r.legacy ? legacy : 1);
+        if (row.ultrawide && vh > 0 && vw / vh >= 2) px = Math.min(of(row.ultrawide), vw * row.ultrawide.vw / 100);
+        else if (row.rem) px = of(row);
+        else return null;
+    }
+    const bodyStyle = typeof getComputedStyle === "function" && globalThis.document?.body ? getComputedStyle(document.body) : null;
+    const cap = parseFloat(bodyStyle?.getPropertyValue("--drpg-window-max")) || Infinity;
+    return Math.round(Math.max(0, Math.min(px, vw - 16, cap)));
+}
+
+/** The width's marks on the drawn root: its name or pixels (`data-drpg-width`, which the style harness reads as this
+ * file's `kitWidth`) and a ceiling the fit's measure reads off the window. */
+function stateWidth(root, sized) {
+    if (!root) return;
+    root.dataset.drpgWidth = sized.name ?? String(sized.open);
+    if (sized.max) root.style.setProperty("--drpg-window-max", `${sized.max}px`);
+}
+
+/**
+ * The stated width, written once more after Foundry's own render hooks (E21 W1). settings.mjs `scaleWindow` runs on every
+ * render and multiplies a window's `position.width` by the slider, under 48 px less than the screen: under Monokuma Legacy
+ * the width named here already follows the slider (`legacy`), and the 704 px of `drpg-wide` stood 94 % of a phone's
+ * screen, not 342 px of 390. Two frames after the render, as `fitKitWidth`; nothing written when the window already
+ * stands at the width (the band of `fitKitWidth`), and a tab bar fitted to the width before is fitted again. jsdom lays
+ * nothing out, and its windows stand at what was asked.
+ */
+function settleKitWidth(app, sized) {
+    if (typeof requestAnimationFrame !== "function") return;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        try {
+            const root = app?.element;
+            if (!root?.isConnected || typeof app.setPosition !== "function") return;
+            const width = kitWidth(sized.name ?? sized.open);
+            const now = typeof app.position?.width === "number" ? app.position.width : root.getBoundingClientRect().width;
+            if (!width || Math.abs(now - width) <= 1) return;
+            app.setPosition({ width });
+            // A tab bar fitted to the width before (`fitWhenLaidOut`, a frame after the render) is fitted to this one.
+            for (const nav of root.querySelectorAll("nav.drpg-tabs")) fitKitTabs(nav, { win: root });
+        } catch (err) {
+            error("A kit window could not be given its width", err);
+        }
+    }));
+}
 
 /**
  * A `fit` window as wide as its widest table, on every pane (E21 C2a). This is utils.mjs `tableDialog`'s measure -

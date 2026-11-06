@@ -530,6 +530,8 @@ export async function openProjectManager() {
         classes: ["drpg-panel", "drpg-projects", "drpg-window-projects"],
         // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
         fit: true,
+        // The matrix's ceiling, above the module's 1400 px: a column per player (ui-kit.mjs WINDOW_WIDTHS `matrix`; E21 W1).
+        width: "matrix",
         body: content,
         // Save still to answer: Cancel (E21 rule 3), the answer "cancel" as before.
         footer: {

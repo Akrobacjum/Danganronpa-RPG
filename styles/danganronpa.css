@@ -4359,10 +4359,8 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
 /* AND THE MATRIX MAY BE WIDER THAN OTHER WINDOWS. Sixteen names, each as wide as its longest
    word, are a table of about 1400 px before the window's frame; under the common 1400 cap
    the Edit and Delete columns scrolled out of sight. The cap is still a cap - `windowWidthFor`
-   also stops at 94 % of the screen - it is this window's own, read off this window. */
-.application.dialog.drpg-window-projects {
-    --drpg-window-max: 1800px;
-}
+   also stops at 94 % of the screen - it is this window's own, read off this window: 1800 px, the kit's `matrix`
+   (ui-kit.mjs WINDOW_WIDTHS, which writes it on the window; a rule here until E21 W1). */
 
 /* The pool list on a table row's "where does this live" window.
    --------------------------------------------------------------------------
@@ -5078,8 +5076,10 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    The mode now comes from the content, via `:has()`, not from the class list.
    Nothing has to be remembered at the call site - which is what went wrong the
    last three times this was tuned: a dialog was left out of a list and only its
-   window broke. `drpg-wide` is the manual override for the one case the
-   markup cannot express (`.drpg-compact` was the other and nothing ever set it).
+   window broke. A width the window states to the kit (`width`, ui-kit.mjs
+   WINDOW_WIDTHS; the class `drpg-wide` until E21 W1) is the manual override for
+   the one case the markup cannot express (`.drpg-compact` was the other and
+   nothing ever set it).
    ========================================================================== */
 
 /* Default: ONE width, the same for every window without a table in it.
@@ -5098,9 +5098,9 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 .application.dialog:is(
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
+    .drpg-despair-dialog, .drpg-monokuma-panel,
     .drpg-summary-dialog, .drpg-safeword-dialog
-):not(.drpg-wide):not(.drpg-gm-panel-window):not(.drpg-kit-fit) {
+):not(.drpg-kit-fit):not(.drpg-kit-width) {
     /* `!important` because ApplicationV2 writes the width as an INLINE style,
        which no stylesheet rule can outrank otherwise - and `DialogV2.confirm`
        and `.prompt` both default to `position: {width: 400}`, so every yes/no
@@ -5117,7 +5117,10 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
        take. The marker class is the kit's `fit` (ui-kit.mjs `drpgWindow`,
        `fitKitWidth`; `tableDialog()`'s `drpg-table-window` until E21 C2a), so a
        window either opts into measured sizing or into this fixed width - and
-       never into both. */
+       never into both. `:not(.drpg-kit-width)` is the same exclusion for a kit
+       window that states its width (`width`, ui-kit.mjs WINDOW_WIDTHS, E21 W1):
+       the `drpg-wide`, item tables' and GM panel's rules that stood below it
+       until then, one per window class, are the kit's table now. */
     width: min(var(--drpg-popup), 92vw) !important;
 }
 /* The cap, for every such window but a kit one (E21 C1b, E44's Open 19): a kit window's `max-width` is its frame's,
@@ -5126,9 +5129,9 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 .application.dialog:is(
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
+    .drpg-despair-dialog, .drpg-monokuma-panel,
     .drpg-summary-dialog, .drpg-safeword-dialog
-):not(.drpg-wide):not(.drpg-gm-panel-window):not(.drpg-kit-fit):not(.drpg-ui) {
+):not(.drpg-kit-fit):not(.drpg-kit-width):not(.drpg-ui) {
     max-width: min(var(--drpg-popup), 92vw) !important;
 }
 
@@ -5202,7 +5205,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
 ):has(.dialog-content table)
     :is(p, .notes, h3, h4):not(td):not(th):not(table *),
-.application.dialog.drpg-wide :is(p, .notes, h3, h4):not(td):not(th):not(table *) {
+.application.dialog:is(.drpg-kit-width-wide, .drpg-kit-width-tables) :is(p, .notes, h3, h4):not(td):not(th):not(table *) {
     margin-inline: auto;
     text-align: center;
 }
@@ -5236,7 +5239,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 
    `.drpg-room-guide` rides along because it carries the same kind of text -
    the how-to-draw-rooms block, which now lives in Season setup - and that
-   window is `drpg-wide`, where the same measure would squeeze it just as badly.
+   window is a wide one (`width: "wide"`), where the same measure would squeeze it just as badly.
 
    `!important`, not a longer selector. The rule it has to beat is
    `.application.dialog:is(…):has(…):not(…) :is(p, .notes, h3, h4):not(td):not(th):not(table *)`
@@ -5262,37 +5265,24 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
 ):has(.dialog-content table) blockquote,
-.application.dialog.drpg-wide blockquote {
+.application.dialog:is(.drpg-kit-width-wide, .drpg-kit-width-tables) blockquote {
     margin-inline: auto;
 }
 
-/* Manual override: expand a window that has no table but needs the room - a
-   tile grid, a wide picker. Same specificity as the default rule above, so it
-   wins on source order; keep it after. */
-.application.dialog.drpg-wide {
-    width: min(var(--drpg-popup-wide), 94vw) !important;
-    max-width: min(var(--drpg-popup-wide), 94vw) !important;
-}
-
-.application.dialog.drpg-wide :is(p, blockquote, .notes) {
+/* A window that has no table but needs the room - a tile grid, a wide picker - states it to the kit (`width: "wide"`,
+   ui-kit.mjs WINDOW_WIDTHS, E21 W1; this sheet's `.drpg-wide` rule until then, `min(var(--drpg-popup-wide), 94vw)` with
+   `!important`). The kit stamps `drpg-kit-width-<name>` on it, which these prose rules read; no rule states its width. */
+.application.dialog:is(.drpg-kit-width-wide, .drpg-kit-width-tables) :is(p, blockquote, .notes) {
     max-width: 42rem;
 }
 
-/* The item tables window is wider than the rest of `drpg-wide`.
-   --------------------------------------------------------------------------
-   Measured at 704px (the `drpg-wide` width): the pool list takes the left
-   column and what is left of the row is about 430px, into which go two text
-   fields, two role checkboxes and two buttons. They wrap onto three lines, so
-   one entry is three rows tall - tolerable in a flat list of four, a wall once
-   the room view stacks type and tier headings above every group of them.
-
-   Same specificity as the `drpg-wide` rule above, so it wins on source order;
-   keep it after. 94vw is the same cap, so a small screen is unaffected. */
+/* The item tables window is wider than the rest of the wide ones: 58rem, the kit's `tables` width (ui-kit.mjs
+   WINDOW_WIDTHS, E21 W1; stated here with `!important` until then). Measured at 704px (the wide width): the pool list
+   takes the left column and what is left of the row is about 430px, into which go two text fields, two role checkboxes
+   and two buttons, three lines an entry. */
 .application.dialog.drpg-window-tables {
-    width: min(58rem, 94vw) !important;
-    max-width: min(58rem, 94vw) !important;
-    /* the container `.drpg-tables-layout` collapses in (its `@container` rule): the width above is stated, so the
-       window's inline size never depends on what it holds */
+    /* the container `.drpg-tables-layout` collapses in (its `@container` rule): the window's width is stated (the kit
+       writes it inline), so its inline size never depends on what it holds */
     container-type: inline-size;
 }
 
@@ -5402,14 +5392,8 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    `repeat(auto-fit, minmax(15rem, 1fr))` needs a DEFINITE width to resolve into
    columns; under intrinsic sizing the repeat count is 1 and the whole panel
    collapses into a single tall column. So it is told how wide it is - three
-   columns' worth - and the grid does the rest. */
-.application.dialog.drpg-gm-panel-window {
-    /* The wide tier, like the table managers - it is one of them. It used to
-       have a width of its own (46rem) for no reason beyond being written on a
-       different day. */
-    width: min(var(--drpg-popup-wide), 92vw) !important;
-    max-width: min(var(--drpg-popup-wide), 92vw) !important;
-}
+   columns' worth - and the grid does the rest: by the kit since E21 W1
+   (`width: "panel"`, ui-kit.mjs WINDOW_WIDTHS), by a rule here until then. */
 
 /* Content that outgrows the window scrolls in both directions rather than
    being clipped - a column the GM cannot reach is a control that does not
@@ -17213,23 +17197,15 @@ body.drpg-explainers :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdo
    the module that cannot size itself (see the note above
    `.drpg-gm-panel-window`), its grid is `repeat(auto-fit, minmax(15rem, 1fr))`,
    and on an ultrawide screen the standard 704px box leaves two thirds of the
-   screen empty beside a three-column grid.
+   screen empty beside a three-column grid. That box is the kit's since E21 W1
+   (ui-kit.mjs WINDOW_WIDTHS `panel`, its `ultrawide`: 60rem by the slider under
+   half the screen, on a screen wider than 2:1 when the panel opens).
 
    Everything else keeps its 16:9 size. A window is a thing you read, and a
    dialog stretched to 3000px is not more readable for being bigger. */
 @media (min-aspect-ratio: 2/1) {
     :root {
         --drpg-window-max: 1700px;
-    }
-
-    .application.dialog.drpg-gm-panel-window {
-        /* The slider reaches this too (W-2): the wide tier states this box itself,
-           so without the factor the GM panel would be the one window in the module
-           whose type grows and whose box does not - on the only screens with room
-           for it to. `46vw` still keeps it under half the screen, which is what
-           stops it becoming the wall of buttons the tile grid exists to avoid. */
-        width: min(calc(60rem * var(--drpg-legacy-scale, 1)), 46vw) !important;
-        max-width: min(calc(60rem * var(--drpg-legacy-scale, 1)), 46vw) !important;
     }
 }
 

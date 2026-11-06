@@ -3497,8 +3497,10 @@ const REGRESSIONS = [
             "the prose window's width stopped following the slider");
         ok(/--drpg-popup-wide: calc\(44rem \* var\(--drpg-legacy-scale/.test(css),
             "the wide window's width stopped following the slider");
-        const wide = bodyOf(css, "@media (min-aspect-ratio: 2/1)");
-        ok(wide.includes("--drpg-legacy-scale"),
+        // The GM panel's ultrawide box is the kit's since E21 W1 (ui-kit.mjs WINDOW_WIDTHS `panel`), a rule of this sheet's
+        // `@media (min-aspect-ratio: 2/1)` until then: its `legacy` is the same factor.
+        const { WINDOW_WIDTHS } = await import("./ui-kit.mjs");
+        ok(WINDOW_WIDTHS?.panel?.ultrawide?.legacy === true && WINDOW_WIDTHS?.wide?.legacy === true,
             "on an ultrawide screen the GM panel is the one window whose box ignores the slider");
 
         const settings = stripComments(new Map(await otherSources()).get("settings.mjs") ?? "");

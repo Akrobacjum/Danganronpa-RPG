@@ -537,7 +537,8 @@ async function placeResultDialog(table, resultId) {
 
     const picked = await drpgWindow({
         title: game.i18n.format("DRPG.Tables.placeTitle", { name }),
-        classes: ["drpg-panel", "drpg-wide", "drpg-window-place-result"],
+        classes: ["drpg-panel", "drpg-window-place-result"],
+        width: "wide",
         modal: true,
         body: `<form>
             <p class="notes">${game.i18n.localize("DRPG.Tables.placeIntro")}</p>
@@ -1530,11 +1531,13 @@ export async function openItemTables({ preset = null, poolError = null } = {}) {
     // Not a `fit` window: there is no table in here to measure. Its two panes
     // are a list and a form, and a window sized by a measure with nothing to
     // measure keeps whatever width the dialog opened at - which is 400px, and
-    // half of what this layout needs. `drpg-wide` is the manual override that
-    // exists for exactly this case (and `.drpg-window-tables`'s own width).
+    // half of what this layout needs. So it states its width, the kit's
+    // `tables` (58rem: ui-kit.mjs WINDOW_WIDTHS; danganronpa.css's
+    // `.drpg-wide` and `.drpg-window-tables` rules until E21 W1).
     const action = await drpgWindow({
         title: game.i18n.localize("DRPG.Tables.editorTitle"),
-        classes: ["drpg-panel", "drpg-projects", "drpg-wide", "drpg-window-tables"],
+        classes: ["drpg-panel", "drpg-projects", "drpg-window-tables"],
+        width: "tables",
         // Three tabs (Dawid, 26.08; trimmed from four in E10): editing what a
         // tier table holds, the same for room tables, and making a new item.
         // The footer buttons act across tabs - each reads its own pane's

@@ -3403,12 +3403,13 @@ body.drpg-theme-stained-glass .application.drpg-messenger .window-header .header
    screen; the prose inside is capped at a readable measure so a long paragraph settles instead
    of running to the edge. Table windows are excluded: they are measured by the kit (ui-kit.mjs
    `fitKitWidth`, the `fit` windows; `utils.mjs` until E21 C2a), and a rule with `!important` would
-   fight that measurement every frame - see the base sheet's note. */
+   fight that measurement every frame - see the base sheet's note. So is a kit window that states its
+   width (`drpg-kit-width`, ui-kit.mjs WINDOW_WIDTHS, E21 W1; `drpg-wide` and the GM panel's class until then). */
 body.drpg-theme-stained-glass .application.dialog:is(
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-summary-dialog, .drpg-safeword-dialog
-):not(.drpg-wide):not(.drpg-gm-panel-window):not(.drpg-kit-fit) {
+):not(.drpg-kit-fit):not(.drpg-kit-width) {
     width: fit-content !important;
     min-width: min(var(--drpg-popup), 92vw) !important;
 }
@@ -3418,7 +3419,7 @@ body.drpg-theme-stained-glass .application.dialog:is(
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-summary-dialog, .drpg-safeword-dialog
-):not(.drpg-wide):not(.drpg-gm-panel-window):not(.drpg-kit-fit):not(.drpg-ui) {
+):not(.drpg-kit-fit):not(.drpg-kit-width):not(.drpg-ui) {
     max-width: min(var(--drpg-popup-wide), 92vw) !important;
 }
 /* THE CAP GOES ON `.dialog-content`, AND `ch` IS NOT A UNIT THIS THEME CAN MEASURE IN.
@@ -3441,7 +3442,7 @@ body.drpg-theme-stained-glass .application.dialog:is(
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-summary-dialog, .drpg-safeword-dialog
-):not(.drpg-wide):not(.drpg-gm-panel-window):not(.drpg-kit-fit) .dialog-content {
+):not(.drpg-kit-fit):not(.drpg-kit-width) .dialog-content {
     max-width: var(--drpg-popup);
 }
 /* a control that can be squeezed states what it needs, so the window above can grow for it

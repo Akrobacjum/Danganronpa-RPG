@@ -1097,7 +1097,8 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
     let roundTrip = null;
 
     const result = await drpgWindow({
-        classes: ["drpg-panel", "drpg-wide", "drpg-window-season"],
+        classes: ["drpg-panel", "drpg-window-season"],
+        width: "wide",
         title: game.i18n.localize("DRPG.Season.title"),
         body: `<form>
             <p>${esc(game.i18n.format(outstanding
@@ -1234,7 +1235,8 @@ async function runPreSessionChecks() {
     const [body, { wireAnonymityFix }] = await Promise.all([preSessionReport(), import("./anonymity.mjs")]);
     // A read-out: Close (E21 C2b).
     await drpgWindow({
-        classes: ["drpg-panel", "drpg-wide", "drpg-window-preseason"],
+        classes: ["drpg-panel", "drpg-window-preseason"],
+        width: "wide",
         title: game.i18n.localize("DRPG.Panel.seasonChecks"),
         body,
         footer: { close: { role: "close", action: "close" } },

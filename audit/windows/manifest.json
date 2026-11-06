@@ -300,14 +300,15 @@
         "dialog",
         "drpg-panel",
         "drpg-projects",
-        "drpg-wide",
         "drpg-sound",
         "drpg-window-sound",
         "drpg-ui",
-        "drpg-kit-fit"
+        "drpg-kit-fit",
+        "drpg-kit-width",
+        "drpg-kit-width-wide"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 704,
       "buttons": [
         {
           "action": "close",
@@ -330,14 +331,15 @@
         "dialog",
         "drpg-panel",
         "drpg-projects",
-        "drpg-wide",
         "drpg-sound",
         "drpg-window-sound",
         "drpg-ui",
-        "drpg-kit-fit"
+        "drpg-kit-fit",
+        "drpg-kit-width",
+        "drpg-kit-width-wide"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 704,
       "buttons": [
         {
           "action": "close",
@@ -360,14 +362,15 @@
         "dialog",
         "drpg-panel",
         "drpg-projects",
-        "drpg-wide",
         "drpg-sound",
         "drpg-window-sound",
         "drpg-ui",
-        "drpg-kit-fit"
+        "drpg-kit-fit",
+        "drpg-kit-width",
+        "drpg-kit-width-wide"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 704,
       "buttons": [
         {
           "action": "close",
@@ -535,12 +538,13 @@
         "application",
         "dialog",
         "drpg-panel",
-        "drpg-wide",
         "drpg-window-season",
-        "drpg-ui"
+        "drpg-ui",
+        "drpg-kit-width",
+        "drpg-kit-width-wide"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 704,
       "buttons": [
         {
           "action": "save",
@@ -570,12 +574,13 @@
         "application",
         "dialog",
         "drpg-panel",
-        "drpg-wide",
         "drpg-window-preseason",
-        "drpg-ui"
+        "drpg-ui",
+        "drpg-kit-width",
+        "drpg-kit-width-wide"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 704,
       "buttons": [
         {
           "action": "close",
@@ -1004,12 +1009,13 @@
         "dialog",
         "drpg-panel",
         "drpg-projects",
-        "drpg-wide",
         "drpg-window-tables",
-        "drpg-ui"
+        "drpg-ui",
+        "drpg-kit-width",
+        "drpg-kit-width-tables"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 928,
       "buttons": [
         {
           "action": "add",
@@ -1047,12 +1053,13 @@
         "dialog",
         "drpg-panel",
         "drpg-projects",
-        "drpg-wide",
         "drpg-window-tables",
-        "drpg-ui"
+        "drpg-ui",
+        "drpg-kit-width",
+        "drpg-kit-width-tables"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 928,
       "buttons": [
         {
           "action": "close",
@@ -1080,12 +1087,13 @@
         "dialog",
         "drpg-panel",
         "drpg-projects",
-        "drpg-wide",
         "drpg-window-tables",
-        "drpg-ui"
+        "drpg-ui",
+        "drpg-kit-width",
+        "drpg-kit-width-tables"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 928,
       "buttons": [
         {
           "action": "add",
@@ -1168,10 +1176,12 @@
         "drpg-panel",
         "drpg-gm-panel-window",
         "drpg-window-panel",
-        "drpg-ui"
+        "drpg-ui",
+        "drpg-kit-width",
+        "drpg-kit-width-panel"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 704,
       "buttons": [
         {
           "action": "close",

@@ -269,7 +269,9 @@
       shot.dataset.window = `kit-${id}`;
       shot.insertAdjacentHTML("afterbegin", `<p class="drpg-style-caption">${escapeHTML(caption)}</p>`);
       grid.append(shot);
-      K.drpgWindow({ classes: [`drpg-window-kit-${id}`], position: { width: options.width ?? 380 }, ...options });
+      // The gallery's `width` is DialogV2's opening width, as before E21 W1 gave drpgWindow a `width` of its own.
+      const { width = 380, ...rest } = options;
+      K.drpgWindow({ classes: [`drpg-window-kit-${id}`], position: { width }, ...rest });
     };
     const rooms = ["Cafeteria", "Dorm A", "Dorm B", "Gym", "Hall", "Storage", "Library", "Garden", "Pool", "Lab", "Art room", "Music room"];
     const columns = [{ key: "room", label: "Room" }, { key: "n", label: "N", num: true }, { key: "act", label: "", act: true }];
@@ -340,6 +342,14 @@
       const K = await import("/scripts/ui-kit.mjs");
       await document.fonts?.ready;
       await new Promise(r => requestAnimationFrame(r));
+      /* A window that states its width (E21 W1: `width`, ui-kit.mjs WINDOW_WIDTHS; `data-drpg-width` on the captured root)
+         at the kit's own `kitWidth` on this page's screen, written inline as Foundry writes `position.width`; first, as
+         the module opens it at that width (`position`) before its tabs fit and a `fit` measures. */
+      for (const app of document.querySelectorAll(".drpg-style-shot > .application.drpg-kit-width[data-drpg-width]")) {
+        const named = app.dataset.drpgWidth;
+        const width = K.kitWidth(/^\d+$/.test(named) ? Number(named) : named);
+        if (typeof width === "number") app.style.width = `${width}px`;
+      }
       for (const nav of document.querySelectorAll(".drpg-style-shot nav.drpg-tabs")) K.fitKitTabs(nav);
       /* A `fit` window (E21 C2a: tableDialog's fifteen, `drpg-kit-fit`) as wide as its widest table, by the kit's own
          `fitKitWidth`, as the module runs it after the render; its `setPosition` is the width written inline, as Foundry

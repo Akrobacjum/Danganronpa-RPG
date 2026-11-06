@@ -26929,7 +26929,7 @@ const INVARIANTS = [
             const html = document.createElement("html"), body = document.createElement("body");
             body.className = theme;
             html.append(body);
-            body.innerHTML = `<div class="application drpg-panel drpg-wide"><section class="window-content"><div>
+            body.innerHTML = `<div class="application drpg-panel drpg-kit-width drpg-kit-width-wide"><section class="window-content"><div>
                 <h3>R1509</h3><pre class="drpg-check-report">R1509</pre></div></section></div>`;
             const pre = body.querySelector("pre");
             const value = names => C.winner(pre, names)?.value ?? null;
@@ -27226,7 +27226,7 @@ const INVARIANTS = [
             body.className = theme;
             html.append(body);
             // The kit's frame since E21 C2b: the body that scrolls is `.drpg-kit-body` (ui-kit.mjs `drpgWindow`).
-            body.innerHTML = `<div class="application dialog drpg-ui drpg-panel drpg-wide drpg-window-season"><section class="window-content">
+            body.innerHTML = `<div class="application dialog drpg-ui drpg-panel drpg-kit-width drpg-kit-width-wide drpg-window-season"><section class="window-content">
                 <form class="dialog-form"><div class="dialog-content"><div class="drpg-kit-body"><p class="r1515intro">R1515</p><ul class="drpg-setup-list">
                 <li class="drpg-setup-step done"><span class="drpg-setup-mark">R</span><div class="drpg-setup-body"><strong>R1515</strong><div class="notes">R1515</div></div></li>
                 <li class="drpg-setup-step r1515missing"><span class="drpg-setup-mark">R</span><div class="drpg-setup-body"><strong>R1515</strong><div class="notes">R1515</div>
@@ -27886,7 +27886,7 @@ const INVARIANTS = [
             const html = document.createElement("html"), body = document.createElement("body");
             body.className = theme;
             html.append(body);
-            body.innerHTML = `<div class="application dialog drpg-panel drpg-wide"><section class="window-content"><pre class="drpg-check-report">${SS.checkMarks("✓ ✗")}</pre>
+            body.innerHTML = `<div class="application dialog drpg-panel drpg-kit-width drpg-kit-width-wide"><section class="window-content"><pre class="drpg-check-report">${SS.checkMarks("✓ ✗")}</pre>
                 <div data-drpg-anon>${SS.checkMarks("<p>✓ R1530</p>")}</div></section></div>`;
             const colour = el => C.winner(el, "color")?.value ?? null;
             return [colour(body.querySelector("pre .drpg-check-ok")), colour(body.querySelector("pre .drpg-check-bad")), colour(body.querySelector("[data-drpg-anon] .drpg-check-ok"))];
@@ -33192,8 +33192,8 @@ const INVARIANTS = [
             give: { dialog: true, classes: ["drpg-panel", "drpg-window-give"] },
             bullet: { dialog: true, classes: ["drpg-panel", "drpg-window-bullet"] },
             despairFlow: { dialog: true, classes: ["drpg-panel", "drpg-projects", "drpg-monokuma-panel", "drpg-assign", "drpg-window-gmteam", "drpg-ui", "drpg-kit-fit"], inside: "drpg-kit-body" },
-            sound: { dialog: true, classes: ["drpg-panel", "drpg-projects", "drpg-wide", "drpg-sound", "drpg-window-sound", "drpg-ui", "drpg-kit-fit"], inside: "drpg-kit-body" },
-            tables: { dialog: true, classes: ["drpg-panel", "drpg-projects", "drpg-wide", "drpg-window-tables"] },
+            sound: { dialog: true, classes: ["drpg-panel", "drpg-projects", "drpg-sound", "drpg-window-sound", "drpg-ui", "drpg-kit-fit", "drpg-kit-width", "drpg-kit-width-wide"], inside: "drpg-kit-body" },
+            tables: { dialog: true, classes: ["drpg-panel", "drpg-projects", "drpg-window-tables", "drpg-kit-width", "drpg-kit-width-tables"] },
             investigation: { dialog: true, classes: ["drpg-panel", "drpg-projects", "drpg-window-case", "drpg-ui", "drpg-kit-fit"], inside: "drpg-kit-body drpg-case-live" },
             rooms: { dialog: true, classes: ["drpg-panel", "drpg-projects", "drpg-room-setup", "drpg-window-rooms", "drpg-ui", "drpg-kit-fit"], inside: "drpg-kit-body" },
             handbooks: { dialog: false, classes: ["drpg-panel", "drpg-handbook"], inside: "drpg-handbook-body" },
@@ -33276,7 +33276,7 @@ const INVARIANTS = [
             body.className = `${theme} drpg-gm`;
             html.append(body);
             const root = document.createElement("div");
-            root.className = "application dialog drpg-panel drpg-projects drpg-wide drpg-window-tables";
+            root.className = "application dialog drpg-panel drpg-projects drpg-window-tables drpg-kit-width drpg-kit-width-tables";
             root.innerHTML = `<section class="window-content"><form class="dialog-form standard-form"><div class="dialog-content standard-form">${T.poolPaneHtml("rooms", [pool], pool)}</div></form></section>`;
             body.append(root);
             const name = root.querySelector(".drpg-table-pick > span:first-child");
@@ -34783,6 +34783,76 @@ const INVARIANTS = [
             entries: ["DRPG.Monokuma.toggle", "DRPG.Monokuma.unmark"], student: ["DRPG.Monokuma.toggle"],
             monokuma: monokuma ? ["DRPG.Monokuma.unmark"] : "none here", labels: [true, true] }),
         "[the tracker's footer and Pass read off the source; the directory's entries; those shown for a student, for a Monokuma; End the murder's and Unmark's words their own]");
+    }],
+    ["R1376 - a kit window's width is the kit's (E21 W1, the owner's decision on E21's Open 12): no rule of the module's sheets sets a width (width, min-width, max-width or --drpg-window-max) on a window moved onto the kit's frame (R1357's MOVED), on `drpg-wide` or on the kit's own `drpg-kit-width`; no module script adds `drpg-wide`; each window that had a width rule states it to drpgWindow (`width`, a name of WINDOW_WIDTHS); and the kit writes that width as the window's position, under the screen less 8 px a side, with its classes", async () => {
+        /*
+         * E21 W1, 06.11.2026. Until W1 a kit window's width was a rule per window class with `!important` - `.drpg-wide`
+         * (8 windows), `.drpg-window-tables`, `.drpg-gm-panel-window` and its ultrawide twin, `.drpg-window-projects`'s
+         * ceiling - while the kit's `fit` wrote measured widths inline (the stage's census at 9f271c34: 7 rules of
+         * danganronpa.css naming those windows, and the popup rules of both themes leaving them out by class). The
+         * owner: the width is drpgWindow's. Read: every rule of module.json's sheets, comments removed, inner rules of
+         * `@media` among them, its subject (the last compound, its `:not(...)` taken out) naming a kit window's class;
+         * the openers' sources cut with the kit (`fnSource`); and the kit's own `drpgWindow` with DialogV2.wait stood
+         * in for (nothing drawn). The kit windows are R1357's MOVED list, which each group of E21 extends. Red on C3's
+         * tree (9f271c34): the 7 rules (the projects' ceiling, the two popup rules listing the GM panel, `drpg-wide`, the
+         * item tables, the GM panel and its ultrawide twin), `drpg-wide` added by 6 files, the 10 openers stating no
+         * width, and no `kitWidth` in the kit.
+         */
+        const sources = new Map(await moduleSources());
+        const r1357 = bodyOf(sources.get("tests-tier0.mjs") ?? "", '["R1357 - ', { until: "const FRAME" });
+        const moved = [...bodyOf(r1357, "const MOVED = [", { until: ".map(name" }).matchAll(/"([\w-]+)"/g)].map(m => `drpg-window-${m[1]}`)
+            .concat([...bodyOf(r1357, ".map(name => `drpg-window-${name}`).concat([", { until: "])" }).matchAll(/"([\w-]+)"/g)].map(m => m[1]));
+        must(moved.length > 50 && moved.includes("drpg-window-panel") && moved.includes("drpg-gm-panel-window"), `R1357's MOVED read ${moved.length} class(es) - this would measure too little`);
+        const KIT = [...moved, "drpg-wide", "drpg-kit-width"];
+        const WIDTH = /^(?:width|min-width|max-width|--drpg-window-max)$/;
+        const found = [];
+        let rules = 0;
+        for (const m of (await moduleStyles()).matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+            const selector = m[1].trim();
+            if (!selector || selector.startsWith("@")) continue;
+            rules++;
+            const props = m[2].split(";").map(d => d.split(":")[0].trim().toLowerCase()).filter(p => WIDTH.test(p));
+            if (!props.length) continue;
+            for (const part of selector.split(/,(?![^(]*\))/).map(s => s.trim())) {
+                const subject = (part.split(/\s*[>+~]\s*|\s+(?![^(]*\))/).filter(Boolean).pop() ?? "").replace(/:not\((?:[^()]|\([^()]*\))*\)/g, "");
+                const named = KIT.filter(cls => new RegExp(`\\.${cls}(?![\\w])`).test(subject) || (cls === "drpg-kit-width" && /\.drpg-kit-width-[\w-]+/.test(subject)));
+                if (named.length) found.push(`${named.join(" ")}: ${part.replace(/\s+/g, " ")} { ${props.join(", ")} }`);
+            }
+        }
+        must(rules > 2000, `${rules} rule(s) read - this would measure too little`);
+        const wideAdded = [...sources].filter(([file]) => !/^tests/.test(file)).filter(([, text]) => /["'`]drpg-wide["'`]/.test(stripComments(text))).map(([file]) => file);
+        // Each window that had a width rule, and the name it states now.
+        const SITES = [["sound-panel.mjs", "openSoundDialog", "wide"], ["tables-editor.mjs", "placeResultDialog", "wide"], ["tables-editor.mjs", "openItemTables", "tables"],
+            ["diagnostics.mjs", "openReport", "wide"], ["season-setup.mjs", "openSeasonSetup", "wide"], ["season-setup.mjs", "runPreSessionChecks", "wide"],
+            ["dice-look.mjs", "diagnoseDiceLook", "wide"], ["gm-panel.mjs", "openFailureLog", "wide"], ["gm-panel.mjs", "openGmPanel", "panel"], ["projects-ui.mjs", "openProjectManager", "matrix"]];
+        const sites = SITES.filter(([file, fn, name]) => !new RegExp(`\\bwidth:\\s*"${name}"`).test(fnSource(stripComments(sources.get(file) ?? ""), fn))).map(([file, fn]) => `${file} ${fn}`);
+        // The kit: the width's classes and position, its screen cap, the GM panel's ultrawide box, a ceiling alone.
+        const K = await import("./ui-kit.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let cfg = null, threw = null, unknown = null;
+        D.wait = async c => { cfg ??= c; return null; };
+        try {
+            try { await K.drpgWindow({ title: "R1376", body: "<p>R1376</p>", width: "wide", footer: { close: { role: "close", action: "close" } } }); }
+            catch (err) { threw = err.message; }
+            try { await K.drpgWindow({ title: "R1376", body: "<p>R1376</p>", width: "R1376", footer: { close: { role: "close", action: "close" } } }); unknown = false; }
+            catch (err) { unknown = /no window width/.test(err.message); }
+        } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+        const rootStyle = getComputedStyle(document.documentElement);
+        const rem = parseFloat(rootStyle.fontSize) || 16, legacy = parseFloat(rootStyle.getPropertyValue("--drpg-legacy-scale")) || 1;
+        const kit = typeof K.kitWidth !== "function" ? { kitWidth: typeof K.kitWidth } : {
+            classes: ["drpg-kit-width", "drpg-kit-width-wide"].filter(c => !cfg?.classes?.includes(c)),
+            position: cfg?.position?.width === K.kitWidth("wide") && cfg?.position?.height === "auto",
+            threw,
+            wide: K.kitWidth("wide", { vw: 1366, vh: 768 }) === Math.round(Math.min(44 * rem * legacy, 1366 - 16)),
+            phone: [K.kitWidth("wide", { vw: 390, vh: 844 }), K.kitWidth("tables", { vw: 390, vh: 844 })],
+            panel: [K.kitWidth("panel", { vw: 1366, vh: 768 }) === K.kitWidth("wide", { vw: 1366, vh: 768 }), K.kitWidth("panel", { vw: 3440, vh: 1440 }) === Math.round(Math.min(60 * rem * legacy, 3440 * 0.46))],
+            matrix: [K.kitWidth("matrix"), K.WINDOW_WIDTHS?.matrix?.max],
+            unknown
+        };
+        equal(stableJson({ found, wideAdded, sites, kit }), stableJson({ found: [], wideAdded: [], sites: [],
+            kit: { classes: [], position: true, threw: null, wide: true, phone: [374, 374], panel: [true, true], matrix: [null, 1800], unknown: true } }),
+        "[the rules that set a width on a kit window's class; the module files that add drpg-wide; the openers that state no width; the kit's width: its classes missing, its position, a throw, 1366 px, a phone, the GM panel at 16:9 and ultrawide, the matrix's ceiling, an unknown name refused]");
     }],
 ];
 

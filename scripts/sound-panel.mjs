@@ -332,7 +332,9 @@ export async function openSoundDialog() {
 
     await drpgWindow({
         title: game.i18n.localize("DRPG.Sound.title"),
-        classes: ["drpg-panel", "drpg-projects", "drpg-wide", "drpg-sound", "drpg-window-sound"],
+        classes: ["drpg-panel", "drpg-projects", "drpg-sound", "drpg-window-sound"],
+        // The width it opens at, which the table's measure (`fit`) then decides (ui-kit.mjs WINDOW_WIDTHS; E21 W1).
+        width: "wide",
         // The tabs measure to one width rather than the window jumping between
         // a two-line Play pane and a thirty-five-row table - trap 29. It works
         // on the kit's panes (`kitTabs`, E44 C4a; `panelTabs` markup from E3);

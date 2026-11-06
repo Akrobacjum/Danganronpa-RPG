@@ -502,7 +502,8 @@ export async function diagnoseDiceLook({ messageId = null, test = false, show = 
         if (!alreadyOpen("drpg-window-dice-look")) {
             // A read-out (E21 C2b): Close, the default; Copy report secondary.
             drpgWindow({
-                classes: ["drpg-panel", "drpg-wide", "drpg-window-dice-look"],
+                classes: ["drpg-panel", "drpg-window-dice-look"],
+                width: "wide",
                 title: word("DRPG.DiceLook.diag.title"),
                 body: windowHtml(view, findings, lines),
                 footer: {

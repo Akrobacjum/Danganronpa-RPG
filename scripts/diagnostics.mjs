@@ -2197,7 +2197,8 @@ export async function openReport(text, { wait = config => drpgWindow(config),
                <ul>${left.map(s => `<li><code>${esc(s.id)}</code> ${esc(s.label)}</li>`).join("")}</ul>`
             : "";
         const action = await wait({
-            classes: ["drpg-panel", "drpg-wide", "drpg-window-diagnose"],
+            classes: ["drpg-panel", "drpg-window-diagnose"],
+            width: "wide",
             title: localize("DRPG.Diagnose.title"),
             body: `<div>
                 <p class="notes">${esc(localize("DRPG.Diagnose.intro"))}</p>
