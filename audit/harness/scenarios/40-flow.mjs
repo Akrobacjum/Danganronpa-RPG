@@ -2019,7 +2019,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         away: { p1: "done", p2: "wait", p3: "away" },
         beforeLast: ["noon", false],
         started: { clock: ["noon", true], ended: "go", gm: false, p1: false, p2: false },
-        end: { kind: "eclipseEnd", gm: { p1: "none", p2: "none", p3: "away" }, buttons: ["end", "endOnly", "notNow"] },
+        // The footers in the kit's tree order since E21 C3a (ui-kit.mjs's header): the primary, the closing word, the ways on.
+        end: { kind: "eclipseEnd", gm: { p1: "none", p2: "none", p3: "away" }, buttons: ["end", "notNow", "endOnly"] },
         ended: { clock: [rTimes[1], false], p1: false, p2: false },
         next: { kind: "next", gm: ["go", "notNow"] },
         notNow: { clock: [rTimes[1], false], ended: "stop", gm: false, told: { p1: 1, p2: 1 }, answered: null },
@@ -2035,7 +2036,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         next: game.i18n.localize("DRPG.Ready.askNext"), waiting: game.i18n.localize("DRPG.Ready.waiting") };`);
     const playersAsked = ["p1", "p2", "p3"].every(who => {
         const w = rRead.start.players[who];
-        return w && JSON.stringify(w[0]) === JSON.stringify(["done", "wait"]) && w[1] === rRead.start.gmTitle && w[2].startsWith(askWords.start);
+        // One moment is the primary and Done the way beside it since E21 C3a: the kit's tree puts the primary first.
+        return w && JSON.stringify(w[0]) === JSON.stringify(["wait", "done"]) && w[1] === rRead.start.gmTitle && w[2].startsWith(askWords.start);
     });
     check("R: the readiness round on four browsers - the chevron's start asks p1, p2 and p3 one window each and goes on by itself at the last Done with p3 disconnected (counted as done) and p2's One moment answered after; the end and Next time of day the same, the GM's Not now closing the players' windows with a word to each; the clock moves only when the round goes on",
         JSON.stringify(rGot) === JSON.stringify(rExpect) && playersAsked && rRead.wait.p2?.text?.includes(askWords.waiting)

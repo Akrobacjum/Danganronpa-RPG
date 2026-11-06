@@ -23,20 +23,19 @@
  * utils.mjs. It is the top of the family because the window and the tracker call
  * five names of the rules (`openMurder`, `passTurn`, `endMurder`, `rollOpening`,
  * and `openingInvited`, the `let` the rules export for the tracker) and nothing
- * below calls back into them. It exports nothing that murder.mjs did not, and its
- * `DialogV2` line is its own copy of the alias, not an import.
+ * below calls back into them. It exports nothing that murder.mjs did not. Its windows
+ * are the kit's since E21 (C2a the tracker, C3a the murder window and End the murder's
+ * question: ui-kit.mjs `drpgWindow`, `drpgConfirm`), so it holds no `DialogV2` alias.
  */
 
 import { CRISIS_ACTIONS, RESOLUTION_STRESS_COST, TIMING, INDIRECT_MURDER, ACTIONS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { resourceValue, resourceMax, marksOf, reserveNote } from "./character.mjs";
 import { keepLive } from "./live.mjs";
-import { dialogContent, error, plural, esc } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { error, plural, esc } from "./utils.mjs";
+import { drpgWindow, drpgConfirm } from "./ui-kit.mjs";
 import { murderState, killerIds } from "./incident-store.mjs";
 import { openMurder, passTurn, endMurder, openingInvited, rollOpening } from "./murder-rules.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
 
 /* ==========================================================================
  * THE GM'S TRACKER
@@ -193,13 +192,13 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
         return { killerRoom: named(k), victimRoom: named(v) };
     };
 
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Murder.openTitle") },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Murder.openTitle"),
         // Named so it can be addressed - the diagnostics count it and the suite
         // closes it - and deliberately WITHOUT an `alreadyOpen` guard, exactly
         // like the incident tracker's own class.
         classes: ["drpg-panel", "drpg-window-murder"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p class="notes">${game.i18n.localize("DRPG.Murder.openIntro")}</p>
             ${gone ? `<p class="notes drpg-warning" data-drpg-killer-gone>${
                 game.i18n.format("DRPG.Murder.killerNotAlive", { name: esc(gone) })}</p>` : ""}
@@ -232,7 +231,7 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
             <p class="notes drpg-warning" data-drpg-rooms hidden></p>
             <p class="notes drpg-warning" data-drpg-self hidden>${
                 game.i18n.localize("DRPG.Murder.openSelfNote")}</p>
-        </form>`),
+        </form>`,
         render: (event, dialog) => {
             const form = dialog.element.querySelector("form");
             if (!form) return;
@@ -288,9 +287,9 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
             form.indirect.addEventListener("change", sync);
             sync();
         },
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Murder.openConfirm"), default: true,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.Murder.openConfirm"),
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
                     return {
@@ -301,8 +300,8 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
                     };
                 }
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
 
@@ -661,12 +660,12 @@ export async function openIncidentTracker() {
         return openIncidentTracker();
     }
     if (action === "end") {
-        const sure = await DialogV2.confirm({
+        const sure = await drpgConfirm({
             yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
-            no: { label: game.i18n.localize("DRPG.Dialog.no") },
+            no: "cancel",
             classes: ["drpg-panel"],
-            window: { title: game.i18n.localize("DRPG.Murder.endMurder") },
-            content: `<p>${game.i18n.localize("DRPG.Murder.endConfirm")}</p>`
+            title: game.i18n.localize("DRPG.Murder.endMurder"),
+            body: `<p>${game.i18n.localize("DRPG.Murder.endConfirm")}</p>`
         });
         if (sure) await endMurder();
     }

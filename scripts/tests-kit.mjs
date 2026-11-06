@@ -2482,6 +2482,36 @@ function cast(n = 3) {
     return living().slice(0, n);
 }
 
+/*
+ * A KIT QUESTION, AS DialogV2.confirm WAS ASKED IT (E21 C3a, 06.11.2026). The case's yes-or-no questions moved from
+ * DialogV2.confirm onto the kit's frame (ui-kit.mjs `drpgConfirm`; boundary.mjs `noFirst` and eclipse.mjs's question
+ * at the lights, whose no is the default), and the kit asks through DialogV2.wait. A test that answered them by standing
+ * in for `confirm` stood in for nothing, and on the GM, where the suite draws real windows, the question waited for a
+ * press nobody makes. `kitQuestion(config)` reads a `wait` config as one of those questions - two buttons, one the
+ * action "yes", the other a closing word (`drpg-role-cancel` or `drpg-role-close`) - and answers the config in
+ * confirm's own shape (`window`, `content`, `yes: { label, default, class }`, `no: { label, default, class }`), or null
+ * for any other window. `kitQuestions(wait0)` is a `wait` that hands such a question to whatever DialogV2.confirm is
+ * now - the test's stand-in, or the harness's, which answered yes - and every other window to `wait0`: the routing a
+ * confirm had before the move. A test installs it beside its `confirm` and puts `wait` back with it.
+ */
+function kitQuestion(config) {
+    const buttons = config?.buttons ?? [];
+    if (buttons.length !== 2) return null;
+    const yes = buttons.find(b => b?.action === "yes");
+    const no = buttons.find(b => b !== yes && /\bdrpg-role-(?:cancel|close)\b/.test(b?.class ?? ""));
+    if (!yes || !no) return null;
+    const side = b => ({ label: b.label, default: b.default === true, class: b.class ?? "" });
+    return { ...config, yes: side(yes), no: side(no) };
+}
+
+function kitQuestions(wait0) {
+    const D = foundry.applications.api.DialogV2;
+    return async function (config) {
+        const asked = kitQuestion(config);
+        return asked ? D.confirm(asked) : wait0.call(D, config);
+    };
+}
+
 export {
     Failure, Precondition, ContractBreach, Skipped, ok, needs, equal, must, describe, expectedRed, compareVersions, stageLedger, markerProblem,
     apiKind, apiSurfaceProblems,
@@ -2496,5 +2526,6 @@ export {
     cssDeadClasses, cssSelfCheck, cssLintCounts, cssBudgetProblems, CSS_DETECTORS, CSS_FIXTURES,
     cssThemeTokens, cssContrastOf, cssContrastRatio, cssContrastSelfCheck, cssKitSheetProblems,
     stringLiterals, STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, watchWrites, watchLog, cast,
+    kitQuestion, kitQuestions,
     worldDump, dumpDiff, describeDiff, hashText, dumpOf, dumpPathsOf, DUMP_RULES, DUMP_FOREIGN_SETTINGS
 };

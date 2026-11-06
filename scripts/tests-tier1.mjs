@@ -33863,8 +33863,9 @@ const INVARIANTS = [
             head: /localize\("DRPG\.Investigation\.deleteTrace"\)\}<\/th>/.test(panel),
             bound: /querySelectorAll\("\[data-drpg-trace-delete\]"\)/.test(wire) && /deleteTraceRow\(button\.dataset\.drpgTraceDelete\)/.test(wire),
             gmFirst: /^[^{]*\{\s*if \(!game\.user\.isGM\b/.test(road),
-            asksBefore: at(/const sure = await DialogV2\.confirm\(/) > 0 && at(/const sure = await DialogV2\.confirm\(/) < at(/removeRemnant\(/),
-            stopsOnNo: at(/if \(!sure\) return false;/) > at(/const sure = await DialogV2\.confirm\(/) && at(/if \(!sure\) return false;/) < at(/removeRemnant\(/),
+            // The question is the kit's since E21 C3a (ui-kit.mjs `drpgConfirm`), DialogV2.confirm's until then.
+            asksBefore: at(/const sure = await drpgConfirm\(/) > 0 && at(/const sure = await drpgConfirm\(/) < at(/removeRemnant\(/),
+            stopsOnNo: at(/if \(!sure\) return false;/) > at(/const sure = await drpgConfirm\(/) && at(/if \(!sure\) return false;/) < at(/removeRemnant\(/),
             names: /deleteTraceAsk", \{ name \}/.test(road),
             onlyRemove: !/\.delete\(|deleteEmbeddedDocuments|dropRemnantSecret/.test(road)
         };

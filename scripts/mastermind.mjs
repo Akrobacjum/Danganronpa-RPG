@@ -35,8 +35,8 @@ import { studentActors } from "./monokuma.mjs";
 // No cycle: walked 27.09.2026, the 16 modules assignments.mjs reaches through its
 // static imports do not include this file.
 import { feedsNobody } from "./assignments.mjs";
-import { announce, dialogContent, ownerOf, primaryGmId, isPrimaryGm, log, error, wholeNumber } from "./utils.mjs";
-import { stepper, emptyOption } from "./ui-kit.mjs";
+import { announce, ownerOf, primaryGmId, isPrimaryGm, log, error, wholeNumber } from "./utils.mjs";
+import { stepper, emptyOption, drpgWindow, drpgConfirm } from "./ui-kit.mjs";
 import { mastermindStore, doorCopy, mastermindUndecided } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
@@ -48,7 +48,6 @@ import { registerSeasonState } from "./season-reset.mjs";
 import { openFinalVerdictDialog } from "./verdict.mjs";
 export { openFinalVerdictDialog, applyFinalVerdict } from "./verdict.mjs";
 
-const DialogV2 = foundry.applications.api.DialogV2;
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 /** GM -> the one player who already knows they hold the part, and "not you" to the rest. See below. */
 const ACTION_DOOR = "mastermind.door";
@@ -420,15 +419,14 @@ export function registerMastermind() {
  * only the role and the lair.
  */
 export async function toggleFinalTrialFlag() {
-    const DialogV2 = foundry.applications.api.DialogV2;
     const next = !inFinalTrial();
 
-    const sure = await DialogV2.confirm({
+    const sure = await drpgConfirm({
         yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
-        no: { label: game.i18n.localize("DRPG.Dialog.no") },
-        window: { title: game.i18n.localize("DRPG.Mastermind.toggleFinalTrial") },
+        no: "cancel",
+        title: game.i18n.localize("DRPG.Mastermind.toggleFinalTrial"),
         classes: ["drpg-panel"],
-        content: `<p>${game.i18n.localize(
+        body: `<p>${game.i18n.localize(
             next ? "DRPG.Mastermind.confirmStart" : "DRPG.Mastermind.confirmEnd")}</p>`,
         rejectClose: false
     });
@@ -607,10 +605,10 @@ export async function openMastermindDialog() {
     ...(lair && !lairRooms.includes(lair) ? [`<option value="${foundry.utils.escapeHTML(lair)}" selected>${
         foundry.utils.escapeHTML(game.i18n.format("DRPG.Project.roomElsewhere", { room: lair }))}</option>`] : [])].join("");
 
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Mastermind.dialogTitle"), minimizable: true },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Mastermind.dialogTitle"),
         classes: ["drpg-panel", "drpg-window-mastermind"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p class="drpg-warning">${game.i18n.localize("DRPG.Mastermind.privacyWarning")}</p>
             <label>${game.i18n.localize("DRPG.Mastermind.whoIs")}
                 <select name="who">
@@ -631,10 +629,10 @@ export async function openMastermindDialog() {
                 <legend>${game.i18n.localize("DRPG.Monocub.giveHope")}</legend>
                 <div class="drpg-mm-live">${hopeBox()}</div>
             </fieldset>` : ""}
-        </form>`),
-        buttons: [
-            {
-                action: "save", label: game.i18n.localize("DRPG.Panel.apply"), default: true,
+        </form>`,
+        footer: {
+            primary: {
+                action: "save", label: game.i18n.localize("DRPG.Panel.apply"),
                 // An OBJECT, not the bare value.
                 //
                 // "Apply with nobody selected" and "the GM shut the window"
@@ -659,9 +657,9 @@ export async function openMastermindDialog() {
             // and a second copy next to the button that can wipe the season was
             // a duplicate with worse neighbours. The verdict stays - it has no
             // other home.
-            { action: "finalVerdict", label: game.i18n.localize("DRPG.Mastermind.verdictTitle") },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            secondary: [{ action: "finalVerdict", label: game.i18n.localize("DRPG.Mastermind.verdictTitle") }],
+            close: "cancel"
+        },
         render: (event, dialog) => {
             const wireGive = () => wireMastermindGive(dialog, current);
             wireGive();

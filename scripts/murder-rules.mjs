@@ -81,9 +81,11 @@ import { equippedFor, breakOnDespair, isEquipped, readiedItems, tierOf, EQUIPPED
 import { dropRemnant, traceFeedback, publishTiesFor, fightKey, remnantById } from "./remnants.mjs";
 import { closeOpen } from "./live.mjs";
 import {
-    announce as announcePlain, dialogContent, whisperToGms, whisperToOwner as whisperToOwnerPlain, ownerOf,
+    announce as announcePlain, whisperToGms, whisperToOwner as whisperToOwnerPlain, ownerOf,
     ownerIdsOf, gmIds, isPrimaryGm, log, warn, error, plural, listOf, proseOf, debug, esc, cardHead, markFired
 } from "./utils.mjs";
+// The kit's frame (E21 C3a): the fight's questions and the checklists after it, answering as before.
+import { drpgWindow, drpgConfirm } from "./ui-kit.mjs";
 import {
     readCast, murderState, writeCast, incidentWrite, stillHolds, restoreState, incidentAudienceIds, writeState,
     sweepBetrayalWindows, sideOf, killerIds, participantIds, castHeldHere, registerIncidentCastSync,
@@ -106,8 +108,6 @@ const whisperToOwner = (actor, content, extra = {}) =>
 const announce = data =>
     announcePlain(data?.whisper?.length ? { veiled: true, ...data } : data);
 
-
-const DialogV2 = foundry.applications.api.DialogV2;
 
 /**
  * Is it this actor's turn to act?
@@ -828,14 +828,15 @@ export async function resolveVictimOpening({ total, isCritical, withHope }) {
 async function askCriticalTarget(def) {
     if (!def.damage?.critical?.choice) return null;
 
-    const picked = await DialogV2.wait({
+    const picked = await drpgWindow({
         classes: ["drpg-panel", "drpg-narrow"],
-        window: { title: game.i18n.localize("DRPG.Murder.criticalChoiceTitle") },
-        content: dialogContent(`<p>${game.i18n.localize("DRPG.Murder.criticalChoiceIntro")}</p>`),
-        buttons: [
-            { action: "hp", label: game.i18n.localize("DRPG.Murder.criticalChoiceHp"), default: true },
-            { action: "stress", label: game.i18n.localize("DRPG.Murder.criticalChoiceStress") }
-        ],
+        title: game.i18n.localize("DRPG.Murder.criticalChoiceTitle"),
+        body: `<p>${game.i18n.localize("DRPG.Murder.criticalChoiceIntro")}</p>`,
+        // Two answers and no closing word: Health the default, as before.
+        footer: {
+            primary: { action: "hp", label: game.i18n.localize("DRPG.Murder.criticalChoiceHp") },
+            secondary: [{ action: "stress", label: game.i18n.localize("DRPG.Murder.criticalChoiceStress") }]
+        },
         rejectClose: false
     });
 
@@ -1403,10 +1404,10 @@ async function rateTierZero(actor, item, rule) {
         }</option>`);
     }
 
-    const picked = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Murder.tierZeroTitle") },
+    const picked = await drpgWindow({
+        title: game.i18n.localize("DRPG.Murder.tierZeroTitle"),
         classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p>${game.i18n.format("DRPG.Murder.tierZeroIntro", {
                 actor: foundry.utils.escapeHTML(actor.name),
                 item: foundry.utils.escapeHTML(item.name)
@@ -1414,13 +1415,13 @@ async function rateTierZero(actor, item, rule) {
             <label>${game.i18n.localize("DRPG.Murder.tierZeroRate")}
                 <select name="tier">${options}</select></label>
             <p class="notes">${game.i18n.localize("DRPG.Murder.tierZeroNote")}</p>
-        </form>`),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Panel.apply"), default: true,
+        </form>`,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.Panel.apply"),
                 callback: (e, b, d) => d.element.querySelector("[name=tier]").value
             }
-        ],
+        },
         rejectClose: false
     }).catch(() => null);
 
@@ -2314,17 +2315,18 @@ async function checkVictimSpent(done = null, killed = null) {
         const names = killerIds(state)
             .map(id => game.actors.get(id)?.name).filter(Boolean)
             .map(n => foundry.utils.escapeHTML(n)).join(" & ");
-        const now = await DialogV2.confirm({
+        const now = await drpgConfirm({
             classes: ["drpg-panel"],
-            window: { title: game.i18n.localize("DRPG.Murder.ranOutTitle") },
-            content: dialogContent(`<div>
+            title: game.i18n.localize("DRPG.Murder.ranOutTitle"),
+            body: `<div>
                 <p>${game.i18n.format("DRPG.Murder.ranOutTwoKillers", {
                     victim: foundry.utils.escapeHTML(victim.name), killers: names
                 })}</p>
                 <p class="notes">${game.i18n.localize("DRPG.Murder.ranOutTwoKillersNote")}</p>
-            </div>`),
+            </div>`,
             yes: { label: game.i18n.localize("DRPG.Murder.ranOutEndNow") },
-            no: { label: game.i18n.localize("DRPG.Murder.ranOutKeepGoing") },
+            // The role's word (E21 rule 3), not "Keep going": the question is withdrawn and the fight goes on.
+            no: "cancel",
             rejectClose: false
         });
         if (!now) return false;
@@ -3026,12 +3028,12 @@ async function killerFell({ pass = true } = {}) {
     noKillerTold = state.openedAt;
     const words = game.i18n.localize("DRPG.Murder.noKillerLeft");
     await whisperToGms(`<p>${words}</p>`);
-    const sure = await DialogV2.confirm({
+    const sure = await drpgConfirm({
         yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
-        no: { label: game.i18n.localize("DRPG.Dialog.no") },
+        no: "cancel",
         classes: ["drpg-panel"],
-        window: { title: game.i18n.localize("DRPG.Murder.endMurder") },
-        content: `<p>${words}</p><p>${game.i18n.localize("DRPG.Murder.endConfirm")}</p>`,
+        title: game.i18n.localize("DRPG.Murder.endMurder"),
+        body: `<p>${words}</p><p>${game.i18n.localize("DRPG.Murder.endConfirm")}</p>`,
         rejectClose: false
     });
     const now = murderState();
@@ -3600,10 +3602,10 @@ async function afterIncident(state) {
     // The offer is armed all the same and the tile lights after the trial.
     const traitor = getClock()?.phase === "classTrial" ? null : betrayalCandidate(state, killer);
 
-    const action = await DialogV2.wait({
+    const action = await drpgWindow({
         classes: ["drpg-panel"],
-        window: { title: game.i18n.localize("DRPG.Murder.afterTitle") },
-        content: dialogContent(`<div>
+        title: game.i18n.localize("DRPG.Murder.afterTitle"),
+        body: `<div>
             <p>${state.selfInflicted
                 // "X was killed by X" is the sentence this used to produce.
                 ? game.i18n.format("DRPG.Murder.afterIntroSelf", {
@@ -3621,24 +3623,26 @@ async function afterIncident(state) {
                 third: foundry.utils.escapeHTML(traitor.name),
                 killer: foundry.utils.escapeHTML(killer?.name ?? "?")
             })}</p>` : ""}
-        </div>`),
-        buttons: [
+        </div>`,
+        footer: {
             // THE BODY FIRST, AND IT NO LONGER STARTS STAGE 7 (D5). Announcing
             // the discovery and starting the investigation are two decisions
             // now, and this window offers them in that order.
-            { action: "body", label: game.i18n.localize("DRPG.Chapter.bodyTitle"), default: true },
-            ...(alreadyInvestigating ? [] : [{
-                action: "investigation",
-                label: game.i18n.localize("DRPG.Murder.afterGoInvestigation")
-            }]),
-            { action: "autopsy", label: game.i18n.localize("DRPG.TruthBullet.autopsyTitle") },
-            ...(traitor ? [{
-                action: "betrayal", class: "drpg-gm-route",
-                label: game.i18n.format("DRPG.Murder.betrayalButton",
-                    { third: foundry.utils.escapeHTML(traitor.name) })
-            }] : []),
-            { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
+            primary: { action: "body", label: game.i18n.localize("DRPG.Chapter.bodyTitle") },
+            secondary: [
+                ...(alreadyInvestigating ? [] : [{
+                    action: "investigation",
+                    label: game.i18n.localize("DRPG.Murder.afterGoInvestigation")
+                }]),
+                { action: "autopsy", label: game.i18n.localize("DRPG.TruthBullet.autopsyTitle") },
+                ...(traitor ? [{
+                    action: "betrayal", class: "drpg-gm-route",
+                    label: game.i18n.format("DRPG.Murder.betrayalButton",
+                        { third: foundry.utils.escapeHTML(traitor.name) })
+                }] : [])
+            ],
+            close: "close"
+        },
         rejectClose: false
     });
 
@@ -4006,10 +4010,10 @@ async function afterEscape(state, victim, killer) {
         game.i18n.format("DRPG.Murder.escapeKiller", { killer: name(killer) })
     ];
 
-    const action = await DialogV2.wait({
+    const action = await drpgWindow({
         classes: ["drpg-panel"],
-        window: { title: game.i18n.localize("DRPG.Murder.escapeTitle") },
-        content: dialogContent(`<div>
+        title: game.i18n.localize("DRPG.Murder.escapeTitle"),
+        body: `<div>
             <p>${game.i18n.format("DRPG.Murder.escapeIntro", {
                 victim: name(victim), third: name(third), killer: name(killer)
             })}</p>
@@ -4018,12 +4022,11 @@ async function afterEscape(state, victim, killer) {
                     { room: foundry.utils.escapeHTML(room) })
                 : game.i18n.localize("DRPG.Murder.escapeNoRoom")}</strong></p>
             <ul class="drpg-briefing-facts">${owed.map(o => `<li>${o}</li>`).join("")}</ul>
-        </div>`),
-        buttons: [
-            { action: "remnants", default: true,
-              label: game.i18n.localize("DRPG.Murder.escapeRemnants") },
-            { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
+        </div>`,
+        footer: {
+            primary: { action: "remnants", label: game.i18n.localize("DRPG.Murder.escapeRemnants") },
+            close: "close"
+        },
         rejectClose: false
     });
 
@@ -4044,16 +4047,17 @@ async function afterEscape(state, victim, killer) {
 async function afterNoBody(state, victim, killer) {
     const survived = state.stage === "resolution";
     const name = actor => foundry.utils.escapeHTML(actor?.name ?? "?");
-    const action = await DialogV2.wait({
+    const action = await drpgWindow({
         classes: ["drpg-panel"],
-        window: { title: game.i18n.localize("DRPG.Murder.afterTitle") },
-        content: dialogContent(`<div><p>${survived
+        title: game.i18n.localize("DRPG.Murder.afterTitle"),
+        body: `<div><p>${survived
             ? game.i18n.format("DRPG.Murder.afterSurvived", { victim: name(victim), killer: name(killer) })
-            : game.i18n.localize("DRPG.Murder.afterInterrupted")}</p></div>`),
-        buttons: [
-            ...(survived ? [{ action: "remnants", default: true, label: game.i18n.localize("DRPG.Murder.escapeRemnants") }] : []),
-            { action: "close", label: game.i18n.localize("DRPG.Panel.close"), ...(survived ? {} : { default: true }) }
-        ],
+            : game.i18n.localize("DRPG.Murder.afterInterrupted")}</p></div>`,
+        // With no Remnant table to offer, Close alone, and the default.
+        footer: {
+            primary: survived ? { action: "remnants", label: game.i18n.localize("DRPG.Murder.escapeRemnants") } : null,
+            close: "close"
+        },
         rejectClose: false
     });
     if (action === "remnants") {

@@ -37,9 +37,9 @@ import { bulletsOf, isTruthBullet, secretOf, truthBulletData } from "./truth-bul
 import { studentActors } from "./monokuma.mjs";
 import { livingStudentsForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs";
 import {
-    dialogContent, plural, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
+    plural, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
     workingScene, esc, placeRoomOptions, listOf, error } from "./utils.mjs";
-import { kitTabs, wireKitTabs, emptyOption, drpgWindow } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, RAISED } from "./live.mjs";
 import { keyPlanStore, remnantStore } from "./gm-stores.mjs";
 import { murderState } from "./incident-store.mjs";
@@ -47,8 +47,6 @@ import { bridgeRequest } from "./bridge-guards.mjs";
 import { roomRegions } from "./rooms.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
 
 const ICON = "icons/svg/hazard.svg";
 
@@ -1042,10 +1040,10 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
 
     // The room's field is labelled "Room" (E09 C14, 08.10.2026; audit S05-35): it borrowed
     // `pickRoom`, the empty option of the Remnants tab's room select, and read "- create in -".
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Investigation.newTraceTitle") },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Investigation.newTraceTitle"),
         classes: ["drpg-panel", "drpg-window-newtrace"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p class="notes">${game.i18n.localize("DRPG.Investigation.newTraceIntro")}</p>
             <label>${game.i18n.localize("DRPG.Investigation.room")}
                 <select name="room">${roomOptions}</select></label>
@@ -1074,11 +1072,10 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
             <label class="drpg-checkbox"><input type="checkbox" name="reinforced" />
                 ${game.i18n.localize("DRPG.Investigation.newTraceReinforced")}</label>
             <p class="notes">${game.i18n.localize("DRPG.Investigation.newTraceNote")}</p>
-        </form>`),
-        buttons: [
-            {
+        </form>`,
+        footer: {
+            primary: {
                 action: "ok", label: game.i18n.localize("DRPG.Investigation.createHere"),
-                default: true,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
                     return {
@@ -1094,8 +1091,8 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
                     };
                 }
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
 
@@ -1308,10 +1305,10 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
        said they were examining - and until 1.2.42 that sentence went into the GM-private note
        and never reached them. Their words, in the field they will read back; the note beside it
        is for what the GM keeps. */
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Investigation.createHereTitle") },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Investigation.createHereTitle"),
         classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p class="notes">${plural("DRPG.Investigation.createHereIntro", { n: plan.entries.length })}</p>
             <label>${game.i18n.localize("DRPG.Investigation.room")}
                 <select name="room">${roomOptions}</select></label>
@@ -1338,11 +1335,10 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
                     <option value="">${game.i18n.format(
                         "DRPG.Investigation.noSlot", { n: KEY_REMNANTS.prepared })}</option>
                 </select></label>
-        </form>`),
-        buttons: [
-            {
+        </form>`,
+        footer: {
+            primary: {
                 action: "ok", label: game.i18n.localize("DRPG.Investigation.createHere"),
-                default: true,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
                     return {
@@ -1356,8 +1352,8 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
                     };
                 }
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
 
@@ -1427,27 +1423,27 @@ export async function placeKeyRow(root, slot) {
         return null;
     }
     const drawn = keyPlan().entries[slot] ?? {};
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Investigation.placeTitle") },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Investigation.placeTitle"),
         classes: ["drpg-panel", "drpg-window-keyplace"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p class="notes">${esc(SCALE_LABELS[drawn.scale] ?? drawn.scale ?? "")}</p>
             <label>${game.i18n.localize("DRPG.Investigation.room")}
                 <select name="room">${rooms.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join("")}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.visibility")}
                 <select name="vis">${REMNANT_VISIBILITY.map(v => `<option value="${v}"${v === "evident" ? " selected" : ""}>${
                     esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("")}</select></label>
-        </form>`),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Investigation.place"), default: true,
+        </form>`,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.Investigation.place"),
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
                     return { room: f.room.value, visibility: f.vis.value };
                 }
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
     if (!result || result === "cancel" || !result.room) return null;
@@ -1584,15 +1580,15 @@ export async function confirmSweepBullets({ actors = null } = {}) {
         return 0;
     }
 
-    const sure = await DialogV2.confirm({
+    const sure = await drpgConfirm({
         yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
-        no: { label: game.i18n.localize("DRPG.Dialog.no") },
-        window: { title: game.i18n.localize("DRPG.Panel.sweepBullets") },
+        no: "cancel",
+        title: game.i18n.localize("DRPG.Panel.sweepBullets"),
         classes: ["drpg-panel"],
-        content: dialogContent(`<div>
+        body: `<div>
             <p>${plural("DRPG.Panel.sweepConfirm", { n: doomed })}</p>
             <p class="notes">${game.i18n.format("DRPG.Panel.sweepConfirmNote", { kept })}</p>
-        </div>`),
+        </div>`,
         rejectClose: false
     });
     if (!sure) return 0;
@@ -2345,12 +2341,12 @@ export async function deleteTraceRow(key) {
     const trace = allTraces().find(t => rowKey(t.scene.id, t.token.id) === key);
     if (!trace) return null;
     const name = trace.data.public?.name || traceContextLine(trace.data) || key;
-    const sure = await DialogV2.confirm({
+    const sure = await drpgConfirm({
         yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
-        no: { label: game.i18n.localize("DRPG.Dialog.no") },
-        window: { title: game.i18n.localize("DRPG.Investigation.deleteTraceTitle") },
+        no: "cancel",
+        title: game.i18n.localize("DRPG.Investigation.deleteTraceTitle"),
         classes: ["drpg-panel"],
-        content: dialogContent(`<p>${esc(game.i18n.format("DRPG.Investigation.deleteTraceAsk", { name }))}</p>`),
+        body: `<p>${esc(game.i18n.format("DRPG.Investigation.deleteTraceAsk", { name }))}</p>`,
         rejectClose: false
     });
     if (!sure) return false;

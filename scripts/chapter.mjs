@@ -40,8 +40,10 @@ import {
 } from "./truth-bullets.mjs";
 import { remnantsOn, remnantData, setRemnantFlagsMany, publishTiesFor, handTiesOn, fightKey } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc, isPrimaryGm, primaryGmId,
+import { announce, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc, isPrimaryGm, primaryGmId,
     serverNow, listOf } from "./utils.mjs";
+// The kit's frame (E21 C3a): every window of the case's chapter is a `drpgWindow` or a `drpgConfirm`, answering as before.
+import { drpgWindow, drpgConfirm } from "./ui-kit.mjs";
 // A leaf (utils.mjs alone): the one runner of the procedures that cannot be taken back, and its report (E42 C2).
 import { runSteps, stepsReport } from "./steps.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
@@ -49,8 +51,6 @@ import { registerSeasonState, everyPart } from "./season-reset.mjs";
 import { caseMark, deathStore, deferredOfferStore, lootTraceStore } from "./gm-stores.mjs";
 // A leaf (config.mjs alone): the scenes of the discovery window and a discovery handed no scene (E12 C5).
 import { placeScenes, roomNames, sceneOfRoom } from "./rooms.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
 
 /* ==========================================================================
  * DEATH
@@ -591,10 +591,10 @@ async function offerStageSix(victim) {
 
     const killer = game.actors.get(state.killerId);
 
-    const sure = await DialogV2.confirm({
+    const sure = await drpgConfirm({
         classes: ["drpg-panel"],
-        window: { title: game.i18n.localize("DRPG.Chapter.stageSixTitle") },
-        content: dialogContent(`<div>
+        title: game.i18n.localize("DRPG.Chapter.stageSixTitle"),
+        body: `<div>
             <p>${game.i18n.format("DRPG.Chapter.stageSixIntro", {
                 victim: foundry.utils.escapeHTML(victim.name),
                 killer: foundry.utils.escapeHTML(killer?.name ?? "?")
@@ -602,9 +602,10 @@ async function offerStageSix(victim) {
             <p>${game.i18n.format("DRPG.Chapter.stageSixWhat", {
                 killer: foundry.utils.escapeHTML(killer?.name ?? "?")
             })}</p>
-        </div>`),
+        </div>`,
         yes: { label: game.i18n.localize("DRPG.Chapter.stageSixYes") },
-        no: { label: game.i18n.localize("DRPG.Chapter.stageSixNo") },
+        // The role's word (E21 rule 3): the question is withdrawn, so Cancel - not the caller's "Not now".
+        no: "cancel",
         rejectClose: false
     });
 
@@ -717,10 +718,10 @@ export async function openDeathDialog({ actor = null } = {}) {
                     .map(a => `<option value="${a.id}">${
                         foundry.utils.escapeHTML(a.name)}</option>`).join("")}</select></label>`;
 
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Chapter.deathTitle") },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Chapter.deathTitle"),
         classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+        body: `<form>
             ${picker}
             <label class="drpg-checkbox">
                 <input type="checkbox" name="keepBullets" />
@@ -729,17 +730,17 @@ export async function openDeathDialog({ actor = null } = {}) {
                 <input type="checkbox" name="secret"${secretByDefault ? " checked" : ""} />
                 ${game.i18n.localize("DRPG.Chapter.keepSecretUntilFound")}</label>
             <p class="notes">${game.i18n.localize("DRPG.Chapter.deathNote")}</p>
-        </form>`),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Chapter.confirmDeath"), default: true,
+        </form>`,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.Chapter.confirmDeath"),
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
                     return { id: actor?.id ?? f.actor.value, keepBullets: f.keepBullets.checked, secret: f.secret.checked };
                 }
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
 
@@ -811,22 +812,23 @@ export async function promoteFaintPrep({ room = null, chapter = getClock().chapt
                 + `${c.data.subject ? ` · ${c.data.subject}` : ""}`
             )}</label>`).join("");
 
-    const picked = await DialogV2.wait({
-        window: { title: room ? game.i18n.format("DRPG.Chapter.promoteTitle", { room }) : game.i18n.localize("DRPG.Chapter.bodyBanner") },
+    const picked = await drpgWindow({
+        title: room ? game.i18n.format("DRPG.Chapter.promoteTitle", { room }) : game.i18n.localize("DRPG.Chapter.bodyBanner"),
         classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p>${game.i18n.localize("DRPG.Chapter.promoteIntro")}</p>
             <fieldset>${rows}</fieldset>
             <p class="notes">${game.i18n.localize("DRPG.Chapter.promoteNote")}</p>
-        </form>`),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Chapter.promoteConfirm"), default: true,
+        </form>`,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.Chapter.promoteConfirm"),
                 callback: (e, b, d) => Array.from(
                     d.element.querySelectorAll("[name=promote]:checked")).map(i => Number(i.value))
             },
-            { action: "skip", label: game.i18n.localize("DRPG.Chapter.promoteSkip") }
-        ],
+            // Skip withdraws the question (E21 rule 3): the role's Cancel, its answer "skip" as before.
+            close: { role: "cancel", action: "skip" }
+        },
         rejectClose: false
     });
 
@@ -1488,11 +1490,11 @@ export async function openBodyDiscoveryDialog() {
     const notes = [game.i18n.localize(getClock().phase === "dailyLife" ? "DRPG.Chapter.bodyNote" : "DRPG.Chapter.bodyNoteLater")];
     if (faintPrepCandidates().length) notes.push(game.i18n.localize("DRPG.Chapter.bodyNoteTraces"));
 
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Chapter.bodyTitle") },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Chapter.bodyTitle"),
         // Its own class, for the stylesheet's form layout: "Which room?" and "Whose body?" one column (E11 fix r1-G4).
         classes: ["drpg-panel", "drpg-window-body"],
-        content: dialogContent(`<form>
+        body: `<form>
             <label>${game.i18n.localize("DRPG.Chapter.whereBody")}
                 <select name="room">${roomOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Chapter.whoseBody")}
@@ -1501,17 +1503,17 @@ export async function openBodyDiscoveryDialog() {
                     ${victims}
                 </select></label>
             <p class="notes">${notes.join(" ")}</p>
-        </form>`),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Chapter.announce"), default: true,
+        </form>`,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.Chapter.announce"),
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
                     return { room: f.room.value, sceneId: f.room.selectedOptions?.[0]?.dataset.scene ?? null, victimId: f.victim.value };
                 }
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
 
@@ -1902,14 +1904,14 @@ export async function openChapterEndDialog() {
         }
     }
 
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Chapter.endTitle") },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Chapter.endTitle"),
         classes: ["drpg-panel"],
-        content: dialogContent(chapterEndForm({
+        body: chapterEndForm({
             chapter: getClock().chapter, session: getClock().session, day: getClock().day ?? 1,
             hidden, typeless, holders: typelessHolders, sweepable, faintable, keyable, trialSitting, lastChapter,
             finalTruthPlaced, backup: backupReminder()
-        })),
+        }),
         // The case's backup, from the window a chapter closes in (E04): the answer
         // keys it is about to reveal and sweep live in GM browsers, not the world.
         render: (event, dialog) => {
@@ -1919,9 +1921,9 @@ export async function openChapterEndDialog() {
                     .catch(err => error("Could not back up the case", err));
             });
         },
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Chapter.endConfirm"), default: true,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.Chapter.endConfirm"),
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
                     return {
@@ -1936,8 +1938,8 @@ export async function openChapterEndDialog() {
                     };
                 }
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
 
@@ -2472,16 +2474,18 @@ async function finishEndNow({ drop }) {
 /** The End of chapter window while a stopped end stands (E42 C2; E42-10): Finish the chapter's end, Drop the rest, or Cancel, the default. */
 async function askStoppedEnd(record) {
     const undone = askedSteps(record, false), earlier = askedSteps(record, true);
-    const answer = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Chapter.endTitle") },
+    const answer = await drpgWindow({
+        title: game.i18n.localize("DRPG.Chapter.endTitle"),
         classes: ["drpg-panel"],
-        content: dialogContent(`<p class="drpg-warning">${esc(game.i18n.format("DRPG.Chapter.endStands", { steps: listOf(undone.map(stepWords)) }))}</p>${
-            earlier.length ? `<p>${esc(game.i18n.format("DRPG.Chapter.doneEarlier", { steps: listOf(earlier.map(stepWords)) }))}</p>` : ""}`),
-        buttons: [
-            { action: "finish", label: game.i18n.localize("DRPG.Chapter.finishEnd") },
-            { action: "drop", label: game.i18n.localize("DRPG.Chapter.dropRest") },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true }
-        ],
+        body: `<p class="drpg-warning">${esc(game.i18n.format("DRPG.Chapter.endStands", { steps: listOf(undone.map(stepWords)) }))}</p>${
+            earlier.length ? `<p>${esc(game.i18n.format("DRPG.Chapter.doneEarlier", { steps: listOf(earlier.map(stepWords)) }))}</p>` : ""}`,
+        // Cancel the default, as before (E42 C2): the window has no field, so the focused button is the one Enter presses.
+        footer: {
+            primary: { action: "finish", label: game.i18n.localize("DRPG.Chapter.finishEnd") },
+            secondary: [{ action: "drop", label: game.i18n.localize("DRPG.Chapter.dropRest") }],
+            close: "cancel",
+            default: "cancel"
+        },
         rejectClose: false
     });
     if (answer === "finish") return finishChapterEnd();

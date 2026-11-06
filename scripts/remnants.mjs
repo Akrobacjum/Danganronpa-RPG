@@ -20,6 +20,8 @@ import { MODULE_ID, ACTIONS, REMNANT_TYPES, REMNANT_VISIBILITY, REMNANT_VISIBILI
 import { roomOfToken, roomAt, locateActor } from "./movement.mjs";
 import { SETTINGS, isDeceased, isDeadForGm, seasonEpoch, sameSeason } from "./settings.mjs";
 import { isPrimaryGm, log, warn, error, plural, esc, forcedDeletion, serverNow } from "./utils.mjs";
+// The kit's frame (E21 C3a): Clear Faint Remnants' question.
+import { drpgConfirm } from "./ui-kit.mjs";
 // The ledger's store. gm-stores.mjs reaches this file only by a dynamic `import()`,
 // so a static import here is no cycle (R161).
 import { remnantStore, bulletStore, traceDigestStore, upgradeMark } from "./gm-stores.mjs";
@@ -2432,8 +2434,6 @@ export async function handTiesOn(from, to) {
  * button that calls it now sits on the Remnant table.
  */
 export async function confirmClearFaint({ tokens = null } = {}) {
-    const DialogV2 = foundry.applications.api.DialogV2;
-
     const doomed = (tokens ?? Array.from(game.scenes).flatMap(scene => remnantsOn(scene))).filter(clearable).length;
 
     if (!doomed) {
@@ -2441,12 +2441,12 @@ export async function confirmClearFaint({ tokens = null } = {}) {
         return 0;
     }
 
-    const sure = await DialogV2.confirm({
+    const sure = await drpgConfirm({
         yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
-        no: { label: game.i18n.localize("DRPG.Dialog.no") },
-        window: { title: game.i18n.localize("DRPG.Panel.clearFaint") },
+        no: "cancel",
+        title: game.i18n.localize("DRPG.Panel.clearFaint"),
         classes: ["drpg-panel"],
-        content: `<p>${plural("DRPG.Panel.faintConfirm", { n: doomed })}</p>
+        body: `<p>${plural("DRPG.Panel.faintConfirm", { n: doomed })}</p>
                   <p class="notes">${game.i18n.localize("DRPG.Panel.faintConfirmNote")}</p>`,
         rejectClose: false
     });

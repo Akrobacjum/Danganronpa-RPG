@@ -3320,7 +3320,8 @@ const REGRESSIONS = [
 
         ok(dialog.includes("isEclipse("),
             "the murder window opens during an Eclipse and only refuses at Confirm");
-        ok(dialog.indexOf("isEclipse(") < dialog.indexOf("DialogV2.wait("),
+        // E21 C3a: the window is the kit's `drpgWindow(` (ui-kit.mjs), DialogV2.wait's until then.
+        ok(dialog.indexOf("drpgWindow(") > 0 && dialog.indexOf("isEclipse(") < dialog.indexOf("drpgWindow("),
             "the Eclipse is asked after the GM has already filled the form in");
         ok(dialog.indexOf("murderState()") < dialog.indexOf("isEclipse("),
             "the Eclipse guard now hides the tracker of an incident that is already running");
@@ -20479,8 +20480,11 @@ const REGRESSIONS = [
             "panel", "failures", "season", "start-here", "preseason", "season-reset", "clock", "correction", "items", "give", "bullet",
             "autopsy", "take", "tables", "install-tables", "place-result", "delete-table", "backup", "case-health", "enter-cast",
             "restore-case", "removepool", "clearoverflow", "revoke-passage", "delete-passage", "requirements", "newer-system",
-            "diagnose", "handover", "dice-look"]
-            .map(name => `drpg-window-${name}`).concat(["drpg-gm-panel-window"]);
+            "diagnose", "handover", "dice-look",
+            // C3a: the case - a new trace, a Key row's place, the body's announcement, the Mastermind, the murder window;
+            // the readiness round's two windows are named by their own classes below.
+            "newtrace", "keyplace", "body", "mastermind", "murder"]
+            .map(name => `drpg-window-${name}`).concat(["drpg-gm-panel-window", "drpg-ready-gm", "drpg-ready-player"]);
         const FRAME = /^(?:max-height|min-height|height|overflow(?:-[xy])?|position|top|bottom|inset)$/;
         const FOOT = /^(?:display|order|flex(?:-[\w-]+)?|justify-content|align-items|position|width|max-width|margin(?:-[\w-]+)?|padding(?:-[\w-]+)?|bottom|left|right)$/;
         const found = [];

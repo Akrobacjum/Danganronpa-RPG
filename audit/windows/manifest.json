@@ -844,7 +844,8 @@
         "application",
         "dialog",
         "drpg-panel",
-        "drpg-window-murder"
+        "drpg-window-murder",
+        "drpg-ui"
       ],
       "tag": "dialog",
       "width": 400,
