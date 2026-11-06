@@ -24544,6 +24544,14 @@ const SCENARIOS = [
          * card naming the victim executed, the flag every console reads, the GMs' row of the death and the stage. The
          * killer is a student a connected player owns: an opening roll with nobody to ask is thrown on the GM's client
          * and races `resolveKillerOpening` (the E05 fix r2-G1 test above, measured 27.09).
+         *
+         * THE VICTIM'S QUESTION, ANSWERED (E21 C3 fix 2, 06.11.2026; CI run 42212137059, suite 6/8 hung 90 min). The
+         * execution is `killCharacter` on the incident's victim, which asks "That was the victim of the incident"
+         * (chapter.mjs `offerStageSix`) and waits for the answer. Until E21 C3a that was DialogV2.confirm, which the
+         * harness answers yes on the GM; on the kit (`drpgConfirm`) it is DialogV2.wait, which the suite's GM draws as a
+         * window, and nobody pressed it: `executeAtExit` waited for good (measured headless, the window still open at
+         * 390 s, c3fix2/red-one.log). So the test answers it as the confirm was answered - yes, Stage 6 taken - and
+         * counts it: asked once, as the kit's yes-or-no question (tests-kit.mjs `kitQuestion`).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 1), "an incident's killer whose player is asked for the opening roll");
         const { isDeceased, isDeadForGm, reviveCharacter, livingStudents } = await import("./chapter.mjs");
@@ -24558,6 +24566,15 @@ const SCENARIOS = [
         const { wordsOf } = await import("./secret.mjs");
         const esc = foundry.utils.escapeHTML;
         const from = new Set(game.messages.map(m => m.id));
+        const D = foundry.applications.api.DialogV2;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait"), drawWait = D.wait;
+        const stageSix = game.i18n.localize("DRPG.Chapter.stageSixTitle");
+        const victimAsked = [];
+        D.wait = async cfg => {
+            if (cfg?.window?.title !== stageSix) return drawWait.call(D, cfg);
+            victimAsked.push(kitQuestion(cfg) ? "question" : "another window");
+            return true;
+        };
         try {
             must(await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }), "the incident did not open");
             await settle();
@@ -24576,11 +24593,13 @@ const SCENARIOS = [
             const cards = said.filter(words => words.includes(game.i18n.localize("DRPG.Vote.verdictCardTitle")));
             const executions = said.filter(words => words.includes(game.i18n.localize("DRPG.Vote.executionCardTitle")));
             equal(stableJson([cards.length, executions.some(words => words.includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(victim.name) }))),
-                isDeceased(victim), deathStore.has(victim.id), stage]),
-            stableJson([1, true, true, false, "done"]),
+                isDeceased(victim), deathStore.has(victim.id), stage, victimAsked]),
+            stableJson([1, true, true, false, "done", ["question"]]),
             "the execution of the open incident's living victim is not the table's (verdict cards; the execution card names them executed; the flag; "
-                + "the GMs' row; the stage)");
+                + "the GMs' row; the stage; the victim's question asked once, as the kit's question)");
         } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait);
+            else delete D.wait;
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             await reviveCharacter(victim, { quiet: true });
         }
