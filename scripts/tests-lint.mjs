@@ -65,8 +65,27 @@ export function stripComments(text) {
  */
 export const lf = text => String(text).replace(/\r\n/g, "\n");
 
-/** Line number of an index, for a failure message somebody has to act on. */
-export const lineAt = (text, index) => text.slice(0, index).split("\n").length;
+/** Line number of an index, for a failure message somebody has to act on.
+ *
+ * ONE TEXT'S LINE STARTS, KEPT (06.11.2026). It sliced and split the text up to the index on every call: the detectors
+ * ask it once per finding and per test of a 34000-line tier file, and on 06.11.2026 it was 9.6 s of `check contract`'s
+ * 50 and 14.5 s of `check registry`'s 33 (node --cpu-prof). The last text's line starts are kept and the index is
+ * found among them by halving; the answer is the same number - the count of line breaks before the index, plus one. */
+let lineStartsOf = { text: null, starts: [0] };
+export const lineAt = (text, index) => {
+    if (lineStartsOf.text !== text) {
+        const starts = [0];
+        for (let i = text.indexOf("\n"); i >= 0; i = text.indexOf("\n", i + 1)) starts.push(i + 1);
+        lineStartsOf = { text, starts };
+    }
+    // The index as `text.slice(0, index)` read it: past the end is the end, a negative one counts from the end (a
+    // `search` that found nothing, -1, is the last character), none at all is the whole text, NaN is 0.
+    const len = text.length, n = index === undefined ? len : Math.trunc(Number(index)) || 0;
+    const { starts } = lineStartsOf, at = n < 0 ? Math.max(len + n, 0) : Math.min(n, len);
+    let lo = 0, hi = starts.length - 1;
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (starts[mid] <= at) lo = mid; else hi = mid - 1; }
+    return lo + 1;
+};
 
 /* Whether a "/" at the end of `before` starts a regex literal rather than a division:
    it does after an operator, an opening bracket, a comma, a colon, a semicolon, a
@@ -90,15 +109,27 @@ const regexCanStart = before => /(?:^|[=(,:;!&|?{}[+\-*%<>~^\n])\s*$/.test(befor
  */
 export function blankComments(text) {
     const s = String(text ?? "");
-    let out = "", i = 0, depth = 0;
+    let i = 0, depth = 0;
+    /* THE TEXT IS BUILT IN PIECES (06.11.2026). It was one string grown a piece at a time and read back, at every slash
+       that might start a regex, by its last 24 characters - and each such read flattened the whole string built so far:
+       28.3 s of `check contract`'s 50 s (node --cpu-prof), growing with the square of the tier files' length. The pieces
+       are joined once at the end, and `tail` reads the last characters off the last pieces. The same text comes out,
+       character for character (checked over every .mjs file of the repository against the old function). */
+    const pieces = [];
+    const out = { push: x => { if (x) pieces.push(x); } };
+    const tail = n => {
+        let t = "";
+        for (let k = pieces.length - 1; k >= 0 && t.length < n; k--) t = pieces[k] + t;
+        return t.slice(-n);
+    };
     const holes = [];
     const templateText = () => {
         while (i < s.length) {
             const c = s[i];
-            if (c === "\\") { out += s.slice(i, i + 2); i += 2; continue; }
-            if (c === "`") { out += c; i++; return; }
-            if (c === "$" && s[i + 1] === "{") { out += "${"; i += 2; holes.push(depth); depth++; return; }
-            out += c;
+            if (c === "\\") { out.push(s.slice(i, i + 2)); i += 2; continue; }
+            if (c === "`") { out.push(c); i++; return; }
+            if (c === "$" && s[i + 1] === "{") { out.push("${"); i += 2; holes.push(depth); depth++; return; }
+            out.push(c);
             i++;
         }
     };
@@ -107,31 +138,31 @@ export function blankComments(text) {
         if (c === "/" && d === "/") {
             let j = i;
             while (j < s.length && s[j] !== "\n") j++;
-            out += " ".repeat(j - i);
+            out.push(" ".repeat(j - i));
             i = j;
         } else if (c === "/" && d === "*") {
             let j = i + 2;
             while (j < s.length && !(s[j] === "*" && s[j + 1] === "/")) j++;
             j = Math.min(j + 2, s.length);
-            out += s.slice(i, j).replace(/[^\n]/g, " ");
+            out.push(s.slice(i, j).replace(/[^\n]/g, " "));
             i = j;
         } else if (c === '"' || c === "'") {
             let j = i + 1;
             while (j < s.length && s[j] !== c && s[j] !== "\n") j += s[j] === "\\" ? 2 : 1;
             j = Math.min(j + 1, s.length);
-            out += s.slice(i, j);
+            out.push(s.slice(i, j));
             i = j;
         } else if (c === "`") {
-            out += c;
+            out.push(c);
             i++;
             templateText();
         } else if (c === "}" && holes.length && holes[holes.length - 1] === depth - 1) {
             depth--;
             holes.pop();
-            out += c;
+            out.push(c);
             i++;
             templateText();
-        } else if (c === "/" && regexCanStart(out.slice(-24))) {
+        } else if (c === "/" && regexCanStart(tail(24))) {
             let j = i + 1, inClass = false;
             while (j < s.length && s[j] !== "\n") {
                 if (s[j] === "\\") { j += 2; continue; }
@@ -143,20 +174,20 @@ export function blankComments(text) {
             if (s[j] === "/") {
                 j++;
                 while (/[a-z]/.test(s[j] ?? "")) j++;
-                out += s.slice(i, j);
+                out.push(s.slice(i, j));
                 i = j;
             } else {
-                out += c;
+                out.push(c);
                 i++;
             }
         } else {
             if (c === "{") depth++;
             else if (c === "}") depth--;
-            out += c;
+            out.push(c);
             i++;
         }
     }
-    return out;
+    return pieces.join("");
 }
 
 /**
