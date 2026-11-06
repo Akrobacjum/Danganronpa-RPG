@@ -11427,7 +11427,9 @@ const REGRESSIONS = [
             whoCalls("returnTheLiving"), elsewhere("returnTheLiving"),
             leaving.every((at, i) => at >= 0 && (i === 0 || at > leaving[i - 1])), staging.every((at, i) => at >= 0 && (i === 0 || at > staging[i - 1])), opening,
             order.every((at, i) => at >= 0 && (i === 0 || at > order[i - 1])), elsewhere("setTrialExit"),
-            [...ask.matchAll(/action: "(\w+)"/g)].map(m => m[1]), /const exit = await askTrialExit\(notChapter\);[\s\S]*return closeTrial\(exit\);/.test(end)]),
+            // Its buttons: the answers by their action, then the kit's closing word (E21 C4: `close: "cancel"`, the role's word).
+            [...ask.matchAll(/action: "(\w+)"/g)].map(m => m[1]).concat(/\bclose:\s*"cancel"/.test(ask) ? ["cancel"] : []),
+            /const exit = await askTrialExit\(notChapter\);[\s\S]*return closeTrial\(exit\);/.test(end)]),
             JSON.stringify([["call-effects.mjs#gatherEffect/2", "call-world.mjs#runPendingGather/2", "chapter.mjs#runDiscovery/2", "trial-scene.mjs#returnTheLiving/3"],
                 "{ held: flagsHeldNow, box: true, only }",
                 ["leaveTrialScene"], [], true, true, ["const exit = trialExit;", "trialExit = null;", "if (!game.user?.isGM || !hall) return null;"],
@@ -11849,11 +11851,14 @@ const REGRESSIONS = [
         const vote = stripComments(voteText(await otherSources()));
         const win = fnSource(vote, "openVerdictDialog"), read = fnSource(vote, "read");
         ok(win.length > 500 && read.length > 100, "openVerdictDialog or read is gone - the reads below would measure nothing");
-        const footer = bodyOf(win, "buttons:", { until: "rejectClose" });
-        equal(JSON.stringify([...footer.matchAll(/action:\s*"(\w+)"/g)].map(m => m[1])), JSON.stringify(["cancel", "correct", "wrong"]),
+        /* On the kit since E21 C4 (ui-kit.mjs `footerButtons`): the slots decide the tree - with no primary, the closing
+           word first, then the destructive answers in their order - and `default` names the default by its action. */
+        const footer = bodyOf(win, "footer:", { until: "rejectClose" });
+        const tree = [...(/\bclose:\s*"cancel"/.test(footer) && !/\bprimary:/.test(footer) ? ["cancel"] : []), ...[...footer.matchAll(/action:\s*"(\w+)"/g)].map(m => m[1])];
+        equal(JSON.stringify(tree), JSON.stringify(["cancel", "correct", "wrong"]),
             "the verdict window's footer is not Cancel, then the two verdicts - Enter presses its first button");
-        equal(JSON.stringify([...footer.matchAll(/action:\s*"(\w+)"[^{}]*\bdefault:\s*true/g)].map(m => m[1])), JSON.stringify(["cancel"]),
-            "a button other than Cancel is the verdict window's default");
+        equal(JSON.stringify([/\bdefault:\s*"cancel"/.test(footer), /\bdestructive:\s*\[/.test(footer), /\bdefault:\s*true/.test(footer)]), JSON.stringify([true, true, false]),
+            "a button other than Cancel is the verdict window's default, or the verdicts are not the destructive role");
         ok(/<option value="">\$\{game\.i18n\.localize\("DRPG\.Vote\.nobodyExecuted"\)\}<\/option>/.test(win),
             "the executed select's first option is not \"Nobody is executed\" with no value - it opens on a student");
         const rightReturns = read.search(/if \(correct\) return \{ correct, executedIds: blackenedIdList\b/), selectRead = read.search(/\bf\.executed\b/);
@@ -12095,7 +12100,8 @@ const REGRESSIONS = [
         ok(vote.length > 0, "vote.mjs was not read - this test measured nothing");
         const body = fnSource(vote, "openVerdictDialog");
         const route = body.search(/if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/);
-        const record = body.search(/trialProgress\(\)/), drawn = body.search(/DialogV2\.wait\(/);
+        // The window is the kit's since E21 C4 (`drpgWindow`), DialogV2.wait before.
+        const record = body.search(/trialProgress\(\)/), drawn = body.search(/\bdrpgWindow\(|DialogV2\.wait\(/);
         equal(JSON.stringify([route >= 0, record > route, drawn > route]), JSON.stringify([true, true, true]),
             "openVerdictDialog does not send a Final Trial to the Final Trial's window before it reads the record and draws its own "
             + "(read: the route there, the record read after it, the window drawn after it)");
@@ -12522,7 +12528,10 @@ const REGRESSIONS = [
         const finalRoute = /if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/;
         const verdict = fnSource(vote, "openVerdictDialog"), batch = fnSource(levelUp, "runAdvancementBatch");
         const card = fnSource(vote, "postVerdictCard"), wipe = fnSource(code("season-wipe.mjs"), "clearSeasonClock");
-        const cancelFirst = /buttons: \[\s*\{ action: "cancel", [^}]*default: true \}/;
+        /* Cancel first and the default: Foundry's `buttons` with Cancel first and `default: true` until E21 C4, the kit's
+           footer since (no primary, so the closing word is the first in the tree, and `default: "cancel"`). */
+        const cancelFirst = { test: text => /buttons: \[\s*\{ action: "cancel", [^}]*default: true \}/.test(text)
+            || (/footer:\s*\{[\s\S]*\bclose:\s*"cancel"[\s\S]*\bdefault:\s*"cancel"/.test(text) && !/footer:\s*\{[^}]*\bprimary:/.test(text)) };
         const facts = {
             onePerPerson: [/!u\.isGM/, /if \(!user \|\| seated\.has\(user\.id\)\) continue;/, /!TRIAL\.deadCastBallots/]
                 .every(re => re.test(fnSource(vote, "trialParticipants"))),
@@ -20340,7 +20349,10 @@ const REGRESSIONS = [
                 } else count(file, 1);
             }
         }
-        must(buttons >= 100, `only ${buttons} footer button(s) were read in scripts/ - this would measure too little`);
+        /* The floor counts both shapes a footer is read in (E21 C4, 06.11.2026): the buttons outside the kit fall with every
+           group of E21 that moves a window (233 at E44 C7b, 65 at C4) and reach none at C6, where every footer read is a kit
+           footer's slots - so a floor on the buttons alone would fail the census for emptying. */
+        must(buttons + kitFooters >= 100, `only ${buttons} footer button(s) outside the kit and ${kitFooters} kit footer(s) were read in scripts/ - this would measure too little`);
         ok(kitFooters >= 1, "no kit footer was read outside ui-kit.mjs (the notice history's, E44 C5)");
         equal(JSON.stringify(wrongSlot), "[]", "[kit footers holding a button in no role's slot]");
         const list = [...noRole].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([f, n]) => `${f} ${n}`);
@@ -20486,8 +20498,12 @@ const REGRESSIONS = [
             "diagnose", "handover", "dice-look",
             // C3a: the case - a new trace, a Key row's place, the body's announcement, the Mastermind, the murder window;
             // the readiness round's two windows are named by their own classes below.
-            "newtrace", "keyplace", "body", "mastermind", "murder"]
-            .map(name => `drpg-window-${name}`).concat(["drpg-gm-panel-window", "drpg-ready-gm", "drpg-ready-player"]);
+            "newtrace", "keyplace", "body", "mastermind", "murder",
+            // C4: the trial console and the vote; the trial's other windows are named by their own classes below.
+            "trial", "vote"]
+            .map(name => `drpg-window-${name}`).concat(["drpg-gm-panel-window", "drpg-ready-gm", "drpg-ready-player",
+                // C4: a round's start, the Closing's pick, the Reveal, the Objection's picker, Your turn, I volunteer, the ballot.
+                "drpg-round-window", "drpg-closing-pick", "drpg-reveal-confirm", "drpg-objection-pick", "drpg-your-turn", "drpg-closing-claim", "drpg-ballot"]);
         const FRAME = /^(?:max-height|min-height|height|overflow(?:-[xy])?|position|top|bottom|inset)$/;
         const FOOT = /^(?:display|order|flex(?:-[\w-]+)?|justify-content|align-items|position|width|max-width|margin(?:-[\w-]+)?|padding(?:-[\w-]+)?|bottom|left|right)$/;
         const found = [];

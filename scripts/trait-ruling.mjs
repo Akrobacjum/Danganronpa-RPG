@@ -44,7 +44,8 @@
 import { TRAITS, CRISIS_ACTIONS, MURDER_OPENING, CLEANUP, ACTIONS } from "./config.mjs";
 import { pendingCalls } from "./call-effects.mjs";
 import { allProjects } from "./projects.mjs";
-import { dialogContent, esc } from "./utils.mjs";
+import { esc } from "./utils.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 
 /**
  * The actions action-rolls.mjs `performAction` hands to a performer of their own, which
@@ -216,18 +217,18 @@ export function traitWithValue(actor, trait) {
  */
 export const pickWindowClass = kind => `drpg-trait-pick-${kind}`;
 
-/** A GM's client: a button per listed trait, and Cancel. The first is the default. */
+/**
+ * A GM's client: a button per listed trait, and Cancel. The first is the default: on the kit (E21 C4) the primary, on the
+ * right and the first submit button; the others secondaries on the left, after Cancel, in the list's order.
+ */
 async function pickHere(actor, spec, listed) {
-    const DialogV2 = foundry.applications.api.DialogV2;
-    const picked = await DialogV2.wait({
+    const [first, ...rest] = listed.map(trait => ({ action: trait, label: traitWithValue(actor, trait) }));
+    const picked = await drpgWindow({
         classes: ["drpg-panel", "drpg-narrow", pickWindowClass(spec.kind)],
-        window: { title: game.i18n.localize("DRPG.TraitRuling.title") },
-        content: dialogContent(`<p><strong>${esc(actor?.name ?? "?")}</strong> · ${esc(rulingLabel(spec))}</p>
-            <p class="notes">${game.i18n.localize("DRPG.TraitRuling.gmBody")}</p>`),
-        buttons: [
-            ...listed.map((trait, i) => ({ action: trait, label: traitWithValue(actor, trait), default: i === 0 })),
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+        title: game.i18n.localize("DRPG.TraitRuling.title"),
+        body: `<p><strong>${esc(actor?.name ?? "?")}</strong> · ${esc(rulingLabel(spec))}</p>
+            <p class="notes">${game.i18n.localize("DRPG.TraitRuling.gmBody")}</p>`,
+        footer: { primary: first, secondary: rest, close: "cancel" },
         rejectClose: false
     });
     return listed.includes(picked) ? picked : null;

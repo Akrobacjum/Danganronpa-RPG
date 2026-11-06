@@ -24358,10 +24358,12 @@ const SCENARIOS = [
                 return send.call(this, event, packet, ...rest);
             };
             ballotStore.isHydrated = () => false;
-            D.wait = async cfg => (cfg?.window?.title === title && windows++ === 0 ? "open" : null);
+            // The question is the kit's since E21 C4 (`drpgConfirm`, its yes destructive), asked through `wait`
+            // (tests-kit.mjs `kitQuestions`); its content is the kit's element, read by its words.
+            D.wait = kitQuestions(async cfg => (cfg?.window?.title === title && windows++ === 0 ? "open" : null));
             D.confirm = async cfg => {
                 const form = document.createElement("div");
-                form.innerHTML = String(cfg?.content ?? "");
+                form.innerHTML = cfg?.content?.outerHTML ?? String(cfg?.content ?? "");
                 asked.push(form.textContent);
                 return false;
             };
@@ -34069,7 +34071,8 @@ const SCENARIOS = [
             readings.start = [await UI.startClassTrial(), ...state()];
             readings.vote = [await UI.openVoteDialog(), ...state()];
             readings.chapter = [await openChapterEndDialog(), ...state()];
-            press = "close";
+            // "endMurder" since E21 C4: "close" is ApplicationV2's own action, which a table's press never got past.
+            press = "endMurder";
             readings.closed = [await UI.startClassTrial(), ...state()];
         } finally {
             if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
@@ -38406,7 +38409,11 @@ const SCENARIOS = [
            branches: through `confirm` with no hall, and through the `wait` titled End the trial with a hall and
            a place of its own linked for that one call (linking moves nothing in a trial - read in the code: the
            setting's `onChange` lets go of the held links, and live.mjs and hud.mjs redraw what is open). Scenario
-           41 m1 runs this test with the world's hall linked. */
+           41 m1 runs this test with the world's hall linked.
+
+           E21 C4, E22 C4 (06.11.2026): End the trial's question with no hall is the kit's yes or no (`askTrialEnd`,
+           through `wait`), so both branches read "wait"; and End of chapter is the destructive role, never the default,
+           so with the verdict in the console's default is its closing word, Close - the lead still names the chapter's end. */
         const UI = await import("./trial-floor-ui.mjs");
         const floorMod = await import("./trial-floor.mjs");
         const { closeOpen } = await import("./live.mjs");
@@ -38526,15 +38533,15 @@ const SCENARIOS = [
         equal(stableJson(readings), stableJson({
             noTrial: [["start"], "absent", lead("start"), 0, null],
             discussion: [["openDebate"], "open", lead("openDebate"), 3, 2],
-            endWithoutVerdict: ["confirm", false],
+            endWithoutVerdict: ["wait", false],
             hallWithoutVerdict: ["wait", false],
             debate: [["closeDebate"], "open", lead("closeDebate"), 3, 2],
             ballotsOut: [["vote"], "open", lead("vote"), 3, 3],
             counted: [["verdict"], "open", lead("verdict"), 3, 0],
-            verdictIn: [["chapterEnd"], "open", lead("chapterEnd"), 3, 0],
-            endAfterVerdict: ["confirm", true],
+            verdictIn: [["close"], "open", lead("chapterEnd"), 3, 0],
+            endAfterVerdict: ["wait", true],
             hallAfterVerdict: ["wait", true],
-            ended: [["chapterEnd"], "closed", `${game.i18n.localize("DRPG.Floor.trialEnded")} ${lead("chapterEnd")}`, 0, null]
+            ended: [["close"], "closed", `${game.i18n.localize("DRPG.Floor.trialEnded")} ${lead("chapterEnd")}`, 0, null]
         }), "the console's default, The vote, its lead line or its sections are not the trial's next step in some state, or End the trial "
             + "after a verdict does not say the chapter is not ended (read per state: the defaults, The vote absent/closed/open, the lead, "
             + "the sections, the lines under the last one; End the trial's question - the window that asked it and whether it names the chapter - "
@@ -82841,6 +82848,93 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({ death: { first: "cancel", holds: "", answer: false }, dead: [], body: { first: "cancel", holds: "", answer: null }, found: true, cards: 0 }),
             "[Who died?: the first submit button, what its select holds when drawn and the window's answer; the students dead after; the body's window: the same; the bodies found unchanged; the cards posted]");
+    }],
+    ["E22-T2 - Enter in End the trial's question ends nothing (E22 C4; audit S06-09): the window `endClassTrial` opens on this world - the room's question with a hall linked, else yes or no - drawn on the GM as a table draws it, Enter pressed as a browser presses it (the form submitted by its first submit button), the answer, the phase, the floor and the chat read; \"Enter in the verdict window executes nobody\" stays as written", async () => {
+        /*
+         * E22 C4, 06.11.2026; audit S06-09: End the trial was the default of its question, the room's select (a hall linked)
+         * or the yes of a DialogV2.confirm (none), so Enter or Space ended the trial, carried the sentence out and took the
+         * living out of the hall. The window is drawn here (`__dialogWindows`) and Enter pressed in it as E44-T5 and E22-T1
+         * press it: `requestSubmit` with the first submit button in the tree (HTML's implicit submission; jsdom submits
+         * nothing on a synthetic key). Read: that button's action, the answer `endClassTrial` gave, the phase and the floor
+         * before and after, and the messages posted. Put back on a red tree: the clock, the trial record and the messages.
+         * Red on d5246545's code: Enter pressed End the trial.
+         */
+        needs(env.primaryGm(), "End the trial is the primary GM's");
+        needs(env.dialogs(), "the question is drawn and Enter pressed in it");
+        const UI = await import("./trial-floor-ui.mjs");
+        const V = await import("./vote.mjs");
+        const F = await import("./trial-floor.mjs");
+        const title = game.i18n.localize("DRPG.Floor.endTrial");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const clockWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.clock));
+        const recordWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const floorWas = Boolean(F.trialFloor());
+        const had = new Set(game.messages.map(m => m.id));
+        const read = {};
+        try {
+            const run = Promise.resolve().then(() => UI.endClassTrial()).catch(err => `threw ${err?.message ?? err}`);
+            read.drawn = await until(() => Boolean(drawn()), 6000);
+            if (read.drawn) {
+                const el = drawn().element;
+                const first = el.querySelector('footer button[type="submit"]');
+                read.first = first?.dataset.action ?? null;
+                const form = el.querySelector("form");
+                if (form && first && !first.disabled) form.requestSubmit(first);
+            }
+            const answer = await Promise.race([run, wait(4000).then(() => "unanswered")]);
+            read.answer = answer === null || typeof answer !== "object" ? answer : "an answer";
+            if (drawn()) await drawn().close();
+            await settle();
+            read.phase = getClock().phase === clockWas.phase;
+            read.floor = Boolean(F.trialFloor()) === floorWas;
+            read.cards = game.messages.filter(m => !had.has(m.id)).length;
+        } finally {
+            if (drawn()) await drawn().close();
+            if (stableJson(getClock()) !== stableJson(clockWas)) await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
+            if (stableJson(V.trialProgress()) !== stableJson(recordWas)) await game.settings.set(MODULE_ID, SETTINGS.trialProgress, recordWas);
+            for (const m of game.messages.contents) if (!had.has(m.id)) await m.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ drawn: true, first: "cancel", answer: null, phase: true, floor: true, cards: 0 }),
+            "[End the trial's question drawn; its first submit button; what endClassTrial answered after Enter; the phase and the floor as they were; the cards posted]");
+    }],
+    ["the Blackened's rule window records nothing on Cancel (E21 C4): verdict.mjs `askBlackenedRule` drawn on the GM, its Cancel pressed - the answer, the rules and the chat read", async () => {
+        /*
+         * E21 C4, 06.11.2026, found moving the window onto the kit: its Cancel ("skip") had no callback, so DialogV2.wait
+         * answered the action's name, a string, and `askBlackenedRule` read every string as the rule's words - Cancel
+         * recorded the rule "skip" and posted its card to the table. The window is drawn here (`__dialogWindows`) and its
+         * Cancel clicked as a person clicks it. Read: the answer, the rules after and the messages posted. Put back on a red
+         * tree: a rule added and the messages. Red on d5246545's code (with `askBlackenedRule` exported, nothing else):
+         * answer true, the rule "skip" recorded, one card.
+         */
+        needs(env.primaryGm(), "a rule is the primary GM's to record");
+        needs(env.dialogs(), "the window is drawn and its Cancel pressed");
+        const Vd = await import("./verdict.mjs");
+        const R = await import("./rules.mjs");
+        must(typeof Vd.askBlackenedRule === "function", "verdict.mjs does not export askBlackenedRule - this would measure nothing");
+        const title = game.i18n.localize("DRPG.Vote.blackenedRuleTitle");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const before = new Set(R.rules().map(r => r.id));
+        const had = new Set(game.messages.map(m => m.id));
+        const read = {};
+        try {
+            const run = Promise.resolve().then(() => Vd.askBlackenedRule([])).catch(err => `threw ${err?.message ?? err}`);
+            read.drawn = await until(() => Boolean(drawn()), 6000);
+            const cancel = read.drawn ? drawn().element.querySelector('footer button[data-action="skip"]') : null;
+            read.cancel = Boolean(cancel);
+            cancel?.click();
+            read.answer = await Promise.race([run, wait(4000).then(() => "unanswered")]);
+            await settle();
+            read.added = R.rules().filter(r => !before.has(r.id)).map(r => r.text);
+            read.cards = game.messages.filter(m => !had.has(m.id)).length;
+        } finally {
+            if (drawn()) await drawn().close();
+            for (const r of R.rules()) if (!before.has(r.id)) await R.removeRule(r.id);
+            for (const m of game.messages.contents) if (!had.has(m.id)) await m.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ drawn: true, cancel: true, answer: false, added: [], cards: 0 }),
+            "[the rule's window drawn; its Cancel found; askBlackenedRule's answer after Cancel; the rules it added; the cards posted]");
     }],
     ...GRID
 ];

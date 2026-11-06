@@ -787,7 +787,8 @@
         "application",
         "dialog",
         "drpg-panel",
-        "drpg-window-trial"
+        "drpg-window-trial",
+        "drpg-ui"
       ],
       "tag": "dialog",
       "width": 400,
@@ -798,17 +799,109 @@
           "default": true
         },
         {
-          "action": "toggleFinal",
-          "label": "Start the Final Trial",
+          "action": "close",
+          "label": "Close",
           "default": false
         },
         {
-          "action": "close",
-          "label": "Close",
+          "action": "toggleFinal",
+          "label": "Start the Final Trial",
           "default": false
         }
       ],
       "file": "class-trial.html"
+    },
+    {
+      "id": "reveal-confirm",
+      "client": "gm",
+      "opener": "trial-floor-ui.mjs m.confirmReveal({ id: \"probe08\", name: \"The torn ticket\", text: \"\" }, { left: 0 })",
+      "captured": true,
+      "title": "Monokuma's Reveal",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-narrow",
+        "drpg-reveal-confirm",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": true
+        },
+        {
+          "action": "reveal",
+          "label": "Reveal",
+          "default": false
+        }
+      ],
+      "file": "reveal-confirm.html"
+    },
+    {
+      "id": "trial-end",
+      "client": "gm",
+      "opener": "trial-floor-ui.mjs m.askTrialEnd()",
+      "captured": true,
+      "title": "End the trial",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": true
+        },
+        {
+          "action": "yes",
+          "label": "End the trial",
+          "default": false
+        }
+      ],
+      "file": "trial-end.html"
+    },
+    {
+      "id": "vote",
+      "client": "gm",
+      "opener": "trial-floor-ui.mjs m.openVoteDialog()",
+      "captured": true,
+      "title": "The vote",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-vote",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "open",
+          "label": "Send the ballots",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        },
+        {
+          "action": "tally",
+          "label": "Close and count",
+          "default": false
+        }
+      ],
+      "file": "vote.html"
     },
     {
       "id": "edit-campaign",

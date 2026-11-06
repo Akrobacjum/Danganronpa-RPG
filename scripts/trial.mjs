@@ -49,7 +49,7 @@ import { getClock } from "./clock.mjs";
 import { SETTINGS, isMutedDead } from "./settings.mjs";
 import { truthBulletData, isTruthBullet, bulletDescription, bulletAsHeld, unanalysedType, secretOf } from "./truth-bullets.mjs";
 import { showPopup, OVERRULED_FLAG, overruledStamp } from "./popup.mjs";
-import { announce, dialogContent, isPrimaryGm, log, error,
+import { announce, isPrimaryGm, log, error,
     whisperToOwner, serialWrite, serverNow, esc, localeFormat, plural } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 // The price of an interruption, quoted where it is about to be shown (T-1).
@@ -62,7 +62,6 @@ import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { contentOf } from "./secret.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
-const DialogV2 = foundry.applications.api.DialogV2;
 
 /** Flags that make a chat message a presentation. */
 export const TRIAL_FLAGS = {
@@ -189,10 +188,10 @@ export async function presentDialog(actor, item) {
     // With or without the Analyze result (E70 C10; B2): offered only for a bullet that shows something an Analyze gave.
     const offer = analysisOffered(data);
 
-    const choice = await DialogV2.wait({
-        window: { title: game.i18n.format("DRPG.Trial.presentTitle", { name: item.name }) },
+    const choice = await drpgWindow({
+        title: game.i18n.format("DRPG.Trial.presentTitle", { name: item.name }),
         classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p>${game.i18n.format("DRPG.Trial.presentIntro", {
                 name: foundry.utils.escapeHTML(item.name),
                 type: foundry.utils.escapeHTML(data.shownLabel)
@@ -202,20 +201,20 @@ export async function presentDialog(actor, item) {
                 <textarea name="comment" rows="2"
                     placeholder="${game.i18n.localize("DRPG.Trial.commentPlaceholder")}"></textarea></label>
             <p class="notes">${game.i18n.localize("DRPG.Trial.presentNote")}</p>
-        </form>`),
-        // The Present first and the default: the `<textarea>` swallows Enter, so the button is the only road in.
-        buttons: [
-            {
+        </form>`,
+        // The Present first and the default: the `<textarea>` swallows Enter, so the button is the only road in. On the
+        // kit (E21 C4) the primary, the first submit button in the tree.
+        footer: {
+            primary: {
                 action: "present",
                 label: game.i18n.localize("DRPG.Trial.present"),
-                default: true,
                 callback: (e, b, d) => ({
                     comment: d.element.querySelector("[name=comment]").value.trim(),
                     analysis: analysisChosen(d.element)
                 })
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
 
@@ -1368,10 +1367,10 @@ async function nameObjectionTarget(actor) {
         ui.notifications.warn(game.i18n.localize("DRPG.Trial.objectionNobody"));
         return null;
     }
-    const choice = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Trial.objection") },
+    const choice = await drpgWindow({
+        title: game.i18n.localize("DRPG.Trial.objection"),
         classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+        body: `<form>
             <label>${game.i18n.localize("DRPG.Trial.objectionTarget")}
                 <select name="target">${choices.map(student =>
                     `<option value="${student.id}">${foundry.utils.escapeHTML(student.name)}</option>`).join("")}</select></label>
@@ -1380,12 +1379,12 @@ async function nameObjectionTarget(actor) {
                 : floor.mode === FLOOR_MODES.closing ? game.i18n.localize("DRPG.Trial.objectionClosingSpeaker")
                     : game.i18n.localize("DRPG.Trial.objectionRebuttalTargets")}</p>` : ""}
             <p class="notes">${game.i18n.localize("DRPG.Trial.objectionNoRoom")}</p>
-        </form>`),
-        buttons: [
-            { action: "object", label: game.i18n.localize("DRPG.Trial.objection"), default: true,
+        </form>`,
+        footer: {
+            primary: { action: "object", label: game.i18n.localize("DRPG.Trial.objection"),
                 callback: (e, b, d) => d.element.querySelector("[name=target]")?.value ?? "" },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
     return choice && choice !== "cancel" ? choice : null;
@@ -1418,10 +1417,10 @@ async function pickObjectionEvidence(actor, { target, messageId }) {
     const decisionLine = closingOf(trialFloor())
         // A <div>, not a <p class="notes">: the count below is found as the form's first `p.notes`.
         ? `<div class="notes drpg-objection-decision">${game.i18n.localize("DRPG.Trial.objectionClosingDecision")}</div>` : "";
-    const choice = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Trial.objectionPickTitle") },
+    const choice = await drpgWindow({
+        title: game.i18n.localize("DRPG.Trial.objectionPickTitle"),
         classes: ["drpg-panel", "drpg-objection-pick"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p>${game.i18n.format("DRPG.Trial.objectionPickIntro", { target: foundry.utils.escapeHTML(String(target ?? "-")) })}</p>
             <label>${game.i18n.localize("DRPG.Trial.objectionPickLabel")}
                 <select name="item">${bullets.map(item =>
@@ -1434,16 +1433,12 @@ async function pickObjectionEvidence(actor, { target, messageId }) {
                 plural("DRPG.Trial.objectionWarningRebuttal", { rebuttal: TRIAL.rebuttalSeconds }, "rebuttal")}</p>
             ${decisionLine}
             <p class="notes">${countLine()}</p>
-        </form>`),
-        buttons: [
-            { action: "evidence", label: game.i18n.localize("DRPG.Trial.objection"), default: true,
-                callback: (e, b, d) => ({
-                    itemId: d.element.querySelector("[name=item]")?.value ?? "",
-                    comment: d.element.querySelector("[name=comment]")?.value.trim() ?? "",
-                    analysis: analysisChosen(d.element)
-                }) },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+        </form>`,
+        footer: objectionFooter((e, b, d) => ({
+            itemId: d.element.querySelector("[name=item]")?.value ?? "",
+            comment: d.element.querySelector("[name=comment]")?.value.trim() ?? "",
+            analysis: analysisChosen(d.element)
+        })),
         render: (event, dialog) => {
             // Half a second, so the count never reads a second late; the window is gone at zero, not after it.
             const ticker = setInterval(() => {
@@ -1458,6 +1453,20 @@ async function pickObjectionEvidence(actor, { target, messageId }) {
         rejectClose: false
     });
     return choice && choice !== "cancel" && choice.itemId ? choice : null;
+}
+
+/**
+ * THE OBJECTION'S PICKER ON M13'S CARD (E21 C4, 06.11.2026; docs/design/windows.md, approved 04.11.2026, the Objection in
+ * the Closing Argument not drawn on the card: it needs the bridge). OBJECTION! the primary, on the right and the first
+ * submit button, so Enter in the select sends the bullet chosen as it did; Cancel the closing word, which withdraws the
+ * Objection (`raiseObjection`), its price kept as the window's warning says. Not the GM's road (D11): the primary judges
+ * the card by its rules and no GM agrees to it. `callback` reads the form. Exported for the suite (R1365).
+ */
+export function objectionFooter(callback = null) {
+    return {
+        primary: { action: "evidence", label: game.i18n.localize("DRPG.Trial.objection"), ...(callback ? { callback } : {}) },
+        close: "cancel"
+    };
 }
 
 /**
@@ -1502,19 +1511,19 @@ export async function repointDialog() {
         ui.notifications.warn(game.i18n.localize("DRPG.Trial.objectionNobody"));
         return null;
     }
-    const targetId = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Floor.repoint") },
+    const targetId = await drpgWindow({
+        title: game.i18n.localize("DRPG.Floor.repoint"),
         classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+        body: `<form>
             <label>${game.i18n.localize("DRPG.Floor.repointTo")}
                 <select name="target">${choices.map(student => `<option value="${student.id}"${
                     student.id === floor.targetId ? " selected" : ""}>${foundry.utils.escapeHTML(student.name)}</option>`).join("")}</select></label>
-        </form>`),
-        buttons: [
-            { action: "repoint", label: game.i18n.localize("DRPG.Floor.repoint"), default: true,
+        </form>`,
+        footer: {
+            primary: { action: "repoint", label: game.i18n.localize("DRPG.Floor.repoint"),
                 callback: (e, b, d) => d.element.querySelector("[name=target]")?.value ?? "" },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
     if (!targetId || targetId === "cancel") return null;

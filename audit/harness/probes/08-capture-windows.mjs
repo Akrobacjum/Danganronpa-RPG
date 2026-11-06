@@ -58,6 +58,11 @@ export const WINDOWS = [
     { id: "pre-season-checks", module: "season-setup.mjs", call: "m.openSeasonSetup()", press: "checks" },
     { id: "investigation", module: "investigation.mjs", call: "m.openInvestigationDashboard()" },
     { id: "class-trial", module: "trial-floor-ui.mjs", call: "m.manageClassTrial()" },
+    // E21 C4: the trial's questions a GM opens with no world state (M13's Reveal with a row of its own, End the trial with
+    // no hall, the vote window before a vote); Your turn and I volunteer open only on a round's speaker's own browser.
+    { id: "reveal-confirm", module: "trial-floor-ui.mjs", call: "m.confirmReveal({ id: \"probe08\", name: \"The torn ticket\", text: \"\" }, { left: 0 })" },
+    { id: "trial-end", module: "trial-floor-ui.mjs", call: "m.askTrialEnd()" },
+    { id: "vote", module: "trial-floor-ui.mjs", call: "m.openVoteDialog()" },
     { id: "edit-campaign", module: "gm-campaign.mjs", call: "m.openClockDialog()" },
     { id: "murder", module: "murder-ui.mjs", call: "m.openMurderDialog()" },
     { id: "incident-tracker", module: "murder-ui.mjs", call: "m.openIncidentTracker()" },

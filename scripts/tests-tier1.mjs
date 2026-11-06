@@ -8137,12 +8137,14 @@ const INVARIANTS = [
         const ui = stripComments(files.get("trial-floor-ui.mjs")), panel = stripComments(panelText(files));
         const start = fnSource(ui, "startClassTrial"), edit = fnSource(panel, "openClockDialog");
         const at = text => start.indexOf(text);
+        // Where Start's window opens: the kit's `drpgWindow` since E21 C4, DialogV2.wait before.
+        const OPEN = start.includes("drpgWindow(") ? "drpgWindow(" : "DialogV2.wait(";
         equal(JSON.stringify([en.includes("the dead listen but do not speak in the trial"), pl.includes("umarli słuchają, ale nie mówią w rozprawie"),
-            at("game.scenes.preload?.(hall.id, true)") > 0 && at("game.scenes.preload?.(hall.id, true)") < at("DialogV2.wait("),
-            at("judgedFor(") > 0 && at("judgedFor(") < at("castPickerHtml(hall") && at("castPickerHtml(hall") < at("DialogV2.wait(") && at("${castPicker}") > at("DialogV2.wait(")
+            at("game.scenes.preload?.(hall.id, true)") > 0 && at("game.scenes.preload?.(hall.id, true)") < at(OPEN),
+            at("judgedFor(") > 0 && at("judgedFor(") < at("castPickerHtml(hall") && at("castPickerHtml(hall") < at(OPEN) && at("${castPicker}") > at(OPEN)
                 && at("confirmNewTrial(") > at("incidentClosedFirst(") && at("saveTrialCast(hall") > at("confirmNewTrial(") && at("saveTrialCast(hall") < at("setClock(")
                 && at("castShownOnEntry(") < 0,
-            at("${lines.table}") > at("DialogV2.wait("), at("${lines.rule}") > at("DialogV2.wait("),
+            at("${lines.table}") > at(OPEN), at("${lines.rule}") > at(OPEN),
             /\.\.\.\(table\?\.action\s*\?\s*\[\{ action: table\.action/.test(fnSource(ui, "trialButtons")),
             /showHall: async \(\) => \{\s*const \{ showCourtroom \} = await import\("\.\/trial-scene\.mjs"\);\s*await showCourtroom\(\);/.test(ui),
             /backToSchool: async \(\) => \{\s*const \{ showSchool \} = await import\("\.\/trial-scene\.mjs"\);\s*await showSchool\(\);/.test(ui),
@@ -26289,7 +26291,8 @@ const INVARIANTS = [
                 // `dialogContent` answers markup or an element, as the window takes either.
                 const html = typeof config.content === "string" ? config.content : (config.content?.outerHTML ?? String(config.content ?? ""));
                 return {
-                    buttons: (config.buttons ?? []).map(b => [b.action, Boolean(b.default), Boolean(b.autofocus), /\bdrpg-destructive\b/.test(String(b.class ?? ""))]),
+                    // A kit footer's default is drawn with autofocus (ui-kit.mjs `dressFooter`, E21 C4): its role's class says so.
+                    buttons: (config.buttons ?? []).map(b => [b.action, Boolean(b.default), Boolean(b.autofocus) || (Boolean(b.default) && /\bdrpg-role-/.test(String(b.class ?? ""))), /\bdrpg-destructive\b/.test(String(b.class ?? ""))]),
                     beyond: html.includes(beyond), textBox: /<textarea[^>]*name="text"/.test(html)
                 };
             });
@@ -26454,10 +26457,15 @@ const INVARIANTS = [
         const sources = await moduleSources();
         const prompt = fnSource(stripComments(sources.get("trial-prompt.mjs") ?? ""), "promptTurn");
         must(prompt.length > 400, "trial-prompt.mjs promptTurn is cut short or gone - this would measure nothing");
-        read.window = ["done", "pass", "keep"].map(action => {
-            const button = new RegExp(`\\{\\s*action:\\s*"${action}"[^}]*\\}`).exec(prompt)?.[0] ?? null;
-            return button === null ? null : /default:\s*true/.test(button);
-        });
+        /* Since E21 C4 the window is the kit's (`drpgWindow`) with the footer `turnFooter` builds, whose default is the kit's
+           (ui-kit.mjs `footerButtons`: the primary); a `buttons` list before. */
+        const P = await import("./trial-prompt.mjs"), K = await import("./ui-kit.mjs");
+        read.window = typeof P.turnFooter === "function" && /footer:\s*turnFooter\(\)/.test(prompt)
+            ? ["done", "pass", "keep"].map(action => K.footerButtons(P.turnFooter()).find(b => b.action === action)?.default ?? null)
+            : ["done", "pass", "keep"].map(action => {
+                const button = new RegExp(`\\{\\s*action:\\s*"${action}"[^}]*\\}`).exec(prompt)?.[0] ?? null;
+                return button === null ? null : /default:\s*true/.test(button);
+            });
         equal(stableJson(read), stableJson({
             overrule: ["DRPG.Floor.bar.noOverrule", ["cardEARLIEREARLI", false], "DRPG.Floor.bar.noOverrule", ["cardEARLIEREARLI", false],
                 "DRPG.Floor.bar.noOverrule", ["cardEARLIEREARLI", false], ["cardROUNDROUNDRO", true],
@@ -34875,6 +34883,171 @@ const INVARIANTS = [
         equal(stableJson({ found, wideAdded, sites, kit }), stableJson({ found: [], wideAdded: [], sites: [],
             kit: { classes: [], position: true, threw: null, wide: true, phone: [374, 374], panel: [true, true], matrix: [null, 1800], unknown: true } }),
         "[the rules that set a width on a kit window's class; the module files that add drpg-wide; the openers that state no width; the kit's width: its classes missing, its position, a throw, 1366 px, a phone, the GM panel at 16:9 and ultrawide, the matrix's ceiling, an unknown name refused]");
+    }],
+    ["R1364 - the trial's windows on the kit (E21 C4, E22 C4; E21-15, E22-09; audit S06-09): the console's footer (trial-floor-ui.mjs `trialFooter`) in each state of the trial puts the next step in the primary slot, End the trial, End of chapter and Start the Final Trial on the destructive role and never the default, End the Final Trial and every other button a secondary, Close the closing word; End the trial's question, with a hall or without one, has End the trial destructive and Cancel the default and first in the tree; the mode bar's and Monokuma's Reveal row's buttons carry no role; a second trial, the vote's restart and the verdict ask with the destructive role; no answer of the trial's windows has the action ApplicationV2 keeps for its close; and the six files open no window but through the kit", async () => {
+        /*
+         * E21 C4, E22 C4, 06.11.2026; audit S06-09 (the console's footer: End the trial, End the chapter and Start the
+         * Final Trial looked like any step, and End of chapter was the default after a verdict), E22-09. Read four ways,
+         * each in tier 1's terms (nothing written):
+         * - the console's footer by `trialFooter`, a pure function of the console's reading, handed four states (no trial;
+         *   a trial with nothing on the floor; a verdict given and the chapter's end next; a Final Trial running), each
+         *   passed through ui-kit.mjs `footerButtons` - the tree order (the right group first, so the first is what Enter
+         *   presses), each button's role and whether it is the default;
+         * - End the trial's question as `endClassTrial` opens it on this world (with a hall linked or not), DialogV2.wait
+         *   and DialogV2.confirm stood in for (both answer null: nothing ends), and `askTrialExit` and `askTrialEnd` on their
+         *   own, so both are read whatever the world links;
+         * - Monokuma's Reveal row (`revealConsole`, handed a row) and the bar's source (`trialBar`): no role and no GM's road
+         *   on a GM's screen (D11), plain run controls;
+         * - the sources: the second trial (`confirmNewTrial`), the incident's question (`incidentClosedFirst`), the vote's
+         *   restart (`openVoteDialog`) and the verdict (`openVerdictDialog`) with their consequence destructive and Cancel
+         *   the default; no `action: "close"` but on a closing word (ApplicationV2 keeps the action for its own close:
+         *   `openVoteDialog`'s note, measured 11.09; the incident's "End the murder" carried it until C4); no DialogV2 call
+         *   left in trial-floor-ui, trial, verdict, trial-prompt and trait-ruling, nor in vote.mjs's ballot.
+         * Red on d5246545's code: no `trialFooter`; End the trial's question {"ok" the default and first, no role}.
+         */
+        must(game.user.isGM, "the console and End the trial are a GM's - this would measure nothing");
+        const UI = await import("./trial-floor-ui.mjs");
+        const K = await import("./ui-kit.mjs");
+        const { trialProgress } = await import("./vote.mjs");
+        const L = key => game.i18n.localize(key);
+        const tree = footer => K.footerButtons(footer).map(b => [b.action, b.role, b.default]);
+        const base = foundry.utils.deepClone(trialProgress());
+        const state = (over, next) => ({ floor: null, running: false, finalNow: false, afterwards: false, stopped: null, table: null,
+            ...over, progress: { ...base, voteClosed: false, verdictApplied: false, againAfterOverrule: null, debateAgain: false,
+                closing: null, vote: { ...(base.vote ?? {}), open: false }, ...(over.progress ?? {}) }, isDefault: action => action === next });
+        const footers = typeof UI.trialFooter === "function" ? {
+            none: tree(UI.trialFooter(state({}, "start"))),
+            running: tree(UI.trialFooter(state({ running: true, afterwards: true }, "openDebate"))),
+            chapterNext: tree(UI.trialFooter(state({ afterwards: true, progress: { voteClosed: true, verdictApplied: true } }, "chapterEnd"))),
+            final: tree(UI.trialFooter(state({ running: true, afterwards: true, finalNow: true }, "openDebate")))
+        } : "no trialFooter";
+
+        // End the trial's question, as this world opens it, and both shapes on their own.
+        const D = foundry.applications.api.DialogV2;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait"), ownConfirm = Object.getOwnPropertyDescriptor(D, "confirm");
+        const seen = [];
+        D.wait = async cfg => { seen.push(["wait", cfg]); return null; };
+        D.confirm = async cfg => { seen.push(["confirm", cfg]); return null; };
+        let ended;
+        try {
+            ended = await UI.endClassTrial();
+            if (typeof UI.askTrialExit === "function") await UI.askTrialExit("");
+            if (typeof UI.askTrialEnd === "function") await UI.askTrialEnd("");
+        } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            if (ownConfirm) Object.defineProperty(D, "confirm", ownConfirm); else delete D.confirm;
+        }
+        const role = b => /\bdrpg-role-(\w[\w-]*)/.exec(b?.class ?? "")?.[1] ?? null;
+        const question = ([kind, cfg]) => kind === "confirm"
+            ? { kind, yes: [cfg.yes?.label ?? null, Boolean(cfg.yes?.default)], no: [cfg.no?.label ?? null, Boolean(cfg.no?.default)] }
+            : { kind, kit: (cfg.classes ?? []).includes("drpg-ui"), buttons: (cfg.buttons ?? []).map(b => [b.action, Boolean(b.default), role(b)]) };
+        const asked = seen.filter(([, cfg]) => cfg?.window?.title === L("DRPG.Floor.endTrial")).map(question);
+        must(asked.length >= 1, "End the trial asked nothing - this would measure nothing");
+        // Which question `endClassTrial` asks on this world: the room's with a hall linked and a place scene, else yes or no.
+        const { trialScene, placeScenes } = await import("./rooms.mjs");
+        const hall = Boolean(trialScene() && placeScenes().length);
+        const EXIT = { kind: "wait", kit: true, buttons: [["cancel", true, "cancel"], ["ok", false, "destructive"]] };
+        const END = { kind: "wait", kit: true, buttons: [["cancel", true, "cancel"], ["yes", false, "destructive"]] };
+
+        // The bar and the Reveal row: no role, no GM's road.
+        const row = UI.revealConsole({ running: true, rows: [{ id: "R1364row", name: "R1364", hasTrace: true }], left: 1 });
+        const box = document.createElement("div");
+        box.innerHTML = row;
+        const revealButtons = [...box.querySelectorAll("button")].map(b => b.className);
+        must(revealButtons.length === 1, "the Reveal row drew no button - this would measure nothing");
+
+        const src = new Map(await otherSources());
+        const ui = stripComments(src.get("trial-floor-ui.mjs") ?? "");
+        const bar = fnSource(ui, "trialBar");
+        must(bar.length > 300 && ui.length > 20000, "the console's source was not read - this would measure nothing");
+        const ROLE = /drpg-role-|drpg-gm-route|drpg-destructive|gmRoute/;
+        const kitOnly = ["trial-floor-ui.mjs", "trial.mjs", "verdict.mjs", "trial-prompt.mjs", "trait-ruling.mjs"]
+            .filter(f => /\bDialogV2\s*\.\s*(?:wait|confirm|prompt)\b|new\s+(?:[\w$]+\.)*DialogV2\b/.test(stripComments(src.get(f) ?? "")));
+        const ballot = fnSource(stripComments(src.get("vote.mjs") ?? ""), "castBallot");
+        const closeAnswers = ["trial-floor-ui.mjs", "trial.mjs", "verdict.mjs", "trial-prompt.mjs", "trait-ruling.mjs"]
+            .flatMap(f => [...stripComments(src.get(f) ?? "").matchAll(/\{\s*action:\s*"close"(?![^}]*role:\s*"close")[^}]*\}/g)].map(m => `${f}: ${m[0].slice(0, 80)}`));
+        const destructiveCancel = text => /destructive:\s*\[/.test(text) && /default:\s*"cancel"/.test(text);
+        const vote = fnSource(ui, "openVoteDialog");
+        const sources = {
+            bar: ROLE.test(bar),
+            newTrial: destructiveCancel(fnSource(ui, "confirmNewTrial")),
+            incident: destructiveCancel(fnSource(ui, "incidentClosedFirst")) && /action:\s*"endMurder"/.test(fnSource(ui, "incidentClosedFirst")),
+            restart: /drpgConfirm\(\{[\s\S]*yes:\s*\{\s*role:\s*"destructive"[\s\S]*DRPG\.Vote\.sendAgain/.test(vote),
+            verdict: destructiveCancel(fnSource(stripComments(src.get("verdict.mjs") ?? ""), "openVerdictDialog")),
+            dialogV2: kitOnly,
+            ballot: /\bdrpgWindow\(/.test(ballot) && !/DialogV2/.test(ballot),
+            closeAnswers
+        };
+        equal(stableJson({ footers, ended: ended ?? null, asked, revealButtons, sources }), stableJson({
+            footers: {
+                none: [["start", "primary", true], ["close", "close", false], ["toggleFinal", "destructive", false]],
+                running: [["openDebate", "primary", true], ["close", "close", false], ["startTestimony", "secondary", false],
+                    ["startPanic", "secondary", false], ["startClosing", "secondary", false], ["vote", "secondary", false], ["verdict", "secondary", false],
+                    ["chapterEnd", "destructive", false], ["end", "destructive", false], ["toggleFinal", "destructive", false]],
+                chapterNext: [["close", "close", true], ["vote", "secondary", false], ["verdict", "secondary", false],
+                    ["start", "secondary", false], ["chapterEnd", "destructive", false], ["toggleFinal", "destructive", false]],
+                final: [["openDebate", "primary", true], ["close", "close", false], ["startTestimony", "secondary", false],
+                    ["startPanic", "secondary", false], ["startClosing", "secondary", false], ["vote", "secondary", false], ["verdict", "secondary", false],
+                    ["toggleFinal", "secondary", false], ["chapterEnd", "destructive", false], ["end", "destructive", false]]
+            },
+            ended: null,
+            asked: [hall ? EXIT : END, EXIT, END],
+            revealButtons: ["drpg-trial-bar-op"],
+            sources: { bar: false, newTrial: true, incident: true, restart: true, verdict: true, dialogV2: [], ballot: true, closeAnswers: [] }
+        }), "[the console's footer in four states (action, role, default, in tree order); End the trial's answer; End the trial's question as this world asks it, then askTrialExit and askTrialEnd (each window's kind, its kit root and its buttons: action, default, role); the Reveal row's button classes; the sources: a role in the bar, the second trial, the incident's question, the vote's restart and the verdict destructive with Cancel the default, the files still calling DialogV2, the ballot on the kit, the answers with the action close]");
+    }],
+    ["R1365 - M13's windows on their approved card (E21 C4; E21-12, docs/design/windows.md M13, DR-E44-M1 #14): Your turn (trial-prompt.mjs `turnFooter`) has Keep speaking the primary and first in the tree, Done and Pass on the left; I volunteer (`claimFooter`) Not me the primary and I'll sum up on the left; the Objection's picker (trial.mjs `objectionFooter`) OBJECTION! the primary and Cancel; the Reveal's confirmation (trial-floor-ui.mjs `confirmReveal`) is a kit window with Cancel the default and first and Reveal destructive and never the default; each window opened through the kit with that footer", async () => {
+        /*
+         * E21 C4, 06.11.2026. The card (audit/design/M13-your-turn-*.jpg, M13-reveal-*.jpg): Your turn's Done and Pass on the
+         * left and Keep speaking on the right in the primary's face; the Reveal's Cancel and Reveal on the left, nothing on
+         * the right. The players' windows open only on a player's own turn (a GM's browser opens neither), so their footers
+         * are read from the functions that build them, through ui-kit.mjs `footerButtons` (the tree order: what Enter
+         * presses first), and their windows' sources are read for the kit's call with that footer; the Reveal's
+         * confirmation is opened here with DialogV2.wait stood in for (it answers null: nothing is revealed) and its config
+         * read. The Objection in the Closing Argument is not on the card (it needs the bridge): its picker is read the
+         * same way. Red on d5246545's code: no footer builders; the Reveal not on the kit (its buttons with no role).
+         */
+        must(game.user.isGM, "the Reveal's confirmation is a GM's window - this would measure nothing");
+        const P = await import("./trial-prompt.mjs");
+        const T = await import("./trial.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const K = await import("./ui-kit.mjs");
+        const tree = footer => K.footerButtons(footer).map(b => [b.action, b.role, b.default]);
+        const built = {
+            turn: typeof P.turnFooter === "function" ? tree(P.turnFooter()) : "no turnFooter",
+            claim: typeof P.claimFooter === "function" ? tree(P.claimFooter()) : "no claimFooter",
+            objection: typeof T.objectionFooter === "function" ? tree(T.objectionFooter()) : "no objectionFooter"
+        };
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const seen = [];
+        D.wait = async cfg => { seen.push(cfg); return null; };
+        let answer;
+        try {
+            answer = await UI.confirmReveal({ id: "R1365row", name: "R1365", text: "" }, { left: 0 });
+        } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+        const cfg = seen.find(c => c?.window?.title === game.i18n.localize("DRPG.Reveal.title")) ?? null;
+        must(cfg, "the Reveal's confirmation was not opened - this would measure nothing");
+        const role = b => /\bdrpg-role-(\w[\w-]*)/.exec(b?.class ?? "")?.[1] ?? null;
+        const reveal = { kit: (cfg.classes ?? []).includes("drpg-ui"), buttons: (cfg.buttons ?? []).map(b => [b.action, Boolean(b.default), role(b)]), answer: answer ?? null };
+        const src = new Map(await otherSources());
+        const prompt = stripComments(src.get("trial-prompt.mjs") ?? "");
+        const trial = stripComments(src.get("trial.mjs") ?? "");
+        const opened = {
+            turn: /drpgWindow\(\{[\s\S]*footer:\s*turnFooter\(\)/.test(fnSource(prompt, "promptTurn")),
+            claim: /drpgWindow\(\{[\s\S]*footer:\s*claimFooter\(\)/.test(fnSource(prompt, "promptClaim")),
+            objection: /drpgWindow\(\{[\s\S]*footer:\s*objectionFooter\(/.test(fnSource(trial, "pickObjectionEvidence"))
+        };
+        must(fnSource(prompt, "promptTurn").length > 300 && fnSource(trial, "pickObjectionEvidence").length > 300, "a window's source was not read - this would measure nothing");
+        equal(stableJson({ built, reveal, opened }), stableJson({
+            built: {
+                turn: [["keep", "primary", true], ["done", "secondary", false], ["pass", "secondary", false]],
+                claim: [["no", "primary", true], ["claim", "secondary", false]],
+                objection: [["evidence", "primary", true], ["cancel", "cancel", false]]
+            },
+            reveal: { kit: true, buttons: [["cancel", true, "cancel"], ["reveal", false, "destructive"]], answer: null },
+            opened: { turn: true, claim: true, objection: true }
+        }), "[each footer built (action, role, default, in tree order); the Reveal's confirmation: on the kit, its buttons (action, default, role), its answer; each window opened through the kit with its footer]");
     }],
 ];
 

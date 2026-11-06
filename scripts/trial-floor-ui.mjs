@@ -19,12 +19,17 @@ import {
 import { keyRevealRecord } from "./investigation.mjs";
 import { closingClaimStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
-import { dialogContent, placeRoomOptions, plural, error, esc, serverNow, listOf, wholeNumber } from "./utils.mjs";
-import { stepper, stepperId } from "./ui-kit.mjs";
+import { placeRoomOptions, plural, error, esc, serverNow, listOf, wholeNumber } from "./utils.mjs";
+import { stepper, stepperId, drpgWindow, drpgConfirm } from "./ui-kit.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 
-const DialogV2 = foundry.applications.api.DialogV2;
+/* ON THE KIT'S FRAME (E21 C4, 06.11.2026). Every window of the trial's console is ui-kit.mjs `drpgWindow` (or its
+   `drpgConfirm`): the screen's height, one body that scrolls, the footer by roles - the closing word, the secondary and the
+   destructive ones on the left, the primary on the right and first in the tree, so Enter presses it (the kit's header). The
+   answers are the ones DialogV2.wait gave: each button keeps its action, each callback its value. What cannot be undone
+   (E22 C4; D11 for a GM; audit S06-09) is the destructive role and never the default: End the trial, the chapter's end, the
+   Final Trial's start, a second trial in a chapter with a verdict, the murder's end from the incident's question. */
 
 /* ==========================================================================
  * THE TRIAL AS A SEQUENCE
@@ -140,10 +145,10 @@ export async function startClassTrial() {
     const lines = startTrialLines({ hall });
     const castPicker = hall ? castPickerHtml(hall, { heading: "DRPG.TrialScene.castPickHeading" }) : "";
 
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Floor.startTrial") },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Floor.startTrial"),
         classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p>${game.i18n.localize("DRPG.Floor.startTrialIntro")}</p>
             <ul class="drpg-briefing-facts drpg-trial-facts">
                 <li>${game.i18n.localize("DRPG.Floor.startTrialStepPhase")}</li>
@@ -155,12 +160,12 @@ export async function startClassTrial() {
             <p>${lines.rule}</p>
             <p class="notes">${lines.voices}</p>
             ${castPicker}
-        </form>`),
-        buttons: [
-            { action: "ok", label: game.i18n.localize("DRPG.Floor.startTrial"), default: true,
+        </form>`,
+        footer: {
+            primary: { action: "ok", label: game.i18n.localize("DRPG.Floor.startTrial"),
                 callback: (e, b, d) => ({ cast: readCastPicker(d.element) }) },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
 
@@ -219,14 +224,16 @@ export async function startClassTrial() {
 export async function confirmNewTrial(chapter) {
     const { trialProgress } = await import("./vote.mjs");
     if (!trialProgress(chapter).verdictApplied) return true;
-    const answer = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Floor.newTrialTitle") },
+    // A second trial blanks the verdict's lock (above): the destructive role, Cancel the default and first in the tree (E22 C4).
+    const answer = await drpgWindow({
+        title: game.i18n.localize("DRPG.Floor.newTrialTitle"),
         classes: ["drpg-panel", "drpg-narrow"],
-        content: dialogContent(`<p>${game.i18n.localize("DRPG.Floor.newTrialConfirm")}</p>`),
-        buttons: [
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true },
-            { action: "ok", label: game.i18n.localize("DRPG.Floor.newTrialTitle") }
-        ],
+        body: `<p>${game.i18n.localize("DRPG.Floor.newTrialConfirm")}</p>`,
+        footer: {
+            destructive: [{ action: "ok", label: game.i18n.localize("DRPG.Floor.newTrialTitle") }],
+            close: "cancel",
+            default: "cancel"
+        },
         rejectClose: false
     });
     return answer === "ok";
@@ -249,19 +256,24 @@ export async function confirmNewTrial(chapter) {
 export async function incidentClosedFirst() {
     const { murderState, endMurder } = await import("./murder.mjs");
     if (!murderState()) return true;
-    const answer = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Floor.incidentTitle") },
+    /* THE MURDER'S END IS "endMurder", NOT "close" (E21 C4, 06.11.2026). Its action was "close", which ApplicationV2 keeps
+       for its own close (openVoteDialog's note on Close and count, measured on 11.09): at a table the press shut the
+       window, the wait answered null and nothing was closed. The harness's DialogV2 does not model that dispatch, so the
+       suite pressed it through. The murder's end is the incident tracker's destructive answer (E22 C3b), here as well. */
+    const answer = await drpgWindow({
+        title: game.i18n.localize("DRPG.Floor.incidentTitle"),
         classes: ["drpg-panel", "drpg-narrow"],
-        content: dialogContent(`<p>${game.i18n.localize("DRPG.Floor.incidentOpen")}</p>`),
-        buttons: [
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true },
-            { action: "close", label: game.i18n.localize("DRPG.Murder.endMurder") },
-            { action: "keep", label: game.i18n.localize("DRPG.Floor.incidentKeep") }
-        ],
+        body: `<p>${game.i18n.localize("DRPG.Floor.incidentOpen")}</p>`,
+        footer: {
+            secondary: [{ action: "keep", label: game.i18n.localize("DRPG.Floor.incidentKeep") }],
+            destructive: [{ action: "endMurder", label: game.i18n.localize("DRPG.Murder.endMurder") }],
+            close: "cancel",
+            default: "cancel"
+        },
         rejectClose: false
     });
     if (answer === "keep") return true;
-    if (answer !== "close") return false;
+    if (answer !== "endMurder") return false;
     await endMurder();
     return !murderState();
 }
@@ -315,10 +327,10 @@ export async function openDebate(options = {}) {
     let topic = topicOf(typeof options === "object" ? options?.topic : null);
     if (!budget) {
         const secondsId = stepperId();
-        const asked = await DialogV2.wait({
-            window: { title: game.i18n.localize("DRPG.Floor.openDebate") },
+        const asked = await drpgWindow({
+            title: game.i18n.localize("DRPG.Floor.openDebate"),
             classes: ["drpg-panel", "drpg-narrow"],
-            content: dialogContent(`<form>
+            body: `<form>
                 <p>${game.i18n.localize("DRPG.Floor.openDebateIntro")}</p>
                 <label for="${secondsId}">${game.i18n.localize("DRPG.Floor.seconds")}
                     ${stepper({ name: "seconds", value: remembered, min: 30, step: 10, id: secondsId })}</label>
@@ -326,17 +338,17 @@ export async function openDebate(options = {}) {
                     <input type="text" name="topic" maxlength="${Number(TRIAL.modes.topicLength) || 200}"
                            placeholder="${esc(game.i18n.localize("DRPG.Floor.topicHint"))}" /></label>
                 <p class="notes">${game.i18n.localize("DRPG.Floor.discussionNote")}</p>
-            </form>`),
-            buttons: [
-                {
-                    action: "ok", label: game.i18n.localize("DRPG.Floor.openDebate"), default: true,
+            </form>`,
+            footer: {
+                primary: {
+                    action: "ok", label: game.i18n.localize("DRPG.Floor.openDebate"),
                     callback: (e, b, d) => ({
                         seconds: wholeNumber(d.element.querySelector("form").seconds.value, { fallback: remembered }) || remembered,
                         topic: d.element.querySelector("form").topic?.value ?? ""
                     })
                 },
-                { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-            ],
+                close: "cancel"
+            },
             rejectClose: false
         });
         if (!asked || asked === "cancel") return null;
@@ -370,7 +382,7 @@ export async function openDebate(options = {}) {
  * (Testimony 60 s, Panic Round 15 s or 10 s from 12 participants) and held to its range, typed by the GM at every start
  * (TR14 = 3); the participants as the primary will freeze them (vote.mjs `trialParticipants`) in an order drawn at
  * random, which the GM may move up or draw again before the start - never after it; and the round's whole length,
- * m:ss, redrawn as the turn or the list changes. A DialogV2 like every window of the console; Start is the default.
+ * m:ss, redrawn as the turn or the list changes. A kit window like every window of the console; Start is the default.
  */
 export async function openRoundWindow(mode) {
     if (!game.user.isGM || !isRoundMode(mode)) return null;
@@ -388,10 +400,10 @@ export async function openRoundWindow(mode) {
     const byId = new Map(actors.map(a => [a.id, a]));
     const drawn = drawOrder(actors.map(a => a.id)).map(id => byId.get(id));
     const secondsId = stepperId();
-    const asked = await DialogV2.wait({
-        window: { title: game.i18n.localize(`DRPG.Floor.mode.${mode}`) },
+    const asked = await drpgWindow({
+        title: game.i18n.localize(`DRPG.Floor.mode.${mode}`),
         classes: ["drpg-panel", "drpg-narrow", "drpg-round-window"],
-        content: dialogContent(`<form>
+        body: `<form>
                 <p>${game.i18n.localize("DRPG.Floor.roundWindow.intro")}</p>
                 <label for="${secondsId}">${game.i18n.localize("DRPG.Floor.roundWindow.seconds")}
                     ${stepper({ name: "seconds", value: offered, min: range.min, max: range.max, step: 1, id: secondsId })}</label>
@@ -399,7 +411,7 @@ export async function openRoundWindow(mode) {
                 <ol class="drpg-round-order">${drawn.map(row).join("")}</ol>
                 <button type="button" data-drpg-round-draw>${esc(game.i18n.localize("DRPG.Floor.roundWindow.draw"))}</button>
                 <p class="drpg-round-length" aria-live="polite"></p>
-            </form>`),
+            </form>`,
         render: (event, dialog) => {
             const root = dialog?.element;
             const list = root?.querySelector(".drpg-round-order");
@@ -423,16 +435,16 @@ export async function openRoundWindow(mode) {
             });
             paint();
         },
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Floor.roundWindow.start"), default: true,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.Floor.roundWindow.start"),
                 callback: (e, b, d) => ({
                     seconds: wholeNumber(d.element.querySelector("[name=seconds]")?.value, { min: range.min, max: range.max, fallback: offered }),
                     order: [...d.element.querySelectorAll(".drpg-round-order [data-drpg-round-id]")].map(li => li.dataset.drpgRoundId)
                 })
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
     if (!asked || asked === "cancel") return null;
@@ -551,45 +563,57 @@ export async function endClassTrial() {
         if (!exit || typeof exit !== "object") return null;
         return closeTrial(exit);
     }
-    const confirmed = await DialogV2.confirm({
-        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
-        no: { label: game.i18n.localize("DRPG.Dialog.no") },
-        classes: ["drpg-panel"],
-        window: { title: game.i18n.localize("DRPG.Floor.endTrial") },
-        content: `<p>${game.i18n.localize("DRPG.Floor.endTrialConfirm")}</p>${notChapter}`,
-        rejectClose: false
-    });
-    if (!confirmed) return null;
+    if (!(await askTrialEnd(notChapter))) return null;
 
     return closeTrial();
+}
+
+/**
+ * End the trial's question with no hall linked: yes or no, the yes "End the trial" on the destructive role (E22 C4;
+ * audit S06-09: the sentence is carried out and Daily Life comes back), so Cancel is the default and the first submit
+ * button in the tree and Enter ends nothing. Answers true for the yes, false for Cancel, null for a closed window, as
+ * the DialogV2.confirm it was (its yes was "Yes" and its no "No": the kit's yes names its effect, its no is the role's
+ * word). Exported for the suite (R1364, E22-T2).
+ */
+export function askTrialEnd(notChapter = "") {
+    return drpgConfirm({
+        title: game.i18n.localize("DRPG.Floor.endTrial"),
+        classes: ["drpg-panel"],
+        body: `<p>${game.i18n.localize("DRPG.Floor.endTrialConfirm")}</p>${notChapter}`,
+        yes: { role: "destructive", label: game.i18n.localize("DRPG.Floor.endTrial") },
+        rejectClose: false
+    });
 }
 
 /**
  * End the trial's question when a hall is linked: the same words, and one select of every room of
  * every place scene, the school's first room chosen. Answers `{ sceneId, room }` from the chosen
  * option, or what the window answered otherwise (Cancel, a close) - which `endClassTrial` reads as
- * no.
+ * no. End the trial is the destructive role and Cancel the default (E22 C4; audit S06-09): until C4
+ * it was the default, so Enter in the room's select ended the trial and moved the living. Exported
+ * for the suite (R1364, E22-T2).
  */
-async function askTrialExit(notChapter) {
-    return DialogV2.wait({
+export async function askTrialExit(notChapter = "") {
+    return drpgWindow({
         classes: ["drpg-panel"],
-        window: { title: game.i18n.localize("DRPG.Floor.endTrial") },
-        content: dialogContent(`<form>
+        title: game.i18n.localize("DRPG.Floor.endTrial"),
+        body: `<form>
             <p>${game.i18n.localize("DRPG.Floor.endTrialConfirm")}</p>${notChapter}
             <p>${game.i18n.localize("DRPG.Floor.endTrialScene")}</p>
             <label>${game.i18n.localize("DRPG.Floor.endTrialRoom")}
                 <select name="room">${placeRoomOptions()}</select></label>
-        </form>`),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Floor.endTrial"), default: true,
+        </form>`,
+        footer: {
+            destructive: [{
+                action: "ok", label: game.i18n.localize("DRPG.Floor.endTrial"),
                 callback: (e, b, d) => {
                     const option = d.element.querySelector("form select[name=room]")?.selectedOptions?.[0];
                     return option ? { sceneId: option.dataset.scene, room: option.value } : null;
                 }
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            }],
+            close: "cancel",
+            default: "cancel"
+        },
         rejectClose: false
     });
 }
@@ -957,16 +981,16 @@ async function pickClosingDialog() {
     const option = actor => `<option value="${esc(actor.id)}">${esc(actor.name)}${volunteers.includes(actor.id)
         ? ` - ${esc(game.i18n.localize("DRPG.Floor.closing.volunteered"))}` : ""}${spoke.has(actor.id)
         ? ` - ${esc(game.i18n.localize("DRPG.Floor.closing.alreadySpoke"))}` : ""}</option>`;
-    const picked = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Floor.mode.closing") },
+    const picked = await drpgWindow({
+        title: game.i18n.localize("DRPG.Floor.mode.closing"),
         classes: ["drpg-panel", "drpg-narrow", "drpg-closing-pick"],
-        content: dialogContent(`<form><label>${game.i18n.localize("DRPG.Floor.closing.pickLabel")}
-            <select name="actor">${actors.map(option).join("")}</select></label></form>`),
-        buttons: [
-            { action: "ok", label: game.i18n.localize("DRPG.Floor.closing.pick"), default: true,
+        body: `<form><label>${game.i18n.localize("DRPG.Floor.closing.pickLabel")}
+            <select name="actor">${actors.map(option).join("")}</select></label></form>`,
+        footer: {
+            primary: { action: "ok", label: game.i18n.localize("DRPG.Floor.closing.pick"),
                 callback: (e, b, d) => d.element.querySelector("[name=actor]")?.value ?? null },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
     if (!picked || picked === "cancel") return null;
@@ -1006,17 +1030,15 @@ export async function confirmReveal(row, { left = 0 } = {}) {
     const words = row.text
         ? `<blockquote class="drpg-reveal-text">${esc(row.text)}</blockquote>`
         : `<label>${esc(game.i18n.localize("DRPG.Reveal.textLabel"))}<textarea name="text" rows="3"></textarea></label>`;
-    const answer = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Reveal.title") },
+    // M13's card (E21 C4; docs/design/windows.md): Cancel and Reveal on the left, Reveal the destructive role, no primary.
+    const answer = await drpgConfirm({
+        title: game.i18n.localize("DRPG.Reveal.title"),
         classes: ["drpg-panel", "drpg-narrow", "drpg-reveal-confirm"],
-        content: dialogContent(`<form><p>${game.i18n.format("DRPG.Reveal.intro", { name: `<strong>${esc(name)}</strong>` })}</p>
+        body: `<form><p>${game.i18n.format("DRPG.Reveal.intro", { name: `<strong>${esc(name)}</strong>` })}</p>
             ${words}
-            ${left > 0 ? "" : `<p class="drpg-warning">${esc(game.i18n.localize("DRPG.Reveal.beyondPaid"))}</p>`}</form>`),
-        buttons: [
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true, autofocus: true },
-            { action: "reveal", label: game.i18n.localize("DRPG.Reveal.button"), class: "drpg-destructive",
-                callback: (e, b, d) => ({ text: d.element.querySelector("[name=text]")?.value ?? "" }) }
-        ],
+            ${left > 0 ? "" : `<p class="drpg-warning">${esc(game.i18n.localize("DRPG.Reveal.beyondPaid"))}</p>`}</form>`,
+        yes: { role: "destructive", action: "reveal", label: game.i18n.localize("DRPG.Reveal.button"),
+            callback: (e, b, d) => ({ text: d.element.querySelector("[name=text]")?.value ?? "" }) },
         rejectClose: false
     });
     return answer && typeof answer === "object" ? answer : null;
@@ -1336,9 +1358,9 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                         default: isDefault("finishVerdict") }]
                     : []),
                 // Reachable before the verdict (a chapter can end without
-                // one); only the DEFAULT waits for it.
-                { action: "chapterEnd", label: game.i18n.localize("DRPG.Chapter.endTitle"),
-                  default: progress.verdictApplied && isDefault("chapterEnd") }
+                // one). Never the default since E22 C4: it cannot be undone (the destructive role, `trialFooter`), so
+                // after the verdict, when it is the next step, the lead names it and Enter presses Close.
+                { action: "chapterEnd", role: "destructive", label: game.i18n.localize("DRPG.Chapter.endTitle") }
               ]
             : []),
         // The table's door (E13 C6), labelled by what it does now, as the Final Trial's switch below.
@@ -1347,15 +1369,39 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                 ? "DRPG.TrialScene.showHall" : "DRPG.TrialScene.backToSchool") }]
             : []),
         ...(running
-            ? [{ action: "end", label: game.i18n.localize("DRPG.Floor.endTrial") }]
+            ? [{ action: "end", role: "destructive", label: game.i18n.localize("DRPG.Floor.endTrial") }]
             : [{ action: "start", default: isDefault("start"),
                  label: game.i18n.localize("DRPG.Floor.startTrial") }]),
         // Labelled by state rather than "start or end": one button doing
         // two opposite things is a coin flip when the GM reads quickly.
-        { action: "toggleFinal", label: game.i18n.localize(finalNow
+        // Starting the Final Trial is the destructive role (E22 C4; S06-09): the trial becomes the season's last.
+        // Ending it puts the flag back, and is a secondary.
+        { action: "toggleFinal", ...(finalNow ? {} : { role: "destructive" }), label: game.i18n.localize(finalNow
             ? "DRPG.Mastermind.endFinalTrial" : "DRPG.Mastermind.startFinalTrial") },
-        { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
+        { action: "close", role: "close", label: game.i18n.localize("DRPG.Panel.close") }
     ];
+}
+
+/**
+ * THE CONSOLE'S FOOTER ON THE KIT (E21 C4, E22 C4; 06.11.2026; audit S06-09, E22-09). `trialButtons`' list, by state, put
+ * into ui-kit.mjs's footer slots: the next step (`isDefault`) the primary - on the right and the first submit button in
+ * the tree, so Enter presses it, as its `default` did; the zone that cannot be undone - End the trial, End of chapter,
+ * Start the Final Trial (`role: "destructive"`) - the destructive role, on the left and never the default; Close the
+ * closing word, first on the left; every other button a secondary, in `trialButtons`' order. Its layout is E47's (M6, the
+ * owner's q-console: the footer as drawn, the console thought over in E46 or E47); the bar's run controls are the
+ * console's body, plain (D11: no role says the GM's road on a GM's screen). With no next step among the buttons (a
+ * verdict another GM runs, the chapter's end next, an Objection running) there is no primary and Close is the first
+ * submit button. Exported for the suite (R1364), which reads it in each state.
+ */
+export function trialFooter(state) {
+    const footer = { secondary: [], destructive: [], close: null };
+    for (const { role, default: isDefault, ...button } of trialButtons(state)) {
+        if (role === "close") footer.close = { role: "close", action: button.action };
+        else if (role === "destructive") footer.destructive.push(button);
+        else if (isDefault && !footer.primary) footer.primary = button;
+        else footer.secondary.push(button);
+    }
+    return footer;
 }
 
 /**
@@ -1451,11 +1497,12 @@ export async function manageClassTrial() {
     const openedWith = signature();
     let reopening = false;
 
-    const action = await DialogV2.wait({
+    // The frame only (M6; E21 C4): the console's layout is E47's; its footer by roles (`trialFooter`).
+    const action = await drpgWindow({
         classes: ["drpg-panel", "drpg-window-trial"],
-        window: { title: game.i18n.localize("DRPG.Floor.manageTrial"), minimizable: true },
-        content: dialogContent(buildConsole()),
-        buttons: trialButtons({ floor, running, finalNow, progress, afterwards, stopped, table, isDefault }),
+        title: game.i18n.localize("DRPG.Floor.manageTrial"),
+        body: buildConsole(),
+        footer: trialFooter({ floor, running, finalNow, progress, afterwards, stopped, table, isDefault }),
         render: (event, dialog) => {
             const live = keepLive(dialog, {
                 region: ".drpg-trial-console",
@@ -1713,46 +1760,47 @@ export async function openVoteDialog() {
     const canSend = hasRecipients();
     let reopening = false;
 
-    const action = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Vote.openTitle") },
+    /* ON THE KIT (E21 C4): the step the vote waits for is the primary - Send the ballots before a vote, Close and count
+       while one runs - and the other a secondary; Cancel the closing word, the default when nothing can be sent. */
+    /* NOT `action: "close"`, AND THAT ONE WORD COST THE WHOLE TRIAL.
+
+       ApplicationV2 dispatches centrally on `[data-action]` and case "close" is
+       its own: `event.stopPropagation(); event.preventDefault(); this.close();`
+       - the same handler the window header's X uses. A footer button carrying
+       that action never reaches DialogV2's submit at all, so `DialogV2.wait`
+       resolved as a dismissal and `closeVote()` below was unreachable.
+
+       Measured on 11.09, running a chapter through the interface: press "Close
+       and count" with three ballots in and `voteClosed` stays false, no tally
+       card is posted, and the window simply shuts. The verdict button is gated
+       on `voteClosed`, and the end-of-chapter button on the verdict - so the
+       Class Trial could not be finished from the interface at all. Renaming the
+       action and nothing else was measured to fix it, both directions.
+
+       Every other `action: "close"` in this module is a literal "Close" whose
+       handler returns null anyway, so they behave identically either way. This
+       was the only one that had work to do. */
+    const send = { action: "open", disabled: !canSend, label: game.i18n.localize(running ? "DRPG.Vote.sendAgain" : "DRPG.Vote.send") };
+    const remind = pending?.length ? [{ action: "remind", label: game.i18n.format("DRPG.Vote.remind", { n: pending.length }) }] : [];
+    // THE DEFAULT ONCE THE BALLOTS ARE OUT, because from that moment it is the
+    // only thing left to do here - and because the button it takes the default
+    // FROM restarts the vote. Enter must not be the destructive one.
+    // Closed with no vote open (E10 C14, S06-26): there is nothing to count, and the line
+    // above the footer says to send the ballots first.
+    const tally = { action: "tally", label: game.i18n.localize("DRPG.Vote.tally"), disabled: !running };
+    const action = await drpgWindow({
+        title: game.i18n.localize("DRPG.Vote.openTitle"),
         classes: ["drpg-panel", "drpg-window-vote"],
-        content: dialogContent(`<div>
+        body: `<div>
             <p>${game.i18n.localize("DRPG.Vote.openIntro")}</p>
             ${statusHtml()}
             <p class="notes">${game.i18n.localize("DRPG.Vote.privacyNote")}</p>
-        </div>`),
-        buttons: [
-            /* NOT `action: "close"`, AND THAT ONE WORD COST THE WHOLE TRIAL.
-
-               ApplicationV2 dispatches centrally on `[data-action]` and case "close" is
-               its own: `event.stopPropagation(); event.preventDefault(); this.close();`
-               - the same handler the window header's X uses. A footer button carrying
-               that action never reaches DialogV2's submit at all, so `DialogV2.wait`
-               resolved as a dismissal and `closeVote()` below was unreachable.
-
-               Measured on 11.09, running a chapter through the interface: press "Close
-               and count" with three ballots in and `voteClosed` stays false, no tally
-               card is posted, and the window simply shuts. The verdict button is gated
-               on `voteClosed`, and the end-of-chapter button on the verdict - so the
-               Class Trial could not be finished from the interface at all. Renaming the
-               action and nothing else was measured to fix it, both directions.
-
-               Every other `action: "close"` in this module is a literal "Close" whose
-               handler returns null anyway, so they behave identically either way. This
-               was the only one that had work to do. */
-            { action: "open", default: !running && canSend, disabled: !canSend,
-              label: game.i18n.localize(running ? "DRPG.Vote.sendAgain" : "DRPG.Vote.send") },
-            ...(pending?.length
-                ? [{ action: "remind", label: game.i18n.format("DRPG.Vote.remind", { n: pending.length }) }]
-                : []),
-            // THE DEFAULT ONCE THE BALLOTS ARE OUT, because from that moment it is the
-            // only thing left to do here - and because the button it takes the default
-            // FROM restarts the vote. Enter must not be the destructive one.
-            // Closed with no vote open (E10 C14, S06-26): there is nothing to count, and the line
-            // above the footer says to send the ballots first.
-            { action: "tally", label: game.i18n.localize("DRPG.Vote.tally"), default: running, disabled: !running },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: !running && !canSend }
-        ],
+        </div>`,
+        footer: running
+            ? { primary: tally, secondary: [send, ...remind], close: "cancel" }
+            : canSend
+                ? { primary: send, secondary: [...remind, tally], close: "cancel" }
+                : { secondary: [send, ...remind, tally], close: "cancel" },
         render: (event, dialog) => keepLive(dialog, {
             // Every setting of ours, the world's trial record among them; the ballots, which no setting
             // reports; and a player connecting, who is a recipient a moment later.
@@ -1795,13 +1843,13 @@ export async function openVoteDialog() {
            not ready", red at f9be27d). There the question says it cannot tell how many. */
         const unseen = ballotCopyStatus() !== null;
         if (returned || unseen) {
-            const sure = await DialogV2.confirm({
-                yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
-                no: { label: game.i18n.localize("DRPG.Dialog.no") },
+            // The ballots in are dropped: the destructive role, Cancel the default (E22 C4); the yes names its effect.
+            const sure = await drpgConfirm({
+                title: game.i18n.localize("DRPG.Vote.sendAgain"),
                 classes: ["drpg-panel"],
-                window: { title: game.i18n.localize("DRPG.Vote.sendAgain") },
-                content: `<p>${unseen ? game.i18n.localize("DRPG.Vote.resendUnseen")
+                body: `<p>${unseen ? game.i18n.localize("DRPG.Vote.resendUnseen")
                     : plural("DRPG.Vote.resendWarning", { n: returned })}</p>`,
+                yes: { role: "destructive", label: game.i18n.localize("DRPG.Vote.sendAgain") },
                 rejectClose: false
             });
             if (!sure) return openVoteDialog();

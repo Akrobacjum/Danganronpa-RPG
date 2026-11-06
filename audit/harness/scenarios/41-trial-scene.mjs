@@ -814,7 +814,8 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
     const movedI = Object.keys(i0.where).filter(key => J(i0.where[key].at) !== J(i1.where[key]?.at)).sort();
     const AWAY = ["41 Away Place/S41 Away", `${academyName}/S41 Away`], awayCopy = i1.where[AWAY[1]] ?? null;
     check("i1: End the trial's window offers End the trial and Cancel only and every room of each place scene, the school's first room chosen; ended there, every browser is on the school with the hall's cast hidden (E13 C3b; the owner's items 3 of 10.10)",
-        J(endI.read?.buttons) === J(["ok", "cancel"]) && endI.read.options[0]?.startsWith(`${academyName}/`) && endI.read.options.includes(`${academyName}/${found.room}`)
+        // In the kit's tree order since E21 C4: End the trial destructive, so Cancel (the default) first, then End the trial.
+        J(endI.read?.buttons) === J(["cancel", "ok"]) && endI.read.options[0]?.startsWith(`${academyName}/`) && endI.read.options.includes(`${academyName}/${found.room}`)
             && endI.read.options.includes("41 Away Place/Shed") && endI.read.first === endI.read.options[0].split("/").slice(1).join("/")
             && endI.ended === true && endI.phase === "dailyLife" && views(viewsI).every(v => v === "school") && Object.values(viewsI).every(r => J(shown(r)) === J(["Decor"])),
         J({ fixI, outI, endI, viewsI: views(viewsI) }), { flow: "trial-scene" });
