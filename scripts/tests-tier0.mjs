@@ -20107,6 +20107,66 @@ const REGRESSIONS = [
         for (const name of NAMES) if (css.includes(`.${name}`)) hits.push(`the module's stylesheets: ${name}`);
         equal(JSON.stringify(hits), "[]", "[the scripts and sheets that still name the collapse]");
     }],
+
+    ["R1566 - a folded window keeps no height of the module's (06.11.2026; LIVE-E44-08 (1), the owner at the table): no rule of the module's stylesheets whose subject is a Foundry window (`.application`) sets it a `height` or `min-height` other than auto, none or 0 without leaving out the folded window (`:not(.minimized)`), and the character sheet's floor leaves out the fold on its way too (`:not(.minimizing)`)", async () => {
+        /*
+         * 06.11.2026, the owner at the table: "zwijanie karty postaci nie dziala". Foundry folds a window by writing its
+         * title bar's height inline and hiding what is under the bar; an author `min-height` wins over an inline
+         * `height`, so danganronpa.css's `.application.sheet.daggerheart.actor.character { min-height: 830px }` held the
+         * folded sheet at 830px, an empty strip with the board showing through it (the owner's screenshot, 205 x 838 px).
+         * Read: every rule of every sheet module.json serves, comments removed, each selector of a list on its own
+         * (split outside brackets), its subject the last compound. Red before this test's commit: the sheet's rule, the
+         * one rule found. The other rules a scan of 06.11.2026 found that set a window a height already left out
+         * `.minimized` (components.css and stained-glass.css's `.drpg-panel`). What v14 does when it folds is read in the
+         * module's notes, not in its source (LIVE-E44-08).
+         */
+        const css = await moduleStyles();
+        must(css.length > 10000, `${css.length} characters of the sheets read - this would measure nothing`);
+        const splitList = text => {
+            const parts = []; let depth = 0, from = 0;
+            for (let i = 0; i < text.length; i++) {
+                const ch = text[i];
+                if (ch === "(" || ch === "[") depth++;
+                else if (ch === ")" || ch === "]") depth--;
+                else if (ch === "," && depth === 0) { parts.push(text.slice(from, i)); from = i + 1; }
+            }
+            parts.push(text.slice(from));
+            return parts.map(x => x.trim()).filter(Boolean);
+        };
+        const subjectOf = selector => {
+            let depth = 0, cut = 0;
+            for (let i = 0; i < selector.length; i++) {
+                const ch = selector[i];
+                if (ch === "(" || ch === "[") depth++;
+                else if (ch === ")" || ch === "]") depth--;
+                else if (depth === 0 && /[\s>+~]/.test(ch)) cut = i + 1;
+            }
+            return selector.slice(cut);
+        };
+        const FREE = /^(auto|none|0|0px|0rem|fit-content|max-content|min-content|initial|unset)(\s*!important)?$/i;
+        const hits = [];
+        let windows = 0, sheetFloor = 0;
+        for (const m of css.matchAll(/([^{};]+)\{([^{}]*)\}/g)) {
+            const prelude = m[1].trim();
+            if (prelude.startsWith("@")) continue;
+            const heights = [...m[2].matchAll(/(?:^|;)\s*((?:min-)?height)\s*:\s*([^;]+)/gi)]
+                .map(d => [d[1].toLowerCase(), d[2].trim()]).filter(([, v]) => !FREE.test(v));
+            for (const selector of splitList(prelude)) {
+                const subject = subjectOf(selector);
+                if (!/\.application(?![\w-])/.test(subject.replace(/:(?:not|where|is|has)\([^)]*\)/g, ""))) continue;
+                windows++;
+                if (!heights.length) continue;
+                if (/\.sheet\b/.test(subject) && /\.character\b/.test(subject)) {
+                    sheetFloor++;
+                    if (!subject.includes(":not(.minimizing)")) hits.push(`${selector} { ${heights.map(h => h.join(": ")).join("; ")} } - not left out while it folds`);
+                }
+                if (!subject.includes(":not(.minimized)")) hits.push(`${selector} { ${heights.map(h => h.join(": ")).join("; ")} }`);
+            }
+        }
+        must(windows > 30, `${windows} selector(s) of a window read - the scan would read nothing`);
+        must(sheetFloor >= 1, "the character sheet's floor was not found - the rule this test was written for is gone, or the scan misses it");
+        equal(JSON.stringify(hits), "[]", "[the rules that give a folded window a height]");
+    }],
     ["R1318 - an opener that raised its window says so (E44 C2c; E44-09, S10-59): live.mjs exports RAISED = \"raised\"; every `if (alreadyOpen(\"drpg-window-...\")) return ...;` branch in scripts/ answers RAISED - 22 or more of them, read file by file - and so does openNotices's; the GM panel's tile handler returns before `openGmPanel()` when the tile's run answered RAISED", async () => {
         /*
          * E44 C2c, 04.11.2026; audit S10-59. The panel closes, awaits the tile's run and opens itself again whatever the

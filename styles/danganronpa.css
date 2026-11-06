@@ -2412,8 +2412,16 @@ section[data-application-part="features"] h4:not(.drpg-keep) {
     display: none !important;
 }
 
-/* A few more pixels of sheet, so the action grid does not force a scrollbar. */
-.application.sheet.daggerheart.actor.character {
+/* A few more pixels of sheet, so the action grid does not force a scrollbar.
+
+   NOT WHILE THE SHEET IS FOLDED (06.11.2026, the owner at the table, LIVE-E44-08 (1)). Foundry folds a window by
+   writing its title bar's height inline and hiding everything under the bar, and an author `min-height` wins over an
+   inline `height`: the folded sheet kept its 830px as an empty, see-through strip the width of the title bar, with
+   the board showing through it (the owner's screenshot of it is 205 x 838 px). `.minimizing` is the class Foundry
+   carries while the fold runs, and on a close, where "WINDOWS ARRIVE, AND WINDOWS LEAVE" below holds the height
+   inline, so dropping the floor there changes nothing; `.minimized` once it is folded. Read in the sheets, not in
+   v14's source. */
+.application.sheet.daggerheart.actor.character:not(.minimized):not(.minimizing) {
     min-height: 830px;
 }
 
