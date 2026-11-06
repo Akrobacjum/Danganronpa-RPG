@@ -441,6 +441,11 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
             proto[name] = function (...args) { globalThis.__s87Calls.push(name + " " + this.name); return real.apply(this, args); };
         }
         return true;`);
+    // The wait is timed from gm hearing gm2's write, where gm's settle timer is armed (music-play.mjs `scheduleMapRefresh`),
+    // not from gm2's poll seeing its marker: that poll answered up to 740 ms after the echo on a loaded machine
+    // (05.11.2026, 4 cores, 8 runs at once: c1Wait 1222 with the echo-to-play 1963).
+    await gm.eval(`globalThis.__s87Heard = null; globalThis.__s87HeardHook = Hooks.on("updateSetting", (setting, changed, options, userId) => {
+        if (setting?.key === "danganronpa-rpg.musicMap" && userId !== game.user.id && globalThis.__s87Heard === null) globalThis.__s87Heard = Date.now(); }); return true;`);
     const c1Change = await gm2.eval(`${MU} ${UNTIL} ${SOUND}
         try {
             MU.openSoundDialog();
@@ -459,11 +464,13 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
         gm2Calls: await gm2.eval(`const calls = globalThis.__s87Calls; for (const [name, real, own] of globalThis.__s87Wrapped) {
             const proto = Object.getPrototypeOf(game.playlists.get(${J(C1_PLAYLIST)})); if (own) proto[name] = real; else delete proto[name]; }
             delete globalThis.__s87Calls; delete globalThis.__s87Wrapped; return calls;`) };
-    const c1Wait = c1Play.at - c1Change.at;
+    const c1Heard = await gm.eval(`Hooks.off("updateSetting", globalThis.__s87HeardHook); const at = globalThis.__s87Heard;
+        delete globalThis.__s87Heard; delete globalThis.__s87HeardHook; return at;`);
+    const c1Wait = c1Heard === null ? null : c1Play.at - c1Heard;
     check("C1: gm2 maps the current state to a playlist in its Sound window (no Apply) and gm, the primary, plays it after the settle; p1 hears it; gm2 runs no apply of its own and starts or stops no playlist (S11-34, E50-22)",
         Boolean(c1Setup.state) && c1Setup.on === true && c1Change.opened && c1Change.saved && c1Play.playing && c1Wait >= 1400 && c1Wait <= 1500 + 400 + 1500
             && c1Seen.p1 === true && c1Seen.gm2Applies === 0 && J(c1Seen.gm2Calls) === J([]),
-        J({ c1Setup, c1Change, c1Play, c1Wait, c1Seen }));
+        J({ c1Setup, c1Change, c1Heard, c1Play, c1Wait, c1Seen }));
 
     phase("C2: gm and gm2 change a different row each, gm2 reading the map gm's write has not reached yet");
     const [KA, KB] = c1Setup.free;
@@ -471,7 +478,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
     const c2Open = { gm: await gm.eval(OPEN_SOUND), gm2: await gm2.eval(OPEN_SOUND) };
     // gm's musicMap writes heard from here: its own, gm2's, and the one gm writes again for the key gm2's write took away.
     await gm.eval(`globalThis.__s87Writes = []; globalThis.__s87Hook = Hooks.on("updateSetting", (setting, changed, options, userId) => {
-        if (setting?.key === "danganronpa-rpg.musicMap") globalThis.__s87Writes.push(userId === game.user.id ? "gm" : "gm2"); }); return true;`);
+        if (setting?.key === "danganronpa-rpg.musicMap") { globalThis.__s87Writes.push(userId === game.user.id ? "gm" : "gm2"); globalThis.__s87LastWrite = Date.now(); } }); return true;`);
     // The map as gm2 reads it now, before gm's write: gm2's write is made from it - the read two GMs make in one tick.
     await gm2.eval(`${MU} globalThis.__s87Stale = foundry.utils.deepClone(ST.getSetting(ST.SETTINGS.musicMap) ?? {}); return true;`);
     // gm2's next read of the map, armed just before its change, answers the map it read before gm's write landed.
@@ -527,6 +534,13 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
     // both: the music's one test of who drives is `isPrimaryGm()`, read when a timer fires.
     const GM_HERE = here => `const u = game.users.get(${J(gm.userId)}); u._source.active = ${here};
         const U = await import("${repoUrl}/scripts/utils.mjs"); return U.isPrimaryGm();`;
+    /* C2'S OWN FOLLOW FIRST. gm's last write in C2 (its row taken back) arms gm's settle timer as every musicMap write
+       does: MAP_SETTLE_MS (1500) and the settle after it (400) later, gm, the primary, runs its apply. C2's settle(1500)
+       and C3 are shorter than that on a fast run, so that apply was counted inside C4 and ran after C4's write, playing
+       the new playlist on gm at once: c4Applies {gm:1, gm2:0}, gm's play 19-97 ms after gm heard gm2's write, with no
+       timer of C4's own fired (05.11.2026, a setTimeout trace on gm). So C4 starts once that follow is past. */
+    const c4Quiet = await gm.eval(`const last = globalThis.__s87LastWrite; delete globalThis.__s87LastWrite;
+        const wait = Math.max(0, last + 1500 + 400 + 600 - Date.now()); await new Promise(r => setTimeout(r, wait)); return wait;`, { timeout: 60000 });
     const c4Before = { gm: await gm.eval(APPLIES), gm2: await gm2.eval(APPLIES) };
     const c4Write = await gm2.eval(`${MU} ${UNTIL} const at = Date.now();
         await MU.saveMusicKey(${J(c1Setup.state)}, ${J(C2_PLAYLIST)});
@@ -546,7 +560,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
     check("C4: a mapping change made while gm is the primary is followed by gm2 when gm leaves within the settle: gm2, the primary when the timer ends, plays the state's new playlist with one apply, gm with none, and the playlist the state left is stopped (F3, FG1b, E50-22, LIVE-E50-04)",
         c4Write.primary === false && c4Echo && c4Gone.gm === false && c4Gone.gm2 === true && c4?.playing === true && c4?.old === false
             && c4Applies.gm2 === 1 && c4Applies.gm === 0 && c4Gone.back.gm === true && c4Gone.back.gm2 === false,
-        J({ c4Write, c4Echo, c4Gone, c4, c4Applies }));
+        J({ c4Quiet, c4Write, c4Echo, c4Gone, c4, c4Applies }));
 
     phase("C5: a mapping onto the cue playlist stored before 1.2.94; the ready road's drop with the world's defaults on gm2, then on gm");
     const [, , KC] = c1Setup.free;
