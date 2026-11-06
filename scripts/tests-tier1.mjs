@@ -34610,7 +34610,7 @@ const INVARIANTS = [
             buttons: [["cancel", true, "cancel"], ["reset", false, "destructive"]]
         }), "[the root's kit and own classes, the kit bodies in the window, the fields with autofocus, the footer in tree order: action, default, role]");
     }],
-    ["R1360 - the case's irreversible windows (E22 C3b; E22-01, E22-03, E22-05; S06-08, S13-04, S13-05): Who died? (chapter.mjs `openDeathDialog`), the body's announcement (`openBodyDiscoveryDialog`) and the chapter's end (`openChapterEndDialog`), each opened with DialogV2.wait stood in for, ask with their consequence destructive and named by its effect, Cancel the default and the first submit button in the tree, and Who died? and the body's room open on \"- choose -\" with that button shut; Sweep Truth Bullets, Clear Faint Remnants, Delete the Remnant, End the murder (the tracker's and the fight's), the Final Trial's verdict and a stopped end's Finish and Drop ask with the destructive role", async () => {
+    ["R1360 - the case's irreversible windows (E22 C3b; E22-01, E22-03, E22-05; S06-08, S13-04, S13-05): Who died? (chapter.mjs `openDeathDialog`), the body's announcement (`openBodyDiscoveryDialog`) and the chapter's end (`openChapterEndDialog`), each opened with DialogV2.wait stood in for, ask with their consequence destructive and named by its effect, Cancel the default and the first submit button in the tree, and Who died? and the body's room open on \"- choose -\" with that button shut, or, while an incident is open, on its victim and the victim's room with it open; Sweep Truth Bullets, Clear Faint Remnants, Delete the Remnant, End the murder (the tracker's and the fight's), the Final Trial's verdict and a stopped end's Finish and Drop ask with the destructive role", async () => {
         /*
          * E22 C3b, 06.11.2026; audit S06-08 ("They are dead", "Announce it" and "Do it" were Bone buttons and the default
          * under Enter; Who died? opened on the first living student and the body's window on the first room: one Enter
@@ -34621,19 +34621,39 @@ const INVARIANTS = [
          * their sources (each needs a world state tier 1 may not make: a bullet to sweep, a Faint trace, an incident, a
          * Mastermind, a stopped end): the yes of each on the destructive role. Red on C3a's tree: "They are dead" was the
          * primary, the default, and first in the tree.
+         *
+         * BOTH STATES THE TABLE CAN BE IN (E21 C3 fix, 06.11.2026; CI run 42200796353 on 9f271c34, suite 1/8). This test
+         * refused to run with an incident open (a `must`), and 01-runtests' A1 runs tiers 0-1 with one open - the handbook's
+         * "runTests({ tier: 1 }) is safe during play" - so A1 failed on that refusal: a reading the test declined to take,
+         * not a value. C3b's own design (chapter.mjs, both windows' notes) chooses the incident's victim and the victim's
+         * room while an incident is active, the consequence's button open; measured headless in A1's incident (Chie on
+         * Daichi, past the opening): Who died? held "ACTORDAICHI00000" with "ok" enabled, the body's room "Gym" with "ok"
+         * enabled. So the expectation follows the state found: no incident, "- choose -" and the button shut; an incident,
+         * its victim (when the GMs count them among the living) and the room `locateActor` finds them in (when it finds
+         * one), the button open with a choice. "- choose -" stays the first option in both. The chapter's end asks about
+         * the open incident first, and the stand-in answered that null as it answers everything (measured: "not opened"):
+         * it answers "keep" there now, which writes nothing, and the end's form is read in both states, the question
+         * counted (once with an incident, never without).
          */
         needs(env.primaryGm(), "the body's announcement and the chapter's end are the primary GM's");
         needs(world.atLeast("livingStudents", 1), "Who died? lists the living");
         const C = await import("./chapter.mjs");
         const { murderState } = await import("./murder.mjs");
         const { isEclipse } = await import("./eclipse.mjs");
-        must(!murderState(), "an incident is open - its victim would be chosen already, and this would read that instead");
+        const { livingStudentsForGm } = C;
+        const { locateActor } = await import("./movement.mjs");
+        const incident = murderState()?.active ? murderState() : null;
+        const victimChosen = incident && livingStudentsForGm().some(a => a.id === incident.victimId) ? incident.victimId : "";
+        const roomChosen = incident ? locateActor(game.actors.get(incident.victimId ?? ""))?.room ?? "" : "";
         must(!isEclipse(), "an Eclipse refuses the body's window - this would measure nothing");
         const L = key => game.i18n.localize(key);
         const D = foundry.applications.api.DialogV2;
         const own = Object.getOwnPropertyDescriptor(D, "wait");
         const seen = [];
-        D.wait = async cfg => { seen.push(cfg); return null; };
+        // The chapter's end asks about an open incident first (trial-floor-ui.mjs `incidentClosedFirst`); "keep" goes on
+        // with it open, writing nothing, so the end's own form is drawn and read in both states. Every other window: null.
+        const incidentQuestion = L("DRPG.Floor.incidentTitle");
+        D.wait = async cfg => { seen.push(cfg); return cfg?.window?.title === incidentQuestion ? "keep" : null; };
         try {
             await C.openDeathDialog();
             await C.openBodyDiscoveryDialog();
@@ -34653,13 +34673,15 @@ const INVARIANTS = [
                 first: select ? [select.options[0]?.value ?? null, select.options[0]?.textContent.trim() ?? null, select.value] : null
             };
         }
+        read.incidentAsked = seen.filter(c => c?.window?.title === incidentQuestion).length;
         const chapter = getClock().chapter;
         const choose = L("DRPG.Chapter.chooseOne");
         equal(stableJson(read), stableJson({
-            death: { buttons: [["cancel", true, "cancel", false], ["ok", false, "destructive", true]], label: L("DRPG.Chapter.confirmDeath"), first: ["", choose, ""] },
-            body: { buttons: [["cancel", true, "cancel", false], ["ok", false, "destructive", true]], label: L("DRPG.Chapter.announce"), first: ["", choose, ""] },
+            incidentAsked: incident ? 1 : 0,
+            death: { buttons: [["cancel", true, "cancel", false], ["ok", false, "destructive", !victimChosen]], label: L("DRPG.Chapter.confirmDeath"), first: ["", choose, victimChosen] },
+            body: { buttons: [["cancel", true, "cancel", false], ["ok", false, "destructive", !roomChosen]], label: L("DRPG.Chapter.announce"), first: ["", choose, roomChosen] },
             end: { buttons: [["cancel", true, "cancel", false], ["ok", false, "destructive", false]], label: game.i18n.format("DRPG.Chapter.endButton", { n: chapter }), first: null }
-        }), "[each window's footer in tree order (action, default, role, disabled), its consequence's label, its select's first option (value, words) and what it holds]");
+        }), `[each window's footer in tree order (action, default, role, disabled), its consequence's label, its select's first option (value, words) and what it holds; ${incident ? `an incident open, its victim ${incident.victimId} ${victimChosen ? "among the living" : "not among the living"}, in ${JSON.stringify(roomChosen)}` : "no incident"}]`);
 
         const src = new Map(await otherSources());
         const read2 = name => stripComments(src.get(name) ?? "");
