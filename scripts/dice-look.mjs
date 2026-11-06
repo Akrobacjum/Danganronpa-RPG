@@ -33,7 +33,8 @@
 
 import { MODULE_ID, moduleVersion } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { esc, error, dialogContent, markFired } from "./utils.mjs";
+import { esc, error, markFired } from "./utils.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 import { canonicalLook, holdsTableLook, isForced, fuseStoppedFor, tableLookSource, dualityPresetHere } from "./dice-sync.mjs";
 import { lastRollWindow } from "./roll-dialog.mjs";
 
@@ -499,15 +500,16 @@ export async function diagnoseDiceLook({ messageId = null, test = false, show = 
     if (show) {
         const { alreadyOpen } = await import("./live.mjs");
         if (!alreadyOpen("drpg-window-dice-look")) {
-            foundry.applications.api.DialogV2.wait({
+            // A read-out (E21 C2b): Close, the default; Copy report secondary.
+            drpgWindow({
                 classes: ["drpg-panel", "drpg-wide", "drpg-window-dice-look"],
-                window: { title: word("DRPG.DiceLook.diag.title") },
-                content: dialogContent(windowHtml(view, findings, lines)),
-                buttons: [
-                    { action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true },
-                    { action: "copy", label: game.i18n.localize("DRPG.Diagnose.copy"),
-                        callback: () => { void game.clipboard?.copyPlainText?.(text); return "copy"; } }
-                ],
+                title: word("DRPG.DiceLook.diag.title"),
+                body: windowHtml(view, findings, lines),
+                footer: {
+                    secondary: [{ action: "copy", label: game.i18n.localize("DRPG.Diagnose.copy"),
+                        callback: () => { void game.clipboard?.copyPlainText?.(text); return "copy"; } }],
+                    close: { role: "close", action: "close" }
+                },
                 rejectClose: false
             }).catch(err => error("Could not show the dice look", err));
         }

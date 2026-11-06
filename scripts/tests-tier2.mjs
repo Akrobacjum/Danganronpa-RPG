@@ -69258,7 +69258,8 @@ const SCENARIOS = [
             const queue = Array.isArray(globalThis.__dialogAnswers) ? globalThis.__dialogAnswers : null;
             const answer = config => {
                 const box = document.createElement("div");
-                box.innerHTML = String(config?.content ?? "");
+                // The kit's prompt (E21 C2b) hands DialogV2 its content as an element (utils.mjs `dialogContent`).
+                box.innerHTML = config?.content?.outerHTML ?? String(config?.content ?? "");
                 renaming = box.querySelector('input[name="tableName"]')?.value ?? "";
                 return null;
             };
@@ -74670,7 +74671,7 @@ const SCENARIOS = [
             /\bclearOverflowFromTab\(/.test(fnSource(src, "openGmTeamDialog"))] };
         try {
             Dialog.wait = async config => {
-                asked.push([config.window?.title ?? null, String(config.content ?? "").includes("5"), (config.buttons ?? []).map(b => [b.action, Boolean(b.default)])]);
+                asked.push([config.window?.title ?? null, String(config.content?.textContent ?? config.content ?? "").includes("5"), (config.buttons ?? []).map(b => [b.action, Boolean(b.default)])]);
                 return answers.shift() ?? null;
             };
             // A stamp that is there to be kept: a Rot of a session that never ran, an event, so nothing runs for it.

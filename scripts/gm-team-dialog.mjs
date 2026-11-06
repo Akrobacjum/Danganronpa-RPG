@@ -26,12 +26,11 @@ import {
 import { isMonokuma, setMonokuma, poolFor, setPools, studentCensus } from "./monokuma.mjs";
 import { students, assignments, monokumaFor, setAssignments, autoAssign, NO_MONOKUMA } from "./assignments.mjs";
 import { dialogContent, error } from "./utils.mjs";
-import { kitTabs, wireKitTabs, drpgWindow } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm } from "./ui-kit.mjs";
 import { setOverflowRules, overflowSection, overflowNowLine, readOverflowForm, overflowStatus, clearOverflowAsGm, overflowSuggestionLine } from "./overflow.mjs";
 import { alreadyOpen, keepFresh, reopen, RAISED } from "./live.mjs";
 import { SETTINGS } from "./settings.mjs";
 
-const DialogV2 = foundry.applications.api.DialogV2;
 
 /**
  * What the GM has typed here but not applied (TEAM-01, 20.09).
@@ -107,20 +106,19 @@ function paintTeamDraft(root, draft) {
  * NOT `DialogV2.confirm`: that puts Yes FIRST in the footer, and Enter presses the
  * first submit in DOM order whatever carries `default` - so the keyboard answer to
  * "shall I destroy this" would have been yes. Cancel is first and default here,
- * the shape `openFinalVerdictDialog` settled on for the same reason.
+ * the shape `openFinalVerdictDialog` settled on for the same reason - since E21 C2b
+ * the kit's destructive question (ui-kit.mjs `drpgConfirm`), whose yes is never the
+ * default and stands after Cancel in the tree. The yes answers "remove", as before.
  */
 async function confirmRemovePool(user) {
     const held = getDespair(user.id) ?? 0;
-    const answer = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Despair.removePool") },
+    const answer = await drpgConfirm({
+        title: game.i18n.localize("DRPG.Despair.removePool"),
         classes: ["drpg-panel", "drpg-narrow", "drpg-window-removepool"],
-        content: `<p>${game.i18n.format("DRPG.Despair.removePoolAsk", {
+        body: `<p>${game.i18n.format("DRPG.Despair.removePoolAsk", {
             name: foundry.utils.escapeHTML(poolLabel(user)), n: held
         })}</p>`,
-        buttons: [
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true },
-            { action: "remove", label: game.i18n.localize("DRPG.Despair.removePool") }
-        ],
+        yes: { role: "destructive", action: "remove", label: game.i18n.localize("DRPG.Despair.removePool"), callback: () => "remove" },
         rejectClose: false
     });
     return answer === "remove";
@@ -129,20 +127,18 @@ async function confirmRemovePool(user) {
 /**
  * The Overflow tab's Clear (H84-06, 27.10.2026; the owner's live session on 1.2.85, triage C6): asked first, then the
  * count back to 0 on the primary (overflow.mjs `clearOverflowAsGm`), the darkening already drawn left standing. Cancel
- * first and the default, as `confirmRemovePool` and for its reason: Enter answers no. The window stays open; its count
- * line follows the store (`keepFresh`). Answers true when cleared.
+ * first and the default, as `confirmRemovePool` and for its reason: Enter answers no (the kit's destructive question
+ * since E21 C2b; the yes answers "clear"). The window stays open; its count line follows the store (`keepFresh`).
+ * Answers true when cleared.
  */
 export async function clearOverflowFromTab() {
     if (!game.user.isGM) return false;
     const { count, threshold } = overflowStatus();
-    const answer = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Overflow.clear") },
+    const answer = await drpgConfirm({
+        title: game.i18n.localize("DRPG.Overflow.clear"),
         classes: ["drpg-panel", "drpg-narrow", "drpg-window-clearoverflow"],
-        content: `<p>${foundry.utils.escapeHTML(game.i18n.format("DRPG.Overflow.clearAsk", { count, max: threshold }))}</p>`,
-        buttons: [
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true },
-            { action: "clear", label: game.i18n.localize("DRPG.Overflow.clearConfirm") }
-        ],
+        body: `<p>${foundry.utils.escapeHTML(game.i18n.format("DRPG.Overflow.clearAsk", { count, max: threshold }))}</p>`,
+        yes: { role: "destructive", action: "clear", label: game.i18n.localize("DRPG.Overflow.clearConfirm"), callback: () => "clear" },
         rejectClose: false
     });
     if (answer !== "clear") return false;

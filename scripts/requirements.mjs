@@ -33,6 +33,7 @@ import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { LANGUAGES } from "./i18n.mjs";
 import { error, esc} from "./utils.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 
 /** Every module the manifest marks as required, whatever their state. */
 function required() {
@@ -113,20 +114,16 @@ export async function announceMissingRequirements() {
         </li>`).join("");
 
     try {
-        const DialogV2 = foundry.applications.api.DialogV2;
-        await DialogV2.wait({
-            window: { title: text.title },
-            classes: ["drpg-panel"],
-            content: `<div class="drpg-requirements">
+        // One answer, "Understood": the primary (E21 C2b).
+        await drpgWindow({
+            title: text.title,
+            classes: ["drpg-panel", "drpg-window-requirements"],
+            body: `<div class="drpg-requirements">
                 <p>${esc(text.intro)}</p>
                 <ul>${rows}</ul>
                 <p class="notes">${esc(text.how)}</p>
             </div>`,
-            buttons: [{
-                action: "ok",
-                label: text.understood,
-                default: true
-            }],
+            footer: { primary: { action: "ok", label: text.understood } },
             rejectClose: false
         });
     } catch (err) {
@@ -369,25 +366,25 @@ export async function announceNewerSystem() {
         : `<p class="notes">${game.i18n.localize("DRPG.Requirements.newerSystemAllPatches")}</p>`;
 
     try {
-        const DialogV2 = foundry.applications.api.DialogV2;
-        const answer = await DialogV2.wait({
-            window: { title: game.i18n.format("DRPG.Requirements.newerSystemTitle", { system }) },
-            classes: ["drpg-panel"],
-            content: `<form class="drpg-requirements">
+        const answer = await drpgWindow({
+            title: game.i18n.format("DRPG.Requirements.newerSystemTitle", { system }),
+            classes: ["drpg-panel", "drpg-window-newer-system"],
+            body: `<form class="drpg-requirements">
                 <p>${game.i18n.format("DRPG.Requirements.newerSystemIntro",
                     { system: esc(system), found: esc(found), verified: esc(verified) })}</p>
                 ${probe}
                 <label class="drpg-inline-check"><input type="checkbox" name="silence" />
                     ${game.i18n.format("DRPG.Requirements.newerSystemSilence", { found: esc(found) })}</label>
             </form>`,
-            buttons: [{
-                action: "ok",
-                label: game.i18n.localize("DRPG.Requirements.understood"),
-                default: true,
-                callback: (event, button, dialog) => ({
-                    silence: Boolean(dialog.element.querySelector("[name=silence]")?.checked)
-                })
-            }],
+            footer: {
+                primary: {
+                    action: "ok",
+                    label: game.i18n.localize("DRPG.Requirements.understood"),
+                    callback: (event, button, dialog) => ({
+                        silence: Boolean(dialog.element.querySelector("[name=silence]")?.checked)
+                    })
+                }
+            },
             rejectClose: false
         });
         if (answer?.silence) await game.settings.set(MODULE_ID, SETTINGS.systemWarningSilenced, found);

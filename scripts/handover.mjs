@@ -23,10 +23,10 @@
 import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG } from "./config.mjs";
 import { capacityLabel, isStashed, transferItem, transferRefusal } from "./inventory.mjs";
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet, bulletAsHeld, unanalysedType } from "./truth-bullets.mjs";
-import { dialogContent, whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion, plural, serialWrite } from "./utils.mjs";
+import { whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion, plural, serialWrite } from "./utils.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 import { answerKeysRefusal, lootTraceStore, deathStore } from "./gm-stores.mjs";
 
-const DialogV2 = foundry.applications.api.DialogV2;
 
 /* ==========================================================================
  * PLAYER SIDE - WHO IS STANDING HERE
@@ -66,24 +66,19 @@ export async function askWhoIsHere(actor, { title, intro, note, okLabel, listBox
         .map((a, i) => `<option value="${a.id}"${i ? "" : " selected"}>${foundry.utils.escapeHTML(a.name)}</option>`).join("");
     const size = listBox ? ` size="${Math.min(Math.max(here.length, 2), 6)}"` : "";
 
-    const picked = await DialogV2.wait({
-        window: { title },
-        classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+    const picked = await drpgWindow({
+        title,
+        classes: ["drpg-panel", "drpg-window-handover"],
+        body: `<form>
             <p>${intro(foundry.utils.escapeHTML(room))}</p>
             <label>${game.i18n.localize("DRPG.Handover.who")}
                 <select name="target"${size}>${options}</select></label>
             <p class="notes">${note}</p>
-        </form>`),
-        buttons: [
-            {
-                action: "ok",
-                label: okLabel,
-                default: true,
-                callback: (e, b, d) => d.element.querySelector("[name=target]").value
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+        </form>`,
+        footer: {
+            primary: { action: "ok", label: okLabel, callback: (e, b, d) => d.element.querySelector("[name=target]").value },
+            close: { role: "cancel", action: "cancel" }
+        },
         rejectClose: false
     });
 

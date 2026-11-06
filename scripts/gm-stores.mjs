@@ -22,8 +22,8 @@
 
 import { MODULE_ID, FLAGS, TIMING, LEVEL_UP, moduleVersion } from "./config.mjs";
 import { SETTINGS, getClock, getSetting, setSetting, incidentCast, seasonEpoch, deathRecordFor } from "./settings.mjs";
-import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, dialogContent, whisperToGms, localeFormat } from "./utils.mjs";
-import { emptyOption } from "./ui-kit.mjs";
+import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, whisperToGms, localeFormat } from "./utils.mjs";
+import { emptyOption, drpgWindow, drpgConfirm } from "./ui-kit.mjs";
 import {
     configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated, whenGmStoresHydrated, gmStoresIdle,
     gmStoreHydration, gmStoreSkew, gmStoreNow, onGmStoresHydrated, flatToSection, previewSection, mergeSections, writeFields, dropKey, newerStamps, RECORD,
@@ -1615,7 +1615,6 @@ export async function answerKeysRefusal() {
 
 export const CASE_FORMAT = "drpg-case";
 export const CASE_VERSION = 1;
-const { DialogV2 } = foundry.applications.api;
 
 /** `{ since, lastBackupAt, lastBackupBy, upgradedAt, tiesSettledAt, tiesSettledBefore }`: when this world's case was first recorded, its last backup, two load marks and the tie settle's cut. */
 export function caseMark() {
@@ -1798,13 +1797,13 @@ export async function backupCase({ ask = false } = {}) {
     if (ask) {
         const waiting = gmStoreHydration().waiting.map(id => game.users.get(id)?.name ?? id);
         const early = !gmStoresHydrated() && waiting.length;
-        const yes = await DialogV2.confirm({
-            classes: ["drpg-panel"],
-            yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
-            no: { label: game.i18n.localize("DRPG.Dialog.no") },
-            window: { title: game.i18n.localize("DRPG.Case.backupTitle") },
-            content: dialogContent(`<p>${esc(game.i18n.localize("DRPG.Case.backupWhat"))}</p>${early
-                ? `<p class="drpg-warning">${esc(game.i18n.format("DRPG.Case.backupEarly", { names: waiting.join(", ") }))}</p>` : ""}`),
+        // The kit's question (E21 C2b): the yes says what it does, Cancel the role's word.
+        const yes = await drpgConfirm({
+            classes: ["drpg-panel", "drpg-window-backup"],
+            yes: { label: game.i18n.localize("DRPG.Case.backupTile") },
+            title: game.i18n.localize("DRPG.Case.backupTitle"),
+            body: `<p>${esc(game.i18n.localize("DRPG.Case.backupWhat"))}</p>${early
+                ? `<p class="drpg-warning">${esc(game.i18n.format("DRPG.Case.backupEarly", { names: waiting.join(", ") }))}</p>` : ""}`,
             rejectClose: false
         });
         if (!yes) return null;
@@ -2254,21 +2253,26 @@ export async function runHealthCheck() {
         // What a backup can bring back; a trace whose key is on its token is moved instead (C-m14).
         const restorable = report.rows.some(r => r.level === "missing" && r.id !== "tracesOnToken");
         const movable = report.rows.some(r => r.id === "tracesOnToken");
-        const choice = await DialogV2.wait({
-            window: { title: game.i18n.localize("DRPG.Case.healthTitle") },
-            classes: ["drpg-panel"],
-            content: dialogContent(`<p>${esc(game.i18n.localize(report.missing ? "DRPG.Case.healthIntro" : "DRPG.Case.decideIntro"))}</p>
-                <ul>${lines}</ul>${report.missing ? `<p class="notes">${esc(game.i18n.localize(restorable ? "DRPG.Case.healthNote" : "DRPG.Case.moveNote"))}</p>` : ""}`),
-            buttons: [
-                ...(restorable ? [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile") }] : []),
-                ...(movable ? [{ action: "move", label: game.i18n.localize("DRPG.Case.moveTraces") }] : []),
-                ...(fillable ? [{ action: "fill", label: game.i18n.format("DRPG.Case.fillFromTraces", { n: fillable }) }] : []),
-                ...(report.rows.some(r => r.id === "incident") ? [{ action: "cast", label: game.i18n.localize("DRPG.Case.enterCast") }] : []),
+        /* THE FOOTER BY ROLE (E21 C2b, E22): Keep (the H4 decision's default) or Continue the primary; the repairs
+           secondary; Clear the Mastermind destructive - it cannot be undone, and is never the default. No closing
+           word: closing the window keeps the pick, as Keep does (below). */
+        const choice = await drpgWindow({
+            title: game.i18n.localize("DRPG.Case.healthTitle"),
+            classes: ["drpg-panel", "drpg-window-case-health"],
+            body: `<p>${esc(game.i18n.localize(report.missing ? "DRPG.Case.healthIntro" : "DRPG.Case.decideIntro"))}</p>
+                <ul>${lines}</ul>${report.missing ? `<p class="notes">${esc(game.i18n.localize(restorable ? "DRPG.Case.healthNote" : "DRPG.Case.moveNote"))}</p>` : ""}`,
+            footer: {
                 // The H4 decision: Keep (the default) stamps the pick again; Clear clears it.
-                ...(decide ? [{ action: "clearMastermind", label: game.i18n.localize("DRPG.Case.clearMastermind") },
-                    { action: "keepMastermind", label: game.i18n.localize("DRPG.Case.keepMastermind"), default: true }]
-                    : [{ action: "continue", label: game.i18n.localize("DRPG.Case.continue"), default: true }])
-            ],
+                primary: decide ? { action: "keepMastermind", label: game.i18n.localize("DRPG.Case.keepMastermind") }
+                    : { action: "continue", label: game.i18n.localize("DRPG.Case.continue") },
+                secondary: [
+                    ...(restorable ? [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile") }] : []),
+                    ...(movable ? [{ action: "move", label: game.i18n.localize("DRPG.Case.moveTraces") }] : []),
+                    ...(fillable ? [{ action: "fill", label: game.i18n.format("DRPG.Case.fillFromTraces", { n: fillable }) }] : []),
+                    ...(report.rows.some(r => r.id === "incident") ? [{ action: "cast", label: game.i18n.localize("DRPG.Case.enterCast") }] : [])
+                ],
+                destructive: decide ? [{ action: "clearMastermind", label: game.i18n.localize("DRPG.Case.clearMastermind") }] : []
+            },
             rejectClose: false
         });
         if (choice === "restore") {
@@ -2334,17 +2338,17 @@ export async function enterCastByHand() {
     const options = [emptyOption("DRPG.Case.castNobody"),
         ...students.map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`)].join("");
     const seat = (name, key) => `<label>${esc(game.i18n.localize(key))} <select name="${name}">${options}</select></label>`;
-    const answer = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Case.castTitle") },
+    const answer = await drpgWindow({
+        title: game.i18n.localize("DRPG.Case.castTitle"),
         classes: ["drpg-panel", "drpg-window-enter-cast"],
-        content: dialogContent(`<form><p>${esc(game.i18n.localize("DRPG.Case.castIntro"))}</p>
-            ${seat("killerId", "DRPG.Case.castKiller")}${seat("victimId", "DRPG.Case.castVictim")}${seat("thirdId", "DRPG.Case.castThird")}</form>`),
-        buttons: [
-            { action: "enter", label: game.i18n.localize("DRPG.Case.castEnter"), default: true,
-              callback: (e, b, d) => Object.fromEntries(["killerId", "victimId", "thirdId"]
-                  .map(name => [name, d.element.querySelector(`[name=${name}]`)?.value || null])) },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+        body: `<form><p>${esc(game.i18n.localize("DRPG.Case.castIntro"))}</p>
+            ${seat("killerId", "DRPG.Case.castKiller")}${seat("victimId", "DRPG.Case.castVictim")}${seat("thirdId", "DRPG.Case.castThird")}</form>`,
+        footer: {
+            primary: { action: "enter", label: game.i18n.localize("DRPG.Case.castEnter"),
+                callback: (e, b, d) => Object.fromEntries(["killerId", "victimId", "thirdId"]
+                    .map(name => [name, d.element.querySelector(`[name=${name}]`)?.value || null])) },
+            close: { role: "cancel", action: "cancel" }
+        },
         rejectClose: false
     });
     if (!answer?.killerId || !answer?.victimId) return null;
@@ -2393,21 +2397,21 @@ export async function openRestoreDialog(text = null) {
     }).join("");
     const box = (name, label) => `<label class="drpg-checkbox"><input type="checkbox" name="${name}" /> ${esc(label)}</label>`;
     const records = known.filter(([, c]) => c.record).map(([name]) => name);
-    const answer = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Case.restoreTitle") },
-        classes: ["drpg-panel"],
-        content: dialogContent(`<form><ul>${rows}</ul>
+    const answer = await drpgWindow({
+        title: game.i18n.localize("DRPG.Case.restoreTitle"),
+        classes: ["drpg-panel", "drpg-window-restore-case"],
+        body: `<form><ul>${rows}</ul>
             ${preview.otherWorld ? box("otherWorld", game.i18n.format("DRPG.Case.otherWorld", { title: preview.world?.title ?? preview.world?.id ?? "?" })) : ""}
             ${records.map(name => box(`record-${name}`, game.i18n.format("DRPG.Case.otherWorldRecord", { store: storeLabel(name) }))).join("")}
             ${box("beforeCut", game.i18n.localize("DRPG.Case.beforeCut"))}
-            <p class="notes">${esc(game.i18n.localize("DRPG.Case.restoreNote"))}</p></form>`),
-        buttons: [
-            { action: "restore", label: game.i18n.localize("DRPG.Case.restore"), default: true,
-              callback: (e, b, d) => ({ otherWorld: Boolean(d.element.querySelector("[name=otherWorld]")?.checked),
-                  beforeCut: Boolean(d.element.querySelector("[name=beforeCut]")?.checked),
-                  records: records.filter(name => d.element.querySelector(`[name="record-${name}"]`)?.checked) }) },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            <p class="notes">${esc(game.i18n.localize("DRPG.Case.restoreNote"))}</p></form>`,
+        footer: {
+            primary: { action: "restore", label: game.i18n.localize("DRPG.Case.restore"),
+                callback: (e, b, d) => ({ otherWorld: Boolean(d.element.querySelector("[name=otherWorld]")?.checked),
+                    beforeCut: Boolean(d.element.querySelector("[name=beforeCut]")?.checked),
+                    records: records.filter(name => d.element.querySelector(`[name="record-${name}"]`)?.checked) }) },
+            close: { role: "cancel", action: "cancel" }
+        },
         rejectClose: false
     });
     if (!answer || answer === "cancel") return null;

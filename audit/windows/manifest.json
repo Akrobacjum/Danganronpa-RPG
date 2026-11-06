@@ -536,7 +536,8 @@
         "dialog",
         "drpg-panel",
         "drpg-wide",
-        "drpg-window-season"
+        "drpg-window-season",
+        "drpg-ui"
       ],
       "tag": "dialog",
       "width": 400,
@@ -547,13 +548,13 @@
           "default": true
         },
         {
-          "action": "checks",
-          "label": "Pre-season checks",
+          "action": "close",
+          "label": "Cancel",
           "default": false
         },
         {
-          "action": "close",
-          "label": "Close",
+          "action": "checks",
+          "label": "Pre-season checks",
           "default": false
         }
       ],
@@ -569,7 +570,9 @@
         "application",
         "dialog",
         "drpg-panel",
-        "drpg-wide"
+        "drpg-wide",
+        "drpg-window-preseason",
+        "drpg-ui"
       ],
       "tag": "dialog",
       "width": 400,
@@ -812,7 +815,8 @@
         "application",
         "dialog",
         "drpg-panel",
-        "drpg-window-clock"
+        "drpg-window-clock",
+        "drpg-ui"
       ],
       "tag": "dialog",
       "width": 400,
@@ -824,7 +828,7 @@
         },
         {
           "action": "cancel",
-          "label": "Close",
+          "label": "Cancel",
           "default": false
         }
       ],
@@ -903,11 +907,17 @@
         "application",
         "dialog",
         "drpg-panel",
-        "drpg-window-items"
+        "drpg-window-items",
+        "drpg-ui"
       ],
       "tag": "dialog",
       "width": 400,
       "buttons": [
+        {
+          "action": "cancel",
+          "label": "Close",
+          "default": true
+        },
         {
           "action": "give",
           "label": "Give an item",
@@ -937,11 +947,6 @@
           "action": "takeKey",
           "label": "Take a room key away",
           "default": false
-        },
-        {
-          "action": "cancel",
-          "label": "Close",
-          "default": false
         }
       ],
       "file": "item-manager.html"
@@ -958,11 +963,17 @@
         "application",
         "dialog",
         "drpg-panel",
-        "drpg-window-items"
+        "drpg-window-items",
+        "drpg-ui"
       ],
       "tag": "dialog",
       "width": 400,
       "buttons": [
+        {
+          "action": "cancel",
+          "label": "Close",
+          "default": true
+        },
         {
           "action": "take",
           "label": "Take an item away",
@@ -976,11 +987,6 @@
         {
           "action": "takeKey",
           "label": "Take a room key away",
-          "default": false
-        },
-        {
-          "action": "cancel",
-          "label": "Close",
           "default": false
         }
       ],
@@ -998,7 +1004,8 @@
         "drpg-panel",
         "drpg-projects",
         "drpg-wide",
-        "drpg-window-tables"
+        "drpg-window-tables",
+        "drpg-ui"
       ],
       "tag": "dialog",
       "width": 400,
@@ -1006,6 +1013,11 @@
         {
           "action": "add",
           "label": "Add an item",
+          "default": false
+        },
+        {
+          "action": "close",
+          "label": "Close",
           "default": true
         },
         {
@@ -1016,11 +1028,6 @@
         {
           "action": "install",
           "label": "Install / reinstall",
-          "default": false
-        },
-        {
-          "action": "close",
-          "label": "Close",
           "default": false
         }
       ],
@@ -1040,19 +1047,20 @@
         "drpg-panel",
         "drpg-projects",
         "drpg-wide",
-        "drpg-window-tables"
+        "drpg-window-tables",
+        "drpg-ui"
       ],
       "tag": "dialog",
       "width": 400,
       "buttons": [
         {
-          "action": "newPool",
-          "label": "Create table",
-          "default": false
-        },
-        {
           "action": "close",
           "label": "Close",
+          "default": true
+        },
+        {
+          "action": "newPool",
+          "label": "Create table",
           "default": false
         }
       ],
@@ -1072,7 +1080,8 @@
         "drpg-panel",
         "drpg-projects",
         "drpg-wide",
-        "drpg-window-tables"
+        "drpg-window-tables",
+        "drpg-ui"
       ],
       "tag": "dialog",
       "width": 400,
@@ -1157,7 +1166,8 @@
         "dialog",
         "drpg-panel",
         "drpg-gm-panel-window",
-        "drpg-window-panel"
+        "drpg-window-panel",
+        "drpg-ui"
       ],
       "tag": "dialog",
       "width": 400,

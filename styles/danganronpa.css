@@ -3458,11 +3458,10 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
     border-radius: 3px;
 }
 
-/* A scrollbar in view while the list runs past the window (E20 C4, S01-19); the
-   gutter is kept so the rows do not shift when it appears. Drawn, not measured:
-   no layout here. */
-.application.dialog.drpg-window-season .window-content {
-    overflow-y: auto;
+/* A scrollbar in view while the list runs past the window (E20 C4, S01-19): the kit's body scrolls since E21 C2b
+   (ui-kit.mjs `drpgWindow`, components.css), and this window's own `.window-content` overflow left with its frame (the
+   stage's rule 2). The gutter stays, on the body that scrolls, so the rows do not shift when the bar appears. */
+.application.dialog.drpg-window-season .drpg-kit-body {
     scrollbar-gutter: stable;
 }
 
@@ -5302,7 +5301,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 .application.dialog:is(
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
+    .drpg-despair-dialog, .drpg-monokuma-panel
 ) footer.form-footer {
     flex-wrap: wrap;
 }
@@ -5377,7 +5376,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 .application.dialog:is(
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
+    .drpg-despair-dialog, .drpg-monokuma-panel
 ):has(.dialog-content table, .dialog-content .drpg-frisk-modes) footer.form-footer {
     position: sticky;
     bottom: calc(-1 * var(--drpg-window-pad));
@@ -5432,7 +5431,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 .application.dialog:is(
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
+    .drpg-despair-dialog, .drpg-monokuma-panel
 ) .window-content {
     max-height: 80vh;
     overflow: auto;
@@ -11483,21 +11482,22 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     color: var(--drpg-bone);
 }
 
+/* Bone, not the eye's red (E22 C2b, D11; S10-32): on a GM's screen red names no road through a GM, and the Next line's
+   button is the panel's ordinary next step. Stained Glass draws it in its bone already (stained-glass.css). */
 .drpg-gmp-next-go {
     flex: 0 0 auto;
     height: auto !important;
     padding: 4px 12px;
-    border: 1px solid var(--drpg-eye) !important;
+    border: 1px solid var(--drpg-bone) !important;
     border-radius: 2px;
-    background: rgba(var(--drpg-eye-rgb), 0.18);
+    background: rgba(var(--drpg-bone-rgb), 0.14);
     color: var(--drpg-bone);
     line-height: 1.2;
     white-space: nowrap;
 }
 
 .drpg-gmp-next-go:hover {
-    background: rgba(var(--drpg-eye-rgb), 0.32);
-    box-shadow: 0 0 8px var(--drpg-eye-glow);
+    background: rgba(var(--drpg-bone-rgb), 0.26);
 }
 
 /* The Season setup row a running game still waits on (the owner's Q-8 amended, 30.10.2026): a second line under
@@ -15398,7 +15398,7 @@ body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-gm-route:ho
 .application.dialog:is(
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
+    .drpg-despair-dialog, .drpg-monokuma-panel,
     .drpg-summary-dialog, .drpg-safeword-dialog
 ) .window-header {
     background: var(--drpg-bone) !important;
@@ -15761,24 +15761,8 @@ body.drpg-theme-stained-glass .drpg-window-tables :is([data-drpg-delete-table], 
     --checkbox-checked-color: var(--drpg-bone);
 }
 
-/* THE HUB: the three ways of the open tab as three tiles of one width, Close on its own line under them. Its buttons
-   kept to one line each (the glass's `nowrap`), so the footer's width followed the open tab's words and Close fell to
-   a second row only on one of the tabs. `!important` on the display: the glass's footer rule outranks this one and
-   lays the footer out as a row (measured: the grid did not take without it). */
-.application.dialog.drpg-window-items footer.form-footer {
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
-}
-
-.application.dialog.drpg-window-items footer.form-footer > button {
-    white-space: normal !important;
-    min-width: 0;
-}
-
-.application.dialog.drpg-window-items footer.form-footer > button[data-action="cancel"] {
-    grid-column: 1 / -1;
-}
+/* THE HUB's footer grid (three tiles of one width, Close under them) left with the window's frame in E21 C2b (the
+   stage's rule 2): the kit's footer lays the six ways out as its secondary buttons, Close first on the left. */
 
 /* ==========================================================================
    E14-48 AS PROMISED: AN 11 PX FLOOR, THE NAME ON THE GRID, THE SMALL BUTTONS WHOLE (E14 fix e1-G8; the review's

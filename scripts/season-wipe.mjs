@@ -35,16 +35,16 @@ import { studentActors } from "./monokuma.mjs";
 import { initCharacter } from "./character.mjs";
 import { forgetAllStashesFound, reconcileBedroomKeys, unconcealStashes, allBedroomsAnywhere } from "./vault.mjs";
 import { roomRegions, roomPieces, piecesByName } from "./rooms.mjs";
-import { dialogContent, log, error, plural, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, serverNow, whisperToGms, listOf } from "./utils.mjs";
+import { log, error, plural, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, serverNow, whisperToGms, listOf } from "./utils.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { cardFlag } from "./secret.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks and its window counts (E42 C3).
 import { registerSeasonState, seasonStateEntries, seasonStateFor, everyPart } from "./season-reset.mjs";
 // A leaf (utils.mjs alone): the one runner of the procedures that cannot be taken back (E42 C1b).
 import { runSteps } from "./steps.mjs";
 
-const DialogV2 = foundry.applications.api.DialogV2;
 
 /* ==========================================================================
  * TAKING A SEASON DOWN
@@ -276,10 +276,15 @@ export async function resetSeason() {
                 ? ` ${esc(plural("DRPG.Season.resetForgotten", { n: remembered.dropped }))}` : ""}</p>`
         : "";
 
-    const typed = await DialogV2.wait({
+    /* ON THE KIT, AND AT ITS TOP (E21 C2b; S13-07, E22). Reset is what cannot be undone: the destructive role, never the
+       default, Cancel the default and the first submit button in the tree, so Enter in the RESET field cancels. The
+       field no longer takes `autofocus` on render: focusing a field at the window's foot scrolled the window to it, and
+       it opened on the field with the warning and the list above it out of view (S13-07); the window opens at its top,
+       the kit's body its one scroller. */
+    const typed = await drpgWindow({
         classes: ["drpg-panel", "drpg-window-season-reset"],
-        window: { title: game.i18n.localize("DRPG.Season.resetTitle"), minimizable: true },
-        content: dialogContent(`<form>
+        title: game.i18n.localize("DRPG.Season.resetTitle"),
+        body: `<form>
             <p class="drpg-warning">${esc(game.i18n.localize("DRPG.Season.resetWarning"))}</p>
             ${offlineLine}
             ${unfinishedLine}
@@ -300,8 +305,8 @@ export async function resetSeason() {
             ${castFieldset()}
 
             <label>${esc(game.i18n.format("DRPG.Season.resetType", { word }))}
-                <input type="text" name="confirm" autocomplete="off" autofocus /></label>
-        </form>`),
+                <input type="text" name="confirm" autocomplete="off" /></label>
+        </form>`,
         // The list above the ticks follows them: a box unticked strikes its row out.
         render: (event, dialog) => {
             const root = dialog.element;
@@ -310,18 +315,18 @@ export async function resetSeason() {
                 if (list) list.innerHTML = resetGoesHtml(planFrom(tickedIn(root)), tallies);
             });
         },
-        buttons: [
-            {
+        footer: {
+            destructive: [{
                 action: "reset", label: game.i18n.localize("DRPG.Season.resetButton"),
-                class: "drpg-gm-route drpg-destructive",
                 callback: (e, b, d) => ({
                     word: d.element.querySelector("[name=confirm]").value.trim(),
                     ticked: tickedIn(d.element),
                     cast: castChoiceIn(d.element)
                 })
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true }
-        ],
+            }],
+            close: { role: "cancel", action: "cancel" },
+            default: "cancel"
+        },
         rejectClose: false
     });
 

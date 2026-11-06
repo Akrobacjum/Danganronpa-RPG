@@ -6534,7 +6534,8 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const setup = stripComments(sources.get("season-wipe.mjs") ?? "");
-        const beforeWindow = bodyOf(setup, "export async function resetSeason", { until: "DialogV2.wait(" });
+        // The window is the kit's since E21 C2b (ui-kit.mjs `drpgWindow`).
+        const beforeWindow = bodyOf(setup, "export async function resetSeason", { until: "drpgWindow(" });
         ok(/isPrimaryGm\(\)/.test(beforeWindow), "resetSeason opens its window without asking whether this is the primary GM");
         ok(/whenGmStoresHydrated\(\)/.test(beforeWindow), "the reset window opens before this browser has the other GMs' copies");
         const wipe = fnSource(setup, "wipeSeason");
@@ -12744,7 +12745,7 @@ const REGRESSIONS = [
         const setup = stripComments(new Map(await otherSources()).get("season-wipe.mjs") ?? "");
         ok(setup.length > 1000, "season-wipe.mjs did not load - the reads below would measure nothing");
         const reset = fnSource(setup, "resetSeason");
-        const window = reset.indexOf("DialogV2.wait("), plan = reset.indexOf("planFrom(typed.ticked)");
+        const window = reset.indexOf("drpgWindow("), plan = reset.indexOf("planFrom(typed.ticked)");
         const asked = [...reset.matchAll(/if \(!isPrimaryGm\(\)\) \{/g)].map(hit => hit.index);
         ok(window > 0 && plan > window && asked.some(at => at > window && at < plan),
             "the reset does not ask again, between its window and its plan, whether this browser is still the primary GM's");
@@ -20263,6 +20264,10 @@ const REGRESSIONS = [
                 else outside.set(file, (outside.get(file) ?? 0) + 1);
             };
             for (const m of blank.matchAll(SITE)) add("DialogV2");
+            /* A window a caller opens through the kit is read too (E21 C2b): the floor below is what the reader reads,
+               and each group of E21 moves windows from the census into these calls - 126 sites outside the kit at C2a,
+               96 read once C2b's moved, under the floor, with nothing wrong with the reader. Not in the census. */
+            if (file !== "ui-kit.mjs") sites += [...blank.matchAll(/\b(?:drpgWindow|drpgConfirm|drpgPrompt)\s*\(/g)].length;
             for (const m of blank.matchAll(CLASS)) {
                 if (!/ApplicationV2|DialogV2|ApplicationMixin|DrpgApp\(\)/.test(m[1])) continue;
                 if (/^DrpgApp\(\)$/.test(m[1].trim())) { kit.push(`${file} DrpgApp`); sites++; continue; }
@@ -20467,8 +20472,15 @@ const REGRESSIONS = [
         const OLD = ["tableDialog", "fitWindowToTabs", "fitWindowToTable", "pinFooterAcrossScroll"];
         // C2a: tableDialog's fifteen callers (boundary's Eclipse end, Give back, the Students window, Despair Flow, the case
         // dashboard, Look, the Monocubs, the incident tracker, the project manager, Room setup, the rules, Sound, the log).
-        const MOVED = ["eclipse-end", "give-back", "alive", "gmteam", "case", "look", "monocubs", "incident", "projects", "rooms", "rules", "sound", "objections"]
-            .map(name => `drpg-window-${name}`);
+        const MOVED = ["eclipse-end", "give-back", "alive", "gmteam", "case", "look", "monocubs", "incident", "projects", "rooms", "rules", "sound", "objections",
+            // C2b: the GM panel and its log, Set the season up and its two questions, Reset the season, Edit campaign and
+            // its question, the item manager and its four givers, the item tables and their questions, the GMs' stores'
+            // windows, Despair Flow's two questions, the passages' questions, the notices, the report, the dice look.
+            "panel", "failures", "season", "start-here", "preseason", "season-reset", "clock", "correction", "items", "give", "bullet",
+            "autopsy", "take", "tables", "install-tables", "place-result", "delete-table", "backup", "case-health", "enter-cast",
+            "restore-case", "removepool", "clearoverflow", "revoke-passage", "delete-passage", "requirements", "newer-system",
+            "diagnose", "handover", "dice-look"]
+            .map(name => `drpg-window-${name}`).concat(["drpg-gm-panel-window"]);
         const FRAME = /^(?:max-height|min-height|height|overflow(?:-[xy])?|position|top|bottom|inset)$/;
         const FOOT = /^(?:display|order|flex(?:-[\w-]+)?|justify-content|align-items|position|width|max-width|margin(?:-[\w-]+)?|padding(?:-[\w-]+)?|bottom|left|right)$/;
         const found = [];
@@ -20488,6 +20500,11 @@ const REGRESSIONS = [
                 if (/\.drpg-table-window(?![\w-])/.test(part)) found.push(`a rule names .drpg-table-window: ${part}`);
                 for (const cls of MOVED) {
                     if (!new RegExp(`\\.${cls}(?![\\w-])`).test(part)) continue;
+                    /* The rule's subject (its last compound) decides (C2b): the window, its content box, its form, its
+                       header or its footer is the frame; a list inside the window that scrolls on its own (the item
+                       tables' list) is the window's content, and stays (rule 2). */
+                    const subject = part.split(/\s*[>+~]\s*|\s+(?![^(]*\))/).filter(Boolean).pop() ?? "";
+                    if (!new RegExp(`\\.${cls}(?![\\w-])|window-content|dialog-content|^form\\b|footer|window-header`).test(subject)) continue;
                     const footer = /\bfooter\b|form-footer/.test(part);
                     const framing = props.filter(p => FRAME.test(p) || (footer && FOOT.test(p)));
                     if (framing.length) found.push(`${cls}: ${part} { ${framing.join(", ")} }`);

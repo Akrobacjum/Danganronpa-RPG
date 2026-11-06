@@ -59,6 +59,7 @@
 import { MODULE_ID, ACTIONS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { isPrimaryGm, serverNow, whisperToOwner, whisperToGms, ownerOf, warn, error, debug, serialWrite, plural, forcedDeletion } from "./utils.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 import { passageMapStore, passageSeasonStore, passageAccessStore, passageLogStore, mastermindStore, mastermindUndecided } from "./gm-stores.mjs";
 import { RECORD, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { senderOf } from "./bridge-guards.mjs";
@@ -2696,20 +2697,24 @@ const escp = text => foundry.utils.escapeHTML(String(text ?? ""));
  * first one found, a refusal's line; closing it (Cancel, Esc, its cross) is `cancel`.
  */
 function pickPrompt({ again, tunnel = false, cancel }) {
-    let closing = false;
+    let closing = false, dialog = null;
     const say = n => tp(tunnel ? (n === 1 ? "tunnelFirst" : "tunnelSecond") : n === 1 ? "first" : "second");
-    const dialog = new foundry.applications.api.DialogV2({
-        window: { title: tp(tunnel ? "tunnelTitle" : again ? "retitle" : "title") },
+    /* ON THE KIT (E21 C2b): drpgWindow's DialogV2, which answers nothing here - the pick is the board's clicks. Its
+       handle is the one its render hands over; a close asked before that render closes it once it is drawn. Its
+       Cancel is the role's word (the pick's own "Cancel" until then), and closing it - Cancel, Esc, its cross - is
+       `cancel`, as before. */
+    drpgWindow({
+        title: tp(tunnel ? "tunnelTitle" : again ? "retitle" : "title"),
         classes: ["drpg-panel", "drpg-passage-pick"],
         position: { width: 360, top: 80 },
-        content: `<p data-drpg-pick-step>${escp(game.i18n.format("DRPG.Passage.pick.step", { n: 1 }))}</p>
+        body: `<p data-drpg-pick-step>${escp(game.i18n.format("DRPG.Passage.pick.step", { n: 1 }))}</p>
             <p data-drpg-pick-say>${escp(say(1))}</p><p class="notes" data-drpg-pick-where hidden></p>
             <p class="notes drpg-passage-pick-why" data-drpg-pick-why hidden></p>`,
-        buttons: [{ action: "cancel", label: tp("cancel"), default: true }],
+        footer: { close: { role: "cancel", action: "cancel" } },
+        render: (event, drawn) => { dialog = drawn; if (closing) drawn.close(); },
+        close: () => { if (!closing) cancel(); },
         rejectClose: false
-    });
-    dialog.addEventListener("close", () => { if (!closing) cancel(); });
-    dialog.render({ force: true });
+    }).catch(err => error("The passage pick's window failed", err));
     const el = sel => dialog.element?.querySelector?.(sel);
     const set = (sel, text) => {
         const node = el(sel);
@@ -2725,7 +2730,7 @@ function pickPrompt({ again, tunnel = false, cancel }) {
             set("[data-drpg-pick-why]", "");
         },
         refuse(code) { set("[data-drpg-pick-why]", tp(`why.${code}`)); },
-        close() { closing = true; return dialog.close(); }
+        close() { closing = true; return dialog?.close(); }
     };
 }
 

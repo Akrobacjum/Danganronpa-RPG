@@ -57,8 +57,8 @@ import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { foundryGivenBack, openGiveBackFoundry } from "./enforced.mjs";
 // The hall's report, the one the Scenes tab prints (E51 C8, the First session screen): trial-scene.mjs never reaches back here.
 import { scenesReportOf } from "./trial-scene.mjs";
-import { dialogContent, log, error, plural, workingScene, esc, wholeNumber, localeFormat } from "./utils.mjs";
-import { stepper, stepperId } from "./ui-kit.mjs";
+import { log, error, plural, workingScene, esc, wholeNumber, localeFormat } from "./utils.mjs";
+import { stepper, stepperId, drpgWindow } from "./ui-kit.mjs";
 import { alreadyOpen, handOff, RAISED } from "./live.mjs";
 // Foundry's secret doors and the players' rulers (E80 C5): the doors as the map holds them, their
 // conversion, and the permissions in force where `core.permissions` names none.
@@ -67,7 +67,6 @@ import { convertSecretDoors } from "./passages-gm.mjs";
 import { permissionsInForce } from "./enforced.mjs";
 export { resetTallies, resetGoesHtml, resetSeason, RESET_STEPS, RESET_CHOICES, wipeStudent, placeCast, seasonResetRecord, unfinishedGroups } from "./season-wipe.mjs";
 
-const DialogV2 = foundry.applications.api.DialogV2;
 
 /**
  * The two roles that run the game. Read from the constants rather than written
@@ -332,7 +331,9 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
             missing: () => roster.filter(needsStartingResources).map(a => a.name),
             // The one row that can finish itself: the guide's numbers are the
             // guide's numbers, and there is nothing to decide.
-            fix: fixResources
+            fix: fixResources,
+            // Its own verb (E22 C2b, O11): the row's button said "Do it".
+            doKey: "DRPG.Season.resourcesButton"
         },
         {
             key: "ultimate",
@@ -587,6 +588,7 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
             done: !gmRolesSharingCursor().length,
             missing: () => gmRolesSharingCursor().map(roleName),
             fix: fixCursorPermission,
+            doKey: "DRPG.Season.cursorButton",
             // ITS OWN SENTENCE (SEASON-02). `DRPG.Season.fixed` counts characters
             // given their starting resources, which is the other `fix` row; this one
             // counts GM roles that have stopped broadcasting their pointer.
@@ -821,10 +823,11 @@ export function campaignFieldsHtml(clock, word) {
 
 /**
  * THE WINDOW OPENS AT ITS TOP (E20 C4, S01-19). Save is the default button, and DialogV2 marks the default with
- * `autofocus`; with the footer pinned across the scroll (utils.mjs `pinFooterAcrossScroll`), focusing it is the likely
- * reason the window opened scrolled to the bottom (the audit's reading; not measured on a real Foundry here). Save
- * stays the default for Enter; only its autofocus goes, the campaign name takes the focus without scrolling, and the
- * content is put back at its top. Answers the element it focused.
+ * `autofocus`; with the footer pinned across the scroll (utils.mjs `pinFooterAcrossScroll`, retired by E21 C2a), focusing
+ * it is the likely reason the window opened scrolled to the bottom (the audit's reading; not measured on a real Foundry
+ * here). Save stays the default for Enter; only its autofocus goes, the campaign name takes the focus without
+ * scrolling, and the content is put back at its top. Answers the element it focused. The content that scrolls is the
+ * kit's body since E21 C2b (`.drpg-kit-body`; `.window-content` before, still read where there is no kit body).
  *
  * AND COMES BACK WHERE IT WAS (E20 fix round, the correctness review's C-2; S06-30 again). This ran on every render,
  * so after a row's Do it or Open, or Pre-season checks, the window came back at its top with the caret in Campaign
@@ -836,7 +839,7 @@ export function campaignFieldsHtml(clock, word) {
 export function seasonOpening(root, place = null) {
     if (!root) return null;
     for (const button of root.querySelectorAll("footer [autofocus]")) button.removeAttribute("autofocus");
-    const content = root.querySelector(".window-content");
+    const content = scroller(root);
     const focus = el => { try { el?.focus({ preventScroll: true }); } catch { /* a control that cannot take the focus */ } };
     if (place) {
         const row = place.step ? root.querySelector(`.drpg-setup-step[data-drpg-step="${CSS.escape(String(place.step))}"]`) : null;
@@ -851,6 +854,9 @@ export function seasonOpening(root, place = null) {
     if (content) content.scrollTop = 0;
     return first ?? null;
 }
+
+/** The box of the window that scrolls: the kit's body (E21 C2b), or `.window-content` where there is none. */
+const scroller = root => root?.querySelector?.(".drpg-kit-body") ?? root?.querySelector?.(".window-content") ?? null;
 
 /* ==========================================================================
  * THE WINDOW
@@ -873,7 +879,7 @@ export function seasonOpening(root, place = null) {
 export function readDraft(root, { step = null, action = null } = {}) {
     if (!root) return null;
     const value = name => root.querySelector(`[name="${name}"]`)?.value ?? null;
-    const scrollTop = Number(root.querySelector(".window-content")?.scrollTop) || 0;
+    const scrollTop = Number(scroller(root)?.scrollTop) || 0;
     return { campaignName: value("campaignName"), chapter: value("chapter"), safeword: value("safeword"),
         place: { scrollTop, step, action } };
 }
@@ -911,7 +917,7 @@ export function setupRows(list) {
             : waits || step.inline || !(step.fix || step.open)
                 ? ""
                 : `<button type="button" class="drpg-setup-do" data-step="${step.key}">${
-                    esc(game.i18n.localize(step.doKey ?? (step.fix ? "DRPG.Season.doIt" : "DRPG.Season.openIt")))}</button>`;
+                    esc(game.i18n.localize(step.doKey ?? "DRPG.Season.openIt"))}</button>`;
 
         // An optional row that is not done is not a failure, so it gets neither
         // the cross nor the "outstanding" styling - a dash and its own note.
@@ -1090,10 +1096,10 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
     // render below gives it, and read after the wait.
     let roundTrip = null;
 
-    const result = await DialogV2.wait({
+    const result = await drpgWindow({
         classes: ["drpg-panel", "drpg-wide", "drpg-window-season"],
-        window: { title: game.i18n.localize("DRPG.Season.title"), minimizable: true },
-        content: dialogContent(`<form>
+        title: game.i18n.localize("DRPG.Season.title"),
+        body: `<form>
             <p>${esc(game.i18n.format(outstanding
                 ? "DRPG.Season.introOutstanding"
                 : "DRPG.Season.introReady", { n: outstanding }))}</p>
@@ -1103,12 +1109,15 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
             <ul class="drpg-setup-list">${rows}</ul>
             ${firstSessionHtml(list)}
             <p class="notes">${esc(game.i18n.localize("DRPG.Season.note"))}</p>
-        </form>`),
-        buttons: [
-            {
-                action: "save", label: game.i18n.localize("DRPG.Assign.save"), default: true,
+        </form>`,
+        /* THE FOOTER BY ROLE (E21 C2b): Save the primary; Pre-season checks secondary; Cancel, since Save is still to
+           answer (E21 rule 3), its answer "close" as before. */
+        footer: {
+            primary: {
+                action: "save", label: game.i18n.localize("DRPG.Assign.save"),
                 callback: (e, b, d) => readSeasonForm(d)
             },
+            secondary: [
             // The other end of this same list. "What is missing" and "fix it"
             // are one errand, and the checks used to be a GM-panel tile of
             // their own next to this one - one door fewer, same two answers.
@@ -1118,9 +1127,9 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
             {
                 action: "checks", label: game.i18n.localize("DRPG.Panel.seasonChecks"),
                 callback: (e, b, d) => ({ checks: true, draft: readDraft(d.element, { action: "checks" }) })
-            },
-            { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
+            }],
+            close: { role: "cancel", action: "close" }
+        },
         // Wire the per-row buttons against the mounted DOM - a listener attached
         // to the detached content element never reaches the page. Same reason
         // projects-ui.mjs wires its portrait pickers from `render`.
@@ -1201,14 +1210,12 @@ export async function offerStartHere({ user = game.user, clock = getClock(), ros
 
 /** The notice: where to start, a button to Set the season up, and Close. */
 async function askStartHere() {
-    const answer = await DialogV2.wait({
+    // A notice with its one road (E21 C2b): Set the season up the primary, Close.
+    const answer = await drpgWindow({
         classes: ["drpg-panel", "drpg-window-start-here"],
-        window: { title: game.i18n.localize("DRPG.Season.startHereTitle") },
-        content: dialogContent(`<p>${esc(game.i18n.localize("DRPG.Season.startHereText"))}</p>`),
-        buttons: [
-            { action: "open", label: game.i18n.localize("DRPG.Season.title"), default: true },
-            { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
+        title: game.i18n.localize("DRPG.Season.startHereTitle"),
+        body: `<p>${esc(game.i18n.localize("DRPG.Season.startHereText"))}</p>`,
+        footer: { primary: { action: "open", label: game.i18n.localize("DRPG.Season.title") }, close: { role: "close", action: "close" } },
         rejectClose: false
     });
     if (answer === "open") await openSeasonSetup();
@@ -1225,11 +1232,12 @@ async function askStartHere() {
  */
 async function runPreSessionChecks() {
     const [body, { wireAnonymityFix }] = await Promise.all([preSessionReport(), import("./anonymity.mjs")]);
-    await DialogV2.wait({
-        classes: ["drpg-panel", "drpg-wide"],
-        window: { title: game.i18n.localize("DRPG.Panel.seasonChecks") },
-        content: dialogContent(body),
-        buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true }],
+    // A read-out: Close (E21 C2b).
+    await drpgWindow({
+        classes: ["drpg-panel", "drpg-wide", "drpg-window-preseason"],
+        title: game.i18n.localize("DRPG.Panel.seasonChecks"),
+        body,
+        footer: { close: { role: "close", action: "close" } },
         render: (event, dialog) => {
             // Set them to Observer (E20 C2, S11-19): the audit's own fix, drawn again in place.
             wireAnonymityFix(dialog.element.querySelector("[data-drpg-anon]"));

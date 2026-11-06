@@ -24300,7 +24300,8 @@ const INVARIANTS = [
 
         /* Give an item: the rows of Create new, opened as its tab's button opens it (the kit's `wireKitTabs` moves `hidden`; Give existing
            holds only a line while the world has no item table), the row outside the tabs, and the other tab staying closed.
-           The hub: its footer as tiles with Close under them. */
+           The hub: its footer the kit's since E21 C2b (its tile grid left with the window's frame, the stage's rule 2): the
+           six ways secondary, Close the closing word - read by the buttons' roles, not by a footer grid. */
         const giveFrame = frameOf(giveAsk);
         const open = giveFrame.querySelector('.drpg-tab-pane[data-drpg-pane="create"]');
         must(open, "Give an item has no Create new tab - this would measure nothing");
@@ -24309,13 +24310,13 @@ const INVARIANTS = [
         const rowsOf = parent => [...(parent?.querySelectorAll(":scope > label:not(.drpg-checkbox)") ?? [])]
             .filter(l => l.querySelector("select, textarea, input:not([type=checkbox])"));
         const giveRows = [...rowsOf(open), ...rowsOf(giveFrame.querySelector(".dialog-content"))];
-        const hubFrame = frameOf(hubAsk);
+        const hubRoles = (hubAsk.buttons ?? []).map(b => [b.action, /\bdrpg-role-(\w[\w-]*)/.exec(b.class ?? "")?.[1] ?? null]);
         equal(stableJson([giveRows.length > 1 && giveRows.map(l => won(l, "grid-template-columns")),
-            won(open, "grid-template-columns"), won(closed, "display"),
-            won(hubFrame.querySelector("footer.form-footer"), "display"), won(hubFrame.querySelector('footer [data-action="cancel"]'), "grid-column")]),
-            stableJson([giveRows.map(() => "subgrid"), "11rem minmax(0, 1fr)", "none", "grid", "1 / -1"]),
-            "Give an item's fields are not in one grid, a closed tab is opened by it, or the hub's footer is not tiles with Close "
-            + "under them [each field row, the open tab's columns, the closed tab's display, the hub footer, Close's columns]");
+            won(open, "grid-template-columns"), won(closed, "display"), hubRoles]),
+            stableJson([giveRows.map(() => "subgrid"), "11rem minmax(0, 1fr)", "none",
+                [["cancel", "close"], ...["give", "bullet", "key", "take", "takeBullet", "takeKey"].map(a => [a, "secondary"])]]),
+            "Give an item's fields are not in one grid, a closed tab is opened by it, or the hub's footer is not the kit's "
+            + "[each field row, the open tab's columns, the closed tab's display, the hub's buttons in tree order: action, role]");
     }],
     ["R975 - the item tables window's help names a button or a tab that is there, the gear group has one Polish word wherever it is read, and a stash out of reach says where it is (E14-49, S08-29, S08-48, S13-21)", async () => {
         /*
@@ -24373,7 +24374,8 @@ const INVARIANTS = [
         const V = await import("./vault.mjs");
         const { sceneOfActor } = await import("./movement.mjs");
         const api = foundry.applications.api.DialogV2;
-        const hadPrompt = Object.hasOwn(api, "prompt"), prompt = api.prompt;
+        // The rename is the kit's one-answer question since E21 C2b (ui-kit.mjs `drpgPrompt`, over DialogV2.wait).
+        const hadWait = Object.hasOwn(api, "wait"), ownWait = api.wait;
         const notices = ui.notifications, hadWarn = Object.hasOwn(notices, "warn"), warn = notices.warn;
         const REFUSED = "R976 Kitchen - Tier 9", GOOD = "R976 Kitchen";
         const check = name => (name === REFUSED ? { text: "R976 refused it" } : null);
@@ -24388,7 +24390,7 @@ const INVARIANTS = [
         must(student, "the world has no student to tell where a stash is");
         try {
             let answers = [], asked = [];
-            api.prompt = async config => { asked.push(String(config?.content ?? "")); return answers.length ? answers.shift() : null; };
+            api.wait = async config => { asked.push(config?.content?.outerHTML ?? String(config?.content ?? "")); return answers.length ? answers.shift() : null; };
             const ask = async (current, list) => {
                 answers = [...list];
                 asked = [];
@@ -24404,7 +24406,7 @@ const INVARIANTS = [
                 V.tellNotHere(student);
             }
         } finally {
-            if (hadPrompt) api.prompt = prompt; else delete api.prompt;
+            if (hadWait) api.wait = ownWait; else delete api.wait;
             if (hadWarn) notices.warn = warn; else delete notices.warn;
         }
         const rooms = V.stashRoomsFor(student, sceneOfActor(student)).map(entry => entry.room);
@@ -27223,14 +27225,15 @@ const INVARIANTS = [
             const html = document.createElement("html"), body = document.createElement("body");
             body.className = theme;
             html.append(body);
-            body.innerHTML = `<div class="application dialog drpg-panel drpg-wide drpg-window-season"><section class="window-content">
-                <form class="dialog-form"><div class="dialog-content"><p class="r1515intro">R1515</p><ul class="drpg-setup-list">
+            // The kit's frame since E21 C2b: the body that scrolls is `.drpg-kit-body` (ui-kit.mjs `drpgWindow`).
+            body.innerHTML = `<div class="application dialog drpg-ui drpg-panel drpg-wide drpg-window-season"><section class="window-content">
+                <form class="dialog-form"><div class="dialog-content"><div class="drpg-kit-body"><p class="r1515intro">R1515</p><ul class="drpg-setup-list">
                 <li class="drpg-setup-step done"><span class="drpg-setup-mark">R</span><div class="drpg-setup-body"><strong>R1515</strong><div class="notes">R1515</div></div></li>
                 <li class="drpg-setup-step r1515missing"><span class="drpg-setup-mark">R</span><div class="drpg-setup-body"><strong>R1515</strong><div class="notes">R1515</div>
                     <div class="drpg-setup-missing">R1515</div></div></li>
                 <li class="drpg-setup-step optional waiting"><span class="drpg-setup-mark">R</span><div class="drpg-setup-body"><strong>R1515</strong>
                     <div class="drpg-setup-missing">R1515</div></div></li>
-                </ul></div></form></section></div>`;
+                </ul></div></div></form></section></div>`;
             const q = s => body.querySelector(s);
             const value = (el, names) => C.winner(el, names)?.value ?? null;
             const hint = q(".r1515missing .notes"), done = q(".drpg-setup-step.done");
@@ -27241,7 +27244,7 @@ const INVARIANTS = [
                     value(q(".waiting .drpg-setup-missing"), "color")],
                 done: [value(done, "opacity"), value(done.querySelector("strong"), "color"), value(done.querySelector(".drpg-setup-mark"), "opacity"),
                     value(done.querySelector(".notes"), "font-size")],
-                scroll: [value(q(".window-content"), ["overflow-y", "overflow"]), value(q(".window-content"), "scrollbar-gutter")]
+                scroll: [value(q(".drpg-kit-body"), ["overflow-y", "overflow"]), value(q(".drpg-kit-body"), "scrollbar-gutter")]
             };
         };
         const themes = ["drpg-theme-monokuma-legacy drpg-gm", "drpg-theme-stained-glass drpg-gm"].map(read);
@@ -28952,10 +28955,10 @@ const INVARIANTS = [
         equal(stableJson([copied, configs.length, told.length, result]), stableJson([["R1550 report text", "R1550 report text"], 3, 2, "close"]),
             "Copy report does not hand the text to the clipboard once per press and come back [copied | windows | told | closed with]");
         const copyLabel = game.i18n.localize("DRPG.Diagnose.copy");
-        const button = (configs[0]?.buttons ?? []).find(b => b.action === "copy");
+        // `wait` is handed drpgWindow's options since E21 C2b: the footer's slots and the body's markup.
+        const button = (configs[0]?.footer?.secondary ?? []).find(b => b.action === "copy");
         ok(!copyLabel.startsWith("DRPG.") && button?.label === copyLabel, "the report's window has no Copy report button");
-        const content = configs[0]?.content;
-        ok(String(content?.textContent ?? content ?? "").includes("R1550 report text"), "the report's window does not show the report");
+        ok(String(configs[0]?.body ?? "").includes("R1550 report text"), "the report's window does not show the report");
     }],
     ["R1551 - on a player the report holds nothing of the GMs': the GM-only parts are not run and are listed as GM only, and no GM store is read (E52 C4, E52-15)", async () => {
         /*
@@ -29039,11 +29042,12 @@ const INVARIANTS = [
         await D.openReport("R1552 report", { wait: async config => { configs.push(config); return answers.shift() ?? null; },
             copy: async () => {}, notify: () => {}, silences });
         const showLabel = game.i18n.localize("DRPG.Diagnose.showAgain");
-        const buttons = configs.map(c => (c.buttons ?? []).filter(b => b.action.startsWith("again:")).map(b => [b.action, b.label]));
+        // drpgWindow's options since E21 C2b: Show again among the footer's secondary buttons, the silence in the body.
+        const buttons = configs.map(c => (c.footer?.secondary ?? []).filter(b => b.action.startsWith("again:")).map(b => [b.action, b.label]));
         ok(!showLabel.startsWith("DRPG."), "no words for Show again");
         equal(stableJson([buttons, again]), stableJson([[[["again:systemWarningSilenced", showLabel]], []], 1]),
             "the window has no Show again for the silence, does not run it once, or still offers it after [buttons per window | runs]");
-        ok(String(configs[0]?.content?.textContent ?? "").includes("9.9.9"), "the window does not name the silence");
+        ok(String(configs[0]?.body ?? "").includes("9.9.9"), "the window does not name the silence");
 
         const held = new Map([["danganronpa-rpg.recommendsSilenced", "true"], ["danganronpa-rpg.systemWarningSilenced", "9.9.9"]]);
         const storage = { getItem: key => (held.has(key) ? held.get(key) : null), removeItem: key => { held.delete(key); } };
@@ -30717,6 +30721,13 @@ const INVARIANTS = [
                 if (!/\bclasses\s*:[^\n]*["'`]drpg-/.test(body)) read.unclassed.push(at);
                 if (m[1] === "confirm" && !(/\byes\s*:\s*\{[^}]*\blabel\s*:/.test(body) && /\bno\s*:\s*\{[^}]*\blabel\s*:/.test(body))) read.foundryWords.push(at);
             }
+        }
+        /* The kit's calls are DialogV2 calls too (E21 C2b): `drpgWindow` and its questions hand DialogV2 the kit's
+           `drpg-ui` and `drpg-panel` whatever the caller names, so they are counted, never unclassed; the floor read
+           90 once C2b had moved its thirty. */
+        for (const [file, text] of rootSources) {
+            if (/^tests/.test(file) || file === "ui-kit.mjs") continue;
+            dialogs += [...stripComments(text).matchAll(/\b(?:drpgWindow|drpgConfirm|drpgPrompt)\s*\(\s*\{/g)].length;
         }
         must(dialogs >= 100, `only ${dialogs} DialogV2 call(s) with an object read in the module's source - the reader is broken`);
         equal(stableJson(read), stableJson({ windows: [page, null], hud: page, notices: page, launcher: page, sheet: true, description: [true, true, true],
@@ -34030,7 +34041,10 @@ const INVARIANTS = [
         for (const [file, key] of standing) {
             const text = await source(file);
             const at = text.indexOf(`window: { title: game.i18n.localize("${key}")`);
-            windows.push(at < 0 ? "gone" : lineAround(text, at).includes("minimizable: true"));
+            /* On the kit since E21 C2b (six of the ten): drpgWindow's `title`, and the kit asks DialogV2 to fold (`asked`,
+               above) - read as the title in a drpgWindow call of that file. */
+            const kit = /\bdrpgWindow\(\{/.test(text) && text.includes(`title: game.i18n.localize("${key}")`);
+            windows.push(at >= 0 ? lineAround(text, at).includes("minimizable: true") : kit || "gone");
         }
         const said = [];
         const stand = (minimized, cls) => {
@@ -34356,7 +34370,7 @@ const INVARIANTS = [
             schedule: true, overlay: true
         }), `[at each step (label, shortScreen, narrowScreen, keyboardUp, autoScale - ${auto} on the page as it is); whether glass.mjs's schedule asks keyboardUp; whether watchScreen asks the keyboard to overlay]`);
     }],
-    ["R1358 - the GM's tools on the kit (E21 C2; E21-01, E21-07, E21-16, E22-01, E22-04): each window C2 moves calls ui-kit.mjs `drpgWindow` with footer slots, never `buttons`; opened on this GM (DialogV2.wait stood in for), each has a `drpg-ui` root, every footer button a role of BUTTON_ROLES, the role this test names for its action, its closing word the role's own (Close where nothing is left to answer, Cancel where a question is withdrawn) and no `drpg-gm-route` on a GM's screen; a window as wide as its table carries the kit's `fit`", async () => {
+    ["R1358 - the GM's tools on the kit (E21 C2; E21-01, E21-07, E21-16, E22-01, E22-04): each window C2 moves calls ui-kit.mjs `drpgWindow` with footer slots, never `buttons`; opened on this GM (DialogV2.wait stood in for), each has a `drpg-ui` root, every footer button a role of BUTTON_ROLES, the role this test names for its action, its closing word the role's own (Close where nothing is left to answer, Cancel where a question is withdrawn) and no `drpg-gm-route` on a GM's screen; a window as wide as its table carries the kit's `fit`; and C2b's: the GM's tools and their questions on the kit, on the destructive role what cannot be undone (Reset, Kill, Delete table, remove a pool, clear the overflow, Clear the Mastermind, Delete and rebuild, Install / reinstall, Revoke and Delete a passage), and the GM panel's Next named by its step", async () => {
         /*
          * E21 C2a, 05.11.2026. C2a moves utils.mjs `tableDialog`'s fifteen windows onto the kit's frame (its measured
          * width is the kit's `fitKitWidth` now, the class `drpg-kit-fit`) and gives each button its role by the stage's
@@ -34440,6 +34454,160 @@ const INVARIANTS = [
             read: Object.fromEntries(Object.keys(read).map(name => [name, []]))
         }), "[each opener's source: drpgWindow, fit, footer, a `buttons: [` list; what an opener threw; each window opened: what is wrong with its frame and its footer]");
         equal(stableJson(Object.keys(read).sort()), stableJson(OPEN.map(o => o[1]).sort()), "[the openers whose window opened on this GM]");
+
+        /*
+         * C2b, 06.11.2026: the GM's tools and their irreversible questions (E22-03, E22-04, E22-05). Read twice again: each
+         * opener's source (no `DialogV2` left, a kit call - drpgWindow, drpgConfirm or drpgPrompt - with footer slots, not a
+         * `buttons: [` list; the destructive answers the slice names written on the destructive role), and the windows a
+         * tier-1 world opens on this GM opened with DialogV2.wait stood in for (nothing written: every stand-in answers
+         * null, which each opener reads as closed). Not `fit`: none of these drew through tableDialog. The panel's tiles
+         * are its content, read in it: Murder and Reset the season `drpg-destructive`, no `drpg-gm-route` anywhere; the
+         * Next line's button the step's own verb (`nextGoKey`), in both lang files, never "Do it". Red on C2a's tree: every
+         * opener a DialogV2 call, the tiles `drpg-gm-route`, the Next button `DRPG.Panel.nextGo`.
+         */
+        const SOURCE_B = [["gm-panel.mjs", "openGmPanel"], ["gm-panel.mjs", "openFailureLog"], ["season-setup.mjs", "openSeasonSetup"],
+            ["season-setup.mjs", "askStartHere"], ["season-setup.mjs", "runPreSessionChecks"], ["season-wipe.mjs", "resetSeason"],
+            ["gm-campaign.mjs", "confirmCorrection"], ["gm-campaign.mjs", "openClockDialog"], ["gm-items.mjs", "openItemManager"],
+            ["gm-items.mjs", "giveKeyDialog"], ["gm-items.mjs", "gmGiveItemDialog"], ["gm-items.mjs", "giveTruthBulletDialog"],
+            ["gm-items.mjs", "issueAutopsyDialog"], ["gm-items.mjs", "takeItemDialog"], ["tables-editor.mjs", "installTables"],
+            ["tables-editor.mjs", "placeResultDialog"], ["tables-editor.mjs", "promptForTableName"], ["tables-editor.mjs", "wirePaneHeading"],
+            ["tables-editor.mjs", "openItemTables"], ["gm-stores.mjs", "backupCase"], ["gm-stores.mjs", "runHealthCheck"],
+            ["gm-stores.mjs", "enterCastByHand"], ["gm-stores.mjs", "openRestoreDialog"], ["gm-team-dialog.mjs", "confirmRemovePool"],
+            ["gm-team-dialog.mjs", "clearOverflowFromTab"], ["passages-tab.mjs", "askRevoke"], ["passages-tab.mjs", "confirmDelete"],
+            ["passages-gm.mjs", "pickPrompt"], ["requirements.mjs", "announceMissingRequirements"], ["requirements.mjs", "announceNewerSystem"],
+            ["diagnostics.mjs", "openReport"], ["handover.mjs", "askWhoIsHere"], ["dice-look.mjs", "diagnoseDiceLook"]];
+        // The answers that cannot be undone, by the source of the opener that asks: each on the destructive role.
+        const DESTRUCTIVE = [["season-wipe.mjs", "resetSeason", /destructive:\s*\[\{\s*action:\s*"reset"/],
+            ["tables-editor.mjs", "wirePaneHeading", /role:\s*"destructive",\s*label:\s*game\.i18n\.localize\("DRPG\.Tables\.deleteTable"\)/],
+            ["tables-editor.mjs", "installTables", /destructive:\s*\[\{\s*action:\s*"recreate"/],
+            ["tables-editor.mjs", "openItemTables", /destructive:\s*\[\{\s*action:\s*"install"/],
+            ["gm-team-dialog.mjs", "confirmRemovePool", /role:\s*"destructive",\s*action:\s*"remove"/],
+            ["gm-team-dialog.mjs", "clearOverflowFromTab", /role:\s*"destructive",\s*action:\s*"clear"/],
+            ["gm-stores.mjs", "runHealthCheck", /destructive:\s*decide\s*\?\s*\[\{\s*action:\s*"clearMastermind"/],
+            ["passages-tab.mjs", "askRevoke", /destructive:\s*question\.buttons/],
+            ["passages-tab.mjs", "confirmDelete", /role:\s*"destructive"/]];
+        const sourceB = {}, destructiveB = {};
+        for (const [file, fn] of SOURCE_B) {
+            const body = fnSource(stripComments(sources.get(file) ?? ""), fn);
+            sourceB[`${file} ${fn}`] = !body ? "gone"
+                : [/\bDialogV2\b/.test(body), /\b(?:drpgWindow|drpgConfirm|drpgPrompt)\(/.test(body), /\bbuttons:\s*\[/.test(body)];
+        }
+        for (const [file, fn, pattern] of DESTRUCTIVE) destructiveB[`${file} ${fn}`] = pattern.test(fnSource(stripComments(sources.get(file) ?? ""), fn) ?? "");
+        const OPEN_B = [
+            ["./gm-panel.mjs", "openGmPanel", undefined, "drpg-window-panel", { close: "close" }, ["close"]],
+            ["./season-setup.mjs", "openSeasonSetup", undefined, "drpg-window-season", { save: "primary", checks: "secondary", close: "cancel" }, ["save", "close"]],
+            ["./season-setup.mjs", "resetSeason", undefined, "drpg-window-season-reset", { reset: "destructive", cancel: "cancel" }, ["reset", "cancel"]],
+            ["./gm-campaign.mjs", "openClockDialog", undefined, "drpg-window-clock", { ok: "primary", cancel: "cancel" }, ["ok", "cancel"]],
+            ["./gm-items.mjs", "openItemManager", undefined, "drpg-window-items",
+                { give: "secondary", bullet: "secondary", key: "secondary", take: "secondary", takeBullet: "secondary", takeKey: "secondary", cancel: "close" },
+                ["give", "take", "cancel"]],
+            ["./tables-editor.mjs", "openItemTables", undefined, "drpg-window-tables", { add: "primary", newPool: "secondary", install: "destructive", close: "close" }, ["add", "install", "close"]],
+            ["./gm-team-dialog.mjs", "clearOverflowFromTab", undefined, "drpg-window-clearoverflow", { clear: "destructive", cancel: "cancel" }, ["clear", "cancel"]],
+            ["./diagnostics.mjs", "openReport", "R1358's report", "drpg-window-diagnose", { copy: "secondary", close: "close" }, ["close"]]
+        ];
+        const configsB = [];
+        D.wait = async cfg => { configsB.push({ opener, cfg }); return null; };
+        try {
+            for (const [file, fn, arg] of OPEN_B) {
+                opener = fn;
+                try { await (await import(file))[fn](arg); } catch (err) { configsB.push({ opener, threw: `${fn}: ${err.message}` }); }
+            }
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        const readB = {}, threwB = configsB.filter(c => c.threw).map(c => c.threw);
+        for (const { opener: fn, cfg } of configsB.filter(c => !c.threw)) {
+            const [, , , cls, roles, need] = OPEN_B.find(o => o[1] === fn);
+            const problems = [];
+            if (!cfg.classes?.includes(cls)) problems.push(`not ${cls}: ${(cfg.classes ?? []).join(" ")}`);
+            if (!cfg.classes?.includes("drpg-ui")) problems.push("no drpg-ui root");
+            for (const b of cfg.buttons ?? []) {
+                const role = roleOf(b);
+                if (!role) problems.push(`${b.action}: no role`);
+                if (/\bdrpg-gm-route\b/.test(b.class ?? "")) problems.push(`${b.action}: drpg-gm-route on a GM's screen`);
+                if (roles[b.action] !== role) problems.push(`${b.action}: ${role}, not ${roles[b.action] ?? "a button of this window"}`);
+                if ((role === "close" || role === "cancel") && b.label !== words[role]) problems.push(`${b.action}: "${b.label}", not the role's word`);
+                if (role === "destructive" && b.default) problems.push(`${b.action}: destructive and the default`);
+            }
+            for (const action of need) if (!(cfg.buttons ?? []).some(b => b.action === action)) problems.push(`${action}: missing`);
+            if (fn === "openGmPanel") {
+                const panel = document.createElement("div");
+                // drpgWindow hands DialogV2 its content as an element (utils.mjs `dialogContent`).
+                panel.innerHTML = cfg.content?.outerHTML ?? String(cfg.content ?? "");
+                const tile = key => panel.querySelector(`.drpg-gmp-button[data-drpg-run="${key}"]`);
+                for (const key of ["murder", "seasonReset"]) if (!tile(key)?.classList.contains("drpg-destructive")) problems.push(`tile ${key}: not drpg-destructive`);
+                if (panel.querySelector(".drpg-gm-route")) problems.push(`drpg-gm-route on ${panel.querySelectorAll(".drpg-gm-route").length} control(s)`);
+                if (!tile("murder") || !tile("seasonReset")) problems.push("a tile is missing");
+            }
+            readB[fn] = problems;
+        }
+        // The Next line: each action's button by its own key, in both lang files, never the old "Do it"; drawn with it.
+        const G = await import("./gm-panel.mjs");
+        const en = await (await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" })).json();
+        const pl = await (await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" })).json();
+        const at = (tree, key) => key.split(".").reduce((node, k) => node?.[k], tree);
+        const ACTIONS_NEXT = ["murder", "advance", "chapterEnd", "trial", "investigation", "startInvestigation", "autopsy", "bodyDialog", "seasonSetup"];
+        const next = {};
+        if (typeof G.nextGoKey !== "function") next.nextGoKey = "missing";
+        else {
+            const keys = [...ACTIONS_NEXT.map(a => [a, G.nextGoKey(a)]), ["eclipse (none open)", G.nextGoKey("eclipse", false)], ["eclipse (open)", G.nextGoKey("eclipse", true)]];
+            for (const [action, key] of keys) {
+                const said = [at(en, key), at(pl, key)];
+                if (said.some(t => typeof t !== "string" || !t) || /^Do it$|^Zrób to$/.test(said[0] ?? "") || key === "DRPG.Season.openIt") next[action] = `${key}: ${stableJson(said)}`;
+            }
+            if (new Set(keys.map(([, key]) => key)).size !== keys.length) next.distinct = "two actions share a key";
+            const line = document.createElement("div");
+            line.innerHTML = G.nextLineHtml({ text: "R1358", action: "chapterEnd" });
+            const drawn = line.querySelector(".drpg-gmp-next-go")?.textContent?.trim() ?? null;
+            if (drawn !== game.i18n.localize("DRPG.Panel.goChapterEndButton")) next.drawn = drawn;
+        }
+        must(Object.keys(readB).length >= 6, `${Object.keys(readB).length} of C2b's window(s) opened on this GM - this would read too little (threw: ${threwB.join("; ") || "none"})`);
+        equal(stableJson({ sourceB, destructiveB, threwB, readB, next }), stableJson({
+            sourceB: Object.fromEntries(SOURCE_B.map(([file, fn]) => [`${file} ${fn}`, [false, true, false]])),
+            destructiveB: Object.fromEntries(DESTRUCTIVE.map(([file, fn]) => [`${file} ${fn}`, true])),
+            threwB: [],
+            readB: Object.fromEntries(Object.keys(readB).map(name => [name, []])),
+            next: {}
+        }), "[C2b: each opener's source (DialogV2 left, a kit call, a `buttons: [` list); the destructive answers by their source; what an opener threw; each window opened: what is wrong with its frame, its footer and (the panel) its tiles; the Next line's button by step]");
+        equal(stableJson(Object.keys(readB).sort()), stableJson(OPEN_B.map(o => o[1]).sort()), "[C2b's openers whose window opened on this GM]");
+    }],
+
+    ["R1359 - Reset the season opens at its top with one scroller (E21 C2b; E21-11, S13-07): the window is on the kit's frame (a `drpg-ui` root, the one `.drpg-kit-body` the frame scrolls), the RESET field carries no `autofocus` and no field is focused on render, and Enter's first submit button in the footer is Cancel - Reset, destructive, never the default", async () => {
+        /*
+         * E21 C2b, 06.11.2026. The window asked for the RESET word in a field with `autofocus`, at the foot of a long
+         * list: focusing it on render scrolled the window to its foot, so it opened on the field, the warning and the list
+         * out of view (S13-07, read at a table). Opened with DialogV2.wait stood in for (the stand-in answers null: nothing
+         * is reset), its config read: the root classes, the body's markup (one `.drpg-kit-body`, no `autofocus` on any
+         * field), and the footer's tree order (ui-kit.mjs's header: Enter presses the first submit button, so Cancel
+         * first, Reset after it, never the default). jsdom scrolls nothing; that the field no longer pulls the window to
+         * its foot is read on the screenshot (the fit sweep's season-reset page). Red on C2a's tree: the field had
+         * `autofocus`, the root no `drpg-ui`, and Reset came before Cancel.
+         */
+        const S = await import("./season-setup.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const seen = [];
+        D.wait = async cfg => { seen.push(cfg); return null; };
+        let answer;
+        try { answer = await S.resetSeason(); } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+        const cfg = seen.find(c => (c.classes ?? []).includes("drpg-window-season-reset")) ?? null;
+        must(cfg, `Reset the season opened no window on this GM (${seen.length} window(s), answer ${stableJson(answer ?? null)}) - this would measure nothing`);
+        const body = document.createElement("div");
+        body.innerHTML = cfg.content?.outerHTML ?? String(cfg.content ?? "");
+        const field = body.querySelector('input[name="confirm"]');
+        must(field, "no RESET field in the window - this would measure nothing");
+        const buttons = (cfg.buttons ?? []).map(b => [b.action, Boolean(b.default), /\bdrpg-role-(\w[\w-]*)/.exec(b.class ?? "")?.[1] ?? null]);
+        equal(stableJson({
+            root: ["drpg-ui", "drpg-window-season-reset"].filter(c => (cfg.classes ?? []).includes(c)),
+            bodies: body.querySelectorAll(".drpg-kit-body").length,
+            autofocus: [...body.querySelectorAll("[autofocus]")].map(el => el.getAttribute("name") ?? el.tagName.toLowerCase()),
+            buttons
+        }), stableJson({
+            root: ["drpg-ui", "drpg-window-season-reset"],
+            bodies: 1,
+            autofocus: [],
+            buttons: [["cancel", true, "cancel"], ["reset", false, "destructive"]]
+        }), "[the root's kit and own classes, the kit bodies in the window, the fields with autofocus, the footer in tree order: action, default, role]");
     }],
 ];
 

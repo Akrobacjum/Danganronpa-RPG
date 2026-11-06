@@ -172,6 +172,12 @@ body .application.drpg-ui.drpg-panel:not(.minimized) {
     display: flex;
     flex-direction: column;
 }
+/* The header does not give way (E21 C2b): a flex item shrinks by its share of the basis, so beside a body far taller
+   than the screen the title bar shrank with it - Set the season up's header stood 22 px of its 64, its title under the
+   body (the fit sweep's screenshot, 06.11.2026). The body is the one that scrolls. */
+body .application.drpg-ui.drpg-panel:not(.minimized) > .window-header {
+    flex: 0 0 auto;
+}
 body .application.drpg-ui.drpg-panel:not(.minimized) > .window-content {
     flex: 1 1 auto;
     min-height: 0;

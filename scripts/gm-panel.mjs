@@ -16,9 +16,9 @@ import { getClock, clockSummary, phaseLabel, campaignName } from "./clock.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { studentActors, actingStudents } from "./monokuma.mjs";
-import { dialogContent, error, plural, esc, primaryGmId } from "./utils.mjs";
+import { error, plural, esc, primaryGmId } from "./utils.mjs";
 import { keepLive, alreadyOpen, RAISED } from "./live.mjs";
-import { launcher } from "./ui-kit.mjs";
+import { launcher, drpgWindow } from "./ui-kit.mjs";
 import { SETTINGS, bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, sameSeason } from "./settings.mjs";
 import { bodiesToDiscover, announcedIn, chapterEndStopped } from "./chapter.mjs";
 import { flagsHeldNow, itemsHeldNow } from "./sheet-audit.mjs";
@@ -33,7 +33,6 @@ import { openClockDialog } from "./gm-campaign.mjs";
 export { openWhoIsAliveDialog, applyAliveStates } from "./gm-students.mjs";
 export { correctsTheHour, openClockDialog } from "./gm-campaign.mjs";
 
-const DialogV2 = foundry.applications.api.DialogV2;
 
 /**
  * The panel's launcher - a red hexagon in the corner cluster (E77 C6, 13.10.2026).
@@ -245,7 +244,9 @@ const PANEL_SECTIONS = [
             // through this tile.
             { key: "murder", icon: "fa-skull", labelKey: "DRPG.Murder.openTitle",
               disabled: () => isEclipse(), disabledReason: "DRPG.Eclipse.panelLocked",
-              run: () => import("./murder.mjs").then(m => m.openMurderDialog()), gmRoute: true },
+              // Destructive, not the GM's road (E22 C2b, D11; S10-67): on a GM's screen red names no road through a GM,
+              // and a murder is the one tile here that ends a student.
+              run: () => import("./murder.mjs").then(m => m.openMurderDialog()), destructive: true },
             // "A body is discovered" is a button on the dashboard: a GM
             // announces the body while looking at the case, not while deciding
             // which screen to open. Same for the autopsy and the evidence log.
@@ -316,10 +317,11 @@ const PANEL_SECTIONS = [
               run: () => import("./gm-stores.mjs").then(m => m.backupCase({ ask: true })) },
             { key: "restoreCase", icon: "fa-box-open", labelKey: "DRPG.Case.restoreTile",
               run: () => import("./gm-stores.mjs").then(m => m.openRestoreDialog()) },
-            // Last in the section and red: it is the only control here that
-            // destroys anything, and it destroys a chapter's worth at once.
+            // Last in the section and destructive: it is the only control here that
+            // destroys anything, and it destroys a chapter's worth at once. Not the GM's
+            // road as well (E22 C2b, D11): on a GM's screen `drpg-gm-route` names no button.
             { key: "seasonReset", icon: "fa-trash-arrow-up", labelKey: "DRPG.Season.resetTitle",
-              gmRoute: true, destructive: true,
+              destructive: true,
               run: () => import("./season-setup.mjs").then(m => m.resetSeason()) }
         ]
     },
@@ -437,7 +439,7 @@ function buildSections() {
                 const blocked = Boolean(item.disabled?.());
                 return `
                 <button type="button" class="drpg-gmp-button${
-                    item.gmRoute ? " drpg-gm-route" : ""}${item.destructive ? " drpg-destructive" : ""}${
+                    item.destructive ? " drpg-destructive" : ""}${
                     blocked ? " drpg-disabled" : ""}" data-drpg-run="${item.key}"${
                     blocked ? ` disabled title="${foundry.utils.escapeHTML(game.i18n.localize(item.disabledReason))}"` : ""}>
                     <i class="fa-solid ${item.icon}" inert></i>
@@ -473,11 +475,11 @@ export async function openGmPanel() {
     // console because the question it answers ("is the fix I was sent actually
     // loaded?") is asked by somebody looking at the interface, not a debugger.
     const version = moduleVersion();
-    const body = dialogContent(`<div class="drpg-gm-panel">
+    const body = `<div class="drpg-gm-panel">
         ${buildPanelContent()}
         ${sections}
         <p class="drpg-gmp-version">Danganronpa RPG v${foundry.utils.escapeHTML(version)}</p>
-    </div>`);
+    </div>`;
 
     // The suggestion's own actions are in the same lookup as the tiles, so the
     // "Do it" button works whether or not what it points at is on screen.
@@ -486,11 +488,13 @@ export async function openGmPanel() {
         ...Object.entries(EXTRA_ACTIONS)
     ]);
 
-    await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Panel.title"), minimizable: true },
+    // On the kit's frame (E21 C2b): the screen's height, the body scrolling, the footer one Close - nothing is left to
+    // answer in a window whose every tile does its own work.
+    await drpgWindow({
+        title: game.i18n.localize("DRPG.Panel.title"),
         classes: ["drpg-panel", "drpg-gm-panel-window", "drpg-window-panel"],
-        content: body,
-        buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true }],
+        body,
+        footer: { close: { role: "close", action: "close" } },
         // Each tile closes the panel, does its thing, and the panel comes BACK.
         //
         // Closing first has always mattered: most of these open a dialog of
@@ -649,20 +653,20 @@ async function openFailureLog() {
             </li>`).join("")}</ul>`
         : `<p>${esc(game.i18n.localize("DRPG.Failures.none"))}</p>`;
 
-    const action = await DialogV2.wait({
+    // On the kit (E21 C2b): Close the default, Copy secondary, and Clear the log destructive - it throws away what
+    // this browser kept, and nothing brings it back (E22, A4).
+    const action = await drpgWindow({
+        title: game.i18n.localize("DRPG.Failures.title"),
         classes: ["drpg-panel", "drpg-wide", "drpg-window-failures"],
-        window: { title: game.i18n.localize("DRPG.Failures.title"), minimizable: true },
-        content: dialogContent(`<div>
+        body: `<div>
             <p class="notes">${esc(game.i18n.localize("DRPG.Failures.intro"))}</p>
             ${body}
-        </div>`),
-        buttons: [
-            { action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true },
-            ...(rows.length ? [
-                { action: "copy", label: game.i18n.localize("DRPG.Failures.copy") },
-                { action: "clear", label: game.i18n.localize("DRPG.Failures.clear") }
-            ] : [])
-        ],
+        </div>`,
+        footer: {
+            close: { role: "close", action: "close" },
+            secondary: rows.length ? [{ action: "copy", label: game.i18n.localize("DRPG.Failures.copy") }] : [],
+            destructive: rows.length ? [{ action: "clear", label: game.i18n.localize("DRPG.Failures.clear") }] : []
+        },
         rejectClose: false
     });
 
@@ -947,6 +951,7 @@ export function seasonUnderway(clock) {
  * (`.drpg-gmp-next-text`, `.drpg-gmp-next-go`; scenario 65) reads the line it read before. Exported for R1522.
  */
 export function nextLineHtml(step) {
+    const go = nextGoKey(step?.action);
     const setup = step?.setup ? `<div class="drpg-gmp-next-setup">
             <span class="drpg-gmp-next-setup-text">${step.setup.text}</span>
             <button type="button" class="drpg-mini-button drpg-gmp-next-setup-go" data-drpg-run="${step.setup.action}">
@@ -957,10 +962,31 @@ export function nextLineHtml(step) {
             <span class="drpg-gmp-next-text">${step.text}</span>
             ${step.action
                 ? `<button type="button" class="drpg-gmp-next-go" data-drpg-run="${step.action}">
-                       ${game.i18n.localize("DRPG.Panel.nextGo")}</button>`
+                       ${esc(game.i18n.localize(go))}</button>`
                 : ""}
             ${setup}
         </div>`;
+}
+
+/* THE NEXT LINE'S BUTTON SAYS WHAT IT DOES (E22 C2b, O11; S04-37, S13-04). It said "Do it" for every step; it names
+   the step's own road now, a verb with its object, by the action the line runs (`nextStep`): the Eclipse's by whether
+   one is open (`toggleEclipse` starts or ends it). An action with no name of its own (none today) keeps a plain Open. */
+const NEXT_GO = Object.freeze({
+    murder: "DRPG.Panel.goMurderButton",
+    advance: "DRPG.Panel.goAdvanceButton",
+    chapterEnd: "DRPG.Panel.goChapterEndButton",
+    trial: "DRPG.Panel.goTrialButton",
+    investigation: "DRPG.Panel.goInvestigationButton",
+    startInvestigation: "DRPG.Panel.goStartInvestigationButton",
+    autopsy: "DRPG.Panel.goAutopsyButton",
+    bodyDialog: "DRPG.Panel.goBodyButton",
+    seasonSetup: "DRPG.Panel.goSeasonSetupButton"
+});
+
+/** The key of the Next line's button for `action` (`NEXT_GO`); exported for R1358. */
+export function nextGoKey(action, eclipse = isEclipse()) {
+    if (action === "eclipse") return eclipse ? "DRPG.Panel.goEclipseEndButton" : "DRPG.Panel.goEclipseStartButton";
+    return NEXT_GO[action] ?? "DRPG.Season.openIt";
 }
 
 /** The first body a walk-in would discover now, as the watcher picks them (`bodiesToDiscover`), or null. GM-side. */
