@@ -97,6 +97,10 @@ body {
        pair for both themes - the glass draws the same two inks */
     --drpg-kit-call-hope: light-dark(var(--drpg-gold-deep), var(--drpg-gold));
     --drpg-kit-call-despair: light-dark(var(--drpg-blood-deep), var(--drpg-blood));
+    /* an action briefing's facts (E21 C5b; audit S02-36, S12-16): the numbers a player decides by, at the body's
+       size in the bone ink - they were the window's smallest and darkest text */
+    --drpg-kit-brief-size: max(11px, var(--drpg-text-md));
+    --drpg-kit-brief-ink: var(--drpg-bone);
     /* the notice history (E44 C5): its lines and grounds as E81 drew them, an entry's seam by its tone or source,
        and its two type sizes */
     --drpg-kit-notice-edge: var(--drpg-line-strong);
@@ -117,6 +121,8 @@ body {
 /* ---- tokens: Stained Glass (the glass's own) ---- */
 body.drpg-theme-stained-glass {
     --drpg-kit-ink: var(--drpg-sg-bone);
+    --drpg-kit-brief-size: max(var(--drpg-sg-floor), var(--drpg-text-md));
+    --drpg-kit-brief-ink: var(--drpg-sg-bone);
     --drpg-kit-line: color-mix(in srgb, var(--drpg-sg-bone) 12%, transparent);
     --drpg-kit-tab-bg: transparent;
     --drpg-kit-tab-ink: var(--drpg-sg-ink);
@@ -2077,3 +2083,12 @@ body.drpg-theme-stained-glass #drpg-gm-launcher :is(i, .fa, [class*="fa-"]) {
     padding-left: 8px;
 }
 .application.drpg-ui:is(.drpg-hope-dialog, .drpg-despair-dialog) .drpg-call-header h3 { color: var(--drpg-call-ink); }
+
+/* ---- an action's briefing facts (E21 C5b, 06.11.2026; audit S02-36, S12-16) ----
+   The cost, the statistic, the room and the thresholds are what a player decides by; the base sheet drew them at the
+   small size in the dim ink (danganronpa.css `.drpg-briefing-facts`), below the lead and the rows' hints. In a kit
+   window they are body text in the bone ink, in both themes. R1366 reads the cascade. */
+.application.drpg-ui .drpg-briefing-facts {
+    font-size: var(--drpg-kit-brief-size);
+    color: var(--drpg-kit-brief-ink);
+}

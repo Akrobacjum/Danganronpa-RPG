@@ -978,7 +978,8 @@
       "classes": [
         "application",
         "dialog",
-        "drpg-panel"
+        "drpg-panel",
+        "drpg-ui"
       ],
       "tag": "dialog",
       "width": 400,
@@ -1377,7 +1378,8 @@
       "classes": [
         "application",
         "dialog",
-        "drpg-panel"
+        "drpg-panel",
+        "drpg-ui"
       ],
       "tag": "dialog",
       "width": 400,
@@ -1404,7 +1406,8 @@
       "classes": [
         "application",
         "dialog",
-        "drpg-panel"
+        "drpg-panel",
+        "drpg-ui"
       ],
       "tag": "dialog",
       "width": 400,
@@ -1431,7 +1434,8 @@
       "classes": [
         "application",
         "dialog",
-        "drpg-panel"
+        "drpg-panel",
+        "drpg-ui"
       ],
       "tag": "dialog",
       "width": 400,
@@ -1458,7 +1462,8 @@
       "classes": [
         "application",
         "dialog",
-        "drpg-panel"
+        "drpg-panel",
+        "drpg-ui"
       ],
       "tag": "dialog",
       "width": 400,
@@ -1485,13 +1490,14 @@
       "classes": [
         "application",
         "dialog",
-        "drpg-panel"
+        "drpg-panel",
+        "drpg-ui"
       ],
       "tag": "dialog",
       "width": 400,
       "buttons": [
         {
-          "action": "cancel",
+          "action": "close",
           "label": "Close",
           "default": true
         }
@@ -1507,7 +1513,8 @@
       "classes": [
         "application",
         "dialog",
-        "drpg-panel"
+        "drpg-panel",
+        "drpg-ui"
       ],
       "tag": "dialog",
       "width": 400,

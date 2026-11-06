@@ -79,7 +79,7 @@ const THEMES = ["glass", "legacy"];
 const FIT_SIZES = [[1920, 1080], [1366, 768], [1280, 800], [1024, 768]];
 const FIT_PHONE = [390, 844];
 /* Pages that must not scroll at all at 1366x768 and above (the doneWhen: "Observe fits with no scrolling"). */
-const STILL = ["observe"];
+const STILL = ["action-observe"];
 /* From E21 C6 on, a page not on the kit fails; before it, it is E21's list (STAGE.md "The measure"). */
 const OUTSIDE_FAILS = false;
 

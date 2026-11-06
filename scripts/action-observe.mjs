@@ -311,9 +311,11 @@ async function askDeclaration(actor, def) {
         // The two red rows below are the ones that end with a person reading
         // this; the other three never see it. One box for both, in the window
         // where the choice is made - see "THE SENTENCE COMES FIRST".
+        // Shown with those two rows alone (E21 C5b; audit S02-06): the other three never read it.
         extra: requestFieldHtml({
             prompt: game.i18n.localize("DRPG.Observe.requestPrompt"),
-            placeholder: game.i18n.localize("DRPG.Observe.requestPlaceholder")
+            placeholder: game.i18n.localize("DRPG.Observe.requestPlaceholder"),
+            when: ["specific", "anything"]
         }),
         options: [
             { value: "general", icon: "fa-eye",

@@ -789,8 +789,8 @@
       "murderConfirmEclipse": "This parks a direct murder for the GM to rule on when the Eclipse ends. It needs prior agreement with the GM and the consent of the other player. The action is spent even if the conditions fail.",
       "beat": "beat {n}",
       "dcLadderRow": "{label} {n}",
-      "dcTierRow": "{n}+ Tier {tier}",
-      "dcSearch": "Thresholds: {rows}. A critical finds one tier better.",
+      "dcTierRow": "{n}+ a thing of tier {tier}",
+      "dcSearch": "What you find, by your total: {rows}. The higher the tier, the better the thing; a critical finds one tier better.",
       "dcObserve": "Spotting a trace of the crime, by how visible it is: {rows}.",
       "dcObserveKey": "A Key Remnant: {rows}.",
       "dcObserveFaint": "A faint Remnant: {rows}.",
@@ -4130,8 +4130,8 @@
       "notFound": "You have not found that Remnant.",
       "watchedNoSanity": "Somebody is watching, and covering what you are doing costs Sanity you no longer have.",
       "watched": {
-        "one": "{n} other person is in this room. You will have to cover what you are doing first, and being caught at it costs Sanity.",
-        "other": "{n} other people are in this room. You will have to cover what you are doing first, and being caught at it costs Sanity."
+        "one": "{n} other person is in this room. You cover what you are doing first ({dc}+), and being caught at it costs Sanity.",
+        "other": "{n} other people are in this room. You cover what you are doing first ({dc}+), and being caught at it costs Sanity."
       }
     },
     "Steal": {

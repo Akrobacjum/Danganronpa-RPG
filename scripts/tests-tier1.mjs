@@ -35178,6 +35178,67 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify(want),
             "[the confirmations of Experience (a GM rules it), Sprint and Feed the Overflow and the GM's approval: a kit window, its side, each button's action and role in the tree; per theme and side: the ink from the kit's token, gold for Hope and blood for Despair, on the header's stripe and title]");
     }],
+    ["R1366 - the action windows say the thresholds of the picked row (E21 C5b; E21-04, E21-05, audit S02-06, S02-07, S02-36, S12-16): action-briefing.mjs `briefingBlock` draws a fact bound to a row with `data-drpg-when` and the rest under a closed \"All thresholds\" - Observe its crime's ladder shown and the Key, faint and daily-life ladders under it, Analyze's bullet, hint, stash and passage lines by their rows, Tamper's erase ladder and trail by theirs and its watchers once; Observe's request box with the two rows that send it; the stylesheets show a bound line with its row alone and draw the facts at the body's size in the bone ink, in both themes; `chooseVariant` opens its window at its top", async () => {
+        /*
+         * E21 C5b, 06.11.2026. Observe's briefing printed sixteen thresholds - four ladders of four visibilities - with no
+         * row bound, its request box under every row, and the facts the window's smallest, darkest text (S02-06, S02-07,
+         * S02-36); Analyze's hint, stash and passage numbers stood under every row and Tamper said its watchers twice.
+         * Read here: each briefing built for a living student as they stand (`briefingBlock`, pure HTML, nothing shown),
+         * Tamper's facts (`tamperThresholdFacts`), the sources of Observe's declaration and of the menu (comments
+         * stripped), and the cascade of the sheets on stand-ins in each theme (`styleCascade`). Nothing is written. Red on
+         * C5a's tree: Observe's sixteen thresholds shown with no row bound and no "All thresholds", no line bound in
+         * Analyze or Tamper, the box under every row, the facts in the small dim ink.
+         */
+        needs(world.atLeast("livingStudents", 1), "a briefing is built for a living student as they stand");
+        const { briefingBlock, tamperThresholdFacts } = await import("./action-briefing.mjs");
+        const cleanup = await import("./cleanup.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const actor = livingStudents()[0];
+        const box = html => { const d = document.createElement("div"); d.innerHTML = html; return d; };
+        const read = {};
+        const obs = box(briefingBlock(actor, "observe", ACTIONS.observe));
+        const ladder = li => / · /.test(li.textContent);
+        const top = [...obs.querySelectorAll(".drpg-briefing-block > .drpg-briefing-facts > li")];
+        const all = obs.querySelector(".drpg-briefing-block > details.drpg-briefing-all");
+        read.observe = { shownLadders: top.filter(ladder).length, all: all ? [all.open, all.querySelectorAll("li").length, all.querySelector("summary")?.textContent.trim() === game.i18n.localize("DRPG.Kit.allThresholds")] : null };
+        const ana = box(briefingBlock(actor, "analyze", ACTIONS.analyze));
+        read.analyze = [...ana.querySelectorAll(".drpg-briefing-facts > li[data-drpg-when]")].map(li => li.dataset.drpgWhen).sort();
+        const tam = tamperThresholdFacts(actor, cleanup);
+        read.tamper = { bound: tam.map(f => f?.when ?? "always"), conceal: tam.some(f => String(f?.text ?? f).includes(String(CLEANUP.conceal.threshold) + "+") && /cover|zamask/i.test(String(f?.text ?? f))) };
+        const code = stripComments(actionText(await moduleSources()));
+        read.request = /requestFieldHtml\(\{[\s\S]{0,400}?\bwhen\s*:\s*\[\s*"specific"\s*,\s*"anything"\s*\]/.test(fnSource(code, "askDeclaration") ?? "");
+        const menu = fnSource(code, "chooseVariant") ?? "", atTop = fnSource(code, "atTop") ?? "";
+        read.atTop = /\batTop\(dialog\)/.test(menu) && /scrollTop = 0/.test(atTop);
+        const C = await styleCascade();
+        read.paint = Object.fromEntries(["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"].map(theme => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-player`;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-ui drpg-panel"><section class="window-content"><form class="dialog-form"><div class="drpg-kit-body">`
+                + `<div class="drpg-briefing-block"><ul class="drpg-briefing-facts"><li>R1366</li><li data-drpg-when="hint">R1366 hint</li><li data-drpg-when="stash">R1366 stash</li></ul></div>`
+                + `<div class="drpg-choice-list"><label class="drpg-choice"><input type="radio" name="variant" value="hint" checked></label>`
+                + `<label class="drpg-choice"><input type="radio" name="variant" value="stash"></label></div></div></form></section></div>`;
+            const [plain, hint, stash] = body.querySelectorAll(".drpg-briefing-facts > li");
+            const facts = body.querySelector(".drpg-briefing-facts");
+            const tokenOf = (el, prop) => {
+                const v = C.winner(el, prop)?.value ?? "";
+                const t = /var\((--drpg-kit-brief-[\w-]+)\)/.exec(v)?.[1];
+                return t ? C.winner(body, t)?.value ?? "" : v;
+            };
+            const size = tokenOf(facts, "font-size"), ink = tokenOf(facts, "color");
+            return [theme, { shown: [C.winner(plain, "display")?.value ?? "(the sheet's)", C.winner(hint, "display")?.value ?? null, C.winner(stash, "display")?.value ?? null],
+                size: /--drpg-text-md\b/.test(size), ink: /--drpg-(?:sg-)?bone\)?$/.test(ink.trim()) || /^var\(--drpg-(?:sg-)?bone\)$/.test(ink.trim()) }];
+        }));
+        const yes = { shown: ["(the sheet's)", "list-item", "none"], size: true, ink: true };
+        equal(JSON.stringify(read), JSON.stringify({
+            observe: { shownLadders: 1, all: [false, 3, true] },
+            analyze: ["bullet", "hint", "passage", "stash"],
+            tamper: { bound: ["cover", "frame"], conceal: false },
+            request: true, atTop: true,
+            paint: { "drpg-theme-stained-glass": yes, "drpg-theme-monokuma-legacy": yes }
+        }), "[Observe: the ladders shown, All thresholds (open, its lines, its word); Analyze's bound rows; Tamper's bound facts and a second watchers line; "
+            + "Observe's box with its two rows; the menu opens at its top; per theme: a plain fact, a bound one with its row picked and one with another row picked, the facts' size and ink]");
+    }],
 ];
 
 /**

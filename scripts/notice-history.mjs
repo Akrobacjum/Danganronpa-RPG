@@ -221,11 +221,13 @@ const CELL_SPAN = /^[1-9]\d{0,2}$/;
  * Objection's card (C8) and the Present window's "with the Analyze result" checkbox label (C10), in trial.mjs;
  * 69 at E51 C1 (30.10.2026, counted in the list): the crisis menu's struck row of an action the incident denies
  * (action-menus.mjs `chooseVariant`, `drpg-row-denied`);
+ * 70 at E21 C5b (06.11.2026, counted in the list): a briefing's closed "All thresholds" (action-briefing.mjs
+ * `briefingBlock`, `drpg-briefing-all`);
  * R294 runs the same grep and fails on a difference, so a class a card body gains is either added here or
  * drawn bare in the window.
  */
 export const NOTICE_CLASSES = Object.freeze([
-    "chapter", "drpg-briefing-block", "drpg-briefing-facts", "drpg-briefing-instruction", "drpg-check", "drpg-checkbox",
+    "chapter", "drpg-briefing-all", "drpg-briefing-block", "drpg-briefing-facts", "drpg-briefing-instruction", "drpg-check", "drpg-checkbox",
     "drpg-choice", "drpg-choice-details", "drpg-choice-list", "drpg-choice-text", "drpg-day-summary",
     "drpg-duality", "drpg-duality-badge", "drpg-duality-die", "drpg-duality-formula", "drpg-duality-mod",
     "drpg-duality-op", "drpg-duality-result", "drpg-duality-stat", "drpg-duality-total",

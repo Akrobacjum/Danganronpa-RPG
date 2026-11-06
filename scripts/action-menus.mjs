@@ -117,7 +117,9 @@ function readTraitField(element, traits) {
 
 /** The textarea, with whatever prompt the action wants above it. */
 export function requestFieldHtml({ prompt, placeholder, optional = true, when = null }) {
-    // `when`: the row whose pick shows it (the stylesheet's `data-drpg-when`), or shown with every row.
+    // `when`: the row whose pick shows it (the stylesheet's `data-drpg-when`), or the rows (a list: E21 C5b, Observe's
+    // two that send words), or shown with every row.
+    when = Array.isArray(when) ? when.join(" ") : when;
     return `<label class="drpg-specific-note"${when ? ` data-drpg-when="${esc(when)}"` : ""}>
         <span>${prompt}</span>
         <textarea name="request" rows="2" placeholder="${
@@ -184,8 +186,10 @@ export async function chooseVariant({
                 // drawn inside the trait field it does not have, so no Tamper window showed it.
                 : traitNote ? `<p class="notes">${traitNote}</p>` : ""}
         </form>`,
-        render: options.some(o => o.confirm)
-            ? (event, dialog) => followConfirmLabel(dialog, confirmFor) : undefined,
+        render: (event, dialog) => {
+            if (options.some(o => o.confirm)) followConfirmLabel(dialog, confirmFor);
+            atTop(dialog);
+        },
         footer: !usable.length ? { close: "close" } : {
             primary: {
                 action: "ok",
@@ -206,6 +210,19 @@ export async function chooseVariant({
 
     if (!picked || picked === "cancel" || picked === "close") return null;
     return picked;
+}
+
+/**
+ * The window opens at its top (E21 C5b, 06.11.2026; audit S02-06): a field's `autofocus` scrolls the kit's body to
+ * it, so Observe opened on the end of its briefing's first sentence. The body is put back at its top once the focus
+ * has landed (a frame later), and the focus stays where it is.
+ */
+function atTop(dialog) {
+    const body = dialog?.element?.querySelector(".drpg-kit-body");
+    if (!body) return;
+    body.scrollTop = 0;
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => { body.scrollTop = 0; });
+    else setTimeout(() => { body.scrollTop = 0; }, 0);
 }
 
 /**

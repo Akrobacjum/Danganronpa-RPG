@@ -2778,6 +2778,27 @@ body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
     color: var(--drpg-line-strong);
 }
 
+/* A FACT FOR ONE ROW (E21 C5b, 06.11.2026; audit S02-07): a briefing line bound to a menu row (`data-drpg-when`,
+   action-briefing.mjs `briefingBlock`) stands only while that row is picked - Analyze's hint, stash and passage
+   numbers, Tamper's erase ladder and its trail's. The menu's radios are in the same body as the briefing above them,
+   so the rule asks the body, as the request box's rule asks its list. "All thresholds" holds the rest, closed. */
+.drpg-briefing-facts > li[data-drpg-when] {
+    display: none;
+}
+
+:is(.drpg-kit-body, .dialog-content):has(.drpg-choice-list input[value="bullet"]:checked) .drpg-briefing-facts > li[data-drpg-when~="bullet"],
+:is(.drpg-kit-body, .dialog-content):has(.drpg-choice-list input[value="hint"]:checked) .drpg-briefing-facts > li[data-drpg-when~="hint"],
+:is(.drpg-kit-body, .dialog-content):has(.drpg-choice-list input[value="stash"]:checked) .drpg-briefing-facts > li[data-drpg-when~="stash"],
+:is(.drpg-kit-body, .dialog-content):has(.drpg-choice-list input[value="passage"]:checked) .drpg-briefing-facts > li[data-drpg-when~="passage"],
+:is(.drpg-kit-body, .dialog-content):has(.drpg-choice-list input[value="cover"]:checked) .drpg-briefing-facts > li[data-drpg-when~="cover"],
+:is(.drpg-kit-body, .dialog-content):has(.drpg-choice-list input[value="frame"]:checked) .drpg-briefing-facts > li[data-drpg-when~="frame"] {
+    display: list-item;
+}
+
+.drpg-briefing-all > summary {
+    cursor: pointer;
+}
+
 /* The Start the Class Trial window's list of steps is what the window tells you, and the clock note under
    it is the footnote: the audit (S06-29) found them the other way round, the steps smaller and darker than
    the note. Only this list - the same class is metadata on the roll and murder briefings - so the steps
@@ -5771,7 +5792,8 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     display: none;
 }
 
-.drpg-choice-list:has(input[value="specific"]:checked) ~ [data-drpg-when="specific"],
+.drpg-choice-list:has(input[value="specific"]:checked) ~ [data-drpg-when~="specific"],
+.drpg-choice-list:has(input[value="anything"]:checked) ~ [data-drpg-when~="anything"],
 .drpg-choice-list:has(input[value="cover"]:checked) ~ [data-drpg-when="cover"],
 .drpg-choice-list:has(input[value="frame"]:checked) ~ [data-drpg-when="frame"],
 .drpg-choice-list:has(input[value="plant"]:checked) ~ [data-drpg-when="plant"],

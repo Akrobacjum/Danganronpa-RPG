@@ -800,8 +800,8 @@
       "murderConfirmEclipse": "To parkuje Direct Murder do rozstrzygnięcia przez GM-a, gdy Eclipse się skończy. Wymaga wcześniejszej zgody GM-a i zgody drugiego gracza. Akcja przepada nawet, jeśli warunki nie są spełnione.",
       "beat": "przebij {n}",
       "dcLadderRow": "{label} {n}",
-      "dcTierRow": "{n}+ Tier {tier}",
-      "dcSearch": "Progi: {rows}. Krytyk znajduje o tier lepiej.",
+      "dcTierRow": "{n}+ rzecz tieru {tier}",
+      "dcSearch": "Co znajdziesz, wg wyniku: {rows}. Im wyższy tier, tym lepsza rzecz; krytyk znajduje o tier lepiej.",
       "dcObserve": "Dostrzeżenie śladu zbrodni, wg widoczności: {rows}.",
       "dcObserveKey": "Key Remnant: {rows}.",
       "dcObserveFaint": "Nikły Remnant: {rows}.",
@@ -4513,10 +4513,10 @@
       "trailAction": "Misleading Trail",
       "notFound": "Tego Remnantu jeszcze nie znasz.",
       "watched": {
-        "one": "{n} inna osoba jest w tym pokoju. Najpierw musisz zamaskować, co robisz, a przyłapanie kosztuje Sanity.",
-        "few": "{n} inne osoby są w tym pokoju. Najpierw musisz zamaskować, co robisz, a przyłapanie kosztuje Sanity.",
-        "many": "{n} innych osób jest w tym pokoju. Najpierw musisz zamaskować, co robisz, a przyłapanie kosztuje Sanity.",
-        "other": "{n} innych osób jest w tym pokoju. Najpierw musisz zamaskować, co robisz, a przyłapanie kosztuje Sanity."
+        "one": "{n} inna osoba jest w tym pokoju. Najpierw maskujesz, co robisz ({dc}+), a przyłapanie kosztuje Sanity.",
+        "few": "{n} inne osoby są w tym pokoju. Najpierw maskujesz, co robisz ({dc}+), a przyłapanie kosztuje Sanity.",
+        "many": "{n} innych osób jest w tym pokoju. Najpierw maskujesz, co robisz ({dc}+), a przyłapanie kosztuje Sanity.",
+        "other": "{n} innych osób jest w tym pokoju. Najpierw maskujesz, co robisz ({dc}+), a przyłapanie kosztuje Sanity."
       },
       "watchedNoSanity": "Ktoś patrzy, a zamaskowanie tego, co robisz, kosztuje Sanity, którego już nie masz."
     },
