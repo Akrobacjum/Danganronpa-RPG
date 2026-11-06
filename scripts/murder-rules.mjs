@@ -3028,8 +3028,9 @@ async function killerFell({ pass = true } = {}) {
     noKillerTold = state.openedAt;
     const words = game.i18n.localize("DRPG.Murder.noKillerLeft");
     await whisperToGms(`<p>${words}</p>`);
+    // End the murder, as the tracker asks it (E22 C3b): destructive, Cancel the default and first under Enter.
     const sure = await drpgConfirm({
-        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        yes: { role: "destructive", label: game.i18n.localize("DRPG.Murder.endMurder") },
         no: "cancel",
         classes: ["drpg-panel"],
         title: game.i18n.localize("DRPG.Murder.endMurder"),
@@ -3635,12 +3636,14 @@ async function afterIncident(state) {
                     label: game.i18n.localize("DRPG.Murder.afterGoInvestigation")
                 }]),
                 { action: "autopsy", label: game.i18n.localize("DRPG.TruthBullet.autopsyTitle") },
-                ...(traitor ? [{
-                    action: "betrayal", class: "drpg-gm-route",
-                    label: game.i18n.format("DRPG.Murder.betrayalButton",
-                        { third: foundry.utils.escapeHTML(traitor.name) })
-                }] : [])
             ],
+            /* THE BETRAYAL IS A SECOND MURDER (E22 C3b; S10-67, D11): on the GM's screen `drpg-gm-route` names no button,
+               and this one ends the incident and opens another - destructive, never the default. */
+            destructive: traitor ? [{
+                action: "betrayal",
+                label: game.i18n.format("DRPG.Murder.betrayalButton",
+                    { third: foundry.utils.escapeHTML(traitor.name) })
+            }] : [],
             close: "close"
         },
         rejectClose: false

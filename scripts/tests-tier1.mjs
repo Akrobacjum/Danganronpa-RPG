@@ -34610,6 +34610,180 @@ const INVARIANTS = [
             buttons: [["cancel", true, "cancel"], ["reset", false, "destructive"]]
         }), "[the root's kit and own classes, the kit bodies in the window, the fields with autofocus, the footer in tree order: action, default, role]");
     }],
+    ["R1360 - the case's irreversible windows (E22 C3b; E22-01, E22-03, E22-05; S06-08, S13-04, S13-05): Who died? (chapter.mjs `openDeathDialog`), the body's announcement (`openBodyDiscoveryDialog`) and the chapter's end (`openChapterEndDialog`), each opened with DialogV2.wait stood in for, ask with their consequence destructive and named by its effect, Cancel the default and the first submit button in the tree, and Who died? and the body's room open on \"- choose -\" with that button shut; Sweep Truth Bullets, Clear Faint Remnants, Delete the Remnant, End the murder (the tracker's and the fight's), the Final Trial's verdict and a stopped end's Finish and Drop ask with the destructive role", async () => {
+        /*
+         * E22 C3b, 06.11.2026; audit S06-08 ("They are dead", "Announce it" and "Do it" were Bone buttons and the default
+         * under Enter; Who died? opened on the first living student and the body's window on the first room: one Enter
+         * killed somebody and destroyed their bullets), S13-04, S13-05. The three windows are opened here on this GM with
+         * DialogV2.wait stood in for (it answers null: nobody dies, no body is announced, no chapter ends) and their configs
+         * read: the footer in tree order (ui-kit.mjs's header: Enter presses the first submit button), each button's role,
+         * default and disabled, the consequence's label, and the select's first option. The other questions are read off
+         * their sources (each needs a world state tier 1 may not make: a bullet to sweep, a Faint trace, an incident, a
+         * Mastermind, a stopped end): the yes of each on the destructive role. Red on C3a's tree: "They are dead" was the
+         * primary, the default, and first in the tree.
+         */
+        needs(env.primaryGm(), "the body's announcement and the chapter's end are the primary GM's");
+        needs(world.atLeast("livingStudents", 1), "Who died? lists the living");
+        const C = await import("./chapter.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse } = await import("./eclipse.mjs");
+        must(!murderState(), "an incident is open - its victim would be chosen already, and this would read that instead");
+        must(!isEclipse(), "an Eclipse refuses the body's window - this would measure nothing");
+        const L = key => game.i18n.localize(key);
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const seen = [];
+        D.wait = async cfg => { seen.push(cfg); return null; };
+        try {
+            await C.openDeathDialog();
+            await C.openBodyDiscoveryDialog();
+            await C.openChapterEndDialog();
+        } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+        const by = title => seen.find(c => c?.window?.title === L(title)) ?? null;
+        const read = {};
+        for (const [name, title, field] of [["death", "DRPG.Chapter.deathTitle", "actor"], ["body", "DRPG.Chapter.bodyTitle", "room"], ["end", "DRPG.Chapter.endTitle", null]]) {
+            const cfg = by(title);
+            if (!cfg) { read[name] = "not opened"; continue; }
+            const body = document.createElement("div");
+            body.innerHTML = cfg.content?.outerHTML ?? String(cfg.content ?? "");
+            const select = field ? body.querySelector(`select[name="${field}"]`) : null;
+            read[name] = {
+                buttons: (cfg.buttons ?? []).map(b => [b.action, Boolean(b.default), /\bdrpg-role-(\w[\w-]*)/.exec(b.class ?? "")?.[1] ?? null, Boolean(b.disabled)]),
+                label: (cfg.buttons ?? []).find(b => b.action === "ok")?.label ?? null,
+                first: select ? [select.options[0]?.value ?? null, select.options[0]?.textContent.trim() ?? null, select.value] : null
+            };
+        }
+        const chapter = getClock().chapter;
+        const choose = L("DRPG.Chapter.chooseOne");
+        equal(stableJson(read), stableJson({
+            death: { buttons: [["cancel", true, "cancel", false], ["ok", false, "destructive", true]], label: L("DRPG.Chapter.confirmDeath"), first: ["", choose, ""] },
+            body: { buttons: [["cancel", true, "cancel", false], ["ok", false, "destructive", true]], label: L("DRPG.Chapter.announce"), first: ["", choose, ""] },
+            end: { buttons: [["cancel", true, "cancel", false], ["ok", false, "destructive", false]], label: game.i18n.format("DRPG.Chapter.endButton", { n: chapter }), first: null }
+        }), "[each window's footer in tree order (action, default, role, disabled), its consequence's label, its select's first option (value, words) and what it holds]");
+
+        const src = new Map(await otherSources());
+        const read2 = name => stripComments(src.get(name) ?? "");
+        const destructiveYes = text => /yes:\s*\{\s*role:\s*"destructive"/.test(text);
+        const sources = {
+            sweep: destructiveYes(fnSource(read2("investigation.mjs"), "confirmSweepBullets")),
+            clearFaint: destructiveYes(fnSource(read2("remnants.mjs"), "confirmClearFaint")),
+            deleteTrace: destructiveYes(fnSource(read2("investigation.mjs"), "deleteTraceRow")),
+            endMurderTracker: destructiveYes(fnSource(read2("murder-ui.mjs"), "openIncidentTracker")),
+            endMurderFight: destructiveYes(fnSource(read2("murder-rules.mjs"), "killerFell")),
+            finalVerdict: (t => /destructive:\s*\[[^\]]*action:\s*"correct"[\s\S]*action:\s*"wrong"/.test(t) && /default:\s*"cancel"/.test(t) && !/primary:/.test(t))(fnSource(read2("verdict.mjs"), "openFinalVerdictDialog")),
+            stoppedEnd: /destructive:\s*\[\{\s*action:\s*"finish"[\s\S]*action:\s*"drop"/.test(fnSource(read2("chapter.mjs"), "askStoppedEnd"))
+        };
+        must(Object.values(sources).length === 7 && fnSource(read2("investigation.mjs"), "confirmSweepBullets").length > 200, "a source was not read - this would measure nothing");
+        equal(stableJson(sources), stableJson({ sweep: true, clearFaint: true, deleteTrace: true, endMurderTracker: true, endMurderFight: true, finalVerdict: true, stoppedEnd: true }),
+            "[the questions read off their sources: whether each one's yes is on the destructive role]");
+    }],
+    ["R1361 - the chapter's end window says why a box is shut and marks what cannot be undone (E22 C3b; S12-19, S06-47; the owner's Q-E21-1 (c)): chapter.mjs `chapterEndForm` draws a box at 0 disabled with its words in the fine print and its reason after them, the four permanent boxes - the reveal, the sweep, the Faint clean-up, the Key Remnants - ticked with their counts, `drpg-destructive` on the label and \"cannot be undone\" in its words, and the Final Truth note only with a Mastermind set", async () => {
+        /*
+         * E22 C3b, 06.11.2026; audit S12-19 (a disabled box's label at full contrast, no reason), S06-47 (the Final Truth
+         * reminder red at every chapter's end, a season with no Mastermind among them), the owner's Q-E21-1 (c) on its
+         * default (the permanent options stay ticked, each with its count and the destructive mark). Read on the pure form
+         * (`chapterEndForm`, R357's): counts chosen here, with and without a Mastermind. Red on C3a's tree: the Final Truth
+         * note drawn with no Mastermind, no reason on a shut box, no mark on a permanent one.
+         */
+        const { chapterEndForm } = await import("./chapter.mjs");
+        const L = key => game.i18n.localize(key);
+        const form = mastermind => {
+            const el = document.createElement("div");
+            el.innerHTML = chapterEndForm({ chapter: 2, session: 3, day: 4, hidden: 2, sweepable: 0, faintable: 3, keyable: 0,
+                trialSitting: false, lastChapter: false, finalTruthPlaced: false, backup: "", mastermind });
+            return el;
+        };
+        const boxes = el => Object.fromEntries(["reveal", "sweep", "faint", "keys", "endTrial"].map(name => {
+            const input = el.querySelector(`input[name="${name}"]`);
+            const label = input?.closest("label");
+            const fine = label?.querySelector(".notes")?.textContent.replace(/\s+/g, " ").trim() ?? null;
+            return [name, [Boolean(input?.checked), Boolean(input?.disabled), Boolean(label?.classList.contains("drpg-destructive")), fine]];
+        }));
+        const final = el => el.textContent.includes(L("DRPG.Chapter.finalTruthMissing"));
+        const without = form(false), withOne = form(true);
+        must(without.querySelector('input[name="reveal"]'), "the form drew no boxes - this would measure nothing");
+        const shut = key => `${key === "endTrial" ? L("DRPG.Chapter.optEndTrial") : game.i18n.format(`DRPG.Chapter.opt${key[0].toUpperCase()}${key.slice(1)}`, { n: 0 })} - ${L(key === "endTrial" ? "DRPG.Chapter.optNoTrial" : "DRPG.Chapter.optNothing")}`;
+        const permanent = L("DRPG.Chapter.optPermanent");
+        equal(stableJson({ boxes: boxes(without), final: [final(without), final(withOne)] }), stableJson({
+            boxes: {
+                reveal: [true, false, true, permanent], sweep: [false, true, false, shut("sweep")], faint: [true, false, true, permanent],
+                keys: [false, true, false, shut("keys")], endTrial: [false, true, false, shut("endTrial")]
+            },
+            final: [false, true]
+        }), "[each box: ticked, disabled, the destructive mark on its label, its fine print; the Final Truth note with no Mastermind and with one]");
+    }],
+    ["R1362 - the Mastermind's final verdict is the body's, not the footer's, and the Final Trial needs a Mastermind (E22 C3b; S06-48): mastermind.mjs `openMastermindDialog`, opened with DialogV2.wait stood in for, has Apply and Cancel in its footer and the verdict as a button of its body with its note, disabled while nobody is the Mastermind; `toggleFinalTrialFlag` refuses to start the Final Trial with no Mastermind before it asks or writes anything; and the Final Trial's accused select opens on nobody, not on the first student, while the count names nobody (verdict.mjs `verdictCandidates`, E41 C10b)", async () => {
+        /*
+         * E22 C3b, 06.11.2026; audit S06-48: "Final Trial verdict" stood in the footer between Apply and Cancel, live with
+         * "- nobody set -", and read as a third answer of the window; `toggleFinalTrialFlag` announced THE FINAL TRIAL to
+         * every screen with no Mastermind; the accused select started on the first student. The window is opened with
+         * DialogV2.wait stood in for (null: nothing is applied). The refusal is read off the source (a Mastermind is a
+         * GM-store write tier 1 may not make, and the harness world may hold one): the Mastermind asked before the
+         * question and before `setFinalTrial`, and the answer a return. The select: `verdictCandidates` with the Final
+         * Trial's `final` and no accused opens on "Nobody named" (id ""); since E41 C10b, before this stage - not red here,
+         * read so the row stays true. Red on C3a's tree: `finalVerdict` in the footer, no body button, no refusal.
+         */
+        needs(world.atLeast("livingStudents", 2), "the accused select lists the students");
+        const MM = await import("./mastermind.mjs");
+        const { verdictCandidates } = await import("./verdict.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const seen = [];
+        D.wait = async cfg => { seen.push(cfg); return null; };
+        try { await MM.openMastermindDialog(); } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+        const cfg = seen.find(c => (c.classes ?? []).includes("drpg-window-mastermind")) ?? null;
+        must(cfg, "the Mastermind window did not open on this GM - this would measure nothing");
+        const body = document.createElement("div");
+        body.innerHTML = cfg.content?.outerHTML ?? String(cfg.content ?? "");
+        const button = body.querySelector("[data-drpg-final-verdict]");
+        const toggle = fnSource(stripComments(new Map(await otherSources()).get("mastermind.mjs") ?? ""), "toggleFinalTrialFlag");
+        const at = re => toggle.search(re);
+        const students = studentActors().slice(0, 2);
+        const opens = verdictCandidates(students, { accusedIds: [], final: true }).find(r => r.selected)?.id ?? null;
+        equal(stableJson({
+            footer: (cfg.buttons ?? []).map(b => b.action),
+            verdict: button ? [button.closest("footer") === null, Boolean(button.closest("fieldset")?.querySelector(".notes")), button.disabled === !MM.mastermindActor()] : null,
+            refusal: [at(/!mastermindActor\(\)/) > 0, at(/!mastermindActor\(\)/) < at(/drpgConfirm\(/), at(/!mastermindActor\(\)/) < at(/setFinalTrial\(/)],
+            opens: [opens, opens === students[0]?.id]
+        }), stableJson({ footer: ["save", "cancel"], verdict: [true, true, true], refusal: [true, true, true], opens: ["", false] }),
+            "[the footer's buttons; the verdict (out of the footer, with its note, disabled exactly when nobody is set); the refusal before the question and the write; the accused select's first choice and whether it is the first student]");
+    }],
+    ["R1363 - the incident tracker and Mark as Monokuma (E22 C3b; S03-34): murder-ui.mjs `incidentButtons` makes Close the default with no primary, Pass the turn and the ask-again ways on beside it, End the murder destructive and last, apart from Close, and no Pass in the resolution; `openIncidentTracker` refuses a Pass within PASS_COOLDOWN_MS (1500) of the last on this client; End the murder's label is its own; and the actor directory offers Mark as Monokuma for a student and Unmark for a Monokuma, a mark of a player's character asked first with a destructive yes", async () => {
+        /*
+         * E22 C3b, 06.11.2026; audit S03-34: Pass the turn was the default under Enter and the tracker reopens on it, so a
+         * held Enter passed turn after turn; at Stage 6 Pass was shown and did nothing; "Close the murder" (irreversible)
+         * stood beside Close in the same face; and one directory entry marked and unmarked a Monokuma with no question.
+         * The tracker needs an incident, a world write tier 1 may not make: its footer and its Pass are read off the
+         * source. The directory's entries are read through the hook Foundry calls for the menu (`getActorContextOptions`),
+         * each entry's `condition` asked of a student and of a Monokuma when the world holds one. Red on C3a's tree: Pass
+         * the default, no cooldown, one entry for both states.
+         */
+        const src = new Map(await otherSources());
+        const ui = stripComments(src.get("murder-ui.mjs") ?? "");
+        const buttons = fnSource(ui, "incidentButtons");
+        const tracker = fnSource(ui, "openIncidentTracker");
+        must(buttons.length > 200 && tracker.length > 200, "the tracker's footer or its window was not read - this would measure nothing");
+        const source = {
+            closeDefault: /default:\s*"close"/.test(buttons) && !/primary:/.test(buttons) && !/default:\s*true/.test(buttons),
+            passApart: /secondary:\s*list/.test(buttons) && /destructive:\s*\[\{\s*action:\s*"end"/.test(buttons),
+            noPassAtResolution: /state\.stage === "resolution" \? \[\] : \[\{ action: "pass"/.test(buttons),
+            cooldown: /const PASS_COOLDOWN_MS = 1500;/.test(ui) && /if \(passAllowed\(\)\) await passTurn\(\)/.test(tracker),
+            mark: /playedByAPlayer\(actor\)[\s\S]*drpgConfirm\(\{[\s\S]*role:\s*"destructive"/.test(fnSource(stripComments(src.get("monokuma.mjs") ?? ""), "markFromDirectory"))
+        };
+        const options = [];
+        Hooks.callAll("getActorContextOptions", null, options);
+        const mine = options.filter(o => ["DRPG.Monokuma.toggle", "DRPG.Monokuma.unmark"].includes(o?.name));
+        const { monokumaActors } = await import("./monokuma.mjs");
+        const shownFor = actor => actor ? mine.filter(o => o.condition?.({ dataset: { entryId: actor.id } })).map(o => o.name) : null;
+        const student = studentActors()[0] ?? null, monokuma = monokumaActors()[0] ?? null;
+        must(student, "no student to ask the menu about - this would measure nothing");
+        equal(stableJson({ source, entries: mine.map(o => o.name), student: shownFor(student), monokuma: monokuma ? shownFor(monokuma) : "none here",
+            labels: [game.i18n.localize("DRPG.Murder.endMurder") !== game.i18n.localize("DRPG.Panel.close"), game.i18n.localize("DRPG.Monokuma.unmark") !== "DRPG.Monokuma.unmark"] }),
+        stableJson({ source: { closeDefault: true, passApart: true, noPassAtResolution: true, cooldown: true, mark: true },
+            entries: ["DRPG.Monokuma.toggle", "DRPG.Monokuma.unmark"], student: ["DRPG.Monokuma.toggle"],
+            monokuma: monokuma ? ["DRPG.Monokuma.unmark"] : "none here", labels: [true, true] }),
+        "[the tracker's footer and Pass read off the source; the directory's entries; those shown for a student, for a Monokuma; End the murder's and Unmark's words their own]");
+    }],
 ];
 
 /**

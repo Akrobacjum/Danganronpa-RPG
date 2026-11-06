@@ -40,6 +40,9 @@ import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
 import { announce, dialogContent, whisperToGms, primaryGmId, log, warn, error, plural, listOf } from "./utils.mjs";
 import { trialProgress, setTrialProgress, executionLines, executeAtExit } from "./trial-progress.mjs";
 import { runSteps, stepsReport } from "./steps.mjs";
+// The kit's frame for the Final Trial's verdict (E22 C3b): the Mastermind's case's one irreversible window. The trial's
+// own windows above are C4's.
+import { drpgWindow } from "./ui-kit.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -1043,10 +1046,10 @@ export async function openFinalVerdictDialog() {
     const options = `<option value="">${game.i18n.localize("DRPG.Vote.nobodyNamed")}</option>${
         candidateOptions(verdictCandidates(students, { accusedIds, dead, final: true }))}`;
 
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Mastermind.verdictTitle") },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Mastermind.verdictTitle"),
         classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p>${game.i18n.localize("DRPG.Mastermind.verdictIntro")}</p>
             ${alreadyDead
                 ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Mastermind.alreadyDeadNote")}</p>`
@@ -1054,7 +1057,7 @@ export async function openFinalVerdictDialog() {
             <label>${game.i18n.localize("DRPG.Mastermind.whoWasAccused")}
                 <select name="accused">${options}</select></label>
             <p class="notes">${game.i18n.localize("DRPG.Mastermind.verdictNote")}</p>
-        </form>`),
+        </form>`,
         /*
          * CANCEL FIRST, AND CANCEL THE DEFAULT (MM-01, Dawid 17.09).
          *
@@ -1065,23 +1068,30 @@ export async function openFinalVerdictDialog() {
          * decides the focus, so Cancel has to be both. The two verdicts stay one
          * click each; the ordinary trial verdict (G-31) kept defaulting to the
          * likely outcome until E10 C4, which gave it Cancel first and default too.
+         *
+         * ON THE KIT'S ROLES (E22 C3b, 06.11.2026; audit S13-04): both verdicts are the destructive role (Blood with the
+         * raster), which may never be the default, and with no primary the closing word is the first submit button in the
+         * tree - Cancel first and the default, as MM-01 asked, now by the footer contract.
          */
-        buttons: [
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true },
-            {
-                action: "correct", label: game.i18n.localize("DRPG.Mastermind.correctlyNamed"),
-                disabled: alreadyDead,
-                callback: (e, b, d) => ({
-                    correct: true, accusedId: d.element.querySelector("[name=accused]").value
-                })
-            },
-            {
-                action: "wrong", label: game.i18n.localize("DRPG.Mastermind.notCorrectlyNamed"),
-                callback: (e, b, d) => ({
-                    correct: false, accusedId: d.element.querySelector("[name=accused]").value
-                })
-            }
-        ],
+        footer: {
+            destructive: [
+                {
+                    action: "correct", label: game.i18n.localize("DRPG.Mastermind.correctlyNamed"),
+                    disabled: alreadyDead,
+                    callback: (e, b, d) => ({
+                        correct: true, accusedId: d.element.querySelector("[name=accused]").value
+                    })
+                },
+                {
+                    action: "wrong", label: game.i18n.localize("DRPG.Mastermind.notCorrectlyNamed"),
+                    callback: (e, b, d) => ({
+                        correct: false, accusedId: d.element.querySelector("[name=accused]").value
+                    })
+                }
+            ],
+            close: "cancel",
+            default: "cancel"
+        },
         rejectClose: false
     });
 

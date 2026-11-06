@@ -43,7 +43,7 @@ import { studentActors } from "./monokuma.mjs";
 import { announce, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc, isPrimaryGm, primaryGmId,
     serverNow, listOf } from "./utils.mjs";
 // The kit's frame (E21 C3a): every window of the case's chapter is a `drpgWindow` or a `drpgConfirm`, answering as before.
-import { drpgWindow, drpgConfirm } from "./ui-kit.mjs";
+import { drpgWindow, drpgConfirm, emptyOption } from "./ui-kit.mjs";
 // A leaf (utils.mjs alone): the one runner of the procedures that cannot be taken back, and its report (E42 C2).
 import { runSteps, stepsReport } from "./steps.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
@@ -711,11 +711,16 @@ export async function openDeathDialog({ actor = null } = {}) {
     const victimId = state?.active ? state.victimId ?? null : null;
     const secretByDefault = actor ? actor.id === victimId : alive.some(a => a.id === victimId);
     const listed = victimId ? [...alive.filter(a => a.id === victimId), ...alive.filter(a => a.id !== victimId)] : alive;
+    /* "- CHOOSE -" FIRST, THE BUTTON SHUT UNTIL A CHOICE (E22 C3b, 06.11.2026; audit S06-08). The select opened on the
+       first living student, and one Enter killed them and destroyed their Truth Bullets. It opens on "- choose -" now, and
+       the destructive button stays disabled until a name is chosen; during an incident the incident's victim, the one
+       fact the module has about who died, is chosen already (the kill's own default above). The answer keeps its shape. */
+    const chosen = actor ? actor.id : alive.some(a => a.id === victimId) ? victimId : "";
     const picker = actor
         ? `<p><strong>${foundry.utils.escapeHTML(actor.name)}</strong></p>`
         : `<label>${game.i18n.localize("DRPG.Chapter.whoDied")}
-                <select name="actor">${listed
-                    .map(a => `<option value="${a.id}">${
+                <select name="actor">${emptyOption("DRPG.Chapter.chooseOne", { selected: !chosen })}${listed
+                    .map(a => `<option value="${a.id}"${a.id === chosen ? " selected" : ""}>${
                         foundry.utils.escapeHTML(a.name)}</option>`).join("")}</select></label>`;
 
     const result = await drpgWindow({
@@ -731,16 +736,20 @@ export async function openDeathDialog({ actor = null } = {}) {
                 ${game.i18n.localize("DRPG.Chapter.keepSecretUntilFound")}</label>
             <p class="notes">${game.i18n.localize("DRPG.Chapter.deathNote")}</p>
         </form>`,
+        // What cannot be undone (E22 rule 4): the destructive role, Cancel the default and first under Enter.
         footer: {
-            primary: {
-                action: "ok", label: game.i18n.localize("DRPG.Chapter.confirmDeath"),
+            destructive: [{
+                action: "ok", label: game.i18n.localize("DRPG.Chapter.confirmDeath"), disabled: !chosen,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
-                    return { id: actor?.id ?? f.actor.value, keepBullets: f.keepBullets.checked, secret: f.secret.checked };
+                    const id = actor?.id ?? f.actor.value;
+                    return id ? { id, keepBullets: f.keepBullets.checked, secret: f.secret.checked } : false;
                 }
-            },
-            close: "cancel"
+            }],
+            close: "cancel",
+            default: "cancel"
         },
+        render: (event, dialog) => chooseFirst(dialog, "actor"),
         rejectClose: false
     });
 
@@ -749,6 +758,21 @@ export async function openDeathDialog({ actor = null } = {}) {
     const dying = game.actors.get(result.id);
     if (!dying) return false;
     return Boolean(await killCharacter(dying, { keepBullets: result.keepBullets, secret: Boolean(result.secret) }));
+}
+
+/**
+ * The consequence button of a window whose select opens on "- choose -" (E22 C3b): disabled while the select named
+ * `field` holds nothing, enabled once it holds a choice. A window with no such select (the Students list's Kill names
+ * its student) is left as drawn.
+ */
+function chooseFirst(dialog, field) {
+    const root = dialog?.element;
+    const select = root?.querySelector(`select[name="${field}"]`);
+    const button = root?.querySelector('footer button[data-action="ok"]');
+    if (!select || !button) return;
+    const sync = () => { button.disabled = !select.value; };
+    select.addEventListener("change", sync);
+    sync();
 }
 
 /* ==========================================================================
@@ -1465,7 +1489,16 @@ export async function openBodyDiscoveryDialog() {
         ui.notifications.warn(game.i18n.localize("DRPG.Chapter.noRooms"));
         return null;
     }
-    const roomOption = (scene, r) => `<option value="${foundry.utils.escapeHTML(r)}" data-scene="${scene.id}">${
+    /* THE ROOM IS CHOSEN, NOT THE FIRST (E22 C3b, 06.11.2026; audit S06-08): the select opened on the school's first room,
+       and one Enter announced a body in "Big IT Room" with nobody dead there. It opens on "- choose -" with Announce shut
+       until a room is chosen; while an incident stands, its victim's room - where the body is - is chosen already. */
+    const { murderState } = await import("./murder.mjs");
+    const incident = murderState();
+    const { locateActor } = await import("./movement.mjs");
+    const atIncident = incident?.active ? locateActor(game.actors.get(incident.victimId ?? "")) : null;
+    const known = atIncident?.room ? { room: atIncident.room, sceneId: atIncident.scene?.id ?? null } : null;
+    const roomOption = (scene, r) => `<option value="${foundry.utils.escapeHTML(r)}" data-scene="${scene.id}"${
+        known && known.room === r && (!known.sceneId || known.sceneId === scene.id) ? " selected" : ""}>${
         foundry.utils.escapeHTML(r)}</option>`;
     const roomOptions = places.length === 1
         ? places[0].rooms.map(r => roomOption(places[0].scene, r)).join("")
@@ -1480,7 +1513,7 @@ export async function openBodyDiscoveryDialog() {
     const victims = dead.map(a => {
         const name = foundry.utils.escapeHTML(a.name);
         const label = announcedAlready(a, flagsHeldNow) ? game.i18n.format("DRPG.Chapter.victimAnnounced", { name }) : name;
-        return `<option value="${a.id}">${label}</option>`;
+        return `<option value="${a.id}"${incident?.active && a.id === incident.victimId ? " selected" : ""}>${label}</option>`;
     }).join("");
     /* THE NOTE SAYS WHAT THIS PRESS DOES NOW (E11 C4, 1.2.73; audit S13-27). One note said "the
        phase stays Daily Life ... until you start the Investigation" in every phase - from the
@@ -1496,7 +1529,7 @@ export async function openBodyDiscoveryDialog() {
         classes: ["drpg-panel", "drpg-window-body"],
         body: `<form>
             <label>${game.i18n.localize("DRPG.Chapter.whereBody")}
-                <select name="room">${roomOptions}</select></label>
+                <select name="room">${emptyOption("DRPG.Chapter.chooseOne", { selected: !roomOptions.includes(" selected") })}${roomOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Chapter.whoseBody")}
                 <select name="victim">
                     <option value="">${game.i18n.localize("DRPG.Chapter.unnamedVictim")}</option>
@@ -1504,20 +1537,24 @@ export async function openBodyDiscoveryDialog() {
                 </select></label>
             <p class="notes">${notes.join(" ")}</p>
         </form>`,
+        // A body announced to the table is not taken back (E22 rule 4): destructive, Cancel the default and first under Enter.
         footer: {
-            primary: {
-                action: "ok", label: game.i18n.localize("DRPG.Chapter.announce"),
+            destructive: [{
+                action: "ok", label: game.i18n.localize("DRPG.Chapter.announce"), disabled: !roomOptions.includes(" selected"),
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
+                    if (!f.room.value) return false;
                     return { room: f.room.value, sceneId: f.room.selectedOptions?.[0]?.dataset.scene ?? null, victimId: f.victim.value };
                 }
-            },
-            close: "cancel"
+            }],
+            close: "cancel",
+            default: "cancel"
         },
+        render: (event, dialog) => chooseFirst(dialog, "room"),
         rejectClose: false
     });
 
-    if (!result || result === "cancel") return null;
+    if (!result || result === "cancel" || !result.room) return null;
 
     return discoverBody({
         room: result.room,
@@ -1780,30 +1817,33 @@ function backupReminder() {
  * counts come in, so R357 reads it on numbers it chooses and `openChapterEndDialog` on the world's.
  */
 export function chapterEndForm({ chapter, session, day, hidden = 0, typeless = 0, holders = [], sweepable = 0,
-    faintable = 0, keyable = 0, trialSitting = false, lastChapter = false, finalTruthPlaced = false, backup = "" } = {}) {
+    faintable = 0, keyable = 0, trialSitting = false, lastChapter = false, finalTruthPlaced = false, backup = "", mastermind = false } = {}) {
+    /* A BOX SAYS WHY IT IS SHUT, AND WHAT CANNOT BE UNDONE SAYS SO (E22 C3b, 06.11.2026; audit S12-19, the owner's Q-E21-1
+       (c)). A box at 0 was disabled with its label at full contrast and no reason, so it read as live; its words are the
+       fine print now (`.notes`, the palette's dim) with the reason after them (`DRPG.Chapter.optNothing`, the trial's own).
+       The four that cannot be undone - the reveal, the sweep, the Faint clean-up, the Key Remnants taken off - stay ticked
+       with their counts, as the owner's default keeps them, and carry the destructive mark: `drpg-destructive` on the
+       label and "cannot be undone" in its words (the mark's face is the role table's, E22 C6). */
     const box = (name, n) => `<input type="checkbox" name="${name}"${n ? " checked" : " disabled"} />`;
+    const option = (name, n, words, { permanent = false, why = "DRPG.Chapter.optNothing" } = {}) => n
+        ? `<label class="drpg-checkbox${permanent ? " drpg-destructive" : ""}"${permanent ? " data-drpg-permanent" : ""}>
+                ${box(name, n)}
+                ${words}${permanent ? ` <span class="notes">${game.i18n.localize("DRPG.Chapter.optPermanent")}</span>` : ""}</label>`
+        : `<label class="drpg-checkbox" data-drpg-off>
+                ${box(name, n)}
+                <span class="notes">${words} - ${game.i18n.localize(why)}</span></label>`;
     return `<form>
             <p>${game.i18n.format("DRPG.Chapter.endIntro", { chapter })}</p>
-            <label class="drpg-checkbox">
-                ${box("reveal", hidden)}
-                ${game.i18n.format("DRPG.Chapter.optReveal", { n: hidden })}</label>
+            ${option("reveal", hidden, game.i18n.format("DRPG.Chapter.optReveal", { n: hidden }), { permanent: true })}
             <p class="notes">${game.i18n.localize("DRPG.Chapter.revealKeeps")}</p>
             ${typeless ? `<p class="notes drpg-warning" data-drpg-typeless>${
                 plural("DRPG.Chapter.typeless", { n: typeless, who: esc(holders.join(", ")) })}</p>` : ""}
             <hr />
-            <label class="drpg-checkbox">
-                ${box("sweep", sweepable)}
-                ${game.i18n.format("DRPG.Chapter.optSweep", { n: sweepable })}</label>
-            <label class="drpg-checkbox">
-                ${box("faint", faintable)}
-                ${game.i18n.format("DRPG.Chapter.optFaint", { n: faintable })}</label>
-            <label class="drpg-checkbox">
-                ${box("keys", keyable)}
-                ${game.i18n.format("DRPG.Chapter.optKeys", { n: keyable })}</label>
+            ${option("sweep", sweepable, game.i18n.format("DRPG.Chapter.optSweep", { n: sweepable }), { permanent: true })}
+            ${option("faint", faintable, game.i18n.format("DRPG.Chapter.optFaint", { n: faintable }), { permanent: true })}
+            ${option("keys", keyable, game.i18n.format("DRPG.Chapter.optKeys", { n: keyable }), { permanent: true })}
             <hr />
-            <label class="drpg-checkbox">
-                ${box("endTrial", trialSitting)}
-                ${game.i18n.localize("DRPG.Chapter.optEndTrial")}</label>
+            ${option("endTrial", trialSitting, game.i18n.localize("DRPG.Chapter.optEndTrial"), { why: "DRPG.Chapter.optNoTrial" })}
             <label class="drpg-checkbox">
                 <input type="checkbox" name="nextChapter"${lastChapter ? "" : " checked"} />
                 ${game.i18n.format("DRPG.Chapter.optNextChapter", { from: chapter, to: chapter + 1 })}</label>
@@ -1816,8 +1856,10 @@ export function chapterEndForm({ chapter, session, day, hidden = 0, typeless = 0
                 <input type="checkbox" name="nextMorning" checked />
                 ${game.i18n.format("DRPG.Chapter.optNextMorning", { day: day + 1 })}</label>
             <p class="notes">${game.i18n.localize("DRPG.Chapter.endNote")}</p>
-            <p class="notes${finalTruthPlaced ? "" : " drpg-warning"}">${game.i18n.localize(
-                finalTruthPlaced ? "DRPG.Mastermind.finalTruthPlaced" : "DRPG.Chapter.finalTruthMissing")}</p>
+            ${/* The Final Truth Remnant points at the Mastermind (E22 C3b; audit S06-47): a season with none set is told
+                 nothing about it, and the warning was red at every chapter's end of such a season. */ ""}
+            ${mastermind ? `<p class="notes${finalTruthPlaced ? "" : " drpg-warning"}" data-drpg-final-truth>${game.i18n.localize(
+                finalTruthPlaced ? "DRPG.Mastermind.finalTruthPlaced" : "DRPG.Chapter.finalTruthMissing")}</p>` : ""}
             <p class="notes">${esc(backup)}
                 <button type="button" data-drpg-backup>${esc(game.i18n.localize("DRPG.Case.backupTile"))}</button></p>
         </form>`;
@@ -1871,8 +1913,9 @@ export async function openChapterEndDialog() {
     const { reveal: revealable, typeless, typelessHolders } = revealPlan();
     const hidden = revealable.length;
 
-    const { finalTruthPlacedThisChapter } = await import("./mastermind.mjs");
+    const { finalTruthPlacedThisChapter, mastermindActor } = await import("./mastermind.mjs");
     const finalTruthPlaced = finalTruthPlacedThisChapter();
+    const mastermind = Boolean(mastermindActor());
 
     /* WHAT THE THREE CLEAN-UPS WOULD TAKE, COUNTED BEFORE THEY ARE OFFERED.
        Each count applies the same rule its action does, for the reason the reveal count
@@ -1910,7 +1953,7 @@ export async function openChapterEndDialog() {
         body: chapterEndForm({
             chapter: getClock().chapter, session: getClock().session, day: getClock().day ?? 1,
             hidden, typeless, holders: typelessHolders, sweepable, faintable, keyable, trialSitting, lastChapter,
-            finalTruthPlaced, backup: backupReminder()
+            finalTruthPlaced, backup: backupReminder(), mastermind
         }),
         // The case's backup, from the window a chapter closes in (E04): the answer
         // keys it is about to reveal and sweep live in GM browsers, not the world.
@@ -1921,9 +1964,11 @@ export async function openChapterEndDialog() {
                     .catch(err => error("Could not back up the case", err));
             });
         },
+        // The chapter's end is named by its effect (E22-05; S13-04: it said "Do it") and cannot be undone: destructive,
+        // Cancel the default and first under Enter.
         footer: {
-            primary: {
-                action: "ok", label: game.i18n.localize("DRPG.Chapter.endConfirm"),
+            destructive: [{
+                action: "ok", label: game.i18n.format("DRPG.Chapter.endButton", { n: getClock().chapter }),
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
                     return {
@@ -1937,8 +1982,9 @@ export async function openChapterEndDialog() {
                         nextMorning: f.nextMorning.checked
                     };
                 }
-            },
-            close: "cancel"
+            }],
+            close: "cancel",
+            default: "cancel"
         },
         rejectClose: false
     });
@@ -2479,10 +2525,11 @@ async function askStoppedEnd(record) {
         classes: ["drpg-panel"],
         body: `<p class="drpg-warning">${esc(game.i18n.format("DRPG.Chapter.endStands", { steps: listOf(undone.map(stepWords)) }))}</p>${
             earlier.length ? `<p>${esc(game.i18n.format("DRPG.Chapter.doneEarlier", { steps: listOf(earlier.map(stepWords)) }))}</p>` : ""}`,
-        // Cancel the default, as before (E42 C2): the window has no field, so the focused button is the one Enter presses.
+        // Cancel the default, as before (E42 C2). Finish runs the rest of an end and Drop gives it up for good: both cannot
+        // be undone (E22 rule 4), destructive, Cancel first under Enter.
         footer: {
-            primary: { action: "finish", label: game.i18n.localize("DRPG.Chapter.finishEnd") },
-            secondary: [{ action: "drop", label: game.i18n.localize("DRPG.Chapter.dropRest") }],
+            destructive: [{ action: "finish", label: game.i18n.localize("DRPG.Chapter.finishEnd") },
+                { action: "drop", label: game.i18n.localize("DRPG.Chapter.dropRest") }],
             close: "cancel",
             default: "cancel"
         },

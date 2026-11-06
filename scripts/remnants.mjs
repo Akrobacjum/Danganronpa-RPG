@@ -2441,8 +2441,9 @@ export async function confirmClearFaint({ tokens = null } = {}) {
         return 0;
     }
 
+    // These tokens do not come back (E22 rule 4): destructive, named by its effect, Cancel the default and first under Enter.
     const sure = await drpgConfirm({
-        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        yes: { role: "destructive", label: game.i18n.localize("DRPG.Panel.clearFaint") },
         no: "cancel",
         title: game.i18n.localize("DRPG.Panel.clearFaint"),
         classes: ["drpg-panel"],

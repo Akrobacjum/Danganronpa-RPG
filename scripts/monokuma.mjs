@@ -284,7 +284,39 @@ export function monokumasWithoutPool() {
     return monokumaActors().filter(a => !holders.has(map[a.id] ?? ""));
 }
 
-/** Add a "Mark as Monokuma" toggle to the actor directory context menu. */
+/*
+ * MARK AND UNMARK, BY STATE, AND ASKED FOR A PLAYER'S CHARACTER (E22 C3b, 06.11.2026; audit S03-34). One entry, "Mark as
+ * Monokuma", marked and unmarked alike, with no question: a mis-click on a player's character set their Hope and actions
+ * to 0, and unmarking gives nothing back. Two entries now, each shown in the state it changes (`condition`), and marking a
+ * character a player owns asks first, the yes destructive with Cancel the default (E22 rule 4). Unmarking still gives back
+ * nothing (a rules change, not E22's) and is not asked.
+ */
+const entryActor = li => game.actors.get(li.dataset?.entryId ?? li.dataset?.documentId);
+
+/** Whether a user who is no GM owns `actor`: a player's character, whose Hope and actions a mark would take. */
+function playedByAPlayer(actor) {
+    return game.users.some(u => !u.isGM && actor?.testUserPermission?.(u, "OWNER"));
+}
+
+/** Mark `actor` as a Monokuma from the directory: asked first when a player owns it. */
+async function markFromDirectory(actor) {
+    if (playedByAPlayer(actor)) {
+        const { drpgConfirm } = await import("./ui-kit.mjs");
+        const name = foundry.utils.escapeHTML(actor.name);
+        const sure = await drpgConfirm({
+            classes: ["drpg-panel"],
+            title: game.i18n.localize("DRPG.Monokuma.toggle"),
+            body: `<p>${game.i18n.format("DRPG.Monokuma.markAsk", { name })}</p>`,
+            yes: { role: "destructive", label: game.i18n.localize("DRPG.Monokuma.toggle") },
+            no: "cancel",
+            rejectClose: false
+        });
+        if (!sure) return null;
+    }
+    return setMonokuma(actor, true);
+}
+
+/** Add "Mark as Monokuma" and "Unmark as Monokuma" to the actor directory context menu, each in the state it changes. */
 export function registerMonokuma() {
     Hooks.on("getActorContextOptions", (directory, options) => {
         if (!game.user.isGM) return;
@@ -293,12 +325,23 @@ export function registerMonokuma() {
             name: "DRPG.Monokuma.toggle",
             icon: '<i class="fa-solid fa-masks-theater"></i>',
             condition: li => {
-                const actor = game.actors.get(li.dataset?.entryId ?? li.dataset?.documentId);
-                return actor?.type === "character";
+                const actor = entryActor(li);
+                return actor?.type === "character" && !isMonokuma(actor);
             },
             callback: li => {
-                const actor = game.actors.get(li.dataset?.entryId ?? li.dataset?.documentId);
-                if (actor) setMonokuma(actor, !isMonokuma(actor));
+                const actor = entryActor(li);
+                if (actor) markFromDirectory(actor);
+            }
+        }, {
+            name: "DRPG.Monokuma.unmark",
+            icon: '<i class="fa-solid fa-masks-theater"></i>',
+            condition: li => {
+                const actor = entryActor(li);
+                return actor?.type === "character" && isMonokuma(actor);
+            },
+            callback: li => {
+                const actor = entryActor(li);
+                if (actor) setMonokuma(actor, false);
             }
         });
     });

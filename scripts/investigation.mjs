@@ -1580,8 +1580,9 @@ export async function confirmSweepBullets({ actors = null } = {}) {
         return 0;
     }
 
+    // What cannot be undone, named by its effect (E22 rules 4, 9): destructive, Cancel the default and first under Enter.
     const sure = await drpgConfirm({
-        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        yes: { role: "destructive", label: game.i18n.localize("DRPG.Panel.sweepBullets") },
         no: "cancel",
         title: game.i18n.localize("DRPG.Panel.sweepBullets"),
         classes: ["drpg-panel"],
@@ -2341,8 +2342,9 @@ export async function deleteTraceRow(key) {
     const trace = allTraces().find(t => rowKey(t.scene.id, t.token.id) === key);
     if (!trace) return null;
     const name = trace.data.public?.name || traceContextLine(trace.data) || key;
+    // A Remnant deleted does not come back (E22 rule 4): destructive, named by its effect, Cancel the default.
     const sure = await drpgConfirm({
-        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        yes: { role: "destructive", label: game.i18n.localize("DRPG.Investigation.deleteTraceTitle") },
         no: "cancel",
         title: game.i18n.localize("DRPG.Investigation.deleteTraceTitle"),
         classes: ["drpg-panel"],

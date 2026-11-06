@@ -7,8 +7,8 @@
  * `incidentPeople`, `recentTurnsHtml`, `cleanupSection` and `killerCleanup`), the
  * stage it reopens on (`incidentSignature`), its footer (`incidentButtons`), and
  * the footer's "ask again" for the opening roll (`reaskOpening`, rate-limited on
- * this client by `lastReask` and `REASK_COOLDOWN_MS`). Its one piece of state is
- * `lastReask`. What it does not hold: the incident's record and its roads
+ * this client by `lastReask` and `REASK_COOLDOWN_MS`) and its Pass (`lastPass`, `PASS_COOLDOWN_MS`, E22 C3b). Its
+ * state is those two times. What it does not hold: the incident's record and its roads
  * (incident-store.mjs) and the rules the window and the tracker call
  * (murder-rules.mjs). It listens to no socket and sends nothing.
  *
@@ -337,6 +337,22 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
 let lastReask = 0;
 const REASK_COOLDOWN_MS = TIMING.reaskCooldownMs;
 
+/**
+ * THE TRACKER'S PASS, ONCE PER PRESS (E22 C3b, 06.11.2026; audit S03-34). Pass the turn was the default under Enter and
+ * the tracker reopens after it with the same footer, so a held or doubled Enter passed turn after turn and ran the
+ * drain on every full round. Close is the default now, and a Pass within 1.5 s of the last on this client is refused
+ * with a word (`passTooSoon`), as the opening's ask-again is.
+ */
+let lastPass = 0;
+const PASS_COOLDOWN_MS = 1500;
+
+/** Whether a Pass pressed now goes through (`passTooSoon`), and the time noted when it does. */
+function passAllowed(now = Date.now()) {
+    if (now - lastPass < PASS_COOLDOWN_MS) return false;
+    lastPass = now;
+    return true;
+}
+
 /** The three people in the incident, and the victim's Health and Sanity marks as text. */
 function incidentPeople(now) {
         const killer = game.actors.get(now.killerId);
@@ -531,14 +547,19 @@ function incidentButtons(state) {
             // second, manual route only invited the GM to nominate somebody
             // who had not actually walked in - and to do it twice, since the
             // watcher had usually already fired.
-            { action: "pass", label: game.i18n.localize("DRPG.Murder.passTurn"), default: true }
+            //
+            // NOT IN THE RESOLUTION (E22 C3b; audit S03-34): at Stage 6 there are no turns left, and Pass did nothing.
+            ...(state.stage === "resolution" ? [] : [{ action: "pass", label: game.i18n.localize("DRPG.Murder.passTurn") }])
         ])
     ];
+    /* THE FOOTER BY ROLE (E22 C3b, 06.11.2026; audit S03-34). Close is the default, so Enter passes no turn; Pass and
+       the ask-again are ways on, beside it; End the murder - "Close the murder" until C3b, in the same dark face as Close
+       - cannot be undone: the destructive role, last on the left, apart from the closing word. */
     return {
-        primary: list.find(b => b.action === "pass") ?? null,
-        secondary: list.filter(b => b.action === "reask"),
+        secondary: list,
         destructive: [{ action: "end", label: game.i18n.localize("DRPG.Murder.endMurder") }],
-        close: { role: "close", action: "close" }
+        close: { role: "close", action: "close" },
+        default: "close"
     };
 }
 
@@ -652,7 +673,8 @@ export async function openIncidentTracker() {
     });
 
     if (action === "pass") {
-        await passTurn();
+        if (passAllowed()) await passTurn();
+        else ui.notifications.warn(game.i18n.localize("DRPG.Murder.passTooSoon"));
         return openIncidentTracker();
     }
     if (action === "reask") {
@@ -660,8 +682,9 @@ export async function openIncidentTracker() {
         return openIncidentTracker();
     }
     if (action === "end") {
+        // The yes says what it does and cannot be undone (E22 rule 4): destructive, Cancel the default and first under Enter.
         const sure = await drpgConfirm({
-            yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+            yes: { role: "destructive", label: game.i18n.localize("DRPG.Murder.endMurder") },
             no: "cancel",
             classes: ["drpg-panel"],
             title: game.i18n.localize("DRPG.Murder.endMurder"),

@@ -80518,8 +80518,8 @@ const SCENARIOS = [
             if (KEY) await game.settings.set(MODULE_ID, KEY, {});
             await settle();
         }
-        // In the kit's tree order since E21 C3a (ui-kit.mjs's header): the right group (Finish) first, then Cancel and Drop.
-        const buttons = [["finish", false], ["cancel", true], ["drop", false]];
+        // In the kit's tree order (ui-kit.mjs's header): since E22 C3b Finish and Drop are destructive, so Cancel stands first.
+        const buttons = [["cancel", true], ["finish", false], ["drop", false]];
         equal(stableJson(read), stableJson({
             stopped: ["applying", 1],
             newEnd: [null, 0, true],
@@ -82766,6 +82766,62 @@ const SCENARIOS = [
         equal(J({ round: { ...read.round, read: undefined }, tracker: { ...read.tracker, read: undefined } }),
             J({ round: { undeclared: [], own: true, other: false, dayMove: true }, tracker: { undeclared: [], own: true, other: false } }),
             "[each window's region: the module keys its build reads and does not declare, rebuilt on its own key, on a key nobody declares, the round's window gone after a day move]");
+    }],
+    ["E22-T1 - Enter in Who died? kills nobody and Enter in the body's announcement announces nothing (E22 C3b; S06-08): each window drawn on the GM as a table draws it, Enter pressed as a browser presses it (the form submitted by its first submit button), the answer, the dead, the bodies found and the chat read", async () => {
+        /*
+         * E22 C3b, 06.11.2026; audit S06-08: Who died? opened on the first living student with "They are dead" the
+         * default, so one Enter killed them and destroyed their Truth Bullets; the body's window opened on the first room
+         * with Announce the default. Both windows are drawn here (`__dialogWindows`), with no incident running, and Enter
+         * pressed in each as E44-T5 presses it: `requestSubmit` with the first submit button in the tree (HTML's implicit
+         * submission; jsdom submits nothing on a synthetic key). Read: which button that is, what the select holds when drawn (nobody, no room), the answer, who is dead
+         * after, the bodies the world records as found and the chat. Put back: anyone killed (revived), the two body
+         * settings, the messages. Red on C3a's tree: Enter pressed "They are dead" and killed the first living student.
+         */
+        needs(env.primaryGm(), "the body's announcement is the primary GM's");
+        needs(env.dialogs(), "both windows are drawn and Enter pressed in them");
+        needs(world.atLeast("livingStudents", 1), "Who died? lists the living");
+        const C = await import("./chapter.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse } = await import("./eclipse.mjs");
+        must(!murderState() && !isEclipse(), "an incident or an Eclipse stands - Who died? would choose its victim, or the body's window refuses");
+        const L = key => game.i18n.localize(key);
+        const drawn = title => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === L(title)) ?? null;
+        const alive = C.livingStudentsForGm();
+        const bodiesWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? null);
+        const foundWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? null);
+        const had = new Set(game.messages.map(m => m.id));
+        const enter = async (title, open, field) => {
+            const run = Promise.resolve().then(open).catch(err => `threw ${err?.message ?? err}`);
+            if (!await until(() => Boolean(drawn(title)), 6000)) return { drawn: false };
+            const el = drawn(title).element;
+            const first = el.querySelector('footer button[type="submit"]');
+            const form = el.querySelector("form");
+            const holds = el.querySelector(`select[name="${field}"]`)?.value ?? null;
+            if (form && first && !first.disabled) form.requestSubmit(first);
+            const answer = await Promise.race([run, wait(4000).then(() => "unanswered")]);
+            if (drawn(title)) await drawn(title).close();
+            return { first: first?.dataset.action ?? null, holds, answer: answer === null || typeof answer !== "object" ? answer : "an answer" };
+        };
+        const read = {};
+        try {
+            read.death = await enter("DRPG.Chapter.deathTitle", () => C.openDeathDialog(), "actor");
+            await settle();
+            read.dead = alive.filter(a => C.isDeadForGm(a)).map(a => a.name);
+            read.body = await enter("DRPG.Chapter.bodyTitle", () => C.openBodyDiscoveryDialog(), "room");
+            await settle();
+            read.found = stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? null) === stableJson(bodiesWas)
+                && stableJson(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? null) === stableJson(foundWas);
+            read.cards = game.messages.filter(m => !had.has(m.id)).length;
+        } finally {
+            for (const title of ["DRPG.Chapter.deathTitle", "DRPG.Chapter.bodyTitle"]) if (drawn(title)) await drawn(title).close();
+            for (const a of alive) if (C.isDeadForGm(a)) await C.reviveCharacter(a, { quiet: true });
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodiesWas);
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, foundWas);
+            for (const m of game.messages.contents) if (!had.has(m.id)) await m.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ death: { first: "cancel", holds: "", answer: false }, dead: [], body: { first: "cancel", holds: "", answer: null }, found: true, cards: 0 }),
+            "[Who died?: the first submit button, what its select holds when drawn and the window's answer; the students dead after; the body's window: the same; the bodies found unchanged; the cards posted]");
     }],
     ...GRID
 ];

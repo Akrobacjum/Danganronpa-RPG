@@ -420,6 +420,13 @@ export function registerMastermind() {
  */
 export async function toggleFinalTrialFlag() {
     const next = !inFinalTrial();
+    /* NO FINAL TRIAL WITHOUT A MASTERMIND (E22 C3b, 06.11.2026; audit S06-48): the announcement went to every screen with
+       nobody set, and the trial it opened had nobody to name. Refused before anything is asked or written; taking a flag
+       down asks for nobody. */
+    if (next && !mastermindActor()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Mastermind.noneSet"));
+        return;
+    }
 
     const sure = await drpgConfirm({
         yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
@@ -605,6 +612,8 @@ export async function openMastermindDialog() {
     ...(lair && !lairRooms.includes(lair) ? [`<option value="${foundry.utils.escapeHTML(lair)}" selected>${
         foundry.utils.escapeHTML(game.i18n.format("DRPG.Project.roomElsewhere", { room: lair }))}</option>`] : [])].join("");
 
+    // The body's verdict button closes this window and asks for the verdict's own (below).
+    let verdictAsked = false;
     const result = await drpgWindow({
         title: game.i18n.localize("DRPG.Mastermind.dialogTitle"),
         classes: ["drpg-panel", "drpg-window-mastermind"],
@@ -629,6 +638,16 @@ export async function openMastermindDialog() {
                 <legend>${game.i18n.localize("DRPG.Monocub.giveHope")}</legend>
                 <div class="drpg-mm-live">${hopeBox()}</div>
             </fieldset>` : ""}
+            ${/* THE VERDICT IN THE BODY, WITH ITS NOTE (E22 C3b, 06.11.2026; audit S06-48). It stood in the footer between
+                 Apply and Cancel, live with "- nobody set -", and read as a third answer to this window. It opens a window
+                 of its own, so it is a button of the body, apart from the footer's answers, said what it does, and shut
+                 while nobody is the Mastermind. */ ""}
+            <fieldset class="drpg-mm-verdict">
+                <legend>${game.i18n.localize("DRPG.Mastermind.verdictTitle")}</legend>
+                <p class="notes">${game.i18n.localize(current ? "DRPG.Mastermind.verdictBodyNote" : "DRPG.Mastermind.verdictNobody")}</p>
+                <button type="button" class="drpg-destructive" data-drpg-final-verdict${current ? "" : " disabled"}>${
+                    game.i18n.localize("DRPG.Mastermind.verdictOpen")}</button>
+            </fieldset>
         </form>`,
         footer: {
             primary: {
@@ -656,13 +675,18 @@ export async function openMastermindDialog() {
             // (Dawid, 26.08): the Class Trial console already owns that toggle,
             // and a second copy next to the button that can wipe the season was
             // a duplicate with worse neighbours. The verdict stays - it has no
-            // other home.
-            secondary: [{ action: "finalVerdict", label: game.i18n.localize("DRPG.Mastermind.verdictTitle") }],
+            // other home - in the body since E22 C3b.
             close: "cancel"
         },
         render: (event, dialog) => {
             const wireGive = () => wireMastermindGive(dialog, current);
             wireGive();
+            dialog.element?.querySelector("[data-drpg-final-verdict]")?.addEventListener("click", ev => {
+                ev.preventDefault();
+                if (!current) return;
+                verdictAsked = true;
+                dialog.close();
+            });
 
             keepLive(dialog, {
                 region: ".drpg-mm-live",
@@ -678,15 +702,15 @@ export async function openMastermindDialog() {
     // Anything that is not one of this dialog's own answers is a dismissal, and
     // a dismissal changes nothing. `rejectClose: false` turns the X and Escape
     // into a `null` that used to fall all the way through to the clear.
-    if (!result || result === "cancel") return null;
-
     // Opens a window of its own and then comes back here, so the GM lands on
     // the screen they pressed the button from rather than on the scene. Same
     // pattern the GM panel uses for its own tiles.
-    if (result === "finalVerdict") {
+    if (verdictAsked) {
         await openFinalVerdictDialog();
         return openMastermindDialog();
     }
+
+    if (!result || result === "cancel") return null;
 
     return applyMastermindChoice(result, current);
 }
