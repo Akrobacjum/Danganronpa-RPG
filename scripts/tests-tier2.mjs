@@ -75042,6 +75042,61 @@ const SCENARIOS = [
             + "reload of a world loaded paused on a browser with no beat, the clock written an hour ago, unpaused]}");
     }],
 
+    ["E23-T1 - the track band at the table: a track started, another track of the same playlist and the playlist stopped leave this browser's band the node it had before, and after the stop it is `is-empty` exactly when nothing plays here; a change of the time of day - the music's state following it where the music is on - keeps the node (E23 C2a, E23-11, E23-13; request A1, S10-28, the owner's 27.09)", async () => {
+        /*
+         * E23 C2a, 07.11.2026. At 2b866dde a playlist's next track went out through `updatePlaylist`, the band read
+         * nothing while the new sound loaded and was removed, and the 3 s interval put a new one back: the clock lost and
+         * found a line, and the curtain was cut twice (S10-28; the owner's 27.09 reads the same at a change of the time of
+         * day, music.mjs switching the track with it). Here, on this GM: a fixture playlist of two sounds, the first
+         * played, the second played in its place, the playlist stopped, then the next time of day; each step waits past
+         * the band's 3 s interval and reads whether the band is the node the clock had before the test. What a step
+         * names is this browser's own audio (`nowPlayingHere`): on a real Foundry the band fills while the sound plays;
+         * the headless harness plays no audio, so there it stays empty and only the node is read. The clock and the
+         * playlist are put back. Red on 2b866dde: with nothing playing the clock has no band to begin with.
+         */
+        const H = await import("./hud.mjs");
+        const M = await import("./music.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const hud = document.getElementById(H.HUD_ID);
+        must(hud?.isConnected, "no clock on this page - renderHud drew nothing to read");
+        const band = () => hud.querySelector(":scope > .drpg-hud-track");
+        const first = band();
+        ok(first, "the clock has no band before anything is played here");
+        const { chapter, day, session, timeOfDay, phase } = getClock() ?? {};
+        const next = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(timeOfDay) + 1) % TIMES_OF_DAY.length];
+        let playlist = null;
+        const steps = [];
+        const look = label => { const b = band(); steps.push([label, b === first, Boolean(b?.isConnected)]); };
+        let after = null;
+        try {
+            playlist = await Playlist.create({ name: "Suite E23-T1 fixture", sounds: [
+                { name: "E23-T1 one", path: "sounds/lock.wav", repeat: true }, { name: "E23-T1 two", path: "sounds/notify.wav", repeat: true }] });
+            must(playlist, "the fixture playlist was not made");
+            const [one, two] = Array.from(playlist.sounds);
+            await playlist.playSound(one);
+            await wait(3500);
+            look("a track");
+            await playlist.stopSound(one);
+            await playlist.playSound(two);
+            await wait(3500);
+            look("the next track");
+            await playlist.stopAll();
+            await wait(3500);
+            look("stopped");
+            after = [band()?.classList.contains("is-empty") ?? null, M.nowPlayingHere() === null, band()?.children.length ?? null];
+            await setClock({ timeOfDay: next });
+            await settle();
+            await wait(3500);
+            look("the next time of day");
+        } finally {
+            if (playlist) { await playlist.stopAll(); await playlist.delete(); }
+            await setClock({ chapter, day, session, timeOfDay, phase });
+            await settle();
+        }
+        equal(stableJson([steps, after?.[0] === after?.[1], after?.[0] ? after[2] : 0]),
+            stableJson([[["a track", true, true], ["the next track", true, true], ["stopped", true, true], ["the next time of day", true, true]], true, 0]),
+            "[each step: the band the clock had before the test, still on the page]; [after the stop: is-empty exactly when nothing plays here]; [an empty band's children]");
+    }],
     ["the Eclipse and the incident (E17-T10): no Eclipse starts while an incident's opening or fight runs and the HUD's chevron says why, a motive that comes due in it reaches the incident's table alone and comes due in public after it, and a bystander's reload shows the clock the incident opened at", async () => {
         /*
          * E17 C7, 26.10.2026; E17-34, audit S10-07, the owner's Q3 (a) of 19.10 ("najpierw zamknij incydent"). An

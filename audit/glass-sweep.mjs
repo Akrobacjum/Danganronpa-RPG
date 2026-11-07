@@ -195,14 +195,23 @@
  * `--shots` both states are kept (`<theme>-<role>-<size>-dock-shown.png`, `-dock-hidden.png`). The line prints
  * `dock <lift shown>/<lift hidden>`. `--no-dock` leaves it out.
  *
+ * THE TRACK BAND (E23 C2a, 07.11.2026; request A1 and the owner's 27.09). The page's clock carries the track band empty,
+ * as hud.mjs leaves it when nothing plays, so every reading above is of the clock at the height it has with music and
+ * without. Last at every size, both roles, the page's `drpgTrackCheck` fills the band, empties it and fills it again,
+ * and fails the size where the clock or the band changes height, an empty band is hidden or holds anything, the cut's
+ * signature moves or a drpgGlassCut fires. Its control, once a run: 2b866dde's road planted (the empty band taken out of
+ * the clock), which must read not ok. The line prints `track ok h <clock heights> band <h> cut same cuts 0`.
+ * `--no-track` leaves it out; `--track` (below) reads the hour's change with it.
+ *
  * usage: node audit/glass-sweep.mjs [--root <tree>] [--base <url>] [--page <path?query>]
  *          [--themes stained,legacy] [--sizes 1920x1080,...] [--known <size>:<ov|nc|bf|eg>=<n>,...]
  *          [--sel <launcher selector>] [--wait <ms after the glass, 2500>] [--shots <dir>] [--corner]
  *          [--chromium <executable>] [--no-control] [--no-notices] [--roles gm,player] [--no-room]
- *          [--no-windows] [--no-voice] [--no-objection] [--no-dock] [--idle <s>, 5]
+ *          [--no-windows] [--no-voice] [--no-objection] [--no-dock] [--no-track] [--idle <s>, 5]
  *        node audit/glass-sweep.mjs --frame-cost [--frames <n>, 30] [--themes ...] [--sizes ...] [--glow <n>]   (E88 C0: below)
  *        node audit/glass-sweep.mjs --edges [--edge-frames <n>, 30] [--edge-sel <part>|<part>] [--edge-plant <css>] [--themes ...] [--sizes ...] [--no-control]   (E89 C5: below)
  *        node audit/glass-sweep.mjs --roster [--themes ...] [--roles ...] [--sizes ..., 1366x768,1920x1080] [--no-control]   (E50 C2: below)
+ *        node audit/glass-sweep.mjs --track [--track-kinds fill,hour-empty,hour-full,hour-swap,hour-notice] [--themes ...] [--roles ...] [--sizes ...] [--no-control]   (E23 C2a: below)
  *        node audit/glass-sweep.mjs --turn [--kinds phase-recut,phase,hour,layout] [--sizes ..., 1600x900,1366x768] [--roles ...]
  *          [--themes ..., stained] [--turn-ms <n>, 3000] [--runs <n>, 1] [--json <file>] [--against <json>] [--no-control]   (E23 C1a: below)
  * `--corner` loads at twice the pixel density and `--shots` then keeps the bottom-right
@@ -225,6 +234,7 @@ const waitMs = Number(opt("--wait") ?? 2500);
 const shots = opt("--shots"), corner = args.includes("--corner"), control = !args.includes("--no-control"), notices = !args.includes("--no-notices");
 const roles = (opt("--roles") ?? "gm,player").split(",").filter(Boolean), rooms = !args.includes("--no-room");
 const windows = !args.includes("--no-windows"), voices = !args.includes("--no-voice"), objections = !args.includes("--no-objection"), docks = !args.includes("--no-dock");
+const tracks = !args.includes("--no-track");
 const idleS = Number(opt("--idle") ?? 5);
 const known = Object.fromEntries((opt("--known") ?? "").split(",").filter(Boolean).map(k => {
     const [size, kv] = k.split(":"); const [key, v] = kv.split("=");
@@ -241,9 +251,14 @@ const SIZES = (opt("--sizes") ?? "1920x1080,1366x768,2560x1440,1440x900,1536x864
    round 2's goal Rb), read on fix r2-H3's tree: 'notes' under Stained Glass (F 83, box 301x321) and 'clock' under
    Monokuma Legacy (F 426, box 430x426), a GM and a player alike. 1366x600 and 1366x560 (E78 fix r2-H1, review round
    2's cor F1: two short desks, the voice tile's), read on af5eb69: 'notes' under Stained Glass (F 26 and -14) and
-   'clock' under Monokuma Legacy (F 369 and 329), a GM and a player alike. */
+   'clock' under Monokuma Legacy (F 369 and 329), a GM and a player alike.
+   E23 C2a (07.11.2026; request A1 and the plan's A8 amend: the fixed track band changes F) - the clock carries its track
+   band whether music plays or not, 34 px under Stained Glass at the 21 px floor (the band 24 + 4 + 1, its margin 4,
+   at a scale of 0.85) and 23 px under Monokuma Legacy, so F falls by as much at every desk. Read in Chromium on C2a's
+   tree, GM and player alike: 1536x864 moves from 'clock' (F 290 at 2b866dde) to 'notes' under Stained Glass (F 256,
+   box 301x145, pane 346x218 leaning 6 degrees); every other place holds. */
 const PIN_ROW = ["1024x768", "1180x820", "820x1180", "768x1024", "393x852", "844x390", "640x360"];
-const PIN_NOTES = { stained: ["1366x768", "1280x800", "1224x768", "1264x800", "1300x768", "1280x720", "1366x657", "1366x600", "1366x560"], legacy: [] };
+const PIN_NOTES = { stained: ["1366x768", "1536x864", "1280x800", "1224x768", "1264x800", "1300x768", "1280x720", "1366x657", "1366x600", "1366x560"], legacy: [] };
 const PINS = Object.fromEntries(["stained", "legacy"].flatMap(theme => ["gm", "player"].flatMap(role =>
     ("1920x1080,1366x768,2560x1440,1440x900,1536x864,1600x900,1680x1050,1280x800,1224x768,1264x800,1300x768,1400x900,3840x2160,"
         + "1920x1200,1024x768,1180x820,820x1180,768x1024,393x852,1280x720,1366x657,1366x600,1366x560,844x390,640x360").split(",").map(size =>
@@ -265,14 +280,17 @@ const PINS = Object.fromEntries(["stained", "legacy"].flatMap(theme => ["gm", "p
    1300x768, 301x270 became 301x155 at 1280x800 and 1264x800, 301x245 became 301x143 at 1280x720 and 1366x657
    (glass.mjs `roomNotesH`: half the run C0's pane had, less its two pads). The 'clock' rows and Legacy's did not
    move, and the sweep read them so on that tree. 1366x600 and 1366x560 (fix r2-H1) read on af5eb69: 301x143 beside
-   the notices, 430x310 under Legacy, as at 1366x657. E78 fix r2-H3 (14.10.2026; the owner on HF4's shot: "zdjecie mialo
+   the notices, 430x310 under Legacy, as at 1366x657. E23 C2a (07.11.2026; A8: the clock's track band always there, F
+   34 px less under Stained Glass) moved four rows of Stained Glass, read in Chromium on its tree: 265x302 became 265x268
+   at 1440x900, 1600x900 and 1400x900 (the clock's box shorter by the band), and 1536x864 went beside the notices,
+   265x266 becoming 301x145 there. E78 fix r2-H3 (14.10.2026; the owner on HF4's shot: "zdjecie mialo
    byc przeciagniete za krawedz ekranu", the picture was to run past the screen's edge) moved the same rows of Stained
    Glass and only those: the box stands 31 px over the screen's edge (`roomNotesLift`) with its pane run past it, 301x150
    became 301x129, 301x155 became 301x134 and 301x143 became 301x122 (`low`, the content's floor), read the same day. */
 const BOX = {
-    "stained 1920x1080": "265x364", "stained 1366x768": "301x129", "stained 2560x1440": "312x425", "stained 1440x900": "265x302",
-    "stained 1536x864": "265x266", "stained 1600x900": "265x302", "stained 1680x1050": "265x364", "stained 1280x800": "301x134",
-    "stained 1224x768": "301x129", "stained 1264x800": "301x134", "stained 1300x768": "301x129", "stained 1400x900": "265x302",
+    "stained 1920x1080": "265x364", "stained 1366x768": "301x129", "stained 2560x1440": "312x425", "stained 1440x900": "265x268",
+    "stained 1536x864": "301x145", "stained 1600x900": "265x268", "stained 1680x1050": "265x364", "stained 1280x800": "301x134",
+    "stained 1224x768": "301x129", "stained 1264x800": "301x134", "stained 1300x768": "301x129", "stained 1400x900": "265x268",
     "stained 3840x2160": "312x425", "stained 1920x1200": "265x364", "stained 1280x720": "301x122", "stained 1366x657": "301x122",
     "stained 1366x600": "301x122", "stained 1366x560": "301x122",
     "legacy 1920x1080": "430x364", "legacy 1366x768": "430x310", "legacy 2560x1440": "430x485", "legacy 1440x900": "430x310",
@@ -306,7 +324,7 @@ const PIN_BOX = Object.fromEntries(Object.entries(BOX).flatMap(([key, box]) => {
    HF4's box and its two pads), the leaning ones 344x202 at 1366x768 (its top edge from y 566 to 600, 583 at its middle: 185 px above the edge there; HF4's ran from 523 to 692 at its middle)
    and 344x195 at 1366x657, 1366x600 and 1366x560. `plantPane`'s `foot` control is HF4's cut: the pane ended 10 px
    under the box and a plain pane under it, which must fail the room check. */
-const PANE = { "1366x768": "344x202", "1224x768": "325x170", "1300x768": "325x170", "1280x800": "325x175", "1264x800": "325x175", "1280x720": "325x163", "1366x657": "344x195",
+const PANE = { "1366x768": "344x202", "1536x864": "346x218", "1224x768": "325x170", "1300x768": "325x170", "1280x800": "325x175", "1264x800": "325x175", "1280x720": "325x163", "1366x657": "344x195",
     "1366x600": "344x195", "1366x560": "344x195" };
 const PIN_PANE = Object.fromEntries(Object.entries(PANE).flatMap(([size, pane]) => ["gm", "player"].map(role => [`stained ${role} ${size}`, pane])));
 /* THE CORNER PINS (E78 fix r2-H3, 14.10.2026; the owner on HF4's shot: "przyciski na panelu livekit sa za daleko
@@ -321,7 +339,7 @@ const CORNER = "20,22 25,57", WIDE = "19,22 24,57", COMPACT = ["gm 1366x657", "g
 const PIN_CORNER = Object.fromEntries(["1920x1080", "1366x768", "2560x1440", "1440x900", "1536x864", "1600x900", "1680x1050", "1280x800", "1224x768", "1264x800",
     "1300x768", "1400x900", "3840x2160", "1920x1200", "1280x720", "1366x657", "1366x600", "1366x560"]
     .flatMap(size => ["gm", "player"].map(role => [`stained ${role} ${size}`, COMPACT.includes(`${role} ${size}`) ? "-" : /^(2560|3840)x/.test(size) ? WIDE : CORNER])));
-const TILT = { "1366x768": 6, "1224x768": 0, "1300x768": 0, "1280x800": 0, "1264x800": 0, "1280x720": 0, "1366x657": 6, "1366x600": 6, "1366x560": 6 };
+const TILT = { "1366x768": 6, "1536x864": 6, "1224x768": 0, "1300x768": 0, "1280x800": 0, "1264x800": 0, "1280x720": 0, "1366x657": 6, "1366x600": 6, "1366x560": 6 };
 const PIN_TILT = Object.fromEntries(Object.entries(TILT).flatMap(([size, deg]) => ["gm", "player"].map(role => [`stained ${role} ${size}`, deg])));
 if (shots) mkdirSync(shots, { recursive: true });
 
@@ -614,6 +632,52 @@ if (args.includes("--roster")) {
     } finally { await browser.close(); srv?.kill(); }
     if (control && roles.includes("gm") && !planted) { console.log("control: the roster met the voice tile at no size, so its fault could not be planted - FAIL"); bad++; }
     console.log(`ROSTER ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s), ${roles.length} role(s); the roster met the tile at ${met} size(s)`);
+    process.exit(bad ? 1 : 0);
+}
+
+/* THE TRACK BAND AND THE HOUR (E23 C2a, 07.11.2026; request A1, S10-28, S12-24, the owner's 27.09: "the curtain changes
+   its layout at every change of the time of day"; E23-06, E23-12, E23-13). `--track` runs this instead of the sweep. At
+   each size (the sweep's own by default, or `--sizes`), in each theme and role, a fresh page for each reading of the
+   page's `drpgTrackCheck` (`--track-kinds`, by default all five): the band filled, emptied and filled again; the hour
+   changed with the band empty, with a track throughout, with the music switching (emptied at the hour, the next track
+   3 s later, hud.mjs's interval) and with a card on the notice tile as the time of day's summary puts one. A reading
+   fails where the clock or the band is not as tall as at its start, an empty band is hidden or holds anything, the
+   cut's signature moved or a drpgGlassCut fired. THE CONTROLS, once a run at the first size: `fill` and `hour-swap`
+   with 2b866dde's road planted (an empty band taken out of the clock, a track putting a new one in), each of which must
+   read not ok. The line prints the clock's heights in the order read, the band's, `cut same|new` and the cuts. The
+   sweep proper reads `fill` at every size as well (`| track`), with the same control once a run; `--no-track` leaves it
+   out there. */
+if (args.includes("--track")) {
+    const KINDS = (opt("--track-kinds") ?? "fill,hour-empty,hour-full,hour-swap,hour-notice").split(",").filter(Boolean);
+    let bad = 0, lines = 0, planted = 0;
+    const said = r => `h ${r.steps.map(s => s.h).join("/")} band ${r.steps.map(s => s.band).join("/")} cut ${r.cut} cuts ${r.cuts}`;
+    try {
+        for (const theme of themes) for (const role of roles) for (const size of SIZES) {
+            for (const [kind, plant] of [...KINDS.map(k => [k, false]), ...(control && !planted ? [["fill", true], ["hour-swap", true]] : [])]) {
+                const [W, H] = size.split("x").map(Number);
+                const page = await browser.newPage({ viewport: { width: W, height: H } });
+                const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
+                await page.goto(`${base}/${page0}${qs.length ? (page0.includes("?") ? "&" : "?") + qs.join("&") : ""}`);
+                const loaded = await page.waitForFunction(() => window.__glass && window.drpgTrackCheck, null, { timeout: 15000 }).then(() => true, () => false);
+                const tag = `track ${(plant ? "plant " + kind : kind).padEnd(16)} ${theme.padEnd(7)} ${role.padEnd(6)} ${size.padEnd(9)}`;
+                if (!loaded) { console.log(`${tag} FAIL: the page did not load the glass or drpgTrackCheck`); bad++; await page.close(); continue; }
+                await page.waitForTimeout(waitMs);
+                const r = await page.evaluate(a => window.drpgTrackCheck(a), { kind, plant });
+                await page.close();
+                lines++;
+                if (plant) {
+                    planted++;
+                    console.log(`${tag} ${said(r)} - control ${r.ok ? "MISSES IT" : "sees it"}${r.ok ? "" : `: ${String(r.why).slice(0, 120)}`}`);
+                    if (r.ok) bad++;
+                } else {
+                    console.log(`${tag} ${said(r)}${r.ok ? " ok" : `  FAIL: ${r.why}`}`);
+                    if (!r.ok) bad++;
+                }
+            }
+        }
+    } finally { await browser.close(); srv?.kill(); }
+    if (control && !planted) { console.log("FAIL: the track's controls never ran"); bad++; }
+    console.log(`TRACK ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s) x ${roles.length} role(s) x ${SIZES.length} size(s), ${lines} reading(s), ${planted} control(s), ${bad} failing`);
     process.exit(bad ? 1 : 0);
 }
 
@@ -1225,6 +1289,7 @@ function deskAgain() {
 }
 
 const trayControlled = new Set();
+let trackControlled = false;
 let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, paneControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false, voiceControlled = false, voiceNoneControlled = false, voiceRowControlled = false, idleRead = false, fillControlled = false, objectionControlled = false, dockControlled = false;
 try {
     for (const theme of themes) for (const role of roles) {
@@ -1515,6 +1580,22 @@ try {
                     if (v.ok) fails.push("dock control reads as a pass");
                 }
             }
+            /* THE TRACK BAND (E23 C2a): the page's `drpgTrackCheck` - the band filled, emptied and filled again - and its
+               control once a run, 2b866dde's road planted (below, `--track`). The line prints the clock's heights. */
+            if (tracks) {
+                const tc = await page.evaluate(() => window.drpgTrackCheck?.() ?? null);
+                if (!tc) fails.push("the page defines no drpgTrackCheck");
+                else {
+                    line += ` | track ${tc.ok ? "ok" : "NOT ok"} h ${[...new Set(tc.steps.map(s => s.h))].join("/")} band ${tc.steps[0]?.band ?? "-"} cut ${tc.cut} cuts ${tc.cuts}`;
+                    if (!tc.ok) fails.push("track: " + tc.why);
+                    if (control && !trackControlled) {
+                        trackControlled = true;
+                        const v = await page.evaluate(() => window.drpgTrackCheck({ plant: true }));
+                        console.log(`  track control  ${v.ok ? "MISSES IT" : "sees it"}: ${String(v.why).slice(0, 140)}`);
+                        if (v.ok) fails.push("track control reads as a pass");
+                    }
+                }
+            }
             if (!r.tile) fails.push("no #drpg-notices-corner");
             if (errs.length) line += " | pageerror " + errs[0].slice(0, 80);
             if (fails.length) { bad++; line += "  FAIL: " + fails.join("; "); }
@@ -1644,6 +1725,7 @@ if (control && rooms && !opt("--sizes") && themes.some(t => !pinControlled.has(t
 if (control && rooms && !opt("--sizes") && themes.includes("stained") && !paneControlled) { bad++; console.log("FAIL: the pane controls never ran (no Stained Glass size placed the tile beside the notices)"); }
 if (control && notices && themes.includes("stained") && !fillControlled) { bad++; console.log("FAIL: the fill controls never ran (no Stained Glass desk read the card on its pane)"); }
 if (control && rooms && stackedRead && !rowControlled) { bad++; console.log("FAIL: the row controls never ran (no stacked size read a row)"); }
+if (control && tracks && lines && !trackControlled) { bad++; console.log("FAIL: the track's control never ran"); }
 if (control && docks && lines && !dockControlled) { bad++; console.log("FAIL: the dock's control never ran (no size read the dock ok)"); }
 if (control && objections && lines && !objectionControlled) { bad++; console.log("FAIL: the objection controls never ran (no size read the trial row ok)"); }
 if (control && themes.includes("stained") && !trayControlled.has("stained")) { bad++; console.log("FAIL: the tray's control never ran (no Stained Glass page was read)"); }

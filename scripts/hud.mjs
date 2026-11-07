@@ -86,28 +86,55 @@ const HUD_ID = "drpg-hud";
  * TWO COPIES OF THE TEXT, like the ticker, because a marquee that scrolls one copy
  * shows a gap. Under reduced motion the animation is off in the stylesheet and the
  * line simply sits there, clipped at the end, which is a name you can still read.
+ * The copy is `aria-hidden`: a screen reader is told the name once.
+ *
+ * ONE NODE FROM `ready`, NEVER REMOVED (E23 C2a, 07.11.2026; request A1, S10-28, D9
+ * option 1). The band used to be removed whenever `nowPlayingHere()` read nothing, and
+ * between two tracks of one playlist it reads nothing while the new sound loads: the
+ * clock lost a line and found it again with the 3 s interval below, the curtain was cut
+ * for each (glass.mjs watches the blocks' boxes), and the title started its scroll from
+ * the left. The owner's 27.09 saw the same at every change of the time of day, when
+ * music.mjs switches the track with it. So the band is always there and as tall empty
+ * as full (`height: 1lh`, danganronpa.css): with nothing playing it holds nothing at
+ * all - no words, no tooltip, no animation - and wears `is-empty`, NOT `empty`, which
+ * `#drpg-hud .empty` hides; `aria-hidden`, since there is nothing in it to read. A track
+ * change swaps what it holds, never the node. `now` is what this browser hears unless a
+ * caller hands it a reading (R122 drives the band with tracks of its own).
  */
-function paintTrackLine(hud) {
+export function paintTrackLine(hud, now = nowPlayingHere()) {
     const host = hud ?? document.getElementById(HUD_ID);
     if (!host) return;
 
-    const now = nowPlayingHere();
-    const existing = host.querySelector(".drpg-hud-track");
+    let band = host.querySelector(":scope > .drpg-hud-track");
+    if (!band) {
+        band = document.createElement("div");
+        band.className = "drpg-hud-track";
+        host.append(band);
+        lastTrackName = undefined;
+    }
 
     if (!now) {
-        existing?.remove();
+        if (lastTrackName === null) return;
         lastTrackName = null;
+        // A tooltip still up over the band would go on naming a track nobody hears.
+        const tipOn = game.tooltip?.element;
+        if (tipOn instanceof Node && band.contains(tipOn)) game.tooltip.deactivate?.();
+        band.replaceChildren();
+        band.classList.add("is-empty");
+        band.setAttribute("aria-hidden", "true");
+        delete band.dataset.tooltipText;
+        delete band.dataset.tooltip;
         return;
     }
     // A repaint that says the same thing would restart the scroll from the left,
     // which on a two-minute track is a jolt every time anything else redraws.
-    if (existing && lastTrackName === now.track) return;
+    if (lastTrackName === now.track) return;
     lastTrackName = now.track;
 
-    const band = existing ?? document.createElement("div");
-    band.className = "drpg-hud-track";
-    band.dataset.tooltip = game.i18n.format("DRPG.Hud.nowPlaying", { track: now.track });
-    band.replaceChildren();
+    band.classList.remove("is-empty");
+    band.removeAttribute("aria-hidden");
+    delete band.dataset.tooltip;
+    band.dataset.tooltipText = game.i18n.format("DRPG.Hud.nowPlaying", { track: now.track });
     /* A NOTE AT EACH END OF THE NAME (22.09, Dawid on 1.2.50: "by bylo wiadomo o co
        chodzi"). A bare title scrolling under the clock read as one more line of the clock;
        the two notes say it is a song before the name has finished arriving, and they
@@ -121,12 +148,14 @@ function paintTrackLine(hud) {
         return i;
     };
     run.append(note(), document.createTextNode(` ${now.track} `), note());
-    band.append(run, run.cloneNode(true));
-    if (!existing) host.append(band);
+    const copy = run.cloneNode(true);
+    copy.setAttribute("aria-hidden", "true");
+    band.replaceChildren(run, copy);
 }
 
-/** What the band is showing, so a redraw that changes nothing leaves it running. */
-let lastTrackName = null;
+/** What the band is showing - a track's name, null when it is empty, undefined before its first paint - so a redraw
+ *  that changes nothing leaves it running. */
+let lastTrackName;
 
 export function registerHud() {
     Hooks.once("ready", () => renderHud());
@@ -395,7 +424,14 @@ export function renderHud() {
         const previousTime = before?.dataset.drpgTime ?? null;
 
         const hud = outgoing ?? buildHudShell();
-        hud.replaceChildren();
+        /* EVERYTHING BUT THE TRACK BAND (E23 C2a; request A1, D9 option 1). The band is the one part that is not
+           rebuilt: thrown away here it lost its place in the clock for a frame and its title restarted its scroll on
+           every render. The other parts go, and the new ones are put in before it (`put`); it keeps itself up to date
+           from the playlist hooks and the interval in `registerHud`. Not `replaceChildren(band)`: that takes the band
+           out of the document and puts it back, which restarts its animation all the same. */
+        const band = hud.querySelector(":scope > .drpg-hud-track");
+        for (const node of [...hud.childNodes]) if (node !== band) node.remove();
+        const put = (...parts) => (band ? band.before(...parts) : hud.append(...parts));
         // Its language, the page's (E66 C1); a no-op on every redraw after the first.
         markLanguage(hud);
 
@@ -479,10 +515,10 @@ export function renderHud() {
            `eventsWindowActive` stopped being a theme test. */
         if (document.body.classList.contains("drpg-theme-stained-glass")
             && !document.body.classList.contains("drpg-no-ticker")) {
-            hud.append(hudTicker(phase, clock));
+            put(hudTicker(phase, clock));
         }
 
-        hud.append(
+        put(
             ...hudHeader(clock),
             buildTimeRow(clock, isGM)
         );
@@ -493,14 +529,17 @@ export function renderHud() {
            two widgets. And the minutes line is pacing advice for a time of day's two
            actions, which is not what anybody in a trial is counting.
            NOR IN AN ECLIPSE (E17 C6, 26.10.2026; audit S10-16): the clock has not moved yet, so the line went on
-           counting the time of day the Eclipse closes, in red, over a placement nobody is timing. */
-        if (showsStopwatch(clock)) hud.append(buildElapsed());
+           counting the time of day the Eclipse closes, in red, over a placement nobody is timing.
+           THE CLOCK IS SHORTER BY THAT LINE, AND THAT IS KEPT (E23 C2a, 07.11.2026; D9 option 1, S10-28, S12-24): in a
+           Class Trial and an Eclipse the clock loses the stopwatch's line, so it is shorter and the curtain is cut
+           again for it - a phase's change, which may recut (the owner's 27.09: only the hour's must not). The track
+           band below is not part of that: it holds its line with music and without. */
+        if (showsStopwatch(clock)) put(buildElapsed());
         else stopElapsed();
 
-        // And under that, what you are hearing (N-1). Rebuilt here because the whole
-        // clock has just been replaced; it keeps itself up to date after that.
-        lastTrackName = null;
-        paintTrackLine(hud);
+        // And under that, what you are hearing (N-1): made on the first render, and kept by every render after it
+        // (above); it keeps itself up to date from then on.
+        if (!band) paintTrackLine(hud);
 
         if (hud.parentElement !== host) host.append(hud);
         alignRightColumn(hud);

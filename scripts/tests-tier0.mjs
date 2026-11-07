@@ -4122,6 +4122,13 @@ const REGRESSIONS = [
         const hud = stripComments(hudText(sources));
         ok(/function paintTrackLine\(/.test(hud), "the clock has no band to paint");
         ok(/drpg-hud-track/.test(hud), "the band has no class, so the stylesheet cannot reach it");
+        /* AND THE BAND IS NEVER TAKEN AWAY (E23 C2a, 07.11.2026; request A1, S10-28, D9 option 1). At 2b866dde a stop
+           removed the node (`existing?.remove()`), and `renderHud` threw it away with the rest of the clock: the clock
+           lost a line when nothing played, the curtain was cut again for it, and between two tracks of one playlist
+           the band went and came back with the 3 s interval. Both functions read with comments blanked. */
+        const paint = fnSource(hud, "paintTrackLine"), render = fnSource(hud, "renderHud");
+        ok(!/\.remove\(\)/.test(paint), "paintTrackLine removes a node (`.remove()`), so the band leaves the clock when nothing plays");
+        ok(!/hud\.replaceChildren\(\)/.test(render), "renderHud empties the whole clock (`hud.replaceChildren()`), so the band is thrown away and its title starts its scroll again");
         const wiring = bodyOf(hud, "export function registerHud", { length: 2000 });
         for (const hook of ["updatePlaylistSound", "deletePlaylistSound"]) {
             ok(wiring.includes(hook), `the band does not wake on ${hook}`);
@@ -4892,6 +4899,36 @@ const REGRESSIONS = [
             "the track band adds its text's width to the clock's");
         ok(/\.drpg-hud-track > span \{[^}]*min-width: 100%/.test(band),
             "a short name's copy is narrower than the band, so the loop jumps");
+    }],
+
+    ["R1388 - the 27.09 reading's reach (E23 C2a, E23-06, E23-12, E23-13): the glass harness's clock carries the track band empty, as the module draws it when nothing plays, and answers `drpgTrackCheck` - the band filled and emptied, and an hour's change with it emptied, refilled mid-turn, full and with a card on the notice tile, reading the clock's height, the cut's signature and drpgGlassCut - with a control that removes the band as 2b866dde did; glass-sweep.mjs reads it at every size of its sweep and in its `--track` mode, and the hour's turn is in `--turn`'s default list", async () => {
+        /*
+         * E23 C2a, 07.11.2026; the owner's 27.09 amend (the curtain changes its layout at every change of the time of
+         * day) and request A1. Whether the clock keeps its height and the curtain its cut is a reading in Chromium, never
+         * a headless one: this holds the reading's reach - that the page carries the band and the sweep reads it - not
+         * the reading, which the commit quotes. Both files are read whole as text; nothing is sliced. Red on 2b866dde:
+         * the harness's clock has no band ("no band").
+         */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        const read = async path => {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" });
+                return res.ok ? await lfText(res) : "";
+            } catch { return ""; }
+        };
+        const [sweep, page] = await Promise.all(["audit/glass-sweep.mjs", "audit/glass-harness.html"].map(read));
+        must(sweep.length > 20000 && page.length > 20000, "glass-sweep.mjs or glass-harness.html read nothing - this test would read nothing");
+        const clock = /<div id="drpg-hud">[\s\S]*?<\/div><\/div>\s*<section id="drpg-room-tile"/.exec(page)?.[0] ?? "";
+        ok(/<div class="drpg-hud-track is-empty" aria-hidden="true"><\/div>/.test(clock), "no band in the harness's clock, empty as the module draws it when nothing plays");
+        const missing = (text, list) => list.filter(s => !text.includes(s));
+        equal(JSON.stringify({
+            harness: missing(page, ["window.drpgTrackCheck = async", "window.drpgTrackFill", "window.drpgTrackEmpty", "Hooks.on(\"drpgGlassCut\", count)",
+                "hud.offsetHeight", "q.get(\"band\") === \"full\""]),
+            kinds: missing(page, ["\"fill\"", "\"hour-empty\"", "\"hour-full\"", "\"hour-swap\"", "\"hour-notice\""]),
+            sweep: missing(sweep, ["window.drpgTrackCheck?.()", "if (args.includes(\"--track\")) {", "plant: true", "track ${"]),
+            turn: /const KINDS = \(opt\("--kinds"\) \?\? "[^"]*\bhour\b[^"]*"\)/.test(sweep)
+        }), JSON.stringify({ harness: [], kinds: [], sweep: [], turn: true }),
+        "[what the harness's track check does not hold; the readings it cannot run; what the sweep does not read or print; the hour's turn in --turn's default kinds]");
     }],
 
     ["R101 - the Despair Flow window comes back after a refusal, with its pools", async () => {

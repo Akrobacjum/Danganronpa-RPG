@@ -9,6 +9,7 @@
     { "test": "the curtain cuts a clean partition", "probe": "env.layout" },
     { "test": "no chrome label is cut off", "probe": "env.layout" },
     { "test": "nothing in the chrome is set under the floor", "probe": "env.layout" },
+    { "test": "R1385 - the band's box (E23 C2a, E23-12; S12-24, D9 option 1): one line in both themes, `height: 1lh` after a `1.25em` fallback with `box-sizing: content-box`, and as tall empty as with a track, so the clock is as tall with music as without; under Stained Glass the floor's size, the bone at 84 %, the hairline in the hour's accent at 26 %, and the band in the turning list", "probe": "env.layout" },
     { "test": "the theme speaks two faces", "probe": "env.fonts" },
     { "test": "the notice tile is always cut", "probe": "env.layout" },
     { "test": "R513 - the room tile is always cut: a fixed block at the box glass.mjs placed, in either place, its pane a section never painted empty", "probe": "env.layout" },

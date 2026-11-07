@@ -1033,7 +1033,7 @@ body.drpg-theme-stained-glass[data-drpg-turning] :is(#drpg-hud, #drpg-room-tile,
     #drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher, #drpg-foundry-tools, #pause),
 body.drpg-theme-stained-glass[data-drpg-turning] :is(#drpg-hud, #drpg-room-tile, #drpg-despair, #drpg-events,
     #drpg-player-status, #countdowns) :is(.drpg-hud-phase, .drpg-hud-time,
-    .drpg-hud-elapsed, .drpg-hud-pip, .drpg-room-tile-more, .drpg-hud-ticker, .drpg-despair-pip, .drpg-despair-name,
+    .drpg-hud-elapsed, .drpg-hud-track, .drpg-hud-pip, .drpg-room-tile-more, .drpg-hud-ticker, .drpg-despair-pip, .drpg-despair-name,
     .drpg-status-value, .drpg-event, .drpg-event-title, .drpg-event-glyph, .countdowns-header,
     /* `.drpg-projects-bar` stood here and nothing has ever worn it; the tray's own parts are
        the fold and the gear, which is what the turn should carry. */
@@ -3973,6 +3973,18 @@ body.drpg-theme-stained-glass :is(#drpg-player-status .drpg-status-field,
     #drpg-player-status .drpg-status-value, #countdowns .countdowns-container,
     #countdowns .countdown-category-container) {
     font-size: max(var(--drpg-sg-floor), calc(13px * var(--drpg-sg-scale)));
+}
+
+/* THE TRACK BAND ON THE FLOOR (E23 C2a, 07.11.2026; S12-24, D9 option 1). The band under the clock declared its own
+   size in danganronpa.css, `max(min(10px, 0.68rem), ...)`: 10.9 px of VT323 against the 21 px floor, and the slider
+   did not move it, so it was the one line of the chrome set under the floor - and the floor test never saw it,
+   because the band existed only while music played. Under the glass it is the floor's size, its words the bone a
+   little dimmed (84 %), and its hairline the hour's accent at 26 % rather than the plate's line, so the slot reads as
+   part of the clock when it is empty. Its colours take the turn with the clock's other parts (the turning list). */
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-track {
+    font-size: var(--drpg-sg-floor);
+    color: color-mix(in srgb, var(--drpg-sg-bone) 84%, transparent);
+    border-top-color: color-mix(in srgb, var(--drpg-glass-accent) 26%, transparent);
 }
 
 /* ---- three more points, measured against the audit page ---------------------------------- */

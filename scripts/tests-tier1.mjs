@@ -2240,22 +2240,33 @@ const INVARIANTS = [
         ok(!cut.length, cut.slice(0, 4).join("; "));
     }],
 
-    ["nothing in the chrome is set under the floor", () => {
+    ["nothing in the chrome is set under the floor", async () => {
         needs(env.glass(), "this measures Stained Glass");
         needs(env.layout(), "a label's size needs a browser");
         // 11 px, at every interface scale - see docs/design/typography.md.
         const floor = parseFloat(getComputedStyle(document.body).getPropertyValue("--drpg-sg-floor")) || 11;
         const small = [];
         let measured = 0;
-        for (const sel of ["#drpg-hud", "#drpg-despair", "#drpg-player-status", "#drpg-events", "#countdowns", ".drpg-panel"]) {
-            for (const host of document.querySelectorAll(sel)) {
-                for (const el of host.querySelectorAll("*")) {
-                    if (!el.offsetWidth || !el.textContent.trim() || el.matches("i, [class*='fa-']")) continue;
-                    measured++;
-                    const size = parseFloat(getComputedStyle(el).fontSize);
-                    if (size && size < floor - 0.5) small.push(`${el.className || el.tagName} ${size.toFixed(1)}px`);
+        /* THE TRACK BAND WITH A NAME IN IT (E23 C2a, 07.11.2026; S12-24). The band holds words only while music plays
+           here, so this test read it only by chance - and at 2b866dde it was 10.9 px of VT323. A name is planted in it
+           (hud.mjs `paintTrackLine` with a track of the test's own) for the reading, and the band is painted back from
+           this browser's own audio after it. */
+        const H = await import("./hud.mjs");
+        const clock = document.getElementById(H.HUD_ID);
+        if (clock) H.paintTrackLine(clock, { track: "Floor test", playlist: "Floor test" });
+        try {
+            for (const sel of ["#drpg-hud", "#drpg-despair", "#drpg-player-status", "#drpg-events", "#countdowns", ".drpg-panel"]) {
+                for (const host of document.querySelectorAll(sel)) {
+                    for (const el of host.querySelectorAll("*")) {
+                        if (!el.offsetWidth || !el.textContent.trim() || el.matches("i, [class*='fa-']")) continue;
+                        measured++;
+                        const size = parseFloat(getComputedStyle(el).fontSize);
+                        if (size && size < floor - 0.5) small.push(`${el.className || el.tagName} ${size.toFixed(1)}px`);
+                    }
                 }
             }
+        } finally {
+            if (clock) H.paintTrackLine(clock);
         }
         ok(measured > 0, "no text in the chrome has a width - nothing was measured");
         ok(!small.length, small.slice(0, 4).join("; "));
@@ -21044,6 +21055,116 @@ const INVARIANTS = [
             ["the murder track at a Music volume of 0", null],
             ["nothing", null]]),
         "the track the band names for each case");
+    }],
+
+    ["R122 - A1: the band under the clock is one node from ready, never removed: the same node through a stop, a track, the same track again, three renderHuds, another track and a stop; empty it is `is-empty` (never `empty`, which `#drpg-hud .empty` hides) with `aria-hidden` and no children or tooltip; a track is two runs, the copy `aria-hidden`, the tooltip through `data-tooltip-text`; and a renderHud keeps the run that is scrolling (E23 C2a, E23-11; S10-28, D9 option 1)", async () => {
+        /*
+         * E23 C2a, 07.11.2026; request A1 (confirmed live) and S10-28. At 2b866dde `paintTrackLine` removed the band when
+         * `nowPlayingHere()` read nothing, and `renderHud` emptied the whole clock and painted the band again with
+         * `lastTrackName` reset: the clock lost a line between two tracks of one playlist (the 3 s interval brought it
+         * back), the curtain was cut again for each, and the title started its scroll from the left on every render. The
+         * band is driven here with tracks of the test's own (`paintTrackLine(hud, now)`; `now` defaults to what this
+         * browser hears) and read after each step; nothing awaits between the steps, so neither the playlist hooks nor
+         * the 3 s interval can paint in the middle. The band is painted back from this browser's own audio at the end.
+         * Red on 2b866dde: hud.mjs exports no `paintTrackLine`; with it exported, the band is gone after the first stop.
+         */
+        const H = await import("./hud.mjs");
+        const hud = document.getElementById(H.HUD_ID);
+        must(hud?.isConnected, "no clock on this page - renderHud drew nothing to read");
+        ok(typeof H.paintTrackLine === "function", "hud.mjs exports no paintTrackLine, so the band cannot be driven with a track of the test's own");
+        const band = () => hud.querySelector(":scope > .drpg-hud-track");
+        const first = band();
+        ok(first, "the clock as ready drew it has no band");
+        const state = b => (b ? [b === first, b.classList.contains("is-empty"), b.classList.contains("empty"), b.getAttribute("aria-hidden"),
+            b.children.length, b.dataset.tooltipText ?? b.dataset.tooltip ?? null, hud.lastElementChild === b] : "gone");
+        const named = b => [b?.children[0]?.textContent.trim() ?? null, b?.children[1]?.getAttribute("aria-hidden") ?? null,
+            Boolean(b?.dataset.tooltipText?.includes(b?.children[0]?.textContent.trim() ?? "-")), b?.dataset.tooltip ?? null];
+        const seen = {};
+        try {
+            H.paintTrackLine(hud, null);
+            seen.stopped = state(band());
+            H.paintTrackLine(hud, { track: "R122 First", playlist: "R122" });
+            const run = band()?.firstElementChild;
+            seen.playing = [...state(band()).slice(0, 5), named(band())];
+            H.paintTrackLine(hud, { track: "R122 First", playlist: "R122" });
+            seen.again = band()?.firstElementChild === run;
+            for (let i = 0; i < 3; i++) H.renderHud();
+            seen.rendered = [...state(band()).slice(0, 5), band()?.firstElementChild === run, hud.lastElementChild === band()];
+            H.paintTrackLine(hud, { track: "R122 Second", playlist: "R122" });
+            seen.changed = [...state(band()).slice(0, 5), named(band())];
+            H.paintTrackLine(hud, null);
+            seen.stoppedAgain = state(band());
+        } finally {
+            if (typeof H.paintTrackLine === "function") H.paintTrackLine(hud);
+        }
+        equal(stableJson(seen), stableJson({
+            stopped: [true, true, false, "true", 0, null, true],
+            playing: [true, false, false, null, 2, ["R122 First", "true", true, null]],
+            again: true,
+            rendered: [true, false, false, null, 2, true, true],
+            changed: [true, false, false, null, 2, ["R122 Second", "true", true, null]],
+            stoppedAgain: [true, true, false, "true", 0, null, true]
+        }), "each step: [the node ready drew, is-empty, empty, aria-hidden, children, tooltip, the clock's last child] - "
+            + "a track adds [the run's words, the copy's aria-hidden, the tooltip naming the track, an old data-tooltip]; "
+            + "the same track again keeps the run; three renderHuds keep the node and its run");
+    }],
+
+    ["R1385 - the band's box (E23 C2a, E23-12; S12-24, D9 option 1): one line in both themes, `height: 1lh` after a `1.25em` fallback with `box-sizing: content-box`, and as tall empty as with a track, so the clock is as tall with music as without; under Stained Glass the floor's size, the bone at 84 %, the hairline in the hour's accent at 26 %, and the band in the turning list", async () => {
+        /*
+         * E23 C2a, 07.11.2026; S12-24 and D9 (the font under the glass on the floor, the hairline in the hour's accent).
+         * At 2b866dde the band had no height of its own - it was as tall as what it held, and absent when it held
+         * nothing - and under Stained Glass it was `max(min(10px, 0.68rem), ...)`: 10.88 px of VT323 against the 21 px
+         * floor, which the floor test never saw because the band existed only while music played. Both stylesheets are
+         * read with comments blanked, for both themes; then, where a browser lays out, the band is measured on this page
+         * empty and with a track of the test's own, and painted back from this browser's own audio. A probe in the clock
+         * computes the three Stained Glass values the band must compute. Red on 2b866dde: no `height: 1lh`; in a
+         * browser, the font-size 10.88 px.
+         */
+        const read = async file => (await fetch(`/modules/${MODULE_ID}/styles/${file}`, { cache: "no-cache" }).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+        const [css, glass] = await Promise.all(["danganronpa.css", "stained-glass.css"].map(read));
+        const box = bodyOf(css, ".drpg-hud-track {", { until: "}" });
+        const under = glass.includes("body.drpg-theme-stained-glass #drpg-hud .drpg-hud-track {")
+            ? bodyOf(glass, "body.drpg-theme-stained-glass #drpg-hud .drpg-hud-track {", { until: "}" }) : "";
+        const turning = bodyOf(glass, "body.drpg-theme-stained-glass[data-drpg-turning] :is(#drpg-hud, #drpg-room-tile", { until: "transition-property" });
+        equal(stableJson({
+            line: /height: 1\.25em;\s*height: 1lh;/.test(box), sizing: /box-sizing: content-box;/.test(box), width: /width: 0;[\s\S]*min-width: 100%;/.test(box),
+            floor: /font-size: var\(--drpg-sg-floor\);/.test(under),
+            ink: /color: color-mix\(in srgb, var\(--drpg-sg-bone\) 84%, transparent\);/.test(under),
+            hairline: /border-top-color: color-mix\(in srgb, var\(--drpg-glass-accent\) 26%, transparent\);/.test(under),
+            turning: /\.drpg-hud-track\b/.test(turning)
+        }), stableJson({ line: true, sizing: true, width: true, floor: true, ink: true, hairline: true, turning: true }),
+        "danganronpa.css's band: [one line with its fallback, content-box, R102's width]; stained-glass.css's band: [the floor, the bone ink, the accent hairline]; [in the turning list]");
+
+        needs(env.layout(), "the band's height and its computed type need a browser that lays out");
+        const H = await import("./hud.mjs");
+        const hud = document.getElementById(H.HUD_ID);
+        must(hud?.isConnected && hud.querySelector(":scope > .drpg-hud-track"), "no clock with a band on this page - there is nothing to measure");
+        const glassOn = document.body.classList.contains("drpg-theme-stained-glass");
+        const probe = document.createElement("div");
+        probe.style.cssText = "position:absolute;visibility:hidden;font-size:var(--drpg-sg-floor);color:color-mix(in srgb, var(--drpg-sg-bone) 84%, transparent);"
+            + "border-top:1px solid color-mix(in srgb, var(--drpg-glass-accent) 26%, transparent)";
+        const took = {};
+        try {
+            H.paintTrackLine(hud, null);
+            const band = hud.querySelector(":scope > .drpg-hud-track"), cs = getComputedStyle(band);
+            took.empty = [band.offsetHeight, hud.offsetHeight];
+            H.paintTrackLine(hud, { track: "R1385 A title long enough to scroll past the clock's own width, and then some more of it", playlist: "R1385" });
+            took.full = [band.offsetHeight, hud.offsetHeight];
+            const size = parseFloat(cs.fontSize), inner = parseFloat(cs.height);
+            took.box = [cs.boxSizing, cs.display, inner >= size * 0.9 && inner < size * 2];
+            hud.append(probe);
+            const want = getComputedStyle(probe);
+            took.glass = glassOn ? [cs.fontSize === want.fontSize ? "floor" : cs.fontSize, cs.color === want.color ? "bone" : cs.color,
+                cs.borderTopColor === want.borderTopColor ? "accent" : cs.borderTopColor] : "legacy";
+        } finally {
+            probe.remove();
+            H.paintTrackLine(hud);
+        }
+        const same = (a, b) => Math.abs(a - b) <= 0.5;
+        equal(stableJson([same(took.empty[0], took.full[0]), same(took.empty[1], took.full[1]), took.box, took.glass]),
+            stableJson([true, true, ["content-box", "flex", true], glassOn ? ["floor", "bone", "accent"] : "legacy"]),
+            `[the band as tall empty as with a track (${took.empty[0]} / ${took.full[0]} px)], [the clock as tall (${took.empty[1]} / ${took.full[1]} px)], `
+            + "[box-sizing, display, the content one line of its own size], [under Stained Glass: the floor, the bone ink, the accent hairline]");
     }],
 
     ["R825 - the music's hand-offs leave nothing on hold: a GM's track cut off by a new state lets go of what it held, a mapped state taking over lets go of its own playlist, a mapped state after the body's silence takes the music without resuming what the silence held, and the body's silence stops a GM's track too (E19-29)", async () => {

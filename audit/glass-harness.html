@@ -114,7 +114,7 @@
     <div class="drpg-hud-campaign is-long">DanganRPG: Safe Havens Bleed</div><div class="drpg-hud-chapter">Chapter 1 · Day 3</div>
     <div class="drpg-hud-phase"><span class="drpg-hud-phase-glyph drpg-pxi"></span>Daily Life</div>
     <div class="drpg-hud-time-row"><button class="drpg-hud-button">&lt;</button><div class="drpg-hud-time-slot" style="min-width:118px"><div class="drpg-hud-time">Afternoon</div></div><button class="drpg-hud-button">&gt;</button></div>
-    <div class="drpg-hud-elapsed">43 min in</div></div>
+    <div class="drpg-hud-elapsed">43 min in</div><div class="drpg-hud-track is-empty" aria-hidden="true"></div></div>
   <section id="drpg-room-tile" class="drpg-room-tile" role="region" aria-label="Room" data-state="room"><div class="drpg-room-tile-art" style="background-image:linear-gradient(160deg,#6d86a8,#2f4a35 55%,#7a4a2c)"></div><button type="button" class="drpg-room-tile-open" aria-label="Show the picture"></button><h3 class="drpg-room-tile-name">Dorm</h3><div class="drpg-hud-room-tokens"><span class="drpg-hud-pip"></span><span class="drpg-hud-pip"></span><span class="drpg-hud-room-tokens-label" aria-hidden="true">0/2 searches</span></div><div class="drpg-hud-room-project">You can work a project here</div><button type="button" class="drpg-room-tile-more" aria-controls="drpg-room-tile-prose" aria-expanded="false"><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button><p class="drpg-room-tile-prose" id="drpg-room-tile-prose" tabindex="0" hidden>Two bunks under a high window.
 
 A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-label="Show the picture"><img alt="" loading="lazy" decoding="async" src="/docs/img/01-player-view.webp"></button><button type="button" class="drpg-room-tile-describe" aria-label="Description"><i class="fa-solid fa-align-left" aria-hidden="true"></i></button></section>
@@ -1897,6 +1897,122 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     return done();
   };
 </script>
+<script id="drpg-track-check">
+  /* drpgTrackCheck (E23 C2a, 07.11.2026; request A1, S10-28, S12-24 and the owner's 27.09: "the curtain changes its
+     layout at every change of the time of day"). The clock above carries the track band as hud.mjs `paintTrackLine`
+     leaves it when nothing plays here: in the clock, its last child, empty, `is-empty` and `aria-hidden`.
+     `drpgTrackFill(name)` and `drpgTrackEmpty()` write it as `paintTrackLine` does with a track and with none (the two
+     runs with their notes, the copy `aria-hidden`, the tooltip as `data-tooltip-text`; or nothing at all), and
+     `?band=full` loads the page with a track in it, for `glass-sweep --turn` with the band full.
+     `drpgTrackCheck({ kind, plant, gap, settle })` runs one reading on the page as it stands and puts the band and the
+     hour back after it. Each step waits `settle` ms (2500: the curtain's drift watch recuts a block that moved twice,
+     500 ms apart, and a pass runs on any change of the page), then reads the clock's `offsetHeight`, the band's (`offsetHeight`, the box as laid out: the clock is turned under the glass, and a turned box's client rectangle is wider and taller),
+     `display` and children; across the whole reading the cut's signature (every pane's polygon, rounded) and the
+     `drpgGlassCut`s fired:
+       fill         the band filled, emptied, and filled with another track
+       hour-empty   the hour changed (Afternoon -> Evening: the body's `data-drpg-time` and the clock's words, as
+                    drpgTurn's "hour"), the band empty throughout
+       hour-full    the same, a track playing throughout
+       hour-swap    the music switching with the hour, as music.mjs does on `drpgTimeOfDayChanged`: a track playing, at
+                    the hour the band emptied while the new one loads, and `gap` ms later (3000: hud.mjs's interval, the
+                    longest the band can read nothing) filled with the next track
+       hour-notice  the hour with a card on the notice tile as the time of day's summary puts one there (popup.mjs
+                    `showPopup`, unrecorded, of the summary's size), taken away after
+     `plant` is the control, 2b866dde's road: an empty band is taken out of the clock (`existing?.remove()` at
+     2b866dde) and a track puts a new one in, so `fill` and `hour-swap` must read the clock's height move, or a recut.
+     It answers { ok, why, kind, steps: [{ at, h, band, display, children }], cut: same|new, cuts }: not ok when a
+     step's clock or band is not as tall as at the start, an empty band is `display: none` or holds anything, the cut's
+     signature moved, or a drpgGlassCut fired. Headless Chromium rasterises in software; a table's reading - music started
+     and stopped, the clock's height unchanged - is a live check the stage's end adds to AUDIT 9.2. */
+  window.drpgTrackFill = (name = "Afternoon Theme", band = document.querySelector("#drpg-hud > .drpg-hud-track")) => {
+    if (!band) return null;
+    band.classList.remove("is-empty");
+    band.removeAttribute("aria-hidden");
+    band.dataset.tooltipText = `Playing here: ${name}.`;
+    const run = document.createElement("span");
+    const note = () => { const i = document.createElement("i"); i.className = "fa-solid fa-music drpg-hud-track-note"; i.setAttribute("aria-hidden", "true"); return i; };
+    run.append(note(), document.createTextNode(` ${name} `), note());
+    const copy = run.cloneNode(true);
+    copy.setAttribute("aria-hidden", "true");
+    band.replaceChildren(run, copy);
+    return band;
+  };
+  window.drpgTrackEmpty = (band = document.querySelector("#drpg-hud > .drpg-hud-track")) => {
+    if (!band) return null;
+    band.replaceChildren();
+    band.classList.add("is-empty");
+    band.setAttribute("aria-hidden", "true");
+    delete band.dataset.tooltipText;
+    return band;
+  };
+  const TRACK_KINDS = ["fill", "hour-empty", "hour-full", "hour-swap", "hour-notice"];
+  window.drpgTrackCheck = async ({ kind = "fill", plant = false, gap = 3000, settle = 2500 } = {}) => {
+    const out = { ok: false, why: [], kind, plant, steps: [], cut: null, cuts: 0 };
+    const done = () => { out.ok = !out.why.length; if (!out.ok) out.why = out.why.join("; "); return out; };
+    if (!TRACK_KINDS.includes(kind)) { out.why.push(`no reading "${kind}" (${TRACK_KINDS.join(", ")})`); return done(); }
+    const g = window.__glass, hud = document.getElementById("drpg-hud");
+    let band = hud?.querySelector(":scope > .drpg-hud-track");
+    if (!hud || !band) { out.why.push("no track band in the clock"); return done(); }
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    const sig = () => (g?.LAST?.panes ?? []).map(p => p.poly.map(q => q.map(v => Math.round(v)).join(",")).join(" ")).join("|");
+    const words = (sel, text) => { const el = hud.querySelector(sel); const node = el && [...el.childNodes].reverse().find(n => n.nodeType === Node.TEXT_NODE); const was = node?.data ?? null; if (node) node.data = text; return was; };
+    const took = { html: band.outerHTML, time: document.body.getAttribute("data-drpg-time"), words: null };
+    let cuts = 0, closer = null;
+    const count = () => { cuts++; };
+    /* the band as the module would leave it: emptied, or (the plant) taken out; filled, or (the plant) put back new */
+    const empty = () => { if (!plant) return window.drpgTrackEmpty(band); band.remove(); };
+    const fill = name => {
+      if (plant && !band.isConnected) { band = document.createElement("div"); band.className = "drpg-hud-track"; hud.append(band); }
+      window.drpgTrackFill(name, band);
+    };
+    const step = at => {
+      const on = band.isConnected, cs = on ? getComputedStyle(band) : null;
+      out.steps.push({ at, h: hud.offsetHeight, band: on ? band.offsetHeight : 0, display: cs?.display ?? "gone",
+        children: on ? band.children.length : null, empty: on ? band.classList.contains("is-empty") : null, cuts });
+    };
+    const hour = () => { document.body.setAttribute("data-drpg-time", "evening"); took.words = words(".drpg-hud-time", "Evening"); };
+    Hooks.on("drpgGlassCut", count);
+    const sig0 = sig();
+    try {
+      if (kind === "hour-full" || kind === "hour-swap") { fill("Afternoon Theme"); await wait(settle); }
+      step("start");
+      if (kind === "fill") {
+        fill("Afternoon Theme"); await wait(settle); step("filled");
+        empty(); await wait(settle); step("emptied");
+        fill("Evening Theme"); await wait(settle); step("another");
+      } else {
+        if (kind === "hour-notice") {
+          const P = await import("/scripts/popup.mjs");
+          closer = P.showPopup(`<p>Your afternoon</p><ul><li>Kaede searched the Library</li><li>Botan worked a project</li><li>Chie rested</li></ul>`, { title: "The afternoon is over", record: false });
+        }
+        hour();
+        if (kind === "hour-swap") { empty(); await wait(gap); step("between"); fill("Evening Theme"); }
+        await wait(settle); step("the hour");
+      }
+      out.cut = sig() === sig0 ? "same" : "new";
+      out.cuts = cuts;
+      const first = out.steps[0];
+      for (const s of out.steps) {
+        if (Math.abs(s.h - first.h) > 0.5) out.why.push(`the clock ${s.h} px tall ${s.at}, ${first.h} at the start`);
+        if (Math.abs(s.band - first.band) > 0.5) out.why.push(`the band ${s.band} px tall ${s.at}, ${first.band} at the start`);
+        if (s.display === "none" || s.display === "gone") out.why.push(`the band ${s.display === "gone" ? "out of the clock" : "display: none"} ${s.at}`);
+        if (s.empty && s.children) out.why.push(`an empty band holds ${s.children} element(s) ${s.at}`);
+      }
+      if (out.cut !== "same") out.why.push("the cut's signature moved");
+      if (cuts) out.why.push(`${cuts} drpgGlassCut(s)`);
+    } finally {
+      Hooks.off("drpgGlassCut", count);
+      if (closer) { try { closer(); } catch { /* the card is gone */ } }
+      if (took.time === null) document.body.removeAttribute("data-drpg-time"); else document.body.setAttribute("data-drpg-time", took.time);
+      if (took.words !== null) words(".drpg-hud-time", took.words);
+      const back = document.createElement("div");
+      back.innerHTML = took.html;
+      if (band.isConnected) band.replaceWith(back.firstElementChild); else hud.append(back.firstElementChild);
+      await wait(settle);
+    }
+    return done();
+  };
+</script>
 <script type="module">
   const q = new URLSearchParams(location.search);
   if (q.get("scheme") === "light") document.documentElement.style.colorScheme = "light";
@@ -1939,6 +2055,9 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     window.__mover = { start() { if (!on) { on = true; requestAnimationFrame(tick); } }, stop() { on = false; } };
     if (q.get("mover")) window.__mover.start();
   }
+  /* `?band=full` (E23 C2a): the clock's track band with a track in it, as hud.mjs paints it while music plays here - for
+     `glass-sweep --turn` with the band full (the page's own band is empty, as it is when nothing plays). */
+  if (q.get("band") === "full") window.drpgTrackFill("Afternoon Theme");
   for (const row of document.querySelectorAll(".drpg-despair-pips")) for (let i = 0; i < 12; i++) { const p = document.createElement("span"); p.className = "drpg-despair-pip" + (i < 5 ? " filled" : ""); row.append(p); }
   /* `?windows=off` (E77 fix r2-H2): the world switch `foundryToolWindows` off, so registerFoundryWindows below builds
      nothing and Foundry's rails stay in its columns, as a GM's page loads with the switch off. */
