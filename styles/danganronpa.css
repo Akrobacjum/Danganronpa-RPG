@@ -8263,6 +8263,32 @@ html body {
     display: none !important;
 }
 
+/* THE GM'S EXPANDED CHAT LIES OVER THE LAUNCHERS (E23 C5b, 07.11.2026; audit S11-18 as the owner's 27.09 words it).
+   Only a GM can expand the chat. With Foundry's windows off (the world switch; `drpg-foundry-windows` on the body
+   puts the sidebar in Foundry tools' window instead) the sidebar stays in `#ui-right`, which Foundry stands at
+   `--z-index-app` (30, the glass harness's reading of v14), and the corner's buttons stand at 70 on the body: the
+   messenger, the settings, the handbooks and the GM's button lay on the chat's input. A layer and nothing else -
+   no launcher moves (E81's corner, `--drpg-launch-h`, `--drpg-stack-foot`, kept): while the sidebar is expanded
+   its column stands one over the cluster; collapsed, it states nothing and the buttons are on top again. Read by
+   R1405; on the glass harness with `?windows=off` the point at each launcher's centre lands in the sidebar
+   (Chromium, C5b's probe); on v14, the table's (E23's live row of the chat). */
+body:not(.drpg-foundry-windows) #ui-right:has(#sidebar.expanded) {
+    z-index: 71;
+}
+/* The collapse in the slide-in's rhythm, none under reduced motion: the content opens and shuts on the module's
+   entrance token, arriving on `--drpg-ease-arrive` and leaving on `--drpg-ease-leave`, which `drpg-reduced-motion`
+   and the system's setting set to 0 (motion.css). `#sidebar-content` is the stand-in's name for the content
+   (LIVE-E79-15); whether v14 animates its own collapse, and on what, is the table's. Longhands, so a transition
+   Foundry puts on another property of the content is left alone. */
+body:not(.drpg-foundry-windows) #ui-right #sidebar-content {
+    transition-property: width;
+    transition-duration: var(--drpg-t-enter);
+    transition-timing-function: var(--drpg-ease-leave);
+}
+body:not(.drpg-foundry-windows) #ui-right #sidebar.expanded #sidebar-content {
+    transition-timing-function: var(--drpg-ease-arrive);
+}
+
 /* --- the icon rails ------------------------------------------------------ */
 /* Left: scene controls. Right: sidebar tabs. These used to be Ink chips with
    red hover and a red slab on the active tool - which made forty pieces of
@@ -8281,7 +8307,6 @@ html body {
        as loose glyphs floating on the map, not as controls. */
     border: 1px solid rgba(var(--drpg-bone-rgb), 0.25) !important;
     border-radius: 3px !important;
-    color: rgba(var(--drpg-bone-rgb), 0.5) !important;
     box-shadow: none !important;
     transition: color var(--drpg-t-snap) var(--drpg-ease-arrive),
                 border-color var(--drpg-t-snap) var(--drpg-ease-arrive),
@@ -8293,7 +8318,6 @@ html body {
 #sidebar .tabs button.ui-control:hover {
     background: rgba(var(--drpg-bone-rgb), 0.08) !important;
     border-color: rgba(var(--drpg-bone-rgb), 0.5) !important;
-    color: rgba(var(--drpg-bone-rgb), 0.9) !important;
 }
 
 #scene-controls button.ui-control.active,
@@ -8304,6 +8328,32 @@ html body {
 #sidebar .tabs button.ui-control[aria-pressed="true"] {
     background: rgba(var(--drpg-bone-rgb), 0.12) !important;
     border-color: rgba(var(--drpg-bone-rgb), 0.7) !important;
+}
+
+/* THE RAILS' INK IS MONOKUMA LEGACY'S (E23 C5b, 07.11.2026; audit S12-29). The three states' colours above and the
+   GM's red below stood for both themes, each with the `!important` it needs against core, and so each beat Stained
+   Glass's own rail rule (stained-glass.css D3: bone-dim at rest, bone on hover, the state's colour when active),
+   which has none: under the glass the GM's scene rail and the right rail were red. The colours are the same
+   declarations, scoped to the bodies that are not the glass, every one of them with the same prefix so their order
+   among themselves is the order they had. R1407. */
+body:not(.drpg-theme-stained-glass) #scene-controls button.ui-control,
+body:not(.drpg-theme-stained-glass) #sidebar-tabs button.ui-control,
+body:not(.drpg-theme-stained-glass) #sidebar .tabs button.ui-control {
+    color: rgba(var(--drpg-bone-rgb), 0.5) !important;
+}
+
+body:not(.drpg-theme-stained-glass) #scene-controls button.ui-control:hover,
+body:not(.drpg-theme-stained-glass) #sidebar-tabs button.ui-control:hover,
+body:not(.drpg-theme-stained-glass) #sidebar .tabs button.ui-control:hover {
+    color: rgba(var(--drpg-bone-rgb), 0.9) !important;
+}
+
+body:not(.drpg-theme-stained-glass) #scene-controls button.ui-control.active,
+body:not(.drpg-theme-stained-glass) #scene-controls button.ui-control[aria-pressed="true"],
+body:not(.drpg-theme-stained-glass) #sidebar-tabs button.ui-control.active,
+body:not(.drpg-theme-stained-glass) #sidebar-tabs button.ui-control[aria-pressed="true"],
+body:not(.drpg-theme-stained-glass) #sidebar .tabs button.ui-control.active,
+body:not(.drpg-theme-stained-glass) #sidebar .tabs button.ui-control[aria-pressed="true"] {
     color: var(--drpg-bone) !important;
 }
 
@@ -8316,19 +8366,19 @@ html body {
    ancestor-class selector was measured on a long-lived client matching the
    button and still not applying - in the sheet, `matches()` true, computed
    style ignoring it - while a same-element class held everywhere. */
-#scene-controls.drpg-gm-rail button.ui-control {
+body:not(.drpg-theme-stained-glass) #scene-controls.drpg-gm-rail button.ui-control {
     border-color: rgba(var(--drpg-eye-rgb), 0.45) !important;
     color: var(--drpg-eye) !important;
 }
 
-#scene-controls.drpg-gm-rail button.ui-control:hover {
+body:not(.drpg-theme-stained-glass) #scene-controls.drpg-gm-rail button.ui-control:hover {
     background: rgba(var(--drpg-eye-rgb), 0.1) !important;
     border-color: var(--drpg-eye) !important;
     color: var(--drpg-eye-light) !important;
 }
 
-#scene-controls.drpg-gm-rail button.ui-control.active,
-#scene-controls.drpg-gm-rail button.ui-control[aria-pressed="true"] {
+body:not(.drpg-theme-stained-glass) #scene-controls.drpg-gm-rail button.ui-control.active,
+body:not(.drpg-theme-stained-glass) #scene-controls.drpg-gm-rail button.ui-control[aria-pressed="true"] {
     background: rgba(var(--drpg-eye-rgb), 0.16) !important;
     border-color: var(--drpg-eye) !important;
     color: var(--drpg-eye-light) !important;
@@ -8345,24 +8395,25 @@ html body {
    Same three states, same alphas and the same `!important`s as the left rail -
    this is that red block with a different selector, written out rather than
    shared: the two rails have already parted company once, and a shared rule
-   would have to be split again the next time one of them does. */
-#sidebar-tabs button.ui-control,
-#sidebar .tabs button.ui-control {
+   would have to be split again the next time one of them does. Monokuma Legacy's, as the left rail's red is
+   (E23 C5b, above). */
+body:not(.drpg-theme-stained-glass) #sidebar-tabs button.ui-control,
+body:not(.drpg-theme-stained-glass) #sidebar .tabs button.ui-control {
     border-color: rgba(var(--drpg-eye-rgb), 0.45) !important;
     color: var(--drpg-eye) !important;
 }
 
-#sidebar-tabs button.ui-control:hover,
-#sidebar .tabs button.ui-control:hover {
+body:not(.drpg-theme-stained-glass) #sidebar-tabs button.ui-control:hover,
+body:not(.drpg-theme-stained-glass) #sidebar .tabs button.ui-control:hover {
     background: rgba(var(--drpg-eye-rgb), 0.1) !important;
     border-color: var(--drpg-eye) !important;
     color: var(--drpg-eye-light) !important;
 }
 
-#sidebar-tabs button.ui-control.active,
-#sidebar-tabs button.ui-control[aria-pressed="true"],
-#sidebar .tabs button.ui-control.active,
-#sidebar .tabs button.ui-control[aria-pressed="true"] {
+body:not(.drpg-theme-stained-glass) #sidebar-tabs button.ui-control.active,
+body:not(.drpg-theme-stained-glass) #sidebar-tabs button.ui-control[aria-pressed="true"],
+body:not(.drpg-theme-stained-glass) #sidebar .tabs button.ui-control.active,
+body:not(.drpg-theme-stained-glass) #sidebar .tabs button.ui-control[aria-pressed="true"] {
     background: rgba(var(--drpg-eye-rgb), 0.16) !important;
     border-color: var(--drpg-eye) !important;
     color: var(--drpg-eye-light) !important;
@@ -10640,9 +10691,13 @@ body.drpg-theme-monokuma-legacy .drpg-action-button[data-drpg-cost-kind]::before
 }
 
 /* A tile you cannot pay for keeps its stripe, dimmed with the rest of it -
-   the reason it is unaffordable is still worth reading. */
-.drpg-action-button.unaffordable[data-drpg-cost-kind]::before,
-.drpg-action-button:disabled[data-drpg-cost-kind]::before {
+   the reason it is unaffordable is still worth reading. MONOKUMA LEGACY'S ALONE (E23 C5b, 07.11.2026; audit
+   S12-03): the stripe is Legacy's (the rule above draws it under that theme only), and under Stained Glass the
+   same pseudo-element is the tile's brush - at (0,3,1) this rule outweighed the brush's (0,2,2), so every tile out
+   of reach glowed with a 35 % brush and the pressable ones rested at 0 (Chromium on the glass harness, f26d4467,
+   every cost kind, Investigation and Class Trial). The glass's own disabled look is stained-glass.css's. R1409. */
+body.drpg-theme-monokuma-legacy .drpg-action-button.unaffordable[data-drpg-cost-kind]::before,
+body.drpg-theme-monokuma-legacy .drpg-action-button:disabled[data-drpg-cost-kind]::before {
     opacity: 0.35;
 }
 
@@ -17327,9 +17382,12 @@ body.drpg-high-contrast .drpg-locked-eclipse {
     opacity: 0.75 !important;
 }
 
-body.drpg-high-contrast .drpg-action-button.unaffordable::before,
-body.drpg-high-contrast .drpg-action-button:disabled::before {
-    opacity: 0.75 !important;
+/* The stripe's step, over Legacy only (E23 C5b; audit S12-03): under the glass this pseudo-element is the brush, and
+   0.75 lit every tile out of reach three quarters bright. The weight matches the Legacy rule it answers, and coming
+   later it wins without the `!important` it carried while it had to beat the glass's brush too. R1409. */
+body.drpg-high-contrast:not(.drpg-theme-stained-glass) .drpg-action-button.unaffordable::before,
+body.drpg-high-contrast:not(.drpg-theme-stained-glass) .drpg-action-button:disabled::before {
+    opacity: 0.75;
 }
 
 /* And the focus ring, which is the one piece of chrome a keyboard reader steers

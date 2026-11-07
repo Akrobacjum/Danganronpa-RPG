@@ -36450,6 +36450,271 @@ const INVARIANTS = [
             + "raisesOnRender: a sheet's first render, forced, ordinary, no options, a prompt's forced, a panel's forced; promptsOver a sheet: an overlapping prompt, one beside it, "
             + "an overlapping panel, a prompt with no box (kept above), lowest first]");
     }],
+    ["R1405 - the GM's expanded chat lies over the launchers (E23 C5b; E23-25, audit S11-18, the owner's 27.09): with Foundry's windows off, `#ui-right` holding an expanded sidebar stands above every launcher of the corner, in both themes, and a collapsed one or Foundry's windows on state nothing; the chat's content slides open and shut on the slide-in's token (`--drpg-t-enter`), which reduced motion sets to 0", async () => {
+        /*
+         * E23 C5b, 07.11.2026; audit S11-18 as the owner's 27.09 words it: the expanded chat lies OVER the launchers
+         * (settings, handbooks, messenger, the GM's button), a layer only - nothing moves - and its collapse is animated in
+         * the rhythm of its slide-in, with none under reduced motion. Foundry stands `#ui-right` at `--z-index-app` (30, the
+         * glass harness's reading of v14) and the corner's buttons at 70 on the body, so the expanded chat lay under them.
+         * Read by the sheets' cascade (`styleCascade`) on a page built on a body of its own per theme and switch: the
+         * winning `z-index` of `#ui-right` with the sidebar expanded and collapsed and of each launcher; the content's
+         * transition, expanded and collapsing; `--drpg-t-enter` under `drpg-reduced-motion`. In Chromium, on the glass
+         * harness with `?windows=off`: the point at each launcher's centre lands in the sidebar (C5b's probe); on v14,
+         * with Foundry's own animation if any, the table's (E23's live row of the chat). `#sidebar-content` is the stand-in's name for the content
+         * (LIVE-E79-15). Red on f26d4467: `#ui-right` states no z-index - the launchers at 70 above it.
+         */
+        const C = await styleCascade();
+        const LAUNCHERS = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher", "drpg-gm-launcher", "drpg-foundry-tools"];
+        const page = (classes, expanded) => {
+            const html = document.createElement("html"), body = document.createElement("body"), iface = document.createElement("div");
+            const right = document.createElement("div"), sidebar = document.createElement("aside"), content = document.createElement("div");
+            body.className = classes;
+            iface.id = "interface";
+            right.id = "ui-right";
+            sidebar.id = "sidebar";
+            if (expanded) sidebar.classList.add("expanded");
+            content.id = "sidebar-content";
+            html.append(body);
+            body.append(iface);
+            iface.append(right);
+            right.append(sidebar);
+            sidebar.append(content);
+            const launchers = LAUNCHERS.map(id => {
+                const button = document.createElement("button");
+                button.id = id;
+                if (id === "drpg-gm-launcher") button.setAttribute("data-drpg-cluster", "");
+                body.append(button);
+                return button;
+            });
+            return { body, right, content, launchers };
+        };
+        const z = el => C.winner(el, "z-index")?.value ?? null;
+        const read = (classes, expanded) => {
+            const p = page(classes, expanded);
+            const cluster = Math.max(...p.launchers.map(el => Number(z(el)) || 0));
+            const chat = z(p.right);
+            const duration = C.winner(p.content, ["transition", "transition-duration"])?.value ?? null;
+            return { chat, cluster, over: chat !== null && Number(chat) > cluster, duration };
+        };
+        const reduced = (() => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = "drpg-theme-stained-glass drpg-reduced-motion";
+            html.append(body);
+            return C.winner(body, "--drpg-t-enter")?.value ?? null;
+        })();
+        const THEMES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"];
+        equal(stableJson([
+            ...THEMES.map(t => read(t, true)), ...THEMES.map(t => read(t, false)), ...THEMES.map(t => read(`${t} drpg-foundry-windows`, true).chat), reduced
+        ]), stableJson([
+            { chat: "71", cluster: 70, over: true, duration: "var(--drpg-t-enter)" },
+            { chat: "71", cluster: 70, over: true, duration: "var(--drpg-t-enter)" },
+            { chat: null, cluster: 70, over: false, duration: "var(--drpg-t-enter)" },
+            { chat: null, cluster: 70, over: false, duration: "var(--drpg-t-enter)" },
+            null, null, "0ms"
+        ]), "[Stained Glass and Monokuma Legacy with the sidebar expanded: #ui-right's z-index, the cluster's highest, the chat over it, the content's transition-duration; "
+            + "the same collapsed; #ui-right's z-index with Foundry's windows on, each theme; --drpg-t-enter under drpg-reduced-motion]");
+    }],
+    ["R1406 - Foundry's toasts under the glass (E23 C5b; E23-26, audit S11-22): `#notifications` follows the Despair panel in `#ui-top`'s column (in the flow, after it), and each toast stands on an opaque plate of ink in VT323 at the glass's floor, its level a rule on the left; Monokuma Legacy leaves Foundry's toasts as they are", async () => {
+        /*
+         * E23 C5b, 07.11.2026; audit S11-22. Under Stained Glass every Foundry warning fell on the curtain's Despair pools at
+         * the top of the screen, a translucent amber card the skulls and "12/12" read through, white VT323 on #b88a14 at
+         * about 2.9:1, its close button on "Still to act". The module had moved its own cards onto the notice pane and left
+         * Foundry's as they were (stained-glass.css "Foundry's own toasts (#notifications) are untouched"). Now the list is
+         * taken into `#ui-top`'s flex column after the Despair panel (`order` past the panel's, `position: static`), so the
+         * first toast stands under the panel, wherever the panel ends; each toast is the glass's ink, opaque, with its level
+         * (info, warning, error, success) a 3 px rule on the left. Read by the sheets' cascade on a `#ui-top` built on a body
+         * of its own per theme. Foundry's own geometry for `#notifications` on v14 is not read here (the glass harness has
+         * none; C5b's probe stands one in): the owner's table. Red on f26d4467: no rule - `position` and `order` unstated,
+         * no plate.
+         */
+        const C = await styleCascade();
+        const LEVELS = ["info", "warning", "error", "success"];
+        const read = classes => {
+            const html = document.createElement("html"), body = document.createElement("body"), iface = document.createElement("div");
+            const top = document.createElement("div"), despair = document.createElement("div"), list = document.createElement("ol");
+            body.className = classes;
+            iface.id = "interface";
+            top.id = "ui-top";
+            despair.id = "drpg-despair";
+            list.id = "notifications";
+            html.append(body);
+            body.append(iface);
+            iface.append(top);
+            top.append(list, despair);
+            const toasts = LEVELS.map(level => {
+                const li = document.createElement("li");
+                li.className = `notification ${level}`;
+                list.append(li);
+                return li;
+            });
+            const w = (el, names) => C.winner(el, names)?.value ?? null;
+            const order = [w(despair, "order"), w(list, "order")];
+            return {
+                list: { position: w(list, "position"), after: order.every(n => n !== null) && Number(order[1]) > Number(order[0]) },
+                toasts: toasts.map(li => [w(li, ["background", "background-color"]), w(li, "font-family"), w(li, "font-size"), w(li, ["border-left", "border-left-color"])])
+            };
+        };
+        const token = name => C.rules.filter(rule => /^body\.drpg-theme-stained-glass$|^:root$/.test(rule.selector)).flatMap(rule => rule.decls)
+            .filter(d => d.property === name).map(d => d.value).pop() ?? null;
+        const rule = level => `var(--drpg-sg-notice-${level})`;
+        equal(stableJson([read("drpg-theme-stained-glass"), read("drpg-theme-monokuma-legacy").list, token("--drpg-sg-floor"), token("--drpg-font-prose"), token("--drpg-sg-ink")]), stableJson([
+            { list: { position: "static", after: true },
+                toasts: LEVELS.map(level => ["var(--drpg-sg-ink)", "var(--drpg-font-prose)", "var(--drpg-sg-floor)", `3px solid ${rule(level)}`]) },
+            { position: null, after: false },
+            "calc(21px * var(--drpg-sg-scale, 1))", "\"VT323\", \"Courier New\", monospace", "#07070a"
+        ]), "[Stained Glass: the list's position and whether it comes after the Despair panel; each toast's ground, face, size and left rule by level (info, warning, error, success); "
+            + "Monokuma Legacy: the list's position, whether after; the glass's floor (21 px scaled: VT323 at 14 px and more at every scale down to two thirds), the face the toasts take (the glass's sweep of Foundry's chrome, A8), the ink (opaque)]");
+    }],
+    ["R1407 - the glass's controls win (E23 C5b; E23-27, audit S12-29): the rails' red and their base ink are Monokuma Legacy's alone, so under Stained Glass both rails read the glass's own (bone-dim, the state's colour when active); and one checkbox and one radio definition under the glass for every module surface - a panel, a notice, the messenger, the sheet - the same box, edge and mark wherever it stands", async () => {
+        /*
+         * E23 C5b, 07.11.2026; audit S12-29 (the live sandbox and the screenshots): the scene rail red under the glass,
+         * because the base sheet's `#scene-controls.drpg-gm-rail button.ui-control { color: var(--drpg-eye) !important }`
+         * beat the glass's D3 rule, which has no `!important`; the right rail the same by its own red block; and the
+         * neutral base ink (`rgba(bone, 0.5) !important`) beat D3 on every tile besides. The checkbox had two definitions
+         * under the glass (C-B2 at 18 px on a panel, a notice and the messenger; "the audit page's" at 22 px on a panel
+         * and the sheet), so a panel's box was 22 px with C-B2's corners and a tick cut from both a mask and a polygon,
+         * and a radio had none at all - Foundry's amber, round. Read by the sheets' cascade on bodies of their own: each
+         * rail's tile at rest and active in each theme; on each surface a checkbox and a radio, unchecked and checked, the
+         * winning value of each property of the box and of its mark, and the selectors that win the box. Red on
+         * f26d4467: the GM rail's ink the Eye under the glass, the box 18 px on a notice and 22 px on a panel.
+         */
+        const C = await styleCascade();
+        const rail = (classes, id, state) => {
+            const html = document.createElement("html"), body = document.createElement("body"), bar = document.createElement("aside");
+            const button = document.createElement("button");
+            body.className = classes;
+            bar.id = id;
+            if (id === "scene-controls") bar.className = "drpg-gm-rail";
+            button.className = `ui-control${state === "active" ? " active" : ""}`;
+            html.append(body);
+            body.append(bar);
+            bar.append(button);
+            return C.winner(button, "color")?.value ?? null;
+        };
+        const rails = classes => ["scene-controls", "sidebar-tabs"].flatMap(id => ["rest", "active"].map(state => rail(classes, id, state)));
+        const SURFACES = [["div", "drpg-panel"], ["section", "drpg-popup"], ["div", "drpg-messenger"], ["div", "application sheet actor"]];
+        /* not `border-radius`: the theme's sweep of square corners (`:not(.drpg-despair-pip)...`, "the shlif") wins it on
+           every surface, with the same 0 the definition states */
+        const BOX = ["appearance", "width", "height", "margin", "border", "background", "clip-path", "accent-color", "display"];
+        const MARK = ["content", "width", "height", "background-color", "mask", "transform"];
+        const control = ([tag, classes], type, checked) => {
+            const html = document.createElement("html"), body = document.createElement("body"), host = document.createElement(tag), input = document.createElement("input");
+            body.className = "drpg-theme-stained-glass";
+            host.className = classes;
+            input.type = type;
+            input.checked = checked;
+            html.append(body);
+            body.append(host);
+            host.append(input);
+            const box = BOX.map(name => C.winner(input, name)), mark = MARK.map(name => C.winner(input, name, "::before"));
+            return { values: [...box, ...mark].map(w => w?.value ?? null), selectors: box.map(w => w?.selector ?? null) };
+        };
+        const definitions = type => {
+            const read = [false, true].map(checked => SURFACES.map(surface => control(surface, type, checked)));
+            const sameValues = read.every(states => states.every(one => stableJson(one.values) === stableJson(states[0].values)));
+            const selectors = new Set(read[0].flatMap(one => one.selectors).filter(Boolean));
+            return { sameValues, rulesForTheBox: selectors.size, appearance: read[0][0].values[0], width: read[0][0].values[1],
+                markOff: read[0][0].values[BOX.length + 5], markOn: read[1][0].values[BOX.length + 5] };
+        };
+        equal(stableJson([rails("drpg-theme-monokuma-legacy"), rails("drpg-theme-stained-glass"), definitions("checkbox"), definitions("radio")]), stableJson([
+            ["var(--drpg-eye)", "var(--drpg-eye-light)", "var(--drpg-eye)", "var(--drpg-eye-light)"],
+            ["var(--drpg-sg-bone-dim)", "var(--drpg-glass-accent)", "var(--drpg-sg-bone-dim)", "var(--drpg-glass-accent)"],
+            { sameValues: true, rulesForTheBox: 1, appearance: "none", width: "22px", markOff: "scale(0)", markOn: "scale(1)" },
+            { sameValues: true, rulesForTheBox: 1, appearance: "none", width: "22px", markOff: "scale(0)", markOn: "scale(1)" }
+        ]), "[the GM's scene rail and the right rail, at rest and active, under Monokuma Legacy and under Stained Glass; "
+            + "the checkbox and the radio under the glass: the same values on a panel, a notice, the messenger and the sheet, unchecked and checked; how many rules win the box; its appearance and width; the mark's transform unchecked and checked]");
+    }],
+    ["R1408 - VT323 is never set in a synthesised bold (E23 C5b; E23-28, audit S12-44): under the glass the body says `font-synthesis: none`, which every element inherits, no module rule says otherwise, and the safeword button - the word a player must read at once - is set at the face's own weight", async () => {
+        /*
+         * E23 C5b, 07.11.2026; audit S12-44: VT323 ships one weight, so a bold asked of it is drawn by smearing the glyphs,
+         * and the middle of a capital M fills in - "MISIUBOMBO" on the safeword button read "NISIUBONBO". A9 (stained-glass.css)
+         * already sets weight 400 on the module's chrome by a list of surfaces; the safeword button stands in the sheet's
+         * window content, which the list does not name, and Daggerheart's button rule gives it its weight. One property
+         * settles the face wherever a rule's weight comes from: `font-synthesis: none` on the glass's body, inherited by
+         * every element (a face with a real bold, Foundry's Signika or Font Awesome's 900, still draws it; nothing is
+         * smeared). Read by the sheets' cascade: the body's `font-synthesis` under each theme; every declaration of the
+         * property in the module's sheets; the safeword button's `font-weight` under the glass. In Chromium (C5b's probe):
+         * the computed `font-synthesis` of the safeword button and of a toast. Red on f26d4467: no `font-synthesis`
+         * anywhere, the button's weight unstated.
+         */
+        const C = await styleCascade();
+        const bodyOf = classes => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = classes;
+            html.append(body);
+            return body;
+        };
+        const sg = bodyOf("drpg-theme-stained-glass");
+        const sheet = document.createElement("div"), content = document.createElement("div"), button = document.createElement("button");
+        sheet.className = "application sheet actor character";
+        content.className = "window-content";
+        button.className = "drpg-safeword-button";
+        sg.append(sheet);
+        sheet.append(content);
+        content.append(button);
+        const declared = C.rules.flatMap(rule => rule.decls.filter(d => d.property === "font-synthesis").map(d => `${rule.selector} = ${d.value}`));
+        equal(stableJson([
+            C.winner(sg, "font-synthesis")?.value ?? null, C.winner(bodyOf("drpg-theme-monokuma-legacy"), "font-synthesis")?.value ?? null,
+            declared, C.winner(button, "font-weight")?.value ?? null
+        ]), stableJson([
+            "none", null, ["body.drpg-theme-stained-glass = none"], "400"
+        ]), "[the glass's body font-synthesis, Monokuma Legacy's; every font-synthesis the module's sheets declare; the safeword button's weight under the glass]");
+    }],
+    ["R1409 - an action tile's look by state (E23 C5b; E23-29, audit S12-03): under the glass a tile that cannot be pressed - unaffordable or disabled - shows no brush and one look whatever its cost kind (a dashed edge, an opaque ground of ink, the dim bone ink, the icon with it); Monokuma Legacy dims the stripe to 0.35 as before, and high contrast's 0.75 stands over Legacy only", async () => {
+        /*
+         * E23 C5b, 07.11.2026; audit S12-03 (the trial's screenshots): the base sheet's
+         * `.drpg-action-button.unaffordable[data-drpg-cost-kind]::before { opacity: 0.35 }` (0,3,1) outweighed the glass's
+         * brush (0,2,2), so under the glass every tile out of reach glowed with a 35 % brush - 75 % under high contrast -
+         * and the affordable ones rested at 0: nine of ten tiles in a trial lit and the one live tile (Analyze) dark. A GM
+         * tile out of reach was a third look, its edge and its icon in the GM's red. Measured in Chromium on f26d4467 (C5b's
+         * probe, the glass harness at 1366x768 and 1920x1080, Investigation and Class Trial): `::before` opacity 0.35 for
+         * an unaffordable tile of each cost kind, 0 for one that can be pressed. Read here by the sheets' cascade on a
+         * sheet built on a body of its own per theme: the `::before` opacity, its `var(--brush-on, 0)` resolved by the
+         * tile's own `--brush-on`; the look's tokens and inks for each kind. Red on f26d4467: 0.35 under the glass.
+         */
+        const C = await styleCascade();
+        const KINDS = ["action", "gm", "stress", "free"], STATES = ["unaffordable", "disabled", "ok"];
+        const LOOK = ["--drpg-sg-tile-ground", "--drpg-sg-tile-edge", "--drpg-sg-tile-edge-style", "filter"];
+        const tile = (classes, kind, state) => {
+            const html = document.createElement("html"), body = document.createElement("body"), sheet = document.createElement("div");
+            const content = document.createElement("div"), button = document.createElement("button"), icon = document.createElement("i");
+            const name = document.createElement("span"), cost = document.createElement("span");
+            body.className = classes;
+            sheet.className = "application sheet actor character";
+            content.className = "window-content";
+            button.className = `drpg-action-button${state === "unaffordable" ? " unaffordable" : ""}`;
+            button.disabled = state === "disabled";
+            button.setAttribute("data-drpg-cost-kind", kind);
+            icon.className = "drpg-action-icon";
+            name.className = "drpg-action-name";
+            cost.className = "drpg-action-cost";
+            html.append(body);
+            body.append(sheet);
+            sheet.append(content);
+            content.append(button);
+            button.append(icon, name, cost);
+            const raw = C.winner(button, "opacity", "::before")?.value ?? null;
+            const on = C.winner(button, "--brush-on")?.value ?? null;
+            const brush = raw === "var(--brush-on, 0)" ? (on ?? "0") : raw;
+            const ground = [C.winner(button, ["background", "background-color"]), C.winner(button, ["border-color", "border"])].map(w => w?.value ?? null);
+            return { brush, look: [...LOOK.map(prop => C.winner(button, prop)?.value ?? null), ...ground, ...[icon, name, cost].map(el => C.winner(el, "color")?.value ?? null)] };
+        };
+        const read = classes => Object.fromEntries(KINDS.map(kind => [kind, Object.fromEntries(STATES.map(state => [state, tile(classes, kind, state).brush]))]));
+        const looks = KINDS.map(kind => ["unaffordable", "disabled"].map(state => stableJson(tile("drpg-theme-stained-glass", kind, state).look)));
+        const oneLook = new Set(looks.flat());
+        const glass = Object.fromEntries(KINDS.map(kind => [kind, { unaffordable: "0", disabled: "0", ok: "0" }]));
+        const legacy = Object.fromEntries(KINDS.map(kind => [kind, { unaffordable: "0.35", disabled: "0.35", ok: null }]));
+        const contrast = Object.fromEntries(KINDS.map(kind => [kind, { unaffordable: "0.75", disabled: "0.75", ok: null }]));
+        equal(stableJson([
+            read("drpg-theme-stained-glass"), oneLook.size, JSON.parse([...oneLook][0]),
+            read("drpg-theme-stained-glass drpg-high-contrast"), read("drpg-theme-monokuma-legacy"), read("drpg-theme-monokuma-legacy drpg-high-contrast")
+        ]), stableJson([
+            glass, 1, ["var(--drpg-sg-ink)", "color-mix(in srgb, var(--drpg-sg-bone-dim) 40%, transparent)", "dashed", "none",
+                "var(--drpg-sg-tile-ground)", "var(--drpg-sg-tile-edge)", "var(--drpg-sg-bone-dim)", "var(--drpg-sg-bone-dim)", "var(--drpg-sg-bone-dim)"],
+            glass, legacy, contrast
+        ]), "[under Stained Glass the ::before's opacity of each kind's tile unaffordable, disabled and pressable; how many looks the tiles out of reach wear and that look "
+            + "(its ground, edge and edge style tokens, its filter, the ground and the edge colour it wins, the icon's, the name's and the cost's ink); the same under high contrast; Monokuma Legacy; Monokuma Legacy under high contrast]");
+    }],
     ["R1377 - a turn's plan (glass.mjs `turnPlan`, E23 C1b; E23-01, E23-08): on stand-in panes a moving pane is carried by transform keyframes alone (with the opacity of its last fifth), a pane that only recolours by opacity alone, and no keyframe names a clip path; the last keyframe carries a moved triangle exactly onto its new place; the batches go out from the centre; a new accent on the same cut plans no move; `glassTurn` is the one entry point, the turn's start (`startTurn`) writes no clip path and draws on no canvas, and the curtain's clip path is written only where the cut is made and where the frost is clipped", async () => {
         /*
          * E23 C1b, 07.11.2026 (the owner's 05.11: the curtain's motion rebuilt as the approved MK-R1/MK-R2 mockup;

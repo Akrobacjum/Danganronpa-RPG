@@ -944,8 +944,7 @@ body.drpg-theme-stained-glass .drpg-panel input[type="number"]::-webkit-inner-sp
     margin: 0;
 }
 body.drpg-theme-stained-glass .drpg-panel input[type="range"] { accent-color: var(--drpg-glass-accent); }
-body.drpg-theme-stained-glass .drpg-panel input[type="checkbox"],
-body.drpg-theme-stained-glass .drpg-panel input[type="radio"] { accent-color: var(--drpg-glass-accent); }
+/* the checkbox and the radio: one definition, "the checkbox and the radio", further down (E23 C5b) */
 
 /* ---- tables: one class, the state colour on the header, zebra rows ------------------------- */
 body.drpg-theme-stained-glass .drpg-panel table {
@@ -1209,7 +1208,8 @@ body.drpg-theme-stained-glass .drpg-call-button {
     letter-spacing: 0.04em;
     color: var(--drpg-sg-bone);
     background: rgba(7, 7, 10, 0.5) !important;
-    border: 1px solid color-mix(in srgb, var(--brush) 45%, transparent) !important;
+    /* the edge's style through a token a state sets (E23 C5b): the disabled look below */
+    border: 1px var(--drpg-sg-tile-edge-style, solid) color-mix(in srgb, var(--brush) 45%, transparent) !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
@@ -1269,12 +1269,26 @@ body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):is(.ac
     border-color: var(--brush) !important;
 }
 body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):is(.active, .selected, [aria-pressed="true"]) .drpg-action-icon { color: var(--drpg-sg-ink); }
+/* ONE LOOK FOR A TILE THAT CANNOT BE PRESSED, WHATEVER IT COSTS (E23 C5b, 07.11.2026; audit S12-03). No brush (the base
+   sheet's 0.35 on this pseudo-element is Legacy's since C5b), a dashed edge in the dim bone, an opaque ground of ink
+   and the dim bone on its icon, name and cost - an action's, a Call's, a GM tile's, a Sanity tile's alike. Until C5b
+   the edge and the icon took the tile's `--brush` (the hour's colour, the GM's red), the GM tile's name stayed bone,
+   and an unaffordable tile wore the base sheet's grayscale: three disabled looks and a 35 % glow. The edge colour
+   keeps its `!important` against the base sheet's `:hover:not(:disabled)`, which an unaffordable tile still answers;
+   the style goes through the token the tile's border reads, the ground with the shout the base hover needs too.
+   R1409; in Chromium, `getComputedStyle(tile, "::before")` at 0 actions on the hour's ground and Class Trial's. */
 body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):is(:disabled, .unaffordable) {
     --brush-on: 0;
-    border-style: dashed !important;
-    border-color: color-mix(in srgb, var(--brush) 30%, transparent) !important;
-    color: var(--drpg-sg-bone-dim);
+    --drpg-sg-tile-ground: var(--drpg-sg-ink);
+    --drpg-sg-tile-edge: color-mix(in srgb, var(--drpg-sg-bone-dim) 40%, transparent);
+    --drpg-sg-tile-edge-style: dashed;
+    background: var(--drpg-sg-tile-ground) !important;
+    border-color: var(--drpg-sg-tile-edge) !important;
+    filter: none;
     opacity: 1;
+}
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):is(:disabled, .unaffordable) :is(.drpg-action-icon, .drpg-action-name, .drpg-action-cost) {
+    color: var(--drpg-sg-bone-dim);
 }
 body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button) .drpg-action-icon {
     color: var(--brush);
@@ -1740,10 +1754,10 @@ body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-m
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):has(input:checked) :is(i, small, strong, span) { color: inherit; opacity: 1; }
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode) > i { color: var(--kind); }
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode) small { opacity: 0.75; }
-body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode) input:is([type="radio"], [type="checkbox"]) {
-    accent-color: var(--kind);
-    margin: 0;
-}
+/* the row's control takes the row's kind (the one definition below reads `--drpg-sg-check`), and on a chosen row's
+   brush the radio's ring and mark the ink, which reads on the kind's colour */
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode) { --drpg-sg-check: var(--kind); }
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):has(input:checked) input[type="radio"] { --drpg-sg-check: var(--drpg-sg-ink); }
 /* unavailable: a dashed edge and no brush, like every disabled thing under the theme */
 body.drpg-theme-stained-glass .drpg-choice.unavailable {
     border-style: dashed;
@@ -1960,6 +1974,16 @@ body.drpg-theme-stained-glass :is(#drpg-hud, #drpg-room-tile, #drpg-despair, #dr
     font-weight: 400;
     font-style: normal;
 }
+/* AND NOTHING IS SMEARED, WHEREVER A WEIGHT COMES FROM (E23 C5b, 07.11.2026; audit S12-44). The list above names the
+   module's surfaces; a rule outside it - Daggerheart's on a button in the sheet's window, so the safeword button -
+   still asked VT323 for a bold, and the browser drew one by smearing: the middle of a capital M filled in and
+   "MISIUBOMBO" read "NISIUBONBO". `font-synthesis: none` on the glass's body is inherited by every element, so no face
+   is faked bold or oblique anywhere under the glass; a face that has a real bold (Foundry's Signika, Font Awesome's
+   900) still draws it. The safeword button states the face's own weight besides (its rule, "the safeword", below).
+   R1408. */
+body.drpg-theme-stained-glass {
+    font-synthesis: none;
+}
 
 /* ---- B1. The notice pane, and something under it ---------------------------------------
    The curtain cuts a pane for the module's notices in the bottom-left corner, as the audit
@@ -1967,7 +1991,7 @@ body.drpg-theme-stained-glass :is(#drpg-hud, #drpg-room-tile, #drpg-despair, #dr
    always empty and the real notices - `#drpg-popups` - floated over the map in the middle of
    the screen with no glass under them. The cards move onto their pane: bottom-left, the
    width the pane is cut for, and rising rather than falling because they now sit at the
-   bottom. Foundry's own toasts (#notifications) are untouched. */
+   bottom. Foundry's own toasts (#notifications) have their own rule since E23 C5b (B1b, below). */
 body.drpg-theme-stained-glass #drpg-popups {
     top: auto;
     bottom: 100px;
@@ -1978,6 +2002,42 @@ body.drpg-theme-stained-glass #drpg-popups {
     width: calc(var(--drpg-note-w) * var(--drpg-note-scale));
     max-width: calc(100vw - 32px);
 }
+/* ---- B1b. Foundry's toasts stand under the Despair panel, on a plate ------------------------
+   (E23 C5b, 07.11.2026; audit S11-22.) Every Foundry warning fell on the curtain's Despair pools at the top of the
+   screen: a translucent amber card the skulls and "12/12" read through, white VT323 on amber at about 2.9:1, its
+   close button on "Still to act". The list stands in `#ui-top` with the Despair panel (`order: 10`, its flex column);
+   here it is taken into that column's flow after the panel, so the first toast stands under the panel wherever the
+   panel ends, at the screen's middle, and the column grows downwards from there. Each toast is the glass's ink,
+   opaque, in the glass's face at its floor (21 px scaled: VT323 at 14 px and more at any scale down to two thirds),
+   its level a 3 px rule on its left in the level's colour. Monokuma Legacy keeps Foundry's toasts. No `!important`:
+   whether v14's own rules for the list (and their cascade layer against this sheet's) outweigh these is not read
+   here. R1406; the glass harness has no list, C5b's probe stands one in; v14's geometry, the owner's table. */
+body.drpg-theme-stained-glass {
+    --drpg-sg-notice-info: var(--drpg-glass-accent);
+    --drpg-sg-notice-warning: var(--drpg-sg-hope);
+    --drpg-sg-notice-error: var(--drpg-sg-gm-light);
+    --drpg-sg-notice-success: var(--drpg-sg-evidence);
+}
+body.drpg-theme-stained-glass #notifications {
+    position: static;
+    order: 11;
+    width: min(26rem, calc(100vw - 2 * var(--drpg-edge)));
+    margin: 6px auto 0;
+}
+body.drpg-theme-stained-glass #notifications .notification {
+    background: var(--drpg-sg-ink);
+    border: 1px solid color-mix(in srgb, var(--drpg-sg-bone) 22%, transparent);
+    border-left: 3px solid var(--drpg-sg-notice-info);
+    border-radius: 0;
+    box-shadow: none;
+    color: var(--drpg-sg-bone);
+    font-size: var(--drpg-sg-floor);
+    line-height: 1.15;
+}
+body.drpg-theme-stained-glass #notifications .notification.info { border-left: 3px solid var(--drpg-sg-notice-info); }
+body.drpg-theme-stained-glass #notifications .notification.warning { border-left: 3px solid var(--drpg-sg-notice-warning); }
+body.drpg-theme-stained-glass #notifications .notification.error { border-left: 3px solid var(--drpg-sg-notice-error); }
+body.drpg-theme-stained-glass #notifications .notification.success { border-left: 3px solid var(--drpg-sg-notice-success); }
 body.drpg-theme-stained-glass #drpg-popups .drpg-popup {
     width: 100%;
     border-radius: 0;
@@ -2212,43 +2272,7 @@ body.drpg-theme-stained-glass #drpg-despair .drpg-despair-button:hover:not(:disa
 }
 body.drpg-theme-stained-glass #drpg-despair .drpg-despair-name { color: var(--drpg-sg-despair); }
 
-/* ---- C-B2. The checkbox is a pixel tick --------------------------------------------------
-   `accent-color` left the browser's own rounded box on screen, which is the one control in a
-   module window that still looked like a form. A square, the state colour when it is on, and
-   the sprite's tick cut out of it. */
-body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger) input[type="checkbox"] {
-    appearance: none;
-    -webkit-appearance: none;
-    width: 18px;
-    height: 18px;
-    margin: 0 2px 0 0;
-    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 60%, transparent);
-    background: rgba(7, 7, 10, 0.5);
-    display: inline-grid;
-    place-content: center;
-    cursor: pointer;
-    clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
-}
-body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger) input[type="checkbox"]:checked {
-    background: var(--drpg-glass-accent);
-    border-color: var(--drpg-glass-accent);
-}
-body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger) input[type="checkbox"]::before {
-    content: "";
-    width: 12px;
-    height: 12px;
-    background-color: var(--drpg-sg-ink);
-    -webkit-mask: var(--drpg-px-check) center / contain no-repeat;
-    mask: var(--drpg-px-check) center / contain no-repeat;
-    image-rendering: pixelated;
-    transform: scale(0);
-    transition: transform var(--drpg-t-snap, 90ms) var(--drpg-ease-arrive, ease-out);
-}
-body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger) input[type="checkbox"]:checked::before { transform: scale(1); }
-body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger) input[type="checkbox"]:focus-visible {
-    outline: 2px solid var(--drpg-glass-accent);
-    outline-offset: 2px;
-}
+/* ---- C-B2. The checkbox is a pixel tick: one definition since E23 C5b, "the checkbox and the radio", further down ---- */
 
 /* ---- C-H. The header's own widgets ------------------------------------------------------
    The sheet's two materials landed in 1.2.26, but the things standing ON the glass band kept
@@ -3831,6 +3855,8 @@ body.drpg-theme-stained-glass .application.sheet.actor .drpg-safeword-button {
        sidebar, which is why the first attempt at this matched nothing at all */
     position: sticky !important;
     width: auto !important;
+    /* VT323's own weight: the word a player must read at once is never smeared (E23 C5b; S12-44, R1408) */
+    font-weight: 400;
 }
 
 /* NO TIER MARKS ON THE TRAITS. Daggerheart puts a disc beside every trait name; the audit
@@ -3850,61 +3876,83 @@ body.drpg-theme-stained-glass .drpg-action-button[data-drpg-cost-kind="gm"]:not(
     border-color: color-mix(in srgb, var(--drpg-sg-gm-light) 70%, transparent) !important;
     --brush: var(--drpg-sg-gm-light);
 }
-body.drpg-theme-stained-glass .drpg-action-button[data-drpg-cost-kind="gm"] :is(.drpg-action-name, .drpg-action-cost) {
+body.drpg-theme-stained-glass .drpg-action-button[data-drpg-cost-kind="gm"]:not(:disabled):not(.unaffordable) :is(.drpg-action-name, .drpg-action-cost) {
     color: var(--drpg-sg-bone);
 }
 
-/* ---- the checkbox: the audit page's, not Foundry's -------------------------------------- */
-/* The mockup draws a checkbox as a square in the state colour with a pixel tick cut out of the
+/* ---- the checkbox and the radio: the audit page's, not Foundry's, and ONE definition --------
+   The mockup draws a checkbox as a square in the state colour with a pixel tick cut out of the
    brush; the module was still handing Foundry an `accent-color`, which paints an amber rounded
-   check - a colour this theme does not contain and a corner it does not have. The tick is the
-   audit page's own polygon, and the box follows the field rules: state edge, no radius. */
-body.drpg-theme-stained-glass :is(.drpg-panel, .application.sheet.actor) input[type="checkbox"] {
+   check - a colour this theme does not contain and a corner it does not have.
+   ONE DEFINITION FOR EVERY SURFACE (E23 C5b, 07.11.2026; audit S12-29, the live sandbox). There were two: C-B2's
+   (18 px, shaved corners, the sprite's tick by a mask) on a panel, a notice and the messenger, and this one (22 px,
+   the tick a polygon) on a panel and the sheet. Both matched a panel, and this one won what it stated, so a panel's
+   box was 22 px with C-B2's corners and a tick cut from a mask and a polygon at once, a notice's 18 px; and a radio
+   had no definition at all - Foundry's amber and round in every action window, a third colour in a GM row. Now one
+   rule for both controls on every module surface: the box 22 px (up from 18 at the audit of 08.09: the audit page's
+   `.ui.check` is 24 and every other control clears 24; 22 because the label rows were built around the old height,
+   measured), the shaved corners, the state edge; checked, the checkbox filled with the sprite's tick in ink and the
+   radio its ring with a square mark in the state colour. The colour is `--drpg-sg-check` where a row sets it (the
+   choice rows: their kind), the glass's accent elsewhere. R1407. */
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"]) {
     appearance: none;
     -webkit-appearance: none;
-    /* 22, up from 18 (audit, 08.09). The audit page draws `.ui.check` at 24 and every other
-       control in this theme clears 24; the box was the smallest thing on screen that has to be
-       hit. 22 rather than 24 because the label rows are built around the old height and grow
-       with it - measured. The tick below goes up with it or it rattles in the box. */
     width: 22px;
     height: 22px;
     margin: 0;
     padding: 0;
     display: inline-grid;
     place-content: center;
-    background: rgba(7, 7, 10, 0.55);
+    background: color-mix(in srgb, var(--drpg-sg-ink) 55%, transparent);
     background-image: none;
-    accent-color: var(--drpg-glass-accent);
-    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 55%, transparent);
+    accent-color: var(--drpg-sg-check, var(--drpg-glass-accent));
+    border: 1px solid color-mix(in srgb, var(--drpg-sg-check, var(--drpg-glass-accent)) 55%, transparent);
     border-radius: 0;
+    clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
     cursor: pointer;
     transition: border-color var(--drpg-t-snap, 120ms), background var(--drpg-t-snap, 120ms);
 }
-body.drpg-theme-stained-glass :is(.drpg-panel, .application.sheet.actor) input[type="checkbox"]:hover:not(:disabled) {
-    border-color: var(--drpg-glass-accent);
-    background: color-mix(in srgb, var(--drpg-glass-accent) 20%, rgba(7, 7, 10, 0.55));
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"]):hover:not(:disabled) {
+    border-color: var(--drpg-sg-check, var(--drpg-glass-accent));
+    background: color-mix(in srgb, var(--drpg-sg-check, var(--drpg-glass-accent)) 20%, color-mix(in srgb, var(--drpg-sg-ink) 55%, transparent));
 }
-body.drpg-theme-stained-glass :is(.drpg-panel, .application.sheet.actor) input[type="checkbox"]:checked {
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input[type="checkbox"]:checked {
     /* the shout is against Foundry's own checked styling, which paints the amber straight
        through `appearance: none`; `accent-color` goes with it or the tick comes back amber */
-    background: var(--drpg-glass-accent) !important;
+    background: var(--drpg-sg-check, var(--drpg-glass-accent)) !important;
     background-image: none !important;
-    border-color: var(--drpg-glass-accent) !important;
-    accent-color: var(--drpg-glass-accent);
+    border-color: var(--drpg-sg-check, var(--drpg-glass-accent)) !important;
 }
-body.drpg-theme-stained-glass :is(.drpg-panel, .application.sheet.actor) input[type="checkbox"]:checked::before {
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input[type="radio"]:checked {
+    border-color: var(--drpg-sg-check, var(--drpg-glass-accent));
+}
+/* the mark: drawn at rest at scale 0 and grown when checked - the sprite's tick in ink for the checkbox, a square of
+   the state colour for the radio */
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"])::before {
     content: "";
     width: 15px;
     height: 15px;
-    background: var(--drpg-sg-ink);
-    clip-path: polygon(0 55%, 20% 35%, 40% 55%, 80% 10%, 100% 30%, 40% 95%);
+    background-color: var(--drpg-sg-ink);
+    -webkit-mask: var(--drpg-px-check) center / contain no-repeat;
+    mask: var(--drpg-px-check) center / contain no-repeat;
+    image-rendering: pixelated;
+    transform: scale(0);
+    transition: transform var(--drpg-t-snap, 90ms) var(--drpg-ease-arrive, ease-out);
 }
-body.drpg-theme-stained-glass :is(.drpg-panel, .application.sheet.actor) input[type="checkbox"]:disabled {
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input[type="radio"]::before {
+    width: 10px;
+    height: 10px;
+    background-color: var(--drpg-sg-check, var(--drpg-glass-accent));
+    -webkit-mask: none;
+    mask: none;
+}
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"]):checked::before { transform: scale(1); }
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"]):disabled {
     border-style: dashed;
     cursor: not-allowed;
 }
-body.drpg-theme-stained-glass :is(.drpg-panel, .application.sheet.actor) input[type="checkbox"]:focus-visible {
-    outline: 2px solid var(--drpg-glass-accent);
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"]):focus-visible {
+    outline: 2px solid var(--drpg-sg-check, var(--drpg-glass-accent));
     outline-offset: 2px;
 }
 
