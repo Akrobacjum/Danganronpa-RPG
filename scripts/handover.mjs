@@ -294,7 +294,7 @@ export async function mintCopy(from, to, item, { analysis = true, quiet = false 
        `observeFindKey` (`mintFindCopy`), as Monokuma's Reveal does (trial-modes.mjs `revealInStep`), and so does
        this now: the second reads the first's copy. Tier 0 R1289 holds every such bullet to the queue - on one GM's
        browser: the queue is that browser's memory (a hand-over and a Present run on the primary; a GM's Give on another
-       GM's browser races it still, E38's, row 1.2.126; E60's fix round, FG6). */
+       GM's browser races it still, E38's, row 1.2.128; E60's fix round, FG6). */
     const { copiedRemnants } = await import("./truth-bullets.mjs");
     const { observeFindKey } = await import("./observe.mjs");
     const copy = await serialWrite(observeFindKey(to.id), () => secret.remnantId && copiedRemnants(to).has(secret.remnantId) ? HELD_COPY : createTruthBullet(to, {
