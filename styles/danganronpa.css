@@ -5637,6 +5637,26 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     margin: 0.5rem 0;
 }
 
+/* THE BRIEFING BESIDE THE LIST (E21 fix G2, 07.11.2026; E21-04): a menu drawn with `columns` (action-menus.mjs
+   `COLUMNS`, Observe's) stands its briefing on the left and its question on the right, in a window of a stated width, and
+   shows a row's line of explanation while that row is picked (an unavailable row keeps its reason). The two columns
+   stack when the window is narrower than both (a phone). Layout only, both themes; measured in Chromium by the fit
+   sweep (`--fit --only action-observe`: still at 1366x768 and up). */
+.drpg-variant-columns {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.75rem 16px;
+}
+.drpg-variant-columns > .drpg-variant-brief { flex: 1 1 18rem; min-width: 0; }
+/* The right padding holds the glass's brush behind a row (stained-glass.css, `inset: 1px -5px`), which stood 4 px past
+   the body and made it scroll sideways (measured: scrollWidth 970 against 966 at 1366x768). */
+.drpg-variant-columns > .drpg-variant-ask { flex: 1.1 1 18rem; min-width: 0; padding-right: 6px; }
+.drpg-variant-columns .drpg-choice:not(.unavailable):not(:has(input:checked)) .drpg-choice-text small { display: none; }
+.drpg-variant-columns :is(.drpg-variant-ask, .drpg-variant-ask > form, .drpg-variant-brief > .drpg-briefing-block) > :first-child {
+    margin-top: 0;
+}
+
 /*
  * The Rest picker. Built like a `.drpg-choice` row but declared separately in
  * rest.mjs, and it was the one class in the module with no rule at all - the

@@ -3761,15 +3761,33 @@ const measured = v => (Number.isFinite(v) && v > 0 ? v : Infinity);
    `[contenteditable]`) keeps the height it had. A change of the width (an orientation change, a real resize) takes the
    page's height again, and so does any change with no field focused; a rise is always taken. Where the browser has
    the VirtualKeyboard API the keyboard is asked to overlay the page (`overlaysContent`), so the height does not fall at
-   all; the rule above holds either way. What a real tablet's and phone's keyboard does is LIVE-E21-02. */
+   all; the rule above holds either way. What a real tablet's and phone's keyboard does is LIVE-E21-02.
+   NOT AT A DESK (E21 fix G2, 07.11.2026; the end review's correctness m1). The rule held a desk too: a GM typing in the
+   chat box who docked the devtools at the bottom, or dragged the browser's bottom edge, had the old height kept -
+   `drpg-short` stayed off below 620 px, the curtain was not cut again and the open sheets kept their height (C5a's
+   S01-06 back) - and nothing re-ran once the focus left. So a fall is held only where a keyboard can be on the screen:
+   a coarse pointer (`(pointer: coarse)`, a tablet or a phone), or a visual viewport shorter than the page (a keyboard the
+   browser lays over it). And when the focus leaves a field while the height is held, the height is read again a tick
+   later (`watchScreen`'s focusout): no resize follows a keyboard that went away with the focus on every browser, so the
+   layout no longer waits for the next real resize. */
 let deskWidth = 0, deskHeight = 0;
 const typing = () => {
     const el = globalThis.document?.activeElement;
     return Boolean(el?.matches?.("input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=button]):not([type=submit]), textarea, [contenteditable]:not([contenteditable=false]), [contenteditable]:not([contenteditable=false]) *"));
 };
+/** Whether an on-screen keyboard can be what shrank the page (above): a coarse pointer, or the visual viewport says so. */
+const keyboardPossible = (h = innerHeight) => {
+    try {
+        if (globalThis.matchMedia?.("(pointer: coarse)")?.matches) return true;
+        const vv = globalThis.visualViewport;
+        return Boolean(vv && vv.height > 0 && vv.height + 1 < h);
+    } catch {
+        return false;
+    }
+};
 /** The height the layout counts from (above): the page's, held through a keyboard. */
 export function layoutHeight(h = innerHeight, w = innerWidth) {
-    if (w !== deskWidth || h >= deskHeight || !typing()) { deskWidth = w; deskHeight = h; }
+    if (w !== deskWidth || h >= deskHeight || !typing() || !keyboardPossible(h)) { deskWidth = w; deskHeight = h; }
     return deskHeight;
 }
 /** True while the page is shorter than its layout height: a keyboard over the page (above). */
@@ -3856,6 +3874,18 @@ function watchScreen() {
             // The sheets standing open are held to the new height (E21 C5a): `scaleWindow`'s memo says whether it moved.
             rescaleSheets();
         }, 250);
+    });
+    // The focus left a field while the height was held (E21 fix G2; `layoutHeight`'s note): read again once the focus
+    // has landed, and when the layout's height moved, the theme, the sheets and the curtain (glass.mjs's hook) follow.
+    addEventListener("focusout", () => {
+        if (!(deskHeight > innerHeight)) return;
+        setTimeout(() => {
+            const held = deskHeight;
+            if (layoutHeight() === held) return;
+            if (autoScale() !== screenFactor || shapeKey() !== screenShape) applyTheme();
+            rescaleSheets();
+            globalThis.Hooks?.callAll?.("drpgLayoutHeight", deskHeight);
+        }, 0);
     });
 }
 

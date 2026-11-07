@@ -85,6 +85,13 @@ const localize = key => game.i18n.localize(key);
  * the primary, else the GM's road, else the closing word. Throws when the default is a role that may never be one. A
  * button's own `class` is written beside its role's (E21 C2a: the case dashboard's "A body is discovered" keeps
  * `drpg-state-change`, the face E09 C16 gave it); the role's classes are always there.
+ * A CLOSING WORD WHOSE ACTION IS "close" CARRIES NO CALLBACK (E21 fix G2, 07.11.2026; the end review's correctness m2,
+ * STATUS Open 41). The action defaults to the role ("close" for `close: "close"`), and ApplicationV2 dispatches
+ * `data-action="close"` to its own close before DialogV2 sees the press (trial-floor-ui.mjs `openVoteDialog`'s note,
+ * measured 11.09): Foundry closes the window, the callback never runs and the wait answers null. The harness's
+ * DialogV2 does not model that dispatch, so a callback there passes every test and fails at a table - footerButtons
+ * throws instead. A closing word that must answer something names another action (`{ role: "cancel", action: "no",
+ * callback }`); LIVE-E21-06 is what v14 answers.
  */
 export function footerButtons(footer = {}) {
     const one = (role, b) => (b ? [{ ...b, role }] : []);
@@ -94,6 +101,7 @@ export function footerButtons(footer = {}) {
         const spec = typeof footer.close === "string" ? { role: footer.close } : footer.close;
         const role = spec.role === "cancel" ? "cancel" : "close";
         closing = [{ callback: spec.callback, icon: spec.icon, action: spec.action ?? role, role, label: localize(BUTTON_ROLES[role].word), side: spec.side === "right" ? "right" : "left" }];
+        if (closing[0].action === "close" && closing[0].callback) throw new Error("ui-kit: a closing word with the action \"close\" carries no callback - Foundry closes the window on \"close\" before DialogV2 runs it (name another action)");
     }
     const answers = [...one("primary", footer.primary), ...many("gmRoute", footer.gmRoute)];
     const closeRight = closing[0]?.side === "right";
@@ -938,7 +946,7 @@ export const WIDTH_CLASS = "drpg-kit-width";
 function widthSpec(width) {
     if (typeof width === "number") {
         if (!(width > 0)) throw new Error(`ui-kit: a window's width is a number of pixels above 0, not ${width}`);
-        return { name: null, classes: [WIDTH_CLASS], open: kitWidth(width), max: null };
+        return { name: null, px: width, classes: [WIDTH_CLASS], open: kitWidth(width), max: null };
     }
     const row = WINDOW_WIDTHS[width];
     if (!row) throw new Error(`ui-kit: no window width "${width}" (WINDOW_WIDTHS: ${Object.keys(WINDOW_WIDTHS).join(", ")})`);
@@ -972,10 +980,12 @@ export function kitWidth(width, { vw = globalThis.innerWidth || 1200, vh = globa
 }
 
 /** The width's marks on the drawn root: its name or pixels (`data-drpg-width`, which the style harness reads as this
- * file's `kitWidth`) and a ceiling the fit's measure reads off the window. */
+ * file's `kitWidth`) and a ceiling the fit's measure reads off the window. The pixels are the ones stated, not the width
+ * this screen held them to (E21 fix G2: probe 08's 1024 px page wrote Observe's 1120 as 1008, and the style harness drew
+ * it 1008 wide at 1366x768). */
 function stateWidth(root, sized) {
     if (!root) return;
-    root.dataset.drpgWidth = sized.name ?? String(sized.open);
+    root.dataset.drpgWidth = sized.name ?? String(sized.px ?? sized.open);
     if (sized.max) root.style.setProperty("--drpg-window-max", `${sized.max}px`);
 }
 
@@ -1066,7 +1076,9 @@ const ANSWER_ROLES = Object.freeze(["primary", "gmRoute", "destructive"]);
  * the yes button's callback (true without one), false for the no, and null when the window is closed, as
  * `DialogV2.confirm` does with `rejectClose` false. `yes` is `{ role, label, callback, icon, action }`, its role one of
  * `primary` (the default), `gmRoute` (the player's road through the GM, D11) or `destructive` (what cannot be undone);
- * `no` is "cancel" (the default), "close", or `{ role, action, callback }`, and its word is the role's. A destructive
+ * `no` is "cancel" (the default), "close", or `{ role, action, callback }`, and its word is the role's. A "close" no
+ * whose action is "close" (the role's own, as `no: "close"` gives) has no callback (`footerButtons`): Foundry closes the
+ * window on that action, so it answers null, as a closed window does (E21 fix G2; until then it promised false). A destructive
  * yes is never the default: the closing word is (`default`), and with no primary the right group is empty, so the
  * closing word is the first submit button in the tree and Enter presses it (the header). Every other option goes to
  * `drpgWindow` (`classes`, `position`, `id`, `render`, `live`). Foldable, as every kit window (`drpgWindow`).
@@ -1076,7 +1088,9 @@ export function drpgConfirm({ title = "", body = "", yes = {}, no = "cancel", ..
     if (!ANSWER_ROLES.includes(role)) throw new Error(`ui-kit: a question's yes is primary, gmRoute or destructive, not "${role}"`);
     if (!yes.label) throw new Error("ui-kit: a question's yes has no label");
     const spec = typeof no === "string" ? { role: no } : { ...no };
-    const close = { role: spec.role === "close" ? "close" : "cancel", action: spec.action ?? (spec.role === "close" ? "close" : "cancel"), callback: spec.callback ?? (() => false) };
+    const close = { role: spec.role === "close" ? "close" : "cancel", action: spec.action ?? (spec.role === "close" ? "close" : "cancel") };
+    if (close.action !== "close") close.callback = spec.callback ?? (() => false);
+    else if (spec.callback) close.callback = spec.callback;
     const answer = { action: yes.action ?? "yes", label: yes.label, callback: yes.callback ?? (() => true), icon: yes.icon };
     const footer = role === "primary" ? { primary: answer, close }
         : role === "gmRoute" ? { gmRoute: [answer], close }

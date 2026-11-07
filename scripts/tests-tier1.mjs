@@ -32903,7 +32903,8 @@ const INVARIANTS = [
                 ["R1320 yes", true, true, [["yes", "Do it", "drpg-role-primary", true, true], ["cancel", cancelW, "drpg-role-cancel", false, false]]],
                 ["R1320 gm", true, true, [["yes", "Ask the GM", "drpg-role-gm-route drpg-gm-route", true, true], ["cancel", cancelW, "drpg-role-cancel", false, false]]],
                 ["R1320 wipe", true, true, [["cancel", cancelW, "drpg-role-cancel", true, false], ["yes", "Wipe", "drpg-role-destructive drpg-destructive", false, "wiped"]]],
-                ["R1320 close", true, true, [["yes", "Go", "drpg-role-primary", true, true], ["close", closeW, "drpg-role-close", false, false]]],
+                // E21 fix G2: a "close" no has no callback (ApplicationV2 closes the window on that action; R1602).
+                ["R1320 close", true, true, [["yes", "Go", "drpg-role-primary", true, true], ["close", closeW, "drpg-role-close", false, "none"]]],
                 ["R1320 prompt", true, true, [["ok", "OK", "drpg-role-primary", true, "none"]]]
             ]
         }), "[what drpgConfirm or drpgPrompt threw; each question window (title, foldable, kit class; its buttons in tree order: action, label, class, default, what its callback answers - 'none': the action itself)]");
@@ -34363,9 +34364,15 @@ const INVARIANTS = [
          * and settings.mjs's `watchScreen`. A real keyboard is LIVE-E21-02 and the glass sweep's (`?kbd=1`). Red on C1c's
          * tree: `shortScreen` answered true at 460 px with focus in a textarea.
          */
+        // A tablet's: the pointer stood in coarse for the reading (E21 fix G2: the rule holds only where a keyboard can be;
+        // R1601 reads the desk), and put back.
         const S = await import("./settings.mjs");
-        const owns = ["innerWidth", "innerHeight"].map(k => [k, Object.getOwnPropertyDescriptor(window, k)]);
+        const owns = ["innerWidth", "innerHeight", "matchMedia"].map(k => [k, Object.getOwnPropertyDescriptor(window, k)]);
+        const ownGlobalMM = Object.getOwnPropertyDescriptor(globalThis, "matchMedia");
         const size = (w, h) => { Object.defineProperty(window, "innerWidth", { value: w, configurable: true, writable: true }); Object.defineProperty(window, "innerHeight", { value: h, configurable: true, writable: true }); };
+        const coarseMM = q => ({ matches: /pointer:\s*coarse/.test(q), media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
+        Object.defineProperty(window, "matchMedia", { value: coarseMM, configurable: true, writable: true });
+        if (globalThis !== window) Object.defineProperty(globalThis, "matchMedia", { value: coarseMM, configurable: true, writable: true });
         const field = document.createElement("textarea");
         document.body.append(field);
         const steps = [];
@@ -34380,6 +34387,7 @@ const INVARIANTS = [
         } finally {
             field.remove();
             for (const [k, d] of owns) { if (d) Object.defineProperty(window, k, d); else delete window[k]; }
+            if (globalThis !== window) { if (ownGlobalMM) Object.defineProperty(globalThis, "matchMedia", ownGlobalMM); else delete globalThis.matchMedia; }
             S.shortScreen();
         }
         const sources = new Map(await moduleSources());
@@ -34392,6 +34400,100 @@ const INVARIANTS = [
                 ["no field, 460 high", true, false, false, 0.7], ["typing, width changed", true, true, false, 0.7], ["desk again", false, false, false, 0.7]],
             schedule: true, overlay: true
         }), `[at each step (label, shortScreen, narrowScreen, keyboardUp, autoScale - ${auto} on the page as it is); whether glass.mjs's schedule asks keyboardUp; whether watchScreen asks the keyboard to overlay]`);
+    }],
+    ["R1601 - the keyboard rule holds no desk (E21 fix G2; the end review's correctness m1): settings.mjs `layoutHeight` keeps the height through a fall with focus in a field only where a keyboard can be on the screen - a coarse pointer, or a visual viewport shorter than the page - and reads it again once the focus leaves a field it was held for (`watchScreen`'s focusout, a tick later, then the `drpgLayoutHeight` hook glass.mjs cuts the curtain on)", async () => {
+        /*
+         * E21 fix G2, 07.11.2026. A GM typing in the chat box who docked the devtools or dragged the browser shorter had
+         * the old height kept at a desk: `drpg-short` stayed off below 620 px and the open sheets kept their height, and
+         * nothing re-ran when the focus left. Read here as R1355 reads it: the page's size, the pointer (`matchMedia`) and
+         * the visual viewport stood in for each step and put back, a textarea focused and blurred, settings.mjs's answers;
+         * then, with a coarse pointer and the height held, the field blurred and the hook awaited; and the source of
+         * glass.mjs's hook. Red on dd87f9f7: at a desk with a fine pointer the height was held (keyboardUp true, short
+         * false at 460 px), and no hook followed the blur.
+         */
+        const S = await import("./settings.mjs");
+        const owns = ["innerWidth", "innerHeight", "matchMedia", "visualViewport"].map(k => [k, Object.getOwnPropertyDescriptor(window, k)]);
+        const ownGlobal = ["matchMedia", "visualViewport"].map(k => [k, Object.getOwnPropertyDescriptor(globalThis, k)]);
+        const set = (k, value) => Object.defineProperty(window, k, { value, configurable: true, writable: true });
+        const size = (w, h) => { set("innerWidth", w); set("innerHeight", h); };
+        let coarse = false, vv = null;
+        const mm = q => ({ matches: /pointer:\s*coarse/.test(q) ? coarse : false, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
+        set("matchMedia", mm);
+        if (globalThis !== window) Object.defineProperty(globalThis, "matchMedia", { value: mm, configurable: true, writable: true });
+        Object.defineProperty(window, "visualViewport", { get: () => vv, configurable: true });
+        if (globalThis !== window) Object.defineProperty(globalThis, "visualViewport", { get: () => vv, configurable: true });
+        const field = document.createElement("textarea");
+        document.body.append(field);
+        const steps = [];
+        const read = label => steps.push([label, S.shortScreen(), S.keyboardUp()]);
+        let hooked = null;
+        try {
+            size(1366, 768); read("desk");
+            field.focus(); size(1366, 460); read("desk, typing, 460 high");
+            size(1366, 768); field.blur(); read("desk again");
+            coarse = true; field.focus(); size(1366, 460); read("coarse, typing, 460 high");
+            size(1366, 768); field.blur(); coarse = false; read("desk again 2");
+            vv = { height: 400, width: 1366 }; field.focus(); size(1366, 460); read("visual viewport under the page, typing, 460 high");
+            size(1366, 768); field.blur(); vv = null; read("desk again 3");
+            // The focus leaves while the height is held: read again a tick later, and the hook says so.
+            coarse = true; field.focus(); size(1366, 460); read("coarse, typing, held");
+            hooked = new Promise(resolve => { Hooks.once("drpgLayoutHeight", h => resolve(h)); setTimeout(() => resolve("no hook"), 1500); });
+            field.blur();
+            hooked = await hooked;
+            read("coarse, blurred, a tick later");
+        } finally {
+            field.remove();
+            for (const [k, d] of owns) { if (d) Object.defineProperty(window, k, d); else delete window[k]; }
+            if (globalThis !== window) for (const [k, d] of ownGlobal) { if (d) Object.defineProperty(globalThis, k, d); else delete globalThis[k]; }
+            S.shortScreen();
+            // The theme and the sheets the blur's reading moved are put back by the page's own size.
+            window.dispatchEvent(new Event("resize"));
+            await new Promise(r => setTimeout(r, 400));
+        }
+        const sources = new Map(await moduleSources());
+        const glass = stripComments(sources.get("glass.mjs") ?? "");
+        must(glass.length > 10000, "glass.mjs read nothing - this test would read nothing");
+        equal(stableJson({ steps, hooked, glass: /Hooks\.on\("drpgLayoutHeight",/.test(glass) }), stableJson({
+            steps: [["desk", false, false], ["desk, typing, 460 high", true, false], ["desk again", false, false],
+                ["coarse, typing, 460 high", false, true], ["desk again 2", false, false],
+                ["visual viewport under the page, typing, 460 high", false, true], ["desk again 3", false, false],
+                ["coarse, typing, held", false, true], ["coarse, blurred, a tick later", true, false]],
+            hooked: 460, glass: true
+        }), "[at each step (label, shortScreen, keyboardUp); what the hook carried after the blur (the layout height, or 'no hook'); whether glass.mjs cuts on the hook]");
+    }],
+    ["R1602 - a closing word with the action \"close\" carries no callback (E21 fix G2; the end review's correctness m2, STATUS Open 41): ui-kit.mjs `footerButtons` throws on one - ApplicationV2 closes the window on that action before DialogV2 runs a callback - and lets a closing word with another action carry its callback; `drpgConfirm`'s no: \"close\" asks with no callback (it answers null, as a closed window), its \"cancel\" with its false", async () => {
+        /*
+         * E21 fix G2, 07.11.2026. `close: { role: "close", callback }` built a button whose callback a table never runs
+         * (trial-floor-ui.mjs `openVoteDialog`'s note, measured 11.09: Close and count shut the window and counted
+         * nothing), and the harness's DialogV2 presses straight through it, so every test passed. Read: footerButtons
+         * handed each shape (nothing drawn), drpgConfirm's config with DialogV2.wait stood in for. Red on dd87f9f7:
+         * nothing threw, and drpgConfirm's "close" no carried `() => false`.
+         */
+        const K = await import("./ui-kit.mjs");
+        const throws = footer => { try { K.footerButtons(footer); return false; } catch (err) { return /closing word with the action "close"/.test(err.message) ? "close" : err.message; } };
+        const cb = () => "x";
+        const read = {
+            closeCallback: throws({ close: { role: "close", callback: cb } }),
+            cancelActionClose: throws({ close: { role: "cancel", action: "close", callback: cb } }),
+            closeOtherAction: throws({ close: { role: "close", action: "dismiss", callback: cb } }),
+            closeBare: throws({ close: "close" }),
+            cancelCallback: throws({ close: { role: "cancel", action: "no", callback: cb } })
+        };
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const seen = [];
+        D.wait = async cfg => { seen.push(cfg); return null; };
+        try {
+            await K.drpgConfirm({ title: "R1602 close", body: "<p>q</p>", yes: { label: "Go" }, no: "close" });
+            await K.drpgConfirm({ title: "R1602 cancel", body: "<p>q</p>", yes: { label: "Go" } });
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        read.confirm = seen.map(cfg => (cfg.buttons ?? []).filter(b => b.action !== "yes").map(b => [b.action, b.callback ? b.callback() : "none"]));
+        equal(stableJson(read), stableJson({
+            closeCallback: "close", cancelActionClose: "close", closeOtherAction: false, closeBare: false, cancelCallback: false,
+            confirm: [[["close", "none"]], [["cancel", false]]]
+        }), "[footerButtons on: a close with a callback, a cancel whose action is close with one, a close of another action with one, a bare close, a cancel of action no with one ('close': it threw for that reason; false: it did not); drpgConfirm's no as asked (action, what its callback answers)]");
     }],
     ["R1358 - the GM's tools on the kit (E21 C2; E21-01, E21-07, E21-16, E22-01, E22-04): each window C2 moves calls ui-kit.mjs `drpgWindow` with footer slots, never `buttons`; opened on this GM (DialogV2.wait stood in for), each has a `drpg-ui` root, every footer button a role of BUTTON_ROLES, the role this test names for its action, its closing word the role's own (Close where nothing is left to answer, Cancel where a question is withdrawn) and no `drpg-gm-route` on a GM's screen; a window as wide as its table carries the kit's `fit`; and C2b's: the GM's tools and their questions on the kit, on the destructive role what cannot be undone (Reset, Kill, Delete table, remove a pool, clear the overflow, Clear the Mastermind, Delete and rebuild, Install / reinstall, Revoke and Delete a passage), and the GM panel's Next named by its step", async () => {
         /*
@@ -35245,6 +35347,65 @@ const INVARIANTS = [
             paint: { "drpg-theme-stained-glass": yes, "drpg-theme-monokuma-legacy": yes }
         }), "[Observe: the ladders shown, All thresholds (open, its lines, its word); Analyze's bound rows; Tamper's bound facts and a second watchers line; "
             + "Observe's box with its two rows; the menu opens at its top; per theme: a plain fact, a bound one with its row picked and one with another row picked, the facts' size and ink]");
+    }],
+    ["R1600 - Observe stands still at 1366x768 (E21 fix G2; E21-04, the end review's B1): Observe's menu is drawn with `columns` - action-menus.mjs `chooseVariant` puts the briefing beside the question in a window of a stated width (the popup measure lifted) - and the stylesheets lay the two side by side, stacking them when the window is narrower than both, and show a row's line of explanation while that row is picked (an unavailable row keeps its reason), in both themes", async () => {
+        /*
+         * E21 fix G2, 07.11.2026. Observe scrolled at 1920x1080 (glass) and 1366x768 (both themes): 1140 px of body in a
+         * window the glass held to 544 px, 571 px of it on screen at 1366x768 (measured in Chromium, the fit sweep's still
+         * check, `--fit --only action-observe`: 7 fit, 3 failed). jsdom lays nothing out, so what decides the stillness is
+         * read in Chromium by that sweep; read here is what the cascade and the code can say: the menu `askDeclaration`
+         * opens asks for columns; `chooseVariant` handed `columns` (DialogV2.wait stood in for: nothing drawn) states the
+         * width and draws the two columns, the briefing in the first; and on stand-ins in each theme the popup measure on
+         * `.dialog-content` does not reach a window of a stated width, the columns are a wrapping flex row, an unpicked
+         * row's hint is not displayed, the picked row's and an unavailable row's are. Red on dd87f9f7: no `columns`.
+         */
+        const M = await import("./action-menus.mjs");
+        const K = await import("./ui-kit.mjs");
+        const sources = new Map(await moduleSources());
+        const code = stripComments(sources.get("action-observe.mjs") ?? "");
+        must(code.length > 5000, "action-observe.mjs read nothing - this test would read nothing");
+        const read = { asks: /\bcolumns:\s*true\b/.test(fnSource(code, "askDeclaration") ?? "") };
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const seen = [];
+        D.wait = async cfg => { seen.push(cfg); return null; };
+        try {
+            await M.chooseVariant({ actor: null, title: "R1600", intro: '<div class="drpg-briefing-block"><p>R1600</p></div>', prompt: "R1600?", columns: true,
+                options: [{ value: "a", label: "A", hint: "a hint" }, { value: "b", label: "B", hint: "b hint" }] });
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        const cfg = seen[0] ?? null;
+        const content = cfg?.content instanceof HTMLElement ? cfg.content : (() => { const d = document.createElement("div"); d.innerHTML = String(cfg?.content ?? ""); return d; })();
+        const cols = content.querySelector(".drpg-variant-columns");
+        read.window = cfg ? [cfg.position?.width ?? null, (cfg.classes ?? []).includes(K.WIDTH_CLASS),
+            cols ? [...cols.children].map(c => c.className) : null, Boolean(cols?.firstElementChild?.querySelector(".drpg-briefing-block")),
+            Boolean(cols?.lastElementChild?.querySelector(".drpg-choice-list"))] : "no window asked";
+        const C = await styleCascade();
+        read.paint = Object.fromEntries(["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"].map(theme => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-player`;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-ui drpg-panel ${K.WIDTH_CLASS}"><section class="window-content"><form class="dialog-form"><div class="dialog-content"><div class="drpg-kit-body">`
+                + `<div class="drpg-variant-columns"><div class="drpg-variant-brief"><div class="drpg-briefing-block"><p>R1600</p></div></div><div class="drpg-variant-ask"><p>R1600?</p><div class="drpg-choice-list">`
+                + `<label class="drpg-choice"><input type="radio" name="variant" value="a" checked><span class="drpg-choice-text"><strong>A</strong><small>a</small></span></label>`
+                + `<label class="drpg-choice"><input type="radio" name="variant" value="b"><span class="drpg-choice-text"><strong>B</strong><small>b</small></span></label>`
+                + `<label class="drpg-choice unavailable"><input type="radio" name="variant" value="c" disabled><span class="drpg-choice-text"><strong>C</strong><small>why</small></span></label>`
+                + `</div></div></div></div></div></form></section></div>`;
+            const [picked, other, shut] = body.querySelectorAll(".drpg-choice-text small");
+            const v = (el, prop) => C.winner(el, prop)?.value ?? null;
+            const box = body.querySelector(".drpg-variant-columns");
+            return [theme, { measure: v(body.querySelector(".dialog-content"), "max-width"), columns: [v(box, "display"), v(box, "flex-wrap")],
+                hints: [v(picked, "display"), v(other, "display"), v(shut, "display")] }];
+        }));
+        const yes = { measure: null, columns: ["flex", "wrap"], hints: [null, "none", null] };
+        equal(stableJson(read), stableJson({
+            asks: true,
+            // The stated 1120 px as this screen holds it (ui-kit.mjs `kitWidth`: under the screen less 16 px).
+            window: [K.kitWidth(1120), true, ["drpg-variant-brief", "drpg-variant-ask"], true, true],
+            paint: { "drpg-theme-stained-glass": yes, "drpg-theme-monokuma-legacy": yes }
+        }), "[askDeclaration asks for columns; the window chooseVariant asks (its width, the stated-width class, the columns, the briefing first, the list second); per theme: "
+            + "the popup measure on .dialog-content (null: none reaches it), the columns' display and wrap, the hints' display (picked, unpicked, unavailable; null: no rule hides it)]");
     }],
     ["R121 - A4, red is the GM's road and says so (E22 C5c; E22-02, E22-10, E22-12, audit S02-25, S05-49, S02-49, S03-26, S09-22): every menu row marked `gmRoute` and every footer button the module puts on the GM's road (a `gmRoute` slot, a question's `role: \"gmRoute\"`, `callWindow`'s `gmRoute`) stands in this census - the Tamper menu's Reshape a Trace and its two windows' Leave something else and Reshape it (Erase plain), Observe's two, Analyze's hint, Search's specific, the proposal's row and its one Send, the request window's Send, Experience and Ultimate (`needsGm` alone), Direct Murder's yes - and the sentence beside each names the GM in English and Polish; the Reshape's three say a refusal gives back nothing paid; `GM_ROUTE_CLASS` is utils.mjs's alone and the kit's gmRoute face; the Dynamic action's definition carries `callsGm`, read once, and its briefing says a GM judges it; the sheet's tile of a Call a GM rules and a Tier 0 item's Use are red with the GM's word, by the flags their windows read; `stripeKindFor` answers the GM's road before a Sanity step", async () => {
         /*

@@ -95,6 +95,7 @@ function readTraitField(element, traits) {
  * @param {string[]} [config.traits]   Show a trait picker for these.
  * @param {string}   [config.extra]    Extra HTML inside the form, under the list.
  * @param {string}   [config.confirm]  Label for the confirm button.
+ * @param {boolean}  [config.columns]  The briefing beside the list, not above it (`COLUMNS`, below).
  * @returns {Promise<{value: string, trait: string|null, form: HTMLFormElement}|null>}
  */
 /* ==========================================================================
@@ -137,7 +138,7 @@ export function readRequestField(root) {
 
 export async function chooseVariant({
     actor, title, intro = "", prompt = "", options = [], traits = null,
-    extra = "", confirm = null, traitNote = "", showShut = false
+    extra = "", confirm = null, traitNote = "", showShut = false, columns = false
 } = {}) {
     const usable = options.filter(o => !o.disabled);
     // `showShut`: a window whose every row is shut still opens, the rows greyed with their reasons and one button
@@ -174,10 +175,7 @@ export async function chooseVariant({
     /* ON THE KIT'S FRAME (E21 C5a, 06.11.2026): `drpgWindow`, its footer by roles - the confirm the primary and the
        default, the closing word Cancel; a window whose every row is shut has the closing word alone, Close. The answer
        is the one DialogV2.wait gave: the picked row's `{ value, trait, form }`, or null. */
-    const picked = await drpgWindow({
-        title,
-        classes: ["drpg-panel"],
-        body: `${intro}<form>
+    const form = `<form>
             ${prompt ? `<p>${prompt}</p>` : ""}
             <div class="drpg-choice-list">${rows}</div>
             ${extra}
@@ -186,7 +184,14 @@ export async function chooseVariant({
                 // round-2 review's C2-m9 (b)): the Tamper menu's readied Cleaning Tool was only ever
                 // drawn inside the trait field it does not have, so no Tamper window showed it.
                 : traitNote ? `<p class="notes">${traitNote}</p>` : ""}
-        </form>`,
+        </form>`;
+    const picked = await drpgWindow({
+        title,
+        classes: ["drpg-panel"],
+        ...(columns ? { width: COLUMNS.width } : {}),
+        body: columns
+            ? `<div class="${COLUMNS.cls}"><div class="drpg-variant-brief">${intro}</div><div class="drpg-variant-ask">${form}</div></div>`
+            : `${intro}${form}`,
         render: (event, dialog) => {
             if (options.some(o => o.confirm)) followConfirmLabel(dialog, confirmFor);
             atTop(dialog);
@@ -212,6 +217,22 @@ export async function chooseVariant({
     if (!picked || picked === "cancel" || picked === "close") return null;
     return picked;
 }
+
+/**
+ * THE BRIEFING BESIDE THE LIST (E21 fix G2, 07.11.2026; E21-04, the end review's B1: "Observe fits with no scrolling").
+ * Observe's window was 544 px wide under Stained Glass (the popup measure on `.dialog-content`) and its body 1140 px tall:
+ * the briefing, then five rows of two to five lines each. At 1366x768 the body had 571 px (glass) and 616 px (Legacy),
+ * so it scrolled there and at 1920x1080 under the glass (883 px of 1140). Measured in Chromium on the style harness's
+ * capture: the briefing on the left and the question on the right, in a window of a stated width (so the popup measure is
+ * lifted), with a row's line of explanation shown while it is the picked row (an unavailable row keeps its reason). At
+ * 1000 px Focus your gaze (its line and the request box) and an open "All thresholds" still scrolled 15-16 px under the
+ * glass at 1366x768; at 1120 px, the question's column 1.1 to the briefing's 1, every pick and "All thresholds" open read
+ * still in both themes, the tallest 555 px of the glass's 571 (Legacy 426 of 616), and so at 1280x800 and 1920x1080; at
+ * 1024x768 (the window held to 1008 px) those two still scroll 15-16 px under the glass. The stylesheet stacks the two columns
+ * when the window is narrower than both (a phone, where the body scrolls as before). A real Foundry's fonts and header
+ * are LIVE-E21-01's.
+ */
+const COLUMNS = Object.freeze({ cls: "drpg-variant-columns", width: 1120 });
 
 /**
  * The window opens at its top (E21 C5b, 06.11.2026; audit S02-06): a field's `autofocus` scrolls the kit's body to

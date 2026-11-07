@@ -308,6 +308,8 @@ async function askDeclaration(actor, def) {
         intro: briefingBlock(actor, "observe", def),
         prompt: game.i18n.localize("DRPG.Observe.declarePrompt"),
         confirm: game.i18n.localize("DRPG.Action.roll"),
+        // The briefing beside the list, so the window stands still at 1366x768 (E21 fix G2; action-menus.mjs `COLUMNS`).
+        columns: true,
         // The two red rows below are the ones that end with a person reading
         // this; the other three never see it. One box for both, in the window
         // where the choice is made - see "THE SENTENCE COMES FIRST".

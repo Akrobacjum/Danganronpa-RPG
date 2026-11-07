@@ -769,9 +769,10 @@ export async function askTransform(actor) {
             rejectClose: false
         });
 
-        // "erase" comes back as null, and so does closing the window - which is the
-        // same answer and should be: backing out of a bonus question must not cost
-        // the critical that earned it.
+        // Erase answers "erase" (its callback's null falls back to the action in DialogV2;
+        // the end review's correctness m3 found this saying null), closing the window
+        // null - the same outcome, and it should be: backing out of a bonus question must
+        // not cost the critical that earned it.
         if (!picked || picked === "erase") return null;
 
         const name = plainText(picked.name, limits.name ?? 60);

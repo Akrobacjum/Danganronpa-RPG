@@ -1379,10 +1379,11 @@
         "application",
         "dialog",
         "drpg-panel",
-        "drpg-ui"
+        "drpg-ui",
+        "drpg-kit-width"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 1008,
       "buttons": [
         {
           "action": "ok",

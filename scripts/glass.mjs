@@ -3878,6 +3878,9 @@ export function registerGlass() {
   // Debounced like everything else on resize: `rebuild` already pins the right column and
   // frees the board, and the raw handler did both on every event of a window drag.
   addEventListener("resize", () => { if (keyboardUp()) return; if (themeOn()) schedule(); flatSoon(); });
+  // The layout's height read again when the focus left a field it was held for (settings.mjs `watchScreen`, E21 fix G2):
+  // the keyboard went with the focus and no resize may follow, so the curtain is cut as a resize would cut it.
+  Hooks.on("drpgLayoutHeight", () => { if (themeOn()) schedule(); flatSoon(); });
   Hooks.on("drpgHudRendered", flatSoon);
   Hooks.on("renderApplicationV2", dressWindow);
   Hooks.on("closeApplicationV2", pruneWindows);

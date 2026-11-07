@@ -792,7 +792,9 @@ function settled(key) {
 async function askItemEffect(item) {
     const field = (name, key) => { const id = stepperId(); return `<label for="${id}">${game.i18n.localize(key)}
         ${stepper({ name, value: 0, min: 0, max: 12, step: 1, id })}</label>`; };
-    // On the kit (E21 C6a): Works on the right, the default; Cancel on the left, answering null as a close does.
+    // On the kit (E21 C6a): Works on the right, the default; Cancel on the left. DialogV2 answers a button's callback or,
+    // when that is null, its action, so Cancel answers "cancel" (callback null) and a closed window null: the `.then`
+    // below reads both as no effect (E21 fix G2; the end review's correctness m3: this said Cancel answered null).
     return drpgWindow({
         classes: ["drpg-panel"],
         title: game.i18n.format("DRPG.Items.effectTitle", { item: item.name }),
@@ -1078,7 +1080,9 @@ async function ruleReply(action, data) {
     const actor = game.actors.get(data.by);
     if (!actor) return null;
 
-    // On the kit (E21 C6a): Send on the right, the default; Cancel on the left, answering null as a close does.
+    // On the kit (E21 C6a): Send on the right, the default; Cancel on the left. DialogV2 answers a button's callback or,
+    // when that is null, its action, so Cancel answers "cancel" and a closed window null; neither is a `{ text }`, which
+    // is all the reading below takes (E21 fix G2; the end review's correctness m3: this said Cancel answered null).
     const answer = await drpgWindow({
         classes: ["drpg-panel"],
         title: game.i18n.format("DRPG.Bridge.replyTitle",
@@ -1098,8 +1102,8 @@ async function ruleReply(action, data) {
         rejectClose: false
     });
 
-    // `{ text }`, so a ruling reading "cancel" is a ruling (E18 C0, S11-60): Cancel answered
-    // its action's name until E21 C6a (null since), and the words bare could not be told from it.
+    // `{ text }`, so a ruling reading "cancel" is a ruling (E18 C0, S11-60): Cancel answers its action's name,
+    // "cancel" (its callback's null falls back to the action in DialogV2), and the words bare could not be told from it.
     const text = typeof answer?.text === "string" ? answer.text : "";
     if (!text) return null;
 

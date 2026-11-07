@@ -98,13 +98,21 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
     // execution's card (C4) - 26 labels more, 82 in all; at a40405b7, before C6,
     // 18 of the 26 were missing, and +30 s and End this mode were found only inside the retired "+30 seconds" and
     // "End this mode now" (node, these readers on the files, 28.10.2026).
+    // E21 fix G2 (07.11.2026; the end review's M1): the GM panel's Next line names its step since E22 C2b (11 buttons,
+    // `nextGoKey`), Set the season up's two fix rows name their work, and the Eclipse's question, the round's
+    // confirmation and its withdrawal answer Cancel since E21 C3a - 16 labels more, 114 in all; at dd87f9f7 the handbooks
+    // still said "Do it", "Not yet", "Wait" and "Not now" for them.
     const LABELS = {
         gm: ["Floor.startTrial", "Floor.openDebate", "Floor.closeDebate", "Floor.newTrialTitle", "Floor.incidentKeep", "Murder.endMurder",
             "Vote.openTitle", "Vote.send", "Vote.remind", "Vote.sendAgain", "Vote.tally", "Vote.nobodyExecuted", "Vote.gotItRight",
             "Vote.gotItWrong", "Vote.verdictCardTitle", "Vote.finishVerdict", "Advance.queueTitle", "Advance.pickPlayer", "Advance.pickMe",
             "Advance.queueGive", "Advance.allPlayers", "Advance.takeBack", "Mastermind.verdictTitle", "Floor.endTrial",
             "Floor.bar.skip", "Floor.bar.minus", "Floor.bar.plus", "Floor.bar.overrule", "Floor.bar.endMode", "Floor.backToDebate", "Floor.repoint",
-            "Floor.againSame", "Trial.overruledStamp", "Vote.executionCardTitle"],
+            "Floor.againSame", "Trial.overruledStamp", "Vote.executionCardTitle",
+            "Panel.goMurderButton", "Panel.goAdvanceButton", "Panel.goChapterEndButton", "Panel.goTrialButton", "Panel.goInvestigationButton",
+            "Panel.goStartInvestigationButton", "Panel.goAutopsyButton", "Panel.goBodyButton", "Panel.goSeasonSetupButton",
+            "Panel.goEclipseStartButton", "Panel.goEclipseEndButton", "Season.resourcesButton", "Season.cursorButton",
+            "Hud.eclipseAskYes", "Ready.goAnyway", "Kit.cancel"],
         player: ["Vote.castConfirmed", "Vote.verdictCardTitle", "Trial.present", "Trial.objectionShort", "Floor.bar.overrule", "Trial.overruledStamp",
             "Vote.executionCardTitle"]
     };
@@ -129,6 +137,6 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
             }
         }
         return out;`, { timeout: 30000 });
-    check("gm: the handbooks name the Class Trial's buttons by the labels the module draws, in English and in Polish",
-        named.read === 82 && named.missing.length === 0, JSON.stringify(named));
+    check("gm: the handbooks name the Class Trial's buttons, the Next line's, the season rows' and the closing answers by the labels the module draws, in English and in Polish",
+        named.read === 114 && named.missing.length === 0, JSON.stringify(named));
 }

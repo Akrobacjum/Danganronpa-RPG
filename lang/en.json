@@ -4026,8 +4026,7 @@
       },
       "failed": "Foundry's settings could not be given back or held. The console says why.",
       "preSeason": "Foundry's settings are given back: the module holds none of them - Daggerheart's automations, the file permissions, the players' held settings. To hold them again, open Give back Foundry's settings (Set the season up, or this module's settings) and press Hold them again.",
-      "heldNothing": "Foundry's settings were given back, so the module holds none of them now: Daggerheart's Vulnerable and Defeated automations, the file permissions and the players' held settings stay as they are. Hold them again so the module plays as it should, or leave them given back.",
-      "notNow": "Not now"
+      "heldNothing": "Foundry's settings were given back, so the module holds none of them now: Daggerheart's Vulnerable and Defeated automations, the file permissions and the players' held settings stay as they are. Hold them again so the module plays as it should, or leave them given back."
     },
     "Enforced": {
       "filesPutBack": "Player accounts cannot browse or upload files while 'Keep players out of the file browser' is on: the change to those permissions was put back.",
@@ -5014,8 +5013,7 @@
       }
     },
     "Dialog": {
-      "yes": "Yes",
-      "no": "No"
+      "yes": "Yes"
     },
     "Diagnose": {
       "title": "Diagnostics report",

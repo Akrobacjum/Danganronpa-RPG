@@ -28,7 +28,11 @@
  * makes one - and raised again: the body's shape classes and the curtain's cut (`drpgKbdState`) must read as before at
  * both steps. THE CONTROL: the same fall with no field focused, a real resize, must change the classes (`drpg-short`
  * on), or the reading could not see a change. `--no-kbd` leaves it out. A real tablet's and phone's keyboard is
- * LIVE-E21-02.
+ * LIVE-E21-02. A TOUCH SCREEN'S (E21 fix G2, 07.11.2026; the end review's correctness m1): settings.mjs holds the height
+ * only where a keyboard can be on the screen - a coarse pointer, or a visual viewport shorter than the page - so the
+ * pages above are opened with touch (`hasTouch`: `(pointer: coarse)` matches), and THE DESK'S CONTROL opens the same
+ * page with a mouse, focuses the field and drops the height: a desk's fall is a resize, and the classes must change as
+ * the control's do (on dd87f9f7 the desk's fall was held, the fault the review found).
  *
  * THE CONTROLS. A count that cannot see a fault measures nothing: the stackShapes lesson in
  * CLAUDE.md, and P26 itself, where the count returned the shape of a pass for an empty list. So
@@ -1347,10 +1351,12 @@ try {
     }
     if (!args.includes("--no-kbd")) {
         for (const theme of themes) for (const [W, H] of [[1366, 768], [1024, 768], [393, 852]]) {
-            const page = await browser.newPage({ viewport: { width: W, height: H } });
-            await page.goto(`${base}/${page0}${page0.includes("?") ? "&" : "?"}kbd=1${theme === "legacy" ? "&theme=legacy" : ""}`);
+            const touch = await browser.newContext({ viewport: { width: W, height: H }, hasTouch: true });
+            const page = await touch.newPage();
+            const kbdUrl = `${base}/${page0}${page0.includes("?") ? "&" : "?"}kbd=1${theme === "legacy" ? "&theme=legacy" : ""}`;
+            await page.goto(kbdUrl);
             const loaded = await page.waitForFunction(() => window.__glass && window.drpgKbdState, null, { timeout: 15000 }).then(() => true, () => false);
-            if (!loaded) { bad++; console.log(`FAIL: keyboard ${theme} ${W}x${H} - the page did not load its keyboard check`); await page.close(); continue; }
+            if (!loaded) { bad++; console.log(`FAIL: keyboard ${theme} ${W}x${H} - the page did not load its keyboard check`); await touch.close(); continue; }
             await page.waitForTimeout(waitMs);
             const state = () => page.evaluate(() => window.drpgKbdState());
             const low = Math.round(H * 0.6);
@@ -1366,11 +1372,22 @@ try {
             await page.setViewportSize({ width: W, height: low });
             await page.waitForTimeout(800);
             const s3 = await state();
-            await page.close();
+            await touch.close();
+            // The desk's control: a mouse, the field focused, the same fall - a resize, taken.
+            const desk = await browser.newPage({ viewport: { width: W, height: H } });
+            await desk.goto(kbdUrl);
+            await desk.waitForFunction(() => window.__glass && window.drpgKbdState, null, { timeout: 15000 }).catch(() => null);
+            await desk.waitForTimeout(waitMs);
+            await desk.focus("#drpg-kbd-field").catch(() => null);
+            await desk.setViewportSize({ width: W, height: low });
+            await desk.waitForTimeout(800);
+            const s4 = await desk.evaluate(() => window.drpgKbdState?.() ?? { classes: "not read" });
+            await desk.close();
             const held = s1.classes === s0.classes && s1.cut === s0.cut && s2.classes === s0.classes && s2.cut === s0.cut;
-            console.log(`  keyboard ${theme} ${W}x${H} -> ${W}x${low}: classes ${s0.classes} | typing ${s1.classes}, cut ${s1.cut === s0.cut ? "same" : "CUT AGAIN"} | back ${s2.classes}, cut ${s2.cut === s0.cut ? "same" : "CUT AGAIN"} | control, no field: ${s3.classes}`);
+            console.log(`  keyboard ${theme} ${W}x${H} -> ${W}x${low}: classes ${s0.classes} | typing ${s1.classes}, cut ${s1.cut === s0.cut ? "same" : "CUT AGAIN"} | back ${s2.classes}, cut ${s2.cut === s0.cut ? "same" : "CUT AGAIN"} | control, no field: ${s3.classes} | desk, typing: ${s4.classes}`);
             if (!held) { bad++; console.log(`FAIL: keyboard ${theme} ${W}x${H} - a keyboard's fall of the height changed the layout`); }
             if (s3.classes === s0.classes) { bad++; console.log(`FAIL: keyboard ${theme} ${W}x${H} - control: a real resize to ${W}x${low} changed no class, so the reading cannot see a change`); }
+            if (s4.classes !== s3.classes) { bad++; console.log(`FAIL: keyboard ${theme} ${W}x${H} - the desk's control: with a mouse and the field focused, the fall to ${W}x${low} read ${s4.classes}, not the resize's ${s3.classes}`); }
         }
     }
 } finally { await browser.close(); srv?.kill(); }
