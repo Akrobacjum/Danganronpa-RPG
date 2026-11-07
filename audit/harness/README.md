@@ -318,6 +318,26 @@ shares a point with the tile or its portrait at which it is not on top. Its cont
 the tile's at the first size where the two meet - must read covered points (`--no-control` leaves it out). These are
 the glass harness's stand-ins, not the module's own render and not v14 (LIVE-E50-06).
 
+The Projects tray's rows and the tab rail (E23 C3a, E23-16 and E23-19) are read by
+`node audit/glass-sweep.mjs --tray --chromium <executable>` from the repository root, instead of the sweep: at
+1920x1080, 1366x768, 1280x800 and 1024x768 by default, under Stained Glass unless `--themes` names Legacy, as GM and
+player, the page's `drpgTrayRows()` with its own two rows and filled to seven - each count on its name's line on the
+screen and 8-12 px after it where the tray is turned, inside its own row where it is not, no row cut by the list's foot
+without the fade - and, on the GM's desk pages, a fifteen-tab sidebar expanded with Foundry's windows on and
+`?windows=off`: the tab rail meets neither the status strip nor the tray, ends on the screen, and the GM's button does
+not move with a two-column tool palette. Its controls (the name's old `flex: 1 1 auto`, the list cut with no fade, the
+strip planted under the rail) must read their faults (`--no-control` leaves them out).
+
+The Event panel's box (E23 C3b, E23-18; the owner's 04.10) is read by
+`node audit/glass-sweep.mjs --events --chromium <executable>` from the repository root, instead of the sweep: at
+1366x768, 1920x1080, 1024x768 and 820x1180 by default, in both themes and as GM and player, the page's
+`drpgEventCheck()` lays the panel out with events.mjs's own `cardElement` for an incident, a trial (E70's speaker, the
+debate's clock and "GM: +30 s") and a safeword built from the longest texts of lang, each alone and all three, and a size
+fails where the panel's box is not the same for the four, a text is wider than its line, a card clips its words, a panel
+taller than its box does not scroll, the incident's meta is not two lines, or the ticker runs under a word or is drawn on
+a stacked screen. Its controls (the height following the cards again, the ticker back at the card's middle) must read
+their faults. The texts are lang's, the names three long stand-ins; a table's own cards are not read here.
+
 How the curtain turns from one state to the next (E23 C1a; the owner's 05.11) is read by
 `node audit/glass-sweep.mjs --turn --chromium <executable>` from the repository root, instead of the sweep: the glass
 harness's four turns (`drpgTurn`: a phase with a recut, a phase, an hour, the room tile hidden) at 1600x900 and 1366x768

@@ -10129,23 +10129,47 @@ body[data-drpg-phase="eclipse"] .drpg-hud-phase-glyph { --drpg-px-mask: var(--dr
    Legacy the panel had no order at all, sorted as 0, and sat above Despair
    Pools. Stated once here, for both; glass states the same number and so
    moves by nothing. */
+/* ONE BOX, WHATEVER IS ON IT (E23 C3b, 07.11.2026; the owner's 04.10: "the events panel has a fixed size whatever
+   the event and phase, always a similar layout, everything fits"). The panel was as tall as its cards: a motive's card
+   166 px, an incident's 238, a trial's with its clock 230 and all three 648 (Chromium, the glass harness's
+   `drpgEventCheck` at 1920x1080 under Stained Glass, before this commit), and the pane the curtain cuts for it changed
+   with every card that came or went. Now the box is two tokens, one width and one height, stated once a layout (here
+   for Monokuma Legacy, in stained-glass.css for the glass, in narrow.css for the stack), and what is taller than it
+   scrolls inside it. The height is the tallest single card's - an incident's with the longest texts of lang - so one
+   card always fits whole, and the cards share the box rather than each keeping its own. */
 #drpg-events {
+    --drpg-events-w: 412px;
+    --drpg-events-h: calc(180px * var(--drpg-legacy-scale, 1));
     order: 15;
-    width: 412px;
+    width: var(--drpg-events-w);
     max-width: 100%;
+    height: var(--drpg-events-h);
+    box-sizing: border-box;
+    /* never shrunk by the column it stands in: a flex item that scrolls has no minimum height of its own, and in the
+       stack's column (narrow.css) the panel came out 0 px tall (the glass harness at 1024x768 and 393x852) */
+    flex: 0 0 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     margin: 8px auto 0;
     display: flex;
     flex-direction: column;
     gap: 6px;
     /* The panel says things; it has no button in it, so it takes no clicks and
-       the map underneath stays draggable through it. */
+       the map underneath stays draggable through it - except while it holds more
+       than its box (`data-drpg-scrolls`, events.mjs `renderEvents`), when the wheel
+       has to reach it to read the rest. */
     pointer-events: none;
 }
+#drpg-events[data-drpg-scrolls] { pointer-events: auto; }
 
 .drpg-event {
     --acc: var(--drpg-gold-antique);
     position: relative;
     overflow: hidden;
+    /* a card alone fills the box, so a lone card is the same plate whatever it says; with more than one each keeps
+       its own height and the box scrolls (never shrunk: a shrunk card clips its own words) */
+    flex: 1 0 auto;
     padding: 8px 10px;
     text-align: center;
 }
@@ -10161,9 +10185,8 @@ body.drpg-theme-monokuma-legacy .drpg-event {
     border-left: 3px solid var(--acc);
     background: light-dark(var(--drpg-paper-alt), var(--drpg-ink));
 }
-body.drpg-theme-monokuma-legacy .drpg-event-meta {
-    border-top: 1px solid var(--drpg-window-edge);
-}
+/* Monokuma Legacy's top border on the meta stood here: the meta is plain text, with no frame of its own in either
+   theme (E23 C3b; audit S10-35, a meta in a frame reads as a button). */
 
 /* Which fact this is, said as a picture. The sprite is chosen in
    pixel-icons.css, where the sprites live and where both themes can reach it;
@@ -10194,9 +10217,15 @@ body.drpg-theme-monokuma-legacy .drpg-event-meta {
     text-transform: uppercase;
     opacity: 0.7;
     margin-top: 5px;
-    padding-top: 5px;
     font-variant-numeric: tabular-nums;
 }
+/* THE META IN LINES (E23 C3b; audit S10-35): a card whose meta is two facts - the incident's whose turn and the
+   victim's marks - draws each on a line of its own, the first the lead. Not held to one line each (the audit's
+   "segments nowrap"): with the longest texts of lang the victim's marks are 368 px of upper case on a desk card's 278 px
+   line under Stained Glass and 520 on Legacy's 388 (`drpgEventCheck`, 1366x768, a trial with `white-space: nowrap`), so a
+   part that cannot fit breaks between its words, balanced, and is never cut. */
+.drpg-event-meta-line { display: block; text-wrap: balance; }
+.drpg-event-meta-line:first-child:not(:only-child) { font-weight: 700; }
 
 /* The half of a motive that says what ignoring it costs. It was a tooltip until
    1.2.47, which is to say it was unreadable on a shared screen and unreachable
@@ -12271,13 +12300,25 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
 }
 
 /* FIVE ROWS, THEN SCROLL. A cap in rows rather than pixels, so it stays five
-   when the row height changes. */
+   when the row height changes.
+   FIVE WHOLE ROWS, AND A FADE WHILE MORE STAND BELOW (E23 C3b, 07.11.2026; C3a's Open 53, under Monokuma Legacy). The
+   cap was five rows, four gaps and 12 px, the 12 the list's padding counted a second time: `max-height` is the content's
+   and the padding stands outside it, so the scrollport held five rows and 14 px of the sixth, and nothing said there was
+   more (`glass-sweep --tray --themes legacy`, seven rows at 1920x1080 and 1366x768, both roles: the list 218 px of 286,
+   a row cut, no fade). The cap is the rows and their gaps now, the foot's pad a margin (a pad inside the scrollport
+   shows the next row's top, as stained-glass.css found for the glass), and the list fades its last row while rows stand
+   below (`data-drpg-more`, projects-tray.mjs `markTrayMore`, in both themes; the glass states its own over this). */
 #countdowns .countdowns-container {
     gap: var(--drpg-project-gap);
-    padding: 4px 8px 8px;
-    max-height: calc(5 * var(--drpg-project-row) + 4 * var(--drpg-project-gap) + 12px);
+    padding: 4px 8px 0;
+    margin-bottom: 8px;
+    max-height: calc(5 * var(--drpg-project-row) + 4 * var(--drpg-project-gap));
     overflow-y: auto;
     scrollbar-width: thin;
+}
+#countdowns .countdowns-container[data-drpg-more] {
+    -webkit-mask-image: linear-gradient(to bottom, var(--drpg-ink) calc(100% - var(--drpg-project-row)), transparent);
+    mask-image: linear-gradient(to bottom, var(--drpg-ink) calc(100% - var(--drpg-project-row)), transparent);
 }
 
 #countdowns .countdown-category-container {

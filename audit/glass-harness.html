@@ -2141,6 +2141,132 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     return done();
   };
 </script>
+<script id="drpg-event-check">
+  /* drpgEventCheck (E23 C3b, 07.11.2026; E23-18, the owner's 04.10 "the events panel has a fixed size whatever the event
+     and phase, always a similar layout, everything fits", S10-35, S12-30): the Event panel laid out in Chromium with the
+     module's own card (events.mjs `cardElement`, imported here with Foundry's globals lent while it loads, as
+     drpgTrayRows lends them for projects-tray.mjs) for three cards built from the longest texts of lang/en.json and
+     lang/pl.json, each key's longer one: an incident (the trap's or the fight's title, the room's line with three long
+     names, the meta's two parts - whose turn and the victim's marks), a trial (the longest mode, a speaker, "Next:" or
+     the floor's line, the GM's note and the debate's clock: E70's speaker and "GM: +30 s") and a safeword (the GM's
+     meta or the table's). The panel is put where events.mjs `renderEvents` puts it (after `#drpg-despair`), with each
+     card alone and then all three, the glass recut, and read: the panel's box (`offsetWidth` x `offsetHeight`, its own
+     frame: the turn the pane gives it does not count), which must be the same for the four within 1 px; nothing cut -
+     no text wider than its line (`scrollWidth`), no card clipping its own content, and a panel whose content is taller
+     than it scrolls (`overflow-y` auto or scroll); the incident's meta two lines; and the ticker never under words: its
+     band (offsetTop, offsetHeight in the card) meets no title, sub, clock, meta or note by more than 1 px, and on a
+     stacked screen it is not drawn. `plant` is the sweep's control: "grow" lets the panel's height follow its content
+     again (the base sheet's road before this commit), and must read a box that changes; "ticker" puts the ticker back
+     at the card's middle, and must read it under words. Everything added is taken away before it answers.
+     Answers { ok, why, boxes, read }. */
+  window.drpgEventCheck = async ({ plant = null } = {}) => {
+    const out = { ok: false, why: [], boxes: {}, read: {} };
+    const done = () => { out.ok = !out.why.length; out.why = out.why.join("; "); return out; };
+    const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const rail = document.getElementById("drpg-despair");
+    if (!rail) { out.why.push("no #drpg-despair on the page to put the panel after"); return done(); }
+    const lent = [];
+    const lend = (owner, key, value) => { if (owner[key] === undefined) { owner[key] = value; lent.push([owner, key]); } };
+    const any = () => new Proxy(function () {}, { get: (t, k) => (k === "then" ? undefined : k === Symbol.toPrimitive ? () => "" : any()), construct: () => ({}), apply: () => undefined });
+    for (const k of ["CONST", "Actor", "Item", "ChatMessage", "Roll", "Scene", "User", "JournalEntry", "Macro", "Playlist", "Folder", "TextEditor", "Dialog",
+      "Application", "FormApplication", "FilePicker", "canvas", "socket", "Handlebars", "loadTemplates", "renderTemplate", "fromUuid", "fromUuidSync",
+      "AudioHelper", "Token", "TokenDocument", "Combat"]) lend(globalThis, k, any());
+    const Base = class {};
+    lend(foundry, "applications", { api: { DialogV2: Base, ApplicationV2: Base, HandlebarsApplicationMixin: c => c, DocumentSheetV2: Base }, ux: any(), handlebars: any(), sheets: any(), apps: any(), elements: any(), instances: new Map() });
+    for (const k of ["appv1", "documents", "canvas", "helpers", "dice", "data"]) lend(foundry, k, any());
+    let EV = null;
+    try { EV = await import("/scripts/events.mjs"); } catch (err) { out.why.push(`events.mjs did not load here: ${err}`); }
+    for (const [owner, key] of lent.reverse()) delete owner[key];
+    if (!EV) return done();
+    if (typeof EV.cardElement !== "function") { out.why.push("events.mjs exports no cardElement: the panel's card cannot be drawn here"); return done(); }
+    const langs = await Promise.all(["en", "pl"].map(l => fetch(`/lang/${l}.json`).then(r => r.json())));
+    const pick = key => langs.map(d => key.split(".").reduce((o, p) => o?.[p], d)).filter(v => typeof v === "string");
+    const fill = (text, data) => text.replace(/\{(\w+)\}/g, (m, k) => (k in data ? String(data[k]) : m));
+    const longest = (keys, data = {}) => keys.flatMap(pick).map(t => fill(t, data)).sort((a, b) => b.length - a.length)[0] ?? "";
+    const NAMES = { killer: "Kirumi Tojo-Hoshino", victim: "Byakuya Togami-Fukawa", room: "Ultimate Pharmacist's Laboratory", who: "Kirumi Tojo-Hoshino", name: "Byakuya Togami-Fukawa" };
+    const MODES = ["discussion", "debate", "objection", "rebuttal", "testimony", "panic", "closing"].map(m => `DRPG.Hud.trial.${m}`);
+    const CARDS = {
+      incident: { kind: "incident", mine: true, title: longest(["DRPG.Events.incidentTitle", "DRPG.Events.incidentTitleDirect"]),
+        sub: longest(["DRPG.Events.incidentSubRoom"], NAMES),
+        meta: [longest(["DRPG.Murder.yourTurn", "DRPG.Murder.theirTurn"]), longest(["DRPG.Murder.victimMarks"], { hp: 10, stress: 10 })] },
+      trial: { kind: "trial", title: longest(MODES), sub: NAMES.who, clock: true,
+        meta: longest(["DRPG.Events.trialNext", "DRPG.Events.trialLastTurn", "DRPG.Events.trialObjectionFloor", "DRPG.Hud.trialVersus",
+          "DRPG.Events.trialDebateMeta", "DRPG.Events.trialDiscussionMeta"], NAMES),
+        note: longest(["DRPG.Floor.gmNoteAdjust", "DRPG.Floor.gmNoteBack", "DRPG.Floor.gmNoteOverrule"], { seconds: "+30" }) },
+      safeword: { kind: "safeword", due: true, title: longest(["DRPG.Events.safewordTitle"]), sub: longest(["DRPG.Events.safewordSub"]),
+        meta: longest(["DRPG.Events.safewordMeta", "DRPG.Events.safewordMetaGm"]) }
+    };
+    out.read.texts = Object.fromEntries(Object.entries(CARDS).map(([k, c]) => [k, [c.title, c.sub, c.meta, c.note].flat().filter(Boolean).join(" | ")]));
+    /* the ticker's word as lang/en.json says it: the page's own `localize` answers a key's last segment */
+    const i18n = game.i18n, word = key => pick(key)[0] ?? key.split(".").pop();
+    const style = document.createElement("style");
+    if (plant === "grow") style.textContent = "body #drpg-events { height: auto !important; min-height: 0 !important; max-height: none !important; }";
+    if (plant === "ticker") style.textContent = "body .drpg-event-ticker { top: 50% !important; height: auto !important; transform: translateY(-50%) !important; }";
+    document.head.append(style);
+    const stacked = document.body.classList.contains("drpg-stacked");
+    const TEXT = ".drpg-event-title, .drpg-event-sub, .drpg-event-clock, .drpg-event-meta, .drpg-event-meta-line, .drpg-event-note";
+    let panel = null;
+    try {
+      for (const [name, list] of [["incident", ["incident"]], ["trial", ["trial"]], ["safeword", ["safeword"]], ["all", ["safeword", "trial", "incident"]]]) {
+        panel?.remove();
+        panel = document.createElement("div");
+        panel.id = "drpg-events";
+        panel.className = "drpg-events";
+        panel.setAttribute("role", "status");
+        game.i18n = { ...i18n, localize: k => (k.startsWith("DRPG.Events.ticker.") ? word(k) : i18n.localize(k)) };
+        try { for (const k of list) panel.append(EV.cardElement(CARDS[k])); } finally { game.i18n = i18n; }
+        for (const c of panel.querySelectorAll(".drpg-event-clock")) c.textContent = "2:37";
+        rail.after(panel);
+        window.__glass?.refreshGlass?.();
+        await frame();
+        await new Promise(r => setTimeout(r, 450));
+        await frame();
+        for (const c of panel.querySelectorAll(".drpg-event-clock")) c.textContent = "2:37";
+        const pcs = getComputedStyle(panel);
+        const box = { w: panel.offsetWidth, h: panel.offsetHeight, content: panel.scrollHeight, overflow: pcs.overflowY };
+        out.boxes[name] = `${box.w}x${box.h}`;
+        const read = { box, cut: [], under: [], meta: null, ticker: [] };
+        if (box.content > panel.clientHeight + 1 && !/auto|scroll/.test(box.overflow)) out.why.push(`${name}: the panel's content is ${box.content} px in a box of ${panel.clientHeight} that does not scroll`);
+        for (const card of panel.querySelectorAll(".drpg-event")) {
+          const kind = card.dataset.kind;
+          if (card.scrollHeight > card.clientHeight + 1 && getComputedStyle(card).overflowY !== "visible") read.cut.push(`${kind} card clips ${card.scrollHeight - card.clientHeight} px of its content`);
+          for (const el of card.querySelectorAll(TEXT)) {
+            if (!el.getClientRects().length) continue;
+            if (el.scrollWidth > el.clientWidth + 1) read.cut.push(`${kind} ${el.className}: ${el.scrollWidth} px of text on a line of ${el.clientWidth}`);
+            if (el.offsetParent === card && el.offsetLeft + el.offsetWidth > card.clientWidth + 1) read.cut.push(`${kind} ${el.className} ends ${el.offsetLeft + el.offsetWidth - card.clientWidth} px past its card`);
+          }
+          if (kind === "incident") {
+            const meta = card.querySelector(".drpg-event-meta");
+            read.meta = meta ? [...meta.children].map(c => c.className) : null;
+            if (!meta || meta.children.length !== 2) out.why.push(`the incident's meta is not two lines: ${meta ? meta.children.length : "none"}`);
+          }
+          const ticker = card.querySelector(".drpg-event-ticker");
+          const shown = ticker && getComputedStyle(ticker).display !== "none" && ticker.getClientRects().length;
+          if (ticker) read.ticker.push(shown ? `${kind} ${ticker.offsetTop}+${ticker.offsetHeight}` : `${kind} hidden`);
+          if (stacked && shown) out.why.push(`${kind}: the ticker is drawn on a stacked screen`);
+          if (!shown) continue;
+          const [t0, t1] = [ticker.offsetTop, ticker.offsetTop + ticker.offsetHeight];
+          for (const el of card.querySelectorAll(TEXT)) {
+            if (!el.getClientRects().length || el.offsetParent !== card) continue;
+            const meet = Math.min(t1, el.offsetTop + el.offsetHeight) - Math.max(t0, el.offsetTop);
+            if (meet > 1) read.under.push(`${kind} ${el.className.split(" ")[0]} ${Math.round(meet)} px`);
+          }
+        }
+        if (read.cut.length) out.why.push(`${name}: ${read.cut.join(", ")}`);
+        if (read.under.length) out.why.push(`${name}: the ticker runs under ${read.under.join(", ")}`);
+        out.read[name] = read;
+      }
+      const sizes = new Set(Object.values(out.boxes));
+      const [w, h] = Object.values(out.boxes).map(b => b.split("x").map(Number)).reduce(([w0, h0], [w1, h1]) => [Math.max(w0, Math.abs(w1 - (out.read.incident?.box.w ?? w1))), Math.max(h0, Math.abs(h1 - (out.read.incident?.box.h ?? h1)))], [0, 0]);
+      if (sizes.size > 1 && (w > 1 || h > 1)) out.why.push(`the panel's box changes with its cards: ${JSON.stringify(out.boxes)}`);
+    } finally {
+      panel?.remove();
+      style.remove();
+      window.__glass?.refreshGlass?.();
+    }
+    return done();
+  };
+</script>
 <script type="module">
   const q = new URLSearchParams(location.search);
   if (q.get("scheme") === "light") document.documentElement.style.colorScheme = "light";

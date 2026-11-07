@@ -213,6 +213,7 @@
  *        node audit/glass-sweep.mjs --roster [--themes ...] [--roles ...] [--sizes ..., 1366x768,1920x1080] [--no-control]   (E50 C2: below)
  *        node audit/glass-sweep.mjs --track [--track-kinds fill,hour-empty,hour-full,hour-swap,hour-notice] [--themes ...] [--roles ...] [--sizes ...] [--no-control]   (E23 C2a: below)
  *        node audit/glass-sweep.mjs --tray [--themes ..., stained] [--roles ...] [--sizes ..., 1920x1080,1366x768,1280x800,1024x768] [--no-control]   (E23 C3a: below)
+ *        node audit/glass-sweep.mjs --events [--themes ...] [--roles ...] [--sizes ..., 1366x768,1920x1080,1024x768,820x1180] [--no-control]   (E23 C3b: below)
  *        node audit/glass-sweep.mjs --turn [--kinds phase-recut,phase,hour,layout] [--sizes ..., 1600x900,1366x768] [--roles ...]
  *          [--themes ..., stained] [--turn-ms <n>, 3000] [--runs <n>, 1] [--json <file>] [--against <json>] [--no-control]   (E23 C1a: below)
  * `--corner` loads at twice the pixel density and `--shots` then keeps the bottom-right
@@ -790,6 +791,51 @@ if (args.includes("--tray")) {
     if (control && !rowsPlanted) { console.log("control: no turned tray was read, so the rows' faults could not be planted - FAIL"); bad++; }
     if (control && roles.includes("gm") && !railPlanted) { console.log("control: no GM desk page was read, so the rail's fault could not be planted - FAIL"); bad++; }
     console.log(`TRAY ${bad ? "RED" : "GREEN"}: ${tthemes.length} theme(s), ${roles.length} role(s), ${tsizes.length} size(s)`);
+    process.exit(bad ? 1 : 0);
+}
+
+/* THE EVENT PANEL'S BOX (E23 C3b, 07.11.2026; E23-18, the owner's 04.10 "the events panel has a fixed size whatever the
+   event and phase, always a similar layout, everything fits", S10-35, S12-30). `--events` runs this instead of the
+   sweep, at each size (by default 1366x768, 1920x1080, 1024x768 and 820x1180), role and theme: the page's
+   `drpgEventCheck()` lays the panel out with events.mjs's own card for an incident, a trial with E70's speaker, the
+   debate's clock and "GM: +30 s", and a safeword, each from the longest texts of lang, alone and all three, and the
+   size fails where the panel's box is not the same for the four, a text is wider than its line, a card clips its
+   words, a panel taller than its box does not scroll, the incident's meta is not two lines, or the ticker runs under a
+   word or is drawn on a stacked screen. Its CONTROLS, once a run, on the first desk page under Stained Glass: `grow`
+   (the panel's height following its cards, as before this commit) must read a box that changes, `ticker` (the ticker
+   back at the card's middle) must read it under words. The line prints the four boxes and the tickers' bands. */
+if (args.includes("--events")) {
+    let bad = 0, planted = 0;
+    const esizes = (opt("--sizes") ?? "1366x768,1920x1080,1024x768,820x1180").split(",");
+    const boxes = r => Object.entries(r.boxes).map(([k, v]) => `${k} ${v}`).join(", ");
+    try {
+        for (const theme of themes) for (const role of roles) for (const size of esizes) {
+            const [W, H] = size.split("x").map(Number);
+            const tag = `events ${theme.padEnd(7)} ${role.padEnd(6)} ${size.padEnd(9)}`;
+            const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
+            const page = await browser.newPage({ viewport: { width: W, height: H } });
+            await page.goto(`${base}/${page0}${qs.length ? (page0.includes("?") ? "&" : "?") + qs.join("&") : ""}`);
+            const loaded = await page.waitForFunction(() => window.__glass && window.drpgEventCheck, null, { timeout: 15000 }).then(() => true, () => false);
+            if (!loaded) { console.log(`${tag} FAIL: the page did not load the glass or drpgEventCheck`); bad++; await page.close(); continue; }
+            await page.waitForTimeout(waitMs);
+            const r = await page.evaluate(() => window.drpgEventCheck());
+            const tick = (r.read.all?.ticker ?? []).join(" ") || "-";
+            console.log(`${tag} ${boxes(r)} | ticker ${tick}${r.ok ? " ok" : `  - FAIL: ${r.why}`}`);
+            if (!r.ok) bad++;
+            const stacked = await page.evaluate(() => document.body.classList.contains("drpg-stacked"));
+            if (control && !planted && theme === "stained" && !stacked) {
+                for (const plant of ["grow", "ticker"]) {
+                    const p = await page.evaluate(plant => window.drpgEventCheck({ plant }), plant);
+                    planted++;
+                    console.log(`${tag} control ${plant}: ${p.ok ? "MISSES IT" : "sees it"} - ${p.ok ? boxes(p) : p.why.slice(0, 140)}`);
+                    if (p.ok) bad++;
+                }
+            }
+            await page.close();
+        }
+    } finally { await browser.close(); srv?.kill(); }
+    if (control && !planted) { console.log("control: no desk page under Stained Glass was read, so the panel's faults could not be planted - FAIL"); bad++; }
+    console.log(`EVENTS ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s), ${roles.length} role(s), ${esizes.length} size(s), ${planted} control(s)`);
     process.exit(bad ? 1 : 0);
 }
 

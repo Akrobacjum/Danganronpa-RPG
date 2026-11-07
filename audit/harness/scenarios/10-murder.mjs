@@ -163,7 +163,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     } finally {
         for (const c of [p1, p2, p3]) await c.eval(`globalThis.__mutedSocket = (game.socket._handlers.get("module.${MOD}") ?? []).splice(0); return true;`);
     }
-    const saysTurn = read => read?.cards?.length === 1 && read.turn.some(t => String(read.cards[0].meta ?? "").startsWith(t));
+    /* the meta's first part (E23 C3b: an incident's meta is [whose turn, the state], events.mjs `incidentCard`) */
+    const saysTurn = read => read?.cards?.length === 1 && read.turn.some(t => String([read.cards[0].meta ?? ""].flat()[0]) === t);
     check("gm, p3: the incident's turn card is on the killer's player's Events panel, saying whose turn it is, and on the GM's; p1 and p2, bystanders, hold none (E51-29)",
         turnCards.gm?.stage === "incident" && turnCards.gm.cards.length === 1 && saysTurn(turnCards.p3)
             && turnCards.p1?.cards?.length === 0 && turnCards.p2?.cards?.length === 0 && handedBack.every(n => n > 0),

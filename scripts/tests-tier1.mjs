@@ -36331,6 +36331,103 @@ const INVARIANTS = [
         }), "{look: a held and an empty Hope slot under Stained Glass - its width and height band, its mark; the empty one's colour and "
             + "opacity, and its slot's; strip: the table's \"Still to act\" in Daily Life, in a Class Trial, in Daily Life with an incident running (null: no row)}");
     }],
+    ["R1393 - every kind of card the Event panel draws wears its own accent under the glass (E23 C3b, E23-18; audit S12-10): each `kind:` events.mjs's cards carry has a `--acc` rule of its own under Stained Glass, none the hour's; the safeword's is the GM's light and the assembly's Hope", async () => {
+        /*
+         * E23 C3b, 07.11.2026; S12-10. stained-glass.css put the hour's accent on every card (`--acc:
+         * var(--drpg-glass-accent)`) and gave four kinds their own back - incident, motive, trial, overflow, and the body
+         * in a later block. The safeword's card, which the base sheet's comment calls the loudest thing the panel ever
+         * says, and the assembly's wore the hour: the morning's pale blue on the card that stops the scene. Read: the
+         * kinds off events.mjs's source (comments stripped; every `kind: "..."` a card builder returns), then the sheets'
+         * cascade (`styleCascade`) on a card of each kind built on a body of its own under Stained Glass: the rule that
+         * wins `--acc` must name the kind. Red at f26d4467: safeword and assembly wear the hour's.
+         */
+        const C = await styleCascade();
+        const src = stripComments((await moduleSources()).get("events.mjs") ?? "");
+        const kinds = [...new Set([...src.matchAll(/\bkind:\s*"([\w-]+)"/g)].map(m => m[1]))].sort();
+        ok(kinds.length >= 7, `the card kinds read off events.mjs: ${stableJson(kinds)}`);
+        const html = document.createElement("html"), body = document.createElement("body");
+        body.className = "drpg-theme-stained-glass drpg-gm";
+        html.append(body);
+        body.innerHTML = `<div id="ui-top"><div id="drpg-events" class="drpg-events">${kinds.map(k => `<div class="drpg-event" data-kind="${k}"></div>`).join("")}</div></div>`;
+        const won = Object.fromEntries([...body.querySelectorAll(".drpg-event")].map(card => [card.dataset.kind, C.winner(card, ["--acc"])]));
+        const hour = kinds.filter(k => !won[k] || !won[k].selector.includes(`[data-kind="${k}"]`) || /--drpg-glass-accent/.test(won[k].value));
+        equal(stableJson({ hour, safeword: won.safeword?.value ?? null, assembly: won.assembly?.value ?? null }),
+            stableJson({ hour: [], safeword: "var(--drpg-sg-gm-light)", assembly: "var(--drpg-sg-hope)" }),
+            "{hour: the kinds whose `--acc` under Stained Glass is the hour's or no rule of their own; the safeword's and the assembly's accent}");
+    }],
+    ["R1394 - the Event panel is one box whatever it says (E23 C3b, E23-18; the owner's 04.10, audit S10-35, S12-30): its width and height are two tokens, a length each, stated for Monokuma Legacy, for the glass and for the glass's stack, and what is taller scrolls inside it, the panel never shrunk and a card never shrunk below its words; an incident's meta is two lines, whose turn and then the state, and no meta wears a frame or a glowing box; the ticker runs in the glyph's band, under no word, and is not drawn on a stacked screen", async () => {
+        /*
+         * E23 C3b, 07.11.2026. The owner's 04.10: "the events panel has a fixed size whatever the event and phase, always a
+         * similar layout, everything fits". Measured in Chromium before this commit (the glass harness's `drpgEventCheck`,
+         * 1920x1080, Stained Glass, the longest texts of lang): the panel 166 px with a safeword's card, 230 with a trial's,
+         * 238 with an incident's, 648 with the three, and the curtain cut it a new pane each time. S10-35: the incident's
+         * meta was one string, `${turn} · ${left}`, centred upper case, broken wherever the width ran out, under a hairline,
+         * and a due card's meta pulsed a box-shadow, a framed box in the state's colour. S12-30: the ticker at the card's
+         * middle, under the words (30 px under the incident's room line). Read here: the sheets' cascade (`styleCascade`)
+         * on the panel, a card, its meta, its glyph and its ticker, on a body of its own - a desk under each theme and a
+         * stack under Stained Glass; events.mjs `incidentCard`'s meta (its source, comments stripped: its state needs a
+         * running incident) and `cardElement` on a two-part and a one-part meta. What Chromium lays out - the box the same
+         * for each card and for all three, nothing cut, the ticker under no word - is `drpgEventCheck`
+         * (glass-sweep `--events`). Red at f26d4467: one meta string with " · ", no tokens, the ticker at 50 %.
+         */
+        const C = await styleCascade();
+        const value = (el, names, pseudo = null) => C.winner(el, [names].flat(), pseudo)?.value?.replace(/\s+/g, " ") ?? null;
+        const LENGTH = /^(?:[\d.]+px|calc\([\d.]+px \* var\(--drpg-(?:sg|legacy)-scale(?:, 1)?\)\))$/;
+        const layout = (theme, stacked) => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-gm${stacked ? " drpg-stacked" : ""}`;
+            html.append(body);
+            const card = `<div class="drpg-event" data-kind="incident"><span class="drpg-event-glyph drpg-pxi"></span><div class="drpg-event-ticker"><span></span></div>`
+                + `<div class="drpg-event-title">T</div><div class="drpg-event-meta"><span class="drpg-event-meta-line">a</span><span class="drpg-event-meta-line">b</span></div></div>`;
+            const panel = `<div id="drpg-events" class="drpg-events">${card}${card.replace('class="drpg-event"', 'class="drpg-event due"')}</div>`;
+            body.innerHTML = stacked ? `<div id="drpg-column">${panel}</div>` : `<div id="ui-top">${panel}</div>`;
+            const q = s => body.querySelector(s), [one, due] = body.querySelectorAll(".drpg-event");
+            const meta = one.querySelector(".drpg-event-meta"), dueMeta = due.querySelector(".drpg-event-meta");
+            const box = q("#drpg-events");
+            const w = value(box, "--drpg-events-w"), h = value(box, "--drpg-events-h");
+            const border = ["border", "border-top", "border-top-width", "border-top-style"].map(n => value(meta, n)).filter(v => v && !/^(none|0|0px)$/.test(v));
+            const shadow = [value(meta, "box-shadow"), value(dueMeta, ["animation", "animation-name"])].filter(v => v && /seam-glow|^0 0 0 1px/.test(v));
+            const read = {
+                tokens: [LENGTH.test(w ?? "") ? "length" : w, LENGTH.test(h ?? "") ? "length" : h],
+                width: value(box, "width"), height: value(box, "height"), scrolls: value(box, ["overflow-y", "overflow"]),
+                panelFlex: value(box, "flex"), cardFlex: value(one, "flex"), metaFrame: [...border, ...shadow]
+            };
+            if (theme === "drpg-theme-stained-glass") {
+                const ticker = one.querySelector(".drpg-event-ticker"), glyph = one.querySelector(".drpg-event-glyph");
+                const padTop = (value(one, ["padding-top", "padding"]) ?? "").split(" ")[0];
+                read.ticker = stacked ? value(ticker, "display")
+                    : [value(ticker, "top") === padTop ? "the card's top" : value(ticker, "top"), value(ticker, "height") === value(glyph, "height") ? "the glyph's height" : value(ticker, "height")];
+            }
+            return read;
+        };
+        const want = (stacked, theme) => ({
+            tokens: ["length", "length"], width: stacked ? "auto" : "var(--drpg-events-w)", height: "var(--drpg-events-h)", scrolls: "auto",
+            panelFlex: "0 0 auto", cardFlex: "1 0 auto", metaFrame: [],
+            ...(theme === "drpg-theme-stained-glass" ? { ticker: stacked ? "none" : ["the card's top", "the glyph's height"] } : {})
+        });
+        const LAYOUTS = [["drpg-theme-monokuma-legacy", false], ["drpg-theme-stained-glass", false], ["drpg-theme-stained-glass", true]];
+        equal(stableJson(LAYOUTS.map(([t, s]) => layout(t, s))), stableJson(LAYOUTS.map(([t, s]) => want(s, t))),
+            "[Monokuma Legacy's desk, the glass's desk, the glass's stack]: {tokens: the width's and the height's (a length each), the panel's width, "
+            + "height, overflow and flex, a card's flex, a meta's frame or box (none), the ticker's top and height against the card's padding and the glyph's (desk) or its display (stack)}");
+
+        const src = stripComments((await moduleSources()).get("events.mjs") ?? "");
+        const incident = fnSource(src, "incidentCard");
+        const E = await import("./events.mjs");
+        must(typeof E.cardElement === "function", "events.mjs exports no cardElement - the panel's card cannot be read here");
+        const two = E.cardElement({ kind: "r1394", title: "R1394", meta: ["R1394 turn", "R1394 state <b>x</b>"] });
+        const one = E.cardElement({ kind: "r1394", title: "R1394", meta: "R1394 one" });
+        const lines = el => [...(el.querySelector(".drpg-event-meta")?.children ?? [])].map(c => [c.className, c.textContent]);
+        equal(stableJson({
+            source: [/\bmeta:\s*\[\s*turn\s*,\s*left\s*\]/.test(incident), /\$\{turn\}\s*·/.test(incident)],
+            two: lines(two), twoMarkup: two.querySelector(".drpg-event-meta b") !== null,
+            one: [one.querySelector(".drpg-event-meta")?.textContent ?? null, lines(one)]
+        }), stableJson({
+            source: [true, false],
+            two: [["drpg-event-meta-line", "R1394 turn"], ["drpg-event-meta-line", "R1394 state <b>x</b>"]], twoMarkup: false,
+            one: ["R1394 one", []]
+        }), "{source: incidentCard's meta [whose turn, the state] as two parts, one string joined by ' · '; two: cardElement's lines for a two-part meta "
+            + "(each [class, text]), and whether a part became markup; one: a one-part meta's text and lines}");
+    }],
     ["R1404 - the prompts the game waits on stay above the sheet, and nothing else does (E23 C5a; E23-24, audit S01-15, the owner's Q-E23-5): stacking.mjs keeps `drpg-prompt` (ui-kit.mjs PROMPT_CLASS) on top, not every kit window's `drpg-panel`; `drpgWindow` puts it on only when asked, and the windows that ask are the named list - a roll, every action's declaration (each caller of `chooseVariant` named), Observe's GM windows, a GM's ruling, a ballot, Level Up and the trial's prompts - never a panel, a handbook, Projects, the Case or the notice history; the raise is a frame after Foundry's, never a microtask, and only for the prompts the sheet overlaps; a render raises only on a first or a forced one", async () => {
         /*
          * E23 C5a, 07.11.2026; S01-15. Until C5a stacking.mjs kept `.application.drpg-panel` on top, and the kit puts

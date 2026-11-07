@@ -243,7 +243,11 @@ function incidentCard() {
     // A trap is "A killing in the dark"; a direct murder is fought face to face, and its
     // card said the trap's title until E32+E07 C18 (03.10.2026; audit S04-40).
     const title = game.i18n.localize(here.indirect ? "DRPG.Events.incidentTitle" : "DRPG.Events.incidentTitleDirect");
-    return { kind: "incident", mine: Boolean(myTurn), title, sub, meta: `${turn} · ${left}` };
+    /* TWO LINES, WHOSE TURN AND THEN THE STATE (E23 C3b, 07.11.2026; audit S10-35). The meta was one string,
+       `${turn} · ${left}`, centred in upper case on a 355 px card: it broke wherever the width ran out ("VICTIM TO / ACT",
+       the dot left hanging at a line's end), three centred lines nobody read at a glance. Now two parts, each its own
+       line drawn by `cardElement`: whose turn first, then the victim's marks. */
+    return { kind: "incident", mine: Boolean(myTurn), title, sub, meta: [turn, left] };
 }
 
 /**
@@ -662,7 +666,18 @@ export function cardTicker(card) {
     return ticker;
 }
 
-function cardElement(card) {
+/**
+ * One card of the panel as the panel draws it. Exported for the glass harness's event reading (audit/glass-harness.html
+ * `drpgEventCheck`, E23 C3b), which lays the module's own card out in Chromium rather than a copy of it.
+ *
+ * `card.meta` is a string or a list of parts (the incident's: whose turn, the state); a list is one meta line a part
+ * (`.drpg-event-meta-line`), the first of two or more the lead.
+ *
+ * @param {{kind: string, title?: string, sub?: string, meta?: string|string[], note?: string, due?: boolean,
+ *   mine?: boolean, clock?: boolean, tooltip?: string}} card
+ * @returns {HTMLElement}
+ */
+export function cardElement(card) {
     const el = document.createElement("div");
     el.className = "drpg-event";
     el.dataset.kind = card.kind;
@@ -714,7 +729,19 @@ function cardElement(card) {
         el.append(clockEl);
         startTrialClock();
     }
-    add("drpg-event-meta", card.meta);
+    const parts = [card.meta].flat().filter(Boolean);
+    if (parts.length > 1) {
+        // `textContent`, part by part: the parts carry names, never markup (as `add` writes them).
+        const meta = document.createElement("div");
+        meta.className = "drpg-event-meta";
+        for (const part of parts) {
+            const line = document.createElement("span");
+            line.className = "drpg-event-meta-line";
+            line.textContent = part;
+            meta.append(line);
+        }
+        el.append(meta);
+    } else add("drpg-event-meta", parts[0]);
     add("drpg-event-note", card.note);
     return el;
 }
@@ -800,6 +827,10 @@ export function renderEvents() {
         if (!host) return;
         existing?.remove();
         if (rail) rail.after(panel); else host.append(panel);
+        /* The box is one size whatever it holds (E23 C3b; the stylesheets' `--drpg-events-h`), so what is taller than it
+           scrolls inside it, and a panel that takes no clicks cannot be scrolled: it takes the wheel only while it
+           holds more than its box. Read once a redraw, which is once a change of what the panel says. */
+        panel.toggleAttribute("data-drpg-scrolls", panel.scrollHeight > panel.clientHeight + 1);
     } catch (err) {
         error("Could not render the Event panel", err);
     }
