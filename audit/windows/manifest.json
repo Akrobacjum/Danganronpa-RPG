@@ -1576,6 +1576,7 @@
       "title": "Description",
       "classes": [
         "application",
+        "drpg-ui",
         "drpg-panel",
         "drpg-window-room"
       ],

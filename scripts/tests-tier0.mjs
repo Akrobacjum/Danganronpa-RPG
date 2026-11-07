@@ -12566,7 +12566,8 @@ const REGRESSIONS = [
                 && /await onGiving\?\.\(actor, await givenCounts\(actor\)\);/.test(batch) && /if \(flying && await rowGrew\(flying, giving\)\)/.test(batch),
             takeBackBusy: /if \(advancing\.has\(actor\.id\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Advance\.takeBackBusy"/
                 .test(fnSource(levelUp, "takeBackOffer")),
-            enterGives: /buttons: \[\s*\{ action: "give", [^}]*default: true,/.test(fnSource(levelUp, "askWhoPicks")),
+            // The kit's footer since E21 C6a: the primary is the default and the first submit button (ui-kit.mjs's header).
+            enterGives: /footer: \{\s*primary: \{ action: "give", /.test(fnSource(levelUp, "askWhoPicks")),
             unfoundExecuted: /isDeadForGm\(held\)\s*\? await publishDeath\(actor, \{ phase: "classTrial", cause: "executed" \}\)/.test(fnSource(vote, "carryOutSentence")),
             eclipseDoors: /if \(trialEdge && next\.phase === "classTrial" && next\.eclipse === true\) \{\s*ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Floor\.eclipseFirst"\)\);\s*return null;/
                 .test(fnSource(code("clock.mjs"), "setClock"))
@@ -20330,7 +20331,10 @@ const REGRESSIONS = [
          * open, is one site, as call-pickers.mjs's `callWindow` is. ui-kit.mjs's own are the kit. Read at C7b's tree: 124
          * DialogV2 calls and 5 classes, 126 sites outside the kit in 54 files (the notice history's Clear question among
          * them). E44 C6 moves the two Foundry tools frames and the narrow description window, which this census then
-         * stops counting.
+         * stops counting. GREEN SINCE E21 C6a (07.11.2026): the last eleven sites (the handbooks, the conversation and its
+         * two questions, the narrow description window, the project's window, its Delete question and Share, Level Up
+         * and the class's Level Up, the notices' Clear) moved, the census read empty, and the marker came off in the same
+         * commit - an `expectedRed` that passes fails the suite, so it could not wait for C6b as E21's slice planned.
          */
         const SITE = /\b(?:new\s+(?:[\w$]+\.)*DialogV2\s*\(|DialogV2\s*\.\s*(?:wait|confirm|prompt|query|input)\s*\()/g;
         const CLASS = /\bclass(?:\s+[\w$]+)?\s+extends\s+([^{]+?)\s*\{/g;
@@ -20361,7 +20365,7 @@ const REGRESSIONS = [
         const list = [...outside].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([f, n]) => `${f} ${n}`);
         const total = [...outside.values()].reduce((a, b) => a + b, 0);
         equal(JSON.stringify(list), "[]", `the windows outside the kit, which E21 moves: ${total} in ${outside.size} file(s)`);
-    }, expectedRed("E21", "E21 moves every other window onto drpgWindow or DrpgApp and deletes its old frame rules; the census of the windows outside the kit is its list, and E21 takes this marker off when it is empty", { failing: "the windows outside the kit, which E21 moves" })],
+    }],
     ["R1336 - every footer button names a role of BUTTON_ROLES (E44 C7b; E44-23): a kit footer (`drpgWindow`'s `footer`, `footerMarkup`, `footerButtons`) places its buttons only in a role's slot, and every DialogV2 footer outside the kit names a role on each button - the census of those that do not is E22's list", async () => {
         /*
          * E44 C7b, 04.11.2026. E44 writes the table of button roles (ui-kit.mjs BUTTON_ROLES: primary, gmRoute, close,
@@ -20375,7 +20379,9 @@ const REGRESSIONS = [
          * the messenger, the room's window) is not read here: E21 moves those onto DrpgApp's footer. Read at C7b's tree:
          * 233 buttons in literal arrays and the defaults of confirm and prompt, none with a role's class, and 10 footers
          * built in code or passed whole - 243 in 52 files; one kit footer outside ui-kit.mjs, the notice history's
-         * (destructive, close).
+         * (destructive, close). GREEN SINCE E21 C6a (07.11.2026): the last sixteen buttons (the project's window, its
+         * Delete question and Share; Level Up and the class's; the conversation's two questions; the notices' Clear)
+         * moved into kit footers, and the marker came off with R1335's.
          */
         const kitText = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/ui-kit.mjs`).then(lfText));
         const table = bodyOf(kitText, "export const BUTTON_ROLES = Object.freeze({", { until: "\n});" });
@@ -20425,7 +20431,7 @@ const REGRESSIONS = [
         const list = [...noRole].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([f, n]) => `${f} ${n}`);
         const total = [...noRole.values()].reduce((a, b) => a + b, 0);
         equal(JSON.stringify(list), "[]", `the footer buttons that name no role, which E22 gives one: ${total} in ${noRole.size} file(s)`);
-    }, expectedRed("E22", "E22 fills the button-role table: every footer button of the module gets a role of BUTTON_ROLES, D11's red only for the GM's road; the census of the buttons that name none is its list, and E22 takes this marker off when it is empty", { failing: "the footer buttons that name no role, which E22 gives one" })],
+    }],
     ["R1351 - a project's description travels by its name's road (E44 C9; Q-C9-1..3): the player's proposal draws the field, guards its Propose, refuses before anything is sent what config.mjs `projectDescriptionProblem` names - a preset's own label standing in for an empty one, wired into the field as the preset is chosen, and its room-naming summary never the description (fix FG1) - and carries the text on the card's Approve; the approval hands it to the GM's window, which draws it, guards Save, refuses the same way before it writes, and writes it by createProject and projectEditChange; createProject refuses one too long and puts it in the meta of the change that writes the sealed countdown, projectEditChange in the meta, and allProjects reads it back through `descriptionOf`; it is no field of PROJECT_SECRET_FIELDS or of the token a project places, and a secret project's is the GMs' (PROJECT_SECRET_WHILE_SECRET, the world-secrets rule's whileSecret: E44 fix FG6), told to its players by `tellDescription` after every change; the manager's table neither reads nor writes it; and the token's card is a live region over projectMeta and the Countdowns that asks knowsProject at every draw", async () => {
         /*
          * E44 C9, 04.11.2026. Where the words live, and why there: the project's open meta (projectMeta, a world setting),
@@ -20575,7 +20581,11 @@ const REGRESSIONS = [
                 // C4: a round's start, the Closing's pick, the Reveal, the Objection's picker, Your turn, I volunteer, the ballot.
                 "drpg-round-window", "drpg-closing-pick", "drpg-reveal-confirm", "drpg-objection-pick", "drpg-your-turn", "drpg-closing-claim", "drpg-ballot",
                 // C5a: an action's briefing, Rest's picks, the Calls' two sides, the safeword's question, the explainers.
-                "drpg-briefing", "drpg-rest", "drpg-hope-dialog", "drpg-despair-dialog", "drpg-safeword-dialog", "drpg-explain"]);
+                "drpg-briefing", "drpg-rest", "drpg-hope-dialog", "drpg-despair-dialog", "drpg-safeword-dialog", "drpg-explain",
+                // C6a: the handbooks, the narrow description window and the class's Level Up. Not `drpg-messenger` nor
+                // `drpg-advance`: both stand in the shared `:is()` lists of the popup rules beside `drpg-panel`, whose
+                // inner `:where(...)` this reader's comma split cuts into parts that read as the window itself.
+                "drpg-handbook", "drpg-window-room", "drpg-advance-queue"]);
         const FRAME = /^(?:max-height|min-height|height|overflow(?:-[xy])?|position|top|bottom|inset)$/;
         const FOOT = /^(?:display|order|flex(?:-[\w-]+)?|justify-content|align-items|position|width|max-width|margin(?:-[\w-]+)?|padding(?:-[\w-]+)?|bottom|left|right)$/;
         const found = [];

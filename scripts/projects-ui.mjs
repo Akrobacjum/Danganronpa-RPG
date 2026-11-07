@@ -24,8 +24,8 @@ import {
     applyProjectChange, combineChanges, projectEditChange, sightChange, projectMeta, addProgress, projectLabel
 } from "./projects.mjs";
 import { placeRoomNames } from "./rooms.mjs";
-import { dialogContent, error, markFired, markLanguage, serialWrite, wirePortraitPickers } from "./utils.mjs";
-import { emptyOption, drpgWindow } from "./ui-kit.mjs";
+import { error, markFired, markLanguage, serialWrite, wirePortraitPickers } from "./utils.mjs";
+import { emptyOption, drpgConfirm, drpgWindow } from "./ui-kit.mjs";
 // The projects' queue key, from the file that keeps it (projects.mjs does not re-export it), as traps.mjs and fog.mjs read it.
 import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
@@ -33,8 +33,6 @@ import {
     leaveIconOnly, localiseRawKeys, hideUndiscovered, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl
 } from "./projects-tray.mjs";
 export { refreshProjects, hideUndiscovered } from "./projects-tray.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
 
 export function registerProjectsUi() {
     // The countdown tray is its own ApplicationV2; label it on every render.
@@ -854,7 +852,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         .map(p => `<option value="${p.id}"${p.id === triggerTarget ? " selected" : ""}>${
             foundry.utils.escapeHTML(p.name)}</option>`).join("");
 
-    const content = dialogContent(`<form>
+    const content = `<form>
             <div class="drpg-project-image-row">
                 <img src="${foundry.utils.escapeHTML(img)}" alt="" class="drpg-project-portrait"
                      data-drpg-portrait
@@ -915,62 +913,62 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                 current: project.current, target: project.start
             })}</p>` : ""}
             <p class="notes">${game.i18n.localize("DRPG.Project.createNote")}</p>
-        </form>`);
+        </form>`;
 
-    const buttons = [
-        {
-            action: "save",
-            label: game.i18n.localize(editing ? "DRPG.Assign.save" : "DRPG.Project.createButton"),
-            default: true,
-            callback: (e, b, d) => {
-                const f = d.element.querySelector("form");
-                return {
-                    name: f.name.value.trim(),
-                    target: Number(f.target.value) || PROJECT_SCALE.everyday.progress,
-                    room: f.room.value || null,
-                    trait: f.trait.value || null,
-                    murder: f.murder.checked,
-                    condition: f.condition.value.trim(),
-                    trigger: {
-                        kind: f.trigger.value || "manual",
-                        targetId: f.triggerTarget?.value || null,
-                        afterDark: f.afterDark.checked,
-                        notBuilder: f.notBuilder.checked
-                    },
-                    secret: f.secret.checked,
-                    // Everyone ticked, in one list (P-1). `querySelectorAll`
-                    // rather than the form's named collection: one checkbox and
-                    // many checkboxes read differently through that name.
-                    viewers: [...d.element.querySelectorAll('[name="viewers"]:checked')]
-                        .map(box => box.value),
-                    // As the window drew them (E36 fix e1-G2: `secrecyChange`).
-                    was: [...d.element.querySelectorAll('[name="viewers"]')].filter(box => box.defaultChecked)
-                        .map(box => box.value),
-                    img: f.img.value || null,
-                    // A RadioNodeList's `.value` is the checked one, and the
-                    // default cell's value is "" - so an untouched grid reads
-                    // as "no choice" and the tray's own fallback names the
-                    // hourglass, in one place.
-                    glyph: f.glyph?.value || null,
-                    // A Secret Passage's neighbour and the stretch its pick made (E15 part 2 C2).
-                    passageTo: f.passageTo?.value || null,
-                    passage: f.passage?.value || null,
-                    // As typed; judged below (E44 C9).
-                    description: d.element.querySelector('[name="description"]')?.value ?? ""
-                };
-            }
+    const save = {
+        action: "save",
+        label: game.i18n.localize(editing ? "DRPG.Assign.save" : "DRPG.Project.createButton"),
+        callback: (e, b, d) => {
+            const f = d.element.querySelector("form");
+            return {
+                name: f.name.value.trim(),
+                target: Number(f.target.value) || PROJECT_SCALE.everyday.progress,
+                room: f.room.value || null,
+                trait: f.trait.value || null,
+                murder: f.murder.checked,
+                condition: f.condition.value.trim(),
+                trigger: {
+                    kind: f.trigger.value || "manual",
+                    targetId: f.triggerTarget?.value || null,
+                    afterDark: f.afterDark.checked,
+                    notBuilder: f.notBuilder.checked
+                },
+                secret: f.secret.checked,
+                // Everyone ticked, in one list (P-1). `querySelectorAll`
+                // rather than the form's named collection: one checkbox and
+                // many checkboxes read differently through that name.
+                viewers: [...d.element.querySelectorAll('[name="viewers"]:checked')]
+                    .map(box => box.value),
+                // As the window drew them (E36 fix e1-G2: `secrecyChange`).
+                was: [...d.element.querySelectorAll('[name="viewers"]')].filter(box => box.defaultChecked)
+                    .map(box => box.value),
+                img: f.img.value || null,
+                // A RadioNodeList's `.value` is the checked one, and the
+                // default cell's value is "" - so an untouched grid reads
+                // as "no choice" and the tray's own fallback names the
+                // hourglass, in one place.
+                glyph: f.glyph?.value || null,
+                // A Secret Passage's neighbour and the stretch its pick made (E15 part 2 C2).
+                passageTo: f.passageTo?.value || null,
+                passage: f.passage?.value || null,
+                // As typed; judged below (E44 C9).
+                description: d.element.querySelector('[name="description"]')?.value ?? ""
+            };
         }
-    ];
-    if (editing) buttons.push({ action: "delete", label: game.i18n.localize("DRPG.Project.delete") });
-    buttons.push({ action: "cancel", label: game.i18n.localize("DRPG.Panel.close") });
+    };
 
-    const result = await DialogV2.wait({
-        window: {
-            title: game.i18n.localize(editing ? "DRPG.Project.editTitle" : "DRPG.Project.createTitle")
-        },
+    /* ON THE KIT (E21 C6a, E22; audit S09-24). Save (or Create) on the right, the default; Cancel on the left - the form's
+       changes are withdrawn, so the role's word, not "Close" - answering "cancel" as before; Delete, in an edit, on the
+       left with the destructive role: never the default, and its own question below has Cancel the default. */
+    const result = await drpgWindow({
+        title: game.i18n.localize(editing ? "DRPG.Project.editTitle" : "DRPG.Project.createTitle"),
         classes: ["drpg-panel"],
-        content,
-        buttons,
+        body: content,
+        footer: {
+            primary: save,
+            destructive: editing ? [{ action: "delete", label: game.i18n.localize("DRPG.Project.delete") }] : [],
+            close: { role: "cancel", action: "cancel", callback: () => "cancel" }
+        },
         // See wirePortraitPickers() - DialogV2 discards `content` and rebuilds
         // it from a string, so the picker has to be wired against the dialog's
         // real element once it exists, not against the div built above.
@@ -987,12 +985,12 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
     if (!result || result === "cancel") return null;
 
     if (result === "delete") {
-        const sure = await DialogV2.confirm({
-            yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
-            no: { label: game.i18n.localize("DRPG.Dialog.no") },
+        // Destructive (E22; S09-24): Cancel the default and the first submit button, so Enter deletes nothing (E22-T5).
+        const sure = await drpgConfirm({
+            yes: { role: "destructive", action: "delete", label: game.i18n.localize("DRPG.Project.delete") },
             classes: ["drpg-panel"],
-            window: { title: game.i18n.localize("DRPG.Project.delete") },
-            content: `<p>${game.i18n.format("DRPG.Project.deleteConfirm", {
+            title: game.i18n.localize("DRPG.Project.delete"),
+            body: `<p>${game.i18n.format("DRPG.Project.deleteConfirm", {
                 name: foundry.utils.escapeHTML(project.name)
             })}</p>`,
             rejectClose: false
@@ -1442,35 +1440,29 @@ export async function openShareDialog(preselectId = null) {
         .map(u => `<option value="${u.id}">${foundry.utils.escapeHTML(u.name)}</option>`)
         .join("");
 
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Project.shareTitle") },
+    /* ON THE KIT (E21 C6a, E22; audit S09-24). Share on the right, the default; Revoke access on the left with the
+       destructive role, never the default, so Enter shares and revokes nobody (E22-T5); Cancel on the left, answering
+       "cancel" as before ("Close" until C6a: nothing is given or taken away). */
+    const read = (d, revoke) => ({
+        project: d.element.querySelector("[name=project]").value,
+        player: d.element.querySelector("[name=player]").value,
+        revoke
+    });
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Project.shareTitle"),
         classes: ["drpg-panel"],
-        content: `<form>
+        body: `<form>
             <p>${game.i18n.localize("DRPG.Project.shareIntro")}</p>
             <label>${game.i18n.localize("DRPG.Project.title")}
                 <select name="project">${projectOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Project.player")}
                 <select name="player">${playerOptions}</select></label>
         </form>`,
-        buttons: [
-            {
-                action: "share", label: game.i18n.localize("DRPG.Project.shareButton"), default: true,
-                callback: (e, b, d) => ({
-                    project: d.element.querySelector("[name=project]").value,
-                    player: d.element.querySelector("[name=player]").value,
-                    revoke: false
-                })
-            },
-            {
-                action: "revoke", label: game.i18n.localize("DRPG.Project.revokeButton"),
-                callback: (e, b, d) => ({
-                    project: d.element.querySelector("[name=project]").value,
-                    player: d.element.querySelector("[name=player]").value,
-                    revoke: true
-                })
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
+        footer: {
+            primary: { action: "share", label: game.i18n.localize("DRPG.Project.shareButton"), callback: (e, b, d) => read(d, false) },
+            destructive: [{ action: "revoke", label: game.i18n.localize("DRPG.Project.revokeButton"), callback: (e, b, d) => read(d, true) }],
+            close: { role: "cancel", action: "cancel", callback: () => "cancel" }
+        },
         rejectClose: false
     });
 

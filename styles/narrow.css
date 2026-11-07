@@ -361,8 +361,8 @@ body.drpg-stacked #drpg-tile-row .drpg-voice-tile-controls > .drpg-launch-mini {
     width: var(--drpg-tile-row-h);
     height: var(--drpg-tile-row-h);
 }
-/* The description's window: the screen less 8 px a side at most, the words as the GM broke them. */
-body.drpg-stacked .application.drpg-window-room { width: min(480px, calc(100vw - 16px)) !important; }
+/* The description's window: the words as the GM broke them. Its width is its own since E21 C6a (room-tile.mjs, on the
+   kit's frame: `min(480px, screen - 16px)` when it opens, the frame's `max-width` after). */
 .drpg-room-window-prose { white-space: pre-line; overflow-wrap: anywhere; }
 
 /* FOUNDRY'S WINDOWS OVER THE STACK (E77 C8). The GM's Foundry tools and Map tools are frames in the

@@ -796,7 +796,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     const chieBefore = await chieOnP1();
     const verdict = await gm.eval(`globalThis.__dialogAnswers.push(async function advance(cfg) {
             if (!(cfg.classes ?? []).includes("drpg-advance")) { globalThis.__dialogAnswers.unshift(advance); return null; }
-            const n = (String(cfg.content ?? "").match(/name="pick\\.\\d+\\.option"/g) ?? []).length;
+            const n = ((cfg.content?.innerHTML ?? String(cfg.content ?? "")).match(/name="pick\\.\\d+\\.option"/g) ?? []).length;
             return Array.from({ length: n }, () => ({ option: "hp" }));
         });
         const r = await game.drpg.closeVote();

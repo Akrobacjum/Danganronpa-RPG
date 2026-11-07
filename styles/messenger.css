@@ -167,10 +167,7 @@
    THE CONVERSATION WINDOW
    ========================================================================== */
 
-.application.drpg-messenger .window-content {
-    padding: 0;
-    display: flex;
-}
+/* The window's frame is the kit's since E21 C6a (components.css: the column, the padding, the overflow). */
 
 .drpg-messenger-body {
     flex: 1 1 auto;

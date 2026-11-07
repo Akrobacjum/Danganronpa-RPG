@@ -1124,7 +1124,7 @@ export function DrpgApp() {
             const root = this.element;
             if (!root) return;
             for (const c of KIT_CLASSES) root.classList.add(c);
-            const region = this.options.scrollRegion ? root.querySelector(this.options.scrollRegion) : null;
+            const region = this.options?.scrollRegion ? root.querySelector(this.options.scrollRegion) : null;
             region?.classList.add("drpg-kit-body");
             this._kitStop?.();
             this._kitStop = wireKit(root);

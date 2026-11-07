@@ -3339,17 +3339,8 @@ body.drpg-theme-stained-glass .application.drpg-panel:not(.minimized) .window-co
     overflow: auto;
     max-height: calc(100vh - 80px);
 }
-/* The handbooks are the one window read rather than answered: it keeps the height it was opened
-   or resized to, and its text scrolls inside it. Content height here is 70 KB of Markdown - the
-   window came out 1038 px tall with its foot off the screen. `--drpg-window-h` is the height
-   Foundry resolved, mirrored by handbooks.mjs, since the inline style cannot outrank the rule
-   above. */
-body.drpg-theme-stained-glass .application.drpg-panel.drpg-handbook:not(.minimized) {
-    height: var(--drpg-window-h, 760px) !important;
-}
-body.drpg-theme-stained-glass .application.drpg-panel.drpg-handbook:not(.minimized) .window-content {
-    overflow: hidden;
-}
+/* The handbooks' own height rule went with E21 C6a: the window is on the kit's frame (handbooks.mjs's note), held to
+   the screen by components.css. */
 /* A book needs two levels of heading, and the panel rule gives h2 and h3 one: the same 13 px
    capitals. The section keeps them; a subsection reads as a title in the prose face with the
    base sheet's short bar under it. Bold takes the time of day's accent here rather than gold. */

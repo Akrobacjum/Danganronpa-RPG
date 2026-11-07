@@ -17,8 +17,8 @@ import { listExperiences } from "./character.mjs";
 import { log, error, isPrimaryGm, ownerIdsOf, plural, proseOf } from "./utils.mjs";
 import { offerStore, offerCopy, deferredOfferStore } from "./gm-stores.mjs";
 import { gmStoresQuiet } from "./gm-store.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 
-const DialogV2 = foundry.applications.api.DialogV2;
 
 /**
  * Resolved on use, not at import time. Foundry moved FormDataExtended under
@@ -566,8 +566,10 @@ export async function openAdvancement(actor, kind = "standard", { extraPicks = 0
 
     const experiences = listExperiences(actor);
 
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.format("DRPG.Advance.title", { actor: actor.name }) },
+    /* ON M9'S CARD (E21 C6a; docs/design/windows.md M9, approved 04.11.2026): the kit's frame, Cancel on the left and
+       Apply on the right, the default; the rows as they were (D31). Cancel answers "cancel", as before. */
+    const result = await drpgWindow({
+        title: game.i18n.format("DRPG.Advance.title", { actor: actor.name }),
         /* A MODULE PANEL, AS EVERY OTHER WINDOW OF THE MODULE (E10 C9, 1.2.71; audit S01-16, S03-19). It carried
            `drpg-advance` alone, and the module's rules read `drpg-panel`: stacking.mjs `KEEP_ON_TOP` (the sheet
            buried the picker when a player clicked it to compare statistics), chrome.mjs `dressChrome` (the selects'
@@ -578,19 +580,15 @@ export async function openAdvancement(actor, kind = "standard", { extraPicks = 0
            the harness draws - LIVE check at a table, not measured here. */
         classes: ["drpg-panel", "drpg-advance"],
         // The GM's window says for whom it is; a player's own picker is their own character's.
-        content: buildContent(picks, experiences, why, asPlayer ? null : actor.name),
-        buttons: [
-            {
+        body: buildContent(picks, experiences, why, asPlayer ? null : actor.name),
+        footer: {
+            primary: {
                 action: "apply",
                 label: game.i18n.localize("DRPG.Advance.apply"),
-                default: true,
                 callback: (event, button, dialog) => readForm(dialog, picks)
             },
-            {
-                action: "cancel",
-                label: game.i18n.localize("DRPG.Advance.cancel")
-            }
-        ],
+            close: { role: "cancel", action: "cancel", callback: () => "cancel" }
+        },
         render: (event, dialog) => wireForm(dialog, picks, actor, experiences),
         rejectClose: false
     });
@@ -1206,14 +1204,17 @@ async function askWhoPicks(rows) {
         const checked = everyPlayer ? "player" : dialog?.element?.querySelector?.(`input[name="who-${actor.id}"]:checked`)?.value;
         return [actor.id, playable && (checked ?? (here ? "player" : "gm")) === "player" ? "player" : "gm"];
     }));
-    return DialogV2.wait({
-        window: { title: L("DRPG.Advance.queueTitle") },
+    /* On the kit (E21 C6a): Hand them out on the right, the default and the first submit button; All: the players pick a
+       secondary on the left. No closing word: a close already answers null, which hands every row its player (below),
+       so a Cancel would say "nothing" and do that. */
+    return drpgWindow({
+        title: L("DRPG.Advance.queueTitle"),
         classes: ["drpg-panel", "drpg-advance-queue"],
-        content: `<p>${L("DRPG.Advance.queueIntro")}</p><ul class="drpg-advance-queue-list">${items}</ul>`,
-        buttons: [
-            { action: "give", label: L("DRPG.Advance.queueGive"), default: true, callback: (event, button, dialog) => read(dialog, false) },
-            { action: "allPlayers", label: L("DRPG.Advance.allPlayers"), callback: (event, button, dialog) => read(dialog, true) }
-        ],
+        body: `<p>${L("DRPG.Advance.queueIntro")}</p><ul class="drpg-advance-queue-list">${items}</ul>`,
+        footer: {
+            primary: { action: "give", label: L("DRPG.Advance.queueGive"), callback: (event, button, dialog) => read(dialog, false) },
+            secondary: [{ action: "allPlayers", label: L("DRPG.Advance.allPlayers"), callback: (event, button, dialog) => read(dialog, true) }]
+        },
         rejectClose: false
     });
 }

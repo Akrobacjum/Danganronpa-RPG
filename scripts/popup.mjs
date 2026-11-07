@@ -799,14 +799,11 @@ export function showPopup(bodyHtml, {
         sticky ? " drpg-popup-sticky" : ""}${
         TONES.includes(tone) ? ` drpg-popup-tone-${tone}` : ""}`;
     const from = noticeSource(source, messageId ?? fromMessage, author);
-    /* WHO A CARD IS FOR (E18 C6; audit S11-17 (a)). A notice to the whole table - drawn from a public card, a
-       GM's or a player's - is "info"; a card for this reader alone ("mine" - a whisper, a card of no document,
-       the messenger's, the day summary), a refusal and an objection carry their own word. Until 1.2.99 the
-       tile's layer was worked out from it; since E44 C8c the theme alone decides (danganronpa.css,
-       `#drpg-popups`: under the windows under Stained Glass, over them under Monokuma Legacy), no sheet reads
-       it, and it stays the card's reading (R847); whether it stays at all is E21's, with the windows' kit (E44's
-       Open 85). Worked out whether or not the card is kept. */
-    card.dataset.kind = kind !== "info" ? String(kind) : from.source === "public" || from.source === "player" ? "info" : "mine";
+    /* NO `data-kind` (E21 C6a, 07.11.2026; E44's Open 85). E18 C6 stamped who a card is for - "info" for a notice to
+       the whole table, "mine" for this reader alone, a refusal's and an objection's own word - and the tile's layer
+       was worked out from it until 1.2.99; since E44 C8c the theme alone decides (danganronpa.css, `#drpg-popups`:
+       under the windows under Stained Glass, over them under Monokuma Legacy), and only R847 still read the stamp.
+       It went with that read; R847 reads the theme's rule alone. */
 
     // EVERY CARD HAS A TITLE BAR.
     //

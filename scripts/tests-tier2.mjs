@@ -2544,7 +2544,7 @@ async function withAdvanceWindows(answer, run, queue = "gm") {
     D.wait = async cfg => {
         const classes = [...(cfg?.classes ?? [])];
         const entry = { classes, title: cfg?.window?.title ?? "",
-            picks: (String(cfg?.content ?? "").match(/name="pick\.\d+\.option"/g) ?? []).length };
+            picks: ((cfg?.content?.innerHTML ?? String(cfg?.content ?? "")).match(/name="pick\.\d+\.option"/g) ?? []).length };
         asked.push(entry);
         if (classes.includes("drpg-advance-queue")) return answerQueue(cfg, queue, entry);
         return classes.includes("drpg-advance") ? answer(entry) : null;
@@ -2569,7 +2569,7 @@ async function withAdvanceWindows(answer, run, queue = "gm") {
  */
 function answerQueue(cfg, how, entry) {
     const element = document.createElement("div");
-    element.innerHTML = String(cfg?.content ?? "");
+    element.innerHTML = (cfg?.content?.innerHTML ?? String(cfg?.content ?? ""));
     entry.rows = [...element.querySelectorAll("[data-actor-id]")].map(row => ({ id: row.dataset.actorId,
         choices: [...row.querySelectorAll('input[type="radio"]')].map(input => input.value),
         checked: [...row.querySelectorAll('input[type="radio"][checked]')].map(input => input.value) }));
@@ -22394,7 +22394,7 @@ const SCENARIOS = [
                 if ((cfg?.classes ?? []).includes("drpg-advance")) seen.levelUps.push(cfg?.window?.title ?? "");
                 // Since E10 C7 the class's Level Ups are one window, a row per student it offers one to.
                 if ((cfg?.classes ?? []).includes("drpg-advance-queue")) {
-                    seen.levelUps.push(...[...String(cfg?.content ?? "").matchAll(/data-actor-id="([^"]+)"/g)]
+                    seen.levelUps.push(...[...(cfg?.content?.innerHTML ?? String(cfg?.content ?? "")).matchAll(/data-actor-id="([^"]+)"/g)]
                         .map(m => title(game.actors.get(m[1]) ?? { name: m[1] })));
                 }
                 return null;
@@ -50648,7 +50648,7 @@ const SCENARIOS = [
             none = listExperiences(student).length === 0;
             D.wait = async cfg => {
                 if (!(cfg?.classes ?? []).includes("drpg-advance")) return null;
-                content = String(cfg?.content ?? "");
+                content = (cfg?.content?.innerHTML ?? String(cfg?.content ?? ""));
                 return [{ option: "hp" }, { option: "stress" }, { option: "experienceUp" }];
             };
             ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
@@ -52827,10 +52827,11 @@ const SCENARIOS = [
                 unprepare?.();
             }
             const form = document.createElement("div");
-            form.innerHTML = String(cfg?.content ?? "");
+            form.innerHTML = (cfg?.content?.innerHTML ?? String(cfg?.content ?? ""));
             const reason = say(`DRPG.Advance.reason.${kind}`);
             const read = {
-                classes: [...(cfg?.classes ?? [])].sort(),
+                // Each class once: on the kit's frame since E21 C6a, whose `drpg-panel` stands beside the caller's own.
+                classes: [...new Set(cfg?.classes ?? [])].sort(),
                 legends: [...form.querySelectorAll("legend")].map(text),
                 amber: form.querySelectorAll(".notification").length,
                 notes: [...form.querySelectorAll(".drpg-advance-note")].map(text),
@@ -52842,7 +52843,7 @@ const SCENARIOS = [
             let detail = null;
             if (none && cfg?.render) {
                 const root = document.createElement("div");
-                root.innerHTML = String(cfg.content ?? "");
+                root.innerHTML = cfg.content?.innerHTML ?? String(cfg.content ?? "");
                 cfg.render({}, { element: root });
                 const select = root.querySelector('select[data-pick="0"]');
                 select.value = "experienceUp";
@@ -52863,7 +52864,7 @@ const SCENARIOS = [
         const expected = ([kind, picks]) => {
             const { none } = seen[picks === 1 ? 0 : 1];
             return {
-                classes: ["drpg-advance", "drpg-panel"],
+                classes: ["drpg-advance", "drpg-panel", "drpg-ui"],
                 legends: picks === 1 ? [] : choices(picks),
                 amber: 0,
                 notes: none ? [noExperiences] : [],
@@ -82904,6 +82905,78 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({ drawn: true, first: "cancel", answer: null, phase: true, floor: true, cards: 0 }),
             "[End the trial's question drawn; its first submit button; what endClassTrial answered after Enter; the phase and the floor as they were; the cards posted]");
+    }],
+    ["E22-T5 - Enter in the project's Delete question deletes nothing, and Enter in Share revokes nobody (E22 C6a; audit S09-24): a project made for the test, its window opened on the GM as a table draws it and Delete pressed, then Enter pressed in the question as a browser presses it (the form submitted by its first submit button); a secret one known to every player, Share opened on it and Enter pressed there - the first submit buttons, the answers, the project and its players read", async () => {
+        /*
+         * E22 C6a, 07.11.2026; audit S09-24: Delete in the project's window asked "Delete ...?" with Yes the default, so
+         * Enter deleted the project and its progress; Revoke access stood beside Share as a plain button. Both windows are
+         * drawn here (`__dialogWindows`) and Enter pressed as E22-T1 presses it: `requestSubmit` with the first submit
+         * button in the tree (HTML's implicit submission; jsdom submits nothing on a synthetic key). Delete in the
+         * project's window is pressed as a person presses it (`requestSubmit` with that button). Read: the first submit
+         * button of the question and of Share, what each road answered, whether the project stands, and the players who
+         * know the secret one after. Put back: both projects deleted. Red on C5d's tree: Enter pressed Yes and the
+         * project was deleted. Share's half read the same on that tree (Share was its first button there too): it holds
+         * that Revoke access, now destructive, did not become the default.
+         */
+        needs(env.primaryGm(), "a project is the primary GM's to make and delete");
+        needs(env.dialogs(), "both windows are drawn and Enter pressed in them");
+        needs(world.atLeast("playerAccounts", 1), "Share lists the players");
+        const P = await import("./projects.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const L = key => game.i18n.localize(key);
+        const drawn = title => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const submit = (app, button) => {
+            const form = app?.element?.querySelector("form");
+            if (form && button && !button.disabled) form.requestSubmit(button);
+            return button?.dataset.action ?? null;
+        };
+        const players = game.users.filter(u => !u.isGM).map(u => u.id);
+        const made = [];
+        const read = {};
+        try {
+            // A statistic and words, as a project has them since E32+E07 C11d and E44 C9: the form's `required` fields
+            // hold, so its submit is not refused before Delete is read (jsdom validates on `requestSubmit`, as a browser does).
+            const doomed = (await P.createProject({ name: "SUITE E22-T5 kept", target: 4, room: null, trait: "body", description: "SUITE E22-T5 its words" }))?.id ?? null;
+            must(doomed, "the project could not be made");
+            made.push(doomed);
+            await settle();
+            const project = P.allProjects().find(p => p.id === doomed);
+            const run = Promise.resolve().then(() => UI.openProjectDialog({ project, rooms: [] })).catch(err => `threw ${err?.message ?? err}`);
+            if (await until(() => Boolean(drawn(L("DRPG.Project.editTitle"))), 6000)) {
+                const edit = drawn(L("DRPG.Project.editTitle"));
+                read.pressed = submit(edit, edit.element.querySelector('footer button[data-action="delete"]'));
+            } else read.pressed = "no window";
+            if (await until(() => Boolean(drawn(L("DRPG.Project.delete"))), 6000)) {
+                const sure = drawn(L("DRPG.Project.delete"));
+                read.question = submit(sure, sure.element.querySelector('footer button[type="submit"]'));
+            } else read.question = "no question";
+            const answer = await Promise.race([run, wait(4000).then(() => "unanswered")]);
+            read.answer = answer === null || typeof answer !== "object" ? answer : stableJson(answer);
+            await settle();
+            read.stands = P.allProjects().some(p => p.id === doomed);
+
+            const secret = (await P.createProject({ name: "SUITE E22-T5 secret", target: 4, room: null, secret: true, viewers: players }))?.id ?? null;
+            must(secret, "the secret project could not be made");
+            made.push(secret);
+            await settle();
+            const knew = P.viewersOf(secret).map(u => u.id).sort();
+            const sharing = Promise.resolve().then(() => UI.openShareDialog(secret)).catch(err => `threw ${err?.message ?? err}`);
+            if (await until(() => Boolean(drawn(L("DRPG.Project.shareTitle"))), 6000)) {
+                const share = drawn(L("DRPG.Project.shareTitle"));
+                read.share = [submit(share, share.element.querySelector('footer button[type="submit"]')),
+                    share.element.querySelector('footer button[data-action="revoke"]')?.dataset.drpgRole ?? null];
+            } else read.share = "no window";
+            read.shareAnswer = await Promise.race([sharing, wait(4000).then(() => "unanswered")]) ?? null;
+            await settle();
+            read.know = stableJson(P.viewersOf(secret).map(u => u.id).sort()) === stableJson(knew) && knew.length === players.length;
+        } finally {
+            for (const title of ["DRPG.Project.delete", "DRPG.Project.editTitle", "DRPG.Project.shareTitle"]) if (drawn(L(title))) await drawn(L(title)).close();
+            for (const id of made) if (P.allProjects().some(p => p.id === id)) await P.deleteProject(id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ pressed: "delete", question: "cancel", answer: null, stands: true, share: ["share", "destructive"], shareAnswer: null, know: true }),
+            "[Delete pressed in the project's window; the question's first submit button; what openProjectDialog answered; the project still there; Share's first submit "
+            + "button and Revoke access's role; what openShareDialog answered; every player still knowing the secret project]");
     }],
     ["the Blackened's rule window records nothing on Cancel (E21 C4): verdict.mjs `askBlackenedRule` drawn on the GM, its Cancel pressed - the answer, the rules and the chat read", async () => {
         /*

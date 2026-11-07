@@ -13787,10 +13787,9 @@ form:has(input[name="secret"]:not(:checked)):has(input[name="murder"]:not(:check
 }
 
 /* ---- the handbooks window: tabs, a contents list, the text -------------------- */
+/* The frame is the kit's since E21 C6a (components.css: the column, the overflow); the width the book's columns
+   fold at is the window's. */
 .application.drpg-handbook .window-content {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
     container-type: inline-size;
 }
 

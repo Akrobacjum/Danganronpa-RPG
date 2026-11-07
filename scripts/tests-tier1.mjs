@@ -22891,29 +22891,30 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson([true, true, true, true]),
             "[cardOnReturn exists, it takes the card off what was asked before it raises it through onCreateChatMessage, the listener hands it a GM's answer asked for, onCreateChatMessage's card carries the message's id]");
     }],
-    ["R847 - the notice tile by theme: under Stained Glass it stands under the windows whatever it shows - a notice to the whole table, a card for this reader alone, a refusal, an objection, or no card - on a desk and on a stacked screen; under Monokuma Legacy every card stands over them at 99990, a parked card counting for nothing, and only the empty desk tile with its history button stands under them (E18 C6, E44 C8c; S11-17, E44-28)", async () => {
+    ["R847 - the notice tile by theme: under Stained Glass it stands under the windows whatever it shows - one card, several, a parked one, or none - on a desk and on a stacked screen; under Monokuma Legacy every card stands over them at 99990, a parked card counting for nothing, and only the empty desk tile with its history button stands under them; and no card carries a `data-kind`, which no sheet reads (E18 C6, E44 C8c, E21 C6a; S11-17, E44-28, E44's Open 85)", async () => {
         /*
          * E18 C6, 20.10.2026; audit S11-17 (a) as the owner's amend of 11.10 words it (E18-24): one host, its z-index
          * worked out from what it shows, no second container. A restock or a new time of day landed at 99990 over the
          * sheet's header and the GM's panel, and under Stained Glass over the Investigation dashboard's SAVE, until
-         * somebody closed it. Two halves. What a card is: the suite's own cards drawn by `showPopup` (not kept), each
-         * read for the `data-kind` the host's rule reads - "info" for a notice drawn from a card to the whole table
-         * (the history's sources "public" and "player"), "mine" for one to this reader alone (a whisper, a veiled card,
-         * a card of no document, the messenger's, the day summary), and the kind itself for a refusal or an objection.
-         * Where the host stands: the module's sheets as a cascade read from their text (`styleCascade`: jsdom has no
-         * layout and drops `!important` from a `var()` value), on a tile built on a body of its own for each theme and
-         * layout, holding those kinds as cards: the winning `z-index`, "under" for one below Foundry's `--z-index-app`.
-         * Not read here: the windows themselves over the tile in a browser (LIVE-E18-03).
+         * somebody closed it. Where the host stands: the module's sheets as a cascade read from their text
+         * (`styleCascade`: jsdom has no layout and drops `!important` from a `var()` value), on a tile built on a body of
+         * its own for each theme and layout, holding cards: the winning `z-index`, "under" for one below Foundry's
+         * `--z-index-app`. Not read here: the windows themselves over the tile in a browser (LIVE-E18-03).
          *
          * BY THEME SINCE E44 C8c (04.11.2026; E44-28, the owner on 1.2.98: "Powiadomienia nachodza na okna", and "W
          * stained glass powinny byc pod. W monokuma legacy nad."). The E18 C6 split by kind is gone: under Stained
          * Glass every stack reads "under", on a desk and stacked; under Monokuma Legacy every stack with a card shown
          * reads 99990, and the empty one "under" on a desk (E81 C10's rule, which R298 (7) reads) and 99990 on a
-         * stacked screen, where an empty tile draws nothing (the button hidden, narrow.css). The kinds are still
-         * stamped and read, though no sheet reads them now. Red at ab449796: Stained Glass's "mine", "info and
-         * mine", "info and refusal" and "objection" at 99990, Legacy's "info", "two info" and "info, mine parked"
-         * under, and the stacked Legacy tile with no card under. In Chromium, a window over a card: the glass
-         * sweep's `drpgNoticeCheck` (`windows`).
+         * stacked screen, where an empty tile draws nothing (the button hidden, narrow.css). Red at ab449796: Stained
+         * Glass's stacks with a card for this reader, a refusal or an objection at 99990, Legacy's notices to the table
+         * under, and the stacked Legacy tile with no card under. In Chromium, a window over a card: the glass sweep's
+         * `drpgNoticeCheck` (`windows`).
+         *
+         * NO KIND STAMPED SINCE E21 C6a (07.11.2026; E44's Open 85). popup.mjs `showPopup` stamped who a card was for
+         * (`data-kind`: "info", "mine", "error", "objection") for the split above; once the theme alone decided, this
+         * test was its one reader. The stamp went, and the stacks are read as cards with none. Read: the suite's own
+         * cards drawn by `showPopup` (not kept) from each source a card comes from, each card's `data-kind` attribute.
+         * Red on C5d's tree: every card carried one.
          */
         const P = await import("./popup.mjs");
         const tile = document.getElementById("drpg-popups");
@@ -22929,21 +22930,19 @@ const INVARIANTS = [
                 P.showPopup(`<p>R847 ${name}</p>`, { title: `R847 ${name}`, record: false, ...options });
                 const card = newest();
                 if (card?.textContent.includes(`R847 ${name}`)) drawn.push(card);
-                kinds[name] = card?.textContent.includes(`R847 ${name}`) ? card.dataset.kind ?? null : "not drawn";
+                kinds[name] = card?.textContent.includes(`R847 ${name}`) ? card.getAttribute("data-kind") : "not drawn";
             }
         } finally {
             for (const card of drawn) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
         }
         equal(stableJson(kinds), stableJson({
-            table: "info", player: "info", mine: "mine", messenger: "mine", summary: "mine", "unknown card": "mine", refusal: "error", objection: "objection"
+            table: null, player: null, mine: null, messenger: null, summary: null, "unknown card": null, refusal: null, objection: null
         }), "[the data-kind of a card from a public card, from a player's public card, of no card, the messenger's, the day summary, of a card id this world lacks, a refusal, an objection]");
 
         const C = await styleCascade();
         const UNDER = "calc(var(--z-index-app, 30) - 1)";
         const STACKS = [
-            ["empty", []], ["info", [[kinds.table]]], ["two info", [[kinds.table], [kinds.player]]], ["mine", [[kinds.mine]]],
-            ["info and mine", [[kinds.table], [kinds.mine]]], ["info, mine parked", [[kinds.table], [kinds.mine, true]]],
-            ["info and refusal", [[kinds.table], [kinds.refusal]]], ["objection", [[kinds.objection]]]
+            ["empty", []], ["one", [[false]]], ["two", [[false], [false]]], ["one, one parked", [[false], [true]]], ["three", [[false], [false], [false]]]
         ];
         const read = classes => STACKS.map(([name, cards]) => {
             const html = document.createElement("html"), body = document.createElement("body"), host = document.createElement("section");
@@ -22951,10 +22950,9 @@ const INVARIANTS = [
             host.id = "drpg-popups";
             html.append(body);
             body.append(host);
-            for (const [kind, parked] of cards) {
+            for (const [parked] of cards) {
                 const card = document.createElement("div");
                 card.className = `drpg-popup drpg-popup-info visible${parked ? " drpg-popup-parked" : ""}`;
-                card.dataset.kind = String(kind);
                 host.append(card);
             }
             const corner = document.createElement("button");
@@ -22967,8 +22965,7 @@ const INVARIANTS = [
         const every = z => STACKS.map(([name]) => [name, z]);
         const legacyDesk = STACKS.map(([name]) => [name, name === "empty" ? "under" : "99990"]);
         equal(stableJson(LAYOUTS.map(read)), stableJson([legacyDesk, every("under"), every("99990"), every("under")]),
-            "[for Monokuma Legacy, Stained Glass and each stacked: the tile's winning z-index with no card, one and two notices to the table, a card for this reader, "
-            + "both, a notice with a card for this reader parked, a notice and a refusal, an objection]");
+            "[for Monokuma Legacy, Stained Glass and each stacked: the tile's winning z-index with no card, one card, two, one with a second parked, three]");
     }],
     ["R848 - a notice has one anatomy: its bar carries the event's title - the poster's, or the heading the words open with, taken out of them - and 'Notice' only with neither; the bar's type is each theme's floor, and the body's discovery is posted with its own title (E18 C6; S11-23)", async () => {
         /*
@@ -23197,12 +23194,12 @@ const INVARIANTS = [
             }
         }
         const src = stripComments(new Map(await otherSources()).get("messenger-app.mjs") ?? "");
-        for (const [marker, until] of [["_onRender(_context, _options) {", "\n    }\n"], ["appendMessage(message) {", "\n    }\n"]]) {
+        for (const [marker, until] of [["_onRender(context, options) {", "\n    }\n"], ["appendMessage(message) {", "\n    }\n"]]) {
             read.push([marker, /\bmarkThreadRead\s*\(/.test(bodyOf(src, marker, { until }))]);
         }
         read.push(["async maximize() {", src.includes("async maximize() {") && /\bthis\.markIfSeen\(\)/.test(bodyOf(src, "async maximize() {", { until: "\n    }\n" }))]);
         equal(stableJson(read), stableJson([[true, "chat", true, true, false],
-            ["_onRender(_context, _options) {", false], ["appendMessage(message) {", false], ["async maximize() {", true]]),
+            ["_onRender(context, options) {", false], ["appendMessage(message) {", false], ["async maximize() {", true]]),
             "[each combination of drawn, tab, in front, visible and folded that seesThread calls seen; whether _onRender, then appendMessage, calls markThreadRead itself; whether maximize reads what came]");
     }],
     ["R1062 - a failed send keeps the words in the messenger's field and says so once; a send that lands empties it (E50 C1; S11-38, E50-03)", async () => {
@@ -33551,8 +33548,8 @@ const INVARIANTS = [
          * this one, and reading it there is E49's, with the tiles: E44's Open 52). The
          * narrow description window (room-tile.mjs `RoomWindow`) is not here: on DrpgApp's frame it would change - its
          * content's padding 12 -> 10 px, its overflow auto -> hidden with no region to scroll, under Legacy a max-height
-         * where it had none (Chromium, 04.11.2026) - so it stays on its own ApplicationV2 until E21 moves the frames (C6's
-         * STATUS, Open). Red before C6: every builder drew its surface by hand, and ui-kit.mjs had no `builtBy`.
+         * where it had none (Chromium, 04.11.2026) - so it stayed on its own ApplicationV2 until E21 C6a moved it, with
+         * its body the region that scrolls (R1371 reads it). Red before C6: every builder drew its surface by hand, and ui-kit.mjs had no `builtBy`.
          */
         const kit = await import("./ui-kit.mjs");
         const sources = new Map(await moduleSources());
@@ -35471,6 +35468,121 @@ const INVARIANTS = [
         }), "[the safeword's window: a kit window, its buttons in the tree (action, role, default); closed: its answer and the messages "
             + "posted; callerStudent() on this user (null for a GM, else ownStudent()); the source: callerStudent's GM rule and its "
             + "ownStudent, the keybinding and game.drpg.safeword() handing it on, and no safewordDialog() left with no actor]");
+    }],
+    ["R1371 - the last windows on the kit (E21 C6a, E22; E21-01, E21-12 (M9), E21-14, E22-03, E22-11; audit S09-24): the handbooks, the conversation and the narrow description window are `DrpgApp()` classes with a region that scrolls, the narrow one `min(480px, screen - 16px)` wide and no sheet stating its width; the six files open no DialogV2 and draw no footer of their own; the project's window has Save the default, Cancel and Delete destructive, and its Delete question Cancel the default before a destructive Delete; Share's Revoke access is destructive; the notices' Clear question has Cancel the default before a destructive Clear, a player's too, and Mark all as read and Open conversation are plain; Level Up (M9) and the class's Level Up are on the kit", async () => {
+        /*
+         * E21 C6a, 07.11.2026. The eleven windows R1335 still counted at C5d: handbooks.mjs `HandbookApp`, messenger-app.mjs
+         * `DrpgMessengerApp` and its two questions (an item's effect, a ruling's reply), room-tile.mjs `RoomWindow`,
+         * projects-ui.mjs `openProjectDialog` and its Delete question and `openShareDialog`, level-up.mjs `openAdvancement`
+         * and `askWhoPicks`, notice-history-app.mjs `askClear`. Read: the three classes and the six files' sources (comments
+         * stripped); the sheets' rules naming the narrow window; and four windows opened on this browser with
+         * DialogV2.wait held by a stand-in that keeps each until the test answers it (as R1369): the project's window on a
+         * project of no world (its id names no countdown), answered "delete", then its question, closed (null) - nothing is
+         * deleted, nothing written; the notices' Clear question, closed (the history kept); Level Up on a character, closed
+         * (a GM's window; a player with no offer is told and opens none). Each window's kit root and its buttons in the
+         * tree (action, role, default). Red on C5d's tree: `HandbookApp` extends ApplicationV2.
+         */
+        const sources = await moduleSources();
+        const text = file => stripComments(sources.get(file) ?? "");
+        const FILES = ["handbooks.mjs", "messenger-app.mjs", "room-tile.mjs", "projects-ui.mjs", "level-up.mjs", "notice-history-app.mjs"];
+        const SITE = /\bnew\s+(?:[\w$]+\.)*DialogV2\s*\(|\bDialogV2\s*\.\s*(?:wait|confirm|prompt|query|input)\s*\(/;
+        const read = { classes: {}, files: {} };
+        for (const [file, name, open] of [["handbooks.mjs", "HandbookApp", "class HandbookApp extends "], ["messenger-app.mjs", "DrpgMessengerApp", "class DrpgMessengerApp extends "],
+            ["room-tile.mjs", "RoomWindow", "RoomWindow ??= class extends "]]) {
+            const cls = bodyOf(text(file), open, { length: 2000 });
+            const head = cls.slice(open.length).split("{")[0].trim();
+            const opts = bodyOf(cls, "static DEFAULT_OPTIONS = {", { until: "};" });
+            read.classes[name] = [head === "DrpgApp()" ? "DrpgApp" : head, /\bscrollRegion:\s*"[^"]+"/.test(opts)];
+        }
+        for (const file of FILES) {
+            const src = text(file);
+            must(src.length > 1000, `${file} was not read - this would measure nothing`);
+            read.files[file] = [SITE.test(src), /<footer\b/.test(src)];
+        }
+        const room = text("room-tile.mjs");
+        read.narrow = /const width = Math\.min\(480, window\.innerWidth - 16\);/.test(room);
+        read.narrowRules = [...(await moduleStyles()).matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+            .filter(m => /\.drpg-window-room(?![\w-])/.test(m[1]) && /(?:^|;)\s*(?:min-|max-)?width\s*:/.test(m[2])).length;
+        read.share = /destructive:\s*\[\{\s*action:\s*"revoke"/.test(fnSource(text("projects-ui.mjs"), "openShareDialog") ?? "");
+        const queue = fnSource(text("level-up.mjs"), "askWhoPicks") ?? "";
+        read.queue = [/\bdrpgWindow\(/.test(queue), /primary:\s*\{\s*action:\s*"give"/.test(queue), /secondary:\s*\[\{\s*action:\s*"allPlayers"/.test(queue)];
+
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const held = [];
+        const roleOf = b => /\bdrpg-role-([\w-]+)/.exec(String(b.class ?? ""))?.[1] ?? null;
+        const shape = config => ({ kit: (config.classes ?? []).includes("drpg-ui"), buttons: (config.buttons ?? []).map(b => [b.action, roleOf(b), Boolean(b.default)]) });
+        const next = async () => ((await until(() => held.length >= 1, 3000)) ? held.shift() : null);
+        const had = new Set(game.messages.map(m => m.id));
+        const NH = await import("./notice-history.mjs");
+        const entries = NH.noticeEntries().length;
+        D.wait = config => new Promise(resolve => held.push({ config, resolve }));
+        let notices = null, opened = false;
+        try {
+            const PUI = await import("./projects-ui.mjs");
+            const P = await import("./projects.mjs");
+            const project = { id: "R1371NoSuchProj", name: "R1371 a project of no world", current: 0, target: 4, start: 4, room: null, trait: "body" };
+            const asked = PUI.openProjectDialog({ project, rooms: [] });
+            const edit = await next();
+            read.edit = edit ? shape(edit.config) : "(no window opened)";
+            edit?.resolve("delete");
+            const sure = await next();
+            read.deleteQuestion = sure ? shape(sure.config) : "(no window opened)";
+            sure?.resolve(null);
+            read.deleteAnswer = await Promise.race([asked, wait(3000).then(() => "unanswered")]);
+            read.stillNone = !P.allProjects().some(p => p.id === project.id);
+
+            const NHA = await import("./notice-history-app.mjs");
+            const before = new Set([...foundry.applications.instances.values()]);
+            await NHA.openNotices();
+            await until(() => [...foundry.applications.instances.values()].some(a => a.rendered && a.options?.classes?.includes("drpg-window-notices")), 3000);
+            notices = [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-notices")) ?? null;
+            opened = Boolean(notices) && !before.has(notices);
+            must(notices && typeof notices.askClear === "function", "the notice history did not open - its Clear question would be read on nothing");
+            const clearing = notices.askClear();
+            const clear = await next();
+            read.clearQuestion = clear ? shape(clear.config) : "(no window opened)";
+            clear?.resolve(null);
+            await Promise.race([clearing, wait(3000)]);
+            read.kept = NH.noticeEntries().length === entries;
+            const plain = el => (el ? [...el.classList].filter(c => /^drpg-(?:role-|gm-route|destructive)/.test(c)) : "none drawn");
+            read.markRead = plain(notices.element?.querySelector('[data-drpg-do="markRead"]'));
+            const builder = bodyOf(text("notice-history-app.mjs"), "    expand(details) {", { until: "\n    }\n" });
+            read.conversation = /drpg-(?:role-|gm-route|destructive)/.test(builder) ? "a role's class" : /"drpg-notice-conversation"/.test(builder) ? "plain" : "not found";
+
+            const actor = game.actors.find(a => a.type === "character") ?? null;
+            if (actor && game.user.isGM) {
+                const { openAdvancement } = await import("./level-up.mjs");
+                const advancing = openAdvancement(actor, "standard");
+                const up = await next();
+                read.levelUp = up ? shape(up.config) : "(no window opened)";
+                up?.resolve(null);
+                read.levelUpAnswer = await Promise.race([advancing, wait(3000).then(() => "unanswered")]);
+            } else read.levelUp = read.levelUpAnswer = actor ? "a player's" : "no character";
+        } finally {
+            for (const w of held.splice(0)) w.resolve(null);
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+            if (opened) await notices?.close?.();
+        }
+        read.posted = game.messages.filter(m => !had.has(m.id)).length;
+        const gmLevelUp = game.user.isGM && game.actors.some(a => a.type === "character");
+        equal(stableJson(read), stableJson({
+            classes: { HandbookApp: ["DrpgApp", true], DrpgMessengerApp: ["DrpgApp", true], RoomWindow: ["DrpgApp", true] },
+            files: Object.fromEntries(FILES.map(f => [f, [false, false]])),
+            narrow: true, narrowRules: 0, share: true, queue: [true, true, true],
+            edit: { kit: true, buttons: [["save", "primary", true], ["cancel", "cancel", false], ["delete", "destructive", false]] },
+            deleteQuestion: { kit: true, buttons: [["cancel", "cancel", true], ["delete", "destructive", false]] },
+            deleteAnswer: null, stillNone: true,
+            clearQuestion: { kit: true, buttons: [["cancel", "cancel", true], ["clear", "destructive", false]] },
+            kept: true, markRead: [], conversation: "plain",
+            levelUp: gmLevelUp ? { kit: true, buttons: [["apply", "primary", true], ["cancel", "cancel", false]] } : game.actors.some(a => a.type === "character") ? "a player's" : "no character",
+            levelUpAnswer: gmLevelUp ? null : game.actors.some(a => a.type === "character") ? "a player's" : "no character",
+            posted: 0
+        }), "[the three classes (what each extends, a scrollRegion); per file a DialogV2 call and a hand-drawn footer; the narrow window's opening width and the "
+            + "sheets' width rules naming it; Share's Revoke destructive; the class's Level Up on the kit (drpgWindow, Hand them out the primary, All the players "
+            + "pick a secondary); the project's window, its Delete question, its answer closed and no project made; the notices' Clear question, the history kept, "
+            + "the classes of a role on Mark all as read and in Open conversation's builder; Level Up's window and its answer closed; the messages posted]");
     }],
 ];
 

@@ -21,7 +21,7 @@
 import { MODULE_ID, PRICE_CHAINS, PROJECT_SCALE } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { gmIds, ownerOf, whisperToGms, error, debug, warn, wholeNumber, localeFormat, markLanguage } from "./utils.mjs";
-import { kitTabBar, wireKitTabs, stepper, stepperId } from "./ui-kit.mjs";
+import { DrpgApp, drpgWindow, kitTabBar, wireKitTabs, stepper, stepperId } from "./ui-kit.mjs";
 import { showPopup } from "./popup.mjs";
 import {
     MESSENGER_FLAGS, THREAD_KIND,
@@ -139,7 +139,14 @@ export function openMessenger(playerUserId = game.user.id) {
  * THE CONVERSATION WINDOW
  * ========================================================================== */
 
-export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
+/*
+ * ON THE KIT'S FRAME (E21 C6a, 07.11.2026). A `DrpgApp` (ui-kit.mjs): `drpg-ui` and `drpg-panel` on the root, the window
+ * held to the screen less 8 px a side, and the tab's own part the region that scrolls - the log on Chat, the note on
+ * Note (`scrollRegion`, one of the two is drawn); the participants line, the tab bar and the send form keep their
+ * height. The window has no footer: the send form is its content. With `drpg-panel` the module's panel rules reach it
+ * too (under Stained Glass the height follows the content, to the screen); not seen at a table.
+ */
+export class DrpgMessengerApp extends DrpgApp() {
     /** One instance per player thread, so opening twice just refocuses it. */
     static instances = new Map();
 
@@ -150,6 +157,7 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
             resizable: true,
             minimizable: true
         },
+        scrollRegion: ".drpg-messenger-log, .drpg-messenger-note",
         // The module's standard popup width, in pixels because DEFAULT_OPTIONS
         // cannot read a CSS custom property. Keep in step with `--drpg-popup`
         // in danganronpa.css; it was 360, the narrowest of seven different
@@ -219,7 +227,7 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
 
     async _renderHTML(context, _options) {
         const root = document.createElement("div");
-        root.className = "drpg-messenger-body";
+        root.className = "drpg-messenger-body drpg-kit-content";
 
         const participants = document.createElement("div");
         participants.className = "drpg-messenger-participants";
@@ -366,7 +374,8 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
         content.replaceChildren(result);
     }
 
-    _onRender(_context, _options) {
+    _onRender(context, options) {
+        super._onRender(context, options);
         wireKitTabs(this.element, {
             onSwitch: key => {
                 this.tab = key;
@@ -781,22 +790,22 @@ function settled(key) {
 
 /** What a Tier 0 item turned out to do: up to three numbers and a tick. */
 async function askItemEffect(item) {
-    const DialogV2 = foundry.applications.api.DialogV2;
     const field = (name, key) => { const id = stepperId(); return `<label for="${id}">${game.i18n.localize(key)}
         ${stepper({ name, value: 0, min: 0, max: 12, step: 1, id })}</label>`; };
-    return DialogV2.wait({
+    // On the kit (E21 C6a): Works on the right, the default; Cancel on the left, answering null as a close does.
+    return drpgWindow({
         classes: ["drpg-panel"],
-        window: { title: game.i18n.format("DRPG.Items.effectTitle", { item: item.name }) },
-        content: `<form class="drpg-item-effect">
+        title: game.i18n.format("DRPG.Items.effectTitle", { item: item.name }),
+        body: `<form class="drpg-item-effect">
             ${field("hitPoints", "DRPG.Items.effectHealth")}
             ${field("stress", "DRPG.Items.effectSanity")}
             ${field("hope", "DRPG.Items.effectHope")}
             <label><input type="checkbox" name="consume" checked> ${
                 game.i18n.localize("DRPG.Items.effectConsume")}</label>
         </form>`,
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Items.itemWorks"), default: true,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.Items.itemWorks"),
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
                     const amounts = {};
@@ -807,8 +816,8 @@ async function askItemEffect(item) {
                     return { amounts, consume: Boolean(f.elements.consume?.checked) };
                 }
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: { role: "cancel", action: "cancel", callback: () => null }
+        },
         rejectClose: false
     }).then(r => (r && r !== "cancel" ? r : null));
 }
@@ -1069,28 +1078,28 @@ async function ruleReply(action, data) {
     const actor = game.actors.get(data.by);
     if (!actor) return null;
 
-    const DialogV2 = foundry.applications.api.DialogV2;
-    const answer = await DialogV2.wait({
+    // On the kit (E21 C6a): Send on the right, the default; Cancel on the left, answering null as a close does.
+    const answer = await drpgWindow({
         classes: ["drpg-panel"],
-        window: { title: game.i18n.format("DRPG.Bridge.replyTitle",
-            { name: actor.name }) },
-        content: `<form><p>${game.i18n.localize("DRPG.Bridge.replyPrompt")}</p>
+        title: game.i18n.format("DRPG.Bridge.replyTitle",
+            { name: actor.name }),
+        body: `<form><p>${game.i18n.localize("DRPG.Bridge.replyPrompt")}</p>
             <textarea name="reply" rows="4"></textarea></form>`,
-        buttons: [
-            {
+        footer: {
+            primary: {
                 // Not `DRPG.Bridge.send` - that key reads "Send to GM",
                 // which is the right label on the PLAYER's window and the
                 // wrong one here, where the GM is answering the player.
-                action: "send", label: game.i18n.localize("DRPG.Bridge.sendRuling"), default: true,
+                action: "send", label: game.i18n.localize("DRPG.Bridge.sendRuling"),
                 callback: (e, b, d) => ({ text: d.element.querySelector("[name=reply]").value.trim() })
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: { role: "cancel", action: "cancel", callback: () => null }
+        },
         rejectClose: false
     });
 
-    // `{ text }`, so a ruling reading "cancel" is a ruling (E18 C0, S11-60): Cancel answers
-    // its action's name, and the words bare could not be told from it.
+    // `{ text }`, so a ruling reading "cancel" is a ruling (E18 C0, S11-60): Cancel answered
+    // its action's name until E21 C6a (null since), and the words bare could not be told from it.
     const text = typeof answer?.text === "string" ? answer.text : "";
     if (!text) return null;
 
