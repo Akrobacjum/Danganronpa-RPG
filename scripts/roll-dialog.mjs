@@ -29,6 +29,8 @@ import { LOADED_DIE } from "./forced-roll.mjs";
 import { ROLL_NONCE, noteWindowCalls, rollClaimOf } from "./private-rolls.mjs";
 // Where the curtain's glass was last cut: read at a render, nothing written. glass.mjs reaches nothing here.
 import { LAST } from "./glass.mjs";
+// The class of a window the game waits on (stacking.mjs keeps it above the sheet). ui-kit.mjs reaches nothing here.
+import { PROMPT_CLASS } from "./ui-kit.mjs";
 
 export function registerRollDialog() {
     Hooks.on("renderApplicationV2", onRenderApplication);
@@ -306,6 +308,10 @@ export function onRenderApplication(app, element) {
 
     try {
         openWindows.add(app);
+        /* A PROMPT THE GAME WAITS ON (E23 C5a, 07.11.2026; S01-15): the roll window is Daggerheart's, so the class is put
+           on here, at every render (a class, so a render that redraws the root keeps it). Its z-order only: stacking.mjs
+           raises it over the sheet it overlaps; nothing of the roll reads it (83-roll-integrity). */
+        root.classList.add(PROMPT_CLASS);
         placeBelowCurtain(app, root);
         // The submit button's die. The system draws `fa-dice` - a d6 pair from
         // a game with no d6 in it. This one rolls two d12s and the module says

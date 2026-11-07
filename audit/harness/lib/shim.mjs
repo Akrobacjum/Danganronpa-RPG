@@ -1325,6 +1325,14 @@ export function buildPIXI() {
 /* ======================= Applications & dialogs ========================== */
 
 export function buildApplications(ctx) {
+    /* THE WINDOWS' ORDER (E23 C5a, 07.11.2026; S01-15). Foundry stacks its windows by a running z-index: `bringToFront`
+       writes the next one on the window's element, and a window comes to the front on its first render, on a pointerdown
+       in it (the frame's capture listener) and on a forced render of a window already open (`render(true)`). Until C5a
+       the harness wrote no z-index, so no order between two windows could be read headless. Modelled from v13's
+       ApplicationV2 as remembered, the module's notes (stacking.mjs) and the audit's reading of S01-15, not from v14's
+       source; the counter starts at 100, as Foundry's `--z-index-window`. Whether v14 raises on each of the three is the
+       prompt's live row (E23's end commit names it in AUDIT 9.2 and in versions.mjs). */
+    let maxZ = 100;
     class ApplicationV2 {
         constructor(options = {}) {
             // Foundry concatenates `classes` down the DEFAULT_OPTIONS chain (DialogV2's
@@ -1375,9 +1383,13 @@ export function buildApplications(ctx) {
         async render(opts2 = {}) {
             const doc = globalThis.document;
             const first = !this.element;
+            // Foundry's RenderOptions as the hooks are handed them (v13: `render(true)` is `{ force: true }`).
+            const options = { ...(typeof opts2 === "object" && opts2 ? opts2 : {}), force: opts2 === true || opts2?.force === true, isFirstRender: first };
             if (first) {
                 this.element = doc.createElement(this.options.tag ?? "div");
                 this.element.id = this.id;
+                // The frame's pointerdown raises its window, in the capture phase (above, THE WINDOWS' ORDER).
+                if (this.hasFrame) this.element.addEventListener("pointerdown", () => this.bringToFront(), { capture: true });
                 this.element.classList.add("application", ...(this.options.classes ?? []));
                 if (this.element.tagName === "DIALOG") this.element.setAttribute("open", "");
                 // Foundry registers every rendered application here, and removes it on close.
@@ -1400,14 +1412,14 @@ export function buildApplications(ctx) {
             /* A first render puts the window in front, as `bringToFront` does (E50 C1): v13's `bringToFront` sets
                `ui.activeWindow`, read from memory and not on v14 - whether v14's first render and a click in the window
                set it is LIVE-E50-01, in `environment.unconfirmed`. The messenger reads it for "seen" (`seesThread`). */
-            if (first) this.bringToFront();
+            if (first || options.force) this.bringToFront();
             // Foundry's `_doEvent`: the "render" event (DialogV2's `render` option) BEFORE
             // the render hooks - the a11y sweep on the hook relies on it. A render that
             // throws stops there: no position (the window stays at 0,0) and no hooks.
             if (!this.dispatchEvent(new globalThis.window.Event("render"))) return this;
             if (first) this.setPosition(this.position);
-            ctx.hooks().callAll("renderApplicationV2", this, this.element, context);
-            ctx.hooks().callAll(`render${this.constructor.name}`, this, this.element, context);
+            ctx.hooks().callAll("renderApplicationV2", this, this.element, context, options);
+            ctx.hooks().callAll(`render${this.constructor.name}`, this, this.element, context, options);
             return this;
         }
         async close(opts2 = {}) {
@@ -1463,8 +1475,13 @@ export function buildApplications(ctx) {
                 new Promise(resolve => setTimeout(resolve, timeout))
             ]);
         }
-        // The window in front (E50 C1; LIVE-E50-01): `ui.activeWindow`, as v13's `bringToFront` sets it. No z-index.
-        bringToFront() { if (globalThis.ui) globalThis.ui.activeWindow = this; }
+        /* The window in front (E50 C1; LIVE-E50-01): `ui.activeWindow`, as v13's `bringToFront` sets it; and since E23 C5a
+           the next z-index on its element, unless it is in front already (THE WINDOWS' ORDER, above). */
+        bringToFront() {
+            const front = globalThis.ui?.activeWindow === this && Number(this.element?.style?.zIndex) === maxZ;
+            if (this.element && !front) this.element.style.zIndex = String(++maxZ);
+            if (globalThis.ui) globalThis.ui.activeWindow = this;
+        }
         bringToTop() {}
         changeTab() {}
     }

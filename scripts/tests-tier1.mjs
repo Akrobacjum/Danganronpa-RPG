@@ -18298,9 +18298,10 @@ const INVARIANTS = [
         const glyphless = names => names.filter(name => !new RegExp(`\\.${name}:is\\(i, span\\) \\{ --drpg-px-mask: var\\(--drpg-px-[\\w-]+\\); \\}`).test(css));
         const icons = [...palm.content.querySelectorAll(".drpg-choice i")].map(i => [...i.classList].find(c => c.startsWith("fa-") && c !== "fa-solid") ?? null);
 
-        // One of each: a kit window carries `drpg-panel` twice, the caller's and the kit's (E21 C5a).
+        // One of each: a kit window carries `drpg-panel` twice, the caller's and the kit's (E21 C5a); `drpg-prompt` since E23 C5a,
+        // an action's declaration (action-menus.mjs `chooseVariant`, R1404).
         equal(stableJson([[...new Set(palm.classes ?? [])], positions, classesOf("openAskWindow"), classesOf("askToForce"), icons.length, glyphless(icons), glyphless(["fa-r623-no-sprite"])]),
-            stableJson([["drpg-panel", "drpg-ui"], [["sticky"], ["sticky"], []], ["drpg-panel"], ["drpg-panel"], 3, [], ["fa-r623-no-sprite"]]),
+            stableJson([["drpg-panel", "drpg-ui", "drpg-prompt"], [["sticky"], ["sticky"], []], ["drpg-panel"], ["drpg-panel"], 3, [], ["fa-r623-no-sprite"]]),
             "[the Palm window's classes; the footer's position by each rule it matches: the Palm window with its Frisk ways, a table window, a short dialog (the controls); the classes of the target's ask and of 'Make them?'; the Palm rows' icons, those with no pixel glyph, and a name no sprite has (the control)]");
     }],
 
@@ -36312,6 +36313,125 @@ const INVARIANTS = [
             strip: { dailyLife: "1 / 2", classTrial: null, incident: null }
         }), "{look: a held and an empty Hope slot under Stained Glass - its width and height band, its mark; the empty one's colour and "
             + "opacity, and its slot's; strip: the table's \"Still to act\" in Daily Life, in a Class Trial, in Daily Life with an incident running (null: no row)}");
+    }],
+    ["R1404 - the prompts the game waits on stay above the sheet, and nothing else does (E23 C5a; E23-24, audit S01-15, the owner's Q-E23-5): stacking.mjs keeps `drpg-prompt` (ui-kit.mjs PROMPT_CLASS) on top, not every kit window's `drpg-panel`; `drpgWindow` puts it on only when asked, and the windows that ask are the named list - a roll, every action's declaration (each caller of `chooseVariant` named), Observe's GM windows, a GM's ruling, a ballot, Level Up and the trial's prompts - never a panel, a handbook, Projects, the Case or the notice history; the raise is a frame after Foundry's, never a microtask, and only for the prompts the sheet overlaps; a render raises only on a first or a forced one", async () => {
+        /*
+         * E23 C5a, 07.11.2026; S01-15. Until C5a stacking.mjs kept `.application.drpg-panel` on top, and the kit puts
+         * `drpg-panel` on every module window (KIT_CLASSES): a sheet's redraw (a Hope change) raised the GM panel, the
+         * handbooks and Projects over Token Config, and a click raised them in a microtask, before Foundry raised the
+         * sheet. Read here, with no window drawn (DialogV2.wait stood in for and handed back in a finally): the class kept
+         * on top; the classes drpgWindow asks for with `prompt` and without; every `drpgWindow(` call of the module that
+         * asks (file and function), the files that name PROMPT_CLASS, the files that call `chooseVariant` (each an
+         * action's declaration: the menu asks for the class itself); the raise's timing in the source; `raisesOnRender`
+         * on stand-ins; and `promptsOver` on stand-ins connected to nothing, their boxes the positions Foundry keeps
+         * (`foundry.applications.instances`, stood in for under ids of this test's own and taken out in a finally). What
+         * the order of drawn windows then is, is E23-T2's (tier 2); a person's click, LIVE (the prompt's live row).
+         * Red on 2b866dde: KEEP_ON_TOP is ".application.drpg-panel" and no PROMPT_CLASS.
+         */
+        const S = await import("./stacking.mjs");
+        const K = await import("./ui-kit.mjs");
+        const read = {};
+        read.keep = [S.KEEP_ON_TOP ?? null, K.PROMPT_CLASS ?? null, K.KIT_CLASSES.includes(K.PROMPT_CLASS ?? "drpg-prompt")];
+
+        /* drpgWindow's classes with `prompt` and without. */
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const seen = [];
+        D.wait = async cfg => { seen.push(cfg); return null; };
+        try {
+            await K.drpgWindow({ classes: ["drpg-window-r1404"], title: "R1404", body: "<p>R1404</p>" });
+            await K.drpgWindow({ classes: ["drpg-window-r1404"], title: "R1404", body: "<p>R1404</p>", prompt: true });
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        must(seen.length === 2, `drpgWindow handed DialogV2.wait ${seen.length} window(s) of two - this would read nothing`);
+        read.kit = seen.map(cfg => [(cfg.classes ?? []).includes(K.PROMPT_CLASS ?? "drpg-prompt"), "prompt" in cfg]);
+
+        /* The module's windows that ask, by file and function; the files naming the class; the menu's callers. */
+        const sources = new Map(await otherSources());
+        must(sources.size > 100, `the module's sources read ${sources.size} file(s) - this would read nothing`);
+        const asking = [], naming = [], menus = [];
+        let calls = 0;
+        for (const [file, text] of sources) {
+            const code = stripComments(text);
+            const bare = stripStrings(code);
+            if (/\bPROMPT_CLASS\b|drpg-prompt/.test(code)) naming.push(file);
+            if (file !== "action-menus.mjs" && /\bchooseVariant\(\{/.test(bare)) menus.push(file);
+            for (const m of bare.matchAll(/\bdrpgWindow\(\{/g)) {
+                if (/function drpgWindow\($/.test(bare.slice(Math.max(0, m.index - 20), m.index + 11))) continue;
+                calls += 1;
+                let depth = 0, end = m.index + "drpgWindow".length;
+                for (; end < bare.length; end++) {
+                    if ("([{".includes(bare[end])) depth++;
+                    else if (")]}".includes(bare[end]) && --depth === 0) break;
+                }
+                if (!/\bprompt:\s*true\b/.test(bare.slice(m.index, end))) continue;
+                const fn = [...code.slice(0, m.index).matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].pop()?.[1] ?? "?";
+                asking.push(`${file} ${fn}`);
+            }
+        }
+        must(calls > 60, `${calls} drpgWindow call(s) read in the module - this would read nothing`);
+        // The windows that never ask: each is read, and each draws a window.
+        const NEVER = { "gm-panel.mjs": "the GM panel", "handbooks.mjs": "a handbook", "projects-ui.mjs": "Projects", "investigation.mjs": "the Case", "notice-history-app.mjs": "the notice history" };
+        must(Object.keys(NEVER).every(file => /\bdrpgWindow\(|\bDrpgApp\(|extends\b/.test(stripComments(sources.get(file) ?? ""))),
+            `a window that must stay ordinary was not read (${Object.keys(NEVER).filter(file => !sources.get(file)).join(", ") || "none missing"}) - this would read nothing`);
+        read.asking = asking.sort();
+        read.naming = naming.sort();
+        read.menus = menus.sort();
+        read.never = Object.keys(NEVER).filter(file => asking.some(a => a.startsWith(`${file} `)) || naming.includes(file));
+
+        /* The raise: a frame after Foundry, and the hook through `raisesOnRender`. */
+        const stacking = stripComments(sources.get("stacking.mjs") ?? "");
+        must(stacking.length > 1000, "stacking.mjs read nothing - this would read nothing");
+        read.frame = [/\bqueueMicrotask\b/.test(stacking), /\brequestAnimationFrame\(/.test(topLevelFunction(stacking, "afterFoundry") ?? ""),
+            /raisesOnRender\(app, options\)/.test(topLevelFunction(stacking, "registerStacking") ?? "")];
+        const el = cls => { const e = document.createElement("div"); e.className = `application ${cls}`; return e; };
+        const raises = (cls, options) => typeof S.raisesOnRender === "function" ? S.raisesOnRender({ element: el(cls) }, options) : "none";
+        read.render = [raises("sheet actor", { isFirstRender: true }), raises("sheet actor", { force: true }), raises("sheet actor", { isFirstRender: false, force: false }),
+            raises("sheet actor", undefined), raises(`sheet actor ${K.PROMPT_CLASS ?? "drpg-prompt"}`, { force: true }), raises("drpg-ui drpg-panel", { force: true })];
+
+        /* Which prompts a sheet overlaps, on stand-ins: their boxes the positions Foundry keeps for them. */
+        const instances = foundry.applications.instances;
+        const ids = [];
+        const page = document.createElement("div");
+        const stand = (key, cls, position, z) => {
+            const e = el(cls);
+            e.id = `drpg-r1404-${key}-${foundry.utils.randomID(6)}`;
+            e.dataset.r1404 = key;
+            if (z) e.style.zIndex = String(z);
+            page.append(e);
+            if (position) { instances.set(e.id, { position }); ids.push(e.id); }
+            return e;
+        };
+        const P = K.PROMPT_CLASS ?? "drpg-prompt";
+        try {
+            const sheet = stand("sheet", "sheet actor", { left: 100, top: 100, width: 600, height: 500 }, 110);
+            stand("over", `drpg-ui drpg-panel ${P}`, { left: 300, top: 200, width: 400, height: 300 }, 105);
+            stand("beside", `drpg-ui drpg-panel ${P}`, { left: 800, top: 100, width: 300, height: 200 }, 104);
+            stand("panel", "drpg-ui drpg-panel", { left: 200, top: 150, width: 400, height: 300 }, 103);
+            stand("unread", P, null, 102);
+            read.over = typeof S.promptsOver === "function" ? S.promptsOver(sheet, page).map(e => e.dataset.r1404) : "none";
+        } finally {
+            for (const id of ids) instances.delete(id);
+        }
+        equal(stableJson(read), stableJson({
+            keep: [".application.drpg-prompt", "drpg-prompt", false],
+            kit: [[false, false], [true, false]],
+            asking: ["action-menus.mjs chooseVariant", "action-menus.mjs promptForNote", "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement",
+                "observe.mjs askWhichRemnant", "observe.mjs describeFind", "trait-ruling.mjs pickHere", "trial-prompt.mjs promptClaim", "trial-prompt.mjs promptTurn",
+                "vote.mjs castBallot"],
+            naming: ["roll-dialog.mjs", "stacking.mjs", "ui-kit.mjs"],
+            menus: ["action-analyze.mjs", "action-murder.mjs", "action-observe.mjs", "action-project.mjs", "action-rest.mjs", "action-search.mjs", "action-tamper.mjs",
+                "level-up.mjs", "palm.mjs"],
+            never: [],
+            frame: [false, true, true],
+            render: [true, true, false, false, false, false],
+            over: ["unread", "over"]
+        }), "[the class kept on top, PROMPT_CLASS, whether every kit window carries it; drpgWindow without and with `prompt` (the class on, `prompt` handed to DialogV2); "
+            + "the drpgWindow calls that ask (file, function); the files naming the class; the files calling chooseVariant (each an action's declaration; a new one is judged here); "
+            + "the never-prompts that ask (the GM panel, a handbook, Projects, the Case, the notice history); stacking.mjs: a microtask, a frame in afterFoundry, the hook through raisesOnRender; "
+            + "raisesOnRender: a sheet's first render, forced, ordinary, no options, a prompt's forced, a panel's forced; promptsOver a sheet: an overlapping prompt, one beside it, "
+            + "an overlapping panel, a prompt with no box (kept above), lowest first]");
     }],
 ];
 

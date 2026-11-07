@@ -225,6 +225,8 @@ async function pickHere(actor, spec, listed) {
     const [first, ...rest] = listed.map(trait => ({ action: trait, label: traitWithValue(actor, trait) }));
     const picked = await drpgWindow({
         classes: ["drpg-panel", "drpg-narrow", pickWindowClass(spec.kind)],
+        // A GM's ruling the roll waits on: kept above the sheet (stacking.mjs; E23 C5a).
+        prompt: true,
         title: game.i18n.localize("DRPG.TraitRuling.title"),
         body: `<p><strong>${esc(actor?.name ?? "?")}</strong> · ${esc(rulingLabel(spec))}</p>
             <p class="notes">${game.i18n.localize("DRPG.TraitRuling.gmBody")}</p>`,

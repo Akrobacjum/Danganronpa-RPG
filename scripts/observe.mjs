@@ -607,6 +607,8 @@ async function askWhichRemnant(actor, room, request, candidates, { refuse = true
     const picked = await drpgWindow({
         title: game.i18n.localize("DRPG.Observe.pickTitle"),
         classes: ["drpg-panel"],
+        // A GM's ruling on an Observe the player waits on: kept above the sheet (stacking.mjs; E23 C5a).
+        prompt: true,
         body: `<form>
             <p>${game.i18n.format("DRPG.Observe.pickIntro", {
                 actor: foundry.utils.escapeHTML(actor.name),
@@ -1163,6 +1165,7 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
     return drpgWindow({
         title: game.i18n.localize("DRPG.Observe.describeTitle"),
         classes: ["drpg-panel"],
+        prompt: true,
         body: `<form>
             <p>${game.i18n.format("DRPG.Observe.describeIntro", {
                 actor: foundry.utils.escapeHTML(actor.name),

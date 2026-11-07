@@ -188,6 +188,11 @@ export async function chooseVariant({
     const picked = await drpgWindow({
         title,
         classes: ["drpg-panel"],
+        /* AN ACTION'S DECLARATION IS A PROMPT (E23 C5a, 07.11.2026; S01-15, the owner's Q-E23-5): kept above the sheet the
+           player checks while deciding (stacking.mjs). Every caller of this menu is an action's declaration the game waits
+           on - Analyze, the crisis menu, Observe, a project, Rest, Search, Tamper, Palm and Level Up's two questions - so
+           the menu asks for it itself; R1404 holds that list of callers, and a new one is judged there. */
+        prompt: true,
         ...(columns ? { width: COLUMNS.width } : {}),
         body: columns
             ? `<div class="${COLUMNS.cls}"><div class="drpg-variant-brief">${intro}</div><div class="drpg-variant-ask">${form}</div></div>`
@@ -282,6 +287,8 @@ export async function promptForNote(actor, { title, prompt, placeholder }) {
     const result = await drpgWindow({
         title,
         classes: ["drpg-panel"],
+        // The second half of a declaration: a prompt, as `chooseVariant`'s window (E23 C5a).
+        prompt: true,
         body: `<form>
             <p>${prompt}</p>
             <textarea name="note" rows="3" placeholder="${

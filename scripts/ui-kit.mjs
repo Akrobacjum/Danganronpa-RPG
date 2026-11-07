@@ -10,7 +10,8 @@
  * the owner approved on the kit card (DR-E44-M1, M15, 04.11.2026): today's look of each component's nearest part,
  * equal tab widths fitted to one line, and I1's fine print.
  *
- *   drpgWindow({ id, classes, title, body, tabs, footer, live, render, modal, fit, width })   a DialogV2 on the kit's frame
+ *   drpgWindow({ id, classes, title, body, tabs, footer, live, render, modal, fit, width, prompt })   a DialogV2 on the kit's frame
+ *   PROMPT_CLASS                  the class of a window the game waits on, kept above the sheet (stacking.mjs; E23 C5a)
  *   fitKitWidth(app)              a `fit` window as wide as its widest table (E21 C2a: tableDialog's measure, moved)
  *   WINDOW_WIDTHS, kitWidth(spec) the widths a window states by name (`width`), and the inline width one comes to
  *                                 (E21 W1: the `drpg-wide`, item tables' and GM panel's width rules, moved)
@@ -858,6 +859,14 @@ export function frame({ id, classes, title, closeLabel, data = {} } = {}) {
 export const KIT_CLASSES = Object.freeze(["drpg-ui", "drpg-panel"]);
 
 /**
+ * The class of a window the game waits on (E23 C5a, 07.11.2026; audit S01-15): stacking.mjs keeps it above the sheet
+ * that overlaps it. Not one of KIT_CLASSES: a window asks for it (`drpgWindow({ prompt: true })`), and only the prompts
+ * the owner named on 07.11.2026 do - a roll, an action's declaration, a GM's ruling, a ballot, Level Up and the trial's
+ * prompts; a panel, a handbook, Projects, the Case and the notice history are ordinary windows (R1404).
+ */
+export const PROMPT_CLASS = "drpg-prompt";
+
+/**
  * A DialogV2 on the kit's frame; answers what `DialogV2.wait` answers. The root carries `drpg-ui` and `drpg-panel`;
  * components.css holds it to the screen's height less 8 px a side, the body (`.drpg-kit-body`) scrolls and the tab
  * bar and the footer do not. `body` is markup; `tabs` is `{ sections, active, buttons, always, onSwitch }` (kitTabs
@@ -867,9 +876,10 @@ export const KIT_CLASSES = Object.freeze(["drpg-ui", "drpg-panel"]);
  * wide as its widest table (`fitKitWidth`, below): the windows `tableDialog` drew until E21 C2a. `width` is the width the
  * window states: a name of WINDOW_WIDTHS or a number of pixels (`kitWidth`, below), the window's opening width and,
  * without `fit`, its width; with `fit` the measure wins and the width is where it starts (E21 W1). No stylesheet states
- * a kit window's width (R1376): a window without either takes the module's popup width rules.
+ * a kit window's width (R1376): a window without either takes the module's popup width rules. `prompt` puts PROMPT_CLASS
+ * on a window the game waits on (above).
  */
-export function drpgWindow({ id = null, classes = [], title = "", body = "", tabs = null, footer = {}, live = null, render = null, modal = false, onMode = null, fit = false, width = null, ...rest } = {}) {
+export function drpgWindow({ id = null, classes = [], title = "", body = "", tabs = null, footer = {}, live = null, render = null, modal = false, onMode = null, fit = false, width = null, prompt = false, ...rest } = {}) {
     const DialogV2 = foundry.applications.api.DialogV2;
     const sized = width === null ? null : widthSpec(width);
     const list = footerButtons(footer);
@@ -878,7 +888,7 @@ export function drpgWindow({ id = null, classes = [], title = "", body = "", tab
         + `<div class="drpg-kit-body">${body}${tabs ? tabPanes(tabs.sections, open) : ""}</div>`;
     const config = {
         ...rest,
-        classes: [...classes, ...KIT_CLASSES, ...(fit ? [FIT_CLASS] : []), ...(sized ? sized.classes : [])],
+        classes: [...classes, ...KIT_CLASSES, ...(prompt ? [PROMPT_CLASS] : []), ...(fit ? [FIT_CLASS] : []), ...(sized ? sized.classes : [])],
         // Foldable to its title bar, as every module window since E44 fix FG2 (the owner's Q-E44-1; DialogV2's default is not).
         window: { title, resizable: false, minimizable: true, ...rest.window },
         position: { height: "auto", ...(sized?.open ? { width: sized.open } : {}), ...rest.position },

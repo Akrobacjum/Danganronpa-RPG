@@ -52831,7 +52831,8 @@ const SCENARIOS = [
             form.innerHTML = (cfg?.content?.innerHTML ?? String(cfg?.content ?? ""));
             const reason = say(`DRPG.Advance.reason.${kind}`);
             const read = {
-                // Each class once: on the kit's frame since E21 C6a, whose `drpg-panel` stands beside the caller's own.
+                // Each class once: on the kit's frame since E21 C6a, whose `drpg-panel` stands beside the caller's own; a prompt
+                // the game waits on since E23 C5a (`drpg-prompt`: stacking.mjs keeps it above the sheet, E23-T2 reads the order).
                 classes: [...new Set(cfg?.classes ?? [])].sort(),
                 legends: [...form.querySelectorAll("legend")].map(text),
                 amber: form.querySelectorAll(".notification").length,
@@ -52865,7 +52866,7 @@ const SCENARIOS = [
         const expected = ([kind, picks]) => {
             const { none } = seen[picks === 1 ? 0 : 1];
             return {
-                classes: ["drpg-advance", "drpg-panel", "drpg-ui"],
+                classes: ["drpg-advance", "drpg-panel", "drpg-prompt", "drpg-ui"],
                 legends: picks === 1 ? [] : choices(picks),
                 amber: 0,
                 notes: none ? [noExperiences] : [],
@@ -64373,6 +64374,98 @@ const SCENARIOS = [
             "the roll window did not open below the curtain's band, was moved again at a redraw, or was moved with no curtain (glass: its top under the stood-in band; redrawn: where it was put; none: the centre)");
     }],
 
+    ["E23-T2 - a roll prompt over a sheet stays above it after a press on the sheet and after its render(true), a prompt beside the sheet stays where it was, and a GM panel does not rise over another window when a sheet redraws (E23 C5a; E23-24, audit S01-15)", async () => {
+        /*
+         * E23 C5a, 07.11.2026; S01-15, the owner's Q-E23-5. Drawn windows, on this GM's browser: a stand-in sheet (an
+         * ApplicationV2 with the sheet's classes, `sheet actor`, drawn here, not the system's), the roll window
+         * Daggerheart's duality roll opens (`rollWindow`; headless the harness's stand-in of it) set over the sheet, a
+         * window with the GM panel's classes on the kit (KIT_CLASSES and the panel's own, drawn here, not the panel) and a
+         * plain window opened after it over it, as Token Config would be. Read by the z-index Foundry writes on a window's
+         * element (`bringToFront`; headless lib/shim.mjs models it since C5a, from memory, not from v14): after a press on
+         * the sheet and after its `render(true)` - each must raise the sheet itself, or this measures nothing - whether
+         * the roll window is above it; the roll window moved beside the sheet and the sheet pressed: whether it stayed
+         * below; and after an ordinary redraw of the sheet (as its actor's update gives it: a Hope change) and a forced
+         * one, whether the panel rose over the other window. The roll window is brought to the front before the forced
+         * render and before the press beside, so the sheet's own raise reads whatever the step before did. Each read two
+         * frames and a settle after the event (the raise
+         * is a frame after Foundry's). A person's press - its listeners in one task, where the microtask the old code
+         * queued ran before Foundry's raise - is not what a dispatched event is; that is the prompt's live row. Red on
+         * 2b866dde: the roll window carries no `drpg-panel`, so nothing raised it over the sheet, and the sheet's redraw
+         * raised the panel over the other window.
+         */
+        const K = await import("./ui-kit.mjs");
+        const { ApplicationV2, DialogV2 } = foundry.applications.api;
+        const [actor] = cast(1);
+        class E23T2Window extends ApplicationV2 {
+            async _renderHTML() { return "<p class=\"e23-t2-body\">E23-T2</p>"; }
+            async _replaceHTML(result, content) { content.innerHTML = result; }
+        }
+        class E23T2Sheet extends E23T2Window {
+            static DEFAULT_OPTIONS = { classes: ["sheet", "actor", "e23-t2-sheet"], window: { title: "E23-T2 sheet" } };
+        }
+        class E23T2Other extends E23T2Window {
+            static DEFAULT_OPTIONS = { classes: ["e23-t2-other"], window: { title: "E23-T2 another window" } };
+        }
+        const z = app => parseInt(app?.element?.style?.zIndex, 10) || 0;
+        const frames = async () => { await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); await settle(); };
+        const press = async app => {
+            const Pointer = globalThis.PointerEvent ?? MouseEvent;
+            (app.element.querySelector(".e23-t2-body") ?? app.element).dispatchEvent(new Pointer("pointerdown", { bubbles: true, cancelable: true }));
+            await frames();
+        };
+        const SHEET = { left: 40, top: 60, width: 420, height: 400 };
+        const read = {};
+        let sheet = null, win = null, panel = null, other = null;
+        try {
+            sheet = new E23T2Sheet({ position: { ...SHEET } });
+            await sheet.render({ force: true });
+            sheet.setPosition({ ...SHEET });
+            win = await (await rollWindow(actor, { roll: { trait: "agility" } })).open();
+            win.app.setPosition({ left: 200, top: 120, width: 360, height: 260 });
+            await frames();
+            must(z(win.app) > z(sheet), `the roll window opened below the sheet (z ${z(win.app)} against ${z(sheet)}) - this would measure nothing`);
+            let was = z(sheet);
+            await press(sheet);
+            must(z(sheet) > was, `a press on the sheet did not raise it (z ${was} -> ${z(sheet)}) - this would measure nothing`);
+            read.pressed = z(win.app) > z(sheet);
+            // The roll window in front before each next event, so the sheet's own raise can be read whatever came before.
+            win.app.bringToFront();
+            was = z(sheet);
+            await sheet.render(true);
+            await frames();
+            must(z(sheet) > was, `the sheet's render(true) did not raise it (z ${was} -> ${z(sheet)}) - this would measure nothing`);
+            read.forced = z(win.app) > z(sheet);
+            win.app.setPosition({ left: 500, top: 120, width: 360, height: 260 });
+            win.app.bringToFront();
+            await press(sheet);
+            read.beside = z(win.app) > z(sheet);
+            await win.cancel();
+            win = null;
+
+            panel = new DialogV2({ classes: [...K.KIT_CLASSES, "drpg-gm-panel-window", "drpg-window-panel", "e23-t2-panel"], window: { title: "E23-T2 panel" },
+                content: "<p>E23-T2</p>", buttons: [{ action: "close", label: "Close", default: true }] });
+            await panel.render({ force: true });
+            panel.setPosition({ left: 480, top: 60, width: 400, height: 300 });
+            other = new E23T2Other({ position: { left: 520, top: 100, width: 400, height: 300 } });
+            await other.render({ force: true });
+            other.setPosition({ left: 520, top: 100, width: 400, height: 300 });
+            await frames();
+            must(z(other) > z(panel), `the other window opened below the panel (z ${z(other)} against ${z(panel)}) - this would measure nothing`);
+            await sheet.render();
+            await frames();
+            read.redrawn = z(panel) > z(other);
+            await sheet.render(true);
+            await frames();
+            read.redrawnForced = z(panel) > z(other);
+        } finally {
+            await win?.cancel();
+            for (const app of [other, panel, sheet]) if (app?.rendered) await app.close();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ pressed: true, forced: true, beside: false, redrawn: false, redrawnForced: false }),
+            "[the roll window above the sheet after a press on the sheet; after the sheet's render(true); moved beside the sheet, above it after a press (it should stay below); "
+            + "the GM panel's window above the other window after the sheet's ordinary redraw; after its forced one]");
+    }],
     ["a player's own dice look goes back to the GM's, whole, and the player's display settings stay theirs (S02-67 S16-02)", async () => {
         /*
          * E16 p1 C3, 19.10.2026; audits S02-67 and S16-02 (E16-15, E16-19). The GM wants one dice look at the

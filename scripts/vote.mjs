@@ -816,6 +816,8 @@ async function castBallot({ round = 0, picks = 1, candidates = [] } = {}) {
         choice = await drpgWindow({
             title: game.i18n.localize("DRPG.Vote.ballotTitle"),
             classes: ["drpg-panel", "drpg-ballot"],
+            // The ballot the trial waits on: kept above the sheet (stacking.mjs; E23 C5a).
+            prompt: true,
             body: `<form>
                 <p>${game.i18n.localize("DRPG.Vote.ballotIntro")}</p>
                 ${wanted > 1 ? `<p class="drpg-warning">${

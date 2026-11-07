@@ -113,6 +113,8 @@ async function promptClaim(floor) {
     const choice = await drpgWindow({
         title: game.i18n.localize("DRPG.Floor.mode.closing"),
         classes: ["drpg-panel", CLAIM_CLASS],
+        // The trial's prompts are kept above the sheet (stacking.mjs; E23 C5a).
+        prompt: true,
         body: `<p>${game.i18n.format("DRPG.Trial.claim.body", { seconds: Math.max(secondsLeft(floor), 0) })}</p>`,
         footer: claimFooter(),
         render: (event, dialog) => {
@@ -152,6 +154,7 @@ async function promptTurn(floor) {
     const choice = await drpgWindow({
         title: game.i18n.format("DRPG.Trial.turn.title", { seconds }),
         classes: ["drpg-panel", WINDOW_CLASS],
+        prompt: true,
         body: `<p>${game.i18n.format("DRPG.Trial.turn.body", { mode: foundry.utils.escapeHTML(mode) })}</p>${passLine}`,
         /* NOTHING ENDS ON ENTER (E70 fix p2-G3; the review's E70P2-R12): Done was the default, so a speaker clearing the
            window with Enter or Space while talking ended their own turn - and Back is refused in a round, and in the
