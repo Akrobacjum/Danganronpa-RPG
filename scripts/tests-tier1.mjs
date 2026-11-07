@@ -34106,7 +34106,10 @@ const INVARIANTS = [
         /* Measured on C5's tree (e65fbb33) with this test and tests-kit.mjs's pseudo-elements, 04.11.2026: 48 surfaces, 19153 readings. */
         /* The `@media` rules of the section, which `styleCascade` does not read: each must stand after every rule of the
            section's top level it overrides - the same selector - or the system's reduced motion stops nothing (E44 C6's
-           mutant c6-m1: the reduced-motion block moved above the word's run). Read from the sheet's text, in order. */
+           mutant c6-m1: the reduced-motion block moved above the word's run). Read from the sheet's text, in order.
+           Since E23 C5c the section holds no `@media` rule: its two reduced-motion blocks were the class's twins and went
+           (R1410), so the order reads nothing and the section's media rules are listed instead - none, and a block that
+           comes back is named here as well as by R1410. */
         const sheet = (await fetch(`/modules/${MODULE_ID}/styles/components.css`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
         /* The whole sheet is read, and a rule counts when it opens after the section's tokens (the kit's part above them
            is not the section's); a sheet without the tokens is a failure, not a reading of the whole sheet. */
@@ -34122,7 +34125,7 @@ const INVARIANTS = [
             } else if (sheet[i] === "}") { depth--; if (depth === 0) media = null; from = i + 1; } else if (sheet[i] === ";" && depth === 0) from = i + 1;
         }
         const early = order.flatMap((rule, i) => (rule.media ? order.slice(i + 1).filter(later => !later.media && later.selector === rule.selector).map(later => `${rule.media} ${rule.selector}`) : []));
-        must(order.some(r => r.media), "no @media rule read in the section - the order this reads would hold nothing");
+        const sectionMedia = order.filter(r => r.media).map(r => `${r.media} ${r.selector}`);
         const C5 = {
             "curtain|monokuma-legacy|foundry-tools": "1:38b5be3c", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:999f5b79",
             "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:50024055", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
@@ -34141,8 +34144,8 @@ const INVARIANTS = [
             "stacked|stained-glass|gm-launcher": "1:426d4aa5", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:0a4f36aa",
             "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:e9f9c48e", "stacked|stained-glass|voice-tile": "1:d4bd73c1"
         };
-        equal(stableJson({ left: [...left].sort(), prints, early }), stableJson({ left: [], prints: C5, early: [] }),
-            `[a rule written for these surfaces that still wins from danganronpa.css or stained-glass.css; per place, theme and surface, the number of roots and the fingerprint of its winners; an @media rule above the rule it overrides] (${readings} reading(s))`);
+        equal(stableJson({ left: [...left].sort(), prints, early, sectionMedia }), stableJson({ left: [], prints: C5, early: [], sectionMedia: [] }),
+            `[a rule written for these surfaces that still wins from danganronpa.css or stained-glass.css; per place, theme and surface, the number of roots and the fingerprint of its winners; an @media rule above the rule it overrides; the section's @media rules] (${readings} reading(s))`);
         must(readings > 3000, `${readings} reading(s) made - the surfaces matched almost no rule`);
     }],
     ["R1337 - a Remnant row's Delete on the dashboard (E44 C8d; E44-29): each row of the Remnants tab holds one plain button with the tab's word, named for the row's Remnant and keyed by the row; the tab's head names its column; wireCase binds the buttons to `deleteTraceRow`, which answers before anything for a player, asks a DialogV2 confirm naming the Remnant before it removes, stops on no, and removes through remnants.mjs `removeRemnant` alone; no module file but investigation.mjs names it; and its three words stand in both languages", async () => {
@@ -36958,6 +36961,254 @@ const INVARIANTS = [
             glass, legacy, contrast
         ]), "[under Stained Glass the ::before's opacity of each kind's tile unaffordable, disabled and pressable; how many looks the tiles out of reach wear and that look "
             + "(its ground, edge and edge style tokens, its filter, the ground and the edge colour it wins, the icon's, the name's and the cost's ink); the same under high contrast; Monokuma Legacy; Monokuma Legacy under high contrast]");
+    }],
+    ["R1410 - reduced motion is one mechanism (E23 C5c; E23-30, audit S12-11): `body.drpg-reduced-motion` is on for the Look window's switch or the system's `prefers-reduced-motion` and follows the system's `change`, motion.mjs alone writes it; no `@media (prefers-reduced-motion)` block is left outside motion.css; with the class on, no rule of the module's sheets leaves an endless animation running, under either theme; and the notice history moves nothing under the class", async () => {
+        /*
+         * E23 C5c, 07.11.2026; audit S12-11, the plan's p10change, the 11.10 amend A7 (6): the notice history with no
+         * transitions. On 6c9bd3c3 the class came from the client setting alone (settings.mjs `applyTheme`) and the
+         * system's preference reached the sheets through 24 `@media (prefers-reduced-motion: reduce)` blocks of their
+         * own (danganronpa.css 15, stained-glass.css 7, components.css 2; motion.css's token block besides), so what
+         * stopped depended on which of the two said it. Read here:
+         *   - motion.mjs's `applyReducedMotion(query, own)` with a query of the test's own (an EventTarget with
+         *     `matches`) and each answer of the setting, and `followSystemMotion(query)` across two `change`s and after
+         *     it stops; the class put back from this browser's own answers after; which served files write the class
+         *     (motion.mjs only), and `registerMotion` listening to `drpgThemeApplied` and following the system;
+         *   - every sheet module.json loads, comments out: the `@media` preludes that name `prefers-reduced-motion`,
+         *     by file and line, motion.css's own left aside;
+         *   - by the sheets' cascade (`styleCascade`), on a page built per rule on a body of its own with the class
+         *     and each theme: every top-level rule that runs an animation `infinite` is built (the element its selector
+         *     names, with its ancestors) and its animation's winner read - the name, the duration (a `var()` resolved
+         *     on the element or its ancestors) and the iteration count; one that still runs, endless and longer than
+         *     0, is listed;
+         *   - the notice history's frame and parts as notice-history-app.mjs builds them (the kit's chips and footer,
+         *     the search, the banner, an entry), each element's transition winner under the class in each theme, and
+         *     the motion tokens on the body: zero.
+         * In Chromium, the glass harness with the class on (`?still=1`, `glass-sweep --frame-cost`): the endless
+         * animations at load (E23 C5c's message). Red on 6c9bd3c3: no `applyReducedMotion`, 24 media blocks, eight
+         * rules still running under the class.
+         */
+        const J = stableJson;
+        const M = await import("./motion.mjs");
+        const body = document.body, CLS = "drpg-reduced-motion";
+        const had = body.classList.contains(CLS);
+        const own = getSetting(SETTINGS.reducedMotion) === true;
+        const follows = { exported: [typeof M.applyReducedMotion, typeof M.followSystemMotion] };
+        if (typeof M.applyReducedMotion === "function" && typeof M.followSystemMotion === "function") {
+            try {
+                /* A query of the test's own, not an EventTarget: the harness's jsdom and Node each have an Event of their
+                   own, and dispatching one realm's Event on the other's target throws (the harness, 07.11.2026, R1410's first run). */
+                const heard = new Set();
+                const fake = {
+                    matches: true,
+                    addEventListener: (type, fn) => { if (type === "change") heard.add(fn); },
+                    removeEventListener: (type, fn) => { if (type === "change") heard.delete(fn); },
+                    change() { for (const fn of [...heard]) fn({ type: "change", matches: this.matches }); }
+                };
+                const states = [];
+                for (const [matches, setting] of [[true, false], [false, false], [false, true], [true, true]]) {
+                    fake.matches = matches;
+                    M.applyReducedMotion(fake, setting);
+                    states.push(body.classList.contains(CLS));
+                }
+                follows.applied = states;
+                const stop = M.followSystemMotion(fake);
+                const seen = [];
+                for (const matches of [true, false]) {
+                    fake.matches = matches;
+                    fake.change();
+                    seen.push(body.classList.contains(CLS) === (own || matches));
+                }
+                stop();
+                fake.matches = !own;
+                M.applyReducedMotion(fake, own);
+                const before = body.classList.contains(CLS);
+                fake.matches = own;
+                fake.change();
+                seen.push(body.classList.contains(CLS) === before);
+                follows.followed = seen;
+            } finally {
+                M.applyReducedMotion();
+            }
+        }
+        follows.putBack = body.classList.contains(CLS) === had;
+        if (body.classList.contains(CLS) !== had) body.classList.toggle(CLS, had);
+        const served = (await otherSources()).map(([file, text]) => [file, stripComments(text)]);
+        follows.writers = served.filter(([, text]) => /classList\.(?:toggle|add|remove)\(\s*(?:"drpg-reduced-motion"|REDUCED_CLASS)/.test(text)).map(([file]) => file).sort();
+        const motion = served.find(([file]) => file === "motion.mjs")?.[1] ?? "";
+        const register = fnSource(motion, "registerMotion") ?? "";
+        follows.registered = [/Hooks\.on\(\s*"drpgThemeApplied"\s*,\s*\(\)\s*=>\s*applyReducedMotion\(\)\s*\)/.test(register), /followSystemMotion\(/.test(register)];
+
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(res => res.json());
+        const sheets = [];
+        for (const href of manifest.styles ?? []) sheets.push([href.split("/").at(-1), (await fetch(`/modules/${MODULE_ID}/${href}`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "))]);
+        must(sheets.length >= 5 && sheets.some(([name]) => name === "motion.css"), `module.json loads ${sheets.map(([name]) => name).join(", ")} - not the module's sheets`);
+        const blocks = sheets.flatMap(([name, css]) => [...css.matchAll(/@media[^{]*prefers-reduced-motion[^{]*\{/g)].map(m => `${name}:${css.slice(0, m.index).split("\n").length}`));
+        const outside = blocks.filter(place => !place.startsWith("motion.css:"));
+        must(blocks.some(place => place.startsWith("motion.css:")), "motion.css has no prefers-reduced-motion block - the reader reads no block at all");
+
+        const C = await styleCascade();
+        const THEMES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"];
+        const ENDLESS = /(?:^|[\s,])infinite(?:[\s,]|$)/;
+        const parts = selector => {
+            const out = [];
+            let depth = 0, part = "", quote = null;
+            for (const ch of selector) {
+                if (quote) { if (ch === quote) quote = null; part += ch; continue; }
+                if (ch === "\"" || ch === "'") quote = ch;
+                if (ch === "(" || ch === "[") depth++;
+                if (ch === ")" || ch === "]") depth--;
+                if (!depth && /[\s>+~]/.test(ch)) {
+                    if (part) out.push(part);
+                    part = "";
+                    if (ch !== " " && ch !== "\n" && ch !== "\t") out.push(ch);
+                } else part += ch;
+            }
+            if (part) out.push(part);
+            return out;
+        };
+        const dress = (el, compound) => {
+            const tag = /^[a-z][\w-]*/i.exec(compound)?.[0];
+            for (const m of compound.matchAll(/\.([\w-]+)/g)) el.classList.add(m[1]);
+            const id = /#([\w-]+)/.exec(compound)?.[1];
+            if (id) el.id = id;
+            for (const m of compound.matchAll(/\[([\w-]+)(?:([~|^$*]?=)"?([^"\]]*)"?)?\]/g)) el.setAttribute(m[1], m[3] ?? "");
+            return tag;
+        };
+        const build = (selector, theme) => {
+            const pseudo = /::?(before|after)$/.exec(selector);
+            const base = pseudo ? selector.slice(0, pseudo.index) : selector;
+            const html = document.createElement("html"), page = document.createElement("body");
+            page.className = `${theme} ${CLS}`;
+            html.append(page);
+            let parent = page, el = page;
+            for (const piece of parts(base)) {
+                if (/^[>+~]$/.test(piece)) continue;
+                if (el === page && /^body\b/i.test(piece)) { dress(page, piece); continue; }
+                const tag = /^[a-z][\w-]*/i.exec(piece)?.[0] ?? "div";
+                el = document.createElement(tag);
+                dress(el, piece);
+                parent.append(el);
+                parent = el;
+            }
+            try { return el !== page && el.matches(base) ? { el, pseudo: pseudo ? `::${pseudo[1]}` : null } : null; } catch { return null; }
+        };
+        const token = (el, name) => {
+            for (let at = el; at; at = at.parentElement) {
+                const w = C.winner(at, name);
+                if (w) return w.value;
+            }
+            return null;
+        };
+        const resolve = (el, value) => {
+            let out = value ?? "";
+            for (let i = 0; i < 6 && /var\(/.test(out); i++) {
+                out = out.replace(/var\(\s*(--[\w-]+)\s*(?:,\s*([^()]*))?\)/g, (_, name, fallback) => token(el, name) ?? fallback ?? "");
+            }
+            return out;
+        };
+        const seconds = text => [...String(text).matchAll(/(-?[\d.]+)(ms|s)\b/g)].map(m => Number(m[1]) / (m[2] === "ms" ? 1000 : 1));
+        const endlessIn = () => C.rules.filter(rule => rule.decls.some(d => (d.property === "animation" || d.property === "animation-iteration-count") && ENDLESS.test(d.value)));
+        const stillness = () => {
+            const endlessRules = endlessIn();
+            const running = [], unbuilt = [];
+            let built = 0;
+            for (const rule of endlessRules) {
+                for (const selector of rule.selector.split(/,(?![^()]*\))/).map(s => s.trim()).filter(Boolean)) {
+                    let any = false;
+                    for (const theme of THEMES) {
+                        if (/drpg-theme-stained-glass/.test(selector) && theme !== THEMES[0]) continue;
+                        if (/drpg-theme-monokuma-legacy/.test(selector) && theme !== THEMES[1]) continue;
+                        const got = build(selector, theme);
+                        if (!got) continue;
+                        any = true;
+                        built++;
+                        const on = C.on(got.el, got.pseudo);
+                        const name = on(["animation", "animation-name"]);
+                        const length = on(["animation", "animation-duration"]);
+                        const count = on(["animation", "animation-iteration-count"]);
+                        const named = name && !/^none\b/.test(name.value.trim());
+                        const endless = count && ENDLESS.test(count.value);
+                        const long = length && seconds(resolve(got.el, length.value)).some(s => s > 0);
+                        if (named && endless && long) running.push(`${rule.file.split("/").at(-1)} ${selector} [${theme.replace("drpg-theme-", "")}]`);
+                    }
+                    if (!any) unbuilt.push(`${rule.file.split("/").at(-1)} ${selector}`);
+                }
+            }
+            return { running, unbuilt, built: built >= endlessRules.length };
+        };
+
+        const { chips, footerMarkup, kitNode } = await import("./ui-kit.mjs");
+        const noticeWindow = theme => {
+            const html = document.createElement("html"), page = document.createElement("body");
+            page.className = `${theme} ${CLS}`;
+            html.append(page);
+            const app = document.createElement("div");
+            app.id = "drpg-notices";
+            app.className = "application drpg-ui drpg-panel drpg-window-notices";
+            app.innerHTML = `<header class="window-header"><i class="window-icon fa-solid fa-clock-rotate-left"></i><h1 class="window-title">N</h1>`
+                + `<button type="button" class="header-control icon fa-solid fa-xmark" data-action="close"></button></header>`
+                + `<section class="window-content"><div class="drpg-notices-body drpg-kit-content">${chips([{ label: "All", pressed: true, count: 2, value: "all" }, { label: "Mine", count: 0, value: "forYou" }])}`
+                + `<div class="drpg-notices-search"><input type="search"></div><div class="drpg-notices-banner"><span></span><button type="button" data-drpg-do="markRead">R</button></div>`
+                + `<button type="button" class="drpg-notices-new" data-drpg-do="showNew">N</button>`
+                + `<div class="drpg-notices-list drpg-kit-body"><h3 class="drpg-notices-group">G</h3><details class="drpg-notices-fold" open><summary>F</summary>`
+                + `<details class="drpg-notice-entry drpg-src-public" open><summary><span class="drpg-notice-glyph"></span><span class="drpg-notice-title">T</span><span class="drpg-notice-time">1</span>`
+                + `<span class="drpg-notice-text">X</span></summary><div class="drpg-notice-more"><div class="drpg-notice-snapshot">S</div>`
+                + `<button type="button" class="drpg-notice-conversation" data-drpg-do="open">O</button></div></details></details></div></div></section>`;
+            const foot = kitNode(footerMarkup({ destructive: [{ action: "clear", label: "Clear" }], close: { role: "close", side: "right" } }));
+            foot.classList.add("drpg-notices-foot");
+            foot.querySelector(".drpg-kit-left")?.append(Object.assign(document.createElement("p"), { className: "drpg-notices-unsaved" }));
+            app.querySelector(".drpg-notices-body").append(foot);
+            page.append(app);
+            return { page, els: [app, ...app.querySelectorAll("*")] };
+        };
+        const stirring = () => {
+            const moving = [], tokens = {};
+            let readEls = 0;
+            for (const theme of THEMES) {
+                const { page, els } = noticeWindow(theme);
+                readEls += els.length;
+                for (const el of els) {
+                    for (const pseudo of [null, "::before", "::after"]) {
+                        const w = C.on(el, pseudo)(["transition", "transition-duration"]);
+                        if (!w || /^none\b/.test(w.value.trim())) continue;
+                        if (seconds(resolve(el, w.value)).some(s => s > 0)) {
+                            moving.push(`${theme.replace("drpg-theme-", "")} ${el.localName}${el.id ? `#${el.id}` : ""}${[...el.classList].map(c => `.${c}`).join("")}${pseudo ?? ""}: ${w.value} (${w.file.split("/").at(-1)} ${w.selector})`);
+                        }
+                    }
+                }
+                tokens[theme.replace("drpg-theme-", "")] = ["--drpg-t-snap", "--drpg-t-enter", "--drpg-t-beat", "--drpg-t-turn", "--drpg-t-curtain", "--drpg-t-eclipse"].map(name => C.winner(page, name)?.value ?? null);
+            }
+            return { moving, tokens, readEls };
+        };
+        /* The two readers are shown a fault first: an endless run of 2 s on a glass rule the class does not stop, and a
+           120 ms transition on the notice history's chips; each must name its plant, and the plants are taken out. */
+        const plants = [
+            { file: "styles/plant.css", selector: "body.drpg-theme-stained-glass .drpg-plant-run > span", decls: [{ property: "animation", value: "drpg-plant 2s linear infinite", important: false }] },
+            { file: "styles/plant.css", selector: ".drpg-window-notices .drpg-chip", decls: [{ property: "transition", value: "color 120ms ease", important: false }] }
+        ];
+        C.rules.push(...plants);
+        let planted;
+        try {
+            planted = [stillness().running.includes("plant.css body.drpg-theme-stained-glass .drpg-plant-run > span [stained-glass]"),
+                stirring().moving.some(line => line.startsWith("monokuma-legacy button.drpg-chip: color 120ms ease (plant.css"))];
+        } finally {
+            for (const plant of plants) C.rules.splice(C.rules.indexOf(plant), 1);
+        }
+        equal(J(planted), J([true, true]), "the readers do not name the planted endless run, or the planted transition on the notice history's chips under Monokuma Legacy");
+        const endlessRules = endlessIn();
+        must(endlessRules.length >= 5, `the sheets hold ${endlessRules.length} endless animation(s) - the reader reads too few to say anything`);
+        const { running, unbuilt, built } = stillness();
+        const { moving, tokens, readEls } = stirring();
+        must(readEls > 40, `the notice history's model holds ${readEls} element(s) - not the window`);
+        const zero = ["0ms", "0ms", "0ms", "0ms", "0ms", "0ms"];
+        equal(J({ follows, outside, running, unbuilt, built, moving, tokens }), J({
+            follows: { exported: ["function", "function"], applied: [true, false, true, true], followed: [true, true, true], putBack: true, writers: ["motion.mjs"], registered: [true, true] },
+            outside: [], running: [], unbuilt: [], built: true, moving: [], tokens: { "stained-glass": zero, "monokuma-legacy": zero }
+        }), "[motion.mjs: applyReducedMotion and followSystemMotion exported; the class for (system, setting) = (on, off), (off, off), (off, on), (on, on); "
+            + "the class following two changes of the system and none after it stopped; put back; the files that write the class; registerMotion listening to drpgThemeApplied, following the system; "
+            + "@media (prefers-reduced-motion) blocks outside motion.css; endless animations still running under the class; endless rules the reader could not build; every endless rule built; "
+            + "transitions left in the notice history under the class; the motion tokens under the class, each theme]");
+        (await import("./utils.mjs")).log(`R1410: ${blocks.length} media block(s) read, ${endlessRules.length} endless rule(s), ${readEls} notice-history element(s)`);
     }],
     ["R1377 - a turn's plan (glass.mjs `turnPlan`, E23 C1b; E23-01, E23-08): on stand-in panes a moving pane is carried by transform keyframes alone (with the opacity of its last fifth), a pane that only recolours by opacity alone, and no keyframe names a clip path; the last keyframe carries a moved triangle exactly onto its new place; the batches go out from the centre; a new accent on the same cut plans no move; `glassTurn` is the one entry point, the turn's start (`startTurn`) writes no clip path and draws on no canvas, and the curtain's clip path is written only where the cut is made and where the frost is clipped", async () => {
         /*

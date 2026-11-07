@@ -2138,9 +2138,7 @@ section[data-application-part="biography"] .experiences .value {
     transform: rotate(90deg);
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .drpg-bullet-group > summary .drpg-bullet-group-name::before { transition: none; }
-}
+body.drpg-reduced-motion .drpg-bullet-group > summary .drpg-bullet-group-name::before { transition: none; }
 
 .drpg-bullet-group > summary:hover {
     background: rgba(var(--drpg-eye-rgb), 0.1);
@@ -3190,9 +3188,7 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
     animation: none;
     box-shadow: 0 0 6px 1px color-mix(in srgb, var(--drpg-gold) 45%, transparent);
 }
-@media (prefers-reduced-motion: reduce) {
-    .character-header-sheet .name-row .drpg-advance-button.is-offered { animation: none; }
-}
+body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.is-offered { animation: none; }
 
 /* "This character has not been set up yet."
    ------------------------------------------------------------------------
@@ -6120,9 +6116,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     animation: drpg-spent-veil var(--drpg-t-beat) var(--drpg-ease-leave) 1;
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .drpg-spent::before { animation: none; }
-}
+body.drpg-reduced-motion .drpg-spent::before { animation: none; }
 
 /* The footprint is a Font Awesome glyph rather than a masked sprite, so the
    flare has to reach the `<i>` inside it. */
@@ -6181,9 +6175,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     animation: drpg-spent-veil var(--drpg-t-beat) var(--drpg-ease-arrive) 1;
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .drpg-gained::before { animation: none; }
-}
+body.drpg-reduced-motion .drpg-gained::before { animation: none; }
 
 .character-header-sheet .drpg-free-move.drpg-gained > i,
 #drpg-player-status .drpg-free-move.drpg-gained > i {
@@ -6243,17 +6235,13 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 
 /* Both of these outweigh the plain `.drpg-spent` guards around them, so they
    have to say it themselves. `--drpg-t-beat` is already 0ms under the same
-   query; this is the belt to that pair of braces. */
-@media (prefers-reduced-motion: reduce) {
-    #drpg-player-status .drpg-status-pip.drpg-spent::before,
-    #drpg-player-status .drpg-free-move.drpg-spent > i {
-        animation: none;
-    }
+   class; this is the belt to that pair of braces. */
+body.drpg-reduced-motion #drpg-player-status .drpg-status-pip.drpg-spent::before,
+body.drpg-reduced-motion #drpg-player-status .drpg-free-move.drpg-spent > i {
+    animation: none;
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .drpg-spent { animation: none; }
-}
+body.drpg-reduced-motion .drpg-spent { animation: none; }
 
 /* ==========================================================================
    THE TIME OF DAY TURNS OVER
@@ -6373,9 +6361,7 @@ body.drpg-player.drpg-resources-locked .character-header-sheet .character-traits
     50%      { opacity: 0.62; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .drpg-pending-call { animation: none; }
-}
+body.drpg-reduced-motion .drpg-pending-call { animation: none; }
 
 /* ==========================================================================
    POPUPS
@@ -6665,10 +6651,8 @@ body.drpg-theme-stained-glass #drpg-popups {
    cannot express - the popup's arrival is a slide, and a reader who asked for
    stillness should get the card in place rather than sliding from nowhere at
    zero length. */
-@media (prefers-reduced-motion: reduce) {
-    .drpg-popup,
-    .drpg-popup.leaving { transform: none; }
-}
+body.drpg-reduced-motion .drpg-popup,
+body.drpg-reduced-motion .drpg-popup.leaving { transform: none; }
 
 body.drpg-pixel-font .drpg-popup-title {
     font-family: var(--drpg-font-pixel, var(--font-primary, sans-serif));
@@ -7605,9 +7589,7 @@ body[data-drpg-phase] :is(#drpg-player-status, #countdowns, #players) {
     50% { opacity: 0.55; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-    #drpg-hud .drpg-hud-time.is-objection { animation: none; }
-}
+body.drpg-reduced-motion #drpg-hud .drpg-hud-time.is-objection { animation: none; }
 
 /* The debate's clock, on the trial's card of the Event panel (22.09; it stood in the
    clock's elapsed line until then).
@@ -9092,15 +9074,13 @@ body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-shee
     }
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .application.sheet.actor .character-sidebar-sheet .drpg-resource-fill {
-        transition: none;
-    }
+body.drpg-reduced-motion .application.sheet.actor .character-sidebar-sheet .drpg-resource-fill {
+    transition: none;
+}
 
-    .application.sheet.actor .character-sidebar-sheet .drpg-resource-delta {
-        animation: none;
-        opacity: 0;
-    }
+body.drpg-reduced-motion .application.sheet.actor .character-sidebar-sheet .drpg-resource-delta {
+    animation: none;
+    opacity: 0;
 }
 
 /* Named by the bar's `data-resource`, not by its position - the same reason
@@ -10085,9 +10065,7 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     animation: drpg-pending-pulse 1.6s ease-in-out infinite;
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .drpg-call-button.drpg-call-pending::after { animation: none; }
-}
+body.drpg-reduced-motion .drpg-call-button.drpg-call-pending::after { animation: none; }
 
 /* ---- one masked sprite, wherever the module wants a glyph of its own -------
    pixel-icons.css masks Font Awesome where the module already draws an icon.
@@ -10275,10 +10253,8 @@ body.drpg-theme-monokuma-legacy .drpg-event {
     animation: drpg-pending-pulse 1.6s ease-in-out infinite;
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .drpg-event.due .drpg-event-meta,
-    .drpg-event.mine .drpg-event-meta { animation: none; }
-}
+body.drpg-reduced-motion .drpg-event.due .drpg-event-meta,
+body.drpg-reduced-motion .drpg-event.mine .drpg-event-meta { animation: none; }
 
 /* The ticker is a faint second copy of the card's own word, drawn behind it -
    a texture Stained Glass builds out of a faint colour, and Monokuma Legacy has
@@ -13678,14 +13654,12 @@ form:has(input[name="secret"]:not(:checked)):has(input[name="murder"]:not(:check
     pointer-events: none;
 }
 
-@media (prefers-reduced-motion: reduce) {
-    #drpg-messenger-roster {
-        transition: none;
-        opacity: 1;
-        transform: none;
-    }
-    #drpg-messenger-roster.leaving { opacity: 0; }
+body.drpg-reduced-motion #drpg-messenger-roster {
+    transition: none;
+    opacity: 1;
+    transform: none;
 }
+body.drpg-reduced-motion #drpg-messenger-roster.leaving { opacity: 0; }
 
 #drpg-messenger-launcher,
 #drpg-messenger-roster {
@@ -14732,12 +14706,10 @@ body.drpg-pixel-font #pause.paused figcaption {
 /* Reduced motion takes the breath out of it and leaves the lines. Foundry's
    own `pulse` on the caption is left alone - it is core's, and the global
    reduced-motion rule further down already answers for it. */
-@media (prefers-reduced-motion: reduce) {
-    #pause.paused figcaption::before,
-    #pause.paused figcaption::after {
-        animation: none;
-        opacity: 0.6;
-    }
+body.drpg-reduced-motion #pause.paused figcaption::before,
+body.drpg-reduced-motion #pause.paused figcaption::after {
+    animation: none;
+    opacity: 0.6;
 }
 
 /* ==========================================================================
@@ -17646,9 +17618,6 @@ body.drpg-theme-stained-glass #drpg-hud .drpg-hud-track i.drpg-hud-track-note {
 /* A name that stands still is still a name you can read, which is the whole
    point of the line; the scroll is how a long one finishes its sentence. */
 body.drpg-reduced-motion .drpg-hud-track > span { animation: none; }
-@media (prefers-reduced-motion: reduce) {
-    .drpg-hud-track > span { animation: none; }
-}
 
 /* ==========================================================================
    FORCED COLOURS - the interface when the browser is repainting it

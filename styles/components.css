@@ -1074,10 +1074,6 @@ body.drpg-no-ticker .drpg-voice-tile-state > span,
 body.drpg-reduced-motion .drpg-voice-tile-state > span,
 body.drpg-stacked .drpg-voice-tile-state > span { animation: none; }
 
-@media (prefers-reduced-motion: reduce) {
-    .drpg-voice-tile-state > span { animation: none; }
-}
-
 /* STILL, UNDER THE BUTTONS (H81 fix r1, 20.10.2026; the review's H81C2-02). Standing still in the band left of the
    buttons, a word is cut: "Connecting" and "Connected" both read "CONNECT", so the one word that tells a Room
    reconnecting from a Room connected said the same of both. While it stands still - the ticker off, reduced motion
@@ -1091,13 +1087,6 @@ body.drpg-no-ticker .drpg-voice-tile-state,
 body.drpg-reduced-motion .drpg-voice-tile-state {
     top: 40px;
     right: 6px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .drpg-voice-tile-state {
-        top: 40px;
-        right: 6px;
-    }
 }
 
 /* On a stacked screen, in the tiles' row between the face (hidden while nobody speaks) and the buttons.

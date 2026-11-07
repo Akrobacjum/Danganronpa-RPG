@@ -14070,7 +14070,9 @@ const REGRESSIONS = [
          * visibility hidden, opacity 0 or content-visibility) but the one keyed on `[hidden]`, none states an
          * opacity or a transparent fill, and their colours are the two full inks the stylesheets give it (Legacy's
          * `--color-text-primary`, Stained Glass's `--drpg-glass-accent`); and `animation: none` on its runs under
-         * `body.drpg-no-ticker`, `body.drpg-reduced-motion`, `body.drpg-stacked` and `prefers-reduced-motion`.
+         * `body.drpg-no-ticker`, `body.drpg-reduced-motion` and `body.drpg-stacked` (and `prefers-reduced-motion` until
+         * E23 C5c: since then the system's preference puts `drpg-reduced-motion` on, motion.mjs `applyReducedMotion`,
+         * and no sheet but motion.css holds a `prefers-reduced-motion` block - R1410).
          * narrow.css, which loads last, is read with the rest: a rule there hiding the word is caught as anywhere.
          * The reader is held to three plants first: the word hidden with the ticker off, its colour at 0.2, and
          * the stacked screen's stop taken out. What the word looks like on the tile's picture is the glass
@@ -14142,7 +14144,7 @@ const REGRESSIONS = [
             const inks = [...new Set(word.map(({ decl }) => /(?:^|;)\s*color\s*:\s*([^;!]+)/.exec(decl)?.[1].trim()).filter(Boolean))].sort();
             const stops = rule => /\.drpg-voice-tile-state\s*>\s*span$/.test(rule.sel) && /(?:^|;)\s*animation\s*:\s*none\b/.test(rule.decl);
             const stopped = Object.fromEntries(Object.entries(SWITCHES).map(([what, re]) => [what, word.some(rule => stops(rule) && re.test(rule.sel))]));
-            stopped["prefers-reduced-motion"] = word.some(rule => stops(rule) && /prefers-reduced-motion\s*:\s*reduce/.test(rule.within));
+            stopped["prefers-reduced-motion"] = word.some(rule => /prefers-reduced-motion\s*:\s*reduce/.test(rule.within));
             const runs = word.some(({ sel, decl, within }) => /\.drpg-voice-tile-state\s*>\s*span$/.test(sel) && !within
                 && /(?:^|;)\s*animation\s*:\s*drpg-voice-word-run\b/.test(decl));
             return [word.length > 0, hides, faint, inks, stopped, runs];
@@ -14165,7 +14167,7 @@ const REGRESSIONS = [
         "the reader does not see the word hidden with the ticker off, its colour at 0.2, or the stacked screen's stop taken out");
         // Legacy's ink falls back to the literal components.css holds as a token (E44 C6: no literal outside one there).
         equal(J(reading(sheets)), J([true, [], [], ["var(--color-text-primary, var(--drpg-a8-text-fallback))", "var(--drpg-glass-accent)"],
-            { "no ticker": true, "reduced motion": true, stacked: true, "prefers-reduced-motion": true }, true]),
+            { "no ticker": true, "reduced motion": true, stacked: true, "prefers-reduced-motion": false }, true]),
         "[rules name the word; rules that hide it; rules that set it faint; its colours; its runs stopped by each switch; its runs running otherwise]");
         const all = sheets.flatMap(([name, css]) => rulesOf(css).map(rule => ({ ...rule, name, sel: rule.sel.replace(/\s+/g, " ") })));
         const last = (sel, prop) => all.filter(rule => rule.sel === sel && !rule.within)
@@ -14177,14 +14179,13 @@ const REGRESSIONS = [
             full: ["top", "bottom"].map(prop => last(FULL, prop)), compact: ["top", "bottom"].map(prop => last(COMPACT, prop)),
             faceRaised: all.filter(({ sel, decl }) => /\.drpg-voice-tile-face$/.test(sel) && /(?:^|;)\s*z-index\s*:/.test(decl)).map(({ name, sel }) => `${name} ${sel}`),
             still: ["body.drpg-no-ticker .drpg-voice-tile-state", "body.drpg-reduced-motion .drpg-voice-tile-state"].map(sel => ["top", "right"].map(prop => last(sel, prop))),
-            stillSystem: ["top", "right"].map(prop => all.filter(rule => rule.sel === ".drpg-voice-tile-state" && /prefers-reduced-motion\s*:\s*reduce/.test(rule.within))
-                .map(rule => new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;!]+)`).exec(rule.decl)?.[1].trim()).filter(Boolean).at(-1) ?? null),
+            stillSystem: all.filter(rule => /\.drpg-voice-tile-state\b/.test(rule.sel) && /prefers-reduced-motion\s*:\s*reduce/.test(rule.within)).length,
             rowFace: ["body.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden])", "body.drpg-theme-stained-glass.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden])"]
                 .map(sel => last(sel, "min-width"))
         }), J({ legacy: ["6px", "auto", "76px", "1", "var(--drpg-a8-deep-85)"], full: ["calc(7px - var(--drpg-voice-lift, 0px))", "auto"], compact: ["2px", "auto"], faceRaised: [],
-            still: [["40px", "6px"], ["40px", "6px"]], stillSystem: ["40px", "6px"], rowFace: ["196px", "124px"] }),
+            still: [["40px", "6px"], ["40px", "6px"]], stillSystem: 0, rowFace: ["196px", "124px"] }),
         "[Legacy's word: top, bottom, right (left of the two buttons), z-index, its ink band; the wall's full form: top, bottom; its compact form: top, bottom; rules that raise the face; "
-        + "the still word's top and right with the ticker off and under reduced motion, and under the system's; the least width of a face shown in the row, Legacy and Stained Glass]");
+        + "the still word's top and right with the ticker off and under reduced motion (the module's switch or the system's, one class since E23 C5c), the rules of the word under a media query of the system's (none); the least width of a face shown in the row, Legacy and Stained Glass]");
     }],
     ["R591 - the Objection's target and evidence are the primary GM's: LiveKit's speaker list is read in voice-tile.mjs and trial-speakers.mjs alone, the record and its two reads are declared once, exported, there; objectOnPrimary reads the packet's target only with no Room, the filled card is drawn from the holder's view, a player's own Objection card is refused, the trial bar does not load the trial at start, and the sheet's row raises no Objection", async () => {
         /*

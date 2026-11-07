@@ -129,11 +129,14 @@
     }
 }
 
-/* The same, said by this browser rather than by its operating system: the Look window's
-   "Reduced motion" (a client setting) puts `drpg-reduced-motion` on the body, and everything
-   that reads the media query above reads this class too - `reducedMotion()` in motion.mjs and
-   `REDUCED()` in glass.mjs. A player should not have to change a system setting to ask one
-   module to hold still. */
+/* The same, said by this browser as well as by its operating system: motion.mjs
+   (`applyReducedMotion`) puts `drpg-reduced-motion` on the body for the Look window's
+   "Reduced motion" (a client setting) or for the system's preference, and follows the system's
+   change (E23 C5c). Everything that reads the media query above reads this class too -
+   `reducedMotion()` in motion.mjs and `REDUCED()` in glass.mjs - and every other sheet's
+   reduced-motion rule is a rule under it; the block above stays as the system's own for the
+   moment before motion.mjs has run. A player should not have to change a system setting to
+   ask one module to hold still. */
 body.drpg-reduced-motion {
     --drpg-t-snap: 0ms;
     --drpg-t-enter: 0ms;
