@@ -37012,6 +37012,31 @@ const INVARIANTS = [
         equal(JSON.stringify([[layout.moves.length, layout.batches.length, layout.flashes.length], [hour.moves.length, hour.batches.reduce((n, b) => n + b.panes.length, 0), hour.flashes.length, Boolean(hour.frost)]]),
             JSON.stringify([[2, 0, 0], [0, 4, 4, false]]),
             "[the same accent recut: moves, recolour batches, flashes]; [the same cut, a new accent: moves, panes recoloured, flashes, the frost lifted]");
+        /* E23 C1b fix (07.11.2026; C1b's Open 11): a recut that keeps the colour carries BOTH looks along one path
+           (`carry: "both"`): the old look cut to the old polygon, the new look cut to the new one, each move's `back`
+           its keyframes from the new corners laid on the old to the identity, and the old hands over to the new in one
+           keyframe (two at one offset), both standing on the same points there. The old look carried all the way was the
+           plainer glass a recut had made stained (`--turn` layout 26 % at 1600x900). The curtain stands aside until
+           every travelling pane is within TURN_SNAP px of its place (`hold.curtain`, stepping back in at `snap`), and an
+           old block's plate nothing comes from (the room tile taken away) is not carried at all: its place is a hole the
+           new look fills from the first frame (`hold.holes`). Red at f26d4467: no `carry`, no `back`, no `hold`, the plate
+           in a batch. */
+        const plate = { poly: [[150, 100], [250, 100], [250, 200], [150, 200]], content: true, tone: "room-block" };
+        const kept = G.turnPlan([...panes(old), plate], panes(now), { W, H, fromAcc: "#ff3d8b", acc: "#ff3d8b", dur: 1200 });
+        const mv = kept.moves.find(x => x.to === 0), back = mv?.back;
+        const corners = (frame, poly, box) => { const [a2, b2, c2, d2, e2, f2] = frame.transform.match(/-?[\d.]+(?:e-?\d+)?/g).map(Number); return poly.map(([x, y]) => { const qx = x - box.x0, qy = y - box.y0; return [box.x0 + a2 * qx + c2 * qy + e2, box.y0 + b2 * qx + d2 * qy + f2]; }); };
+        const near = (p, q) => p.every((v, k) => Math.hypot(v[0] - q[k][0], v[1] - q[k][1]) < 0.05);
+        const onAt = f => f.find(k => +k.opacity === 1)?.offset ?? null, offAt = f => { const n = f.findIndex((k, x) => x && +k.opacity === 0 && +f[x - 1].opacity === 1); return n < 0 ? null : f[n].offset; };
+        const swap = back ? onAt(back.frames) : null, kOld = mv && swap != null ? mv.frames.find(k => k.offset === swap) : null, kNew = back && swap != null ? back.frames.find(k => k.offset === swap && +k.opacity === 1) : null;
+        equal(JSON.stringify([kept.carry ?? null, plan.carry ?? null, Boolean(back), back ? back.frames.at(-1).transform.replace(/\s/g, "") : null,
+            back ? [...mv.frames, ...back.frames].every(k => +k.opacity === 0 || +k.opacity === 1) : null,
+            back ? (swap === 0 ? onAt(mv.frames) === null : offAt(mv.frames) === swap) : null,
+            back ? near(corners(back.frames[0], now[0], back.box), old[0]) : null,
+            kOld && kNew ? near(corners(kNew, now[0], back.box), corners(kOld, old[0], mv.box)) : null,
+            kept.hold ? [kept.hold.curtain.map(k => k.opacity).join(), kept.hold.curtain[1].offset === kept.snap, kept.hold.holes.includes(4)] : null,
+            kept.batches.some(x => x.panes.includes(4))]),
+            JSON.stringify(["both", "old", true, "matrix(1,0,0,1,0,0)", true, true, true, true, ["0,0,1,1", true, true], false]),
+            "[a recut keeping its colour carries, a recolour carries; a move's way back, its last transform; every layer whole or gone; the old look gone in the keyframe the new comes in; the new look's first keyframe on the old corners; both looks on the same points at the hand-over; [the curtain held aside and back at `snap`, the plate's place a hole]; the old plate carried]");
     }],
     ["R1378 - the flash at today's brightness (glass.mjs `FLASH`, `FLASH_KF`, `bakeFlash`; E23 C1b; E23-03): its constants are one table - bone #f2eee6, 1.6 px, alpha 1, screen, a rise over 8 % of 420 ms, held to 32 %, a cubic fall - and the keyframes are read off it; a cut's seams are baked once, one layer a pane, each seam on one layer only, and a recolour of the same cut bakes nothing; a pane in a turn's plan flashes once", async () => {
         /*
@@ -37072,6 +37097,18 @@ const INVARIANTS = [
             "[canvases made by the same cut again and by a recolour, then by a new cut: four only for the new cut; layers after each]");
         const plan = G.turnPlan(panes(), panes(), { W, H, fromAcc: "#ffd38f", acc: "#ff3d8b", dur: 1200 });
         equal(JSON.stringify(plan.flashes.map(x => x.pane).sort()), JSON.stringify([0, 1, 2, 3]), "the panes a recolour flashes, each once");
+        /* E23 C1b fix (07.11.2026; C1b's Open 10 and the combined tree's `turn phase 1600x900 player ... draw 4/7`). Each
+           seam layer is blended `screen` inside the flash's own group, which is laid over the page as it is, as
+           1d860414's `canvas.flash` blended inside the curtain's: screened over the page itself the peak read 2.9-3.0
+           above (probe-flash, 1600x900 hour 206.3 against 203.3, 1366x768 player phase 203.6 against 200.6). And a band's
+           or an objection's flash (`flashSeams`) strokes its seams once and is played by opacity: it drew in every frame
+           of its 420 ms, and a window band's flash on a phase change drew in four frames of the curtain's turn.
+           Red at f26d4467: no blend on the layer; `flashSeams` asks requestAnimationFrame. */
+        const host = stripComments(fnSource(src, "flashHost")), seams = stripComments(fnSource(src, "flashSeams"));
+        const layer = recut?.[0]?.style?.cssText ?? "";
+        equal(JSON.stringify([/mix-blend-mode:\s*screen/.test(layer), /mix-blend-mode/.test(host), /requestAnimationFrame/.test(seams), /\.animate\(/.test(seams) && /FLASH_KF|flashFrames/.test(seams)]),
+            JSON.stringify([true, false, false, true]),
+            "[a seam layer blended screen, its host blended, a band's flash drawing on frames, a band's flash played by its keyframes]");
     }],
     ["R1379 - the turn's clock (motion.css `--drpg-t-curtain`, stained-glass.css, glass.mjs `startTurn`; E23 C1b; E23-02, E23-07): the curtain's time is 1200 ms and the interface's beat 840 ms; under Stained Glass the turning list's colours run on the curtain's time and a rail's transform on the beat, under Monokuma Legacy nothing reads the curtain's time; a turn starts at the second animation frame after its bake, never at the event; reduced motion plans nothing", async () => {
         /*

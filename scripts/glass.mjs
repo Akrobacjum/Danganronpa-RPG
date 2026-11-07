@@ -3360,6 +3360,8 @@ const TURN_MOVE = 700, TURN_BATCHES = 8, TURN_FADE = 300, FROST_OUT = 120, FROST
 /* How far a point has to travel before its pane counts as moving, and the share of moving panes that is worth a turn
    when the colour stays: folding the Projects tray recuts a corner, and a corner is not worth a turn (morph's rule). */
 const TURN_MOVED = 2, TURN_WORTH = 0.3;
+/* how near its place a layer carried back must stand before the glass beneath takes over (`turnPlan`'s `back`) */
+const TURN_SNAP = 2;
 /* THE FLASH, TODAY'S (MK-R2, the owner: "keep today's flash"): `flashSeams(j, "#f2eee6", 420)` at 1d860414 - every seam
    in bone, 1.6 px, alpha 1 at its peak, on a layer blended `screen`, rising over 8 % of the time, held to 32 %, then
    (1 - x)^3. C1a's `--turn` read the field seams' median luminance at its peak 202-204 at 1600x900 (MK-R2: 203). One
@@ -3409,6 +3411,21 @@ function matrixAt(A, o) {
   const [a11, a12, tx, a21, a22, ty] = A;
   return "matrix(" + [num(a11, 5), num(a21, 5), num(a12, 5), num(a22, 5), num(a11 * o[0] + a12 * o[1] + tx - o[0], 2), num(a21 * o[0] + a22 * o[1] + ty - o[1], 2)].join(",") + ")";
 }
+/* the affine maps' algebra the hand-over needs: `A` undone (null when it folds the plane flat), `A` then `B`, and how
+   far `A` bends a picture from its own size - the larger of its linear part's singular values' logs, either way: a
+   picture squeezed to a quarter loses its seams as surely as one stretched loses its grain (the layout turn's pane
+   handed over at once, squeezed to 0.25, read 36 % of rest) */
+function invAffine(A) {
+  const [a, b, tx, c, d, ty] = A, D = a * d - b * c;
+  if (Math.abs(D) < 1e-9) return null;
+  return [d / D, -b / D, (b * ty - d * tx) / D, -c / D, a / D, (c * tx - a * ty) / D];
+}
+const thenAffine = (A, B) => [B[0] * A[0] + B[1] * A[3], B[0] * A[1] + B[1] * A[4], B[0] * A[2] + B[1] * A[5] + B[2], B[3] * A[0] + B[4] * A[3], B[3] * A[1] + B[4] * A[4], B[3] * A[2] + B[4] * A[5] + B[5]];
+function stretchOf(A) {
+  const [a, b, , c, d] = A, s = a * a + b * b + c * c + d * d, D = a * d - b * c, r = Math.sqrt(Math.max(0, s * s - 4 * D * D));
+  const hi = Math.sqrt((s + r) / 2), lo = Math.sqrt(Math.max(0, (s - r) / 2));
+  return lo > 1e-6 ? Math.max(Math.log(hi), -Math.log(lo)) : Infinity;
+}
 const boxOf = (polys, pad) => {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const p of polys) for (const [x, y] of p) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
@@ -3435,7 +3452,7 @@ export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 120
   const gap = Math.min(120, Math.max(70, Math.floor((dur - FLASH.ms) / (TURN_BATCHES - 1))));
   const delayOf = batchOf.map(b => b * gap);
   const ease = curveOf(curve);
-  const used = new Set(), moves = [], items = [];
+  const used = new Set(), moves = [], items = [], statics = [], holes = [];
   to.forEach((p, i) => {
     const c = centroid(p.poly);
     let best = -1, bd = Infinity;
@@ -3452,7 +3469,7 @@ export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 120
     let bestK = 0, bestD = Infinity;
     for (let k = 0; k < N; k++) { let d = 0; for (let n = 0; n < N; n++) { const f = F[(n + k) % N]; d += (f[0] - T[n][0]) ** 2 + (f[1] - T[n][1]) ** 2; } if (d < bestD) { bestD = d; bestK = k; } }
     F = F.map((_, n) => F[(n + bestK) % N]);
-    if (!F.some((q, n) => Math.hypot(q[0] - T[n][0], q[1] - T[n][1]) > TURN_MOVED)) { if (recolour) items.push({ from: best, batch: batchOf[i] }); return; }
+    if (!F.some((q, n) => Math.hypot(q[0] - T[n][0], q[1] - T[n][1]) > TURN_MOVED)) { if (recolour) items.push({ from: best, batch: batchOf[i] }); else statics.push(i); return; }
     const A = fitAffine(F, T);
     const err = Math.max(...F.map(([x, y], n) => Math.hypot(A[0] * x + A[1] * y + A[2] - T[n][0], A[3] * x + A[4] * y + A[5] - T[n][1])));
     const box = boxOf([a], 1), o = [box.x0, box.y0];
@@ -3462,18 +3479,62 @@ export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 120
       const M = [1 + u * (A[0] - 1), u * A[1], u * A[2], u * A[3], 1 + u * (A[4] - 1), u * A[5]];
       frames.push({ offset, transform: matrixAt(M, o), opacity: offset <= 0.8 ? 1 : +(1 - (offset - 0.8) / 0.2).toFixed(3) });
     }
-    moves.push({ to: i, from: best, box, err: +err.toFixed(2), frames });
+    /* THE HAND-OVER (E23 C1b fix): a recut that keeps its colour carries both looks along the one path - the old look
+       cut to the old polygon by M(s), the new look cut to the new polygon by M(s) after A's inverse, so at every
+       sample the two stand on the same points and N(1) is the identity exactly - and hands the old over to the new at
+       `swap`, the sample at which the worse of the two pictures is bent least from its own size (`stretchOf`).
+       Its keyframes are written once every move's is known (`snap`, below). */
+    const Ai = invAffine(A), bbox = boxOf([b], 1);
+    const Mf = s => { const u = ease(s / 20); return [1 + u * (A[0] - 1), u * A[1], u * A[2], u * A[3], 1 + u * (A[4] - 1), u * A[5]]; };
+    const Nf = s => s >= 20 ? [1, 0, 0, 0, 1, 0] : thenAffine(Ai, Mf(s));
+    let swap = 10, sc = Infinity, near = 20;
+    if (Ai) {
+      for (let s = 0; s <= 20; s++) { const c = Math.max(stretchOf(Mf(s)), stretchOf(Nf(s))); if (c < sc - 1e-9) { sc = c; swap = s; } }
+      for (let s = swap; s < 20; s++) { const N = Nf(s); if (Math.max(...b.map(([x, y]) => Math.hypot(N[0] * x + N[1] * y + N[2] - x, N[3] * x + N[4] * y + N[5] - y))) <= TURN_SNAP) { near = s; break; } }
+    }
+    moves.push({ to: i, from: best, box, err: +err.toFixed(2), frames, back: Ai ? { box: bbox, Mf, Nf, swap, near, frames: null } : null });
   });
   // an old pane nothing comes from fades where it stood, in the batch of the nearest new pane by distance
   const cx = W / 2 || 1, cy = H / 2 || 1;
   from.forEach((o, k) => {
+    /* a block's plate nothing comes from left with its block, at once (E23 C1b fix: the room tile taken away left its
+       dark plate fading over the stained glass the recut put in its place); where it stood is a hole the new look
+       fills from the first frame (`hold`, below) */
     if (used.has(k)) return;
+    if (o.content) { holes.push(k); return; }
     const [x, y] = meanOf(o.poly), d = Math.hypot((x - cx) / cx, (y - cy) / cy);
     let near = order[0], nd = Infinity;
     for (const i of order) if (Math.abs(dist[i] - d) < nd) { nd = Math.abs(dist[i] - d); near = i; }
     items.push({ from: k, batch: batchOf[near] });
   });
   if (!recolour && moves.length < to.length * TURN_WORTH) return none;
+  /* THE CURTAIN STANDS ASIDE WHILE THE NEW LOOK TRAVELS (E23 C1b fix, 07.11.2026). With the new cut painted beneath, a
+     travelling pane is translucent glass over its own destination: the two pictures, a few pixels apart, averaged each
+     other's streaks away - the harness's layout turn at 1600x900 read the squares the move crosses at 45-55 % of
+     their rest for 400 ms of it (the sweep's own per-square series), and in its last pixels the layer's filtering
+     softened them again. So for such a turn the curtain is held at opacity 0 (`hold`), the panes that stand are one
+     layer of the new look in its place, and every layer steps out - two keyframes at one offset - in the frame the
+     curtain steps back in, at `snap`: the first of twenty samples at which every travelling pane stands within
+     TURN_SNAP px of its place. The picture at that step is the same picture. Where a block's plate stood (`holes`)
+     nothing old travelled from: the new look stands there from the first frame, in the same layer as the panes that
+     stand, and the moving layers are clipped off it (`glassTurn`) - held aside, the curtain left the page bare there,
+     the square at 64,384 at 6 % of rest. */
+  let snap = 1, hold = null;
+  if (!recolour && moves.length && moves.every(m => m.back)) {
+    const s0 = Math.max(...moves.map(m => m.back.near));
+    snap = s0 / 20;
+    // two keyframes at one offset are a step: the layer is shown up to it and gone from it
+    const stepped = (fn, o, on, off) => { const f = []; for (let s = 0; s <= 20; s++) { const tr = matrixAt(fn(s), o), was = s > on && s <= off ? 1 : 0, is = s >= on && s < off ? 1 : 0; if (s && was !== is) f.push({ offset: s / 20, transform: tr, opacity: was }); f.push({ offset: s / 20, transform: tr, opacity: is }); } return f; };
+    for (const m of moves) {
+      m.frames = stepped(m.back.Mf, [m.box.x0, m.box.y0], 0, m.back.swap);
+      m.back.frames = stepped(m.back.Nf, [m.back.box.x0, m.back.box.y0], m.back.swap, s0);
+    }
+    const step = [{ offset: 0, opacity: 1 }, { offset: snap, opacity: 1 }, { offset: snap, opacity: 0 }, { offset: 1, opacity: 0 }];
+    const held = [...statics.map(i => to[i].poly), ...holes.map(k => from[k].poly)];
+    hold = { panes: statics, holes, box: boxOf(held.length ? held : [[[0, 0], [1, 1]]], 1), frames: step,
+      curtain: [{ offset: 0, opacity: 0 }, { offset: snap, opacity: 0 }, { offset: snap, opacity: 1 }, { offset: 1, opacity: 1 }] };
+  } else for (const m of moves) m.back = null;
+  for (const m of moves) if (m.back) { m.back = { box: m.back.box, swap: m.back.swap, frames: m.back.frames }; }
   const batches = [];
   for (const it of items) {
     let b = batches.find(x => x.k === it.batch);
@@ -3485,6 +3546,13 @@ export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 120
   const flashes = flash && recolour ? order.map(i => ({ pane: i, delay: delayOf[i] })) : [];
   const fadeEnd = batches.length ? Math.max(...batches.map(b => b.delay + b.ms)) : 0;
   return {
+    /* WHICH LOOK TRAVELS (E23 C1b fix, 07.11.2026). A recolour carries the old look and lets it go in its last fifth, so
+       the colour arrives with the batches. A recut that keeps its colour carries both (`back`, the hand-over): the old
+       look is the glass as it was painted for the old cut, and `paintGlass` stains a pane by its centre, so a pane
+       carried old all the way arrived plain where its place is stained - the harness's layout turn at 1600x900, the
+       texture in its band at 26 % of rest (1d860414: 45 %); carried new all the way, it left squeezed or stretched
+       from corners that are not its own. */
+    carry: recolour ? "old" : hold ? "both" : "old", hold, snap,
     none: false, recolour, recut: moves.length > 0, dur, move: { ms: move, curve }, order, batchOf, delayOf, gap, moves, batches, flashes,
     frost: moves.length ? { out: FROST_OUT, in: FROST_IN } : null,
     glow: { ms: Math.max(moves.length ? move : 0, fadeEnd) || move }
@@ -3493,13 +3561,18 @@ export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 120
 /* ---- the turn's layers ---- */
 const TURN_LAYER = "position:absolute;margin:0;padding:0;border:0;pointer-events:none;transform-origin:0 0;";
 const layerBox = b => "left:" + b.x0 + "px;top:" + b.y0 + "px;width:" + (b.x1 - b.x0) + "px;height:" + (b.y1 - b.y0) + "px;";
-/* one canvas of the old look, cut to the polygons given, the size of their box */
+/* one canvas of the old look, cut to the polygons given, the size of their box. A layer that travels is baked at twice
+   its size, each pixel of the look four of the layer's (E23 C1b fix, 07.11.2026): the compositor samples a moved
+   layer between its pixels, and one pixel of a seam or a streak, averaged with its neighbour, went - the harness's
+   layout turn at 1600x900, the travelling pane over 256,640 at 47 % of rest at one pixel a pixel, 56 % at four. */
 function cutLook(look, polys, box, cls) {
-  const c = document.createElement("canvas");
-  c.className = cls; c.width = Math.max(1, box.x1 - box.x0); c.height = Math.max(1, box.y1 - box.y0);
+  const c = document.createElement("canvas"), k = cls === "drpg-turn-pane" ? 2 : 1;
+  c.className = cls; c.width = Math.max(1, box.x1 - box.x0) * k; c.height = Math.max(1, box.y1 - box.y0) * k;
   c.style.cssText = TURN_LAYER + layerBox(box);
   const g = c.getContext("2d");
   if (g) {
+    g.scale(k, k);
+    g.imageSmoothingEnabled = false;
     g.translate(-box.x0, -box.y0);
     g.beginPath();
     for (const poly of polys) poly.forEach((q, i) => (i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])));
@@ -3535,7 +3608,9 @@ function turnHost(j) {
   return h;
 }
 function flashHost(j) {
-  const h = curtainSibling(j, "drpg-curtain-flash", "drpg-turn-flash", "mix-blend-mode:" + FLASH.blend + ";");
+  /* no blend of its own (E23 C1b fix): its seam layers screen inside it, and the group lies over the page as
+     1d860414's flash canvas lay inside the curtain's group - screened over the page itself, the peak read 3 higher */
+  const h = curtainSibling(j, "drpg-curtain-flash", "drpg-turn-flash");
   const turn = document.getElementById("drpg-curtain-turn");
   const after = turn?.parentElement === j.el.parentElement ? turn : j.el;
   if (h.previousElementSibling !== after) after.after(h);
@@ -3567,7 +3642,7 @@ export function bakeFlash(job, { make = () => document.createElement("canvas") }
   const layers = panes.map((p, i) => {
     const box = boxOf([p.poly], pad), c = make();
     c.className = "drpg-turn-flash-pane"; c.width = Math.max(1, box.x1 - box.x0); c.height = Math.max(1, box.y1 - box.y0);
-    c.style.cssText = TURN_LAYER + layerBox(box) + "opacity:0;";
+    c.style.cssText = TURN_LAYER + layerBox(box) + "opacity:0;mix-blend-mode:" + FLASH.blend + ";";
     const g = sides[i].length ? c.getContext("2d") : null;
     if (g) {
       g.translate(-box.x0, -box.y0);
@@ -3586,13 +3661,15 @@ export function bakeFlash(job, { make = () => document.createElement("canvas") }
  * A turn's start (exported for R1379): its animations begin at the second animation frame after the bake, so the
  * clock of the turn is the first frame the browser paints, never the event (DIAGNOSIS.md 4: half of the morph's travel
  * fell in its first 0.29 s, in the frames the synchronous rebuild ate). Nothing here writes a style or draws: each layer
- * is handed to the browser as it was planned. `frame` is the frame scheduler (a test's own; the page's by default).
+ * is handed to the browser as it was planned - or, posed at its first keyframe by the bake (`h.posed`), let go.
+ * `frame` is the frame scheduler (a test's own; the page's by default).
  */
 export function startTurn(h, frame = cb => requestAnimationFrame(cb)) {
   frame(() => frame(t => {
     if (h.cancelled) return;
     h.t0 = t;
-    h.anims = h.layers.map(l => l.el.animate(l.frames, l.timing));
+    h.anims = h.posed ?? h.layers.map(l => l.el.animate(l.frames, l.timing));
+    if (h.posed) for (const a of h.posed) if (a.drpgPosed) a.play();
     h.onStart?.();
   }));
   return h;
@@ -3610,10 +3687,35 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
   const plan = turnPlan(from, to, { W: job.W, H: job.H, fromAcc, acc, dur, move, curve, flash, reduced: REDUCED() });
   if (plan.none || !look) return null;
   const host = turnHost(job), made = [], layers = [];
+  // the new look is the curtain as `curtainPaint` has just left it
+  const now = plan.carry === "both" && plan.hold ? snapshotLook(job, true) : null;
+  /* where a block's plate stood the new look stands from the first frame, and nothing travels over it (E23 C1b fix):
+     the layers that move lie in one box clipped to everything but those places, written once, before the clock */
+  let into = host;
+  if (now && plan.hold.holes.length) {
+    into = document.createElement("div");
+    into.className = "drpg-turn-moves";
+    const d = "M0 0H" + job.W + "V" + job.H + "H0Z" + plan.hold.holes.map(k => from[k].poly.map((q, i) => (i ? "L" : "M") + num(q[0], 1) + " " + num(q[1], 1)).join("") + "Z").join("");
+    into.style.cssText = TURN_LAYER + "left:0;top:0;width:" + job.W + "px;height:" + job.H + "px;clip-path:path(evenodd,'" + d + "');";
+    host.append(into); made.push(into);
+  }
   for (const m of plan.moves) {
     const c = cutLook(look, [from[m.from].poly], m.box, "drpg-turn-pane");
-    host.append(c); made.push(c);
+    into.append(c); made.push(c);
     layers.push({ el: c, frames: m.frames, timing: { duration: plan.move.ms, easing: "linear", fill: "forwards" }, move: true });
+    if (!now || !m.back) continue;
+    const n = cutLook(now, [to[m.to].poly], m.back.box, "drpg-turn-pane");
+    into.append(n); made.push(n);
+    layers.push({ el: n, frames: m.back.frames, timing: { duration: plan.move.ms, easing: "linear", fill: "forwards" }, move: true });
+  }
+  if (now && plan.hold) {
+    const held = [...plan.hold.panes.map(i => to[i].poly), ...plan.hold.holes.map(k => from[k].poly)];
+    if (held.length) {
+      const c = cutLook(now, held, plan.hold.box, "drpg-turn-batch");
+      host.prepend(c); made.push(c);
+      layers.push({ el: c, frames: plan.hold.frames, timing: { duration: plan.move.ms, easing: "linear", fill: "forwards" } });
+    }
+    layers.push({ el: job.el, frames: plan.hold.curtain, timing: { duration: plan.move.ms, easing: "linear" } });
   }
   for (const b of plan.batches) {
     const c = cutLook(look, b.panes.map(k => from[k].poly), b.box, "drpg-turn-batch");
@@ -3636,13 +3738,19 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
     if (glow) { glow.className = "curtain-glow drpg-turn-glow"; glow.style.cssText = gl.style.cssText; gl.after(glow); made.push(glow); layers.push({ el: glow, frames: [{ opacity: 1 }, { opacity: 0 }], timing: { ...timing, fill: "forwards" } }); }
   }
   count("glass.turn");
-  count("glass.turn.layers", made.length);
+  count("glass.turn.layers", made.length - (into === host ? 0 : 1));
   if (plan.recut) count("glass.turn.recut");
-  const h = { plan, layers, made, t0: null, anims: null, cancelled: false, ended: false };
+  /* POSED AT THE BAKE (E23 C1b fix, 07.11.2026): each layer's animation is made here and held at its start, so the
+     two frames before the clock show the first keyframe and not the layers as laid - the screencast of the harness's
+     layout turn at 1600x900 caught those two frames with the curtain whole under the new look already in place and the
+     old in its own, the square at 0,576 at 39 % of rest (2.48 of 6.31) in every version of the move tried. One held
+     already when it was made (the harness's frozen clock) is left held. */
+  const posed = layers.map(l => { const a = l.el.animate(l.frames, l.timing); a.drpgPosed = a.playState !== "paused"; if (a.drpgPosed) a.pause(); return a; });
+  const h = { plan, layers, made, posed, t0: null, anims: null, cancelled: false, ended: false };
   const end = done => {
     if (h.ended) return;
     h.ended = true; h.cancelled = !done;
-    for (const a of h.anims ?? []) a.cancel();
+    for (const a of h.anims ?? h.posed) a.cancel();
     if (!done) h.frostIn?.cancel();
     for (const c of made) c.remove();
     if (frost) clipToCut(frost, job.pathD);
@@ -3863,25 +3971,21 @@ function flashSeams(job, color, ms, { bloom = false } = {}) {
      first took the other's light away with it - a 1400 ms cut ending after 420. */
   const fc = document.createElement("canvas"); fc.className = "flash"; fc.width = W; fc.height = H;
   fc.style.cssText = LAYER; ref.after(fc);
+  /* DRAWN ONCE, PLAYED BY ITS OPACITY (E23 C1b fix, 07.11.2026). The seams were cleared and stroked again in every frame
+     of the flash at the envelope's alpha; on a phase change a window band's flash did so inside the curtain's turn
+     (`--turn` on the combined tree: 4 frames drew, a player's phase at 1600x900). They are stroked once at full
+     strength and the canvas's opacity runs `FLASH_KF` - the same rise, hold and cubic fall (`FLASH`) - over `ms`. */
   const g = fc.getContext("2d");
-  const t0 = performance.now();
-  const RISE = 0.08, HOLD = 0.32;
-  const step = t => {
-    const u = (t - t0) / ms;
-    g.clearRect(0, 0, W, H);
-    if (u >= 1 || !fc.isConnected) { fc.remove(); return; }
-    const a = u < RISE ? u / RISE : u < HOLD ? 1 : Math.pow(1 - (u - HOLD) / (1 - HOLD), 3);
-    g.strokeStyle = color;
-    if (bloom) {
-      g.save(); g.globalCompositeOperation = "lighter";
-      for (const [blur, mul, wdt] of [[12, 0.30, 3.0], [5, 0.42, 1.6]]) { g.filter = "blur(" + blur + "px)"; g.globalAlpha = a * mul; seams(g, job.panes, W / k, H / k, wdt, k); }
-      g.restore();
-    }
-    g.globalAlpha = a; seams(g, job.panes, W / k, H / k, 1.6, k);
-    g.globalAlpha = 1;
-    requestAnimationFrame(step);
-  };
-  requestAnimationFrame(step);
+  if (!g || typeof fc.animate !== "function") { fc.remove(); return; }
+  g.strokeStyle = color;
+  if (bloom) {
+    g.save(); g.globalCompositeOperation = "lighter";
+    for (const [blur, mul, wdt] of [[12, 0.30, 3.0], [5, 0.42, 1.6]]) { g.filter = "blur(" + blur + "px)"; g.globalAlpha = mul; seams(g, job.panes, W / k, H / k, wdt, k); }
+    g.restore();
+  }
+  g.globalAlpha = 1; seams(g, job.panes, W / k, H / k, FLASH.width, k);
+  const run = fc.animate(FLASH_KF, { duration: ms, easing: "linear", fill: "forwards" });
+  run.finished.then(() => fc.remove(), () => fc.remove());
 }
 /** Glass on a band: a window's title bar or the character sheet's header. */
 function dressBand(band, seedBase) {
