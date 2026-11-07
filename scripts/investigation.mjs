@@ -39,7 +39,7 @@ import { livingStudentsForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs
 import {
     plural, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
     workingScene, esc, placeRoomOptions, listOf, error } from "./utils.mjs";
-import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm, box } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, RAISED } from "./live.mjs";
 import { keyPlanStore, remnantStore } from "./gm-stores.mjs";
 import { murderState } from "./incident-store.mjs";
@@ -2099,9 +2099,9 @@ export function caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTr
                 </li>`; }).join("")}</ul>`
                 : "";
         })()}
-        <p class="notes${finalTruthPlacedThisChapter() ? "" : " drpg-warning"}">${game.i18n.localize(
-            finalTruthPlacedThisChapter() ? "DRPG.Mastermind.finalTruthPlaced"
-                : "DRPG.Mastermind.finalTruthReminder")}</p>
+        ${/* information, not a warning (D11; audit S12-59, E22 C6b): none placed yet is the kit's neutral box */ ""}
+        ${finalTruthPlacedThisChapter() ? `<p class="notes">${game.i18n.localize("DRPG.Mastermind.finalTruthPlaced")}</p>`
+            : box("info", `<p class="notes">${game.i18n.localize("DRPG.Mastermind.finalTruthReminder")}</p>`)}
         <label>${game.i18n.localize("DRPG.Investigation.room")}
             <select name="finalRoom">
                 <option value="">${esc(game.i18n.localize("DRPG.Mastermind.finalPickRoom"))}</option>

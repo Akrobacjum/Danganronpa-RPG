@@ -186,6 +186,14 @@
       "on": "--drpg-fill",
       "size": "small",
       "where": "words on a translucent fill: .application.sheet.actor .glassy, .application.sheet.actor .legend (the ground has alpha: Chromium's)"
+    },
+    {
+      "id": "sg-gm-row-picked",
+      "theme": "stained-glass",
+      "text": "--drpg-sg-ink",
+      "on": "--drpg-sg-gm-light",
+      "size": "small",
+      "where": "a picked row on the GM's road: body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):has(input:checked) (its ink) on the brush of ...drpg-gm-route:has(input:checked) (E22 C6b; audit S12-42: on --drpg-sg-gm it read 4.16)"
     }
   ]
 }

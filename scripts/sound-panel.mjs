@@ -27,7 +27,7 @@
 import { SITUATIONAL_PLAYLIST } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { error } from "./utils.mjs";
-import { emptyOption } from "./ui-kit.mjs";
+import { emptyOption, box } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { MUSIC_STATES, musicMap, isCuePlaylist, saveMusicKey } from "./music-states.mjs";
 import { situationalPlaylist, playTrack, resetMusic } from "./music-play.mjs";
@@ -148,8 +148,9 @@ function soundPlayPane() {
                     // So the module spells it. The button exists only while the
                     // playlist is missing, and it disappears the moment there is
                     // one - which the rebuild on `createPlaylist` now does by itself.
-                    : `<p class="notes drpg-warning" data-drpg-no-cue>${game.i18n.format(
-                        "DRPG.Music.noSituational", { name: SITUATIONAL_PLAYLIST })}</p>
+                    // Information, not a warning (D11; audit S12-59, E22 C6b): the kit's neutral box.
+                    : `${box("info", `<p class="notes" data-drpg-no-cue>${game.i18n.format(
+                        "DRPG.Music.noSituational", { name: SITUATIONAL_PLAYLIST })}</p>`)}
                     <button type="button" class="drpg-mini-button" data-drpg-make-cue>${
                         game.i18n.format("DRPG.Music.makeSituational",
                             { name: SITUATIONAL_PLAYLIST })}</button>`}

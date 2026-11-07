@@ -20660,6 +20660,41 @@ const REGRESSIONS = [
             wrappers: { chooseVariant: { kit: true, dialogV2: false }, callWindow: { kit: true, dialogV2: false } }, wrong: [], tableDialog: []
         }), "[each wrapper on drpgWindow with no DialogV2 of its own; a caller handing it Foundry's buttons, or a callWindow call with no footer; a file still naming tableDialog]");
     }],
+    ["R1374 - the handbooks say what red means in a window and that a player reads no chat (E22 C6b; E22-08; audit S12-91): the player's handbook, in English and in Polish, says under the GM mark's note that a red row or button in a window goes to the GM and the player waits for the answer; the GM's handbook, in both, says beside Foundry's rails that a player has no view of the chat, so what a GM types there is read by no player", async () => {
+        /*
+         * E22 C6b, 07.11.2026; audit S12-91 (D11: red means the GM's road for a player). The player's handbook explained
+         * the GM mark on a tile and said nothing of the red rows and buttons inside the windows the tiles open, so a
+         * player new to the table read "Focus your gaze" in red as dangerous or as advised; the GM's handbook said a
+         * player has no sidebar and not what follows from it for the chat, so a GM new to the module typed an
+         * out-of-character line there for nobody. Each sentence is looked for where it belongs: the player's right under
+         * the note on the GM mark, the GM's in the paragraph on Foundry's two rails. Red on C6a's tree: neither sentence
+         * in either language. The claim itself - no sidebar for a player, no notice drawn for a message the module did
+         * not post - is foundry-windows.mjs's and popup.mjs `onCreateChatMessage`'s (its first line); read here is
+         * only that the handbooks say it.
+         */
+        const WORDS = {
+            en: { mark: /^> A tile with a GM mark on it hands the turn to a human/, red: /^> Inside a window, a red row or button does the same: it goes to the GM, and you wait for the answer\.$/,
+                rails: /^Foundry's own two rails are not part of the screen/, chat: /A player has no view of the chat: what you type there - out of character, or another module's \/roll - is read by no player; what the module tells a player reaches them as a notice card or in the messenger\./ },
+            pl: { mark: /^> Kafelek ze znakiem GM/, red: /^> W oknie czerwony wiersz albo przycisk działa tak samo: trafia do GM-a, a ty czekasz na odpowiedź\.$/,
+                rails: /^Dwa paski Foundry nie są częścią ekranu/, chat: /Gracz w ogóle nie widzi czatu: tego, co tam napiszesz - poza postacią albo przez \/roll innego modułu - nie czyta żaden gracz; to, co moduł mówi graczowi, dociera do niego jako karta powiadomienia albo w komunikatorze\./ }
+        };
+        const read = {};
+        for (const lang of ["en", "pl"]) {
+            const W = WORDS[lang];
+            const lines = {};
+            for (const book of ["player", "gm"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}-handbook.${lang}.md`);
+                ok(res.ok, `docs/handbooks/${book}-handbook.${lang}.md did not load`);
+                lines[book] = res.ok ? (await lfText(res)).split("\n") : [];
+            }
+            const mark = lines.player.findIndex(l => W.mark.test(l));
+            const rails = lines.gm.findIndex(l => W.rails.test(l));
+            ok(mark >= 0 && rails >= 0, `the ${lang} handbooks lost the note on the GM mark or the paragraph on Foundry's rails - this would measure nothing`);
+            read[lang] = { red: W.red.test(lines.player[mark + 1] ?? ""), chat: W.chat.test(lines.gm[rails] ?? "") };
+        }
+        equal(JSON.stringify(read), JSON.stringify({ en: { red: true, chat: true }, pl: { red: true, chat: true } }),
+            "[per language: the player's handbook says, under the GM mark's note, that a red row or button in a window goes to the GM; the GM's handbook says, in the paragraph on Foundry's rails, that no player reads the chat]");
+    }],
 ];
 
 

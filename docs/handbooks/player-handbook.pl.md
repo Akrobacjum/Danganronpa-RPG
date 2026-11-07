@@ -172,6 +172,7 @@ Opis każdej akcji pokazuje jej koszt, statystyki, którymi rzuca, pokój, w kt�
 
 > [!NOTE]
 > Kafelek ze znakiem GMa oddaje ruch człowiekowi: twój rzut i prośba trafiają do twojego wątku w komunikatorze i czekasz na decyzję.
+> W oknie czerwony wiersz albo przycisk działa tak samo: trafia do GM-a, a ty czekasz na odpowiedź.
 
 ### Search - Eye, 1 akcja
 

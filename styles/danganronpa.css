@@ -2440,7 +2440,10 @@ section[data-application-part="inventory"] .items-section:not(.drpg-inventory-gr
     display: none !important;
 }
 
-/* A warning inside a player-facing dialog. */
+/* A warning inside a player-facing dialog. Red only for a warning (D11; audit S06-59, E22 C6b): something that will
+   go wrong, or cannot be taken back, if nobody acts - the uncovered map, the privacy of a secret. A line that only
+   informs (the Doors room count, a missing playlist, a Final Truth Remnant not placed yet) is the kit's
+   `box("info")`, neutral in both themes. */
 .drpg-warning {
     padding: 0.4rem 0.6rem;
     border-left: 3px solid var(--drpg-crimson);
@@ -11589,7 +11592,7 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
 ) footer.form-footer button:not(.drpg-gm-route) {
-    border-color: var(--drpg-line-strong) !important;
+    border-color: var(--drpg-kit-face-edge, var(--drpg-line-strong)) !important;
 }
 
 .application.dialog:is(
@@ -13372,7 +13375,7 @@ form:has(input[name="secret"]:not(:checked)):has(input[name="murder"]:not(:check
 /* Red on a row that ends in somebody else deciding, the same red the buttons
    carry. The whole row rather than the label: the row is the button here. */
 .drpg-choice.drpg-gm-route {
-    border-left: 3px solid var(--drpg-crimson);
+    border-left: 3px solid var(--drpg-kit-role-gm-route);
     padding-left: 5px;
 }
 
@@ -14160,8 +14163,9 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
     background: rgba(var(--drpg-bone-rgb), 0.05);
 }
 
+/* In the window's ink, not the eye: red means the GM's road, and a heading does nothing (audit S10-33, E22 C6b). */
 .drpg-sfx-group td strong {
-    color: var(--drpg-eye);
+    color: var(--drpg-kit-ink);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     font-size: var(--drpg-text-sm);
@@ -14775,9 +14779,10 @@ body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button:hover {
     border-color: var(--drpg-eye) !important;
 }
 
-/* …except the one that destroys a season, which keeps its red route. */
-.drpg-panel .drpg-gmp-button.drpg-gm-route,
-.drpg-gm-panel .drpg-gmp-button.drpg-gm-route {
+/* …except a destructive one (Reset the season, Murder), in crimson: keyed on `drpg-destructive` since E22 C6b - the
+   GM's road names no tile of the GM's (D11), and this rule, written for `drpg-gm-route`, had matched none since C2. */
+.drpg-panel .drpg-gmp-button.drpg-destructive,
+.drpg-gm-panel .drpg-gmp-button.drpg-destructive {
     border-color: var(--drpg-crimson) !important;
     background: rgba(var(--drpg-crimson-rgb), 0.14) !important;
 }
@@ -15126,14 +15131,14 @@ body.drpg-theme-monokuma-legacy .drpg-panel .drpg-gmp-button:hover:not(:disabled
     border-color: var(--drpg-eye-light) !important;
 }
 
-/* The tile that destroys a season keeps crimson - a different red for a
-   different promise, and the one place the two are told apart on this screen. */
-body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-gm-route {
+/* A destructive tile keeps crimson - a different red for a different promise
+   (keyed on `drpg-destructive` since E22 C6b, as the rule above). */
+body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-destructive {
     background: rgba(var(--drpg-crimson-rgb), 0.20) !important;
     border-color: var(--drpg-crimson) !important;
 }
 
-body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-gm-route i {
+body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-destructive i {
     color: var(--drpg-crimson-light) !important;
 }
 
@@ -15214,15 +15219,17 @@ body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-disabled i 
    module; the screenshots are what finally placed it, because a screenshot
    shows which button is purple and a description says "the buttons are".
 
-   Every dialog the module opens therefore states its own footer. Two weights,
-   which is all a footer needs:
-
-     the default action   red - the thing this window is for
-     everything else      the Bone wash every other control in the module wears
-
-   `drpg-gm-route` still overrides both. A button that hands the turn to
-   somebody else is crimson wherever it appears, and that has to survive being
-   the default button of its own window.
+   Every dialog the module opens therefore states its own footer: the Bone
+   wash every other control in the module wears, with the face of the button's
+   role read from components.css's tokens (`--drpg-kit-face-*`, set on each
+   `drpg-role-*` there; E22 C6b, 07.11.2026). Until then the default action was
+   red and the GM's road crimson, so "Roll" read like "Send it to the GM" and
+   the GM's road was a second red beside the eye (audit S12-58; the owner's P-B
+   of 04.09): now the default is Bone with the stronger Bone edge, red is the
+   GM's road (the eye, the one token) and a destructive answer (crimson, under
+   the raster), and nothing else. The `!important` stays here because Foundry's
+   own footer rule sets the same properties; the kit's sheet holds none, so it
+   gives the values and this rule the weight.
    ========================================================================== */
 
 .application.dialog:is(
@@ -15231,23 +15238,14 @@ body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-disabled i 
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
     .drpg-summary-dialog, .drpg-safeword-dialog
 ) footer.form-footer button {
-    background: rgba(var(--drpg-bone-rgb), 0.10) !important;
-    background-image: none !important;
-    border: 1px solid var(--drpg-line-strong) !important;
+    background: var(--drpg-kit-face-bg, rgba(var(--drpg-bone-rgb), 0.10)) !important;
+    background-image: var(--drpg-kit-face-raster, none) !important;
+    background-size: var(--drpg-kit-face-raster-cell, auto) !important;
+    border: 1px solid var(--drpg-kit-face-edge, var(--drpg-line-strong)) !important;
     border-radius: 2px !important;
-    color: var(--drpg-bone) !important;
+    color: var(--drpg-kit-face-ink, var(--drpg-bone)) !important;
     box-shadow: none !important;
     text-shadow: none !important;
-}
-
-.application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
-    .drpg-summary-dialog, .drpg-safeword-dialog
-) footer.form-footer button.default {
-    background: rgba(var(--drpg-eye-rgb), 0.22) !important;
-    border-color: var(--drpg-eye) !important;
 }
 
 .application.dialog:is(
@@ -15258,13 +15256,6 @@ body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-disabled i 
 ) footer.form-footer button:hover:not(:disabled) {
     background: rgba(var(--drpg-eye-rgb), 0.34) !important;
     border-color: var(--drpg-eye-light) !important;
-}
-
-.application.dialog footer.form-footer button.drpg-gm-route,
-.application.dialog footer.form-footer button.drpg-gm-route.default {
-    background: rgba(var(--drpg-crimson-rgb), 0.22) !important;
-    border-color: var(--drpg-crimson) !important;
-    color: var(--drpg-bone) !important;
 }
 
 .application.dialog footer.form-footer button:disabled {
@@ -15369,13 +15360,13 @@ body.drpg-theme-monokuma-legacy .drpg-panel .drpg-gmp-button:hover:not(:disabled
     opacity: 0.55;
 }
 
-/* The season-reset tile keeps crimson, and keeps it the same way round. */
-body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-gm-route {
+/* A destructive tile keeps crimson, and keeps it the same way round. */
+body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-destructive {
     background: transparent !important;
     border-color: var(--drpg-crimson) !important;
 }
 
-body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-gm-route:hover:not(:disabled) {
+body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-destructive:hover:not(:disabled) {
     background: rgba(var(--drpg-crimson-rgb), 0.28) !important;
 }
 

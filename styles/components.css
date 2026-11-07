@@ -86,13 +86,26 @@ body {
     --drpg-kit-btn-on-ink: var(--drpg-bone);
     --drpg-kit-btn-radius: 2px;
     /* the button roles' focus ring (ui-kit.mjs BUTTON_ROLES `token`): the GM's road in D11's red, a destructive
-       one in the warning's crimson, the primary in the eye, the closing word and the rest in the bone */
-    --drpg-kit-role-primary: var(--drpg-eye);
+       one in the warning's crimson, the closing word and the rest in the bone - and the primary in the bone since
+       E22 C6b (it was the eye, and a window opens with its focus on the primary, so the default wore a red ring:
+       red means the GM's road and an irreversible answer only, the owner's P-B of 04.09) */
+    --drpg-kit-role-primary: var(--drpg-bone);
     --drpg-kit-role-gm-route: var(--drpg-eye);
     --drpg-kit-role-close: var(--drpg-bone);
     --drpg-kit-role-cancel: var(--drpg-bone);
     --drpg-kit-role-secondary: var(--drpg-bone);
     --drpg-kit-role-destructive: var(--drpg-crimson);
+    /* the roles' faces (E22 C6b, 07.11.2026; D11 and the owner's P-B of 04.09, audit S12-58): danganronpa.css's dialog
+       footer rule reads `--drpg-kit-face-*`, which each role's rule below sets from these - the primary Bone with the
+       stronger Bone edge (it was the eye's red, so "Roll" read like "Send it to the GM"), the GM's road the eye's wash
+       on the eye's edge (it was crimson in a footer and the eye in a window: one token now, `--drpg-kit-role-gm-route`),
+       a destructive answer crimson under the raster the glass gives it. Under the glass its own footer rules draw
+       the faces and read the roles' rings' tokens. */
+    --drpg-kit-primary-edge: var(--drpg-bone);
+    --drpg-kit-gm-route-bg: rgba(var(--drpg-eye-rgb), 0.22);
+    --drpg-kit-destructive-bg: rgba(var(--drpg-crimson-rgb), 0.12);
+    --drpg-kit-destructive-raster: radial-gradient(circle at 1px 1px, rgba(var(--drpg-crimson-rgb), 0.45) 1px, transparent 1.5px);
+    --drpg-kit-destructive-raster-cell: 4px 4px;
     /* a Call's side (M14, E21 C5a): Hope's gold and Despair's blood, each with its deep twin on a pale ground; one
        pair for both themes - the glass draws the same two inks */
     --drpg-kit-call-hope: light-dark(var(--drpg-gold-deep), var(--drpg-gold));
@@ -239,13 +252,27 @@ body .application.dialog footer.form-footer.drpg-kit-footer { flex-wrap: nowrap;
    dialog rule (0,4,2, `flex: 1 1 auto`) stretched the lone Cancel to 866 px of M1's 1366 px footer under Legacy; this
    is 0,4,3. */
 body .application.dialog footer.form-footer.drpg-kit-footer button { flex: 0 1 auto; min-width: 8.5rem; }
-/* The roles (ui-kit.mjs BUTTON_ROLES): each its place in its side and its focus ring. */
+/* The roles (ui-kit.mjs BUTTON_ROLES): each its place in its side, its focus ring and its face (E22 C6b: the
+   `--drpg-kit-face-*` danganronpa.css's footer rule reads - the face is keyed on the role, so a destructive answer
+   wears it with no other class; the closing words and the secondaries keep the rule's Bone wash). */
 .drpg-kit-footer .drpg-role-close { order: 0; --drpg-kit-ring: var(--drpg-kit-role-close); }
 .drpg-kit-footer .drpg-role-cancel { order: 0; --drpg-kit-ring: var(--drpg-kit-role-cancel); }
 .drpg-kit-footer .drpg-role-secondary { order: 1; --drpg-kit-ring: var(--drpg-kit-role-secondary); }
-.drpg-kit-footer .drpg-role-destructive { order: 2; --drpg-kit-ring: var(--drpg-kit-role-destructive); }
-.drpg-kit-footer .drpg-role-gm-route { order: 1; --drpg-kit-ring: var(--drpg-kit-role-gm-route); }
-.drpg-kit-footer .drpg-role-primary { order: 2; --drpg-kit-ring: var(--drpg-kit-role-primary); }
+.drpg-kit-footer .drpg-role-destructive {
+    order: 2;
+    --drpg-kit-ring: var(--drpg-kit-role-destructive);
+    --drpg-kit-face-edge: var(--drpg-kit-role-destructive);
+    --drpg-kit-face-bg: var(--drpg-kit-destructive-bg);
+    --drpg-kit-face-raster: var(--drpg-kit-destructive-raster);
+    --drpg-kit-face-raster-cell: var(--drpg-kit-destructive-raster-cell);
+}
+.drpg-kit-footer .drpg-role-gm-route {
+    order: 1;
+    --drpg-kit-ring: var(--drpg-kit-role-gm-route);
+    --drpg-kit-face-edge: var(--drpg-kit-role-gm-route);
+    --drpg-kit-face-bg: var(--drpg-kit-gm-route-bg);
+}
+.drpg-kit-footer .drpg-role-primary { order: 2; --drpg-kit-ring: var(--drpg-kit-role-primary); --drpg-kit-face-edge: var(--drpg-kit-primary-edge); }
 .drpg-kit-footer button[data-drpg-role]:focus-visible { outline: 2px solid var(--drpg-kit-ring); outline-offset: 2px; }
 
 /* ---- kitTabs: one markup, equal widths (S12-50) that never cut a label: equal columns at least as wide as the

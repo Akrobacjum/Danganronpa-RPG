@@ -29670,7 +29670,7 @@ const INVARIANTS = [
                 // A kit window (E21 C5a: the side's rules name `.drpg-ui`, components.css).
                 body.innerHTML = `<div class="application dialog drpg-ui drpg-panel drpg-${kind}-dialog"><section class="window-content"><form>`
                     + `<div class="dialog-content"><div class="drpg-call-header"><h3>R1111</h3></div></div>`
-                    + `<footer class="form-footer"><button type="submit" class="drpg-gm-route" data-action="spend">R1111</button></footer></form></section></div>`;
+                    + `<footer class="form-footer drpg-kit-footer"><div class="drpg-kit-right"><button type="submit" data-drpg-role="gmRoute" class="drpg-role-gm-route drpg-gm-route" data-action="spend">R1111</button></div></footer></form></section></div>`;
                 const w = (el, names) => C.winner(el, names);
                 // The ink is the kit's token since E21 C5a (`var(--drpg-kit-call-hope)`): read through to the token's value.
                 const raw = w(body.firstElementChild, "--drpg-call-ink")?.value ?? "";
@@ -29678,10 +29678,17 @@ const INVARIANTS = [
                 const ink = token ? w(body, token)?.value ?? raw : raw;
                 const stripe = w(body.querySelector(".drpg-call-header"), ["border-left", "border-left-color"])?.value ?? "";
                 const title = w(body.querySelector(".drpg-call-header h3"), "color")?.value ?? "";
-                const road = w(body.querySelector("button.drpg-gm-route"), ["border", "border-color"]);
+                const button = body.querySelector("button.drpg-gm-route");
+                const road = w(button, ["border", "border-color"]);
+                /* E22 C6b: under Legacy the footer's edge is the role's (components.css sets `--drpg-kit-face-edge` on
+                   `drpg-role-gm-route`, and danganronpa.css's footer rule reads it): read through to the theme's red */
+                const face = w(button, "--drpg-kit-face-edge");
+                const byRole = /var\(--drpg-kit-face-edge\b/.test(road?.value ?? "") && /drpg-role-gm-route/.test(face?.selector ?? "");
+                const edge = byRole ? face.value : road?.value ?? "";
+                const roadToken = /var\((--drpg-kit-role-gm-route)\)/.exec(edge)?.[1];
                 return [kind, { ink: kind === "hope" ? /--drpg-gold\b/.test(ink) && !/--drpg-blood\b/.test(ink) : /--drpg-blood\b/.test(ink) && !/--drpg-gold\b/.test(ink),
                     stripe: /var\(--drpg-call-ink\)/.test(stripe), title: /var\(--drpg-call-ink\)/.test(title),
-                    road: Boolean(road) && /drpg-gm-route/.test(road.selector) && RED.test(road.value) }];
+                    road: Boolean(road) && (/drpg-gm-route/.test(road.selector) || byRole) && RED.test(roadToken ? w(body, roadToken)?.value ?? "" : edge) }];
             }));
             return [theme, sides];
         }));
@@ -35583,6 +35590,142 @@ const INVARIANTS = [
             + "sheets' width rules naming it; Share's Revoke destructive; the class's Level Up on the kit (drpgWindow, Hand them out the primary, All the players "
             + "pick a secondary); the project's window, its Delete question, its answer closed and no project made; the notices' Clear question, the history kept, "
             + "the classes of a role on Mark all as read and in Open conversation's builder; Level Up's window and its answer closed; the messages posted]");
+    }],
+    ["R1373 - the colours' rule, both themes (E22 C6b; E22-07; audit S06-59, S12-59, S12-58, S12-42, S10-33, S04-39): a warning line is red and an information box is not; the Doors room count, the missing Situational playlist and the missing Final Truth Remnant are information; Legacy's default footer button is not red; the GM's road is one red on a footer button, a button in a window and a choice row; a footer button of the destructive role wears the destructive face with no other class; table headers and group headings carry no GM red; a GM tile that cannot be pressed is not filled; a selected GM row's ink reads 4.5:1 on its brush", async () => {
+        /*
+         * E22 C6b, 07.11.2026; E22-07 (D11: red means the GM's road for a player, the destructive face an action that
+         * cannot be undone; a warning stays red, information is neutral). Read on the module's sheets as a cascade read
+         * from their text (`styleCascade`), on markup built on a body of its own per theme, and each winning value
+         * followed through its `var()`s - the element's and its ancestors' custom properties as the cascade gives them,
+         * then the theme's tokens (`cssThemeTokens`), then the fallback - to the tokens it read. "Red" is a value that
+         * read one of RED: Legacy's eye and crimson, the glass's GM red. What a value resolves to is compared as text
+         * once every `var()` is gone. Red on C6a's tree: Legacy's default button read the eye (S12-58); the GM's road
+         * read crimson on a Legacy footer and choice row and the eye on a button (two reds); a footer button with
+         * `drpg-role-destructive` alone wore the plain face in both themes; the GM Team window's headers read the
+         * glass's GM red and the Effects groups the eye (S10-33); a disabled GM tile kept its red plate (S04-39); a
+         * selected GM row read ink on the GM red, 4.16:1, its note at 0.75 (S12-42); the three information lines were
+         * `drpg-warning` (S06-59, S12-59). Not read here: a hover or a press (jsdom matches no `:hover`), Legacy's
+         * selected row, and how any of it looks - the style sweep's screenshots and LIVE-E22-02.
+         */
+        const C = await styleCascade();
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const sheets = [];
+        for (const href of manifest.styles ?? []) sheets.push([href, await fetch(`/modules/${MODULE_ID}/${href}`).then(lfText)]);
+        const tokens = cssThemeTokens(sheets);
+        const THEMES = { legacy: ["drpg-theme-monokuma-legacy", "monokuma-legacy"], glass: ["drpg-theme-stained-glass", "stained-glass"] };
+        const RED = ["--drpg-eye", "--drpg-eye-light", "--drpg-eye-rgb", "--drpg-crimson", "--drpg-crimson-rgb", "--drpg-crimson-light", "--drpg-sg-gm", "--drpg-sg-gm-light"];
+        const page = (theme, html) => {
+            const root = document.createElement("html"), body = document.createElement("body");
+            body.className = THEMES[theme][0];
+            root.append(body);
+            body.innerHTML = html;
+            return body;
+        };
+        const custom = (el, name) => {
+            for (let at = el; at; at = at.parentElement) {
+                const won = C.winner(at, name);
+                if (won) return won.value;
+            }
+            return null;
+        };
+        /* every `var()` of `text` replaced by what it reads, the names read pushed on `reads` */
+        const expand = (text, look, reads, depth = 0) => {
+            let out = "", i = 0;
+            while (i < text.length) {
+                if (!text.startsWith("var(", i)) { out += text[i]; i++; continue; }
+                const at = i;
+                let level = 0, end = at + 3, comma = -1;
+                for (; end < text.length; end++) {
+                    const ch = text[end];
+                    if (ch === "(") level++;
+                    else if (ch === ")") { level--; if (!level) break; }
+                    else if (ch === "," && level === 1 && comma < 0) comma = end;
+                }
+                const name = text.slice(at + 4, comma < 0 ? end : comma).trim();
+                const fallback = comma < 0 ? null : text.slice(comma + 1, end).trim();
+                reads.push(name);
+                if (depth < 16) out += expand(look(name) ?? fallback ?? "", look, reads, depth + 1);
+                i = end + 1;
+            }
+            return out;
+        };
+        const reading = (theme, el, names, pseudo = null) => {
+            const won = C.winner(el, names, pseudo);
+            if (!won) return null;
+            const reads = [];
+            const text = expand(won.value, name => custom(el, name) ?? tokens[THEMES[theme][1]].get(name) ?? null, reads).replace(/\s+/g, " ").trim();
+            return { text, red: reads.some(name => RED.includes(name)) };
+        };
+        const red = (theme, el, names, pseudo) => reading(theme, el, names, pseudo)?.red ?? "no rule";
+        /* a property no rule gives is inherited: read as not red where only red is asked */
+        const isRed = (theme, el, names, pseudo) => red(theme, el, names, pseudo) === true;
+        const EDGE = ["border-color", "border", "border-left-color", "border-left"];
+        const win = (inner, extra = "") => `<div class="application dialog drpg-ui drpg-panel${extra}"><section class="window-content"><form class="dialog-form"><div class="dialog-content">${inner}</div>`
+            + `<footer class="form-footer drpg-kit-footer"><div class="drpg-kit-right">`
+            + `<button type="button" data-action="go" data-drpg-role="primary" class="drpg-role-primary default">Go</button>`
+            + `<button type="button" data-action="ask" data-drpg-role="gmRoute" class="drpg-role-gm-route drpg-gm-route">Ask</button></div>`
+            + `<div class="drpg-kit-left"><button type="button" data-action="cancel" data-drpg-role="cancel" class="drpg-role-cancel">Cancel</button>`
+            + `<button type="button" data-action="wipe" data-drpg-role="destructive" class="drpg-role-destructive">Wipe</button></div></footer></form></section></div>`;
+        const BODY = `<p class="notes drpg-warning">W</p><div class="drpg-box" data-drpg-box="info" role="note">I</div>`
+            + `<button type="button" class="drpg-gm-route" data-r1373-body>B</button>`
+            + `<label class="drpg-choice drpg-gm-route" data-r1373-row><input type="radio" name="r"><span>Row</span></label>`
+            + `<label class="drpg-choice drpg-gm-route" data-r1373-picked><input type="radio" name="r" checked><span>Row</span><small>note</small></label>`
+            + `<table><thead><tr><th>Head</th></tr></thead><tbody><tr class="drpg-sfx-group"><td><strong>Group</strong></td></tr></tbody></table><h4>Heading</h4>`;
+        const out = {}, glassRow = {};
+        for (const theme of ["legacy", "glass"]) {
+            const body = page(theme, win(BODY) + win(BODY, " drpg-projects drpg-monokuma-panel drpg-assign drpg-window-gmteam")
+                + `<button type="button" class="drpg-action-button" data-drpg-cost-kind="gm" disabled><span class="drpg-action-name">Murder</span></button>`);
+            const [plain, team] = body.querySelectorAll(".application");
+            const q = (root, sel) => root.querySelector(sel);
+            const final = (el, names) => reading(theme, el, names)?.text ?? "no rule";
+            const destructive = q(plain, "[data-action=wipe]");
+            out[theme] = {
+                warning: red(theme, q(plain, ".drpg-warning"), EDGE),
+                info: red(theme, q(plain, ".drpg-box"), EDGE),
+                defaultButton: [["background", "background-color"], "color", EDGE].map(p => isRed(theme, q(plain, "[data-action=go]"), p)),
+                gmRoad: [...new Set([final(q(plain, "[data-action=ask]"), EDGE), final(q(plain, "[data-r1373-body]"), EDGE),
+                    theme === "legacy" ? final(q(plain, "[data-r1373-row]"), ["border-left-color", "border-left", "border-color", "border"]) : final(q(plain, "[data-r1373-row]"), "--kind")]
+                    .map(text => (text.match(/#[0-9a-f]{6}\b/i)?.[0] ?? text).toLowerCase()))],
+                destructive: {
+                    raster: /gradient/.test(reading(theme, destructive, ["background-image", "background"])?.text ?? ""),
+                    edge: red(theme, destructive, EDGE)
+                },
+                headers: [q(plain, "th"), q(team, "th"), q(plain, ".drpg-sfx-group strong"), q(team, "h4")].map(el => isRed(theme, el, "color")),
+                gmTileDisabled: isRed(theme, q(body, ".drpg-action-button"), ["background", "background-color"])
+            };
+            if (theme === "glass") {
+                const row = q(plain, "[data-r1373-picked]");
+                const ink = reading(theme, row, "color")?.text ?? "", ground = reading(theme, row, ["background", "background-color"], "::before")?.text ?? "";
+                const hex = text => { const m = /^#([0-9a-f]{6})$/i.exec(text); return m ? [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16)) : null; };
+                glassRow.ratio = hex(ink) && hex(ground) ? Number(cssContrastRatio(hex(ink), hex(ground)).toFixed(2)) >= 4.5 : `${ink} on ${ground}`;
+                glassRow.note = reading(theme, q(row, "small"), "opacity")?.text ?? "1";
+            }
+        }
+        /* the three information lines (S06-59, S12-59): each on `box("info")`, none a warning */
+        const I = await import("./investigation.mjs");
+        const tab = document.createElement("div");
+        tab.innerHTML = I.caseFinalPanel({ roomOptions: "", visOptions: "", finalRemnants: () => [], finalTruthPlacedThisChapter: () => false });
+        const reminder = [...tab.querySelectorAll("p, div")].find(el => el.textContent.trim() === game.i18n.localize("DRPG.Mastermind.finalTruthReminder")
+            && !el.querySelector("p, div"));
+        const sound = await fetch(`/modules/${MODULE_ID}/scripts/sound-panel.mjs`).then(lfText);
+        const rooms = await fetch(`/modules/${MODULE_ID}/scripts/room-setup.mjs`).then(lfText);
+        const notes = {
+            finalTruth: reminder ? [reminder.classList.contains("drpg-warning"), reminder.closest(".drpg-box")?.dataset.drpgBox ?? null] : "not drawn",
+            situational: [/drpg-warning[^>]*data-drpg-no-cue|data-drpg-no-cue[^>]*drpg-warning/.test(sound), /box\("info",\s*`<p class="notes" data-drpg-no-cue>/.test(sound)],
+            roomCount: [/ratio\.classList\.toggle\("drpg-warning"/.test(rooms), /box\("info",\s*`<p class="notes" data-drpg-ratio>/.test(rooms)]
+        };
+        equal(stableJson({ ...out, glassRow, notes }), stableJson({
+            legacy: {
+                warning: true, info: false, defaultButton: [false, false, false], gmRoad: ["#e0182f"],
+                destructive: { raster: true, edge: true }, headers: [false, false, false, false], gmTileDisabled: false
+            },
+            glass: {
+                warning: true, info: false, defaultButton: [false, false, false], gmRoad: ["#e0182f"],
+                destructive: { raster: true, edge: true }, headers: [false, false, false, false], gmTileDisabled: false
+            },
+            glassRow: { ratio: true, note: "1" },
+            notes: { finalTruth: [false, "info"], situational: [false, true], roomCount: [false, true] }
+        }), "[per theme: a warning's edge red, an information box's; the default button's background, its colour and its edge red; the GM's road's colours on a footer button, a button in a window and a choice row; a destructive role's raster and red edge; red on a table head, the GM Team window's, an Effects group and the GM Team window's heading; a disabled GM tile's fill red; the glass's selected GM row: ink on its brush at 4.5:1, its note's opacity; the three information lines as warnings and on box(\"info\")]");
     }],
 ];
 

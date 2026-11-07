@@ -172,6 +172,7 @@ Every action's briefing shows its cost, the statistics it rolls, the room you ar
 
 > [!NOTE]
 > A tile with a GM mark on it hands the turn to a human: your roll and your request go into your messenger thread and you wait for a ruling.
+> Inside a window, a red row or button does the same: it goes to the GM, and you wait for the answer.
 
 ### Search - Eye, 1 action
 

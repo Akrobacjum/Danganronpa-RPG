@@ -38,7 +38,7 @@ import {
     dialogContent, announce, plural, workingScene,
     forcedDeletion, wirePortraitPickers
 } from "./utils.mjs";
-import { kitTabs, wireKitTabs, emptyOption, drpgWindow } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, emptyOption, drpgWindow, box } from "./ui-kit.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
 import {
     ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomNames, roomRegions, flagOver,
@@ -46,7 +46,7 @@ import {
 } from "./rooms.mjs";
 import {
     VAULT_FLAGS, reconcileBedroomKeys, safeRoomImage, updateRoom, vaultOwnerOf, stashIn, setStash, ensureBedroomStash,
-    startLocked, isConcealed, stashItemsIn, roomCensusOf, roomRatioLine, roomsWantedFor, setVaultRoom
+    startLocked, isConcealed, stashItemsIn, roomCensusOf, roomRatioLine, setVaultRoom
 } from "./vault-store.mjs";
 
 /* ==========================================================================
@@ -434,7 +434,8 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
 
         doors: `
             <p>${game.i18n.localize("DRPG.Vault.doorsIntro")}</p>
-            <p class="notes" data-drpg-ratio></p>
+            ${/* information, not a warning (D11; audit S06-59, E22 C6b): the count advises and changes no rule */ ""}
+            ${box("info", `<p class="notes" data-drpg-ratio></p>`)}
             ${tableFor([th("DRPG.Vault.isRoomColumn"), th("DRPG.Vault.lockedColumn"),
                 th("DRPG.Vault.lockedAtStartColumn"), th("DRPG.Vault.notSharedColumn"),
                 th("DRPG.Vault.neighboursColumn")],
@@ -611,7 +612,6 @@ export function wireRoomRatio(dialog, rooms, living) {
             const pending = rooms.filter(suggested).length;
             ratio.textContent = pending ? `${roomRatioLine(census, living)} ${plural("DRPG.Vault.roomCensusUndecided", { n: pending })}`
                 : roomRatioLine(census, living);
-            ratio.classList.toggle("drpg-warning", living > 0 && census.count > roomsWantedFor(living));
         };
         const changed = new Set();
         dialog.element.addEventListener("change", ev => {
