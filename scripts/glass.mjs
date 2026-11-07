@@ -731,16 +731,17 @@ const RAIL_LEAN = 5 * Math.PI / 180;
    - and with it every way of changing tab or closing the thing again (Dawid, 07.09). Foundry
    marks the open sidebar with nothing at all - no class, no attribute, only a width - so the
    module marks it, and the rail's rule is written to apply only while it is shut. */
-let sidebarWatched = false;
+/* The observer is kept so that `unmount` can disconnect it (E23 C1c; S12-35): it was made once and never let go. */
+let sidebarWatch = null;
 function watchSidebar() {
   const bar = document.querySelector("#sidebar"), tabs = document.querySelector("#sidebar-tabs");
   if (!bar || !tabs) return;
   // a sidebar opened in the Foundry tools window (E77 C5) widens the window, not the right wall
   const read = () => document.body.classList.toggle("drpg-sidebar-open", !inFoundryWindow(bar) && bar.offsetWidth > tabs.offsetWidth + 40);
   read();
-  if (sidebarWatched) return;
-  sidebarWatched = true;
-  new ResizeObserver(read).observe(bar);
+  if (sidebarWatch) return;
+  sidebarWatch = new ResizeObserver(read);
+  sidebarWatch.observe(bar);
 }
 const RAIL_MARGIN = 16;
 /* WHERE A RAIL STILL IN THE COLUMN STARTS UNDER THE CLOCK. Until E77 C6 the GM button stood
@@ -857,7 +858,20 @@ function railRule(r) {
    when the screen's answer below changes a shift, and an unchanged pass writes nothing - which
    until E78 fix h76-HF2 this comment said and the code did not do (the shift was dropped from the
    first write of every pass, and the two writes were joined differently, so both happened). */
+/* NOTHING IS TURNED WITH NO CURTAIN ON THE PAGE (E23 C1c, 07.11.2026; S12-35). After a switch to Monokuma Legacy the
+   rails' ResizeObserver, never disconnected, ran this on the first click on the scene controls, and with the table it
+   still held it wrote the corner's buttons an inline `rotate` and put the rotation sheet back, which nothing took away
+   again. `unmount` now disconnects the observers and empties the table, and this stands down besides, off the theme or
+   with no curtain - whatever else may call it. A measuring flag a pass left on is still taken off. `rotationWrites`, a
+   test's road with no curtain, runs the passes themselves (`writeRotations`). */
 function applyRotations() {
+  if (!themeOn() || !curtains.length) {
+    if (document.body.hasAttribute("data-drpg-measuring")) measuring(false);
+    return;
+  }
+  writeRotations();
+}
+function writeRotations() {
   const turned = new Set(ROT.filter(r => r.sel && !r.rail && r.transform && r.transform !== "none").map(r => r.sel));
   for (const sel of OVERHANG.keys()) if (!turned.has(sel)) OVERHANG.delete(sel);
   const blockRule = r => {
@@ -904,7 +918,8 @@ function applyRotations() {
 
 /* THE ROTATION PASSES, FOR A TEST THAT HAS NO LAYOUT (E78 fix h76-HF2, 14.10.2026; R547).
    jsdom cuts no curtain, so ROT is empty headless and `applyRotations` never runs there. This
-   runs it once per table given, in order, as consecutive passes do, and counts the writes of the
+   runs its passes (`writeRotations`, which `applyRotations` stands down from with no curtain since
+   E23 C1c) once per table given, in order, as consecutive passes do, and counts the writes of the
    sheet each pass made: an unchanged pass must make none, because in a browser every write
    that moves a rule is a snap and an 840 ms slide. It writes a sheet of its own
    (`drpg-glass-rotation-test`, which a test's stub reads) and keeps the screen's sheet, ROT
@@ -918,7 +933,7 @@ export function rotationWrites(tables) {
   mo.observe(sheet, { childList: true, characterData: true, subtree: true });
   OVERHANG.clear();
   try {
-    return tables.map(t => { ROT.length = 0; ROT.push(...t); applyRotations(); return { writes: mo.takeRecords().length, text: sheet.textContent }; });
+    return tables.map(t => { ROT.length = 0; ROT.push(...t); writeRotations(); return { writes: mo.takeRecords().length, text: sheet.textContent }; });
   } finally {
     mo.disconnect(); sheet.remove(); rotSheet = screen;
     ROT.length = 0; ROT.push(...rot); OVERHANG.clear(); for (const [k, v] of shifts) OVERHANG.set(k, v);
@@ -1439,12 +1454,15 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
   const rgba = (h, a) => "rgba(" + hex(h).join(",") + "," + a + ")";
   const DEG = Math.PI / 180;
 
-  const probe = document.createElement("span");
-  probe.style.position = "absolute"; probe.style.visibility = "hidden";
-  document.body.append(probe);
+  /* THE PROBE IS MADE WHEN A COLOUR IS FIRST ASKED FOR (E23 C1c, 07.11.2026; S12-35). It was put in the body when this
+     file was imported, on every client, whatever its theme. It is made by the first `resolveAcc` now, put back by the
+     next one if something took it out of the page, and taken out by `unmount` (R1380). */
+  let accProbe = null;
   const resolveAcc = w => {
-    probe.style.color = getComputedStyle(w).getPropertyValue("--acc") || "#7fe4ff";
-    const m = getComputedStyle(probe).color.match(/[0-9]+/g);
+    if (!accProbe) { accProbe = document.createElement("span"); accProbe.style.position = "absolute"; accProbe.style.visibility = "hidden"; }
+    if (!accProbe.isConnected) document.body.append(accProbe);
+    accProbe.style.color = getComputedStyle(w).getPropertyValue("--acc") || "#7fe4ff";
+    const m = getComputedStyle(accProbe).color.match(/[0-9]+/g);
     return m ? "#" + m.slice(0, 3).map(n => (+n).toString(16).padStart(2, "0")).join("") : "#7fe4ff";
   };
 
@@ -3130,7 +3148,8 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
   function pulseFrame(t) {
     count("glass.pulseFrame");
     for (const j of curtains) pulseJob(j, t);
-    for (const j of windows) pulseJob(j, t);
+    // a band whose element has left the page is not drawn (E23 C1c; S12-32): its job waits for `pruneWindows`
+    for (const j of windows) if (j.el.isConnected) pulseJob(j, t);
   }
 
 /* ---- lifecycle -------------------------------------------------------------- */
@@ -3230,9 +3249,20 @@ function mount() {
   el.style.cssText = STYLE + "z-index:" + z + ";" + (el.style.clipPath ? "clip-path:" + el.style.clipPath + ";" : "");
   el.querySelectorAll(":scope > canvas").forEach(c => { c.style.cssText = "position:absolute;inset:0;width:100%;height:100%;"; });
   if (!curtains.length) curtains.push({ el, seed: 44 });
+  // the loop runs while a curtain is mounted, and only then (E23 C1c; S12-35): it was started at `ready` on every client
+  if (!raf) raf = requestAnimationFrame(loop);
   rebuild();
 }
+/* EVERYTHING THE CURTAIN STARTED, IT STOPS (E23 C1c, 07.11.2026; S12-35). Until now this took the canvases and the
+   inline styles away and left running what kept them: the observers (the rails' ResizeObserver then turned the corner's
+   buttons under Monokuma Legacy, `applyRotations`), the sidebar's watch, the rotation table and its shifts, the colour
+   probe in the body and the 60 Hz loop. `glassLifecycle` reads each of them (R1380). */
 function unmount() {
+  observers.forEach(o => o.disconnect()); observers = [];
+  sidebarWatch?.disconnect(); sidebarWatch = null;
+  if (raf) { globalThis.cancelAnimationFrame?.(raf); raf = 0; }
+  ROT.length = 0; OVERHANG.clear();
+  accProbe?.remove();
   for (const j of curtains) { j.turn?.cancel(); j.el.remove(); document.querySelectorAll(".curtain-glow").forEach(g => g.remove()); }
   curtains.length = 0;
   for (const j of windows) j.el.querySelectorAll(":scope > canvas").forEach(c => c.remove());
@@ -3258,6 +3288,30 @@ function unmount() {
   // the turn's siblings: the frost, the turn's layers, the flash's (E23 C1b)
   document.querySelectorAll("#drpg-curtain-frost, #drpg-curtain-turn, #drpg-curtain-flash").forEach(g => g.remove());
   if (rotSheet) { rotSheet.remove(); rotSheet = null; }
+}
+/* THE LIFECYCLE, READ FOR A TEST (E23 C1c, 07.11.2026; R1380, R1381). What the curtain holds while it is up and must let
+   go of when it comes down: the curtains, the observers held, the rotation table and its shifts, the loop's frame, the
+   colour probe and the rotation sheet in the page, and the dressed bands (each with its element, window, kind, seed and
+   the flashes its first render started). `ask` resolves an element's accent first, as a paint would (`resolveAcc`, which
+   makes the probe); `down` runs `unmount`; `rotate` hands `applyRotations` a table of stand-ins and reads what it wrote -
+   whether a rotation sheet is in the page, and each stand-in's inline transform - with the table put back as it was. The
+   caller puts a curtain it took down back up (`refreshGlass`). */
+export function glassLifecycle({ ask = null, down = false, rotate = null } = {}) {
+  if (ask) resolveAcc(ask);
+  if (down) unmount();
+  let rotated = null;
+  if (rotate) {
+    const rot = ROT.splice(0, ROT.length, ...rotate);
+    try {
+      applyRotations();
+      rotated = { sheet: !!document.getElementById("drpg-glass-rotation"), transforms: rotate.map(r => r.el?.style.transform ?? "") };
+    } finally { ROT.length = 0; ROT.push(...rot); }
+  }
+  return {
+    curtains: curtains.length, observers: observers.length + (sidebarWatch ? 1 : 0), rot: ROT.length, overhang: OVERHANG.size, loop: raf,
+    probe: !!accProbe?.isConnected, sheet: !!rotSheet?.isConnected,
+    windows: windows.map(j => ({ el: j.el, app: j.app?.id ?? null, kind: j.kind ?? null, seed: j.seed, flashes: j.flashes ?? 0 })), rotated
+  };
 }
 /* ---- the turn: the glass moves, not its edges (E23 C1b) -------------------------------------------------------
    When the world changes state (a phase, an hour) or the layout recuts the curtain, the glass does not jump: what it
@@ -4007,9 +4061,23 @@ function flashSeams(job, color, ms, { bloom = false } = {}) {
   const run = fc.animate(FLASH_KF, { duration: ms, easing: "linear", fill: "forwards" });
   run.finished.then(() => fc.remove(), () => fc.remove());
 }
+/* A BAND'S SEED IS ITS WINDOW'S, NOT THE LIST'S (E23 C1c; S12-32): `seedBase + windows.length * 37` gave the same
+   window another pattern of panes whenever another band had come or gone. A window's `id` stands for it across its
+   renders and across a close and an open; a band with no window (the pause) keeps its base. */
+const bandSeed = (base, id) => { let h = 0; for (const ch of String(id ?? "")) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return base + (h % 9973) * 37; };
 /** Glass on a band: a window's title bar or the character sheet's header. */
-function dressBand(band, seedBase) {
+function dressBand(band, seedBase, app = null, kind = null) {
   let job = windows.find(j => j.el === band);
+  /* A NEW ELEMENT FOR THE SAME BAND IS THE SAME BAND (E23 C1c, 07.11.2026; S12-32). Daggerheart's sheet part `header`
+     has no root of its own, so every render of the sheet - a Hope spent, an item added, `refreshSheets` after the clock
+     moved - replaces its `.character-header-sheet`. Found by the element, each was a new job: another pattern, a full
+     paint, a 420 ms flash, and the old job with its canvases left in the list. A job is found by its window and kind
+     too, when the element it had has left the page: its canvases move to the new element, and the rest is a redraw's
+     (the box and the colour asked, below), with no flash. */
+  if (!job && app && kind) {
+    job = windows.find(j => j.app === app && j.kind === kind && !j.el.isConnected) ?? null;
+    if (job) { band.prepend(...job.el.querySelectorAll(":scope > canvas")); job.el = band; }
+  }
   /* THE FLASH MEANS "THE GLASS HAS JUST SET", SO IT HAPPENS ONCE.
      `dressWindow` is on `renderApplicationV2`, which fires on every REDRAW of a window as
      well as on its first render - a module panel redraws on every clock write, every Despair
@@ -4031,11 +4099,13 @@ function dressBand(band, seedBase) {
   const fresh = !job || !band.querySelector(":scope > canvas.sg");
   if (fresh) {
     if (job) job.panes = null;
-    else { job = { el: band, seed: seedBase + windows.length * 37 }; windows.push(job); }
+    else { job = { el: band, app, kind, seed: bandSeed(seedBase, app?.id), flashes: 0 }; windows.push(job); }
     if (!band.querySelector(":scope > canvas.sg")) {
       const c = document.createElement("canvas"); c.className = "sg"; band.prepend(c);
     }
   }
+  // the flashes a band's first render starts, counted on the job for a test with no box to paint (R1381)
+  if (fresh) job.flashes = (job.flashes ?? 0) + 1;
   requestAnimationFrame(() => {
     if (fresh) { paintBand(job); flashSeams(job, job.acc || "#f2eee6", 420); return; }
     // the same two numbers `paintBand` would give the canvas, so this compares like with like
@@ -4051,12 +4121,14 @@ function dressBand(band, seedBase) {
     header; called from renderApplicationV2. */
 export function dressWindow(app) {
   if (!glassRoom()) return;
+  // the jobs of windows gone from the page leave first (E23 C1c; S12-32), so a render never walks a closed one's
+  pruneWindows();
   const el = app?.element;
   if (!el?.querySelector) return;
   // module windows (`.drpg-panel`) and the messenger carry the glass on their title band
-  if (el.classList?.contains("drpg-panel") || el.classList?.contains("drpg-messenger")) { const h = el.querySelector(".window-header"); if (h) dressBand(h, 155); }
+  if (el.classList?.contains("drpg-panel") || el.classList?.contains("drpg-messenger")) { const h = el.querySelector(".window-header"); if (h) dressBand(h, 155, app, "header"); }
   const sheetHead = el.querySelector(".character-header-sheet");
-  if (sheetHead) { sheetHead.classList.add("drpg-glass-band"); dressBand(sheetHead, 999); }
+  if (sheetHead) { sheetHead.classList.add("drpg-glass-band"); dressBand(sheetHead, 999, app, "sheetHead"); }
 }
 /* the state changed (hour, phase, Eclipse): every seam flashes Bone and the glass takes the new colour */
 let stateTimer = 0;
@@ -4084,7 +4156,15 @@ function onStateChange() {
     setTimeout(() => { for (const j of windows) { if (!j.el.isConnected) continue; const acc = resolveAcc(j.el); if (acc !== j.acc) paintBand(j); } }, TURN() + 80);
   }, 60);
 }
-function pruneWindows() { for (let i = windows.length - 1; i >= 0; i--) if (!windows[i].el.isConnected) windows.splice(i, 1); }
+/* WHICH BANDS ARE GONE (E23 C1c; S12-32). A job whose element has left the page is gone unless its window is still on
+   it - a sheet that has just replaced its header keeps its job for `dressBand` to move - and a window being closed
+   (`closeApplicationV2`, which can come while its element is still in the page) takes its jobs with it. */
+function pruneWindows(closing = null) {
+  for (let i = windows.length - 1; i >= 0; i--) {
+    const j = windows[i];
+    if ((closing && j.app === closing) || !(j.el.isConnected || j.app?.element?.isConnected)) windows.splice(i, 1);
+  }
+}
 
 /* `refreshGlass` rather than `rebuild`: a resize can cross the curtain's gate, and then
    there is nothing to rebuild - the curtain has to go, or come back. With one mounted it
@@ -4199,7 +4279,6 @@ export function refreshGlass() {
 /** Called once at ready. */
 export function registerGlass() {
   refreshGlass();
-  if (!raf) raf = requestAnimationFrame(loop);
   /*
    * A BLOCK THAT LEAVES WHILE NOBODY IS LOOKING TAKES ITS PANE WITH IT, and
    * until this line the pane stayed behind (Dawid, 14.09).
@@ -4244,7 +4323,7 @@ export function registerGlass() {
   Hooks.on("drpgLayoutHeight", () => { if (themeOn()) schedule(); flatSoon(); });
   Hooks.on("drpgHudRendered", flatSoon);
   Hooks.on("renderApplicationV2", dressWindow);
-  Hooks.on("closeApplicationV2", pruneWindows);
+  Hooks.on("closeApplicationV2", app => pruneWindows(app));
   // the pause band is a pane of the curtain while the game is paused, breathing with the slow pulse
   Hooks.on("pauseGame", paused => {
     const band = document.getElementById("pause");

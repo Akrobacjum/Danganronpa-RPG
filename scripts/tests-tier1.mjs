@@ -2689,6 +2689,151 @@ const INVARIANTS = [
             "[writes, the block's shift] per pass: the second pass over the same geometry wrote the sheet, a block over the wall lost its shift, or a block back inside the margin was written with a shift it no longer needs");
         equal(document.getElementById("drpg-glass-rotation-test"), null, "the test's sheet was left in the page");
     }],
+    ["R1380 - the curtain's lifecycle (glass.mjs `glassLifecycle`, E23 C1c; E23-09, S12-34, S12-35): after `unmount` no observer is connected, the rotation table and the shifts are empty, the loop is stopped and the colour probe is out of the body; `applyRotations` writes nothing with no curtain, neither a sheet nor an inline transform; a mount starts the loop again; and the body-level turning rule is keyed on `[data-drpg-turning]`, the class `.drpg-turning` and the phantom `#drpg-settings-launcher` in no stylesheet", async () => {
+        /*
+         * E23 C1c, 07.11.2026 (S12-35: after a switch to Monokuma Legacy the first click on the scene controls resized
+         * `#scene-controls`, the rails' ResizeObserver - never disconnected - ran `applyRotations`, and the corner's
+         * buttons were written an inline `rotate` and the rotation sheet put back, which nothing then took away; the
+         * colour probe and a 60 Hz loop lived on every client from the import on. S12-34: the rule that gives the
+         * body-level launchers, the notice cards and the pause veil their accent's transition over a turn waited on a
+         * class `.drpg-turning` that nothing sets, since glass.mjs marks the turn with an attribute). Read through
+         * `glassLifecycle`, which reports the lifecycle's state, asks an accent (`ask`), runs `unmount` (`down`) and hands
+         * `applyRotations` a table of stand-ins and reads what it wrote (`rotate`). With a curtain on the page (Stained
+         * Glass) it is taken down and put back with `refreshGlass`, a stand-in panel's band dressed first so that the
+         * probe and a band are there to be let go of (the control); under Monokuma Legacy, where none is mounted, the
+         * state is read as found. The stand-ins: an element with no selector, which takes an inline transform as the
+         * corner's buttons do, and a selector, which takes a rule in the sheet. Red on 6c9bd3c3 with the reading alone:
+         * the observers still held, the loop still running, the probe in the body, the stand-in's rotation sheet.
+         */
+        const G = await import("./glass.mjs");
+        equal(typeof G.glassLifecycle, "function", "glass.mjs's reading of the curtain's lifecycle (`glassLifecycle`)");
+        if (typeof G.glassLifecycle !== "function") return;
+        const css = await moduleStyles();
+        equal(JSON.stringify([/\.drpg-turning\b/.test(css), /#drpg-settings-launcher\b/.test(css)]), "[false,false]",
+            "[a rule keyed on the class .drpg-turning, a rule naming #drpg-settings-launcher] in the module's stylesheets");
+        const C = await styleCascade();
+        const accentIn = id => {
+            const body = document.createElement("body");
+            body.className = "drpg-theme-stained-glass";
+            body.setAttribute("data-drpg-turning", "");
+            const el = body.appendChild(document.createElement("div"));
+            el.id = id;
+            const v = C.winner(el, ["transition", "transition-property"])?.value ?? "";
+            return /--drpg-glass-accent/.test(v) && /\bcolor\b/.test(v);
+        };
+        equal(JSON.stringify(["drpg-popups", "pause", "drpg-sound-launcher"].map(accentIn)), "[true,true,true]",
+            "turning, under Stained Glass: [the notice cards, the pause veil, the sound launcher] move their colours and the accent together");
+        const stand = () => {
+            const loose = document.createElement("div"), held = document.createElement("div");
+            held.id = "drpg-r1380-block";
+            return [{ sel: null, el: loose, origin: "10px 10px", transform: "rotate(0.05rad)" }, { sel: "#drpg-r1380-block", el: held, origin: "10px 10px", transform: "rotate(0.05rad)" }];
+        };
+        const mounted = G.glassLifecycle().curtains > 0;
+        /* THE CONTROL, with a curtain: a band dressed and its accent asked (`ask`, as a paint asks it), so the probe is
+           in the body and a band in the list before `unmount` - or the reading could not see either. */
+        const panel = document.createElement("div");
+        panel.className = "application drpg-panel drpg-r1380";
+        panel.style.cssText = "position: fixed; left: -4000px; top: 0; width: 320px; height: 120px;";
+        panel.innerHTML = `<header class="window-header" style="display: block; height: 32px;"></header>`;
+        let before, down;
+        try {
+            if (mounted) {
+                document.body.append(panel);
+                const app = { id: "drpg-r1380-panel", element: panel };
+                G.dressWindow(app);
+                before = G.glassLifecycle({ ask: panel });
+                equal(JSON.stringify([before.probe, before.windows.some(j => j.app === app.id)]), "[true,true]", "the control, before `unmount`: [the probe in the body, the stand-in's band in the list]");
+            }
+            down = mounted ? G.glassLifecycle({ down: true, rotate: stand() }) : G.glassLifecycle({ rotate: stand() });
+        } finally {
+            panel.remove();
+            if (mounted) {
+                G.refreshGlass();
+                await (document.fonts?.ready ?? Promise.resolve());
+                await wait(200);
+            }
+        }
+        equal(JSON.stringify([down.curtains, down.observers, down.rot, down.overhang, down.loop, down.probe, down.sheet, down.windows.length]), "[0,0,0,0,0,false,false,0]",
+            `with no curtain${mounted ? " (after `unmount`)" : " (as found)"}: [curtains, observers held, rotation table, shifts, the loop's frame, the probe in the body, the rotation sheet, dressed bands]`);
+        equal(JSON.stringify(down.rotated), JSON.stringify({ sheet: false, transforms: ["", ""] }),
+            "`applyRotations` with no curtain: [a rotation sheet in the page, the stand-ins' inline transforms]");
+        if (mounted) {
+            const back = G.glassLifecycle();
+            equal(JSON.stringify([back.curtains, back.observers, back.loop > 0]), JSON.stringify([before.curtains, before.observers, true]),
+                "put back by `refreshGlass`: [curtains, observers held, the loop running] as before the test");
+        }
+    }],
+    ["R1381 - a sheet's header band is one job a window (glass.mjs `dressWindow`, E23 C1c; E23-09, S12-32): ten redraws that each replace `.character-header-sheet` keep one job, its seed and its canvas, which moves to the new header, and start no flash after the first; the window closed, its job leaves the list at the next window's render; opened again it takes the same seed", async () => {
+        /*
+         * E23 C1c, 07.11.2026 (S12-32: Daggerheart's sheet part `header` has no root of its own, so every render of the
+         * sheet - a Hope spent, an item added, `refreshSheets` after the clock moved - replaces its
+         * `<header class="character-header-sheet">`; `dressBand` found its job by the element, found none, and made a
+         * new one with a seed from the list's length: another pattern of panes, a full paint and a 420 ms flash on
+         * every render, and the old jobs with their three canvases left in `windows`, walked by the pulse every frame,
+         * until the window closed - and not then either, as nothing pruned a job whose element was gone). A stand-in
+         * window of the test's own (an id, an element with a header), off the screen; its header replaced ten times,
+         * `dressWindow` after each, as `renderApplicationV2` calls it; then the window taken off the page and another
+         * window rendered; then, with another window's band in the list, the same window rendered again. The jobs are read through `glassLifecycle` (each with
+         * its element, app, kind, seed and the flashes it decided to start). Headless the band has no box, so nothing
+         * is painted and no flash is drawn; the count is of the flashes `dressBand` starts. Red on 6c9bd3c3 with the
+         * reading alone: 11 jobs for one header.
+         */
+        const G = await import("./glass.mjs");
+        equal(typeof G.glassLifecycle, "function", "glass.mjs's reading of the curtain's lifecycle (`glassLifecycle`)");
+        if (typeof G.glassLifecycle !== "function") return;
+        needs(env.glass(), "the bands are Stained Glass's");
+        const id = "drpg-r1381-sheet";
+        const heads = new Set();
+        const open = () => {
+            const root = document.createElement("div");
+            root.className = "application sheet drpg-r1381";
+            root.style.cssText = "position: fixed; left: -4000px; top: 0; width: 320px; height: 160px;";
+            document.body.append(root);
+            return { id, element: root };
+        };
+        const redraw = app => {
+            app.element.querySelector(":scope > .character-header-sheet")?.remove();
+            const h = document.createElement("header");
+            h.className = "character-header-sheet";
+            h.style.cssText = "display: block; width: 300px; height: 64px;";
+            app.element.prepend(h);
+            heads.add(h);
+            G.dressWindow(app);
+            return h;
+        };
+        const jobs = () => G.glassLifecycle().windows.filter(j => heads.has(j.el) || j.app === id);
+        const other = { id: "drpg-r1381-other", element: document.createElement("div") };
+        const second = { id: "drpg-r1381-second", element: document.createElement("div") };
+        second.element.style.cssText = "position: fixed; left: -4000px; top: 200px; width: 320px; height: 160px;";
+        let app = open();
+        try {
+            const h0 = redraw(app);
+            const first = jobs();
+            must(first.length === 1, "the first render dressed no band (or more than one) - there is nothing to follow");
+            const canvas = h0.querySelector(":scope > canvas.sg");
+            let last = h0;
+            for (let i = 0; i < 10; i++) last = redraw(app);
+            const after = jobs();
+            equal(JSON.stringify([after.length, after.every(j => j.seed === first[0].seed), after.reduce((n, j) => n + j.flashes, 0), after[0]?.el === last, last.querySelector(":scope > canvas.sg") === canvas]),
+                "[1,true,1,true,true]",
+                "after ten redraws: [jobs, the first seed kept, flashes started, the job on the newest header, the first canvas moved to it]");
+            app.element.remove();
+            G.dressWindow(other);
+            equal(jobs().length, 0, "jobs left for a window taken off the page once another window rendered");
+            // another band in the list first, so a seed counted from the list's length would come out another
+            second.element.innerHTML = `<header class="character-header-sheet" style="display: block; width: 300px; height: 64px;"></header>`;
+            document.body.append(second.element);
+            G.dressWindow(second);
+            app = open();
+            redraw(app);
+            const again = jobs();
+            equal(JSON.stringify(again.map(j => j.seed)), JSON.stringify([first[0].seed]), "the seed of the window opened again, with another band in the list");
+        } finally {
+            app.element.remove();
+            second.element.remove();
+            G.dressWindow(other);
+        }
+    }],
     ["R548 - Foundry tools wears the module's pixel anvil in both themes: its one child is an inert, classless i masked with --drpg-px-anvil in the colour the handbooks' book is drawn in, and no Foundry logo is on the page or in the module's stylesheets", async () => {
         /*
          * E78 fix h76-HF3, 14.10.2026; the owner at The Forge on 1.2.76 (13.10): the corner's Foundry tools button wore
@@ -34277,21 +34422,23 @@ const INVARIANTS = [
         }
         const early = order.flatMap((rule, i) => (rule.media ? order.slice(i + 1).filter(later => !later.media && later.selector === rule.selector).map(later => `${rule.media} ${rule.selector}`) : []));
         const sectionMedia = order.filter(r => r.media).map(r => `${r.media} ${r.selector}`);
+        /* Foundry tools' three Stained Glass prints since E23 C1c (S12-34): the rule that wins its `transition` lost the
+           phantom `#drpg-settings-launcher` from its selector list - the same rule, the same value, another selector. */
         const C5 = {
             "curtain|monokuma-legacy|foundry-tools": "1:38b5be3c", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:999f5b79",
             "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:50024055", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
-            "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:05bda810", "curtain|stained-glass|foundry-tools": "1:69716968",
+            "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:05bda810", "curtain|stained-glass|foundry-tools": "1:5400975d",
             "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:426d4aa5", "curtain|stained-glass|room-art": "1:b38f7ef7",
             "curtain|stained-glass|room-tile": "1:ec4e33c4", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
             "curtain|stained-glass|voice-tile": "2:15eb161d", "desk|monokuma-legacy|foundry-tools": "1:38b5be3c", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
             "desk|monokuma-legacy|gm-launcher": "1:999f5b79", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:cb259e72",
             "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:a60107dd",
-            "desk|stained-glass|foundry-tools": "1:69716968", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:426d4aa5",
+            "desk|stained-glass|foundry-tools": "1:5400975d", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:426d4aa5",
             "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:ce0e3f9a", "desk|stained-glass|voice-art": "1:393b7dc4",
             "desk|stained-glass|voice-list": "1:e9f9c48e", "desk|stained-glass|voice-tile": "1:17af97d5", "stacked|monokuma-legacy|foundry-tools": "1:38b5be3c",
             "stacked|monokuma-legacy|foundry-window": "2:3ad17c49", "stacked|monokuma-legacy|gm-launcher": "1:999f5b79", "stacked|monokuma-legacy|room-art": "1:b38f7ef7",
             "stacked|monokuma-legacy|room-tile": "1:c5f25ec6", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:4671c967",
-            "stacked|monokuma-legacy|voice-tile": "1:9b5c0772", "stacked|stained-glass|foundry-tools": "1:69716968", "stacked|stained-glass|foundry-window": "2:8b75b7bd",
+            "stacked|monokuma-legacy|voice-tile": "1:9b5c0772", "stacked|stained-glass|foundry-tools": "1:5400975d", "stacked|stained-glass|foundry-window": "2:8b75b7bd",
             "stacked|stained-glass|gm-launcher": "1:426d4aa5", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:0a4f36aa",
             "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:e9f9c48e", "stacked|stained-glass|voice-tile": "1:d4bd73c1"
         };
