@@ -35276,7 +35276,9 @@ const INVARIANTS = [
             ["cleanup.mjs#askTransform", /gmRoute: \[\{\s*action: "change",\s*label: game\.i18n\.localize\("DRPG\.Cleanup\.transformChange"\)/, "DRPG.Cleanup.transformNote"],
             ["cleanup.mjs#askTransformChange", /gmRoute: \[\{\s*action: "go",\s*label: game\.i18n\.localize\("DRPG\.Cleanup\.transformGo"\)/, "DRPG.Cleanup.transformActionNote"],
             ["action-murder.mjs#performDirectMurder", /yes: \{ role: "gmRoute", label: game\.i18n\.localize\("DRPG\.Dialog\.yes"\) \}/, "DRPG.Action.murderConfirmEclipse"],
-            ["calls.mjs#confirmCall", /gmRoute: Boolean\(call\.needsGm\),/, "DRPG.Calls.waitsForGm"]
+            ["calls.mjs#confirmCall", /gmRoute: Boolean\(call\.needsGm\),/, "DRPG.Calls.waitsForGm"],
+            // E22 C5d: the safeword's Stop it (R1369); its note says every GM is told.
+            ["safeword.mjs#safewordDialog", /gmRoute: \[\{\s*action: "yes",\s*label: game\.i18n\.localize\("DRPG\.Safeword\.stopIt"\)/, "DRPG.Safeword.confirmNote"]
         ];
         // Every mark of the road outside the two that implement it (ui-kit.mjs's role, call-pickers.mjs's `callWindow`).
         const TOP = /^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)/gm;
@@ -35413,6 +35415,62 @@ const INVARIANTS = [
         }), "[the proposal's window: its title, its request field, its buttons (action, role, default); closed: the answer, windows opened after, "
             + "'nothing was sent' told, messages posted; the source: callGm with promptAndCallGm's arguments and its false read, the windows, a "
             + "second window's call, the form's words read]");
+    }],
+    ["R1369 - the safeword's window and its room (E22 C5d; E22-06, audit S03-16): safeword.mjs `safewordDialog` opens on the kit with Stop it on the GM's road, the default and first in the tree, and Cancel plain; closed, it answers false and posts nothing; the keybinding's `onDown` and `game.drpg.safeword()` hand it `callerStudent()` - the user's own character (`ownStudent()`), null for a GM - as the sheet's Stop hands it the sheet's, so the GMs' card names a room on every road a player has", async () => {
+        /*
+         * E22 C5d, 07.11.2026; audit S03-16. The confirmation kept DialogV2.confirm's default, Cancel, so Enter withdrew
+         * the one press the handbook promises stops the scene; and the keybinding and the API opened it with no actor, so
+         * a player's packet carried no room on two of its three roads (the GMs read "room unknown"). Read: the window
+         * opened on this browser with DialogV2.wait held by a stand-in that keeps it until the test answers it (as R1368),
+         * its buttons read and the window closed (null): nothing is called, sent or posted. `callerStudent()` asked on
+         * this user, and the sources of the two roads and of `callerStudent` (comments stripped). Red on C5c's tree: Stop
+         * it the primary and not the default, Cancel the default, and no `callerStudent`.
+         */
+        const S = await import("./safeword.mjs");
+        const { ownStudent } = await import("./monokuma.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const held = [];
+        const roleOf = b => /\bdrpg-role-([\w-]+)/.exec(String(b.class ?? ""))?.[1] ?? null;
+        const had = new Set(game.messages.map(m => m.id));
+        const read = {};
+        D.wait = config => new Promise(resolve => held.push({ config, resolve }));
+        try {
+            const asked = S.safewordDialog(null);
+            const got = await until(() => held.length >= 1, 3000);
+            const first = got ? held.shift() : null;
+            if (first) {
+                read.window = { kit: (first.config.classes ?? []).includes("drpg-ui"),
+                    buttons: (first.config.buttons ?? []).map(b => [b.action, roleOf(b), Boolean(b.default)]) };
+                first.resolve(null);
+            } else read.window = "(no window opened)";
+            read.answer = await Promise.race([asked, wait(3000).then(() => "unanswered")]);
+            read.posted = game.messages.filter(m => !had.has(m.id)).length;
+        } finally {
+            for (const w of held.splice(0)) w.resolve(null);
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+        }
+        read.caller = typeof S.callerStudent === "function" ? (await S.callerStudent())?.id ?? null : "safeword.mjs exports no callerStudent";
+        const sources = await moduleSources();
+        const word = stripComments(sources.get("safeword.mjs") ?? "");
+        const api = stripComments(sources.get("api.mjs") ?? "");
+        const caller = topLevelFunction(word, "callerStudent") ?? "";
+        read.source = {
+            gm: /if \(game\.user\?\.isGM\) return null;/.test(caller),
+            own: /const \{ ownStudent \} = await import\("\.\/monokuma\.mjs"\);\s*return ownStudent\(\);/.test(caller),
+            key: /onDown: \(\) => \{\s*callerStudent\(\)\.then\(actor => safewordDialog\(actor\)\);\s*return true;\s*\}/.test(word),
+            api: /safeword: \(\) => import\("\.\/safeword\.mjs"\)\.then\(async m => m\.safewordDialog\(await m\.callerStudent\(\)\)\)/.test(api),
+            bare: (word.match(/\bsafewordDialog\(\)/g) ?? []).length + (api.match(/\bsafewordDialog\(\)/g) ?? []).length
+        };
+        equal(stableJson(read), stableJson({
+            window: { kit: true, buttons: [["yes", "gm-route", true], ["no", "cancel", false]] },
+            answer: false, posted: 0,
+            caller: game.user.isGM ? null : ownStudent()?.id ?? null,
+            source: { gm: true, own: true, key: true, api: true, bare: 0 }
+        }), "[the safeword's window: a kit window, its buttons in the tree (action, role, default); closed: its answer and the messages "
+            + "posted; callerStudent() on this user (null for a GM, else ownStudent()); the source: callerStudent's GM rule and its "
+            + "ownStudent, the keybinding and game.drpg.safeword() handing it on, and no safewordDialog() left with no actor]");
     }],
 ];
 
