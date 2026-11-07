@@ -29953,8 +29953,14 @@ const INVARIANTS = [
             delete game.user.character;
             drawn();
         }
-        equal(JSON.stringify({ unassigned, assigned, gmActor, playerActor }), JSON.stringify({ unassigned: "table", assigned: "table", gmActor: null, playerActor: student.id }),
-            `[the GM's strip with no character, with ${student.name} assigned; whose numbers a GM's strip is; a player's with ${student.name} assigned]`);
+        // The table's strip may draw nothing at all: in a Class Trial and while an incident runs it leaves "Still to act"
+        // out (E23 C3a, `quietActions`; the owner's Q-E23-3), and with no row it is not drawn (`buildTableView` null).
+        // The suite runs this test inside both (01-runtests' parts A1 and A2), where CI read `unassigned: null` at
+        // f26d4467. What this test holds is unchanged: a GM's strip is the table's or none, the same with a student
+        // assigned as without, and never the player view.
+        const gmView = unassigned === null ? null : "table";
+        equal(JSON.stringify({ unassigned, assigned, gmActor, playerActor }), JSON.stringify({ unassigned: gmView, assigned: gmView, gmActor: null, playerActor: student.id }),
+            `[the GM's strip with no character (the table's, or none where the table's strip has no row), with ${student.name} assigned; whose numbers a GM's strip is; a player's with ${student.name} assigned]`);
     }],
 
     ["R1119 - the overflow caption says what the stamp holds: overflow.mjs `stampReading` tells a darkening running, one armed for the time of day ahead and one waiting from the trial apart, and a one-off (kind \"event\") never reads as darkened; `overflowActive` asks kind \"state\"; despair.mjs `buildOverflowCaption` draws \"Armed\" and \"Waiting\" beside the count, clamps the count at the threshold, and its GM hint does not say a boundary fires it", async () => {
@@ -31257,16 +31263,27 @@ const INVARIANTS = [
             return [value("is-actions"), value("is-move")];
         };
         const read = {};
+        // The strip reads the world's clock and incident (E23 C3a: "Still to act" is left out in a Class Trial and while
+        // an incident runs), and the suite runs this test inside both (01-runtests' parts A1 and A2), where the first
+        // strip drew no row. So both are read here as the test's own Daily Life with no incident, as `nextStep` is
+        // handed them, and the Eclipse is laid over that for the second strip; nothing is written.
+        let eclipseOn = false;
         try {
             game.actors.filter = fn => stands.filter(fn);
+            game.settings.get = function (scope, key, ...rest) {
+                const value = get.call(this, scope, key, ...rest);
+                if (scope !== MODULE_ID) return value;
+                if (key === SETTINGS.clock) return eclipseOn
+                    ? { ...value, phase: "dailyLife", timeOfDay: "noon", eclipse: true, eclipseStartedAt: Date.now() }
+                    : { ...value, phase: "dailyLife", eclipse: false };
+                if (key === SETTINGS.murderState) return { ...(value ?? {}), active: false };
+                return value;
+            };
             const line = GP.nextStep(clock, { setupList: held, incident: false, eclipse: false });
             read.next = [line?.text ?? null, line?.action ?? null];
             read.strip = strip();
             read.trial = V.trialParticipants({ connected: false }).map(p => [p.actor.name, p.user.id]);
-            game.settings.get = function (scope, key, ...rest) {
-                const value = get.call(this, scope, key, ...rest);
-                return scope === MODULE_ID && key === SETTINGS.clock ? { ...value, phase: "dailyLife", timeOfDay: "noon", eclipse: true, eclipseStartedAt: Date.now() } : value;
-            };
+            eclipseOn = true;
             read.eclipse = strip();
         } finally {
             if (ownGet) Object.defineProperty(game.settings, "get", ownGet); else delete game.settings.get;
