@@ -49,7 +49,7 @@ import { isStashed, ITEM_FLAGS, isBroken, durabilityOf, wearOf,
     durabilityLeft } from "./inventory.mjs";
 // `equippedFor` went with the clean-up panel's "what you have readied" note -
 // the Tamper menu says it now, where the roll it applies to is chosen.
-import { isUsable, isEquippable, isEquipped, equippedIn, usableKindOf, tierOf, noDiscardNow }
+import { isUsable, isEquippable, isEquipped, equippedIn, usableKindOf, tierOf, noDiscardNow, usedCreatively }
     from "./use-items.mjs";
 import { countInGroup, categoriesInGroup, rolesOf } from "./inventory.mjs";
 // `bodyIsHere` moved with the three Stage 6 actions - the Tamper menu asks it
@@ -72,7 +72,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 import { rules } from "./rules.mjs";
 import { safeword } from "./safeword.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
-import { debug, error, plural, proseOf, markLanguage } from "./utils.mjs";
+import { debug, error, plural, proseOf, markLanguage, GM_ROUTE_CLASS } from "./utils.mjs";
 import { drpgConfirm } from "./ui-kit.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 
@@ -2952,12 +2952,17 @@ function addUseButton(li, item, app) {
     // three controls and one of them has stopped working, which is the fact.
     // Hiding it would read as the item having changed into something else.
     const broken = isBroken(item);
+    /* A TIER 0 THING'S USE IS A REQUEST TO THE GM (E22 C5c; A4, audit S03-26): it has no table row, so a GM rules on
+       what the player writes (use-items.mjs `useCreatively`) - red, with the GM's word in its tooltip, where "Use this
+       item." promised the item would simply work. In a fight it is a crisis action, which no GM rules (below), so it
+       is the plain Use there. */
+    const askGm = !broken && usedCreatively(item) && !inCrisis(app.document);
     const tip = game.i18n.localize(broken
-        ? "DRPG.Items.brokenTooltip" : "DRPG.Items.useTooltip");
+        ? "DRPG.Items.brokenTooltip" : askGm ? "DRPG.Items.useTier0Tooltip" : "DRPG.Items.useTooltip");
 
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `drpg-row-button drpg-row-use${broken ? " is-broken" : ""}`;
+    button.className = `drpg-row-button drpg-row-use${broken ? " is-broken" : ""}${askGm ? ` ${GM_ROUTE_CLASS}` : ""}`;
     button.dataset.drpgRowAction = "use";
     button.disabled = broken;
     button.dataset.tooltip = tip;
@@ -4107,7 +4112,7 @@ function callButton(call, monokuma, lockNote = null) {
      * the tile is in its pending state.
      *
      * BONE, NOT RED. Red already means one thing in this module - the Call
-     * hands the turn to a GM (`GM_ROUTE_CLASS`) - and gold is Hope's. A third
+     * hands the turn to a GM (`GM_ROUTE_CLASS`, below) - and gold is Hope's. A third
      * meaning on red is the mistake the stylesheet's note about outline colour
      * warns against. Bone plus the pulsing dot reads as "this is standing and
      * about to go off", which is what it is.
@@ -4115,10 +4120,15 @@ function callButton(call, monokuma, lockNote = null) {
     // `drpg-locked-eclipse` whatever shut it: the class is the LOOK of a Call
     // that is closed until something ends, and the reason is in the note. A
     // second class would be a second stylesheet rule for the same grey.
+    /* A CALL A GM RULES IS RED, WITH THE GM'S CHIP (E22 C5c; A4, audit S03-26, S09-22): Experience and Ultimate
+       (`needsGm`) wait for a GM's yes before anything is spent (calls.mjs: their window's Send is on the GM's road,
+       `callWindow`'s `gmRoute`), and their tiles looked like every Call a player simply buys. The flag that makes the
+       window's Send red makes the tile red, and the chip under the cost says who it waits for, as an action tile's. */
+    const askGm = Boolean(call.needsGm) && !pending;
     button.className = `drpg-action-button drpg-call-button${
         pending ? " drpg-call-pending"
             : lockNote ? " drpg-locked-eclipse"
-            : call.affordable ? "" : " unaffordable"}`;
+            : call.affordable ? "" : " unaffordable"}${askGm ? ` ${GM_ROUTE_CLASS}` : ""}`;
     button.dataset.drpgCall = call.key;
     button.dataset.drpgCallKind = monokuma ? "despair" : "hope";
 
@@ -4150,7 +4160,8 @@ function callButton(call, monokuma, lockNote = null) {
     button.innerHTML = `
         <i class="fa-solid ${call.icon ?? "fa-circle"} drpg-action-icon" inert></i>
         <span class="drpg-action-name">${softWrap(foundry.utils.escapeHTML(label))}</span>
-        <span class="drpg-action-cost">${costLabel}</span>`;
+        <span class="drpg-action-cost">${costLabel}</span>${askGm
+            ? `<span class="drpg-action-gm">${game.i18n.localize("DRPG.Action.waitsForGm")}</span>` : ""}`;
 
     return button;
 }

@@ -266,9 +266,10 @@ export async function performDirectMurder(actor, def, options) {
     // The Eclipse's words alone (E41 C1a; audit S02-60): this runs only in an Eclipse - `performAction` refuses a
     // Direct Murder outside one (`DRPG.Eclipse.murderOnlyInEclipse`) and hands a betrayal to `performBetrayal` before
     // it - so the other key, `DRPG.Action.murderConfirm`, was never shown and is deleted.
-    // A question on the kit's frame (E21 C5a).
+    // A question on the kit's frame (E21 C5a). Its yes on the GM's road (E22 C5c; A4, audit S03-26): it parks the
+    // declaration for a GM to rule on when the Eclipse ends, which the window's last line says.
     const confirmed = await drpgConfirm({
-        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        yes: { role: "gmRoute", label: game.i18n.localize("DRPG.Dialog.yes") },
         classes: ["drpg-panel"],
         title: def.label,
         body: `${briefingBlock(actor, "directMurder", def)}

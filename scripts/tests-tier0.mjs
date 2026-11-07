@@ -4391,14 +4391,15 @@ const REGRESSIONS = [
         // E41 C4 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read -
         // the proposal stands in action-project.mjs `startProject`, the Misleading trail's tile in action-tamper.mjs.
         const rolls = stripComments(actionText(sources));
-        // The 400 characters before the proposal's title and everything from it to the "sent" line.
+        // The 400 characters before the proposal's title and everything from it to the "sent" line. Since E22 C5c the
+        // proposal's one window carries its sentence and `startProject` calls `callGm` itself (R1370), so the answer read
+        // is `callGm`'s false, not `promptAndCallGm`'s null.
         const proposal = bodyOf(rolls, "DRPG.Project.proposalTitle", { back: 400 })
             + bodyOf(rolls, "DRPG.Project.proposalTitle", { until: "DRPG.Project.proposalSent" });
-        ok(/const sent = await promptAndCallGm\(/.test(proposal),
+        ok(/const sent = await callGm\(/.test(proposal),
             "the proposal does not read the answer");
-        ok(/if \(sent === null\) return null;/.test(proposal),
-            "a cancelled proposal still whispers that it was sent - and `!sent` would be "
-            + "wrong, because an empty string is a proposal with no sentence on it");
+        ok(/if \(sent === false\) return null;/.test(proposal),
+            "a proposal nobody was there to take still whispers that it was sent");
 
         ok(/n: CLEANUP\.actions\.misleadingTrail\.threshold/.test(rolls),
             "the Misleading trail tile states a number of its own instead of the rule's");
@@ -9135,6 +9136,7 @@ const REGRESSIONS = [
             ["SHEET voice.mjs#keepRoomsThroughGaps", "out of scope as a judgement: `isMonokuma` from the document, as `placeVoices` reads it, so that a Monokuma's token (a GM's voice) keeps no voice room through a gap (E88 fix G1); it moves nothing and writes nothing, and in the trial `voiceClaim` locates nobody, so it is not asked"],
             ["SHEET use-items.mjs#equippedIn", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
             ["SHEET use-items.mjs#tierOf", "out of scope: a pure reader of the item it is handed (use-items.mjs:110); on a GM the swing hands it the held item. C8 reads the tier through it (E13 C8)"],
+            ["SHEET use-items.mjs#usedCreatively", "out of scope: a pure reader of the item it is handed, as `tierOf` is (E22 C5c): whether a use is a GM's ruling, read by `useItem` on the user's own client and by the sheet's Use button there; no roll's wear and no road changes"],
             ["SHEET use-items.mjs#readiedItems", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
             ["SHEET use-items.mjs#breakOnDespair", "judged where it runs on a GM: `wearSwing` (the incident, on the primary) passes the held item and the guard reads `isBroken(held)` (E29 r2-H18); on the roller's client it is the owner's own item (class 1). C8 makes a tier-0 item break on any roll, the tier read from `held` [1b.1 broken flag, 1b.2 tier] (E13 C8)"],
             ["SHEET use-items.mjs#toggleEquipped", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
@@ -15181,7 +15183,7 @@ const REGRESSIONS = [
          */
         const CALL_CENSUS = [
             ["action-search.mjs#searchSpecific", "player", "abort(", "a Search for something specific, after the dice: the action's price comes back (`abort`), and the roll is noted as no search made"],
-            ["action-project.mjs#startProject", "player", null, "a project proposal: nothing is spent before it, and null is no proposal - no 'sent' line follows"],
+            ["action-project.mjs#startProject", "player", null, "a project proposal, its sentence typed in its one window (E22 C5c): nothing is spent before it, and false is no proposal - no 'sent' line follows"],
             ["action-observe.mjs#ruleObserve", "player", "abort(", "an Observe the GM rules, after the dice: the action's price comes back (`abort`)"],
             ["action-analyze.mjs#askForHint", "player", "refundPrice(", "an Analyze hint, after the dice: the step that paid comes back (`refundPrice`)"],
             ["action-dynamic.mjs#offerDynamicFind", "player", null, "a Dynamic success's card for the GMs, after the dice (E16 C2), and a miss's since E51 C1: the result is the roll's and stands, so nothing is handed back; with no GM the refusal is said once (`callGm`)"],
@@ -20459,7 +20461,8 @@ const REGRESSIONS = [
                 preset: /result\.description = String\(result\.description \?\? ""\)\.trim\(\) \|\| \(preset \? presetDescription\(presetKey\) : ""\)/.test(start)
                     && /render: \(event, dialog\) => \{[\s\S]*wirePresetDescription\(dialog\.element\);[\s\S]*\},\s*rejectClose/.test(start)
                     && !/description[^\n]*presetLine|presetLine[^\n]*description/.test(start),
-                refusedFirst: order(start, /projectDescriptionProblem\(result\.description\)/, /promptAndCallGm\(/),
+                // Before the one call that sends it (E22 C5c: `callGm`, where `promptAndCallGm` was).
+                refusedFirst: order(start, /projectDescriptionProblem\(result\.description\)/, /\bcallGm\(/),
                 carried: /description: result\.description,/.test(approveData)
             },
             approval: /description: data\.description \?\? ""/.test(approve),

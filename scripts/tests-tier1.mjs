@@ -9213,6 +9213,7 @@ const INVARIANTS = [
         const list = name => JSON.parse(bodyOf(popup, `const ${name} = `, { until: ";" }).replace(`const ${name} = `, ""));
         const FORBIDDEN = /^(drpg-popup|drpg-notices-|drpg-corner-tail|application$|window-|inline-roll$|content-link$|fa-)/;
         const grep = new Set();
+        const { GM_ROUTE_CLASS: GM_ROUTE } = await import("./utils.mjs");
         // E41 C3 (1.2.97): every file of the action family (the kit's ACTION_FAMILY), where action-rolls.mjs alone was read.
         for (const file of ["day-summary.mjs", "popup.mjs", "secret.mjs", "messenger-app.mjs", "trial.mjs", "safeword.mjs", ...ACTION_FAMILY]) {
             const src = stripComments(sources.get(file) ?? "");
@@ -9231,6 +9232,8 @@ const INVARIANTS = [
                     } else if (c === "{") depth++;
                     else if (c === "}") depth--;
                 }
+                // The GM's red by its name (E22 C5c: utils.mjs `GM_ROUTE_CLASS`, where action-menus.mjs wrote the literal).
+                words = words.replace(/\$\{GM_ROUTE_CLASS\}/g, ` ${GM_ROUTE} `);
                 for (const word of words.split(/\s+/)) if (/^[A-Za-z][\w-]*$/.test(word) && !FORBIDDEN.test(word)) grep.add(word);
             }
         }
@@ -35238,6 +35241,178 @@ const INVARIANTS = [
             paint: { "drpg-theme-stained-glass": yes, "drpg-theme-monokuma-legacy": yes }
         }), "[Observe: the ladders shown, All thresholds (open, its lines, its word); Analyze's bound rows; Tamper's bound facts and a second watchers line; "
             + "Observe's box with its two rows; the menu opens at its top; per theme: a plain fact, a bound one with its row picked and one with another row picked, the facts' size and ink]");
+    }],
+    ["R121 - A4, red is the GM's road and says so (E22 C5c; E22-02, E22-10, E22-12, audit S02-25, S05-49, S02-49, S03-26, S09-22): every menu row marked `gmRoute` and every footer button the module puts on the GM's road (a `gmRoute` slot, a question's `role: \"gmRoute\"`, `callWindow`'s `gmRoute`) stands in this census - the Tamper menu's Reshape a Trace and its two windows' Leave something else and Reshape it (Erase plain), Observe's two, Analyze's hint, Search's specific, the proposal's row and its one Send, the request window's Send, Experience and Ultimate (`needsGm` alone), Direct Murder's yes - and the sentence beside each names the GM in English and Polish; the Reshape's three say a refusal gives back nothing paid; `GM_ROUTE_CLASS` is utils.mjs's alone and the kit's gmRoute face; the Dynamic action's definition carries `callsGm`, read once, and its briefing says a GM judges it; the sheet's tile of a Call a GM rules and a Tier 0 item's Use are red with the GM's word, by the flags their windows read; `stripeKindFor` answers the GM's road before a Sanity step", async () => {
+        /*
+         * E22 C5c, 07.11.2026; A4 (the owner's, confirmed live), D11. The Reshape row and its buttons were not red though a
+         * GM approves a reshape since N-3, and their texts promised the change at once; `GM_ROUTE_CLASS` was a const of
+         * action-project.mjs; the Dynamic action's window definition had no `callsGm`, so its briefing never said a GM
+         * judges it, and `performDynamic` read the definition twice; Experience and Ultimate's tiles, a Tier 0 item's Use
+         * and Direct Murder's yes looked like any other; `stripeKindFor` gave a Sanity step the stripe before the GM's.
+         * Read: the sources (comments stripped) cut by top-level function, both lang files as served, and the pure
+         * functions (`stripeKindFor`, `usedCreatively`, `dynamicDef`, `briefingBlock` for a living student). Nothing is
+         * drawn or written. Locate a hidden stash is not red: its search is judged on the primary GM's browser by the
+         * rule, with no person deciding (stash-reach.mjs `resolveStashSearch`), so it is not the GM's road (STATUS Open
+         * 60). Red on C5b's tree: the Reshape row with no `gmRoute`, its buttons the primary, the texts naming no GM,
+         * the const in action-project.mjs, no `callsGm` on the Dynamic's definition, the tiles plain.
+         */
+        needs(world.atLeast("livingStudents", 1), "the Dynamic action's briefing is built for a living student");
+        const sources = new Map(await otherSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        const fetchLang = lang => fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+        const langs = { en: await fetchLang("en"), pl: await fetchLang("pl") };
+        const said = (lang, key) => key.split(".").reduce((node, part) => node?.[part], langs[lang]);
+        const namesGm = key => ["en", "pl"].map(lang => /\bGM/.test(String(said(lang, key) ?? "")));
+        // The census: where the road is, the mark it carries there, and the sentence a player reads beside it.
+        const CENSUS = [
+            ["action-tamper.mjs#chooseTamper", /value: "reshape", icon: "[\w-]+", gmRoute: true,/, "DRPG.Cleanup.transformActionHint"],
+            ["action-observe.mjs#askDeclaration", /value: "specific", icon: "[\w-]+", gmRoute: true,/, "DRPG.Observe.specificHint"],
+            ["action-observe.mjs#askDeclaration (2)", /value: "anything", icon: "[\w-]+", gmRoute: true,/, "DRPG.Observe.anythingHint"],
+            ["action-analyze.mjs#askWhatToAnalyze", /value: "hint", icon: "[\w-]+", gmRoute: true,/, "DRPG.Analyze.askHintHint"],
+            ["action-project.mjs#performProject", /value: "start", icon: "[\w-]+", gmRoute: true,/, "DRPG.Project.startNewHint"],
+            ["action-search.mjs#chooseSearchCategory", /gmRoute: o\.value === "specific",/, "DRPG.Action.goalSpecificHint"],
+            ["action-project.mjs#startProject", /gmRoute: \[\{\s*action: "create",\s*label: game\.i18n\.localize\("DRPG\.Project\.proposeButton"\)/, "DRPG.Project.proposeButton"],
+            ["call-gm.mjs#askForRequest", /gmRoute: \[\{\s*action: "send",\s*label: game\.i18n\.localize\("DRPG\.Bridge\.send"\)/, "DRPG.Bridge.send"],
+            ["cleanup.mjs#askTransform", /gmRoute: \[\{\s*action: "change",\s*label: game\.i18n\.localize\("DRPG\.Cleanup\.transformChange"\)/, "DRPG.Cleanup.transformNote"],
+            ["cleanup.mjs#askTransformChange", /gmRoute: \[\{\s*action: "go",\s*label: game\.i18n\.localize\("DRPG\.Cleanup\.transformGo"\)/, "DRPG.Cleanup.transformActionNote"],
+            ["action-murder.mjs#performDirectMurder", /yes: \{ role: "gmRoute", label: game\.i18n\.localize\("DRPG\.Dialog\.yes"\) \}/, "DRPG.Action.murderConfirmEclipse"],
+            ["calls.mjs#confirmCall", /gmRoute: Boolean\(call\.needsGm\),/, "DRPG.Calls.waitsForGm"]
+        ];
+        // Every mark of the road outside the two that implement it (ui-kit.mjs's role, call-pickers.mjs's `callWindow`).
+        const TOP = /^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)/gm;
+        const found = [];
+        for (const [file, raw] of sources) {
+            if (!file.endsWith(".mjs") || file === "ui-kit.mjs" || file === "call-pickers.mjs") continue;
+            const code = stripComments(raw);
+            const tops = [...code.matchAll(TOP)].map(m => ({ at: m.index, name: m[1] }));
+            const seen = new Map();
+            for (const m of code.matchAll(/\bgmRoute\s*:|role:\s*"gmRoute"/g)) {
+                const key = `${file}#${tops.findLast(t => t.at <= m.index)?.name ?? "(top level)"}`;
+                const n = (seen.get(key) ?? 0) + 1;
+                seen.set(key, n);
+                found.push(n === 1 ? key : `${key} (${n})`);
+            }
+        }
+        const rows = new Set(CENSUS.map(([key]) => key));
+        const read = {
+            unlisted: found.filter(key => !rows.has(key)),
+            gone: CENSUS.filter(([key]) => !found.includes(key)).map(([key]) => key),
+            marked: CENSUS.filter(([key, mark]) => {
+                const [site, fn] = key.replace(/ \(\d+\)$/, "").split("#");
+                return !mark.test(topLevelFunction(src(site), fn) ?? "");
+            }).map(([key]) => key),
+            sentence: CENSUS.filter(([, , sentence]) => namesGm(sentence).includes(false)).map(([key, , sentence]) => `${key}: ${sentence} ${stableJson(namesGm(sentence))}`)
+        };
+        // The Reshape's three sentences: a GM approves, and a refusal gives back nothing paid.
+        const refusal = { en: /(?:refus\w*|if not)[^.]*(?:nothing[^.]*back|back nothing)/i, pl: /odmow\w*[^.]*(?:nie wraca|przepada)/i };
+        read.reshape = ["DRPG.Cleanup.transformActionHint", "DRPG.Cleanup.transformActionNote", "DRPG.Cleanup.transformNote"]
+            .filter(key => !refusal.en.test(said("en", key) ?? "") || !refusal.pl.test(said("pl", key) ?? ""));
+        read.erase = /secondary: \[\{\s*action: "erase",/.test(fnSource(src("cleanup.mjs"), "askTransform"));
+        // The one class.
+        const U = await import("./utils.mjs");
+        const { BUTTON_ROLES } = await import("./ui-kit.mjs");
+        read.cls = [U.GM_ROUTE_CLASS, BUTTON_ROLES.gmRoute.face === U.GM_ROUTE_CLASS,
+            [...sources].filter(([file, raw]) => file !== "utils.mjs" && /\b(?:const|let|var)\s+GM_ROUTE_CLASS\b/.test(stripComments(raw))).map(([file]) => file)];
+        // The Dynamic action: one definition read once, its flag, its briefing's sentence.
+        const { dynamicDef } = await import("./action-dynamic.mjs");
+        const { briefingBlock } = await import("./action-briefing.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const note = game.i18n.localize("DRPG.Action.callsGmNote");
+        read.dynamic = [dynamicDef().callsGm === true, briefingBlock(livingStudents()[0], "dynamic", dynamicDef()).includes(note),
+            (fnSource(src("action-dynamic.mjs"), "performDynamic").match(/\bdynamicDef\(\)/g) ?? []).length];
+        // The sheet's tiles, by the flags their windows read.
+        const sheet = src("sheet.mjs");
+        const call = fnSource(sheet, "callButton"), use = fnSource(sheet, "addUseButton");
+        read.tiles = {
+            call: /const askGm = Boolean\(call\.needsGm\) && !pending;/.test(call) && /\$\{askGm \? ` \$\{GM_ROUTE_CLASS\}` : ""\}/.test(call)
+                && /<span class="drpg-action-gm">\$\{game\.i18n\.localize\("DRPG\.Action\.waitsForGm"\)\}<\/span>/.test(call),
+            needsGm: Object.entries(HOPE_CALLS).filter(([, c]) => c.needsGm).map(([key]) => key).sort(),
+            use: /const askGm = !broken && usedCreatively\(item\) && !inCrisis\(app\.document\);/.test(use) && /"DRPG\.Items\.useTier0Tooltip"/.test(use)
+                && /\$\{askGm \? ` \$\{GM_ROUTE_CLASS\}` : ""\}/.test(use),
+            useItem: /if \(usedCreatively\(held\)\) return/.test(fnSource(src("use-items.mjs"), "useItem")),
+            words: [namesGm("DRPG.Action.waitsForGm"), namesGm("DRPG.Items.useTier0Tooltip")]
+        };
+        const { usedCreatively } = await import("./use-items.mjs");
+        read.creative = typeof usedCreatively === "function" ? [0, 1, 2, 3].map(tier => usedCreatively({ getFlag: () => tier })) : "use-items.mjs exports no usedCreatively";
+        const { stripeKindFor } = await import("./price.mjs");
+        read.stripe = [stripeKindFor({ pay: "stress", amount: 1 }, "gm"), stripeKindFor({ pay: "stress", amount: 1 }, "action"),
+            stripeKindFor({ pay: "hope", amount: 1 }, "gm"), stripeKindFor({ pay: null }, "gm")];
+        equal(stableJson(read), stableJson({
+            unlisted: [], gone: [], marked: [], sentence: [], reshape: [], erase: true,
+            cls: ["drpg-gm-route", true, []],
+            dynamic: [true, true, 1],
+            tiles: { call: true, needsGm: ["experience", "ultimate"], use: true, useItem: true, words: [[true, true], [true, true]] },
+            creative: [true, false, false, false],
+            stripe: ["gm", "stress", "gm", "free"]
+        }), "[the GM's road: marks with no census row, rows whose mark is gone, rows whose mark is not the road's, sentences naming no GM (EN, PL); "
+            + "the Reshape's sentences with no refusal's price; Erase plain; the class, the kit's face, other declarations; the Dynamic's flag, its "
+            + "briefing's sentence, its reads; the Call tile, the Calls a GM rules, the Tier 0 Use, useItem's road, their words; usedCreatively by "
+            + "tier; the stripe for a Sanity step on the GM's road, on an action, a Hope step, a free one]");
+    }],
+    ["R1370 - the proposal sends once (E22 C5c; audit S10-31, Q-E21-5): action-project.mjs `startProject` opens one window - its form with the request field, its one Send on the GM's road and Cancel - and hands `callGm` what `promptAndCallGm` handed it (the title, no roll, the form's words, the room, the GM's body and buttons, nothing spent), with no second window; closed, it says nothing was sent and posts nothing", async () => {
+        /*
+         * E22 C5c, 07.11.2026; audit S10-31. The form's "Send it to the GM" sent nothing: `promptAndCallGm` opened a second
+         * window with an empty field and a second Send, and a player who closed it believing the first had sent proposed
+         * nothing, silently. Read: `startProject` run on this browser for a living student with DialogV2.wait held by a
+         * stand-in that keeps each window until the test answers it (as R1368), the one window's form and buttons read and
+         * closed (null); then whether a second window opened, the answer, the notices and the messages; and the source of
+         * the call (comments stripped). Nothing is sent, spent or written. Red on C5b's tree: `startProject` is not
+         * exported, and its source calls `promptAndCallGm`.
+         */
+        needs(world.atLeast("livingStudents", 1), "a proposal is a living student's");
+        const P = await import("./action-project.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const actor = livingStudents()[0];
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const held = [];
+        const roleOf = b => /\bdrpg-role-([\w-]+)/.exec(String(b.class ?? ""))?.[1] ?? null;
+        const told = [];
+        const info = ui.notifications.info;
+        const had = new Set(game.messages.map(m => m.id));
+        const read = {};
+        D.wait = config => new Promise(resolve => held.push({ config, resolve }));
+        ui.notifications.info = (text, ...rest) => { told.push(String(text)); return info.call(ui.notifications, text, ...rest); };
+        try {
+            if (typeof P.startProject !== "function") throw new Error("not exported");
+            const asked = P.startProject(actor);
+            const got = await until(() => held.length >= 1, 4000);
+            const first = got ? held.shift() : null;
+            if (first) {
+                const root = document.createElement("div");
+                root.innerHTML = first.config.content instanceof HTMLElement ? first.config.content.innerHTML : String(first.config.content ?? "");
+                read.form = { title: first.config.window?.title === game.i18n.localize("DRPG.Project.startNew"),
+                    request: root.querySelectorAll('form textarea[name="request"]').length,
+                    buttons: (first.config.buttons ?? []).map(b => [b.action, roleOf(b), Boolean(b.default)]) };
+                first.resolve(null);
+            } else read.form = "(no window opened)";
+            read.answer = await Promise.race([asked, wait(3000).then(() => "unanswered")]);
+            await wait(200);
+            read.more = held.length;
+            read.told = told.filter(t => t === game.i18n.localize("DRPG.Project.proposalNotSent")).length;
+            read.posted = game.messages.filter(m => !had.has(m.id)).length;
+        } catch (err) {
+            // Not exported (C5b's tree): nothing to open, and the source below is still read.
+            if (err?.message !== "not exported") throw err;
+            read.form = "action-project.mjs exports no startProject";
+        } finally {
+            for (const w of held.splice(0)) w.resolve(null);
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+            ui.notifications.info = info;
+        }
+        const code = fnSource(stripComments(actionText(await moduleSources())), "startProject");
+        const call = /const sent = await callGm\(actor, \{\s*title: game\.i18n\.localize\("DRPG\.Project\.proposalTitle"\),\s*roll: null,\s*request: result\.request \?\? "",\s*room,\s*body: [\s\S]*?actions: \[[\s\S]*?\],\s*nothingSpent: true\s*\}\);\s*if \(sent === false\) return null;/;
+        read.source = { call: call.test(code), windows: (code.match(/\bdrpgWindow\(/g) ?? []).length,
+            second: /\b(?:promptAndCallGm|askForRequest|promptForRequest)\(/.test(code),
+            read: /request: readRequestField\(d\.element\)/.test(code) };
+        equal(stableJson(read), stableJson({
+            form: { title: true, request: 1, buttons: [["create", "gm-route", true], ["cancel", "cancel", false]] },
+            answer: null, more: 0, told: 1, posted: 0,
+            source: { call: true, windows: 1, second: false, read: true }
+        }), "[the proposal's window: its title, its request field, its buttons (action, role, default); closed: the answer, windows opened after, "
+            + "'nothing was sent' told, messages posted; the source: callGm with promptAndCallGm's arguments and its false read, the windows, a "
+            + "second window's call, the form's words read]");
     }],
 ];
 

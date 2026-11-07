@@ -52,7 +52,7 @@
  * the seven bare "-" options its `emptyOption` (R1127, R1329); the rest of the kit waits for E21.
  */
 
-import { esc, error, wholeNumber, dialogContent, eachPane, markLanguage, windowWidthFor } from "./utils.mjs";
+import { esc, error, wholeNumber, dialogContent, eachPane, markLanguage, windowWidthFor, GM_ROUTE_CLASS } from "./utils.mjs";
 import { keepLive } from "./live.mjs";
 
 /* ---- the button roles -------------------------------------------------------------------------------------------- */
@@ -66,7 +66,7 @@ import { keepLive } from "./live.mjs";
  */
 export const BUTTON_ROLES = Object.freeze({
     primary: Object.freeze({ cls: "drpg-role-primary", face: null, side: "right", rank: 2, mayDefault: true, token: "--drpg-kit-role-primary", word: null }),
-    gmRoute: Object.freeze({ cls: "drpg-role-gm-route", face: "drpg-gm-route", side: "right", rank: 1, mayDefault: true, token: "--drpg-kit-role-gm-route", word: null }),
+    gmRoute: Object.freeze({ cls: "drpg-role-gm-route", face: GM_ROUTE_CLASS, side: "right", rank: 1, mayDefault: true, token: "--drpg-kit-role-gm-route", word: null }),
     close: Object.freeze({ cls: "drpg-role-close", face: null, side: "left", rank: 0, mayDefault: true, token: "--drpg-kit-role-close", word: "DRPG.Kit.close" }),
     cancel: Object.freeze({ cls: "drpg-role-cancel", face: null, side: "left", rank: 0, mayDefault: true, token: "--drpg-kit-role-cancel", word: "DRPG.Kit.cancel" }),
     secondary: Object.freeze({ cls: "drpg-role-secondary", face: null, side: "left", rank: 1, mayDefault: false, token: "--drpg-kit-role-secondary", word: null }),

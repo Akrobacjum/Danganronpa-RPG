@@ -385,10 +385,13 @@ export function paidLine(receipt) {
  * two new rules that R2 would then police for a colour a player meets on a tile
  * once a season. `fallback` is what the tile derived for itself, so an action that
  * hands the turn to the GM keeps its "gm" stripe while it is being paid for with
- * an action or with Hope.
+ * an action or with Hope - and with Sanity too (E22 C5c; audit S03-26): an Analyze a GM rules, paid with Sanity in a
+ * trial, lost its red to the Sanity step, and red is the GM's road with no exceptions (D11). The price is the tile's
+ * cost line.
  */
 export function stripeKindFor(quote, fallback = "action") {
     if (!quote?.pay) return quote?.blocked ? fallback : "free";
+    if (fallback === "gm") return "gm";
     if (quote.pay === "stress") return "stress";
     return fallback;
 }

@@ -82590,12 +82590,11 @@ const SCENARIOS = [
                     start.checked = true;
                     return press(cfg, root);
                 }
-                // The request window bears the same title as the form (DRPG.Project.proposalTitle): told apart by its field.
-                if (root.querySelector('textarea[name="request"]')) return { text: "SUITE E44-T20 may I build it?" };
+                // The sentence for the GM is the form's own field since E22 C5c (no second window): answered with the form.
                 if (title === titles.start) {
                     read.form = root.querySelectorAll('textarea[name="description"]').length;
                     return { name: "SUITE E44-T20 the bookcase", target: 4, room: stood.room, trait: "hand", murder: false, condition: "",
-                        preset: null, to: null, seal: null, unbreach: null, mend: null, description: PLAYER };
+                        preset: null, to: null, seal: null, unbreach: null, mend: null, description: PLAYER, request: "SUITE E44-T20 may I build it?" };
                 }
                 if (title === titles.create) {
                     read.opened = root.querySelector('textarea[name="description"]')?.value ?? null;
@@ -82943,6 +82942,141 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({ drawn: true, cancel: true, answer: false, added: [], cards: 0 }),
             "[the rule's window drawn; its Cancel found; askBlackenedRule's answer after Cancel; the rules it added; the cards posted]");
+    }],
+    ["E22-T3 - a Reshape's two windows put the reshape on the GM's road (E22 C5c; A4, audit S02-25, S05-49): cleanup.mjs `askTransform` (the critical's) and `askTransformChange` (the Tamper's) drawn on the GM as a player's browser draws them - Leave something else and Reshape it red, on the GM's road and first in the tree; Erase and Cancel plain; each window's note names the GM; the GM's road pressed answers the words and changes nothing in the world (the trace waits for the GM's yes: \"a reshaped trace does not change until the GM says so\", beside this test)", async () => {
+        /*
+         * E22 C5c, 07.11.2026; A4. Since N-3 a reshape goes to a GM (`proposeReshape`), and its windows' buttons were the
+         * module's ordinary primary: nothing on them said a person would rule. The windows are drawn here (`__dialogWindows`)
+         * and each footer read by the buttons' own classes, then the GM's road pressed with both fields filled: the answer,
+         * and the world's Remnants, which these windows only ask about. That the trace itself changes on the GM's yes alone is
+         * the tier-2 test named in the title, kept as written. Red on C5b's tree: both buttons the primary, no
+         * `drpg-gm-route`.
+         */
+        needs(env.dialogs(), "the windows are drawn and their buttons read and pressed");
+        const [who] = cast(1);
+        const CL = await import("./cleanup.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        must((CLEANUP.transform?.visibilities ?? []).length, "the critical's window has no band to offer at this table - this would measure nothing");
+        const drawn = title => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const remnants = () => (canvas?.scene?.tokens?.contents ?? []).map(t => `${t.id}:${t.name}`).sort().join("|");
+        const before = remnants();
+        const drive = async (ask, title, go) => {
+            const run = Promise.resolve().then(ask).catch(err => `threw ${err?.message ?? err}`);
+            const reading = {};
+            try {
+                if (!await until(() => Boolean(drawn(title)), 6000)) return { drawn: false };
+                const el = drawn(title).element;
+                const buttons = [...el.querySelectorAll("footer.form-footer button")];
+                reading.tree = buttons.map(b => [b.dataset.action, b.classList.contains("drpg-role-gm-route"), b.classList.contains("drpg-gm-route")]);
+                reading.note = /\bGM/.test(el.querySelector("form p.notes")?.textContent ?? "");
+                el.querySelector("[name=name]").value = "SUITE E22-T3 a coat stand";
+                el.querySelector("[name=text]").value = "SUITE E22-T3 it was always here";
+                el.querySelector(`footer.form-footer button[data-action="${go}"]`)?.click();
+                const answer = await Promise.race([run, wait(4000).then(() => "unanswered")]);
+                reading.answer = answer && typeof answer === "object" ? [answer.name, answer.text] : answer;
+            } finally {
+                if (drawn(title)) await drawn(title).close();
+                await Promise.race([run, wait(3000)]);
+            }
+            return reading;
+        };
+        const read = {
+            critical: await drive(() => CL.askTransform(who), game.i18n.localize("DRPG.Cleanup.transformTitle"), "change"),
+            tamper: await drive(() => CL.askTransformChange(who), game.i18n.localize("DRPG.Cleanup.transformAction"), "go")
+        };
+        await settle();
+        read.world = remnants() === before;
+        const words = ["SUITE E22-T3 a coat stand", "SUITE E22-T3 it was always here"];
+        equal(stableJson(read), stableJson({
+            critical: { tree: [["change", true, true], ["erase", false, false]], note: true, answer: words },
+            tamper: { tree: [["go", true, true], ["cancel", false, false]], note: true, answer: words },
+            world: true
+        }), "[each window: its footer in tree order (action, the GM's road role, the GM's red), its note naming the GM, the answer of its GM's road "
+            + "pressed with both fields; the scene's tokens as before]");
+    }],
+    ["E22-T4 - a proposal sends once (E22 C5c, MARKED; audit S10-31, Q-E21-5): Work on Project's Propose answered on this primary GM for a student standing alone - the form, with its own request field, answered with the words - reaches the GM's card once, quoting the words, with no second window; the form closed unsent posts no card and says nothing was sent", async () => {
+        /*
+         * E22 C5c, 07.11.2026; audit S10-31. The form's Send sent nothing and a second window (`promptAndCallGm`) asked for
+         * the sentence again; closed, the proposal was lost without a word. Driven as E44-T20 drives a proposal: the student
+         * stood alone in a room (`standAlone`), the Projects window answered Propose, the form answered as its Send's
+         * callback answers (its own field read by R1370), the card found by its Approve. Then the same with the form closed (null). Read: the windows asked, the cards with Approve,
+         * the card's quote, and the notices. Put back: the cards, the student's place. Red on C5b's tree: a second window
+         * asked after the form, its field the one the words come from. Mutant c5c-m1 (the form's words not handed to
+         * `callGm`) dies here: the card quotes nothing.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the proposer alone");
+        const [actor] = cast(1);
+        const { performAction } = await import("./action-rolls.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this GM is not the primary - run the suite on the primary GM");
+        const WORDS = "SUITE E22-T4 may I build a shelf here?";
+        const startTitle = game.i18n.localize("DRPG.Project.startNew");
+        const notSent = game.i18n.localize("DRPG.Project.proposalNotSent");
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const told = [];
+        const info = ui.notifications.info;
+        ui.notifications.info = (text, ...rest) => { told.push(String(text)); return info.call(ui.notifications, text, ...rest); };
+        const cards = () => game.messages.contents.filter(m => !had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="approveProject"'));
+        const read = {};
+        let stood = null, windows = null;
+        let close = false;
+        try {
+            stood = await standAlone(actor);
+            windows = answerWindows((cfg, root) => {
+                const title = cfg?.window?.title ?? "";
+                const start = root.querySelector('input[name="variant"][value="start"]');
+                if (title === ACTIONS.project.label && start) {
+                    start.checked = true;
+                    return press(cfg, root);
+                }
+                if (title !== startTitle) return null;
+                read.field = root.querySelectorAll('form textarea[name="request"]').length;
+                if (close) return null;
+                // The form's answer as its Send's callback reads it (E44-T20's way: jsdom's form has no named fields).
+                return { name: "SUITE E22-T4 a shelf", target: 4, room: stood.room, trait: "hand", murder: false, condition: "",
+                    preset: null, to: null, seal: null, unbreach: null, mend: null, description: "SUITE E22-T4 a shelf for the notebooks", request: WORDS };
+            });
+            await performAction(actor, "project", { free: true });
+            await until(() => cards().length >= 1, 6000);
+            await settle();
+            const sent = cards();
+            read.sent = {
+                windows: windows.asked.map(w => w.title === ACTIONS.project.label ? "projects" : w.title === startTitle ? "form" : "another"),
+                cards: sent.length,
+                quote: (() => {
+                    const box = document.createElement("div");
+                    box.innerHTML = String(contentOf(sent[0]) ?? "");
+                    return box.querySelector("blockquote")?.textContent?.trim() ?? null;
+                })()
+            };
+            for (const m of sent) await m.delete().catch(() => {});
+            await settle();
+            windows.asked.length = 0;
+            told.length = 0;
+            close = true;
+            const answer = await performAction(actor, "project", { free: true });
+            await settle();
+            read.closed = {
+                answer,
+                windows: windows.asked.map(w => w.title === ACTIONS.project.label ? "projects" : w.title === startTitle ? "form" : "another"),
+                cards: cards().length,
+                told: told.filter(t => t === notSent).length
+            };
+        } finally {
+            ui.notifications.info = info;
+            windows?.restore();
+            for (const m of game.messages.contents) if (!had.has(m.id)) await m.delete().catch(() => {});
+            await stood?.back();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            field: 1,
+            sent: { windows: ["projects", "form"], cards: 1, quote: WORDS },
+            closed: { answer: null, windows: ["projects", "form"], cards: 0, told: 1 }
+        }), "[the form's request fields; sent: the windows asked, the cards with Approve, the card's quote; closed: the answer, the windows asked, the cards, 'nothing was sent' told]");
     }],
     ...GRID
 ];

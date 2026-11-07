@@ -382,6 +382,17 @@ export function isUsable(item) {
 }
 
 /**
+ * Whether using this item is a request to the GM (E22 C5c; audit S03-26): a Tier 0 thing - or a tier with no row of
+ * `USABLE_EFFECTS`, or a creative one - has no table row to apply, so a GM rules on what the player says they do with
+ * it (`useCreatively`). One answer for both readers: `useItem`, which takes that road, and the sheet's Use button
+ * (sheet.mjs `addUseButton`), which is red with the GM's word for it.
+ */
+export function usedCreatively(item) {
+    const effect = USABLE_EFFECTS[tierOf(item)];
+    return !effect || Boolean(effect.creative);
+}
+
+/**
  * Which kind of usable this item is: "healing", "stress", or null when the
  * module honestly does not know.
  *
@@ -493,7 +504,7 @@ export async function useItem(actor, item, { again = null, held = item } = {}) {
 
     // Tier 0 is "a random, seemingly useless object, open to creative use" -
     // there is no table row to apply, so a human decides what it is worth.
-    if (!effect || effect.creative) return again ? {} : useCreatively(actor, item);
+    if (usedCreatively(held)) return again ? {} : useCreatively(actor, item);
 
     // What lands where. A row with `choose` asks which and adds its `bonus` on top
     // (none has since 15.10.2026: tier 3 was the one); tiers 1 to 3 read the

@@ -19,7 +19,7 @@
  */
 
 import { TRAITS } from "./config.mjs";
-import { esc } from "./utils.mjs";
+import { esc, GM_ROUTE_CLASS } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 
 /**
@@ -74,9 +74,10 @@ function readTraitField(element, traits) {
  *   where the hint goes. Seeing what you cannot do is half of what a menu is
  *   for - the same rule the Calls panel already follows.
  *
- *   OPTIONS THAT SUMMON A HUMAN ARE RED, with `drpg-gm-route`, the same class
- *   the buttons carry today. Red already means "this waits for somebody"
- *   everywhere else in the module.
+ *   OPTIONS THAT SUMMON A HUMAN ARE RED, with `drpg-gm-route` (utils.mjs
+ *   `GM_ROUTE_CLASS`), the class of the kit's `gmRoute` buttons. Red means
+ *   "this waits for a GM" everywhere else in the module, and a red row's hint
+ *   says so in its own words (R121, A4).
  *
  * @param {object}   config
  * @param {Actor}    config.actor
@@ -152,7 +153,7 @@ export async function chooseVariant({
     // content, and the stylesheet unfolds the block right after the picked row.
     const rows = options.map(o => `
         <label class="drpg-choice${o.disabled ? " unavailable" : ""}${
-            o.gmRoute ? " drpg-gm-route" : ""}${o.struck ? " drpg-row-denied" : ""}">
+            o.gmRoute ? ` ${GM_ROUTE_CLASS}` : ""}${o.struck ? " drpg-row-denied" : ""}">
             <input type="radio" name="variant" value="${esc(o.value)}"${
                 o.value === first ? " checked" : ""}${o.disabled ? " disabled" : ""}>
             <i class="fa-solid ${esc(o.icon ?? "fa-circle")}" inert></i>

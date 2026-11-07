@@ -23,6 +23,22 @@ import { count } from "./perf-counters.mjs";
  */
 export const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
 
+/**
+ * The red of the GM's road (D11): a row, a button or a tile a player presses that hands the turn to a GM and waits for
+ * their ruling. Nothing else is red for a player, and on a GM's screen it names nothing.
+ *
+ * The distinction matters at the moment of choosing, not afterwards: pressing one of these means waiting for a human.
+ * Every red row, button or tile has a sentence about the GM beside it - its hint, the window's note, the tile's GM chip
+ * (R121, A4). A tile is red only when every branch behind it waits for a GM; where only some do (Tamper, Observe,
+ * Analyze), the tile carries no GM mark and the rows in its menu that do are red (Q-E21-1 (a); audit S03-26).
+ *
+ * WHERE IT LIVES (E22 C5c, 07.11.2026; audit S05-49). A local const of action-project.mjs (before E41, action-rolls.mjs)
+ * until C5c, which the action menus, the kit and the sheet each spelled out as the literal "drpg-gm-route". One name
+ * here now: ui-kit.mjs's `gmRoute` role paints with it, action-menus.mjs `chooseVariant` marks a row with it, and
+ * sheet.mjs marks a Call's tile and a Tier 0 item's Use with it. The stylesheets' rules for it stay where they are.
+ */
+export const GM_ROUTE_CLASS = "drpg-gm-route";
+
 /* THE MODULE'S LANGUAGES AS INTL READS THEM (E66 C1, 01.11.2026; DB35: "helper I9 z jawnym en-US"). English is
    American English (EN1), so its lists take the Oxford comma and its dates the US order whatever the browser's own
    English is; a code with no row here (none ships) is written as English. */

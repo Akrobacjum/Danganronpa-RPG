@@ -2,8 +2,8 @@
  * Danganronpa RPG - Work on Project and Sabotage.
  * ---------------------------------------------------------------------------
  * A project from its window to its progress: `performProject`, a project
- * started (`startProject`, with the red mark of a button that hands the turn
- * to the GM, `GM_ROUTE_CLASS`) or worked on (`workOnProject`), the progress a
+ * proposed (`startProject`: one window, its request and its one Send on the
+ * GM's road, since E22 C5c) or worked on (`workOnProject`), the progress a
  * roll makes (`projectProgress`) and the extras it is held to
  * (`CONCEALED_WITH_DESPAIR`, `PROJECT_BONUS_MOST`, `heldTo`, `reliefHeld`,
  * `projectExtrasHeld`), an indirect murder's concealment and traces
@@ -37,7 +37,7 @@ import { roomOfActor, othersInRoom, locateActor } from "./movement.mjs";
 import {
     addProgress, isIndirectMurder, isSecret, projectsListedIn, buildsOwnMurder, projectLabel
 } from "./projects.mjs";
-import { promptAndCallGm } from "./gm-bridge.mjs";
+import { callGm } from "./gm-bridge.mjs";
 import { announce, resolveThreshold, whisperToOwner, plural, cardHead, esc, easedBy } from "./utils.mjs";
 import { equippedFor, tierOf } from "./use-items.mjs";
 import { playSfx } from "./sfx.mjs";
@@ -47,26 +47,9 @@ import {
 } from "./action-pipeline.mjs";
 import { report } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
-import { chooseVariant } from "./action-menus.mjs";
+import { chooseVariant, requestFieldHtml, readRequestField } from "./action-menus.mjs";
 import { listenLabels } from "./action-listen.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
-
-/**
- * Marks a dialog button that hands the turn to the GM rather than resolving
- * against a table.
- *
- * The distinction matters at the moment of choosing, not afterwards: pressing
- * one of these means waiting for a human, and the two branches that do it were
- * sitting in a row of buttons that looked exactly like the automatic ones.
- * Red is already the module's colour for "this goes to the GM" - the cost
- * stripe on the action tiles uses it for the same thing - so the styling is in
- * `danganronpa.css` next to that rule.
- *
- * DialogV2 writes this straight onto the element with `setAttribute("class")`,
- * replacing whatever was there. Its buttons carry no classes of their own, so
- * nothing is lost.
- */
-const GM_ROUTE_CLASS = "drpg-gm-route";
 
 /* ==========================================================================
  * PROJECTS
@@ -189,15 +172,14 @@ export async function performProject(actor, def, options) {
 }
 
 /**
- * Start a project without waiting for the GM.
+ * Propose a project: one window, and the GM's card it sends.
  *
- * The guide has projects agreed with the GM beforehand, so the dialog says so
- * plainly rather than pretending otherwise - but it then creates the project,
- * because making the player wait mid-turn for a rubber stamp they already have
- * is exactly the friction the guide asks us to remove. The GM is told what was
- * created and can adjust or delete it.
+ * The form's answers and the player's own sentence for the GM go out on one
+ * card in the player's thread (`callGm`); nothing exists in the world until a GM
+ * approves it there (`approveProject`). Answers `{ proposed, name }`, or null when
+ * nothing was sent. Exported for the suite (R1370, E22-T4).
  */
-async function startProject(actor) {
+export async function startProject(actor) {
     const { allRooms } = await import("./movement.mjs");
     const { projectTraitOptions, descriptionField, guardDescription, descriptionRefusal, presetDescription, wirePresetDescription } = await import("./projects-ui.mjs");
     const { projectDescriptionProblem } = await import("./config.mjs");
@@ -280,16 +262,18 @@ async function startProject(actor) {
                 <input type="text" name="condition"
                        placeholder="${game.i18n.localize("DRPG.Project.conditionPlaceholder")}" />
                 <small class="notes">${game.i18n.localize("DRPG.Project.conditionNote")}</small></label>
+            ${requestFieldHtml({
+                prompt: game.i18n.localize("DRPG.Project.proposalPrompt"),
+                placeholder: game.i18n.localize("DRPG.Project.proposalPlaceholder"),
+                optional: false
+            })}
             <p class="notes">${game.i18n.localize("DRPG.Project.startNote")}</p>
         </form>`,
         footer: { gmRoute: [{
                 action: "create",
                 label: game.i18n.localize("DRPG.Project.proposeButton"),
-                // Red, like the variant that opened this window and like every
-                // other control that ends in somebody else deciding. Proposing
-                // a project does not start one - it sends the GM a card and
-                // waits, and the button that does that should say so.
-                class: GM_ROUTE_CLASS,
+                // Red by its role (the kit's `gmRoute`, utils.mjs `GM_ROUTE_CLASS`), like the variant that opened
+                // this window: proposing a project does not start one - it sends the GM a card and waits (D11).
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
                     return {
@@ -305,7 +289,9 @@ async function startProject(actor) {
                         unbreach: f.unbreach?.value ?? null,
                         mend: f.mend?.value ?? null,
                         // As typed; a preset's own label stands in for an empty one below (E44 C9, fix FG1).
-                        description: d.element.querySelector('[name="description"]')?.value ?? ""
+                        description: d.element.querySelector('[name="description"]')?.value ?? "",
+                        // The player's sentence for the GM, from this window (E22 C5c): the card's quote.
+                        request: readRequestField(d.element)
                     };
                 }
             }], close: "cancel" },
@@ -320,7 +306,12 @@ async function startProject(actor) {
         rejectClose: false
     });
 
-    if (!result || result === "cancel") return null;
+    /* A CLOSED WINDOW SAYS NOTHING WAS SENT (E22 C5c; audit S10-31). The proposal's second window, which a player
+       closed believing the first Send had sent it, is gone; this one closed or Cancelled has sent nothing, and says so. */
+    if (!result || result === "cancel") {
+        ui.notifications.info(game.i18n.localize("DRPG.Project.proposalNotSent"));
+        return null;
+    }
     // A preset's own answers (PASSAGE_PRESETS): its statistic, its size, never a murder, from the room the character is in.
     // Breach the Wall since E15 part 2 C3: the same offer (a wall shared with a room beyond), its own statistic and summary.
     // The owner's three since C5: the target an index into what was offered, its id on the card; the room the one it stands in
@@ -391,19 +382,20 @@ async function startProject(actor) {
     ].join(" · ");
 
     /*
-     * AND THE ANSWER IS READ (ACT-15, 20.09).
+     * ONE WINDOW, ONE SEND (E22 C5c, 07.11.2026; audit S10-31; Q-E21-5, its default). `promptAndCallGm` opened a
+     * SECOND window here - the sentence for the GM, with a second "Send to GM" - after the form's own Send, which sent
+     * nothing: a player who closed it believing the proposal had gone proposed nothing, silently. The sentence is the
+     * form's own field now (`request`, above), and the card goes from here with the arguments `promptAndCallGm` gave
+     * `callGm`: the title, no roll, the words, the room, the GM's body and buttons, and nothing spent before it. With no
+     * GM connected `callGm` says so once ("noGm", nothing spent) and answers false, and posts nothing.
      *
-     * `promptAndCallGm` opens a SECOND window - the sentence that goes to the GM -
-     * and a player who backs out of it has proposed nothing. The whisper below said
-     * "your proposal has been sent" anyway, and the GM had no card: the player
-     * believed a project was waiting for a ruling that nobody had been asked for.
-     * `=== null` rather than a truthiness test, because an empty string is a
-     * proposal with no sentence on it, not a cancel.
+     * AND THE ANSWER IS READ (ACT-15, 20.09). The whisper below said "your proposal has been sent" whatever the call
+     * answered; it follows a posted card alone.
      */
-    const sent = await promptAndCallGm(actor, {
+    const sent = await callGm(actor, {
         title: game.i18n.localize("DRPG.Project.proposalTitle"),
-        prompt: game.i18n.localize("DRPG.Project.proposalPrompt"),
-        placeholder: game.i18n.localize("DRPG.Project.proposalPlaceholder"),
+        roll: null,
+        request: result.request ?? "",
         room,
         // The description as the player wrote it, its line breaks kept, under the summary (E44 C9).
         body: `${summary}<br>${esc(result.description).replace(/\n/g, "<br>")}${result.condition ? `<br><em>${esc(result.condition)}</em>` : ""}${
@@ -436,9 +428,10 @@ async function startProject(actor) {
                 label: game.i18n.localize("DRPG.Project.declineButton"),
                 data: { by: actor.id }
             }
-        ]
+        ],
+        nothingSpent: true
     });
-    if (sent === null) return null;
+    if (sent === false) return null;
 
     await whisperToOwner(actor, `${cardHead({
         action: game.i18n.localize("DRPG.Project.startNew")

@@ -738,7 +738,9 @@ export async function askTransform(actor) {
                 foundry.utils.escapeHTML(REMNANT_VISIBILITY_LABELS[key] ?? key)}</option>`)
             .join("");
 
-        // On the kit's frame (E21 C5a): Reshape it the primary, Erase a secondary (it answers null, as a close does).
+        // On the kit's frame (E21 C5a): Leave something else on the GM's road (E22 C5c, D11: a GM approves the story
+        // before it lands, `proposeReshape`) and first in the tree, so Enter never erases (E09 C11); Erase a secondary
+        // (it answers null, as a close does).
         const picked = await drpgWindow({
             title: game.i18n.localize("DRPG.Cleanup.transformTitle"),
             classes: ["drpg-panel", "drpg-narrow"],
@@ -750,14 +752,14 @@ export async function askTransform(actor) {
                 <p class="notes">${game.i18n.localize("DRPG.Cleanup.transformNote")}</p>
             </form>`,
             footer: {
-                primary: {
+                gmRoute: [{
                     action: "change", label: game.i18n.localize("DRPG.Cleanup.transformChange"),
                     callback: (e, b, d) => ({
                         name: d.element.querySelector("[name=name]").value,
                         text: d.element.querySelector("[name=text]").value,
                         visibility: d.element.querySelector("[name=visibility]").value
                     })
-                },
+                }],
                 secondary: [{
                     action: "erase", label: game.i18n.localize("DRPG.Cleanup.transformErase"),
                     callback: () => null
@@ -1316,7 +1318,7 @@ export async function askTransformChange(actor) {
 
     let typed = { name: "", text: "" };
     for (;;) {
-        // On the kit's frame (E21 C5a).
+        // On the kit's frame (E21 C5a); Reshape it on the GM's road (E22 C5c, D11): the words wait for a GM's yes.
         const picked = await drpgWindow({
             title: game.i18n.localize("DRPG.Cleanup.transformAction"),
             classes: ["drpg-panel", "drpg-narrow"],
@@ -1326,13 +1328,13 @@ export async function askTransformChange(actor) {
                 <p class="notes">${game.i18n.localize("DRPG.Cleanup.transformActionNote")}</p>
             </form>`,
             footer: {
-                primary: {
+                gmRoute: [{
                     action: "go", label: game.i18n.localize("DRPG.Cleanup.transformGo"),
                     callback: (e, b, d) => ({
                         name: d.element.querySelector("[name=name]").value,
                         text: d.element.querySelector("[name=text]").value
                     })
-                },
+                }],
                 close: "cancel"
             },
             render: (event, dialog) => enterMovesOn(dialog),

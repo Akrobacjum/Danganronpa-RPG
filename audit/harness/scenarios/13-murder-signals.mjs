@@ -1705,11 +1705,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     const proposed = await p3.eval(`const Mv = await import("${repoUrl}/scripts/movement.mjs");
         const chie = game.actors.get("${ids.chie}");
         globalThis.__dialogLog.length = 0;
-        // A Description since E44 C9 (required in the proposal; the approval's window opens on it and keeps it).
+        // A Description since E44 C9 (required in the proposal; the approval's window opens on it and keeps it). The
+        // sentence for the GM is the form's own field since E22 C5c: one window, no second one to answer.
         globalThis.__dialogAnswers.push({ value: "start", form: null },
             { name: ${JSON.stringify(plan.name)}, target: 2, room: Mv.roomOfActor(chie), trait: "hand", murder: true, condition: "",
-                description: "13 the plan's own words" },
-            { text: ${JSON.stringify(plan.sentence)} });
+                description: "13 the plan's own words", request: ${JSON.stringify(plan.sentence)} });
         let out = null, err = null;
         try { out = await game.drpg.performAction(chie, "project", {}); } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
         globalThis.__dialogAnswers.length = 0;
