@@ -2422,6 +2422,157 @@ const INVARIANTS = [
             "[the GM's tile at 1366x560 and 1366x600, a player's at 1366x600, at 1920x1080] as the cut settles them");
     }],
 
+    ["R1398 - the stack leaves the board open (S12-04, E23-20): on a stacked stand-in cut (`cutBoxes` with `{ stacked: true }`, 1024x768) no glass below the stack's foot but the two rails' wall strips and the launchers' own pane, every row of the stack on its own pane, the rest of the field the board - an open area, the cut and the board together the whole screen - and the self-check's edge gaps and open-area fails 0, each of which counts the fault it is there for", async () => {
+        /*
+         * E23 C4a, 07.11.2026 (S12-04; the A7 inheritance (4): E81's stack block untouched). Until 1.2.100 `stackShapes`
+         * broke the field under the stack into glass painted about 70 % black: read in Chromium on the glass harness at
+         * 6c9bd3c3, field panes covered 38 % of the screen at 1024x768, 54-55 % at 820x1180 and 38-40 % at 393x852, all of
+         * it below the stack. jsdom lays nothing out, so this cuts the blocks that harness measured for a GM at 1024x768
+         * (`LAST.blocks`: five full-width rows, the reserved notice box, the corner's launchers; the tray's row as laid
+         * out, not clipped by the column, which an empty host does not have) with two rails' bands standing in for the
+         * rails (`bands`: the scene rail's inner edge at 60, the tab rail's at 1014). The glass sweep's `--board` reads
+         * the drawn cut at the stacked sizes in Chromium.
+         */
+        const G = await import("./glass.mjs");
+        ok(typeof G.cutBoxes === "function", "glass.mjs gives a test no road into the cut");
+        if (typeof G.cutBoxes !== "function") return;
+        const W = 1024, H = 768, left = 60, right = 1014;
+        const blocks = [["hud", 8, 8, 1008, 103], ["tiles-row", 8, 125, 1008, 44], ["rail", 8, 205, 1008, 91], ["three", 8, 310, 1008, 63],
+            ["tray", 8, 377, 1008, 95], ["note-block", 16, 446, 301, 252, false], ["launch", 908, 606, 94, 140]]
+            .map(([cls, x, y, w, h, measured = true]) => ({ cls, x, y, w, h, ...(measured ? { r: { x, y, w, h } } : {}) }));
+        const foot = 377 + 95, rows = ["hud", "tiles-row", "rail", "three", "tray"];
+        const area = P => Math.abs(P.reduce((s, q, i) => { const r = P[(i + 1) % P.length]; return s + q[0] * r[1] - r[0] * q[1]; }, 0)) / 2;
+        const bb = P => ({ x0: Math.min(...P.map(q => q[0])), x1: Math.max(...P.map(q => q[0])), y0: Math.min(...P.map(q => q[1])), y1: Math.max(...P.map(q => q[1])) });
+        const inside = (P, x, y) => { let s = 0; for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length];
+            const cr = (b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0]); if (Math.abs(cr) < 0.5) continue;
+            if (s && Math.sign(cr) !== s) return false; s = Math.sign(cr); } return true; };
+        const cut = G.cutBoxes(W, H, blocks, 1, { stacked: true, bands: [{ band: left }, { band: right }] });
+        const under = cut.panes.filter(p => !p.content && bb(p.poly).y0 >= foot - 1);
+        const strip = p => bb(p.poly).x1 <= left + 0.5 || bb(p.poly).x0 >= right - 0.5;
+        const board = (cut.open ?? []).filter(a => a.name === "board");
+        const launch = cut.panes.filter(p => p.content && p.tone === "launch");
+        const measured = {
+            glassUnder: +(under.filter(p => !strip(p)).reduce((s, p) => s + area(p.poly), 0) / (W * H)).toFixed(3),
+            strips: [under.some(p => bb(p.poly).x1 <= left + 0.5), under.some(p => bb(p.poly).x0 >= right - 0.5)],
+            launch: launch.length === 1 && inside(launch[0].poly, 908 + 47, 606 + 70),
+            rows: rows.filter(cls => cut.panes.filter(p => p.content && p.tone === cls).length === 1),
+            board: [board.length > 0, Math.abs(cut.panes.reduce((s, p) => s + area(p.poly), 0) + board.reduce((s, a) => s + area(a.poly), 0) - W * H) < 16],
+            check: cut.check ? [cut.check.edgeGaps, cut.check.openFails] : null
+        };
+        const expected = { glassUnder: 0, strips: [true, true], launch: true, rows, board: [true, true], check: [0, 0] };
+        equal(stableJson(measured), stableJson(expected),
+            "[the share of the screen under glass below the stack but the rails' strips, a strip at each wall, the launchers' own pane, the rows each on one pane of its own, "
+            + "the board left open and the cut with it the whole screen (within 16 px2: slivers under 12 px2 are dropped), the self-check's edge gaps and open-area fails]");
+        /* THE CONTROLS: the same reading without the open areas counts the board's points on the screen's edge as gaps,
+           and a pane laid over the board is counted; or the zeros above are zeros of a check that cannot see. */
+        ok(typeof G.cutCheck === "function", "glass.mjs has no `cutCheck` - the self-check's reading cannot be run on a test's cut");
+        if (typeof G.cutCheck === "function" && board.length) {
+            const bare = G.cutCheck(cut.panes, [], W, H), laid = G.cutCheck([...cut.panes, { poly: board[0].poly }], cut.open, W, H);
+            equal(stableJson([bare.edgeGaps > 0, laid.openFails > 0]), "[true,true]",
+                "[the board's edge read as gaps with no open area, a pane over the board read as an open-area fail]");
+        }
+    }],
+
+    ["R1399 - the stack's ceiling and order (S12-05, E23-21): `--drpg-column-max` is the only ceiling - `#drpg-column` reads it, every `--drpg-stack-max` reads it, its value names no token but `--drpg-stack-foot` - and it is the room the board leaves: in both themes at 1024x768, 1200x800, 820x1180 and 393x852 it holds the blocks the glass harness stacks there, leaves the board a third of the screen and the notices at least their 96 px floor; a player's right column stands before the Despair rail, a GM's after it; and the stack says it scrolls while a row stands below its foot (`drpg-stack-more`, faded at the foot)", async () => {
+        /*
+         * E23 C4a, 07.11.2026 (S12-05; the A7 inheritance (3): the ceiling moves through E81's token, no new constant;
+         * the owner's Q-E23-1 on its default). Until 1.2.100 the ceiling was 52dvh: read in Chromium on the glass harness
+         * at 6c9bd3c3, the stack held 464 px of blocks at 1024x768, 1200x800 and 820x1180 and 497 at 393x852 under
+         * Stained Glass, 400 and 484 under Monokuma Legacy, in 399, 416, 614 and 443 px - so it scrolled at three of the
+         * four sizes, with a player's Hope and actions in the part scrolled away and nothing saying so. Headless the
+         * cascade comes back unresolved and is worked out at those four sizes (`cascadePx`, as R476 does); in a browser
+         * it is read for the window that runs the suite, where the blocks' heights are not this test's to know. The
+         * classes and the stand-in column are put back synchronously, no hook fired; the stand-in's ids are the page's
+         * own for as long as one reading takes (the order is a rule on `#drpg-column > #...`).
+         */
+        const N = await import("./narrow.mjs");
+        const sheet = await fetch(`/modules/${MODULE_ID}/styles/narrow.css`).then(r => (r.ok ? lfText(r) : ""));
+        must(sheet.length > 0, "narrow.css did not load - there is nothing to read");
+        const css = stripComments(sheet);
+        /* the source: one ceiling, read twice, written from one token */
+        const decls = name => [...css.matchAll(new RegExp(`${name}\\s*:\\s*([^;}]+)`, "g"))].map(m => m[1].trim());
+        const ceilings = [...css.matchAll(/([^{}]*)\{([^{}]*)\}/g)]
+            .filter(m => m[1].split(",").some(sel => /#drpg-column(?:[.:][\w-]+)*\s*$/.test(sel.trim())) && /(?:^|[;\s])max-height\s*:/.test(m[2]))
+            .map(m => [m[1].trim(), /(?:^|[;\s])max-height\s*:\s*([^;]+)/.exec(m[2])[1].trim()]);
+        const source = {
+            ceilings,
+            stackMax: decls("--drpg-stack-max").map(v => v.includes("var(--drpg-column-max)")),
+            tokens: [...new Set(decls("--drpg-column-max").flatMap(v => [...v.matchAll(/var\(\s*(--[\w-]+)/g)].map(m => m[1])))]
+        };
+        equal(stableJson(source), stableJson({ ceilings: [["#drpg-column", "var(--drpg-column-max)"]], stackMax: decls("--drpg-stack-max").map(() => true), tokens: ["--drpg-stack-foot"] }),
+            "[the rules that give the stack a max-height and its value, each --drpg-stack-max reading the token, the tokens the token's value reads]");
+        /* the cascade: what the ceiling is at each size */
+        const body = document.body;
+        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy", "drpg-stacked", "drpg-short", "drpg-dock-hidden", "drpg-player", "drpg-gm"];
+        const classWas = CLASSES.map(name => body.classList.contains(name));
+        const BLOCKS = { "1024x768": [464, 400], "1200x800": [464, 400], "820x1180": [464, 400], "393x852": [497, 484] };
+        let resolved = false;
+        const round = v => (Number.isFinite(v) ? v.toFixed(2) : String(v));
+        const column = document.createElement("div");
+        column.id = "drpg-column";
+        const kids = ["drpg-hud", "drpg-tile-row", "drpg-despair", "drpg-events", "ui-right-column-1"].map(id => { const el = document.createElement("div"); el.id = id; return el; });
+        column.append(...kids);
+        const seen = {}, want = {}, order = {};
+        try {
+            (document.getElementById("interface") ?? body).prepend(column);
+            body.classList.remove(CLASSES[3], CLASSES[4]);
+            body.classList.add(CLASSES[2]);
+            // a browser hands the ceiling back in px; jsdom as written
+            resolved = /^-?[\d.]+px$/.test(getComputedStyle(column).maxHeight.trim());
+            const views = resolved ? [{ w: innerWidth, h: innerHeight, blocks: null }]
+                : Object.entries(BLOCKS).map(([size, blocks]) => { const [w, h] = size.split("x").map(Number); return { w, h, blocks }; });
+            for (const glass of [true, false]) {
+                body.classList.toggle(CLASSES[0], glass);
+                body.classList.toggle(CLASSES[1], !glass);
+                for (const view of views) {
+                    const px = (el, prop) => cascadePx(el, prop, view);
+                    const ceiling = px(column, "max-height"), token = px(body, "--drpg-column-max"), foot = px(body, "--drpg-stack-foot");
+                    const top = px(column, "top"), notices = px(body, "--drpg-stack-max");
+                    const key = `${glass ? "Stained Glass" : "Monokuma Legacy"} ${view.w}x${view.h}`;
+                    seen[key] = { token: round(ceiling - token), holds: view.blocks ? ceiling >= view.blocks[glass ? 0 : 1] : null,
+                        board: view.h - top - ceiling >= view.h / 3 - 0.01, notices: [round(notices), view.h - top - ceiling - 8 - foot >= 96 - 0.01] };
+                    want[key] = { token: round(0), holds: view.blocks ? true : null, board: true, notices: [round(view.h - top - ceiling - 8 - foot), true] };
+                }
+            }
+            for (const role of ["player", "gm"]) {
+                body.classList.toggle(CLASSES[5], role === "player");
+                body.classList.toggle(CLASSES[6], role === "gm");
+                order[role] = kids.map(el => ({ id: el.id, n: Number(getComputedStyle(el).order) })).sort((a, b) => a.n - b.n).map(k => k.id);
+            }
+        } finally {
+            CLASSES.forEach((name, i) => body.classList.toggle(name, classWas[i]));
+            column.remove();
+        }
+        ok(!/NaN/.test(stableJson(seen)), `a length of the stack could not be read: ${stableJson({ seen, want })}`);
+        equal(stableJson(seen), stableJson(want),
+            `the stack's ceiling${resolved ? ` at ${innerWidth}x${innerHeight}` : " at 1024x768, 1200x800, 820x1180 and 393x852"} [per theme and size: the column's max-height less the token, `
+            + "the blocks the glass harness stacks held, a third of the screen left to the board, the notices' ceiling as worked out from the token and 96 px or more of it]");
+        equal(stableJson(order), stableJson({
+            player: ["drpg-hud", "drpg-tile-row", "ui-right-column-1", "drpg-despair", "drpg-events"],
+            gm: ["drpg-hud", "drpg-tile-row", "drpg-despair", "drpg-events", "ui-right-column-1"] }),
+            "[the stack's order for a player and for a GM]");
+        /* the scroll signal: on while a row stands below the foot, off at the end and when the blocks fit; the sheet fades the foot by it */
+        ok(typeof N.markStackMore === "function", "narrow.mjs has no `markStackMore` - nothing says the stack scrolls");
+        if (typeof N.markStackMore === "function") {
+            const stand = document.createElement("div");
+            const read = (scroll, client, top) => {
+                Object.defineProperty(stand, "scrollHeight", { configurable: true, value: scroll });
+                Object.defineProperty(stand, "clientHeight", { configurable: true, value: client });
+                Object.defineProperty(stand, "scrollTop", { configurable: true, value: top });
+                return [N.markStackMore(stand), stand.classList.contains("drpg-stack-more")];
+            };
+            equal(stableJson([read(464, 399, 0), read(464, 399, 65), read(464, 464, 0), read(600, 400, 100)]), stableJson([[true, true], [false, false], [false, false], [true, true]]),
+                "[the signal, answered and on the column: rows below, scrolled to the end, all of it shown, part way down]");
+        }
+        const fade = bodyOf(css, "#drpg-column.drpg-stack-more {", { until: "}" });
+        equal(stableJson([/(^|[;{\s])mask-image\s*:\s*linear-gradient\(to bottom/.test(fade), /-webkit-mask-image\s*:\s*linear-gradient\(to bottom/.test(fade)]), "[true,true]",
+            "[the stack's foot faded while it scrolls, with the prefixed mask beside it]");
+        const narrow = await fetch(`/modules/${MODULE_ID}/scripts/narrow.mjs`).then(lfText);
+        const watch = fnSource(narrow, "watchColumn");
+        equal(stableJson(["addEventListener(\"scroll\"", "markStackMore(column)", "observe(block)", "MutationObserver"].map(part => watch.includes(part))), "[true,true,true,true]",
+            "[watchColumn marks the stack on its scroll, on a resize, watches each block in it and the blocks put in later]");
+    }],
+
     ["R549 - the room tile beside the notices runs past the screen's edge with half of C0's run above it: its pane reaches the foot and leans as C0 leaned it (6 degrees at 1366x768), no plain pane is cut under it, the box stands roomNotesLift over the edge and is roomNotesH tall at C0's left edge, and the notice tile's lean, Stained Glass's 'clock' place and Monokuma Legacy are as they were", async () => {
         /*
          * E78 fix h76-HF4, 14.10.2026. The owner on C0's shot at 1366x768 (13.10): the room tile beside the notices

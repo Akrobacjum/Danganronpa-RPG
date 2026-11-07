@@ -2330,17 +2330,18 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
    * WHAT IT CANNOT DO, AND WHY THAT IS THE SHAPE RATHER THAN THE CODE. A seam
    * between two full-width rows has to run the full width, and it may not reach
    * into either row: with 14 px between them it can lean about a degree and no
-   * more. The character has to come from where there is room for it - the field
-   * below the stack, which on a phone in portrait is most of the screen, and the
-   * strips down the two rails. Horizontal slabs at the top and broken glass below
-   * is what a tall screen looks like, and pretending otherwise means cutting
+   * more. The character has to come from where there is room for it - the seam
+   * under the stack, which leans, and the strips down the two rails. Horizontal
+   * slabs at the top and the board open below them is what a tall screen looks
+   * like (E23 C4a: until then the field below was broken glass too, and it hid the
+   * board; step 4 says what it measured), and pretending otherwise means cutting
    * through the clock.
    *
    * Nothing here leans a block: `ROT` is left empty, so `applyRotations` writes an
    * empty sheet and every block stands upright. A full-width pane has nowhere to
    * lean to.
    */
-  function stackShapes(host, W, H, rnd, boxes) {
+  function stackShapes(host, W, H, rnd, boxes, given = null) {
     let pieces = [[[0, 0], [W, 0], [W, H], [0, H]]];
     /* one cut: a line through (px, py) at `ang`, applied to the pieces `only` admits.
        Restricting it to some of the pieces is still a partition - each piece is either
@@ -2466,10 +2467,18 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       if (own) claimed.add(own);
     }
 
-    /* 4. the field below the stack, where there is room to break the glass. The rails'
-       bands first - the strip down each wall is the piece between the wall and the
-       band's inner edge, and the tiles stand on it the way they do on a desk - then a
-       few long diagonals across what is left, and a band along the bottom edge. */
+    /* 4. the field below the stack: the rails' wall strips, and the board.
+       THE BOARD IS NOT GLASS (E23 C4a, 07.11.2026; S12-04, E23-20). Until 1.2.100 the field was broken
+       into a few long diagonals and a band along the foot, and every piece of it was a pane - painted
+       about 70 % black, so on a stacked screen the board went dark under the stack: read in Chromium on
+       the glass harness (6c9bd3c3), field panes covered 38 % of the screen at 1024x768, 54-55 % at
+       820x1180, 38-40 % at 393x852 and 38 % at 1200x800, all of it below the stack, with the self-check
+       0/0/0 throughout. On a desk the middle of the curtain is a hole and the board is seen; here it is
+       one too. The rails' bands are cut first - the strip down each wall is the piece between the wall
+       and the band's inner edge, glass the rail stands on as on a desk - and a block below the stack
+       (the corner's launchers) keeps the piece step 3 claimed for it. Every other piece of the field is
+       taken out of the partition and named `board` in OPEN_AREAS: the self-check holds it clear of every
+       pane (`openFails`) and does not count its points on the screen's edge as gaps (`cutCheck`). */
     /* THE FIELD BEGINS AT THE HIGH END OF THAT SEAM, NOT AT ITS MIDDLE.
        The seam leans, so the piece under it starts `rise` px above the y the cut was
        made at. Tested against the middle, every piece of the field failed the test and
@@ -2479,25 +2488,22 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     const fieldTop = yBase - rise - 1;
     const inField = p => bbox(p).y0 >= fieldTop;
     const cv = host.querySelector(".curtain > canvas.sg, #drpg-curtain > canvas.sg");
-    const bands = [
+    // `given` is a test's: two bands' inner edges, the scene rail's and the tab rail's (`cutBoxes`)
+    const bands = given ?? [
       railBox(host, cv, W, "#scene-controls", 0, null),
       railBox(host, cv, W, "#sidebar-tabs", 1, null)
     ];
-    for (const band of bands) {
-      if (!band || band.real === false || !Number.isFinite(band.band)) continue;
+    const strips = [];
+    bands.forEach((band, side) => {
+      if (!band || band.real === false || !Number.isFinite(band.band)) return;
       cut(band.band, yBase, Math.PI / 2, inField);
-    }
-    const fieldH = H - yBase;
-    if (fieldH > 120) {
-      for (const at of [0.34 + rnd() * 0.1, 0.66 + rnd() * 0.1]) {
-        const ang = (rnd() < 0.5 ? -1 : 1) * (16 + rnd() * 16) * DEG;
-        cut(W / 2, yBase + fieldH * at, ang, inField);
-      }
-    }
-    if (fieldH > 260) {
-      const ang = Math.PI / 2 + (rnd() - 0.5) * 0.5;
-      cut(W * (0.3 + rnd() * 0.4), yBase + fieldH / 2, ang, p => bbox(p).y0 >= fieldTop + fieldH * 0.15);
-    }
+      strips.push(side ? p => bbox(p).x0 >= band.band - 0.5 : p => bbox(p).x1 <= band.band + 0.5);
+    });
+    pieces = pieces.filter(p => {
+      if (!p || claimed.has(p) || !inField(p) || strips.some(own => own(p))) return true;
+      if (p.length >= 3 && area(p) > 12) OPEN_AREAS.push({ name: "board", poly: p });
+      return false;
+    });
 
     /* 5. the panes. A piece carrying a block's centre is that block's - its tone, and
        `empty` when the block is a reserved box with nothing in it today. Every other
@@ -2785,6 +2791,24 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
   const layerAfter = (after, cls, W, H) => { let c = after.parentElement.querySelector(":scope > canvas." + cls); if (!c) { c = document.createElement("canvas"); c.className = cls; c.style.cssText = LAYER; after.after(c); } c.width = W; c.height = H; return c; };
   /* ---- the curtain: geometry now, paint when it is looked at -------------------- */
   const rng = seed => { let sd = seed; return () => { sd = (sd * 1664525 + 1013904223) % 4294967296; return sd / 4294967296; }; };
+  /* C3 and C4 of the self-check, on a cut and its open areas (out of `curtainGeometry` in E23 C4a, so `cutBoxes` reads
+     a test's cut with the same arithmetic). C3: every 8 px along the screen's four edges, a point no pane covers is a
+     gap - unless an area the cut leaves open on purpose holds it: the stacked screen's `board` reaches the foot and
+     the walls where no rail stands (E23 C4a, S12-04). C4 (E78 C6): an open area holds no glass - `voice-left`, Q16,
+     and `board`. Every 8 px inside it, 3 px clear of its edges, where a seam is shared with the panes around it. */
+  export function cutCheck(panes, open, W, H) {
+    let edgeGaps = 0, openFails = 0;
+    const cover = (x, y) => panes.some(p => inside(p.poly, x, y)) || open.some(o => inside(o.poly, x, y));
+    for (let x = 4; x < W; x += 8) { if (!cover(x, 0.5)) edgeGaps++; if (!cover(x, H - 0.5)) edgeGaps++; }
+    for (let y = 4; y < H; y += 8) { if (!cover(0.5, y)) edgeGaps++; if (!cover(W - 0.5, y)) edgeGaps++; }
+    const clear = (P, x, y) => P.every((a, i) => { const b = P[(i + 1) % P.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return Math.abs((b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0])) / L > 3; });
+    for (const o of open) {
+      const bb = bbox(o.poly);
+      for (let x = Math.ceil(bb.x0); x < bb.x1; x += 8) for (let y = Math.ceil(bb.y0); y < bb.y1; y += 8)
+        if (inside(o.poly, x, y) && clear(o.poly, x, y) && panes.some(p => inside(p.poly, x, y))) openFails++;
+    }
+    return { edgeGaps, openFails };
+  }
   /* THE CUT, FOR A TEST THAT HAS NO CANVAS (E78 C6, 14.10.2026; R545).
      jsdom lays nothing out, so the curtain never cuts headless - `curtainGeometry` stops at a
      canvas 0 px wide - and "the voice tile is always cut" would be a test skipped everywhere it
@@ -2793,13 +2817,19 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
      back the panes, the voice tile's settled box and the areas left open. What it changes on the
      way - the rotations, the voice box, the open areas - is put back, so a cut on the screen
      keeps its own. */
-  export function cutBoxes(W, H, boxes, seed = 1) {
+  /* THE STACK'S CUT TOO (E23 C4a, 07.11.2026; R1398). `{ stacked: true }` hands the boxes to `stackShapes` instead,
+     on the same empty host - so no column clips a row and no rail is measured: `bands` stands in for the two rails'
+     bands (`[{ band: x }, { band: x }]`, the scene rail's and the tab rail's inner edges, either null). `check` is the
+     self-check's edge and open-area reading of the cut (`cutCheck`). */
+  export function cutBoxes(W, H, boxes, seed = 1, { stacked = false, bands = null } = {}) {
     const rot = ROT.splice(0), voice = VOICE.box, open = OPEN_AREAS.splice(0);
     try {
       const given = boxes.map(b => ({ sel: BLOCKS.find(k => k.cls === b.cls)?.sel ?? null, ...b }));
       VOICE.box = null; OPEN_AREAS.length = 0;
-      const panes = deskShapes(document.createElement("div"), W, H, rng(seed), given, W);
-      return { panes, voice: VOICE.box && { ...VOICE.box }, open: OPEN_AREAS.map(a => ({ ...a })), rotations: ROT.map(r => ({ sel: r.sel, origin: r.origin, transform: r.transform })) };
+      const host = document.createElement("div");
+      const panes = stacked ? stackShapes(host, W, H, rng(seed), given, bands ?? [null, null]) : deskShapes(host, W, H, rng(seed), given, W);
+      return { panes, voice: VOICE.box && { ...VOICE.box }, open: OPEN_AREAS.map(a => ({ ...a })), check: cutCheck(panes, OPEN_AREAS, W, H),
+               rotations: ROT.map(r => ({ sel: r.sel, origin: r.origin, transform: r.transform })) };
     } finally {
       ROT.length = 0; ROT.push(...rot); VOICE.box = voice; OPEN_AREAS.length = 0; OPEN_AREAS.push(...open);
     }
@@ -2940,17 +2970,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
         if (panes.some(p => !own.includes(p) && inside(p.poly, q[0], q[1]))) blockFails++;
       }
     }
-    const cover = (x, y) => panes.some(p => inside(p.poly, x, y));
-    for (let x = 4; x < W; x += 8) { if (!cover(x, 0.5)) edgeGaps++; if (!cover(x, H - 0.5)) edgeGaps++; }
-    for (let y = 4; y < H; y += 8) { if (!cover(0.5, y)) edgeGaps++; if (!cover(W - 0.5, y)) edgeGaps++; }
-    /* C4 (E78 C6): an area the cut leaves open on purpose holds no glass - `voice-left`, Q16. Every
-       8 px inside it, 3 px clear of its edges, where a seam is shared with the panes around it. */
-    const clear = (P, x, y) => P.every((a, i) => { const b = P[(i + 1) % P.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return Math.abs((b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0])) / L > 3; });
-    for (const o of OPEN_AREAS) {
-      const bb = bbox(o.poly);
-      for (let x = Math.ceil(bb.x0); x < bb.x1; x += 8) for (let y = Math.ceil(bb.y0); y < bb.y1; y += 8)
-        if (inside(o.poly, x, y) && clear(o.poly, x, y) && panes.some(p => inside(p.poly, x, y))) openFails++;
-    }
+    ({ edgeGaps, openFails } = cutCheck(panes, OPEN_AREAS, W, H));
     CHECKS.push({ seed: job.seed, count: panes.length, overlaps: ov, nonconvex, ncv, blockFails, edgeGaps, fitFails, openFails, sig: d.length, same });
     // kept on the job so a pass that finds the same signature can republish it rather than
     // cut the whole partition again only to say what this one already says (see above)

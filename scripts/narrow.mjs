@@ -64,7 +64,9 @@ const ROW_MEMBERS = ["#drpg-room-tile", "#drpg-voice-tile"];
 
 /** Where each moved element came from, so a resize back to a desk can undo it. */
 const HOMES = new Map();
-let columnWatch = null, reserveFrame = 0;
+let columnWatch = null, columnBlocks = null, reserveFrame = 0;
+/** On the stack while a row of it stands below its foot: the scroll signal narrow.css draws. */
+const STACK_MORE = "drpg-stack-more";
 
 /** True when the module's blocks must stack instead of sitting in Foundry's columns. */
 export function narrowLayout() {
@@ -243,17 +245,46 @@ function railInset(el) {
     return Math.min(Math.max(EDGE, want), Math.round(wall.width * 0.4));
 }
 
+/**
+ * MORE BELOW, SAID AT THE STACK'S FOOT (E23 C4a, 07.11.2026; S12-05, E23-21). Past its ceiling
+ * (`--drpg-column-max`, narrow.css) the stack scrolls, and at 1024x768 it scrolled 464 px of
+ * blocks in 399 with nothing saying so (Chromium, the glass harness, 6c9bd3c3). `drpg-stack-more`
+ * is on the column while a row stands below its scrollport, and narrow.css fades the foot by it.
+ * Written on the column's scroll, on every resize of the column or of a block in it, and when a
+ * block arrives. jsdom lays nothing out, so headless it reads a column with nothing below; the
+ * glass sweep's `--board` reads it in Chromium. Answers whether it is on.
+ */
+export function markStackMore(column) {
+    if (!column) return false;
+    const more = column.scrollHeight - column.clientHeight - column.scrollTop > 1;
+    column.classList.toggle(STACK_MORE, more);
+    return more;
+}
+
 /* The stack changes height whenever anything in it redraws - a Monokuma row is
    spent, a project advances, the Event card arrives - and each of those would
    otherwise leave the scene controls under it. Once per frame, like every other
-   observer in this module. */
+   observer in this module.
+   AT ITS CEILING THE COLUMN STOPS GROWING and its rows do not (E23 C4a): the column's
+   own box then says nothing, so each block in it is watched as well, and a block
+   that arrives later - the Event card, the right column after a scene change - is
+   watched from the moment it is put in. */
 function watchColumn(column) {
     if (columnWatch || !("ResizeObserver" in window)) return;
     columnWatch = new ResizeObserver(() => {
         if (reserveFrame) return;
-        reserveFrame = requestAnimationFrame(() => { reserveFrame = 0; reserveRoom(); });
+        reserveFrame = requestAnimationFrame(() => { reserveFrame = 0; reserveRoom(); markStackMore(column); });
     });
     columnWatch.observe(column);
+    for (const block of column.children) columnWatch.observe(block);
+    column.addEventListener("scroll", () => markStackMore(column), { passive: true });
+    if ("MutationObserver" in window) {
+        columnBlocks = new MutationObserver(records => {
+            for (const r of records) for (const node of r.addedNodes) if (node.nodeType === 1) columnWatch?.observe(node);
+            markStackMore(column);
+        });
+        columnBlocks.observe(column, { childList: true });
+    }
     /* The rail is watched too: Foundry wraps its tiles into a second column when
        the run is taller than the screen, which is exactly what a phone does to it,
        and a rail that got wider without this would take the stack's edge back. */
@@ -285,6 +316,8 @@ function restoreDesk() {
     row?.remove();
     columnWatch?.disconnect();
     columnWatch = null;
+    columnBlocks?.disconnect();
+    columnBlocks = null;
     document.getElementById(COLUMN_ID)?.remove();
     const left = document.getElementById("ui-left-column-1");
     if (left) left.style.marginTop = "";

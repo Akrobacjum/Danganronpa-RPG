@@ -28,9 +28,18 @@
 /* THE STACK'S CEILING IS A TOKEN (E81 C13, the A7 design's P0-5): `#drpg-column` reads it,
    and so does the notice stack at the foot of the screen, which stands 8 px under it (below).
    Two numbers in two places had been one fact - how far down the stack may reach - and a
-   later stage that moves it (E23's S12-05) now changes this value and nothing else. The
-   values are 1.2.74's, unchanged. */
-body.drpg-stacked { --drpg-column-max: 52dvh; }
+   later stage that moves it (E23's S12-05) now changes this value and nothing else.
+   E23 C4a (07.11.2026; S12-05, E23-21) changed it: 52dvh hid what a player reads first. With the
+   board open under the stack (glass.mjs `stackShapes`), the ceiling is the room the board leaves:
+   the stack may reach down as far as leaves the board a third of the screen under it (two thirds
+   less the stack's 8 px top), and
+   never so far that the notice stack's ceiling falls under its 96 px floor (the screen less the
+   stack's 8 px top, the 8 px between, 96 px and the corner's `--drpg-stack-foot`). Read in Chromium
+   on the glass harness (6c9bd3c3) the stack held 464 px of blocks at 1024x768, 1200x800 and
+   820x1180 and 497 at 393x852 under Stained Glass (400 and 484 under Monokuma Legacy) in 399, 416,
+   614 and 443 px: it scrolled at three of the four with nothing saying so. Now 504, 525, 779 and 560.
+   The short screen's value (below) is 1.2.74's, unchanged. */
+body.drpg-stacked { --drpg-column-max: min(calc(100dvh * 2 / 3 - 8px), calc(100dvh - 8px - 8px - 96px - var(--drpg-stack-foot))); }
 /* Sideways on a phone there is no height to give away, so the stack keeps more of
    what little there is and the board gets the rest - but never so much of it that it
    reaches the corner buttons. With 1.2.74's corner, 22 px off the bottom and 126 tall,
@@ -70,6 +79,16 @@ body.drpg-stacked.drpg-short { --drpg-column-max: min(60dvh, calc(100dvh - 170px
 }
 #drpg-column > * { pointer-events: auto; }
 body.drpg-short #drpg-column { gap: 2px; }
+/* MORE BELOW, SAID AT THE STACK'S FOOT (E23 C4a; S12-05, E23-21). Past its ceiling the stack
+   scrolls, and nothing said so: no bar (the column hides none, but a touch screen draws none) and
+   no shadow. narrow.mjs `markStackMore` puts `drpg-stack-more` on the column while a row stands
+   below its scrollport, and the foot's last 32 px fade out, as the Projects tray's last row does
+   (`data-drpg-more`, E23 C3a). The mask is the column's own box, so it stays at the foot while the
+   rows scroll under it. */
+#drpg-column.drpg-stack-more {
+    -webkit-mask-image: linear-gradient(to bottom, var(--drpg-ink) calc(100% - 32px), transparent);
+    mask-image: linear-gradient(to bottom, var(--drpg-ink) calc(100% - 32px), transparent);
+}
 
 /* THE GAP OPENS EXACTLY WHERE THERE IS GLASS TO PUT IN IT.
    The seam between two rows of the stack runs the full width and may not reach into
@@ -90,9 +109,16 @@ body.drpg-curtain-on #drpg-column > #ui-right-column-1 { gap: 14px; }
    the right column is appended last. */
 #drpg-column > #drpg-hud { order: 1; }
 #drpg-column > #drpg-tile-row { order: 2; }
-#drpg-column > #drpg-despair { order: 3; }
-#drpg-column > #drpg-events { order: 4; }
-#drpg-column > #ui-right-column-1 { order: 5; }
+#drpg-column > #drpg-despair { order: 4; }
+#drpg-column > #drpg-events { order: 5; }
+#drpg-column > #ui-right-column-1 { order: 6; }
+/* A PLAYER'S OWN STANDING BEFORE THE ROOM'S DESPAIR (E23 C4a; S12-05, E23-21). The order above put
+   three Monokuma pools before a player's Hope and actions, and under the ceiling the status strip
+   and the Projects tray were the rows scrolled away. For a player the right column stands third,
+   after the tiles' row and before the Despair rail and the Event card; a GM's order is the one
+   above. THE OWNER'S Q-E23-1 IS OPEN, and this is its default: the other answer (the pools folded
+   to one line, the order unchanged) is this rule taken out and a rule for the pools put in. */
+body.drpg-player #drpg-column > #ui-right-column-1 { order: 3; }
 
 /* Every block in the stack is as wide as the stack. On a desk each is a box of a
    stated width in a column sized by it; here the column is the screen and they

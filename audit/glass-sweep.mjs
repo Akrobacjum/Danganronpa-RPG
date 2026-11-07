@@ -214,6 +214,7 @@
  *        node audit/glass-sweep.mjs --track [--track-kinds fill,hour-empty,hour-full,hour-swap,hour-notice] [--themes ...] [--roles ...] [--sizes ...] [--no-control]   (E23 C2a: below)
  *        node audit/glass-sweep.mjs --tray [--themes ..., stained] [--roles ...] [--sizes ..., 1920x1080,1366x768,1280x800,1024x768] [--no-control]   (E23 C3a: below)
  *        node audit/glass-sweep.mjs --events [--themes ...] [--roles ...] [--sizes ..., 1366x768,1920x1080,1024x768,820x1180] [--no-control]   (E23 C3b: below)
+ *        node audit/glass-sweep.mjs --board [--themes ...] [--roles ...] [--sizes ..., 1024x768,820x1180,393x852,1200x800,844x390,640x360] [--no-control]   (E23 C4a: below)
  *        node audit/glass-sweep.mjs --turn [--kinds phase-recut,phase,hour,layout] [--sizes ..., 1600x900,1366x768] [--roles ...]
  *          [--themes ..., stained] [--turn-ms <n>, 3000] [--runs <n>, 1] [--json <file>] [--against <json>] [--no-control]   (E23 C1a: below)
  * `--corner` loads at twice the pixel density and `--shots` then keeps the bottom-right
@@ -836,6 +837,93 @@ if (args.includes("--events")) {
     } finally { await browser.close(); srv?.kill(); }
     if (control && !planted) { console.log("control: no desk page under Stained Glass was read, so the panel's faults could not be planted - FAIL"); bad++; }
     console.log(`EVENTS ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s), ${roles.length} role(s), ${esizes.length} size(s), ${planted} control(s)`);
+    process.exit(bad ? 1 : 0);
+}
+
+/* THE BOARD UNDER THE STACK AND THE STACK'S CEILING (E23 C4a, 07.11.2026; E23-20, E23-21: S12-04, S12-05). `--board` runs
+   this instead of the sweep, at each stacked size (by default 1024x768, 820x1180, 393x852, 1200x800, 844x390 and 640x360),
+   role and theme. Where the curtain is drawn (Stained Glass, a screen not short) it reads the cut from `LAST.panes` and
+   `LAST.open`: `glass` is the share of the screen under panes below the stack's foot (1d860414 and 6c9bd3c3: 38-58 %),
+   `field` the share of it in field panes, `board` the share left open as `board`; the size fails where the cut leaves no
+   board, or any of overlaps, nonconvex, blockFails, edgeGaps and openFails is not 0. On every stacked page the column:
+   the size fails where the stack scrolls without `drpg-stack-more` on it or wears it with nothing below. A player's
+   right column must stand before the Despair rail, a GM's after it (the owner's Q-E23-1 on its default). THE CONTROLS,
+   once a run each: a pane laid over the board (glass.mjs `cutCheck` on the cut and the pane) must read an open-area
+   fail, and a 600 px block put into the stack must turn the signal on, and scrolled to the stack's end, off. The line
+   prints the shares, the self-check, the column's ceiling, its rows' height and the signal. */
+if (args.includes("--board")) {
+    let bad = 0, planted = { open: 0, signal: 0 };
+    const bsizes = (opt("--sizes") ?? "1024x768,820x1180,393x852,1200x800,844x390,640x360").split(",");
+    try {
+        for (const theme of themes) for (const role of roles) for (const size of bsizes) {
+            const [W, H] = size.split("x").map(Number);
+            const tag = `board ${theme.padEnd(7)} ${role.padEnd(6)} ${size.padEnd(9)}`;
+            const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
+            const page = await browser.newPage({ viewport: { width: W, height: H } });
+            await page.goto(`${base}/${page0}${qs.length ? (page0.includes("?") ? "&" : "?") + qs.join("&") : ""}`);
+            const loaded = await page.waitForFunction(() => window.__glass, null, { timeout: 15000 }).then(() => true, () => false);
+            if (!loaded) { console.log(`${tag} FAIL: the page did not load the glass`); bad++; await page.close(); continue; }
+            await page.waitForTimeout(waitMs);
+            const r = await page.evaluate(() => {
+                const g = window.__glass, W = innerWidth, H = innerHeight, why = [];
+                const area = P => Math.abs(P.reduce((s, q, i) => { const n = P[(i + 1) % P.length]; return s + q[0] * n[1] - n[0] * q[1]; }, 0)) / 2;
+                const share = list => (list.reduce((s, P) => s + area(P), 0) / (W * H) * 100).toFixed(1) + "%";
+                const col = document.getElementById("drpg-column");
+                if (!document.body.classList.contains("drpg-stacked") || !col) return { stacked: false, ok: false, why: "the screen is not stacked" };
+                const cr = col.getBoundingClientRect(), more = col.classList.contains("drpg-stack-more");
+                const scrolls = col.scrollHeight - col.clientHeight - col.scrollTop > 1;
+                if (scrolls !== more) why.push(`the stack ${scrolls ? "scrolls" : "fits"} and the signal is ${more ? "on" : "off"}`);
+                const order = id => Number(getComputedStyle(document.getElementById(id) ?? col).order);
+                const player = document.body.classList.contains("drpg-player"), right = order("ui-right-column-1"), despair = order("drpg-despair");
+                if (player ? right >= despair : right <= despair) why.push(`the right column's order ${right} against the Despair rail's ${despair} for a ${player ? "player" : "GM"}`);
+                const out = { stacked: true, ceiling: Math.round(cr.height) + "/" + getComputedStyle(col).maxHeight, rows: col.scrollHeight, scrolls, more, glass: null };
+                const drawn = document.body.classList.contains("drpg-curtain-on") && (g?.LAST?.panes ?? []).length > 0;
+                if (drawn) {
+                    const foot = cr.bottom - 2, under = g.LAST.panes.filter(p => p.y0 >= foot);
+                    const board = (g.LAST.open ?? []).filter(o => o.name === "board");
+                    const c = g.CHECKS?.[g.CHECKS.length - 1];
+                    out.glass = share(under.map(p => p.poly)); out.field = share(under.filter(p => p.kind === "field").map(p => p.poly));
+                    out.board = share(board.map(o => o.poly));
+                    out.check = c ? [c.overlaps, c.nonconvex, c.blockFails, c.edgeGaps, c.openFails].join("/") : "none";
+                    if (!board.length) why.push("the cut leaves no board open");
+                    if (!c || c.overlaps || c.nonconvex || c.blockFails || c.edgeGaps || c.openFails) why.push(`the self-check reads ${out.check}`);
+                }
+                return { ...out, ok: !why.length, why: why.join("; ") };
+            });
+            console.log(`${tag} ${r.glass === null ? "no glass" : `glass ${r.glass} field ${r.field} board ${r.board} check ${r.check}`} | column ${r.ceiling ?? "-"} rows ${r.rows ?? "-"} ${r.scrolls ? "scrolls" : "fits"} signal ${r.more ? "on" : "off"}${r.ok ? " ok" : `  FAIL: ${r.why}`}`);
+            if (!r.ok) bad++;
+            if (control && r.stacked && r.glass !== null && !planted.open) {
+                const p = await page.evaluate(() => {
+                    const g = window.__glass, board = (g.LAST.open ?? []).filter(o => o.name === "board");
+                    if (!board.length || typeof g.cutCheck !== "function") return null;
+                    return g.cutCheck([...g.LAST.panes, { poly: board[0].poly }], g.LAST.open, innerWidth, innerHeight).openFails;
+                });
+                planted.open++;
+                console.log(`${tag} control: a pane over the board - openFails ${p ?? "unread"} - ${p > 0 ? "sees it" : "MISSES IT"}`);
+                if (!(p > 0)) bad++;
+            }
+            if (control && r.stacked && !planted.signal) {
+                const p = await page.evaluate(async () => {
+                    const col = document.getElementById("drpg-column"), block = document.createElement("div");
+                    const frames = () => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done)));
+                    block.style.cssText = "height: 600px; flex: 0 0 auto";
+                    col.append(block); await frames(); await frames();
+                    const on = col.classList.contains("drpg-stack-more");
+                    col.scrollTop = col.scrollHeight; await new Promise(done => setTimeout(done, 100)); await frames();
+                    const end = col.classList.contains("drpg-stack-more");
+                    block.remove(); col.scrollTop = 0; await frames(); await frames();
+                    return { on, end, after: col.classList.contains("drpg-stack-more") };
+                });
+                planted.signal++;
+                const seen = p.on && !p.end;
+                console.log(`${tag} control: 600 px put into the stack - signal ${p.on ? "on" : "off"}, at the end ${p.end ? "on" : "off"}, taken out ${p.after ? "on" : "off"} - ${seen ? "sees it" : "MISSES IT"}`);
+                if (!seen) bad++;
+            }
+            await page.close();
+        }
+    } finally { await browser.close(); srv?.kill(); }
+    if (control && (!planted.open || !planted.signal)) { console.log("control: no stacked page with glass was read, so the board's faults could not be planted - FAIL"); bad++; }
+    console.log(`BOARD ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s), ${roles.length} role(s), ${bsizes.length} size(s), ${planted.open + planted.signal} control(s), ${bad} failing`);
     process.exit(bad ? 1 : 0);
 }
 
