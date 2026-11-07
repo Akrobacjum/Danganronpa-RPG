@@ -21168,7 +21168,7 @@ const INVARIANTS = [
             + "[box-sizing, display, the content one line of its own size], [under Stained Glass: the floor, the bone ink, the accent hairline]");
     }],
 
-    ["R1386 - the phase stamp says the Eclipse during one: under an Eclipse the clock's stamp is the Eclipse's own name (eclipse.mjs `eclipseLabel`, \"Night Eclipse\"), at each of the five hours it opens, and the phase's name (`phaseLabel`) otherwise; the clock on this page wears the one its own clock asks for (E23 C2b, E23-14; S10-50)", async () => {
+    ["R1386 - the phase stamp says the Eclipse during one: under an Eclipse the clock's stamp is the Eclipse's own name (eclipse.mjs `eclipseLabel`, \"Night Eclipse\"), at each of the five hours it opens, and the phase's name (`phaseLabel`) otherwise; a name longer than 17 characters (\"Eclipse (Popołudnie)\") is `is-long`, which stained-glass.css sets closer so it holds one line; the clock on this page wears the one its own clock asks for (E23 C2b, E23-14; S10-50)", async () => {
         /*
          * E23 C2b, 07.11.2026; audit S10-50. At f26d4467 `hudHeader` wrote `phaseLabel(clock.phase)` whatever the clock
          * said, so through a whole Eclipse the stamp read "Daily life" while the ticker behind it, the seams and the Event
@@ -21176,6 +21176,10 @@ const INVARIANTS = [
          * the Eclipse and the hour changed, nothing written), against `eclipseLabel` and `phaseLabel` asked directly; then
          * the clock renderHud drew on this page against its own clock. Red on f26d4467: hud.mjs exports no `hudHeader`;
          * with it exported and the stamp unchanged, "Daily life" in every Eclipse.
+         * ONE LINE IN BOTH LANGUAGES (E23 C2b fix, 07.11.2026; C2b's Open 41). Under Stained Glass the Polish
+         * "Eclipse (Popołudnie)" and "Eclipse (Południe)" wrapped to two lines (Chromium: the stamp 52 px against 28, the
+         * clock 24 px taller than in English), so the clock's height in an Eclipse hung on the hour and the language. By
+         * length, as the campaign line's `is-long` is: the clock's width is a constant. Red on be22f1df: no `is-long`.
          */
         const H = await import("./hud.mjs");
         const { eclipseLabel } = await import("./eclipse.mjs");
@@ -21186,6 +21190,8 @@ const INVARIANTS = [
             const parts = typeof H.hudHeader === "function" ? H.hudHeader(clock) : [];
             return parts.find(part => part.classList?.contains("drpg-hud-phase"))?.textContent.trim() ?? null;
         };
+        const longOf = clock => (typeof H.hudHeader === "function" ? H.hudHeader(clock) : [])
+            .find(part => part.classList?.contains("drpg-hud-phase"))?.classList.contains("is-long") ?? null;
         const base = getClock();
         const seen = {}, want = {};
         for (const timeOfDay of TIMES_OF_DAY) {
@@ -21201,6 +21207,21 @@ const INVARIANTS = [
             && !TIMES_OF_DAY.some(t => want[`eclipse ${t}`] === want.dailyLife),
         `the five Eclipses' names are not five names apart from the phase's (${stableJson(want)}) - the comparison below would read nothing`);
         equal(stableJson(seen), stableJson(want), "the stamp under an Eclipse at each hour, and in each phase without one: hudHeader's against eclipseLabel's and phaseLabel's");
+        const longs = {}, longWant = {};
+        for (const [name, clock] of [...TIMES_OF_DAY.map(timeOfDay => [`eclipse ${timeOfDay}`, { ...base, phase: "dailyLife", timeOfDay, eclipse: true }]),
+            ...["dailyLife", "investigation", "classTrial"].map(phase => [phase, { ...base, phase, eclipse: false }]),
+            /* English's longest name is 17 characters, so on an English page every case above is short: a phase no
+               table knows is named by its key (`phaseLabel`), which plants a long one. */
+            ["planted", { ...base, phase: "R1386 a longer name", eclipse: false }]]) {
+            longs[name] = longOf(clock);
+            longWant[name] = (name === "planted" ? phaseLabel(clock.phase) : want[name] ?? "").length > 17;
+        }
+        ok(longWant.planted === true, "the planted phase is not long - the reading would see no long name");
+        equal(stableJson(longs), stableJson(longWant), "the stamp `is-long` exactly where its name is longer than 17 characters");
+        const glassCss = (await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`, { cache: "no-cache" }).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+        const longRule = glassCss.includes("body.drpg-theme-stained-glass #drpg-hud .drpg-hud-phase.is-long {")
+            ? bodyOf(glassCss, "body.drpg-theme-stained-glass #drpg-hud .drpg-hud-phase.is-long {", { until: "}" }) : "";
+        ok(/letter-spacing: 0\.06em;/.test(longRule), "stained-glass.css sets no closer tracking for a long phase stamp, so a long name wraps to two lines");
 
         const hud = document.getElementById(H.HUD_ID);
         must(hud?.isConnected, "no clock on this page - renderHud drew nothing to read");
@@ -21211,7 +21232,7 @@ const INVARIANTS = [
         `the clock on this page reads "${drawn}" for its own clock (eclipse ${clock.eclipse === true}, phase ${clock.phase}, drawn as ${hud.dataset.drpgPhase})`);
     }],
 
-    ["R1387 - the pause on the clock: a paused game puts a stamp with Foundry's own word (`GAME.Paused`, \"On hold\") in the clock right after the phase's, on every client, and an unpaused one takes it off; the stamp follows `game.paused` at each render, so a world that loads paused shows it from ready, and `pauseGame` renders the clock with no seat asked (E23 C2b, E23-15; S12-22)", async () => {
+    ["R1387 - the pause on the clock: a paused game puts a stamp with Foundry's own word (`GAME.Paused`, \"On hold\") on the clock, on every client, and an unpaused one takes it off; the stamp stands in the campaign line's own box, so the clock's rows are the same paused and unpaused and the curtain is not cut again for a pause (the owner's 27.09); the stamp follows `game.paused` at each render, so a world that loads paused shows it from ready, and `pauseGame` renders the clock with no seat asked (E23 C2b, E23-15; S12-22)", async () => {
         /*
          * E23 C2b, 07.11.2026; audit S12-22, the owner's Q-E23-2 (yes, 07.11; the orchestrator: the stamp on the clock,
          * and Foundry's centred caption with the module's veil and raster kept as they are). At f26d4467 a pause was
@@ -21221,6 +21242,14 @@ const INVARIANTS = [
          * client) and the module's own `pauseGame` handler writes the stopwatch's bookkeeping on the primary GM, which a
          * tier-1 test may not do. Then hud.mjs is read: the handler renders with no seat asked, and ready renders.
          * Red on f26d4467: no stamp while paused.
+         * THE CLOCK'S ROWS DO NOT CHANGE (E23 C2b fix, 07.11.2026; the orchestrator on C2b's Open 40, after the owner's
+         * 27.09: a curtain whose layout changes when nothing but the state does is a fault). be22f1df put the stamp on a
+         * row of its own under the phase's, and in Chromium the clock grew 31 px under Stained Glass and the curtain was
+         * cut again at the pause and at its end. Read here: the stamp is a child of the campaign line, which wears
+         * `is-paused`; the clock's own children are the same, class by class, paused and unpaused; and both stylesheets
+         * hide the campaign's words in place and lay the stamp over its box out of the flow. The heights and the cut
+         * themselves are Chromium's (S/stages/E23/scratch/c2b/pause-same.mjs, quoted in the commit).
+         * Red on be22f1df: the stamp the clock's own child, after the phase line; neither stylesheet's rule.
          */
         const H = await import("./hud.mjs");
         const hud = document.getElementById(H.HUD_ID);
@@ -21232,15 +21261,21 @@ const INVARIANTS = [
         const stand = value => (had && !had.configurable
             ? (game.paused = value)
             : Object.defineProperty(game, "paused", { get: () => value, configurable: true }));
+        const rows = () => [...hud.children].map(child => [...child.classList].filter(c => c !== "is-paused").sort().join(".")).join(" ");
         const read = () => {
             const marks = [...hud.querySelectorAll(".drpg-hud-paused")];
-            const mark = marks[0];
+            const mark = marks[0], campaign = hud.querySelector(":scope > .drpg-hud-campaign");
             return marks.length ? [marks.length, mark.textContent.trim() === word, mark.classList.contains("empty"),
-                mark.parentElement === hud, mark.previousElementSibling?.classList.contains("drpg-hud-phase") ?? false] : "none";
+                mark.parentElement === campaign && Boolean(campaign), campaign?.classList.contains("is-paused") ?? false, rows()]
+                : ["none", hud.querySelector(".is-paused") ? "is-paused left" : "", rows()];
         };
         const was = game.paused;
         const seen = {};
+        let unpausedRows = null;
         try {
+            stand(false);
+            H.renderHud();
+            unpausedRows = rows();
             stand(true);
             H.renderHud();
             seen.paused = read();
@@ -21254,9 +21289,24 @@ const INVARIANTS = [
             if (had && !had.configurable) game.paused = was;
             H.renderHud();
         }
-        equal(stableJson(seen), stableJson({ paused: [1, true, false, true, true], again: [1, true, false, true, true], unpaused: "none" }),
-            "paused: [stamps in the clock, Foundry's word, hidden as `empty`, the clock's own child, right after the phase's stamp]; "
-            + "a second render while paused draws one, not two; unpaused, none");
+        equal(stableJson(seen), stableJson({ paused: [1, true, false, true, true, unpausedRows], again: [1, true, false, true, true, unpausedRows],
+            unpaused: ["none", "", unpausedRows] }),
+        "paused: [stamps in the clock, Foundry's word, hidden as `empty`, a child of the campaign line, the line `is-paused`, the clock's rows]; "
+            + "a second render while paused draws one, not two; unpaused: none, no `is-paused` left, the same rows");
+
+        const sheet = async file => (await fetch(`/modules/${MODULE_ID}/styles/${file}`, { cache: "no-cache" }).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+        const [css, glass] = await Promise.all(["danganronpa.css", "stained-glass.css"].map(sheet));
+        const rule = (text, sel) => (text.includes(`${sel} {`) ? bodyOf(text, `${sel} {`, { until: "}" }) : "");
+        const hidden = rule(css, "#drpg-hud .drpg-hud-campaign.is-paused");
+        const over = rule(css, "#drpg-hud .drpg-hud-campaign.is-paused > .drpg-hud-paused");
+        const plate = rule(glass, "body.drpg-theme-stained-glass #drpg-hud .drpg-hud-campaign.is-paused > .drpg-hud-paused");
+        equal(stableJson({
+            hidden: /visibility: hidden;/.test(hidden) && /position: relative;/.test(hidden),
+            over: /visibility: visible;/.test(over) && /position: absolute;/.test(over) && /inset: 0;/.test(over) && /white-space: nowrap;/.test(over),
+            plate: /font-size: max\(var\(--drpg-sg-floor\)/.test(plate) && !/position:\s*(static|relative)/.test(plate)
+        }), stableJson({ hidden: true, over: true, plate: true }),
+        "danganronpa.css: [the paused campaign line keeps its box with its words hidden], [the stamp shown over it, out of the flow, on one line]; "
+            + "stained-glass.css: [the plate on the floor, still out of the flow]");
 
         const source = await fetch(`/modules/${MODULE_ID}/scripts/hud.mjs`, { cache: "no-cache" }).then(lfText);
         const handler = bodyOf(source, 'Hooks.on("pauseGame"', { until: "});" });

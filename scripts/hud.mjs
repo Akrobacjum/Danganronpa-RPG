@@ -290,8 +290,8 @@ function hudTicker(phase, clock) {
     return ticker;
 }
 
-/** The campaign's name, the chapter and day, the phase line with its glyph, and the pause's stamp while the game is
- *  on hold. Exported for R1386, which reads the stamp for clocks of its own (E23 C2b). */
+/** The campaign's name (under the pause's stamp while the game is on hold), the chapter and day, and the phase line
+ *  with its glyph. Exported for R1386, which reads the stamp for clocks of its own (E23 C2b). */
 export function hudHeader(clock) {
     /* CHAPTER AND DAY ARE ONE LINE, IN BOTH THEMES.
        Two rows for six words, in a pane whose height the curtain is cut around: the
@@ -313,7 +313,13 @@ export function hudHeader(clock) {
        ticker behind it and the Event panel said Eclipse. It takes the Eclipse's own name now, the one its notices and
        the ready check use ("Night Eclipse", eclipse.mjs `eclipseLabel`), for the same `clock.eclipse` that puts the
        clock in the Eclipse's colours (`renderHud`'s `phase`). R1386. */
-    const phaseLine = line("drpg-hud-phase", clock.eclipse === true ? eclipseLabel(clock) : phaseLabel(clock.phase));
+    const phaseText = clock.eclipse === true ? eclipseLabel(clock) : phaseLabel(clock.phase);
+    const phaseLine = line("drpg-hud-phase", phaseText);
+    /* ONE LINE IN BOTH LANGUAGES (E23 C2b fix, 07.11.2026). The Polish names are the longest - "Eclipse (Popołudnie)",
+       20 characters - and under Stained Glass they wrapped to two lines (Chromium, the glass harness: the stamp 52 px
+       against 28, so the clock stood 24 px taller in some Eclipses than in others). By length, as the campaign line's
+       is: the clock's width is a constant. stained-glass.css sets an `is-long` stamp closer. R1386. */
+    if ((phaseText ?? "").length > 17) phaseLine.classList.add("is-long");
     /* In both themes: the glyph is a FACT drawn as a picture, not a flourish, and
        Legacy is the pixel-art theme - the sprite belongs there at least as much.
        Which sprite is the stylesheet's business, from the phase and hour already
@@ -338,16 +344,27 @@ export function hudHeader(clock) {
        language files word "On hold" / "Wstrzymano"), as a second stamp right after the phase's, on every client:
        `pauseGame` renders every clock (`registerHud`) and the stamp follows `game.paused` at each render, so a world
        that loads paused wears it from ready's render, with no `pauseGame` of its own. The centred caption, the veil and
-       its raster stay as they are (the orchestrator's answer to the owner's question back, 07.11). It is a row of its
-       own under the phase's, as the default the owner agreed to says: the clock is a flex column, so a stamp beside the
-       phase's would take a wrapper round the phase line, which R1386, R1387 and the glass harness read as the clock's
-       own child. The row makes the clock taller while the game is on hold, so the curtain is cut again at a pause and
-       at its end - a layout's change, which may recut (the owner's 27.09: only the hour's must not). Measured in
-       Chromium on the glass harness, the stamp planted as this writes it (07.11.2026, 1366x768 and 1920x1080, English
-       and Polish): Stained Glass's clock 214 -> 245 px, one drpgGlassCut each way, the self-check 0/0/0 paused and
-       after; Monokuma Legacy's 134 -> 156 px, no curtain. R1387. */
-    const pauseLine = game.paused ? [line("drpg-hud-paused", game.i18n.localize("GAME.Paused"))] : [];
-    return [campaign, ...dateLines, phaseLine, ...pauseLine];
+       its raster stay as they are (the orchestrator's answer to the owner's question back, 07.11).
+       IN THE CAMPAIGN LINE'S OWN BOX, NOT A ROW OF ITS OWN (E23 C2b fix, 07.11.2026; the orchestrator on C2b's Open 40,
+       after the owner's 27.09: a curtain whose layout changes when nothing but the state does is a fault). be22f1df
+       put it on a row under the phase's, and the clock grew 31 px under Stained Glass and 22 under Legacy, and the
+       curtain was cut again at the pause and at its end. Beside the phase's it does not fit: the clock's inside is
+       227 px under the glass, the shortest phase stamp 150 and the pause's 91 (Polish 120). So while paused the
+       campaign line keeps its box with its words hidden (`is-paused`), and the stamp lies over that box, out of the
+       flow (both stylesheets): the clock's rows and height are the same paused and unpaused. The campaign's name is
+       the one line on the clock that says nothing about the game's state, and it is back the moment the game is.
+       Measured in Chromium on the glass harness, the stamp planted as this writes it (07.11.2026, 1366x768 and
+       1920x1080, both themes, a GM and a player, English and Polish, Daily Life and three Eclipses each): the clock's
+       height the same paused, unpaused and after, the cut the same, no drpgGlassCut (S/stages/E23/scratch/c2b/
+       pause-same.mjs, outside the repository). R1387. */
+    if (game.paused) {
+        const stamp = document.createElement("span");
+        stamp.className = "drpg-hud-paused";
+        stamp.textContent = game.i18n.localize("GAME.Paused");
+        campaign.classList.add("is-paused");
+        campaign.append(stamp);
+    }
+    return [campaign, ...dateLines, phaseLine];
 }
 
 /* THE FOUR STANDING THREATS ARE THE EVENT PANEL'S, IN BOTH THEMES (1.2.47).

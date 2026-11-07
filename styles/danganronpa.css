@@ -1187,14 +1187,29 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
 }
 
 /* THE PAUSE'S STAMP (E23 C2b, 07.11.2026; audit S12-22). While the game is on hold the clock carries Foundry's own
-   word ("On hold") on a row of its own under the phase (hud.mjs `hudHeader`): a label in a ruled box, in the clock's
-   ink, so it reads as a stamp in Monokuma Legacy too. Stained Glass draws it as a plate (stained-glass.css, C-G).
-   Foundry's caption in the middle of the screen, the veil and its raster are THE PAUSE SCREEN's, below, unchanged. */
-#drpg-hud .drpg-hud-paused {
+   word ("On hold") where the campaign's name stands (hud.mjs `hudHeader`): the name's line keeps its box with its words
+   hidden, and the stamp lies over the middle of that box, out of the flow, so the clock is as tall paused as not and
+   the curtain is not cut again for a pause (E23 C2b fix; the owner's 27.09). A label in a ruled box, in the clock's
+   ink, so it reads as a stamp in Monokuma Legacy too; Stained Glass draws it as a plate (stained-glass.css, C-G). A
+   child's `visibility: visible` shows it inside a hidden parent. Foundry's caption in the middle of the screen, the
+   veil and its raster are THE PAUSE SCREEN's, below, unchanged. */
+#drpg-hud .drpg-hud-campaign.is-paused {
+    position: relative;
+    visibility: hidden;
+}
+#drpg-hud .drpg-hud-campaign.is-paused > .drpg-hud-paused {
+    visibility: visible;
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: max-content;
+    height: max-content;
+    white-space: nowrap;
+    font-family: inherit;
     font-size: var(--font-size-13, 0.82rem);
+    line-height: 1.35;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    margin: 2px 0 1px;
     padding: 0 8px;
     border: 1px solid currentColor;
     border-radius: 3px;
