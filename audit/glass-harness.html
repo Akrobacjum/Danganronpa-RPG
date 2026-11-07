@@ -933,7 +933,9 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       if (fit.points !== pane.poly.length) out.why.push(`the picture is clipped to ${fit.points} points, its pane has ${pane.poly.length}`);
       else if (!(fit.miss <= 1.5) || !fit.cover) out.why.push(`the picture's outline is ${fit.miss} px off its pane at ${out.art.pane}${fit.cover ? "" : ", its box short of a corner"}`);
       if (!near(fit.turn[0], fit.turn[1], 0.05)) out.why.push(`the picture is turned ${fit.turn[0]} deg, its tile ${fit.turn[1]} (H83: it leans with its pane)`);
-      if (out.art.z[0] !== out.art.z[1] || art.previousElementSibling !== cur || !glowAfter(art)) out.why.push(`the picture is not laid between the curtain and its glow (${out.art.z}, after ${out.art.under})`);
+      /* after the curtain, or after the layers its turn stands above it (E23 C1b: glass.mjs `curtainTop`) */
+      const top = [cur, document.getElementById("drpg-curtain-turn"), document.getElementById("drpg-curtain-flash")];
+      if (out.art.z[0] !== out.art.z[1] || !top.includes(art.previousElementSibling) || !glowAfter(art)) out.why.push(`the picture is not laid between the curtain and its glow (${out.art.z}, after ${out.art.under})`);
       if (!out.art.picture) out.why.push("the picture's layer has no picture");
     }
     if (cuts) await readCuts();
@@ -1284,7 +1286,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       out.why.push(...two.why.map(w => "with a name on two lines, " + w));
     }
     if (!loose || loose.parentElement !== body || own) out.why.push("the portrait is not on the curtain's pane");
-    else if (!glowAfter(loose) || ![cur, document.getElementById("drpg-room-art")].includes(loose.previousElementSibling)) out.why.push("the portrait is not laid between the curtain and its glow");
+    else if (!glowAfter(loose) || ![cur, document.getElementById("drpg-room-art"), document.getElementById("drpg-curtain-turn"), document.getElementById("drpg-curtain-flash")].includes(loose.previousElementSibling)) out.why.push("the portrait is not laid between the curtain and its glow");
     else {
       const fit = layerFit(loose, pane, cur.getBoundingClientRect(), tile);
       out.art = fit;
@@ -1621,8 +1623,9 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
      `drpg-curtain`, `drpg-glow` or `drpg-turn`, a `[data-glow]` canvas. A turn that moves other elements says so there.
      `drpgTurnFreeze(at)` stands the page's clock still `at` ms after now - performance.now() returns now, every frame
      is given now + at - as E61 MK-R2's flashpeak.js did to read the flash at its peak (0.2 of 420 ms is 84). It freezes
-     what is timed by the frame's clock (glass.mjs's flash and morph at 1d860414); a Web Animation runs on the
-     document's timeline and is not frozen by it.
+     what is timed by the frame's clock (glass.mjs's flash and morph at 1d860414) and, since E23 C1b, what the turn hands
+     the browser: every Web Animation started after it is paused at `at` ms into its own run (its delay and `at`), so
+     each pane's flash, which starts at its batch's delay, stands at its own 0.2; one already running stands where it is.
      The two controls the sweep runs, as switches of this page (the module script below):
        ?turn=today  on 1d860414 HEAD's `morph` is what runs, so the switch changes nothing and the page says "head";
                     once glass.mjs exports `glassTurn` (E23 C1b) it plants a clip-path write on the curtain in every
@@ -1707,6 +1710,14 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     const C = performance.now(), raf = window.requestAnimationFrame.bind(window);
     performance.now = () => C;
     window.requestAnimationFrame = cb => raf(() => cb(C + at));
+    for (const a of document.getAnimations()) a.pause();
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (frames, timing) {
+      const a = animate.call(this, frames, timing);
+      a.pause();
+      a.currentTime = (typeof timing === "object" ? timing?.delay ?? 0 : 0) + at;
+      return a;
+    };
     turnState.frozen = true;
     return { at };
   };
@@ -2206,8 +2217,9 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
   /* The turn's two controls (E23 C1a; the turn check above, glass-sweep.mjs `--turn`). `?turn=today`: on a tree whose
      glass.mjs has no `glassTurn` HEAD's `morph` is what runs, and the page says so ("head"); on one that has it, a
      clip-path write planted in every frame of the turn's first 700 ms ("planted"). `?flash=0.5`: every flash layer at
-     that opacity. FLASH_LAYERS is 1d860414's flash canvas; a turn that bakes its flash elsewhere names its layer here. */
-  const FLASH_LAYERS = "canvas.flash";
+     that opacity. FLASH_LAYERS is 1d860414's flash canvas (still an objection's and a window band's) and, since E23 C1b,
+     the curtain's turn's: each pane's seams on a layer of their own (glass.mjs `bakeFlash`). */
+  const FLASH_LAYERS = "canvas.flash, .drpg-turn-flash-pane";
   if (q.get("turn") === "today") {
     window.__turnPlant = typeof m.glassTurn === "function";
     window.__turnToday = window.__turnPlant ? "planted" : "head";

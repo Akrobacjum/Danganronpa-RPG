@@ -36433,6 +36433,164 @@ const INVARIANTS = [
             + "raisesOnRender: a sheet's first render, forced, ordinary, no options, a prompt's forced, a panel's forced; promptsOver a sheet: an overlapping prompt, one beside it, "
             + "an overlapping panel, a prompt with no box (kept above), lowest first]");
     }],
+    ["R1377 - a turn's plan (glass.mjs `turnPlan`, E23 C1b; E23-01, E23-08): on stand-in panes a moving pane is carried by transform keyframes alone (with the opacity of its last fifth), a pane that only recolours by opacity alone, and no keyframe names a clip path; the last keyframe carries a moved triangle exactly onto its new place; the batches go out from the centre; a new accent on the same cut plans no move; `glassTurn` is the one entry point, the turn's start (`startTurn`) writes no clip path and draws on no canvas, and the curtain's clip path is written only where the cut is made and where the frost is clipped", async () => {
+        /*
+         * E23 C1b, 07.11.2026 (the owner's 05.11: the curtain's motion rebuilt as the approved MK-R1/MK-R2 mockup;
+         * DIAGNOSIS.md of MK-R1). At C1a's tree a phase change ran `morph()`, which rewrote `el.style.clipPath` with
+         * every pane's resampled polygon in every animation frame for 1800 ms. The turn is now planned first
+         * (`turnPlan`, pure: polygons in, keyframes out) and run by the browser's animations; this reads the plan on
+         * four stand-in panes of a 400x300 frame - two triangles that move, two that stand - under a new accent, under
+         * the same accent, and with the same cut under a new accent; and reads glass.mjs's source for every write of a
+         * clip path. jsdom lays nothing out, so nothing here is painted (`--turn` in Chromium is the measure).
+         * Red at 2b866dde: no `turnPlan`; `morph` writes the clip path in its frame.
+         */
+        const G = await import("./glass.mjs");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(lfText));
+        const writes = src.split("\n").filter(line => /\.clipPath\s*=(?!=)/.test(line)).map(line => line.trim());
+        const allowed = writes.filter(line => /el\.style\.clipPath = "path\('" \+ d \+ "'\)"/.test(line) || /frost\.style\.clipPath = /.test(line));
+        equal(JSON.stringify(writes.filter(line => !allowed.includes(line)).map(line => line.slice(0, 120))), "[]",
+            "clip-path writes in glass.mjs other than the cut's (`curtainGeometry`) and the frost's");
+        equal(typeof G.turnPlan, "function", "glass.mjs's plan of a turn (`turnPlan`)");
+        equal(typeof G.glassTurn, "function", "glass.mjs's one entry point of a turn (`glassTurn`)");
+        if (typeof G.turnPlan !== "function") return;
+        ok(topLevelFunction(src, "morph") === null, "the morph that rewrote the clip path every frame is gone");
+        const start = fnSource(src, "startTurn");
+        equal(JSON.stringify(["clipPath", "clip-path", "getContext", ".stroke(", ".fill(", "drawImage"].filter(w => start.includes(w))), "[]",
+            "what the turn's start (`startTurn`) writes or draws");
+        ok(/\bglassTurn\(/.test(topLevelFunction(src, "rebuildAll") ?? ""), "a rebuild turns the glass through `glassTurn`");
+        const W = 400, H = 300;
+        const old = [[[0, 0], [200, 0], [0, 150]], [[200, 0], [400, 0], [400, 150]], [[0, 150], [200, 300], [0, 300]], [[400, 150], [400, 300], [200, 300]]];
+        const now = [[[0, 0], [260, 0], [0, 190]], old[1], [[0, 190], [200, 300], [0, 300]], old[3]];
+        const panes = polys => polys.map(poly => ({ poly, content: false, tone: null }));
+        const plan = G.turnPlan(panes(old), panes(now), { W, H, fromAcc: "#ffd38f", acc: "#ff3d8b", dur: 1200 });
+        const keys = list => [...new Set(list.flatMap(f => Object.keys(f)))].sort().join(",");
+        equal(JSON.stringify([plan.moves.length, plan.moves.map(m => m.to).sort(), keys(plan.moves.flatMap(m => m.frames)),
+            plan.batches.reduce((n, b) => n + b.panes.length, 0), keys(plan.batches.flatMap(b => b.frames))]),
+            JSON.stringify([2, [0, 2], "offset,opacity,transform", 2, "offset,opacity"]),
+            "a recut under a new accent: [moves, the panes that move, a move's keyframe keys, panes that only recolour, a recolour's keyframe keys]");
+        ok(!/clip/i.test(JSON.stringify(plan)), "no part of the plan names a clip path");
+        // the last keyframe of the first triangle's move, applied to its old corners, lands on its new ones
+        const m = plan.moves.find(x => x.to === 0);
+        const [a, b, c, d, e, f] = m.frames.at(-1).transform.match(/-?[\d.]+(?:e-?\d+)?/g).map(Number);
+        const land = old[0].map(([x, y]) => { const qx = x - m.box.x0, qy = y - m.box.y0; return [m.box.x0 + a * qx + c * qy + e, m.box.y0 + b * qx + d * qy + f]; });
+        ok(land.every((p, i) => Math.hypot(p[0] - now[0][i][0], p[1] - now[0][i][1]) < 0.05),
+            `the move's last keyframe carries the triangle onto its new corners (${JSON.stringify(land.map(p => p.map(v => +v.toFixed(2))))})`);
+        equal(JSON.stringify([m.frames[0].transform.replace(/\s/g, ""), m.frames.at(-1).opacity, m.frames.filter(k => k.offset <= 0.8).every(k => k.opacity === 1)]),
+            JSON.stringify(["matrix(1,0,0,1,0,0)", 0, true]), "[the move's first transform, its last opacity, the old glass whole until the last fifth]");
+        const dist = i => { const bb = now[i].reduce((s, q) => [s[0] + q[0] / now[i].length, s[1] + q[1] / now[i].length], [0, 0]); return Math.hypot((bb[0] - W / 2) / (W / 2), (bb[1] - H / 2) / (H / 2)); };
+        const delays = plan.order.map(i => plan.delayOf[i]);
+        ok(plan.order.every((i, k) => k === 0 || dist(plan.order[k - 1]) <= dist(i) + 1e-9) && delays.every((v, k) => k === 0 || delays[k - 1] <= v),
+            `the batches go out from the centre (order ${JSON.stringify(plan.order)}, delays ${JSON.stringify(delays)})`);
+        const layout = G.turnPlan(panes(old), panes(now), { W, H, fromAcc: "#ff3d8b", acc: "#ff3d8b", dur: 1200 });
+        const hour = G.turnPlan(panes(old), panes(old), { W, H, fromAcc: "#ffd38f", acc: "#ff8245", dur: 1200 });
+        equal(JSON.stringify([[layout.moves.length, layout.batches.length, layout.flashes.length], [hour.moves.length, hour.batches.reduce((n, b) => n + b.panes.length, 0), hour.flashes.length, Boolean(hour.frost)]]),
+            JSON.stringify([[2, 0, 0], [0, 4, 4, false]]),
+            "[the same accent recut: moves, recolour batches, flashes]; [the same cut, a new accent: moves, panes recoloured, flashes, the frost lifted]");
+    }],
+    ["R1378 - the flash at today's brightness (glass.mjs `FLASH`, `FLASH_KF`, `bakeFlash`; E23 C1b; E23-03): its constants are one table - bone #f2eee6, 1.6 px, alpha 1, screen, a rise over 8 % of 420 ms, held to 32 %, a cubic fall - and the keyframes are read off it; a cut's seams are baked once, one layer a pane, each seam on one layer only, and a recolour of the same cut bakes nothing; a pane in a turn's plan flashes once", async () => {
+        /*
+         * E23 C1b, 07.11.2026 (MK-R2, the owner: "keep today's flash"). At C1a's tree `flashSeams` drew the seams of
+         * the whole curtain on one canvas in every frame of 420 ms. Each pane's seams are baked once per cut onto a
+         * layer of their own, which the turn plays by opacity with its pane's batch delay. Read here on four stand-in
+         * panes with a canvas maker of the test's own (jsdom draws no 2d canvas) whose context counts what it is
+         * asked to stroke; nothing on the page is touched. The brightness itself is `--turn`'s flash reading.
+         * Red at 2b866dde: one flash canvas for every pane (`flashSeams`), no `FLASH`.
+         */
+        const G = await import("./glass.mjs");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(lfText));
+        const W = 400, H = 300;
+        const polys = [[[0, 0], [200, 0], [0, 150]], [[200, 0], [400, 0], [400, 150], [0, 150]], [[0, 150], [400, 150], [200, 300]], [[0, 150], [200, 300], [0, 300]]];
+        const panes = () => polys.map(poly => ({ poly, content: false, tone: null }));
+        let made = 0;
+        const strokes = [];
+        const make = () => {
+            made++;
+            // the points as the bake hands them: in the screen's pixels, whatever the layer's own offset
+            const at = {}, ctx = {
+                globalAlpha: 1, strokeStyle: "", lineWidth: 1, lineCap: "butt",
+                setTransform() {}, scale() {}, translate() {}, clearRect() {}, beginPath() {},
+                moveTo(x, y) { at.from = [x, y]; },
+                lineTo(x, y) { strokes.push({ seg: [at.from, [x, y]].map(q => q.map(Math.round).join(",")).sort().join(" "), style: ctx.strokeStyle, width: ctx.lineWidth, alpha: ctx.globalAlpha }); },
+                stroke() {}
+            };
+            return { width: 0, height: 0, className: "", style: { cssText: "" }, getContext: () => ctx };
+        };
+        const job = { W, H, acc: "#ffd38f", panes: panes() };
+        const layers = typeof G.bakeFlash === "function" ? G.bakeFlash(job, { make })?.length ?? 0
+            : (fnSource(src, "flashSeams").match(/createElement\("canvas"\)/g) ?? []).length;
+        equal(layers, 4, `flash layers baked for a cut of 4 panes (one a pane; at 2b866dde \`flashSeams\` made one canvas for the whole web)`);
+        if (typeof G.bakeFlash !== "function") return;
+        equal(JSON.stringify(G.FLASH), JSON.stringify({ color: "#f2eee6", width: 1.6, alpha: 1, blend: "screen", rise: 0.08, hold: 0.32, fall: 3, ms: 420 }), "the flash's one table (`FLASH`)");
+        const kf = G.FLASH_KF;
+        const fall = kf.filter(k => k.offset > 0.32 && k.offset < 1);
+        equal(JSON.stringify([kf[0], kf[1], kf[2], kf.at(-1), fall.length >= 3, fall.every(k => Math.abs(k.opacity - Math.pow(1 - (k.offset - 0.32) / 0.68, 3)) < 1e-3)]),
+            JSON.stringify([{ offset: 0, opacity: 0 }, { offset: 0.08, opacity: 1 }, { offset: 0.32, opacity: 1 }, { offset: 1, opacity: 0 }, true, true]),
+            "the keyframes read off the table: [start, risen, held, out, a fall of three or more steps, each on (1 - x)^3]");
+        const inner = new Set();
+        for (const poly of polys) for (let i = 0; i < poly.length; i++) {
+            const p = poly[i], q = poly[(i + 1) % poly.length];
+            const border = (p[0] < 1 && q[0] < 1) || (p[0] > W - 1 && q[0] > W - 1) || (p[1] < 1 && q[1] < 1) || (p[1] > H - 1 && q[1] > H - 1);
+            if (!border) inner.add([p, q].map(v => v.map(Math.round).join(",")).sort().join(" "));
+        }
+        const segs = strokes.map(s => s.seg);
+        equal(JSON.stringify([segs.length, new Set(segs).size, [...inner].every(s => segs.includes(s)), [...new Set(strokes.map(s => `${s.style} ${s.width} ${s.alpha}`))]]),
+            JSON.stringify([inner.size, inner.size, true, ["#f2eee6 1.6 1"]]),
+            "the seams stroked: [strokes, seams stroked, every inner side of the cut among them, colour width alpha]");
+        const madeBefore = made;
+        const again = G.bakeFlash(job, { make });
+        job.acc = "#ff3d8b";
+        const recolour = G.bakeFlash(job, { make });
+        job.panes = panes();
+        const recut = G.bakeFlash(job, { make });
+        equal(JSON.stringify([made - madeBefore, again?.length, recolour?.length, recut?.length]), JSON.stringify([4, 4, 4, 4]),
+            "[canvases made by the same cut again and by a recolour, then by a new cut: four only for the new cut; layers after each]");
+        const plan = G.turnPlan(panes(), panes(), { W, H, fromAcc: "#ffd38f", acc: "#ff3d8b", dur: 1200 });
+        equal(JSON.stringify(plan.flashes.map(x => x.pane).sort()), JSON.stringify([0, 1, 2, 3]), "the panes a recolour flashes, each once");
+    }],
+    ["R1379 - the turn's clock (motion.css `--drpg-t-curtain`, stained-glass.css, glass.mjs `startTurn`; E23 C1b; E23-02, E23-07): the curtain's time is 1200 ms and the interface's beat 840 ms; under Stained Glass the turning list's colours run on the curtain's time and a rail's transform on the beat, under Monokuma Legacy nothing reads the curtain's time; a turn starts at the second animation frame after its bake, never at the event; reduced motion plans nothing", async () => {
+        /*
+         * E23 C1b, 07.11.2026 (the owner's 05.11; DIAGNOSIS.md 4: half the travel of the morph fell in its first 0.29 s
+         * and those frames were lost in the synchronous rebuild, so the eye saw a jump). The clock of a turn is the
+         * first frame the browser paints after the bake: `startTurn` waits two frames and only then starts its
+         * animations. Read on a handle of the test's own with a frame queue of the test's own, so no animation runs and
+         * no frame is waited for; the times read from motion.css's text and the cascade of the module's sheets on
+         * bodies of the test's own (`styleCascade`). Red at 2b866dde: motion.css says 1800ms.
+         */
+        const motion = stripComments(await fetch(`/modules/${MODULE_ID}/styles/motion.css`).then(lfText));
+        const token = name => motion.match(new RegExp(`${name}:\\s*([^;]+);`))?.[1]?.trim() ?? null;
+        equal(JSON.stringify([token("--drpg-t-curtain"), token("--drpg-t-turn")]), JSON.stringify(["1200ms", "840ms"]), "[the curtain's time, the interface's beat] in motion.css");
+        const C = await styleCascade();
+        const read = (theme, turning, id) => {
+            const body = document.createElement("body");
+            body.className = `drpg-theme-${theme}`;
+            if (turning) body.setAttribute("data-drpg-turning", "");
+            const el = body.appendChild(document.createElement("div"));
+            el.id = id;
+            return C.winner(el, ["transition", "transition-duration"])?.value ?? "";
+        };
+        const names = value => (value.match(/--drpg-t-(curtain|turn)/g) ?? []).join(" ");
+        equal(JSON.stringify([names(read("stained-glass", true, "drpg-hud")), names(read("stained-glass", false, "sidebar-tabs")), /--drpg-t-curtain/.test(read("monokuma-legacy", true, "drpg-hud"))]),
+            JSON.stringify(["--drpg-t-curtain", "--drpg-t-turn", false]),
+            "[Stained Glass, turning: the clock's colours; Stained Glass: a rail's transform; Legacy, turning: the clock reads the curtain's time]");
+        const G = await import("./glass.mjs");
+        equal(typeof G.startTurn, "function", "glass.mjs's start of a turn (`startTurn`)");
+        if (typeof G.startTurn !== "function") return;
+        const queue = [], started = [];
+        const frame = cb => { queue.push(cb); return queue.length; };
+        const layer = name => ({ el: { animate: (frames, timing) => { started.push(name); return { finished: Promise.resolve(), cancel() {} }; } }, frames: [{ opacity: 1 }, { opacity: 0 }], timing: { duration: 300 } });
+        const handle = { layers: [layer("a"), layer("b")], t0: null };
+        G.startTurn(handle, frame);
+        const atEvent = [handle.t0, started.length];
+        queue.shift()?.(1000);
+        const afterOne = [handle.t0, started.length];
+        queue.shift()?.(1016.7);
+        equal(JSON.stringify([atEvent, afterOne, [handle.t0, started.join(",")]]), JSON.stringify([[null, 0], [null, 0], [1016.7, "a,b"]]),
+            "[t0, animations started]: at the event, after the first frame, at the second");
+        const pane = poly => ({ poly, content: false, tone: null });
+        const still = G.turnPlan([pane([[0, 0], [200, 0], [0, 150]])], [pane([[0, 0], [260, 0], [0, 190]])], { W: 400, H: 300, fromAcc: "#ffd38f", acc: "#ff3d8b", dur: 1200, reduced: true });
+        equal(JSON.stringify([still.none, still.moves.length, still.batches.length, still.flashes.length]), JSON.stringify([true, 0, 0, 0]), "reduced motion: [no turn, moves, batches, flashes]");
+        ok(/reduced:\s*REDUCED\(\)/.test(fnSource(stripComments(await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(lfText)), "glassTurn")), "`glassTurn` hands the plan the reader's reduced motion");
+    }],
 ];
 
 /**

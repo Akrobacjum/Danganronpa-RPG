@@ -1272,13 +1272,14 @@ async function plantVoiceRow() {
    the page put back. Nothing here calls a pass: the clock changing size is what must move the tile, through the
    module's own observers (Stained Glass's on its blocks, `schedule`; Legacy's on the clock and its neighbours,
    `placeFlatRoomTile`), as at a table where nobody calls one either. The wait covers the turn as well: the move
-   recuts the curtain, and for the turn's length the old curtain's ghost stands between the picture and its glow -
+   recuts the curtain, and for the turn's length the old curtain's ghost stood between the picture and its glow -
    read at 1500 ms the room check failed on exactly that, and from 2000 ms on the order was back (Stained,
-   1920x1080, 13.10.2026). */
+   1920x1080, 13.10.2026). Since E23 C1b the turn's layers are what is waited out (glass.mjs `glassTurn`: the panes and
+   batches of `#drpg-curtain-turn`, the old glow's copy). */
 async function plantPin(px) {
     const hud = document.getElementById("drpg-hud"), g = window.__glass, tile = document.getElementById("drpg-room-tile");
     const wait = ms => new Promise(r => setTimeout(r, ms));
-    const pass = async () => { await wait(1500); for (let i = 0; i < 50 && document.querySelector(".drpg-curtain-ghost"); i++) await wait(100); };
+    const pass = async () => { await wait(1500); for (let i = 0; i < 50 && document.querySelector("#drpg-curtain-turn > canvas, .drpg-turn-glow"); i++) await wait(100); };
     hud.style.setProperty("max-height", "none", "important"); hud.style.setProperty("min-height", (hud.offsetHeight + px) + "px", "important");
     await pass();
     const res = { px, got: tile?.dataset.place ?? "-", F: g.LAST.room?.F ?? null, check: await window.drpgRoomCheck({ cuts: false }) };
