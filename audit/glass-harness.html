@@ -29,7 +29,9 @@
      by 40 % with focus in the field, then rises (glass-sweep.mjs's keyboard check). Since E23 C1a `drpgTurn(kind)` fires
      one of four turns of the curtain - a phase with a recut, a phase, an hour, a recut from the layout - and reads how it
      moved, `drpgTurnFreeze(at)` stands the frame's clock still, and `?turn=today` and `?flash=0.5` are the two controls
-     of glass-sweep.mjs `--turn` (the turn check, below). -->
+     of glass-sweep.mjs `--turn` (the turn check, below). Since E23 C3a the tray's rows are countdowns.hbs 2.10.11's (the
+     minus, the count and the plus in the controls' box; a player's with neither button) and `drpgTrayRows()` reads each
+     row's count on its name's line on the screen and the list's foot (glass-sweep.mjs `--tray`). -->
 <!doctype html><html><head><meta charset="utf-8">
 <!-- THE SHEETS ARE module.json's, in its order (E44 C1d, 04.11.2026): read when the page loads, by a synchronous request,
      and written as links, so they block the first paint as the six links written here by hand until then did, and a
@@ -100,8 +102,10 @@
   .application .window-content{padding:12px;display:flex;flex-direction:column;gap:10px}
   .application .form-footer{display:flex;gap:8px}
   .application button{height:28px;padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  /* one Foundry-like countdown row */
+  /* one Foundry-like countdown row; the list and its category flex columns as Daggerheart's countdown.less (2.12.4)
+     lays them out, so the module's row gap (`--drpg-project-gap`) is between the rows here as at a table (E23 C3a) */
   #countdowns .countdowns-header{display:flex;align-items:center}
+  #countdowns .countdowns-container,#countdowns .countdown-category-container{display:flex;flex-direction:column}
   .countdown-container{display:flex;align-items:center;gap:8px}
   .countdown-main-container{display:flex;flex:1 1 auto;min-width:0}
   .countdown-content{display:flex;flex-direction:column;flex:1 1 auto;min-width:0}
@@ -130,8 +134,8 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     <div id="drpg-player-status"><div class="drpg-status-field"><span class="drpg-status-label">Still to act</span><span class="drpg-status-value">4 / 4</span></div><div class="drpg-status-field"><span class="drpg-status-label">Hope</span><span class="drpg-status-value">3</span></div></div>
     <div id="countdowns"><div class="countdowns-header"><i class="fa-solid fa-clock"></i><span class="window-title">Projects</span><button class="drpg-projects-gear" aria-label="Manage projects"><i class="fa-solid fa-gear" inert></i></button></div>
       <div class="countdowns-container"><div class="countdown-category-container">
-        <div class="countdown-container" data-countdown="a"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt=""><div class="countdown-main-container"><div class="countdown-content"><header>Rig the dumbwaiter</header><div class="countdown-tools"><div class="progress-tag">2 / 4</div><div class="countdown-tool-controls"><a data-action="decreaseCountdown"><i class="fa-solid fa-minus"></i></a><a data-action="increaseCountdown"><i class="fa-solid fa-plus"></i></a></div></div></div></div></div>
-        <div class="countdown-container" data-countdown="b"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt=""><div class="countdown-main-container"><div class="countdown-content"><header>Poison the tea with something long</header><div class="countdown-tools"><div class="progress-tag">1 / 6</div><div class="countdown-tool-controls"><a data-action="decreaseCountdown"><i class="fa-solid fa-minus"></i></a><a data-action="increaseCountdown"><i class="fa-solid fa-plus"></i></a></div><div class="countdown-tool-icons"><i class="fa-solid fa-eye-slash"></i></div></div></div></div></div>
+        <div class="countdown-container" data-countdown="a"><div class="countdown-main-container"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt=""><div class="countdown-content"><header>Rig the dumbwaiter</header><div class="countdown-tools"><div class="countdown-tool-controls"><a data-action="decreaseCountdown"><i class="fa-solid fa-minus"></i></a><div class="progress-tag">2/4</div><a data-action="increaseCountdown"><i class="fa-solid fa-plus"></i></a></div><div class="countdown-tool-icons"></div></div></div></div></div>
+        <div class="countdown-container" data-countdown="b"><div class="countdown-main-container"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt=""><div class="countdown-content"><header>Poison the tea with something long</header><div class="countdown-tools"><div class="countdown-tool-controls"><a data-action="decreaseCountdown"><i class="fa-solid fa-minus"></i></a><div class="progress-tag">1/6</div><a data-action="increaseCountdown"><i class="fa-solid fa-plus"></i></a></div><div class="countdown-tool-icons"><i class="fa-solid fa-eye-slash"></i></div></div></div></div></div>
       </div></div></div>
   </div>
   <div id="sidebar"><div id="sidebar-content"><span class="stub-text">Chat Log</span><i class="fa-solid fa-gear stub-icon" inert></i></div><nav id="sidebar-tabs"><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button></nav></div>
@@ -2013,6 +2017,119 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     return done();
   };
 </script>
+<script id="drpg-tray-rows">
+  /* drpgTrayRows (E23 C3a, 07.11.2026; E23-16, S09-04, S10-34, S12-06, S12-53): the Projects tray's rows read as rows.
+     The tray is one block turned with its pane (glass.mjs ROT): each row's count must stand on its name's line on the
+     screen. Read per row, from layout and the tray's computed turn alone: the centres of the name and of the count
+     (each element's box on the screen is its turned box, so its centre is the turned centre), their offset turned back
+     into the tray's frame, then the run in that frame from the end of the name's words (a Range over them, its upright
+     width solved from the turned box, held to the element's width where the ellipsis cuts it) to the count's start, and
+     the fall on the screen over that run - `fall` must be within 2 px and `run` 8-12 px; where the tray is not turned
+     (Monokuma Legacy, the stack), the count inside its own row's box. And the list: a row the
+     scrollport cuts (any part of it in, any part out) must not stand in a list that does not scroll with the foot's
+     signal on (`data-drpg-more`, projects-tray.mjs `markTrayMore`, imported here as the module's own: the render hook
+     is Daggerheart's, which this page does not have; and the fade it draws, a computed mask on the list - Stained
+     Glass's, so under Monokuma Legacy a list that scrolls reads as one without the signal). `rows` fills the tray to that many rows first (copies of the
+     page's rows with longer names), and everything added is taken away before it answers. `plant` is the sweep's
+     control: "grow" puts the name's old `flex: 1 1 auto` back and must read a fall over 2 px; "cut" holds the list at
+     five and a half rows with the signal taken off, and must read a cut row. Answers { ok, why, turn, rows, list }. */
+  window.drpgTrayRows = async ({ rows = 0, plant = null } = {}) => {
+    const out = { ok: false, why: [], turn: null, rows: [], list: null };
+    const done = () => { out.ok = !out.why.length; out.why = out.why.join("; "); return out; };
+    const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const tray = document.getElementById("countdowns"), list = tray?.querySelector(".countdowns-container");
+    const cat = list?.querySelector(".countdown-category-container");
+    if (!tray || !list || !cat || !cat.children.length) { out.why.push("no tray rows on the page"); return done(); }
+    const added = [], lent = [];
+    const lend = (owner, key, value) => { if (owner[key] === undefined) { owner[key] = value; lent.push([owner, key]); } };
+    const any = () => new Proxy(function () {}, { get: (t, k) => (k === "then" ? undefined : k === Symbol.toPrimitive ? () => "" : any()), construct: () => ({}), apply: () => undefined });
+    for (const k of ["CONST", "Actor", "Item", "ChatMessage", "Roll", "Scene", "User", "JournalEntry", "Macro", "Playlist", "Folder", "TextEditor", "Dialog",
+      "Application", "FormApplication", "FilePicker", "canvas", "socket", "Handlebars", "loadTemplates", "renderTemplate", "fromUuid", "fromUuidSync",
+      "AudioHelper", "Token", "TokenDocument", "Combat"]) lend(globalThis, k, any());
+    const Base = class {};
+    lend(foundry, "applications", { api: { DialogV2: Base, ApplicationV2: Base, HandlebarsApplicationMixin: c => c, DocumentSheetV2: Base }, ux: any(), handlebars: any(), sheets: any(), apps: any(), elements: any(), instances: new Map() });
+    for (const k of ["appv1", "documents", "canvas", "helpers", "dice", "data"]) lend(foundry, k, any());
+    let PT = null;
+    try { PT = await import("/scripts/projects-tray.mjs"); } catch (err) { out.why.push(`projects-tray.mjs did not load here: ${err}`); }
+    for (const [owner, key] of lent.reverse()) delete owner[key];
+    if (!PT) return done();
+    const style = document.createElement("style");
+    const names = ["Bury the cafeteria key under the third floorboard", "Rewire the gym's scoreboard", "Copy the nurse's office ledger",
+      "Loosen the pool's drain grate", "Swap the library's card catalogue"];
+    try {
+      const model = cat.lastElementChild;
+      for (let i = cat.children.length; i < rows; i++) {
+        const row = model.cloneNode(true);
+        row.dataset.countdown = `drpg-tray-${i}`;
+        row.querySelector(".countdown-content > header").textContent = names[i % names.length];
+        cat.append(row);
+        added.push(row);
+      }
+      if (plant === "grow") style.textContent = "body #countdowns .countdown-content > header { flex: 1 1 auto !important; }";
+      if (plant === "cut") style.textContent = "body #countdowns .countdowns-container { max-height: calc(5.5 * var(--drpg-project-row) + 5 * var(--drpg-project-gap)) !important; }";
+      document.head.append(style);
+      window.__glass?.refreshGlass?.();
+      await frame();
+      await new Promise(r => setTimeout(r, 450));
+      if (typeof PT.markTrayMore === "function") PT.markTrayMore(tray);
+      else out.why.push("projects-tray.mjs has no markTrayMore: nothing marks the list's foot");
+      if (plant === "cut") list.removeAttribute("data-drpg-more");
+      const t = getComputedStyle(tray).transform;
+      const m = t && t !== "none" ? new DOMMatrixReadOnly(t) : new DOMMatrixReadOnly();
+      const th = Math.atan2(m.b, m.a), cs = Math.cos(th), sn = Math.sin(th);
+      out.turn = Math.round(th * 1800 / Math.PI) / 10;
+      const centre = el => { const r = el.getBoundingClientRect(); return [(r.left + r.right) / 2, (r.top + r.bottom) / 2]; };
+      const words = el => {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const r = range.getBoundingClientRect();
+        const w = Math.abs(Math.cos(2 * th)) > 0.2 ? (r.width * cs - r.height * Math.abs(sn)) / Math.cos(2 * th) : el.offsetWidth;
+        return Math.min(el.offsetWidth, Math.max(0, w));
+      };
+      /* NOT TURNED (Monokuma Legacy, a stacked screen): the count may stand under its name, as Legacy's two-line row
+         sets it, and then it must stand inside its own row's box, not on the next row's line. */
+      const turned = Math.abs(out.turn) >= 0.25;
+      for (const row of cat.children) {
+        const name = row.querySelector(".countdown-content > header"), tag = row.querySelector(".progress-tag");
+        if (!name || !tag || !name.getClientRects().length) continue;
+        const [nx, ny] = centre(name), [tx, ty] = centre(tag);
+        if (!turned) {
+          const r = row.getBoundingClientRect(), inside = ty > r.top && ty < r.bottom;
+          const read = { name: name.textContent.trim().slice(0, 24), run: null, fall: Math.round((ty - ny) * 10) / 10, own: inside };
+          out.rows.push(read);
+          if (!inside) out.why.push(`"${read.name}": its count stands outside its own row (${read.fall} px under the name)`);
+          continue;
+        }
+        const dx = (tx - nx) * cs + (ty - ny) * sn, dy = -(tx - nx) * sn + (ty - ny) * cs;
+        const run = dx - tag.offsetWidth / 2 + name.offsetWidth / 2 - words(name);
+        const fall = run * sn + dy * cs;
+        const read = { name: name.textContent.trim().slice(0, 24), run: Math.round(run * 10) / 10, fall: Math.round(fall * 10) / 10 };
+        out.rows.push(read);
+        if (Math.abs(fall) > 2) out.why.push(`"${read.name}": its count stands ${read.fall} px off its name's line on the screen (${read.run} px along the row, the tray turned ${out.turn} deg)`);
+        else if (run < 8 - 0.5 || run > 12 + 0.5) out.why.push(`"${read.name}": its count ${read.run} px after its name, not 8-12`);
+      }
+      if (!out.rows.length) out.why.push("no row's name and count were read");
+      const top = el => { let y = 0; for (let e = el; e; e = e.offsetParent) y += e.offsetTop; return y; };
+      const y0 = top(list) + list.clientTop + list.scrollTop, y1 = y0 + list.clientHeight;
+      /* offsetTop and offsetHeight are whole pixels: a row of 24.1 px drifts half a pixel in five, so a row is cut
+         only by more than one */
+      const cut = [...cat.children].filter(row => { const a = top(row), b = a + row.offsetHeight; return a < y1 - 1 && b > y0 + 1 && (a < y0 - 1 || b > y1 + 1); });
+      const scrolls = list.scrollHeight > list.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(list).overflowY);
+      /* the signal is what is drawn: the attribute, and the fade it puts on the list's foot (computed) */
+      const lcs = getComputedStyle(list), fade = [lcs.maskImage, lcs.webkitMaskImage].some(v => v && v !== "none");
+      const more = list.hasAttribute("data-drpg-more") && fade;
+      out.list = { rows: cat.children.length, client: list.clientHeight, scroll: list.scrollHeight, cut: cut.length, scrolls, more };
+      if (cut.length && !(scrolls && more)) out.why.push(`${cut.length} row(s) cut by the list's foot in a list that ${scrolls ? "scrolls with no signal" : "does not scroll"}`);
+      if (scrolls && !more && list.scrollTop + list.clientHeight < list.scrollHeight - 1) out.why.push("the list scrolls with rows below and no signal at its foot");
+    } finally {
+      style.remove();
+      for (const row of added) row.remove();
+      PT.markTrayMore?.(tray);
+      window.__glass?.refreshGlass?.();
+    }
+    return done();
+  };
+</script>
 <script type="module">
   const q = new URLSearchParams(location.search);
   if (q.get("scheme") === "light") document.documentElement.style.colorScheme = "light";
@@ -2070,6 +2187,9 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     callAll(name, ...a) { for (const fn of hooks.get(name) ?? []) fn(...a); return true; } };
   const player = q.get("role") === "player";
   if (player) { document.getElementById("drpg-gm-launcher")?.remove(); document.body.classList.replace("drpg-gm", "drpg-player"); }
+  /* A player's rows as countdowns.hbs draws them where the countdown is not theirs (`countdown.editable` false, E23 C3a): no
+     minus and no plus, the count alone in the controls' box. */
+  if (player) for (const a of document.querySelectorAll('#countdowns [data-action$="Countdown"]')) a.remove();
   globalThis.game = { ready: true, i18n: { localize: k => k.split(".").pop(), format: (k, d) => k, has: () => false }, settings: { get: (m, k) => defaults[k], set: async (m, k, v) => { defaults[k] = v; return v; }, settings: new Map() }, user: { isGM: !player } };
   /* `deepClone` (E44 C1d, 04.11.2026): voice-tile.mjs's imports call foundry.utils.deepClone when they load, and without it
      the page's voice tile never loaded - glass-sweep read "voice-tile.mjs did not load here: TypeError:

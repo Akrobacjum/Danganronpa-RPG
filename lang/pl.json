@@ -3673,7 +3673,9 @@
       "descriptionPlaceholder": "np. Fałszywe dno w regale, dość głębokie, by schować notes",
       "descriptionNote": "Opis czyta na karcie tokenu projektu każdy, kto ten projekt zna. Najwyżej {max} znaków.",
       "descriptionNeeded": "Projekt potrzebuje opisu.",
-      "descriptionTooLong": "Opis może mieć najwyżej {max} znaków, a ten ma {n}. Skróć go."
+      "descriptionTooLong": "Opis może mieć najwyżej {max} znaków, a ten ma {n}. Skróć go.",
+      "trayLessTooltip": "Odejmij temu projektowi jeden punkt postępu",
+      "trayMoreTooltip": "Dodaj temu projektowi jeden punkt postępu"
     },
     "TraitRuling": {
       "title": "Która statystyka?",

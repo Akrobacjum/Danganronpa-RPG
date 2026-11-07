@@ -20,7 +20,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, getClock } from "./settings.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";   // hasFreeMove: player view only
 import { isEclipse, movesLeft as eclipseMovesLeft, movesUsed as eclipseMovesUsed, eclipseAllowance } from "./eclipse.mjs";
 import { hopeHeld } from "./calls.mjs";
@@ -566,7 +566,17 @@ function field(className, label, value, tooltipKey, spent) {
  * deleted the first time. This is the glance; the roster is the answer.
  *
  * "Still to act", not "Actions". The label is the whole fix.
+ *
+ * AND ONLY WHILE ACTIONS ARE WHAT THE TABLE WAITS ON (E23 C3a, 07.11.2026; S12-54, the owner's Q-E23-3: hidden).
+ * In a Class Trial and while an incident runs nobody spends the day's actions: the row stood in the strip reading
+ * "Still to act 3 / 3", and fell to "2 / 2" at an execution, a count that moved for something that was not running,
+ * beside the incident's turns the GM was there to follow. `quietActions` says when it is left out; the clock and the
+ * incident's state are both settings the strip already redraws for (`STRIP_SETTINGS`). R1392.
  */
+function quietActions() {
+    return getClock().phase === "classTrial" || game.settings.get(MODULE_ID, SETTINGS.murderState)?.active === true;
+}
+
 function buildTableView() {
     // The one cast (monokuma.mjs `actingStudents`, E37 C2; S10-45): the living and the Monocubs, as the panel's Next line
     // counts them. Until E37 this was chapter.mjs `livingStudents()`, with no Monocub: a Monocub holding the last action
@@ -584,7 +594,7 @@ function buildTableView() {
             // During an Eclipse nobody acts but by a Direct Murder, so the count
             // is not stale - it is beside the point: who has still to place is
             // the row below.
-            if (eclipse) return null;
+            if (eclipse || quietActions()) return null;
             const left = students.filter(a => actionsLeft(a) > 0).length;
             return field("is-actions", game.i18n.localize("DRPG.Hud.stillToAct"),
                 `${left} / ${students.length}`, "DRPG.Hud.stillToActTooltip", !left);
@@ -623,11 +633,13 @@ export { WIDGET_ID };
  * Gathered off `game.settings.get` while the strip was built (R1013, on the GM's browser, a student's strip in and
  * out of an Eclipse and the table's): `clock`, `overflow` and `language`. Added by reading, for the branches that run
  * did not take: `overflowRules` (overflow.mjs `overflowRules`, read while a darkening costs an action or the free
- * Move) and `theme` (motion.mjs reads it when a spent pip flares). The actor, the user and the Eclipse have their own
- * hooks above; the GMs' stores and their copies are client settings, which fire no `updateSetting`. R1013 fails when
- * the strip reads a module setting this list lacks.
+ * Move) and `theme` (motion.mjs reads it when a spent pip flares). And `murderState` (E23 C3a): the table's strip
+ * leaves "Still to act" out while an incident runs (`quietActions`), so an incident's start and end redraw it. The
+ * actor, the user and the Eclipse have their own hooks above; the GMs' stores and their copies are client settings,
+ * which fire no `updateSetting`. R1013 fails when the strip reads a module setting this list lacks.
  */
-const STRIP_SETTINGS = new Set([SETTINGS.clock, SETTINGS.overflow, SETTINGS.overflowRules, SETTINGS.language, SETTINGS.theme]);
+const STRIP_SETTINGS = new Set([SETTINGS.clock, SETTINGS.overflow, SETTINGS.overflowRules, SETTINGS.language, SETTINGS.theme,
+    SETTINGS.murderState]);
 /** Whether a written Setting document is one the strip reads (its `updateSetting` listener). */
 export function stripReadsSetting(setting) {
     const key = String(setting?.key ?? "");

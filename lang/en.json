@@ -3351,7 +3351,9 @@
       "descriptionPlaceholder": "e.g. A false back in the bookcase, deep enough to hide a notebook",
       "descriptionNote": "Everyone who knows the project reads this on its token's card. At most {max} characters.",
       "descriptionNeeded": "A project needs a description.",
-      "descriptionTooLong": "A description holds at most {max} characters, and this one has {n}. Shorten it."
+      "descriptionTooLong": "A description holds at most {max} characters, and this one has {n}. Shorten it.",
+      "trayLessTooltip": "Take one point of progress off this project",
+      "trayMoreTooltip": "Add one point of progress to this project"
     },
     "TraitRuling": {
       "title": "Which statistic?",

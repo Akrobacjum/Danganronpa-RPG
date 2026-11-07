@@ -25,7 +25,8 @@
  * file. Five names are exported that were not (`leaveIconOnly`,
  * `localiseRawKeys`, `paintProgress`, `applyCollapsed`, `addCollapseControl`),
  * because the render hook calls them; projects-ui.mjs does not re-export them.
- * E79 C12 adds a sixth the hook calls, `showTrayToPlayer`, on the same terms.
+ * E79 C12 adds a sixth the hook calls, `showTrayToPlayer`, on the same terms,
+ * and E23 C3a two more, `labelTrayControls` and `markTrayMore`.
  * No module state: the fold is a client setting.
  */
 
@@ -270,6 +271,53 @@ function projectForRow(row, projects) {
     }
     const name = row.querySelector(".countdown-content > header")?.textContent?.trim();
     return name ? projects.find(p => p.name === name) ?? null : null;
+}
+
+/**
+ * THE MINUS AND THE PLUS SAY WHAT THEY DO (E23 C3a, 07.11.2026; S12-53). Daggerheart's row draws them as bare
+ * `<a data-action>` around a Font Awesome glyph, with no title and no name: on the GM's tray a reviewer read "a
+ * bar, an empty checkbox, a plus and 0/6" and could not tell what the box ticked (the minus drew blank under the
+ * chrome face until H84-05). Each gets a tooltip and an `aria-label` in the user's language, on every render,
+ * since the tray draws its rows again each time; whoever the system lets press them (a GM, an owner) reads the
+ * same words. Exported for the suite, which plants a row (R1391). Answers how many it labelled.
+ */
+export function labelTrayControls(root) {
+    let n = 0;
+    for (const [action, key] of [["decreaseCountdown", "DRPG.Project.trayLessTooltip"], ["increaseCountdown", "DRPG.Project.trayMoreTooltip"]]) {
+        const words = game.i18n.localize(key);
+        for (const control of root?.querySelectorAll?.(`.countdown-container [data-action="${action}"]`) ?? []) {
+            control.dataset.tooltip = words;
+            control.setAttribute("aria-label", words);
+            markLanguage(control);
+            n++;
+        }
+    }
+    return n;
+}
+
+const watchedLists = new WeakSet();
+
+/**
+ * MORE ROWS BELOW, SAID AT THE LIST'S FOOT (E23 C3a, 07.11.2026; S09-04, S12-53). The list holds five rows and
+ * scrolls past them; at a table its fifth row stood cut in half by the pane's foot with nothing saying more were
+ * there. `data-drpg-more` is on the list while any row stands below its scrollport, and the stylesheet fades the
+ * foot by it (stained-glass.css, the tray's rows). Written on every render and on the list's own scroll (one
+ * listener a list: the tray draws a new list on a render). jsdom lays nothing out, so headless it reads a list
+ * with nothing below; the glass harness's `drpgTrayRows` reads it in Chromium. Answers whether it is on.
+ */
+export function markTrayMore(root) {
+    const list = root?.querySelector?.(".countdowns-container");
+    if (!list) return false;
+    const mark = () => {
+        const more = list.scrollHeight - list.clientHeight - list.scrollTop > 1;
+        list.toggleAttribute("data-drpg-more", more);
+        return more;
+    };
+    if (!watchedLists.has(list)) {
+        watchedLists.add(list);
+        list.addEventListener("scroll", mark, { passive: true });
+    }
+    return mark();
 }
 
 /* ==========================================================================

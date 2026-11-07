@@ -36181,6 +36181,138 @@ const INVARIANTS = [
         equal(stableJson({ warning: new RegExp(`drpg-warning[^\`]*?${KEY}`).test(sound), info: new RegExp(`box\\("info",\\s*\`<p class="notes"[^\`>]*>${KEY}`).test(sound) }),
             stableJson({ warning: false, info: true }), "[the line written with drpg-warning; the line inside box(\"info\", ...)]");
     }],
+    ["R1391 - the Projects tray reads in rows under the glass (E23 C3a, E23-16; S09-04, S10-34, S12-06, S12-53): a row's name is as long as its words and its count follows it at 8-12 px, before the bar and the GM's minus and plus; nothing in a row is turned on its own; the list holds five whole rows, scrolls past them and fades its foot while rows stand below; the minus and the plus carry a tooltip and an aria-label in English and Polish", async () => {
+        /*
+         * E23 C3a, 07.11.2026. The tray is one block turned with its pane (glass.mjs ROT, 8 degrees at every desk size
+         * the glass harness reads), and the name grew (`flex: 1 1 auto`), so the bar and the count stood at the row's far
+         * end: in Chromium on the harness before this commit, with countdowns.hbs 2.10.11's row, the count 136 px along
+         * the row from the end of "Rig the dumbwaiter", 19 px lower on the screen (glass-sweep `--tray`). The fifth row
+         * stood cut: the row was stated 22 px a scale and drawn 28.35 (the floor at 1.35), and the base sheet's cap is
+         * five stated rows. Read here by the sheets' cascade (`styleCascade`) on Daggerheart's row built on a body of its
+         * own under Stained Glass (the GM's: the minus, the count and the plus in the controls' box), and
+         * projects-tray.mjs `labelTrayControls` on a planted row with both lang files. Red at 2b866dde: the name `1 1
+         * auto`, the count `order: 1` after the bar, no `labelTrayControls`. The screen's reading is the harness's
+         * `drpgTrayRows` (glass-sweep `--tray`).
+         */
+        const C = await styleCascade();
+        const html = document.createElement("html"), body = document.createElement("body");
+        body.className = "drpg-theme-stained-glass drpg-gm";
+        html.append(body);
+        const ROW = `<div class="countdown-container" data-countdown="r1391"><div class="countdown-main-container"><img alt=""><div class="countdown-content">
+            <header>R1391</header><div class="countdown-tools"><div class="countdown-tool-controls"><a data-action="decreaseCountdown"><i class="fa-solid fa-minus"></i></a>
+            <div class="progress-tag">2/4</div><a data-action="increaseCountdown"><i class="fa-solid fa-plus"></i></a></div><div class="countdown-tool-icons"></div></div></div></div></div>`;
+        body.innerHTML = `<div id="countdowns"><div class="countdowns-container"><div class="countdown-category-container">${ROW}</div></div></div>`;
+        const q = s => body.querySelector(s);
+        const value = (el, names, pseudo = null) => C.winner(el, [names].flat(), pseudo)?.value ?? null;
+        const px = v => { const m = /^(-?[\d.]+)px$/.exec(String(v ?? "").trim()); return m ? Number(m[1]) : null; };
+        const grow = v => (v === null ? null : Number(String(v).trim().split(/\s+/)[0]));
+        const name = q("header"), tag = q(".progress-tag"), list = q(".countdowns-container"), row = q(".countdown-container");
+        const read = {
+            nameGrow: grow(value(name, ["flex", "flex-grow"])),
+            gap: px(value(q(".countdown-content"), ["gap", "column-gap"])),
+            countFirst: Number(value(tag, "order") ?? 0) < Number(value(q(".countdown-tools"), "order", "::before") ?? 0),
+            controlsAsChildren: value(q(".countdown-tool-controls"), "display"),
+            turnedAlone: [row, q(".countdown-main-container"), q(".countdown-content"), name, q(".countdown-tools"), tag]
+                .filter(el => !["none", null].includes(value(el, ["transform", "rotate"]))).map(el => el.className || el.localName),
+            rowHeight: value(row, "height"),
+            listCap: (value(list, "max-height") ?? "").replace(/\s+/g, " "),
+            listScrolls: value(list, ["overflow-y", "overflow"])
+        };
+        list.setAttribute("data-drpg-more", "");
+        read.fade = /gradient/.test(value(list, ["mask-image", "-webkit-mask-image", "mask", "-webkit-mask"]) ?? "");
+        equal(stableJson(read), stableJson({
+            nameGrow: 0, gap: read.gap !== null && read.gap >= 8 && read.gap <= 12 ? read.gap : "8-12", countFirst: true, controlsAsChildren: "contents",
+            turnedAlone: [], rowHeight: "var(--drpg-project-row)", listCap: "calc(5 * var(--drpg-project-row) + 4 * var(--drpg-project-gap))",
+            listScrolls: read.listScrolls === "scroll" ? "scroll" : "auto", fade: true
+        }), "[the name's flex-grow, the name-to-count gap in px, the count before the bar, the controls' box laid out as its children, the row's parts "
+            + "turned on their own, the row's height, the list's cap, its overflow, its foot faded with rows below] under Stained Glass");
+
+        const PT = await import("./projects-tray.mjs");
+        must(typeof PT.labelTrayControls === "function", "projects-tray.mjs has no labelTrayControls - the tray's minus and plus are named by nothing");
+        const root = document.createElement("div");
+        root.innerHTML = ROW;
+        const n = PT.labelTrayControls(root);
+        const words = [...root.querySelectorAll("[data-action]")].map(a => [a.dataset.action, a.dataset.tooltip ?? null, a.getAttribute("aria-label")]);
+        const KEYS = ["DRPG.Project.trayLessTooltip", "DRPG.Project.trayMoreTooltip"];
+        equal(stableJson({ n, words }), stableJson({ n: 2, words: [["decreaseCountdown", ...Array(2).fill(game.i18n.localize(KEYS[0]))],
+            ["increaseCountdown", ...Array(2).fill(game.i18n.localize(KEYS[1]))]] }), "[how many it labelled, each control's [action, tooltip, aria-label]]");
+        const texts = {};
+        for (const lang of ["en", "pl"]) {
+            const file = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            texts[lang] = KEYS.map(key => foundry.utils.getProperty(file, key) ?? null);
+        }
+        ok(KEYS.every((key, i) => texts.en[i] && texts.pl[i] && texts.en[i] !== texts.pl[i] && texts.en[i] !== key),
+            `the two controls' words in English and Polish: ${stableJson(texts)}`);
+    }],
+    ["R1392 - the status strip (E23 C3a, E23-17; S10-63, S12-54): under the glass a Hope slot is 12-16 px, an empty one the star's outline in Bone Dim at 40 %, a held one the solid star; the table's strip leaves \"Still to act\" out in a Class Trial and while an incident runs, and keeps it in Daily Life", async () => {
+        /*
+         * E23 C3a, 07.11.2026. S10-63: the slots were 0.72rem (11.5 px), the contained star drew at 7-8 px, an empty one the
+         * same star at the slot's 0.45 over bone at 0.3. S12-54 (the owner's Q-E23-3, hidden): the GM's strip read "Still
+         * to act 3 / 3" through a Class Trial and an incident, and fell to "2 / 2" at an execution. Read: the sheets'
+         * cascade (`styleCascade`) on a held and an empty slot under Stained Glass; and the table's strip as
+         * `renderPlayerStatus` draws it on this GM, on R1193's stand-ins (`game.actors.filter` answers them while the test
+         * reads), with the clock read as Daily Life, as a Class Trial, and as Daily Life with an incident running
+         * (`game.settings.get` of the clock and of the incident's state), both put back in `finally` and the strip drawn
+         * again from the world. Nothing is written. Red at 2b866dde: the row "Still to act" in a Class Trial and an incident.
+         */
+        needs(world.atLeast("playerAccounts", 2), "two player accounts to own the stand-ins");
+        const C = await styleCascade();
+        const html = document.createElement("html"), body = document.createElement("body");
+        body.className = "drpg-theme-stained-glass drpg-player";
+        html.append(body);
+        body.innerHTML = `<div id="drpg-player-status"><div class="drpg-status"><div class="drpg-status-field is-hope"><span class="drpg-status-label">Hope</span>
+            <span class="drpg-status-pips"><span class="drpg-status-pip drpg-status-hope-pip filled"></span><span class="drpg-status-pip drpg-status-hope-pip"></span></span></div></div></div>`;
+        const [held, empty] = body.querySelectorAll(".drpg-status-hope-pip");
+        const value = (el, names, pseudo = null) => C.winner(el, [names].flat(), pseudo)?.value ?? null;
+        const band = v => { const m = /^clamp\(\s*([\d.]+)px\s*,[^,]+,\s*([\d.]+)px\s*\)$/.exec(String(v ?? "").trim()); return m ? [Number(m[1]), Number(m[2])] : v; };
+        const MASK = ["mask", "-webkit-mask", "mask-image", "-webkit-mask-image"];
+        const slot = el => { const [lo, hi] = [band(value(el, "width")), band(value(el, "height"))].map(b => (Array.isArray(b) && b[0] >= 12 && b[1] <= 16 ? "12-16" : b)); return [lo, hi]; };
+        const look = {
+            held: { slot: slot(held), mask: /--drpg-px-star\)/.test(value(held, MASK, "::before") ?? "") },
+            empty: { slot: slot(empty), mask: /--drpg-px-star-outline\)/.test(value(empty, MASK, "::before") ?? ""), colour: value(empty, ["background-color", "background"], "::before"),
+                opacity: value(empty, "opacity", "::before"), slotOpacity: value(empty, "opacity") }
+        };
+        const PS = await import("./player-status.mjs");
+        must(game.user.isGM, "the strip's table view is a GM's - this would measure nothing");
+        const [one, two] = game.users.filter(u => !u.isGM);
+        const stand = (key, { dead = false, cub = false, actions = 0, owner }) => ({
+            id: `R1392${key}`, name: `R1392 ${key}`, type: "character", isOwner: false,
+            system: { resources: { actions: { value: actions, max: 3 } } },
+            getFlag: (scope, flag) => (scope === MODULE_ID ? { [FLAGS.deceased]: dead || undefined, [FLAGS.monocub]: cub || undefined }[flag] : undefined),
+            testUserPermission: (user, level) => level === "OWNER" && user?.id === owner.id
+        });
+        const stands = [stand("A", { actions: 2, owner: one }), stand("B", { owner: two })];
+        const ownFilter = Object.getOwnPropertyDescriptor(game.actors, "filter");
+        const ownGet = Object.getOwnPropertyDescriptor(game.settings, "get"), get = game.settings.get;
+        const strip = () => {
+            PS.renderPlayerStatus();
+            return document.getElementById(PS.WIDGET_ID)?.querySelector(".is-actions .drpg-status-value")?.textContent?.trim() ?? null;
+        };
+        const read = {};
+        try {
+            game.actors.filter = fn => stands.filter(fn);
+            for (const [kind, phase, active] of [["dailyLife", "dailyLife", false], ["classTrial", "classTrial", false], ["incident", "dailyLife", true]]) {
+                game.settings.get = function (scope, key, ...rest) {
+                    const got = get.call(this, scope, key, ...rest);
+                    if (scope !== MODULE_ID) return got;
+                    if (key === SETTINGS.clock) return { ...got, phase, eclipse: false };
+                    if (key === SETTINGS.murderState) return active ? { ...(got ?? {}), active: true } : { ...(got ?? {}), active: false };
+                    return got;
+                };
+                read[kind] = strip();
+            }
+        } finally {
+            if (ownGet) Object.defineProperty(game.settings, "get", ownGet); else delete game.settings.get;
+            if (ownFilter) Object.defineProperty(game.actors, "filter", ownFilter); else delete game.actors.filter;
+            PS.renderPlayerStatus();
+        }
+        equal(stableJson({ look, strip: read }), stableJson({
+            look: { held: { slot: ["12-16", "12-16"], mask: true },
+                empty: { slot: ["12-16", "12-16"], mask: true, colour: "var(--drpg-sg-bone-dim)", opacity: "0.4", slotOpacity: "1" } },
+            strip: { dailyLife: "1 / 2", classTrial: null, incident: null }
+        }), "{look: a held and an empty Hope slot under Stained Glass - its width and height band, its mark; the empty one's colour and "
+            + "opacity, and its slot's; strip: the table's \"Still to act\" in Daily Life, in a Class Trial, in Daily Life with an incident running (null: no row)}");
+    }],
 ];
 
 /**

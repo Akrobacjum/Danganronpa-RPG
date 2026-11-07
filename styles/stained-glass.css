@@ -2284,6 +2284,24 @@ body.drpg-theme-stained-glass #drpg-player-status .drpg-status-hope-pip.filled::
     -webkit-mask: var(--drpg-px-star) center / contain no-repeat;
     mask: var(--drpg-px-star) center / contain no-repeat;
 }
+/* AND THE STARS ARE BIG ENOUGH TO COUNT (E23 C3a, 07.11.2026; S10-63). The slots were the base sheet's 0.72rem,
+   11.5 px, and the contained 24 px star drew at 7-8 px; an empty one was the same star at the slot's 0.45 over
+   the base sheet's bone at 0.3, close to nothing on a dark pane, and a player counted their Hope by the gaps.
+   The slot is 12-16 px now (16 px a scale, held to that band: 13.6 px at the 0.85 of a 1920x1080 screen), and an empty slot is the star's outline (the
+   same 24 px sprite less its inside, one unit of the sprite wide) in Bone Dim at 40 %, a held one the solid
+   star as before. R1392 reads both. */
+body.drpg-theme-stained-glass #drpg-player-status .drpg-status-hope-pip {
+    --drpg-px-star-outline: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 3h2v1h-2zM11 4h2v1h-2zM11 5h2v1h-2zM10 6h4v1h-4zM10 7h1v1h-1zM13 7h1v1h-1zM10 8h1v1h-1zM13 8h1v1h-1zM2 9h9v1h-9zM13 9h9v1h-9zM3 10h3v1h-3zM18 10h3v1h-3zM5 11h2v1h-2zM17 11h2v1h-2zM6 12h2v1h-2zM16 12h2v1h-2zM7 13h2v1h-2zM15 13h2v1h-2zM8 14h1v1h-1zM15 14h1v1h-1zM7 15h2v1h-2zM15 15h2v1h-2zM7 16h1v1h-1zM10 16h4v1h-4zM16 16h1v1h-1zM7 17h1v1h-1zM9 17h2v1h-2zM13 17h2v1h-2zM16 17h1v1h-1zM6 18h4v1h-4zM14 18h4v1h-4zM6 19h2v1h-2zM16 19h2v1h-2zM6 20h1v1h-1zM17 20h1v1h-1zM5 21h1v1h-1zM18 21h1v1h-1z'/%3E%3C/svg%3E");
+    width: clamp(12px, calc(16px * var(--drpg-sg-scale)), 16px);
+    height: clamp(12px, calc(16px * var(--drpg-sg-scale)), 16px);
+}
+body.drpg-theme-stained-glass #drpg-player-status .drpg-status-hope-pip:not(.filled)::before {
+    -webkit-mask: var(--drpg-px-star-outline) center / contain no-repeat;
+    mask: var(--drpg-px-star-outline) center / contain no-repeat;
+    background-color: var(--drpg-sg-bone-dim);
+    opacity: 0.4;
+}
+body.drpg-theme-stained-glass #drpg-player-status .drpg-status-hope-pip:not(.filled) { opacity: 1; }
 
 body.drpg-theme-stained-glass .character-header-sheet .hope-section .hope-value.scar::before {
     background-color: var(--drpg-sg-bone-dim);
@@ -2816,16 +2834,33 @@ body.drpg-theme-stained-glass #countdowns .countdowns-header .window-title {
     text-transform: uppercase;
     color: var(--drpg-glass-accent);
 }
+/* A ROW IS ITS LINE, AND THE LIST HOLDS FIVE WHOLE ONES (E23 C3a, 07.11.2026; S12-53). The row was stated
+   22 px a scale while its name and count are set on the floor (21 px a scale) at a line-height of 1.35, so a
+   row stood 28.35 px a scale and the base sheet's five-row cap (danganronpa.css, `5 * row + 4 * gap + 12px`)
+   held four rows and the top 12 px of the fifth: read in Chromium on the glass harness at 1920x1080 before
+   this commit, the list's `max-height` 121.5 px against rows 27-28 px apart. The row is the line now, the cap
+   is five rows and four gaps exactly, and the list's foot pad is the tray's margin instead, so a sixth row
+   starts below the scrollport and the fifth is never cut. Past five the list scrolls and says so: the fade at
+   its foot (`data-drpg-more`, written by projects-tray.mjs `markTrayMore` while rows stand below). */
 body.drpg-theme-stained-glass #countdowns {
-    --drpg-project-row: calc(22px * var(--drpg-sg-scale));
+    --drpg-project-row: calc(var(--drpg-sg-floor) * 1.35);
     --drpg-project-gap: 4px;
 }
-body.drpg-theme-stained-glass #countdowns .countdowns-container { padding: 2px 8px 8px; }
+body.drpg-theme-stained-glass #countdowns .countdowns-container {
+    padding: 2px 8px 0;
+    margin-bottom: 8px;
+    max-height: calc(5 * var(--drpg-project-row) + 4 * var(--drpg-project-gap));
+}
+body.drpg-theme-stained-glass #countdowns .countdowns-container[data-drpg-more] {
+    -webkit-mask-image: linear-gradient(to bottom, var(--drpg-sg-ink) calc(100% - var(--drpg-project-row)), transparent);
+    mask-image: linear-gradient(to bottom, var(--drpg-sg-ink) calc(100% - var(--drpg-project-row)), transparent);
+}
 body.drpg-theme-stained-glass #countdowns .countdown-container {
     display: flex;
     align-items: center;
     gap: 6px;
     min-height: var(--drpg-project-row);
+    height: var(--drpg-project-row);
     padding: 0;
     border: 0;
     box-shadow: none;
@@ -2858,8 +2893,18 @@ body.drpg-theme-stained-glass #countdowns .countdown-content {
     min-width: 0;
     padding: 0;
 }
+/* THE COUNT STANDS AT THE NAME, NOT AT THE ROW'S END (E23 C3a, 07.11.2026; S09-04, S10-34, S12-06). The tray is
+   one block turned with its pane (glass.mjs ROT, `#countdowns`): 8 degrees at every desk size the harness reads,
+   so a count 240 px along the row from its name's start stands 33 px lower on the screen, a row and a half, and
+   three reviewers read each project's progress off the next row's name. The name grew (`flex: 1 1 auto`) and
+   pushed the bar and the count to the row's far end. Now the name is as long as its words (`0 1 auto`: it still
+   gives way, with its ellipsis, where the row is short), the count follows it at 10 px, then the bar, then the
+   GM's minus and plus: at 8 degrees 10 px of run is 1.4 px of fall. Daggerheart's controls box (the minus, the
+   count, the plus, countdowns.hbs 2.10.11) is laid out as its children (`display: contents`), so the count can
+   lead the bar. Read by the glass harness's `drpgTrayRows` (the sweep's `rows` clause) and R1391. */
+body.drpg-theme-stained-glass #countdowns .countdown-content { gap: 10px; }
 body.drpg-theme-stained-glass #countdowns .countdown-content > header {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-width: 0;
     margin: 0;
     padding: 0;
@@ -2895,7 +2940,7 @@ body.drpg-theme-stained-glass #countdowns .countdown-tools::before {
 }
 body.drpg-theme-stained-glass #countdowns .countdown-tools .progress-tag {
     flex: 0 0 auto;
-    order: 1;
+    order: -1;
     margin: 0;
     padding: 0;
     border: 0;
@@ -2906,13 +2951,10 @@ body.drpg-theme-stained-glass #countdowns .countdown-tools .progress-tag {
     color: var(--drpg-sg-bone-dim);
     font-variant-numeric: tabular-nums;
 }
-body.drpg-theme-stained-glass #countdowns .countdown-tool-controls {
-    order: 2;
-    display: flex;
-    gap: 2px;
-    flex: 0 0 auto;
-}
+body.drpg-theme-stained-glass #countdowns .countdown-tool-controls { display: contents; }
+body.drpg-theme-stained-glass #countdowns .countdown-tool-icons { order: 2; }
 body.drpg-theme-stained-glass #countdowns .countdown-tool-controls a {
+    order: 1;
     font-size: max(var(--drpg-sg-floor), calc(12px * var(--drpg-sg-scale)));
     color: var(--drpg-glass-accent);
     padding: 0 3px;

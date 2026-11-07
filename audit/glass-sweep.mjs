@@ -212,6 +212,7 @@
  *        node audit/glass-sweep.mjs --edges [--edge-frames <n>, 30] [--edge-sel <part>|<part>] [--edge-plant <css>] [--themes ...] [--sizes ...] [--no-control]   (E89 C5: below)
  *        node audit/glass-sweep.mjs --roster [--themes ...] [--roles ...] [--sizes ..., 1366x768,1920x1080] [--no-control]   (E50 C2: below)
  *        node audit/glass-sweep.mjs --track [--track-kinds fill,hour-empty,hour-full,hour-swap,hour-notice] [--themes ...] [--roles ...] [--sizes ...] [--no-control]   (E23 C2a: below)
+ *        node audit/glass-sweep.mjs --tray [--themes ..., stained] [--roles ...] [--sizes ..., 1920x1080,1366x768,1280x800,1024x768] [--no-control]   (E23 C3a: below)
  *        node audit/glass-sweep.mjs --turn [--kinds phase-recut,phase,hour,layout] [--sizes ..., 1600x900,1366x768] [--roles ...]
  *          [--themes ..., stained] [--turn-ms <n>, 3000] [--runs <n>, 1] [--json <file>] [--against <json>] [--no-control]   (E23 C1a: below)
  * `--corner` loads at twice the pixel density and `--shots` then keeps the bottom-right
@@ -678,6 +679,117 @@ if (args.includes("--track")) {
     } finally { await browser.close(); srv?.kill(); }
     if (control && !planted) { console.log("FAIL: the track's controls never ran"); bad++; }
     console.log(`TRACK ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s) x ${roles.length} role(s) x ${SIZES.length} size(s), ${lines} reading(s), ${planted} control(s), ${bad} failing`);
+    process.exit(bad ? 1 : 0);
+}
+
+/* THE PROJECTS TRAY'S ROWS AND THE TAB RAIL (E23 C3a, 07.11.2026; E23-16, E23-19: S09-04, S10-34, S12-06, S12-53, S12-07
+   and the owner's two of 04.10). `--tray` runs this instead of the sweep, at each size (by default 1920x1080, 1366x768,
+   1280x800 and 1024x768), role and theme (Stained Glass by default: the turned tray is the glass's; `--themes` adds
+   Legacy, where a list that scrolls has no fade and reads as one without the signal). ROWS: the page's
+   `drpgTrayRows()` with its own two rows and filled to seven, and the size fails where a row's count stands more than
+   2 px off its name's line on the screen or not 8-12 px after it (where the tray is turned), outside its own row
+   (where it is not), or where the list's foot cuts a row in a list with no fade. Its CONTROLS, once a run, at the first
+   turned size: `grow` (the name's `flex: 1 1 auto` put back) must read a fall, `cut` (the list held at five and a half
+   rows, the fade off) must read a cut row. THE RAIL, on the GM's page at each size wider than the stack (a player has
+   neither rail): with Foundry's windows on (Foundry tools opened, the sidebar in it) and with the world switch off
+   (`?windows=off`), each with a fifteen-tab sidebar expanded in the HTML before the page loads (`page.route`: the
+   harness does not recut for tabs added later), the tab rail's box must meet neither the status strip's nor the
+   tray's, must end on the screen, and the GM's button must not move when the tool palette is made two columns wide
+   (six tools planted, Regions' palette). Its control, once: the strip planted under the rail must read a meeting.
+   The line prints each row's run and fall, the list's heights and its cut and fade, and the rail's meetings. */
+if (args.includes("--tray")) {
+    let bad = 0, rowsPlanted = false, railPlanted = false;
+    const tthemes = opt("--themes") ? themes : ["stained"];
+    const tsizes = (opt("--sizes") ?? "1920x1080,1366x768,1280x800,1024x768").split(",");
+    const rowsLine = r => `turn ${r.turn} rows ${r.rows.length} run ${r.rows.map(x => x.run ?? "-").join(",")} fall ${r.rows.map(x => x.fall).join(",")}`
+        + (r.list ? ` list ${r.list.client}/${r.list.scroll} cut ${r.list.cut} ${r.list.more ? "fade" : "no fade"}` : "");
+    const railCheck = async ({ plant = false } = {}) => {
+        const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const settle = async () => { window.__glass?.refreshGlass?.(); await frame(); await new Promise(r => setTimeout(r, 500)); await frame(); };
+        const box = el => { if (!el || !el.getClientRects().length) return null; const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, r: r.right, b: r.bottom }; };
+        const meet = (a, c) => (a && c ? Math.max(0, Math.min(a.r, c.r) - Math.max(a.x, c.x)) * Math.max(0, Math.min(a.b, c.b) - Math.max(a.y, c.y)) : 0);
+        const why = [];
+        try { window.__windows?.toggleFoundryTools?.(true); } catch (err) { why.push(`Foundry tools did not open: ${err}`); }
+        await settle();
+        const strip = document.getElementById("drpg-player-status");
+        if (plant && strip) { const t = document.getElementById("sidebar-tabs").getBoundingClientRect(); strip.style.cssText = `position:fixed;left:${t.left - 20}px;top:${t.top + 20}px`; }
+        const tabs = box(document.getElementById("sidebar-tabs"));
+        if (!tabs) why.push("no tab rail on the page");
+        const met = { strip: Math.round(meet(tabs, box(strip))), tray: Math.round(meet(tabs, box(document.getElementById("countdowns")))) };
+        for (const [k, v] of Object.entries(met)) if (v) why.push(`the tab rail meets the ${k === "strip" ? "status strip" : "Projects tray"} over ${v} px2`);
+        const off = tabs ? Math.max(0, Math.round(tabs.r - innerWidth)) : 0;
+        if (off) why.push(`the tab rail runs ${off} px off the screen`);
+        const gm0 = box(document.getElementById("drpg-gm-launcher"));
+        const tools = document.getElementById("scene-controls-tools");
+        const planted = [];
+        if (tools) {
+            tools.style.cssText = "flex-direction:row;flex-wrap:wrap;width:84px";
+            for (let i = 0; i < 6; i++) { const li = document.createElement("li"); li.innerHTML = '<button class="ui-control"></button>'; tools.append(li); planted.push(li); }
+        }
+        await settle();
+        const gm1 = box(document.getElementById("drpg-gm-launcher"));
+        const moved = gm0 && gm1 ? [Math.round(gm1.x - gm0.x), Math.round(gm1.y - gm0.y)] : null;
+        if (moved && (moved[0] || moved[1])) why.push(`the GM's button moved ${moved.join(",")} px with a two-column tool palette`);
+        for (const li of planted) li.remove();
+        if (tools) tools.style.cssText = "";
+        if (strip) strip.style.cssText = "";
+        return { ok: !why.length, why: why.join("; "), tabs: tabs && [tabs.x, tabs.y, tabs.r, tabs.b].map(Math.round).join(","), met, off, moved: moved ? moved.join(",") : "-",
+            inWindow: Boolean(document.getElementById("sidebar")?.closest(".drpg-foundry-window")) };
+    };
+    try {
+        for (const theme of tthemes) for (const role of roles) for (const size of tsizes) {
+            const [W, H] = size.split("x").map(Number);
+            const tag = `${theme.padEnd(7)} ${role.padEnd(6)} ${size.padEnd(9)}`;
+            const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
+            const page = await browser.newPage({ viewport: { width: W, height: H } });
+            await page.goto(`${base}/${page0}${qs.length ? (page0.includes("?") ? "&" : "?") + qs.join("&") : ""}`);
+            const loaded = await page.waitForFunction(() => window.__glass && window.drpgTrayRows, null, { timeout: 15000 }).then(() => true, () => false);
+            if (!loaded) { console.log(`${tag} FAIL: the page did not load the glass or drpgTrayRows`); bad++; await page.close(); continue; }
+            await page.waitForTimeout(waitMs);
+            for (const rows of [0, 7]) {
+                const r = await page.evaluate(rows => window.drpgTrayRows({ rows }), rows);
+                console.log(`${tag} rows ${rows ? "filled" : "as drawn"}: ${rowsLine(r)}${r.ok ? "" : `  - FAIL: ${r.why}`}`);
+                if (!r.ok) bad++;
+                if (control && !rowsPlanted && rows && r.turn) {
+                    rowsPlanted = true;
+                    for (const plant of ["grow", "cut"]) {
+                        const p = await page.evaluate(plant => window.drpgTrayRows({ rows: 7, plant }), plant);
+                        console.log(`${tag} control ${plant}: ${p.ok ? "MISSES IT" : "sees it"} - ${p.ok ? rowsLine(p) : p.why.slice(0, 140)}`);
+                        if (p.ok) bad++;
+                    }
+                }
+            }
+            const stacked = await page.evaluate(() => document.body.classList.contains("drpg-stacked"));
+            await page.close();
+            if (role !== "gm" || stacked) continue;
+            for (const switchOff of [false, true]) {
+                const p2 = await browser.newPage({ viewport: { width: W, height: H } });
+                await p2.route(url => /audit\/glass-harness\.html/.test(String(url)), async route => {
+                    const res = await route.fetch();
+                    const body = (await res.text()).replace('<div id="sidebar">', '<div id="sidebar" class="expanded">')
+                        .replace(/<nav id="sidebar-tabs">(?:<button class="ui-control"><\/button>)+<\/nav>/, `<nav id="sidebar-tabs">${'<button class="ui-control"></button>'.repeat(15)}</nav>`);
+                    await route.fulfill({ response: res, body });
+                });
+                const q2 = [...qs, switchOff ? "windows=off" : ""].filter(Boolean);
+                await p2.goto(`${base}/${page0}${q2.length ? (page0.includes("?") ? "&" : "?") + q2.join("&") : ""}`);
+                await p2.waitForFunction(() => window.__glass, null, { timeout: 15000 }).catch(() => {});
+                await p2.waitForTimeout(waitMs);
+                const r = await p2.evaluate(railCheck, {});
+                console.log(`${tag} rail, windows ${switchOff ? "off" : "on "}: tabs ${r.tabs ?? "-"}${r.inWindow ? " (in Foundry tools)" : ""} meets strip ${r.met.strip} tray ${r.met.tray} off ${r.off} gm moved ${r.moved}${r.ok ? "" : `  - FAIL: ${r.why}`}`);
+                if (!r.ok) bad++;
+                if (control && !railPlanted) {
+                    railPlanted = true;
+                    const p = await p2.evaluate(railCheck, { plant: true });
+                    console.log(`${tag} control rail: the strip planted under the rail ${p.met.strip ? "sees it" : "MISSES IT"} (${p.met.strip} px2)`);
+                    if (!p.met.strip) bad++;
+                }
+                await p2.close();
+            }
+        }
+    } finally { await browser.close(); srv?.kill(); }
+    if (control && !rowsPlanted) { console.log("control: no turned tray was read, so the rows' faults could not be planted - FAIL"); bad++; }
+    if (control && roles.includes("gm") && !railPlanted) { console.log("control: no GM desk page was read, so the rail's fault could not be planted - FAIL"); bad++; }
+    console.log(`TRAY ${bad ? "RED" : "GREEN"}: ${tthemes.length} theme(s), ${roles.length} role(s), ${tsizes.length} size(s)`);
     process.exit(bad ? 1 : 0);
 }
 

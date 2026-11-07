@@ -30,7 +30,8 @@ import { emptyOption, drpgConfirm, drpgWindow } from "./ui-kit.mjs";
 import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
 import {
-    leaveIconOnly, localiseRawKeys, hideUndiscovered, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl
+    leaveIconOnly, localiseRawKeys, hideUndiscovered, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl,
+    labelTrayControls, markTrayMore
 } from "./projects-tray.mjs";
 export { refreshProjects, hideUndiscovered } from "./projects-tray.mjs";
 
@@ -88,12 +89,15 @@ function onRenderCountdowns(app, element) {
         // after the rows the player has not found are gone: they count as none (E79 C12, U1)
         showTrayToPlayer(root);
         paintProgress(root);
+        // The minus and the plus named, and the list's foot faded while rows stand below it (E23 C3a).
+        labelTrayControls(root);
 
         // Folding the tray away is everybody's, not the GM's - a player with
         // four projects on a 1080p screen wants the map back, and the tray sits
         // directly under their own status strip.
         addCollapseControl(root);
         applyCollapsed(root);
+        markTrayMore(root);
 
         if (!game.user.isGM) return;
 
