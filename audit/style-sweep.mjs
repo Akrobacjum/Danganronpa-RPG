@@ -191,6 +191,15 @@ function fitPages() {
     return ONLY.size ? out.filter(p => ONLY.has(p.id)) : out;
 }
 
+/* A scroller a gallery card draws on purpose (E22 fix G1, 07.11.2026; STATUS Open 7, the end review's GOAL M2): the kit
+   gallery's "dataTable, more rows than the window" card gives its table box an inline `max-height: 220px; overflow:
+   auto` (style-harness.html), to show on E44's demo page the table's own scroll - the sticky head and the scroll signal
+   (ui-kit.mjs `watchScroll` watches `.drpg-data-table-box`). `dataTable` writes no height, and no rule of the sheets
+   gives the box one (components.css: `position: relative` only), so no window of the module scrolls its table on its
+   own: on that card the box is the demo's, not a second region of a window, and it read "a second scroller" at every
+   desk size. Skipped there only, by the card's id and the box's name; every other window still fails on it. */
+const DEMO_SCROLLERS = { "kit-table-scroll": ["div.drpg-data-table-box"] };
+
 /** What is wrong with one window's state, as words; [] when it fits. */
 function misfits(win, state, still) {
     const out = [];
@@ -198,7 +207,8 @@ function misfits(win, state, still) {
     if (state.footer === false) out.push("footer out");
     if (state.buttonsOut.length) out.push(`button(s) out: ${state.buttonsOut.join(", ")}`);
     if (state.tabs === false) out.push("tab bar out");
-    const others = state.scrollers.filter(s => s !== "kit-body");
+    const demo = DEMO_SCROLLERS[win?.window] ?? [];
+    const others = state.scrollers.filter(s => s !== "kit-body" && !demo.includes(s));
     if (others.length) out.push(`a second scroller: ${others.join(", ")}`);
     if (state.cut) out.push("content cut: the body is taller than its box and nothing scrolls it");
     if (still && state.scrollers.length) out.push(`scrolls (${state.scrollers.join(", ")}) where it must not`);

@@ -106,6 +106,16 @@ body {
     --drpg-kit-destructive-bg: rgba(var(--drpg-crimson-rgb), 0.12);
     --drpg-kit-destructive-raster: radial-gradient(circle at 1px 1px, rgba(var(--drpg-crimson-rgb), 0.45) 1px, transparent 1.5px);
     --drpg-kit-destructive-raster-cell: 4px 4px;
+    /* the faces under the pointer (E22 fix G1, 07.11.2026; the end review's SCREENS M1, Open 81): the footer rule's
+       hover reads `--drpg-kit-face-hover-*` - a stronger Bone wash and the Bone edge for every role (it was the eye's
+       wash on every button, so Save and Close turned red under the pointer), the GM's road and a destructive answer
+       each brighter in its own token */
+    --drpg-kit-hover-bg: rgba(var(--drpg-bone-rgb), 0.18);
+    --drpg-kit-hover-edge: var(--drpg-bone);
+    --drpg-kit-gm-route-hover-bg: rgba(var(--drpg-eye-rgb), 0.34);
+    --drpg-kit-gm-route-hover-edge: var(--drpg-eye-light);
+    --drpg-kit-destructive-hover-bg: rgba(var(--drpg-crimson-rgb), 0.22);
+    --drpg-kit-destructive-hover-edge: var(--drpg-crimson-light);
     /* a Call's side (M14, E21 C5a): Hope's gold and Despair's blood, each with its deep twin on a pale ground; one
        pair for both themes - the glass draws the same two inks */
     --drpg-kit-call-hope: light-dark(var(--drpg-gold-deep), var(--drpg-gold));
@@ -265,12 +275,16 @@ body .application.dialog footer.form-footer.drpg-kit-footer button { flex: 0 1 a
     --drpg-kit-face-bg: var(--drpg-kit-destructive-bg);
     --drpg-kit-face-raster: var(--drpg-kit-destructive-raster);
     --drpg-kit-face-raster-cell: var(--drpg-kit-destructive-raster-cell);
+    --drpg-kit-face-hover-bg: var(--drpg-kit-destructive-hover-bg);
+    --drpg-kit-face-hover-edge: var(--drpg-kit-destructive-hover-edge);
 }
 .drpg-kit-footer .drpg-role-gm-route {
     order: 1;
     --drpg-kit-ring: var(--drpg-kit-role-gm-route);
     --drpg-kit-face-edge: var(--drpg-kit-role-gm-route);
     --drpg-kit-face-bg: var(--drpg-kit-gm-route-bg);
+    --drpg-kit-face-hover-bg: var(--drpg-kit-gm-route-hover-bg);
+    --drpg-kit-face-hover-edge: var(--drpg-kit-gm-route-hover-edge);
 }
 .drpg-kit-footer .drpg-role-primary { order: 2; --drpg-kit-ring: var(--drpg-kit-role-primary); --drpg-kit-face-edge: var(--drpg-kit-primary-edge); }
 .drpg-kit-footer button[data-drpg-role]:focus-visible { outline: 2px solid var(--drpg-kit-ring); outline-offset: 2px; }

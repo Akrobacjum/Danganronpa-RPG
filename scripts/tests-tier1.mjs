@@ -35727,6 +35727,161 @@ const INVARIANTS = [
             notes: { finalTruth: [false, "info"], situational: [false, true], roomCount: [false, true] }
         }), "[per theme: a warning's edge red, an information box's; the default button's background, its colour and its edge red; the GM's road's colours on a footer button, a button in a window and a choice row; a destructive role's raster and red edge; red on a table head, the GM Team window's, an Effects group and the GM Team window's heading; a disabled GM tile's fill red; the glass's selected GM row: ink on its brush at 4.5:1, its note's opacity; the three information lines as warnings and on box(\"info\")]");
     }],
+    ["R1580 - the faces under the pointer and the GM's road as the default, both themes (E22 fix G1; E22-07; the end review's SCREENS M1-M3, m6; Open 81): under Monokuma Legacy a footer button under the pointer takes no red unless it is the GM's road or a destructive answer, each of those brightens its own token and a destructive one keeps its raster, a choice row under the pointer gets no red edge, the GM's row keeps its red left edge under the pointer and once picked; under Stained Glass every role under the pointer and the GM's road as the default read 4.5:1 or more, and a destructive answer under the pointer keeps its raster and brightens its edge with no full brush", async () => {
+        /*
+         * E22 fix G1, 07.11.2026 (the end review's SCREENS lens, review/screens.md M1-M3 and m6, seen there in Chromium).
+         * R1373's way: the module's sheets as a cascade read from their text (`styleCascade`), on markup built on a body
+         * of its own per theme, each winning value followed through its `var()`s to the tokens it read. jsdom matches no
+         * `:hover`, so the copy of the cascade asked here has every `:hover` of every selector written as a class,
+         * `drpg-r1580-hover`, and the element under the pointer carries that class: the same rules, the same weights
+         * (a pseudo-class and a class weigh the same), the same order. "Red" is R1373's list. A ratio is WCAG's
+         * (`cssContrastRatio`) of the ink on what it stands on: the brush (the button's `::before`) when the brush is on,
+         * the theme's ink when it is not. Red on dd87f9f7 (Chromium read the same on the gallery's footer: probe.mjs,
+         * S/stages/E21/scratch/fix-g1): Legacy's Close, Split and Save under the pointer on the eye's wash, the
+         * destructive one too, with its raster gone and its edge Bone; a plain row under the pointer on the eye's edge;
+         * the picked GM row gold all round; the glass's GM road as the default ink on the GM red, 4.16:1, and under the
+         * pointer Bone on it, 4.18:1; a destructive answer under the pointer the full GM-red brush under its pink ink,
+         * 1.55:1, its raster gone. Not read here: a press, a focus ring, and how any of it looks - the review's shots
+         * and the hover rows the review proposed for LIVE (review/screens.md).
+         */
+        const C = await styleCascade();
+        const HOVER = "drpg-r1580-hover";
+        for (let i = 0; i < C.rules.length; i++) {
+            const rule = C.rules[i];
+            if (/:hover\b/.test(rule.selector)) C.rules[i] = { ...rule, selector: rule.selector.replace(/:hover\b/g, `.${HOVER}`) };
+        }
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const sheets = [];
+        for (const href of manifest.styles ?? []) sheets.push([href, await fetch(`/modules/${MODULE_ID}/${href}`).then(lfText)]);
+        const tokens = cssThemeTokens(sheets);
+        const THEMES = { legacy: ["drpg-theme-monokuma-legacy", "monokuma-legacy"], glass: ["drpg-theme-stained-glass", "stained-glass"] };
+        const RED = ["--drpg-eye", "--drpg-eye-light", "--drpg-eye-rgb", "--drpg-crimson", "--drpg-crimson-rgb", "--drpg-crimson-light", "--drpg-sg-gm", "--drpg-sg-gm-light"];
+        const custom = (el, name) => {
+            for (let at = el; at; at = at.parentElement) {
+                const won = C.winner(at, name);
+                if (won) return won.value;
+            }
+            return null;
+        };
+        const expand = (text, look, reads, depth = 0) => {
+            let out = "", i = 0;
+            while (i < text.length) {
+                if (!text.startsWith("var(", i)) { out += text[i]; i++; continue; }
+                const at = i;
+                let level = 0, end = at + 3, comma = -1;
+                for (; end < text.length; end++) {
+                    const ch = text[end];
+                    if (ch === "(") level++;
+                    else if (ch === ")") { level--; if (!level) break; }
+                    else if (ch === "," && level === 1 && comma < 0) comma = end;
+                }
+                const name = text.slice(at + 4, comma < 0 ? end : comma).trim();
+                const fallback = comma < 0 ? null : text.slice(comma + 1, end).trim();
+                reads.push(name);
+                if (depth < 16) out += expand(look(name) ?? fallback ?? "", look, reads, depth + 1);
+                i = end + 1;
+            }
+            return out;
+        };
+        const reading = (theme, el, names, pseudo = null) => {
+            const won = C.winner(el, names, pseudo);
+            if (!won) return null;
+            const reads = [];
+            const text = expand(won.value, name => custom(el, name) ?? tokens[THEMES[theme][1]].get(name) ?? null, reads).replace(/\s+/g, " ").trim();
+            return { text, red: reads.some(name => RED.includes(name)) };
+        };
+        const isRed = (theme, el, names) => reading(theme, el, names)?.red === true;
+        const text = (theme, el, names, pseudo) => reading(theme, el, names, pseudo)?.text ?? "no rule";
+        const hexOf = value => (/#[0-9a-f]{6}\b/i.exec(value)?.[0] ?? value).toLowerCase();
+        const rgbOf = value => { const m = /^#([0-9a-f]{6})$/i.exec(value); return m ? [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16)) : null; };
+        const EDGE = ["border-color", "border"], LEFT = ["border-left-color", "border-left", "border-color", "border"];
+        const footer = (defaultRole, hovered) => {
+            const b = (role, cls, action, label) => `<button type="button" data-action="${action}" data-drpg-role="${role}" class="drpg-role-${cls}${role === defaultRole ? " default" : ""}${role === "gmRoute" ? " drpg-gm-route" : ""}${hovered === role ? ` ${HOVER}` : ""}">${label}</button>`;
+            return `<div class="application dialog drpg-ui drpg-panel"><section class="window-content"><form class="dialog-form"><div class="dialog-content">`
+                + `<label class="drpg-choice${hovered === "row" ? ` ${HOVER}` : ""}" data-r1580-row><input type="radio" name="r"><span>Row</span></label>`
+                + `<label class="drpg-choice drpg-gm-route${hovered === "gmRow" ? ` ${HOVER}` : ""}" data-r1580-gm-row><input type="radio" name="r"><span>Row</span></label>`
+                + `<label class="drpg-choice drpg-gm-route" data-r1580-picked><input type="radio" name="p" checked><span>Row</span></label></div>`
+                + `<footer class="form-footer drpg-kit-footer"><div class="drpg-kit-right">${b("primary", "primary", "go", "Go")}${b("gmRoute", "gm-route", "ask", "Ask")}</div>`
+                + `<div class="drpg-kit-left">${b("cancel", "cancel", "cancel", "Cancel")}${b("secondary", "secondary", "split", "Split")}${b("destructive", "destructive", "wipe", "Wipe")}</div></footer></form></section></div>`;
+        };
+        const ROLES = ["cancel", "secondary", "destructive", "gmRoute", "primary"];
+        const out = { legacy: {}, glass: {} };
+        for (const theme of ["legacy", "glass"]) {
+            const page = html => {
+                const root = document.createElement("html"), body = document.createElement("body");
+                body.className = THEMES[theme][0];
+                root.append(body);
+                body.innerHTML = html;
+                return body;
+            };
+            /* one window at rest, one with each role under the pointer, one with each row under it, one with the GM's road the default */
+            const rest = page(footer("primary", null));
+            const hover = Object.fromEntries([...ROLES, "row", "gmRow"].map(role => [role, page(footer("primary", role))]));
+            const gmDefault = page(footer("gmRoute", null));
+            const btn = (body, role) => body.querySelector(`[data-drpg-role="${role}"]`);
+            const ground = (el) => {
+                const on = text(theme, el, "opacity", "::before");
+                const brush = on === "1" ? text(theme, el, ["background", "background-color"], "::before") : tokens[THEMES[theme][1]].get("--drpg-sg-ink") ?? "no ink";
+                return { on, brush: hexOf(brush) };
+            };
+            const ratio = el => {
+                const ink = rgbOf(hexOf(text(theme, el, "color"))), { brush } = ground(el), on = rgbOf(brush);
+                return ink && on ? Number(cssContrastRatio(ink, on).toFixed(2)) : `${text(theme, el, "color")} on ${brush}`;
+            };
+            if (theme === "legacy") {
+                const plain = ["cancel", "secondary", "primary"].map(role => [role, btn(hover[role], role)]);
+                const own = role => ({ red: isRed(theme, btn(hover[role], role), EDGE), brighter: hexOf(text(theme, btn(hover[role], role), EDGE)) !== hexOf(text(theme, btn(rest, role), EDGE)) });
+                out.legacy = {
+                    plainHover: plain.map(([role, el]) => [role, isRed(theme, el, ["background", "background-color"]), isRed(theme, el, EDGE)]),
+                    gmRouteHover: own("gmRoute"),
+                    destructiveHover: { ...own("destructive"), raster: /gradient/.test(text(theme, btn(hover.destructive, "destructive"), ["background-image", "background"])) },
+                    rowHover: isRed(theme, hover.row.querySelector("[data-r1580-row]"), EDGE),
+                    gmRowHover: isRed(theme, hover.gmRow.querySelector("[data-r1580-gm-row]"), LEFT),
+                    gmRowPicked: isRed(theme, rest.querySelector("[data-r1580-picked]"), LEFT)
+                };
+            } else {
+                const destructive = btn(hover.destructive, "destructive");
+                out.glass = {
+                    hoverRatios: ROLES.map(role => [role, (r => (typeof r === "number" ? r >= 4.5 : r))(ratio(btn(hover[role], role)))]),
+                    gmRouteDefault: (r => (typeof r === "number" ? r >= 4.5 : r))(ratio(btn(gmDefault, "gmRoute"))),
+                    destructiveHover: {
+                        brush: ground(destructive).on,
+                        raster: /gradient/.test(text(theme, destructive, ["background-image", "background"])),
+                        edge: [hexOf(text(theme, btn(rest, "destructive"), EDGE)), hexOf(text(theme, destructive, EDGE))]
+                    }
+                };
+            }
+        }
+        const GM_LIGHT = (tokens["stained-glass"].get("--drpg-sg-gm-light") ?? "").toLowerCase(), GM = (tokens["stained-glass"].get("--drpg-sg-gm") ?? "").toLowerCase();
+        ok(/^#[0-9a-f]{6}$/.test(GM_LIGHT) && /^#[0-9a-f]{6}$/.test(GM), `the glass's GM reds read as hex: ${GM} ${GM_LIGHT}`);
+        equal(stableJson(out), stableJson({
+            legacy: {
+                plainHover: [["cancel", false, false], ["secondary", false, false], ["primary", false, false]],
+                gmRouteHover: { red: true, brighter: true },
+                destructiveHover: { red: true, brighter: true, raster: true },
+                rowHover: false, gmRowHover: true, gmRowPicked: true
+            },
+            glass: {
+                hoverRatios: ROLES.map(role => [role, true]),
+                gmRouteDefault: true,
+                destructiveHover: { brush: "0", raster: true, edge: [GM, GM_LIGHT] }
+            }
+        }), "[Legacy: each plain role under the pointer - its wash red, its edge red; the GM's road and a destructive answer under the pointer - red, and another value than at rest; the destructive one's raster; a plain row's edge red under the pointer, the GM row's left edge under the pointer and once picked. The glass: each role's ink under the pointer at 4.5:1 or more on what it stands on; the GM's road as the default; a destructive answer under the pointer - its brush, its raster, its edge at rest and under the pointer]");
+    }],
+    ["R1581 - Sound > Music's \"no playlists\" line is information, in the kit's information box and not on the warning's red (E22 fix G1; E22-07; the end review's SCREENS m2; Open 83)", async () => {
+        /*
+         * E22 fix G1, 07.11.2026: R1373's three lines and this one (review/screens.md m2: "This world has no playlists" on
+         * a red bar in both themes, pair/sound--music-1366x768.png). The mapping tab (`soundPlaylistsPane`) cut with the
+         * kit and read: the line by its key, and whether it is written with `drpg-warning` or inside `box("info", ...)`.
+         * Red on dd87f9f7: `<p class="notes drpg-warning">`. The other `drpg-warning` sites of the module are not read
+         * here (STATUS Open 83: E46's and E47's).
+         */
+        const sound = fnSource(await fetch(`/modules/${MODULE_ID}/scripts/sound-panel.mjs`).then(lfText), "soundPlaylistsPane");
+        const KEY = String.raw`\$\{\s*game\.i18n\.localize\("DRPG\.Music\.noPlaylists"\)`;
+        ok(new RegExp(KEY).test(sound), "the mapping tab still writes the no-playlist line (DRPG.Music.noPlaylists)");
+        equal(stableJson({ warning: new RegExp(`drpg-warning[^\`]*?${KEY}`).test(sound), info: new RegExp(`box\\("info",\\s*\`<p class="notes"[^\`>]*>${KEY}`).test(sound) }),
+            stableJson({ warning: false, info: true }), "[the line written with drpg-warning; the line inside box(\"info\", ...)]");
+    }],
 ];
 
 /**

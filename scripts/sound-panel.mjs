@@ -162,12 +162,14 @@ function soundPlayPane() {
             </fieldset>`;
 }
 
-/** The mapping tab: the intro, the warnings, and the state-to-playlist table. */
+/** The mapping tab: the intro, the notes, and the state-to-playlist table. A world with no playlists is told so in
+ *  the kit's information box (E22 fix G1; the end review's SCREENS m2): it was a warning's red bar, and nothing is
+ *  wrong - there is only nothing to map yet (D11, E22-07). */
 function soundPlaylistsPane(playlists, rows) {
     return `
             <p>${game.i18n.localize("DRPG.Music.intro")}</p>
-            ${playlists.length ? "" : `<p class="notes drpg-warning">${
-                game.i18n.localize("DRPG.Music.noPlaylists")}</p>`}
+            ${playlists.length ? "" : box("info", `<p class="notes">${
+                game.i18n.localize("DRPG.Music.noPlaylists")}</p>`)}
             <p class="notes">${game.i18n.localize("DRPG.Music.orderNote")}</p>
             <p class="notes">${game.i18n.localize("DRPG.Music.trialNote")}</p>
             <p class="notes">${game.i18n.localize("DRPG.Music.incidentNote")}</p>

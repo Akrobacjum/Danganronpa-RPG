@@ -5656,8 +5656,8 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 }
 
 .drpg-rest-option:hover {
-    border-color: var(--drpg-eye);
-    background: rgba(var(--drpg-eye-rgb), 0.12);
+    border-color: var(--drpg-bone);
+    background: rgba(var(--drpg-bone-rgb), 0.08);
 }
 
 .drpg-rest-option:has(input:checked) {
@@ -5675,9 +5675,14 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     cursor: pointer;
 }
 
+/* Under the pointer a row is Bone, whatever its road (E22 fix G1, 07.11.2026; the end review's SCREENS M1, Open 81):
+   it was the eye's edge and wash, so "Find Stash" - a player's own road - took the GM row's red the moment it was
+   pointed at, and red means the GM's road and an irreversible answer only (D11, E22-07). The GM's row keeps its red
+   left edge under the pointer: `.drpg-choice.drpg-gm-route`, later in this sheet, outranks this rule's edge. The
+   Rest options and a Frisk's ways read the same. */
 .drpg-choice:hover {
-    border-color: var(--drpg-eye);
-    background: rgba(var(--drpg-eye-rgb), 0.12);
+    border-color: var(--drpg-bone);
+    background: rgba(var(--drpg-bone-rgb), 0.08);
 }
 
 .drpg-choice:has(input:checked) {
@@ -5749,8 +5754,8 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 /* The Rest option's hover (H81-12; the owner's 1.2.80 table, 20.10.2026: the ways did not look like the other
    choice rows): under Monokuma Legacy that was all they lacked. Before the checked rule, which outranks it. */
 .drpg-frisk-mode:hover {
-    border-color: var(--drpg-eye);
-    background: rgba(var(--drpg-eye-rgb), 0.12);
+    border-color: var(--drpg-bone);
+    background: rgba(var(--drpg-bone-rgb), 0.08);
 }
 
 .drpg-frisk-mode:has(input:checked) {
@@ -11595,14 +11600,6 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     border-color: var(--drpg-kit-face-edge, var(--drpg-line-strong)) !important;
 }
 
-.application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
-) footer.form-footer button:not(.drpg-gm-route):hover:not(:disabled) {
-    border-color: var(--drpg-bone) !important;
-}
-
 /* ==========================================================================
    A3 - THE BUTTON THAT HANDS THE TURN TO THE GM
    --------------------------------------------------------------------------
@@ -13377,6 +13374,13 @@ form:has(input[name="secret"]:not(:checked)):has(input[name="murder"]:not(:check
 .drpg-choice.drpg-gm-route {
     border-left: 3px solid var(--drpg-kit-role-gm-route);
     padding-left: 5px;
+}
+
+/* ... and once picked (E22 fix G1; the end review's SCREENS m6): the pick's gold edge (`.drpg-choice:has(input:checked)`,
+   0,2,1) took the left edge with the rest, so the row that went to the GM stopped saying so once chosen - seen on
+   Analyze's "Ask for a hint" under Monokuma Legacy. The glass keeps its brush on the picked row (stained-glass.css). */
+.drpg-choice.drpg-gm-route:has(input:checked) {
+    border-left-color: var(--drpg-kit-role-gm-route);
 }
 
 /* ---- the Call header, above a target picker ---------------------------- */
@@ -15230,6 +15234,17 @@ body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-disabled i 
    the raster), and nothing else. The `!important` stays here because Foundry's
    own footer rule sets the same properties; the kit's sheet holds none, so it
    gives the values and this rule the weight.
+
+   Under the pointer (E22 fix G1, 07.11.2026; the end review's SCREENS M1, Open
+   81): every button took the eye's wash, `rgba(eye, .34)`, so Save, Close and
+   "Do it" turned into the GM's road the one moment a player looked at them,
+   and a destructive answer lost its raster to the shorthand. Now the hover is
+   the face's own, read from `--drpg-kit-face-hover-*`: a stronger Bone wash and
+   the Bone edge for every role, the GM's road and a destructive answer each
+   brighter in its own token (components.css), and `background-color` alone, so
+   the raster stays. The rule that gave the plain roles a Bone edge on hover
+   (`button:not(.drpg-gm-route):hover`, 0,7,2) went with it: it held every role
+   but the GM's road to Bone, the destructive one too.
    ========================================================================== */
 
 .application.dialog:is(
@@ -15254,8 +15269,8 @@ body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-disabled i 
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
     .drpg-summary-dialog, .drpg-safeword-dialog
 ) footer.form-footer button:hover:not(:disabled) {
-    background: rgba(var(--drpg-eye-rgb), 0.34) !important;
-    border-color: var(--drpg-eye-light) !important;
+    background-color: var(--drpg-kit-face-hover-bg, var(--drpg-kit-hover-bg)) !important;
+    border-color: var(--drpg-kit-face-hover-edge, var(--drpg-kit-hover-edge)) !important;
 }
 
 .application.dialog footer.form-footer button:disabled {
