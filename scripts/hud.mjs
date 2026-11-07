@@ -48,6 +48,9 @@ import { isMonocub } from "./monocub.mjs";
 // Static, and safe: murder.mjs reaches this file by no static import (nor hud-elapsed.mjs, which imports it too).
 import { murderState } from "./murder.mjs";
 import { nowPlayingHere } from "./music.mjs";
+// The phase stamp's name for an Eclipse (E23 C2b): eclipse.mjs's static imports, walked to the end on 07.11.2026 on
+// f26d4467, never reach this file, so the import closes no cycle (R161).
+import { eclipseLabel } from "./eclipse.mjs";
 import { renderEvents } from "./events.mjs";
 // Added when the trial's own bar was folded into this widget. Walked and clean: trial-floor.mjs reaches config, settings and
 // utils and nothing else - it stopped importing trial.mjs when the evidence
@@ -287,8 +290,9 @@ function hudTicker(phase, clock) {
     return ticker;
 }
 
-/** The campaign's name, the chapter and day, and the phase line with its glyph. */
-function hudHeader(clock) {
+/** The campaign's name, the chapter and day, the phase line with its glyph, and the pause's stamp while the game is
+ *  on hold. Exported for R1386, which reads the stamp for clocks of its own (E23 C2b). */
+export function hudHeader(clock) {
     /* CHAPTER AND DAY ARE ONE LINE, IN BOTH THEMES.
        Two rows for six words, in a pane whose height the curtain is cut around: the
        audit page draws them as one line with a divider, which is a row of glass
@@ -304,7 +308,12 @@ function hudHeader(clock) {
        that is the one line on the clock that can be read without reading. Ours was a
        line of tinted text. The glyph is a masked sprite; which sprite is the
        stylesheet's business, from the phase and hour already on the body. */
-    const phaseLine = line("drpg-hud-phase", phaseLabel(clock.phase));
+    /* AN ECLIPSE IS NAMED ON IT (E23 C2b, 07.11.2026; audit S10-50). Until then the stamp read `phaseLabel(clock.phase)`
+       whatever the clock said, so through a whole Eclipse it said "Daily Life" while the clock's edge, its glyph, the
+       ticker behind it and the Event panel said Eclipse. It takes the Eclipse's own name now, the one its notices and
+       the ready check use ("Night Eclipse", eclipse.mjs `eclipseLabel`), for the same `clock.eclipse` that puts the
+       clock in the Eclipse's colours (`renderHud`'s `phase`). R1386. */
+    const phaseLine = line("drpg-hud-phase", clock.eclipse === true ? eclipseLabel(clock) : phaseLabel(clock.phase));
     /* In both themes: the glyph is a FACT drawn as a picture, not a flourish, and
        Legacy is the pixel-art theme - the sprite belongs there at least as much.
        Which sprite is the stylesheet's business, from the phase and hour already
@@ -323,7 +332,22 @@ function hudHeader(clock) {
     const nameLength = (campaignName(clock) ?? "").length;
     if (nameLength > 32) campaign.classList.add("is-very-long");
     else if (nameLength > 22) campaign.classList.add("is-long");
-    return [campaign, ...dateLines, phaseLine];
+    /* A PAUSE IS STAMPED ON THE CLOCK (E23 C2b, 07.11.2026; audit S12-22; the owner's Q-E23-2, yes, 07.11). Foundry
+       says a pause in the middle of the screen, and a window centred there - the GM panel, a roll - hid the only sign
+       that the game was on hold. The clock says it too now, in Foundry's own word (`GAME.Paused`, which the module's
+       language files word "On hold" / "Wstrzymano"), as a second stamp right after the phase's, on every client:
+       `pauseGame` renders every clock (`registerHud`) and the stamp follows `game.paused` at each render, so a world
+       that loads paused wears it from ready's render, with no `pauseGame` of its own. The centred caption, the veil and
+       its raster stay as they are (the orchestrator's answer to the owner's question back, 07.11). It is a row of its
+       own under the phase's, as the default the owner agreed to says: the clock is a flex column, so a stamp beside the
+       phase's would take a wrapper round the phase line, which R1386, R1387 and the glass harness read as the clock's
+       own child. The row makes the clock taller while the game is on hold, so the curtain is cut again at a pause and
+       at its end - a layout's change, which may recut (the owner's 27.09: only the hour's must not). Measured in
+       Chromium on the glass harness, the stamp planted as this writes it (07.11.2026, 1366x768 and 1920x1080, English
+       and Polish): Stained Glass's clock 214 -> 245 px, one drpgGlassCut each way, the self-check 0/0/0 paused and
+       after; Monokuma Legacy's 134 -> 156 px, no curtain. R1387. */
+    const pauseLine = game.paused ? [line("drpg-hud-paused", game.i18n.localize("GAME.Paused"))] : [];
+    return [campaign, ...dateLines, phaseLine, ...pauseLine];
 }
 
 /* THE FOUR STANDING THREATS ARE THE EVENT PANEL'S, IN BOTH THEMES (1.2.47).

@@ -21168,6 +21168,103 @@ const INVARIANTS = [
             + "[box-sizing, display, the content one line of its own size], [under Stained Glass: the floor, the bone ink, the accent hairline]");
     }],
 
+    ["R1386 - the phase stamp says the Eclipse during one: under an Eclipse the clock's stamp is the Eclipse's own name (eclipse.mjs `eclipseLabel`, \"Night Eclipse\"), at each of the five hours it opens, and the phase's name (`phaseLabel`) otherwise; the clock on this page wears the one its own clock asks for (E23 C2b, E23-14; S10-50)", async () => {
+        /*
+         * E23 C2b, 07.11.2026; audit S10-50. At f26d4467 `hudHeader` wrote `phaseLabel(clock.phase)` whatever the clock
+         * said, so through a whole Eclipse the stamp read "Daily life" while the ticker behind it, the seams and the Event
+         * panel all said Eclipse. The stamp is read off `hudHeader` for clocks of the test's own (this world's clock with
+         * the Eclipse and the hour changed, nothing written), against `eclipseLabel` and `phaseLabel` asked directly; then
+         * the clock renderHud drew on this page against its own clock. Red on f26d4467: hud.mjs exports no `hudHeader`;
+         * with it exported and the stamp unchanged, "Daily life" in every Eclipse.
+         */
+        const H = await import("./hud.mjs");
+        const { eclipseLabel } = await import("./eclipse.mjs");
+        const { getClock, phaseLabel } = await import("./clock.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        ok(typeof H.hudHeader === "function", "hud.mjs exports no hudHeader, so the stamp cannot be read for a clock of the test's own");
+        const stampOf = clock => {
+            const parts = typeof H.hudHeader === "function" ? H.hudHeader(clock) : [];
+            return parts.find(part => part.classList?.contains("drpg-hud-phase"))?.textContent.trim() ?? null;
+        };
+        const base = getClock();
+        const seen = {}, want = {};
+        for (const timeOfDay of TIMES_OF_DAY) {
+            const clock = { ...base, phase: "dailyLife", timeOfDay, eclipse: true };
+            seen[`eclipse ${timeOfDay}`] = stampOf(clock);
+            want[`eclipse ${timeOfDay}`] = eclipseLabel(clock);
+        }
+        for (const phase of ["dailyLife", "investigation", "classTrial"]) {
+            seen[phase] = stampOf({ ...base, phase, eclipse: false });
+            want[phase] = phaseLabel(phase);
+        }
+        ok(new Set(TIMES_OF_DAY.map(t => want[`eclipse ${t}`])).size === TIMES_OF_DAY.length
+            && !TIMES_OF_DAY.some(t => want[`eclipse ${t}`] === want.dailyLife),
+        `the five Eclipses' names are not five names apart from the phase's (${stableJson(want)}) - the comparison below would read nothing`);
+        equal(stableJson(seen), stableJson(want), "the stamp under an Eclipse at each hour, and in each phase without one: hudHeader's against eclipseLabel's and phaseLabel's");
+
+        const hud = document.getElementById(H.HUD_ID);
+        must(hud?.isConnected, "no clock on this page - renderHud drew nothing to read");
+        const clock = getClock();
+        const drawn = hud.querySelector(":scope > .drpg-hud-phase")?.textContent.trim() ?? null;
+        ok([eclipseLabel(clock), phaseLabel(clock.phase)].includes(drawn)
+            && (drawn === eclipseLabel(clock)) === (clock.eclipse === true && hud.dataset.drpgPhase === "eclipse"),
+        `the clock on this page reads "${drawn}" for its own clock (eclipse ${clock.eclipse === true}, phase ${clock.phase}, drawn as ${hud.dataset.drpgPhase})`);
+    }],
+
+    ["R1387 - the pause on the clock: a paused game puts a stamp with Foundry's own word (`GAME.Paused`, \"On hold\") in the clock right after the phase's, on every client, and an unpaused one takes it off; the stamp follows `game.paused` at each render, so a world that loads paused shows it from ready, and `pauseGame` renders the clock with no seat asked (E23 C2b, E23-15; S12-22)", async () => {
+        /*
+         * E23 C2b, 07.11.2026; audit S12-22, the owner's Q-E23-2 (yes, 07.11; the orchestrator: the stamp on the clock,
+         * and Foundry's centred caption with the module's veil and raster kept as they are). At f26d4467 a pause was
+         * Foundry's caption in the middle of the screen, and a window centred over it hid the only sign the game was on
+         * hold; the clock said nothing. The pause is stood in for on this browser only - `game.paused` read as true and
+         * then false for two renders, put back after - because a real pause is the table's (`togglePause` reaches every
+         * client) and the module's own `pauseGame` handler writes the stopwatch's bookkeeping on the primary GM, which a
+         * tier-1 test may not do. Then hud.mjs is read: the handler renders with no seat asked, and ready renders.
+         * Red on f26d4467: no stamp while paused.
+         */
+        const H = await import("./hud.mjs");
+        const hud = document.getElementById(H.HUD_ID);
+        must(hud?.isConnected, "no clock on this page - renderHud drew nothing to read");
+        const word = game.i18n.localize("GAME.Paused");
+        must(word && word !== "GAME.Paused", "Foundry's GAME.Paused has no words on this page - there is no word to look for");
+        const had = Object.getOwnPropertyDescriptor(game, "paused");
+        must(!had || had.configurable || had.writable, "game.paused cannot be stood in for on this page - there is no pause to read");
+        const stand = value => (had && !had.configurable
+            ? (game.paused = value)
+            : Object.defineProperty(game, "paused", { get: () => value, configurable: true }));
+        const read = () => {
+            const marks = [...hud.querySelectorAll(".drpg-hud-paused")];
+            const mark = marks[0];
+            return marks.length ? [marks.length, mark.textContent.trim() === word, mark.classList.contains("empty"),
+                mark.parentElement === hud, mark.previousElementSibling?.classList.contains("drpg-hud-phase") ?? false] : "none";
+        };
+        const was = game.paused;
+        const seen = {};
+        try {
+            stand(true);
+            H.renderHud();
+            seen.paused = read();
+            H.renderHud();
+            seen.again = read();
+            stand(false);
+            H.renderHud();
+            seen.unpaused = read();
+        } finally {
+            if (had) Object.defineProperty(game, "paused", had); else delete game.paused;
+            if (had && !had.configurable) game.paused = was;
+            H.renderHud();
+        }
+        equal(stableJson(seen), stableJson({ paused: [1, true, false, true, true], again: [1, true, false, true, true], unpaused: "none" }),
+            "paused: [stamps in the clock, Foundry's word, hidden as `empty`, the clock's own child, right after the phase's stamp]; "
+            + "a second render while paused draws one, not two; unpaused, none");
+
+        const source = await fetch(`/modules/${MODULE_ID}/scripts/hud.mjs`, { cache: "no-cache" }).then(lfText);
+        const handler = bodyOf(source, 'Hooks.on("pauseGame"', { until: "});" });
+        const ready = /Hooks\.once\("ready", \(\) => renderHud\(\)\);/.test(source);
+        equal(stableJson([/renderHud\(\)/.test(handler), /isGM|isPrimaryGm|return/.test(handler), ready]), stableJson([true, false, true]),
+            "hud.mjs: [the pauseGame handler renders the clock, it asks for a seat or returns first, ready renders the clock]");
+    }],
+
     ["R825 - the music's hand-offs leave nothing on hold: a GM's track cut off by a new state lets go of what it held, a mapped state taking over lets go of its own playlist, a mapped state after the body's silence takes the music without resuming what the silence held, and the body's silence stops a GM's track too (E19-29)", async () => {
         /*
          * E19 C5, 19.10.2026; audit S11-32 and S11-58 (the owner's D8: the silence after a body is found stops a GM's

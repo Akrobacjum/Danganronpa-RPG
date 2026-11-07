@@ -2084,7 +2084,7 @@ body.drpg-theme-stained-glass :is(#drpg-hud, #drpg-despair, #drpg-player-status,
     overflow-wrap: break-word;
 }
 body.drpg-theme-stained-glass :is(#drpg-hud .drpg-hud-campaign, #drpg-hud .drpg-hud-chapter,
-    #drpg-hud .drpg-hud-phase, #drpg-hud .drpg-hud-time,
+    #drpg-hud .drpg-hud-phase, #drpg-hud .drpg-hud-paused, #drpg-hud .drpg-hud-time,
     #drpg-hud .drpg-hud-elapsed,
     #drpg-despair .drpg-despair-name, #drpg-despair .drpg-despair-count,
     #drpg-despair .drpg-overflow-caption, #drpg-player-status .drpg-status-label,
@@ -2237,6 +2237,20 @@ body.drpg-theme-stained-glass #drpg-hud .drpg-hud-phase {
     text-shadow: none;
 }
 /* The clock's phase stamp wears its sprite in pixel-icons.css, for both themes. */
+/* The pause's stamp under it (E23 C2b; hud.mjs `hudHeader`): cut like the phase's, ink on Bone rather than on the
+   state colour, because a pause is not a state of the game's day and must not read as one. On the floor, as every
+   label of the chrome is. */
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-paused {
+    font-size: max(var(--drpg-sg-floor), calc(13px * var(--drpg-sg-scale)));
+    letter-spacing: 0.14em;
+    margin: 0 auto 2px;
+    padding: 1px 12px 2px;
+    color: var(--drpg-sg-ink);
+    background: var(--drpg-sg-bone);
+    border: 0;
+    border-radius: 0;
+    clip-path: polygon(0 0, 100% 0, 94% 100%, 3% 100%);
+}
 
 /* ---- C-J. The Event panel: the drawn width, and a glyph on every card ---------------------
    355 px, not the rail's 412: the audit page sizes it to the pool bar on a PLAYER's screen,
