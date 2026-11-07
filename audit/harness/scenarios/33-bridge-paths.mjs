@@ -959,7 +959,10 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
             const kept = game.i18n.format("DRPG.Items.discardKept", { item: "E31 broken" });
             const nowhere = game.i18n.format("DRPG.Items.discardNoTrace", { item: "E31 broken" });
             const before = game.messages.contents.length;
-            const r = await U.discardBroken(actor, actor.items.get("${broken}"));
+            // The throw-away question is the kit's since E21 C5a (destructive, Cancel the default): p1 presses Yes.
+            const D = foundry.applications.api.DialogV2, wait = D.wait;
+            D.wait = async function (cfg) { const yes = (cfg?.buttons ?? []).find(b => b.action === "yes"); if (!yes) return wait.call(this, cfg); return yes.callback ? yes.callback() : "yes"; };
+            let r; try { r = await U.discardBroken(actor, actor.items.get("${broken}")); } finally { D.wait = wait; }
             const warned = game.messages.contents.slice(before).map(m => S.contentOf(m))
                 .filter(words => words.includes(kept) || words.includes(nowhere));
             return { r: r ?? null, warned, kept, nowhere };`, { timeout: 60000 });
@@ -995,13 +998,14 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         const loggedBefore = (await refusalsLogged(gm, "remnant.place")).length;
         const n11b = await noticeCount(p1);
         const ownRoad = await p1.eval(`const U = await import("${repoUrl}/scripts/use-items.mjs");
-            const D = foundry.applications.api.DialogV2, was = D.confirm; let asked = 0;
-            D.confirm = async (...args) => { asked += 1; return was.apply(D, args); };
+            // The question is the kit's since E21 C5a (DialogV2.wait): every window asked is counted.
+            const D = foundry.applications.api.DialogV2, was = D.wait; let asked = 0;
+            D.wait = async function (...args) { asked += 1; return was.apply(this, args); };
             try {
                 const actor = game.actors.get("${IDS.aiko}");
                 const r = await U.discardBroken(actor, actor.items.get(${JSON.stringify(lockpick)}));
                 return { r: r ?? null, asked };
-            } finally { D.confirm = was; }`, { timeout: 60000 });
+            } finally { D.wait = was; }`, { timeout: 60000 });
         await settle(1200);
         const ownSaid = (await noticesSince(p1, n11b)).map(x => x.msg);
         const n11c = await noticeCount(p1);

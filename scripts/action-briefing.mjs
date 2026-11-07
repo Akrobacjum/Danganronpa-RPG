@@ -32,11 +32,10 @@ import { tamperQuote, witnessesTo } from "./cleanup.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { othersInRoom, locateActor } from "./movement.mjs";
 import { projectsAvailableIn, isIndirectMurder } from "./projects.mjs";
-import { dialogContent, error, plural } from "./utils.mjs";
+import { error, plural, esc } from "./utils.mjs";
 import { equippedFor, tierOf } from "./use-items.mjs";
 import { toolRelief } from "./action-pipeline.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
+import { drpgWindow } from "./ui-kit.mjs";
 
 /* ==========================================================================
  * BRIEFING
@@ -59,7 +58,17 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * no window of its own to fold into.
  */
 export function briefingBlock(actor, actionKey, def, { extraFacts = [] } = {}) {
-    const facts = briefingFacts(actor, actionKey, def, extraFacts);
+    /* A FACT IS A LINE, OR A LINE BOUND TO A ROW (E21 C5b, 06.11.2026; audit S02-07, S02-06). `{ text, when }` is drawn
+       with `data-drpg-when`: the stylesheet shows it while the menu's row of that value is picked (the rule beside
+       the request box's), so a menu says the thresholds of the option picked, not of all of them. `{ text, all }` goes
+       under "All thresholds", a closed <details> below the list: the ladders a player may look up and need not read
+       (Observe's Key, faint and daily-life ladders, the owner's Q-E21-2 default). A string is a line shown always. */
+    const facts = briefingFacts(actor, actionKey, def, extraFacts).map(f => (typeof f === "string" ? { text: f } : f));
+    const li = f => {
+        const when = Array.isArray(f.when) ? f.when.join(" ") : f.when;
+        return `<li${when ? ` data-drpg-when="${esc(when)}"` : ""}>${f.text}</li>`;
+    };
+    const shown = facts.filter(f => !f.all), more = facts.filter(f => f.all);
 
     const paragraphs = String(def.description ?? def.hint ?? "")
         .split(/\n\s*\n/)
@@ -75,7 +84,9 @@ export function briefingBlock(actor, actionKey, def, { extraFacts = [] } = {}) {
     return `<div class="drpg-briefing-block">
         ${paragraphs}
         ${instruction}
-        <ul class="drpg-briefing-facts">${facts.map(f => `<li>${f}</li>`).join("")}</ul>
+        <ul class="drpg-briefing-facts">${shown.map(li).join("")}</ul>
+        ${more.length ? `<details class="drpg-briefing-all"><summary>${game.i18n.localize("DRPG.Kit.allThresholds")}</summary>
+            <ul class="drpg-briefing-facts">${more.map(li).join("")}</ul></details>` : ""}
     </div>`;
 }
 
@@ -177,9 +188,11 @@ function briefingFacts(actor, actionKey, def, extraFacts = []) {
      * written; now they do.
      */
     if (actionKey === "tamper") {
+        // Once, with the number the cover is rolled against (E21 C5b; audit S02-07): the Tamper menu said the watchers
+        // twice, here and in its thresholds (`dcConceal`, gone from `tamperThresholdFacts`), in two verbs.
         const watching = witnessesTo(actor, othersInRoom(actor)).length;
         if (watching) {
-            facts.push(plural("DRPG.Tamper.watched", { n: watching }));
+            facts.push(plural("DRPG.Tamper.watched", { n: watching, dc: CLEANUP.conceal.threshold }));
         }
     }
 
@@ -202,7 +215,9 @@ function briefingFacts(actor, actionKey, def, extraFacts = []) {
     const callsGm = typeof def.callsGm === "function"
         ? (() => { try { return Boolean(def.callsGm(actor)); } catch { return false; } })()
         : Boolean(def.callsGm);
-    if (callsGm) facts.push(game.i18n.localize("DRPG.Action.callsGmNote"));
+    // A menu with one row a GM rules says it by that row alone (`callsGmRow`, Analyze's hint: E22 fix G2, Open 60).
+    if (def.callsGmRow) facts.push({ text: game.i18n.localize("DRPG.Action.callsGmNote"), when: def.callsGmRow });
+    else if (callsGm) facts.push(game.i18n.localize("DRPG.Action.callsGmNote"));
 
     return facts;
 }
@@ -217,7 +232,8 @@ function ladderRows(column) {
 /** The thresholds an action will be scored against, as the player stands now. */
 function thresholdFacts(actor, actionKey, def) {
     const facts = [];
-    const f = (key, data) => facts.push(game.i18n.format(key, data));
+    // `bound`: `{ when }` (the row that shows the line) or `{ all: true }` (under "All thresholds"), see `briefingBlock`.
+    const f = (key, data, bound = null) => facts.push(bound ? { text: game.i18n.format(key, data), ...bound } : game.i18n.format(key, data));
     const mins = list => (list ?? []).map(t => t.min);
 
     switch (actionKey) {
@@ -229,10 +245,12 @@ function thresholdFacts(actor, actionKey, def) {
         }
         case "observe": {
             const col = key => Object.fromEntries(REMNANT_VISIBILITY.map(v => [v, OBSERVE_DC[v]?.[key]]));
+            /* Observe's rows are ways of looking, not kinds of trace (Q-E21-2, its default): the crime's ladder shown,
+               the Key, faint and daily-life ladders under "All thresholds" (E21 C5b; audit S02-07: sixteen numbers). */
             f("DRPG.Action.dcObserve", { rows: ladderRows(col("prep")) });
-            f("DRPG.Action.dcObserveKey", { rows: ladderRows(col("key")) });
-            f("DRPG.Action.dcObserveFaint", { rows: ladderRows(col("faint")) });
-            f("DRPG.Action.dcObserveDaily", { rows: ladderRows(col("dailyLife")) });
+            f("DRPG.Action.dcObserveKey", { rows: ladderRows(col("key")) }, { all: true });
+            f("DRPG.Action.dcObserveFaint", { rows: ladderRows(col("faint")) }, { all: true });
+            f("DRPG.Action.dcObserveDaily", { rows: ladderRows(col("dailyLife")) }, { all: true });
             break;
         }
         case "analyze": {
@@ -242,11 +260,12 @@ function thresholdFacts(actor, actionKey, def) {
                 rows: ladderRows(col("prep")), faint: ladderRows(col("faint")),
                 // A Key and a Final are rolled for since 21.09 - their own column.
                 key: ladderRows(col("key"))
-            });
+            }, { when: "bullet" });
+            // Each by the row that rolls it (E21 C5b): the menu's `bullet`, `hint`, `stash` and `passage`.
             const [a, b] = mins(def.hintThresholds);
-            if (a !== undefined) f("DRPG.Action.dcHint", { a, b: b ?? a });
-            if (def.stashThreshold) f("DRPG.Action.dcStash", { n: def.stashThreshold });
-            if (def.passageThreshold) f("DRPG.Action.dcPassage", { n: def.passageThreshold });
+            if (a !== undefined) f("DRPG.Action.dcHint", { a, b: b ?? a }, { when: "hint" });
+            if (def.stashThreshold) f("DRPG.Action.dcStash", { n: def.stashThreshold }, { when: "stash" });
+            if (def.passageThreshold) f("DRPG.Action.dcPassage", { n: def.passageThreshold }, { when: "passage" });
             break;
         }
         case "project": {
@@ -287,18 +306,17 @@ function thresholdFacts(actor, actionKey, def) {
  * briefing - there is nothing to confirm, you just drag your token.
  */
 export async function briefing(actor, actionKey, def) {
-    const buttons = actionKey === "move"
-        ? [{ action: "ok", label: game.i18n.localize("DRPG.Action.gotIt"), default: true }]
-        : [
-            { action: "go", label: game.i18n.localize("DRPG.Action.proceed"), default: true },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ];
+    // On the kit's frame (E21 C5a): Move's briefing answers nothing - its one word is the primary "Got it" -, every
+    // other action's goes on through its primary or is withdrawn with Cancel.
+    const footer = actionKey === "move"
+        ? { primary: { action: "ok", label: game.i18n.localize("DRPG.Action.gotIt") } }
+        : { primary: { action: "go", label: game.i18n.localize("DRPG.Action.proceed") }, close: "cancel" };
 
-    const result = await DialogV2.wait({
-        window: { title: def.label },
+    const result = await drpgWindow({
+        title: def.label,
         classes: ["drpg-panel", "drpg-briefing"],
-        content: dialogContent(briefingBlock(actor, actionKey, def)),
-        buttons,
+        body: briefingBlock(actor, actionKey, def),
+        footer,
         rejectClose: false
     });
 
@@ -316,17 +334,13 @@ export function tamperThresholdFacts(actor, cleanup) {
         if (CLEANUP.toolTierReducesDc && tier) reliefs.push(game.i18n.format("DRPG.Action.reliefTool", { n: tier }));
         const fresh = cleanup.freshSceneBonus();
         if (fresh) reliefs.push(game.i18n.format("DRPG.Action.reliefFresh", { n: fresh }));
-        const facts = [game.i18n.format("DRPG.Action.dcTamper", {
+        // By the row that rolls each (E21 C5b): the erase ladder under Cover your traces, the trail's number under its
+        // row. The watchers are said once, by `briefingFacts`, with the cover's number (`DRPG.Tamper.watched`).
+        return [{ text: game.i18n.format("DRPG.Action.dcTamper", {
             rows: ladderRows(column),
             relief: reliefs.length ? game.i18n.format("DRPG.Action.dcTamperRelief", { what: reliefs.join(", ") }) : ""
-        })];
-        facts.push(game.i18n.format("DRPG.Action.dcFrame", { n: CLEANUP.actions.misleadingTrail.threshold }));
-        // Through the same filter the concealment roll uses: a killer's accomplice
-        // in the room is no witness, and no concealment will be rolled for them.
-        if (witnessesTo(actor, othersInRoom(actor)).length) {
-            facts.push(game.i18n.format("DRPG.Action.dcConceal", { n: CLEANUP.conceal.threshold }));
-        }
-        return facts;
+        }), when: "cover" },
+        { text: game.i18n.format("DRPG.Action.dcFrame", { n: CLEANUP.actions.misleadingTrail.threshold }), when: "frame" }];
     } catch (err) {
         error("Could not print the Tamper thresholds", err);
         return [];

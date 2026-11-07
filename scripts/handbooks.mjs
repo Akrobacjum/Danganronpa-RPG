@@ -22,7 +22,7 @@ import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { pageLanguage } from "./i18n.mjs";
 import { alreadyOpen } from "./live.mjs";
 import { error, markLanguage } from "./utils.mjs";
-import { kitTabBar, wireKitTabs } from "./ui-kit.mjs";
+import { DrpgApp, kitTabBar, wireKitTabs } from "./ui-kit.mjs";
 
 const LAUNCHER_ID = "drpg-book-launcher";
 const WINDOW_CLASS = "drpg-handbook";
@@ -210,7 +210,16 @@ function toHtml(markdown) {
  *  The window
  * ========================================================================== */
 
-class HandbookApp extends foundry.applications.api.ApplicationV2 {
+/*
+ * ON THE KIT'S FRAME (E21 C6a, 07.11.2026). A `DrpgApp` (ui-kit.mjs): `drpg-ui` on the root, the window held to the screen
+ * less 8 px a side, and the book's two columns (`.drpg-handbook-main`) the kit's region - the contents list and the text
+ * scroll inside it, each on its own, as before. Until C6a Stained Glass held the window to the height it was opened or
+ * resized to through `--drpg-window-h`, which `_onPosition` mirrored (22.09: the 70 KB book came out 1038 px tall with its
+ * foot off the screen); the frame's `max-height` does that now in both themes, and the two rules went with the mirror.
+ * Under Stained Glass the window is as tall as the screen less 16 px once a book is in it (the glass's `height: auto`),
+ * not the 760 px it was asked for: not seen at a table.
+ */
+class HandbookApp extends DrpgApp() {
     static DEFAULT_OPTIONS = {
         id: "drpg-handbooks",
         classes: ["drpg-panel", WINDOW_CLASS],
@@ -219,7 +228,8 @@ class HandbookApp extends foundry.applications.api.ApplicationV2 {
             resizable: true,
             minimizable: true
         },
-        position: { width: 900, height: 760 }
+        position: { width: 900, height: 760 },
+        scrollRegion: ".drpg-handbook-main"
     };
 
     constructor(options = {}) {
@@ -238,24 +248,9 @@ class HandbookApp extends foundry.applications.api.ApplicationV2 {
         return game.i18n.localize("DRPG.Handbooks.title");
     }
 
-    /*
-     * THE HEIGHT, MIRRORED WHERE STAINED GLASS CAN READ IT. That theme sizes
-     * every module window to its content (`height: auto !important`), which
-     * for a 70 KB handbook is the whole screen and past it: measured 22.09, a
-     * window asked for 760 px came out 1038 px tall with its foot off the
-     * bottom. stained-glass.css gives this window this variable instead, so it
-     * keeps the height it was opened or resized to and the text scrolls.
-     */
-    _onPosition(position) {
-        super._onPosition(position);
-        if (Number.isFinite(position?.height)) {
-            this.element?.style.setProperty("--drpg-window-h", `${position.height}px`);
-        }
-    }
-
     async _renderHTML(_context, _options) {
         const root = document.createElement("div");
-        root.className = "drpg-handbook-body";
+        root.className = "drpg-handbook-body drpg-kit-content";
 
         // The kit's bar (E44 C4a): one tab a book, no pane of its own - `show` fills the one text below.
         const bar = document.createElement("template");
@@ -280,7 +275,8 @@ class HandbookApp extends foundry.applications.api.ApplicationV2 {
         content.replaceChildren(result);
     }
 
-    _onRender(_context, _options) {
+    _onRender(context, options) {
+        super._onRender(context, options);
         wireKitTabs(this.element, { onSwitch: id => this.show(id, { remember: true }) });
         this.show(this.book);
     }

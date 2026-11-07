@@ -37,9 +37,9 @@ import { bulletsOf, isTruthBullet, secretOf, truthBulletData } from "./truth-bul
 import { studentActors } from "./monokuma.mjs";
 import { livingStudentsForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs";
 import {
-    dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
+    plural, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
     workingScene, esc, placeRoomOptions, listOf, error } from "./utils.mjs";
-import { kitTabs, wireKitTabs, emptyOption } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm, box } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, RAISED } from "./live.mjs";
 import { keyPlanStore, remnantStore } from "./gm-stores.mjs";
 import { murderState } from "./incident-store.mjs";
@@ -47,8 +47,6 @@ import { bridgeRequest } from "./bridge-guards.mjs";
 import { roomRegions } from "./rooms.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
 
 const ICON = "icons/svg/hazard.svg";
 
@@ -1042,10 +1040,10 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
 
     // The room's field is labelled "Room" (E09 C14, 08.10.2026; audit S05-35): it borrowed
     // `pickRoom`, the empty option of the Remnants tab's room select, and read "- create in -".
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Investigation.newTraceTitle") },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Investigation.newTraceTitle"),
         classes: ["drpg-panel", "drpg-window-newtrace"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p class="notes">${game.i18n.localize("DRPG.Investigation.newTraceIntro")}</p>
             <label>${game.i18n.localize("DRPG.Investigation.room")}
                 <select name="room">${roomOptions}</select></label>
@@ -1074,11 +1072,10 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
             <label class="drpg-checkbox"><input type="checkbox" name="reinforced" />
                 ${game.i18n.localize("DRPG.Investigation.newTraceReinforced")}</label>
             <p class="notes">${game.i18n.localize("DRPG.Investigation.newTraceNote")}</p>
-        </form>`),
-        buttons: [
-            {
+        </form>`,
+        footer: {
+            primary: {
                 action: "ok", label: game.i18n.localize("DRPG.Investigation.createHere"),
-                default: true,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
                     return {
@@ -1094,8 +1091,8 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
                     };
                 }
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
 
@@ -1308,10 +1305,10 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
        said they were examining - and until 1.2.42 that sentence went into the GM-private note
        and never reached them. Their words, in the field they will read back; the note beside it
        is for what the GM keeps. */
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Investigation.createHereTitle") },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Investigation.createHereTitle"),
         classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p class="notes">${plural("DRPG.Investigation.createHereIntro", { n: plan.entries.length })}</p>
             <label>${game.i18n.localize("DRPG.Investigation.room")}
                 <select name="room">${roomOptions}</select></label>
@@ -1338,11 +1335,10 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
                     <option value="">${game.i18n.format(
                         "DRPG.Investigation.noSlot", { n: KEY_REMNANTS.prepared })}</option>
                 </select></label>
-        </form>`),
-        buttons: [
-            {
+        </form>`,
+        footer: {
+            primary: {
                 action: "ok", label: game.i18n.localize("DRPG.Investigation.createHere"),
-                default: true,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
                     return {
@@ -1356,8 +1352,8 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
                     };
                 }
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
 
@@ -1427,27 +1423,27 @@ export async function placeKeyRow(root, slot) {
         return null;
     }
     const drawn = keyPlan().entries[slot] ?? {};
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Investigation.placeTitle") },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Investigation.placeTitle"),
         classes: ["drpg-panel", "drpg-window-keyplace"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p class="notes">${esc(SCALE_LABELS[drawn.scale] ?? drawn.scale ?? "")}</p>
             <label>${game.i18n.localize("DRPG.Investigation.room")}
                 <select name="room">${rooms.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join("")}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.visibility")}
                 <select name="vis">${REMNANT_VISIBILITY.map(v => `<option value="${v}"${v === "evident" ? " selected" : ""}>${
                     esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("")}</select></label>
-        </form>`),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Investigation.place"), default: true,
+        </form>`,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.Investigation.place"),
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
                     return { room: f.room.value, visibility: f.vis.value };
                 }
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
     if (!result || result === "cancel" || !result.room) return null;
@@ -1584,15 +1580,16 @@ export async function confirmSweepBullets({ actors = null } = {}) {
         return 0;
     }
 
-    const sure = await DialogV2.confirm({
-        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
-        no: { label: game.i18n.localize("DRPG.Dialog.no") },
-        window: { title: game.i18n.localize("DRPG.Panel.sweepBullets") },
+    // What cannot be undone, named by its effect (E22 rules 4, 9): destructive, Cancel the default and first under Enter.
+    const sure = await drpgConfirm({
+        yes: { role: "destructive", label: game.i18n.localize("DRPG.Panel.sweepBullets") },
+        no: "cancel",
+        title: game.i18n.localize("DRPG.Panel.sweepBullets"),
         classes: ["drpg-panel"],
-        content: dialogContent(`<div>
+        body: `<div>
             <p>${plural("DRPG.Panel.sweepConfirm", { n: doomed })}</p>
             <p class="notes">${game.i18n.format("DRPG.Panel.sweepConfirmNote", { kept })}</p>
-        </div>`),
+        </div>`,
         rejectClose: false
     });
     if (!sure) return 0;
@@ -2102,9 +2099,9 @@ export function caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTr
                 </li>`; }).join("")}</ul>`
                 : "";
         })()}
-        <p class="notes${finalTruthPlacedThisChapter() ? "" : " drpg-warning"}">${game.i18n.localize(
-            finalTruthPlacedThisChapter() ? "DRPG.Mastermind.finalTruthPlaced"
-                : "DRPG.Mastermind.finalTruthReminder")}</p>
+        ${/* information, not a warning (D11; audit S12-59, E22 C6b): none placed yet is the kit's neutral box */ ""}
+        ${finalTruthPlacedThisChapter() ? `<p class="notes">${game.i18n.localize("DRPG.Mastermind.finalTruthPlaced")}</p>`
+            : box("info", `<p class="notes">${game.i18n.localize("DRPG.Mastermind.finalTruthReminder")}</p>`)}
         <label>${game.i18n.localize("DRPG.Investigation.room")}
             <select name="finalRoom">
                 <option value="">${esc(game.i18n.localize("DRPG.Mastermind.finalPickRoom"))}</option>
@@ -2307,7 +2304,8 @@ function wireCase(dialog) {
     const root = dialog.element;
     wirePortraitPickers(root, { defaultImg: ICON });
 
-    wireKitTabs(root);
+    // `win` and `app` (E21 C2a): the bar may widen the window, and a press puts it back on the screen (C1b).
+    wireKitTabs(root, { win: root, app: dialog });
 
     // A Key row's Place button (E09 C16). Bound on the nodes, which a redraw replaces.
     for (const button of root.querySelectorAll("[data-drpg-key-place]")) {
@@ -2344,12 +2342,13 @@ export async function deleteTraceRow(key) {
     const trace = allTraces().find(t => rowKey(t.scene.id, t.token.id) === key);
     if (!trace) return null;
     const name = trace.data.public?.name || traceContextLine(trace.data) || key;
-    const sure = await DialogV2.confirm({
-        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
-        no: { label: game.i18n.localize("DRPG.Dialog.no") },
-        window: { title: game.i18n.localize("DRPG.Investigation.deleteTraceTitle") },
+    // A Remnant deleted does not come back (E22 rule 4): destructive, named by its effect, Cancel the default.
+    const sure = await drpgConfirm({
+        yes: { role: "destructive", label: game.i18n.localize("DRPG.Investigation.deleteTraceTitle") },
+        no: "cancel",
+        title: game.i18n.localize("DRPG.Investigation.deleteTraceTitle"),
         classes: ["drpg-panel"],
-        content: dialogContent(`<p>${esc(game.i18n.format("DRPG.Investigation.deleteTraceAsk", { name }))}</p>`),
+        body: `<p>${esc(game.i18n.format("DRPG.Investigation.deleteTraceAsk", { name }))}</p>`,
         rejectClose: false
     });
     if (!sure) return false;
@@ -2507,27 +2506,31 @@ export async function openInvestigationDashboard({ said = null } = {}) {
     const buildCase = () => caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter });
 
     // What the button that reopened this window did (`runDashboardButton`), over the live region, which a redraw rebuilds.
-    const content = dialogContent(`${said ? `<p class="drpg-case-result notes" role="status">${esc(said)}</p>` : ""}${buildCase()}`);
+    const body = `${said ? `<p class="drpg-case-result notes" role="status">${esc(said)}</p>` : ""}${buildCase()}`;
 
-    const action = await tableDialog({
-        window: { title: game.i18n.localize("DRPG.Investigation.dashboardTitle") },
+    /* THE FOOTER BY ROLE (E21 C2a, E22): Save the primary; the views and the body secondary; Clear Faint and Sweep,
+       which take what cannot be put back, destructive - each asks first (`confirmClearFaint`, `confirmSweepBullets`)
+       and is never the default; Cancel, since Save is still to answer (E21 rule 3), its answer "close" as before. */
+    const action = await drpgWindow({
+        title: game.i18n.localize("DRPG.Investigation.dashboardTitle"),
         classes: ["drpg-panel", "drpg-projects", "drpg-window-case"],
-        content,
-        buttons: [
-            {
-                action: "save", label: game.i18n.localize("DRPG.Assign.save"), default: true,
+        // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
+        fit: true,
+        body,
+        footer: {
+            primary: {
+                action: "save", label: game.i18n.localize("DRPG.Assign.save"),
                 callback: (e, b, d) => readDashboardForm(d)
             },
+            secondary: [
             // N-4: the one road to a trace the GM is simply stating exists. Beside
             // the sweeps rather than on a tab, because it is an action rather than a
             // view - the same place "clear the Faint traces" lives.
             { action: "newTrace", label: game.i18n.localize("DRPG.Investigation.newTraceTitle") },
-            { action: "clearFaint", label: game.i18n.localize("DRPG.Panel.clearFaint") },
             // The Truth Bullet sweep lands here for the same reason as the rest
             // of this row (Z7): it stopped being a step in the end-of-chapter
             // window, and a clean-up with no button is a clean-up only somebody
-            // who reads `api.mjs` can run.
-            { action: "sweepBullets", label: game.i18n.localize("DRPG.Panel.sweepBullets") },
+            // who reads `api.mjs` can run. (Its button, and Clear Faint's, are destructive: below.)
             // All three used to be tiles in the GM panel, or windows of their
             // own. They belong here: a GM issues the autopsy, reads the
             // evidence log or reports a body while looking at the case, not
@@ -2538,9 +2541,14 @@ export async function openInvestigationDashboard({ said = null } = {}) {
             // open a window or tidy something; this one starts a case. Its class and icon set it
             // apart in both themes - one of seven equal buttons is what the audit saw.
             { action: "bodyFound", label: game.i18n.localize("DRPG.Chapter.bodyTitle"),
-                icon: "fa-solid fa-skull", class: "drpg-state-change" },
-            { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
+                icon: "fa-solid fa-skull", class: "drpg-state-change" }
+            ],
+            destructive: [
+                { action: "clearFaint", label: game.i18n.localize("DRPG.Panel.clearFaint") },
+                { action: "sweepBullets", label: game.i18n.localize("DRPG.Panel.sweepBullets") }
+            ],
+            close: { role: "cancel", action: "close" }
+        },
         render: (event, dialog) => {
             wireCase(dialog);
             wireCaseFilters(dialog, reading, () => live?.refresh?.());
@@ -2564,8 +2572,8 @@ export async function openInvestigationDashboard({ said = null } = {}) {
              * the subscription for exactly this shape: a node nobody edits, written
              * in place, with no focus rule.
              *
-             * SAFE TO DISABLE because `save` is the first entry in `buttons` and
-             * carries `default: true`. Enter in a field presses the FIRST submit in
+             * SAFE TO DISABLE because `save` is the primary, the first button in the
+             * kit's tree and the default. Enter in a field presses the FIRST submit in
              * DOM order and a disabled first submit kills Enter outright, so the one
              * button that may never be greyed is the first one.
              */

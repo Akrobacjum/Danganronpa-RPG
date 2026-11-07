@@ -62,6 +62,8 @@ import { MODULE_ID, TRAP_TRIGGERS, TRAP_MODIFIERS, AFTER_DARK,
     TIME_OF_DAY_LABELS } from "./config.mjs";
 import { SETTINGS, getSetting, isDeadForGm } from "./settings.mjs";
 import { isPrimaryGm, debug, log, warn, error, esc, pause, placeRoomOptions, serialWrite } from "./utils.mjs";
+// The kit's frame (E21 C3a): the GM's plant window.
+import { drpgWindow } from "./ui-kit.mjs";
 import { trapLedgerStore, trapPlantStore } from "./gm-stores.mjs";
 // Statically: the leaf imports config.mjs and utils.mjs only, so this edge closes no cycle (E31).
 import { ownsActor, guardRelayOwner, guardRelayActor, guardRelayRoom, guardRelayTeller, judge, table, pick, as, knownSender, bridgeRequest } from "./bridge-guards.mjs";
@@ -643,23 +645,20 @@ export async function openPlantDialog(projectId) {
     const roomOptions = placeRoomOptions({ room: meta.room,
         sceneId: tokenRefOf(projectId)?.sceneId ?? sceneOfRoom(meta.room)?.id ?? null });
 
-    const DialogV2 = foundry.applications.api.DialogV2;
-    const { dialogContent } = await import("./utils.mjs");
-
-    const answer = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Trap.plantTitle") },
+    const answer = await drpgWindow({
+        title: game.i18n.localize("DRPG.Trap.plantTitle"),
         classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p class="notes">${game.i18n.localize("DRPG.Trap.plantPrompt")}</p>
             <label>${game.i18n.localize("DRPG.Trap.plantItem")}
                 <input type="text" name="name" value="" /></label>
             <label>${game.i18n.localize("DRPG.Trap.plantRoom")}
                 <select name="room">${roomOptions}</select></label>
             <p class="notes">${game.i18n.localize("DRPG.Trap.plantUsableNote")}</p>
-        </form>`),
-        buttons: [
-            {
-                action: "plant", default: true,
+        </form>`,
+        footer: {
+            primary: {
+                action: "plant",
                 label: game.i18n.localize("DRPG.Trap.plantAction"),
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
@@ -670,8 +669,9 @@ export async function openPlantDialog(projectId) {
                     };
                 }
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
+            // Its "Close" withdrew the question (E21 rule 3): the role's Cancel, the answer "cancel" as before.
+            close: "cancel"
+        },
         rejectClose: false
     });
 

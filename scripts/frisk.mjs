@@ -19,7 +19,8 @@ import { witnessesOf } from "./chapter.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { flagsHeldNow } from "./sheet-audit.mjs";
 import { inClassTrial } from "./trial.mjs";
-import { esc, log, debug, error, whisperToOwner, whisperToGms, announce, ownerIdsOf, gmIds, activeGmIds, primaryGmId, isPrimaryGm, dialogContent, plural } from "./utils.mjs";
+import { esc, log, debug, error, whisperToOwner, whisperToGms, announce, ownerIdsOf, gmIds, activeGmIds, primaryGmId, isPrimaryGm, plural } from "./utils.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 import { knowsOfDeath } from "./incident-store.mjs";
 import { sayNotDone } from "./bridge-guards.mjs";
 
@@ -1005,18 +1006,19 @@ async function openAskWindow({ askId, who = "", name = "", ms = 0, force = false
     const text = [byGms ? say("DRPG.Frisk.gmFor", { name }) : "",
         say(force ? "DRPG.Frisk.askText" : "DRPG.Frisk.askTextAskOnly", { who, name }),
         `<p><small>${plural("DRPG.Frisk.askClock", { s: Math.round((Number(ms) || 0) / 1000) }, "s")}</small></p>`].join("");
-    const { DialogV2 } = foundry.applications.api;
     let answer = null;
     try {
-        answer = await DialogV2.wait({
-            window: { title: game.i18n.localize("DRPG.Frisk.askTitle") },
+        // M12's card (E21 C5a; docs/design/windows.md): Refuse the primary and the default, on the right; Let them look
+        // a secondary on the left.
+        answer = await drpgWindow({
+            title: game.i18n.localize("DRPG.Frisk.askTitle"),
             classes: ["drpg-panel"],
-            content: dialogContent(text),
+            body: text,
             rejectClose: false,
-            buttons: [
-                { action: "refuse", label: game.i18n.localize("DRPG.Frisk.refuse"), default: true, autofocus: true },
-                { action: "allow", label: game.i18n.localize("DRPG.Frisk.allow") }
-            ],
+            footer: {
+                primary: { action: "refuse", label: game.i18n.localize("DRPG.Frisk.refuse") },
+                secondary: [{ action: "allow", label: game.i18n.localize("DRPG.Frisk.allow") }]
+            },
             render: (event, dialog) => {
                 open.dialog = dialog;
                 open.timer = setTimeout(() => {
@@ -1040,18 +1042,18 @@ async function openAskWindow({ askId, who = "", name = "", ms = 0, force = false
  * 'Make them'; 'Leave it', a close or the clock is false.
  */
 async function askToForce(def, forceMs) {
-    const { DialogV2 } = foundry.applications.api;
     let timer = null;
     try {
-        const picked = await DialogV2.wait({
-            window: { title: game.i18n.localize("DRPG.Frisk.forceTitle") },
+        // M12's Make them? (E21 C5a): Leave it the primary and the default, Make them a secondary.
+        const picked = await drpgWindow({
+            title: game.i18n.localize("DRPG.Frisk.forceTitle"),
             classes: ["drpg-panel"],
-            content: dialogContent(`<p>${plural("DRPG.Frisk.forceText", { force: esc(def?.frisk?.threshold ?? ""), s: Math.round(forceMs / 1000) }, "s")}</p>`),
+            body: `<p>${plural("DRPG.Frisk.forceText", { force: esc(def?.frisk?.threshold ?? ""), s: Math.round(forceMs / 1000) }, "s")}</p>`,
             rejectClose: false,
-            buttons: [
-                { action: "leave", label: game.i18n.localize("DRPG.Frisk.leave"), default: true },
-                { action: "force", label: game.i18n.localize("DRPG.Frisk.force") }
-            ],
+            footer: {
+                primary: { action: "leave", label: game.i18n.localize("DRPG.Frisk.leave") },
+                secondary: [{ action: "force", label: game.i18n.localize("DRPG.Frisk.force") }]
+            },
             render: (event, dialog) => {
                 timer = setTimeout(() => { if (dialog.rendered) dialog.close(); }, forceMs);
             }

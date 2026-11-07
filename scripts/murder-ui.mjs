@@ -7,8 +7,8 @@
  * `incidentPeople`, `recentTurnsHtml`, `cleanupSection` and `killerCleanup`), the
  * stage it reopens on (`incidentSignature`), its footer (`incidentButtons`), and
  * the footer's "ask again" for the opening roll (`reaskOpening`, rate-limited on
- * this client by `lastReask` and `REASK_COOLDOWN_MS`). Its one piece of state is
- * `lastReask`. What it does not hold: the incident's record and its roads
+ * this client by `lastReask` and `REASK_COOLDOWN_MS`) and its Pass (`lastPass`, `PASS_COOLDOWN_MS`, E22 C3b). Its
+ * state is those two times. What it does not hold: the incident's record and its roads
  * (incident-store.mjs) and the rules the window and the tracker call
  * (murder-rules.mjs). It listens to no socket and sends nothing.
  *
@@ -23,19 +23,19 @@
  * utils.mjs. It is the top of the family because the window and the tracker call
  * five names of the rules (`openMurder`, `passTurn`, `endMurder`, `rollOpening`,
  * and `openingInvited`, the `let` the rules export for the tracker) and nothing
- * below calls back into them. It exports nothing that murder.mjs did not, and its
- * `DialogV2` line is its own copy of the alias, not an import.
+ * below calls back into them. It exports nothing that murder.mjs did not. Its windows
+ * are the kit's since E21 (C2a the tracker, C3a the murder window and End the murder's
+ * question: ui-kit.mjs `drpgWindow`, `drpgConfirm`), so it holds no `DialogV2` alias.
  */
 
 import { CRISIS_ACTIONS, RESOLUTION_STRESS_COST, TIMING, INDIRECT_MURDER, ACTIONS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { resourceValue, resourceMax, marksOf, reserveNote } from "./character.mjs";
 import { keepLive } from "./live.mjs";
-import { dialogContent, tableDialog, error, plural, esc } from "./utils.mjs";
+import { error, plural, esc } from "./utils.mjs";
+import { drpgWindow, drpgConfirm } from "./ui-kit.mjs";
 import { murderState, killerIds } from "./incident-store.mjs";
 import { openMurder, passTurn, endMurder, openingInvited, rollOpening } from "./murder-rules.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
 
 /* ==========================================================================
  * THE GM'S TRACKER
@@ -192,13 +192,13 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
         return { killerRoom: named(k), victimRoom: named(v) };
     };
 
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Murder.openTitle") },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Murder.openTitle"),
         // Named so it can be addressed - the diagnostics count it and the suite
         // closes it - and deliberately WITHOUT an `alreadyOpen` guard, exactly
         // like the incident tracker's own class.
         classes: ["drpg-panel", "drpg-window-murder"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p class="notes">${game.i18n.localize("DRPG.Murder.openIntro")}</p>
             ${gone ? `<p class="notes drpg-warning" data-drpg-killer-gone>${
                 game.i18n.format("DRPG.Murder.killerNotAlive", { name: esc(gone) })}</p>` : ""}
@@ -231,7 +231,7 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
             <p class="notes drpg-warning" data-drpg-rooms hidden></p>
             <p class="notes drpg-warning" data-drpg-self hidden>${
                 game.i18n.localize("DRPG.Murder.openSelfNote")}</p>
-        </form>`),
+        </form>`,
         render: (event, dialog) => {
             const form = dialog.element.querySelector("form");
             if (!form) return;
@@ -287,9 +287,9 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
             form.indirect.addEventListener("change", sync);
             sync();
         },
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Murder.openConfirm"), default: true,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.Murder.openConfirm"),
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
                     return {
@@ -300,8 +300,8 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
                     };
                 }
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
 
@@ -336,6 +336,22 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
 /** The tracker's "ask again": once per ten seconds on this client. */
 let lastReask = 0;
 const REASK_COOLDOWN_MS = TIMING.reaskCooldownMs;
+
+/**
+ * THE TRACKER'S PASS, ONCE PER PRESS (E22 C3b, 06.11.2026; audit S03-34). Pass the turn was the default under Enter and
+ * the tracker reopens after it with the same footer, so a held or doubled Enter passed turn after turn and ran the
+ * drain on every full round. Close is the default now, and a Pass within 1.5 s of the last on this client is refused
+ * with a word (`passTooSoon`), as the opening's ask-again is.
+ */
+let lastPass = 0;
+const PASS_COOLDOWN_MS = 1500;
+
+/** Whether a Pass pressed now goes through (`passTooSoon`), and the time noted when it does. */
+function passAllowed(now = Date.now()) {
+    if (now - lastPass < PASS_COOLDOWN_MS) return false;
+    lastPass = now;
+    return true;
+}
 
 /** The three people in the incident, and the victim's Health and Sanity marks as text. */
 function incidentPeople(now) {
@@ -485,8 +501,13 @@ function incidentSignature(now) {
 }
 
 /** The footer, by stage: re-ask the opening roll, pass the turn, end the incident, close. */
+/*
+ * THE FOOTER BY ROLE (E21 C2a, E22; the owner's Q-E21-1 b): Pass the turn the primary and the default; the re-ask
+ * secondary; End the murder destructive - it asks first, and is never the default; Close, since the tracker answers
+ * nothing (E21 rule 3).
+ */
 function incidentButtons(state) {
-    return [
+    const list = [
         // There is no unconditional "roll the opening" button, and there must not
         // be one - the rate-limited re-ask at the end of this note is the exception.
         //
@@ -526,11 +547,20 @@ function incidentButtons(state) {
             // second, manual route only invited the GM to nominate somebody
             // who had not actually walked in - and to do it twice, since the
             // watcher had usually already fired.
-            { action: "pass", label: game.i18n.localize("DRPG.Murder.passTurn"), default: true }
-        ]),
-        { action: "end", label: game.i18n.localize("DRPG.Murder.endMurder") },
-        { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
+            //
+            // NOT IN THE RESOLUTION (E22 C3b; audit S03-34): at Stage 6 there are no turns left, and Pass did nothing.
+            ...(state.stage === "resolution" ? [] : [{ action: "pass", label: game.i18n.localize("DRPG.Murder.passTurn") }])
+        ])
     ];
+    /* THE FOOTER BY ROLE (E22 C3b, 06.11.2026; audit S03-34). Close is the default, so Enter passes no turn; Pass and
+       the ask-again are ways on, beside it; End the murder - "Close the murder" until C3b, in the same dark face as Close
+       - cannot be undone: the destructive role, last on the left, apart from the closing word. */
+    return {
+        secondary: list,
+        destructive: [{ action: "end", label: game.i18n.localize("DRPG.Murder.endMurder") }],
+        close: { role: "close", action: "close" },
+        default: "close"
+    };
 }
 
 /** Send the opening roll again, once the cooldown allows. */
@@ -605,13 +635,15 @@ export async function openIncidentTracker() {
     const openedWith = signature();
     let settling = false;
 
-    const action = await tableDialog({
+    const action = await drpgWindow({
         // `cleanupSection()` puts a table in this window once Stage 6 has traces to
-        // list - `tableDialog` is what sizes the window to it.
-        window: { title: game.i18n.localize("DRPG.Murder.trackerTitle") },
+        // list - `fit` is what sizes the window to it.
+        title: game.i18n.localize("DRPG.Murder.trackerTitle"),
         classes: ["drpg-panel", "drpg-window-incident"],
-        content: dialogContent(trackerBody()),
-        buttons: incidentButtons(state),
+        // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
+        fit: true,
+        body: trackerBody(),
+        footer: incidentButtons(state),
         render: (event, dialog) => keepLive(dialog, {
             region: ".drpg-incident-live",
             build: trackerBody,
@@ -641,7 +673,8 @@ export async function openIncidentTracker() {
     });
 
     if (action === "pass") {
-        await passTurn();
+        if (passAllowed()) await passTurn();
+        else ui.notifications.warn(game.i18n.localize("DRPG.Murder.passTooSoon"));
         return openIncidentTracker();
     }
     if (action === "reask") {
@@ -649,12 +682,13 @@ export async function openIncidentTracker() {
         return openIncidentTracker();
     }
     if (action === "end") {
-        const sure = await DialogV2.confirm({
-            yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
-            no: { label: game.i18n.localize("DRPG.Dialog.no") },
+        // The yes says what it does and cannot be undone (E22 rule 4): destructive, Cancel the default and first under Enter.
+        const sure = await drpgConfirm({
+            yes: { role: "destructive", label: game.i18n.localize("DRPG.Murder.endMurder") },
+            no: "cancel",
             classes: ["drpg-panel"],
-            window: { title: game.i18n.localize("DRPG.Murder.endMurder") },
-            content: `<p>${game.i18n.localize("DRPG.Murder.endConfirm")}</p>`
+            title: game.i18n.localize("DRPG.Murder.endMurder"),
+            body: `<p>${game.i18n.localize("DRPG.Murder.endConfirm")}</p>`
         });
         if (sure) await endMurder();
     }

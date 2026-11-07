@@ -33,7 +33,7 @@
 
 import { plural } from "./utils.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
-import { DrpgApp, chips, emptyState, footerMarkup, kitNode, scrollNote } from "./ui-kit.mjs";
+import { DrpgApp, chips, drpgConfirm, emptyState, footerMarkup, kitNode, scrollNote } from "./ui-kit.mjs";
 import { clockSummary, clockAfter } from "./clock.mjs";
 import { openMessenger } from "./messenger-app.mjs";
 import {
@@ -543,16 +543,15 @@ class NoticeHistoryApp extends DrpgApp() {
         details.append(more);
     }
 
-    /** Clear, asked first, with Cancel the default: a cleared history does not come back, and it holds the murder's cards too. */
+    /** Clear, asked first, with Cancel the default: a cleared history does not come back, and it holds the murder's cards too.
+     * On the kit since E21 C6a (the 11.10 amend A7): the yes destructive, a player's too, so Cancel is the default and the
+     * first submit button (Enter); the answer "clear" as before, Cancel false and a close null. */
     async askClear() {
-        const answer = await foundry.applications.api.DialogV2.wait({
-            window: { title: localize("DRPG.Notices.clearTitle") },
+        const answer = await drpgConfirm({
+            title: localize("DRPG.Notices.clearTitle"),
             classes: ["drpg-panel", "drpg-narrow"],
-            content: `<p>${foundry.utils.escapeHTML(localize("DRPG.Notices.clearBody"))}</p>`,
-            buttons: [
-                { action: "cancel", label: localize("DRPG.Advance.cancel"), default: true },
-                { action: "clear", label: localize("DRPG.Notices.clearYes") }
-            ],
+            body: `<p>${foundry.utils.escapeHTML(localize("DRPG.Notices.clearBody"))}</p>`,
+            yes: { role: "destructive", action: "clear", label: localize("DRPG.Notices.clearYes"), callback: () => "clear" },
             rejectClose: false
         });
         if (answer === "clear") clearNoticeHistory();

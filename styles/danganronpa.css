@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.99";
+    --drpg-css-version: "1.2.100";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -2412,9 +2412,19 @@ section[data-application-part="features"] h4:not(.drpg-keep) {
     display: none !important;
 }
 
-/* A few more pixels of sheet, so the action grid does not force a scrollbar. */
-.application.sheet.daggerheart.actor.character {
-    min-height: 830px;
+/* A few more pixels of sheet, so the action grid does not force a scrollbar - but never more than the screen holds
+   (E21 C5a; audit S12-09, S01-06): a bare 830 px held the sheet's foot, and the Stop with it, below a 768 or 800 px
+   screen whatever `scaleWindow` asked for.
+
+   NOT WHILE THE SHEET IS FOLDED (06.11.2026, the owner at the table, LIVE-E44-08 (1)). Foundry folds a window by
+   writing its title bar's height inline and hiding everything under the bar, and an author `min-height` wins over an
+   inline `height`: the folded sheet kept its 830px as an empty, see-through strip the width of the title bar, with
+   the board showing through it (the owner's screenshot of it is 205 x 838 px). `.minimizing` is the class Foundry
+   carries while the fold runs, and on a close, where "WINDOWS ARRIVE, AND WINDOWS LEAVE" below holds the height
+   inline, so dropping the floor there changes nothing; `.minimized` once it is folded. Read in the sheets, not in
+   v14's source. */
+.application.sheet.daggerheart.actor.character:not(.minimized):not(.minimizing) {
+    min-height: min(830px, calc(100dvh - 20px));
 }
 
 /* Daggerheart repeats the whole inventory as a flat list below the sections,
@@ -2430,7 +2440,10 @@ section[data-application-part="inventory"] .items-section:not(.drpg-inventory-gr
     display: none !important;
 }
 
-/* A warning inside a player-facing dialog. */
+/* A warning inside a player-facing dialog. Red only for a warning (D11; audit S06-59, E22 C6b): something that will
+   go wrong, or cannot be taken back, if nobody acts - the uncovered map, the privacy of a secret. A line that only
+   informs (the Doors room count, a missing playlist, a Final Truth Remnant not placed yet) is the kit's
+   `box("info")`, neutral in both themes. */
 .drpg-warning {
     padding: 0.4rem 0.6rem;
     border-left: 3px solid var(--drpg-crimson);
@@ -2766,6 +2779,27 @@ body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
 
 .drpg-briefing-facts li::marker {
     color: var(--drpg-line-strong);
+}
+
+/* A FACT FOR ONE ROW (E21 C5b, 06.11.2026; audit S02-07): a briefing line bound to a menu row (`data-drpg-when`,
+   action-briefing.mjs `briefingBlock`) stands only while that row is picked - Analyze's hint, stash and passage
+   numbers, Tamper's erase ladder and its trail's. The menu's radios are in the same body as the briefing above them,
+   so the rule asks the body, as the request box's rule asks its list. "All thresholds" holds the rest, closed. */
+.drpg-briefing-facts > li[data-drpg-when] {
+    display: none;
+}
+
+:is(.drpg-kit-body, .dialog-content):has(.drpg-choice-list input[value="bullet"]:checked) .drpg-briefing-facts > li[data-drpg-when~="bullet"],
+:is(.drpg-kit-body, .dialog-content):has(.drpg-choice-list input[value="hint"]:checked) .drpg-briefing-facts > li[data-drpg-when~="hint"],
+:is(.drpg-kit-body, .dialog-content):has(.drpg-choice-list input[value="stash"]:checked) .drpg-briefing-facts > li[data-drpg-when~="stash"],
+:is(.drpg-kit-body, .dialog-content):has(.drpg-choice-list input[value="passage"]:checked) .drpg-briefing-facts > li[data-drpg-when~="passage"],
+:is(.drpg-kit-body, .dialog-content):has(.drpg-choice-list input[value="cover"]:checked) .drpg-briefing-facts > li[data-drpg-when~="cover"],
+:is(.drpg-kit-body, .dialog-content):has(.drpg-choice-list input[value="frame"]:checked) .drpg-briefing-facts > li[data-drpg-when~="frame"] {
+    display: list-item;
+}
+
+.drpg-briefing-all > summary {
+    cursor: pointer;
 }
 
 /* The Start the Class Trial window's list of steps is what the window tells you, and the clock note under
@@ -3458,11 +3492,10 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
     border-radius: 3px;
 }
 
-/* A scrollbar in view while the list runs past the window (E20 C4, S01-19); the
-   gutter is kept so the rows do not shift when it appears. Drawn, not measured:
-   no layout here. */
-.application.dialog.drpg-window-season .window-content {
-    overflow-y: auto;
+/* A scrollbar in view while the list runs past the window (E20 C4, S01-19): the kit's body scrolls since E21 C2b
+   (ui-kit.mjs `drpgWindow`, components.css), and this window's own `.window-content` overflow left with its frame (the
+   stage's rule 2). The gutter stays, on the body that scrolls, so the rows do not shift when the bar appears. */
+.application.dialog.drpg-window-season .drpg-kit-body {
     scrollbar-gutter: stable;
 }
 
@@ -4360,10 +4393,8 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
 /* AND THE MATRIX MAY BE WIDER THAN OTHER WINDOWS. Sixteen names, each as wide as its longest
    word, are a table of about 1400 px before the window's frame; under the common 1400 cap
    the Edit and Delete columns scrolled out of sight. The cap is still a cap - `windowWidthFor`
-   also stops at 94 % of the screen - it is this window's own, read off this window. */
-.application.dialog.drpg-window-projects {
-    --drpg-window-max: 1800px;
-}
+   also stops at 94 % of the screen - it is this window's own, read off this window: 1800 px, the kit's `matrix`
+   (ui-kit.mjs WINDOW_WIDTHS, which writes it on the window; a rule here until E21 W1). */
 
 /* The pool list on a table row's "where does this live" window.
    --------------------------------------------------------------------------
@@ -5079,8 +5110,10 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    The mode now comes from the content, via `:has()`, not from the class list.
    Nothing has to be remembered at the call site - which is what went wrong the
    last three times this was tuned: a dialog was left out of a list and only its
-   window broke. `drpg-wide` is the manual override for the one case the
-   markup cannot express (`.drpg-compact` was the other and nothing ever set it).
+   window broke. A width the window states to the kit (`width`, ui-kit.mjs
+   WINDOW_WIDTHS; the class `drpg-wide` until E21 W1) is the manual override for
+   the one case the markup cannot express (`.drpg-compact` was the other and
+   nothing ever set it).
    ========================================================================== */
 
 /* Default: ONE width, the same for every window without a table in it.
@@ -5097,46 +5130,54 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    smallest. A confirm with one sentence in it is now the same window as the
    Search picker, which is the point. */
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
-    .drpg-summary-dialog, .drpg-safeword-dialog
-):not(.drpg-wide):not(.drpg-gm-panel-window):not(.drpg-table-window) {
+    .drpg-panel, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel,
+    .drpg-summary-dialog
+):not(.drpg-kit-fit):not(.drpg-kit-width) {
     /* `!important` because ApplicationV2 writes the width as an INLINE style,
        which no stylesheet rule can outrank otherwise - and `DialogV2.confirm`
        and `.prompt` both default to `position: {width: 400}`, so every yes/no
        window in the module came out 400px against everything else's 544.
 
-       `:not(.drpg-table-window)` IS THE WHOLE REASON TABLE WINDOWS WORK.
-       A table dialog carries `.drpg-panel` too, so without this exclusion it
+       `:not(.drpg-kit-fit)` IS THE WHOLE REASON TABLE WINDOWS WORK.
+       A table window carries `.drpg-panel` too, so without this exclusion it
        matches here - and this rule's `!important` then outranks the inline
-       width that `tableDialog()`'s measured fit writes through `setPosition`,
-       every frame, forever. That is not hypothetical: an earlier attempt at
-       this stage deleted the separate table-width rule that used to sit below
-       and win on source order, which silently handed every table window to
-       THIS rule and pinned them all at `--drpg-popup` with no way for the
-       measurement to take. The marker class is set in `tableDialog()`, so a
+       width that the measured fit writes through `setPosition`, every frame,
+       forever. That is not hypothetical: an earlier attempt at this stage
+       deleted the separate table-width rule that used to sit below and win on
+       source order, which silently handed every table window to THIS rule and
+       pinned them all at `--drpg-popup` with no way for the measurement to
+       take. The marker class is the kit's `fit` (ui-kit.mjs `drpgWindow`,
+       `fitKitWidth`; `tableDialog()`'s `drpg-table-window` until E21 C2a), so a
        window either opts into measured sizing or into this fixed width - and
-       never into both. */
+       never into both. `:not(.drpg-kit-width)` is the same exclusion for a kit
+       window that states its width (`width`, ui-kit.mjs WINDOW_WIDTHS, E21 W1):
+       the `drpg-wide`, item tables' and GM panel's rules that stood below it
+       until then, one per window class, are the kit's table now. */
     width: min(var(--drpg-popup), 92vw) !important;
+}
+/* The cap, for every such window but a kit one (E21 C1b, E44's Open 19): a kit window's `max-width` is its frame's,
+   the screen less 8 px a side (components.css); with this rule's `!important` on it the frame's lost on every kit
+   window, which all carry `.drpg-panel`. The width above still holds them all. */
+.application.dialog:is(
+    .drpg-panel, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel,
+    .drpg-summary-dialog
+):not(.drpg-kit-fit):not(.drpg-kit-width):not(.drpg-ui) {
     max-width: min(var(--drpg-popup), 92vw) !important;
 }
 
-/* A measured window states no width here AT ALL.
-   --------------------------------------------------------------------------
-   Everything about its size comes from `fitWindowToTable()` in utils.mjs,
-   which reads the table's real width out of the DOM and writes it as the
-   window's inline width. The only thing this file contributes is a ceiling -
-   without `!important`, so it bounds the measurement instead of replacing it,
-   and a table wider than the screen scrolls inside `.window-content`. */
-.application.dialog.drpg-table-window {
-    /* W-9: the same ceiling `windowWidthFor` reads, so the measurement and the
-       stylesheet cannot disagree about how wide a table may get. */
-    max-width: min(96vw, var(--drpg-window-max));
-}
+/* A measured window states no width here AT ALL (E21 C2a: its ceiling went with
+   `tableDialog`). Everything about its size comes from the kit's `fitKitWidth`
+   (ui-kit.mjs), which reads the table's real width out of the DOM and writes it
+   as the window's inline width, under `windowWidthFor`'s ceiling (94 % of the
+   screen and `--drpg-window-max`); the kit's frame holds it to the screen less
+   8 px a side (components.css), and a table wider than that scrolls inside the
+   kit's body. */
 
 /* A table window is MEASURED and sized in JavaScript, not here.
-   See `tableDialog()` / `fitWindowToTable()` in utils.mjs.
+   See `fitKitWidth()` in ui-kit.mjs (`tableDialog()` / `fitWindowToTable()` in
+   utils.mjs until E21 C2a).
    --------------------------------------------------------------------------
    This used to be `width: max-content !important; max-width: min(max-content,
    94vw) !important`, and both halves of that were actively breaking the thing
@@ -5196,7 +5237,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
 ):has(.dialog-content table)
     :is(p, .notes, h3, h4):not(td):not(th):not(table *),
-.application.dialog.drpg-wide :is(p, .notes, h3, h4):not(td):not(th):not(table *) {
+.application.dialog:is(.drpg-kit-width-wide, .drpg-kit-width-tables) :is(p, .notes, h3, h4):not(td):not(th):not(table *) {
     margin-inline: auto;
     text-align: center;
 }
@@ -5230,7 +5271,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 
    `.drpg-room-guide` rides along because it carries the same kind of text -
    the how-to-draw-rooms block, which now lives in Season setup - and that
-   window is `drpg-wide`, where the same measure would squeeze it just as badly.
+   window is a wide one (`width: "wide"`), where the same measure would squeeze it just as badly.
 
    `!important`, not a longer selector. The rule it has to beat is
    `.application.dialog:is(…):has(…):not(…) :is(p, .notes, h3, h4):not(td):not(th):not(table *)`
@@ -5256,46 +5297,32 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
 ):has(.dialog-content table) blockquote,
-.application.dialog.drpg-wide blockquote {
+.application.dialog:is(.drpg-kit-width-wide, .drpg-kit-width-tables) blockquote {
     margin-inline: auto;
 }
 
-/* Manual override: expand a window that has no table but needs the room - a
-   tile grid, a wide picker. Same specificity as the default rule above, so it
-   wins on source order; keep it after. */
-.application.dialog.drpg-wide {
-    width: min(var(--drpg-popup-wide), 94vw) !important;
-    max-width: min(var(--drpg-popup-wide), 94vw) !important;
-}
-
-.application.dialog.drpg-wide :is(p, blockquote, .notes) {
+/* A window that has no table but needs the room - a tile grid, a wide picker - states it to the kit (`width: "wide"`,
+   ui-kit.mjs WINDOW_WIDTHS, E21 W1; this sheet's `.drpg-wide` rule until then, `min(var(--drpg-popup-wide), 94vw)` with
+   `!important`). The kit stamps `drpg-kit-width-<name>` on it, which these prose rules read; no rule states its width. */
+.application.dialog:is(.drpg-kit-width-wide, .drpg-kit-width-tables) :is(p, blockquote, .notes) {
     max-width: 42rem;
 }
 
-/* The item tables window is wider than the rest of `drpg-wide`.
-   --------------------------------------------------------------------------
-   Measured at 704px (the `drpg-wide` width): the pool list takes the left
-   column and what is left of the row is about 430px, into which go two text
-   fields, two role checkboxes and two buttons. They wrap onto three lines, so
-   one entry is three rows tall - tolerable in a flat list of four, a wall once
-   the room view stacks type and tier headings above every group of them.
-
-   Same specificity as the `drpg-wide` rule above, so it wins on source order;
-   keep it after. 94vw is the same cap, so a small screen is unaffected. */
+/* The item tables window is wider than the rest of the wide ones: 58rem, the kit's `tables` width (ui-kit.mjs
+   WINDOW_WIDTHS, E21 W1; stated here with `!important` until then). Measured at 704px (the wide width): the pool list
+   takes the left column and what is left of the row is about 430px, into which go two text fields, two role checkboxes
+   and two buttons, three lines an entry. */
 .application.dialog.drpg-window-tables {
-    width: min(58rem, 94vw) !important;
-    max-width: min(58rem, 94vw) !important;
-    /* the container `.drpg-tables-layout` collapses in (its `@container` rule): the width above is stated, so the
-       window's inline size never depends on what it holds */
+    /* the container `.drpg-tables-layout` collapses in (its `@container` rule): the window's width is stated (the kit
+       writes it inline), so its inline size never depends on what it holds */
     container-type: inline-size;
 }
 
 /* The button row wraps. Five buttons in one unbreakable line is what set the
    width of every Observe prompt in the module. */
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
+    .drpg-panel, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel
 ) footer.form-footer {
     flex-wrap: wrap;
 }
@@ -5368,9 +5395,8 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    the scrollport it is pinning against rather than guessing at it with a
    percentage that resolves against the wrong box. */
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
+    .drpg-panel, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel
 ):has(.dialog-content table, .dialog-content .drpg-frisk-modes) footer.form-footer {
     position: sticky;
     bottom: calc(-1 * var(--drpg-window-pad));
@@ -5396,14 +5422,8 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    `repeat(auto-fit, minmax(15rem, 1fr))` needs a DEFINITE width to resolve into
    columns; under intrinsic sizing the repeat count is 1 and the whole panel
    collapses into a single tall column. So it is told how wide it is - three
-   columns' worth - and the grid does the rest. */
-.application.dialog.drpg-gm-panel-window {
-    /* The wide tier, like the table managers - it is one of them. It used to
-       have a width of its own (46rem) for no reason beyond being written on a
-       different day. */
-    width: min(var(--drpg-popup-wide), 92vw) !important;
-    max-width: min(var(--drpg-popup-wide), 92vw) !important;
-}
+   columns' worth - and the grid does the rest: by the kit since E21 W1
+   (`width: "panel"`, ui-kit.mjs WINDOW_WIDTHS), by a rule here until then. */
 
 /* Content that outgrows the window scrolls in both directions rather than
    being clipped - a column the GM cannot reach is a control that does not
@@ -5423,9 +5443,8 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    tall one is capped and scrolled. The window itself opens at `height: auto`
    for the same reason. */
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
+    .drpg-panel, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel
 ) .window-content {
     max-height: 80vh;
     overflow: auto;
@@ -5618,6 +5637,26 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     margin: 0.5rem 0;
 }
 
+/* THE BRIEFING BESIDE THE LIST (E21 fix G2, 07.11.2026; E21-04): a menu drawn with `columns` (action-menus.mjs
+   `COLUMNS`, Observe's) stands its briefing on the left and its question on the right, in a window of a stated width, and
+   shows a row's line of explanation while that row is picked (an unavailable row keeps its reason). The two columns
+   stack when the window is narrower than both (a phone). Layout only, both themes; measured in Chromium by the fit
+   sweep (`--fit --only action-observe`: still at 1366x768 and up). */
+.drpg-variant-columns {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.75rem 16px;
+}
+.drpg-variant-columns > .drpg-variant-brief { flex: 1 1 18rem; min-width: 0; }
+/* The right padding holds the glass's brush behind a row (stained-glass.css, `inset: 1px -5px`), which stood 4 px past
+   the body and made it scroll sideways (measured: scrollWidth 970 against 966 at 1366x768). */
+.drpg-variant-columns > .drpg-variant-ask { flex: 1.1 1 18rem; min-width: 0; padding-right: 6px; }
+.drpg-variant-columns .drpg-choice:not(.unavailable):not(:has(input:checked)) .drpg-choice-text small { display: none; }
+.drpg-variant-columns :is(.drpg-variant-ask, .drpg-variant-ask > form, .drpg-variant-brief > .drpg-briefing-block) > :first-child {
+    margin-top: 0;
+}
+
 /*
  * The Rest picker. Built like a `.drpg-choice` row but declared separately in
  * rest.mjs, and it was the one class in the module with no rule at all - the
@@ -5637,8 +5676,8 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 }
 
 .drpg-rest-option:hover {
-    border-color: var(--drpg-eye);
-    background: rgba(var(--drpg-eye-rgb), 0.12);
+    border-color: var(--drpg-bone);
+    background: rgba(var(--drpg-bone-rgb), 0.08);
 }
 
 .drpg-rest-option:has(input:checked) {
@@ -5656,9 +5695,14 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     cursor: pointer;
 }
 
+/* Under the pointer a row is Bone, whatever its road (E22 fix G1, 07.11.2026; the end review's SCREENS M1, Open 81):
+   it was the eye's edge and wash, so "Find Stash" - a player's own road - took the GM row's red the moment it was
+   pointed at, and red means the GM's road and an irreversible answer only (D11, E22-07). The GM's row keeps its red
+   left edge under the pointer: `.drpg-choice.drpg-gm-route`, later in this sheet, outranks this rule's edge. The
+   Rest options and a Frisk's ways read the same. */
 .drpg-choice:hover {
-    border-color: var(--drpg-eye);
-    background: rgba(var(--drpg-eye-rgb), 0.12);
+    border-color: var(--drpg-bone);
+    background: rgba(var(--drpg-bone-rgb), 0.08);
 }
 
 .drpg-choice:has(input:checked) {
@@ -5730,8 +5774,8 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 /* The Rest option's hover (H81-12; the owner's 1.2.80 table, 20.10.2026: the ways did not look like the other
    choice rows): under Monokuma Legacy that was all they lacked. Before the checked rule, which outranks it. */
 .drpg-frisk-mode:hover {
-    border-color: var(--drpg-eye);
-    background: rgba(var(--drpg-eye-rgb), 0.12);
+    border-color: var(--drpg-bone);
+    background: rgba(var(--drpg-bone-rgb), 0.08);
 }
 
 .drpg-frisk-mode:has(input:checked) {
@@ -5776,7 +5820,8 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     display: none;
 }
 
-.drpg-choice-list:has(input[value="specific"]:checked) ~ [data-drpg-when="specific"],
+.drpg-choice-list:has(input[value="specific"]:checked) ~ [data-drpg-when~="specific"],
+.drpg-choice-list:has(input[value="anything"]:checked) ~ [data-drpg-when~="anything"],
 .drpg-choice-list:has(input[value="cover"]:checked) ~ [data-drpg-when="cover"],
 .drpg-choice-list:has(input[value="frame"]:checked) ~ [data-drpg-when="frame"],
 .drpg-choice-list:has(input[value="plant"]:checked) ~ [data-drpg-when="plant"],
@@ -7570,12 +7615,20 @@ body[data-drpg-phase] :is(#drpg-player-status, #countdowns, #players) {
    --------------------------------------------------------------------------
    Bottom-left of the character sheet. Loud enough to find without looking, and
    far enough from the action grid that it is never hit on the way to Search.
+
+   STUCK TO THE VISIBLE BOTTOM, NOT THE CONTENT'S (E21 C5a, 06.11.2026; audit S01-06, the owner's Q-E21-4 default).
+   Absolute, it stood at the bottom of the sheet's content box, which a sheet taller than the screen put below it at
+   768-800 px. Sticky, it stays in the sheet's bottom-left where players know it and holds to the visible foot of
+   whatever scrolls the sheet's content (the window's content box or its own body), so it is in view at any height.
+   The fit sweep's sheet stand-in reads it (style-sweep.mjs `--fit`, control (d) takes this rule off).
    ========================================================================== */
 
 .drpg-safeword-button {
-    position: absolute;
+    position: sticky;
     left: 8px;
     bottom: 8px;
+    align-self: flex-start;
+    width: max-content;
     z-index: 3;
     display: inline-flex;
     align-items: center;
@@ -11476,21 +11529,22 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     color: var(--drpg-bone);
 }
 
+/* Bone, not the eye's red (E22 C2b, D11; S10-32): on a GM's screen red names no road through a GM, and the Next line's
+   button is the panel's ordinary next step. Stained Glass draws it in its bone already (stained-glass.css). */
 .drpg-gmp-next-go {
     flex: 0 0 auto;
     height: auto !important;
     padding: 4px 12px;
-    border: 1px solid var(--drpg-eye) !important;
+    border: 1px solid var(--drpg-bone) !important;
     border-radius: 2px;
-    background: rgba(var(--drpg-eye-rgb), 0.18);
+    background: rgba(var(--drpg-bone-rgb), 0.14);
     color: var(--drpg-bone);
     line-height: 1.2;
     white-space: nowrap;
 }
 
 .drpg-gmp-next-go:hover {
-    background: rgba(var(--drpg-eye-rgb), 0.32);
-    box-shadow: 0 0 8px var(--drpg-eye-glow);
+    background: rgba(var(--drpg-bone-rgb), 0.26);
 }
 
 /* The Season setup row a running game still waits on (the owner's Q-8 amended, 30.10.2026): a second line under
@@ -11563,15 +11617,7 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
 ) footer.form-footer button:not(.drpg-gm-route) {
-    border-color: var(--drpg-line-strong) !important;
-}
-
-.application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
-) footer.form-footer button:not(.drpg-gm-route):hover:not(:disabled) {
-    border-color: var(--drpg-bone) !important;
+    border-color: var(--drpg-kit-face-edge, var(--drpg-line-strong)) !important;
 }
 
 /* ==========================================================================
@@ -13346,8 +13392,15 @@ form:has(input[name="secret"]:not(:checked)):has(input[name="murder"]:not(:check
 /* Red on a row that ends in somebody else deciding, the same red the buttons
    carry. The whole row rather than the label: the row is the button here. */
 .drpg-choice.drpg-gm-route {
-    border-left: 3px solid var(--drpg-crimson);
+    border-left: 3px solid var(--drpg-kit-role-gm-route);
     padding-left: 5px;
+}
+
+/* ... and once picked (E22 fix G1; the end review's SCREENS m6): the pick's gold edge (`.drpg-choice:has(input:checked)`,
+   0,2,1) took the left edge with the rest, so the row that went to the GM stopped saying so once chosen - seen on
+   Analyze's "Ask for a hint" under Monokuma Legacy. The glass keeps its brush on the picked row (stained-glass.css). */
+.drpg-choice.drpg-gm-route:has(input:checked) {
+    border-left-color: var(--drpg-kit-role-gm-route);
 }
 
 /* ---- the Call header, above a target picker ---------------------------- */
@@ -13372,28 +13425,7 @@ form:has(input[name="secret"]:not(:checked)):has(input[name="murder"]:not(:check
     font-size: var(--drpg-text-sm);
 }
 
-/* The Call window's side (E51 C2, 30.10.2026; audit S17-48). Every Call window is drawn by
-   call-pickers.mjs `callWindow`, in `drpg-hope-dialog` or `drpg-despair-dialog`, and until C2 neither
-   class coloured anything: a Hope picker and a Despair one looked the same. The side's ink is set on the
-   window once - Hope's gold, Despair's blood, each with its deep twin on a pale ground (`light-dark`, as
-   the popups) - and the header takes it on a stripe and on its title. The button that waits for a GM keeps
-   `drpg-gm-route`'s red (A3, above), which neither side's ink touches. Tier 1's R1111 reads this cascade. */
-.application.drpg-hope-dialog {
-    --drpg-call-ink: light-dark(var(--drpg-gold-deep), var(--drpg-gold));
-}
-
-.application.drpg-despair-dialog {
-    --drpg-call-ink: light-dark(var(--drpg-blood-deep), var(--drpg-blood));
-}
-
-.application:is(.drpg-hope-dialog, .drpg-despair-dialog) .drpg-call-header {
-    border-left: 3px solid var(--drpg-call-ink);
-    padding-left: 8px;
-}
-
-.application:is(.drpg-hope-dialog, .drpg-despair-dialog) .drpg-call-header h3 {
-    color: var(--drpg-call-ink);
-}
+/* The Call window's side (E51 C2) is components.css's since E21 C5a (M14's card, by the kit's tokens). */
 
 /* Confusion's tiers, in its window (monocub.mjs `cubTiersHtml`), and the one its total reached on the card. */
 .drpg-cub-tiers {
@@ -13782,10 +13814,9 @@ form:has(input[name="secret"]:not(:checked)):has(input[name="murder"]:not(:check
 }
 
 /* ---- the handbooks window: tabs, a contents list, the text -------------------- */
+/* The frame is the kit's since E21 C6a (components.css: the column, the overflow); the width the book's columns
+   fold at is the window's. */
 .application.drpg-handbook .window-content {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
     container-type: inline-size;
 }
 
@@ -14156,8 +14187,9 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
     background: rgba(var(--drpg-bone-rgb), 0.05);
 }
 
+/* In the window's ink, not the eye: red means the GM's road, and a heading does nothing (audit S10-33, E22 C6b). */
 .drpg-sfx-group td strong {
-    color: var(--drpg-eye);
+    color: var(--drpg-kit-ink);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     font-size: var(--drpg-text-sm);
@@ -14771,9 +14803,10 @@ body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button:hover {
     border-color: var(--drpg-eye) !important;
 }
 
-/* …except the one that destroys a season, which keeps its red route. */
-.drpg-panel .drpg-gmp-button.drpg-gm-route,
-.drpg-gm-panel .drpg-gmp-button.drpg-gm-route {
+/* …except a destructive one (Reset the season, Murder), in crimson: keyed on `drpg-destructive` since E22 C6b - the
+   GM's road names no tile of the GM's (D11), and this rule, written for `drpg-gm-route`, had matched none since C2. */
+.drpg-panel .drpg-gmp-button.drpg-destructive,
+.drpg-gm-panel .drpg-gmp-button.drpg-destructive {
     border-color: var(--drpg-crimson) !important;
     background: rgba(var(--drpg-crimson-rgb), 0.14) !important;
 }
@@ -15122,14 +15155,14 @@ body.drpg-theme-monokuma-legacy .drpg-panel .drpg-gmp-button:hover:not(:disabled
     border-color: var(--drpg-eye-light) !important;
 }
 
-/* The tile that destroys a season keeps crimson - a different red for a
-   different promise, and the one place the two are told apart on this screen. */
-body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-gm-route {
+/* A destructive tile keeps crimson - a different red for a different promise
+   (keyed on `drpg-destructive` since E22 C6b, as the rule above). */
+body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-destructive {
     background: rgba(var(--drpg-crimson-rgb), 0.20) !important;
     border-color: var(--drpg-crimson) !important;
 }
 
-body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-gm-route i {
+body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-destructive i {
     color: var(--drpg-crimson-light) !important;
 }
 
@@ -15210,15 +15243,28 @@ body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-disabled i 
    module; the screenshots are what finally placed it, because a screenshot
    shows which button is purple and a description says "the buttons are".
 
-   Every dialog the module opens therefore states its own footer. Two weights,
-   which is all a footer needs:
+   Every dialog the module opens therefore states its own footer: the Bone
+   wash every other control in the module wears, with the face of the button's
+   role read from components.css's tokens (`--drpg-kit-face-*`, set on each
+   `drpg-role-*` there; E22 C6b, 07.11.2026). Until then the default action was
+   red and the GM's road crimson, so "Roll" read like "Send it to the GM" and
+   the GM's road was a second red beside the eye (audit S12-58; the owner's P-B
+   of 04.09): now the default is Bone with the stronger Bone edge, red is the
+   GM's road (the eye, the one token) and a destructive answer (crimson, under
+   the raster), and nothing else. The `!important` stays here because Foundry's
+   own footer rule sets the same properties; the kit's sheet holds none, so it
+   gives the values and this rule the weight.
 
-     the default action   red - the thing this window is for
-     everything else      the Bone wash every other control in the module wears
-
-   `drpg-gm-route` still overrides both. A button that hands the turn to
-   somebody else is crimson wherever it appears, and that has to survive being
-   the default button of its own window.
+   Under the pointer (E22 fix G1, 07.11.2026; the end review's SCREENS M1, Open
+   81): every button took the eye's wash, `rgba(eye, .34)`, so Save, Close and
+   "Do it" turned into the GM's road the one moment a player looked at them,
+   and a destructive answer lost its raster to the shorthand. Now the hover is
+   the face's own, read from `--drpg-kit-face-hover-*`: a stronger Bone wash and
+   the Bone edge for every role, the GM's road and a destructive answer each
+   brighter in its own token (components.css), and `background-color` alone, so
+   the raster stays. The rule that gave the plain roles a Bone edge on hover
+   (`button:not(.drpg-gm-route):hover`, 0,7,2) went with it: it held every role
+   but the GM's road to Bone, the destructive one too.
    ========================================================================== */
 
 .application.dialog:is(
@@ -15227,11 +15273,12 @@ body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-disabled i 
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
     .drpg-summary-dialog, .drpg-safeword-dialog
 ) footer.form-footer button {
-    background: rgba(var(--drpg-bone-rgb), 0.10) !important;
-    background-image: none !important;
-    border: 1px solid var(--drpg-line-strong) !important;
+    background: var(--drpg-kit-face-bg, rgba(var(--drpg-bone-rgb), 0.10)) !important;
+    background-image: var(--drpg-kit-face-raster, none) !important;
+    background-size: var(--drpg-kit-face-raster-cell, auto) !important;
+    border: 1px solid var(--drpg-kit-face-edge, var(--drpg-line-strong)) !important;
     border-radius: 2px !important;
-    color: var(--drpg-bone) !important;
+    color: var(--drpg-kit-face-ink, var(--drpg-bone)) !important;
     box-shadow: none !important;
     text-shadow: none !important;
 }
@@ -15241,26 +15288,9 @@ body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-disabled i 
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
     .drpg-summary-dialog, .drpg-safeword-dialog
-) footer.form-footer button.default {
-    background: rgba(var(--drpg-eye-rgb), 0.22) !important;
-    border-color: var(--drpg-eye) !important;
-}
-
-.application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
-    .drpg-summary-dialog, .drpg-safeword-dialog
 ) footer.form-footer button:hover:not(:disabled) {
-    background: rgba(var(--drpg-eye-rgb), 0.34) !important;
-    border-color: var(--drpg-eye-light) !important;
-}
-
-.application.dialog footer.form-footer button.drpg-gm-route,
-.application.dialog footer.form-footer button.drpg-gm-route.default {
-    background: rgba(var(--drpg-crimson-rgb), 0.22) !important;
-    border-color: var(--drpg-crimson) !important;
-    color: var(--drpg-bone) !important;
+    background-color: var(--drpg-kit-face-hover-bg, var(--drpg-kit-hover-bg)) !important;
+    border-color: var(--drpg-kit-face-hover-edge, var(--drpg-kit-hover-edge)) !important;
 }
 
 .application.dialog footer.form-footer button:disabled {
@@ -15365,13 +15395,13 @@ body.drpg-theme-monokuma-legacy .drpg-panel .drpg-gmp-button:hover:not(:disabled
     opacity: 0.55;
 }
 
-/* The season-reset tile keeps crimson, and keeps it the same way round. */
-body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-gm-route {
+/* A destructive tile keeps crimson, and keeps it the same way round. */
+body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-destructive {
     background: transparent !important;
     border-color: var(--drpg-crimson) !important;
 }
 
-body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-gm-route:hover:not(:disabled) {
+body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-destructive:hover:not(:disabled) {
     background: rgba(var(--drpg-crimson-rgb), 0.28) !important;
 }
 
@@ -15389,10 +15419,9 @@ body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-gm-route:ho
    ========================================================================== */
 
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
-    .drpg-summary-dialog, .drpg-safeword-dialog
+    .drpg-panel, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel,
+    .drpg-summary-dialog
 ) .window-header {
     background: var(--drpg-bone) !important;
     background-image: none !important;
@@ -15754,24 +15783,8 @@ body.drpg-theme-stained-glass .drpg-window-tables :is([data-drpg-delete-table], 
     --checkbox-checked-color: var(--drpg-bone);
 }
 
-/* THE HUB: the three ways of the open tab as three tiles of one width, Close on its own line under them. Its buttons
-   kept to one line each (the glass's `nowrap`), so the footer's width followed the open tab's words and Close fell to
-   a second row only on one of the tabs. `!important` on the display: the glass's footer rule outranks this one and
-   lays the footer out as a row (measured: the grid did not take without it). */
-.application.dialog.drpg-window-items footer.form-footer {
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
-}
-
-.application.dialog.drpg-window-items footer.form-footer > button {
-    white-space: normal !important;
-    min-width: 0;
-}
-
-.application.dialog.drpg-window-items footer.form-footer > button[data-action="cancel"] {
-    grid-column: 1 / -1;
-}
+/* THE HUB's footer grid (three tiles of one width, Close under them) left with the window's frame in E21 C2b (the
+   stage's rule 2): the kit's footer lays the six ways out as its secondary buttons, Close first on the left. */
 
 /* ==========================================================================
    E14-48 AS PROMISED: AN 11 PX FLOOR, THE NAME ON THE GRID, THE SMALL BUTTONS WHOLE (E14 fix e1-G8; the review's
@@ -15935,7 +15948,7 @@ body.drpg-theme-monokuma-legacy .drpg-window-tables fieldset.drpg-tables-new > .
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
-    .drpg-summary-dialog, .drpg-safeword-dialog, .drpg-table-window
+    .drpg-summary-dialog, .drpg-safeword-dialog
 ),
 .application.drpg-messenger,
 #chat-popout {
@@ -17222,23 +17235,15 @@ body.drpg-explainers :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdo
    the module that cannot size itself (see the note above
    `.drpg-gm-panel-window`), its grid is `repeat(auto-fit, minmax(15rem, 1fr))`,
    and on an ultrawide screen the standard 704px box leaves two thirds of the
-   screen empty beside a three-column grid.
+   screen empty beside a three-column grid. That box is the kit's since E21 W1
+   (ui-kit.mjs WINDOW_WIDTHS `panel`, its `ultrawide`: 60rem by the slider under
+   half the screen, on a screen wider than 2:1 when the panel opens).
 
    Everything else keeps its 16:9 size. A window is a thing you read, and a
    dialog stretched to 3000px is not more readable for being bigger. */
 @media (min-aspect-ratio: 2/1) {
     :root {
         --drpg-window-max: 1700px;
-    }
-
-    .application.dialog.drpg-gm-panel-window {
-        /* The slider reaches this too (W-2): the wide tier states this box itself,
-           so without the factor the GM panel would be the one window in the module
-           whose type grows and whose box does not - on the only screens with room
-           for it to. `46vw` still keeps it under half the screen, which is what
-           stops it becoming the wall of buttons the tile grid exists to avoid. */
-        width: min(calc(60rem * var(--drpg-legacy-scale, 1)), 46vw) !important;
-        max-width: min(calc(60rem * var(--drpg-legacy-scale, 1)), 46vw) !important;
     }
 }
 

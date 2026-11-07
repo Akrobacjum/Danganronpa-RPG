@@ -41,6 +41,7 @@
  */
 
 import { error } from "./utils.mjs";
+import { drpgWindow, drpgConfirm } from "./ui-kit.mjs";
 import { keepFresh } from "./live.mjs";
 import {
     PASSAGE_STORES, listPassages, grantPassage, revokePassage, revokeWhenLeaving, setStartAccess, setPassageWay,
@@ -209,26 +210,34 @@ export function revokeQuestion({ name, room = null, isPublic = false }) {
         buttons: [["now", t("DRPG.Passage.tab.revokeNow")], ["leave", t("DRPG.Passage.tab.revokeLeave")], cancel] };
 }
 
-/** 'Revoke now' ("now"), 'Revoke when they leave the room' ("leave", a secret passage's only) or neither (null). */
+/**
+ * 'Revoke now' ("now"), 'Revoke when they leave the room' ("leave", a secret passage's only) or neither (null). A
+ * revoke is what cannot be undone (E22, the slice's C2b): both answers destructive, never the default; Cancel is
+ * (`revokeQuestion`'s last button, the role's word since E21 C2b).
+ */
 async function askRevoke({ name, room, title, isPublic = false }) {
     const question = revokeQuestion({ name, room, isPublic });
-    const answer = await foundry.applications.api.DialogV2.wait({
-        window: { title: tf("DRPG.Passage.tab.revokeTitle", { passage: title }) },
-        classes: ["drpg-panel"],
-        content: `<p>${esc(question.ask)}</p><p class="notes">${esc(question.note)}</p>`,
-        buttons: question.buttons.map(([action, label], i) => ({ action, label, ...(i === 0 ? { default: true } : {}) })),
+    const answer = await drpgWindow({
+        title: tf("DRPG.Passage.tab.revokeTitle", { passage: title }),
+        classes: ["drpg-panel", "drpg-window-revoke-passage"],
+        body: `<p>${esc(question.ask)}</p><p class="notes">${esc(question.note)}</p>`,
+        footer: {
+            destructive: question.buttons.filter(([action]) => action !== "cancel").map(([action, label]) => ({ action, label })),
+            close: { role: "cancel", action: "cancel" },
+            default: "cancel"
+        },
         rejectClose: false
     });
     return question.buttons.some(([action]) => action === answer && action !== "cancel") ? answer : null;
 }
 
+/** Delete a passage: what cannot be undone, the kit's destructive question (E21 C2b), Cancel the default. */
 async function confirmDelete({ title }) {
-    return Boolean(await foundry.applications.api.DialogV2.confirm({
-        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
-        no: { label: game.i18n.localize("DRPG.Dialog.no") },
-        window: { title: t("DRPG.Passage.tab.deleteTitle") },
-        classes: ["drpg-panel"],
-        content: `<p>${esc(tf("DRPG.Passage.tab.deleteAsk", { passage: title }))}</p>`,
+    return Boolean(await drpgConfirm({
+        yes: { role: "destructive", label: t("DRPG.Passage.tab.deleteTitle") },
+        title: t("DRPG.Passage.tab.deleteTitle"),
+        classes: ["drpg-panel", "drpg-window-delete-passage"],
+        body: `<p>${esc(tf("DRPG.Passage.tab.deleteAsk", { passage: title }))}</p>`,
         rejectClose: false
     }));
 }

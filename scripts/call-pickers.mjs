@@ -30,11 +30,10 @@
  */
 
 import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, MOTIVE } from "./config.mjs";
-import { dialogContent, esc, wholeNumber, proseOf } from "./utils.mjs";
-import { stepper, stepperId } from "./ui-kit.mjs";
+import { esc, wholeNumber, proseOf } from "./utils.mjs";
+import { stepper, stepperId, drpgWindow } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
-const DialogV2 = foundry.applications.api.DialogV2;
 
 /* ==========================================================================
  * THE CALL WINDOW
@@ -55,12 +54,17 @@ const DialogV2 = foundry.applications.api.DialogV2;
  *   THE HEADER IS HANDED IN. The caller builds it (`callHeader`) and it is drawn above the body;
  *   nothing is read from module state, so two windows open at once keep their own (the module
  *   `let pendingHeader` this replaced was shared by both).
- *   THE GM ROAD IS RED. `gmRoute` puts `drpg-gm-route` (D11, the class `chooseVariant`'s rows and
- *   every "this waits for a GM" button carry) on each button but the cancel.
- *   THE BUTTONS SAY WHAT THEY DO, the caller's own, and the cancel is `DRPG.Calls.cancel` (or the
- *   key `cancel` names; `false` for none).
+ *   THE GM ROAD IS RED. `gmRoute` puts the footer's primary in the GM's road (the kit's `gmRoute` role,
+ *   `drpg-gm-route`: D11, the class `chooseVariant`'s rows and every "this waits for a GM" button
+ *   carry) - one flag, the caller's, and no second way to draw it.
+ *   THE BUTTONS SAY WHAT THEY DO, the caller's own, and the closing word is the kit's Cancel (`false`
+ *   for none, the GM's approval: a closed window is its refusal).
  *
- * The content goes through `dialogContent`, which keeps a textarea's placeholder (utils.mjs).
+ * ON THE KIT'S FRAME (E21 C5a, 06.11.2026; the owner's amend of 27.10, variant B, and M14's card):
+ * `drpgWindow`, so the window is held to the screen with one scrolling body and its footer is the
+ * kit's contract - the closing word and the secondaries left, the answer right and first in the tree.
+ * The caller hands `footer` in the kit's slots (`primary`, `secondary`, `destructive`, `gmRoute`), never
+ * Foundry's `buttons` (R1352). `cancelDefault` makes Cancel the default (a Call the buyer cannot pay).
  * `title` defaults to the Call's label; `render` and `modal` pass through to DialogV2.
  *
  * ONE OF EACH, AND TRUE WHILE IT STANDS (E51 fix round FG7, 31.10.2026; review goal G2: the owner's
@@ -76,16 +80,17 @@ const DialogV2 = foundry.applications.api.DialogV2;
  *   or null for a closed window (or for a window of `once` already open).
  */
 export async function callWindow({
-    call = null, kind = "hope", header = "", body = "", buttons = [], gmRoute = false,
+    call = null, kind = "hope", header = "", body = "", footer = {}, gmRoute = false,
     title = null, cancel = true, cancelDefault = false, render, modal, once = null, live = null
 } = {}) {
     if (once && alreadyOpen(once)) return null;
-    const routed = buttons.map(b => gmRoute && b.action !== "cancel"
-        ? { ...b, class: [b.class, "drpg-gm-route"].filter(Boolean).join(" ") } : b);
-    if (cancel !== false) {
-        routed.push({ action: "cancel", label: game.i18n.localize(typeof cancel === "string" ? cancel : "DRPG.Calls.cancel"),
-            default: cancelDefault });
+    const slots = { ...footer };
+    if (gmRoute && slots.primary) {
+        slots.gmRoute = [slots.primary, ...(slots.gmRoute ?? [])];
+        delete slots.primary;
     }
+    if (cancel !== false && !slots.close) slots.close = { role: "cancel", action: "cancel" };
+    if (cancelDefault && slots.close) slots.default = slots.close.action ?? "cancel";
     const drawn = live || render ? (event, dialog) => {
         if (live) {
             // keepLive hands `after` the new element alone; the window goes with it here.
@@ -94,11 +99,11 @@ export async function callWindow({
         }
         render?.(event, dialog);
     } : null;
-    return DialogV2.wait({
-        window: { title: title ?? call?.label ?? "" },
+    return drpgWindow({
+        title: title ?? call?.label ?? "",
         classes: ["drpg-panel", kind === "hope" ? "drpg-hope-dialog" : "drpg-despair-dialog", ...(once ? [once] : [])],
-        content: dialogContent(`${header}${body}`),
-        buttons: routed,
+        body: `${header}${body}`,
+        footer: slots,
         ...(drawn ? { render: drawn } : {}),
         ...(modal !== undefined ? { modal } : {}),
         rejectClose: false
@@ -245,10 +250,10 @@ async function pickText(ask) {
             field.addEventListener("input", sync);
             sync();
         },
-        buttons: [{
-            action: "ok", label: game.i18n.localize("DRPG.Calls.next"), default: true,
+        footer: { primary: {
+            action: "ok", label: game.i18n.localize("DRPG.Calls.next"),
             callback: (e, b, d) => d.element.querySelector("[name=text]").value.trim()
-        }]
+        } }
     });
 
     if (!text || text === "cancel") return null;
@@ -294,8 +299,8 @@ async function pickMotive(ask) {
             for (const f of fields) f.addEventListener("input", sync);
             sync();
         },
-        buttons: [{
-            action: "ok", label: game.i18n.localize("DRPG.Calls.next"), default: true,
+        footer: { primary: {
+            action: "ok", label: game.i18n.localize("DRPG.Calls.next"),
             callback: (e, b, d) => {
                 const f = d.element.querySelector("form");
                 return {
@@ -304,7 +309,7 @@ async function pickMotive(ask) {
                     timesOfDay: wholeNumber(f.querySelector("[name=timesOfDay]").value, { min: MOTIVE.minTimesOfDay, max: MOTIVE.maxTimesOfDay, fallback: MOTIVE.defaultTimesOfDay })
                 };
             }
-        }]
+        } }
     });
 
     // The backstop behind the disabled button, for the same reason the rest
@@ -477,10 +482,10 @@ async function choose(ask, promptKey, options) {
         title: game.i18n.localize(promptKey),
         body: `<form><label>${game.i18n.localize(promptKey)}
                     <select name="choice">${html}</select></label></form>`,
-        buttons: [{
-            action: "ok", label: game.i18n.localize("DRPG.Calls.next"), default: true,
+        footer: { primary: {
+            action: "ok", label: game.i18n.localize("DRPG.Calls.next"),
             callback: (e, b, d) => d.element.querySelector("[name=choice]").value
-        }]
+        } }
     });
 
     return (picked && picked !== "cancel") ? picked : null;

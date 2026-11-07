@@ -70,7 +70,8 @@ import { SETTINGS } from "./settings.mjs";
 import { getClock, timeOfDayLabel, boundaryStamp, advanceTimeOfDay } from "./clock.mjs";
 import { isEclipse, incomingTimeOfDay, startEclipse, endEclipse, startRefusal, placementStatus, eclipseLabel } from "./eclipse.mjs";
 import { actingStudents } from "./monokuma.mjs";
-import { tableDialog, dialogContent, serialWrite, isPrimaryGm, serverNow, listOf, plural, esc, error, debug } from "./utils.mjs";
+import { serialWrite, isPrimaryGm, serverNow, listOf, plural, esc, error, debug } from "./utils.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 import { showPopup } from "./popup.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
@@ -148,16 +149,28 @@ export async function nextTimeOfDay() {
  * roads since E37 C2 (`toggleEclipse`), after the refusals, so a held start is refused with its words and not asked.
  */
 async function askEclipse(incoming) {
-    const DialogV2 = foundry.applications.api.DialogV2;
     const name = game.i18n.format("DRPG.Eclipse.named", { time: timeOfDayLabel(incoming) });
-    return Boolean(await DialogV2.confirm({
+    return Boolean(await noFirst(name, `<p>${eclipseQuestion(getClock(), name).text}</p>`, game.i18n.localize("DRPG.Hud.eclipseAskYes")));
+}
+
+/**
+ * A yes-or-no question whose no is the default (E21 C3a): `askEclipse` and `confirmGo` on the kit's frame. drpgConfirm
+ * makes a primary yes the default, and these two asked with the no as the default (E17 C7, E37-14), which stays: the
+ * yes on the right, Cancel on the left and focused, so with no field in the window Enter and Space press Cancel, and a
+ * closed window answers null. Answers true for the yes, false for Cancel.
+ */
+function noFirst(title, body, yes) {
+    return drpgWindow({
         classes: ["drpg-panel"],
-        window: { title: name },
-        content: `<p>${eclipseQuestion(getClock(), name).text}</p>`,
-        yes: { label: game.i18n.localize("DRPG.Hud.eclipseAskYes") },
-        no: { label: game.i18n.localize("DRPG.Hud.eclipseAskNo"), default: true },
+        title,
+        body,
+        footer: {
+            primary: { action: "yes", label: yes, callback: () => true },
+            close: { role: "cancel", action: "no", callback: () => false },
+            default: "no"
+        },
         rejectClose: false
-    }));
+    });
 }
 
 /**
@@ -189,20 +202,23 @@ function placementTable(rows) {
             }</td>
         </tr>`).join("");
 
-    return tableDialog({
-        window: { title: eclipseLabel() },
-        classes: ["drpg-panel"],
-        content: `<p>${game.i18n.localize("DRPG.Eclipse.endPrompt")}</p>
+    return drpgWindow({
+        title: eclipseLabel(),
+        classes: ["drpg-panel", "drpg-window-eclipse-end"],
+        // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
+        fit: true,
+        body: `<p>${game.i18n.localize("DRPG.Eclipse.endPrompt")}</p>
             <table><thead><tr>
                 <th>${game.i18n.localize("DRPG.Panel.character")}</th>
                 <th>${game.i18n.localize("DRPG.Project.room")}</th>
                 <th>${game.i18n.localize("DRPG.Eclipse.movesColumn")}</th>
             </tr></thead><tbody>${body}</tbody></table>`,
-        buttons: [
-            { action: "end", label: game.i18n.localize("DRPG.Eclipse.endAndAdvance"), default: true },
-            { action: "endOnly", label: game.i18n.localize("DRPG.Eclipse.endOnly") },
-            { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
+        // A question withdrawn: Cancel (E21 rule 3), the answer it was "cancel" before.
+        footer: {
+            primary: { action: "end", label: game.i18n.localize("DRPG.Eclipse.endAndAdvance") },
+            secondary: [{ action: "endOnly", label: game.i18n.localize("DRPG.Eclipse.endOnly") }],
+            close: { role: "cancel", action: "cancel" }
+        },
         rejectClose: false
     });
 }
@@ -423,15 +439,7 @@ function roundBody(reading) {
 
 /** The GM's confirmation before going on past `n` players who are not done: "Wait" the default (E37-14). */
 async function confirmGo(n, title) {
-    const DialogV2 = foundry.applications.api.DialogV2;
-    return Boolean(await DialogV2.confirm({
-        classes: ["drpg-panel"],
-        window: { title },
-        content: `<p>${plural("DRPG.Ready.confirmGo", { n })}</p>`,
-        yes: { label: game.i18n.localize("DRPG.Ready.goAnyway") },
-        no: { label: game.i18n.localize("DRPG.Ready.wait2"), default: true },
-        rejectClose: false
-    }));
+    return Boolean(await noFirst(title, `<p>${plural("DRPG.Ready.confirmGo", { n })}</p>`, game.i18n.localize("DRPG.Ready.goAnyway")));
 }
 
 /**
@@ -480,18 +488,19 @@ async function askReadiness(kind) {
  * went on, "table", "stop" (Not now or a closed window), or null when the round went away under it.
  */
 async function roundWindow(round) {
-    const DialogV2 = foundry.applications.api.DialogV2;
     const { eclipseMoveStore } = await import("./gm-stores.mjs");
     const kind = round.kind;
     const placement = () => placementStatus().map(s => ({ actorId: s.actor.id, moved: s.moved }));
     const read = () => roundReading(readyRecord(), { users: roundUsers(), clock: getClock(), placement: kind === "eclipseEnd" ? placement() : null });
     const title = roundTitle(kind);
     let by = null;
-    const choice = await DialogV2.wait({
-        window: { title },
+    const [go, ...others] = goButtons(kind);
+    const choice = await drpgWindow({
+        title,
         classes: ["drpg-panel", GM_CLASS],
-        content: dialogContent(roundBody(read())),
-        buttons: [...goButtons(kind), { action: "notNow", label: game.i18n.localize("DRPG.Ready.notNow") }],
+        body: roundBody(read()),
+        // The first way on the default, as it was; Not now withdraws the question (E21 rule 3): Cancel, its answer "notNow".
+        footer: { primary: go, secondary: others, close: { role: "cancel", action: "notNow" } },
         render: (event, dialog) => {
             const check = () => {
                 if (by || !dialog.element?.isConnected) return;
@@ -504,7 +513,11 @@ async function roundWindow(round) {
             keepLive(dialog, {
                 region: ".drpg-ready-body",
                 build: () => roundBody(read()),
-                watch: { settings: [SETTINGS.readyRound], stores: [eclipseMoveStore], hooks: ["userConnected"] },
+                /* The clock as well (E21 C3a; E44 Open 10): `read` hands `roundReading` the clock, and a round is about one
+                   boundary (`roundOf`). Until C3a the region declared the round's key alone and its build read `clock`
+                   undeclared (E21-T1, measured on b82fc415: undeclared ["clock"]; a day move closed the window there all
+                   the same, by a road the test does not name). */
+                watch: { settings: [SETTINGS.readyRound, SETTINGS.clock], stores: [eclipseMoveStore], hooks: ["userConnected"] },
                 after: check
             });
             setTimeout(check, 0);
@@ -559,17 +572,17 @@ export async function renderReadyRound() {
  * itself, as soon as the round it asks about is no longer open. Only the player's own answer is sent (`ready.answer`).
  */
 async function promptPlayer(round, waited) {
-    const DialogV2 = foundry.applications.api.DialogV2;
     const still = () => roundOf(readyRecord(), getClock())?.id === round.id;
     const clock = getClock();
     const ask = round.kind === "next" ? game.i18n.localize("DRPG.Ready.askNext")
         : game.i18n.format(round.kind === "eclipseStart" ? "DRPG.Ready.askStart" : "DRPG.Ready.askEnd", { name: esc(eclipseLabel(clock)) });
     const done = { action: "done", label: game.i18n.localize("DRPG.Ready.done") };
-    const choice = await DialogV2.wait({
-        window: { title: roundTitle(round.kind, clock) },
+    const choice = await drpgWindow({
+        title: roundTitle(round.kind, clock),
         classes: ["drpg-panel", PLAYER_CLASS],
-        content: dialogContent(`<p>${ask}</p>${waited ? `<p class="notes">${game.i18n.localize("DRPG.Ready.waiting")}</p>` : ""}`),
-        buttons: waited ? [{ ...done, default: true }] : [done, { action: "wait", label: game.i18n.localize("DRPG.Ready.wait"), default: true }],
+        body: `<p>${ask}</p>${waited ? `<p class="notes">${game.i18n.localize("DRPG.Ready.waiting")}</p>` : ""}`,
+        // One moment the default until it was pressed, then Done alone (E37-13): the default is the primary, Done beside it.
+        footer: waited ? { primary: done } : { primary: { action: "wait", label: game.i18n.localize("DRPG.Ready.wait") }, secondary: [done] },
         render: (event, dialog) => {
             const watch = setInterval(() => {
                 if (!dialog.element?.isConnected) return void clearInterval(watch);

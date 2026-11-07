@@ -26,11 +26,11 @@
 
 import { MODULE_ID, TRIAL } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { error, ownerOf, dialogContent } from "./utils.mjs";
+import { error, ownerOf } from "./utils.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 import { alreadyOpen } from "./live.mjs";
 import { isRoundMode, MODES, closingOf } from "./floor-machine.mjs";
 
-const DialogV2 = foundry.applications.api.DialogV2;
 const WINDOW_CLASS = "drpg-your-turn";
 let ticker = null;
 let calledOver = null;
@@ -68,6 +68,34 @@ function stepOf(floor) {
     return floor?.round?.step ?? closingOf(floor)?.step ?? 0;
 }
 
+/*
+ * M13'S CARD (E21 C4, 06.11.2026; docs/design/windows.md, approved 04.11.2026 on DR-E44-M1 #14). Your turn and the
+ * volunteers' window are kit windows (ui-kit.mjs `drpgWindow`), their footers by roles as the card draws Your turn: the
+ * answer that keeps the turn running - Keep speaking, Not me - the primary, on the right and the first submit button in
+ * the tree, so Enter and Space change nothing (E70 fix p2-G3's rule, kept); the two that end or hand on a turn - Done
+ * and Pass, I'll sum up - secondaries on the left. No closing word: the primary closes the window and changes nothing,
+ * as a closing word would, and the card shows none. Exported for the suite (R1365), which reads each footer's tree.
+ */
+
+/** Your turn's footer: Keep speaking the primary; Done and Pass, in that order, on the left. */
+export function turnFooter() {
+    return {
+        primary: { action: "keep", label: game.i18n.localize("DRPG.Trial.turn.keep") },
+        secondary: [
+            { action: "done", label: game.i18n.localize("DRPG.Trial.turn.done") },
+            { action: "pass", label: game.i18n.localize("DRPG.Trial.turn.pass") }
+        ]
+    };
+}
+
+/** The volunteers' footer: Not me the primary, I'll sum up on the left. */
+export function claimFooter() {
+    return {
+        primary: { action: "no", label: game.i18n.localize("DRPG.Trial.claim.no") },
+        secondary: [{ action: "claim", label: game.i18n.localize("DRPG.Trial.claim.yes") }]
+    };
+}
+
 /**
  * "I'LL SUM UP" (E70 C8; E70-51): once a Closing, in its volunteers' window, to a player whose student takes part. The
  * window closes itself when the window does; the press asks the primary ("trial.claim"), which counts it or says why not.
@@ -82,14 +110,11 @@ async function promptClaim(floor) {
     claimedFor = key;
     const { trialFloor, secondsLeft } = await import("./trial-floor.mjs");
     const still = () => String(closingIn(trialFloor(), "volunteer")?.openedAt ?? "") === key;
-    const choice = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Floor.mode.closing") },
+    const choice = await drpgWindow({
+        title: game.i18n.localize("DRPG.Floor.mode.closing"),
         classes: ["drpg-panel", CLAIM_CLASS],
-        content: dialogContent(`<p>${game.i18n.format("DRPG.Trial.claim.body", { seconds: Math.max(secondsLeft(floor), 0) })}</p>`),
-        buttons: [
-            { action: "claim", label: game.i18n.localize("DRPG.Trial.claim.yes") },
-            { action: "no", label: game.i18n.localize("DRPG.Trial.claim.no"), default: true }
-        ],
+        body: `<p>${game.i18n.format("DRPG.Trial.claim.body", { seconds: Math.max(secondsLeft(floor), 0) })}</p>`,
+        footer: claimFooter(),
         render: (event, dialog) => {
             const watch = setInterval(() => {
                 if (!dialog.element?.isConnected) return void clearInterval(watch);
@@ -124,19 +149,15 @@ async function promptTurn(floor) {
     const passLine = closing ? `<p class="notes">${Number(closing.resignUntil) > 0
         ? game.i18n.format("DRPG.Trial.turn.closingPassEarly", { seconds: TRIAL.modes.closing.passWindowSeconds })
         : game.i18n.localize("DRPG.Trial.turn.closingPass")}</p>` : "";
-    const choice = await DialogV2.wait({
-        window: { title: game.i18n.format("DRPG.Trial.turn.title", { seconds }) },
+    const choice = await drpgWindow({
+        title: game.i18n.format("DRPG.Trial.turn.title", { seconds }),
         classes: ["drpg-panel", WINDOW_CLASS],
-        content: dialogContent(`<p>${game.i18n.format("DRPG.Trial.turn.body", { mode: foundry.utils.escapeHTML(mode) })}</p>${passLine}`),
+        body: `<p>${game.i18n.format("DRPG.Trial.turn.body", { mode: foundry.utils.escapeHTML(mode) })}</p>${passLine}`,
         /* NOTHING ENDS ON ENTER (E70 fix p2-G3; the review's E70P2-R12): Done was the default, so a speaker clearing the
            window with Enter or Space while talking ended their own turn - and Back is refused in a round, and in the
            Closing it ended the whole Closing Argument. "Keep speaking" is the default and closes the window alone; the
            turn runs on its clock, the GM's bar still skips it. As the volunteers' window's "Not me". */
-        buttons: [
-            { action: "done", label: game.i18n.localize("DRPG.Trial.turn.done") },
-            { action: "pass", label: game.i18n.localize("DRPG.Trial.turn.pass") },
-            { action: "keep", label: game.i18n.localize("DRPG.Trial.turn.keep"), default: true }
-        ],
+        footer: turnFooter(),
         // Closed as soon as the floor is no longer this turn: the round moved on without the speaker's press.
         render: (event, dialog) => {
             const watch = setInterval(() => {

@@ -65,7 +65,8 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
-import { warn, error, isPrimaryGm, whisperToGms, esc, dialogContent, tableDialog } from "./utils.mjs";
+import { warn, error, isPrimaryGm, whisperToGms, esc } from "./utils.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 
 /**
  * @typedef {object} EnforcedRow
@@ -947,11 +948,14 @@ export async function openGiveBackFoundry() {
     const give = { action: "give", label: game.i18n.localize("DRPG.GiveBack.giveBack") };
     const hold = { action: "hold", label: game.i18n.localize("DRPG.GiveBack.holdAgain") };
     const offered = facts.givenBack ? [...(facts.retry && facts.fullGm ? [give] : []), hold] : facts.fullGm ? [give] : [];
-    const choice = await tableDialog({
-        window: { title: game.i18n.localize("DRPG.GiveBack.title") },
+    // Two actions and nothing to answer: both secondary, Close the default (E21 rule 3).
+    const choice = await drpgWindow({
+        title: game.i18n.localize("DRPG.GiveBack.title"),
         classes: ["drpg-panel", "drpg-window-give-back"],
-        content: dialogContent(`<form>${giveBackContent(facts)}</form>`),
-        buttons: [...offered, { action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true }],
+        // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
+        fit: true,
+        body: `<form>${giveBackContent(facts)}</form>`,
+        footer: { secondary: offered, close: { role: "close", action: "close" } },
         rejectClose: false
     });
     try {
@@ -986,14 +990,14 @@ export async function offerHoldAgain({ user = game.user, givenBack = foundryGive
 
 /** The question `offerHoldAgain` asks: Hold them again, or Not now. */
 async function askHoldAgain() {
-    return tableDialog({
-        window: { title: game.i18n.localize("DRPG.GiveBack.title") },
+    // "Not now" is the question withdrawn: Cancel, the role's word (E21 rule 3), the answer still "close".
+    return drpgWindow({
+        title: game.i18n.localize("DRPG.GiveBack.title"),
         classes: ["drpg-panel", "drpg-window-give-back"],
-        content: dialogContent(`<p>${esc(game.i18n.localize("DRPG.GiveBack.heldNothing"))}</p>`),
-        buttons: [
-            { action: "hold", label: game.i18n.localize("DRPG.GiveBack.holdAgain"), default: true },
-            { action: "close", label: game.i18n.localize("DRPG.GiveBack.notNow") }
-        ],
+        // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
+        fit: true,
+        body: `<p>${esc(game.i18n.localize("DRPG.GiveBack.heldNothing"))}</p>`,
+        footer: { primary: { action: "hold", label: game.i18n.localize("DRPG.GiveBack.holdAgain") }, close: { role: "cancel", action: "close" } },
         rejectClose: false
     });
 }

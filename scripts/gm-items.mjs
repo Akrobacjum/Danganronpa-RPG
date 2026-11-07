@@ -34,13 +34,11 @@ function recipientOptions(students, selectedId) {
         .map(a => `<option value="${a.id}"${a.id === selectedId ? " selected" : ""}>${esc(a.name)}</option>`)
         .join("");
 }
-import { whisperToOwner, dialogContent,
-    log, error, plural, cardHead, esc, serialWrite } from "./utils.mjs";
-import { kitTabs, wireKitTabs, shownTab } from "./ui-kit.mjs";
+import { whisperToOwner, log, error, plural, cardHead, esc, serialWrite } from "./utils.mjs";
+import { kitTabs, wireKitTabs, shownTab, drpgWindow } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { homeScene } from "./rooms.mjs";
 
-const DialogV2 = foundry.applications.api.DialogV2;
 
 /* ==========================================================================
  * ENTRY POINT
@@ -97,7 +95,10 @@ function holdingsHtml(who) {
 
 /** The tabs' buttons, the select that changes whose pockets are shown, and the live read-out. */
 function wireItemManager(dialog, target) {
+    // `win` and `app` (E21 C2b): the bar may widen the window, and a press puts it back on the screen (C1b).
     wireKitTabs(dialog.element, {
+        win: dialog.element,
+        app: dialog,
         buttons: {
             give: ["give", "bullet", "key"],
             take: ["take", "takeBullet", "takeKey"]
@@ -143,8 +144,12 @@ function wireItemManager(dialog, target) {
 }
 
 /** Six doors and a Close: each answers with what to do and to whom. */
+/*
+ * THE HUB'S FOOTER BY ROLE (E21 C2b): six doors, each opening its own window - secondary, none of them the answer;
+ * Close, since the hub answers nothing (E21 rule 3), the answer "cancel" as before, and the default.
+ */
 function itemManagerButtons(target) {
-    return [
+    const doors = [
         // Each returns the verb AND who it is about, because the select
         // above is the answer now - the argument this function was called
         // with is only its default.
@@ -167,9 +172,9 @@ function itemManagerButtons(target) {
                 go: action,
                 who: d.element.querySelector("[name=who]")?.value ?? target.id
             })
-        })),
-        { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
+        }))
     ];
+    return { secondary: doors, close: { role: "close", action: "cancel" } };
 }
 
 export async function openItemManager(actor = null) {
@@ -211,10 +216,10 @@ export async function openItemManager(actor = null) {
 
     const whoOptions = recipientOptions(students, target.id);
 
-    const choice = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Items.manage"), minimizable: true },
+    const choice = await drpgWindow({
+        title: game.i18n.localize("DRPG.Items.manage"),
         classes: ["drpg-panel", "drpg-window-items"],
-        content: dialogContent(`<form>
+        body: `<form>
             <label>${game.i18n.localize("DRPG.Items.whichCharacterHub")}
                 <select name="who">${whoOptions}</select></label>
             <div class="drpg-holdings-live">${holdingsHtml(target)}</div>
@@ -224,9 +229,9 @@ export async function openItemManager(actor = null) {
                 { key: "take", label: game.i18n.localize("DRPG.Items.tabTake"),
                   html: `<p class="notes">${game.i18n.localize("DRPG.Items.takeNote")}</p>` }
             ])}
-        </form>`),
+        </form>`,
         render: (event, dialog) => wireItemManager(dialog, target),
-        buttons: itemManagerButtons(target),
+        footer: itemManagerButtons(target),
         rejectClose: false
     });
 
@@ -336,12 +341,12 @@ export async function giveKeyDialog(actor, { bedrooms = null } = {}) {
 
     const recipients = recipientOptions(students, initial.id);
 
-    const result = await DialogV2.wait({
+    const result = await drpgWindow({
         // Generic on purpose (ITEM-13): the form carries its own recipient
         // select, and a title naming the argument lied as soon as it changed.
-        window: { title: game.i18n.localize("DRPG.Vault.giveKey") },
+        title: game.i18n.localize("DRPG.Vault.giveKey"),
         classes: ["drpg-panel", "drpg-give-key"],
-        content: dialogContent(`<form>
+        body: `<form>
             <label>${game.i18n.localize("DRPG.Items.recipient")}
                 <select name="recipient">${recipients}</select></label>
             <label>${game.i18n.localize("DRPG.Vault.whichKey")}
@@ -349,7 +354,7 @@ export async function giveKeyDialog(actor, { bedrooms = null } = {}) {
             <p class="notes" data-drpg-key-empty${shown.empty ? "" : " hidden"}>${
                 foundry.utils.escapeHTML(shown.empty ?? "")}</p>
             <p class="notes">${game.i18n.localize("DRPG.Vault.giveKeyNote")}</p>
-        </form>`),
+        </form>`,
         render: (event, dialog) => {
             const form = dialog.element.querySelector("form");
             const ok = dialog.element.querySelector('footer button[data-action="ok"]');
@@ -359,10 +364,10 @@ export async function giveKeyDialog(actor, { bedrooms = null } = {}) {
                 if (who) showChoices(form, ok, who);
             });
         },
-        buttons: [
-            {
+        footer: {
+            primary: {
                 // The window's own words (S08-22): it read "Give an item" on a window that gives a key.
-                action: "ok", label: game.i18n.localize("DRPG.Vault.giveKey"), default: true,
+                action: "ok", label: game.i18n.localize("DRPG.Vault.giveKey"),
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
                     return {
@@ -371,8 +376,8 @@ export async function giveKeyDialog(actor, { bedrooms = null } = {}) {
                     };
                 }
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: { role: "cancel", action: "cancel" }
+        },
         rejectClose: false
     });
 
@@ -517,7 +522,7 @@ function giveCreatePane({ categories, tiers, suggestions }) {
 
 /** The give form's own rules: the table drives the item list, category and tier; the recipient rebuilds the counts; the roles follow tier and home. */
 function wireGiveForm(dialog) {
-    wireKitTabs(dialog.element);
+    wireKitTabs(dialog.element, { win: dialog.element, app: dialog });
 
     /*
      * THE TABLE DRIVES THE OTHER THREE.
@@ -761,15 +766,15 @@ export async function gmGiveItemDialog(actor) {
 
     const existingPane = giveExistingPane(catalogue, categories, tiers);
 
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Items.give") },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Items.give"),
         // A class of its own (E14 part 2 C7, S08-27): the form rules of styles/danganronpa.css lay its labels out as one
         // grid, and they find the window by it.
         classes: ["drpg-panel", "drpg-window-give"],
         // Two tabs, one verb (Dawid, 2026-08-26). The footer's Give reads
         // whichever pane is showing; the tell-player switch and the cap note
         // sit below the tabs because they are true of both.
-        content: dialogContent(`<form>${kitTabs([
+        body: `<form>${kitTabs([
             { key: "existing", label: game.i18n.localize("DRPG.Items.tabGiveExisting"),
               html: existingPane },
             { key: "create", label: game.i18n.localize("DRPG.Items.tabCreateNew"),
@@ -781,15 +786,12 @@ export async function gmGiveItemDialog(actor) {
                 <input type="checkbox" name="tell" checked />
                 ${game.i18n.localize("DRPG.Items.tellPlayer")}</label>
             <p class="notes">${game.i18n.localize("DRPG.Items.overCapNote")}</p>
-        </form>`),
+        </form>`,
         render: (event, dialog) => { wireGiveForm(dialog); wireKindNotes(dialog); },
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Items.give"), default: true,
-                callback: (e, b, d) => readGiveForm(d)
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+        footer: {
+            primary: { action: "ok", label: game.i18n.localize("DRPG.Items.give"), callback: (e, b, d) => readGiveForm(d) },
+            close: { role: "cancel", action: "cancel" }
+        },
         rejectClose: false
     });
 
@@ -968,7 +970,7 @@ function bulletCreatePane() {
 
 /** The name follows the picked trace; the trace list follows the recipient. */
 function wireBulletForm(dialog, traces, traceContextLine) {
-    wireKitTabs(dialog.element);
+    wireKitTabs(dialog.element, { win: dialog.element, app: dialog });
     const form = dialog.element.querySelector("form");
     if (!form) return;
 
@@ -1158,7 +1160,7 @@ export const GIVEN_ALREADY = Symbol("drpg.givenAlready");
  * ON ONE GM'S BROWSER (E60's fix round, FG6; the end review's C-m8, S-m4): the queue is this browser's memory, and the
  * give runs on whichever GM opened the window, while Observe's find and a hand-over run on the primary - a give on a
  * second GM's browser beside the primary's find of the same trace for the same receiver can still make two copies.
- * No road a GM's give could take to the primary exists; the race across GMs is E38's (row 1.2.126).
+ * No road a GM's give could take to the primary exists; the race across GMs is E38's (row 1.2.128).
  */
 export async function giveBullet(who, payload) {
     const { observeFindKey } = await import("./observe.mjs");
@@ -1201,12 +1203,12 @@ export async function giveTruthBulletDialog(actor, { scenes: only = null } = {})
 
     const existingPane = bulletExistingPane(traces, initial, traceContextLine);
 
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.TruthBullet.give") },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.TruthBullet.give"),
         classes: ["drpg-panel", "drpg-window-bullet"],
         // On Write a new one when no trace lies on any scene (E14 part 2 C6, S08-22): From a Remnant then holds only
         // the line saying so, and the window opened there with Give a Truth Bullet live under it.
-        content: dialogContent(`<form>${kitTabs([
+        body: `<form>${kitTabs([
             { key: "existing", label: game.i18n.localize("DRPG.TruthBullet.tabFromRemnant"),
               html: existingPane },
             { key: "create", label: game.i18n.localize("DRPG.TruthBullet.tabWriteNew"),
@@ -1218,15 +1220,12 @@ export async function giveTruthBulletDialog(actor, { scenes: only = null } = {})
                 <input type="checkbox" name="tell" checked />
                 ${game.i18n.localize("DRPG.Items.tellPlayer")}</label>
             <p class="notes">${game.i18n.localize("DRPG.TruthBullet.secretNote")}</p>
-        </form>`),
+        </form>`,
         render: (event, dialog) => wireBulletForm(dialog, traces, traceContextLine),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.TruthBullet.give"), default: true,
-                callback: (e, b, d) => readBulletForm(d)
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+        footer: {
+            primary: { action: "ok", label: game.i18n.localize("DRPG.TruthBullet.give"), callback: (e, b, d) => readBulletForm(d) },
+            close: { role: "cancel", action: "cancel" }
+        },
         rejectClose: false
     });
 
@@ -1295,10 +1294,10 @@ export async function issueAutopsyDialog() {
             }</label>`;
     }).join("");
 
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.TruthBullet.autopsyTitle") },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.TruthBullet.autopsyTitle"),
         classes: ["drpg-panel", "drpg-window-autopsy"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p class="notes">${game.i18n.localize("DRPG.TruthBullet.autopsyHint")}</p>
             <label>${game.i18n.localize("DRPG.TruthBullet.name")}
                 <input type="text" name="name" autofocus
@@ -1310,10 +1309,10 @@ export async function issueAutopsyDialog() {
                 <textarea name="gmNote" rows="2"
                     placeholder="${game.i18n.localize("DRPG.TruthBullet.gmNotePlaceholder")}"></textarea></label>
             <fieldset><legend>${game.i18n.localize("DRPG.TruthBullet.autopsyWho")}</legend>${rows}</fieldset>
-        </form>`),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.TruthBullet.autopsyIssue"), default: true,
+        </form>`,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.TruthBullet.autopsyIssue"),
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
                     return {
@@ -1324,8 +1323,8 @@ export async function issueAutopsyDialog() {
                     };
                 }
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: { role: "cancel", action: "cancel" }
+        },
         rejectClose: false
     });
 
@@ -1423,16 +1422,16 @@ async function takeItemDialog(actor, { only = null } = {}) {
 
     const recipients = recipientOptions(students, initial.id);
 
-    const result = await DialogV2.wait({
+    const result = await drpgWindow({
         // The title says which of the three buttons opened this - see
         // `FILTERED` above.
-        window: { title: filtered
+        title: filtered
             ? game.i18n.localize(filtered.title)
             : actor
                 ? game.i18n.format("DRPG.Items.takeFrom", { actor: actor.name })
-                : game.i18n.localize("DRPG.Items.take") },
+                : game.i18n.localize("DRPG.Items.take"),
         classes: ["drpg-panel", "drpg-window-take"],
-        content: `<form>
+        body: `<form>
             <label>${game.i18n.localize("DRPG.Items.takeFromWhom")}
                 <select name="recipient">${recipients}</select></label>
             <label>${game.i18n.localize("DRPG.Items.whichItem")}
@@ -1450,9 +1449,9 @@ async function takeItemDialog(actor, { only = null } = {}) {
                 if (who) form.elements.namedItem("item").innerHTML = optionsFor(who);
             });
         },
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Items.take"), default: true,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.Items.take"),
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
                     /*
@@ -1475,8 +1474,8 @@ async function takeItemDialog(actor, { only = null } = {}) {
                     };
                 }
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: { role: "cancel", action: "cancel" }
+        },
         rejectClose: false
     });
 

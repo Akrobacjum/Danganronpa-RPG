@@ -212,8 +212,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
             return globalThis.__dialogLog.slice(${pickedAt}).filter(d => d.title === T).map(d => d.buttons);`),
         killer: await p3.eval(LINE_READ), victim: await p1.eval(LINE_READ), bystander: await p2.eval(LINE_READ)
     };
+    /* The GM's pick on the kit (E21 C4, trait-ruling.mjs `pickHere`): the first listed is the primary, on the right and
+       first; Cancel is the closing word, first on the left; the other listed traits are secondaries after it. So the
+       window's buttons read body, cancel, hand since C4 (body, hand, cancel before it); CI red on e329189e on this
+       order alone, the pick and what each player is told unchanged. */
     check("opening: with no statistic picked the GM picks it as the roll goes out; the killer is told to say how in their thread, the invitation's window throws the pick (Hand, not the first listed) as the GM's, and the victim and the bystander are told nothing of it",
-        firstOpened === "openingRoll" && JSON.stringify(picking.gm) === JSON.stringify([["body", "hand", "cancel"]])
+        firstOpened === "openingRoll" && JSON.stringify(picking.gm) === JSON.stringify([["body", "cancel", "hand"]])
         && picking.killer.line === 1 && JSON.stringify(picking.killer.held) === JSON.stringify([["finesse", true]])
         && picking.victim.line === 0 && picking.bystander.line === 0,
         JSON.stringify(picking), { flow: "trait-ruling" });
@@ -1701,11 +1705,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     const proposed = await p3.eval(`const Mv = await import("${repoUrl}/scripts/movement.mjs");
         const chie = game.actors.get("${ids.chie}");
         globalThis.__dialogLog.length = 0;
-        // A Description since E44 C9 (required in the proposal; the approval's window opens on it and keeps it).
+        // A Description since E44 C9 (required in the proposal; the approval's window opens on it and keeps it). The
+        // sentence for the GM is the form's own field since E22 C5c: one window, no second one to answer.
         globalThis.__dialogAnswers.push({ value: "start", form: null },
             { name: ${JSON.stringify(plan.name)}, target: 2, room: Mv.roomOfActor(chie), trait: "hand", murder: true, condition: "",
-                description: "13 the plan's own words" },
-            { text: ${JSON.stringify(plan.sentence)} });
+                description: "13 the plan's own words", request: ${JSON.stringify(plan.sentence)} });
         let out = null, err = null;
         try { out = await game.drpg.performAction(chie, "project", {}); } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
         globalThis.__dialogAnswers.length = 0;

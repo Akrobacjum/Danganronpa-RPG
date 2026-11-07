@@ -20,8 +20,7 @@ import { resolveThreshold, whisperToOwner, plural } from "./utils.mjs";
 import { rollTrait, noteRollContext, abort, canAfford } from "./action-pipeline.mjs";
 import { rollCardFlags, rollHead } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
+import { drpgWindow } from "./ui-kit.mjs";
 
 /**
  * THE DOORS, NOT THE ROOMS BEHIND THEM (22.09). The picker named every neighbouring room,
@@ -75,21 +74,21 @@ export async function performListen(actor, def, options) {
         .map((r, i) => `<option value="${i}">${foundry.utils.escapeHTML(labelOf.get(r))}</option>`)
         .join("");
 
-    const target = await DialogV2.wait({
-        window: { title: def.label },
+    const target = await drpgWindow({
+        title: def.label,
         classes: ["drpg-panel"],
-        content: `${briefingBlock(actor, "listen", def)}<form>
+        body: `${briefingBlock(actor, "listen", def)}<form>
             <p>${game.i18n.format("DRPG.Listen.prompt", { room: foundry.utils.escapeHTML(here ?? "-") })}</p>
             <label>${game.i18n.localize("DRPG.Listen.which")}
                 <select name="room">${options_}</select></label>
         </form>`,
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Action.roll"), default: true,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.Action.roll"),
                 callback: (e, b, d) => neighbours[Number(d.element.querySelector("[name=room]").value)] ?? null
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
 

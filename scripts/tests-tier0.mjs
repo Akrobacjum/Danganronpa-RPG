@@ -2040,8 +2040,9 @@ const REGRESSIONS = [
             "trial-floor-ui.mjs no longer exports `closeTrial`, so nothing but its own "
             + "button can put the room back into Daily Life");
         /* E11 C13 (11.10.2026): the window's form is `chapterEndForm`, whose `box(name, n)` helper writes the
-           `<input name=...>` once for every box, so the box is named at its call and not in a literal. */
-        ok(/name="endTrial"/.test(chapter) || /\bbox\("endTrial"/.test(chapter),
+           `<input name=...>` once for every box, so the box is named at its call and not in a literal. Since E22 C3b each
+           box is drawn by `option(name, n, words, ...)` (its reason when shut, its mark when permanent), which calls box. */
+        ok(/name="endTrial"/.test(chapter) || /\b(?:box|option)\("endTrial"/.test(chapter),
             "the End of chapter screen has lost the checkbox that offers to close the "
             + "trial, so the step below can only be reached from the console");
         ok(/trialProgressChapter/.test(panel),
@@ -3320,7 +3321,8 @@ const REGRESSIONS = [
 
         ok(dialog.includes("isEclipse("),
             "the murder window opens during an Eclipse and only refuses at Confirm");
-        ok(dialog.indexOf("isEclipse(") < dialog.indexOf("DialogV2.wait("),
+        // E21 C3a: the window is the kit's `drpgWindow(` (ui-kit.mjs), DialogV2.wait's until then.
+        ok(dialog.indexOf("drpgWindow(") > 0 && dialog.indexOf("isEclipse(") < dialog.indexOf("drpgWindow("),
             "the Eclipse is asked after the GM has already filled the form in");
         ok(dialog.indexOf("murderState()") < dialog.indexOf("isEclipse("),
             "the Eclipse guard now hides the tracker of an incident that is already running");
@@ -3495,8 +3497,10 @@ const REGRESSIONS = [
             "the prose window's width stopped following the slider");
         ok(/--drpg-popup-wide: calc\(44rem \* var\(--drpg-legacy-scale/.test(css),
             "the wide window's width stopped following the slider");
-        const wide = bodyOf(css, "@media (min-aspect-ratio: 2/1)");
-        ok(wide.includes("--drpg-legacy-scale"),
+        // The GM panel's ultrawide box is the kit's since E21 W1 (ui-kit.mjs WINDOW_WIDTHS `panel`), a rule of this sheet's
+        // `@media (min-aspect-ratio: 2/1)` until then: its `legacy` is the same factor.
+        const { WINDOW_WIDTHS } = await import("./ui-kit.mjs");
+        ok(WINDOW_WIDTHS?.panel?.ultrawide?.legacy === true && WINDOW_WIDTHS?.wide?.legacy === true,
             "on an ultrawide screen the GM panel is the one window whose box ignores the slider");
 
         const settings = stripComments(new Map(await otherSources()).get("settings.mjs") ?? "");
@@ -3585,7 +3589,8 @@ const REGRESSIONS = [
         ok(!/dialog\.close\(\)/.test(row),
             "a row button still closes the window itself, so the close resolves the opener");
 
-        const tail = bodyOf(panel, "const chosen = await tableDialog");
+        // E21 C2a: the window is drawn by the kit (`drpgWindow`), `tableDialog` until then.
+        const tail = bodyOf(panel, "const chosen = await drpgWindow");
         ok(tail.indexOf("if (roundTrip) return roundTrip;") > 0,
             "the round trip is not returned, so the GM panel reopens itself over it");
         ok(tail.indexOf("if (roundTrip)") < tail.indexOf('chosen === "items"'),
@@ -3624,7 +3629,7 @@ const REGRESSIONS = [
             "the repair dropdown runs the whole death procedure again (F16)");
 
         // The whole opener, not its head: `keepLive` is an argument to the
-        // `tableDialog` call, so a slice that stops at that call cannot see the watch.
+        // `drpgWindow` call (`tableDialog`'s until E21 C2a), so a slice that stops at that call cannot see the watch.
         const window = bodyOf(panel, "async function openWhoIsAliveDialog", { until: "export async function applyAliveStates" });
         ok(/const buildDonors = \(\) =>/.test(window),
             "the donation controls are built from a string read once");
@@ -4386,14 +4391,15 @@ const REGRESSIONS = [
         // E41 C4 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read -
         // the proposal stands in action-project.mjs `startProject`, the Misleading trail's tile in action-tamper.mjs.
         const rolls = stripComments(actionText(sources));
-        // The 400 characters before the proposal's title and everything from it to the "sent" line.
+        // The 400 characters before the proposal's title and everything from it to the "sent" line. Since E22 C5c the
+        // proposal's one window carries its sentence and `startProject` calls `callGm` itself (R1370), so the answer read
+        // is `callGm`'s false, not `promptAndCallGm`'s null.
         const proposal = bodyOf(rolls, "DRPG.Project.proposalTitle", { back: 400 })
             + bodyOf(rolls, "DRPG.Project.proposalTitle", { until: "DRPG.Project.proposalSent" });
-        ok(/const sent = await promptAndCallGm\(/.test(proposal),
+        ok(/const sent = await callGm\(/.test(proposal),
             "the proposal does not read the answer");
-        ok(/if \(sent === null\) return null;/.test(proposal),
-            "a cancelled proposal still whispers that it was sent - and `!sent` would be "
-            + "wrong, because an empty string is a proposal with no sentence on it");
+        ok(/if \(sent === false\) return null;/.test(proposal),
+            "a proposal nobody was there to take still whispers that it was sent");
 
         ok(/n: CLEANUP\.actions\.misleadingTrail\.threshold/.test(rolls),
             "the Misleading trail tile states a number of its own instead of the rule's");
@@ -6533,7 +6539,8 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const setup = stripComments(sources.get("season-wipe.mjs") ?? "");
-        const beforeWindow = bodyOf(setup, "export async function resetSeason", { until: "DialogV2.wait(" });
+        // The window is the kit's since E21 C2b (ui-kit.mjs `drpgWindow`).
+        const beforeWindow = bodyOf(setup, "export async function resetSeason", { until: "drpgWindow(" });
         ok(/isPrimaryGm\(\)/.test(beforeWindow), "resetSeason opens its window without asking whether this is the primary GM");
         ok(/whenGmStoresHydrated\(\)/.test(beforeWindow), "the reset window opens before this browser has the other GMs' copies");
         const wipe = fnSource(setup, "wipeSeason");
@@ -9129,6 +9136,7 @@ const REGRESSIONS = [
             ["SHEET voice.mjs#keepRoomsThroughGaps", "out of scope as a judgement: `isMonokuma` from the document, as `placeVoices` reads it, so that a Monokuma's token (a GM's voice) keeps no voice room through a gap (E88 fix G1); it moves nothing and writes nothing, and in the trial `voiceClaim` locates nobody, so it is not asked"],
             ["SHEET use-items.mjs#equippedIn", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
             ["SHEET use-items.mjs#tierOf", "out of scope: a pure reader of the item it is handed (use-items.mjs:110); on a GM the swing hands it the held item. C8 reads the tier through it (E13 C8)"],
+            ["SHEET use-items.mjs#usedCreatively", "out of scope: a pure reader of the item it is handed, as `tierOf` is (E22 C5c): whether a use is a GM's ruling, read by `useItem` on the user's own client and by the sheet's Use button there; no roll's wear and no road changes"],
             ["SHEET use-items.mjs#readiedItems", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
             ["SHEET use-items.mjs#breakOnDespair", "judged where it runs on a GM: `wearSwing` (the incident, on the primary) passes the held item and the guard reads `isBroken(held)` (E29 r2-H18); on the roller's client it is the owner's own item (class 1). C8 makes a tier-0 item break on any roll, the tier read from `held` [1b.1 broken flag, 1b.2 tier] (E13 C8)"],
             ["SHEET use-items.mjs#toggleEquipped", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
@@ -11421,7 +11429,9 @@ const REGRESSIONS = [
             whoCalls("returnTheLiving"), elsewhere("returnTheLiving"),
             leaving.every((at, i) => at >= 0 && (i === 0 || at > leaving[i - 1])), staging.every((at, i) => at >= 0 && (i === 0 || at > staging[i - 1])), opening,
             order.every((at, i) => at >= 0 && (i === 0 || at > order[i - 1])), elsewhere("setTrialExit"),
-            [...ask.matchAll(/action: "(\w+)"/g)].map(m => m[1]), /const exit = await askTrialExit\(notChapter\);[\s\S]*return closeTrial\(exit\);/.test(end)]),
+            // Its buttons: the answers by their action, then the kit's closing word (E21 C4: `close: "cancel"`, the role's word).
+            [...ask.matchAll(/action: "(\w+)"/g)].map(m => m[1]).concat(/\bclose:\s*"cancel"/.test(ask) ? ["cancel"] : []),
+            /const exit = await askTrialExit\(notChapter\);[\s\S]*return closeTrial\(exit\);/.test(end)]),
             JSON.stringify([["call-effects.mjs#gatherEffect/2", "call-world.mjs#runPendingGather/2", "chapter.mjs#runDiscovery/2", "trial-scene.mjs#returnTheLiving/3"],
                 "{ held: flagsHeldNow, box: true, only }",
                 ["leaveTrialScene"], [], true, true, ["const exit = trialExit;", "trialExit = null;", "if (!game.user?.isGM || !hall) return null;"],
@@ -11843,11 +11853,14 @@ const REGRESSIONS = [
         const vote = stripComments(voteText(await otherSources()));
         const win = fnSource(vote, "openVerdictDialog"), read = fnSource(vote, "read");
         ok(win.length > 500 && read.length > 100, "openVerdictDialog or read is gone - the reads below would measure nothing");
-        const footer = bodyOf(win, "buttons:", { until: "rejectClose" });
-        equal(JSON.stringify([...footer.matchAll(/action:\s*"(\w+)"/g)].map(m => m[1])), JSON.stringify(["cancel", "correct", "wrong"]),
+        /* On the kit since E21 C4 (ui-kit.mjs `footerButtons`): the slots decide the tree - with no primary, the closing
+           word first, then the destructive answers in their order - and `default` names the default by its action. */
+        const footer = bodyOf(win, "footer:", { until: "rejectClose" });
+        const tree = [...(/\bclose:\s*"cancel"/.test(footer) && !/\bprimary:/.test(footer) ? ["cancel"] : []), ...[...footer.matchAll(/action:\s*"(\w+)"/g)].map(m => m[1])];
+        equal(JSON.stringify(tree), JSON.stringify(["cancel", "correct", "wrong"]),
             "the verdict window's footer is not Cancel, then the two verdicts - Enter presses its first button");
-        equal(JSON.stringify([...footer.matchAll(/action:\s*"(\w+)"[^{}]*\bdefault:\s*true/g)].map(m => m[1])), JSON.stringify(["cancel"]),
-            "a button other than Cancel is the verdict window's default");
+        equal(JSON.stringify([/\bdefault:\s*"cancel"/.test(footer), /\bdestructive:\s*\[/.test(footer), /\bdefault:\s*true/.test(footer)]), JSON.stringify([true, true, false]),
+            "a button other than Cancel is the verdict window's default, or the verdicts are not the destructive role");
         ok(/<option value="">\$\{game\.i18n\.localize\("DRPG\.Vote\.nobodyExecuted"\)\}<\/option>/.test(win),
             "the executed select's first option is not \"Nobody is executed\" with no value - it opens on a student");
         const rightReturns = read.search(/if \(correct\) return \{ correct, executedIds: blackenedIdList\b/), selectRead = read.search(/\bf\.executed\b/);
@@ -12089,7 +12102,8 @@ const REGRESSIONS = [
         ok(vote.length > 0, "vote.mjs was not read - this test measured nothing");
         const body = fnSource(vote, "openVerdictDialog");
         const route = body.search(/if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/);
-        const record = body.search(/trialProgress\(\)/), drawn = body.search(/DialogV2\.wait\(/);
+        // The window is the kit's since E21 C4 (`drpgWindow`), DialogV2.wait before.
+        const record = body.search(/trialProgress\(\)/), drawn = body.search(/\bdrpgWindow\(|DialogV2\.wait\(/);
         equal(JSON.stringify([route >= 0, record > route, drawn > route]), JSON.stringify([true, true, true]),
             "openVerdictDialog does not send a Final Trial to the Final Trial's window before it reads the record and draws its own "
             + "(read: the route there, the record read after it, the window drawn after it)");
@@ -12516,7 +12530,10 @@ const REGRESSIONS = [
         const finalRoute = /if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/;
         const verdict = fnSource(vote, "openVerdictDialog"), batch = fnSource(levelUp, "runAdvancementBatch");
         const card = fnSource(vote, "postVerdictCard"), wipe = fnSource(code("season-wipe.mjs"), "clearSeasonClock");
-        const cancelFirst = /buttons: \[\s*\{ action: "cancel", [^}]*default: true \}/;
+        /* Cancel first and the default: Foundry's `buttons` with Cancel first and `default: true` until E21 C4, the kit's
+           footer since (no primary, so the closing word is the first in the tree, and `default: "cancel"`). */
+        const cancelFirst = { test: text => /buttons: \[\s*\{ action: "cancel", [^}]*default: true \}/.test(text)
+            || (/footer:\s*\{[\s\S]*\bclose:\s*"cancel"[\s\S]*\bdefault:\s*"cancel"/.test(text) && !/footer:\s*\{[^}]*\bprimary:/.test(text)) };
         const facts = {
             onePerPerson: [/!u\.isGM/, /if \(!user \|\| seated\.has\(user\.id\)\) continue;/, /!TRIAL\.deadCastBallots/]
                 .every(re => re.test(fnSource(vote, "trialParticipants"))),
@@ -12549,7 +12566,8 @@ const REGRESSIONS = [
                 && /await onGiving\?\.\(actor, await givenCounts\(actor\)\);/.test(batch) && /if \(flying && await rowGrew\(flying, giving\)\)/.test(batch),
             takeBackBusy: /if \(advancing\.has\(actor\.id\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Advance\.takeBackBusy"/
                 .test(fnSource(levelUp, "takeBackOffer")),
-            enterGives: /buttons: \[\s*\{ action: "give", [^}]*default: true,/.test(fnSource(levelUp, "askWhoPicks")),
+            // The kit's footer since E21 C6a: the primary is the default and the first submit button (ui-kit.mjs's header).
+            enterGives: /footer: \{\s*primary: \{ action: "give", /.test(fnSource(levelUp, "askWhoPicks")),
             unfoundExecuted: /isDeadForGm\(held\)\s*\? await publishDeath\(actor, \{ phase: "classTrial", cause: "executed" \}\)/.test(fnSource(vote, "carryOutSentence")),
             eclipseDoors: /if \(trialEdge && next\.phase === "classTrial" && next\.eclipse === true\) \{\s*ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Floor\.eclipseFirst"\)\);\s*return null;/
                 .test(fnSource(code("clock.mjs"), "setClock"))
@@ -12743,7 +12761,7 @@ const REGRESSIONS = [
         const setup = stripComments(new Map(await otherSources()).get("season-wipe.mjs") ?? "");
         ok(setup.length > 1000, "season-wipe.mjs did not load - the reads below would measure nothing");
         const reset = fnSource(setup, "resetSeason");
-        const window = reset.indexOf("DialogV2.wait("), plan = reset.indexOf("planFrom(typed.ticked)");
+        const window = reset.indexOf("drpgWindow("), plan = reset.indexOf("planFrom(typed.ticked)");
         const asked = [...reset.matchAll(/if \(!isPrimaryGm\(\)\) \{/g)].map(hit => hit.index);
         ok(window > 0 && plan > window && asked.some(at => at > window && at < plan),
             "the reset does not ask again, between its window and its plan, whether this browser is still the primary GM's");
@@ -15166,7 +15184,7 @@ const REGRESSIONS = [
          */
         const CALL_CENSUS = [
             ["action-search.mjs#searchSpecific", "player", "abort(", "a Search for something specific, after the dice: the action's price comes back (`abort`), and the roll is noted as no search made"],
-            ["action-project.mjs#startProject", "player", null, "a project proposal: nothing is spent before it, and null is no proposal - no 'sent' line follows"],
+            ["action-project.mjs#startProject", "player", null, "a project proposal, its sentence typed in its one window (E22 C5c): nothing is spent before it, and false is no proposal - no 'sent' line follows"],
             ["action-observe.mjs#ruleObserve", "player", "abort(", "an Observe the GM rules, after the dice: the action's price comes back (`abort`)"],
             ["action-analyze.mjs#askForHint", "player", "refundPrice(", "an Analyze hint, after the dice: the step that paid comes back (`refundPrice`)"],
             ["action-dynamic.mjs#offerDynamicFind", "player", null, "a Dynamic success's card for the GMs, after the dice (E16 C2), and a miss's since E51 C1: the result is the roll's and stands, so nothing is handed back; with no GM the refusal is said once (`callGm`)"],
@@ -17087,7 +17105,8 @@ const REGRESSIONS = [
         const FILES = [...ACTION_FAMILY, "observe.mjs", "frisk.mjs", "search-tokens.mjs", "use-items.mjs", "murder-ui.mjs",
             "projects-ui.mjs", "monocub.mjs", "cleanup.mjs"];
         const KEPT = {};
-        const OPENS = /\b(DialogV2\.(?:wait|confirm|prompt|input)|new\s+(?:foundry\.applications\.api\.)?DialogV2|tableDialog|new\s+\w*Application\w*)\s*\(/g;
+        // The kit's openers too (E21 C5a): the action windows are drpgWindow / drpgConfirm calls since, each naming its class.
+        const OPENS = /\b(DialogV2\.(?:wait|confirm|prompt|input)|new\s+(?:foundry\.applications\.api\.)?DialogV2|tableDialog|drpgWindow|drpgConfirm|drpgPrompt|new\s+\w*Application\w*)\s*\(/g;
         const read = (file, raw) => {
             const blank = blankComments(raw);
             const tops = [...blank.matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)\s*\(/gm)].map(m => ({ at: m.index, name: m[1] }));
@@ -17319,7 +17338,7 @@ const REGRESSIONS = [
             files: Object.fromEntries(files.map(file => [file, { imports: true, calls: true, byHand: false }]))
         }), "[projects.mjs exports projectLabel, reading current and start; per reader: imports it from projects.mjs, calls it, still writes current/start by hand]");
     }],
-    ["R1110 - every Call window is built by call-pickers.mjs `callWindow`: no `pendingHeader` in call-pickers.mjs; each DialogV2 wait, confirm, prompt or input in call-pickers.mjs, calls.mjs, monocub.mjs `cubAbilityDialog` and sheet.mjs `runCall` stands in `callWindow` alone, which names drpg-panel, the Hope and the Despair class and drpg-gm-route; each of the seven windows calls it; none labels a button `DRPG.Action.proceed` (E51 C2; E51-16, audit S17-48)", async () => {
+    ["R1110 - every Call window is built by call-pickers.mjs `callWindow`: no `pendingHeader` in call-pickers.mjs; each DialogV2 wait, confirm, prompt or input in call-pickers.mjs, calls.mjs, monocub.mjs `cubAbilityDialog` and sheet.mjs `runCall` stands in `callWindow` alone, which names drpg-panel, the Hope and the Despair class and the GM's road (drpg-gm-route; its kit slot `gmRoute` since E21 C5a); each of the seven windows calls it; none labels a button `DRPG.Action.proceed` (E51 C2; E51-16, audit S17-48)", async () => {
         /*
          * E51 C2, 30.10.2026; audit S17-48. The Call windows were built in seven places, each with its own classes:
          * the pickers (`pickText`, `pickMotive`, `choose`) under one module `let pendingHeader` that `pickTarget` set and
@@ -17367,9 +17386,13 @@ const REGRESSIONS = [
         equal(JSON.stringify({
             pendingHeader: regions[0].pending,
             outside: opens.filter(at => at !== "call-pickers.mjs#callWindow"),
-            inBuilder: opens.includes("call-pickers.mjs#callWindow"),
+            // On the kit's frame since E21 C5a: the builder opens its window through ui-kit.mjs `drpgWindow` (R1352).
+            inBuilder: opens.includes("call-pickers.mjs#callWindow") || /\bdrpgWindow\s*\(/.test(builder),
             exported: /^export (?:async )?function callWindow\(/m.test(src["call-pickers.mjs"]),
-            classes: ["drpg-panel", "drpg-hope-dialog", "drpg-despair-dialog", "drpg-gm-route"].filter(c => !builder.includes(`"${c}"`)),
+            /* The GM's road is the kit's `gmRoute` slot since E21 C5a (the role writes `drpg-gm-route`), so the builder
+               names the slot, not the class. */
+            classes: ["drpg-panel", "drpg-hope-dialog", "drpg-despair-dialog"].filter(c => !builder.includes(`"${c}"`))
+                .concat(/\bslots\.gmRoute\b/.test(builder) ? [] : ["the gmRoute slot"]),
             unbuilt: WINDOWS.filter(fn => !builds.includes(fn)),
             proceed: regions.flatMap(r => r.proceed)
         }), JSON.stringify({ pendingHeader: 0, outside: [], inBuilder: true, exported: true, classes: [], unbuilt: [], proceed: [] }),
@@ -18654,7 +18677,7 @@ const REGRESSIONS = [
          * Leave a Clue and Secure a Trace hints end "a critical leaves two" / „a krytyk zostawia dwa”, the entry's
          * `indirectVictim.count.critical`, and the digit rule cannot see a word. 2 to 12 only: "one" and „jeden” stand
          * in every other sentence as an article or a pronoun (Sprint's "one more" is section 13's, E71). Measured on
-         * this tree: these four places and no other. Their placeholder needs the owner's text change: E71 (row 1.2.120).
+         * this tree: these four places and no other. Their placeholder needs the owner's text change: E71 (row 1.2.122).
          */
         const NUMBER_WORDS = { en: ["", "", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"],
             pl: ["", "", "dwa|dwie|dwóch|dwoma|dwu", "trzy|trzech|trzema", "cztery|czterech", "pięć|pięciu", "sześć|sześciu", "siedem|siedmiu",
@@ -19963,7 +19986,7 @@ const REGRESSIONS = [
          * The queue is this browser's memory (`serialWrite`), so it holds one GM's browser to one copy (E60's fix round,
          * FG6; the end review's C-m8, S-m4): Observe's find, a hand-over, a Present and Monokuma's Reveal run on the
          * primary, and Give a Truth Bullet on whichever GM opened it - a give on a second GM's browser beside the
-         * primary's find of the same trace for the same receiver can still make two copies, and is E38's (row 1.2.126,
+         * primary's find of the same trace for the same receiver can still make two copies, and is E38's (row 1.2.128,
          * the stage of two GMs; STATUS Open 50).
          */
         const sources = await moduleSources();
@@ -20091,6 +20114,66 @@ const REGRESSIONS = [
         }
         for (const name of NAMES) if (css.includes(`.${name}`)) hits.push(`the module's stylesheets: ${name}`);
         equal(JSON.stringify(hits), "[]", "[the scripts and sheets that still name the collapse]");
+    }],
+
+    ["R1566 - a folded window keeps no height of the module's (06.11.2026; LIVE-E44-08 (1), the owner at the table): no rule of the module's stylesheets whose subject is a Foundry window (`.application`) sets it a `height` or `min-height` other than auto, none or 0 without leaving out the folded window (`:not(.minimized)`), and the character sheet's floor leaves out the fold on its way too (`:not(.minimizing)`)", async () => {
+        /*
+         * 06.11.2026, the owner at the table: "zwijanie karty postaci nie dziala". Foundry folds a window by writing its
+         * title bar's height inline and hiding what is under the bar; an author `min-height` wins over an inline
+         * `height`, so danganronpa.css's `.application.sheet.daggerheart.actor.character { min-height: 830px }` held the
+         * folded sheet at 830px, an empty strip with the board showing through it (the owner's screenshot, 205 x 838 px).
+         * Read: every rule of every sheet module.json serves, comments removed, each selector of a list on its own
+         * (split outside brackets), its subject the last compound. Red before this test's commit: the sheet's rule, the
+         * one rule found. The other rules a scan of 06.11.2026 found that set a window a height already left out
+         * `.minimized` (components.css and stained-glass.css's `.drpg-panel`). What v14 does when it folds is read in the
+         * module's notes, not in its source (LIVE-E44-08).
+         */
+        const css = await moduleStyles();
+        must(css.length > 10000, `${css.length} characters of the sheets read - this would measure nothing`);
+        const splitList = text => {
+            const parts = []; let depth = 0, from = 0;
+            for (let i = 0; i < text.length; i++) {
+                const ch = text[i];
+                if (ch === "(" || ch === "[") depth++;
+                else if (ch === ")" || ch === "]") depth--;
+                else if (ch === "," && depth === 0) { parts.push(text.slice(from, i)); from = i + 1; }
+            }
+            parts.push(text.slice(from));
+            return parts.map(x => x.trim()).filter(Boolean);
+        };
+        const subjectOf = selector => {
+            let depth = 0, cut = 0;
+            for (let i = 0; i < selector.length; i++) {
+                const ch = selector[i];
+                if (ch === "(" || ch === "[") depth++;
+                else if (ch === ")" || ch === "]") depth--;
+                else if (depth === 0 && /[\s>+~]/.test(ch)) cut = i + 1;
+            }
+            return selector.slice(cut);
+        };
+        const FREE = /^(auto|none|0|0px|0rem|fit-content|max-content|min-content|initial|unset)(\s*!important)?$/i;
+        const hits = [];
+        let windows = 0, sheetFloor = 0;
+        for (const m of css.matchAll(/([^{};]+)\{([^{}]*)\}/g)) {
+            const prelude = m[1].trim();
+            if (prelude.startsWith("@")) continue;
+            const heights = [...m[2].matchAll(/(?:^|;)\s*((?:min-)?height)\s*:\s*([^;]+)/gi)]
+                .map(d => [d[1].toLowerCase(), d[2].trim()]).filter(([, v]) => !FREE.test(v));
+            for (const selector of splitList(prelude)) {
+                const subject = subjectOf(selector);
+                if (!/\.application(?![\w-])/.test(subject.replace(/:(?:not|where|is|has)\([^)]*\)/g, ""))) continue;
+                windows++;
+                if (!heights.length) continue;
+                if (/\.sheet\b/.test(subject) && /\.character\b/.test(subject)) {
+                    sheetFloor++;
+                    if (!subject.includes(":not(.minimizing)")) hits.push(`${selector} { ${heights.map(h => h.join(": ")).join("; ")} } - not left out while it folds`);
+                }
+                if (!subject.includes(":not(.minimized)")) hits.push(`${selector} { ${heights.map(h => h.join(": ")).join("; ")} }`);
+            }
+        }
+        must(windows > 30, `${windows} selector(s) of a window read - the scan would read nothing`);
+        must(sheetFloor >= 1, "the character sheet's floor was not found - the rule this test was written for is gone, or the scan misses it");
+        equal(JSON.stringify(hits), "[]", "[the rules that give a folded window a height]");
     }],
     ["R1318 - an opener that raised its window says so (E44 C2c; E44-09, S10-59): live.mjs exports RAISED = \"raised\"; every `if (alreadyOpen(\"drpg-window-...\")) return ...;` branch in scripts/ answers RAISED - 22 or more of them, read file by file - and so does openNotices's; the GM panel's tile handler returns before `openGmPanel()` when the tile's run answered RAISED", async () => {
         /*
@@ -20248,7 +20331,10 @@ const REGRESSIONS = [
          * open, is one site, as call-pickers.mjs's `callWindow` is. ui-kit.mjs's own are the kit. Read at C7b's tree: 124
          * DialogV2 calls and 5 classes, 126 sites outside the kit in 54 files (the notice history's Clear question among
          * them). E44 C6 moves the two Foundry tools frames and the narrow description window, which this census then
-         * stops counting.
+         * stops counting. GREEN SINCE E21 C6a (07.11.2026): the last eleven sites (the handbooks, the conversation and its
+         * two questions, the narrow description window, the project's window, its Delete question and Share, Level Up
+         * and the class's Level Up, the notices' Clear) moved, the census read empty, and the marker came off in the same
+         * commit - an `expectedRed` that passes fails the suite, so it could not wait for C6b as E21's slice planned.
          */
         const SITE = /\b(?:new\s+(?:[\w$]+\.)*DialogV2\s*\(|DialogV2\s*\.\s*(?:wait|confirm|prompt|query|input)\s*\()/g;
         const CLASS = /\bclass(?:\s+[\w$]+)?\s+extends\s+([^{]+?)\s*\{/g;
@@ -20262,6 +20348,10 @@ const REGRESSIONS = [
                 else outside.set(file, (outside.get(file) ?? 0) + 1);
             };
             for (const m of blank.matchAll(SITE)) add("DialogV2");
+            /* A window a caller opens through the kit is read too (E21 C2b): the floor below is what the reader reads,
+               and each group of E21 moves windows from the census into these calls - 126 sites outside the kit at C2a,
+               96 read once C2b's moved, under the floor, with nothing wrong with the reader. Not in the census. */
+            if (file !== "ui-kit.mjs") sites += [...blank.matchAll(/\b(?:drpgWindow|drpgConfirm|drpgPrompt)\s*\(/g)].length;
             for (const m of blank.matchAll(CLASS)) {
                 if (!/ApplicationV2|DialogV2|ApplicationMixin|DrpgApp\(\)/.test(m[1])) continue;
                 if (/^DrpgApp\(\)$/.test(m[1].trim())) { kit.push(`${file} DrpgApp`); sites++; continue; }
@@ -20275,7 +20365,7 @@ const REGRESSIONS = [
         const list = [...outside].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([f, n]) => `${f} ${n}`);
         const total = [...outside.values()].reduce((a, b) => a + b, 0);
         equal(JSON.stringify(list), "[]", `the windows outside the kit, which E21 moves: ${total} in ${outside.size} file(s)`);
-    }, expectedRed("E21", "E21 moves every other window onto drpgWindow or DrpgApp and deletes its old frame rules; the census of the windows outside the kit is its list, and E21 takes this marker off when it is empty", { failing: "the windows outside the kit, which E21 moves" })],
+    }],
     ["R1336 - every footer button names a role of BUTTON_ROLES (E44 C7b; E44-23): a kit footer (`drpgWindow`'s `footer`, `footerMarkup`, `footerButtons`) places its buttons only in a role's slot, and every DialogV2 footer outside the kit names a role on each button - the census of those that do not is E22's list", async () => {
         /*
          * E44 C7b, 04.11.2026. E44 writes the table of button roles (ui-kit.mjs BUTTON_ROLES: primary, gmRoute, close,
@@ -20289,7 +20379,9 @@ const REGRESSIONS = [
          * the messenger, the room's window) is not read here: E21 moves those onto DrpgApp's footer. Read at C7b's tree:
          * 233 buttons in literal arrays and the defaults of confirm and prompt, none with a role's class, and 10 footers
          * built in code or passed whole - 243 in 52 files; one kit footer outside ui-kit.mjs, the notice history's
-         * (destructive, close).
+         * (destructive, close). GREEN SINCE E21 C6a (07.11.2026): the last sixteen buttons (the project's window, its
+         * Delete question and Share; Level Up and the class's; the conversation's two questions; the notices' Clear)
+         * moved into kit footers, and the marker came off with R1335's.
          */
         const kitText = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/ui-kit.mjs`).then(lfText));
         const table = bodyOf(kitText, "export const BUTTON_ROLES = Object.freeze({", { until: "\n});" });
@@ -20330,13 +20422,16 @@ const REGRESSIONS = [
                 } else count(file, 1);
             }
         }
-        must(buttons >= 100, `only ${buttons} footer button(s) were read in scripts/ - this would measure too little`);
+        /* The floor counts both shapes a footer is read in (E21 C4, 06.11.2026): the buttons outside the kit fall with every
+           group of E21 that moves a window (233 at E44 C7b, 65 at C4) and reach none at C6, where every footer read is a kit
+           footer's slots - so a floor on the buttons alone would fail the census for emptying. */
+        must(buttons + kitFooters >= 100, `only ${buttons} footer button(s) outside the kit and ${kitFooters} kit footer(s) were read in scripts/ - this would measure too little`);
         ok(kitFooters >= 1, "no kit footer was read outside ui-kit.mjs (the notice history's, E44 C5)");
         equal(JSON.stringify(wrongSlot), "[]", "[kit footers holding a button in no role's slot]");
         const list = [...noRole].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([f, n]) => `${f} ${n}`);
         const total = [...noRole.values()].reduce((a, b) => a + b, 0);
         equal(JSON.stringify(list), "[]", `the footer buttons that name no role, which E22 gives one: ${total} in ${noRole.size} file(s)`);
-    }, expectedRed("E22", "E22 fills the button-role table: every footer button of the module gets a role of BUTTON_ROLES, D11's red only for the GM's road; the census of the buttons that name none is its list, and E22 takes this marker off when it is empty", { failing: "the footer buttons that name no role, which E22 gives one" })],
+    }],
     ["R1351 - a project's description travels by its name's road (E44 C9; Q-C9-1..3): the player's proposal draws the field, guards its Propose, refuses before anything is sent what config.mjs `projectDescriptionProblem` names - a preset's own label standing in for an empty one, wired into the field as the preset is chosen, and its room-naming summary never the description (fix FG1) - and carries the text on the card's Approve; the approval hands it to the GM's window, which draws it, guards Save, refuses the same way before it writes, and writes it by createProject and projectEditChange; createProject refuses one too long and puts it in the meta of the change that writes the sealed countdown, projectEditChange in the meta, and allProjects reads it back through `descriptionOf`; it is no field of PROJECT_SECRET_FIELDS or of the token a project places, and a secret project's is the GMs' (PROJECT_SECRET_WHILE_SECRET, the world-secrets rule's whileSecret: E44 fix FG6), told to its players by `tellDescription` after every change; the manager's table neither reads nor writes it; and the token's card is a live region over projectMeta and the Countdowns that asks knowsProject at every draw", async () => {
         /*
          * E44 C9, 04.11.2026. Where the words live, and why there: the project's open meta (projectMeta, a world setting),
@@ -20372,7 +20467,8 @@ const REGRESSIONS = [
                 preset: /result\.description = String\(result\.description \?\? ""\)\.trim\(\) \|\| \(preset \? presetDescription\(presetKey\) : ""\)/.test(start)
                     && /render: \(event, dialog\) => \{[\s\S]*wirePresetDescription\(dialog\.element\);[\s\S]*\},\s*rejectClose/.test(start)
                     && !/description[^\n]*presetLine|presetLine[^\n]*description/.test(start),
-                refusedFirst: order(start, /projectDescriptionProblem\(result\.description\)/, /promptAndCallGm\(/),
+                // Before the one call that sends it (E22 C5c: `callGm`, where `promptAndCallGm` was).
+                refusedFirst: order(start, /projectDescriptionProblem\(result\.description\)/, /\bcallGm\(/),
                 carried: /description: result\.description,/.test(approveData)
             },
             approval: /description: data\.description \?\? ""/.test(approve),
@@ -20410,6 +20506,194 @@ const REGRESSIONS = [
             + "the GMs' fields or the world-secrets rule name it; whether the token's creation names it; the manager's functions that name it; the "
             + "card's live region and its draw asking knowsProject; since fix FG6 the GMs' list of the fields held while secret and its rule, "
             + "and applyProjectChange telling the players]");
+    }],
+    ["R1356 - the fit sweep's reach (audit/style-sweep.mjs `--fit`; E21 C1c, E21-03, E21-13, E21-14): probe 08 keeps every tabbed window once per tab, opens the player's action windows (Observe, Search, Analyze, Tamper, Rest, Projects, Palm), the notice history with 250 notices and the room's description window; the sweep reads every captured window, the kit gallery, the sheet stand-in and the glass harness's A8 frames at 1920x1080, 1366x768, 1280x800 and 1024x768, a player's at 390x844, and names its four controls; the style harness places a window and the sheet stand-in reads settings.mjs `sheetBox`", async () => {
+        /*
+         * E21 C1c, 05.11.2026. "Fits on the screen" is a reading in Chromium, never a headless one: jsdom lays nothing
+         * out. What this holds is the sweep's reach - that the pages, the sizes and the controls the stage names are
+         * there to be read - not the reading, which each commit that moves a window quotes (STAGE.md rule 7). The
+         * sources are read as text: probe 08's list, the sweep's sizes, pages and controls, the harness's placement
+         * and its sheet stand-in, and the captures' manifest (the pages the sweep is given). Red on C1b's tree: no
+         * fit pass in style-sweep.mjs ("no fit pass").
+         */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        const read = async path => {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" });
+                return res.ok ? await lfText(res) : "";
+            } catch { return ""; }
+        };
+        const [sweep, probe, page, manifestText] = await Promise.all(["audit/style-sweep.mjs", "audit/harness/probes/08-capture-windows.mjs",
+            "audit/style-harness.html", "audit/windows/manifest.json"].map(read));
+        must(probe.length > 2000 && page.length > 2000, "probe 08 or the style harness read nothing - this test would read nothing");
+        ok(/const FIT = argv\.includes\("--fit"\)/.test(sweep) && sweep.includes("async function fitPass("), "no fit pass in audit/style-sweep.mjs");
+        const sizes = bodyOf(sweep, "const FIT_SIZES", { until: "\n" }) + bodyOf(sweep, "const FIT_PHONE", { until: "\n" });
+        const controls = ["(a) max-height off", "(b) body overflow visible", "(c) reposition skipped", "(d) Stop's sticky rule off"].filter(name => !sweep.includes(`"${name}"`));
+        let manifest = { windows: [] };
+        try { manifest = JSON.parse(manifestText); } catch { /* read as empty below */ }
+        const rows = manifest.windows ?? [];
+        const ids = new Set(rows.map(r => r.id));
+        const tabbed = ["sound", "despair-flow", "investigation", "item-tables"].map(id => [id, rows.filter(r => r.of === id && r.captured).length]);
+        equal(JSON.stringify({
+            sizes: ["[1920, 1080]", "[1366, 768]", "[1280, 800]", "[1024, 768]", "[390, 844]"].filter(s => !sizes.includes(s)),
+            controls,
+            pages: ["\"kit-gallery\"", "\"sheet\"", "\"glass-gm\"", "\"glass-player\"", "toggleFoundryTools", "drpgVoiceList"].filter(s => !sweep.includes(s)),
+            probe: ["perTab", "ACTION_WINDOWS", "\"observe\", \"search\", \"analyze\", \"tamper\", \"rest\", \"project\", \"palm\"", "notices-player-250", "openRoomWindow", "i <= 250"].filter(s => !probe.includes(s)),
+            harness: ["drpgFit", "byHand", "sheetBox", "drpg-safeword-button", "wireKitTabs(app, { win: app"].filter(s => !page.includes(s)),
+            manifest: ["notices-player-250", "room-window", "action-observe"].filter(id => !ids.has(id)),
+            tabbed: tabbed.filter(([, n]) => n < 1).map(([id]) => id),
+            sheetBox: typeof (await import("./settings.mjs")).sheetBox
+        }), JSON.stringify({ sizes: [], controls: [], pages: [], probe: [], harness: [], manifest: [], tabbed: [], sheetBox: "function" }),
+        "[the sizes FIT_SIZES and FIT_PHONE miss; the controls the sweep does not name; the pages and A8 readers it does not name; what probe 08 does not name; what the style harness does not hold; "
+            + "the windows the manifest has no row for; the tabbed windows with no tab kept beside the first; settings.mjs sheetBox's type]");
+    }],
+    ["R1357 - the old frame is gone (E21 C2a; E21-08): no `tableDialog`, `fitWindowToTabs`, `fitWindowToTable` or `pinFooterAcrossScroll` in the module's scripts, no rule of its sheets names `.drpg-table-window`, and no rule naming a window moved onto the kit's frame (MOVED, which each group of E21 extends) frames it - its height, overflow or position, or its footer's place and layout", async () => {
+        /*
+         * E21 C2a, 05.11.2026. A window E21 moves onto the kit's frame (ui-kit.mjs `drpgWindow`: `drpg-ui` on the root,
+         * the screen's height, one body that scrolls, the footer by roles) loses the frame it had: utils.mjs `tableDialog`
+         * with its measure (`fitWindowToTable`, `fitWindowToTabs` - the width is the kit's `fitKitWidth` now) and its
+         * footer pin (`pinFooterAcrossScroll`), the `.drpg-table-window` rules, and each moved window's own rules that
+         * state its height, overflow or position or place its footer (the stage's rule 2, E44's rule 4). A rule that
+         * styles a moved window's content - a colour, a field's width, a button's face - stays. Read: every module file but
+         * the suite's (comments and strings blanked, so a note that names the old frame is not a use), and every rule of
+         * module.json's sheets, comments removed, inner rules of `@media` and `@container` among them. Red on C1's tree:
+         * the four functions in utils.mjs and their eleven callers' files, and the three `.drpg-table-window` rules.
+         */
+        const OLD = ["tableDialog", "fitWindowToTabs", "fitWindowToTable", "pinFooterAcrossScroll"];
+        // C2a: tableDialog's fifteen callers (boundary's Eclipse end, Give back, the Students window, Despair Flow, the case
+        // dashboard, Look, the Monocubs, the incident tracker, the project manager, Room setup, the rules, Sound, the log).
+        const MOVED = ["eclipse-end", "give-back", "alive", "gmteam", "case", "look", "monocubs", "incident", "projects", "rooms", "rules", "sound", "objections",
+            // C2b: the GM panel and its log, Set the season up and its two questions, Reset the season, Edit campaign and
+            // its question, the item manager and its four givers, the item tables and their questions, the GMs' stores'
+            // windows, Despair Flow's two questions, the passages' questions, the notices, the report, the dice look.
+            "panel", "failures", "season", "start-here", "preseason", "season-reset", "clock", "correction", "items", "give", "bullet",
+            "autopsy", "take", "tables", "install-tables", "place-result", "delete-table", "backup", "case-health", "enter-cast",
+            "restore-case", "removepool", "clearoverflow", "revoke-passage", "delete-passage", "requirements", "newer-system",
+            "diagnose", "handover", "dice-look",
+            // C3a: the case - a new trace, a Key row's place, the body's announcement, the Mastermind, the murder window;
+            // the readiness round's two windows are named by their own classes below.
+            "newtrace", "keyplace", "body", "mastermind", "murder",
+            // C4: the trial console and the vote; the trial's other windows are named by their own classes below.
+            "trial", "vote",
+            // C5a: the stashes a GM inspects.
+            "stashes"]
+            .map(name => `drpg-window-${name}`).concat(["drpg-gm-panel-window", "drpg-ready-gm", "drpg-ready-player",
+                // C4: a round's start, the Closing's pick, the Reveal, the Objection's picker, Your turn, I volunteer, the ballot.
+                "drpg-round-window", "drpg-closing-pick", "drpg-reveal-confirm", "drpg-objection-pick", "drpg-your-turn", "drpg-closing-claim", "drpg-ballot",
+                // C5a: an action's briefing, Rest's picks, the Calls' two sides, the safeword's question, the explainers.
+                "drpg-briefing", "drpg-rest", "drpg-hope-dialog", "drpg-despair-dialog", "drpg-safeword-dialog", "drpg-explain",
+                // C6a: the handbooks, the narrow description window and the class's Level Up. Not `drpg-messenger` nor
+                // `drpg-advance`: both stand in the shared `:is()` lists of the popup rules beside `drpg-panel`, whose
+                // inner `:where(...)` this reader's comma split cuts into parts that read as the window itself.
+                "drpg-handbook", "drpg-window-room", "drpg-advance-queue"]);
+        const FRAME = /^(?:max-height|min-height|height|overflow(?:-[xy])?|position|top|bottom|inset)$/;
+        const FOOT = /^(?:display|order|flex(?:-[\w-]+)?|justify-content|align-items|position|width|max-width|margin(?:-[\w-]+)?|padding(?:-[\w-]+)?|bottom|left|right)$/;
+        const found = [];
+        let files = 0, rules = 0;
+        for (const [file, text] of await otherSources()) {
+            files++;
+            const blank = blankLiterals(blankComments(text));
+            for (const name of OLD) if (new RegExp(`\\b${name}\\b`).test(blank)) found.push(`${file}: ${name}`);
+        }
+        for (const m of (await moduleStyles()).matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+            const selector = m[1].trim();
+            if (!selector || selector.startsWith("@")) continue;
+            rules++;
+            const props = m[2].split(";").map(d => d.split(":")[0].trim().toLowerCase()).filter(Boolean);
+            const parts = selector.split(/,(?![^(]*\))/).map(s => s.trim());
+            for (const part of parts) {
+                if (/\.drpg-table-window(?![\w-])/.test(part)) found.push(`a rule names .drpg-table-window: ${part}`);
+                for (const cls of MOVED) {
+                    if (!new RegExp(`\\.${cls}(?![\\w-])`).test(part)) continue;
+                    /* The rule's subject (its last compound) decides (C2b): the window, its content box, its form, its
+                       header or its footer is the frame; a list inside the window that scrolls on its own (the item
+                       tables' list) is the window's content, and stays (rule 2). */
+                    const subject = part.split(/\s*[>+~]\s*|\s+(?![^(]*\))/).filter(Boolean).pop() ?? "";
+                    if (!new RegExp(`\\.${cls}(?![\\w-])|window-content|dialog-content|^form\\b|footer|window-header`).test(subject)) continue;
+                    const footer = /\bfooter\b|form-footer/.test(part);
+                    const framing = props.filter(p => FRAME.test(p) || (footer && FOOT.test(p)));
+                    if (framing.length) found.push(`${cls}: ${part} { ${framing.join(", ")} }`);
+                }
+            }
+        }
+        must(files > 150 && rules > 2000, `${files} file(s) and ${rules} rule(s) read - this would measure too little`);
+        equal(JSON.stringify(found), "[]", "[the old frame's functions in a module file, the rules naming .drpg-table-window, and the rules that still frame a moved window]");
+    }],
+    ["R1352 - the wrappers on the kit (E21 C5a; E21-16, STATUS Open 64): action-menus.mjs `chooseVariant` and call-pickers.mjs `callWindow` open their window through ui-kit.mjs `drpgWindow` and no DialogV2 of their own; no caller of either passes Foundry's `buttons`, and every `callWindow` call passes the kit's `footer` slots, which R1336 reads; utils.mjs `tableDialog` is gone (R1357)", async () => {
+        /*
+         * E21 C5a, 06.11.2026. Three functions drew windows for many callers: `tableDialog` (15, gone since C2a),
+         * `chooseVariant` (the action menus: Analyze, Direct Murder's fight, Observe, Project, Rest, Search, Tamper,
+         * Level Up twice, Palm) and `callWindow` (the Calls: the three pickers, the confirmation, the GM's approval,
+         * the Monocub's Confusion, the sheet's call-off). R1335 counts each wrapper as one site and R1336 read none of
+         * their callers' buttons - Foundry's `buttons` arrays handed through (STATUS Open 64). On the kit the callers
+         * name roles: a `callWindow` caller passes `footer` in the kit's slots, R1336 reads every `footer: {` of the
+         * module, and `chooseVariant` builds its footer itself from the confirm label its caller names. Read with
+         * comments and strings blanked; each call's first argument's own keys (a spread reads "(spread)"). Red on C4's
+         * tree: both wrappers opened DialogV2.wait, and the seven `callWindow` callers passed `buttons`.
+         */
+        const wrappers = {};
+        const texts = new Map(await otherSources());
+        for (const [file, name] of [["action-menus.mjs", "chooseVariant"], ["call-pickers.mjs", "callWindow"]]) {
+            const fn = topLevelFunction(blankComments(texts.get(file) ?? ""), name) ?? "";
+            must(fn.length > 200, `${file} ${name} was not found - this would read nothing`);
+            wrappers[name] = { kit: /\bdrpgWindow\s*\(/.test(fn), dialogV2: /\bDialogV2\b/.test(fn) };
+        }
+        const calls = { chooseVariant: [], callWindow: [] };
+        const wrong = [];
+        for (const [file, text] of texts) {
+            const blank = blankLiterals(blankComments(text));
+            for (const m of blank.matchAll(/(?<![\w$.])(chooseVariant|callWindow)\s*\(/g)) {
+                if (/function\s*$/.test(blank.slice(Math.max(0, m.index - 12), m.index))) continue;
+                const { args } = callArgs(blank, m.index + m[0].length - 1);
+                const cfg = args[0] ? blank.slice(args[0].start, args[0].end).trim() : "";
+                if (!cfg.startsWith("{")) { wrong.push(`${file}: a ${m[1]} call whose config is not an object literal`); continue; }
+                const inner = callArgs(cfg, 0).args.map(a => /^\s*([\w$]+)\s*:/.exec(cfg.slice(a.start, a.end))?.[1] ?? (/^\s*\.\.\./.test(cfg.slice(a.start, a.end)) ? "(spread)" : /^\s*([\w$]+)\s*$/.exec(cfg.slice(a.start, a.end))?.[1] ?? "?"));
+                calls[m[1]].push(file);
+                if (inner.includes("buttons")) wrong.push(`${file}: ${m[1]} is handed Foundry's buttons`);
+                if (m[1] === "callWindow" && !inner.includes("footer")) wrong.push(`${file}: a callWindow call with no footer slots`);
+            }
+        }
+        must(calls.chooseVariant.length >= 10 && calls.callWindow.length >= 7,
+            `read ${calls.chooseVariant.length} chooseVariant and ${calls.callWindow.length} callWindow call(s) - fewer than the module's, this would measure too little`);
+        const old = [...texts].filter(([, t]) => /\btableDialog\b/.test(blankLiterals(blankComments(t)))).map(([f]) => f);
+        equal(JSON.stringify({ wrappers, wrong, tableDialog: old }), JSON.stringify({
+            wrappers: { chooseVariant: { kit: true, dialogV2: false }, callWindow: { kit: true, dialogV2: false } }, wrong: [], tableDialog: []
+        }), "[each wrapper on drpgWindow with no DialogV2 of its own; a caller handing it Foundry's buttons, or a callWindow call with no footer; a file still naming tableDialog]");
+    }],
+    ["R1374 - the handbooks say what red means in a window and that a player reads no chat (E22 C6b; E22-08; audit S12-91): the player's handbook, in English and in Polish, says under the GM mark's note that a red row or button in a window goes to the GM and the player waits for the answer; the GM's handbook, in both, says beside Foundry's rails that a player has no view of the chat, so what a GM types there is read by no player", async () => {
+        /*
+         * E22 C6b, 07.11.2026; audit S12-91 (D11: red means the GM's road for a player). The player's handbook explained
+         * the GM mark on a tile and said nothing of the red rows and buttons inside the windows the tiles open, so a
+         * player new to the table read "Focus your gaze" in red as dangerous or as advised; the GM's handbook said a
+         * player has no sidebar and not what follows from it for the chat, so a GM new to the module typed an
+         * out-of-character line there for nobody. Each sentence is looked for where it belongs: the player's right under
+         * the note on the GM mark, the GM's in the paragraph on Foundry's two rails. Red on C6a's tree: neither sentence
+         * in either language. The claim itself - no sidebar for a player, no notice drawn for a message the module did
+         * not post - is foundry-windows.mjs's and popup.mjs `onCreateChatMessage`'s (its first line); read here is
+         * only that the handbooks say it.
+         */
+        const WORDS = {
+            en: { mark: /^> A tile with a GM mark on it hands the turn to a human/, red: /^> Inside a window, a red row or button does the same: it goes to the GM, and you wait for the answer\.$/,
+                rails: /^Foundry's own two rails are not part of the screen/, chat: /A player has no view of the chat: what you type there - out of character, or another module's \/roll - is read by no player; what the module tells a player reaches them as a notice card or in the messenger\./ },
+            pl: { mark: /^> Kafelek ze znakiem GM/, red: /^> W oknie czerwony wiersz albo przycisk działa tak samo: trafia do GM-a, a ty czekasz na odpowiedź\.$/,
+                rails: /^Dwa paski Foundry nie są częścią ekranu/, chat: /Gracz w ogóle nie widzi czatu: tego, co tam napiszesz - poza postacią albo przez \/roll innego modułu - nie czyta żaden gracz; to, co moduł mówi graczowi, dociera do niego jako karta powiadomienia albo w komunikatorze\./ }
+        };
+        const read = {};
+        for (const lang of ["en", "pl"]) {
+            const W = WORDS[lang];
+            const lines = {};
+            for (const book of ["player", "gm"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}-handbook.${lang}.md`);
+                ok(res.ok, `docs/handbooks/${book}-handbook.${lang}.md did not load`);
+                lines[book] = res.ok ? (await lfText(res)).split("\n") : [];
+            }
+            const mark = lines.player.findIndex(l => W.mark.test(l));
+            const rails = lines.gm.findIndex(l => W.rails.test(l));
+            ok(mark >= 0 && rails >= 0, `the ${lang} handbooks lost the note on the GM mark or the paragraph on Foundry's rails - this would measure nothing`);
+            read[lang] = { red: W.red.test(lines.player[mark + 1] ?? ""), chat: W.chat.test(lines.gm[rails] ?? "") };
+        }
+        equal(JSON.stringify(read), JSON.stringify({ en: { red: true, chat: true }, pl: { red: true, chat: true } }),
+            "[per language: the player's handbook says, under the GM mark's note, that a red row or button in a window goes to the GM; the GM's handbook says, in the paragraph on Foundry's rails, that no player reads the chat]");
     }],
 ];
 

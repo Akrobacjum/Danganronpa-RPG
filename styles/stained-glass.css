@@ -890,10 +890,10 @@ body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-mini-button,
    audit page does not: there the panel wears the state colour like every other surface, its
    tiles are outlined in the hour, and red appears on exactly two buttons, Murder and Reset
    the season. Red on everything says nothing; red on two things says "these two are
-   different". The Monokuma panel keeps the red, because that window IS the GM's side.
-   `--brush` is left alone on the buttons so a press still flares red where it should. */
+   different". The Monokuma panel (the GM Team window) wore the red as its accent until E22 C6b, so its column
+   heads, its headings and its labels read "the GM does this" in a window where nothing is a road (audit S10-33):
+   it wears the state colour as every panel does, and keeps the red brush, so a press still flares red. */
 body.drpg-theme-stained-glass .drpg-monokuma-panel {
-    --drpg-glass-accent: var(--drpg-sg-gm);
     --brush: var(--drpg-sg-gm);
 }
 body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button.drpg-gm-route,
@@ -1691,6 +1691,9 @@ body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-m
     transition: border-color var(--drpg-t-snap, 120ms), color var(--drpg-t-snap, 120ms);
 }
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode).drpg-gm-route { --kind: var(--drpg-sg-gm); }
+/* a picked row on the GM's road: its brush in the lighter red, under which the ink reads 6.46:1 (on the GM red 4.16:1,
+   below AA; audit S12-42, E22 C6b; tools/contrast-pairs.json sg-gm-row-picked) */
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode).drpg-gm-route:has(input:checked) { --kind: var(--drpg-sg-gm-light); }
 /* the indicator: a 4 px strip along the left edge in the kind's colour */
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode)::after {
     content: "";
@@ -1727,7 +1730,7 @@ body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-m
 }
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):has(input:checked)::before { opacity: 1; }
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):has(input:checked)::after { opacity: 1; background: var(--drpg-sg-ink); }
-body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):has(input:checked) :is(i, small, strong, span) { color: inherit; }
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):has(input:checked) :is(i, small, strong, span) { color: inherit; opacity: 1; }
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode) > i { color: var(--kind); }
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode) small { opacity: 0.75; }
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode) input:is([type="radio"], [type="checkbox"]) {
@@ -1769,9 +1772,12 @@ body.drpg-theme-stained-glass .application.dialog footer.form-footer button {
     border-color: var(--brush-edge, rgba(242, 238, 230, 0.35)) !important;
     border-radius: 0 !important;
 }
+/* `background-color`, not the shorthand (E22 fix G1, 07.11.2026; the end review's SCREENS M3): the shorthand
+   cleared a destructive answer's raster under the pointer. The edge reads `--brush-hover-edge` where a role sets
+   one (the destructive answer, below), its brush otherwise. */
 body.drpg-theme-stained-glass .application.dialog footer.form-footer button:hover:not(:disabled) {
-    background: rgba(7, 7, 10, 0.55) !important;
-    border-color: var(--brush) !important;
+    background-color: rgba(7, 7, 10, 0.55) !important;
+    border-color: var(--brush-hover-edge, var(--brush)) !important;
 }
 body.drpg-theme-stained-glass .application.dialog footer.form-footer button:disabled {
     background: rgba(7, 7, 10, 0.4) !important;
@@ -1786,11 +1792,21 @@ body.drpg-theme-stained-glass .application.dialog :is(button, footer.form-footer
     background: rgba(7, 7, 10, 0.55) !important;
     box-shadow: none;
 }
+/* THE GM'S ROAD LIT - under the pointer or as the default - IS THE LIGHT RED (E22 fix G1, 07.11.2026; the end
+   review's SCREENS M2; audit S12-42). Lit, the brush is full and the ink is Ink (the brush rule's `--brush-ink`,
+   which the road's own `color` reads): on `--drpg-sg-gm` that read 4.16:1 for the default (the safeword's Stop it,
+   a Call that needs the GM) and Bone on it 4.18:1 under the pointer, both under the 4.5 a 13 px chrome face needs.
+   On `--drpg-sg-gm-light` Ink reads 6.46:1, as the picked GM row does (contrast pairs sg-gm-row-picked and
+   sg-gm-route-lit). The hover rule's `--brush-on: 0.45` lost to the brush rule's 1 (0,7,3 to 0,8,3) and is gone; so
+   is its Bone ink, which stood on the full brush. Where no brush is drawn (a button outside the brush rule's list)
+   the ink falls back to the light red on the dark ground, 6.46:1 too. */
 body.drpg-theme-stained-glass .application.dialog :is(button, footer.form-footer button).drpg-gm-route:hover:not(:disabled) {
-    --brush-on: 0.45;
-    color: var(--drpg-sg-bone) !important;
+    --brush: var(--drpg-sg-gm-light);
     border-color: var(--drpg-sg-gm-light) !important;
     box-shadow: 0 0 10px color-mix(in srgb, var(--drpg-sg-gm) 55%, transparent);
+}
+body.drpg-theme-stained-glass .application.dialog :is(button, footer.form-footer button).drpg-gm-route:is(.default, [autofocus]) {
+    --brush: var(--drpg-sg-gm-light);
 }
 /* a state change (E09 C16): the dashboard's "A body is discovered", in Despair's pink - the brush
    the footer rule above reads its edge and ink from */
@@ -1798,15 +1814,24 @@ body.drpg-theme-stained-glass .application.dialog footer.form-footer button.drpg
     --brush-edge: var(--drpg-sg-despair);
     --brush-ink: var(--drpg-sg-despair);
 }
-/* destructive: the raster the audit gives every spent thing, in GM red. Foundry's own `.danger`
-   and the module's `drpg-destructive` both mean it. */
-body.drpg-theme-stained-glass .application.dialog footer.form-footer button:is(.danger, .drpg-destructive, [data-action="delete"], [data-action="wipe"], [data-action="reset"]) {
+/* destructive: the raster the audit gives every spent thing, in GM red. Foundry's own `.danger`,
+   the module's `drpg-destructive` and the kit's role (`drpg-role-destructive`, E22 C6b) all mean it. */
+body.drpg-theme-stained-glass .application.dialog footer.form-footer button:is(.danger, .drpg-destructive, .drpg-role-destructive, [data-action="delete"], [data-action="wipe"], [data-action="reset"]) {
     --brush: var(--drpg-sg-gm);
     --brush-edge: var(--drpg-sg-gm);
     color: var(--drpg-sg-gm-light) !important;
     background-color: rgba(7, 7, 10, 0.55) !important;
     background-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--drpg-sg-gm) 45%, transparent) 1px, transparent 1.5px) !important;
     background-size: 4px 4px !important;
+}
+/* ... and under the pointer it keeps the raster and brightens its edge, with no brush (E22 fix G1, 07.11.2026; the
+   end review's SCREENS M3): the brush rule's hover (0,8,3) lit the full GM-red stroke under the light-red ink, which
+   it cannot reach past (`!important` above), 1.55:1 - Delete, Revoke access, Clear the history, End the trial went
+   unreadable at the press. Level with the brush rule and later, so this wins; `:not(.active)` is that rule's own
+   exception. The ink stays the light red on the dark ground, 6.46:1 (contrast pair sg-destructive-hover). */
+body.drpg-theme-stained-glass .application.dialog footer.form-footer button:is(.danger, .drpg-destructive, .drpg-role-destructive, [data-action="delete"], [data-action="wipe"], [data-action="reset"]):hover:not(:disabled):not(.active) {
+    --brush-on: 0;
+    --brush-hover-edge: var(--drpg-sg-gm-light);
 }
 
 /* 4. the GM panel's sections: the base sheet makes the summary a Bone plate with Ink text, and that is
@@ -3339,17 +3364,8 @@ body.drpg-theme-stained-glass .application.drpg-panel:not(.minimized) .window-co
     overflow: auto;
     max-height: calc(100vh - 80px);
 }
-/* The handbooks are the one window read rather than answered: it keeps the height it was opened
-   or resized to, and its text scrolls inside it. Content height here is 70 KB of Markdown - the
-   window came out 1038 px tall with its foot off the screen. `--drpg-window-h` is the height
-   Foundry resolved, mirrored by handbooks.mjs, since the inline style cannot outrank the rule
-   above. */
-body.drpg-theme-stained-glass .application.drpg-panel.drpg-handbook:not(.minimized) {
-    height: var(--drpg-window-h, 760px) !important;
-}
-body.drpg-theme-stained-glass .application.drpg-panel.drpg-handbook:not(.minimized) .window-content {
-    overflow: hidden;
-}
+/* The handbooks' own height rule went with E21 C6a: the window is on the kit's frame (handbooks.mjs's note), held to
+   the screen by components.css. */
 /* A book needs two levels of heading, and the panel rule gives h2 and h3 one: the same 13 px
    capitals. The section keeps them; a subsection reads as a title in the prose face with the
    base sheet's short bar under it. Bold takes the time of day's accent here rather than gold. */
@@ -3401,15 +3417,23 @@ body.drpg-theme-stained-glass .application.drpg-messenger .window-header .header
    `look.mjs` did nothing at all: the sheet won. The width is `fit-content` here, floored at
    exactly what it is today (so no window is ever narrower than before) and capped at the
    screen; the prose inside is capped at a readable measure so a long paragraph settles instead
-   of running to the edge. Table windows are excluded: they are measured in `utils.mjs`, and a
-   rule with `!important` would fight that measurement every frame - see the base sheet's note. */
+   of running to the edge. Table windows are excluded: they are measured by the kit (ui-kit.mjs
+   `fitKitWidth`, the `fit` windows; `utils.mjs` until E21 C2a), and a rule with `!important` would
+   fight that measurement every frame - see the base sheet's note. So is a kit window that states its
+   width (`drpg-kit-width`, ui-kit.mjs WINDOW_WIDTHS, E21 W1; `drpg-wide` and the GM panel's class until then). */
 body.drpg-theme-stained-glass .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-summary-dialog, .drpg-safeword-dialog
-):not(.drpg-wide):not(.drpg-gm-panel-window):not(.drpg-table-window) {
+    .drpg-panel, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel, .drpg-summary-dialog
+):not(.drpg-kit-fit):not(.drpg-kit-width) {
     width: fit-content !important;
     min-width: min(var(--drpg-popup), 92vw) !important;
+}
+/* The cap, for every such window but a kit one (E21 C1b, E44's Open 19; the base sheet's note on its own popup rule):
+   a kit window's `max-width` is its frame's, the screen less 8 px a side. */
+body.drpg-theme-stained-glass .application.dialog:is(
+    .drpg-panel, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel, .drpg-summary-dialog
+):not(.drpg-kit-fit):not(.drpg-kit-width):not(.drpg-ui) {
     max-width: min(var(--drpg-popup-wide), 92vw) !important;
 }
 /* THE CAP GOES ON `.dialog-content`, AND `ch` IS NOT A UNIT THIS THEME CAN MEASURE IN.
@@ -3429,10 +3453,9 @@ body.drpg-theme-stained-glass .application.dialog:is(
    table decides its width, and the base sheet's deliberate 42rem measure for dialogs that
    contain a table is left to win on its own selector. */
 body.drpg-theme-stained-glass .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-summary-dialog, .drpg-safeword-dialog
-):not(.drpg-wide):not(.drpg-gm-panel-window):not(.drpg-table-window) .dialog-content {
+    .drpg-panel, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel, .drpg-summary-dialog
+):not(.drpg-kit-fit):not(.drpg-kit-width) .dialog-content {
     max-width: var(--drpg-popup);
 }
 /* a control that can be squeezed states what it needs, so the window above can grow for it
@@ -3749,12 +3772,14 @@ body.drpg-theme-stained-glass :is(.application.sheet.actor, .drpg-panel, .drpg-m
 /* THE SAFEWORD KEEPS ITS CORNER. Bringing every clickable thing under the brush gave this one
    `position: relative` (the brush needs a containing block) and it left the bottom-left corner
    the audit page puts it in, stretching across the whole column. Absolute is just as good a
-   containing block for the pseudo-element, and it is where this button belongs. */
+   containing block for the pseudo-element, and it is where this button belongs. Sticky since
+   E21 C5a (the base sheet's "THE SAFEWORD"): a containing block too, and it holds the button to
+   the visible foot of the sheet, where absolute left it below a 768-800 px screen. */
 body.drpg-theme-stained-glass .application.sheet.actor .drpg-safeword-button {
     /* the shout is against the brush base rule above, whose `:not()` chain outweighs any
        honest selector for one button; the button lives in `.window-content`, not in the
        sidebar, which is why the first attempt at this matched nothing at all */
-    position: absolute !important;
+    position: sticky !important;
     width: auto !important;
 }
 
@@ -3767,8 +3792,10 @@ body.drpg-theme-stained-glass .character-header-sheet .character-traits .tier-ma
 
 /* A GM TILE IS A RED PLATE, not a dark tile wearing a badge. On the audit page "Dynamic" and
    "Direct Murder" are filled in the GM's red with the reason as their sub-label, and that
-   fill is what makes them readable as somebody else's decision at a glance. */
-body.drpg-theme-stained-glass .drpg-action-button[data-drpg-cost-kind="gm"] {
+   fill is what makes them readable as somebody else's decision at a glance. A tile that cannot be pressed is not
+   filled (audit S04-39, E22 C6b): the fill made a blocked Direct Murder the loudest tile on the sheet; it keeps the
+   dashed edge every disabled thing wears here. */
+body.drpg-theme-stained-glass .drpg-action-button[data-drpg-cost-kind="gm"]:not(:disabled):not(.unaffordable) {
     background: color-mix(in srgb, var(--drpg-sg-gm) 34%, rgba(7, 7, 10, 0.55)) !important;
     border-color: color-mix(in srgb, var(--drpg-sg-gm-light) 70%, transparent) !important;
     --brush: var(--drpg-sg-gm-light);

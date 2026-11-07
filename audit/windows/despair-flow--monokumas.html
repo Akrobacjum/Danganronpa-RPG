@@ -1,0 +1,202 @@
+<dialog id="app-NK5XB0Pv" class="application dialog drpg-panel drpg-projects drpg-monokuma-panel drpg-assign drpg-window-gmteam drpg-ui drpg-kit-fit" open="" style="left: 312px; top: 384px;" data-drpg-scaled="1@768" lang="en" data-drpg-text-guard="1"><form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-kit-body"><nav class="drpg-tabs" role="tablist" data-drpg-kit-wired="1"><button type="button" role="tab" data-drpg-tab-key="pools" aria-selected="false" data-drpg-named="own">Pools</button><button type="button" role="tab" data-drpg-tab-key="monokumas" aria-selected="true" data-drpg-named="own">Monokumas</button><button type="button" role="tab" data-drpg-tab-key="students" aria-selected="false" data-drpg-named="own">Students</button><button type="button" role="tab" data-drpg-tab-key="overflow" aria-selected="false" data-drpg-named="own">Overflow</button></nav><section class="drpg-tab-pane" role="tabpanel" data-drpg-pane="pools" hidden="">
+        <p>Name each pool - it does not have to match the account name. Every full GM holds a pool; an Assistant GM holds one once you grant it below.</p>
+        <table data-drpg-chrome="num">
+            <thead><tr>
+                <th>Account</th>
+                <th>Pool name</th>
+            </tr></thead>
+            <tbody>
+        <tr>
+            <td>GM</td>
+            <td><input type="text" name="poolName.USERGM0000000000" value="GM" aria-label="Pool name: GM" placeholder="GM" data-drpg-named="own"></td>
+        </tr></tbody>
+        </table>
+        <p class="notes">No Assistant GM to grant a pool to. Every full GM holds one already.</p>
+        </section><section class="drpg-tab-pane" role="tabpanel" data-drpg-pane="monokumas">
+        <p>Tick the actors that are Monokumas, then say whose Despair pool each draws on. Without this, two Monokumas share the pool of whichever GM is looking at the sheet.</p>
+        <div class="drpg-monokuma-warning"></div>
+        <table data-drpg-chrome="num">
+            <thead><tr>
+                <th>Character</th>
+                <th>Monokuma</th>
+                <th>Despair pool</th>
+            </tr></thead>
+            <tbody><tr data-actor="ACTORAIKO0000000">
+            <td>
+                <img src="icons/svg/mystery-man.svg" alt="" class="drpg-monokuma-portrait">
+                Aiko Hoshino
+            </td>
+            <td style="text-align:center">
+                <input type="checkbox" name="mk.ACTORAIKO0000000" data-drpg-mk="" aria-label="Monokuma: Aiko Hoshino" data-drpg-named="own">
+            </td>
+            <td>
+                <span class="drpg-cell-none" data-drpg-pool-none="">-</span>
+                <span class="drpg-select"><select name="pool.ACTORAIKO0000000" data-drpg-pool="" disabled="" hidden="" aria-label="Despair pool: Aiko Hoshino" data-drpg-chrome="select" data-drpg-named="own"><option value="">- not set -</option><option value="USERGM0000000000">GM</option></select></span>
+            </td>
+        </tr><tr data-actor="ACTORBOTAN000000">
+            <td>
+                <img src="icons/svg/mystery-man.svg" alt="" class="drpg-monokuma-portrait">
+                Botan Kage
+            </td>
+            <td style="text-align:center">
+                <input type="checkbox" name="mk.ACTORBOTAN000000" data-drpg-mk="" aria-label="Monokuma: Botan Kage" data-drpg-named="own">
+            </td>
+            <td>
+                <span class="drpg-cell-none" data-drpg-pool-none="">-</span>
+                <span class="drpg-select"><select name="pool.ACTORBOTAN000000" data-drpg-pool="" disabled="" hidden="" aria-label="Despair pool: Botan Kage" data-drpg-chrome="select" data-drpg-named="own"><option value="">- not set -</option><option value="USERGM0000000000">GM</option></select></span>
+            </td>
+        </tr><tr data-actor="ACTORCHIE0000000">
+            <td>
+                <img src="icons/svg/mystery-man.svg" alt="" class="drpg-monokuma-portrait">
+                Chie Mori
+            </td>
+            <td style="text-align:center">
+                <input type="checkbox" name="mk.ACTORCHIE0000000" data-drpg-mk="" aria-label="Monokuma: Chie Mori" data-drpg-named="own">
+            </td>
+            <td>
+                <span class="drpg-cell-none" data-drpg-pool-none="">-</span>
+                <span class="drpg-select"><select name="pool.ACTORCHIE0000000" data-drpg-pool="" disabled="" hidden="" aria-label="Despair pool: Chie Mori" data-drpg-chrome="select" data-drpg-named="own"><option value="">- not set -</option><option value="USERGM0000000000">GM</option></select></span>
+            </td>
+        </tr><tr data-actor="ACTORDAICHI00000">
+            <td>
+                <img src="icons/svg/mystery-man.svg" alt="" class="drpg-monokuma-portrait">
+                Daichi Sato
+            </td>
+            <td style="text-align:center">
+                <input type="checkbox" name="mk.ACTORDAICHI00000" data-drpg-mk="" aria-label="Monokuma: Daichi Sato" data-drpg-named="own">
+            </td>
+            <td>
+                <span class="drpg-cell-none" data-drpg-pool-none="">-</span>
+                <span class="drpg-select"><select name="pool.ACTORDAICHI00000" data-drpg-pool="" disabled="" hidden="" aria-label="Despair pool: Daichi Sato" data-drpg-chrome="select" data-drpg-named="own"><option value="">- not set -</option><option value="USERGM0000000000">GM</option></select></span>
+            </td>
+        </tr><tr data-actor="ACTORMONOKUMA000" class="drpg-is-monokuma">
+            <td>
+                <img src="icons/svg/mystery-man.svg" alt="" class="drpg-monokuma-portrait">
+                Monokuma
+            </td>
+            <td style="text-align:center">
+                <input type="checkbox" name="mk.ACTORMONOKUMA000" data-drpg-mk="" checked="" aria-label="Monokuma: Monokuma" data-drpg-named="own">
+            </td>
+            <td>
+                <span class="drpg-cell-none" data-drpg-pool-none="" hidden="">-</span>
+                <span class="drpg-select"><select name="pool.ACTORMONOKUMA000" data-drpg-pool="" aria-label="Despair pool: Monokuma" data-drpg-chrome="select" data-drpg-named="own"><option value="">- not set -</option><option value="USERGM0000000000">GM</option></select></span>
+            </td>
+        </tr></tbody>
+        </table>
+        <p class="notes">A Monokuma has no actions and no Hope: their sheet shows Despair Calls instead. The pool decides which GM pays for them.</p></section><section class="drpg-tab-pane" role="tabpanel" data-drpg-pane="students" hidden="">
+        <p>A roll that lands with Despair feeds that student's Monokuma.</p>
+        <div class="drpg-assign-counts"><span class="drpg-assign-count"><strong>GM</strong>: 4</span></div>
+        <table data-drpg-chrome="num">
+            <thead><tr>
+                <th>Character</th>
+                <th>Monokuma</th>
+            </tr></thead>
+            <tbody><tr>
+                    <td>Aiko Hoshino</td>
+                    <td><span class="drpg-select"><select name="assign.ACTORAIKO0000000" data-drpg-assign="" data-drpg-was="" data-drpg-fallback="USERGM0000000000" data-drpg-explicit="0" class="drpg-assign-fallback" data-tooltip="Never assigned: this student feeds the first pool until you pick one." aria-label="Monokuma: Aiko Hoshino" data-drpg-chrome="select" data-drpg-named="own"><option value="" selected="">GM (fallback)</option><option value="USERGM0000000000">GM</option><option value="none">- nobody -</option></select></span></td>
+                </tr><tr>
+                    <td>Botan Kage</td>
+                    <td><span class="drpg-select"><select name="assign.ACTORBOTAN000000" data-drpg-assign="" data-drpg-was="" data-drpg-fallback="USERGM0000000000" data-drpg-explicit="0" class="drpg-assign-fallback" data-tooltip="Never assigned: this student feeds the first pool until you pick one." aria-label="Monokuma: Botan Kage" data-drpg-chrome="select" data-drpg-named="own"><option value="" selected="">GM (fallback)</option><option value="USERGM0000000000">GM</option><option value="none">- nobody -</option></select></span></td>
+                </tr><tr>
+                    <td>Chie Mori</td>
+                    <td><span class="drpg-select"><select name="assign.ACTORCHIE0000000" data-drpg-assign="" data-drpg-was="" data-drpg-fallback="USERGM0000000000" data-drpg-explicit="0" class="drpg-assign-fallback" data-tooltip="Never assigned: this student feeds the first pool until you pick one." aria-label="Monokuma: Chie Mori" data-drpg-chrome="select" data-drpg-named="own"><option value="" selected="">GM (fallback)</option><option value="USERGM0000000000">GM</option><option value="none">- nobody -</option></select></span></td>
+                </tr><tr>
+                    <td>Daichi Sato</td>
+                    <td><span class="drpg-select"><select name="assign.ACTORDAICHI00000" data-drpg-assign="" data-drpg-was="" data-drpg-fallback="USERGM0000000000" data-drpg-explicit="0" class="drpg-assign-fallback" data-tooltip="Never assigned: this student feeds the first pool until you pick one." aria-label="Monokuma: Daichi Sato" data-drpg-chrome="select" data-drpg-named="own"><option value="" selected="">GM (fallback)</option><option value="USERGM0000000000">GM</option><option value="none">- nobody -</option></select></span></td>
+                </tr></tbody>
+        </table>
+        <p class="notes">Despair from a student's rolls goes to the pool of the Monokuma they are assigned to here. “(fallback)” marks a student not assigned to any Monokuma: their Despair goes to the first pool. Set an NPC or a template to “- nobody -” to keep it out of every pool. This is not secret: every player's browser can read who is set to nobody.</p></section><section class="drpg-tab-pane" role="tabpanel" data-drpg-pane="overflow" hidden=""><p>Despair that will not fit in a full pool stops evaporating and collects here instead. When it reaches the threshold it pays that much, keeps the rest, and ONE thing is drawn from the pool below - never more than one.</p>
+        <p class="notes drpg-overflow-now">Right now: 0 of 20.</p>
+        <p><button type="button" data-drpg-overflow-clear="" data-drpg-named="own">Clear the overflow</button></p>
+
+        <label class="drpg-overflow-threshold" for="drpg-kit-step-1">
+            <span>Threshold (X)</span>
+            <span class="drpg-kit-stepper" data-drpg-kit-wired="1"><button type="button" class="drpg-step drpg-step-minus" data-drpg-step="-1" aria-label="One fewer" data-tooltip="One fewer" data-drpg-named="own">-</button><input type="number" id="drpg-kit-step-1" name="ovf-threshold" value="20" min="6" max="60" step="1" data-drpg-named="own"><button type="button" class="drpg-step drpg-step-plus" data-drpg-step="1" aria-label="One more" data-tooltip="One more" data-drpg-named="own">+</button></span><span class="drpg-field-msg" aria-live="polite"></span>
+        </label>
+        <p class="notes drpg-overflow-suggested">Suggested for 4 students and 1 pool: 14.</p>
+        <p class="notes">Any value from 6 to 60: the table decides.</p>
+
+        <h4>What can be drawn</h4>
+        <p class="notes">One of these is drawn at random each time the overflow fires - never more than one. Untick anything you do not want in the hat.</p>
+        
+        <ul class="drpg-overflow-rules"><li class="drpg-overflow-rule">
+            <label class="drpg-overflow-on">
+                <input type="checkbox" name="ovf-darkness-on" checked="" data-drpg-named="own">
+                <strong>Darkness</strong>
+            </label>
+            
+            <label class="drpg-overflow-by" for="drpg-kit-step-2">
+                <span>by</span>
+                <span class="drpg-kit-stepper" data-drpg-kit-wired="1"><button type="button" class="drpg-step drpg-step-minus" data-drpg-step="-1" aria-label="One fewer" data-tooltip="One fewer" data-drpg-named="own">-</button><input type="number" id="drpg-kit-step-2" name="ovf-darkness-by" value="1" min="0" max="5" step="1" data-drpg-named="own"><button type="button" class="drpg-step drpg-step-plus" data-drpg-step="1" aria-label="One more" data-tooltip="One more" data-drpg-named="own">+</button></span><span class="drpg-field-msg" aria-live="polite"></span>
+            </label>
+            <div class="notes">The lights go further down: 1 fewer crossing in the Eclipse, and an Eclipse that would have let you start anywhere is pulled back to two rooms.</div>
+        </li><li class="drpg-overflow-rule">
+            <label class="drpg-overflow-on">
+                <input type="checkbox" name="ovf-shift-on" checked="" data-drpg-named="own">
+                <strong>Shift</strong>
+            </label>
+            
+            <label class="drpg-overflow-by" for="drpg-kit-step-3">
+                <span>by</span>
+                <span class="drpg-kit-stepper" data-drpg-kit-wired="1"><button type="button" class="drpg-step drpg-step-minus" data-drpg-step="-1" aria-label="One fewer" data-tooltip="One fewer" data-drpg-named="own">-</button><input type="number" id="drpg-kit-step-3" name="ovf-shift-by" value="1" min="0" max="5" step="1" data-drpg-named="own"><button type="button" class="drpg-step drpg-step-plus" data-drpg-step="1" aria-label="One more" data-tooltip="One more" data-drpg-named="own">+</button></span><span class="drpg-field-msg" aria-live="polite"></span>
+            </label>
+            <div class="notes">Things are not where they were: 1 fewer search token in every room.</div>
+        </li><li class="drpg-overflow-rule">
+            <label class="drpg-overflow-on">
+                <input type="checkbox" name="ovf-panic-on" checked="" data-drpg-named="own">
+                <strong>Panic</strong>
+            </label>
+            
+            <label class="drpg-overflow-by" for="drpg-kit-step-4">
+                <span>by</span>
+                <span class="drpg-kit-stepper" data-drpg-kit-wired="1"><button type="button" class="drpg-step drpg-step-minus" data-drpg-step="-1" aria-label="One fewer" data-tooltip="One fewer" data-drpg-named="own">-</button><input type="number" id="drpg-kit-step-4" name="ovf-panic-by" value="1" min="0" max="5" step="1" data-drpg-named="own"><button type="button" class="drpg-step drpg-step-plus" data-drpg-step="1" aria-label="One more" data-tooltip="One more" data-drpg-named="own">+</button></span><span class="drpg-field-msg" aria-live="polite"></span>
+            </label>
+            <div class="notes">Nobody gets as much done: 1 fewer action each, on top of anything Wounded already took.</div>
+        </li><li class="drpg-overflow-rule">
+            <label class="drpg-overflow-on">
+                <input type="checkbox" name="ovf-despair-on" checked="" data-drpg-named="own">
+                <strong>Despair</strong>
+            </label>
+            
+            <div class="notes">No Hope is earned at all. Spending what you already hold still works.</div>
+        </li><li class="drpg-overflow-rule">
+            <label class="drpg-overflow-on">
+                <input type="checkbox" name="ovf-silence-on" checked="" data-drpg-named="own">
+                <strong>Silence</strong>
+            </label>
+            
+            <div class="notes">No Hope Calls. Not one, by anybody.</div>
+        </li><li class="drpg-overflow-rule">
+            <label class="drpg-overflow-on">
+                <input type="checkbox" name="ovf-fog-on" checked="" data-drpg-named="own">
+                <strong>Fog</strong>
+            </label>
+            
+            <div class="notes">You cannot find your way for free: no Free Move. Crossings still cost actions as usual.</div>
+        </li></ul>
+        <h4>One-off</h4>
+        <p class="notes">These happen once, the moment the overflow fires, instead of lasting the time of day.</p>
+        <ul class="drpg-overflow-rules"><li class="drpg-overflow-rule">
+            <label class="drpg-overflow-on">
+                <input type="checkbox" name="ovf-rot-on" checked="" data-drpg-named="own">
+                <strong>Rot</strong>
+            </label>
+            
+            <label class="drpg-overflow-by" for="drpg-kit-step-8">
+                <span>by</span>
+                <span class="drpg-kit-stepper" data-drpg-kit-wired="1"><button type="button" class="drpg-step drpg-step-minus" data-drpg-step="-1" aria-label="One fewer" data-tooltip="One fewer" data-drpg-named="own">-</button><input type="number" id="drpg-kit-step-8" name="ovf-rot-by" value="1" min="0" max="5" step="1" data-drpg-named="own"><button type="button" class="drpg-step drpg-step-plus" data-drpg-step="1" aria-label="One more" data-tooltip="One more" data-drpg-named="own">+</button></span><span class="drpg-field-msg" aria-live="polite"></span>
+            </label>
+            <div class="notes">Everything the school owns gets worse at once: 1 durability off every item with more than one point left. Nothing breaks.</div>
+        </li><li class="drpg-overflow-rule">
+            <label class="drpg-overflow-on">
+                <input type="checkbox" name="ovf-earthquake-on" checked="" data-drpg-named="own">
+                <strong>Earthquake</strong>
+            </label>
+            
+            <label class="drpg-overflow-by" for="drpg-kit-step-9">
+                <span>by</span>
+                <span class="drpg-kit-stepper" data-drpg-kit-wired="1"><button type="button" class="drpg-step drpg-step-minus" data-drpg-step="-1" aria-label="One fewer" data-tooltip="One fewer" data-drpg-named="own">-</button><input type="number" id="drpg-kit-step-9" name="ovf-earthquake-by" value="1" min="0" max="5" step="1" data-drpg-named="own"><button type="button" class="drpg-step drpg-step-plus" data-drpg-step="1" aria-label="One more" data-tooltip="One more" data-drpg-named="own">+</button></span><span class="drpg-field-msg" aria-live="polite"></span>
+            </label>
+            <div class="notes">The building shakes and work is undone: every project still under way loses 1 progress.</div>
+        </li></ul>
+        <p class="notes">None of these ever goes below one. A time of day with no actions, or a room with no search tokens, is not a harder game - it is a player with nothing to do until the clock moves.</p></section></div></div><footer class="form-footer drpg-kit-footer"><div class="drpg-kit-right"><button type="submit" data-action="save" class="drpg-role-primary default" data-drpg-role="primary" data-drpg-named="own" autofocus="">Save</button></div><div class="drpg-kit-left"><button type="submit" data-action="cancel" data-drpg-role="cancel" class="drpg-role-cancel" data-drpg-named="own">Cancel</button><button type="submit" data-action="auto" data-drpg-role="secondary" class="drpg-role-secondary" hidden="" disabled="" data-drpg-named="own">Split evenly</button></div></footer></form></dialog>

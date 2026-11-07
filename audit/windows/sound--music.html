@@ -1,0 +1,817 @@
+<dialog id="app-222jUcf1" class="application dialog drpg-panel drpg-projects drpg-sound drpg-window-sound drpg-ui drpg-kit-fit drpg-kit-width drpg-kit-width-wide" open="" data-drpg-width="wide" style="left: 160px; top: 384px;" data-drpg-scaled="1@768" lang="en" data-drpg-text-guard="1"><form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-kit-body">
+            
+            <nav class="drpg-tabs" role="tablist" data-drpg-kit-wired="1"><button type="button" role="tab" data-drpg-tab-key="play" aria-selected="false" data-drpg-named="own">Play</button><button type="button" role="tab" data-drpg-tab-key="music" aria-selected="true" data-drpg-named="own">Music</button><button type="button" role="tab" data-drpg-tab-key="effects" aria-selected="false" data-drpg-named="own">Effects</button></nav><section class="drpg-tab-pane" role="tabpanel" data-drpg-pane="play" hidden="">
+            <fieldset class="drpg-music-now">
+                <legend>Put a track on now</legend>
+                <p class="notes">Plays one track from the “Situational” playlist on repeat. Whatever is playing pauses where it stands and comes back when you reset.</p>
+                <div class="drpg-box" data-drpg-box="info" role="note"><p class="notes" data-drpg-no-cue="">No playlist called “Situational”. Create it below.</p></div>
+                    <button type="button" class="drpg-mini-button" data-drpg-make-cue="" data-drpg-named="own">Create the “Situational” playlist</button>
+                <button type="button" class="drpg-mini-button" data-drpg-play="" disabled="" data-drpg-named="own">Play</button>
+                <button type="button" class="drpg-mini-button" data-drpg-reset-music="" data-drpg-named="own">Reset music</button>
+            </fieldset></section><section class="drpg-tab-pane" role="tabpanel" data-drpg-pane="music">
+            <p>Pick which playlist plays when. The module never starts a playlist you have not chosen here, and ships no audio of its own.</p>
+            <div class="drpg-box" data-drpg-box="info" role="note"><p class="notes">This world has no playlists, so there is nothing to map to yet. Make them in the Playlists sidebar; the cue playlist on the Play tab can be made from here.</p></div>
+            <p class="notes">The first state that applies wins, in the order listed. A Class Trial at night uses the trial's playlists; an Eclipse during one uses the Eclipse's.</p>
+            <p class="notes">Objection beats the open debate, and the debate beats the trial merely being in session. A rebuttal has no row of its own: the Objection's music keeps playing through it. Each picks a random track when it takes over, never the one it played last. An Objection runs one minute, so give that playlist a short fade.</p>
+            <p class="notes">The murder row plays only in the browsers of the people in the incident and of the GMs, so nobody else learns from the music that a murder is happening. Leave it empty and whatever is playing keeps playing.</p>
+            <table class="drpg-vault-table" data-drpg-chrome="num"><thead><tr>
+                <th>When</th>
+                <th>Plays</th>
+            </tr></thead><tbody class="drpg-music-map"><tr>
+            <td>A killing - heard only by the students in it, and the GM</td>
+            <td><span class="drpg-select"><select name="state:murder" aria-label="Plays: A killing - heard only by the students in it, and the GM" data-drpg-chrome="select" data-drpg-named="own"><option value="">- not set -</option></select></span>
+                <span class="notes drpg-music-save" data-drpg-save="" data-drpg-key="murder" aria-live="polite"></span></td>
+        </tr><tr>
+            <td>Game on hold</td>
+            <td><span class="drpg-select"><select name="state:paused" aria-label="Plays: Game on hold" data-drpg-chrome="select" data-drpg-named="own"><option value="">- not set -</option></select></span>
+                <span class="notes drpg-music-save" data-drpg-save="" data-drpg-key="paused" aria-live="polite"></span></td>
+        </tr><tr>
+            <td>Eclipse (placement window)</td>
+            <td><span class="drpg-select"><select name="state:eclipse" aria-label="Plays: Eclipse (placement window)" data-drpg-chrome="select" data-drpg-named="own"><option value="">- not set -</option></select></span>
+                <span class="notes drpg-music-save" data-drpg-save="" data-drpg-key="eclipse" aria-live="polite"></span></td>
+        </tr><tr>
+            <td>Objection</td>
+            <td><span class="drpg-select"><select name="state:trial.objection" aria-label="Plays: Objection" data-drpg-chrome="select" data-drpg-named="own"><option value="">- not set -</option></select></span>
+                <span class="notes drpg-music-save" data-drpg-save="" data-drpg-key="trial.objection" aria-live="polite"></span></td>
+        </tr><tr>
+            <td>Debate</td>
+            <td><span class="drpg-select"><select name="state:trial.debate" aria-label="Plays: Debate" data-drpg-chrome="select" data-drpg-named="own"><option value="">- not set -</option></select></span>
+                <span class="notes drpg-music-save" data-drpg-save="" data-drpg-key="trial.debate" aria-live="polite"></span></td>
+        </tr><tr>
+            <td>Discussion</td>
+            <td><span class="drpg-select"><select name="state:trial.discussion" aria-label="Plays: Discussion" data-drpg-chrome="select" data-drpg-named="own"><option value="">- not set -</option></select></span>
+                <span class="notes drpg-music-save" data-drpg-save="" data-drpg-key="trial.discussion" aria-live="polite"></span></td>
+        </tr><tr>
+            <td>A body has been found (silence unless mapped)</td>
+            <td><span class="drpg-select"><select name="state:bodyFound" aria-label="Plays: A body has been found (silence unless mapped)" data-drpg-chrome="select" data-drpg-named="own"><option value="">- not set -</option></select></span>
+                <span class="notes drpg-music-save" data-drpg-save="" data-drpg-key="bodyFound" aria-live="polite"></span></td>
+        </tr><tr>
+            <td>Investigation</td>
+            <td><span class="drpg-select"><select name="state:search" aria-label="Plays: Investigation" data-drpg-chrome="select" data-drpg-named="own"><option value="">- not set -</option></select></span>
+                <span class="notes drpg-music-save" data-drpg-save="" data-drpg-key="search" aria-live="polite"></span></td>
+        </tr><tr>
+            <td>Morning</td>
+            <td><span class="drpg-select"><select name="state:time.morning" aria-label="Plays: Morning" data-drpg-chrome="select" data-drpg-named="own"><option value="">- not set -</option></select></span>
+                <span class="notes drpg-music-save" data-drpg-save="" data-drpg-key="time.morning" aria-live="polite"></span></td>
+        </tr><tr>
+            <td>Noon</td>
+            <td><span class="drpg-select"><select name="state:time.noon" aria-label="Plays: Noon" data-drpg-chrome="select" data-drpg-named="own"><option value="">- not set -</option></select></span>
+                <span class="notes drpg-music-save" data-drpg-save="" data-drpg-key="time.noon" aria-live="polite"></span></td>
+        </tr><tr>
+            <td>Afternoon</td>
+            <td><span class="drpg-select"><select name="state:time.afternoon" aria-label="Plays: Afternoon" data-drpg-chrome="select" data-drpg-named="own"><option value="">- not set -</option></select></span>
+                <span class="notes drpg-music-save" data-drpg-save="" data-drpg-key="time.afternoon" aria-live="polite"></span></td>
+        </tr><tr>
+            <td>Evening</td>
+            <td><span class="drpg-select"><select name="state:time.evening" aria-label="Plays: Evening" data-drpg-chrome="select" data-drpg-named="own"><option value="">- not set -</option></select></span>
+                <span class="notes drpg-music-save" data-drpg-save="" data-drpg-key="time.evening" aria-live="polite"></span></td>
+        </tr><tr>
+            <td>Night</td>
+            <td><span class="drpg-select"><select name="state:time.night" aria-label="Plays: Night" data-drpg-chrome="select" data-drpg-named="own"><option value="">- not set -</option></select></span>
+                <span class="notes drpg-music-save" data-drpg-save="" data-drpg-key="time.night" aria-live="polite"></span></td>
+        </tr></tbody></table>
+            <p class="notes">Fades are the playlist's own - set Fade Duration on the playlist or on a track, and both directions use it. Put a track on and everything else pauses where it stands, then resumes from there. When a body is found and nothing is mapped to it, the silence stops your own track too.</p></section><section class="drpg-tab-pane" role="tabpanel" data-drpg-pane="effects" hidden="">
+        <p class="notes">This module ships no audio, the same bargain the playlists make. Point an event at a file of your own; anything left blank stays silent, which is a choice rather than a fault.</p>
+        <p class="notes">Changes save as you make them: this window has no Apply button.</p>
+        <p class="notes" data-drpg-sfx-count="">0 of 55 events have a file.</p>
+        <p class="notes" data-drpg-sfx-legend=""><span class="drpg-sfx-badge">varies</span> Heard constantly, so each play bends its speed very slightly.</p>
+        <table class="drpg-vault-table drpg-sfx-table" data-drpg-chrome="num"><thead><tr>
+            <th>Event</th>
+            <th>File</th>
+        </tr></thead><tbody><tr class="drpg-sfx-group"><td colspan="2">
+            <strong>Safety</strong>
+            <span class="drpg-sfx-group-count" data-drpg-sfx-group-count="safety">0 of 1 assigned</span>
+            <small class="notes">The sound of a scene being stopped.</small>
+        </td></tr><tr data-drpg-sfx="safeword">
+                <td>
+                    <strong>The safeword</strong><br>
+                    <small class="notes">Somebody stopped the scene. Heard by everyone whatever the Sound slider says, at Foundry's Interface volume, from their first click on the page after it loads; the card shows on every screen either way. Make it sound like nothing else in the game.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:safeword" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr class="drpg-sfx-group"><td colspan="2">
+            <strong>Interface</strong>
+            <span class="drpg-sfx-group-count" data-drpg-sfx-group-count="ui">0 of 5 assigned</span>
+            <small class="notes">Windows, buttons and the chat in the corner.</small>
+        </td></tr><tr data-drpg-sfx="windowOpen">
+                <td>
+                    <strong>Window opens</strong><span class="drpg-sfx-badge" data-tooltip="Heard constantly, so each play bends its speed very slightly.">varies</span><br>
+                    <small class="notes">Any window this module draws, and a character sheet. Heard by whoever opened it.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:windowOpen" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="windowClose">
+                <td>
+                    <strong>Window closes</strong><span class="drpg-sfx-badge" data-tooltip="Heard constantly, so each play bends its speed very slightly.">varies</span><br>
+                    <small class="notes">The same windows on the way out. Heard by whoever closed it.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:windowClose" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="windowButton">
+                <td>
+                    <strong>Button in a window</strong><span class="drpg-sfx-badge" data-tooltip="Heard constantly, so each play bends its speed very slightly.">varies</span><br>
+                    <small class="notes">A button pressed anywhere except a character sheet. Stays quiet when the press opens or closes a window - you hear the window instead.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:windowButton" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="sheetButton">
+                <td>
+                    <strong>Button on a character sheet</strong><span class="drpg-sfx-badge" data-tooltip="Heard constantly, so each play bends its speed very slightly.">varies</span><br>
+                    <small class="notes">The sheet's own controls - actions, equipment, the pips. Separate from the other buttons because a sheet is a window too, and one key could not tell them apart.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:sheetButton" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="chatOpen">
+                <td>
+                    <strong>Chat opens</strong><span class="drpg-sfx-badge" data-tooltip="Heard constantly, so each play bends its speed very slightly.">varies</span><br>
+                    <small class="notes">The messenger in the corner of the screen. Heard by whoever opened it.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:chatOpen" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr class="drpg-sfx-group"><td colspan="2">
+            <strong>Chat</strong>
+            <span class="drpg-sfx-group-count" data-drpg-sfx-group-count="chat">0 of 8 assigned</span>
+            <small class="notes">Messages, cards, announcements and Calls.</small>
+        </td></tr><tr data-drpg-sfx="chatSend">
+                <td>
+                    <strong>Message sent</strong><span class="drpg-sfx-badge" data-tooltip="Heard constantly, so each play bends its speed very slightly.">varies</span><br>
+                    <small class="notes">Heard by the sender, on the browser that sent it.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:chatSend" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="chatReceive">
+                <td>
+                    <strong>Message arrives</strong><span class="drpg-sfx-badge" data-tooltip="Heard constantly, so each play bends its speed very slightly.">varies</span><br>
+                    <small class="notes">Heard by everyone the thread belongs to - its player and every GM - and never by the sender.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:chatReceive" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="gmAsk">
+                <td>
+                    <strong>A player calls for a GM</strong><br>
+                    <small class="notes">Heard by the GMs. The request lands in a thread, and a thread is easy to miss in the middle of a busy time of day.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:gmAsk" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="hopeCall">
+                <td>
+                    <strong>Hope Call used</strong><br>
+                    <small class="notes">Heard by the player who spent it.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:hopeCall" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="despairCall">
+                <td>
+                    <strong>Despair Call</strong><br>
+                    <small class="notes">A Monokuma spends one. Heard by whoever it lands on, and by the whole table when it is announced publicly.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:despairCall" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="newRule">
+                <td>
+                    <strong>A new rule</strong><br>
+                    <small class="notes">A Monokuma adds one to the handbook. Heard by the whole table.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:newRule" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="motive">
+                <td>
+                    <strong>A motive</strong><br>
+                    <small class="notes">A Monokuma announces one, and again when its deadline arrives. Heard by the whole table - a motive nobody heard is not a motive.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:motive" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="publicAnnouncement">
+                <td>
+                    <strong>An assembly is called</strong><br>
+                    <small class="notes">Everyone is summoned to one room for the next time of day, the order is called off, or the assembly is held. Heard by the whole table.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:publicAnnouncement" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr class="drpg-sfx-group"><td colspan="2">
+            <strong>World</strong>
+            <span class="drpg-sfx-group-count" data-drpg-sfx-group-count="world">0 of 18 assigned</span>
+            <small class="notes">Rooms, the clock, and the everyday business of a Daily Life.</small>
+        </td></tr><tr data-drpg-sfx="roomDiscovered">
+                <td>
+                    <strong>New room discovered</strong><br>
+                    <small class="notes">A room entered for the first time. Heard by the student who walked in.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:roomDiscovered" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="roomEntered">
+                <td>
+                    <strong>Room entered</strong><span class="drpg-sfx-badge" data-tooltip="Heard constantly, so each play bends its speed very slightly.">varies</span><br>
+                    <small class="notes">A room already on the map. Heard by whoever crossed the border.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:roomEntered" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="refused">
+                <td>
+                    <strong>Crossing refused</strong><span class="drpg-sfx-badge" data-tooltip="Heard constantly, so each play bends its speed very slightly.">varies</span><br>
+                    <small class="notes">A wall, a locked door or a sealed room turns somebody back. Heard by whoever tried - the one mistake a player makes regularly.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:refused" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="passageFound">
+                <td>
+                    <strong>A secret passage opens to you</strong><br>
+                    <small class="notes">A student finds a secret passage, or another student showed it to them. Heard by them, and by the GMs at a find.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:passageFound" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="wallBreached">
+                <td>
+                    <strong>A wall is breached</strong><br>
+                    <small class="notes">A Breach the Wall is finished. Heard by the students in the two rooms it joins and in the rooms beside them.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:wallBreached" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="actionSpent">
+                <td>
+                    <strong>Action spent</strong><span class="drpg-sfx-badge" data-tooltip="Heard constantly, so each play bends its speed very slightly.">varies</span><br>
+                    <small class="notes">Heard by the player who spent it.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:actionSpent" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="projectDone">
+                <td>
+                    <strong>A project is finished</strong><br>
+                    <small class="notes">The bar filled. Heard by whoever proposed it and by the GMs, never publicly, because a project can be secret - a repair and an armed trap have louder announcements of their own.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:projectDone" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="critical">
+                <td>
+                    <strong>A critical roll</strong><br>
+                    <small class="notes">Heard by whoever rolled it. The one moment at a roll that the whole table waits for, and until now the only one with a card colour and no sound.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:critical" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="searchNothing">
+                <td>
+                    <strong>A search finds nothing</strong><span class="drpg-sfx-badge" data-tooltip="Heard constantly, so each play bends its speed very slightly.">varies</span><br>
+                    <small class="notes">Heard by the searcher. The only common failure in the game that is otherwise completely silent.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:searchNothing" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="observeFail">
+                <td>
+                    <strong>Observe fails</strong><br>
+                    <small class="notes">Heard by the observer. It costs Sanity and looks exactly like a success until the card is read.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:observeFail" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="projectFound">
+                <td>
+                    <strong>A secret project is noticed</strong><br>
+                    <small class="notes">Heard by the student who spotted it and by the GMs. A non-obvious Observe found something in the room that somebody had been keeping to themselves - a rarer event than a trace, and one the table should hear land.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:projectFound" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="sabotageFailed">
+                <td>
+                    <strong>Sabotage fails</strong><br>
+                    <small class="notes">Heard by the saboteur, and only when nobody saw - a failed sabotage still leaves its trace, so this is evidence bought for no gain rather than nothing happening.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:sabotageFailed" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="sabotageSeen">
+                <td>
+                    <strong>Sabotage witnessed</strong><br>
+                    <small class="notes">Despair with somebody else in the room. Heard by the whole table, because the whole table is told.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:sabotageSeen" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="toolBroke">
+                <td>
+                    <strong>A tool breaks</strong><br>
+                    <small class="notes">Heard by its owner. It changes the next roll, so it has to be noticed at the moment it happens.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:toolBroke" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="stolen">
+                <td>
+                    <strong>Something was stolen from you</strong><br>
+                    <small class="notes">Heard by the victim, and only when the thief was clumsy enough to be noticed.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:stolen" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="eclipseStart">
+                <td>
+                    <strong>The Eclipse begins</strong><br>
+                    <small class="notes">Heard by the whole table.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:eclipseStart" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="eclipseEnd">
+                <td>
+                    <strong>The Eclipse ends</strong><br>
+                    <small class="notes">Heard by the whole table.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:eclipseEnd" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="despairOverflow">
+                <td>
+                    <strong>Despair overflows</strong><br>
+                    <small class="notes">Heard by the whole table, when the spilled Despair reaches its threshold and the world gets worse for one time of day.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:despairOverflow" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr class="drpg-sfx-group"><td colspan="2">
+            <strong>Incident</strong>
+            <span class="drpg-sfx-group-count" data-drpg-sfx-group-count="incident">0 of 23 assigned</span>
+            <small class="notes">A death, the investigation, the trial floor and the states that lead there.</small>
+        </td></tr><tr data-drpg-sfx="death">
+                <td>
+                    <strong>A student dies</strong><br>
+                    <small class="notes">Heard by the GMs and by everyone whose character was part of the incident. Nobody else learns of a death this way.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:death" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="bodyFound">
+                <td>
+                    <strong>A body is found</strong><br>
+                    <small class="notes">Heard by the whole table. The moment the chapter changes genre.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:bodyFound" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="cleanupFailed">
+                <td>
+                    <strong>Cleaning up fails</strong><br>
+                    <small class="notes">Heard by the killer. The price is spent either way, and a failure leaves a Tamper Remnant of its own beside the one they were scrubbing.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:cleanupFailed" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="breakdown">
+                <td>
+                    <strong>Breakdown</strong><br>
+                    <small class="notes">Sanity reached zero. Heard by that student's player and by the GMs.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:breakdown" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="wounded">
+                <td>
+                    <strong>Wounded</strong><br>
+                    <small class="notes">Health reached zero. Heard by that student's player and by the GMs.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:wounded" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="monocub">
+                <td>
+                    <strong>Monocub changes</strong><br>
+                    <small class="notes">A dead student joins the Monocubs, or stops being one. Heard by their player and by the GMs.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:monocub" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="meddle">
+                <td>
+                    <strong>A Monocub interferes</strong><br>
+                    <small class="notes">Heard by the Monocub and by whoever they landed it on, and it says nothing about WHICH Monocub. The only thing that changes your next roll without you having done anything, which is why the target needs telling.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:meddle" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="yourTurn">
+                <td>
+                    <strong>Your turn in an incident</strong><br>
+                    <small class="notes">Heard by whoever is up. An incident is turn-based and the only other signal is a redrawn HUD.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:yourTurn" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="truthBullet">
+                <td>
+                    <strong>Truth Bullet found</strong><br>
+                    <small class="notes">Heard by whoever found it.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:truthBullet" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="analyzeHit">
+                <td>
+                    <strong>Evidence identified</strong><br>
+                    <small class="notes">A successful Analyze. Heard by the student who ran it.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:analyzeHit" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="analyzeMiss">
+                <td>
+                    <strong>Analysis fails</strong><br>
+                    <small class="notes">Heard by the student who ran it. The bullet is locked until the next chapter, the longest-lasting consequence any failed roll in this game has.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:analyzeMiss" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="debateOpen">
+                <td>
+                    <strong>Nonstop Debate opens</strong><br>
+                    <small class="notes">Heard by the whole table. It changes what everyone's Truth Bullet button does.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:debateOpen" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="objection">
+                <td>
+                    <strong>Objection</strong><br>
+                    <small class="notes">Somebody takes the trial floor. Heard by the whole table.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:objection" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="closingStart">
+                <td>
+                    <strong>Closing Argument</strong><br>
+                    <small class="notes">The Closing Argument opens: who will sum up the case? Heard by the whole table.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:closingStart" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="panicStart">
+                <td>
+                    <strong>Panic Round</strong><br>
+                    <small class="notes">A Panic Round starts: everyone in turn, a few seconds each. Heard by the whole table.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:panicStart" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="keyReveal">
+                <td>
+                    <strong>Monokuma's Reveal</strong><br>
+                    <small class="notes">Monokuma reveals a Key Remnant nobody found. Heard by everyone taking part in the trial.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:keyReveal" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="rebuttal">
+                <td>
+                    <strong>Rebuttal</strong><br>
+                    <small class="notes">The rebuttal starts: the one who objected and the one they named, and nobody else, until the floor opens again. Heard by the whole table.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:rebuttal" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="overrule">
+                <td>
+                    <strong>Overrule</strong><br>
+                    <small class="notes">The GM overrules an Objection: the trial goes back to where it was, the price stays. Heard by the whole table.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:overrule" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="voteOpen">
+                <td>
+                    <strong>The vote opens</strong><br>
+                    <small class="notes">Heard by the whole table.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:voteOpen" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="verdict">
+                <td>
+                    <strong>The verdict</strong><br>
+                    <small class="notes">Heard by the whole table. The most ceremonial moment of a chapter, and the last one that should be silent.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:verdict" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="execution">
+                <td>
+                    <strong>An execution</strong><br>
+                    <small class="notes">The trial ends and the sentence is carried out on whoever the verdict named. Heard by the whole table.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:execution" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="trialClose">
+                <td>
+                    <strong>The trial ends</strong><br>
+                    <small class="notes">The Class Trial is over and everyone goes back to school. Heard by the whole table.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:trialClose" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr><tr data-drpg-sfx="levelUp">
+                <td>
+                    <strong>Level Up</strong><br>
+                    <small class="notes">Heard by the survivor it happened to. The only reward in the whole game.</small>
+                </td>
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:levelUp" value="" title="One file, or several split by | - one is picked, never twice running." placeholder="not assigned yet" aria-label="One file, or several split by | - one is picked, never twice running." data-drpg-named="swept">
+                    <span class="drpg-sfx-actions">
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-pick="" aria-label="Choose" data-tooltip="Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time." data-drpg-named="own"><i class="fa-solid fa-folder-open" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-test="" aria-label="Test" data-tooltip="Play it here, now." data-drpg-named="own"><i class="fa-solid fa-play" inert=""></i></button>
+                        <button type="button" class="drpg-mini-button drpg-sfx-icon" data-drpg-sfx-clear="" aria-label="Clear" data-tooltip="Empty this row: the event goes silent." data-drpg-named="own"><i class="fa-solid fa-xmark" inert=""></i></button>
+                    </span>
+                </div></td>
+            </tr></tbody></table></section>
+        </div></div><footer class="form-footer drpg-kit-footer"><div class="drpg-kit-right"></div><div class="drpg-kit-left"><button type="submit" data-action="close" class="drpg-role-close default" data-drpg-role="close" data-drpg-named="own" autofocus="">Close</button></div></footer></form></dialog>

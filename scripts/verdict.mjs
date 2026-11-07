@@ -37,11 +37,12 @@ import { trialBlackenedIds, trialBlackenedActors, whenTrialReadable } from "./mu
 import { deferredOfferStore, verdictStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
-import { announce, dialogContent, whisperToGms, primaryGmId, log, warn, error, plural, listOf } from "./utils.mjs";
+import { announce, whisperToGms, primaryGmId, log, warn, error, plural, listOf } from "./utils.mjs";
 import { trialProgress, setTrialProgress, executionLines, executeAtExit } from "./trial-progress.mjs";
 import { runSteps, stepsReport } from "./steps.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
+// The kit's frame for the verdict's windows: the Final Trial's (E22 C3b), the ordinary verdict and the Blackened's rule
+// (E21 C4).
+import { drpgWindow } from "./ui-kit.mjs";
 
 /* ==========================================================================
  * CONSEQUENCES
@@ -174,10 +175,10 @@ export async function openVerdictDialog() {
              ${known.map(a => esc(a.name)).join(", ")}</p>`
         : "";
 
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Vote.verdictTitle") },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Vote.verdictTitle"),
         classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p>${game.i18n.localize(known.length
                 ? "DRPG.Vote.verdictIntroKnown" : "DRPG.Vote.verdictIntro")}</p>
             ${roster}
@@ -193,7 +194,7 @@ export async function openVerdictDialog() {
                 ? "DRPG.Vote.verdictNoteKnown" : "DRPG.Vote.verdictNote")}</p>
             ${tiedVote ? `<p class="drpg-warning">${
                 game.i18n.localize("DRPG.Vote.tiedVerdictNote")}</p>` : ""}
-        </form>`),
+        </form>`,
         /*
          * CANCEL FIRST, AND THE ONLY DEFAULT (E10 C4, 1.2.71; audit S06-04). Enter in a DialogV2
          * presses the FIRST submit button in DOM order whatever carries `default` - the finding
@@ -209,18 +210,25 @@ export async function openVerdictDialog() {
          *
          * Still a button rather than a reading off the tally: the count is a fact the module knows,
          * but whether the table got it right is the one thing only a human at that table can answer.
+         *
+         * ON THE KIT'S ROLES (E22 C4, 06.11.2026; audit S06-08): both verdicts are the destructive role, as the Final
+         * Trial's are (E22 C3b), which may never be the default; with no primary the closing word is the first submit
+         * button in the tree - Cancel first and the default, as C4 asked, now by the footer contract.
          */
-        buttons: [
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true },
-            {
-                action: "correct", label: game.i18n.localize("DRPG.Vote.gotItRight"),
-                callback: (e, b, d) => read(d, true, known, dead)
-            },
-            {
-                action: "wrong", label: game.i18n.localize("DRPG.Vote.gotItWrong"),
-                callback: (e, b, d) => read(d, false, known, dead)
-            }
-        ],
+        footer: {
+            destructive: [
+                {
+                    action: "correct", label: game.i18n.localize("DRPG.Vote.gotItRight"),
+                    callback: (e, b, d) => read(d, true, known, dead)
+                },
+                {
+                    action: "wrong", label: game.i18n.localize("DRPG.Vote.gotItWrong"),
+                    callback: (e, b, d) => read(d, false, known, dead)
+                }
+            ],
+            close: "cancel",
+            default: "cancel"
+        },
         rejectClose: false
     });
 
@@ -297,8 +305,7 @@ function read(dialog, correct, known, dead = new Set()) {
  * @param {Actor[]} [unfound] the Blackened dead as the GMs hold it and not yet as the table does.
  * @returns {Promise<boolean>} whether a rule was actually recorded.
  */
-async function askBlackenedRule(unfound = []) {
-    const DialogV2 = foundry.applications.api.DialogV2;
+export async function askBlackenedRule(unfound = []) {
     let text = "";
     const unfoundLine = unfound.length
         ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.blackenedRuleUnfound", {
@@ -306,21 +313,25 @@ async function askBlackenedRule(unfound = []) {
         : "";
 
     try {
-        const answer = await DialogV2.wait({
-            window: { title: game.i18n.localize("DRPG.Vote.blackenedRuleTitle") },
+        const answer = await drpgWindow({
+            title: game.i18n.localize("DRPG.Vote.blackenedRuleTitle"),
             classes: ["drpg-panel"],
-            content: dialogContent(`<form>
+            body: `<form>
                 <p>${game.i18n.localize("DRPG.Vote.blackenedRuleIntro")}</p>
                 ${unfoundLine}
                 <textarea name="rule" rows="3"
                     placeholder="${game.i18n.localize("DRPG.Calls.newRulePlaceholder")}"></textarea>
                 <p class="notes">${game.i18n.localize("DRPG.Vote.blackenedRuleNote")}</p>
-            </form>`),
-            buttons: [
-                { action: "ok", label: game.i18n.localize("DRPG.Rules.addNew"), default: true,
-                  callback: (e, b, d) => d.element.querySelector("form")?.elements?.rule?.value ?? "" },
-                { action: "skip", label: game.i18n.localize("DRPG.Advance.cancel") }
-            ],
+            </form>`,
+            /* CANCEL RECORDS NOTHING (E21 C4, 06.11.2026). Its button had no callback, so the wait answered its action,
+               "skip" - a string, which the line below took for the rule's words: Cancel recorded the rule "skip" and posted
+               its card to every player (the suite's "the Blackened's rule window records nothing on Cancel", red on
+               d5246545). The closing word answers "" now, which records nothing. */
+            footer: {
+                primary: { action: "ok", label: game.i18n.localize("DRPG.Rules.addNew"),
+                    callback: (e, b, d) => d.element.querySelector("form")?.elements?.rule?.value ?? "" },
+                close: { role: "cancel", action: "skip", callback: () => "" }
+            },
             rejectClose: false
         });
         text = typeof answer === "string" ? answer.trim() : "";
@@ -1043,10 +1054,10 @@ export async function openFinalVerdictDialog() {
     const options = `<option value="">${game.i18n.localize("DRPG.Vote.nobodyNamed")}</option>${
         candidateOptions(verdictCandidates(students, { accusedIds, dead, final: true }))}`;
 
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Mastermind.verdictTitle") },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Mastermind.verdictTitle"),
         classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p>${game.i18n.localize("DRPG.Mastermind.verdictIntro")}</p>
             ${alreadyDead
                 ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Mastermind.alreadyDeadNote")}</p>`
@@ -1054,7 +1065,7 @@ export async function openFinalVerdictDialog() {
             <label>${game.i18n.localize("DRPG.Mastermind.whoWasAccused")}
                 <select name="accused">${options}</select></label>
             <p class="notes">${game.i18n.localize("DRPG.Mastermind.verdictNote")}</p>
-        </form>`),
+        </form>`,
         /*
          * CANCEL FIRST, AND CANCEL THE DEFAULT (MM-01, Dawid 17.09).
          *
@@ -1065,23 +1076,30 @@ export async function openFinalVerdictDialog() {
          * decides the focus, so Cancel has to be both. The two verdicts stay one
          * click each; the ordinary trial verdict (G-31) kept defaulting to the
          * likely outcome until E10 C4, which gave it Cancel first and default too.
+         *
+         * ON THE KIT'S ROLES (E22 C3b, 06.11.2026; audit S13-04): both verdicts are the destructive role (Blood with the
+         * raster), which may never be the default, and with no primary the closing word is the first submit button in the
+         * tree - Cancel first and the default, as MM-01 asked, now by the footer contract.
          */
-        buttons: [
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true },
-            {
-                action: "correct", label: game.i18n.localize("DRPG.Mastermind.correctlyNamed"),
-                disabled: alreadyDead,
-                callback: (e, b, d) => ({
-                    correct: true, accusedId: d.element.querySelector("[name=accused]").value
-                })
-            },
-            {
-                action: "wrong", label: game.i18n.localize("DRPG.Mastermind.notCorrectlyNamed"),
-                callback: (e, b, d) => ({
-                    correct: false, accusedId: d.element.querySelector("[name=accused]").value
-                })
-            }
-        ],
+        footer: {
+            destructive: [
+                {
+                    action: "correct", label: game.i18n.localize("DRPG.Mastermind.correctlyNamed"),
+                    disabled: alreadyDead,
+                    callback: (e, b, d) => ({
+                        correct: true, accusedId: d.element.querySelector("[name=accused]").value
+                    })
+                },
+                {
+                    action: "wrong", label: game.i18n.localize("DRPG.Mastermind.notCorrectlyNamed"),
+                    callback: (e, b, d) => ({
+                        correct: false, accusedId: d.element.querySelector("[name=accused]").value
+                    })
+                }
+            ],
+            close: "cancel",
+            default: "cancel"
+        },
         rejectClose: false
     });
 

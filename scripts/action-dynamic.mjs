@@ -25,8 +25,7 @@ import { whisperToOwner, esc } from "./utils.mjs";
 import { rollTrait, rollInHand, remnantRef, noteRollContext, abort, canAfford } from "./action-pipeline.mjs";
 import { report } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
+import { drpgWindow } from "./ui-kit.mjs";
 
 export function dynamicDef() {
     return {
@@ -34,7 +33,11 @@ export function dynamicDef() {
         icon: "fa-wand-magic-sparkles",
         cost: 1,
         traits: Object.keys(TRAITS),
-        description: game.i18n.localize("DRPG.Action.dynamicDescription")
+        description: game.i18n.localize("DRPG.Action.dynamicDescription"),
+        /* A GM sets the difficulty or refuses, every time (E22 C5c; audit S02-49): the flag that paints the tile red
+           (sheet.mjs, its own copy of this row) prints the briefing's "The GM judges this one" (action-briefing.mjs
+           `briefingFacts`), which this definition, missing it, left out. */
+        callsGm: true
     };
 }
 
@@ -43,13 +46,13 @@ export function dynamicDef() {
  * ========================================================================== */
 
 export async function performDynamic(actor, options) {
+    // Read once (E22 C5c; audit S02-49): the window, the waiting card and the report read the same definition.
     const def = dynamicDef();
     if (!canAfford(actor, options.free ? 0 : 1)) return null;
 
     // Describe it FIRST. The GM cannot set a sensible difficulty for something
     // they have not heard yet, and asking the player to pick a threshold before
     // saying what they are doing is backwards.
-    const dynDef = dynamicDef();
     /*
      * ONE CARD (E16 part 2 C1, 26.10.2026; audit S02-34). The description went out through
      * `promptAndCallGm`, a card with a Reply alone, and the difficulty below asked again with the
@@ -60,8 +63,8 @@ export async function performDynamic(actor, options) {
      * E16-T25 counts the cards.
      */
     const description = await promptForRequest({
-        title: dynDef.label,
-        intro: briefingBlock(actor, "dynamic", dynDef),
+        title: def.label,
+        intro: briefingBlock(actor, "dynamic", def),
         prompt: game.i18n.localize("DRPG.Action.dynamicDescribe"),
         placeholder: game.i18n.localize("DRPG.Action.dynamicPlaceholder"),
         // An empty description is no action for the GM to price (E18 C0, S10-52): asked again.
@@ -81,7 +84,7 @@ export async function performDynamic(actor, options) {
     // The sticky "waiting" card (COMM-04), raised before the fork so the GM
     // guard stays within sight of the bridge call (R6).
     const waiting = game.user.isGM ? () => {} : (await import("./popup.mjs"))
-        .showWaiting(game.i18n.localize("DRPG.Action.dynamicWaiting"), dynDef.label);
+        .showWaiting(game.i18n.localize("DRPG.Action.dynamicWaiting"), def.label);
     let picked;
     try {
         if (game.user.isGM) {
@@ -281,10 +284,11 @@ export async function askDynamicDifficulty({ description, actorName, room } = {}
     const rows = DYNAMIC_THRESHOLDS.map((t, i) =>
         `<option value="${i}">${game.i18n.format("DRPG.Action.beat", { n: dynamicBar(t) })} · ${t.difficulty}</option>`).join("");
 
-    const picked = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Action.dynamicTitle") },
+    // On the kit's frame (E21 C5a): Set the primary, Refuse - the GM's no, an answer and not a withdrawal - a secondary.
+    const picked = await drpgWindow({
+        title: game.i18n.localize("DRPG.Action.dynamicTitle"),
         classes: ["drpg-panel"],
-        content: `<form>
+        body: `<form>
                     <p>${game.i18n.format("DRPG.Action.dynamicFrom", {
                         actor: foundry.utils.escapeHTML(actorName ?? "?"),
                         room: foundry.utils.escapeHTML(room ?? "-")
@@ -296,16 +300,16 @@ export async function askDynamicDifficulty({ description, actorName, room } = {}
                         <select name="trait">${Object.entries(TRAITS)
                             .map(([k, t]) => `<option value="${k}">${t.label}</option>`).join("")}</select></label>
                   </form>`,
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Action.dynamicSet"), default: true,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.Action.dynamicSet"),
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
                     return { tier: Number(f.tier.value), trait: f.trait.value };
                 }
             },
-            { action: "refuse", label: game.i18n.localize("DRPG.Action.dynamicRefuse") }
-        ],
+            secondary: [{ action: "refuse", label: game.i18n.localize("DRPG.Action.dynamicRefuse") }]
+        },
         rejectClose: false
     });
 

@@ -3370,8 +3370,14 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         discards.d4 = { sent: await consoleDiscard(discardSet.d4, true) };
         Object.assign(discards.d4, await discardRead(discardSet.d4, traces4, true));
         const tracesH = await gm.eval(traceCount);
-        discards.honest = { r: await p1.eval(`const U = await import("${repoUrl}/scripts/use-items.mjs"); const actor = game.actors.get("${ids.aiko}");
-            return (await U.discardBroken(actor, actor.items.get(${JSON.stringify(discardSet.honest)}))) ?? null;`, { timeout: 90000 }) };
+        // The throw-away question is the kit's since E21 C5a (destructive, Cancel the default, so the harness's wait
+        // answers no): the player presses Yes here, and the read keeps which question it was.
+        const honest = await p1.eval(`const U = await import("${repoUrl}/scripts/use-items.mjs"); const actor = game.actors.get("${ids.aiko}");
+            const D = foundry.applications.api.DialogV2; const wait = D.wait; const asked = [];
+            D.wait = async function (cfg) { const yes = (cfg?.buttons ?? []).find(b => b.action === "yes"); if (!yes) return wait.call(this, cfg); asked.push(yes.action); return yes.callback ? yes.callback() : "yes"; };
+            try { return { r: (await U.discardBroken(actor, actor.items.get(${JSON.stringify(discardSet.honest)}))) ?? null, asked }; }
+            finally { D.wait = wait; }`, { timeout: 90000 });
+        discards.honest = { r: honest?.r ?? null, asked: honest?.asked ?? null };
         await settle(1500);
         Object.assign(discards.honest, await discardRead(discardSet.honest, tracesH, false));
     } finally {
@@ -3397,7 +3403,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("SECURITY: D4 - a console's discard-stamped delete in the Investigation, with no roll and no trace, is flagged on one card, and Undo makes it again",
         forgedHeld(discards.d4), JSON.stringify(discards.d4), { flow: "sheet-audit" });
     check("SECURITY: the honest discard in the Investigation leaves one trace and its deletion stands with no row flagged and no card (the ticket of its trace)",
-        discards.honest?.r !== null && typeof discards.honest?.r === "object" && discards.honest.held === false && discards.honest.rows === 0
+        discards.honest?.r !== null && typeof discards.honest?.r === "object" && JSON.stringify(discards.honest.asked) === '["yes"]' && discards.honest.held === false && discards.honest.rows === 0
             && discards.honest.cards === 0 && discards.honest.traces === 1, JSON.stringify(discards.honest), { flow: "sheet-audit" });
 
     /*

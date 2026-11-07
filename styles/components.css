@@ -86,13 +86,44 @@ body {
     --drpg-kit-btn-on-ink: var(--drpg-bone);
     --drpg-kit-btn-radius: 2px;
     /* the button roles' focus ring (ui-kit.mjs BUTTON_ROLES `token`): the GM's road in D11's red, a destructive
-       one in the warning's crimson, the primary in the eye, the closing word and the rest in the bone */
-    --drpg-kit-role-primary: var(--drpg-eye);
+       one in the warning's crimson, the closing word and the rest in the bone - and the primary in the bone since
+       E22 C6b (it was the eye, and a window opens with its focus on the primary, so the default wore a red ring:
+       red means the GM's road and an irreversible answer only, the owner's P-B of 04.09) */
+    --drpg-kit-role-primary: var(--drpg-bone);
     --drpg-kit-role-gm-route: var(--drpg-eye);
     --drpg-kit-role-close: var(--drpg-bone);
     --drpg-kit-role-cancel: var(--drpg-bone);
     --drpg-kit-role-secondary: var(--drpg-bone);
     --drpg-kit-role-destructive: var(--drpg-crimson);
+    /* the roles' faces (E22 C6b, 07.11.2026; D11 and the owner's P-B of 04.09, audit S12-58): danganronpa.css's dialog
+       footer rule reads `--drpg-kit-face-*`, which each role's rule below sets from these - the primary Bone with the
+       stronger Bone edge (it was the eye's red, so "Roll" read like "Send it to the GM"), the GM's road the eye's wash
+       on the eye's edge (it was crimson in a footer and the eye in a window: one token now, `--drpg-kit-role-gm-route`),
+       a destructive answer crimson under the raster the glass gives it. Under the glass its own footer rules draw
+       the faces and read the roles' rings' tokens. */
+    --drpg-kit-primary-edge: var(--drpg-bone);
+    --drpg-kit-gm-route-bg: rgba(var(--drpg-eye-rgb), 0.22);
+    --drpg-kit-destructive-bg: rgba(var(--drpg-crimson-rgb), 0.12);
+    --drpg-kit-destructive-raster: radial-gradient(circle at 1px 1px, rgba(var(--drpg-crimson-rgb), 0.45) 1px, transparent 1.5px);
+    --drpg-kit-destructive-raster-cell: 4px 4px;
+    /* the faces under the pointer (E22 fix G1, 07.11.2026; the end review's SCREENS M1, Open 81): the footer rule's
+       hover reads `--drpg-kit-face-hover-*` - a stronger Bone wash and the Bone edge for every role (it was the eye's
+       wash on every button, so Save and Close turned red under the pointer), the GM's road and a destructive answer
+       each brighter in its own token */
+    --drpg-kit-hover-bg: rgba(var(--drpg-bone-rgb), 0.18);
+    --drpg-kit-hover-edge: var(--drpg-bone);
+    --drpg-kit-gm-route-hover-bg: rgba(var(--drpg-eye-rgb), 0.34);
+    --drpg-kit-gm-route-hover-edge: var(--drpg-eye-light);
+    --drpg-kit-destructive-hover-bg: rgba(var(--drpg-crimson-rgb), 0.22);
+    --drpg-kit-destructive-hover-edge: var(--drpg-crimson-light);
+    /* a Call's side (M14, E21 C5a): Hope's gold and Despair's blood, each with its deep twin on a pale ground; one
+       pair for both themes - the glass draws the same two inks */
+    --drpg-kit-call-hope: light-dark(var(--drpg-gold-deep), var(--drpg-gold));
+    --drpg-kit-call-despair: light-dark(var(--drpg-blood-deep), var(--drpg-blood));
+    /* an action briefing's facts (E21 C5b; audit S02-36, S12-16): the numbers a player decides by, at the body's
+       size in the bone ink - they were the window's smallest and darkest text */
+    --drpg-kit-brief-size: max(11px, var(--drpg-text-md));
+    --drpg-kit-brief-ink: var(--drpg-bone);
     /* the notice history (E44 C5): its lines and grounds as E81 drew them, an entry's seam by its tone or source,
        and its two type sizes */
     --drpg-kit-notice-edge: var(--drpg-line-strong);
@@ -113,6 +144,8 @@ body {
 /* ---- tokens: Stained Glass (the glass's own) ---- */
 body.drpg-theme-stained-glass {
     --drpg-kit-ink: var(--drpg-sg-bone);
+    --drpg-kit-brief-size: max(var(--drpg-sg-floor), var(--drpg-text-md));
+    --drpg-kit-brief-ink: var(--drpg-sg-bone);
     --drpg-kit-line: color-mix(in srgb, var(--drpg-sg-bone) 12%, transparent);
     --drpg-kit-tab-bg: transparent;
     --drpg-kit-tab-ink: var(--drpg-sg-ink);
@@ -158,12 +191,25 @@ body.drpg-theme-stained-glass {
 /* ---- drpgWindow / DrpgApp: the frame. The screen's height less 8 px a side; the body scrolls, the tab bar and the
    footer do not. Written at 0,4,1 and 0,5,1, one place above danganronpa.css's dialog frame rule (`max-height: 80vh;
    overflow: auto` on `.window-content`, 0,4,0) and level with the glass's (`.application.drpg-panel:not(.minimized)`,
-   `calc(100vh - 24px)` and `calc(100vh - 80px)`), which this sheet follows. The width stays the module's popup widths'
-   (danganronpa.css, stained-glass.css, `!important` against Foundry's inline width) until E21. ---- */
+   `calc(100vh - 24px)` and `calc(100vh - 80px)`), which this sheet follows. The width is the window's own (Foundry's
+   inline width; a DialogV2's still the module's popup widths, `!important` in danganronpa.css and stained-glass.css,
+   until its window moves), never past the screen less 8 px a side (E21 C1b, E44's Open 19: the two popup rules that
+   name no window, only `.drpg-panel` among others, take a kit window out of their `max-width`). The caps hold the
+   border box (E21 C2a): a DialogV2 of the module carries the dialog's padding and border (16 px and 1 px a side under
+   the glass), and with the content box capped Room setup stood 786 px tall on a 768 px screen, its footer cut (the fit
+   sweep, 05.11.2026). ---- */
 body .application.drpg-ui.drpg-panel:not(.minimized) {
+    box-sizing: border-box;
     max-height: calc(100dvh - 16px);
+    max-width: calc(100vw - 16px);
     display: flex;
     flex-direction: column;
+}
+/* The header does not give way (E21 C2b): a flex item shrinks by its share of the basis, so beside a body far taller
+   than the screen the title bar shrank with it - Set the season up's header stood 22 px of its 64, its title under the
+   body (the fit sweep's screenshot, 06.11.2026). The body is the one that scrolls. */
+body .application.drpg-ui.drpg-panel:not(.minimized) > .window-header {
+    flex: 0 0 auto;
 }
 body .application.drpg-ui.drpg-panel:not(.minimized) > .window-content {
     flex: 1 1 auto;
@@ -216,13 +262,31 @@ body .application.dialog footer.form-footer.drpg-kit-footer { flex-wrap: nowrap;
    dialog rule (0,4,2, `flex: 1 1 auto`) stretched the lone Cancel to 866 px of M1's 1366 px footer under Legacy; this
    is 0,4,3. */
 body .application.dialog footer.form-footer.drpg-kit-footer button { flex: 0 1 auto; min-width: 8.5rem; }
-/* The roles (ui-kit.mjs BUTTON_ROLES): each its place in its side and its focus ring. */
+/* The roles (ui-kit.mjs BUTTON_ROLES): each its place in its side, its focus ring and its face (E22 C6b: the
+   `--drpg-kit-face-*` danganronpa.css's footer rule reads - the face is keyed on the role, so a destructive answer
+   wears it with no other class; the closing words and the secondaries keep the rule's Bone wash). */
 .drpg-kit-footer .drpg-role-close { order: 0; --drpg-kit-ring: var(--drpg-kit-role-close); }
 .drpg-kit-footer .drpg-role-cancel { order: 0; --drpg-kit-ring: var(--drpg-kit-role-cancel); }
 .drpg-kit-footer .drpg-role-secondary { order: 1; --drpg-kit-ring: var(--drpg-kit-role-secondary); }
-.drpg-kit-footer .drpg-role-destructive { order: 2; --drpg-kit-ring: var(--drpg-kit-role-destructive); }
-.drpg-kit-footer .drpg-role-gm-route { order: 1; --drpg-kit-ring: var(--drpg-kit-role-gm-route); }
-.drpg-kit-footer .drpg-role-primary { order: 2; --drpg-kit-ring: var(--drpg-kit-role-primary); }
+.drpg-kit-footer .drpg-role-destructive {
+    order: 2;
+    --drpg-kit-ring: var(--drpg-kit-role-destructive);
+    --drpg-kit-face-edge: var(--drpg-kit-role-destructive);
+    --drpg-kit-face-bg: var(--drpg-kit-destructive-bg);
+    --drpg-kit-face-raster: var(--drpg-kit-destructive-raster);
+    --drpg-kit-face-raster-cell: var(--drpg-kit-destructive-raster-cell);
+    --drpg-kit-face-hover-bg: var(--drpg-kit-destructive-hover-bg);
+    --drpg-kit-face-hover-edge: var(--drpg-kit-destructive-hover-edge);
+}
+.drpg-kit-footer .drpg-role-gm-route {
+    order: 1;
+    --drpg-kit-ring: var(--drpg-kit-role-gm-route);
+    --drpg-kit-face-edge: var(--drpg-kit-role-gm-route);
+    --drpg-kit-face-bg: var(--drpg-kit-gm-route-bg);
+    --drpg-kit-face-hover-bg: var(--drpg-kit-gm-route-hover-bg);
+    --drpg-kit-face-hover-edge: var(--drpg-kit-gm-route-hover-edge);
+}
+.drpg-kit-footer .drpg-role-primary { order: 2; --drpg-kit-ring: var(--drpg-kit-role-primary); --drpg-kit-face-edge: var(--drpg-kit-primary-edge); }
 .drpg-kit-footer button[data-drpg-role]:focus-visible { outline: 2px solid var(--drpg-kit-ring); outline-offset: 2px; }
 
 /* ---- kitTabs: one markup, equal widths (S12-50) that never cut a label: equal columns at least as wide as the
@@ -444,8 +508,8 @@ body:not(.drpg-theme-stained-glass) .application.drpg-ui .drpg-mode-bar > button
    everything else keeps its height, so the footer stays in view however long the region is (R299 (e), in a
    browser). Its footer is the kit's (`footerMarkup`), ruled and spaced here in both themes: a DialogV2's is spaced
    by the dialog rules, an ApplicationV2's by nothing else. The width is the window's own, never past the screen
-   less 8 px a side (narrow.css held the notice history to it on a stacked screen until C5). ---- */
-body .application.drpg-ui.drpg-panel:not(.dialog):not(.minimized) { max-width: calc(100vw - 16px); }
+   less 8 px a side (narrow.css held the notice history to it on a stacked screen until C5; the frame's rule above since
+   E21 C1b, for every kit window). ---- */
 body .application.drpg-ui.drpg-panel:not(.dialog):not(.minimized) > .window-content { padding: 10px 12px; }
 .application.drpg-ui.drpg-panel > .window-content > .drpg-kit-content {
     flex: 1 1 auto;
@@ -2044,4 +2108,28 @@ body.drpg-theme-stained-glass #drpg-gm-launcher:focus-visible {
    half the 44 px button (the handbooks' glyph is 24 px) - outside `--drpg-sg-scale`. */
 body.drpg-theme-stained-glass #drpg-gm-launcher :is(i, .fa, [class*="fa-"]) {
     line-height: 1;
+}
+
+/* ---- a Call's window (M14, E21 C5a, 06.11.2026; audit S09-26, S17-48) ----
+   call-pickers.mjs `callWindow` draws every Call window on the kit's frame, in `drpg-hope-dialog` or
+   `drpg-despair-dialog`. The side's ink is set on the window from the kit's tokens - Hope's gold, Despair's blood -
+   and the header takes it on its stripe and its title, as the approved card draws it in both themes. The button that
+   waits for a GM keeps the GM's road's own face (the role's), which neither ink touches. Moved here from
+   danganronpa.css ("the Call window's side", E51 C2), where it named `.application` alone; R1111 and R1368 read the
+   cascade. */
+.application.drpg-ui.drpg-hope-dialog { --drpg-call-ink: var(--drpg-kit-call-hope); }
+.application.drpg-ui.drpg-despair-dialog { --drpg-call-ink: var(--drpg-kit-call-despair); }
+.application.drpg-ui:is(.drpg-hope-dialog, .drpg-despair-dialog) .drpg-call-header {
+    border-left: 3px solid var(--drpg-call-ink);
+    padding-left: 8px;
+}
+.application.drpg-ui:is(.drpg-hope-dialog, .drpg-despair-dialog) .drpg-call-header h3 { color: var(--drpg-call-ink); }
+
+/* ---- an action's briefing facts (E21 C5b, 06.11.2026; audit S02-36, S12-16) ----
+   The cost, the statistic, the room and the thresholds are what a player decides by; the base sheet drew them at the
+   small size in the dim ink (danganronpa.css `.drpg-briefing-facts`), below the lead and the rows' hints. In a kit
+   window they are body text in the bone ink, in both themes. R1366 reads the cascade. */
+.application.drpg-ui .drpg-briefing-facts {
+    font-size: var(--drpg-kit-brief-size);
+    color: var(--drpg-kit-brief-ink);
 }

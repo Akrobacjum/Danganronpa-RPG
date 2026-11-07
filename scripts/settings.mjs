@@ -3753,12 +3753,55 @@ export const BREAKPOINTS = { narrow: 1224, short: 620 };
    shrinks or unmounts on a number nobody has measured. */
 const measured = v => (Number.isFinite(v) && v > 0 ? v : Infinity);
 
+/* THE ON-SCREEN KEYBOARD IS NOT A SMALLER SCREEN (E21 C1d; the owner's 26.09 amend and A7). On a tablet or a phone
+   the keyboard that opens under a text field shrinks the page's height, and until C1d the module read that as a
+   resize: under 620 px `drpg-short` came on, the stack and the curtain were cut again, and the field the player was
+   typing in moved under their finger. The layout's height is now the desk height: the page's height, except that a fall
+   of the height alone - the width unchanged - while focus is in a text field (`input`, `textarea`, a
+   `[contenteditable]`) keeps the height it had. A change of the width (an orientation change, a real resize) takes the
+   page's height again, and so does any change with no field focused; a rise is always taken. Where the browser has
+   the VirtualKeyboard API the keyboard is asked to overlay the page (`overlaysContent`), so the height does not fall at
+   all; the rule above holds either way. What a real tablet's and phone's keyboard does is LIVE-E21-02.
+   NOT AT A DESK (E21 fix G2, 07.11.2026; the end review's correctness m1). The rule held a desk too: a GM typing in the
+   chat box who docked the devtools at the bottom, or dragged the browser's bottom edge, had the old height kept -
+   `drpg-short` stayed off below 620 px, the curtain was not cut again and the open sheets kept their height (C5a's
+   S01-06 back) - and nothing re-ran once the focus left. So a fall is held only where a keyboard can be on the screen:
+   a coarse pointer (`(pointer: coarse)`, a tablet or a phone), or a visual viewport shorter than the page (a keyboard the
+   browser lays over it). And when the focus leaves a field while the height is held, the height is read again a tick
+   later (`watchScreen`'s focusout): no resize follows a keyboard that went away with the focus on every browser, so the
+   layout no longer waits for the next real resize. */
+let deskWidth = 0, deskHeight = 0;
+const typing = () => {
+    const el = globalThis.document?.activeElement;
+    return Boolean(el?.matches?.("input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=button]):not([type=submit]), textarea, [contenteditable]:not([contenteditable=false]), [contenteditable]:not([contenteditable=false]) *"));
+};
+/** Whether an on-screen keyboard can be what shrank the page (above): a coarse pointer, or the visual viewport says so. */
+const keyboardPossible = (h = innerHeight) => {
+    try {
+        if (globalThis.matchMedia?.("(pointer: coarse)")?.matches) return true;
+        const vv = globalThis.visualViewport;
+        return Boolean(vv && vv.height > 0 && vv.height + 1 < h);
+    } catch {
+        return false;
+    }
+};
+/** The height the layout counts from (above): the page's, held through a keyboard. */
+export function layoutHeight(h = innerHeight, w = innerWidth) {
+    if (w !== deskWidth || h >= deskHeight || !typing() || !keyboardPossible(h)) { deskWidth = w; deskHeight = h; }
+    return deskHeight;
+}
+/** True while the page is shorter than its layout height: a keyboard over the page (above). */
+export function keyboardUp() {
+    return innerHeight < layoutHeight();
+}
+
 /** True when the module's blocks must leave Foundry's columns and stack in one. */
 export function narrowScreen(w = innerWidth) {
     return measured(w) < BREAKPOINTS.narrow;
 }
-/** True when there is too little height for the desk layout's vertical rhythm. */
-export function shortScreen(h = innerHeight) {
+/** True when there is too little height for the desk layout's vertical rhythm: the layout height, held through an
+    on-screen keyboard (above), unless a height is given. */
+export function shortScreen(h = layoutHeight()) {
     return measured(h) < BREAKPOINTS.short;
 }
 /**
@@ -3772,7 +3815,8 @@ export function shortScreen(h = innerHeight) {
  * dialog shows both numbers so nobody has to guess why 100 % is not 100 %.
  */
 export function autoScale() {
-    const w = Math.max(320, innerWidth || 0), h = Math.max(240, innerHeight || 0);
+    // the layout height, held through an on-screen keyboard (E21 C1d)
+    const w = Math.max(320, innerWidth || 0), h = Math.max(240, layoutHeight() || 0);
     const f = Math.min(w / 2560, h / 1440);
     return Math.round(Math.min(1, Math.max(0.7, f)) * 100) / 100;
 }
@@ -3821,10 +3865,42 @@ function watchScreen() {
     screenShape = shapeKey();
     if (screenWatched) return;
     screenWatched = true;
+    // The keyboard over the page, not under it, where the browser lets a page ask (E21 C1d; Chromium's VirtualKeyboard API).
+    try { const vk = globalThis.navigator?.virtualKeyboard; if (vk) vk.overlaysContent = true; } catch { /* a browser that refuses keeps its own */ }
     addEventListener("resize", () => {
         clearTimeout(screenTimer);
-        screenTimer = setTimeout(() => { if (autoScale() !== screenFactor || shapeKey() !== screenShape) applyTheme(); }, 250);
+        screenTimer = setTimeout(() => {
+            if (autoScale() !== screenFactor || shapeKey() !== screenShape) applyTheme();
+            // The sheets standing open are held to the new height (E21 C5a): `scaleWindow`'s memo says whether it moved.
+            rescaleSheets();
+        }, 250);
     });
+    // The focus left a field while the height was held (E21 fix G2; `layoutHeight`'s note): read again once the focus
+    // has landed, and when the layout's height moved, the theme, the sheets and the curtain (glass.mjs's hook) follow.
+    addEventListener("focusout", () => {
+        if (!(deskHeight > innerHeight)) return;
+        setTimeout(() => {
+            const held = deskHeight;
+            if (layoutHeight() === held) return;
+            if (autoScale() !== screenFactor || shapeKey() !== screenShape) applyTheme();
+            rescaleSheets();
+            globalThis.Hooks?.callAll?.("drpgLayoutHeight", deskHeight);
+        }, 0);
+    });
+}
+
+/**
+ * Every character sheet standing open, asked again for its box (E21 C5a, 06.11.2026; audit S01-06). A sheet sized on a
+ * taller screen kept that height after a resize - the memo `drpgScaled` keyed on the slider alone - so a window dragged
+ * to a 768 px screen, or a browser made shorter, left the sheet's foot and the Stop below the screen until the slider
+ * moved. Each sheet goes through `scaleWindow`, whose memo (`scaleMemo`) now holds the layout height beside the slider.
+ */
+export function rescaleSheets() {
+    for (const app of globalThis.foundry?.applications?.instances?.values?.() ?? []) {
+        if (app?.document?.type !== "character") continue;
+        const el = app.element instanceof HTMLElement ? app.element : app.element?.[0];
+        if (el) scaleWindow(app, el);
+    }
 }
 
 /**
@@ -3999,7 +4075,48 @@ export function applyTheme() {
    for rather than from whatever it is now - so re-rendering never compounds it, and a window
    the user has dragged wider keeps that width until it is rendered again.
    `auto` is left alone: a window that measures itself is already right. */
-function scaleWindow(app, element) {
+
+/**
+ * The box a window asks for (`want`, its width and height), scaled by the slider `scale` and held inside a screen of
+ * `vw` x `vh` less 48 px: what `scaleWindow` hands `setPosition`. Pure, so the fit sweep's sheet stand-in reads the
+ * same numbers (E21 C1c, `sheetBox`). Answers the dimensions it could read, each a whole number of pixels.
+ */
+export function scaledBox(want, vw, vh, scale) {
+    const size = {};
+    for (const dim of ["width", "height"]) {
+        const n = Number(want?.[dim]);
+        if (Number.isFinite(n) && n > 0) size[dim] = Math.round(n * scale);
+    }
+    /* A window may not be taller than the screen it is on. At 140 % a 1160 px sheet asks for
+       1624, and Foundry will happily place a window whose bottom is off the display. */
+    if (size.height) size.height = Math.min(size.height, Math.round(vh - 48));
+    if (size.width) size.width = Math.min(size.width, Math.round(vw - 48));
+    return size;
+}
+
+/** Daggerheart's own size for a character sheet, as the note in `scaleWindow` reads it (850 x 800): Monokuma Legacy
+    keeps it. Read from the sheet class at a table; here for `sheetBox`, which has no class to read. */
+const DAGGERHEART_SHEET = Object.freeze({ width: 850, height: 800 });
+
+/**
+ * The character sheet's box on a screen of `vw` x `vh` at the slider's `scale`, in `theme` ("glass" or "legacy"), as
+ * `scaleWindow` sizes it (E21 C1c): the fit sweep's sheet stand-in (audit/style-harness.html `?sheet=1`) is drawn at
+ * these numbers, since the sheet itself is Daggerheart's and is drawn neither headless nor on a harness page.
+ */
+/**
+ * The memo a window's scaled box is kept under (E21 C5a): the slider and the layout height (`layoutHeight`, which an
+ * on-screen keyboard does not lower), so a resize that changes the height sizes the window again and a second render
+ * at the same numbers writes nothing. Until C5a the key was the slider alone.
+ */
+export function scaleMemo(scale, h = layoutHeight()) {
+    return `${scale}@${Math.round(Number(h) || 0)}`;
+}
+
+export function sheetBox(vw, vh, scale = 1, theme = "glass") {
+    return scaledBox(theme === "glass" ? SHEET_SIZE.glass : DAGGERHEART_SHEET, vw, vh, scale);
+}
+
+export function scaleWindow(app, element) {
     if (!settingsRegistered()) return;
     const el = element instanceof HTMLElement ? element : element?.[0];
     /*
@@ -4014,7 +4131,8 @@ function scaleWindow(app, element) {
      */
     if (!el) return;
     const s = sliderScale();
-    const key = String(s);
+    const h = layoutHeight();
+    const key = scaleMemo(s, h);
     if (el.dataset.drpgScaled === key) return;
     el.dataset.drpgScaled = key;
     const want = { ...(app?.constructor?.DEFAULT_OPTIONS?.position ?? {}), ...(app?.options?.position ?? {}) };
@@ -4045,15 +4163,7 @@ function scaleWindow(app, element) {
         want.width = SHEET_SIZE.glass.width;
         want.height = SHEET_SIZE.glass.height;
     }
-    const size = {};
-    for (const dim of ["width", "height"]) {
-        const n = Number(want[dim]);
-        if (Number.isFinite(n) && n > 0) size[dim] = Math.round(n * s);
-    }
-    /* A window may not be taller than the screen it is on. At 140 % a 1160 px sheet asks for
-       1624, and Foundry will happily place a window whose bottom is off the display. */
-    if (size.height) size.height = Math.min(size.height, Math.round(window.innerHeight - 48));
-    if (size.width) size.width = Math.min(size.width, Math.round(window.innerWidth - 48));
+    const size = scaledBox(want, window.innerWidth, h, s);
     /* THE SHEET IS NOT RESIZED BY HAND UNDER THE GLASS - its size is a statement of that
        theme - and the handle is hidden by a THEME RULE in stained-glass.css rather than
        taken out of the DOM here. Removed here, it stayed gone after a switch to Monokuma

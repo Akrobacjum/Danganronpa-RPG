@@ -24,7 +24,7 @@ import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, ec
 export { isEclipse, incomingTimeOfDay, eclipseId };
 import { getClock, setClock, timeOfDayLabel, boundaryStamp, boundarySnapshot, takeBackFor, takeBackBoundary, boundaryMemory, afterTakeBack, withTakeBack } from "./clock.mjs";
 import { roomOfActor, placesOf, allRooms, crossingRefused, passesThrough, crossingKey } from "./movement.mjs";
-import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, error, plural, cardHead, esc, isPrimaryGm,
+import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, log, error, plural, cardHead, esc, isPrimaryGm,
     primaryGmId, ownerIdsOf, serialWrite, serverNow } from "./utils.mjs";
 import { overflowCrossings } from "./overflow.mjs";
 import { pendingMurderStore, eclipseMoveStore, eclipseMoveCopy } from "./gm-stores.mjs";
@@ -33,8 +33,8 @@ import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { replyForMe } from "./bridge-guards.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
+// The kit's frame (E21 C3a): the question at the lights.
+import { drpgWindow } from "./ui-kit.mjs";
 
 /** How many room crossings each character gets during an ordinary Eclipse. */
 export { ECLIPSE_MOVES };
@@ -885,18 +885,23 @@ async function judgePendingMurders(id, taken = new Map()) {
  */
 async function askAtTheLights(killer, victim, room, parked) {
     try {
-        return Boolean(await DialogV2.confirm({
+        /* Refuse the default, as it was (DialogV2.confirm's `no: { default: true }`): the approval on the right, Cancel on
+           the left and focused - no field here, so Enter presses Cancel - and a closed window refuses. */
+        return Boolean(await drpgWindow({
             classes: ["drpg-panel"],
-            window: { title: game.i18n.localize("DRPG.Action.murderOpensTitle") },
-            content: dialogContent(`<div>
+            title: game.i18n.localize("DRPG.Action.murderOpensTitle"),
+            body: `<div>
                 <p>${game.i18n.format("DRPG.Action.murderAsk", {
                     killer: esc(killer.name), victim: esc(victim.name), room: esc(room ?? "-")
                 })}</p>
                 ${parked.note ? `<blockquote>${esc(parked.note)}</blockquote>` : ""}
                 <p class="notes">${game.i18n.localize("DRPG.Action.murderAskNote")}</p>
-            </div>`),
-            yes: { label: game.i18n.localize("DRPG.Action.murderApprove") },
-            no: { label: game.i18n.localize("DRPG.Action.murderRefuse"), default: true },
+            </div>`,
+            footer: {
+                primary: { action: "yes", label: game.i18n.localize("DRPG.Action.murderApprove"), callback: () => true },
+                close: { role: "cancel", action: "no", callback: () => false },
+                default: "no"
+            },
             rejectClose: false
         }));
     } catch (err) {

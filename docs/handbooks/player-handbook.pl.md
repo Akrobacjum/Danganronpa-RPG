@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.99, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.100, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z twojego krzesła: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co kliknąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje".
 
@@ -172,6 +172,7 @@ Opis każdej akcji pokazuje jej koszt, statystyki, którymi rzuca, pokój, w kt�
 
 > [!NOTE]
 > Kafelek ze znakiem GMa oddaje ruch człowiekowi: twój rzut i prośba trafiają do twojego wątku w komunikatorze i czekasz na decyzję.
+> W oknie czerwony wiersz albo przycisk działa tak samo: trafia do GM-a, a ty czekasz na odpowiedź.
 
 ### Search - Eye, 1 akcja
 

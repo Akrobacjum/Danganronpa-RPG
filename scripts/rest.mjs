@@ -26,7 +26,7 @@ import { whisperToOwner, log, error, plural, cardHead } from "./utils.mjs";
 // the last piece, and a piece drawn and marked after the room was set up took its rest away.
 import { flagOver, piecesByName, roomFlag, writablePieces } from "./rooms.mjs";
 
-const DialogV2 = foundry.applications.api.DialogV2;
+import { drpgWindow } from "./ui-kit.mjs";
 
 /** Flags set on a Scene Region. */
 export const REST_FLAGS = {
@@ -334,10 +334,11 @@ async function choosePicks(kind, count) {
             </label>`;
         }).join("");
 
-    const picks = await DialogV2.wait({
-        window: { title: kindLabel(kind) },
+    // On the kit's frame (E21 C5a).
+    const picks = await drpgWindow({
+        title: kindLabel(kind),
         classes: ["drpg-panel", "drpg-rest"],
-        content: `<form>
+        body: `<form>
             <p>${game.i18n.format("DRPG.Rest.choose", { n: count })}</p>
             ${options}
         </form>`,
@@ -364,15 +365,14 @@ async function choosePicks(kind, count) {
             for (const b of boxes) b.addEventListener("change", sync);
             sync();
         },
-        buttons: [
-            {
+        footer: {
+            primary: {
                 action: "ok",
                 label: game.i18n.localize("DRPG.Action.proceed"),
-                default: true,
                 callback: (e, b, d) => Array.from(d.element.querySelectorAll("[name=pick]:checked")).map(i => i.value)
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
 

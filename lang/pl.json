@@ -570,7 +570,6 @@
       "eclipseAsk": "Zacząć teraz {name}? Akcje wszystkich się odnawiają, Calle kupione na tę porę dnia się kończą i dla całego stołu gaśnie światło.",
       "eclipseAskRefilled": "Zacząć teraz {name}? Akcje zostały już na nie odnowione i drugi raz się nie odnowią; Calle kupione na tę porę dnia się kończą i dla całego stołu gaśnie światło.",
       "eclipseAskYes": "Zacznij",
-      "eclipseAskNo": "Jeszcze nie",
       "startEclipseFree": "Zacznij Eclipse ({time}) - gaśnie światło, każdy wybiera dowolny pokój na mapie",
       "startEclipseNewSession": {
         "one": "Zakończ sesję i otwórz Eclipse ({time}) - nowa sesja, każdy ustawia swój token ({n} przejście)",
@@ -801,8 +800,8 @@
       "murderConfirmEclipse": "To parkuje Direct Murder do rozstrzygnięcia przez GM-a, gdy Eclipse się skończy. Wymaga wcześniejszej zgody GM-a i zgody drugiego gracza. Akcja przepada nawet, jeśli warunki nie są spełnione.",
       "beat": "przebij {n}",
       "dcLadderRow": "{label} {n}",
-      "dcTierRow": "{n}+ Tier {tier}",
-      "dcSearch": "Progi: {rows}. Krytyk znajduje o tier lepiej.",
+      "dcTierRow": "{n}+ rzecz tieru {tier}",
+      "dcSearch": "Co znajdziesz, wg wyniku: {rows}. Im wyższy tier, tym lepsza rzecz; krytyk znajduje o tier lepiej.",
       "dcObserve": "Dostrzeżenie śladu zbrodni, wg widoczności: {rows}.",
       "dcObserveKey": "Key Remnant: {rows}.",
       "dcObserveFaint": "Nikły Remnant: {rows}.",
@@ -1059,6 +1058,7 @@
       "failed": "To nie zadziałało. Zajrzyj do konsoli.",
       "useTitle": "Użyj: {item}",
       "useTooltip": "Użyj tego przedmiotu.",
+      "useTier0Tooltip": "Tier 0: napisz GM-owi, co z tym robisz.",
       "usePrompt": "Do czego tego używasz?",
       "useConfirm": "Użyj",
       "choiceBonus": "Cokolwiek wybierzesz, przywraca też {n} Hope.",
@@ -1202,6 +1202,9 @@
       "finalTruthPlaced": "Final Truth Remnant został już umieszczony w tym rozdziale.",
       "finalTruthReminder": "W tym rozdziale nie ma Final Truth Remnant. Dodaj go poniżej - wskazuje Masterminda.",
       "verdictTitle": "Werdykt Final Trial",
+      "verdictOpen": "Wydaj werdykt Final Trial",
+      "verdictBodyNote": "Na koniec Final Trial: powiedz, czy klasa wskazała Masterminda. Tego nie da się cofnąć.",
+      "verdictNobody": "Nie ustawiono Masterminda, więc nie ma werdyktu do wydania. Najpierw ustaw go wyżej.",
       "verdictIntro": "Tylko ty wiesz, czy głosowanie wskazało Masterminda. Powiedz, kogo oskarżono, i wybierz wynik.",
       "alreadyDeadNote": "Mastermind zginął wcześniej w tym sezonie. Zasada jest ta sama, kogokolwiek oskarżono: ujawnij prawdę, nie stracaj nikogo nowego.",
       "whoWasAccused": "Kogo oskarżyło głosowanie?",
@@ -1540,7 +1543,8 @@
       "close": "Zamknij",
       "cancel": "Anuluj",
       "tableEmpty": "Na razie nie ma tu nic do pokazania.",
-      "scrollMore": "Niżej jest więcej. Przewiń, żeby zobaczyć."
+      "scrollMore": "Niżej jest więcej. Przewiń, żeby zobaczyć.",
+      "allThresholds": "Wszystkie progi"
     },
     "Look": {
       "language": "Język",
@@ -1932,12 +1936,12 @@
       "reshapeNothingSaid": "Przeróbka wymaga i nazwy, i opisu, a ta nie miała obu, więc ślad czyta się dokładnie tak jak przedtem.",
       "reshapeUnnamed": "coś innego",
       "reshaped": "{from} czyta się teraz jako „{name}” - {band} {kind}. Kto to znajdzie, znajdzie twoją historię, nie to, co tu było.",
-      "transformActionNote": "Cokolwiek napiszesz, ślad staje się Tamper Remnant - przyzna, że ktoś przy nim majstrował, i skłamie o całej reszcie. Krytyk dodatkowo wycisza go o jeden stopień i oddaje Sanity.",
+      "transformActionNote": "Najpierw twoje słowa zatwierdza GM, a po odmowie nic, co zapłacono, nie wraca. Po zatwierdzeniu ślad staje się Tamper Remnant, który przyznaje, że ktoś przy nim majstrował, i kłamie o całej reszcie. Krytyk dodatkowo wycisza go o jeden stopień i zwraca koszt.",
       "transformGo": "Przerób",
       "transformTitle": "Czysta robota",
       "transformIntro": "Masz czas na więcej niż wytarcie. Usuń Remnant albo zostaw go mówiącego coś zupełnie innego - a przy tak dobrym rzucie wybierz, jak głośno to mówi.",
       "transformVisibility": "I tak trudny do zauważenia",
-      "transformNote": "Nikt nie widzi, jak decydujesz. Kto to potem znajdzie, znajdzie to, co zostawiasz, nie to, co tu było. Tak czy inaczej staje się Tamper Remnant.",
+      "transformNote": "Nikt nie widzi, jak decydujesz. Usunięcie działa od razu. Zostawienie czegoś innego najpierw zatwierdza GM: kto potem znajdzie ten Remnant, znajdzie twoją wersję jako Tamper Remnant. Po odmowie GM-a Remnant i tak znika, a to, co zapłacono, nie wraca.",
       "transformErase": "Usuń",
       "transformChange": "Zostaw coś innego",
       "priceGone": "Maskowanie pochłonęło to, co miała kosztować ta próba. Nic więcej nie wydano.",
@@ -2023,7 +2027,7 @@
       "victim": "Ofiara",
       "indirect": "Morderstwo pośrednie - ofiara jest sama, a drenaż jest podwojony",
       "indirectCost": "Pułapkę buduje się jako projekty. Zaplanuj około {low}-{high} postępu łącznie, mniej więcej {fewest} do {actions}, inaczej kosztuje więcej, niż jest warta.",
-      "openConfirm": "Otwórz",
+      "openConfirm": "Otwórz incydent",
       "needOne": "Musi być co najmniej jeden żywy uczeń.",
       "openSelfNote": "Jedno nazwisko w obu polach: to otwiera się jako śmierć z własnej ręki. Nie ma Stage 5 - rzut otwarcia decyduje, czy się na to zdecydują, a incydent idzie prosto do Stage 6.",
       "killerNotAlive": "Wskazanego zabójcy ({name}) nie ma wśród żywych, więc lista Zabójca pokazuje kogoś innego. Wybierz, czyje to morderstwo.",
@@ -2063,11 +2067,12 @@
       },
       "thirdIs": "{name} wchodzi",
       "passTurn": "Oddaj turę",
+      "passTooSoon": "Turę oddano przed chwilą. Naciśnij Oddaj turę jeszcze raz, by oddać następną.",
       "addThird": "Ktoś wchodzi",
       "whoWalkedIn": "Kto?",
       "nobodyElse": "Nie ma nikogo innego żywego, kto mógłby wejść.",
-      "endMurder": "Zamknij morderstwo",
-      "endConfirm": "Zamknąć to morderstwo? Stan incydentu zostaje wyczyszczony. Nic, co już zastosowano, nie zostanie cofnięte.",
+      "endMurder": "Zakończ morderstwo",
+      "endConfirm": "Zakończyć to morderstwo? Stan incydentu zostaje wyczyszczony. Nic, co już zastosowano, nie zostanie cofnięte.",
       "afterTitle": "Incydent zakończony - co teraz",
       "afterIntro": "{killer} przeciw {victim}. Wszystko poniżej wynika z tego, co właśnie się stało, a moduł przestał śledzić sam incydent.",
       "afterRoom": "Ciało jest w: {room}.",
@@ -2224,7 +2229,6 @@
       "ranOutTwoKillers": "{victim} nie ma już nic. {killers} oboje w tym siedzą.",
       "ranOutTwoKillersNote": "Zakończ teraz, a incydent przejdzie do sprzątania. Kontynuuj, a kolejność tur idzie dalej - nikt nie traci należnej tury, a zakończyć możesz ze śledzenia incydentu, kiedy zechcesz.",
       "ranOutEndNow": "Zakończ incydent",
-      "ranOutKeepGoing": "Kontynuuj",
       "crowdedTitle": "Za dużo osób",
       "crowded": "{name} wchodzi zaraz po: {third}. Cztery osoby w jednym pokoju to nie morderstwo, które ktokolwiek może przeprowadzić - incydent odwołany.",
       "crowdedNote": "Nikt nie ginie. To, co walka już zrobiła, zostaje: rany, Sanity i cokolwiek zostawiła na podłodze.",
@@ -2515,9 +2519,10 @@
     "Chapter": {
       "deathTitle": "Postać umiera",
       "whoDied": "Kto zginął?",
+      "chooseOne": "- wybierz -",
       "keepBullets": "Zachowaj ich Truth Bullets (śmierć spoza killing game)",
       "deathNote": "Ich Truth Bullets zostają zniszczone, noszone i schowane jednakowo, i tego nie da się cofnąć. Wszystko inne zostaje przy ciele do znalezienia, a zmarli niczego z tego nie ruszają. Zmarli przestają liczyć się jako obecni w pokoju: nie są świadkami, nie przekazują, nie blokują morderstwa.",
-      "confirmDeath": "Nie żyją",
+      "confirmDeath": "Zapisz śmierć",
       "died": "{name} nie żyje od rozdziału {chapter}.",
       "bulletsGone": {
         "one": "{n} Truth Bullet zginął razem z nimi.",
@@ -2530,7 +2535,6 @@
       "stageSixIntro": "{victim} jest ofiarą incydentu, w którym jest {killer}, a incydent wciąż trwa.",
       "stageSixWhat": "Przejście do Stage 6 pozwala {killer} zobaczyć zostawione ślady i wydawać Sanity na ich usuwanie. Incydent zostaje otwarty, dopóki go nie zamkniesz, więc nic nie jest jeszcze ogłaszane.",
       "stageSixYes": "Przejdź do Stage 6",
-      "stageSixNo": "Zostaw incydent otwarty",
       "alreadyDead": "{name} jest już oznaczony jako martwy.",
       "revived": "{name} nie jest już oznaczony jako martwy. Truth Bullets, które z nimi zginęły, nie wracają.",
       "nobodyLeft": "Każdy uczeń już nie żyje.",
@@ -2561,7 +2565,7 @@
       "bodyNote": "Wszyscy zostają wezwani na miejsce. Faza się nie zmienia, dopóki nie rozpoczniesz Investigation.",
       "bodyNoteLater": "Wszyscy zostają wezwani na miejsce. Faza się nie zmienia.",
       "bodyNoteTraces": "Potem zobaczysz pytanie, które ślady zostawione, gdy ktoś zbierał narzędzia, należą do tego morderstwa.",
-      "announce": "Ogłoś",
+      "announce": "Ogłoś ciało",
       "bodyBanner": "ZNALEZIONO CIAŁO",
       "bodyTitle": "Znaleziono ciało",
       "bodyFound": "Znaleziono ciało w: {room}.",
@@ -2578,13 +2582,12 @@
       "promoteIntro": "Te ślady Prep zostały, gdy ktoś zbierał narzędzia. Większość nic nie znaczy. Zaznacz te, które należą do tego zabójstwa.",
       "promoteNote": "Zaznaczone ślady przestają być wątpliwe: liczą się jako dowody powiązane ze zbrodnią, a czyszczenie Faint ich nie zabierze. Resztę zostaw, a pozostaną Faint.",
       "promoteConfirm": "Te należą do niego",
-      "promoteSkip": "Żaden z nich",
       "endTitle": "Zakończ rozdział",
       "endIntro": "Rozdział {chapter} dobiega końca. Zaznacz, co ma się stać.",
       "optReveal": "Ujawnij, czym naprawdę są Truth Bullets, razem z ich odczytami ({n} do ujawnienia)",
       "revealKeeps": "Truth Bullets Faint nie są ujawniane, z tym wyjątkiem, że każdy Final, Faint czy nie, pokazuje swój rodzaj bez odczytu: oba zostają u graczy, wciąż do przeanalizowania, także w następnym rozdziale.",
       "endNote": "Ujawnienie typów jest trwałe, tak samo jak trzy porządki powyżej. Nic innego tutaj niczego nie usuwa.",
-      "endConfirm": "Zrób to",
+      "endButton": "Zakończ rozdział {n}",
       "doneReveal": {
         "one": "Ujawniono typ {n} Truth Bulleta.",
         "few": "Ujawniono typy {n} Truth Bulletów.",
@@ -2605,6 +2608,7 @@
       "optSweep": "Zbierz Truth Bullets ({n} zniknie, Faint i Final zostają)",
       "optFaint": "Wyczyść Faint Remnants ({n} zniknie)",
       "optKeys": "Zdejmij z mapy Key Remnants tego rozdziału ({n})",
+      "optNothing": "w tym rozdziale nie ma nic do zrobienia",
       "doneSweep": {
         "one": "Zebrano {n} Truth Bullet.",
         "few": "Zebrano {n} Truth Bullets.",
@@ -2624,6 +2628,8 @@
         "other": "Zdjęto z mapy {n} Key Remnants."
       },
       "optEndTrial": "Zamknij Class Trial i przywróć wszystkich do Daily Life",
+      "optNoTrial": "Class Trial nie trwa",
+      "optPermanent": "(nie do cofnięcia)",
       "finalTruthMissing": "W tym rozdziale nie postawiono Final Truth Remnant. Jeden na rozdział wskazuje Masterminda: postaw go w Sprawa > Investigation, w zakładce Final Truth Remnants.",
       "doneEndTrial": "Class Trial zamknięty; kampania wraca do Daily Life.",
       "doneNextMorning": "Następny rozdział otwiera się rankiem dnia {day}, z odnowionymi akcjami i Search Tokenami.",
@@ -3113,9 +3119,7 @@
       "spend": "Wydaj {cost}",
       "send": "Zapytaj GM-a - {cost} Hope po zgodzie",
       "next": "Dalej",
-      "cancel": "Anuluj",
       "gatherCallOff": "Odwołaj",
-      "gatherKeep": "Zostaw",
       "aimedAt": "Cel",
       "tellGm": "Powiedz GM-owi, co zamierzasz z tym zrobić",
       "tellGmPlaceholder": {
@@ -3246,6 +3250,8 @@
     },
     "Monokuma": {
       "toggle": "Oznacz jako Monokumę",
+      "unmark": "Zdejmij oznaczenie Monokumy",
+      "markAsk": "{name} to postać gracza. Po oznaczeniu jako Monokuma jej Hope i akcje spadają do 0, a zdjęcie oznaczenia ich nie przywraca.",
       "marked": "{name} jest teraz Monokumą: bez akcji, bez Hope, zamiast tego Despair Calls i swobodny ruch.",
       "unmarked": "{name} znów jest uczniem.",
       "panelIntro": "Zaznacz aktorów, którzy są Monokumami, potem powiedz, z czyjej puli Despair każdy czerpie. Bez tego dwa Monokumy dzielą pulę tego GM-a, który akurat patrzy na kartę.",
@@ -3617,6 +3623,7 @@
       "proposerKnows": "Twój projekt „{name}” jest w toku w pokoju {room}. Widać go w twoim zasobniku Projektów i na mapie.",
       "descriptionTold": "Opis projektu „{name}”:",
       "proposalSent": "„{name}” poszedł do GM-a. Nic nie rusza, dopóki GM nie zatwierdzi.",
+      "proposalNotSent": "Nic nie trafiło do GM-a.",
       "approveButton": "Przejrzyj i zatwierdź",
       "declineButton": "Odrzuć",
       "declinedPlayer": "{name} - projekt odrzucony. Porozmawiajcie, co zamiast tego mogłoby zadziałać.",
@@ -4120,7 +4127,17 @@
         "other": "game.drpg.{fn} dostało „{value}”, nazwę wspólną dla {n} aktora, i zadziałało na pierwszym z nich: przekaż mu identyfikator tego, o którego chodzi."
       },
       "nextLabel": "Dalej",
-      "nextGo": "Zrób to",
+      "goMurderButton": "Otwórz incydent",
+      "goAdvanceButton": "Przesuń zegar",
+      "goEclipseStartButton": "Zacznij Eclipse",
+      "goEclipseEndButton": "Zakończ Eclipse",
+      "goChapterEndButton": "Zakończ rozdział",
+      "goTrialButton": "Otwórz konsolę trialu",
+      "goInvestigationButton": "Otwórz Investigation",
+      "goStartInvestigationButton": "Rozpocznij Investigation",
+      "goAutopsyButton": "Wydaj sekcję zwłok",
+      "goBodyButton": "Ogłoś ciało",
+      "goSeasonSetupButton": "Ustaw sezon",
       "nextIncident": "Trwa incydent. Doprowadź go do końca, zanim zrobisz cokolwiek innego.",
       "nextEclipse": "Eclipse trwa. Zamknij go, gdy wszyscy się ustawią.",
       "nextNoFloor": "Class Trial toczy się w dyskusji. Otwórz debatę, gdy sala będzie na nią gotowa.",
@@ -4389,8 +4406,7 @@
       },
       "failed": "Nie udało się oddać ani przejąć ustawień Foundry. Konsola mówi dlaczego.",
       "preSeason": "Ustawienia Foundry są oddane: moduł nie trzyma żadnego z nich - automatyk Daggerheart, uprawnień do plików ani pilnowanych ustawień graczy. Żeby znów je trzymał, otwórz „Oddaj ustawienia Foundry” (Ustaw sezon albo ustawienia tego modułu) i naciśnij „Przejmij je znowu”.",
-      "heldNothing": "Ustawienia Foundry zostały oddane, więc moduł nie trzyma teraz żadnego z nich: automatyki Vulnerable i Defeated z Daggerheart, uprawnienia do plików i pilnowane ustawienia graczy zostają takie, jakie są. Przejmij je znowu, żeby moduł grał tak, jak powinien, albo zostaw je oddane.",
-      "notNow": "Nie teraz"
+      "heldNothing": "Ustawienia Foundry zostały oddane, więc moduł nie trzyma teraz żadnego z nich: automatyki Vulnerable i Defeated z Daggerheart, uprawnienia do plików i pilnowane ustawienia graczy zostają takie, jakie są. Przejmij je znowu, żeby moduł grał tak, jak powinien, albo zostaw je oddane."
     },
     "Enforced": {
       "filesPutBack": "Dopóki włączone jest „Bez przeglądarki plików dla graczy”, konta graczy nie mogą przeglądać ani wysyłać plików: zmianę tych uprawnień cofnięto.",
@@ -4498,10 +4514,10 @@
       "trailAction": "Misleading Trail",
       "notFound": "Tego Remnantu jeszcze nie znasz.",
       "watched": {
-        "one": "{n} inna osoba jest w tym pokoju. Najpierw musisz zamaskować, co robisz, a przyłapanie kosztuje Sanity.",
-        "few": "{n} inne osoby są w tym pokoju. Najpierw musisz zamaskować, co robisz, a przyłapanie kosztuje Sanity.",
-        "many": "{n} innych osób jest w tym pokoju. Najpierw musisz zamaskować, co robisz, a przyłapanie kosztuje Sanity.",
-        "other": "{n} innych osób jest w tym pokoju. Najpierw musisz zamaskować, co robisz, a przyłapanie kosztuje Sanity."
+        "one": "{n} inna osoba jest w tym pokoju. Najpierw maskujesz, co robisz ({dc}+), a przyłapanie kosztuje Sanity.",
+        "few": "{n} inne osoby są w tym pokoju. Najpierw maskujesz, co robisz ({dc}+), a przyłapanie kosztuje Sanity.",
+        "many": "{n} innych osób jest w tym pokoju. Najpierw maskujesz, co robisz ({dc}+), a przyłapanie kosztuje Sanity.",
+        "other": "{n} innych osób jest w tym pokoju. Najpierw maskujesz, co robisz ({dc}+), a przyłapanie kosztuje Sanity."
       },
       "watchedNoSanity": "Ktoś patrzy, a zamaskowanie tego, co robisz, kosztuje Sanity, którego już nie masz."
     },
@@ -5034,7 +5050,6 @@
         "away": "Brak połączenia - liczy się jako „Gotowe”"
       },
       "goNext": "Przesuń zegar",
-      "notNow": "Nie teraz",
       "confirmGo": {
         "one": "Jeszcze {n} gracz nie skończył. Iść dalej mimo to?",
         "few": "Jeszcze {n} gracze nie skończyli. Iść dalej mimo to?",
@@ -5042,7 +5057,6 @@
         "other": "Jeszcze {n} gracza nie skończyło. Iść dalej mimo to?"
       },
       "goAnyway": "Dalej",
-      "wait2": "Poczekaj",
       "answerAgain": "GM wciąż czeka na twoją odpowiedź. Kliknij tutaj, by odpowiedzieć.",
       "goneEnded": "GM, który wcześniej zapytał graczy, nie ma połączenia, więc to pytanie zostało zamknięte.",
       "barred": "Runda się skończyła, a zegar się nie przesunął: w jej trakcie zaczął się incydent albo Class Trial."
@@ -5145,7 +5159,8 @@
       "campaignPlaceholder": "Hope's Peak: Utopione lato",
       "chapter": "Rozdział",
       "note": "Każdy wiersz to coś, czego sezon potrzebuje, w kolejności, w jakiej sezon naprawdę się buduje.",
-      "doIt": "Zrób to",
+      "resourcesButton": "Nadaj zasoby startowe",
+      "cursorButton": "Ukryj kursor GM-ów",
       "openIt": "Otwórz",
       "fixed": {
         "one": "Ustawiono {n} postać z zasobami startowymi.",
@@ -5510,8 +5525,7 @@
       }
     },
     "Dialog": {
-      "yes": "Tak",
-      "no": "Nie"
+      "yes": "Tak"
     },
     "Diagnose": {
       "title": "Raport diagnostyczny",

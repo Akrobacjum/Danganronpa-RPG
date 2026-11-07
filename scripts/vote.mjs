@@ -48,9 +48,10 @@ import { ballotStore, verdictStore } from "./gm-stores.mjs";
 import { bridgeRequest, sayNotDone } from "./bridge-guards.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
 import {
-    announce, dialogContent, isPrimaryGm, primaryGmId, activeGmIds, log, warn, error, plural, serverNow
+    announce, isPrimaryGm, primaryGmId, activeGmIds, log, warn, error, plural, serverNow
 } from "./utils.mjs";
 import { trialProgress, setTrialProgress, retrySentence } from "./trial-progress.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 export {
     trialProgress, trialProgressChapter, TRIAL_PROGRESS_KEY, setTrialProgress, RECORD_FIELDS, recordPatchOf,
     recordOnPrimary, writeTrialProgressInStep, resetTrialProgress, trialSizeNow, executeAtExit, retrySentence,
@@ -60,7 +61,6 @@ export {
     openVerdictDialog, applyVerdict, postVerdictCard, verdictStopped, verdictRunner, finishVerdict
 } from "./verdict.mjs";
 
-const DialogV2 = foundry.applications.api.DialogV2;
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 
 /** GM -> player: a ballot, handed out at the open, a remind and a resend. The answer goes back on the bridge (`vote.cast`). */
@@ -812,27 +812,28 @@ async function castBallot({ round = 0, picks = 1, candidates = [] } = {}) {
     drawnRound = round;
     let choice = null;
     try {
-        choice = await DialogV2.wait({
-            window: { title: game.i18n.localize("DRPG.Vote.ballotTitle") },
+        // On the kit (E21 C4): Cast the one answer, the primary; no closing word, as before - the header's close dismisses.
+        choice = await drpgWindow({
+            title: game.i18n.localize("DRPG.Vote.ballotTitle"),
             classes: ["drpg-panel", "drpg-ballot"],
-            content: dialogContent(`<form>
+            body: `<form>
                 <p>${game.i18n.localize("DRPG.Vote.ballotIntro")}</p>
                 ${wanted > 1 ? `<p class="drpg-warning">${
                     game.i18n.format("DRPG.Vote.twoBlackened", { n: wanted })}</p>` : ""}
                 ${fields}
                 <p class="notes">${game.i18n.localize("DRPG.Vote.ballotNote")}</p>
-            </form>`),
+            </form>`,
             render: (event, dialog) => wireBallot(dialog?.element, wanted),
-            buttons: [
-                {
-                    action: "ok", label: game.i18n.localize("DRPG.Vote.cast"), default: true,
+            footer: {
+                primary: {
+                    action: "ok", label: game.i18n.localize("DRPG.Vote.cast"),
                     // `:checked`, because a list of radios has no value of its own - and an
                     // unanswered ballot must come back short rather than come back with the
                     // first name on it, which the primary refuses (`ballotRefusal`).
                     callback: (e, b, d) => Array.from({ length: wanted }, (_, i) =>
                         d.element.querySelector(`input[name="choice${i}"]:checked`)?.value).filter(Boolean)
                 }
-            ],
+            },
             rejectClose: false
         });
     } finally {

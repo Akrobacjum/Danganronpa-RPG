@@ -17,7 +17,7 @@ import { gmStoresIdle, gmStoreNow } from "./gm-store.mjs";
 import {
     ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource,
     STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, watchLog, cast, systemSheetsAvailable, lfText, expectedRed,
-    bridgeFn, bridgeText, actionText
+    bridgeFn, bridgeText, actionText, kitQuestion, kitQuestions
 } from "./tests-kit.mjs";
 import { GRID } from "./tests-grid.mjs";
 
@@ -785,9 +785,11 @@ async function fightOpen(M, killer, victim) {
 async function killedIntoStageSix(victim) {
     const { killCharacter } = await import("./chapter.mjs");
     const D = foundry.applications.api.DialogV2;
-    const own = Object.getOwnPropertyDescriptor(D, "confirm");
+    const own = Object.getOwnPropertyDescriptor(D, "confirm"), ownWait = Object.getOwnPropertyDescriptor(D, "wait");
     const title = game.i18n.localize("DRPG.Chapter.stageSixTitle");
     const unanswered = [];
+    // The question is the kit's since E21 C3a, asked through `wait` (tests-kit.mjs `kitQuestions`).
+    D.wait = kitQuestions(D.wait);
     D.confirm = async cfg => {
         if (cfg?.window?.title === title) return true;
         unanswered.push(cfg?.window?.title ?? "");
@@ -797,6 +799,7 @@ async function killedIntoStageSix(victim) {
         must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
     } finally {
         if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+        if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
     }
     await settle();
     return unanswered;
@@ -818,7 +821,8 @@ async function withBetrayalWindows(note, run) {
         return false;
     };
     D.wait = async cfg => {
-        if (cfg?.window?.title === title) return note;
+        // The yes-or-no is the kit's since E21 C5a (`drpgConfirm`, through `wait`): its yes, as the confirm's was.
+        if (cfg?.window?.title === title) return kitQuestion(cfg) ? true : note;
         unanswered.push(cfg?.window?.title ?? "");
         return null;
     };
@@ -854,6 +858,9 @@ async function sweepCountsShown() {
         return false;
     };
     D.wait = async cfg => {
+        // Sweep's question is the kit's since E21 C3a (tests-kit.mjs `kitQuestion`): read as the confirm above.
+        const question = kitQuestion(cfg);
+        if (question) return D.confirm(question);
         shown.panel = numberIn(cfg?.content?.querySelector?.('input[name="sweep"]')?.closest?.("label"));
         return null;
     };
@@ -2537,7 +2544,7 @@ async function withAdvanceWindows(answer, run, queue = "gm") {
     D.wait = async cfg => {
         const classes = [...(cfg?.classes ?? [])];
         const entry = { classes, title: cfg?.window?.title ?? "",
-            picks: (String(cfg?.content ?? "").match(/name="pick\.\d+\.option"/g) ?? []).length };
+            picks: ((cfg?.content?.innerHTML ?? String(cfg?.content ?? "")).match(/name="pick\.\d+\.option"/g) ?? []).length };
         asked.push(entry);
         if (classes.includes("drpg-advance-queue")) return answerQueue(cfg, queue, entry);
         return classes.includes("drpg-advance") ? answer(entry) : null;
@@ -2562,7 +2569,7 @@ async function withAdvanceWindows(answer, run, queue = "gm") {
  */
 function answerQueue(cfg, how, entry) {
     const element = document.createElement("div");
-    element.innerHTML = String(cfg?.content ?? "");
+    element.innerHTML = (cfg?.content?.innerHTML ?? String(cfg?.content ?? ""));
     entry.rows = [...element.querySelectorAll("[data-actor-id]")].map(row => ({ id: row.dataset.actorId,
         choices: [...row.querySelectorAll('input[type="radio"]')].map(input => input.value),
         checked: [...row.querySelectorAll('input[type="radio"][checked]')].map(input => input.value) }));
@@ -6704,7 +6711,7 @@ const SCENARIOS = [
         const title = game.i18n.localize("DRPG.Chapter.stageSixTitle");
         const deathTitle = game.i18n.localize("DRPG.Chapter.deathTitle");
         const D = foundry.applications.api.DialogV2;
-        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        const own = Object.getOwnPropertyDescriptor(D, "confirm"), ownWait = Object.getOwnPropertyDescriptor(D, "wait");
         const asked = [];
         let trace = null;
         try {
@@ -6713,6 +6720,7 @@ const SCENARIOS = [
             must(trace && !remnantData(trace)?.tiedToCrime, "the fixture's trace was not placed, or was tied before the fight");
             await fightOpen(M, killer, victim);
             const seen = new Set(game.messages.map(m => m.id));
+            D.wait = kitQuestions(D.wait);
             D.confirm = async cfg => {
                 asked.push(cfg?.window?.title ?? "");
                 return cfg?.window?.title === title;
@@ -6727,6 +6735,7 @@ const SCENARIOS = [
                 + "or the repair told the table a student died (windows, stage, ending, on the table, tied, death cards)");
         } finally {
             if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
             try { await trace?.delete(); } catch { /* already gone */ }
@@ -6752,10 +6761,11 @@ const SCENARIOS = [
         const [killer, victim] = livingStudents().filter(player);
         const title = game.i18n.localize("DRPG.Chapter.stageSixTitle");
         const D = foundry.applications.api.DialogV2;
-        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        const own = Object.getOwnPropertyDescriptor(D, "confirm"), ownWait = Object.getOwnPropertyDescriptor(D, "wait");
         const asked = [];
         try {
             await fightOpen(M, killer, victim);
+            D.wait = kitQuestions(D.wait);
             D.confirm = async cfg => {
                 asked.push(cfg?.window?.title ?? "");
                 return false;
@@ -6771,6 +6781,7 @@ const SCENARIOS = [
                 + "already held - or the declined fight moved on, or the list did not publish the death (kept, Stage 6 windows, stage, on the table)");
         } finally {
             if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
         }
@@ -20713,6 +20724,10 @@ const SCENARIOS = [
         const had = new Set(game.messages.contents.map(m => m.id));
         const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
         let words = [], after = [], fight = [];
+        /* A use's question ("This will restore X, and the item is gone") is the kit's since E21 C5a, asked through `wait`,
+           which the suite's GM draws: handed to `confirm` as before (tests-kit.mjs `kitQuestions`), which answers yes. */
+        const D = foundry.applications.api.DialogV2, ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        D.wait = kitQuestions(D.wait);
         try {
             words = await wordsSent(async () => {
                 globalThis.__forceRoll = { hope: 11, fear: 5 };
@@ -20740,6 +20755,7 @@ const SCENARIOS = [
                 await settle();
             });
         } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
             if (hadForce) globalThis.__forceRoll = force;
             else delete globalThis.__forceRoll;
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
@@ -22378,7 +22394,7 @@ const SCENARIOS = [
                 if ((cfg?.classes ?? []).includes("drpg-advance")) seen.levelUps.push(cfg?.window?.title ?? "");
                 // Since E10 C7 the class's Level Ups are one window, a row per student it offers one to.
                 if ((cfg?.classes ?? []).includes("drpg-advance-queue")) {
-                    seen.levelUps.push(...[...String(cfg?.content ?? "").matchAll(/data-actor-id="([^"]+)"/g)]
+                    seen.levelUps.push(...[...(cfg?.content?.innerHTML ?? String(cfg?.content ?? "")).matchAll(/data-actor-id="([^"]+)"/g)]
                         .map(m => title(game.actors.get(m[1]) ?? { name: m[1] })));
                 }
                 return null;
@@ -24348,10 +24364,12 @@ const SCENARIOS = [
                 return send.call(this, event, packet, ...rest);
             };
             ballotStore.isHydrated = () => false;
-            D.wait = async cfg => (cfg?.window?.title === title && windows++ === 0 ? "open" : null);
+            // The question is the kit's since E21 C4 (`drpgConfirm`, its yes destructive), asked through `wait`
+            // (tests-kit.mjs `kitQuestions`); its content is the kit's element, read by its words.
+            D.wait = kitQuestions(async cfg => (cfg?.window?.title === title && windows++ === 0 ? "open" : null));
             D.confirm = async cfg => {
                 const form = document.createElement("div");
-                form.innerHTML = String(cfg?.content ?? "");
+                form.innerHTML = cfg?.content?.outerHTML ?? String(cfg?.content ?? "");
                 asked.push(form.textContent);
                 return false;
             };
@@ -24534,6 +24552,14 @@ const SCENARIOS = [
          * card naming the victim executed, the flag every console reads, the GMs' row of the death and the stage. The
          * killer is a student a connected player owns: an opening roll with nobody to ask is thrown on the GM's client
          * and races `resolveKillerOpening` (the E05 fix r2-G1 test above, measured 27.09).
+         *
+         * THE VICTIM'S QUESTION, ANSWERED (E21 C3 fix 2, 06.11.2026; CI run 42212137059, suite 6/8 hung 90 min). The
+         * execution is `killCharacter` on the incident's victim, which asks "That was the victim of the incident"
+         * (chapter.mjs `offerStageSix`) and waits for the answer. Until E21 C3a that was DialogV2.confirm, which the
+         * harness answers yes on the GM; on the kit (`drpgConfirm`) it is DialogV2.wait, which the suite's GM draws as a
+         * window, and nobody pressed it: `executeAtExit` waited for good (measured headless, the window still open at
+         * 390 s, c3fix2/red-one.log). So the test answers it as the confirm was answered - yes, Stage 6 taken - and
+         * counts it: asked once, as the kit's yes-or-no question (tests-kit.mjs `kitQuestion`).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 1), "an incident's killer whose player is asked for the opening roll");
         const { isDeceased, isDeadForGm, reviveCharacter, livingStudents } = await import("./chapter.mjs");
@@ -24548,6 +24574,15 @@ const SCENARIOS = [
         const { wordsOf } = await import("./secret.mjs");
         const esc = foundry.utils.escapeHTML;
         const from = new Set(game.messages.map(m => m.id));
+        const D = foundry.applications.api.DialogV2;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait"), drawWait = D.wait;
+        const stageSix = game.i18n.localize("DRPG.Chapter.stageSixTitle");
+        const victimAsked = [];
+        D.wait = async cfg => {
+            if (cfg?.window?.title !== stageSix) return drawWait.call(D, cfg);
+            victimAsked.push(kitQuestion(cfg) ? "question" : "another window");
+            return true;
+        };
         try {
             must(await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }), "the incident did not open");
             await settle();
@@ -24566,11 +24601,13 @@ const SCENARIOS = [
             const cards = said.filter(words => words.includes(game.i18n.localize("DRPG.Vote.verdictCardTitle")));
             const executions = said.filter(words => words.includes(game.i18n.localize("DRPG.Vote.executionCardTitle")));
             equal(stableJson([cards.length, executions.some(words => words.includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(victim.name) }))),
-                isDeceased(victim), deathStore.has(victim.id), stage]),
-            stableJson([1, true, true, false, "done"]),
+                isDeceased(victim), deathStore.has(victim.id), stage, victimAsked]),
+            stableJson([1, true, true, false, "done", ["question"]]),
             "the execution of the open incident's living victim is not the table's (verdict cards; the execution card names them executed; the flag; "
-                + "the GMs' row; the stage)");
+                + "the GMs' row; the stage; the victim's question asked once, as the kit's question)");
         } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait);
+            else delete D.wait;
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             await reviveCharacter(victim, { quiet: true });
         }
@@ -34040,7 +34077,8 @@ const SCENARIOS = [
             readings.start = [await UI.startClassTrial(), ...state()];
             readings.vote = [await UI.openVoteDialog(), ...state()];
             readings.chapter = [await openChapterEndDialog(), ...state()];
-            press = "close";
+            // "endMurder" since E21 C4: "close" is ApplicationV2's own action, which a table's press never got past.
+            press = "endMurder";
             readings.closed = [await UI.startClassTrial(), ...state()];
         } finally {
             if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
@@ -38377,7 +38415,11 @@ const SCENARIOS = [
            branches: through `confirm` with no hall, and through the `wait` titled End the trial with a hall and
            a place of its own linked for that one call (linking moves nothing in a trial - read in the code: the
            setting's `onChange` lets go of the held links, and live.mjs and hud.mjs redraw what is open). Scenario
-           41 m1 runs this test with the world's hall linked. */
+           41 m1 runs this test with the world's hall linked.
+
+           E21 C4, E22 C4 (06.11.2026): End the trial's question with no hall is the kit's yes or no (`askTrialEnd`,
+           through `wait`), so both branches read "wait"; and End of chapter is the destructive role, never the default,
+           so with the verdict in the console's default is its closing word, Close - the lead still names the chapter's end. */
         const UI = await import("./trial-floor-ui.mjs");
         const floorMod = await import("./trial-floor.mjs");
         const { closeOpen } = await import("./live.mjs");
@@ -38497,15 +38539,15 @@ const SCENARIOS = [
         equal(stableJson(readings), stableJson({
             noTrial: [["start"], "absent", lead("start"), 0, null],
             discussion: [["openDebate"], "open", lead("openDebate"), 3, 2],
-            endWithoutVerdict: ["confirm", false],
+            endWithoutVerdict: ["wait", false],
             hallWithoutVerdict: ["wait", false],
             debate: [["closeDebate"], "open", lead("closeDebate"), 3, 2],
             ballotsOut: [["vote"], "open", lead("vote"), 3, 3],
             counted: [["verdict"], "open", lead("verdict"), 3, 0],
-            verdictIn: [["chapterEnd"], "open", lead("chapterEnd"), 3, 0],
-            endAfterVerdict: ["confirm", true],
+            verdictIn: [["close"], "open", lead("chapterEnd"), 3, 0],
+            endAfterVerdict: ["wait", true],
             hallAfterVerdict: ["wait", true],
-            ended: [["chapterEnd"], "closed", `${game.i18n.localize("DRPG.Floor.trialEnded")} ${lead("chapterEnd")}`, 0, null]
+            ended: [["close"], "closed", `${game.i18n.localize("DRPG.Floor.trialEnded")} ${lead("chapterEnd")}`, 0, null]
         }), "the console's default, The vote, its lead line or its sections are not the trial's next step in some state, or End the trial "
             + "after a verdict does not say the chapter is not ended (read per state: the defaults, The vote absent/closed/open, the lead, "
             + "the sections, the lines under the last one; End the trial's question - the window that asked it and whether it names the chapter - "
@@ -38522,7 +38564,8 @@ const SCENARIOS = [
            defaults) and its status off the screen (the line to send first, and the recipients - worked out
            here from the users and the students, the way a ballot is handed out - or nobody). Then a vote is
            opened in the world under it, as by another GM, and the window comes back with Close and count
-           open and the default on it, still one. First of all, the window drawn while nobody is connected
+           open and the default on Cancel (Close and count destructive since E21 fix G2, Open 44: it was the
+           default here until then), still one. First of all, the window drawn while nobody is connected
            as this GM sees it - every player's `active` read as false on this browser alone, for as long as
            it takes to draw and read it, and given back before anything else: Send closed, the default on
            Cancel, and the line saying nobody is connected. The trial's record is put back here. */
@@ -38606,7 +38649,7 @@ const SCENARIOS = [
         equal(stableJson(reading), stableJson([
             [[true, true, ["cancel"]], true],
             [1, 1, [true, none, none ? ["cancel"] : ["open"]], true, true],
-            [1, [false, none, ["tally"]], false]
+            [1, [false, none, ["cancel"]], false]
         ]), "the vote window opened twice, offered Close and count with no vote open, did not say whom a ballot goes to (or that "
             + "nobody is connected), or did not come back with its count open once a vote was (read: windows drawn, waits asked, "
             + "the footer - Close and count closed, Send closed, the defaults -, the line to send first, the recipients' line; then "
@@ -44989,7 +45032,7 @@ const SCENARIOS = [
         const scene = canvas.scene;
         const chapter = getClock().chapter;
         const D = foundry.applications.api.DialogV2;
-        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        const own = Object.getOwnPropertyDescriptor(D, "confirm"), ownWait = Object.getOwnPropertyDescriptor(D, "wait");
         const placed = [];
         try {
             for (const name of ["flags", "dashboard", "open"]) {
@@ -45007,6 +45050,7 @@ const SCENARIOS = [
             const tieOf = t => { const data = R.remnantData(t); return data ? data.tiedToCrime : "absent"; };
             const before = placed.map(tieOf);
             await fightOpen(M, killer, victim);
+            D.wait = kitQuestions(D.wait);
             D.confirm = async () => false;
             must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
             await settle();
@@ -45016,6 +45060,7 @@ const SCENARIOS = [
                 + "(before the death, after it; each: marked by its writer, marked on the dashboard, undecided)");
         } finally {
             if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
             for (const token of placed) {
@@ -45040,7 +45085,7 @@ const SCENARIOS = [
         const R = await import("./remnants.mjs");
         const { isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
         const D = foundry.applications.api.DialogV2;
-        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        const own = Object.getOwnPropertyDescriptor(D, "confirm"), ownWait = Object.getOwnPropertyDescriptor(D, "wait");
         let token = null;
         try {
             token = await R.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene: canvas.scene, chapter: getClock().chapter,
@@ -45051,6 +45096,7 @@ const SCENARIOS = [
             await settle();
             const stage = M.murderState()?.stage ?? null;
             must(stage === "resolution", `the fixture's suicide did not reach Stage 6: ${stableJson(M.murderState())}`);
+            D.wait = kitQuestions(D.wait);
             D.confirm = async () => false;
             await M.endMurder({ reason: "closed", followUp: false });
             await settle();
@@ -45058,6 +45104,7 @@ const SCENARIOS = [
                 "a suicide's death did not tie the chapter's undecided trace (dead for the GMs, the trace's tie)");
         } finally {
             if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             if (isDeadForGm(who)) await reviveCharacter(who, { quiet: true });
             if (token) {
@@ -45129,7 +45176,7 @@ const SCENARIOS = [
         const scene = canvas.scene;
         const chapter = getClock().chapter;
         const D = foundry.applications.api.DialogV2;
-        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        const own = Object.getOwnPropertyDescriptor(D, "confirm"), ownWait = Object.getOwnPropertyDescriptor(D, "wait");
         let token = null, copy = null;
         const flagOf = () => holder.items.get(copy.id)?.getFlag(MODULE_ID, T.TRUTH_BULLET_FLAGS.tiedToCrime) ?? null;
         try {
@@ -45141,6 +45188,7 @@ const SCENARIOS = [
             must(copy && T.isIdentified(T.bulletAsHeld(copy)) && flagOf() !== true && T.secretOf(copy.uuid).tiedToCrime !== true,
                 "the copy is not identified and untied before the death - this would measure nothing");
             await fightOpen(M, killer, victim);
+            D.wait = kitQuestions(D.wait);
             D.confirm = async () => false;
             must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
             await settle();
@@ -45158,6 +45206,7 @@ const SCENARIOS = [
                 + "(at the death: the ledger, the copy's key tied, its flag tied; at the discovery: the key, the flag; after the \"-\": the key, the flag)");
         } finally {
             if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
             if (copy) {
@@ -45193,7 +45242,7 @@ const SCENARIOS = [
         const { killCharacter, publishDeath, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
         const identity = `suite-g1-swing-${Date.now().toString(36)}`;
         const D = foundry.applications.api.DialogV2;
-        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        const own = Object.getOwnPropertyDescriptor(D, "confirm"), ownWait = Object.getOwnPropertyDescriptor(D, "wait");
         const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
         let trace = null, copy = null, fx = null;
         try {
@@ -45208,6 +45257,7 @@ const SCENARIOS = [
             await until(() => R.remnantData(trace)?.tiedToCrime === true);
             await settle();
             const inFight = [R.remnantData(trace)?.tiedToCrime === true, ...copy.tie()];
+            D.wait = kitQuestions(D.wait);
             D.confirm = async () => false;
             must(await killCharacter(fx.victim, { secret: true, keepBullets: true }), `${fx.victim.name}'s death was not kept by the GMs`);
             await settle();
@@ -45219,6 +45269,7 @@ const SCENARIOS = [
                 + "(in the fight: the ledger tied, the copy's key, its flag; at the death: the key, the flag; made known: the key, the flag)");
         } finally {
             if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
             if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
             if (fx?.M.murderState()) await fx.M.endMurder({ reason: "test", followUp: false });
             if (fx && isDeadForGm(fx.victim)) await reviveCharacter(fx.victim, { quiet: true });
@@ -45428,13 +45479,14 @@ const SCENARIOS = [
         const { killCharacter, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
         const { applyAliveStates } = await import("./gm-panel.mjs");
         const D = foundry.applications.api.DialogV2;
-        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        const own = Object.getOwnPropertyDescriptor(D, "confirm"), ownWait = Object.getOwnPropertyDescriptor(D, "wait");
         let trace = null, copy = null;
         try {
             trace = await placedTrace("a trace whose death the list makes known");
             copy = trace ? await identifiedCopy(holder, trace, "a copy of a trace the list's death ties") : null;
             must(copy?.identified() && !copy.tie().some(Boolean), "the copy is not identified and untied before the death - this would measure nothing");
             await fightOpen(M, killer, victim);
+            D.wait = kitQuestions(D.wait);
             D.confirm = async () => false;
             must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
             await settle();
@@ -45446,6 +45498,7 @@ const SCENARIOS = [
                 + "(at the death, then after the list: the copy's key, its flag)");
         } finally {
             if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
             await copy?.drop();
@@ -45474,13 +45527,14 @@ const SCENARIOS = [
         const { killCharacter, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
         const { applyAliveStates } = await import("./gm-panel.mjs");
         const D = foundry.applications.api.DialogV2;
-        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        const own = Object.getOwnPropertyDescriptor(D, "confirm"), ownWait = Object.getOwnPropertyDescriptor(D, "wait");
         const ROADS = {
             kill: () => killCharacter(victim, { secret: false, keepBullets: true }),
             list: () => applyAliveStates({ [victim.id]: { state: "dead" } })
         };
         const read = {};
         try {
+            D.wait = kitQuestions(D.wait);
             D.confirm = async () => false;
             for (const [road, die] of Object.entries(ROADS)) {
                 const identity = `suite-g1-${road}-${Date.now().toString(36)}`;
@@ -45512,6 +45566,7 @@ const SCENARIOS = [
                 + "(per road: the knife copy's key and flag in the fight; after the death the undecided trace's copy's, then the knife's)");
         } finally {
             if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
         }
     }],
 
@@ -45596,7 +45651,7 @@ const SCENARIOS = [
         const { killCharacter, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
         const identity = `suite-g1-close-${Date.now().toString(36)}`;
         const D = foundry.applications.api.DialogV2;
-        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        const own = Object.getOwnPropertyDescriptor(D, "confirm"), ownWait = Object.getOwnPropertyDescriptor(D, "wait");
         const traces = [], copies = [];
         const ties = () => copies.flatMap(c => c.tie());
         try {
@@ -45613,6 +45668,7 @@ const SCENARIOS = [
             await settle();
             must(R.remnantData(traces[1])?.tiedToCrime === true, "the reshape did not tie its trace - this would measure nothing");
             const inFight = ties();
+            D.wait = kitQuestions(D.wait);
             D.confirm = async () => false;
             must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
             await settle();
@@ -45629,6 +45685,7 @@ const SCENARIOS = [
                 + "after the revival, after the close: the key and the flag of the knife's copy, the reshaped trace's, the trace left in the fight's)");
         } finally {
             if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
             for (const c of copies) await c?.drop();
@@ -45654,13 +45711,14 @@ const SCENARIOS = [
         const R = await import("./remnants.mjs");
         const { killCharacter, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
         const D = foundry.applications.api.DialogV2;
-        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        const own = Object.getOwnPropertyDescriptor(D, "confirm"), ownWait = Object.getOwnPropertyDescriptor(D, "wait");
         let trace = null, copy = null;
         try {
             trace = await placedTrace("a trace a death taken back tied");
             copy = trace ? await identifiedCopy(holder, trace, "a copy of a trace a death taken back tied") : null;
             must(copy?.identified() && !copy.tie().some(Boolean), "the copy is not identified and untied before the death - this would measure nothing");
             await fightOpen(M, killer, victim);
+            D.wait = kitQuestions(D.wait);
             D.confirm = async () => false;
             must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
             await M.endMurder({ reason: "test", followUp: false });
@@ -45674,6 +45732,7 @@ const SCENARIOS = [
                 + "(the copy's key and flag after the fight's close, then after the revival)");
         } finally {
             if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
             await copy?.drop();
@@ -50590,7 +50649,7 @@ const SCENARIOS = [
             none = listExperiences(student).length === 0;
             D.wait = async cfg => {
                 if (!(cfg?.classes ?? []).includes("drpg-advance")) return null;
-                content = String(cfg?.content ?? "");
+                content = (cfg?.content?.innerHTML ?? String(cfg?.content ?? ""));
                 return [{ option: "hp" }, { option: "stress" }, { option: "experienceUp" }];
             };
             ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
@@ -52769,10 +52828,11 @@ const SCENARIOS = [
                 unprepare?.();
             }
             const form = document.createElement("div");
-            form.innerHTML = String(cfg?.content ?? "");
+            form.innerHTML = (cfg?.content?.innerHTML ?? String(cfg?.content ?? ""));
             const reason = say(`DRPG.Advance.reason.${kind}`);
             const read = {
-                classes: [...(cfg?.classes ?? [])].sort(),
+                // Each class once: on the kit's frame since E21 C6a, whose `drpg-panel` stands beside the caller's own.
+                classes: [...new Set(cfg?.classes ?? [])].sort(),
                 legends: [...form.querySelectorAll("legend")].map(text),
                 amber: form.querySelectorAll(".notification").length,
                 notes: [...form.querySelectorAll(".drpg-advance-note")].map(text),
@@ -52784,7 +52844,7 @@ const SCENARIOS = [
             let detail = null;
             if (none && cfg?.render) {
                 const root = document.createElement("div");
-                root.innerHTML = String(cfg.content ?? "");
+                root.innerHTML = cfg.content?.innerHTML ?? String(cfg.content ?? "");
                 cfg.render({}, { element: root });
                 const select = root.querySelector('select[data-pick="0"]');
                 select.value = "experienceUp";
@@ -52805,7 +52865,7 @@ const SCENARIOS = [
         const expected = ([kind, picks]) => {
             const { none } = seen[picks === 1 ? 0 : 1];
             return {
-                classes: ["drpg-advance", "drpg-panel"],
+                classes: ["drpg-advance", "drpg-panel", "drpg-ui"],
                 legends: picks === 1 ? [] : choices(picks),
                 amber: 0,
                 notes: none ? [noExperiences] : [],
@@ -59607,7 +59667,7 @@ const SCENARIOS = [
         };
         const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
         const D = foundry.applications.api.DialogV2;
-        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        const own = Object.getOwnPropertyDescriptor(D, "confirm"), ownWait = Object.getOwnPropertyDescriptor(D, "wait");
         let made = null, read = null;
         try {
             must(away, `no second room on the scene on screen - this would measure nothing`);
@@ -59636,6 +59696,7 @@ const SCENARIOS = [
             made = null;
             T.forgetArmedTraps();
             const asked = [];
+            D.wait = kitQuestions(D.wait);
             D.confirm = async config => { asked.push(config?.window?.title ?? null); return false; };
             const from = game.messages.size;
             await Ev.startEclipse();
@@ -59648,8 +59709,8 @@ const SCENARIOS = [
                 room: foundry.utils.escapeHTML(stood.room), reason: foundry.utils.escapeHTML(game.i18n.localize("DRPG.Action.murderNobody")) });
             read = [standing, spoke, asked.length, game.messages.contents.slice(from).some(m => String(contentOf(m) ?? "").includes(nobody))];
         } finally {
-            if (own) Object.defineProperty(D, "confirm", own);
-            else delete D.confirm;
+            if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
             await unlock();
             if (Ev.isEclipse()) await Ev.endEclipse({ advance: false }).catch(() => {});
             if (made?.id) await P.deleteProject(made.id).catch(() => {});
@@ -68146,7 +68207,8 @@ const SCENARIOS = [
             await actor.update({ [HP]: 3, [HOPE]: 1 });
             await sheetAuditIdle();
             const asked = { wait: 0, confirm: 0 };
-            D.wait = async () => { asked.wait += 1; return null; };
+            // The use's question is the kit's since E21 C5a, asked through `wait`: counted as the confirm it was (`kitQuestion`).
+            D.wait = async config => { if (kitQuestion(config)) { asked.confirm += 1; return true; } asked.wait += 1; return null; };
             D.confirm = async () => { asked.confirm += 1; return true; };
             const restored = await U.useItem(actor, kit);
             answer();
@@ -69258,7 +69320,8 @@ const SCENARIOS = [
             const queue = Array.isArray(globalThis.__dialogAnswers) ? globalThis.__dialogAnswers : null;
             const answer = config => {
                 const box = document.createElement("div");
-                box.innerHTML = String(config?.content ?? "");
+                // The kit's prompt (E21 C2b) hands DialogV2 its content as an element (utils.mjs `dialogContent`).
+                box.innerHTML = config?.content?.outerHTML ?? String(config?.content ?? "");
                 renaming = box.querySelector('input[name="tableName"]')?.value ?? "";
                 return null;
             };
@@ -71756,7 +71819,8 @@ const SCENARIOS = [
             await settle();
         }
         equal(stableJson(read), stableJson({
-            footer: { pools: ["save", "cancel"], students: ["save", "auto", "cancel"] },
+            // In the kit's tree order since E21 C2a: the primary, then the closing word, then the secondary ones (ui-kit.mjs).
+            footer: { pools: ["save", "cancel"], students: ["save", "cancel", "auto"] },
             account: game.i18n.localize("DRPG.Despair.account"),
             notMonokuma: [false, true],
             rows: [[false, label], [false, game.i18n.localize("DRPG.Assign.nobody")], [true, game.i18n.format("DRPG.Assign.fallbackOption", { name: label })]],
@@ -72949,7 +73013,8 @@ const SCENARIOS = [
         equal(stableJson({ windows: rows.length, rows: rows[0]?.rows?.map(row => [row[0], row[1], row[2].length > 0]) ?? null,
             buttons: rows[0]?.buttons ?? null, toast: warned.includes(game.i18n.localize("DRPG.Action.noVariants")), out: out ?? null,
             tile: typeof tile === "string" && why.length === 2 && why.every(w => tile.includes(w)) }),
-        stableJson({ windows: 1, rows: [[true, true, true], [true, true, true]], buttons: ["cancel"], toast: false, out: null, tile: true }),
+        // The one button is the kit's Close since E21 C5a (nothing to answer: the closing word of the role close).
+        stableJson({ windows: 1, rows: [[true, true, true], [true, true, true]], buttons: ["close"], toast: false, out: null, tile: true }),
             `Rest with neither row open did not open its window with both rows greyed and their reasons, or its tile does not say them `
             + `[windows, each row (greyed, disabled, a reason), the buttons, the "nothing here" toast, the answer, the tile's reason holds both]: tile ${stableJson(tile)}`);
     }],
@@ -74669,7 +74734,7 @@ const SCENARIOS = [
             /\bclearOverflowFromTab\(/.test(fnSource(src, "openGmTeamDialog"))] };
         try {
             Dialog.wait = async config => {
-                asked.push([config.window?.title ?? null, String(config.content ?? "").includes("5"), (config.buttons ?? []).map(b => [b.action, Boolean(b.default)])]);
+                asked.push([config.window?.title ?? null, String(config.content?.textContent ?? config.content ?? "").includes("5"), (config.buttons ?? []).map(b => [b.action, Boolean(b.default)])]);
                 return answers.shift() ?? null;
             };
             // A stamp that is there to be kept: a Rot of a session that never ran, an event, so nothing runs for it.
@@ -75130,7 +75195,7 @@ const SCENARIOS = [
         const tokensWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.searchTokens) ?? {});
         const bodyWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
         const DialogV2 = foundry.applications.api.DialogV2;
-        const confirmOwn = Object.getOwnPropertyDescriptor(DialogV2, "confirm");
+        const confirmOwn = Object.getOwnPropertyDescriptor(DialogV2, "confirm"), waitOwn = Object.getOwnPropertyDescriptor(DialogV2, "wait");
         const age = async () => {
             // The take-back's memory is the GMs' store's since E17 fix ci-2 (clock.mjs `takeBackMemory`); `setClock` writes it there.
             const last = await takeBackMemory();
@@ -75186,6 +75251,8 @@ const SCENARIOS = [
             // (f)
             await age();
             let asked = null;
+            // E17's question is the kit's since E21 C3a, asked through `wait` (tests-kit.mjs `kitQuestions`).
+            DialogV2.wait = kitQuestions(DialogV2.wait);
             DialogV2.confirm = async config => {
                 asked = [config.no?.default === true, config.yes?.default === true];
                 return false;
@@ -75199,6 +75266,7 @@ const SCENARIOS = [
             read.chevron = [asked, isEclipse()];
         } finally {
             if (confirmOwn) Object.defineProperty(DialogV2, "confirm", confirmOwn); else delete DialogV2.confirm;
+            if (waitOwn) Object.defineProperty(DialogV2, "wait", waitOwn); else delete DialogV2.wait;
             if (isEclipse()) await E.endEclipse({ advance: false });
             await setClock(was);
             await student.update({ "system.resources.actions.value": actionsWas.value,
@@ -76888,12 +76956,13 @@ const SCENARIOS = [
         const trace = await R.placeRemnant({ type: "prep", visibility: "evident", faint: true, tiedToCrime: false, scene, x: 50, y: 50, note: "SUITE E51-T15 a Faint trace" });
         must(trace, "the Faint trace was not placed - this would measure nothing");
         const D = foundry.applications.api.DialogV2;
-        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        const own = Object.getOwnPropertyDescriptor(D, "confirm"), ownWait = Object.getOwnPropertyDescriptor(D, "wait");
         const said = plural("DRPG.Panel.faintCleared", { n: 1 });
         const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
         const read = {};
         let answer = null;
         try {
+            D.wait = kitQuestions(D.wait);
             D.confirm = () => Promise.resolve(true);
             const ran = typeof I.runDashboardButton === "function" ? await I.runDashboardButton("clearFaint", { tokens: [trace] }) : null;
             read.ran = ran?.said ?? null;
@@ -76911,6 +76980,7 @@ const SCENARIOS = [
             read.road = /runDashboardButton\(action\)/.test(source) && /said:\s*ran\.said/.test(source);
         } finally {
             if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
             for (const a of open()) await a.close();
             await answer;
             if (scene.tokens.has(trace.id)) {
@@ -76923,6 +76993,7 @@ const SCENARIOS = [
         const swept = plural("DRPG.Panel.sweptBullets", { n: 1 });
         let bullet = null, again = null;
         try {
+            D.wait = kitQuestions(D.wait);
             D.confirm = () => Promise.resolve(true);
             bullet = await T.createTruthBullet(student, { name: "SUITE E51-T15 a bus ticket", playerText: "SUITE E51-T15" });
             must(bullet, "the fixture's bullet was not made - this would measure nothing");
@@ -76939,6 +77010,7 @@ const SCENARIOS = [
             }
         } finally {
             if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
             for (const a of open()) await a.close();
             await again;
             if (bullet) {
@@ -78320,6 +78392,9 @@ const SCENARIOS = [
                 return answer;
             };
             D.wait = async config => {
+                // E17's question is the kit's since E21 C3a (tests-kit.mjs `kitQuestion`): answered as the confirm above.
+                const question = kitQuestion(config);
+                if (question) return D.confirm(question);
                 if (config?.classes?.includes?.("drpg-gm-panel-window")) {
                     panels++;
                     if (!pressPanel) return null;
@@ -78332,7 +78407,8 @@ const SCENARIOS = [
                     if (go?.dataset?.drpgRun === "eclipse") go.click(); else panels++;
                     return null;
                 }
-                if (config?.classes?.includes?.("drpg-table-window")) {
+                // The Eclipse's end with somebody who has not crossed (boundary.mjs `placementTable`; its class since E21 C2a).
+                if (config?.classes?.includes?.("drpg-window-eclipse-end")) {
                     tables.push(config);
                     return "endOnly";
                 }
@@ -78374,7 +78450,8 @@ const SCENARIOS = [
                 await settle();
                 const table = tables[t] ?? null;
                 const holder = document.createElement("div");
-                holder.innerHTML = table ? String(table.content ?? "") : "";
+                // An element since E21 C2a (drpgWindow hands DialogV2 its body as `dialogContent`'s div), a string before.
+                holder.innerHTML = !table ? "" : table.content instanceof HTMLElement ? table.content.innerHTML : String(table.content ?? "");
                 r.short = [table ? holder.querySelector("p")?.textContent?.trim() === game.i18n.localize("DRPG.Eclipse.endPrompt") : null,
                     table ? [...holder.querySelectorAll("tbody tr")].filter(tr => /opacity/.test(tr.getAttribute("style") ?? ""))
                         .map(tr => tr.querySelector("td")?.textContent?.trim() ?? null) : null,
@@ -78503,6 +78580,9 @@ const SCENARIOS = [
                 return false;
             };
             D.wait = async function (config) {
+                // Go on's question is the kit's since E21 C3a (tests-kit.mjs `kitQuestion`): answered as the confirm above.
+                const question = kitQuestion(config);
+                if (question) return D.confirm(question);
                 if (!config?.classes?.includes?.("drpg-gm-panel-window")) return wait0.call(this, config);
                 panels++;
                 if (!pressPanel) return null;
@@ -78685,7 +78765,7 @@ const SCENARIOS = [
             && app.element?.isConnected) ?? null;
         const record = id => ({ id, kind: "next", boundary: C.boundaryStamp(getClock()), by: game.user.id, at: Date.now(), answers: {} });
         const D = foundry.applications.api.DialogV2;
-        const confirmOwn = Object.getOwnPropertyDescriptor(D, "confirm"), info0 = ui.notifications.info;
+        const confirmOwn = Object.getOwnPropertyDescriptor(D, "confirm"), waitOwn = Object.getOwnPropertyDescriptor(D, "wait"), info0 = ui.notifications.info;
         const infos = [], confirms = [];
         let writes = 0;
         const counted = setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.readyRound}`) writes++; };
@@ -78724,6 +78804,8 @@ const SCENARIOS = [
             await setClock({ phase: "dailyLife", timeOfDay: "noon", refilledFor: null });
             await game.settings.set(MODULE_ID, SETTINGS.readyRound, {});
             await settle();
+            // Go on's question is the kit's since E21 C3a, asked through `wait` (tests-kit.mjs `kitQuestions`).
+            D.wait = kitQuestions(D.wait);
             D.confirm = async config => {
                 confirms.push(config?.yes?.label ?? null);
                 return true;
@@ -78819,6 +78901,7 @@ const SCENARIOS = [
             Hooks.off("createSetting", counted);
             Hooks.off("updateSetting", counted);
             if (confirmOwn) Object.defineProperty(D, "confirm", confirmOwn); else delete D.confirm;
+            if (waitOwn) Object.defineProperty(D, "wait", waitOwn); else delete D.wait;
             ui.notifications.info = info0;
             if (pressed) {
                 await win()?.close();
@@ -80471,7 +80554,8 @@ const SCENARIOS = [
             if (KEY) await game.settings.set(MODULE_ID, KEY, {});
             await settle();
         }
-        const buttons = [["finish", false], ["drop", false], ["cancel", true]];
+        // In the kit's tree order (ui-kit.mjs's header): since E22 C3b Finish and Drop are destructive, so Cancel stands first.
+        const buttons = [["cancel", true], ["finish", false], ["drop", false]];
         equal(stableJson(read), stableJson({
             stopped: ["applying", 1],
             newEnd: [null, 0, true],
@@ -82372,7 +82456,7 @@ const SCENARIOS = [
         const { remnantStore, gmStoreHealth } = await import("./gm-stores.mjs");
         const scene = canvas.scene;
         const D = foundry.applications.api.DialogV2;
-        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        const own = Object.getOwnPropertyDescriptor(D, "confirm"), ownWait = Object.getOwnPropertyDescriptor(D, "wait");
         const ownWarn = Object.getOwnPropertyDescriptor(ui.notifications, "warn");
         const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
         const healthOf = async () => { const c = (await gmStoreHealth())?.counts?.traces ?? {}; return { missing: c.missing ?? null, orphans: c.orphans ?? null }; };
@@ -82391,6 +82475,7 @@ const SCENARIOS = [
             }
             await settle();
             const [plain, bolted] = made;
+            D.wait = kitQuestions(D.wait);
             D.confirm = options => { asked.push([options?.window?.title ?? null, (typeof options?.content === "string" ? options.content : options?.content?.textContent ?? "").includes("SUITE E44-T10 a ")]); return Promise.resolve(answer); };
             ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return ownWarn?.value?.call(ui.notifications, message, ...rest); };
             dashboard = Promise.resolve().then(() => I.openInvestigationDashboard()).catch(() => null);
@@ -82419,6 +82504,7 @@ const SCENARIOS = [
             read.health = stableJson(healthAfter) === stableJson(healthBefore) ? "as before" : { before: healthBefore, after: healthAfter };
         } finally {
             if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
             if (ownWarn) Object.defineProperty(ui.notifications, "warn", ownWarn); else delete ui.notifications.warn;
             for (const a of open()) await a.close();
             await dashboard;
@@ -82506,12 +82592,11 @@ const SCENARIOS = [
                     start.checked = true;
                     return press(cfg, root);
                 }
-                // The request window bears the same title as the form (DRPG.Project.proposalTitle): told apart by its field.
-                if (root.querySelector('textarea[name="request"]')) return { text: "SUITE E44-T20 may I build it?" };
+                // The sentence for the GM is the form's own field since E22 C5c (no second window): answered with the form.
                 if (title === titles.start) {
                     read.form = root.querySelectorAll('textarea[name="description"]').length;
                     return { name: "SUITE E44-T20 the bookcase", target: 4, room: stood.room, trait: "hand", murder: false, condition: "",
-                        preset: null, to: null, seal: null, unbreach: null, mend: null, description: PLAYER };
+                        preset: null, to: null, seal: null, unbreach: null, mend: null, description: PLAYER, request: "SUITE E44-T20 may I build it?" };
                 }
                 if (title === titles.create) {
                     read.opened = root.querySelector('textarea[name="description"]')?.value ?? null;
@@ -82535,7 +82620,11 @@ const SCENARIOS = [
             wireCallActions(body, card);
             body.querySelector('[data-drpg-call="approveProject"]')?.click();
             const madeOf = () => P.allProjects().find(p => !before.has(p.id)) ?? null;
-            await until(() => Boolean(madeOf()), 8000);
+            /* The countdown and its meta are two writes of one step (projects.mjs `createInStep`: the countdowns, then
+               `setProjectMeta`), so a project can be listed before its words are (E21 C2a, 06.11.2026: in quick's own
+               list, 2 runs of 3 read "" here; alone, 3 of 3 green). Waited for to the same bound: a description lost
+               still reads "" when it runs out. */
+            await until(() => Boolean(madeOf()?.description), 8000);
             const project = madeOf();
             must(project, "the approval made no project - this would measure nothing");
             made = project.id;
@@ -82615,6 +82704,453 @@ const SCENARIOS = [
             + "words and whether they stand under the bar; what the edit window opened on; the open card after the edit; the stored one; the older "
             + "project's card (its token, its words, a card at all); the manager's Save's notices; its edit window drawn: the field, Save with it "
             + "empty and with 1001 characters (open, the words under the field, aria-invalid), Close's answer; its description after]");
+    }],
+    ["E21-T1 - the readiness round's GM window and the incident tracker, each opened by its world write, read only the module keys their live regions declare, rebuild on a declared key and not on another key, and the round's window follows a day move of the clock, which no world hook names (E21 C3a, E21-19; E44 Open 10)", async () => {
+        /*
+         * E21 C3a, 06.11.2026; E44's Open 10: R1317 (tier 1) cannot open either window - each stands only while the world
+         * holds what it is about - and named them as E21's. Opened here by their own roads on the primary GM: the round by
+         * boundary.mjs `nextTimeOfDay` from Daily Life at noon (not awaited; its window `drpg-ready-gm`), the tracker by
+         * murder-ui.mjs `openIncidentTracker` over a fight (`fightOpen`; its window `drpg-window-incident`). For each,
+         * the region kept live with `settings` (live.mjs `liveRegions`): its build once with `game.settings.get` counted,
+         * the module keys read and not declared; the region tagged, then a key it declares and a key of the module nobody
+         * listens to announced on Foundry's `updateSetting` hook, as a write announces itself - whether the tagged node was
+         * replaced. And the round's window under a world write of the clock's day alone (`setClock`): a round is about one
+         * boundary (`roundOf`), so the day move ends it, and the window must close by itself (`roundWindow`'s check, run
+         * after each rebuild). Put back: the clock, the round's setting, the incident (ended), every window opened here.
+         * Red on C2's tree (b82fc415), measured 06.11.2026: the round's region declares the round's key alone and its build
+         * reads `clock` (undeclared ["clock"]); the day move closed the window there too, so that half is green on both
+         * trees (the slice expected it red: it is not).
+         */
+        needs(env.primaryGm(), "the round and the incident run on the primary GM");
+        needs(env.dialogs(), "both windows are read as drawn");
+        needs(env.playersConnected(), "the round asks the connected players of the cast");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const J = stableJson;
+        const L = await import("./live.mjs");
+        const B = await import("./boundary.mjs");
+        const E = await import("./eclipse.mjs");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        must(!M.murderState(), "an incident is open - no round is asked there, and this would measure nothing");
+        const appOf = cls => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes(cls)) ?? null;
+        const regionOf = app => L.liveRegions(app).find(r => Array.isArray(r.watch?.settings)) ?? null;
+        /* What one build reads of the module's keys that its region does not declare. */
+        const undeclared = region => {
+            const keys = new Set();
+            const get = game.settings.get;
+            game.settings.get = function (namespace, key, ...rest) {
+                if (namespace === MODULE_ID) keys.add(key);
+                return get.call(this, namespace, key, ...rest);
+            };
+            try { region.build(); } finally { game.settings.get = get; }
+            return { read: keys.size, undeclared: [...keys].filter(key => !region.watch.settings.includes(key)).sort() };
+        };
+        /* Whether the region's node is replaced after `key` is announced: the node tagged first. */
+        const rebuiltOn = async (app, region, key) => {
+            const node = app.element?.querySelector(region.region);
+            if (!node) return "no region";
+            node.dataset.e21t1 = "tagged";
+            Hooks.callAll("updateSetting", { key: `${MODULE_ID}.${key}`, value: null }, { value: null }, {}, game.user.id);
+            await wait(400);
+            return !app.element?.isConnected || !app.element.querySelector(`${region.region}[data-e21t1="tagged"]`);
+        };
+        const clockWas = foundry.utils.deepClone(getClock());
+        const roundWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.readyRound) ?? {});
+        const read = {};
+        let pressed = null, tracker = null;
+        try {
+            /* The round. */
+            if (E.isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife", timeOfDay: "noon", refilledFor: null });
+            await game.settings.set(MODULE_ID, SETTINGS.readyRound, {});
+            await settle();
+            pressed = Promise.resolve().then(() => B.nextTimeOfDay()).catch(() => null);
+            must(await until(() => appOf("drpg-ready-gm") && regionOf(appOf("drpg-ready-gm")), 12000), "the round's window did not open");
+            const round = appOf("drpg-ready-gm");
+            const rr = regionOf(round);
+            read.round = { ...undeclared(rr), own: await rebuiltOn(round, rr, SETTINGS.readyRound), other: await rebuiltOn(round, rr, "e21t1-other") };
+            await setClock({ day: (Number(getClock().day) || 1) + 1 });
+            read.round.dayMove = await until(() => !round.element?.isConnected, 3000).then(() => true, () => false);
+            await Promise.race([pressed, wait(3000)]);
+            pressed = null;
+            await setClock(clockWas);
+            await game.settings.set(MODULE_ID, SETTINGS.readyRound, roundWas);
+            await settle();
+
+            /* The tracker. */
+            const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+            const [killer, victim] = livingStudents().filter(player);
+            await fightOpen(M, killer, victim);
+            tracker = Promise.resolve().then(() => M.openIncidentTracker()).catch(() => null);
+            must(await until(() => appOf("drpg-window-incident") && regionOf(appOf("drpg-window-incident")), 8000), "the incident tracker did not open");
+            const win = appOf("drpg-window-incident");
+            const tr = regionOf(win);
+            read.tracker = { ...undeclared(tr), own: await rebuiltOn(win, tr, SETTINGS.murderState), other: await rebuiltOn(win, tr, "e21t1-other") };
+        } finally {
+            for (const cls of ["drpg-ready-gm", "drpg-window-incident"]) {
+                for (const app of [...foundry.applications.instances.values()]) if (app?.options?.classes?.includes(cls)) await app.close().catch(() => {});
+            }
+            for (const run of [pressed, tracker]) if (run) await Promise.race([run, wait(3000)]);
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await setClock(clockWas);
+            await game.settings.set(MODULE_ID, SETTINGS.readyRound, roundWas);
+            await settle();
+        }
+        ok(read.round.read > 0 && read.tracker.read > 0, `a build read no module key - the spy measured nothing: ${J(read)}`);
+        if (!read.round.dayMove) ok(false, "the round did not rebuild on a day move: its window stood over a round the clock had left");
+        equal(J({ round: { ...read.round, read: undefined }, tracker: { ...read.tracker, read: undefined } }),
+            J({ round: { undeclared: [], own: true, other: false, dayMove: true }, tracker: { undeclared: [], own: true, other: false } }),
+            "[each window's region: the module keys its build reads and does not declare, rebuilt on its own key, on a key nobody declares, the round's window gone after a day move]");
+    }],
+    ["E22-T1 - Enter in Who died? kills nobody and Enter in the body's announcement announces nothing (E22 C3b; S06-08): each window drawn on the GM as a table draws it, Enter pressed as a browser presses it (the form submitted by its first submit button), the answer, the dead, the bodies found and the chat read", async () => {
+        /*
+         * E22 C3b, 06.11.2026; audit S06-08: Who died? opened on the first living student with "They are dead" the
+         * default, so one Enter killed them and destroyed their Truth Bullets; the body's window opened on the first room
+         * with Announce the default. Both windows are drawn here (`__dialogWindows`), with no incident running, and Enter
+         * pressed in each as E44-T5 presses it: `requestSubmit` with the first submit button in the tree (HTML's implicit
+         * submission; jsdom submits nothing on a synthetic key). Read: which button that is, what the select holds when drawn (nobody, no room), the answer, who is dead
+         * after, the bodies the world records as found and the chat. Put back: anyone killed (revived), the two body
+         * settings, the messages. Red on C3a's tree: Enter pressed "They are dead" and killed the first living student.
+         */
+        needs(env.primaryGm(), "the body's announcement is the primary GM's");
+        needs(env.dialogs(), "both windows are drawn and Enter pressed in them");
+        needs(world.atLeast("livingStudents", 1), "Who died? lists the living");
+        const C = await import("./chapter.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse } = await import("./eclipse.mjs");
+        must(!murderState() && !isEclipse(), "an incident or an Eclipse stands - Who died? would choose its victim, or the body's window refuses");
+        const L = key => game.i18n.localize(key);
+        const drawn = title => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === L(title)) ?? null;
+        const alive = C.livingStudentsForGm();
+        const bodiesWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? null);
+        const foundWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? null);
+        const had = new Set(game.messages.map(m => m.id));
+        const enter = async (title, open, field) => {
+            const run = Promise.resolve().then(open).catch(err => `threw ${err?.message ?? err}`);
+            if (!await until(() => Boolean(drawn(title)), 6000)) return { drawn: false };
+            const el = drawn(title).element;
+            const first = el.querySelector('footer button[type="submit"]');
+            const form = el.querySelector("form");
+            const holds = el.querySelector(`select[name="${field}"]`)?.value ?? null;
+            if (form && first && !first.disabled) form.requestSubmit(first);
+            const answer = await Promise.race([run, wait(4000).then(() => "unanswered")]);
+            if (drawn(title)) await drawn(title).close();
+            return { first: first?.dataset.action ?? null, holds, answer: answer === null || typeof answer !== "object" ? answer : "an answer" };
+        };
+        const read = {};
+        try {
+            read.death = await enter("DRPG.Chapter.deathTitle", () => C.openDeathDialog(), "actor");
+            await settle();
+            read.dead = alive.filter(a => C.isDeadForGm(a)).map(a => a.name);
+            read.body = await enter("DRPG.Chapter.bodyTitle", () => C.openBodyDiscoveryDialog(), "room");
+            await settle();
+            read.found = stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? null) === stableJson(bodiesWas)
+                && stableJson(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? null) === stableJson(foundWas);
+            read.cards = game.messages.filter(m => !had.has(m.id)).length;
+        } finally {
+            for (const title of ["DRPG.Chapter.deathTitle", "DRPG.Chapter.bodyTitle"]) if (drawn(title)) await drawn(title).close();
+            for (const a of alive) if (C.isDeadForGm(a)) await C.reviveCharacter(a, { quiet: true });
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodiesWas);
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, foundWas);
+            for (const m of game.messages.contents) if (!had.has(m.id)) await m.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ death: { first: "cancel", holds: "", answer: false }, dead: [], body: { first: "cancel", holds: "", answer: null }, found: true, cards: 0 }),
+            "[Who died?: the first submit button, what its select holds when drawn and the window's answer; the students dead after; the body's window: the same; the bodies found unchanged; the cards posted]");
+    }],
+    ["E22-T2 - Enter in End the trial's question ends nothing (E22 C4; audit S06-09): the window `endClassTrial` opens on this world - the room's question with a hall linked, else yes or no - drawn on the GM as a table draws it, Enter pressed as a browser presses it (the form submitted by its first submit button), the answer, the phase, the floor and the chat read; \"Enter in the verdict window executes nobody\" stays as written", async () => {
+        /*
+         * E22 C4, 06.11.2026; audit S06-09: End the trial was the default of its question, the room's select (a hall linked)
+         * or the yes of a DialogV2.confirm (none), so Enter or Space ended the trial, carried the sentence out and took the
+         * living out of the hall. The window is drawn here (`__dialogWindows`) and Enter pressed in it as E44-T5 and E22-T1
+         * press it: `requestSubmit` with the first submit button in the tree (HTML's implicit submission; jsdom submits
+         * nothing on a synthetic key). Read: that button's action, the answer `endClassTrial` gave, the phase and the floor
+         * before and after, and the messages posted. Put back on a red tree: the clock, the trial record and the messages.
+         * Red on d5246545's code: Enter pressed End the trial.
+         */
+        needs(env.primaryGm(), "End the trial is the primary GM's");
+        needs(env.dialogs(), "the question is drawn and Enter pressed in it");
+        const UI = await import("./trial-floor-ui.mjs");
+        const V = await import("./vote.mjs");
+        const F = await import("./trial-floor.mjs");
+        const title = game.i18n.localize("DRPG.Floor.endTrial");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const clockWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.clock));
+        const recordWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const floorWas = Boolean(F.trialFloor());
+        const had = new Set(game.messages.map(m => m.id));
+        const read = {};
+        try {
+            const run = Promise.resolve().then(() => UI.endClassTrial()).catch(err => `threw ${err?.message ?? err}`);
+            read.drawn = await until(() => Boolean(drawn()), 6000);
+            if (read.drawn) {
+                const el = drawn().element;
+                const first = el.querySelector('footer button[type="submit"]');
+                read.first = first?.dataset.action ?? null;
+                const form = el.querySelector("form");
+                if (form && first && !first.disabled) form.requestSubmit(first);
+            }
+            const answer = await Promise.race([run, wait(4000).then(() => "unanswered")]);
+            read.answer = answer === null || typeof answer !== "object" ? answer : "an answer";
+            if (drawn()) await drawn().close();
+            await settle();
+            read.phase = getClock().phase === clockWas.phase;
+            read.floor = Boolean(F.trialFloor()) === floorWas;
+            read.cards = game.messages.filter(m => !had.has(m.id)).length;
+        } finally {
+            if (drawn()) await drawn().close();
+            if (stableJson(getClock()) !== stableJson(clockWas)) await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
+            if (stableJson(V.trialProgress()) !== stableJson(recordWas)) await game.settings.set(MODULE_ID, SETTINGS.trialProgress, recordWas);
+            for (const m of game.messages.contents) if (!had.has(m.id)) await m.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ drawn: true, first: "cancel", answer: null, phase: true, floor: true, cards: 0 }),
+            "[End the trial's question drawn; its first submit button; what endClassTrial answered after Enter; the phase and the floor as they were; the cards posted]");
+    }],
+    ["E22-T5 - Enter in the project's Delete question deletes nothing, and Enter in Share revokes nobody (E22 C6a; audit S09-24): a project made for the test, its window opened on the GM as a table draws it and Delete pressed, then Enter pressed in the question as a browser presses it (the form submitted by its first submit button); a secret one known to every player, Share opened on it and Enter pressed there - the first submit buttons, the answers, the project and its players read", async () => {
+        /*
+         * E22 C6a, 07.11.2026; audit S09-24: Delete in the project's window asked "Delete ...?" with Yes the default, so
+         * Enter deleted the project and its progress; Revoke access stood beside Share as a plain button. Both windows are
+         * drawn here (`__dialogWindows`) and Enter pressed as E22-T1 presses it: `requestSubmit` with the first submit
+         * button in the tree (HTML's implicit submission; jsdom submits nothing on a synthetic key). Delete in the
+         * project's window is pressed as a person presses it (`requestSubmit` with that button). Read: the first submit
+         * button of the question and of Share, what each road answered, whether the project stands, and the players who
+         * know the secret one after. Put back: both projects deleted. Red on C5d's tree: Enter pressed Yes and the
+         * project was deleted. Share's half read the same on that tree (Share was its first button there too): it holds
+         * that Revoke access, now destructive, did not become the default.
+         */
+        needs(env.primaryGm(), "a project is the primary GM's to make and delete");
+        needs(env.dialogs(), "both windows are drawn and Enter pressed in them");
+        needs(world.atLeast("playerAccounts", 1), "Share lists the players");
+        const P = await import("./projects.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const L = key => game.i18n.localize(key);
+        const drawn = title => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const submit = (app, button) => {
+            const form = app?.element?.querySelector("form");
+            if (form && button && !button.disabled) form.requestSubmit(button);
+            return button?.dataset.action ?? null;
+        };
+        const players = game.users.filter(u => !u.isGM).map(u => u.id);
+        const made = [];
+        const read = {};
+        try {
+            // A statistic and words, as a project has them since E32+E07 C11d and E44 C9: the form's `required` fields
+            // hold, so its submit is not refused before Delete is read (jsdom validates on `requestSubmit`, as a browser does).
+            const doomed = (await P.createProject({ name: "SUITE E22-T5 kept", target: 4, room: null, trait: "body", description: "SUITE E22-T5 its words" }))?.id ?? null;
+            must(doomed, "the project could not be made");
+            made.push(doomed);
+            await settle();
+            const project = P.allProjects().find(p => p.id === doomed);
+            const run = Promise.resolve().then(() => UI.openProjectDialog({ project, rooms: [] })).catch(err => `threw ${err?.message ?? err}`);
+            if (await until(() => Boolean(drawn(L("DRPG.Project.editTitle"))), 6000)) {
+                const edit = drawn(L("DRPG.Project.editTitle"));
+                read.pressed = submit(edit, edit.element.querySelector('footer button[data-action="delete"]'));
+            } else read.pressed = "no window";
+            if (await until(() => Boolean(drawn(L("DRPG.Project.delete"))), 6000)) {
+                const sure = drawn(L("DRPG.Project.delete"));
+                read.question = submit(sure, sure.element.querySelector('footer button[type="submit"]'));
+            } else read.question = "no question";
+            const answer = await Promise.race([run, wait(4000).then(() => "unanswered")]);
+            read.answer = answer === null || typeof answer !== "object" ? answer : stableJson(answer);
+            await settle();
+            read.stands = P.allProjects().some(p => p.id === doomed);
+
+            const secret = (await P.createProject({ name: "SUITE E22-T5 secret", target: 4, room: null, secret: true, viewers: players }))?.id ?? null;
+            must(secret, "the secret project could not be made");
+            made.push(secret);
+            await settle();
+            const knew = P.viewersOf(secret).map(u => u.id).sort();
+            const sharing = Promise.resolve().then(() => UI.openShareDialog(secret)).catch(err => `threw ${err?.message ?? err}`);
+            if (await until(() => Boolean(drawn(L("DRPG.Project.shareTitle"))), 6000)) {
+                const share = drawn(L("DRPG.Project.shareTitle"));
+                read.share = [submit(share, share.element.querySelector('footer button[type="submit"]')),
+                    share.element.querySelector('footer button[data-action="revoke"]')?.dataset.drpgRole ?? null];
+            } else read.share = "no window";
+            read.shareAnswer = await Promise.race([sharing, wait(4000).then(() => "unanswered")]) ?? null;
+            await settle();
+            read.know = stableJson(P.viewersOf(secret).map(u => u.id).sort()) === stableJson(knew) && knew.length === players.length;
+        } finally {
+            for (const title of ["DRPG.Project.delete", "DRPG.Project.editTitle", "DRPG.Project.shareTitle"]) if (drawn(L(title))) await drawn(L(title)).close();
+            for (const id of made) if (P.allProjects().some(p => p.id === id)) await P.deleteProject(id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ pressed: "delete", question: "cancel", answer: null, stands: true, share: ["share", "destructive"], shareAnswer: null, know: true }),
+            "[Delete pressed in the project's window; the question's first submit button; what openProjectDialog answered; the project still there; Share's first submit "
+            + "button and Revoke access's role; what openShareDialog answered; every player still knowing the secret project]");
+    }],
+    ["the Blackened's rule window records nothing on Cancel (E21 C4): verdict.mjs `askBlackenedRule` drawn on the GM, its Cancel pressed - the answer, the rules and the chat read", async () => {
+        /*
+         * E21 C4, 06.11.2026, found moving the window onto the kit: its Cancel ("skip") had no callback, so DialogV2.wait
+         * answered the action's name, a string, and `askBlackenedRule` read every string as the rule's words - Cancel
+         * recorded the rule "skip" and posted its card to the table. The window is drawn here (`__dialogWindows`) and its
+         * Cancel clicked as a person clicks it. Read: the answer, the rules after and the messages posted. Put back on a red
+         * tree: a rule added and the messages. Red on d5246545's code (with `askBlackenedRule` exported, nothing else):
+         * answer true, the rule "skip" recorded, one card.
+         */
+        needs(env.primaryGm(), "a rule is the primary GM's to record");
+        needs(env.dialogs(), "the window is drawn and its Cancel pressed");
+        const Vd = await import("./verdict.mjs");
+        const R = await import("./rules.mjs");
+        must(typeof Vd.askBlackenedRule === "function", "verdict.mjs does not export askBlackenedRule - this would measure nothing");
+        const title = game.i18n.localize("DRPG.Vote.blackenedRuleTitle");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const before = new Set(R.rules().map(r => r.id));
+        const had = new Set(game.messages.map(m => m.id));
+        const read = {};
+        try {
+            const run = Promise.resolve().then(() => Vd.askBlackenedRule([])).catch(err => `threw ${err?.message ?? err}`);
+            read.drawn = await until(() => Boolean(drawn()), 6000);
+            const cancel = read.drawn ? drawn().element.querySelector('footer button[data-action="skip"]') : null;
+            read.cancel = Boolean(cancel);
+            cancel?.click();
+            read.answer = await Promise.race([run, wait(4000).then(() => "unanswered")]);
+            await settle();
+            read.added = R.rules().filter(r => !before.has(r.id)).map(r => r.text);
+            read.cards = game.messages.filter(m => !had.has(m.id)).length;
+        } finally {
+            if (drawn()) await drawn().close();
+            for (const r of R.rules()) if (!before.has(r.id)) await R.removeRule(r.id);
+            for (const m of game.messages.contents) if (!had.has(m.id)) await m.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ drawn: true, cancel: true, answer: false, added: [], cards: 0 }),
+            "[the rule's window drawn; its Cancel found; askBlackenedRule's answer after Cancel; the rules it added; the cards posted]");
+    }],
+    ["E22-T3 - a Reshape's two windows put the reshape on the GM's road (E22 C5c; A4, audit S02-25, S05-49): cleanup.mjs `askTransform` (the critical's) and `askTransformChange` (the Tamper's) drawn on the GM as a player's browser draws them - Leave something else and Reshape it red, on the GM's road and first in the tree; Erase and Cancel plain; each window's note names the GM; the GM's road pressed answers the words and changes nothing in the world (the trace waits for the GM's yes: \"a reshaped trace does not change until the GM says so\", beside this test)", async () => {
+        /*
+         * E22 C5c, 07.11.2026; A4. Since N-3 a reshape goes to a GM (`proposeReshape`), and its windows' buttons were the
+         * module's ordinary primary: nothing on them said a person would rule. The windows are drawn here (`__dialogWindows`)
+         * and each footer read by the buttons' own classes, then the GM's road pressed with both fields filled: the answer,
+         * and the world's Remnants, which these windows only ask about. That the trace itself changes on the GM's yes alone is
+         * the tier-2 test named in the title, kept as written. Red on C5b's tree: both buttons the primary, no
+         * `drpg-gm-route`.
+         */
+        needs(env.dialogs(), "the windows are drawn and their buttons read and pressed");
+        const [who] = cast(1);
+        const CL = await import("./cleanup.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        must((CLEANUP.transform?.visibilities ?? []).length, "the critical's window has no band to offer at this table - this would measure nothing");
+        const drawn = title => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const remnants = () => (canvas?.scene?.tokens?.contents ?? []).map(t => `${t.id}:${t.name}`).sort().join("|");
+        const before = remnants();
+        const drive = async (ask, title, go) => {
+            const run = Promise.resolve().then(ask).catch(err => `threw ${err?.message ?? err}`);
+            const reading = {};
+            try {
+                if (!await until(() => Boolean(drawn(title)), 6000)) return { drawn: false };
+                const el = drawn(title).element;
+                const buttons = [...el.querySelectorAll("footer.form-footer button")];
+                reading.tree = buttons.map(b => [b.dataset.action, b.classList.contains("drpg-role-gm-route"), b.classList.contains("drpg-gm-route")]);
+                reading.note = /\bGM/.test(el.querySelector("form p.notes")?.textContent ?? "");
+                el.querySelector("[name=name]").value = "SUITE E22-T3 a coat stand";
+                el.querySelector("[name=text]").value = "SUITE E22-T3 it was always here";
+                el.querySelector(`footer.form-footer button[data-action="${go}"]`)?.click();
+                const answer = await Promise.race([run, wait(4000).then(() => "unanswered")]);
+                reading.answer = answer && typeof answer === "object" ? [answer.name, answer.text] : answer;
+            } finally {
+                if (drawn(title)) await drawn(title).close();
+                await Promise.race([run, wait(3000)]);
+            }
+            return reading;
+        };
+        const read = {
+            critical: await drive(() => CL.askTransform(who), game.i18n.localize("DRPG.Cleanup.transformTitle"), "change"),
+            tamper: await drive(() => CL.askTransformChange(who), game.i18n.localize("DRPG.Cleanup.transformAction"), "go")
+        };
+        await settle();
+        read.world = remnants() === before;
+        const words = ["SUITE E22-T3 a coat stand", "SUITE E22-T3 it was always here"];
+        equal(stableJson(read), stableJson({
+            critical: { tree: [["change", true, true], ["erase", false, false]], note: true, answer: words },
+            tamper: { tree: [["go", true, true], ["cancel", false, false]], note: true, answer: words },
+            world: true
+        }), "[each window: its footer in tree order (action, the GM's road role, the GM's red), its note naming the GM, the answer of its GM's road "
+            + "pressed with both fields; the scene's tokens as before]");
+    }],
+    ["E22-T4 - a proposal sends once (E22 C5c, MARKED; audit S10-31, Q-E21-5): Work on Project's Propose answered on this primary GM for a student standing alone - the form, with its own request field, answered with the words - reaches the GM's card once, quoting the words, with no second window; the form closed unsent posts no card and says nothing was sent", async () => {
+        /*
+         * E22 C5c, 07.11.2026; audit S10-31. The form's Send sent nothing and a second window (`promptAndCallGm`) asked for
+         * the sentence again; closed, the proposal was lost without a word. Driven as E44-T20 drives a proposal: the student
+         * stood alone in a room (`standAlone`), the Projects window answered Propose, the form answered as its Send's
+         * callback answers (its own field read by R1370), the card found by its Approve. Then the same with the form closed (null). Read: the windows asked, the cards with Approve,
+         * the card's quote, and the notices. Put back: the cards, the student's place. Red on C5b's tree: a second window
+         * asked after the form, its field the one the words come from. Mutant c5c-m1 (the form's words not handed to
+         * `callGm`) dies here: the card quotes nothing.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the proposer alone");
+        const [actor] = cast(1);
+        const { performAction } = await import("./action-rolls.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this GM is not the primary - run the suite on the primary GM");
+        const WORDS = "SUITE E22-T4 may I build a shelf here?";
+        const startTitle = game.i18n.localize("DRPG.Project.startNew");
+        const notSent = game.i18n.localize("DRPG.Project.proposalNotSent");
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const told = [];
+        const info = ui.notifications.info;
+        ui.notifications.info = (text, ...rest) => { told.push(String(text)); return info.call(ui.notifications, text, ...rest); };
+        const cards = () => game.messages.contents.filter(m => !had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="approveProject"'));
+        const read = {};
+        let stood = null, windows = null;
+        let close = false;
+        try {
+            stood = await standAlone(actor);
+            windows = answerWindows((cfg, root) => {
+                const title = cfg?.window?.title ?? "";
+                const start = root.querySelector('input[name="variant"][value="start"]');
+                if (title === ACTIONS.project.label && start) {
+                    start.checked = true;
+                    return press(cfg, root);
+                }
+                if (title !== startTitle) return null;
+                read.field = root.querySelectorAll('form textarea[name="request"]').length;
+                if (close) return null;
+                // The form's answer as its Send's callback reads it (E44-T20's way: jsdom's form has no named fields).
+                return { name: "SUITE E22-T4 a shelf", target: 4, room: stood.room, trait: "hand", murder: false, condition: "",
+                    preset: null, to: null, seal: null, unbreach: null, mend: null, description: "SUITE E22-T4 a shelf for the notebooks", request: WORDS };
+            });
+            await performAction(actor, "project", { free: true });
+            await until(() => cards().length >= 1, 6000);
+            await settle();
+            const sent = cards();
+            read.sent = {
+                windows: windows.asked.map(w => w.title === ACTIONS.project.label ? "projects" : w.title === startTitle ? "form" : "another"),
+                cards: sent.length,
+                quote: (() => {
+                    const box = document.createElement("div");
+                    box.innerHTML = String(contentOf(sent[0]) ?? "");
+                    return box.querySelector("blockquote")?.textContent?.trim() ?? null;
+                })()
+            };
+            for (const m of sent) await m.delete().catch(() => {});
+            await settle();
+            windows.asked.length = 0;
+            told.length = 0;
+            close = true;
+            const answer = await performAction(actor, "project", { free: true });
+            await settle();
+            read.closed = {
+                answer,
+                windows: windows.asked.map(w => w.title === ACTIONS.project.label ? "projects" : w.title === startTitle ? "form" : "another"),
+                cards: cards().length,
+                told: told.filter(t => t === notSent).length
+            };
+        } finally {
+            ui.notifications.info = info;
+            windows?.restore();
+            for (const m of game.messages.contents) if (!had.has(m.id)) await m.delete().catch(() => {});
+            await stood?.back();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            field: 1,
+            sent: { windows: ["projects", "form"], cards: 1, quote: WORDS },
+            closed: { answer: null, windows: ["projects", "form"], cards: 0, told: 1 }
+        }), "[the form's request fields; sent: the windows asked, the cards with Approve, the card's quote; closed: the answer, the windows asked, the cards, 'nothing was sent' told]");
     }],
     ...GRID
 ];

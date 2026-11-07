@@ -23,6 +23,22 @@ import { count } from "./perf-counters.mjs";
  */
 export const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
 
+/**
+ * The red of the GM's road (D11): a row, a button or a tile a player presses that hands the turn to a GM and waits for
+ * their ruling. Nothing else is red for a player, and on a GM's screen it names nothing.
+ *
+ * The distinction matters at the moment of choosing, not afterwards: pressing one of these means waiting for a human.
+ * Every red row, button or tile has a sentence about the GM beside it - its hint, the window's note, the tile's GM chip
+ * (R121, A4). A tile is red only when every branch behind it waits for a GM; where only some do (Tamper, Observe,
+ * Analyze), the tile carries no GM mark and the rows in its menu that do are red (Q-E21-1 (a); audit S03-26).
+ *
+ * WHERE IT LIVES (E22 C5c, 07.11.2026; audit S05-49). A local const of action-project.mjs (before E41, action-rolls.mjs)
+ * until C5c, which the action menus, the kit and the sheet each spelled out as the literal "drpg-gm-route". One name
+ * here now: ui-kit.mjs's `gmRoute` role paints with it, action-menus.mjs `chooseVariant` marks a row with it, and
+ * sheet.mjs marks a Call's tile and a Tier 0 item's Use with it. The stylesheets' rules for it stay where they are.
+ */
+export const GM_ROUTE_CLASS = "drpg-gm-route";
+
 /* THE MODULE'S LANGUAGES AS INTL READS THEM (E66 C1, 01.11.2026; DB35: "helper I9 z jawnym en-US"). English is
    American English (EN1), so its lists take the Oxford comma and its dates the US order whatever the browser's own
    English is; a code with no row here (none ships) is written as English. */
@@ -94,7 +110,7 @@ export function markLanguage(el) {
 /**
  * module.mjs's `renderApplicationV2` hook (E66 C1): a window the module opened - an ApplicationV2 or a DialogV2 whose
  * classes name `drpg-`, as every window the module builds does (`drpg-panel`, `drpg-messenger`, `drpg-room-image`,
- * `drpg-table-window`) - gets `markLanguage`. By the classes it was opened with (`options.classes`), not the element's:
+ * `drpg-ui`) - gets `markLanguage`. By the classes it was opened with (`options.classes`), not the element's:
  * the module decorates Daggerheart's own windows with `drpg-` classes of its own (the roll dialog's), and their words
  * are Daggerheart's, in Foundry's language. The character sheet is marked by its own render hook (sheet.mjs).
  *
@@ -132,7 +148,7 @@ const worldFiles = new Map();
  *
  * NO SITE CALLS IT IN E66. The helper and its setting are D196's, pinned here; the documents that should be written
  * through it - S02-74, config prose written into world documents in the creating client's language - are E57's
- * (row 1.2.123), which switches them over. The interface windows, cards and the sheet stay in each browser's own
+ * (row 1.2.125), which switches them over. The interface windows, cards and the sheet stay in each browser's own
  * language and never go through it.
  */
 export async function worldLocalize(key, data = {}) {
@@ -901,33 +917,6 @@ export function dialogContent(markup) {
     return div;
 }
 
-/**
- * `DialogV2.wait`, for a window built around a table - sized to fit its own
- * table, automatically, with no resize handle.
- *
- * WHY NOT CSS, AND WHY NOT A DRAG HANDLE. Two earlier attempts at this failed
- * in ways worth recording, because both looked correct in the stylesheet:
- *
- *   · `width: max-content !important` on the window. `!important` outranks an
- *     inline style, and both the resize handle AND ApplicationV2's own layout
- *     write inline widths - so the rule fought whatever the application had
- *     just decided, and an intrinsic width on a frame that already has a pixel
- *     width left the overflowing columns invisible AND unreachable.
- *   · a manual resize handle as the escape hatch. That is a workaround asking
- *     the GM to fix the window every time they open it, for a size the module
- *     can simply measure.
- *
- * So the window is measured after render instead: the table states its natural
- * width in the DOM (`width: max-content` on the TABLE, which is where that
- * belongs), this reads it back and sets the window to exactly that, clamped to
- * the viewport. A table narrower than the default opens narrow; a wide one
- * opens wide; nothing has to be dragged, and the one case that still cannot
- * fit - a table wider than the screen - scrolls inside `.window-content`,
- * which is what its `overflow: auto` is for.
- *
- * `options.window` and `options.position` still win over these defaults, and
- * a caller's own `render` runs untouched before the measurement.
- */
 /* ==========================================================================
  * TEXT FIELDS
  * ========================================================================== */
@@ -1133,174 +1122,10 @@ export function registerTextGuard() {
     log("Text fields in module windows commit before their window closes.");
 }
 
-export function tableDialog(options) {
-    const DialogV2 = foundry.applications.api.DialogV2;
-    const callerRender = options.render;
-    // A tabbed window measures every tab and settles on one size. Stripped out
-    // rather than passed on: it is this helper's option, not DialogV2's.
-    const { fitTabs = false, ...rest } = options;
-
-    return DialogV2.wait({
-        ...rest,
-        // `drpg-table-window` is not decoration: it is what keeps the default
-        // width rule in danganronpa.css - which carries `!important` - from
-        // matching this window and overriding the measured width. See the note
-        // on that rule. Appended to whatever the caller asked for, so nobody
-        // has to remember it at the call site.
-        classes: [...(rest.classes ?? []), "drpg-table-window"],
-        // No handle: the size is derived, not chosen. A handle here would only
-        // ever be used to correct a size this function should have got right.
-        // Foldable to its title bar (E44 fix FG2, 05.11.2026; the owner's Q-E44-1, "Nie chcialbym blokowac
-        // zwijania okien wcale"): DialogV2's own default is `minimizable: false` (the harness's shim copies it;
-        // v14's own is LIVE-E44-08), so a module window built here did not fold even once no-collapse.mjs was gone.
-        window: { resizable: false, minimizable: true, ...rest.window },
-        // `height: auto` lets the window take its content's height, which the
-        // 80vh cap on `.window-content` then bounds - so a long table scrolls
-        // rather than growing off the bottom of the screen.
-        position: { height: "auto", ...rest.position },
-        render: (event, dialog) => {
-            try {
-                callerRender?.(event, dialog);
-            } catch (err) {
-                error("A table dialog's own render hook failed", err);
-            }
-            if (fitTabs) fitWindowToTabs(dialog);
-            else fitWindowToTable(dialog);
-        }
-    });
-}
-
 /**
- * Set a dialog's width to the widest table it actually contains.
- *
- * Deferred one animation frame: at `render` time the content is in the DOM but
- * has not necessarily been laid out, and `scrollWidth` before layout reports
- * the pre-layout width - which is how a measured-fit window ends up the wrong
- * size in exactly the cases that need it most (the widest tables).
- *
- * `scrollWidth` rather than `getBoundingClientRect().width`: the table is the
- * thing overflowing its container, and the bounding box reports the CLIPPED
- * width, i.e. the number we already have. `scrollWidth` is the full one.
- *
- * A window whose tabs each hold their own table wants `fitWindowToTabs` below
- * instead - one size for all of them, rather than this one re-run per switch.
- */
-export function fitWindowToTable(dialog) {
-    const root = dialog?.element;
-    if (!root) return;
-
-    // TWO frames, not one. One `requestAnimationFrame` gets us past the point
-    // where the markup is in the DOM, but ApplicationV2 also sets the window's
-    // own position after render, and a fonts-still-loading table remeasures
-    // once its real face arrives. Measuring on the second frame lands after
-    // both, which is the difference between fitting the table and fitting the
-    // fallback font's idea of it.
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-        try {
-            const content = root.querySelector(".window-content");
-            if (!content) return;
-
-            let widest = 0;
-            for (const table of content.querySelectorAll("table")) {
-                // `scrollWidth` is an integer and rounds DOWN, which on a table
-                // whose columns land on fractional pixels is exactly enough to
-                // clip the last one. `getBoundingClientRect().width` keeps the
-                // fraction, and is the larger of the two whenever the table is
-                // not being clipped, so taking the max of both is right in
-                // either case.
-                widest = Math.max(widest, table.scrollWidth, table.getBoundingClientRect().width);
-            }
-            if (!widest) {
-                /* NO TABLE, AND STILL A WINDOW THAT HAS TO HOLD WHAT IS IN IT.
-                   The Look window is the case that showed it up: sliders, a select and a row of
-                   switches, no table anywhere, so this measured nothing and left the window at
-                   whatever `position.width` guessed - and under a wider face that was too narrow
-                   for its own rows. What is measured instead is the overflow: if the content is
-                   being clipped sideways, the window grows by exactly that much. GROW ONLY - a
-                   window that already fits is left alone to the pixel, so nothing that looks
-                   right today can get narrower. */
-                const cs = getComputedStyle(content);
-                const pad = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
-                if (content.scrollWidth - content.clientWidth <= 1) return;
-                widest = Math.max(0, content.scrollWidth - pad);
-            }
-
-            const width = windowWidthFor(root, content, widest);
-
-            /*
-             * Nothing to do when we are already there - `setPosition` triggers a
-             * re-render, and re-rendering on every open for no change is how a window
-             * ends up flickering.
-             *
-             * AND "ALREADY THERE" IS A BAND, NOT A POINT (LAT-05, 20.09). The width
-             * above is the content plus two pixels of slack, so a window sitting at
-             * exactly the width its table needs differs from the target by exactly 2 -
-             * and `Math.abs(...) < 2` is false at exactly 2. The band is "wide enough
-             * for the content, and no wider than the target", which is what the slack
-             * was for in the first place.
-             *
-             * WHAT THE MEASUREMENT ACTUALLY FOUND, 20.09, because the audit's note on
-             * this said every open forces a reflow and that is not what happens: a
-             * fresh window opens at its stated width and is resized ONCE, which is the
-             * fit doing its job - Item tables 0 resizes past the CSS width, Room setup
-             * 1 (to 1259), the GM panel 0. Two frames after render the window carries
-             * the identity transform and no running animation, so the rect below is the
-             * layout width and measuring it is sound. This is the off-by-one on the
-             * path where a window IS already at its target - a re-fit, or a tabbed
-             * window sized from its widest tab - and nothing more than that.
-             */
-            const now = root.getBoundingClientRect().width;
-            if (now >= width - 2 && now <= width) {
-                return pinFooterAcrossScroll(dialog);
-            }
-
-            dialog.setPosition({ width, height: "auto" });
-            /*
-             * PINNED AT ONCE, AND AGAIN TWO FRAMES LATER. Belt AND braces, on
-             * purpose - this is the one change here that could not be settled
-             * headlessly.
-             *
-             * The note that used to sit here said the two frames were what let
-             * the scrollport measure its NEW size: "pinned after a single frame,
-             * the scrollport still measured the old size and the bar was told
-             * there was nothing to stick to". Measured in Chromium (16.09):
-             * reading `content.clientWidth` immediately after a width is written
-             * returns the new width, 900 where the old one was 400, because the
-             * read forces a layout flush that includes the write. One frame and
-             * two frames give the same answer. So the flush is not what the
-             * frames were buying.
-             *
-             * WHAT COULD NOT BE CHECKED FROM HERE is whether that still holds
-             * through `ApplicationV2#setPosition({ height: "auto" })`, which
-             * writes through Foundry rather than onto the element, and may race
-             * Foundry's own post-render position write. jsdom cannot answer it -
-             * it has no layout, `scrollWidth` is 0, and `pinFooterAcrossScroll`
-             * returns early at `!scrolls`, so a headless test would pass by
-             * measuring nothing. That is the `stackShapes` failure in CLAUDE.md
-             * word for word.
-             *
-             * So both calls stay. The first settles the bar in the frame the
-             * window is resized, which is worth roughly 170 ms of a window
-             * visibly rearranging itself under the reader (two frames at the
-             * 86 ms the curtain's blur costs a frame); the second is exactly
-             * today's behaviour, kept as the net. `pinFooterAcrossScroll` is
-             * idempotent and clears its own properties when nothing scrolls, so
-             * an early call that reads a stale box does no harm and the late one
-             * corrects it - the worst case is what the window does now.
-             */
-            pinFooterAcrossScroll(dialog);
-            requestAnimationFrame(() =>
-                requestAnimationFrame(() => pinFooterAcrossScroll(dialog)));
-        } catch (err) {
-            // A window that did not resize is readable; one that threw here
-            // would take the whole dialog down with it.
-            debug("Could not fit a table window to its table", err);
-        }
-    }));
-}
-
-/**
- * The window width that shows a table of `widest` pixels without clipping.
+ * The window width that shows a table of `widest` pixels without clipping: ui-kit.mjs `fitKitWidth`'s, for every `fit`
+ * window (E21 C2a; this file's `tableDialog`, `fitWindowToTable` and `fitWindowToTabs` until then). Here and not in
+ * the kit because R168 reads it here, and the kit may import this file (R161).
  *
  * IT USED TO TAKE A `settled` FLAG - "this window has been fitted before, so
  * somebody may have put it somewhere" - and cap the answer at the room to the
@@ -1340,9 +1165,9 @@ export function windowWidthFor(root, content, widest) {
      *
      * 94 % of the viewport was the only one, so on a 5120x1440 screen the case
      * dashboard opened 4813px wide with its cells stretched across the whole of
-     * it. The absolute cap is read from the stylesheet rather than written here,
-     * because the stylesheet is what `.drpg-table-window` is capped by too and
-     * two copies of one number is how they part company.
+     * it. The absolute cap is read from the stylesheet rather than written here
+     * (`--drpg-window-max`, which a window may raise for itself: the project
+     * manager's), because two copies of one number is how they part company.
      *
      * AND THE LEFT EDGE IS NOT PART OF THE ANSWER ANY MORE. `viewport - here`
      * measured the room to the right of where the window happened to be - but
@@ -1359,162 +1184,6 @@ export function windowWidthFor(root, content, widest) {
         .getPropertyValue("--drpg-window-max")) || 1400;
     const ceiling = Math.min(Math.round(viewport * 0.94), Math.round(cap));
     return Math.min(wanted, ceiling);
-}
-
-/**
- * One size for a tabbed window, taken from its biggest tab.
- *
- * Room Setup holds a table behind each of its nine tabs (`ROOM_SETUP_TABS` in
- * vault.mjs; this said "five" until 16.09, and had been wrong since the sixth
- * was added; the eighth, Scenes, is E13 C5's and holds no table, and Passages,
- * E79 C5's, holds one only on a scene with a secret passage) and they are nothing like each
- * other: Bedrooms is two columns, Fog is one column per room. Fitting the
- * window on every switch made it right for whichever tab was showing and made
- * the window itself jump - measured at 708px on Bedrooms and 1504 on Fog, on
- * the same screen, in one sitting. A GM comparing two tabs was watching the
- * window resize under them, and Dawid asked for the big one and no jumping
- * (26.08).
- *
- * So every tab is measured once, on open, and the window takes the largest -
- * which is Fog, by construction, since it grows a column per room.
- *
- * A hidden panel measures zero, so each is shown in turn for the measurement
- * and put back exactly as it was. Nothing is painted in between: this all runs
- * inside one animation-frame callback, and the browser paints after it, not
- * during it.
- *
- * The height cap is READ from the content's own computed `max-height` rather
- * than written here again - the 80vh lives in the stylesheet, and a copy of it
- * in this file is a second place for it to be wrong.
- */
-export function fitWindowToTabs(dialog) {
-    const root = dialog?.element;
-    if (!root) return;
-
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-        try {
-            const content = root.querySelector(".window-content");
-            if (!content) return;
-
-            // ONE TAB SYSTEM (E44 C4a): every tabbed window draws the kit's
-            // panes (ui-kit.mjs `kitTabs`), switched by `hidden`, and `eachPane`
-            // shows each in turn by the same attribute. Until then there were
-            // two markups, one switched by a class and one by inline `display`,
-            // and measuring only the first had let `fitTabs: true` fall through
-            // to `fitWindowToTable` on the second - one tab measured instead of
-            // all of them, which is the exact failure the option exists to
-            // prevent. A window with no pane still falls through, as before.
-            if (!content.querySelector("[data-drpg-pane]")) return fitWindowToTable(dialog);
-
-            let widest = 0;
-            let tallest = 0;
-            eachPane(content, shown => {
-                for (const table of shown.querySelectorAll("table")) {
-                    widest = Math.max(widest, table.scrollWidth,
-                        table.getBoundingClientRect().width);
-                }
-                // Read off the CONTENT, not the panel: the intro line and
-                // the tab strip are part of what the window has to hold.
-                tallest = Math.max(tallest, content.scrollHeight);
-            });
-
-            if (!widest) return;
-
-            const width = windowWidthFor(root, content, widest);
-            const capped = parseFloat(getComputedStyle(content).maxHeight);
-            const chrome = Math.max(0, root.getBoundingClientRect().height - content.clientHeight);
-            const height = Math.round(
-                Math.min(tallest, Number.isFinite(capped) ? capped : tallest) + chrome);
-
-            /* UNDER THE GLASS THE HEIGHT IS NOT OURS TO STATE (22.09). Stained Glass gives
-               every module window `height: auto !important` (section 7 of stained-glass.css),
-               so the number written here was never the height on screen - and Foundry keeps
-               a window's RECORDED box on the screen when it is dragged. The Sound window
-               recorded 1278 px (its Effects tab, capped at the screen) while it showed 506,
-               so its top could go no lower than 42 px: "Panel sound jest przyklejony do gory
-               ekranu" (Dawid, on 1.2.51). Room Setup the same, 1278 over 1099. So under the
-               glass only the width is fitted - the thing this function exists for, one width
-               for every tab - and the height is left to the content, which is what the theme
-               shows anyway. Monokuma Legacy keeps the measured height, which it does show. */
-            const glass = document.body.classList.contains("drpg-theme-stained-glass")
-                && root.classList.contains("drpg-panel");
-            const box = root.getBoundingClientRect();
-            if (Math.abs(box.width - width) < 2 && (glass || Math.abs(box.height - height) < 2)
-                && (!glass || dialog.position?.height === "auto")) {
-                return pinFooterAcrossScroll(dialog);
-            }
-
-            dialog.setPosition({ width, height: glass ? "auto" : height });
-            // The same pair, for the reason written out at the end of
-            // `fitWindowToTable` above - this is the tabbed twin of it.
-            pinFooterAcrossScroll(dialog);
-            requestAnimationFrame(() =>
-                requestAnimationFrame(() => pinFooterAcrossScroll(dialog)));
-        } catch (err) {
-            debug("Could not fit a tabbed window to its tabs", err);
-        }
-    }));
-}
-
-/**
- * Keep a table window's button bar reachable when the window scrolls sideways.
- *
- * C-F5-8. `position: sticky; left: 0` is on the footer already and does nothing
- * on its own, for two reasons that have to be fixed together:
- *
- *   Sticky travels inside its CONTAINING BLOCK, and the footer's is the form -
- *   which takes the container's width while the table inside it runs far wider.
- *   Past the form's own width there is no block left to stick to.
- *
- *   And the footer FILLS that block. Widen the form and the footer widens with
- *   it; an element spanning its whole containing block has zero travel, so
- *   sticky has nothing to do and the bar rides the scroll anyway.
- *
- * WHY THIS IS SCRIPT AND NOT CSS. Both widths are conditional on something a
- * stylesheet cannot ask: whether this window actually scrolls sideways. Writing
- * `min-width: max-content` on every table form instead forced the Investigation
- * dashboard's table out of the 1470px it was comfortably compressed to, to its
- * full 1560 - inventing 90px of scroll in a window that had none, and pushing
- * that window's own buttons out of reach. Measured, and the reason this reads
- * the box rather than trusting a percentage: `max-width: 100%` on the footer
- * resolves against the widened form, not against the window anyone is looking
- * at, so it clamps to the wrong number by exactly the amount that matters.
- *
- * Idempotent, and it puts everything back when the overflow goes away, so a
- * window re-fitted after a resize does not keep a stale pin.
- */
-export function pinFooterAcrossScroll(dialog) {
-    const root = dialog?.element;
-    if (!root) return;
-
-    try {
-        const content = root.querySelector(".window-content");
-        const form = content?.querySelector("form");
-        const footer = root.querySelector("footer.form-footer");
-        if (!content || !form || !footer) return;
-
-        // The scrollport, measured - this is the number the bar has to fit in.
-        const port = content.clientWidth;
-        const scrolls = content.scrollWidth > port + 1;
-
-        if (!scrolls) {
-            form.style.removeProperty("min-width");
-            footer.style.removeProperty("width");
-            footer.style.removeProperty("max-width");
-            return;
-        }
-
-        // The form spans what scrolls, so there is somewhere to stick…
-        form.style.minWidth = "max-content";
-        // …and the bar is no wider than the window, so it has room to travel.
-        // `fit-content(port)` in one property: as wide as the buttons need, and
-        // never wider than what can be seen.
-        footer.style.width = "max-content";
-        footer.style.maxWidth = `${port}px`;
-    } catch (err) {
-        // A bar that did not get pinned is still a usable window at scroll 0.
-        debug("Could not pin a table window's footer", err);
-    }
 }
 
 /**
@@ -1694,9 +1363,9 @@ export function wirePortraitPickers(root, { defaultImg = null, prefix = "img." }
 /**
  * The kit's tab panes, each shown in turn (E44 C4a, 04.11.2026). `measure(pane)` runs with that pane shown and every
  * other hidden, by the same `hidden` the tabs switch (ui-kit.mjs `kitTabs`, `wireKitTabs`), and every pane is put
- * back as it was; answers what each call answered, by the pane's key. Here and not in ui-kit.mjs, which hands it on,
- * because `fitWindowToTabs` above measures with it and utils.mjs may not import the kit (R161: the kit imports this
- * file). Nothing is painted in between: a caller runs it inside one task, and the browser paints after it.
+ * back as it was; answers what each call answered, by the pane's key. Here and not in ui-kit.mjs, which hands it on and
+ * measures with it (`fitKitWidth`, E21 C2a; this file's `fitWindowToTabs` until then), because utils.mjs may not import
+ * the kit (R161: the kit imports this file). Nothing is painted in between: a caller runs it inside one task, and the browser paints after it.
  *
  * @param {HTMLElement} root
  * @param {(pane: HTMLElement) => any} measure

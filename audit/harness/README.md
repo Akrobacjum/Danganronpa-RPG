@@ -284,6 +284,19 @@ and player pages, at 1920x1080, 1366x768, 1024x768 and 390x844 in both themes,
 against `audit/style-baseline.json`. The captures are this harness's frame and
 seeded world, with no Foundry stylesheet: a shape to hold, not a table's picture.
 
+Whether a window fits on the screen is not this harness's to say: jsdom lays
+nothing out. `node audit/style-sweep.mjs --fit` (E21 C1c) reads it in Chromium on
+the same captures, one a tab, with each window placed where Foundry places a new
+one by `audit/style-harness.html?fit=1` (centred, its top max(0, (vh - h) / 2) - a
+model of Foundry's `_updatePosition`, LIVE-E21-01) and each tab pressed through the
+kit's own `wireKitTabs`: the window, its footer and its buttons, its tab bar inside
+the viewport, one element that scrolls, at 1920x1080, 1366x768, 1280x800 and
+1024x768 (and 390x844 for a player's window) in both themes, with the sheet
+stand-in (`?sheet=1`, the Stop) and the A8 frames of the glass harness. What it is
+not: Foundry's own placement and frame, its stylesheet, a real character sheet
+(Daggerheart's, drawn neither here nor there) or a table's data. A window not on
+the kit's frame reads `outside`, E21's list.
+
 The edges of the Stained Glass controls (E89 C5, the owner's Q-E89-2) are read by
 `node audit/glass-sweep.mjs --edges --chromium <executable>` from the repository root, not
 here: Chromium, not jsdom. It loads `audit/glass-harness.html?gmp=1` (a copy of the GM Panel's

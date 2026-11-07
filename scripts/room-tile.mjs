@@ -68,7 +68,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 import { seatRoomArt } from "./glass.mjs";
 import { tileRow } from "./narrow.mjs";
 import { alreadyOpen } from "./live.mjs";
-import { tile as kitTile } from "./ui-kit.mjs";
+import { DrpgApp, tile as kitTile } from "./ui-kit.mjs";
 import { error, markFired, plural } from "./utils.mjs";
 import { MODULE_ID, ROOM_IMAGE_LIMITS } from "./config.mjs";
 import { phaseLabel } from "./clock.mjs";
@@ -362,7 +362,7 @@ function paintTileRow(view, image) {
  */
 export function roomWindowBody(view) {
     const root = document.createElement("div");
-    root.className = "drpg-room-window-body";
+    root.className = "drpg-room-window-body drpg-kit-content";
     root.append(textNode("h3", "drpg-room-window-name", view?.room ?? ""));
     root.append(textNode("p", "drpg-room-window-prose", view?.description ?? ""));
     return root;
@@ -376,12 +376,18 @@ let RoomWindow = null;
  * It reads `tileView()` on every render, so it always shows this browser's viewer's room now.
  */
 function roomWindowClass() {
-    RoomWindow ??= class extends foundry.applications.api.ApplicationV2 {
+    /* ON THE KIT'S FRAME (E21 C6a, 07.11.2026; the 11.10 amend A8, E44's Open 47). A `DrpgApp`: `drpg-ui` on the root,
+       the window held to the screen, and its one column the region that scrolls (`scrollRegion`, the body itself), so
+       long words still scroll. The look E44 C6 measured in Chromium (04.11.2026) comes with it: the content's padding
+       12 -> 10 px, and under Monokuma Legacy a max-height where it had none. Its width is its own, the narrow
+       `min(480px, screen - 16px)` written when it opens (no stylesheet states it since C6a: narrow.css's rule went). */
+    RoomWindow ??= class extends DrpgApp() {
         static DEFAULT_OPTIONS = {
             id: "drpg-room-window",
             classes: ["drpg-panel", WINDOW_CLASS],
             // Foldable since E44 fix FG2 (the owner's Q-E44-1: no window's collapse blocked; no reason for `false` was written).
-            window: { icon: "fa-solid fa-align-left", resizable: false, minimizable: true }
+            window: { icon: "fa-solid fa-align-left", resizable: false, minimizable: true },
+            scrollRegion: ".drpg-room-window-body"
         };
 
         constructor(options = {}) {

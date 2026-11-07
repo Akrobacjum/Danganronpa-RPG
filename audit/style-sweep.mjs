@@ -10,6 +10,8 @@
  *   node audit/style-sweep.mjs --write    the whole baseline written from this run (a new baseline, read before it is committed)
  *   node audit/style-sweep.mjs --shots <dir>   also a screenshot of every page at each size and theme, into <dir>
  *   node audit/style-sweep.mjs --only rooms-bedrooms   one page (repeatable); the baseline's other pages are not read
+ *   node audit/style-sweep.mjs --fit      THE FIT PASS (E21 C1c), below, instead of the style comparison; with --only
+ *                                         the pages named, with --shots <dir> a screenshot of each at 1366x768
  *
  * WHY. A rule of the window kit can lose to an old rule carrying `!important` while every headless test passes - the
  * dead `.drpg-turning` fix's class of error, and the E44 plan's risk. The cascade test (tests-kit.mjs `styleCascade`)
@@ -34,6 +36,29 @@
  * reading at a theme and size is `pages["<page>|<theme>|<w>x<h>"]` = `{ surface: [index into values, one a prop] }`,
  * only the surfaces found. Written by `--write` or `--accept` from a run, never by hand.
  *
+ * THE FIT PASS (`--fit`; E21 C1c, E21-03: "every window and tab fits on the screen" as a reading, never a headless one -
+ * jsdom lays nothing out). Pages: every window of audit/windows/manifest.json (probe 08's, per tab where a window has
+ * tabs, the player's action windows among them), the kit gallery, the sheet stand-in (`?sheet=1`) and the glass
+ * harness's GM and player pages for the A8 frames (Foundry tools and Map tools opened, `toggleFoundryTools`; "Who you
+ * hear", `drpgVoiceList`). Sizes: FIT_SIZES - the plan's four, 1920x1080, 1366x768, 1280x800 and 1024x768 - for every
+ * page, and 390x844 for every window a player opens and the sheet; both themes. Placement: style-harness.html `?fit=1`
+ * puts each window where Foundry puts a new one (centred, its top max(0, (vh - h) / 2): a model of `_updatePosition`,
+ * LIVE-E21-01), and in each tab state stands it where its first tab put it, then presses the tab through the kit's own
+ * `wireKitTabs`, which repositions it (`drpgFit`). The reading per page, size, theme and state: the window's rectangle
+ * in the viewport, its footer's and each shown button's, its tab bar's; the only element that scrolls is `.drpg-kit-body`
+ * (or none); a page of STILL (Observe at 1366x768 and above: the doneWhen) scrolls nothing at all; on the sheet stand-in
+ * the Stop's rectangle at 1366x768, 1280x800 and 1024x768 (and every size it is read at). A window with no `drpg-ui`
+ * root is not on the kit: it reads `outside`, counted and printed as E21's list, never read as fitting (from E21 C6 on,
+ * `outside` fails: OUTSIDE_FAILS). THE CONTROLS FIRST (the stackShapes lesson), each must read its fault or the run is
+ * red: (a) on the kit gallery's tabbed window at 1366x768, with 2000 px of content planted in its first pane, the frame's
+ * `max-height` taken off by an injected rule - "footer below the screen" (and the same window without the rule reads
+ * fit: the control's own ground); (b) the body's `overflow: visible` - "a second scroller" or "footer out"; (c) the 2000
+ * px planted in its third pane and the tab switched without the kit's code (`drpgFit({ byHand: true })`, the reposition
+ * skipped) - the tallest tab reads "footer out" (and through the kit's code, fit); (d) on the sheet stand-in at
+ * 1366x768, where the Stop stands in view, the Stop's sticky rule taken off (`position: static`, E21 C5a's rule in
+ * danganronpa.css) - "Stop out": its place at the content's foot is below the sheet's box. Exit 1 on any failure; a page
+ * `outside` is not one before C6.
+ *
  * It serves the root itself (`python3 -m http.server` on a free port) or reads `--base http://127.0.0.1:8765`.
  * Playwright finds its Chromium through PLAYWRIGHT_BROWSERS_PATH; `--chromium <executable>` names one. CI installs no
  * browser, so this is run by whoever changes what a surface looks like, and quoted (the E44 stage's rule 3).
@@ -50,11 +75,19 @@ const REPO = path.resolve(HERE, "..");
 const BASELINE = path.join(HERE, "style-baseline.json");
 const SIZES = [[1920, 1080], [1366, 768], [1024, 768], [390, 844]];
 const THEMES = ["glass", "legacy"];
+/* --fit (E21 C1c): the plan's four sizes for every page, and a phone's for every window a player opens and the sheet. */
+const FIT_SIZES = [[1920, 1080], [1366, 768], [1280, 800], [1024, 768]];
+const FIT_PHONE = [390, 844];
+/* Pages that must not scroll at all at 1366x768 and above (the doneWhen: "Observe fits with no scrolling"). */
+const STILL = ["action-observe"];
+/* From E21 C6 on, a page not on the kit fails; before it, it is E21's list (STAGE.md "The measure"). */
+const OUTSIDE_FAILS = false;
 
 const argv = process.argv.slice(2);
 const opt = name => { const at = argv.indexOf(name); return at >= 0 ? argv[at + 1] : null; };
 const many = name => argv.flatMap((a, i) => (a === name ? [argv[i + 1]] : [])).filter(Boolean);
 const WRITE = argv.includes("--write");
+const FIT = argv.includes("--fit");
 const ACCEPT = new Set(many("--accept"));
 const ONLY = new Set(many("--only"));
 const SHOTS = opt("--shots");
@@ -144,6 +177,166 @@ function unpack(base) {
     return out;
 }
 
+/** The fit pass's pages: every captured window (a player's at a phone's size too), the kit gallery, the sheet stand-in, the
+    glass harness's two pages (their A8 frames). */
+function fitPages() {
+    const manifest = JSON.parse(fs.readFileSync(path.join(REPO, "audit", "windows", "manifest.json"), "utf8"));
+    const out = manifest.windows.filter(w => w.captured).map(w => ({
+        id: w.id, phone: w.client !== "gm", url: `/audit/style-harness.html?w=${encodeURIComponent(w.id)}&fit=1${w.client === "gm" ? "" : "&role=player"}`
+    }));
+    out.push({ id: "kit-gallery", phone: false, url: "/audit/style-harness.html?kit=1&fit=1" });
+    out.push({ id: "sheet", phone: true, sheet: true, url: "/audit/style-harness.html?sheet=1&fit=1&role=player" });
+    out.push({ id: "glass-gm", phone: false, a8: true, url: "/audit/glass-harness.html?still=1" });
+    out.push({ id: "glass-player", phone: true, a8: true, url: "/audit/glass-harness.html?role=player&still=1" });
+    return ONLY.size ? out.filter(p => ONLY.has(p.id)) : out;
+}
+
+/* A scroller a gallery card draws on purpose (E22 fix G1, 07.11.2026; STATUS Open 7, the end review's GOAL M2): the kit
+   gallery's "dataTable, more rows than the window" card gives its table box an inline `max-height: 220px; overflow:
+   auto` (style-harness.html), to show on E44's demo page the table's own scroll - the sticky head and the scroll signal
+   (ui-kit.mjs `watchScroll` watches `.drpg-data-table-box`). `dataTable` writes no height, and no rule of the sheets
+   gives the box one (components.css: `position: relative` only), so no window of the module scrolls its table on its
+   own: on that card the box is the demo's, not a second region of a window, and it read "a second scroller" at every
+   desk size. Skipped there only, by the card's id and the box's name; every other window still fails on it. */
+const DEMO_SCROLLERS = { "kit-table-scroll": ["div.drpg-data-table-box"] };
+
+/** What is wrong with one window's state, as words; [] when it fits. */
+function misfits(win, state, still) {
+    const out = [];
+    if (!state.window) out.push("window out");
+    if (state.footer === false) out.push("footer out");
+    if (state.buttonsOut.length) out.push(`button(s) out: ${state.buttonsOut.join(", ")}`);
+    if (state.tabs === false) out.push("tab bar out");
+    const demo = DEMO_SCROLLERS[win?.window] ?? [];
+    const others = state.scrollers.filter(s => s !== "kit-body" && !demo.includes(s));
+    if (others.length) out.push(`a second scroller: ${others.join(", ")}`);
+    if (state.cut) out.push("content cut: the body is taller than its box and nothing scrolls it");
+    if (still && state.scrollers.length) out.push(`scrolls (${state.scrollers.join(", ")}) where it must not`);
+    return out;
+}
+
+/* The A8 frames on the glass harness's pages: Foundry tools and Map tools opened on the GM's (foundry-windows.mjs
+   `toggleFoundryTools`), "Who you hear" on both (`drpgVoiceList`, which answers what it found wrong, `why`). */
+async function readA8(page) {
+    return page.evaluate(async () => {
+        const frame = () => new Promise(r => globalThis.requestAnimationFrame(() => globalThis.requestAnimationFrame(r)));
+        const inView = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.left >= -0.5 && r.top >= -0.5 && r.right <= globalThis.innerWidth + 0.5 && r.bottom <= globalThis.innerHeight + 0.5; };
+        const out = {};
+        const fw = globalThis.__windows;
+        if (fw?.toggleFoundryTools && globalThis.document.getElementById("drpg-win-ftools")) {
+            fw.toggleFoundryTools(true);
+            await frame();
+            await new Promise(r => setTimeout(r, 300));
+            for (const [key, id] of [["foundry-tools", "drpg-win-ftools"], ["map-tools", "drpg-win-maptools"]]) {
+                const el = globalThis.document.getElementById(id);
+                out[key] = el && !el.hidden ? (inView(el) ? [] : ["window out"]) : ["not opened"];
+            }
+            fw.toggleFoundryTools(false);
+            await frame();
+        }
+        if (typeof globalThis.drpgVoiceList === "function") {
+            const v = await globalThis.drpgVoiceList();
+            out["who-you-hear"] = v?.box ? (v.why ?? []) : ["not opened", ...(v?.why ?? [])];
+        }
+        return out;
+    });
+}
+
+async function fitPass(browser) {
+    const problems = [], outside = new Set();
+    let fits = 0, failed = 0;
+    const list = fitPages();
+    if (!list.length) throw new Error("no page to read for --fit");
+    if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
+    /* The controls first, each on a page of its own, loaded clean. */
+    {
+        const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+        const kit = "/audit/style-harness.html?kit=1&fit=1";
+        const tall = async pane => page.evaluate(key => {
+            const win = globalThis.document.querySelector('[data-window="kit-tabs"] > .application');
+            const p = win?.querySelector(`[data-drpg-pane="${key}"]`);
+            if (!p) return false;
+            p.insertAdjacentHTML("beforeend", '<div class="drpg-fit-planted" style="height: 2000px"></div>');
+            return true;
+        }, pane);
+        const tabsState = async (opts, tab) => (await page.evaluate(o => globalThis.drpgFit(o), { ...opts, only: "kit-tabs" }))[0]?.states.find(s => s.tab === tab);
+        const say = (name, ok, what) => { console.log(`style-sweep: --fit control ${name}: ${what}`); if (!ok) problems.push(`control ${name}: ${what}`); };
+        await load(page, kit);
+        if (!(await tall("one"))) problems.push("control: the kit gallery has no tabbed window to plant on");
+        const ground = await tabsState({}, "one");
+        say("ground", ground && !misfits(null, ground, false).length, `2000 px in the first pane, nothing else: ${ground ? misfits(null, ground, false).join("; ") || "fits" : "no reading"}`);
+        await page.addStyleTag({ content: "body .application.drpg-ui.drpg-panel:not(.minimized) { max-height: none !important; }" });
+        const a = await tabsState({}, "one");
+        say("(a) max-height off", a?.footer === false, `reads ${a ? misfits(null, a, false).join("; ") || "fits" : "nothing"}`);
+        await load(page, kit);
+        await tall("one");
+        await page.addStyleTag({ content: ".application.drpg-ui.drpg-panel .drpg-kit-body { overflow: visible !important; }" });
+        const b = await tabsState({}, "one");
+        const bWords = b ? misfits(null, b, false) : [];
+        say("(b) body overflow visible", bWords.some(w => w.startsWith("a second scroller") || w === "footer out" || w.startsWith("content cut")), `reads ${bWords.join("; ") || "fits"}`);
+        await load(page, kit);
+        await tall("three");
+        const cKit = await tabsState({}, "three");
+        say("(c) through the kit", cKit && !misfits(null, cKit, false).length, `the tall third tab pressed through wireKitTabs reads ${cKit ? misfits(null, cKit, false).join("; ") || "fits" : "nothing"}`);
+        await load(page, kit);
+        await tall("three");
+        const c = await tabsState({ byHand: true }, "three");
+        say("(c) reposition skipped", c?.footer === false, `the tall third tab switched by hand reads ${c ? misfits(null, c, false).join("; ") || "fits" : "nothing"}`);
+        await page.setViewportSize({ width: 1366, height: 768 });
+        await load(page, "/audit/style-harness.html?sheet=1&fit=1&role=player");
+        const d0 = (await page.evaluate(() => globalThis.drpgFit()))[0];
+        say("(d) ground", d0?.stop === true, `the Stop on the sheet stand-in at 1366x768 reads ${d0?.stop ? "in view" : "out"}`);
+        // Above the glass's own `position` rule for the Stop (stained-glass.css, 0,4,1 with `!important`).
+        await page.addStyleTag({ content: "html body .application.sheet.actor .drpg-safeword-button.drpg-safeword-button { position: static !important; }" });
+        const d = (await page.evaluate(() => globalThis.drpgFit()))[0];
+        say("(d) Stop's sticky rule off", d?.stop === false, `reads ${d?.stop ? "Stop in view" : "Stop out"}`);
+        await page.close();
+    }
+    const rows = [];
+    for (const theme of THEMES) {
+        for (const [w, h] of [...FIT_SIZES, FIT_PHONE]) {
+            const phone = w === FIT_PHONE[0] && h === FIT_PHONE[1];
+            const page = await browser.newPage({ viewport: { width: w, height: h } });
+            for (const p of list) {
+                if (phone && !p.phone) continue;
+                await load(page, withTheme(p.url, theme));
+                const at = `${p.id} ${w}x${h} ${theme}`;
+                if (p.a8) {
+                    const a8 = await readA8(page);
+                    for (const [frame, words] of Object.entries(a8)) {
+                        rows.push({ at: `${at} ${frame}`, words });
+                        if (words.length) { failed++; problems.push(`${at} ${frame}: ${words.join("; ")}`); } else fits++;
+                    }
+                    continue;
+                }
+                const read = await page.evaluate(() => globalThis.drpgFit());
+                for (const win of read) {
+                    if (p.sheet) {
+                        const words = win.stop ? [] : ["Stop out"];
+                        rows.push({ at, words });
+                        if (words.length) { failed++; problems.push(`${at}: Stop out (the Stop's rectangle is not in the viewport)`); } else fits++;
+                        continue;
+                    }
+                    if (!win.kit) { outside.add(win.window); rows.push({ at: `${at} ${win.window}`, words: ["outside"] }); if (OUTSIDE_FAILS) { failed++; problems.push(`${at}: ${win.window} is not on the kit`); } continue; }
+                    const still = STILL.includes(win.window) && w >= 1366;
+                    for (const state of win.states) {
+                        const words = misfits(win, state, still);
+                        rows.push({ at: `${at} ${win.window}${state.tab ? ` [${state.tab}]` : ""}`, words });
+                        if (words.length) { failed++; problems.push(`${at} ${win.window}${state.tab ? ` [${state.tab}]` : ""}: ${words.join("; ")}`); } else fits++;
+                    }
+                }
+                if (SHOTS && w === 1366 && h === 768) await page.screenshot({ path: path.join(SHOTS, `fit-${p.id}-${theme}-${w}x${h}.png`) });
+            }
+            await page.close();
+            console.log(`style-sweep: --fit ${w}x${h} ${theme}: read`);
+        }
+    }
+    for (const p of problems) console.log(`style-sweep: ${p}`);
+    console.log(`style-sweep: --fit outside the kit (E21's list, ${outside.size}): ${[...outside].sort().join(", ") || "none"}`);
+    console.log(`style-sweep: --fit ${rows.length} reading(s) of ${list.length} page(s); ${fits} fit, ${failed} failed, ${rows.filter(r => r.words[0] === "outside").length} outside; ${problems.length ? "RED" : "green"}`);
+    return problems.length ? 1 : 0;
+}
+
 async function main() {
     let server = null;
     if (!BASE) {
@@ -153,6 +346,10 @@ async function main() {
         for (let i = 0; i < 50; i++) { try { await fetch(`${BASE}/module.json`); break; } catch { await new Promise(r => setTimeout(r, 100)); } }
     }
     const browser = await chromium.launch(CHROMIUM ? { executablePath: CHROMIUM } : {});
+    if (FIT) {
+        try { process.exitCode = await fitPass(browser); } finally { await browser.close(); server?.kill(); }
+        return;
+    }
     const problems = [];
     const readings = {};
     let props = null;

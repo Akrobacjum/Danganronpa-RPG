@@ -25,7 +25,8 @@
 
 import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES, STARTING, ECLIPSE_MOVES, REST } from "./config.mjs";
 import { getClock, campaignName, phaseLabel, timeOfDayLabel } from "./clock.mjs";
-import { dialogContent, error, esc, plural, proseOf } from "./utils.mjs";
+import { error, esc, plural, proseOf } from "./utils.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 import { overflowCrossings } from "./overflow.mjs";
 import { baseActions } from "./actions.mjs";
 import { isMonokuma, viewerNeedsAssigning } from "./monokuma.mjs";
@@ -33,7 +34,6 @@ import { isMonokuma, viewerNeedsAssigning } from "./monokuma.mjs";
 // its static imports do not include this file - api.mjs and module.mjs are its importers.
 import { clockForDisplay, viewerActor } from "./hud.mjs";
 
-const DialogV2 = foundry.applications.api.DialogV2;
 
 const t = (key, data) => data ? game.i18n.format(key, data) : game.i18n.localize(key);
 
@@ -45,12 +45,12 @@ const t = (key, data) => data ? game.i18n.format(key, data) : game.i18n.localize
  * mid-scene without worrying about what pressing something might do.
  */
 function explainer(title, body) {
-    return DialogV2.wait({
-        window: { title },
+    // On the kit's frame (E21 C5a): nothing to answer, so its one word is Close.
+    return drpgWindow({
+        title,
         classes: ["drpg-panel", "drpg-explain"],
-        position: { height: "auto" },
-        content: dialogContent(`<div class="drpg-explain-body">${body}</div>`),
-        buttons: [{ action: "close", label: t("DRPG.Panel.close"), default: true }],
+        body: `<div class="drpg-explain-body">${body}</div>`,
+        footer: { close: "close" },
         rejectClose: false
     });
 }

@@ -19,12 +19,11 @@ import { TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES, CHAPTERS_PER_SEASON } from ".
 import { getClock, setClock } from "./clock.mjs";
 import { resetAllActions } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
-import { dialogContent, error, esc, wholeNumber } from "./utils.mjs";
-import { stepper, stepperId } from "./ui-kit.mjs";
+import { error, esc, wholeNumber } from "./utils.mjs";
+import { stepper, stepperId, drpgWindow } from "./ui-kit.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
 import { trialScene } from "./rooms.mjs";
 
-const DialogV2 = foundry.applications.api.DialogV2;
 
 /**
  * WHETHER AN EDIT CAMPAIGN WRITE IS A CORRECTION OF THE HOUR, NOT THE HOUR PASSING (E11 C6, 1.2.73; audit
@@ -56,16 +55,14 @@ export function correctsTheHour(from, to) {
 /* A question Edit campaign asks before a field that does more than correct (E11 C6). Cancel is the first button
    and the only default, as `confirmNewTrial`'s (trial-floor-ui.mjs): Enter presses the first submit button (E10
    C4's finding), so Enter keeps what the clock holds; the rest of the window is applied either way. `more` is
-   a second paragraph, already localized (E13 C6: where the trial takes the table). */
+   a second paragraph, already localized (E13 C6: where the trial takes the table). On the kit (E21 C2b): the yes is
+   secondary, so the right group is empty and Cancel is the first submit button and the default, as before. */
 async function confirmCorrection(titleKey, textKey, more = "") {
-    const answer = await DialogV2.wait({
-        window: { title: game.i18n.localize(titleKey) },
-        classes: ["drpg-panel", "drpg-narrow"],
-        content: dialogContent(`<p>${game.i18n.localize(textKey)}</p>${more ? `<p>${more}</p>` : ""}`),
-        buttons: [
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true },
-            { action: "ok", label: game.i18n.localize(titleKey) }
-        ],
+    const answer = await drpgWindow({
+        title: game.i18n.localize(titleKey),
+        classes: ["drpg-panel", "drpg-narrow", "drpg-window-correction"],
+        body: `<p>${game.i18n.localize(textKey)}</p>${more ? `<p>${more}</p>` : ""}`,
+        footer: { secondary: [{ action: "ok", label: game.i18n.localize(titleKey) }], close: { role: "cancel", action: "cancel" } },
         rejectClose: false
     });
     return answer === "ok";
@@ -108,10 +105,10 @@ export async function openClockDialog() {
         .join("");
 
     const ids = { day: stepperId(), session: stepperId() };
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Panel.jump"), minimizable: true },
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Panel.jump"),
         classes: ["drpg-panel", "drpg-window-clock"],
-        content: `<form>
+        body: `<form>
                     <label>${game.i18n.localize("DRPG.Clock.campaignName")}
                         <input type="text" name="campaignName"
                                value="${foundry.utils.escapeHTML(clock.campaignName ?? "")}"
@@ -139,11 +136,11 @@ export async function openClockDialog() {
                     </label>
                     <p class="notes">${game.i18n.localize("DRPG.Panel.resetHint")}</p>
                   </form>`,
-        buttons: [
-            {
+        // Apply still to answer: Cancel (E21 rule 3), the answer "cancel" as before.
+        footer: {
+            primary: {
                 action: "ok",
                 label: game.i18n.localize("DRPG.Panel.apply"),
-                default: true,
                 callback: (event, button, dialog) => {
                     const form = dialog.element.querySelector("form");
                     return {
@@ -157,8 +154,8 @@ export async function openClockDialog() {
                     };
                 }
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
+            close: { role: "cancel", action: "cancel" }
+        },
         rejectClose: false
     });
 

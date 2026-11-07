@@ -31,14 +31,13 @@ import { spendAction } from "./actions.mjs";
 import { TRANSFER_REFUSED, ITEM_FLAGS, isStashed } from "./inventory.mjs";
 import { getSetting, SETTINGS } from "./settings.mjs";
 import { roomOfActor, othersInRoom } from "./movement.mjs";
-import { dialogContent, plural, esc, whisperToOwner, whisperToGms, log, error } from "./utils.mjs";
+import { plural, esc, whisperToOwner, whisperToGms, log, error } from "./utils.mjs";
 import { rollTrait, rollInHand, noteRollContext, abort, spentAfterRoll, canAfford } from "./action-pipeline.mjs";
 import { report } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { chooseVariant } from "./action-menus.mjs";
 import { judgedFor } from "./sheet-audit.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
+import { drpgWindow } from "./ui-kit.mjs";
 
 /**
  * A Palm's or a Frisk's roll window, named by the part it throws (E51 C1; the owner's A11 of 13.10: "Palm - Hand, beat
@@ -467,22 +466,23 @@ function describeItem(item) {
 async function chooseStolenItem(victim, pool) {
     const describe = i => esc(describeItem(i));
 
-    const chosen = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Steal.chooseTitle") },
+    // On the kit's frame (E21 C5a).
+    const chosen = await drpgWindow({
+        title: game.i18n.localize("DRPG.Steal.chooseTitle"),
         classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p>${game.i18n.format("DRPG.Steal.chooseIntro", { name: esc(victim.name) })}</p>
             <label>${game.i18n.localize("DRPG.Items.whichItem")}
                 <select name="item">${pool.map(i =>
                     `<option value="${i.id}">${describe(i)}</option>`).join("")}</select></label>
-        </form>`),
-        buttons: [
-            {
-                action: "take", label: game.i18n.localize("DRPG.Vault.take"), default: true,
+        </form>`,
+        footer: {
+            primary: {
+                action: "take", label: game.i18n.localize("DRPG.Vault.take"),
                 callback: (e, b, d) => d.element.querySelector("[name=item]").value
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
 

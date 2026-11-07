@@ -830,8 +830,9 @@ export const DrpgApi = {
     reviveCharacter,
 
     /** The safeword, for anyone: no character, no sheet, no reason asked.
-     *  The same confirmation the sheet's button opens (COMM-11). */
-    safeword: () => import("./safeword.mjs").then(m => m.safewordDialog()),
+     *  The same confirmation the sheet's button opens (COMM-11), with the user's own character for its room
+     *  (`callerStudent`: null for a GM; E22 C5d). */
+    safeword: () => import("./safeword.mjs").then(async m => m.safewordDialog(await m.callerStudent())),
 
     /** The notice history: every card this browser showed this login, to read again (E81 C7).
      *  The same window as the keybinding's; there is no default key. */

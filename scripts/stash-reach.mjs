@@ -29,15 +29,14 @@ import { locateActor, sceneOfActor } from "./movement.mjs";
 // - this is one client-scoped boolean, and the note above the function there
 // explains why it stopped living in mastermind.mjs.
 import { iAmTheMastermind, isDeadForGm, getClock } from "./settings.mjs";
-import { dialogContent, whisperToOwner, whisperToGms, log, error, esc } from "./utils.mjs";
+import { whisperToOwner, whisperToGms, log, error, esc } from "./utils.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
 import { placeScenes } from "./rooms.mjs";
 import {
     VAULT_FLAGS, stashesIn, stashIn, stashRoomsFor, stashRoomOfItem, stashItemsIn, allVaults, foundKey, hasFoundStash,
     stashesFoundBy
 } from "./vault-store.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
 
 /**
  * The stash of my own I am standing in, or `null`.
@@ -317,10 +316,11 @@ export async function rifleStashDialog(actor) {
             `<option value="${entry.owner.id}:${i.id}">${describe(i)}</option>`
         ).join("")}</optgroup>`).join("");
 
-    const picked = await DialogV2.wait({
-        window: { title: game.i18n.format("DRPG.Vault.rifleTitle", { room }) },
+    // On the kit's frame (E21 C5a).
+    const picked = await drpgWindow({
+        title: game.i18n.format("DRPG.Vault.rifleTitle", { room }),
         classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p>${game.i18n.format("DRPG.Vault.rifleIntro", {
                 who: esc(stocked.map(entry => entry.owner.name).join(", ")),
                 room: esc(room)
@@ -328,14 +328,14 @@ export async function rifleStashDialog(actor) {
             <label>${game.i18n.localize("DRPG.Items.whichItem")}
                 <select name="item">${options}</select></label>
             <p class="notes">${game.i18n.localize("DRPG.Vault.rifleNote")}</p>
-        </form>`),
-        buttons: [
-            {
-                action: "take", label: game.i18n.localize("DRPG.Vault.take"), default: true,
+        </form>`,
+        footer: {
+            primary: {
+                action: "take", label: game.i18n.localize("DRPG.Vault.take"),
                 callback: (e, b, d) => d.element.querySelector("[name=item]").value
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
 
@@ -802,12 +802,13 @@ export async function openVaultInspector() {
             ? vaults.map(section(scene)).join("")
             : `<p class="notes">${game.i18n.localize("DRPG.Vault.noStashesOnScene")}</p>`}`).join("");
 
-    return DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Vault.inspectTitle"), minimizable: true },
+    // On the kit's frame (E21 C5a): a read-only window, its one word Close (foldable, as every kit window).
+    return drpgWindow({
+        title: game.i18n.localize("DRPG.Vault.inspectTitle"),
         classes: ["drpg-panel", "drpg-window-stashes"],
-        content: dialogContent(`<div>${sections}
-            <p class="notes">${game.i18n.localize("DRPG.Vault.inspectNote")}</p></div>`),
-        buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true }],
+        body: `<div>${sections}
+            <p class="notes">${game.i18n.localize("DRPG.Vault.inspectNote")}</p></div>`,
+        footer: { close: "close" },
         rejectClose: false
     });
 }

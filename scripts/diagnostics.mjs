@@ -22,7 +22,8 @@ import { studentActors, studentCensus } from "./monokuma.mjs";
 import { listExperiences, needsStartingResources } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
 import { competingModuleWarnings, liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
-import { isPrimaryGm, log, debug, error, esc, gmReport, plural, dialogContent, sessionFailures } from "./utils.mjs";
+import { isPrimaryGm, log, debug, error, esc, gmReport, plural, sessionFailures } from "./utils.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 import { systemWarningSilence, showSystemWarningAgain } from "./requirements.mjs";
 import { gmOnline } from "./bridge-guards.mjs";
 import { rollSubjectNow, gmsInRoomOf, untoldMonokumas, isDrawnRoll } from "./private-rolls.mjs";
@@ -2182,9 +2183,10 @@ export function activeSilences({ system = systemWarningSilence(), showAgain = sh
 /**
  * The report's window: the text, Copy report, and Show again for each silence. Copy and Show again bring the
  * window back, as the debug log's Copy does; it answers the button that closed it. `wait`, `copy`, `notify` and
- * `silences` are handed in by R1550 and R1552.
+ * `silences` are handed in by R1550 and R1552. On the kit since E21 C2b: `wait` is handed drpgWindow's options (`body`,
+ * `footer`), Close the default, Copy report and each Show again secondary.
  */
-export async function openReport(text, { wait = config => foundry.applications.api.DialogV2.wait(config),
+export async function openReport(text, { wait = config => drpgWindow(config),
     copy = value => game.clipboard.copyPlainText(value), notify = message => ui.notifications?.info(message),
     silences = activeSilences() } = {}) {
     const localize = key => game.i18n.localize(key);
@@ -2195,18 +2197,21 @@ export async function openReport(text, { wait = config => foundry.applications.a
                <ul>${left.map(s => `<li><code>${esc(s.id)}</code> ${esc(s.label)}</li>`).join("")}</ul>`
             : "";
         const action = await wait({
-            classes: ["drpg-panel", "drpg-wide", "drpg-window-diagnose"],
-            window: { title: localize("DRPG.Diagnose.title") },
-            content: dialogContent(`<div>
+            classes: ["drpg-panel", "drpg-window-diagnose"],
+            width: "wide",
+            title: localize("DRPG.Diagnose.title"),
+            body: `<div>
                 <p class="notes">${esc(localize("DRPG.Diagnose.intro"))}</p>
                 ${listed}
                 <pre class="drpg-diagnose-report">${esc(text)}</pre>
-            </div>`),
-            buttons: [
-                { action: "close", label: localize("DRPG.Panel.close"), default: true },
-                { action: "copy", label: localize("DRPG.Diagnose.copy") },
-                ...left.map(s => ({ action: `again:${s.id}`, label: localize("DRPG.Diagnose.showAgain") }))
-            ],
+            </div>`,
+            footer: {
+                secondary: [
+                    { action: "copy", label: localize("DRPG.Diagnose.copy") },
+                    ...left.map(s => ({ action: `again:${s.id}`, label: localize("DRPG.Diagnose.showAgain") }))
+                ],
+                close: { role: "close", action: "close" }
+            },
             rejectClose: false
         });
         if (action === "copy") {

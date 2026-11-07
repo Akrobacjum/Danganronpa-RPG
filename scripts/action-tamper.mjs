@@ -73,8 +73,12 @@ async function chooseTamper(actor, def, { erasable, mine, candidates, stageSix, 
             // question - which of your traces are you standing over - and a
             // different answer to it. Struck through for the same reason too:
             // there is nothing to relabel if there is nothing here of yours.
+            // Red (E22 C5c; A4, audit S02-25): since N-3 a reshape is a GM's to
+            // approve (cleanup.mjs `proposeReshape`), and its hint says so and
+            // that a refusal gives nothing back. The tile is not red - the other
+            // rows resolve by themselves (Q-E21-1 (a)).
             {
-                value: "reshape", icon: "fa-pen-nib",
+                value: "reshape", icon: "fa-pen-nib", gmRoute: true,
                 label: game.i18n.localize("DRPG.Cleanup.transformAction"),
                 hint: game.i18n.localize("DRPG.Cleanup.transformActionHint"),
                 disabled: !erasable.length,

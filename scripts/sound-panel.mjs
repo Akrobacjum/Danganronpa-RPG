@@ -27,7 +27,7 @@
 import { SITUATIONAL_PLAYLIST } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { error } from "./utils.mjs";
-import { emptyOption } from "./ui-kit.mjs";
+import { emptyOption, box } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { MUSIC_STATES, musicMap, isCuePlaylist, saveMusicKey } from "./music-states.mjs";
 import { situationalPlaylist, playTrack, resetMusic } from "./music-play.mjs";
@@ -50,19 +50,21 @@ import { situationalPlaylist, playTrack, resetMusic } from "./music-play.mjs";
  * second, player-shaped window: two windows about the same two sliders is
  * how the two drift apart.
  */
-async function openPlayerSoundDialog({ tableDialog, dialogContent, soundSlidersHtml, wireSoundPanel }) {
-    await tableDialog({
-        window: { title: game.i18n.localize("DRPG.Sound.title") },
+async function openPlayerSoundDialog({ drpgWindow, soundSlidersHtml, wireSoundPanel }) {
+    await drpgWindow({
+        title: game.i18n.localize("DRPG.Sound.title"),
         classes: ["drpg-panel", "drpg-projects", "drpg-sound", "drpg-sound-player", "drpg-window-sound"],
         // NARROW, AND SAID HERE RATHER THAN LEFT TO THE FIT.
-        // `tableDialog` marks every window it makes as a table window,
-        // which is what exempts it from the module's one-width rule so a
-        // measured fit can win. This window has no table to measure, so
-        // the exemption left it with nothing at all and it opened the full
+        // `fit` exempts the window from the module's one-width rule so a
+        // measured fit can win (`tableDialog` did for every window it made,
+        // until E21 C2a). This window has no table to measure, so the
+        // exemption left it with nothing at all and it opened the full
         // width of the screen. Two sliders need about a third of that.
+        fit: true,
         position: { width: 460 },
-        content: dialogContent(`<form>${soundSlidersHtml()}</form>`),
-        buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close") }],
+        body: `<form>${soundSlidersHtml()}</form>`,
+        // The sliders save as they move: Close (E21 rule 3).
+        footer: { close: { role: "close", action: "close" } },
         render: (event, dialog) => wireSoundPanel(dialog.element),
         rejectClose: false
     });
@@ -146,8 +148,9 @@ function soundPlayPane() {
                     // So the module spells it. The button exists only while the
                     // playlist is missing, and it disappears the moment there is
                     // one - which the rebuild on `createPlaylist` now does by itself.
-                    : `<p class="notes drpg-warning" data-drpg-no-cue>${game.i18n.format(
-                        "DRPG.Music.noSituational", { name: SITUATIONAL_PLAYLIST })}</p>
+                    // Information, not a warning (D11; audit S12-59, E22 C6b): the kit's neutral box.
+                    : `${box("info", `<p class="notes" data-drpg-no-cue>${game.i18n.format(
+                        "DRPG.Music.noSituational", { name: SITUATIONAL_PLAYLIST })}</p>`)}
                     <button type="button" class="drpg-mini-button" data-drpg-make-cue>${
                         game.i18n.format("DRPG.Music.makeSituational",
                             { name: SITUATIONAL_PLAYLIST })}</button>`}
@@ -159,12 +162,14 @@ function soundPlayPane() {
             </fieldset>`;
 }
 
-/** The mapping tab: the intro, the warnings, and the state-to-playlist table. */
+/** The mapping tab: the intro, the notes, and the state-to-playlist table. A world with no playlists is told so in
+ *  the kit's information box (E22 fix G1; the end review's SCREENS m2): it was a warning's red bar, and nothing is
+ *  wrong - there is only nothing to map yet (D11, E22-07). */
 function soundPlaylistsPane(playlists, rows) {
     return `
             <p>${game.i18n.localize("DRPG.Music.intro")}</p>
-            ${playlists.length ? "" : `<p class="notes drpg-warning">${
-                game.i18n.localize("DRPG.Music.noPlaylists")}</p>`}
+            ${playlists.length ? "" : box("info", `<p class="notes">${
+                game.i18n.localize("DRPG.Music.noPlaylists")}</p>`)}
             <p class="notes">${game.i18n.localize("DRPG.Music.orderNote")}</p>
             <p class="notes">${game.i18n.localize("DRPG.Music.trialNote")}</p>
             <p class="notes">${game.i18n.localize("DRPG.Music.incidentNote")}</p>
@@ -271,16 +276,19 @@ function wireSoundPlay(root) {
 }
 
 /** Every tab acts or saves at once and the window stays open: one Close, and no Apply anywhere. */
-function wireSoundDialog(root, { wireKitTabs, wireSoundPanel }) {
+function wireSoundDialog(root, { wireKitTabs, wireSoundPanel, dialog = null }) {
     /*
      * NO APPLY (E50 C3; D45 option 1). The Music tab was the one thing in this window that waited for a button,
      * beside a Play tab that acts where it is and an Effects tab that saves as it is touched - one window, two ways
      * of saving, and a GM who changed a mapping and pressed Close lost it. The mapping saves as it is changed now
      * (`saveMusicKey`), so every tab has the same footer: Close.
      */
+    // `win` and `app` (E21 C2a): the bar may widen the window, and a press puts it back on the screen (C1b).
     wireKitTabs(root, {
         buttons: { play: [], music: [], effects: [] },
-        always: ["close"]
+        always: ["close"],
+        win: dialog ? root : null,
+        app: dialog
     });
     wireSoundPanel(root);
     wireSoundPlay(root);
@@ -295,12 +303,11 @@ export async function openSoundDialog() {
     // twice usually means the window is behind something.
     if (alreadyOpen("drpg-window-sound")) return RAISED;
 
-    const { dialogContent, tableDialog } = await import("./utils.mjs");
-    const { kitTabs, wireKitTabs } = await import("./ui-kit.mjs");
+    const { kitTabs, wireKitTabs, drpgWindow } = await import("./ui-kit.mjs");
     const { soundSlidersHtml, soundEffectsHtml, wireSoundPanel } = await import("./sfx.mjs");
 
     if (!game.user.isGM) {
-        await openPlayerSoundDialog({ tableDialog, dialogContent, soundSlidersHtml, wireSoundPanel });
+        await openPlayerSoundDialog({ drpgWindow, soundSlidersHtml, wireSoundPanel });
         return null;
     }
 
@@ -326,18 +333,21 @@ export async function openSoundDialog() {
     // The mapping's warning counts what it can offer, which is never the cue playlist.
     const playlistsPane = soundPlaylistsPane(playlists.filter(p => !isCuePlaylist(p)), rows);
 
-    await tableDialog({
-        window: { title: game.i18n.localize("DRPG.Sound.title") },
-        classes: ["drpg-panel", "drpg-projects", "drpg-wide", "drpg-sound", "drpg-window-sound"],
-        // The tabs measure to one size rather than the window jumping between
+    await drpgWindow({
+        title: game.i18n.localize("DRPG.Sound.title"),
+        classes: ["drpg-panel", "drpg-projects", "drpg-sound", "drpg-window-sound"],
+        // The width it opens at, which the table's measure (`fit`) then decides (ui-kit.mjs WINDOW_WIDTHS; E21 W1).
+        width: "wide",
+        // The tabs measure to one width rather than the window jumping between
         // a two-line Play pane and a thirty-five-row table - trap 29. It works
         // on the kit's panes (`kitTabs`, E44 C4a; `panelTabs` markup from E3);
-        // before E3 it silently measured only the visible tab.
-        fitTabs: true,
+        // before E3 it silently measured only the visible tab. The kit's
+        // `fitKitWidth` since E21 C2a (`tableDialog`'s `fitTabs` before).
+        fit: true,
         // ABOVE THE TABS, NOT INSIDE ONE. The sliders are not about music or
         // about effects, they are about this browser - and putting them in a
         // tab would leave a player looking at a tab bar with one tab in it.
-        content: dialogContent(`<form>
+        body: `<form>
             ${document.body.classList.contains("drpg-theme-stained-glass") ? "" : soundSlidersHtml()}
             ${kitTabs([
                 { key: "play", label: game.i18n.localize("DRPG.Sound.tabPlay"), html: soundPlayPane() },
@@ -345,13 +355,14 @@ export async function openSoundDialog() {
                 { key: "effects", label: game.i18n.localize("DRPG.Sound.tabEffects"),
                   html: soundEffectsHtml() }
             ])}
-        </form>`),
-        buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true }],
+        </form>`,
+        // D45's one Close: every tab acts or saves as it is touched (E21-16).
+        footer: { close: { role: "close", action: "close" } },
         // Every control acts at once and the window stays open, like the Monocub
         // manager's "give Hope": a GM putting a track under a moment at the
         // table is not filling in a form.
         render: (event, dialog) => {
-            wireSoundDialog(dialog.element, { wireKitTabs, wireSoundPanel });
+            wireSoundDialog(dialog.element, { wireKitTabs, wireSoundPanel, dialog });
             /*
              * WHAT WAKES IT: THE PLAYLIST HOOKS (F17).
              *

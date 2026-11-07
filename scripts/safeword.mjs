@@ -50,8 +50,7 @@ import { SETTINGS, DEFAULT_SAFEWORD, getSetting } from "./settings.mjs";
 import { announce, gmIds, activeGmIds, isPrimaryGm, log, error } from "./utils.mjs";
 import { senderOf } from "./bridge-guards.mjs";
 import { showPopup } from "./popup.mjs";
-
-const { DialogV2 } = foundry.applications.api;
+import { drpgWindow } from "./ui-kit.mjs";
 
 /** Marks the announcement, so the pause and the card key off one message. */
 export const SAFEWORD_FLAG = "safeword";
@@ -363,15 +362,44 @@ export async function hearSafeword(payload, senderId) {
     }
 }
 
+/**
+ * The student whose room a press from the keybinding or `game.drpg.safeword()` reports: the user's own character
+ * (monokuma.mjs `ownStudent`), and nobody for a GM - a GM owns every student, and the one a world with a single
+ * student would hand back is not where the GM stands - nor for a spectator, a Monokuma or a player with two and none
+ * assigned (`ownStudent`'s null). The sheet's Stop hands the sheet's own character instead.
+ *
+ * WHY (E22 C5d, 07.11.2026; audit S03-16). Both doors opened the confirmation with no actor, so a player's packet
+ * carried no room on two of its three roads and the GMs' card said "room unknown" (`showGmDetail`). The packet keeps
+ * its one field; only what fills it changes. Looked up lazily, like the room itself: a room is a nicety, and a lookup
+ * that fails gives null and never stops the safeword. Exported for the suite (R1369).
+ */
+export async function callerStudent() {
+    if (game.user?.isGM) return null;
+    try {
+        const { ownStudent } = await import("./monokuma.mjs");
+        return ownStudent();
+    } catch {
+        return null;
+    }
+}
+
 /** The confirmation. One question, no reason asked. */
 export async function safewordDialog(actor = null) {
-    const confirmed = await DialogV2.confirm({
-        window: { title: game.i18n.localize("DRPG.Safeword.title") },
+    /* On the kit's frame (E21 C5a), answering as the DialogV2.confirm it was: true for Stop it, false for Cancel, null
+       for a closed window.
+       STOP IT IS THE DEFAULT (E22 C5d, 07.11.2026; E22-06, audit S03-16). It kept confirm's default, Cancel, so Enter
+       withdrew the one press the handbook promises stops the scene. Stop it is the default and on the GM's road (the
+       press goes to the GMs, who stop the table: red, D11), first in the tree, so Enter presses it; Cancel is plain. */
+    const confirmed = await drpgWindow({
+        title: game.i18n.localize("DRPG.Safeword.title"),
         classes: ["drpg-panel", "drpg-safeword-dialog"],
-        content: `<p><strong>${game.i18n.localize("DRPG.Safeword.confirm")}</strong></p>
+        body: `<p><strong>${game.i18n.localize("DRPG.Safeword.confirm")}</strong></p>
                   <p>${game.i18n.localize("DRPG.Safeword.confirmNote")}</p>`,
-        yes: { label: game.i18n.localize("DRPG.Safeword.stopIt") },
-        no: { label: game.i18n.localize("DRPG.Advance.cancel") },
+        footer: {
+            gmRoute: [{ action: "yes", label: game.i18n.localize("DRPG.Safeword.stopIt"), callback: () => true }],
+            close: { role: "cancel", action: "no", callback: () => false },
+            default: "yes"
+        },
         rejectClose: false,
         modal: true
     });
@@ -395,13 +423,14 @@ export function registerSafeword() {
        character sheet, and the promise is "anyone may: player, GM, dead,
        Monocub, spectator". A keybinding (unbound until the table picks one, in
        Foundry's Controls) and `game.drpg.safeword()` need no character and no
-       open window. */
+       open window. Each hands the confirmation the user's own character (`callerStudent`, E22 C5d), so the
+       GMs' card names a room as it does from the sheet. */
     try {
         game.keybindings.register(MODULE_ID, "safeword", {
             name: "DRPG.Safeword.keybinding",
             hint: "DRPG.Safeword.tooltip",
             editable: [],
-            onDown: () => { safewordDialog(); return true; },
+            onDown: () => { callerStudent().then(actor => safewordDialog(actor)); return true; },
             restricted: false,
             precedence: CONST.KEYBINDING_PRECEDENCE?.PRIORITY ?? 0
         });

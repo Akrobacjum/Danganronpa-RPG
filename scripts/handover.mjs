@@ -23,10 +23,10 @@
 import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG } from "./config.mjs";
 import { capacityLabel, isStashed, transferItem, transferRefusal } from "./inventory.mjs";
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet, bulletAsHeld, unanalysedType } from "./truth-bullets.mjs";
-import { dialogContent, whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion, plural, serialWrite } from "./utils.mjs";
+import { whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion, plural, serialWrite } from "./utils.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 import { answerKeysRefusal, lootTraceStore, deathStore } from "./gm-stores.mjs";
 
-const DialogV2 = foundry.applications.api.DialogV2;
 
 /* ==========================================================================
  * PLAYER SIDE - WHO IS STANDING HERE
@@ -66,24 +66,19 @@ export async function askWhoIsHere(actor, { title, intro, note, okLabel, listBox
         .map((a, i) => `<option value="${a.id}"${i ? "" : " selected"}>${foundry.utils.escapeHTML(a.name)}</option>`).join("");
     const size = listBox ? ` size="${Math.min(Math.max(here.length, 2), 6)}"` : "";
 
-    const picked = await DialogV2.wait({
-        window: { title },
-        classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+    const picked = await drpgWindow({
+        title,
+        classes: ["drpg-panel", "drpg-window-handover"],
+        body: `<form>
             <p>${intro(foundry.utils.escapeHTML(room))}</p>
             <label>${game.i18n.localize("DRPG.Handover.who")}
                 <select name="target"${size}>${options}</select></label>
             <p class="notes">${note}</p>
-        </form>`),
-        buttons: [
-            {
-                action: "ok",
-                label: okLabel,
-                default: true,
-                callback: (e, b, d) => d.element.querySelector("[name=target]").value
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+        </form>`,
+        footer: {
+            primary: { action: "ok", label: okLabel, callback: (e, b, d) => d.element.querySelector("[name=target]").value },
+            close: { role: "cancel", action: "cancel" }
+        },
         rejectClose: false
     });
 
@@ -299,7 +294,7 @@ export async function mintCopy(from, to, item, { analysis = true, quiet = false 
        `observeFindKey` (`mintFindCopy`), as Monokuma's Reveal does (trial-modes.mjs `revealInStep`), and so does
        this now: the second reads the first's copy. Tier 0 R1289 holds every such bullet to the queue - on one GM's
        browser: the queue is that browser's memory (a hand-over and a Present run on the primary; a GM's Give on another
-       GM's browser races it still, E38's, row 1.2.126; E60's fix round, FG6). */
+       GM's browser races it still, E38's, row 1.2.128; E60's fix round, FG6). */
     const { copiedRemnants } = await import("./truth-bullets.mjs");
     const { observeFindKey } = await import("./observe.mjs");
     const copy = await serialWrite(observeFindKey(to.id), () => secret.remnantId && copiedRemnants(to).has(secret.remnantId) ? HELD_COPY : createTruthBullet(to, {

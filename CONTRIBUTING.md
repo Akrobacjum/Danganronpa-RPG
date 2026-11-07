@@ -97,6 +97,19 @@ What every change to `styles/` keeps:
   Legacy it is 10 px per rung (the `--font-size-*` rungs and `--drpg-text-xs`).
 - **AA contrast in both themes.** Small text 4.5:1, large text 3:1, for every pair of `tools/contrast-pairs.json`;
   a pair below it is written there with its ratio as `known`, never raised to pass.
+- **A button's colour is its role's** (E22, D11; `scripts/ui-kit.mjs` `BUTTON_ROLES`, components.css's role rules,
+  which set the `--drpg-kit-face-*` tokens the old sheets' footer rules read). Red means one of two things and
+  nothing else: for a player the road through the GM, with a sentence about the GM beside it (R121); for a GM an
+  action that cannot be undone, which is never the default under Enter. A warning stays red; information is the
+  kit's `box("info")`, neutral. R1373 reads the rule in both themes.
+
+  | Role | Class | Face | Default under Enter |
+  | --- | --- | --- | --- |
+  | primary | `drpg-role-primary` | Bone with the stronger Bone edge (Legacy); the glass's Bone brush | yes |
+  | gmRoute | `drpg-role-gm-route` + `drpg-gm-route` | the GM's red, one token (`--drpg-kit-role-gm-route`) | may be |
+  | close, cancel | `drpg-role-close`, `drpg-role-cancel` | the Bone wash; the role's own word | may be |
+  | secondary | `drpg-role-secondary` | the Bone wash | never |
+  | destructive | `drpg-role-destructive` + `drpg-destructive` | crimson under the raster (Legacy); the GM red under the raster (glass) | never |
 
 What the lint counts, per sheet (`scripts/tests-css.mjs`, read by the suite too):
 

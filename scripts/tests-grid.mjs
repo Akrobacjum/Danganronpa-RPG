@@ -73,7 +73,7 @@ import { MODULE_ID, KEY_REMNANTS, CRISIS_ACTIONS, TRAITS, HOPE_CALLS } from "./c
 import { SETTINGS, incidentCast } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { ownerOf } from "./utils.mjs";
-import { ok, must, needs, world, wait, until, settle, stableJson } from "./tests-kit.mjs";
+import { ok, must, needs, world, wait, until, settle, stableJson, kitQuestion } from "./tests-kit.mjs";
 
 /* ==========================================================================
  * THE TABLES (the plan's 2.1), written from the handbooks, not imported
@@ -1491,6 +1491,9 @@ async function answerDialogs(run, fn) {
         return false;
     };
     D.wait = async cfg => {
+        // The case's yes-or-no questions are the kit's since E21 C3a, asked through `wait`: answered as the confirm above.
+        const question = kitQuestion(cfg);
+        if (question) return D.confirm(question);
         const title = cfg?.window?.title ?? "";
         if (title === t("DRPG.Murder.afterTitle")) return run.checklist ?? "close";
         if (title === t("DRPG.Murder.betrayalTitle")) return "SUITE grid betrayal declared in the dark";

@@ -10,7 +10,13 @@
  * the owner approved on the kit card (DR-E44-M1, M15, 04.11.2026): today's look of each component's nearest part,
  * equal tab widths fitted to one line, and I1's fine print.
  *
- *   drpgWindow({ id, classes, title, body, tabs, footer, live, render, modal })   a DialogV2 on the kit's frame
+ *   drpgWindow({ id, classes, title, body, tabs, footer, live, render, modal, fit, width })   a DialogV2 on the kit's frame
+ *   fitKitWidth(app)              a `fit` window as wide as its widest table (E21 C2a: tableDialog's measure, moved)
+ *   WINDOW_WIDTHS, kitWidth(spec) the widths a window states by name (`width`), and the inline width one comes to
+ *                                 (E21 W1: the `drpg-wide`, item tables' and GM panel's width rules, moved)
+ *   drpgConfirm({ title, body, yes, no }), drpgPrompt({ title, body, ok })   a question on it (E21 C1b), answering as
+ *                                 DialogV2.confirm and .prompt do
+ *   keepInScreen(el)              the top clamp a tab press asks for on a page with no application (E21 C1b)
  *   DrpgApp()                     the ApplicationV2 class with the same frame (made on first use: tier 0 imports
  *                                 this file without Foundry, as room-tile.mjs's class is made)
  *   kitTabs, kitTabBar, wireKitTabs, shownTab, formGrid, dataTable, helpText, stepper, stepperId, stepLabels,
@@ -46,7 +52,7 @@
  * the seven bare "-" options its `emptyOption` (R1127, R1329); the rest of the kit waits for E21.
  */
 
-import { esc, error, wholeNumber, dialogContent, eachPane, markLanguage } from "./utils.mjs";
+import { esc, error, wholeNumber, dialogContent, eachPane, markLanguage, windowWidthFor, GM_ROUTE_CLASS } from "./utils.mjs";
 import { keepLive } from "./live.mjs";
 
 /* ---- the button roles -------------------------------------------------------------------------------------------- */
@@ -60,7 +66,7 @@ import { keepLive } from "./live.mjs";
  */
 export const BUTTON_ROLES = Object.freeze({
     primary: Object.freeze({ cls: "drpg-role-primary", face: null, side: "right", rank: 2, mayDefault: true, token: "--drpg-kit-role-primary", word: null }),
-    gmRoute: Object.freeze({ cls: "drpg-role-gm-route", face: "drpg-gm-route", side: "right", rank: 1, mayDefault: true, token: "--drpg-kit-role-gm-route", word: null }),
+    gmRoute: Object.freeze({ cls: "drpg-role-gm-route", face: GM_ROUTE_CLASS, side: "right", rank: 1, mayDefault: true, token: "--drpg-kit-role-gm-route", word: null }),
     close: Object.freeze({ cls: "drpg-role-close", face: null, side: "left", rank: 0, mayDefault: true, token: "--drpg-kit-role-close", word: "DRPG.Kit.close" }),
     cancel: Object.freeze({ cls: "drpg-role-cancel", face: null, side: "left", rank: 0, mayDefault: true, token: "--drpg-kit-role-cancel", word: "DRPG.Kit.cancel" }),
     secondary: Object.freeze({ cls: "drpg-role-secondary", face: null, side: "left", rank: 1, mayDefault: false, token: "--drpg-kit-role-secondary", word: null }),
@@ -70,13 +76,22 @@ export const BUTTON_ROLES = Object.freeze({
 const localize = key => game.i18n.localize(key);
 
 /**
- * A footer's buttons in the kit's order, each `{ role, side, action, label, callback, icon, disabled, default }`, from
+ * A footer's buttons in the kit's order, each `{ role, side, action, label, callback, icon, disabled, default, class }`, from
  * `{ primary, secondary: [], destructive: [], gmRoute: [], close, default }`. `close` is "close", "cancel", or
  * `{ role: "close" | "cancel", action, callback, side }`; its label is the role's word whatever the caller wrote, and
  * `side: "right"` stands it on the right in a footer with no primary and no GM's road (the header). The tree
  * order is the right side (primary first, then the GM's road), then the left side (the closing word, the secondary
  * ones, the destructive ones) - see the header. `default` names the action that is the window's default; without one,
- * the primary, else the GM's road, else the closing word. Throws when the default is a role that may never be one.
+ * the primary, else the GM's road, else the closing word. Throws when the default is a role that may never be one. A
+ * button's own `class` is written beside its role's (E21 C2a: the case dashboard's "A body is discovered" keeps
+ * `drpg-state-change`, the face E09 C16 gave it); the role's classes are always there.
+ * A CLOSING WORD WHOSE ACTION IS "close" CARRIES NO CALLBACK (E21 fix G2, 07.11.2026; the end review's correctness m2,
+ * STATUS Open 41). The action defaults to the role ("close" for `close: "close"`), and ApplicationV2 dispatches
+ * `data-action="close"` to its own close before DialogV2 sees the press (trial-floor-ui.mjs `openVoteDialog`'s note,
+ * measured 11.09): Foundry closes the window, the callback never runs and the wait answers null. The harness's
+ * DialogV2 does not model that dispatch, so a callback there passes every test and fails at a table - footerButtons
+ * throws instead. A closing word that must answer something names another action (`{ role: "cancel", action: "no",
+ * callback }`); LIVE-E21-06 is what v14 answers.
  */
 export function footerButtons(footer = {}) {
     const one = (role, b) => (b ? [{ ...b, role }] : []);
@@ -86,6 +101,7 @@ export function footerButtons(footer = {}) {
         const spec = typeof footer.close === "string" ? { role: footer.close } : footer.close;
         const role = spec.role === "cancel" ? "cancel" : "close";
         closing = [{ callback: spec.callback, icon: spec.icon, action: spec.action ?? role, role, label: localize(BUTTON_ROLES[role].word), side: spec.side === "right" ? "right" : "left" }];
+        if (closing[0].action === "close" && closing[0].callback) throw new Error("ui-kit: a closing word with the action \"close\" carries no callback - Foundry closes the window on \"close\" before DialogV2 runs it (name another action)");
     }
     const answers = [...one("primary", footer.primary), ...many("gmRoute", footer.gmRoute)];
     const closeRight = closing[0]?.side === "right";
@@ -105,7 +121,7 @@ export function footerButtons(footer = {}) {
 function dialogButtons(list) {
     return list.map(b => {
         const role = BUTTON_ROLES[b.role];
-        const out = { action: b.action, label: b.label, default: b.default, class: [role.cls, role.face].filter(Boolean).join(" ") };
+        const out = { action: b.action, label: b.label, default: b.default, class: [role.cls, role.face, b.class].filter(Boolean).join(" ") };
         if (b.callback) out.callback = b.callback;
         if (b.icon) out.icon = b.icon;
         if (b.disabled) out.disabled = true;
@@ -121,7 +137,7 @@ export function footerMarkup(footer = {}) {
     const list = footerButtons(footer);
     const button = b => {
         const role = BUTTON_ROLES[b.role];
-        const classes = [role.cls, role.face, b.default ? "default" : null].filter(Boolean).join(" ");
+        const classes = [role.cls, role.face, b.class, b.default ? "default" : null].filter(Boolean).join(" ");
         return `<button type="${b.type ?? "button"}" data-action="${esc(b.action)}" data-drpg-role="${b.role}" class="${classes}"`
             + `${b.default ? " autofocus" : ""}${b.disabled ? " disabled" : ""}>${b.icon ? `<i class="${esc(b.icon)}" inert></i>` : ""}<span>${esc(b.label)}</span></button>`;
     };
@@ -151,6 +167,7 @@ function dressFooter(root, list) {
         el.dataset.drpgRole = b.role;
         el.classList.add(role.cls);
         if (role.face) el.classList.add(role.face);
+        for (const own of String(b.class ?? "").split(/\s+/).filter(Boolean)) el.classList.add(own);
         el.classList.toggle("default", b.default);
         if (b.default) el.setAttribute("autofocus", ""); else el.removeAttribute("autofocus");
         (b.side === "right" ? right : left).append(el);
@@ -221,8 +238,16 @@ export function shownTab(root) {
  * `autofocus`: on a kit footer the primary, else the first that may be a default (BUTTON_ROLES); on a footer with no
  * roles (every window E22 has not given them) the first shown, the one a person would have pressed - and there the
  * buttons' own classes are left as Foundry drew them.
+ *
+ * A PRESS PUTS THE WINDOW BACK ON THE SCREEN (E21 C1b; S01-07, S05-11: a tabbed window grew down off the screen and hid
+ * its footer, because Foundry clamps a window's top only when its position is set, `_updatePosition`, and nothing set it
+ * after a press). With `win` (the window's element) a press - once the pane is shown, the footer moved and `onSwitch`
+ * run - asks `app.setPosition({ height: "auto" })`: Foundry measures the new height and clamps the top. Never a number:
+ * a height the window does not show would pin its top (R12's risk). With `win` and no application (the style harness's
+ * pages) it clamps the top itself, `keepInScreen` - a model of Foundry's clamp, not Foundry's (LIVE-E21-01 reads that).
+ * Once per press; the first tab shown on the first draw asks nothing (Foundry places a new window itself).
  */
-export function wireKitTabs(root, { buttons = null, always = [], onSwitch = null, fit = true, win = null } = {}) {
+export function wireKitTabs(root, { buttons = null, always = [], onSwitch = null, fit = true, win = null, app = null } = {}) {
     const nav = root?.querySelector?.("nav.drpg-tabs");
     if (!nav || nav.dataset.drpgKitWired) return null;
     nav.dataset.drpgKitWired = "1";
@@ -253,17 +278,39 @@ export function wireKitTabs(root, { buttons = null, always = [], onSwitch = null
         for (const p of panes()) p.hidden = p.dataset.drpgPane !== key;
         footerFor(key);
     };
+    const reposition = () => {
+        if (!win) return;
+        if (typeof app?.setPosition !== "function") { keepInScreen(win); return; }
+        try { app.setPosition({ height: "auto" }); } catch (err) { error("A kit window could not be put back on the screen after a tab press", err); }
+    };
     for (const t of tabs) {
         t.addEventListener("click", () => {
             const key = t.dataset.drpgTabKey;
             show(key);
             try { onSwitch?.(key); } catch (err) { error("A kit tab's onSwitch failed", err); }
+            reposition();
         });
     }
     const first = tabs.find(t => t.getAttribute("aria-selected") === "true") ?? tabs[0];
     if (first) show(first.dataset.drpgTabKey);
     if (fit) fitWhenLaidOut(nav, win);
     return { show, nav };
+}
+
+/**
+ * A window's top held on the screen, 8 px from each edge where it fits: top = max(8, min(top, innerHeight - height - 8)),
+ * read from its inline `top` (else its rectangle) and its height as laid out. For a page with no application to ask
+ * (the style harness's placement, the fit sweep); a window of Foundry's is asked through its `setPosition` instead.
+ * Answers the top it wrote, or null where there is no element.
+ */
+export function keepInScreen(el) {
+    if (typeof el?.getBoundingClientRect !== "function") return null;
+    const rect = el.getBoundingClientRect();
+    const stated = parseFloat(el.style?.top);
+    const top = Number.isFinite(stated) ? stated : rect.top;
+    const next = Math.max(8, Math.min(top, innerHeight - rect.height - 8));
+    el.style.top = `${next}px`;
+    return next;
 }
 
 /**
@@ -297,7 +344,11 @@ export { eachPane };
    under Stained Glass, which is higher); there the letter-spacing down to 0; then the padding down to 4 px; then the
    window up to a quarter wider (never past the screen less 16 px); only then rows, as few as fit. What it took is
    written on the bar (`data-drpg-tab-fit`) and in three custom properties the bar's rule reads. On a page with no
-   layout (jsdom) the bar measures 0 and nothing is set. */
+   layout (jsdom) the bar measures 0 and nothing is set. The quarter is of the window's width before its first growth
+   (E21 C1b, q-grow; E44's Open 25): the fit runs twice on a first draw and again when a window is redrawn, and each
+   run measured the quarter from the width it found, so a grown window could grow again by a quarter of the grown
+   width. The first width is written on the window (`data-drpg-tab-w0`) when it first grows, and every later growth is
+   held to it. */
 const TAB_FLOOR = 11;
 const GROWTH = 0.25;
 
@@ -347,12 +398,14 @@ export function fitKitTabs(nav, { win = null } = {}) {
     };
     const grow = (cols, tries) => {
         if (!win) return null;
-        const maxW = innerWidth - 16, w0 = win.getBoundingClientRect().width;
+        const maxW = innerWidth - 16, now = win.getBoundingClientRect().width;
+        const w0 = Number(win.dataset.drpgTabW0) || now;
         for (const [size, ls, pad] of tries) {
             const need = tabNeed(nav, btns, cols, size, ls, pad);
-            if (w0 + (need - room) <= maxW && need - room <= w0 * GROWTH) {
-                const by = Math.ceil(need - room) + 1;
-                win.style.width = `${Math.ceil(w0 + by)}px`;
+            const by = Math.ceil(need - room) + 1;
+            if (now + by <= maxW && now + by - w0 <= w0 * GROWTH) {
+                if (!win.dataset.drpgTabW0) win.dataset.drpgTabW0 = String(now);
+                win.style.width = `${Math.ceil(now + by)}px`;
                 return { size, ls, pad, grew: by };
             }
         }
@@ -810,20 +863,25 @@ export const KIT_CLASSES = Object.freeze(["drpg-ui", "drpg-panel"]);
  * bar and the footer do not. `body` is markup; `tabs` is `{ sections, active, buttons, always, onSwitch }` (kitTabs
  * and wireKitTabs), drawn above the body that scrolls; `footer` is `footerButtons`'s; `live` is keepLive's options,
  * started on the first render; `render(event, dialog)` runs after the kit has dressed the window. Every other option
- * goes to DialogV2 as given (`position`, `window`, `form`, `submit`, `close`, `rejectClose`).
+ * goes to DialogV2 as given (`position`, `window`, `form`, `submit`, `close`, `rejectClose`). `fit` makes the window as
+ * wide as its widest table (`fitKitWidth`, below): the windows `tableDialog` drew until E21 C2a. `width` is the width the
+ * window states: a name of WINDOW_WIDTHS or a number of pixels (`kitWidth`, below), the window's opening width and,
+ * without `fit`, its width; with `fit` the measure wins and the width is where it starts (E21 W1). No stylesheet states
+ * a kit window's width (R1376): a window without either takes the module's popup width rules.
  */
-export function drpgWindow({ id = null, classes = [], title = "", body = "", tabs = null, footer = {}, live = null, render = null, modal = false, onMode = null, ...rest } = {}) {
+export function drpgWindow({ id = null, classes = [], title = "", body = "", tabs = null, footer = {}, live = null, render = null, modal = false, onMode = null, fit = false, width = null, ...rest } = {}) {
     const DialogV2 = foundry.applications.api.DialogV2;
+    const sized = width === null ? null : widthSpec(width);
     const list = footerButtons(footer);
     const open = tabs ? openKey(tabs.sections, tabs.active) : null;
     const markup = (tabs ? tabNav(tabs.sections, open) : "")
         + `<div class="drpg-kit-body">${body}${tabs ? tabPanes(tabs.sections, open) : ""}</div>`;
     const config = {
         ...rest,
-        classes: [...classes, ...KIT_CLASSES],
+        classes: [...classes, ...KIT_CLASSES, ...(fit ? [FIT_CLASS] : []), ...(sized ? sized.classes : [])],
         // Foldable to its title bar, as every module window since E44 fix FG2 (the owner's Q-E44-1; DialogV2's default is not).
         window: { title, resizable: false, minimizable: true, ...rest.window },
-        position: { height: "auto", ...rest.position },
+        position: { height: "auto", ...(sized?.open ? { width: sized.open } : {}), ...rest.position },
         modal,
         content: dialogContent(markup),
         buttons: dialogButtons(list),
@@ -833,13 +891,16 @@ export function drpgWindow({ id = null, classes = [], title = "", body = "", tab
             dressed.add(dialog);
             const root = dialog?.element;
             try {
-                dressFrame(root, list, tabs, onMode);
+                if (sized) stateWidth(root, sized);
+                dressFrame(root, list, tabs, onMode, dialog);
                 // A later render of the same window draws Foundry's footer again: it is dressed again.
-                dialog.addEventListener?.("render", () => dressFrame(dialog.element, list, tabs, onMode));
+                dialog.addEventListener?.("render", () => dressFrame(dialog.element, list, tabs, onMode, dialog));
             } catch (err) {
                 error("A kit window could not be dressed", err);
             }
             try { render?.(event, dialog); } catch (err) { error("A kit window's own render hook failed", err); }
+            if (fit) fitKitWidth(dialog);
+            else if (sized?.open) settleKitWidth(dialog, sized);
             if (live) keepLive(dialog, live);
         }
     };
@@ -847,14 +908,208 @@ export function drpgWindow({ id = null, classes = [], title = "", body = "", tab
     return DialogV2.wait(config);
 }
 
+/**
+ * The class of a `fit` window. The module's popup width rules (danganronpa.css, stained-glass.css) state every other
+ * window's width with `!important`, which outranks the inline width `fitKitWidth` writes through `setPosition`; a
+ * `fit` window is left out of them, as `drpg-table-window` was until E21 C2a (the base sheet's note on its popup rule),
+ * and so is a window that states its width (WIDTH_CLASS, E21 W1).
+ */
+export const FIT_CLASS = "drpg-kit-fit";
+
+/**
+ * The widths a kit window states by name (E21 W1, the owner's decision on E21's Open 12, 06.11.2026). Until W1 they were
+ * rules of danganronpa.css, one per window class and each with `!important` (ApplicationV2 writes a window's width inline,
+ * and only `!important` outranks it): `.drpg-wide` (`min(var(--drpg-popup-wide), 94vw)`, the GM's managers and read-outs),
+ * `.drpg-window-tables` (`min(58rem, 94vw)`, the item tables: at 704 px the pool list left a row 430 px, three lines an
+ * entry), `.drpg-gm-panel-window` (`min(var(--drpg-popup-wide), 92vw)`, and `min(calc(60rem * var(--drpg-legacy-scale, 1)),
+ * 46vw)` on a screen wider than 2:1: the panel's grid of `repeat(auto-fit, minmax(15rem, 1fr))` needs a definite width),
+ * and `.drpg-window-projects`'s own `--drpg-window-max: 1800px` (the matrix of sixteen players is a table of about 1400 px).
+ * Per name: `cls`, the class the window carries beside WIDTH_CLASS (the prose rules of the wide windows read it); `rem`,
+ * the width in the root's rem; `legacy`, multiplied by `--drpg-legacy-scale` (the slider under Monokuma Legacy, 1 under
+ * the glass: the two width tokens' factor, danganronpa.css's note on them, W-2); `ultrawide`, the width on
+ * a screen wider than 2:1, its `vw` the share of the screen it stays under; `max`, the ceiling in pixels a `fit` window's
+ * measure stops at (`windowWidthFor` reads it off the window as `--drpg-window-max`). The screen holds each to its width
+ * less 8 px a side, as the frame does (components.css `max-width: calc(100vw - 16px)`), and to `--drpg-window-max`.
+ */
+export const WINDOW_WIDTHS = Object.freeze({
+    wide: Object.freeze({ cls: "drpg-kit-width-wide", rem: 44, legacy: true }),
+    tables: Object.freeze({ cls: "drpg-kit-width-tables", rem: 58 }),
+    panel: Object.freeze({ cls: "drpg-kit-width-panel", rem: 44, legacy: true, ultrawide: Object.freeze({ rem: 60, legacy: true, vw: 46 }) }),
+    matrix: Object.freeze({ cls: "drpg-kit-width-matrix", max: 1800 })
+});
+
+/** The class of every kit window that states its width (`width`), beside its name's `cls`: the popup width rules leave
+ * it out, as they leave out a `fit` window (FIT_CLASS). */
+export const WIDTH_CLASS = "drpg-kit-width";
+
+/** A `width` option read: its classes, its opening width in pixels (none for a ceiling alone) and its ceiling. */
+function widthSpec(width) {
+    if (typeof width === "number") {
+        if (!(width > 0)) throw new Error(`ui-kit: a window's width is a number of pixels above 0, not ${width}`);
+        return { name: null, px: width, classes: [WIDTH_CLASS], open: kitWidth(width), max: null };
+    }
+    const row = WINDOW_WIDTHS[width];
+    if (!row) throw new Error(`ui-kit: no window width "${width}" (WINDOW_WIDTHS: ${Object.keys(WINDOW_WIDTHS).join(", ")})`);
+    return { name: width, classes: [WIDTH_CLASS, row.cls], open: row.rem || row.ultrawide ? kitWidth(width) : null, max: row.max ?? null };
+}
+
+/**
+ * The inline width a kit window's `width` comes to on this screen, in whole pixels: a name of WINDOW_WIDTHS or a number
+ * of pixels, under the screen less 8 px a side and `--drpg-window-max` (the frame's own caps, so the width written is the
+ * width drawn). Null for a name with no width (a ceiling alone). Read when the window opens: a later resize is held by
+ * the frame's `max-width`, as every kit window's.
+ */
+export function kitWidth(width, { vw = globalThis.innerWidth || 1200, vh = globalThis.innerHeight || 800 } = {}) {
+    let px;
+    if (typeof width === "number") px = width;
+    else {
+        const row = WINDOW_WIDTHS[width];
+        if (!row) return null;
+        const rootStyle = typeof getComputedStyle === "function" && globalThis.document?.documentElement
+            ? getComputedStyle(document.documentElement) : null;
+        const rem = parseFloat(rootStyle?.fontSize) || 16;
+        const legacy = parseFloat(rootStyle?.getPropertyValue("--drpg-legacy-scale")) || 1;
+        const of = r => r.rem * rem * (r.legacy ? legacy : 1);
+        if (row.ultrawide && vh > 0 && vw / vh >= 2) px = Math.min(of(row.ultrawide), vw * row.ultrawide.vw / 100);
+        else if (row.rem) px = of(row);
+        else return null;
+    }
+    const bodyStyle = typeof getComputedStyle === "function" && globalThis.document?.body ? getComputedStyle(document.body) : null;
+    const cap = parseFloat(bodyStyle?.getPropertyValue("--drpg-window-max")) || Infinity;
+    return Math.round(Math.max(0, Math.min(px, vw - 16, cap)));
+}
+
+/** The width's marks on the drawn root: its name or pixels (`data-drpg-width`, which the style harness reads as this
+ * file's `kitWidth`) and a ceiling the fit's measure reads off the window. The pixels are the ones stated, not the width
+ * this screen held them to (E21 fix G2: probe 08's 1024 px page wrote Observe's 1120 as 1008, and the style harness drew
+ * it 1008 wide at 1366x768). */
+function stateWidth(root, sized) {
+    if (!root) return;
+    root.dataset.drpgWidth = sized.name ?? String(sized.px ?? sized.open);
+    if (sized.max) root.style.setProperty("--drpg-window-max", `${sized.max}px`);
+}
+
+/**
+ * The stated width, written once more after Foundry's own render hooks (E21 W1). settings.mjs `scaleWindow` runs on every
+ * render and multiplies a window's `position.width` by the slider, under 48 px less than the screen: under Monokuma Legacy
+ * the width named here already follows the slider (`legacy`), and the 704 px of `drpg-wide` stood 94 % of a phone's
+ * screen, not 342 px of 390. Two frames after the render, as `fitKitWidth`; nothing written when the window already
+ * stands at the width (the band of `fitKitWidth`), and a tab bar fitted to the width before is fitted again. jsdom lays
+ * nothing out, and its windows stand at what was asked.
+ */
+function settleKitWidth(app, sized) {
+    if (typeof requestAnimationFrame !== "function") return;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        try {
+            const root = app?.element;
+            if (!root?.isConnected || typeof app.setPosition !== "function") return;
+            const width = kitWidth(sized.name ?? sized.open);
+            const now = typeof app.position?.width === "number" ? app.position.width : root.getBoundingClientRect().width;
+            if (!width || Math.abs(now - width) <= 1) return;
+            app.setPosition({ width });
+            // A tab bar fitted to the width before (`fitWhenLaidOut`, a frame after the render) is fitted to this one.
+            for (const nav of root.querySelectorAll("nav.drpg-tabs")) fitKitTabs(nav, { win: root });
+        } catch (err) {
+            error("A kit window could not be given its width", err);
+        }
+    }));
+}
+
+/**
+ * A `fit` window as wide as its widest table, on every pane (E21 C2a). This is utils.mjs `tableDialog`'s measure -
+ * `fitWindowToTable` and `fitWindowToTabs` - moved into the kit with the 15 windows that used it, and only its width:
+ * the height is the frame's (the screen's, the body scrolling), and a tab press repositions the window
+ * (`wireKitTabs`), so neither the measured height nor the footer's pin across a sideways scroll (`pinFooterAcrossScroll`:
+ * the kit's footer stands outside the body that scrolls) came with it. Each pane is shown in turn (`eachPane`) and the
+ * window takes the widest table of any of them, so it does not change width under a tab press (Room setup, measured at
+ * 708 and 1504 px on two of its tabs, 26.08); a window with no table grows by what its body overflows sideways, and
+ * never shrinks (the Look window's case). The width is `windowWidthFor`'s: the table, the body's padding and the frame
+ * around the body, under 94 % of the screen and `--drpg-window-max`. Two frames after the render, as before: ApplicationV2
+ * places a window after its render, and a face still loading measures again. jsdom lays nothing out: the tables measure
+ * 0 and nothing is written (R1358 reads the class and the call; the fit sweep the width, in Chromium).
+ */
+export function fitKitWidth(app) {
+    const root = app?.element;
+    if (!root || typeof requestAnimationFrame !== "function") return;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        try {
+            const body = root.querySelector(".drpg-kit-body");
+            if (!body) return;
+            let widest = 0;
+            const measure = where => {
+                for (const table of where.querySelectorAll("table")) widest = Math.max(widest, table.scrollWidth, table.getBoundingClientRect().width);
+            };
+            if (body.querySelector("[data-drpg-pane]")) eachPane(body, measure); else measure(body);
+            if (!widest) {
+                if (body.scrollWidth - body.clientWidth <= 1) return;
+                const cs = getComputedStyle(body);
+                widest = Math.max(0, body.scrollWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0));
+            }
+            const width = windowWidthFor(root, body, widest);
+            const now = root.getBoundingClientRect().width;
+            // "Already there" is a band (utils.mjs `fitWindowToTable`'s LAT-05): wide enough, and no wider than the target.
+            if (now >= width - 2 && now <= width) return;
+            app.setPosition({ width, height: "auto" });
+        } catch (err) {
+            error("A kit window could not be fitted to its table", err);
+        }
+    }));
+}
+
 /** The frame on a drawn window: its footer on the contract, its tabs wired and fitted, its controls wired. */
-function dressFrame(root, list, tabs, onMode) {
+function dressFrame(root, list, tabs, onMode, app = null) {
     if (!root) return;
     for (const c of KIT_CLASSES) root.classList.add(c);
     dressFooter(root, list);
-    // The kit draws this frame, so the fit may widen the window (`win`).
-    if (tabs) wireKitTabs(root, { buttons: tabs.buttons ?? null, always: tabs.always ?? [], onSwitch: tabs.onSwitch ?? null, win: root });
+    // The kit draws this frame, so the fit may widen the window (`win`), and a press repositions it through `app`.
+    if (tabs) wireKitTabs(root, { buttons: tabs.buttons ?? null, always: tabs.always ?? [], onSwitch: tabs.onSwitch ?? null, win: root, app });
     wireKit(root, { onMode });
+}
+
+/* ---- the questions (E21 C1b) ------------------------------------------------------------------------------------- */
+
+/** The roles a question's answer may take: the kit's default, the GM's road, or what cannot be undone. */
+const ANSWER_ROLES = Object.freeze(["primary", "gmRoute", "destructive"]);
+
+/**
+ * A yes-or-no question on the kit's frame, for every `DialogV2.confirm` of the module (E21 moves them here): answers
+ * the yes button's callback (true without one), false for the no, and null when the window is closed, as
+ * `DialogV2.confirm` does with `rejectClose` false. `yes` is `{ role, label, callback, icon, action }`, its role one of
+ * `primary` (the default), `gmRoute` (the player's road through the GM, D11) or `destructive` (what cannot be undone);
+ * `no` is "cancel" (the default), "close", or `{ role, action, callback }`, and its word is the role's. A "close" no
+ * whose action is "close" (the role's own, as `no: "close"` gives) has no callback (`footerButtons`): Foundry closes the
+ * window on that action, so it answers null, as a closed window does (E21 fix G2; until then it promised false). A destructive
+ * yes is never the default: the closing word is (`default`), and with no primary the right group is empty, so the
+ * closing word is the first submit button in the tree and Enter presses it (the header). Every other option goes to
+ * `drpgWindow` (`classes`, `position`, `id`, `render`, `live`). Foldable, as every kit window (`drpgWindow`).
+ */
+export function drpgConfirm({ title = "", body = "", yes = {}, no = "cancel", ...rest } = {}) {
+    const role = yes.role ?? "primary";
+    if (!ANSWER_ROLES.includes(role)) throw new Error(`ui-kit: a question's yes is primary, gmRoute or destructive, not "${role}"`);
+    if (!yes.label) throw new Error("ui-kit: a question's yes has no label");
+    const spec = typeof no === "string" ? { role: no } : { ...no };
+    const close = { role: spec.role === "close" ? "close" : "cancel", action: spec.action ?? (spec.role === "close" ? "close" : "cancel") };
+    if (close.action !== "close") close.callback = spec.callback ?? (() => false);
+    else if (spec.callback) close.callback = spec.callback;
+    const answer = { action: yes.action ?? "yes", label: yes.label, callback: yes.callback ?? (() => true), icon: yes.icon };
+    const footer = role === "primary" ? { primary: answer, close }
+        : role === "gmRoute" ? { gmRoute: [answer], close }
+            : { destructive: [answer], close, default: close.action };
+    return drpgWindow({ ...rest, title, body, footer });
+}
+
+/**
+ * A question with one answer on the kit's frame, for the module's `DialogV2.prompt` (one site at 7bb71bb9): answers
+ * the ok button's callback, or its action ("ok") without one, and null when the window is closed. `ok` is `{ label,
+ * callback, icon, action, role }`, its role `primary` or `gmRoute` - the one answer is the default, which a destructive
+ * button may never be. Every other option goes to `drpgWindow`.
+ */
+export function drpgPrompt({ title = "", body = "", ok = {}, ...rest } = {}) {
+    const role = ok.role ?? "primary";
+    if (role !== "primary" && role !== "gmRoute") throw new Error(`ui-kit: a prompt's one answer is primary or gmRoute, not "${role}"`);
+    if (!ok.label) throw new Error("ui-kit: a prompt's answer has no label");
+    const answer = { action: ok.action ?? "ok", label: ok.label, callback: ok.callback, icon: ok.icon };
+    return drpgWindow({ ...rest, title, body, footer: role === "primary" ? { primary: answer } : { gmRoute: [answer] } });
 }
 
 /** The kit windows already dressed on their first render. */
@@ -883,7 +1138,7 @@ export function DrpgApp() {
             const root = this.element;
             if (!root) return;
             for (const c of KIT_CLASSES) root.classList.add(c);
-            const region = this.options.scrollRegion ? root.querySelector(this.options.scrollRegion) : null;
+            const region = this.options?.scrollRegion ? root.querySelector(this.options.scrollRegion) : null;
             region?.classList.add("drpg-kit-body");
             this._kitStop?.();
             this._kitStop = wireKit(root);

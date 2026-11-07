@@ -84,7 +84,8 @@ import { resourceValue, resourceMax } from "./character.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import {
     announce as announcePlain, whisperToGms, whisperToOwner as whisperToOwnerPlain,
-    dialogContent, log, error, cardHead, isPrimaryGm, plural } from "./utils.mjs";
+    log, error, cardHead, isPrimaryGm, plural } from "./utils.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 
 // Veiled, every one of them: a Stage 6 card's speaker is the killer and its
 // audience is the incident, and the document must not say so. See murder.mjs.
@@ -93,7 +94,6 @@ const whisperToOwner = (actor, content, extra = {}) =>
 const announce = data =>
     announcePlain(data?.whisper?.length ? { veiled: true, ...data } : data);
 
-const DialogV2 = foundry.applications.api.DialogV2;
 
 /* ==========================================================================
  * WHO MAY CLEAN, AND WHAT
@@ -738,37 +738,41 @@ export async function askTransform(actor) {
                 foundry.utils.escapeHTML(REMNANT_VISIBILITY_LABELS[key] ?? key)}</option>`)
             .join("");
 
-        const picked = await DialogV2.wait({
-            window: { title: game.i18n.localize("DRPG.Cleanup.transformTitle") },
+        // On the kit's frame (E21 C5a): Leave something else on the GM's road (E22 C5c, D11: a GM approves the story
+        // before it lands, `proposeReshape`) and first in the tree, so Enter never erases (E09 C11); Erase a secondary
+        // (it answers null, as a close does).
+        const picked = await drpgWindow({
+            title: game.i18n.localize("DRPG.Cleanup.transformTitle"),
             classes: ["drpg-panel", "drpg-narrow"],
-            content: dialogContent(`<form>
+            body: `<form>
                 <p>${game.i18n.localize("DRPG.Cleanup.transformIntro")}</p>
                 ${reshapeFields(limits, typed)}
                 <label>${game.i18n.localize("DRPG.Cleanup.transformVisibility")}
                     <select name="visibility">${options}</select></label>
                 <p class="notes">${game.i18n.localize("DRPG.Cleanup.transformNote")}</p>
-            </form>`),
-            buttons: [
-                {
-                    action: "change", label: game.i18n.localize("DRPG.Cleanup.transformChange"), default: true,
+            </form>`,
+            footer: {
+                gmRoute: [{
+                    action: "change", label: game.i18n.localize("DRPG.Cleanup.transformChange"),
                     callback: (e, b, d) => ({
                         name: d.element.querySelector("[name=name]").value,
                         text: d.element.querySelector("[name=text]").value,
                         visibility: d.element.querySelector("[name=visibility]").value
                     })
-                },
-                {
+                }],
+                secondary: [{
                     action: "erase", label: game.i18n.localize("DRPG.Cleanup.transformErase"),
                     callback: () => null
-                }
-            ],
+                }]
+            },
             render: (event, dialog) => enterMovesOn(dialog),
             rejectClose: false
         });
 
-        // "erase" comes back as null, and so does closing the window - which is the
-        // same answer and should be: backing out of a bonus question must not cost
-        // the critical that earned it.
+        // Erase answers "erase" (its callback's null falls back to the action in DialogV2;
+        // the end review's correctness m3 found this saying null), closing the window
+        // null - the same outcome, and it should be: backing out of a bonus question must
+        // not cost the critical that earned it.
         if (!picked || picked === "erase") return null;
 
         const name = plainText(picked.name, limits.name ?? 60);
@@ -1315,24 +1319,25 @@ export async function askTransformChange(actor) {
 
     let typed = { name: "", text: "" };
     for (;;) {
-        const picked = await DialogV2.wait({
-            window: { title: game.i18n.localize("DRPG.Cleanup.transformAction") },
+        // On the kit's frame (E21 C5a); Reshape it on the GM's road (E22 C5c, D11): the words wait for a GM's yes.
+        const picked = await drpgWindow({
+            title: game.i18n.localize("DRPG.Cleanup.transformAction"),
             classes: ["drpg-panel", "drpg-narrow"],
-            content: dialogContent(`<form>
+            body: `<form>
                 <p>${game.i18n.localize("DRPG.Cleanup.transformActionIntro")}</p>
                 ${reshapeFields(limits, typed)}
                 <p class="notes">${game.i18n.localize("DRPG.Cleanup.transformActionNote")}</p>
-            </form>`),
-            buttons: [
-                {
-                    action: "go", label: game.i18n.localize("DRPG.Cleanup.transformGo"), default: true,
+            </form>`,
+            footer: {
+                gmRoute: [{
+                    action: "go", label: game.i18n.localize("DRPG.Cleanup.transformGo"),
                     callback: (e, b, d) => ({
                         name: d.element.querySelector("[name=name]").value,
                         text: d.element.querySelector("[name=text]").value
                     })
-                },
-                { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-            ],
+                }],
+                close: "cancel"
+            },
             render: (event, dialog) => enterMovesOn(dialog),
             rejectClose: false
         });
@@ -3336,13 +3341,11 @@ export async function openCleanupDialog(actor) {
     ).join("");
 
     const tool = cleaningTool(actor);
-    const DialogV2 = foundry.applications.api.DialogV2;
-    const { dialogContent } = await import("./utils.mjs");
-
-    const picked = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Cleanup.title") },
+    // On the kit's frame (E21 C5a).
+    const picked = await drpgWindow({
+        title: game.i18n.localize("DRPG.Cleanup.title"),
         classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p>${game.i18n.format("DRPG.Cleanup.intro", { n: RESOLUTION_STRESS_COST })}</p>
             <p class="notes">${tool
                 ? game.i18n.format("DRPG.Cleanup.withTool", {
@@ -3351,14 +3354,14 @@ export async function openCleanupDialog(actor) {
                 : game.i18n.localize("DRPG.Cleanup.bareHands")}</p>
             <label>${game.i18n.localize("DRPG.Cleanup.which")}
                 <select name="trace">${options}</select></label>
-        </form>`),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Cleanup.confirm"), default: true,
+        </form>`,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.Cleanup.confirm"),
                 callback: (e, b, d) => d.element.querySelector("[name=trace]").value
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
 
@@ -3431,13 +3434,11 @@ export async function openMoveBodyDialog(actor) {
         return null;
     }
 
-    const DialogV2 = foundry.applications.api.DialogV2;
-    const { dialogContent } = await import("./utils.mjs");
-
-    const picked = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Cleanup.moveTitle") },
+    // On the kit's frame (E21 C5a).
+    const picked = await drpgWindow({
+        title: game.i18n.localize("DRPG.Cleanup.moveTitle"),
         classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+        body: `<form>
             <p>${game.i18n.format("DRPG.Cleanup.moveIntro", {
                 room: foundry.utils.escapeHTML(here?.room ?? "-"),
                 n: RESOLUTION_STRESS_COST
@@ -3447,14 +3448,14 @@ export async function openMoveBodyDialog(actor) {
                 <select name="room">${rooms.map(r =>
                     `<option value="${foundry.utils.escapeHTML(r)}">${foundry.utils.escapeHTML(r)}</option>`
                 ).join("")}</select></label>
-        </form>`),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Cleanup.moveConfirm"), default: true,
+        </form>`,
+        footer: {
+            primary: {
+                action: "ok", label: game.i18n.localize("DRPG.Cleanup.moveConfirm"),
                 callback: (e, b, d) => d.element.querySelector("[name=room]").value
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: "cancel"
+        },
         rejectClose: false
     });
 

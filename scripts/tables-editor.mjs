@@ -25,9 +25,9 @@
  */
 
 import { MODULE_ID, ITEM_CATEGORIES, EQUIPPABLE, ITEM_TIERS, itemIcon } from "./config.mjs";
-import { dialogContent, whisperToGms, log, error, plural, esc}
+import { whisperToGms, log, error, plural, esc}
     from "./utils.mjs";
-import { kitTabs, wireKitTabs } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, drpgPrompt } from "./ui-kit.mjs";
 import { pickableCategories } from "./inventory.mjs";
 import { alreadyOpen, reopen, RAISED } from "./live.mjs";
 import {
@@ -36,7 +36,6 @@ import {
     tableForRoom, moduleTables, ROOM_GROUP_ORDER, groupKeyOf, groupLabel, classifyEntryName
 } from "./tables-pools.mjs";
 
-const DialogV2 = foundry.applications.api.DialogV2;
 
 /**
  * Every table this module knows how to build: crime tools, cleaning tools, and
@@ -87,16 +86,17 @@ export async function installTables({ overwrite = false, prompt = true } = {}) {
     if (prompt && !overwrite) {
         const present = jobs.filter(j => game.tables.getName(existingTableName(j.category, j.tier, j.goal)));
         if (present.length === jobs.length) {
-            const choice = await DialogV2.wait({
-                window: { title: game.i18n.localize("DRPG.Panel.installTables") },
-                classes: ["drpg-panel"],
-                content: `<p>${plural("DRPG.Tables.allPresent", { n: present.length })}</p>
+            // Keep the primary; Delete and rebuild destructive, never the default; Cancel (E21 C2b, E22).
+            const choice = await drpgWindow({
+                title: game.i18n.localize("DRPG.Panel.installTables"),
+                classes: ["drpg-panel", "drpg-window-install-tables"],
+                body: `<p>${plural("DRPG.Tables.allPresent", { n: present.length })}</p>
                           <p class="notes">${game.i18n.localize("DRPG.Tables.rebuildNote")}</p>`,
-                buttons: [
-                    { action: "keep", label: game.i18n.localize("DRPG.Tables.keep"), default: true },
-                    { action: "recreate", label: game.i18n.localize("DRPG.Tables.recreate") },
-                    { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
-                ],
+                footer: {
+                    primary: { action: "keep", label: game.i18n.localize("DRPG.Tables.keep") },
+                    destructive: [{ action: "recreate", label: game.i18n.localize("DRPG.Tables.recreate") }],
+                    close: { role: "cancel", action: "cancel" }
+                },
                 rejectClose: false
             });
 
@@ -535,27 +535,27 @@ async function placeResultDialog(table, resultId) {
            </fieldset>`
         : "";
 
-    const picked = await foundry.applications.api.DialogV2.wait({
-        window: { title: game.i18n.format("DRPG.Tables.placeTitle", { name }) },
-        classes: ["drpg-panel", "drpg-wide"],
-        position: { height: "auto" },
+    const picked = await drpgWindow({
+        title: game.i18n.format("DRPG.Tables.placeTitle", { name }),
+        classes: ["drpg-panel", "drpg-window-place-result"],
+        width: "wide",
         modal: true,
-        content: `<form>
+        body: `<form>
             <p class="notes">${game.i18n.localize("DRPG.Tables.placeIntro")}</p>
             ${group(tierList, game.i18n.localize("DRPG.Tables.tabTierPools"))}
             ${group(roomList, game.i18n.localize("DRPG.Tables.tabRoomPools"))}
             <p class="notes">${game.i18n.localize("DRPG.Tables.placeRolesNote")}</p>
         </form>`,
-        buttons: [
-            {
-                action: "save", label: game.i18n.localize("DRPG.Tables.placeSave"), default: true,
+        footer: {
+            primary: {
+                action: "save", label: game.i18n.localize("DRPG.Tables.placeSave"),
                 callback: (e, b, d) => all
                     .filter(t => d.element
                         .querySelector(`[name="table:${CSS.escape(t.id)}"]`)?.checked)
                     .map(t => t.id)
             },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+            close: { role: "cancel", action: "cancel" }
+        },
         rejectClose: false
     });
 
@@ -617,10 +617,11 @@ export async function promptForTableName(currentName, check = () => null) {
        passes `check`, the name is left as it was, or the prompt is closed. Exported for the suite (E14 fix e1-G7). */
     let value = currentName, refusal = null;
     for (;;) {
-        const result = await foundry.applications.api.DialogV2.prompt({
-            window: { title: game.i18n.localize("DRPG.Tables.renameTable") },
+        // The kit's one-answer question (E21 C2b): answers the callback's value, null when closed, as DialogV2.prompt did.
+        const result = await drpgPrompt({
+            title: game.i18n.localize("DRPG.Tables.renameTable"),
             classes: ["drpg-panel", "drpg-rename-table"],
-            content: `
+            body: `
                 <p class="notes">${game.i18n.localize("DRPG.Tables.renameNote")}</p>
                 ${nameFieldHtml({ name: "tableName", value, error: refusal?.text })}`,
             ok: {
@@ -1152,12 +1153,12 @@ function wirePaneHeading(pane, root, { current, show, nameEl }) {
         // The count is the point of the question. "Delete this table?"
         // and "delete this table and the fourteen items in it?" deserve
         // different answers, and only one of them is on screen.
-        const ok = await foundry.applications.api.DialogV2.confirm({
-            classes: ["drpg-panel"],
-            yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
-            no: { label: game.i18n.localize("DRPG.Dialog.no") },
-            window: { title: game.i18n.localize("DRPG.Tables.deleteTable") },
-            content: `<p>${plural("DRPG.Tables.deleteConfirm", {
+        // What cannot be undone (E22): the kit's destructive question, Cancel the default (E21 C2b).
+        const ok = await drpgConfirm({
+            classes: ["drpg-panel", "drpg-window-delete-table"],
+            yes: { role: "destructive", label: game.i18n.localize("DRPG.Tables.deleteTable") },
+            title: game.i18n.localize("DRPG.Tables.deleteTable"),
+            body: `<p>${plural("DRPG.Tables.deleteConfirm", {
                 name: esc(current().name), n: current().results.size
             })}</p>`,
             rejectClose: false, modal: true
@@ -1527,15 +1528,16 @@ export async function openItemTables({ preset = null, poolError = null } = {}) {
     const tierTables = tables.filter(t => isTierPoolTable(t));
     const roomTablesList = tables.filter(t => !isTierPoolTable(t));
 
-    // Not `tableDialog()`: there is no table in here to measure. Its two panes
-    // are a list and a form, and a window sized by `fitWindowToTable` with
-    // nothing to measure keeps whatever width the dialog opened at - which is
-    // 400px, and half of what this layout needs. `drpg-wide` is the manual
-    // override that exists for exactly this case.
-    const action = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Tables.editorTitle"), minimizable: true },
-        classes: ["drpg-panel", "drpg-projects", "drpg-wide", "drpg-window-tables"],
-        position: { height: "auto" },
+    // Not a `fit` window: there is no table in here to measure. Its two panes
+    // are a list and a form, and a window sized by a measure with nothing to
+    // measure keeps whatever width the dialog opened at - which is 400px, and
+    // half of what this layout needs. So it states its width, the kit's
+    // `tables` (58rem: ui-kit.mjs WINDOW_WIDTHS; danganronpa.css's
+    // `.drpg-wide` and `.drpg-window-tables` rules until E21 W1).
+    const action = await drpgWindow({
+        title: game.i18n.localize("DRPG.Tables.editorTitle"),
+        classes: ["drpg-panel", "drpg-projects", "drpg-window-tables"],
+        width: "tables",
         // Three tabs (Dawid, 26.08; trimmed from four in E10): editing what a
         // tier table holds, the same for room tables, and making a new item.
         // The footer buttons act across tabs - each reads its own pane's
@@ -1547,20 +1549,22 @@ export async function openItemTables({ preset = null, poolError = null } = {}) {
         // the first tab with the field empty, so on the Room pools tab the GM saw neither.
         // A preset opens on Add an item, where its name and tier are (C6, S08-21): it
         // opened on Tier pools, with Create table and Install in the footer.
-        content: dialogContent(`<form>${kitTabs([
+        body: `<form>${kitTabs([
             { key: "editTiers", label: game.i18n.localize("DRPG.Tables.tabTierPools"),
               html: poolPaneHtml("tiers", tierTables, selected, poolError?.family === "tiers" ? poolError : null) },
             { key: "editRooms", label: game.i18n.localize("DRPG.Tables.tabRoomPools"),
               html: poolPaneHtml("rooms", roomTablesList, selected, poolError?.family === "rooms" ? poolError : null) },
             { key: "newItem", label: game.i18n.localize("DRPG.Tables.tabNewItem"),
               html: newItemPaneHtml(preset, presetTargets, roomTablesList) }
-        ], { active: poolError ? (poolError.family === "rooms" ? "editRooms" : "editTiers") : preset ? "newItem" : null })}</form>`),
-        buttons: [
-            {
-                action: "add", label: game.i18n.localize("DRPG.Tables.addItem"), default: true,
+        ], { active: poolError ? (poolError.family === "rooms" ? "editRooms" : "editTiers") : preset ? "newItem" : null })}</form>`,
+        /* THE FOOTER BY ROLE (E21 C2b, E22): Add an item the primary; Create table secondary; Install / reinstall
+           destructive (it rebuilds the default set: never the default); Close, since every row saves itself. */
+        footer: {
+            primary: {
+                action: "add", label: game.i18n.localize("DRPG.Tables.addItem"),
                 callback: (e, b, d) => readNewItemForm(d, roomTablesList)
             },
-            {
+            secondary: [{
                 // "Create table", not "New room table": the tab is called that
                 // already, and a button repeating its tab's name says nothing
                 // about what pressing it does.
@@ -1570,10 +1574,10 @@ export async function openItemTables({ preset = null, poolError = null } = {}) {
                 // looking at. The family travels with the name because it
                 // decides what the name is allowed to be.
                 callback: (e, b, d) => readNewPoolName(d)
-            },
-            { action: "install", label: game.i18n.localize("DRPG.Tables.installAction") },
-            { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
+            }],
+            destructive: [{ action: "install", label: game.i18n.localize("DRPG.Tables.installAction") }],
+            close: { role: "close", action: "close" }
+        },
         render: (event, dialog) => {
             const root = dialog.element;
             wireNewItemForm(root);
@@ -1601,7 +1605,10 @@ export async function openItemTables({ preset = null, poolError = null } = {}) {
              * Which pane the name is read from is decided on the way out, by
              * the tab that is open - see the button's callback.
              */
+            // `win` and `app` (E21 C2b): the bar may widen the window, and a press puts it back on the screen (C1b).
             wireKitTabs(root, {
+                win: root,
+                app: dialog,
                 buttons: {
                     // "Install the default set" sits on the Tier pools tab
                     // rather than on a tab of its own (E10): the whole Install
