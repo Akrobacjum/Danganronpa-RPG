@@ -35001,7 +35001,7 @@ const INVARIANTS = [
             kit: { classes: [], position: true, threw: null, wide: true, phone: [374, 374], panel: [true, true], matrix: [null, 1800], unknown: true } }),
         "[the rules that set a width on a kit window's class; the module files that add drpg-wide; the openers that state no width; the kit's width: its classes missing, its position, a throw, 1366 px, a phone, the GM panel at 16:9 and ultrawide, the matrix's ceiling, an unknown name refused]");
     }],
-    ["R1364 - the trial's windows on the kit (E21 C4, E22 C4; E21-15, E22-09; audit S06-09): the console's footer (trial-floor-ui.mjs `trialFooter`) in each state of the trial puts the next step in the primary slot, End the trial, End of chapter and Start the Final Trial on the destructive role and never the default, End the Final Trial and every other button a secondary, Close the closing word; End the trial's question, with a hall or without one, has End the trial destructive and Cancel the default and first in the tree; the mode bar's and Monokuma's Reveal row's buttons carry no role; a second trial, the vote's restart and the verdict ask with the destructive role; no answer of the trial's windows has the action ApplicationV2 keeps for its close; and the six files open no window but through the kit", async () => {
+    ["R1364 - the trial's windows on the kit (E21 C4, E22 C4; E21-15, E22-09; audit S06-09): the console's footer (trial-floor-ui.mjs `trialFooter`) in each state of the trial puts the next step in the primary slot, End the trial, End of chapter and Start the Final Trial on the destructive role and never the default, End the Final Trial and every other button a secondary, Close the closing word; End the trial's question, with a hall or without one, has End the trial destructive and Cancel the default and first in the tree; the mode bar's and Monokuma's Reveal row's buttons carry no role; a second trial, the vote's restart and the verdict ask with the destructive role; the vote's Close and count is destructive and never the default (E21 fix G2, Open 44); no answer of the trial's windows has the action ApplicationV2 keeps for its close; and the six files open no window but through the kit", async () => {
         /*
          * E21 C4, E22 C4, 06.11.2026; audit S06-09 (the console's footer: End the trial, End the chapter and Start the
          * Final Trial looked like any step, and End of chapter was the default after a verdict), E22-09. Read four ways,
@@ -35017,7 +35017,8 @@ const INVARIANTS = [
          *   on a GM's screen (D11), plain run controls;
          * - the sources: the second trial (`confirmNewTrial`), the incident's question (`incidentClosedFirst`), the vote's
          *   restart (`openVoteDialog`) and the verdict (`openVerdictDialog`) with their consequence destructive and Cancel
-         *   the default; no `action: "close"` but on a closing word (ApplicationV2 keeps the action for its own close:
+         *   the default; the vote's Close and count destructive in each of its three footers, never the primary (E21 fix G2,
+         *   07.11.2026, STATUS Open 44 decided; red on dd87f9f7: the primary while a vote ran, a secondary else); no `action: "close"` but on a closing word (ApplicationV2 keeps the action for its own close:
          *   `openVoteDialog`'s note, measured 11.09; the incident's "End the murder" carried it until C4); no DialogV2 call
          *   left in trial-floor-ui, trial, verdict, trial-prompt and trait-ruling, nor in vote.mjs's ballot.
          * Red on d5246545's code: no `trialFooter`; End the trial's question {"ok" the default and first, no role}.
@@ -35090,6 +35091,8 @@ const INVARIANTS = [
             newTrial: destructiveCancel(fnSource(ui, "confirmNewTrial")),
             incident: destructiveCancel(fnSource(ui, "incidentClosedFirst")) && /action:\s*"endMurder"/.test(fnSource(ui, "incidentClosedFirst")),
             restart: /drpgConfirm\(\{[\s\S]*yes:\s*\{\s*role:\s*"destructive"[\s\S]*DRPG\.Vote\.sendAgain/.test(vote),
+            // Close and count destructive in each of the three footers, never the primary (E21 fix G2, Open 44).
+            tally: (vote.match(/destructive:\s*\[tally\]/g) ?? []).length === 3 && !/primary:\s*tally\b/.test(vote),
             verdict: destructiveCancel(fnSource(stripComments(src.get("verdict.mjs") ?? ""), "openVerdictDialog")),
             dialogV2: kitOnly,
             ballot: /\bdrpgWindow\(/.test(ballot) && !/DialogV2/.test(ballot),
@@ -35110,7 +35113,7 @@ const INVARIANTS = [
             ended: null,
             asked: [hall ? EXIT : END, EXIT, END],
             revealButtons: ["drpg-trial-bar-op"],
-            sources: { bar: false, newTrial: true, incident: true, restart: true, verdict: true, dialogV2: [], ballot: true, closeAnswers: [] }
+            sources: { bar: false, newTrial: true, incident: true, restart: true, tally: true, verdict: true, dialogV2: [], ballot: true, closeAnswers: [] }
         }), "[the console's footer in four states (action, role, default, in tree order); End the trial's answer; End the trial's question as this world asks it, then askTrialExit and askTrialEnd (each window's kind, its kit root and its buttons: action, default, role); the Reveal row's button classes; the sources: a role in the bar, the second trial, the incident's question, the vote's restart and the verdict destructive with Cancel the default, the files still calling DialogV2, the ballot on the kit, the answers with the action close]");
     }],
     ["R1365 - M13's windows on their approved card (E21 C4; E21-12, docs/design/windows.md M13, DR-E44-M1 #14): Your turn (trial-prompt.mjs `turnFooter`) has Keep speaking the primary and first in the tree, Done and Pass on the left; I volunteer (`claimFooter`) Not me the primary and I'll sum up on the left; the Objection's picker (trial.mjs `objectionFooter`) OBJECTION! the primary and Cancel; the Reveal's confirmation (trial-floor-ui.mjs `confirmReveal`) is a kit window with Cancel the default and first and Reveal destructive and never the default; each window opened through the kit with that footer", async () => {
@@ -35341,7 +35344,8 @@ const INVARIANTS = [
         const yes = { shown: ["(the sheet's)", "list-item", "none"], size: true, ink: true };
         equal(JSON.stringify(read), JSON.stringify({
             observe: { shownLadders: 1, all: [false, 3, true] },
-            analyze: ["bullet", "hint", "passage", "stash"],
+            // The hint row's second line, "The GM judges this one", since E22 fix G2 (Open 60's default A; R121).
+            analyze: ["bullet", "hint", "hint", "passage", "stash"],
             tamper: { bound: ["cover", "frame"], conceal: false },
             request: true, atTop: true,
             paint: { "drpg-theme-stained-glass": yes, "drpg-theme-monokuma-legacy": yes }
@@ -35407,7 +35411,7 @@ const INVARIANTS = [
         }), "[askDeclaration asks for columns; the window chooseVariant asks (its width, the stated-width class, the columns, the briefing first, the list second); per theme: "
             + "the popup measure on .dialog-content (null: none reaches it), the columns' display and wrap, the hints' display (picked, unpicked, unavailable; null: no rule hides it)]");
     }],
-    ["R121 - A4, red is the GM's road and says so (E22 C5c; E22-02, E22-10, E22-12, audit S02-25, S05-49, S02-49, S03-26, S09-22): every menu row marked `gmRoute` and every footer button the module puts on the GM's road (a `gmRoute` slot, a question's `role: \"gmRoute\"`, `callWindow`'s `gmRoute`) stands in this census - the Tamper menu's Reshape a Trace and its two windows' Leave something else and Reshape it (Erase plain), Observe's two, Analyze's hint, Search's specific, the proposal's row and its one Send, the request window's Send, Experience and Ultimate (`needsGm` alone), Direct Murder's yes - and the sentence beside each names the GM in English and Polish; the Reshape's three say a refusal gives back nothing paid; `GM_ROUTE_CLASS` is utils.mjs's alone and the kit's gmRoute face; the Dynamic action's definition carries `callsGm`, read once, and its briefing says a GM judges it; the sheet's tile of a Call a GM rules and a Tier 0 item's Use are red with the GM's word, by the flags their windows read; `stripeKindFor` answers the GM's road before a Sanity step", async () => {
+    ["R121 - A4, red is the GM's road and says so (E22 C5c; E22-02, E22-10, E22-12, audit S02-25, S05-49, S02-49, S03-26, S09-22): every menu row marked `gmRoute` and every footer button the module puts on the GM's road (a `gmRoute` slot, a question's `role: \"gmRoute\"`, `callWindow`'s `gmRoute`) stands in this census - the Tamper menu's Reshape a Trace and its two windows' Leave something else and Reshape it (Erase plain), Observe's two, Analyze's hint, Search's specific, the proposal's row and its one Send, the request window's Send, Experience and Ultimate (`needsGm` alone), Direct Murder's yes - and the sentence beside each names the GM in English and Polish; the Reshape's three say a refusal gives back nothing paid; `GM_ROUTE_CLASS` is utils.mjs's alone and the kit's gmRoute face; the Dynamic action's definition carries `callsGm`, read once, and its briefing says a GM judges it; Analyze's briefing says a GM judges it by the hint row alone, not over Identify, Find Stash or Find Passage, and Find Stash is plain (E22 fix G2, Open 60's default A); the sheet's tile of a Call a GM rules and a Tier 0 item's Use are red with the GM's word, by the flags their windows read; `stripeKindFor` answers the GM's road before a Sanity step", async () => {
         /*
          * E22 C5c, 07.11.2026; A4 (the owner's, confirmed live), D11. The Reshape row and its buttons were not red though a
          * GM approves a reshape since N-3, and their texts promised the change at once; `GM_ROUTE_CLASS` was a const of
@@ -35420,6 +35424,11 @@ const INVARIANTS = [
          * rule, with no person deciding (stash-reach.mjs `resolveStashSearch`), so it is not the GM's road (STATUS Open
          * 60). Red on C5b's tree: the Reshape row with no `gmRoute`, its buttons the primary, the texts naming no GM,
          * the const in action-project.mjs, no `callsGm` on the Dynamic's definition, the tiles plain.
+         * E22 fix G2, 07.11.2026 (Open 60, the owner's default A; the end review's M4): Analyze's "The GM judges this one"
+         * printed as a line of its own over every row whenever the student held no bullet to analyse - over Find Stash and
+         * Find Passage too, which no GM judges. Read: Analyze's briefing for a living student, the lines carrying the
+         * sentence and the row each is bound to, and the stash row's mark. Red on dd87f9f7: the sentence unbound, or
+         * absent where the student held a bullet.
          */
         needs(world.atLeast("livingStudents", 1), "the Dynamic action's briefing is built for a living student");
         const sources = new Map(await otherSources());
@@ -35487,6 +35496,13 @@ const INVARIANTS = [
         const note = game.i18n.localize("DRPG.Action.callsGmNote");
         read.dynamic = [dynamicDef().callsGm === true, briefingBlock(livingStudents()[0], "dynamic", dynamicDef()).includes(note),
             (fnSource(src("action-dynamic.mjs"), "performDynamic").match(/\bdynamicDef\(\)/g) ?? []).length];
+        // Analyze: the sentence by the hint row alone (Open 60, default A), and the stash row plain.
+        const ana = document.createElement("div");
+        ana.innerHTML = briefingBlock(livingStudents()[0], "analyze", ACTIONS.analyze);
+        read.analyze = {
+            note: [...ana.querySelectorAll(".drpg-briefing-facts > li")].filter(li => li.textContent.includes(note)).map(li => li.dataset.drpgWhen ?? "every row"),
+            stash: /value: "stash", icon: "[\w-]+",(?![^}]*gmRoute)/.test(topLevelFunction(src("action-analyze.mjs"), "askWhatToAnalyze") ?? "")
+        };
         // The sheet's tiles, by the flags their windows read.
         const sheet = src("sheet.mjs");
         const call = fnSource(sheet, "callButton"), use = fnSource(sheet, "addUseButton");
@@ -35508,12 +35524,13 @@ const INVARIANTS = [
             unlisted: [], gone: [], marked: [], sentence: [], reshape: [], erase: true,
             cls: ["drpg-gm-route", true, []],
             dynamic: [true, true, 1],
+            analyze: { note: ["hint"], stash: true },
             tiles: { call: true, needsGm: ["experience", "ultimate"], use: true, useItem: true, words: [[true, true], [true, true]] },
             creative: [true, false, false, false],
             stripe: ["gm", "stress", "gm", "free"]
         }), "[the GM's road: marks with no census row, rows whose mark is gone, rows whose mark is not the road's, sentences naming no GM (EN, PL); "
             + "the Reshape's sentences with no refusal's price; Erase plain; the class, the kit's face, other declarations; the Dynamic's flag, its "
-            + "briefing's sentence, its reads; the Call tile, the Calls a GM rules, the Tier 0 Use, useItem's road, their words; usedCreatively by "
+            + "briefing's sentence, its reads; Analyze's sentence by its rows, its stash row plain; the Call tile, the Calls a GM rules, the Tier 0 Use, useItem's road, their words; usedCreatively by "
             + "tier; the stripe for a Sanity step on the GM's road, on an action, a Hope step, a free one]");
     }],
     ["R1370 - the proposal sends once (E22 C5c; audit S10-31, Q-E21-5): action-project.mjs `startProject` opens one window - its form with the request field, its one Send on the GM's road and Cancel - and hands `callGm` what `promptAndCallGm` handed it (the title, no roll, the form's words, the room, the GM's body and buttons, nothing spent), with no second window; closed, it says nothing was sent and posts nothing", async () => {

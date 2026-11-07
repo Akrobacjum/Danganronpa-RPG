@@ -38564,7 +38564,8 @@ const SCENARIOS = [
            defaults) and its status off the screen (the line to send first, and the recipients - worked out
            here from the users and the students, the way a ballot is handed out - or nobody). Then a vote is
            opened in the world under it, as by another GM, and the window comes back with Close and count
-           open and the default on it, still one. First of all, the window drawn while nobody is connected
+           open and the default on Cancel (Close and count destructive since E21 fix G2, Open 44: it was the
+           default here until then), still one. First of all, the window drawn while nobody is connected
            as this GM sees it - every player's `active` read as false on this browser alone, for as long as
            it takes to draw and read it, and given back before anything else: Send closed, the default on
            Cancel, and the line saying nobody is connected. The trial's record is put back here. */
@@ -38648,7 +38649,7 @@ const SCENARIOS = [
         equal(stableJson(reading), stableJson([
             [[true, true, ["cancel"]], true],
             [1, 1, [true, none, none ? ["cancel"] : ["open"]], true, true],
-            [1, [false, none, ["tally"]], false]
+            [1, [false, none, ["cancel"]], false]
         ]), "the vote window opened twice, offered Close and count with no vote open, did not say whom a ballot goes to (or that "
             + "nobody is connected), or did not come back with its count open once a vote was (read: windows drawn, waits asked, "
             + "the footer - Close and count closed, Send closed, the defaults -, the line to send first, the recipients' line; then "

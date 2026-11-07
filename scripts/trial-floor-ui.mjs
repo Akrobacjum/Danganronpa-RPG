@@ -1760,8 +1760,11 @@ export async function openVoteDialog() {
     const canSend = hasRecipients();
     let reopening = false;
 
-    /* ON THE KIT (E21 C4): the step the vote waits for is the primary - Send the ballots before a vote, Close and count
-       while one runs - and the other a secondary; Cancel the closing word, the default when nothing can be sent. */
+    /* ON THE KIT (E21 C4): Send the ballots is the primary before a vote, a secondary while one runs; Cancel the closing
+       word. CLOSE AND COUNT IS DESTRUCTIVE (E21 fix G2, 07.11.2026; STATUS Open 44, the owner's decision): the count is
+       final - the vote shuts and the tally card goes to the table - so it stands on the left with the destructive face
+       and is never the default; while a vote runs the window has no primary and Enter presses Cancel. Until this fix
+       it was the primary and the default while a vote ran, so Enter counted the ballots. */
     /* NOT `action: "close"`, AND THAT ONE WORD COST THE WHOLE TRIAL.
 
        ApplicationV2 dispatches centrally on `[data-action]` and case "close" is
@@ -1782,11 +1785,9 @@ export async function openVoteDialog() {
        was the only one that had work to do. */
     const send = { action: "open", disabled: !canSend, label: game.i18n.localize(running ? "DRPG.Vote.sendAgain" : "DRPG.Vote.send") };
     const remind = pending?.length ? [{ action: "remind", label: game.i18n.format("DRPG.Vote.remind", { n: pending.length }) }] : [];
-    // THE DEFAULT ONCE THE BALLOTS ARE OUT, because from that moment it is the
-    // only thing left to do here - and because the button it takes the default
-    // FROM restarts the vote. Enter must not be the destructive one.
     // Closed with no vote open (E10 C14, S06-26): there is nothing to count, and the line
-    // above the footer says to send the ballots first.
+    // above the footer says to send the ballots first. Never the default (Open 44): neither
+    // it nor Send again (which restarts the vote) is what Enter presses while a vote runs.
     const tally = { action: "tally", label: game.i18n.localize("DRPG.Vote.tally"), disabled: !running };
     const action = await drpgWindow({
         title: game.i18n.localize("DRPG.Vote.openTitle"),
@@ -1797,10 +1798,10 @@ export async function openVoteDialog() {
             <p class="notes">${game.i18n.localize("DRPG.Vote.privacyNote")}</p>
         </div>`,
         footer: running
-            ? { primary: tally, secondary: [send, ...remind], close: "cancel" }
+            ? { secondary: [send, ...remind], destructive: [tally], close: "cancel" }
             : canSend
-                ? { primary: send, secondary: [...remind, tally], close: "cancel" }
-                : { secondary: [send, ...remind, tally], close: "cancel" },
+                ? { primary: send, secondary: remind, destructive: [tally], close: "cancel" }
+                : { secondary: [send, ...remind], destructive: [tally], close: "cancel" },
         render: (event, dialog) => keepLive(dialog, {
             // Every setting of ours, the world's trial record among them; the ballots, which no setting
             // reports; and a player connecting, who is a recipient a moment later.

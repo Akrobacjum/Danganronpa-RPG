@@ -1530,6 +1530,11 @@ export const ACTIONS = {
                 return false;
             }
         },
+        /* The one row a GM rules (E22 fix G2, 07.11.2026; STATUS Open 60, the owner's default A): the briefing's "The GM
+           judges this one" stands by the hint row alone (`data-drpg-when`), not over Identify, Find Stash and Find
+           Passage, which the primary GM's browser scores by the rule with nobody deciding (stash-reach.mjs
+           `resolveStashSearch`; D11). The tile's stripe still asks `callsGm` above. */
+        callsGmRow: "hint",
         hint: "Identify an unanalyzed Truth Bullet, ask the GM for a hint, or try Find Stash or Find Passage. It costs "
             + "an action. In a Class Trial you can only identify one; there, with no action left, you pay Hope, or "
             + "Sanity once you have none.",

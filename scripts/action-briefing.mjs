@@ -215,7 +215,9 @@ function briefingFacts(actor, actionKey, def, extraFacts = []) {
     const callsGm = typeof def.callsGm === "function"
         ? (() => { try { return Boolean(def.callsGm(actor)); } catch { return false; } })()
         : Boolean(def.callsGm);
-    if (callsGm) facts.push(game.i18n.localize("DRPG.Action.callsGmNote"));
+    // A menu with one row a GM rules says it by that row alone (`callsGmRow`, Analyze's hint: E22 fix G2, Open 60).
+    if (def.callsGmRow) facts.push({ text: game.i18n.localize("DRPG.Action.callsGmNote"), when: def.callsGmRow });
+    else if (callsGm) facts.push(game.i18n.localize("DRPG.Action.callsGmNote"));
 
     return facts;
 }
