@@ -20695,6 +20695,38 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({ en: { red: true, chat: true }, pl: { red: true, chat: true } }),
             "[per language: the player's handbook says, under the GM mark's note, that a red row or button in a window goes to the GM; the GM's handbook says, in the paragraph on Foundry's rails, that no player reads the chat]");
     }],
+    ["R1383 - the turn's measure (audit/glass-sweep.mjs `--turn`; E23 C1a, E23-01..E23-06 and E23-08): the sweep has a turn mode that reads the turn's main-thread time, its long tasks, its frames, its first moved frame, the clip-path writes and canvas draws inside its frames, the texture energy in the moving band, the seams' flash peak, the self-check at three points inside it and the cut's signature, on the four turns the glass harness fires (`drpgTurn`), and names its two controls, `?turn=today` and `?flash=0.5`, which the harness answers", async () => {
+        /*
+         * E23 C1a, 07.11.2026. How a turn of the curtain moves is a reading in Chromium, never a headless one: jsdom lays
+         * nothing out and draws nothing. What this holds is the measure's reach - that the readings E23's acceptance rows
+         * name are taken and printed, on the turns they name, with the controls that show each reading can see its fault
+         * - not the readings, which every commit that changes the turn quotes against C1a's baseline (STAGE.md rule 1).
+         * Both files are read as text, whole; nothing is sliced. Red on 1d860414: no `--turn` in glass-sweep.mjs ("no
+         * turn mode").
+         */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        const read = async path => {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" });
+                return res.ok ? await lfText(res) : "";
+            } catch { return ""; }
+        };
+        const [sweep, page] = await Promise.all(["audit/glass-sweep.mjs", "audit/glass-harness.html"].map(read));
+        must(sweep.length > 20000 && page.length > 20000, "glass-sweep.mjs or glass-harness.html read nothing - this test would read nothing");
+        ok(sweep.includes("if (args.includes(\"--turn\")) {"), "no turn mode in audit/glass-sweep.mjs");
+        const missing = (text, list) => list.filter(s => !text.includes(s));
+        equal(JSON.stringify({
+            readings: missing(sweep, ["TaskDuration", "Page.startScreencast", "turnTexture", "turnFlashPeak", "Performance.getMetrics"]),
+            line: missing(sweep, ["main ${", "long ${", "frames ${", "first ${", "len ${", "clip ${", "draw ${", "tex ${", "flash ${", "cut ${", "check ${"]),
+            controls: missing(sweep, ["turn=today", "flash=0.5"]),
+            harness: missing(page, ["window.drpgTurn = async", "window.drpgTurnFreeze", "\"longtask\"", "HTMLCanvasElement.prototype.getContext", "was.clipPath !== now.clipPath",
+                "Hooks.on(\"drpgGlassCut\", S.onCut", "const turnRegions", "g?.CHECKS?.[0]"]),
+            kinds: missing(page, ["\"phase-recut\"", "\"phase\"", "\"hour\"", "\"layout\""]),
+            switches: missing(page, ["q.get(\"turn\") === \"today\"", "q.get(\"flash\")"])
+        }), JSON.stringify({ readings: [], line: [], controls: [], harness: [], kinds: [], switches: [] }),
+        "[what the sweep does not read; the fields its turn line does not print; the controls it does not name; what the harness's turn functions do not hold; "
+            + "the turns the harness cannot fire; the control switches the harness does not answer]");
+    }],
 ];
 
 

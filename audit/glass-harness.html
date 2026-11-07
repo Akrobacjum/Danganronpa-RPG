@@ -26,7 +26,10 @@
      `drpgObjectionCheck()` draws a player's trial row, with OBJECTION!, in the clock's row and measures it. Since E21 C1d
      `?kbd=1` puts a text field on the page (`#drpg-kbd-field`) and `drpgKbdState()` answers the body's two shape classes
      and the curtain's cut (its frame and clip), so the sweep can stand an on-screen keyboard in: the page's height falls
-     by 40 % with focus in the field, then rises (glass-sweep.mjs's keyboard check). -->
+     by 40 % with focus in the field, then rises (glass-sweep.mjs's keyboard check). Since E23 C1a `drpgTurn(kind)` fires
+     one of four turns of the curtain - a phase with a recut, a phase, an hour, a recut from the layout - and reads how it
+     moved, `drpgTurnFreeze(at)` stands the frame's clock still, and `?turn=today` and `?flash=0.5` are the two controls
+     of glass-sweep.mjs `--turn` (the turn check, below). -->
 <!doctype html><html><head><meta charset="utf-8">
 <!-- THE SHEETS ARE module.json's, in its order (E44 C1d, 04.11.2026): read when the page loads, by a synchronous request,
      and written as links, so they block the first paint as the six links written here by hand until then did, and a
@@ -1577,6 +1580,241 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     return done();
   };
 </script>
+<script id="drpg-turn-check">
+  /* THE TURN, MEASURED IN A BROWSER (E23 C1a, 07.11.2026; the owner's 05.11 and E61's DIAGNOSIS.md of MK-R1). How the
+     curtain moves from one state to the next is read here on the module's own glass.mjs, and glass-sweep.mjs `--turn`
+     drives it: one page a turn, nothing put back. The four turns (`TURN_KINDS`), each fired as the module's own roads
+     would leave the page:
+       phase-recut  Daily Life -> Class Trial: the body's and the clock's `data-drpg-phase`, the phase's words, and the
+                    clock's stopwatch row taken out, as hud.mjs `showsStopwatch` leaves it out in a trial - the clock
+                    shorter, so the cut moves
+       phase        Daily Life -> Investigation: the same attributes and words, the stopwatch kept - a recolour that
+                    should keep the cut
+       hour         Afternoon -> Evening: the body's `data-drpg-time` and the hour's words in the clock (the 27.09
+                    amend: an hour's change recolours and never recuts)
+       layout       the room tile hidden, the accent unchanged: a recut from the layout alone, with no flash (none
+                    at 1366x768: there the tile stands beside the notices, and on 1d860414 hiding it recuts nothing)
+     `drpgTurn(kind, { stage })` runs in three stages so the sweep can read Chromium's own counters around each:
+       arm    the clock's `data-drpg-phase` written as renderHud writes it (the page's markup has none, and the sweep's
+              pins are of that markup, so it is written here and not there), `settle` ms for any pass that starts,
+              then the instruments: this page's requestAnimationFrame wrapped so every callback knows its frame, a
+              MutationObserver on every `style` attribute (`attributeOldValue`), CanvasRenderingContext2D's drawing
+              calls and HTMLCanvasElement `getContext` counted, a "longtask" PerformanceObserver, `drpgGlassCut`
+              counted, the cut's signature and panes taken
+       rest   `rest` ms of nothing done, the frames read: the page as it stands, the turn's reference
+       run    the turn fired, `ms` ms recorded, then read: each frame's time, whether it MOVED - a clip path, a
+              transform or an opacity written inside the frame on the curtain or a layer of its turn, a canvas drawn
+              inside the frame, or a Web Animation running on one of them - the first and the last moved frame after
+              the event, the clip-path writes and the draws made inside frames, the long tasks, the curtain's own
+              self-check (`CHECKS[0]`) before, at a quarter, half and three quarters of the turn and after, the cut's
+              signature after, and the regions the sweep's pictures are read over: `band`, the 8 px cells the turn
+              carries glass across (`turnRegions` says how; with none, the largest field pane's), and `seams`, every
+              side between two field panes of either cut, the seams' pixels the flash lights
+     and, for a picture taken with the clock stood still, two more:
+       prep   the clock's attribute and the settle alone, no instrument
+       fire   (after `drpgTurnFreeze`) the turn fired and `ms` ms waited with timers only, then the same regions
+     "The curtain or a layer of its turn" is `TURN_REGION`: inside #drpg-curtain, an element with a class starting
+     `drpg-curtain`, `drpg-glow` or `drpg-turn`, a `[data-glow]` canvas. A turn that moves other elements says so there.
+     `drpgTurnFreeze(at)` stands the page's clock still `at` ms after now - performance.now() returns now, every frame
+     is given now + at - as E61 MK-R2's flashpeak.js did to read the flash at its peak (0.2 of 420 ms is 84). It freezes
+     what is timed by the frame's clock (glass.mjs's flash and morph at 1d860414); a Web Animation runs on the
+     document's timeline and is not frozen by it.
+     The two controls the sweep runs, as switches of this page (the module script below):
+       ?turn=today  on 1d860414 HEAD's `morph` is what runs, so the switch changes nothing and the page says "head";
+                    once glass.mjs exports `glassTurn` (E23 C1b) it plants a clip-path write on the curtain in every
+                    frame of the turn's first 700 ms, which the measure must read
+       ?flash=0.5   every flash layer (`FLASH_LAYERS`) drawn at half its opacity, which must take the seams' peak out of
+                    its band
+     Headless Chromium rasterises in software: every number here is a shape against 1d860414's, never a table's. */
+  const TURN_KINDS = ["phase-recut", "phase", "hour", "layout"];
+  const TURN_REGION = el => Boolean(el?.closest?.("#drpg-curtain")) || el?.matches?.("[data-glow], canvas.curtain-glow") === true
+    || [...(el?.classList ?? [])].some(c => /^drpg-(curtain|glow|turn)/.test(c));
+  const turnState = { raf0: null, frozen: false };
+  const turnSig = panes => (panes ?? []).map(p => p.poly.map(q => q.map(v => Math.round(v)).join(",")).join(" ")).join("|");
+  const turnFire = kind => {
+    const body = document.body, hud = document.getElementById("drpg-hud");
+    const words = (sel, text) => { const el = hud?.querySelector(sel); const node = el && [...el.childNodes].reverse().find(n => n.nodeType === Node.TEXT_NODE); if (node) node.data = text; };
+    if (kind === "phase-recut" || kind === "phase") {
+      const [to, label] = kind === "phase-recut" ? ["classTrial", "Class Trial"] : ["investigation", "Investigation"];
+      body.setAttribute("data-drpg-phase", to);
+      hud?.setAttribute("data-drpg-phase", to);
+      words(".drpg-hud-phase", label);
+      for (const s of hud?.querySelectorAll(".drpg-hud-ticker span") ?? []) s.textContent = `${label} · ${label} · ${label} · `;
+      if (kind === "phase-recut") hud?.querySelector(".drpg-hud-elapsed")?.remove();
+    } else if (kind === "hour") {
+      body.setAttribute("data-drpg-time", "evening");
+      words(".drpg-hud-time", "Evening");
+    } else if (kind === "layout") document.getElementById("drpg-room-tile").style.display = "none";
+    else throw new Error(`drpgTurn: no turn "${kind}" (${TURN_KINDS.join(", ")})`);
+    /* ?turn=today from C1b's tree: the clip path written on the curtain in every frame for 700 ms */
+    if (window.__turnPlant) {
+      const cur = document.getElementById("drpg-curtain"), t0 = performance.now();
+      const plant = t => { if (!cur || t - t0 > 700) return; cur.style.clipPath = cur.style.clipPath === "inset(0px)" ? window.__turnPlantClip : "inset(0px)"; requestAnimationFrame(plant); };
+      window.__turnPlantClip = cur?.style.clipPath ?? "";
+      requestAnimationFrame(plant);
+    }
+  };
+  const LAST_W = () => window.__glass?.LAST?.frame?.W ?? innerWidth, LAST_H = () => window.__glass?.LAST?.frame?.H ?? innerHeight;
+  const turnRegions = (before, after) => {
+    const cur = document.getElementById("drpg-curtain"), at = cur ? cur.getBoundingClientRect() : { left: 0, top: 0 };
+    /* THE MOVING BAND, cell by cell (8 px): each pane of the new cut is matched to the old pane it comes from as
+       glass.mjs's morph matched them at 1d860414 - the same tone, the nearest centre, 200 px for a tone that differs -
+       and a cell is in the band where the new pane over its centre does not come from the old pane that stood there:
+       glass the turn carries across that point. A cut that changed nothing has no band, and the reading falls back to
+       the largest field pane's cells, 6 px in (`from` says which). */
+    const C = 8, old = before ?? [], now = after ?? [];
+    const inside = (poly, x, y) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; };
+    const centre = p => [(p.x0 + p.x1) / 2, (p.y0 + p.y1) / 2];
+    const from = now.map(p => { const c = centre(p); let best = -1, bd = Infinity; old.forEach((o, i) => { const oc = centre(o), d = Math.hypot(oc[0] - c[0], oc[1] - c[1]) + (o.tone === p.tone ? 0 : 200); if (d < bd) { bd = d; best = i; } }); return best; });
+    const which = (list, x, y) => list.findIndex(p => x >= p.x0 && x <= p.x1 && y >= p.y0 && y <= p.y1 && inside(p.poly, x, y));
+    let cells = [], kind = "moved";
+    const W0 = Math.round(LAST_W()), H0 = Math.round(LAST_H());
+    for (let y = C / 2; y < H0; y += C) for (let x = C / 2; x < W0; x += C) {
+      const n = which(now, x, y);
+      if (n >= 0 && from[n] !== which(old, x, y)) cells.push([x - C / 2, y - C / 2]);
+    }
+    if (!cells.length) {
+      const area = p => (p.x1 - p.x0) * (p.y1 - p.y0);
+      const field = now.filter(p => !p.tone && !p.empty && !p.plain).sort((a, b) => area(b) - area(a))[0];
+      if (field) for (let y = C / 2; y < H0; y += C) for (let x = C / 2; x < W0; x += C)
+        if (x - C / 2 >= field.x0 + 6 && x + C / 2 <= field.x1 - 6 && y - C / 2 >= field.y0 + 6 && y + C / 2 <= field.y1 - 6 && inside(field.poly, x, y)) cells.push([x - C / 2, y - C / 2]);
+      kind = "field";
+    }
+    const vis = cells.map(([x, y]) => [Math.round(x + at.left), Math.round(y + at.top)]).filter(([x, y]) => x >= 0 && y >= 0 && x + C <= innerWidth && y + C <= innerHeight);
+    const band = vis.length ? { x: Math.min(...vis.map(c => c[0])), y: Math.min(...vis.map(c => c[1])), w: Math.max(...vis.map(c => c[0])) + C - Math.min(...vis.map(c => c[0])),
+      h: Math.max(...vis.map(c => c[1])) + C - Math.min(...vis.map(c => c[1])), cell: C, cells: vis, from: kind } : null;
+    const W = innerWidth, H = innerHeight, edge = (a, b) => (a[0] < 1 && b[0] < 1) || (a[1] < 1 && b[1] < 1) || (a[0] > W - 1 && b[0] > W - 1) || (a[1] > H - 1 && b[1] > H - 1);
+    /* a side is a seam of the field where every pane it bounds is a field pane (no block's tone, not plain, not
+       empty): a block's own words and the launchers stand beside the others, and their light is not the seams' */
+    const sides = new Map();
+    for (const p of [...(before ?? []), ...(after ?? [])]) for (let i = 0; i < p.poly.length; i++) {
+      const a = [p.poly[i][0] + at.left, p.poly[i][1] + at.top], b = [p.poly[(i + 1) % p.poly.length][0] + at.left, p.poly[(i + 1) % p.poly.length][1] + at.top];
+      if (edge(a, b)) continue;
+      const k = [a, b].map(q => q.map(v => Math.round(v)).join(",")).sort().join(" ");
+      const field = !p.tone && !p.plain && !p.empty;
+      const s = sides.get(k);
+      if (s) s.field = s.field && field;
+      else sides.set(k, { seg: [+a[0].toFixed(1), +a[1].toFixed(1), +b[0].toFixed(1), +b[1].toFixed(1)], field });
+    }
+    const seams = [...sides.values()].filter(s => s.field).map(s => s.seg);
+    return { band, seams };
+  };
+  window.drpgTurnFreeze = (at = 84) => {
+    const C = performance.now(), raf = window.requestAnimationFrame.bind(window);
+    performance.now = () => C;
+    window.requestAnimationFrame = cb => raf(() => cb(C + at));
+    turnState.frozen = true;
+    return { at };
+  };
+  window.drpgTurn = async (kind, { stage = "all", settle = 2500, rest = 1000, ms = 3000 } = {}) => {
+    if (!TURN_KINDS.includes(kind)) throw new Error(`drpgTurn: no turn "${kind}" (${TURN_KINDS.join(", ")})`);
+    const g = window.__glass, wait = n => new Promise(r => setTimeout(r, n));
+    const acc = () => getComputedStyle(document.body).getPropertyValue("--drpg-glass-accent").trim();
+    const check = () => { const c = g?.CHECKS?.[0]; return c ? [c.overlaps, c.blockFails, c.edgeGaps] : null; };
+    const prep = async () => {
+      document.getElementById("drpg-hud")?.setAttribute("data-drpg-phase", document.body.dataset.drpgPhase ?? "dailyLife");
+      await wait(settle);
+    };
+    if (stage === "prep") { await prep(); return { prepared: true }; }
+    if (stage === "fire") {
+      const before = g?.LAST?.panes ?? null, sig0 = turnSig(before), acc0 = acc();
+      turnFire(kind);
+      await wait(ms);
+      const after = g?.LAST?.panes ?? null;
+      return { kind, ...turnRegions(before, after), cut: turnSig(after) === sig0 ? "same" : "new", acc: [acc0, acc()], frozen: turnState.frozen };
+    }
+    if (stage === "arm" || stage === "all") {
+      await prep();
+      const S = window.__turnRec = { frames: new Map(), longs: [], cuts: 0, gets: 0, draws: 0, clip: 0, region: 0, cur: null, t0: null };
+      const tmp = document.createElement("div");
+      const handle = (recs, t) => {
+        for (const r of recs) {
+          if (r.type !== "attributes" || r.attributeName !== "style") continue;
+          tmp.setAttribute("style", r.oldValue ?? "");
+          const el = r.target, was = tmp.style, now = el.style, inside = TURN_REGION(el);
+          const clipMoved = was.clipPath !== now.clipPath, shapeMoved = was.transform !== now.transform || was.opacity !== now.opacity;
+          if (clipMoved) S.clip++;
+          if (t == null) continue;
+          const f = S.frames.get(t) ?? S.frames.set(t, { t, clip: 0, region: 0, draws: 0 }).get(t);
+          if (clipMoved) f.clip++;
+          if (inside && (clipMoved || shapeMoved)) f.region++;
+        }
+      };
+      S.mo = new MutationObserver(recs => handle(recs, null));
+      S.mo.observe(document.documentElement, { attributes: true, attributeFilter: ["style"], attributeOldValue: true, subtree: true });
+      if (!turnState.raf0) {
+        turnState.raf0 = window.requestAnimationFrame.bind(window);
+        window.requestAnimationFrame = cb => turnState.raf0(t => {
+          const R = window.__turnRec, was = R?.cur;
+          if (R) R.cur = t;
+          try { cb(t); } finally { if (R) { handle(R.mo.takeRecords(), t); R.cur = was; } }
+        });
+        const P = CanvasRenderingContext2D.prototype;
+        for (const k of ["stroke", "fill", "fillRect", "strokeRect", "drawImage", "clearRect", "putImageData", "fillText", "strokeText"]) {
+          const f = P[k];
+          P[k] = function (...a) {
+            const R = window.__turnRec;
+            if (R) { R.draws++; if (R.cur != null) { const fr = R.frames.get(R.cur) ?? R.frames.set(R.cur, { t: R.cur, clip: 0, region: 0, draws: 0 }).get(R.cur); fr.draws++; } }
+            return f.apply(this, a);
+          };
+        }
+        const gc = HTMLCanvasElement.prototype.getContext;
+        HTMLCanvasElement.prototype.getContext = function (...a) { if (window.__turnRec) window.__turnRec.gets++; return gc.apply(this, a); };
+      }
+      try { S.po = new PerformanceObserver(l => { for (const e of l.getEntries()) S.longs.push([e.startTime, e.duration]); }); S.po.observe({ type: "longtask" }); } catch { S.po = null; }
+      Hooks.on("drpgGlassCut", S.onCut = () => { S.cuts++; });
+      S.before = g?.LAST?.panes ?? null;
+      S.sig0 = turnSig(S.before);
+      S.check0 = check();
+      S.acc0 = acc();
+      S.ticks = [];
+      S.on = true;
+      const tick = t => {
+        if (!S.on) return;
+        const anim = document.getAnimations().some(a => a.playState === "running" && TURN_REGION(a.effect?.target));
+        S.ticks.push({ t, anim, check: check() });
+        turnState.raf0(tick);
+      };
+      turnState.raf0(tick);
+      if (stage === "arm") return { armed: true, sig: S.sig0.length, today: window.__turnToday ?? null, plant: Boolean(window.__turnPlant) };
+    }
+    const S = window.__turnRec;
+    if (!S) throw new Error("drpgTurn: arm first");
+    const deltas = list => list.slice(1).map((x, i) => x.t - list[i].t);
+    const stats = a => { const s = [...a].sort((x, y) => x - y); return s.length ? { n: s.length, med: +s[s.length >> 1].toFixed(1), p95: +s[Math.min(s.length - 1, Math.floor(s.length * 0.95))].toFixed(1), max: +s[s.length - 1].toFixed(1) } : null; };
+    if (stage === "rest" || stage === "all") {
+      const from = performance.now(), n0 = S.longs.length;
+      await wait(rest);
+      const ticks = S.ticks.filter(x => x.t >= from);
+      S.rest = { frames: stats(deltas(ticks)), long: S.longs.length - n0 };
+      if (stage === "rest") return S.rest;
+    }
+    S.gets = 0; S.draws = 0; S.clip = 0; S.cuts = 0; S.frames.clear();
+    const n0 = S.longs.length, t0 = S.t0 = performance.now(), wall = Date.now();
+    turnFire(kind);
+    await wait(ms);
+    S.on = false;
+    S.mo.disconnect(); S.po?.disconnect(); Hooks.off("drpgGlassCut", S.onCut);
+    const ticks = S.ticks.filter(x => x.t >= t0 - 0.5);
+    const moved = ticks.filter(x => x.anim || (S.frames.get(x.t)?.region ?? 0) > 0 || (S.frames.get(x.t)?.clip ?? 0) > 0 || (S.frames.get(x.t)?.draws ?? 0) > 0);
+    const first = moved.length ? moved[0].t - t0 : null, last = moved.length ? moved[moved.length - 1].t - t0 : null;
+    const during = moved.length ? ticks.filter(x => x.t >= moved[0].t && x.t <= moved[moved.length - 1].t) : ticks;
+    const frames = [...S.frames.values()];
+    const at = q => { if (!moved.length) return null; const T = moved[0].t + q * (moved[moved.length - 1].t - moved[0].t); return ticks.reduce((b, x) => Math.abs(x.t - T) < Math.abs(b.t - T) ? x : b, ticks[0])?.check ?? null; };
+    const after = g?.LAST?.panes ?? null;
+    return {
+      kind, wall, ms, today: window.__turnToday ?? null, plant: Boolean(window.__turnPlant), flash: window.__turnFlash ?? null,
+      rest: S.rest ?? null, frames: stats(deltas(during)), all: stats(deltas(ticks)), first: first == null ? null : Math.round(first), last: last == null ? null : Math.round(last),
+      clip: { frames: frames.filter(f => f.clip).length, writes: frames.reduce((s, f) => s + f.clip, 0), all: S.clip },
+      draw: { frames: frames.filter(f => f.draws).length, calls: frames.reduce((s, f) => s + f.draws, 0), all: S.draws, getContext: S.gets },
+      long: S.longs.slice(n0).filter(([st]) => st >= t0 - 1).map(([, d]) => Math.round(d)),
+      checks: [0.25, 0.5, 0.75].map(at), check0: S.check0 ?? null, check: check(),
+      trail: ticks.reduce((l, x) => { const k = JSON.stringify(x.check); if (!l.length || l[l.length - 1][1] !== k) l.push([Math.round(x.t - t0), k]); return l; }, []),
+      cut: turnSig(after) === S.sig0 ? "same" : "new", cuts: S.cuts, acc: [S.acc0, acc()],
+      ...turnRegions(S.before, after)
+    };
+  };
+</script>
 <script id="drpg-roster-check">
   /* drpgRosterCheck (E50 C2, 30.10.2026; the plan's amendment A9 of 11.10, E50-14): the GM's roster and a messenger
      window beside the voice tile. The roster is drawn as messenger-app.mjs `buildRoster` builds it (the heading, a list
@@ -1726,6 +1964,21 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
   fw.registerFoundryWindows();
   const m = await import("/scripts/glass.mjs");
   window.__glass = m;
+  /* The turn's two controls (E23 C1a; the turn check above, glass-sweep.mjs `--turn`). `?turn=today`: on a tree whose
+     glass.mjs has no `glassTurn` HEAD's `morph` is what runs, and the page says so ("head"); on one that has it, a
+     clip-path write planted in every frame of the turn's first 700 ms ("planted"). `?flash=0.5`: every flash layer at
+     that opacity. FLASH_LAYERS is 1d860414's flash canvas; a turn that bakes its flash elsewhere names its layer here. */
+  const FLASH_LAYERS = "canvas.flash";
+  if (q.get("turn") === "today") {
+    window.__turnPlant = typeof m.glassTurn === "function";
+    window.__turnToday = window.__turnPlant ? "planted" : "head";
+  }
+  if (q.get("flash")) {
+    window.__turnFlash = Number(q.get("flash"));
+    const s = document.createElement("style");
+    s.textContent = `${FLASH_LAYERS} { opacity: ${window.__turnFlash} !important; }`;
+    document.head.append(s);
+  }
   /* applyTheme does not run here, so the harness stamps what it would: the two scale
      tokens and the two shape classes. They are read from settings.mjs rather than
      rewritten, so the breakpoints cannot drift apart from the module's own. */

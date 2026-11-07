@@ -318,6 +318,18 @@ shares a point with the tile or its portrait at which it is not on top. Its cont
 the tile's at the first size where the two meet - must read covered points (`--no-control` leaves it out). These are
 the glass harness's stand-ins, not the module's own render and not v14 (LIVE-E50-06).
 
+How the curtain turns from one state to the next (E23 C1a; the owner's 05.11) is read by
+`node audit/glass-sweep.mjs --turn --chromium <executable>` from the repository root, instead of the sweep: the glass
+harness's four turns (`drpgTurn`: a phase with a recut, a phase, an hour, the room tile hidden) at 1600x900 and 1366x768
+as GM and player under Stained Glass, the pulse off, each on three fresh pages - Chromium's main-thread time around the
+turn and the page's frames, long tasks, first moved frame, clip-path writes and canvas draws inside frames, self-check and
+cut; a screencast's texture energy over the cells the turn carries glass across; the seams' light with the frame's clock
+stood still inside the flash. A frame that writes a clip path or draws, a 64 px square of the band whose texture falls
+under 80 % of its rest, the flash more than 8 from today's (`--against` a baseline's file), an hour's turn that recuts, or a self-check inside the turn worse
+than the cut before and after it fails the line; its two controls (`?turn=today`, `?flash=0.5`) must read their faults.
+It is a shape against 1d860414's on the same machine, never a table's frame time (`game.drpg.fps()`, at a table), and a
+screencast is the frames the compositor sent, not every frame drawn.
+
 ## Daggerheart's dice
 
 From E33 C2a (07.10.2026; the owner's decision P6 of 06.10.2026) the duality roll

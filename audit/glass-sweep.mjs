@@ -203,12 +203,14 @@
  *        node audit/glass-sweep.mjs --frame-cost [--frames <n>, 30] [--themes ...] [--sizes ...] [--glow <n>]   (E88 C0: below)
  *        node audit/glass-sweep.mjs --edges [--edge-frames <n>, 30] [--edge-sel <part>|<part>] [--edge-plant <css>] [--themes ...] [--sizes ...] [--no-control]   (E89 C5: below)
  *        node audit/glass-sweep.mjs --roster [--themes ...] [--roles ...] [--sizes ..., 1366x768,1920x1080] [--no-control]   (E50 C2: below)
+ *        node audit/glass-sweep.mjs --turn [--kinds phase-recut,phase,hour,layout] [--sizes ..., 1600x900,1366x768] [--roles ...]
+ *          [--themes ..., stained] [--turn-ms <n>, 3000] [--runs <n>, 1] [--json <file>] [--against <json>] [--no-control]   (E23 C1a: below)
  * `--corner` loads at twice the pixel density and `--shots` then keeps the bottom-right
  * 200x230 only; without it a shot is the full screen.
  */
 import { createRequire } from "module";
 import { spawn } from "child_process";
-import { mkdirSync } from "fs";
+import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 import url from "url";
 
@@ -612,6 +614,239 @@ if (args.includes("--roster")) {
     } finally { await browser.close(); srv?.kill(); }
     if (control && roles.includes("gm") && !planted) { console.log("control: the roster met the voice tile at no size, so its fault could not be planted - FAIL"); bad++; }
     console.log(`ROSTER ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s), ${roles.length} role(s); the roster met the tile at ${met} size(s)`);
+    process.exit(bad ? 1 : 0);
+}
+
+/* THE TURN (E23 C1a, 07.11.2026; E23-01..E23-06 and E23-08, the owner's 05.11 and E61's DIAGNOSIS.md of MK-R1). `--turn`
+   runs this instead of the sweep: how the curtain moves from one state to the next, on the glass harness's four turns
+   (its `drpgTurn`: phase-recut, Daily Life -> Class Trial with the clock shorter; phase, Daily Life -> Investigation;
+   hour, Afternoon -> Evening; layout, the room tile hidden), at each size (1600x900 and 1366x768 by default) and role,
+   under Stained Glass (Legacy has no curtain to turn), the pulse off (`drpg-no-pulse`, so only the turn moves) and the
+   blur as loaded. Three pages a turn, each a fresh load, so no reading disturbs another:
+     the clock   CDP `Performance.getMetrics` `TaskDuration` around the turn (`main`, the renderer's main thread over
+                 `--turn-ms`, 3000 ms from the event) and around as long a rest before it (`rest`); the page's own
+                 readings: the long tasks ("longtask" entries from the event on: their count and the longest), the
+                 frames from the first moved frame to the last (median/p95/max) against the rest's median, the first
+                 moved frame and the last after the event (`first`, `len`), the frames that wrote a clip path and the
+                 writes (`clip`), the frames that drew on a canvas and the calls (`draw`), the self-check at a quarter,
+                 half and three quarters of the turn, the worst of the three with the cut's before and after (`check`),
+                 and the cut's signature before and after with the `drpgGlassCut` it fired (`cut same|new/<n>`)
+     the texture a screenshot at rest, a CDP screencast through the turn and a screenshot after it, read over the
+                 harness's `band` (the cells the turn carries glass across): E61's texmetric.js, the mean absolute
+                 4-neighbour Laplacian of luminance; `tex <low>/<rest>/<after> worst <n>% at <x,y> (<n> frames)`, low
+                 the band's lowest frame from the first moved frame to the last, and worst the 64 px square of the band
+                 whose lowest frame stands furthest under its reference (the texture page's note says which squares
+                 count): a band can be most of the screen, and a dip the size of one tile is lost in its mean
+     the flash   a screenshot at rest, then the clock stood still at 84 ms (`drpgTurnFreeze`, 0.2 of the 420 ms flash,
+                 inside its hold) and the turn fired: E61 MK-R2's flashpeak.js read on the seams' own pixels, their
+                 median Rec. 709 luminance (the harness's `seams`, the field's, both cuts; `turnFlashPeak` says why
+                 the median); `flash <peak>/<rest>`, read only on a turn that moves the accent (layout's is "-")
+   The line: `turn <kind> <size> <role> main <ms> (rest <ms>) long <n>/<longest> frames <median>/<p95>/<max> (rest
+   <median>) first <ms> len <ms> clip <frames>/<writes> draw <frames>/<calls> tex <low>/<rest>/<after> worst <n>% at
+   <x,y> (<n> frames) flash <peak>/<rest> cut <same|new>/<cuts> check <ov>/<bf>/<eg> (<before> -> <after>)`. A line
+   FAILS, its reasons printed, where a frame wrote a clip path or drew a canvas (E23-01), a square of the band's texture
+   inside the turn falls under 80 % of its rest (E23-04), the flash peak stands more than 8 from today's (E23-03), an
+   hour's turn recut or fired `drpgGlassCut` (E23-06), or the self-check inside the turn reads worse than both the cut
+   it found and the cut it leaves (E23-08; a fault of the cut itself is the sweep proper's). TODAY'S FLASH is the
+   reading of the same theme, role, size and turn in the file `--against <json>` names (a `--json` of 1d860414's run,
+   C1a's baseline), and without one MK-R2's 203 at 1600x900; anywhere else the peak is printed "(unjudged)". On
+   1d860414 itself it is not one number: 202-204 at 1600x900, but 187-199 at 1366x768, where a recut's old seams stand
+   dim under the frozen morph (C1a's baseline). E23-02 (the times) and E23-05 (the cost against 1d860414's) are read
+   off the line against that baseline, not judged here.
+   THE CONTROLS, once a run at the first size and role (`--no-control` leaves them out), each must read its fault or the
+   run fails: `?turn=today`, a phase-recut whose frames must write the clip path (on 1d860414 that is HEAD's own morph,
+   and the page says "head"; from C1b's tree, where glass.mjs exports `glassTurn`, a write planted in every frame,
+   "planted"), and `?flash=0.5`, an hour's turn whose flash layers stand at half their opacity, which must take the
+   peak more than 8 from the same run's hour at that size (or the line's band). `--kinds` keeps some of the four,
+   `--runs <n>` reads the clock page n times and prints each, `--json <file>` writes every reading.
+   THE LAYOUT TURN AT 1366x768 IS NO TURN: there the room tile stands beside the notices, and hiding it recuts nothing
+   on 1d860414 (no moved frame, cut same, both roles); its line reads `first -`.
+   WHAT IT IS NOT. Headless Chromium rasterises in software (perf-baseline.json `headless`): the numbers are a SHAPE
+   against 1d860414's on the same machine and page, never a table's. A table's is `game.drpg.fps()`, at a table. The
+   screencast's frames are what the compositor sent, not every frame drawn; the frozen clock stills what is timed by the
+   frame's clock, not a Web Animation (the harness's turn check says so). */
+/* Runs in a blank page: one picture's texture energy over the band's cells, E61's texmetric.js (Rec. 601 luminance,
+   the mean absolute 4-neighbour Laplacian), each pixel of a cell read against its neighbours wherever they stand: the
+   band's mean, and the mean of each 64 px square of the screen the band's cells fall in (`tiles`, by "x,y"). */
+async function turnTexture([b64, band]) {
+    const bmp = await createImageBitmap(await (await fetch(`data:image/png;base64,${b64}`)).blob());
+    const W = bmp.width, H = bmp.height, g = new OffscreenCanvas(W, H).getContext("2d");
+    g.drawImage(bmp, 0, 0);
+    const d = g.getImageData(0, 0, W, H).data, C = band.cell;
+    const L = (i, j) => { const q = (j * W + i) * 4; return 0.299 * d[q] + 0.587 * d[q + 1] + 0.114 * d[q + 2]; };
+    let s = 0, n = 0;
+    const tiles = {};
+    for (const [x0, y0] of band.cells) {
+        const k = `${Math.floor(x0 / 64) * 64},${Math.floor(y0 / 64) * 64}`, t = tiles[k] ?? (tiles[k] = [0, 0, 0]);
+        t[2]++;
+        for (let j = Math.max(1, y0); j < Math.min(H - 1, y0 + C); j++) for (let i = Math.max(1, x0); i < Math.min(W - 1, x0 + C); i++) {
+            const v = Math.abs(4 * L(i, j) - L(i - 1, j) - L(i + 1, j) - L(i, j - 1) - L(i, j + 1));
+            s += v; n++; t[0] += v; t[1]++;
+        }
+    }
+    return { all: n ? +(s / n).toFixed(2) : null, tiles: Object.fromEntries(Object.entries(tiles).filter(([, t]) => t[1]).map(([k, t]) => [k, [+(t[0] / t[1]).toFixed(2), t[2]]])) };
+}
+/* Runs in a blank page: the median luminance (Rec. 709, as flashpeak.js) of the pixels the field's seams run through.
+   MK-R2's flashpeak.js read the p99.5 of every pixel of a region of the field, which is where its seams' own pixels
+   stand (they are under 1 % of it); read on the seams themselves the same quantity is their median: 1600x900, a GM,
+   an hour's turn on 1d860414, 122.1 at rest and 203.4 at the peak (MK-R2: 131 and 203), where their p99.5 is 238.1 and
+   252.0 - the seams' bright bevel, not the flash. */
+async function turnFlashPeak([b64, segs]) {
+    const bmp = await createImageBitmap(await (await fetch(`data:image/png;base64,${b64}`)).blob());
+    const W = bmp.width, H = bmp.height, g = new OffscreenCanvas(W, H).getContext("2d");
+    g.drawImage(bmp, 0, 0);
+    const d = g.getImageData(0, 0, W, H).data, seen = new Set(), L = [];
+    for (const [x0, y0, x1, y1] of segs) {
+        const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0)));
+        for (let k = 0; k <= n; k++) {
+            const x = Math.round(x0 + (x1 - x0) * k / n), y = Math.round(y0 + (y1 - y0) * k / n);
+            if (x < 0 || y < 0 || x >= W || y >= H || seen.has(y * W + x)) continue;
+            seen.add(y * W + x);
+            const q = (y * W + x) * 4;
+            L.push(0.2126 * d[q] + 0.7152 * d[q + 1] + 0.0722 * d[q + 2]);
+        }
+    }
+    L.sort((a, b) => a - b);
+    return L.length ? { p50: +L[L.length >> 1].toFixed(1), n: L.length } : null;
+}
+if (args.includes("--turn")) {
+    const KINDS = (opt("--kinds") ?? "phase-recut,phase,hour,layout").split(",").filter(Boolean);
+    const turnMs = Number(opt("--turn-ms") ?? 3000), runs = Math.max(1, Number(opt("--runs") ?? 1)), json = opt("--json");
+    const tThemes = (opt("--themes") ?? "stained").split(",").filter(Boolean);
+    const FLASH = 8, TEX_MIN = 0.8, MOVES_ACCENT = ["phase-recut", "phase", "hour"];
+    const against = opt("--against") ? JSON.parse(readFileSync(opt("--against"), "utf8")) : null;
+    /* the flash's band: today's peak +/- 8 - the baseline's reading of the same theme, role, size and turn with
+       `--against`, else MK-R2's 203 at 1600x900 (a GM's, read on the harness 05.11), else none and the peak unjudged */
+    const flashBase = (theme, role, size, kind) => against?.readings?.find(r => r.theme === theme && r.role === role && r.size === size && r.kind === kind)?.flash?.peak?.p50
+        ?? (size === "1600x900" ? 203 : null);
+    const outside = (peak, base) => base != null && peak != null && Math.abs(peak - base) > FLASH;
+    const calc = await browser.newPage();
+    const readings = [];
+    let bad = 0, today = null, halfFlash = null;
+    const hourFlash = new Map();
+    const open = async (theme, role, size, extra = []) => {
+        const [W, H] = size.split("x").map(Number);
+        const page = await browser.newPage({ viewport: { width: W, height: H } });
+        const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : "", ...extra].filter(Boolean);
+        await page.goto(`${base}/${page0}${qs.length ? (page0.includes("?") ? "&" : "?") + qs.join("&") : ""}`);
+        const loaded = await page.waitForFunction(() => window.__glass && window.drpgTurn, null, { timeout: 15000 }).then(() => true, () => false);
+        if (loaded) { await page.waitForTimeout(waitMs); await page.evaluate(() => document.body.classList.add("drpg-no-pulse")); }
+        return { page, loaded };
+    };
+    const metric = async cdp => Object.fromEntries((await cdp.send("Performance.getMetrics")).metrics.map(m => [m.name, m.value])).TaskDuration;
+    /* the clock page: Chromium's main-thread time around the rest and the turn, and the page's own readings */
+    const clock = async (theme, role, size, kind, extra = []) => {
+        const { page, loaded } = await open(theme, role, size, extra);
+        if (!loaded) { await page.close(); return null; }
+        const cdp = await page.context().newCDPSession(page);
+        await cdp.send("Performance.enable");
+        await page.evaluate(k => window.drpgTurn(k, { stage: "arm" }), kind);
+        const a = await metric(cdp);
+        await page.evaluate(([k, ms]) => window.drpgTurn(k, { stage: "rest", rest: ms }), [kind, turnMs]);
+        const b = await metric(cdp);
+        const r = await page.evaluate(([k, ms]) => window.drpgTurn(k, { stage: "run", ms }), [kind, turnMs]);
+        const c = await metric(cdp);
+        await page.close();
+        return { ...r, main: Math.round((c - b) * 1000), restMain: Math.round((b - a) * 1000) };
+    };
+    /* the texture page: a picture at rest, the screencast through the turn, a picture after it. A square of the band
+       counts where it holds 16 of its 64 cells and its reference - the lower of rest and after, so words the turn takes
+       away or glass it lays where a block stood are not read as texture lost - is 1 or more; its ratio is the lowest
+       of its frames from the first moved to the last over that reference, and `worst` is the lowest square's. */
+    const texture = async (theme, role, size, kind) => {
+        const { page, loaded } = await open(theme, role, size);
+        if (!loaded) { await page.close(); return null; }
+        await page.evaluate(k => window.drpgTurn(k, { stage: "arm" }), kind);
+        await page.evaluate(k => window.drpgTurn(k, { stage: "rest", rest: 300 }), kind);
+        const rest = (await page.screenshot({ type: "png" })).toString("base64");
+        const cdp = await page.context().newCDPSession(page), frames = [];
+        cdp.on("Page.screencastFrame", async f => { frames.push({ ts: f.metadata.timestamp, data: f.data }); try { await cdp.send("Page.screencastFrameAck", { sessionId: f.sessionId }); } catch { /* the page closed */ } });
+        await cdp.send("Page.startScreencast", { format: "png", everyNthFrame: 1 });
+        await page.waitForTimeout(300);
+        const r = await page.evaluate(([k, ms]) => window.drpgTurn(k, { stage: "run", ms }), [kind, turnMs]);
+        await cdp.send("Page.stopScreencast");
+        const after = (await page.screenshot({ type: "png" })).toString("base64");
+        await page.close();
+        if (!r.band) return { r, rest: null, after: null, low: null, n: 0 };
+        const R = await calc.evaluate(turnTexture, [rest, r.band]), A = await calc.evaluate(turnTexture, [after, r.band]);
+        if (r.first == null) return { r, rest: R.all, after: A.all, low: null, n: 0 };
+        const series = [];
+        for (const f of frames.map(f => ({ ms: Math.round(f.ts * 1000 - r.wall), data: f.data })).filter(f => f.ms >= r.first - 1 && f.ms <= r.last + 1))
+            series.push([f.ms, await calc.evaluate(turnTexture, [f.data, r.band])]);
+        let worst = null;
+        for (const [k, [ref0, cells]] of Object.entries(R.tiles)) {
+            const ref = Math.min(ref0, A.tiles[k]?.[0] ?? ref0);
+            if (cells < 16 || ref < 1 || !series.length) continue;
+            const low = Math.min(...series.map(([, v]) => v.tiles[k]?.[0] ?? ref));
+            if (!worst || low / ref < worst.ratio) worst = { at: k, ratio: +(low / ref).toFixed(2), low, ref };
+        }
+        return { r, rest: R.all, after: A.all, low: series.length ? Math.min(...series.map(([, v]) => v.all)) : null, n: series.length, worst,
+            series: series.map(([ms, v]) => [ms, v.all]) };
+    };
+    /* the flash page: a picture at rest, then the clock stood still inside the flash's hold */
+    const flash = async (theme, role, size, kind, extra = []) => {
+        const { page, loaded } = await open(theme, role, size, extra);
+        if (!loaded) { await page.close(); return null; }
+        await page.evaluate(k => window.drpgTurn(k, { stage: "prep" }), kind);
+        const rest = (await page.screenshot({ type: "png" })).toString("base64");
+        await page.evaluate(() => window.drpgTurnFreeze(84));
+        const r = await page.evaluate(k => window.drpgTurn(k, { stage: "fire", ms: 1500 }), kind);
+        const peak = (await page.screenshot({ type: "png" })).toString("base64");
+        await page.close();
+        return { r, rest: await calc.evaluate(turnFlashPeak, [rest, r.seams]), peak: await calc.evaluate(turnFlashPeak, [peak, r.seams]) };
+    };
+    const n1 = v => v == null ? "-" : String(Math.round(v));
+    const worst = cs => { const k = (cs ?? []).filter(Boolean); return k.length ? [0, 1, 2].map(i => Math.max(...k.map(c => c[i]))) : null; };
+    const judge = (kind, c, t, f, base) => {
+        const why = [];
+        if (c.clip.frames) why.push(`${c.clip.frames} frame(s) wrote a clip path (E23-01)`);
+        if (c.draw.frames) why.push(`${c.draw.frames} frame(s) drew on a canvas (E23-01)`);
+        if (t?.worst && t.worst.ratio < TEX_MIN) why.push(`the texture inside the turn fell to ${Math.round(100 * t.worst.ratio)} % of rest in the square at ${t.worst.at} (${t.worst.low}/${t.worst.ref}; E23-04: 80 %)`);
+        if (f?.peak && outside(f.peak.p50, base)) why.push(`the flash peak ${f.peak.p50} stands outside ${base} +/- ${FLASH} (E23-03)`);
+        if (kind === "hour" && (c.cut !== "same" || c.cuts)) why.push(`an hour's turn recut: cut ${c.cut}, ${c.cuts} drpgGlassCut (E23-06)`);
+        /* inside the turn no worse than the cut it leaves or the one it found: a fault of the end state is the cut's,
+           read by the sweep proper, not the turn's */
+        const w = worst(c.checks), ends = worst([c.check0, c.check]);
+        if (w && ends && w.some((v, i) => v > ends[i])) why.push(`the self-check inside the turn read ${w.join("/")}, worse than ${ends.join("/")} before and after (E23-08)`);
+        return why;
+    };
+    const line = (kind, size, role, c, t, f, base) => `turn ${kind.padEnd(11)} ${size.padEnd(9)} ${role.padEnd(6)} main ${c.main} (rest ${c.restMain}) long ${c.long.length}/${c.long.length ? Math.max(...c.long) : 0} `
+        + `frames ${c.frames ? `${c.frames.med}/${c.frames.p95}/${c.frames.max}` : "-"} (rest ${c.rest?.frames?.med ?? "-"}) first ${n1(c.first)} len ${n1(c.last)} `
+        + `clip ${c.clip.frames}/${c.clip.writes} draw ${c.draw.frames}/${c.draw.calls} tex ${t?.low ?? "-"}/${t?.rest ?? "-"}/${t?.after ?? "-"} worst ${t?.worst ? `${Math.round(100 * t.worst.ratio)}% at ${t.worst.at}` : "-"} (${t?.n ?? 0} frames) `
+        + `flash ${f?.peak ? `${f.peak.p50}/${f.rest?.p50 ?? "-"}${base == null ? " (unjudged)" : ""}` : "-"} cut ${c.cut}/${c.cuts} check ${(worst(c.checks) ?? ["-", "-", "-"]).join("/")} (${(c.check0 ?? ["-"]).join("/")} -> ${(c.check ?? ["-"]).join("/")})`;
+    try {
+        for (const theme of tThemes) for (const role of roles) for (const size of (opt("--sizes") ?? "1600x900,1366x768").split(",")) {
+            for (const kind of KINDS) {
+                const cs = [];
+                for (let i = 0; i < runs; i++) cs.push(await clock(theme, role, size, kind));
+                if (cs.some(c => !c)) { console.log(`turn ${kind} ${size} ${role} FAIL: the page did not load the glass or drpgTurn`); bad++; continue; }
+                const t = await texture(theme, role, size, kind);
+                const f = MOVES_ACCENT.includes(kind) ? await flash(theme, role, size, kind) : null;
+                const base = flashBase(theme, role, size, kind);
+                if (kind === "hour" && f?.peak) hourFlash.set(`${theme} ${role} ${size}`, f.peak.p50);
+                for (const c of cs) {
+                    const why = judge(kind, c, t, f, base);
+                    console.log(line(kind, size, role, c, t, f, base) + (why.length ? `  - FAIL: ${why.join("; ")}` : ""));
+                    if (why.length) bad++;
+                    readings.push({ theme, role, size, kind, clock: { ...c, seams: c.seams.length, band: c.band && { ...c.band, cells: c.band.cells.length } }, texture: t && { rest: t.rest, after: t.after, low: t.low, worst: t.worst, n: t.n, series: t.series, band: t.r.band && { ...t.r.band, cells: t.r.band.cells.length } }, flash: f && { rest: f.rest, peak: f.peak, cut: f.r.cut, acc: f.r.acc }, why });
+                }
+            }
+            if (control && !today) {
+                const c = await clock(theme, role, size, "phase-recut", ["turn=today"]);
+                today = { c, ok: Boolean(c && c.clip.frames > 0) };
+                console.log(`turn control ?turn=today (${c?.today ?? "-"}) ${size} ${role}: phase-recut clip ${c ? `${c.clip.frames}/${c.clip.writes}` : "-"}${today.ok ? " - read" : "  - FAIL: the control's clip-path writes were not read"}`);
+                if (!today.ok) bad++;
+                /* judged against this run's own hour at this size where it read one, else the line's band */
+                const f = await flash(theme, role, size, "hour", ["flash=0.5"]), base = hourFlash.get(`${theme} ${role} ${size}`) ?? flashBase(theme, role, size, "hour");
+                halfFlash = { f, ok: Boolean(f?.peak && outside(f.peak.p50, base)) };
+                console.log(`turn control ?flash=0.5 ${size} ${role}: hour flash ${f?.peak ? `${f.peak.p50}/${f.rest?.p50 ?? "-"}` : "-"} against ${base ?? "-"} +/- ${FLASH}${halfFlash.ok ? " - out of its band, read" : "  - FAIL: the flash at half its opacity was not read out of its band"}`);
+                if (!halfFlash.ok) bad++;
+                readings.push({ theme, role, size, control: { today: c && { clip: c.clip, today: c.today }, flash: f && { rest: f.rest, peak: f.peak } } });
+            }
+        }
+    } finally { await browser.close(); srv?.kill(); }
+    if (json) writeFileSync(json, JSON.stringify({ when: new Date().toISOString(), turnMs, readings }, null, 1));
+    console.log(`TURN ${bad ? "RED" : "GREEN"}: ${readings.filter(r => r.kind).length} reading(s), ${KINDS.length} turn(s); headless Chromium (software): a shape against 1d860414's, not a table's number`);
     process.exit(bad ? 1 : 0);
 }
 
