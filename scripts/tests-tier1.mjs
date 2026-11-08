@@ -40024,6 +40024,185 @@ const INVARIANTS = [
             add: { mode: true, own: false }, paint: { mode: true, own: false } }),
             "{outside a trial; another's testimony; an open debate; muted; dead: Present shown, its held line} and the two painters asking the mode, no predicate");
     }],
+    ["R1477 - the render's own decision (sheet.mjs `renderPlan`, `installRenderPlan`; E45 C2, E45-08; audit S03-07): \"repaint\" only for `render(options)` or `render(false, options)` with renderContext \"updateActor\" and a `renderData` of repaintable resources alone (Health, Hope, both, `_id` and `_stats` aside); a flag, an item, an effect, `actions` or `armor` beside them, no arguments, `render(true, ...)`, a bare `false`, no `renderData`, `force`, `parts`, a first render and renderContext \"updateItem\" render; the wrapper repaints without the original, calls it otherwise, and calls it when the repaint throws", async () => {
+        /*
+         * E45 C2, 08.11.2026. The plan read pure, then the wrapper on a stand-in sheet whose prototype's `render` is the
+         * one it shadows (it counts its calls and draws nothing): installed once, marked, a repaint resolving with the app
+         * and no original call, a flag's render calling it, and a root whose every lookup throws - the repaint's first
+         * read - calling it after the error is logged. The shapes are v13/v14's notes, not v14's source (E45's live check, AUDIT 9.2).
+         * Red on the tree before: no `renderPlan`.
+         */
+        const SH = await import("./sheet.mjs");
+        must(typeof SH.renderPlan === "function" && typeof SH.installRenderPlan === "function", "sheet.mjs has no `renderPlan` or `installRenderPlan`");
+        const res = values => ({ system: { resources: values } });
+        const upd = (data, extra = {}) => ({ renderContext: "updateActor", renderData: data, ...extra });
+        const health = res({ hitPoints: { value: 2 } }), hope = res({ hope: { value: 3 } });
+        const both = { ...res({ hitPoints: { value: 2 }, stress: { value: 1 }, hope: { value: 3 } }), _id: "r1477", _stats: { modifiedTime: 1 } };
+        const cases = {
+            health: [[upd(health)]], hope: [[upd(hope)]], both: [[upd(both)]], foundry: [[false, upd(hope)]],
+            flag: [[upd({ ...hope, flags: { [MODULE_ID]: { r1477: 1 } } })]], item: [[upd({ ...hope, items: [{ _id: "r1477i" }] })]],
+            effect: [[upd({ ...health, effects: [{ _id: "r1477e" }] })]], actions: [[upd(res({ hope: { value: 3 }, actions: { value: 1 } }))]],
+            armor: [[upd(res({ armor: { value: 1 } }))]], onlyId: [[upd({ _id: "r1477", _stats: { modifiedTime: 1 } })]],
+            none: [[]], forced: [[true, upd(hope)]], bareFalse: [[false]], three: [[false, upd(hope), {}]], nullFirst: [[null]],
+            noData: [[{ renderContext: "updateActor" }]], dataList: [[upd([hope])]], force: [[upd(hope, { force: true })]],
+            parts: [[upd(hope, { parts: ["sidebar"] })]], first: [[upd(hope)], { rendered: false }], item2: [[{ renderContext: "updateItem", renderData: hope }]]
+        };
+        const plans = Object.fromEntries(Object.entries(cases).map(([name, [args, state]]) => [name, SH.renderPlan(args, state)]));
+        const repaint = ["health", "hope", "both", "foundry"];
+        equal(stableJson(plans), stableJson(Object.fromEntries(Object.keys(cases).map(name => [name, repaint.includes(name) ? "repaint" : "render"]))),
+            "renderPlan for each case: [resource-only updateActor (Health, Hope, both with _id and _stats, Foundry's (false, options))] repaint, every other shape renders");
+
+        const actor = reserveActor({ id: `r1477${Date.now().toString(36)}` });
+        actor.system.resources.hope = { value: 3, max: 6 };
+        const Stand = { render(...args) { this.calls.push(args.length); return Promise.resolve(this); } };
+        const stand = element => Object.assign(Object.create(Stand), { id: "r1477-sheet", document: actor, element, rendered: true, calls: [] });
+        const app = stand(reserveStandIn(actor));
+        SH.installRenderPlan(app);
+        const own = Object.hasOwn(app, "render") ? app.render : null;
+        SH.installRenderPlan(app);
+        const repainted = await app.render(upd(hope));
+        const afterRepaint = app.calls.length;
+        await app.render(false, upd({ ...hope, flags: { [MODULE_ID]: { r1477: 1 } } }));
+        const broken = document.createElement("div");
+        broken.querySelectorAll = () => { throw new Error("R1477 planted"); };
+        broken.querySelector = broken.querySelectorAll;
+        const failing = stand(broken);
+        SH.installRenderPlan(failing);
+        const logged = [], realError = console.error;
+        console.error = (...args) => { logged.push(args.map(a => (a instanceof Error ? a.message : String(a))).join(" ")); };
+        let thrown = null;
+        try {
+            await failing.render(upd(hope));
+        } catch (err) {
+            thrown = String(err?.message ?? err);
+        } finally {
+            console.error = realError;
+        }
+        equal(stableJson({
+            installed: Boolean(own), marked: own?.[Symbol.for("drpgRenderPlan")] === true, once: app.render === own,
+            repaint: [repainted === app, afterRepaint], flag: app.calls.length,
+            throws: [failing.calls.length, thrown, logged.some(line => line.includes("R1477 planted"))]
+        }), stableJson({ installed: true, marked: true, once: true, repaint: [true, 0], flag: 1, throws: [1, null, true] }),
+        "the wrapper: [an own render, its mark, a second install keeping it, a repaint resolving with the app and the original's calls, the original's calls after a flag's render, a throwing repaint: the original's calls, what the render threw, an error naming the plant logged]");
+    }],
+    ["R1478 - a write cut in preUpdate leaves the next render whole (sheet.mjs `installRenderPlan`; overflow.mjs and resource-guard.mjs `onPreUpdateActor`; E45 C2, E45-09; audit S03-07): on a stand-in sheet open on a student, a player's Sanity write emptied by the resource guard (the lock on) and a Hope gain emptied by Despair's Overflow, each followed by an item created on the student: the item's render reaches the sheet and its row is drawn", async () => {
+        /*
+         * E45 C2, 08.11.2026. The write is the module's own `preUpdateActor` chain, called as Foundry calls it before a
+         * write (`Hooks.call` with the changes), nothing written: an emptied write updates nothing and renders nothing, so
+         * the next render the sheet sees is the item's - called here as Foundry's document calls its apps after a
+         * created Item, `render(false, { renderContext: "createItem", renderData })` (v13/v14's notes, E45's live check, AUDIT 9.2). The
+         * stand-in is opened through the module's own hook (its first render) and held in the student's `apps` for the
+         * test (the place a mark was laid from; the harness's documents have no `apps`, so one stands for the test), taken
+         * out in a finally; its prototype's `render` draws one row per item
+         * it holds. The lock, the clock and the Overflow's stamp are answered in memory, as R1460 reads them; the player
+         * is this GM with `isGM` off. Red on the tree before: the mark laid before the guards ate the item's render.
+         */
+        const who = studentActors()[0];
+        must(who, "no student in the world - this would measure nothing");
+        const stamp = { session: 1, day: 1, timeOfDay: "noon" };
+        const Stand = {
+            render(...args) {
+                this.calls.push(args.length);
+                const part = this.element.querySelector('section[data-application-part="inventory"]');
+                part?.querySelectorAll(".r1478-row").forEach(row => row.remove());
+                for (const name of this.items) part?.insertAdjacentHTML("beforeend", `<div class="r1478-row">${name}</div>`);
+                return Promise.resolve(this);
+            }
+        };
+        const run = async (label, path, value, { role, overflow }) => {
+            const changes = foundry.utils.expandObject({ [path]: value });
+            const root = e24SheetRoot();
+            const app = Object.assign(Object.create(Stand), { id: `r1478-${label}`, document: who, isEditable: true, element: root, rendered: true, calls: [], items: [] });
+            const real = game.settings.get, warn = ui.notifications.warn;
+            game.settings.get = function (module, key, ...rest) {
+                if (module === MODULE_ID && key === SETTINGS.lockPlayerResources) return true;
+                if (module === MODULE_ID && key === SETTINGS.clock) return { ...stamp, eclipse: false };
+                if (module === MODULE_ID && key === SETTINGS.overflow) return { active: overflow ? { ...stamp, effect: overflow } : null };
+                if (module === MODULE_ID && key === SETTINGS.overflowRules) return {};
+                return real.call(this, module, key, ...rest);
+            };
+            ui.notifications.warn = () => null;
+            const own = !who.apps;
+            if (own) Object.defineProperty(who, "apps", { configurable: true, writable: true, value: {} });
+            const apps = who.apps;
+            try {
+                Hooks.callAll("renderCharacterSheet", app, root, {}, { isFirstRender: true });
+                apps[app.id] = app;
+                await e24AsRole(role, () => Hooks.call("preUpdateActor", who, changes, {}, game.user.id));
+                const cut = foundry.utils.getProperty(changes, path) === undefined;
+                app.items.push(`R1478 ${label}`);
+                await app.render(false, { renderContext: "createItem", renderData: [{ _id: `r1478${label}`, name: `R1478 ${label}`, type: "loot" }] });
+                return { cut, renders: app.calls.length, row: root.querySelectorAll(".r1478-row").length };
+            } finally {
+                delete apps[app.id];
+                if (own) delete who.apps;
+                game.settings.get = real;
+                ui.notifications.warn = warn;
+            }
+        };
+        const stress = Number(foundry.utils.getProperty(who, "system.resources.stress.value") ?? 0);
+        const hope = Number(foundry.utils.getProperty(who, "system.resources.hope.value") ?? 0);
+        const out = {
+            guard: await run("guard", "system.resources.stress.value", stress + 1, { role: "owner" }),
+            overflow: await run("overflow", "system.resources.hope.value", hope + 1, { role: "gm", overflow: "despair" })
+        };
+        equal(stableJson(out), stableJson({ guard: { cut: true, renders: 1, row: 1 }, overflow: { cut: true, renders: 1, row: 1 } }),
+            "[a player's Sanity write under the lock, a Hope gain under Despair]: [the write emptied in preUpdate, the original renders the item's render reached, the item's rows drawn]");
+    }],
+    ["R1479 - the repaint draws what the render would (sheet.mjs `repaintInPlace` through `installRenderPlan`; E45 C2, E45-10; D46 option 2): on stand-in sheets opened through the module's hook, a Hope-only update on a Monocub makes its Confusion tile affordable; a Health and Hope update on the pip layout draws the new reserve, lights the Hope Calls it pays for and rebuilds a priced tile - each with no call of the original render", async () => {
+        /*
+         * E45 C2, 08.11.2026. A student whose Hope, Health and actions are answered in memory (`e45Held`, own `value`s
+         * put back in a finally; the Monocub flag by `e24Flagged`), drawn for this GM on a stand-in root of the header,
+         * the Features part and the sidebar's pip layout (resource-bar.hbs, `reserveStandIn`); the update is the render
+         * Foundry hands after the write, `render(false, { renderContext: "updateActor", renderData })` (E45's live check, AUDIT 9.2).
+         * Red on the tree before: the render reached the original (no repaint), the tile and the pips stale.
+         */
+        const who = studentActors().find(a => !a.getFlag(MODULE_ID, FLAGS.deceased)) ?? studentActors()[0];
+        must(who, "no student in the world - this would measure nothing");
+        const Stand = { render(...args) { this.calls.push(args.length); return Promise.resolve(this); } };
+        const open = (label, held) => {
+            const root = e24SheetRoot();
+            const pips = reserveStandIn({ system: { resources: { hitPoints: held.hitPoints, stress: held.stress } } }, { pips: true });
+            root.querySelector("aside.character-sidebar-sheet").append(pips.querySelector(".info-section"));
+            const app = Object.assign(Object.create(Stand), { id: `r1479-${label}`, document: who, isEditable: true, element: root, rendered: true, calls: [] });
+            Hooks.callAll("renderCharacterSheet", app, root, {}, { isFirstRender: true });
+            return app;
+        };
+        const update = (app, data) => app.render(false, { renderContext: "updateActor", renderData: { system: { resources: data } } });
+        const base = { actions: { value: 3, max: 3 }, hitPoints: { value: 0, max: 4 }, stress: { value: 0, max: 6 } };
+        const cub = await e24Flagged(who, { [FLAGS.monocub]: true }, async () => {
+            const held = { ...base, hope: { value: 0, max: 6 } };
+            return e45Held(who, held, async () => {
+                const app = open("cub", held);
+                const tile = () => app.element.querySelector(".drpg-monocub-panel .drpg-action-grid button:not([data-drpg-action])");
+                const before = tile()?.classList.contains("unaffordable") ?? null;
+                held.hope.value = 3;
+                await update(app, { hope: { value: 3 } });
+                return { before, after: tile()?.classList.contains("unaffordable") ?? null, renders: app.calls.length };
+            });
+        });
+        const held = { ...base, hope: { value: 0, max: 6 } };
+        const student = await e45Held(who, held, async () => {
+            const app = open("pips", held);
+            const root = app.element;
+            const full = () => root.querySelectorAll("[data-drpg-reserve='hitPoints'] .drpg-pip-full").length;
+            const greyed = () => root.querySelectorAll(".drpg-hope-panel .drpg-action-grid > .unaffordable").length;
+            const priced = () => [...root.querySelectorAll("[data-drpg-action]")].find(node => PRICE_CHAINS[node.dataset.drpgAction] && !node.disabled) ?? null;
+            const before = { full: full(), greyed: greyed() }, tileBefore = priced();
+            held.hitPoints.value = 1;
+            held.hope.value = 6;
+            await update(app, { hitPoints: { value: 1 }, hope: { value: 6 } });
+            const tileAfter = priced();
+            return { before, after: { full: full(), fewerGreyed: greyed() < before.greyed },
+                tile: [Boolean(tileBefore), Boolean(tileAfter) && tileAfter !== tileBefore && tileAfter.dataset.drpgAction === tileBefore?.dataset.drpgAction],
+                renders: app.calls.length };
+        });
+        must(student.before.greyed > 0, "no Hope Call was greyed at no Hope - the Calls' repaint would read nothing");
+        equal(stableJson({ cub, student: { ...student, before: { full: student.before.full } } }), stableJson({
+            cub: { before: true, after: false, renders: 0 },
+            student: { before: { full: 4 }, after: { full: 3, fewerGreyed: true }, tile: [true, true], renders: 0 }
+        }), "[a Monocub's Confusion tile unaffordable before and after a Hope update, the original's renders; the pip layout's Health full pips before and after, fewer greyed Hope Calls, a priced tile drawn and rebuilt, the original's renders]");
+    }],
 ];
 
 /**
@@ -40635,6 +40814,28 @@ function e24Items(list) {
         find: fn => all.find(fn), filter: fn => all.filter(fn), some: fn => all.some(fn), every: fn => all.every(fn), map: fn => all.map(fn),
         reduce: (fn, init) => all.reduce(fn, init), forEach: fn => all.forEach(fn), documentName: "Item"
     };
+}
+
+/* E45 C2's fixture (R1479): each `system.resources.<key>` of `held` answered as its `{ value, max }` for `run` - own
+   `value` and `max` on the actor's resource objects in this browser's memory, read through the getters each time, put
+   back in a finally; nothing written. */
+async function e45Held(actor, held, run) {
+    const kept = [];
+    try {
+        for (const [key, entry] of Object.entries(held)) {
+            const node = actor.system?.resources?.[key];
+            if (!node || typeof node !== "object") continue;
+            for (const field of ["value", "max"]) {
+                kept.push([node, field, Object.getOwnPropertyDescriptor(node, field)]);
+                Object.defineProperty(node, field, { configurable: true, enumerable: true, get: () => entry[field], set: () => {} });
+            }
+        }
+        return await run();
+    } finally {
+        for (const [node, field, own] of kept.reverse()) {
+            if (own) Object.defineProperty(node, field, own); else delete node[field];
+        }
+    }
 }
 
 export { INVARIANTS };

@@ -482,20 +482,20 @@ export const PATCHES = [
         target: "render, as an own property on each open character sheet",
         owner: "foundry",
         file: "sheet.mjs",
-        symbol: "armRenderGuard",
-        why: "A resource-only update skips one redraw, so the sheet does not flicker on every Hope or Health change.",
-        when: "per sheet, armed by the first resource-only update it sees",
-        fallback: "not armed: a character sheet redraws on every resource change, as Foundry draws it",
-        // Armed per sheet by its first resource-only update, so an open sheet not yet updated carries none.
-        marked: false,
+        symbol: "installRenderPlan",
+        why: "A resource-only update (renderContext \"updateActor\", renderData of Health, Sanity or Hope) is repainted in place, so the sheet does not flicker on every Hope or Health change; anything else renders.",
+        when: "per sheet, from its first render",
+        fallback: "not installed: the sheet renders on every change, as Foundry draws it",
+        // Installed from each character sheet's first render (E45 C2) and marked `drpgRenderPlan`: no open sheet, nothing to read.
+        marked: true,
         probe: () => {
             const sheets = [...(foundry.applications?.instances?.values?.() ?? [])]
                 .filter(app => app?.document?.type === "character");
-            const armed = sheets.filter(app => Object.hasOwn(app, "render")).length;
+            const ours = sheets.filter(app => Object.hasOwn(app, "render") && app.render?.[Symbol.for("drpgRenderPlan")] === true).length;
             return {
                 present: typeof foundry.applications?.api?.ApplicationV2?.prototype?.render === "function",
-                ours: sheets.length ? armed === sheets.length : null,
-                note: `${armed} of ${sheets.length} open character sheets carry it`
+                ours: sheets.length ? ours === sheets.length : null,
+                note: `${ours} of ${sheets.length} open character sheets carry it`
             };
         }
     },

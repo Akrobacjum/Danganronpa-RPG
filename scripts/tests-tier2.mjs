@@ -83568,8 +83568,122 @@ const SCENARIOS = [
             npc: { mode: "npc", owner: ["npc", true, null, false], other: ["npc", false, null, true], agree: yes }
         }), "{each state: the mode for this GM; for the owner and another player [mode, row buttons, action panel, viewer]; the drawn sheet's header, mark and panel, the strip and the room tile agreeing with the mode}");
     }],
-    ...GRID
+    ...GRID,
+    ["E45-T2 - a resource write repaints an open sheet without a render, and a write cut before it leaves the next render whole (E45 C2, E45-10, E45-09; audit S03-07): a Hope-only write, then a Health write: the sheet's original render is not called for either and its Hope and Health read what the student holds; a Hope gain cut by Despair's Overflow, then a flag write: the flag's render reaches the sheet once", async () => {
+        /*
+         * E45 C2, 08.11.2026. A stand-in window for the student (its prototype's `render` - the one the module's own
+         * shadows - counts its calls and draws the sheet again through `renderCharacterSheet`), opened through the
+         * module's hook and held in the student's `apps` for the test, taken out in a finally. Foundry calls each app's
+         * `render` after a write; the harness's shim calls none, so where nothing called it by the time the write
+         * settled, the test calls it as the notes say Foundry does, `render(false, { renderContext: "updateActor",
+         * renderData })` with the changes `updateActor` handed on (v13/v14's notes, not v14's source: E45's live check, AUDIT 9.2). The
+         * calls are seen through a Proxy of the window. Despair is answered in memory (`game.settings.get` for the
+         * Overflow's stamp and the clock, put back in a finally). Put back: Hope, Health, the flag.
+         */
+        const [student] = cast(1);
+        const HOPE = "system.resources.hope.value", HP = "system.resources.hitPoints.value";
+        const hopeWas = Number(foundry.utils.getProperty(student, HOPE) ?? 0), hpWas = Number(foundry.utils.getProperty(student, HP) ?? 0);
+        const hpMax = Number(foundry.utils.getProperty(student, "system.resources.hitPoints.max") ?? 0);
+        must(hpMax > 1, "the student has no Health to mark - this would measure nothing");
+        // The harness's documents have no `apps` (Foundry's every document has): one stands for the test, taken out after.
+        const ownApps = !student.apps;
+        let drawn = 0, asked = 0, mine = false;
+        const Stand = {
+            render(...args) {
+                drawn++;
+                const root = e45SheetRoot();
+                this.element.replaceWith(root);
+                this.element = root;
+                Hooks.callAll("renderCharacterSheet", this, root, {}, { isFirstRender: false });
+                return Promise.resolve(this);
+            }
+        };
+        const target = Object.assign(Object.create(Stand), { id: `e45t2-${Date.now().toString(36)}`, document: student, isEditable: true, rendered: true });
+        const app = new Proxy(target, { get(obj, key, receiver) { if (key === "render" && !mine) asked++; return Reflect.get(obj, key, receiver); } });
+        let handed = null;
+        const hook = Hooks.on("updateActor", (doc, changes) => { if (doc.id === student.id) handed = changes; });
+        const write = async run => {
+            handed = null;
+            const before = asked;
+            await run();
+            await settle();
+            // What Foundry would render for: a change left once the guards had their say (an emptied branch is none).
+            const changed = handed && Object.entries(foundry.utils.flattenObject(handed)).some(([key, value]) => key !== "_id" && !key.startsWith("_stats.")
+                && !(value && typeof value === "object" && !Object.keys(value).length));
+            if (asked === before && changed) {
+                mine = true;
+                try { await app.render(false, { renderContext: "updateActor", renderData: handed }); } finally { mine = false; }
+            }
+            await settle();
+        };
+        const truth = () => {
+            const root = target.element;
+            const pips = [...root.querySelectorAll(".character-header-sheet .hope-section .hope-value")].filter(s => s.querySelector("i.fa-solid")).length;
+            const line = root.querySelector("[data-drpg-reserve='hitPoints'] .drpg-reserve-row");
+            const row = line ? [...line.childNodes].map(node => (node.localName === "input" ? node.value : node.textContent)).join("") : null;
+            const hp = Number(foundry.utils.getProperty(student, HP) ?? 0);
+            return [pips === Number(foundry.utils.getProperty(student, HOPE) ?? 0),
+                row === game.i18n.format("DRPG.Reserve.leftRow", { n: hpMax - hp, max: hpMax })];
+        };
+        const read = {};
+        const real = game.settings.get;
+        try {
+            if (ownApps) Object.defineProperty(student, "apps", { configurable: true, writable: true, value: {} });
+            target.element = e45SheetRoot();
+            document.body.append(target.element);
+            Hooks.callAll("renderCharacterSheet", app, target.element, {}, { isFirstRender: true });
+            student.apps[target.id] = app;
+            drawn = 0;
+            await write(() => student.update({ [HOPE]: hopeWas > 0 ? hopeWas - 1 : 1 }));
+            read.hope = [drawn, ...truth()];
+            await write(() => student.update({ [HP]: hpWas > 0 ? hpWas - 1 : 1 }));
+            read.health = [drawn, ...truth()];
+            const stamp = { session: 1, day: 1, timeOfDay: "noon" };
+            game.settings.get = function (module, key, ...rest) {
+                if (module === MODULE_ID && key === SETTINGS.clock) return { ...stamp, eclipse: false };
+                if (module === MODULE_ID && key === SETTINGS.overflow) return { active: { ...stamp, effect: "despair" } };
+                if (module === MODULE_ID && key === SETTINGS.overflowRules) return {};
+                return real.call(this, module, key, ...rest);
+            };
+            const held = Number(foundry.utils.getProperty(student, HOPE) ?? 0);
+            await write(() => student.update({ [HOPE]: held + 1 }));
+            game.settings.get = real;
+            read.cut = [Number(foundry.utils.getProperty(student, HOPE) ?? 0) === held, drawn];
+            await write(() => student.update({ "flags.world.suiteE45T2": 1 }));
+            read.flag = drawn;
+        } finally {
+            game.settings.get = real;
+            Hooks.off("updateActor", hook);
+            if (student.apps) delete student.apps[target.id];
+            if (ownApps) delete student.apps;
+            target.element?.remove();
+            await student.update({ [HOPE]: hopeWas, [HP]: hpWas }).catch(() => {});
+            await student.unsetFlag("world", "suiteE45T2").catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ hope: [0, true, true], health: [0, true, true], cut: [true, 0], flag: 1 }),
+            "[after a Hope-only write, after a Health write: the original's renders, the Hope pips, the Health row true; a Hope gain under Despair: the write cut, the renders; after a flag write: the renders]");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
 export { SCENARIOS, snapshot, restore, drawnForPlayer };
+
+/* E45 C2's sheet root (E45-T2): the header's Hope - six diamonds as Daggerheart 2.10.5's character header writes them,
+   `.hope-value` with its `data-value` and an `i` glyph - and the sidebar's bar layout of Health and Sanity
+   (resource-bar.hbs), with the Features and Inventory parts the module draws into. Detached until a test puts it in. */
+function e45SheetRoot() {
+    const root = document.createElement("div");
+    let hope = "";
+    for (let n = 1; n <= 6; n++) hope += `<span class="hope-value" data-value="${n}"><i class="fa-regular fa-diamond"></i></span>`;
+    const bar = (key, label) => `<div class="status-bar"><div class="status-value"><progress class="progress-bar" max="1" value="0"></progress>`
+        + `<input class="bar-input" name="system.resources.${key}.value" min="0" type="number"><span>/</span><span class="bar-label"></span></div>`
+        + `<div class="status-label pointy"><h4>${label}</h4></div></div>`;
+    root.innerHTML = `<div class="character-header-sheet"><div class="name-row"><h1>E45-T2</h1></div><div class="character-details"></div>`
+        + `<div class="character-row"><div class="resource-section"><div class="hope-section">${hope}</div></div></div></div>`
+        + `<aside class="character-sidebar-sheet"><div class="portrait"><img src="" alt=""></div><div class="info-section"><div class="resources-section">`
+        + `${bar("hitPoints", "Health")}${bar("stress", "Sanity")}</div></div></aside>`
+        + `<section class="tab" data-tab="features" data-application-part="features"></section>`
+        + `<section class="tab" data-tab="inventory" data-application-part="inventory"></section>`;
+    return root;
+}

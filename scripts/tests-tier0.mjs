@@ -20957,6 +20957,27 @@ const REGRESSIONS = [
         equal(JSON.stringify({ found, stale: listed.filter(key => !allowedRead[key]) }), JSON.stringify({ found: [], stale: [] }),
             "{found: each line outside sheetMode and the allowed list that reads a mode predicate; stale: an allowed declaration that no longer reads one}");
     }],
+    ["R1476 - the flicker's apparatus is gone (E45 C2, E45-07; audit S03-07): in sheet*.mjs, comments stripped, none of `skipNextRender`, `markResourceOnlyUpdate`, `willReallyChange`, `repaintAfterResourceUpdate`, no `preUpdateActor` hook, and sheet.mjs registers no `updateActor` hook", async () => {
+        /* E45 C2, 08.11.2026. Read off the source, comments stripped (the block "THE FLICKER" tells the history in
+           prose). sheet-audit.mjs's `updateActor` listener is the GMs' audit of a write (E29, the trust model's), not
+           the sheet's render: it stays and is not read here; its `preUpdateActor` would be. Red on the tree before:
+           sheet.mjs holds the four names and both hooks. */
+        const all = await moduleSources();
+        const files = [...all.keys()].filter(name => /^sheet[^/]*\.mjs$/.test(name)).sort();
+        must(files.includes("sheet.mjs") && files.includes("sheet-audit.mjs"), `sheet*.mjs read as ${JSON.stringify(files)} - this test would read nothing`);
+        const hook = (src, name) => new RegExp(`Hooks\\.(?:on|once)\\(\\s*["'\`]${name}["'\`]`).test(src);
+        const found = {};
+        for (const name of files) {
+            const src = stripComments(all.get(name) ?? "");
+            must(src.length > 1000, `${name} read nothing`);
+            const hits = ["skipNextRender", "markResourceOnlyUpdate", "willReallyChange", "repaintAfterResourceUpdate"]
+                .filter(word => new RegExp(`\\b${word}\\b`).test(src));
+            if (hook(src, "preUpdateActor")) hits.push("a preUpdateActor hook");
+            if (name === "sheet.mjs" && hook(src, "updateActor")) hits.push("an updateActor hook");
+            if (hits.length) found[name] = hits;
+        }
+        equal(JSON.stringify(found), "{}", "the flicker's old apparatus by file: [the four names, a preUpdateActor hook, sheet.mjs's updateActor hook]");
+    }],
 ];
 
 

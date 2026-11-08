@@ -255,11 +255,7 @@ export function registerSheetTweaks() {
         try { saveBiography(app); } catch (err) { error("Could not save the backstory", err); }
     });
 
-    // The flicker. See the block comment above `onlyResourceKeys` for what
-    // these two do and, more importantly, for the measurement that decides
-    // which of them does what - the order is not the one it looks like.
-    Hooks.on("preUpdateActor", markResourceOnlyUpdate);
-    Hooks.on("updateActor", repaintAfterResourceUpdate);
+    // The flicker is decided inside the sheet's own render now (E45 C2): no hook here - see "THE FLICKER".
 
     /*
      * WHEN A CACHED TAMPER ANSWER STOPS BEING TRUE.
@@ -622,32 +618,46 @@ function lockItemDescription(root) {
  * Hope, and Hope is a resource) and the whole window blinking on a Health or
  * Sanity change.
  *
- * The repair is to stop rendering for those updates and repaint the bar in
- * place instead - the bars' painter (`paintReserves` since E24 C1a) already
- * exists and already knows how to resume a half-finished animation.
+ * The repair is not to render for those updates and to repaint in place
+ * instead - the bars' painter (`paintReserves` since E24 C1a) already exists
+ * and already knows how to resume a half-finished animation.
  *
- * WHERE THE PLAN HAD IT BACKWARDS, AND THE MEASUREMENT THAT SHOWED IT.
+ * THE ORDER, MEASURED ON 14.365. One `actor.update()` runs
  *
- * The plan put the "skip the next render" mark in `updateActor`. Instrumented
- * on 14.365, the real order of one `actor.update()` is:
+ *     preUpdateActor  ->  render (the sheet)  ->  updateActor  ->  render (sidebar)
  *
- *     preUpdateActor  →  render (the sheet)  →  updateActor  →  render (sidebar)
+ * so the sheet's render comes after the actor holds the new values and before
+ * `updateActor`. From E4 to E45 that order was answered with state: a "skip the
+ * next render" mark laid on the sheet in `preUpdateActor` (the only hook early
+ * enough), eaten by an own `render`, and the repaint done in `updateActor`. A
+ * no-op update - `orderNoop` was exactly `["preUpdateActor"]` - fired no render
+ * to eat the mark, so the mark waited for the next legitimate render; a value
+ * comparison before the write kept it out of that one.
  *
- * The render being skipped has ALREADY HAPPENED by the time `updateActor`
- * runs. So the mark goes down in `preUpdateActor`, which is the only hook that
- * fires early enough, and `updateActor` does the repainting afterwards.
+ * WHY THE MARK WENT (E45 C2, 08.11.2026; audit S03-07, a bug seen at the table:
+ * lost renders, frozen pips). The mark was laid before overflow.mjs and
+ * resource-guard.mjs cut the write in their own `preUpdateActor` (this file's
+ * hook was registered first), so a write they emptied updated nothing and
+ * rendered nothing, and the mark ate the next render of anything: an item found
+ * by Search did not appear. And `preUpdateActor` fires only on the writer's
+ * browser, so only the writer skipped; every other client blinked.
  *
- * A NO-OP UPDATE IS THE TRAP THIS OPENS. Setting a resource to the value it
- * already holds fires `preUpdateActor` and then NOTHING - no render, no
- * `updateActor` - so a mark laid down for it would still be armed when
- * something legitimate rendered next, and would eat that instead. Measured, not
- * imagined: `orderNoop` was exactly `["preUpdateActor"]`. Hence the value
- * comparison below; the mark is only laid for an update that will really change
- * something and therefore really render.
+ * WHAT DECIDES NOW: THE RENDER'S OWN ARGUMENTS. Foundry hands every client that
+ * holds the sheet open the same render, with its options: `renderContext`
+ * "updateActor" and `renderData`, the changes (v13/v14's notes, not v14's
+ * source; E45's live check of the render's options confirms them at a table,
+ * AUDIT 9.2). `renderPlan` reads them and the
+ * sheet's own `render` (`installRenderPlan`, an own property from its first
+ * render) repaints in place or renders. Nothing is laid before a write and read
+ * after it, so a write cut in preUpdate leaves nothing behind, and every client
+ * repaints, not only the writer.
  *
  * THE CONDITION IS STRICT ON PURPOSE. Anything else in the same package - a
- * flag, an item, an effect - and the render happens. A skipped render that was
- * needed is a sheet showing something untrue, which is worse than a blink.
+ * flag, an item, an effect - and the render happens; so does any shape of the
+ * arguments `renderPlan` does not know (no options, `force`, a first render, no
+ * `renderData`, another context). A skipped render that was needed is a sheet
+ * showing something untrue, which is worse than a blink - and when Daggerheart's
+ * or Foundry's render signature changes, the way out is a blink.
  *
  * "RESOURCES" IS NARROWER THAN IT SOUNDS, AND THAT MATTERS.
  *
@@ -670,9 +680,6 @@ function lockItemDescription(root) {
  * fed: a render and a repaint draw through the one function.
  * ========================================================================== */
 
-/** Sheets holding a one-shot "do not render" mark. */
-const skipNextRender = new WeakSet();
-
 const RESOURCE_PREFIX = "system.resources.";
 
 /**
@@ -690,9 +697,10 @@ const REPAINTABLE = new Set(["hitPoints", "stress", "hope"]);
  * `_id` and `_stats` are not part of the answer. MEASURED: the package handed
  * to `preUpdateActor` is exactly what the caller wrote, but by `updateActor`
  * the server has added `_stats.modifiedTime` - so a predicate that only
- * forgives `_id` says "no" on the second hook and the repaint never runs. That
- * failure is silent and looks exactly like the flicker fix working, except the
- * numbers stop moving.
+ * forgives `_id` says "no" on the changes Foundry hands on after the write,
+ * which are `renderData`'s, and the repaint never runs. That failure is silent
+ * and looks exactly like the flicker fix working, except the numbers stop
+ * moving.
  */
 function onlyResourceKeys(changes) {
     const keys = Object.keys(foundry.utils.flattenObject(changes ?? {}))
@@ -706,20 +714,31 @@ function onlyResourceKeys(changes) {
     });
 }
 
+const isOptions = value => typeof value === "object" && value !== null && !Array.isArray(value);
+
 /**
- * Will this update actually change a value - that is, will it render at all?
+ * "repaint" or "render", from a render's own arguments (E45 C2; pure, for the suite). `args` is what the sheet's
+ * `render` was called with; `rendered` whether the sheet is on screen now (a first render renders).
  *
- * ONLY ANSWERABLE BEFORE THE WRITE. Asked from `updateActor` it is always
- * false, because by then the actor already holds the new values, and a repaint
- * gated on it would never happen. That is why the two hooks below do not share
- * one predicate: the earlier one asks this, the later one must not.
+ * Two shapes are known: `render(options)`, ApplicationV2's, and `render(false, options)`, the one Foundry's document
+ * hands its apps after a write (v13's `ClientDocument#render(force, context)`, as remembered; ApplicationV2 reads a
+ * boolean first argument as `force`, so `false` asks for nothing more than the options say). Anything else renders:
+ * `render(true, ...)`, `render()`, `force`, `parts`, a context other than "updateActor", no `renderData`, a key in it
+ * that is not a repaintable resource.
  */
-function willReallyChange(actor, changes) {
-    const flat = foundry.utils.flattenObject(changes ?? {});
-    return Object.keys(flat)
-        .filter(key => key !== "_id" && !key.startsWith("_stats."))
-        .some(key => foundry.utils.getProperty(actor, key) !== flat[key]);
+export function renderPlan(args, { rendered = true } = {}) {
+    const list = Array.isArray(args) ? args : [];
+    let options = null;
+    if (list.length === 1 && isOptions(list[0])) options = list[0];
+    else if (list.length === 2 && list[0] === false && isOptions(list[1])) options = list[1];
+    if (!options || !rendered) return "render";
+    if (options.force || options.parts !== undefined || options.renderContext !== "updateActor") return "render";
+    if (!isOptions(options.renderData)) return "render";
+    return onlyResourceKeys(options.renderData) ? "repaint" : "render";
 }
+
+/** The mark the sheet's own `render` carries, read by the contract (patches.mjs `sheet-render-guard`). */
+export const RENDER_PLAN = Symbol.for("drpgRenderPlan");
 
 /** Every open character sheet for this actor. */
 function sheetsFor(actor) {
@@ -728,50 +747,43 @@ function sheetsFor(actor) {
 }
 
 /**
- * Give an instance its own `render` that eats one mark and then behaves.
+ * Give a character sheet its own `render` that asks `renderPlan` first (E45 C2): on "repaint" it repaints in place
+ * - `repaintInPlace`, inside `settle` - and resolves with the app, as a render does; otherwise, and whenever the
+ * repaint throws, it calls the render it shadows. Installed from the sheet's first render (`SHEET_STEPS`
+ * "installRenderPlan"), once.
  *
  * On the INSTANCE rather than on `ApplicationV2.prototype`: this concerns
  * character sheets and nothing else, and a global wrap would put every window
  * in the application through a check that can only ever be true for one kind.
  * An own property shadows the prototype's method for this object alone.
  */
-function armRenderGuard(app) {
-    if (Object.hasOwn(app, "render")) return;
+export function installRenderPlan(app) {
+    if (!app || Object.hasOwn(app, "render")) return;
 
-    const proto = Object.getPrototypeOf(app);
-    const original = proto?.render;
+    const original = Object.getPrototypeOf(app)?.render;
     if (typeof original !== "function") return;
 
-    Object.defineProperty(app, "render", {
-        configurable: true,
-        writable: true,
-        value: function(...args) {
-            if (skipNextRender.has(this)) {
-                skipNextRender.delete(this);
+    const render = function (...args) {
+        const root = this.element instanceof HTMLElement ? this.element : this.element?.[0];
+        if (this.document?.type === "character" && root
+            && renderPlan(args, { rendered: Boolean(this.rendered) }) === "repaint") {
+            try {
+                settle(root, () => repaintInPlace(this.document, root));
                 return Promise.resolve(this);
+            } catch (err) {
+                // A sheet that renders is the safe failure.
+                error("Could not repaint a resource in place; the sheet renders", err);
             }
-            return original.apply(this, args);
         }
-    });
-}
-
-/** Before the write, because the sheet redraws before `updateActor` runs. */
-function markResourceOnlyUpdate(actor, changes) {
-    try {
-        if (!onlyResourceKeys(changes)) return;
-        if (!willReallyChange(actor, changes)) return;
-        for (const app of sheetsFor(actor)) {
-            armRenderGuard(app);
-            skipNextRender.add(app);
-        }
-    } catch (err) {
-        // A sheet that renders is the safe failure, so this never rethrows.
-        error("Could not mark a resource-only update", err);
-    }
+        return original.apply(this, args);
+    };
+    render[RENDER_PLAN] = true;
+    Object.defineProperty(app, "render", { configurable: true, writable: true, value: render });
 }
 
 /**
- * Everything the skipped render would have redrawn, drawn here instead.
+ * Everything a render would have redrawn for a resource-only update, drawn here instead (the wrapper's
+ * "repaint", `installRenderPlan`).
  *
  * Two surfaces, because that is how many the three repaintable resources have:
  * Health and Sanity in the sidebar, drawn by the same painter a render calls
@@ -810,6 +822,10 @@ function repaintInPlace(actor, element) {
     // Tamper tiles cost - so a repaint that redrew the drawers and left the grid
     // alone would show a price that stopped being true one pip ago.
     refreshPricedTiles(actor, element);
+
+    // AND A MONOCUB'S TILES (E45 C2; audit S03-07): Confusion costs Hope, and its tile's affordability is drawn when
+    // the grid is built - so a Hope-only change left it as the render before had drawn it.
+    refreshMonocubTiles(actor, element);
 
     // AFTER the glyphs, because the mark is counted off them. A repaint stands
     // in for a render and owes what the render owed - including saying that
@@ -871,19 +887,16 @@ function refreshCallsPanels(actor, element) {
     }
 }
 
-/** After the write: what the skipped render would have drawn. */
-function repaintAfterResourceUpdate(actor, changes) {
-    // Shape only. The value test belongs to the hook before this one, and a
-    // no-op never reaches here anyway - Foundry does not fire `updateActor`
-    // for an update that changed nothing.
-    if (!onlyResourceKeys(changes)) return;
-
-    for (const app of sheetsFor(actor)) {
-        try {
-            repaintInPlace(actor, app.element);
-        } catch (err) {
-            error("Could not repaint a resource in place", err);
-        }
+/**
+ * A Monocub's grid rebuilt from what it now holds (E45 C2): the tiles `injectMonocubPanel` draws, from the same
+ * `monocubTiles`. A tile in flight - `disabled` by the delegate while its action runs, as `refreshPricedTiles` reads
+ * it - is kept as it is, so a second click cannot fire it again.
+ */
+function refreshMonocubTiles(actor, element) {
+    for (const grid of element.querySelectorAll(".drpg-monocub-panel .drpg-action-grid")) {
+        const busy = new Map([...grid.querySelectorAll("[data-drpg-action]")]
+            .filter(node => node.disabled).map(node => [node.dataset.drpgAction, node]));
+        grid.replaceChildren(...monocubTiles(actor).map(tile => busy.get(tile.dataset?.drpgAction) ?? tile));
     }
 }
 
@@ -960,6 +973,8 @@ export const SHEET_STEPS = [
     ["tidyBiography", ({ app, element, mode }) => tidyBiography(app, element, mode)],
     ["groupInventory", ({ app, element, mode }) => groupInventory(app, element, mode)],
     ["replaceEffectsTab", ({ app, element }) => replaceEffectsTab(app, element)],
+    // The render's own decision, installed once per sheet (E45 C2; "THE FLICKER").
+    ["installRenderPlan", ({ app }) => installRenderPlan(app)],
     // Last: the tab's scroll back where it was, once everything above has drawn into it.
     ["keepTabScroll", ({ app, element }) => keepTabScroll(app, element)]
 ];
@@ -4516,9 +4531,7 @@ function injectMonocubPanel(tab, actor) {
 
     const grid = document.createElement("div");
     grid.className = "drpg-action-grid";
-    grid.append(actionButton(actor, "move", ACTIONS.move));
-    // One tile per row of the Monocub's table (E33 C10): Confusion today, a second ability a row.
-    for (const [key, def] of Object.entries(MONOCUB.abilities)) grid.append(abilityButton(actor, key, def));
+    grid.append(...monocubTiles(actor));
     panel.append(grid);
 
     if (isCrimeSilenced(actor)) {
@@ -4529,6 +4542,13 @@ function injectMonocubPanel(tab, actor) {
     }
 
     tab.prepend(panel);
+}
+
+/* A Monocub's tiles: the Move, then one tile per row of its table (E33 C10): Confusion today, a second ability a row.
+   The panel's build and the repaint's (`refreshMonocubTiles`, E45 C2) both draw these. */
+function monocubTiles(actor) {
+    return [actionButton(actor, "move", ACTIONS.move),
+        ...Object.entries(MONOCUB.abilities).map(([key, def]) => abilityButton(actor, key, def))];
 }
 
 function abilityButton(actor, key, def) {
