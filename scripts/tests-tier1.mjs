@@ -2701,8 +2701,8 @@ const INVARIANTS = [
          * `applyRotations` a table of stand-ins and reads what it wrote (`rotate`). With a curtain on the page (Stained
          * Glass) it is taken down and put back with `refreshGlass`, a stand-in panel's band dressed first so that the
          * probe and a band are there to be let go of (the control); under Monokuma Legacy, where none is mounted, the
-         * state is read as found. The stand-ins: an element with no selector, which takes an inline transform as the
-         * corner's buttons do, and a selector, which takes a rule in the sheet. Red on 6c9bd3c3 with the reading alone:
+         * state is read as found. The stand-ins: an element with no selector, which takes an inline transform as a
+         * member of the corner's union with no id does (its buttons take a rule on their ids since E23 C1d), and a selector, which takes a rule in the sheet. Red on 6c9bd3c3 with the reading alone:
          * the observers still held, the loop still running, the probe in the body, the stand-in's rotation sheet.
          */
         const G = await import("./glass.mjs");
@@ -2833,6 +2833,82 @@ const INVARIANTS = [
             second.element.remove();
             G.dressWindow(other);
         }
+    }],
+    ["R1382 - the corner's buttons stay tilted (glass.mjs `blockTurns`, E23 C1d; E23-10, the owner's 14.10): a launcher of the corner's union takes its turn by a rule on its id, so a button re-created between two passes over the same cut - as messenger-app.mjs `renderLauncher` makes a new one on every message - wears the turn the first pass wrote; the rule holds under Stained Glass only; the GM's red button draws no light strip at its sides (its border colour transparent, no Bone in its shadow or ground); and the sweep's turn line reads the launchers' tilt", async () => {
+        /*
+         * E23 C1d, 08.11.2026 (the owner, 14.10: "the buttons in the bottom-right corner sometimes refresh and straighten
+         * for no reason, and then tilt again"; "Monokuma's button has a white strip"). READ IN CHROMIUM FIRST, on the
+         * glass harness at 1366x768, a GM (S/stages/E23/scratch/c1d/tilt.mjs): each launcher's computed transform
+         * sampled on every frame through the load's rebuild, the watchdog's `mount` at 4 s and 9 s, a `refreshGlass`, a
+         * resize and back, a `renderHud`'s refill with its hook and the notice tile rebuilt - turned in every frame; then
+         * each launcher re-created as its render function does (removed, a new button of the same id appended to the
+         * body) - straight in all 32 frames, and still straight through a `refreshGlass` after it (20 of 20), until the
+         * clock grew and the curtain was cut again. THE PASS THAT STRAIGHTENS THEM is every pass over an unchanged cut:
+         * `moduleLayout` clears the inline transform of every element it measures - the new button - and the fast path's
+         * `applyRotations` writes the table's inline transforms back onto the elements of the last real recut, the old
+         * buttons, out of the page. The union's members carried their turn inline (`sel: null`), where every other
+         * block's is a rule on its selector, which a new element wears the moment it is in the tree. Now a member with
+         * an id takes a rule on its id (`part`: still outside the wall's shift, which they never took), and only a member
+         * with no id keeps the inline write. Here, with no layout: `blockTurns` builds a stand-in union's entries, and
+         * `rotationWrites` runs the passes - a pass, the same table again (a rebuild, the watchdog's mount, a resize's
+         * schedule, a renderHud: each ends in that pass), then the buttons re-created and their inline transform cleared
+         * as `moduleLayout` clears it, and the same table again. What each button wears is its inline transform or the
+         * rule of the sheet that matches it. THE STRIP, read in Chromium at 4x (shots/c1d/c1c-strip-*): the hexagon's
+         * clip path cuts the button's 2 px border away everywhere but its two upright sides, where it stands as a light
+         * line in `--drpg-sg-gm-light` - read here in the cascade, a stand-in GM button under Stained Glass. Red on
+         * C1c's tree with `blockTurns` moved out and nothing else changed: the new buttons straight, the border's colour
+         * the light red.
+         */
+        const G = await import("./glass.mjs");
+        equal(JSON.stringify([typeof G.blockTurns, typeof G.rotationWrites]), JSON.stringify(["function", "function"]), "glass.mjs's [blockTurns, rotationWrites]");
+        if (typeof G.blockTurns !== "function" || typeof G.rotationWrites !== "function") return;
+        const glassBody = document.createElement("body");
+        glassBody.className = "drpg-theme-stained-glass";
+        const IDS = ["drpg-r1382-messenger", "drpg-r1382-sound", "drpg-r1382-book"];
+        const make = (id, i) => {
+            const e = glassBody.appendChild(document.createElement("button"));
+            e.id = id;
+            e.getBoundingClientRect = () => ({ left: 1200 + 50 * i, top: 700, right: 1244 + 50 * i, bottom: 744, width: 44, height: 44, x: 1200 + 50 * i, y: 700 });
+            return e;
+        };
+        const els = IDS.map(make);
+        const turn = "rotate(-0.1396rad)";
+        const table = G.blockTurns({ sel: "#drpg-r1382-messenger, #drpg-r1382-sound, #drpg-r1382-book", el: els[0], els }, 1366, 768, turn);
+        must(table.length === 3, "the stand-in union gave no table of three - there is nothing to follow");
+        const ruleFor = (el, text) => text.split("}").map(r => r.trim()).filter(Boolean).find(r => {
+            const sel = r.split("{")[0].trim();
+            try { return el.matches(sel); } catch { return false; }
+        }) ?? "";
+        const wears = (el, text) => el.style.transform || (/transform:\s*([^;]+);/.exec(ruleFor(el, text).replace(/transform-origin:[^;]+;/, ""))?.[1]?.trim() ?? "none");
+        const [first] = G.rotationWrites([table]);
+        const firstWorn = els.map(e => wears(e, first.text));
+        must(firstWorn.every(t => t !== "none"), "the first pass turned none of the stand-ins - this test would read nothing");
+        const [again] = G.rotationWrites([table]);
+        const againWorn = els.map(e => wears(e, again.text));
+        const fresh = IDS.map((id, i) => { glassBody.querySelector(`#${id}`).remove(); return make(id, i); });
+        fresh.forEach(e => { e.style.transform = ""; });
+        const [after] = G.rotationWrites([table]);
+        equal(JSON.stringify([againWorn, fresh.map(e => wears(e, after.text))]), JSON.stringify([firstWorn, firstWorn]),
+            "each button's turn [on a second pass over the same cut, re-created and passed over again] - the turn the first pass wrote");
+        const legacy = document.createElement("body");
+        legacy.className = "drpg-theme-monokuma-legacy";
+        const moved = legacy.appendChild(fresh[0]);
+        equal(ruleFor(moved, after.text), "", "a rule of the rotation sheet that turns a launcher under Monokuma Legacy");
+        // the strip: the GM's button as gm-panel.mjs `injectLauncher` builds it, under Stained Glass
+        const C = await styleCascade();
+        const gm = glassBody.appendChild(document.createElement("button"));
+        gm.id = "drpg-gm-launcher";
+        gm.dataset.drpgCluster = "";
+        const read = names => C.winner(gm, names)?.value ?? "";
+        const BONE = /--drpg-(sg-)?bone|#f2eee6|242,\s*238,\s*230/i;
+        equal(JSON.stringify({ border: read(["border-color", "border-left-color", "border-right-color"]), shadowBone: BONE.test(read(["box-shadow"])), groundBone: BONE.test(read(["background", "background-image"])) }),
+            JSON.stringify({ border: "transparent", shadowBone: false, groundBone: false }),
+            "the GM's button under Stained Glass: [its border's colour, Bone in its shadow, Bone in its ground]");
+        // the sweep's reach: the launchers' tilt on the turn's line (read where audit/ is served; an installed zip has none)
+        const text = async path => { try { const r = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" }); return r.ok ? await lfText(r) : ""; } catch { return ""; } };
+        const [sweep, page] = await Promise.all(["audit/glass-sweep.mjs", "audit/glass-harness.html"].map(text));
+        if (sweep && page) equal(JSON.stringify([sweep.includes("tilt ${c.tilt ?"), sweep.includes("tilt=flat"), page.includes("tilt: tiltOf("), page.includes("q.get(\"tilt\") === \"flat\"")]), "[true,true,true,true]",
+            "[the sweep's turn line prints the launchers' tilt, the sweep runs its control, the harness's turn reads it every frame, the harness answers the control]");
     }],
     ["R548 - Foundry tools wears the module's pixel anvil in both themes: its one child is an inert, classless i masked with --drpg-px-anvil in the colour the handbooks' book is drawn in, and no Foundry logo is on the page or in the module's stylesheets", async () => {
         /*
@@ -34423,23 +34499,25 @@ const INVARIANTS = [
         const early = order.flatMap((rule, i) => (rule.media ? order.slice(i + 1).filter(later => !later.media && later.selector === rule.selector).map(later => `${rule.media} ${rule.selector}`) : []));
         const sectionMedia = order.filter(r => r.media).map(r => `${r.media} ${r.selector}`);
         /* Foundry tools' three Stained Glass prints since E23 C1c (S12-34): the rule that wins its `transition` lost the
-           phantom `#drpg-settings-launcher` from its selector list - the same rule, the same value, another selector. */
+           phantom `#drpg-settings-launcher` from its selector list - the same rule, the same value, another selector.
+           The GM's hexagon's three since E23 C1d (14.10, R1382): its border's colour under Stained Glass transparent,
+           won by the same components.css rule, and the hover rule no longer states one - 1:426d4aa5 -> 1:934c4f73. */
         const C5 = {
             "curtain|monokuma-legacy|foundry-tools": "1:38b5be3c", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:999f5b79",
             "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:50024055", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
             "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:05bda810", "curtain|stained-glass|foundry-tools": "1:5400975d",
-            "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:426d4aa5", "curtain|stained-glass|room-art": "1:b38f7ef7",
+            "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:934c4f73", "curtain|stained-glass|room-art": "1:b38f7ef7",
             "curtain|stained-glass|room-tile": "1:ec4e33c4", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
             "curtain|stained-glass|voice-tile": "2:15eb161d", "desk|monokuma-legacy|foundry-tools": "1:38b5be3c", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
             "desk|monokuma-legacy|gm-launcher": "1:999f5b79", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:cb259e72",
             "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:a60107dd",
-            "desk|stained-glass|foundry-tools": "1:5400975d", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:426d4aa5",
+            "desk|stained-glass|foundry-tools": "1:5400975d", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:934c4f73",
             "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:ce0e3f9a", "desk|stained-glass|voice-art": "1:393b7dc4",
             "desk|stained-glass|voice-list": "1:e9f9c48e", "desk|stained-glass|voice-tile": "1:17af97d5", "stacked|monokuma-legacy|foundry-tools": "1:38b5be3c",
             "stacked|monokuma-legacy|foundry-window": "2:3ad17c49", "stacked|monokuma-legacy|gm-launcher": "1:999f5b79", "stacked|monokuma-legacy|room-art": "1:b38f7ef7",
             "stacked|monokuma-legacy|room-tile": "1:c5f25ec6", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:4671c967",
             "stacked|monokuma-legacy|voice-tile": "1:9b5c0772", "stacked|stained-glass|foundry-tools": "1:5400975d", "stacked|stained-glass|foundry-window": "2:8b75b7bd",
-            "stacked|stained-glass|gm-launcher": "1:426d4aa5", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:0a4f36aa",
+            "stacked|stained-glass|gm-launcher": "1:934c4f73", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:0a4f36aa",
             "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:e9f9c48e", "stacked|stained-glass|voice-tile": "1:d4bd73c1"
         };
         equal(stableJson({ left: [...left].sort(), prints, early, sectionMedia }), stableJson({ left: [], prints: C5, early: [], sectionMedia: [] }),

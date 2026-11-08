@@ -872,7 +872,7 @@ function applyRotations() {
   writeRotations();
 }
 function writeRotations() {
-  const turned = new Set(ROT.filter(r => r.sel && !r.rail && r.transform && r.transform !== "none").map(r => r.sel));
+  const turned = new Set(ROT.filter(r => r.sel && !r.rail && !r.part && r.transform && r.transform !== "none").map(r => r.sel));
   for (const sel of OVERHANG.keys()) if (!turned.has(sel)) OVERHANG.delete(sel);
   const blockRule = r => {
     const shift = OVERHANG.get(r.sel);
@@ -900,7 +900,7 @@ function writeRotations() {
   /* the glass proposed the angle; this is the screen's answer to it */
   let moved = false;
   for (const r of ROT) {
-    if (!r.sel || !r.el || !r.transform || r.transform === "none" || r.rail) continue;
+    if (!r.sel || !r.el || !r.transform || r.transform === "none" || r.rail || r.part) continue;
     const was = OVERHANG.get(r.sel) || 0, shift = railOverhang(r.el, was);
     if (shift === was) continue;
     moved = true;
@@ -938,6 +938,30 @@ export function rotationWrites(tables) {
     mo.disconnect(); sheet.remove(); rotSheet = screen;
     ROT.length = 0; ROT.push(...rot); OVERHANG.clear(); for (const [k, v] of shifts) OVERHANG.set(k, v);
   }
+}
+
+/* A BLOCK'S ENTRIES IN THE ROTATION TABLE, read off its box and its pane's pivot (`px`, `py`) by the column's tilt.
+   THE CORNER'S BUTTONS TURN BY A RULE ON THEIR IDS (E23 C1d, 08.11.2026; the owner's 14.10: "the buttons in the
+   bottom-right corner sometimes refresh and straighten for no reason, and then tilt again"). A union's members each turn
+   about an origin of their own, so they were written an inline transform each (`sel: null`) - onto the element the last
+   real recut measured. Read in Chromium on the glass harness (1366x768, a GM; each launcher's transform sampled every
+   frame): turned through the load's rebuild, the watchdog's `mount`, a `refreshGlass`, a resize and back, a renderHud's
+   refill and the notice tile rebuilt; straight in every frame once the buttons were re-created as their render
+   functions re-create them (messenger-app.mjs `renderLauncher` on every message; the sound and handbooks buttons on
+   `canvasReady`), and through a `refreshGlass` after that, until a real recut. The pass that straightens them is every
+   pass over an unchanged cut: `moduleLayout` clears the inline transform of the element it finds - the new one - and the
+   fast path's `applyRotations` writes the table back onto the old one, out of the page. So a member with an id takes a
+   rule on its id, as every other block takes one on its selector, and a button made again wears it the moment it is in
+   the tree; `part` keeps it out of the wall's shift (`railOverhang`), which these never took. A member with no id keeps
+   the inline write. R1382. */
+export function blockTurns(b, px, py, turn) {
+  if (b.fixed) return [{ sel: b.sel, el: null, origin: (px - b.x) + "px " + (py - b.y) + "px", transform: turn }];
+  if (!b.el) return [];
+  const one = b.els.length === 1;
+  return b.els.map(e => {
+    const er = e.getBoundingClientRect(), id = !one && e.id ? "#" + (globalThis.CSS?.escape?.(e.id) ?? e.id) : null;
+    return { sel: one ? b.sel : id, el: e, part: Boolean(id), origin: (px - er.left) + "px " + (py - er.top) + "px", transform: turn };
+  });
 }
 
 /* THE RIGHT-HAND COLUMN STANDS STILL.
@@ -1840,7 +1864,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     const rot = (X, Y) => [px + X * cs - Y * sn, py + X * sn + Y * cs];
     // the rotation goes into a stylesheet rule keyed by the block's selector (applyRotations), so a
     // block the module re-renders from scratch wears it the moment it appears; a union of several
-    // elements gets inline styles, because each has its own origin
+    // elements, each with its own origin, gets a rule a member keyed by its id (`blockTurns`, E23 C1d)
     const turn = Math.abs(phi) < 0.004 ? "none" : "rotate(" + phi + "rad)";
     /* THE VOICE TILE IS THE TRAY COLUMN'S TAIL (E78 C6). It takes no part in the column's tilt or
        width - those are the tray's and the status strip's, as they were before it - and is settled
@@ -1863,12 +1887,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
          element is not measured and may not exist yet. Since E81 C8 popup.mjs builds the tile at
          `ready`, with the history's button in its corner and before the glass is cut, but the rule
          does not lean on that: a tile removed and rebuilt by `container()` turns all the same. */
-      if (b.fixed) { ROT.push({ sel: b.sel, el: null, origin: (px - b.x) + "px " + (py - b.y) + "px", transform: turn }); continue; }
-      if (!b.el) continue;
-      for (const e of b.els) {
-        const er = e.getBoundingClientRect();
-        ROT.push({ sel: b.els.length === 1 ? b.sel : null, el: e, origin: (px - er.left) + "px " + (py - er.top) + "px", transform: turn });
-      }
+      ROT.push(...blockTurns(b, px, py, turn));
     }
     /* TWO COLUMNS SHARE THE GAP BETWEEN THEM, THEY DO NOT EACH CLAIM IT.
        -----------------------------------------------------------------------

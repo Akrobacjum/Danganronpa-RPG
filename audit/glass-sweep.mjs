@@ -953,11 +953,15 @@ if (args.includes("--board")) {
                  the median); `flash <peak>/<rest>`, read only on a turn that moves the accent (layout's is "-")
    The line: `turn <kind> <size> <role> main <ms> (rest <ms>) long <n>/<longest> frames <median>/<p95>/<max> (rest
    <median>) first <ms> len <ms> clip <frames>/<writes> draw <frames>/<calls> tex <low>/<rest>/<after> worst <n>% at
-   <x,y> (<n> frames) flash <peak>/<rest> cut <same|new>/<cuts> check <ov>/<bf>/<eg> (<before> -> <after>)`. A line
-   FAILS, its reasons printed, where a frame wrote a clip path or drew a canvas (E23-01), a square of the band's texture
-   inside the turn falls under 80 % of its rest (E23-04), the flash peak stands more than 8 from today's (E23-03), an
-   hour's turn recut or fired `drpgGlassCut` (E23-06), or the self-check inside the turn reads worse than both the cut
-   it found and the cut it leaves (E23-08; a fault of the cut itself is the sweep proper's). TODAY'S FLASH is the
+   <x,y> (<n> frames) flash <peak>/<rest> cut <same|new>/<cuts> check <ov>/<bf>/<eg> (<before> -> <after>) tilt
+   <straight>/<frames> worn <n> (<n> buttons)`: since E23 C1d (E23-10, the owner's 14.10) each corner launcher's computed
+   transform read on every frame of the clock page from the event on - the frames in which any of them stood straight,
+   and the most transforms one button wore (1 on a turn that keeps the cut, 2 where a recut turns them to its angle). A
+   line FAILS, its reasons printed, where a frame wrote a clip path or drew a canvas (E23-01), a square of the band's
+   texture inside the turn falls under 80 % of its rest (E23-04), the flash peak stands more than 8 from today's
+   (E23-03), an hour's turn recut or fired `drpgGlassCut` (E23-06), the self-check inside the turn reads worse than both
+   the cut it found and the cut it leaves (E23-08; a fault of the cut itself is the sweep proper's), or a launcher stood
+   straight in a frame of the turn (E23-10). TODAY'S FLASH is the
    reading of the same theme, role, size and turn in the file `--against <json>` names (a `--json` of 1d860414's run,
    C1a's baseline), and without one MK-R2's 203 at 1600x900; anywhere else the peak is printed "(unjudged)". On
    1d860414 itself it is not one number: 202-204 at 1600x900, but 187-199 at 1366x768, where a recut's old seams stand
@@ -967,8 +971,10 @@ if (args.includes("--board")) {
    run fails: `?turn=today`, a phase-recut whose frames must write the clip path (on 1d860414 that is HEAD's own morph,
    and the page says "head"; from C1b's tree, where glass.mjs exports `glassTurn`, a write planted in every frame,
    "planted"), and `?flash=0.5`, an hour's turn whose flash layers stand at half their opacity, which must take the
-   peak more than 8 from the same run's hour at that size (or the line's band). `--kinds` keeps some of the four,
-   `--runs <n>` reads the clock page n times and prints each, `--json <file>` writes every reading.
+   peak more than 8 from the same run's hour at that size (or the line's band); since E23 C1d a third, `?tilt=flat`, an
+   hour's turn with the handbooks button held upright (`transform: none !important`), which must read as straight
+   frames on the tilt reading. `--kinds` keeps some of the four, `--runs <n>` reads the clock page n times and prints
+   each, `--json <file>` writes every reading.
    THE LAYOUT TURN AT 1366x768 IS NO TURN: there the room tile stands beside the notices, and hiding it recuts nothing
    on 1d860414 (no moved frame, cut same, both roles); its line reads `first -`.
    WHAT IT IS NOT. Headless Chromium rasterises in software (perf-baseline.json `headless`): the numbers are a SHAPE
@@ -1114,6 +1120,7 @@ if (args.includes("--turn")) {
         if (t?.worst && t.worst.ratio < TEX_MIN) why.push(`the texture inside the turn fell to ${Math.round(100 * t.worst.ratio)} % of rest in the square at ${t.worst.at} (${t.worst.low}/${t.worst.ref}; E23-04: 80 %)`);
         if (f?.peak && outside(f.peak.p50, base)) why.push(`the flash peak ${f.peak.p50} stands outside ${base} +/- ${FLASH} (E23-03)`);
         if (kind === "hour" && (c.cut !== "same" || c.cuts)) why.push(`an hour's turn recut: cut ${c.cut}, ${c.cuts} drpgGlassCut (E23-06)`);
+        if (c.tilt?.none) why.push(`a corner button stood straight in ${c.tilt.none} frame(s) of the turn: ${c.tilt.straight.join(", ")} (E23-10)`);
         /* inside the turn no worse than the cut it leaves or the one it found: a fault of the end state is the cut's,
            read by the sweep proper, not the turn's */
         const w = worst(c.checks), ends = worst([c.check0, c.check]);
@@ -1123,7 +1130,8 @@ if (args.includes("--turn")) {
     const line = (kind, size, role, c, t, f, base) => `turn ${kind.padEnd(11)} ${size.padEnd(9)} ${role.padEnd(6)} main ${c.main} (rest ${c.restMain}) long ${c.long.length}/${c.long.length ? Math.max(...c.long) : 0} `
         + `frames ${c.frames ? `${c.frames.med}/${c.frames.p95}/${c.frames.max}` : "-"} (rest ${c.rest?.frames?.med ?? "-"}) first ${n1(c.first)} len ${n1(c.last)} `
         + `clip ${c.clip.frames}/${c.clip.writes} draw ${c.draw.frames}/${c.draw.calls} tex ${t?.low ?? "-"}/${t?.rest ?? "-"}/${t?.after ?? "-"} worst ${t?.worst ? `${Math.round(100 * t.worst.ratio)}% at ${t.worst.at}` : "-"} (${t?.n ?? 0} frames) `
-        + `flash ${f?.peak ? `${f.peak.p50}/${f.rest?.p50 ?? "-"}${base == null ? " (unjudged)" : ""}` : "-"} cut ${c.cut}/${c.cuts} check ${(worst(c.checks) ?? ["-", "-", "-"]).join("/")} (${(c.check0 ?? ["-"]).join("/")} -> ${(c.check ?? ["-"]).join("/")})`;
+        + `flash ${f?.peak ? `${f.peak.p50}/${f.rest?.p50 ?? "-"}${base == null ? " (unjudged)" : ""}` : "-"} cut ${c.cut}/${c.cuts} check ${(worst(c.checks) ?? ["-", "-", "-"]).join("/")} (${(c.check0 ?? ["-"]).join("/")} -> ${(c.check ?? ["-"]).join("/")}) `
+        + `tilt ${c.tilt ? `${c.tilt.none}/${c.tilt.frames} worn ${c.tilt.worn} (${c.tilt.buttons} buttons)` : "-"}`;
     try {
         for (const theme of tThemes) for (const role of roles) for (const size of (opt("--sizes") ?? "1600x900,1366x768").split(",")) {
             for (const kind of KINDS) {
@@ -1151,7 +1159,11 @@ if (args.includes("--turn")) {
                 halfFlash = { f, ok: Boolean(f?.peak && outside(f.peak.p50, base)) };
                 console.log(`turn control ?flash=0.5 ${size} ${role}: hour flash ${f?.peak ? `${f.peak.p50}/${f.rest?.p50 ?? "-"}` : "-"} against ${base ?? "-"} +/- ${FLASH}${halfFlash.ok ? " - out of its band, read" : "  - FAIL: the flash at half its opacity was not read out of its band"}`);
                 if (!halfFlash.ok) bad++;
-                readings.push({ theme, role, size, control: { today: c && { clip: c.clip, today: c.today }, flash: f && { rest: f.rest, peak: f.peak } } });
+                const ct = await clock(theme, role, size, "hour", ["tilt=flat"]);
+                const flatOk = Boolean(ct?.tilt?.none && ct.tilt.straight.includes("drpg-book-launcher"));
+                console.log(`turn control ?tilt=flat ${size} ${role}: hour tilt ${ct?.tilt ? `${ct.tilt.none}/${ct.tilt.frames} straight ${ct.tilt.straight.join(",") || "-"}` : "-"}${flatOk ? " - read" : "  - FAIL: the upright handbooks button was not read as straight"}`);
+                if (!flatOk) bad++;
+                readings.push({ theme, role, size, control: { today: c && { clip: c.clip, today: c.today }, flash: f && { rest: f.rest, peak: f.peak }, tilt: ct?.tilt ?? null } });
             }
         }
     } finally { await browser.close(); srv?.kill(); }

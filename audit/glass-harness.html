@@ -1784,10 +1784,14 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       S.acc0 = acc();
       S.ticks = [];
       S.on = true;
+      /* THE CORNER'S TILT (E23 C1d; E23-10, the owner's 14.10): each launcher's computed transform, by id, read every
+         frame, so the turn's line says whether a button stood straight at any frame of it (glass.mjs `blockTurns`). */
+      const tiltOf = () => Object.fromEntries([...document.querySelectorAll(g?.LAUNCHERS ?? "#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher, [data-drpg-cluster]")]
+        .filter(e => e.id && e.offsetWidth > 0).map(e => [e.id, getComputedStyle(e).transform]));
       const tick = t => {
         if (!S.on) return;
         const anim = document.getAnimations().some(a => a.playState === "running" && TURN_REGION(a.effect?.target));
-        S.ticks.push({ t, anim, check: check() });
+        S.ticks.push({ t, anim, check: check(), tilt: tiltOf() });
         turnState.raf0(tick);
       };
       turnState.raf0(tick);
@@ -1826,6 +1830,18 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       checks: [0.25, 0.5, 0.75].map(at), check0: S.check0 ?? null, check: check(),
       trail: ticks.reduce((l, x) => { const k = JSON.stringify(x.check); if (!l.length || l[l.length - 1][1] !== k) l.push([Math.round(x.t - t0), k]); return l; }, []),
       cut: turnSig(after) === S.sig0 ? "same" : "new", cuts: S.cuts, acc: [S.acc0, acc()],
+      /* the launchers through the turn: frames read, frames where one stood straight (`none`) and which, and how many
+         transforms each wore (1 on a turn that keeps the cut; a recut may turn them to its new angle once) */
+      tilt: (() => {
+        const seen = {}, straight = new Set();
+        let none = 0;
+        for (const x of ticks) {
+          let flat = false;
+          for (const [id, v] of Object.entries(x.tilt ?? {})) { (seen[id] ??= new Set()).add(v); if (v === "none") { flat = true; straight.add(id); } }
+          if (flat) none++;
+        }
+        return { frames: ticks.length, none, straight: [...straight], worn: Math.max(0, ...Object.values(seen).map(v => v.size)), buttons: Object.keys(seen).length };
+      })(),
       ...turnRegions(S.before, after)
     };
   };
@@ -2349,6 +2365,12 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
   if (q.get("turn") === "today") {
     window.__turnPlant = typeof m.glassTurn === "function";
     window.__turnToday = window.__turnPlant ? "planted" : "head";
+  }
+  /* `?tilt=flat` (E23 C1d): the handbooks button held upright, `--turn`'s control for its tilt reading (E23-10). */
+  if (q.get("tilt") === "flat") {
+    const s = document.createElement("style");
+    s.textContent = "#drpg-book-launcher { transform: none !important; }";
+    document.head.append(s);
   }
   if (q.get("flash")) {
     window.__turnFlash = Number(q.get("flash"));
