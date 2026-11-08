@@ -212,7 +212,7 @@
  *        node audit/glass-sweep.mjs --edges [--edge-frames <n>, 30] [--edge-sel <part>|<part>] [--edge-plant <css>] [--themes ...] [--sizes ...] [--no-control]   (E89 C5: below)
  *        node audit/glass-sweep.mjs --roster [--themes ...] [--roles ...] [--sizes ..., 1366x768,1920x1080] [--no-control]   (E50 C2: below)
  *        node audit/glass-sweep.mjs --track [--track-kinds fill,hour-empty,hour-full,hour-swap,hour-notice] [--themes ...] [--roles ...] [--sizes ...] [--no-control]   (E23 C2a: below)
- *        node audit/glass-sweep.mjs --tray [--themes ..., stained] [--roles ...] [--sizes ..., 1920x1080,1366x768,1280x800,1024x768] [--no-control]   (E23 C3a: below)
+ *        node audit/glass-sweep.mjs --tray [--themes ..., stained,legacy] [--roles ...] [--sizes ..., 1920x1080,1366x768,1280x800,1024x768] [--no-control]   (E23 C3a: below)
  *        node audit/glass-sweep.mjs --events [--themes ...] [--roles ...] [--sizes ..., 1366x768,1920x1080,1024x768,820x1180] [--no-control]   (E23 C3b: below)
  *        node audit/glass-sweep.mjs --board [--themes ...] [--roles ...] [--sizes ..., 1024x768,820x1180,393x852,1200x800,844x390,640x360] [--no-control]   (E23 C4a: below)
  *        node audit/glass-sweep.mjs --turn [--kinds phase-recut,phase,hour,layout] [--sizes ..., 1600x900,1366x768] [--roles ...]
@@ -697,13 +697,14 @@ if (args.includes("--track")) {
 
 /* THE PROJECTS TRAY'S ROWS AND THE TAB RAIL (E23 C3a, 07.11.2026; E23-16, E23-19: S09-04, S10-34, S12-06, S12-53, S12-07
    and the owner's two of 04.10). `--tray` runs this instead of the sweep, at each size (by default 1920x1080, 1366x768,
-   1280x800 and 1024x768), role and theme (Stained Glass by default: the turned tray is the glass's; `--themes` adds
-   Legacy, where a list that scrolls has no fade and reads as one without the signal). ROWS: the page's
-   `drpgTrayRows()` with its own two rows and filled to seven, and the size fails where a row's count stands more than
-   2 px off its name's line on the screen or not 8-12 px after it (where the tray is turned), outside its own row
-   (where it is not), or where the list's foot cuts a row in a list with no fade. Its CONTROLS, once a run, at the first
-   turned size: `grow` (the name's `flex: 1 1 auto` put back) must read a fall, `cut` (the list held at five and a half
-   rows, the fade off) must read a cut row. THE RAIL, on the GM's page at each size wider than the stack (a player has
+   1280x800 and 1024x768), role and theme (both by default since E23 fix G3, 08.11.2026 - the end review's screens M1:
+   E23-16 names no theme, and the Stained Glass default never held Legacy's rows to the rule; `--themes` narrows it).
+   ROWS: the page's `drpgTrayRows()` with its own two rows and filled to seven, and the size fails where a row's count
+   stands more than 2 px off its name's line on the screen - and, where the tray is turned, not 8-12 px after it; where
+   it is not, outside its own row - or where the list's foot cuts a row in a list with no fade. Its CONTROLS, once a run:
+   at the first turned size `grow` (the name's `flex: 1 1 auto` put back) must read a fall and `cut` (the list held at
+   five and a half rows, the fade off) a cut row; at the first unturned size `column` (the row's content a column again,
+   the count under its name) must read a fall. THE RAIL, on the GM's page at each size wider than the stack (a player has
    neither rail): with Foundry's windows on (Foundry tools opened, the sidebar in it) and with the world switch off
    (`?windows=off`), each with a fifteen-tab sidebar expanded in the HTML before the page loads (`page.route`: the
    harness does not recut for tabs added later), the tab rail's box must meet neither the status strip's nor the
@@ -711,8 +712,8 @@ if (args.includes("--track")) {
    (six tools planted, Regions' palette). Its control, once: the strip planted under the rail must read a meeting.
    The line prints each row's run and fall, the list's heights and its cut and fade, and the rail's meetings. */
 if (args.includes("--tray")) {
-    let bad = 0, rowsPlanted = false, railPlanted = false;
-    const tthemes = opt("--themes") ? themes : ["stained"];
+    let bad = 0, rowsPlanted = false, uprightPlanted = false, railPlanted = false;
+    const tthemes = opt("--themes") ? themes : ["stained", "legacy"];
     const tsizes = (opt("--sizes") ?? "1920x1080,1366x768,1280x800,1024x768").split(",");
     const rowsLine = r => `turn ${r.turn} rows ${r.rows.length} run ${r.rows.map(x => x.run ?? "-").join(",")} fall ${r.rows.map(x => x.fall).join(",")}`
         + (r.list ? ` list ${r.list.client}/${r.list.scroll} cut ${r.list.cut} ${r.list.more ? "fade" : "no fade"}` : "");
@@ -763,6 +764,13 @@ if (args.includes("--tray")) {
                 const r = await page.evaluate(rows => window.drpgTrayRows({ rows }), rows);
                 console.log(`${tag} rows ${rows ? "filled" : "as drawn"}: ${rowsLine(r)}${r.ok ? "" : `  - FAIL: ${r.why}`}`);
                 if (!r.ok) bad++;
+                const upright = rows && r.turn !== null && Math.abs(r.turn) < 0.25;
+                if (control && !uprightPlanted && upright) {
+                    uprightPlanted = true;
+                    const p = await page.evaluate(() => window.drpgTrayRows({ rows: 7, plant: "column" }));
+                    console.log(`${tag} control column: ${p.ok ? "MISSES IT" : "sees it"} - ${p.ok ? rowsLine(p) : p.why.slice(0, 140)}`);
+                    if (p.ok) bad++;
+                }
                 if (control && !rowsPlanted && rows && r.turn) {
                     rowsPlanted = true;
                     for (const plant of ["grow", "cut"]) {
@@ -801,6 +809,7 @@ if (args.includes("--tray")) {
         }
     } finally { await browser.close(); srv?.kill(); }
     if (control && !rowsPlanted) { console.log("control: no turned tray was read, so the rows' faults could not be planted - FAIL"); bad++; }
+    if (control && tthemes.includes("legacy") && !uprightPlanted) { console.log("control: no upright tray was read, so its row's fault could not be planted - FAIL"); bad++; }
     if (control && roles.includes("gm") && !railPlanted) { console.log("control: no GM desk page was read, so the rail's fault could not be planted - FAIL"); bad++; }
     console.log(`TRAY ${bad ? "RED" : "GREEN"}: ${tthemes.length} theme(s), ${roles.length} role(s), ${tsizes.length} size(s)`);
     process.exit(bad ? 1 : 0);

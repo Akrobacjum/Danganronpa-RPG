@@ -2060,14 +2060,18 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
      into the tray's frame, then the run in that frame from the end of the name's words (a Range over them, its upright
      width solved from the turned box, held to the element's width where the ellipsis cuts it) to the count's start, and
      the fall on the screen over that run - `fall` must be within 2 px and `run` 8-12 px; where the tray is not turned
-     (Monokuma Legacy, the stack), the count inside its own row's box. And the list: a row the
+     (Monokuma Legacy, the stack), the same 2 px between the two centres (E23 fix G3, 08.11.2026; the end review's
+     screens M1: this asked only that the count stand inside its own row, and Legacy's count on the line under its name
+     passed) - the run is not held there, since an upright row may set its count at the row's end. And the list: a row the
      scrollport cuts (any part of it in, any part out) must not stand in a list that does not scroll with the foot's
      signal on (`data-drpg-more`, projects-tray.mjs `markTrayMore`, imported here as the module's own: the render hook
-     is Daggerheart's, which this page does not have; and the fade it draws, a computed mask on the list - Stained
-     Glass's, so under Monokuma Legacy a list that scrolls reads as one without the signal). `rows` fills the tray to that many rows first (copies of the
+     is Daggerheart's, which this page does not have; and the fade it draws, a computed mask on the list - danganronpa.css
+     states it for both themes: the E23 fix G3 run read "fade" under Monokuma Legacy at 1366x768 and 1920x1080). `rows` fills the tray to that many rows first (copies of the
      page's rows with longer names), and everything added is taken away before it answers. `plant` is the sweep's
      control: "grow" puts the name's old `flex: 1 1 auto` back and must read a fall over 2 px; "cut" holds the list at
-     five and a half rows with the signal taken off, and must read a cut row. Answers { ok, why, turn, rows, list }. */
+     five and a half rows with the signal taken off, and must read a cut row; "column" (an unturned tray's) lays each
+     row's content out as a column again, the count under its name, and must read a fall over 2 px. Answers { ok, why,
+     turn, rows, list }. */
   window.drpgTrayRows = async ({ rows = 0, plant = null } = {}) => {
     const out = { ok: false, why: [], turn: null, rows: [], list: null };
     const done = () => { out.ok = !out.why.length; out.why = out.why.join("; "); return out; };
@@ -2101,6 +2105,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
         added.push(row);
       }
       if (plant === "grow") style.textContent = "body #countdowns .countdown-content > header { flex: 1 1 auto !important; }";
+      if (plant === "column") style.textContent = "body #countdowns .countdown-content { flex-direction: column !important; align-items: stretch !important; }";
       if (plant === "cut") style.textContent = "body #countdowns .countdowns-container { max-height: calc(5.5 * var(--drpg-project-row) + 5 * var(--drpg-project-gap)) !important; }";
       document.head.append(style);
       window.__glass?.refreshGlass?.();
@@ -2121,8 +2126,9 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
         const w = Math.abs(Math.cos(2 * th)) > 0.2 ? (r.width * cs - r.height * Math.abs(sn)) / Math.cos(2 * th) : el.offsetWidth;
         return Math.min(el.offsetWidth, Math.max(0, w));
       };
-      /* NOT TURNED (Monokuma Legacy, a stacked screen): the count may stand under its name, as Legacy's two-line row
-         sets it, and then it must stand inside its own row's box, not on the next row's line. */
+      /* NOT TURNED (Monokuma Legacy, a stacked screen): the count on its name's line, its centre within 2 px of the
+         name's (E23 fix G3: until then it might stand under its name, as Legacy's two-line row set it, so long as it
+         stood inside its own row's box), and inside its own row. */
       const turned = Math.abs(out.turn) >= 0.25;
       for (const row of cat.children) {
         const name = row.querySelector(".countdown-content > header"), tag = row.querySelector(".progress-tag");
@@ -2133,6 +2139,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
           const read = { name: name.textContent.trim().slice(0, 24), run: null, fall: Math.round((ty - ny) * 10) / 10, own: inside };
           out.rows.push(read);
           if (!inside) out.why.push(`"${read.name}": its count stands outside its own row (${read.fall} px under the name)`);
+          else if (Math.abs(ty - ny) > 2) out.why.push(`"${read.name}": its count stands ${read.fall} px off its name's line (the tray upright)`);
           continue;
         }
         const dx = (tx - nx) * cs + (ty - ny) * sn, dy = -(tx - nx) * sn + (ty - ny) * cs;

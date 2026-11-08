@@ -2243,8 +2243,18 @@ const INVARIANTS = [
     ["nothing in the chrome is set under the floor", async () => {
         needs(env.glass(), "this measures Stained Glass");
         needs(env.layout(), "a label's size needs a browser");
-        // 11 px, at every interface scale - see docs/design/typography.md.
-        const floor = parseFloat(getComputedStyle(document.body).getPropertyValue("--drpg-sg-floor")) || 11;
+        /* THE FLOOR AS COMPUTED, NOT AS WRITTEN (E23 fix G3; the end review's goal m2, Open 33). This read
+           `parseFloat(getPropertyValue("--drpg-sg-floor")) || 11`: a custom property computes to its text,
+           "calc(21px * 0.85)", whose parseFloat is NaN, so the floor held was 11 px and a label of 12 to 17 px passed under
+           a floor of 17.85 (Chromium, the glass harness at 1366x768, C2a's reading; E23-12 cites this test). The floor is
+           now a probe's computed size, `font-size: var(--drpg-sg-floor)` (as R1385 reads it), and a label of the test's
+           own 2 px under it is planted in the clock first: the reading must name it (taken out after). */
+        const probe = Object.assign(document.createElement("span"), { textContent: "x" });
+        probe.style.cssText = "position:absolute;visibility:hidden;font-size:var(--drpg-sg-floor)";
+        document.body.append(probe);
+        const floor = parseFloat(getComputedStyle(probe).fontSize);
+        probe.remove();
+        must(floor > 0, `the floor computed to ${getComputedStyle(document.body).getPropertyValue("--drpg-sg-floor") || "nothing"} - there is no floor to hold the chrome to`);
         const small = [];
         let measured = 0;
         /* THE TRACK BAND WITH A NAME IN IT (E23 C2a, 07.11.2026; S12-24). The band holds words only while music plays
@@ -2254,6 +2264,9 @@ const INVARIANTS = [
         const H = await import("./hud.mjs");
         const clock = document.getElementById(H.HUD_ID);
         if (clock) H.paintTrackLine(clock, { track: "Floor test", playlist: "Floor test" });
+        const plant = Object.assign(document.createElement("span"), { className: "drpg-floor-plant", textContent: "Floor plant" });
+        plant.style.cssText = "display:inline-block;font-size:calc(var(--drpg-sg-floor) - 2px)";
+        clock?.append(plant);
         try {
             for (const sel of ["#drpg-hud", "#drpg-despair", "#drpg-player-status", "#drpg-events", "#countdowns", ".drpg-panel"]) {
                 for (const host of document.querySelectorAll(sel)) {
@@ -2266,10 +2279,14 @@ const INVARIANTS = [
                 }
             }
         } finally {
+            plant.remove();
             if (clock) H.paintTrackLine(clock);
         }
         ok(measured > 0, "no text in the chrome has a width - nothing was measured");
-        ok(!small.length, small.slice(0, 4).join("; "));
+        const planted = small.filter(line => line.startsWith("drpg-floor-plant "));
+        ok(planted.length === 1, `the label planted 2 px under the floor of ${floor.toFixed(2)} px was ${planted.length ? "named" : "not named"} (${clock ? "planted in the clock" : "no clock to plant it in"})`);
+        const real = small.filter(line => !line.startsWith("drpg-floor-plant "));
+        ok(!real.length, real.slice(0, 4).join("; "));
     }],
 
     ["the theme speaks two faces", () => {
@@ -30767,6 +30784,14 @@ const INVARIANTS = [
          * the strip is drawn, read and drawn again once the property is gone; then `game.user.isGM` is read false for one
          * synchronous call of `statusActor`, which must answer that player's character. Red at C4's parent: the strip is
          * the player view of the assigned student, and `statusActor` does not exist.
+         * THE TABLE'S STRIP IN EACH STATE (E23 fix G3; the end review's correctness m3). Since E23 C3a the table's strip
+         * leaves "Still to act" out in a Class Trial and while an incident runs (`quietActions`, the owner's Q-E23-3), and
+         * with no row it is not drawn, so in 01-runtests' parts A1 and A2 (a trial, an incident) this test read null and
+         * was loosened to "the table's, or none" whatever the state - which let a GM's strip that drew nothing in Daily
+         * Life pass. Now the clock and the incident's state are read as the test's own, as R1193 does (`game.settings.get`
+         * of both, put back in `finally`): Daily Life with no incident, where the strip is the table's, and a Class Trial
+         * and an incident, where it is none - each with no character and with the student assigned. Red on a planted
+         * `buildTableView` that answers null: Daily Life reads null.
          */
         needs(world.atLeast("livingStudents"));
         const PS = await import("./player-status.mjs");
@@ -30778,11 +30803,30 @@ const INVARIANTS = [
             const el = document.getElementById("drpg-player-status");
             return el ? (el.classList.contains("is-gm") ? "table" : "player") : null;
         };
-        const unassigned = drawn();
-        let assigned = null, gmActor = "missing", playerActor = "missing";
-        Object.defineProperty(game.user, "character", { value: student, configurable: true });
+        const ownGet = Object.getOwnPropertyDescriptor(game.settings, "get"), get = game.settings.get;
+        const STATES = ["dailyLife", "classTrial", "incident"];
+        let state = STATES[0];
+        const views = {};
+        let gmActor = "missing", playerActor = "missing";
         try {
-            assigned = drawn();
+            game.settings.get = function (scope, key, ...rest) {
+                const value = get.call(this, scope, key, ...rest);
+                if (scope !== MODULE_ID) return value;
+                if (key === SETTINGS.clock) return { ...value, phase: state === "classTrial" ? "classTrial" : "dailyLife", eclipse: false };
+                if (key === SETTINGS.murderState) return { ...(value ?? {}), active: state === "incident" };
+                return value;
+            };
+            for (state of STATES) {
+                views[state] = [drawn()];
+                Object.defineProperty(game.user, "character", { value: student, configurable: true });
+                try {
+                    views[state].push(drawn());
+                } finally {
+                    delete game.user.character;
+                }
+            }
+            state = STATES[0];
+            Object.defineProperty(game.user, "character", { value: student, configurable: true });
             if (typeof PS.statusActor === "function") {
                 gmActor = PS.statusActor()?.id ?? null;
                 Object.defineProperty(game.user, "isGM", { value: false, configurable: true });
@@ -30794,16 +30838,13 @@ const INVARIANTS = [
             }
         } finally {
             delete game.user.character;
+            if (ownGet) Object.defineProperty(game.settings, "get", ownGet); else delete game.settings.get;
             drawn();
         }
-        // The table's strip may draw nothing at all: in a Class Trial and while an incident runs it leaves "Still to act"
-        // out (E23 C3a, `quietActions`; the owner's Q-E23-3), and with no row it is not drawn (`buildTableView` null).
-        // The suite runs this test inside both (01-runtests' parts A1 and A2), where CI read `unassigned: null` at
-        // f26d4467. What this test holds is unchanged: a GM's strip is the table's or none, the same with a student
-        // assigned as without, and never the player view.
-        const gmView = unassigned === null ? null : "table";
-        equal(JSON.stringify({ unassigned, assigned, gmActor, playerActor }), JSON.stringify({ unassigned: gmView, assigned: gmView, gmActor: null, playerActor: student.id }),
-            `[the GM's strip with no character (the table's, or none where the table's strip has no row), with ${student.name} assigned; whose numbers a GM's strip is; a player's with ${student.name} assigned]`);
+        equal(JSON.stringify({ views, gmActor, playerActor }), JSON.stringify({
+            views: { dailyLife: ["table", "table"], classTrial: [null, null], incident: [null, null] }, gmActor: null, playerActor: student.id
+        }), `{views: the GM's strip in Daily Life, a Class Trial and an incident (each read as the test's own) [with no character, with ${student.name} assigned]; `
+            + `whose numbers a GM's strip is; a player's with ${student.name} assigned}`);
     }],
 
     ["R1119 - the overflow caption says what the stamp holds: overflow.mjs `stampReading` tells a darkening running, one armed for the time of day ahead and one waiting from the trial apart, and a one-off (kind \"event\") never reads as darkened; `overflowActive` asks kind \"state\"; despair.mjs `buildOverflowCaption` draws \"Armed\" and \"Waiting\" beside the count, clamps the count at the threshold, and its GM hint does not say a boundary fires it", async () => {
@@ -34804,8 +34845,10 @@ const INVARIANTS = [
            section's top level it overrides - the same selector - or the system's reduced motion stops nothing (E44 C6's
            mutant c6-m1: the reduced-motion block moved above the word's run). Read from the sheet's text, in order.
            Since E23 C5c the section holds no `@media` rule: its two reduced-motion blocks were the class's twins and went
-           (R1410), so the order reads nothing and the section's media rules are listed instead - none, and a block that
-           comes back is named here as well as by R1410. */
+           (R1410), so the section's media rules are listed instead - none, and a block that comes back is named here as
+           well as by R1410. The order's own reading (`early`, a media rule above the rule it overrides) could only read
+           none while none stands, and was taken out in E23 fix G3 (the end review's correctness n3): a media rule that
+           comes back fails `sectionMedia` first, and its place is then read again by whoever puts it back. */
         const sheet = (await fetch(`/modules/${MODULE_ID}/styles/components.css`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
         /* The whole sheet is read, and a rule counts when it opens after the section's tokens (the kit's part above them
            is not the section's); a sheet without the tokens is a failure, not a reading of the whole sheet. */
@@ -34820,7 +34863,6 @@ const INVARIANTS = [
                 depth++; from = i + 1;
             } else if (sheet[i] === "}") { depth--; if (depth === 0) media = null; from = i + 1; } else if (sheet[i] === ";" && depth === 0) from = i + 1;
         }
-        const early = order.flatMap((rule, i) => (rule.media ? order.slice(i + 1).filter(later => !later.media && later.selector === rule.selector).map(later => `${rule.media} ${rule.selector}`) : []));
         const sectionMedia = order.filter(r => r.media).map(r => `${r.media} ${r.selector}`);
         /* Foundry tools' three Stained Glass prints since E23 C1c (S12-34): the rule that wins its `transition` lost the
            phantom `#drpg-settings-launcher` from its selector list - the same rule, the same value, another selector.
@@ -34844,8 +34886,8 @@ const INVARIANTS = [
             "stacked|stained-glass|gm-launcher": "1:934c4f73", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:0a4f36aa",
             "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:e9f9c48e", "stacked|stained-glass|voice-tile": "1:d4bd73c1"
         };
-        equal(stableJson({ left: [...left].sort(), prints, early, sectionMedia }), stableJson({ left: [], prints: C5, early: [], sectionMedia: [] }),
-            `[a rule written for these surfaces that still wins from danganronpa.css or stained-glass.css; per place, theme and surface, the number of roots and the fingerprint of its winners; an @media rule above the rule it overrides; the section's @media rules] (${readings} reading(s))`);
+        equal(stableJson({ left: [...left].sort(), prints, sectionMedia }), stableJson({ left: [], prints: C5, sectionMedia: [] }),
+            `[a rule written for these surfaces that still wins from danganronpa.css or stained-glass.css; per place, theme and surface, the number of roots and the fingerprint of its winners; the section's @media rules] (${readings} reading(s))`);
         must(readings > 3000, `${readings} reading(s) made - the surfaces matched almost no rule`);
     }],
     ["R1337 - a Remnant row's Delete on the dashboard (E44 C8d; E44-29): each row of the Remnants tab holds one plain button with the tab's word, named for the row's Remnant and keyed by the row; the tab's head names its column; wireCase binds the buttons to `deleteTraceRow`, which answers before anything for a player, asks a DialogV2 confirm naming the Remnant before it removes, stops on no, and removes through remnants.mjs `removeRemnant` alone; no module file but investigation.mjs names it; and its three words stand in both languages", async () => {
@@ -37112,6 +37154,88 @@ const INVARIANTS = [
         ok(KEYS.every((key, i) => texts.en[i] && texts.pl[i] && texts.en[i] !== texts.pl[i] && texts.en[i] !== key),
             `the two controls' words in English and Polish: ${stableJson(texts)}`);
     }],
+    ["R1431 - the Projects tray's \"more below\" follows its list's size, not only its renders and its scroll (E23 fix G3; the end review's correctness m5): `markTrayMore` watches a list it has not seen with one ResizeObserver, on the list and each container of rows in it, and writes `data-drpg-more` again each time either changes size (a resize, a desk turned into a stack, the scale slider, late fonts)", async () => {
+        /*
+         * E23 fix G3, 08.11.2026; the end review's correctness m5. Since C3a the list fades its foot while a row stands
+         * below its scrollport (`data-drpg-more`), written on a render and on the list's own scroll. A resize of the
+         * screen or the pane, a stacked or desk switch, the scale slider or late fonts change whether a row stands below
+         * without either, so the fade said "more" over a list with none or hid that there was more. Read here on a list
+         * of the test's own, connected to nothing, with a ResizeObserver of the test's own (it never fires headless; the
+         * test fires it) and the list's heights stood in for (jsdom lays nothing out): what is watched after the first
+         * mark, and the attribute after the observer fires with the rows over the list's height and under it; a second
+         * mark of the same list adds no second observer. Red on ce3a821f: nothing observed, the attribute unchanged.
+         */
+        const PT = await import("./projects-tray.mjs");
+        must(typeof PT.markTrayMore === "function", "projects-tray.mjs has no markTrayMore - nothing marks the list's foot");
+        const realObservers = [window.ResizeObserver, globalThis.ResizeObserver], observers = [];
+        const root = document.createElement("div");
+        root.innerHTML = `<div class="countdowns-container"><div class="countdown-category-container"><div class="countdown-container" data-countdown="r1431"></div></div></div>`;
+        const list = root.querySelector(".countdowns-container"), rows = root.querySelector(".countdown-category-container");
+        const read = {};
+        try {
+            window.ResizeObserver = globalThis.ResizeObserver = class {
+                constructor(callback) { Object.assign(this, { callback, targets: [], live: true }); observers.push(this); }
+                observe(el) { this.targets.push(el); }
+                unobserve(el) { this.targets = this.targets.filter(target => target !== el); }
+                disconnect() { this.live = false; this.targets = []; }
+            };
+            const heights = (scroll, client) => {
+                Object.defineProperty(list, "scrollHeight", { value: scroll, configurable: true });
+                Object.defineProperty(list, "clientHeight", { value: client, configurable: true });
+            };
+            const fire = () => observers.filter(o => o.live).forEach(o => o.callback([], o));
+            heights(100, 120);
+            read.first = PT.markTrayMore(root);
+            PT.markTrayMore(root);
+            read.watched = observers.filter(o => o.live).flatMap(o => o.targets.map(el => (el === list ? "list" : el === rows ? "rows" : "other")));
+            heights(200, 120);
+            fire();
+            read.grown = list.hasAttribute("data-drpg-more");
+            heights(110, 120);
+            fire();
+            read.shrunk = list.hasAttribute("data-drpg-more");
+        } finally {
+            [window.ResizeObserver, globalThis.ResizeObserver] = realObservers;
+        }
+        equal(stableJson(read), stableJson({ first: false, watched: ["list", "rows"], grown: true, shrunk: false }),
+            "{first: the first mark (rows 100 px in a list of 120); watched: what the live ResizeObservers watch after two marks of the same list; "
+            + "grown / shrunk: the attribute after the observer fires with the rows 200 px in 120, then 110 in 120}");
+    }],
+    ["R1433 - the Projects tray reads in rows under Monokuma Legacy too (E23 fix G3, E23-16; the end review's screens M1): a row's name and count stand on one line - the content a row, its items on the baseline - the name taking the row's room and giving way with its ellipsis, the count and the controls after it at their own width; the tray no wider than 360 px a scale, as the glass's, so the longer row does not drag the column", async () => {
+        /*
+         * E23 fix G3, 08.11.2026; the end review's screens M1. E23-16's "each row's name and count on one baseline" and
+         * doneWhen name no theme, and C3a laid the row out under Stained Glass alone: under Monokuma Legacy Daggerheart's
+         * content box stayed a column, so every row read "Rig the dumbwaiter" with "2/4" on the line under it (Chromium,
+         * the glass harness at 1366x768 and 1920x1080, GM and player; the review's ltray.png). Read here by the sheets'
+         * cascade (`styleCascade`) on Daggerheart's row (countdowns.hbs 2.10.11, the GM's) built on a body of its own
+         * under Monokuma Legacy. The screen's reading is the glass harness's `drpgTrayRows`, which since this fix judges
+         * an unturned tray on the same 2 px rule (glass-sweep `--tray`, both themes by default). The cap: the tray is
+         * as wide as its widest row, and with the count beside the name the harness's tray grew from 441 to 496 px and
+         * the strip over it lay over the Despair rail's counts at 1366x768; capped at 360 px a scale it stands at 362
+         * with its border, clear of the rail. Red on ce3a821f: no rule of the module lays the content out under Legacy
+         * or caps the tray.
+         */
+        const C = await styleCascade();
+        const html = document.createElement("html"), body = document.createElement("body");
+        body.className = "drpg-theme-monokuma-legacy drpg-gm";
+        html.append(body);
+        body.innerHTML = `<div id="countdowns"><div class="countdowns-container"><div class="countdown-category-container"><div class="countdown-container" data-countdown="r1433">`
+            + `<div class="countdown-main-container"><img alt=""><div class="countdown-content"><header>R1433</header><div class="countdown-tools"><div class="countdown-tool-controls">`
+            + `<a data-action="decreaseCountdown"><i class="fa-solid fa-minus"></i></a><div class="progress-tag">2/4</div><a data-action="increaseCountdown"><i class="fa-solid fa-plus"></i></a>`
+            + `</div><div class="countdown-tool-icons"></div></div></div></div></div></div></div></div>`;
+        const q = s => body.querySelector(s);
+        const value = (el, names) => C.winner(el, [names].flat())?.value?.replace(/\s+/g, " ") ?? null;
+        const content = q(".countdown-content"), name = q(".countdown-content > header"), tools = q(".countdown-tools");
+        const read = {
+            content: [value(content, "display"), value(content, ["flex-direction", "flex-flow"]), value(content, "align-items")],
+            name: [value(name, ["flex", "flex-grow"]), value(name, "min-width"), value(name, "white-space"), value(name, "text-overflow")],
+            tools: value(tools, ["flex", "flex-shrink"]),
+            cap: value(q("#countdowns"), "max-width")
+        };
+        equal(stableJson(read), stableJson({ content: ["flex", "row", "baseline"], name: ["1 1 auto", "0", "nowrap", "ellipsis"], tools: "0 0 auto",
+            cap: "calc(360px * var(--drpg-legacy-scale, 1))" }),
+            "under Monokuma Legacy: {content: [display, flex-direction, align-items]; name: [flex, min-width, white-space, text-overflow]; tools: flex; cap: the tray's max-width}");
+    }],
     ["R1392 - the status strip (E23 C3a, E23-17; S10-63, S12-54): under the glass a Hope slot is 12-16 px, an empty one the star's outline in Bone Dim at 40 %, a held one the solid star; the table's strip leaves \"Still to act\" out in a Class Trial and while an incident runs, and keeps it in Daily Life", async () => {
         /*
          * E23 C3a, 07.11.2026. S10-63: the slots were 0.72rem (11.5 px), the contained star drew at 7-8 px, an empty one the
@@ -37205,7 +37329,7 @@ const INVARIANTS = [
             stableJson({ hour: [], safeword: "var(--drpg-sg-gm-light)", assembly: "var(--drpg-sg-hope)" }),
             "{hour: the kinds whose `--acc` under Stained Glass is the hour's or no rule of their own; the safeword's and the assembly's accent}");
     }],
-    ["R1394 - the Event panel is one box whatever it says (E23 C3b, E23-18; the owner's 04.10, audit S10-35, S12-30): its width and height are two tokens, a length each, stated for Monokuma Legacy, for the glass and for the glass's stack, and what is taller scrolls inside it, the panel never shrunk and a card never shrunk below its words; an incident's meta is two lines, whose turn and then the state, and no meta wears a frame or a glowing box; the ticker runs in the glyph's band, under no word, and is not drawn on a stacked screen", async () => {
+    ["R1394 - the Event panel is one box whatever it says (E23 C3b, E23-18; the owner's 04.10, audit S10-35, S12-30): its width and height are two tokens, a length each, stated for Monokuma Legacy, for the glass and for the glass's stack, and what is taller scrolls inside it, the panel never shrunk and a card never shrunk below its words; an incident's meta is two lines, whose turn and then the state, and no meta wears a frame or a glowing box (under Monokuma Legacy its lines 1.25 apart or more); the ticker runs in the glyph's band, under no word, and is not drawn on a stacked screen", async () => {
         /*
          * E23 C3b, 07.11.2026. The owner's 04.10: "the events panel has a fixed size whatever the event and phase, always a
          * similar layout, everything fits". Measured in Chromium before this commit (the glass harness's `drpgEventCheck`,
@@ -37219,6 +37343,9 @@ const INVARIANTS = [
          * running incident) and `cardElement` on a two-part and a one-part meta. What Chromium lays out - the box the same
          * for each card and for all three, nothing cut, the ticker under no word - is `drpgEventCheck`
          * (glass-sweep `--events`). Red at f26d4467: one meta string with " · ", no tokens, the ticker at 50 %.
+         * Since E23 fix G3 (the end review's screens m2): under Monokuma Legacy the meta's lines inherited the card's
+         * leading, and at 1366x768 the four lines of an incident's meta ran into each other, the ogonek of "DRUGĄ" lost in
+         * the next line (the review's ev-l.png): its `line-height` is read, 1.25 or more. Red on ce3a821f: none stated.
          */
         const C = await styleCascade();
         const value = (el, names, pseudo = null) => C.winner(el, [names].flat(), pseudo)?.value?.replace(/\s+/g, " ") ?? null;
@@ -37242,6 +37369,10 @@ const INVARIANTS = [
                 width: value(box, "width"), height: value(box, "height"), scrolls: value(box, ["overflow-y", "overflow"]),
                 panelFlex: value(box, "flex"), cardFlex: value(one, "flex"), metaFrame: [...border, ...shadow]
             };
+            if (theme === "drpg-theme-monokuma-legacy") {
+                const leading = value(meta, "line-height");
+                read.metaLeading = /^[\d.]+$/.test(leading ?? "") && Number(leading) >= 1.25 ? "1.25 or more" : leading;
+            }
             if (theme === "drpg-theme-stained-glass") {
                 const ticker = one.querySelector(".drpg-event-ticker"), glyph = one.querySelector(".drpg-event-glyph");
                 const padTop = (value(one, ["padding-top", "padding"]) ?? "").split(" ")[0];
@@ -37253,12 +37384,13 @@ const INVARIANTS = [
         const want = (stacked, theme) => ({
             tokens: ["length", "length"], width: stacked ? "auto" : "var(--drpg-events-w)", height: "var(--drpg-events-h)", scrolls: "auto",
             panelFlex: "0 0 auto", cardFlex: "1 0 auto", metaFrame: [],
+            ...(theme === "drpg-theme-monokuma-legacy" ? { metaLeading: "1.25 or more" } : {}),
             ...(theme === "drpg-theme-stained-glass" ? { ticker: stacked ? "none" : ["the card's top", "the glyph's height"] } : {})
         });
         const LAYOUTS = [["drpg-theme-monokuma-legacy", false], ["drpg-theme-stained-glass", false], ["drpg-theme-stained-glass", true]];
         equal(stableJson(LAYOUTS.map(([t, s]) => layout(t, s))), stableJson(LAYOUTS.map(([t, s]) => want(s, t))),
             "[Monokuma Legacy's desk, the glass's desk, the glass's stack]: {tokens: the width's and the height's (a length each), the panel's width, "
-            + "height, overflow and flex, a card's flex, a meta's frame or box (none), the ticker's top and height against the card's padding and the glyph's (desk) or its display (stack)}");
+            + "height, overflow and flex, a card's flex, a meta's frame or box (none), Legacy's meta line-height, the ticker's top and height against the card's padding and the glyph's (desk) or its display (stack)}");
 
         const src = stripComments((await moduleSources()).get("events.mjs") ?? "");
         const incident = fnSource(src, "incidentCard");
@@ -37278,7 +37410,71 @@ const INVARIANTS = [
         }), "{source: incidentCard's meta [whose turn, the state] as two parts, one string joined by ' · '; two: cardElement's lines for a two-part meta "
             + "(each [class, text]), and whether a part became markup; one: a one-part meta's text and lines}");
     }],
-    ["R1404 - the prompts the game waits on stay above the sheet, and nothing else does (E23 C5a; E23-24, audit S01-15, the owner's Q-E23-5): stacking.mjs keeps `drpg-prompt` (ui-kit.mjs PROMPT_CLASS) on top, not every kit window's `drpg-panel`; `drpgWindow` puts it on only when asked, and the windows that ask are the named list - a roll, every action's declaration (each caller of `chooseVariant` named), Observe's GM windows, a GM's ruling, a ballot, Level Up and the trial's prompts - never a panel, a handbook, Projects, the Case or the notice history; the raise is a frame after Foundry's, never a microtask, and only for the prompts the sheet overlaps; a render raises only on a first or a forced one", async () => {
+    ["R1430 - the Event panel says whether it scrolls whenever its box or its cards change, not only when its cards do (E23 fix G3; the end review's correctness m2): `data-drpg-scrolls` is read again on a render that finds the same cards (a theme switch), and on every change of the panel's or a card's size (one ResizeObserver a panel, on the panel and each card: a desk turned into a stack, the scale slider, late fonts)", async () => {
+        /*
+         * E23 fix G3, 08.11.2026; the end review's correctness m2. Since C3b the panel is one box a layout and theme (the
+         * stylesheets' `--drpg-events-h`), it takes the wheel only while it holds more than that box, and `renderEvents`
+         * read that once a redraw - which is once a change of what the cards say. A theme switch (applyTheme, renderHud,
+         * renderEvents) returned on the unchanged signature first, and a desk turned into a stack or the scale slider
+         * moves or resizes the panel with no render at all, so a panel that fit its old box and overflows the new one kept
+         * no `data-drpg-scrolls`: `pointer-events: none`, its lower cards cut and out of reach until the cards changed.
+         * Read here on this GM with nothing written: the clock read as a Class Trial (`game.settings.get` of the clock,
+         * so the panel holds the trial's card), a ResizeObserver of the test's own (it never fires headless; the test
+         * fires it), the panel drawn anew, its heights stood in for (`scrollHeight`, `clientHeight`: jsdom lays nothing
+         * out), then each road: the observer fired with the panel over its box and under it, and a render of the same
+         * cards with the panel over its box. All put back in `finally` and the panel drawn again from the world. Red on
+         * ce3a821f: nothing observed, and the attribute as the first draw left it on both roads.
+         */
+        const E = await import("./events.mjs");
+        must(game.user.isGM, "the trial's card is drawn here for a GM - this would read nothing");
+        const realObservers = [window.ResizeObserver, globalThis.ResizeObserver], observers = [];
+        const ownGet = Object.getOwnPropertyDescriptor(game.settings, "get"), get = game.settings.get;
+        const read = {};
+        let panel = null;
+        try {
+            window.ResizeObserver = globalThis.ResizeObserver = class {
+                constructor(callback) { Object.assign(this, { callback, targets: [], live: true }); observers.push(this); }
+                observe(el) { this.targets.push(el); }
+                unobserve(el) { this.targets = this.targets.filter(target => target !== el); }
+                disconnect() { this.live = false; this.targets = []; }
+            };
+            game.settings.get = function (scope, key, ...rest) {
+                const value = get.call(this, scope, key, ...rest);
+                return scope === MODULE_ID && key === SETTINGS.clock ? { ...value, phase: "classTrial", eclipse: false } : value;
+            };
+            const old = document.getElementById("drpg-events");
+            if (old) old.dataset.signature = "R1430";
+            E.renderEvents();
+            panel = document.getElementById("drpg-events");
+            must(panel?.isConnected && panel !== old && panel.children.length, "the Event panel was not drawn anew with the trial's card - this would read nothing");
+            const live = observers.filter(o => o.live);
+            read.watched = live.flatMap(o => o.targets.map(el => (el === panel ? "panel" : el.parentElement === panel ? "card" : "other")));
+            read.cards = panel.children.length;
+            const box = (scroll, client) => {
+                Object.defineProperty(panel, "scrollHeight", { value: scroll, configurable: true });
+                Object.defineProperty(panel, "clientHeight", { value: client, configurable: true });
+            };
+            const fire = () => observers.filter(o => o.live && o.targets.includes(panel)).forEach(o => o.callback([], o));
+            box(400, 180);
+            fire();
+            read.resizedOver = panel.hasAttribute("data-drpg-scrolls");
+            box(150, 180);
+            fire();
+            read.resizedUnder = panel.hasAttribute("data-drpg-scrolls");
+            box(400, 180);
+            E.renderEvents();
+            read.sameCards = [document.getElementById("drpg-events") === panel, panel.hasAttribute("data-drpg-scrolls")];
+        } finally {
+            [window.ResizeObserver, globalThis.ResizeObserver] = realObservers;
+            if (ownGet) Object.defineProperty(game.settings, "get", ownGet); else delete game.settings.get;
+            if (panel) { delete panel.scrollHeight; delete panel.clientHeight; panel.dataset.signature = "R1430"; }
+            E.renderEvents();
+        }
+        equal(stableJson(read), stableJson({ watched: ["panel", ...Array(read.cards).fill("card")], cards: read.cards, resizedOver: true, resizedUnder: false, sameCards: [true, true] }),
+            "{watched: what a live ResizeObserver watches (the panel, each card); cards: the trial's panel's cards; resizedOver / resizedUnder: the attribute after the observer "
+            + "fires with the panel 400 px in a box of 180, then 150 in 180; sameCards: a render of the same cards keeps the panel and reads the attribute again (400 in 180)}");
+    }],
+    ["R1404 - the prompts the game waits on stay above the sheet, and nothing else does (E23 C5a; E23-24, audit S01-15, the owner's Q-E23-5): stacking.mjs keeps `drpg-prompt` (ui-kit.mjs PROMPT_CLASS) on top, not every kit window's `drpg-panel`; `drpgWindow` puts it on only when asked, and the windows that ask are the named list - a roll, every action's declaration (each caller of `chooseVariant` named), Observe's GM windows, a GM's ruling, a ballot, Level Up, the trial's prompts, a request worded to the GM and a frisk's two questions - never a panel, a handbook, Projects, the Case or the notice history; the raise is a frame after Foundry's, never a microtask, and only for the prompts the sheet overlaps; a render raises only on a first or a forced one", async () => {
         /*
          * E23 C5a, 07.11.2026; S01-15. Until C5a stacking.mjs kept `.application.drpg-panel` on top, and the kit puts
          * `drpg-panel` on every module window (KIT_CLASSES): a sheet's redraw (a Hope change) raised the GM panel, the
@@ -37290,7 +37486,11 @@ const INVARIANTS = [
          * on stand-ins; and `promptsOver` on stand-ins connected to nothing, their boxes the positions Foundry keeps
          * (`foundry.applications.instances`, stood in for under ids of this test's own and taken out in a finally). What
          * the order of drawn windows then is, is E23-T2's (tier 2); a person's click, LIVE (the prompt's live row).
-         * Red on 2b866dde: KEEP_ON_TOP is ".application.drpg-panel" and no PROMPT_CLASS.
+         * Red on 2b866dde: KEEP_ON_TOP is ".application.drpg-panel" and no PROMPT_CLASS. Three more since E23's fix
+         * round G3 (the end review's goal M4, Open 72; the owner's Q-E23-5, every declaration the game waits on): the
+         * request a player words to the GM (call-gm.mjs `askForRequest`, behind promptAndCallGm and promptForRequest),
+         * "Turn out your pockets?" (frisk.mjs `openAskWindow`) and "Make them?" (`askToForce`), each on a clock. Red on
+         * ce3a821f: the three absent from the list.
          */
         const S = await import("./stacking.mjs");
         const K = await import("./ui-kit.mjs");
@@ -37381,9 +37581,9 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({
             keep: [".application.drpg-prompt", "drpg-prompt", false],
             kit: [[false, false], [true, false]],
-            asking: ["action-menus.mjs chooseVariant", "action-menus.mjs promptForNote", "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement",
-                "observe.mjs askWhichRemnant", "observe.mjs describeFind", "trait-ruling.mjs pickHere", "trial-prompt.mjs promptClaim", "trial-prompt.mjs promptTurn",
-                "vote.mjs castBallot"],
+            asking: ["action-menus.mjs chooseVariant", "action-menus.mjs promptForNote", "call-gm.mjs askForRequest", "frisk.mjs askToForce", "frisk.mjs openAskWindow",
+                "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement", "observe.mjs askWhichRemnant", "observe.mjs describeFind", "trait-ruling.mjs pickHere",
+                "trial-prompt.mjs promptClaim", "trial-prompt.mjs promptTurn", "vote.mjs castBallot"],
             naming: ["roll-dialog.mjs", "stacking.mjs", "ui-kit.mjs"],
             menus: ["action-analyze.mjs", "action-murder.mjs", "action-observe.mjs", "action-project.mjs", "action-rest.mjs", "action-search.mjs", "action-tamper.mjs",
                 "level-up.mjs", "palm.mjs"],
@@ -37909,6 +38109,41 @@ const INVARIANTS = [
             + "@media (prefers-reduced-motion) blocks outside motion.css; endless animations still running under the class; endless rules the reader could not build; every endless rule built; "
             + "transitions left in the notice history under the class; the motion tokens under the class, each theme]");
         (await import("./utils.mjs")).log(`R1410: ${blocks.length} media block(s) read, ${endlessRules.length} endless rule(s), ${readEls} notice-history element(s)`);
+    }],
+    ["R1432 - reduced motion stops Foundry's pause caption too (E23 fix G3, E23-30; the end review's goal m1, Open 113): with `body.drpg-reduced-motion` a rule of the module's sheets wins the caption's animation with none, under both themes, over a stand-in for core's endless `pulse`; without the class the stand-in still wins", async () => {
+        /*
+         * E23 fix G3, 08.11.2026; the end review's goal m1 (Open 113). danganronpa.css's pause section said Foundry's own
+         * `pulse` on the caption was left to "the global reduced-motion rule further down", and no such rule stood in any
+         * sheet: under reduced motion the caption pulsed on, in both themes, while E23-30 asks that nothing endless runs
+         * with the class on - R1410 reads the module's own rules, and this one is core's. Core's rule is v14's and is not
+         * read here: it is stood in for by an endless `pulse` on `#pause.paused > figcaption`, put first in the cascade
+         * (core's sheet loads before the module's), and the caption's `animation` winner is read by the sheets' cascade
+         * (`styleCascade`) on a body of its own per theme, with the class and without. The order a table draws (core's
+         * own specificity, a layer, an `!important`) is Open 110's table check. Red on ce3a821f: the stand-in wins under
+         * the class in both themes.
+         */
+        const C = await styleCascade();
+        const stand = { file: "foundry/core.css", selector: "#pause.paused > figcaption", decls: [{ property: "animation", value: "pulse 2s ease-in-out infinite", important: false }] };
+        C.rules.unshift(stand);
+        const read = {};
+        try {
+            for (const theme of ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"]) {
+                for (const still of [true, false]) {
+                    const html = document.createElement("html"), body = document.createElement("body");
+                    body.className = `${theme}${still ? " drpg-reduced-motion" : ""}`;
+                    html.append(body);
+                    body.innerHTML = `<figure id="pause" class="paused"><img alt=""><figcaption>Game Paused</figcaption></figure>`;
+                    const w = C.winner(body.querySelector("figcaption"), ["animation", "animation-name"]);
+                    read[`${theme.replace("drpg-theme-", "")} ${still ? "still" : "moving"}`] = w ? [w.value.trim(), w.file === stand.file ? "core" : "module"] : null;
+                }
+            }
+        } finally {
+            C.rules.splice(C.rules.indexOf(stand), 1);
+        }
+        equal(stableJson(read), stableJson({
+            "stained-glass still": ["none", "module"], "stained-glass moving": ["pulse 2s ease-in-out infinite", "core"],
+            "monokuma-legacy still": ["none", "module"], "monokuma-legacy moving": ["pulse 2s ease-in-out infinite", "core"]
+        }), "{theme with the class (still) and without (moving): the caption's animation winner [value, core's stand-in or the module's]}");
     }],
     ["R1377 - a turn's plan (glass.mjs `turnPlan`, E23 C1b; E23-01, E23-08): on stand-in panes a moving pane is carried by transform keyframes alone (with the opacity of its last fifth), a pane that only recolours by opacity alone, and no keyframe names a clip path; the last keyframe carries a moved triangle exactly onto its new place; the batches go out from the centre; a new accent on the same cut plans no move; `glassTurn` is the one entry point, the turn's start (`startTurn`) writes no clip path and draws on no canvas, and the curtain's clip path is written only where the cut is made and where the frost is clipped", async () => {
         /*

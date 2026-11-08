@@ -796,6 +796,31 @@ function startTrialClock() {
     }, 1000);
 }
 
+/**
+ * WHETHER THE PANEL HOLDS MORE THAN ITS BOX, READ WHENEVER EITHER CHANGES (E23 fix G3, 08.11.2026; the end review's
+ * correctness m2). The box is one size a layout and theme (the stylesheets' `--drpg-events-h`, C3b), the panel takes
+ * no clicks, and `data-drpg-scrolls` gives it the wheel while what it holds is taller than the box. Read once a redraw
+ * until this fix - once a change of what the cards say - so a theme switch (whose render finds the same cards), a desk
+ * turned into a stack and the scale slider (no render at all) left a panel that came to overflow its new box without
+ * the attribute: its lower cards cut and out of reach. Now it is read on every render, the same cards' too, and by one
+ * ResizeObserver a panel on the panel and each card (the box, and a card that grows with late fonts or a new width);
+ * the panel's last observer is let go when a new panel is drawn. R1430.
+ */
+let eventsBoxWatch = null;
+
+function markEventsScrolls(panel) {
+    panel.toggleAttribute("data-drpg-scrolls", panel.scrollHeight > panel.clientHeight + 1);
+}
+
+function watchEventsBox(panel) {
+    eventsBoxWatch?.disconnect();
+    eventsBoxWatch = null;
+    if (typeof ResizeObserver !== "function") return;
+    eventsBoxWatch = new ResizeObserver(() => { if (panel.isConnected) markEventsScrolls(panel); });
+    eventsBoxWatch.observe(panel);
+    for (const card of panel.children) eventsBoxWatch.observe(card);
+}
+
 /** Build or rebuild the panel. Safe to call repeatedly; removes itself when there is nothing to say. */
 export function renderEvents() {
     try {
@@ -812,7 +837,7 @@ export function renderEvents() {
         // Redraw only when something changed: the panel is on the curtain, and
         // every rebuild of it is a recut of the glass around it.
         const signature = JSON.stringify(cards.map(c => [c.kind, c.title, c.sub, c.meta, c.note, c.due, c.mine, c.clock]));
-        if (existing && existing.dataset.signature === signature) return;
+        if (existing && existing.dataset.signature === signature) { markEventsScrolls(existing); return; }
 
         const panel = document.createElement("div");
         panel.id = WIDGET_ID;
@@ -829,8 +854,10 @@ export function renderEvents() {
         if (rail) rail.after(panel); else host.append(panel);
         /* The box is one size whatever it holds (E23 C3b; the stylesheets' `--drpg-events-h`), so what is taller than it
            scrolls inside it, and a panel that takes no clicks cannot be scrolled: it takes the wheel only while it
-           holds more than its box. Read once a redraw, which is once a change of what the panel says. */
-        panel.toggleAttribute("data-drpg-scrolls", panel.scrollHeight > panel.clientHeight + 1);
+           holds more than its box. Read now, on a render of the same cards, and whenever the panel or a card changes
+           size (`watchEventsBox`, above). */
+        markEventsScrolls(panel);
+        watchEventsBox(panel);
     } catch (err) {
         error("Could not render the Event panel", err);
     }

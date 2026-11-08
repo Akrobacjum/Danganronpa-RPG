@@ -304,6 +304,12 @@ const watchedLists = new WeakSet();
  * foot by it (stained-glass.css, the tray's rows). Written on every render and on the list's own scroll (one
  * listener a list: the tray draws a new list on a render). jsdom lays nothing out, so headless it reads a list
  * with nothing below; the glass harness's `drpgTrayRows` reads it in Chromium. Answers whether it is on.
+ *
+ * AND ON EVERY CHANGE OF ITS SIZE (E23 fix G3, 08.11.2026; the end review's correctness m5): a resize of the screen or
+ * the pane, a desk turned into a stack, the scale slider and late fonts change whether a row stands below with
+ * neither a render nor a scroll, and the fade then said "more" where there was none or hid what there was. One
+ * ResizeObserver a list, beside its scroll listener and under the same guard, on the list (its box) and each
+ * container of rows in it (what it holds). R1431.
  */
 export function markTrayMore(root) {
     const list = root?.querySelector?.(".countdowns-container");
@@ -316,6 +322,11 @@ export function markTrayMore(root) {
     if (!watchedLists.has(list)) {
         watchedLists.add(list);
         list.addEventListener("scroll", mark, { passive: true });
+        if (typeof ResizeObserver === "function") {
+            const sizes = new ResizeObserver(mark);
+            sizes.observe(list);
+            for (const rows of list.children) sizes.observe(rows);
+        }
     }
     return mark();
 }

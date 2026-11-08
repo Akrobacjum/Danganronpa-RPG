@@ -1013,6 +1013,8 @@ async function openAskWindow({ askId, who = "", name = "", ms = 0, force = false
         answer = await drpgWindow({
             title: game.i18n.localize("DRPG.Frisk.askTitle"),
             classes: ["drpg-panel"],
+            // The search waits on this answer, on a clock: kept above the sheet (stacking.mjs; E23 fix G3, Q-E23-5, R1404).
+            prompt: true,
             body: text,
             rejectClose: false,
             footer: {
@@ -1048,6 +1050,8 @@ async function askToForce(def, forceMs) {
         const picked = await drpgWindow({
             title: game.i18n.localize("DRPG.Frisk.forceTitle"),
             classes: ["drpg-panel"],
+            // The searcher's choice the clock runs down: kept above the sheet (stacking.mjs; E23 fix G3, Q-E23-5, R1404).
+            prompt: true,
             body: `<p>${plural("DRPG.Frisk.forceText", { force: esc(def?.frisk?.threshold ?? ""), s: Math.round(forceMs / 1000) }, "s")}</p>`,
             rejectClose: false,
             footer: {
