@@ -38430,6 +38430,90 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify([[false, true], [true, true, 0]]),
             "[before: ended, layers laid]; [the class put on: ended, cancelled, layers left]");
     }],
+    ["R1441 - the reserve census (E24 C0, E24-01; D5 option 1, \"everywhere the reserve\"): in scripts/ (the suite aside), every top-level function or table that reads Health or Sanity - `system.resources.hitPoints` or `.stress`, `resourceValue(_, \"hitPoints\"|\"stress\")`, a call of `marksOf(`, or the sheet's own bars (`.resources-section`) - either reads character.mjs `reserveView` or stands in the census's list of reads for rules, with its reason; every name on the list still reads; no file calls `marksOf` and character.mjs declares none; the curtain's files (glass.mjs, player-status.mjs, hud.mjs, room-tile.mjs) read none", async () => {
+        /*
+         * E24 C0, 08.11.2026. The owner's D5 option 1: everywhere a person reads Health or Sanity, the reserve ("N left",
+         * a full bar a full reserve) - so every such number is drawn from one helper, character.mjs `reserveView` (E24
+         * C1a), and none from the marks the system stores. Which reads reach a person's eyes and which feed a rule cannot
+         * be read off the code by a pattern, so it is decided here, by hand, once (RULES): each function or table below
+         * was read at c7dfa20b and reads the resources for a rule - a write, a price, a threshold, a receipt a Reroll puts
+         * back, the GMs' audit or the system's own markup - never to draw the number. A function this list does not name
+         * and that reads them must read `reserveView`, so a new reader is a decision, not a drift. What is read: each
+         * file of the module but the suite's, comments stripped (the kit's `stripComments`), each read given to the
+         * top-level declaration it stands in (a `function`, or a `const`, `let` or `class` at the line's start). Not
+         * read: a resource reached through a variable key (`resources[key]`, `resourceValue(actor, key)`) - the reads by
+         * name are what this holds. Red on purpose at C0 (expectedRed "E24"): events.mjs `incidentCard` and murder-ui.mjs
+         * `incidentPeople` draw `marksOf`, sheet.mjs `paintResourceBars` draws the marks off `progress.value` and
+         * `repaintInPlace` writes them into the system's visible number field and bar; `marksOf` stands. Green in E24-C1b.
+         */
+        const RULES = {
+            "character.mjs initCharacter": "a new character's starting maximum and no marks, written once",
+            "cleanup.mjs undoLastCleanup": "a Reroll puts the clean-up's Sanity marks back",
+            "cleanup.mjs markResolutionStress": "the resolution's Sanity price, written",
+            "cleanup.mjs restoreStress": "a refund of Sanity, written",
+            "cleanup.mjs resolveCleanup": "the receipt's Sanity before the attempt, for a Reroll",
+            "cleanup.mjs tamperWatchBlock": "a threshold: no Sanity left and watched refuses the concealment",
+            "config.mjs LEGAL_ROLL_MODIFIERS": "the legal roll's reader for Breakdown's die (roll-draw.mjs), a rule's table",
+            "diagnostics.mjs diagnoseCharacters": "the GMs' set-up check: each maximum at least the starting numbers",
+            "level-up.mjs applyAdvancement": "a Level Up raises a maximum, written",
+            "monocub.mjs setMonocub": "a Monocub starts with no marks, written",
+            "murder-rules.mjs resolveKillerOpening": "the opening's Despair fills the victim's Sanity track, written",
+            "murder-rules.mjs afterCrisisRoll": "the GMs' bookmark of the use's start, for a Reroll",
+            "murder-rules.mjs swapRoles": "a role reversal's restore, written",
+            "murder-rules.mjs openReceipt": "the crisis receipt's both tracks, for a Reroll",
+            "murder-rules.mjs isSpent": "a threshold: both tracks full ends the incident",
+            "murder-rules.mjs finishingBlowThreshold": "a threshold: five times the victim's Health left",
+            "murder-ui.mjs killerCleanup": "a count of clean-up attempts (Sanity left over its price), not a reserve",
+            "observe.mjs undoPrevious": "a Reroll gives the miss's Sanity back, written",
+            "observe.mjs chargeObserveMiss": "the miss's Sanity price, written",
+            "patches.mjs SHEET_ANCHORS": "the contract's anchor for the system's markup",
+            "price.mjs refundPrice": "a price's refund, written",
+            "resource-guard.mjs GUARDED": "the paths the guard cuts from a player's write",
+            "rest.mjs applyRest": "Rest's healing, written",
+            "roll-draw.mjs heldValues": "the drawn roll's held values (Sanity overflowing into Health), a rule",
+            "season-wipe.mjs wipeStudent": "a season's reset to no marks, written",
+            "sheet-audit.mjs LEDGER": "the GMs' audit's ledger of what a write may move",
+            "sheet.mjs tamperBlock": "a threshold: no Sanity left and watched dims the Tamper tile"
+        };
+        const CURTAIN = ["glass.mjs", "player-status.mjs", "hud.mjs", "room-tile.mjs"];
+        const READS = [/resources\??\.(?:hitPoints|stress)\b/g, /\bresourceValue\([^)]*["'](?:hitPoints|stress)["']/g,
+            /(?<!function )\bmarksOf\(/g, /resources-section/g];
+        const sources = await otherSources();
+        const found = new Map(), curtain = [], calls = [];
+        let reads = 0, declaresMarks = false;
+        for (const [file, text] of sources) {
+            const src = stripComments(text);
+            if (file === "character.mjs") declaresMarks = /^(?:export )?function marksOf\(/m.test(src);
+            const decls = [...src.matchAll(/^(?:export )?(?:async )?(?:function\*?\s*(\w+)|(?:const|let|class)\s+(\w+))/gm)]
+                .map(m => ({ at: m.index, name: m[1] ?? m[2] }));
+            const owner = at => {
+                let i = -1;
+                while (i + 1 < decls.length && decls[i + 1].at <= at) i++;
+                return i < 0 ? { name: "(module)", text: src.slice(0, decls[0]?.at ?? src.length) }
+                    : { name: decls[i].name, text: src.slice(decls[i].at, decls[i + 1]?.at ?? src.length) };
+            };
+            for (const pattern of READS) {
+                for (const m of src.matchAll(pattern)) {
+                    reads++;
+                    const { name, text: body } = owner(m.index);
+                    const id = `${file} ${name}`;
+                    if (CURTAIN.includes(file)) curtain.push(id);
+                    if (m[0].startsWith("marksOf")) calls.push(id);
+                    found.set(id, body.includes("reserveView("));
+                }
+            }
+        }
+        must(sources.length > 100 && reads >= 30, `the census read ${sources.length} file(s) and ${reads} read(s) - it would hold nothing`);
+        equal(JSON.stringify({
+            unlisted: [...found].filter(([id, viaView]) => !viaView && !(id in RULES)).map(([id]) => id).sort(),
+            stale: Object.keys(RULES).filter(id => !found.has(id)).sort(),
+            marksOf: [...new Set(calls)].sort(),
+            declaresMarksOf: declaresMarks,
+            curtain: [...new Set(curtain)].sort()
+        }), JSON.stringify({ unlisted: [], stale: [], marksOf: [], declaresMarksOf: false, curtain: [] }),
+        "[the readers of Health or Sanity neither through reserveView nor on the rules' list; the list's names that read neither; the callers of marksOf; "
+            + "whether character.mjs still declares marksOf; the curtain's readers]");
+    }, expectedRed("E24", "the sheet, the event panel and the tracker draw marks until E24-C1", { failing: "events.mjs incidentCard" })],
 ];
 
 /**

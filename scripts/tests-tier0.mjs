@@ -20765,6 +20765,56 @@ const REGRESSIONS = [
         "[what the sweep does not read; the fields its turn line does not print; the controls it does not name; what the harness's turn functions do not hold; "
             + "the turns the harness cannot fire; the control switches the harness does not answer]");
     }],
+    ["R1440 - the sheet stand-in's parts (audit/style-harness.html `?sheet=parts`; E24 C0, Q-ORCH-E24-2): both layouts of Daggerheart 2.10.5's resource-bar.hbs - the bar (`.status-bar`, `progress.progress-bar`, `input.bar-input` named by its system key, `.bar-label`, the plate) with what sheet.mjs `paintResourceBars` adds, and with `&pips=1` the pips (`.slot-value`, a `.slot` per point carrying its toggle's `data-action`, `.slot-label`) - the biography part with a `.drpg-biography-text`, the inventory part with a group and its count, an action panel, and a viewer's `drpg-redacted-sheet`; every `drpg-*` class the parts carry a string literal of sheet.mjs (comments out), the viewer's of anonymity.mjs", async () => {
+        /*
+         * E24 C0, 08.11.2026. jsdom lays nothing out, so how the sheet's parts look - the biography's type, the bars'
+         * colours, the inventory's counters, the narrow column - is read in Chromium on the style harness, before a table.
+         * The stand-in is the module's markup on Daggerheart 2.10.5's shapes (resource-bar.hbs, the character sidebar),
+         * not Daggerheart's sheet; this holds the module's half of it: that each part the stage reads is drawn, and that
+         * no class on it is one the module does not write - a class sheet.mjs stopped writing would leave the stand-in
+         * styled by a rule the table no longer meets. The page is read as text and the parts cut by the kit's `bodyOf`
+         * (`sheetParts`, to its closing line); sheet.mjs and anonymity.mjs as their string literals, comments stripped
+         * (the kit's `stringLiterals`). The page's own classes (`drpg-style-*`) are not the module's. Red on c7dfa20b:
+         * the page has no `?sheet=parts` ("no parts page").
+         */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        let page = "";
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/audit/style-harness.html`, { cache: "no-cache" });
+            page = res.ok ? await lfText(res) : "";
+        } catch { /* read as empty below */ }
+        must(page.length > 10000, "audit/style-harness.html read nothing - this test would read nothing");
+        ok(page.includes("q.get(\"sheet\") === \"parts\""), "no parts page: audit/style-harness.html has no `?sheet=parts` branch");
+        const parts = bodyOf(page, "const sheetParts = (", { until: "\n  };\n" });
+        const sources = await moduleSources();
+        const literalClasses = file => {
+            const out = new Set();
+            for (const literal of stringLiterals(stripComments(sources.get(file) ?? ""))) {
+                for (const m of literal.text.matchAll(/(?<![\w-])drpg-[\w-]+/g)) out.add(m[0]);
+            }
+            return out;
+        };
+        const sheet = literalClasses("sheet.mjs"), anonymity = literalClasses("anonymity.mjs");
+        must(sheet.size > 100 && anonymity.size > 2, "sheet.mjs or anonymity.mjs read no class - this test would read nothing");
+        const carried = [...new Set([...parts.matchAll(/(?<![\w-])drpg-[\w-]+/g)].map(m => m[0]))].filter(c => !c.startsWith("drpg-style-"));
+        const VIEWER = ["drpg-redacted-sheet"];
+        const missing = (text, list) => list.filter(s => !text.includes(s));
+        must(carried.length >= 15, `the parts carry ${carried.length} class(es) of the module - the cut read too little`);
+        equal(JSON.stringify({
+            bar: missing(parts, ["class=\"status-bar\"", "class=\"progress-bar", "class=\"bar-input\" name=\"${", "class=\"bar-label\"", "class=\"status-label pointy\"",
+                "drpg-resource-bar", "drpg-resource-fill", "drpg-bar-replaced", "--drpg-bar-pct"]),
+            pips: missing(parts, ["pip-display", "class=\"slot-value\"", "class=\"slot-bar\"", "class=\"slot-label\"", "data-action=\"${", "data-value=\"${"]),
+            sidebar: missing(parts, ["character-sidebar-sheet", "resources-section", "\"system.resources.hitPoints.value\"", "\"system.resources.stress.value\"",
+                "\"toggleHitPoints\"", "\"toggleStress\"", "equipment-section", "items-sidebar-list"]),
+            tabs: missing(parts, ["data-application-part=\"${part}\"", "section(\"features\", ", "section(\"inventory\", ", "section(\"biography\", ",
+                "drpg-biography-text", "drpg-inventory-group", "drpg-group-count", "drpg-action-panel", "drpg-action-grid", "drpg-redacted-sheet"]),
+            page: missing(page, ["q.get(\"pips\")", "q.get(\"role\") === \"viewer\"", "q.get(\"pixel\")", "resource-bar.hbs", "character/sidebar.hbs", "2.10.5", "sheetParts(app, {"]),
+            notSheet: carried.filter(c => !VIEWER.includes(c) && !sheet.has(c)).sort(),
+            notAnonymity: VIEWER.filter(c => !anonymity.has(c))
+        }), JSON.stringify({ bar: [], pips: [], sidebar: [], tabs: [], page: [], notSheet: [], notAnonymity: [] }),
+        "[what the bar layout lacks; what the pip layout lacks; what the sidebar lacks; what the tabs' parts lack; what the page does not answer or name; "
+            + "the module classes on the parts that sheet.mjs writes in no literal; the viewer's class anonymity.mjs does not write]");
+    }],
 ];
 
 

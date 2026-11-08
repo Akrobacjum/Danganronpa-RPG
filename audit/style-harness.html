@@ -9,7 +9,8 @@
      audit/style-sweep.mjs reads `styleSnapshot` on in Chromium, and what E44's mockup round screenshots as "today".
      Served from the repository's root (`python3 -m http.server 8765`, then /audit/style-harness.html):
        ?w=<id>          one window of audit/windows/manifest.json; with none, every captured window in a column
-       ?theme=legacy    Monokuma Legacy (the body's class and the pixel font, as glass-harness.html swaps them)
+       ?theme=legacy    Monokuma Legacy (the body's class and the pixel font, as glass-harness.html swaps them);
+                        with `&pixel=0` Legacy without the pixel font (the client setting off; E24 C0)
        ?role=player     a player's page (`drpg-player` on the body), for the windows a player opens
        ?kit=1           THE KIT GALLERY (E44 C3a): every component of scripts/ui-kit.mjs in each of its states, drawn by
                         the kit's own `drpgWindow` and builders (a DialogV2 stood in for below, as the harness's draws
@@ -20,6 +21,20 @@
                         gives it on this screen (its numbers through the exported, pure `sheetBox`), with the Stop as
                         sheet.mjs `injectSafeword` draws it (the default word), under the module's sheets. Daggerheart's
                         sheet itself is drawn neither headless nor here: the frame, its content box and the Stop are.
+       ?sheet=parts     THE SHEET'S PARTS (E24 C0): the same frame, and inside it the parts the module fills, so the sheet's
+                        look (the biography's type, the bars' colours, the inventory's counters, the narrow column) is
+                        read in Chromium before a table. The module's markup on Daggerheart 2.10.5's shapes, NOT
+                        Daggerheart's sheet: the sidebar and both layouts of its Health and Sanity copied from the system's
+                        templates at its tag 2.10.5 (templates/sheets/actors/character/sidebar.hbs and
+                        templates/sheets/global/partials/resource-bar.hbs, read as text), what sheet.mjs writes into them
+                        by its own literals (R1440 holds every module class here to one), and the tabs' sections by the
+                        selectors sheet.mjs finds them with (the system's tab templates were not copied: a model). A
+                        Daggerheart upgrade reads the two templates again. `&pips=1` the pip layout (the client's
+                        useResourcePips), `&role=viewer` another player's sheet (`drpg-redacted-sheet` on the root, as
+                        anonymity.mjs `onRenderSheet` puts it, and no action panel, as `injectActionPanel` draws none on a
+                        sheet the viewer cannot edit; the values it turns to "?" are not modelled), `&lang=pl` the
+                        module's words from lang/pl.json (from lang/en.json otherwise; the system's own labels the module's
+                        lang files do not carry are written in English), and the themes and the pixel font as above
        ?fit=1           THE PLACEMENT (E21 C1c, for `style-sweep.mjs --fit`): each window stands where Foundry puts a new
                         one - fixed, centred, its top max(0, (vh - h) / 2), a model of `_updatePosition` (LIVE-E21-01) -
                         and `window.drpgFit()` reads each window in each tab state: placed with its first tab, then the
@@ -55,6 +70,11 @@
   .drpg-style-fit .drpg-style-shot { padding: 0; }
   .drpg-style-fit .drpg-style-shot > .application { position: fixed; margin: 0; max-width: none; }
   .drpg-style-fit .drpg-style-caption { display: none; }
+  /* ?sheet=parts: the sheet's two columns, the sidebar and the tabs, as a model of the system's grid (its stylesheet is
+     not loaded here); the portrait a plain box, as no image is served */
+  .drpg-style-sheet-parts { display: grid; grid-template-columns: 275px minmax(0, 1fr); gap: 12px; align-items: start; padding: 8px; box-sizing: border-box; }
+  .drpg-style-sheet-parts .portrait { height: 160px; background: #3a3340; }
+  .drpg-style-sheet-parts .drpg-style-sheet-tabs > .tab { display: block; margin-bottom: 16px; }
 </style>
 </head>
 <body class="drpg-theme-stained-glass drpg-gm drpg-style-harness" data-drpg-time="afternoon" data-drpg-phase="dailyLife">
@@ -66,8 +86,8 @@
 <script>
   (function () {
     var q = new URLSearchParams(location.search);
-    if (q.get("theme") === "legacy") { document.body.classList.replace("drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"); document.body.classList.add("drpg-pixel-font"); }
-    if (q.get("role") === "player") document.body.classList.replace("drpg-gm", "drpg-player");
+    if (q.get("theme") === "legacy") { document.body.classList.replace("drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"); if (q.get("pixel") !== "0") document.body.classList.add("drpg-pixel-font"); }
+    if (q.get("role") === "player" || q.get("role") === "viewer") document.body.classList.replace("drpg-gm", "drpg-player");
     if (q.get("fit")) document.body.classList.add("drpg-style-fit");
     var get = function (path) {
       var req = new XMLHttpRequest();
@@ -202,37 +222,123 @@
     }
     return out;
   };
-  if (q.get("sheet")) {
-    /* THE SHEET STAND-IN (`?sheet=1`, E21 C1c). The frame Daggerheart's sheet stands in (the classes the module's rules
-       name it by), at `sheetBox`'s size for this screen and theme, its content a column as tall as a sheet's tabs, and
-       the Stop as `injectSafeword` draws it, appended to `.window-content`. */
+  /* THE SHEET'S FRAME (E21 C1c; shared with the parts since E24 C0). The frame Daggerheart's sheet stands in (the
+     classes the module's rules name it by), at `sheetBox`'s size for this screen and theme, `body` inside its content
+     box, and the Stop as `injectSafeword` draws it, appended to `.window-content`. */
+  const sheetFrame = async (id, title, body) => {
+    const { sheetBox } = await import("/scripts/settings.mjs");
+    const theme = document.body.classList.contains("drpg-theme-stained-glass") ? "glass" : "legacy";
+    const size = sheetBox(innerWidth, innerHeight, 1, theme);
+    const shot = document.createElement("div");
+    shot.className = "drpg-style-shot";
+    shot.id = `shot-${id}`;
+    shot.dataset.window = id;
+    const app = document.createElement("div");
+    app.className = "application sheet daggerheart actor character";
+    app.style.width = `${size.width}px`;
+    app.style.height = `${size.height}px`;
+    /* Foundry's frame (E21 C5a): the window a flex column, its content box the rest of it under the title bar,
+       whatever the bar's height - the glass's bar is 60 px, and a content box 32 px short of the window overran it. */
+    app.style.display = "flex";
+    app.style.flexDirection = "column";
+    app.innerHTML = `<header class="window-header"><h1 class="window-title">${title}</h1><button type="button" class="header-control" data-action="close">x</button></header>`
+      + `<section class="window-content" style="flex: 1 1 auto; min-height: 0; overflow: hidden">${body}</section>`;
+    const stop = document.createElement("button");
+    stop.type = "button";
+    stop.className = "drpg-safeword-button";
+    stop.innerHTML = `<i class="fa-solid fa-hand" inert></i>\n        <span>Safe Word</span>`;
+    app.querySelector(".window-content").append(stop);
+    shot.append(app);
+    document.body.append(shot);
+    document.body.dataset.drpgSheetBox = `${size.width}x${size.height}`;
+    return app;
+  };
+  /* THE SHEET'S PARTS (`?sheet=parts`, E24 C0; the header above says what this is and is not). Daggerheart's two
+     templates as the system's tag 2.10.5 writes them - the sidebar (templates/sheets/actors/character/sidebar.hbs) and
+     each resource in it (templates/sheets/global/partials/resource-bar.hbs: with useResourcePips a `.slot-value` of
+     `.slot`s, filled while the value is at least the slot's number, each carrying the toggle's `data-action`; otherwise
+     a `.status-bar` of a `progress`, the number field named by the system key, "/" and the maximum, under its plate) -
+     with what sheet.mjs writes into them at c7dfa20b: `paintResourceBars` (the bar layout only: `drpg-bar-replaced` on
+     the `progress`, `--drpg-bar-pct`, the module's track and fill after it, the last change's band), `tidySidebar` (the
+     Equipped heading, the Loadout hidden), `injectEquippedTools`, `injectActionPanel`, `groupInventory` and
+     `tidyBiography` (the textarea, the characteristics hidden). The numbers are the system's: `value` counts what is
+     MARKED. Every module class here is a literal of sheet.mjs (anonymity.mjs's for the viewer's), R1440. */
+  const sheetParts = (app, { pips = false, viewer = false, L = key => key } = {}) => {
+    const esc = v => String(v ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]));
+    const RESOURCES = [
+      { key: "system.resources.hitPoints.value", action: "toggleHitPoints", label: L("DAGGERHEART.GENERAL.HitPoints.short"), value: 1, max: 4, band: [0, 1] },
+      { key: "system.resources.stress.value", action: "toggleStress", label: L("DAGGERHEART.GENERAL.stress"), value: 2, max: 6, band: null }
+    ];
+    const bar = r => {
+      const pct = r.max > 0 ? (r.value / r.max) * 100 : 0;
+      const band = r.band ? `<span class="drpg-resource-delta" style="left: ${(r.band[0] / r.max) * 100}%; width: ${((r.band[1] - r.band[0]) / r.max) * 100}%"></span>` : "";
+      return `<div class="status-bar"><div class="status-value">`
+        + `<progress class="progress-bar drpg-bar-replaced" max="${r.max}" value="${r.value}" style="--drpg-bar-pct: ${pct}%"></progress>`
+        + `<div class="drpg-resource-bar" data-resource="${esc(r.key.split(".")[2])}" data-value="${r.value}" data-max="${r.max}"><span class="drpg-resource-fill" style="width: ${pct}%"></span>${band}</div>`
+        + `<input class="bar-input" name="${esc(r.key)}" min="0" max="${r.max}" value="${r.value}" type="number"><span>/</span><span class="bar-label">${r.max}</span></div>`
+        + `<div class="status-label pointy"><h4>${esc(r.label)}</h4></div></div>`;
+    };
+    const slots = r => {
+      let out = "";
+      for (let n = 1; n <= r.max; n++) out += `<span class="slot${r.value >= n ? " filled" : ""}" data-action="${r.action}" data-value="${n}"></span>`;
+      return `<div class="slot-value"><div class="slot-bar">${out}</div>`
+        + `<div class="slot-label"><span class="label">${esc(r.label)}</span><span class="value">${r.value} / ${r.max}</span></div></div>`;
+    };
+    const stat = (n, label) => `<div class="status-number"><div class="status-value"><p>${n}</p></div><div class="status-label"><h4>${label}</h4></div></div>`;
+    const sidebar = `<aside class="character-sidebar-sheet">`
+      + `<div class="portrait"></div>`
+      + `<div class="info-section${pips ? " pip-display" : ""}"><div class="resources-section">${RESOURCES.map(pips ? slots : bar).join("")}</div>`
+      + `<div class="status-section${pips ? " pip-display" : ""}">${stat(10, "Evasion")}${stat(2, "Proficiency")}</div></div>`
+      + `<div class="shortcut-items-section">`
+      + `<div class="equipment-section"><div class="title"><side-line-div class="invert"></side-line-div><h3 data-drpg-renamed="1">${esc(L("DRPG.Sheet.equipped"))}</h3><side-line-div></side-line-div></div>`
+      + `<ul class="items-sidebar-list"><li class="inventory-item inventory-item-compact drpg-equipped-tool" data-drpg-equipped="crimeTool">`
+      + `<div class="img-portait"></div><span class="item-name">Kitchen knife</span><div class="item-labels"><div class="label">Murder Weapon - T1</div></div></li></ul></div>`
+      + `<div class="loadout-section drpg-hidden-block" data-in-vault="false"><div class="title"><h3>Loadout</h3></div><ul class="items-sidebar-list"></ul></div>`
+      + `<div class="experience-section"><div class="title"><side-line-div class="invert"></side-line-div><h3>Experience</h3><side-line-div></side-line-div></div>`
+      + `<div class="experience-list"><div class="experience-row"><span class="experience-value">+2</span><span class="experience-name">Ultimate Baker</span></div></div></div>`
+      + `</div></aside>`;
+    const tile = (key, icon, name) => `<button type="button" class="drpg-action-button" data-drpg-action="${key}" data-drpg-cost-kind="action">`
+      + `<i class="fa-solid ${icon} drpg-action-icon" inert></i><span class="drpg-action-name">${name}</span><span class="drpg-action-cost">1 action</span></button>`;
+    const left = L("DRPG.Actions.leftOf.other").replace("{left}", "2").replace("{max}", "2");
+    const features = viewer ? "" : `<div class="drpg-action-panel"><h3 class="drpg-keep">${esc(L("DRPG.Action.panelTitle"))}</h3><p class="notes drpg-keep drpg-budget-line">${esc(left)}</p>`
+      + `<div class="drpg-action-grid">${tile("observe", "fa-eye", "Observe")}${tile("search", "fa-magnifying-glass", "Search")}${tile("analyze", "fa-flask", "Analyze")}${tile("rest", "fa-bed", "Rest")}</div></div>`;
+    const group = (category, labelKey, count, rows, tip = "") => `<div class="drpg-inventory-group" data-category="${category}"><h4><span>${esc(L(labelKey))}</span>`
+      + `<span class="drpg-group-count${count.full ? " full" : ""}"${tip ? ` data-tooltip="${esc(tip)}"` : ""}>${count.text}</span></h4>`
+      + `<ul class="drpg-inventory-list">${rows || `<li class="drpg-inventory-empty">${esc(L("DRPG.Sheet.groupEmpty"))}</li>`}</ul></div>`;
+    const shared = L("DRPG.Sheet.sharedSlots").replace("{n}", "3");
+    const inventory = `<div class="drpg-inventory-groups">`
+      + group("usable", "DRPG.Sheet.groupUsables", { text: "1 / 2" }, `<li><span class="drpg-item-name">First-aid kit</span></li>`)
+      + group("gear", "DRPG.Sheet.groupGear", { text: "1 / 3" }, `<li class="drpg-item-equipped"><span class="drpg-item-name">Kitchen knife</span><span class="drpg-item-ready"></span></li>`, shared)
+      + group("bedroomKey", "DRPG.Sheet.groupKeys", { text: "0" }, "")
+      + `</div>`;
+    const biography = `<fieldset><legend>Background</legend><textarea name="system.biography.background" class="drpg-biography-text" rows="8" placeholder="${esc(L("DRPG.Sheet.biographyPlaceholder"))}">`
+      + `Top of the class in home economics, and the one who always brought the cake.</textarea></fieldset>`
+      + `<fieldset class="drpg-hidden-block"><legend>Characteristics</legend><input type="text" name="system.biography.characteristics.age" value=""></fieldset>`;
+    const section = (part, html) => `<section class="tab ${part} active" data-group="primary" data-tab="${part}" data-application-part="${part}">${html}</section>`;
+    if (viewer) app.classList.add("drpg-redacted-sheet");
+    app.querySelector(".drpg-style-sheet-body").innerHTML = sidebar
+      + `<div class="drpg-style-sheet-tabs">${section("features", features)}${section("inventory", inventory)}${section("biography", biography)}</div>`;
+  };
+  if (q.get("sheet") === "parts") {
     standIns();
     try {
-      const { sheetBox } = await import("/scripts/settings.mjs");
-      const theme = document.body.classList.contains("drpg-theme-stained-glass") ? "glass" : "legacy";
-      const size = sheetBox(innerWidth, innerHeight, 1, theme);
-      const shot = document.createElement("div");
-      shot.className = "drpg-style-shot";
-      shot.id = "shot-sheet";
-      shot.dataset.window = "sheet";
-      const app = document.createElement("div");
-      app.className = "application sheet daggerheart actor character";
-      app.style.width = `${size.width}px`;
-      app.style.height = `${size.height}px`;
-      /* Foundry's frame (E21 C5a): the window a flex column, its content box the rest of it under the title bar,
-         whatever the bar's height - the glass's bar is 60 px, and a content box 32 px short of the window overran it. */
-      app.style.display = "flex";
-      app.style.flexDirection = "column";
-      app.innerHTML = `<header class="window-header"><h1 class="window-title">Character sheet (stand-in)</h1><button type="button" class="header-control" data-action="close">x</button></header>`
-        + `<section class="window-content" style="flex: 1 1 auto; min-height: 0; overflow: hidden"><div class="drpg-style-sheet-body" style="height: 100%; overflow: auto"><div style="height: 1400px"></div></div></section>`;
-      const stop = document.createElement("button");
-      stop.type = "button";
-      stop.className = "drpg-safeword-button";
-      stop.innerHTML = `<i class="fa-solid fa-hand" inert></i>\n        <span>Safe Word</span>`;
-      app.querySelector(".window-content").append(stop);
-      shot.append(app);
-      document.body.append(shot);
-      document.body.dataset.drpgSheetBox = `${size.width}x${size.height}`;
+      const get = path => { const req = new XMLHttpRequest(); req.open("GET", path, false); req.send(); return req.status === 200 ? req.responseText : null; };
+      const lang = JSON.parse(get(`/lang/${q.get("lang") === "pl" ? "pl" : "en"}.json`) || "{}");
+      const L = key => { const v = key.split(".").reduce((o, k) => o?.[k], lang); return typeof v === "string" ? v : key; };
+      const app = await sheetFrame("sheet-parts", "Character sheet (stand-in, parts)",
+        `<div class="drpg-style-sheet-body drpg-style-sheet-parts" style="height: 100%; overflow: auto"></div>`);
+      sheetParts(app, { pips: q.get("pips") === "1", viewer: q.get("role") === "viewer", L });
+      await document.fonts?.ready;
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    } finally {
+      document.body.removeAttribute("data-drpg-kit-pending");
+    }
+  } else if (q.get("sheet")) {
+    /* THE SHEET STAND-IN (`?sheet=1`, E21 C1c): the frame, its content a column as tall as a sheet's tabs. */
+    standIns();
+    try {
+      await sheetFrame("sheet", "Character sheet (stand-in)",
+        `<div class="drpg-style-sheet-body" style="height: 100%; overflow: auto"><div style="height: 1400px"></div></div>`);
     } finally {
       document.body.removeAttribute("data-drpg-kit-pending");
     }
