@@ -124,11 +124,15 @@ export function sheetMode(actor, user = game.user, { app = null, editable, facts
     // The row buttons (D15: a Monocub's body keeps its items, so no Use, Discard or Stash for it either).
     const live = canEdit && !monokuma && !dead;
     const rows = Object.freeze({ use: live, equip: live, discard: live, stash: live, give: live, bullets: live });
-    const trial = (facts.clock ?? getClock())?.phase === "classTrial";
     // Present (E70 C10): hidden outside a trial, for the table's dead and the trial's muted dead; held by the floor
-    // with trial-floor.mjs `presentRefusal`'s line, the Present window's own (trial.mjs).
-    const presentShown = trial && !isDeceased(actor) && !isMutedDead(actor, facts);
-    const present = (floor = trialFloor()) => ({ shown: presentShown, held: presentShown ? presentRefusal(floor, actor?.id) : null });
+    // with trial-floor.mjs `presentRefusal`'s line, the Present window's own (trial.mjs). Asked only by the Present
+    // button: in a trial the muted dead are the trial's record (`trialProgress`), a setting the strip and the tile do
+    // not redraw on, so a mode built for them must not read it (R1013 inside a Class Trial; E45 C1 fix).
+    const presentFor = () => (facts.clock ?? getClock())?.phase === "classTrial" && !isDeceased(actor) && !isMutedDead(actor, facts);
+    const present = (floor = trialFloor()) => {
+        const shown = presentFor();
+        return { shown, held: shown ? presentRefusal(floor, actor?.id) : null };
+    };
     return Object.freeze({
         mode, gm, owner, viewer: !owner, editable: canEdit, dead, monokuma, npc, monocub,
         // Dead, and nobody has found them yet (E05 C10): the victim's own player, and a GM.
@@ -140,7 +144,10 @@ export function sheetMode(actor, user = game.user, { app = null, editable, facts
         // A Monokuma's sheet is no student's (S03-33): no student groups, no Equipped or Experience, no biography.
         groups: !monokuma, equipped: !monokuma, experience: !monokuma, biography: !monokuma,
         passages: owner && !monokuma, mastermind: gm && isMastermindActor(actor),
-        present, presentShown,
+        present,
+        get presentShown() {
+            return presentFor();
+        },
         // The redaction (anonymity.mjs): another player's sheet, when the table enforces anonymity. Read when asked, so
         // the strip and the tile, which never ask, read no setting that does not redraw them (R1013).
         get redact() {

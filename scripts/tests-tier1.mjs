@@ -39878,7 +39878,9 @@ const INVARIANTS = [
         const PS = await import("./player-status.mjs");
         const HUD = await import("./hud.mjs");
         const RT = await import("./room-tile.mjs");
-        must(!HUD.trialSlot(), "a Class Trial stands, and the room tile shows its hall to everybody - this would measure nothing");
+        // In a Class Trial the tile shows the trial's hall to everybody, its first gate (01-runtests part A2 runs this
+        // inside one): the tile then reads "trial" for each kind, and the strip and the Objection are read as ever.
+        const inTrial = Boolean(HUD.trialSlot());
         const owned = a => game.users.some(u => !u.isGM && a.testUserPermission?.(u, "OWNER"));
         const who = studentActors().find(owned);
         must(who, "no student a player owns - this would measure nothing");
@@ -39893,7 +39895,7 @@ const INVARIANTS = [
                 const control = HUD.objectionControl(who, { floor: null, phase: "classTrial", state: async () => ({}), raise: async () => null });
                 const state = RT.viewerRoom(who).state;
                 out[kind] = { strip: view ? (view.querySelector(".is-state") && !view.querySelector(".is-actions") ? "dead" : "full") : "none",
-                    objection: Boolean(control), tile: ["room", "nowhere"].includes(state) ? true : ["none", "noActor"].includes(state) ? false : state };
+                    objection: Boolean(control), tile: state === "trial" ? "trial" : ["room", "nowhere"].includes(state) ? true : ["none", "noActor"].includes(state) ? false : state };
             });
         }
         const sources = new Map(await otherSources());
@@ -39904,9 +39906,9 @@ const INVARIANTS = [
             viewerRoom: /\bsheetMode\(/.test(fnSource(src("room-tile.mjs"), "viewerRoom"))
         };
         equal(stableJson({ out, modes, reads }), stableJson({
-            out: { living: { strip: "full", objection: true, tile: true }, dead: { strip: "dead", objection: false, tile: true },
-                monocub: { strip: "full", objection: false, tile: true }, npc: { strip: "none", objection: false, tile: false },
-                monokuma: { strip: "none", objection: false, tile: true } },
+            out: { living: { strip: "full", objection: true, tile: inTrial ? "trial" : true }, dead: { strip: "dead", objection: false, tile: inTrial ? "trial" : true },
+                monocub: { strip: "full", objection: false, tile: inTrial ? "trial" : true }, npc: { strip: "none", objection: false, tile: inTrial ? "trial" : false },
+                monokuma: { strip: "none", objection: false, tile: inTrial ? "trial" : true } },
             modes: { living: { strip: "full", objection: true, tile: true }, dead: { strip: "dead", objection: false, tile: true },
                 monocub: { strip: "full", objection: false, tile: true }, npc: { strip: "none", objection: false, tile: false },
                 monokuma: { strip: "none", objection: false, tile: true } },
