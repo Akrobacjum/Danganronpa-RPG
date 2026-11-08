@@ -337,8 +337,19 @@ const PIN_PANE = Object.fromEntries(Object.entries(PANE).flatMap(([size, pane]) 
    from the wall and 69 px under that edge at 1366x768. Read in Chromium on this tree the same day: 20,22 25,57 at
    every full tile, 19,22 24,57 at 2560x1440 and 3840x2160 (the tile 258 wide there). "-" is a compact tile, whose
    buttons keep H1's row (a GM's at 1366x657, 181x113 under VOICE_FULL's 114, and both roles' at 1366x600 and 1366x560).
-   `plantVoice`'s `inward` control stands them where 60741cf did and must fail the voice check. */
-const CORNER = "20,22 25,57", WIDE = "19,22 24,57", COMPACT = ["gm 1366x657", "gm 1366x600", "gm 1366x560", "player 1366x600", "player 1366x560"];
+   `plantVoice`'s `inward` control stands them where 60741cf did and must fail the voice check.
+   E23 fix G2 (08.11.2026; the end review's goal M3, the bisect heavy/bis-52a2522e.log): WIDE moves from 19,22 24,57 to
+   18,22 23,57, and the reason is the tray's rows, not the buttons. The tile's top is 24 px under the tray's capacity at
+   five rows (glass.mjs `voicePlacement`), the seam with the tray's pane halfway between the tray's box and the tile, and
+   the buttons stand on that seam (`--drpg-voice-lift`) - so on this page, whose tray draws one row, their place in the
+   tile's turned frame follows the capacity, and their distance from the wall falls by sin 8 degrees, 0.14 px, for every
+   px the seam drops. C3a (52a2522e, E23-16) made the rows their real line (28.35 px at a scale of 1, were 22) and moved
+   the list's 8 px foot pad to a margin: the five-row cap grew 11.75 px at 2560x1440 and 3840x2160 (scale 1), the tile
+   came 12 px lower (y 282 -> 294), the seam 6 (lift 49.2 -> 55.2), and the buttons 1.15 px nearer the wall, 0.83 of it the
+   seam and 0.31 the settle's floor to a pixel (`settleVoice`): 19.61 -> 18.46 and 24.34 -> 23.20 from the wall, under the
+   pane's top 22 and 57 unchanged (Chromium, the glass harness, 7b4f286c against ce3a821f, both roles). At 1920x1080
+   (scale 0.85) the same drop is 7 px and the buttons move 0.50 px, 20.48 -> 19.98, which still rounds to CORNER. */
+const CORNER = "20,22 25,57", WIDE = "18,22 23,57", COMPACT = ["gm 1366x657", "gm 1366x600", "gm 1366x560", "player 1366x600", "player 1366x560"];
 const PIN_CORNER = Object.fromEntries(["1920x1080", "1366x768", "2560x1440", "1440x900", "1536x864", "1600x900", "1680x1050", "1280x800", "1224x768", "1264x800",
     "1300x768", "1400x900", "3840x2160", "1920x1200", "1280x720", "1366x657", "1366x600", "1366x560"]
     .flatMap(size => ["gm", "player"].map(role => [`stained ${role} ${size}`, COMPACT.includes(`${role} ${size}`) ? "-" : /^(2560|3840)x/.test(size) ? WIDE : CORNER])));

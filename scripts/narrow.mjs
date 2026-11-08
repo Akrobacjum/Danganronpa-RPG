@@ -67,7 +67,7 @@ const ROW_MEMBERS = ["#drpg-room-tile", "#drpg-voice-tile"];
 
 /** Where each moved element came from, so a resize back to a desk can undo it. */
 const HOMES = new Map();
-let columnWatch = null, columnBlocks = null, reserveFrame = 0;
+let columnWatch = null, columnBlocks = null, reserveFrame = 0, notesWatch = null;
 /** On the stack while a row of it stands below its foot: the scroll signal narrow.css draws. */
 const STACK_MORE = "drpg-stack-more";
 
@@ -146,6 +146,7 @@ export function applyNarrowLayout(stacked = narrowLayout()) {
         for (const sel of STACKED) moveHome(document.querySelector(sel), column);
         for (const sel of ROW_MEMBERS) moveHome(document.querySelector(sel), row);
         watchColumn(column);
+        watchNotices();
         reserveRoom();
     } catch (err) {
         error("The narrow layout could not be applied", err);
@@ -300,6 +301,54 @@ function watchColumn(column) {
 }
 
 /*
+ * A NOTICE THAT SCROLLS SAYS SO, AS THE STACK DOES (E23 fix G2, 08.11.2026; STATUS E23 Open 91, the end review's
+ * screens m1; R1422). Stacked, the notices stand under a ceiling (`--drpg-stack-max`, narrow.css) and one card taller
+ * than it scrolls inside itself, with no bar on a touch screen and nothing else saying so: at 393x852 under Monokuma
+ * Legacy a three-sentence notice showed its title and 3.5 of its 6 lines, half a line cut through the middle (Chromium,
+ * the glass harness, ce3a821f: scrollHeight 189 against 133; 191 px whole at 1d860414, before C4a's ceiling). A floor
+ * that held it whole would take the room R1399 holds for the blocks' stack there, so the card says it scrolls instead:
+ * each card of the tile wears `drpg-stack-more` while words stand below its scrollport, and narrow.css fades its last
+ * 24 px. Written when a card arrives, on a resize of the tile or of a card, and on a card's scroll (a capturing
+ * listener on the tile: a scroll does not bubble). The tile popup.mjs builds at `ready` is the one watched; one built
+ * again later is taken up at the next `applyNarrowLayout` (a resize, a scene). Answers how many cards it marked.
+ */
+export function markNotices(tile) {
+    let n = 0;
+    for (const card of tile?.querySelectorAll(":scope > .drpg-popup") ?? []) if (markStackMore(card)) n++;
+    return n;
+}
+function watchNotices() {
+    const tile = document.getElementById("drpg-popups");
+    if (notesWatch?.tile === tile) { if (tile) markNotices(tile); return; }
+    forgetNotices();
+    if (!tile || !("ResizeObserver" in window)) return;
+    let frame = 0;
+    const soon = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; markNotices(tile); }); };
+    const ro = new ResizeObserver(soon);
+    ro.observe(tile);
+    for (const card of tile.children) ro.observe(card);
+    const mo = "MutationObserver" in window ? new MutationObserver(records => {
+        for (const r of records) for (const node of r.addedNodes) if (node.nodeType === 1) ro.observe(node);
+        soon();
+    }) : null;
+    mo?.observe(tile, { childList: true });
+    const onScroll = event => { if (event.target?.parentElement === tile) markStackMore(event.target); };
+    tile.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    notesWatch = { tile, ro, mo, onScroll };
+    markNotices(tile);
+}
+/** The watch let go of on a desk, and no card left marked. */
+function forgetNotices() {
+    if (!notesWatch) return;
+    const { tile, ro, mo, onScroll } = notesWatch;
+    ro.disconnect();
+    mo?.disconnect();
+    tile.removeEventListener("scroll", onScroll, { capture: true });
+    for (const card of tile.querySelectorAll(`:scope > .${STACK_MORE}`)) card.classList.remove(STACK_MORE);
+    notesWatch = null;
+}
+
+/*
  * WHERE A BLOCK DRAWN IN THE STACK STANDS ON A DESK (E23 C4b, 08.11.2026; S12-08, E23-23). The Despair rail and
  * the Event card are drawn anew on every change (despair.mjs `renderDespairBar`, events.mjs `renderEvents`): the
  * old node is removed and a new one is put where `narrowColumn()` says, so on a stacked screen the rail on the page
@@ -369,6 +418,7 @@ function restoreDesk() {
     if (left) left.style.marginTop = "";
     const notices = document.getElementById("drpg-popups");
     if (notices) forgetNoticeInsets(notices);
+    forgetNotices();
 }
 
 /** Called once at ready. The resize itself is watched in settings.mjs, with the scale. */

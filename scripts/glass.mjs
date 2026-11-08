@@ -2600,6 +2600,40 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     if (narrowLayout()) return stackShapes(host, W, H, rnd, boxes);
     return deskShapes(host, W, H, rnd, boxes, FW);
   }
+  /* THE TWO BANDS' SECTIONS MEET, THEY DO NOT CROSS (E23 fix G2, 08.11.2026; STATUS E23 Open 30 and 90, the end review's
+     goal M3 and screens m3; R1421). A column of the top band leans about its top corner and one of the bottom band about
+     its bottom corner, so on a short desk their far edges run towards each other at the wall. With C2a's taller clock
+     (7b4f286c) the clock's box ends at 236 at 1366x560 and the notice tile's starts at 336: the clock's pane reached the
+     left wall at y 288 and the notice tile's started there at 280, an 8 px wedge both held - ov 1 in both roles, seen as
+     two seams in an X. The bottom band's pane keeps its shape (the room tile beside it, its frame and the sweep's
+     PIN_PANE are read off it), and the top section that crosses it is cut along the one edge of it that leaves the most
+     glass: a half-plane keeps a convex pane convex, and the wedge it gives up is the other pane's, so no gap opens. A cut
+     that would take a corner of the top block off its pane is not made (a fault the self-check then reports, as before).
+     At every size where the two did not cross, nothing changes. */
+  function meetBands(topPanes, botPanes, top, W, H) {
+    for (const t of topPanes) {
+      if (t.kind !== "section") continue;
+      const col = top.find(c => c.items.some(b => b.cls === t.tone) || c.tail?.cls === t.tone);
+      const b = col && (col.items.find(i => i.cls === t.tone) ?? col.tail);
+      const corners = b ? [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]].map(([x, y]) => col.rot(x - col.px, y - col.py))
+        .filter(q => q[0] > 1 && q[0] < W - 1 && q[1] > 1 && q[1] < H - 1) : [];
+      for (const o of botPanes) {
+        if (o.kind !== "section" || !overlaps(t.poly, o.poly)) continue;
+        const P = o.poly, n = P.length, mx = P.reduce((s, q) => s + q[0], 0) / n, my = P.reduce((s, q) => s + q[1], 0) / n;
+        let best = null, kept = -1;
+        for (let i = 0; i < n; i++) {
+          const a = P[i], e = P[(i + 1) % n];
+          let nx = -(e[1] - a[1]), ny = e[0] - a[0];
+          if ((mx - a[0]) * nx + (my - a[1]) * ny > 0) { nx = -nx; ny = -ny; }   // the normal away from the bottom pane
+          const q = clipHP(t.poly, a[0], a[1], nx, ny);
+          if (!q || overlaps(q, P) || !corners.every(([x, y]) => inside(q, x, y))) continue;
+          const A = area(q);
+          if (A > kept) { kept = A; best = q; }
+        }
+        if (best) t.poly = best;
+      }
+    }
+  }
   /* the desk's cut, on its own since E78 C6 so `cutBoxes` can ask for it on a screen the
      harness lays out 1024 px wide, which is a stacked one */
   function deskShapes(host, W, H, rnd, boxes, FW) {
@@ -2643,6 +2677,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     const trayCol = voice ? top.find(c => c.items.some(b => b.cls === "tray")) : null;
     if (trayCol) { trayCol.tail = voice; trayCol.floor = voiceFloor(bot, voice, W, H); }
     top.forEach(c => buildColumn(ctx, c, top, "top"));
+    meetBands(panes, cutFirst, top, W, H);
     panes.push(...cutFirst);
 
     /* How far down each band is the strip's alone - see the note in `pushPane`. Read after
@@ -2836,6 +2871,28 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
   const layerAfter = (after, cls, W, H) => { let c = after.parentElement.querySelector(":scope > canvas." + cls); if (!c) { c = document.createElement("canvas"); c.className = cls; c.style.cssText = LAYER; after.after(c); } c.width = W; c.height = H; return c; };
   /* ---- the curtain: geometry now, paint when it is looked at -------------------- */
   const rng = seed => { let sd = seed; return () => { sd = (sd * 1664525 + 1013904223) % 4294967296; return sd / 4294967296; }; };
+  /* C1 AND C2 OF THE SELF-CHECK, on a cut (out of `curtainGeometry` in E23 fix G2, 08.11.2026, so `cutBoxes` reads a test's
+     cut with the same arithmetic, as `cutCheck` does C3 and C4). C1: two panes that overlap, a pane not convex. C2: a
+     block's corners, turned with its column, each on its own pane and on no other; and a block laid out past its box. */
+  export function cutParts(panes, W, H) {
+    let ov = 0, nonconvex = 0, blockFails = 0, fitFails = 0; const ncv = [];
+    for (let i = 0; i < panes.length; i++) { if (!convex(panes[i].poly)) { nonconvex++; ncv.push(panes[i].kind + ':' + panes[i].poly.map(q => q.map(v => Math.round(v)).join(',')).join(' ')); } for (let j = i + 1; j < panes.length; j++) if (overlaps(panes[i].poly, panes[j].poly)) ov++; }
+    for (const col of [...panes.meta.top, ...panes.meta.bot]) for (const b of col.tail ? [...col.items, col.tail] : col.items) {
+      /* THE BLOCK'S OWN PANE, NOT ITS COLUMN-MATE'S.
+         This used to accept a pane toned for ANY member of the merged column, so a block that
+         had been absorbed into a neighbour's pane and lost its own passed the check by standing
+         inside the neighbour's glass. That is exactly the failure this check exists to catch,
+         and it is why the Despair rail could lose its pane on a narrow screen and report clean. */
+      const own = panes.filter(p => p.content && p.tone === b.cls);
+      if (b.r && !b.clipped && (b.r.x < b.x - 0.5 || b.r.y < b.y - 0.5 || b.r.x + b.r.w > b.x + b.w + 0.5 || b.r.y + b.r.h > b.y + b.h + 0.5)) fitFails++;
+      const qs = [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]].map(([x, y]) => col.rot(x - col.px, y - col.py)).filter(q => q[0] > 1 && q[0] < W - 1 && q[1] > 1 && q[1] < H - 1);
+      for (const q of qs) {
+        if (!own.some(p => inside(p.poly, q[0], q[1]))) blockFails++;
+        if (panes.some(p => !own.includes(p) && inside(p.poly, q[0], q[1]))) blockFails++;
+      }
+    }
+    return { overlaps: ov, nonconvex, ncv, blockFails, fitFails };
+  }
   /* C3 and C4 of the self-check, on a cut and its open areas (out of `curtainGeometry` in E23 C4a, so `cutBoxes` reads
      a test's cut with the same arithmetic). C3: every 8 px along the screen's four edges, a point no pane covers is a
      gap - unless an area the cut leaves open on purpose holds it: the stacked screen's `board` reaches the foot and
@@ -2873,7 +2930,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       VOICE.box = null; OPEN_AREAS.length = 0;
       const host = document.createElement("div");
       const panes = stacked ? stackShapes(host, W, H, rng(seed), given, bands ?? [null, null]) : deskShapes(host, W, H, rng(seed), given, W);
-      return { panes, voice: VOICE.box && { ...VOICE.box }, open: OPEN_AREAS.map(a => ({ ...a })), check: cutCheck(panes, OPEN_AREAS, W, H),
+      return { panes, voice: VOICE.box && { ...VOICE.box }, open: OPEN_AREAS.map(a => ({ ...a })), check: { ...cutCheck(panes, OPEN_AREAS, W, H), ...cutParts(panes, W, H) },
                rotations: ROT.map(r => ({ sel: r.sel, origin: r.origin, transform: r.transform })) };
     } finally {
       ROT.length = 0; ROT.push(...rot); VOICE.box = voice; OPEN_AREAS.length = 0; OPEN_AREAS.push(...open);
@@ -2998,24 +3055,9 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
                  transform: ang ? "rotate(" + ang + "rad)" : "none" });
     }
     applyRotations();
-    // self-check: C1 no overlaps, convexity, C2 every block inside its own pane and no other, C3 the top edge covered
-    let ov = 0, nonconvex = 0, blockFails = 0, edgeGaps = 0, fitFails = 0, openFails = 0; const ncv = [];
-    for (let i = 0; i < panes.length; i++) { if (!convex(panes[i].poly)) { nonconvex++; ncv.push(panes[i].kind + ':' + panes[i].poly.map(q => q.map(v => Math.round(v)).join(',')).join(' ')); } for (let j = i + 1; j < panes.length; j++) if (overlaps(panes[i].poly, panes[j].poly)) ov++; }
-    for (const col of [...panes.meta.top, ...panes.meta.bot]) for (const b of col.tail ? [...col.items, col.tail] : col.items) {
-      /* THE BLOCK'S OWN PANE, NOT ITS COLUMN-MATE'S.
-         This used to accept a pane toned for ANY member of the merged column, so a block that
-         had been absorbed into a neighbour's pane and lost its own passed the check by standing
-         inside the neighbour's glass. That is exactly the failure this check exists to catch,
-         and it is why the Despair rail could lose its pane on a narrow screen and report clean. */
-      const own = panes.filter(p => p.content && p.tone === b.cls);
-      if (b.r && !b.clipped && (b.r.x < b.x - 0.5 || b.r.y < b.y - 0.5 || b.r.x + b.r.w > b.x + b.w + 0.5 || b.r.y + b.r.h > b.y + b.h + 0.5)) fitFails++;
-      const qs = [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]].map(([x, y]) => col.rot(x - col.px, y - col.py)).filter(q => q[0] > 1 && q[0] < W - 1 && q[1] > 1 && q[1] < H - 1);
-      for (const q of qs) {
-        if (!own.some(p => inside(p.poly, q[0], q[1]))) blockFails++;
-        if (panes.some(p => !own.includes(p) && inside(p.poly, q[0], q[1]))) blockFails++;
-      }
-    }
-    ({ edgeGaps, openFails } = cutCheck(panes, OPEN_AREAS, W, H));
+    // self-check: C1 no overlaps, convexity, C2 every block inside its own pane and no other (`cutParts`), C3 the top edge covered
+    const { overlaps: ov, nonconvex, ncv, blockFails, fitFails } = cutParts(panes, W, H);
+    const { edgeGaps, openFails } = cutCheck(panes, OPEN_AREAS, W, H);
     CHECKS.push({ seed: job.seed, count: panes.length, overlaps: ov, nonconvex, ncv, blockFails, edgeGaps, fitFails, openFails, sig: d.length, same });
     // kept on the job so a pass that finds the same signature can republish it rather than
     // cut the whole partition again only to say what this one already says (see above)
@@ -4355,7 +4397,12 @@ export function refreshGlass() {
   placeFlatRoomTile();
   if (!glassRoom()) { if (anythingMounted()) { unmount(); placeFlatRoomTile(); } return; }
   if (curtains.length) { rebuild(); return; }
-  const go = () => { mount(); observe(); };
+  /* THE MOUNT WAITS FOR THE FONTS, AND THE THEME MAY HAVE CHANGED WHILE IT WAITED (E23 fix G2, 08.11.2026; the end
+     review's correctness m4, R1420). A switch back to Monokuma Legacy before the Stained Glass faces arrive found nothing
+     to take down, and this then mounted the curtain, its loop and its observers under Legacy (R1420 read 1 curtain, 3
+     observers and a frame there). So the room is asked again when the fonts are in, and a curtain another call put up
+     meanwhile is not put up twice. */
+  const go = () => { if (glassRoom() && !curtains.length) { mount(); observe(); } };
   (document.fonts?.ready ?? Promise.resolve()).then(go, go);
 }
 

@@ -2573,6 +2573,48 @@ const INVARIANTS = [
             "[watchColumn marks the stack on its scroll, on a resize, watches each block in it and the blocks put in later]");
     }],
 
+    ["R1422 - a notice that scrolls on a stacked screen says so (narrow.mjs `markNotices`, narrow.css; E23 fix G2, STATUS E23 Open 91, the end review's screens m1): a card of the notice tile with words below its scrollport wears `drpg-stack-more` and its foot fades, as the stack's does; one scrolled to its end or shown whole does not; the tile is watched for a card arriving, a resize and a card's scroll while stacked, and let go of on a desk", async () => {
+        /*
+         * E23 fix G2, 08.11.2026. On a stacked screen the notices have a ceiling (`--drpg-stack-max`, narrow.css), and a
+         * card taller than it scrolls inside itself with nothing saying so: at 393x852 under Monokuma Legacy a
+         * three-sentence notice showed its title and 3.5 of its 6 lines, half a line cut through the middle (Chromium,
+         * the glass harness, ce3a821f; scrollHeight 189 against 133), and since this fix measures a GM's foot from the
+         * five buttons the ceiling there is the 96 px floor. No floor that shows such a card whole fits under the blocks'
+         * stack at that size (R1399's 484 px of Legacy blocks in 852), so the card says it scrolls: `markNotices` marks
+         * each card the way `markStackMore` marks the stack, and narrow.css fades the last 24 px of a marked card on a
+         * stacked screen. jsdom lays nothing out, so the cards are the test's own stand-ins in a tile of the test's own,
+         * their scroll lengths defined on them; the watch is read in narrow.mjs's source. Red on ce3a821f: narrow.mjs
+         * has no `markNotices`, and no rule fades a card.
+         */
+        const N = await import("./narrow.mjs");
+        equal(typeof N.markNotices, "function", "narrow.mjs's reading of the notices that scroll (`markNotices`)");
+        if (typeof N.markNotices !== "function") return;
+        const tile = document.createElement("div");
+        const card = (scroll, client, top) => {
+            const el = tile.appendChild(document.createElement("div"));
+            el.className = "drpg-popup";
+            Object.defineProperty(el, "scrollHeight", { configurable: true, value: scroll });
+            Object.defineProperty(el, "clientHeight", { configurable: true, value: client });
+            Object.defineProperty(el, "scrollTop", { configurable: true, value: top });
+            return el;
+        };
+        const cards = [card(189, 133, 0), card(189, 133, 56), card(90, 90, 0), card(148, 96, 20)];
+        const other = tile.appendChild(document.createElement("button"));
+        Object.defineProperty(other, "scrollHeight", { configurable: true, value: 400 });
+        const marked = N.markNotices(tile);
+        equal(stableJson([marked, ...cards.map(c => c.classList.contains("drpg-stack-more")), other.classList.contains("drpg-stack-more")]),
+            stableJson([2, true, false, false, true, false]),
+            "[cards marked, a card with words below, one scrolled to its end, one shown whole, one part way down, the tile's button]");
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/narrow.css`).then(r => (r.ok ? lfText(r) : "")));
+        const fade = bodyOf(css, "body.drpg-stacked #drpg-popups > .drpg-popup.drpg-stack-more {", { until: "}" });
+        equal(stableJson([/(^|[;{\s])mask-image\s*:\s*linear-gradient\(to bottom/.test(fade), /-webkit-mask-image\s*:\s*linear-gradient\(to bottom/.test(fade)]), "[true,true]",
+            "[a marked card's foot faded on a stacked screen, with the prefixed mask beside it]");
+        const narrow = await fetch(`/modules/${MODULE_ID}/scripts/narrow.mjs`).then(lfText);
+        const watch = fnSource(narrow, "watchNotices"), apply = fnSource(narrow, "applyNarrowLayout"), desk = fnSource(narrow, "restoreDesk");
+        equal(stableJson([["ResizeObserver", "MutationObserver", "\"scroll\"", "markNotices("].map(part => watch.includes(part)), apply.includes("watchNotices()"), desk.includes("forgetNotices()")]),
+            stableJson([[true, true, true, true], true, true]),
+            "[watchNotices watches a resize, a card arriving and a card's scroll, and marks the cards; applyNarrowLayout starts it; restoreDesk lets it go]");
+    }],
     ["R1400 - Foundry's gauge on a stacked screen (S12-96, E23-22; the owner's Q-E23-4): `gaugeFoot`, which `fitNoteTile` takes the notice tile's foot from, reads `#players` only while the whole gauge stands on the screen - on the floor it gives 8 px over the gauge, past the screen's edge, half under it or mid-screen the fallback it gives with no gauge; and stacked, a GM's gauge is one line on the screen's foot, on the corner buttons' bottom line, under the notices, in both themes at the stacked sizes, while a player's is hidden", async () => {
         /*
          * E23 C4b, 08.11.2026. A prototype run read `#players` at y 1164 on a stacked 1200x800 screen (S12-96): the stack
@@ -2936,6 +2978,101 @@ const INVARIANTS = [
             equal(JSON.stringify([back.curtains, back.observers, back.loop > 0]), JSON.stringify([before.curtains, before.observers, true]),
                 "put back by `refreshGlass`: [curtains, observers held, the loop running] as before the test");
         }
+    }],
+    ["R1420 - the curtain mounted after the fonts load only while the theme is still Stained Glass (glass.mjs `refreshGlass`, E23 fix G2; E23-09, correctness m4): with the theme switched to Monokuma Legacy before the Stained Glass faces have loaded, the deferred mount puts up no curtain, connects no observer and starts no loop", async () => {
+        /*
+         * E23 fix G2, 08.11.2026 (the end review's correctness m4). `refreshGlass` under Stained Glass with no curtain up
+         * defers `mount` and `observe` to `document.fonts.ready`, since the panes are cut around blocks set in the faces
+         * the theme loads. A switch back to Monokuma Legacy before those faces arrive finds nothing to take down, and the
+         * deferred call then mounted the curtain, the 60 Hz loop and the observers under Legacy - what R1380 holds that
+         * Legacy no longer carries. Driven here: the curtain taken down if one is up, the theme setting read through a
+         * stand-in of `game.settings.get` (this browser's client setting is never written), `document.fonts` replaced by
+         * one whose `ready` the test resolves; `refreshGlass` under Stained Glass, the theme turned to Monokuma Legacy and
+         * `refreshGlass` again, then the fonts let go. THE CONTROL: the same with the theme left on Stained Glass mounts the
+         * curtain, so the stand-ins are read by `refreshGlass` at all. Everything is put back in `finally`, and a curtain
+         * that was up before is put up again. Red on ce3a821f: [1,3,59] under Legacy (a curtain, three observers, a frame).
+         */
+        const G = await import("./glass.mjs");
+        equal(typeof G.glassLifecycle, "function", "glass.mjs's reading of the curtain's lifecycle (`glassLifecycle`)");
+        if (typeof G.glassLifecycle !== "function") return;
+        const mounted = G.glassLifecycle().curtains > 0;
+        const ownGet = Object.hasOwn(game.settings, "get"), get = game.settings.get;
+        const fontsOwn = Object.getOwnPropertyDescriptor(document, "fonts");
+        let theme = "stainedGlass";
+        const pending = () => { let go; const ready = new Promise(r => { go = r; }); Object.defineProperty(document, "fonts", { configurable: true, value: { ready } }); return go; };
+        const drain = async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); };
+        let control, legacy;
+        try {
+            if (mounted) G.glassLifecycle({ down: true });
+            game.settings.get = function (scope, key, ...rest) {
+                if (scope === MODULE_ID && key === SETTINGS.theme) return theme;
+                return get.call(this, scope, key, ...rest);
+            };
+            let go = pending();
+            G.refreshGlass();
+            go();
+            await drain();
+            const c = G.glassLifecycle();
+            control = [c.curtains > 0, c.observers > 0, c.loop > 0];
+            G.glassLifecycle({ down: true });
+            go = pending();
+            G.refreshGlass();
+            theme = "monokumaLegacy";
+            G.refreshGlass();
+            go();
+            await drain();
+            const l = G.glassLifecycle();
+            legacy = [l.curtains, l.observers, l.loop];
+            if (l.curtains) G.glassLifecycle({ down: true });
+        } finally {
+            if (ownGet) game.settings.get = get;
+            else delete game.settings.get;
+            if (fontsOwn) Object.defineProperty(document, "fonts", fontsOwn);
+            else delete document.fonts;
+            G.refreshGlass();
+            await (document.fonts?.ready ?? Promise.resolve());
+            await wait(200);
+        }
+        equal(JSON.stringify(control), "[true,true,true]",
+            "the control, the theme left on Stained Glass while the fonts load: [a curtain, observers held, the loop running] once they have");
+        equal(JSON.stringify(legacy), "[0,0,0]",
+            "the theme turned to Monokuma Legacy while the fonts load: [curtains, observers held, the loop's frame] once they have");
+        equal(G.glassLifecycle().curtains > 0, mounted, "put back: a curtain up exactly when one was up before the test");
+    }],
+    ["R1421 - on a short desk the clock's pane and the notice tile's meet and do not cross (glass.mjs `deskShapes`, E23 fix G2; E23-31, Open 30 and 90): the blocks Chromium measured at 1366x560 cut with no two panes overlapping, every block on its own pane and no edge gap, the notice tile's pane where it was", async () => {
+        /*
+         * E23 fix G2, 08.11.2026 (the end review: goal M3, screens m3; STATUS E23 Open 30 and 90). C2a's taller clock
+         * (7b4f286c, the track band kept as a line) brought the clock's box down to 236 at 1366x560, a short desk where the
+         * notice tile is placed at 336: the clock's column leans about its top right corner and the notice tile's about its
+         * bottom right, so their two far edges ran towards each other at the left wall, and the clock's pane (0,288 at the
+         * wall) crossed the notice tile's (0,280) in an 8 px wedge - ov 1 in the self-check for both roles, and two seams
+         * in an X at the screen's left edge. jsdom lays nothing out, so this hands `cutBoxes` the blocks the glass harness
+         * measured for a GM at 1366x560 under Stained Glass on ce3a821f (`LAST.blocks`, S/stages/E23/scratch/g2/ov560.mjs)
+         * and reads the cut with the self-check's own C1 and C2 (`cutParts`, out of `curtainGeometry` for this) and C3
+         * (`cutCheck`). THE CONTROL: two planted panes that overlap count 1. The notice tile's pane is read as it stands
+         * on ce3a821f, because the room tile beside it, its frame and the pins of both are read off it (`PIN_PANE`).
+         * Red on ce3a821f: overlaps 1, between the clock's section and the notice tile's.
+         */
+        const G = await import("./glass.mjs");
+        equal(JSON.stringify([typeof G.cutBoxes, typeof G.cutParts]), '["function","function"]', "glass.mjs's roads into the cut and its self-check (`cutBoxes`, `cutParts`)");
+        if (typeof G.cutBoxes !== "function" || typeof G.cutParts !== "function") return;
+        const W = 1366, H = 560;
+        const planted = Object.assign([{ poly: [[0, 0], [100, 0], [100, 100], [0, 100]] }, { poly: [[50, 50], [150, 50], [150, 150], [50, 150]] }], { meta: { top: [], bot: [] } });
+        equal(G.cutParts(planted, W, H).overlaps, 1, "the control: two planted panes that overlap");
+        const blocks = [["hud", 16, 22, 265, 214], ["rail", 492, 44, 382, 91], ["three", 1020, 0, 340, 63], ["tray", 1020, 67, 340, 95],
+            ["note-block", 16, 336, 301, 154], ["room-block", 383, 407, 301, 122], ["voice-block", 1179, 260, 181, 262], ["launch", 1250, 398, 94, 140]]
+            .map(([cls, x, y, w, h]) => ({ cls, x, y, w, h }));
+        const cut = G.cutBoxes(W, H, blocks), c = cut.check;
+        const crossed = [];
+        for (let i = 0; i < cut.panes.length; i++) for (let j = i + 1; j < cut.panes.length; j++) {
+            const pair = Object.assign([cut.panes[i], cut.panes[j]], { meta: { top: [], bot: [] } });
+            if (G.cutParts(pair, W, H).overlaps) crossed.push(`${cut.panes[i].kind}/${cut.panes[i].tone} x ${cut.panes[j].kind}/${cut.panes[j].tone}`);
+        }
+        equal(JSON.stringify([c.overlaps, c.nonconvex, c.blockFails, c.edgeGaps, crossed]), "[0,0,0,0,[]]",
+            "the cut at 1366x560: [overlaps, panes not convex, block corners off their pane, edge gaps, the pairs that overlap]");
+        const note = cut.panes.find(p => p.kind === "section" && p.tone === "note-block");
+        equal(note ? note.poly.map(q => q.map(Math.round).join(",")).join(" ") : null, "0,280 352,329 319,560 0,560",
+            "the notice tile's pane, as it stands on ce3a821f");
     }],
     ["R1381 - a sheet's header band is one job a window (glass.mjs `dressWindow`, E23 C1c; E23-09, S12-32): ten redraws that each replace `.character-header-sheet` keep one job, its seed and its canvas, which moves to the new header, and start no flash after the first; the window closed, its job leaves the list at the next window's render; opened again it takes the same seed", async () => {
         /*
@@ -11760,7 +11897,7 @@ const INVARIANTS = [
             + "settings' bottom; the three gaps; the chat's centre off the midpoint; the chat above both; the corner's height; the roster's foot over the upper row, "
             + "its right edge against the chat's, its top at least 8 px in - and the roster over the cards on a stacked screen]");
     }],
-    ["R476 - the notice stack on a stacked screen stands clear of the corner buttons and of the blocks' stack, in both themes: its foot 8 px over the buttons, or on a short screen beside them on the bottom line (over a GM's gauge there, by its line), 24 px past the widest; its sides at the insets narrow.mjs measures; never at the inline top popup.mjs writes under the clock; its ceiling 8 px under the blocks' stack at its tallest, from the token both read; and a card under the same ceiling scrolls", async () => {
+    ["R476 - the notice stack on a stacked screen stands clear of the corner buttons and of the blocks' stack, in both themes: its foot 8 px over the buttons - a GM's five, a player's three - or on a short screen beside them on the bottom line (over a GM's gauge there, by its line), 24 px past the widest; its sides at the insets narrow.mjs measures; never at the inline top popup.mjs writes under the clock; its ceiling 8 px under the blocks' stack at its tallest, from the token both read; and a card under the same ceiling scrolls", async () => {
         /*
          * E81 C13, 12.10.2026: the A7 design's P8-7 (S12-40), read from the cascade so it runs headless - R299 (d)
          * reads the drawn boxes with the module's own cards, but only in a browser. Through 1.2.74 each theme beat
@@ -11793,13 +11930,21 @@ const INVARIANTS = [
          * E23 C4b (08.11.2026; S12-96, the owner's Q-E23-4): on a short screen a GM's gauge is one line on the buttons'
          * bottom line (narrow.css, R1400), so there the stack stands that line's height higher (`--drpg-players-line`,
          * none on a player's screen); its ceiling comes down by as much, and `under` reads the same.
+         * E23 fix G2 (08.11.2026; the end review's screens M2): read for each role, the body's `drpg-gm` and
+         * `drpg-player` set for the reading. A GM's corner has a row over the three buttons (the red button and Foundry
+         * tools, E77 C6), and the foot is 8 px over the highest of the five; until this the notices stood 8 px over the
+         * three and the upper row covered a card's last line (29 px of it at 393x852 under Stained Glass, Chromium).
+         * Red on ce3a821f for the GM: the foot read -28.88 px under Stained Glass and -36.64 under Monokuma Legacy at
+         * 393x852 and 820x1180, the tall sizes.
          */
         const host = document.getElementById("drpg-popups");
-        const ids = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher"];
+        const ids = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher"], upper = ["drpg-gm-launcher", "drpg-foundry-tools"];
         must(host && ids.every(id => document.getElementById(id)), "the notice tile or a corner button is not on the page - there is nothing to read");
+        /* the GM's upper row is on a GM's page only; on a player's the GM's reading is left out, not passed */
+        const roles = upper.every(id => document.getElementById(id)) ? ["gm", "player"] : ["player"];
         const body = document.body;
         /* `drpg-dock-hidden` off for the readings (E19 C7), as in R474: with it on the 100 px lift computes 0px (R830). */
-        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy", "drpg-stacked", "drpg-short", "drpg-dock-hidden"], classWas = CLASSES.map(name => body.classList.contains(name));
+        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy", "drpg-stacked", "drpg-short", "drpg-dock-hidden", "drpg-gm", "drpg-player"], classWas = CLASSES.map(name => body.classList.contains(name));
         const BODY = ["--drpg-av-lift", "--drpg-launch-clear"], bodyWas = BODY.map(name => body.style.getPropertyValue(name));
         const HOST = ["--drpg-notices-left", "--drpg-notices-right", "top"], hostWas = HOST.map(name => [host.style.getPropertyValue(name), host.style.getPropertyPriority(name)]);
         const putBack = () => {
@@ -11829,7 +11974,9 @@ const INVARIANTS = [
                 body.classList.toggle(CLASSES[0], glass);
                 body.classList.toggle(CLASSES[1], !glass);
                 body.classList.add(CLASSES[2]);
-                for (const view of views) {
+                for (const role of roles) for (const view of views) {
+                    body.classList.toggle(CLASSES[5], role === "gm");
+                    body.classList.toggle(CLASSES[6], role === "player");
                     body.classList.toggle(CLASSES[3], view.short);
                     for (const [label, insets, clear, lift] of [["no insets", null, null, null], ["the rails' insets, cleared 37, lifted 100", [61, 56], "37px", "100px"]]) {
                         host.style.removeProperty(HOST[0]);
@@ -11842,11 +11989,11 @@ const INVARIANTS = [
                         }
                         const px = (el, prop) => cascadePx(el, prop, view);
                         const edge = px(body, "--drpg-edge"), up = px(body, "--drpg-av-lift") || 0;
-                        const buttons = ids.map(id => document.getElementById(id)).map(el => ({ right: px(el, "right"), bottom: px(el, "bottom"), w: px(el, "width"), h: px(el, "height") }));
+                        const buttons = [...ids, ...(role === "gm" ? upper : [])].map(id => document.getElementById(id)).map(el => ({ right: px(el, "right"), bottom: px(el, "bottom"), w: px(el, "width"), h: px(el, "height") }));
                         const top = Math.max(...buttons.map(b => b.bottom + b.h)), reach = Math.max(...buttons.map(b => b.right + b.w));
                         const bottom = px(host, "bottom"), ceiling = px(host, "max-height");
                         const [left, right] = insets ?? [8, 8];
-                        const key = `${glass ? "Stained Glass" : "Monokuma Legacy"}, ${view.w}x${view.h}${view.short ? " short" : ""}, ${label}`;
+                        const key = `${glass ? "Stained Glass" : "Monokuma Legacy"}, ${role === "gm" ? "a GM" : "a player"}, ${view.w}x${view.h}${view.short ? " short" : ""}, ${label}`;
                         seen[key] = {
                             top: resolved ? null : getComputedStyle(host).top,
                             foot: round(view.short ? bottom - (edge + up) : bottom - top),
@@ -11880,7 +12027,7 @@ const INVARIANTS = [
         ok(!/NaN/.test(stableJson({ seen, want })), `a length of the notice stack could not be read: ${stableJson({ seen, want })}`);
         equal(stableJson(seen), stableJson(want),
             `the notice stack on a stacked screen${resolved ? ` at ${innerWidth}x${innerHeight}` : " at 393x852, 820x1180, 844x390 and 640x360"} [per theme, size and reading: `
-            + "the inline top not in force; the foot 8 px over the highest button, or on the bottom line beside them on a short screen; the left and right insets, "
+            + "the inline top not in force; the foot 8 px over the highest button (a GM's five, a player's three), or on the bottom line beside them on a short screen; the left and right insets, "
             + "the right on a short screen 24 px past the widest button at least; the ceiling 8 px under the blocks' stack at its tallest, or 96 px where "
             + "that leaves less; the height left to the cards; a card's ceiling the stack's, it scrolls, it does not shrink and its frame is inside the ceiling]");
     }],
