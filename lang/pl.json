@@ -421,7 +421,8 @@
       "otherRemove": "Usuń ten przedmiot",
       "otherRemoveAsk": "Usunąć: {item} z karty postaci {actor}? Zniknie z karty na dobre.",
       "otherHint": "Jeszcze nie ma go pod żadnym nagłówkiem. Poproś GM-a, żeby go przypisał.",
-      "biographyPlaceholder": "Kim byli, zanim zaczęła się killing game."
+      "biographyLabel": "Przeszłość",
+      "biographyPlaceholder": "Kim była twoja postać, zanim zaczęła się killing game."
     },
     "Guard": {
       "blocked": "To zmienia tylko GM. Akcje, Hope i statystyki zmieniają się przez grę.",

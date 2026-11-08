@@ -311,7 +311,9 @@
       + group("gear", "DRPG.Sheet.groupGear", { text: "1 / 3" }, `<li class="drpg-item-equipped"><span class="drpg-item-name">Kitchen knife</span><span class="drpg-item-ready"></span></li>`, shared)
       + group("bedroomKey", "DRPG.Sheet.groupKeys", { text: "0" }, "")
       + `</div>`;
-    const biography = `<fieldset><legend>Background</legend><textarea name="system.biography.background" class="drpg-biography-text" rows="8" placeholder="${esc(L("DRPG.Sheet.biographyPlaceholder"))}">`
+    /* The backstory as `tidyBiography` leaves it since E24 C2: Daggerheart's fieldset and legend (biography.hbs at
+       2.10.5: `fieldset.glassy.biography-section`), the legend on the module's key, the textarea with no `name`. */
+    const biography = `<fieldset class="glassy biography-section"><legend>${esc(L("DRPG.Sheet.biographyLabel"))}</legend><textarea data-drpg-field="biography" class="drpg-biography-text" rows="8" placeholder="${esc(L("DRPG.Sheet.biographyPlaceholder"))}">`
       + `Top of the class in home economics, and the one who always brought the cake.</textarea></fieldset>`
       + `<fieldset class="drpg-hidden-block"><legend>Characteristics</legend><input type="text" name="system.biography.characteristics.age" value=""></fieldset>`;
     const section = (part, html) => `<section class="tab ${part} active" data-group="primary" data-tab="${part}" data-application-part="${part}">${html}</section>`;

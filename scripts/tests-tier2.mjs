@@ -83300,6 +83300,68 @@ const SCENARIOS = [
             closed: { answer: null, windows: ["projects", "form"], cards: 0, told: 1 }
         }), "[the form's request fields; sent: the windows asked, the cards with Approve, the card's quote; closed: the answer, the windows asked, the cards, 'nothing was sent' told]");
     }],
+    ["E24-T2 - the backstory at the table (E24 C2, E24-17; S17-39): typed into a student's sheet and the sheet closed by its X, it is saved, once; typed again and a GM writes the student's Hope, the sheet drawn again shows the text still there, and the close saves it", async () => {
+        /*
+         * E24 C2, 08.11.2026. The sheet is the module's own hooks on a stand-in window for the student (sheet.mjs
+         * `onRenderCharacterSheet` drawing into a root of the tab's shape, as `drawnSheetFields` hands one over, put in
+         * the page): the X is the window taken out of the page and then Foundry's `closeCharacterSheet`, with the app
+         * and no element (v13's order, as remembered; the harness's shim fires no such hook, and v14's order at a table is
+         * E24's live check of the saves, AUDIT 9.2); the render after the GM's Hope write is the root drawn again for the same app. The writes are
+         * read on `updateActor`. Put back: the backstory and Hope. At c90df638 the close saved nothing: the first text
+         * was lost.
+         */
+        const [student] = cast(1);
+        const BIO = "system.biography.background", HOPE = "system.resources.hope.value";
+        const was = foundry.utils.getProperty(student, BIO) ?? "", hopeWas = foundry.utils.getProperty(student, HOPE) ?? 0;
+        const app = { document: student, isEditable: true }, roots = [], writes = [];
+        const hook = Hooks.on("updateActor", (doc, changes) => {
+            if (doc.id === student.id && foundry.utils.hasProperty(changes, BIO)) writes.push(foundry.utils.getProperty(changes, BIO));
+        });
+        const draw = () => {
+            const root = document.createElement("div");
+            root.innerHTML = `<div class="character-header-sheet"><div class="character-details"></div></div>`
+                + `<section data-application-part="biography"><fieldset class="glassy biography-section"><legend>E24-T2</legend>`
+                + `<prose-mirror name="${BIO}"></prose-mirror></fieldset></section>`;
+            document.body.append(root);
+            Hooks.callAll("renderCharacterSheet", app, root, {}, { isFirstRender: !roots.length });
+            roots.push(root);
+            return root.querySelector("textarea.drpg-biography-text");
+        };
+        const type = (area, text) => { area.value = text; area.dispatchEvent(new Event("input", { bubbles: true })); };
+        const closeByX = async () => { roots.at(-1).remove(); Hooks.callAll("closeCharacterSheet", app); await settle(); };
+        const read = {};
+        try {
+            let area = draw();
+            must(area, "the sheet's hook drew no backstory textarea - this would measure nothing");
+            area.focus();
+            type(area, "SUITE E24-T2 the first backstory");
+            await closeByX();
+            await until(() => foundry.utils.getProperty(student, BIO) === "SUITE E24-T2 the first backstory", 3000);
+            read.closed = [foundry.utils.getProperty(student, BIO) ?? null, writes.length];
+            area = draw();
+            area.focus();
+            type(area, "SUITE E24-T2 typed while the GM writes Hope");
+            await student.update({ [HOPE]: hopeWas > 0 ? hopeWas - 1 : 1 });
+            await settle();
+            roots.at(-1).remove();
+            area = draw();
+            read.rendered = [area?.value ?? null, document.activeElement === area, foundry.utils.getProperty(student, BIO) ?? null];
+            await closeByX();
+            await until(() => foundry.utils.getProperty(student, BIO) === "SUITE E24-T2 typed while the GM writes Hope", 3000);
+            read.again = [foundry.utils.getProperty(student, BIO) ?? null, writes];
+        } finally {
+            Hooks.off("updateActor", hook);
+            for (const root of roots) root.remove();
+            await student.update({ [BIO]: was, [HOPE]: hopeWas });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            closed: ["SUITE E24-T2 the first backstory", 1],
+            rendered: ["SUITE E24-T2 typed while the GM writes Hope", true, "SUITE E24-T2 the first backstory"],
+            again: ["SUITE E24-T2 typed while the GM writes Hope", ["SUITE E24-T2 the first backstory", "SUITE E24-T2 typed while the GM writes Hope"]]
+        }), "[closed by its X: the backstory and the writes; drawn again after the GM's Hope write: the field's text, its focus and the backstory "
+            + "saved; closed again: the backstory and every write of it]");
+    }],
     ...GRID
 ];
 

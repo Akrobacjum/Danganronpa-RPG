@@ -2267,12 +2267,31 @@ const INVARIANTS = [
         const plant = Object.assign(document.createElement("span"), { className: "drpg-floor-plant", textContent: "Floor plant" });
         plant.style.cssText = "display:inline-block;font-size:calc(var(--drpg-sg-floor) - 2px)";
         clock?.append(plant);
+        /* THE SHEET'S BACKSTORY AND A FIELD'S VALUE (E24 C2, 08.11.2026; E24-16). The sheet was outside this test's
+           reach, which is how the backstory stood at 13 px under the 17.85 px floor (Chromium on the sheet stand-in at
+           c90df638, its legend at 11) - and so did every field, whose words are its value, not its text. A character
+           sheet of the test's own is planted off the screen (the frame and the tab Daggerheart 2.10.5 draws the
+           backstory in, with `tidyBiography`'s field and a resource's number field, a value in each), and a field is read
+           by its value. Only the planted sheet: Daggerheart's own sheet holds a label held a rung under the floor on
+           purpose (the action tile's name, stained-glass.css) that this test does not judge. */
+        const sheet = document.createElement("div");
+        sheet.className = "application sheet daggerheart actor character drpg-floor-sheet";
+        sheet.style.cssText = "position:fixed;left:-10000px;top:0;width:800px;visibility:hidden;pointer-events:none";
+        sheet.innerHTML = `<section class="window-content"><aside class="character-sidebar-sheet"><div class="resources-section"><div class="status-bar">`
+            + `<div class="status-value"><input class="bar-input" type="number" value="4"></div></div></div></aside>`
+            + `<section class="tab biography active" data-tab="biography" data-application-part="biography"><div class="items-section">`
+            + `<fieldset class="glassy biography-section"><legend>${game.i18n.localize("DRPG.Sheet.biographyLabel")}</legend>`
+            + `<textarea data-drpg-field="biography" class="drpg-biography-text" rows="3">Floor test backstory</textarea></fieldset></div></section></section>`;
+        document.body.append(sheet);
+        const sheetRead = [];
         try {
-            for (const sel of ["#drpg-hud", "#drpg-despair", "#drpg-player-status", "#drpg-events", "#countdowns", ".drpg-panel"]) {
+            for (const sel of ["#drpg-hud", "#drpg-despair", "#drpg-player-status", "#drpg-events", "#countdowns", ".drpg-panel", ".drpg-floor-sheet"]) {
                 for (const host of document.querySelectorAll(sel)) {
                     for (const el of host.querySelectorAll("*")) {
-                        if (!el.offsetWidth || !el.textContent.trim() || el.matches("i, [class*='fa-']")) continue;
+                        const words = el.matches("input, textarea") ? String(el.value ?? "") : el.textContent;
+                        if (!el.offsetWidth || !words.trim() || el.matches("i, [class*='fa-']")) continue;
                         measured++;
+                        if (host === sheet) sheetRead.push(el.localName);
                         const size = parseFloat(getComputedStyle(el).fontSize);
                         if (size && size < floor - 0.5) small.push(`${el.className || el.tagName} ${size.toFixed(1)}px`);
                     }
@@ -2280,8 +2299,10 @@ const INVARIANTS = [
             }
         } finally {
             plant.remove();
+            sheet.remove();
             if (clock) H.paintTrackLine(clock);
         }
+        ok(["legend", "textarea", "input"].every(name => sheetRead.includes(name)), `the planted sheet read ${sheetRead.join(", ") || "nothing"}, not its legend, backstory and field`);
         ok(measured > 0, "no text in the chrome has a width - nothing was measured");
         const planted = small.filter(line => line.startsWith("drpg-floor-plant "));
         ok(planted.length === 1, `the label planted 2 px under the floor of ${floor.toFixed(2)} px was ${planted.length ? "named" : "not named"} (${clock ? "planted in the clock" : "no clock to plant it in"})`);
@@ -38514,6 +38535,216 @@ const INVARIANTS = [
         "[the readers of Health or Sanity neither through reserveView nor on the rules' list; the list's names that read neither; the callers of marksOf; "
             + "whether character.mjs still declares marksOf; the curtain's readers]");
     }, expectedRed("E24", "the sheet, the event panel and the tracker draw marks until E24-C1", { failing: "events.mjs incidentCard" })],
+    ["R123 - A6's type (E24 C2, E24-13, E24-14; the owner's D10 option 1 and D29 option 2): on the backstory's field as `tidyBiography` leaves it in Daggerheart's biography tab, the module's sheets give it, under Stained Glass, the prose face at the prose rung with a line height of 1.3; under Monokuma Legacy without the pixel face the medium step (15 px at 100 %) with 1.5; with the pixel face Press Start 2P at the small step with 1.7; and the two Legacy steps follow the slider (12, 15 and 21 px; 10.4, 13 and 18.2 px at 80, 100 and 140 %)", async () => {
+        /*
+         * E24 C2, 08.11.2026. Read by the sheets' cascade (`styleCascade`: the winning declaration's text, from the files
+         * module.json serves; jsdom lays nothing out), on a field built on a body of its own per theme, in the frame and
+         * the tab Daggerheart 2.10.5 draws it in (biography.hbs: `fieldset.glassy.biography-section` in the tab's
+         * `.items-section`). What the text computes to was read in Chromium on audit/style-harness.html `?sheet=parts`
+         * at 1920x1080 and 2560x1440, the slider at 80/100/140 % (E24 C2's commit: under Stained Glass VT323 at 20.5 px
+         * with 26.7 px lines at 1080p, 24.15 px at 1440p; at c90df638 VT323 at 13 px under a 17.85 px floor); at a
+         * table it is E24's live check of the biography's type (AUDIT 9.2). The Legacy steps are the `:root` tokens', evaluated here at the three settings as
+         * `applyTheme` stamps `--drpg-legacy-scale`, so a step that stops following the slider reads as numbers that
+         * do not move.
+         */
+        const C = await styleCascade();
+        const field = classes => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = classes;
+            html.append(body);
+            body.innerHTML = `<div class="application sheet daggerheart actor character"><section class="window-content">`
+                + `<section class="tab biography active" data-tab="biography" data-application-part="biography"><div class="items-section">`
+                + `<fieldset class="glassy biography-section"><legend>R123</legend><textarea data-drpg-field="biography" class="drpg-biography-text" rows="8"></textarea></fieldset>`
+                + `</div></section></section></div>`;
+            const area = body.querySelector("textarea");
+            return ["font-family", "font-size", "line-height"].map(name => C.winner(area, name)?.value ?? null);
+        };
+        const token = name => C.rules.filter(rule => rule.selector === ":root").flatMap(rule => rule.decls)
+            .filter(d => d.property === name).map(d => d.value).pop() ?? null;
+        // `calc(<n>rem * var(--drpg-legacy-scale, 1))` at a 16 px root and the slider's factor; null for any other shape
+        const at = (text, scale) => {
+            const m = /^calc\(\s*([\d.]+)rem\s*\*\s*var\(--drpg-legacy-scale,\s*1\)\s*\)$/.exec(text ?? "");
+            return m ? Math.round(Number(m[1]) * 16 * scale * 10) / 10 : null;
+        };
+        const pixelFace = C.rules.filter(rule => rule.selector === "body.drpg-pixel-font").flatMap(rule => rule.decls)
+            .filter(d => d.property === "--drpg-font-pixel").map(d => d.value).pop() ?? null;
+        equal(stableJson([
+            field("drpg-theme-stained-glass"),
+            field("drpg-theme-monokuma-legacy").slice(1),
+            field("drpg-theme-monokuma-legacy drpg-pixel-font"),
+            [0.8, 1, 1.4].map(scale => at(token("--drpg-text-md"), scale)),
+            [0.8, 1, 1.4].map(scale => at(token("--drpg-text-sm"), scale)),
+            /"Press Start 2P"/.test(pixelFace ?? "") && /^"DRPG Pixel"/.test(pixelFace ?? "")
+        ]), stableJson([
+            ["var(--drpg-font-prose)", "var(--drpg-sg-prose)", "1.3"],
+            ["var(--drpg-text-md)", "1.5"],
+            ["var(--drpg-font-pixel)", "var(--drpg-text-sm)", "1.7"],
+            [12, 15, 21],
+            [10.4, 13, 18.2],
+            true
+        ]), "[the field's winning family, size and line height under Stained Glass; its size and line height under Monokuma Legacy; family, size "
+            + "and line height with the pixel face; the medium step at 80/100/140 %; the small step at the same; the pixel face is the module's "
+            + "Press Start 2P]");
+    }],
+    ["R124 - A6's words (E24 C2, E24-15): `tidyBiography` writes the module's own key over the backstory, `DRPG.Sheet.biographyLabel`, into Daggerheart's legend, which takes the floor under Stained Glass (the sheet's list of labels); the placeholder speaks to the player in the second person, in English and in Polish (no \"they\", no \"byli\")", async () => {
+        /*
+         * E24 C2, 08.11.2026; A6 and D10 ("the label 'Background' on its own DRPG key"). The legend was Daggerheart's
+         * (`DAGGERHEART.ACTORS.Character.story.backgroundTitle`, biography.hbs at 2.10.5) and the placeholder spoke of
+         * the student ("Who they were before the killing game." / "Kim byli, ..."). Drawn by the sheet's own
+         * `tidyBiography` into a root of the tab's shape, on a stand-in actor that writes nothing; the legend's size by
+         * the sheets' cascade; the Polish line read from lang/pl.json as served. In Chromium on the sheet stand-in the
+         * legend computes the floor, 17.85 px at 1080p (11 px at c90df638).
+         */
+        const S = await import("./sheet.mjs");
+        must(typeof S.tidyBiography === "function", "sheet.mjs gives a test no road to tidyBiography - this would measure nothing");
+        const root = document.createElement("div");
+        root.innerHTML = `<section class="tab biography" data-application-part="biography"><div class="items-section">`
+            + `<fieldset class="glassy biography-section"><legend>${game.i18n.localize("DAGGERHEART.ACTORS.Character.story.backgroundTitle")}</legend>`
+            + `<prose-mirror name="system.biography.background"></prose-mirror></fieldset></div></section>`;
+        const actor = { id: "R124ACTOR0000001", name: "R124 student", type: "character", system: { biography: { background: "" } },
+            update: async () => null };
+        S.tidyBiography({ document: actor, isEditable: true }, root);
+        const legend = root.querySelector("legend"), area = root.querySelector("textarea.drpg-biography-text");
+        const C = await styleCascade();
+        const html = document.createElement("html"), body = document.createElement("body");
+        body.className = "drpg-theme-stained-glass";
+        html.append(body);
+        body.innerHTML = `<div class="application sheet daggerheart actor character"><section class="window-content">${root.innerHTML}</section></div>`;
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(lfText).then(JSON.parse);
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(lfText).then(JSON.parse);
+        const words = ["en", "pl"].map(lang => (lang === "en" ? en : pl)?.DRPG?.Sheet?.biographyPlaceholder ?? null);
+        equal(stableJson([
+            legend?.textContent ?? null,
+            game.i18n.has("DRPG.Sheet.biographyLabel"),
+            area?.placeholder === game.i18n.localize("DRPG.Sheet.biographyPlaceholder"),
+            C.winner(body.querySelector("legend"), "font-size")?.value ?? null,
+            [/\byou\b/i.test(words[0] ?? ""), /\bthey\b/i.test(words[0] ?? "")],
+            [/\b(twoja|twój|twoje|ty|ciebie)\b/i.test(words[1] ?? ""), /\bbyli\b/i.test(words[1] ?? "")]
+        ]), stableJson([
+            game.i18n.localize("DRPG.Sheet.biographyLabel"), true, true,
+            "max(var(--drpg-sg-floor), calc(13px * var(--drpg-sg-scale)))",
+            [true, false],
+            [true, false]
+        ]), "[the legend's words; the label's key in this language; the placeholder the module's key; the legend's winning size under Stained Glass; "
+            + "the English placeholder says you and not they; the Polish one says your and not byli]");
+    }],
+    ["R1450 - the backstory's saves (E24 C2, E24-17; S03-25, S17-39): `tidyBiography`'s field carries no `name`, so a form of the sheet sends no backstory with another field; typed, it saves once on focusout, once on the sheet's close and once on a tab change, and never twice; opening and closing an untouched or formatted backstory writes nothing; a sheet its viewer cannot edit gets a read-only field that saves nothing; a render while somebody types draws the new field with the text, the selection and the focus, and the close saves it", async () => {
+        /*
+         * E24 C2, 08.11.2026. The sheet's own `tidyBiography` on roots of the tab's shape (biography.hbs at 2.10.5, with
+         * a tab bar), on a stand-in app over a stand-in actor whose `update` keeps what it was asked and writes nothing.
+         * The close is the module's own `closeCharacterSheet` listener, called as Foundry calls it, with the app and no
+         * element (v13 removes the element first, as remembered; the harness's shim fires no such hook, so a table reads
+         * v14's order: E24's live check of the saves, AUDIT 9.2). A render is the old root taken out of the page and a new one drawn for the same
+         * app, which is what ApplicationV2 does to a part. At c90df638 the field carried
+         * `name="system.biography.background"` (Daggerheart's form sent it with every field) and nothing saved on the
+         * close or a tab change.
+         */
+        const S = await import("./sheet.mjs");
+        must(typeof S.tidyBiography === "function", "sheet.mjs gives a test no road to tidyBiography - this would measure nothing");
+        const BIO = "system.biography.background";
+        // writes what it is asked into itself, as a document's update does, and keeps it; the world is not touched
+        const actorWith = (background, writes) => {
+            const actor = { id: "R1450ACTOR000001", name: "R1450 student", type: "character", system: { biography: { background } },
+                update: async changes => {
+                    writes.push(changes[BIO] ?? null);
+                    if (BIO in changes) actor.system.biography.background = changes[BIO];
+                    return actor;
+                } };
+            return actor;
+        };
+        const drawn = [];
+        const draw = (app, { inPage = false } = {}) => {
+            const root = document.createElement("form");
+            root.innerHTML = `<nav class="tabs"><a data-tab="features">R1450 features</a><a data-tab="biography">R1450 biography</a></nav>`
+                + `<input name="system.resources.hope.value" value="2"><section class="tab biography" data-application-part="biography"><div class="items-section">`
+                + `<fieldset class="glassy biography-section"><legend>R1450</legend><prose-mirror name="${BIO}"></prose-mirror></fieldset></div></section>`;
+            if (inPage) document.body.append(root);
+            drawn.push(root);
+            S.tidyBiography(app, root);
+            return [root, root.querySelector("textarea.drpg-biography-text")];
+        };
+        const type = (area, text) => { area.value = text; area.dispatchEvent(new Event("input", { bubbles: true })); };
+        const settled = () => wait(5);
+        // what the sheet's form sends: its named controls (`FormDataExtended` reads `form.elements` by name)
+        const close = app => Hooks.callAll("closeCharacterSheet", app);
+        const read = {};
+        try {
+            // the field and the form
+            {
+                const writes = [], app = { document: actorWith("R1450 before", writes), isEditable: true };
+                const [root, area] = draw(app);
+                read.field = [area?.getAttribute("name") ?? null, area?.dataset.drpgField ?? null, area?.value ?? null,
+                    [...root.elements].filter(el => el.name).map(el => el.name).includes(BIO)];
+            }
+            // opened and closed untouched, and a formatted backstory focused and left
+            {
+                const writes = [], app = { document: actorWith("<p>R1450 line one</p><p>R1450 line two</p>", writes), isEditable: true };
+                const [, area] = draw(app);
+                area.dispatchEvent(new Event("focusout", { bubbles: true }));
+                await settled();
+                close(app);
+                await settled();
+                read.untouched = [area.value, writes.length];
+            }
+            // typed, and left by focusout, by the close or by a tab change: one write, and still one after a focusout and a close
+            for (const [name, leave] of [["focusout", (app, root, area) => area.dispatchEvent(new Event("focusout", { bubbles: true }))],
+                ["close", app => close(app)],
+                ["tab", (app, root) => root.querySelector('nav [data-tab="features"]').dispatchEvent(new MouseEvent("click", { bubbles: true }))]]) {
+                const writes = [], app = { document: actorWith("R1450 before", writes), isEditable: true };
+                const [root, area] = draw(app);
+                type(area, `  R1450 typed, left by ${name}  `);
+                leave(app, root, area);
+                await settled();
+                const left = writes.length;
+                area.dispatchEvent(new Event("focusout", { bubbles: true }));
+                close(app);
+                await settled();
+                read[name] = [left, writes];
+            }
+            // a viewer's field
+            {
+                const writes = [], app = { document: actorWith("R1450 theirs", writes), isEditable: false };
+                const [root, area] = draw(app);
+                type(area, "R1450 a viewer typed");
+                area.dispatchEvent(new Event("focusout", { bubbles: true }));
+                root.querySelector('nav [data-tab="features"]').dispatchEvent(new MouseEvent("click", { bubbles: true }));
+                close(app);
+                await settled();
+                read.viewer = [area.readOnly, writes.length, app._drpgBiography ?? null];
+            }
+            // a render while typing
+            {
+                const writes = [], app = { document: actorWith("R1450 before", writes), isEditable: true };
+                const [first, old] = draw(app, { inPage: true });
+                old.focus();
+                type(old, "R1450 typed mid-render");
+                old.setSelectionRange(5, 10);
+                old.dispatchEvent(new Event("keyup", { bubbles: true }));
+                first.remove();
+                await settled();
+                const [, area] = draw(app, { inPage: true });
+                read.render = [area.value, area.selectionStart, area.selectionEnd, document.activeElement === area, writes.length];
+                close(app);
+                await settled();
+                read.render.push(writes);
+            }
+        } finally {
+            for (const root of drawn) root.remove();
+        }
+        equal(stableJson(read), stableJson({
+            field: [null, "biography", "R1450 before", false],
+            untouched: ["R1450 line one\nR1450 line two", 0],
+            focusout: [1, ["R1450 typed, left by focusout"]],
+            close: [1, ["R1450 typed, left by close"]],
+            tab: [1, ["R1450 typed, left by tab"]],
+            viewer: [true, 0, null],
+            render: ["R1450 typed mid-render", 5, 10, true, 0, ["R1450 typed mid-render"]]
+        }), "[the field's name, its mark, its text and whether a form of the sheet sends it; an untouched formatted backstory's text and its writes; "
+            + "the writes of a typed backstory left by focusout, by the close and by a tab change, and all of them once it was then focused out and "
+            + "closed; a viewer's "
+            + "field read-only, its writes and what it kept; after a render while typing the new field's text, selection and focus, the writes "
+            + "then, and after the close]");
+    }],
 ];
 
 /**

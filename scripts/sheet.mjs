@@ -107,6 +107,8 @@ export function registerSheetTweaks() {
     Hooks.on("closeCharacterSheet", app => {
         try { app?._drpgTileFit?.disconnect(); } catch { /* already gone */ }
         if (app) app._drpgTileFit = null;
+        // The backstory typed and not yet saved goes with the close (E24 C2): from the app, as the element is gone.
+        try { saveBiography(app); } catch (err) { error("Could not save the backstory", err); }
     });
 
     // The flicker. See the block comment above `onlyResourceKeys` for what
@@ -2377,7 +2379,34 @@ function plainBiography(html) {
     return (box.textContent ?? "").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-function tidyBiography(app, element) {
+/**
+ * Save the backstory once, from what the player typed (E24 C2; S03-25, S17-39, A6).
+ *
+ * The value comes from the app, not from the textarea: `tidyBiography` keeps what was typed and not yet saved on
+ * `app._drpgBiography`, so this needs no element and saves the same whether it runs on `focusout`, on a tab change or
+ * after the sheet's close, when Foundry has already taken the window out of the page (v13's ApplicationV2 runs the
+ * close hooks after it removes the element, as remembered; the harness's shim fires no `closeCharacterSheet` at all
+ * and removes the element first; a table reads v14's order, E24's live check of the saves in AUDIT 9.2). Cleared before the write, so a focusout
+ * followed by a close is one write, not two. Compared against the FLATTENED current value (`plainBiography`): a
+ * formatted backstory merely opened, focused and left is not rewritten.
+ */
+export function saveBiography(app) {
+    const held = app?._drpgBiography;
+    if (!held) return null;
+    app._drpgBiography = null;
+    const actor = app.document ?? null;
+    if (!actor) return null;
+    const next = String(held.value ?? "").trim();
+    const now = plainBiography(foundry.utils.getProperty(actor, "system.biography.background"));
+    // The same text already on its way (a tab's click, then the field's focusout, before the write is back) is not a second write.
+    if (next === now || next === app._drpgBiographySending) return null;
+    app._drpgBiographySending = next;
+    return trustedWrite(actor, { "system.biography.background": next }, { reason: "sheetText" })
+        .catch(err => error("Could not save the backstory", err))
+        .finally(() => { if (app._drpgBiographySending === next) app._drpgBiographySending = null; });
+}
+
+export function tidyBiography(app, element) {
     const tab = element.querySelector('section[data-application-part="biography"]');
     if (!tab) return;
 
@@ -2395,33 +2424,79 @@ function tidyBiography(app, element) {
      * replaced. Nothing is left to restyle, which is a better outcome than the
      * plan's - that asked for the button to be re-dressed in the module's own
      * skin, and a button nobody needs is better removed than repainted.
+     *
+     * NOT A FIELD OF DAGGERHEART'S FORM (E24 C2, 08.11.2026; S03-25, S17-39). The textarea carried the system's
+     * `name`, so the sheet's `submitOnChange` form sent the flattened text with ANY field's change: a formatted
+     * backstory rewritten as plain text, and two writes and two renders for one edit. It has no `name` now
+     * (`data-drpg-field` instead) and saves through `saveBiography` alone: on `focusout`, on a tab change (the tab
+     * bar's click, in the capture phase, before the switch) and on the sheet's close (`registerSheetTweaks`). What is
+     * typed and not yet saved lives on the app (`app._drpgBiography`: the text, the selection, whether it had the
+     * focus), so a render while somebody types - a GM writing their Hope - draws the new textarea with the text, the
+     * selection and the focus the old one had. A sheet its viewer cannot edit gets a read-only field and no listener.
      */
     const actor = app?.document ?? null;
     const editor = tab.querySelector('prose-mirror[name="system.biography.background"]');
 
     if (actor && editor) {
         const area = document.createElement("textarea");
-        area.name = "system.biography.background";
+        area.dataset.drpgField = "biography";
         area.className = "drpg-biography-text";
         area.rows = 8;
-        area.value = plainBiography(
-            foundry.utils.getProperty(actor, "system.biography.background"));
         area.placeholder = game.i18n.localize("DRPG.Sheet.biographyPlaceholder");
+        // Daggerheart's legend over the field, on the module's own key (A6, D10): the word is the module's.
+        const legend = editor.closest("fieldset")?.querySelector(":scope > legend");
+        if (legend) legend.textContent = game.i18n.localize("DRPG.Sheet.biographyLabel");
 
-        area.addEventListener("focusout", () => {
-            const next = area.value.trim();
-            const now = plainBiography(
-                foundry.utils.getProperty(actor, "system.biography.background"));
-            // Nothing typed is not a save. Compared against the FLATTENED
-            // current value, so merely opening a formatted backstory and
-            // clicking away does not rewrite it.
-            if (next === now) return;
+        const held = app._drpgBiography ?? null;
+        const editable = Boolean(app.isEditable);
+        // Read once the field is in the sheet (below): whether it is in the page, and the text it was drawn with.
+        let inPage = false, drawn = "";
+        area.value = editable && held
+            ? held.value
+            : plainBiography(foundry.utils.getProperty(actor, "system.biography.background"));
 
-            trustedWrite(actor, { "system.biography.background": next }, { reason: "sheetText" })
-                .catch(err => error("Could not save the backstory", err));
-        });
+        if (!editable) {
+            area.readOnly = true;
+        } else {
+            const remember = () => {
+                app._drpgBiography = { value: area.value, start: area.selectionStart, end: area.selectionEnd,
+                    focused: document.activeElement === area };
+            };
+            area.addEventListener("input", remember);
+            // The caret moved without a keystroke that typed: kept only while there is something unsaved.
+            for (const type of ["keyup", "pointerup"]) area.addEventListener(type, () => { if (app._drpgBiography) remember(); });
+            area.addEventListener("focusout", () => {
+                /* A textarea a render or the close took out of the page is not a player leaving the field: the
+                   render's new textarea takes the text, the close hook saves it. Asked once the removal is done. A
+                   root that was never in the page (a stand-in's) has nothing to be taken out of. A value set without
+                   an `input` (a script's) is what the old field saved on focusout, and still is. */
+                queueMicrotask(() => {
+                    if (inPage && !area.isConnected) return;
+                    if (!app._drpgBiography && area.value !== drawn) remember();
+                    saveBiography(app);
+                });
+            });
+        }
 
         editor.replaceWith(area);
+        inPage = area.isConnected;
+        drawn = area.value;
+
+        if (editable && held?.focused) {
+            try {
+                area.focus({ preventScroll: true });
+                area.setSelectionRange(held.start ?? area.value.length, held.end ?? area.value.length);
+            } catch { /* a field the page cannot focus keeps its text */ }
+        }
+    }
+
+    // A tab change saves before the switch; bound once per window, as the window outlives its renders.
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    if (root && !root.dataset.drpgBiographyTabs) {
+        root.dataset.drpgBiographyTabs = "1";
+        root.addEventListener("click", ev => {
+            if (ev.target?.closest?.("nav [data-tab]")) saveBiography(app);
+        }, { capture: true });
     }
 
     // Every characteristics field, plus connections, found by name.

@@ -2917,9 +2917,18 @@ body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
    nothing breaks.
 
    The font is applied to chrome (HUD, headers, labels, buttons) but NOT to
-   prose: journals, chat bodies, biography and any editable field keep the
-   normal face. A 5x7 pixel font is unreadable for paragraphs, and this game
-   involves a lot of reading.
+   prose: journals and chat bodies keep the normal face. A 5x7 pixel font is
+   unreadable for paragraphs, and this game involves a lot of reading.
+
+   THE BACKSTORY IS THE ONE TEXTAREA IN THE PIXEL FACE (E24 C2, the owner's D10
+   option 1, 08.11.2026). This said the biography and every editable field kept
+   the normal face; measured in Chromium on the sheet stand-in at c90df638, the
+   biography computed "DRPG Pixel" at 13 px, because the rule below that gives
+   the sheet and every module window the face carries `!important` and the
+   field exception further down does not - so the exception reaches only fields
+   outside them. D10 keeps the backstory in the face the player chose, at the
+   prose size with the line height it needs to survive it (the free-text rule
+   at the sheet's prose).
    ========================================================================== */
 
 /* Press Start 2P, SIL Open Font License. Split the same way Google serves it,
@@ -3128,7 +3137,10 @@ body.drpg-pixel-font .character-header-sheet .trait-name {
    gets its wider tiles because its labels measure wider - which is the reason
    this rule wanted them, said in a way that cannot silently stop being true. */
 
-/* Never let the pixel face reach anything the user has to read at length. */
+/* Never let the pixel face reach anything the user has to read at length.
+   Outside the sheet and the module's windows: inside them the face's rule
+   above wins with `!important` (measured, E24 C2), and the backstory's
+   textarea is in the face on purpose (D10, the free-text rule below). */
 body.drpg-pixel-font .editor-content,
 body.drpg-pixel-font .journal-entry-content,
 body.drpg-pixel-font .chat-message .message-content,
@@ -8573,11 +8585,15 @@ body.drpg-pixel-font [class*="fa-"]::after {
 
 /* Free text a player writes and re-reads - a biography, an item description,
    a journal body - is the one place a bitmap face costs more than it gives.
-   It keeps the family and gets the size it needs to survive it. */
+   It keeps the family and gets the size it needs to survive it.
+   The backstory's textarea by name (E24 C2, D10): Press Start 2P at the small
+   step with 1.7, over the base rule's medium step, which is the size without
+   the pixel face. Its family is the face's `!important` rule's, above. */
 body.drpg-pixel-font .application.sheet.actor .editor-content,
 body.drpg-pixel-font .application.sheet.actor .editor-content *,
 body.drpg-pixel-font .application.sheet.actor prose-mirror,
-body.drpg-pixel-font .application.sheet.actor prose-mirror * {
+body.drpg-pixel-font .application.sheet.actor prose-mirror *,
+body.drpg-pixel-font .application.sheet.actor .drpg-biography-text {
     font-size: var(--drpg-text-sm);
     line-height: 1.7;
 }
@@ -13713,7 +13729,17 @@ body.drpg-reduced-motion #drpg-messenger-roster.leaving { opacity: 0; }
 
 /* The backstory box, in place of the system's editor. `!important` on the
    colours for the reason everything else on this sheet carries it: this
-   stylesheet is layered and Daggerheart's textarea rules are not. */
+   stylesheet is layered and Daggerheart's textarea rules are not. They read
+   tokens, so a theme dresses the field by the tokens alone (Stained Glass's
+   rule does), with no second `!important`.
+   THE MEDIUM STEP, NOT THE SMALL ONE (E24 C2; A6, the owner's D10 option 1 and
+   D29 option 2): 13 px read as a caption for a paragraph somebody writes. The
+   step is the legacy scale's, so it follows the slider - 12, 15 and 21 px at
+   80, 100 and 140 % (Chromium on the sheet stand-in) - and the padding is in
+   em, so it follows the type; inside the width, so 100 % is the fieldset's
+   (without it the stand-in's field stood 23 px past its fieldset under the
+   glass). The pixel face keeps the small step with 1.7
+   (the free-text rule above), Stained Glass the prose rung (stained-glass.css). */
 .drpg-biography-text {
     width: 100% !important;
     min-height: 8rem;
@@ -13722,7 +13748,9 @@ body.drpg-reduced-motion #drpg-messenger-roster.leaving { opacity: 0; }
     background: var(--drpg-fill) !important;
     border: 1px solid var(--drpg-line-strong) !important;
     border-radius: 4px;
-    font-size: var(--drpg-text-sm);
+    box-sizing: border-box;
+    padding: 0.4em 0.55em;
+    font-size: var(--drpg-text-md);
     line-height: 1.5;
 }
 

@@ -39,9 +39,17 @@ Interface chrome only: the campaign HUD, Despair rows, character name,
 Ultimate, trait labels and values, tab labels, the action panel, and this
 module's dialogs.
 
-Deliberately **not** applied to journals, chat message bodies, biography text,
-or any editable field. A 5x7 pixel face is punishing to read in paragraphs, and
-this game runs on written investigation notes.
+Deliberately **not** applied to journals, chat message bodies, or an editable
+field outside the character sheet and the module's windows. A 5x7 pixel face is
+punishing to read in paragraphs, and this game runs on written investigation
+notes.
+
+The backstory on the character sheet is the one textarea in the pixel face, on
+purpose (the owner's D10, E24): at the small step (13 px at 100 %) with a line
+height of 1.7, so the face the player chose stays and the paragraph stays
+readable. Without the pixel face it is 15 px at 100 %; under Stained Glass the
+prose size. Measured in Chromium on `audit/style-harness.html?sheet=parts`; on a
+table it is E24's live check of the biography's type (AUDIT 9.2).
 
 ## Stained Glass theme faces
 

@@ -416,7 +416,8 @@
       "otherRemove": "Remove this item",
       "otherRemoveAsk": "Remove {item} from {actor}? It is gone from the sheet for good.",
       "otherHint": "Not under any heading yet. Ask the GM to file it.",
-      "biographyPlaceholder": "Who they were before the killing game."
+      "biographyLabel": "Background",
+      "biographyPlaceholder": "Who you were before the killing game."
     },
     "Guard": {
       "blocked": "Only the GM changes that. Actions, Hope and statistics move through play.",

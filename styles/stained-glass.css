@@ -1648,8 +1648,11 @@ body.drpg-theme-stained-glass .drpg-action-button.unaffordable .drpg-action-name
 body.drpg-theme-stained-glass .drpg-call-button.unaffordable .drpg-action-name { text-decoration: none; }
 
 /* ---- the sheet's Daggerheart parts speak the chrome face: section titles as quiet caps over a hairline,
-   item rows on dark glass, the free-text parts in the prose face ---- */
-body.drpg-theme-stained-glass .application.sheet.actor section[data-application-part] *:not(i):not([class*="fa-"]):not(.editor-content):not(.editor-content *):not(prose-mirror):not(prose-mirror *) {
+   item rows on dark glass, the free-text parts in the prose face ----
+   The backstory's textarea is left out by the `:not` of a list (E24 C2): the same weight as `:not(.editor-content)`
+   was, so no other element's winner moves, and the prose rung's rule for it (THE PROSE RUNG) wins without an
+   `!important` of its own. */
+body.drpg-theme-stained-glass .application.sheet.actor section[data-application-part] *:not(i):not([class*="fa-"]):not(.editor-content, .drpg-biography-text):not(.editor-content *):not(prose-mirror):not(prose-mirror *) {
     font-family: var(--drpg-font-chrome);
 }
 body.drpg-theme-stained-glass .application.sheet.actor section[data-application-part] :is(.editor-content, .editor-content *, .description, .description *) {
@@ -4189,9 +4192,11 @@ body.drpg-theme-stained-glass .application.sheet.actor :is(
 
 /* THE FLOOR AT THE SHEET'S ROOT, so anything that only inherits arrives at it, and then the
    handful that declare their own smaller size by name. The sweep that found these reads every
-   leaf with text on every surface the module owns - the suite's own floor test does not scan
+   leaf with text on every surface the module owns - the suite's own floor test did not scan
    the character sheet, which is how "Equipped", the experience chips, the Hope and Actions
-   headings and the budget line all stayed at 11-14 px through three rounds of raising sizes. */
+   headings and the budget line all stayed at 11-14 px through three rounds of raising sizes.
+   Since E24 C2 it reads a sheet of its own, the backstory and a field's value in it, and the
+   backstory's legend ("Background", A6) is on this list. */
 body.drpg-theme-stained-glass .application.sheet.actor {
     font-size: max(var(--drpg-sg-floor), calc(13px * var(--drpg-sg-scale)));
 }
@@ -4201,7 +4206,8 @@ body.drpg-theme-stained-glass .application.sheet.actor :is(
     .drpg-actions h4, .hope-section h4, .resource-section h4,
     nav.sheet-tabs a span,
     .drpg-keep, .drpg-budget-line, .notes,
-    .character-sidebar-sheet h3, .character-sidebar-sheet p, .character-sidebar-sheet span) {
+    .character-sidebar-sheet h3, .character-sidebar-sheet p, .character-sidebar-sheet span,
+    section[data-application-part="biography"] fieldset > legend) {
     font-size: max(var(--drpg-sg-floor), calc(13px * var(--drpg-sg-scale))) !important;
 }
 /* the GM badge is a badge: one step down from the floor, never below reading size */
@@ -4594,6 +4600,31 @@ body.drpg-theme-stained-glass .application.sheet.actor :is(p, blockquote) {
     letter-spacing: normal;
     text-transform: none;
     max-width: 74ch;
+}
+
+/* THE BACKSTORY ON THE PROSE RUNG (E24 C2, 08.11.2026; A6, the owner's D10 option 1). It was the base sheet's 13 px
+   in the chrome face, 4.85 px under the floor at 1080p (Chromium on the sheet stand-in at c90df638: VT323 13 px, line
+   19.5 px), the one paragraph a player writes set smaller than every label around it. The prose face at the prose
+   rung, line height 1.3 as the sheet's other free text, no tracking and no capitals. Its field is the theme's (the
+   ground of Foundry's fields here, the state colour's edge, the full colour on focus) through the tokens the base
+   rule reads with `!important`, so none is written here: a custom property set on the element is what its own
+   `var()` reads. Heavier than the theme's field rule (`.application:not(.drpg-panel) .window-content textarea`, which
+   still gives it the caret and the glow on focus) by the section's attribute. NOT `max-width: 74ch`, judged on the
+   stand-in's screenshot at 1366x768 (E24 C2, D10 leaves it to that): the field takes the tab's width, 92 characters
+   of VT323 a line (8.2 px each), and a field narrower than the fieldset round it read as a fault; the measure is the
+   prose rung's for a paragraph that is read, and this one is written. Its height stays the 8 rows it was drawn with
+   (232 px here; no `field-sizing`), and it grows by its handle. */
+body.drpg-theme-stained-glass .application.sheet.actor section[data-application-part] .drpg-biography-text {
+    --drpg-fill: color-mix(in srgb, var(--drpg-sg-ink) 55%, transparent);
+    --drpg-line-strong: color-mix(in srgb, var(--drpg-glass-accent) 40%, transparent);
+    font-family: var(--drpg-font-prose);
+    font-size: var(--drpg-sg-prose);
+    line-height: 1.3;
+    letter-spacing: normal;
+    text-transform: none;
+}
+body.drpg-theme-stained-glass .application.sheet.actor section[data-application-part] .drpg-biography-text:focus-visible {
+    --drpg-line-strong: var(--drpg-glass-accent);
 }
 
 /* ---- STEP 4: THE TITLE FACE APPEARS ONCE PER WINDOW ------------------------
