@@ -16,13 +16,16 @@
  * one number that cannot be written in CSS because it depends on what is in the
  * stack today.
  *
- * THREE THINGS MOVE, AND ONE OF THEM IS A CONTAINER. The clock and the Despair
- * rail are the module's own and are moved as themselves; the Event card is not
- * moved at all, because it renders next to the rail and follows it. The status
- * strip and the Projects tray are NOT moved one by one: `#ui-right-column-1` is
- * moved whole, so the tray - which Daggerheart appends into that column on every
- * project it advances, and which this module deliberately does not re-parent -
- * arrives with it and stays without anything re-asserting.
+ * FOUR THINGS MOVE, AND ONE OF THEM IS A CONTAINER. The clock, the Despair rail
+ * and the Event card are the module's own and are moved as themselves. The card
+ * renders next to the rail and follows it at its next render, but until then it
+ * stood where the screen left it: a desk turned into a stack kept the card in
+ * Foundry's top bar, under the stack (E23 C4b, S12-08), so it is moved with the
+ * rail, right after it. The status strip and the Projects tray are NOT moved one
+ * by one: `#ui-right-column-1` is moved whole, so the tray - which Daggerheart
+ * appends into that column on every project it advances, and which this module
+ * deliberately does not re-parent - arrives with it and stays without anything
+ * re-asserting.
  *
  * NOTHING IS MOVED BEHIND A RENDER'S BACK. The blocks that re-render ask
  * `narrowColumn()` for their host, so a redraw puts them straight into the stack
@@ -48,7 +51,7 @@ const EDGE = 8;
 /* Where the notices start and end on a stacked screen, read by narrow.css (`noticesClearOfTheTools`). */
 const NOTICES_LEFT = "--drpg-notices-left", NOTICES_RIGHT = "--drpg-notices-right";
 /** The blocks that stack. The order on the screen is narrow.css's; this one is the order they are moved in. */
-const STACKED = ["#drpg-hud", "#drpg-tile-row", "#drpg-despair", "#ui-right-column-1"];
+const STACKED = ["#drpg-hud", "#drpg-tile-row", "#drpg-despair", "#drpg-events", "#ui-right-column-1"];
 /*
  * THE TILES' ROW (E77 C8, 13.10.2026; the A8 design's narrow layout). On a desk the room tile stands under
  * the clock at the height glass.mjs gives it (`roomSizes`: at least a third of its width, a heading and four
@@ -130,10 +133,14 @@ function ensureColumn() {
     return column;
 }
 
-/** Put the stack up, or take it down, according to the screen. Safe to call repeatedly. */
-export function applyNarrowLayout() {
+/**
+ * Put the stack up, or take it down, according to the screen. Safe to call repeatedly.
+ * `stacked` is the screen's answer unless given: R1401 drives desk, stack and desk on whatever screen runs the suite
+ * and then calls this with none, which puts the page back as its screen has it.
+ */
+export function applyNarrowLayout(stacked = narrowLayout()) {
     try {
-        if (!narrowLayout()) { restoreDesk(); return; }
+        if (!stacked) { restoreDesk(); return; }
         const column = ensureColumn();
         const row = ensureTileRow(column);
         for (const sel of STACKED) moveHome(document.querySelector(sel), column);
@@ -292,8 +299,45 @@ function watchColumn(column) {
     if (tabs && !inFoundryWindow(tabs)) columnWatch.observe(tabs);
 }
 
+/*
+ * WHERE A BLOCK DRAWN IN THE STACK STANDS ON A DESK (E23 C4b, 08.11.2026; S12-08, E23-23). The Despair rail and
+ * the Event card are drawn anew on every change (despair.mjs `renderDespairBar`, events.mjs `renderEvents`): the
+ * old node is removed and a new one is put where `narrowColumn()` says, so on a stacked screen the rail on the page
+ * is one `HOMES` never saw, and the node it did see is gone. `restoreDesk` put that gone node back into the top bar
+ * and took the drawn one out with the column - the rail stale until its next change, the card lost until its next
+ * - and a screen that opened stacked had no home recorded for either. These are the hosts the renders take on a
+ * desk, down the same chains of fallbacks (`#ui-left-column-1 ?? #ui-top ?? #ui-middle ?? body` for the clock,
+ * `#ui-top ?? #ui-middle` for the rail, the card after the rail): the clock first (where the glass sweep's switch
+ * back to a desk expects it), and Foundry's right column first in `#ui-right`, before the sidebar. The body is the
+ * last host for each, so no block goes out with the column: the headless harness's page has no left column, and a
+ * first cut that had no fallback after it took the clock out with the column there (four tier-1 tests read no
+ * clock after R1401, 08.11.2026).
+ */
+const byId = (...ids) => ids.map(id => document.getElementById(id)).find(Boolean) ?? document.body;
+const DESK = {
+    "drpg-hud": () => [byId("ui-left-column-1", "ui-top", "ui-middle"), "prepend"],
+    "drpg-despair": () => [byId("ui-top", "ui-middle"), "append"],
+    "drpg-events": () => {
+        const rail = document.getElementById("drpg-despair");
+        return rail && !rail.closest(COLUMN_SEL) ? [rail, "after"] : DESK["drpg-despair"]();
+    },
+    "ui-right-column-1": () => [byId("ui-right"), "prepend"]
+};
+
+/** A block the stack holds with no home recorded, to its desk host; a block of the same id already on the desk wins. */
+function deskHome(el, column) {
+    const twin = [...document.querySelectorAll(`#${el.id}`)].some(other => other !== el && !column.contains(other));
+    const [host, how] = DESK[el.id]?.() ?? [];
+    if (twin || !host?.isConnected) return;
+    host[how](el);
+}
+
 /**
  * Every moved element back where it came from, and the column gone.
+ *
+ * WHAT A RENDER DREW IN THE STACK GOES HOME TOO (E23 C4b; S12-08). A recorded node no longer on the page was drawn
+ * again while stacked: it stays out, and its successor - in the column, with no home recorded - goes to its desk
+ * host (`DESK`), in the stack's order of moving, before the column is removed.
  *
  * LAST MOVED, FIRST BACK (E77 C8). The clock's recorded neighbour is the room tile, and the tile has
  * gone into the row since: put back in the order they left, the clock found its neighbour still in
@@ -305,11 +349,13 @@ function watchColumn(column) {
  */
 function restoreDesk() {
     for (const [el, home] of [...HOMES].reverse()) {
-        if (!home.parent?.isConnected) continue;
+        if (!el.isConnected || !home.parent?.isConnected) continue;
         if (home.next?.isConnected && home.next.parentElement === home.parent) home.parent.insertBefore(el, home.next);
         else home.parent.append(el);
     }
     HOMES.clear();
+    const column = document.getElementById(COLUMN_ID);
+    if (column) for (const sel of STACKED) for (const el of column.querySelectorAll(`:scope > ${sel}`)) deskHome(el, column);
     const row = document.getElementById(ROW_ID);
     // the voice tile stands in the body on a desk (voice-tile.mjs `ensureVoiceTile`), where the curtain seats it
     for (const el of [...(row?.children ?? [])]) (el.id === "drpg-voice-tile" ? document.body : document.getElementById("ui-left-column-1") ?? document.body).append(el);
@@ -318,7 +364,7 @@ function restoreDesk() {
     columnWatch = null;
     columnBlocks?.disconnect();
     columnBlocks = null;
-    document.getElementById(COLUMN_ID)?.remove();
+    column?.remove();
     const left = document.getElementById("ui-left-column-1");
     if (left) left.style.marginTop = "";
     const notices = document.getElementById("drpg-popups");

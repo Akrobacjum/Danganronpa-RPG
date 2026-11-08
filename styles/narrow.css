@@ -493,10 +493,10 @@ body.drpg-stacked #drpg-popups > .drpg-popup {
    Glass the buttons step inboard of the tab rail by `--drpg-launch-clear` (glass.mjs) and the
    notices with them; under Monokuma Legacy they do not move. */
 body.drpg-stacked.drpg-short {
-    --drpg-stack-max: max(96px, calc(100dvh - 8px - var(--drpg-column-max) - 8px - var(--drpg-edge) - var(--drpg-av-lift, 0px)));
+    --drpg-stack-max: max(96px, calc(100dvh - 8px - var(--drpg-column-max) - 8px - var(--drpg-edge) - var(--drpg-av-lift, 0px) - var(--drpg-players-line, 0px)));
 }
 body.drpg-stacked.drpg-short #drpg-popups {
-    bottom: calc(var(--drpg-edge) + var(--drpg-av-lift, 0px)) !important;
+    bottom: calc(var(--drpg-edge) + var(--drpg-av-lift, 0px) + var(--drpg-players-line, 0px)) !important;
     right: max(var(--drpg-notices-right, 8px),
         calc(var(--drpg-edge) + var(--drpg-launch-s-right) + var(--drpg-launcher-small) + 24px)) !important;
 }
@@ -517,6 +517,42 @@ body.drpg-stacked #drpg-messenger-roster { z-index: 99991; }
    `game.drpg.openNotices()` stay the way in; a card brings the button back in its corner.
    R298 (7) reads the rule, R299 (b) the button hidden. */
 body.drpg-stacked #drpg-popups:not(:has(> .drpg-popup:not(.drpg-popup-parked))) > #drpg-notices-corner { display: none; }
+
+/* FOUNDRY'S GAUGE ON A STACKED SCREEN (E23 C4b, 08.11.2026; S12-96, E23-22; the owner's Q-E23-4, 08.11: the
+   default). `#players` stands at the foot of Foundry's left column, and stacked that column is pushed down by the
+   whole stack's height (narrow.mjs `reserveRoom`): a prototype run read it at y 1164 on a 1200x800 screen, off the
+   screen - and glass.mjs `gaugeFoot` read the notice tile's foot off it. The glass harness's gauge is where its HTML
+   puts it and stood at 440-466 there (Chromium, 1d860414), so the fault was not seen on the harness; where it stands
+   at a table is the stage's live row for S12-96.
+   For a GM it is one line on the screen's foot: on the corner buttons' bottom line (`--drpg-edge` and the camera
+   dock's lift), at the stack's 8 px from the wall, no wider than leaves the buttons and the 24 px the notices keep
+   from them, and `--drpg-players-line` tall. The notices stand over it: 8 px over the buttons on a tall screen, far
+   above the line; on a short one, where they stand on the buttons' line, higher by the line's height (above).
+   A player's is hidden, the owner's default: since E79 C13 the gauge shows no latency or frame rate, and the list of
+   who is connected is not shown to anyone (danganronpa.css, "the corner is a gauge").
+   Neither rule is `!important` (this sheet's budget, tools/css-budget.json): what Foundry's own sheet states for
+   `#players`, and in which cascade layer, is not read in this repository. */
+body.drpg-stacked.drpg-gm { --drpg-players-line: 24px; }
+body.drpg-theme-stained-glass.drpg-stacked.drpg-gm { --drpg-players-line: calc(32px * var(--drpg-sg-scale, 1)); }
+body.drpg-stacked.drpg-gm #players {
+    position: fixed;
+    top: auto;
+    right: auto;
+    bottom: calc(var(--drpg-edge) + var(--drpg-av-lift, 0px));
+    left: 8px;
+    box-sizing: border-box;
+    height: var(--drpg-players-line);
+    max-width: calc(100vw - 8px - var(--drpg-edge) - var(--drpg-launch-s-right) - var(--drpg-launcher-small)
+        - var(--drpg-launch-clear, 0px) - 24px);
+    margin: 0;
+    padding-block: 0;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+body.drpg-stacked.drpg-player #players { display: none; }
 
 /* ---- windows -------------------------------------------------------------
    `scaleWindow` in settings.mjs already keeps a window's SIZE inside the screen

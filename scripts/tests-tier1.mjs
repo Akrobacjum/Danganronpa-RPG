@@ -2573,6 +2573,180 @@ const INVARIANTS = [
             "[watchColumn marks the stack on its scroll, on a resize, watches each block in it and the blocks put in later]");
     }],
 
+    ["R1400 - Foundry's gauge on a stacked screen (S12-96, E23-22; the owner's Q-E23-4): `gaugeFoot`, which `fitNoteTile` takes the notice tile's foot from, reads `#players` only while the whole gauge stands on the screen - on the floor it gives 8 px over the gauge, past the screen's edge, half under it or mid-screen the fallback it gives with no gauge; and stacked, a GM's gauge is one line on the screen's foot, on the corner buttons' bottom line, under the notices, in both themes at the stacked sizes, while a player's is hidden", async () => {
+        /*
+         * E23 C4b, 08.11.2026. A prototype run read `#players` at y 1164 on a stacked 1200x800 screen (S12-96): the stack
+         * pushes Foundry's left column down by its own height, the gauge at its foot with it. Until 1.2.100 `gaugeFoot`
+         * took a gauge as standing on the floor wherever its bottom was past the floor less 80 px - a gauge under the
+         * screen's edge too - and gave the notice tile a foot 8 px over the dock off it. The glass harness keeps the
+         * gauge where its HTML puts it (440-466 there, Chromium, 1d860414), so this plants the box: the page's `#players`
+         * with its box defined over it for the reading (one of the test's where the page has none), put back after. H is
+         * 800 and the scale 1, so the fallback is the dock's lift and 100 px; the lift is read off that fallback.
+         * THE RULE is read from the cascade, as R476 reads the notices: headless worked out at the stacked sizes, in a
+         * browser for the window that runs the suite with `drpg-short` off and on. The classes are put back synchronously.
+         * Where the gauge stands at a table is the stage's live row for S12-96.
+         */
+        const G = await import("./glass.mjs");
+        ok(typeof G.gaugeFoot === "function", "glass.mjs gives a test no road to the gauge's foot");
+        const glass = await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(lfText);
+        equal(stableJson(/\bgaugeFoot\(H, s\)/.test(fnSource(glass, "fitNoteTile"))), "true", "[fitNoteTile takes its foot from gaugeFoot]");
+        let gauge = document.getElementById("players");
+        const made = !gauge;
+        if (made) { gauge = document.createElement("div"); gauge.id = "players"; document.body.append(gauge); }
+        const OWN = ["offsetWidth", "offsetHeight", "getBoundingClientRect"];
+        const plant = (top, h) => {
+            const box = { x: 8, y: top, left: 8, top, right: 128, bottom: top + h, width: 120, height: h };
+            Object.defineProperty(gauge, "offsetWidth", { configurable: true, value: h ? 120 : 0 });
+            Object.defineProperty(gauge, "offsetHeight", { configurable: true, value: h });
+            Object.defineProperty(gauge, "getBoundingClientRect", { configurable: true, value: () => ({ ...box, toJSON: () => box }) });
+        };
+        const H = 800, feet = {};
+        if (typeof G.gaugeFoot === "function") {
+            try {
+                plant(0, 0);
+                feet.none = G.gaugeFoot(H, 1);
+                for (const [name, top] of [["floor", H - 22 - 24], ["below", 1164], ["half", H - 12], ["mid", 440], ["above", -30]]) {
+                    plant(top, 24);
+                    feet[name] = G.gaugeFoot(H, 1);
+                }
+            } finally {
+                if (made) gauge.remove();
+                else for (const key of OWN) delete gauge[key];
+            }
+            const lift = feet.none - 100;
+            equal(stableJson(feet), stableJson({ none: Math.round(lift + 100), floor: Math.round(Math.max(22 + 24 + 8, lift + 8)), below: feet.none, half: feet.none, mid: feet.none, above: feet.none }),
+                "[the foot at H 800 with no gauge, with a gauge 24 px tall on the floor (22 px up), at y 1164, half under the edge, mid-screen and above the top]");
+        }
+        /* the rule: a GM's on the foot, a player's hidden */
+        const body = document.body;
+        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy", "drpg-stacked", "drpg-short", "drpg-gm", "drpg-player"];
+        const classWas = CLASSES.map(name => body.classList.contains(name));
+        const notices = document.getElementById("drpg-popups");
+        must(notices, "the notice tile is not on the page - nothing to stand the gauge under");
+        let probe = document.getElementById("players");
+        const madeProbe = !probe;
+        if (madeProbe) { probe = document.createElement("div"); probe.id = "players"; document.body.append(probe); }
+        const resolved = /^-?[\d.]+px$/.test(getComputedStyle(notices).right.trim());
+        const views = resolved ? [false, true].map(short => ({ w: innerWidth, h: innerHeight, short }))
+            : [[1024, 768, false], [1200, 800, false], [820, 1180, false], [393, 852, false], [844, 390, true], [640, 360, true]].map(([w, h, short]) => ({ w, h, short }));
+        const round = v => (Number.isFinite(v) ? v.toFixed(2) : String(v));
+        const seen = {}, want = {};
+        try {
+            body.classList.add(CLASSES[2]);
+            for (const glassOn of [true, false]) {
+                body.classList.toggle(CLASSES[0], glassOn);
+                body.classList.toggle(CLASSES[1], !glassOn);
+                for (const view of views) {
+                    body.classList.toggle(CLASSES[3], view.short);
+                    for (const role of ["gm", "player"]) {
+                        body.classList.toggle(CLASSES[4], role === "gm");
+                        body.classList.toggle(CLASSES[5], role === "player");
+                        const px = (el, prop) => cascadePx(el, prop, view);
+                        const cs = getComputedStyle(probe);
+                        const key = `${glassOn ? "Stained Glass" : "Monokuma Legacy"} ${view.w}x${view.h}${view.short ? " short" : ""} ${role}`;
+                        if (role === "player") { seen[key] = cs.display; want[key] = "none"; continue; }
+                        const edge = px(body, "--drpg-edge"), up = px(body, "--drpg-av-lift") || 0, line = px(body, "--drpg-players-line");
+                        const bottom = px(probe, "bottom"), height = px(probe, "height"), over = px(notices, "bottom");
+                        seen[key] = { position: cs.position, display: cs.display === "none" ? "none" : "shown", oneLine: [cs.whiteSpace, cs.overflow], foot: round(bottom - edge - up),
+                            line: round(height - line), lineOver0: line > 0, onScreen: bottom >= 0 && bottom + height <= view.h, under: round(over - bottom - line) };
+                        want[key] = { position: "fixed", display: "shown", oneLine: ["nowrap", "hidden"], foot: round(0), line: round(0), lineOver0: true, onScreen: true,
+                            under: round(view.short ? 0 : over - bottom - line) };
+                        if (!view.short && !(over - bottom - line >= 8)) want[key].under = `${round(over - bottom - line)} is not 8 px or more`;
+                    }
+                }
+            }
+        } finally {
+            CLASSES.forEach((name, i) => body.classList.toggle(name, classWas[i]));
+            if (madeProbe) probe.remove();
+        }
+        ok(!/NaN/.test(stableJson(seen)), `a length of the gauge could not be read: ${stableJson({ seen, want })}`);
+        equal(stableJson(seen), stableJson(want),
+            `the gauge stacked${resolved ? ` at ${innerWidth}x${innerHeight}` : ""} [per theme, size and role: a GM's fixed, shown, one line, on the buttons' bottom line, `
+            + "--drpg-players-line tall, on the screen and under the notices (on their line's height under them on a short screen, 8 px or more on a tall one); a player's hidden]");
+    }],
+
+    ["R1401 - desk to stack to desk keeps the Despair rail and the Event card (S12-08, E23-23): the card moves into the stack right after the rail and back after it, and a rail and a card drawn again while stacked - the old nodes gone, the new ones in the stack, as despair.mjs and events.mjs draw them - go to the top bar on a desk, the old nodes not back; the clock and Foundry's right column where the desk had them, after each switch", async () => {
+        /*
+         * E23 C4b, 08.11.2026. narrow.mjs's `STACKED` moved the clock, the tiles' row, the rail and the right column, not
+         * the card, which followed the rail only at its next render - a desk turned into a stack kept it in Foundry's top
+         * bar. And `restoreDesk` put back the nodes it had moved and removed the column with whatever else was in it: the
+         * rail and the card are drawn anew on each change, so the rail it put back was one a render had taken off the page,
+         * and the rail and card on the page went out with the column. Driven here on the page's own blocks, by
+         * `applyNarrowLayout(stacked)` whatever the screen, then put back as the screen has it (`applyNarrowLayout()`); a
+         * rail or a card the page does not have is one of the test's, put where its render would. The redraw is a stand-in
+         * of the test's in the stack, the page's own node kept aside and put back in its place at the end. The headless
+         * harness's GM page has neither the clock nor Foundry's right column (both read "off the page" at every step
+         * there, 08.11.2026); a browser at a table reads them.
+         */
+        const N = await import("./narrow.mjs");
+        must(typeof N.applyNarrowLayout === "function", "narrow.mjs has no applyNarrowLayout");
+        const top = document.getElementById("ui-top") ?? document.getElementById("ui-middle");
+        must(top, "the page has no top bar - nowhere for the rail to stand on a desk");
+        const stand = id => { const el = document.createElement("div"); el.id = id; el.className = "drpg-r1401"; return el; };
+        let real = { rail: null, events: null }, rail = null, events = null;
+        const seen = {}, want = {};
+        const homes = {};
+        /* what the page shows before the test, and must show after it: a block put on no host goes out with the column */
+        const BLOCKS = ["drpg-hud", "drpg-despair", "drpg-events", "ui-right-column-1"];
+        const shown = () => BLOCKS.map(id => Boolean(document.getElementById(id)?.isConnected));
+        const shownBefore = shown();
+        const where = () => {
+            const column = document.getElementById("drpg-column");
+            const of = el => (el?.isConnected ? (el.parentElement === column ? "the stack" : el.parentElement?.id || el.parentElement?.tagName || "?") : "off the page");
+            return { rail: of(rail), events: of(events), afterRail: events?.previousElementSibling === rail,
+                hud: of(document.getElementById("drpg-hud")), right: of(document.getElementById("ui-right-column-1")), column: Boolean(column) };
+        };
+        try {
+            N.applyNarrowLayout(false);
+            real = { rail: document.getElementById("drpg-despair"), events: document.getElementById("drpg-events") };
+            rail = real.rail ?? stand("drpg-despair");
+            if (!real.rail) (real.events ? real.events.before(rail) : top.append(rail));
+            events = real.events ?? stand("drpg-events");
+            if (!real.events) rail.after(events);
+            const desk = where();
+            Object.assign(homes, { rail: desk.rail, hud: desk.hud, right: desk.right });
+            seen.desk = desk;
+            want.desk = { rail: top.id, events: top.id, afterRail: true, hud: homes.hud, right: homes.right, column: false };
+            const stacked = { rail: "the stack", events: "the stack", afterRail: true, hud: desk.hud === "off the page" ? desk.hud : "the stack",
+                right: desk.right === "off the page" ? desk.right : "the stack", column: true };
+            N.applyNarrowLayout(true);
+            seen.stack = where();
+            want.stack = stacked;
+            /* the redraw, as the two renders do it on a stacked screen */
+            const gone = { rail, events };
+            const column = document.getElementById("drpg-column");
+            rail.remove();
+            events.remove();
+            rail = stand("drpg-despair");
+            events = stand("drpg-events");
+            if (column) { column.append(rail); rail.after(events); }
+            N.applyNarrowLayout(false);
+            seen.back = { ...where(), oldBack: [gone.rail.isConnected, gone.events.isConnected] };
+            want.back = { ...want.desk, oldBack: [false, false] };
+            N.applyNarrowLayout(true);
+            seen.again = where();
+            want.again = stacked;
+            N.applyNarrowLayout(false);
+            seen.desk2 = where();
+            want.desk2 = want.desk;
+        } finally {
+            /* the page's own nodes where the stand-ins stand, or the stand-ins out; then the layout the screen asks for */
+            for (const [key, el] of [["rail", rail], ["events", events]]) {
+                if (!el || el === real[key]) continue;
+                if (real[key] && el.isConnected) el.replaceWith(real[key]);
+                else if (real[key] && key === "rail") top.append(real[key]);
+                else if (real[key]) (document.getElementById("drpg-despair") ?? top).after(real[key]);
+                el.remove();
+            }
+            document.querySelectorAll(".drpg-r1401").forEach(el => el.remove());
+            N.applyNarrowLayout();
+        }
+        equal(stableJson(shown()), stableJson(shownBefore), `[${BLOCKS.join(", ")} on the page] after the test, as before it`);
+        equal(stableJson(seen), stableJson(want),
+            "[where the rail, the card (and whether right after the rail), the clock and Foundry's right column stand, and whether the stack is up: "
+            + "on a desk, stacked, back on a desk after a redraw in the stack (and whether the redrawn-over nodes came back), stacked again, on a desk again]");
+    }],
+
     ["R549 - the room tile beside the notices runs past the screen's edge with half of C0's run above it: its pane reaches the foot and leans as C0 leaned it (6 degrees at 1366x768), no plain pane is cut under it, the box stands roomNotesLift over the edge and is roomNotesH tall at C0's left edge, and the notice tile's lean, Stained Glass's 'clock' place and Monokuma Legacy are as they were", async () => {
         /*
          * E78 fix h76-HF4, 14.10.2026. The owner on C0's shot at 1366x768 (13.10): the room tile beside the notices
@@ -11586,7 +11760,7 @@ const INVARIANTS = [
             + "settings' bottom; the three gaps; the chat's centre off the midpoint; the chat above both; the corner's height; the roster's foot over the upper row, "
             + "its right edge against the chat's, its top at least 8 px in - and the roster over the cards on a stacked screen]");
     }],
-    ["R476 - the notice stack on a stacked screen stands clear of the corner buttons and of the blocks' stack, in both themes: its foot 8 px over the buttons, or on a short screen beside them on the bottom line, 24 px past the widest; its sides at the insets narrow.mjs measures; never at the inline top popup.mjs writes under the clock; its ceiling 8 px under the blocks' stack at its tallest, from the token both read; and a card under the same ceiling scrolls", async () => {
+    ["R476 - the notice stack on a stacked screen stands clear of the corner buttons and of the blocks' stack, in both themes: its foot 8 px over the buttons, or on a short screen beside them on the bottom line (over a GM's gauge there, by its line), 24 px past the widest; its sides at the insets narrow.mjs measures; never at the inline top popup.mjs writes under the clock; its ceiling 8 px under the blocks' stack at its tallest, from the token both read; and a card under the same ceiling scrolls", async () => {
         /*
          * E81 C13, 12.10.2026: the A7 design's P8-7 (S12-40), read from the cascade so it runs headless - R299 (d)
          * reads the drawn boxes with the module's own cards, but only in a browser. Through 1.2.74 each theme beat
@@ -11616,6 +11790,9 @@ const INVARIANTS = [
          * the 96 px take, and `under` says by how much - and a card that does not shrink, its frame inside its
          * ceiling (`flex-shrink` 0, `box-sizing: border-box`). What those do to drawn cards is glass-sweep.mjs's
          * reading, in Chromium on the glass harness, and R299 (d)'s inside Foundry.
+         * E23 C4b (08.11.2026; S12-96, the owner's Q-E23-4): on a short screen a GM's gauge is one line on the buttons'
+         * bottom line (narrow.css, R1400), so there the stack stands that line's height higher (`--drpg-players-line`,
+         * none on a player's screen); its ceiling comes down by as much, and `under` reads the same.
          */
         const host = document.getElementById("drpg-popups");
         const ids = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher"];
@@ -11681,7 +11858,7 @@ const INVARIANTS = [
                         };
                         want[key] = {
                             top: resolved ? null : "auto",
-                            foot: round(view.short ? 0 : 8),
+                            foot: round(view.short ? px(body, "--drpg-players-line") || 0 : 8),
                             left: glass && !resolved ? null : round(left),
                             right: round(view.short ? Math.max(right, reach + 24) : right),
                             under: round(Math.min(8, view.h - bottom - 96 - (px(column, "top") + px(column, "max-height")))),

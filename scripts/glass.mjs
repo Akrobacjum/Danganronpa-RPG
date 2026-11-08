@@ -191,15 +191,23 @@ const NOTE_MAX = 360;
    in it, and the strip reserved four columns of glass beside two tiles ("za szeroka",
    Dawid). The tile gives up what a narrower strip is worth only while it keeps its floor;
    past that, the tools wrap as they did. */
-function gaugeFoot(H, s) {
+/** The notice tile's foot over the screen's bottom edge: 8 px over Foundry's gauge where it stands on the floor, else 100 on the geometry scale. */
+export function gaugeFoot(H, s) {
   const gauge = document.querySelector("#players");
   const g = gauge && gauge.offsetWidth > 0 && gauge.offsetHeight > 0 ? gauge.getBoundingClientRect() : null;
   /* The gauge only counts where it stands on the floor. In the glass harness it follows the
      rail down the column instead, and a foot read off that would put the tile mid-screen.
      The floor is the dock's top while a dock is shown (`avLift`): a gauge the dock lifted
-     still counts, and the foot never stands lower than 8 px over the dock. */
+     still counts, and the foot never stands lower than 8 px over the dock.
+     AND ONLY WHERE IT STANDS ON THE SCREEN (E23 C4b, 08.11.2026; S12-96, E23-22). On a stacked
+     screen the stack pushes Foundry's left column down by its own height, and a prototype run at
+     1200x800 read `#players` at y 1164: past the floor, so "near the floor" held, and the foot came
+     out 8 px over the dock - the tile's foot on the screen's edge, off a gauge nobody can see. A
+     gauge with any part under the screen's edge, or above its top, is no gauge; narrow.css stands
+     a GM's on the screen's foot when stacked and hides a player's. */
   const lift = avLift();
-  return g && g.bottom > H - lift - 80 ? Math.round(Math.max(H - g.top + 8, lift + 8)) : Math.round(lift + 100 * s);
+  const seen = g && g.top >= 0 && g.bottom <= H + 0.5;
+  return seen && g.bottom > H - lift - 80 ? Math.round(Math.max(H - g.top + 8, lift + 8)) : Math.round(lift + 100 * s);
 }
 function fitNoteTile(H, railEnds, s) {
   const body = document.body;
