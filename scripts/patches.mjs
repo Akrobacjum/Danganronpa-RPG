@@ -41,7 +41,7 @@ import { chatLogClass } from "./secret.mjs";
 import { rollDialogClass } from "./roll-dialog.mjs";
 import { hourColour } from "./own-ring.mjs";
 import { ACTIONS_DEFINITION } from "./resources.mjs";
-import { ACTIONS_RESOURCE, MODULE_ID } from "./config.mjs";
+import { ACTIONS_RESOURCE, DEAD_ICON, MODULE_ID } from "./config.mjs";
 import { relayGuardStatus } from "./relay-guard.mjs";
 import { rollDrawState } from "./roll-draw.mjs";
 import { visibleGetterOf } from "./fog.mjs";
@@ -1160,6 +1160,26 @@ export const PATCHES = [
             }
             const fn = proto._drawEffect;
             return { present: typeof fn === "function", ours: Boolean(fn?.[Symbol.for("drpgBreakdownIcon")]) };
+        }
+    },
+    {
+        id: "dead-icon-own",
+        kind: "override",
+        target: "CONFIG.statusEffects: the dead entry's img (Daggerheart's defeated condition, from its Automation deadIcon)",
+        owner: "daggerheart",
+        file: "states.mjs",
+        symbol: "ownDeadIcon",
+        why: "The dead overlay wears the module's own pixel skull while Daggerheart's dead icon is its default; a GM's own icon is kept (E24 C1c, Q-E24-7).",
+        when: "at setup, while Daggerheart's deadIcon is its default",
+        fallback: "not written: the dead overlay is Daggerheart's tombstone",
+        probe: () => {
+            const dead = (CONFIG.statusEffects ?? []).find(entry => entry?.id === "dead") ?? null;
+            let chosen = null;
+            try { chosen = game.settings.get("daggerheart", "Automation")?.defeated?.deadIcon ?? null; } catch { chosen = null; }
+            if (!dead) return { present: false, ours: null, note: "no dead status here" };
+            if (chosen === null) return { present: null, ours: null, note: "Daggerheart's Automation setting cannot be read here" };
+            if (chosen !== DEAD_ICON.daggerheart) return { present: true, ours: true, note: "the GM's own dead icon, kept" };
+            return { present: true, ours: dead.img === DEAD_ICON.img };
         }
     },
     hookRow({

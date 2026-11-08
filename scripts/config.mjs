@@ -3054,22 +3054,41 @@ export const AFTER_DARK = ["evening", "night"];
  * these instead.
  *
  * `resource` is the reverse resource whose track being FULL turns the state on.
+ *
+ * THE MODULE'S OWN ICONS (E24 C1c, 08.11.2026; the owner, 08.11: "Jesli z daggerheart, dodajmy do
+ * planu wlasne ikony, pasujace do reszty"). Until 1.2.101 Breakdown wore Foundry's core painted
+ * `icons/magic/control/fear-fright-monster-grin-red-orange.webp` (its `-red` variant, used before,
+ * does not exist in the core set and showed a broken image) and Wounded
+ * `icons/skills/wounds/injury-triple-slash-bleed.webp`. Both are now pixel art in the style of
+ * icons/item-*.svg - a 16x16 view, crispEdges, ink #1a1620 and one accent: Breakdown a cracked
+ * violet head, Wounded a slashed red heart (R1487). An effect made before keeps the image it was made
+ * with; states.mjs `reimageStates` puts these on it at the primary GM's load.
  */
 export const STATES = {
     breakdown: {
         id: "drpgBreakdown",
         label: "Breakdown",
         resource: "stress",
-        // The `-red` variant of this icon does not exist in the core set; the
-        // Breakdown condition was showing a broken image on every token.
-        img: "icons/magic/control/fear-fright-monster-grin-red-orange.webp"
+        img: `modules/${MODULE_ID}/icons/state-breakdown.svg`
     },
     wounded: {
         id: "drpgWounded",
         label: "Wounded",
         resource: "hitPoints",
-        img: "icons/skills/wounds/injury-triple-slash-bleed.webp"
+        img: `modules/${MODULE_ID}/icons/state-wounded.svg`
     }
+};
+
+/**
+ * The dead status's icon (E24 C1c; Q-E24-7, the owner's "Domyslnie"). `dead` is Daggerheart's defeated
+ * condition, its image the Automation setting's `defeated.deadIcon` (2.10.11 module/config/generalConfig.mjs
+ * `defeatedConditions`, read into `CONFIG.statusEffects` at its setup); `daggerheart` is that field's
+ * initial (module/data/settings/Automation.mjs, the same in 2.6.5). The module's skull replaces it only
+ * while the setting is still that default: a GM who chose their own keeps it (states.mjs `ownDeadIcon`).
+ */
+export const DEAD_ICON = {
+    img: `modules/${MODULE_ID}/icons/state-dead.svg`,
+    daggerheart: "icons/magic/death/grave-tombstone-glow-teal.webp"
 };
 
 /* ==========================================================================
@@ -4952,6 +4971,7 @@ export const DRPG = {
     TRAP_TRIGGERS,
     TRAP_MODIFIERS,
     STATES,
+    DEAD_ICON,
     LEVEL_UP_OPTIONS,
     LEVEL_UP,
     MONOCUB,

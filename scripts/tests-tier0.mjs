@@ -20870,6 +20870,51 @@ const REGRESSIONS = [
         }), JSON.stringify({ syncOnce: false, gate: true, calls: true, callers: 1, ready: true, migration: true }),
         "[syncOnce calls clearSystemConditions; clearAllSystemConditions gated on the primary first; it calls it; the calls of it in states.mjs; the ready hook's chain; the migration's call after its write]");
     }],
+    ["R1487 - each state's icon is the module's own pixel art (E24 C1c; STAGE.md \"Amend 08.11\" A3, Q-E24-7): Breakdown's, Wounded's and the dead icon's `img` is an SVG under the module's icons/, served, on a 16x16 grid drawn crispEdges in whole-pixel rects, in the item icons' ink and one other colour of their palette", async () => {
+        /*
+         * E24 C1c, 08.11.2026. The owner, 08.11: "A ikony statusow (0hp, 0 sanity - breakdown i analogiczne dla hp) sa
+         * pixelartowe z drpg, czy dalej z daggerheart? Jesli z daggerheart, dodajmy do planu wlasne ikony, pasujace do
+         * reszty". Read at c90df638: config.mjs `STATES` gave Breakdown Foundry's painted
+         * `icons/magic/control/fear-fright-monster-grin-red-orange.webp` and Wounded
+         * `icons/skills/wounds/injury-triple-slash-bleed.webp`, and the dead overlay was Daggerheart's tombstone (its
+         * `deadIcon` setting). The module's own icons are icons/item-*.svg: a 16x16 view, `shape-rendering="crispEdges"`,
+         * one-pixel rects, ink #1a1620 and an accent (bone #e8e3ec beside it on four of six). "Pasujace do reszty" is read
+         * as that style: the three icons are held to the item icons' grid and palette, ink and exactly one other colour.
+         * Red on C1b's tree: two core .webp paths and no `DEAD_ICON`.
+         */
+        const C = await import("./config.mjs");
+        const INK = "#1a1620";
+        const fillsOf = text => [...text.matchAll(/\bfill="(#[0-9a-fA-F]{3,8})"/g)].map(m => m[1].toLowerCase());
+        const palette = new Set();
+        for (const category of Object.keys(C.ITEM_CATEGORIES ?? {})) {
+            const res = await fetch(`/modules/${MODULE_ID}/icons/item-${category}.svg`);
+            if (res.ok) for (const fill of fillsOf(await lfText(res))) palette.add(fill);
+        }
+        must(palette.has(INK) && palette.size >= 3, `the item icons' palette read ${JSON.stringify([...palette])} - it would measure nothing`);
+        const RUN = /^(?:M\d+ \d+h\d+v1H\d+z)+$/;
+        const rows = {};
+        for (const [name, img] of [["breakdown", C.STATES?.breakdown?.img], ["wounded", C.STATES?.wounded?.img], ["dead", C.DEAD_ICON?.img]]) {
+            const own = typeof img === "string" && new RegExp(`^modules/${MODULE_ID}/icons/[\\w-]+\\.svg$`).test(img);
+            const res = own ? await fetch(`/${img}`) : null;
+            const text = res?.ok ? await lfText(res) : "";
+            const root = text.match(/^<svg\b[^>]*>/)?.[0] ?? "";
+            const tags = [...text.matchAll(/<([a-zA-Z][\w-]*)\b/g)].map(m => m[1]);
+            const ds = [...text.matchAll(/<path\b[^>]*\bd="([^"]*)"/g)].map(m => m[1]);
+            const fills = new Set(fillsOf(text));
+            rows[name] = {
+                own,
+                served: Boolean(res?.ok),
+                grid: /\bviewBox="-?\d+ -?\d+ 16 16"/.test(root),
+                crisp: /\bshape-rendering="crispEdges"/.test(root),
+                rects: ds.length > 0 && tags.every(t => t === "svg" || t === "path") && ds.every(d => RUN.test(d)),
+                palette: fills.size > 0 && [...fills].every(f => palette.has(f)),
+                inkAndOne: fills.has(INK) && fills.size === 2
+            };
+        }
+        const want = { own: true, served: true, grid: true, crisp: true, rects: true, palette: true, inkAndOne: true };
+        equal(JSON.stringify(rows), JSON.stringify({ breakdown: want, wounded: want, dead: want }),
+            "{each icon: [own: an SVG under the module's icons/; served; grid: a 16x16 view; crisp: crispEdges; rects: paths of whole-pixel rects only; palette: every colour one of the item icons'; inkAndOne: the ink and exactly one other]}");
+    }],
 ];
 
 

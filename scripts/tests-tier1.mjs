@@ -39710,6 +39710,88 @@ const INVARIANTS = [
             stableJson({ none: calm, silence: { ...calm, locked: true, drawer: true }, fog: { ...calm, fogged: true, moveSays: "fog", budget: true } }),
             "[no Overflow, Silence, Fog]: Hope Call tiles drawn; all locked with Overflow.silenced; the drawer silenced; the free Move fogged; what its tooltip says; the budget line says Fog");
     }],
+    ["R1488 - the primary GM's ready step puts the states' own icons on the effects a world already holds (states.mjs `reimageStates`, `ownDeadIcon`; E24 C1c, STAGE.md \"Amend 08.11\" A3, Q-E24-7): on a stand-in world the old-image Breakdown and Wounded effects carry the new images, a dead and another status are untouched, a second run writes nothing, a non-primary GM writes nothing; the dead status wears ours only while Daggerheart's deadIcon setting is at its default", async () => {
+        /*
+         * E24 C1c, 08.11.2026. `toggleStatusEffect` makes an effect from `CONFIG.statusEffects` with the image the
+         * entry has then, and the effect keeps it: a world played before C1c holds Breakdown and Wounded effects in
+         * Foundry's core painted icons, and only new ones would wear the module's. The primary GM's ready step
+         * (`reimageStates`, once a load from `registerStates`' ready) sets the new `img` on those two statuses'
+         * effects and on nothing else. A primary-GM write, so MARKED: its mutants are the step on a non-primary GM and an
+         * effect of another status touched, each red here. The dead status (Q-E24-7, the owner's "Domyslnie"): ours
+         * replaces Daggerheart's tombstone only while its Automation `defeated.deadIcon` is the system's default, so
+         * a GM who chose their own keeps it (`ownDeadIcon`, at setup after Daggerheart's own setup rebuilt the list).
+         * Red on C1b's tree: neither function.
+         */
+        const ST = await import("./states.mjs");
+        const { STATES, DEAD_ICON } = await import("./config.mjs");
+        const { primaryGmId } = await import("./utils.mjs");
+        const { PATCHES } = await import("./patches.mjs");
+        const OLD = { breakdown: "icons/magic/control/fear-fright-monster-grin-red-orange.webp", wounded: "icons/skills/wounds/injury-triple-slash-bleed.webp" };
+        const DH_DEAD = "icons/magic/death/grave-tombstone-glow-teal.webp";
+        const world = () => {
+            const writes = [];
+            const actor = (id, effects) => ({
+                id, effects,
+                async updateEmbeddedDocuments(type, updates) {
+                    writes.push([id, type, updates.map(u => Object.keys(u).sort().join(","))]);
+                    for (const u of updates) Object.assign(effects.find(e => e.id === u._id) ?? {}, u);
+                    return updates;
+                }
+            });
+            const fx = (id, img, status) => ({ id, img, statuses: new Set([status]) });
+            const actors = [
+                actor("a", [fx("e1", OLD.breakdown, STATES.breakdown.id), fx("e2", OLD.wounded, STATES.wounded.id), fx("e3", DH_DEAD, "dead"), fx("e4", "icons/svg/blind.svg", "blind")]),
+                actor("b", [fx("e5", OLD.wounded, STATES.wounded.id)])
+            ];
+            const imgs = () => actors.flatMap(a => a.effects.map(e => `${e.id}:${e.img}`));
+            return { writes, actors, imgs };
+        };
+        const primary = { id: primaryGmId(), isGM: true }, other = { id: "r1488-other-gm", isGM: true };
+        must(Boolean(primary.id), "no primary GM here - it would measure nothing");
+        const B = STATES.breakdown.img, Wd = STATES.wounded.img;
+        let step = null, dead = null;
+        if (typeof ST.reimageStates === "function") {
+            const w = world();
+            const first = await ST.reimageStates({ actors: w.actors, user: primary });
+            const afterFirst = w.imgs(), firstWrites = w.writes.length;
+            const second = await ST.reimageStates({ actors: w.actors, user: primary });
+            const n = world();
+            const none = await ST.reimageStates({ actors: n.actors, user: other });
+            step = { first, afterFirst, writes: w.writes, second, secondWrites: w.writes.length - firstWrites, other: none, otherWrites: n.writes.length, otherImgs: n.imgs() };
+        }
+        if (typeof ST.ownDeadIcon === "function") {
+            const list = () => [{ id: "dead", img: DH_DEAD }, { id: "blind", img: "icons/svg/blind.svg" }];
+            const atDefault = list(), chosen = [{ id: "dead", img: "worlds/w/my-dead.webp" }], unread = list();
+            dead = {
+                atDefault: [ST.ownDeadIcon(atDefault, { defeated: { deadIcon: DH_DEAD } }), atDefault.map(e => e.img)],
+                again: ST.ownDeadIcon(atDefault, { defeated: { deadIcon: DH_DEAD } }),
+                chosen: [ST.ownDeadIcon(chosen, { defeated: { deadIcon: "worlds/w/my-dead.webp" } }), chosen[0].img],
+                unread: [ST.ownDeadIcon(unread, null), unread[0].img]
+            };
+        }
+        // This world: the dead entry as the setting says, and the two states' entries on their own icons.
+        let setting = null;
+        try { setting = game.settings.get("daggerheart", "Automation")?.defeated?.deadIcon ?? null; } catch { setting = null; }
+        const entry = id => (CONFIG.statusEffects ?? []).find(e => e.id === id)?.img ?? null;
+        const here = {
+            dead: setting === null ? "unread" : entry("dead") === (setting === DH_DEAD ? DEAD_ICON?.img : setting),
+            states: [entry(STATES.breakdown.id) === B, entry(STATES.wounded.id) === Wd]
+        };
+        const src = stripComments((await moduleSources()).get("states.mjs") ?? "");
+        const wired = [/\breimageStates\(\)/.test(fnSource(src, "registerStates")), /\bownDeadIcon\(/.test(fnSource(src, "registerStates"))];
+        const row = PATCHES.find(r => r.id === "dead-icon-own") ?? null;
+        equal(stableJson({ step, dead, here, wired, row: row ? [row.kind, row.owner, row.file, row.symbol] : null }), stableJson({
+            step: { first: 3, afterFirst: [`e1:${B}`, `e2:${Wd}`, `e3:${DH_DEAD}`, "e4:icons/svg/blind.svg", `e5:${Wd}`],
+                writes: [["a", "ActiveEffect", ["_id,img", "_id,img"]], ["b", "ActiveEffect", ["_id,img"]]],
+                second: 0, secondWrites: 0, other: 0, otherWrites: 0,
+                otherImgs: [`e1:${OLD.breakdown}`, `e2:${OLD.wounded}`, `e3:${DH_DEAD}`, "e4:icons/svg/blind.svg", `e5:${OLD.wounded}`] },
+            dead: { atDefault: [true, [DEAD_ICON?.img, "icons/svg/blind.svg"]], again: false, chosen: [false, "worlds/w/my-dead.webp"], unread: [false, DH_DEAD] },
+            here: { dead: setting === null ? "unread" : true, states: [true, true] },
+            wired: [true, true], row: ["override", "daggerheart", "states.mjs", "ownDeadIcon"] }),
+        "{step: the primary's first run (effects written), the images after it, its writes [actor, type, keys], a second run and its writes, a non-primary GM's run, its writes and the images it left; "
+            + "dead: ownDeadIcon at the default (changed, the list's images), again, a GM's own icon, the setting unread; here: this world's dead entry as its setting says and the two states' entries on their icons; "
+            + "wired: registerStates calls both; the contract's row [kind, owner, file, symbol]}");
+    }],
 ];
 
 /**

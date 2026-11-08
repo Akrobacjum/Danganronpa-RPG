@@ -1156,6 +1156,7 @@ Wynik to licznik "passed, failed, skipped" - z dopiskiem ", red until a later st
 | `hook-image-popout-header` | okno zdjęcia pokoju pokazuje przycisk udostępniania Foundry i każdy, który doda moduł |
 | `token-bars-reserve` | paski na żetonach uczniów rosną, gdy uczeń traci punkty, jak rysuje je Daggerheart, a inny gracz widzi pasek Sanity |
 | `breakdown-icon-private` | ikona Breakdown na żetonie ucznia jest widoczna dla każdego gracza |
+| `dead-icon-own` | nakładka zmarłego to nagrobek z Daggerheart |
 | `hook-party-sheet-render` | karta drużyny liczy, co każdy członek stracił, jak rysuje ją Daggerheart, i pokazuje Sanity każdego członka każdemu graczowi |
 | `user-permission-broadcast-audio` | niczyj mikrofon nie jest blokowany: przycisk GM-a mówi dlaczego, rozprawa również |
 | `rtc-client-keys` | klucz, którego Foundry już nie trzyma, jest czytany jako domyślny (bez wyciszenia, pełna głośność, widoczny), a zapis do niego niczego nie zmienia |

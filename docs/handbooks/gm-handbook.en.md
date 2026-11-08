@@ -1156,6 +1156,7 @@ The result is a "passed, failed, skipped" count - with ", red until a later stag
 | `hook-image-popout-header` | a room picture's window shows Foundry's share control and any a module adds |
 | `token-bars-reserve` | a student's token bars fill up as they are hurt, as Daggerheart draws them, and another player sees their Sanity bar |
 | `breakdown-icon-private` | a student's Breakdown icon shows on their token to every player |
+| `dead-icon-own` | the dead overlay is Daggerheart's tombstone |
 | `hook-party-sheet-render` | the Party sheet counts what each member has lost, as Daggerheart draws it, and shows every member's Sanity to every player |
 | `user-permission-broadcast-audio` | nobody's microphone is blocked: the GM's button says why, and so does the trial |
 | `rtc-client-keys` | a key Foundry no longer keeps reads as its default (not muted, full volume, shown), and writing to it changes nothing |

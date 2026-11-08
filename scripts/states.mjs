@@ -31,7 +31,7 @@
  *              action - the guide's rule was in force before it had an icon.
  */
 
-import { MODULE_ID, FLAGS, STATES } from "./config.mjs";
+import { MODULE_ID, FLAGS, STATES, DEAD_ICON } from "./config.mjs";
 import { isMonokuma, isNotInClass } from "./monokuma.mjs";
 import { isDeceased } from "./settings.mjs";
 import { remaining, RESERVES, reserveView } from "./character.mjs";
@@ -70,6 +70,8 @@ export function registerStates() {
                 });
             }
             log("Registered the Breakdown and Wounded conditions.");
+            // The dead status on the module's skull while Daggerheart's own icon is its default (E24 C1c, Q-E24-7).
+            if (ownDeadIcon(CONFIG.statusEffects, automationSetting())) log("The dead status wears the module's icon.");
         } catch (err) {
             error("Could not register the DRPG conditions", err);
         }
@@ -101,7 +103,11 @@ export function registerStates() {
         suppressSystemAutomation()
             .then(switched => (switched ? null : clearAllSystemConditions()))
             .then(() => syncAll())
-            .catch(err => error("Could not take over the full-track conditions", err));
+            .catch(err => error("Could not take over the full-track conditions", err))
+            // Once a load, after the sync has made or removed what it would: the effects made before
+            // 1.2.101 put on the states' own icons (E24 C1c).
+            .then(() => reimageStates())
+            .catch(err => error("Could not put the states' own icons on their effects", err));
     });
 }
 
@@ -531,4 +537,72 @@ function installEffectIcons() {
         return false;
     }
     return wrapEffectIcons(proto);
+}
+
+/* ==========================================================================
+ * THE STATES' OWN ICONS (E24 C1c, 08.11.2026; STAGE.md "Amend 08.11" A3, Q-E24-7)
+ * --------------------------------------------------------------------------
+ * Breakdown and Wounded wear the module's pixel art since 1.2.101 (config.mjs
+ * `STATES`, R1487). `toggleStatusEffect` makes an effect from the status's entry
+ * in `CONFIG.statusEffects` with the image the entry has at that moment, and the
+ * effect keeps it, so a world played before holds its Breakdown and Wounded
+ * effects in Foundry's core painted icons while new ones wear ours. The primary
+ * GM's ready step (`reimageStates`) sets the new image on those two statuses'
+ * effects on the world's actors: once a load, a no-op once they carry it, and
+ * on no effect of another status - a dead overlay keeps the image it was made
+ * with. A primary-GM write, so this part is MARKED (R1488's mutants: the step on
+ * a non-primary, an effect of another status touched). Not reached: an unlinked
+ * token's own actor (its delta's effects); the module's students are linked.
+ *
+ * The dead status is Daggerheart's (its defeated condition), made at its setup
+ * from the Automation setting's `defeated.deadIcon`. `ownDeadIcon` puts the
+ * module's skull on that entry only while the setting is Daggerheart's default
+ * (config.mjs `DEAD_ICON.daggerheart`), so a GM who chose their own keeps it (the
+ * owner's default for Q-E24-7). A row of patches.mjs, `dead-icon-own`.
+ * ========================================================================== */
+
+/** Daggerheart's Automation setting, or null where it cannot be read. */
+function automationSetting() {
+    try { return game.settings.get(DH, AUTOMATION) ?? null; } catch { return null; }
+}
+
+/**
+ * Put the module's dead icon on the `dead` entry of `effects` (CONFIG.statusEffects) when `automation`'s
+ * `defeated.deadIcon` is Daggerheart's default. True when it changed the entry; false for a GM's own icon, an
+ * unreadable setting, no entry, or one already ours. Exported for R1488.
+ */
+export function ownDeadIcon(effects, automation) {
+    if (automation?.defeated?.deadIcon !== DEAD_ICON.daggerheart) return false;
+    const dead = (effects ?? []).find(entry => entry?.id === "dead");
+    if (!dead || dead.img === DEAD_ICON.img) return false;
+    dead.img = DEAD_ICON.img;
+    return true;
+}
+
+/**
+ * Set each Breakdown and Wounded effect on `actors` to its state's own image, one update per actor that has one
+ * on another image. Only the primary GM writes: this browser a GM's, and `user` (standing for this browser's
+ * user, a stand-in in R1488) the primary; anybody else's call answers 0. Returns how many effects it wrote. Exported for R1488.
+ */
+export async function reimageStates({ actors = game.actors, user = game.user } = {}) {
+    // A GM's browser (the census's gate, R220), and `user` the primary.
+    if (!game.user?.isGM || !user?.isGM || !user.id || primaryGmId() !== user.id) return 0;
+    const images = Object.values(STATES).map(state => [state.id, state.img]);
+    let written = 0;
+    for (const actor of actors ?? []) {
+        const updates = [];
+        for (const effect of actor?.effects ?? []) {
+            const img = images.find(([id]) => effect?.statuses?.has?.(id))?.[1];
+            if (img && effect.img !== img) updates.push({ _id: effect.id, img });
+        }
+        if (!updates.length) continue;
+        try {
+            await actor.updateEmbeddedDocuments("ActiveEffect", updates);
+            written += updates.length;
+        } catch (err) {
+            error(`Could not put the states' own icons on ${actor?.name ?? actor?.id}`, err);
+        }
+    }
+    if (written) log(`Put the Breakdown and Wounded icons on ${written} effect(s) made before them.`);
+    return written;
 }
