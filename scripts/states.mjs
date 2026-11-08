@@ -95,7 +95,11 @@ export function registerStates() {
 
     Hooks.once("ready", () => {
         if (!isPrimaryGm()) return;
+        /* The system's conditions cleared once a load (E24 C3b, E24-25; audit S03-35): by the migration when it switched
+           the automations off this load, else here - not on every Health or Sanity write, which took a GM's own
+           Unconscious off at the next one. */
         suppressSystemAutomation()
+            .then(switched => (switched ? null : clearAllSystemConditions()))
             .then(() => syncAll())
             .catch(err => error("Could not take over the full-track conditions", err));
     });
@@ -177,6 +181,8 @@ export async function suppressSystemAutomation() {
         });
         log("Switched off Daggerheart's Vulnerable and Defeated automations; "
             + "Breakdown and Wounded replace them.");
+        // What the automations already put on the sheets goes with them, once (E24 C3b; `clearAllSystemConditions`).
+        await clearAllSystemConditions();
         await whisperToGms(`<p>${game.i18n.localize("DRPG.GiveBack.automationOff")}</p>`);
         return true;
     } catch (err) {
@@ -235,6 +241,24 @@ export async function giveBackAutomation(kept) {
  * by side for the rest of the season.
  */
 const SYSTEM_CONDITIONS = ["vulnerable", "deathMove", "defeated", "unconscious"];
+
+/*
+ * ONCE A LOAD, NOT ON EVERY WRITE (E24 C3b, 08.11.2026; E24-25, audit S03-35). `syncOnce` called this on every Health
+ * and Sanity write, so an Unconscious a GM put on a student by hand went at the next write to either track. The markers
+ * it is for are the automations' leftovers, and those stop arriving once the automations are off: cleared on the
+ * primary GM at `ready` and by the migration that switches them off (`suppressSystemAutomation`, which a GM's re-hold
+ * also runs), every student but a Monokuma, as `syncStates` reads them. Returns how many effects went.
+ */
+async function clearAllSystemConditions() {
+    if (!isPrimaryGm()) return 0;
+    let cleared = 0;
+    for (const actor of game.actors ?? []) {
+        if (actor?.type !== "character" || isMonokuma(actor)) continue;
+        cleared += await clearSystemConditions(actor);
+    }
+    if (cleared) log(`Cleared ${cleared} of Daggerheart's own condition(s) left from before this module took over.`);
+    return cleared;
+}
 
 async function clearSystemConditions(actor) {
     const doomed = actor.effects.filter(e =>
@@ -346,8 +370,6 @@ export function stateSoundsFor(actor, changes, user = game.user) {
 }
 
 async function syncOnce(actor) {
-    await clearSystemConditions(actor);
-
     const applied = [];
     for (const state of Object.values(STATES)) {
         const wanted = shouldHave(actor, state);

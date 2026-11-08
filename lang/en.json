@@ -2999,6 +2999,12 @@
       "sharedPool": "{name}'s pool is shared by: {actors}. Each Monokuma should have their own.",
       "saved": "Monokumas and pools saved."
     },
+    "SheetNotes": {
+      "failedSteps": "Parts of the character sheet failed to draw: {steps}. A newer Daggerheart may have moved what they read; the console (F12) has each error.",
+      "fogFreeMove": "Fog: no Free Move this time of day. Every crossing costs an action.",
+      "fogBudget": "Fog: no Free Move",
+      "noExperiences": "No experiences yet. You start with two at +2, and a Level Up can add one."
+    },
     "Class": {
       "notInClass": "Not in the class",
       "outTooltip": "Mark as not in the class: an NPC, with no actions, ballots or Level Ups.",

@@ -3269,6 +3269,12 @@
       "sharedPool": "Pulę ({name}) dzielą: {actors}. Każdy Monokuma powinien mieć własną.",
       "saved": "Monokumy i pule zapisane."
     },
+    "SheetNotes": {
+      "failedSteps": "Części arkusza postaci nie udało się narysować: {steps}. Nowszy Daggerheart mógł przenieść to, z czego korzystają; konsola (F12) pokazuje każdy błąd.",
+      "fogFreeMove": "Fog: o tej porze dnia nie ma Free Move. Każde przejście kosztuje akcję.",
+      "fogBudget": "Fog: bez Free Move",
+      "noExperiences": "Nie masz jeszcze doświadczeń. Zaczynasz z dwoma po +2, a Level Up może dodać kolejne."
+    },
     "Class": {
       "notInClass": "Poza klasą",
       "outTooltip": "Oznacz jako poza klasą: NPC bez akcji, głosów i Level Upów.",

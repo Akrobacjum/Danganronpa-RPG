@@ -32,7 +32,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { LANGUAGES } from "./i18n.mjs";
-import { error, esc} from "./utils.mjs";
+import { error, esc, isPrimaryGm, listOf } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 
 /** Every module the manifest marks as required, whatever their state. */
@@ -327,6 +327,28 @@ export async function showSystemWarningAgain({ write = value => game.settings.se
     announce = announceNewerSystem } = {}) {
     await write("");
     await announce();
+}
+
+/*
+ * A SHEET STEP THAT FAILED, TOLD ONCE (E24 C3b, 08.11.2026; E24-21, audit S03-42). sheet.mjs runs its injections one
+ * step at a time (`SHEET_STEPS`) and logs a step that throws under its name; the likeliest reason is the one the
+ * newer-Daggerheart warning below is about - a system update moved what the step reads - so the primary GM is told
+ * here, once a load, with the names of the steps that failed on that render. Never a player: their console has the
+ * error, and the sheet without the step is all they could act on. Later failures this load are logged only.
+ * `sheetStepNotice.told` is the load's memory, which the suite sets back after its own planted failure (R1456).
+ */
+export const sheetStepNotice = { told: false };
+
+/** Tell the primary GM which sheet steps failed, once a load. True when it told. */
+export function announceSheetSteps(names) {
+    if (!names?.length || sheetStepNotice.told || !isPrimaryGm()) return false;
+    sheetStepNotice.told = true;
+    try {
+        ui.notifications?.warn?.(game.i18n.format("DRPG.SheetNotes.failedSteps", { steps: listOf(names) }), { permanent: true });
+    } catch (err) {
+        error("Could not tell the GM which sheet steps failed", err);
+    }
+    return true;
 }
 
 /**

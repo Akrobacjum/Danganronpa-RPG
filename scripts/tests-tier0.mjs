@@ -7912,7 +7912,7 @@ const REGRESSIONS = [
             ["observe.mjs", "undoPrevious", "scoreObserve"],
             ["observe.mjs", "scoreObserve", "resolveObserve"],
             ["states.mjs", "syncOnce", "syncStates"],
-            ["states.mjs", "clearSystemConditions", "syncOnce"],
+            ["states.mjs", "clearSystemConditions", "clearAllSystemConditions"],
             ["truth-bullets.mjs", "publishReading", "identify"],
             ["truth-bullets.mjs", "publishReading", "revealAllBulletTypes"],
             ["truth-bullets.mjs", "revertPlayerBulletEdit", "onBulletWrite"],
@@ -20852,6 +20852,23 @@ const REGRESSIONS = [
         must(read > 4000, `read ${read} string(s) - it would measure nothing`);
         equal(JSON.stringify({ found: found.sort(), named, retired }), JSON.stringify({ found: [], named: [], retired: [] }),
             "{found: the strings naming Health or Sanity with a mark word; named: the eight rewritten keys missing or still saying it; retired: Murder.victimMarks still in a file}");
+    }],
+    ["R1461 - the system's conditions are cleared once a load, not on every write (states.mjs; E24 C3b, E24-25; audit S03-35): `syncOnce` - the pass every Health and Sanity write runs - calls no `clearSystemConditions`; `clearAllSystemConditions` asks `isPrimaryGm()` before anything and is its one caller; `registerStates`' ready hook runs it on the primary after the migration when the migration did not, and `suppressSystemAutomation` runs it once it has switched the automations off", async () => {
+        /* E24 C3b, 08.11.2026. Read off the source, comments stripped: a GM's Unconscious is a status the world holds, and
+           tier 0 writes none. Red on the tree before: `syncOnce` calls it, no `clearAllSystemConditions`. */
+        const src = stripComments((await moduleSources()).get("states.mjs") ?? "");
+        must(src.length > 5000, "states.mjs read nothing - this test would read nothing");
+        const fn = name => topLevelFunction(src, name) ?? "";
+        const sync = fn("syncOnce"), all = fn("clearAllSystemConditions"), reg = fn("registerStates"), sup = fn("suppressSystemAutomation");
+        must(sync && reg && sup, "states.mjs no longer declares syncOnce, registerStates or suppressSystemAutomation - this test reads nothing");
+        const callers = [...src.matchAll(/(?<!function )\bclearSystemConditions\(/g)].length;
+        equal(JSON.stringify({
+            syncOnce: /\bclearSystemConditions\(/.test(sync),
+            gate: /^[^{]*\{\s*if \(!isPrimaryGm\(\)\) return 0;/.test(all), calls: /\bclearSystemConditions\(actor\)/.test(all), callers,
+            ready: /Hooks\.once\("ready", \(\) => \{\s*if \(!isPrimaryGm\(\)\) return;\s*suppressSystemAutomation\(\)\s*\.then\(switched => \(switched \? null : clearAllSystemConditions\(\)\)\)\s*\.then\(\(\) => syncAll\(\)\)/.test(reg),
+            migration: /await game\.settings\.set\(DH, AUTOMATION,[\s\S]*?\}\);[\s\S]*?await clearAllSystemConditions\(\);[\s\S]*?return true;/.test(sup)
+        }), JSON.stringify({ syncOnce: false, gate: true, calls: true, callers: 1, ready: true, migration: true }),
+        "[syncOnce calls clearSystemConditions; clearAllSystemConditions gated on the primary first; it calls it; the calls of it in states.mjs; the ready hook's chain; the migration's call after its write]");
     }],
 ];
 

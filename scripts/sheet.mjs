@@ -76,6 +76,8 @@ import { spentSince, markSpent } from "./motion.mjs";
 import { debug, error, plural, proseOf, markLanguage, GM_ROUTE_CLASS, markFired } from "./utils.mjs";
 import { drpgConfirm } from "./ui-kit.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
+import { announceSheetSteps } from "./requirements.mjs";
+import { overflowBlocksCalls, overflowBlocksFreeMove } from "./overflow.mjs";
 
 /*
  * Dead, as the person looking at this sheet may know it (E05 C9, rule C): on a
@@ -753,7 +755,7 @@ function refreshCallsPanels(actor, element) {
         const max = monokuma ? STARTING.despairMax : hopeMax(actor);
         const lockNote = callLockNote(monokuma);
 
-        panel.classList.toggle("drpg-silenced", isCallSilenced(actor));
+        panel.classList.toggle("drpg-silenced", isCallSilenced(actor) || (!monokuma && overflowBlocksCalls()));
 
         const pool = panel.querySelector(".drpg-calls-pool");
         if (pool) pool.textContent = `${held} / ${max}`;
@@ -818,6 +820,61 @@ function settle(root, work) {
     }
 }
 
+/*
+ * ONE STEP AT A TIME (E24 C3b, 08.11.2026; E24-21, audit S03-42). The injections ran in one try, so the first one
+ * to throw - a Daggerheart that moved a part one of them reads, on the newer systems D1 lets the module start on -
+ * took every one after it with it: a sheet with an Actions tab and no Calls, or Daggerheart's own "+" back. Each step
+ * is now `[name, run]`, run in its own try inside `settle`, in the order they always ran, with `removeSystemCreators`
+ * first: its job is a guard (what it removes must not be there whatever else fails), and nothing after it creates a
+ * creator. A failed step is logged under its name, and the primary GM is told once a load which steps failed, beside
+ * the newer-Daggerheart warning (requirements.mjs `announceSheetSteps`) - never a player, whose console has the error.
+ * `run` takes `{ app, element, fresh }`. The table is the suite's to read and to plant a throwing step in (R1456);
+ * E45-C1 passes `sheetMode`'s answer through it, E54 moves it into the thin sheet.mjs.
+ */
+export const SHEET_STEPS = [
+    ["removeSystemCreators", ({ app, element }) => removeSystemCreators(app, element)],
+    ["leaveLoadoutTab", ({ app, element }) => leaveLoadoutTab(app, element)],
+    ["frameTraits", ({ element }) => frameTraits(element)],
+    ["injectUltimate", ({ app, element }) => injectUltimate(app, element)],
+    ["markSheetState", ({ app, element }) => markSheetState(app, element)],
+    ["injectInitButton", ({ app, element }) => injectInitButton(app, element)],
+    ["injectAdvanceButton", ({ app, element }) => injectAdvanceButton(app, element)],
+    ["injectClassControls", ({ app, element }) => injectClassControls(app, element)],
+    ["injectItemButton", ({ app, element }) => injectItemButton(app, element)],
+    ["injectActionBar", ({ app, element, fresh }) => injectActionBar(app, element, fresh)],
+    ["flashHope", ({ app, element, fresh }) => flashHope(app, element, fresh)],
+    ["injectActionPanel", ({ app, element }) => injectActionPanel(app, element)],
+    ["growForCalls", ({ app }) => growForCalls(app)],
+    ["fitActionTiles", ({ element }) => fitActionTiles(element)],
+    ["watchTileFit", ({ app, element }) => watchTileFit(app, element)],
+    ["holdActionsTab", ({ app, element }) => holdActionsTab(app, element)],
+    ["tidySidebar", ({ element }) => tidySidebar(element)],
+    ["paintReserves", ({ app, element }) => paintReserves(app, element)],
+    ["injectEquippedTools", ({ app, element }) => injectEquippedTools(app, element)],
+    ["noteEmptyExperience", ({ app, element }) => noteEmptyExperience(app, element)],
+    ["injectKnownPassages", ({ app, element }) => injectKnownPassages(app, element)],
+    ["injectSafeword", ({ app, element }) => injectSafeword(app, element)],
+    ["tidyBiography", ({ app, element }) => tidyBiography(app, element)],
+    ["groupInventory", ({ app, element }) => groupInventory(app, element)],
+    ["replaceEffectsTab", ({ app, element }) => replaceEffectsTab(app, element)],
+    // Last: the tab's scroll back where it was, once everything above has drawn into it.
+    ["keepTabScroll", ({ app, element }) => keepTabScroll(app, element)]
+];
+
+/** Run each of `SHEET_STEPS` in its own try; the names of the steps that threw, in their order. */
+function runSheetSteps(ctx) {
+    const failed = [];
+    for (const [name, run] of SHEET_STEPS) {
+        try {
+            run(ctx);
+        } catch (err) {
+            failed.push(name);
+            error(`Sheet step ${name} failed`, err);
+        }
+    }
+    return failed;
+}
+
 function onRenderCharacterSheet(app, element, context, options) {
     try {
         if (app?.document?.type !== "character") return;
@@ -837,34 +894,69 @@ function onRenderCharacterSheet(app, element, context, options) {
         // repository or the harness). A table reads it: LIVE-E66-02.
         markLanguage(root);
 
+        let failed = [];
         settle(root, () => {
-            frameTraits(element);
-            injectUltimate(app, element);
-            markSheetState(app, element);
-            injectInitButton(app, element);
-            injectAdvanceButton(app, element);
-            injectClassControls(app, element);
-            injectItemButton(app, element);
-            injectActionBar(app, element, fresh);
-            flashHope(app, element, fresh);
-            injectActionPanel(app, element);
-            growForCalls(app);
-            fitActionTiles(element);
-            watchTileFit(app, element);
-            holdActionsTab(app, element);
-            tidySidebar(element);
-            paintReserves(app, element);
-            injectEquippedTools(app, element);
-            injectKnownPassages(app, element);
-            injectSafeword(app, element);
-            tidyBiography(app, element);
-            groupInventory(app, element);
-            replaceEffectsTab(app, element);
-            removeSystemCreators(app, element);
+            failed = runSheetSteps({ app, element, fresh });
         });
+        if (failed.length) announceSheetSteps(failed);
     } catch (err) {
         error("Failed to render the Danganronpa sheet parts", err);
     }
+}
+
+/*
+ * THE LOADOUT TAB IS NEVER THE ONE SHOWN (E24 C3b, 08.11.2026; E24-22, audit S03-47, S12-45). Its link is hidden in
+ * the stylesheet (danganronpa.css "Loadout") because this game has no domain cards, but the part still rendered, and a
+ * sheet that came up on it - a tab Daggerheart remembered, a macro's `changeTab` - showed a pane of controls with no
+ * way back to it. At render, an active `loadout` tab is changed to the Actions tab (`features`, the one this module
+ * draws into) through the app's own `changeTab`, which keeps `tabGroups` and the nav in step; a stand-in without one
+ * gets the classes moved by hand. The part stays in the DOM, empty, for whatever reads it by its selector.
+ */
+function leaveLoadoutTab(app, element) {
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    if (!root) return;
+    const part = root.querySelector('section[data-application-part="loadout"], section.tab[data-tab="loadout"]');
+    if (!part) return;
+    const group = part.dataset.group || "primary";
+    if (part.classList.contains("active") || app?.tabGroups?.[group] === "loadout") {
+        if (typeof app?.changeTab === "function") {
+            app.changeTab("features", group, { force: true, updatePosition: false });
+        } else {
+            for (const el of root.querySelectorAll(`[data-group="${group}"][data-tab]`)) {
+                el.classList.toggle("active", el.dataset.tab === "features");
+            }
+            if (app?.tabGroups) app.tabGroups[group] = "features";
+        }
+    }
+    part.replaceChildren();
+}
+
+/*
+ * A TAB KEEPS ITS SCROLL (E24 C3b, 08.11.2026; E24-22, audit S03-14). Under the glass `section.tab` is the pane that
+ * scrolls (stained-glass.css "THE SHEET'S TABS SCROLL"), and every render draws a new one at the top: a player halfway
+ * down the Inventory was put back at its first row by any write to their sheet. Daggerheart keeps the scroll of its
+ * own inner lists only (`.items-section`, `.features-sections`). Each tab's `scrollTop` is kept here per app id and tab
+ * name, by one scroll listener on the window's root (which outlives its parts' renders; scroll does not bubble, so it
+ * is caught on the way down), and the active tab's is put back as the render's last step. Under Monokuma Legacy the
+ * same `section.tab` does not scroll: it keeps 0, and putting 0 back changes nothing.
+ */
+const tabScrolls = new Map();
+
+function keepTabScroll(app, element) {
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    const id = app?.id;
+    if (!root || !id) return;
+    if (!root.dataset.drpgTabScroll) {
+        root.dataset.drpgTabScroll = "1";
+        root.addEventListener("scroll", event => {
+            const tab = event.target;
+            if (!tab?.matches?.("section.tab[data-tab]")) return;
+            tabScrolls.set(`${id}|${tab.dataset.tab}`, tab.scrollTop);
+        }, { capture: true, passive: true });
+    }
+    const active = root.querySelector("section.tab.active[data-tab]");
+    const kept = active ? tabScrolls.get(`${id}|${active.dataset.tab}`) : undefined;
+    if (Number.isFinite(kept) && kept > 0 && active.scrollTop !== kept) active.scrollTop = kept;
 }
 
 /**
@@ -1348,11 +1440,15 @@ function actionPips(actor, { left, max, spentActions, fresh, viewer = false, sti
 function freeMovePip(actor, { spentMove, fresh, viewer = false, still = false }) {
     const move = document.createElement("span");
     const freeMove = hasFreeMove(actor);
-    move.className = `drpg-free-move${freeMove ? " available" : " spent"}`;
+    /* FOG IS A THIRD STATE (E24 C3b, 08.11.2026; E24-24, audit S03-13). `hasFreeMove` answers no under the Overflow's
+       Fog, and the pip said "Free Move used" of a Move nobody spent. Drawn as a spent one (it is not there to take),
+       with `drpg-fogged` and Fog's reason in the tooltip. */
+    const fog = !freeMove && overflowBlocksFreeMove();
+    move.className = `drpg-free-move${freeMove ? " available" : " spent"}${fog ? " drpg-fogged" : ""}`;
     markSpent(move, fresh || still ? null : spentMove);
     if (!viewer && !still) {
         move.dataset.tooltip = game.i18n.localize(
-            freeMove ? "DRPG.Actions.freeMoveAvailable" : "DRPG.Actions.freeMoveSpent"
+            freeMove ? "DRPG.Actions.freeMoveAvailable" : fog ? "DRPG.SheetNotes.fogFreeMove" : "DRPG.Actions.freeMoveSpent"
         );
     }
     // Solid while it is there, OUTLINED once it is gone - the same pair the
@@ -2276,6 +2372,16 @@ function injectEquippedTools(app, element) {
         readied++;
 
         const tier = item.getFlag(MODULE_ID, "tier");
+        /* BOTH TAGS (E24 C3b, 08.11.2026; E24-23, the owner's 28.10): the row drew its slot's label alone, so a
+           Murder Weapon that is also a Tool read as a Murder Weapon only. The gear row's own tags (`itemTags`: the
+           home and the other roles, each once), the tier after them; the slot's label where an item has none. */
+        const tags = itemTags(item, true);
+        // One line, as the slot's label was: the tags side by side, not a block each (shots/c3b: three stacked lines).
+        const labels = (tags.length ? tags : [{ key: category, label: ITEM_CATEGORIES[category]?.label ?? category, hint: null }])
+            .map(tag => `<span class="drpg-equipped-tag" data-drpg-role="${classSafe(tag.key)}"${tag.hint
+                ? ` data-tooltip="${foundry.utils.escapeHTML(tag.hint)}"` : ""}>${foundry.utils.escapeHTML(tag.label)}</span>`).join(" · ");
+        const tierLabel = tier !== undefined && tier !== null
+            ? `<span class="drpg-equipped-tier"> - T${foundry.utils.escapeHTML(String(tier))}</span>` : "";
         const li = document.createElement("li");
         li.className = "inventory-item inventory-item-compact drpg-equipped-tool";
         li.dataset.drpgEquipped = category;
@@ -2287,9 +2393,7 @@ function injectEquippedTools(app, element) {
                 <img src="${foundry.utils.escapeHTML(item.img ?? "")}" class="item-img" alt="" />
             </div>
             <span class="item-name">${foundry.utils.escapeHTML(item.name)}</span>
-            <div class="item-labels"><div class="label">${
-                foundry.utils.escapeHTML(ITEM_CATEGORIES[category]?.label ?? category)
-            }${tier !== undefined && tier !== null ? ` - T${foundry.utils.escapeHTML(String(tier))}` : ""}</div></div>`;
+            <div class="item-labels"><div class="label">${labels}${tierLabel}</div></div>`;
 
         guardRow(li, item, app);
         li.addEventListener("click", event => {
@@ -2310,6 +2414,25 @@ function injectEquippedTools(app, element) {
         empty.textContent = game.i18n.localize("DRPG.Items.noneReadied");
         list.append(empty);
     }
+}
+
+/*
+ * AN EMPTY EXPERIENCE SAYS SO (E24 C3b, 08.11.2026; E24-23, audit S15-02, S03-29). A student with no experiences
+ * showed the Experience heading over nothing, which reads as a part that failed to draw. One line, as the Equipped
+ * list says its own empty state (`drpg-experience-empty`), worded from the player handbook (two at +2 at the start,
+ * one more from a Level Up). Not for a Monokuma, whose sheet has no experiences to keep.
+ */
+function noteEmptyExperience(app, element) {
+    const actor = app?.document;
+    if (!actor || isMonokuma(actor)) return;
+    const list = element.querySelector(".character-sidebar-sheet .experience-section .experience-list");
+    if (!list) return;
+    list.querySelectorAll(".drpg-experience-empty").forEach(row => row.remove());
+    if (Object.keys(actor.system?.experiences ?? {}).length) return;
+    const empty = document.createElement("p");
+    empty.className = "notes drpg-experience-empty";
+    empty.textContent = game.i18n.localize("DRPG.SheetNotes.noExperiences");
+    list.append(empty);
 }
 
 /*
@@ -4344,6 +4467,8 @@ function budgetLine(actor) {
     }, "max")];
 
     if (hasFreeMove(actor)) parts.push(game.i18n.localize("DRPG.Actions.freeMoveLeft"));
+    // Fog took it (E24 C3b; E24-24): said, so a Move that is not there reads as the weather's and not as spent.
+    else if (overflowBlocksFreeMove()) parts.push(game.i18n.localize("DRPG.SheetNotes.fogBudget"));
 
     // What Hope has already bought, next to what the day gave you.
     //
@@ -4402,7 +4527,7 @@ function injectCallsPanel(tab, actor, monokuma) {
     // Refusal stays where it is. The dimming says "not now"; pressing anyway is
     // still how a player is told why.
     panel.className = `drpg-calls-panel ${monokuma ? "drpg-despair-panel" : "drpg-hope-panel"}${
-        isCallSilenced(actor) ? " drpg-silenced" : ""}`;
+        isCallSilenced(actor) || (!monokuma && overflowBlocksCalls()) ? " drpg-silenced" : ""}`;
 
     // The pool is on the bar for a Monokuma and nowhere else: Despair is the
     // only thing their sheet is about, and the number is not repeated anywhere
@@ -4449,6 +4574,11 @@ function injectCallsPanel(tab, actor, monokuma) {
 function callLockNote(monokuma) {
     if (isEclipse()) return game.i18n.localize("DRPG.Eclipse.callsLocked");
     if (monokuma && inClassTrial()) return game.i18n.localize("DRPG.Trial.callsLocked");
+    /* SILENCE, THE WEATHER, ON THE DRAWER (E24 C3b, 08.11.2026; E24-24, audit S03-13). calls.mjs refuses every Hope
+       Call while the Overflow's Silence runs (`overflowBlocksCalls`, `DRPG.Overflow.silenced`), and the drawer went
+       on looking open: a player read six Hope and seven live tiles and learnt the rule from the refusal. A Despair
+       Call is not a Hope Call, so a Monokuma's drawer stays as it is. */
+    if (!monokuma && overflowBlocksCalls()) return game.i18n.localize("DRPG.Overflow.silenced");
     return null;
 }
 

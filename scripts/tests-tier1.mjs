@@ -2062,8 +2062,10 @@ const INVARIANTS = [
         ok(head.length > 0 && !/writing-mode/.test(head), "the players' names stand on end again");
         ok(/fa-music/.test(src("hud.mjs")), "the track band has lost its notes");
         // The CALL, with its semicolon: `holdActionsTab(app, element)` alone also matches
-        // the definition's own signature, and passed with the call deleted.
-        ok(/function holdActionsTab\(/.test(src("sheet.mjs")) && /^\s*holdActionsTab\(app, element\);/m.test(src("sheet.mjs")),
+        // the definition's own signature, and passed with the call deleted. Since E24 C3b the
+        // call is a step of `SHEET_STEPS`: its row, whole, for the same reason.
+        ok(/function holdActionsTab\(/.test(src("sheet.mjs"))
+            && /^\s*\["holdActionsTab", \(\{ app, element \}\) => holdActionsTab\(app, element\)\],/m.test(src("sheet.mjs")),
             "nothing grows the glass sheet to hold its Actions tab");
 
         // The pause veil starts at the top of the screen: #pause is a <figure>, with a margin.
@@ -39495,6 +39497,216 @@ const INVARIANTS = [
         "{seen: [Breakdown, Wounded, dead] drawn on a student's token for its owner, a GM, another player and an Observer-only player, and on a Monokuma's for another player; "
             + "wrap: [marked, a second wrap stacks nothing, a GM's Breakdown drawn through it, it asks effectIconShown with the token's actor]; the contract's row [kind, owner, file]}");
     }],
+    ["R1456 - one step at a time (sheet.mjs `SHEET_STEPS`; E24 C3b, E24-21; audit S03-42): a step that throws - `tidyBiography` on a biography part whose lookup throws - is logged as \"Sheet step tidyBiography failed\" and every other step runs, `removeSystemCreators` first (Daggerheart's \"+\" gone, the inventory's groups and the Rules tab drawn); the primary GM is told once a load, by one notice naming the step; a player never", async () => {
+        /*
+         * E24 C3b, 08.11.2026. Planted in the DOM, not in the table: the stand-in root's biography part answers every
+         * lookup with a throw, which is where `tidyBiography` reads first - so the same plant reads the tree before
+         * the table, where the steps after it never ran (red there: the creator still in Features, no groups, no Rules
+         * tab). Each table entry is wrapped for the render with a recorder of its name and put back in a finally, and
+         * the load's memory of the notice (requirements.mjs `sheetStepNotice`) is set to "not told" for the test and
+         * back after it. The owner is this GM with `isGM` off, as R1455 reads one.
+         */
+        const SH = await import("./sheet.mjs");
+        const R = await import("./requirements.mjs");
+        const who = studentActors()[0];
+        must(who, "no student in the world - this would measure nothing");
+        const table = Array.isArray(SH.SHEET_STEPS) ? SH.SHEET_STEPS : [];
+        const kept = table.slice();
+        const ran = [];
+        table.forEach(([name, run], i) => { table[i] = [name, ctx => { ran.push(name); return run(ctx); }]; });
+        const plant = () => {
+            const root = e24SheetRoot();
+            root.querySelector('section[data-application-part="features"]').insertAdjacentHTML("beforeend",
+                `<fieldset><legend>R1456 <a data-action="addNewItem">+</a> <a data-action="viewDoc">R1456 view</a></legend></fieldset>`);
+            root.insertAdjacentHTML("beforeend", `<section class="tab" data-tab="biography" data-application-part="biography"></section>`
+                + `<section class="tab" data-tab="effects" data-application-part="effects"></section>`);
+            const bio = root.querySelector('section[data-application-part="biography"]');
+            bio.querySelector = () => { throw new Error("R1456 planted"); };
+            return root;
+        };
+        const logged = [], told = [];
+        const realError = console.error, realWarn = ui.notifications.warn, was = R.sheetStepNotice?.told;
+        console.error = (...args) => { logged.push(args.map(a => (a instanceof Error ? a.message : String(a))).join(" ")); };
+        ui.notifications.warn = (message, ...rest) => { told.push(String(message)); return realWarn?.call(ui.notifications, message, ...rest); };
+        const out = {};
+        try {
+            if (R.sheetStepNotice) R.sheetStepNotice.told = false;
+            for (const [n, role] of [[1, "gm"], [2, "gm"], [3, "owner"]]) {
+                if (role === "owner" && R.sheetStepNotice) R.sheetStepNotice.told = false;
+                ran.length = 0;
+                const root = plant();
+                await e24AsRole(role, () => Hooks.callAll("renderCharacterSheet", { id: `R1456-${n}`, document: who, isEditable: true, element: root, rendered: true },
+                    root, {}, { isFirstRender: true }));
+                out[`render${n}/${role}`] = {
+                    creator: Boolean(root.querySelector('[data-action="addNewItem"]')), groups: Boolean(root.querySelector(".drpg-inventory-groups")),
+                    rules: Boolean(root.querySelector(".drpg-rules-tab")), first: ran[0] ?? null, ran: ran.length,
+                    logged: logged.filter(line => line.includes("Sheet step tidyBiography failed") && line.includes("R1456 planted")).length,
+                    told: told.filter(line => line.includes("tidyBiography")).length
+                };
+                logged.length = 0;
+                told.length = 0;
+            }
+        } finally {
+            console.error = realError;
+            ui.notifications.warn = realWarn;
+            if (R.sheetStepNotice) R.sheetStepNotice.told = was;
+            kept.forEach((entry, i) => { table[i] = entry; });
+        }
+        const names = kept.map(([name]) => name);
+        const want = { creator: false, groups: true, rules: true, first: "removeSystemCreators", ran: names.length, logged: 1 };
+        equal(stableJson({ out, names: ["removeSystemCreators", "tidyBiography", "groupInventory", "replaceEffectsTab", "paintReserves", "injectActionPanel",
+            "markSheetState", "injectClassControls", "injectEquippedTools"].filter(name => !names.includes(name)) }),
+        stableJson({ out: { "render1/gm": { ...want, told: 1 }, "render2/gm": { ...want, told: 0 }, "render3/owner": { ...want, told: 0 } }, names: [] }),
+        "[each render (a GM's first, a GM's second in the same load, a player's): Daggerheart's creator left, the inventory's groups, the Rules tab, the first step run, the steps run, the errors naming the step, the notices naming it; the steps SHEET_STEPS lacks]");
+        must(names.length >= 20, `SHEET_STEPS holds ${names.length} step(s) - the sheet's injections were not read`);
+    }],
+    ["R1457 - the Loadout tab is never the one shown (sheet.mjs `leaveLoadoutTab`; E24 C3b, E24-22; audit S03-47, S12-45): a sheet that renders on `loadout` is changed to the Actions tab (`features`) through the app's own `changeTab`, or by its classes and `tabGroups` where it has none; the Loadout part holds no control after a render; a sheet on another tab is left on it", async () => {
+        /* E24 C3b, 08.11.2026. Stand-in roots (e24SheetRoot) with the tab bar and a Loadout part holding Daggerheart's
+           kind of controls; stand-in apps with and without `changeTab`. Red on the tree before: still on loadout. */
+        const who = studentActors()[0];
+        must(who, "no student in the world - this would measure nothing");
+        const draw = ({ active, withChange }) => {
+            const root = e24SheetRoot();
+            root.insertAdjacentHTML("afterbegin", `<nav class="sheet-tabs tabs" data-group="primary">${["features", "loadout", "inventory"]
+                .map(tab => `<a data-action="tab" data-group="primary" data-tab="${tab}"${tab === active ? ` class="active"` : ""}>${tab}</a>`).join("")}</nav>`);
+            root.insertAdjacentHTML("beforeend", `<section class="tab" data-group="primary" data-tab="loadout" data-application-part="loadout">`
+                + `<button type="button" data-action="toggleVault">R1457 vault</button><a data-action="useItem">R1457 card</a></section>`);
+            for (const section of root.querySelectorAll("section.tab")) {
+                section.dataset.group = "primary";
+                section.classList.toggle("active", section.dataset.tab === active);
+            }
+            const calls = [];
+            const app = { id: `R1457-${active}-${withChange}`, document: who, isEditable: true, tabGroups: { primary: active } };
+            if (withChange) {
+                app.changeTab = function (tab, group) {
+                    calls.push([tab, group]);
+                    this.tabGroups[group] = tab;
+                    for (const el of root.querySelectorAll(`[data-group="${group}"][data-tab]`)) el.classList.toggle("active", el.dataset.tab === tab);
+                };
+            }
+            Hooks.callAll("renderCharacterSheet", app, root, {}, { isFirstRender: true });
+            const part = root.querySelector('section[data-application-part="loadout"]');
+            return { calls, group: app.tabGroups.primary, shown: root.querySelector("section.tab.active")?.dataset.tab ?? null,
+                link: root.querySelector("nav a.active")?.dataset.tab ?? null, part: Boolean(part), controls: part?.querySelectorAll("button, a, input, select, [data-action]").length ?? null };
+        };
+        equal(stableJson({ change: draw({ active: "loadout", withChange: true }), none: draw({ active: "loadout", withChange: false }), other: draw({ active: "inventory", withChange: true }) }),
+            stableJson({ change: { calls: [["features", "primary"]], group: "features", shown: "features", link: "features", part: true, controls: 0 },
+                none: { calls: [], group: "features", shown: "features", link: "features", part: true, controls: 0 },
+                other: { calls: [], group: "inventory", shown: "inventory", link: "inventory", part: true, controls: 0 } }),
+            "[on loadout with the app's changeTab, on loadout without one, on the Inventory]: changeTab's calls, tabGroups.primary, the part shown, the link marked, the Loadout part kept, its controls");
+    }],
+    ["R1458 - a tab keeps its scroll across a render (sheet.mjs `keepTabScroll`; E24 C3b, E24-22; audit S03-14): what the active `section.tab` was scrolled to is put back on the next render's, per app and per tab - another tab of the same sheet and the same tab of another sheet start at the top", async () => {
+        /*
+         * E24 C3b, 08.11.2026. jsdom lays nothing out but keeps an element's `scrollTop`, and a render is a new root here
+         * (Daggerheart draws new parts into the window's root; the stand-in draws a whole new one, which also asks that
+         * the listener is bound on each root it meets). Which pane scrolls is the stylesheet's - `section.tab` under the
+         * glass, none of the module's under Monokuma Legacy, where Daggerheart keeps its inner lists' scroll itself - and
+         * the step reads no theme (its source is held to that), so both themes' sheets take the same road. Red on the
+         * tree before: scrollTop 0.
+         */
+        const SH = await import("./sheet.mjs");
+        const who = studentActors()[0];
+        must(who, "no student in the world - this would measure nothing");
+        const draw = (id, tab, scrollTo = null) => {
+            const root = e24SheetRoot();
+            for (const section of root.querySelectorAll("section.tab")) section.classList.toggle("active", section.dataset.tab === tab);
+            Hooks.callAll("renderCharacterSheet", { id, document: who, isEditable: true }, root, {}, { isFirstRender: false });
+            const pane = root.querySelector(`section.tab[data-tab="${tab}"]`);
+            const seen = pane.scrollTop;
+            if (scrollTo !== null) {
+                pane.scrollTop = scrollTo;
+                pane.dispatchEvent(new Event("scroll"));
+            }
+            return seen;
+        };
+        const seen = {
+            first: draw("R1458-a", "inventory", 140), again: draw("R1458-a", "inventory"),
+            otherTab: draw("R1458-a", "features", 60), back: draw("R1458-a", "inventory"), features: draw("R1458-a", "features"),
+            otherSheet: draw("R1458-b", "inventory")
+        };
+        const step = (SH.SHEET_STEPS ?? []).find(([name]) => name === "keepTabScroll");
+        const source = stripComments((new Map(await otherSources())).get("sheet.mjs") ?? "");
+        equal(stableJson({ seen, last: (SH.SHEET_STEPS ?? []).at(-1)?.[0] ?? null, theme: Boolean(step) && /drpg-theme/.test(topLevelFunction(source, "keepTabScroll") ?? "drpg-theme") }),
+            stableJson({ seen: { first: 0, again: 140, otherTab: 0, back: 140, features: 60, otherSheet: 0 }, last: "keepTabScroll", theme: false }),
+            "[scrollTop on render: the first, the next on the same tab, another tab, back, that tab again, another sheet's same tab]; the table's last step; whether the step reads a theme");
+    }],
+    ["R1459 - an empty Experience says so, and an item in hand shows both its tags (sheet.mjs `noteEmptyExperience`, `injectEquippedTools`; E24 C3b, E24-23; audit S15-02, S03-29; the owner's 28.10): no experiences - one `drpg-experience-empty` line, `DRPG.SheetNotes.noExperiences`; one - none; a Murder Weapon held ready that is also a Tool reads \"Murder Weapon · Tool - T2\" on the Equipped row, a tag each", async () => {
+        /*
+         * E24 C3b, 08.11.2026. A world student whose `items` and `system.experiences` are answered in this browser's
+         * memory for the draw (own properties, taken off in a finally; nothing written), on a stand-in root that adds
+         * the sidebar's Equipped and Experience blocks (Daggerheart 2.10.5's character/sidebar.hbs). No step may fail on
+         * the stand-ins - that would be a plant, not the reading. Red on the tree before: one tag ("Murder Weapon - T2"),
+         * no empty line.
+         */
+        const who = studentActors()[0];
+        must(who, "no student in the world - this would measure nothing");
+        const flags = { category: "crimeTool", equipped: true, roles: ["tool", "crimeTool"], tier: 2 };
+        const item = { id: "R1459ITEM0000001", uuid: "Actor.R1459.Item.R1459ITEM0000001", name: "R1459 knife", img: "", type: "loot", sheet: null,
+            flags: { [MODULE_ID]: flags }, getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) };
+        item.actor = who;
+        const draw = experiences => e24Own(who, "items", e24Items([item]), () => e24Own(who.system, "experiences", experiences, () => {
+            const root = e24SheetRoot();
+            root.querySelector(".character-sidebar-sheet").insertAdjacentHTML("beforeend",
+                `<div class="equipment-section"><div class="title"><h3>Equipment</h3></div><ul class="items-sidebar-list"></ul></div>`
+                + `<div class="experience-section"><div class="title"><h3>Experience</h3></div><div class="experience-list">${
+                    Object.values(experiences).map(e => `<div class="experience-row"><span class="experience-name">${e.name}</span></div>`).join("")}</div></div>`);
+            const failed = [];
+            const realError = console.error;
+            console.error = (...args) => { failed.push(args.map(String).join(" ")); };
+            try {
+                Hooks.callAll("renderCharacterSheet", { id: "R1459-app", document: who, isEditable: true }, root, {}, { isFirstRender: true });
+            } finally {
+                console.error = realError;
+            }
+            return { failed: failed.filter(line => line.includes("Sheet step") || line.includes("Danganronpa sheet")).length,
+                empty: [...root.querySelectorAll(".experience-section .drpg-experience-empty")].map(el => el.textContent),
+                labels: [...root.querySelectorAll('[data-drpg-equipped="crimeTool"] .item-labels .label')].map(el => el.textContent.trim()),
+                tags: [...root.querySelectorAll('[data-drpg-equipped="crimeTool"] .item-labels .drpg-equipped-tag')].map(el => el.textContent) };
+        }));
+        const held = [`${ITEM_CATEGORIES.crimeTool.label} · ${ITEM_CATEGORIES.tool.label} - T2`];
+        const tags = [ITEM_CATEGORIES.crimeTool.label, ITEM_CATEGORIES.tool.label];
+        equal(stableJson({ none: await draw({}), one: await draw({ r1459: { name: "R1459 cooking", value: 2 } }) }),
+            stableJson({ none: { failed: 0, empty: [game.i18n.localize("DRPG.SheetNotes.noExperiences")], labels: held, tags }, one: { failed: 0, empty: [], labels: held, tags } }),
+            "[no experiences, one]: the steps that failed; the empty Experience line; the Equipped row's label and its tags for a Murder Weapon that is also a Tool (its home listed twice)");
+    }],
+    ["R1460 - the locks on the sheet (sheet.mjs `callLockNote`, `freeMovePip`, `budgetLine`; E24 C3b, E24-24; audit S03-13): under the Overflow's Silence every Hope Call tile is locked and carries `DRPG.Overflow.silenced` and the drawer is `drpg-silenced`; under Fog the free Move is a third state (`drpg-fogged`, Fog's reason) and the budget line says Fog's reason; with no Overflow running neither", async () => {
+        /*
+         * E24 C3b, 08.11.2026. The clock and the Overflow's stamp answered in memory (`game.settings.get` for three of the
+         * module's keys, put back in a finally; nothing written), as R1192's stand-in reads Darkness; drawn for a GM on a
+         * stand-in root, where the tiles' and the pip's tooltips are drawn. Red on the tree before: the drawer open, the
+         * pip "Free Move used".
+         */
+        const who = studentActors()[0];
+        must(who, "no student in the world - this would measure nothing");
+        const stamp = { session: 1, day: 1, timeOfDay: "noon" };
+        const silenced = game.i18n.localize("DRPG.Overflow.silenced"), fogMove = game.i18n.localize("DRPG.SheetNotes.fogFreeMove"),
+            fogBudget = game.i18n.localize("DRPG.SheetNotes.fogBudget");
+        const draw = effect => {
+            const real = game.settings.get;
+            game.settings.get = function (module, key, ...rest) {
+                if (module === MODULE_ID && key === SETTINGS.clock) return { ...stamp, eclipse: false };
+                if (module === MODULE_ID && key === SETTINGS.overflow) return { active: effect ? { ...stamp, effect } : null };
+                if (module === MODULE_ID && key === SETTINGS.overflowRules) return {};
+                return real.call(this, module, key, ...rest);
+            };
+            try {
+                const root = e24SheetRoot();
+                Hooks.callAll("renderCharacterSheet", { id: `R1460-${effect}`, document: who, isEditable: true }, root, {}, { isFirstRender: true });
+                const tiles = [...root.querySelectorAll(".drpg-hope-panel .drpg-action-grid button")];
+                const move = root.querySelector(".drpg-free-move");
+                const line = root.querySelector(".drpg-budget-line")?.textContent ?? null;
+                return { tiles: tiles.length > 0, locked: tiles.length > 0 && tiles.every(t => t.classList.contains("drpg-locked-eclipse") && (t.dataset.tooltip ?? "").includes(silenced)),
+                    drawer: Boolean(root.querySelector(".drpg-hope-panel.drpg-silenced")), fogged: Boolean(move?.classList.contains("drpg-fogged")),
+                    moveSays: move ? (move.dataset.tooltip === fogMove ? "fog" : move.dataset.tooltip ? "other" : "none") : null, budget: line === null ? null : line.includes(fogBudget) };
+            } finally {
+                game.settings.get = real;
+            }
+        };
+        const calm = { tiles: true, locked: false, drawer: false, fogged: false, moveSays: "other", budget: false };
+        equal(stableJson({ none: draw(null), silence: draw("silence"), fog: draw("fog") }),
+            stableJson({ none: calm, silence: { ...calm, locked: true, drawer: true }, fog: { ...calm, fogged: true, moveSays: "fog", budget: true } }),
+            "[no Overflow, Silence, Fog]: Hope Call tiles drawn; all locked with Overflow.silenced; the drawer silenced; the free Move fogged; what its tooltip says; the budget line says Fog");
+    }],
 ];
 
 /**
@@ -40084,6 +40296,28 @@ function partyStandIn(actor) {
         + `<section class="body"><section class="resources">${section("hitPoints", "DAGGERHEART.GENERAL.HitPoints.plural", "toggleHitPoints")}`
         + `${section("stress", "DAGGERHEART.GENERAL.stress", "toggleStress")}</section></section></li></ul>`;
     return root;
+}
+
+/* E24 C3b's fixtures (R1459): `obj[key]` answered as `value` for `run` - an own property in this browser's memory, the
+   one it had (or none) put back in a finally, nothing written - and a list read as a document collection reads. */
+async function e24Own(obj, key, value, run) {
+    const own = Object.getOwnPropertyDescriptor(obj, key);
+    Object.defineProperty(obj, key, { configurable: true, writable: true, enumerable: own?.enumerable ?? false, value });
+    try {
+        return await run();
+    } finally {
+        if (own) Object.defineProperty(obj, key, own); else delete obj[key];
+    }
+}
+
+function e24Items(list) {
+    const all = [...list];
+    return {
+        [Symbol.iterator]: () => all.values(), get contents() { return [...all]; }, get size() { return all.length; },
+        get: id => all.find(i => i.id === id), has: id => all.some(i => i.id === id), getName: name => all.find(i => i.name === name),
+        find: fn => all.find(fn), filter: fn => all.filter(fn), some: fn => all.some(fn), every: fn => all.every(fn), map: fn => all.map(fn),
+        reduce: (fn, init) => all.reduce(fn, init), forEach: fn => all.forEach(fn), documentName: "Item"
+    };
 }
 
 export { INVARIANTS };
