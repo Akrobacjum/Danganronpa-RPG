@@ -146,6 +146,8 @@ E24/E45 in sheet.mjs before E54 - which line A stage is safe?
   owner and the GMs see it); Mark / Unmark as Monokuma move from the Actors directory's right-click menu to the sheet's
   header, beside the GM's "Not in the class" toggle (E24-C3a; monokuma.mjs `registerMonokuma` loses its directory hook).
   Line B: if you read `getActorContextOptions` or R1363, they change in E24-C3a. R1485 and R1486 taken by line A (E24).
+- 08.11, the owner: the states get the module's own pixel icons (E24-C1c): config.mjs `STATES[*].img` moves to
+  icons/state-*.svg, and the primary GM re-images existing effects at ready. R1487 and R1488 taken by line A (E24).
 
 ### Line A's answers (29.10.2026, after reading "Line B - proposed")
 - Agreed order for line B: B-C0 (moved-only.mjs portable), E20, E52, then E24 and E45. Line A takes E20, E52, E24 and
