@@ -38376,36 +38376,34 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify([true, 2, true, true, true]),
             "[the standing panes' layer made, ways back made, the standing panes' layer darkened by the pulse, every way back darkened by it, the curtain's pulse layer drawn]");
     }],
-    ["R1412 - a recut waits for the turn on the screen (glass.mjs `glassTurn`'s `defer`, `rebuild`; E23 fix G1, the end review's correctness m1): a running turn takes a recut to run at its end and is not cancelled by it, runs the recut once it has finished, and a turn ended takes none; `rebuild` asks the running turn before it cuts", async () => {
+    ["R1412 - a turn interrupted hands on the frame on the screen (glass.mjs `glassTurn`, `lookOnScreen`; E23 fix G1b, the end review's correctness m1): a turn asked while another runs cancels it at once and turns from the look as shown - the curtain's with the running turn's layers over it - not from the curtain's canvases alone; `rebuild` cuts at once, holding no recut for a running turn", async () => {
         /*
-         * E23 fix G1, 08.11.2026. A recut while a turn ran cancelled it: its layers went in one frame and the next turn
-         * began from the first turn's end, a snap of colour or shape. `rebuild` now asks the running turn first, and the
-         * recut is made at its end. Read on a stand-in curtain (`turnRig`) with a frame queue and Web Animations of the
-         * test's own, so the turn is started, finished and read without a frame of the page's. Red at ce3a821f: a
-         * running turn has no `defer`, and `rebuild` cuts at once.
+         * E23 fix G1 (08.11.2026) held a recut until the running turn's end (`defer`); that held the layout with it, and
+         * the sweep's camera dock check read the notice tile where the dock had lifted it 600 ms after the dock went
+         * (G1b). The recut is made at once again, and the next turn's old look is the frame on the screen. Read on a
+         * stand-in curtain (`turnRig`): turn A runs, then turn B is asked with an old look of its own; B's layers must
+         * carry A's layers' ink (A's old look) as well as B's. Red at 18b9eaf8: B's layers carry B's look alone, and
+         * `rebuild` asks the running turn to hold the recut.
          */
         needs(env.motion());
         const G = await import("./glass.mjs");
         const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(lfText));
         const rig = turnRig(G);
-        const asked = [];
-        let first = null, second = null, h = null;
+        let read = null, a = null, b = null;
         try {
-            h = rig.turn();
-            must(h, "the stand-in recut planned no turn - this reads nothing");
+            a = rig.turn();
+            must(a, "the stand-in recut planned no turn - this reads nothing");
             rig.frames();
-            const held = typeof h.defer === "function" ? h.defer(() => asked.push("recut")) : false;
-            first = [held, h.ended, asked.length];
-        } finally { rig.restore(); }
-        try {
-            for (const a of rig.animations()) a.finish();
-            await until(() => h.ended && asked.length, 2000);
-            second = [h.ended, h.cancelled, asked.join(","), typeof h.defer === "function" ? h.defer(() => asked.push("late")) : null];
-        } finally { h?.cancel(); rig.done(); }
-        const rebuild = fnSource(src, "rebuild");
-        equal(JSON.stringify([first, second, /\.defer\?\.\(/.test(rebuild) && rebuild.indexOf(".defer") < rebuild.indexOf("rebuildAll(")]),
-            JSON.stringify([[true, false, 0], [true, false, "recut", false], true]),
-            "[a running turn asked to hold a recut: held, ended, recuts run]; [after it finished: ended, cancelled, the recuts run, a turn ended holding one]; `rebuild` asks before it cuts");
+            const second = document.createElement("canvas");
+            rig.mark(second, ["second look"]);
+            b = rig.turn({ look: second });
+            must(b, "the second stand-in recut planned no turn - this reads nothing");
+            const moving = [...rig.host().querySelectorAll("canvas.drpg-turn-pane")].filter(c => !a.made.includes(c));
+            const carried = moving.filter(c => rig.ink(c).includes("second look"));
+            read = [a.ended, a.cancelled, carried.length, carried.every(c => rig.ink(c).includes("old look"))];
+        } finally { b?.cancel(); a?.cancel(); rig.done(); }
+        equal(JSON.stringify([read, /\.defer\b/.test(fnSource(src, "rebuild"))]), JSON.stringify([[true, true, 2, true], false]),
+            "[[turn A: ended, cancelled; turn B's layers carrying its own old look (one a move), each carrying A's layers as shown], `rebuild` holds a recut for a running turn]");
     }],
     ["R1413 - reduced motion switched on mid-turn ends the turn (glass.mjs `glassTurn`, E23 fix G1; the end review's correctness n4, E23-07): the reduced-motion class put on the body while a turn runs cancels it at once, its layers gone, and the end state stands", async () => {
         /*
@@ -38748,7 +38746,8 @@ function turnRig(G) {
     return {
         job, pulse, ink, restore,
         host: () => box.querySelector("#drpg-curtain-turn") ?? box,
-        turn: () => G.glassTurn({ job, from: old.map(pane), look, to: job.panes, fromAcc: "#ff3d8b", acc: "#ff3d8b", frame: cb => queue.push(cb) }),
+        mark: set,
+        turn: (over = {}) => G.glassTurn({ job, from: old.map(pane), look, to: job.panes, fromAcc: "#ff3d8b", acc: "#ff3d8b", frame: cb => queue.push(cb), ...over }),
         frames: (t = 1000) => { for (let n = 0; queue.length && n < 4; n++) queue.shift()(t + n * 16.7); },
         animations: () => anims.filter(a => a.playState !== "idle"),
         done: () => {

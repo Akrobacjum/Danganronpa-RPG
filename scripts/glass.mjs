@@ -3835,16 +3835,54 @@ export function startTurn(h, frame = cb => requestAnimationFrame(cb)) {
   });
   return h;
 }
+/* A TURN INTERRUPTED HANDS ON THE FRAME ON THE SCREEN (E23 fix G1b, 08.11.2026; the end review's correctness m1). A
+   recut that comes while a turn runs cancels it, and the next turn's old look is the curtain's canvases - which hold
+   the first turn's end, not what was shown: its layers went in one frame and the next turn began from that end, a snap
+   of colour or shape. G1 held the recut until the turn's end instead (`defer`), and that held the layout with it: the
+   blocks the cut places stood where the old cut put them for up to the turn's 1.2 s, and the sweep's camera dock
+   check, which reads the notice tile 600 ms after the dock is hidden, read it where the dock had lifted it (failing
+   lines a run: 0 and 1 on 6dd87b7c, 4 and 1 on 18b9eaf8, 0, 0 and 0 on ce3a821f). So the recut is made at once again, and the
+   look it turns from is the one on the screen: the curtain's look at the curtain's opacity of the moment (`hold`), the
+   running turn's layers drawn over it in their order, each at its computed transform and opacity. Left out: the
+   frost, the flash and the clip of a turn's holes (`drpg-turn-moves`), so a layer that crossed a hole is carried over
+   it. Read by R1412. */
+function lookOnScreen(job, look) {
+  const h = job?.turn;
+  if (!h || h.ended || !look) return look;
+  const c = document.createElement("canvas"); c.width = look.width; c.height = look.height;
+  const g = c.getContext("2d");
+  if (!g) return look;
+  const k = job.W ? look.width / job.W : 1;
+  const opacity = el => { const v = parseFloat(getComputedStyle(el).opacity); return Number.isFinite(v) ? v : 1; };
+  const matrix = el => { const m = /^matrix\(([^)]+)\)$/.exec(getComputedStyle(el).transform ?? ""); const v = m ? m[1].split(",").map(Number) : null; return v?.length === 6 && v.every(Number.isFinite) ? v : null; };
+  g.globalAlpha = opacity(job.el);
+  g.drawImage(look, 0, 0);
+  const host = document.getElementById("drpg-curtain-turn");
+  for (const el of host?.querySelectorAll("canvas") ?? []) {
+    if (!h.made.includes(el)) continue;
+    const x = parseFloat(el.style.left) || 0, y = parseFloat(el.style.top) || 0, w = parseFloat(el.style.width) || el.width, ht = parseFloat(el.style.height) || el.height;
+    const m = matrix(el);
+    g.setTransform(k, 0, 0, k, 0, 0);
+    g.translate(x, y);
+    if (m) g.transform(...m);
+    g.globalAlpha = opacity(el);
+    g.drawImage(el, 0, 0, w, ht);
+  }
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.globalAlpha = 1;
+  return c;
+}
 /**
  * THE ONE ENTRY POINT OF A TURN (E23 C1b; the line E61's and E62's sequences build on). `job` is the curtain's (the
  * first by default), `from` the panes that stood (`snapshotPanes`), `look` their look (`snapshotLook`), `glow` the old
  * glow's copy, `to` the panes standing now with their look already painted, `fromAcc` and `acc` the two accents;
  * `move`, `flash`, `dur` and `curve` as `turnPlan` takes them; `frame` is `startTurn`'s (a test's own; the page's by
- * default). A turn running is ended first. Answers the turn - its `plan`, its `layers`, `cancel()`, `defer(fn)` - or null
+ * default). A turn running is ended first. Answers the turn - its `plan`, its `layers`, `cancel()` - or null
  * when there is nothing to turn, which leaves the end state standing.
  */
 export function glassTurn({ job = curtains[0], from = null, look = null, glow = null, to = job?.panes, fromAcc = null, acc = job?.acc, move = TURN_MOVE, flash = true, dur = TURN(), curve = ARRIVE, frame = undefined } = {}) {
   if (!job || !to) return null;
+  look = lookOnScreen(job, look);
   job.turn?.cancel();
   const plan = turnPlan(from, to, { W: job.W, H: job.H, fromAcc, acc, dur, move, curve, flash, reduced: REDUCED() });
   if (plan.none || !look) return null;
@@ -3918,7 +3956,7 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
      old in its own, the square at 0,576 at 39 % of rest (2.48 of 6.31) in every version of the move tried. One held
      already when it was made (the harness's frozen clock) is left held. */
   const posed = layers.map(l => { const a = l.el.animate(l.frames, l.timing); a.drpgPosed = a.playState !== "paused"; if (a.drpgPosed) a.pause(); return a; });
-  const h = { plan, layers, made, posed, t0: null, anims: null, cancelled: false, ended: false, at: performance.now(), again: null };
+  const h = { plan, layers, made, posed, t0: null, anims: null, cancelled: false, ended: false };
   /* REDUCED MOTION SWITCHED ON MID-TURN ENDS THE TURN (E23 fix G1; the end review's correctness n4). The plan reads
      `REDUCED()` once; the Web Animations' keyframes do not read the zeroed tokens, so a turn begun ran its 1.2 s out
      after the reader asked for stillness. The class is motion.mjs's (`applyReducedMotion`, which also follows the
@@ -3935,23 +3973,8 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
     for (const c of made) c.remove();
     if (frost) clipToCut(frost, job.pathD);
     if (job.turn === h) job.turn = null;
-    const again = h.again;
-    h.again = null;
-    if (again) setTimeout(again, 0);
   };
   h.cancel = () => end(false);
-  /* A RECUT WAITS FOR THE TURN ON THE SCREEN (E23 fix G1; the end review's correctness m1). A recut that came while a
-     turn ran cancelled it: the old look of the next turn is the curtain's canvases, which already held the first turn's
-     end, so its layers vanished in one frame and the next turn started from that end - a snap of colour or shape, as a
-     late block change after a phase's turn (the Event panel arriving, the strip losing a row at an incident's start)
-     would make. `rebuild` asks the running turn first: `defer(fn)` keeps `fn` (the last asked) and runs it once the
-     turn has ended, finished or cancelled, and answers true; a turn ended, or one running past its length and a second
-     (a hidden tab holds its frames), answers false and is cancelled by the recut as before. R1412. */
-  h.defer = fn => {
-    if (h.ended || performance.now() - h.at > plan.dur + 1000) return false;
-    h.again = fn;
-    return true;
-  };
   h.onStart = () => {
     const at = i => h.anims[i].finished.then(() => true, () => false);
     if (frost) {
@@ -3968,11 +3991,7 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
   return frame ? startTurn(h, frame) : startTurn(h);
 }
 function rebuild() {
-  try {
-    // a recut asked while a turn runs is made at its end (`glassTurn`'s `defer`, E23 fix G1)
-    if (curtains.some(j => j.turn?.defer?.(() => { if (curtains.includes(j)) rebuild(); }))) return;
-    rebuildAll();
-  } finally { if (document.body.hasAttribute("data-drpg-measuring")) measuring(false); }
+  try { rebuildAll(); } finally { if (document.body.hasAttribute("data-drpg-measuring")) measuring(false); }
 }
 function rebuildAll() {
   for (const j of curtains) {
