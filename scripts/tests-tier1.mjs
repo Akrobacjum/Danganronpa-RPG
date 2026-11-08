@@ -40297,6 +40297,95 @@ const INVARIANTS = [
             stableJson({ word: [false, false], present: [["owner", true, true], ["gm", true, true], ["player", true, true], ["observer", true, true]] }),
             "{word: [another player's, an Observer's] drawn card naming Breakdown in its HTML, an attribute (a tooltip, a class, a data- one) or its data; present: each viewer's [result, the disadvantage die] on the card}");
     }],
+    ["R1490 - the safeword is as wide as its word, never as its rail (E24 C5, A6; the owner's report of 09.11): on the character sheet's window, in each theme with the pixel face and without, the Stop's winning `width` is `max-content`, its `max-width` its column less the corner's margins (`calc(100% - ...)`), its `justify-self` `start` - one item of Daggerheart's window grid, where `normal` stretched it across the rail - and it stays `sticky`", async () => {
+        /*
+         * E24 C5, 09.11.2026. The owner, 09.11, on 1.2.100: the safeword is too wide a button (a screenshot: wider than
+         * the rail and past its right edge). Since E21 C5a the Stop is `position: sticky`, so it stays in the flow of
+         * the sheet's `.window-content`, which Daggerheart 2.10.5 lays out as a grid (sheet.less): the Stop, appended
+         * last, takes a row of its own in the rail's column, and a grid item whose `width` is `auto` stretches across
+         * its column. stained-glass.css "THE SAFEWORD KEEPS ITS CORNER" said `width: auto !important`, written while
+         * the Stop was absolute (shrink-to-fit there). Chromium, the parts stand-in laid on 2.10.5's grid at 1366x768:
+         * under the glass 275 px wide against 145.9 px of word, icon and padding, 22 px past the rail's right edge;
+         * under Legacy 130 of 130 (pixel face) and 91 of 91 (without). Read here: the module's sheets as a cascade
+         * read from their text (`styleCascade`), the window built on a body of its own per theme and face, the Stop as
+         * `injectSafeword` writes it. Red on 52955be4: `auto` under the glass, and no `max-width` or `justify-self`
+         * in either theme.
+         */
+        const C = await styleCascade();
+        const read = {};
+        for (const theme of ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"]) for (const pixel of [true, false]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-player${pixel ? " drpg-pixel-font" : ""}`;
+            html.append(body);
+            body.innerHTML = `<div class="application sheet daggerheart actor character"><section class="window-content"><aside class="character-sidebar-sheet"></aside>`
+                + `<button type="button" class="drpg-safeword-button"><i class="fa-solid fa-hand" inert></i><span>R1490</span></button></section></div>`;
+            const stop = body.querySelector(".drpg-safeword-button");
+            const won = name => C.winner(stop, name)?.value ?? "";
+            read[`${theme.replace("drpg-theme-", "")}${pixel ? "" : " (no pixel face)"}`] = {
+                width: won("width"), maxWidth: /^calc\(\s*100%\s*-.+\)$/.test(won("max-width")), justify: won("justify-self"), position: won("position")
+            };
+        }
+        const want = { width: "max-content", maxWidth: true, justify: "start", position: "sticky" };
+        equal(stableJson(read), stableJson({ "stained-glass": want, "stained-glass (no pixel face)": want, "monokuma-legacy": want, "monokuma-legacy (no pixel face)": want }),
+            "{per theme and face: the Stop's winning width; whether its max-width is calc(100% - ...); its justify-self; its position}");
+    }],
+    ["R1491 - the Experience badge is the module's and stands inside its rail (E24 C5, A7; the owner's report of 09.11): on the sheet's rail, in each theme, an Experience row's winning `width` is `auto` and its `align-self` `stretch`, each `!important` (Daggerheart 2.10.5 sets the row 250 px in a list that centres its rows, from a cascade layer above the module's), and the value's background (`background` or `background-image`, whichever wins) is an SVG under the module's icons/, served, on a 16x16 grid drawn crispEdges in whole-pixel rects, in the item icons' ink and one other colour of their palette (R1487's reading), with no `font-size` of nothing on the value", async () => {
+        /*
+         * E24 C5, 09.11.2026. The owner, 09.11: the sheet has long cut the Experience icons off on the left, and they
+         * are Daggerheart's own. Daggerheart 2.10.5 (sidebar.less): `.experience-list` is `.column-list(5px)`, a flex
+         * column with `align-items: center`; `.experience-row` is `width: 250px`; `.experience-value` 35x25 on the
+         * system's `experience-shield.svg`. The module's rail is `minmax(0, calc(275px * slider))`, its list padded
+         * 10 px each side (R906), so a rail under 270 px (the slider at 0.8: 220 px; at 0.85, the screenshot's: about
+         * 234) centred a 250 px row wider than its list and the rail cut the badge's left side. Chromium, the parts
+         * stand-in laid on 2.10.5's grid with sidebar.less's Experience rules, the commit quotes the readings. Read
+         * here: the cascade from the sheets' text (`styleCascade`) on a rail built per theme, and the icon the value's
+         * background names, fetched and read as R1487 reads the state icons. Red on 52955be4: no rule of the module's
+         * on the row's width or the value's background.
+         */
+        const C = await styleCascade();
+        const INK = "#1a1620";
+        const fillsOf = text => [...text.matchAll(/\bfill="(#[0-9a-fA-F]{3,8})"/g)].map(m => m[1].toLowerCase());
+        const palette = new Set();
+        for (const category of Object.keys(ITEM_CATEGORIES ?? {})) {
+            const res = await fetch(`/modules/${MODULE_ID}/icons/item-${category}.svg`);
+            if (res.ok) for (const fill of fillsOf(await lfText(res))) palette.add(fill);
+        }
+        must(palette.has(INK) && palette.size >= 3, `the item icons' palette read ${JSON.stringify([...palette])} - it would measure nothing`);
+        const RUN = /^(?:M\d+ \d+h\d+v1H\d+z)+$/;
+        const read = {};
+        for (const theme of ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-player drpg-pixel-font`;
+            html.append(body);
+            body.innerHTML = `<div class="application sheet daggerheart actor character"><section class="window-content"><aside class="character-sidebar-sheet">`
+                + `<div class="experience-section"><div class="title"><h3>Experience</h3></div><div class="experience-list">`
+                + `<div class="experience-row"><span class="experience-value">+2</span><span class="experience-name">R1491</span></div></div></div></aside></section></div>`;
+            const row = body.querySelector(".experience-row"), value = body.querySelector(".experience-value");
+            const width = C.winner(row, "width"), align = C.winner(row, "align-self");
+            const image = C.winner(value, ["background", "background-image"])?.value ?? "";
+            const file = /(?:^|\s)url\(\s*["']?\.\.\/icons\/([\w-]+\.svg)["']?\s*\)(?:\s|$)/.exec(image)?.[1] ?? null;
+            const res = file ? await fetch(`/modules/${MODULE_ID}/icons/${file}`) : null;
+            const text = res?.ok ? await lfText(res) : "";
+            const root = text.match(/^<svg\b[^>]*>/)?.[0] ?? "";
+            const tags = [...text.matchAll(/<([a-zA-Z][\w-]*)\b/g)].map(m => m[1]);
+            const ds = [...text.matchAll(/<path\b[^>]*\bd="([^"]*)"/g)].map(m => m[1]);
+            const fills = new Set(fillsOf(text));
+            const size = C.winner(value, "font-size")?.value ?? "";
+            read[theme.replace("drpg-theme-", "")] = {
+                row: `${width?.value ?? ""}${width?.important ? " !important" : ""} / ${align?.value ?? ""}${align?.important ? " !important" : ""}`,
+                own: Boolean(file), served: Boolean(res?.ok),
+                grid: /\bviewBox="-?\d+ -?\d+ 16 16"/.test(root),
+                crisp: /\bshape-rendering="crispEdges"/.test(root),
+                rects: ds.length > 0 && tags.every(t => t === "svg" || t === "path") && ds.every(d => RUN.test(d)),
+                palette: fills.size > 0 && [...fills].every(f => palette.has(f)),
+                inkAndOne: fills.has(INK) && fills.size === 2,
+                text: !/^0(?:px|rem|em)?$/.test(size.trim())
+            };
+        }
+        const want = { row: "auto !important / stretch !important", own: true, served: true, grid: true, crisp: true, rects: true, palette: true, inkAndOne: true, text: true };
+        equal(stableJson(read), stableJson({ "stained-glass": want, "monokuma-legacy": want }),
+            "{per theme: the row's winning width / align-self; own: the value's winning background names an SVG under the module's icons/; served; grid: a 16x16 view; crisp: crispEdges; rects: whole-pixel rects only; palette: every colour the item icons'; inkAndOne: the ink and exactly one other; text: the value's font-size not nothing}");
+    }],
 ];
 
 /**

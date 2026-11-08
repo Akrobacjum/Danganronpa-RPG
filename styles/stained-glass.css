@@ -3927,13 +3927,15 @@ body.drpg-theme-stained-glass :is(.application.sheet.actor, .drpg-panel, .drpg-m
    the audit page puts it in, stretching across the whole column. Absolute is just as good a
    containing block for the pseudo-element, and it is where this button belongs. Sticky since
    E21 C5a (the base sheet's "THE SAFEWORD"): a containing block too, and it holds the button to
-   the visible foot of the sheet, where absolute left it below a 768-800 px screen. */
+   the visible foot of the sheet, where absolute left it below a 768-800 px screen. Its width is
+   the base sheet's "THE SAFEWORD" (E24 C5): the `width: auto !important` that stood here was
+   shrink-to-fit while the button was absolute, and stretched it across the rail once it was
+   sticky, a grid item of Daggerheart's window (275 px for a 146 px word, R1490). */
 body.drpg-theme-stained-glass .application.sheet.actor .drpg-safeword-button {
     /* the shout is against the brush base rule above, whose `:not()` chain outweighs any
        honest selector for one button; the button lives in `.window-content`, not in the
        sidebar, which is why the first attempt at this matched nothing at all */
     position: sticky !important;
-    width: auto !important;
     /* VT323's own weight: the word a player must read at once is never smeared (E23 C5b; S12-44, R1408) */
     font-weight: 400;
 }

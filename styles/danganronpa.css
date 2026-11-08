@@ -6880,6 +6880,33 @@ fieldset.drpg-voice-panel { margin-top: 8px; }
     box-sizing: border-box;
 }
 
+/* AN EXPERIENCE ROW AS WIDE AS ITS LIST, AND THE MODULE'S MARK ON ITS VALUE (E24 C5, 09.11.2026; the owner's report:
+   the sheet has long cut the Experience icons off on the left, and they were Daggerheart's own; R1491).
+   Daggerheart 2.10.5 (sidebar.less) makes `.experience-list` a flex column that centres its rows (`.column-list`:
+   `align-items: center`) and each `.experience-row` `width: 250px`. The rail is `minmax(0, calc(275px * slider))` and
+   the list stands 10 px in on each side (the rule above), so on a rail under 270 px a centred 250 px row overran both
+   edges and the rail cut the badge's left side. Chromium, the parts stand-in on 2.10.5's grid and those rules: the
+   slider at 0.85 (a 234 px rail, the owner's screenshot) put the badge 8.6 px left of the rail, at 0.8 15.5 px; at
+   1 the rail is 275 px and the row fitted. The row takes the list's width instead, and `!important` because the
+   system's sheet is in a cascade layer above this one.
+   The value was 35x25 px on the system's `experience-shield.svg`. It wears the module's mark instead (icons/
+   mark-experience.svg: a cut gem on the item icons' 16x16 grid, their ink and the tool's gold - the colour Hope is
+   spent in, which is what an Experience costs), drawn as the value's background, left of the number, so the number
+   stays the text the system writes and each theme's own rules on its size and colour still hold (the glass's floor,
+   Legacy's ink). Drawn at twice its grid, 32 px with the grid's 2-unit margin set off the left edge, so its 24 px of
+   gem stand as tall as the system's 25 px badge in whole device pixels; at its grid's own 16 px it read as a 12 px
+   gold fleck beside a 21 px number (the crops, 09.11). The badge grows to the mark, its gap and the number. */
+.application.sheet.actor .character-sidebar-sheet .experience-section .experience-row {
+    width: auto !important;
+    align-self: stretch !important;
+    min-width: 0;
+}
+.application.sheet.actor .character-sidebar-sheet .experience-section .experience-value {
+    width: auto !important;
+    padding-left: 28px;
+    background: transparent url("../icons/mark-experience.svg") -4px center / 32px 32px no-repeat !important;
+}
+
 /* Daggerheart's Short/Long Rest sit in the header with different rules from
    this game's Rest: no action cost, no once-per-time-of-day, no bedroom. Two
    rest systems on one sheet meant whichever a player saw first. */
@@ -7735,7 +7762,19 @@ body.drpg-reduced-motion #drpg-hud .drpg-hud-time.is-objection { animation: none
     left: 8px;
     bottom: 8px;
     align-self: flex-start;
+    /* AS WIDE AS ITS WORD, NEVER AS ITS RAIL (E24 C5, 09.11.2026; the owner's report on 1.2.100, R1490). Sticky keeps
+       the Stop in the flow of the sheet's `.window-content`, which Daggerheart 2.10.5 lays out as a grid (sheet.less):
+       appended last, it takes a row of its own in the rail's column, and a grid item stretches across its column
+       unless it is told otherwise. The glass's corner rule said `width: auto !important` (written while the Stop was
+       absolute, where auto shrinks to fit), and in Chromium on the parts stand-in laid on that grid at 1366x768 the
+       Stop read 275 px for 145.9 px of word, hand and padding, 22 px past the rail's right edge (`left` moves it that
+       far in); Legacy's `max-content` read 130 of 130. Said here once for both themes, and nowhere else: as wide as
+       what it holds, started at its column's start instead of stretched, never wider than its column less the
+       corner's margin each side, and a word longer than that breaks inside the button instead of leaving it. */
     width: max-content;
+    max-width: calc(100% - 2 * var(--drpg-edge));
+    justify-self: start;
+    overflow-wrap: anywhere;
     z-index: 3;
     display: inline-flex;
     align-items: center;
