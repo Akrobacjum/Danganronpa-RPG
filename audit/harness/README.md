@@ -348,7 +348,7 @@ stood still inside the flash. A frame that writes a clip path or draws, a 64 px 
 under 80 % of its rest, the flash more than 8 from today's (`--against` a baseline's file), an hour's turn that recuts, or a self-check inside the turn worse
 than the cut before and after it fails the line; its two controls (`?turn=today`, `?flash=0.5`) must read their faults.
 It is a shape against 1d860414's on the same machine, never a table's frame time (`game.drpg.fps()`, at a table), and a
-screencast is the frames the compositor sent, not every frame drawn.
+screencast is the frames the compositor sent, not every frame drawn. The table's own reading of a turn is LIVE-E23-01 (AUDIT 9.2).
 
 ## Daggerheart's dice
 
