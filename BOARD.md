@@ -70,6 +70,9 @@ R numbers: line B R1500-R1999.
   stronger next ultimate Hope Call, shelter from Despair on a roll, a search token, a Free Move, an Eclipse crossing,
   project progress, an effect for everyone present, Hope to another present, the Overflow counter down, a GM text, a
   narrative effect). New Overflow effects: Lockdown, Insomnia, Toll, Jitters, Power cut (Sabotage and Spoilage refused).
+  Owner 08.11: a completed project's room action may cost no action if the GM says so - a GM switch per such action
+  ("costs an action" yes/no, default yes, as today). Read as the actions a completed project gives, not work on a project
+  (that still costs an action) - to confirm with the owner. Toll (+1 action) also applies to a free one, which then costs 1.
 - Read at origin/main (1.2.99, 7bb71bb9): scripts/rest.mjs, room-setup.mjs, config.mjs (ACTIONS rest and project,
   OVERFLOW), overflow.mjs, projects.mjs, the bridge files, and `.claude/rules/trust-model.md` (every effect goes through
   the GM). Say what you measured; mark what you could not check (e.g. temporary Health in Daggerheart) as a question.
