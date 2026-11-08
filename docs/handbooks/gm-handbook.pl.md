@@ -1154,6 +1154,9 @@ Wynik to licznik "passed, failed, skipped" - z dopiskiem ", red until a later st
 | `hook-dice-so-nice-roll-start` | każda kość Hope i Despair rysuje się w wyglądzie, który nadał jej Daggerheart osoby rzucającej, a raport wyglądu kości nie wymienia żadnego rzutu widzianego w tej przeglądarce |
 | `hook-livekit-initialized` | pokoje głosowe, kafel głosu i mówcy rozprawy nie podążają za klientem głosu |
 | `hook-image-popout-header` | okno zdjęcia pokoju pokazuje przycisk udostępniania Foundry i każdy, który doda moduł |
+| `token-bars-reserve` | paski na żetonach uczniów rosną, gdy uczeń traci punkty, jak rysuje je Daggerheart, a inny gracz widzi pasek Sanity |
+| `breakdown-icon-private` | ikona Breakdown na żetonie ucznia jest widoczna dla każdego gracza |
+| `hook-party-sheet-render` | karta drużyny liczy, co każdy członek stracił, jak rysuje ją Daggerheart, i pokazuje Sanity każdego członka każdemu graczowi |
 | `user-permission-broadcast-audio` | niczyj mikrofon nie jest blokowany: przycisk GM-a mówi dlaczego, rozprawa również |
 | `rtc-client-keys` | klucz, którego Foundry już nie trzyma, jest czytany jako domyślny (bez wyciszenia, pełna głośność, widoczny), a zapis do niego niczego nie zmienia |
 | `push-to-talk-key` | wiersz o mówieniu na przycisk nie podaje klawisza |

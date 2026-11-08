@@ -83435,6 +83435,72 @@ const SCENARIOS = [
             back: { flag: null, ballots: true, levelUp: true, lists: [true, true] } }),
             "[the toggle drawn and pressed, twice; marked: the flag, a ballot, a Level Up row after a right verdict, the murder window's killer and victim lists; pressed again: the same]");
     }],
+    ["E24-T1 - a hit at the table, read as the reserve everywhere (E24 C1b, E24-07, E24-08, E24-10; D5 option 1): a direct murder opened between two students with players, the victim hit; the victim's sheet, the incident card for the victim, the killer and a GM, and the victim's token bars agree on what is left; the killer reads no Sanity", async () => {
+        /*
+         * E24 C1b, 08.11.2026. One number, one direction, on every view the module draws of it. A direct murder is
+         * opened and reaches its incident; the victim then has 1 Health and 2 Sanity marked. Read: the victim's sheet as
+         * the painter draws it on a stand-in root for the victim's player (no Daggerheart sheet renders headless); the
+         * GM's own incident card off the Event panel's signature, and the victim's and the killer's lines as their
+         * browsers build them (`incidentLines` with the state and seat each holds); the token bars through the installed
+         * `getBarAttribute` (a GM's) and `reserveBar` for the killer's player. Red on C1a's tree: the panel says marks.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student's token on the scene on screen, for the victim's bars");
+        const M = await import("./murder.mjs");
+        const E = await import("./events.mjs");
+        const SH = await import("./sheet.mjs");
+        const ST = await import("./states.mjs");
+        const { reserveView } = await import("./character.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const students = livingStudents().filter(player);
+        const victim = students.find(a => canvas.scene?.tokens?.some(t => t.actorId === a.id)) ?? null;
+        const killer = students.find(a => a !== victim) ?? null;
+        must(victim && killer, "no two students with players, one of them with a token on the scene on screen - this would measure nothing");
+        const token = canvas.scene.tokens.find(t => t.actorId === victim.id);
+        const before = foundry.utils.deepClone(victim.system.resources);
+        let read = null;
+        try {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            const state = M.murderState();
+            must(state?.stage === "incident", `the fixture's murder did not reach its incident: ${stableJson(state)}`);
+            await victim.update({ "system.resources.hitPoints.value": 1, "system.resources.stress.value": 2 });
+            await settle();
+            const root = document.createElement("div");
+            root.innerHTML = `<div class="window-content"><aside class="character-sidebar-sheet"><div class="info-section"><div class="resources-section">${["hitPoints", "stress"].map(key => {
+                const { value, max } = victim.system.resources[key];
+                return `<div class="status-bar"><div class="status-value"><progress class="progress-bar" max="${max}" value="${value}"></progress>`
+                    + `<input class="bar-input" name="system.resources.${key}.value" min="0" max="${max}" value="${value}" type="number"><span>/</span>`
+                    + `<span class="bar-label">${max}</span></div><div class="status-label pointy"><h4>${key}</h4></div></div>`;
+            }).join("")}</div></div></aside></div>`;
+            SH.paintReserves({ document: victim }, root, victim, player(victim));
+            const row = key => root.querySelector(`[data-drpg-reserve="${key}"] .drpg-reserve-row`)?.textContent ?? null;
+            E.renderEvents();
+            const sig = JSON.parse(document.getElementById("drpg-events")?.dataset.signature ?? "[]");
+            const gmMeta = sig.filter(c => c[0] === "incident").map(c => c[3]);
+            const seat = (user, mine) => (typeof E.incidentLines === "function"
+                ? E.incidentLines({ state, mine, myTurn: false, victim, acting: state.turnSide === "victim" ? victim : killer, user }).left : null);
+            const bar = key => ST.reserveBar({ actor: victim }, { type: "bar", attribute: `resources.${key}`, value: victim.system.resources[key].value,
+                max: victim.system.resources[key].max, editable: true }, player(killer));
+            read = { sheet: [row("hitPoints"), row("stress")], gm: gmMeta.map(m => [m].flat()[1] ?? null), victim: seat(player(victim), victim.id), killer: seat(player(killer), killer.id),
+                bars: [token.getBarAttribute(null, { alternative: "resources.hitPoints" })?.value ?? null, token.getBarAttribute(null, { alternative: "resources.stress" })?.value ?? null],
+                killerBars: typeof ST.reserveBar === "function" ? [bar("hitPoints")?.value ?? null, bar("stress")] : null };
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "closed", followUp: false });
+            await victim.update({ "system.resources.hitPoints.value": before.hitPoints.value, "system.resources.stress.value": before.stress.value });
+            await settle();
+        }
+        const hp = { ...reserveView({ system: { resources: { hitPoints: { value: 1, max: before.hitPoints.max } } } }, "hitPoints") };
+        const sanity = { ...reserveView({ system: { resources: { stress: { value: 2, max: before.stress.max } } } }, "stress", game.user) };
+        const args = { name: victim.name, hp: hp.left, hpMax: hp.max, sanity: sanity.left, sanityMax: sanity.max };
+        const L = (n, max) => game.i18n.format("DRPG.Reserve.leftRow", { n, max });
+        equal(stableJson(read), stableJson({ sheet: [L(hp.left, hp.max), L(sanity.left, sanity.max)], gm: [game.i18n.format("DRPG.Events.reserveVictim", args)],
+            victim: game.i18n.format("DRPG.Events.reserveYou", args), killer: game.i18n.format("DRPG.Events.reserveOf", args),
+            bars: [hp.left, sanity.left], killerBars: [hp.left, null] }),
+        "{sheet: the victim's two rows; gm: the GM's incident card's second line; victim and killer: theirs; bars: the token's two bars' values (a GM's); killerBars: the killer's player's}");
+    }],
     ...GRID
 ];
 

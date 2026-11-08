@@ -18430,7 +18430,9 @@ const REGRESSIONS = [
                 "Investigation.filterCount", "Investigation.keyLimitLine", "Investigation.keySummary",
                 "Overflow.clearAsk", "Overflow.current", "Overflow.currentDrawn", "Overflow.currentWaiting",
                 "Overflow.gmHint", "Overflow.gmHintActive", "Overflow.gmHintActiveFull", "Overflow.gmHintQueued",
-                "Passage.pick.step", "Sound.groupAssigned", "Vote.accusesLine", "Vote.barLine", "Vote.namedByTable"
+                "Passage.pick.step", "Sound.groupAssigned", "Vote.accusesLine", "Vote.barLine", "Vote.namedByTable",
+                // E24 C1b: the incident card's reserves, "3 of 4 Health" / "3 z 4 Health" (the sheet's "Left: 3 / 4").
+                "Events.reserveOf", "Events.reserveVictim", "Events.reserveYou"
             ].map(key => [key, "R"]),
             ...[
                 "Vault.roomRatio"
@@ -18451,7 +18453,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 52, S: 25, R: 23, D: 1, P: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 52, S: 25, R: 26, D: 1, P: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
@@ -18846,13 +18848,13 @@ const REGRESSIONS = [
             en: {
                 now: ["up to 1 connected room", "up to 5 connected rooms",
                     "2 actions each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs 1 action, a Long Rest 2 actions.",
-                    "With all your Health marked you get 1 action instead of 2 actions, until somebody patches you up.",
+                    "With no Health left you get 1 action instead of 2 actions, until somebody patches you up.",
                     "You have 2 actions", "A trap is built as projects. Budget about 7-10 progress across them, roughly 4 to 5 actions, or it costs more to set than it is worth.",
                     "Your own scene, tonight: no action, 1 Sanity each.", "-30 s", "+30 s", "-5 s", "The Closing Argument: who will sum up the case? Volunteer within 30 s; the GM confirms the speaker.",
                     "Nonstop Debate - 3 s over your budget. Everyone may speak; +30 s puts 30 s back on the clock."],
                 moved: ["up to 1 connected room", "up to 5 connected rooms",
                     "3 actions each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs 2 actions, a Long Rest 3 actions.",
-                    "With all your Health marked you get 2 actions instead of 3 actions, until somebody patches you up.",
+                    "With no Health left you get 2 actions instead of 3 actions, until somebody patches you up.",
                     "You have 3 actions", "A trap is built as projects. Budget about 9-14 progress across them, roughly 5 to 7 actions, or it costs more to set than it is worth.",
                     "Your own scene, tonight: no action, 2 Sanity each.", "-45 s", "+45 s", "-5 s", "The Closing Argument: who will sum up the case? Volunteer within 40 s; the GM confirms the speaker.",
                     "Nonstop Debate - 3 s over your budget. Everyone may speak; +45 s puts 45 s back on the clock."],
@@ -18861,13 +18863,13 @@ const REGRESSIONS = [
             pl: {
                 now: ["do 1 połączonego pokoju", "do 5 połączonych pokoi",
                     "2 akcje na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje 1 akcję, Long Rest 2 akcje.",
-                    "Z całym Health zaznaczonym dostajesz 1 akcję zamiast 2 akcji, dopóki ktoś cię nie poskłada.",
+                    "Gdy nie zostało ci już Health, dostajesz 1 akcję zamiast 2 akcji, dopóki ktoś cię nie poskłada.",
                     "Masz 2 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 7-10 postępu łącznie, mniej więcej 4 do 5 akcji, inaczej kosztuje więcej, niż jest warta.",
                     "Twoja własna scena, tej nocy: bez akcji, 1 Sanity za każdy.", "-30 s", "+30 s", "-5 s", "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 30 s; GM zatwierdza mówcę.",
                     "Nonstop Debate - 3 s ponad budżet. Każdy może mówić; +30 s oddaje zegarowi 30 s."],
                 moved: ["do 1 połączonego pokoju", "do 5 połączonych pokoi",
                     "3 akcje na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje 2 akcje, Long Rest 3 akcje.",
-                    "Z całym Health zaznaczonym dostajesz 2 akcje zamiast 3 akcji, dopóki ktoś cię nie poskłada.",
+                    "Gdy nie zostało ci już Health, dostajesz 2 akcje zamiast 3 akcji, dopóki ktoś cię nie poskłada.",
                     "Masz 3 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 9-14 postępu łącznie, mniej więcej 5 do 7 akcji, inaczej kosztuje więcej, niż jest warta.",
                     "Twoja własna scena, tej nocy: bez akcji, 2 Sanity za każdy.", "-45 s", "+45 s", "-5 s", "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 40 s; GM zatwierdza mówcę.",
                     "Nonstop Debate - 3 s ponad budżet. Każdy może mówić; +45 s oddaje zegarowi 45 s."],
@@ -20814,6 +20816,42 @@ const REGRESSIONS = [
         }), JSON.stringify({ bar: [], pips: [], sidebar: [], tabs: [], page: [], notSheet: [], notAnonymity: [] }),
         "[what the bar layout lacks; what the pip layout lacks; what the sidebar lacks; what the tabs' parts lack; what the page does not answer or name; "
             + "the module classes on the parts that sheet.mjs writes in no literal; the viewer's class anonymity.mjs does not write]");
+    }],
+    ["R1448 - no DRPG text says Health or Sanity is marked (E24 C1b, E24-09; D5 option 1, docs/text-style.md M7 \"a resource is said as its reserve\"): in either language no string under DRPG that names Health or Sanity says \"mark\", \"zaznacz\" or \"znacznik\"; the eight keys the stage rewrote say none of the three; `Murder.victimMarks` is gone from both files", async () => {
+        /*
+         * E24 C1b, 08.11.2026. The sheet, the panel and the tracker say what is left (D5 option 1), and nine texts still
+         * said the marks: Wounded's and Breakdown's descriptions, the two tooltips of a wounded student's actions, the
+         * critical's choice and its intro, the GM's note at the clock, the Explain line and the panel's
+         * `Murder.victimMarks`. The intro names neither reserve ("their body, or their nerve"), so the eight that stay
+         * are read by name as well as by the pattern.
+         */
+        const MARK = /mark|zaznacz|znacznik/i, NAMES = /Health|Sanity/;
+        const EIGHT = ["Actions.woundedTooltip", "Actions.lockedTooltip", "Murder.killerChooses", "Murder.criticalChoiceIntro", "Clock.woundedNote",
+            "States.drpgBreakdown.description", "States.drpgWounded.description", "Explain.status.actionsWounded"];
+        const found = [], named = [], retired = [];
+        let read = 0;
+        for (const lang of ["en", "pl"]) {
+            const json = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const walk = (node, path) => {
+                for (const [key, value] of Object.entries(node ?? {})) {
+                    const at = path ? `${path}.${key}` : key;
+                    if (typeof value === "string") {
+                        read++;
+                        if (NAMES.test(value) && MARK.test(value)) found.push(`${lang} DRPG.${at}`);
+                    } else if (value && typeof value === "object") walk(value, at);
+                }
+            };
+            walk(json.DRPG, "");
+            const get = path => path.split(".").reduce((o, k) => o?.[k], json.DRPG);
+            for (const key of EIGHT) {
+                const text = get(key);
+                if (typeof text !== "string" || MARK.test(text)) named.push(`${lang} DRPG.${key}`);
+            }
+            if (get("Murder.victimMarks") !== undefined) retired.push(`${lang} DRPG.Murder.victimMarks`);
+        }
+        must(read > 4000, `read ${read} string(s) - it would measure nothing`);
+        equal(JSON.stringify({ found: found.sort(), named, retired }), JSON.stringify({ found: [], named: [], retired: [] }),
+            "{found: the strings naming Health or Sanity with a mark word; named: the eight rewritten keys missing or still saying it; retired: Murder.victimMarks still in a file}");
     }],
 ];
 

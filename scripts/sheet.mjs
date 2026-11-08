@@ -73,7 +73,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 import { rules } from "./rules.mjs";
 import { safeword } from "./safeword.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
-import { debug, error, plural, proseOf, markLanguage, GM_ROUTE_CLASS } from "./utils.mjs";
+import { debug, error, plural, proseOf, markLanguage, GM_ROUTE_CLASS, markFired } from "./utils.mjs";
 import { drpgConfirm } from "./ui-kit.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 
@@ -123,6 +123,12 @@ export function registerSheetTweaks() {
     // ApplicationV2 fires a render hook per class in the inheritance chain,
     // so the concrete Daggerheart sheet class name is the precise target.
     Hooks.on("renderCharacterSheet", onRenderCharacterSheet);
+    // Daggerheart's Party sheet (2.10.5 module/applications/sheets/actors/party-sheet.mjs, class PartySheet): its
+    // members' Health and Sanity as the reserve (E24 C1b; patches.mjs `hook-party-sheet-render`).
+    Hooks.on("renderPartySheet", (app, element) => {
+        markFired("renderPartySheet");
+        try { paintPartyReserves(app, element); } catch (err) { error("Could not draw the Party sheet's reserves", err); }
+    });
     // The sheet's 'Known passages' follows this browser's copy of the passages (E79 C7).
     Hooks.on("drpgPassagesChanged", redrawPassageSheets);
     // The row's Present follows the floor (E70 C10): painted in place, no sheet rendered.
@@ -2150,6 +2156,54 @@ export async function writeReserve(actor, key, n) {
     const want = Math.min(max, Math.max(0, Math.round(Number(n))));
     if (!Number.isFinite(want) || want === left) return null;
     return trustedWrite(actor, { [`system.resources.${key}.value`]: max - want }, { reason: "sheetReserve" });
+}
+
+/* The Party sheet's two slot sections of a member, by the label's tooltip key (party-members.hbs, Daggerheart 2.10.5):
+   found with no slot drawn too (a maximum of 0). */
+const PARTY_RESERVES = Object.freeze({ hitPoints: "DAGGERHEART.GENERAL.HitPoints.plural", stress: "DAGGERHEART.GENERAL.stress" });
+
+/**
+ * THE PARTY SHEET AS THE RESERVE (E24 C1b, 08.11.2026; Q-E24-3's default, the owner's D5 option 1 and 28.10).
+ * Daggerheart's Party sheet (templates/sheets/actors/party/party-members.hbs) draws each member's Health and Stress as
+ * the marks: `.current` the marks, a slot `filled` per point marked, and every slot a toggle (`toggleHitPoints`,
+ * `toggleStress`) whose `data-value` is the marks it sets. For a student member (not a Monokuma, not an NPC kept out of
+ * the class), through `reserveView` for `user`: `.current` what is left, the first `left` slots filled. For a GM each
+ * slot's `data-value` is turned (`max - i + 1` on the i-th), so that Daggerheart's own toggle - "a point at or below
+ * the value takes it to one less, any other sets it" - fills or empties the reserve up to the pip pressed; for a player
+ * the toggles go (a player changes their reserve on their own sheet, where Lock player resources allows). Sanity not
+ * shown to `user` is emptied, not hidden: "?" in place of its numbers, no slot filled, no value. Exported for R1447,
+ * which hands `find` a stand-in's member.
+ */
+export function paintPartyReserves(app, element, user = game.user, find = uuid => globalThis.fromUuidSync?.(uuid) ?? null) {
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    for (const member of root?.querySelectorAll?.(".actor-resources") ?? []) {
+        const uuid = member.querySelector("[data-action='openDocument'][data-uuid]")?.dataset.uuid
+            ?? member.querySelector("[data-actor-id]")?.dataset.actorId ?? null;
+        const actor = uuid ? find(uuid) : null;
+        if (actor?.type !== "character" || isMonokuma(actor) || isNotInClass(actor)) continue;
+        for (const [key, tip] of Object.entries(PARTY_RESERVES)) {
+            const section = member.querySelector(`.slot-label[data-tooltip="${tip}"]`)?.closest(".slot-section");
+            if (!section) continue;
+            const view = reserveView(actor, key, user);
+            const value = section.querySelector(".slot-label .value");
+            const slots = [...section.querySelectorAll(".slot")];
+            slots.forEach((slot, i) => {
+                slot.classList.toggle("filled", view.shown && i < view.left);
+                if (user?.isGM && view.shown) slot.dataset.value = String(view.max - i);
+                else {
+                    delete slot.dataset.action;
+                    delete slot.dataset.value;
+                }
+            });
+            if (!view.shown) {
+                if (value) value.textContent = "?";
+                continue;
+            }
+            const current = value?.querySelector(".current"), top = value?.querySelector(".max");
+            if (current) current.textContent = String(view.left);
+            if (top) top.textContent = String(view.max);
+        }
+    }
 }
 
 /**

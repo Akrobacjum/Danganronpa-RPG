@@ -1123,7 +1123,59 @@ export const PATCHES = [
             if (document.querySelector(".camera-view[data-user] audio.user-microphone-audio")) return { present: true, ours: null };
             return { present: null, ours: null, note: "no speaker's audio element on this page now" };
         }
-    }
+    },
+    {
+        id: "token-bars-reserve",
+        kind: "override",
+        target: "TokenDocument.prototype.getBarAttribute",
+        owner: "foundry",
+        file: "states.mjs",
+        symbol: "wrapBarAttribute",
+        why: "A student's token bars are the reserve, what is left of Health and Sanity, not editable, and Sanity's bar none to another player (E24 C1b).",
+        when: "always, from init",
+        fallback: "not installed, and the console says so: a student's token bars fill up as they are hurt, and another player sees their Sanity bar",
+        probe: () => {
+            let proto = (CONFIG.Token?.documentClass ?? foundry.documents?.TokenDocument)?.prototype ?? null;
+            while (proto && proto !== Object.prototype && !Object.hasOwn(proto, "getBarAttribute")) proto = Object.getPrototypeOf(proto);
+            const fn = proto && proto !== Object.prototype ? proto.getBarAttribute : null;
+            return { present: typeof fn === "function", ours: Boolean(fn?.[Symbol.for("drpgReserveBars")]) };
+        }
+    },
+    {
+        id: "breakdown-icon-private",
+        kind: "override",
+        target: "DhTokenPlaceable.prototype._drawEffect (Daggerheart's token class, CONFIG.Token.objectClass)",
+        owner: "daggerheart",
+        file: "states.mjs",
+        symbol: "wrapEffectIcons",
+        why: "A student's Breakdown icon is drawn only for whom their Sanity is shown, the owner and the GMs (E24 C1b; the owner's 08.11).",
+        when: "always, from setup",
+        fallback: "not installed: a student's Breakdown icon shows on their token to every player",
+        probe: () => {
+            const floor = foundry.canvas?.placeables?.Token?.prototype ?? null;
+            const proto = CONFIG.Token?.objectClass?.prototype ?? null;
+            // As iso-refresh-state's: the harness models no placeable Token (its objectClass is Object), so it cannot tell.
+            if (!floor || !proto || !(proto === floor || Object.prototype.isPrototypeOf.call(floor, proto))) {
+                return { present: null, ours: null, note: "the token class here is not Foundry's Token" };
+            }
+            const fn = proto._drawEffect;
+            return { present: typeof fn === "function", ours: Boolean(fn?.[Symbol.for("drpgBreakdownIcon")]) };
+        }
+    },
+    hookRow({
+        id: "hook-party-sheet-render",
+        target: "renderPartySheet",
+        owner: "daggerheart",
+        file: "sheet.mjs",
+        symbol: "registerSheetTweaks",
+        why: "The Party sheet's Health and Sanity are drawn as the reserve, its pips no toggle for a player, Sanity emptied for one who does not own the member (E24 C1b).",
+        when: "always",
+        road: "the Party sheet is drawn on this browser",
+        fallback: "none: the Party sheet counts what each member has lost, as Daggerheart draws it, and shows every member's Sanity to every player"
+    }, () => {
+        const classes = Object.values(CONFIG.Actor?.sheetClasses?.party ?? {});
+        return classes.length ? classes.some(entry => entry?.cls?.name === "PartySheet") : null;
+    })
 ];
 
 /* ==========================================================================

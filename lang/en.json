@@ -446,8 +446,8 @@
         "one": "{actor} has {left} action left and needs {needed}.",
         "other": "{actor} has {left} actions left and needs {needed}."
       },
-      "woundedTooltip": "All Health is marked - one action per time of day.",
-      "lockedTooltip": "Forfeit. All Health is marked, so this stays shut until they heal.",
+      "woundedTooltip": "No Health left - one action per time of day.",
+      "lockedTooltip": "Forfeit. No Health left, so this stays shut until they heal.",
       "pipReadOnly": { "one": "{left} of {max} action this time of day. Spent by acting.", "other": "{left} of {max} actions this time of day. Spent by acting." },
       "freeMoveAvailable": "Free Move still available this time of day.",
       "freeMoveSpent": "Free Move used. The next crossing costs an action.",
@@ -1436,7 +1436,11 @@
       "trialObjectionFloor": "{who} has the floor",
       "afterVerdict": "The verdict is in",
       "trialNext": "Next: {name}",
-      "trialLastTurn": "The last turn"
+      "trialLastTurn": "The last turn",
+      "waitingFor": "Incident - waiting for {name}",
+      "reserveYou": "You have {hp} of {hpMax} Health and {sanity} of {sanityMax} Sanity left.",
+      "reserveOf": "{name} has {hp} of {hpMax} Health left.",
+      "reserveVictim": "The victim has {hp} of {hpMax} Health and {sanity} of {sanityMax} Sanity left."
     },
     "Handbooks": {
       "title": "Handbooks",
@@ -1924,7 +1928,6 @@
         "critical": "a critical",
         "free": "no roll"
       },
-      "victimMarks": "Victim: Health {hp} marked, Sanity {stress} marked.",
       "thirdIs": "{name} walked in",
       "passTurn": "Pass the turn",
       "passTooSoon": "The turn was passed a moment ago. Press Pass the turn again to pass the next one.",
@@ -1972,7 +1975,7 @@
       "leftRemnant": "Leaves a Remnant behind.",
       "youLose": "You lose {what}.",
       "theyLose": "{name} loses {what}.",
-      "killerChooses": "Critical - the killer chooses: both marks off Health, or both off Sanity.",
+      "killerChooses": "Critical - the killer chooses where both points come off: Health or Sanity.",
       "hinderedActions": {
         "one": "Their opponent rolls {actions} at disadvantage for {turns} turn.",
         "other": "Their opponent rolls {actions} at disadvantage for {turns} turns."
@@ -2070,7 +2073,7 @@
       "gmPicksTrait": "Rolls: {traits} - the GM picks one. Tell them in your thread what you do.",
       "youPickTrait": "Rolls: {traits} - Resolve is armed, so you pick one in the roll window.",
       "criticalChoiceTitle": "A clean hit",
-      "criticalChoiceIntro": "The blow lands exactly where you wanted it. Take both marks off the same place - their body, or their nerve.",
+      "criticalChoiceIntro": "The blow lands exactly where you wanted it. Both points come off the same reserve - their body, or their nerve.",
       "criticalChoiceHp": "Both off Health",
       "criticalChoiceStress": "Both off Sanity",
       "ranOutTwoKillers": "{victim} has nothing left. {killers} are both in this.",
@@ -3783,7 +3786,7 @@
         "other": "Actions refilled for {count} characters"
       },
       "searchTokensRestocked": "Every room restocked with search tokens",
-      "woundedNote": "Down to one action this time of day, all Health marked: {names}."
+      "woundedNote": "Down to one action this time of day, no Health left: {names}."
     },
     "Panel": {
       "nextStartTrial": "Every planned Key Remnant has been found. Start the Class Trial from the trial console.",
@@ -4508,11 +4511,11 @@
     "States": {
       "drpgBreakdown": {
         "name": "Breakdown",
-        "description": "Every point of Sanity is marked. Disadvantage on every roll."
+        "description": "No Sanity left. Disadvantage on every roll."
       },
       "drpgWounded": {
         "name": "Wounded",
-        "description": "Every point of Health is marked. One action fewer per time of day."
+        "description": "No Health left. One action fewer per time of day."
       }
     },
     "Rules": {
@@ -5005,7 +5008,7 @@
         "window": "Actions, Move and Hope",
         "actionsTitle": "Actions",
         "actionsWhat": "{actions} each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs {short}, a Long Rest {long}.",
-        "actionsWounded": "With all your Health marked you get {wounded} instead of {actions}, until somebody patches you up.",
+        "actionsWounded": "With no Health left you get {wounded} instead of {actions}, until somebody patches you up.",
         "actionsNow": "You have {left} of {max} left this time of day.",
         "moveTitle": "Free Move",
         "moveWhat": "One move between rooms each time of day that costs you nothing. After that, changing rooms costs an action like anything else.",
@@ -5289,6 +5292,9 @@
         "hook-dice-so-nice-roll-start": "every Hope and Despair die is drawn in the look its thrower's Daggerheart gave it, and the dice look's report names no throw seen on this browser",
         "hook-livekit-initialized": "the voice rooms, the voice tile and the trial's speakers do not follow the voice client",
         "hook-image-popout-header": "a room picture's window shows Foundry's share control and any a module adds",
+        "token-bars-reserve": "a student's token bars fill up as they are hurt, as Daggerheart draws them, and another player sees their Sanity bar",
+        "breakdown-icon-private": "a student's Breakdown icon shows on their token to every player",
+        "hook-party-sheet-render": "the Party sheet counts what each member has lost, as Daggerheart draws it, and shows every member's Sanity to every player",
         "user-permission-broadcast-audio": "nobody's microphone is blocked: the GM's button says why, and so does the trial",
         "rtc-client-keys": "a key Foundry no longer keeps reads as its default (not muted, full volume, shown), and writing to it changes nothing",
         "push-to-talk-key": "the push-to-talk line names no key",

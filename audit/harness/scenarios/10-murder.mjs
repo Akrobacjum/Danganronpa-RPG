@@ -158,12 +158,14 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
             const sig = JSON.parse(document.getElementById("drpg-events")?.dataset.signature ?? "[]");
             return { stage: game.settings.get("${MOD}", "murderState")?.stage ?? null,
                 cards: sig.filter(c => c[0] === "incident").map(c => ({ title: c[1], meta: c[3], mine: c[6] ?? null })),
-                turn: [game.i18n.localize("DRPG.Murder.yourTurn"), game.i18n.localize("DRPG.Murder.theirTurn")] };`;
+                turn: [game.i18n.localize("DRPG.Murder.yourTurn"), game.i18n.localize("DRPG.Murder.theirTurn"),
+                    ...game.actors.filter(a => a.type === "character").map(a => game.i18n.format("DRPG.Events.waitingFor", { name: a.name }))] };`;
         for (const [who, c] of [["gm", gm], ["p1", p1], ["p2", p2], ["p3", p3]]) turnCards[who] = await c.eval(read);
     } finally {
         for (const c of [p1, p2, p3]) await c.eval(`globalThis.__mutedSocket = (game.socket._handlers.get("module.${MOD}") ?? []).splice(0); return true;`);
     }
-    /* the meta's first part (E23 C3b: an incident's meta is [whose turn, the state], events.mjs `incidentCard`) */
+    /* the meta's first part (E23 C3b: an incident's meta is [whose turn, the state], events.mjs `incidentCard`); since E24
+       C1b the killer's side waiting reads "waiting for" the one who acts, by name (`incidentLines`) */
     const saysTurn = read => read?.cards?.length === 1 && read.turn.some(t => String([read.cards[0].meta ?? ""].flat()[0]) === t);
     check("gm, p3: the incident's turn card is on the killer's player's Events panel, saying whose turn it is, and on the GM's; p1 and p2, bystanders, hold none (E51-29)",
         turnCards.gm?.stage === "incident" && turnCards.gm.cards.length === 1 && saysTurn(turnCards.p3)

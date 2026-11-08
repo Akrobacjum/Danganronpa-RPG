@@ -32,9 +32,9 @@
  */
 
 import { MODULE_ID, FLAGS, STATES } from "./config.mjs";
-import { isMonokuma } from "./monokuma.mjs";
+import { isMonokuma, isNotInClass } from "./monokuma.mjs";
 import { isDeceased } from "./settings.mjs";
-import { remaining } from "./character.mjs";
+import { remaining, RESERVES, reserveView } from "./character.mjs";
 import { isPrimaryGm, primaryGmId, log, debug, error, whisperToGms } from "./utils.mjs";
 import { foundryGivenBack, keepOriginal } from "./enforced.mjs";
 import { playSfx } from "./sfx.mjs";
@@ -53,7 +53,11 @@ const AUTOMATION = "Automation";
  * from its condition table - appending during `init` would be overwritten.
  */
 export function registerStates() {
+    // The token bars as the reserve, from init (E24 C1b): before any token is drawn.
+    installReserveBars();
     Hooks.on("setup", () => {
+        // After every package's init has set the token class (Daggerheart's own among them, E24 C1b).
+        installEffectIcons();
         try {
             const existing = new Set((CONFIG.statusEffects ?? []).map(e => e.id));
             for (const state of Object.values(STATES)) {
@@ -385,3 +389,124 @@ export async function syncAll() {
  * disagreeing - so this file owns the marker and `character.mjs` owns the
  * question. `shouldHave()` above is the one place they touch.
  */
+
+/* ==========================================================================
+ * WHAT A TOKEN SHOWS OF HEALTH AND SANITY (E24 C1b, 08.11.2026)
+ * --------------------------------------------------------------------------
+ * Two of Foundry's drawings carry a student's reserves to every client's canvas,
+ * and both said what no other view the module draws says any more.
+ *
+ * THE BARS. Daggerheart 2.10.5 points bar 1 at `resources.hitPoints` and bar 2 at
+ * `resources.stress` (system.json), and its `Token#_drawBar` (module/canvas/
+ * placeables/token.mjs) draws one section a point of `data.max` and fills
+ * `ceil(data.value)` of them, `data` being Foundry's `TokenDocument#getBarAttribute`:
+ * the marks, so a full bar was the wound (audit S12-36), and bar 2 showed another
+ * player the Sanity the sheet now keeps from them. The attribute is wrapped (a row
+ * of patches.mjs, `token-bars-reserve`): for a student's two reserves it answers what
+ * is left of what maximum, and `editable: false`, which takes the token HUD's two
+ * inputs off for everybody on a student (tokenHUD.hbs disables an input whose
+ * attribute is not editable) - a number typed there would be written to the marks as
+ * if it were the reserve. A GM edits on the sheet. Sanity answers null to a user
+ * `reserveView` does not show it to: Foundry draws no bar for null. Read on Foundry's
+ * v13 behaviour as recalled (no v14 source on this machine): the HUD and `drawBars`
+ * both ask `getBarAttribute`, and `Actor#modifyTokenAttribute` reads the system data
+ * itself. A table's check (E24's live row of the token bars, AUDIT 9.2).
+ *
+ * THE BREAKDOWN ICON. `syncOnce` puts Breakdown on with `toggleStatusEffect`, and
+ * Daggerheart's `_drawEffects` draws each status's icon on every client's token -
+ * telling another player a student's Sanity is gone (the owner's 08.11: "ikone tez
+ * ukrywamy"). Its `_drawEffect(src, tint, effect)` is wrapped (row
+ * `breakdown-icon-private`, an override of Daggerheart's): the icon of a
+ * `drpgBreakdown` effect is not drawn for a user who may not read the student's
+ * Sanity. A view on this browser, not a data change: the status stays on the actor
+ * every client holds, and a console reads it. A table's check (E24's live row of the icon, AUDIT 9.2).
+ * ========================================================================== */
+
+/** A student, for the token's reserves: a character, not a Monokuma, not an NPC kept out of the class. */
+function reserveStudent(actor) {
+    return actor?.type === "character" && !isMonokuma(actor) && !isNotInClass(actor);
+}
+
+/**
+ * Foundry's bar answer `data` for `doc`, as `user` reads it: a student's Health or Sanity bar as its reserve - `value`
+ * what is left, `max` its maximum, not editable - or null for a Sanity `user` may not see; anything else as Foundry
+ * answered it. Exported for R1447 and E24-T1.
+ */
+export function reserveBar(doc, data, user = game.user) {
+    if (!data || data.type !== "bar") return data;
+    const key = Object.keys(RESERVES).find(k => data.attribute === `resources.${k}`);
+    if (!key || !reserveStudent(doc?.actor)) return data;
+    const view = reserveView(doc.actor, key, user);
+    if (!view.shown) return null;
+    return { ...data, value: view.left, max: view.max, editable: false };
+}
+
+/** Wrap `proto.getBarAttribute` with `reserveBar`, marked so a second call stacks nothing. Exported for R1447. */
+export function wrapBarAttribute(proto) {
+    const original = proto?.getBarAttribute;
+    if (typeof original !== "function" || original[RESERVE_BARS]) return false;
+    function drpgReserveBars(...args) {
+        return reserveBar(this, original.apply(this, args));
+    }
+    drpgReserveBars[RESERVE_BARS] = true;
+    drpgReserveBars.original = original;
+    proto.getBarAttribute = drpgReserveBars;
+    return true;
+}
+const RESERVE_BARS = Symbol.for("drpgReserveBars");
+
+/* The prototype that owns `getBarAttribute`, from the token document class up: Foundry's TokenDocument at a table. */
+function installReserveBars() {
+    let proto = (CONFIG.Token?.documentClass ?? foundry.documents?.TokenDocument)?.prototype ?? null;
+    while (proto && proto !== Object.prototype && !Object.hasOwn(proto, "getBarAttribute")) proto = Object.getPrototypeOf(proto);
+    if (!proto || proto === Object.prototype) {
+        error("Could not find the token bars' attribute - a student's bars fill up as they are hurt, as Daggerheart draws them");
+        return false;
+    }
+    return wrapBarAttribute(proto);
+}
+
+/**
+ * Whether `user` is shown the icon of `effect` on `actor`'s token: not a student's Breakdown to a user `reserveView`
+ * does not show that student's Sanity to (another player, an Observer); every other icon, a GM's and the owner's view,
+ * and a Monokuma's, as Foundry draws them. Exported for R1485.
+ */
+export function effectIconShown(actor, effect, user = game.user) {
+    if (!effect?.statuses?.has?.(STATES.breakdown.id)) return true;
+    if (!reserveStudent(actor)) return true;
+    return reserveView(actor, "stress", user).shown;
+}
+
+/**
+ * Wrap `proto._drawEffect(src, tint, effect)` (Daggerheart 2.10.5's token hands it each icon's effect): an icon
+ * `effectIconShown` refuses is not drawn, answered as a draw with nothing to draw (a settled null, which its
+ * `_drawEffects` and `_drawOverlay` read as no icon). An effect it is not handed is matched by the Breakdown image
+ * on an actor that holds the status. Marked so a second call stacks nothing. Exported for R1485.
+ */
+export function wrapEffectIcons(proto) {
+    const original = proto?._drawEffect;
+    if (typeof original !== "function" || original[BREAKDOWN_ICON]) return false;
+    function drpgBreakdownIcon(src, tint, effect, ...rest) {
+        const shown = effect
+            ? effectIconShown(this.actor, effect)
+            : !(src === STATES.breakdown.img && this.actor?.statuses?.has?.(STATES.breakdown.id))
+                || effectIconShown(this.actor, { statuses: new Set([STATES.breakdown.id]) });
+        if (!shown) return Promise.resolve(null);
+        return original.call(this, src, tint, effect, ...rest);
+    }
+    drpgBreakdownIcon[BREAKDOWN_ICON] = true;
+    drpgBreakdownIcon.original = original;
+    proto._drawEffect = drpgBreakdownIcon;
+    return true;
+}
+const BREAKDOWN_ICON = Symbol.for("drpgBreakdownIcon");
+
+/* On the token class this world draws with: never on a class that is no Foundry Token (the harness's is Object). */
+function installEffectIcons() {
+    const proto = CONFIG.Token?.objectClass?.prototype ?? null;
+    if (!proto || proto === Object.prototype || typeof proto._drawEffect !== "function") {
+        debug("No token class drawing effect icons here - a student's Breakdown icon is drawn as Foundry draws it");
+        return false;
+    }
+    return wrapEffectIcons(proto);
+}

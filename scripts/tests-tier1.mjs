@@ -26257,7 +26257,10 @@ const INVARIANTS = [
             /(?:locateActor\([^)]*\)|roomOfActor\([^)]*\))\??\.(?:room\??\.)?name\b/.test(body)]);
         equal(JSON.stringify(reads), JSON.stringify([["openingCard", true, false], ["incidentCard", true, false], ["bodyCard", true, false]]),
             "[each card builder, whether it takes the room from locateActor's room or roomOfActor, whether it reads a .name off them]");
-        ok(/incidentSubRoom/.test(fnSource(src, "incidentCard")), "the incident card no longer has a line that names the room");
+        // Since E24 C1b the incident card's line is the pair murder-ui.mjs `pairOf` writes for the cards and the tracker.
+        const pairSrc = fnSource(stripComments(new Map(await moduleSources()).get("murder-ui.mjs") ?? ""), "pairOf");
+        ok(/\bpairOf\(killer,\s*victim,\s*room\)/.test(fnSource(src, "incidentCard")) && /incidentSubRoom/.test(pairSrc),
+            "the incident card no longer has a line that names the room (its pair, murder-ui.mjs pairOf)");
         needs(world.atLeast("studentsInRooms", 1), "a student standing in a named room of the scene on screen");
         const { locateActor, roomOfActor, roomOfToken } = await import("./movement.mjs");
         const token = [...canvas.scene.tokens].find(t => studentActors().some(a => a.id === t.actorId && !a.getFlag(MODULE_ID, FLAGS.deceased)) && roomOfToken(t));
@@ -38475,7 +38478,9 @@ const INVARIANTS = [
          * read: a resource reached through a variable key (`resources[key]`, `resourceValue(actor, key)`) - the reads by
          * name are what this holds. Red on purpose at C0 (expectedRed "E24"): events.mjs `incidentCard` and murder-ui.mjs
          * `incidentPeople` draw `marksOf`, sheet.mjs `paintResourceBars` draws the marks off `progress.value` and
-         * `repaintInPlace` writes them into the system's visible number field and bar; `marksOf` stands. Green in E24-C1b.
+         * `repaintInPlace` writes them into the system's visible number field and bar; `marksOf` stands. C1a moved the
+         * sheet onto `reserveView`; green in E24-C1b (08.11.2026), its `expectedRed` removed: the panel and the tracker
+         * through murder-ui.mjs `reserveLine`, `marksOf` gone, the token bars and the Party sheet through `reserveView`.
          */
         const RULES = {
             "character.mjs initCharacter": "a new character's starting maximum and no marks, written once",
@@ -38544,7 +38549,7 @@ const INVARIANTS = [
         }), JSON.stringify({ unlisted: [], stale: [], marksOf: [], declaresMarksOf: false, curtain: [] }),
         "[the readers of Health or Sanity neither through reserveView nor on the rules' list; the list's names that read neither; the callers of marksOf; "
             + "whether character.mjs still declares marksOf; the curtain's readers]");
-    }, expectedRed("E24", "the sheet, the event panel and the tracker draw marks until E24-C1", { failing: "events.mjs incidentCard" })],
+    }],
     ["R123 - A6's type (E24 C2, E24-13, E24-14; the owner's D10 option 1 and D29 option 2): on the backstory's field as `tidyBiography` leaves it in Daggerheart's biography tab, the module's sheets give it, under Stained Glass, the prose face at the prose rung with a line height of 1.3; under Monokuma Legacy without the pixel face the medium step (15 px at 100 %) with 1.5; with the pixel face Press Start 2P at the small step with 1.7; and the two Legacy steps follow the slider (12, 15 and 21 px; 10.4, 13 and 18.2 px at 80, 100 and 140 %)", async () => {
         /*
          * E24 C2, 08.11.2026. Read by the sheets' cascade (`styleCascade`: the winning declaration's text, from the files
@@ -39305,6 +39310,191 @@ const INVARIANTS = [
         "[the window's container per theme, stacked and on a desk; the block's condition; with the block: the content's display and its weight, its direction, "
             + "its overflow-y; the rail's, the header's and the open tab's flex and order]");
     }],
+    ["R1446 - the incident card by seat (events.mjs `incidentLines`, murder-ui.mjs `reserveLine`; E24 C1b, E24-07; S10-36, D5 option 1): the victim reads both reserves in the second person, the killer's side \"Waiting for\" the one who acts and the victim's Health alone, a GM both after \"Victim\"; none of them a mark; a bystander gets no card; the card's meta is still two parts", async () => {
+        /*
+         * E24 C1b, 08.11.2026. The panel's second line was `DRPG.Murder.victimMarks` - "Victim: Health 0/4 marked, Sanity
+         * 2/6 marked" - for every seat: the victim read about themself in the third person, the killer read the victim's
+         * Sanity, and "0/4" read as dead to anybody (audit S10-36). Now by seat, from `reserveView`: the stand-in victim
+         * has Health 1 of 4 marked (3 left) and Sanity 2 of 7 (5 left), so a 5 or a 7 is Sanity's. Driven on the pure
+         * builder `incidentLines` (the card's state needs a murder this tier does not open; E24-T1 reads the card at the
+         * table), and the gate read off `incidentCard`'s source: a bystander still meets `!here.witness` first.
+         */
+        const src = stripComments((await moduleSources()).get("events.mjs") ?? "");
+        const card = fnSource(src, "incidentCard");
+        must(card.length > 200, "events.mjs has no incidentCard - this would measure nothing");
+        const E = await import("./events.mjs");
+        const source = [/\bincidentLines\(/.test(card), /victimMarks/.test(card), /if \(!here\.witness\) return null;/.test(card),
+            /\bmeta:\s*\[\s*turn\s*,\s*left\s*\]/.test(card)];
+        let seats = null;
+        if (typeof E.incidentLines === "function") {
+            const victimUser = { id: "r1446-victim", isGM: false }, killerUser = { id: "r1446-killer", isGM: false };
+            const stamp = Date.now().toString(36);
+            const victim = reserveActor({ id: `r1446v${stamp}`, hp: 1, stress: 2, stressMax: 7, owner: victimUser.id });
+            const killer = { id: "r1446-k", name: "R1446 Killer" };
+            const at = (turnSide, mine, myTurn, user) => {
+                const state = { stage: "incident", turn: 2, turnSide, victimId: victim.id, killerId: killer.id };
+                const { turn, left } = E.incidentLines({ state, mine, myTurn, victim, acting: turnSide === "victim" ? victim : killer, user });
+                return { turn, left, sanity: /(?<![\w.])[57](?![\w.])/.test(left), marked: /mark|zaznacz|znacznik/i.test(`${turn} ${left}`) };
+            };
+            seats = {
+                victim: at("killer", victim.id, false, victimUser),
+                victimTurn: at("victim", victim.id, true, victimUser),
+                killer: at("victim", killer.id, false, killerUser),
+                gm: at("victim", null, false, game.user)
+            };
+            Object.defineProperty(seats, "stamp", { value: stamp, enumerable: false });
+        }
+        const both = game.i18n.format("DRPG.Events.reserveYou", { hp: 3, hpMax: 4, sanity: 5, sanityMax: 7 });
+        const name = seats ? `r1446v${seats.stamp} student` : "?";
+        const health = game.i18n.format("DRPG.Events.reserveOf", { name, hp: 3, hpMax: 4 });
+        const gmLine = game.i18n.format("DRPG.Events.reserveVictim", { hp: 3, hpMax: 4, sanity: 5, sanityMax: 7 });
+        const state = game.i18n.format("DRPG.Murder.trackerState", { stage: game.i18n.localize("DRPG.Murder.stage.incident"), turn: 2,
+            side: game.i18n.localize("DRPG.Murder.side.victim") });
+        equal(stableJson({ source, seats }), stableJson({ source: [true, false, true, true], seats: {
+            victim: { turn: game.i18n.localize("DRPG.Murder.theirTurn"), left: both, sanity: true, marked: false },
+            victimTurn: { turn: game.i18n.localize("DRPG.Murder.yourTurn"), left: both, sanity: true, marked: false },
+            killer: { turn: game.i18n.format("DRPG.Events.waitingFor", { name }), left: health, sanity: false, marked: false },
+            gm: { turn: state, left: gmLine, sanity: true, marked: false } } }),
+        "{source: [incidentCard asks incidentLines, still formats victimMarks, a bystander's gate first, the meta two parts]; seats: the victim at the killer's turn and at their own, "
+            + "the killer at the victim's, a GM: [whose turn, the reserve line, a Sanity number in it, a mark word]}");
+    }],
+    ["R1447 - the token bars and the Party sheet as the reserve (states.mjs `reserveBar`, `wrapBarAttribute`; sheet.mjs `paintPartyReserves`; E24 C1b, E24-10, E24-11; Q-E24-3): a student's two bars answer what is left of what maximum and are not editable, Sanity's none to a player who may not see it; a Monokuma's, an NPC's not in the class, another actor's and another attribute's as Foundry answered; the wrapper marked and not stacked; the contract's row `token-bars-reserve` ok here; the Party sheet's rows the reserve, its pips no toggle for a player, Sanity emptied for one who does not own the member", async () => {
+        /*
+         * E24 C1b, 08.11.2026. Daggerheart 2.10.5's `Token#_drawBar` draws one section a point of `data.max` and fills
+         * `ceil(data.value)` of them, `data` being Foundry's `TokenDocument#getBarAttribute`: a student's bar 1 and 2
+         * were the marks - a full bar the wound (audit S12-36). The wrapper hands the bar the reserve; `editable` false
+         * takes the token HUD's two inputs off for everybody on a student (tokenHUD.hbs `{{#unless barNData.editable}}`),
+         * since a value typed there would be written to the marks. The Party sheet (party-members.hbs) drew the same
+         * marks in its pips and `.current`. Stand-ins: Health 1 of 4 marked, Sanity 2 of 7. Red on C1a's tree: no
+         * `reserveBar`, no row, no Party painter.
+         */
+        const ST = await import("./states.mjs");
+        const SH = await import("./sheet.mjs");
+        const { PATCHES, runContract } = await import("./patches.mjs");
+        const { FLAGS } = await import("./config.mjs");
+        const owner = { id: "r1447-owner", isGM: false }, viewer = { id: "r1447-viewer", isGM: false };
+        const stamp = Date.now().toString(36);
+        const student = reserveActor({ id: `r1447s${stamp}`, hp: 1, stress: 2, stressMax: 7, owner: owner.id });
+        const flagged = flag => Object.assign(reserveActor({ id: `r1447${flag}${stamp}`, hp: 1, stress: 2, stressMax: 7 }), { getFlag: (scope, key) => key === FLAGS[flag] });
+        const monokuma = flagged("monokuma"), npc = flagged("notInClass");
+        const adversary = Object.assign(reserveActor({ id: `r1447a${stamp}`, hp: 1, stress: 2, stressMax: 7 }), { type: "adversary" });
+        const foundry = (actor, key) => ({ type: "bar", attribute: `resources.${key}`, value: actor.system.resources[key].value, max: actor.system.resources[key].max, editable: true });
+        const bars = {};
+        if (typeof ST.reserveBar === "function") {
+            const bar = (actor, key, user) => ST.reserveBar({ actor }, foundry(actor, key), user);
+            const same = (actor, key) => stableJson(bar(actor, key, viewer)) === stableJson(foundry(actor, key));
+            bars.student = [["hitPoints", viewer], ["stress", viewer], ["stress", owner], ["stress", game.user]].map(([key, user]) => bar(student, key, user));
+            bars.asFoundry = [same(monokuma, "hitPoints"), same(monokuma, "stress"), same(npc, "stress"), same(adversary, "hitPoints"),
+                stableJson(ST.reserveBar({ actor: student }, { type: "bar", attribute: "resources.hope", value: 2, max: 6, editable: true }, viewer)) === stableJson({ type: "bar", attribute: "resources.hope", value: 2, max: 6, editable: true })];
+        }
+        let wrap = null;
+        if (typeof ST.wrapBarAttribute === "function") {
+            const proto = { getBarAttribute(name) { return foundry(this.actor, name === "bar1" ? "hitPoints" : "stress"); } };
+            ST.wrapBarAttribute(proto);
+            const first = proto.getBarAttribute;
+            ST.wrapBarAttribute(proto);
+            const doc = Object.assign(Object.create(proto), { actor: student });
+            wrap = [Boolean(first[Symbol.for("drpgReserveBars")]), proto.getBarAttribute === first, doc.getBarAttribute("bar1")?.value ?? null, doc.getBarAttribute("bar1")?.editable ?? null];
+        }
+        const row = PATCHES.find(r => r.id === "token-bars-reserve") ?? null;
+        const contract = row ? runContract({ rows: [row] }).rows[0] : null;
+        const party = {};
+        if (typeof SH.paintPartyReserves === "function") {
+            for (const [who, user] of [["gm", game.user], ["owner", owner], ["viewer", viewer]]) {
+                const root = partyStandIn(student);
+                SH.paintPartyReserves(null, root, user, uuid => (uuid === `Actor.${student.id}` ? student : null));
+                const read = tip => {
+                    const section = root.querySelector(`.slot-label[data-tooltip="${tip}"]`)?.closest(".slot-section");
+                    const slots = [...(section?.querySelectorAll(".slot") ?? [])];
+                    return { value: section?.querySelector(".slot-label .value")?.textContent.replace(/\s+/g, " ").trim() ?? null,
+                        filled: slots.filter(s => s.classList.contains("filled")).length, toggles: slots.filter(s => s.dataset.action).length,
+                        numbers: slots.map(s => s.dataset.value ?? null) };
+                };
+                party[who] = { health: read("DAGGERHEART.GENERAL.HitPoints.plural"), sanity: read("DAGGERHEART.GENERAL.stress") };
+            }
+        }
+        const reversed = max => Array.from({ length: max }, (_, i) => String(max - i));
+        const off = max => Array.from({ length: max }, () => null);
+        equal(stableJson({ bars, wrap, row: row ? [row.kind, row.owner, row.file, row.target] : null, contract: contract?.state ?? null, party }), stableJson({
+            bars: { student: [{ type: "bar", attribute: "resources.hitPoints", value: 3, max: 4, editable: false }, null,
+                { type: "bar", attribute: "resources.stress", value: 5, max: 7, editable: false }, { type: "bar", attribute: "resources.stress", value: 5, max: 7, editable: false }],
+            asFoundry: [true, true, true, true, true] },
+            wrap: [true, true, 3, false],
+            row: ["override", "foundry", "states.mjs", "TokenDocument.prototype.getBarAttribute"], contract: "ok",
+            party: {
+                gm: { health: { value: "3 / 4", filled: 3, toggles: 4, numbers: reversed(4) }, sanity: { value: "5 / 7", filled: 5, toggles: 7, numbers: reversed(7) } },
+                owner: { health: { value: "3 / 4", filled: 3, toggles: 0, numbers: off(4) }, sanity: { value: "5 / 7", filled: 5, toggles: 0, numbers: off(7) } },
+                viewer: { health: { value: "3 / 4", filled: 3, toggles: 0, numbers: off(4) }, sanity: { value: "?", filled: 0, toggles: 0, numbers: off(7) } } } }),
+        "{bars: a student's [Health to another player, Sanity to them, to the owner, to a GM], [a Monokuma's two, an NPC's Sanity, an adversary's Health, a student's Hope as Foundry's]; "
+            + "wrap: [marked, a second wrap stacks nothing, bar 1's value and editable through it]; the contract's row [kind, owner, file, target] and its state here; "
+            + "party: a GM's, the owner's and another player's sheet: [the row's numbers, pips filled, pips with a toggle, each pip's value for a toggle]}");
+    }],
+    ["R1449 - the incident tracker's victim line is the reserve (murder-ui.mjs `incidentTrackerHtml` through `reserveLine` and `reserveView`; E24 C1b, E24-08): a GM's window reads both reserves as what is left, no marks and no \"marked\", and the pair as the cards write it", async () => {
+        /*
+         * E24 C1b, 08.11.2026. The tracker said `DRPG.Murder.victimMarks` with `marksOf` - "Health 2/6 marked" - beside a
+         * sheet that says what is left. Read on two of the world's students, the tracker's HTML built for a fight between
+         * them (read only: `incidentTrackerHtml` is a builder, nothing is written), and the line held to the GM's
+         * `DRPG.Events.reserveVictim` from `reserveView`. The pair is murder-ui.mjs `pairOf`, the cards' own form.
+         */
+        needs(world.atLeast("livingStudents", 2), "two students for a fight's two sides");
+        const MU = await import("./murder-ui.mjs");
+        const { reserveView } = await import("./character.mjs");
+        const [killer, victim] = studentActors();
+        const html = MU.incidentTrackerHtml({ stage: "incident", turn: 1, turnSide: "victim", killerId: killer.id, victimId: victim.id, recent: [], keyRemnants: 0 }, null);
+        const root = document.createElement("div");
+        root.innerHTML = html;
+        const text = root.textContent.replace(/\s+/g, " ");
+        const hp = reserveView(victim, "hitPoints"), sanity = reserveView(victim, "stress");
+        const line = game.i18n.format("DRPG.Events.reserveVictim", { hp: hp.left, hpMax: hp.max, sanity: sanity.left, sanityMax: sanity.max });
+        const r = victim.system.resources;
+        const marks = `${r.hitPoints.value}/${r.hitPoints.max}`;
+        const pair = typeof MU.pairOf === "function" ? MU.pairOf(killer, victim).replace(/\s+/g, " ") : null;
+        equal(stableJson([text.includes(line.replace(/\s+/g, " ")), text.includes(marks), /marked|zaznaczon/i.test(text), pair !== null && text.includes(pair)]), stableJson([true, false, false, true]),
+            `[the line is the reserve (${line}), the marks ${marks} stand in it, a "marked", the pair (${pair}) as the cards write it]: ${text.slice(0, 600)}`);
+    }],
+    ["R1485 - the Breakdown icon is drawn only for whom the student's Sanity is shown (states.mjs `wrapEffectIcons`; E24 C1b, STAGE.md Amend 08.11 A1; the owner's 08.11 \"ikone tez ukrywamy\"): on a stand-in token, the owner and a GM see a student's Breakdown icon, another player and an Observer-only player do not; Wounded and `dead` drawn for everybody; a Monokuma's as Foundry's; the wrapper marked and not stacked, and its contract row", async () => {
+        /*
+         * E24 C1b, 08.11.2026. states.mjs puts Breakdown on with `toggleStatusEffect`, so Daggerheart's token (2.10.5
+         * module/canvas/placeables/token.mjs `_drawEffects`, which hands `_drawEffect(src, tint, effect)` each icon's
+         * effect) drew the icon on every client's canvas: it told another player what the Sanity bar no longer does. A
+         * view change on this browser (the status still sits on the actor every client holds): the icon of a
+         * `drpgBreakdown` effect is not drawn for a user `reserveView` does not show the student's Sanity to. Read on a
+         * stand-in prototype standing for the token class (no canvas headless; a table's check, STAGE.md A1). Red on C1a's
+         * tree: no wrapper, every viewer sees it.
+         */
+        const ST = await import("./states.mjs");
+        const { STATES, FLAGS } = await import("./config.mjs");
+        const { PATCHES } = await import("./patches.mjs");
+        const owner = { id: "r1485-owner", isGM: false }, viewer = { id: "r1485-viewer", isGM: false }, observer = { id: "r1485-observer", isGM: false };
+        const stamp = Date.now().toString(36);
+        const student = reserveActor({ id: `r1485s${stamp}`, stress: 6, owner: owner.id });
+        const monokuma = Object.assign(reserveActor({ id: `r1485m${stamp}`, stress: 6 }), { getFlag: (scope, key) => key === FLAGS.monokuma });
+        const effect = id => ({ img: `icons/r1485/${id}.webp`, statuses: new Set([id]) });
+        const EFFECTS = [effect(STATES.breakdown.id), effect(STATES.wounded.id), effect("dead")];
+        let seen = null, wrap = null;
+        if (typeof ST.effectIconShown === "function") {
+            seen = {};
+            const drawn = (actor, user) => EFFECTS.map(fx => ST.effectIconShown(actor, fx, user));
+            for (const [who, user] of [["owner", owner], ["gm", game.user], ["player", viewer], ["observer", observer]]) seen[who] = drawn(student, user);
+            seen.monokuma = drawn(monokuma, viewer);
+        }
+        if (typeof ST.wrapEffectIcons === "function") {
+            const proto = { async _drawEffect(src) { return { drawn: src }; } };
+            ST.wrapEffectIcons(proto);
+            const first = proto._drawEffect;
+            ST.wrapEffectIcons(proto);
+            const token = Object.assign(Object.create(proto), { actor: student });
+            const src = stripComments((await moduleSources()).get("states.mjs") ?? "");
+            wrap = [Boolean(first[Symbol.for("drpgBreakdownIcon")]), proto._drawEffect === first,
+                Boolean((await token._drawEffect(EFFECTS[0].img, null, EFFECTS[0]))?.drawn), /\beffectIconShown\(this\.actor/.test(fnSource(src, "wrapEffectIcons"))];
+        }
+        const row = PATCHES.find(r => r.id === "breakdown-icon-private") ?? null;
+        equal(stableJson({ seen, wrap, row: row ? [row.kind, row.owner, row.file] : null }), stableJson({
+            seen: { owner: [true, true, true], gm: [true, true, true], player: [false, true, true], observer: [false, true, true], monokuma: [true, true, true] },
+            wrap: [true, true, true, true], row: ["override", "daggerheart", "states.mjs"] }),
+        "{seen: [Breakdown, Wounded, dead] drawn on a student's token for its owner, a GM, another player and an Observer-only player, and on a Monokuma's for another player; "
+            + "wrap: [marked, a second wrap stacks nothing, a GM's Breakdown drawn through it, it asks effectIconShown with the token's actor]; the contract's row [kind, owner, file]}");
+    }],
 ];
 
 /**
@@ -39874,6 +40064,26 @@ function reserveStandIn(actor, { pips = false } = {}) {
 function reserveRowText(row) {
     if (!row) return null;
     return [...row.childNodes].map(node => (node.localName === "input" ? node.value : node.textContent)).join("");
+}
+
+/* A Party sheet's member as Daggerheart 2.10.5's templates/sheets/actors/party/party-members.hbs writes one (E24 C1b;
+   R1447): the name's link by uuid, Health's and Stress's slot sections - the label's tooltip key, `.current` / `.max`,
+   one `.slot` a point, `filled` up to the marks, `data-action` the toggle and `data-value` its point. */
+function partyStandIn(actor) {
+    const root = document.createElement("div");
+    const section = (key, tip, action) => {
+        const { value, max } = actor.system.resources[key];
+        let slots = "";
+        for (let n = 1; n <= max; n++) {
+            slots += `<span class='slot${value >= n ? " filled" : ""}' data-action='${action}' data-actor-id="Actor.${actor.id}" data-value="${n}"></span>`;
+        }
+        return `<div class="slot-section"><div class="slot-label" data-tooltip="${tip}"><span class="label"><i class="fa-solid" inert></i></span>`
+            + `<span class="value"><span class="current">${value}</span> / <span class="max">${max}</span></span></div><div class="slot-bar">${slots}</div></div>`;
+    };
+    root.innerHTML = `<ul class="actors-list"><li class="actor-resources"><header><a data-action="openDocument" data-uuid="Actor.${actor.id}">${actor.name}</a></header>`
+        + `<section class="body"><section class="resources">${section("hitPoints", "DAGGERHEART.GENERAL.HitPoints.plural", "toggleHitPoints")}`
+        + `${section("stress", "DAGGERHEART.GENERAL.stress", "toggleStress")}</section></section></li></ul>`;
+    return root;
 }
 
 export { INVARIANTS };

@@ -22,7 +22,7 @@
 import { MODULE_ID, TRIAL } from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { error, plural, tickerRuns } from "./utils.mjs";
-import { marksOf } from "./character.mjs";
+import { pairOf, reserveLine } from "./murder-ui.mjs";
 import { motive, shownMotive, incidentKey } from "./rules.mjs";
 import { murderState, clockHiddenHere } from "./murder.mjs";
 import { pendingGather } from "./call-effects.mjs";
@@ -177,12 +177,13 @@ function openingCard() {
     let room = null;
     // The room's name: `roomOfActor` answers a string, so its `.name` was always undefined (E12 C3; plan-E12 1.x item 5).
     try { room = victim ? (locateActor(victim)?.room ?? null) : null; } catch { /* a victim outside every room */ }
-    const who = game.user.isGM && killer && victim ? `${killer.name} → ${victim.name}` : (victim?.name ?? "");
+    // The GM's pair as the incident card and the tracker write it (`pairOf`, E24 C1b); a participant, the victim's name.
+    const who = victim?.name ?? "";
     return {
         kind: "incident",
         mine: !game.user.isGM,
         title: game.i18n.localize("DRPG.Events.openingTitle"),
-        sub: room ? `${who} · ${room}` : who,
+        sub: game.user.isGM && killer && victim ? pairOf(killer, victim, room) : (room ? `${who} · ${room}` : who),
         meta: game.i18n.localize("DRPG.Events.openingMeta")
     };
 }
@@ -222,23 +223,13 @@ function incidentCard() {
         (state.turnSide === "victim" && mine === state.victimId)
         || (state.turnSide === "killer" && mine === killerActing));
 
-    const turn = involved
-        ? game.i18n.localize(myTurn ? "DRPG.Murder.yourTurn" : "DRPG.Murder.theirTurn")
-        : game.i18n.format("DRPG.Murder.trackerState", {
-            stage: game.i18n.localize(`DRPG.Murder.stage.${state.stage}`),
-            turn: state.turn ?? 1,
-            side: game.i18n.localize(`DRPG.Murder.side.${state.turnSide}`)
-        });
-    const left = game.i18n.format("DRPG.Murder.victimMarks", {
-        hp: marksOf(victim, "hitPoints"),
-        stress: marksOf(victim, "stress")
-    });
+    const acting = game.actors.get(state.turnSide === "victim" ? state.victimId : killerActing) ?? null;
+    const { turn, left } = incidentLines({ state, mine, myTurn, victim, acting });
 
     let room = null;
     try { room = locateActor(victim)?.room ?? null; } catch { /* a victim outside every room */ }
-    const sub = killer
-        ? game.i18n.format(room ? "DRPG.Events.incidentSubRoom" : "DRPG.Events.incidentSub", { killer: killer.name, victim: victim.name, room })
-        : victim.name;
+    // The pair as the opening card and the tracker write it (murder-ui.mjs `pairOf`; DRPG.Events.incidentSubRoom with a room).
+    const sub = killer ? pairOf(killer, victim, room) : victim.name;
 
     // A trap is "A killing in the dark"; a direct murder is fought face to face, and its
     // card said the trap's title until E32+E07 C18 (03.10.2026; audit S04-40).
@@ -246,8 +237,32 @@ function incidentCard() {
     /* TWO LINES, WHOSE TURN AND THEN THE STATE (E23 C3b, 07.11.2026; audit S10-35). The meta was one string,
        `${turn} · ${left}`, centred in upper case on a 355 px card: it broke wherever the width ran out ("VICTIM TO / ACT",
        the dot left hanging at a line's end), three centred lines nobody read at a glance. Now two parts, each its own
-       line drawn by `cardElement`: whose turn first, then the victim's marks. */
+       line drawn by `cardElement`: whose turn first, then the victim's reserves as this seat reads them (E24 C1b). */
     return { kind: "incident", mine: Boolean(myTurn), title, sub, meta: [turn, left] };
+}
+
+/**
+ * THE INCIDENT CARD'S TWO LINES, BY SEAT (E24 C1b, 08.11.2026; audit S10-36, the owner's D5 option 1 and 28.10). Whose
+ * turn: a participant's own "your turn"; the killer's side, waiting, names who acts (`DRPG.Events.waitingFor`; it read
+ * "waiting for them"); the victim's side, waiting, "waiting for them" still (a trap's victim is told no killer); a GM,
+ * the stage, the turn and the side. Then the victim's reserves for `user` (murder-ui.mjs `reserveLine`): the victim's
+ * own seat both in the second person, a GM both, anybody else the victim's Health alone. `mine` is the seat's actor id
+ * (`incidentWitness`), `acting` the actor whose turn it is. Exported for R1446 and E24-T1, which read it by seat.
+ */
+export function incidentLines({ state, mine, myTurn, victim, acting, user = game.user }) {
+    const killerSide = Boolean(mine) && mine !== state.victimId
+        && [state.killerId, state.thirdSide === "killer" ? state.thirdId : null].includes(mine);
+    const turn = !mine
+        ? game.i18n.format("DRPG.Murder.trackerState", {
+            stage: game.i18n.localize(`DRPG.Murder.stage.${state.stage}`),
+            turn: state.turn ?? 1,
+            side: game.i18n.localize(`DRPG.Murder.side.${state.turnSide}`)
+        })
+        : myTurn ? game.i18n.localize("DRPG.Murder.yourTurn")
+        : killerSide ? game.i18n.format("DRPG.Events.waitingFor", { name: acting?.name ?? "?" })
+        : game.i18n.localize("DRPG.Murder.theirTurn");
+    const seat = user?.isGM ? "gm" : (mine && mine === state.victimId ? "you" : "other");
+    return { turn, left: reserveLine(victim, seat, user) };
 }
 
 /**

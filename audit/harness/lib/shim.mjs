@@ -583,6 +583,24 @@ export function buildDocumentClasses(ctx) {
         /* The floor the token stands on: a level's id on its scene (E12 C0), null where the token names none - every
            token of the seed, so no scenario before 66 moves. See `LevelList` below. */
         get level() { return this._source.level ?? null; }
+        /* E24 C1b (08.11.2026): Foundry's `TokenDocument#getBarAttribute`, which a token's bars and its HUD's inputs read,
+           as recalled of v13 and not read in v14's source (E24's live row of the token bars, AUDIT 9.2): the attribute the bar
+           names (or `alternative`), read off the actor's system data; a number answers `{ type: "value" }`, an object with
+           `value` and `max` answers `{ type: "bar", value, max }` with both as integers, anything else null. `editable` is
+           true for both here (v13 asks the system's schema whether the field is a number field; Daggerheart's are). The
+           module wraps it (states.mjs `wrapBarAttribute`), so the wrap is installed and read on this model. */
+        getBarAttribute(barName, { alternative } = {}) {
+            const attribute = alternative || this._source[barName]?.attribute;
+            const system = this.actor?.system;
+            if (!attribute || !system) return null;
+            const data = U.getProperty(system, attribute);
+            if (data === null || data === undefined) return null;
+            if (Number.isFinite(Number(data)) && typeof data !== "object") return { type: "value", attribute, value: Number(data), editable: true };
+            if (typeof data === "object" && "value" in data && "max" in data) {
+                return { type: "bar", attribute, value: parseInt(data.value || 0, 10), max: parseInt(data.max || 0, 10), editable: true };
+            }
+            return null;
+        }
         get object() {
             const cv = ctx.gameRef().canvas;
             if (!cv?.scene || cv.scene.id !== this.parent?.id) return null;

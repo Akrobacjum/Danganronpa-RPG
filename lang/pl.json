@@ -455,8 +455,8 @@
         "many": "{actor} ma {left} akcji, a potrzebuje {needed}.",
         "other": "{actor} ma {left} akcji, a potrzebuje {needed}."
       },
-      "woundedTooltip": "Całe Health zaznaczone - jedna akcja na porę dnia.",
-      "lockedTooltip": "Przepada. Całe Health zaznaczone, więc to zostaje zamknięte do czasu wyleczenia.",
+      "woundedTooltip": "Nie zostało już Health - jedna akcja na porę dnia.",
+      "lockedTooltip": "Przepada. Nie zostało już Health, więc to zostaje zamknięte do czasu wyleczenia.",
       "pipReadOnly": {
         "one": "{left} z {max} akcji o tej porze dnia. Wydawane przez działanie.",
         "few": "{left} z {max} akcji o tej porze dnia. Wydawane przez działanie.",
@@ -1521,7 +1521,11 @@
       "trialObjectionFloor": "{who} ma głos",
       "afterVerdict": "Werdykt zapadł",
       "trialNext": "Następny: {name}",
-      "trialLastTurn": "Ostatnia tura"
+      "trialLastTurn": "Ostatnia tura",
+      "waitingFor": "Incydent - ruch ma {name}",
+      "reserveYou": "Masz jeszcze {hp} z {hpMax} Health i {sanity} z {sanityMax} Sanity.",
+      "reserveOf": "{name} ma jeszcze {hp} z {hpMax} Health.",
+      "reserveVictim": "Ofiara ma jeszcze {hp} z {hpMax} Health i {sanity} z {sanityMax} Sanity."
     },
     "Handbooks": {
       "title": "Podręczniki",
@@ -2118,7 +2122,7 @@
       "leftRemnant": "Zostawia Remnant.",
       "youLose": "Tracisz {what}.",
       "theyLose": "{name} traci {what}.",
-      "killerChooses": "Krytyk - zabójca wybiera: oba znaczniki z Health albo oba z Sanity.",
+      "killerChooses": "Krytyk - zabójca wybiera, skąd schodzą oba punkty: z Health albo z Sanity.",
       "hinderedActions": {
         "one": "Przeciwnik ma utrudnienie na {actions} przez {turns} turę.",
         "few": "Przeciwnik ma utrudnienie na {actions} przez {turns} tury.",
@@ -2227,7 +2231,7 @@
       "gmPicksTrait": "Rzut: {traits} - wybiera GM. Napisz mu w swoim wątku, co robisz.",
       "youPickTrait": "Rzut: {traits} - masz uzbrojone Resolve, więc wybierasz sam w oknie rzutu.",
       "criticalChoiceTitle": "Czyste trafienie",
-      "criticalChoiceIntro": "Cios trafia dokładnie tam, gdzie miał trafić. Zdejmij oba znaczniki z tego samego miejsca - z ciała albo z nerwów.",
+      "criticalChoiceIntro": "Cios trafia dokładnie tam, gdzie miał trafić. Oba punkty schodzą z tego samego zapasu - z ciała albo z nerwów.",
       "criticalChoiceHp": "Oba z Health",
       "criticalChoiceStress": "Oba z Sanity",
       "ranOutTwoKillers": "{victim} nie ma już nic. {killers} oboje w tym siedzą.",
@@ -2238,7 +2242,6 @@
       "crowdedNote": "Nikt nie ginie. To, co walka już zrobiła, zostaje: rany, Sanity i cokolwiek zostawiła na podłodze.",
       "freeResolution": "Nie ruszą się z miejsca. Weź w tej turze Survive albo Role Reversal - bez rzutu, po prostu działa.",
       "trackerCastGone": "Ten incydent wskazuje kogoś, kogo nie ma już w świecie ({who}). Nic nie popchnie go dalej - zakończy go przycisk „Zamknij morderstwo”.",
-      "victimMarks": "Ofiara: zaznaczone Health {hp}, Sanity {stress}.",
       "castMissingHere": "Ta przeglądarka nie ma obsady trwającego incydentu, więc nie da się tu ustalić jego tury. Wpisz obsadę ręcznie (kontrola zdrowia sprawy) albo pozwól działać GM-owi, którego przeglądarka ją ma.",
       "castNotArrived": "Kopie obsady incydentu od pozostałych GM-ów jeszcze nie dotarły do tej przeglądarki: spróbuj za chwilę.",
       "deniedByIncident": "Incydent odebrał ci tę akcję.",
@@ -4126,7 +4129,7 @@
         "other": "Akcje odnowione dla {count} postaci"
       },
       "searchTokensRestocked": "Każdy pokój uzupełniony o Search Tokens",
-      "woundedNote": "Jedna akcja o tej porze dnia, całe Health zaznaczone: {names}.",
+      "woundedNote": "Jedna akcja o tej porze dnia, nie zostało już Health: {names}.",
       "rewindDuringEclipse": "Trwa Eclipse, więc zegar jeszcze się nie przesunął i nie ma do czego się cofać. Zakończ Eclipse w panelu GM-a - może się skończyć bez przesuwania zegara.",
       "takenBack": "Cofnięte: akcje, Free Move, Search Tokens i pieczęcie są takie, jak przed początkiem tej pory dnia."
     },
@@ -4922,11 +4925,11 @@
     "States": {
       "drpgBreakdown": {
         "name": "Breakdown",
-        "description": "Każdy punkt Sanity zaznaczony. Utrudnienie na każdym rzucie."
+        "description": "Nie zostało już Sanity. Utrudnienie na każdym rzucie."
       },
       "drpgWounded": {
         "name": "Wounded",
-        "description": "Każdy punkt Health zaznaczony. O jedną akcję mniej na porę dnia."
+        "description": "Nie zostało już Health. O jedną akcję mniej na porę dnia."
       }
     },
     "Rules": {
@@ -5517,7 +5520,7 @@
         "window": "Akcje, Move i Hope",
         "actionsTitle": "Akcje",
         "actionsWhat": "{actions} na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje {short}, Long Rest {long}.",
-        "actionsWounded": "Z całym Health zaznaczonym dostajesz {wounded} zamiast {actions}, dopóki ktoś cię nie poskłada.",
+        "actionsWounded": "Gdy nie zostało ci już Health, dostajesz {wounded} zamiast {actions}, dopóki ktoś cię nie poskłada.",
         "actionsNow": "Masz {left} z {max} o tej porze dnia.",
         "moveTitle": "Free Move",
         "moveWhat": "Jedno przejście między pokojami na porę dnia, które nic nie kosztuje. Potem zmiana pokoju kosztuje akcję jak wszystko inne.",
@@ -6978,6 +6981,9 @@
         "hook-dice-so-nice-roll-start": "każda kość Hope i Despair rysuje się w wyglądzie, który nadał jej Daggerheart osoby rzucającej, a raport wyglądu kości nie wymienia żadnego rzutu widzianego w tej przeglądarce",
         "hook-livekit-initialized": "pokoje głosowe, kafel głosu i mówcy rozprawy nie podążają za klientem głosu",
         "hook-image-popout-header": "okno zdjęcia pokoju pokazuje przycisk udostępniania Foundry i każdy, który doda moduł",
+        "token-bars-reserve": "paski na żetonach uczniów rosną, gdy uczeń traci punkty, jak rysuje je Daggerheart, a inny gracz widzi pasek Sanity",
+        "breakdown-icon-private": "ikona Breakdown na żetonie ucznia jest widoczna dla każdego gracza",
+        "hook-party-sheet-render": "karta drużyny liczy, co każdy członek stracił, jak rysuje ją Daggerheart, i pokazuje Sanity każdego członka każdemu graczowi",
         "user-permission-broadcast-audio": "niczyj mikrofon nie jest blokowany: przycisk GM-a mówi dlaczego, rozprawa również",
         "rtc-client-keys": "klucz, którego Foundry już nie trzyma, jest czytany jako domyślny (bez wyciszenia, pełna głośność, widoczny), a zapis do niego niczego nie zmienia",
         "push-to-talk-key": "wiersz o mówieniu na przycisk nie podaje klawisza",
