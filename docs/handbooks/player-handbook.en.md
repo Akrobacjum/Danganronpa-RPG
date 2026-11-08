@@ -48,11 +48,20 @@ Your numbers move through play: an action spent, a roll, a Rest, an item used, a
 
 | State | When | Effect |
 |---|---|---|
-| **Breakdown** | every point of Sanity is marked | disadvantage on every roll until some Sanity comes back |
-| **Wounded** | every point of Health is marked | one action fewer per time of day until somebody patches you up |
+| **Breakdown** | no Sanity left | disadvantage on every roll until some Sanity comes back |
+| **Wounded** | no Health left | one action fewer per time of day until somebody patches you up |
 
 > [!NOTE]
-> Both apply on their own the moment the track fills; Daggerheart's own Vulnerable and Death Move are switched off. Nothing in this module kills you for reaching zero Health. Dying is something a person does to you, and it is announced.
+> Both apply on their own the moment the reserve runs out; Daggerheart's own Vulnerable and Death Move are switched off. Nothing in this module kills you for reaching zero Health. Dying is something a person does to you, and it is announced.
+
+### What your sheet says
+
+- **What is left.** Under each of the two bars the sheet says what is left, not what has gone: **Left: 3 / 4** for Health, **Left: 6 / 6** for Sanity. An untouched student has two full bars, and a bar shortens as you are hurt. The pips are the module's own and read the same on a screen with Daggerheart's pips switched on and on one with them off (not yet checked at a table: LIVE-E24-02). With *Players cannot edit Actions, Hope, Health, Sanity or statistics* on, your sheet has no field to type the number in; with it off the field is there, and what you type is the number that is left.
+- **Sanity is yours alone.** Another player who opens your sheet or reads your row on the Party sheet reads your Health and a **?** where your Sanity would be; your token shows them no Sanity bar and, when you are in Breakdown, no Breakdown icon (not yet checked at a table: LIVE-E24-01, LIVE-E24-03, LIVE-E24-09). You and the GMs read both. This is what the screens draw: Foundry sends your character's data to every browser, and a player who opens the browser's console can read it (the GM handbook says so, section 1).
+- **A roll in Breakdown.** The extra die on a roll's card is named **Disadvantage** and the card says no more about why, to anybody. Your own roll window and the briefing of a crisis action tell you the cause; another player does not read it on the card (not yet checked at a table: LIVE-E24-10).
+- **The icons on a token** are the module's own pixel art. Wounded and the dead overlay are shown to everybody; Breakdown only to you and the GMs.
+- **Your background.** The biography part of your sheet has a field labelled **Background**, for who you were before the killing game. It saves by itself when you click out of it, switch to another tab or close the sheet; opening it writes nothing, and a sheet you may not edit shows it read-only. Another player's sheet has no Background (What you can see, below, says what it shows).
+- **A dead student's sheet** stays as a record: a **Dead** stamp, the header with Hope, Actions and Move still shown, and no Use, Discard, Give or Share, Stash, Present or Analyze on its items. It says what the dead still do: outside the Class Trial you still speak at the table; in it your microphone is off and you hold no ballot.
 
 ### Rolling
 
@@ -145,7 +154,7 @@ Your GM may turn off the price of crossings; then which rooms connect, the stair
 - You only see the people standing in your room. Nobody else is on the map for you.
 - **The room tile** stands under the clock - or, when the screen leaves too little room there, to the right of the notices - and shows the room your own character stands in, never another: its name, its search tokens with how many Searches are left (**2/3 searches**), **You can work a project here** when it holds a project you can work on, the GM's picture of it behind them, and the GM's description, behind a small arrow in the tile's top right corner: the arrow (**Read more**) unfolds the description over the picture and, turned up (**Show less**), folds it again. Click the picture to see it large, on your screen alone. During a Class Trial it shows the trial hall: the name, picture and description the GM gave it, or "Class Trial". On a narrow screen it is one row of the stack: a small picture (click it for the large one), the name, the tokens and a **Description** button that opens the description in a window. When two players own the same character, the tile on one of their screens can follow a move of several waypoints about a second and a half late.
 - The clock in the left column can be clicked: it explains the phase, the time of day, where you are, and prints the room's description if the GM wrote one.
-- Another player's sheet opens redacted: name, portrait, Ultimate, Health, Sanity, what they hold ready and how many Experiences they have. Nothing else.
+- Another player's sheet opens redacted: name, portrait, Ultimate, Health (and a ? where Sanity would be), what they hold ready and how many Experiences they have. Nothing else.
 
 ### Voice
 
@@ -610,7 +619,7 @@ Your side of the same table, behind the **Crisis actions** tile:
 
 | Action | Roll | What it does |
 |---|---|---|
-| Strike | Hand / Leg / Body, 15 | 1 Health and 1 Sanity off them; a critical puts both marks on the one track you choose, Health or Sanity. A failure with Despair still takes 1 Sanity and leaves an Evident trace. |
+| Strike | Hand / Leg / Body, 15 | 1 Health and 1 Sanity off them; a critical takes both points from the one reserve you choose, Health or Sanity. A failure with Despair still takes 1 Sanity and leaves an Evident trace. |
 | Pin Them Down | Body, 12 | Disadvantage on Leave a Clue and Survive for the victim's next two turns. |
 | Keep Your Distance | Leg, 12 | Disadvantage on Secure a Trace and Role Reversal for the victim's next two turns. |
 | Attack with a Weapon | Body / Hand / Leg, 15 | Damage 1 + half the weapon's tier (rounded up); 1 + the full tier on a critical. Unarmed: disadvantage, and a success snatches an improvised weapon (Tier 2 on Hope, Tier 1 on Despair). A Tier 0 object is rated by the GM. |
@@ -748,7 +757,7 @@ Somebody among you may have built this place. The **Final Truth Remnants** - one
 
 Once your own Class Trial has ended, you may join the GMs as a **Monocub**. Same actor, same sheet; the action panel becomes **Move** and **Confusion**.
 
-- You start with 0 Hope and no Health or Sanity marked, and have the same action budget as an unwounded living student - Wounded never takes one from a Monocub. You see only your own room. Your rolls are shown to everyone standing in it.
+- You start with 0 Hope and all your Health and Sanity left, and have the same action budget as an unwounded living student - Wounded never takes one from a Monocub. You see only your own room. Your rolls are shown to everyone standing in it.
 - **Confusion** costs **1 action and 1 Hope**, and your Hope exists only because a Monokuma converted Despair into it (Fuel a Monocub). It is a flat 2d12 with no statistic. Pick somebody in your room and help or hinder their next roll (see the table below). They are told something steadied or rattled them, never who - but everyone in your room sees you roll, so they may work out it was you.
 - A Monocub who stumbles onto the crime scene is sworn to silence about it until the chapter ends. Confusion still works.
 

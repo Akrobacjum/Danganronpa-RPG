@@ -40203,6 +40203,100 @@ const INVARIANTS = [
             student: { before: { full: 4 }, after: { full: 3, fewerGreyed: true }, tile: [true, true], renders: 0 }
         }), "[a Monocub's Confusion tile unaffordable before and after a Hope update, the original's renders; the pip layout's Health full pips before and after, fewer greyed Hope Calls, a priced tile drawn and rebuilt, the original's renders]");
     }],
+    ["R1489 - a roll made in Breakdown names no Breakdown on its card for anybody but its owner and the GMs (roll-draw.mjs `scoredOf`, `modifierLabel`, the `renderChatMessageHTML` steps; E24 C4b, STATUS E24 C1d, STAGE.md Amend 08.11 A4; the owner's 08.11 \"Breakdown na wyniku rzutu ukryjmy\"): a student in Breakdown, read by the module's own `expectedFor`, rolls with a disadvantage die; the card's data and its drawn element, through every `renderChatMessageHTML` step as the owner, a GM, another player and an Observer-only player, hold the result and the disadvantage die for all four, and for the two non-owners no word, tag, tooltip, class or data- attribute naming Breakdown; and no row of the legal list read off the student's reserve (`breakdown`) is a modifier the card's labels can name. A GUARD, GREEN FROM ITS BIRTH, PROVEN BY PLANTS", async () => {
+        /*
+         * E24 C4b, 08.11.2026. A guard, not a regression: STATUS E24 C1d measured on 97f7fb17 that no client's roll card
+         * data or HTML names Breakdown (a roll made in Breakdown has the disadvantage die, labelled "Disadvantage" by
+         * Daggerheart's roll-part.hbs, and no cause), so this test cannot be red first. It was proven the other way, by
+         * three faults planted one at a time on a scratch copy of the tree, quoted in C4b's STATUS: (p1) a `breakdown`
+         * row among `scoredOf`'s modifiers, which `modifierLabel` then labels with "DRPG.Rolls.legal.breakdown" - the
+         * reading of `scoredOf`'s and `modifierLabel`'s source below goes red; (p2) a `renderChatMessageHTML` step that
+         * writes the Breakdown label into every card on every client - the drawn element goes red for the other
+         * player and the Observer; (p3) the same step only for the owner and the GMs - R1489 stays GREEN, the guard
+         * does not over-reach (the owner's and the GMs' roll window, briefing and audit say Breakdown by design).
+         *
+         * The card here is what a headless client can draw: Daggerheart's roll-part.hbs is not drawn (client-entry.mjs
+         * `renderTemplate` answers ""), so the element is the module's own words about the roll - its formula as
+         * `rollOnRecord` writes it from the record's `scored`, the labelled modifiers, the total - in a stand-in of the
+         * card's shape, and the steps that run on it are the module's registered ones (`Hooks.events`), each in its own
+         * try (a step that needs a real message throws on a stand-in and is counted, not hidden). Whether Daggerheart's
+         * own template adds a word is a table's check, LIVE-E24-10 (AUDIT 9.2). Nothing is written.
+         */
+        needs(world.atLeast("livingStudents", 1), "a student's roll is expected of a real student");
+        const D = await import("./roll-draw.mjs");
+        const { LEGAL_ROLL_MODIFIERS, MODULE_ID: MOD } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { isBrokenDown } = await import("./character.mjs");
+        const src = stripComments((await moduleSources()).get("roll-draw.mjs") ?? "");
+        // The rows read off the student's own reserve (`system.resources.*`): a state of the roller's, which a card's labels must not carry.
+        const diceRows = LEGAL_ROLL_MODIFIERS.filter(row => /^system\.resources\./.test(row.reader)).map(row => row.key);
+        const guarded = [fnSource(src, "scoredOf"), fnSource(src, "modifierLabel")];
+        must(guarded.every(text => text.length > 200 || text.includes("LEGAL")), "scoredOf's and modifierLabel's source was not read");
+        const named = diceRows.filter(key => guarded.some(text => new RegExp(`key:\\s*["'\`]${key}["'\`]|["'\`]${key}["'\`]\\s*:`).test(text)));
+
+        // A student in Breakdown, in memory: the real student with its Sanity marks at the maximum, nothing written.
+        const real = livingStudents()[0];
+        const own = foundry.utils.deepClone(real.system.toObject?.() ?? real.system);
+        own.resources.stress.value = own.resources.stress.max;
+        const owner = { id: "r1489-owner", isGM: false }, player = { id: "r1489-player", isGM: false }, observer = { id: "r1489-observer", isGM: false };
+        const levelOf = (user, level) => (user?.isGM || user?.id === owner.id) ? true : (user?.id === observer.id && level === "OBSERVER");
+        const broken = Object.create(real, { system: { value: own }, testUserPermission: { value: levelOf } });
+        const calm = Object.create(real, { system: { value: { ...own, resources: { ...own.resources, stress: { ...own.resources.stress, value: 0 } } } } });
+        must(isBrokenDown(broken) && !isBrokenDown(calm), "the in-memory student is not in Breakdown (or the calm one is)");
+        const [low, high] = [await D.expectedFor(calm, { actionKey: null }), await D.expectedFor(broken, { actionKey: null })];
+
+        // The card: the module's own formula and labels for a roll scored at that expectation, in the shape of a card.
+        const trait = high.trait ?? "eye";
+        const scored = { trait, advantage: high.advantage, modifiers: [{ key: "trait", name: trait, label: trait, value: high.sheet?.traits?.[trait] ?? 0 }] };
+        const built = D.rollOnRecord({ scored, legal: { read: high.read } });
+        const formula = built?.formula ?? "";
+        const total = 14;
+        const message = {
+            id: "r1489msg", author: owner, user: owner, speaker: { actor: real.id }, whisper: [], blind: false, isRoll: true,
+            flags: { [MOD]: {} }, getFlag: () => undefined, content: "", rolls: [{ formula, total, options: { modifiers: built?.roll?.modifiers ?? [] } }],
+            toObject() { return { _id: this.id, author: owner.id, content: this.content, flags: this.flags, rolls: [JSON.stringify(this.rolls[0])] }; }
+        };
+        const labels = (built?.roll?.modifiers ?? []).map(m => `<li>${m.label} ${m.value}</li>`).join("");
+        const drawn = () => {
+            const el = document.createElement("div");
+            el.className = "chat-message message";
+            el.innerHTML = `<div class="dice-roll"><div class="dice-formula">${formula}</div><ul class="modifiers">${labels}</ul>`
+                + `<span class="die-label">${game.i18n.localize("DAGGERHEART.GENERAL.Disadvantage.short")}</span><div class="dice-total">${total}</div></div>`;
+            return el;
+        };
+        const ownUser = Object.getOwnPropertyDescriptor(game, "user");
+        const realUser = game.user;
+        const put = (target, key, own) => { if (own) Object.defineProperty(target, key, own); else delete target[key]; };
+        const steps = (Hooks.events?.renderChatMessageHTML ?? []).map(entry => entry.fn);
+        must(steps.length >= 3, `only ${steps.length} renderChatMessageHTML step(s) are registered - the card's drawing would measure nothing`);
+        const WORD = /breakdown/i;
+        const seen = {};
+        let ran = 0, threw = 0;
+        try {
+            for (const [who, user] of [["owner", owner], ["gm", realUser], ["player", player], ["observer", observer]]) {
+                Object.defineProperty(game, "user", { value: user === realUser ? realUser : Object.defineProperty(Object.create(realUser), "id", { value: user.id }), configurable: true, writable: true });
+                if (user !== realUser) Object.defineProperty(game.user, "isGM", { value: false });
+                const el = drawn();
+                for (const step of steps) {
+                    try { await step(message, el, {}); ran++; } catch { threw++; }
+                }
+                const html = el.outerHTML;
+                const attrs = [...el.querySelectorAll("*"), el].flatMap(node => [...node.attributes].map(a => `${a.name}=${a.value}`));
+                seen[who] = {
+                    word: WORD.test(html) || WORD.test(attrs.join(" ")) || WORD.test(JSON.stringify(message.toObject())),
+                    total: html.includes(`>${total}<`), die: /\bd6d\b|1d6d|Disadvantage/i.test(html)
+                };
+            }
+        } finally {
+            put(game, "user", ownUser);
+        }
+        must(ran > 0, `no renderChatMessageHTML step ran on the stand-in card (${threw} threw) - nothing was read`);
+        equal(stableJson({ advantage: [low.advantage, high.advantage], diceRows: diceRows.length > 0, named }), stableJson({ advantage: [0, -1], diceRows: true, named: [] }),
+            "{advantage: [a calm student's, a student in Breakdown's] as the module expects it; diceRows: the legal list has a row read off the reserve; named: the rows read off the reserve that scoredOf or modifierLabel names as a modifier}");
+        equal(stableJson({ word: [seen.player?.word, seen.observer?.word], present: Object.entries(seen).map(([who, s]) => [who, s.total, s.die]) }),
+            stableJson({ word: [false, false], present: [["owner", true, true], ["gm", true, true], ["player", true, true], ["observer", true, true]] }),
+            "{word: [another player's, an Observer's] drawn card naming Breakdown in its HTML, an attribute (a tooltip, a class, a data- one) or its data; present: each viewer's [result, the disadvantage die] on the card}");
+    }],
 ];
 
 /**

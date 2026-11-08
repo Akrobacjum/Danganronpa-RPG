@@ -48,11 +48,20 @@ Twoje liczby zmieniają się w grze: przez wydaną akcję, rzut, Rest, użyty pr
 
 | Stan | Kiedy | Efekt |
 |---|---|---|
-| **Breakdown** | każdy punkt Sanity zaznaczony | utrudnienie na każdym rzucie, dopóki nie wróci trochę Sanity |
-| **Wounded** | każdy punkt Health zaznaczony | o jedną akcję mniej na porę dnia, dopóki ktoś cię nie poskłada |
+| **Breakdown** | Sanity się skończyło | utrudnienie na każdym rzucie, dopóki nie wróci trochę Sanity |
+| **Wounded** | Health się skończyło | o jedną akcję mniej na porę dnia, dopóki ktoś cię nie poskłada |
 
 > [!NOTE]
-> Oba włączają się same w chwili, gdy pasek się zapełni; Vulnerable i Death Move z Daggerheart są wyłączone. Nic w tym module nie zabija cię za zejście do zera Health. Śmierć to coś, co robi ci człowiek, i jest ogłaszana.
+> Oba włączają się same w chwili, gdy zapas się skończy; Vulnerable i Death Move z Daggerheart są wyłączone. Nic w tym module nie zabija cię za zejście do zera Health. Śmierć to coś, co robi ci człowiek, i jest ogłaszana.
+
+### Co mówi twoja karta
+
+- **Co zostało.** Pod każdym z dwóch pasków karta mówi, ile zostało, a nie ile ubyło: **Zostało: 3 / 4** dla Health, **Zostało: 6 / 6** dla Sanity. Nietknięty uczeń ma dwa pełne paski, a pasek skraca się, gdy cię ranią. Kropki są własne modułu i wyglądają tak samo na ekranie z włączonymi kropkami Daggerheart i na ekranie bez nich (jeszcze nie sprawdzone przy stole: LIVE-E24-02). Przy włączonym *Gracze nie edytują akcji, Hope, Health, Sanity ani statystyk* twoja karta nie ma pola na tę liczbę; przy wyłączonym pole jest, a to, co wpiszesz, jest liczbą tego, co zostało.
+- **Sanity jest tylko twoje.** Inny gracz, który otworzy twoją kartę albo przeczyta twój wiersz na karcie drużyny, czyta twoje Health i **?** w miejscu Sanity; twój token nie pokazuje mu paska Sanity, a gdy jesteś w Breakdown, także ikony Breakdown (jeszcze nie sprawdzone przy stole: LIVE-E24-01, LIVE-E24-03, LIVE-E24-09). Ty i GMowie czytacie oba. Tyle rysują ekrany: Foundry wysyła dane twojej postaci do każdej przeglądarki, a gracz, który otworzy konsolę przeglądarki, może je przeczytać (pisze o tym podręcznik GMa, sekcja 1).
+- **Rzut w Breakdown.** Dodatkowa kość na karcie rzutu nazywa się **Disadvantage** i karta nikomu nie mówi nic więcej o przyczynie. Twoje własne okno rzutu i odprawa akcji kryzysowej mówią, skąd się wzięła; inny gracz nie czyta tego na karcie (jeszcze nie sprawdzone przy stole: LIVE-E24-10).
+- **Ikony na tokenie** są własną pixel artową grafiką modułu. Wounded i nakładka śmierci widzą wszyscy; Breakdown tylko ty i GMowie.
+- **Twoja przeszłość.** Część biografii na twojej karcie ma pole z podpisem **Przeszłość**, na to, kim twoja postać była przed killing game. Zapisuje się samo, gdy z niego wyjdziesz, przełączysz się na inną kartę albo zamkniesz arkusz; samo otwarcie niczego nie zapisuje, a karta, której nie możesz edytować, pokazuje je tylko do odczytu. Karta innego gracza nie ma Przeszłości (co pokazuje, mówi część Co widzisz, niżej).
+- **Karta zmarłego ucznia** zostaje jako zapis: pieczęć **Nie żyje**, nagłówek z Hope, akcjami i Move nadal widoczny, a przy jego przedmiotach nie ma przycisków do użycia, wyrzucenia, przekazania, udostępnienia ani schowania, ani Przedstaw i Analizuj. Mówi, co zmarli nadal robią: poza Class Trial nadal mówisz przy stole; w nim twój mikrofon jest wyłączony i nie oddajesz głosu.
 
 ### Rzuty
 
@@ -145,7 +154,7 @@ GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, raz
 - Widzisz tylko osoby stojące w twoim pokoju. Nikogo innego dla ciebie na mapie nie ma.
 - **Kafelek pokoju** stoi pod zegarem - albo, gdy ekran nie zostawia tam miejsca, na prawo od powiadomień - i pokazuje pokój, w którym stoi twoja własna postać, nigdy inny: jego nazwę, jego Search Tokens z liczbą przeszukań, które zostały (**2/3 przeszukań**), **Możesz tu pracować nad projektem**, gdy jest w nim projekt, nad którym możesz pracować, zdjęcie pokoju od GMa pod nimi i opis od GMa, schowany za małą strzałką w prawym górnym rogu kafelka: strzałka (**Czytaj dalej**) rozwija opis nad zdjęciem, a obrócona do góry (**Zwiń opis**) zwija go z powrotem. Kliknij zdjęcie, by zobaczyć je w dużym rozmiarze, tylko na swoim ekranie. Podczas Class Trialu kafelek pokazuje salę rozpraw: nazwę, zdjęcie i opis od GMa albo "Class Trial". Na wąskim ekranie jest jednym wierszem stosu: małe zdjęcie (kliknij, by zobaczyć duże), nazwa, Search Tokens i przycisk **Opis**, który otwiera opis w oknie. Gdy tę samą postać ma dwóch graczy, kafelek na ekranie jednego z nich może nadążyć za ruchem przez kilka punktów trasy mniej więcej półtorej sekundy później.
 - Zegar w lewej kolumnie da się kliknąć: tłumaczy fazę, porę dnia, gdzie jesteś, i wypisuje opis pokoju, jeśli GM go napisał.
-- Karta innego gracza otwiera się ocenzurowana: imię, portret, Ultimate, Health, Sanity, to, co trzyma w rękach, i ile ma doświadczeń. Nic więcej.
+- Karta innego gracza otwiera się ocenzurowana: imię, portret, Ultimate, Health (i ? w miejscu Sanity), to, co trzyma w rękach, i ile ma doświadczeń. Nic więcej.
 
 ### Głos
 
@@ -610,7 +619,7 @@ Twoja strona tego samego stołu, za kafelkiem **Akcje kryzysowe**:
 
 | Akcja | Rzut | Co robi |
 |---|---|---|
-| Strike | Hand / Leg / Body, 15 | 1 Health i 1 Sanity z nich; krytyk kładzie oba znaczniki na jednym torze, który wybierzesz, Health albo Sanity. Porażka z Despair wciąż zdejmuje 1 Sanity i zostawia Evident ślad. |
+| Strike | Hand / Leg / Body, 15 | 1 Health i 1 Sanity z nich; krytyk zdejmuje oba punkty z jednego zapasu, który wybierzesz, Health albo Sanity. Porażka z Despair wciąż zdejmuje 1 Sanity i zostawia Evident ślad. |
 | Pin Them Down | Body, 12 | Utrudnienie na Leave a Clue i Survive przez dwie najbliższe tury ofiary. |
 | Keep Your Distance | Leg, 12 | Utrudnienie na Secure a Trace i Role Reversal przez dwie najbliższe tury ofiary. |
 | Attack with a Weapon | Body / Hand / Leg, 15 | Obrażenia 1 + połowa Tier broni (w górę); 1 + cały Tier na krytyku. Bez broni: utrudnienie, a sukces wyrywa improwizowaną broń (Tier 2 przy Hope, Tier 1 przy Despair). Przedmiot Tier 0 ocenia GM. |
@@ -748,7 +757,7 @@ Ktoś wśród was mógł zbudować to miejsce. **Final Truth Remnants** - jeden 
 
 Gdy skończy się twój własny Class Trial, możesz dołączyć do GMów jako **Monocub**. Ten sam aktor, ten sam arkusz; panel akcji staje się **Move** i **Confusion**.
 
-- Zaczynasz z 0 Hope, bez oznaczonego Health i Sanity, i masz tyle akcji co żyjący, niezraniony uczeń - Wounded nigdy nie odbiera Monocubowi akcji. Widzisz tylko własny pokój. Twoje rzuty widzą wszyscy, którzy w nim stoją.
+- Zaczynasz z 0 Hope, z pełnym Health i Sanity, i masz tyle akcji co żyjący, niezraniony uczeń - Wounded nigdy nie odbiera Monocubowi akcji. Widzisz tylko własny pokój. Twoje rzuty widzą wszyscy, którzy w nim stoją.
 - **Confusion** kosztuje **1 akcję i 1 Hope**, a twój Hope istnieje tylko dlatego, że Monokuma zamienił w niego Despair (Fuel a Monocub). To goły rzut 2d12, bez statystyki. Wybierz kogoś w swoim pokoju i pomóż albo przeszkódź przy jego następnym rzucie (zobacz tabelę poniżej). Dowiadują się, że coś uspokoiło ich rękę albo ich rozproszyło, nigdy kto - ale wszyscy w twoim pokoju widzą, że rzucasz, więc mogą się domyślić, że to ty.
 - Monocub, który natknie się na miejsce zbrodni, jest zobowiązany do milczenia o nim do końca rozdziału. Confusion wciąż działa.
 

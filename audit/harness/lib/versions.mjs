@@ -89,7 +89,15 @@ export const UNCONFIRMED = [
        in lib/shim.mjs from v13's ApplicationV2 as remembered and the module's notes (stacking.mjs), not from v14's source.
        R1404 and E23-T2 read the prompts over the sheets on that model. The other E23 rows are not modelled by the
        harness (the glass harness's stand-ins in Chromium, or nothing), so they stay in AUDIT section 9.2 only. */
-    "LIVE-E23-04"
+    "LIVE-E23-04",
+    /* E24's (C1b, 08.11.2026; C4b wrote its AUDIT item): `TokenDocument#getBarAttribute` as lib/shim.mjs models it - the
+       attribute a bar names read off the actor's system data, `{ type: "bar", value, max }` for an object with both and
+       `editable` true - from v13 as remembered, not v14's source. states.mjs `wrapBarAttribute` and R1447 read the
+       student's bars on that model (LIVE-E24-01). The other nine of E24's rows (the pips, the Party sheet, the
+       biography's type and saves, a light client, a step that throws, the victim's reading, the Breakdown icon and a
+       roll made in Breakdown) are read on stand-ins in the tests or Chromium, or not drawn here at all: the harness
+       models none of them, so they stay in AUDIT section 9.2 only. */
+    "LIVE-E24-01"
 ];
 
 function readJson(file) {

@@ -284,6 +284,26 @@ and player pages, at 1920x1080, 1366x768, 1024x768 and 390x844 in both themes,
 against `audit/style-baseline.json`. The captures are this harness's frame and
 seeded world, with no Foundry stylesheet: a shape to hold, not a table's picture.
 
+**The sheet stand-in's parts** (`audit/style-harness.html?sheet=parts`, E24 C0 and C4a). The same frame as `?sheet=1`
+with the parts the module fills drawn inside it: both layouts of Daggerheart 2.10.5's Health and Sanity (its
+resource-bar.hbs and sidebar.hbs, read as text at that tag), what sheet.mjs writes into them by its own literals (R1440
+holds every module class on the page to a string of sheet.mjs), the biography, the inventory's groups and the narrow
+column; `&pips=1`, `&role=viewer`, `&state=dead|monocub|npc` and `&lang=pl` draw the variants, and R1440 holds the page's shapes and the
+sweep's `sheet-parts` row reads it (`node audit/style-sweep.mjs --only sheet-parts`; 1920x1080 and 1366x768, and a
+phone's 390x844 with `--fit`). What it is not: Daggerheart's sheet - its other tabs, its own stylesheet and
+its Handlebars are neither here nor headless (only the two templates above were copied, so a Daggerheart upgrade reads
+them again) - nor Foundry's frame, nor a table's data; a viewer's page does not turn the values to "?" (the redaction
+is read on a stand-in root by R1445), and the inventory has no Truth Bullet group. A look measured here is a shape to
+hold; the table's reading is the stage's live rows (LIVE-E24-04 the biography's type, LIVE-E24-06 a light client).
+
+**The light-theme pass** (E24 C4a). `node audit/glass-sweep.mjs --scheme light` loads each page of the sweep with `?scheme=light` - the page's colour scheme light, `theme-light` on the
+body and on `#interface`, core's text dark - and reads the surfaces A7 and A8 listed (the corner's notice button, the
+launchers, the room tile, the voice tile, Foundry tools and Map tools) for their `color-scheme` and their ink against
+their ground; R1463 reads the same on the module's stylesheets (styleCascade). Core's light-theme text values are not in
+the repository, so the page stands in `#1d1a21` for them: a surface that reads dark here is dark against that value, and
+LIVE-E24-06 reads it on a real client with Foundry's light theme. What the harness still cannot say is in the list
+below.
+
 Whether a window fits on the screen is not this harness's to say: jsdom lays
 nothing out. `node audit/style-sweep.mjs --fit` (E21 C1c) reads it in Chromium on
 the same captures, one a tab, with each window placed where Foundry places a new

@@ -20978,6 +20978,40 @@ const REGRESSIONS = [
         }
         equal(JSON.stringify(found), "{}", "the flicker's old apparatus by file: [the four names, a preUpdateActor hook, sheet.mjs's updateActor hook]");
     }],
+    ["R1465 - no handbook line, English or Polish, says Health or Sanity is marked (E24 C4b, E24-12; D5 option 1, docs/text-style.md M7 \"a resource is said as its reserve\"; R1448 holds the same of the UI's own texts): the four handbooks' sentences and table cells that name Health or Sanity carry no \"mark\" word - \"marked\", \"mark\", \"marks\" - in English and no \"zaznacz\", \"oznacz\" or \"znacznik\" in Polish; the brochure's \"at zero\" is not a line this test reads", async () => {
+        /*
+         * E24 C4b, 08.11.2026. The sheet, the panel, the tracker and the UI's texts say what is left (R1442, R1446,
+         * R1448); four handbook lines still said what is marked: the player handbook's two state rows ("every point of
+         * Sanity is marked", "every point of Health is marked"), the Monocub's start ("no Health or Sanity marked") and
+         * the critical's "both marks on the one track"; the GM handbook's Wounded ("all Health marked") and the Monocub's
+         * start. Read by nearness, not by the line (a first version read each sentence and a table cell, and found
+         * "marked decided" and "mark the victim dead" in long lines that also name Health): a mark word within 60
+         * characters of the name with no stop or quotation mark between, so a room "marked" and "marked as Monokuma" in a line that also
+         * says Health are not hits. Red first on 22c15a53:
+         * the lines above, in both languages.
+         */
+        const MARK = { en: "\\bmark(?:s|ed|ing)?\\b", pl: "(?:zaznacz|oznaczon|znaczni)[a-z\u0105\u0107\u0119\u0142\u0144\u00f3\u015b\u017a\u017c]*" };
+        const NAMES = /\bHealth\b|\bSanity\b/;
+        // A mark word within 60 characters of the name, no stop between: "every point of Sanity is marked", "no Health or
+        // Sanity marked", "both marks on the one track you choose, Health or Sanity"; not a roll "marked decided" in a
+        // line that names Health a sentence away.
+        const NEAR = lang => new RegExp(`(?:\\b(?:Health|Sanity)\\b[^.;:|!?\\"]{0,60}${MARK[lang]}|${MARK[lang]}[^.;:|!?\\"]{0,60}\\b(?:Health|Sanity)\\b)`, "i");
+        const found = [];
+        let sentences = 0;
+        for (const book of ["player-handbook", "gm-handbook"]) {
+            for (const lang of ["en", "pl"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}.${lang}.md`);
+                ok(res.ok, `docs/handbooks/${book}.${lang}.md did not load`);
+                const near = NEAR(lang);
+                (await lfText(res)).split("\n").forEach((line, at) => {
+                    if (NAMES.test(line)) sentences++;
+                    if (near.test(line)) found.push(`${book}.${lang}.md:${at + 1}`);
+                });
+            }
+        }
+        must(sentences > 150, `read ${sentences} line(s) that name Health or Sanity - it would measure nothing`);
+        equal(JSON.stringify(found), "[]", "the handbook lines whose sentence names Health or Sanity and says it is marked");
+    }],
 ];
 
 
