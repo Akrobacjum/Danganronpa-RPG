@@ -3442,7 +3442,7 @@ function snapshotLook(j, painted = j.painted) {
      moves glass fades it out over 120 ms and back in over 180 ms once its moves are over and the frost has the new cut.
    - THE FLASH AT TODAY'S BRIGHTNESS (`FLASH`), once a pane: each pane's seams baked once a cut (`bakeFlash`), each seam on
      one pane's layer only, played with its pane's batch delay.
-   - THE CLOCK starts at the second frame after the bake (`startTurn`), never at the event.
+   - THE CLOCK starts at the first frame painted after the bake (`startTurn`), never at the event.
    - A colour-only change recuts nothing: the same cut keeps its panes, the turn recolours and flashes, and
      `drpgGlassCut` is not fired. Reduced motion turns nothing: the end state stands at once.
    The entry point is `glassTurn`, for E61's and E62's sequences as well as for this file's own turns; the self-check is
@@ -3662,17 +3662,24 @@ export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 120
 /* ---- the turn's layers ---- */
 const TURN_LAYER = "position:absolute;margin:0;padding:0;border:0;pointer-events:none;transform-origin:0 0;";
 const layerBox = b => "left:" + b.x0 + "px;top:" + b.y0 + "px;width:" + (b.x1 - b.x0) + "px;height:" + (b.y1 - b.y0) + "px;";
-/* one canvas of the old look, cut to the polygons given, the size of their box. A layer that travels is baked at twice
-   its size, each pixel of the look four of the layer's (E23 C1b fix, 07.11.2026): the compositor samples a moved
-   layer between its pixels, and one pixel of a seam or a streak, averaged with its neighbour, went - the harness's
-   layout turn at 1600x900, the travelling pane over 256,640 at 47 % of rest at one pixel a pixel, 56 % at four. */
+/* one canvas of a look, cut to the polygons given, the size of their box, one pixel of the look a pixel of the layer.
+   A LAYER THAT TRAVELS IS SAMPLED, NOT FILTERED (E23 fix G1, 08.11.2026; Open 15). The compositor samples a moved layer
+   between its pixels, and a pixel of a seam or a streak, averaged with its neighbour, went: C1b fix baked such a layer
+   at twice its size (the pane over 256,640 at 47 % of rest at one pixel a pixel, 56 % at four). Read again on the
+   turn's own frames - those after the screencast's last frame of the page before the rebuild - of the harness's layout
+   turn at 1600x900, two runs a role (08.11, scratch copies; `--turn`'s squares, a probe's window): twice the size 53-57
+   % of rest, three times 55-58 %, one pixel a pixel with `image-rendering: pixelated` 59-75 %; and the full `--turn` of
+   each, line by line, the recolours' worst square 85/85/117/119 % against 81/83/111/112 % (phase-recut, both sizes and
+   roles), the rest the same. So a travelling layer is drawn at its size and sampled to the nearest pixel: each pixel
+   on the screen is one of the look's. What it costs: a seam crossing the screen in a move is drawn in steps of a
+   pixel, not smoothed (seen at four times its size); at rest and in the standing layers nothing
+   changes. Headless and software; a table's pixels are a live reading's, not this one's. */
 function cutLook(look, polys, box, cls) {
-  const c = document.createElement("canvas"), k = cls === "drpg-turn-pane" ? 2 : 1;
-  c.className = cls; c.width = Math.max(1, box.x1 - box.x0) * k; c.height = Math.max(1, box.y1 - box.y0) * k;
-  c.style.cssText = TURN_LAYER + layerBox(box);
+  const c = document.createElement("canvas"), moves = cls === "drpg-turn-pane";
+  c.className = cls; c.width = Math.max(1, box.x1 - box.x0); c.height = Math.max(1, box.y1 - box.y0);
+  c.style.cssText = TURN_LAYER + layerBox(box) + (moves ? "image-rendering:pixelated;" : "");
   const g = c.getContext("2d");
   if (g) {
-    g.scale(k, k);
     g.imageSmoothingEnabled = false;
     g.translate(-box.x0, -box.y0);
     g.beginPath();
@@ -3759,34 +3766,56 @@ export function bakeFlash(job, { make = () => document.createElement("canvas") }
   return layers;
 }
 /**
- * A turn's start (exported for R1379): its animations begin at the second animation frame after the bake, so the
- * clock of the turn is the first frame the browser paints, never the event (DIAGNOSIS.md 4: half of the morph's travel
- * fell in its first 0.29 s, in the frames the synchronous rebuild ate). Nothing here writes a style or draws: each layer
- * is handed to the browser as it was planned - or, posed at its first keyframe by the bake (`h.posed`), let go.
+ * A turn's start (exported for R1379): the clock of the turn is the first frame the browser paints after the bake,
+ * never the event (DIAGNOSIS.md 4: half of the morph's travel fell in its first 0.29 s, in the frames the synchronous
+ * rebuild ate). Nothing here writes a style or draws: each layer posed at its first keyframe by the bake (`h.posed`) is
+ * let go at once, and a Web Animation let go inside a task waits, pending, for the next frame, whose time is its start
+ * time - so the first frame painted after the bake shows the first keyframe and the clock runs from it. A handle with
+ * nothing posed (a test's) has its animations made at that first frame. `h.t0` is that frame's time.
+ * LET GO AT THE BAKE, NOT TWO FRAMES AFTER IT (E23 fix G1, 08.11.2026; the screens review's m4, C1b's Open 14). C1b let
+ * the layers go in the second animation frame after the bake; posed, those two frames showed the first keyframe and
+ * moved nothing, and in headless Chromium's software frames they were 116-266 ms each: the first moved frame of
+ * `--turn` stood 320-560 ms after the event (1d860414: 50-180). The wall-clock marks of five layout turns at 1600x900
+ * (scratch copies, 08.11): the rebuild 199-276 ms after the event (the 150 ms debounce and the observer's wake), the bake
+ * done 99-132 ms later, and the clock 141-292 ms after that, the two frames. What the turn itself added was those two
+ * frames; the debounce and the rebuild are the page's (`schedule`, `curtainGeometry`, `curtainPaint`). Let go at the
+ * bake, two full `--turn` runs read the first moved frame 55-274 ms after the event on the recolours and 287-370 ms on
+ * the layout turn at 1600x900 (ce3a821f's heavy run: 321-516 and 537-562).
  * `frame` is the frame scheduler (a test's own; the page's by default).
  */
 export function startTurn(h, frame = cb => requestAnimationFrame(cb)) {
-  frame(() => frame(t => {
+  if (h.posed) for (const a of h.posed) if (a.drpgPosed) a.play();
+  frame(t => {
     if (h.cancelled) return;
     h.t0 = t;
     h.anims = h.posed ?? h.layers.map(l => l.el.animate(l.frames, l.timing));
-    if (h.posed) for (const a of h.posed) if (a.drpgPosed) a.play();
     h.onStart?.();
-  }));
+  });
   return h;
 }
 /**
  * THE ONE ENTRY POINT OF A TURN (E23 C1b; the line E61's and E62's sequences build on). `job` is the curtain's (the
  * first by default), `from` the panes that stood (`snapshotPanes`), `look` their look (`snapshotLook`), `glow` the old
  * glow's copy, `to` the panes standing now with their look already painted, `fromAcc` and `acc` the two accents;
- * `move`, `flash`, `dur` and `curve` as `turnPlan` takes them. A turn running is ended first. Answers the turn - its
- * `plan`, its `layers`, `cancel()` - or null when there is nothing to turn, which leaves the end state standing.
+ * `move`, `flash`, `dur` and `curve` as `turnPlan` takes them; `frame` is `startTurn`'s (a test's own; the page's by
+ * default). A turn running is ended first. Answers the turn - its `plan`, its `layers`, `cancel()`, `defer(fn)` - or null
+ * when there is nothing to turn, which leaves the end state standing.
  */
-export function glassTurn({ job = curtains[0], from = null, look = null, glow = null, to = job?.panes, fromAcc = null, acc = job?.acc, move = TURN_MOVE, flash = true, dur = TURN(), curve = ARRIVE } = {}) {
+export function glassTurn({ job = curtains[0], from = null, look = null, glow = null, to = job?.panes, fromAcc = null, acc = job?.acc, move = TURN_MOVE, flash = true, dur = TURN(), curve = ARRIVE, frame = undefined } = {}) {
   if (!job || !to) return null;
   job.turn?.cancel();
   const plan = turnPlan(from, to, { W: job.W, H: job.H, fromAcc, acc, dur, move, curve, flash, reduced: REDUCED() });
   if (plan.none || !look) return null;
+  /* THE PULSE IS IN THE NEW LOOK (E23 fix G1, 08.11.2026; the end review's correctness M1). `curtainPaint` has just set
+     the pulse layer's size again, which clears it (`layerAfter`), and the loop draws it on its next frame - after this
+     bake. So the new look below (`now`: the panes that stand, the holes, every move's way back) was taken with the pulse
+     blank, without its darkening (up to 0.72 black on a plain pane, `pulseJob`) and its texture, while the old look
+     carried the old pulse and the curtain stepped back in at `snap` with its pulse drawn: every pane whose pulse was
+     dark or textured jumped in that one frame, the frame the plan calls the same picture. One frame of the pulse is
+     drawn here, for the job, before any look is taken: the curtain under a recolour's batches has it too. A layer the
+     page does not show (`drpg-no-pulse`) is drawn and left out of the look (`snapshotLook`), as the loop's would be.
+     `--turn` runs with the pulse off, so its lines cannot read this; R1411 reads the new look on a stand-in job. */
+  pulseJob(job, performance.now());
   const host = turnHost(job), made = [], layers = [];
   // the new look is the curtain as `curtainPaint` has just left it
   const now = plan.carry === "both" && plan.hold ? snapshotLook(job, true) : null;
@@ -3847,17 +3876,40 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
      old in its own, the square at 0,576 at 39 % of rest (2.48 of 6.31) in every version of the move tried. One held
      already when it was made (the harness's frozen clock) is left held. */
   const posed = layers.map(l => { const a = l.el.animate(l.frames, l.timing); a.drpgPosed = a.playState !== "paused"; if (a.drpgPosed) a.pause(); return a; });
-  const h = { plan, layers, made, posed, t0: null, anims: null, cancelled: false, ended: false };
+  const h = { plan, layers, made, posed, t0: null, anims: null, cancelled: false, ended: false, at: performance.now(), again: null };
+  /* REDUCED MOTION SWITCHED ON MID-TURN ENDS THE TURN (E23 fix G1; the end review's correctness n4). The plan reads
+     `REDUCED()` once; the Web Animations' keyframes do not read the zeroed tokens, so a turn begun ran its 1.2 s out
+     after the reader asked for stillness. The class is motion.mjs's (`applyReducedMotion`, which also follows the
+     system's switch); it is watched on the body for the turn's length, not imported - this file needs nothing of
+     motion.mjs but the class it writes - and the turn is cancelled, which is the end state at once (`end(false)`). R1413. */
+  const still = typeof MutationObserver === "function" ? new MutationObserver(() => { if (REDUCED()) h.cancel(); }) : null;
+  still?.observe(document.body, { attributes: true, attributeFilter: ["class"] });
   const end = done => {
     if (h.ended) return;
     h.ended = true; h.cancelled = !done;
+    still?.disconnect();
     for (const a of h.anims ?? h.posed) a.cancel();
     if (!done) h.frostIn?.cancel();
     for (const c of made) c.remove();
     if (frost) clipToCut(frost, job.pathD);
     if (job.turn === h) job.turn = null;
+    const again = h.again;
+    h.again = null;
+    if (again) setTimeout(again, 0);
   };
   h.cancel = () => end(false);
+  /* A RECUT WAITS FOR THE TURN ON THE SCREEN (E23 fix G1; the end review's correctness m1). A recut that came while a
+     turn ran cancelled it: the old look of the next turn is the curtain's canvases, which already held the first turn's
+     end, so its layers vanished in one frame and the next turn started from that end - a snap of colour or shape, as a
+     late block change after a phase's turn (the Event panel arriving, the strip losing a row at an incident's start)
+     would make. `rebuild` asks the running turn first: `defer(fn)` keeps `fn` (the last asked) and runs it once the
+     turn has ended, finished or cancelled, and answers true; a turn ended, or one running past its length and a second
+     (a hidden tab holds its frames), answers false and is cancelled by the recut as before. R1412. */
+  h.defer = fn => {
+    if (h.ended || performance.now() - h.at > plan.dur + 1000) return false;
+    h.again = fn;
+    return true;
+  };
   h.onStart = () => {
     const at = i => h.anims[i].finished.then(() => true, () => false);
     if (frost) {
@@ -3871,10 +3923,14 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
     h.finished = Promise.all(layers.map((_, i) => at(i))).then(() => end(true));
   };
   job.turn = h;
-  return startTurn(h);
+  return frame ? startTurn(h, frame) : startTurn(h);
 }
 function rebuild() {
-  try { rebuildAll(); } finally { if (document.body.hasAttribute("data-drpg-measuring")) measuring(false); }
+  try {
+    // a recut asked while a turn runs is made at its end (`glassTurn`'s `defer`, E23 fix G1)
+    if (curtains.some(j => j.turn?.defer?.(() => { if (curtains.includes(j)) rebuild(); }))) return;
+    rebuildAll();
+  } finally { if (document.body.hasAttribute("data-drpg-measuring")) measuring(false); }
 }
 function rebuildAll() {
   for (const j of curtains) {

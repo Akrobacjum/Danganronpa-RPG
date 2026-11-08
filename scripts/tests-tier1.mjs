@@ -37914,7 +37914,7 @@ const INVARIANTS = [
             JSON.stringify([true, false, false, true]),
             "[a seam layer blended screen, its host blended, a band's flash drawing on frames, a band's flash played by its keyframes]");
     }],
-    ["R1379 - the turn's clock (motion.css `--drpg-t-curtain`, stained-glass.css, glass.mjs `startTurn`; E23 C1b; E23-02, E23-07): the curtain's time is 1200 ms and the interface's beat 840 ms; under Stained Glass the turning list's colours run on the curtain's time and a rail's transform on the beat, under Monokuma Legacy nothing reads the curtain's time; a turn starts at the second animation frame after its bake, never at the event; reduced motion plans nothing", async () => {
+    ["R1379 - the turn's clock (motion.css `--drpg-t-curtain`, stained-glass.css, glass.mjs `startTurn`; E23 C1b; E23-02, E23-07): the curtain's time is 1200 ms and the interface's beat 840 ms; under Stained Glass the turning list's colours run on the curtain's time and a rail's transform on the beat, under Monokuma Legacy nothing reads the curtain's time; a turn's clock starts at the first animation frame after its bake, its posed layers let go at the bake itself, never at the event; reduced motion plans nothing", async () => {
         /*
          * E23 C1b, 07.11.2026 (the owner's 05.11; DIAGNOSIS.md 4: half the travel of the morph fell in its first 0.29 s
          * and those frames were lost in the synchronous rebuild, so the eye saw a jump). The clock of a turn is the
@@ -37946,17 +37946,109 @@ const INVARIANTS = [
         const frame = cb => { queue.push(cb); return queue.length; };
         const layer = name => ({ el: { animate: (frames, timing) => { started.push(name); return { finished: Promise.resolve(), cancel() {} }; } }, frames: [{ opacity: 1 }, { opacity: 0 }], timing: { duration: 300 } });
         const handle = { layers: [layer("a"), layer("b")], t0: null };
+        /* E23 fix G1 (08.11.2026; the screens review's m4, C1b's Open 14): the layers posed at the bake are let go AT the
+           bake - a Web Animation let go inside a task is pending until the next frame, whose time is its start - and the
+           clock (`t0`) is the first frame's. C1b waited two frames, each 116-266 ms in headless software, before letting
+           them go. Red at ce3a821f: nothing at the first frame, the posed layers let go at the second. */
         G.startTurn(handle, frame);
         const atEvent = [handle.t0, started.length];
         queue.shift()?.(1000);
-        const afterOne = [handle.t0, started.length];
+        const afterOne = [handle.t0, started.join(",")];
+        const played = [];
+        const posed = { posed: [{ drpgPosed: true, play() { played.push("posed"); } }, { drpgPosed: false, play() { played.push("held"); } }], layers: [], t0: null };
+        G.startTurn(posed, frame);
+        const atBake = [posed.t0, played.join(",")];
         queue.shift()?.(1016.7);
-        equal(JSON.stringify([atEvent, afterOne, [handle.t0, started.join(",")]]), JSON.stringify([[null, 0], [null, 0], [1016.7, "a,b"]]),
-            "[t0, animations started]: at the event, after the first frame, at the second");
+        equal(JSON.stringify([atEvent, afterOne, atBake, posed.t0, queue.length]), JSON.stringify([[null, 0], [1000, "a,b"], [null, "posed"], 1016.7, 0]),
+            "[t0, animations started]: at the event, after the first frame; [t0, layers let go] of a posed turn at its bake (one held by a frozen clock left held); its t0 at the first frame; frames still asked");
         const pane = poly => ({ poly, content: false, tone: null });
         const still = G.turnPlan([pane([[0, 0], [200, 0], [0, 150]])], [pane([[0, 0], [260, 0], [0, 190]])], { W: 400, H: 300, fromAcc: "#ffd38f", acc: "#ff3d8b", dur: 1200, reduced: true });
         equal(JSON.stringify([still.none, still.moves.length, still.batches.length, still.flashes.length]), JSON.stringify([true, 0, 0, 0]), "reduced motion: [no turn, moves, batches, flashes]");
         ok(/reduced:\s*REDUCED\(\)/.test(fnSource(stripComments(await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(lfText)), "glassTurn")), "`glassTurn` hands the plan the reader's reduced motion");
+    }],
+    ["R1411 - the turn's new look carries the pulse (glass.mjs `glassTurn`, E23 fix G1; the end review's correctness M1, E23-04): on a stand-in curtain whose pulse layer stands cleared, as `curtainPaint` leaves it, a recut that keeps its colour takes the new look with the pulse's frame drawn - the layer of the panes that stand and every move's way back carry its darkening, the same fill the curtain's pulse layer holds when the curtain steps back in", async () => {
+        /*
+         * E23 fix G1, 08.11.2026. `curtainPaint` sets the pulse layer's size again, which clears it, and the loop draws
+         * it on its next frame; `glassTurn` took the new look (`snapshotLook`) before that frame, so the panes that stand
+         * and the moves' way back were the new glass without the pulse (up to 0.72 black on a plain pane), and the
+         * curtain stepped back in at `snap` with it drawn. Read on a stand-in curtain (`turnRig`): its canvases record
+         * what is filled and drawn into them (jsdom draws no 2d canvas), its panes' pulse stands at its darkest
+         * ("rgba(2,1,4,0.720)"); nothing of the page's curtain is drawn or moved for good. `--turn` runs with the pulse
+         * off and cannot read this. Red at ce3a821f: the new look carries no fill of the pulse.
+         */
+        needs(env.motion());
+        const G = await import("./glass.mjs");
+        const rig = turnRig(G);
+        let read = null;
+        try {
+            const h = rig.turn();
+            must(h, "the stand-in recut planned no turn - this reads nothing");
+            must(h.plan.carry === "both" && h.plan.hold, `the stand-in recut is not a turn that carries the new look (carry ${h.plan.carry}) - this reads nothing`);
+            const layers = [...rig.host().querySelectorAll("canvas")];
+            const hold = layers.find(c => c.className === "drpg-turn-batch");
+            const backs = layers.filter(c => c.className === "drpg-turn-pane" && rig.ink(c).some(x => x.startsWith("new")));
+            const dark = c => rig.ink(c).some(x => x === "fill rgba(2,1,4,0.720)");
+            read = [Boolean(hold), backs.length, hold ? dark(hold) : null, backs.every(dark), dark(rig.pulse)];
+            h.cancel();
+        } finally { rig.done(); }
+        equal(JSON.stringify(read), JSON.stringify([true, 2, true, true, true]),
+            "[the standing panes' layer made, ways back made, the standing panes' layer darkened by the pulse, every way back darkened by it, the curtain's pulse layer drawn]");
+    }],
+    ["R1412 - a recut waits for the turn on the screen (glass.mjs `glassTurn`'s `defer`, `rebuild`; E23 fix G1, the end review's correctness m1): a running turn takes a recut to run at its end and is not cancelled by it, runs the recut once it has finished, and a turn ended takes none; `rebuild` asks the running turn before it cuts", async () => {
+        /*
+         * E23 fix G1, 08.11.2026. A recut while a turn ran cancelled it: its layers went in one frame and the next turn
+         * began from the first turn's end, a snap of colour or shape. `rebuild` now asks the running turn first, and the
+         * recut is made at its end. Read on a stand-in curtain (`turnRig`) with a frame queue and Web Animations of the
+         * test's own, so the turn is started, finished and read without a frame of the page's. Red at ce3a821f: a
+         * running turn has no `defer`, and `rebuild` cuts at once.
+         */
+        needs(env.motion());
+        const G = await import("./glass.mjs");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(lfText));
+        const rig = turnRig(G);
+        const asked = [];
+        let first = null, second = null, h = null;
+        try {
+            h = rig.turn();
+            must(h, "the stand-in recut planned no turn - this reads nothing");
+            rig.frames();
+            const held = typeof h.defer === "function" ? h.defer(() => asked.push("recut")) : false;
+            first = [held, h.ended, asked.length];
+        } finally { rig.restore(); }
+        try {
+            for (const a of rig.animations()) a.finish();
+            await until(() => h.ended && asked.length, 2000);
+            second = [h.ended, h.cancelled, asked.join(","), typeof h.defer === "function" ? h.defer(() => asked.push("late")) : null];
+        } finally { h?.cancel(); rig.done(); }
+        const rebuild = fnSource(src, "rebuild");
+        equal(JSON.stringify([first, second, /\.defer\?\.\(/.test(rebuild) && rebuild.indexOf(".defer") < rebuild.indexOf("rebuildAll(")]),
+            JSON.stringify([[true, false, 0], [true, false, "recut", false], true]),
+            "[a running turn asked to hold a recut: held, ended, recuts run]; [after it finished: ended, cancelled, the recuts run, a turn ended holding one]; `rebuild` asks before it cuts");
+    }],
+    ["R1413 - reduced motion switched on mid-turn ends the turn (glass.mjs `glassTurn`, E23 fix G1; the end review's correctness n4, E23-07): the reduced-motion class put on the body while a turn runs cancels it at once, its layers gone, and the end state stands", async () => {
+        /*
+         * E23 fix G1, 08.11.2026. The plan reads `REDUCED()` once; the Web Animations do not read the zeroed tokens, so
+         * a turn begun ran its 1.2 s out after the reader asked for stillness. `glassTurn` watches the body's class
+         * (motion.mjs `applyReducedMotion` writes it) for the turn's length. Read on a stand-in curtain (`turnRig`); the
+         * class is put on the body for one task and taken off again. Red at ce3a821f: the turn runs on.
+         */
+        needs(env.motion());
+        const G = await import("./glass.mjs");
+        const rig = turnRig(G);
+        let read = null, h = null;
+        const body = document.body, cls = "drpg-reduced-motion";
+        try {
+            h = rig.turn();
+            must(h, "the stand-in recut planned no turn - this reads nothing");
+            rig.frames();
+            const before = [h.ended, rig.host().querySelectorAll("canvas").length > 0];
+            rig.restore();
+            body.classList.add(cls);
+            await new Promise(resolve => setTimeout(resolve, 0));
+            read = [before, [h.ended, h.cancelled, rig.host().querySelectorAll("canvas").length]];
+        } finally { body.classList.remove(cls); h?.cancel(); rig.done(); }
+        equal(JSON.stringify(read), JSON.stringify([[false, true], [true, true, 0]]),
+            "[before: ended, layers laid]; [the class put on: ended, cancelled, layers left]");
     }],
 ];
 
@@ -38206,6 +38298,90 @@ function cornerReading(roster, views) {
  * as objects of their own, proximity, whether the viewer is a GM, "mute all" - and they override the bench's;
  * `dock: undefined` leaves the module's own `foundryDock` in place (R535's planted bench, E78 fix r1-G2).
  */
+/*
+ * A stand-in curtain for a turn (R1411-R1413, E23 fix G1): `glassTurn` run for real on a job of the test's own - four
+ * triangles of a 400x300 frame, two that move and two that stand, the same accent, so the turn carries the new look -
+ * with canvases that record what is filled and drawn into them (`ink`; jsdom draws no 2d canvas), put on the prototype
+ * only while the turn is made (`restore`), and Web Animations of the test's own (`animations`; jsdom has none), put on
+ * the prototype until the test is `done` - the turn's end makes the frost's own animation after the test's awaits.
+ * The curtain's siblings (`#drpg-curtain-frost`, `-turn`, `-flash`) are found by id, so one the page already holds is
+ * moved next to the stand-in for the turn and put back where it stood (`done`). The panes' pulse stands at its darkest.
+ */
+function turnRig(G) {
+    const inks = new WeakMap(), anims = [], queue = [];
+    const ink = c => inks.get(c) ?? [];
+    const set = (c, list) => inks.set(c, list);
+    // the page's own classes, from an element of each (the harness's module scope has no HTMLCanvasElement global)
+    const CANVAS = Object.getPrototypeOf(document.createElement("canvas")), EL = HTMLElement.prototype;
+    const getContext = CANVAS.getContext, hadAnimate = Object.hasOwn(EL, "animate"), animate = EL.animate;
+    CANVAS.getContext = function () {
+        const canvas = this, state = { fillStyle: "", globalAlpha: 1, globalCompositeOperation: "source-over", imageSmoothingEnabled: true };
+        return new Proxy(state, {
+            get(t, k) {
+                if (k === "canvas") return canvas;
+                if (k === "clearRect") return () => set(canvas, []);
+                if (k === "fill" || k === "fillRect") return () => set(canvas, [...ink(canvas), "fill " + t.fillStyle]);
+                if (k === "drawImage") return src => set(canvas, [...ink(canvas), ...ink(src)]);
+                if (k in t) return t[k];
+                return () => {};
+            },
+            set(t, k, v) { t[k] = v; return true; }
+        });
+    };
+    EL.animate = function (frames, timing) {
+        let done, fail;
+        const finished = new Promise((resolve, reject) => { done = resolve; fail = reject; });
+        finished.catch(() => {});
+        const a = { el: this, frames, timing, playState: "running", finished,
+            pause() { if (a.playState !== "finished" && a.playState !== "idle") a.playState = "paused"; },
+            play() { if (a.playState === "paused") a.playState = "running"; },
+            finish() { if (a.playState === "idle" || a.playState === "finished") return; a.playState = "finished"; done(a); },
+            cancel() { if (a.playState === "idle") return; const was = a.playState; a.playState = "idle"; if (was !== "finished") fail(new Error("cancelled")); } };
+        anims.push(a);
+        return a;
+    };
+    let restored = false;
+    const restore = () => {
+        if (restored) return;
+        restored = true;
+        CANVAS.getContext = getContext;
+    };
+    const ids = ["drpg-curtain-frost", "drpg-curtain-turn", "drpg-curtain-flash"];
+    const stood = ids.map(id => document.getElementById(id)).filter(Boolean).map(el => ({ el, parent: el.parentNode, next: el.nextSibling, css: el.style.cssText, drpgCss: el.drpgCss, drpgClip: el.drpgClip }));
+    const box = document.createElement("div");
+    box.hidden = true;
+    const el = box.appendChild(document.createElement("div"));
+    el.style.zIndex = document.getElementById("drpg-curtain")?.style.zIndex || "1";
+    const canvas = cls => { const c = el.appendChild(document.createElement("canvas")); c.className = cls; c.width = 400; c.height = 300; set(c, []); return c; };
+    const sg = canvas("sg"), pulse = canvas("pulse"), seam = canvas("seamline");
+    pulse.width = 200; pulse.height = 150;
+    set(sg, ["new glass"]); set(seam, ["new seams"]);
+    document.body.append(box);
+    const old = [[[0, 0], [200, 0], [0, 150]], [[200, 0], [400, 0], [400, 150]], [[0, 150], [200, 300], [0, 300]], [[400, 150], [400, 300], [200, 300]]];
+    const now = [[[0, 0], [260, 0], [0, 190]], old[1], [[0, 190], [200, 300], [0, 300]], old[3]];
+    const pane = poly => ({ poly, content: false, tone: null, stained: false, plain: true, omega: 0, phase: Math.PI });
+    const job = { el, W: 400, H: 300, seed: "drpg-test-turn-rig", acc: "#ff3d8b", panes: now.map(pane), pulse, pulseK: 0.5, pulseOn: null, painted: true };
+    const look = document.createElement("canvas");
+    set(look, ["old look"]);
+    return {
+        job, pulse, ink, restore,
+        host: () => box.querySelector("#drpg-curtain-turn") ?? box,
+        turn: () => G.glassTurn({ job, from: old.map(pane), look, to: job.panes, fromAcc: "#ff3d8b", acc: "#ff3d8b", frame: cb => queue.push(cb) }),
+        frames: (t = 1000) => { for (let n = 0; queue.length && n < 4; n++) queue.shift()(t + n * 16.7); },
+        animations: () => anims.filter(a => a.playState !== "idle"),
+        done: () => {
+            restore();
+            if (hadAnimate) EL.animate = animate; else delete EL.animate;
+            for (const s of stood) {
+                s.parent.insertBefore(s.el, s.next?.parentNode === s.parent ? s.next : null);
+                s.el.style.cssText = s.css; s.el.drpgCss = s.drpgCss; s.el.drpgClip = s.drpgClip;
+            }
+            for (const id of ids) { const e = box.querySelector("#" + id); if (e && !stood.some(s => s.el === e)) e.remove(); }
+            box.remove();
+        }
+    };
+}
+
 function voiceTileRig(V, users, { fade, userOf, ...watchOptions } = {}) {
     let now = 0, ids = 0, muteAll = false;
     const timers = new Map();

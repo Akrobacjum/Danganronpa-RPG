@@ -588,6 +588,11 @@ const env = Object.freeze({
         const face = getComputedStyle(document.body).fontFamily;
         return probe("env.fonts", face && !/depends on user agent/i.test(face), "no font family resolves here");
     },
+    /* Motion as this client lets it run (E23 fix G1): a turn of the glass is planned only where neither the module's
+       stillness (`drpg-reduced-motion`, motion.mjs) nor the system's own switch asks for reduced motion, so a test of
+       a running turn skips where either does. The harness's clients ask for neither. */
+    motion: () => probe("env.motion", !document.body.classList.contains("drpg-reduced-motion")
+        && !globalThis.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches, "this client asks for reduced motion"),
     webAnimations: () => probe("env.webAnimations", typeof HTMLElement.prototype.getAnimations === "function"
         && typeof globalThis.CSSTransition === "function", "no Web Animations API here"),
     /* The headless harness's stand-in for avclient-livekit (audit/harness/lib/livekit.mjs, E19 C0), there and not
