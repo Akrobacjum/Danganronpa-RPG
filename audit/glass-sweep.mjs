@@ -203,7 +203,20 @@
  * the clock), which must read not ok. The line prints `track ok h <clock heights> band <h> cut same cuts 0`.
  * `--no-track` leaves it out; `--track` (below) reads the hour's change with it.
  *
- * usage: node audit/glass-sweep.mjs [--root <tree>] [--base <url>] [--page <path?query>]
+ * A LIGHT CLIENT (E24 C4a, 08.11.2026; the owner's A7 and A8 of 11.10, the audit's S12-26). `--scheme light` loads every
+ * page of the sweep's sizes with `?scheme=light` - the page's colour scheme light, `theme-light` on the body and on
+ * #interface, core's text colours dark (the page's header says what stands in for v14's) - and reads each size as above,
+ * and then the page's `drpgSchemeCheck`: A7's and A8's surfaces the page draws (the corner's notice button, the three
+ * launchers and, on a GM's page, the GM's button and Foundry tools; the room tile's name with its picture and without;
+ * the voice tile's name; on a GM's page, the frames of Foundry tools and Map tools), each its `color-scheme` and its ink
+ * against its ground, 4.5:1 for a text and 3:1 for a glyph. A size fails on any reading under its figure. The line
+ * prints `scheme ok <n read>/<n listed>`. THE CONTROL runs at each page until one reads it, once a run: those surfaces
+ * planted with `color-scheme: light` and core's dark text, as they were before C4a listed them, must read not ok; a run
+ * whose control never read a fault fails (under Stained Glass nothing these surfaces draw depends on the scheme but
+ * Foundry tools on a GM's page, so a player's Stained Glass pages alone cannot read it). The once-a-run pages - the
+ * keyboard, the idle control, the voice runs - stay on the dark page. Without the option nothing changes.
+ *
+ * usage: node audit/glass-sweep.mjs [--root <tree>] [--base <url>] [--page <path?query>] [--scheme light]
  *          [--themes stained,legacy] [--sizes 1920x1080,...] [--known <size>:<ov|nc|bf|eg>=<n>,...]
  *          [--sel <launcher selector>] [--wait <ms after the glass, 2500>] [--shots <dir>] [--corner]
  *          [--chromium <executable>] [--no-control] [--no-notices] [--roles gm,player] [--no-room]
@@ -238,6 +251,8 @@ const shots = opt("--shots"), corner = args.includes("--corner"), control = !arg
 const roles = (opt("--roles") ?? "gm,player").split(",").filter(Boolean), rooms = !args.includes("--no-room");
 const windows = !args.includes("--no-windows"), voices = !args.includes("--no-voice"), objections = !args.includes("--no-objection"), docks = !args.includes("--no-dock");
 const tracks = !args.includes("--no-track");
+const scheme = opt("--scheme");
+if (scheme && scheme !== "light") { console.log(`glass-sweep: --scheme takes "light" (got ${scheme})`); process.exit(2); }
 const idleS = Number(opt("--idle") ?? 5);
 const known = Object.fromEntries((opt("--known") ?? "").split(",").filter(Boolean).map(k => {
     const [size, kv] = k.split(":"); const [key, v] = kv.split("=");
@@ -1568,11 +1583,11 @@ function deskAgain() {
 }
 
 const trayControlled = new Set();
-let trackControlled = false;
+let trackControlled = false, schemeControlled = false;
 let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, paneControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false, voiceControlled = false, voiceNoneControlled = false, voiceRowControlled = false, idleRead = false, fillControlled = false, objectionControlled = false, dockControlled = false;
 try {
     for (const theme of themes) for (const role of roles) {
-        const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
+        const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : "", scheme ? `scheme=${scheme}` : ""].filter(Boolean);
         const query = qs.length ? (page0.includes("?") ? "&" : "?") + qs.join("&") : "";
         for (const size of SIZES) {
             const [W, H] = size.split("x").map(Number);
@@ -1875,6 +1890,20 @@ try {
                     }
                 }
             }
+            /* A LIGHT CLIENT (E24 C4a): the page's `drpgSchemeCheck`, and its control until one page reads it (above). */
+            if (scheme) {
+                const sc = await page.evaluate(() => window.drpgSchemeCheck?.() ?? null);
+                if (!sc) fails.push("the page defines no drpgSchemeCheck");
+                else {
+                    line += ` | scheme ${sc.ok ? "ok" : "NOT ok"} ${sc.rows.filter(x => x.ratio !== undefined).length}/${sc.rows.length}`;
+                    if (sc.page !== "light") fails.push("scheme: the page is not a light client's");
+                    if (!sc.ok) fails.push("scheme: " + sc.why);
+                    if (control && !schemeControlled) {
+                        const v = await page.evaluate(() => window.drpgSchemeCheck({ plant: true }));
+                        if (!v.ok) { schemeControlled = true; console.log(`  scheme control sees it: ${String(v.why).slice(0, 140)}`); }
+                    }
+                }
+            }
             if (!r.tile) fails.push("no #drpg-notices-corner");
             if (errs.length) line += " | pageerror " + errs[0].slice(0, 80);
             if (fails.length) { bad++; line += "  FAIL: " + fails.join("; "); }
@@ -2005,9 +2034,10 @@ if (control && rooms && !opt("--sizes") && themes.includes("stained") && !paneCo
 if (control && notices && themes.includes("stained") && !fillControlled) { bad++; console.log("FAIL: the fill controls never ran (no Stained Glass desk read the card on its pane)"); }
 if (control && rooms && stackedRead && !rowControlled) { bad++; console.log("FAIL: the row controls never ran (no stacked size read a row)"); }
 if (control && tracks && lines && !trackControlled) { bad++; console.log("FAIL: the track's control never ran"); }
+if (control && scheme && lines && !schemeControlled) { bad++; console.log("FAIL: the scheme's control never read a fault (no page's planted surfaces read under their figure)"); }
 if (control && docks && lines && !dockControlled) { bad++; console.log("FAIL: the dock's control never ran (no size read the dock ok)"); }
 if (control && objections && lines && !objectionControlled) { bad++; console.log("FAIL: the objection controls never ran (no size read the trial row ok)"); }
 if (control && themes.includes("stained") && !trayControlled.has("stained")) { bad++; console.log("FAIL: the tray's control never ran (no Stained Glass page was read)"); }
 if (windows && placesRead && !placesControlled) { bad++; console.log("FAIL: the places' control never read an unclamped place off the screen or on the cluster"); }
-console.log(`SWEEP ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s) x ${roles.length} role(s) x ${SIZES.length} sizes, ${glassSizes} with glass, ${bad} failing`);
+console.log(`SWEEP ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s) x ${roles.length} role(s) x ${SIZES.length} sizes${scheme ? `, a ${scheme} client` : ""}, ${glassSizes} with glass, ${bad} failing`);
 process.exit(bad ? 1 : 0);

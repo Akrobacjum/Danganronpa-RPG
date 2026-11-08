@@ -711,6 +711,8 @@ body {
 
    Dawid's call (25.08): the module renders dark whatever the client picked.
    Not a second, lighter palette - one look, the one the game is played in.
+   That was the intent; the list below is what makes it true, and for a year it
+   did not hold for every surface (below, "WHAT THE LIST MISSED").
 
    How, in two parts, both of them measured rather than assumed:
 
@@ -738,6 +740,28 @@ body {
    the module's 91 windows, and the strays are named alongside it. `#countdowns`
    is Daggerheart's, but the module renames it, restyles it and calls it
    Projects, so it is ours to keep legible.
+
+   WHAT THE LIST MISSED (E24 C4a, 08.11.2026; the audit's S12-26, the owner's
+   A7 and A8 of 11.10). This note used to end here as if the light theme were
+   answered, and six of the surfaces a player sees most were not on the list:
+   the character sheet, the item sheet, the roll window, the settings and the
+   handbooks buttons and the Event panel. On a light client their `light-dark()`
+   took the pale branch - the trait frames came out paper rectangles, the two
+   buttons a paper disc under a bone glyph (about 1.2:1 by the audit's reading),
+   Legacy's Event cards and the item sheet pale under pale text - and the trait
+   frame's own fallback asked the operating system's theme, not Foundry's. All
+   six are listed now, and the frame's fallback is Ink. So is the GM's Foundry
+   tools button over the handbooks (E77), which paints the same `light-dark()`
+   disc and read 1.21:1 on the glass harness's light page. So are three of A8's
+   surfaces: the room tile, the voice tile and the list "Who you hear" said
+   `color-scheme: dark` on their own (components.css) but read the text colour
+   from core's `--color-text-primary`, which a light client sets dark on the
+   body, so on a light client their names would have been dark on their dark
+   glass; listed, they read the values below. Read in Chromium on the glass
+   harness with `?scheme=light`, which since this commit also puts
+   `theme-light` on the body (glass-sweep.mjs `--scheme light`); a client with
+   Foundry's light theme at a table is the stage's live row of it (AUDIT 9.2,
+   written by E24 C4b).
    ========================================================================== */
 
 .application.drpg-panel,
@@ -750,7 +774,17 @@ body {
 #drpg-popups,
 #drpg-despair,
 #drpg-messenger-launcher,
-#drpg-messenger-roster {
+#drpg-messenger-roster,
+.application.sheet.actor,
+.application.sheet.item,
+.application.roll-selection,
+#drpg-sound-launcher,
+#drpg-book-launcher,
+#drpg-foundry-tools,
+#drpg-events,
+#drpg-room-tile,
+#drpg-voice-tile,
+#drpg-voice-list {
     color-scheme: dark;
 
     --color-text-primary: #efe6d8;
@@ -839,16 +873,14 @@ body {
     height: 2.875rem;
     border: 2px solid var(--drpg-line-strong) !important;
     border-radius: 2px !important;
-    background: var(--drpg-trait-fill);
+    /* Ink, whatever the theme (E24 C4a; S12-26). It read `--drpg-trait-fill`, which nothing
+       declared but a `prefers-color-scheme: light` query - the operating system's theme, not
+       Foundry's - so the frame was clear on a dark desktop and paper on a light one. The sheet
+       is on the DARK-FIRST list now, and its frame is the sheet's own Ink. */
+    background: var(--drpg-ink);
     box-shadow: 0 0 6px var(--drpg-eye-glow, rgba(var(--drpg-bone-rgb), 0.45)),
                 inset 0 0 4px rgba(var(--drpg-shadow-rgb), 0.35);
     box-sizing: border-box;
-}
-
-@media (prefers-color-scheme: light) {
-    .drpg-trait-frame {
-        --drpg-trait-fill: var(--drpg-paper);
-    }
 }
 
 /* The system nudges the number up to clear the crest's point. Recentre it. */
@@ -2369,8 +2401,10 @@ body.drpg-reduced-motion .drpg-bullet-group > summary .drpg-bullet-group-name::b
     border-color: var(--drpg-blood);
 }
 
+/* `--drpg-dim` at full strength (E24 C4a; S12-15): at 0.4 the line read 1.78:1 under Monokuma Legacy and
+   about 1.9:1 under Stained Glass (Chromium, ?sheet=parts at 1366x768); at 1 it is the dim the token was
+   chosen for. */
 .drpg-inventory-list .drpg-inventory-empty {
-    opacity: 0.4;
     font-style: italic;
     cursor: default;
 }
@@ -8932,6 +8966,11 @@ body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-shee
 
    And a count printed on a Bone section header was Bone on Bone. It lives in
    an h4, which is why an earlier pass aimed at h3 and changed nothing.
+   THE BONE HEADER IS MONOKUMA LEGACY'S, AND SO IS THE INK (E24 C4a, 08.11.2026; the audit's
+   S12-15). Stained Glass takes the header's plate away (stained-glass.css: no background, the
+   seam's colour), and this rule went on painting the count Ink there: the counts read 1.04:1 on
+   the sheet's glass in Chromium (?sheet=parts, 1366x768, 0.65 opacity on Ink). Ink only under
+   Legacy now; Stained Glass gives the count its own dim bone (stained-glass.css).
    ========================================================================== */
 
 .application.sheet.actor .character-sidebar-sheet .status-value,
@@ -8941,10 +8980,10 @@ body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-shee
     background-image: none !important;
 }
 
-.application.sheet.actor h4 .drpg-group-count,
-.application.sheet.actor h4 .drpg-group-count.full,
-.application.sheet.actor h3 .drpg-group-count,
-.application.sheet.actor h3 .drpg-group-count.full {
+body.drpg-theme-monokuma-legacy .application.sheet.actor h4 .drpg-group-count,
+body.drpg-theme-monokuma-legacy .application.sheet.actor h4 .drpg-group-count.full,
+body.drpg-theme-monokuma-legacy .application.sheet.actor h3 .drpg-group-count,
+body.drpg-theme-monokuma-legacy .application.sheet.actor h3 .drpg-group-count.full {
     color: var(--drpg-ink) !important;
 }
 
@@ -11418,6 +11457,31 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
 /* If anything still cannot fit, it scrolls - it does not vanish. */
 .application.sheet.actor .tab.active {
     overflow-x: auto;
+}
+
+/* ONE COLUMN ON A PHONE (E24 C4a, 08.11.2026; the audit's S12-13). On a stacked screen a sheet
+   narrower than 600 px kept Daggerheart's two columns: the 275 px rail and what was left - 67 px at
+   390x844, where the name ran down one letter a line and the tabs read "FEATU" (Chromium, the
+   stand-in on 2.10.5's grid: sheet.less's columns and places, its rules made to beat this sheet's
+   plain ones as the system's cascade layer does at a table). Below 600 px of the window's own width,
+   and only on a stacked screen, the parts stand in one column in their order - the rail (the
+   portrait, Health and Sanity, Equipped) over the header and its tabs, then the open tab - and the
+   window scrolls. The width is the window's, not the screen's: a container, so no breakpoint is
+   copied out of settings.mjs, and a tablet's sheet at 772 px keeps both columns. `display` is the
+   one `!important`, against Daggerheart's grid in its layer above this one; the action grid needs
+   nothing, its auto-fill makes three columns at this width on its own. */
+body.drpg-stacked .application.sheet.actor.character {
+    container: drpg-sheet / inline-size;
+}
+@container drpg-sheet (width < 600px) {
+    .application.sheet.actor.character .window-content {
+        display: flex !important;
+        flex-direction: column;
+        overflow-y: auto;
+    }
+    .application.sheet.actor.character .window-content > :is(.character-sidebar-sheet, .character-header-sheet, .tab) {
+        flex: 0 0 auto;
+    }
 }
 
 /* --- 2. Projects lines up with the clock -------------------------------- */
@@ -14015,7 +14079,6 @@ body.drpg-reduced-motion #drpg-messenger-roster.leaving { opacity: 0; }
     justify-content: center;
     border-radius: 50%;
     border: 2px solid var(--drpg-bone) !important;
-    background: light-dark(var(--drpg-paper-alt), var(--drpg-ink)) !important;
     color: var(--drpg-bone) !important;
     box-shadow: 0 2px 10px rgba(var(--drpg-shadow-rgb), 0.35) !important;
     cursor: pointer;
@@ -14023,6 +14086,17 @@ body.drpg-reduced-motion #drpg-messenger-roster.leaving { opacity: 0; }
 
 #drpg-sound-launcher:hover {
     box-shadow: 0 0 10px rgba(var(--drpg-bone-rgb), 0.45) !important;
+}
+
+/* THE DISC IS MONOKUMA LEGACY'S (E24 C4a; S12-26). Both buttons painted this in both themes, with
+   `!important`, which took the glass's own plate (stained-glass.css: the corner's buttons on
+   `rgba(7, 7, 10, 0.55)`) away from them under Stained Glass. Under Legacy it stays, and since both
+   are on the DARK-FIRST list `light-dark()` takes its Ink branch on a light client too: the paper
+   disc under a bone glyph the audit read at about 1.2:1 is gone. One rule for the two, where there
+   were two declarations. */
+body.drpg-theme-monokuma-legacy #drpg-sound-launcher,
+body.drpg-theme-monokuma-legacy #drpg-book-launcher {
+    background: light-dark(var(--drpg-paper-alt), var(--drpg-ink)) !important;
 }
 
 /* The mask carries the colour from `currentColor`, so the icon follows the
@@ -14068,7 +14142,6 @@ body.drpg-reduced-motion #drpg-messenger-roster.leaving { opacity: 0; }
     justify-content: center;
     border-radius: 50%;
     border: 2px solid var(--drpg-bone) !important;
-    background: light-dark(var(--drpg-paper-alt), var(--drpg-ink)) !important;
     color: var(--drpg-bone) !important;
     box-shadow: 0 2px 10px rgba(var(--drpg-shadow-rgb), 0.35) !important;
     cursor: pointer;

@@ -34888,24 +34888,29 @@ const INVARIANTS = [
         /* Foundry tools' three Stained Glass prints since E23 C1c (S12-34): the rule that wins its `transition` lost the
            phantom `#drpg-settings-launcher` from its selector list - the same rule, the same value, another selector.
            The GM's hexagon's three since E23 C1d (14.10, R1382): its border's colour under Stained Glass transparent,
-           won by the same components.css rule, and the hover rule no longer states one - 1:426d4aa5 -> 1:934c4f73. */
+           won by the same components.css rule, and the hover rule no longer states one - 1:426d4aa5 -> 1:934c4f73.
+           The room tile's, the voice tile's and Foundry tools' eighteen since E24 C4a (S12-26, the owner's A7 and A8):
+           danganronpa.css's DARK-FIRST list names the three roots by their ids, and a property it states on them (its
+           `color-scheme`, its re-declared text colours) is won there now, over components.css's class rules or nothing -
+           re-measured on C4a's tree, which property by property not read; every other print as it was, `left` and the
+           section's @media rules unchanged. */
         const C5 = {
-            "curtain|monokuma-legacy|foundry-tools": "1:38b5be3c", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:999f5b79",
-            "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:50024055", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
-            "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:05bda810", "curtain|stained-glass|foundry-tools": "1:5400975d",
+            "curtain|monokuma-legacy|foundry-tools": "1:d635e754", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:999f5b79",
+            "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:cf9e2a77", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
+            "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:7268133b", "curtain|stained-glass|foundry-tools": "1:83b739cf",
             "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:934c4f73", "curtain|stained-glass|room-art": "1:b38f7ef7",
-            "curtain|stained-glass|room-tile": "1:ec4e33c4", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
-            "curtain|stained-glass|voice-tile": "2:15eb161d", "desk|monokuma-legacy|foundry-tools": "1:38b5be3c", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
-            "desk|monokuma-legacy|gm-launcher": "1:999f5b79", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:cb259e72",
-            "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:a60107dd",
-            "desk|stained-glass|foundry-tools": "1:5400975d", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:934c4f73",
-            "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:ce0e3f9a", "desk|stained-glass|voice-art": "1:393b7dc4",
-            "desk|stained-glass|voice-list": "1:e9f9c48e", "desk|stained-glass|voice-tile": "1:17af97d5", "stacked|monokuma-legacy|foundry-tools": "1:38b5be3c",
+            "curtain|stained-glass|room-tile": "1:e4f711c4", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
+            "curtain|stained-glass|voice-tile": "2:7c097704", "desk|monokuma-legacy|foundry-tools": "1:d635e754", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
+            "desk|monokuma-legacy|gm-launcher": "1:999f5b79", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:3a251bf8",
+            "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:cfb69a33",
+            "desk|stained-glass|foundry-tools": "1:83b739cf", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:934c4f73",
+            "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:df847626", "desk|stained-glass|voice-art": "1:393b7dc4",
+            "desk|stained-glass|voice-list": "1:e9f9c48e", "desk|stained-glass|voice-tile": "1:9028bf8f", "stacked|monokuma-legacy|foundry-tools": "1:d635e754",
             "stacked|monokuma-legacy|foundry-window": "2:3ad17c49", "stacked|monokuma-legacy|gm-launcher": "1:999f5b79", "stacked|monokuma-legacy|room-art": "1:b38f7ef7",
-            "stacked|monokuma-legacy|room-tile": "1:c5f25ec6", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:4671c967",
-            "stacked|monokuma-legacy|voice-tile": "1:9b5c0772", "stacked|stained-glass|foundry-tools": "1:5400975d", "stacked|stained-glass|foundry-window": "2:8b75b7bd",
-            "stacked|stained-glass|gm-launcher": "1:934c4f73", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:0a4f36aa",
-            "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:e9f9c48e", "stacked|stained-glass|voice-tile": "1:d4bd73c1"
+            "stacked|monokuma-legacy|room-tile": "1:164e7a4a", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:4671c967",
+            "stacked|monokuma-legacy|voice-tile": "1:66481022", "stacked|stained-glass|foundry-tools": "1:83b739cf", "stacked|stained-glass|foundry-window": "2:8b75b7bd",
+            "stacked|stained-glass|gm-launcher": "1:934c4f73", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:e821c8f8",
+            "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:e9f9c48e", "stacked|stained-glass|voice-tile": "1:4a4823b1"
         };
         equal(stableJson({ left: [...left].sort(), prints, sectionMedia }), stableJson({ left: [], prints: C5, sectionMedia: [] }),
             `[a rule written for these surfaces that still wins from danganronpa.css or stained-glass.css; per place, theme and surface, the number of roots and the fingerprint of its winners; the section's @media rules] (${readings} reading(s))`);
@@ -39144,6 +39149,161 @@ const INVARIANTS = [
         const each = { viewer: { leaks: [], health: L(3, 4), sanity: "?" }, owner: { health: L(3, 4), sanity: L(5, 7) }, gm: { health: L(3, 4), sanity: L(5, 7) } };
         equal(stableJson(readings), stableJson({ bar: each, pips: each }),
             "[the bar layout, the pip layout] x [another player's redacted sheet, the owner's, a GM's]: [Sanity's numbers found, Health's row, Sanity's row]");
+    }],
+    ["R1462 - the inventory reads under both themes (E24 C4a, E24-26; the audit's S08-28 and S12-15): under Stained Glass the group headings and GROUP BY stand at the chrome floor, the counts in the theme's dim bone at full opacity and a full count in the seam's colour, not a red; the Ink count only under Monokuma Legacy, whose header is Bone; an empty group's line at full strength in both", async () => {
+        /*
+         * E24 C4a, 08.11.2026. A player reads the inventory for how much room is left before Search, and on 1.2.100 the
+         * room was the one thing it did not show under Stained Glass: the counts were Ink at 0.65 opacity on the glass
+         * (1.04:1) and the headings VT323 at 11 px against the 21 px floor (Chromium, audit/style-harness.html
+         * ?sheet=parts at 1366x768; the commit quotes the readings). Read here: the module's sheets as a cascade read from
+         * their text (`styleCascade`), on an inventory built on a body of its own per theme - the tab's section, a group's
+         * heading with a count and a full count, GROUP BY's label and button, an empty group's line: the winning size,
+         * colour and opacity. The heading's size is the base sheet's Bone header's, `var(--drpg-text-xs)` with
+         * `!important`, for both themes; Stained Glass states that rung at its floor on the inventory's headings alone, and
+         * Legacy leaves it the rung (a Truth Bullets fold read 21 px under Stained Glass before C4a). A full count is a state,
+         * so not the GM's red nor Blood (D11). Not read here: the contrast itself (Chromium's: the counts 6.65:1 on the
+         * stand-in's ground) and Daggerheart's own `.dh-style h4` in its layer at a table (the stage's live rows, E24 C4b).
+         * Red on E24 C0's tree: the counts Ink under Stained Glass, the heading's rung Legacy's.
+         */
+        const C = await styleCascade();
+        const el = (tag, classes = "", parent = null) => { const e = document.createElement(tag); if (classes) e.className = classes; parent?.append(e); return e; };
+        const read = theme => {
+            const html = document.createElement("html"), body = el("body", theme, html);
+            const app = el("div", "application sheet actor character", body);
+            const section = el("section", "tab inventory active", app);
+            section.dataset.applicationPart = "inventory";
+            const group = el("div", "drpg-inventory-group", el("div", "drpg-inventory-groups", section));
+            const h4 = el("h4", "", group), count = el("span", "drpg-group-count", h4), full = el("span", "drpg-group-count full", h4);
+            const sort = el("div", "drpg-bullet-sort", group);
+            const label = el("span", "drpg-bullet-sort-label", sort), button = el("button", "drpg-bullet-sort-button", sort);
+            const empty = el("li", "drpg-inventory-empty", el("ul", "drpg-inventory-list", group));
+            const value = (e, prop) => C.winner(e, prop)?.value ?? null;
+            return { head: value(h4, "--drpg-text-xs"), h4: value(h4, "font-size"),
+                groupBy: [value(label, "font-size"), value(button, "font-size")], count: value(count, "color"), full: value(full, "color"),
+                opacity: value(count, "opacity"), empty: value(empty, "opacity") };
+        };
+        const sg = read("drpg-theme-stained-glass"), legacy = read("drpg-theme-monokuma-legacy");
+        const floor = v => /var\(--drpg-sg-floor\)/.test(v ?? ""), viaHead = v => v === "var(--drpg-text-xs)";
+        const red = /--drpg-(sg-gm|gm|blood|crimson|red)\b/;
+        equal(stableJson({
+            sgHead: floor(sg.head), sgHeading: viaHead(sg.h4), sgGroupBy: sg.groupBy.map(floor),
+            sgCount: sg.count, sgFull: sg.full, sgFullRed: red.test(sg.full ?? ""), sgOpacity: sg.opacity,
+            legacyHead: legacy.head, legacyHeading: viaHead(legacy.h4), legacyCount: legacy.count, legacyFull: legacy.full,
+            empty: [sg.empty, legacy.empty]
+        }), stableJson({
+            sgHead: true, sgHeading: true, sgGroupBy: [true, true],
+            sgCount: "var(--drpg-sg-bone-dim)", sgFull: "var(--drpg-glass-accent)", sgFullRed: false, sgOpacity: "1",
+            legacyHead: null, legacyHeading: true, legacyCount: "var(--drpg-ink)", legacyFull: "var(--drpg-ink)",
+            empty: [null, null]
+        }), "[Stained Glass: the rung --drpg-text-xs on a heading at the floor, the heading sized by it, GROUP BY's label and button at the floor, "
+            + "a count's colour, a full count's, whether that is a red, a count's opacity; Monokuma Legacy: the rung on a heading (not stated there), the heading through it, "
+            + "a count's colour and a full one's; an empty line's opacity in each]");
+    }],
+    ["R1463 - DARK-FIRST holds the surfaces a light client lost (E24 C4a, E24-27; the audit's S12-26, the owner's A7 and A8 of 11.10): under `body.theme-light`, in both themes, the character sheet, the item sheet, the roll window, the settings and handbooks buttons, Foundry tools' button, the Event panel, the room tile, the voice tile and the list 'Who you hear' each compute `color-scheme: dark` and core's `--color-text-primary` at its dark value; the trait frame is Ink with no query on the system's theme; the two buttons' paper disc is Monokuma Legacy's alone", async () => {
+        /*
+         * E24 C4a, 08.11.2026. On a client with Foundry's light theme `light-dark()` takes its pale branch wherever
+         * `color-scheme` is not dark, and a surface that reads core's `--color-text-primary` without re-declaring it
+         * inherits the body's light-theme value, which is dark: danganronpa.css's DARK-FIRST list answers both for the
+         * surfaces it names, and six that players see most were not on it (S12-26), nor three of A8's, which said
+         * `color-scheme: dark` on their own (components.css) but read the text colour from the body. Read here: the
+         * module's sheets as a cascade read from their text (`styleCascade`), each surface built on a body of its own
+         * carrying `theme-light` and the theme's class: the winning `color-scheme` and `--color-text-primary`. Then the
+         * trait frame's background (its fallback read `prefers-color-scheme`, the operating system's theme, until C4a) and
+         * the settings and handbooks buttons' background in each theme: the paper `light-dark()` under Legacy, the glass's
+         * own plate under Stained Glass (the paper rule with `!important` took it away there). In Chromium, on a light
+         * client's page: glass-sweep.mjs `--scheme light` (the glass harness's `drpgSchemeCheck`); at a table, the stage's live row
+         * of a light client (AUDIT 9.2, written by E24 C4b).
+         * Red on E24 C0's tree: the sheet's `color-scheme` read nothing.
+         */
+        const C = await styleCascade();
+        const css = await moduleStyles();
+        const SURFACES = [["the character sheet", "div", "application sheet actor character"], ["the item sheet", "div", "application sheet item"],
+            ["the roll window", "div", "application roll-selection"], ["settings", "button", "", "drpg-sound-launcher"], ["handbooks", "button", "", "drpg-book-launcher"],
+            ["Foundry tools", "button", "", "drpg-foundry-tools"], ["the Event panel", "section", "", "drpg-events"], ["the room tile", "section", "drpg-room-tile", "drpg-room-tile"],
+            ["the voice tile", "section", "drpg-voice-tile", "drpg-voice-tile"], ["Who you hear", "div", "drpg-voice-list", "drpg-voice-list"]];
+        const on = (theme, tag, classes, id) => {
+            const html = document.createElement("html"), body = document.createElement("body"), e = document.createElement(tag);
+            body.className = `theme-light ${theme}`;
+            if (classes) e.className = classes;
+            if (id) e.id = id;
+            html.append(body);
+            body.append(e);
+            return e;
+        };
+        const got = {}, want = {};
+        for (const theme of ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"]) for (const [name, tag, classes, id] of SURFACES) {
+            const e = on(theme, tag, classes, id);
+            got[`${theme} ${name}`] = [C.winner(e, "color-scheme")?.value ?? null, C.winner(e, "--color-text-primary")?.value ?? null];
+            want[`${theme} ${name}`] = ["dark", "#efe6d8"];
+        }
+        const frame = on("drpg-theme-monokuma-legacy", "div", "drpg-trait-frame");
+        const paper = theme => ["drpg-sound-launcher", "drpg-book-launcher"].map(id => /--drpg-paper/.test(C.winner(on(theme, "button", "", id), ["background", "background-color"])?.value ?? ""));
+        equal(stableJson({ ...got, frame: C.winner(frame, ["background", "background-color"])?.value ?? null, osTheme: /prefers-color-scheme/.test(css),
+            paperGlass: paper("drpg-theme-stained-glass"), paperLegacy: paper("drpg-theme-monokuma-legacy") }),
+        stableJson({ ...want, frame: "var(--drpg-ink)", osTheme: false, paperGlass: [false, false], paperLegacy: [true, true] }),
+        "[per theme and surface under body.theme-light: the winning color-scheme and --color-text-primary; the trait frame's background; whether a sheet asks "
+            + "prefers-color-scheme; whether the settings and handbooks buttons wear the paper disc under Stained Glass, and under Monokuma Legacy]");
+    }],
+    ["R1464 - the narrow sheet (E24 C4a, E24-28; the audit's S12-13): on a stacked screen the character sheet's window is a container, `drpg-sheet`, and on a desk it is none; below 600 px of its width its content stands in one column - Daggerheart's grid overruled, the rail, the header with its tabs and the open tab each at their own height in their order - and the window scrolls", async () => {
+        /*
+         * E24 C4a, 08.11.2026. On a phone the sheet kept Daggerheart's two columns, the 275 px rail and 67 px beside it at
+         * 390x844 (Chromium, the parts stand-in laid on 2.10.5's grid; the commit quotes the readings). The width that
+         * matters is the window's, so the rule is a container query on the window (`drpg-sheet`), declared only under
+         * `drpg-stacked`: no breakpoint copied out of settings.mjs, and a stacked tablet's 772 px sheet keeps its columns.
+         * Read here: the module's sheets as a cascade read from their text (`styleCascade`, top-level rules), the window
+         * built on a body of its own per theme, stacked and not: the winning `container`. Then the `@container drpg-sheet`
+         * block itself, read from the sheets' text and its rules added to that cascade - what holds below 600 px - on the
+         * window's content and its three parts: `display` flex and `!important` (Daggerheart's grid is in a cascade layer
+         * above the module's), a column, each part `flex: 0 0 auto`, none reordered, and the content scrolling. In Chromium
+         * at 390x844 (the commit): one column, the tabs 342 px wide, the action grid three across.
+         * Red on E24 C0's tree: no container on a stacked screen, no block.
+         */
+        const C = await styleCascade();
+        const css = await moduleStyles();
+        const at = /@container\s+drpg-sheet\s*\(([^)]*)\)\s*\{/.exec(css);
+        let inner = "";
+        if (at) {
+            let depth = 1, i = at.index + at[0].length;
+            for (; i < css.length && depth; i++) depth += css[i] === "{" ? 1 : css[i] === "}" ? -1 : 0;
+            inner = css.slice(at.index + at[0].length, i - 1);
+        }
+        for (const chunk of inner.split("}")) {
+            const rule = /^([^{]*)\{([\s\S]*)$/.exec(chunk);
+            if (!rule) continue;
+            const decls = rule[2].split(";").map(line => {
+                const decl = /^\s*([^:]+):([\s\S]*)$/.exec(line);
+                if (!decl) return null;
+                const raw = decl[2].trim(), important = /!\s*important\s*$/i.test(raw);
+                return { property: decl[1].trim().toLowerCase(), value: raw.replace(/!\s*important\s*$/i, "").trim(), important };
+            }).filter(Boolean);
+            C.rules.push({ file: "@container drpg-sheet", selector: rule[1].trim(), decls });
+        }
+        const sheet = classes => {
+            const html = document.createElement("html"), body = document.createElement("body"), app = document.createElement("div"), wc = document.createElement("section");
+            body.className = classes;
+            app.className = "application sheet daggerheart actor character";
+            wc.className = "window-content";
+            const parts = [["aside", "character-sidebar-sheet"], ["div", "character-header-sheet"], ["section", "tab features active"]].map(([tag, cls]) => {
+                const e = document.createElement(tag); e.className = cls; wc.append(e); return e; });
+            html.append(body);
+            body.append(app);
+            app.append(wc);
+            return { app, wc, parts };
+        };
+        const container = {};
+        for (const theme of ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"]) for (const stacked of [true, false])
+            container[`${theme}${stacked ? " stacked" : ""}`] = C.winner(sheet(`${theme}${stacked ? " drpg-stacked" : ""}`).app, "container")?.value ?? null;
+        const { wc, parts } = sheet("drpg-theme-stained-glass drpg-stacked");
+        const display = C.winner(wc, "display");
+        equal(stableJson({ container, condition: at ? at[1].replace(/\s+/g, " ").trim() : "no block",
+            display: display && [display.value, display.important], direction: C.winner(wc, "flex-direction")?.value ?? null, scrolls: C.winner(wc, "overflow-y")?.value ?? null,
+            parts: parts.map(p => C.winner(p, "flex")?.value ?? null), order: parts.map(p => C.winner(p, "order")?.value ?? null) }),
+        stableJson({ container: { "drpg-theme-stained-glass stacked": "drpg-sheet / inline-size", "drpg-theme-stained-glass": null,
+            "drpg-theme-monokuma-legacy stacked": "drpg-sheet / inline-size", "drpg-theme-monokuma-legacy": null },
+            condition: "width < 600px", display: ["flex", true], direction: "column", scrolls: "auto",
+            parts: ["0 0 auto", "0 0 auto", "0 0 auto"], order: [null, null, null] }),
+        "[the window's container per theme, stacked and on a desk; the block's condition; with the block: the content's display and its weight, its direction, "
+            + "its overflow-y; the rail's, the header's and the open tab's flex and order]");
     }],
 ];
 

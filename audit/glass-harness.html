@@ -13,7 +13,8 @@
      mounted at 0x0 and its observers placed the Legacy tile, which a table's never do: the sweep's
      Legacy lines read the same with either, 13.10.2026, but only this one measures
      glass.mjs's Legacy observer); `?card=1` one notice card in the tile;
-     `?scheme=light` a light-theme client. `node audit/glass-sweep.mjs` loads it at 23 sizes in
+     `?scheme=light` a light-theme client (since E24 C4a with `theme-light` on the body, and `drpgSchemeCheck()` reads
+     A7's and A8's surfaces on it). `node audit/glass-sweep.mjs` loads it at 23 sizes in
      both themes and fails on any size that is not right (E81 fix r2-H3); `drpgNoticeCheck()` draws
      the module's own notice cards on the tile and measures the stack and the corner (E81 fix r2-H2).
      The room tile stands under the clock as room-tile.mjs builds it, with a gradient for its picture,
@@ -2299,10 +2300,110 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     }
     return done();
   };
+  /* THE LIGHT CLIENT'S READING (E24 C4a, 08.11.2026; the owner's A7 and A8 of 11.10, the audit's S12-26). On a page
+     loaded with `?scheme=light` (below: the page's scheme light, `theme-light` on the body and on #interface, core's
+     text colours dark), each of A7's and A8's surfaces this page draws is read: the corner's notice button, the three
+     launchers of E81's corner and, on a GM's page, the GM's button and Foundry tools; the room tile's name with its
+     picture's layer as drawn and with the picture taken out of it; the voice tile's name; and, on a GM's page, the
+     title of Foundry tools' and Map tools' frames, opened for the reading and shut again. For each, the computed
+     `color-scheme` of the surface and the contrast of its ink against its ground: a text 4.5:1, a glyph (a mask
+     painted in `currentColor`, or a button's own colour where no glyph is drawn) 3:1, WCAG's non-text figure. The
+     ground is the element's own background over its ancestors', composited down to the page's: a picture is not a
+     colour, so over the room tile's picture the reading is of the tile's own glass, which is what is left under the
+     name when a picture does not load. A surface not drawn at this size (display none, no box) is listed as such and
+     not judged. Not read here: the list "Who you hear" (voice-tile.mjs builds it only through `drpgVoiceList`'s
+     stand-ins), the "Voice" fieldset of the Look window and the narrow layout's description window, which this page
+     does not draw - the module's DARK-FIRST list holds the first, the other two are `drpg-panel` windows on it.
+     `{ plant: true }` is the control: those surfaces given `color-scheme: light` and core's dark text, as they had
+     before E24 C4a put them on the list, must read not ok. */
+  window.drpgSchemeCheck = async ({ plant = false } = {}) => {
+    const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const rgba = v => { const m = /rgba?\(([^)]+)\)/.exec(v ?? ""); if (!m) return [0, 0, 0, 0]; const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p[3] ?? 1]; };
+    const over = (top, under) => { const a = top[3] + under[3] * (1 - top[3]); return a ? [0, 1, 2].map(i => (top[i] * top[3] + under[i] * under[3] * (1 - top[3])) / a).concat(a) : [0, 0, 0, 0]; };
+    const lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+    const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+    const masked = el => { const c = getComputedStyle(el); return [c.maskImage, c.webkitMaskImage].some(m => m && m !== "none"); };
+    /* the ground's layers, the nearest last: each element's own background and, under a text, the brush an element's
+       `::before` lays over that background at the brush's opacity (Stained Glass's room name stands on its own, the
+       voice tile's name on its plate's); a glyph's `::before` is the glyph, so a glyph's ground reads none */
+    const ground = (from, brushes) => { const layers = [];
+      for (let e = from; e; e = e.parentElement) {
+        const b = brushes ? getComputedStyle(e, "::before") : null;
+        if (b && b.content !== "none") { const lit = rgba(b.backgroundColor); lit[3] *= Number(b.opacity); layers.push(lit); }
+        layers.push(rgba(getComputedStyle(e).backgroundColor));
+      }
+      let acc = [255, 255, 255, 1]; for (const l of layers.reverse()) acc = over(l, acc); return acc; };
+    const drawn = el => { if (!el) return false; const b = el.getBoundingClientRect(); return b.width > 0 && b.height > 0 && getComputedStyle(el).visibility !== "hidden"; };
+    const gm = document.body.classList.contains("drpg-gm");
+    const rows = [
+      ["notices corner", "#drpg-notices-corner", "#drpg-notices-corner > .drpg-notices-shape > i", "glyph"],
+      ["chat", "#drpg-messenger-launcher", "#drpg-messenger-launcher", "glyph"],
+      ["settings", "#drpg-sound-launcher", "#drpg-sound-launcher i", "glyph"],
+      ["handbooks", "#drpg-book-launcher", "#drpg-book-launcher i", "glyph"],
+      ...(gm ? [["gm button", "#drpg-gm-launcher", "#drpg-gm-launcher i", "glyph"], ["foundry tools", "#drpg-foundry-tools", "#drpg-foundry-tools i", "glyph"]] : []),
+      ["room picture", "#drpg-room-tile", "#drpg-room-tile .drpg-room-tile-name", "text"],
+      ["room bare", "#drpg-room-tile", "#drpg-room-tile .drpg-room-tile-name", "text", "bare"],
+      ["voice tile", "#drpg-voice-tile", "#drpg-voice-tile .drpg-voice-tile-name", "text"],
+      ...(gm ? [["foundry tools frame", "#drpg-win-ftools", "#drpg-win-ftools .drpg-foundry-window-title", "text", "open"], ["map tools frame", "#drpg-win-maptools", "#drpg-win-maptools .drpg-foundry-window-title", "text", "open"]] : [])
+    ];
+    const out = { ok: false, rows: [], why: [], plant, page: document.body.classList.contains("theme-light") ? "light" : "dark" };
+    const style = document.createElement("style");
+    if (plant) {
+      style.textContent = `:is(#drpg-notices-corner, #drpg-popups, #drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher, #drpg-gm-launcher,
+        #drpg-foundry-tools, #drpg-room-tile, #drpg-voice-tile, .drpg-voice-tile-face, #drpg-win-ftools, #drpg-win-maptools) { color-scheme: light !important;
+        --color-text-primary: #1d1a21 !important; --color-text-secondary: #1d1a21 !important; --color-text-subtle: #1d1a21 !important; }`;
+      document.head.append(style);
+    }
+    const art = document.querySelector("#drpg-room-tile .drpg-room-tile-art"), artWas = art?.style.backgroundImage ?? "";
+    const fw = window.__windows;
+    try {
+      await frame();
+      for (const [name, surfaceSel, inkSel, kind, how] of rows) {
+        if (how === "bare" && art) art.style.backgroundImage = "none";
+        if (how === "open") { fw?.toggleFoundryTools?.(true); await frame(); }
+        const surface = document.querySelector(surfaceSel), ink = document.querySelector(inkSel);
+        const row = { name, scheme: surface ? getComputedStyle(surface).colorScheme : null, kind, need: kind === "text" ? 4.5 : 3 };
+        if (!drawn(surface) || !drawn(ink)) row.drawn = false;
+        else {
+          const glyph = kind === "glyph" && masked(ink);
+          const fg = rgba(glyph ? getComputedStyle(ink).backgroundColor : getComputedStyle(ink).color);
+          const g = ground(glyph ? ink.parentElement : ink, kind === "text");
+          row.ratio = Math.round(ratio(over(fg, g), g) * 100) / 100;
+          row.ink = fg.slice(0, 3).map(Math.round).join(",");
+          row.ground = g.slice(0, 3).map(Math.round).join(",");
+          if (row.ratio < row.need) out.why.push(`${name}: ${row.ratio}:1 under ${row.need} (${row.ink} on ${row.ground}, scheme ${row.scheme})`);
+        }
+        out.rows.push(row);
+        if (how === "bare" && art) art.style.backgroundImage = artWas;
+        if (how === "open") { fw?.toggleFoundryTools?.(false); await frame(); }
+      }
+    } finally {
+      style.remove();
+      if (art) art.style.backgroundImage = artWas;
+    }
+    if (!out.rows.some(r => r.ratio !== undefined)) out.why.push("no surface was drawn, so nothing was read");
+    out.ok = !out.why.length;
+    out.why = out.why.join("; ");
+    return out;
+  };
 </script>
 <script type="module">
   const q = new URLSearchParams(location.search);
-  if (q.get("scheme") === "light") document.documentElement.style.colorScheme = "light";
+  /* `?scheme=light`: a client with Foundry's light theme. Until E24 C4a it set the page's colour scheme alone, which is
+     not what v14 does: a light client's body carries `theme-light` and #interface `themed theme-light` (which
+     foundry-windows.mjs `wearInterfaceTheme` copies onto its two frames), and core declares its text colours dark on the
+     body - the colours the DARK-FIRST list re-declares (danganronpa.css), since a surface that reads one without
+     re-declaring it inherits the body's. Standing in for those, the body's three text colours here are `#1d1a21`, the
+     module's own Ink: v14's light values are not read in this repository, and any dark ink shows the fault the list
+     exists for. Read by `drpgSchemeCheck` above and by glass-sweep.mjs `--scheme light`. */
+  if (q.get("scheme") === "light") {
+    document.documentElement.style.colorScheme = "light";
+    document.body.classList.add("theme-light");
+    document.getElementById("interface")?.classList.add("themed", "theme-light");
+    const core = document.createElement("style");
+    core.textContent = "body.theme-light { --color-text-primary: #1d1a21; --color-text-secondary: #1d1a21; --color-text-subtle: #1d1a21; }";
+    document.head.append(core);
+  }
   if (q.get("card")) document.getElementById("drpg-popups").insertAdjacentHTML("afterbegin", '<div class="drpg-popup drpg-popup-tone-hope"><div class="drpg-popup-title"><span>The time of day is over</span></div><div class="drpg-popup-body">Kaede found a <b>Tier 2 Cleaning Tool</b> in the Library.</div></div>');
   if (q.get("theme") === "legacy") { document.body.classList.replace("drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"); document.body.classList.add("drpg-pixel-font"); }
   if (q.get("still")) document.body.classList.add("drpg-reduced-motion");   // no pulse: the glass as painted
