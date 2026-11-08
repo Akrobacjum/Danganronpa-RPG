@@ -7624,7 +7624,7 @@ const REGRESSIONS = [
         const listed = new Set(guard.WRITE_REASONS ?? []);
         equal(JSON.stringify([...listed]), JSON.stringify(["spend", "refund", "price", "call", "rest", "itemUse", "itemWear", "stash",
             "retrieve", "discard", "searchFind", "concealment", "meddle", "setup", "levelUp", "incident", "reroll", "gmRuling",
-            "auditPutBack", "auditUndo", "equip", "ultimate", "sheetText"]), "the closed list of reasons moved - a reason is the plan's 2.2, and this list with it");
+            "auditPutBack", "auditUndo", "equip", "ultimate", "sheetText", "sheetReserve"]), "the closed list of reasons moved - a reason is the plan's 2.2, and this list with it");
         const FORWARDERS = [["inventory.mjs", "grantItem", true], ["inventory.mjs", "breakItem", true], ["inventory.mjs", "wearItem", true],
             ["use-items.mjs", "restore", false], ["use-items.mjs", "consume", false],
             // E29 C4: the Burst and Sprint grants go through the road, their reason the caller's (a Call, or a refund).
@@ -20765,7 +20765,7 @@ const REGRESSIONS = [
         "[what the sweep does not read; the fields its turn line does not print; the controls it does not name; what the harness's turn functions do not hold; "
             + "the turns the harness cannot fire; the control switches the harness does not answer]");
     }],
-    ["R1440 - the sheet stand-in's parts (audit/style-harness.html `?sheet=parts`; E24 C0, Q-ORCH-E24-2): both layouts of Daggerheart 2.10.5's resource-bar.hbs - the bar (`.status-bar`, `progress.progress-bar`, `input.bar-input` named by its system key, `.bar-label`, the plate) with what sheet.mjs `paintResourceBars` adds, and with `&pips=1` the pips (`.slot-value`, a `.slot` per point carrying its toggle's `data-action`, `.slot-label`) - the biography part with a `.drpg-biography-text`, the inventory part with a group and its count, an action panel, and a viewer's `drpg-redacted-sheet`; every `drpg-*` class the parts carry a string literal of sheet.mjs (comments out), the viewer's of anonymity.mjs", async () => {
+    ["R1440 - the sheet stand-in's parts (audit/style-harness.html `?sheet=parts`; E24 C0, Q-ORCH-E24-2): both layouts of Daggerheart 2.10.5's resource-bar.hbs - the bar (`.status-bar`, `progress.progress-bar`, `input.bar-input` named by its system key, `.bar-label`, the plate) with what sheet.mjs `paintReserves` adds (`paintResourceBars` until E24 C1a), and with `&pips=1` the pips (`.slot-value`, a `.slot` per point carrying its toggle's `data-action`, `.slot-label`) - the biography part with a `.drpg-biography-text`, the inventory part with a group and its count, an action panel, and a viewer's `drpg-redacted-sheet`; every `drpg-*` class the parts carry a string literal of sheet.mjs (comments out), the viewer's of anonymity.mjs", async () => {
         /*
          * E24 C0, 08.11.2026. jsdom lays nothing out, so how the sheet's parts look - the biography's type, the bars'
          * colours, the inventory's counters, the narrow column - is read in Chromium on the style harness, before a table.

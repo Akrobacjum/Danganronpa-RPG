@@ -19,7 +19,8 @@ import {
 import { SETTINGS, isMutedDead } from "./settings.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
     canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
-import { resourceMax, resourceValue, initCharacter, needsStartingResources } from "./character.mjs";
+import { resourceMax, resourceValue, initCharacter, needsStartingResources, RESERVES, reserveOf, reserveView, reserveRow }
+    from "./character.mjs";
 import { standingOffers, advanceKindName } from "./level-up.mjs";
 import { isMonokuma, isNotInClass, poolUserFor } from "./monokuma.mjs";
 import { spendableDespair } from "./despair.mjs";
@@ -505,14 +506,14 @@ function lockItemDescription(root) {
  * --------------------------------------------------------------------------
  * Every write to `system.resources.*` made the WHOLE SHEET redraw. Not an
  * animation problem - a full re-render, which also replays every injection this
- * file makes: the action panel, the tabs, `tidyBiography`, `paintResourceBars`.
+ * file makes: the action panel, the tabs, `tidyBiography`, `paintReserves`.
  * One cause, two symptoms: the equipped tab blinking on a roll (a roll spends
  * Hope, and Hope is a resource) and the whole window blinking on a Health or
  * Sanity change.
  *
  * The repair is to stop rendering for those updates and repaint the bar in
- * place instead - `paintResourceBars` already exists and already knows how to
- * resume a half-finished animation.
+ * place instead - the bars' painter (`paintReserves` since E24 C1a) already
+ * exists and already knows how to resume a half-finished animation.
  *
  * WHERE THE PLAN HAD IT BACKWARDS, AND THE MEASUREMENT THAT SHOWED IT.
  *
@@ -549,10 +550,13 @@ function lockItemDescription(root) {
  * still render exactly as they did.
  *
  * A SKIPPED RENDER LEAVES THE OLD NUMBERS IN THE DOM. Obvious in hindsight and
- * not obvious while writing it: `paintResourceBars` reads the `<progress>` and
- * the number input, both of which the render would have rewritten. Repainting
- * from them repaints the OLD value - measured, the bar sat at 0 while the actor
- * held 1. So the inputs are fed from the actor first, and only then painted.
+ * not obvious while writing it: the painter before E24 (`paintResourceBars`)
+ * read the `<progress>` and the number input, both of which the render would
+ * have rewritten. Repainting from them repainted the OLD value - measured, the
+ * bar sat at 0 while the actor held 1. So the inputs were fed from the actor
+ * first, and only then painted. Since E24 C1a the painter (`paintReserves`)
+ * reads the actor itself and the system's controls are hidden, so nothing is
+ * fed: a render and a repaint draw through the one function.
  * ========================================================================== */
 
 /** Sheets holding a one-shot "do not render" mark. */
@@ -563,7 +567,9 @@ const RESOURCE_PREFIX = "system.resources.";
 /**
  * The resources this file can redraw in place - see the note above.
  *
- * Adding one here is a promise that `repaintInPlace` below draws it.
+ * Adding one here is a promise that `repaintInPlace` below draws it: Health and
+ * Sanity through the painter a render calls (`paintReserves`, both layouts, E24
+ * C1a), Hope through its diamonds and the Calls and tiles it prices.
  */
 const REPAINTABLE = new Set(["hitPoints", "stress", "hope"]);
 
@@ -657,32 +663,14 @@ function markResourceOnlyUpdate(actor, changes) {
  * Everything the skipped render would have redrawn, drawn here instead.
  *
  * Two surfaces, because that is how many the three repaintable resources have:
- * the sidebar bars (whose own controls have to be fed from the actor first -
- * see the note above) and the Hope diamonds in the header, which the module
- * paints from `:has(> i.fa-solid)`, so the class on the inner glyph IS the
- * state and toggling it is the whole repaint.
+ * Health and Sanity in the sidebar, drawn by the same painter a render calls
+ * (`paintReserves`, which reads the actor - E24 C1a; until then this fed the
+ * system's own controls from the actor and the bar read them back), and the Hope
+ * diamonds in the header, which the module paints from `:has(> i.fa-solid)`, so
+ * the class on the inner glyph IS the state and toggling it is the whole repaint.
  */
 function repaintInPlace(actor, element) {
-    for (const bar of element.querySelectorAll(
-        ".character-sidebar-sheet .resources-section .status-bar")) {
-        const input = bar.querySelector("input.bar-input");
-        const progress = bar.querySelector("progress.progress-bar");
-        const name = input?.name;
-        if (!name) continue;
-
-        const value = Number(foundry.utils.getProperty(actor, name) ?? 0);
-        const max = Number(
-            foundry.utils.getProperty(actor, name.replace(/\.value$/, ".max"))
-            ?? progress?.max ?? 0);
-
-        // The system's own controls, which the render would have rewritten.
-        // Left stale they say something untrue right next to a correct bar.
-        input.value = String(value);
-        if (progress) {
-            progress.max = max;
-            progress.value = value;
-        }
-    }
+    paintReserves(null, element, actor);
 
     const hope = Number(foundry.utils.getProperty(actor, "system.resources.hope.value") ?? 0);
     for (const slot of element.querySelectorAll(".hope-section .hope-value")) {
@@ -782,7 +770,6 @@ function repaintAfterResourceUpdate(actor, changes) {
     for (const app of sheetsFor(actor)) {
         try {
             repaintInPlace(actor, app.element);
-            paintResourceBars(app, app.element);
         } catch (err) {
             error("Could not repaint a resource in place", err);
         }
@@ -860,7 +847,7 @@ function onRenderCharacterSheet(app, element, context, options) {
             watchTileFit(app, element);
             holdActionsTab(app, element);
             tidySidebar(element);
-            paintResourceBars(app, element);
+            paintReserves(app, element);
             injectEquippedTools(app, element);
             injectKnownPassages(app, element);
             injectSafeword(app, element);
@@ -1903,152 +1890,266 @@ function tidySidebar(element) {
     loadoutBlock?.classList.add("drpg-hidden-block");
 }
 
+/* ==========================================================================
+ * THE RESERVE ON THE SHEET (E24 C1a, 08.11.2026)
+ * --------------------------------------------------------------------------
+ * The owner's D5 (option 1): Health and Sanity are said as their reserve
+ * everywhere - "N left", a full bar a full reserve. D46 (option 2): with
+ * Daggerheart's pips on (its client setting useResourcePips), the module draws
+ * its own pips counting the reserve; without, its bar; both from one helper and
+ * one painter, which a render and a repaint both call.
+ *
+ * UNTIL E24 THE BAR DREW MARKS. Daggerheart stores both as marks counted up -
+ * 0/4 untouched, 4/4 the wound - and `paintResourceBars`, which this replaces,
+ * read the marks off the system's `<progress>` and filled the bar by them: a
+ * bar at 100 % was a student out of road, and the pip layout was not touched
+ * at all (S17-38). Measured at E24 C0 on `?sheet=parts`: Health 1 of 4 marked
+ * drew a 25 % bar, Sanity 2 of 6 a 33.3 % one.
+ *
+ * WHAT IT READS. The numbers come off the actor through character.mjs
+ * `reserveView`, never off the DOM, so a render and a repaint draw the same
+ * thing (the repaint used to feed the system's input and progress from the
+ * actor first, then read them back). Each block is found by its system key,
+ * never by its order: the bar layout by its number field's `name`, the pip
+ * layout by its slots' toggle (`RESERVE_PIPS`), and once painted by the
+ * `data-drpg-reserve` this writes on it, which the stylesheets colour by - and
+ * which a redacted sheet still carries after anonymity.mjs took the toggles'
+ * `data-action` away.
+ *
+ * WHAT IT HIDES. Daggerheart's progress, number field, "/" and maximum (the
+ * bar layout), and its slots and their "n / max" (the pip layout), each by a
+ * class (`drpg-reserve-hidden`): kept in the DOM, since the system may still
+ * write to them, and no longer read by anybody. The pips this draws are for
+ * reading only; a click on them does nothing.
+ *
+ * THE FIELD. For an editor - a GM always, a player who owns the student only
+ * with "Lock player resources" off (Q-E24-1's default) - the number in the row
+ * is a field of the reserve, 0 to the maximum; a change writes the marks it
+ * comes to (`writeReserve`, the road resource-guard.mjs names `sheetReserve`).
+ * Nobody else gets one.
+ *
+ * WHAT A VIEWER READS. Sanity is another player's to keep (the owner, 28.10):
+ * for a user `reserveView` does not show it to, the block says "?", its track is
+ * empty, no pip is drawn and no number is written into an attribute - the track
+ * no longer carries `data-value`/`data-max` for anybody. anonymity.mjs empties
+ * the system's own controls of it (EMPTIED, NOT HIDDEN).
+ * ========================================================================== */
+
+/** The pip layout's slot of each reserve, by the toggle Daggerheart 2.10.5 puts on it (resource-bar.hbs). */
+const RESERVE_PIPS = Object.freeze({
+    hitPoints: ".slot[data-action='toggleHitPoints']",
+    stress: ".slot[data-action='toggleStress']"
+});
+
+/** What the field says it is (its label and its tooltip). */
+const RESERVE_FIELD = Object.freeze({
+    hitPoints: "DRPG.Reserve.fieldHealth",
+    stress: "DRPG.Reserve.fieldSanity"
+});
+
+/** The class that hides the system's own controls of a reserve, which stay in the DOM. */
+const RESERVE_HIDDEN = "drpg-reserve-hidden";
+
+/** Whether `user` may type `actor`'s reserves: a GM, or an owner with "Lock player resources" off (Q-E24-1). */
+function mayEditReserve(actor, user) {
+    if (user?.isGM) return true;
+    if (!actor?.testUserPermission?.(user, "OWNER")) return false;
+    try {
+        return !game.settings.get(MODULE_ID, SETTINGS.lockPlayerResources);
+    } catch {
+        return false;
+    }
+}
+
 /**
- * Publish how full each resource bar is, so the stylesheet can draw it.
- *
- * Health and Sanity are `<progress>` elements, and the module styles them with
- * `appearance: none` to get rid of the platform look. That switch also removes
- * the element's native shadow DOM, which is where `::-webkit-progress-value`
- * lives - so the fill cannot be coloured from CSS at all. The rules for it were
- * being written and silently discarded, which is why both bars kept whatever
- * the system had painted.
- *
- * The fill is a plain background gradient instead, and the only thing CSS
- * cannot work out for itself is where to stop it: `value` and `max` are
- * attributes, and there is no `attr()` in a background position. So the ratio
- * is written here as a custom property and the stylesheet does the rest.
- *
- * Both are reverse resources in this game - `value` counts what has been
- * MARKED, not what is left - so a bar at 100% is a student out of road.
+ * A reserve's block in the sidebar's resources: painted before, the bar layout's (among `bars`, by its number field's
+ * name), or the pip layout's (by its slots' toggle).
  */
+function reserveBlock(section, key, bars) {
+    return section.querySelector(`[data-drpg-reserve="${key}"]`)
+        ?? bars.find(bar => bar.querySelector(`input.bar-input[name="system.resources.${key}.value"]`))
+        ?? section.querySelector(RESERVE_PIPS[key])?.closest(".slot-value")
+        ?? null;
+}
+
 /**
- * Health and Sanity as one flat bar apiece, filled by proportion.
- *
- * These were pips for a while - countable points, one per mark - and Dawid
- * asked for the bar back (26.08): a plain rectangle that fills the fraction of
- * itself the numerals beside it already state. Flat and square, drawn by this
- * module rather than by Daggerheart's `<progress>`, because `appearance: none`
- * on a progress element removes the shadow DOM its fill lives in and the fill
- * then cannot be coloured from CSS at all - which is the bug the pips were
- * originally routed around. Two spans obey a stylesheet; a progress element
- * argues with one.
- *
- * Both are REVERSE resources: `value` is what has been MARKED, not what is
- * left, so a bar at 100% is a student out of road.
- *
- * WHICH ROW IS WHICH, WITHOUT COUNTING ROWS. The stylesheet reaches these two
- * through `:nth-child(1)` and `:nth-child(2)` - the risk the audit flagged -
- * but script does not have to: each row carries an input whose `name` is
- * `system.resources.<key>.value`, which says what it is no matter what order
- * the system renders them in or what a future version puts between them.
- *
- * THE FLARE IS THE ONE THE PIPS HAD, aimed at the piece that changed. A pip
- * that went out flashed; here the BAND between the old fill and the new one
- * flashes, in the same colours, on the same beat, resuming mid-animation on a
- * redraw exactly as a pip did (`markSpent` carries the age). `spentSince`
- * counts what is HELD, which for a reverse resource is the capacity still
- * unmarked - so its `from`/`to` are mirrored back into marked units here.
- *
- * The system's own controls are untouched. The number input, its `/`, the max
- * and the +/- it wires up all stay exactly where they were; only the bar is
- * hidden, and it is hidden rather than removed so nothing the system does to
- * it later lands on a missing element.
+ * Health and Sanity on the sheet, as the reserve, in whichever layout the system drew (see the block above). Called
+ * by the render (`onRenderCharacterSheet`) and by the repaint (`repaintInPlace`); `user` is whose eyes it draws for.
  */
-function paintResourceBars(app, element) {
-    const actorId = app?.document?.id ?? null;
+export function paintReserves(app, element, actor = app?.document, user = game.user) {
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    const section = root?.querySelector?.(".character-sidebar-sheet .resources-section");
+    if (!section || !actor) return;
+    const editor = mayEditReserve(actor, user);
+    // The bar layout's blocks, as patches.mjs SHEET_ANCHORS names them for the contract.
+    const bars = [...root.querySelectorAll(".character-sidebar-sheet .resources-section .status-bar")];
 
-    for (const bar of element.querySelectorAll(".character-sidebar-sheet .resources-section .status-bar")) {
-        const progress = bar.querySelector("progress.progress-bar");
-        if (!progress) continue;
+    for (const key of Object.keys(RESERVES)) {
+        const block = reserveBlock(section, key, bars);
+        if (!block) continue;
+        const view = reserveView(actor, key, user);
+        block.dataset.drpgReserve = key;
+        // The flare's memory is the reserve held, so a band or a pip lights the part that moved; nothing is
+        // remembered of a view this user may not read.
+        const change = view.shown && actor.id ? spentSince(`resource:${key}`, actor.id, view.left) : null;
+        if (block.classList.contains("slot-value")) paintReservePips(block, view, change);
+        else paintReserveBar(block, view, change);
+        paintReserveRow(block, view, actor, editor);
+    }
+}
 
-        const max = Number(progress.max) || 0;
-        const value = Math.max(0, Math.min(max, Number(progress.value) || 0));
-
-        // Kept fed: a stale percentage on a bar that comes back is a wrong bar.
-        const pct = max > 0 ? (value / max) * 100 : 0;
-        progress.style.setProperty("--drpg-bar-pct", `${pct}%`);
-
-        bar.querySelectorAll(".drpg-resource-pips").forEach(el => el.remove());
-
-        const key = bar.querySelector("input.bar-input")?.name
-            ?.match(/resources\.([A-Za-z]+)\./)?.[1] ?? null;
-
-        if (!key || max < 1) {
-            progress.classList.remove("drpg-bar-replaced");
-            bar.querySelectorAll(".drpg-resource-bar").forEach(el => el.remove());
-            continue;
-        }
-        progress.classList.add("drpg-bar-replaced");
-
-        const held = max - value;
-        const change = actorId ? spentSince(`resource:${key}`, actorId, held) : null;
-
-        /*
-         * THE BAR IS UPDATED, NOT REBUILT - AND THAT IS THE REST OF THE FLICKER.
-         *
-         * Skipping the sheet's re-render (see THE FLICKER above) removed most
-         * of the blink and left a shorter one, which is what Dawid reported.
-         * A MutationObserver over one Health change found the whole of what was
-         * left: `div.drpg-resource-bar` removed and re-added, twice - once per
-         * bar. A brand-new element has no previous width to travel from, so its
-         * transition has nothing to animate and the fill snaps into place.
-         *
-         * Keeping the element and moving its width is what makes the change a
-         * movement instead of a replacement. On a full render there is nothing
-         * to reuse and this builds one exactly as before.
-         */
-        for (const stale of bar.querySelectorAll(".drpg-resource-bar")) {
-            if (stale.dataset.resource !== key) stale.remove();
-        }
-
-        let track = bar.querySelector(".drpg-resource-bar");
-        let fill = track?.querySelector(".drpg-resource-fill") ?? null;
-
-        if (!track || !fill) {
-            track?.remove();
-            track = document.createElement("div");
-            track.className = "drpg-resource-bar";
-            fill = document.createElement("span");
-            fill.className = "drpg-resource-fill";
-            track.append(fill);
-            progress.after(track);
-        }
-
-        // The band from last time goes whatever happens: it describes a change
-        // that is no longer the most recent one.
-        track.querySelectorAll(".drpg-resource-delta").forEach(band => band.remove());
-
-        track.dataset.resource = key;
-        track.dataset.value = String(value);
-        track.dataset.max = String(max);
-        fill.style.width = `${pct}%`;
-
-        // The band that just changed, laid over the fill.
-        //
-        // `spentSince` counts HELD sockets and reports the range of them that
-        // moved; the bar is drawn in MARKED units, and the two run in opposite
-        // directions - held socket `h` is marked slot `max - h + 1`. So the
-        // range flips end for end: held [from..to] is marked
-        // [max - to + 1 .. max - from + 1], which is the band that just changed
-        // colour whichever way it went.
-        if (change) {
-            const lo = max - change.to + 1;
-            const hi = max - change.from + 1;
-            const from = Math.max(0, lo - 1);
-            const to = Math.min(max, hi);
-            if (to > from) {
-                const band = document.createElement("span");
-                band.className = "drpg-resource-delta";
-                band.style.left = `${(from / max) * 100}%`;
-                band.style.width = `${((to - from) / max) * 100}%`;
-                // Same helper the pips used, so the class, the resume offset
-                // and the "is this one of the ones that moved" test are all
-                // the module's one implementation rather than a second copy.
-                markSpent(band, change, change.from);
-                track.append(band);
-            }
+/**
+ * The bar layout: the module's flat bar filled to what is LEFT, the band over the part that just moved, the system's
+ * controls hidden.
+ *
+ * THE BAR IS UPDATED, NOT REBUILT (Dawid's flicker, kept from `paintResourceBars`). A MutationObserver over one
+ * Health change found the bar removed and added again, twice; a new element has no width to travel from, so the fill
+ * snapped instead of sliding. So the track is kept and its fill's width moved; a render builds it once.
+ *
+ * THE FLARE IS THE PIPS' ONE, aimed at the piece that changed, resuming mid-animation on a redraw (`markSpent`
+ * carries the age). `spentSince` counts what is HELD, which is now what the bar draws, so its range is the band.
+ */
+function paintReserveBar(block, view, change) {
+    const value = block.querySelector(".status-value") ?? block;
+    const progress = value.querySelector("progress.progress-bar");
+    const pct = view.shown ? view.pct : 0;
+    // The system's controls, kept: hidden by a class, in the DOM, read by nobody.
+    for (const el of value.children) {
+        if (el.matches("input.bar-input") || el.matches(".bar-label") || (el.localName === "span" && el.textContent.trim() === "/")) {
+            el.classList.add(RESERVE_HIDDEN);
         }
     }
+    if (progress) {
+        progress.classList.add("drpg-bar-replaced");
+        progress.style.setProperty("--drpg-bar-pct", `${pct}%`);
+    }
+
+    for (const stale of value.querySelectorAll(".drpg-resource-bar")) {
+        if (stale.dataset.resource !== view.key) stale.remove();
+    }
+    let track = value.querySelector(".drpg-resource-bar");
+    let fill = track?.querySelector(".drpg-resource-fill") ?? null;
+    if (!track || !fill) {
+        track?.remove();
+        track = document.createElement("div");
+        track.className = "drpg-resource-bar";
+        fill = document.createElement("span");
+        fill.className = "drpg-resource-fill";
+        track.append(fill);
+        if (progress) progress.after(track);
+        else value.append(track);
+    }
+    // The band from last time goes whatever happens: it describes a change that is no longer the latest.
+    track.querySelectorAll(".drpg-resource-delta").forEach(band => band.remove());
+    track.dataset.resource = view.key;
+    // No number in an attribute (E24 C1a): the track carried `data-value` and `data-max` until E24.
+    delete track.dataset.value;
+    delete track.dataset.max;
+    fill.style.width = `${pct}%`;
+
+    if (change && view.max > 0) {
+        const from = Math.max(0, change.from - 1);
+        const to = Math.min(view.max, change.to);
+        if (to > from) {
+            const band = document.createElement("span");
+            band.className = "drpg-resource-delta";
+            band.style.left = `${(from / view.max) * 100}%`;
+            band.style.width = `${((to - from) / view.max) * 100}%`;
+            markSpent(band, change, change.from);
+            track.append(band);
+        }
+    }
+}
+
+/**
+ * The pip layout (D46 = 2): the module's own pips, `max` of them with `left` filled, in place of the system's slots,
+ * which are hidden. For reading only - no `data-action`, no listener. A view not shown draws none.
+ */
+function paintReservePips(block, view, change) {
+    const slots = block.querySelector(".slot-bar");
+    slots?.classList.add(RESERVE_HIDDEN);
+    block.querySelector(".slot-label .value")?.classList.add(RESERVE_HIDDEN);
+    let pips = block.querySelector(".drpg-reserve-pips");
+    if (!pips) {
+        pips = document.createElement("div");
+        pips.className = "drpg-reserve-pips";
+        pips.setAttribute("aria-hidden", "true");
+        if (slots) slots.after(pips);
+        else block.prepend(pips);
+    }
+    const count = view.shown ? view.max : 0;
+    pips.replaceChildren(...Array.from({ length: count }, (_, i) => {
+        const pip = document.createElement("span");
+        pip.className = i < view.left ? "drpg-reserve-pip drpg-pip-full" : "drpg-reserve-pip";
+        return markSpent(pip, change, i + 1);
+    }));
+}
+
+/**
+ * The row under the bar or the pips: "Left: 3 / 4" (`reserveRow`), "?" for a view not shown, and for an editor the
+ * number is the field. A field that has the focus keeps what is being typed into it; its maximum still follows.
+ */
+function paintReserveRow(block, view, actor, editor) {
+    let row = block.querySelector(".drpg-reserve-row");
+    if (!row) {
+        row = document.createElement("div");
+        row.className = "drpg-reserve-row";
+        const host = block.querySelector(".status-value") ?? block.querySelector(".drpg-reserve-pips") ?? null;
+        if (host?.classList.contains("status-value")) host.append(row);
+        else if (host) host.after(row);
+        else block.append(row);
+    }
+    if (!editor || !view.shown) {
+        row.textContent = reserveRow(view);
+        return;
+    }
+    const typing = row.querySelector("input.drpg-reserve-field");
+    if (typing && typing === document.activeElement) {
+        typing.max = String(view.max);
+        return;
+    }
+    const field = document.createElement("input");
+    field.type = "number";
+    field.className = "drpg-reserve-field";
+    field.min = "0";
+    field.max = String(view.max);
+    field.step = "1";
+    field.value = String(view.left);
+    const label = game.i18n.localize(RESERVE_FIELD[view.key]);
+    field.setAttribute("aria-label", label);
+    field.dataset.tooltip = label;
+    // Not the system's form: the field has no `name`, and its change goes no further than here, so Daggerheart's
+    // submit-on-change sends nothing for it; Enter writes it rather than submitting the sheet.
+    field.addEventListener("change", event => {
+        event.stopPropagation();
+        writeReserve(actor, view.key, field.valueAsNumber)
+            .then(done => { if (done === null) field.value = String(reserveView(actor, view.key).left); })
+            .catch(err => error("Could not write a reserve from the sheet", err));
+    });
+    field.addEventListener("keydown", event => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        event.stopPropagation();
+        field.blur();
+    });
+    // The row's words around the number, in the page's language: the field stands where `{n}` stands.
+    const [before, after = ""] = game.i18n.format("DRPG.Reserve.leftRow", { n: "{n}", max: view.max }).split("{n}");
+    row.replaceChildren(before, field, after);
+}
+
+/**
+ * The field's write (E24 C1a; MARKED): `n` is the reserve typed, held to 0..max, and the marks it comes to are
+ * written - `max - n` - through resource-guard.mjs's road as `sheetReserve`. A GM's write is the GM's own. A player's
+ * goes as a plain write, which the GMs' audit treats as it treated Daggerheart's own number field, and which this
+ * browser's guard cuts while "Lock player resources" is on (the reason is not in `JUDGED`, and the road marks it as a
+ * hand edit: resource-guard.mjs's note). Nothing to write answers null.
+ */
+export async function writeReserve(actor, key, n) {
+    if (!RESERVES[key] || !actor) return null;
+    const { max, left } = reserveOf(actor, key);
+    const want = Math.min(max, Math.max(0, Math.round(Number(n))));
+    if (!Number.isFinite(want) || want === left) return null;
+    return trustedWrite(actor, { [`system.resources.${key}.value`]: max - want }, { reason: "sheetReserve" });
 }
 
 /**

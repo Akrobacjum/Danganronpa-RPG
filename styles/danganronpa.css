@@ -55,6 +55,15 @@
     --drpg-blood-deep: #8e1247;        /* its light-theme twin */
     --drpg-blood-deep-rgb: 142, 18, 71;
     --drpg-blood-glow: rgba(var(--drpg-blood-rgb), 0.45);
+
+    /* --- the reserves: Health and Sanity (E24 C1a, 08.11.2026) ------------
+       Each in a hue that means no state of the game - not the Eye's red, the
+       Blood's Despair pink, Eclipse's violet or Hope's gold (the owner's D5,
+       Q-E24-4) - so a bar says how much is left and nothing else. Read through
+       `--drpg-bar-fill` by the plate, the bar, the field and the pips of the
+       block sheet.mjs `paintReserves` marks (`[data-drpg-reserve]`). */
+    --drpg-res-health: #8fd14f;
+    --drpg-res-sanity: #dc72f0;
     --drpg-remnant: #7a1440;           /* the Remnant ring - stage 6 rules on it */
     /* The GMs' overlay on the board (E79 C6, gm-overlay.mjs): a secret passage's stretch in the
        blood's pink, a closed one grey, a broken one red. Literal values, read by PIXI through
@@ -207,7 +216,7 @@
        one place to follow. */
     --drpg-window-pad: 16px;
 
-    /* How full a resource bar is. Written per element by paintResourceBars()
+    /* How full a resource bar is. Written per element by paintReserves()
        in sheet.mjs - value and max are attributes, and CSS cannot read them.
        Declared here so a bar renders empty rather than broken on a client
        where the hook has not run yet. */
@@ -8850,13 +8859,16 @@ body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-shee
 /* The resource chips invert inside the rail: Ink block, Bone numerals, so the
    two things a player checks most often are the darkest marks on the white. */
 body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-sheet .status-label,
-body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-sheet .status-bar .status-label {
-    background-color: var(--drpg-ink) !important;
+body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-sheet .status-bar .status-label,
+body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-sheet [data-drpg-reserve] .slot-label {
+    /* Health's and Sanity's plates in their reserve's colour, as the bar (E24 C1a: plate and bar the same); every
+       other chip in the rail keeps the Ink block. */
+    background-color: var(--drpg-bar-fill, var(--drpg-ink)) !important;
 }
 
 body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-sheet .status-label h4,
 body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-sheet .status-label * {
-    color: var(--drpg-bone) !important;
+    color: var(--drpg-plate-ink, var(--drpg-bone)) !important;
 }
 
 /* ...AND THE NUMERALS, which the note above promised and nothing delivered (22.09). The
@@ -8954,7 +8966,9 @@ body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-shee
 
 .application.sheet.actor .character-sidebar-sheet .resources-section .status-bar {
     background-color: var(--drpg-ink) !important;
-    border: 1px solid var(--drpg-eye) !important;
+    /* the frame in the reserve's colour (E24 C1a), which the block carries on either theme; measured on the sheet
+       stand-in at C0, this rule's Eye won Stained Glass's own frame rule too */
+    border: 1px solid var(--drpg-bar-fill, var(--drpg-eye)) !important;
     border-radius: 3px;
     padding: 2px 4px;
 }
@@ -9014,10 +9028,11 @@ body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-shee
     background-color: var(--drpg-blood);
 }
 
-/* The Health / Sanity name chips keep their Ink block and Bone label. */
+/* The Health / Sanity name chips keep their Ink block and Bone label; the
+   edge in the reserve's colour (E24 C1a), the Eye on any other chip. */
 .application.sheet.actor .character-sidebar-sheet .status-bar .status-label {
     background-color: var(--drpg-ink) !important;
-    border: 1px solid var(--drpg-eye) !important;
+    border: 1px solid var(--drpg-bar-fill, var(--drpg-eye)) !important;
 }
 
 /* ==========================================================================
@@ -9029,7 +9044,7 @@ body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-shee
    that `::-webkit-progress-value` lives in, so the FILL cannot be coloured from
    CSS at all. Those rules were being written and silently discarded.
 
-   So the progress element is hidden and `paintResourceBars()` in sheet.mjs
+   So the progress element is hidden and `paintReserves()` in sheet.mjs
    draws the bar out of two spans instead - a track and a fill whose width is
    the percentage. Flat and square, no rounding, no gradient, no sheen: a
    rectangle that has been filled up to a mark, in the same pixel register as
@@ -9077,7 +9092,7 @@ body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-shee
     inset: 0 auto 0 0;
     height: 100%;
     border-radius: 0;
-    background-color: var(--drpg-bar-fill, var(--drpg-eye));
+    background-color: var(--drpg-bar-fill, var(--drpg-bone));
     /* The width is written by script on every render; the transition is what
        makes a mark slide on rather than jump. Same beat as the flare over it. */
     transition: width var(--drpg-t-beat) var(--drpg-ease-arrive);
@@ -9142,21 +9157,91 @@ body.drpg-reduced-motion .application.sheet.actor .character-sidebar-sheet .drpg
     opacity: 0;
 }
 
-/* Named by the bar's `data-resource`, not by its position - the same reason
-   sheet.mjs reads the field name instead of counting children. */
-.application.sheet.actor .character-sidebar-sheet
-    .drpg-resource-bar[data-resource="hitPoints"] {
-    --drpg-bar-fill: var(--drpg-eye);
-    --drpg-spent-glow: var(--drpg-eye);
+/* Named by the block's key (`data-drpg-reserve`, written by sheet.mjs
+   `paintReserves` on either layout), not by its position - the same reason
+   sheet.mjs reads the field name instead of counting children. Each reserve in
+   its own colour (E24 C1a; until then Health took the Eye and Sanity Despair's
+   pink, two colours that each already meant something): a point of Sanity going
+   is not a point of Health going, and the flash is most of what tells you which
+   one just happened when you were looking elsewhere. The flash takes the bar's
+   colour, whichever theme set it. */
+.application.sheet.actor .character-sidebar-sheet [data-drpg-reserve="hitPoints"] {
+    --drpg-bar-fill: var(--drpg-res-health);
+    --drpg-spent-glow: var(--drpg-bar-fill);
+    --drpg-plate-ink: var(--drpg-ink);
 }
 
-/* Sanity marks in Despair's pink, like the bar they are filling. A point of
-   Sanity going on is not a point of Health going on, and the flash is most of
-   what tells you which one just happened when you were looking elsewhere. */
-.application.sheet.actor .character-sidebar-sheet
-    .drpg-resource-bar[data-resource="stress"] {
-    --drpg-bar-fill: var(--drpg-blood);
-    --drpg-spent-glow: var(--drpg-blood);
+.application.sheet.actor .character-sidebar-sheet [data-drpg-reserve="stress"] {
+    --drpg-bar-fill: var(--drpg-res-sanity);
+    --drpg-spent-glow: var(--drpg-bar-fill);
+    --drpg-plate-ink: var(--drpg-ink);
+}
+
+/* THE RESERVE'S ROW, FIELD AND PIPS (E24 C1a, 08.11.2026).
+   --------------------------------------------------------------------------
+   `paintReserves` hides the system's own controls of Health and Sanity - its
+   progress, number field, "/" and maximum, its slots and their "n / max" - by
+   a class, keeping them in the DOM; whatever display a rule of the system gives
+   them, the class wins. Under the bar or the pips it writes one row, "Left:
+   3 / 4", whose number is a field for a GM (and for a player with "Lock player
+   resources" off), and in the pip layout its own pips, `left` of `max` filled. */
+.application.sheet.actor .character-sidebar-sheet .drpg-reserve-hidden {
+    display: none !important;
+}
+
+.application.sheet.actor .character-sidebar-sheet .drpg-reserve-row {
+    display: flex;
+    flex: 0 0 100%;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    column-gap: 0.3em;
+    text-align: center;
+    font-size: var(--drpg-text-sm);
+    line-height: 1.3;
+}
+
+/* A number, typed: no spinner (its arrows took the width of the digits), as wide as two digits. */
+.application.sheet.actor .character-sidebar-sheet .drpg-reserve-field {
+    appearance: textfield;
+    box-sizing: content-box;
+    width: 2ch;
+    height: auto;
+    margin: 0;
+    padding: 0 3px;
+    border: 1px solid var(--drpg-bar-fill, var(--drpg-line-strong));
+    border-radius: 0;
+    /* on the ground it stands on, in the row's ink: dark under the bar's chip, Legacy's white rail under the pips */
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: center;
+}
+
+.application.sheet.actor .character-sidebar-sheet .drpg-reserve-field::-webkit-inner-spin-button,
+.application.sheet.actor .character-sidebar-sheet .drpg-reserve-field::-webkit-outer-spin-button {
+    appearance: none;
+    margin: 0;
+}
+
+.application.sheet.actor .character-sidebar-sheet .drpg-reserve-pips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 3px;
+    margin: 4px 0 2px;
+}
+
+.application.sheet.actor .character-sidebar-sheet .drpg-reserve-pip {
+    box-sizing: border-box;
+    width: 10px;
+    height: 10px;
+    border: 1px solid var(--drpg-bar-fill, var(--drpg-line-strong));
+    background: transparent;
+}
+
+.application.sheet.actor .character-sidebar-sheet .drpg-reserve-pip.drpg-pip-full {
+    background: var(--drpg-bar-fill, var(--drpg-line-strong));
 }
 
 /* The speech bubble beside every Experience. It posts the Experience to chat,
@@ -9202,7 +9287,7 @@ body.drpg-reduced-motion .application.sheet.actor .character-sidebar-sheet .drpg
 }
 
 .application.sheet.actor .character-sidebar-sheet
-    .status-value:has(.drpg-resource-bar) > * {
+    .status-value:has(.drpg-resource-bar) > :where(:not(.drpg-reserve-row)) {
     font-size: max(min(10px, 0.78rem), calc(0.78rem * var(--drpg-legacy-scale, 1))) !important;
     line-height: 1.15 !important;
     height: auto !important;
@@ -9537,19 +9622,9 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     background-image: none !important;
 }
 
-.application.sheet.actor .character-sidebar-sheet .resources-section .status-bar:nth-child(1) progress.progress-bar {
-    background:
-        linear-gradient(var(--drpg-eye), var(--drpg-eye))
-            left center / var(--drpg-bar-pct, 0%) 100% no-repeat,
-        rgba(var(--drpg-deep-rgb), 0.9) !important;
-}
-
-.application.sheet.actor .character-sidebar-sheet .resources-section .status-bar:nth-child(2) progress.progress-bar {
-    background:
-        linear-gradient(var(--drpg-blood), var(--drpg-blood))
-            left center / var(--drpg-bar-pct, 0%) 100% no-repeat,
-        rgba(var(--drpg-deep-rgb), 0.9) !important;
-}
+/* The two gradient fills that stood here (Health in the Eye, Sanity in the
+   Blood, by `:nth-child`) went in E24 C1a: `paintReserves` hides the progress
+   on every sheet it paints, and the bar it draws carries the colour. */
 
 /* Current and maximum were 24px and 11px - the same number read twice at two
    sizes, which makes the pair look like a heading and a footnote rather than

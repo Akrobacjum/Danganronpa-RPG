@@ -121,6 +121,12 @@ body.drpg-theme-stained-glass {
     --drpg-sg-night: #7f8cff;
     --drpg-sg-investigation: #57b6ff;
     --drpg-sg-eclipse: #a678ff;
+    /* The two reserves (E24 C1a, 08.11.2026; the owner's D5, Q-E24-4): Health and Sanity each in a hue that means no
+       state of the game - not the GM's red, Despair's pink, Eclipse's violet or Hope's gold - so a bar says how much is
+       left and nothing else. The plate, the bar, the field and the pips read them through `--drpg-bar-fill`, set on
+       the block sheet.mjs `paintReserves` marks (`[data-drpg-reserve]`). */
+    --drpg-sg-res-health: #8fd14f;
+    --drpg-sg-res-sanity: #dc72f0;
 
     /* the colour the seams glow with: the time of day, replaced by the state.
        The clock writes `data-drpg-time` on the body (Milestone 2); until then
@@ -1438,15 +1444,16 @@ body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-
     outline-offset: -2px;
 }
 
-/* 2. Health and Sanity: the bar the module paints (`paintResourceBars`), in the theme's two colours,
-   the spent part under the raster the audit gives every spent thing, the edge in the bar's colour. */
-body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet .resources-section .status-bar:nth-child(1) { --drpg-bar-fill: var(--drpg-sg-gm-light); }
-body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet .resources-section .status-bar:nth-child(2) { --drpg-bar-fill: var(--drpg-sg-eclipse); }
+/* 2. Health and Sanity: the bar the module paints (`paintReserves`), in the two reserve colours, by the
+   block's key (`data-drpg-reserve`, either layout) and never by its order (E24 C1a), the spent part under
+   the raster the audit gives every spent thing, the edge in the bar's colour. */
+body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet [data-drpg-reserve="hitPoints"] { --drpg-bar-fill: var(--drpg-sg-res-health); }
+body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet [data-drpg-reserve="stress"] { --drpg-bar-fill: var(--drpg-sg-res-sanity); }
 body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet .drpg-resource-bar {
     height: 10px;
-    border: 1px solid color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-sg-gm-light)) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-glass-accent)) 55%, transparent);
     background-color: rgba(7, 7, 10, 0.7);
-    background-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-sg-gm-light)) 45%, transparent) 1px, transparent 1.5px);
+    background-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-glass-accent)) 45%, transparent) 1px, transparent 1.5px);
     background-size: 4px 4px;
     box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.6);
 }
@@ -1454,8 +1461,8 @@ body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet 
     display: block;
     position: absolute;
     inset: 0 auto 0 0;
-    background-color: var(--drpg-bar-fill, var(--drpg-sg-gm-light));
-    box-shadow: 0 0 8px color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-sg-gm-light)) 55%, transparent);
+    background-color: var(--drpg-bar-fill, var(--drpg-glass-accent));
+    box-shadow: 0 0 8px color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-glass-accent)) 55%, transparent);
 }
 body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet .resources-section .status-label,
 body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet .resources-section .slot-label {
@@ -1463,7 +1470,8 @@ body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet 
     text-transform: uppercase;
     letter-spacing: 0.1em;
     font-size: max(var(--drpg-sg-floor), calc(12px * var(--drpg-sg-scale)));
-    background: color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-sg-gm-light)) 85%, #000) !important;
+    /* the plate is the bar's own colour (E24 C1a, Q-E24-4: plate and bar the same) */
+    background: var(--drpg-bar-fill, var(--drpg-glass-accent)) !important;
     color: var(--drpg-sg-ink) !important;
     border: 0 !important;
     border-radius: 0 !important;
@@ -1476,6 +1484,14 @@ body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet 
 body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet .resources-section .status-value span:not(:where(.drpg-resource-fill, .drpg-resource-delta)) {
     font-family: var(--drpg-font-chrome);
     font-variant-numeric: tabular-nums;
+}
+/* The reserve's row ("Left: 3 / 4", E24 C1a) at the theme's floor, not at the title size the count had. */
+body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet .drpg-reserve-row {
+    font-family: var(--drpg-font-chrome);
+    font-size: var(--drpg-sg-floor);
+    font-variant-numeric: tabular-nums;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }
 
 /* 3. the fields of Foundry's own windows and of the sheet: the theme's one field, the same edge in the
@@ -3843,7 +3859,7 @@ body.drpg-theme-stained-glass .character-sidebar-sheet .status-value .drpg-resou
 /* the frame takes the resource's own colour, as the plate above it does - one red box
    around a violet label was the sheet saying two things about one number */
 body.drpg-theme-stained-glass .character-sidebar-sheet .status-bar {
-    border-color: color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-sg-gm)) 55%, transparent);
+    border-color: color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-glass-accent)) 55%, transparent);
 }
 
 /* ==========================================================================
@@ -4130,12 +4146,12 @@ body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-
 }
 
 /* THE STAT FRAME TAKES ITS RESOURCE'S COLOUR AND THE THEME'S CORNER.
-   `--drpg-bar-fill` is already correct per block (#ff5566 on Health, #a678ff on Sanity) and
+   `--drpg-bar-fill` is already correct per block (the two reserve tokens since E24 C1a) and
    the frame was drawing crimson on both, because a red border rule outranked the one that
    reads the token. The audit page frames each block in its own resource at 45 % and cuts the
    corner like everything else. */
 body.drpg-theme-stained-glass .character-sidebar-sheet .status-bar {
-    border: 1px solid color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-sg-gm)) 45%, transparent) !important;
+    border: 1px solid color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-glass-accent)) 45%, transparent) !important;
     background: rgba(7, 7, 10, 0.5);
     clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
 }
@@ -4147,7 +4163,7 @@ body.drpg-theme-stained-glass .character-sidebar-sheet .status-bar .status-label
 }
 /* and the track wears its resource, not the interface */
 body.drpg-theme-stained-glass .character-sidebar-sheet .drpg-resource-bar {
-    border: 1px solid color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-sg-gm)) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-glass-accent)) 55%, transparent);
 }
 
 /* ==========================================================================
@@ -4373,7 +4389,7 @@ body.drpg-theme-stained-glass .application.sheet.actor .status-bar {
 body.drpg-theme-stained-glass .application.sheet.actor .status-label.pointy {
     order: -1;
     clip-path: none !important;
-    background: var(--drpg-res, var(--drpg-sg-despair)) !important;
+    background: var(--drpg-bar-fill, var(--drpg-glass-accent)) !important;
     border: none !important;
     border-radius: 0 !important;
     padding: 2px 8px !important;
@@ -4388,13 +4404,11 @@ body.drpg-theme-stained-glass .application.sheet.actor .status-label.pointy :is(
     letter-spacing: 0.14em;
     text-transform: uppercase;
 }
-/* the two resources, by the colour each one carries elsewhere in the module */
-body.drpg-theme-stained-glass .application.sheet.actor .status-bar:has([name*="health"]),
-body.drpg-theme-stained-glass .application.sheet.actor .status-bar:has(h4:is(:first-child)) { --drpg-res: var(--drpg-sg-despair); }
-body.drpg-theme-stained-glass .application.sheet.actor .status-bar:nth-of-type(2) { --drpg-res: var(--drpg-sg-eclipse); }
+/* the two resources take their reserve colour from the block's key (`--drpg-bar-fill`, section 2 above; E24 C1a): the
+   order and the label's place no longer say which is which, and `--drpg-res` is gone */
 body.drpg-theme-stained-glass .application.sheet.actor .status-value {
     background: rgba(7, 7, 10, 0.55);
-    border: 1px solid color-mix(in srgb, var(--drpg-res, var(--drpg-glass-accent)) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-glass-accent)) 55%, transparent);
     border-top: none;
     padding: 3px 6px;
 }

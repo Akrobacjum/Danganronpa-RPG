@@ -47971,7 +47971,10 @@ const SCENARIOS = [
            899/1/17), which no fast set runs this test to see - a checkpoint's suite-diff is what
            finds a literal like it (fix r1-G3).
            What a player's write names is read on a player's browser (13-murder-signals), and what a
-           bystander's browser reads of the incident's writes in 10-murder. */
+           bystander's browser reads of the incident's writes in 10-murder.
+           E24 C1a (08.11.2026): the module's marker on every reason but the hand edits (resource-guard.mjs
+           `HAND_EDITS`: `sheetReserve`, the reserve typed on the sheet), whose writes go unmarked so that a
+           player's own guard still cuts them while Lock player resources is on; read here by reason. */
         const { trustedWrite: write, trustedCreate: create, trustedDelete: drop, WRITE_REASONS, WRITE_STAMP, HOPE_REFUND } =
             await import("./resource-guard.mjs");
         const sent = [];
@@ -47980,15 +47983,19 @@ const SCENARIOS = [
             createEmbeddedDocuments: async (name, data, options) => sent.push(["create", options]),
             delete: async options => sent.push(["delete", options])
         };
+        const unmarked = [];
         for (const reason of WRITE_REASONS) {
+            const from = sent.length;
             await write(stand, {}, { reason, ref: "SUITEref" });
             await create(stand, [], { reason, ref: "SUITEref" });
             await drop(stand, { reason, ref: "SUITEref" });
+            const marked = sent.slice(from).map(([, options]) => options.drpgAutomated === true);
+            if (!marked.every(Boolean)) unmarked.push([reason, marked.filter(Boolean).length]);
         }
         const named = sent.filter(([, options]) => WRITE_STAMP in options).map(([road, options]) => [road, options[WRITE_STAMP]]);
-        equal(stableJson([sent.length, sent.every(([, options]) => options.drpgAutomated === true),
+        equal(stableJson([sent.length, unmarked,
             sent.filter(([, options]) => options[HOPE_REFUND] === true).length, named]),
-            stableJson([3 * WRITE_REASONS.length, true, 3, ["auditPutBack", "auditUndo"].flatMap(reason => ["write", "create", "delete"].map(road => [road, { reason, ref: "SUITEref" }]))]),
+            stableJson([3 * WRITE_REASONS.length, [["sheetReserve", 0]], 3, ["auditPutBack", "auditUndo"].flatMap(reason => ["write", "create", "delete"].map(road => [road, { reason, ref: "SUITEref" }]))]),
             `a GM's module write named a reason nothing judges, or the audit's own went without one: ${stableJson(named)}`);
     }],
 

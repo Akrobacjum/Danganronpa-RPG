@@ -229,6 +229,10 @@ export function heldRows(enforced = ENFORCED, writes = FOUNDRY_WRITES) {
  * heading too, and the passages list goes at the sidebar's end with no Experience to follow (`injectKnownPassages`'s
  * `host.append`). Until this round their absence failed the row and gave the GM a permanent notice saying a thing
  * is not drawn that is. `optional` names that road; such a place is named in the row's note and fails nothing (R1548).
+ *
+ * THE PIP LAYOUT'S PLACES (E24 C1a, 08.11.2026). sheet.mjs `paintReserves` draws Health and Sanity in either of the
+ * system's layouts (the owner's D46): the bar layout's places stay as they were, and the pip layout's slots, found by
+ * their toggles, are optional - a client on the bar layout has none, and draws the bars instead.
  */
 export const SHEET_ANCHORS = Object.freeze([
     { selector: ".window-content", what: "the window's body" },
@@ -244,6 +248,8 @@ export const SHEET_ANCHORS = Object.freeze([
     { selector: ".character-sidebar-sheet .resources-section .status-bar", what: "the sidebar's bars" },
     { selector: "input.bar-input", what: "a bar's input" },
     { selector: "progress.progress-bar", what: "a bar's progress" },
+    { selector: ".slot[data-action='toggleHitPoints']", what: "Health's pips", optional: "the bar layout's instead" },
+    { selector: ".slot[data-action='toggleStress']", what: "Sanity's pips", optional: "the bar layout's instead" },
     { selector: ".equipment-section h3", what: "the equipment heading", optional: "found by its text instead" },
     { selector: ".loadout-section h3", what: "the loadout heading", optional: "found by its text instead" },
     { selector: ".character-sidebar-sheet .equipment-section .items-sidebar-list", what: "the equipped list" },

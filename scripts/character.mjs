@@ -326,6 +326,28 @@ export function reserveOf(actor, key) {
 }
 
 /**
+ * A reserve as `user` may read it (E24 C1a, 08.11.2026; the owner's D5 option 1 and his words of 28.10): `reserveOf`
+ * and `key`, and `shown` - false for Sanity (`stress`) when `user` is neither a GM nor an owner of `actor`, so that
+ * another player reads no Sanity on any view the module draws. Health is shown to everybody ("you can see that
+ * somebody is hurt", anonymity.mjs). Every Health and Sanity number a person reads is asked here (R1441 holds the
+ * census): the sheet's painter, the redaction, and from E24 C1b the event panel, the tracker and the token bars. A view
+ * change only: the actor's document still reaches every browser, and a console reads it (anonymity.mjs's header).
+ */
+export function reserveView(actor, key, user = game.user) {
+    const own = Boolean(user?.isGM) || Boolean(actor?.testUserPermission?.(user, "OWNER"));
+    return { key, ...reserveOf(actor, key), shown: key !== "stress" || own };
+}
+
+/**
+ * The reserve's fact row, "Left: 3 / 4" (`DRPG.Reserve.leftRow`; Q-E24-1's default, the owner's 05.10 words: a fact
+ * row with a label, never a bare "left {n}" in a sentence), or "?" for a view `user` may not read (`shown` false).
+ */
+export function reserveRow(view) {
+    if (!view?.shown) return "?";
+    return game.i18n.format("DRPG.Reserve.leftRow", { n: view.left, max: view.max });
+}
+
+/**
  * What changing a reserve by `delta` would come to, written nowhere: a negative delta
  * is a loss, a positive one a recovery. `landed` is how much of it the reserve took
  * (never more than is left to lose or missing to regain), `overflow` the rest, and

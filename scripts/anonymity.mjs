@@ -19,10 +19,12 @@
  * a sheet that has been CENSORED tells you there is a person there. So the whole
  * sheet renders, and this file takes things out of it:
  *
- *     shown        name, portrait, Ultimate, Health, Sanity, what is in their
- *                  hands, and how many Experiences they have
+ *     shown        name, portrait, Ultimate, Health, what is in their hands,
+ *                  and how many Experiences they have
  *     "?"          every trait value, every Action pip, every Hope pip (in the
- *                  Hope gold, because a redacted Hope is still Hope)
+ *                  Hope gold, because a redacted Hope is still Hope), and
+ *                  Sanity (E24 C1a: the owner's 28.10 - another player does not
+ *                  read a student's Sanity; its block stays, emptied)
  *     "???" / "+?" each Experience - that they have one, and that it is worth
  *                  something, without saying what or how much
  *     greyed       every tab, unclickable, and its contents removed from the
@@ -104,9 +106,7 @@ function onRenderSheet(app, element) {
         if (game.user.isGM || actor.testUserPermission(game.user, "OWNER")) return;
         if (!root) return;
 
-        disarmSheet(root);
-        redactTabs(root);
-        redactValues(root);
+        redactSheet(root);
         // The greying of a refused Take lands a moment after the draw (`greyRefused`): a sheet it finds gone is left be.
         buildBodyLoot(root, actor)?.catch?.(err => error("Could not read whether the body's Take is open", err));
         root.classList.add("drpg-redacted-sheet");
@@ -119,6 +119,18 @@ function onRenderSheet(app, element) {
             // Nothing left to try. The error above is the record.
         }
     }
+}
+
+/**
+ * Another player's sheet, censored: disarmed, its tabs shut and emptied, its numbers taken (E24 C1a: one function, so
+ * R1445 can redact a stand-in as a viewer's browser would). Sanity's blocks are found first, before the toggles lose
+ * their `data-action`, which names the pip layout's.
+ */
+export function redactSheet(root) {
+    const sanity = sanityBlocks(root);
+    disarmSheet(root);
+    redactTabs(root);
+    redactValues(root, sanity);
 }
 
 /**
@@ -369,17 +381,36 @@ function lockedPlaceholder() {
 }
 
 /**
+ * Sanity's blocks in the sidebar, in either layout (E24 C1a): marked by sheet.mjs
+ * `paintReserves` (`data-drpg-reserve`), which runs on the system's own render
+ * hook before this one, or else found as the painter finds them - the bar by its
+ * number field's name, the pips by their toggle. A selector, and no number read.
+ */
+function sanityBlocks(root) {
+    const key = "stress";
+    return [...new Set([
+        ...root.querySelectorAll(`[data-drpg-reserve="${key}"]`),
+        root.querySelector(`input.bar-input[name="system.resources.${key}.value"]`)?.closest(".status-bar"),
+        root.querySelector(".slot[data-action='toggleStress']")?.closest(".slot-value")
+    ].filter(Boolean))];
+}
+
+/**
  * Numbers become question marks; names become nothing at all.
  *
- * WHAT SURVIVES IS THE POINT. Health and Sanity keep their figures and the
- * Equipped panel keeps its item, because those are the things the fiction shows
- * anyone in the room. Everything with a number attached to it - traits, Actions,
+ * WHAT SURVIVES IS THE POINT. Health keeps its figures and the Equipped panel
+ * keeps its item, because those are the things the fiction shows anyone in the
+ * room. Sanity does not since E24 C1a (the owner, 28.10: other players do not see
+ * another player's Sanity): its block keeps its plate and is EMPTIED - the row
+ * "?", the track at nothing, no pip, and the system's own progress, number
+ * field, maximum, label and slots stripped of every number they carry. The
+ * document itself still reaches this browser; a console reads it. Everything with a number attached to it - traits, Actions,
  * Hope - becomes a question mark, and an Experience keeps its ROW while losing
  * both its name and its size: you can see that they have two of them and that
  * both are worth something, which is exactly what watching somebody work would
  * tell you.
  */
-function redactValues(root) {
+function redactValues(root, sanity = sanityBlocks(root)) {
     // A question mark that still carries its tooltip is not a question mark (S03-06, E05
     // C15, 27.09.2026): "1 of 2 actions this time of day" and "Free Move used" were a
     // hover away on every pip this made "?". The label a screen reader reads goes with it.
@@ -424,6 +455,31 @@ function redactValues(root) {
     // EMPTIED, NOT HIDDEN, as the tabs are.
     for (const badge of root.querySelectorAll(".drpg-pending-call")) badge.remove();
     for (const stack of root.querySelectorAll(".drpg-pending-stack")) stack.remove();
+
+    for (const block of sanity) {
+        for (const row of block.querySelectorAll(".drpg-reserve-row")) mark(row, "?");
+        for (const fill of block.querySelectorAll(".drpg-resource-fill")) fill.style.width = "0%";
+        block.querySelectorAll(".drpg-resource-delta, .drpg-reserve-pip").forEach(el => el.remove());
+        for (const progress of block.querySelectorAll("progress")) {
+            progress.removeAttribute("value");
+            progress.removeAttribute("max");
+            progress.style.removeProperty("--drpg-bar-pct");
+        }
+        for (const input of block.querySelectorAll("input")) {
+            input.removeAttribute("value");
+            input.removeAttribute("max");
+            input.value = "";
+        }
+        for (const label of block.querySelectorAll(".bar-label, .slot-label .value")) label.textContent = "";
+        for (const slot of block.querySelectorAll(".slot")) {
+            slot.classList.remove("filled");
+            slot.removeAttribute("data-value");
+        }
+        for (const el of block.querySelectorAll("[data-tooltip], [aria-label]")) {
+            el.removeAttribute("data-tooltip");
+            el.removeAttribute("aria-label");
+        }
+    }
 }
 
 /**

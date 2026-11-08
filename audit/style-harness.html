@@ -262,26 +262,22 @@
      each resource in it (templates/sheets/global/partials/resource-bar.hbs: with useResourcePips a `.slot-value` of
      `.slot`s, filled while the value is at least the slot's number, each carrying the toggle's `data-action`; otherwise
      a `.status-bar` of a `progress`, the number field named by the system key, "/" and the maximum, under its plate) -
-     with what sheet.mjs writes into them at c7dfa20b: `paintResourceBars` (the bar layout only: `drpg-bar-replaced` on
-     the `progress`, `--drpg-bar-pct`, the module's track and fill after it, the last change's band), `tidySidebar` (the
+     with what sheet.mjs writes into them: `paintReserves` (E24 C1a; `paintResourceBars`, the bar layout only, until
+     then) on either layout - applied by `reserves` below to the system's markup as the painter applies it - `tidySidebar` (the
      Equipped heading, the Loadout hidden), `injectEquippedTools`, `injectActionPanel`, `groupInventory` and
-     `tidyBiography` (the textarea, the characteristics hidden). The numbers are the system's: `value` counts what is
-     MARKED. Every module class here is a literal of sheet.mjs (anonymity.mjs's for the viewer's), R1440. */
+     `tidyBiography` (the textarea, the characteristics hidden). The system's numbers count what is MARKED; the
+     module's draw what is LEFT. Every module class here is a literal of sheet.mjs (anonymity.mjs's for the viewer's),
+     R1440. */
   const sheetParts = (app, { pips = false, viewer = false, state = null, L = key => key } = {}) => {
     const esc = v => String(v ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]));
     const RESOURCES = [
-      { key: "system.resources.hitPoints.value", action: "toggleHitPoints", label: L("DAGGERHEART.GENERAL.HitPoints.short"), value: 1, max: 4, band: [0, 1] },
+      { key: "system.resources.hitPoints.value", action: "toggleHitPoints", label: L("DAGGERHEART.GENERAL.HitPoints.short"), value: 1, max: 4, band: null },
       { key: "system.resources.stress.value", action: "toggleStress", label: L("DAGGERHEART.GENERAL.stress"), value: 2, max: 6, band: null }
     ];
-    const bar = r => {
-      const pct = r.max > 0 ? (r.value / r.max) * 100 : 0;
-      const band = r.band ? `<span class="drpg-resource-delta" style="left: ${(r.band[0] / r.max) * 100}%; width: ${((r.band[1] - r.band[0]) / r.max) * 100}%"></span>` : "";
-      return `<div class="status-bar"><div class="status-value">`
-        + `<progress class="progress-bar drpg-bar-replaced" max="${r.max}" value="${r.value}" style="--drpg-bar-pct: ${pct}%"></progress>`
-        + `<div class="drpg-resource-bar" data-resource="${esc(r.key.split(".")[2])}" data-value="${r.value}" data-max="${r.max}"><span class="drpg-resource-fill" style="width: ${pct}%"></span>${band}</div>`
+    const bar = r => `<div class="status-bar"><div class="status-value">`
+        + `<progress class="progress-bar" max="${r.max}" value="${r.value}"></progress>`
         + `<input class="bar-input" name="${esc(r.key)}" min="0" max="${r.max}" value="${r.value}" type="number"><span>/</span><span class="bar-label">${r.max}</span></div>`
         + `<div class="status-label pointy"><h4>${esc(r.label)}</h4></div></div>`;
-    };
     const slots = r => {
       let out = "";
       for (let n = 1; n <= r.max; n++) out += `<span class="slot${r.value >= n ? " filled" : ""}" data-action="${r.action}" data-value="${n}"></span>`;
@@ -343,6 +339,59 @@
     app.classList.toggle("drpg-npc-sheet", state === "npc");
     app.querySelector(".drpg-style-sheet-body").innerHTML = header + sidebar
       + `<div class="drpg-style-sheet-tabs">${section("features", features)}${section("inventory", inventory)}${section("biography", biography)}</div>`;
+    /* `paintReserves` on the markup above (E24 C1a), for this page's viewer: a GM (the field in the row), or with
+       `&role=viewer` another player (no field; Sanity's block "?" and empty, its system controls stripped of their
+       numbers as anonymity.mjs `redactValues` strips them). `band` is the held range the last change moved. */
+    const reserves = () => {
+      for (const r of RESOURCES) {
+        const key = r.key.split(".")[2], left = r.max - r.value, pct = (left / r.max) * 100, shown = !(viewer && key === "stress");
+        const block = pips ? app.querySelector(`.slot[data-action="${r.action}"]`).closest(".slot-value")
+          : app.querySelector(`input.bar-input[name="${r.key}"]`).closest(".status-bar");
+        block.dataset.drpgReserve = key;
+        const row = document.createElement("div");
+        row.className = "drpg-reserve-row";
+        if (pips) {
+          block.querySelector(".slot-bar").classList.add("drpg-reserve-hidden");
+          block.querySelector(".slot-label .value").classList.add("drpg-reserve-hidden");
+          const box = document.createElement("div");
+          box.className = "drpg-reserve-pips";
+          box.setAttribute("aria-hidden", "true");
+          for (let n = 1; n <= (shown ? r.max : 0); n++) {
+            const pip = document.createElement("span");
+            pip.className = n <= left ? "drpg-reserve-pip drpg-pip-full" : "drpg-reserve-pip";
+            box.append(pip);
+          }
+          block.querySelector(".slot-bar").after(box);
+          box.after(row);
+        } else {
+          const value = block.querySelector(".status-value"), progress = value.querySelector("progress");
+          for (const el of value.children) if (el.matches("input.bar-input, .bar-label") || el.textContent.trim() === "/") el.classList.add("drpg-reserve-hidden");
+          progress.classList.add("drpg-bar-replaced");
+          progress.style.setProperty("--drpg-bar-pct", `${shown ? pct : 0}%`);
+          const track = document.createElement("div");
+          track.className = "drpg-resource-bar";
+          track.dataset.resource = key;
+          track.innerHTML = `<span class="drpg-resource-fill" style="width: ${shown ? pct : 0}%"></span>`
+            + (shown && r.band ? `<span class="drpg-resource-delta" style="left: ${((r.band[0] - 1) / r.max) * 100}%; width: ${((r.band[1] - r.band[0] + 1) / r.max) * 100}%"></span>` : "");
+          progress.after(track);
+          value.append(row);
+        }
+        if (!shown) {
+          row.textContent = "?";
+          for (const el of block.querySelectorAll("progress, input")) { el.removeAttribute("value"); el.removeAttribute("max"); el.value = ""; }
+          for (const el of block.querySelectorAll(".bar-label, .slot-label .value")) el.textContent = "";
+          for (const slot of block.querySelectorAll(".slot")) { slot.classList.remove("filled"); slot.removeAttribute("data-value"); }
+        } else if (viewer) {
+          row.textContent = L("DRPG.Reserve.leftRow").replace("{n}", left).replace("{max}", r.max);
+        } else {
+          const [before, after = ""] = L("DRPG.Reserve.leftRow").replace("{max}", r.max).split("{n}");
+          const field = document.createElement("input");
+          Object.assign(field, { type: "number", className: "drpg-reserve-field", min: "0", max: String(r.max), value: String(left) });
+          row.replaceChildren(before, field, after);
+        }
+      }
+    };
+    reserves();
   };
   if (q.get("sheet") === "parts") {
     standIns();

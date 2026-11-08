@@ -38912,6 +38912,239 @@ const INVARIANTS = [
             marked: false, menu: 0 }),
             "[the controls drawn (kind, aria-pressed, label) for a GM on a student, a Monokuma and one not in the class, and for its player; Mark's question on a player's character (windows, title, buttons: action, default, destructive); the Monokuma flag after a Cancel; the directory menu's Monokuma entries]");
     }],
+    ["R1442 - the reserve on the sheet (sheet.mjs `paintReserves`; E24 C1a, E24-02 and E24-03; the owner's D5 option 1, D46 option 2): on stand-in roots of both of Daggerheart 2.10.5's layouts (resource-bar.hbs), an untouched student's Health and Sanity drawn full, their rows \"Left: 4 / 4\" and \"Left: 6 / 6\"; after one mark of Health, drawn by the repaint's call, the bar 75 % and the row \"Left: 3 / 4\", the band over the held unit that moved (75 % to 100 %) and the pip that went marked spent; the system's controls hidden by a class and still in the DOM; each block marked by its key; the track carries no number", async () => {
+        /*
+         * E24 C1a, 08.11.2026. Until E24 the bar drew marks - `paintResourceBars` filled it by `progress.value`, which
+         * Daggerheart counts up (measured at C0 on `?sheet=parts`: Health 1 of 4 marked drew 25 %, Sanity 2 of 6
+         * 33.3 %), and the pip layout was not touched at all. The painter now reads the actor (`reserveView`), never
+         * the DOM, and a render and a repaint both call it. Here: a stand-in actor whose `update` writes nothing to
+         * the world, each layout's markup as resource-bar.hbs writes it, painted once (a render: the flare learns the
+         * reserve) and again after one mark (the repaint's call, `paintReserves(null, root, actor)`), read back. The
+         * row is read with a field's value in place of the field, so a GM's row (this suite's user) reads as text.
+         */
+        const SH = await import("./sheet.mjs");
+        ok(typeof SH.paintReserves === "function", "sheet.mjs has no `paintReserves`");
+        if (typeof SH.paintReserves !== "function") return;
+        const L = (n, max) => game.i18n.format("DRPG.Reserve.leftRow", { n, max });
+        const readings = {};
+        for (const pips of [false, true]) {
+            const actor = reserveActor({ id: `r1442${pips ? "p" : "b"}${Date.now().toString(36)}` });
+            const root = reserveStandIn(actor, { pips });
+            const read = () => ({
+                blocks: [...root.querySelectorAll("[data-drpg-reserve]")].map(b => b.dataset.drpgReserve),
+                rows: [...root.querySelectorAll(".drpg-reserve-row")].map(reserveRowText),
+                drawn: pips
+                    ? [...root.querySelectorAll(".drpg-reserve-pips")].map(box => `${box.querySelectorAll(".drpg-pip-full").length}/${box.children.length}`)
+                    : [...root.querySelectorAll(".drpg-resource-fill")].map(fill => fill.style.width),
+                hidden: pips
+                    ? [...root.querySelectorAll(".slot-bar, .slot-label .value")].map(el => el.classList.contains("drpg-reserve-hidden"))
+                    : [...root.querySelectorAll("input.bar-input, .bar-label, .status-value > span")].filter(el => !el.closest(".drpg-resource-bar"))
+                        .map(el => el.classList.contains("drpg-reserve-hidden")),
+                system: pips ? root.querySelectorAll(".slot").length
+                    : [...root.querySelectorAll("progress.progress-bar")].filter(p => p.classList.contains("drpg-bar-replaced")).length,
+                numbers: root.querySelectorAll(".drpg-resource-bar[data-value], .drpg-resource-bar[data-max]").length
+            });
+            SH.paintReserves({ document: actor }, root);
+            const untouched = read();
+            actor.system.resources.hitPoints.value = 1;
+            SH.paintReserves(null, root, actor);
+            const hit = read();
+            const band = root.querySelector("[data-drpg-reserve='hitPoints'] .drpg-resource-delta");
+            hit.moved = pips
+                ? [...root.querySelectorAll("[data-drpg-reserve='hitPoints'] .drpg-reserve-pip")].map(pip => pip.classList.contains("drpg-spent"))
+                : band ? [band.style.left, band.style.width, band.classList.contains("drpg-spent")] : null;
+            readings[pips ? "pips" : "bar"] = { untouched, hit };
+        }
+        const shown = (drawnFull, drawnHit, hidden, system, moved) => ({
+            untouched: { blocks: ["hitPoints", "stress"], rows: [L(4, 4), L(6, 6)], drawn: drawnFull, hidden, system, numbers: 0 },
+            hit: { blocks: ["hitPoints", "stress"], rows: [L(3, 4), L(6, 6)], drawn: drawnHit, hidden, system, numbers: 0, moved }
+        });
+        equal(stableJson(readings), stableJson({
+            bar: shown(["100%", "100%"], ["75%", "100%"], [true, true, true, true, true, true], 2, ["75%", "25%", true]),
+            pips: shown(["4/4", "6/6"], ["3/4", "6/6"], [true, true, true, true], 10, [false, false, false, true])
+        }), "[the bar layout, the pip layout] x [untouched, after one mark of Health]: the blocks' keys, the rows, what is drawn (the fills' widths; the pips full of drawn), "
+            + "the system's controls hidden (its field, maximum and slash; its slots and their n / max), the system's progress replaced or slots kept, the numbers on the track, what the mark lit");
+    }],
+    ["R1443 - the reserve's field (sheet.mjs `paintReserves`, `writeReserve`; resource-guard.mjs `sheetReserve`; E24 C1a, E24-04; MARKED): a GM's field holds the reserve and its change writes the marks it comes to, `max - n`, held to 0..max, as a hand edit - without the module's mark, so a player's own guard still cuts it while Lock player resources is on - and with no reason sent; the change goes no further than the field; `sheetReserve` is on WRITE_REASONS, in HAND_EDITS and not in JUDGED; a player who owns the student has the field only with the lock off, another player never", async () => {
+        /*
+         * E24 C1a, 08.11.2026 (MARKED: a module write of Health and Sanity from the sheet). The field replaces
+         * Daggerheart's own number field, which the sheet hides since E24, so its road is held to what that field was:
+         * a GM's write is the GM's own; a player's goes as a plain write the GMs' audit treats as it treated the
+         * system's field (no reason it would read as evidence: not in JUDGED), and this browser's guard
+         * (resource-guard.mjs `onPreUpdateActor`) still cuts it while the lock is on, because the road leaves the
+         * module's mark (`drpgAutomated`) off a hand edit - with the mark, the guard steps aside. Read on a stand-in
+         * actor whose `update` keeps what it was handed; the lock read through a stand-in of `game.settings.get`
+         * (the world's setting is never written); JUDGED and HAND_EDITS read off resource-guard.mjs's source, as
+         * neither is exported. R220 (tier 0) holds the road's reason to the closed list.
+         */
+        const SH = await import("./sheet.mjs");
+        const guard = await import("./resource-guard.mjs");
+        ok(typeof SH.paintReserves === "function" && typeof SH.writeReserve === "function", "sheet.mjs has no `paintReserves` or `writeReserve`");
+        if (typeof SH.paintReserves !== "function" || typeof SH.writeReserve !== "function") return;
+        const src = stripComments((await moduleSources()).get("resource-guard.mjs") ?? "");
+        const setOf = name => src.match(new RegExp(`const ${name} = new Set\\(\\[([^\\]]*)\\]\\)`))?.[1] ?? null;
+        must(setOf("JUDGED") !== null, "resource-guard.mjs's JUDGED was not read - this test would read nothing of it");
+        equal(stableJson([(guard.WRITE_REASONS ?? []).includes("sheetReserve"), /"sheetReserve"/.test(setOf("JUDGED")), /"sheetReserve"/.test(setOf("HAND_EDITS") ?? "")]),
+            "[true,false,true]", "`sheetReserve` [on WRITE_REASONS, in JUDGED, in HAND_EDITS]");
+
+        const written = [];
+        const owner = { id: "r1443-owner", isGM: false }, viewer = { id: "r1443-viewer", isGM: false };
+        const actor = reserveActor({ id: `r1443${Date.now().toString(36)}`, hp: 1, stress: 2, owner: owner.id, written });
+        const root = reserveStandIn(actor);
+        let bubbled = 0;
+        root.addEventListener("change", () => bubbled++);
+        SH.paintReserves({ document: actor }, root, actor, game.user);
+        const field = root.querySelector("[data-drpg-reserve='hitPoints'] input.drpg-reserve-field");
+        const held = field ? [field.value, field.min, field.max] : null;
+        if (field) {
+            field.value = "1";
+            field.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        await wait(50);
+        const typed = await Promise.all([SH.writeReserve(actor, "stress", 6), SH.writeReserve(actor, "hitPoints", 9), SH.writeReserve(actor, "stress", 4)]);
+        equal(stableJson({
+            held, bubbled,
+            writes: written.map(([changes, options]) => [changes, "drpgAutomated" in (options ?? {}), "drpgWrite" in (options ?? {})]),
+            nothing: typed[2]
+        }), stableJson({
+            held: ["3", "0", "4"], bubbled: 0,
+            writes: [[{ "system.resources.hitPoints.value": 3 }, false, false], [{ "system.resources.stress.value": 0 }, false, false],
+                [{ "system.resources.hitPoints.value": 0 }, false, false]],
+            nothing: null
+        }), "a GM's field: [what it holds (value, min, max), the change events that left it, each write's changes with the module's mark and a reason sent, a write of the reserve it holds]");
+
+        const fields = (user, lock) => {
+            const get = game.settings.get, ownGet = Object.hasOwn(game.settings, "get");
+            game.settings.get = function (scope, key, ...rest) {
+                if (scope === MODULE_ID && key === SETTINGS.lockPlayerResources) return lock;
+                return get.call(this, scope, key, ...rest);
+            };
+            try {
+                const page = reserveStandIn(actor);
+                SH.paintReserves({ document: actor }, page, actor, user);
+                return [page.querySelectorAll("input.drpg-reserve-field").length, reserveRowText(page.querySelector("[data-drpg-reserve='hitPoints'] .drpg-reserve-row"))];
+            } finally {
+                if (ownGet) game.settings.get = get;
+                else delete game.settings.get;
+            }
+        };
+        const L = game.i18n.format("DRPG.Reserve.leftRow", { n: 3, max: 4 });
+        equal(stableJson([fields(owner, true), fields(owner, false), fields(viewer, false), fields(viewer, true), fields(game.user, true)]),
+            stableJson([[0, L], [2, L], [0, L], [0, L], [2, L]]),
+            "[the owner with the lock on, the owner with it off, another player with it off, with it on, a GM with it on]: [fields drawn, Health's row]");
+    }],
+    ["R1444 - the reserves' colours (styleCascade, both themes, both layouts; E24 C1a, E24-05; Q-E24-4's default): `--drpg-bar-fill` set on the block by its key (`data-drpg-reserve`), from the theme's two reserve tokens; the plate (the bar layout's `.status-label`, the pip layout's `.slot-label`) the bar's (or the full pip's) own colour; Health's and Sanity's colours apart and neither the GM's red, its light red, Despair's pink, Eclipse's violet or Hope's gold; no `--drpg-res` in any sheet", async () => {
+        /*
+         * E24 C1a, 08.11.2026. The owner's D5 and Q-E24-4's default: the two reserves in hues that mean no state of the
+         * game, the plate and the bar one colour. Before: Stained Glass set `--drpg-bar-fill` by `.status-bar:nth-child`
+         * (Health the GM's light red, Sanity Eclipse's violet) and its plates by `--drpg-res` (Despair's pink on
+         * Health), mixed 85 % with black on the sidebar; Legacy filled Health in the Eye and Sanity in the Blood, its
+         * plates Ink. Read off the module's sheets as a cascade (`styleCascade`), each `var()` resolved up the stand-in's
+         * ancestors and then on the theme's tokens (`cssThemeTokens`); a value that is not a single `var()` chain (a
+         * `color-mix`) is compared as written, so it differs from the bar's.
+         */
+        const C = await styleCascade();
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const sheets = [];
+        for (const href of manifest.styles ?? []) sheets.push([href, await fetch(`/modules/${MODULE_ID}/${href}`).then(lfText)]);
+        const tokens = cssThemeTokens(sheets);
+        const THEMES = { "stained-glass": ["--drpg-sg-gm", "--drpg-sg-gm-light", "--drpg-sg-despair", "--drpg-sg-eclipse", "--drpg-sg-hope"],
+            "monokuma-legacy": ["--drpg-eye", "--drpg-eye-light", "--drpg-blood", "--drpg-gold"] };
+        const resolve = (value, el, theme, depth = 0) => {
+            const v = String(value ?? "").trim();
+            const m = v.match(/^var\(\s*(--[\w-]+)\s*(?:,\s*(.*))?\)$/);
+            if (!m || depth > 8) return v.toLowerCase();
+            let own = null;
+            for (let e = el; e && own === null; e = e.parentElement) own = C.winner(e, m[1])?.value ?? null;
+            own ??= tokens[theme].get(m[1]) ?? null;
+            if (own === null) return m[2] ? resolve(m[2], el, theme, depth + 1) : null;
+            return resolve(own, el, theme, depth + 1);
+        };
+        const problems = [];
+        let read = 0;
+        for (const theme of Object.keys(THEMES)) {
+            const forbidden = new Map(THEMES[theme].map(name => [resolve(`var(${name})`, null, theme), name]));
+            must(forbidden.size === THEMES[theme].length && ![...forbidden.keys()].includes(null), `${theme}: the state tokens did not resolve - this test would compare nothing`);
+            for (const pips of [false, true]) {
+                const body = document.createElement("body");
+                body.className = `drpg-theme-${theme}`;
+                const block = key => pips
+                    ? `<div class="slot-value" data-drpg-reserve="${key}"><div class="drpg-reserve-pips"><span class="drpg-reserve-pip drpg-pip-full"></span></div>`
+                        + `<div class="slot-label"><span class="label">${key}</span></div></div>`
+                    : `<div class="status-bar" data-drpg-reserve="${key}"><div class="status-value"><div class="drpg-resource-bar"><span class="drpg-resource-fill"></span></div></div>`
+                        + `<div class="status-label pointy"><h4>${key}</h4></div></div>`;
+                body.innerHTML = `<div class="application sheet actor character"><aside class="character-sidebar-sheet"><div class="info-section"><div class="resources-section">`
+                    + `${block("hitPoints")}${block("stress")}</div></div></aside></div>`;
+                const colours = {};
+                for (const key of ["hitPoints", "stress"]) {
+                    const at = body.querySelector(`[data-drpg-reserve="${key}"]`);
+                    const where = `${theme} ${pips ? "pips" : "bar"} ${key}`;
+                    const set = C.winner(at, "--drpg-bar-fill");
+                    if (!/data-drpg-reserve/.test(set?.selector ?? "")) problems.push(`${where}: --drpg-bar-fill set by ${set?.selector ?? "nothing"}`);
+                    const bar = resolve(C.winner(at.querySelector(pips ? ".drpg-pip-full" : ".drpg-resource-fill"), ["background", "background-color"])?.value, at, theme);
+                    const plate = resolve(C.winner(at.querySelector(pips ? ".slot-label" : ".status-label"), ["background", "background-color"])?.value, at, theme);
+                    read++;
+                    if (!/^#[0-9a-f]{6}$/.test(bar ?? "")) problems.push(`${where}: the bar reads ${bar}`);
+                    if (plate !== bar) problems.push(`${where}: the plate ${plate}, the bar ${bar}`);
+                    if (forbidden.has(bar)) problems.push(`${where}: the bar is ${forbidden.get(bar)} (${bar})`);
+                    colours[key] = bar;
+                }
+                if (colours.hitPoints === colours.stress) problems.push(`${theme} ${pips ? "pips" : "bar"}: Health and Sanity both ${colours.hitPoints}`);
+            }
+        }
+        must(read === 8, `read ${read} of 8 blocks`);
+        if (/--drpg-res(?![\w-])/.test(await moduleStyles())) problems.push("`--drpg-res` is still in a sheet");
+        equal(stableJson(problems), "[]", "the reserves' colours: [theme, layout, reserve: what is wrong]");
+    }],
+    ["R1445 - Sanity is private on the sheet (sheet.mjs `paintReserves`, anonymity.mjs `redactSheet`; E24 C1a, E24-06; the owner's 28.10): another player's redacted stand-in, in either layout, holds no Sanity number - its marks, reserve, maximum or share - in a text node, an attribute (a `data-tooltip`, an `aria-label`, a `value`, a `max` among them) or a field's value, and its row says \"?\"; Health's row is there; the owner's and a GM's sheets show both", async () => {
+        /*
+         * E24 C1a, 08.11.2026. The owner, 28.10: another player does not see a player's Sanity on the sheet. A view
+         * change, not a data change (the document still reaches every browser): `reserveView` says Sanity is not shown
+         * to a user who is neither a GM nor an owner, the painter draws its block empty with "?", and the redaction
+         * (`redactSheet`, what anonymity.mjs `onRenderSheet` runs on such a sheet) strips the system's own controls of
+         * it - EMPTIED, NOT HIDDEN. The stand-in's numbers are chosen apart: Health 1 of 4 marked (3 left), Sanity 2 of
+         * 7 (5 left, 71.4 %, 28.6 % marked), so any 2, 5 or 7 standing alone, or either share, is Sanity's. Before C1a
+         * the redacted sheet kept Sanity's number field `value="2"`, `max="6"` and its label "6" (C0's stand-in).
+         */
+        const SH = await import("./sheet.mjs");
+        const A = await import("./anonymity.mjs");
+        ok(typeof SH.paintReserves === "function" && typeof A.redactSheet === "function", "sheet.mjs has no `paintReserves` or anonymity.mjs no `redactSheet`");
+        if (typeof SH.paintReserves !== "function" || typeof A.redactSheet !== "function") return;
+        const owner = { id: "r1445-owner", isGM: false }, viewer = { id: "r1445-viewer", isGM: false };
+        const actor = reserveActor({ id: `r1445${Date.now().toString(36)}`, hp: 1, stress: 2, stressMax: 7, owner: owner.id });
+        const SANITY = /(?<![\w.])[257](?![\w.])|71\.4|28\.5|28\.6/;
+        const leaks = root => {
+            const found = [];
+            // Health's block aside: its own numbers (its slots' 1 to 4) are not Sanity's.
+            const health = el => Boolean(el?.closest?.("[data-drpg-reserve='hitPoints']"));
+            const walker = document.createTreeWalker(root, 4); // NodeFilter.SHOW_TEXT
+            for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+                if (!health(node.parentElement) && SANITY.test(node.textContent)) found.push(`text "${node.textContent.trim()}"`);
+            }
+            for (const el of [...root.querySelectorAll("*")].filter(el => !health(el))) {
+                for (const attr of el.attributes) if (SANITY.test(attr.value)) found.push(`${el.localName}.${el.className || ""} ${attr.name}="${attr.value}"`);
+                if (el.localName === "input" && SANITY.test(el.value)) found.push(`input value ${el.value}`);
+            }
+            return found;
+        };
+        const row = (root, key) => reserveRowText(root.querySelector(`[data-drpg-reserve="${key}"] .drpg-reserve-row`));
+        const L = (n, max) => game.i18n.format("DRPG.Reserve.leftRow", { n, max });
+        const readings = {};
+        for (const pips of [false, true]) {
+            const seen = {};
+            for (const [who, user] of [["viewer", viewer], ["owner", owner], ["gm", game.user]]) {
+                const root = reserveStandIn(actor, { pips });
+                SH.paintReserves({ document: actor }, root, actor, user);
+                if (who === "viewer") A.redactSheet(root);
+                seen[who] = who === "viewer" ? { leaks: leaks(root), health: row(root, "hitPoints"), sanity: row(root, "stress") }
+                    : { health: row(root, "hitPoints"), sanity: row(root, "stress") };
+            }
+            readings[pips ? "pips" : "bar"] = seen;
+        }
+        const each = { viewer: { leaks: [], health: L(3, 4), sanity: "?" }, owner: { health: L(3, 4), sanity: L(5, 7) }, gm: { health: L(3, 4), sanity: L(5, 7) } };
+        equal(stableJson(readings), stableJson({ bar: each, pips: each }),
+            "[the bar layout, the pip layout] x [another player's redacted sheet, the owner's, a GM's]: [Sanity's numbers found, Health's row, Sanity's row]");
+    }],
 ];
 
 /**
@@ -39438,6 +39671,49 @@ function e24SheetRoot() {
         + `<section class="tab" data-tab="features" data-application-part="features"></section>`
         + `<section class="tab" data-tab="inventory" data-application-part="inventory"></section>`;
     return root;
+}
+
+/* THE RESERVES' STAND-INS (E24 C1a; R1442, R1443, R1445). A student as the painter reads one - Health `hp` of `hpMax`
+   marked, Sanity `stress` of `stressMax`, the counts up Daggerheart stores - whose `testUserPermission` answers a GM and
+   `owner`, and whose `update` keeps what it was handed in `written` and writes nothing to the world. */
+function reserveActor({ id, hp = 0, hpMax = 4, stress = 0, stressMax = 6, owner = null, written = [] } = {}) {
+    const actor = {
+        id, type: "character", name: `${id} student`,
+        system: { resources: { hitPoints: { value: hp, max: hpMax }, stress: { value: stress, max: stressMax } } },
+        testUserPermission: (user, level) => level === "OWNER" && (Boolean(user?.isGM) || (owner !== null && user?.id === owner)),
+        update: async (changes, options) => {
+            written.push([changes, options]);
+            return actor;
+        }
+    };
+    return actor;
+}
+
+/* The sidebar's Health and Sanity as Daggerheart 2.10.5's resource-bar.hbs writes them for `actor` (the stand-in of
+   audit/style-harness.html `?sheet=parts`, E24 C0): the bar layout, or with `pips` the pip layout. */
+function reserveStandIn(actor, { pips = false } = {}) {
+    const root = document.createElement("div");
+    const block = (key, label, action) => {
+        const { value, max } = actor.system.resources[key];
+        if (pips) {
+            let slots = "";
+            for (let n = 1; n <= max; n++) slots += `<span class="slot${value >= n ? " filled" : ""}" data-action="${action}" data-value="${n}"></span>`;
+            return `<div class="slot-value"><div class="slot-bar">${slots}</div>`
+                + `<div class="slot-label"><span class="label">${label}</span><span class="value">${value} / ${max}</span></div></div>`;
+        }
+        return `<div class="status-bar"><div class="status-value"><progress class="progress-bar" max="${max}" value="${value}"></progress>`
+            + `<input class="bar-input" name="system.resources.${key}.value" min="0" max="${max}" value="${value}" type="number"><span>/</span>`
+            + `<span class="bar-label">${max}</span></div><div class="status-label pointy"><h4>${label}</h4></div></div>`;
+    };
+    root.innerHTML = `<div class="window-content"><aside class="character-sidebar-sheet"><div class="info-section${pips ? " pip-display" : ""}">`
+        + `<div class="resources-section">${block("hitPoints", "Health", "toggleHitPoints")}${block("stress", "Sanity", "toggleStress")}</div></div></aside></div>`;
+    return root;
+}
+
+/* A reserve's row as it reads: a field's value where the field stands (a GM's row, and an editing player's). */
+function reserveRowText(row) {
+    if (!row) return null;
+    return [...row.childNodes].map(node => (node.localName === "input" ? node.value : node.textContent)).join("");
 }
 
 export { INVARIANTS };
