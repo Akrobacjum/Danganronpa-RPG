@@ -37,14 +37,14 @@ import { count } from "./perf-counters.mjs";
 // be a private copy here "for the cycle" (audit C3) - the cycle was real, the
 // copy was the wrong cure. character.mjs was the other such reader, and it went
 // with the incident row when that moved to the Event panel (1.2.47).
-import { incomingTimeOfDay, incidentWitness, SETTINGS, getSetting, bodyDiscovery, isDeadForGm, isMutedDead } from "./settings.mjs";
+import { incomingTimeOfDay, incidentWitness, SETTINGS, getSetting, bodyDiscovery, isMutedDead } from "./settings.mjs";
 // The room rows' four imports (movement, rooms, projects, search tokens) left with the rows for
 // room-tile.mjs (E77 C3). This file avoids static imports because it sits on the render path the
 // clock itself calls back into, so a cycle here would be a load-order problem rather than a lint
 // complaint; everything still imported below was walked for that when it was added.
 import { isMonokuma, poolUserFor, chooseOwnStudent, ownedStudents } from "./monokuma.mjs";
 // For OBJECTION! (E79 C16): monocub.mjs's static imports, walked to the end on 17.10.2026, never reach this file.
-import { isMonocub } from "./monocub.mjs";
+import { sheetMode } from "./sheet.mjs";
 // Static, and safe: murder.mjs reaches this file by no static import (nor hud-elapsed.mjs, which imports it too).
 import { murderState } from "./murder.mjs";
 import { nowPlayingHere } from "./music.mjs";
@@ -1437,7 +1437,8 @@ export function objectionOnHud(root = document) {
  * @returns {HTMLButtonElement|null|false}  `false` only when `given.unless` is the key of what would be drawn
  */
 export function objectionControl(actor = viewerActor(), given = {}) {
-    if (!actor || actor.type !== "character" || isMonokuma(actor) || isMonocub(actor) || isDeadForGm(actor)) return null;
+    // A living student of the class (sheet.mjs `sheetMode`'s `objection`, E45 C1): no Monokuma, Monocub, NPC or the dead.
+    if (!actor || actor.type !== "character" || !sheetMode(actor).objection) return null;
     // E70 C5: nor a student on the trial's list of the dead (a death nobody has found, TR30), whose voice the trial holds.
     if (isMutedDead(actor)) return null;
     const floor = "floor" in given ? given.floor : trialFloor();

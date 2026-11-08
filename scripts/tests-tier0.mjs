@@ -4212,7 +4212,8 @@ const REGRESSIONS = [
         const sheet = stripComments(sources.get("sheet.mjs") ?? "");
         const button = bodyOf(sheet, "function injectAdvanceButton", { until: "function injectItemButton" });
         // E10 C6: a player with nothing on offer has the standing button taken off as well.
-        ok(/if \(!game\.user\.isGM && !offer\) \{\s*standing\?\.remove\(\);\s*return;/.test(button),
+        // The GM's role is the sheet's mode's since E45 C1 (`mode.gm`).
+        ok(/if \(!mode\.gm && !offer\) \{\s*standing\?\.remove\(\);\s*return;/.test(button),
             "the button is on every player's sheet whether or not anything was offered");
         ok(/is-offered/.test(button), "nothing lights the button up, so nobody notices it");
     }],
@@ -5177,7 +5178,8 @@ const REGRESSIONS = [
             "an owner never asks for their offers, so one made while they were away never lights");
 
         const button = bodyOf(sheet, "function injectAdvanceButton", { until: "function injectItemButton" });
-        ok(/!app\.document\.isOwner/.test(button),
+        // Whose offers are read is the sheet's mode's since E45 C1: `offers`, the owner (a GM included).
+        ok(/!mode\.offers \? \[\] :/.test(button) && /\boffers: owner\b/.test(bodyOf(sheet, "export function sheetMode", { until: "const RENDER_MODES" })),
             "the lit badge shows on characters the viewer does not own");
     }],
 
@@ -8361,7 +8363,8 @@ const REGRESSIONS = [
             ["SHEET trial.mjs#presentDialog", "out of scope: the presenter's own browser (R4): since C16 a dead presenter refused before it opens (document `isDeceased`, a courtesy); since E79 C16 a Present only, with no target list"],
             ["SHEET trial.mjs#presentBullet", "out of scope: the presenter's own browser (R4): since C16 a dead presenter's card is refused on the API's road (document `isDeceased`); since E79 C16 an Objection only on a GM's browser, judged by `seizeFloor` on the primary, and a Present has no GM-side judge - its popup (`registerTrial`) reads no death, left to E70's `isMutedDead`"],
             ["SHEET trial.mjs#seizeFloor", "judged (C16): a dead objector is refused and told on the primary - `isDeceased(await flagsAsHeld(actor))` before the item and the synchronous `floorRefusal`/`targetRefusal`, nothing paid [1b.2, F4]"],
-            ["SHEET sheet.mjs#addPresentButton", "out of scope: a display on the sheet's own browser (R4, C16): no Present button for a dead student (document `isDeceased`)"],
+            // sheet.mjs#addPresentButton struck in E45 C1: the dead's Present is the sheet's mode (`sheetMode`'s `presentShown`,
+            // the document's `isDeceased`), which the button reads; no trial road is left in it.
             ["SHEET trial-floor-ui.mjs#startClassTrial", "judged (C12): who is alive for 'nobody for the trial' is read as the GMs hold it - `isDeceased(flagsHeldNow(actor))` in one synchronous pass after `judgedFor` of every student, as `eligibleVoters`; the card's budget line after the write still counts `livingStudents()` (a display, R4) [1b.2]"],
             ["SHEET trial-floor-ui.mjs#readTrial", "out of scope: the trial console's display (R4, GM only, C12): the register's count (`blackenedIds`) and whether a student died this chapter of this season (`isDeadForGm`, `deathRecordFor` and since E11 C12 `sameSeason`, a death the GMs keep included), to warn of an empty register; it decides nothing - `manageClassTrial`, its only caller, answers a player with a warning before anything is read"],
             ["SHEET verdict.mjs#openFinalVerdictDialog", "out of scope: the Final Trial's window (display, GM only); `isDeadForGm` reads the GM deaths store beside the flag; since C10 the trial console's verdict opens it in a Final Trial (`TRIAL_ACTIONS.verdict`); since E41 C10b it is verdict.mjs's and marks the dead as the table knows them (`isDeceased(flagsHeldNow(a))` after `judgedFor`), every student choosable - who it names decides only the GMs' summary"],
@@ -16813,7 +16816,8 @@ const REGRESSIONS = [
             dead: [dead.length > 50, /\bincident\b|\bvictimId\b/.test(dead), /\bactor\.getFlag\(/.test(dead)],
             participants: [/\bheld\.getFlag\(MODULE_ID, FLAGS\.monocub\)/.test(participants), /\bactor\.getFlag\(MODULE_ID, FLAGS\.monocub\)/.test(participants)],
             present: ["presentDialog", "presentBullet"].map(name => /\bisMutedDead\(actor\)/.test(fn("trial.mjs", name))),
-            row: /\bisMutedDead\(app\.document\)/.test(fn("sheet.mjs", "addPresentButton")),
+            // The row asks the sheet's mode since E45 C1 (`presentShown`, built in `sheetMode` of `isMutedDead`).
+            row: /\bisMutedDead\(actor, facts\)/.test(fn("sheet.mjs", "sheetMode")) && /\bpresentShown\b/.test(fn("sheet.mjs", "addPresentButton")),
             card: [/\bisMutedDead\(/.test(register), /refusePlayersCard\(message, "dead"\)/.test(register), /if \(!playersCard\)\s*showPopup\(/.test(register)],
             tile: [/"updateSetting"/.test(tile), ["clock", "trialQueue", "trialProgress"].every(k => new RegExp(`SETTINGS\\.${k}\\b`).test(tile)), /\bpaintControls\(\)/.test(tile)]
         }), JSON.stringify({
@@ -20914,6 +20918,44 @@ const REGRESSIONS = [
         const want = { own: true, served: true, grid: true, crisp: true, rects: true, palette: true, inkAndOne: true };
         equal(JSON.stringify(rows), JSON.stringify({ breakdown: want, wounded: want, dead: want }),
             "{each icon: [own: an SVG under the module's icons/; served; grid: a 16x16 view; crisp: crispEdges; rects: paths of whole-pixel rects only; palette: every colour one of the item icons'; inkAndOne: the ink and exactly one other]}");
+    }],
+    ["R1470 - one sheet mode (E45 C1; audit S17-37): no mode predicate - `isDeceased(`, `isDeadForGm(`, `deadToViewer(`, `isMonocub(`, `isMonokuma(`, `isNotInClass(`, `FLAGS.notInClass`, `isMastermindActor(`, `testUserPermission(`, `.isOwner`, `game.user.isGM`, `isEditable` - in sheet.mjs or sheet-audit.mjs outside sheet.mjs `sheetMode`, but in the few declarations the list names, each with its reason; and each of those still reads one", async () => {
+        /* E45 C1, 08.11.2026. Read off the sources, comments and string literals stripped, cut at each top-level
+           declaration (a function, a const or let); the imports before the first are not read. Red on E24's tip: 46 lines
+           in 24 declarations (`injectActionPanel`'s eight the most), and `sheetMode` and `labelItemKind` reading none. */
+        const sources = await moduleSources();
+        const PREDICATE = /\bisDeceased\(|\bisDeadForGm\(|\bdeadToViewer\(|\bisMonocub\(|\bisMonokuma\(|\bisNotInClass\(|\bFLAGS\.notInClass\b|\bisMastermindActor\(|\btestUserPermission\(|\.isOwner\b|\bgame\.user\.isGM\b|\bisEditable\b/;
+        const ALLOWED = {
+            "sheet.mjs": {
+                sheetMode: "the one gate: the mode is built of these predicates here and nowhere else",
+                lockItemName: "an item's own sheet: an item has no sheet mode, and a GM keeps its name editable",
+                lockItemDescription: "an item's own sheet: the same, for its description",
+                labelItemKind: "an item's own sheet: whether a GM is told a Truth Bullet's real type",
+                buildOtherSection: "the Remove button's write is the GM's road: its own guard before `item.delete` (R220's census), whatever drew the button"
+            },
+            "sheet-audit.mjs": {
+                itemCovers: "the audit's rule of what a held item covers, read of the world on the GM's road, not a view's gate",
+                itemFindings: "the audit's rule: a dead student's held item spends nothing",
+                placeStands: "the audit's rule: a dead student's placement stands"
+            }
+        };
+        const strip = text => stripComments(text).replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, "\"\"");
+        const found = [], allowedRead = {};
+        for (const file of Object.keys(ALLOWED)) {
+            const src = strip(sources.get(file) ?? "");
+            must(src.length > 20000, `${file} read nothing - this test would read nothing`);
+            let name = null;
+            src.split("\n").forEach((line, i) => {
+                const decl = line.match(/^(?:export )?(?:async )?(?:function\*? (\w+)|(?:const|let) (\w+))/);
+                if (decl) name = decl[1] ?? decl[2];
+                if (!name || !PREDICATE.test(line)) return;
+                if (ALLOWED[file][name]) allowedRead[`${file}:${name}`] = true;
+                else found.push(`${file}:${i + 1} ${name}: ${line.trim().slice(0, 100)}`);
+            });
+        }
+        const listed = Object.entries(ALLOWED).flatMap(([file, names]) => Object.keys(names).map(name => `${file}:${name}`));
+        equal(JSON.stringify({ found, stale: listed.filter(key => !allowedRead[key]) }), JSON.stringify({ found: [], stale: [] }),
+            "{found: each line outside sheetMode and the allowed list that reads a mode predicate; stale: an allowed declaration that no longer reads one}");
     }],
 ];
 

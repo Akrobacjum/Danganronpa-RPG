@@ -53,6 +53,7 @@ import { isDeadForGm, isDeceased } from "./chapter.mjs";
 import { isStashed } from "./inventory.mjs";
 import { isTruthBullet } from "./truth-bullets.mjs";
 import { whisperToGms, gmReport, isPrimaryGm, debug, error, plural } from "./utils.mjs";
+import { sheetMode } from "./sheet.mjs";
 
 const NONE = 0;     // CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE
 const OBSERVER = 2; // …OBSERVER - enough to render the sheet, never to edit it.
@@ -101,9 +102,12 @@ function onRenderSheet(app, element) {
         // 27.08). It is Daggerheart's configuration for the character, and it
         // is the GM's business - a player who opens it is looking at knobs no
         // rule in this game lets them turn.
-        if (!game.user.isGM) lockSettings(root);
+        // Who is looking, from the sheet's one mode (E45 C1): a GM, the owner, or a viewer whose sheet is redacted.
+        // A throw in it is a throw here, and closes the sheet as any other.
+        const mode = sheetMode(actor, game.user, { app });
+        if (!mode.gm) lockSettings(root);
 
-        if (game.user.isGM || actor.testUserPermission(game.user, "OWNER")) return;
+        if (!mode.redact) return;
         if (!root) return;
 
         redactSheet(root);
@@ -451,7 +455,7 @@ function redactValues(root, sanity = sanityBlocks(root)) {
 
     // The Calls armed on the owner's next roll and what is standing on them: whispered
     // to the owner and the GM everywhere else. sheet.mjs draws none for a viewer
-    // (`viewerOf`); removed here as well, so a stack drawn by anything else goes too -
+    // (its `sheetMode`'s `viewer`); removed here as well, so a stack drawn by anything else goes too -
     // EMPTIED, NOT HIDDEN, as the tabs are.
     for (const badge of root.querySelectorAll(".drpg-pending-call")) badge.remove();
     for (const stack of root.querySelectorAll(".drpg-pending-stack")) stack.remove();

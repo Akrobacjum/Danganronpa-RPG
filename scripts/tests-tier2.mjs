@@ -83501,6 +83501,73 @@ const SCENARIOS = [
             bars: [hp.left, sanity.left], killerBars: [hp.left, null] }),
         "{sheet: the victim's two rows; gm: the GM's incident card's second line; victim and killer: theirs; bars: the token's two bars' values (a GM's); killerBars: the killer's player's}");
     }],
+    ["E45-T1 - one sheet mode at the table (E45 C1; audit S17-37, the owner's A8 of 11.10): a student made dead, a Monocub and an NPC not in the class by the GM's own writes, each read for its owner and for another player: sheet.mjs `sheetMode`'s mode and row buttons; the sheet drawn by the render hook for this GM, the strip and the room tile each agree with it", async () => {
+        /*
+         * E45 C1, 08.11.2026. The flags written for real (a death as the world records one, the Monocub's flag over it,
+         * "Not in the class"), each taken back after; no Daggerheart sheet renders headless, so the hook draws a stand-in
+         * root shaped as the 2.10.5 templates (R1455's). Red on E24's tip: no mode to read.
+         */
+        const SH = await import("./sheet.mjs");
+        must(typeof SH.sheetMode === "function", "sheet.mjs exports no sheetMode - this would measure nothing");
+        const PS = await import("./player-status.mjs");
+        const RT = await import("./room-tile.mjs");
+        const HUD = await import("./hud.mjs");
+        must(!HUD.trialSlot(), "a Class Trial stands, and the room tile shows its hall to everybody - this would measure nothing");
+        const student = cast(3).at(-1);
+        needs(world.ownedByPlayer(student), "a student a player owns");
+        const ownerUser = game.users.find(u => !u.isGM && student.testUserPermission(u, "OWNER"));
+        const otherUser = game.users.find(u => !u.isGM && !student.testUserPermission(u, "OWNER"));
+        must(ownerUser && otherUser, "every player owns the student, or none does - this would measure nothing");
+        must(!student.getFlag(MODULE_ID, FLAGS.deceased) && !student.getFlag(MODULE_ID, FLAGS.monocub) && !student.getFlag(MODULE_ID, "notInClass"),
+            `${student.name} is dead, a Monocub or out of the class already - the fixture would take a real state back`);
+        const clock = getClock();
+        const read = () => {
+            const m = SH.sheetMode(student, game.user);
+            const root = document.createElement("div");
+            root.innerHTML = `<div class="character-header-sheet"><div class="name-row"><h1>E45-T1</h1></div><div class="character-row"><div class="resource-section"></div></div></div>`
+                + `<aside class="character-sidebar-sheet"><div class="portrait"><img src="" alt=""></div></aside>`
+                + `<section class="tab" data-tab="features" data-application-part="features"></section><section class="tab" data-tab="inventory" data-application-part="inventory"></section>`;
+            Hooks.callAll("renderCharacterSheet", { document: student, isEditable: true, element: root, rendered: true }, root, {}, { isFirstRender: true });
+            const panel = root.querySelector(".drpg-npc-panel") ? "npc" : root.querySelector(".drpg-dead-panel") ? "dead"
+                : root.querySelector(".drpg-monocub-panel") ? "monocub" : root.querySelector(".drpg-action-grid") ? "grid" : null;
+            const view = PS.buildPlayerView(student, { remember: false, eclipse: false });
+            const state = RT.viewerRoom(student).state;
+            const of = user => { const u = SH.sheetMode(student, user); return [u.mode, u.rows.use, u.actions, u.viewer]; };
+            return {
+                mode: m.mode, owner: of(ownerUser), other: of(otherUser),
+                agree: {
+                    still: root.classList.contains("drpg-sheet-still") === !m.header.acts, mark: Boolean(root.querySelector(".portrait .drpg-death-mark")) === m.header.mark,
+                    panel: panel === m.actions, strip: (view ? (view.querySelector(".is-actions") ? "full" : "dead") : "none") === m.strip,
+                    tile: ["room", "nowhere"].includes(state) === m.tile
+                }
+            };
+        };
+        const out = {};
+        try {
+            await student.setFlag(MODULE_ID, FLAGS.deceased, { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay });
+            await settle();
+            out.dead = read();
+            await student.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await settle();
+            out.monocub = read();
+            await student.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await student.unsetFlag(MODULE_ID, FLAGS.deceased);
+            await student.setFlag(MODULE_ID, "notInClass", true);
+            await settle();
+            out.npc = read();
+        } finally {
+            if (student.getFlag(MODULE_ID, FLAGS.monocub) !== undefined) await student.unsetFlag(MODULE_ID, FLAGS.monocub);
+            if (student.getFlag(MODULE_ID, FLAGS.deceased) !== undefined) await student.unsetFlag(MODULE_ID, FLAGS.deceased);
+            if (student.getFlag(MODULE_ID, "notInClass") !== undefined) await student.unsetFlag(MODULE_ID, "notInClass");
+            await settle();
+        }
+        const yes = { still: true, mark: true, panel: true, strip: true, tile: true };
+        equal(stableJson(out), stableJson({
+            dead: { mode: "dead", owner: ["dead", false, "dead", false], other: ["dead", false, null, true], agree: yes },
+            monocub: { mode: "monocub", owner: ["monocub", false, "monocub", false], other: ["monocub", false, null, true], agree: yes },
+            npc: { mode: "npc", owner: ["npc", true, null, false], other: ["npc", false, null, true], agree: yes }
+        }), "{each state: the mode for this GM; for the owner and another player [mode, row buttons, action panel, viewer]; the drawn sheet's header, mark and panel, the strip and the room tile agreeing with the mode}");
+    }],
     ...GRID
 ];
 

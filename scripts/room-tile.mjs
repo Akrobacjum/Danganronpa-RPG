@@ -60,6 +60,7 @@
  */
 
 import { viewerActor, trialSlot } from "./hud.mjs";
+import { sheetMode } from "./sheet.mjs";
 import { locateActor, settledSpot, roomAt } from "./movement.mjs";
 import { roomDescription, roomImage, safeRoomImage } from "./vault.mjs";
 // Both were hud.mjs's for the clock's room rows and moved with them (E77 C3); neither reaches this file back.
@@ -101,16 +102,18 @@ export function settledPosition(tokenDoc) {
  * (the tile is an empty pane for them, as the clock had no room block); no token on a place scene, or a token
  * outside every room at its settled spot, is `nowhere`; anything else is `room`. An Eclipse is no gate (the
  * character still stands where they stand), nor is death (a body lies in its room) nor a Monocub (it walks
- * with its token).
+ * with its token). An NPC not in the class is no viewer (`sheetMode`'s `tile`). `actor` is the suite's (R1472).
  *
+ * @param {Actor|null} [actor]
  * @returns {{state: "trial"|"noActor"|"none"|"nowhere"|"room", room: string|null, scene: Scene|null,
  *   tokenDoc: TokenDocument|null}}
  */
-export function viewerRoom() {
+export function viewerRoom(actor = viewerActor()) {
     const empty = state => ({ state, room: null, scene: null, tokenDoc: null });
     if (trialSlot()) return empty("trial");
-    const actor = viewerActor();
-    if (!actor) return empty(game.user.isGM ? "none" : "noActor");
+    // The viewer's mode (sheet.mjs `sheetMode`'s `tile`, E45 C1; the owner's A8): an NPC not in the class is no
+    // student of this screen, and its room is not shown as one.
+    if (!actor || !sheetMode(actor).tile) return empty(game.user.isGM ? "none" : "noActor");
     const place = locateActor(actor);
     if (!place) return empty("nowhere");
     const spot = settledPosition(place.tokenDoc);

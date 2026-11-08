@@ -39792,6 +39792,236 @@ const INVARIANTS = [
             + "dead: ownDeadIcon at the default (changed, the list's images), again, a GM's own icon, the setting unread; here: this world's dead entry as its setting says and the two states' entries on their icons; "
             + "wired: registerStates calls both; the contract's row [kind, owner, file, symbol]}");
     }],
+    ["R1471 - the modes' matrix (E45 C1; audit S17-37): sheet.mjs `sheetMode(actor, user)` for a student, the dead, a Monocub, an NPC not in the class and a Monokuma, each for a GM, its owner and another player - the mode, who is looking, the header, the action panel, the row buttons, Level Up, the Calls, the inventory's groups and the Equipped, Experience and biography parts, the passages, the strip, the Objection and the room tile; frozen; and drawn on stand-in roots for a GM and the owner, every part R1455 reads is what the mode says", async () => {
+        /*
+         * E45 C1, 08.11.2026. The flags answered in memory (`e24Flagged`), nothing written; the other two users are
+         * passed as `user`, the drawn half takes the GM's `isGM` off for the owner as R1455 does. Red on E24's tip: no
+         * `sheetMode`.
+         */
+        const SH = await import("./sheet.mjs");
+        must(typeof SH.sheetMode === "function", "sheet.mjs exports no sheetMode - this would measure nothing");
+        const owned = a => game.users.some(u => !u.isGM && a.testUserPermission?.(u, "OWNER"));
+        const who = studentActors().find(owned);
+        must(who, "no student a player owns - this would measure nothing");
+        const ownerUser = game.users.find(u => !u.isGM && who.testUserPermission(u, "OWNER"));
+        const otherUser = game.users.find(u => !u.isGM && !who.testUserPermission(u, "OWNER"));
+        must(ownerUser && otherUser, "every player owns the student, or none does - this would measure nothing");
+        const KINDS = { living: {}, dead: { [FLAGS.deceased]: { chapter: 1 } }, monocub: { [FLAGS.deceased]: { chapter: 1 }, [FLAGS.monocub]: true },
+            npc: { notInClass: true }, monokuma: { [FLAGS.monokuma]: true } };
+        const rowsOf = m => {
+            const values = Object.values(m.rows);
+            return values.length === 6 && values.every(Boolean) ? true : values.some(Boolean) ? "mixed" : false;
+        };
+        const read = m => ({ mode: m.mode, who: [m.gm, m.owner, m.viewer], header: [m.header.acts, m.header.mark], actions: m.actions, rows: rowsOf(m),
+            levelUp: m.levelUp, calls: m.calls, sheet: [m.groups, m.equipped, m.experience, m.biography], passages: m.passages, strip: m.strip,
+            objection: m.objection, tile: m.tile, frozen: Object.isFrozen(m) && Object.isFrozen(m.rows) && Object.isFrozen(m.header) });
+        const out = {}, drawn = {}, fromMode = {};
+        for (const [kind, flags] of Object.entries(KINDS)) {
+            await e24Flagged(who, flags, async () => {
+                for (const [role, user] of Object.entries({ gm: game.user, owner: ownerUser, viewer: otherUser })) out[`${kind}/${role}`] = read(SH.sheetMode(who, user));
+                for (const role of ["gm", "owner"]) {
+                    await e24AsRole(role, () => {
+                        const m = SH.sheetMode(who, game.user, { editable: true });
+                        const root = e24SheetRoot();
+                        Hooks.callAll("renderCharacterSheet", { document: who, isEditable: true, element: root, rendered: true }, root, {}, { isFirstRender: true });
+                        const section = root.querySelector(".drpg-actions-section");
+                        drawn[`${kind}/${role}`] = {
+                            still: [root.classList.contains("drpg-sheet-still"), Boolean(section?.classList.contains("drpg-still")), Boolean(section?.querySelector("[data-tooltip]"))],
+                            mark: Boolean(root.querySelector(".portrait .drpg-death-mark")),
+                            deadLine: Boolean(root.querySelector(".drpg-dead-panel .drpg-dead-still")), npcLine: Boolean(root.querySelector(".drpg-npc-panel")),
+                            grid: Boolean(root.querySelector(".drpg-action-grid")), calls: Boolean(root.querySelector(".drpg-calls-panel")),
+                            levelUp: Boolean(root.querySelector("[data-drpg-advance]")), controls: root.querySelectorAll("[data-drpg-class-control]").length > 0,
+                            rows: [SH.rowGate({ document: who, isEditable: true }), SH.rowGate({ document: who, isEditable: false })]
+                        };
+                        fromMode[`${kind}/${role}`] = {
+                            still: [!m.header.acts, !m.header.acts, m.pipEdit && m.header.acts], mark: m.header.mark,
+                            deadLine: m.actions === "dead", npcLine: m.actions === "npc", grid: ["grid", "monocub", "calls"].includes(m.actions), calls: m.calls,
+                            levelUp: m.levelUp && m.gm, controls: m.classControls,
+                            rows: [SH.sheetMode(who, game.user, { editable: true }).rows.use, SH.sheetMode(who, game.user, { editable: false }).rows.use]
+                        };
+                    });
+                }
+            });
+        }
+        const row = (mode, who_, header, actions, rows, levelUp, calls, sheet, passages, strip, objection, tile) =>
+            ({ mode, who: who_, header, actions, rows, levelUp, calls, sheet, passages, strip, objection, tile, frozen: true });
+        const G = [true, true, false], O = [false, true, false], V = [false, false, true], ALL = [true, true, true, true], NONE = [false, false, false, false];
+        const want = {
+            "living/gm": row("student", G, [true, false], "grid", true, true, true, ALL, true, "full", true, true),
+            "living/owner": row("student", O, [true, false], "grid", true, true, true, ALL, true, "full", true, true),
+            "living/viewer": row("student", V, [true, false], null, false, true, false, ALL, false, "full", true, true),
+            "dead/gm": row("dead", G, [false, true], "dead", false, true, false, ALL, true, "dead", false, true),
+            "dead/owner": row("dead", O, [false, true], "dead", false, true, false, ALL, true, "dead", false, true),
+            "dead/viewer": row("dead", V, [false, true], null, false, true, false, ALL, false, "dead", false, true),
+            "monocub/gm": row("monocub", G, [true, false], "monocub", false, true, false, ALL, true, "full", false, true),
+            "monocub/owner": row("monocub", O, [true, false], "monocub", false, true, false, ALL, true, "full", false, true),
+            "monocub/viewer": row("monocub", V, [true, false], null, false, true, false, ALL, false, "full", false, true),
+            "npc/gm": row("npc", G, [false, false], "npc", true, false, false, ALL, true, "none", false, false),
+            "npc/owner": row("npc", O, [false, false], null, true, false, false, ALL, true, "none", false, false),
+            "npc/viewer": row("npc", V, [false, false], null, false, false, false, ALL, false, "none", false, false),
+            "monokuma/gm": row("monokuma", G, [true, false], "calls", false, true, true, NONE, false, "none", false, true),
+            "monokuma/owner": row("monokuma", O, [true, false], "calls", false, true, true, NONE, false, "none", false, true),
+            "monokuma/viewer": row("monokuma", V, [true, false], null, false, true, false, NONE, false, "none", false, true)
+        };
+        equal(stableJson({ out, drawn }), stableJson({ out: want, drawn: fromMode }),
+            "[each kind for a GM, its owner and another player: mode; gm, owner, viewer; header live, mark; the action panel; the six row buttons; Level Up; the Calls; groups, Equipped, Experience, biography; passages; strip; Objection; room tile; frozen] and [drawn for a GM and the owner: what R1455 reads = what the mode says]");
+    }],
+    ["R1472 - the strip, the HUD's Objection control and the room tile take their gate from sheet.mjs `sheetMode` (E45 C1; the owner's A8 of 11.10): player-status.mjs `buildPlayerView`, hud.mjs `objectionControl` and room-tile.mjs `viewerRoom`, each handed a student, the dead, a Monocub, an NPC not in the class and a Monokuma, answer as the mode's `strip`, `objection` and `tile` - nothing for an NPC, whose strip and room are no student's", async () => {
+        /*
+         * E45 C1, 08.11.2026. The flags answered in memory (`e24Flagged`); outside a Class Trial (the tile's trial hall
+         * would answer for everybody). `objectionControl` is handed the trial's phase and no floor, its state and raise
+         * stubbed, so nothing is pressed; the strip with `remember: false`. Red on E24's tip: an NPC's strip drawn as a
+         * student's, its Objection offered, and `viewerRoom` reading `viewerActor()` whatever it is handed.
+         */
+        const SH = await import("./sheet.mjs");
+        must(typeof SH.sheetMode === "function", "sheet.mjs exports no sheetMode - this would measure nothing");
+        const PS = await import("./player-status.mjs");
+        const HUD = await import("./hud.mjs");
+        const RT = await import("./room-tile.mjs");
+        must(!HUD.trialSlot(), "a Class Trial stands, and the room tile shows its hall to everybody - this would measure nothing");
+        const owned = a => game.users.some(u => !u.isGM && a.testUserPermission?.(u, "OWNER"));
+        const who = studentActors().find(owned);
+        must(who, "no student a player owns - this would measure nothing");
+        const KINDS = { living: {}, dead: { [FLAGS.deceased]: { chapter: 1 } }, monocub: { [FLAGS.deceased]: { chapter: 1 }, [FLAGS.monocub]: true },
+            npc: { notInClass: true }, monokuma: { [FLAGS.monokuma]: true } };
+        const out = {}, modes = {};
+        for (const [kind, flags] of Object.entries(KINDS)) {
+            await e24Flagged(who, flags, () => {
+                const m = SH.sheetMode(who);
+                modes[kind] = { strip: m.strip, objection: m.objection, tile: m.tile };
+                const view = PS.buildPlayerView(who, { remember: false, eclipse: false });
+                const control = HUD.objectionControl(who, { floor: null, phase: "classTrial", state: async () => ({}), raise: async () => null });
+                const state = RT.viewerRoom(who).state;
+                out[kind] = { strip: view ? (view.querySelector(".is-state") && !view.querySelector(".is-actions") ? "dead" : "full") : "none",
+                    objection: Boolean(control), tile: ["room", "nowhere"].includes(state) ? true : ["none", "noActor"].includes(state) ? false : state };
+            });
+        }
+        const sources = new Map(await otherSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        const reads = {
+            buildPlayerView: /\bsheetMode\(/.test(fnSource(src("player-status.mjs"), "buildPlayerView")),
+            objectionControl: /\bsheetMode\(/.test(fnSource(src("hud.mjs"), "objectionControl")),
+            viewerRoom: /\bsheetMode\(/.test(fnSource(src("room-tile.mjs"), "viewerRoom"))
+        };
+        equal(stableJson({ out, modes, reads }), stableJson({
+            out: { living: { strip: "full", objection: true, tile: true }, dead: { strip: "dead", objection: false, tile: true },
+                monocub: { strip: "full", objection: false, tile: true }, npc: { strip: "none", objection: false, tile: false },
+                monokuma: { strip: "none", objection: false, tile: true } },
+            modes: { living: { strip: "full", objection: true, tile: true }, dead: { strip: "dead", objection: false, tile: true },
+                monocub: { strip: "full", objection: false, tile: true }, npc: { strip: "none", objection: false, tile: false },
+                monokuma: { strip: "none", objection: false, tile: true } },
+            reads: { buildPlayerView: true, objectionControl: true, viewerRoom: true } }),
+            "{out: each kind's strip (none, the dead's one row, full), Objection offered, a room shown; modes: sheetMode's three answers; reads: each of the three calls sheetMode}");
+    }],
+    ["R1473 - Monokuma's sheet is no student's (E45 C1; audit S03-33): drawn on a stand-in root, a Monokuma's sheet has no inventory group left empty and no group's limit, no Equipped or Experience heading and no biography tab - its link gone, its part empty, the Actions tab shown; a student's on the same root keeps all four", async () => {
+        /*
+         * E45 C1, 08.11.2026. The stand-in is `e24SheetRoot` with the tab bar, the sidebar's Equipped and Experience
+         * sections and the biography part as Daggerheart 2.10.5's templates name them (probe dh-2.10.5), the biography
+         * shown; the flag answered in memory, drawn for this GM. Red on E24's tip: "Usables 0 / 3" and the rest of a
+         * student's groups, both headings and the tab.
+         */
+        const owned = a => game.users.some(u => !u.isGM && a.testUserPermission?.(u, "OWNER"));
+        const who = studentActors().find(owned);
+        must(who, "no student a player owns - this would measure nothing");
+        const draw = () => {
+            const root = e24SheetRoot();
+            root.insertAdjacentHTML("afterbegin", `<nav class="sheet-tabs tabs" data-group="primary"><a data-action="tab" data-group="primary" data-tab="features">F</a>`
+                + `<a data-action="tab" data-group="primary" data-tab="inventory">I</a><a class="active" data-action="tab" data-group="primary" data-tab="biography">B</a></nav>`);
+            root.querySelector(".character-sidebar-sheet").insertAdjacentHTML("beforeend",
+                `<div class="equipment-section"><div class="title"><h3>Equipment</h3></div><ul class="items-sidebar-list"></ul></div>`
+                + `<div class="experience-section"><div class="title"><h3>Experience</h3></div><div class="experience-list"></div></div>`);
+            root.insertAdjacentHTML("beforeend", `<section class="tab active" data-tab="biography" data-group="primary" data-application-part="biography"><p>words</p></section>`);
+            Hooks.callAll("renderCharacterSheet", { document: who, isEditable: true, element: root, rendered: true, tabGroups: { primary: "biography" } }, root, {}, { isFirstRender: true });
+            const groups = [...root.querySelectorAll(".drpg-inventory-group")];
+            const shown = sel => { const el = root.querySelector(sel); return Boolean(el) && !el.hidden && el.style.display !== "none"; };
+            return {
+                groups: groups.length, emptyGroups: groups.filter(g => /^\s*0\b/.test(g.querySelector(".drpg-group-count")?.textContent ?? "")).length,
+                limits: groups.filter(g => /\//.test(g.querySelector(".drpg-group-count")?.textContent ?? "")).length > 0,
+                equipped: shown(".character-sidebar-sheet .equipment-section"), experience: shown(".character-sidebar-sheet .experience-section"),
+                bioLink: Boolean(root.querySelector('nav a[data-tab="biography"]')),
+                bioPart: (root.querySelector('section[data-application-part="biography"]')?.textContent ?? "").trim().length > 0,
+                features: Boolean(root.querySelector('section[data-application-part="features"].active'))
+            };
+        };
+        const student = draw();
+        const monokuma = await e24Flagged(who, { [FLAGS.monokuma]: true }, draw);
+        must(student.groups > 0 && student.limits, "a student's sheet drew no group with its limit on the stand-in - this would measure nothing");
+        equal(stableJson({ student: { equipped: student.equipped, experience: student.experience, bioLink: student.bioLink, bioPart: student.bioPart }, monokuma: { ...monokuma, groups: undefined } }),
+            stableJson({ student: { equipped: true, experience: true, bioLink: true, bioPart: true },
+                monokuma: { emptyGroups: 0, limits: false, equipped: false, experience: false, bioLink: false, bioPart: false, features: true } }),
+            "{student: Equipped, Experience, the biography's link and part shown; monokuma: empty groups, a group's limit, Equipped, Experience, the biography's link, its part, the Actions tab shown}");
+    }],
+    ["R1474 - the redaction runs from the mode (E45 C1; anonymity.mjs `onRenderSheet`): with anonymity enforced, another player's sheet is redacted when sheet.mjs `sheetMode(...).redact` says so and a GM's is not; a throw inside the mode still closes the sheet, its root hidden - the redaction fails closed as before", async () => {
+        /*
+         * E45 C1, 08.11.2026. A character's stand-in nobody here owns (its `testUserPermission` answers no), drawn with
+         * `isGM` off on this GM's `game.user` (R1455's owner role, here a viewer) through Foundry's `renderActorSheetV2`
+         * hook; the setting answered on in memory (`game.settings.get` for this one key), nothing written. The planted
+         * throw is the stand-in's `getFlag`, which the mode reads first. Red on E24's tip: no `sheetMode`, and
+         * `onRenderSheet` asking `testUserPermission` itself.
+         */
+        const SH = await import("./sheet.mjs");
+        must(typeof SH.sheetMode === "function", "sheet.mjs exports no sheetMode - this would measure nothing");
+        const stand = ({ throws = false } = {}) => ({ id: `r1474${throws ? "t" : ""}`, type: "character", name: "R1474", items: [], system: {}, isOwner: false,
+            getFlag: () => { if (throws) throw new Error("R1474's planted throw"); return undefined; }, testUserPermission: () => false });
+        const settings = game.settings;
+        const realGet = settings.get;
+        Object.defineProperty(settings, "get", { configurable: true, writable: true,
+            value: function (scope, key) { return scope === MODULE_ID && key === SETTINGS.enforceAnonymity ? true : realGet.call(this, scope, key); } });
+        const draw = async (role, opts) => e24AsRole(role, () => {
+            const actor = stand(opts);
+            const root = e24SheetRoot();
+            const closed = [];
+            const app = { document: actor, isEditable: false, element: root, rendered: true, close: options => { closed.push(Boolean(options?.force)); return Promise.resolve(); } };
+            const redact = opts?.throws ? null : SH.sheetMode(actor, game.user).redact;
+            Hooks.callAll("renderActorSheetV2", app, root, {}, { isFirstRender: true });
+            return { redact, redacted: root.classList.contains("drpg-redacted-sheet"), closed, hidden: root.style.display === "none" };
+        });
+        let out;
+        try {
+            out = { gm: await draw("gm"), viewer: await draw("owner"), thrown: await draw("owner", { throws: true }) };
+        } finally {
+            if (Object.getOwnPropertyDescriptor(settings, "get")?.value !== realGet) delete settings.get;
+            if (settings.get !== realGet) Object.defineProperty(settings, "get", { configurable: true, writable: true, value: realGet });
+        }
+        const onRender = fnSource(stripComments((new Map(await otherSources())).get("anonymity.mjs") ?? ""), "onRenderSheet");
+        equal(stableJson({ out, source: { mode: /\bsheetMode\(/.test(onRender) && /\.redact\b/.test(onRender), own: /testUserPermission\(|game\.user\.isGM/.test(onRender) } }),
+            stableJson({ out: { gm: { redact: false, redacted: false, closed: [], hidden: false }, viewer: { redact: true, redacted: true, closed: [], hidden: false },
+                thrown: { redact: null, redacted: false, closed: [true], hidden: true } }, source: { mode: true, own: false } }),
+            "{gm, another player, a throw in the mode: the mode's redact, the root redacted, the close's force, the root hidden; source: onRenderSheet reads sheetMode's redact and asks no permission itself}");
+    }],
+    ["R1475 - Present's gate is the mode's (E45 C1; E70's `modeAllows`): sheet.mjs `sheetMode(...).present(floor)` hides the button outside a Class Trial, for the dead and for the trial's muted dead, and holds it while another holds a floor that keeps Present to its holder with trial-floor.mjs `presentRefusal`'s line - the Present window's own text (trial.mjs) - and frees it on an open floor; `addPresentButton` and `paintPresentButton` ask the mode and no predicate", async () => {
+        /*
+         * E45 C1, 08.11.2026. The facts handed to the mode (the clock's phase, the trial's record of the muted dead), the
+         * flags answered in memory; a testimony floor held by another student, and a debate floor. Red on E24's tip: no
+         * `sheetMode`, and `addPresentButton` asking `inClassTrial`, `isDeceased` and `isMutedDead` itself.
+         */
+        const SH = await import("./sheet.mjs");
+        must(typeof SH.sheetMode === "function", "sheet.mjs exports no sheetMode - this would measure nothing");
+        const F = await import("./trial-floor.mjs");
+        const [who, other] = studentActors();
+        must(who && other, "fewer than two students - this would measure nothing");
+        const chapter = getClock().chapter;
+        const facts = (phase, muted = []) => ({ clock: { phase, chapter }, record: { chapter, mutedDead: muted } });
+        const held = { mode: F.FLOOR_MODES.testimony, holderId: other.id };
+        const open = { mode: F.FLOOR_MODES.debate, holderId: null };
+        const at = (f, floor) => SH.sheetMode(who, game.user, { facts: f }).present(floor);
+        const out = {
+            outside: at(facts("dailyLife"), open),
+            held: at(facts("classTrial"), held),
+            open: at(facts("classTrial"), open),
+            muted: at(facts("classTrial", [who.id]), open),
+            dead: await e24Flagged(who, { [FLAGS.deceased]: { chapter } }, () => at(facts("classTrial"), open))
+        };
+        const line = F.presentRefusal(held, who.id);
+        must(typeof line === "string" && line.includes(other.name), "presentRefusal answered no line for another's testimony - this would measure nothing");
+        const sheet = stripComments((new Map(await otherSources())).get("sheet.mjs") ?? "");
+        const asks = fn => ({ mode: /\bsheetMode\(|\bmodeOf\(|\.present\b/.test(fnSource(sheet, fn)), own: /\b(?:inClassTrial|isDeceased|isMutedDead|presentRefusal)\(/.test(fnSource(sheet, fn)) });
+        equal(stableJson({ out, add: asks("addPresentButton"), paint: asks("paintPresentButton") }), stableJson({
+            out: { outside: { shown: false, held: null }, held: { shown: true, held: line }, open: { shown: true, held: null }, muted: { shown: false, held: null },
+                dead: { shown: false, held: null } },
+            add: { mode: true, own: false }, paint: { mode: true, own: false } }),
+            "{outside a trial; another's testimony; an open debate; muted; dead: Present shown, its held line} and the two painters asking the mode, no predicate");
+    }],
 ];
 
 /**

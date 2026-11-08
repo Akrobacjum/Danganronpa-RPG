@@ -25,8 +25,7 @@ import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";   // hasFr
 import { isEclipse, movesLeft as eclipseMovesLeft, movesUsed as eclipseMovesUsed, eclipseAllowance } from "./eclipse.mjs";
 import { hopeHeld } from "./calls.mjs";
 import { isMonokuma, actingStudents } from "./monokuma.mjs";
-import { isDeadForGm } from "./chapter.mjs";
-import { isMonocub } from "./monocub.mjs";
+import { sheetMode } from "./sheet.mjs";
 import { matchStripToDespair, viewerActor } from "./hud.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { error, plural, markLanguage } from "./utils.mjs";
@@ -414,11 +413,12 @@ export function stillPlacing(students, { left = eclipseMovesLeft, used = eclipse
  * A dead student who is no Monocub has nothing on this strip to spend: death does not empty the action pool and the
  * time of day's refill passes a body by, so until E17 C8 the strip went on saying "1/2", a full foot and, in each
  * Eclipse, two crossings, all of which the module refuses (audit S10-30). The strip is then one row of state. Dead
- * as this browser may know it (`isDeadForGm`: the flag, or the player's own copy of a death not yet published), as
+ * as this browser may know it (sheet.mjs `sheetMode`'s `strip`, E45 C1: on the viewer's own character and on a GM's
+ * screen the flag or the player's own copy of a death not yet published, as `isDeadForGm` reads it), as
  * the Hope row below has always asked. A Monocub keeps every row: Confusion costs an action and a point of Hope.
  */
 export function showsDeathOnly(actor) {
-    return isDeadForGm(actor) && !isMonocub(actor);
+    return sheetMode(actor).strip === "dead";
 }
 
 /**
@@ -428,13 +428,15 @@ export function showsDeathOnly(actor) {
  */
 export function buildPlayerView(actor = statusActor(), options = {}) {
     // No character of our own - or a Monokuma, which has no action economy at
-    // all. Nothing here applies, so show nothing rather than a row of zeroes.
-    if (!actor || isMonokuma(actor)) return null;
+    // all, or an NPC not in the class, which takes no actions (the mode's `strip`, E45 C1). Nothing here applies, so
+    // show nothing rather than a row of zeroes.
+    const mode = actor ? sheetMode(actor) : null;
+    if (!mode || mode.strip === "none") return null;
     const since = options.remember === false ? () => null : spentSince;
 
     const el = box();
 
-    if (options.dead ?? safeRow(() => showsDeathOnly(actor))) {
+    if (options.dead ?? mode.strip === "dead") {
         el.append(field("is-state", game.i18n.localize("DRPG.Panel.stateColumn"),
             game.i18n.localize("DRPG.Panel.state.dead"), null, true));
         return el;
@@ -459,7 +461,7 @@ export function buildPlayerView(actor = statusActor(), options = {}) {
                 pips("drpg-status-pip drpg-action-pip", left, max,
                     { spent: since("strip:actions", actor.id, left) }),
                 null, !left);
-            row.dataset.tooltip = actionsTooltip({ eclipse, monocub: isMonocub(actor), left, max });
+            row.dataset.tooltip = actionsTooltip({ eclipse, monocub: mode.monocub, left, max });
             if (eclipse) row.classList.add("is-eclipse");
             return row;
         }),
