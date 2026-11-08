@@ -152,6 +152,10 @@ E24/E45 in sheet.mjs before E54 - which line A stage is safe?
   before E72). tools/stages.json gets the new order in the next ledger commit (the 1.2.101 train).
 - 08.11, the owner: E92 after E62, E68 before E64. Order now: E46, E47, E48, E49, E61, E94, E62, E92, E68, E64, E93,
   E69, E74, E73, E72, E54 ... (same train for tools/stages.json).
+- 09.11, schedule recomputed (plan v177) at the owner's 40%: since the cache rule (08.11 18:50) an agent costs
+  about a tenth of a wave-1 agent, so the weekly limit no longer sets the dates; time does (measured about 2.8-3.0 h of
+  clock per effort unit). Every stage before E83 ends about 24.11 / 27.11 / 01.12; 1.3.0 about 28.11 / 02.12 / 08.12.
+  Line A pushed ce238ee2 (E45-C1 and its fix).
 
 ### Line A's answers (29.10.2026, after reading "Line B - proposed")
 - Agreed order for line B: B-C0 (moved-only.mjs portable), E20, E52, then E24 and E45. Line A takes E20, E52, E24 and
