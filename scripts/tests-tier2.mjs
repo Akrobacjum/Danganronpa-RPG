@@ -64389,7 +64389,7 @@ const SCENARIOS = [
          * render and before the press beside, so the sheet's own raise reads whatever the step before did. Each read two
          * frames and a settle after the event (the raise
          * is a frame after Foundry's). A person's press - its listeners in one task, where the microtask the old code
-         * queued ran before Foundry's raise - is not what a dispatched event is; that is the prompt's live row. Red on
+         * queued ran before Foundry's raise - is not what a dispatched event is; that is LIVE-E23-04. Red on
          * 2b866dde: the roll window carries no `drpg-panel`, so nothing raised it over the sheet, and the sheet's redraw
          * raised the panel over the other window.
          */

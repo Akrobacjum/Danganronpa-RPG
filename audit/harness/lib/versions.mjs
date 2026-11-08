@@ -83,7 +83,13 @@ export const UNCONFIRMED = [
        and DialogV2's default `minimizable: false` - read from memory: lib/shim.mjs's ApplicationV2 has no fold, so R1339
        reads the options the module hands its windows and `alreadyOpen` on stand-ins (01); Escape on a DialogV2, modelled in
        lib/shim.mjs from the module's note on 14.365, not from v14's source (02). */
-    "LIVE-E44-08", "LIVE-E44-09"
+    "LIVE-E44-08", "LIVE-E44-09",
+    /* E23's (fix G4, 08.11.2026; STATUS E23 Open 70): the windows' order - a running z-index that `bringToFront` writes,
+       raised on a first render, on a pointerdown in the window and on `render(true)` of a window already open - modelled
+       in lib/shim.mjs from v13's ApplicationV2 as remembered and the module's notes (stacking.mjs), not from v14's source.
+       R1404 and E23-T2 read the prompts over the sheets on that model. The other E23 rows are not modelled by the
+       harness (the glass harness's stand-ins in Chromium, or nothing), so they stay in AUDIT section 9.2 only. */
+    "LIVE-E23-04"
 ];
 
 function readJson(file) {

@@ -546,7 +546,7 @@ body.drpg-stacked #drpg-popups:not(:has(> .drpg-popup:not(.drpg-popup-parked))) 
    whole stack's height (narrow.mjs `reserveRoom`): a prototype run read it at y 1164 on a 1200x800 screen, off the
    screen - and glass.mjs `gaugeFoot` read the notice tile's foot off it. The glass harness's gauge is where its HTML
    puts it and stood at 440-466 there (Chromium, 1d860414), so the fault was not seen on the harness; where it stands
-   at a table is the stage's live row for S12-96.
+   at a table is LIVE-E23-07 (S12-96).
    For a GM it is one line on the screen's foot: on the corner buttons' bottom line (`--drpg-edge` and the camera
    dock's lift), at the stack's 8 px from the wall, no wider than leaves the buttons and the 24 px the notices keep
    from them, and `--drpg-players-line` tall. The notices stand over it: 8 px over the buttons on a tall screen, far

@@ -2643,7 +2643,7 @@ const INVARIANTS = [
          * 800 and the scale 1, so the fallback is the dock's lift and 100 px; the lift is read off that fallback.
          * THE RULE is read from the cascade, as R476 reads the notices: headless worked out at the stacked sizes, in a
          * browser for the window that runs the suite with `drpg-short` off and on. The classes are put back synchronously.
-         * Where the gauge stands at a table is the stage's live row for S12-96.
+         * Where the gauge stands at a table is LIVE-E23-07 (S12-96).
          */
         const G = await import("./glass.mjs");
         ok(typeof G.gaugeFoot === "function", "glass.mjs gives a test no road to the gauge's foot");
@@ -37485,7 +37485,7 @@ const INVARIANTS = [
          * action's declaration: the menu asks for the class itself); the raise's timing in the source; `raisesOnRender`
          * on stand-ins; and `promptsOver` on stand-ins connected to nothing, their boxes the positions Foundry keeps
          * (`foundry.applications.instances`, stood in for under ids of this test's own and taken out in a finally). What
-         * the order of drawn windows then is, is E23-T2's (tier 2); a person's click, LIVE (the prompt's live row).
+         * the order of drawn windows then is, is E23-T2's (tier 2); a person's click, LIVE-E23-04.
          * Red on 2b866dde: KEEP_ON_TOP is ".application.drpg-panel" and no PROMPT_CLASS. Three more since E23's fix
          * round G3 (the end review's goal M4, Open 72; the owner's Q-E23-5, every declaration the game waits on): the
          * request a player words to the GM (call-gm.mjs `askForRequest`, behind promptAndCallGm and promptForRequest),
@@ -37607,7 +37607,7 @@ const INVARIANTS = [
          * winning `z-index` of `#ui-right` with the sidebar expanded and collapsed and of each launcher; the content's
          * transition, expanded and collapsing; `--drpg-t-enter` under `drpg-reduced-motion`. In Chromium, on the glass
          * harness with `?windows=off`: the point at each launcher's centre lands in the sidebar (C5b's probe); on v14,
-         * with Foundry's own animation if any, the table's (E23's live row of the chat). `#sidebar-content` is the stand-in's name for the content
+         * with Foundry's own animation if any, the table's (LIVE-E23-06). `#sidebar-content` is the stand-in's name for the content
          * (LIVE-E79-15). Red on f26d4467: `#ui-right` states no z-index - the launchers at 70 above it.
          */
         const C = await styleCascade();

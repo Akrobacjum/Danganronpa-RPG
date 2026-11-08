@@ -1331,7 +1331,7 @@ export function buildApplications(ctx) {
        the harness wrote no z-index, so no order between two windows could be read headless. Modelled from v13's
        ApplicationV2 as remembered, the module's notes (stacking.mjs) and the audit's reading of S01-15, not from v14's
        source; the counter starts at 100, as Foundry's `--z-index-window`. Whether v14 raises on each of the three is the
-       prompt's live row (E23's end commit names it in AUDIT 9.2 and in versions.mjs). */
+       check of LIVE-E23-04 (AUDIT 9.2, and lib/versions.mjs's UNCONFIRMED). */
     let maxZ = 100;
     class ApplicationV2 {
         constructor(options = {}) {

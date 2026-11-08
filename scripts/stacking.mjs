@@ -30,7 +30,7 @@
  * person's click runs the microtask between that listener and the window's own capture listener,
  * which is where Foundry raises the sheet, so the prompt was raised first and buried second (the
  * audit's reading of Foundry's application.mjs; the harness cannot press as a person does, so this
- * half is the prompt's live row). Now:
+ * half is LIVE-E23-04). Now:
  *
  *   - one class is kept on top, `drpg-prompt` (ui-kit.mjs PROMPT_CLASS), which a window asks for
  *     (`drpgWindow({ prompt: true })`; the roll window gets it in roll-dialog.mjs's render hook).

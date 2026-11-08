@@ -8282,7 +8282,7 @@ html body {
    no launcher moves (E81's corner, `--drpg-launch-h`, `--drpg-stack-foot`, kept): while the sidebar is expanded
    its column stands one over the cluster; collapsed, it states nothing and the buttons are on top again. Read by
    R1405; on the glass harness with `?windows=off` the point at each launcher's centre lands in the sidebar
-   (Chromium, C5b's probe); on v14, the table's (E23's live row of the chat). */
+   (Chromium, C5b's probe); on v14, the table's (LIVE-E23-06). */
 body:not(.drpg-foundry-windows) #ui-right:has(#sidebar.expanded) {
     z-index: 71;
 }

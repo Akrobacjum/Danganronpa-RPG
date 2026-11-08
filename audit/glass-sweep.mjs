@@ -986,7 +986,7 @@ if (args.includes("--board")) {
    C1a's baseline), and without one MK-R2's 203 at 1600x900; anywhere else the peak is printed "(unjudged)". On
    1d860414 itself it is not one number: 202-204 at 1600x900, but 187-199 at 1366x768, where a recut's old seams stand
    dim under the frozen morph (C1a's baseline). E23-02 (the times) and E23-05 (the cost against 1d860414's) are read
-   off the line against that baseline, not judged here.
+   off the line against that baseline, not judged here; a table's frames and cost are LIVE-E23-01.
    THE CONTROLS, once a run at the first size and role (`--no-control` leaves them out), each must read its fault or the
    run fails: `?turn=today`, a phase-recut whose frames must write the clip path (on 1d860414 that is HEAD's own morph,
    and the page says "head"; from C1b's tree, where glass.mjs exports `glassTurn`, a write planted in every frame,
