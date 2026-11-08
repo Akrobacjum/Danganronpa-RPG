@@ -251,6 +251,8 @@ function fitNoteTile(H, railEnds, s) {
    read `--drpg-room-h` and state no height of their own (R509). */
 const ROOM = { place: null, box: null };
 const ROOM_TAN = Math.tan(8 * Math.PI / 180);
+/* The narrowest box the tile is placed at beside the notices under Monokuma Legacy: `flatPlacement`. */
+const ROOM_MIN_W = 265;
 const ROOM_VARS = ["--drpg-room-h", "--drpg-room-w", "--drpg-room-x", "--drpg-room-y", "--drpg-room-min-h", "--drpg-room-max-h"];
 function roomSizes(w) {
   const t = parseFloat(getComputedStyle(document.body).getPropertyValue("--drpg-sg-scale")) || 1;
@@ -395,11 +397,18 @@ function flatPlacement(W, H) {
      short of it. So the free width ends 16 px before the left of what Foundry's right column draws
      (its status column, and the sidebar where a GM's switch leaves it there), as it ends 16 px
      before the screen's edge. Where nothing is left there (1366x768 above), the tile keeps the
-     clock's place at the smallest box, as it does with no stack drawn. */
+     clock's place at the smallest box, as it does with no stack drawn.
+     A SLIVER IS NOTHING LEFT (E23 fix G3b, 08.11.2026). "Nothing" was `free < 1`, so any width at all
+     took the tile beside the notices at that width. With E23 fix G3's Legacy tray capped at 360 px the
+     right column began at 982 px on the glass harness at 1366x560 (848 uncapped, 903 at ce3a821f), free
+     read 51 and the tile was drawn 51x189 beside the notice stack - and moved when its words changed
+     (the sweep's second reading). The tile now goes there only where it gets at least ROOM_MIN_W, the
+     narrowest box it is drawn at anywhere the sweep pins it: 265, Stained Glass's under the clock at
+     1920x1080 (BOX in audit/glass-sweep.mjs, the accepted tile of E78 C0). */
   const right = ["#ui-right-column-1", "#sidebar"].map(q => document.querySelector(q))
     .filter(e => e && e.offsetWidth > 0 && e.offsetHeight > 0 && !inFoundryWindow(e)).map(e => e.getBoundingClientRect().left);
   const x = sb ? Math.round(sb.right + 16) : 0, free = Math.round(Math.min(W, ...right) - 16 - x);
-  if (F >= need || !sb || free < 1) return { place: "clock", flat: true, F, need, maxH, free: sb ? free : null, x: Math.round(hud.left), w: Math.round(hud.width), h: Math.round(F >= need ? Math.min(F, maxH, roomCapH(H, need)) : need) };
+  if (F >= need || !sb || free < ROOM_MIN_W) return { place: "clock", flat: true, F, need, maxH, free: sb ? free : null, x: Math.round(hud.left), w: Math.round(hud.width), h: Math.round(F >= need ? Math.min(F, maxH, roomCapH(H, need)) : need) };
   const y = Math.round(sb.top), w = Math.round(Math.min(hud.width, free));
   return { place: "notes", flat: true, F, need, maxH: roomSizes(w).maxH, free, x, y, w, h: Math.round(Math.min(roomSizes(w).maxH, H - foot - 8 - y, roomCapH(H, roomSizes(w).need))) };
 }

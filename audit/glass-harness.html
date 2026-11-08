@@ -719,8 +719,10 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     async function readFlat() {
       if (!room || !out.place || !room.flat) { out.why.push(`no place under this theme (stamp ${out.place}, LAST.room ${JSON.stringify(room)})`); return; }
       Object.assign(out, { F: room.F, need: room.need, maxH: room.maxH, box: room.box });
-      /* No free width beside the notices (fix r2-H3: the room before Foundry's right column) keeps the clock's place. */
-      const chose = room.F >= room.need || (room.free != null && room.free < 1) ? "clock" : "notes";
+      /* No free width beside the notices (fix r2-H3: the room before Foundry's right column) keeps the clock's place,
+         and since E23 fix G3b a free width under 265 px is none (glass.mjs ROOM_MIN_W, stated here on its own: at
+         1366x560 the capped Legacy tray left 51 px, and the tile was drawn 51x189 there). */
+      const chose = room.F >= room.need || (room.free != null && room.free < 265) ? "clock" : "notes";
       if (out.place !== chose || room.place !== chose) out.why.push(`place ${out.place} (LAST.room ${room.place}) where F ${room.F}, need ${room.need} and free ${room.free} choose ${chose}`);
       const { box: b, ...placed } = room;
       if (JSON.stringify(g.roomPlacement(innerWidth, innerHeight)) !== JSON.stringify(placed)) out.why.push("a second reading of roomPlacement differs from the placement");
