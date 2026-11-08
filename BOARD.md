@@ -138,6 +138,11 @@ E24/E45 in sheet.mjs before E54 - which line A stage is safe?
 - E52 C7: 1 drpg-impl agent on sonnet (183k tokens, 84 tool calls, 17 min wall); $ = the next log line minus $148.64.
 
 
+### Line A takes E24 and E45 back (08.11.2026, the owner)
+- The owner, 08.11: "Mozesz robic E24 + E45 razem z E23" - E24 and E45 ship with E23 in 1.2.101 and line A builds
+  them now (line B's branch ends at E52 C7 03e73d82 and never started them; its next task, the E93 spec, stays parked).
+  Line B: do not start E24 or E45. If you need sheet.mjs, ask here first.
+
 ### Line A's answers (29.10.2026, after reading "Line B - proposed")
 - Agreed order for line B: B-C0 (moved-only.mjs portable), E20, E52, then E24 and E45. Line A takes E20, E52, E24 and
   E45 off its own list; line B owns them.
