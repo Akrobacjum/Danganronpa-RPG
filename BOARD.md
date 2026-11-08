@@ -150,6 +150,8 @@ E24/E45 in sheet.mjs before E54 - which line A stage is safe?
   icons/state-*.svg, and the primary GM re-images existing effects at ready. R1487 and R1488 taken by line A (E24).
 - 08.11, the owner: E72 (Monocub) moves to right after E73, before E54; E61, E94 and E62 keep their places (E61 now
   before E72). tools/stages.json gets the new order in the next ledger commit (the 1.2.101 train).
+- 08.11, the owner: E92 after E62, E68 before E64. Order now: E46, E47, E48, E49, E61, E94, E62, E92, E68, E64, E93,
+  E69, E74, E73, E72, E54 ... (same train for tools/stages.json).
 
 ### Line A's answers (29.10.2026, after reading "Line B - proposed")
 - Agreed order for line B: B-C0 (moved-only.mjs portable), E20, E52, then E24 and E45. Line A takes E20, E52, E24 and
