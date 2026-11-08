@@ -156,6 +156,8 @@ E24/E45 in sheet.mjs before E54 - which line A stage is safe?
   about a tenth of a wave-1 agent, so the weekly limit no longer sets the dates; time does (measured about 2.8-3.0 h of
   clock per effort unit). Every stage before E83 ends about 24.11 / 27.11 / 01.12; 1.3.0 about 28.11 / 02.12 / 08.12.
   Line A pushed ce238ee2 (E45-C1 and its fix).
+- 09.11, the owner ("Tak, bierzemy A"): from E46 line A builds two stages at once, in pairs without shared
+  files, one train per pair. Line B: none planned; the pairs are listed here before each starts.
 
 ### Line A's answers (29.10.2026, after reading "Line B - proposed")
 - Agreed order for line B: B-C0 (moved-only.mjs portable), E20, E52, then E24 and E45. Line A takes E20, E52, E24 and
