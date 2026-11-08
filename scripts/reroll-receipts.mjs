@@ -24,9 +24,10 @@
  *
  * And the menu's two reroll entries are taken off a player's menu
  * (`dropDaggerheartRerolls`). The hook's name, `getChatMessageContextOptions`,
- * follows the two this module already listens to (`getActorContextOptions`,
- * `getUserContextOptions`); no Foundry source is in this checkout and no browser
- * ran it, so it is not measured (LIVE-E08-05).
+ * follows the two this module listened to when it was written (`getActorContextOptions`,
+ * which E24 C3a took off with the Monokuma entries, and `getUserContextOptions`); no
+ * Foundry source is in this checkout and no browser ran it, so it is not measured
+ * (LIVE-E08-05).
  *
  * In memory on the primary, as the receipts were: a GM who reloads keeps nothing
  * of the rolls thrown before, and a rewrite of one of them is only told.

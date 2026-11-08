@@ -4874,6 +4874,47 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     color: var(--drpg-crimson);
 }
 
+/* THE DEAD'S AND AN NPC'S SHEET (E24 C3a, 08.11.2026; E24-18, E24-20). sheet.mjs `markSheetState` puts the
+   state on the sheet's root. Still: the header's Hope, Actions pips and free Move greyed and dimmed, nothing
+   flashes (the script marks no spend there) and no budget's tooltip is drawn. Dead: the portrait desaturated
+   and stamped in `--drpg-red`. A Monocub's sheet plays on and carries neither. */
+.drpg-sheet-still .drpg-actions-section,
+.drpg-sheet-still .character-header-sheet .hope-section {
+    filter: grayscale(1);
+    opacity: 0.55;
+}
+
+.drpg-dead-sheet .character-sidebar-sheet .portrait {
+    position: relative;
+}
+
+.drpg-dead-sheet .character-sidebar-sheet .portrait img {
+    filter: grayscale(1);
+}
+
+.drpg-death-mark {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(-12deg);
+    padding: 2px 10px;
+    border: 3px solid var(--drpg-red);
+    border-radius: 3px;
+    color: var(--drpg-red);
+    background: var(--drpg-ink);
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+/* The GM's "Not in the class" while it is on: the chip pressed in. */
+.character-header-sheet .name-row .drpg-class-control[aria-pressed="true"] {
+    border-color: var(--drpg-red);
+    color: var(--drpg-red);
+}
+
 /* A small inline action inside a dialog table row - the "give hope" button in
    the Monocub manager. Deliberately understated: it is not the row's main
    control, the checkbox and selects are. */
@@ -8787,8 +8828,10 @@ body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-shee
    adds a class's worth of weight, which broke the tie the other way and left
    both captions ink-on-ink: invisible, and nothing to do with the bar.
    `:where()` weighs nothing, so the exclusion lands without moving anything
-   else. */
-body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-sheet *:not(i):not([class*="fa-"]):not(:where(.drpg-resource-bar, .drpg-resource-fill, .drpg-resource-delta)) {
+   else. The death mark on the portrait (E24 C3a) is out for the same reason as the
+   bar: its red on its ink block is the stamp, and re-inked it was ink on ink
+   (read in Chromium on the sheet stand-in, 08.11.2026: rgb(29, 26, 33) on itself). */
+body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-sheet *:not(i):not([class*="fa-"]):not(:where(.drpg-resource-bar, .drpg-resource-fill, .drpg-resource-delta, .drpg-death-mark)) {
     color: var(--drpg-ink) !important;
     border-color: rgba(var(--drpg-shadow-rgb), 0.22) !important;
 }

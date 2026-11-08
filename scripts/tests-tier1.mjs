@@ -35946,15 +35946,20 @@ const INVARIANTS = [
         }), stableJson({ footer: ["save", "cancel"], verdict: [true, true, true], refusal: [true, true, true], opens: ["", false] }),
             "[the footer's buttons; the verdict (out of the footer, with its note, disabled exactly when nobody is set); the refusal before the question and the write; the accused select's first choice and whether it is the first student]");
     }],
-    ["R1363 - the incident tracker and Mark as Monokuma (E22 C3b; S03-34): murder-ui.mjs `incidentButtons` makes Close the default with no primary, Pass the turn and the ask-again ways on beside it, End the murder destructive and last, apart from Close, and no Pass in the resolution; `openIncidentTracker` refuses a Pass within PASS_COOLDOWN_MS (1500) of the last on this client; End the murder's label is its own; and the actor directory offers Mark as Monokuma for a student and Unmark for a Monokuma, a mark of a player's character asked first with a destructive yes", async () => {
+    ["R1363 - the incident tracker and Mark as Monokuma (E22 C3b; S03-34): murder-ui.mjs `incidentButtons` makes Close the default with no primary, Pass the turn and the ask-again ways on beside it, End the murder destructive and last, apart from Close, and no Pass in the resolution; `openIncidentTracker` refuses a Pass within PASS_COOLDOWN_MS (1500) of the last on this client; End the murder's label is its own; and the sheet's header offers a GM Mark as Monokuma for a student and Unmark for a Monokuma (the Actors directory's menu until E24 C3a), a mark of a player's character asked first with a destructive yes", async () => {
         /*
          * E22 C3b, 06.11.2026; audit S03-34: Pass the turn was the default under Enter and the tracker reopens on it, so a
          * held Enter passed turn after turn; at Stage 6 Pass was shown and did nothing; "Close the murder" (irreversible)
          * stood beside Close in the same face; and one directory entry marked and unmarked a Monokuma with no question.
          * The tracker needs an incident, a world write tier 1 may not make: its footer and its Pass are read off the
-         * source. The directory's entries are read through the hook Foundry calls for the menu (`getActorContextOptions`),
+         * source. The directory's entries were read through the hook Foundry calls for the menu (`getActorContextOptions`),
          * each entry's `condition` asked of a student and of a Monokuma when the world holds one. Red on C3a's tree: Pass
          * the default, no cooldown, one entry for both states.
+         * REPOINTED IN E24 C3a (08.11.2026; STAGE.md "Amend 08.11" A2): the two entries are the sheet header's GM controls
+         * now (sheet.mjs `injectClassControls`), the ask `markFromSheet`. Each claim kept: the ask and its destructive yes
+         * off the source; the entry shown in the state it changes, read off a stand-in sheet drawn by the render hook for
+         * a student and for the same student answering the Monokuma flag in memory (`e24Flagged`, nothing written);
+         * Unmark's words its own. R1486 holds the rest (a player sees none, Cancel the default, the menu empty).
          */
         const src = new Map(await otherSources());
         const ui = stripComments(src.get("murder-ui.mjs") ?? "");
@@ -35966,21 +35971,21 @@ const INVARIANTS = [
             passApart: /secondary:\s*list/.test(buttons) && /destructive:\s*\[\{\s*action:\s*"end"/.test(buttons),
             noPassAtResolution: /state\.stage === "resolution" \? \[\] : \[\{ action: "pass"/.test(buttons),
             cooldown: /const PASS_COOLDOWN_MS = 1500;/.test(ui) && /if \(passAllowed\(\)\) await passTurn\(\)/.test(tracker),
-            mark: /playedByAPlayer\(actor\)[\s\S]*drpgConfirm\(\{[\s\S]*role:\s*"destructive"/.test(fnSource(stripComments(src.get("monokuma.mjs") ?? ""), "markFromDirectory"))
+            mark: /playedByAPlayer\(actor\)[\s\S]*drpgConfirm\(\{[\s\S]*role:\s*"destructive"/.test(fnSource(stripComments(src.get("monokuma.mjs") ?? ""), "markFromSheet"))
         };
-        const options = [];
-        Hooks.callAll("getActorContextOptions", null, options);
-        const mine = options.filter(o => ["DRPG.Monokuma.toggle", "DRPG.Monokuma.unmark"].includes(o?.name));
-        const { monokumaActors } = await import("./monokuma.mjs");
-        const shownFor = actor => actor ? mine.filter(o => o.condition?.({ dataset: { entryId: actor.id } })).map(o => o.name) : null;
-        const student = studentActors()[0] ?? null, monokuma = monokumaActors()[0] ?? null;
-        must(student, "no student to ask the menu about - this would measure nothing");
-        equal(stableJson({ source, entries: mine.map(o => o.name), student: shownFor(student), monokuma: monokuma ? shownFor(monokuma) : "none here",
-            labels: [game.i18n.localize("DRPG.Murder.endMurder") !== game.i18n.localize("DRPG.Panel.close"), game.i18n.localize("DRPG.Monokuma.unmark") !== "DRPG.Monokuma.unmark"] }),
+        const student = studentActors()[0] ?? null;
+        must(student, "no student to draw the sheet's controls of - this would measure nothing");
+        const shown = () => {
+            const root = e24SheetRoot();
+            Hooks.callAll("renderCharacterSheet", { document: student, isEditable: true, element: root, rendered: true }, root, {}, { isFirstRender: true });
+            return [...root.querySelectorAll('[data-drpg-class-control="mark"], [data-drpg-class-control="unmark"]')].map(b => b.getAttribute("aria-label"));
+        };
+        const L = key => game.i18n.localize(key);
+        equal(stableJson({ source, student: shown(), monokuma: await e24Flagged(student, { [FLAGS.monokuma]: true }, shown),
+            labels: [L("DRPG.Murder.endMurder") !== L("DRPG.Panel.close"), L("DRPG.Monokuma.unmark") !== "DRPG.Monokuma.unmark"] }),
         stableJson({ source: { closeDefault: true, passApart: true, noPassAtResolution: true, cooldown: true, mark: true },
-            entries: ["DRPG.Monokuma.toggle", "DRPG.Monokuma.unmark"], student: ["DRPG.Monokuma.toggle"],
-            monokuma: monokuma ? ["DRPG.Monokuma.unmark"] : "none here", labels: [true, true] }),
-        "[the tracker's footer and Pass read off the source; the directory's entries; those shown for a student, for a Monokuma; End the murder's and Unmark's words their own]");
+            student: [L("DRPG.Monokuma.toggle")], monokuma: [L("DRPG.Monokuma.unmark")], labels: [true, true] }),
+        "[the tracker's footer and Pass read off the source; the sheet's Monokuma control shown for a student, for a Monokuma; End the murder's and Unmark's words their own]");
     }],
     ["R1376 - a kit window's width is the kit's (E21 W1, the owner's decision on E21's Open 12): no rule of the module's sheets sets a width (width, min-width, max-width or --drpg-window-max) on a window moved onto the kit's frame (R1357's MOVED), on `drpg-wide` or on the kit's own `drpg-kit-width`; no module script adds `drpg-wide`; each window that had a width rule states it to drpgWindow (`width`, a name of WINDOW_WIDTHS); and the kit writes that width as the window's position, under the screen less 8 px a side, with its classes", async () => {
         /*
@@ -38745,6 +38750,168 @@ const INVARIANTS = [
             + "field read-only, its writes and what it kept; after a render while typing the new field's text, selection and focus, the writes "
             + "then, and after the close]");
     }],
+    ["R1453 - not in the class (E24 C3a, E24-19; audit S03-36): a student marked `notInClass` leaves monokuma.mjs `studentActors`, `actingStudents` and `studentCensus` (the world's and a handed list), chapter.mjs `livingStudentsForGm` (the murder window's cast), assignments.mjs `students` and the vote's `trialParticipants`; the vote's candidates and its size, the verdict's survivors and the Final Trial's list read `studentActors` and never `game.actors`; `classCandidates` names the characters no player owns, not a Monokuma or one already out", async () => {
+        /*
+         * E24 C3a, 08.11.2026. Every `character` was a student (monokuma.mjs `studentActors`: not a Monokuma), so an NPC on
+         * a sheet got a ballot, the verdict's Level Up and the murder window's default seat. A student of a player is
+         * marked in memory only (`e24Flagged`: its `getFlag` answers the flag, nothing written) and each reader asked
+         * before and after. Red on C0's tree: the marked student on every list.
+         */
+        const M = await import("./monokuma.mjs");
+        const [{ livingStudentsForGm }, { students }, { trialParticipants }] = await Promise.all([
+            import("./chapter.mjs"), import("./assignments.mjs"), import("./vote.mjs")]);
+        const owned = a => game.users.some(u => !u.isGM && a.testUserPermission?.(u, "OWNER"));
+        const npc = studentActors().find(a => owned(a) && livingStudentsForGm().some(b => b.id === a.id));
+        must(npc, "no living student a player owns - this would measure nothing");
+        const has = list => [...list].some(a => (a?.actor ?? a)?.id === npc.id);
+        const read = () => ({
+            studentActors: has(M.studentActors()), acting: has(M.actingStudents()), census: has(M.studentCensus().all),
+            handed: has(M.studentCensus([npc]).all), murderCast: has(livingStudentsForGm()), assignments: has(students()),
+            ballots: has(trialParticipants({ connected: false }))
+        });
+        const before = read();
+        const after = await e24Flagged(npc, { [FLAGS.notInClass ?? "notInClass"]: true }, read);
+        const src = new Map(await otherSources());
+        const cut = (file, fn) => stripComments(fnSource(stripComments(src.get(file) ?? ""), fn));
+        // `game.actors.get(id)` looks a named student up; a walk of `game.actors` would be a roster of its own (mutant m4).
+        const reads = (file, fn) => { const body = cut(file, fn); return body.length > 40 && /\bstudentActors\(\)/.test(body) && !/\bgame\.actors\b(?!\.get\()/.test(body); };
+        const source = { candidates: reads("vote.mjs", "candidatesFor"), size: reads("vote.mjs", "picksFor"), survivors: reads("verdict.mjs", "verdictHeld"),
+            finalList: reads("verdict.mjs", "openFinalVerdictDialog") };
+        const flags = f => (scope, key) => (scope === MODULE_ID ? f[key] : undefined);
+        const player = { id: "R1453player", isGM: false }, gm = { id: "R1453gm", isGM: true };
+        const char = (id, f, owner) => ({ id, name: id, type: "character", getFlag: flags(f), testUserPermission: u => u.isGM || u.id === owner });
+        const candidates = typeof M.classCandidates === "function" ? M.classCandidates({ users: [player, gm], actors: [
+            char("R1453unowned", {}, null), char("R1453played", {}, player.id), char("R1453monokuma", { [FLAGS.monokuma]: true }, null),
+            char("R1453out", { notInClass: true }, null), { id: "R1453npc", type: "npc", getFlag: flags({}), testUserPermission: () => false }] }).map(a => a.id) : "no classCandidates";
+        equal(stableJson({ before, after, source, candidates }), stableJson({
+            before: { studentActors: true, acting: true, census: true, handed: true, murderCast: true, assignments: true, ballots: true },
+            after: { studentActors: false, acting: false, census: false, handed: false, murderCast: false, assignments: false, ballots: false },
+            source: { candidates: true, size: true, survivors: true, finalList: true }, candidates: ["R1453unowned"] }),
+            "[each reader of the one roster with the student in the class, then marked not in the class; the vote's candidates and size, the verdict's survivors and the Final Trial's list read through studentActors; Pre-season's candidates]");
+    }],
+    ["R1454 - `notInClass` is a GM's flag (E24 C3a, E24-19): sheet-audit.mjs `kindOf` answers \"flag\" for a write of it, as for the Monokuma flag, so the GMs' audit puts a player's write of it back; a flag no GM holds alone (the Ultimate) answers null; config.mjs `FLAGS.notInClass` is its name", async () => {
+        /*
+         * E24 C3a, 08.11.2026. A player who set `notInClass` on their own student from the console would leave every
+         * ballot, Level Up and incident's cast the primary builds from `studentActors`. The audit puts back what its
+         * `kindOf` calls a "flag" (`GM_FLAGS`); 30-security drives the put-back itself. Red on C0's tree: null.
+         */
+        const SA = await import("./sheet-audit.mjs");
+        must(typeof SA.kindOf === "function", "sheet-audit.mjs exports no kindOf - this would measure nothing");
+        const at = flag => SA.kindOf(`flags.${MODULE_ID}.${flag}`);
+        equal(stableJson([FLAGS.notInClass ?? null, at("notInClass"), at(FLAGS.monokuma), at(FLAGS.ultimate), SA.kindOf("system.traits.agility.value")]),
+            stableJson(["notInClass", "flag", "flag", null, "traits"]),
+            "[FLAGS.notInClass; kindOf for notInClass, the Monokuma flag (a control), the Ultimate (no GM's flag), a statistic]");
+    }],
+    ["R1455 - the gates' matrix (E24 C3a, E24-18, E24-20; audit S03-15): sheet.mjs `rowGate` answers no row buttons for the dead and a Monocub (D15), a Monokuma and a sheet the viewer may not edit, and yes for the living and an NPC, for a GM and for the owner; Use, Equip, Discard, Stash, Give/Share and the Truth Bullet row (Share, Present, Analyze) each ask it first; and on a stand-in sheet drawn by the render hook as the living, the dead, a Monocub and an NPC not in the class, for a GM and for the owner: the header still (`drpg-sheet-still`, the Actions section `drpg-still`, no pip tooltip) for the dead and the NPC, live for the living and a Monocub; the death mark on the dead's portrait, not a Monocub's; the dead's line in the dead's panel; the NPC's line to the GM, no action grid, no Calls and no Level Up button; the GM's controls only for a GM", async () => {
+        /*
+         * E24 C3a, 08.11.2026. No Daggerheart sheet renders in the harness, so `onRenderCharacterSheet` is handed a stand-in
+         * root (`e24SheetRoot`) through its hook, detached, and the flags are answered in memory (`e24Flagged`); the owner
+         * is this GM with `isGM` off on `game.user` for the draw. The headless world carries no item in a student's hands
+         * at tier 1 (the seed's one item is stashed), so the rows are read through the gate every row builder asks and
+         * the builders' source, not through a drawn row. Red on C0's tree: no `rowGate`, Give/Share and the bullet row
+         * asking only `isEditable` and the Monokuma flag, a live header for the dead, no mark, no lines, no controls.
+         */
+        const SH = await import("./sheet.mjs");
+        must(typeof SH.rowGate === "function" && typeof SH.headerGate === "function", "sheet.mjs exports no rowGate or headerGate - this would measure nothing");
+        const owned = a => game.users.some(u => !u.isGM && a.testUserPermission?.(u, "OWNER"));
+        const who = studentActors().find(owned);
+        must(who, "no student a player owns - this would measure nothing");
+        const KINDS = { living: {}, dead: { [FLAGS.deceased]: { chapter: 1 } }, monocub: { [FLAGS.deceased]: { chapter: 1 }, [FLAGS.monocub]: true },
+            npc: { notInClass: true }, monokuma: { [FLAGS.monokuma]: true } };
+        const out = {};
+        for (const [kind, flags] of Object.entries(KINDS)) {
+            for (const role of ["gm", "owner"]) {
+                out[`${kind}/${role}`] = await e24Flagged(who, flags, () => e24AsRole(role, () => {
+                    const root = e24SheetRoot();
+                    Hooks.callAll("renderCharacterSheet", { document: who, isEditable: true, element: root, rendered: true }, root, {}, { isFirstRender: true });
+                    const section = root.querySelector(".drpg-actions-section");
+                    return {
+                        rows: [SH.rowGate({ document: who, isEditable: true }), SH.rowGate({ document: who, isEditable: false })],
+                        still: [root.classList.contains("drpg-sheet-still"), Boolean(section?.classList.contains("drpg-still")),
+                            Boolean(section?.querySelector("[data-tooltip]"))],
+                        mark: Boolean(root.querySelector(".portrait .drpg-death-mark")),
+                        deadLine: Boolean(root.querySelector(".drpg-dead-panel .drpg-dead-still")),
+                        npcLine: Boolean(root.querySelector(".drpg-npc-panel")),
+                        grid: Boolean(root.querySelector(".drpg-action-grid")), calls: Boolean(root.querySelector(".drpg-calls-panel")),
+                        levelUp: Boolean(root.querySelector("[data-drpg-advance]")),
+                        controls: root.querySelectorAll("[data-drpg-class-control]").length > 0
+                    };
+                }));
+            }
+        }
+        const sheet = stripComments((new Map(await otherSources())).get("sheet.mjs") ?? "");
+        const first = fn => /^[^\n]*\)\s*\{\s*if \(!rowGate\(app\)\) return;/.test(fnSource(sheet, fn));
+        const bullet = fnSource(sheet, "buildBulletRow");
+        const builders = Object.fromEntries(["addUseButton", "addEquipButton", "addDiscardButton", "addStashButton", "addHandoverButton"].map(fn => [fn, first(fn)]));
+        // The gate, none of the three buttons before it, all three after it.
+        builders.buildBulletRow = /^(?:(?!addHandoverButton\(|addPresentButton\(|drpg-tb-analyze)[\s\S])*?if \(!rowGate\(app\)\) return;[\s\S]*addHandoverButton\([\s\S]*addPresentButton\([\s\S]*drpg-tb-analyze/.test(bullet);
+        /* A pip's tooltip is read for the GM: this GM with `isGM` off reads as a viewer to sheet.mjs `viewerOf`, whose pips
+           carry none whatever the header's state. A Monocub's grid is its two tiles; a Monokuma's, its Despair Calls. */
+        const want = {};
+        for (const role of ["gm", "owner"]) {
+            const gm = role === "gm";
+            const live = [false, false, gm];
+            want[`living/${role}`] = { rows: [true, false], still: live, mark: false, deadLine: false, npcLine: false, grid: true, calls: true, levelUp: gm, controls: gm };
+            want[`dead/${role}`] = { rows: [false, false], still: [true, true, false], mark: true, deadLine: true, npcLine: false, grid: false, calls: false, levelUp: gm, controls: gm };
+            want[`monocub/${role}`] = { rows: [false, false], still: live, mark: false, deadLine: false, npcLine: false, grid: true, calls: false, levelUp: gm, controls: gm };
+            want[`npc/${role}`] = { rows: [true, false], still: [true, true, false], mark: false, deadLine: false, npcLine: gm, grid: false, calls: false, levelUp: false, controls: gm };
+            want[`monokuma/${role}`] = { rows: [false, false], still: live, mark: false, deadLine: false, npcLine: false, grid: true, calls: true, levelUp: gm, controls: gm };
+        }
+        equal(stableJson({ out, builders }), stableJson({ out: want, builders: { addUseButton: true, addEquipButton: true, addDiscardButton: true,
+            addStashButton: true, addHandoverButton: true, buildBulletRow: true } }),
+            "[each kind for a GM and its owner: rowGate (editable, not editable); the header still (root, Actions section, a pip's tooltip); the death mark; the dead's line; the NPC's line; the action grid; the Calls; the Level Up button; the GM's controls - and each row builder asking rowGate first, the bullet row before Share, Present and Analyze]");
+    }],
+    ["R1486 - the GM's controls of who is a student on the sheet's header (E24 C3a; STAGE.md \"Amend 08.11\" A2, the owner's answer to Q-E24-5): a GM sees \"Not in the class\" and Mark as Monokuma on a student, \"Not in the class\" and Unmark as Monokuma on a Monokuma, the toggle's state on aria-pressed; a player sees none; marking a player's character asks first, the yes destructive behind Cancel, and a Cancel writes nothing; the Actors directory's menu holds neither entry", async () => {
+        /*
+         * E24 C3a, 08.11.2026. Mark and Unmark moved from the Actors directory's right-click menu (`getActorContextOptions`,
+         * monokuma.mjs `registerMonokuma`, E22 C3b) to the sheet's header beside the new toggle. Drawn on stand-in roots
+         * (`e24SheetRoot`), the flags answered in memory; Mark pressed on a student a player owns with DialogV2.wait
+         * answering Cancel (the window recorded, nothing written: the flag read after). Red on C0's tree: no control.
+         */
+        const owned = a => game.users.some(u => !u.isGM && a.testUserPermission?.(u, "OWNER"));
+        const student = studentActors().find(owned);
+        must(student, "no student a player owns - this would measure nothing");
+        const draw = () => {
+            const root = e24SheetRoot();
+            Hooks.callAll("renderCharacterSheet", { document: student, isEditable: true, element: root, rendered: true }, root, {}, { isFirstRender: true });
+            return root;
+        };
+        const controls = root => [...root.querySelectorAll("[data-drpg-class-control]")].map(b => [b.dataset.drpgClassControl, b.getAttribute("aria-pressed"),
+            b.getAttribute("aria-label")]);
+        const L = key => game.i18n.localize(key);
+        const seen = {
+            student: controls(draw()),
+            monokuma: await e24Flagged(student, { [FLAGS.monokuma]: true }, () => controls(draw())),
+            out: await e24Flagged(student, { notInClass: true }, () => controls(draw()).map(c => c.slice(0, 2))),
+            player: await e24AsRole("owner", () => controls(draw()))
+        };
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const asked = [];
+        D.wait = async cfg => { asked.push(cfg); return null; };
+        try {
+            draw().querySelector('[data-drpg-class-control="mark"]')?.click();
+            await until(() => asked.length > 0, 3000);
+            await wait(50);
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        const ask = asked[0] ?? null;
+        const options = [];
+        Hooks.callAll("getActorContextOptions", null, options);
+        equal(stableJson({ seen, ask: ask ? [asked.length, ask.window?.title ?? null, (ask.buttons ?? []).map(b => [b.action, Boolean(b.default), /destructive/.test(b.class ?? "")])] : null,
+            marked: Boolean(student.getFlag(MODULE_ID, FLAGS.monokuma)),
+            menu: options.filter(o => ["DRPG.Monokuma.toggle", "DRPG.Monokuma.unmark"].includes(o?.name)).length }), stableJson({
+            seen: {
+                student: [["notInClass", "false", L("DRPG.Class.outTooltip")], ["mark", null, L("DRPG.Monokuma.toggle")]],
+                monokuma: [["notInClass", "false", L("DRPG.Class.outTooltip")], ["unmark", null, L("DRPG.Monokuma.unmark")]],
+                out: [["notInClass", "true"], ["mark", null]],
+                player: []
+            },
+            ask: [1, L("DRPG.Monokuma.toggle"), [["cancel", true, false], ["yes", false, true]]],
+            marked: false, menu: 0 }),
+            "[the controls drawn (kind, aria-pressed, label) for a GM on a student, a Monokuma and one not in the class, and for its player; Mark's question on a player's character (windows, title, buttons: action, default, destructive); the Monokuma flag after a Cancel; the directory menu's Monokuma entries]");
+    }],
 ];
 
 /**
@@ -39226,6 +39393,51 @@ async function e20Fixture() {
                 getFlag: flagged({ [FLAGS.deceased]: dead ? { chapter: 1 } : undefined }) };
         }
     };
+}
+
+/**
+ * E24 C3a's fixtures (R1453, R1455, R1486; R1363 since C3a): `actor` answering `flags` as its own module flags for
+ * `run` and as before after - an own `getFlag` on the document in this browser's memory, taken off in a finally,
+ * nothing written - and `run` with `game.user.isGM` off for the "owner" role (this GM, who owns every actor), as
+ * R951 stands one in. Each answers what `run` answered.
+ */
+async function e24Flagged(actor, flags, run) {
+    const own = Object.getOwnPropertyDescriptor(actor, "getFlag");
+    const real = actor.getFlag;
+    Object.defineProperty(actor, "getFlag", { configurable: true, writable: true,
+        value: function (scope, key) { return scope === MODULE_ID && key in flags ? flags[key] : real.call(this, scope, key); } });
+    try {
+        return await run();
+    } finally {
+        if (own) Object.defineProperty(actor, "getFlag", own); else delete actor.getFlag;
+    }
+}
+
+async function e24AsRole(role, run) {
+    if (role !== "owner") return run();
+    Object.defineProperty(game.user, "isGM", { value: false, configurable: true });
+    try {
+        return await run();
+    } finally {
+        delete game.user.isGM;
+    }
+}
+
+/**
+ * A character sheet's stand-in root (E24 C3a): the header's name row and its character row with Hope's place, the
+ * Ultimate's row, the sidebar's portrait, and the Features and Inventory parts the module draws into - detached, so
+ * nothing in the page is touched. The shapes are Daggerheart 2.10.5's as sheet.mjs selects them (probe
+ * dh-2.10.5/templates_sheets_actors_character_sidebar.hbs for the portrait); no Hope slot, so no Hope count is kept.
+ */
+function e24SheetRoot() {
+    const root = document.createElement("div");
+    root.className = "drpg-suite-sheet";
+    root.innerHTML = `<div class="character-header-sheet"><div class="name-row"><h1>R1455</h1></div><div class="character-details"></div>`
+        + `<div class="character-row"><div class="resource-section"></div></div></div>`
+        + `<aside class="character-sidebar-sheet"><div class="portrait"><img src="" alt=""></div></aside>`
+        + `<section class="tab" data-tab="features" data-application-part="features"></section>`
+        + `<section class="tab" data-tab="inventory" data-application-part="inventory"></section>`;
+    return root;
 }
 
 export { INVARIANTS };

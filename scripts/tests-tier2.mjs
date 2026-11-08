@@ -83362,6 +83362,72 @@ const SCENARIOS = [
         }), "[closed by its X: the backstory and the writes; drawn again after the GM's Hope write: the field's text, its focus and the backstory "
             + "saved; closed again: the backstory and every write of it]");
     }],
+    ["E24-T3 - a GM marks a student \"Not in the class\" on its sheet's header (E24 C3a, E24-19; audit S03-36): it leaves the trial's participants, the Level Ups a right verdict hands out and the murder window's lists; pressed again, it is back on each", async () => {
+        /*
+         * E24 C3a, 08.11.2026. The GM's toggle drawn by the module's render hook on a stand-in sheet (no Daggerheart sheet
+         * renders headless) and pressed: the flag written by the GM. Read with it on and again after the second press:
+         * the ballots' recipients (vote.mjs `trialParticipants`, connected or not), the class's Level Up window after a
+         * right verdict that executes nobody (its rows, as `withAdvanceWindows` records them; every picker closed, and
+         * the offers that leaves on the students taken back after), and the murder window's killer and victim lists
+         * (drawn, then closed). Red on C0's tree: no toggle on the sheet, the student on each.
+         */
+        needs(env.dialogs(), "the class's Level Up window and the murder window are drawn and read");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse } = await import("./eclipse.mjs");
+        must(!murderState() && !isEclipse(), "an incident or an Eclipse stands, and the murder window would not open on its lists - this would measure nothing");
+        const V = await import("./vote.mjs");
+        const M = await import("./murder.mjs");
+        const L = await import("./level-up.mjs");
+        const npc = cast(3).at(-1);
+        needs(world.ownedByPlayer(npc), "a ballot goes to a student's player");
+        const { closeOpen } = await import("./live.mjs");
+        const toggle = async () => {
+            const root = document.createElement("div");
+            root.innerHTML = `<div class="character-header-sheet"><div class="name-row"></div></div>`;
+            document.body.append(root);
+            try {
+                Hooks.callAll("renderCharacterSheet", { document: npc, isEditable: true, element: root, rendered: true }, root, {}, { isFirstRender: true });
+                const button = root.querySelector('[data-drpg-class-control="notInClass"]');
+                if (!button) return false;
+                button.click();
+                await until(() => !button.disabled, 4000);
+                await settle();
+                return true;
+            } finally {
+                root.remove();
+            }
+        };
+        const offersBefore = new Map(game.actors.filter(a => a.type === "character").map(a => [a.id, new Set(L.standingOffers(a).map(o => o.id))]));
+        const read = async () => {
+            const ballots = V.trialParticipants({ connected: false }).some(p => p.actor.id === npc.id);
+            const asked = await withVerdictOpen(() => withAdvanceWindows(() => null, () => V.applyVerdict({ correct: true, executedIds: [], blackenedIds: [] })));
+            await settle();
+            const queue = asked.find(entry => entry.classes.includes("drpg-advance-queue"));
+            const levelUp = queue ? (queue.rows ?? []).some(row => row.id === npc.id) : "no class window";
+            const { form } = await drawnMurderWindow(() => M.openMurderDialog());
+            const lists = form ? ["killer", "victim"].map(name => [...(form[name]?.options ?? [])].some(o => o.value === npc.id)) : "no murder window";
+            closeOpen("drpg-window-murder");
+            await settle();
+            return { ballots, levelUp, lists };
+        };
+        let marked = null, back = null, pressed = [];
+        try {
+            pressed.push(await toggle());
+            marked = { flag: npc.getFlag(MODULE_ID, "notInClass") ?? null, ...(await read()) };
+            pressed.push(await toggle());
+            back = { flag: npc.getFlag(MODULE_ID, "notInClass") ?? null, ...(await read()) };
+        } finally {
+            if (npc.getFlag(MODULE_ID, "notInClass") !== undefined) await npc.unsetFlag(MODULE_ID, "notInClass");
+            for (const actor of game.actors.filter(a => a.type === "character")) {
+                for (const offer of L.standingOffers(actor)) if (!offersBefore.get(actor.id)?.has(offer.id)) await L.dropOffer(actor.id, offer.id);
+            }
+            await settle();
+        }
+        equal(stableJson({ pressed, marked, back }), stableJson({ pressed: [true, true],
+            marked: { flag: true, ballots: false, levelUp: false, lists: [false, false] },
+            back: { flag: null, ballots: true, levelUp: true, lists: [true, true] } }),
+            "[the toggle drawn and pressed, twice; marked: the flag, a ballot, a Level Up row after a right verdict, the murder window's killer and victim lists; pressed again: the same]");
+    }],
     ...GRID
 ];
 

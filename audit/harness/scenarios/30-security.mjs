@@ -3557,6 +3557,40 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         JSON.stringify(inRow?.spent ?? null), { flow: "sheet-audit" });
 
     /*
+     * A CONSOLE'S "NOT IN THE CLASS" (E24 C3a, 08.11.2026; E24-19, R1454). The flag is a GM's (config.mjs
+     * `FLAGS.notInClass`, sheet-audit.mjs `GM_FLAGS`): set on a student, it takes that student out of monokuma.mjs
+     * `studentActors`, and with it out of every ballot, Level Up and incident's cast the primary builds. p1's console
+     * sets it on Aiko, its own student, as `actor.setFlag` from the console. Expected: put back on every client, one
+     * row naming it, and Aiko still among the students and the trial's participants on the primary (the vote's road
+     * waits for the audit first, vote.mjs `studentsJudged`; here the scenario waits for it). The Monokuma flag's
+     * put-back, the same road (`HELD_PATH` covers every `flags.<module>.` path), is the check above.
+     */
+    phase("a console's not in the class", { flow: "sheet-audit" });
+    const readOut = `return { out: game.actors.get("${ids.aiko}").getFlag("${MOD}", "notInClass") ?? null };`;
+    let outForged = null;
+    try {
+        const fromO = await rowBack(null);
+        await p1.eval(`await game.actors.get("${ids.aiko}").setFlag("${MOD}", "notInClass", true); return true;`);
+        await gm.eval(`const end = Date.now() + 6000; const read = () => { ${readOut} };
+            await new Promise(r => setTimeout(r, 200));
+            while (read().out !== null && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+        await settle(800);
+        const seen = await Promise.all([gm, p1, p2, p3].map(c => c.eval(readOut)));
+        const roster = await gm.eval(`${audited} const M = await import("${repoUrl}/scripts/monokuma.mjs"), V = await import("${repoUrl}/scripts/vote.mjs");
+            return { student: M.studentActors().some(a => a.id === "${ids.aiko}"),
+                ballot: V.trialParticipants({ connected: false }).some(p => p.actor.id === "${ids.aiko}") };`);
+        outForged = { seen, roster, rows: await gm.eval(rowsOf(fromO)) };
+    } finally {
+        await gm.eval(`const a = game.actors.get("${ids.aiko}"); if (a.getFlag("${MOD}", "notInClass") !== undefined) await a.unsetFlag("${MOD}", "notInClass");
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+    }
+    check("SECURITY: \"not in the class\" a player's console sets on their own student is put back on every client with a row of its own, and the student stays among the students and the trial's participants",
+        Boolean(outForged) && everyClient(outForged.seen, { out: null }) && outForged.roster.student === true && outForged.roster.ballot === true
+            && JSON.stringify(outForged.rows) === JSON.stringify([`putBack:flags.${MOD}.notInClass`]),
+        JSON.stringify(outForged), { flow: "sheet-audit" });
+
+    /*
      * A CONSOLE'S WRITES OVER A WHOLE PART (E29 fix r1-G2, 05.10.2026; review round 1 sec B2, B4). p1's console
      * replaces Aiko's `system.resources` whole (v14's forced replacement, as the harness models it): Hope 2
      * to 4, its maximum up 2, two Health marks healed; then her module flags whole, with the Monokuma flag

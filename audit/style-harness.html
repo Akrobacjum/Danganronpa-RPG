@@ -34,7 +34,11 @@
                         anonymity.mjs `onRenderSheet` puts it, and no action panel, as `injectActionPanel` draws none on a
                         sheet the viewer cannot edit; the values it turns to "?" are not modelled), `&lang=pl` the
                         module's words from lang/pl.json (from lang/en.json otherwise; the system's own labels the module's
-                        lang files do not carry are written in English), and the themes and the pixel font as above
+                        lang files do not carry are written in English), and the themes and the pixel font as above;
+                        `&state=dead|monocub|npc` (E24 C3a) the header (the name row with the GM's controls, the Actions
+                        pips) above the parts and the sheet as sheet.mjs `markSheetState`, `injectActionBar` and
+                        `injectActionPanel` draw it for the dead (still, the death mark, the dead's panel), a Monocub (live,
+                        its two tiles) or an NPC not in the class (still, the GM's line); without it the page is as before
        ?fit=1           THE PLACEMENT (E21 C1c, for `style-sweep.mjs --fit`): each window stands where Foundry puts a new
                         one - fixed, centred, its top max(0, (vh - h) / 2), a model of `_updatePosition` (LIVE-E21-01) -
                         and `window.drpgFit()` reads each window in each tab state: placed with its first tab, then the
@@ -263,7 +267,7 @@
      Equipped heading, the Loadout hidden), `injectEquippedTools`, `injectActionPanel`, `groupInventory` and
      `tidyBiography` (the textarea, the characteristics hidden). The numbers are the system's: `value` counts what is
      MARKED. Every module class here is a literal of sheet.mjs (anonymity.mjs's for the viewer's), R1440. */
-  const sheetParts = (app, { pips = false, viewer = false, L = key => key } = {}) => {
+  const sheetParts = (app, { pips = false, viewer = false, state = null, L = key => key } = {}) => {
     const esc = v => String(v ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]));
     const RESOURCES = [
       { key: "system.resources.hitPoints.value", action: "toggleHitPoints", label: L("DAGGERHEART.GENERAL.HitPoints.short"), value: 1, max: 4, band: [0, 1] },
@@ -285,8 +289,9 @@
         + `<div class="slot-label"><span class="label">${esc(r.label)}</span><span class="value">${r.value} / ${r.max}</span></div></div>`;
     };
     const stat = (n, label) => `<div class="status-number"><div class="status-value"><p>${n}</p></div><div class="status-label"><h4>${label}</h4></div></div>`;
+    const dead = state === "dead", still = dead || state === "npc";
     const sidebar = `<aside class="character-sidebar-sheet">`
-      + `<div class="portrait"></div>`
+      + `<div class="portrait">${dead ? `<span class="drpg-death-mark">${esc(L("DRPG.Class.deathMark"))}</span>` : ""}</div>`
       + `<div class="info-section${pips ? " pip-display" : ""}"><div class="resources-section">${RESOURCES.map(pips ? slots : bar).join("")}</div>`
       + `<div class="status-section${pips ? " pip-display" : ""}">${stat(10, "Evasion")}${stat(2, "Proficiency")}</div></div>`
       + `<div class="shortcut-items-section">`
@@ -300,8 +305,23 @@
     const tile = (key, icon, name) => `<button type="button" class="drpg-action-button" data-drpg-action="${key}" data-drpg-cost-kind="action">`
       + `<i class="fa-solid ${icon} drpg-action-icon" inert></i><span class="drpg-action-name">${name}</span><span class="drpg-action-cost">1 action</span></button>`;
     const left = L("DRPG.Actions.leftOf.other").replace("{left}", "2").replace("{max}", "2");
-    const features = viewer ? "" : `<div class="drpg-action-panel"><h3 class="drpg-keep">${esc(L("DRPG.Action.panelTitle"))}</h3><p class="notes drpg-keep drpg-budget-line">${esc(left)}</p>`
-      + `<div class="drpg-action-grid">${tile("observe", "fa-eye", "Observe")}${tile("search", "fa-magnifying-glass", "Search")}${tile("analyze", "fa-flask", "Analyze")}${tile("rest", "fa-bed", "Rest")}</div></div>`;
+    const STATES = {
+      dead: `<div class="drpg-action-panel drpg-dead-panel"><h3 class="drpg-keep">${esc(L("DRPG.Chapter.deadPanelTitle"))}</h3>`
+        + `<p class="notes">${esc(L("DRPG.Chapter.deadPanelNote"))}</p><p class="notes drpg-dead-still">${esc(L("DRPG.Class.deadStill"))}</p></div>`,
+      monocub: `<div class="drpg-action-panel drpg-monocub-panel"><h3 class="drpg-keep">${esc(L("DRPG.Monocub.panelTitle"))}</h3>`
+        + `<div class="drpg-action-grid">${tile("move", "fa-shoe-prints", "Move")}${tile("confusion", "fa-shuffle", "Confusion")}</div></div>`,
+      npc: `<div class="drpg-action-panel drpg-npc-panel"><p class="notes drpg-keep">${esc(L("DRPG.Class.npcLine"))}</p></div>`
+    };
+    const features = viewer ? "" : STATES[state] ?? (`<div class="drpg-action-panel"><h3 class="drpg-keep">${esc(L("DRPG.Action.panelTitle"))}</h3><p class="notes drpg-keep drpg-budget-line">${esc(left)}</p>`
+      + `<div class="drpg-action-grid">${tile("observe", "fa-eye", "Observe")}${tile("search", "fa-magnifying-glass", "Search")}${tile("analyze", "fa-flask", "Analyze")}${tile("rest", "fa-bed", "Rest")}</div></div>`);
+    const control = (kind, icon, tip, pressed) => `<button type="button" class="drpg-advance-button drpg-class-control" data-drpg-class-control="${kind}"`
+      + ` data-tooltip="${esc(tip)}" aria-label="${esc(tip)}"${pressed === undefined ? "" : ` aria-pressed="${pressed}"`}><i class="fa-solid ${icon}" inert></i></button>`;
+    const pip = n => `<span class="drpg-action-pip${n <= 1 ? " filled" : ""}" data-value="${n}"><i class="fa-${n <= 1 ? "solid" : "regular"} fa-circle" inert></i></span>`;
+    const header = !state ? "" : `<div class="character-header-sheet" style="grid-column: 1 / -1"><div class="name-row"><h1>Aiko Tanaka</h1>`
+      + (viewer ? "" : control("notInClass", "fa-user-slash", L(state === "npc" ? "DRPG.Class.inTooltip" : "DRPG.Class.outTooltip"), String(state === "npc"))
+        + control("mark", "fa-masks-theater", L("DRPG.Monokuma.toggle")))
+      + `</div><div class="character-row"><div class="drpg-actions-section${still ? " drpg-still" : ""}"><div class="drpg-actions"><h4>${esc(L("DRPG.Actions.label"))}</h4>`
+      + `${pip(1)}${pip(2)}<span class="drpg-free-move available"><i class="fa-solid fa-shoe-prints" inert></i></span></div></div></div></div>`;
     const group = (category, labelKey, count, rows, tip = "") => `<div class="drpg-inventory-group" data-category="${category}"><h4><span>${esc(L(labelKey))}</span>`
       + `<span class="drpg-group-count${count.full ? " full" : ""}"${tip ? ` data-tooltip="${esc(tip)}"` : ""}>${count.text}</span></h4>`
       + `<ul class="drpg-inventory-list">${rows || `<li class="drpg-inventory-empty">${esc(L("DRPG.Sheet.groupEmpty"))}</li>`}</ul></div>`;
@@ -318,7 +338,10 @@
       + `<fieldset class="drpg-hidden-block"><legend>Characteristics</legend><input type="text" name="system.biography.characteristics.age" value=""></fieldset>`;
     const section = (part, html) => `<section class="tab ${part} active" data-group="primary" data-tab="${part}" data-application-part="${part}">${html}</section>`;
     if (viewer) app.classList.add("drpg-redacted-sheet");
-    app.querySelector(".drpg-style-sheet-body").innerHTML = sidebar
+    app.classList.toggle("drpg-sheet-still", still);
+    app.classList.toggle("drpg-dead-sheet", dead);
+    app.classList.toggle("drpg-npc-sheet", state === "npc");
+    app.querySelector(".drpg-style-sheet-body").innerHTML = header + sidebar
       + `<div class="drpg-style-sheet-tabs">${section("features", features)}${section("inventory", inventory)}${section("biography", biography)}</div>`;
   };
   if (q.get("sheet") === "parts") {
@@ -329,7 +352,7 @@
       const L = key => { const v = key.split(".").reduce((o, k) => o?.[k], lang); return typeof v === "string" ? v : key; };
       const app = await sheetFrame("sheet-parts", "Character sheet (stand-in, parts)",
         `<div class="drpg-style-sheet-body drpg-style-sheet-parts" style="height: 100%; overflow: auto"></div>`);
-      sheetParts(app, { pips: q.get("pips") === "1", viewer: q.get("role") === "viewer", L });
+      sheetParts(app, { pips: q.get("pips") === "1", viewer: q.get("role") === "viewer", state: ["dead", "monocub", "npc"].includes(q.get("state")) ? q.get("state") : null, L });
       await document.fonts?.ready;
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     } finally {

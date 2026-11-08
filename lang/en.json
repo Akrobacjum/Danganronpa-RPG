@@ -2342,7 +2342,7 @@
       "nobodyLeft": "Every student is already dead.",
       "deadShort": "dead",
       "deadPanelTitle": "You are dead",
-      "deadPanelNote": "The dead take no actions and spend no Hope. You keep your sheet and your voice at the table. Brought back as a Monocub, this panel becomes Move and Confusion.",
+      "deadPanelNote": "The dead take no actions and spend no Hope. Brought back as a Monocub, this panel becomes Move and Confusion.",
       "deadCannotAct": "{name} is dead and cannot take actions.",
       "deadUnfound": "Dead, not found",
       "keepSecretUntilFound": "Keep it the GMs' until the body is found: no flag, no marker, and their Truth Bullets stay until then",
@@ -2992,6 +2992,17 @@
       "noPool": "- not set -",
       "sharedPool": "{name}'s pool is shared by: {actors}. Each Monokuma should have their own.",
       "saved": "Monokumas and pools saved."
+    },
+    "Class": {
+      "notInClass": "Not in the class",
+      "outTooltip": "Mark as not in the class: an NPC, with no actions, ballots or Level Ups.",
+      "inTooltip": "Not in the class. Press to make them a student again.",
+      "markedOut": "{name} is not in the class: no actions, ballots or Level Ups.",
+      "markedIn": "{name} is a student again.",
+      "npcLine": "Not in the class: no actions, ballots or Level Ups.",
+      "candidates": "No player owns {names}. If one is an NPC, mark it Not in the class on its sheet.",
+      "deathMark": "Dead",
+      "deadStill": "Outside the Class Trial you still speak at the table. In it your microphone is off and you hold no ballot."
     },
     "Overflow": {
       "hopeBlocked": "The darkening blocks Hope this time of day - nothing was spent.",

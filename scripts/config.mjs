@@ -223,7 +223,17 @@ export const FLAGS = {
      * only what actually differs: no actions, no Hope, Despair Calls instead of
      * the action grid, and walls do not apply.
      */
-    monokuma: "monokuma"
+    monokuma: "monokuma",
+    /**
+     * Character: not in the class - an NPC the GMs play, on no ballot, offered no
+     * Level Up and in no incident's cast (E24 C3a, 08.11.2026; audit S03-36, the
+     * owner's Q-E24-5). `studentActors` leaves it out, and with it everything that
+     * reads the one roster. A GM's flag: written only by a GM's toggle on the
+     * sheet's header (sheet.mjs `injectClassControls`), never set by itself, and a
+     * player's write of it put back by the GMs' audit (sheet-audit.mjs `GM_FLAGS`).
+     * Who is a student is the table's to know, so it holds no secret.
+     */
+    notInClass: "notInClass"
 };
 
 /**

@@ -2541,7 +2541,7 @@
       "nobodyLeft": "Każdy uczeń już nie żyje.",
       "deadShort": "nie żyje",
       "deadPanelTitle": "Nie żyjesz",
-      "deadPanelNote": "Zmarli nie wykonują akcji i nie wydają Hope. Zachowujesz kartę i głos przy stole. Przywrócony jako Monocub, ten panel staje się Move i Confusion.",
+      "deadPanelNote": "Zmarli nie wykonują akcji i nie wydają Hope. Przywrócony jako Monocub, ten panel staje się Move i Confusion.",
       "deadCannotAct": "{name} nie żyje i nie może wykonywać akcji.",
       "deadUnfound": "Martwy, nieodnaleziony",
       "keepSecretUntilFound": "Zachowaj to dla GM-ów, dopóki ciało nie zostanie znalezione: bez flagi, bez znacznika, a ich Truth Bullets zostają do tego czasu",
@@ -3262,6 +3262,17 @@
       "noPool": "- nie ustawiono -",
       "sharedPool": "Pulę ({name}) dzielą: {actors}. Każdy Monokuma powinien mieć własną.",
       "saved": "Monokumy i pule zapisane."
+    },
+    "Class": {
+      "notInClass": "Poza klasą",
+      "outTooltip": "Oznacz jako poza klasą: NPC bez akcji, głosów i Level Upów.",
+      "inTooltip": "Poza klasą. Kliknij, aby przywrócić do klasy.",
+      "markedOut": "{name} jest poza klasą: bez akcji, głosów i Level Upów.",
+      "markedIn": "{name} znów jest uczniem.",
+      "npcLine": "Poza klasą: bez akcji, głosów i Level Upów.",
+      "candidates": "Postaci bez gracza to {names}. Jeśli któraś z nich to NPC, oznacz ją na jej karcie jako Poza klasą.",
+      "deathMark": "Nie żyje",
+      "deadStill": "Poza Class Trial nadal mówisz przy stole. Podczas Class Trial twój mikrofon jest wyłączony i nie oddajesz głosu."
     },
     "Overflow": {
       "hopeBlocked": "Zaciemnienie blokuje Hope w tej porze dnia - nic nie zostało wydane.",

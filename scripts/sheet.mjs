@@ -21,7 +21,7 @@ import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
     canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
 import { resourceMax, resourceValue, initCharacter, needsStartingResources } from "./character.mjs";
 import { standingOffers, advanceKindName } from "./level-up.mjs";
-import { isMonokuma, poolUserFor } from "./monokuma.mjs";
+import { isMonokuma, isNotInClass, poolUserFor } from "./monokuma.mjs";
 import { spendableDespair } from "./despair.mjs";
 import { hopeHeld, hopeMax, affordableHopeCalls, despairCallsFor } from "./calls.mjs";
 import { isEclipse, movesLeft as eclipseMovesLeft } from "./eclipse.mjs";
@@ -84,6 +84,38 @@ import { trustedWrite } from "./resource-guard.mjs";
  */
 function deadToViewer(actor) {
     return actor?.isOwner ? isDeadForGm(actor) : isDeceased(actor);
+}
+
+/*
+ * THE GATES, NAMED IN ONE PLACE (E24 C3a, 08.11.2026; audit S03-15, S03-36, E24-18, E24-20). The row buttons asked
+ * three different questions: Use, Discard, Equip and Stash refused the dead (`deadToViewer`, a Monocub included,
+ * D15), Give/Share and the Truth Bullet row's buttons only a Monokuma's sheet and one the viewer may not edit - so a
+ * corpse still handed its things and its evidence around - and Present the table's dead and the trial's muted dead
+ * (it keeps those; it is reached only through the bullet row, which now asks this first). And the header drew Hope,
+ * the Actions pips and the free Move live on every sheet, a flash and a budget's tooltip for somebody who will never
+ * spend one. The predicates are the same; the answers are one each, read here (E45-C1's `sheetMode` replaces both).
+ */
+
+/**
+ * Whether an item row on this sheet carries buttons: an editable sheet, no Monokuma, nobody dead - a Monocub included.
+ * Exported with `headerGate` for the suite (R1455).
+ */
+export function rowGate(app) {
+    const actor = app?.document;
+    return Boolean(app?.isEditable) && !isMonokuma(actor) && !deadToViewer(actor);
+}
+
+/**
+ * What the header says of this character: `acts`, whether Hope, the Actions pips and the free Move are live (a flash,
+ * a budget's tooltip, a GM's correction) - the living and a Monocub, never the dead or an NPC not in the class;
+ * `dead`, dead as this viewer may know it; `mark`, the death mark on the portrait - the dead, not a Monocub, whose
+ * sheet plays on; `npc`, not in the class.
+ */
+export function headerGate(actor) {
+    const dead = deadToViewer(actor);
+    const cub = dead && isMonocub(actor);
+    const npc = isNotInClass(actor);
+    return { acts: (!dead || cub) && !npc, dead, mark: dead && !cub, npc };
 }
 
 export function registerSheetTweaks() {
@@ -815,8 +847,10 @@ function onRenderCharacterSheet(app, element, context, options) {
         settle(root, () => {
             frameTraits(element);
             injectUltimate(app, element);
+            markSheetState(app, element);
             injectInitButton(app, element);
             injectAdvanceButton(app, element);
+            injectClassControls(app, element);
             injectItemButton(app, element);
             injectActionBar(app, element, fresh);
             flashHope(app, element, fresh);
@@ -1206,7 +1240,8 @@ function frameTraits(element) {
  * filled sprite - so the two cannot disagree about which diamonds are lit.
  */
 function flashHope(app, element, fresh = false) {
-    markHopeChange(app.document, element, fresh);
+    // Still for the dead and an NPC (E24 C3a, `headerGate`): counted, never marked, as a first draw is.
+    markHopeChange(app.document, element, fresh || !headerGate(app.document).acts);
 }
 
 /**
@@ -1271,7 +1306,7 @@ function markHopeChange(actor, element, fresh = false) {
 // Always draw the full base budget. A wounded character keeps both circles,
 // but the one they have lost shows as a locked red slot - clearer than
 // silently rendering "1 / 1", which reads like an action already spent.
-function actionPips(actor, { left, max, spentActions, fresh, viewer = false }) {
+function actionPips(actor, { left, max, spentActions, fresh, viewer = false, still = false }) {
     const pips = [];
     const budget = Math.max(max, 1);
     for (let i = 1; i <= Math.max(STARTING.actions, budget); i++) {
@@ -1283,11 +1318,13 @@ function actionPips(actor, { left, max, spentActions, fresh, viewer = false }) {
         // The pips between the old reading and the new one: the ones just paid.
         // Built empty like any other unspent socket; the mark only says how
         // they got that way. See the keyframes in the stylesheet.
-        markSpent(pip, fresh ? null : spentActions, i);
+        markSpent(pip, fresh || still ? null : spentActions, i);
         pip.dataset.value = String(i);
         pip.innerHTML = `<i class="fa-${filled ? "solid" : "regular"} fa-circle" inert></i>`;
 
-        if (locked) {
+        if (still) {
+            // The dead's and an NPC's pips are drawn still (E24 C3a, `headerGate`): no budget to read, none to correct.
+        } else if (locked) {
             // A viewer's pips say nothing (S03-06, `viewerOf`); the redaction marks them.
             if (!viewer) pip.dataset.tooltip = game.i18n.localize("DRPG.Actions.lockedTooltip");
         } else if (game.user.isGM) {
@@ -1315,12 +1352,12 @@ function actionPips(actor, { left, max, spentActions, fresh, viewer = false }) {
 }
 
 /* ---- free move ---- */
-function freeMovePip(actor, { spentMove, fresh, viewer = false }) {
+function freeMovePip(actor, { spentMove, fresh, viewer = false, still = false }) {
     const move = document.createElement("span");
     const freeMove = hasFreeMove(actor);
     move.className = `drpg-free-move${freeMove ? " available" : " spent"}`;
-    markSpent(move, fresh ? null : spentMove);
-    if (!viewer) {
+    markSpent(move, fresh || still ? null : spentMove);
+    if (!viewer && !still) {
         move.dataset.tooltip = game.i18n.localize(
             freeMove ? "DRPG.Actions.freeMoveAvailable" : "DRPG.Actions.freeMoveSpent"
         );
@@ -1422,6 +1459,7 @@ function injectActionBar(app, element, fresh = false) {
 
     const actor = app.document;
     const viewer = viewerOf(actor);
+    const still = !headerGate(actor).acts;
     const left = actionsLeft(actor);
     const max = actionsMax(actor);
     const { wounded } = actionBudget(actor);
@@ -1433,7 +1471,7 @@ function injectActionBar(app, element, fresh = false) {
     const spentMove = spentSince("sheet:move", actor.id, hasFreeMove(actor) ? 1 : 0);
 
     const section = document.createElement("div");
-    section.className = "drpg-actions-section";
+    section.className = `drpg-actions-section${still ? " drpg-still" : ""}`;
 
     /* ---- action pips ---- */
     const actions = document.createElement("div");
@@ -1441,19 +1479,19 @@ function injectActionBar(app, element, fresh = false) {
 
     const label = document.createElement("h4");
     label.textContent = game.i18n.localize("DRPG.Actions.label");
-    if (wounded) {
+    if (wounded && !still) {
         label.classList.add("drpg-wounded");
         label.dataset.tooltip = game.i18n.localize("DRPG.Actions.woundedTooltip");
     }
     actions.append(label);
 
-    for (const pip of actionPips(actor, { left, max, spentActions, fresh, viewer })) actions.append(pip);
+    for (const pip of actionPips(actor, { left, max, spentActions, fresh, viewer, still })) actions.append(pip);
 
-    actions.append(freeMovePip(actor, { spentMove, fresh, viewer }));
+    actions.append(freeMovePip(actor, { spentMove, fresh, viewer, still }));
 
     section.append(actions);
 
-    const stack = viewer ? null : pendingStack(actor);
+    const stack = viewer || still ? null : pendingStack(actor);
     if (stack?.children.length) section.append(stack);
 
     // Sit right after Hope, before the domains/downtime buttons.
@@ -1600,6 +1638,11 @@ function injectAdvanceButton(app, element) {
 
     const nameRow = element.querySelector(".character-header-sheet .name-row");
     const standing = nameRow?.querySelector("[data-drpg-advance]");
+    // No Level Up for an NPC not in the class (E24 C3a, E24-20): no verdict offers one, and the GM's button would.
+    if (isNotInClass(app.document)) {
+        standing?.remove();
+        return;
+    }
     // A player with nothing on offer has no button: a header drawn again after the offer
     // was spent or taken back used to keep the lit one, whose press said "GM only" (S03-17).
     if (!game.user.isGM && !offer) {
@@ -1641,6 +1684,88 @@ function injectAdvanceButton(app, element) {
     nameRow.append(button);
 }
 
+
+/* ==========================================================================
+ * WHO THIS IS: THE DEATH MARK AND THE GM'S CONTROLS
+ * --------------------------------------------------------------------------
+ * E24 C3a, 08.11.2026 (audit S03-15, S03-36; E24-18, E24-19; the owner's
+ * answer to Q-E24-5 and STAGE.md "Amend 08.11" A2).
+ * ========================================================================== */
+
+/**
+ * The sheet's state on its root, for the stylesheet: `drpg-sheet-still` while the header is still (`headerGate`),
+ * `drpg-dead-sheet` and the stamp on the portrait for the dead (a Monocub's sheet plays on and carries neither),
+ * `drpg-npc-sheet` for an NPC not in the class. Dead as the viewer may know it, so a player who does not know of a
+ * death sees no mark (`deadToViewer`: the table's fact on anybody else's sheet).
+ */
+function markSheetState(app, element) {
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    if (!root?.classList) return;
+    const { acts, mark, npc } = headerGate(app.document);
+    root.classList.toggle("drpg-sheet-still", !acts);
+    root.classList.toggle("drpg-dead-sheet", mark);
+    root.classList.toggle("drpg-npc-sheet", npc);
+    const portrait = root.querySelector(".character-sidebar-sheet .portrait");
+    portrait?.querySelectorAll(".drpg-death-mark").forEach(stamp => stamp.remove());
+    if (!mark || !portrait) return;
+    const stamp = document.createElement("span");
+    stamp.className = "drpg-death-mark";
+    stamp.textContent = game.i18n.localize("DRPG.Class.deathMark");
+    portrait.append(stamp);
+}
+
+/**
+ * THE GM'S CONTROLS OF WHO IS A STUDENT, ON THE SHEET'S HEADER. "Not in the class" (`FLAGS.notInClass`, a toggle, its
+ * state on `aria-pressed`) on every character, and Mark as Monokuma on a student or Unmark as Monokuma on a Monokuma -
+ * each in the state it changes. Mark and Unmark were the Actors directory's right-click entries (monokuma.mjs, E22
+ * C3b); the mark of a player's character still asks first (`markFromSheet`), Unmark does not. A GM's only: a player's
+ * sheet draws none, and the writes refuse a player (`setNotInClass`, `setMonokuma`) whatever a console calls.
+ * Redrawn each render, so a control shows the state the sheet was drawn in.
+ */
+function injectClassControls(app, element) {
+    const nameRow = element.querySelector(".character-header-sheet .name-row");
+    nameRow?.querySelectorAll("[data-drpg-class-control]").forEach(button => button.remove());
+    if (!game.user.isGM || !nameRow) return;
+    const actor = app.document;
+    const out = isNotInClass(actor);
+    const monokuma = isMonokuma(actor);
+    const control = (kind, icon, tip, run, pressed = null) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "drpg-advance-button drpg-class-control";
+        button.dataset.drpgClassControl = kind;
+        button.dataset.tooltip = tip;
+        button.setAttribute("aria-label", tip);
+        if (pressed !== null) button.setAttribute("aria-pressed", String(pressed));
+        button.innerHTML = `<i class="fa-solid ${icon}" inert></i>`;
+        button.addEventListener("click", async () => {
+            button.disabled = true;
+            try {
+                await run();
+            } catch (err) {
+                error("Could not change who is a student", err);
+            } finally {
+                button.disabled = false;
+            }
+        });
+        nameRow.append(button);
+    };
+    control("notInClass", "fa-user-slash", game.i18n.localize(out ? "DRPG.Class.inTooltip" : "DRPG.Class.outTooltip"), async () => {
+        const { setNotInClass } = await import("./monokuma.mjs");
+        await setNotInClass(actor, !isNotInClass(actor));
+    }, out);
+    if (monokuma) {
+        control("unmark", "fa-masks-theater", game.i18n.localize("DRPG.Monokuma.unmark"), async () => {
+            const { setMonokuma } = await import("./monokuma.mjs");
+            await setMonokuma(actor, false);
+        });
+    } else {
+        control("mark", "fa-masks-theater", game.i18n.localize("DRPG.Monokuma.toggle"), async () => {
+            const { markFromSheet } = await import("./monokuma.mjs");
+            await markFromSheet(actor);
+        });
+    }
+}
 
 /* ==========================================================================
  * GIVE / TAKE ITEMS
@@ -3016,11 +3141,10 @@ function buildOneStashSection(box, actor, app, room, scene) {
  * and making things, not for opening what you already carry.
  */
 function addUseButton(li, item, app) {
-    if (!app.isEditable || isMonokuma(app.document)) return;
+    // Not the dead's, a Monocub too (D15, S08-30): what they carried in life is on the body,
+    // the body's to be found - `useItem` refuses the dead as well (`rowGate`).
+    if (!rowGate(app)) return;
     if (!isUsable(item)) return;
-    // A Monocub too (D15, S08-30): what they carried in life is on the body,
-    // the body's to be found - `useItem` refuses the dead as well.
-    if (deadToViewer(app.document)) return;
 
     // SHOWN, AND DEAD. An opened kit keeps its button so the row does not
     // quietly change shape when it is spent - the player looks at the same
@@ -3099,10 +3223,9 @@ function inCrisis(actor) {
  * mean to swing.
  */
 function addEquipButton(li, item, app) {
-    if (!app.isEditable || isMonokuma(app.document)) return;
+    // The dead ready nothing (E14 part 1 C3, S08-12): `toggleEquipped` refuses them too (`rowGate`).
+    if (!rowGate(app)) return;
     if (!isEquippable(item)) return;
-    // The dead ready nothing (E14 part 1 C3, S08-12): `toggleEquipped` refuses them too.
-    if (deadToViewer(app.document)) return;
 
     const ready = isEquipped(item);
     const broken = isBroken(item);
@@ -3143,11 +3266,10 @@ function addEquipButton(li, item, app) {
  * bedroom.
  */
 function addDiscardButton(li, item, app) {
-    if (!app.isEditable || isMonokuma(app.document)) return;
-    if (!isBroken(item)) return;
     // A corpse throws nothing away. Same gate as the Use button, a Monocub
     // included: the trace was laid at the Monocub's token, not at the body (S08-30).
-    if (deadToViewer(app.document)) return;
+    if (!rowGate(app)) return;
+    if (!isBroken(item)) return;
     // The stash is the OTHER answer, not a place to act from: something already
     // put away has to be taken back out before it can be thrown away.
     if (isStashed(item)) return;
@@ -3181,10 +3303,9 @@ function addDiscardButton(li, item, app) {
  * that matters lives in vault.mjs, this just offers the button.
  */
 function addStashButton(li, item, app, { stowing }) {
-    if (!app.isEditable || isMonokuma(app.document)) return;
     // The dead put nothing away and take nothing out, a Monocub included (S08-12,
-    // D15): a thing put away is off the body, and a body's loot takes none of those.
-    if (deadToViewer(app.document)) return;
+    // D15): a thing put away is off the body, and a body's loot takes none of those (`rowGate`).
+    if (!rowGate(app)) return;
 
     const tip = game.i18n.localize(stowing ? "DRPG.Vault.stowTooltip" : "DRPG.Vault.takeTooltip");
 
@@ -3554,7 +3675,8 @@ function buildBulletRow(li, item, app) {
                     <span class="drpg-item-name">${foundry.utils.escapeHTML(item.name)}</span>
                     <span class="drpg-tb-badges">${bulletBadges(data)}</span>`;
 
-    if (!app.isEditable || isMonokuma(app.document)) return;
+    // Nor the dead's, a Monocub included (E24 C3a, `rowGate`): Share, Present and Analyze are a living student's.
+    if (!rowGate(app)) return;
 
     // Evidence is worth passing on whatever state it is in - an unidentified
     // copy is exactly what you hand to somebody whose analysis has not been
@@ -3660,7 +3782,8 @@ function repaintPresentButtons() {
  * use, not a different one.
  */
 function addHandoverButton(li, item, app, { copying }) {
-    if (!app.isEditable || isMonokuma(app.document)) return;
+    // Nor the dead's, a Monocub included (E24 C3a, D15): what is on the body is the body's (`rowGate`).
+    if (!rowGate(app)) return;
 
     const tip = game.i18n.localize(copying ? "DRPG.Handover.shareTooltip" : "DRPG.Handover.giveTooltip");
 
@@ -3851,6 +3974,20 @@ function injectActionPanel(app, element) {
         return;
     }
 
+    // Not in the class (E24 C3a, E24-20): an NPC the GMs play takes no actions and buys no Calls, and its sheet
+    // says so to the GM in the panel's place. A player's sheet of one draws nothing here.
+    if (isNotInClass(actor)) {
+        if (!game.user.isGM) return;
+        const note = document.createElement("div");
+        note.className = "drpg-action-panel drpg-npc-panel";
+        const line = document.createElement("p");
+        line.className = "notes drpg-keep";
+        line.textContent = game.i18n.localize("DRPG.Class.npcLine");
+        note.append(line);
+        tab.prepend(note);
+        return;
+    }
+
     // A Monocub keeps the normal action budget but only two things to spend it
     // on. Its own panel entirely, not a filtered version of the student grid -
     // Meddle targets another actor and has no place in the generic delegate.
@@ -3878,7 +4015,11 @@ function injectActionPanel(app, element) {
         const body = document.createElement("p");
         body.className = "notes";
         body.textContent = game.i18n.localize("DRPG.Chapter.deadPanelNote");
-        note.append(heading, body);
+        // What the dead still do (E24 C3a, E24-18): speak outside the trial; in it, no microphone and no ballot.
+        const still = document.createElement("p");
+        still.className = "notes drpg-dead-still";
+        still.textContent = game.i18n.localize("DRPG.Class.deadStill");
+        note.append(heading, body, still);
         // Dead, and nobody has found them yet (E05 C10): the victim's own player, and a GM.
         if (!isDeceased(actor)) {
             const unfound = document.createElement("p");
