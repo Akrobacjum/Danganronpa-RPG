@@ -39619,10 +39619,13 @@ const INVARIANTS = [
             }
             return seen;
         };
+        /* The kept scrolls live for the page's life, so each run draws apps of its own ids: the suite runs twice in one
+           page (01-runtests' parts A1 and A2), and fixed ids read the first run's 140 as the second run's first draw. */
+        const a = `R1458-${foundry.utils.randomID(8)}-a`, b = `R1458-${foundry.utils.randomID(8)}-b`;
         const seen = {
-            first: draw("R1458-a", "inventory", 140), again: draw("R1458-a", "inventory"),
-            otherTab: draw("R1458-a", "features", 60), back: draw("R1458-a", "inventory"), features: draw("R1458-a", "features"),
-            otherSheet: draw("R1458-b", "inventory")
+            first: draw(a, "inventory", 140), again: draw(a, "inventory"),
+            otherTab: draw(a, "features", 60), back: draw(a, "inventory"), features: draw(a, "features"),
+            otherSheet: draw(b, "inventory")
         };
         const step = (SH.SHEET_STEPS ?? []).find(([name]) => name === "keepTabScroll");
         const source = stripComments((new Map(await otherSources())).get("sheet.mjs") ?? "");
