@@ -148,7 +148,7 @@ const worldFiles = new Map();
  *
  * NO SITE CALLS IT IN E66. The helper and its setting are D196's, pinned here; the documents that should be written
  * through it - S02-74, config prose written into world documents in the creating client's language - are E57's
- * (row 1.2.125), which switches them over. The interface windows, cards and the sheet stay in each browser's own
+ * (row 1.2.123), which switches them over. The interface windows, cards and the sheet stay in each browser's own
  * language and never go through it.
  */
 export async function worldLocalize(key, data = {}) {
