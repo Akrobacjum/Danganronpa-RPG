@@ -2931,7 +2931,7 @@
       "receivedBulletFrom": "{who} pokazuje ci {name}, a ty zapisujesz kopię.",
       "receivedItem": "Ktoś ci coś przekazał",
       "receivedItemFrom": "{who} przekazuje ci {name}.",
-      "answerKeyMissing": "Nie można teraz przekazać: {name}. Tego, czym jest naprawdę, nie ma w przeglądarce GM-a. GM może to przywrócić z kopii (Przywróć sprawę)."
+      "answerKeyMissing": "Nie można teraz przekazać: {name}. Tego, czym jest naprawdę, nie ma w przeglądarce GM-a. GM może to przywrócić z kopii (panel GM-a, Diagnostyka, Sprawa: Przywróć z pliku)."
     },
     "Observe": {
       "projectFoundDone": "Tajny projekt, który odkryto, jest ukończony: {name}.",
@@ -4407,7 +4407,7 @@
       },
       "offerSent": "{name} - powiadomienie wysłane; wybór należy teraz do gracza.",
       "offerFailed": "Nie udało się zapisać oferty na tej postaci.",
-      "notOfferedHere": "{player} chce wykorzystać Level Up postaci {name}, a przeglądarka tego GM-a nie ma dla niej żadnej oferty - nie dostała jeszcze kopii od pozostałych GM-ów albo nie ma żadnych ofert. Jeśli oferta była, złóż ją ponownie albo przywróć sprawę z kopii (panel GM-a).",
+      "notOfferedHere": "{player} chce wykorzystać Level Up postaci {name}, a przeglądarka tego GM-a nie ma dla niej żadnej oferty - nie dostała jeszcze kopii od pozostałych GM-ów albo nie ma żadnych ofert. Jeśli oferta była, złóż ją ponownie albo przywróć ją z kopii (panel GM-a, Diagnostyka, Sprawa: Przywróć z pliku).",
       "offerTooltip": "{kind} - naciśnij, by wybrać, co bierzesz.",
       "experienceNeedsNameKept": "Nowe doświadczenie potrzebuje nazwy. Nic nie wysłano - Level Up wciąż czeka na wykorzystanie.",
       "takeBack": "Cofnij ofertę: {kind}",
@@ -7105,7 +7105,7 @@
       "backstop": "Strażnik przekaźnika GM-a nie mógł zdjąć słuchacza Daggerhearta {version} z kanału, więc zamiast tego każdą zmianę sprawdza przed nim tryb awaryjny. Prośby graczy nadal są sprawdzane. Daj znać autorowi modułu."
     },
     "GmStore": {
-      "saveFailed": "Magazyn GM-a nie mógł zapisać „{store}” w tej przeglądarce: {error}. To, co przechowuje, zostaje w tym oknie do jego zamknięcia, a podłączeni teraz GM-owie mają kopię. Zrób teraz kopię sprawy (panel GM-a, Między sesjami).",
+      "saveFailed": "Magazyn GM-a nie mógł zapisać „{store}” w tej przeglądarce: {error}. To, co przechowuje, zostaje w tym oknie do jego zamknięcia, a podłączeni teraz GM-owie mają kopię. Zrób ją teraz (panel GM-a, Diagnostyka, Sprawa: Zrób kopię).",
       "syncTimedOut": "Magazyn GM-a nie dostał odpowiedzi od: {names}. Działa dalej na tym, co ma ta przeglądarka, a ich kopia zostanie scalona, gdy dotrze.",
       "claimFailed": {
         "one": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wiersz): {error}. Nic nie zostało zmienione; stara kopia wciąż tu jest.",
@@ -7121,7 +7121,7 @@
         "other": "{n} GM-a nie jest połączonego ({names}): ich przeglądarki usuną to, co czyści ten reset, gdy następnym razem otworzą ten świat."
       },
       "resetCutFailed": "Reset sezonu nie mógł zaznaczyć w zegarze chwili resetu ({error}). Nic nie zostało wyczyszczone.",
-      "saveFailedAlone": "Magazyn GM-a nie mógł zapisać „{store}” w tej przeglądarce: {error}. To, co przechowuje, zostaje w tym oknie do jego zamknięcia, a żaden inny GM nie jest podłączony, by mieć kopię: zrób teraz kopię sprawy (panel GM-a, Między sesjami).",
+      "saveFailedAlone": "Magazyn GM-a nie mógł zapisać „{store}” w tej przeglądarce: {error}. To, co przechowuje, zostaje w tym oknie do jego zamknięcia, a żaden inny GM nie jest podłączony, by mieć kopię: zrób ją teraz (panel GM-a, Diagnostyka, Sprawa: Zrób kopię).",
       "openFailed": "Magazyn GM-a nie mógł się otworzyć w tej przeglądarce: {error}. Dopóki się nie otworzy, Analyze i przekazanie Truth Bulletu są odrzucane. Przeładuj, aby spróbować ponownie; szczegóły są w konsoli.",
       "notOpen": "Magazyn GM-a nie otworzył się w tej przeglądarce po {seconds} s: Analyze i przekazanie Truth Bulletu są odrzucane, dopóki się nie otworzy. Przeładuj, aby spróbować ponownie."
     },
@@ -7191,8 +7191,9 @@
         "many": "Sprawa zapisana do pliku: {n} wierszy.",
         "other": "Sprawa zapisana do pliku: {n} wiersza."
       },
-      "backupTile": "Kopia sprawy",
-      "restoreTile": "Przywróć sprawę",
+      "backupNow": "Kopia sprawy",
+      "tile": "Sprawa",
+      "backup": "Zrób kopię",
       "backupNever": "ostatnia kopia: nigdy",
       "backupToday": "ostatnia kopia: dziś",
       "backupAgo": {
@@ -7331,7 +7332,7 @@
       "healthNote": "Przywróć odtworzy ją z pliku kopii; Dalej działa bez niej, a panel GM-a przypomina o tym, dopóki sprawa nie będzie kompletna.",
       "restoreFromFile": "Przywróć z pliku",
       "continue": "Dalej",
-      "continued": "Sprawa w tej przeglądarce jest niekompletna. Przywróć ją z pliku kopii (panel GM-a, Przywróć sprawę).",
+      "continued": "Sprawa w tej przeglądarce jest niekompletna. Przywróć ją z pliku kopii (panel GM-a, Diagnostyka, Sprawa: Przywróć z pliku).",
       "panelWarning": "Sprawa w tej przeglądarce jest niekompletna:",
       "restoreTitle": "Przywróć sprawę",
       "previewStore": "{store}: nowe {add}, odświeżone {refresh}, nowsze tutaj {kept}, pod cięciem resetu {cut}, usunięte tutaj {remove}",
@@ -7339,12 +7340,12 @@
       "beforeCut": "Przywróć mimo to wiersze usunięte przez ostatni reset (wrócą ze świeżym stemplem).",
       "restoreNote": "Przywracanie bierze tylko to, co nowsze niż to, co ma ta przeglądarka - także usunięcia, policzone wyżej. Nigdy nie bierze cięcia resetu z pliku, a plik innego świata nie przynosi żadnych usunięć.",
       "restore": "Przywróć",
-      "answerKeyMissing": "Truth Bullet „{bullet}” postaci {actor} nie ma klucza odpowiedzi w tej przeglądarce, więc jego Analyze zostało odrzucone. Przywróć sprawę z kopii (panel GM-a).",
+      "answerKeyMissing": "Truth Bullet „{bullet}” postaci {actor} nie ma klucza odpowiedzi w tej przeglądarce, więc jego Analyze zostało odrzucone. Przywróć go z kopii (panel GM-a, Diagnostyka, Sprawa: Przywróć z pliku).",
       "chargeHeld": {
-        "one": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bullet nie ma klucza odpowiedzi w tej przeglądarce i wynik byłby błędny. Przywróć sprawę i zapytaj ponownie.",
-        "few": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bullety nie mają klucza odpowiedzi w tej przeglądarce i wynik byłby błędny. Przywróć sprawę i zapytaj ponownie.",
-        "many": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bulletów nie ma klucza odpowiedzi w tej przeglądarce i wynik byłby błędny. Przywróć sprawę i zapytaj ponownie.",
-        "other": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bulletu nie ma klucza odpowiedzi w tej przeglądarce i wynik byłby błędny. Przywróć sprawę i zapytaj ponownie."
+        "one": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bullet nie ma klucza odpowiedzi w tej przeglądarce i wynik byłby błędny. Przywróć je z kopii (panel GM-a, Diagnostyka, Sprawa) i zapytaj ponownie.",
+        "few": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bullety nie mają klucza odpowiedzi w tej przeglądarce i wynik byłby błędny. Przywróć je z kopii (panel GM-a, Diagnostyka, Sprawa) i zapytaj ponownie.",
+        "many": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bulletów nie ma klucza odpowiedzi w tej przeglądarce i wynik byłby błędny. Przywróć je z kopii (panel GM-a, Diagnostyka, Sprawa) i zapytaj ponownie.",
+        "other": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bulletu nie ma klucza odpowiedzi w tej przeglądarce i wynik byłby błędny. Przywróć je z kopii (panel GM-a, Diagnostyka, Sprawa) i zapytaj ponownie."
       },
       "fillFromTraces": "Uzupełnij z ich Remnantów ({n})",
       "filled": {

@@ -4163,16 +4163,6 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     padding-bottom: 2px;
 }
 
-/* The toolbox, not the flow. Quieter until you go looking for it. */
-.drpg-gm-panel .drpg-gmp-section.dim {
-    opacity: 0.7;
-}
-
-.drpg-gm-panel .drpg-gmp-section.dim:hover,
-.drpg-gm-panel .drpg-gmp-section.dim:focus-within {
-    opacity: 1;
-}
-
 /*
  * Two columns, not "as many as fit".
  *
@@ -4238,24 +4228,6 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
        of spilling out of the tile. */
     overflow-wrap: anywhere;
     hyphens: auto;
-}
-
-/* A panel tile that refuses right now - an Eclipse running, for the murder tile.
-   Greyed with a native tooltip (the `title` attribute) instead of doing nothing
-   on click, so the GM learns why before pressing it, not after. The
-   body-discovery half of the same rule is a footer button on the case dashboard
-   now (F12) and is greyed by Foundry's own `:disabled` styling, so it needs
-   nothing here. */
-.drpg-gmp-button.drpg-disabled,
-.drpg-gmp-button:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-}
-
-.drpg-gmp-button.drpg-disabled:hover,
-.drpg-gmp-button:disabled:hover {
-    background: rgba(var(--drpg-bone-rgb), 0.12);
-    border-color: rgba(var(--drpg-bone-rgb), 0.45);
 }
 
 /* ==========================================================================
@@ -14347,8 +14319,6 @@ body.drpg-reduced-motion #pause.paused figcaption::after {
    the `!important` is the only thing being added.
    ========================================================================== */
 
-.drpg-panel .drpg-gmp-button,
-.drpg-gm-panel .drpg-gmp-button,
 #countdowns .drpg-projects-gear,
 #countdowns .drpg-projects-fold,
 .drpg-panel .drpg-mini-button,
@@ -14377,29 +14347,6 @@ body.drpg-reduced-motion #pause.paused figcaption::after {
 #countdowns .drpg-projects-fold:hover,
 #countdowns .drpg-projects-fold:hover i {
     color: var(--drpg-gold) !important;
-}
-
-/* The GM panel's tiles: Bone wash on Ink, the panel rule as the edge, red on
-   hover - what this file has always said they are, now said with weight. */
-body.drpg-theme-monokuma-legacy .drpg-panel .drpg-gmp-button,
-body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button {
-    background: rgba(var(--drpg-bone-rgb), 0.12) !important;
-    border: 1px solid rgba(var(--drpg-bone-rgb), 0.45) !important;
-    border-radius: 4px !important;
-}
-
-body.drpg-theme-monokuma-legacy .drpg-panel .drpg-gmp-button:hover,
-body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button:hover {
-    background: rgba(var(--drpg-eye-rgb), 0.3) !important;
-    border-color: var(--drpg-eye) !important;
-}
-
-/* …except a destructive one (Reset the season, Murder), in crimson: keyed on `drpg-destructive` since E22 C6b - the
-   GM's road names no tile of the GM's (D11), and this rule, written for `drpg-gm-route`, had matched none since C2. */
-.drpg-panel .drpg-gmp-button.drpg-destructive,
-.drpg-gm-panel .drpg-gmp-button.drpg-destructive {
-    border-color: var(--drpg-crimson) !important;
-    background: rgba(var(--drpg-crimson-rgb), 0.14) !important;
 }
 
 /* ==========================================================================
@@ -14756,53 +14703,6 @@ body.drpg-theme-stained-glass .application.sheet.actor .drpg-inventory-group .dr
    that hands the turn to somebody else, or destroys something.
    ========================================================================== */
 
-body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button,
-body.drpg-theme-monokuma-legacy .drpg-panel .drpg-gmp-button {
-    background: rgba(var(--drpg-eye-rgb), 0.18) !important;
-    background-image: none !important;
-    border: 1px solid var(--drpg-eye) !important;
-    border-radius: 4px !important;
-    color: var(--drpg-bone) !important;
-    box-shadow: none !important;
-}
-
-body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button i,
-body.drpg-theme-monokuma-legacy .drpg-panel .drpg-gmp-button i {
-    color: var(--drpg-eye-light) !important;
-}
-
-body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button:hover:not(:disabled),
-body.drpg-theme-monokuma-legacy .drpg-panel .drpg-gmp-button:hover:not(:disabled) {
-    background: rgba(var(--drpg-eye-rgb), 0.34) !important;
-    border-color: var(--drpg-eye-light) !important;
-}
-
-/* A destructive tile keeps crimson - a different red for a different promise
-   (keyed on `drpg-destructive` since E22 C6b, as the rule above). */
-body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-destructive {
-    background: rgba(var(--drpg-crimson-rgb), 0.20) !important;
-    border-color: var(--drpg-crimson) !important;
-}
-
-body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-destructive i {
-    color: var(--drpg-crimson-light) !important;
-}
-
-/* A tile that cannot be pressed says so by going quiet, not by going grey-
-   purple: same red, drained. */
-body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button:disabled,
-body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-disabled {
-    background: rgba(var(--drpg-eye-rgb), 0.07) !important;
-    border-color: rgba(var(--drpg-eye-rgb), 0.35) !important;
-    color: var(--drpg-dim) !important;
-    opacity: 1;
-}
-
-body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button:disabled i,
-body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-disabled i {
-    color: var(--drpg-dim) !important;
-}
-
 /* ---- the Projects tray's own two controls ------------------------------- */
 
 /* ONE red thing on this bar, and it is the gear.
@@ -14984,28 +14884,6 @@ body.drpg-theme-monokuma-legacy #pause.paused {
     top: calc(100% + 1.1em);
 }
 
-/* ==========================================================================
-   THE GM PANEL'S TILES: OUTLINED, THEN FILLED
-   --------------------------------------------------------------------------
-   A grid of thirteen filled red rectangles is a wall of alarm, and everything
-   on it is ordinary work. So the tile carries the red as an OUTLINE at rest -
-   enough to say which family it belongs to - and takes the fill only under the
-   pointer, where a fill means "this one, now".
-   ========================================================================== */
-
-body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button,
-body.drpg-theme-monokuma-legacy .drpg-panel .drpg-gmp-button {
-    background: transparent !important;
-    background-image: none !important;
-    border: 1px solid var(--drpg-eye) !important;
-}
-
-body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button:hover:not(:disabled),
-body.drpg-theme-monokuma-legacy .drpg-panel .drpg-gmp-button:hover:not(:disabled) {
-    background: rgba(var(--drpg-eye-rgb), 0.30) !important;
-    border-color: var(--drpg-eye-light) !important;
-}
-
 /* The version line: present, and quiet. It is a fact for the one moment
    somebody needs it, not a label on the panel. */
 .drpg-gm-panel .drpg-gmp-version {
@@ -15015,16 +14893,6 @@ body.drpg-theme-monokuma-legacy .drpg-panel .drpg-gmp-button:hover:not(:disabled
     letter-spacing: 0.08em;
     text-transform: uppercase;
     opacity: 0.55;
-}
-
-/* A destructive tile keeps crimson, and keeps it the same way round. */
-body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-destructive {
-    background: transparent !important;
-    border-color: var(--drpg-crimson) !important;
-}
-
-body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-destructive:hover:not(:disabled) {
-    background: rgba(var(--drpg-crimson-rgb), 0.28) !important;
 }
 
 /* ==========================================================================

@@ -23,7 +23,7 @@
 import { MODULE_ID, FLAGS, TIMING, LEVEL_UP, moduleVersion } from "./config.mjs";
 import { SETTINGS, getClock, getSetting, setSetting, incidentCast, seasonEpoch, deathRecordFor } from "./settings.mjs";
 import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, whisperToGms, localeFormat } from "./utils.mjs";
-import { emptyOption, drpgWindow, drpgConfirm } from "./ui-kit.mjs";
+import { emptyOption, drpgWindow, drpgConfirm, box, checkList } from "./ui-kit.mjs";
 import {
     configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated, whenGmStoresHydrated, gmStoresIdle,
     gmStoreHydration, gmStoreSkew, gmStoreNow, onGmStoresHydrated, flatToSection, previewSection, mergeSections, writeFields, dropKey, newerStamps, RECORD,
@@ -1800,10 +1800,11 @@ export async function backupCase({ ask = false } = {}) {
         // The kit's question (E21 C2b): the yes says what it does, Cancel the role's word.
         const yes = await drpgConfirm({
             classes: ["drpg-panel", "drpg-window-backup"],
-            yes: { label: game.i18n.localize("DRPG.Case.backupTile") },
+            yes: { label: game.i18n.localize("DRPG.Case.backupNow") },
             title: game.i18n.localize("DRPG.Case.backupTitle"),
+            // The early copy's warning a kit box since E47-C3 (E21's carried warning site, homed in E47).
             body: `<p>${esc(game.i18n.localize("DRPG.Case.backupWhat"))}</p>${early
-                ? `<p class="drpg-warning">${esc(game.i18n.format("DRPG.Case.backupEarly", { names: waiting.join(", ") }))}</p>` : ""}`,
+                ? box("warning", `<p>${esc(game.i18n.format("DRPG.Case.backupEarly", { names: waiting.join(", ") }))}</p>`) : ""}`,
             rejectClose: false
         });
         if (!yes) return null;
@@ -2247,8 +2248,6 @@ export async function runHealthCheck() {
     if ((!report?.missing && !decide) || healthOpen) return report;
     healthOpen = true;
     try {
-        const lines = report.rows.filter(r => r.level !== "info").map(r =>
-            `<li class="${r.level === "missing" ? "drpg-warning" : ""}">${esc(healthLine(r))}</li>`).join("");
         const fillable = report.counts?.bullets?.fillable ?? 0;
         // What a backup can bring back; a trace whose key is on its token is moved instead (C-m14).
         const restorable = report.rows.some(r => r.level === "missing" && r.id !== "tracesOnToken");
@@ -2259,8 +2258,7 @@ export async function runHealthCheck() {
         const choice = await drpgWindow({
             title: game.i18n.localize("DRPG.Case.healthTitle"),
             classes: ["drpg-panel", "drpg-window-case-health"],
-            body: `<p>${esc(game.i18n.localize(report.missing ? "DRPG.Case.healthIntro" : "DRPG.Case.decideIntro"))}</p>
-                <ul>${lines}</ul>${report.missing ? `<p class="notes">${esc(game.i18n.localize(restorable ? "DRPG.Case.healthNote" : "DRPG.Case.moveNote"))}</p>` : ""}`,
+            body: healthBody(report, { restorable }),
             footer: {
                 // The H4 decision: Keep (the default) stamps the pick again; Clear clears it.
                 primary: decide ? { action: "keepMastermind", label: game.i18n.localize("DRPG.Case.keepMastermind") }
@@ -2321,6 +2319,57 @@ export async function runHealthCheck() {
     return report;
 }
 
+/**
+ * THE HEALTH WINDOW'S BODY ON THE KIT (E47-C3, 09.11.2026; A7, the owner's 11.10: "moving the case's windows (copy,
+ * health) onto the kit"): the rows a `checkList` - a `missing` row `blocking` (the one red: the case cannot be read
+ * whole), a `conflict` row `warning` (the GM decides) - the intro above and the note under them as before. `info` rows
+ * stay out of this window, as they always did (`r.level !== "info"`): E81's notice history (`notices`) and the bytes are
+ * information rows of the report, read in diagnostics; the 3 MiB conflict is counted from `gmStoreStatus`'s `total`,
+ * which leaves `noticeHistory` out (A7). Pure over the report.
+ */
+export function healthBody(report, { restorable = false } = {}) {
+    const STATE = { missing: "blocking", conflict: "warning" };
+    const rows = (report?.rows ?? []).filter(r => r.level !== "info")
+        .map(r => ({ key: r.id, state: STATE[r.level] ?? "warning", title: healthLine(r) }));
+    return `<p>${esc(game.i18n.localize(report?.missing ? "DRPG.Case.healthIntro" : "DRPG.Case.decideIntro"))}</p>
+        ${checkList(rows, { label: game.i18n.localize("DRPG.Case.healthTitle") })}${report?.missing
+        ? `<p class="notes">${esc(game.i18n.localize(restorable ? "DRPG.Case.healthNote" : "DRPG.Case.moveNote"))}</p>` : ""}`;
+}
+
+/**
+ * THE CASE, IN ONE WINDOW (E47-C3, 09.11.2026; the owner's 27.09: "Back up the case and Restore the case become one tile
+ * in the Diagnostics section (key `fixes`), opening one window with both actions and the last copy's age"). The GM
+ * panel's case tile opens it. Back up (the primary) is `backupCase({ ask: true })` - the tile's question first, then the
+ * file; Restore from a file (secondary) is `openRestoreDialog()` - the file, its preview per store, and only then the
+ * merge: the same two functions the two tiles called, nothing of the engine (gm-store.mjs) touched. The last copy's age
+ * a fact row; Close. GM-only, as both are. Answers what the action answered, or null when closed.
+ */
+export async function openCaseWindow() {
+    if (!game.user?.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Case.gmOnly"));
+        return null;
+    }
+    const mark = caseMark();
+    const age = mark.lastBackupAt
+        ? game.i18n.format("DRPG.Case.row.lastBackup", { when: localeFormat("dateTime", mark.lastBackupAt), who: mark.lastBackupBy ?? "" })
+        : game.i18n.localize("DRPG.Case.row.neverBackedUp");
+    const choice = await drpgWindow({
+        title: game.i18n.localize("DRPG.Case.tile"),
+        classes: ["drpg-panel", "drpg-window-case-copy"],
+        // The age a fact row in the kit's body ink (components.css `.drpg-briefing-facts`), the health report's own words.
+        body: `<p class="drpg-briefing-facts" data-drpg-case-age>${esc(age)}</p>`,
+        footer: {
+            primary: { action: "backup", label: game.i18n.localize("DRPG.Case.backup") },
+            secondary: [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile") }],
+            close: { role: "close", action: "close" }
+        },
+        rejectClose: false
+    });
+    if (choice === "backup") return backupCase({ ask: true });
+    if (choice === "restore") return openRestoreDialog();
+    return null;
+}
+
 /** Whether the upgrade day's clear still stands as the health window showed it: the same pick, clear and stamps. */
 export function sameDecision(shown, now) {
     return Boolean(shown && now) && shown.pick === now.pick && shown.clearedAt === now.clearedAt && shown.pickedAt === now.pickedAt;
@@ -2373,7 +2422,7 @@ function chooseCaseFile() {
 }
 
 /**
- * The Restore tile: pick a file, see what it would do per store, and confirm -
+ * Restore from a file (the case window's secondary since E47-C3; the Restore tile before it): pick a file, see what it would do per store, and confirm -
  * with "a file of another world", each record store of another world's file, and
  * "restore anyway, under the reset's cut" as boxes the GM ticks, never defaults.
  */
@@ -2395,15 +2444,16 @@ export async function openRestoreDialog(text = null) {
             c.notThisWorld ? plural("DRPG.Case.previewNotThisWorld", { n: c.notThisWorld }) : ""].filter(Boolean);
         return `<li>${esc([line, ...more].join(" "))}</li>`;
     }).join("");
-    const box = (name, label) => `<label class="drpg-checkbox"><input type="checkbox" name="${name}" /> ${esc(label)}</label>`;
+    // `tick`, not `box` (E47-C3): the kit's `box` is imported into this file.
+    const tick = (name, label) => `<label class="drpg-checkbox"><input type="checkbox" name="${name}" /> ${esc(label)}</label>`;
     const records = known.filter(([, c]) => c.record).map(([name]) => name);
     const answer = await drpgWindow({
         title: game.i18n.localize("DRPG.Case.restoreTitle"),
         classes: ["drpg-panel", "drpg-window-restore-case"],
         body: `<form><ul>${rows}</ul>
-            ${preview.otherWorld ? box("otherWorld", game.i18n.format("DRPG.Case.otherWorld", { title: preview.world?.title ?? preview.world?.id ?? "?" })) : ""}
-            ${records.map(name => box(`record-${name}`, game.i18n.format("DRPG.Case.otherWorldRecord", { store: storeLabel(name) }))).join("")}
-            ${box("beforeCut", game.i18n.localize("DRPG.Case.beforeCut"))}
+            ${preview.otherWorld ? tick("otherWorld", game.i18n.format("DRPG.Case.otherWorld", { title: preview.world?.title ?? preview.world?.id ?? "?" })) : ""}
+            ${records.map(name => tick(`record-${name}`, game.i18n.format("DRPG.Case.otherWorldRecord", { store: storeLabel(name) }))).join("")}
+            ${tick("beforeCut", game.i18n.localize("DRPG.Case.beforeCut"))}
             <p class="notes">${esc(game.i18n.localize("DRPG.Case.restoreNote"))}</p></form>`,
         footer: {
             primary: { action: "restore", label: game.i18n.localize("DRPG.Case.restore"),

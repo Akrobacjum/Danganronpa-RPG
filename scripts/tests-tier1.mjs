@@ -43178,7 +43178,220 @@ const INVARIANTS = [
             "{opened: Students windows drawn on a player; changes: changeRole's answers from a player; answer: openWhoIsAliveDialog's; writes: the stand-ins' writes; "
             + "refund: [Refund's class the secondary role's, its data-drpg-role, the role's class]}");
     }],
+
+    /* ---- E47-C3 (09.11.2026): the GM panel's tiles and the case window (MARKED) ---- */
+
+    ["R2060 - the GM panel's Murder tile in an Eclipse: live while an incident runs (it opens the tracker), disabled with its reason while none does (E47-C3; audit S10-53)", async () => {
+        /*
+         * E47-C3, 09.11.2026; audit S10-53. The tile asked `isEclipse()` alone, so a GM in an Eclipse with a fight
+         * running could not reach the incident tracker from the panel - the one window that fight needs. Now it is
+         * disabled only in an Eclipse with no incident (`openMurderDialog` opens the tracker while a murder stands, and
+         * `openMurder` still refuses a new murder in an Eclipse). Read through `buildSections` in a world read as each
+         * state (`panelUnder`: `game.settings.get` answers the clock and the murder's world half, nothing written): the
+         * tile's `disabled`, its `title`, and the text its `aria-describedby` names. Red on 56517337: disabled in both
+         * Eclipse states, with no aria-describedby.
+         */
+        const reason = game.i18n.localize("DRPG.Eclipse.panelLocked");
+        const read = state => panelUnder(state, root => {
+            const tile = root.querySelector('[data-drpg-run="murder"]');
+            if (!tile) return "no tile";
+            const said = tile.getAttribute("aria-describedby");
+            return [tile.disabled, tile.getAttribute("title"), said ? root.querySelector(`[id="${said}"]`)?.textContent?.trim() ?? "no element" : null];
+        });
+        equal(stableJson({ incident: await read({ eclipse: true, incident: true }), none: await read({ eclipse: true }), day: await read({}) }),
+            stableJson({ incident: [false, null, null], none: [true, reason, reason], day: [false, null, null] }),
+            "{incident: an Eclipse with an incident; none: an Eclipse with none; day: neither} each [the tile disabled, its title, the text its aria-describedby names]");
+    }],
+    ["R2061 - a GM panel tile that cannot be pressed is drawn so in both themes - a dashed edge, its icon dimmed, its reason in aria-describedby - and the phase's tile is current with the pressed look (E47-C3; audit S10-64)", async () => {
+        /*
+         * E47-C3, 09.11.2026; audit S10-64. A disabled tile was only faded (Legacy) or dashed by the glass's shared button
+         * rule, its reason in `title` alone; no tile said which one the table was on. Read: the tiles marked current in
+         * each phase (`panelUnder`); then the cascade of the module's sheets (`styleCascade`, from their text) on the
+         * Murder tile drawn disabled in an Eclipse with no incident, inside the panel's window classes, in each theme: its
+         * edge's style (the rule in components.css, after the glass's route rule, and outranking the glass's shared button
+         * rule, 0,5,2), its icon's opacity; and a current tile's pressed look -
+         * the kit's on-ground under Legacy, the glass's brush on under Stained Glass (no new colour). Red on 56517337: no
+         * current tile, no aria-describedby, the Legacy edge solid (`!important`), no rule of the tile's in components.css.
+         */
+        const marks = async state => panelUnder(state, root => [...root.querySelectorAll(".is-current")].map(t => [t.dataset.drpgRun, t.getAttribute("aria-current")]));
+        equal(stableJson({ day: await marks({}), incident: await marks({ eclipse: true, incident: true }), investigation: await marks({ phase: "investigation", incident: true }),
+            trial: await marks({ phase: "classTrial" }) }),
+            stableJson({ day: [], incident: [["murder", "true"]], investigation: [["investigation", "true"]], trial: [["trial", "true"]] }),
+            "{in each state: the tiles drawn is-current with their aria-current} - Daily Life with no incident, an Eclipse with one, Investigation, a Class Trial");
+        const drawn = await panelUnder({ eclipse: true }, root => root.innerHTML);
+        const C = await styleCascade();
+        const v = (el, names) => {
+            const w = el ? C.winner(el, names) : null;
+            return w ? `${w.value}${w.important ? " !important" : ""} | ${w.file}` : null;
+        };
+        const read = theme => {
+            const html = document.createElement("html"), body = document.createElement("body"), app = document.createElement("div"), inner = document.createElement("div");
+            body.className = theme;
+            app.className = "application dialog drpg-ui drpg-panel drpg-gm-panel-window drpg-window-panel";
+            inner.className = "drpg-gm-panel";
+            inner.innerHTML = drawn;
+            app.append(inner);
+            body.append(app);
+            html.append(body);
+            const murder = inner.querySelector('[data-drpg-run="murder"]');
+            const current = inner.querySelector('[data-drpg-run="investigation"]')?.cloneNode(true);
+            current?.classList.add("is-current");
+            if (current) inner.querySelector('[data-drpg-run="investigation"]').after(current);
+            const said = murder?.getAttribute("aria-describedby");
+            return {
+                disabled: Boolean(murder?.disabled), said: said ? inner.querySelector(`[id="${said}"]`)?.textContent?.trim() ?? "no element" : null,
+                edge: v(murder, ["border", "border-style"]), icon: v(murder?.querySelector("i"), "opacity"),
+                current: theme.includes("legacy") ? [v(current, ["background", "background-color"]), v(current, ["border", "border-color"]), v(current, "color")] : [v(current, "--brush-on"), v(current, "--brush-ink")]
+            };
+        };
+        const reason = game.i18n.localize("DRPG.Eclipse.panelLocked");
+        const sheet = "styles/components.css";
+        const both = { disabled: true, said: reason, edge: `dashed | ${sheet}`, icon: `0.45 | ${sheet}` };
+        equal(stableJson({ legacy: read("drpg-theme-monokuma-legacy"), glass: read("drpg-theme-stained-glass") }), stableJson({
+            legacy: { ...both, current: [`var(--drpg-kit-btn-on-bg) | ${sheet}`, `var(--drpg-kit-btn-on-edge) | ${sheet}`, `var(--drpg-kit-btn-on-ink) | ${sheet}`] },
+            glass: { ...both, current: [`1 | ${sheet}`, `var(--drpg-sg-ink) | ${sheet}`] }
+        }), "{per theme: the Murder tile disabled, the text its aria-describedby names, its edge's style (the winning value | its sheet), its icon's opacity, "
+            + "a current tile's look (Legacy: ground, edge, ink; Stained Glass: the brush on, its ink)}");
+    }],
+    ["R2062 - the GM panel's tiles hold their content centred in both themes: icon and label in a row centred across it under Legacy, stacked and centred along it under Stained Glass (E47-C3; the owner's 27.09)", async () => {
+        /*
+         * E47-C3, 09.11.2026; the owner's 27.09 ("on the GM panel's taller tiles the icon and the label stand centred
+         * vertically too ... equal space above and below in every tile of a row"). Measured on 56517337 before this commit
+         * in Chromium (probe 08's gm-panel page, S/stages/E46/scratch/e47-c3/shots/before-measure.json): every one of the 19
+         * tiles drawn had the same space above and below its content in both themes, at 1366x768 and 1920x1080 (glass 11/11
+         * px in rows 80-172 px tall; Legacy 10/10 to 26.6/26.6 px) - the ask held already, so this holds it: the cascade of
+         * the tile's flex rules (`styleCascade`) in each theme. Green on 56517337; red by the planted c3-m1 (the glass's
+         * `justify-content: center` taken out of its tile rule).
+         */
+        const C = await styleCascade();
+        const read = theme => {
+            const html = document.createElement("html"), body = document.createElement("body"), app = document.createElement("div"), inner = document.createElement("div");
+            body.className = theme;
+            app.className = "application dialog drpg-ui drpg-panel drpg-gm-panel-window drpg-window-panel";
+            inner.className = "drpg-gm-panel";
+            inner.innerHTML = `<div class="drpg-gmp-sections"><details class="drpg-gmp-section" open><summary>S</summary><div class="drpg-gmp-grid">`
+                + `<button type="button" class="drpg-gmp-button" data-drpg-run="x"><i class="fa-solid fa-skull" inert></i><span>X</span></button></div></details></div>`;
+            app.append(inner);
+            body.append(app);
+            html.append(body);
+            const tile = inner.querySelector("button");
+            return ["display", "flex-direction", "align-items", "justify-content"].map(p => C.winner(tile, p)?.value ?? null);
+        };
+        equal(stableJson({ legacy: read("drpg-theme-monokuma-legacy"), glass: read("drpg-theme-stained-glass") }),
+            stableJson({ legacy: ["flex", null, "center", null], glass: ["flex", "column", "center", "center"] }),
+            "{per theme: the tile's display, flex-direction, align-items, justify-content as the sheets' cascade wins them (null: none declared, the row and its start)}");
+    }],
+    ["R2063 - one case tile in the GM panel's Diagnostics with the last copy's age; Back up the case and Restore the case gone from every section; diagnostics.mjs and every lang text name the new tile (E47-C3; the owner's 27.09)", async () => {
+        /*
+         * E47-C3, 09.11.2026; the owner's 27.09: "Back up the case and Restore the case become one tile in the Diagnostics
+         * section (key `fixes`), opening one window with both actions and the last copy's age". Read: every section's tiles
+         * in order (D31: 56517337's order, the two tiles taken out of Between sessions and the one case tile last in
+         * Diagnostics); the case tile's section, label and second line (`backupAge`'s words from the world's case mark);
+         * diagnostics.mjs's lines naming the GM panel's backup; every lang text in either file naming the old tiles (the
+         * two windows' own titles, the chapter's end's own button, its reminder and gmOnly are not tiles), and the two old
+         * keys. Red on 56517337: two tiles in Between sessions, none in Diagnostics, the hints "(Back up the case)". The
+         * mutant c3-m9 (an old tile left in PANEL_SECTIONS) reads red here.
+         */
+        const S = await import("./gm-stores.mjs");
+        const { plural } = await import("./utils.mjs");
+        const tiles = await panelUnder({}, root => [...root.querySelectorAll(".drpg-gmp-section")].map(s => [s.dataset.drpgKey, [...s.querySelectorAll("[data-drpg-run]")].map(t => t.dataset.drpgRun)]));
+        const caseTile = await panelUnder({}, root => {
+            const t = root.querySelector('[data-drpg-run="caseWindow"]');
+            return t ? [t.closest("details")?.dataset.drpgKey ?? null, t.querySelector("span")?.textContent?.trim(), t.querySelector("small.notes")?.textContent?.trim() ?? null] : null;
+        });
+        const at = S.caseMark().lastBackupAt;
+        const days = at ? Math.floor((Date.now() - at) / 86400000) : null;
+        const age = !at ? game.i18n.localize("DRPG.Case.backupNever") : days < 1 ? game.i18n.localize("DRPG.Case.backupToday") : plural("DRPG.Case.backupAgo", { n: days });
+        const sources = new Map(await moduleSources());
+        const diag = stripComments(sources.get("diagnostics.mjs") ?? "");
+        const lang = async code => {
+            const flat = {};
+            const walk = (o, p) => { for (const [k, x] of Object.entries(o)) typeof x === "string" ? (flat[p + k] = x) : walk(x, `${p}${k}.`); };
+            walk(await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()), "");
+            return flat;
+        };
+        const NOT_TILES = ["DRPG.Case.backupTitle", "DRPG.Case.restoreTitle", "DRPG.Case.backupNow", "DRPG.Case.chapterReminder", "DRPG.Case.gmOnly"];
+        const naming = (flat, re) => Object.entries(flat).filter(([k, x]) => re.test(x) && !NOT_TILES.includes(k)).map(([k]) => k);
+        const en = await lang("en"), pl = await lang("pl");
+        const where = `${en["DRPG.Panel.section.fixes"]}, ${en["DRPG.Case.tile"]}`;
+        equal(stableJson({
+            tiles, caseTile, diag: [(diag.match(/\(Back up the case\)/g) ?? []).length, diag.split(where).length - 1],
+            en: naming(en, /back up the case|restore the case/i), pl: naming(pl, /Kopia sprawy|kopię sprawy|Przywróć sprawę/),
+            keys: ["DRPG.Case.backupTile", "DRPG.Case.restoreTile"].map(k => [k in en, k in pl])
+        }), stableJson({
+            tiles: [["now", ["whoIsAlive", "projects", "sound", "rules"]], ["case", ["murder", "investigation", "trial"]],
+                ["between", ["jump", "gmTeam", "roomSetup", "tables", "voiceReset", "seasonSetup", "mastermind", "chapterEndTile", "seasonReset"]],
+                ["fixes", ["failureLog", "caseWindow"]]],
+            caseTile: ["fixes", en["DRPG.Case.tile"] === undefined ? "?" : game.i18n.localize("DRPG.Case.tile"), age],
+            diag: [0, 2], en: [], pl: [], keys: [[false, false], [false, false]]
+        }), "{tiles: every section's tiles in order; caseTile: [its section, label, second line]; diag: [diagnostics.mjs's \"(Back up the case)\", its lines naming "
+            + "\"Diagnostics, The case\"]; en, pl: the lang texts naming the old tiles; keys: [the old tile keys in en, in pl]}");
+    }],
+    ["R2064 - the case's health window on the kit's checkList, a missing row blocking and a conflict a warning, info rows out; E81's notice history its own information row; gmStoreStatus leaves noticeHistory out of the 3 MiB sum (E47-C3; A7, the owner's 11.10)", async () => {
+        /*
+         * E47-C3, 09.11.2026; A7 (the owner's 11.10: "moving the case's windows (copy, health) onto the kit, E81's notice
+         * history row stays a separate information row, and the key `noticeHistory` stays subtracted from the sum the 3 MiB
+         * conflict is counted from"). Read: `runHealthCheck`'s source (no `drpg-warning` row, the body from `healthBody`);
+         * `healthBody` on a report of three rows (missing, conflict, info); this world's report's `notices` and `bytes`
+         * rows; `gmStoreStatus` over a stand-in storage holding the history, another key of the module and another
+         * module's key. Red on 56517337: `li.drpg-warning`, no healthBody. The sum is green on 56517337 and red by the
+         * mutant c3-m6 (the history counted in `total`).
+         */
+        const S = await import("./gm-stores.mjs");
+        const run = stripComments(fnSource(stripComments(new Map(await moduleSources()).get("gm-stores.mjs") ?? ""), "runHealthCheck") ?? "");
+        const report = { missing: 1, rows: [
+            { id: "gone", level: "missing", key: "DRPG.Case.row.unseen", data: {} },
+            { id: "twice", level: "conflict", key: "DRPG.Case.row.unseen", data: {} },
+            { id: "notices", level: "info", key: "DRPG.Case.row.notices", data: { notices: 1 } }
+        ] };
+        let body = "no healthBody";
+        if (typeof S.healthBody === "function") {
+            const root = document.createElement("div");
+            root.innerHTML = S.healthBody(report, { restorable: true });
+            body = [root.querySelectorAll("ul.drpg-checklist").length, [...root.querySelectorAll("li.drpg-check-row")].map(li => [li.dataset.drpgKey, li.dataset.drpgState]),
+                root.querySelectorAll(".drpg-warning").length, root.querySelector("p.notes")?.textContent?.trim() === game.i18n.localize("DRPG.Case.healthNote")];
+        }
+        const health = await S.gmStoreHealth();
+        const rowOf = id => health?.rows?.find(r => r.id === id) ?? null;
+        const history = `${MODULE_ID}.${SETTINGS.noticeHistory}`, other = `${MODULE_ID}.suiteR2064`;
+        const held = { [history]: "n".repeat(5000), [other]: "o".repeat(10), "another-module.suiteR2064": "x".repeat(700) };
+        const keys = Object.keys(held);
+        const client = { length: keys.length, key: i => keys[i], getItem: k => held[k] ?? null };
+        const status = S.gmStoreStatus(client);
+        equal(stableJson({
+            source: [/drpg-warning/.test(run), /healthBody\(/.test(run)], body,
+            rows: [rowOf("notices")?.level ?? null, rowOf("bytes") ? "own row" : null],
+            sum: [status.total, status.notices]
+        }), stableJson({
+            source: [false, true], body: [1, [["gone", "blocking"], ["twice", "warning"]], 0, true],
+            rows: ["info", "own row"], sum: [other.length + 10, history.length + 5000]
+        }), "{source: [runHealthCheck draws a drpg-warning row, its body from healthBody]; body: [checklists, rows [key, state], drpg-warning, the note]; "
+            + "rows: [the notice history row's level, the bytes row apart]; sum: [gmStoreStatus total, notices] over a stand-in storage}");
+    }],
 ];
+
+/**
+ * The GM panel's tiles as `buildSections` draws them in a world read as `state` (E47-C3, for R2060-R2063):
+ * `game.settings.get` answers the clock's `eclipse` and `phase` and the murder's world half (`active`) as asked while the
+ * tiles are built, the settings themselves untouched (tier 1 writes nothing). `read(root)` reads the drawn markup.
+ */
+async function panelUnder({ eclipse = false, incident = false, phase = "dailyLife" } = {}, read) {
+    const P = await import("./gm-panel.mjs");
+    must(typeof P.buildSections === "function", "gm-panel.mjs exports no buildSections - this would measure nothing");
+    const real = game.settings.get;
+    game.settings.get = function (scope, key, ...rest) {
+        const value = real.call(this, scope, key, ...rest);
+        if (scope !== MODULE_ID) return value;
+        if (key === SETTINGS.murderState) return incident ? { ...(value ?? {}), active: true } : { active: false };
+        if (key === SETTINGS.clock) return { ...(value ?? {}), eclipse, phase };
+        return value;
+    };
+    let markup;
+    try { markup = P.buildSections(); } finally { game.settings.get = real; }
+    const root = document.createElement("div");
+    root.innerHTML = markup;
+    return read(root);
+}
 
 /**
  * A world read as one with no incident and no Eclipse (E47-C2, for R2056-R2058): `game.settings.get` answers the

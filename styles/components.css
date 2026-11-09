@@ -2880,3 +2880,73 @@ body .application.drpg-project-form .drpg-form-full > .drpg-specific-note > text
 .drpg-window-alive tbody tr[data-actor]:hover { background: var(--drpg-alive-row-hover-bg); }
 .drpg-window-alive td.drpg-data-col-silenced { text-align: center; }
 .drpg-window-alive td.drpg-data-col-name { white-space: nowrap; }
+
+/* ---- the GM panel's tiles and the case window (E47-C3, 09.11.2026; audit S10-53, S10-64, the owner's 27.09 and A7) ----
+   The tiles' look under Legacy moved here from danganronpa.css, where three layers of `!important` rules (a Bone wash,
+   then the eye's red, then the outline at rest) left this one: the eye's outline, no ground, the bone ink; the fill
+   under the pointer. Without `!important`: the window's classes outrank every base rule of the tile, and a disabled
+   tile's dashed edge could not win over an `!important` edge (S10-64). The glass keeps its brush (stained-glass.css's
+   shared button rules); the states below write it. A destructive tile wears crimson in both themes (it was one
+   unscoped `!important` rule). R2061 reads the cascade. The grounds are the window's own properties, read below. */
+body .application.drpg-window-panel {
+    --drpg-gmp-hover-bg: rgba(var(--drpg-eye-rgb), 0.3);
+    --drpg-gmp-route-hover-bg: rgba(var(--drpg-crimson-rgb), 0.28);
+    --drpg-gmp-route-bg: rgba(var(--drpg-crimson-rgb), 0.14);
+    --drpg-gmp-off-bg: rgba(var(--drpg-eye-rgb), 0.07);
+    --drpg-gmp-off-edge: rgba(var(--drpg-eye-rgb), 0.35);
+}
+body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button {
+    color: var(--drpg-bone);
+    background: transparent;
+    border: 1px solid var(--drpg-eye);
+    border-radius: 4px;
+    box-shadow: none;
+}
+body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button > i { color: var(--drpg-eye-light); }
+/* The case tile's second line beside its label under Legacy (a row): the line takes the width of its longest word and
+   wraps, so the label keeps its own - "Sprawa" broke into "Spra / wa" against "ostatnia kopia: nigdy" (Chromium, 1366x768). */
+body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button > small.notes { flex: 0 1 min-content; }
+body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button:hover:not(:disabled) {
+    background: var(--drpg-gmp-hover-bg);
+    border-color: var(--drpg-eye-light);
+}
+body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button.drpg-destructive { border-color: var(--drpg-crimson); }
+body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button.drpg-destructive > i { color: var(--drpg-crimson-light); }
+body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button.drpg-destructive:hover:not(:disabled) { background: var(--drpg-gmp-route-hover-bg); }
+body.drpg-theme-stained-glass .application.drpg-window-panel .drpg-gmp-button.drpg-destructive {
+    background-color: var(--drpg-gmp-route-bg);
+    border-color: var(--drpg-crimson);
+}
+/* A TILE THAT CANNOT BE PRESSED SAYS SO (S10-64): a dashed edge and its icon dimmed in both themes, the reason in its
+   title and in `aria-describedby` (gm-panel.mjs `buildSections`). After the glass's route rule in the cascade (a later
+   sheet), and `drpg-disabled` with the panel's classes outranks the glass's shared button rule (0,6,1 against 0,5,2). */
+body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-button.drpg-disabled:disabled {
+    border-style: dashed;
+    cursor: not-allowed;
+}
+body .application.drpg-window-panel .drpg-gmp-button.drpg-disabled:disabled > i { opacity: 0.45; }
+body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button:disabled {
+    color: var(--drpg-dim);
+    background: var(--drpg-gmp-off-bg);
+    border-color: var(--drpg-gmp-off-edge);
+}
+body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button:disabled > i { color: var(--drpg-dim); }
+/* THE TILE OF THE PHASE THE TABLE IS IN (`is-current`, S10-64): the pressed look, no new colour - the kit's on-ground
+   under Legacy (a pressed mode's), the brush on under the glass (a pressed button's). */
+body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button.is-current {
+    color: var(--drpg-kit-btn-on-ink);
+    background: var(--drpg-kit-btn-on-bg);
+    border-color: var(--drpg-kit-btn-on-edge);
+}
+body.drpg-theme-stained-glass .application.drpg-window-panel .drpg-gmp-button.is-current {
+    --brush-on: 1;
+    --brush-ink: var(--drpg-sg-ink);
+    --brush-edge: var(--brush);
+}
+/* DIAGNOSTICS LIKE THE OTHER SECTIONS (S10-64): its summary the others' plate and face; only its words dimmed (the
+   section was faded whole under Legacy, and its plate the dim bone under the glass). An `em`, not a `span`: the glass
+   pins every span in the panel to its floor size. */
+body .application.drpg-window-panel .drpg-gmp-section > summary > em.drpg-gmp-dim {
+    font-style: normal;
+    opacity: 0.6;
+}

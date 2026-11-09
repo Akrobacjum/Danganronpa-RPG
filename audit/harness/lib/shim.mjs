@@ -1523,6 +1523,10 @@ export function buildApplications(ctx) {
      */
     // `content` may be a string or an element (the module's `dialogContent` hands over a div).
     const contentText = c => typeof c === "string" ? c : (c?.outerHTML ?? "");
+    /* The words of the content, its markup taken out, clipped at 1200 (E47-C3, 09.11.2026): a window on the kit's
+       components (a checkList's marks and spans) carries some 300 characters of markup a row, so the first 400 of
+       `content` held one row of the case's health window and scenario 61's Z2 read the second from `text`. */
+    const contentWords = c => contentText(c).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 1200);
     // Headless, a window that reopens itself after its default button (the trial console,
     // the item tables) would recurse forever: the default is pressed, the callback reopens
     // the window, the default is pressed again. A human never does that. Past this depth
@@ -1601,7 +1605,7 @@ export function buildApplications(ctx) {
         }
         static async wait(config = {}) {
             const title = config.window?.title ?? "?";
-            globalThis.__dialogLog.push({ kind: "wait", title, content: contentText(config.content).slice(0, 400), buttons: (config.buttons ?? []).map(b => b.action) });
+            globalThis.__dialogLog.push({ kind: "wait", title, content: contentText(config.content).slice(0, 400), text: contentWords(config.content), buttons: (config.buttons ?? []).map(b => b.action) });
             const queued = globalThis.__dialogAnswers.shift();
             if (queued !== undefined) {
                 const v = typeof queued === "function" ? await queued(config) : queued;

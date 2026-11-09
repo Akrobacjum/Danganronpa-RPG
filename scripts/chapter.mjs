@@ -1861,7 +1861,7 @@ export function chapterEndForm({ chapter, session, day, hidden = 0, typeless = 0
             ${mastermind ? `<p class="notes${finalTruthPlaced ? "" : " drpg-warning"}" data-drpg-final-truth>${game.i18n.localize(
                 finalTruthPlaced ? "DRPG.Mastermind.finalTruthPlaced" : "DRPG.Chapter.finalTruthMissing")}</p>` : ""}
             <p class="notes">${esc(backup)}
-                <button type="button" data-drpg-backup>${esc(game.i18n.localize("DRPG.Case.backupTile"))}</button></p>
+                <button type="button" data-drpg-backup>${esc(game.i18n.localize("DRPG.Case.backupNow"))}</button></p>
         </form>`;
 }
 

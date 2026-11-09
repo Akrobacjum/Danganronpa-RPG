@@ -84329,6 +84329,137 @@ const SCENARIOS = [
             + "levelUp: [the menus' rows, the offers standing, the player told, the row's words, the words for them]; items: [the hub's character, Students windows while it ran, after it]; "
             + "forged: [judged, the flag after the put-back, the select]}");
     }],
+
+    /* ---- E47-C3 (09.11.2026): the GM panel's tiles and the case window (MARKED) ---- */
+
+    ["E47-T3 - the GM panel's Murder tile in an Eclipse during an incident opens the incident tracker (E47-C3; audit S10-53): a direct murder opened between two students, then an Eclipse - the panel's Murder tile live, and pressed, the tracker", async () => {
+        /*
+         * E47-C3, 09.11.2026; audit S10-53. Here, on this GM's browser with real windows: an incident opened as E47-T2
+         * opens one (invitations held), then the clock's Eclipse turned on (an incident cannot open in one); the panel
+         * opened and its Murder tile read and pressed (the click the panel's delegated listener reads; the tile, not the Next
+         * line's "Open the incident", which carries the same `data-drpg-run`). Read: the tile's
+         * `disabled`, and the trackers standing after the press. The incident is ended and the clock put back. Red on
+         * 56517337: the tile disabled, and a press on it opens nothing.
+         */
+        needs(env.dialogs(), "the panel and the tracker are drawn windows");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player the invitation goes to");
+        must(game.user.isGM, "the GM panel is a GM's");
+        const M = await import("./murder.mjs");
+        const { openGmPanel } = await import("./gm-panel.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const drawn = cls => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes(cls));
+        must(!M.murderState(), "an incident runs - this test opens its own");
+        must(!drawn("drpg-window-panel").length && !drawn("drpg-window-incident").length, "a GM panel or a tracker is open - close it: this test opens its own");
+        const clockWas = game.settings.get(MODULE_ID, SETTINGS.clock);
+        must(!clockWas?.eclipse, "an Eclipse runs - this test starts its own");
+        const read = {};
+        const opened = [];
+        try {
+            await heldInvitations(async () => {
+                await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+                must(M.murderState()?.active, `the fixture's incident did not open: ${stableJson(M.murderState())}`);
+                await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clockWas, eclipse: true });
+                await settle();
+                opened.push(Promise.resolve().then(() => openGmPanel()).catch(() => null));
+                const tile = () => drawn("drpg-window-panel")[0]?.element?.querySelector('.drpg-gmp-button[data-drpg-run="murder"]') ?? null;
+                must(await until(() => tile(), 6000), "the GM panel did not open with its Murder tile");
+                read.state = [game.settings.get(MODULE_ID, SETTINGS.clock)?.eclipse === true, Boolean(M.murderState()?.active), drawn("drpg-window-incident").length];
+                read.disabled = tile().disabled;
+                tile().click();
+                await until(() => drawn("drpg-window-incident").length, 6000);
+                await wait(300);
+                read.trackers = drawn("drpg-window-incident").length;
+            });
+        } finally {
+            for (const cls of ["drpg-window-incident", "drpg-window-panel"]) for (const app of drawn(cls)) await app.close().catch(() => {});
+            await Promise.race([Promise.all(opened), wait(3000)]);
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
+            await settle();
+            for (const app of drawn("drpg-window-panel")) await app.close().catch(() => {});
+        }
+        equal(stableJson(read), stableJson({ state: [true, true, 0], disabled: false, trackers: 1 }),
+            "{state: [an Eclipse, an incident, trackers standing] when the panel stood; disabled: its Murder tile; trackers: the incident trackers standing after it was pressed}");
+    }],
+    ["E47-T4 - Back up, then Restore from a file, through the GM panel's one case window brings the stores back, the preview shown before anything is written (E47-C3, MARKED; the owner's 27.09)", async () => {
+        /*
+         * E47-C3, 09.11.2026; the owner's 27.09. Here, as the GM with real windows: two GM stores given a row each
+         * through their own writers (a parked declaration, an Eclipse's crossing - named for nothing that runs); the case
+         * tile pressed on the panel, its window's Back up pressed and the question's yes (the file taken from
+         * saveDataToFile); both stores forgotten on this browser (`forget`: memory only, written nowhere until the restore);
+         * the case window opened again, Restore from a file pressed (the file picker answered with that file: the input's
+         * click and `readTextFromFile` stood in for, so `openRestoreDialog`'s own road runs); its preview read while it
+         * stands - both rows still gone - and its Restore pressed. Read: the windows each press opened, the rows at the
+         * preview and after. Red on 56517337: no case tile. The mutant c3-m8 (the case window's Restore merging the
+         * file without the preview) reads red here: no preview window, the rows back before one.
+         */
+        needs(env.dialogs(), "the panel, the case window, the question and the preview are drawn and pressed");
+        must(game.user.isGM, "the case is a GM's");
+        const S = await import("./gm-stores.mjs");
+        const { openGmPanel } = await import("./gm-panel.mjs");
+        const [holder] = cast(1);
+        const drawn = cls => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes(cls));
+        const CLASSES = ["drpg-window-panel", "drpg-window-case-copy", "drpg-window-backup", "drpg-window-restore-case"];
+        must(CLASSES.every(cls => !drawn(cls).length), "a GM panel or a case window is open - close it: this test opens its own");
+        must(!S.pendingMurderStore.has(holder.id) && !S.eclipseMoveStore.has(holder.id), "the fixture's student has a row in a store this test writes - this would measure nothing");
+        const rows = () => [S.pendingMurderStore.get(holder.id)?.note ?? null, S.eclipseMoveStore.get(holder.id)?.eclipse ?? null];
+        const press = async (cls, action) => {
+            must(await until(() => drawn(cls)[0]?.element?.querySelector(`button[data-action="${action}"]`), 6000), `no ${cls} window with a ${action} button`);
+            drawn(cls)[0].element.querySelector(`button[data-action="${action}"]`).click();
+        };
+        const saveDataToFile = foundry.utils.saveDataToFile, readTextFromFile = foundry.utils.readTextFromFile;
+        const click = globalThis.HTMLInputElement.prototype.click;
+        let saved = null;
+        const read = {};
+        const opened = [];
+        try {
+            foundry.utils.saveDataToFile = data => { saved = data; };
+            foundry.utils.readTextFromFile = async () => saved;
+            globalThis.HTMLInputElement.prototype.click = function () {
+                if (this.type !== "file") return click.call(this);
+                Object.defineProperty(this, "files", { value: [new Blob([saved ?? ""])], configurable: true });
+                this.dispatchEvent(new Event("change"));
+            };
+            await S.pendingMurderStore.patch(holder.id, { room: "SUITE E47-T4 room", note: "SUITE E47-T4 declaration", at: 1, approved: null, eclipse: null });
+            await S.eclipseMoveStore.patch(holder.id, { used: 1, eclipse: "SUITE E47-T4 Eclipse" });
+            read.seeded = rows();
+            opened.push(Promise.resolve().then(() => openGmPanel()).catch(() => null));
+            const tile = () => drawn("drpg-window-panel")[0]?.element?.querySelector('.drpg-gmp-button[data-drpg-run="caseWindow"]') ?? null;
+            must(await until(() => tile(), 6000), "the GM panel did not open with a case tile");
+            tile().click();
+            await press("drpg-window-case-copy", "backup");
+            await press("drpg-window-backup", "yes");
+            read.saved = await until(() => saved, 6000) ? JSON.parse(saved).format === S.CASE_FORMAT : "no file";
+            await until(() => drawn("drpg-window-panel").length, 6000);
+            for (const app of drawn("drpg-window-panel")) await app.close();
+            await S.pendingMurderStore.forget();
+            await S.eclipseMoveStore.forget();
+            read.forgotten = rows();
+            opened.push(Promise.resolve().then(() => S.openCaseWindow()).catch(() => null));
+            await press("drpg-window-case-copy", "restore");
+            read.preview = await until(() => drawn("drpg-window-restore-case").length, 6000)
+                ? [drawn("drpg-window-restore-case")[0].element.querySelectorAll("li").length > 0, rows()] : ["no preview", rows()];
+            if (drawn("drpg-window-restore-case").length) await press("drpg-window-restore-case", "restore");
+            await until(() => rows()[0] && rows()[1], 6000);
+            await settle();
+            read.back = rows();
+        } finally {
+            foundry.utils.saveDataToFile = saveDataToFile;
+            foundry.utils.readTextFromFile = readTextFromFile;
+            globalThis.HTMLInputElement.prototype.click = click;
+            for (const cls of CLASSES) for (const app of drawn(cls)) await app.close().catch(() => {});
+            await Promise.race([Promise.all(opened), wait(3000)]);
+            for (const app of drawn("drpg-window-panel")) await app.close().catch(() => {});
+            if (S.pendingMurderStore.has(holder.id)) await S.pendingMurderStore.drop(holder.id);
+            if (S.eclipseMoveStore.has(holder.id)) await S.eclipseMoveStore.drop(holder.id);
+            await settle();
+        }
+        const rowsIn = ["SUITE E47-T4 declaration", "SUITE E47-T4 Eclipse"];
+        equal(stableJson(read), stableJson({ seeded: rowsIn, saved: true, forgotten: [null, null], preview: [true, [null, null]], back: rowsIn }),
+            "{seeded: the two rows; saved: the file a case file; forgotten: the rows after forget; preview: [its rows drawn, the rows while it stands]; back: the rows after its Restore}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
