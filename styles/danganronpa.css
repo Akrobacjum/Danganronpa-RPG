@@ -1131,8 +1131,8 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     border: 1px solid light-dark(rgba(var(--drpg-shadow-rgb), 0.25), rgba(var(--drpg-bone-rgb), 0.18));
     background: light-dark(rgba(var(--drpg-bone-rgb), 0.82), rgba(var(--drpg-deep-rgb), 0.72));
     /* DEAD, AND KEPT ONLY SO THE NEXT READER DOES NOT COUNT IT: the block rule further
-       down this file - `#drpg-despair, #drpg-hud, #drpg-player-status, #countdowns,
-       #players` - has the same weight and comes later, and it reads
+       down this file - `#drpg-despair, #drpg-hud, #drpg-player-status, #countdowns`
+       - has the same weight and comes later, and it reads
        `var(--drpg-panel-blur)`, which is `none`. Asked of Chromium through
        `CSS.getMatchedStylesForNode` rather than read off the file (15.09). */
     backdrop-filter: blur(3px);
@@ -1364,8 +1364,8 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     border: 1px solid var(--drpg-blood-deep);
     background: light-dark(rgba(var(--drpg-bone-rgb), 0.85), rgba(var(--drpg-deep-rgb), 0.78));
     /* DEAD, AND KEPT ONLY SO THE NEXT READER DOES NOT COUNT IT: the block rule further
-       down this file - `#drpg-despair, #drpg-hud, #drpg-player-status, #countdowns,
-       #players` - has the same weight and comes later, and it reads
+       down this file - `#drpg-despair, #drpg-hud, #drpg-player-status, #countdowns`
+       - has the same weight and comes later, and it reads
        `var(--drpg-panel-blur)`, which is `none`. Asked of Chromium through
        `CSS.getMatchedStylesForNode` rather than read off the file (15.09). */
     backdrop-filter: blur(3px);
@@ -7681,17 +7681,16 @@ body[data-drpg-phase="classTrial"] {
    because the phase changing is one event and two durations would make it look
    like two. */
 #drpg-player-status,
-#countdowns,
-#players {
+#countdowns {
     transition: border-color var(--drpg-t-turn) var(--drpg-ease-arrive),
                 box-shadow var(--drpg-t-turn) var(--drpg-ease-arrive);
 }
 
-/* `#players` joined the family late (Dawid, 26.08): once the corner became a
-   gauge it was the one module panel on screen whose edge said nothing, and a
-   phase edge on the performance box means the phase is readable from every
-   corner of the screen. Same token, same alpha, same duration as the rest. */
-body[data-drpg-phase] :is(#drpg-player-status, #countdowns, #players) {
+/* `#players` joined the family late (Dawid, 26.08), when the corner was a gauge of
+   latency and frame rate, and left it in E23 fix L (09.11.2026): since E79 C13 the
+   gauge draws neither number, so the phase edge framed an empty box - "the corner is
+   a gauge", further down this file. Same token, same alpha, same duration as the rest. */
+body[data-drpg-phase] :is(#drpg-player-status, #countdowns) {
     border-color: rgba(var(--drpg-phase-now-rgb), 0.55) !important;
     box-shadow:
         0 2px 8px rgba(var(--drpg-shadow-rgb), 0.35),
@@ -12490,7 +12489,7 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
    --------------------------------------------------------------------------
    Four boxes frame the play area - Despair and the clock across the top, the
    player strip and the Projects tray down the right, the player list bottom
-   left - and they were built at four different times, so they had four
+   left (no longer since E23 fix L: "the corner is a gauge", below) - and they were built at four different times, so they had four
    different grounds:
 
        Despair          deep 0.78, radius 6, blur, shadow
@@ -12516,8 +12515,7 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
 #drpg-despair,
 #drpg-hud,
 #drpg-player-status,
-#countdowns,
-#players {
+#countdowns {
     background: var(--drpg-panel-ground);
     border-radius: var(--drpg-panel-radius);
     border-width: 1px;
@@ -12526,9 +12524,8 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
     box-shadow: var(--drpg-panel-shadow);
 }
 
-/* The two that carry no accent of their own. */
-#countdowns,
-#players {
+/* The one that carries no accent of its own (the player list was the second, until E23 fix L). */
+#countdowns {
     border-color: var(--drpg-line-strong);
 }
 
@@ -12748,6 +12745,7 @@ body.drpg-theme-monokuma-legacy #countdowns .countdown-tools {
     width: max-content;
     max-width: 16rem;
     padding: 4px 8px;
+    border: 1px solid transparent;
     font-size: var(--font-size-11, 0.6875rem);
 }
 
@@ -14854,7 +14852,22 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
    connected is not information this table wants on screen - in a killing game
    "the GM just logged their second account in" is a spoiler - and the module's
    own Player status window carries the roster for the GM who needs it. One
-   module frame remains, around two numbers. */
+   module frame remained, around two numbers.
+
+   AND NO FRAME ROUND NOTHING (E23 fix L, 09.11.2026; the owner on 1.2.100: "W monokuma
+   legacy jest pusty pasek ui w lewym dolnym rogu"). Since E79 C13 the two numbers are not
+   drawn either (`#performance-stats`, above), so under Monokuma Legacy the corner was the
+   module's panel - the shared ground, its radius and shadow, the phase edge - round
+   nothing: the owner's empty bar at the left foot, 217x20 at 1541x1020. Read in Chromium
+   on the glass harness with the players list planted as these notes describe it (both
+   lists, the caret and the latency line, each hidden here): Legacy drew the ground
+   rgb(29, 26, 33), a 1 px edge rgba(255, 210, 63, 0.55) and the shadow; Stained Glass
+   drew nothing (stained-glass.css 3 takes all three away). `#players` has left the shared
+   panel's lists and the phase edge's, so the module draws nothing on it in either theme;
+   the box keeps its padding and a 1 px clear edge, the size it had, because glass.mjs
+   `gaugeFoot` stands the notice tile on its top. What Foundry's own sheet draws on
+   `#players` itself is not read in this repository: the module's notes put core's frames
+   on `.players-list` and `#players-active`, both taken away here. R1466. */
 #players .players-list,
 #players #players-inactive {
     display: none !important;
@@ -15500,6 +15513,37 @@ body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="
         .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select option::checkmark {
         color: var(--drpg-gold);
         font-size: 0.75em;
+    }
+
+    /* MONOKUMA LEGACY'S OWN LIST (E23 fix L, 09.11.2026; the owner on 1.2.100: "Monokuma
+       legacy - listy rozwijane pochodza ze stained glass"). The picker above was one for
+       both themes, and its chosen row is Hope's gold mixed into Ink - the golden-brown bar
+       the owner read as Stained Glass's, whose hours are gold all afternoon. This palette
+       says gold is Hope and nothing else, and Legacy's game is black, white and red: under
+       Legacy the list is square, as its windows are, its chosen row and tick are the Eye's
+       red, and the row under the cursor keeps the bone wash. Stained Glass keeps the picker
+       above unchanged. Read in Chromium on the glass harness, a `.drpg-panel` select open
+       (the project form's "- pick a statistic -" row chosen): before, the chosen row
+       color(srgb 0.273 0.232 0.151) and a 3 px picker in both themes; the readings after are
+       E23 fix L's commit. R1468. */
+    body.drpg-theme-monokuma-legacy :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
+        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select::picker(select) {
+        border-radius: 0;
+    }
+
+    body.drpg-theme-monokuma-legacy :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
+        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select option {
+        border-radius: 0;
+    }
+
+    body.drpg-theme-monokuma-legacy :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
+        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select option:checked {
+        background: color-mix(in srgb, var(--drpg-eye) 28%, var(--drpg-ink));
+    }
+
+    body.drpg-theme-monokuma-legacy :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
+        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select option::checkmark {
+        color: var(--drpg-eye-light);
     }
 }
 

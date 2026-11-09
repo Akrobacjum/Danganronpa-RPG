@@ -4054,8 +4054,8 @@ const REGRESSIONS = [
         const whose = bodyOf(own, "function frameOf", { until: "function hourColour" });
         ok(/hasPlayerOwner/.test(whose), "only the viewer's token is framed again, not every student's");
         ok(/type !== "character"/.test(whose), "a frame reaches tokens that are not characters");
-        ok(/whose === "mine" \? cssColour\("--drpg-bone"/.test(own),
-            "the viewer's own frame is not bone");
+        ok(/whose === "mine" \|\| !glass\) return read\("--drpg-bone"/.test(own) && /frameColour\(whose, glass\)/.test(own),
+            "the viewer's own frame is not bone (and, since E23 fix L, every student's under Monokuma Legacy: R1467)");
 
         const mine = bodyOf(own, "function isMine", { until: "function hourColour" });
         ok(/game\.user\?\.character/.test(mine),

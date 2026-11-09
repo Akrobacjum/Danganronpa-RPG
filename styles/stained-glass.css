@@ -2904,7 +2904,8 @@ body.drpg-theme-stained-glass #ui-left-column-1 > #players {
 /* ---- 3. Nothing black under anything on the glass ---------------------------------------
    Foundry's own rails and its player list stand on the curtain too. The scene controls'
    menus and the sidebar's tab rail carry a dark backing in Foundry's sheet, the player list
-   carries the base sheet's panel ground - all three are plates under elements the glass is
+   carried the base sheet's panel ground (no longer since E23 fix L, in either theme:
+   danganronpa.css "the corner is a gauge") - all three are plates under elements the glass is
    the ground for. The tiles keep their own cut faces; the rails and the list go clear. */
 body.drpg-theme-stained-glass #scene-controls,
 body.drpg-theme-stained-glass #scene-controls menu,

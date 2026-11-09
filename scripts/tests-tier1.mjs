@@ -39312,6 +39312,146 @@ const INVARIANTS = [
         "[the window's container per theme, stacked and on a desk; the block's condition; with the block: the content's display and its weight, its direction, "
             + "its overflow-y; the rail's, the header's and the open tab's flex and order]");
     }],
+    ["R1466 - no frame round nothing (E23 fix L; the owner on 1.2.100, \"pusty pasek ui w lewym dolnym rogu\"): Foundry's players list, which the module empties in both themes, is drawn with no ground, no edge and no shadow under Monokuma Legacy as under Stained Glass, and keeps its padding and a clear 1 px edge", async () => {
+        /*
+         * E23 fix L, 09.11.2026. Since E79 C13 `#players` shows nothing - both lists, the caret and the latency line are
+         * hidden by danganronpa.css "the corner is a gauge" - and under Monokuma Legacy the module still drew its panel
+         * round it: the shared ground, radius and shadow and the phase edge, the owner's empty bar at the left foot
+         * (217x20 at 1541x1020). Read in Chromium on the glass harness with the list planted (the commit): Legacy's box
+         * rgb(29, 26, 33) with a 1 px rgba(255, 210, 63, 0.55) edge and its shadow, Stained Glass's clear.
+         * Read here: the module's sheets as a cascade read from their text (`styleCascade`), `#players` built on a body
+         * of its own per theme, in a phase: the winning ground, edge and shadow, and the padding and edge width that
+         * glass.mjs `gaugeFoot` stands the notice tile on. Core's own sheet is not read (not in this repository).
+         * Red on 52955be4: Legacy's ground `var(--drpg-panel-ground)`, edge the phase's, shadow the panel's.
+         */
+        const C = await styleCascade();
+        const got = {};
+        for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
+            const html = document.createElement("html"), body = document.createElement("body"), players = document.createElement("aside");
+            body.className = theme;
+            body.dataset.drpgPhase = "dailyLife";
+            players.id = "players";
+            html.append(body);
+            body.append(players);
+            const at = C.on(players);
+            const read = names => at(names)?.value ?? null;
+            got[theme] = { ground: read(["background", "background-color"]), edge: read(["border-color", "border-top-color"]),
+                border: read("border"), shadow: read("box-shadow"), padding: read("padding") };
+        }
+        equal(stableJson(got), stableJson({
+            "drpg-theme-monokuma-legacy": { ground: null, edge: null, border: "1px solid transparent", shadow: null, padding: "4px 8px" },
+            "drpg-theme-stained-glass": { ground: "transparent", edge: "transparent", border: "1px solid transparent", shadow: "none", padding: "4px 8px" }
+        }), "[per theme, `#players` in a phase: the winning background, border-color, border, box-shadow and padding]");
+    }],
+    ["R1467 - a student's frame under Monokuma Legacy is Legacy's bone (E23 fix L; the owner on 1.2.100, \"postacie maja zly kolor ramki (ze stained glass zamiast drpg bone)\"): own-ring.mjs `frameColour` asks `--drpg-bone` with Legacy's fallback for every frame under Legacy, and the glass's accent for the others under Stained Glass; Legacy's bone is danganronpa.css's `:root` #e4ded8", async () => {
+        /*
+         * E23 fix L, 09.11.2026. Under Legacy the others' frames read `--drpg-own-ring`, the five hours danganronpa.css
+         * writes out from the glass's own palette: #bfe3ff, a pale blue-white, all morning (Chromium on the glass
+         * harness, the computed value under Legacy at each hour; the commit). The harness cannot draw tokens, so this
+         * reads the code path: `frameColour(whose, glass, read)` with a reader of its own, which records the property
+         * asked and its fallback, for the viewer's own frame and another student's in each theme. Then the value Legacy
+         * reads: the module's sheets as a cascade (`styleCascade`), `--drpg-bone` on the page's root, on a Legacy body
+         * (none of its own: it inherits the root's) and on a Stained Glass body. The colour handed to PIXI is that
+         * reading through utils.mjs `cssColour`; `hourColour`, which Foundry's controlled border is handed, is unchanged.
+         * Red on 52955be4: own-ring.mjs has no `frameColour`.
+         */
+        const ring = await import("./own-ring.mjs");
+        must(typeof ring.frameColour === "function",
+            "own-ring.mjs has no `frameColour`: under Monokuma Legacy a student's frame is hourColour's `--drpg-own-ring`, the glass's five hours");
+        const asked = {};
+        for (const glass of [false, true]) for (const whose of ["mine", "student"]) {
+            ring.frameColour(whose, glass, (name, fallback) => {
+                asked[`${glass ? "stainedGlass" : "monokumaLegacy"} ${whose}`] = [name, `#${Number(fallback).toString(16).padStart(6, "0")}`];
+                return 0;
+            });
+        }
+        const C = await styleCascade();
+        const body = theme => {
+            const html = document.createElement("html"), b = document.createElement("body");
+            b.className = theme;
+            html.append(b);
+            return b;
+        };
+        const bone = { root: C.winner(document.documentElement, "--drpg-bone")?.value ?? null,
+            legacyBody: C.winner(body("drpg-theme-monokuma-legacy"), "--drpg-bone")?.value ?? null,
+            glassBody: C.winner(body("drpg-theme-stained-glass"), "--drpg-bone")?.value ?? null };
+        equal(stableJson({ asked, bone }), stableJson({
+            asked: { "monokumaLegacy mine": ["--drpg-bone", "#e4ded8"], "monokumaLegacy student": ["--drpg-bone", "#e4ded8"],
+                "stainedGlass mine": ["--drpg-bone", "#f2eee6"], "stainedGlass student": ["--drpg-glass-accent", "#ffd38f"] },
+            bone: { root: "#e4ded8", legacyBody: null, glassBody: "#f2eee6" }
+        }), "{asked: per theme and frame, the property `frameColour` reads and its fallback; bone: --drpg-bone on the root, a Legacy body and a Stained Glass body}");
+    }],
+    ["R1468 - Monokuma Legacy's own drop-down list (E23 fix L; the owner on 1.2.100, \"listy rozwijane pochodza ze stained glass\"): in the module's picker (`appearance: base-select`) a Legacy list is square, its chosen row and tick the Eye's red, and Stained Glass's keeps the gold", async () => {
+        /*
+         * E23 fix L, 09.11.2026. The picker danganronpa.css draws for the module's windows was one for both themes, its
+         * chosen row Hope's gold mixed into Ink: the golden-brown first row the owner read as Stained Glass's. Read in
+         * Chromium on the glass harness, a `.drpg-panel` select open (the commit): before, the chosen row
+         * color(srgb 0.273 0.232 0.151) and a 3 px picker under both themes.
+         * Read here: the module's sheets as a cascade (`styleCascade`), and the `@supports (appearance: base-select)`
+         * block read from their text and its rules added to it, each selector of a list a rule of its own and each
+         * pseudo-element's declarations named `picker:` or `checkmark:` and read on the element it hangs off (the
+         * cascade reads no pseudo-element but ::before and ::after). On a body per theme, a `.drpg-panel` window's
+         * select and its chosen option: the picker's radius, the chosen row's background and the tick's colour.
+         * Red on 52955be4: Legacy's reads Stained Glass's three.
+         */
+        const C = await styleCascade();
+        const css = await moduleStyles();
+        const at = /@supports\s*\(\s*appearance:\s*base-select\s*\)\s*\{/.exec(css);
+        must(at, "no `@supports (appearance: base-select)` block in the module's sheets - nothing to read");
+        let depth = 1, i = at.index + at[0].length;
+        for (; i < css.length && depth; i++) depth += css[i] === "{" ? 1 : css[i] === "}" ? -1 : 0;
+        const inner = css.slice(at.index + at[0].length, i - 1);
+        const split = text => {
+            const out = [];
+            let level = 0, part = "";
+            for (const ch of text) {
+                if (ch === "(") level++;
+                if (ch === ")") level--;
+                if (ch === "," && !level) { out.push(part.trim()); part = ""; } else part += ch;
+            }
+            return [...out, part.trim()].filter(Boolean);
+        };
+        for (const chunk of inner.split("}")) {
+            const rule = /^([^{]*)\{([\s\S]*)$/.exec(chunk);
+            if (!rule) continue;
+            const decls = rule[2].split(";").map(line => {
+                const decl = /^\s*([^:]+):([\s\S]*)$/.exec(line);
+                if (!decl) return null;
+                const raw = decl[2].trim(), important = /!\s*important\s*$/i.test(raw);
+                return { property: decl[1].trim().toLowerCase(), value: raw.replace(/!\s*important\s*$/i, "").trim(), important };
+            }).filter(Boolean);
+            for (const one of split(rule[1].replace(/\s+/g, " "))) {
+                const pseudo = /::(picker\(select\)|checkmark)$/.exec(one);
+                if (/::/.test(one) && !pseudo) continue;
+                const prefix = pseudo ? (pseudo[1] === "checkmark" ? "checkmark:" : "picker:") : "";
+                C.rules.push({ file: "@supports base-select", selector: pseudo ? one.slice(0, pseudo.index) : one,
+                    decls: decls.map(d => ({ ...d, property: prefix + d.property })) });
+            }
+        }
+        const got = {};
+        for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
+            const html = document.createElement("html"), body = document.createElement("body"), app = document.createElement("div");
+            const select = document.createElement("select"), chosen = document.createElement("option"), other = document.createElement("option");
+            body.className = theme;
+            app.className = "application drpg-panel";
+            chosen.value = "";
+            chosen.textContent = "- pick a statistic -";
+            other.value = "agility";
+            other.textContent = "Agility";
+            select.append(chosen, other);
+            chosen.selected = true;
+            app.append(select);
+            body.append(app);
+            html.append(body);
+            got[theme] = { picker: C.winner(select, "picker:border-radius")?.value ?? null,
+                chosen: C.winner(chosen, ["background", "background-color"])?.value ?? null,
+                tick: C.winner(chosen, "checkmark:color")?.value ?? null };
+        }
+        equal(stableJson(got), stableJson({
+            "drpg-theme-monokuma-legacy": { picker: "0", chosen: "color-mix(in srgb, var(--drpg-eye) 28%, var(--drpg-ink))", tick: "var(--drpg-eye-light)" },
+            "drpg-theme-stained-glass": { picker: "3px", chosen: "color-mix(in srgb, var(--drpg-gold) 18%, var(--drpg-ink))", tick: "var(--drpg-gold)" }
+        }), "[per theme, a .drpg-panel select open: the picker's border-radius, the chosen row's background, the tick's colour]");
+    }],
     ["R1446 - the incident card by seat (events.mjs `incidentLines`, murder-ui.mjs `reserveLine`; E24 C1b, E24-07; S10-36, D5 option 1): the victim reads both reserves in the second person, the killer's side \"Waiting for\" the one who acts and the victim's Health alone, a GM both after \"Victim\"; none of them a mark; a bystander gets no card; the card's meta is still two parts", async () => {
         /*
          * E24 C1b, 08.11.2026. The panel's second line was `DRPG.Murder.victimMarks` - "Victim: Health 0/4 marked, Sanity
