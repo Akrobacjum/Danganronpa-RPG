@@ -3020,3 +3020,53 @@ body.drpg-theme-stained-glass .chat-message :is(.drpg-away-card, .drpg-audit-car
    inside the box's own padding. The kit's `box()`; its first child takes no top margin, its last no bottom one. */
 body .application.drpg-ui .drpg-box > :first-child { margin-top: 0; }
 body .application.drpg-ui .drpg-box > :last-child { margin-bottom: 0; }
+
+/* ---- E47-FB (09.11.2026): comparison 2's fixes to the case dashboard, the Students window and Create a project ----
+
+   THE CASE DASHBOARD'S TABLES FIT THE BODY THEY ARE IN. Their `min-width` (the dashboard's section above) is what the
+   kit's fit measures to widen the window to its ceiling (`windowWidthFor`: 94 % of the screen); the frame then takes
+   its share and the body holds the rest. `- 3rem` left 48 px for the frame: the style harness's frame takes 34 px
+   (the dialog's 16 px and 1 px a side), the comparison's card page 58 px (a `.window-content` padded 12 px a side, as
+   Foundry pads it: danganronpa.css `--drpg-window-pad`, 16 px measured live), and there WHO HAS WHAT's last column
+   and the Traces table's Delete stood 10 px past a 1226 px body at 1366x768 - cut, since 1.2.102 clips the body
+   sideways (Chromium, 09.11.2026, a8ae16f6). `- 5rem` leaves 80 px: Foundry's 16 px padding a side and a scrollbar
+   of up to 14 px. A table is the body's width wherever its `min-width` is less (`width: 100%`). */
+.application.drpg-window-case .drpg-data-table-box > table.drpg-data-table {
+    min-width: min(calc(var(--drpg-window-max) - 5rem), calc(94vw - 5rem));
+}
+/* A HEAD BREAKS BETWEEN WORDS UNDER THE GLASS (comparison 2, ac067-ac069): at 1366x768 and 1920x1080, in English and
+   Polish, each Traces column is as wide as its head's longest word at the width above - "Visibility" / "Widoczność" and
+   "Reinforced" 105 px, "description" 116, "Powiązany" 95, "naprawdę" 84, "Znalazł" 74, a cell's padding 17 px (Chromium,
+   09.11.2026). Each column its own share (by its key, `col[data-drpg-col]`, as Visibility's above; the Key planner's
+   name and texts keep theirs: its `name`, `text` and `analysis` keys are read by class here). Under Legacy's pixel face
+   the same words are 104-143 px and ten columns do not hold them all in 1204 px: there, and below 1366 px, a head still
+   breaks inside a word (`overflow-wrap: anywhere`, above), within its two lines and its whole name in its tooltip
+   (STATUS "## Open (E47-FB)"). */
+/* the shares are the columns' (`col`): a head or cell that states its class's share too is read beside its column's by
+   Chromium's fixed layout (the wider wins: the name's column stood 141 px, its 12 % and not its 8 %) */
+body .application.drpg-window-case table.drpg-data-table :is(th, td) { width: auto; }
+.application.drpg-window-case table.drpg-data-table col.drpg-data-col-case-trace-name { width: 7.5%; }
+.application.drpg-window-case table.drpg-data-table col.drpg-data-col-case-text { width: 12%; }
+.application.drpg-window-case table.drpg-data-table col[data-drpg-col="type"] { width: 10%; }
+.application.drpg-window-case table.drpg-data-table col[data-drpg-col="vis"] { width: 12%; }
+.application.drpg-window-case table.drpg-data-table col[data-drpg-col="faint"] { width: 7.5%; }
+.application.drpg-window-case table.drpg-data-table col[data-drpg-col="crime"] { width: 11%; }
+.application.drpg-window-case table.drpg-data-table col[data-drpg-col="reinf"] { width: 12%; }
+.application.drpg-window-case table.drpg-data-table col[data-drpg-col="found"] { width: 9%; }
+.application.drpg-window-case table.drpg-data-table col[data-drpg-col="delete"] { width: 7%; }
+/* the Key planner's status picker on one line: the cell wraps its words (`white-space: normal`, above), and a select
+   took that inside itself under Legacy - "- no Remnant" over a lone "-" (ac069) */
+body .application.drpg-window-case table.drpg-data-table td.drpg-data-col-case-key-status select { white-space: nowrap; }
+
+/* THE STUDENTS WINDOW STAYS INSIDE THE SCREEN. With a Monocub and a Monokuma character under Legacy the table's own
+   width was 1246 px against a 1226 px body at 1366x768 (the window at its ceiling): the last column, Do, 20 px cut (the
+   comparison's M17 card with the kit's fit, Chromium, 09.11.2026). A cell's padding 4 px a side, not 6 (the window's
+   rule above), gives back 32 px across eight columns: 1214 px. Not the pickers (at 7rem Legacy's "Monokuma" ran into
+   its arrow) and not the buttons' wrap (the kit's fit measures the table at the window's first width, so a Do column
+   free to wrap made the plain window 715 px wide with "A character dies" on three lines). */
+.drpg-window-alive .drpg-data-table :is(th, td) { padding-inline: 4px; }
+
+/* CREATE A PROJECT'S NAME takes its row (ac078): the label is a row of its word and its field, the field the rest -
+   it stood at its own 20 characters' width (about 120 px under the glass), its placeholder cut. */
+body .application.drpg-project-form .drpg-project-image-row > label { display: flex; align-items: center; gap: 0.5rem; }
+body .application.drpg-project-form .drpg-project-image-row > label > input[name="name"] { flex: 1 1 auto; min-width: 0; width: auto; }

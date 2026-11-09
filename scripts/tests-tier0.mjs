@@ -21934,6 +21934,76 @@ const REGRESSIONS = [
             controls: ["(e)-(h) ground", "(e) button past the window's edge", "(f) button cut", "(g) checkbox shrunk", "(h) label off its field"] }),
             "{a footer button held to the window's box and its words; the checkbox reading; the label reading; the sweep's words for them; the controls}");
     }],
+
+    /* ---- E47-FB (09.11.2026): comparison 2's fixes ---- */
+    ["R2096 - the fit sweep reads a body or a footer wider than its box even where it clips (E47-FB; comparison 2): style-harness.html's reading has `wide`, the kit body's and the footer's `scrollWidth` against their `clientWidth` and every shown descendant's rectangle against their inner edges, left and right; style-sweep.mjs's misfits say \"content wider than its box\" and its control (e) plants 3000 px of width in the gallery window's first pane and must read it", async () => {
+        /*
+         * E47-FB, 09.11.2026. Since 1.2.102 the kit's body clips sideways (components.css `overflow-x: clip`, E96 C1): a
+         * table wider than the body is cut where it scrolled, and a body that clips is no scroller, so `--fit` (which read
+         * scrollers, the footer's and the buttons' rectangles against the viewport) passed every page of E46 and E47
+         * while comparison 2's pictures showed columns and footer buttons cut. The sweep's reading now holds the width.
+         * In Chromium (quoted in the commit): control (e) "content wider than its box: kit-body 3000/544"; the whole pass on
+         * a8ae16f6 read action-analyze's textarea 6 px past its body, look-player at 390x844 and rooms-search's table at
+         * 1024x768 past theirs. Red on a8ae16f6: no `wide`, no words, no control (e).
+         */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        const read = async path => {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" });
+                return res.ok ? await lfText(res) : "";
+            } catch { return ""; }
+        };
+        const [sweep, page] = await Promise.all(["audit/style-sweep.mjs", "audit/style-harness.html"].map(read));
+        must(sweep.length > 2000 && page.length > 2000, "the sweep or the style harness read nothing - this test would read nothing");
+        const wide = (page.match(/const wideReading = win =>[\s\S]*?return out;/) ?? [""])[0];
+        equal(JSON.stringify({
+            reading: /wide: wideReading\(win\)/.test(page),
+            boxes: [".drpg-kit-body", "footer.form-footer"].filter(sel => wide.includes(`"${sel}"`)),
+            measures: ["scrollWidth", "clientWidth", "getBoundingClientRect", "e.right > right + 1", "e.left < left - 1"].filter(m => wide.includes(m)),
+            words: /if \(state\.wide\?\.length\) out\.push\(`content wider than its box: /.test(sweep),
+            control: sweep.includes('"(e) wider than the body"') && /width: 3000px/.test(sweep) && sweep.includes('w.startsWith("content wider than its box: kit-body")')
+        }), JSON.stringify({ reading: true, boxes: [".drpg-kit-body", "footer.form-footer"],
+            measures: ["scrollWidth", "clientWidth", "getBoundingClientRect", "e.right > right + 1", "e.left < left - 1"], words: true, control: true }),
+            "{the harness reads `wide`, the boxes it reads, what it measures, the sweep's words, control (e)}");
+    }],
+    ["R2098 - comparison 2's look fixes hold (E47-FB): the case dashboard's tables ask the fit for their ceiling less 5rem, not 3rem; the Traces table's ten columns each a share of their own and the shares 100 %; WHO HAS WHAT's count heads no word over 11 letters in English or Polish; the Key planner's status picker on one line; the Students table's cells 4 px a side; Create a project's Name field the rest of its row", async () => {
+        /*
+         * E47-FB, 09.11.2026; comparison 2's ac032-ac035, ac067-ac069, ac018-ac019, ac078. What each rule does was measured
+         * in Chromium (the commit and STATUS "## E47-FB"): at 1366x768 the dashboard's last column and Delete were 10 px past
+         * a 1226 px body under a frame padded as Foundry pads it, the Students table 20 px past its body (Legacy, a Monocub
+         * and a Monokuma character), Polish "Nieprzeanalizowane" broke mid-word in a 116 px head, "- no Remnant -" wrapped
+         * inside its select, the Name field stood at 120 px. Read here as the stylesheet and the languages state them (the
+         * last rule for a selector wins, as the cascade reads equal selectors). Red on a8ae16f6: 3rem, no shares of their
+         * own (sum read 0), "Nieprzeanalizowane", no nowrap, 6 px, no flex.
+         */
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/components.css`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, "");
+        must(css.length > 20000, "components.css read nothing - this would measure nothing");
+        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => [m[1].trim().replace(/\s+/g, " "), m[2]]);
+        const last = (selector, prop) => {
+            let value = null;
+            for (const [sel, body] of rules) if (sel === selector) { const m = body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`)); if (m) value = m[1].trim(); }
+            return value;
+        };
+        const T = ".application.drpg-window-case table.drpg-data-table";
+        const minWidth = last(".application.drpg-window-case .drpg-data-table-box > table.drpg-data-table", "min-width") ?? "";
+        const slack = [...minWidth.matchAll(/- (\d+(?:\.\d+)?)rem/g)].map(m => Number(m[1]));
+        const keys = { "col.drpg-data-col-case-trace-name": 1, "col.drpg-data-col-case-text": 2, ...Object.fromEntries(["type", "vis", "faint", "crime", "reinf", "found", "delete"].map(k => [`col[data-drpg-col="${k}"]`, 1])) };
+        const shares = Object.entries(keys).map(([sel, n]) => [sel, parseFloat(last(`${T} ${sel}`, "width") ?? "0") * n]);
+        const sum = Math.round(shares.reduce((a, [, v]) => a + v, 0) * 10) / 10;
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const longest = code => Math.max(...["bullets", "keysHeld", "unidentified"].flatMap(k => String(lang[code].DRPG.Investigation[k] ?? "").split(/\s+/).map(w => w.length)));
+        equal(JSON.stringify({
+            slack: slack.length === 2 && slack.every(v => v >= 5),
+            ownShares: shares.filter(([, v]) => !(v > 0)).map(([sel]) => sel), sum,
+            heads: { en: longest("en") <= 11, pl: longest("pl") <= 11 },
+            keySelect: last(`body ${T} td.drpg-data-col-case-key-status select`, "white-space"),
+            cellsOfStudents: last(".drpg-window-alive .drpg-data-table :is(th, td)", "padding-inline"),
+            thAuto: last(`body ${T} :is(th, td)`, "width"),
+            name: last('body .application.drpg-project-form .drpg-project-image-row > label > input[name="name"]', "flex")
+        }), JSON.stringify({ slack: true, ownShares: [], sum: 100, heads: { en: true, pl: true }, keySelect: "nowrap", cellsOfStudents: "4px", thAuto: "auto", name: "1 1 auto" }),
+            "{the tables' min-width leaves 5rem or more, the Traces columns without a share of their own, the shares' sum, WHO HAS WHAT's count heads' longest word <= 11 letters, the status picker's white-space, the Students cells' inline padding, the dashboard's heads and cells width auto, the Name field's flex}");
+    }],
 ];
 
 

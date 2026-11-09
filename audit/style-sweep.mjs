@@ -58,8 +58,10 @@
  * px planted in its third pane and the tab switched without the kit's code (`drpgFit({ byHand: true })`, the reposition
  * skipped) - the tallest tab reads "footer out" (and through the kit's code, fit); (d) on the sheet stand-in at
  * 1366x768, where the Stop stands in view, the Stop's sticky rule taken off (`position: static`, E21 C5a's rule in
- * danganronpa.css) - "Stop out": its place at the content's foot is below the sheet's box. Exit 1 on any failure; a page
- * `outside` is not one before C6.
+ * danganronpa.css) - "Stop out": its place at the content's foot is below the sheet's box; (e) E47-FB, 3000 px of width
+ * planted in the gallery window's first pane - "content wider than its box: kit-body" (the body clips sideways since
+ * 1.2.102, so it is no scroller; the harness reads the body's and the footer's width, `wide`). Exit 1 on any failure; a
+ * page `outside` is not one before C6.
  *
  * It serves the root itself (`python3 -m http.server` on a free port) or reads `--base http://127.0.0.1:8765`.
  * Playwright finds its Chromium through PLAYWRIGHT_BROWSERS_PATH; `--chromium <executable>` names one. CI installs no
@@ -222,6 +224,8 @@ function misfits(win, state, still) {
     const others = state.scrollers.filter(s => s !== "kit-body" && !demo.includes(s));
     if (others.length) out.push(`a second scroller: ${others.join(", ")}`);
     if (state.cut) out.push("content cut: the body is taller than its box and nothing scrolls it");
+    // E47-FB: a body or footer wider than its box, cut sideways (the 1.2.102 clip) or scrolled (style-harness.html `wide`)
+    if (state.wide?.length) out.push(`content wider than its box: ${state.wide.join(", ")}`);
     if (still && state.scrollers.length) out.push(`scrolls (${state.scrollers.join(", ")}) where it must not`);
     return out;
 }
@@ -293,6 +297,16 @@ async function fitPass(browser) {
         await tall("three");
         const c = await tabsState({ byHand: true }, "three");
         say("(c) reposition skipped", c?.footer === false, `the tall third tab switched by hand reads ${c ? misfits(null, c, false).join("; ") || "fits" : "nothing"}`);
+        /* (e) E47-FB: 3000 px of width planted in the first pane - the body clips it sideways (1.2.102), so no scroller
+           reads it; the reading must say "content wider than its box". Its ground is the control "ground" above. */
+        await load(page, kit);
+        await page.evaluate(() => {
+            const p = globalThis.document.querySelector('[data-window="kit-tabs"] > .application [data-drpg-pane="one"]');
+            p?.insertAdjacentHTML("beforeend", '<div class="drpg-fit-planted" style="width: 3000px; height: 20px"></div>');
+        });
+        const i = await tabsState({}, "one");
+        const iWords = i ? misfits(null, i, false) : [];
+        say("(e) wider than the body", iWords.some(w => w.startsWith("content wider than its box: kit-body")), `3000 px of width in the first pane reads ${iWords.join("; ") || "fits"}`);
         await page.setViewportSize({ width: 1366, height: 768 });
         await load(page, "/audit/style-harness.html?sheet=1&fit=1&role=player");
         const d0 = (await page.evaluate(() => globalThis.drpgFit()))[0];

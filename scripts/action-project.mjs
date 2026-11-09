@@ -116,8 +116,10 @@ export async function performProject(actor, def, options) {
                 label: game.i18n.localize("DRPG.Project.workOn"),
                 hint: plural("DRPG.Project.workOnHint", { n: here.length }),
                 disabled: !here.length,
-                why: game.i18n.localize(room
-                    ? "DRPG.Project.noneHere" : "DRPG.Action.noRoomNote")
+                // The room by name (E47-FB, comparison 2's ac049): `noneHere` carries `{room}`, and a `localize` of it
+                // put the raw "{room}" on the row in both languages since the row was written.
+                why: room ? game.i18n.format("DRPG.Project.noneHere", { room })
+                    : game.i18n.localize("DRPG.Action.noRoomNote")
             },
             {
                 value: "start", icon: "fa-lightbulb", gmRoute: true,

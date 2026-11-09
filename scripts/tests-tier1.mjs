@@ -44059,6 +44059,40 @@ const INVARIANTS = [
             JSON.stringify({ stage6: over, incident: fight, empty: false }),
             "{the turn bar at Stage 6, at the incident; the no-trace line drawn as the kit's empty state}");
     }],
+
+    /* ---- E47-FB (09.11.2026): comparison 2's fixes ---- */
+    ["R2097 - the project action's Work row names the room it looked in (E47-FB; comparison 2's ac049): for a student standing in a room with no project started, action-project.mjs `performProject` draws Work on a project shut with `DRPG.Project.noneHere` formatted with that room's name, no raw \"{room}\" in the window", async () => {
+        /*
+         * E47-FB, 09.11.2026. The row's reason was `game.i18n.localize("DRPG.Project.noneHere")`, and the key carries
+         * `{room}` ("There is no project started in {room}." / "W: {room} nie zaczęto żadnego projektu."): probe 08's
+         * capture and the comparison's pictures showed the raw placeholder in both languages, on 1.2.101 as on a8ae16f6.
+         * Driven on this GM: `performProject` for the first student `locateActor` puts in a named room where
+         * `projectsAvailableIn` lists nothing, the window caught at `DialogV2.wait` (answered null, nothing drawn or
+         * written), the Work row's reason read off its markup. Red on a8ae16f6: the row read the key's raw "{room}".
+         */
+        needs(world.atLeast("studentsInRooms", 1), "a student standing in a room is the one whose Work row is read");
+        const AP = await import("./action-project.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { projectsAvailableIn } = await import("./projects.mjs");
+        must(typeof AP.performProject === "function" && ACTIONS.project, "action-project.mjs exports no performProject - this would measure nothing");
+        const actor = studentActors().find(a => { const place = locateActor(a); return place?.room && !projectsAvailableIn(place).length; });
+        must(actor, "no student stands in a room where no project is started - this would measure nothing");
+        const room = locateActor(actor).room;
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let config = null;
+        D.wait = async cfg => { config = cfg; return null; };
+        try { await AP.performProject(actor, ACTIONS.project, {}); } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+        const host = document.createElement("div");
+        host.innerHTML = typeof config?.content === "string" ? config.content : config?.content?.outerHTML ?? "";
+        const row = host.querySelector('input[name="variant"][value="work"]')?.closest("label");
+        must(row, "no Work row in the project window - this would measure nothing");
+        equal(stableJson({ disabled: row.querySelector("input").disabled, why: row.querySelector("small")?.textContent.trim() ?? null,
+            raw: host.textContent.includes("{room}") }),
+            stableJson({ disabled: true, why: game.i18n.format("DRPG.Project.noneHere", { room }), raw: false }),
+            "{the Work row shut, its reason, a raw {room} anywhere in the window}");
+    }],
 ];
 
 /**

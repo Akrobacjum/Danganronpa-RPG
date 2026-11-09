@@ -238,8 +238,38 @@
       tabs: nav ? inView(nav) : null,
       // the kit's body taller than its box with nothing to scroll it: what it holds is cut off (the sweep's control b)
       cut: (() => { const b = win.querySelector(".drpg-kit-body"); return Boolean(b && b.scrollHeight > b.clientHeight + 1 && !/auto|scroll/.test(getComputedStyle(b).overflowY)); })(),
+      wide: wideReading(win),
       scrollers
     };
+  };
+  /* WIDER THAN ITS BOX (E47-FB, 09.11.2026). Since 1.2.102 the kit's body clips sideways (components.css `overflow-x:
+     clip`, E96 C1), so a table wider than the body is cut where it used to scroll - and a body that clips is not a
+     scroller, so `scrollers` above never saw it: comparison 2 showed columns and footer buttons cut while every fit
+     reading was green. Read here on the body and the footer, scrolled or clipped: the box's `scrollWidth` past its
+     `clientWidth` by more than a pixel, or a shown descendant's rectangle past the box's inner edges, left or right
+     (the trial console's footer was cut at both ends). A descendant inside a box that scrolls sideways itself is that
+     box's (counted by `scrollers` as a second scroller), and a field's own value is the field's. The box's own width
+     counts past 6 px: the glass's buttons draw a frame 5 px outside themselves (`::before`, inset -4px -5px), which
+     Chromium counts into `scrollWidth` (a footer of three buttons read 548/544 with nothing past its edge, 09.11.2026);
+     an element past the edge counts from 1 px, and text past it is past by more than a frame. */
+  const wideReading = win => {
+    const out = [];
+    for (const [sel, name] of [[".drpg-kit-body", "kit-body"], ["footer.form-footer", "footer"]]) {
+      const b = win.querySelector(sel);
+      if (!b || !shown(b)) continue;
+      const r = b.getBoundingClientRect();
+      const left = r.left + b.clientLeft, right = left + b.clientWidth;
+      const inner = el => { for (let p = el.parentElement; p && p !== b; p = p.parentElement) if (/auto|scroll/.test(getComputedStyle(p).overflowX)) return true; return false; };
+      const past = [...b.querySelectorAll("*")].filter(el => shown(el) && !inner(el) && !el.closest("option")).find(el => {
+        const e = el.getBoundingClientRect();
+        return e.right > right + 1 || e.left < left - 1;
+      });
+      if (b.scrollWidth > b.clientWidth + 6 || past) {
+        const e = past?.getBoundingClientRect();
+        out.push(`${name} ${b.scrollWidth}/${b.clientWidth}${past ? ` (${past.localName}${past.className && typeof past.className === "string" ? `.${past.className.trim().split(/\s+/).slice(0, 2).join(".")}` : ""} ${Math.round(e.left - left)}..${Math.round(e.right - left)})` : ""}`);
+      }
+    }
+    return out;
   };
   const switchByHand = (win, key) => {
     for (const t of win.querySelectorAll('nav.drpg-tabs > button[role="tab"]')) t.setAttribute("aria-selected", String(t.dataset.drpgTabKey === key));
