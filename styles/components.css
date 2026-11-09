@@ -226,10 +226,17 @@ body .application.drpg-ui.drpg-panel:not(.minimized) > .window-content {
     display: flex;
     flex-direction: column;
 }
+/* `overflow-x: clip` (E96 C1, 1.2.102; H102 items 5 and 7, R3103): at the owner's table on 1.2.101 Give / take items
+   and the GM panel drew a horizontal scrollbar. Not reproduced in Chromium: the body read 545 against 544 (Give) and
+   672 against 670 (the GM panel) with no descendant past its edge, within a pixel or two of scrolling sideways in
+   1.2.100 too, which a real font or core's sheet pushes over - a rounding, as the Item tables' lists found
+   (stained-glass.css, "THE TABLE LISTS SCROLL DOWN"). A window's body scrolls down, never sideways. Beside
+   `overflow-y: auto` the clip computes to `hidden`: no bar, and the body stays the one scroll container. */
 .application.drpg-ui.drpg-panel .drpg-kit-body {
     flex: 1 1 auto;
     min-height: 0;
     overflow: auto;
+    overflow-x: clip;
     overscroll-behavior: contain;
 }
 .application.drpg-ui.drpg-panel .drpg-tabs { flex: 0 0 auto; }

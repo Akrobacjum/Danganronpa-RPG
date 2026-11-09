@@ -61,9 +61,12 @@
        Blood's Despair pink, Eclipse's violet or Hope's gold (the owner's D5,
        Q-E24-4) - so a bar says how much is left and nothing else. Read through
        `--drpg-bar-fill` by the plate, the bar, the field and the pips of the
-       block sheet.mjs `paintReserves` marks (`[data-drpg-reserve]`). */
-    --drpg-res-health: #8fd14f;
-    --drpg-res-sanity: #dc72f0;
+       block sheet.mjs `paintReserves` marks (`[data-drpg-reserve]`).
+       Since 1.2.102 (E96 C1; the owner's H102-K1, 09.11.2026) Health is a vermilion, a red as a player expects of it
+       and not the Eye's (#e0182f, light #ff5566), and Sanity a teal: the violet of 1.2.101 read as Danganronpa's
+       blood. The marks of a cost paid in Sanity stay the Blood's. R1444, R3104. */
+    --drpg-res-health: #ff4a26;
+    --drpg-res-sanity: #2ec4b6;
     --drpg-remnant: #7a1440;           /* the Remnant ring - stage 6 rules on it */
     /* The GMs' overlay on the board (E79 C6, gm-overlay.mjs): a secret passage's stretch in the
        blood's pink, a closed one grey, a broken one red. Literal values, read by PIXI through

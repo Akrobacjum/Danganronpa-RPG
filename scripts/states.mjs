@@ -470,7 +470,7 @@ export async function syncAll() {
 
 /*
  * ONE MEANING, THE SHEET'S (E24 fix G2A, 08.11.2026; review m4). The token's reserves are every character's, as the
- * sheet's: `paintReserves` draws "Left: n / max" and hides Sanity on any character's sheet, a Monokuma's and an NPC's
+ * sheet's: `paintReserves` draws "n / max" ("Left: n / max" until 1.2.102) and hides Sanity on any character's sheet, a Monokuma's and an NPC's
  * not in the class among them, while this asked for a student alone, so an NPC that had taken 3 of 4 Health read
  * "Left: 1 / 4" on its sheet beside a token bar 3/4 full, and its Sanity bar and Breakdown icon (`syncStates` still
  * gives an NPC Breakdown) showed to every player. Now its bars are the reserve, its Sanity bar and Breakdown icon the

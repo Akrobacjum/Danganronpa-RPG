@@ -1862,7 +1862,7 @@
         "one": "{n} Sanity",
         "other": "{n} Sanity"
       },
-      "leftRow": "Left: {n} / {max}",
+      "leftRow": "{n} / {max}",
       "fieldHealth": "How much Health is left. Type a number to change it.",
       "fieldSanity": "How much Sanity is left. Type a number to change it."
     },

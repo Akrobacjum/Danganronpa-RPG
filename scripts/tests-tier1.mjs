@@ -36419,7 +36419,7 @@ const INVARIANTS = [
         }), "[Observe: the ladders shown, All thresholds (open, its lines, its word); Analyze's bound rows; Tamper's bound facts and a second watchers line; "
             + "Observe's box with its two rows; the menu opens at its top; per theme: a plain fact, a bound one with its row picked and one with another row picked, the facts' size and ink]");
     }],
-    ["R1600 - Observe stands still at 1366x768 (E21 fix G2; E21-04, the end review's B1): Observe's menu is drawn with `columns` - action-menus.mjs `chooseVariant` puts the briefing beside the question in a window of a stated width (the popup measure lifted) - and the stylesheets lay the two side by side, stacking them when the window is narrower than both, and show a row's line of explanation while that row is picked (an unavailable row keeps its reason), in both themes", async () => {
+    ["R1600 - the briefing beside the list (E21 fix G2; E21-04, the end review's B1), and no action asks for it since 1.2.102 (E96 C1: every action one layout, the owner's 09.11.2026): Observe's menu is drawn without `columns`; action-menus.mjs `chooseVariant` puts the briefing beside the question in a window of a stated width (the popup measure lifted) - and the stylesheets lay the two side by side, stacking them when the window is narrower than both, and show a row's line of explanation while that row is picked (an unavailable row keeps its reason), in both themes", async () => {
         /*
          * E21 fix G2, 07.11.2026. Observe scrolled at 1920x1080 (glass) and 1366x768 (both themes): 1140 px of body in a
          * window the glass held to 544 px, 571 px of it on screen at 1366x768 (measured in Chromium, the fit sweep's still
@@ -36429,6 +36429,11 @@ const INVARIANTS = [
          * width and draws the two columns, the briefing in the first; and on stand-ins in each theme the popup measure on
          * `.dialog-content` does not reach a window of a stated width, the columns are a wrapping flex row, an unpicked
          * row's hint is not displayed, the picked row's and an unavailable row's are. Red on dd87f9f7: no `columns`.
+         * E96 C1, 09.11.2026 (H102 item 4): the owner at the table, on 1.2.101: the action windows no longer agree - Search
+         * one column, Observe two - and every action shall share one layout, as every Call does. Observe goes back to
+         * the layout the other actions share (`asks` false: it scrolls at 1366x768 again, measured in STATUS E96-C1);
+         * the `columns` drawing stays in `chooseVariant`, read here, for E68's one layout after its mockup round. Red on
+         * 7175878b: `asks` true.
          */
         const M = await import("./action-menus.mjs");
         const K = await import("./ui-kit.mjs");
@@ -36471,7 +36476,7 @@ const INVARIANTS = [
         }));
         const yes = { measure: null, columns: ["flex", "wrap"], hints: [null, "none", null] };
         equal(stableJson(read), stableJson({
-            asks: true,
+            asks: false,
             // The stated 1120 px as this screen holds it (ui-kit.mjs `kitWidth`: under the screen less 16 px).
             window: [K.kitWidth(1120), true, ["drpg-variant-brief", "drpg-variant-ask"], true, true],
             paint: { "drpg-theme-stained-glass": yes, "drpg-theme-monokuma-legacy": yes }
@@ -37806,6 +37811,134 @@ const INVARIANTS = [
             { sameValues: true, rulesForTheBox: 1, appearance: "none", width: "22px", markOff: "scale(0)", markOn: "scale(1)" }
         ]), "[the GM's scene rail and the right rail, at rest and active, under Monokuma Legacy and under Stained Glass; "
             + "the checkbox and the radio under the glass: the same values on a panel, a notice, the messenger and the sheet, unchecked and checked; how many rules win the box; its appearance and width; the mark's transform unchecked and checked]");
+    }],
+    ["R3100 - Foundry's toast list keeps Foundry's placement wherever it does not stand in `#ui-top` (E96 C1, 1.2.102; H102 item 1): the module places `#notifications` (position, order, width, margin) only as a child of `#ui-top`; under an id-less flex row (the parent the owner's table read on 1.2.101) or under `#ui-right` no module rule states any of the four, so core's own placement stands, and the toasts' plate is the glass's wherever the list is", async () => {
+        /*
+         * E96 C1, 09.11.2026; H102 item 1 (S/stages/H102/DIAGNOSIS.md 1). 1.2.101 stated `position: static; order: 11` and a
+         * width and margin on `body.drpg-theme-stained-glass #notifications` wherever the list stood, on the guess that v14
+         * puts it in `#ui-top`'s flex column (E23 C5b; LIVE-E23-08, not run). At the owner's table the update toast stood in
+         * a narrow column and the right column and the voice tile moved: the owner's console line on 1.2.101 (09.11.2026)
+         * read the list's parent as an element with no id, a flex row. An unlayered rule of the module's outweighs any
+         * layered rule of core's whatever its specificity, so a stated `position: static` took the list out of core's
+         * fixed placement and made it a flex item of that parent (in Chromium, the diagnosis's A/B with a layered
+         * `position: fixed` for core: the list 56 -> 512 px wide in `#ui-right`, the column moved from x 1468 to 1122).
+         * The rule now reaches only a list whose parent is `#ui-top`, which is what R1406 builds. Read by the sheets'
+         * cascade on bodies of their own under the glass: the four placement properties of the list and the ground of a
+         * toast in it, for each parent. jsdom lays nothing out; the movement is read in Chromium (STATUS E96-C1). Red on
+         * 7175878b: the id-less row's and `#ui-right`'s list placed static, order 11.
+         */
+        const C = await styleCascade();
+        const PLACE = ["position", "order", "width", "margin"];
+        const read = parent => {
+            const html = document.createElement("html"), body = document.createElement("body"), iface = document.createElement("div");
+            const host = document.createElement("div"), list = document.createElement("ol"), li = document.createElement("li");
+            body.className = "drpg-theme-stained-glass";
+            iface.id = "interface";
+            if (parent) host.id = parent;
+            host.style.display = "flex";
+            host.style.flexDirection = parent === "ui-top" ? "column" : "row";
+            list.id = "notifications";
+            li.className = "notification warning";
+            html.append(body);
+            body.append(iface);
+            iface.append(host);
+            host.append(list);
+            list.append(li);
+            return [...PLACE.map(name => C.winner(list, name)?.value ?? null), C.winner(li, ["background", "background-color"])?.value ?? null];
+        };
+        const placed = ["static", "11", "min(26rem, calc(100vw - 2 * var(--drpg-edge)))", "6px auto 0", "var(--drpg-sg-ink)"];
+        const core = [null, null, null, null, "var(--drpg-sg-ink)"];
+        equal(stableJson([read("ui-top"), read(null), read("ui-right")]), stableJson([placed, core, core]),
+            "[the list's position, order, width and margin and a toast's ground, under the glass, with the list in #ui-top (a flex column), in an id-less flex row, in #ui-right; null: no module rule states it]");
+    }],
+    ["R3101 - the glass's checkbox and radio draw no mark of Foundry's and are not squeezed (E96 C1, 1.2.102; H102 item 2): in the one definition, on a panel, a notice, the messenger and the sheet, a checked checkbox and a checked radio state `content: none` on `::after` (where core draws its mark), set Foundry's `--checkbox-checked-color` to the state colour, and the control takes `flex: none`, so a long row cannot shrink its box", async () => {
+        /*
+         * E96 C1, 09.11.2026; H102 item 2 (S/stages/H102/DIAGNOSIS.md 2). 1.2.101 gave the radio the module's 22 px box and its
+         * own `::before` mark (E23 C5b, R1407) and removed nothing of Foundry's: with a layered stand-in for core's drawn
+         * radio (`appearance: none` and a glyph in `:checked::after` in `--checkbox-checked-color`, probe radio.mjs), the
+         * Search window's checked radio painted Foundry's orange ring over the module's square, and in a long row the box
+         * shrank to 13x22 (Observe's to 12x22): a flex item with `flex-shrink: 1` and no minimum. An unlayered rule of the
+         * module's outweighs a layered rule of core's, so `content: none` on `::after` takes core's mark away whatever
+         * glyph v14 draws there; which pseudo-element v14 really uses was not read (the owner's table). Read by the sheets'
+         * cascade, as R1407 builds its surfaces: per type and surface, checked, the winning `::after` content, the custom
+         * property and `flex`. In Chromium (STATUS E96-C1): the `::after` content and the boxes in Search, Observe and the
+         * Look window, with the stand-in. Red on 7175878b: no rule states any of the three.
+         */
+        const C = await styleCascade();
+        const SURFACES = [["div", "drpg-panel"], ["section", "drpg-popup"], ["div", "drpg-messenger"], ["div", "application sheet actor"]];
+        const read = type => SURFACES.map(([tag, classes]) => {
+            const html = document.createElement("html"), body = document.createElement("body"), host = document.createElement(tag);
+            const row = document.createElement("label"), input = document.createElement("input");
+            body.className = "drpg-theme-stained-glass";
+            host.className = classes;
+            row.style.display = "flex";
+            input.type = type;
+            input.checked = true;
+            html.append(body);
+            body.append(host);
+            host.append(row);
+            row.append(input, "a row long enough to squeeze a control that may shrink");
+            return [C.winner(input, "content", "::after")?.value ?? null, C.winner(input, "--checkbox-checked-color")?.value ?? null, C.winner(input, "flex")?.value ?? null];
+        });
+        const want = SURFACES.map(() => ["none", "var(--drpg-sg-check, var(--drpg-glass-accent))", "none"]);
+        equal(stableJson([read("checkbox"), read("radio")]), stableJson([want, want]),
+            "[under the glass, checked, on a panel, a notice, the messenger and the sheet, the checkbox then the radio: the ::after content, --checkbox-checked-color, flex; null: no module rule states it]");
+    }],
+    ["R3102 - the reserve's row is the number and its maximum, no word (E96 C1, 1.2.102; H102-K1, the owner's 09.11.2026): `DRPG.Reserve.leftRow` reads \"{n} / {max}\" in English and in Polish, so the sheet's row, its field's frame and every place `reserveRow` writes show \"3 / 4\"", async () => {
+        /*
+         * E96 C1, 09.11.2026; H102 item 3. E24 C1a wrote "Left: 3 / 4" ("Zostało: 3 / 4") under Health and Sanity, Q-E24-1
+         * run on its default; the owner at the table asked why, and on the palette page (H102-K1) chose to drop the word.
+         * The key keeps its name and its two placeholders, so the sheet's editor still splits the words around the field
+         * (sheet.mjs `paintReserveRow`: nothing before it, " / 4" after). Read: both lang files as served, the key
+         * formatted in this browser's language, `reserveRow` for a view shown and one not. Red on 7175878b: "Left: 3 / 4".
+         */
+        const { reserveRow } = await import("./character.mjs");
+        const fetchLang = code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json());
+        const [en, pl] = await Promise.all([fetchLang("en"), fetchLang("pl")]);
+        const at = (lang, path) => path.split(".").reduce((o, k) => o?.[k], lang);
+        const editor = game.i18n.format("DRPG.Reserve.leftRow", { n: "{n}", max: 4 }).split("{n}");
+        equal(stableJson([at(en, "DRPG.Reserve.leftRow"), at(pl, "DRPG.Reserve.leftRow"), reserveRow({ shown: true, left: 3, max: 4 }), reserveRow({ shown: false, left: 3, max: 4 }), editor]),
+            stableJson(["{n} / {max}", "{n} / {max}", "3 / 4", "?", ["", " / 4"]]),
+            "[DRPG.Reserve.leftRow in en.json and pl.json; reserveRow for a shown view 3 of 4 and a view not shown; the editor's words before and after the field]");
+    }],
+    ["R3103 - a module window's body never scrolls sideways (E96 C1, 1.2.102; H102 items 5 and 7): `.drpg-kit-body` states `overflow-x: clip` beside its `overflow: auto`, in both themes, as the Item tables' lists do under the glass", async () => {
+        /*
+         * E96 C1, 09.11.2026; H102 items 5 and 7. At the owner's table Give / take items and the GM panel showed a
+         * horizontal scrollbar on 1.2.101. Not reproduced in Chromium (the diagnosis: the body 545 against 544 in Give,
+         * 672 against 670 in the GM panel, no descendant past the scrollport's edge, no bar drawn): within a pixel or two
+         * of scrolling sideways in both versions, which real fonts and core's sheet push over at the table. A window's
+         * body scrolls down, never sideways; the Item tables' lists took `overflow-x: clip` for the same rounding
+         * (stained-glass.css, "THE TABLE LISTS SCROLL DOWN"). Beside `overflow-y: auto` a `clip` computes to `hidden`:
+         * no bar is drawn and the box stays the one scroll container it was. Read by the sheets' cascade: the body's
+         * `overflow` and `overflow-x` in a kit window, per theme. Red on 7175878b: `overflow-x` unstated.
+         */
+        const C = await styleCascade();
+        const read = theme => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-ui drpg-panel"><section class="window-content"><form class="dialog-form"><div class="dialog-content"><div class="drpg-kit-body"></div></div></form></section></div>`;
+            const kit = body.querySelector(".drpg-kit-body");
+            return [C.winner(kit, "overflow")?.value ?? null, C.winner(kit, "overflow-x")?.value ?? null];
+        };
+        equal(stableJson([read("drpg-theme-stained-glass"), read("drpg-theme-monokuma-legacy")]), stableJson([["auto", "clip"], ["auto", "clip"]]),
+            "[a kit window's body under Stained Glass and under Monokuma Legacy: overflow, overflow-x]");
+    }],
+    ["R3104 - Health vermilion, Sanity teal (E96 C1, 1.2.102; H102-K1, the owner's 09.11.2026): the reserves' tokens are #ff4a26 and #2ec4b6 in both stylesheets (`--drpg-res-*` for Monokuma Legacy, `--drpg-sg-res-*` for the glass)", async () => {
+        /*
+         * E96 C1, 09.11.2026; H102 item 8. E24 C1a drew Health green (#8fd14f) and Sanity violet (#dc72f0), Q-E24-4 run on its
+         * default; at the table the owner read green as wrong for Health and the violet as Danganronpa's blood, which
+         * reads as a physical wound. On the palette page (H102-K1) the owner chose H1, a vermilion apart from the GM's red
+         * (#ff5566) and the Eye's (#e0182f), and S1, a teal. R1444 still holds them apart from every state's colour. The
+         * two marks a Sanity payment carries (the stripe and the inventory's stress badge) were not asked about and stay
+         * the Blood's: they read no reserve token. Read: every declaration of the four tokens in the module's sheets
+         * (top-level rules, as the cascade reads them). Red on 7175878b: #8fd14f and #dc72f0.
+         */
+        const C = await styleCascade();
+        const values = name => [...new Set(C.rules.flatMap(rule => rule.decls).filter(d => d.property === name).map(d => d.value.toLowerCase()))];
+        equal(stableJson(["--drpg-res-health", "--drpg-res-sanity", "--drpg-sg-res-health", "--drpg-sg-res-sanity"].map(values)),
+            stableJson([["#ff4a26"], ["#2ec4b6"], ["#ff4a26"], ["#2ec4b6"]]),
+            "[every value the module's sheets give --drpg-res-health, --drpg-res-sanity, --drpg-sg-res-health, --drpg-sg-res-sanity]");
     }],
     ["R1408 - VT323 is never set in a synthesised bold (E23 C5b; E23-28, audit S12-44): under the glass the body says `font-synthesis: none`, which every element inherits, no module rule says otherwise, and the safeword button - the word a player must read at once - is set at the face's own weight", async () => {
         /*
