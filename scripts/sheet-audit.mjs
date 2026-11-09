@@ -149,7 +149,7 @@ import { readDuality } from "./despair-award.mjs";
 import { forgedFlagsOf, gmOnlyFlagsIn } from "./private-rolls.mjs";
 import { spentByGm } from "./call-effects.mjs";
 import { WARN_EVERY_MS, TRACE_PATHS } from "./relay-guard.mjs";
-import { box, BUTTON_ROLES } from "./ui-kit.mjs";
+import { box, roleButton } from "./ui-kit.mjs";
 
 /**
  * The module flags only a GM writes (the plan's 2.4), held in the mark and put back. `levelUpExperiences` since
@@ -2798,9 +2798,9 @@ export function flaggedCard(row) {
  * wrappers they remove (`.drpg-audit-actions`, `.drpg-audit-all`); R2073 and E47-T5 hold both.
  */
 function auditButton(attr, how, key, id = null) {
-    const role = how === "undo" ? "gmRoute" : "secondary", r = BUTTON_ROLES[role];
-    return `<button type="button" class="${[r.cls, r.face].filter(Boolean).join(" ")}" data-drpg-role="${role}" data-drpg-${attr}="${how}"`
-        + `${id ? ` data-drpg-row="${esc(id)}"` : ""}>${esc(game.i18n.localize(key))}</button>`;
+    // the kit's `roleButton` since E47-KFa (written by hand from BUTTON_ROLES before it), the same attributes in the same order
+    return roleButton({ role: how === "undo" ? "gmRoute" : "secondary", attrs: { [`data-drpg-${attr}`]: how, "data-drpg-row": id || null },
+        label: game.i18n.localize(key) });
 }
 
 /** What a GM decided of a row, in the words both cards give it: kept, undone, and what had moved since. */

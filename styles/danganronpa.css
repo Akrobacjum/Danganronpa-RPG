@@ -8278,6 +8278,15 @@ body.drpg-pixel-font [class*="fa-"]::after {
                  "Font Awesome 5 Pro", FontAwesome !important;
 }
 
+/* And the kit checklist's marks (ui-kit.mjs CHECK_MARKS: a check, a cross, "!", "-"): the pixel face draws no check
+   or cross (Chromium, the style harness, 1366x768, 09.11.2026: a 20 x 16 px box in the right colour, no glyph, in
+   Season setup; a few pixels high in Pre-season checks). The face Pre-season's report was set in before E46-C5b, for
+   every checklist (E47-KFa; E46-C5b's Open 1: a window rule of components.css lost to the `!important` above, and
+   components.css holds none). */
+body.drpg-pixel-font .drpg-checklist .drpg-check-mark {
+    font-family: "Cascadia Mono", Consolas, ui-monospace, monospace !important;
+}
+
 /* Free text a player writes and re-reads - a biography, an item description,
    a journal body - is the one place a bitmap face costs more than it gives.
    It keeps the family and gets the size it needs to survive it.

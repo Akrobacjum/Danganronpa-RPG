@@ -1715,10 +1715,8 @@ export function caseStudentTable(students) {
         return { student: esc(s.actor.name), bullets: String(s.total), keys: String(s.keys),
             unidentified: String(s.unidentified), breakdown: `<span class="notes">${breakdown || "-"}</span>` };
     });
-    const head = '<th scope="col" class="drpg-data-col-case-breakdown">';
-    return dataTable({ columns: caseStudentColumns(), rows })
-        .replace(head, `<th scope="col" class="drpg-data-col-case-breakdown" data-tooltip="${
-            esc(game.i18n.localize("DRPG.Investigation.breakdownTooltip"))}">`);
+    // The Breakdown head's tooltip ("Really", S12-52) is its column's `tooltip` since E47-KFa (a string replace before it).
+    return dataTable({ columns: caseStudentColumns().map(c => (c.cls === "case-breakdown" ? { ...c, tooltip: game.i18n.localize("DRPG.Investigation.breakdownTooltip") } : c)), rows });
 }
 
 /**

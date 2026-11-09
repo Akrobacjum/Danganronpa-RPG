@@ -43180,10 +43180,11 @@ const INVARIANTS = [
         got.writes = writes;
         const sources = new Map(await moduleSources());
         const refund = fnSource(stripComments(sources.get("gm-students.mjs") ?? ""), "refundButton") ?? "";
-        got.refund = [/BUTTON_ROLES\.secondary\.cls/.test(refund), /data-drpg-role="secondary"/.test(refund), K.BUTTON_ROLES.secondary.cls];
+        // drawn by the kit's `roleButton` since E47-KFa (by hand from BUTTON_ROLES before it)
+        got.refund = [/roleButton\(\{ role: "secondary"/.test(refund), /cls: "drpg-mini-button"/.test(refund), K.BUTTON_ROLES.secondary.cls];
         equal(stableJson(got), stableJson({ opened: 0, changes: [false, false, false, false], answer: null, writes: [], refund: [true, true, "drpg-role-secondary"] }),
             "{opened: Students windows drawn on a player; changes: changeRole's answers from a player; answer: openWhoIsAliveDialog's; writes: the stand-ins' writes; "
-            + "refund: [Refund's class the secondary role's, its data-drpg-role, the role's class]}");
+            + "refund: [Refund the kit's roleButton on the secondary role, with the mini button's class, the role's class]}");
     }],
 
     /* ---- E47-C3 (09.11.2026): the GM panel's tiles and the case window (MARKED) ---- */
@@ -43491,6 +43492,123 @@ const INVARIANTS = [
         const each = { box: ["info", game.i18n.localize("DRPG.GiveBack.givenBackState"), `3px solid var(--drpg-kit-info-edge) | ${sheet}`], window: [token, token, token, "var(--drpg-gold) | styles/danganronpa.css"] };
         equal(JSON.stringify({ legacy: read("drpg-theme-monokuma-legacy"), glass: read("drpg-theme-stained-glass") }), JSON.stringify({ legacy: each, glass: each }),
             "{per theme: the given-back line [its box, its words, its edge (the winning value | its sheet)], the window's accent, checkbox, button focus and field focus colours}");
+    }],
+    ["R2086 - the kit's builders take a caller's attributes and words (scripts/ui-kit.mjs `toggle` and `chip` attrs, `stepper` words, formGrid's row attrs, a dataTable column's tooltip and title; E47-KFa): each where the caller's string edit put it, the builder's own refused, a call without them as before", async () => {
+        /*
+         * E47-KFa, 09.11.2026; STATUS E46-C2 Open 2, E46-C2b Open 1, E47-C4 Open 1, E47-C6 Open 1, E47-C8 Open 1. Five
+         * callers wrote into a kit builder's markup after the draw because the builder took no attribute or word of
+         * theirs. Read: each builder's markup with them and without them, and a builder's own attribute named in `attrs`
+         * (it throws). Red on b6133c75: the switch, the chip and the grid row draw none of the attributes, the stepper
+         * says "One fewer", a head no tooltip or title.
+         */
+        const K = await import("./ui-kit.mjs");
+        const L = key => game.i18n.localize(key);
+        const throws = f => { try { f(); return false; } catch { return true; } };
+        const sw = K.toggle({ name: "isroom:A", checked: true, label: "", attrs: { "aria-label": "Room: A & B", "data-drpg-undecided": true, "data-no": false } });
+        const swBare = K.toggle({ name: "x", label: "X" });
+        const ch = K.chip({ label: "Ann", pressed: true, count: "GM", cls: "drpg-passage-chip", attrs: { "data-drpg-actor": "a1", "aria-label": "Take back: Ann", title: "Take back" } });
+        const chBare = K.chip({ label: "Ann", value: "a1" });
+        const st = K.kitNode(K.stepper({ value: 2, min: 0, max: 3, compact: true, words: { down: "Spend one", up: "Give one back" } }));
+        const stHalf = K.kitNode(K.stepper({ value: 2, words: { up: "More" } }));
+        const said = el => [...el.querySelectorAll("button[data-drpg-step]")].map(b => `${b.getAttribute("aria-label")}|${b.dataset.tooltip}`);
+        const grid = K.kitNode(K.formGrid([{ label: "Which", id: "w1", field: "<select id=\"w1\"></select>", attrs: { "data-drpg-when-trigger": "project sabotage" } },
+            { label: "Plain", id: "p1", field: "<input id=\"p1\">" }, { full: "<p>x</p>", attrs: { "data-k": "1" } }]));
+        const host = document.createElement("div");
+        host.innerHTML = K.dataTable({ columns: [{ key: "a", label: "A", tooltip: "Tip <a>", cls: "a" }, { key: "b", label: "B", title: "Hint" },
+            { key: "c", label: "Long head", lines: 2, tooltip: "T" }, { key: "d", label: "D" }], rows: [] });
+        const heads = [...host.querySelectorAll("thead th")].map(th => [th.dataset.tooltip ?? null, th.getAttribute("title")]);
+        equal(stableJson({
+            sw, swBare, ch, chBare, st: said(st), stHalf: said(stHalf),
+            grid: [...grid.children].map(c => `${c.tagName.toLowerCase()}:${c.getAttribute("data-drpg-when-trigger") ?? c.getAttribute("data-k") ?? "-"}`),
+            heads,
+            refused: [throws(() => K.toggle({ name: "n", label: "", attrs: { role: "checkbox" } })), throws(() => K.chip({ label: "c", attrs: { "aria-pressed": "true" } })),
+                throws(() => K.chip({ label: "c", attrs: { class: "x" } })), throws(() => K.iconButton({ icon: "i", label: "l", attrs: { title: "t" } }))]
+        }), stableJson({
+            sw: '<label class="drpg-toggle"><input type="checkbox" role="switch" aria-label="Room: A &amp; B" data-drpg-undecided name="isroom:A" checked><span></span></label>',
+            swBare: '<label class="drpg-toggle"><input type="checkbox" role="switch" name="x"><span>X</span></label>',
+            ch: '<button type="button" class="drpg-chip drpg-passage-chip" data-drpg-actor="a1" aria-label="Take back: Ann" title="Take back" aria-pressed="true">Ann<b>GM</b></button>',
+            chBare: '<button type="button" class="drpg-chip" aria-pressed="false" data-drpg-chip="a1">Ann</button>',
+            st: ["Spend one|Spend one", "Give one back|Give one back"],
+            stHalf: [`${L("DRPG.Look.stepDown")}|${L("DRPG.Look.stepDown")}`, "More|More"],
+            grid: ["label:project sabotage", "div:project sabotage", "label:-", "div:-", "div:1"],
+            heads: [["Tip <a>", null], [null, "Hint"], ["T", "Long head"], [null, null]],
+            refused: [true, true, true, true]
+        }), "[the switch with attrs and bare; the chip with cls and attrs and bare; the compact stepper's - and + with both words and the plain one's with one; the grid's halves' attributes; the heads' [data-tooltip, title]; four builders' own attributes named in attrs, each refused]");
+    }],
+    ["R2087 - the callers that wrote into the kit's markup after the draw use the kit's options (scripts/room-setup.mjs, passages-tab.mjs, investigation.mjs, gm-students.mjs, projects-ui.mjs; E47-KFa): no string edit of a builder's markup is left, and each option is named where the edit was", async () => {
+        /*
+         * E47-KFa, 09.11.2026. The five string edits R2086's options replace, by source: Room setup's switch
+         * (`.replace('role="switch"'`) and its counter's words (`tokenStepper`), Passages' chip (`.replace('class="drpg-chip"'`)
+         * and its head (`startHead`), WHO HAS WHAT's head (`.replace(head`), the Students window's Silenced head
+         * (`silenced.dataset.tooltip`), the trap form's row (`rowWhen(`). What each draws is held by its own tests (R1338's
+         * Room setup, E46-C2b's R2043, E47-C4's, E47-C8's, E47-C6's R2076), which read the drawn markup unchanged. Red on
+         * b6133c75: every edit is there and no option.
+         */
+        const read = async f => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(lfText));
+        const files = Object.fromEntries(await Promise.all(["room-setup.mjs", "passages-tab.mjs", "investigation.mjs", "gm-students.mjs", "projects-ui.mjs"].map(async f => [f, await read(f)])));
+        const edits = { "room-setup.mjs": [".replace('role=\"switch\"'", "tokenStepper("], "passages-tab.mjs": [".replace('class=\"drpg-chip\"'", "startHead"],
+            "investigation.mjs": [".replace(head"], "gm-students.mjs": ["silenced.dataset.tooltip"], "projects-ui.mjs": ["rowWhen("] };
+        const options = { "room-setup.mjs": ["words: {", "\"data-drpg-undecided\":"], "passages-tab.mjs": ["cls: \"drpg-passage-chip\"", "title: c.cls === \"knows-start\""],
+            "investigation.mjs": ["tooltip: game.i18n.localize(\"DRPG.Investigation.breakdownTooltip\")"], "gm-students.mjs": ["tooltip: L(\"DRPG.Monocub.silencedNote\")"],
+            "projects-ui.mjs": ["attrs: { \"data-drpg-when-trigger\": \"project sabotage\" }"] };
+        const left = Object.entries(edits).flatMap(([f, list]) => list.filter(s => files[f].includes(s)).map(s => `${f}: ${s}`));
+        const missing = Object.entries(options).flatMap(([f, list]) => list.filter(s => !files[f].includes(s)).map(s => `${f}: ${s}`));
+        must(Object.values(files).every(t => t.length > 1000), "a caller's source read empty - this would measure nothing");
+        equal(stableJson({ left, missing }), stableJson({ left: [], missing: [] }), "[the string edits still in the callers; the kit's options not named where they were]");
+    }],
+    ["R2088 - a kit footer's disabled button is drawn disabled in a DialogV2 window (scripts/ui-kit.mjs `dressFooter`; E47-KFa, E47-C1's Open 3): the harness's DialogV2 draws no `disabled`, and the kit writes it as `footerButton` does", async () => {
+        /*
+         * E47-KFa, 09.11.2026; STATUS E47-C1 Open 3: the captured console's Start the Final Trial and the vote's Close and
+         * count looked enabled. Read as R1353 reads a kit window: drpgWindow's config handed to DialogV2.wait, its footer
+         * drawn as the harness's DialogV2 draws one (no `disabled`), the render callback run. Red on b6133c75: the disabled
+         * primary and secondary are enabled; the others stay enabled before and after.
+         */
+        const K = await import("./ui-kit.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let config = null;
+        D.wait = async cfg => { config = cfg; return null; };
+        try {
+            await K.drpgWindow({ title: "R2088", classes: ["drpg-window-r2088"], body: "<p>x</p>",
+                footer: { primary: { action: "final", label: "Final", disabled: true, tooltip: "Not yet" }, secondary: [{ action: "count", label: "Count", disabled: true }, { action: "other", label: "Other" }], close: "close" } });
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        must(config?.render, "drpgWindow handed DialogV2.wait no render callback - this would read nothing");
+        const root = document.createElement("div");
+        root.className = config.classes.join(" ");
+        root.innerHTML = `<section class="window-content"><form class="dialog-form standard-form"><div class="dialog-content standard-form">${config.content.innerHTML}</div>`
+            + `<footer class="form-footer">${config.buttons.map(b => `<button type="submit" data-action="${b.action}">${b.label}</button>`).join("")}</footer></form></section>`;
+        config.render(new Event("render"), { element: root, setPosition: () => ({}), addEventListener: () => {} });
+        const read = [...root.querySelectorAll("footer button[data-action]")].map(b => `${b.dataset.action}:${b.disabled}:${b.getAttribute("title") ?? "-"}`).sort();
+        equal(stableJson(read), stableJson(["close:false:-", "count:true:-", "final:true:Not yet", "other:false:-"]), "[each footer button: action, disabled, title]");
+    }],
+    ["R2089 - a kit button outside a footer is the kit's `roleButton` (scripts/ui-kit.mjs; roll-draw.mjs, sheet-audit.mjs, gm-students.mjs, the checklist's action; E47-KFa, E47-C5's Open 10): its role's classes, `data-drpg-role`, the caller's class and attributes, no hand-written role button left", async () => {
+        /*
+         * E47-KFa, 09.11.2026. roll-draw.mjs `cardButton`, sheet-audit.mjs `auditButton`, gm-students.mjs's Refund and
+         * Level Up and checkList's row action each wrote a role's button from BUTTON_ROLES by hand. Read: `roleButton`'s
+         * markup for the GM's road and a secondary with attributes, a role that is none and an own attribute refused, and
+         * by source no `BUTTON_ROLES[` left in the three callers. The away card's and the audit cards' buttons, and their
+         * handlers' attributes, are R2073's and E47-T5's. Red on b6133c75: no `roleButton`.
+         */
+        const K = await import("./ui-kit.mjs");
+        must(typeof K.roleButton === "function", "ui-kit.mjs exports no roleButton");
+        const R = K.BUTTON_ROLES;
+        const throws = f => { try { f(); return false; } catch { return true; } };
+        const read = async f => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(lfText));
+        const hand = [];
+        for (const f of ["roll-draw.mjs", "sheet-audit.mjs", "gm-students.mjs"]) if ((await read(f)).includes("BUTTON_ROLES")) hand.push(f);
+        equal(stableJson({
+            route: K.roleButton({ role: "gmRoute", label: "Grant all", attrs: { "data-drpg-away": "grant" } }),
+            second: K.roleButton({ role: "secondary", label: "Refund <x>", cls: "drpg-mini-button", attrs: { "data-drpg-refund": "a1", "data-tooltip": "n", "data-drpg-row": null } }),
+            refused: [throws(() => K.roleButton({ role: "nope", label: "x" })), throws(() => K.roleButton({ role: "primary", label: "x", attrs: { "data-drpg-role": "close" } }))],
+            hand
+        }), stableJson({
+            route: `<button type="button" class="${[R.gmRoute.cls, R.gmRoute.face].filter(Boolean).join(" ")}" data-drpg-role="gmRoute" data-drpg-away="grant">Grant all</button>`,
+            second: `<button type="button" class="${R.secondary.cls} drpg-mini-button" data-drpg-role="secondary" data-drpg-refund="a1" data-tooltip="n">Refund &lt;x&gt;</button>`,
+            refused: [true, true],
+            hand: []
+        }), "[the GM's road with an attribute; a secondary with the caller's class and attributes, a null one left out; a role that is none and an own attribute, refused; the callers still naming BUTTON_ROLES]");
     }],
 ];
 

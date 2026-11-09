@@ -947,15 +947,15 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
        caption a row of the grid - its caption in the label column, the field and its note in the field column - and
        every other part a line across both, in the order they had (D31). The trap's fields a grid of their own inside the
        block Indirect murder shows (`data-drpg-when-murder`); "Which project" carries its `data-drpg-when-trigger` on both
-       halves of its row (`rowWhen`). The notes are the kit's fine print, the warnings its warning box. */
+       halves of its row (formGrid's row `attrs` since E47-KFa; projects-ui.mjs's `rowWhen` string-inserted it before). The notes are the kit's fine print, the warnings its warning box. */
     const t = key => game.i18n.localize(key);
     const esc = foundry.utils.escapeHTML;
     const uid = foundry.utils.randomID(6);
     const idOf = name => `drpg-project-${name}-${uid}`;
-    const trapRows = rowWhen(formGrid([
+    const trapRows = formGrid([
         { label: t("DRPG.Trap.watchFor"), id: idOf("trigger"),
             field: `<select name="trigger" id="${idOf("trigger")}">${triggerOptions}</select>${helpText("DRPG.Trap.watchNote")}` },
-        { label: t("DRPG.Trap.whichProject"), id: idOf("trigger-target"),
+        { label: t("DRPG.Trap.whichProject"), id: idOf("trigger-target"), attrs: { "data-drpg-when-trigger": "project sabotage" },
             field: `<select name="triggerTarget" id="${idOf("trigger-target")}">${emptyOption("DRPG.Trap.noProject")}${targetOptions}</select>` },
         { full: `<label class="drpg-checkbox">
                 <input type="checkbox" name="afterDark"${
@@ -970,7 +970,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
             field: `<input type="text" name="condition" id="${idOf("condition")}"
                        value="${esc(start?.condition ?? "")}"
                        placeholder="${t("DRPG.Project.conditionPlaceholder")}" />${helpText("DRPG.Project.conditionNote")}` }
-    ]), idOf("trigger-target"), 'data-drpg-when-trigger="project sabotage"');
+    ]);
 
     const content = `<form>${formGrid([
         { full: `<div class="drpg-project-image-row">
@@ -1363,19 +1363,6 @@ function wirePassagePick(dialog, offer, { over = false } = {}) {
         form.passage.value = JSON.stringify(stretch);
         if (said) said.textContent = game.i18n.format("DRPG.Project.passagePicked", { passage: stretch.rooms.join(" - ") });
     });
-}
-
-/**
- * A formGrid row shown with one answer (E47-C6): the kit's `formGrid` writes no attribute on a row's two halves, and the
- * stylesheet's `data-drpg-when-trigger` rules (danganronpa.css, "a field that belongs to one answer") hide and show the
- * element that carries it - so `attr` goes on the label pointing at `id` and on the field cell after it, as the label
- * that held both carried it before. A grid with no such row is answered as it came.
- */
-function rowWhen(grid, id, attr) {
-    const label = `<label class="drpg-form-label" for="${id}">`, cell = '<div class="drpg-form-field">';
-    const at = grid.indexOf(label), next = at < 0 ? -1 : grid.indexOf(cell, at);
-    if (next < 0) return grid;
-    return `${grid.slice(0, at)}<label class="drpg-form-label" for="${id}" ${attr}>${grid.slice(at + label.length, next)}<div class="drpg-form-field" ${attr}>${grid.slice(next + cell.length)}`;
 }
 
 /**

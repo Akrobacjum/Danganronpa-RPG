@@ -65,6 +65,9 @@ body {
     --drpg-kit-warn-bg: rgba(var(--drpg-crimson-rgb), 0.12);
     --drpg-kit-info-edge: rgba(var(--drpg-bone-rgb), 0.45);
     --drpg-kit-info-bg: rgba(var(--drpg-bone-rgb), 0.06);
+    /* a table row the window marks (E47-KFa; E46-C5's Open 5: Despair Flow's ticked Monokuma took the eye at 12 % before
+       E46-C5a put it on the info box's ground for want of a token) */
+    --drpg-kit-row-highlight: rgba(var(--drpg-eye-rgb), 0.12);
     --drpg-kit-secret-edge: var(--drpg-eye);
     --drpg-kit-secret-bg: rgba(var(--drpg-eye-rgb), 0.1);
     /* I1, the owner's choice on 04.11.2026: fine print in the bone at 62 %, the glass's own value. Today's
@@ -171,6 +174,7 @@ body.drpg-theme-stained-glass {
     --drpg-kit-warn-bg: color-mix(in srgb, var(--drpg-sg-gm) 12%, transparent);
     --drpg-kit-info-edge: color-mix(in srgb, var(--drpg-sg-bone) 45%, transparent);
     --drpg-kit-info-bg: color-mix(in srgb, var(--drpg-sg-bone) 6%, transparent);
+    --drpg-kit-row-highlight: color-mix(in srgb, var(--drpg-glass-accent) 12%, transparent);
     --drpg-kit-secret-edge: var(--drpg-glass-accent);
     --drpg-kit-secret-bg: color-mix(in srgb, var(--drpg-glass-accent) 10%, transparent);
     /* I1: the glass's own --drpg-sg-bone-dim, which today loses to danganronpa.css's --drpg-dim */
@@ -357,7 +361,7 @@ body .application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="t
 .drpg-tabs > button[data-drpg-tab-key]:focus-visible { outline: 2px solid var(--drpg-kit-tab-on-edge); outline-offset: -2px; }
 .drpg-tab-pane[hidden] { display: none; }
 
-/* ---- formGrid: a label column and a field column; one column under the container's 30rem. ---- */
+/* ---- formGrid: a label column and a field column; one column under the container's 28rem. ---- */
 .drpg-form-grid {
     container-type: inline-size;
     display: grid;
@@ -379,7 +383,17 @@ body .drpg-form-grid :is(input, select, textarea, .drpg-kit-stepper) { min-width
 body .drpg-form-grid > .drpg-form-field { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
 body .drpg-form-grid > .drpg-form-field > :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { flex: 1 1 10rem; }
 body .drpg-form-grid > .drpg-form-field > :is(.drpg-help, p) { flex: 1 0 100%; margin: 0; }
-@container (max-width: 30rem) {
+/* chrome.mjs wraps a select in its own `.drpg-select` (the glass's always, Legacy's in the windows it dresses): the
+   wrapper takes the field's room as a bare select does, the select the wrapper's width (E47-KFa; E47-C2's Open 3: the
+   select drew at its options' width, 131 px of a 400 px window's field column under the glass, and E46-C3b's Give and
+   E47-C2's Murder and tracker each stretched it in their own section until this rule) */
+body .drpg-form-grid > .drpg-form-field > .drpg-select { flex: 1 1 10rem; display: flex; min-width: 0; }
+body .drpg-form-grid > .drpg-form-field > .drpg-select > select { width: 100%; }
+/* One column under 28rem (30rem until E47-KFa; E47-C2's Open 3): the murder tracker's body is 29.4rem at the root's 16 px
+   (its 32.5rem less the frame's padding), and at 30rem its "Who", "Left" and "Case" stood each on a line above its fact
+   (1366x768, both themes), which the tracker's own 20rem query undid; a phone's body (390 px less the frame) is under
+   24rem either way. */
+@container (max-width: 28rem) {
     .drpg-form-grid > * { grid-column: 1 / -1; }
 }
 
@@ -2443,9 +2457,6 @@ body .application.drpg-ui.drpg-window-tables .drpg-table-item-cell > input[type=
    "Give it to" set the lower one's (glass, 1366x768, 09.11.2026); 11rem is the width the windows' old grid had */
 .application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet) .drpg-form-grid { grid-template-columns: 11rem minmax(0, 1fr); }
 .application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet) .drpg-form-grid + .drpg-form-grid { margin-top: 6px; }
-/* the glass wraps a select in its own `.drpg-select` (chrome.mjs): the wrapper takes the field's width, the select the wrapper's */
-.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet) .drpg-form-field > .drpg-select { flex: 1 1 10rem; display: flex; min-width: 0; }
-.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet) .drpg-form-field > .drpg-select > select { width: 100%; }
 .application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet) .drpg-form-full > :is(p, .drpg-box) { margin: 0; }
 .application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet) .drpg-form-full > [data-drpg-kind-note] > .drpg-box { margin: 0; }
 .application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet, .drpg-window-tables) input[type="checkbox"] {
@@ -2545,7 +2556,7 @@ body:not(.drpg-theme-stained-glass) .application.drpg-window-sound tr.drpg-data-
     vertical-align: middle;
     margin-right: 0.4rem;
 }
-.application.drpg-ui.drpg-window-gmteam .drpg-data-table-box > table.drpg-data-table tr.drpg-is-monokuma > td { background: var(--drpg-kit-info-bg); }
+.application.drpg-ui.drpg-window-gmteam .drpg-data-table-box > table.drpg-data-table tr.drpg-is-monokuma > td { background: var(--drpg-kit-row-highlight); }
 /* a pool's select stands only on a ticked Monokuma's row (`wireMonokumaLive` writes `hidden`): the panel's select rule
    (danganronpa.css, `display`) drew it under the "-" on every row (the before captures, 3c952c67) */
 .application.drpg-ui.drpg-window-gmteam select[data-drpg-pool][hidden] { display: none; }
@@ -2611,9 +2622,9 @@ body .application.drpg-window-preseason .drpg-check-unknown > div { color: var(-
    pixel face, which draws nothing for a check or a cross (a 20 x 16 px box, the colour right, no glyph), and a title that
    wraps set its lines into each other; the marks take the face Pre-season's report was set in before (over the pixel
    face's `!important` on every module element, danganronpa.css "drpg-pixel-font"), the titles and
-   the fix lines a line height of their own. Pre-season's fine print (the cast's header, "no scene has rooms") from the
+   the fix lines a line height of their own (the marks' face is the kit's since E47-KFa: danganronpa.css's exception to
+   the pixel face, beside the icon fonts', reaches every checklist). Pre-season's fine print (the cast's header, "no scene has rooms") from the
    start, where the dialog's paragraph rule centred it. */
-body:not(.drpg-theme-stained-glass) .application:is(.drpg-window-season, .drpg-window-preseason) .drpg-check-mark { font-family: "Cascadia Mono", Consolas, ui-monospace, monospace; }
 body:not(.drpg-theme-stained-glass) .application:is(.drpg-window-season, .drpg-window-preseason) :is(.drpg-check-title, .drpg-check-line) { line-height: 1.4; }
 body .application.dialog.drpg-window-preseason .drpg-check-part > p.drpg-help { text-align: start; max-width: none; margin: 0 0 6px; }
 
@@ -2719,19 +2730,8 @@ body .application.dialog.drpg-window-preseason .drpg-check-part > p.drpg-help { 
     font-weight: 400;
 }
 .application.drpg-ui:is(.drpg-window-murder, .drpg-window-clock) .drpg-form-grid > .drpg-form-full:has(> [hidden]:only-child) { display: none; }
-/* both themes wrap a select in chrome.mjs's `.drpg-select`, which formGrid's field rule does not reach (the select drew
-   at its options' width, 131 px of a 400 px window's field column under the glass): the wrapper takes the field's
-   width, the select the wrapper's - as E46-C3b's Give window does in its own section */
-.application.drpg-ui:is(.drpg-window-murder, .drpg-window-clock) .drpg-form-field > .drpg-select { flex: 1 1 10rem; display: flex; min-width: 0; }
-.application.drpg-ui:is(.drpg-window-murder, .drpg-window-clock) .drpg-form-field > .drpg-select > select { width: 100%; }
-/* the tracker's three facts keep the label column at the tracker's width: the kit's grid goes to one column under its
-   container's 30rem, and the tracker's body is 29.4rem at the root's 16 px (32.5rem less the frame's padding), so
-   "Who", "Left" and "Case" stood each on a line above its fact (1366x768, both themes); under 20rem - a phone's - they
-   stack as the kit stacks them */
-@container (min-width: 20rem) {
-    .application.drpg-ui.drpg-window-incident .drpg-form-grid > .drpg-form-label { grid-column: 1; }
-    .application.drpg-ui.drpg-window-incident .drpg-form-grid > .drpg-form-field { grid-column: 2; }
-}
+/* the select in chrome.mjs's `.drpg-select` and the tracker's two columns at its 29.4rem are the kit's formGrid rules
+   since E47-KFa (this section stretched the one and held the other with a 20rem query before) */
 
 /* ---- the Investigation dashboard (E47-C4, 09.11.2026; card M5, STAGE E47's dashboard shape) ----
    WHO HAS WHAT, the Traces tab's table and the Key Remnants planner are the kit's `dataTable` (investigation.mjs

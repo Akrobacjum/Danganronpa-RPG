@@ -64,7 +64,7 @@ import { isBrokenDown } from "./character.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { cardFlag, cardWriter } from "./secret.mjs";
-import { box, BUTTON_ROLES } from "./ui-kit.mjs";
+import { box, roleButton } from "./ui-kit.mjs";
 
 /** Marks the wrapper, so a second registration is a no-op and patches.mjs can recognise it. */
 const SEAM = Symbol.for("drpgRollDraw");
@@ -211,10 +211,11 @@ export function sayRollStatus(state, text) {
     return row.kind === "warning" ? ui.notifications?.warn(text) : ui.notifications?.info(text);
 }
 
-/** A kit button outside a footer (a chat card's): the role's classes and its `data-drpg-role`, the caller's attributes. */
-function cardButton(role, attrs, label) {
-    const r = BUTTON_ROLES[role];
-    return `<button type="button" class="${[r.cls, r.face].filter(Boolean).join(" ")}" data-drpg-role="${role}" ${attrs}>${esc(label)}</button>`;
+/* The away card's two buttons on the kit's `roleButton` (E47-KFa; by hand from BUTTON_ROLES before it), the role an
+   argument as it was: R121's census of the GM's road counts a `role: "gmRoute"` written out, a player's road with its
+   sentence, and this is the GMs' own card. */
+function cardButton(role, away, key) {
+    return roleButton({ role, attrs: { "data-drpg-away": away }, label: game.i18n.localize(key) });
 }
 
 /**
@@ -2528,8 +2529,8 @@ async function awayClaimOf({ message, actor }) {
  */
 export function awayRollsCard(lines) {
     return `<div class="drpg-away-card"><h3>${esc(game.i18n.localize("DRPG.Rolls.awayTitle"))}</h3><ul>${lines}</ul>`
-        + `<div class="drpg-away-actions">${cardButton("gmRoute", 'data-drpg-away="grant"', game.i18n.localize("DRPG.Rolls.grantAll"))}`
-        + `${cardButton("secondary", 'data-drpg-away="none"', game.i18n.localize("DRPG.Rolls.grantNone"))}</div></div>`;
+        + `<div class="drpg-away-actions">${cardButton("gmRoute", "grant", "DRPG.Rolls.grantAll")}`
+        + `${cardButton("secondary", "none", "DRPG.Rolls.grantNone")}</div></div>`;
 }
 
 /**

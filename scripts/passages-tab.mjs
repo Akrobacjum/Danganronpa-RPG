@@ -73,18 +73,17 @@ function nameOf(actorId, actors) {
  * the student has it - and its press is what the cross did before (`act`: revoke, or start-off), asked as before. `how` is
  * the way the student learnt it (Who knows only), in the chip's `<b>`, and `leave` the room it closes on leaving. Until
  * C2b a `span.drpg-room-chip` held the name and a cross button of its own; a kit chip is a button, which holds no other,
- * so the chip is the cross now and the "x" a mark inside it (`aria-hidden`: its name says it). The kit's `chip` takes
- * no attributes of the caller's (STATUS E46-C2, Open 2), so the module's are written in after its `class="drpg-chip"`;
+ * so the chip is the cross now and the "x" a mark inside it (`aria-hidden`: its name says it). The module's class and
+ * attributes are the kit chip's `cls` and `attrs` since E47-KFa (written in after `class="drpg-chip"` before it); the
+ * leaving note and the mark are still put inside the drawn button, the chip's markup taking only its label and count;
  * the readers' selectors (`.drpg-passage-chip[data-drpg-actor]`, `[data-drpg-passage-act][data-drpg-actor]`,
  * `[data-drpg-passage-leave]` inside the chip) hold.
  */
 function chip(actorId, { actors, act, how = null, leave = null, cross }) {
     const name = nameOf(actorId, actors);
     const until = leave ? ` <b data-drpg-passage-leave>${esc(tf("DRPG.Passage.tab.leaving", { room: leave }))}</b>` : "";
-    const own = ` drpg-passage-chip"${how ? ` data-how="${esc(how)}"` : ""} data-drpg-passage-act="${act}" data-drpg-actor="${esc(actorId)}"`
-        + ` aria-label="${esc(cross)}: ${esc(name)}" title="${esc(cross)}"`;
-    return kitChip({ label: name, pressed: true, count: how ? t(HOW[how] ?? HOW.gm) : null })
-        .replace('class="drpg-chip"', `class="drpg-chip${own}`)
+    const attrs = { "data-how": how, "data-drpg-passage-act": act, "data-drpg-actor": actorId, "aria-label": `${cross}: ${name}`, title: cross };
+    return kitChip({ label: name, pressed: true, count: how ? t(HOW[how] ?? HOW.gm) : null, cls: "drpg-passage-chip", attrs })
         .replace(/<\/button>$/, `${until}<span class="drpg-passage-chip-mark" aria-hidden="true">x</span></button>`);
 }
 
@@ -197,14 +196,14 @@ export function passagesTabBody(scene, { stores = PASSAGE_STORES, students = [],
     const passages = listPassages({ stores }).filter(p => p.sceneId === scene?.id)
         .sort((a, b) => passageTitle(a).localeCompare(passageTitle(b)) || a.id.localeCompare(b.id));
     /* The kit's table (E46-C2b): its `rowAttrs` the row's passage, read by every button's handler. At season start's head
-       keeps its hint in `title` as the hand table had it: the kit's head takes none of its own but a `lines: 2` head's
-       (the whole label), so it is written in after the column's class - as the chips' attributes (STATUS E46-C2). */
-    const startHead = '<th scope="col" class="drpg-data-col-knows-start">';
+       keeps its hint in `title` as the hand table had it: the column's `title` since E47-KFa (written in after the
+       column's class before it). */
     const table = passages.length ? dataTable({
-        columns: PASSAGE_COLUMNS.map(c => ({ key: c.key, cls: c.cls, act: c.act, label: c.label ? t(c.label) : "" })),
+        columns: PASSAGE_COLUMNS.map(c => ({ key: c.key, cls: c.cls, act: c.act, label: c.label ? t(c.label) : "",
+            title: c.cls === "knows-start" ? t("DRPG.Passage.tab.startHint") : null })),
         rows: passages.map(p => rowHtml(p, { stores, students, actors, users, told })),
         rowAttrs: row => ({ "data-drpg-passage": row.id })
-    }).replace(startHead, `${startHead.slice(0, -1)} title="${esc(t("DRPG.Passage.tab.startHint"))}">`)
+    })
         : `<p class="drpg-passage-none" data-drpg-passage-empty>${esc(t("DRPG.Passage.tab.empty"))}</p>`;
     // What "At season start" does (H81-05) and which way a passage goes (H81-02), after the rest of the footnote.
     return `${table}<p class="notes">${esc(t("DRPG.Passage.tab.footnote"))} ${esc(t("DRPG.Passage.tab.startHint"))} ${esc(t("DRPG.Passage.tab.wayHint"))}</p>`;

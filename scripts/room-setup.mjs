@@ -38,7 +38,7 @@ import {
     dialogContent, announce, plural, workingScene,
     forcedDeletion, wirePortraitPickers
 } from "./utils.mjs";
-import { kitTabs, wireKitTabs, emptyOption, drpgWindow, box, dataTable, stepper, stepLabels, toggle, iconButton } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, emptyOption, drpgWindow, box, dataTable, stepper, toggle, iconButton } from "./ui-kit.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
 import {
     ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomNames, roomRegions, flagOver,
@@ -300,19 +300,18 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
         const possible = pieces.length > 0;
         const decided = pieces.length > 0 && pieces.every(roomDecided);
         const isRoomNow = decided ? pieces.some(piece => piece.getFlag(MODULE_ID, ROOM_FLAG) === true) : possible;
-        // Undecided, the box is a suggestion until Apply (E20 fix round, C-10): the ratio line counts it apart.
-        const undecidedMark = possible && !decided ? " data-drpg-undecided" : "";
+        // Undecided, the box is a suggestion until Apply (E20 fix round, C-10): the ratio line counts it apart (`data-drpg-undecided`).
 
         return {
             name: `<strong>${escRoom}</strong>`,
             owner: `<select name="owner:${escRoom}"${named("owner")}>${emptyOption("DRPG.Vault.noOwner")}${people}</select>`,
             /* The kit's switch (E46-C2a; E46's goal, "the 'This is a room' switch"): `toggle` draws the input and its
                words, and the column's name and the room are its accessible name, as every control here says both;
-               `data-drpg-undecided` rides the input as it did, for `wireRoomRatio`. The kit's `toggle` takes no attribute
-               of its own (E46-C2 STATUS, Open), so the two are written into its input after `role="switch"`. */
+               `data-drpg-undecided` rides the input as it did, for `wireRoomRatio`. Both through the switch's `attrs`
+               since E47-KFa (written into the drawn input after `role="switch"` before it). */
             isroom: {
-                html: toggle({ name: `isroom:${room}`, checked: isRoomNow, label: "", disabled: !possible })
-                    .replace('role="switch"', `role="switch"${named("isroom")}${undecidedMark}`),
+                html: toggle({ name: `isroom:${room}`, checked: isRoomNow, label: "", disabled: !possible,
+                    attrs: { "aria-label": `${game.i18n.localize(COLUMN.isroom)}: ${room}`, "data-drpg-undecided": possible && !decided } }),
                 title: game.i18n.localize("DRPG.Vault.isRoomHint")
             },
             concealed: check("concealed", isConcealed(room, scene)),
@@ -338,8 +337,9 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
                the three stood one under another after the count and a room's row was about 128 px tall in the audit's
                screenshot - 2200 px of scrolling for 17 rooms; 88 px a row under the glass at 1366x768 before E46-C2a
                (probe/summary.txt). The field has no name: Apply never reads it (the count acts at once). */
-            tokens: `<span class="drpg-token-step">${tokenStepper(stepper({ value: SearchTokens.left(room, scene), min: 0, max: maxTokens, compact: true,
-                attrs: { "data-drpg-token": room, "aria-label": `${game.i18n.localize("DRPG.SearchTokens.title")}: ${room}` } }))}<span
+            tokens: `<span class="drpg-token-step">${stepper({ value: SearchTokens.left(room, scene), min: 0, max: maxTokens, compact: true,
+                words: { down: game.i18n.localize("DRPG.SearchTokens.spendOne"), up: game.i18n.localize("DRPG.SearchTokens.giveOne") },
+                attrs: { "data-drpg-token": room, "aria-label": `${game.i18n.localize("DRPG.SearchTokens.title")}: ${room}` } })}<span
                 class="drpg-token-max">/ ${maxTokens}</span>${iconButton({ icon: "fa-solid fa-rotate-left",
                 label: game.i18n.localize("DRPG.SearchTokens.refillRoom"), attrs: { "data-drpg-token-refill": room } })}</span>`,
             table: `<select name="table:${escRoom}"${named("table")}>
@@ -367,19 +367,6 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
                 <div class="drpg-room-picture-say" data-drpg-picture-say aria-live="polite"></div>`
         };
     });
-}
-
-/* The counter's - and + in its own words, "Spend one" and "Give one back", as its three buttons said them before
-   E46-C2a (D31: a tab's words 1:1); the kit's stepper says "One fewer" and "One more", and takes no words of a caller's
-   (E46-C2 STATUS, Open), so they are written over its two after the draw. */
-function tokenStepper(markup) {
-    const { down, up } = stepLabels({ step: 1 });
-    const said = (from, key) => {
-        const words = foundry.utils.escapeHTML(game.i18n.localize(key)), was = foundry.utils.escapeHTML(from);
-        return [`aria-label="${was}" data-tooltip="${was}"`, `aria-label="${words}" data-tooltip="${words}"`];
-    };
-    const [minusFrom, minusTo] = said(down, "DRPG.SearchTokens.spendOne"), [plusFrom, plusTo] = said(up, "DRPG.SearchTokens.giveOne");
-    return markup.replace(`data-drpg-step="-1" ${minusFrom}`, `data-drpg-step="-1" ${minusTo}`).replace(`data-drpg-step="1" ${plusFrom}`, `data-drpg-step="1" ${plusTo}`);
 }
 
 /* The Scenes tab last (E13 C5; the owner's answer Q-E13-1 e, 09.10.2026): it is set once a season,

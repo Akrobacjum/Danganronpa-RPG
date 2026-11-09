@@ -27,7 +27,7 @@
 
 import { studentActors, isMonokuma, isNotInClass, markFromSheet, setMonokuma, setNotInClass } from "./monokuma.mjs";
 import { error, plural, esc, wholeNumber } from "./utils.mjs";
-import { stepper, drpgWindow, dataTable, iconButton, BUTTON_ROLES } from "./ui-kit.mjs";
+import { stepper, drpgWindow, dataTable, iconButton, roleButton } from "./ui-kit.mjs";
 import { keepLive, alreadyOpen, handOff, RAISED } from "./live.mjs";
 import { crossingStore } from "./gm-stores.mjs";
 
@@ -140,8 +140,8 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, reso
                 attrs: { "data-drpg-items": a.id } })}`,
             role: `<select name="role:${a.id}" data-drpg-role-select="${a.id}" aria-label="${esc(`${a.name}: ${L("DRPG.Panel.roleColumn")}`)}">${
                 ROLES.map(r => `<option value="${r}"${r === role ? " selected" : ""}>${L(ROLE_WORDS[r])}</option>`).join("")}</select>`,
-            levelUp: !levelUp(a) ? "" : `<button type="button" class="drpg-mini-button ${BUTTON_ROLES.secondary.cls}" data-drpg-role="secondary"
-                data-drpg-levelup="${a.id}">${n ? plural("DRPG.Advance.standing", { n }) : L("DRPG.Advance.buttonTooltip")}</button>`
+            levelUp: !levelUp(a) ? "" : roleButton({ role: "secondary", cls: "drpg-mini-button", attrs: { "data-drpg-levelup": a.id },
+                label: n ? plural("DRPG.Advance.standing", { n }) : L("DRPG.Advance.buttonTooltip") })
         };
     };
 
@@ -158,7 +158,7 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, reso
         { key: "role", label: L("DRPG.Panel.roleColumn") },
         { key: "state", label: L("DRPG.Panel.stateColumn") },
         ...(cubs ? [{ key: "hope", label: L("DRPG.Monocub.hope") }, { key: "give", label: L("DRPG.Monocub.giveHopeColumn") },
-            { key: "silenced", label: L("DRPG.Monocub.silenced"), cls: "silenced" }] : []),
+            { key: "silenced", label: L("DRPG.Monocub.silenced"), cls: "silenced", tooltip: L("DRPG.Monocub.silencedNote") }] : []),
         { key: "levelUp", label: L("DRPG.Panel.levelUpColumn") },
         { key: "do", label: L("DRPG.Panel.doColumn") }
     ];
@@ -219,8 +219,7 @@ function refundButton(actor) {
     const outside = game.i18n.localize("DRPG.Movement.outsideRooms");
     const note = game.i18n.format("DRPG.Panel.refundCrossingNote", { from: row.from ?? outside, to: row.to ?? outside });
     // On the kit's secondary role (E47-C8): a button that answers nothing of the window's, beside the row's procedures.
-    return ` <button type="button" class="drpg-mini-button ${BUTTON_ROLES.secondary.cls}" data-drpg-role="secondary" data-drpg-refund="${esc(actor.id)}" data-tooltip="${esc(note)}">${
-        game.i18n.localize("DRPG.Panel.refundCrossing")}</button>`;
+    return ` ${roleButton({ role: "secondary", cls: "drpg-mini-button", attrs: { "data-drpg-refund": actor.id, "data-tooltip": note }, label: game.i18n.localize("DRPG.Panel.refundCrossing") })}`;
 }
 
 // The per-row buttons act at once rather than waiting for Apply: each one
@@ -334,10 +333,7 @@ function wireAliveTable(dialog, { openDeathDialog, setMonocub, onHandOff, roads,
     wireAliveRow(dialog, "data-drpg-items", actor => roads.openItemManager(actor), { onHandOff, reopen });
     wireAliveRow(dialog, "data-drpg-levelup", actor => roads.openAdvancementFor(actor), { onHandOff, reopen });
     wireRoleSelects(dialog, roads);
-    /* The Silenced head's tooltip (`DRPG.Monocub.silencedNote`): a `dataTable` head takes a label and no tooltip
-       (STATUS Open, E47-C8), so it is put on the drawn head, which the live region draws again. */
-    const silenced = dialog.element.querySelector("th.drpg-data-col-silenced");
-    if (silenced) silenced.dataset.tooltip = game.i18n.localize("DRPG.Monocub.silencedNote");
+    // The Silenced head's tooltip (`DRPG.Monocub.silencedNote`) is its column's `tooltip` since E47-KFa (set on the drawn head before).
     // No window of its own, so the table stays where it is (E6).
     wireAliveRow(dialog, "data-drpg-cub", actor => setMonocub(actor, true),
         { keepOpen: true, reopen });

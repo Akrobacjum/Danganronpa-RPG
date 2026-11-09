@@ -81,6 +81,20 @@ export const BUTTON_ROLES = Object.freeze({
 const localize = key => game.i18n.localize(key);
 
 /**
+ * A kit button outside a footer (E47-KFa, 09.11.2026; E47-C5's Open 10): a chat card's Grant all and Undo, the Students
+ * window's Refund and Level Up, a checklist row's action - its role's classes (`cls`, then `face`), `data-drpg-role`, the
+ * caller's `cls` after them and its `attrs` by name (as `iconButton`'s; none of the builder's own - `type`, `class`,
+ * `data-drpg-role`, `disabled` - or it throws), `label` text. roll-draw.mjs and sheet-audit.mjs wrote it by hand from
+ * BUTTON_ROLES until this commit, every `data-` attribute their handlers read written as before (R2090).
+ */
+export function roleButton({ role, label, cls = null, attrs = {}, disabled = false } = {}) {
+    const r = BUTTON_ROLES[role];
+    if (!r) throw new Error(`ui-kit: no button role "${role}"`);
+    ownAttrs("a role button", attrs, ["type", "class", "data-drpg-role", "disabled"]);
+    return `<button type="button" class="${esc([r.cls, r.face, cls].filter(Boolean).join(" "))}" data-drpg-role="${role}"${attrsMarkup(attrs)}${disabled ? " disabled" : ""}>${esc(label)}</button>`;
+}
+
+/**
  * A footer's buttons in the kit's order, each `{ role, side, action, label, callback, icon, disabled, default, class, tooltip }`, from
  * `{ primary, secondary: [], destructive: [], gmRoute: [], close, default }`. `close` is "close", "cancel", or
  * `{ role: "close" | "cancel", action, callback, side }`; its label is the role's word whatever the caller wrote, and
@@ -260,6 +274,9 @@ function dressFooter(root, list) {
         el.classList.toggle("default", b.default);
         if (b.default) el.setAttribute("autofocus", ""); else el.removeAttribute("autofocus");
         if (b.tooltip) el.title = String(b.tooltip);
+        // A disabled button drawn disabled (E47-KFa; E47-C1's Open 3): DialogV2's `disabled` is not drawn by the
+        // harness's model, and v14's own drawing of it is unread, so the kit writes it, as `footerButton` does.
+        if (b.disabled) el.disabled = true;
         (b.side === "right" ? right : left).append(el);
     }
     footer.prepend(right, left);
@@ -568,12 +585,16 @@ export function kitNode(markup) {
 /**
  * A label column and a field column (`container-type: inline-size` on the grid: one column under the container's
  * 30rem, at any screen). `rows` is `[{ label, field, id }]` - the label text (escaped), the field markup, the id the
- * label points at - or `{ full }` for a line across both columns.
+ * label points at - or `{ full }` for a line across both columns. A row's `attrs` (by name, as `rowAttrs`: lower case,
+ * no `on...`, values escaped, `true` bare) go on both its halves, the label and the field cell, or on the full line
+ * (E47-KFa, 09.11.2026; E47-C6's Open 1: "Which project" carries `data-drpg-when-trigger` on both halves, which the
+ * stylesheet's one-answer rules hide and show, and was string-inserted by projects-ui.mjs `rowWhen`).
  */
 export function formGrid(rows) {
     return `<div class="drpg-form-grid">${rows.map(r => {
-        if (r.full !== undefined) return `<div class="drpg-form-full">${r.full}</div>`;
-        return `<label class="drpg-form-label"${r.id ? ` for="${esc(r.id)}"` : ""}>${esc(r.label)}</label><div class="drpg-form-field">${r.field ?? ""}</div>`;
+        const own = attrsMarkup(r.attrs);
+        if (r.full !== undefined) return `<div class="drpg-form-full"${own}>${r.full}</div>`;
+        return `<label class="drpg-form-label"${r.id ? ` for="${esc(r.id)}"` : ""}${own}>${esc(r.label)}</label><div class="drpg-form-field"${own}>${r.field ?? ""}</div>`;
     }).join("")}</div>`;
 }
 
@@ -608,6 +629,10 @@ export function formGrid(rows) {
  *     a `{ html, title }` cell's own title, else the cell's markup read as text (`textOf`); an empty cell no title.
  *     Sound's Effects (E46-C4: the name and its description "clamped to two lines with the whole in the title"), WHO HAS
  *     WHAT's long cells (E47-C4). The tooltip is drawn whether the cell is cut or not, since jsdom cannot tell (R2007).
+ * WHAT E47-KFa ADDED (09.11.2026; E46-C2b's Open 1, E47-C4's Open 1, E47-C8's Open 1), a call without it as before:
+ *   - a column's `tooltip` (text) is its head's `data-tooltip` (Foundry's tooltip: WHO HAS WHAT's Breakdown, the
+ *     Students window's Silenced), and its `title` (text) the head's `title` (Passages' At season start), each escaped;
+ *     a `lines: 2` head keeps the whole label as its title unless the column names one.
  */
 export function dataTable({ columns, rows = [], empty = "DRPG.Kit.tableEmpty", caption = null, rowAttrs = null, headGroups = null } = {}) {
     for (const c of columns) if (c.cls !== undefined && c.cls !== null && !CLASS_TAIL.test(String(c.cls))) throw new Error(`ui-kit: a column's cls is a class name's tail, not "${c.cls}"`);
@@ -615,9 +640,10 @@ export function dataTable({ columns, rows = [], empty = "DRPG.Kit.tableEmpty", c
     const cls = c => [c.num ? "num" : null, c.act ? "act" : null, colCls(c)].filter(Boolean).join(" ");
     const classAttr = (c, extra = null) => { const all = [cls(c), extra].filter(Boolean).join(" "); return all ? ` class="${all}"` : ""; };
     const cols = columns.map(c => `<col data-drpg-col="${esc(c.key)}"${c.cls ? ` class="${colCls(c)}"` : ""}${c.width ? ` style="width: ${esc(c.width)}"` : ""}>`).join("");
+    const said = c => `${c.tooltip ? ` data-tooltip="${esc(c.tooltip)}"` : ""}`;
     const head = columns.map(c => (c.lines === 2
-        ? `<th scope="col"${classAttr(c, "drpg-data-lines-2")} title="${esc(c.label)}" aria-label="${esc(c.label)}"><span class="drpg-data-clamp">${esc(c.label)}</span></th>`
-        : `<th scope="col"${classAttr(c)}>${esc(c.label)}</th>`)).join("");
+        ? `<th scope="col"${classAttr(c, "drpg-data-lines-2")} title="${esc(c.title || c.label)}" aria-label="${esc(c.label)}"${said(c)}><span class="drpg-data-clamp">${esc(c.label)}</span></th>`
+        : `<th scope="col"${classAttr(c)}${c.title ? ` title="${esc(c.title)}"` : ""}${said(c)}>${esc(c.label)}</th>`)).join("");
     const grouped = !columns.some(c => c.key === "group");
     const cell = (c, v) => {
         if (c.cellLines === 2) {
@@ -722,10 +748,13 @@ export function stepperId() {
  * "by"): no message line beside it - the words that say a value is out of range go into the wrapper's `title` and a
  * span inside it, visually hidden, that the input names by `aria-describedby` (`wireStepper` writes both, and clears
  * them in range); the wrapper `drpg-kit-stepper-compact` beside `drpg-kit-stepper`, so every reader finds it as before.
+ * `words` `{ down, up }` (text) are the - and +'s own words in place of the kit's "One fewer" / "One more" (E47-KFa,
+ * 09.11.2026; E46-C2's Open 2: Room setup's Search Tokens say "Spend one" / "Give one back", written over the kit's
+ * after the draw until now); either left out keeps the kit's.
  */
-export function stepper({ name, value = "", min = null, max = null, step = 1, label = null, id = null, attrs = {}, compact = false } = {}) {
+export function stepper({ name, value = "", min = null, max = null, step = 1, label = null, id = null, attrs = {}, compact = false, words: ownWords = null } = {}) {
     const inputId = id ?? stepperId();
-    const words = stepLabels({ step });
+    const words = { ...stepLabels({ step }), ...Object.fromEntries(Object.entries(ownWords ?? {}).filter(([k, v]) => (k === "down" || k === "up") && v)) };
     const attr = (k, v) => (v === null || v === undefined || v === "" ? "" : ` ${k}="${esc(v)}"`);
     const own = new Set(["type", "id", "name", "value", "min", "max", "step"]);
     const more = Object.entries(attrs ?? {}).filter(([k]) => !own.has(k) && /^[a-z][a-z0-9-]*$/.test(k)).map(([k, v]) => attr(k, v)).join("");
@@ -797,14 +826,33 @@ function wireStepper(wrap) {
     check();
 }
 
-/** A checkbox drawn as a switch. `label` is text. */
-export function toggle({ name, checked = false, label, disabled = false } = {}) {
-    return `<label class="drpg-toggle"><input type="checkbox" role="switch" name="${esc(name)}"${checked ? " checked" : ""}${disabled ? " disabled" : ""}><span>${esc(label)}</span></label>`;
+/**
+ * A checkbox drawn as a switch. `label` is text. `attrs` are the input's other attributes by name, as `iconButton`'s
+ * (lower case, no `on...`, each value escaped, `true` bare); none of the builder's own - `type`, `role`, `name`,
+ * `checked`, `disabled` - or it throws (E47-KFa, 09.11.2026; E46-C2's Open 2: Room setup's "This is a room" wrote its
+ * `aria-label` and `data-drpg-undecided` into the drawn input after `role="switch"`). Written where that edit put them,
+ * so a switch that names them draws what it drew (R2086).
+ */
+export function toggle({ name, checked = false, label, disabled = false, attrs = {} } = {}) {
+    ownAttrs("a switch", attrs, ["type", "role", "name", "checked", "disabled"]);
+    return `<label class="drpg-toggle"><input type="checkbox" role="switch"${attrsMarkup(attrs)} name="${esc(name)}"${checked ? " checked" : ""}${disabled ? " disabled" : ""}><span>${esc(label)}</span></label>`;
 }
 
-/** One chip: a pressed/unpressed filter, with a count when it has one. `label` is text; `value` lands on `data-drpg-chip`. */
-export function chip({ label, pressed = false, count = null, disabled = false, value = null } = {}) {
-    return `<button type="button" class="drpg-chip" aria-pressed="${Boolean(pressed)}"${value === null ? "" : ` data-drpg-chip="${esc(value)}"`}${disabled ? " disabled" : ""}>`
+/** Throws when a builder's `attrs` name one of its own attributes (`what` says which builder). */
+function ownAttrs(what, attrs, own) {
+    const named = own.filter(k => Object.hasOwn(attrs ?? {}, k));
+    if (named.length) throw new Error(`ui-kit: ${what}'s attrs name the builder's own ${named.join(", ")}`);
+}
+
+/**
+ * One chip: a pressed/unpressed filter, with a count when it has one. `label` is text; `value` lands on `data-drpg-chip`.
+ * `cls` is the caller's class beside `drpg-chip`, `attrs` its attributes by name (as `iconButton`'s; none of the
+ * builder's own - `type`, `class`, `aria-pressed`, `data-drpg-chip`, `disabled` - or it throws): E47-KFa, 09.11.2026,
+ * for E46-C2b's Passages chips, which wrote theirs in after `class="drpg-chip"`. A chip without them draws what it drew.
+ */
+export function chip({ label, pressed = false, count = null, disabled = false, value = null, cls = null, attrs = {} } = {}) {
+    ownAttrs("a chip", attrs, ["type", "class", "aria-pressed", "data-drpg-chip", "disabled"]);
+    return `<button type="button" class="${esc(["drpg-chip", cls].filter(Boolean).join(" "))}"${attrsMarkup(attrs)} aria-pressed="${Boolean(pressed)}"${value === null ? "" : ` data-drpg-chip="${esc(value)}"`}${disabled ? " disabled" : ""}>`
         + `${esc(label)}${count === null || count === undefined ? "" : `<b>${esc(count)}</b>`}</button>`;
 }
 
@@ -818,8 +866,7 @@ export function chip({ label, pressed = false, count = null, disabled = false, v
  */
 export function iconButton({ icon, label, cls = null, attrs = {}, disabled = false } = {}) {
     if (!label) throw new Error("ui-kit: an icon button with no label - its icon is no name");
-    const own = ["type", "class", "aria-label", "data-tooltip", "title", "disabled"].filter(k => Object.hasOwn(attrs ?? {}, k));
-    if (own.length) throw new Error(`ui-kit: an icon button's attrs name the builder's own ${own.join(", ")}`);
+    ownAttrs("an icon button", attrs, ["type", "class", "aria-label", "data-tooltip", "title", "disabled"]);
     const classes = ["drpg-kit-icon-button", cls].filter(Boolean).join(" ");
     return `<button type="button" class="${esc(classes)}" aria-label="${esc(label)}" data-tooltip="${esc(label)}"${attrsMarkup(attrs)}${disabled ? " disabled" : ""}>`
         + `<i class="${esc(icon ?? "")}" inert></i></button>`;
@@ -863,12 +910,7 @@ export function checkList(rows, { label = null } = {}) {
         const mark = `<span class="drpg-check-mark" role="img" aria-label="${esc(localize(`DRPG.Kit.check.${r.state}`))}">${CHECK_MARKS[r.state]}</span>`;
         const detail = r.detail ? `<span class="drpg-check-detail">${r.detail}</span>` : "";
         let action = "";
-        if (r.action) {
-            const role = BUTTON_ROLES[r.action.role ?? "secondary"];
-            if (!role) throw new Error(`ui-kit: no button role "${r.action.role}"`);
-            action = `<button type="button" class="${[role.cls, role.face].filter(Boolean).join(" ")}" data-drpg-role="${r.action.role ?? "secondary"}"`
-                + ` data-drpg-action="${esc(r.action.action)}">${esc(r.action.label)}</button>`;
-        }
+        if (r.action) action = roleButton({ role: r.action.role ?? "secondary", attrs: { "data-drpg-action": r.action.action }, label: r.action.label });
         return `<li class="drpg-check-row" data-drpg-state="${r.state}"${r.key === null || r.key === undefined ? "" : ` data-drpg-key="${esc(r.key)}"`}>`
             + `${mark}<span class="drpg-check-text"><span class="drpg-check-title">${esc(r.title)}</span>${detail}</span>${action}</li>`;
     });
