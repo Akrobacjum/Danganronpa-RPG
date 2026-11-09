@@ -41,7 +41,7 @@
 
 import { MODULE_ID, TRIAL, FLAGS } from "./config.mjs";
 import { isEclipse, isMutedDead } from "./settings.mjs";
-import { studentActors, actingStudents } from "./monokuma.mjs";
+import { studentActors, actingStudents, characterIds } from "./monokuma.mjs";
 import { isDeceased } from "./chapter.mjs";
 import { trialBlackenedIds, whenTrialReadable } from "./murder.mjs";
 import { ballotStore, verdictStore } from "./gm-stores.mjs";
@@ -259,9 +259,14 @@ export async function ballotFor(sender) {
     return turn;
 }
 
-/** Everyone who can be accused, from the perspective of one voter. */
-function candidatesFor(voterActorId) {
-    const out = studentActors()
+/**
+ * Everyone who can be accused, from the perspective of one voter. The students as the GMs hold them (E24 fix G1; the end
+ * review's S-1): every caller waits for `studentsJudged` first, and a console's forged "not in the class" or Monokuma
+ * flag, still on the document before its put-back, leaves nobody off a ballot (`studentActors`' `held`). Exported for
+ * R1494 alone.
+ */
+export function candidatesFor(voterActorId) {
+    const out = studentActors({ held: flagsHeldNow })
         // "Można głosować na siebie" (guide p. 32). The voter used to be filtered
         // out of their own ballot, which quietly forbade the one accusation a
         // cornered Blackened is most likely to make - and is exactly the bluff
@@ -566,7 +571,8 @@ export function trialParticipants({ connected = true } = {}) {
     // `actingStudents`, handed the trial's rule of the dead, and filtered again below by the flags as the GMs hold them,
     // so the ballots go where they went when this walked `studentActors()` (R1193).
     const outOfTrial = actor => !TRIAL.deadCastBallots && (isDeceased(flagsHeldNow(actor)) || isMutedDead(actor));
-    for (const actor of actingStudents({ dead: outOfTrial })) {
+    // `held` (E24 fix G1; the end review's S-1): "not in the class" and the Monokuma flag as the GMs hold them too.
+    for (const actor of actingStudents({ dead: outOfTrial, held: flagsHeldNow })) {
         // WHO TAKES PART (E70 C5, S18-79's list; TR33 = 1): no Monocub (DC4: it speaks only in the discussion and holds no
         // ballot), and nobody on the trial's list of the dead (settings.mjs `isMutedDead`) - a death nobody has found
         // among them, which the flag does not show and the primary lists after its deaths store has hydrated (TR30).
@@ -588,10 +594,12 @@ export function trialParticipants({ connected = true } = {}) {
 /**
  * Every write queued on a student judged (sheet-audit.mjs `judgedFor`; E10 C2): waited for once, outside
  * the vote's turn, by every road that decides who holds a ballot, so `trialParticipants` then reads each
- * student as the GMs hold it in one synchronous pass.
+ * student as the GMs hold it in one synchronous pass. Every character's (E24 fix G1; the end review's S-1): the
+ * students' list read off the document leaves out the one whose console has just set "not in the class" on it, and
+ * the wait then did not wait for that write.
  */
 function studentsJudged() {
-    return judgedFor(...studentActors().map(actor => actor.id));
+    return judgedFor(...characterIds());
 }
 
 /**

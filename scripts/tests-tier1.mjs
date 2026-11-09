@@ -38782,13 +38782,17 @@ const INVARIANTS = [
             ballots: has(trialParticipants({ connected: false }))
         });
         const before = read();
-        const after = await e24Flagged(npc, { [FLAGS.notInClass ?? "notInClass"]: true }, read);
+        // A GM's flag (E24 fix G1): in the GMs' mark as on the document (`e24HeldFlagged`), as a GM's write lands in both -
+        // the ballots read the flags as the GMs hold them since the fix, and a flag on the document alone is R1494's forgery.
+        const after = await e24HeldFlagged(npc, { [FLAGS.notInClass ?? "notInClass"]: true }, read);
         const src = new Map(await otherSources());
         const cut = (file, fn) => stripComments(fnSource(stripComments(src.get(file) ?? ""), fn));
         // `game.actors.get(id)` looks a named student up; a walk of `game.actors` would be a roster of its own (mutant m4).
-        const reads = (file, fn) => { const body = cut(file, fn); return body.length > 40 && /\bstudentActors\(\)/.test(body) && !/\bgame\.actors\b(?!\.get\()/.test(body); };
+        // `studentActors(` with or without the GMs' `held` (E24 fix G1: the vote's candidates read the flags as the GMs hold them, R1494).
+        const reads = (file, fn) => { const body = cut(file, fn); return body.length > 40 && /\bstudentActors\((?:\)|\{ held: flagsHeldNow \}\))/.test(body) && !/\bgame\.actors\b(?!\.get\()/.test(body); };
+        // The Calls' picker since E24 fix G1 (the owner, 09.11: "wylacz takie npc"; the general review's m7).
         const source = { candidates: reads("vote.mjs", "candidatesFor"), size: reads("vote.mjs", "picksFor"), survivors: reads("verdict.mjs", "verdictHeld"),
-            finalList: reads("verdict.mjs", "openFinalVerdictDialog") };
+            finalList: reads("verdict.mjs", "openFinalVerdictDialog"), calls: reads("call-pickers.mjs", "pickPlayer") };
         const flags = f => (scope, key) => (scope === MODULE_ID ? f[key] : undefined);
         const player = { id: "R1453player", isGM: false }, gm = { id: "R1453gm", isGM: true };
         const char = (id, f, owner) => ({ id, name: id, type: "character", getFlag: flags(f), testUserPermission: u => u.isGM || u.id === owner });
@@ -38798,7 +38802,7 @@ const INVARIANTS = [
         equal(stableJson({ before, after, source, candidates }), stableJson({
             before: { studentActors: true, acting: true, census: true, handed: true, murderCast: true, assignments: true, ballots: true },
             after: { studentActors: false, acting: false, census: false, handed: false, murderCast: false, assignments: false, ballots: false },
-            source: { candidates: true, size: true, survivors: true, finalList: true }, candidates: ["R1453unowned"] }),
+            source: { candidates: true, size: true, survivors: true, finalList: true, calls: true }, candidates: ["R1453unowned"] }),
             "[each reader of the one roster with the student in the class, then marked not in the class; the vote's candidates and size, the verdict's survivors and the Final Trial's list read through studentActors; Pre-season's candidates]");
     }],
     ["R1454 - `notInClass` is a GM's flag (E24 C3a, E24-19): sheet-audit.mjs `kindOf` answers \"flag\" for a write of it, as for the Monokuma flag, so the GMs' audit puts a player's write of it back; a flag no GM holds alone (the Ultimate) answers null; config.mjs `FLAGS.notInClass` is its name", async () => {
@@ -38813,6 +38817,74 @@ const INVARIANTS = [
         equal(stableJson([FLAGS.notInClass ?? null, at("notInClass"), at(FLAGS.monokuma), at(FLAGS.ultimate), SA.kindOf("system.traits.agility.value")]),
             stableJson(["notInClass", "flag", "flag", null, "traits"]),
             "[FLAGS.notInClass; kindOf for notInClass, the Monokuma flag (a control), the Ultimate (no GM's flag), a statistic]");
+    }],
+    ["R1494 - the GMs' roads read \"not in the class\" and the Monokuma flag as the GMs hold them (E24 fix G1; the end review's S-1): a player's student whose document alone carries either flag - a console's forgery before its put-back - stays among monokuma.mjs `studentActors({ held: flagsHeldNow })`, `actingStudents`, the vote's `trialParticipants` and `candidatesFor`, and is still a Support's target (bridge-guards.mjs `guardArmOtherCharacter`), while the document's roster leaves it out; a Monokuma and a student the GMs hold not in the class are refused as a Call's target; the vote's and the trial voices' waits name every character, and `deadForTrial` reads the roster through its `held`", async () => {
+        /*
+         * E24 fix G1, 09.11.2026. The flag is answered on the document in memory (`e24Flagged`), nothing written, and the
+         * primary's mark keeps what it held: the window between a console's `setFlag` arriving and the audit's put-back.
+         * Red on 52955be4: off the held roster, the ballots and the candidates (no `candidatesFor` export), and the
+         * Monokuma and the held NPC armed with a Support. The waits and `deadForTrial` are read in the source;
+         * 30-security drives the muted dead (Botan's "not in the class", its put-back held and failing).
+         */
+        const [M, V, SA, G, { isPrimaryGm }] = await Promise.all([import("./monokuma.mjs"), import("./vote.mjs"), import("./sheet-audit.mjs"),
+            import("./bridge-guards.mjs"), import("./utils.mjs")]);
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        must(isPrimaryGm() && typeof SA.flagsHeldNow === "function", "this GM is not the primary - the GMs' held flags are the document's here, and this would measure nothing");
+        const owner = a => game.users.find(u => !u.isGM && a.testUserPermission?.(u, "OWNER"));
+        const voters = () => V.trialParticipants({ connected: false });
+        const who = studentActors().find(a => owner(a) && voters().some(p => p.actor.id === a.id) && sheetMarkStore.get(a.id));
+        must(who, "no student a player owns with a ballot and a mark - this would measure nothing");
+        const buyer = studentActors().find(a => a.id !== who.id && owner(a));
+        const monokuma = M.monokumaActors()[0];
+        must(buyer && monokuma, "no second player's student or no Monokuma - this would measure nothing");
+        const has = list => [...list].some(a => (a?.actor ?? a)?.id === who.id);
+        const sender = { id: owner(buyer).id, isGM: false };
+        const support = target => G.guardArmOtherCharacter(sender, { actorId: target.id, call: { key: "support", grants: "advantage", from: buyer.id } }, {});
+        const read = async () => ({
+            document: has(M.studentActors()), held: has(M.studentActors({ held: SA.flagsHeldNow })),
+            acting: has(M.actingStudents({ held: SA.flagsHeldNow })), ballots: has(voters()),
+            candidates: typeof V.candidatesFor === "function" ? V.candidatesFor(buyer.id).some(c => c.id === who.id) : "no candidatesFor",
+            support: await support(who)
+        });
+        const forged = {
+            notInClass: await e24Flagged(who, { [FLAGS.notInClass ?? "notInClass"]: true }, read),
+            monokuma: await e24Flagged(who, { [FLAGS.monokuma]: true }, read)
+        };
+        const refused = { monokuma: await support(monokuma), heldOut: await e24HeldFlagged(who, { [FLAGS.notInClass ?? "notInClass"]: true }, () => support(who)) };
+        const src = new Map(await otherSources());
+        const cut = (file, fn) => stripComments(fnSource(stripComments(src.get(file) ?? ""), fn));
+        const source = {
+            voteWait: /\bjudgedFor\(\.\.\.characterIds\(\)\)/.test(cut("vote.mjs", "studentsJudged")),
+            settleWait: /\bjudgedFor\(\.\.\.characterIds\(\)\)/.test(cut("voice.mjs", "settleTrialVoices")),
+            dead: /\bstudentActors\(\{ held \}\)/.test(cut("voice.mjs", "deadForTrial"))
+        };
+        const stood = { document: false, held: true, acting: true, ballots: true, candidates: true, support: null };
+        equal(stableJson({ forged, refused, source }), stableJson({
+            forged: { notInClass: stood, monokuma: stood },
+            refused: { monokuma: "that cannot be done now", heldOut: "that cannot be done now" },
+            source: { voteWait: true, settleWait: true, dead: true } }),
+            "[a forged flag on the document alone: the document's roster, the held roster, the acting students, the ballots, a voter's candidates, a Support aimed at the student; a Support at a Monokuma and at a student the GMs hold not in the class; the vote's and the settle's waits on every character, the dead's list through held]");
+    }],
+    ["R1495 - a new character's first mark, by who made it (E24 fix G1; the end review's security pre-existing item): sheet-audit.mjs `firstMark` takes no module flag the mark holds from a character a player made - the Monokuma flag, \"not in the class\", a death, the grants - and every one from a GM's and from one whose maker is not known; the createActor hook hands the maker on", async () => {
+        /*
+         * E24 fix G1, 09.11.2026. A user with Foundry's "Create New Actors" permission makes a character with any flags, and
+         * its first mark took them from the document: with the Monokuma flag no write of theirs on it was judged again.
+         * The character is a stand-in in memory, nothing written. Red on 52955be4: no `firstMark`.
+         */
+        const SA = await import("./sheet-audit.mjs");
+        must(typeof SA.firstMark === "function", "sheet-audit.mjs exports no firstMark - this would measure nothing");
+        const player = game.users.find(u => !u.isGM), gm = game.users.find(u => u.isGM);
+        must(player && gm, "no player or no GM in this world - this would measure nothing");
+        const made = { [FLAGS.monokuma]: true, [FLAGS.notInClass ?? "notInClass"]: true, [FLAGS.freeActionGrants]: 9, ultimateR1495: "kept on the document" };
+        const stand = { id: "R1495new", type: "character", _source: { system: { resources: { hope: { value: 2, max: 6 } } }, flags: { [MODULE_ID]: made } },
+            effects: { contents: [] }, items: { contents: [] } };
+        const flagsOf = userId => Object.keys(SA.firstMark(stand, userId).flags ?? {}).sort();
+        const hook = stripComments(new Map(await otherSources()).get("sheet-audit.mjs") ?? "");
+        equal(stableJson({ player: flagsOf(player.id), gm: flagsOf(gm.id), unknown: flagsOf(null), hope: SA.firstMark(stand, player.id).resources?.hope?.value ?? null,
+            hook: /Hooks\.on\("createActor", \(actor, _options, userId\) => \{[^}]*refillMarks\(\{ \[actor\.id\]: userId \}\)/.test(hook) }),
+            stableJson({ player: [], gm: [FLAGS.freeActionGrants, FLAGS.monokuma, FLAGS.notInClass ?? "notInClass"].sort(),
+                unknown: [FLAGS.freeActionGrants, FLAGS.monokuma, FLAGS.notInClass ?? "notInClass"].sort(), hope: 2, hook: true }),
+            "[the first mark's module flags of a character a player made, a GM made and nobody known made; its Hope from the document; the createActor hook handing the maker on]");
     }],
     ["R1455 - the gates' matrix (E24 C3a, E24-18, E24-20; audit S03-15): sheet.mjs `rowGate` answers no row buttons for the dead and a Monocub (D15), a Monokuma and a sheet the viewer may not edit, and yes for the living and an NPC, for a GM and for the owner; Use, Equip, Discard, Stash, Give/Share and the Truth Bullet row (Share, Present, Analyze) each ask it first; and on a stand-in sheet drawn by the render hook as the living, the dead, a Monocub and an NPC not in the class, for a GM and for the owner: the header still (`drpg-sheet-still`, the Actions section `drpg-still`, no pip tooltip) for the dead and the NPC, live for the living and a Monocub; the death mark on the dead's portrait, not a Monocub's; the dead's line in the dead's panel; the NPC's line to the GM, no action grid, no Calls and no Level Up button; the GM's controls only for a GM", async () => {
         /*
@@ -41412,6 +41484,24 @@ async function e24Flagged(actor, flags, run) {
         return await run();
     } finally {
         if (own) Object.defineProperty(actor, "getFlag", own); else delete actor.getFlag;
+    }
+}
+
+/**
+ * E24 fix G1's fixture (R1453, R1494): `e24Flagged` with the primary's mark holding `flags` too, in this browser's memory
+ * (the store's own object, put back in a finally, nothing written) - a GM's flag, which lands in the mark as on the
+ * document. With no mark of the student it answers what `e24Flagged` answers.
+ */
+async function e24HeldFlagged(actor, flags, run) {
+    const { sheetMarkStore } = await import("./gm-stores.mjs");
+    const mark = sheetMarkStore.get(actor.id);
+    if (!mark?.flags) return e24Flagged(actor, flags, run);
+    const was = Object.fromEntries(Object.keys(flags).map(key => [key, Object.getOwnPropertyDescriptor(mark.flags, key) ?? null]));
+    Object.assign(mark.flags, flags);
+    try {
+        return await e24Flagged(actor, flags, run);
+    } finally {
+        for (const [key, own] of Object.entries(was)) if (own) Object.defineProperty(mark.flags, key, own); else delete mark.flags[key];
     }
 }
 

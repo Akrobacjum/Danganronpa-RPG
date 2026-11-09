@@ -54,9 +54,31 @@ export function isNotInClass(actor) {
  * calls in 19 files (`studentCensus`, `actingStudents`, the vote's candidates, its size and `trialParticipants`, the
  * verdict's survivors, the murder window's cast through chapter.mjs `livingStudentsForGm`, assignments.mjs, the GM
  * panel), so the flag is read here once and every one of them leaves the NPC out (R1453).
+ *
+ * AS THE GMS HOLD THE TWO FLAGS, ON THE GMS' ROADS (E24 fix G1, 09.11.2026; the end review's S-1). Both flags are a GM's
+ * (sheet-audit.mjs `GM_FLAGS`), and the document is what the student's owner can write: a console that set
+ * `notInClass` (or `monokuma`) on its own student took it off the list the primary built in the window before the
+ * audit's put-back landed - off the vote's judged ids, so the step did not wait for that student's write, then off
+ * every ballot it sent, and off the trial's muted dead. `held` is the reader a GM's road hands in (sheet-audit.mjs
+ * `flagsHeldNow`, after `judgedFor` of every character, `characterIds`): each character is asked through it, and
+ * the mark's flags answer where the primary holds one. Without it the document answers, as every display reads it.
+ * The roads: vote.mjs `studentsJudged`, `candidatesFor`, `trialParticipants`, voice.mjs `deadForTrial` and its
+ * settle, and bridge-guards.mjs `guardArmOtherCharacter` for a Call (R1494).
  */
-export function studentActors() {
-    return game.actors.filter(a => a.type === "character" && !isMonokuma(a) && !isNotInClass(a));
+export function studentActors({ held = null } = {}) {
+    return game.actors.filter(a => {
+        if (a.type !== "character") return false;
+        const flags = held ? held(a) : a;
+        return !isMonokuma(flags) && !isNotInClass(flags);
+    });
+}
+
+/**
+ * Every character's id (E24 fix G1): the ids a GM's road waits on (sheet-audit.mjs `judgedFor`) before it reads the
+ * students as held - every character, not `studentActors()`'s, which a forged flag on the document still shortens.
+ */
+export function characterIds() {
+    return game.actors.filter(a => a.type === "character").map(a => a.id);
 }
 
 /**
@@ -83,10 +105,10 @@ export function studentCensus(actors = studentActors()) {
  *
  * `dead` is the death the caller asks, the GMs' by default (`isDeadForGm`: the flag, or a death this browser holds); a
  * card sent to each owner is a document and asks the table's fact (`isDeceased`, rule A), and the trial hands its own
- * rule, which it filters again with the Monocub flag as the GMs hold it.
+ * rule, which it filters again with the Monocub flag as the GMs hold it. `held` is `studentActors`'s (E24 fix G1).
  */
-export function actingStudents({ dead = isDeadForGm } = {}) {
-    return studentActors().filter(a =>
+export function actingStudents({ dead = isDeadForGm, held = null } = {}) {
+    return studentActors({ held }).filter(a =>
         !dead(a) || a.getFlag(MODULE_ID, FLAGS.monocub));
 }
 

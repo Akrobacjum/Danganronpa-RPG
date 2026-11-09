@@ -47,7 +47,7 @@ import { SETTINGS, getSetting, getClock, isDeadForGm, isDeceased, isEclipse, dea
 // this GM happens to be looking at.
 import { allRooms, moveRefused, moveVerdict, whenAtRest } from "./movement.mjs";
 import { roomPieces, roomRegions, isMoveChange, isTrialScene } from "./rooms.mjs";
-import { isMonokuma, poolUserFor, studentActors } from "./monokuma.mjs";
+import { isMonokuma, poolUserFor, studentActors, characterIds } from "./monokuma.mjs";
 import { isMonocub, ownCaseOpen } from "./monocub.mjs";
 import { deathStore, trialMuteStore } from "./gm-stores.mjs";
 import { VOICE, ROOM_PREFIX, DEAD_ROOM, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
@@ -1308,7 +1308,9 @@ export function trialVoiceActorOf(user, actors = game.actors, listed = []) {
  */
 function deadForTrial(held = actor => actor) {
     const ids = new Set();
-    for (const actor of studentActors()) {
+    // "Not in the class" and the Monokuma flag through `held` too (E24 fix G1; the end review's S-1): a dead player who
+    // set either on their own student was off this list, and their microphone given back, until the put-back's settle.
+    for (const actor of studentActors({ held })) {
         const flags = held(actor);
         if (flags.getFlag(MODULE_ID, FLAGS.monocub)) continue;
         if (isDeadForGm(flags)) ids.add(actor.id);
@@ -1401,7 +1403,8 @@ export async function settleTrialVoices({ release = false } = {}) {
     return serialWrite(vote.TRIAL_PROGRESS_KEY, async () => {
         // Every write queued on a student judged, then each read as the GMs hold it in one synchronous pass (SEC-2,
         // `deadForTrial`). The wait holds up nothing that holds it up: no judgement waits for the record's key.
-        if (game.user?.isGM) await judgedFor(...studentActors().map(actor => actor.id));
+        // Every character's (E24 fix G1): the document's students leave out the one a forged flag has just taken off.
+        if (game.user?.isGM) await judgedFor(...characterIds());
         const clock = getClock();
         const inTrial = clock.phase === "classTrial" && !release;
         const stored = getSetting(SETTINGS.trialProgress) ?? {};

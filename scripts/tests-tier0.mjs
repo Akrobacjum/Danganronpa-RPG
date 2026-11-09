@@ -19070,7 +19070,8 @@ const REGRESSIONS = [
             "actions.mjs#clearGrants": "the refill's reach, actor by actor as `resetActionsFor` skips the dead (the table's fact), for the grants a boundary opened again ends",
             "call-pickers.mjs#pickItem": "whose things Contraband can reach: a body's too, a Monokuma's or a Monocub's not"
         };
-        const WALKS = /\bstudentActors\(\)|\blivingStudents(?:ForGm)?\(\)|\bgame\.actors\.(?:filter|find|some|map|forEach)\(|\bof game\.actors\b/;
+        // `studentActors` with the GMs' `held` too (E24 fix G1: voice.mjs `deadForTrial` reads the roster through it).
+        const WALKS = /\bstudentActors\((?:\)|\{ held(?:: \w+)? \}\))|\blivingStudents(?:ForGm)?\(\)|\bgame\.actors\.(?:filter|find|some|map|forEach)\(|\bof game\.actors\b/;
         const DEATH = /\b(?:isDeceased|isDeadForGm|isMutedDead)\(|FLAGS\.deceased\b/;
         const CUB = /FLAGS\.monocub\b|\bisMonocub\(/;
         const found = [];
@@ -19087,7 +19088,8 @@ const REGRESSIONS = [
         const roster = fnSource(mono, "actingStudents");
         const doc = bodyOf(sources.get("monokuma.mjs"), "export function actingStudents", { back: 1500 });
         equal(JSON.stringify({
-            roster: [/^export function actingStudents\(\{ dead = isDeadForGm \} = \{\}\)/.test(roster), /\bstudentActors\(\)/.test(roster),
+            // `held` since E24 fix G1 (the GMs' roads hand `flagsHeldNow` through to `studentActors`).
+            roster: [/^export function actingStudents\(\{ dead = isDeadForGm, held = null \} = \{\}\)/.test(roster), /\bstudentActors\(\{ held \}\)/.test(roster),
                 /!dead\(a\) \|\| a\.getFlag\(MODULE_ID, FLAGS\.monocub\)/.test(roster),
                 /the students who still spend a budget: the living, and the dead back as a Monocub/i.test(doc)],
             strip: [/\bactingStudents\(\)/.test(fnSource(status, "buildTableView")), topLevelFunction(status, "trackedStudents") === null],
