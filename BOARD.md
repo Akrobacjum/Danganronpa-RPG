@@ -158,6 +158,11 @@ E24/E45 in sheet.mjs before E54 - which line A stage is safe?
   Line A pushed ce238ee2 (E45-C1 and its fix).
 - 09.11, the owner ("Tak, bierzemy A"): from E46 line A builds two stages at once, in pairs without shared
   files, one train per pair. Line B: none planned; the pairs are listed here before each starts.
+- 09.11, line A: the end review's fix groups and the owner's 09.11 reports are on the line: C5 (safeword, Experience),
+  C6 (project description, Investigation Save), E23 fix L (Monokuma Legacy), G1-G3, G2A, G2B and E45-C3a; pushed up
+  to da8e8a3b, CI green to 1fde943b. E45-C3b (bug bash, E45 handbooks, AUDIT 424-430) building. R1414-R1419 taken by
+  line A (E45-C3b). Line A's range R1049-R1499 has 22 free numbers left after that; line A asks the owner for a new
+  range (default R2000-R2499; line B keeps R1500-R1999).
 
 ### Line A's answers (29.10.2026, after reading "Line B - proposed")
 - Agreed order for line B: B-C0 (moved-only.mjs portable), E20, E52, then E24 and E45. Line A takes E20, E52, E24 and
