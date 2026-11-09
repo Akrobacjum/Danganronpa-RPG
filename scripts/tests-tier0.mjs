@@ -21711,43 +21711,73 @@ const REGRESSIONS = [
     }],
     /* ---- E46 C6 (09.11.2026) ---- */
 
-    ["R2035 - the warning sites E21 homed in E46's windows are the kit's boxes (E46-C6; E46-20; STAGE E46 \"The carried warning sites\", E21 STATUS fix G2 item 10): each listed function draws its warnings with box(\"warning\") and its information lines with box(\"info\"), and keeps no drpg-warning; the sites in windows E47 rebuilds are listed as E47's and read for being there, as is Item tables' install receipt, a whisper to the GMs carried with the chat cards", async () => {
+    ["R2035 - the warning sites E21 homed are in their final state for E46 and E47 (E46-C6, E47-C7; E46-20, E47-18; STAGE E46 \"The carried warning sites\", E21 STATUS fix G2 item 10): each function of E46's and E47's windows draws its warnings with box(\"warning\") and its information lines with box(\"info\") and keeps no drpg-warning; each whispered chat card E47-C5's surfaces did not take keeps its drpg-warning, carried to E48, as do Item tables' install receipt and the verdict's summary; the window sites no E47 group took are named, left open", async () => {
         /*
-         * E46-C6, 09.11.2026. E21's list (fix G2 item 10) homed 19 `drpg-warning` sites by window, read at 3c952c67:
-         * chapter.mjs `chapterEndForm` (3: the untyped bullets, the last chapter, no Final Truth Remnant) and
-         * `askStoppedEnd` (1), gm-items.mjs's two kind notes, gm-stores.mjs `runHealthCheck`, gm-team-dialog.mjs
-         * `wireMonokumaLive`, projects-ui.mjs's three, room-setup.mjs `roomSetupContent` (2 W, 1 I), season-wipe.mjs
-         * `resetSeason` (2: the Reset window), tables-editor.mjs `installTables` and `wireNewItemForm` (2). Each row here:
-         * file, function, stage, and for stage E46 [warning boxes, info boxes] as the tree draws them - counted in the
-         * source with comments blanked: `box("warning", ` and gm-items.mjs's `kindNote("...")` (one such box, its own row)
-         * as warnings, `box("info", ` as information - and `drpg-warning` left, 0. room-setup.mjs's second info box is the
-         * room count's line (E21 C5, R1373), drawn in the same function. Rows of stage E47 (the case's health on a
-         * checkList since E47-C3, R2063/R2064; the project windows since E47-C6, R2076) are those groups' to hold and are
-         * read here for being there; `installTables`' site is the receipt whispered to the GMs (a chat card, as verdict.mjs
-         * `verdictSummaryContent` stays, E47-C1 Open 2), carried with the chat-card sites. The windows' look at a table:
-         * LIVE-E46-07. Red first on db40a379: chapter.mjs `chapterEndForm` [0,0,3], `askStoppedEnd` [0,0,1], season-wipe.mjs
-         * `resetSeason` [0,0,2].
+         * E46-C6, 09.11.2026; the E47 rows E47-C7, 09.11.2026. E21's list (fix G2 item 10) homed 112 `drpg-warning` sites
+         * by window at 3c952c67 (W 87, I 25): E46's windows 19, E47's windows 36, the whispered chat cards 57 (46 W, 11 I).
+         * A row: file, function, stage, then [warning boxes, info boxes, drpg-warning] as the tree draws them - counted in
+         * the function's source with comments blanked: `box("warning", ` and gm-items.mjs's `kindNote("...")` (one such
+         * box, its own row) as warnings, `box("info", ` as information. Stage E46 and E47: the window's group converted
+         * them, no `drpg-warning` left (room-setup.mjs's second info box is the room count's line, E21 C5, R1373; the case's
+         * health is a checkList since E47-C3, so no box). Stage E48: a chat card - a whisper to the GMs or a card the table
+         * reads - which no E46 or E47 group rebuilt (E47-C5 took four: sheet-audit.mjs `awayCard` and `flaggedCard`,
+         * roll-draw.mjs `announceRollDraw` and `onRenderUnwitnessed`, now `rollStatus`), its sites counted as they stand
+         * and carried to the stage that rebuilds its card; Item tables' install receipt (E46-C6 Open 1) and the verdict's
+         * summary (E47-C1 Open 2) are such whispers. migrate.mjs's site stands in its `CLAUSES` table, read as the whole
+         * file ("*"). Stage "open": a site of a window E21 homed in E47 that no E47 group rebuilt, named in E47-C7's STATUS
+         * Open for the orchestrator. Red first: on db40a379 chapter.mjs `chapterEndForm` [0,0,3], `askStoppedEnd` [0,0,1],
+         * season-wipe.mjs `resetSeason` [0,0,2]; the E47 and E48 rows on 9aafad79 by two planted mutants (the panel's
+         * warning box drawn as info: [0,1,0]; installTables' class renamed: [0,0,0]). The
+         * windows' look at a table: LIVE-E46-07, LIVE-E47-10.
          */
         const SITES = [
-            ["chapter.mjs", "chapterEndForm", "E46", 3, 0], ["chapter.mjs", "askStoppedEnd", "E46", 1, 0],
-            ["gm-items.mjs", "giveExistingPane", "E46", 2, 0], ["gm-items.mjs", "giveCreatePane", "E46", 1, 0], ["gm-items.mjs", "kindNote", "E46", 1, 0],
-            ["gm-team-dialog.mjs", "wireMonokumaLive", "E46", 1, 0], ["room-setup.mjs", "roomSetupContent", "E46", 2, 2],
-            ["season-wipe.mjs", "resetSeason", "E46", 2, 0], ["tables-editor.mjs", "wireNewItemForm", "E46", 2, 0],
-            ["gm-stores.mjs", "runHealthCheck", "E47"], ["projects-ui.mjs", "guardDescription", "E47"], ["projects-ui.mjs", "ownedFieldset", "E47"],
-            ["projects-ui.mjs", "passageFieldset", "E47"], ["tables-editor.mjs", "installTables", "chat"]
+            ["chapter.mjs", "chapterEndForm", "E46", 3, 0, 0], ["chapter.mjs", "askStoppedEnd", "E46", 1, 0, 0],
+            ["gm-items.mjs", "giveExistingPane", "E46", 2, 0, 0], ["gm-items.mjs", "giveCreatePane", "E46", 1, 0, 0], ["gm-items.mjs", "kindNote", "E46", 1, 0, 0],
+            ["gm-team-dialog.mjs", "wireMonokumaLive", "E46", 1, 0, 0], ["room-setup.mjs", "roomSetupContent", "E46", 2, 2, 0],
+            ["season-wipe.mjs", "resetSeason", "E46", 2, 0, 0], ["tables-editor.mjs", "wireNewItemForm", "E46", 2, 0, 0],
+            ["gm-panel.mjs", "buildPanelContent", "E47", 1, 0, 0], ["gm-stores.mjs", "backupCase", "E47", 1, 0, 0], ["gm-stores.mjs", "runHealthCheck", "E47", 0, 0, 0],
+            ["investigation.mjs", "caseKeyPanel", "E47", 2, 0, 0], ["murder-ui.mjs", "openMurderDialog", "E47", 2, 1, 0], ["murder-ui.mjs", "incidentTrackerHtml", "E47", 1, 0, 0],
+            ["projects-ui.mjs", "guardDescription", "E47", 1, 0, 0], ["projects-ui.mjs", "ownedFieldset", "E47", 1, 0, 0], ["projects-ui.mjs", "passageFieldset", "E47", 1, 0, 0],
+            ["trial-floor-ui.mjs", "endClassTrial", "E47", 1, 1, 0], ["trial-floor-ui.mjs", "confirmReveal", "E47", 1, 0, 0],
+            ["trial-floor-ui.mjs", "trialConsoleHtml", "E47", 2, 3, 0], ["trial-floor-ui.mjs", "openVoteDialog", "E47", 2, 2, 0],
+            ["verdict.mjs", "openVerdictDialog", "E47", 3, 0, 0], ["verdict.mjs", "askBlackenedRule", "E47", 1, 0, 0], ["verdict.mjs", "openFinalVerdictDialog", "E47", 0, 1, 0],
+            ["vote.mjs", "castBallot", "E47", 0, 1, 0],
+            ["action-project.mjs", "startProject", "open", 1, 0, 1], ["call-pickers.mjs", "callHeader", "open", 0, 0, 1],
+            ["mastermind.mjs", "openMastermindDialog", "open", 0, 0, 1], ["reroll.mjs", "settleGmRuling", "open", 0, 0, 1],
+            ["roll-dialog.mjs", "announceFreeCritical", "open", 0, 0, 1], ["trial.mjs", "pickObjectionEvidence", "open", 0, 0, 1],
+            ["use-items.mjs", "confirmUse", "open", 0, 0, 1],
+            ["tables-editor.mjs", "installTables", "E48", 0, 0, 1], ["verdict.mjs", "verdictSummaryContent", "E48", 0, 0, 1],
+            ["analyze.mjs", "tellGmsKeyMissing", "E48", 0, 0, 1], ["anonymity.mjs", "lowerOwnership", "E48", 0, 0, 1],
+            ["bridge-runs-acts.mjs", "handleAdvancement", "E48", 0, 0, 1], ["call-effects.mjs", "tell", "E48", 0, 0, 1], ["call-gm.mjs", "callCardHtml", "E48", 0, 0, 1],
+            ["chapter.mjs", "runDiscovery", "E48", 0, 0, 1], ["chapter.mjs", "endChapterNow", "E48", 0, 0, 1], ["chapter.mjs", "runChapterEnd", "E48", 0, 0, 1],
+            ["chapter.mjs", "finishEndNow", "E48", 0, 0, 1], ["cleanup.mjs", "reshapeCardParts", "E48", 0, 0, 1], ["cleanup.mjs", "proposeReshape", "E48", 0, 0, 1],
+            ["cleanup.mjs", "undoLastCleanup", "E48", 0, 0, 2], ["cleanup.mjs", "paidBack", "E48", 0, 0, 1], ["eclipse.mjs", "ruleOnParkedMurder", "E48", 0, 0, 1],
+            ["eclipse.mjs", "judgePendingMurders", "E48", 0, 0, 4], ["inventory.mjs", "transferItem", "E48", 0, 0, 2], ["investigation.mjs", "chargeForUnfoundKeys", "E48", 0, 0, 1],
+            ["migrate.mjs", "*", "E48", 0, 0, 1], ["movement-audit.mjs", "auditMove", "E48", 0, 0, 2], ["movement.mjs", "keepRoomFlag", "E48", 0, 0, 1],
+            ["movement.mjs", "removeDrop", "E48", 0, 0, 1], ["movement.mjs", "tellUnlawful", "E48", 0, 0, 1], ["movement.mjs", "tellDropped", "E48", 0, 0, 1],
+            ["murder-rules.mjs", "resolveVictimOpening", "E48", 0, 0, 1], ["murder-rules.mjs", "applyCrisisAction", "E48", 0, 0, 1], ["murder-rules.mjs", "swapRoles", "E48", 0, 0, 1],
+            ["murder-rules.mjs", "refuseBetrayal", "E48", 0, 0, 1], ["murder-rules.mjs", "throwOpeningRoll", "E48", 0, 0, 1], ["observe.mjs", "resolveObserve", "E48", 0, 0, 2],
+            ["relay-guard.mjs", "reportRefusal", "E48", 0, 0, 1], ["relay-guard.mjs", "unknownSender", "E48", 0, 0, 1], ["relay-guard.mjs", "shapeWarning", "E48", 0, 0, 1],
+            ["relay-guard.mjs", "announce", "E48", 0, 0, 3], ["remnants.mjs", "dropRemnant", "E48", 0, 0, 1], ["reroll-receipts.mjs", "warnGms", "E48", 0, 0, 1],
+            ["roll-draw.mjs", "tellUnexpected", "E48", 0, 0, 1], ["rules.mjs", "setMotive", "E48", 0, 0, 1], ["rules.mjs", "dueCard", "E48", 0, 0, 1],
+            ["sheet-audit.mjs", "record", "E48", 0, 0, 1], ["sheet-audit.mjs", "onForgedCard", "E48", 0, 0, 1], ["steps.mjs", "stepsReport", "E48", 0, 0, 1],
+            ["truth-bullets.mjs", "revertPlayerBulletEdit", "E48", 0, 0, 1], ["use-items.mjs", "discardBroken", "E48", 0, 0, 1], ["vault-store.mjs", "clearSplitPiece", "E48", 0, 0, 1]
         ];
         const files = {};
         for (const file of new Set(SITES.map(([file]) => file))) files[file] = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
         const count = (text, re) => (text.match(re) ?? []).length;
-        const got = {}, want = {};
-        for (const [file, fn, stage, w, i] of SITES) {
-            const body = fnSource(files[file], fn);
+        const got = {}, want = {}, by = {};
+        for (const [file, fn, stage, w, i, d] of SITES) {
+            const body = fn === "*" ? files[file] : (topLevelFunction(files[file], fn) ?? "");
             const name = `${file}:${fn} (${stage})`;
-            if (stage !== "E46") { got[name] = body.length > 40 ? "read" : "not read"; want[name] = "read"; continue; }
             got[name] = body.length > 40 ? [count(body, /\bbox\("warning",/g) + count(body, /\bkindNote\("/g), count(body, /\bbox\("info",/g), count(body, /drpg-warning/g)] : "not read";
-            want[name] = [w, i, 0];
+            want[name] = [w, i, d];
+            by[stage] = (by[stage] ?? 0) + d;
         }
-        equal(JSON.stringify(got), JSON.stringify(want), "{file:function (stage): E46's [warning boxes, info boxes, drpg-warning left]; E47's and the chat card's read}");
+        // The carried sites, as E47-C7 counted them on 9aafad79 (STATUS E47-C7): 53 chat card sites (43 W, 10 I) and the
+        // two whispers, 55; 7 window sites left open.
+        equal(JSON.stringify({ E48: by.E48, open: by.open }), JSON.stringify({ E48: 55, open: 7 }), "{drpg-warning sites carried to E48, left open}");
+        equal(JSON.stringify(got), JSON.stringify(want), "{file:function (stage): [warning boxes, info boxes, drpg-warning left]}");
     }],
 
     ["R2036 - the GM handbook names E46's new labels in both languages (E46-C6; E46-21): the checklist's red and \"!\" states and the uneven split, Room setup's picture warnings and the hall's cast columns, Item tables' columns, Give existing's empty choice, Overflow's rules table, Sound's Effects column and a Test's reason, and Music's folded order - each read from lang/ and found in docs/handbooks/gm-handbook.<lang>.md, a label in bold, a sentence the window says in italics", async () => {
@@ -21780,6 +21810,96 @@ const REGRESSIONS = [
             }
         }
         equal(JSON.stringify({ read, missing }), JSON.stringify({ read: LABELS.length * 2, missing: [] }), "{labels read in both files, those the handbook of their language does not name}");
+    }],
+
+    ["R2078 - the handbooks name E47's new labels in both languages (E47-C7; E47-19): the console's footer - Start the Final Trial and its reason, End the trial - and the next step's words, the vote's Close and count, the tracker's facts and its empty state, Edit campaign's Chapter, the project manager's head and the wide project windows, the Students window's columns and the case window's tile - each read from lang/ and found in docs/handbooks/gm-handbook.<lang>.md, a label in bold, a sentence the window says in italics; the wide windows also in the player handbook", async () => {
+        /*
+         * E47-C7, 09.11.2026. E47's windows drew new words or moved old ones (E47-C1 the console's footer and the next step,
+         * C2 the tracker and Edit campaign, C3 the case window, C6 the project windows, C8 the Students window; keys added
+         * or moved between 552d6d69 and 9aafad79). The rule is R2036's: `**<label>**` for a column head, a button, a fact or
+         * a setting, `*<words>` for a sentence the window says, cut at its first placeholder. C3's and C8's labels were
+         * written by those groups and are read here, not rewritten. Red first on 9aafad79 (the handbooks before this commit):
+         * 27 of the 40 readings missing - 13 in English's GM handbook, 12 in Polish's, and the setting in both player handbooks.
+         */
+        const LABELS = [
+            ["Mastermind.startFinalTrial", "label"], ["Mastermind.noneSet", "said"], ["Floor.endTrial", "label"],
+            ["Floor.next.start", "said"], ["Floor.next.vote", "said"], ["Floor.next.chapterEnd", "said"], ["Vote.tally", "label"],
+            ["Murder.fact.who", "label"], ["Murder.fact.left", "label"], ["Murder.fact.case", "label"], ["Murder.none", "said"],
+            ["Murder.trackerOpenMurder", "label"], ["Clock.chapter", "label"], ["Project.visibleTo", "label"],
+            ["Settings.wideProjectWindows.name", "label"], ["Panel.roleColumn", "label"], ["Panel.levelUpColumn", "label"],
+            ["Case.tile", "label"], ["Case.backup", "label"]
+        ];
+        const PLAYER = ["Settings.wideProjectWindows.name"];
+        const missing = [];
+        let read = 0;
+        for (const lang of ["en", "pl"]) {
+            const strings = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const text = await fetch(`/modules/${MODULE_ID}/docs/handbooks/gm-handbook.${lang}.md`).then(lfText);
+            const player = await fetch(`/modules/${MODULE_ID}/docs/handbooks/player-handbook.${lang}.md`).then(lfText);
+            must(text.includes("## 17.") && player.length > 10000, `docs/handbooks/ (${lang}) was not read - this would measure nothing`);
+            const look = (book, key, how, where) => {
+                const label = `DRPG.${key}`.split(".").reduce((o, k) => o?.[k], strings);
+                if (typeof label !== "string") { missing.push(`${lang} has no DRPG.${key}`); return; }
+                const words = label.split("{")[0].replace(/[\s(:]+$/, "");
+                read++;
+                if (!words || !book.includes(how === "label" ? `**${words}**` : `*${words}`)) missing.push(`${lang} ${where} ${key}: ${words}`);
+            };
+            for (const [key, how] of LABELS) look(text, key, how, "gm");
+            for (const key of PLAYER) look(player, key, "label", "player");
+        }
+        equal(JSON.stringify({ read, missing }), JSON.stringify({ read: (LABELS.length + PLAYER.length) * 2, missing: [] }), "{labels read in both languages, those the handbook of their language does not name}");
+    }],
+
+    ["R2079 - the style baseline holds styleSnapshot's E46 and E47 pages in both themes at the four sizes, and reads each surface of the kit E46 built for them on the pages that draw it, at every one of those eight (E47-C7; E47-18; STAGE E46 \"Verification, per commit and once\"): a page the sweep never accepted, or a surface only its first run found, is a look nobody holds", async () => {
+        /*
+         * E47-C7, 09.11.2026. audit/style-sweep.mjs holds what Chromium computes for scripts/style-snapshot.mjs's surfaces to
+         * audit/style-baseline.json, page by page (`pages["<page>|<theme>|<w>x<h>"]`). The pages are the windows STAGE E46
+         * names per group (audit/windows/manifest.json ids, the kit gallery and the glass harness's two pages); the
+         * surfaces are the rows E46-C1 and E46-C1f added for the kit's new parts, each held on the pages that draw it (the
+         * list E47-C7's whole sweep read on 9aafad79, 09.11.2026). Until that sweep the baseline held none of them on those
+         * pages: each window group accepted only its own pages, so the kit's rows were read on the others as "found now,
+         * not before" (E46-C6 Open 2; 476 of the 556 differences, the other 80 the 1.2.102 clip and E47-KFa). Red first on
+         * 9aafad79: 476 readings unheld (clamp 120, compact stepper 104, icon button 96, disabled 80, group 24, check row
+         * 16, check mark 16); on 3c952c67's baseline, seven pages absent at all eight: give, give--create, bullet,
+         * bullet--create, students, projects and incident-tracker.
+         */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        let base = null;
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/audit/style-baseline.json`, { cache: "no-cache" });
+            base = res.ok ? await res.json() : null;
+        } catch { /* read as empty below */ }
+        must(base?.pages && Object.keys(base.pages).length > 100, "audit/style-baseline.json read nothing - this test would read nothing");
+        const PAGES = [
+            "kit-gallery", "rooms-bedrooms", "rooms-doors", "rooms-search", "rooms-rest", "rooms-stashes", "rooms-description", "rooms-fog",
+            "rooms-passages", "rooms-scenes", "item-tables", "item-tables--editRooms", "item-tables--newItem", "item-manager",
+            "item-manager--take", "give", "give--create", "bullet", "bullet--create", "sound", "sound--music", "sound--effects",
+            "sound-player", "despair-flow", "despair-flow--monokumas", "despair-flow--students", "despair-flow--overflow",
+            "season-setup", "pre-season-checks",
+            "class-trial", "vote", "trial-end", "reveal-confirm", "murder", "edit-campaign", "incident-tracker", "gm-panel",
+            "glass-gm", "students", "investigation", "investigation--key", "investigation--final", "glass-player", "room-window",
+            "look-gm", "look-player", "action-project", "projects"
+        ];
+        const KEYS = ["glass", "legacy"].flatMap(theme => ["1920x1080", "1366x768", "1024x768", "390x844"].map(size => `${theme}|${size}`));
+        const ROOMS = ["rooms-bedrooms", "rooms-description", "rooms-doors", "rooms-fog", "rooms-passages", "rooms-rest", "rooms-scenes", "rooms-search", "rooms-stashes"];
+        const SOUND = ["sound", "sound--effects", "sound--music"];
+        const FLOW = ["despair-flow", "despair-flow--monokumas", "despair-flow--overflow", "despair-flow--students"];
+        const SURFACES = {
+            "kit-table-group": SOUND,
+            "kit-table-clamp": ["investigation", "investigation--final", "investigation--key", ...ROOMS, ...SOUND],
+            "kit-stepper-compact": [...FLOW, ...ROOMS],
+            "kit-check-row": ["pre-season-checks", "season-setup"], "kit-check-mark": ["pre-season-checks", "season-setup"],
+            "kit-icon-button": [...ROOMS, ...SOUND],
+            "kit-disabled": [...FLOW.slice(0, 3), "item-manager", "item-manager--take", "item-tables", "item-tables--editRooms", "item-tables--newItem", "notices-gm", "notices-player"]
+        };
+        const absent = [];
+        for (const page of PAGES) for (const key of KEYS) if (!Object.keys(base.pages[`${page}|${key}`] ?? {}).length) absent.push(`${page}|${key}`);
+        const unheld = {};
+        for (const [surface, pages] of Object.entries(SURFACES)) {
+            const lack = pages.flatMap(page => KEYS.filter(key => !base.pages[`${page}|${key}`]?.[surface]).map(key => `${page}|${key}`));
+            if (lack.length) unheld[surface] = lack.length;
+        }
+        equal(JSON.stringify({ absent, unheld }), JSON.stringify({ absent: [], unheld: {} }), "{page|theme|size absent from the baseline, surface: page|theme|size readings that do not hold it}");
     }],
 ];
 

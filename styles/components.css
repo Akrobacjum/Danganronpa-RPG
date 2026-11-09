@@ -2993,7 +2993,7 @@ body.drpg-theme-stained-glass .chat-message :is(.drpg-away-card, .drpg-audit-car
    column whose name stands on lines 1.2 high instead of the field's height, and every checkbox, range and focus ring
    of those rows and of the Give back window in the module's ink, not Foundry's amber (a field's focus ring there is the
    panels' gold already, danganronpa.css). `--checkbox-checked-color` and `--button-focus-outline-color` are the names
-   Foundry's own sheet is recalled to read, not read here: whether v14's are these is a live check (E47-C7 writes it). */
+   Foundry's own sheet is recalled to read, not read here: whether v14's are these is a live check (LIVE-E47-06). */
 #settings-config .form-group.drpg-settings-row > label { flex: 3 1 0; min-width: 0; line-height: 1.2; align-self: center; }
 :is(#settings-config .form-group.drpg-settings-row, .application.drpg-window-give-back) {
     accent-color: var(--drpg-kit-role-primary);

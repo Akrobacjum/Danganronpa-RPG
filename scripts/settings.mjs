@@ -4203,7 +4203,7 @@ Hooks.on("renderSettingsConfig", (_app, element) => {
     if (!root) return;
     /* THE MODULE'S ROWS MARKED (E47-C5, 09.11.2026; audit S01-44). components.css widens their label column, sets
        the label's line height and takes Foundry's amber off their checkboxes, range and buttons; it reaches them by this
-       class, since how v14 names a category's section was not read here (a live check, E47-C7's). A row is the module's when a
+       class, since how v14 names a category's section was not read here (a live check, LIVE-E47-06). A row is the module's when a
        field of its own or a menu's button names the module's key. */
     for (const field of root.querySelectorAll(`[name^="${MODULE_ID}."], button[data-key^="${MODULE_ID}."]`)) {
         field.closest(".form-group")?.classList.add("drpg-settings-row");

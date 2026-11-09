@@ -190,7 +190,7 @@ function footerButton(b, type = b.type ?? "button") {
  * of the window draws and dresses the footer of the last spec (`app.drpgFooter`). No click listener of the kit's: it
  * would answer a press twice beside DialogV2's own. Foundry v14's own handling of a footer changed after its render
  * (a render of its own, a field it keeps the buttons in) is not read here: it is a check at a table, E47's first live
- * row (AUDIT 9.2's item 438, written by E47's end). A DrpgApp window's footer
+ * row, LIVE-E47-01 (AUDIT 9.2's item 438). A DrpgApp window's footer
  * (`footerMarkup`) is redrawn the same way, its presses its own `actions`.
  */
 export function liveFooter(app, footer = {}) {

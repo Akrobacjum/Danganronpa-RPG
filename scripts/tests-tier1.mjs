@@ -41425,8 +41425,8 @@ const INVARIANTS = [
          * E46-C1, 09.11.2026. The trial console (E47-C1) and the vote window keep their window and swap their footer
          * when the trial's state moves (the owner's q-console: "the footer slots, `liveFooter`"). DialogV2 answers a press
          * from its own buttons by `data-action` (the harness models it on v13's `_onSubmit`; Foundry v14's own handling
-         * of a footer changed after its render is a check at a table: E47's first live row, AUDIT 9.2's item 438, written
-         * by E47's end), so liveFooter writes its buttons there too. Red first on
+         * of a footer changed after its render is a check at a table: E47's first live row, LIVE-E47-01, AUDIT 9.2's item
+         * 438), so liveFooter writes its buttons there too. Red first on
          * 4de21046: no liveFooter. The mutants k3 (the footer element replaced) and k4 (a destructive default allowed)
          * read red here.
          */
@@ -43733,7 +43733,7 @@ const INVARIANTS = [
          * checkboxes and the range are in Foundry's amber"). styles/ held no rule for `#settings-config`. Read: the render
          * hook on a settings form of the test's own (two of the module's fields, a menu's button and a core field), which
          * rows it marks; then the cascade of the module's sheets (`styleCascade`) on a marked row and on the core row in each
-         * theme. Foundry's own sheet is not loaded here: what v14 draws is a live check (E47-C7 writes it). Red on fe685fa2: no row marked,
+         * theme. Foundry's own sheet is not loaded here: what v14 draws is a live check (LIVE-E47-06). Red on fe685fa2: no row marked,
          * no rule.
          */
         const root = document.createElement("form");
@@ -43769,7 +43769,7 @@ const INVARIANTS = [
          * a colour of the module's, so whatever Foundry's sheet gives a dialog's ticks and focus rings (its amber) stood.
          * Read: the body drawn given back, inside the window's classes, and the cascade of the module's sheets
          * (`styleCascade`) in each theme: the box and its edge, and the window's accent, checkbox and focus colours. Foundry's
-         * own sheet is not loaded here (a live check, E47-C7's). Red on fe685fa2: no box, no colour of the module's.
+         * own sheet is not loaded here (a live check, LIVE-E47-06). Red on fe685fa2: no box, no colour of the module's.
          */
         const E = await import("./enforced.mjs");
         const drawn = E.giveBackContent({ givenBack: true, filesStay: false, automationUnknown: false, fullGm: true });

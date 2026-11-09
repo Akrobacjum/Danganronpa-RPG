@@ -298,6 +298,20 @@ size read from a real server's HEAD, and how long a Polish label is in the fonts
 -04 and -07 (AUDIT-1.2.42.md 9.2, items 431-437). The End of chapter and Reset the season windows, whose warnings E46
 C6 moved onto the kit's box, are not in the list.
 
+**E47's windows, and what the harness cannot read of them** (E47 C7). Probe 08 captures E47's windows as it opens
+them: the console with no trial running (`class-trial`), `vote`, `trial-end`, `reveal-confirm`, `murder`,
+`edit-campaign`, `incident-tracker` (no murder runs in the seeded world, so it is the tracker's empty state),
+`gm-panel`, `students`, `investigation` with its two tabs, `action-project` and `projects`. The states it does not
+open - the tracker at an opening, a turn and Stage 6, the console in a debate, an Objection, the vote and the Closing,
+the Students window with a Monocub and a Monokuma character - were drawn for the stages' before/after comparison by
+E44's capture tool, which is kept outside the repository, not by a probe. What the harness cannot read of E47's
+windows: Foundry's own frame and stylesheet around them (the frame is the harness's DialogV2, so a footer redrawn in
+place is read on that stand-in, LIVE-E47-01), Foundry's settings window and its module section (none is drawn,
+LIVE-E47-06), a roll's status card (no roll carries a server's stamp headless, LIVE-E47-05), the theme classes Foundry
+puts on the Foundry tools and Map tools frames (LIVE-E47-07), and what a second client sees on a real server (the case
+window's Restore, LIVE-E47-04; the Students window with a player connected, LIVE-E47-08) - AUDIT-1.2.42.md 9.2, items
+438-447.
+
 **The sheet stand-in's parts** (`audit/style-harness.html?sheet=parts`, E24 C0 and C4a). The same frame as `?sheet=1`
 with the parts the module fills drawn inside it: both layouts of Daggerheart 2.10.5's Health and Sanity (its
 resource-bar.hbs and sidebar.hbs, read as text at that tag), what sheet.mjs writes into them by its own literals (R1440

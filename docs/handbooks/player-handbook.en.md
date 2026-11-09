@@ -258,7 +258,7 @@ The slow game: many actions over many times of day, and the one thing that can c
 | Desperate | 8 |
 
 - A project lives in a room. Only somebody standing there can work on it.
-- **Proposing a project** costs no action and sends a card to the GM. Nothing exists until they approve it, and they may change the scale, the room or the wording first.
+- **Proposing a project** costs no action and sends a card to the GM. Nothing exists until they approve it, and they may change the scale, the room or the wording first. **Wide project windows**, in this module's section of Foundry's settings, opens Propose a project wider on your screen (your browser alone; off by default).
 - **Description** (since 1.2.99). A proposal needs one, at most 1000 characters: what the project is, in your words. Choosing a project of a set kind (below) writes the kind's name in the field, and you may change it. The GM reads it on the card and may change it before approving; after that only the GMs change it. Everyone who knows the project reads it on its token's card.
 - A project demands one statistic, given when it is made, and every roll on it takes that one - yours, and a saboteur's. A project made without one asks the GM on its first roll and keeps their pick.
 - A **Tool held ready** gives advantage and takes its tier off every threshold on the roll.

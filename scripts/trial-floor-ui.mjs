@@ -1541,7 +1541,7 @@ export async function manageClassTrial() {
                        another GM, a verdict given, the Final Trial's flag or the table's door redraw the buttons in their
                        slots (ui-kit.mjs `liveFooter`, which draws nothing when they already stand so); only a change of
                        `trialSignature` - the trial's start or end, the floor's family - opens the window again.
-                       Foundry v14's own footer under a footer changed in place is read at a table (E47's first live row). */
+                       Foundry v14's own footer under a footer changed in place is read at a table (LIVE-E47-01). */
                     const now = read();
                     if (trialSignature(now) === openedWith) {
                         try { liveFooter(dialog, consoleFooter(now)); } catch (err) { error("Could not redraw the trial console's footer", err); }
