@@ -149,6 +149,7 @@ import { readDuality } from "./despair-award.mjs";
 import { forgedFlagsOf, gmOnlyFlagsIn } from "./private-rolls.mjs";
 import { spentByGm } from "./call-effects.mjs";
 import { WARN_EVERY_MS, TRACE_PATHS } from "./relay-guard.mjs";
+import { box, BUTTON_ROLES } from "./ui-kit.mjs";
 
 /**
  * The module flags only a GM writes (the plan's 2.4), held in the mark and put back. `levelUpExperiences` since
@@ -2778,17 +2779,28 @@ function fieldKind(path, [, now] = []) {
 /**
  * THE CARD OF A FLAGGED WRITE (the plan's 2.8): who, which student, each field before and after,
  * and Undo and Keep while nobody has decided - then, in their place, what was decided and by
- * whom. Built from the row alone, so the primary writes it whole again once a GM decides.
+ * whom. Built from the row alone, so the primary writes it whole again once a GM decides. Exported for R2073.
  */
-function flaggedCard(row) {
+export function flaggedCard(row) {
     const name = game.actors.get(row.actorId)?.name ?? "?", player = game.users.get(row.userId ?? "")?.name ?? "?";
     const label = path => game.i18n.localize(`DRPG.Audit.field.${fieldKind(path, row.change?.[path])}`);
     const lines = Object.entries(row.change ?? {}).map(([path, [was, now] = []]) =>
         `<li>${esc(label(path))} (${esc(path)}): ${esc(shown(was))} -> ${esc(shown(now))}</li>`).join("");
     const foot = row.decided ? decidedWords(row.decided, label)
-        : `<div class="drpg-audit-actions"><button type="button" data-drpg-audit="undo">${esc(game.i18n.localize("DRPG.Audit.undo"))}</button>`
-        + `<button type="button" data-drpg-audit="keep">${esc(game.i18n.localize("DRPG.Audit.keep"))}</button></div>`;
-    return `<div class="drpg-audit-card"><p class="drpg-warning">${esc(game.i18n.format("DRPG.Audit.flagged", { player, name }))}</p><ul>${lines}</ul>${foot}</div>`;
+        : `<div class="drpg-audit-actions">${auditButton("audit", "undo", "DRPG.Audit.undo")}${auditButton("audit", "keep", "DRPG.Audit.keep")}</div>`;
+    return `<div class="drpg-audit-card">${box("warning", esc(game.i18n.format("DRPG.Audit.flagged", { player, name })))}<ul>${lines}</ul>${foot}</div>`;
+}
+
+/*
+ * THE CARDS' BUTTONS ON THE KIT (E47-C5, 09.11.2026; audit S17-43). Undo and Undo all are the GM's road (the kit's
+ * `gmRoute` role: its classes and `data-drpg-role`), Keep and Accept all secondary. What the handlers read is unchanged
+ * byte for byte - `data-drpg-audit="undo" | "keep"`, `data-drpg-audit-all`, a row's `data-drpg-row` - and so are the
+ * wrappers they remove (`.drpg-audit-actions`, `.drpg-audit-all`); R2073 and E47-T5 hold both.
+ */
+function auditButton(attr, how, key, id = null) {
+    const role = how === "undo" ? "gmRoute" : "secondary", r = BUTTON_ROLES[role];
+    return `<button type="button" class="${[r.cls, r.face].filter(Boolean).join(" ")}" data-drpg-role="${role}" data-drpg-${attr}="${how}"`
+        + `${id ? ` data-drpg-row="${esc(id)}"` : ""}>${esc(game.i18n.localize(key))}</button>`;
 }
 
 /** What a GM decided of a row, in the words both cards give it: kept, undone, and what had moved since. */
@@ -3159,18 +3171,17 @@ function awayRowsOf(messageId) {
  * THE CARD OF THE CHANGES MADE WITH NO GM WATCHING (the plan's 2.9): what was put back, then each
  * row asked about - student, field, before and after - with Undo and Keep while nobody has decided
  * it and what was decided after, and Undo all / Accept all while any row is open. Built from the
- * rows alone, so the primary writes it whole again after each decision (`decideNow`).
+ * rows alone, so the primary writes it whole again after each decision (`decideNow`). Exported for R2073.
  */
-function awayCard(rows) {
+export function awayCard(rows) {
     const label = (row, path) => game.i18n.localize(`DRPG.Audit.field.${fieldKind(path, row.change?.[path])}`);
     const line = row => Object.entries(row.change ?? {}).map(([path, [was, now] = []]) => esc(game.i18n.format("DRPG.Audit.awayLine", {
         name: game.actors.get(row.actorId)?.name ?? "?", field: label(row, path), path, before: shown(was), after: shown(now) }))).join("; ");
-    const button = (attr, how, key, id = null) => `<button type="button" data-drpg-${attr}="${how}"${id ? ` data-drpg-row="${esc(id)}"` : ""}>`
-        + `${esc(game.i18n.localize(key))}</button>`;
+    const button = auditButton;
     const back = rows.filter(([, row]) => row.verdict === "putBack"), asked = rows.filter(([, row]) => row.verdict === "flagged");
     const open = asked.some(([, row]) => !row.decided);
     return `<div class="drpg-audit-card drpg-audit-away"><h3>${esc(game.i18n.localize("DRPG.Audit.awayTitle"))}</h3>`
-        + (back.length ? `<p class="drpg-warning">${esc(game.i18n.localize("DRPG.Audit.awayPutBack"))}</p><ul>${back.map(([, row]) => `<li>${line(row)}</li>`).join("")}</ul>` : "")
+        + (back.length ? `${box("warning", esc(game.i18n.localize("DRPG.Audit.awayPutBack")))}<ul>${back.map(([, row]) => `<li>${line(row)}</li>`).join("")}</ul>` : "")
         + (asked.length ? `<ul>${asked.map(([id, row]) => `<li data-drpg-row="${esc(id)}">${line(row)}${row.decided
             ? decidedWords(row.decided, path => label(row, path))
             : `<span class="drpg-audit-actions">${button("audit", "undo", "DRPG.Audit.undo", id)}${button("audit", "keep", "DRPG.Audit.keep", id)}</span>`}</li>`).join("")}</ul>` : "")

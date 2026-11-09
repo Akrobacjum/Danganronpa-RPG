@@ -2950,3 +2950,36 @@ body .application.drpg-window-panel .drpg-gmp-section > summary > em.drpg-gmp-di
     font-style: normal;
     opacity: 0.6;
 }
+
+/* ---- the new surfaces (E47-C5, 09.11.2026; audit S17-43, S01-44): a roll's status and the E28 and E29 cards in the
+   chat, the Give back window, Foundry's settings window's module rows ----
+   The kit draws its boxes inside its own windows only (`.application.drpg-ui .drpg-box`, above); a roll's status
+   (roll-draw.mjs `rollStatus`) and the cards' warning lines stand in the chat log, so the same box is drawn there with
+   the same tokens. The cards' buttons carry the kit's roles (`data-drpg-role`): Grant all, Undo and Undo all the GM's
+   road, Grant none, Keep and Accept all secondary - each with its role's edge, as a kit footer draws it. */
+.chat-message .message-content .drpg-box { padding: 0.4rem 0.6rem; margin: 0 0 6px; border-left: 3px solid var(--drpg-kit-info-edge); background: var(--drpg-kit-info-bg); }
+.chat-message .message-content .drpg-box[data-drpg-box="warning"] { border-left-color: var(--drpg-kit-warn-edge); background: var(--drpg-kit-warn-bg); }
+.chat-message .drpg-away-card > ul { list-style: none; margin: 0 0 6px; padding: 0; }
+.chat-message .drpg-away-card > ul > li > .drpg-box { margin: 0 0 4px; }
+.chat-message :is(div.drpg-away-actions, div.drpg-audit-actions, .drpg-audit-all) { display: flex; flex-wrap: wrap; gap: 6px; }
+.chat-message span.drpg-audit-actions { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 6px; }
+.chat-message :is(.drpg-away-card, .drpg-audit-card) button[data-drpg-role] { flex: 1 1 auto; width: auto; }
+.chat-message :is(.drpg-away-card, .drpg-audit-card) button[data-drpg-role="gmRoute"] { border-color: var(--drpg-kit-role-gm-route); background: var(--drpg-kit-gm-route-bg); }
+.chat-message :is(.drpg-away-card, .drpg-audit-card) button[data-drpg-role="secondary"] { border-color: var(--drpg-kit-role-secondary); }
+.chat-message :is(.drpg-away-card, .drpg-audit-card) button[data-drpg-role="gmRoute"]:focus-visible { outline: 2px solid var(--drpg-kit-role-gm-route); outline-offset: 2px; }
+.chat-message :is(.drpg-away-card, .drpg-audit-card) button[data-drpg-role="secondary"]:focus-visible { outline: 2px solid var(--drpg-kit-role-secondary); outline-offset: 2px; }
+/* the glass holds the chat's words at its floor (stained-glass.css, "the chat is read as much as the sheet is"); a
+   button there would take Foundry's own size, so the cards' buttons take the message's */
+body.drpg-theme-stained-glass .chat-message :is(.drpg-away-card, .drpg-audit-card) button[data-drpg-role] { font-size: inherit; }
+/* Foundry's settings window (S01-44): the module's rows (settings.mjs marks them `drpg-settings-row`) with a wider label
+   column whose name stands on lines 1.2 high instead of the field's height, and every checkbox, range and focus ring
+   of those rows and of the Give back window in the module's ink, not Foundry's amber (a field's focus ring there is the
+   panels' gold already, danganronpa.css). `--checkbox-checked-color` and `--button-focus-outline-color` are the names
+   Foundry's own sheet is recalled to read, not read here: whether v14's are these is a live check (E47-C7 writes it). */
+#settings-config .form-group.drpg-settings-row > label { flex: 3 1 0; min-width: 0; line-height: 1.2; align-self: center; }
+:is(#settings-config .form-group.drpg-settings-row, .application.drpg-window-give-back) {
+    accent-color: var(--drpg-kit-role-primary);
+    --checkbox-checked-color: var(--drpg-kit-role-primary);
+    --button-focus-outline-color: var(--drpg-kit-role-primary);
+}
+.application.drpg-window-give-back .drpg-give-back-state > .drpg-box { margin: 0 0 8px; }

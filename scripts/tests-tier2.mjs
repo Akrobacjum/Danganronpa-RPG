@@ -84460,6 +84460,94 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ seeded: rowsIn, saved: true, forgotten: [null, null], preview: [true, [null, null]], back: rowsIn }),
             "{seeded: the two rows; saved: the file a case file; forgotten: the rows after forget; preview: [its rows drawn, the rows while it stands]; back: the rows after its Restore}");
     }],
+    ["E47-T5 - the E28 and E29 cards pressed as the chat draws them (E47-C5, MARKED): a flagged change's Undo puts the write back and its Keep leaves it, each deciding its row once; Grant all on a rolls card, pressed on two drawn copies at once, grants each stamped roll once", async () => {
+        /*
+         * E47-C5, 09.11.2026; MARKED (.claude/rules/trust-model.md: the E28 and E29 cards are judged on the primary GM, and
+         * a restyle that renames a button's attribute or wraps it where its handler does not find it leaves a judgement
+         * unmade). The tier-2 tests of the cards before this one decide through `decideWrite` and `decideUnwitnessed`;
+         * this presses the buttons: each card drawn as the chat log draws it (`renderChatMessageHTML` on its own content),
+         * the button found by its words and clicked. A heal by hand flagged, Undo pressed: the row decided "undo", the
+         * marks back; flagged again, Keep pressed: decided "keep", the heal stands; each button's kit role and its wrapper
+         * gone after the press. Then "Grant all grants each stamped roll once"'s two rolls of the player's character
+         * stamped, the card posted, drawn twice and Grant all pressed on both copies at once: the Hope from 0 is 1 and the
+         * critical's, each stamp granted. Red by the mutant m7 (the flagged card's `data-drpg-audit="undo"` renamed): the
+         * press decides nothing and the marks stay healed.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a connected player who plays a character");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const D = await import("./roll-draw.mjs");
+        const L = key => game.i18n.localize(key);
+        const waitFor = async (test, ms = 4000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await wait(100); return test(); };
+        const HP = "system.resources.hitPoints.value", marks = () => foundry.utils.getProperty(student._source, HP);
+        must(Number(student.system.resources?.hitPoints?.max) >= 2, "the student cannot hold two Health marks - the heal would measure nothing");
+        const drawn = message => {
+            const li = document.createElement("li");
+            li.innerHTML = `<div class="message-content">${contentOf(message)}</div>`;
+            Hooks.callAll("renderChatMessageHTML", message, li);
+            return li;
+        };
+        const press = async (li, words) => {
+            await wait(0);
+            const button = [...li.querySelectorAll("button")].find(b => b.textContent === words) ?? null;
+            const role = button?.dataset.drpgRole ?? null;
+            button?.click();
+            return [role, Boolean(li.querySelector(".drpg-audit-actions, .drpg-away-actions"))];
+        };
+        const flag = async () => {
+            const from = Date.now();
+            await student.update({ [HP]: 2 });
+            await auditFromScratch(student);
+            await asPlayerWrite(student, { [HP]: 0 }, player);
+            await sheetAuditIdle();
+            return Object.entries(sheetWriteStore.entries() ?? {}).find(([, r]) => r?.actorId === student.id && r.verdict === "flagged" && r.at >= from) ?? [];
+        };
+        const decided = async (id, words) => {
+            const message = game.messages.get(sheetWriteStore.get(id ?? "")?.messageId ?? "");
+            must(message, `no card of the flagged change for ${words} - this would measure nothing`);
+            const pressed = await press(drawn(message), words);
+            await waitFor(() => sheetWriteStore.get(id)?.decided);
+            await sheetAuditIdle();
+            await settle();
+            return [...pressed, sheetWriteStore.get(id)?.decided?.how ?? null, sheetWriteStore.get(id)?.decided?.by ?? null, marks()];
+        };
+        const [undoId] = await flag();
+        const undo = await decided(undoId, L("DRPG.Audit.undo"));
+        const [keepId] = await flag();
+        const keep = await decided(keepId, L("DRPG.Audit.keep"));
+        const { theirs } = playerAndCharacters();
+        const made = [];
+        let card = null, granted = null;
+        try {
+            for (const faces of [{ hope: 9, fear: 4 }, { hope: 7, fear: 7 }]) {
+                const { message } = await neutralRoll(theirs, { faces });
+                must(message, `no roll of ${theirs.name} was thrown - this would measure nothing`);
+                made.push(message.id);
+                await message.update({ author: player.id,
+                    [`flags.${MODULE_ID}.${D.UNWITNESSED_FLAG}`]: { nonce: foundry.utils.randomID(), actorId: theirs.id, at: Date.now() } });
+            }
+            card = await D.askAboutUnwitnessed(made.map(id => game.messages.get(id)));
+            await waitFor(() => Array.isArray(cardFlag(card, "awayRolls")));
+            await theirs.update({ "system.resources.hope.value": 0 });
+            granted = await withDhAutomation({ hopeFear: { players: true } }, async () => {
+                const copies = [drawn(card), drawn(card)];
+                const pressed = await Promise.all(copies.map(li => press(li, L("DRPG.Rolls.grantAll"))));
+                await waitFor(() => theirs.system.resources.hope.value === 1 + CRITICAL.hope);
+                await settle();
+                return [pressed, theirs.system.resources.hope.value, made.map(id => game.messages.get(id)?.getFlag(MODULE_ID, D.UNWITNESSED_FLAG)?.granted ?? null)];
+            });
+        } finally {
+            for (const id of made) await game.messages.get(id)?.delete();
+            if (card) await game.messages.get(card.id)?.delete();
+        }
+        equal(stableJson({ undo, keep, granted }), stableJson({ undo: ["gmRoute", false, "undo", game.user.id, 2], keep: ["secondary", false, "keep", game.user.id, 0],
+            granted: [[["gmRoute", false], ["gmRoute", false]], 1 + CRITICAL.hope, [true, true]] }),
+            "{undo, keep: [the button's role, its wrapper left, the row's decision, by, the marks after]; granted: [each copy's press [role, wrapper left], the Hope after, each stamp granted]}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

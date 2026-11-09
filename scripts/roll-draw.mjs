@@ -64,6 +64,7 @@ import { isBrokenDown } from "./character.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { cardFlag, cardWriter } from "./secret.mjs";
+import { box, BUTTON_ROLES } from "./ui-kit.mjs";
 
 /** Marks the wrapper, so a second registration is a no-op and patches.mjs can recognise it. */
 const SEAM = Symbol.for("drpgRollDraw");
@@ -176,6 +177,46 @@ export function registerRollDraw() {
     Hooks.on("createChatMessage", startOnMessage);
 }
 
+/*
+ * A ROLL'S STATE, SAID ONE WAY (E47-C5, 09.11.2026; audit S17-43: "one roll status component"). Every place that says
+ * what became of a roll - the build the draw was not written for (`announceRollDraw`, a GM whisper), an action's roll
+ * that waits for a GM (`drawOrThrow`, a toast: it stays one), a roll thrown with no GM connected (its card's line,
+ * `onRenderUnwitnessed`) and each line of the GMs' card of such rolls (`askAboutUnwitnessed`: nothing for a reaction,
+ * Hope, Despair, with what it claimed) - names its state here, and the state's kind is the kit's box (ui-kit.mjs `box`):
+ * a warning for what goes wrong if nobody acts, information for what only waits for the GM's word. The box carries
+ * `data-drpg-roll-state`, which styleSnapshot's `roll-status` row and components.css's chat rules read; a toast names
+ * its state here too, so R2072 finds every place in one table. Before, each place wrote its own `p.drpg-warning` or a
+ * bare list line.
+ */
+export const ROLL_STATES = Object.freeze({
+    notDrawn: Object.freeze({ kind: "warning" }),
+    waitsForGm: Object.freeze({ kind: "warning", toast: true }),
+    unwitnessed: Object.freeze({ kind: "warning" }),
+    awayNothing: Object.freeze({ kind: "info" }),
+    awayHope: Object.freeze({ kind: "info" }),
+    awayDespair: Object.freeze({ kind: "info" })
+});
+
+/** A roll's state as markup: the kit's box of the state's kind, `text` escaped in it. Throws on a state not in the table. */
+export function rollStatus(state, text) {
+    const row = ROLL_STATES[state];
+    if (!row) throw new Error(`roll-draw: no roll state "${state}" (states: ${Object.keys(ROLL_STATES).join(", ")})`);
+    return box(row.kind, esc(text)).replace(/^<div /, `<div data-drpg-roll-state="${state}" `);
+}
+
+/** A roll's state said in a toast (a state the table marks `toast`): a warning's toast or an information's. */
+export function sayRollStatus(state, text) {
+    const row = ROLL_STATES[state];
+    if (!row?.toast) throw new Error(`roll-draw: the roll state "${state}" is not said in a toast`);
+    return row.kind === "warning" ? ui.notifications?.warn(text) : ui.notifications?.info(text);
+}
+
+/** A kit button outside a footer (a chat card's): the role's classes and its `data-drpg-role`, the caller's attributes. */
+function cardButton(role, attrs, label) {
+    const r = BUTTON_ROLES[role];
+    return `<button type="button" class="${[r.cls, r.face].filter(Boolean).join(" ")}" data-drpg-role="${role}" ${attrs}>${esc(label)}</button>`;
+}
+
 /**
  * At `ready`, on the primary GM: a build the draw was not written for is said once per
  * Daggerheart version, as the relay guard's unreviewed cases are (relay-guard.mjs
@@ -187,7 +228,7 @@ export async function announceRollDraw() {
     let warned = "";
     try { warned = String(game.settings.get(MODULE_ID, SETTINGS.rollDrawWarned) ?? ""); } catch { warned = ""; }
     if (warned === version) return;
-    await whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format("DRPG.Rolls.notDrawnHere", { version }))}</p>`);
+    await whisperToGms(rollStatus("notDrawn", game.i18n.format("DRPG.Rolls.notDrawnHere", { version })));
     try { await game.settings.set(MODULE_ID, SETTINGS.rollDrawWarned, version); } catch { /* said again next load */ }
 }
 
@@ -245,7 +286,7 @@ export function drawnByGm(config) {
  */
 async function drawOrThrow(cls, original, config, message) {
     if (awayFromGms(config)) {
-        if (config[DRPG_ACTION_ROLL] === true) return void ui.notifications?.warn(game.i18n.localize("DRPG.Rolls.waitsForGm"));
+        if (config[DRPG_ACTION_ROLL] === true) return void sayRollStatus("waitsForGm", game.i18n.localize("DRPG.Rolls.waitsForGm"));
         return throwUnwitnessed(cls, original, config, message);
     }
     if (!drawsHere(config)) return original.call(cls, config, message);
@@ -2432,6 +2473,11 @@ function awayRowOf(message) {
         hope: dice?.dHope?.total ?? null, fear: dice?.dFear?.total ?? null };
 }
 
+/** A stamped roll's state on the GMs' card (`ROLL_STATES`): nothing for a reaction, else Despair or Hope, as `awayMoves` says it. */
+function awayState({ outcome, reaction }) {
+    return reaction ? "awayNothing" : outcome.withFear ? "awayDespair" : outcome.isCritical || outcome.withHope ? "awayHope" : "awayNothing";
+}
+
 /** What a stamped roll would have moved, in words: Hope, Despair, or nothing for a reaction. */
 function awayMoves({ outcome, reaction }) {
     if (reaction) return game.i18n.localize("DRPG.Rolls.awayNothing");
@@ -2476,6 +2522,17 @@ async function awayClaimOf({ message, actor }) {
 }
 
 /**
+ * The GMs' card's markup around its lines (exported for R2073). On the kit (E47-C5): each line a roll status, Grant all
+ * the GM's road and Grant none secondary. The buttons' `data-drpg-away` and the wrapper `.drpg-away-actions` are what
+ * `onRenderUnwitnessed` reads and removes, unchanged.
+ */
+export function awayRollsCard(lines) {
+    return `<div class="drpg-away-card"><h3>${esc(game.i18n.localize("DRPG.Rolls.awayTitle"))}</h3><ul>${lines}</ul>`
+        + `<div class="drpg-away-actions">${cardButton("gmRoute", 'data-drpg-away="grant"', game.i18n.localize("DRPG.Rolls.grantAll"))}`
+        + `${cardButton("secondary", 'data-drpg-away="none"', game.i18n.localize("DRPG.Rolls.grantNone"))}</div></div>`;
+}
+
+/**
  * THE GMs' CARD. At the primary GM's `ready` (module.mjs), and on the primary for a stamped
  * message created while it is here - a roll begun as it connected, or a stamp a console wrote,
  * which only asks. Lists `messages` (every message in the log when not given) that carry a
@@ -2490,12 +2547,11 @@ export async function askAboutUnwitnessed(messages = null) {
             error("Could not read what a roll thrown with no GM claimed", err);
             return null;
         });
-        return `<li>${esc(game.i18n.format("DRPG.Rolls.awayLine", {
-            name: row.actor.name, hope: String(row.hope ?? "-"), fear: String(row.fear ?? "-"), moves: awayMoves(row) }))}${claimed ? ` ${esc(claimed)}` : ""}</li>`;
+        const line = game.i18n.format("DRPG.Rolls.awayLine", {
+            name: row.actor.name, hope: String(row.hope ?? "-"), fear: String(row.fear ?? "-"), moves: awayMoves(row) });
+        return `<li>${rollStatus(awayState(row), claimed ? `${line} ${claimed}` : line)}</li>`;
     }))).join("");
-    return whisperToGms(`<div class="drpg-away-card"><h3>${esc(game.i18n.localize("DRPG.Rolls.awayTitle"))}</h3><ul>${lines}</ul>`
-        + `<div class="drpg-away-actions"><button type="button" data-drpg-away="grant">${esc(game.i18n.localize("DRPG.Rolls.grantAll"))}</button>`
-        + `<button type="button" data-drpg-away="none">${esc(game.i18n.localize("DRPG.Rolls.grantNone"))}</button></div></div>`,
+    return whisperToGms(awayRollsCard(lines),
     { flags: { [MODULE_ID]: { awayCard: true, awayRolls: rows.map(row => row.message.id) } } });
 }
 
@@ -2598,8 +2654,8 @@ async function grantRolls(rows) {
 function onRenderUnwitnessed(message, element) {
     try {
         const body = element.querySelector(".message-content") ?? element;
-        if (message.getFlag?.(MODULE_ID, UNWITNESSED_FLAG) && !body.querySelector(".drpg-unwitnessed")) {
-            body.insertAdjacentHTML("beforeend", `<p class="drpg-warning drpg-unwitnessed">${esc(game.i18n.localize("DRPG.Rolls.unwitnessed"))}</p>`);
+        if (message.getFlag?.(MODULE_ID, UNWITNESSED_FLAG) && !body.querySelector('[data-drpg-roll-state="unwitnessed"]')) {
+            body.insertAdjacentHTML("beforeend", rollStatus("unwitnessed", game.i18n.localize("DRPG.Rolls.unwitnessed")));
         }
         // A GM's card only: a player's card to the GMs may carry any buttons it likes - one a GM posted
         // for a player in an incident included (secret.mjs `cardWriter`, E08+E28 fix r2-H5).

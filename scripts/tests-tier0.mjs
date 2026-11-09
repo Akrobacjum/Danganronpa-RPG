@@ -21617,6 +21617,97 @@ const REGRESSIONS = [
         equal(JSON.stringify(got), JSON.stringify(want), "{each window: its label keys in order, its fields' names in order, its footer's actions}");
     }],
 
+    ["R2070 - styleSnapshot's rows for every new surface of E47 (scripts/style-snapshot.mjs; E47-C5, audit S17-43, A8, A9): each with its page and its selector, the kit's E46 parts and the GM panel's tiles among them", async () => {
+        /*
+         * E47-C5, 09.11.2026; audit S17-43 ("every new surface ... in styleSnapshot"), the 11.10 amends A8 and A9, and
+         * E46-C1's, E46-C1f's and E47-C3's Open items (the kit gallery's new parts, the GM panel's tiles). STYLE_SURFACES
+         * held 61 rows and none of these. Read: every row named here, in this order, with its role and selector. Red on
+         * fe685fa2: none of them.
+         */
+        const { STYLE_SURFACES } = await import("./style-snapshot.mjs");
+        const want = [
+            ["kit-table-group", "both", "table.drpg-data-table tr.drpg-data-group > th"], ["kit-table-head-group", "both", "table.drpg-data-table tr.drpg-data-head-group > th"],
+            ["kit-table-clamp", "both", "table.drpg-data-table .drpg-data-clamp"], ["kit-stepper-compact", "both", ".drpg-kit-stepper.drpg-kit-stepper-compact"],
+            ["kit-check-row", "both", "ul.drpg-checklist > li.drpg-check-row"], ["kit-check-mark", "both", "li.drpg-check-row > .drpg-check-mark"],
+            ["kit-icon-button", "both", ".drpg-kit-icon-button:not(:disabled)"], ["kit-disabled", "both", ".drpg-kit-footer button:disabled"],
+            ["gmp-section", "gm", ".drpg-gmp-section > summary"], ["gmp-tile", "gm", ".drpg-gmp-button:not(:disabled):not(.is-current)"],
+            ["gmp-tile-current", "gm", ".drpg-gmp-button.is-current"], ["gmp-tile-disabled", "gm", ".drpg-gmp-button:disabled"],
+            ["floor-switcher", "both", "#drpg-floors"], ["floor-button", "both", "#drpg-floors > button:not([aria-pressed=\"true\"])"],
+            ["floor-button-current", "both", "#drpg-floors > button[aria-pressed=\"true\"]"], ["roll-status", "both", ".drpg-box[data-drpg-roll-state]"],
+            ["away-card", "gm", ".drpg-away-card"], ["away-grant", "gm", ".drpg-away-actions > [data-drpg-away=\"grant\"]"],
+            ["away-none", "gm", ".drpg-away-actions > [data-drpg-away=\"none\"]"], ["audit-card", "gm", ".drpg-audit-card:not(.drpg-audit-away)"],
+            ["audit-undo", "gm", ".drpg-audit-actions > [data-drpg-audit=\"undo\"]"], ["audit-keep", "gm", ".drpg-audit-actions > [data-drpg-audit=\"keep\"]"],
+            ["audit-away-card", "gm", ".drpg-audit-card.drpg-audit-away"], ["audit-undo-all", "gm", ".drpg-audit-all > [data-drpg-audit-all=\"undo\"]"],
+            ["audit-accept-all", "gm", ".drpg-audit-all > [data-drpg-audit-all=\"keep\"]"], ["give-back-window", "gm", ".application.drpg-window-give-back"],
+            ["give-back-list", "gm", ".drpg-give-back-list"], ["give-back-state", "gm", ".drpg-give-back-state > .drpg-box"],
+            ["settings-module-row", "both", "#settings-config .form-group.drpg-settings-row"], ["settings-module-label", "both", "#settings-config .form-group.drpg-settings-row > label"],
+            ["settings-module-checkbox", "both", "#settings-config .drpg-settings-row input[type=\"checkbox\"]"], ["settings-module-range", "both", "#settings-config .drpg-settings-row input[type=\"range\"]"],
+            ["case-window", "gm", ".application.drpg-window-case-copy"], ["refund-button", "gm", "button[data-drpg-refund]"],
+            ["room-tile-open", "both", "#drpg-room-tile.is-open"], ["room-tile-open-prose", "both", "#drpg-room-tile.is-open > .drpg-room-tile-prose"],
+            ["room-window", "both", ".application.drpg-window-room"], ["room-window-body", "both", ".drpg-room-window-body"],
+            ["foundry-tools-frame", "gm", "#drpg-win-ftools"], ["map-tools-frame", "both", "#drpg-win-maptools"],
+            ["foundry-frame-themed", "both", ".drpg-foundry-window.themed"], ["voice-list", "both", "#drpg-voice-list"], ["voice-fieldset", "both", "fieldset.drpg-voice-panel"]
+        ];
+        const ids = new Set(want.map(([id]) => id));
+        const got = STYLE_SURFACES.filter(s => ids.has(s.id)).map(s => [s.id, s.role, s.selector]);
+        equal(JSON.stringify(got), JSON.stringify(want), "{the new rows in STYLE_SURFACES, in order: [id, role, selector]}");
+        const bad = want.filter(([, , selector]) => { try { document.querySelector(selector); return false; } catch { return true; } }).map(([id]) => id);
+        equal(JSON.stringify([STYLE_SURFACES.length, new Set(STYLE_SURFACES.map(s => s.id)).size, bad]), JSON.stringify([61 + want.length, 61 + want.length, []]),
+            "[rows, distinct ids, the new selectors a browser refuses]");
+    }],
+    ["R2071 - the floor test's list holds the new surfaces (scripts/style-snapshot.mjs FLOOR_SURFACES, tier 1 \"nothing in the chrome is set under the floor\"; E47-C5, A8, A9)", async () => {
+        /*
+         * E47-C5, 09.11.2026; the 11.10 amends A8 and A9 ("... join styleSnapshot and the floor test"). The floor test read
+         * the HUD, the pools, the player's status, the events, the countdowns, the module's windows and its planted sheet.
+         * Read: style-snapshot.mjs's FLOOR_SURFACES (the rows marked `floor`), and that the floor test's host list takes
+         * their selectors, each host read with its own words. Red on fe685fa2: no FLOOR_SURFACES, a list of seven hosts.
+         */
+        const M = await import("./style-snapshot.mjs");
+        equal(JSON.stringify(M.FLOOR_SURFACES ?? null), JSON.stringify(["floor-switcher", "roll-status", "away-card", "audit-card", "audit-away-card", "give-back-window",
+            "settings-module-row", "case-window", "refund-button", "room-tile-open", "room-window", "foundry-tools-frame", "map-tools-frame", "voice-list", "voice-fieldset"]),
+            "the floor test's surfaces (FLOOR_SURFACES)");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/tests-tier1.mjs`).then(lfText));
+        const body = src.match(/\["nothing in the chrome is set under the floor"[^]*?\n    \}\],/)?.[0] ?? "";
+        equal(JSON.stringify([body.length > 1000, /FLOOR_SURFACES\.includes\(s\.id\)\)\.map\(s => s\.selector\)/.test(body),
+            /"\.drpg-floor-sheet", \.\.\.added\]/.test(body), /added\.includes\(sel\) \? \[host, \.\.\.host\.querySelectorAll\("\*"\)\]/.test(body)]),
+            JSON.stringify([true, true, true, true]), "[the floor test read, its list takes FLOOR_SURFACES' selectors, after its own hosts, each new host read itself too]");
+    }],
+    ["R2072 - one roll status builder (scripts/roll-draw.mjs `rollStatus`; E47-C5, audit S17-43): a kit box of the state's kind with its state, used by every place that says a roll's state; the unwitnessed state drawn on a GM's card", async () => {
+        /*
+         * E47-C5, 09.11.2026; audit S17-43 ("one roll status component"). Each place wrote its own line: a `p.drpg-warning`
+         * for the build not drawn here and for the unwitnessed line, a bare list line on the GMs' card of rolls made with no
+         * GM, a toast for an action's roll that waits for a GM. Read: ROLL_STATES; `rollStatus` for each state (the box's
+         * kind, its `data-drpg-roll-state`, its words escaped) on this GM's browser - the unwitnessed state among them, which
+         * the mutant m10 (nothing drawn for it on a GM's card) turns red -; an unknown state refused; and the places, by
+         * source: `announceRollDraw`, `drawOrThrow` (the toast, `sayRollStatus`), `askAboutUnwitnessed` (each line by
+         * `awayState`), `onRenderUnwitnessed`, with no `drpg-warning` left in them. Red on fe685fa2: no rollStatus.
+         */
+        const D = await import("./roll-draw.mjs");
+        must(typeof D.rollStatus === "function" && D.ROLL_STATES, "roll-draw.mjs has no rollStatus");
+        must(game.user.isGM, "the suite is a GM's browser - the GM's card would measure nothing");
+        const drawn = {};
+        for (const state of Object.keys(D.ROLL_STATES)) {
+            const host = document.createElement("div");
+            host.innerHTML = D.rollStatus(state, "a <b> & c");
+            const el = host.firstElementChild;
+            drawn[state] = [host.children.length, el?.className ?? null, el?.dataset.drpgBox ?? null, el?.dataset.drpgRollState ?? null, el?.textContent ?? null, Boolean(D.ROLL_STATES[state].toast)];
+        }
+        const box = (kind, state, toast = false) => [1, "drpg-box", kind, state, "a <b> & c", toast];
+        equal(JSON.stringify(drawn), JSON.stringify({ notDrawn: box("warning", "notDrawn"), waitsForGm: box("warning", "waitsForGm", true), unwitnessed: box("warning", "unwitnessed"),
+            awayNothing: box("info", "awayNothing"), awayHope: box("info", "awayHope"), awayDespair: box("info", "awayDespair") }),
+            "{each state: [elements, class, the box's kind, its state, its words, said in a toast]}");
+        let refused = null;
+        try { D.rollStatus("noSuchState", "x"); } catch (err) { refused = err.message; }
+        ok(/no roll state "noSuchState"/.test(refused ?? ""), `an unknown state was not refused (${refused})`);
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/roll-draw.mjs`).then(lfText));
+        const places = { announceRollDraw: /rollStatus\("notDrawn", /, drawOrThrow: /sayRollStatus\("waitsForGm", /, askAboutUnwitnessed: /rollStatus\(awayState\(row\), /,
+            onRenderUnwitnessed: /rollStatus\("unwitnessed", /, awayState: /"awayNothing"[^]*"awayDespair"[^]*"awayHope"/ };
+        const got = Object.fromEntries(Object.entries(places).map(([fn, re]) => {
+            const body = fnSource(src, fn);
+            return [fn, body.length > 40 ? [re.test(body), (body.match(/drpg-warning/g) ?? []).length] : "not read"];
+        }));
+        equal(JSON.stringify(got), JSON.stringify(Object.fromEntries(Object.keys(places).map(fn => [fn, [true, 0]]))), "{each place: [it says the state through the builder, drpg-warning left]}");
+    }],
 ];
 
 

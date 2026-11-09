@@ -2289,10 +2289,15 @@ const INVARIANTS = [
             + `<textarea data-drpg-field="biography" class="drpg-biography-text" rows="3">Floor test backstory</textarea></fieldset></div></section></section>`;
         document.body.append(sheet);
         const sheetRead = [];
+        /* THE NEW SURFACES (E47-C5, 09.11.2026; audit S17-43, A8, A9): style-snapshot.mjs's rows marked `floor`
+           (FLOOR_SURFACES; R2071 holds the list) are read too, each with its own words, since a roll's status or a
+           Refund button holds its text itself. */
+        const { STYLE_SURFACES, FLOOR_SURFACES } = await import("./style-snapshot.mjs");
+        const added = STYLE_SURFACES.filter(s => FLOOR_SURFACES.includes(s.id)).map(s => s.selector);
         try {
-            for (const sel of ["#drpg-hud", "#drpg-despair", "#drpg-player-status", "#drpg-events", "#countdowns", ".drpg-panel", ".drpg-floor-sheet"]) {
+            for (const sel of ["#drpg-hud", "#drpg-despair", "#drpg-player-status", "#drpg-events", "#countdowns", ".drpg-panel", ".drpg-floor-sheet", ...added]) {
                 for (const host of document.querySelectorAll(sel)) {
-                    for (const el of host.querySelectorAll("*")) {
+                    for (const el of added.includes(sel) ? [host, ...host.querySelectorAll("*")] : host.querySelectorAll("*")) {
                         const words = el.matches("input, textarea") ? String(el.value ?? "") : el.textContent;
                         if (!el.offsetWidth || !words.trim() || el.matches("i, [class*='fa-']")) continue;
                         measured++;
@@ -7871,7 +7876,9 @@ const INVARIANTS = [
         const firstAwait = perform.search(/\bawait\b/);
         const passes = (/\bconst THROWS_NO_DICE = new Set\(\[([^\]]*)\]\);/.exec(rolls)?.[1] ?? "").match(/"\w+"/g)?.map(s => s.slice(1, -1)).sort() ?? [];
         const throwOrRefuse = fnSource(draw, "drawOrThrow");
-        const atDraw = /^\s*if \(awayFromGms\(config\)\) \{\s*if \(config\[DRPG_ACTION_ROLL\] === true\) return void ui\.notifications\?\.warn\(game\.i18n\.localize\("DRPG\.Rolls\.waitsForGm"\)\);\s*return throwUnwitnessed\(cls, original, config, message\);\s*\}/m.test(throwOrRefuse);
+        /* The refusal's toast is said through the roll status's table since E47-C5 (roll-draw.mjs `sayRollStatus`, a
+           warning's toast as before; R2072). */
+        const atDraw = /^\s*if \(awayFromGms\(config\)\) \{\s*if \(config\[DRPG_ACTION_ROLL\] === true\) return void sayRollStatus\("waitsForGm", game\.i18n\.localize\("DRPG\.Rolls\.waitsForGm"\)\);\s*return throwUnwitnessed\(cls, original, config, message\);\s*\}/m.test(throwOrRefuse);
         const away = /if \(game\.user\?\.isGM \|\| primaryGmId\(\)\) return false;/.test(fnSource(draw, "awayFromGms"));
         equal(JSON.stringify([refusal > 0, firstAwait > refusal, passes, atDraw, away]),
             JSON.stringify([true, true, ["directMurder", "move", "rest"], true, true]),
@@ -43367,6 +43374,123 @@ const INVARIANTS = [
             rows: ["info", "own row"], sum: [other.length + 10, history.length + 5000]
         }), "{source: [runHealthCheck draws a drpg-warning row, its body from healthBody]; body: [checklists, rows [key, state], drpg-warning, the note]; "
             + "rows: [the notice history row's level, the bytes row apart]; sum: [gmStoreStatus total, notices] over a stand-in storage}");
+    }],
+    ["R2073 - the E28 and E29 cards on the kit (scripts/roll-draw.mjs `awayRollsCard`, scripts/sheet-audit.mjs `flaggedCard`, `awayCard`; E47-C5, MARKED): their lines and buttons in order, each button's role, and the attributes and wrappers the handlers read unchanged", async () => {
+        /*
+         * E47-C5, 09.11.2026; audit S17-43; MARKED (.claude/rules/trust-model.md: the cards are judged on the primary GM, and
+         * a restyle that renames a button's attribute or wraps it where its handler does not find it leaves a judgement
+         * unmade). Read: each card's buttons in order - words, the attributes a handler reads, the kit's role and its class -
+         * its warning box and its wrappers; then each handler's selectors by source (`onRenderUnwitnessed`, `onRenderFlagged`,
+         * `wireAwayCard`, `drawSwept`), and every one of them found in the drawn cards, the buttons' values as the handlers
+         * compare them. Red on fe685fa2: no role on any button, a `p.drpg-warning`, no `awayRollsCard`; red by the mutant m7
+         * (the flagged card's `data-drpg-audit="undo"` renamed: the handler's `[data-drpg-audit]` finds Keep alone).
+         */
+        const D = await import("./roll-draw.mjs"), A = await import("./sheet-audit.mjs");
+        must(typeof D.awayRollsCard === "function" && typeof A.flaggedCard === "function" && typeof A.awayCard === "function", "the cards' builders are not exported");
+        const actor = game.actors.contents[0], user = game.users.find(u => !u.isGM) ?? game.user;
+        must(actor, "no actor to name on the cards - this would measure nothing");
+        const HP = "system.resources.hitPoints.value";
+        const node = html => Object.assign(document.createElement("div"), { innerHTML: html });
+        const buttons = root => [...root.querySelectorAll("button")].map(b => [b.textContent, Object.entries(b.dataset).filter(([k]) => k !== "drpgRole").map(([k, v]) => `${k}=${v}`).join(" "),
+            b.dataset.drpgRole ?? null, b.classList.contains(b.dataset.drpgRole === "gmRoute" ? "drpg-role-gm-route" : "drpg-role-secondary")]);
+        const L = key => game.i18n.localize(key);
+        const away = node(D.awayRollsCard("<li>line</li>"));
+        const flagged = node(A.flaggedCard({ actorId: actor.id, userId: user.id, change: { [HP]: [2, 0] } }));
+        const list = node(A.awayCard([["r1", { verdict: "putBack", actorId: actor.id, change: { [HP]: [1, 0] } }], ["r2", { verdict: "flagged", actorId: actor.id, change: { [HP]: [2, 0] } }],
+            ["r3", { verdict: "flagged", actorId: actor.id, change: { [HP]: [3, 1] }, decided: { how: "keep", by: game.user.id } }]]));
+        const shape = root => [root.querySelectorAll(".drpg-box[data-drpg-box=\"warning\"]").length, root.querySelectorAll(".drpg-warning").length,
+            [...root.querySelectorAll(".drpg-away-actions, .drpg-audit-actions, .drpg-audit-all")].map(el => `${el.localName}.${el.className}`)];
+        equal(JSON.stringify({ away: [buttons(away), shape(away)], flagged: [buttons(flagged), shape(flagged)], list: [buttons(list), shape(list)] }), JSON.stringify({
+            away: [[[L("DRPG.Rolls.grantAll"), "drpgAway=grant", "gmRoute", true], [L("DRPG.Rolls.grantNone"), "drpgAway=none", "secondary", true]], [0, 0, ["div.drpg-away-actions"]]],
+            flagged: [[[L("DRPG.Audit.undo"), "drpgAudit=undo", "gmRoute", true], [L("DRPG.Audit.keep"), "drpgAudit=keep", "secondary", true]], [1, 0, ["div.drpg-audit-actions"]]],
+            list: [[[L("DRPG.Audit.undo"), "drpgAudit=undo drpgRow=r2", "gmRoute", true], [L("DRPG.Audit.keep"), "drpgAudit=keep drpgRow=r2", "secondary", true],
+                [L("DRPG.Audit.undoAll"), "drpgAuditAll=undo", "gmRoute", true], [L("DRPG.Audit.acceptAll"), "drpgAuditAll=keep", "secondary", true]],
+            [1, 0, ["span.drpg-audit-actions", "div.drpg-audit-all"]]]
+        }), "{each card: [its buttons in order: words, the attributes a handler reads, the kit's role, the role's class], [warning boxes, drpg-warning left, the wrappers]}");
+        const roll = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/roll-draw.mjs`).then(lfText));
+        const audit = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/sheet-audit.mjs`).then(lfText));
+        const reads = {
+            onRenderUnwitnessed: [roll, ["closest?.(\"[data-drpg-away]\")", "\".drpg-away-actions\"", "button.dataset.drpgAway === \"grant\""]],
+            onRenderFlagged: [audit, ["closest?.(\"[data-drpg-audit]\")", "\".drpg-audit-actions\"", "button.dataset.drpgAudit === \"keep\""]],
+            wireAwayCard: [audit, ["closest?.(\"[data-drpg-audit], [data-drpg-audit-all]\")", "button.dataset.drpgRow", "closest(\".drpg-audit-actions\")", "\".drpg-audit-actions, .drpg-audit-all\"", "button.dataset.drpgAuditAll === \"keep\""]],
+            drawSwept: [audit, ["\".drpg-audit-actions, .drpg-audit-all\"", "\".drpg-audit-expired\"", "\".drpg-audit-card\""]]
+        };
+        const missing = Object.entries(reads).flatMap(([fn, [src, needles]]) => needles.filter(n => !fnSource(src, fn).includes(n)).map(n => `${fn}: ${n}`));
+        equal(JSON.stringify(missing), "[]", "the handlers' selectors not found in their source");
+        const found = {
+            away: [...away.querySelectorAll("[data-drpg-away]")].map(b => b.dataset.drpgAway === "grant"),
+            flagged: [...flagged.querySelectorAll("[data-drpg-audit]")].map(b => b.dataset.drpgAudit === "keep"),
+            listRows: [...list.querySelectorAll("[data-drpg-audit], [data-drpg-audit-all]")].map(b => [b.dataset.drpgRow ?? null, (b.dataset.drpgAudit ?? b.dataset.drpgAuditAll) === "keep",
+                Boolean(b.closest(".drpg-audit-actions, .drpg-audit-all"))])
+        };
+        equal(JSON.stringify(found), JSON.stringify({ away: [true, false], flagged: [false, true],
+            listRows: [["r2", false, true], ["r2", true, true], [null, false, true], [null, true, true]] }),
+            "{what each handler finds in its drawn card: the buttons its selector matches, in order, read as it reads them (grant / keep), a row's id and its wrapper}");
+    }],
+    ["R2074 - Foundry's settings window's module rows (scripts/settings.mjs `renderSettingsConfig`, components.css; E47-C5, audit S01-44): marked, their label column wider with lines 1.2 high, their checkboxes, range and focus rings through the module's token in both themes", async () => {
+        /*
+         * E47-C5, 09.11.2026; audit S01-44 ("a name breaks onto two lines about 32 px apart and reads as two settings; the
+         * checkboxes and the range are in Foundry's amber"). styles/ held no rule for `#settings-config`. Read: the render
+         * hook on a settings form of the test's own (two of the module's fields, a menu's button and a core field), which
+         * rows it marks; then the cascade of the module's sheets (`styleCascade`) on a marked row and on the core row in each
+         * theme. Foundry's own sheet is not loaded here: what v14 draws is a live check (E47-C7 writes it). Red on fe685fa2: no row marked,
+         * no rule.
+         */
+        const root = document.createElement("form");
+        root.id = "settings-config";
+        root.className = "application";
+        const row = (field, label) => `<div class="form-group"><label>${label}</label><div class="form-fields">${field}</div></div>`;
+        root.innerHTML = `<section class="tab category active">${row(`<input type="checkbox" name="${MODULE_ID}.${SETTINGS.glassPulse}">`, "A")}`
+            + `${row(`<input type="range" name="${MODULE_ID}.${SETTINGS.searchTokensPerRoom}">`, "B")}`
+            + `${row(`<button type="button" data-key="${MODULE_ID}.giveBackFoundry">C</button>`, "C")}${row(`<input type="checkbox" name="core.noCanvas">`, "D")}</section>`;
+        Hooks.callAll("renderSettingsConfig", {}, root);
+        const marked = [...root.querySelectorAll(".form-group")].map(r => [r.querySelector("label").textContent, r.classList.contains("drpg-settings-row")]);
+        const C = await styleCascade();
+        const v = (el, names) => { const w = el ? C.winner(el, names) : null; return w ? `${w.value} | ${w.file}` : null; };
+        const read = theme => {
+            const html = document.createElement("html"), body = document.createElement("body"), copy = root.cloneNode(true);
+            body.className = theme;
+            body.append(copy);
+            html.append(body);
+            const [mod, , , core] = copy.querySelectorAll(".form-group");
+            return { label: [v(mod.querySelector("label"), "line-height"), v(mod.querySelector("label"), "flex")],
+                row: ["accent-color", "--checkbox-checked-color", "--button-focus-outline-color"].map(p => v(mod, p)),
+                core: [v(core.querySelector("label"), "line-height"), v(core, "accent-color")] };
+        };
+        const sheet = "styles/components.css", token = `var(--drpg-kit-role-primary) | ${sheet}`;
+        const each = { label: [`1.2 | ${sheet}`, `3 1 0 | ${sheet}`], row: [token, token, token], core: [null, null] };
+        equal(JSON.stringify({ marked, legacy: read("drpg-theme-monokuma-legacy"), glass: read("drpg-theme-stained-glass") }),
+            JSON.stringify({ marked: [["A", true], ["B", true], ["C", true], ["D", false]], legacy: each, glass: each }),
+            "{the rows marked as the module's; per theme: a module row's label (line height, flex), the row's accent-color, checkbox and focus colours, the core row's (the winning value | its sheet)}");
+    }],
+    ["R2075 - the Give back window (scripts/enforced.mjs `giveBackContent`; E47-C5, audit S01-44) without Foundry's amber in both themes: its given-back line the kit's information box, its checkbox and focus colours the module's token (the cascade read)", async () => {
+        /*
+         * E47-C5, 09.11.2026; audit S01-44. The given-back line was a bare bold paragraph and nothing of the window named
+         * a colour of the module's, so whatever Foundry's sheet gives a dialog's ticks and focus rings (its amber) stood.
+         * Read: the body drawn given back, inside the window's classes, and the cascade of the module's sheets
+         * (`styleCascade`) in each theme: the box and its edge, and the window's accent, checkbox and focus colours. Foundry's
+         * own sheet is not loaded here (a live check, E47-C7's). Red on fe685fa2: no box, no colour of the module's.
+         */
+        const E = await import("./enforced.mjs");
+        const drawn = E.giveBackContent({ givenBack: true, filesStay: false, automationUnknown: false, fullGm: true });
+        const C = await styleCascade();
+        const v = (el, names) => { const w = el ? C.winner(el, names) : null; return w ? `${w.value} | ${w.file}` : null; };
+        const read = theme => {
+            const html = document.createElement("html"), body = document.createElement("body"), app = document.createElement("div");
+            body.className = theme;
+            app.className = "application dialog drpg-ui drpg-panel drpg-window-give-back";
+            app.innerHTML = `<div class="window-content"><form>${drawn}</form></div>`;
+            body.append(app);
+            html.append(body);
+            const box = app.querySelector(".drpg-give-back-state > .drpg-box");
+            return { box: [box?.dataset.drpgBox ?? null, box?.textContent.trim() ?? null, v(box, ["border-left", "border-left-color"])],
+                window: ["accent-color", "--checkbox-checked-color", "--button-focus-outline-color", "--input-focus-outline-color"].map(p => v(app, p)) };
+            /* the field's focus ring stays the panels' gold (danganronpa.css, every `drpg-panel`), already the module's */
+        };
+        const sheet = "styles/components.css", token = `var(--drpg-kit-role-primary) | ${sheet}`;
+        const each = { box: ["info", game.i18n.localize("DRPG.GiveBack.givenBackState"), `3px solid var(--drpg-kit-info-edge) | ${sheet}`], window: [token, token, token, "var(--drpg-gold) | styles/danganronpa.css"] };
+        equal(JSON.stringify({ legacy: read("drpg-theme-monokuma-legacy"), glass: read("drpg-theme-stained-glass") }), JSON.stringify({ legacy: each, glass: each }),
+            "{per theme: the given-back line [its box, its words, its edge (the winning value | its sheet)], the window's accent, checkbox, button focus and field focus colours}");
     }],
 ];
 
