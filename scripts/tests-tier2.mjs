@@ -63777,7 +63777,8 @@ const SCENARIOS = [
         const windows = answerWindows((cfg, root) => {
             if ((cfg?.window?.title ?? "") !== createTitle) return null;
             const target = Number([...(root.querySelector('select[name="target"]')?.options ?? [])].find(o => o.selected)?.value ?? NaN);
-            drawn.push([Boolean(root.querySelector("[data-drpg-owned-preset] .drpg-warning")), target]);
+            // The refusal is the kit's warning box since E47-C6 (a `p.drpg-warning` before).
+            drawn.push([Boolean(root.querySelector('[data-drpg-owned-preset] .drpg-box[data-drpg-box="warning"]')), target]);
             return { name: cfg?.content?.querySelector?.('input[name="name"]')?.value || "SUITE E15 T17 approved", target, room: null, trait: "hand", murder: false,
                 condition: "", trigger: { kind: "manual", targetId: null, afterDark: false, notBuilder: false }, secret: false, viewers: [], was: [], img: null, glyph: null,
                 // A description since E44 C9 (required in the approval window): the preset's judgement is what this reads.

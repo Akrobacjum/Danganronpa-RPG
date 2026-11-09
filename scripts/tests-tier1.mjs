@@ -2058,8 +2058,11 @@ const INVARIANTS = [
             .replace(/\/\*[\s\S]*?\*\//g, " ");
         ok(/\.drpg-gmp-advance \{[^}]*display: inline-flex/.test(css),
             "the Next time of day button is a block of its own again");
-        const head = bodyOf(css, ".drpg-viewer-head > span {", { until: ".drpg-viewer-tick {" });
-        ok(head.length > 0 && !/writing-mode/.test(head), "the players' names stand on end again");
+        // Since E47-C6 the matrix is the kit's `dataTable` and a player's head its `drpg-data-col-viewer` column, whose
+        // rule is the project windows' section of components.css.
+        const components = (await fetch(`/modules/${MODULE_ID}/styles/components.css`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+        const head = /th\.drpg-data-col-viewer > span\.drpg-data-clamp \{([^}]*)\}/.exec(components)?.[1] ?? "";
+        ok(head.length > 0 && !/writing-mode/.test(head + css.match(/drpg-data-col-viewer[^{]*\{[^}]*\}/g)?.join(" ")), "the players' names stand on end again");
         ok(/fa-music/.test(src("hud.mjs")), "the track band has lost its notes");
         // The CALL, with its semicolon: `holdActionsTab(app, element)` alone also matches
         // the definition's own signature, and passed with the call deleted. Since E24 C3b the
@@ -2107,7 +2110,7 @@ const INVARIANTS = [
 
         // Who knows a project is a matrix, one column per player, in counting order.
         const projects = src("projects-ui.mjs");
-        ok(/function viewerTicks\(/.test(projects) && /drpg-viewer-head/.test(projects),
+        ok(/function viewerTicks\(/.test(projects) && /label: u\.name, lines: 2, cls: "viewer"/.test(projects),
             "the project manager lists viewers as a run of labels again");
         ok(/numeric: true/.test(projects), "players are listed in creation order, not counting order");
 
@@ -35022,7 +35025,9 @@ const INVARIANTS = [
         const table = ["", "  \n\t ", null, "a", "a".repeat(1000), ` ${"a".repeat(1000)}\n`, "a".repeat(1001)].map(text => problem(text));
 
         const form = document.createElement("form");
-        form.innerHTML = typeof UI.descriptionField === "function" ? UI.descriptionField("a <i>draft</i>") : "";
+        // A row of the kit's formGrid since E47-C6 (`{ label, id, field }`), drawn in one as both windows draw it.
+        const row = typeof UI.descriptionField === "function" ? UI.descriptionField("a <i>draft</i>") : "";
+        form.innerHTML = typeof row === "string" ? row : (await import("./ui-kit.mjs")).formGrid([row]);
         const areas = [...form.querySelectorAll("textarea")];
         const field = { areas: areas.map(a => [a.name, a.value, a.hasAttribute("maxlength"), a.required]) };
 
@@ -40932,7 +40937,7 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ "stained-glass": { ...want, mark: "32px" }, "monokuma-legacy": { ...want, mark: "16px" } }),
             "{per theme: the row's winning width / display / grid-template-columns; the list's display; the value's text-align; name: its overflow-wrap; mark: the value's background size; own: the value's winning background names an SVG under the module's icons/; served; grid: a 16x16 view; crisp: crispEdges; rects: whole-pixel rects only; palette: every colour the item icons'; inkAndOne: the ink and exactly one other; text: the value's font-size not nothing}");
     }],
-    ["R1492 - a project's description takes the form's width (projects-ui.mjs `descriptionField`; E24 C6, the owner's A8 of 09.11.2026): in the GM's Edit project and the player's proposal, under both themes, its label is a column - the caption, then the textarea stretched to the row's width, then the note under it", async () => {
+    ["R1492 - a project's description takes the form's width (projects-ui.mjs `descriptionField`; E24 C6, the owner's A8 of 09.11.2026): in the GM's Edit project and the player's proposal, under both themes, its field cell of the kit's `formGrid` (E47-C6; a column of its own label until then) holds the textarea at the cell's width and the note under it", async () => {
         /*
          * E24 C6. The owner, 09.11.2026: "Opis okna projects - za waskie", with a screenshot of Edit project: the
          * Description textarea about a third of the window, its placeholder wrapping, the note beside it on the right.
@@ -40948,30 +40953,33 @@ const INVARIANTS = [
          */
         const C = await styleCascade();
         const UI = await import("./projects-ui.mjs");
+        const K = await import("./ui-kit.mjs");
         must(typeof UI.descriptionField === "function", "projects-ui.mjs has no descriptionField - nothing to read");
+        /* E47-C6 (09.11.2026; cards M17-M19, approved): the field is a row of the kit's `formGrid` since, its caption in
+           the label column; what this holds is the field cell's - the textarea the cell's width, the note under it. */
         const drawn = theme => {
             const html = document.createElement("html"), body = document.createElement("body");
             body.className = `${theme} drpg-gm`;
             const app = document.createElement("div");
-            app.className = "application dialog drpg-panel drpg-ui";
+            app.className = "application dialog drpg-panel drpg-ui drpg-project-form";
             app.innerHTML = `<section class="window-content"><form class="dialog-form standard-form"><div class="dialog-content standard-form">`
-                + `<div class="drpg-kit-body"><form>${UI.descriptionField("")}</form></div></div></form></section>`;
+                + `<div class="drpg-kit-body"><form>${K.formGrid([UI.descriptionField("")])}</form></div></div></form></section>`;
             html.append(body);
             body.append(app);
-            return app.querySelector('textarea[name="description"]')?.closest("label") ?? null;
+            return app.querySelector('textarea[name="description"]')?.closest(".drpg-form-field") ?? null;
         };
         const got = {}, want = {};
         for (const theme of ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"]) {
             const label = drawn(theme);
-            must(label, `the field drew no textarea in a label under ${theme}`);
-            const area = label.querySelector("textarea"), note = label.querySelector("small.notes");
+            must(label, `the field drew no textarea in a formGrid field cell under ${theme}`);
+            const area = label.querySelector("textarea"), note = label.querySelector("p.drpg-help");
             got[theme] = {
-                direction: C.winner(label, "flex-direction")?.value ?? null, align: C.winner(label, "align-items")?.value ?? null,
-                width: C.winner(area, "width")?.value ?? null, maxWidth: C.winner(area, "max-width")?.value ?? null,
+                labelled: label.previousElementSibling?.htmlFor === area?.id, wrap: C.winner(label, "flex-wrap")?.value ?? null,
+                width: C.winner(area, "width")?.value ?? null, basis: C.winner(area, "flex")?.value ?? null, noteBasis: note ? C.winner(note, "flex")?.value ?? null : "missing",
                 parts: [...label.children].map(e => e.tagName.toLowerCase()),
                 order: [area, note].map(e => (e ? C.winner(e, "order")?.value ?? null : "missing"))
             };
-            want[theme] = { direction: "column", align: "stretch", width: "100%", maxWidth: null, parts: ["textarea", "small"], order: [null, null] };
+            want[theme] = { labelled: true, wrap: "wrap", width: "100%", basis: "1 1 100%", noteBasis: "1 0 100%", parts: ["textarea", "p"], order: [null, null] };
         }
         equal(stableJson(got), stableJson(want),
             "[per theme, the description's label in a drpg-panel window: its winning flex-direction and align-items; the textarea's winning width and "
@@ -42813,6 +42821,108 @@ const INVARIANTS = [
             + "the columns' shares from components.css, added up (or each one's, none where a column states none); the long cell clamped [class, title and clamp span]; every long head cut with its title}");
     }],
 
+    ["R2076 - the project windows on the kit as approved (E47-C6; E47-17; cards M16-M19 of E47-M, the owner's answers of 09.11.2026): the manager a `dataTable` with the head on two rows (O1a), Edit and Delete before the players (O2b), a group row per room (O3b), each player's head cut at two lines with the whole name in its title, Delete a button that asks the delete question (Cancel deletes nothing) and no box read at Save, the notes the kit's fine print in one block; Create a project, Edit project and Propose a project on `formGrid` (each caption its field's `for`), the proposal's request field a line across the form, the warnings the kit's warning box, the description's refusal one in the field's cell; the fields' names as before; the client setting `wideProjectWindows` opens the three at today's width (off) and at the kit's `wide` (on)", async () => {
+        /*
+         * E47-C6. Drawn with DialogV2.wait stood in for (nothing is created or written; the delete question is answered
+         * Cancel), from projects and players made up here, so the world's own do not enter. The setting (this browser's, scope
+         * client) is answered both ways by a stand-in for `game.settings.get`, nothing written. Red on f4a5083a: no `projectManagerBody`, no `wireManagerDeletes`,
+         * no setting; the forms a run of labels, the warnings `p.drpg-warning`.
+         */
+        const UI = await import("./projects-ui.mjs");
+        const AP = await import("./action-project.mjs");
+        must(typeof UI.projectManagerBody === "function" && typeof UI.wireManagerDeletes === "function",
+            "projects-ui.mjs has no projectManagerBody or wireManagerDeletes - the manager's table is drawn only from the world");
+        const actor = studentActors()[0] ?? null;
+        must(actor, "no student to draw the proposal for");
+        const D = foundry.applications.api.DialogV2, ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        // The setting is read through a stand-in for `game.settings.get` (a tier-1 test writes no setting, a client one either).
+        const settings = game.settings, ownGet = settings.get;
+        let wideNow = false;
+        const got = {};
+        const asked = [];
+        const form = cfg => { const el = document.createElement("div"); el.innerHTML = typeof cfg?.content === "string" ? cfg.content : cfg?.content?.outerHTML ?? ""; return el; };
+        const grid = root => {
+            const labels = [...root.querySelectorAll(".drpg-form-grid > label.drpg-form-label")];
+            return { grid: labels.length > 0, labelled: labels.every(l => root.querySelector(`#${CSS.escape(l.htmlFor)}`)?.closest(".drpg-form-field") === l.nextElementSibling),
+                fields: [...root.querySelectorAll("[name]")].map(f => f.name).filter((n, i, a) => n !== a[i - 1]),
+                oldWarnings: root.querySelectorAll(".drpg-warning").length };
+        };
+        try {
+            const projects = ["R2076PROJECTA", "R2076PROJECTB"].map((id, n) => ({ id, name: `R2076 project ${n}`, current: n, start: 4, img: "" }));
+            const root = document.createElement("div");
+            root.innerHTML = UI.projectManagerBody(projects, ["R2076 Room"], { players: [{ id: "R2076U1", name: "R2076 player with a long name" }, { id: "R2076U2", name: "R2076 two" }] });
+            const table = root.querySelector(".drpg-data-table-box > table.drpg-data-table.drpg-data-heads-2");
+            got.manager = {
+                table: Boolean(table),
+                group: [...root.querySelectorAll("thead > tr.drpg-data-head-group > th")].map(th => [th.textContent, th.colSpan]),
+                heads: [...root.querySelectorAll("thead > tr:last-child > th")].map(th => th.getAttribute("title") ?? th.textContent.trim()),
+                cut: [...root.querySelectorAll("thead th.drpg-data-col-viewer")].map(th => th.matches(".drpg-data-lines-2[title][aria-label]")),
+                rooms: [...root.querySelectorAll("tbody > tr.drpg-data-group > th")].map(th => [th.firstChild?.textContent.trim(), th.querySelector("span")?.textContent]),
+                rows: [...root.querySelectorAll("tbody > tr[data-project]")].map(tr => tr.dataset.project),
+                fields: [...root.querySelectorAll('tr[data-project="R2076PROJECTA"] [name]')].map(f => f.name).filter((n, i, a) => n !== a[i - 1]),
+                deleteButtons: [...root.querySelectorAll("button.drpg-kit-icon-button.drpg-role-destructive[data-drpg-delete]")].map(b => b.getAttribute("aria-label")),
+                deleteBoxes: root.querySelectorAll('input[name^="delete."]').length,
+                notes: [...root.querySelectorAll(".drpg-project-notes > p.drpg-help")].length
+            };
+            D.wait = async cfg => { asked.push(cfg); return null; };
+            UI.wireManagerDeletes(root, projects);
+            root.querySelector('[data-drpg-delete="R2076PROJECTA"]').click();
+            for (let n = 0; n < 40 && !asked.length; n++) await wait(25);
+            const ask = asked[0] ?? null;
+            const yes = (ask?.buttons ?? []).find(b => b.action === "delete") ?? null;
+            got.ask = { asked: Boolean(ask), yes: yes ? [yes.class.includes("drpg-role-destructive"), Boolean(yes.default)] : null,
+                named: form(ask).textContent.includes("R2076 project 0"), left: root.querySelectorAll("tr[data-project]").length };
+
+            const widths = {};
+            for (const wide of [false, true]) {
+                wideNow = wide;
+                settings.get = function (scope, key, ...rest) { return scope === MODULE_ID && key === SETTINGS.wideProjectWindows ? wideNow : ownGet.call(this, scope, key, ...rest); };
+                asked.length = 0;
+                await UI.openProjectDialog({ rooms: ["R2076 Room"] });
+                const create = asked[0];
+                await UI.openProjectDialog({ project: { id: "R2076EDITED", name: "R2076 edited", current: 1, start: 4, img: "" }, rooms: ["R2076 Room"] });
+                const edit = asked[1];
+                await AP.startProject(actor);
+                const propose = asked[2];
+                widths[wide ? "on" : "off"] = [create, edit, propose].map(c => [c?.classes?.includes("drpg-kit-width-wide") ?? null, Boolean(c?.position?.width)]);
+                if (!wide) {
+                    const [c, e, p] = [create, edit, propose].map(form);
+                    got.create = grid(c);
+                    got.edit = { ...grid(e), when: [...e.querySelectorAll("[data-drpg-when-trigger]")].map(el => el.className) };
+                    got.propose = { ...grid(p), first: p.querySelector(".drpg-form-grid > .drpg-form-full > .drpg-box[data-drpg-box=\"warning\"]") === p.querySelector(".drpg-form-grid").firstElementChild?.firstElementChild,
+                        request: Boolean(p.querySelector(".drpg-form-grid > .drpg-form-full > label.drpg-specific-note > textarea[name=\"request\"]")) };
+                    // The description's refusal: the kit's warning box in the field's cell, an alert pointed at by the field.
+                    e.insertAdjacentHTML("beforeend", '<button type="button" data-action="save">save</button>');
+                    UI.guardDescription(e, "save");
+                    e.querySelector('textarea[name="description"]').value = "";
+                    e.querySelector('button[data-action="save"]').click();
+                    const said = e.querySelector(".drpg-field-error");
+                    got.refusal = said ? [said.matches('.drpg-box[data-drpg-box="warning"][role="alert"]'), said.parentElement?.matches(".drpg-form-field") ?? false,
+                        e.querySelector('textarea[name="description"]').getAttribute("aria-describedby") === said.id] : null;
+                }
+            }
+            got.widths = widths;
+        } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            settings.get = ownGet;
+        }
+        const createFields = ["img", "name", "description", "glyph", "target", "room", "trait", "murder", "trigger", "triggerTarget", "afterDark", "notBuilder", "condition", "secret"];
+        const t = key => game.i18n.localize(key);
+        const viewers = game.users.some(u => !u.isGM) ? ["viewers"] : [];
+        equal(stableJson(got), stableJson({
+            manager: { table: true, group: [["", 7], [t("DRPG.Project.visibleTo"), 2]],
+                heads: ["", t("DRPG.Project.title"), t("DRPG.Project.room"), t("DRPG.Project.indirect"), t("DRPG.Project.secret"), t("DRPG.Project.edit"), t("DRPG.Project.delete"), "R2076 player with a long name", "R2076 two"],
+                cut: [true, true], rooms: [[t("DRPG.Project.anyRoom"), "2"]], rows: ["R2076PROJECTA", "R2076PROJECTB"],
+                fields: ["img.R2076PROJECTA", "room.R2076PROJECTA", "murder.R2076PROJECTA", "secret.R2076PROJECTA", "viewers.R2076PROJECTA"],
+                deleteButtons: [`${t("DRPG.Project.delete")}: R2076 project 0`, `${t("DRPG.Project.delete")}: R2076 project 1`], deleteBoxes: 0, notes: 2 },
+            ask: { asked: true, yes: [true, false], named: true, left: 2 },
+            create: { grid: true, labelled: true, fields: [...createFields, ...viewers], oldWarnings: 0 },
+            edit: { grid: true, labelled: true, fields: [...createFields, ...viewers], oldWarnings: 0, when: ["drpg-form-label", "drpg-form-field"] },
+            propose: { grid: true, labelled: true, fields: ["name", "description", "target", "room", "trait", "murder", "condition", "request"], oldWarnings: 0, first: true, request: true },
+            refusal: [true, true, true],
+            widths: { off: [[false, false], [false, false], [false, false]], on: [[true, true], [true, true], [true, true]] }
+        }), "{the manager: its table, head groups, heads in order, cut players' heads, room groups, rows, a row's fields, Delete buttons, Delete boxes, notes; the delete question: asked, its yes destructive and not the default, the project named, rows left; each form: a grid, every caption its field's, the fields' names, old warnings; the edit's rows shown with the trigger; the proposal's warning first and its request across the form; the description's refusal: a warning box, in the field's cell, pointed at; each window's width class and opening width with the setting off and on}");
+    }],
 ];
 
 /**

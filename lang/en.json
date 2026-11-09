@@ -304,6 +304,10 @@
         "name": "Pixel font",
         "hint": "Monokuma Legacy only, and on by default there: Press Start 2P on interface chrome - HUD, Despair, character name, statistic labels, tabs. Journals, chat and editable fields keep the normal face so long text stays readable. The Stained Glass theme has its own two faces and ignores this."
       },
+      "wideProjectWindows": {
+        "name": "Wide project windows",
+        "hint": "Create a project, Edit project and Propose a project open wider on this screen. Off, they open at the width they always had."
+      },
       "language": {
         "name": "Language",
         "hint": "This client only. The language of this module's own windows, cards and sheet. The game's proper names - Truth Bullets, Remnants, Despair - stay in English in every language. Takes effect after a reload."
@@ -3348,7 +3352,7 @@
         "murder": "Blade"
       },
       "delete": "Delete",
-      "deleteNote": "Tick Delete and Save to remove a project for good. Its progress and metadata do not come back.",
+      "deleteNote": "Delete in a project's row asks first, then removes the project for good. Its progress and metadata do not come back.",
       "saved": "Projects updated.",
       "savedWithDeletions": "Projects updated. {n} deleted.",
       "shareButton": "Share…",

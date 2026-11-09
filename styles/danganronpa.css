@@ -4115,59 +4115,6 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     line-height: 1.3;
 }
 
-/* WHO KNOWS ABOUT A PROJECT, as a list of names rather than one dropdown (P-1).
-   A fieldset so the group has a title of its own in the project window, and a
-   wrapping row so eight players do not stretch the manager's column. */
-.drpg-viewer-list {
-    border: 1px solid var(--drpg-line, rgba(255, 255, 255, .25));
-    padding: .35rem .5rem;
-}
-.drpg-viewer-list legend {
-    padding: 0 .35rem;
-}
-.drpg-viewer-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: .15rem .6rem;
-}
-
-/* THE MANAGER'S MATRIX (22.09): a column per player, named once, standing on end so
-   sixteen of them fit beside the rest of the row. It replaced a `.drpg-viewer-cell` that
-   set `display: flex` on the <td> itself - which takes a cell out of the table's layout,
-   and is why its box sat shorter than its row and off its column. */
-.drpg-viewer-group {
-    text-align: center;
-}
-.drpg-viewer-head {
-    vertical-align: bottom;
-    padding: 4px 3px;
-    text-align: center;
-}
-/* LYING DOWN, A WORD TO A LINE (22.09, "nazwy graczy prosilbym w poziomie", Dawid, on
-   1.2.50). Standing on end, sixteen names were a row of spines to tilt your head at. A
-   name as wide as its longest word keeps the column narrow: "Player 10" is two short
-   lines, not one long one, and the header row is as tall as the longest name's words. */
-.drpg-viewer-head > span {
-    display: inline-block;
-    width: min-content;
-    white-space: normal;
-    line-height: 1.15;
-}
-.drpg-viewer-tick {
-    text-align: center;
-    padding: 2px;
-}
-/* A COLUMN OF CHECKBOXES IS AS WIDE AS ITS LONGEST WORD (22.09). A table window's form is
-   `max-content`, so no header ever wraps on its own, and "Indirect murder" held a 151 px
-   column over a 20 px box. `width: 1px` asks a cell for its narrowest, which is the word. */
-.drpg-projects table th.drpg-tight-head {
-    width: 1px;
-}
-/* AND THE MATRIX MAY BE WIDER THAN OTHER WINDOWS. Sixteen names, each as wide as its longest
-   word, are a table of about 1400 px before the window's frame; under the common 1400 cap
-   the Edit and Delete columns scrolled out of sight. The cap is still a cap - `windowWidthFor`
-   also stops at 94 % of the screen - it is this window's own, read off this window: 1800 px, the kit's `matrix`
-   (ui-kit.mjs WINDOW_WIDTHS, which writes it on the window; a rule here until E21 W1). */
 
 /* The pool list on a table row's "where does this live" window.
    --------------------------------------------------------------------------
@@ -5317,23 +5264,6 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     cursor: pointer;
 }
 
-/* Create-project dialog: portrait beside the name field, not above it. */
-.drpg-project-image-row {
-    display: flex;
-    align-items: flex-end;
-    gap: 0.6rem;
-}
-
-.drpg-project-image-row .drpg-project-portrait {
-    width: 2.6rem;
-    height: 2.6rem;
-    flex: 0 0 auto;
-}
-
-.drpg-project-image-row label {
-    flex: 1 1 auto;
-}
-
 .drpg-project-portrait:hover {
     box-shadow: 0 0 6px var(--drpg-eye-glow, rgba(var(--drpg-eye-rgb), 0.45));
 }
@@ -5372,12 +5302,6 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-/* A checkbox that deletes a project on Save is not the same weight as the
-   others in the row - colour it so ticking it reads as a decision. */
-.drpg-project-delete {
-    accent-color: var(--drpg-crimson);
 }
 
 .drpg-choice-list {
@@ -5623,23 +5547,6 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 
 .drpg-panel label.drpg-trait-field > select {
     width: 100%;
-}
-
-/* A project's description, laid out as "Which statistic?" is (E24 C6; the owner's A8 of 09.11.2026, "Opis okna projects -
-   za waskie"): the caption on the line above, the textarea the form's width, its note under it - in the GM's Edit project
-   and New project and the player's proposal, the one label projects-ui.mjs `descriptionField` draws. As a row of
-   `.drpg-panel label` the caption, the textarea and the note stood side by side: measured in Chromium at 52955be4 on a
-   scratch page drawing both windows with the kit's `drpgWindow` under the module's sheets, the textarea 59 px of a 544 px
-   form under Stained Glass and 95 of 542 under Monokuma Legacy (R1492; at a table, Foundry's own sheet beside these: LIVE-E24-11). */
-.drpg-panel label.drpg-description-field {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.25rem;
-}
-
-.drpg-panel label.drpg-description-field > textarea {
-    width: 100%;
-    box-sizing: border-box;
 }
 
 /* ==========================================================================

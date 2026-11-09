@@ -49,7 +49,7 @@ import { report } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { chooseVariant, requestFieldHtml, readRequestField } from "./action-menus.mjs";
 import { listenLabels } from "./action-listen.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, formGrid, helpText, box } from "./ui-kit.mjs";
 
 /* ==========================================================================
  * PROJECTS
@@ -181,7 +181,7 @@ export async function performProject(actor, def, options) {
  */
 export async function startProject(actor) {
     const { allRooms } = await import("./movement.mjs");
-    const { projectTraitOptions, descriptionField, guardDescription, descriptionRefusal, presetDescription, wirePresetDescription } = await import("./projects-ui.mjs");
+    const { projectTraitOptions, descriptionField, guardDescription, descriptionRefusal, presetDescription, wirePresetDescription, projectWindowWidth } = await import("./projects-ui.mjs");
     const { projectDescriptionProblem } = await import("./config.mjs");
     const room = roomOfActor(actor);
     // The rooms of the scene the character stands on (E12 C2a): the project is started where they are.
@@ -228,47 +228,53 @@ export async function startProject(actor) {
     const kinds = [...(offer ? ["secretPassage", "breach"] : []), ...(owned.seal.length ? ["sealPassage"] : []),
         ...(owned.breaches.length ? ["closeBreach"] : []), ...(mendable.length ? ["repairItem"] : [])];
     const esc1 = text => foundry.utils.escapeHTML(String(text ?? ""));
-    const choose = (name, label, options, note) => `<label>${game.i18n.localize(label)}
-                <select name="${name}">${options.map((text, i) => `<option value="${i}">${esc1(text)}</option>`).join("")}</select>
-                ${note.map(key => `<small class="notes">${game.i18n.localize(key)}</small>`).join("")}</label>`;
-    const presetFields = kinds.length ? `<label>${game.i18n.localize("DRPG.Project.kind")}
-                <select name="preset"><option value="">${game.i18n.localize("DRPG.Project.kindOwn")}</option>${
-                    kinds.map(key => `<option value="${key}">${game.i18n.localize(`DRPG.Project.preset.${key}`)}</option>`).join("")}</select></label>
-            ${offer ? choose("to", "DRPG.Project.passageTo", offer.neighbours.map(r => beyond.get(r) ?? r), ["DRPG.Project.passageNote", "DRPG.Project.breachNote"]) : ""}
-            ${owned.seal.length ? choose("seal", "DRPG.Project.sealWhich", owned.seal.map(p => named(p.rooms)), ["DRPG.Project.sealNote"]) : ""}
-            ${owned.breaches.length ? choose("unbreach", "DRPG.Project.unbreachWhich", owned.breaches.map(b => named(b.rooms)), ["DRPG.Project.unbreachNote"]) : ""}
-            ${mendable.length ? choose("mend", "DRPG.Project.repairWhich", mendable.map(i => game.i18n.format("DRPG.Project.repairOption", { item: i.name, tier: tierOf(i) })),
-                ["DRPG.Project.repairNote"]) : ""}` : "";
+    /* ON THE KIT'S `formGrid` (E47-C6, 09.11.2026; card M19, approved by the owner on 09.11 with one change): a field with
+       a caption is a row of the grid - the caption, then the field with its notes in the kit's fine print - and the rest
+       lines across both, in the order they had (D31). The change: "Say what you are actually doing" takes the form's
+       full width ("za waskie pole do wypelnienia w stained glass" - too narrow a field under Stained Glass), a line of
+       its own, not a row. The agreement's warning is the kit's warning box. */
+    const uid = foundry.utils.randomID(6);
+    const idOf = name => `drpg-propose-${name}-${uid}`;
+    const choose = (name, label, options, note) => ({ label: game.i18n.localize(label), id: idOf(name),
+        field: `<select name="${name}" id="${idOf(name)}">${options.map((text, i) => `<option value="${i}">${esc1(text)}</option>`).join("")}</select>
+                ${note.map(key => helpText(key)).join("")}` });
+    const presetRows = kinds.length ? [
+        { label: game.i18n.localize("DRPG.Project.kind"), id: idOf("preset"),
+            field: `<select name="preset" id="${idOf("preset")}"><option value="">${game.i18n.localize("DRPG.Project.kindOwn")}</option>${
+                kinds.map(key => `<option value="${key}">${game.i18n.localize(`DRPG.Project.preset.${key}`)}</option>`).join("")}</select>` },
+        ...(offer ? [choose("to", "DRPG.Project.passageTo", offer.neighbours.map(r => beyond.get(r) ?? r), ["DRPG.Project.passageNote", "DRPG.Project.breachNote"])] : []),
+        ...(owned.seal.length ? [choose("seal", "DRPG.Project.sealWhich", owned.seal.map(p => named(p.rooms)), ["DRPG.Project.sealNote"])] : []),
+        ...(owned.breaches.length ? [choose("unbreach", "DRPG.Project.unbreachWhich", owned.breaches.map(b => named(b.rooms)), ["DRPG.Project.unbreachNote"])] : []),
+        ...(mendable.length ? [choose("mend", "DRPG.Project.repairWhich", mendable.map(i => game.i18n.format("DRPG.Project.repairOption", { item: i.name, tier: tierOf(i) })),
+            ["DRPG.Project.repairNote"])] : [])] : [];
 
     // On the kit's frame (E21 C5a): the proposal is the GM's road (D11), its one answer; Cancel withdraws it.
     const result = await drpgWindow({
         title: game.i18n.localize("DRPG.Project.startNew"),
-        classes: ["drpg-panel"],
-        body: `<form>
-            <p class="drpg-warning">${game.i18n.localize("DRPG.Project.agreedWarning")}</p>
-            ${presetFields}
-            <label>${game.i18n.localize("DRPG.Project.name")}
-                <input type="text" name="name" placeholder="${game.i18n.localize("DRPG.Project.namePlaceholder")}" autofocus /></label>
-            ${descriptionField("")}
-            <label>${game.i18n.localize("DRPG.Project.scale")}
-                <select name="target">${scaleOptions}</select></label>
-            <label>${game.i18n.localize("DRPG.Project.room")}
-                <select name="room">${roomOptions}</select></label>
-            <label>${game.i18n.localize("DRPG.Project.trait")}
-                <select name="trait" required>${projectTraitOptions()}</select></label>
-            <label class="drpg-checkbox">
-                <input type="checkbox" name="murder" /> ${game.i18n.localize("DRPG.Project.indirectMine")}</label>
-            <label>${game.i18n.localize("DRPG.Project.condition")}
-                <input type="text" name="condition"
-                       placeholder="${game.i18n.localize("DRPG.Project.conditionPlaceholder")}" />
-                <small class="notes">${game.i18n.localize("DRPG.Project.conditionNote")}</small></label>
-            ${requestFieldHtml({
+        classes: ["drpg-panel", "drpg-project-form"],
+        // Today's width, or the kit's `wide` where this person's setting asks for it (E47-C6; the owner's O4).
+        width: projectWindowWidth(),
+        body: `<form>${formGrid([
+            { full: box("warning", game.i18n.localize("DRPG.Project.agreedWarning")) },
+            ...presetRows,
+            { label: game.i18n.localize("DRPG.Project.name"), id: idOf("name"),
+                field: `<input type="text" name="name" id="${idOf("name")}" placeholder="${game.i18n.localize("DRPG.Project.namePlaceholder")}" autofocus />` },
+            descriptionField(""),
+            { label: game.i18n.localize("DRPG.Project.scale"), id: idOf("target"), field: `<select name="target" id="${idOf("target")}">${scaleOptions}</select>` },
+            { label: game.i18n.localize("DRPG.Project.room"), id: idOf("room"), field: `<select name="room" id="${idOf("room")}">${roomOptions}</select>` },
+            { label: game.i18n.localize("DRPG.Project.trait"), id: idOf("trait"), field: `<select name="trait" id="${idOf("trait")}" required>${projectTraitOptions()}</select>` },
+            { full: `<label class="drpg-checkbox">
+                <input type="checkbox" name="murder" /> ${game.i18n.localize("DRPG.Project.indirectMine")}</label>` },
+            { label: game.i18n.localize("DRPG.Project.condition"), id: idOf("condition"),
+                field: `<input type="text" name="condition" id="${idOf("condition")}"
+                       placeholder="${game.i18n.localize("DRPG.Project.conditionPlaceholder")}" />${helpText("DRPG.Project.conditionNote")}` },
+            { full: requestFieldHtml({
                 prompt: game.i18n.localize("DRPG.Project.proposalPrompt"),
                 placeholder: game.i18n.localize("DRPG.Project.proposalPlaceholder"),
                 optional: false
-            })}
-            <p class="notes">${game.i18n.localize("DRPG.Project.startNote")}</p>
-        </form>`,
+            }) },
+            { full: helpText("DRPG.Project.startNote") }
+        ])}</form>`,
         footer: { gmRoute: [{
                 action: "create",
                 label: game.i18n.localize("DRPG.Project.proposeButton"),

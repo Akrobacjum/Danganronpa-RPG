@@ -16,7 +16,7 @@
  */
 
 import {
-    PROJECT_SCALE, PROJECT_GLYPHS, isProjectGlyph, TRAITS, TRAP_TRIGGERS, TRAP_MODIFIERS, PROJECT_DESCRIPTION_MAX, projectDescriptionProblem
+    MODULE_ID, PROJECT_SCALE, PROJECT_GLYPHS, isProjectGlyph, TRAITS, TRAP_TRIGGERS, TRAP_MODIFIERS, PROJECT_DESCRIPTION_MAX, projectDescriptionProblem
 } from "./config.mjs";
 import {
     allProjects, metaFor, roomOf, isIndirectMurder, isSecret, shareWith, unshareWith,
@@ -25,7 +25,8 @@ import {
 } from "./projects.mjs";
 import { placeRoomNames } from "./rooms.mjs";
 import { error, markFired, markLanguage, serialWrite, wirePortraitPickers } from "./utils.mjs";
-import { emptyOption, drpgConfirm, drpgWindow } from "./ui-kit.mjs";
+import { emptyOption, drpgConfirm, drpgWindow, dataTable, formGrid, helpText, box, iconButton, kitNode } from "./ui-kit.mjs";
+import { SETTINGS } from "./settings.mjs";
 // The projects' queue key, from the file that keeps it (projects.mjs does not re-export it), as traps.mjs and fog.mjs read it.
 import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
@@ -302,52 +303,162 @@ function roomSelectOptions(rooms, current) {
     ].join("");
 }
 
-/** One editable row per project: portrait, name and progress, room, the two flags, edit, delete. */
-function projectManagerRows(projects, rooms, { always = new Set() } = {}) {
-    const roomOptions = id => roomSelectOptions(rooms, roomOf(id) ?? "");
-
-    const players = playerList();
-    return projects.map(p => {
+/**
+ * THE MANAGER'S ROWS ON THE KIT'S `dataTable` (E47-C6, 09.11.2026; card M16, approved by the owner on 09.11 with O1a, O2b
+ * and O3b). One row object per project - its cells by column key, `project` its id for the row's `data-project` - under a
+ * group row per room (O3b: `{ group, count }`, the rooms in the order their first project comes, a project with no room
+ * under "any room"). The cells are the ones the table drew before, in the columns `projectManagerColumns` names: the
+ * portrait, the name and its progress, the room, the two flags, Edit (and Show on map), Delete, and a tick per player.
+ * DELETE IS A BUTTON (the owner's M16 note: "chcialbym by delete juz nie bylo checkboxem, tylko przyciskiem" - I would
+ * like Delete to be a button, not a checkbox): the kit's `iconButton` in the destructive role's colour, which asks the
+ * project window's own delete question (`confirmProjectDelete`) and deletes on its yes; no `delete.<id>` box is read at
+ * Save any more.
+ */
+function projectManagerRows(projects, rooms, { always = new Set(), players = playerList() } = {}) {
+    const esc = foundry.utils.escapeHTML;
+    const t = key => game.i18n.localize(key);
+    const cells = p => {
         const secret = isSecret(p.id);
-        const knows = knownBy(p.id);
-        return `<tr data-project="${p.id}">
-            <td>
-                <img src="${foundry.utils.escapeHTML(p.img ?? "")}" alt="" class="drpg-project-portrait"
-                     data-drpg-portrait="${p.id}" data-tooltip="${game.i18n.localize("DRPG.Project.changeImage")}" />
-                <input type="hidden" name="img.${p.id}" value="${foundry.utils.escapeHTML(p.img ?? "")}" />
-            </td>
-            <td>${foundry.utils.escapeHTML(p.name)}<br><small data-drpg-progress="${p.id}"
-                >${projectLabel(p, { name: false })}</small></td>
-            <td><select name="room.${p.id}" aria-label="${rowName("DRPG.Project.room", p)}">${
-                roomOptions(p.id)}</select></td>
-            <td style="text-align:center">
-                <input type="checkbox" name="murder.${p.id}" aria-label="${rowName("DRPG.Project.indirect", p)}"
-                       ${isIndirectMurder(p.id) ? "checked" : ""} />
-            </td>
-            <td style="text-align:center">
-                <input type="checkbox" name="secret.${p.id}" aria-label="${rowName("DRPG.Project.secret", p)}"
-                       ${secret ? "checked" : ""}${always.has(p.id) ? " disabled" : ""} />
-            </td>
-            ${players.length
-                ? viewerTicks(players, knows, p, { locked: !secret })
-                : `<td><small class="notes">${game.i18n.localize("DRPG.Project.noPlayers")}</small></td>`}
-            <td style="text-align:center">
-                <button type="button" class="drpg-mini-button" data-drpg-edit="${p.id}"
-                        data-tooltip="${game.i18n.localize("DRPG.Project.editTitle")}">
+        const row = {
+            project: p.id,
+            portrait: `<img src="${esc(p.img ?? "")}" alt="" class="drpg-project-portrait"
+                     data-drpg-portrait="${p.id}" data-tooltip="${t("DRPG.Project.changeImage")}" />
+                <input type="hidden" name="img.${p.id}" value="${esc(p.img ?? "")}" />`,
+            title: `${esc(p.name)}<br><small data-drpg-progress="${p.id}"
+                >${projectLabel(p, { name: false })}</small>`,
+            room: `<select name="room.${p.id}" aria-label="${rowName("DRPG.Project.room", p)}">${
+                roomSelectOptions(rooms, roomOf(p.id) ?? "")}</select>`,
+            murder: `<input type="checkbox" name="murder.${p.id}" aria-label="${rowName("DRPG.Project.indirect", p)}"
+                       ${isIndirectMurder(p.id) ? "checked" : ""} />`,
+            secret: `<input type="checkbox" name="secret.${p.id}" aria-label="${rowName("DRPG.Project.secret", p)}"
+                       ${secret ? "checked" : ""}${always.has(p.id) ? " disabled" : ""} />`,
+            edit: `<button type="button" class="drpg-mini-button" data-drpg-edit="${p.id}"
+                        data-tooltip="${t("DRPG.Project.editTitle")}">
                     <i class="fa-solid fa-pen-to-square" inert></i>
-                </button>
-                ${metaFor(p.id).mapHidden ? `<button type="button" class="drpg-mini-button" data-drpg-show-on-map="${p.id}"
+                </button>${metaFor(p.id).mapHidden ? `<button type="button" class="drpg-mini-button" data-drpg-show-on-map="${p.id}"
                         aria-label="${rowName("DRPG.Project.showOnMap", p)}"
-                        data-tooltip="${game.i18n.localize("DRPG.Project.showOnMap")}">
+                        data-tooltip="${t("DRPG.Project.showOnMap")}">
                     <i class="fa-solid fa-map-location-dot" inert></i>
-                </button>` : ""}
-            </td>
-            <td style="text-align:center">
-                <input type="checkbox" name="delete.${p.id}" class="drpg-project-delete"
-                       aria-label="${rowName("DRPG.Project.delete", p)}" />
-            </td>
-        </tr>`;
-    }).join("");
+                </button>` : ""}`,
+            delete: iconButton({ icon: "fa-solid fa-trash-can", label: `${t("DRPG.Project.delete")}: ${p.name}`, cls: "drpg-role-destructive",
+                attrs: { "data-drpg-delete": p.id } })
+        };
+        if (players.length) Object.assign(row, viewerTicks(players, knownBy(p.id), p, { locked: !secret }));
+        else row.viewers = `<small class="drpg-help">${t("DRPG.Project.noPlayers")}</small>`;
+        return row;
+    };
+    const byRoom = new Map();
+    for (const p of projects) {
+        const room = roomOf(p.id) ?? "";
+        if (!byRoom.has(room)) byRoom.set(room, []);
+        byRoom.get(room).push(p);
+    }
+    return [...byRoom].flatMap(([room, list]) => [
+        { group: room || t("DRPG.Project.anyRoom"), count: String(list.length) },
+        ...list.map(cells)
+    ]);
+}
+
+/**
+ * The manager's columns, in the approved card's order (O2b: Edit and Delete after Secret, before the player columns, so
+ * they stay in sight at sixteen players - E47-M's measure at 1366x768: the table 1496 px in a box of 1226 under Stained
+ * Glass), and the head's two rows (O1a, dataTable `headGroups`): "Who knows about it" over the players' columns, each
+ * player's name cut after two lines with the whole name in its title (`lines: 2`). With no player, one column for the
+ * line that says so, and a head of one row.
+ */
+function projectManagerColumns(players) {
+    const t = key => game.i18n.localize(key);
+    const columns = [
+        { key: "portrait", label: "", cls: "portrait" },
+        { key: "title", label: t("DRPG.Project.title") },
+        { key: "room", label: t("DRPG.Project.room") },
+        { key: "murder", label: t("DRPG.Project.indirect"), cls: "check" },
+        { key: "secret", label: t("DRPG.Project.secret"), cls: "check" },
+        { key: "edit", label: t("DRPG.Project.edit"), cls: "act" },
+        { key: "delete", label: t("DRPG.Project.delete"), cls: "act" },
+        ...(players.length
+            ? players.map(u => ({ key: `viewer-${u.id}`, label: u.name, lines: 2, cls: "viewer" }))
+            : [{ key: "viewers", label: t("DRPG.Project.visibleTo") }])
+    ];
+    const headGroups = players.length ? [{ label: "", span: 7 }, { label: t("DRPG.Project.visibleTo"), span: players.length }] : null;
+    return { columns, headGroups };
+}
+
+/**
+ * The manager's body (E47-C6): the intro, the table and the two notes under it (the kit's fine print, the block centred
+ * in the window as the intro is - the owner's 09.11 note on the mockup: "nie jest wysrodkowany ten tekst w menadzerze
+ * projektow", the grey ink kept). Exported for the suite (R2076, R2077), which draws it from projects it makes up.
+ */
+export function projectManagerBody(projects, rooms, { always = new Set(), players = playerList() } = {}) {
+    /* WHO KNOWS WHAT, AS A MATRIX (Dawid, 22.09: "gracze z dostepem do projects ... sa brzydko
+       ulozeni - liczylem bardziej na cos przypominajacego tabele"). One column per player,
+       named once in the header, and a tick in each row: a GM reads down a column to see what
+       one player knows and across a row to see who knows one project. The names used to be
+       repeated in every row as a wrapping run of labels, which at sixteen players was a
+       paragraph per project and no two rows lined up. */
+    const { columns, headGroups } = projectManagerColumns(players);
+    return `<form>
+            <p>${game.i18n.localize("DRPG.Project.manageIntro")}</p>
+            ${dataTable({ columns, headGroups, rows: projectManagerRows(projects, rooms, { always, players }), rowAttrs: r => ({ "data-project": r.project }) })}
+            <div class="drpg-project-notes">${helpText("DRPG.Project.secretNote")}${helpText("DRPG.Project.deleteNote")}</div>
+        </form>`;
+}
+
+/**
+ * The project window's delete question (E22; S09-24), asked by its Delete and by the manager's (E47-C6): destructive,
+ * Cancel the default and the first submit button, so Enter deletes nothing (E22-T5). Answers true on the yes.
+ */
+async function confirmProjectDelete(project) {
+    return drpgConfirm({
+        yes: { role: "destructive", action: "delete", label: game.i18n.localize("DRPG.Project.delete") },
+        classes: ["drpg-panel"],
+        title: game.i18n.localize("DRPG.Project.delete"),
+        body: `<p>${game.i18n.format("DRPG.Project.deleteConfirm", {
+            name: foundry.utils.escapeHTML(project.name)
+        })}</p>`,
+        rejectClose: false
+    });
+}
+
+/**
+ * The manager's Delete buttons (E47-C6; the owner's M16 note): each asks `confirmProjectDelete` and, on its yes, deletes
+ * the project (`deleteProject`, the write the Save made for a ticked box before), says so as the Save did, and takes the
+ * rows of every project gone out of the window in place - a sabotage pair goes together (F5) - with a room's group row
+ * when its last row went, the others' counts redrawn. In place, as Show on map: the GM's other changes in the window stay
+ * for its Save. Exported for the suite (R2076), which presses one on a drawn body.
+ */
+export function wireManagerDeletes(root, projects = []) {
+    for (const btn of root?.querySelectorAll?.("[data-drpg-delete]") ?? []) {
+        btn.addEventListener("click", async ev => {
+            ev.preventDefault();
+            const id = btn.dataset.drpgDelete;
+            const project = allProjects().find(p => p.id === id) ?? projects.find(p => p.id === id);
+            if (!project) return;
+            if (!(await confirmProjectDelete(project))) return;
+            if (!(await deleteProject(project.id))) return;
+            ui.notifications.info(game.i18n.format("DRPG.Project.savedWithDeletions", { n: 1 }));
+            const alive = new Set(allProjects().map(p => p.id));
+            for (const tr of root.querySelectorAll("tr[data-project]")) if (!alive.has(tr.dataset.project)) tr.remove();
+            for (const group of root.querySelectorAll("tr.drpg-data-group")) {
+                let n = 0;
+                for (let tr = group.nextElementSibling; tr && !tr.classList.contains("drpg-data-group"); tr = tr.nextElementSibling) n += 1;
+                if (!n) group.remove();
+                else if (group.querySelector("th > span")) group.querySelector("th > span").textContent = String(n);
+            }
+        });
+    }
+}
+
+/**
+ * THE WIDTH OF THE CREATE, EDIT AND PROPOSE WINDOWS (E47-C6; the owner's O4, 09.11.2026: "O4a i b. Moze jako ustawienie
+ * w panelu ustawien?", and its scope "Kazdy dla siebie" - each person their own): the client setting
+ * `wideProjectWindows`, off by default. Off, the windows open at the width they had (no `width`: the module's popup
+ * rules); on, at the kit's `wide` (ui-kit.mjs WINDOW_WIDTHS, 44rem). Read when a window opens.
+ */
+export function projectWindowWidth() {
+    let wide = false;
+    try { wide = Boolean(game.settings.get(MODULE_ID, SETTINGS.wideProjectWindows)); } catch { wide = false; }
+    return wide ? "wide" : null;
 }
 
 /** The portraits, the live progress figures, and the per-row edit buttons. */
@@ -403,22 +514,19 @@ function wireProjectManager(dialog, projects, rooms) {
             btn.remove();
         });
     }
+    wireManagerDeletes(dialog.element, projects);
 }
 
-/** Write every row back: deletions first, then image, room, the murder flag and secrecy. Answers how many were deleted. */
+/**
+ * Write every row back: image, room, the murder flag and secrecy. A row's Delete is its own button since E47-C6
+ * (`wireManagerDeletes`), so nothing here deletes.
+ */
 async function applyProjectManager(result, projects) {
-    let deleted = 0;
-    // A sabotage pair goes together (F5), so a row can be gone by the time the
-    // loop reaches it. Asked of the world, not of the list the window opened with:
-    // writing metadata for a project deleted two rows up leaves an orphan row, and
-    // a second Delete on it would not be counted.
+    // A row can be gone by the time the loop reaches it - deleted from this window's own Delete, or elsewhere while it
+    // stood open (a sabotage pair goes together, F5). Asked of the world, not of the list the window opened with:
+    // writing metadata for a deleted project leaves an orphan row.
     const exists = id => allProjects().some(p => p.id === id);
     for (const entry of result) {
-        if (entry.delete) {
-            if (!exists(entry.id)) { deleted += 1; continue; }
-            if (await deleteProject(entry.id)) deleted += 1;
-            continue;
-        }
         if (!exists(entry.id)) continue;
 
         const before = projects.find(p => p.id === entry.id);
@@ -466,7 +574,6 @@ async function applyProjectManager(result, projects) {
             secrecyChange(entry.id, shouldBeSecret, entry.viewers, entry.was));
         if (change) await applyProjectChange(entry.id, change, { by: { kind: "gm" } });
     }
-    return deleted;
 }
 
 /**
@@ -496,36 +603,7 @@ export async function openProjectManager() {
         const made = await openCreateDialog(rooms);
         return made ? openProjectManager() : undefined;
     }
-    const rows = projectManagerRows(projects, rooms, { always: await alwaysSecretIds(projects) });
-    /* WHO KNOWS WHAT, AS A MATRIX (Dawid, 22.09: "gracze z dostepem do projects ... sa brzydko
-       ulozeni - liczylem bardziej na cos przypominajacego tabele"). One column per player,
-       named once in the header, and a tick in each row: a GM reads down a column to see what
-       one player knows and across a row to see who knows one project. The names used to be
-       repeated in every row as a wrapping run of labels, which at sixteen players was a
-       paragraph per project and no two rows lined up. */
-    const players = playerList();
-    const span = Math.max(1, players.length);
-    const two = players.length ? ' rowspan="2"' : "";
-
-    const content = `<form>
-            <p>${game.i18n.localize("DRPG.Project.manageIntro")}</p>
-            <table>
-                <thead><tr>
-                    <th${two}></th>
-                    <th${two}>${game.i18n.localize("DRPG.Project.title")}</th>
-                    <th${two}>${game.i18n.localize("DRPG.Project.room")}</th>
-                    <th${two} class="drpg-tight-head">${game.i18n.localize("DRPG.Project.indirect")}</th>
-                    <th${two}>${game.i18n.localize("DRPG.Project.secret")}</th>
-                    <th colspan="${span}" class="drpg-viewer-group">${game.i18n.localize("DRPG.Project.visibleTo")}</th>
-                    <th${two}>${game.i18n.localize("DRPG.Project.edit")}</th>
-                    <th${two}>${game.i18n.localize("DRPG.Project.delete")}</th>
-                </tr>${players.length ? `<tr>${players.map(u => `<th class="drpg-viewer-head" scope="col"><span>${
-                    foundry.utils.escapeHTML(u.name)}</span></th>`).join("")}</tr>` : ""}</thead>
-                <tbody>${rows}</tbody>
-            </table>
-            <p class="notes">${game.i18n.localize("DRPG.Project.secretNote")}</p>
-            <p class="notes">${game.i18n.localize("DRPG.Project.deleteNote")}</p>
-        </form>`;
+    const content = projectManagerBody(projects, rooms, { always: await alwaysSecretIds(projects) });
 
     const result = await drpgWindow({
         title: game.i18n.localize("DRPG.Project.manageTitle"),
@@ -562,11 +640,9 @@ export async function openProjectManager() {
     }
     if (!result || result === "cancel") return;
 
-    const deleted = await applyProjectManager(result, projects);
+    await applyProjectManager(result, projects);
 
-    ui.notifications.info(deleted
-        ? game.i18n.format("DRPG.Project.savedWithDeletions", { n: deleted })
-        : game.i18n.localize("DRPG.Project.saved"));
+    ui.notifications.info(game.i18n.localize("DRPG.Project.saved"));
 }
 
 /**
@@ -613,7 +689,7 @@ function glyphGrid(current) {
     return `<details class="drpg-glyph-picker"${chosen ? " open" : ""}>
         <summary>${game.i18n.localize("DRPG.Project.glyphLabel")}</summary>
         <div class="drpg-glyph-grid">${cells.join("")}</div>
-        <small class="notes">${game.i18n.localize("DRPG.Project.glyphNote")}</small>
+        ${helpText("DRPG.Project.glyphNote")}
     </details>`;
 }
 
@@ -638,19 +714,24 @@ export function projectTraitOptions(current = "") {
 
 /**
  * A PROJECT'S DESCRIPTION FIELD (E44 C9, 04.11.2026; the owner's ask and Q-C9-3: required, at most
- * PROJECT_DESCRIPTION_MAX characters). One textarea named `description`, in the markup of the window around it - the
- * player's proposal (action-project.mjs `startProject`) and this file's `openProjectDialog`, neither on the kit yet
- * (E21 moves them) - with no `maxlength`, which would cut a pasted text without a word: a description too long is
- * refused instead (`guardDescription`), with its length. Its label is a column (`drpg-description-field`, danganronpa.css;
- * E24 C6, the owner's A8 of 09.11.2026): the caption, the textarea the form's width, the note under it - as a row of
- * `.drpg-panel label` the three stood side by side and the textarea took 59 of 544 px (R1492).
+ * PROJECT_DESCRIPTION_MAX characters). One textarea named `description` - the player's proposal (action-project.mjs
+ * `startProject`) and this file's `openProjectDialog` - with no `maxlength`, which would cut a pasted text without a
+ * word: a description too long is refused instead (`guardDescription`), with its length.
+ * A ROW OF THE KIT'S `formGrid` SINCE E47-C6 (09.11.2026; cards M17-M19, approved): `{ label, id, field }`, its caption
+ * in the label column, the textarea the field column's width and its note under it in the kit's fine print. Until then
+ * a label of its own drawn as a column (`drpg-description-field`, E24 C6, the owner's A8 of 09.11.2026: as a row of
+ * `.drpg-panel label` the textarea took 59 of 544 px; R1492 holds the width).
  */
 export function descriptionField(value = "") {
     const esc = foundry.utils.escapeHTML;
-    return `<label class="drpg-description-field">${game.i18n.localize("DRPG.Project.description")}
-                <textarea name="description" rows="4"
+    const id = `drpg-description-${foundry.utils.randomID(8)}`;
+    return {
+        label: game.i18n.localize("DRPG.Project.description"),
+        id,
+        field: `<textarea name="description" id="${id}" rows="4"
                           placeholder="${esc(game.i18n.localize("DRPG.Project.descriptionPlaceholder"))}">${esc(value ?? "")}</textarea>
-                <small class="notes">${esc(game.i18n.format("DRPG.Project.descriptionNote", { max: PROJECT_DESCRIPTION_MAX }))}</small></label>`;
+                ${helpText("DRPG.Project.descriptionNote", { max: PROJECT_DESCRIPTION_MAX })}`
+    };
 }
 
 /** The words of a description's problem (config.mjs `projectDescriptionProblem`), for the field and for a toast. */
@@ -665,7 +746,7 @@ export function descriptionRefusal(problem, text = "") {
  * window's own element: a press of the button whose action is `action` (and a submit it sends - a browser's Enter in a
  * field presses the first one) is stopped in the capture phase, before the window's own listeners hear it, while the
  * description is empty or too long; the sentence then stands under the field (`drpg-field-error`, `role="alert"`, the
- * field `aria-invalid` and pointing at it), the field takes the focus, and the window stays open with everything typed
+ * field `aria-invalid` and pointing at it; since E47-C6 the kit's warning box, `box("warning")`, in the field's cell), the field takes the focus, and the window stays open with everything typed
  * in it, as Item tables' name field does (tables-editor.mjs `nameFieldHtml`). The sentence goes once the text is right.
  * Every other button - Close, Delete - goes through. `optional()` answers true where an empty one is allowed: the
  * proposal of a preset, which arrives filled with its own line (`startProject`). A window whose answer is read without
@@ -684,13 +765,17 @@ export function guardDescription(root, action, { optional = () => false } = {}) 
     };
     const say = why => {
         clear();
-        const line = document.createElement("p");
+        const line = kitNode(box("warning", ""));
         line.id = id;
-        line.className = "drpg-warning drpg-field-error";
+        line.classList.add("drpg-field-error");
         line.setAttribute("role", "alert");
         line.textContent = descriptionRefusal(why, field.value);
         line.dataset.why = why;
-        (field.closest("label") ?? field).after(line);
+        // In the field's cell of the form's grid, after the field and its note (E47-C6); a field of a label of its own
+        // (a window not on formGrid) has it after the label, as before.
+        const cell = field.closest(".drpg-form-field");
+        if (cell) cell.append(line);
+        else (field.closest("label") ?? field).after(line);
         field.setAttribute("aria-invalid", "true");
         field.setAttribute("aria-describedby", id);
         field.focus();
@@ -858,68 +943,71 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         .map(p => `<option value="${p.id}"${p.id === triggerTarget ? " selected" : ""}>${
             foundry.utils.escapeHTML(p.name)}</option>`).join("");
 
-    const content = `<form>
-            <div class="drpg-project-image-row">
-                <img src="${foundry.utils.escapeHTML(img)}" alt="" class="drpg-project-portrait"
-                     data-drpg-portrait
-                     data-tooltip="${game.i18n.localize("DRPG.Project.changeImage")}" />
-                <input type="hidden" name="img" value="${foundry.utils.escapeHTML(img)}" />
-                <label>${game.i18n.localize("DRPG.Project.name")}
-                    <input type="text" name="name" autofocus
-                           value="${foundry.utils.escapeHTML(start?.name ?? "")}"
-                           placeholder="${game.i18n.localize("DRPG.Project.namePlaceholder")}" /></label>
-            </div>
-            ${descriptionField(start?.description ?? "")}
-            ${glyphGrid(start?.glyph ?? null)}
-            <label>${game.i18n.localize("DRPG.Project.scale")}
-                <select name="target">${offScale}${scaleOptions}</select></label>
-            <label>${game.i18n.localize("DRPG.Project.room")}
-                <select name="room">${roomOptions}</select></label>
-            <label>${game.i18n.localize("DRPG.Project.trait")}
-                <select name="trait" required>${traitOptions}</select></label>
-            <label class="drpg-checkbox">
-                <input type="checkbox" name="murder"${
-                    start?.indirectMurder ? " checked" : ""} /> ${
-                    game.i18n.localize("DRPG.Project.indirect")}</label>
-            <div class="drpg-trap-fields" data-drpg-when-murder>
-            <label>${game.i18n.localize("DRPG.Trap.watchFor")}
-                <select name="trigger">${triggerOptions}</select>
-                <small class="notes">${game.i18n.localize("DRPG.Trap.watchNote")}</small></label>
-            <label data-drpg-when-trigger="project sabotage">${
-                game.i18n.localize("DRPG.Trap.whichProject")}
-                <select name="triggerTarget">${emptyOption("DRPG.Trap.noProject")}${targetOptions}</select></label>
-            <label class="drpg-checkbox">
+    /* ON THE KIT'S `formGrid` (E47-C6, 09.11.2026; cards M17 and M18, approved by the owner on 09.11): each field that has a
+       caption a row of the grid - its caption in the label column, the field and its note in the field column - and
+       every other part a line across both, in the order they had (D31). The trap's fields a grid of their own inside the
+       block Indirect murder shows (`data-drpg-when-murder`); "Which project" carries its `data-drpg-when-trigger` on both
+       halves of its row (`rowWhen`). The notes are the kit's fine print, the warnings its warning box. */
+    const t = key => game.i18n.localize(key);
+    const esc = foundry.utils.escapeHTML;
+    const uid = foundry.utils.randomID(6);
+    const idOf = name => `drpg-project-${name}-${uid}`;
+    const trapRows = rowWhen(formGrid([
+        { label: t("DRPG.Trap.watchFor"), id: idOf("trigger"),
+            field: `<select name="trigger" id="${idOf("trigger")}">${triggerOptions}</select>${helpText("DRPG.Trap.watchNote")}` },
+        { label: t("DRPG.Trap.whichProject"), id: idOf("trigger-target"),
+            field: `<select name="triggerTarget" id="${idOf("trigger-target")}">${emptyOption("DRPG.Trap.noProject")}${targetOptions}</select>` },
+        { full: `<label class="drpg-checkbox">
                 <input type="checkbox" name="afterDark"${
                     startTrigger?.afterDark ? " checked" : ""} /> ${
-                    game.i18n.localize("DRPG.Trap.afterDark")}</label>
-            <label class="drpg-checkbox">
+                    t("DRPG.Trap.afterDark")}</label>` },
+        { full: `<label class="drpg-checkbox">
                 <input type="checkbox" name="notBuilder"${
                     (startTrigger?.notBuilder ?? TRAP_MODIFIERS.notBuilder.default)
                         ? " checked" : ""} /> ${
-                    game.i18n.localize("DRPG.Trap.notBuilder")}</label>
-            <label>${game.i18n.localize("DRPG.Project.condition")}
-                <input type="text" name="condition"
-                       value="${foundry.utils.escapeHTML(start?.condition ?? "")}"
-                       placeholder="${game.i18n.localize("DRPG.Project.conditionPlaceholder")}" />
-                <small class="notes">${game.i18n.localize("DRPG.Project.conditionNote")}</small></label>
-            </div>
-            ${passageOf ? passageFieldset(passageOf) : ""}
-            ${ownedOf ? ownedFieldset(ownedOf) : ""}
-            <label class="drpg-checkbox">
+                    t("DRPG.Trap.notBuilder")}</label>` },
+        { label: t("DRPG.Project.condition"), id: idOf("condition"),
+            field: `<input type="text" name="condition" id="${idOf("condition")}"
+                       value="${esc(start?.condition ?? "")}"
+                       placeholder="${t("DRPG.Project.conditionPlaceholder")}" />${helpText("DRPG.Project.conditionNote")}` }
+    ]), idOf("trigger-target"), 'data-drpg-when-trigger="project sabotage"');
+
+    const content = `<form>${formGrid([
+        { full: `<div class="drpg-project-image-row">
+                <img src="${esc(img)}" alt="" class="drpg-project-portrait"
+                     data-drpg-portrait
+                     data-tooltip="${t("DRPG.Project.changeImage")}" />
+                <input type="hidden" name="img" value="${esc(img)}" />
+                <label>${t("DRPG.Project.name")}
+                    <input type="text" name="name" autofocus
+                           value="${esc(start?.name ?? "")}"
+                           placeholder="${t("DRPG.Project.namePlaceholder")}" /></label>
+            </div>` },
+        descriptionField(start?.description ?? ""),
+        { full: glyphGrid(start?.glyph ?? null) },
+        { label: t("DRPG.Project.scale"), id: idOf("target"), field: `<select name="target" id="${idOf("target")}">${offScale}${scaleOptions}</select>` },
+        { label: t("DRPG.Project.room"), id: idOf("room"), field: `<select name="room" id="${idOf("room")}">${roomOptions}</select>` },
+        { label: t("DRPG.Project.trait"), id: idOf("trait"), field: `<select name="trait" id="${idOf("trait")}" required>${traitOptions}</select>` },
+        { full: `<label class="drpg-checkbox">
+                <input type="checkbox" name="murder"${
+                    start?.indirectMurder ? " checked" : ""} /> ${
+                    t("DRPG.Project.indirect")}</label>` },
+        { full: `<div class="drpg-trap-fields" data-drpg-when-murder>${trapRows}</div>` },
+        ...(passageOf ? [{ full: passageFieldset(passageOf) }] : []),
+        ...(ownedOf ? [{ full: ownedFieldset(ownedOf) }] : []),
+        { full: `<label class="drpg-checkbox">
                 <input type="checkbox" name="secret"${
                     (editing && isSecret(project.id)) || alwaysSecret ? " checked" : ""}${alwaysSecret ? " disabled" : ""} /> ${
-                    game.i18n.localize("DRPG.Project.secret")}</label>
-            ${players.length ? `<fieldset class="drpg-viewer-list" data-drpg-when-secret>
-                <legend>${game.i18n.localize("DRPG.Project.visibleTo")}</legend>
+                    t("DRPG.Project.secret")}</label>` },
+        ...(players.length ? [{ full: `<fieldset class="drpg-viewer-list" data-drpg-when-secret>
+                <legend>${t("DRPG.Project.visibleTo")}</legend>
                 ${viewerBoxes(players, editing ? knownBy(project.id) : [], null, { locked: editing && !isSecret(project.id) })}
-                <small class="notes" data-drpg-viewer-note>${game.i18n.localize(editing && !isSecret(project.id)
-                    ? "DRPG.Project.everyone" : "DRPG.Project.visibleToNote")}</small>
-            </fieldset>` : ""}
-            ${editing ? `<p class="notes">${game.i18n.format("DRPG.Project.editProgressNote", {
-                current: project.current, target: project.start
-            })}</p>` : ""}
-            <p class="notes">${game.i18n.localize("DRPG.Project.createNote")}</p>
-        </form>`;
+                <p class="drpg-help" data-drpg-viewer-note>${t(editing && !isSecret(project.id)
+                    ? "DRPG.Project.everyone" : "DRPG.Project.visibleToNote")}</p>
+            </fieldset>` }] : []),
+        ...(editing ? [{ full: helpText("DRPG.Project.editProgressNote", { current: project.current, target: project.start }) }] : []),
+        { full: helpText("DRPG.Project.createNote") }
+    ])}</form>`;
 
     const save = {
         action: "save",
@@ -968,7 +1056,9 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
        left with the destructive role: never the default, and its own question below has Cancel the default. */
     const result = await drpgWindow({
         title: game.i18n.localize(editing ? "DRPG.Project.editTitle" : "DRPG.Project.createTitle"),
-        classes: ["drpg-panel"],
+        classes: ["drpg-panel", "drpg-project-form"],
+        // Today's width, or the kit's `wide` where this person's setting asks for it (E47-C6; the owner's O4).
+        width: projectWindowWidth(),
         body: content,
         footer: {
             primary: save,
@@ -992,15 +1082,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
 
     if (result === "delete") {
         // Destructive (E22; S09-24): Cancel the default and the first submit button, so Enter deletes nothing (E22-T5).
-        const sure = await drpgConfirm({
-            yes: { role: "destructive", action: "delete", label: game.i18n.localize("DRPG.Project.delete") },
-            classes: ["drpg-panel"],
-            title: game.i18n.localize("DRPG.Project.delete"),
-            body: `<p>${game.i18n.format("DRPG.Project.deleteConfirm", {
-                name: foundry.utils.escapeHTML(project.name)
-            })}</p>`,
-            rejectClose: false
-        });
+        const sure = await confirmProjectDelete(project);
         if (!sure) return null;
         await deleteProject(project.id);
         ui.notifications.info(game.i18n.format("DRPG.Project.savedWithDeletions", { n: 1 }));
@@ -1238,8 +1320,8 @@ async function presetSizeOf(preset, ownedOf = null) {
 function ownedFieldset({ preset, label, refused, why = null }) {
     const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
     return `<fieldset class="drpg-passage-preset" data-drpg-owned-preset="${esc(preset)}"><legend>${esc(game.i18n.localize(`DRPG.Project.preset.${preset}`))}</legend>
-        <p class="notes">${esc(label)}</p>${refused ? `
-        <p class="drpg-warning">${esc(game.i18n.format("DRPG.Project.presetRefused", { why: why ?? "" }))}</p>` : ""}</fieldset>`;
+        <p class="drpg-help">${esc(label)}</p>${refused ? `
+        ${box("warning", esc(game.i18n.format("DRPG.Project.presetRefused", { why: why ?? "" })))}` : ""}</fieldset>`;
 }
 
 /** The approval window's Secret Passage box: the builder's room, the room beyond, the pick and what it picked. */
@@ -1248,14 +1330,14 @@ function passageFieldset({ offer, to, preset = "secretPassage" }) {
     const t = key => game.i18n.localize(key);
     const legend = esc(t(`DRPG.Project.preset.${preset}`));
     if (!offer) return `<fieldset class="drpg-passage-preset"><legend>${legend}</legend>
-        <p class="drpg-warning">${esc(t("DRPG.Project.passageNoWall"))}</p></fieldset>`;
+        ${box("warning", esc(t("DRPG.Project.passageNoWall")))}</fieldset>`;
     return `<fieldset class="drpg-passage-preset" data-drpg-passage-preset><legend>${legend}</legend>
-        <p class="notes">${esc(game.i18n.format("DRPG.Project.passageFrom", { room: offer.from }))}</p>
+        ${helpText("DRPG.Project.passageFrom", { room: offer.from })}
         <label>${esc(t("DRPG.Project.passageTo"))}
             <select name="passageTo">${offer.neighbours.map(r => `<option value="${esc(r)}"${r === to ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></label>
         <button type="button" class="drpg-mini-button" data-drpg-passage-pick>${esc(t("DRPG.Project.passagePick"))}</button>
         <input type="hidden" name="passage" value="" />
-        <small class="notes" data-drpg-passage-picked>${esc(t("DRPG.Project.passageNone"))}</small></fieldset>`;
+        <p class="drpg-help" data-drpg-passage-picked>${esc(t("DRPG.Project.passageNone"))}</p></fieldset>`;
 }
 
 /**
@@ -1281,6 +1363,19 @@ function wirePassagePick(dialog, offer, { over = false } = {}) {
         form.passage.value = JSON.stringify(stretch);
         if (said) said.textContent = game.i18n.format("DRPG.Project.passagePicked", { passage: stretch.rooms.join(" - ") });
     });
+}
+
+/**
+ * A formGrid row shown with one answer (E47-C6): the kit's `formGrid` writes no attribute on a row's two halves, and the
+ * stylesheet's `data-drpg-when-trigger` rules (danganronpa.css, "a field that belongs to one answer") hide and show the
+ * element that carries it - so `attr` goes on the label pointing at `id` and on the field cell after it, as the label
+ * that held both carried it before. A grid with no such row is answered as it came.
+ */
+function rowWhen(grid, id, attr) {
+    const label = `<label class="drpg-form-label" for="${id}">`, cell = '<div class="drpg-form-field">';
+    const at = grid.indexOf(label), next = at < 0 ? -1 : grid.indexOf(cell, at);
+    if (next < 0) return grid;
+    return `${grid.slice(0, at)}<label class="drpg-form-label" for="${id}" ${attr}>${grid.slice(at + label.length, next)}<div class="drpg-form-field" ${attr}>${grid.slice(next + cell.length)}`;
 }
 
 /**
@@ -1366,8 +1461,7 @@ function readManager(dialog, projects) {
         // The boxes as the window drew them (E36 fix e1-G2): what the GM changed is what the Save changes.
         was: form.querySelector(`[name="viewers.${p.id}"]`)
             ? [...form.querySelectorAll(`[name="viewers.${p.id}"]`)].filter(box => box.defaultChecked).map(box => box.value)
-            : null,
-        delete: form.querySelector(`[name="delete.${p.id}"]`)?.checked ?? false
+            : null
     }));
 }
 
@@ -1390,14 +1484,14 @@ function knownBy(id) {
     return isSecret(id) ? viewersOf(id).map(u => u.id) : (metaFor(id).sealedViewers ?? []);
 }
 
-/** One cell per player for the manager's matrix - see `openProjectManager`. The checkbox
-    keeps the name `viewerBoxes` gives it, so `readManager` reads both the same way. */
+/** One cell per player for the manager's matrix - see `projectManagerBody` - by its column's key (`viewer-<user id>`,
+    `projectManagerColumns`). The checkbox keeps the name `viewerBoxes` gives it, so `readManager` reads both the same way. */
 function viewerTicks(players, checked, project, { locked = false } = {}) {
     const known = new Set(checked);
     const lock = locked ? ` disabled data-tooltip="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Project.everyone"))}"` : "";
-    return players.map(user => `<td class="drpg-viewer-tick">
-        <input type="checkbox" name="viewers.${project.id}" value="${user.id}"${known.has(user.id) ? " checked" : ""}${lock}
-               aria-label="${foundry.utils.escapeHTML(`${user.name}: ${project.name}`)}" /></td>`).join("");
+    return Object.fromEntries(players.map(user => [`viewer-${user.id}`,
+        `<input type="checkbox" name="viewers.${project.id}" value="${user.id}"${known.has(user.id) ? " checked" : ""}${lock}
+               aria-label="${foundry.utils.escapeHTML(`${user.name}: ${project.name}`)}" />`]));
 }
 
 /**

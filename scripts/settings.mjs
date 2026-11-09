@@ -145,6 +145,8 @@ export const SETTINGS = {
     restrictions: "restrictions",
     hideSystemFear: "hideSystemFear",
     pixelFont: "pixelFont",
+    /** The create, edit and propose project windows at the kit's `wide` width on this browser (E47-C6; the owner's O4, 09.11.2026). */
+    wideProjectWindows: "wideProjectWindows",
     theme: "theme",
     /** This browser's language for the module's own strings - see i18n.mjs. */
     language: "language",
@@ -1406,6 +1408,19 @@ export function registerSettings() {
         type: Boolean,
         default: true,
         onChange: () => applyTheme()
+    });
+
+    /* WIDE PROJECT WINDOWS (E47-C6, 09.11.2026; the owner's O4 of the E47-M mockup round, "Moze jako ustawienie w panelu
+       ustawien?", and its scope, "Kazdy dla siebie": each person's own). Off by default: Create a project, Edit project
+       and Propose a project open at the width they had; on, at the kit's `wide` (projects-ui.mjs `projectWindowWidth`).
+       Read when a window opens, so no onChange. */
+    game.settings.register(MODULE_ID, SETTINGS.wideProjectWindows, {
+        name: "DRPG.Settings.wideProjectWindows.name",
+        hint: "DRPG.Settings.wideProjectWindows.hint",
+        scope: "client",
+        config: true,
+        type: Boolean,
+        default: false
     });
 
     /* ---- the language of this layer, per browser. English by default, and

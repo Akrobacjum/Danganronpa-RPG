@@ -20305,7 +20305,8 @@ const REGRESSIONS = [
          * `window-*` entry.
          */
         needs(env.tools(), "docs/design/, audit/ and docs/glossary.json are read from the repository (an installed module's zip leaves them out, as it leaves tools/)");
-        const CARDS = ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10", "M11", "M12", "M13", "M14", "M15", "i1", "i2"];
+        // M16-M19: the project windows, E47-M's round (E47-C6, 09.11.2026).
+        const CARDS = ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10", "M11", "M12", "M13", "M14", "M15", "i1", "i2", "M16", "M17", "M18", "M19"];
         const ASKS = ["q-grow", "q-console"];
         const get = async path => {
             try {
@@ -21539,6 +21540,82 @@ const REGRESSIONS = [
         equal(JSON.stringify({ old, missing, family, budget }), JSON.stringify({ old: [], missing: [], family: ["few", "many", "one", "other"], budget: [true, true] }),
             "{old: a phrase S13-38 read still in its key; missing: the tracker's new words; family: Polish afterKeys; budget: the trap's budget keeps its four numbers}");
     }],
+
+    ["R2077 - the project windows keep their content and order (E47-C6; E47-17, D31; cards M16-M19 of the E47-M mockup round, the owner's answers of 09.11.2026): drawn with every word the marker of its key, each window's label keys, its fields' names and its footer's actions in the approved card's order - Create a project, Edit project and Propose a project as they were (the grid moves nothing; the proposal's request field a line across the form), the manager as it was but for the owner's moves: the head's group label first (O1a, dataTable `headGroups`), Edit and Delete before the players (O2b), a group row per room (O3b), Delete a button where its box was read at Save (M16's note), and the kit's scroll note", async () => {
+        /*
+         * E47-C6. D31 (content and order unchanged) for the four windows the owner approved on E47-M's cards: what
+         * E47-M's mockup-check read on the pictures (keys 1:1, order: same), read here on the module's own windows, with
+         * DialogV2.wait stood in for (it answers null: nothing is created, nothing written) and game.i18n answering each
+         * key's marker. Consecutive repeats are one (an option list, a tick per player). The world's players and projects
+         * do not enter: the manager's body is drawn from two projects and two players made up here
+         * (`projectManagerBody`), the edit window from a project made up here, the proposal for a character standing where
+         * it offers no preset (a preset's rows, where the world offers one, are taken out before the compare). Red on
+         * f4a5083a: no `projectManagerBody` (the manager drew only from the world, and with no project there opened Create).
+         */
+        const UI = await import("./projects-ui.mjs");
+        const AP = await import("./action-project.mjs");
+        must(typeof UI.projectManagerBody === "function", "projects-ui.mjs has no projectManagerBody - the manager's body cannot be drawn here, so its order would not be read");
+        const actor = studentActors()[0] ?? null;
+        must(actor, "no student to draw the proposal for - its order would not be read");
+        const I = game.i18n, own = { localize: I.localize, format: I.format };
+        const D = foundry.applications.api.DialogV2, ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const runs = (list, i) => list.filter((k, n) => k !== list[n - 1]);
+        const read = (html, buttons = []) => ({
+            keys: runs([...String(html).matchAll(/\[\[k:([^\]]+)\]\]/g)].map(m => m[1])),
+            fields: runs([...String(html).matchAll(/ name="([^"]+)"/g)].map(m => m[1].replace(/\.R2077[A-Z0-9]+$/, ".<id>"))),
+            footer: buttons.map(b => b.action)
+        });
+        const got = {};
+        let seen = null;
+        try {
+            I.localize = key => `[[k:${key}]]`;
+            I.format = key => `[[k:${key}]]`;
+            D.wait = async cfg => { seen = cfg; return null; };
+            const drawn = () => read(typeof seen?.content === "string" ? seen.content : seen?.content?.outerHTML ?? "", seen?.buttons ?? []);
+            const projects = ["R2077PROJECTA", "R2077PROJECTB"].map((id, n) => ({ id, name: `R2077 project ${n}`, current: n, start: 4, img: "" }));
+            got.manager = read(UI.projectManagerBody(projects, ["R2077 Room"], { players: [{ id: "R2077U1", name: "R2077 one" }, { id: "R2077U2", name: "R2077 two" }] }));
+            seen = null;
+            await UI.openProjectDialog({ rooms: ["R2077 Room"] });
+            got.create = drawn();
+            seen = null;
+            await UI.openProjectDialog({ project: { id: "R2077EDITED", name: "R2077 edited", current: 1, start: 4, img: "" }, rooms: ["R2077 Room"] });
+            got.edit = drawn();
+            seen = null;
+            await AP.startProject(actor);
+            got.propose = drawn();
+        } finally {
+            Object.assign(I, own);
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+        }
+        // A preset's rows (the world's walls and items, not the window's order) out of the proposal before the compare.
+        const PRESET = /^DRPG\.Project\.(kind|kindOwn|preset\.|passageTo|passageNote|breachNote|sealWhich|sealNote|unbreachWhich|unbreachNote|repairWhich|repairNote|repairOption)/;
+        got.propose.keys = got.propose.keys.filter(k => !PRESET.test(k));
+        got.propose.fields = got.propose.fields.filter(f => !["preset", "to", "seal", "unbreach", "mend"].includes(f));
+        const want = {
+            manager: {
+                keys: ["DRPG.Project.manageIntro", "DRPG.Project.visibleTo", "DRPG.Project.title", "DRPG.Project.room", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.edit", "DRPG.Project.delete", "DRPG.Project.anyRoom", "DRPG.Project.changeImage", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.editTitle", "DRPG.Project.delete", "DRPG.Project.everyone", "DRPG.Project.changeImage", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.editTitle", "DRPG.Project.delete", "DRPG.Project.everyone", "DRPG.Kit.scrollMore", "DRPG.Project.secretNote", "DRPG.Project.deleteNote"],
+                fields: ["img.<id>", "room.<id>", "murder.<id>", "secret.<id>", "viewers.<id>", "img.<id>", "room.<id>", "murder.<id>", "secret.<id>", "viewers.<id>"],
+                footer: []
+            },
+            create: {
+                keys: ["DRPG.Project.changeImage", "DRPG.Project.name", "DRPG.Project.namePlaceholder", "DRPG.Project.description", "DRPG.Project.descriptionPlaceholder", "DRPG.Project.descriptionNote", "DRPG.Project.glyphLabel", "DRPG.Project.glyphDefault", "DRPG.Project.glyph.checklist", "DRPG.Project.glyph.gear", "DRPG.Project.glyph.tamper", "DRPG.Project.glyph.broom", "DRPG.Project.glyph.wand", "DRPG.Project.glyph.key", "DRPG.Project.glyph.lock", "DRPG.Project.glyph.door", "DRPG.Project.glyph.box", "DRPG.Project.glyph.gift", "DRPG.Project.glyph.envelope", "DRPG.Project.glyph.note", "DRPG.Project.glyph.calendar", "DRPG.Project.glyph.table", "DRPG.Project.glyph.scale", "DRPG.Project.glyph.barrier", "DRPG.Project.glyph.chain", "DRPG.Project.glyph.bug", "DRPG.Project.glyph.brain", "DRPG.Project.glyph.murder", "DRPG.Project.glyphNote", "DRPG.Project.scale", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.trait", "DRPG.Project.pickTrait", "DRPG.Project.indirect", "DRPG.Trap.watchFor", "DRPG.Trap.trigger.alone", "DRPG.Trap.trigger.enters", "DRPG.Trap.trigger.search", "DRPG.Trap.trigger.rest", "DRPG.Trap.trigger.item", "DRPG.Trap.trigger.project", "DRPG.Trap.trigger.sabotage", "DRPG.Trap.trigger.stash", "DRPG.Trap.trigger.passage", "DRPG.Trap.trigger.manual", "DRPG.Trap.watchNote", "DRPG.Trap.whichProject", "DRPG.Trap.noProject", "DRPG.Trap.afterDark", "DRPG.Trap.notBuilder", "DRPG.Project.condition", "DRPG.Project.conditionPlaceholder", "DRPG.Project.conditionNote", "DRPG.Project.secret", "DRPG.Project.visibleTo", "DRPG.Project.visibleToNote", "DRPG.Project.createNote"],
+                fields: ["img", "name", "description", "glyph", "target", "room", "trait", "murder", "trigger", "triggerTarget", "afterDark", "notBuilder", "condition", "secret", "viewers"],
+                footer: ["save", "cancel"]
+            },
+            edit: {
+                keys: ["DRPG.Project.changeImage", "DRPG.Project.name", "DRPG.Project.namePlaceholder", "DRPG.Project.description", "DRPG.Project.descriptionPlaceholder", "DRPG.Project.descriptionNote", "DRPG.Project.glyphLabel", "DRPG.Project.glyphDefault", "DRPG.Project.glyph.checklist", "DRPG.Project.glyph.gear", "DRPG.Project.glyph.tamper", "DRPG.Project.glyph.broom", "DRPG.Project.glyph.wand", "DRPG.Project.glyph.key", "DRPG.Project.glyph.lock", "DRPG.Project.glyph.door", "DRPG.Project.glyph.box", "DRPG.Project.glyph.gift", "DRPG.Project.glyph.envelope", "DRPG.Project.glyph.note", "DRPG.Project.glyph.calendar", "DRPG.Project.glyph.table", "DRPG.Project.glyph.scale", "DRPG.Project.glyph.barrier", "DRPG.Project.glyph.chain", "DRPG.Project.glyph.bug", "DRPG.Project.glyph.brain", "DRPG.Project.glyph.murder", "DRPG.Project.glyphNote", "DRPG.Project.scale", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.trait", "DRPG.Project.pickTrait", "DRPG.Project.indirect", "DRPG.Trap.watchFor", "DRPG.Trap.trigger.alone", "DRPG.Trap.trigger.enters", "DRPG.Trap.trigger.search", "DRPG.Trap.trigger.rest", "DRPG.Trap.trigger.item", "DRPG.Trap.trigger.project", "DRPG.Trap.trigger.sabotage", "DRPG.Trap.trigger.stash", "DRPG.Trap.trigger.passage", "DRPG.Trap.trigger.manual", "DRPG.Trap.watchNote", "DRPG.Trap.whichProject", "DRPG.Trap.noProject", "DRPG.Trap.afterDark", "DRPG.Trap.notBuilder", "DRPG.Project.condition", "DRPG.Project.conditionPlaceholder", "DRPG.Project.conditionNote", "DRPG.Project.secret", "DRPG.Project.visibleTo", "DRPG.Project.everyone", "DRPG.Project.editProgressNote", "DRPG.Project.createNote"],
+                fields: ["img", "name", "description", "glyph", "target", "room", "trait", "murder", "trigger", "triggerTarget", "afterDark", "notBuilder", "condition", "secret", "viewers"],
+                footer: ["save", "cancel", "delete"]
+            },
+            propose: {
+                keys: ["DRPG.Project.agreedWarning", "DRPG.Project.name", "DRPG.Project.namePlaceholder", "DRPG.Project.description", "DRPG.Project.descriptionPlaceholder", "DRPG.Project.descriptionNote", "DRPG.Project.scale", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.trait", "DRPG.Project.pickTrait", "DRPG.Project.indirectMine", "DRPG.Project.condition", "DRPG.Project.conditionPlaceholder", "DRPG.Project.conditionNote", "DRPG.Project.proposalPrompt", "DRPG.Project.proposalPlaceholder", "DRPG.Project.startNote"],
+                fields: ["name", "description", "target", "room", "trait", "murder", "condition", "request"],
+                footer: ["create", "cancel"]
+            }
+        };
+        equal(JSON.stringify(got), JSON.stringify(want), "{each window: its label keys in order, its fields' names in order, its footer's actions}");
+    }],
+
 ];
 
 

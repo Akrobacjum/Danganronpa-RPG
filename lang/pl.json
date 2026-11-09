@@ -304,6 +304,10 @@
         "name": "Czcionka pikselowa",
         "hint": "Tylko Monokuma Legacy, tam domyślnie włączona: Press Start 2P na elementach interfejsu - HUD, Despair, imię postaci, etykiety statystyk, zakładki. Dzienniki, czat i pola edycji zachowują zwykły krój, by długi tekst dało się czytać. Motyw Stained Glass ma własne dwa kroje i to ignoruje."
       },
+      "wideProjectWindows": {
+        "name": "Szerokie okna projektów",
+        "hint": "Utwórz projekt, Edytuj projekt i Zaproponuj projekt otwierają się szerzej na tym ekranie. Wyłączone - otwierają się w szerokości, jaką miały zawsze."
+      },
       "language": {
         "name": "Język",
         "hint": "Tylko ten klient. Język okien, kart i arkusza tego modułu. Nazwy własne gry - Truth Bullets, Remnants, Despair - zostają po angielsku w każdym języku. Działa po przeładowaniu."
@@ -3649,7 +3653,7 @@
         "murder": "Ostrze"
       },
       "delete": "Usuń",
-      "deleteNote": "Zaznacz Usuń i Zapisz, by pozbyć się projektu na dobre. Jego postęp i metadane nie wracają.",
+      "deleteNote": "Usuń w wierszu projektu najpierw pyta, potem usuwa projekt na dobre. Jego postęp i metadane nie wracają.",
       "saved": "Zaktualizowano projekty.",
       "savedWithDeletions": "Zaktualizowano projekty. Usunięto {n}.",
       "shareButton": "Udostępnij…",

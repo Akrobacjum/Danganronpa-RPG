@@ -2812,3 +2812,49 @@ body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-data-tab
 /* the Status column holds a picker and a button: under the glass the last column's actions read from the right on one
    line (`.drpg-panel table td.act`, chrome.mjs marks it), which put the Place button 21 px past the table at 1366x768 */
 body .application.drpg-window-case table.drpg-data-table td.drpg-data-col-case-key-status { white-space: normal; text-align: start; }
+
+/* ---- The project windows (E47-C6, 09.11.2026; cards M16-M19 of E47-M, approved by the owner on 09.11 with O1a, O2b, O3b
+   and O4 as a setting; D31): the manager's `dataTable` and the create, edit and propose forms on `formGrid`. The rules
+   that styled them in danganronpa.css and stained-glass.css (`.drpg-viewer-list`, `-group`, `-head`, `-tick`,
+   `.drpg-tight-head`, `.drpg-project-image-row`, `.drpg-project-delete`, `label.drpg-description-field`) went with them;
+   the ones kept here are the parts still drawn. The Projects tray's rules and the `.drpg-projects` lists other windows
+   share stay where they are. ---- */
+/* the manager: a check, an action or a player's column as narrow as its word (a 1px width asks a cell for its
+   narrowest: "Indirect murder" held a 151 px column over a 20 px box, 22.09), its contents centred */
+body .application.drpg-window-projects .drpg-data-table :is(th, td):is(.drpg-data-col-check, .drpg-data-col-act, .drpg-data-col-viewer) { text-align: center; }
+body .application.drpg-window-projects .drpg-data-table th:is(.drpg-data-col-check, .drpg-data-col-act) { width: 1px; }
+body .application.drpg-window-projects .drpg-data-table td.drpg-data-col-act { white-space: nowrap; }
+body .application.drpg-window-projects .drpg-data-table td.drpg-data-col-viewer { padding: 2px; }
+/* a player's name lying down, a word to a line (Dawid, 22.09, on 1.2.50: "nazwy graczy prosilbym w poziomie"), so
+   sixteen columns stay narrow; the kit's clamp cuts a name of three or more words after its second line, the whole name
+   in the head's title (`lines: 2`); under the glass without the header's tracking, which widened every column */
+body .application.drpg-window-projects .drpg-data-table th.drpg-data-col-viewer { vertical-align: bottom; padding: 4px 3px; letter-spacing: 0; }
+body .application.drpg-window-projects .drpg-data-table th.drpg-data-col-viewer > span.drpg-data-clamp { width: min-content; line-height: 1.15; }
+/* Delete (the owner's M16 note: a button, not a box read at Save) in the destructive role's colour */
+body .application.drpg-window-projects .drpg-kit-icon-button.drpg-role-destructive { color: var(--drpg-kit-role-destructive); }
+/* the table, a little room, then the two notes as one block centred in the window, as the intro above (the owner's
+   09.11 note on the mockup); the grey of the kit's fine print kept */
+body .application.drpg-window-projects .drpg-data-table-box { margin-block-end: 8px; }
+body .application.drpg-window-projects .drpg-project-notes { margin-inline: auto; text-align: center; }
+/* the kit's fine print stands at the start of its line with a margin of its own (0,5,1): this one centres it */
+body .application.dialog.drpg-ui.drpg-panel.drpg-window-projects .dialog-content .drpg-project-notes > .drpg-help { margin: 0 auto 8px; }
+/* the forms: the portrait beside the name, as before (a line across the grid) */
+body .application.drpg-project-form .drpg-project-image-row { display: flex; align-items: flex-end; gap: 0.6rem; }
+body .application.drpg-project-form .drpg-project-image-row .drpg-project-portrait { width: 2.6rem; height: 2.6rem; flex: 0 0 auto; }
+body .application.drpg-project-form .drpg-project-image-row > label { flex: 1 1 auto; }
+/* the description's textarea and the refusal under it the field cell's width */
+body .application.drpg-ui.drpg-project-form .drpg-form-grid > .drpg-form-field > textarea { flex: 1 1 100%; width: 100%; }
+body .application.drpg-project-form .drpg-form-field > .drpg-box { flex: 1 0 100%; margin: 0; }
+/* who knows about it: a fieldset with its title, the names a wrapping row (P-1) */
+body .application.drpg-project-form .drpg-viewer-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.15rem 0.6rem;
+    border: 1px solid var(--drpg-kit-line);
+    padding: 0.35rem 0.5rem;
+}
+body .application.drpg-project-form .drpg-viewer-list > legend { padding: 0 0.35rem; }
+body .application.drpg-project-form .drpg-viewer-list > .drpg-help { flex: 1 0 100%; margin: 0; }
+/* the proposal's "Say what you are actually doing": a line across the form, its textarea the form's width (the owner's
+   M19 note: "za waskie pole do wypelnienia w stained glass") */
+body .application.drpg-project-form .drpg-form-full > .drpg-specific-note > textarea { width: 100%; box-sizing: border-box; }
