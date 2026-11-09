@@ -1719,7 +1719,7 @@
       "noTrack": "Pick a track first.",
       "noTracks": "This playlist has no tracks",
       "playFailed": "That track would not play. See the console.",
-      "noSituational": "No playlist called “{name}”. Create it below.",
+      "noSituational": "No playlist called “{name}” yet.",
       "makeSituational": "Create the “{name}” playlist",
       "situationalMade": "“{name}” exists now. Put your scene tracks in it from the Playlists sidebar - stings, reveals, the quiet bits - and they will appear here.",
       "makeFailed": "The playlist could not be created. See the console.",
@@ -2723,11 +2723,11 @@
       "rerollLost": "A Reroll arrived for an Observe with no record here. Score the new number against the same trace by hand, and take back the Truth Bullet if it no longer fits.",
       "alreadyHeld": "You already hold a Truth Bullet of this trace.",
       "alreadyDescribed": "This trace already has a name, and every observer is told the same one - two names for one object is a contradiction the trial has to spend itself resolving. A critical buys a bigger hint, not a new name: add it below.",
-      "generalHint": "Sweep the room for the easiest Remnant to spot, looking first among those tied to the crime. Your total alone decides what you find; you do not need to write anything. With nothing here to find, a GM rules on your roll.",
-      "nonObviousHint": "Aim for the hardest Remnant to spot, looking first among those tied to the crime. Only this way can you also notice a hidden secret project. Your total alone decides what you find; with nothing here to find, a GM rules on your roll.",
-      "followTracesHint": "Retrace your own steps and look for what you left behind.",
-      "specificHint": "Write what you are looking for; if you leave it blank, it counts as a sweep of the room. A GM, blind to your total, picks the Remnant in this room your search finds.",
-      "anythingHint": "Something that is not a trace - a person, a machine, the weather. The GM rules on it."
+      "generalHint": "The easiest Remnant to spot, those tied to the crime first. Your total decides; in an empty room a GM rules.",
+      "nonObviousHint": "As a sweep, but the hardest Remnant to spot; only this way finds a hidden secret project.",
+      "followTracesHint": "Find what you left behind.",
+      "specificHint": "Say what you seek; a GM, blind to your total, picks the Remnant. Blank is a sweep.",
+      "anythingHint": "Anything but a trace. A GM rules on it."
     },
     "TruthBullet": {
       "title": "Truth Bullet",

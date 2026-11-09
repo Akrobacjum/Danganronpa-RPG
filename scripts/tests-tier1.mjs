@@ -44092,6 +44092,183 @@ const INVARIANTS = [
             raw: host.textContent.includes("{room}") }),
             stableJson({ disabled: true, why: game.i18n.format("DRPG.Project.noneHere", { room }), raw: false }),
             "{the Work row shut, its reason, a raw {room} anywhere in the window}");
+    }],    /* ---- E47-FC (09.11.2026): the owner on comparison 2 - Sound's Play tab (bc019, bc025), the kit box's action,
+       Give > Create new's icon preview (q-create-icon), Observe's captions (bc047). ---- */
+    ["R3133 - Sound's Play tab: Play and Reset music side by side on one row, and the missing cue playlist's Create button inside the box that says so, its line no longer pointing below (scripts/sound-panel.mjs `soundPlayPane`, components.css; E47-FC, the owner on comparison 2, cards bc019 and bc025): the window drawn with a cue playlist and without", async () => {
+        /*
+         * E47-FC, 09.11.2026; the owner on comparison 2: bc019 "Play music i reset music chcialbym w jednym rzedzie",
+         * bc025 "Przycisk proponuje na szarym polu pod napisem 'utworz ja'". Read here on this GM's real window, opened
+         * twice: once with the world's playlists seen through a stand-in `game.playlists.find` that answers a one-track
+         * cue playlist (nothing written: the stand-in is a client's method, put back in `finally`), once with the cue
+         * playlist hidden. Each time: Play's and Reset's parent, its children, its winning `display` and `flex-direction`
+         * (the cascade of the module's stylesheets, `styleCascade`); the Create button's box, its row in it and its place
+         * after the box's line. The line in en.json and pl.json read for "below" / "poniżej". Red on a8ae16f6: Play and
+         * Reset are children of the fieldset (a grid: two rows), the Create button stands under the box, the line says
+         * "Create it below." / "Utwórz ją poniżej."
+         */
+        needs(env.dialogs(), "the Sound window is drawn");
+        must(game.user.isGM, "the Play tab is a GM's");
+        must(!document.querySelector(".drpg-window-sound"), "a Sound window is open - close it: this test opens its own");
+        const M = await import("./music.mjs");
+        const { SITUATIONAL_PLAYLIST } = await import("./config.mjs");
+        const C = await styleCascade();
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json());
+        const [en, pl] = await Promise.all([lang("en"), lang("pl")]);
+        const P = game.playlists;
+        const ownFind = Object.getOwnPropertyDescriptor(P, "find");
+        const find = P.find;
+        const fake = { id: "drpgR3133cue", name: SITUATIONAL_PLAYLIST, sounds: Object.assign([{ id: "drpgR3133a", name: "Discovery" }], { size: 1 }) };
+        const draw = async withCue => {
+            P.find = function (fn, ...rest) {
+                let wanted = false;
+                try { wanted = Boolean(fn(fake)); } catch { wanted = false; }
+                if (wanted) return withCue ? fake : null;
+                return find.call(this, p => !(String(p?.name ?? "").trim().toLowerCase() === SITUATIONAL_PLAYLIST.trim().toLowerCase()) && fn(p), ...rest);
+            };
+            let answer = null;
+            try {
+                answer = Promise.resolve().then(() => M.openSoundDialog()).catch(err => `threw: ${err.message}`);
+                const root = () => document.querySelector(".drpg-window-sound");
+                must(await until(() => root()?.querySelector("[data-drpg-play]"), 6000), "the Sound window did not open with its Play tab");
+                const el = root();
+                const play = el.querySelector("[data-drpg-play]"), reset = el.querySelector("[data-drpg-reset-music]");
+                const row = play.parentElement;
+                const make = el.querySelector("[data-drpg-make-cue]");
+                const line = el.querySelector("[data-drpg-no-cue]");
+                const box = make?.closest(".drpg-box") ?? null;
+                const read = {
+                    row: [row === reset?.parentElement, row.classList.contains("drpg-music-now-actions"),
+                        [...row.children].map(c => (c === play ? "play" : c === reset ? "reset" : c.tagName.toLowerCase())),
+                        C.winner(row, ["display"])?.value ?? null, C.winner(row, ["flex-direction"])?.value ?? "row"],
+                    make: make ? [box?.dataset.drpgBox ?? null, make.parentElement?.classList.contains("drpg-box-action") ?? false,
+                        Boolean(line && box?.contains(line) && (line.compareDocumentPosition(make) & Node.DOCUMENT_POSITION_FOLLOWING)),
+                        C.winner(make.parentElement, ["display"])?.value ?? null] : null
+                };
+                el.querySelector('footer.form-footer button[data-action="close"]')?.click();
+                await Promise.race([answer, wait(3000)]);
+                return read;
+            } finally {
+                for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.classList?.contains("drpg-window-sound"))) await app.close();
+                if (answer) await Promise.race([answer, wait(3000)]);
+                if (ownFind) Object.defineProperty(P, "find", ownFind); else delete P.find;
+            }
+        };
+        const row = [true, true, ["play", "reset"], "flex", "row"];
+        const said = [en, pl].map(l => /\bbelow\b|poni[zż]ej|ni[zż]ej/i.test(l?.DRPG?.Music?.noSituational ?? "below"));
+        equal(stableJson({ cue: await draw(true), none: await draw(false), said }),
+            stableJson({ cue: { row, make: null }, none: { row, make: ["info", true, true, "flex"] }, said: [false, false] }),
+            "{with a cue playlist and without: Play and Reset [one parent, it is .drpg-music-now-actions, its children, its display, its "
+                + "flex-direction]; the Create button [its box's kind, in the box's action row, after the box's line, the row's display]; the line "
+                + "says below [en, pl]}");
+    }],
+    ["R3134 - the kit's box takes an optional action (scripts/ui-kit.mjs `box(kind, body, { action })`, components.css; E47-FC, card bc025): the action's markup inside the box after its words, in `div.drpg-box-action`, a flex row; a box with none draws a8ae16f6's markup byte for byte", async () => {
+        /*
+         * E47-FC, 09.11.2026: a kit change for the owner's bc025 (Sound's Create button inside the box). Read: `box` called
+         * with and without an action; the action's row read through the module's stylesheets' cascade inside a kit
+         * window's element. Red on a8ae16f6: `box` ignores its third argument (the box holds the words alone).
+         */
+        const K = await import("./ui-kit.mjs");
+        const C = await styleCascade();
+        const host = document.createElement("div");
+        host.className = "application drpg-ui";
+        document.body.append(host);
+        try {
+            host.innerHTML = K.box("info", "<p>words</p>", { action: '<button type="button" data-drpg-r3134>Do it</button>' });
+            const box = host.firstElementChild;
+            const act = box?.querySelector(".drpg-box-action");
+            const read = {
+                box: [box?.dataset.drpgBox ?? null, box?.getAttribute("role") ?? null, [...(box?.children ?? [])].map(c => `${c.tagName.toLowerCase()}${c.className ? `.${c.className}` : ""}`)],
+                action: act ? [act.querySelector("[data-drpg-r3134]")?.textContent ?? null, C.winner(act, ["display"])?.value ?? null] : null,
+                plain: [K.box("warning", "<p>x</p>"), K.box("info", "x", {}), K.box("secret", "x", { action: null }), K.box("info", null)]
+            };
+            equal(stableJson(read), stableJson({
+                box: ["info", "note", ["p", "div.drpg-box-action"]],
+                action: ["Do it", "flex"],
+                plain: ['<div class="drpg-box" data-drpg-box="warning" role="note"><p>x</p></div>', '<div class="drpg-box" data-drpg-box="info" role="note">x</div>',
+                    '<div class="drpg-box" data-drpg-box="secret" role="note">x</div>', '<div class="drpg-box" data-drpg-box="info" role="note"></div>']
+            }), "{a box with an action [its kind, its role, its children]; the action [its button's words, its row's display]; boxes with none, as drawn}");
+        } finally {
+            host.remove();
+        }
+    }],
+    ["R3135 - Give > Create new shows the icon the new item will get beside its category select, before any press, and repaints it on every change (scripts/gm-items.mjs `giveCreatePane`, `wireGiveForm`, config.mjs `itemIcon`; E47-FC, the owner on comparison 2, q-create-icon): each category offered picked, the picture's src its category's drawing", async () => {
+        /*
+         * E47-FC, 09.11.2026; the owner on comparison 2, question q-create-icon: Change - the preview is wanted. The item
+         * Create new hands over takes `itemIcon(category)` (E47-T7); the window drew no picture before Give. Read here
+         * through the window as E47-T7 drives it, with DialogV2.wait stood in for (nothing given: the stand-in answers
+         * "cancel"): the Create new tab pressed, the picture's src as drawn, then each option of the category select
+         * picked and `change` sent, the src read after each; and whether the picture shares the select's field cell.
+         * Red on a8ae16f6: no `[data-drpg-give-icon]`.
+         */
+        const G = await import("./gm-items.mjs");
+        const CFG = await import("./config.mjs");
+        const [actor] = studentActors();
+        must(actor, "no student to give to - this would measure nothing");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let read = null;
+        try {
+            D.wait = async config => {
+                const element = document.createElement("div");
+                if (typeof config?.content === "string") element.innerHTML = config.content;
+                else if (config?.content) element.append(config.content);
+                config?.render?.(null, { element });
+                element.querySelector('[data-drpg-tab-key="create"]')?.click();
+                const form = element.querySelector("form");
+                const select = form.elements.category;
+                const img = form.querySelector("[data-drpg-give-icon]");
+                const values = [...select.options].map(o => o.value).filter(Boolean);
+                read = {
+                    values,
+                    cell: img ? img.closest(".drpg-form-field") === select.closest(".drpg-form-field") : null,
+                    alt: img?.getAttribute("alt") ?? null,
+                    first: img?.getAttribute("src") ?? null,
+                    picked: values.map(value => {
+                        select.value = value;
+                        select.dispatchEvent(new Event("change"));
+                        return [value, img?.getAttribute("src") ?? null];
+                    })
+                };
+                return "cancel";
+            };
+            await G.gmGiveItemDialog(actor);
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        must(read?.values?.length >= 3, `the Create new tab offered ${read?.values?.length ?? 0} categories - this would measure little`);
+        const icon = value => CFG.itemIcon(value.split(":")[0]);
+        must(new Set(read.values.map(icon)).size >= 2, "every category offered has the same drawing - a repaint would show nothing");
+        equal(stableJson({ cell: read.cell, alt: read.alt, first: read.first, picked: read.picked }),
+            stableJson({ cell: true, alt: "", first: icon(read.values[0]), picked: read.values.map(v => [v, icon(v)]) }),
+            "{the picture in the category select's field cell, its alt, its src as drawn, its src after each category picked}");
+    }],
+    ["R3136 - Observe's five captions are a half of their length or less, in English and Polish, and keep what each choice does (lang/en.json, lang/pl.json `DRPG.Observe.*Hint`; E47-FC, the owner on comparison 2, card bc047: \"Podpisy sa 2-3x za dlugie\")", async () => {
+        /*
+         * E47-FC, 09.11.2026; the owner on comparison 2, bc047: the captions under Observe's choices are two to three times
+         * too long. Each is held to half its length at a8ae16f6 (BEFORE, in characters, frozen here) or less, and to the
+         * facts a player chooses by: the sweep and the look past the obvious settled by the total (a GM in an empty room
+         * - the second "as a sweep"), the secret project the second alone can find, Focus your gaze's GM who picks and its
+         * blank field a sweep, a point of interest ruled by a GM. Observe only: the other actions' captions are E68's (one
+         * layout for every action). Red on a8ae16f6: every caption at its full length.
+         */
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json());
+        const [en, pl] = await Promise.all([lang("en"), lang("pl")]);
+        const KEYS = ["generalHint", "nonObviousHint", "followTracesHint", "specificHint", "anythingHint"];
+        const BEFORE = { en: [219, 232, 57, 165, 85], pl: [214, 261, 62, 185, 67] };
+        const FACTS = {
+            en: [/crime/i, /secret project/i, /left behind/i, /GM/, /GM/],
+            pl: [/zbrodni/i, /tajny projekt/i, /zosta/i, /GM/, /GM/]
+        };
+        const SWEEP = { en: [/total/i, /sweep/i, null, /sweep/i, /trace/i], pl: [/wynik/i, /rozgl[aą]dani/i, null, /rozgl[aą]dani/i, /[sś]lad/i] };
+        const read = {}, want = {};
+        for (const [code, file] of [["en", en], ["pl", pl]]) {
+            read[code] = KEYS.map((key, i) => {
+                const text = String(file?.DRPG?.Observe?.[key] ?? "");
+                return [key, text.length <= Math.ceil(BEFORE[code][i] / 2), FACTS[code][i].test(text), SWEEP[code][i] ? SWEEP[code][i].test(text) : true];
+            });
+            want[code] = KEYS.map(key => [key, true, true, true]);
+        }
+        equal(stableJson(read), stableJson(want), "{each caption [its key, at most half its length at a8ae16f6, its fact, its second fact]}");
     }],
 ];
 

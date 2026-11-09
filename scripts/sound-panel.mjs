@@ -164,16 +164,19 @@ function soundPlayPane() {
                     // playlist is missing, and it disappears the moment there is
                     // one - which the rebuild on `createPlaylist` now does by itself.
                     // Information, not a warning (D11; audit S12-59, E22 C6b): the kit's neutral box.
-                    : `${box("info", `<p class="notes" data-drpg-no-cue>${game.i18n.format(
-                        "DRPG.Music.noSituational", { name: SITUATIONAL_PLAYLIST })}</p>`)}
-                    <button type="button" class="drpg-mini-button" data-drpg-make-cue>${
-                        game.i18n.format("DRPG.Music.makeSituational",
-                            { name: SITUATIONAL_PLAYLIST })}</button>`}
-                <button type="button" class="drpg-mini-button" data-drpg-play${
-                    playable ? "" : " disabled"}>${
-                    game.i18n.localize("DRPG.Music.play")}</button>
-                <button type="button" class="drpg-mini-button" data-drpg-reset-music>${
-                    game.i18n.localize("DRPG.Music.reset")}</button>
+                    // The button is the box's own action, under its line (E47-FC, 09.11.2026; the owner on comparison 2,
+                    // card bc025): it stood under the box, beside Play and Reset, and the line said "Create it below".
+                    : box("info", `<p class="notes" data-drpg-no-cue>${game.i18n.format(
+                        "DRPG.Music.noSituational", { name: SITUATIONAL_PLAYLIST })}</p>`, {
+                        action: `<button type="button" class="drpg-mini-button" data-drpg-make-cue>${
+                            game.i18n.format("DRPG.Music.makeSituational", { name: SITUATIONAL_PLAYLIST })}</button>` })}
+                <div class="drpg-music-now-actions">
+                    <button type="button" class="drpg-mini-button" data-drpg-play${
+                        playable ? "" : " disabled"}>${
+                        game.i18n.localize("DRPG.Music.play")}</button>
+                    <button type="button" class="drpg-mini-button" data-drpg-reset-music>${
+                        game.i18n.localize("DRPG.Music.reset")}</button>
+                </div>
             </fieldset>`;
 }
 

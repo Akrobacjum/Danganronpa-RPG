@@ -896,10 +896,16 @@ const BOXES = ["info", "warning", "secret"];
 /**
  * A box: `info`, `warning` or `secret` (the GMs' words, in D11's colour of the GM and never red: red is the GM's road,
  * a button role). `body` is markup.
+ *
+ * `action` (E47-FC, 09.11.2026; the owner on comparison 2, card bc025: "Przycisk proponuje na szarym polu pod napisem
+ * 'utworz ja'"): markup - a button, or a few - drawn inside the box under its words, in `div.drpg-box-action`, for a box
+ * whose line names what the button does (Sound's "No playlist called 'Situational' yet." and its Create button). A box
+ * with none draws what it drew before, byte for byte (R3134).
  */
-export function box(kind, body) {
+export function box(kind, body, { action = null } = {}) {
     if (!BOXES.includes(kind)) throw new Error(`ui-kit: no box "${kind}" (boxes: ${BOXES.join(", ")})`);
-    return `<div class="drpg-box" data-drpg-box="${kind}" role="note">${body ?? ""}</div>`;
+    const act = action ? `<div class="drpg-box-action">${action}</div>` : "";
+    return `<div class="drpg-box" data-drpg-box="${kind}" role="note">${body ?? ""}${act}</div>`;
 }
 
 /**

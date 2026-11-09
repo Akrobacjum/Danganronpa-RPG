@@ -14,7 +14,7 @@
 
 import {
     MODULE_ID, ITEM_CATEGORIES, LIMIT_GROUPS, ITEM_TIERS, TIER_EFFECTS, USABLE_KINDS,
-    USABLE_KIND_EFFECTS, EQUIPPABLE,
+    USABLE_KIND_EFFECTS, EQUIPPABLE, itemIcon,
     TRUTH_BULLET_TYPES, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS
 } from "./config.mjs";
 import { grantItem, itemsInCategory, countInCategory, countInGroup, inventorySummary,
@@ -506,11 +506,24 @@ function giveExistingPane(catalogue, categories, tiers) {
         : `<p class="notes">${game.i18n.localize("DRPG.Items.existingEmpty")}</p>`;
 }
 
+/*
+ * THE ICON BEFORE THE PRESS (E47-FC, 09.11.2026; the owner on comparison 2, question q-create-icon: Change). The item
+ * Create new hands over takes its category's drawing (`grantItem` writes `itemIcon(category)`, one drawing per
+ * category; E47-T7 holds it), and the window showed none before Give. The picture stands beside the category select,
+ * drawn with the first category's and repainted on every change (`wireGiveForm`); `alt=""`, as the select beside it
+ * already names the category. It is the select's sibling in the field cell, and components.css stands it at the free
+ * end of the label column, left of the select: beside it in the field it took 40 px from the select, and Legacy's
+ * "Usable - Healing - 0/3" broke over two lines (1366x768, measured on the first draw).
+ */
+const giveIconOf = value => itemIcon(String(value ?? "").split(":")[0]);
+
 /** The "create new" tab: category, tier, a name with every built-in as autocomplete, description, roles. */
 function giveCreatePane({ categories, tiers, suggestions }) {
+    const first = pickableCategories()[0]?.value ?? "";
     return formGrid([
         { label: game.i18n.localize("DRPG.Items.category"), id: "drpg-give-category",
-          field: `<select name="category" id="drpg-give-category">${categories}</select>` },
+          field: `<select name="category" id="drpg-give-category">${categories}</select><img
+                class="drpg-give-icon" data-drpg-give-icon src="${esc(giveIconOf(first))}" alt="" width="32" height="32" />` },
         { full: kindNote("category") },
         { label: game.i18n.localize("DRPG.Items.tier"), id: "drpg-give-tier", field: `<select name="tier" id="drpg-give-tier">${tiers}</select>` },
         { label: game.i18n.localize("DRPG.Items.name"), id: "drpg-give-name",
@@ -641,6 +654,15 @@ function wireGiveForm(dialog, tables = game.tables) {
     form.elements.category?.addEventListener("change", paintRoles);
     form.elements.tier?.addEventListener("change", paintRoles);
     paintRoles();
+
+    // The icon the new item will get, at once (E47-FC; `giveIconOf` above). `input` too: a keyboard moving through the
+    // select's options fires it before `change` in some browsers.
+    const icon = form.querySelector("[data-drpg-give-icon]");
+    const paintIcon = () => { if (icon && form.elements.category) icon.src = giveIconOf(form.elements.category.value); };
+    for (const type of ["change", "input"]) form.elements.category?.addEventListener(type, paintIcon);
+    // The recipient's change rebuilds the select's options (above) and may leave it on another category.
+    form.elements.recipient?.addEventListener("change", paintIcon);
+    paintIcon();
 }
 
 /*
