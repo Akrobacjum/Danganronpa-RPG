@@ -34259,7 +34259,7 @@ const INVARIANTS = [
         must(checked > 150, `${checked} property reading(s) made - the kit's elements matched no rule`);
         equal(stableJson(problems), "{}", "[by theme: a kit element's property, or a token on the body, not won by components.css - element property: the winner]");
     }],
-    ["R1325 - the kit's tab bar wins its cascade in every tabbed window (tests-kit.mjs `styleCascade`; E44 C4a, E44-14, S12-50): in each window of the tab census, drawn with its own classes on a body of each theme, the bar's and each tab's properties stated by styles/components.css - the bar's equal columns, a tab's case, spacing, ink, ground and edge, the selected tab's - are won by components.css across all the module's sheets", async () => {
+    ["R1325 - the kit's tab bar wins its cascade in every tabbed window (tests-kit.mjs `styleCascade`; E44 C4a, E44-14, S12-50): in each window of the tab census, drawn with its own classes on a body of each theme, the bar's and each tab's properties stated by styles/components.css - the bar's equal columns when it is fitted on one row and its wrap when it is not, a tab's case, spacing, ink, ground and edge, the selected tab's - are won by components.css across all the module's sheets", async () => {
         /*
          * E44 C4a, 04.11.2026; the plan's risk ("a kit rule can lose to an old rule carrying !important and the test
          * still pass while the screen does not change"). R1323 reads the kit inside the kit's own frame (`drpg-ui`); the
@@ -34269,6 +34269,10 @@ const INVARIANTS = [
          * shorthand is read with its longhands, as R1323 does. Red before C4a: the kit's tab rules named `.drpg-ui`, so
          * no tab of these windows took the kit's case, ink, ground or edge (and the old bar rules, `!important` under
          * Legacy, painted them). The mutant c4a-m1 (stained-glass.css's bar rule left in for the new bar) reads red.
+         * E47-KFb (09.11.2026, the owner's F1 on comparison 1): the bar is a wrapping flex row, its equal grid only where
+         * `fitKitTabs` fitted it on one row (`data-drpg-tab-fit="one"`), so each window is read twice, the bar marked
+         * "wrap" (as an unfitted bar draws) and "one": "wrap" states and wins `flex-wrap: wrap`, "one" equal columns.
+         * Red on 33787e0e with the grid alone asked for: every window's bar "grid-template-columns" missing.
          */
         const K = await import("./ui-kit.mjs");
         const C = await styleCascade();
@@ -34317,13 +34321,15 @@ const INVARIANTS = [
         const problems = {}, missing = [];
         let checked = 0;
         for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
-            for (const [id, spec] of Object.entries(WINDOWS)) {
+            for (const [id, spec] of Object.entries(WINDOWS)) for (const fit of ["wrap", "one"]) {
                 const html = document.createElement("html"), body = document.createElement("body");
                 body.className = `${theme} drpg-gm`;
                 html.append(body);
                 const root = frame(spec);
                 body.append(root);
                 const nav = root.querySelector("nav.drpg-tabs");
+                nav.dataset.drpgTabFit = fit;
+                if (fit === "one") nav.style.setProperty("--drpg-kit-tab-n", "3");
                 const lost = [];
                 for (const el of [nav, ...nav.querySelectorAll('button[role="tab"]')]) {
                     const stated = new Set();
@@ -34334,25 +34340,30 @@ const INVARIANTS = [
                         if (hit) for (const d of rule.decls) if (!d.property.startsWith("--") || d.property === "--brush-ink") stated.add(d.property);
                     }
                     const label = el === nav ? "bar" : el.getAttribute("aria-selected") === "true" ? "selected tab" : "tab";
-                    if (el !== nav) for (const p of WANT_TAB) if (!stated.has(p)) missing.push(`${theme} ${id} ${label}: ${p}`);
-                    if (el === nav && !stated.has("grid-template-columns")) missing.push(`${theme} ${id} bar: grid-template-columns`);
+                    if (el !== nav) for (const p of WANT_TAB) if (!stated.has(p)) missing.push(`${theme} ${id} ${fit} ${label}: ${p}`);
+                    const barProp = fit === "one" ? "grid-template-columns" : "flex-wrap";
+                    if (el === nav && !stated.has(barProp)) missing.push(`${theme} ${id} ${fit} bar: ${barProp}`);
                     const onEl = C.on(el);
                     for (const prop of stated) {
                         checked++;
                         const w = onEl(names(prop));
                         if (w?.file !== "styles/components.css") lost.push(`${label} ${prop}: ${w ? `${w.file} ${w.selector}${w.important ? " !important" : ""}` : "nobody"}`);
                     }
-                    if (el === nav) {
-                        const cols = onEl("grid-template-columns")?.value ?? "";
-                        if (!/\b1fr\b/.test(cols)) lost.push(`bar grid-template-columns not equal columns: ${cols || "nobody"}`);
+                    if (el === nav && fit === "one") {
+                        const cols = onEl("grid-template-columns")?.value ?? "", shown = onEl("display")?.value ?? "";
+                        if (!/\b1fr\b/.test(cols) || shown !== "grid") lost.push(`bar not equal columns: display ${shown || "nobody"}, grid-template-columns ${cols || "nobody"}`);
+                    }
+                    if (el === nav && fit === "wrap") {
+                        const wrapped = onEl("flex-wrap")?.value ?? "", shown = onEl("display")?.value ?? "";
+                        if (wrapped !== "wrap" || shown !== "flex") lost.push(`bar not a wrapping row: display ${shown || "nobody"}, flex-wrap ${wrapped || "nobody"}`);
                     }
                 }
-                if (lost.length) problems[`${theme} ${id}`] = lost;
+                if (lost.length) problems[`${theme} ${id} ${fit}`] = lost;
             }
         }
-        equal(JSON.stringify(missing), "[]", "components.css states none of these on a tab bar in these windows - its tab rules do not reach them [theme window element: property]");
+        equal(JSON.stringify(missing), "[]", "components.css states none of these on a tab bar in these windows - its tab rules do not reach them [theme window fit element: property]");
         must(checked > 300, `${checked} property reading(s) made - the windows' bars matched too few rules`);
-        equal(stableJson(problems), "{}", "[by theme and window: a kit tab bar's property not won by components.css - element property: the winner]");
+        equal(stableJson(problems), "{}", "[by theme, window and fit: a kit tab bar's property not won by components.css - element property: the winner]");
     }],
     ["R1326 - Item tables (E44 C4a; E44-15, S12-56): a pool's name wraps in both themes - its `white-space` is not `nowrap`, its overflow is not hidden and it carries no ellipsis, and danganronpa.css holds one `.drpg-table-pick > span:first-child` rule, not the second that undid the first - and the window's layout follows the window: the tables window states `container-type: inline-size` and `.drpg-tables-layout` collapses under `@container (max-width: 40rem)`, not under `@media`", async () => {
         /*
