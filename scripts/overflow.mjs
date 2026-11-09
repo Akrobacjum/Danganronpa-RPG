@@ -26,7 +26,7 @@
 import { MODULE_ID, OVERFLOW, TIMES_OF_DAY, ECLIPSE_MOVES } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { announce, log, debug, error, esc, isPrimaryGm, primaryGmId, serialWrite, plural, wholeNumber } from "./utils.mjs";
-import { stepper, stepperId } from "./ui-kit.mjs";
+import { stepper, stepperId, dataTable, formGrid, toggle, box } from "./ui-kit.mjs";
 import { HOPE_REFUND } from "./resource-guard.mjs";
 import { overflowStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
@@ -1132,30 +1132,37 @@ export function overflowSuggestionLine(students, pools) {
 export function overflowSection({ suggestion = "" } = {}) {
     const status = overflowStatus();
     const { min, max } = OVERFLOW.range;
+    const L = key => game.i18n.localize(key);
 
-    const row = key => {
-        const rule = status.rules.effects[key];
-        const name = esc(game.i18n.localize(`DRPG.Overflow.name.${key}`));
-        const what = esc(overflowWhat(key, rule));
-        // Only some of the eight have a size. Despair, Silence and Fog are on
-        // or off, and a spin box beside them would be a control that does
-        // nothing - which is worse than no control at all.
-        const byId = stepperId();
-        const size = rule.by === undefined ? "" : `
-            <label class="drpg-overflow-by" for="${byId}">
-                <span>${esc(game.i18n.localize("DRPG.Overflow.amount"))}</span>
-                ${stepper({ name: `ovf-${key}-by`, value: rule.by, min: 0, max: BY_MAX, id: byId })}
-            </label>`;
-
-        return `<li class="drpg-overflow-rule${status.effect === key ? " is-drawn" : ""}">
-            <label class="drpg-overflow-on">
-                <input type="checkbox" name="ovf-${key}-on"${rule.on ? " checked" : ""}>
-                <strong>${name}</strong>
-            </label>
-            ${size}
-            <div class="notes">${what}</div>
-        </li>`;
-    };
+    /* THE RULES ARE A TABLE (E46-C5a, 09.11.2026; STAGE E46's Overflow shape). At 3c952c67 each rule was a list item
+       - a checkbox with the name, a stepper under its own label "by", the line of what it does - eight of them in two
+       lists, 1845 px under the glass. Now each list is a kit `dataTable` of four columns: on (a `toggle`, its name
+       `ovf-<key>-on` as before, the rule's name its label for a screen reader - the "what" column shows it), what,
+       by (a compact stepper, `ovf-<key>-by`, only where the rule has a size: Despair, Silence and Fog are on or off,
+       and a spin box beside them would be a control that does nothing), what it does (fine print). The order is
+       OVERFLOW.effects', as it was; `readOverflowForm` reads the same names (R2031). */
+    const rules = keys => dataTable({
+        columns: [
+            { key: "on", label: L("DRPG.Overflow.colOn"), cls: "ovf-on" },
+            { key: "what", label: L("DRPG.Overflow.colWhat"), cls: "ovf-what" },
+            { key: "by", label: L("DRPG.Overflow.amount"), cls: "ovf-by" },
+            // The rest of the row: on, what and by hold one line each (components.css, Despair Flow's section).
+            { key: "does", label: L("DRPG.Overflow.colDoes"), width: "100%", cls: "ovf-does" }
+        ],
+        rows: keys.map(key => {
+            const rule = status.rules.effects[key];
+            const name = L(`DRPG.Overflow.name.${key}`);
+            return {
+                key,
+                on: toggle({ name: `ovf-${key}-on`, checked: Boolean(rule.on), label: name }),
+                what: `<strong>${esc(name)}</strong>`,
+                by: rule.by === undefined ? "" : stepper({ name: `ovf-${key}-by`, value: rule.by, min: 0, max: BY_MAX, compact: true,
+                    attrs: { "aria-label": `${L("DRPG.Overflow.amount")}: ${name}` } }),
+                does: `<span class="drpg-help">${esc(overflowWhat(key, rule))}</span>`
+            };
+        }),
+        rowAttrs: r => ({ "data-drpg-ovf": r.key, class: status.effect === r.key ? "is-drawn" : null })
+    });
 
     const states = Object.entries(OVERFLOW.effects)
         .filter(([, rule]) => rule.kind === "state").map(([key]) => key);
@@ -1167,30 +1174,30 @@ export function overflowSection({ suggestion = "" } = {}) {
 
     // An empty pool is a real setting and not an error, so it is stated where
     // the GM is looking rather than discovered when nothing ever fires.
-    const empty = status.pool.length ? "" :
-        `<p class="notes drpg-overflow-empty">${
-            esc(game.i18n.localize("DRPG.Overflow.emptyPool"))}</p>`;
+    const empty = status.pool.length ? "" : box("info", `<span class="drpg-overflow-empty">${esc(L("DRPG.Overflow.emptyPool"))}</span>`);
 
+    // The threshold a form row (E46-C5a): its label pointing at the field, the suggestion for this cast and the range
+    // as fine print under it. "Right now" is the one number here that moves (`keepFresh` rewrites `.drpg-overflow-now`):
+    // body text, not fine print, with Clear beside it as before.
     // H84-06: the GM's Clear, beside the count it clears; wired by gm-team-dialog.mjs (`clearOverflowFromTab`).
-    return `<p>${esc(game.i18n.localize("DRPG.Overflow.setupIntro"))}</p>
-        <p class="notes drpg-overflow-now">${esc(nowLine)}</p>
-        <p><button type="button" data-drpg-overflow-clear>${esc(game.i18n.localize("DRPG.Overflow.clear"))}</button></p>
+    return `<p>${esc(L("DRPG.Overflow.setupIntro"))}</p>
+        <p class="drpg-overflow-now">${esc(nowLine)}</p>
+        <p><button type="button" data-drpg-overflow-clear>${esc(L("DRPG.Overflow.clear"))}</button></p>
+        ${formGrid([{
+            label: L("DRPG.Overflow.threshold"), id: thresholdId,
+            field: stepper({ name: "ovf-threshold", value: status.threshold, min, max, id: thresholdId })
+                + (suggestion ? `<p class="drpg-help drpg-overflow-suggested">${esc(suggestion)}</p>` : "")
+                + `<p class="drpg-help">${esc(game.i18n.format("DRPG.Overflow.thresholdHint", { min, max }))}</p>`
+        }])}
 
-        <label class="drpg-overflow-threshold" for="${thresholdId}">
-            <span>${esc(game.i18n.localize("DRPG.Overflow.threshold"))}</span>
-            ${stepper({ name: "ovf-threshold", value: status.threshold, min, max, id: thresholdId })}
-        </label>
-        ${suggestion ? `<p class="notes drpg-overflow-suggested">${esc(suggestion)}</p>` : ""}
-        <p class="notes">${esc(game.i18n.format("DRPG.Overflow.thresholdHint", { min, max }))}</p>
-
-        <h4>${esc(game.i18n.localize("DRPG.Overflow.pool"))}</h4>
-        <p class="notes">${esc(game.i18n.localize("DRPG.Overflow.poolHint"))}</p>
+        <h4>${esc(L("DRPG.Overflow.pool"))}</h4>
+        <p class="notes">${esc(L("DRPG.Overflow.poolHint"))}</p>
         ${empty}
-        <ul class="drpg-overflow-rules">${states.map(row).join("")}</ul>
-        <h4>${esc(game.i18n.localize("DRPG.Overflow.oneOff"))}</h4>
-        <p class="notes">${esc(game.i18n.localize("DRPG.Overflow.oneOffHint"))}</p>
-        <ul class="drpg-overflow-rules">${events.map(row).join("")}</ul>
-        <p class="notes">${esc(game.i18n.localize("DRPG.Overflow.floorNote"))}</p>`;
+        ${rules(states)}
+        <h4>${esc(L("DRPG.Overflow.oneOff"))}</h4>
+        <p class="notes">${esc(L("DRPG.Overflow.oneOffHint"))}</p>
+        ${rules(events)}
+        <p class="notes">${esc(L("DRPG.Overflow.floorNote"))}</p>`;
 }
 
 /**

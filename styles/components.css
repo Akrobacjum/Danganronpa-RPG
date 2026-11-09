@@ -2528,3 +2528,59 @@ body:not(.drpg-theme-stained-glass) .application.drpg-window-sound tr.drpg-data-
 /* the Music tab's notes on the order, folded */
 .application.drpg-window-sound details.drpg-sound-order { margin: 0 0 8px; }
 .application.drpg-window-sound details.drpg-sound-order > summary { cursor: pointer; margin-bottom: 4px; }
+
+/* ---- Despair Flow and its Overflow tab (E46-C5a, 09.11.2026; card M3, STAGE E46's Despair Flow shape) ----
+   gm-team-dialog.mjs draws the Pools, Monokumas and Students tabs and overflow.mjs the Overflow tab's two rules tables
+   as the kit's `dataTable`s; these are the window's own parts, moved here from danganronpa.css ("Assignment dialog",
+   the Monokuma panel's portrait, its ticked row, the warning's `:empty`) with the kit's tokens for the base sheet's
+   ink and line. The ticked Monokuma's row takes the info box's ground (it was the eye's colour at 12 %: no new
+   colour, E48). The warning box hides by its `hidden` attribute, written with its text. */
+.application.drpg-ui.drpg-window-gmteam .drpg-data-table-box > table.drpg-data-table td.drpg-data-col-despair-mark { text-align: center; }
+.application.drpg-ui.drpg-window-gmteam .drpg-monokuma-portrait {
+    width: 1.6rem;
+    height: 1.6rem;
+    object-fit: cover;
+    border: none;
+    border-radius: 2px;
+    vertical-align: middle;
+    margin-right: 0.4rem;
+}
+.application.drpg-ui.drpg-window-gmteam .drpg-data-table-box > table.drpg-data-table tr.drpg-is-monokuma > td { background: var(--drpg-kit-info-bg); }
+/* a pool's select stands only on a ticked Monokuma's row (`wireMonokumaLive` writes `hidden`): the panel's select rule
+   (danganronpa.css, `display`) drew it under the "-" on every row (the before captures, 3c952c67) */
+.application.drpg-ui.drpg-window-gmteam select[data-drpg-pool][hidden] { display: none; }
+.application.drpg-ui.drpg-window-gmteam .drpg-assign-counts {
+    display: flex;
+    gap: 1.2rem;
+    justify-content: center;
+    margin-block: 0.5rem;
+    padding: 0.35rem;
+    border: 1px solid var(--drpg-kit-line);
+    border-radius: 4px;
+}
+/* a student never assigned: "(fallback)" in its select, dim and in italics until the GM picks (E15 C6; S10-62) */
+.application.drpg-ui.drpg-window-gmteam select.drpg-assign-fallback { color: var(--drpg-kit-help-ink); font-style: italic; }
+.application.drpg-ui.drpg-window-gmteam tr.drpg-assign-excluded > td.drpg-data-col-despair-who { opacity: 0.55; font-style: italic; }
+.application.drpg-ui.drpg-window-gmteam .drpg-assign-none { opacity: 0.7; font-style: italic; }
+/* the rules tables: on, what and by on one line each, what it does the rest of the row (its column 100 % in overflow.mjs;
+   a 1 % column on the narrow ones instead widened the table to make their content 1 %, and `fit` the window with it -
+   1284 px at 1366x768, measured 09.11.2026); the switch's label (the rule's name, which the "what" column shows) kept
+   for a screen reader and out of sight */
+.application.drpg-ui.drpg-window-gmteam .drpg-data-table-box > table.drpg-data-table :is(th, td):is(.drpg-data-col-ovf-on, .drpg-data-col-ovf-what, .drpg-data-col-ovf-by) {
+    white-space: nowrap;
+}
+/* what it does is prose: it wraps, where the panels' cells are held on one line (danganronpa.css, `:is(th, td)` nowrap) */
+.application.drpg-ui.drpg-window-gmteam .drpg-data-table-box > table.drpg-data-table td.drpg-data-col-ovf-does { white-space: normal; }
+.application.drpg-ui.drpg-window-gmteam td.drpg-data-col-ovf-on .drpg-toggle > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+/* the threshold's fine print under its stepper, read from the field's start in both themes */
+body .application.dialog.drpg-ui.drpg-window-gmteam .dialog-content .drpg-form-field > p.drpg-help { text-align: start; margin: 4px 0 0; }

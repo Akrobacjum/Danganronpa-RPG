@@ -395,10 +395,12 @@
         "drpg-assign",
         "drpg-window-gmteam",
         "drpg-ui",
-        "drpg-kit-fit"
+        "drpg-kit-fit",
+        "drpg-kit-width",
+        "drpg-kit-width-wide"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 704,
       "buttons": [
         {
           "action": "save",
@@ -435,10 +437,12 @@
         "drpg-assign",
         "drpg-window-gmteam",
         "drpg-ui",
-        "drpg-kit-fit"
+        "drpg-kit-fit",
+        "drpg-kit-width",
+        "drpg-kit-width-wide"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 704,
       "buttons": [
         {
           "action": "save",
@@ -470,10 +474,12 @@
         "drpg-assign",
         "drpg-window-gmteam",
         "drpg-ui",
-        "drpg-kit-fit"
+        "drpg-kit-fit",
+        "drpg-kit-width",
+        "drpg-kit-width-wide"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 704,
       "buttons": [
         {
           "action": "save",
@@ -510,10 +516,12 @@
         "drpg-assign",
         "drpg-window-gmteam",
         "drpg-ui",
-        "drpg-kit-fit"
+        "drpg-kit-fit",
+        "drpg-kit-width",
+        "drpg-kit-width-wide"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 704,
       "buttons": [
         {
           "action": "save",

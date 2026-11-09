@@ -1479,39 +1479,6 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     opacity: 0.15;
 }
 
-/* Assignment dialog */
-.drpg-assign table {
-    width: 100%;
-}
-
-.drpg-assign .drpg-assign-counts {
-    display: flex;
-    gap: 1.2rem;
-    justify-content: center;
-    margin-block: 0.5rem;
-    padding: 0.35rem;
-    border: 1px solid var(--drpg-line);
-    border-radius: 4px;
-}
-
-/* A student never assigned: the pool it falls back to, named "(fallback)" in its select, dim
-   and in italics until the GM picks something (E15 C6; audit S10-62). It was a red "*". */
-.drpg-assign select.drpg-assign-fallback {
-    color: var(--drpg-dim);
-    font-style: italic;
-}
-
-/* Students deliberately kept out of every pool. */
-.drpg-assign tr.drpg-assign-excluded td:first-child {
-    opacity: 0.55;
-    font-style: italic;
-}
-
-.drpg-assign .drpg-assign-none {
-    opacity: 0.7;
-    font-style: italic;
-}
-
 /* THE INTERFACE'S OWN EDGES, WHILE THIS SCREEN IS IN A KILLING.
    ---------------------------------------------------------------------------
    `drpg-incident-here` is stamped by hud.mjs on the browsers of the people the
@@ -5435,25 +5402,6 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 .application.dialog:is(.drpg-projects, .drpg-monokuma-panel) select {
     min-width: 8rem;
     box-sizing: border-box;
-}
-
-/* The Monokuma panel's portrait column, so a row reads as "this actor". */
-.drpg-monokuma-portrait {
-    width: 1.6rem;
-    height: 1.6rem;
-    object-fit: cover;
-    border: none;
-    border-radius: 2px;
-    vertical-align: middle;
-    margin-right: 0.4rem;
-}
-
-.drpg-monokuma-panel tr.drpg-is-monokuma {
-    background: color-mix(in srgb, var(--drpg-eye) 12%, transparent);
-}
-
-.drpg-monokuma-warning:empty {
-    display: none;
 }
 
 /* Project manager: click the portrait to open the file picker. */

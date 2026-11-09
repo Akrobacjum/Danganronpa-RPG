@@ -41943,6 +41943,137 @@ const INVARIANTS = [
         }), "{grid: [the tab a formGrid, the school's and the hall's selects labelled in it, the hall's three fields labelled]; switches: prepare and the playlist; slot: SCENES_ZONE_SLOT [exported, in the rows, an empty frozen list, the grid drawing nothing for it, after the two selects]; warn: [the report in a warning box, old warning lines]; cast: [a kit table, a row an actor, a switch a row, list items left]; read: readScenesTab's answer}");
     }],
 
+    ["R2030 - Despair Flow's three tables on the kit (E46-C5a; E46-15, card M3): Pools, Monokumas and Students each one `dataTable` in its tab, today's columns in today's order, one row per account, character and student, the fields' names unchanged; two Monokumas ticked onto one pool are said in a `box(\"warning\")` above the Monokumas' table", async () => {
+        /*
+         * E46-C5a, 09.11.2026; card M3 (Approve) and STAGE E46's Despair Flow shape. At 3c952c67 the three tabs drew
+         * three hand tables (`<table>` with no class, the Monokuma column centred by an inline style) and the shared
+         * pool's warning as `p.drpg-warning` in red (E21's carried W site ~611). Drawn here on the harness's DialogV2,
+         * as a GM opens it; two characters are ticked and put on one pool in the form only - the window is closed with
+         * Close, so nothing is written (tier 1 reads). Red first on f7266b28: no kit table, a red paragraph.
+         */
+        needs(env.dialogs(), "Despair Flow is read on a drawn window");
+        needs(world.atLeast("livingStudents", 2), "two characters to put on one pool");
+        const T = await import("./gm-team-dialog.mjs");
+        const { monokumas } = await import("./despair.mjs");
+        const { students } = await import("./assignments.mjs");
+        const L = key => game.i18n.localize(key);
+        const gms = monokumas();
+        const actors = game.actors.filter(a => a.type === "character");
+        const roster = students();
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-gmteam"));
+        must(of().length === 0, "a Despair Flow window stands open already");
+        const answer = Promise.resolve().then(() => T.openGmTeamDialog()).catch(() => null);
+        const got = {};
+        try {
+            await until(() => of()[0]?.element?.querySelector('[data-drpg-pane="overflow"]'), 6000);
+            const root = of()[0]?.element;
+            must(root, "Despair Flow did not open - this would measure nothing");
+            const pane = key => root.querySelector(`[data-drpg-pane="${key}"]`);
+            const table = key => {
+                const p = pane(key);
+                const all = [...(p?.querySelectorAll("table") ?? [])];
+                const kit = all.filter(t => t.matches(".drpg-data-table-box > table.drpg-data-table"));
+                return { tables: all.length, kit: kit.length, heads: [...(kit[0]?.tHead?.rows[0]?.cells ?? [])].map(th => th.textContent.trim()),
+                    rows: kit[0]?.tBodies[0]?.rows.length ?? 0 };
+            };
+            got.pools = { ...table("pools"), names: [...pane("pools").querySelectorAll("tbody input[name^='poolName.']")].map(i => i.name) };
+            got.monokumas = { ...table("monokumas"), names: [...pane("monokumas").querySelectorAll("tbody tr")].map(tr => [
+                tr.dataset.actor ?? null, tr.querySelector("[data-drpg-mk]")?.name ?? null, tr.querySelector("[data-drpg-pool]")?.name ?? null]),
+                inlineStyle: pane("monokumas").querySelectorAll("[style]").length };
+            got.students = pane("students") ? { ...table("students"), names: [...pane("students").querySelectorAll("tbody select[data-drpg-assign]")].map(s => s.name) } : null;
+            const [a, b] = [...pane("monokumas").querySelectorAll("tbody tr")].slice(0, 2);
+            for (const tr of [a, b]) {
+                const mk = tr.querySelector("[data-drpg-mk]");
+                mk.checked = true;
+                mk.dispatchEvent(new Event("change", { bubbles: true }));
+                const select = tr.querySelector("[data-drpg-pool]");
+                select.value = gms[0].id;
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+            const warn = pane("monokumas").querySelector(".drpg-monokuma-warning");
+            const kitTable = pane("monokumas").querySelector("table.drpg-data-table");
+            got.warning = { box: warn?.querySelector('.drpg-box[data-drpg-box="warning"]') ? true : false, shown: Boolean(warn && !warn.hidden),
+                red: Boolean(warn?.querySelector(".drpg-warning")), above: Boolean(warn && kitTable && (warn.compareDocumentPosition(kitTable) & Node.DOCUMENT_POSITION_FOLLOWING)),
+                names: [a, b].every(tr => warn?.textContent.includes(tr.querySelector("td")?.textContent.trim() ?? "?")) };
+            for (const tr of [a, b]) {
+                const mk = tr.querySelector("[data-drpg-mk]");
+                mk.checked = false;
+                mk.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+            got.warning.goneWithIt = Boolean(warn?.hidden);
+        } finally {
+            for (const app of of()) await app.close().catch(() => {});
+            await Promise.race([answer, wait(3000)]);
+        }
+        const sorted = [...actors].sort((x, y) => x.name.localeCompare(y.name));
+        equal(stableJson(got), stableJson({
+            pools: { tables: 1, kit: 1, heads: [L("DRPG.Despair.account"), L("DRPG.Despair.poolName")], rows: gms.length, names: gms.map(u => `poolName.${u.id}`) },
+            monokumas: { tables: 1, kit: 1, heads: [L("DRPG.Panel.character"), L("DRPG.Monokuma.isMonokuma"), L("DRPG.Monokuma.pool")], rows: sorted.length,
+                names: sorted.map(x => [x.id, `mk.${x.id}`, `pool.${x.id}`]), inlineStyle: 0 },
+            students: roster.length ? { tables: 1, kit: 1, heads: [L("DRPG.Panel.character"), L("DRPG.Assign.monokuma")], rows: roster.length, names: roster.map(x => `assign.${x.id}`) } : null,
+            warning: { box: true, shown: true, red: false, above: true, names: true, goneWithIt: true }
+        }), "{pools, monokumas, students: [tables in the tab, of them the kit's, the kit table's heads, its rows, the fields' names]; warning: two ticked on one pool - a warning box, shown, no red paragraph, above the table, both names; unticked - hidden}");
+    }],
+    ["R2031 - Despair Flow's Overflow tab on the kit (E46-C5a; E46-15): the threshold a `formGrid` row with its suggestion and its range as fine print in its field; \"Right now\" body text, Clear beside it; what can be drawn and the one-offs each a `dataTable` of rules in `OVERFLOW.effects`' order - on (a `toggle`, `ovf-<key>-on`), what, by (a compact `stepper`, `ovf-<key>-by`, only where the rule has a size), what it does (fine print); `readOverflowForm` reads the drawn tab back as the rules stand", async () => {
+        /*
+         * E46-C5a, 09.11.2026. At 3c952c67 the tab was a label over the threshold, three `p.notes`, and two `ul` lists
+         * of eight rules, each a checkbox, a stepper with its own label "by" and a `div.notes` (1845 px under the glass,
+         * no table). Drawn here from `overflowSection` into a template, with a suggestion line handed in as the window
+         * hands it; read back with `readOverflowForm`, which must answer the rules as stored (nothing typed). Red first
+         * on f7266b28: no form grid, no table.
+         */
+        const O = await import("./overflow.mjs");
+        const tpl = document.createElement("template");
+        tpl.innerHTML = `<div>${O.overflowSection({ suggestion: "SUGGESTED LINE" })}</div>`;
+        const root = tpl.content.firstElementChild;
+        const status = O.overflowStatus();
+        const { min, max } = OVERFLOW.range;
+        const kind = k => Object.entries(OVERFLOW.effects).filter(([, r]) => r.kind === k).map(([key]) => key);
+        const grid = root.querySelector(".drpg-form-grid");
+        const field = grid?.querySelector('.drpg-form-field input[name="ovf-threshold"]')?.closest(".drpg-form-field");
+        const label = grid?.querySelector(".drpg-form-label");
+        const help = [...(field?.querySelectorAll(".drpg-help") ?? [])].map(p => p.textContent.trim());
+        const tables = [...root.querySelectorAll("table")];
+        const kit = tables.filter(t => t.matches(".drpg-data-table-box > table.drpg-data-table"));
+        const readRow = tr => {
+            const key = tr.dataset.drpgOvf ?? "?";
+            const cells = [...tr.cells];
+            const on = cells[0]?.querySelector('label.drpg-toggle > input[type="checkbox"][role="switch"]');
+            const by = cells[2]?.querySelector('.drpg-kit-stepper.drpg-kit-stepper-compact > input[type="number"]');
+            return [key, on?.name ?? null, on?.checked ?? null, cells[1]?.textContent.trim() ?? null, by?.name ?? null,
+                cells[3]?.querySelector(".drpg-help")?.textContent.trim() ?? null];
+        };
+        const want = key => {
+            const rule = status.rules.effects[key];
+            return [key, `ovf-${key}-on`, Boolean(rule.on), game.i18n.localize(`DRPG.Overflow.name.${key}`),
+                rule.by === undefined ? null : `ovf-${key}-by`, O.overflowWhat(key, rule)];
+        };
+        const now = root.querySelector(".drpg-overflow-now");
+        const clear = root.querySelector("[data-drpg-overflow-clear]");
+        const got = {
+            threshold: [label?.textContent.trim() ?? null, label?.getAttribute("for") === field?.querySelector("input")?.id, help],
+            now: [now?.textContent.trim() ?? null, now?.classList.contains("notes") ?? null, Boolean(now && clear && (now.compareDocumentPosition(clear) & Node.DOCUMENT_POSITION_FOLLOWING))],
+            tables: [tables.length, kit.length],
+            heads: kit.map(t => [...t.tHead.rows[0].cells].map(th => th.textContent.trim())),
+            rows: kit.map(t => [...t.tBodies[0].rows].map(readRow)),
+            lists: root.querySelectorAll("ul, li").length,
+            read: O.readOverflowForm(root)
+        };
+        const head = ["DRPG.Overflow.colOn", "DRPG.Overflow.colWhat", "DRPG.Overflow.amount", "DRPG.Overflow.colDoes"].map(k => game.i18n.localize(k));
+        const stored = { threshold: status.threshold, effects: Object.fromEntries(Object.keys(OVERFLOW.effects).map(key => {
+            const rule = status.rules.effects[key];
+            return [key, { on: Boolean(rule.on), ...(rule.by === undefined ? {} : { by: rule.by }) }];
+        })) };
+        equal(stableJson(got), stableJson({
+            threshold: [game.i18n.localize("DRPG.Overflow.threshold"), true, ["SUGGESTED LINE", game.i18n.format("DRPG.Overflow.thresholdHint", { min, max })]],
+            now: [O.overflowNowLine(), false, true],
+            tables: [2, 2],
+            heads: [head, head],
+            rows: [kind("state").map(want), kind("event").map(want)],
+            lists: 0,
+            read: stored
+        }), "{threshold: [the grid's label, it points at the field, the field's fine print]; now: [the line, fine print?, Clear after it]; tables: [all, the kit's]; heads; rows: [key, on's name, checked, what, by's name, what it does]; lists: ul/li left; read: readOverflowForm = the rules stored}");
+    }],
 ];
 
 /**
