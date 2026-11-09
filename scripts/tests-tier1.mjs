@@ -39473,7 +39473,7 @@ const INVARIANTS = [
         const monokuma = Object.assign(reserveActor({ id: `r1485m${stamp}`, stress: 6 }), { getFlag: (scope, key) => key === FLAGS.monokuma });
         const effect = id => ({ img: `icons/r1485/${id}.webp`, statuses: new Set([id]) });
         const EFFECTS = [effect(STATES.breakdown.id), effect(STATES.wounded.id), effect("dead")];
-        let seen = null, wrap = null;
+        let seen = null, wrap = null, refused = null;
         if (typeof ST.effectIconShown === "function") {
             seen = {};
             const drawn = (actor, user) => EFFECTS.map(fx => ST.effectIconShown(actor, fx, user));
@@ -39489,8 +39489,42 @@ const INVARIANTS = [
             const src = stripComments((await moduleSources()).get("states.mjs") ?? "");
             wrap = [Boolean(first[Symbol.for("drpgBreakdownIcon")]), proto._drawEffect === first,
                 Boolean((await token._drawEffect(EFFECTS[0].img, null, EFFECTS[0]))?.drawn), /\beffectIconShown\(this\.actor/.test(fnSource(src, "wrapEffectIcons"))];
+            /*
+             * THE WRAPPER'S REFUSAL, DRIVEN (E24 fix G3, 09.11.2026; the end review's m5). Until this fix the wrapper
+             * was called only as the GM, so a wrapper that drew every icon for everybody stayed green (measured: the
+             * plant that drops its `if (!shown)` line left R1485 green on 52955be4). Here this browser's user is a
+             * player (`e24AsRole`: `isGM` off, its own id) before three stand-in tokens: a student another player owns,
+             * one this user may only observe (OBSERVER and below, never OWNER), and one this user owns - each holding
+             * the Breakdown status, each icon drawn once handed its effect and once with no effect argument (the
+             * wrapper's fallback, which matches the Breakdown image on an actor holding the status).
+             */
+            const held = () => new Set([STATES.breakdown.id]);
+            const me = game.user.id;
+            const watched = reserveActor({ id: `r1485w${stamp}`, stress: 6 });
+            watched.testUserPermission = (user, level) => Boolean(user?.isGM) || (user?.id === me && level !== "OWNER");
+            const tokens = {
+                player: Object.assign(Object.create(proto), { actor: Object.assign(student, { statuses: held() }) }),
+                observer: Object.assign(Object.create(proto), { actor: Object.assign(watched, { statuses: held() }) }),
+                own: Object.assign(Object.create(proto), { actor: Object.assign(reserveActor({ id: `r1485o${stamp}`, stress: 6, owner: me }), { statuses: held() }) })
+            };
+            const four = async t => [
+                Boolean((await t._drawEffect(EFFECTS[0].img, null, EFFECTS[0]))?.drawn),
+                Boolean((await t._drawEffect(STATES.breakdown.img, null))?.drawn),
+                Boolean((await t._drawEffect(EFFECTS[1].img, null, EFFECTS[1]))?.drawn),
+                Boolean((await t._drawEffect(EFFECTS[1].img, null))?.drawn)
+            ];
+            refused = {};
+            await e24AsRole("owner", async () => {
+                must(game.user.isGM === false, "this browser's user is still a GM - the refusal would measure nothing");
+                for (const [who, t] of Object.entries(tokens)) refused[who] = await four(t);
+            });
+            refused.gm = Boolean((await tokens.player._drawEffect(STATES.breakdown.img, null))?.drawn);
         }
         const row = PATCHES.find(r => r.id === "breakdown-icon-private") ?? null;
+        equal(stableJson({ refused }), stableJson({
+            refused: { player: [false, false, true, true], observer: [false, false, true, true], own: [true, true, true, true], gm: true } }),
+        "{refused: each token's [Breakdown handed its effect, Breakdown with no effect, Wounded handed its effect, Wounded with no effect] drawn through the wrapper with "
+            + "this browser's user a player - on another player's student, on one it may only observe, on its own - and gm: the Breakdown with no effect drawn for a GM}");
         equal(stableJson({ seen, wrap, row: row ? [row.kind, row.owner, row.file] : null }), stableJson({
             seen: { owner: [true, true, true], gm: [true, true, true], player: [false, true, true], observer: [false, true, true], monokuma: [true, true, true] },
             wrap: [true, true, true, true], row: ["override", "daggerheart", "states.mjs"] }),
@@ -40269,6 +40303,16 @@ const INVARIANTS = [
         const put = (target, key, own) => { if (own) Object.defineProperty(target, key, own); else delete target[key]; };
         const steps = (Hooks.events?.renderChatMessageHTML ?? []).map(entry => entry.fn);
         must(steps.length >= 3, `only ${steps.length} renderChatMessageHTML step(s) are registered - the card's drawing would measure nothing`);
+        /*
+         * THE DISADVANTAGE DIE, READ ON THE DICE (E24 fix G3, 09.11.2026; the end review's m6). It is the formula's
+         * subtracted die of the faces the legal list reads (`read.advantageDie.disadvantage`), on the drawn card's
+         * formula after the steps ran and on the message's roll. Until this fix it was a word: the stand-in writes
+         * Daggerheart's "Disadvantage" label itself, so the word was on every seat's card whatever the formula said
+         * (measured: a `termsOf` that drops the die left R1489 green on 52955be4).
+         */
+        const faces = Number(high.read?.advantageDie?.disadvantage) || 0;
+        const minusDie = new RegExp(`(^|\\s)-\\s+1d${faces}(?![\\dk])`);
+        const dieOn = el => faces > 0 && minusDie.test(el.querySelector(".dice-formula")?.textContent ?? "") && minusDie.test(message.rolls[0].formula);
         const WORD = /breakdown/i;
         const seen = {};
         let ran = 0, threw = 0;
@@ -40284,7 +40328,7 @@ const INVARIANTS = [
                 const attrs = [...el.querySelectorAll("*"), el].flatMap(node => [...node.attributes].map(a => `${a.name}=${a.value}`));
                 seen[who] = {
                     word: WORD.test(html) || WORD.test(attrs.join(" ")) || WORD.test(JSON.stringify(message.toObject())),
-                    total: html.includes(`>${total}<`), die: /\bd6d\b|1d6d|Disadvantage/i.test(html)
+                    total: html.includes(`>${total}<`), die: dieOn(el)
                 };
             }
         } finally {
@@ -40295,7 +40339,7 @@ const INVARIANTS = [
             "{advantage: [a calm student's, a student in Breakdown's] as the module expects it; diceRows: the legal list has a row read off the reserve; named: the rows read off the reserve that scoredOf or modifierLabel names as a modifier}");
         equal(stableJson({ word: [seen.player?.word, seen.observer?.word], present: Object.entries(seen).map(([who, s]) => [who, s.total, s.die]) }),
             stableJson({ word: [false, false], present: [["owner", true, true], ["gm", true, true], ["player", true, true], ["observer", true, true]] }),
-            "{word: [another player's, an Observer's] drawn card naming Breakdown in its HTML, an attribute (a tooltip, a class, a data- one) or its data; present: each viewer's [result, the disadvantage die] on the card}");
+            "{word: [another player's, an Observer's] drawn card naming Breakdown in its HTML, an attribute (a tooltip, a class, a data- one) or its data; present: each viewer's [result, the disadvantage die on the drawn card's formula and on the roll's]}");
     }],
     ["R1490 - the safeword is as wide as its word, never as its rail (E24 C5, A6; the owner's report of 09.11): on the character sheet's window, in each theme with the pixel face and without, the Stop's winning `width` is `max-content`, its `max-width` its column less the corner's margins (`calc(100% - ...)`), its `justify-self` `start` - one item of Daggerheart's window grid, where `normal` stretched it across the rail - and it stays `sticky`; it stands in the third row of the rail's column, and the rail spans that row (`1 / span 3 !important`), so the panel under it reaches the window's foot (E24-C5 fix)", async () => {
         /*
