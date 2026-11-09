@@ -38684,10 +38684,14 @@ const SCENARIOS = [
             const now = V.trialProgress();
             await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...now,
                 vote: { ...now.vote, open: true, round: now.vote.round + 1, issued: [], openedAt: Date.now(), closedAt: null } });
-            await until(() => asked.length > before[1] && drawn().length > 0, 6000);
+            /* THE SAME WINDOW, ITS FOOTER REDRAWN IN PLACE (E47-C1, 09.11.2026): the window no longer closes and asks
+               DialogV2 again when a vote opens under it - `liveFooter` redraws the buttons and writes them into the
+               window's own `options.buttons` - so the footer is read there, and a second wait asked is a fault (the
+               count of waits after the first stays 0). Until this edit the test waited for that second wait and, with
+               none coming, read an empty footer ([false, false, []]): red on every CI run from 56517337 to 957ee3bd. */
+            await until(() => drawn().length > 0 && !status().includes(sendFirst), 6000);
             await settle();
-            const back = asked.length > before[1] ? asked.at(-1) : null;
-            reading = [alone, before, [drawn().length, footer(back), status().includes(sendFirst)]];
+            reading = [alone, before, [drawn().length, asked.length - before[1], footer(drawn()[0]?.options), status().includes(sendFirst)]];
         } finally {
             if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
             for (const app of drawn()) await app.close();
@@ -38699,11 +38703,11 @@ const SCENARIOS = [
         equal(stableJson(reading), stableJson([
             [[true, true, ["cancel"]], true],
             [1, 1, [true, none, none ? ["cancel"] : ["open"]], true, true],
-            [1, [false, none, ["cancel"]], false]
+            [1, 0, [false, none, ["cancel"]], false]
         ]), "the vote window opened twice, offered Close and count with no vote open, did not say whom a ballot goes to (or that "
             + "nobody is connected), or did not come back with its count open once a vote was (read: windows drawn, waits asked, "
             + "the footer - Close and count closed, Send closed, the defaults -, the line to send first, the recipients' line; then "
-            + "the windows, the footer and the line again; first, with nobody connected: the footer and the line saying so)");
+            + "the windows, the waits asked again (none: the footer redrawn in place), the footer and the line again; first, with nobody connected: the footer and the line saying so)");
     }],
 
     ["the console says Nonstop Debate while a debate runs", async () => {
