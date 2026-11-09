@@ -12389,18 +12389,21 @@ const REGRESSIONS = [
          * the class (investigation.mjs); and a trace's context line at Stained Glass's floor, where
          * `.notes` sets it in VT323 at Legacy's 11 px (S12-52). No browser lays the window out in the
          * harness, so how it looks is the live check LIVE-E09-04, not this.
+         * THE TABLES ON THE KIT (E47-C4, 09.11.2026): the count cells are the `case-count` column of WHO HAS WHAT's
+         * `dataTable` and the Key tab's boxes its planner's, so their rules are components.css's dashboard section
+         * (`.drpg-num` and `.drpg-key-table` went with the hand tables); the same two claims read there.
          */
         const css = await moduleStyles();
         const rules = [...css.matchAll(/([^{}]*)\{([^{}]*)\}/g)].map(m => [m[1].trim(), m[2]]);
         const bodies = re => rules.filter(([selector]) => re.test(selector)).map(([, body]) => body);
         const inv = stripComments(new Map(await otherSources()).get("investigation.mjs") ?? "");
         equal(JSON.stringify([
-            bodies(/\.drpg-num\b/).some(b => /\bwidth\s*:/.test(b) && /text-align\s*:\s*center/.test(b)),
+            bodies(/drpg-window-case table\.drpg-data-table \.drpg-data-col-case-count$/).some(b => /\bwidth\s*:/.test(b) && /text-align\s*:\s*center/.test(b)),
             bodies(/drpg-window-case .*::placeholder$/).some(b => /\bcolor\s*:\s*var\(--drpg-dim\)/.test(b)),
             bodies(/^\.drpg-trace-filters label$/).some(b => /align-items\s*:\s*flex-start/.test(b)),
             bodies(/^\.drpg-trace-filters \.notes$/).some(b => /margin-left\s*:\s*auto/.test(b)),
-            bodies(/^\.drpg-key-table textarea$/).some(b => /min-height\s*:\s*0\b/.test(b))
-                && bodies(/^\.drpg-key-table textarea:focus$/).some(b => /min-height\s*:/.test(b)),
+            bodies(/drpg-window-case \[data-drpg-pane="key"\] table\.drpg-data-table textarea$/).some(b => /min-height\s*:\s*0\b/.test(b))
+                && bodies(/drpg-window-case \[data-drpg-pane="key"\] table\.drpg-data-table textarea:focus$/).some(b => /min-height\s*:/.test(b)),
             bodies(/drpg-theme-stained-glass[^,]*\.drpg-state-change/).length > 0
                 && bodies(/^\.application\.dialog[^,]*\.drpg-state-change/).length > 0,
             /action:\s*"bodyFound"[^}]*class:\s*"drpg-state-change"/.test(inv),

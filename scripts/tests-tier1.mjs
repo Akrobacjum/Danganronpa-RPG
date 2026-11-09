@@ -34967,7 +34967,9 @@ const INVARIANTS = [
         const road = fnSource(inv, "deleteTraceRow");
         const at = re => { const m = re.exec(road); return m ? m.index : -1; };
         const reads = {
-            head: /localize\("DRPG\.Investigation\.deleteTrace"\)\}<\/th>/.test(panel),
+            // the tab's table a dataTable since E47-C4: its head is a column of `caseTraceColumns`, not a `<th>` of the panel's
+            head: /localize\("DRPG\.Investigation\.deleteTrace"\)\}<\/th>/.test(panel)
+                || /key:\s*"delete",\s*label:\s*L\("DRPG\.Investigation\.deleteTrace"\)/.test(fnSource(inv, "caseTraceColumns")),
             bound: /querySelectorAll\("\[data-drpg-trace-delete\]"\)/.test(wire) && /deleteTraceRow\(button\.dataset\.drpgTraceDelete\)/.test(wire),
             gmFirst: /^[^{]*\{\s*if \(!game\.user\.isGM\b/.test(road),
             // The question is the kit's since E21 C3a (ui-kit.mjs `drpgConfirm`), DialogV2.confirm's until then.
@@ -42677,6 +42679,140 @@ const INVARIANTS = [
             wrapped: [0, 0]
         }), "{clock, murder: [label, the field it points at, its tag] in order; select: the chapter still a select; stepper: [min, max]; reads: [readClockForm, readSeasonForm] for 99, 0, -2, 2.5 and empty; wrapped: a label still wrapping its field}");
     }],
+
+    /* ---- E47-C4: the Investigation dashboard's tables on the kit (E46 + E47, release 1.2.102) ----------------------- */
+
+    ["R2067 - the Investigation dashboard's three tables on the kit (investigation.mjs; E47-C4, E47-13): WHO HAS WHAT on the drawn dashboard, the Traces tab's table (`caseTraceTable`) and the Key Remnants planner (`caseKeyTable`) each a `dataTable` (`table.drpg-data-table`), their columns the hand tables' in their order (D31) by head and by `col[data-drpg-col]`; WHO HAS WHAT's Student, Bullets, Keys held and Not analysed as number cells (`num`), its Breakdown head carrying `DRPG.Investigation.breakdownTooltip` (S12-52); every field's `name` the hand tables' (`readDashboardForm` reads them)", async () => {
+        /*
+         * E47-C4, 09.11.2026; card M5 (Approve, no note), S17-42, the plan's E47-13. The hand tables' columns, read at
+         * f7266b28 (investigation.mjs `caseHtml` ~2158, `caseTracesPanel` ~1886, `caseKeyPanel` ~2032), are the list
+         * below in their order, by their keys' words; the fields' names are the ones `readDashboardForm` and Save read
+         * (`img.`, `name.`, `text.`, `analysis.`, `type.`, `vis.`, `faint.`, `crime.`, `reinf.` with a trace's row key;
+         * `keyname:`, `keytext:`, `keyanalysis:`, `note:`, `token:`, `place:` with a slot), read off a synthetic trace and
+         * a synthetic plan of one slot (every input of the builders is an argument: nothing is written to the world).
+         * WHO HAS WHAT is read off the dashboard a GM opens. Red at f7266b28: three hand tables (`drpg-vault-table`), no
+         * `caseTraceTable` or `caseKeyTable`.
+         */
+        needs(env.dialogs(), "WHO HAS WHAT is read off the drawn dashboard");
+        must(game.user.isGM, "the dashboard is a GM's window");
+        const I = await import("./investigation.mjs");
+        const L = key => game.i18n.localize(key);
+        const host = markup => { const div = document.createElement("div"); div.innerHTML = markup; return div; };
+        const shape = root => {
+            const table = root?.querySelector("table") ?? null;
+            if (!table) return "no table";
+            return { kit: table.classList.contains("drpg-data-table"),
+                cols: [...table.querySelectorAll("col")].map(c => c.dataset.drpgCol ?? null),
+                heads: [...table.querySelectorAll("thead th")].map(th => th.textContent.trim()) };
+        };
+        const KEY = "SCN0000000002067__TOK0000000002067";
+        const trace = [{ token: { id: "TOK0000000002067" }, scene: { id: "SCN0000000002067" }, data: { type: "neutral", public: {} } }];
+        const plan = { chapter: 1, entries: [{ scale: "standard", name: "", text: "", note: "", tokenId: null, sceneId: null }] };
+        const status = { entries: [{ placed: false, found: false, finders: [] }], foundAny: 0, offPlan: [] };
+        const traces = typeof I.caseTraceTable === "function" ? host(I.caseTraceTable(trace, new Map())) : null;
+        const keys = typeof I.caseKeyTable === "function" ? host(I.caseKeyTable({ plan, status, placed: [], limit: null })) : null;
+        const names = root => [...(root?.querySelectorAll("[name]") ?? [])].map(el => el.getAttribute("name").replace(KEY, "K"));
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
+        must(open().length === 0, "a dashboard stands open already - nothing here would be read cleanly");
+        const answer = Promise.resolve().then(() => I.openInvestigationDashboard()).catch(e => `threw: ${e?.message ?? e}`);
+        let who = null;
+        try {
+            await until(() => open().some(a => a.element), 6000);
+            const table = open()[0]?.element?.querySelector(".drpg-case-live table") ?? null;
+            must(table, "the dashboard drew no WHO HAS WHAT");
+            const box = table.closest(".drpg-data-table-box") ?? table.parentElement;
+            const ths = [...table.querySelectorAll("thead th")];
+            who = { ...shape(box), num: ths.map(th => th.classList.contains("num")),
+                tooltip: ths.find(th => th.textContent.trim() === L("DRPG.Investigation.breakdown"))?.dataset.tooltip ?? null };
+        } finally {
+            for (const a of open()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(3000)]);
+        }
+        equal(stableJson({ who, traces: shape(traces), traceNames: names(traces), keys: shape(keys), keyNames: names(keys) }), stableJson({
+            who: { kit: true, cols: ["student", "bullets", "keys", "unidentified", "breakdown"],
+                heads: ["DRPG.Investigation.student", "DRPG.Investigation.bullets", "DRPG.Investigation.keysHeld", "DRPG.Investigation.unidentified", "DRPG.Investigation.breakdown"].map(L),
+                num: [false, true, true, true, false], tooltip: L("DRPG.Investigation.breakdownTooltip") },
+            traces: { kit: true, cols: ["name", "text", "analysis", "type", "vis", "faint", "crime", "reinf", "found", "delete"],
+                heads: ["DRPG.Investigation.traceName", "DRPG.Investigation.traceText", "DRPG.Investigation.traceAnalysis", "DRPG.Investigation.traceType", "DRPG.Investigation.visibility",
+                    "DRPG.Remnant.faintColumn", "DRPG.Remnant.crimeColumn", "DRPG.Remnant.reinforcedColumn", "DRPG.Investigation.foundBy", "DRPG.Investigation.deleteTrace"].map(L) },
+            traceNames: ["img.K", "name.K", "text.K", "analysis.K", "type.K", "vis.K", "faint.K", "crime.K", "reinf.K"],
+            keys: { kit: true, cols: ["scale", "name", "text", "analysis", "note", "status"],
+                heads: ["DRPG.Investigation.difficulty", "DRPG.Investigation.traceName", "DRPG.Investigation.traceText", "DRPG.Investigation.traceAnalysis", "DRPG.Investigation.keyNoteLabel", "DRPG.Investigation.keyStatus"].map(L) },
+            keyNames: ["keyname:0", "keytext:0", "keyanalysis:0", "note:0", "token:0", "place:0"]
+        }), "{who: WHO HAS WHAT on the drawn dashboard [a dataTable, its columns' keys, its heads' words, each head a number head, the Breakdown head's tooltip]; traces, keys: "
+            + "the Traces tab's and the planner's tables [a dataTable, columns, heads]; traceNames, keyNames: their fields' names (a trace's row key as K)}");
+    }],
+
+    ["R2068 - no table of the Investigation dashboard wider than its window (E47-C4, E47-13; S17-42): each of the three tables' columns carries a `cls` (`drpg-data-col-case-*`); in a stand-in of the window on a body of each theme the tables are the window's width (`width: 100%`) under a `min-width` the screen bounds (`vw`), in a fixed layout, every column's width stated as its share (a percentage; a table's shares adding up to 100), their fields at their column's width (`width: 100%`), all from components.css; the long cells - WHO HAS WHAT's Breakdown and the Traces tab's Found by - clamped to two lines with their whole text in `title`; the long heads cut at two lines with their name in `title`", async () => {
+        /*
+         * E47-C4, 09.11.2026. Under Legacy the Traces tab's table was 1583 px in the 1284 px window at 1366x768, a
+         * sideways scroll (STAGE E47, S17-42: the E46/E47 measure of 3c952c67, probe/summary47.txt): its fields kept
+         * their own widths and no column stated one. jsdom lays nothing out, so this reads the markup and the cascade
+         * (`styleCascade`, the rules a layout would apply, which declaration wins and from which file); the widths a
+         * browser draws are read in Chromium by the commit's measure (each table's width against the window's body at
+         * 1366x768 and 1920x1080, both themes, English and Polish), quoted there and in STATUS, not here. Red at
+         * f7266b28: no `cls` on a hand table's columns, no rule of components.css for any of them. A first draft gave the
+         * narrow columns a width in rem and left the layout automatic: the two description columns came to 40 px each
+         * under Legacy at 1366x768 (Chromium, the commit's screenshot), so the columns are shares of a fixed layout.
+         */
+        const I = await import("./investigation.mjs");
+        const C = await styleCascade();
+        const has = name => typeof I[name] === "function";
+        const trace = [{ token: { id: "TOK0000000002068" }, scene: { id: "SCN0000000002068" }, data: { type: "neutral", public: {} } }];
+        const finders = new Map([["TOK0000000002068", new Set(["SUITE R2068 a student with a long name", "SUITE R2068 another"])]]);
+        const plan = { chapter: 1, entries: [{ scale: "standard", name: "", text: "", note: "", tokenId: null, sceneId: null }] };
+        const status = { entries: [{ placed: false, found: false, finders: [] }], foundAny: 0, offPlan: [] };
+        const students = [{ actor: { name: "SUITE R2068 student" }, total: 3, keys: 1, unidentified: 2, types: { neutral: 2, key: 1 } }];
+        const tables = {
+            who: has("caseStudentTable") ? I.caseStudentTable(students) : `<table class="drpg-vault-table"><tbody>${I.caseStudentRows(students)}</tbody></table>`,
+            traces: has("caseTraceTable") ? I.caseTraceTable(trace, finders) : `<table class="drpg-vault-table"><tbody>${I.caseTraceRows(trace, finders)}</tbody></table>`,
+            keys: has("caseKeyTable") ? I.caseKeyTable({ plan, status, placed: [], limit: null }) : `<table class="drpg-vault-table"><tbody>${I.caseKeyRows({ plan, status, placed: [], limit: null })}</tbody></table>`
+        };
+        const CLAMPED = { who: "breakdown", traces: "found" };
+        const read = {};
+        for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-gm`;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-panel drpg-projects drpg-window-case drpg-ui drpg-kit-fit"><section class="window-content">`
+                + `<form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-kit-body"><div class="drpg-case-live"><form>`
+                + `<div data-drpg-part="who">${tables.who}</div>`
+                + `<section class="drpg-tab-pane" data-drpg-pane="traces">${tables.traces}</section>`
+                + `<section class="drpg-tab-pane" data-drpg-pane="key">${tables.keys}</section></form></div></div></div></form></section></div>`;
+            const parts = { who: body.querySelector('[data-drpg-part="who"]'), traces: body.querySelector('[data-drpg-pane="traces"]'), keys: body.querySelector('[data-drpg-pane="key"]') };
+            const from = (el, prop) => { const w = el ? C.winner(el, prop) : null; return w ? `${w.value.trim()} (${String(w.file).split("/").pop()})` : null; };
+            read[theme] = Object.fromEntries(Object.entries(parts).map(([part, root]) => {
+                const table = root.querySelector("table");
+                const cols = [...table.querySelectorAll("col")];
+                const keyOf = col => col.dataset.drpgCol;
+                const cell = key => {
+                    const i = cols.findIndex(c => keyOf(c) === key);
+                    return i < 0 ? null : table.querySelector(`tbody tr`)?.children[i] ?? null;
+                };
+                const fields = [...table.querySelectorAll("tbody :is(input[type=\"text\"], textarea, select)")];
+                const shares = cols.map(col => /^(\d+(?:\.\d+)?)% \(components\.css\)$/.exec(from(col, "width") ?? "")?.[1] ?? null);
+                const clamp = CLAMPED[part] ? cell(CLAMPED[part]) : null;
+                const longHeads = [...table.querySelectorAll("thead th")].filter(th => th.textContent.trim().length > 12);
+                return [part, {
+                    cls: cols.length > 0 && cols.every(c => /^drpg-data-col-case-[a-z-]+$/.test(c.className)),
+                    width: from(table, "width"), layout: from(table, "table-layout"), minWidth: /^min\(.*vw.*\) \(components\.css\)$/.test(from(table, "min-width") ?? "") ? "min(.., vw)" : from(table, "min-width"),
+                    fields: fields.length ? fields.every(el => from(el, "width") === "100% (components.css)") : "none",
+                    shares: shares.every(Boolean) ? shares.reduce((a, n) => a + Number(n), 0) : shares.map(n => n ?? "none").join(","),
+                    ...(clamp ? { clamped: [clamp.classList.contains("drpg-data-cell-lines-2"), (clamp.getAttribute("title") ?? "").length > 0 && Boolean(clamp.querySelector("span.drpg-data-clamp"))] } : {}),
+                    heads: longHeads.every(th => th.classList.contains("drpg-data-lines-2") && th.getAttribute("title") === th.textContent.trim())
+                }];
+            }));
+        }
+        const each = {
+            who: { cls: true, width: "100% (components.css)", layout: "fixed (components.css)", minWidth: "min(.., vw)", fields: "none", shares: 100, clamped: [true, true], heads: true },
+            traces: { cls: true, width: "100% (components.css)", layout: "fixed (components.css)", minWidth: "min(.., vw)", fields: true, shares: 100, clamped: [true, true], heads: true },
+            keys: { cls: true, width: "100% (components.css)", layout: "fixed (components.css)", minWidth: "min(.., vw)", fields: true, shares: 100, heads: true }
+        };
+        equal(stableJson(read), stableJson({ "drpg-theme-monokuma-legacy": each, "drpg-theme-stained-glass": each }),
+            "{per theme, per table: every column a drpg-data-col-case-* class; the table's width, layout and min-width (and file); its fields at 100% from components.css; "
+            + "the columns' shares from components.css, added up (or each one's, none where a column states none); the long cell clamped [class, title and clamp span]; every long head cut with its title}");
+    }],
+
 ];
 
 /**

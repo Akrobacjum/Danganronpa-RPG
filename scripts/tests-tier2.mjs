@@ -26509,6 +26509,9 @@ const SCENARIOS = [
          * and the Really heading's tooltip. The widths themselves are the stylesheet's (R309) and
          * not measured here: no layout in the harness (LIVE-E09-04). Red at the parent: neither
          * builder exported, no mark, no tooltip.
+         * ON THE KIT (E47-C4, 09.11.2026): WHO HAS WHAT is a `dataTable`, its count cells and heads the kit's `num`
+         * (`drpg-num` until then) and its Breakdown cell the `case-breakdown` column's (a `notes` cell until then); the
+         * builders' rows are the tables' body rows, read the same way.
          */
         needs(env.dialogs(), "the Who has what heading is read off the drawn dashboard");
         const I = await import("./investigation.mjs");
@@ -26528,12 +26531,12 @@ const SCENARIOS = [
             const table = win.app.element.querySelector(".drpg-case-live table") ?? null;
             const ths = [...(table?.querySelectorAll("thead th") ?? [])];
             const really = ths.find(th => th.textContent.trim() === game.i18n.localize("DRPG.Investigation.breakdown"));
-            heads = [ths.filter(th => th.classList.contains("drpg-num")).length, Boolean(really?.dataset.tooltip)];
+            heads = [ths.filter(th => th.classList.contains("num")).length, Boolean(really?.dataset.tooltip)];
         } finally {
             await win.close();
         }
-        const breakdown = host.querySelector("td.notes")?.textContent ?? "";
-        equal(stableJson([host.querySelectorAll("td.drpg-num").length, /\(2\)/.test(breakdown) && !/×/.test(breakdown),
+        const breakdown = host.querySelector("td.drpg-data-col-case-breakdown")?.textContent ?? "";
+        equal(stableJson([host.querySelectorAll("td.num").length, /\(2\)/.test(breakdown) && !/×/.test(breakdown),
             hint("text").length > 0, hint("analysis").length > 0 && hint("analysis").length <= 30, heads]),
         stableJson([3, true, true, true, [3, true]]),
         "Who has what or the Traces tab still draws wide counts, a ×count, no description hint or a long analysis one, or a Really heading with no word on it (count cells, breakdown, description hint, analysis hint, [count headings, Really tooltip])");

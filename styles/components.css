@@ -2732,3 +2732,83 @@ body .application.dialog.drpg-window-preseason .drpg-check-part > p.drpg-help { 
     .application.drpg-ui.drpg-window-incident .drpg-form-grid > .drpg-form-label { grid-column: 1; }
     .application.drpg-ui.drpg-window-incident .drpg-form-grid > .drpg-form-field { grid-column: 2; }
 }
+
+/* ---- the Investigation dashboard (E47-C4, 09.11.2026; card M5, STAGE E47's dashboard shape) ----
+   WHO HAS WHAT, the Traces tab's table and the Key Remnants planner are the kit's `dataTable` (investigation.mjs
+   `caseStudentTable`, `caseTraceTable`, `caseKeyTable`), every column with a `cls` (`drpg-data-col-case-*`). Moved here
+   from danganronpa.css with the hand tables (8 rules: `.drpg-vault-table :is(th, td).drpg-num`, the window's
+   placeholders, `.drpg-key-table`'s head and its textarea's one line and its focus, `.drpg-key-status` twice,
+   `.drpg-key-place`); `.drpg-vault-table`'s own rules stay, other windows draw it. R2068 and R309 read these. */
+/* NO TABLE WIDER THAN THE WINDOW. Under Legacy the Traces table was 1583 px in the 1284 px window at 1366x768, a
+   sideways scroll (the E46/E47 measure of 3c952c67): its fields kept their own widths. Each table is the window's
+   width, each column its share of it (below), each field its column's width. The window stays `fit` (E21's fit row):
+   its measure reads the tables' `min-width`, one for the three so a tab does not move the window: the window's own
+   ceiling (`windowWidthFor`: 94 % of the screen and `--drpg-window-max`) less 3rem, more than the frame and the body's
+   padding take (34 px, both themes, Chromium, 09.11.2026). No length of its own: the kit's sheet states none above a
+   phone's 390 px (R1322). */
+.application.drpg-window-case .drpg-data-table-box > table.drpg-data-table {
+    width: 100%;
+    min-width: min(calc(var(--drpg-window-max) - 3rem), calc(94vw - 3rem));
+}
+.application.drpg-window-case table.drpg-data-table td { vertical-align: middle; }
+.application.drpg-window-case table.drpg-data-table :is(input[type="text"], textarea, select) {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+/* under Legacy the cells keep the room and the line the hand tables gave them (danganronpa.css `.drpg-vault-table`) */
+body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-data-table-box > table.drpg-data-table :is(th, td) {
+    padding: 3px 6px;
+    border-bottom: 1px solid var(--drpg-kit-line);
+}
+/* EACH COLUMN ITS SHARE. A fixed layout: the columns' widths are the `col`s' (their `cls`), in shares of the table, so no
+   field or one-word head - under Legacy's pixel face "Reinforced" and "Visibility" are each wider than their column -
+   can widen a table past the window, and the text columns keep their room at every width (an automatic layout gave the
+   two description columns 40 px each and the selects the rest, Legacy at 1366x768, Chromium, 09.11.2026). The counts
+   are narrow and centred (E09 C16, audit S05-29: columns of 150-420 px with one digit each). */
+.application.drpg-window-case .drpg-data-table-box > table.drpg-data-table { table-layout: fixed; }
+.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-student { width: 34%; }
+.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-count { width: 11%; text-align: center; }
+.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-breakdown { width: 33%; }
+.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-trace-name { width: 12%; }
+.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-text { width: 13%; }
+.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-pick { width: 9%; }
+.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-check { width: 7%; text-align: center; }
+.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-found { width: 8%; }
+/* Visibility, the one select whose head is one long word, a share of its own (under Legacy "Visibility" broke in two at
+   10 %, 1366x768) */
+.application.drpg-window-case table.drpg-data-table col[data-drpg-col="vis"] { width: 11%; }
+.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-act { width: 11%; }
+.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-scale { width: 11%; }
+.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-key-name { width: 17%; }
+.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-key-text { width: 20%; }
+.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-key-note { width: 14%; }
+.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-key-status { width: 18%; }
+/* a button no wider than its column (Delete, Place); Delete's column holds its word under the glass's padding at
+   1024x768 and Legacy's pixel face (at 8 % it stood 11 px past the Traces table under the glass, at 10 % 4 px under
+   Legacy, Chromium, 09.11.2026) */
+.application.drpg-window-case table.drpg-data-table td button { max-width: 100%; }
+/* the descriptions are prose (Room setup's 5.5rem, `.drpg-vault-table textarea`), except the Key tab's: one line until
+   the GM is in it, the prose's height on focus (E09 C16, audit S05-28: three lines tall a row) */
+.application.drpg-window-case table.drpg-data-table textarea {
+    min-height: 5.5rem;
+    resize: vertical;
+    line-height: 1.45;
+}
+.application.drpg-window-case [data-drpg-pane="key"] table.drpg-data-table textarea { min-height: 0; }
+.application.drpg-window-case [data-drpg-pane="key"] table.drpg-data-table textarea:focus { min-height: 5.5rem; }
+.application.drpg-window-case td.drpg-data-col-case-key-status > * + * { margin-top: 0.25rem; }
+.application.drpg-window-case button.drpg-key-place { width: auto; }
+/* A hint is not an answer: dim, and slanted, so an empty box never reads as filled in. */
+.application.drpg-window-case :is(input, textarea)::placeholder {
+    color: var(--drpg-dim);
+    font-style: italic;
+    opacity: 1;
+}
+/* a head breaks inside a word only where its column has no room for the word (Legacy's pixel face at 1024x768: one-word
+   heads - "Reinforced", "Visibility" - held the Traces table at 1070 px in a 929 px window body, Chromium, 09.11.2026),
+   within its two lines (`lines: 2`) and its whole name in its tooltip */
+.application.drpg-window-case table.drpg-data-table > thead th { overflow-wrap: anywhere; }
+/* the Status column holds a picker and a button: under the glass the last column's actions read from the right on one
+   line (`.drpg-panel table td.act`, chrome.mjs marks it), which put the Place button 21 px past the table at 1366x768 */
+body .application.drpg-window-case table.drpg-data-table td.drpg-data-col-case-key-status { white-space: normal; text-align: start; }
