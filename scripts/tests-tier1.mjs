@@ -39005,7 +39005,7 @@ const INVARIANTS = [
         const root = reserveStandIn(actor);
         let bubbled = 0;
         root.addEventListener("change", () => bubbled++);
-        SH.paintReserves({ document: actor }, root, actor, game.user);
+        SH.paintReserves({ document: actor, isEditable: true }, root, actor, game.user);
         const field = root.querySelector("[data-drpg-reserve='hitPoints'] input.drpg-reserve-field");
         const held = field ? [field.value, field.min, field.max] : null;
         if (field) {
@@ -39033,7 +39033,7 @@ const INVARIANTS = [
             };
             try {
                 const page = reserveStandIn(actor);
-                SH.paintReserves({ document: actor }, page, actor, user);
+                SH.paintReserves({ document: actor, isEditable: true }, page, actor, user);
                 return [page.querySelectorAll("input.drpg-reserve-field").length, reserveRowText(page.querySelector("[data-drpg-reserve='hitPoints'] .drpg-reserve-row"))];
             } finally {
                 if (ownGet) game.settings.get = get;
@@ -39108,7 +39108,7 @@ const INVARIANTS = [
         if (/--drpg-res(?![\w-])/.test(await moduleStyles())) problems.push("`--drpg-res` is still in a sheet");
         equal(stableJson(problems), "[]", "the reserves' colours: [theme, layout, reserve: what is wrong]");
     }],
-    ["R1445 - Sanity is private on the sheet (sheet.mjs `paintReserves`, anonymity.mjs `redactSheet`; E24 C1a, E24-06; the owner's 28.10): another player's redacted stand-in, in either layout, holds no Sanity number - its marks, reserve, maximum or share - in a text node, an attribute (a `data-tooltip`, an `aria-label`, a `value`, a `max` among them) or a field's value, and its row says \"?\"; Health's row is there; the owner's and a GM's sheets show both", async () => {
+    ["R1445 - Sanity is private on the sheet (sheet.mjs `paintReserves`, anonymity.mjs `redactSheet`; E24 C1a, E24-06; the owner's 28.10): another player's redacted stand-in, in either layout, holds no Sanity number - its marks, reserve, maximum or share - in a text node, an attribute (a `data-tooltip`, an `aria-label`, a `value`, a `max` among them) or a field's value, and its row says \"?\"; with \"Enforce anonymity\" off, another player's unredacted stand-in holds none either (E24 fix G2B; general m2); Health's row is there; the owner's and a GM's sheets show both", async () => {
         /*
          * E24 C1a, 08.11.2026. The owner, 28.10: another player does not see a player's Sanity on the sheet. A view
          * change, not a data change (the document still reaches every browser): `reserveView` says Sanity is not shown
@@ -39117,6 +39117,11 @@ const INVARIANTS = [
          * it - EMPTIED, NOT HIDDEN. The stand-in's numbers are chosen apart: Health 1 of 4 marked (3 left), Sanity 2 of
          * 7 (5 left, 71.4 %, 28.6 % marked), so any 2, 5 or 7 standing alone, or either share, is Sanity's. Before C1a
          * the redacted sheet kept Sanity's number field `value="2"`, `max="6"` and its label "6" (C0's stand-in).
+         * E24 fix G2B (general m2): the same viewer's sheet with anonymity off, painted and not redacted - the painter
+         * empties the system's controls of a Sanity it does not show. Red on 52955be4: the unredacted bar layout kept
+         * the progress's `max="7"` and `value="2"`, the field's `max="7"` and value 2 and the label "7", the pip layout
+         * its seven slots' `data-value` and the label "2 / 7", hidden by a class only. The slots are counted as well: a
+         * planted painter that emptied them and kept them stayed green on the digits alone (seven slots, Sanity's maximum).
          */
         const SH = await import("./sheet.mjs");
         const A = await import("./anonymity.mjs");
@@ -39144,18 +39149,148 @@ const INVARIANTS = [
         const readings = {};
         for (const pips of [false, true]) {
             const seen = {};
-            for (const [who, user] of [["viewer", viewer], ["owner", owner], ["gm", game.user]]) {
+            for (const [who, user] of [["viewer", viewer], ["open", viewer], ["owner", owner], ["gm", game.user]]) {
                 const root = reserveStandIn(actor, { pips });
                 SH.paintReserves({ document: actor }, root, actor, user);
                 if (who === "viewer") A.redactSheet(root);
-                seen[who] = who === "viewer" ? { leaks: leaks(root), health: row(root, "hitPoints"), sanity: row(root, "stress") }
+                seen[who] = who === "viewer" || who === "open" ? { leaks: leaks(root), slots: root.querySelectorAll("[data-drpg-reserve='stress'] .slot").length, health: row(root, "hitPoints"), sanity: row(root, "stress") }
                     : { health: row(root, "hitPoints"), sanity: row(root, "stress") };
             }
             readings[pips ? "pips" : "bar"] = seen;
         }
-        const each = { viewer: { leaks: [], health: L(3, 4), sanity: "?" }, owner: { health: L(3, 4), sanity: L(5, 7) }, gm: { health: L(3, 4), sanity: L(5, 7) } };
+        const each = { viewer: { leaks: [], slots: 0, health: L(3, 4), sanity: "?" }, open: { leaks: [], slots: 0, health: L(3, 4), sanity: "?" },
+            owner: { health: L(3, 4), sanity: L(5, 7) }, gm: { health: L(3, 4), sanity: L(5, 7) } };
         equal(stableJson(readings), stableJson({ bar: each, pips: each }),
-            "[the bar layout, the pip layout] x [another player's redacted sheet, the owner's, a GM's]: [Sanity's numbers found, Health's row, Sanity's row]");
+            "[the bar layout, the pip layout] x [another player's redacted sheet, the same unredacted (anonymity off), the owner's, a GM's]: [Sanity's numbers found, Sanity's system slots left (their count is its maximum), Health's row, Sanity's row]");
+    }],
+    ["R1497 - the reserve's field is the mode's (sheet.mjs `sheetMode(...).reserveField`, `paintReserves`; E24 fix G2B, general m1 and n3; E24-04): on stand-in roots of a living student, a Monocub, an NPC not in the class, the dead and a Monokuma, the field is drawn for a GM and for the owner with Lock player resources off, on a sheet its app says is editable, never on the dead's or a Monokuma's, never for another player; the mode answers what is drawn, and a repaint draws for the sheet it repaints; and a write that comes back with nothing to write leaves a field being typed into as it is", async () => {
+        /*
+         * E24 fix G2B, 08.11.2026. The review's m1: `mayEditReserve` asked `user?.isGM` and `testUserPermission?.(`
+         * beside the mode, so the field was drawn on the dead's sheet (a GM's always, the owner's with the lock off), on
+         * a Monokuma's and on a sheet whose app is not editable. Stand-ins as R1445's (`reserveActor`: Health 1 of 4
+         * marked, Sanity 2 of 7), the flags answered by an own `getFlag`, the lock answered in memory (`game.settings.get`
+         * for this one key, put back in a finally), nothing written. n3: the field's handler set the field it was bound
+         * to back to the reserve when the write answered null - also while the field was being typed into again. Red on
+         * 52955be4: the mode had no `reserveField`; two fields drawn on the dead's and a Monokuma's editable sheet for a
+         * GM and the unlocked owner, and on every sheet that is not editable for them; the typed "1" read back as "3".
+         */
+        const SH = await import("./sheet.mjs");
+        must(typeof SH.paintReserves === "function" && typeof SH.sheetMode === "function", "sheet.mjs has no `paintReserves` or `sheetMode` - this would measure nothing");
+        const owner = { id: "r1497-owner", isGM: false }, viewer = { id: "r1497-viewer", isGM: false };
+        const stamp = Date.now().toString(36);
+        const KINDS = { living: {}, monocub: { [FLAGS.deceased]: { chapter: 1 }, [FLAGS.monocub]: true }, npc: { [FLAGS.notInClass]: true },
+            dead: { [FLAGS.deceased]: { chapter: 1 } }, monokuma: { [FLAGS.monokuma]: true } };
+        const SEATS = { gm: [game.user, false], gmLocked: [game.user, true], owner: [owner, false], ownerLocked: [owner, true], viewer: [viewer, false] };
+        const flagged = (id, flags, written) => Object.assign(reserveActor({ id, hp: 1, stress: 2, stressMax: 7, owner: owner.id, written }),
+            { getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const settings = game.settings;
+        const realGet = settings.get;
+        let locked = false;
+        Object.defineProperty(settings, "get", { configurable: true, writable: true,
+            value: function (scope, key) { return scope === MODULE_ID && key === SETTINGS.lockPlayerResources ? locked : realGet.call(this, scope, key); } });
+        const drawn = {}, said = {};
+        let typed = null, repainted = null;
+        try {
+            for (const [kind, flags] of Object.entries(KINDS)) {
+                const actor = flagged(`r1497${kind}${stamp}`, flags, []);
+                for (const [seat, [user, lock]] of Object.entries(SEATS)) {
+                    locked = lock;
+                    for (const editable of [true, false]) {
+                        const key = `${kind}/${seat}/${editable ? "editable" : "not editable"}`;
+                        const root = reserveStandIn(actor);
+                        SH.paintReserves({ document: actor, isEditable: editable }, root, actor, user);
+                        drawn[key] = root.querySelectorAll("input.drpg-reserve-field").length;
+                        const answer = SH.sheetMode(actor, user, { editable }).reserveField;
+                        said[key] = answer === true ? 2 : answer === false ? 0 : `${answer}`;
+                    }
+                }
+            }
+            locked = false;
+            // The repaint (`installRenderPlan`) draws for the sheet it repaints: a GM's sheet its app says is not editable
+            // keeps no field after a Health write, as its render drew none.
+            const still = flagged(`r1497r${stamp}`, {}, []);
+            const Stand = { render() { this.calls++; return Promise.resolve(this); } };
+            const app = Object.assign(Object.create(Stand), { id: "r1497-sheet", document: still, isEditable: false, element: reserveStandIn(still), rendered: true, calls: 0 });
+            SH.paintReserves(app, app.element, still, game.user);
+            SH.installRenderPlan(app);
+            await app.render(false, { renderContext: "updateActor", renderData: { system: { resources: { hitPoints: { value: 1 } } } } });
+            repainted = [app.element.querySelectorAll("input.drpg-reserve-field").length, app.calls];
+            const written = [];
+            const actor = flagged(`r1497t${stamp}`, {}, written);
+            const root = reserveStandIn(actor);
+            document.body.append(root);
+            try {
+                SH.paintReserves({ document: actor, isEditable: true }, root, actor, game.user);
+                const field = root.querySelector("[data-drpg-reserve='hitPoints'] input.drpg-reserve-field");
+                must(field, "no Health field for a GM on a living student's editable sheet - this would measure nothing");
+                field.value = "3"; // what is left: nothing to write, the write answers null
+                field.dispatchEvent(new Event("change"));
+                field.focus();
+                field.value = "1"; // typed again before the answer came back
+                await new Promise(resolve => setTimeout(resolve, 0));
+                typed = [field.value, document.activeElement === field, written.length];
+            } finally {
+                root.remove();
+            }
+        } finally {
+            if (Object.getOwnPropertyDescriptor(settings, "get")?.value !== realGet) delete settings.get;
+            if (settings.get !== realGet) Object.defineProperty(settings, "get", { configurable: true, writable: true, value: realGet });
+        }
+        const want = {};
+        for (const kind of Object.keys(KINDS)) {
+            for (const seat of Object.keys(SEATS)) {
+                for (const editable of [true, false]) {
+                    const field = editable && ["living", "monocub", "npc"].includes(kind) && ["gm", "gmLocked", "owner"].includes(seat);
+                    want[`${kind}/${seat}/${editable ? "editable" : "not editable"}`] = field ? 2 : 0;
+                }
+            }
+        }
+        equal(stableJson({ drawn, said, repainted, typed }), stableJson({ drawn: want, said: want, repainted: [0, 0], typed: ["1", true, 0] }),
+            "{drawn: the fields on each [kind, seat (a GM, a GM with the lock on, the owner, the owner with the lock on, another player), sheet editable or not]; said: the mode's reserveField as 2 or 0; repainted: [the fields after a Health repaint on a GM's sheet that is not editable, the original's renders]; typed: [a field typed into while a null write came back, still focused, writes]}");
+    }],
+    ["R1484 - the Party sheet's rows are every member's reserve, Sanity only to its owner and the GMs (sheet.mjs `paintPartyReserves`; E24 fix G2B, general m4's Party side and security S-2; E24-11, Q-E24-3): a student's, an NPC's not in the class and a Monokuma's rows read what is left; a GM's pips toggle the reserve, a player's toggle nothing; to another player Sanity reads \"?\" with no slot left, so its maximum is not counted off the pips", async () => {
+        /*
+         * E24 fix G2B, 08.11.2026. The review's m4: the Party sheet skipped an NPC and a Monokuma (`strip === "none"`),
+         * so their rows kept Daggerheart's marks and Sanity for everybody, while their sheets say what is left and keep
+         * Sanity to the owner and the GMs - now one meaning, the sheet's, as states.mjs's token side (G2a). Security S-2:
+         * a member's Sanity not shown kept every slot, emptied, so the count of slots was its maximum. Stand-ins as
+         * R1447's (`partyStandIn`; Health 1 of 4 marked, Sanity 2 of 7), the flags by an own `getFlag`. Red on 52955be4:
+         * the NPC's and the Monokuma's rows as Daggerheart drew them ("1 / 4", one slot filled, every toggle, the marks'
+         * values) for each seat, and seven Sanity slots on another player's sheet for each of the three.
+         */
+        const SH = await import("./sheet.mjs");
+        must(typeof SH.paintPartyReserves === "function", "sheet.mjs has no `paintPartyReserves` - this would measure nothing");
+        const owner = { id: "r1484-owner", isGM: false }, viewer = { id: "r1484-viewer", isGM: false };
+        const stamp = Date.now().toString(36);
+        const KINDS = { student: {}, npc: { [FLAGS.notInClass]: true }, monokuma: { [FLAGS.monokuma]: true } };
+        const HEALTH = "DAGGERHEART.GENERAL.HitPoints.plural", SANITY = "DAGGERHEART.GENERAL.stress";
+        const read = (root, tip) => {
+            const section = root.querySelector(`.slot-label[data-tooltip="${tip}"]`)?.closest(".slot-section");
+            const slots = [...(section?.querySelectorAll(".slot") ?? [])];
+            return { value: section?.querySelector(".slot-label .value")?.textContent.replace(/\s+/g, " ").trim() ?? null, slots: slots.length,
+                filled: slots.filter(s => s.classList.contains("filled")).length, toggles: slots.filter(s => s.dataset.action).length,
+                numbers: slots.map(s => s.dataset.value ?? null) };
+        };
+        const out = {};
+        for (const [kind, flags] of Object.entries(KINDS)) {
+            const actor = Object.assign(reserveActor({ id: `r1484${kind}${stamp}`, hp: 1, stress: 2, stressMax: 7, owner: owner.id }),
+                { getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+            for (const [who, user] of [["gm", game.user], ["owner", owner], ["viewer", viewer]]) {
+                const root = partyStandIn(actor);
+                SH.paintPartyReserves(null, root, user, uuid => (uuid === `Actor.${actor.id}` ? actor : null));
+                out[`${kind}/${who}`] = { health: read(root, HEALTH), sanity: read(root, SANITY) };
+            }
+        }
+        const reversed = max => Array.from({ length: max }, (_, i) => String(max - i));
+        const off = max => Array.from({ length: max }, () => null);
+        const each = {
+            gm: { health: { value: "3 / 4", slots: 4, filled: 3, toggles: 4, numbers: reversed(4) }, sanity: { value: "5 / 7", slots: 7, filled: 5, toggles: 7, numbers: reversed(7) } },
+            owner: { health: { value: "3 / 4", slots: 4, filled: 3, toggles: 0, numbers: off(4) }, sanity: { value: "5 / 7", slots: 7, filled: 5, toggles: 0, numbers: off(7) } },
+            viewer: { health: { value: "3 / 4", slots: 4, filled: 3, toggles: 0, numbers: off(4) }, sanity: { value: "?", slots: 0, filled: 0, toggles: 0, numbers: [] } }
+        };
+        const want = Object.fromEntries(Object.keys(KINDS).flatMap(kind => Object.entries(each).map(([who, row]) => [`${kind}/${who}`, row])));
+        equal(stableJson(out), stableJson(want),
+            "[a student, an NPC not in the class, a Monokuma] x [a GM's Party sheet, the owner's, another player's]: Health's and Sanity's [the row's numbers, slots, filled, with a toggle, each slot's value]");
     }],
     ["R1462 - the inventory reads under both themes (E24 C4a, E24-26; the audit's S08-28 and S12-15): under Stained Glass the group headings and GROUP BY stand at the chrome floor, the counts in the theme's dim bone at full opacity and a full count in the seam's colour, not a red; the Ink count only under Monokuma Legacy, whose header is Bone; an empty group's line at full strength in both", async () => {
         /*
@@ -39570,7 +39705,7 @@ const INVARIANTS = [
             party: {
                 gm: { health: { value: "3 / 4", filled: 3, toggles: 4, numbers: reversed(4) }, sanity: { value: "5 / 7", filled: 5, toggles: 7, numbers: reversed(7) } },
                 owner: { health: { value: "3 / 4", filled: 3, toggles: 0, numbers: off(4) }, sanity: { value: "5 / 7", filled: 5, toggles: 0, numbers: off(7) } },
-                viewer: { health: { value: "3 / 4", filled: 3, toggles: 0, numbers: off(4) }, sanity: { value: "?", filled: 0, toggles: 0, numbers: off(7) } } } }),
+                viewer: { health: { value: "3 / 4", filled: 3, toggles: 0, numbers: off(4) }, sanity: { value: "?", filled: 0, toggles: 0, numbers: [] } } } }),
         "{bars: a student's [Health to another player, Sanity to them, to the owner, to a GM], [a Monokuma's and an NPC's Health to another player, their Sanity to them, an NPC's Sanity to a GM], [an adversary's Health, a student's Hope as Foundry's]; "
             + "wrap: [marked, a second wrap stacks nothing, bar 1's value and editable through it]; the contract's row [kind, owner, file, target] and its state here; "
             + "party: a GM's, the owner's and another player's sheet: [the row's numbers, pips filled, pips with a toggle, each pip's value for a toggle]}");
@@ -40197,7 +40332,7 @@ const INVARIANTS = [
                 monokuma: { emptyGroups: 0, limits: false, equipped: false, experience: false, bioLink: false, bioPart: false, features: true } }),
             "{student: Equipped, Experience, the biography's link and part shown; monokuma: empty groups, a group's limit, Equipped, Experience, the biography's link, its part, the Actions tab shown}");
     }],
-    ["R1474 - the redaction runs from the mode (E45 C1; anonymity.mjs `onRenderSheet`): with anonymity enforced, another player's sheet is redacted when sheet.mjs `sheetMode(...).redact` says so and a GM's is not; a throw inside the mode still closes the sheet, its root hidden - the redaction fails closed as before", async () => {
+    ["R1474 - the redaction runs from the mode (E45 C1; anonymity.mjs `onRenderSheet`): with anonymity enforced, another player's sheet is redacted when sheet.mjs `sheetMode(...).redact` says so and a GM's is not; a throw inside the mode still closes the sheet, its root hidden - the redaction fails closed as before, and so does the mode when reading the setting throws", async () => {
         /*
          * E45 C1, 08.11.2026. A character's stand-in nobody here owns (its `testUserPermission` answers no), drawn with
          * `isGM` off on this GM's `game.user` (R1455's owner role, here a viewer) through Foundry's `renderActorSheetV2`
@@ -40225,6 +40360,10 @@ const INVARIANTS = [
         let out;
         try {
             out = { gm: await draw("gm"), viewer: await draw("owner"), thrown: await draw("owner", { throws: true }) };
+            // E24 fix G2B (security N-3): the setting's read throws - the mode redacts. Red on 52955be4: false.
+            Object.defineProperty(settings, "get", { configurable: true, writable: true,
+                value: function (scope, key) { if (scope === MODULE_ID && key === SETTINGS.enforceAnonymity) throw new Error("R1474's planted throw"); return realGet.call(this, scope, key); } });
+            out.settingThrows = SH.sheetMode(stand(), { id: "r1474-viewer", isGM: false }).redact;
         } finally {
             if (Object.getOwnPropertyDescriptor(settings, "get")?.value !== realGet) delete settings.get;
             if (settings.get !== realGet) Object.defineProperty(settings, "get", { configurable: true, writable: true, value: realGet });
@@ -40232,8 +40371,8 @@ const INVARIANTS = [
         const onRender = fnSource(stripComments((new Map(await otherSources())).get("anonymity.mjs") ?? ""), "onRenderSheet");
         equal(stableJson({ out, source: { mode: /\bsheetMode\(/.test(onRender) && /\.redact\b/.test(onRender), own: /testUserPermission\(|game\.user\.isGM/.test(onRender) } }),
             stableJson({ out: { gm: { redact: false, redacted: false, closed: [], hidden: false }, viewer: { redact: true, redacted: true, closed: [], hidden: false },
-                thrown: { redact: null, redacted: false, closed: [true], hidden: true } }, source: { mode: true, own: false } }),
-            "{gm, another player, a throw in the mode: the mode's redact, the root redacted, the close's force, the root hidden; source: onRenderSheet reads sheetMode's redact and asks no permission itself}");
+                thrown: { redact: null, redacted: false, closed: [true], hidden: true }, settingThrows: true }, source: { mode: true, own: false } }),
+            "{gm, another player, a throw in the mode: the mode's redact, the root redacted, the close's force, the root hidden; settingThrows: the mode's redact when the setting's read throws; source: onRenderSheet reads sheetMode's redact and asks no permission itself}");
     }],
     ["R1475 - Present's gate is the mode's (E45 C1; E70's `modeAllows`): sheet.mjs `sheetMode(...).present(floor)` hides the button outside a Class Trial, for the dead and for the trial's muted dead, and holds it while another holds a floor that keeps Present to its holder with trial-floor.mjs `presentRefusal`'s line - the Present window's own text (trial.mjs) - and frees it on an open floor; `addPresentButton` and `paintPresentButton` ask the mode and no predicate", async () => {
         /*
@@ -40289,10 +40428,14 @@ const INVARIANTS = [
             armor: [[upd(res({ armor: { value: 1 } }))]], onlyId: [[upd({ _id: "r1477", _stats: { modifiedTime: 1 } })]],
             none: [[]], forced: [[true, upd(hope)]], bareFalse: [[false]], three: [[false, upd(hope), {}]], nullFirst: [[null]],
             noData: [[{ renderContext: "updateActor" }]], dataList: [[upd([hope])]], force: [[upd(hope, { force: true })]],
-            parts: [[upd(hope, { parts: ["sidebar"] })]], first: [[upd(hope)], { rendered: false }], item2: [[{ renderContext: "updateItem", renderData: hope }]]
+            parts: [[upd(hope, { parts: ["sidebar"] })]], first: [[upd(hope)], { rendered: false }], item2: [[{ renderContext: "updateItem", renderData: hope }]],
+            // E24 fix G2B (general n1): the repaint toggles the diamonds already drawn, so a Hope maximum renders; a
+            // reserve's maximum is drawn by the painter. Red on 52955be4: hopeMax and hopeBoth repainted.
+            hopeMax: [[upd(res({ hope: { max: 7 } }))]], hopeBoth: [[upd(res({ hope: { value: 3, max: 7 } }))]], healthMax: [[upd(res({ hitPoints: { max: 5 } }))]],
+            sanityMax: [[upd(res({ stress: { value: 1, max: 7 } }))]], hopeOther: [[upd(res({ hope: { r1477: 1 } }))]]
         };
         const plans = Object.fromEntries(Object.entries(cases).map(([name, [args, state]]) => [name, SH.renderPlan(args, state)]));
-        const repaint = ["health", "hope", "both", "foundry"];
+        const repaint = ["health", "hope", "both", "foundry", "healthMax", "sanityMax"];
         equal(stableJson(plans), stableJson(Object.fromEntries(Object.keys(cases).map(name => [name, repaint.includes(name) ? "repaint" : "render"]))),
             "renderPlan for each case: [resource-only updateActor (Health, Hope, both with _id and _stats, Foundry's (false, options))] repaint, every other shape renders");
 
@@ -40442,10 +40585,32 @@ const INVARIANTS = [
                 renders: app.calls.length };
         });
         must(student.before.greyed > 0, "no Hope Call was greyed at no Hope - the Calls' repaint would read nothing");
-        equal(stableJson({ cub, student: { ...student, before: { full: student.before.full } } }), stableJson({
+        // E24 fix G2B (general m3): the header's Hope diamonds (Daggerheart 2.10.5's `.hope-value` with its glyph), 3 of 6
+        // lit, spent to 1 by a repaint, on a living student's sheet, the dead's and an NPC's - the last two still headers,
+        // which `flashHope` leaves unmarked. Red on 52955be4: two diamonds marked spent on each of the three.
+        const flare = {};
+        for (const [kind, flags] of Object.entries({ living: {}, dead: { [FLAGS.deceased]: { chapter: 1 } }, npc: { [FLAGS.notInClass]: true } })) {
+            flare[kind] = await e24Flagged(who, flags, async () => {
+                const lit = { actions: { value: 3, max: 3 }, hitPoints: { value: 0, max: 4 }, stress: { value: 0, max: 6 }, hope: { value: 3, max: 6 } };
+                return e45Held(who, lit, async () => {
+                    const root = e24SheetRoot();
+                    let diamonds = "";
+                    for (let n = 1; n <= 6; n++) diamonds += `<span class="hope-value" data-value="${n}"><i class="${n <= 3 ? "fa-solid" : "fa-regular"} fa-diamond"></i></span>`;
+                    root.querySelector(".character-header-sheet .resource-section").innerHTML = `<div class="hope-section">${diamonds}</div>`;
+                    const app = Object.assign(Object.create(Stand), { id: `r1479-flare-${kind}`, document: who, isEditable: true, element: root, rendered: true, calls: [] });
+                    Hooks.callAll("renderCharacterSheet", app, root, {}, { isFirstRender: true });
+                    lit.hope.value = 1;
+                    await update(app, { hope: { value: 1 } });
+                    return { lit: root.querySelectorAll(".hope-value i.fa-solid").length,
+                        marked: root.querySelectorAll(".hope-value.drpg-spent, .hope-value.drpg-gained").length, renders: app.calls.length };
+                });
+            });
+        }
+        equal(stableJson({ cub, student: { ...student, before: { full: student.before.full } }, flare }), stableJson({
             cub: { before: true, after: false, renders: 0 },
-            student: { before: { full: 4 }, after: { full: 3, fewerGreyed: true }, tile: [true, true], renders: 0 }
-        }), "[a Monocub's Confusion tile unaffordable before and after a Hope update, the original's renders; the pip layout's Health full pips before and after, fewer greyed Hope Calls, a priced tile drawn and rebuilt, the original's renders]");
+            student: { before: { full: 4 }, after: { full: 3, fewerGreyed: true }, tile: [true, true], renders: 0 },
+            flare: { living: { lit: 1, marked: 2, renders: 0 }, dead: { lit: 1, marked: 0, renders: 0 }, npc: { lit: 1, marked: 0, renders: 0 } }
+        }), "[a Monocub's Confusion tile unaffordable before and after a Hope update, the original's renders; the pip layout's Health full pips before and after, fewer greyed Hope Calls, a priced tile drawn and rebuilt, the original's renders; flare: a Hope repaint from 3 to 1 on a living student's, the dead's and an NPC's header - diamonds lit, diamonds marked, the original's renders]");
     }],
     ["R1489 - a roll made in Breakdown names no Breakdown on its card for anybody but its owner and the GMs (roll-draw.mjs `scoredOf`, `modifierLabel`, the `renderChatMessageHTML` steps; E24 C4b, STATUS E24 C1d, STAGE.md Amend 08.11 A4; the owner's 08.11 \"Breakdown na wyniku rzutu ukryjmy\"): a student in Breakdown, read by the module's own `expectedFor`, rolls with a disadvantage die; the card's data and its drawn element, through every `renderChatMessageHTML` step as the owner, a GM, another player and an Observer-only player, hold the result and the disadvantage die for all four, and for the two non-owners no word, tag, tooltip, class or data- attribute naming Breakdown; and no row of the legal list read off the student's reserve (`breakdown`) is a modifier the card's labels can name. A GUARD, GREEN FROM ITS BIRTH, PROVEN BY PLANTS", async () => {
         /*

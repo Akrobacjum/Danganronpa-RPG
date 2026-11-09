@@ -149,11 +149,25 @@ export function sheetMode(actor, user = game.user, { app = null, editable, facts
             return presentFor();
         },
         // The redaction (anonymity.mjs): another player's sheet, when the table enforces anonymity. Read when asked, so
-        // the strip and the tile, which never ask, read no setting that does not redraw them (R1013).
+        // the strip and the tile, which never ask, read no setting that does not redraw them (R1013). A setting that
+        // cannot be read redacts: the redaction fails closed (E24 fix G2B; security N-3, R1474).
         get redact() {
             if (owner) return false;
             try {
                 return Boolean(game.settings.get(MODULE_ID, SETTINGS.enforceAnonymity));
+            } catch {
+                return true;
+            }
+        },
+        // The reserve's field (`paintReserves`; E24 C1a, Q-E24-1): on a sheet the viewer may edit, a GM's, or the
+        // owner's while "Lock player resources" is off; never on the dead's (a Monocub's plays on) or a Monokuma's
+        // (E24 fix G2B; general m1, R1497). Read when asked, as `redact` is; a setting that cannot be read gives none.
+        get reserveField() {
+            if (!canEdit || monokuma || (dead && !cub)) return false;
+            if (gm) return true;
+            if (!owner) return false;
+            try {
+                return !game.settings.get(MODULE_ID, SETTINGS.lockPlayerResources);
             } catch {
                 return false;
             }
@@ -687,9 +701,12 @@ const RESOURCE_PREFIX = "system.resources.";
  *
  * Adding one here is a promise that `repaintInPlace` below draws it: Health and
  * Sanity through the painter a render calls (`paintReserves`, both layouts, E24
- * C1a), Hope through its diamonds and the Calls and tiles it prices.
+ * C1a), Hope through its diamonds and the Calls and tiles it prices. Each by the
+ * fields it is drawn from: a reserve's value and maximum (the painter reads
+ * both), Hope's value alone - the repaint toggles the diamonds already drawn,
+ * so a new maximum renders (E24 fix G2B; general n1, R1477).
  */
-const REPAINTABLE = new Set(["hitPoints", "stress", "hope"]);
+const REPAINTABLE = new Map([["hitPoints", ["value", "max"]], ["stress", ["value", "max"]], ["hope", ["value"]]]);
 
 /**
  * Is every key in this update a resource this file can repaint itself?
@@ -709,8 +726,8 @@ function onlyResourceKeys(changes) {
 
     return keys.every(key => {
         if (!key.startsWith(RESOURCE_PREFIX)) return false;
-        const name = key.slice(RESOURCE_PREFIX.length).split(".")[0];
-        return REPAINTABLE.has(name);
+        const [name, field, ...rest] = key.slice(RESOURCE_PREFIX.length).split(".");
+        return !rest.length && Boolean(REPAINTABLE.get(name)?.includes(field));
     });
 }
 
@@ -768,7 +785,7 @@ export function installRenderPlan(app) {
         if (this.document?.type === "character" && root
             && renderPlan(args, { rendered: Boolean(this.rendered) }) === "repaint") {
             try {
-                settle(root, () => repaintInPlace(this.document, root));
+                settle(root, () => repaintInPlace(this.document, root, this));
                 return Promise.resolve(this);
             } catch (err) {
                 // A sheet that renders is the safe failure.
@@ -792,8 +809,8 @@ export function installRenderPlan(app) {
  * diamonds in the header, which the module paints from `:has(> i.fa-solid)`, so
  * the class on the inner glyph IS the state and toggling it is the whole repaint.
  */
-function repaintInPlace(actor, element) {
-    paintReserves(null, element, actor);
+function repaintInPlace(actor, element, app = null) {
+    paintReserves(app, element, actor);
 
     const hope = Number(foundry.utils.getProperty(actor, "system.resources.hope.value") ?? 0);
     for (const slot of element.querySelectorAll(".hope-section .hope-value")) {
@@ -829,8 +846,11 @@ function repaintInPlace(actor, element) {
 
     // AFTER the glyphs, because the mark is counted off them. A repaint stands
     // in for a render and owes what the render owed - including saying that
-    // something moved. See `markHopeChange`.
-    markHopeChange(actor, element);
+    // something moved. See `markHopeChange`. And no more than the render owed:
+    // the dead's and an NPC's header is still, counted and never marked, as
+    // `flashHope` keeps it - since E45 C2 every client holding the sheet
+    // repaints (E24 fix G2B; general m3, R1479).
+    markHopeChange(actor, element, !sheetMode(actor).header.acts);
 }
 
 /**
@@ -2143,17 +2163,20 @@ function tidySidebar(element) {
  * write to them, and no longer read by anybody. The pips this draws are for
  * reading only; a click on them does nothing.
  *
- * THE FIELD. For an editor - a GM always, a player who owns the student only
- * with "Lock player resources" off (Q-E24-1's default) - the number in the row
- * is a field of the reserve, 0 to the maximum; a change writes the marks it
+ * THE FIELD. For an editor - the mode's `reserveField`: on a sheet the viewer
+ * may edit, a GM always, a player who owns the student only with "Lock player
+ * resources" off (Q-E24-1's default); never on the dead's or a Monokuma's - the
+ * number in the row is a field of the reserve, 0 to the maximum; a change writes the marks it
  * comes to (`writeReserve`, the road resource-guard.mjs names `sheetReserve`).
  * Nobody else gets one.
  *
  * WHAT A VIEWER READS. Sanity is another player's to keep (the owner, 28.10):
  * for a user `reserveView` does not show it to, the block says "?", its track is
  * empty, no pip is drawn and no number is written into an attribute - the track
- * no longer carries `data-value`/`data-max` for anybody. anonymity.mjs empties
- * the system's own controls of it (EMPTIED, NOT HIDDEN).
+ * no longer carries `data-value`/`data-max` for anybody. The system's own
+ * controls of it are emptied and its slots removed (`emptyReserveControls`,
+ * EMPTIED, NOT HIDDEN), with anonymity enforced or not; anonymity.mjs empties
+ * them again on a sheet it redacts.
  * ========================================================================== */
 
 /** The pip layout's slot of each reserve, by the toggle Daggerheart 2.10.5 puts on it (resource-bar.hbs). */
@@ -2170,17 +2193,6 @@ const RESERVE_FIELD = Object.freeze({
 
 /** The class that hides the system's own controls of a reserve, which stay in the DOM. */
 const RESERVE_HIDDEN = "drpg-reserve-hidden";
-
-/** Whether `user` may type `actor`'s reserves: a GM, or an owner with "Lock player resources" off (Q-E24-1). */
-function mayEditReserve(actor, user) {
-    if (user?.isGM) return true;
-    if (!actor?.testUserPermission?.(user, "OWNER")) return false;
-    try {
-        return !game.settings.get(MODULE_ID, SETTINGS.lockPlayerResources);
-    } catch {
-        return false;
-    }
-}
 
 /**
  * A reserve's block in the sidebar's resources: painted before, the bar layout's (among `bars`, by its number field's
@@ -2201,7 +2213,9 @@ export function paintReserves(app, element, actor = app?.document, user = game.u
     const root = element instanceof HTMLElement ? element : element?.[0];
     const section = root?.querySelector?.(".character-sidebar-sheet .resources-section");
     if (!section || !actor) return;
-    const editor = mayEditReserve(actor, user);
+    // Whether `user` may type the reserves: the mode's (`reserveField`), the sheet's editability read off `app`; with
+    // no app, ownership, as the mode reads a sheet it is not handed.
+    const editor = sheetMode(actor, user, { app }).reserveField;
     // The bar layout's blocks, as patches.mjs SHEET_ANCHORS names them for the contract.
     const bars = [...root.querySelectorAll(".character-sidebar-sheet .resources-section .status-bar")];
 
@@ -2215,8 +2229,30 @@ export function paintReserves(app, element, actor = app?.document, user = game.u
         const change = view.shown && actor.id ? spentSince(`resource:${key}`, actor.id, view.left) : null;
         if (block.classList.contains("slot-value")) paintReservePips(block, view, change);
         else paintReserveBar(block, view, change);
+        if (!view.shown) emptyReserveControls(block);
         paintReserveRow(block, view, actor, editor);
     }
+}
+
+/**
+ * EMPTIED, NOT HIDDEN, whatever the anonymity setting (E24 fix G2B; general m2, security N-2; E24-06, R1445). The class
+ * hides the system's controls of a reserve; for a view not shown they also held it - the progress's `value` and `max`,
+ * the number field's, the label's maximum, and in the pip layout one slot a point, the marked ones `filled` - which
+ * anonymity.mjs empties only on a sheet it redacts, so with "Enforce anonymity" off another player's sheet kept
+ * Sanity in its DOM. Here they are emptied on every such sheet, and the slots go: their count is the maximum.
+ */
+function emptyReserveControls(block) {
+    for (const progress of block.querySelectorAll("progress")) {
+        progress.removeAttribute("value");
+        progress.removeAttribute("max");
+    }
+    for (const input of block.querySelectorAll("input.bar-input")) {
+        input.removeAttribute("value");
+        input.removeAttribute("max");
+        input.value = "";
+    }
+    for (const label of block.querySelectorAll(".bar-label, .slot-label .value")) label.textContent = "";
+    for (const slot of block.querySelectorAll(".slot")) slot.remove();
 }
 
 /**
@@ -2343,8 +2379,12 @@ function paintReserveRow(block, view, actor, editor) {
     // submit-on-change sends nothing for it; Enter writes it rather than submitting the sheet.
     field.addEventListener("change", event => {
         event.stopPropagation();
+        // Nothing written: the field shows the reserve again - unless a repaint has replaced it (the new one was drawn
+        // from the actor) or it is being typed into again (E24 fix G2B; general n3, R1497).
         writeReserve(actor, view.key, field.valueAsNumber)
-            .then(done => { if (done === null) field.value = String(reserveView(actor, view.key).left); })
+            .then(done => {
+                if (done === null && field.isConnected && field !== document.activeElement) field.value = String(reserveView(actor, view.key).left);
+            })
             .catch(err => error("Could not write a reserve from the sheet", err));
     });
     field.addEventListener("keydown", event => {
@@ -2381,13 +2421,15 @@ const PARTY_RESERVES = Object.freeze({ hitPoints: "DAGGERHEART.GENERAL.HitPoints
  * THE PARTY SHEET AS THE RESERVE (E24 C1b, 08.11.2026; Q-E24-3's default, the owner's D5 option 1 and 28.10).
  * Daggerheart's Party sheet (templates/sheets/actors/party/party-members.hbs) draws each member's Health and Stress as
  * the marks: `.current` the marks, a slot `filled` per point marked, and every slot a toggle (`toggleHitPoints`,
- * `toggleStress`) whose `data-value` is the marks it sets. For a student member (not a Monokuma, not an NPC kept out of
- * the class), through `reserveView` for `user`: `.current` what is left, the first `left` slots filled. For a GM each
+ * `toggleStress`) whose `data-value` is the marks it sets. For every character member - a student, and since E24 fix
+ * G2B an NPC kept out of the class and a Monokuma, as their sheets read (general m4; the token side is states.mjs's) -
+ * through `reserveView` for `user`: `.current` what is left, the first `left` slots filled. For a GM (the mode's
+ * `pipEdit`) each
  * slot's `data-value` is turned (`max - i + 1` on the i-th), so that Daggerheart's own toggle - "a point at or below
  * the value takes it to one less, any other sets it" - fills or empties the reserve up to the pip pressed; for a player
  * the toggles go (a player changes their reserve on their own sheet, where Lock player resources allows). Sanity not
- * shown to `user` is emptied, not hidden: "?" in place of its numbers, no slot filled, no value. Exported for R1447,
- * which hands `find` a stand-in's member.
+ * shown to `user` is emptied, not hidden: "?" in place of its numbers and no slot, since their count is its maximum.
+ * Exported for R1447 and R1484, which hand `find` a stand-in's member.
  */
 export function paintPartyReserves(app, element, user = game.user, find = uuid => globalThis.fromUuidSync?.(uuid) ?? null) {
     const root = element instanceof HTMLElement ? element : element?.[0];
@@ -2395,25 +2437,28 @@ export function paintPartyReserves(app, element, user = game.user, find = uuid =
         const uuid = member.querySelector("[data-action='openDocument'][data-uuid]")?.dataset.uuid
             ?? member.querySelector("[data-actor-id]")?.dataset.actorId ?? null;
         const actor = uuid ? find(uuid) : null;
-        if (actor?.type !== "character" || sheetMode(actor).strip === "none") continue;
+        if (actor?.type !== "character") continue;
+        const toggles = sheetMode(actor, user).pipEdit;
         for (const [key, tip] of Object.entries(PARTY_RESERVES)) {
             const section = member.querySelector(`.slot-label[data-tooltip="${tip}"]`)?.closest(".slot-section");
             if (!section) continue;
             const view = reserveView(actor, key, user);
             const value = section.querySelector(".slot-label .value");
             const slots = [...section.querySelectorAll(".slot")];
+            if (!view.shown) {
+                // No slot: their count is the maximum (E24 fix G2B; security S-2, R1484).
+                slots.forEach(slot => slot.remove());
+                if (value) value.textContent = "?";
+                continue;
+            }
             slots.forEach((slot, i) => {
-                slot.classList.toggle("filled", view.shown && i < view.left);
-                if (user?.isGM && view.shown) slot.dataset.value = String(view.max - i);
+                slot.classList.toggle("filled", i < view.left);
+                if (toggles) slot.dataset.value = String(view.max - i);
                 else {
                     delete slot.dataset.action;
                     delete slot.dataset.value;
                 }
             });
-            if (!view.shown) {
-                if (value) value.textContent = "?";
-                continue;
-            }
             const current = value?.querySelector(".current"), top = value?.querySelector(".max");
             if (current) current.textContent = String(view.left);
             if (top) top.textContent = String(view.max);

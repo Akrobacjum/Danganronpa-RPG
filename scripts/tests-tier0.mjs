@@ -20923,12 +20923,15 @@ const REGRESSIONS = [
         equal(JSON.stringify(rows), JSON.stringify({ breakdown: want, wounded: want, dead: want }),
             "{each icon: [own: an SVG under the module's icons/; served; grid: a 16x16 view; crisp: crispEdges; rects: paths of whole-pixel rects only; palette: every colour one of the item icons'; inkAndOne: the ink and exactly one other]}");
     }],
-    ["R1470 - one sheet mode (E45 C1; audit S17-37): no mode predicate - `isDeceased(`, `isDeadForGm(`, `deadToViewer(`, `isMonocub(`, `isMonokuma(`, `isNotInClass(`, `FLAGS.notInClass`, `isMastermindActor(`, `testUserPermission(`, `.isOwner`, `game.user.isGM`, `isEditable` - in sheet.mjs or sheet-audit.mjs outside sheet.mjs `sheetMode`, but in the few declarations the list names, each with its reason; and each of those still reads one", async () => {
+    ["R1470 - one sheet mode (E45 C1; audit S17-37): no mode predicate - `isDeceased(`, `isDeadForGm(`, `deadToViewer(`, `isMonocub(`, `isMonokuma(`, `isNotInClass(`, `FLAGS.notInClass`, `isMastermindActor(`, `testUserPermission(` or `?.(`, `.isOwner`, a user's `.isGM` or `?.isGM`, `isEditable` - in sheet.mjs or sheet-audit.mjs outside sheet.mjs `sheetMode`, but in the few declarations the list names, each with its reason; and each of those still reads one", async () => {
         /* E45 C1, 08.11.2026. Read off the sources, comments and string literals stripped, cut at each top-level
            declaration (a function, a const or let); the imports before the first are not read. Red on E24's tip: 46 lines
-           in 24 declarations (`injectActionPanel`'s eight the most), and `sheetMode` and `labelItemKind` reading none. */
+           in 24 declarations (`injectActionPanel`'s eight the most), and `sheetMode` and `labelItemKind` reading none.
+           E24 fix G2B (general m1): `testUserPermission?.(` and `<name>?.isGM` were not read; read now, red on 52955be4 at
+           sheet.mjs `mayEditReserve`'s two lines and `paintPartyReserves`' one, and at sheet-audit.mjs's role checks, listed. */
         const sources = await moduleSources();
-        const PREDICATE = /\bisDeceased\(|\bisDeadForGm\(|\bdeadToViewer\(|\bisMonocub\(|\bisMonokuma\(|\bisNotInClass\(|\bFLAGS\.notInClass\b|\bisMastermindActor\(|\btestUserPermission\(|\.isOwner\b|\bgame\.user\.isGM\b|\bisEditable\b/;
+        const PREDICATE = /\bisDeceased\(|\bisDeadForGm\(|\bdeadToViewer\(|\bisMonocub\(|\bisMonokuma\(|\bisNotInClass\(|\bFLAGS\.notInClass\b|\bisMastermindActor\(|\btestUserPermission\??\.?\(|\.isOwner\b|\b\w+\??\.isGM\b|\bisEditable\b/;
+        const AUDIT_ROLE = "the audit's role: which browser judges, relays or decides a write (the GMs', D2), not a view's gate";
         const ALLOWED = {
             "sheet.mjs": {
                 sheetMode: "the one gate: the mode is built of these predicates here and nowhere else",
@@ -20940,7 +20943,19 @@ const REGRESSIONS = [
             "sheet-audit.mjs": {
                 itemCovers: "the audit's rule of what a held item covers, read of the world on the GM's road, not a view's gate",
                 itemFindings: "the audit's rule: a dead student's held item spends nothing",
-                placeStands: "the audit's rule: a dead student's placement stands"
+                placeStands: "the audit's rule: a dead student's placement stands",
+                // E24 fix G2B: read since the reader sees `?.isGM` and `testUserPermission?.(` (general m1).
+                callsCover: "the audit's rule: whether a Call its author armed covers a write, read on the GM's road",
+                creationRefusal: AUDIT_ROLE,
+                deletedHeldBy: AUDIT_ROLE,
+                meansWrite: AUDIT_ROLE,
+                judgeNow: AUDIT_ROLE,
+                relayGainRefusal: AUDIT_ROLE,
+                onRollHeard: AUDIT_ROLE,
+                decideNow: AUDIT_ROLE,
+                onRenderFlagged: AUDIT_ROLE,
+                sheetWrites: AUDIT_ROLE,
+                primaryLeft: AUDIT_ROLE
             }
         };
         const strip = text => stripComments(text).replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, "\"\"");
