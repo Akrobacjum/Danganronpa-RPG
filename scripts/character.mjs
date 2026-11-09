@@ -335,8 +335,10 @@ export function reserveView(actor, key, user = game.user) {
 }
 
 /**
- * The reserve's fact row, "Left: 3 / 4" (`DRPG.Reserve.leftRow`; Q-E24-1's default, the owner's 05.10 words: a fact
- * row with a label, never a bare "left {n}" in a sentence), or "?" for a view `user` may not read (`shown` false).
+ * The reserve's fact row, "3 / 4" (`DRPG.Reserve.leftRow`), or "?" for a view `user` may not read (`shown` false). It
+ * read "Left: 3 / 4" in 1.2.101 (Q-E24-1's default, the owner's 05.10 words: a fact row with a label, never a bare
+ * "left {n}" in a sentence); at the table the owner asked what the word was for, and dropped it (H102-K1, 09.11.2026;
+ * E96 C1, R3102): the row stands under the reserve's own name, and the bar or the pips say it is what is left.
  */
 export function reserveRow(view) {
     if (!view?.shown) return "?";

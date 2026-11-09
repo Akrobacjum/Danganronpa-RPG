@@ -615,11 +615,27 @@ export function voicePlacement(W, H, tray) {
    one nearest the wall and its bottom right the lowest. x puts that top corner VOICE_WALL from the
    wall; the height is cut where the foot would come within VOICE_FOOT of `floor`, the top of the
    corner buttons' pane under it, but never under VOICE_MIN, and under VOICE_FULL the tile is compact. */
-function settleVoice(b, W, { px, py, cs, sn }, floor) {
-  const x1 = px + (voiceWall(W) - VOICE_WALL - px + (b.y - py) * sn) / cs;
-  const x = Math.floor(x1 - b.w);
-  const h = Math.max(VOICE_MIN, Math.min(Math.round(VOICE_TALL * b.w), Math.floor((floor - VOICE_FOOT - py - (x + b.w - px) * sn) / cs - (b.y - py))));
-  return { ...b, x, h, fit: h < VOICE_FULL ? "compact" : "full" };
+/* THE MIDDLE OF THE RIGHT SIDE (E96 C4, 09.11.2026; the owner on C3's picture: "Sam panel jest lepszy, ale jest za
+   wysoko ... Ma byc jak na screenie, tylko nizej", and asked how much lower, "Srodek prawej strony"). The tile came
+   down from under the tray's five rows (`voicePlacement`'s y, kept as `y0`) to where its turned box is centred on
+   H / 2, never higher than `y0` (the tray's rows keep their room) and no lower than its foot allows (`floor`). x
+   and the centre read each other through the turn, so the two are settled together; three passes move nothing
+   after the second. `wall` is the x its top right corner stands VOICE_WALL from: the pin's (`voiceWall`), or the
+   screen's own edge where `buildColumn` stands the tile under the tab rail's run. */
+function settleVoice(b, W, { px, py, cs, sn }, floor, H = Infinity, wall = voiceWall(W)) {
+  const y0 = b.y0 ?? b.y, full = Math.round(VOICE_TALL * b.w);
+  const xAt = y => Math.floor(px + (wall - VOICE_WALL - px + (y - py) * sn) / cs - b.w);
+  const hAt = (x, y) => Math.floor((floor - VOICE_FOOT - py - (x + b.w - px) * sn) / cs - (y - py));
+  let y = y0;
+  if (Number.isFinite(H)) for (let i = 0; i < 3; i++) {
+    const x = xAt(y), X = x + b.w / 2 - px, Y = (H / 2 - py - X * sn) / cs;
+    y = Math.max(y0, Math.round(py + Y - full / 2));
+    const room = hAt(x, y);
+    if (room < full) y = Math.max(y0, y - (full - room));
+  }
+  const x = xAt(y);
+  const h = Math.max(VOICE_MIN, Math.min(full, hAt(x, y)));
+  return { ...b, y0, y, x, h, fit: h < VOICE_FULL ? "compact" : "full" };
 }
 /* The tile is in the body (voice-tile.mjs) and stands at the settled box over the curtain, at the
    curtain's own index and later in the tree, as the room tile beside the notices does. */
@@ -989,7 +1005,7 @@ export function blockTurns(b, px, py, turn) {
    the screen's edge (measured, so Foundry's paddings need not be known), `top: 0` under the
    `margin-top` hud.mjs already keeps level with the Despair rail, and a z-index below the
    sidebar so an open sidebar slides over the column instead of under it. Legacy is untouched. */
-const PIN = { rail: null };
+const PIN = { rail: null, band: null };
 /* `PAD_SIDE` from the partition, which lives inside `curtainShapes`. One number, stated
    twice because the two are in different scopes; if it ever moves, both move. */
 const COLUMN_PAD = 12;
@@ -1887,13 +1903,36 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
        width - those are the tray's and the status strip's, as they were before it - and is settled
        against them here: its x against the turn, its height against the corner's pane under it
        (`settleVoice`). It turns with the column like every fixed block. */
-    const tail = c.tail ? (c.tail = settleVoice(c.tail, W, { px, py, cs, sn }, c.floor ?? H)) : null;
+    /* `lift`: how far over the tile's top its pane's top edge runs, in the tile's own turned frame - half the gap
+       from the tray's box to the tile's place under the tray (`y0`, the seam's rule below), 12 px with the tray at
+       its five rows and more with fewer. The buttons stand on the pane by it (E78 fix r2-H3, stained-glass.css).
+       Since E96 C4 the tile stands lower than `y0` (`settleVoice`) and its pane's top edge comes down with it, by
+       the same lift, so the buttons stand where they stood on the tile and the pane. */
+    const trayB = c.items[c.items.length - 1];
+    let tail = null, railHug = false, railNear = null, lift = 0;
+    if (c.tail) {
+      const turn0 = { px, py, cs, sn }, fl = c.floor ?? H;
+      tail = settleVoice(c.tail, W, turn0, fl, H);
+      lift = Math.max(0, (tail.y0 - (trayB.y + trayB.h)) / 2);
+      /* AT THE WALL UNDER THE TAB RAIL'S RUN (E96 C4; the owner: "miedzy nim a po prawej jest dziura w kurtynie,
+         ktorej nie powinno byc"). With Foundry's tab rail at the wall the column stands at the pin, off it, and the
+         tile with it; under the pin's column the band between the tile's pane and the rail's strip was bare map
+         (C3's Open 6: about 90 px at 2000x1072, Chromium, the glass harness, `?windows=off`). Where the tile's
+         pane, centred on the side, starts below the tiles' run (`coreY[1]`, the band's foot) where it enters the
+         band, the tile stands at the screen's own wall as it does without the rail, and its pane and the pane over
+         it run into the wall (`tailHug` below); the strip is cut around them (`cutStrips`). A rail whose run
+         reaches the tile's rows keeps the tile at the pin, as C3 left it. */
+      const rb = ctx.railBands?.right, hugsR = c.x1 + PAD_SIDE > W - HUG;
+      if (!hugsR && rb && rb.real !== false && rb.coreY && Number.isFinite(rb.band)) {
+        const at = settleVoice(c.tail, W, turn0, fl, H, W);
+        const Yv = at.y - lift - py, Xb = (rb.band - px + Yv * sn) / cs;
+        if (py + Xb * sn + Yv * cs >= rb.coreY[1]) { tail = at; railHug = true; }
+        else { tail = settleVoice(c.tail, W, turn0, fl, H, rb.band); railNear = rb.band; }
+      }
+      c.tail = tail;
+    }
     if (tail) {
-      /* `lift`: how far over the tile's top the seam with the tray's pane runs, in the tile's own turned frame -
-         half the gap from the tray's box to the tile (the seam's rule below), 12 px with the tray at its five
-         rows and more with fewer. The buttons stand on the pane by it (E78 fix r2-H3, stained-glass.css). */
-      const tray = c.items[c.items.length - 1];
-      VOICE.box = { x: tail.x, y: tail.y, w: tail.w, h: tail.h, fit: tail.fit, lift: Math.max(0, (tail.y - (tray.y + tray.h)) / 2) };
+      VOICE.box = { x: tail.x, y: tail.y, w: tail.w, h: tail.h, fit: tail.fit, lift };
       ROT.push({ sel: tail.sel, el: null, origin: (px - tail.x) + "px " + (py - tail.y) + "px", transform: turn });
     }
     for (const b of c.items) {
@@ -1946,8 +1985,10 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     const Yf = band === "top" ? (tail ? tail.y + tail.h : c.y1) - py + PAD_FAR : c.y0 - py - PAD_FAR;
     /* the seam between the tray's pane and the voice tile's, halfway down the 24 px under the tray's
        capacity; Xc is the voice pane's left edge, PAD_SIDE left of the tile */
-    const tray = c.items[c.items.length - 1];
-    const Yseam = tail ? ((tray.y + tray.h) + tail.y) / 2 - py : null, Xc = tail ? tail.x - px - PAD_SIDE : null;
+    const tray = trayB;
+    const Yseam = tail ? ((tray.y + tray.h) + tail.y0) / 2 - py : null, Xc = tail ? tail.x - px - PAD_SIDE : null;
+    /* the voice pane's own top edge: `lift` over the tile, at the seam itself while the tile stands at `y0` */
+    const Yv = tail ? Math.max(Yseam, tail.y - lift - py) : null;
     // a column near a wall (under Foundry's sidebar too) runs its pane into the wall: the far corner is
     // pushed past the screen edge by the gap and by the swing of the rotation, so no bare wedge is left
     /* A COLUMN AT A WALL ALWAYS HUGS IT. This used to stand down on a side where a rail
@@ -1957,6 +1998,18 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
        does: every non-strip pane is clipped out of the band across the tiles' own run, and
        only across it. Above and below the tiles the column keeps the wall, as it should. */
     c.hugL = c.x0 - PAD_SIDE < HUG; c.hugR = c.x1 + PAD_SIDE > W - HUG;
+    /* AND A COLUMN WITH A TAIL IS AS WIDE AS ITS TAIL (E96 C3, 09.11.2026; the owner on the 1.2.101 hotfix's review,
+       "Przyciski maja nie wychodzic poza panel livekit. Panel ma byc polaczony z reszta kurtyny"). The tile is settled
+       against the pin (`settleVoice`), and the column turns about its top left corner, so 200 px down it the tile's
+       right side stands about 28 px further right in the column's frame than the tray's, and the column's right edge
+       is the tray's. At a wall the column hugs it and the pane runs past the tile; with Foundry's tab rail the column
+       stands off the wall, and the voice pane ended short of the tile: in Chromium on the glass harness with
+       `?windows=off`, a GM at 2000x1072, the pane's right edge 1788 at its top, the buttons' 1811 and 1806, both with two
+       corners off it, and the seam with the tray 176 px long under a tile 191 wide (1.2.99 to 1.2.101 alike). So the
+       right edge takes the tile's side and its pad, as the left one does (`Xc`), and the tray's pane above it with it,
+       so the two still meet along one straight seam and one straight right edge. A column that hugs the wall is left
+       as it was: its pane runs into the wall below. R3121. */
+    if (tail && !c.hugR && !railHug && railNear == null) X1 = Math.max(X1, tail.x + tail.w - px + PAD_SIDE);
     /* BOTH CORNERS, NOT JUST THE FAR ONE.
        A column at a wall runs its pane into the wall so no bare wedge is left there, and
        that was measured on the FAR corner alone. A pane is rotated, so its two corners sit
@@ -1998,6 +2051,22 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     c.s = s; c.phi = phi; c.rot = rot; c.px = px; c.py = py; c.cs = cs; c.sn = sn;
     c.corners = [rot(c.x0 - px, c.y0 - py), rot(c.x1 - px, c.y0 - py), rot(c.x1 - px, c.y1 - py), rot(c.x0 - px, c.y1 - py)].filter(q => q[0] > 1 && q[0] < W - 1 && q[1] > 1 && q[1] < H - 1);
     let piece = clipRect(rect, W, H);
+    /* AND THE PINNED COLUMN'S OWN PANES RUN TO THE BAND (E96 C4). Beside the pin the column's panes ended at its own
+       right side and the fillers between it and the rail's strip end in a ledge, so above the tile's pane there was
+       bare map too: at 1366x768 (Chromium, the glass harness, `?windows=off`) about 65 x 75 px between the tray's
+       pane, the strip and the tile's pane. With the tile at the band or the wall the column's panes are cut to the
+       band's edge (a vertical half-plane, so each stays convex) and, kept cut out to the wall as `wide`, reach the
+       strip's inner edge in `cutStrips`; a filler they now cover is dropped by the partition as any filler on a
+       section is. The rays and far edges the fillers and the strip read stay the column's own (`X1`). */
+    const rbC = railHug || railNear != null ? ctx.railBands.right : null;
+    let pieceW = null;
+    if (rbC && band === "top" && piece) {
+      const Xw = Math.max(...[Yn, Yf].map(Y => (W + 2 - px + Y * sn) / cs)) + 1;
+      pieceW = clipRect([rot(X0, Yn), rot(Xw, Yn), rot(Xw, Yf), rot(X0, Yf)], W, H);
+      piece = pieceW && clipHP(pieceW, rbC.band, 0, -1, 0);
+    }
+    const colOut = ctx.voiceOut || (ctx.voiceOut = []);
+    const keepWide = (sec, w) => { if (sec && w) { sec.wide = w; colOut.push(sec); } };
     for (let m = 0; m + 1 < c.items.length && piece; m++) {
       const up = c.items[m], dn = c.items[m + 1];
       if (dn.y < up.y + up.h - 12) continue;                 // blocks that truly overlap share one pane; a touch does not
@@ -2005,19 +2074,47 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       const pt = rot(0, Ydiv);
       const [below, above] = split(piece, pt[0], pt[1], -sn, cs);
       const sec = push(above, up.cls, "section", 0); if (sec) sec.empty = !up.r && !up.solid; piece = below;
+      if (pieceW) { const [bw, aw] = split(pieceW, pt[0], pt[1], -sn, cs); keepWide(sec, aw); pieceW = bw; }
     }
     let below = null;
-    if (tail && piece) { const pt = rot(0, Yseam); [below, piece] = split(piece, pt[0], pt[1], -sn, cs); }
+    if (tail && piece) { const pt = rot(0, Yseam); [below, piece] = split(piece, pt[0], pt[1], -sn, cs); if (pieceW) pieceW = split(pieceW, pt[0], pt[1], -sn, cs)[1]; }
     c.pane = push(piece, c.items[c.items.length - 1].cls, "section", 0);
+    keepWide(c.pane, pieceW);
     if (c.pane) c.pane.empty = !c.items[c.items.length - 1].r && !c.items[c.items.length - 1].solid;
     /* Under the seam the voice tile's pane runs from PAD_SIDE left of the tile to the wall, and what
        is left of it is cut away and not pushed: bare map, the area `voice-left`, which the
        self-check keeps empty of every pane (Q16). */
     if (below) {
       const q = rot(Xc, Yseam);
-      const [right, left] = split(below, q[0], q[1], cs, sn);
-      push(right, tail.cls, "section", 0);
+      let [right, left] = split(below, q[0], q[1], cs, sn);
       if (left) OPEN_AREAS.push({ name: "voice-left", poly: left });
+      /* E96 C4: under the rail's run the tile's panes are cut to the wall from their own rectangle, the tray's pane
+         keeping the pin's edge; and a tile come down the side leaves a pane between the seam and its own, as wide as
+         its own (`mid`), so nothing between the tray and the tile is bare. Both are `ctx.voiceOut`, which the strip
+         down the wall is cut around. */
+      /* the band's edge for a tile at it (`railNear`); the pane is also kept as cut out to the wall (`wide`), which
+         `cutStrips` trims to the strip's own inner edge, so neither the band's edge nor the strip's lean leaves a
+         sliver of map between them */
+      const rb = railHug || railNear != null ? ctx.railBands.right : null;
+      let wide = null;
+      if (rb) {
+        const X1v = Math.max(...[Yseam, Yf].map(Y => (W + 2 - px + Y * sn) / cs)) + 1;
+        wide = clipRect([rot(Xc, Yseam), rot(X1v, Yseam), rot(X1v, Yf), rot(Xc, Yf)], W, H);
+        right = wide;
+      }
+      let mid = null;
+      if (right && Yv - Yseam > 1) { const m = rot(0, Yv); [right, mid] = split(right, m[0], m[1], -sn, cs); }
+      const out = ctx.voiceOut || (ctx.voiceOut = []), end = rb ? (rb.bandEnd ?? rb.coreY[1]) : -Infinity;
+      const vp = push(railNear != null ? clipHP(right, rb.band, 0, -1, 0) : right, tail.cls, "section", 0);
+      if (vp) { if (railNear != null) vp.wide = right; out.push(vp); }
+      if (mid) {
+        /* over the rail's run the band is the strip's: the pane over the tile stops at the band's edge there */
+        const parts = rb && railHug ? (() => { const [up, dn] = split(mid, 0, end, 0, -1); return [[up, true], [dn, false]]; })() : [[mid, railNear != null]];
+        for (const [pp, clip] of parts) if (pp) {
+          const mp = push(clip ? clipHP(pp, rb.band, 0, -1, 0) : pp, null, "section", 0);
+          if (mp) { mp.voiceGap = true; if (clip) mp.wide = pp; out.push(mp); }
+        }
+      }
     }
   };
 
@@ -2150,8 +2247,35 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
      ends on the far edge of the bottom corner pane, so the wall is covered without a
      gap; then one family of parallel cuts per half: a partition by construction */
   const cutStrips = (ctx, top, bot, railBands) => {
-    const { W, H, rnd, panes, push } = ctx;
+    const { W, H, rnd, panes } = ctx;
     const tiles = {};
+    /* THE STRIP GOES AROUND THE TILE'S PANES (E96 C4). Under the tab rail's run the voice tile's pane and the pane over
+       it run into the wall (`buildColumn`, `railHug`), so each strip piece is cut around them, as convex pieces: the
+       part of the piece outside each of a pane's edges in turn, the rest dropped. Off the rail's side, or with no such
+       panes, nothing is cut. They are not read as the panes the strip yields to either (`yTop`, `yBot`): the strip still
+       runs the wall's whole height, around them. */
+    const outs = (ctx.voiceOut || []).filter(o => o.poly);
+    const minus = (P, Q) => {
+      if (!overlaps(P, Q)) return [P];
+      const n = Q.length, mx = Q.reduce((t, q) => t + q[0], 0) / n, my = Q.reduce((t, q) => t + q[1], 0) / n, keep = [];
+      let rest = P;
+      for (let i = 0; i < n && rest; i++) {
+        const a = Q[i], e = Q[(i + 1) % n];
+        let nx = -(e[1] - a[1]), ny = e[0] - a[0];
+        if ((mx - a[0]) * nx + (my - a[1]) * ny > 0) { nx = -nx; ny = -ny; }
+        const [o, r] = split(rest, a[0], a[1], nx, ny);
+        if (o) keep.push(o);
+        rest = r;
+      }
+      return keep;
+    };
+    const push = (poly, tone, kind, rank) => {
+      let parts = poly ? [poly] : [];
+      for (const o of outs) parts = parts.flatMap(q => minus(q, o.poly));
+      let first = null;
+      for (const q of parts) { const p = ctx.push(q, tone, kind, rank); first = first || p; }
+      return first;
+    };
     // Foundry's tiles, measured with their rotation off and in the curtain's own pixels (the page may be scaled)
     const lineY = (c, x) => { const [fx, fy] = c.far.p, [dx, dy] = c.far.d; return fy + (x - fx) * dy / dx; };
     for (const side of [0, 1]) {
@@ -2205,9 +2329,9 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       const bandB = bandW ?? (wBot + 40);
       let yTop = 0, yBot = H;
       if (hugT) yTop = Math.max(lineY(cT, wall), lineY(cT, wall + dir * wTopFit));
-      else for (const p of panes) { const bb = bbox(p.poly); if ((side ? bb.x1 > W - bandT + 0.5 : bb.x0 < bandT - 0.5) && bb.y1 < H / 2) yTop = Math.max(yTop, bb.y1); }
+      else for (const p of panes) { if (outs.includes(p)) continue; const bb = bbox(p.poly); if ((side ? bb.x1 > W - bandT + 0.5 : bb.x0 < bandT - 0.5) && bb.y1 < H / 2) yTop = Math.max(yTop, bb.y1); }
       if (hugB) yBot = Math.min(lineY(cB, wall), lineY(cB, wall + dir * wBot));
-      else for (const p of panes) { const bb = bbox(p.poly); if ((side ? bb.x1 > W - bandB + 0.5 : bb.x0 < bandB - 0.5) && bb.y0 >= H / 2) yBot = Math.min(yBot, bb.y0); }
+      else for (const p of panes) { if (outs.includes(p)) continue; const bb = bbox(p.poly); if ((side ? bb.x1 > W - bandB + 0.5 : bb.x0 < bandB - 0.5) && bb.y0 >= H / 2) yBot = Math.min(yBot, bb.y0); }
       /* WITH NO RAIL ON THE WALL, NO STRETCH OF IT IS TOO SHORT (E77 C5, 13.10.2026). The 160
          below is what the tiles need to stand in; once Foundry's rails moved into the GM's
          windows and off a player's screen, nothing stands there, and the skip only left the
@@ -2335,6 +2459,24 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       // a short strip reaches the bottom column's pane, and is clipped by its far edge as the lower quad would be
       if (short && hugB && upperQ) { const [fx, fy] = cB.far.p; upperQ = clipHP(upperQ, fx, fy, cB.sn, -cB.cs); }
       if (hugB && lowerQ) { const [fx, fy] = cB.far.p; lowerQ = clipHP(lowerQ, fx, fy, cB.sn, -cB.cs); }
+      /* the tile's panes stopped at the band's edge reach the strip's own inner edge, which leans off the band's
+         as it runs down: each is its pane cut out to the wall and clipped by the upper quad's inner edge (an edge
+         facing the open side, more across than along), a half-plane, so it stays convex. Under the quads' meeting
+         the lower quad leans back in over the band (at 1366x768, 26 px in at the tile's foot), and following it there
+         took the tile's corner off its pane (the self-check's bf 2); there the pane keeps the line and the strip is
+         cut around it (`push` above). Kept where it overlaps no part of the upper quad, stays clear of the rail's
+         tiles (`x0`, their swing included) and is no smaller than the pane. */
+      if (side && railed) for (const o of outs) if (o.wide) {
+        let q = o.wide;
+        for (const Q of [upperQ]) if (Q && q) for (let i = 0; i < Q.length && q; i++) {
+          const a = Q[i], e = Q[(i + 1) % Q.length], nx = e[1] - a[1], ny = -(e[0] - a[0]);
+          if (Math.max(a[0], e[0]) >= W - 1) continue;
+          const L = Math.hypot(nx, ny) || 1, n = (Q.reduce((t, r) => t + r[0], 0) / Q.length - a[0]) * nx + (Q.reduce((t, r) => t + r[1], 0) / Q.length - a[1]) * ny > 0 ? -1 : 1;
+          if (n * nx / L > -0.7) continue;
+          q = clipHP(q, a[0], a[1], n * nx, n * ny);
+        }
+        if (q && (!upperQ || !overlaps(q, upperQ)) && bbox(q).x1 < tb.x0 && area(q) >= area(o.poly) - 1) o.poly = q;
+      }
       const cutFamily = (poly, slope, y0, y1, box) => {
         if (!poly) return;
         let pieces = [poly];
@@ -2675,7 +2817,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     const cv = host.querySelector(".curtain > canvas.sg, #drpg-curtain > canvas.sg");
     const railBands = {
       left: railBox(host, cv, W, "#scene-controls", 0, null),
-      right: railBox(host, cv, W, "#sidebar-tabs", 1, null),
+      right: PIN.band ? { ...PIN.band } : railBox(host, cv, W, "#sidebar-tabs", 1, null),
     };
     ctx.railBands = railBands;
     /* THE BOTTOM BAND IS CUT FIRST AND FILED SECOND (E78 C6). The voice tile's foot is settled
@@ -2711,7 +2853,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     for (const p of panes) if (p.content) kept.push(p);
     for (const p of panes) if (!p.content && kept.every(k => !overlaps(k.poly, p.poly))) kept.push(p);
 
-    kept.meta = { top, bot, rings: ringLines, tiles };
+    kept.meta = { top, bot, rings: ringLines, tiles, railRight: railBands.right };
     return kept;
   }
 
@@ -2932,8 +3074,16 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
      on the same empty host - so no column clips a row and no rail is measured: `bands` stands in for the two rails'
      bands (`[{ band: x }, { band: x }]`, the scene rail's and the tab rail's inner edges, either null). `check` is the
      self-check's edge and open-area reading of the cut (`cutCheck`). */
-  export function cutBoxes(W, H, boxes, seed = 1, { stacked = false, bands = null } = {}) {
-    const rot = ROT.splice(0), voice = VOICE.box, open = OPEN_AREAS.splice(0);
+  /* THE PIN TOO (E96 C3, 09.11.2026; R3121). `{ rail }` stands in for `pinRightColumn`'s distance of the right column
+     from the wall (`PIN.rail`: Foundry's tab rail and its band, 186 px for a GM at 2000x1072 in Chromium on the glass
+     harness with `?windows=off`), which the voice tile is settled against (`voiceWall`); put back after the cut. */
+  /* AND THE RAIL'S BAND (E96 C4; R3122): `{ band }` stands in for the tab rail's band as `railBox` measures it on
+     the page (`band`, `coreY`, `x0`..`y1`, `core`, `real: true`), which the cut reads to stand the voice tile at the
+     wall under the rail's run; the test's road, as `rail` is. Put back after the cut. */
+  export function cutBoxes(W, H, boxes, seed = 1, { stacked = false, bands = null, rail = null, band = null } = {}) {
+    const rot = ROT.splice(0), voice = VOICE.box, open = OPEN_AREAS.splice(0), pin = PIN.rail, pinBand = PIN.band;
+    if (rail != null) PIN.rail = rail;
+    PIN.band = band;
     try {
       const given = boxes.map(b => ({ sel: BLOCKS.find(k => k.cls === b.cls)?.sel ?? null, ...b }));
       VOICE.box = null; OPEN_AREAS.length = 0;
@@ -2942,7 +3092,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       return { panes, voice: VOICE.box && { ...VOICE.box }, open: OPEN_AREAS.map(a => ({ ...a })), check: { ...cutCheck(panes, OPEN_AREAS, W, H), ...cutParts(panes, W, H) },
                rotations: ROT.map(r => ({ sel: r.sel, origin: r.origin, transform: r.transform })) };
     } finally {
-      ROT.length = 0; ROT.push(...rot); VOICE.box = voice; OPEN_AREAS.length = 0; OPEN_AREAS.push(...open);
+      ROT.length = 0; ROT.push(...rot); VOICE.box = voice; OPEN_AREAS.length = 0; OPEN_AREAS.push(...open); PIN.rail = pin; PIN.band = pinBand;
     }
   }
   function curtainGeometry(job) {
@@ -3704,7 +3854,7 @@ export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 120
        carried old all the way arrived plain where its place is stained - the harness's layout turn at 1600x900, the
        texture in its band at 26 % of rest (1d860414: 45 %); carried new all the way, it left squeezed or stretched
        from corners that are not its own. */
-    carry: recolour ? "old" : hold ? "both" : "old", hold, snap,
+    carry: recolour ? "old" : hold ? "both" : "old", hold, snap, holes: recolour ? holes : [],
     none: false, recolour, recut: moves.length > 0, dur, move: { ms: move, curve }, order, batchOf, delayOf, gap, moves, batches, flashes,
     frost: moves.length ? { out: FROST_OUT, in: FROST_IN } : null,
     glow: { ms: Math.max(moves.length ? move : 0, fadeEnd) || move }
@@ -3867,15 +4017,27 @@ function lookOnScreen(job, look) {
   g.globalAlpha = opacity(job.el);
   g.drawImage(look, 0, 0);
   const host = document.getElementById("drpg-curtain-turn");
-  for (const el of host?.querySelectorAll("canvas") ?? []) {
-    if (!h.made.includes(el)) continue;
+  const put = (t, el, op) => {
     const x = parseFloat(el.style.left) || 0, y = parseFloat(el.style.top) || 0, w = parseFloat(el.style.width) || el.width, ht = parseFloat(el.style.height) || el.height;
     const m = matrix(el);
-    g.setTransform(k, 0, 0, k, 0, 0);
-    g.translate(x, y);
-    if (m) g.transform(...m);
-    g.globalAlpha = opacity(el);
-    g.drawImage(el, 0, 0, w, ht);
+    t.setTransform(k, 0, 0, k, 0, 0);
+    t.translate(x, y);
+    if (m) t.transform(...m);
+    t.globalAlpha = opacity(el);
+    t.globalCompositeOperation = op;
+    t.drawImage(el, 0, 0, w, ht);
+    t.globalCompositeOperation = "source-over";
+  };
+  /* a recolour's batch (E96 C2) is a group: its new layer adds onto its old one, then the group lies over the rest */
+  let pair = null, pg = null;
+  for (const el of host?.querySelectorAll("canvas") ?? []) {
+    if (!h.made.includes(el)) continue;
+    const p = el.parentElement?.classList.contains("drpg-turn-fade") ? el.parentElement : null;
+    if (!p) { put(g, el, "source-over"); continue; }
+    if (p !== pair) { pair = p; const t = document.createElement("canvas"); t.width = c.width; t.height = c.height; pg = t.getContext("2d"); }
+    if (!pg) continue;
+    put(pg, el, el.classList.contains("drpg-turn-new") ? "lighter" : "source-over");
+    if (el === p.lastElementChild) { g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.drawImage(pg.canvas, 0, 0); }
   }
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.globalAlpha = 1;
@@ -3936,7 +4098,64 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
     }
     layers.push({ el: job.el, frames: plan.hold.curtain, timing: { duration: plan.move.ms, easing: "linear" } });
   }
-  for (const b of plan.batches) {
+  /* A RECOLOUR IS A CROSSFADE (E96 C2, 09.11.2026; the owner at the table on 1.2.101: "at the start of the move the
+     colours and the textures near the edge refresh"). C1b painted the new look beneath at once and laid the old over
+     it, fading by batches; the glass is see-through, so the first frame showed both looks - two textures, two fills,
+     and the wall panes along the sides, the most see-through and the last batches, the most. The glass harness at
+     2000x1072, the clock stood still 1 ms into every layer (`--turn`'s still page, 09.11): the first frame 4.51 from
+     rest along the sides and 1.61 inside on a phase, 5.14 and 3.04 on a phase with a recut (DIAGNOSIS 6). So the new
+     look is baked per batch too, from the curtain as `curtainPaint` has just left it (`fresh`), and rises 0 to 1 on
+     the old one's delay, length and curve while the old falls 1 to 0; the curtain is held at 0 under them for the
+     turn's span (`span`) and steps back in in the frame every rising layer steps out - the same picture, as
+     `plan.hold.curtain` does for a recut. Each batch's two layers stand in a group of their own (`drpg-turn-fade`,
+     isolated) and the new one adds onto the old (`plus-lighter`): the two weights sum to 1, so a translucent pane
+     keeps its coverage through the fade; source-over, a pane of alpha a loses a*a/4 of it at the middle. A browser
+     without `plus-lighter` draws it over (the value is dropped), the fade's middle that much thinner. Where a pane
+     moves (a phase with a recut), its new place rises the same way under the moving old pane, and where a block's
+     plate stood (`plan.holes`) the new look stands from the first frame, as before. */
+  const fresh = plan.recolour && plan.batches.length ? snapshotLook(job, true) : null;
+  let pairs = 0;
+  if (fresh) {
+    const moved = new Set(plan.moves.map(m => m.to));
+    const delayOf = k => k * plan.gap, easing = plan.batches[0].easing;
+    const ks = [...new Set([...plan.batches.map(b => b.k), ...[...moved].map(i => plan.batchOf[i])])];
+    const span = Math.max(plan.moves.length ? plan.move.ms : 0, ...ks.map(k => delayOf(k) + TURN_FADE));
+    // the layer is shown only by its animation: at 0 before its delay, at 1 from its fade's end to the span's
+    const rise = (el, d) => {
+      el.style.opacity = "0";
+      layers.push({ el, frames: [{ offset: 0, opacity: 0, easing }, { offset: Math.min(1, TURN_FADE / (span - d)), opacity: 1 }, { offset: 1, opacity: 1 }], timing: { duration: span - d, delay: d, fill: "backwards" } });
+    };
+    const under = [];
+    for (const k of ks) {
+      const arrive = [...moved].filter(i => plan.batchOf[i] === k);
+      if (!arrive.length) continue;
+      const c = cutLook(fresh, arrive.map(i => to[i].poly), boxOf(arrive.map(i => to[i].poly), 1), "drpg-turn-batch drpg-turn-new");
+      under.push(c); made.push(c); rise(c, delayOf(k));
+    }
+    if (plan.holes.length) {
+      const c = cutLook(fresh, plan.holes.map(k => from[k].poly), boxOf(plan.holes.map(k => from[k].poly), 1), "drpg-turn-batch drpg-turn-new");
+      c.style.opacity = "0";
+      under.unshift(c); made.push(c);
+      layers.push({ el: c, frames: [{ opacity: 1 }, { opacity: 1 }], timing: { duration: span } });
+    }
+    host.prepend(...under);
+    for (const b of plan.batches) {
+      const pair = document.createElement("div");
+      pair.className = "drpg-turn-fade";
+      pair.style.cssText = TURN_LAYER + "left:0;top:0;width:" + job.W + "px;height:" + job.H + "px;isolation:isolate;";
+      const c = cutLook(look, b.panes.map(k => from[k].poly), b.box, "drpg-turn-batch");
+      pair.append(c); made.push(c);
+      layers.push({ el: c, frames: b.frames, timing: { duration: b.ms, delay: b.delay, easing: b.easing, fill: "forwards" } });
+      const stand = to.map((_, i) => i).filter(i => !moved.has(i) && plan.batchOf[i] === b.k);
+      if (stand.length) {
+        const n = cutLook(fresh, stand.map(i => to[i].poly), boxOf(stand.map(i => to[i].poly), 1), "drpg-turn-batch drpg-turn-new");
+        n.style.cssText += "mix-blend-mode:plus-lighter;";
+        pair.append(n); made.push(n); rise(n, b.delay);
+      }
+      host.append(pair); made.push(pair); pairs++;
+    }
+    layers.push({ el: job.el, frames: [{ opacity: 0 }, { opacity: 0 }], timing: { duration: span } });
+  } else for (const b of plan.batches) {
     const c = cutLook(look, b.panes.map(k => from[k].poly), b.box, "drpg-turn-batch");
     host.append(c); made.push(c);
     layers.push({ el: c, frames: b.frames, timing: { duration: b.ms, delay: b.delay, easing: b.easing, fill: "forwards" } });
@@ -3957,7 +4176,7 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
     if (glow) { glow.className = "curtain-glow drpg-turn-glow"; glow.style.cssText = gl.style.cssText; gl.after(glow); made.push(glow); layers.push({ el: glow, frames: [{ opacity: 1 }, { opacity: 0 }], timing: { ...timing, fill: "forwards" } }); }
   }
   count("glass.turn");
-  count("glass.turn.layers", made.length - (into === host ? 0 : 1));
+  count("glass.turn.layers", made.length - (into === host ? 0 : 1) - pairs);
   if (plan.recut) count("glass.turn.recut");
   /* POSED AT THE BAKE (E23 C1b fix, 07.11.2026): each layer's animation is made here and held at its start, so the
      two frames before the clock show the first keyframe and not the layers as laid - the screencast of the harness's

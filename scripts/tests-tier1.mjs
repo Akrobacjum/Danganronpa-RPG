@@ -36419,7 +36419,7 @@ const INVARIANTS = [
         }), "[Observe: the ladders shown, All thresholds (open, its lines, its word); Analyze's bound rows; Tamper's bound facts and a second watchers line; "
             + "Observe's box with its two rows; the menu opens at its top; per theme: a plain fact, a bound one with its row picked and one with another row picked, the facts' size and ink]");
     }],
-    ["R1600 - Observe stands still at 1366x768 (E21 fix G2; E21-04, the end review's B1): Observe's menu is drawn with `columns` - action-menus.mjs `chooseVariant` puts the briefing beside the question in a window of a stated width (the popup measure lifted) - and the stylesheets lay the two side by side, stacking them when the window is narrower than both, and show a row's line of explanation while that row is picked (an unavailable row keeps its reason), in both themes", async () => {
+    ["R1600 - the briefing beside the list (E21 fix G2; E21-04, the end review's B1), and no action asks for it since 1.2.102 (E96 C1: every action one layout, the owner's 09.11.2026): Observe's menu is drawn without `columns`; action-menus.mjs `chooseVariant` puts the briefing beside the question in a window of a stated width (the popup measure lifted) - and the stylesheets lay the two side by side, stacking them when the window is narrower than both, and show a row's line of explanation while that row is picked (an unavailable row keeps its reason), in both themes", async () => {
         /*
          * E21 fix G2, 07.11.2026. Observe scrolled at 1920x1080 (glass) and 1366x768 (both themes): 1140 px of body in a
          * window the glass held to 544 px, 571 px of it on screen at 1366x768 (measured in Chromium, the fit sweep's still
@@ -36429,6 +36429,11 @@ const INVARIANTS = [
          * width and draws the two columns, the briefing in the first; and on stand-ins in each theme the popup measure on
          * `.dialog-content` does not reach a window of a stated width, the columns are a wrapping flex row, an unpicked
          * row's hint is not displayed, the picked row's and an unavailable row's are. Red on dd87f9f7: no `columns`.
+         * E96 C1, 09.11.2026 (H102 item 4): the owner at the table, on 1.2.101: the action windows no longer agree - Search
+         * one column, Observe two - and every action shall share one layout, as every Call does. Observe goes back to
+         * the layout the other actions share (`asks` false: it scrolls at 1366x768 again, measured in STATUS E96-C1);
+         * the `columns` drawing stays in `chooseVariant`, read here, for E68's one layout after its mockup round. Red on
+         * 7175878b: `asks` true.
          */
         const M = await import("./action-menus.mjs");
         const K = await import("./ui-kit.mjs");
@@ -36471,7 +36476,7 @@ const INVARIANTS = [
         }));
         const yes = { measure: null, columns: ["flex", "wrap"], hints: [null, "none", null] };
         equal(stableJson(read), stableJson({
-            asks: true,
+            asks: false,
             // The stated 1120 px as this screen holds it (ui-kit.mjs `kitWidth`: under the screen less 16 px).
             window: [K.kitWidth(1120), true, ["drpg-variant-brief", "drpg-variant-ask"], true, true],
             paint: { "drpg-theme-stained-glass": yes, "drpg-theme-monokuma-legacy": yes }
@@ -37807,6 +37812,134 @@ const INVARIANTS = [
         ]), "[the GM's scene rail and the right rail, at rest and active, under Monokuma Legacy and under Stained Glass; "
             + "the checkbox and the radio under the glass: the same values on a panel, a notice, the messenger and the sheet, unchecked and checked; how many rules win the box; its appearance and width; the mark's transform unchecked and checked]");
     }],
+    ["R3100 - Foundry's toast list keeps Foundry's placement wherever it does not stand in `#ui-top` (E96 C1, 1.2.102; H102 item 1): the module places `#notifications` (position, order, width, margin) only as a child of `#ui-top`; under an id-less flex row (the parent the owner's table read on 1.2.101) or under `#ui-right` no module rule states any of the four, so core's own placement stands, and the toasts' plate is the glass's wherever the list is", async () => {
+        /*
+         * E96 C1, 09.11.2026; H102 item 1 (S/stages/H102/DIAGNOSIS.md 1). 1.2.101 stated `position: static; order: 11` and a
+         * width and margin on `body.drpg-theme-stained-glass #notifications` wherever the list stood, on the guess that v14
+         * puts it in `#ui-top`'s flex column (E23 C5b; LIVE-E23-08, not run). At the owner's table the update toast stood in
+         * a narrow column and the right column and the voice tile moved: the owner's console line on 1.2.101 (09.11.2026)
+         * read the list's parent as an element with no id, a flex row. An unlayered rule of the module's outweighs any
+         * layered rule of core's whatever its specificity, so a stated `position: static` took the list out of core's
+         * fixed placement and made it a flex item of that parent (in Chromium, the diagnosis's A/B with a layered
+         * `position: fixed` for core: the list 56 -> 512 px wide in `#ui-right`, the column moved from x 1468 to 1122).
+         * The rule now reaches only a list whose parent is `#ui-top`, which is what R1406 builds. Read by the sheets'
+         * cascade on bodies of their own under the glass: the four placement properties of the list and the ground of a
+         * toast in it, for each parent. jsdom lays nothing out; the movement is read in Chromium (STATUS E96-C1). Red on
+         * 7175878b: the id-less row's and `#ui-right`'s list placed static, order 11.
+         */
+        const C = await styleCascade();
+        const PLACE = ["position", "order", "width", "margin"];
+        const read = parent => {
+            const html = document.createElement("html"), body = document.createElement("body"), iface = document.createElement("div");
+            const host = document.createElement("div"), list = document.createElement("ol"), li = document.createElement("li");
+            body.className = "drpg-theme-stained-glass";
+            iface.id = "interface";
+            if (parent) host.id = parent;
+            host.style.display = "flex";
+            host.style.flexDirection = parent === "ui-top" ? "column" : "row";
+            list.id = "notifications";
+            li.className = "notification warning";
+            html.append(body);
+            body.append(iface);
+            iface.append(host);
+            host.append(list);
+            list.append(li);
+            return [...PLACE.map(name => C.winner(list, name)?.value ?? null), C.winner(li, ["background", "background-color"])?.value ?? null];
+        };
+        const placed = ["static", "11", "min(26rem, calc(100vw - 2 * var(--drpg-edge)))", "6px auto 0", "var(--drpg-sg-ink)"];
+        const core = [null, null, null, null, "var(--drpg-sg-ink)"];
+        equal(stableJson([read("ui-top"), read(null), read("ui-right")]), stableJson([placed, core, core]),
+            "[the list's position, order, width and margin and a toast's ground, under the glass, with the list in #ui-top (a flex column), in an id-less flex row, in #ui-right; null: no module rule states it]");
+    }],
+    ["R3101 - the glass's checkbox and radio draw no mark of Foundry's and are not squeezed (E96 C1, 1.2.102; H102 item 2): in the one definition, on a panel, a notice, the messenger and the sheet, a checked checkbox and a checked radio state `content: none` on `::after` (where core draws its mark), set Foundry's `--checkbox-checked-color` to the state colour, and the control takes `flex: none`, so a long row cannot shrink its box", async () => {
+        /*
+         * E96 C1, 09.11.2026; H102 item 2 (S/stages/H102/DIAGNOSIS.md 2). 1.2.101 gave the radio the module's 22 px box and its
+         * own `::before` mark (E23 C5b, R1407) and removed nothing of Foundry's: with a layered stand-in for core's drawn
+         * radio (`appearance: none` and a glyph in `:checked::after` in `--checkbox-checked-color`, probe radio.mjs), the
+         * Search window's checked radio painted Foundry's orange ring over the module's square, and in a long row the box
+         * shrank to 13x22 (Observe's to 12x22): a flex item with `flex-shrink: 1` and no minimum. An unlayered rule of the
+         * module's outweighs a layered rule of core's, so `content: none` on `::after` takes core's mark away whatever
+         * glyph v14 draws there; which pseudo-element v14 really uses was not read (the owner's table). Read by the sheets'
+         * cascade, as R1407 builds its surfaces: per type and surface, checked, the winning `::after` content, the custom
+         * property and `flex`. In Chromium (STATUS E96-C1): the `::after` content and the boxes in Search, Observe and the
+         * Look window, with the stand-in. Red on 7175878b: no rule states any of the three.
+         */
+        const C = await styleCascade();
+        const SURFACES = [["div", "drpg-panel"], ["section", "drpg-popup"], ["div", "drpg-messenger"], ["div", "application sheet actor"]];
+        const read = type => SURFACES.map(([tag, classes]) => {
+            const html = document.createElement("html"), body = document.createElement("body"), host = document.createElement(tag);
+            const row = document.createElement("label"), input = document.createElement("input");
+            body.className = "drpg-theme-stained-glass";
+            host.className = classes;
+            row.style.display = "flex";
+            input.type = type;
+            input.checked = true;
+            html.append(body);
+            body.append(host);
+            host.append(row);
+            row.append(input, "a row long enough to squeeze a control that may shrink");
+            return [C.winner(input, "content", "::after")?.value ?? null, C.winner(input, "--checkbox-checked-color")?.value ?? null, C.winner(input, "flex")?.value ?? null];
+        });
+        const want = SURFACES.map(() => ["none", "var(--drpg-sg-check, var(--drpg-glass-accent))", "none"]);
+        equal(stableJson([read("checkbox"), read("radio")]), stableJson([want, want]),
+            "[under the glass, checked, on a panel, a notice, the messenger and the sheet, the checkbox then the radio: the ::after content, --checkbox-checked-color, flex; null: no module rule states it]");
+    }],
+    ["R3102 - the reserve's row is the number and its maximum, no word (E96 C1, 1.2.102; H102-K1, the owner's 09.11.2026): `DRPG.Reserve.leftRow` reads \"{n} / {max}\" in English and in Polish, so the sheet's row, its field's frame and every place `reserveRow` writes show \"3 / 4\"", async () => {
+        /*
+         * E96 C1, 09.11.2026; H102 item 3. E24 C1a wrote "Left: 3 / 4" ("Zostało: 3 / 4") under Health and Sanity, Q-E24-1
+         * run on its default; the owner at the table asked why, and on the palette page (H102-K1) chose to drop the word.
+         * The key keeps its name and its two placeholders, so the sheet's editor still splits the words around the field
+         * (sheet.mjs `paintReserveRow`: nothing before it, " / 4" after). Read: both lang files as served, the key
+         * formatted in this browser's language, `reserveRow` for a view shown and one not. Red on 7175878b: "Left: 3 / 4".
+         */
+        const { reserveRow } = await import("./character.mjs");
+        const fetchLang = code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json());
+        const [en, pl] = await Promise.all([fetchLang("en"), fetchLang("pl")]);
+        const at = (lang, path) => path.split(".").reduce((o, k) => o?.[k], lang);
+        const editor = game.i18n.format("DRPG.Reserve.leftRow", { n: "{n}", max: 4 }).split("{n}");
+        equal(stableJson([at(en, "DRPG.Reserve.leftRow"), at(pl, "DRPG.Reserve.leftRow"), reserveRow({ shown: true, left: 3, max: 4 }), reserveRow({ shown: false, left: 3, max: 4 }), editor]),
+            stableJson(["{n} / {max}", "{n} / {max}", "3 / 4", "?", ["", " / 4"]]),
+            "[DRPG.Reserve.leftRow in en.json and pl.json; reserveRow for a shown view 3 of 4 and a view not shown; the editor's words before and after the field]");
+    }],
+    ["R3103 - a module window's body never scrolls sideways (E96 C1, 1.2.102; H102 items 5 and 7): `.drpg-kit-body` states `overflow-x: clip` beside its `overflow: auto`, in both themes, as the Item tables' lists do under the glass", async () => {
+        /*
+         * E96 C1, 09.11.2026; H102 items 5 and 7. At the owner's table Give / take items and the GM panel showed a
+         * horizontal scrollbar on 1.2.101. Not reproduced in Chromium (the diagnosis: the body 545 against 544 in Give,
+         * 672 against 670 in the GM panel, no descendant past the scrollport's edge, no bar drawn): within a pixel or two
+         * of scrolling sideways in both versions, which real fonts and core's sheet push over at the table. A window's
+         * body scrolls down, never sideways; the Item tables' lists took `overflow-x: clip` for the same rounding
+         * (stained-glass.css, "THE TABLE LISTS SCROLL DOWN"). Beside `overflow-y: auto` a `clip` computes to `hidden`:
+         * no bar is drawn and the box stays the one scroll container it was. Read by the sheets' cascade: the body's
+         * `overflow` and `overflow-x` in a kit window, per theme. Red on 7175878b: `overflow-x` unstated.
+         */
+        const C = await styleCascade();
+        const read = theme => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-ui drpg-panel"><section class="window-content"><form class="dialog-form"><div class="dialog-content"><div class="drpg-kit-body"></div></div></form></section></div>`;
+            const kit = body.querySelector(".drpg-kit-body");
+            return [C.winner(kit, "overflow")?.value ?? null, C.winner(kit, "overflow-x")?.value ?? null];
+        };
+        equal(stableJson([read("drpg-theme-stained-glass"), read("drpg-theme-monokuma-legacy")]), stableJson([["auto", "clip"], ["auto", "clip"]]),
+            "[a kit window's body under Stained Glass and under Monokuma Legacy: overflow, overflow-x]");
+    }],
+    ["R3104 - Health vermilion, Sanity teal (E96 C1, 1.2.102; H102-K1, the owner's 09.11.2026): the reserves' tokens are #ff4a26 and #2ec4b6 in both stylesheets (`--drpg-res-*` for Monokuma Legacy, `--drpg-sg-res-*` for the glass)", async () => {
+        /*
+         * E96 C1, 09.11.2026; H102 item 8. E24 C1a drew Health green (#8fd14f) and Sanity violet (#dc72f0), Q-E24-4 run on its
+         * default; at the table the owner read green as wrong for Health and the violet as Danganronpa's blood, which
+         * reads as a physical wound. On the palette page (H102-K1) the owner chose H1, a vermilion apart from the GM's red
+         * (#ff5566) and the Eye's (#e0182f), and S1, a teal. R1444 still holds them apart from every state's colour. The
+         * two marks a Sanity payment carries (the stripe and the inventory's stress badge) were not asked about and stay
+         * the Blood's: they read no reserve token. Read: every declaration of the four tokens in the module's sheets
+         * (top-level rules, as the cascade reads them). Red on 7175878b: #8fd14f and #dc72f0.
+         */
+        const C = await styleCascade();
+        const values = name => [...new Set(C.rules.flatMap(rule => rule.decls).filter(d => d.property === name).map(d => d.value.toLowerCase()))];
+        equal(stableJson(["--drpg-res-health", "--drpg-res-sanity", "--drpg-sg-res-health", "--drpg-sg-res-sanity"].map(values)),
+            stableJson([["#ff4a26"], ["#2ec4b6"], ["#ff4a26"], ["#2ec4b6"]]),
+            "[every value the module's sheets give --drpg-res-health, --drpg-res-sanity, --drpg-sg-res-health, --drpg-sg-res-sanity]");
+    }],
     ["R1408 - VT323 is never set in a synthesised bold (E23 C5b; E23-28, audit S12-44): under the glass the body says `font-synthesis: none`, which every element inherits, no module rule says otherwise, and the safeword button - the word a player must read at once - is set at the face's own weight", async () => {
         /*
          * E23 C5b, 07.11.2026; audit S12-44: VT323 ships one weight, so a bold asked of it is drawn by smearing the glyphs,
@@ -38465,6 +38598,160 @@ const INVARIANTS = [
         } finally { body.classList.remove(cls); h?.cancel(); rig.done(); }
         equal(JSON.stringify(read), JSON.stringify([[false, true], [true, true, 0]]),
             "[before: ended, layers laid]; [the class put on: ended, cancelled, layers left]");
+    }],
+    ["R3120 - a recolour is a crossfade (glass.mjs `glassTurn`, E96 C2; the owner at the table on 1.2.101, H102 DIAGNOSIS 6): on a stand-in curtain a turn under a new accent bakes the new look per batch beside the old, rising 0 to 1 on the old one's delay while the old falls 1 to 0, each batch's two layers a group of their own with the new one added on; a moving pane's new place rises the same way under it; and the curtain is held at 0 under them until every rising layer ends, at one time", async () => {
+        /*
+         * E96 C2, 09.11.2026. C1b painted the new look beneath at once and laid the old over it, so the first frame of
+         * a recolour showed both looks through the see-through glass, the most on the wall panes along the sides
+         * (`--turn`'s still page reads the screen; this reads the layers). Read on a stand-in curtain (`turnRig`) with
+         * the old accent another, so the turn recolours: two triangles move and two stand. Red at 7175878b: no batch is
+         * a group, nothing of the new look is baked, the curtain is not held.
+         */
+        needs(env.motion());
+        const G = await import("./glass.mjs");
+        const rig = turnRig(G);
+        let read = null;
+        try {
+            const h = rig.turn({ fromAcc: "#ffd38f" });
+            must(h, "the stand-in recolour planned no turn - this reads nothing");
+            must(h.plan.recolour && h.plan.batches.length && h.plan.moves.length, `the stand-in recolour is not one that fades batches and moves panes (${h.plan.batches.length} batches, ${h.plan.moves.length} moves) - this reads nothing`);
+            const host = rig.host(), of = el => h.layers.find(l => l.el === el);
+            const pairs = [...host.querySelectorAll(".drpg-turn-fade")].map(p => {
+                const [o, n] = p.children, a = o && of(o), b = n && of(n);
+                return [Boolean(o && rig.ink(o).includes("old look")), Boolean(n?.classList.contains("drpg-turn-new") && rig.ink(n).includes("new glass")),
+                    a?.frames[0].opacity ?? null, a?.frames.at(-1).opacity ?? null, b?.frames[0].opacity ?? null, b?.frames.at(-1).opacity ?? null, Boolean(a && b && a.timing.delay === b.timing.delay)];
+            });
+            const rising = h.layers.filter(l => l.el.classList?.contains("drpg-turn-new"));
+            const under = rising.filter(l => !l.el.parentElement?.classList.contains("drpg-turn-fade"));
+            const ends = [...new Set(rising.map(l => (l.timing.delay ?? 0) + l.timing.duration))];
+            const curtain = of(rig.job.el);
+            read = [pairs.length === h.plan.batches.length, pairs.every(r => JSON.stringify(r) === JSON.stringify([true, true, 1, 0, 0, 1, true])),
+                under.length, under.every(l => l.frames[0].opacity === 0 && l.el.compareDocumentPosition(host.querySelector("canvas.drpg-turn-pane")) & 4),
+                ends.length, curtain ? [curtain.frames.map(f => f.opacity).join(","), curtain.timing.duration === ends[0]] : null];
+            h.cancel();
+            read.push(host.querySelectorAll("canvas, .drpg-turn-fade").length);
+        } finally { rig.done(); }
+        equal(JSON.stringify(read), JSON.stringify([true, true, 2, true, 1, ["0,0", true], 0]),
+            "[a group a batch, each [old look, new look added on, old 1 -> 0, new 0 -> 1, on one delay]; the moving panes' new places rising under the moves, each from 0; the rising layers' ends (one); the curtain's held opacity, until that end; layers left after the cancel]");
+    }],
+    ["R3121 - the voice tile beside Foundry's tab rail keeps its buttons on its own pane, and its pane is the tray column's tail (glass.mjs `buildColumn`, E96 C3; the owner on 1.2.101's top right, H102): for a GM at 2000x1072, 1920x1080 and 1366x768 with the right column pinned off the wall, every corner of the microphone and the speaker on the voice pane, the voice pane meeting the pane over it (the tray's, or since E96 C4 the one between them) along the seam, and the tile settled where E96 C4 settles it", async () => {
+        /*
+         * E96 C3, 09.11.2026. With Foundry's tab rail at the wall (`pinRightColumn` stands the right column 186 px off it
+         * for a GM at 2000x1072), the voice tile is settled 6 px from that pin (`voiceWall`), and the column turns 8
+         * degrees about its top left corner, so the tile's right side, 200 px down the column, stands some 28 px further
+         * right in the column's frame than the tray's. The column's pane was cut to the tray's right side, so the tile's
+         * pane under the seam ended short of the tile: in Chromium on the glass harness with `?windows=off` (GM), at
+         * 1.2.99, 1.2.100, 1.2.101 and f9eee981 alike, `drpgVoiceParts` read both buttons with 2 corners off the voice
+         * pane at 2000x1072 and 1920x1080 (the buttons' right edges at 1811 and 1806, the pane's right edge 1788 at its
+         * top); at 1366x768 the column stands upright and both were on it. Without the tab rail (a player there, every
+         * client in the default harness) the column hugs the wall and the pane runs into it: both on, at every size.
+         * The blocks are the ones that page measured that day (`LAST.blocks`, the voice block before it is settled), and
+         * the rail its pin (`#ui-right-column-1`'s `right`). The buttons' boxes are in the tile's own frame, as
+         * `drpgVoiceParts` read them there: 32 px from the tile's right side to 2 px in, 42 to 12 and 8 to 22 px down
+         * from its top (they stand over its top, on the seam's lift, E78 fix r2-H3). The control: the same reader
+         * on the tray's pane finds the buttons off it.
+         * E96 C4 (09.11.2026; R3122) brought the tile down to the middle of the side: here, with the pin and no band (the
+         * suite's host has no tab rail), it stands at the pin as before, 101 / 103 px lower at 2000x1072 / 1920x1080 and
+         * 15 / 16 px further right in the column's frame (the turn), with a pane between the tray's and its own; at
+         * 1366x768 the tray's rows keep it where it stood. The boxes below are that cut's, read through this road at
+         * the commit (41f18290 read [1656, 260, ...] and [1572, 260, ...] at the two larger sizes).
+         */
+        const G = await import("./glass.mjs");
+        ok(typeof G.cutBoxes === "function", "glass.mjs gives a test no road into the cut");
+        if (typeof G.cutBoxes !== "function") return;
+        const inside = (P, x, y) => { let s = 0; for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length];
+            const cr = (b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0]); if (Math.abs(cr) < 0.5) continue;
+            if (s && Math.sign(cr) !== s) return false; s = Math.sign(cr); } return true; };
+        // the distance of a point from a polygon's outline
+        const offEdge = (P, x, y) => Math.min(...P.map((a, i) => { const b = P[(i + 1) % P.length], dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy || 1;
+            const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / L)); return Math.hypot(x - a[0] - t * dx, y - a[1] - t * dy); }));
+        // the longest edge of A whose two ends both lie on B's outline, within a pixel
+        const shared = (A, B) => Math.round(Math.max(0, ...A.map((a, i) => { const b = A[(i + 1) % A.length];
+            return offEdge(B, a[0], a[1]) <= 1 && offEdge(B, b[0], b[1]) <= 1 ? Math.hypot(b[0] - a[0], b[1] - a[1]) : 0; })));
+        const sizes = [
+            [2000, 1072, 186, [["hud", 16, 22, 265, 214], ["rail", 809, 44, 382, 91], ["three", 1468, 0, 340, 63], ["tray", 1468, 67, 340, 95], ["note-block", 16, 732, 318, 266], ["room-block", 417, 859, 318, 181], ["voice-block", 1617, 260, 191, 277], ["launch", 1884, 910, 94, 140]], [1671, 361, 191, 277]],
+            [1920, 1080, 187, [["hud", 16, 22, 265, 214], ["rail", 769, 44, 382, 91], ["three", 1387, 0, 340, 63], ["tray", 1387, 67, 340, 95], ["note-block", 16, 735, 323, 270], ["room-block", 422, 865, 323, 182], ["voice-block", 1533, 260, 194, 281], ["launch", 1804, 918, 94, 140]], [1587, 363, 194, 281]],
+            [1366, 768, 155, [["hud", 16, 22, 265, 214], ["rail", 492, 44, 382, 91], ["three", 899, 0, 306, 63], ["tray", 899, 67, 306, 95], ["note-block", 16, 544, 301, 154], ["room-block", 385, 608, 301, 129], ["voice-block", 1024, 260, 181, 262], ["launch", 1250, 606, 94, 140]], [1024, 260, 181, 262]]];
+        const read = [], control = [];
+        for (const [W, H, rail, list, live] of sizes) {
+            const cut = G.cutBoxes(W, H, list.map(([cls, x, y, w, h]) => ({ cls, x, y, w, h })), 1, { rail });
+            const mine = cut.panes.find(p => p.tone === "voice-block"), tray = cut.panes.find(p => p.tone === "tray"), v = cut.voice, over = cut.panes.find(p => p.voiceGap) ?? tray;
+            const turn = cut.rotations.find(r => r.sel === "#drpg-voice-tile");
+            if (!mine || !tray || !v || !turn) { read.push([`${W}x${H}`, "no voice pane, tray pane, voice box or turn"]); continue; }
+            const phi = parseFloat(/rotate\(([-\d.e]+)rad\)/.exec(turn.transform)?.[1] ?? "0"), [ox, oy] = turn.origin.split(" ").map(parseFloat);
+            const P = [v.x + ox, v.y + oy], cs = Math.cos(phi), sn = Math.sin(phi);
+            const corners = [[v.w - 32, -42, v.w - 2, -12], [v.w - 32, -8, v.w - 2, 22]].flatMap(([x0, y0, x1, y1]) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]])
+                .map(([x, y]) => [v.x + x, v.y + y]).map(([x, y]) => [P[0] + (x - P[0]) * cs - (y - P[1]) * sn, P[1] + (x - P[0]) * sn + (y - P[1]) * cs]);
+            read.push([`${W}x${H}`, corners.filter(([x, y]) => !inside(mine.poly, x, y)).length, shared(mine.poly, over.poly) >= v.w, [v.x, v.y, v.w, v.h].join(",") === live.join(",")]);
+            control.push(corners.filter(([x, y]) => !inside(tray.poly, x, y)).length);
+        }
+        equal(JSON.stringify(control.map(n => n > 0)), "[true,true,true]", "the reader finds the buttons off the tray's pane at each size - a reader that says yes to anything");
+        equal(JSON.stringify(read), JSON.stringify([["2000x1072", 0, true, true], ["1920x1080", 0, true, true], ["1366x768", 0, true, true]]),
+            "per size [the buttons' corners off the voice pane, the voice pane meets the pane over it along a seam at least the tile's width, the tile settled at the box E96 C4 settles]");
+    }],
+    ["R3122 - the voice tile as before 1.2.100, lower (glass.mjs `settleVoice`, `buildColumn`, `cutStrips`, E96 C4; the owner on C3's picture, H102): for a GM at 2000x1072, 1920x1080 and 1366x768, without Foundry's tab rail at the wall and with it, the tile's turned box is centred on the screen's height (or stands as high as the tray's five rows let it, where the centre is higher than that), its size as before, its top right corner at the wall or at the rail's band, both buttons' corners on its pane with the microphone in the pane's top right corner, no point of the screen bare from the tile's middle to the wall between the tray's pane and the tile's pane's foot, and the cut's self-check clean", async () => {
+        /*
+         * E96 C4, 09.11.2026. The owner on C3's picture (the glass harness, `?windows=off`): "Sam panel jest lepszy, ale
+         * jest za wysoko. Dodatkowo, miedzy nim a po prawej jest dziura w kurtynie, ktorej nie powinno byc. Raz jeszcze
+         * powtarzam: ma byc jak przed 1.2.100 ... Ma byc jak na screenie, tylko nizej", and asked how much lower, "Srodek
+         * prawej strony". The screenshot (a table before 1.2.100, 2000x1072 in CSS px): the tile's pane flush with the
+         * right wall, both buttons inside its top right corner, glass all the way to the wall. Read at 41f18290 in
+         * Chromium on the glass harness: the tile's turned box centred at 434 / 436 / 406 px on screens 1072 / 1080 / 768
+         * tall (default page) and 434 / 436 / 391 with the rail; with the rail, bare map from the tile's pane to the
+         * rail's strip at every size (3164 / 3233 / 1770 points of a 4 px grid right of the pane's left edge, rows 66 to
+         * 598). The blocks are the ones each page measured (`LAST.blocks`, the voice block before it is settled), the
+         * pins `#ui-right-column-1`'s `right`, the bands what `railBox` measured on the rail's page. The buttons' boxes
+         * in the tile's frame are the stylesheet's (`top: calc(7px - lift)`, `right: 2px`, a 4 px gap) at the 34 px
+         * Chromium drew them at 2000x1072. Only the cut is read: the name tag's place is a layout this suite cannot
+         * draw (read in Chromium for the commit: on the tile at all six).
+         */
+        const G = await import("./glass.mjs");
+        ok(typeof G.cutBoxes === "function", "glass.mjs gives a test no road into the cut");
+        if (typeof G.cutBoxes !== "function") return;
+        const inside = (P, x, y) => { let s = 0; for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length];
+            const cr = (b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0]); if (Math.abs(cr) < 0.5) continue;
+            if (s && Math.sign(cr) !== s) return false; s = Math.sign(cr); } return true; };
+        const blocks = {
+            "2000x1072": [["hud", 16, 22, 265, 214], ["rail", 809, 44, 382, 91], ["three", 1654, 0, 340, 63], ["tray", 1654, 67, 340, 95], ["note-block", 16, 772, 318, 226], ["room-block", 16, 256, 265, 364], ["voice-block", 1803, 260, 191, 277], ["launch", 1884, 910, 94, 140]],
+            "1920x1080": [["hud", 16, 22, 265, 214], ["rail", 769, 44, 382, 91], ["three", 1574, 0, 340, 63], ["tray", 1574, 67, 340, 95], ["note-block", 16, 773, 323, 232], ["room-block", 16, 256, 265, 364], ["voice-block", 1720, 260, 194, 281], ["launch", 1804, 918, 94, 140]],
+            "1366x768": [["hud", 16, 22, 265, 214], ["rail", 492, 44, 382, 91], ["three", 1020, 0, 340, 63], ["tray", 1020, 67, 340, 95], ["note-block", 16, 446, 301, 252], ["room-block", 385, 608, 301, 129], ["voice-block", 1179, 260, 181, 262], ["launch", 1250, 606, 94, 140]],
+            "2000x1072 rail": [["hud", 16, 22, 265, 214], ["rail", 809, 44, 382, 91], ["three", 1468, 0, 340, 63], ["tray", 1468, 67, 340, 95], ["note-block", 16, 732, 318, 266], ["room-block", 417, 859, 318, 181], ["voice-block", 1617, 260, 191, 277], ["launch", 1884, 910, 94, 140]],
+            "1920x1080 rail": [["hud", 16, 22, 265, 214], ["rail", 769, 44, 382, 91], ["three", 1387, 0, 340, 63], ["tray", 1387, 67, 340, 95], ["note-block", 16, 735, 323, 270], ["room-block", 422, 865, 323, 182], ["voice-block", 1533, 260, 194, 281], ["launch", 1804, 918, 94, 140]],
+            "1366x768 rail": [["hud", 16, 22, 265, 214], ["rail", 492, 44, 382, 91], ["three", 899, 0, 306, 63], ["tray", 899, 67, 306, 95], ["note-block", 16, 544, 301, 154], ["room-block", 385, 608, 301, 129], ["voice-block", 1024, 260, 181, 262], ["launch", 1250, 606, 94, 140]]
+        };
+        const band = (x0, x1, c0, c1, b) => ({ x0, y0: 41, x1, y1: 293, real: true, core: [c0, c1], centre: [(c0 + c1) / 2, 167], band: b, coreY: [30, 324], origin: [30, 145] });
+        const rails = { "2000x1072 rail": [186, band(1945, 2003, 1956, 1992, 1916)], "1920x1080 rail": [187, band(1865, 1923, 1876, 1912, 1836)], "1366x768 rail": [155, band(1311, 1369, 1322, 1358, 1282)] };
+        // the tile's height at 41f18290, read the same way: full at every size but the default page's 1366x768, cut by the corner's pane under it
+        const tall = { "2000x1072": 277, "1920x1080": 281, "1366x768": 218, "2000x1072 rail": 277, "1920x1080 rail": 281, "1366x768 rail": 262 };
+        const read = [];
+        for (const key of Object.keys(blocks)) {
+            const [W, H] = key.split(" ")[0].split("x").map(Number), [pin, rb] = rails[key] ?? [null, null];
+            const list = blocks[key], vb = list.find(b => b[0] === "voice-block");
+            const cut = G.cutBoxes(W, H, list.map(([cls, x, y, w, h]) => ({ cls, x, y, w, h })), 1, { rail: pin, band: rb });
+            const mine = cut.panes.find(p => p.tone === "voice-block"), tray = cut.panes.find(p => p.tone === "tray"), v = cut.voice;
+            const turn = cut.rotations.find(r => r.sel === "#drpg-voice-tile");
+            if (!mine || !tray || !v || !turn) { read.push([key, "no voice pane, tray pane, voice box or turn"]); continue; }
+            const phi = parseFloat(/rotate\(([-\d.e]+)rad\)/.exec(turn.transform)?.[1] ?? "0"), [ox, oy] = turn.origin.split(" ").map(parseFloat);
+            const P = [v.x + ox, v.y + oy], cs = Math.cos(phi), sn = Math.sin(phi);
+            const R = (x, y) => [P[0] + (x - P[0]) * cs - (y - P[1]) * sn, P[1] + (x - P[0]) * sn + (y - P[1]) * cs];
+            const cy = R(v.x + v.w / 2, v.y + v.h / 2)[1], off = Math.round(cy - H / 2);
+            const placed = Math.abs(cy - H / 2) <= 4 ? "centred" : v.y === vb[2] ? "as high as the tray lets it" : `off the middle by ${off}`;
+            const lift = v.lift ?? 0, btn = [[v.w - 36, 7 - lift, v.w - 2, 41 - lift], [v.w - 36, 45 - lift, v.w - 2, 79 - lift]];
+            const offPane = btn.flatMap(([x0, y0, x1, y1]) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]).map(([x, y]) => R(v.x + x, v.y + y)).filter(([x, y]) => !inside(mine.poly, x, y)).length;
+            const my = mine.poly.reduce((t, q) => t + q[1], 0) / mine.poly.length;
+            const tr = mine.poly.filter(q => q[1] < my).reduce((a, q) => (q[0] > a[0] ? q : a), [-Infinity, 0]), mic = R(v.x + v.w - 2, v.y + 7 - lift);
+            const corner = Math.hypot(tr[0] - mic[0], tr[1] - mic[1]) <= 24;
+            const wall = rb && R(v.x + v.w, v.y)[0] < W - 12 ? rb.band : W, atWall = R(v.x + v.w, v.y)[0] >= wall - 8;
+            const yA = Math.max(...tray.poly.map(q => q[1])), yB = mine.poly.map(q => q[1]).sort((a, b) => b - a)[1], xA = R(v.x + v.w / 2, v.y + v.h / 2)[0];
+            // to the higher of the foot's two corners: under a turned foot the open map begins, as it does under every column's
+            let bare = 0;
+            for (let y = Math.ceil(yA); y < yB; y += 4) for (let x = Math.ceil(xA); x < W - 1; x += 4) if (!cut.panes.some(p => inside(p.poly, x, y))) bare++;
+            const c = cut.check, faults = ["overlaps", "nonconvex", "blockFails", "edgeGaps", "openFails"].map(k => Array.isArray(c[k]) ? c[k].length : (c[k] ?? 0)).reduce((s, n) => s + n, 0);
+            read.push([key, placed, v.w === vb[3] && v.h === tall[key], atWall, offPane, corner, bare, faults]);
+        }
+        const want = Object.keys(blocks).map(k => [k, k.startsWith("1366") ? "as high as the tray lets it" : "centred", true, true, 0, true, 0, 0]);
+        equal(JSON.stringify(read), JSON.stringify(want),
+            "per page [centred on the screen's height or as high as the tray's rows let it, its size as before, its top right corner at the wall or the rail's band, the buttons' corners off its pane, the microphone in the pane's top right corner, bare points from the tile's middle to the wall between the tray's pane and the tile's pane's foot, the self-check's faults]");
     }],
     ["R1441 - the reserve census (E24 C0, E24-01; D5 option 1, \"everywhere the reserve\"): in scripts/ (the suite aside), every top-level function or table that reads Health or Sanity - `system.resources.hitPoints` or `.stress`, `resourceValue(_, \"hitPoints\"|\"stress\")`, a call of `marksOf(`, or the sheet's own bars (`.resources-section`) - either reads character.mjs `reserveView` or stands in the census's list of reads for rules, with its reason; every name on the list still reads; no file calls `marksOf` and character.mjs declares none; the curtain's files (glass.mjs, player-status.mjs, hud.mjs, room-tile.mjs) read none", async () => {
         /*

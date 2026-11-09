@@ -1995,7 +1995,7 @@
         "many": "{n} Sanity",
         "other": "{n} Sanity"
       },
-      "leftRow": "Zostało: {n} / {max}",
+      "leftRow": "{n} / {max}",
       "fieldHealth": "Ile Health zostało. Wpisz liczbę, aby to zmienić.",
       "fieldSanity": "Ile Sanity zostało. Wpisz liczbę, aby to zmienić."
     },
