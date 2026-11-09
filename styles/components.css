@@ -301,20 +301,24 @@ body .application.dialog footer.form-footer.drpg-kit-footer button { flex: 0 1 a
 .drpg-kit-footer .drpg-role-primary { order: 2; --drpg-kit-ring: var(--drpg-kit-role-primary); --drpg-kit-face-edge: var(--drpg-kit-primary-edge); }
 .drpg-kit-footer button[data-drpg-role]:focus-visible { outline: 2px solid var(--drpg-kit-ring); outline-offset: 2px; }
 
-/* ---- kitTabs: one markup, equal widths (S12-50) that never cut a label: equal columns at least as wide as the
-   widest label, then the one-line fit (ui-kit.mjs `fitKitTabs`), which sets the bar's count of columns and the size,
-   spacing and padding it measured to fit. Every tabbed window of the module draws this bar since E44 C4a (R1324),
-   the windows E21 has not moved onto the kit's frame among them, so a rule here names the bar, never `.drpg-ui`. ---- */
+/* ---- kitTabs: one markup, one row of equal widths (S12-50) that never cuts a label - the one-line fit (ui-kit.mjs
+   `fitKitTabs`) sets the bar's count of columns and the size, spacing and padding it measured to fit - and where one
+   row cannot hold them, the tabs wrap left to right, each at its own width and the row's room shared out, never a grid
+   of columns (E47-KFb, the owner's F1 on comparison 1, 09.11.2026: Room setup's nine tabs stood in a two-column grid).
+   A bar not fitted yet (no layout, or before its first frame) wraps the same way. Every tabbed window of the module
+   draws this bar since E44 C4a (R1324), the windows E21 has not moved onto the kit's frame among them, so a rule here
+   names the bar, never `.drpg-ui`. ---- */
 .drpg-tabs {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 8em), 1fr));
+    display: flex;
+    flex-wrap: wrap;
     gap: 2px;
     padding: 3px;
     margin: 0 0 10px;
     background: var(--drpg-kit-tab-bar);
     border-bottom: 1px solid var(--drpg-kit-line);
 }
-.drpg-tabs[data-drpg-tab-fit] { grid-template-columns: repeat(var(--drpg-kit-tab-n), minmax(0, 1fr)); }
+.drpg-tabs[data-drpg-tab-fit="one"] { display: grid; grid-template-columns: repeat(var(--drpg-kit-tab-n), minmax(0, 1fr)); }
+.drpg-tabs:not([data-drpg-tab-fit="one"]) > button[role="tab"] { flex: 1 0 auto; }
 body.drpg-theme-stained-glass .drpg-tabs {
     border-bottom: 0;
     clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
@@ -2451,6 +2455,13 @@ body .application.drpg-ui.drpg-window-tables .drpg-table-item-cell > input[type=
     color: var(--drpg-kit-btn-on-ink);
 }
 .drpg-window-tables .drpg-room-group .drpg-data-table-box { margin-bottom: 4px; }
+/* Give / take items (gm-items.mjs `openItemManager`): its body fills the window. The glass caps a `.drpg-panel` dialog's
+   `.dialog-content` at --drpg-popup (544 px) and the footer's four buttons (seven on Take) stand the frame wider, so the
+   body stood at 544 px in a 756 px window (907 on Take), a 178 px band of nothing at its right (329 on Take). Measured
+   (Chromium, the style harness, 1366x768 and 1920x1080, both themes; E47-KFb, the owner's F2 on comparison 1): the body
+   filling the frame leaves no band and the window as it was (756, 907; Legacy 544 already filled); the window taking its
+   content's width (`fit`) stood it 1318 px wide at 1366x768, the notes' one line. */
+body.drpg-theme-stained-glass .application.dialog.drpg-ui.drpg-window-items:not(.drpg-kit-fit):not(.drpg-kit-width) .dialog-content { max-width: none; }
 /* Give an item and Give a Truth Bullet on the kit's formGrid: the notes and boxes of a full row sit on it */
 /* one label column for the grid in the tab and the grid under the tabs, so every field starts at one edge: the kit's
    column is as wide as each grid's own longest label, and "Description (optional)" set the tab's 70 px wider than

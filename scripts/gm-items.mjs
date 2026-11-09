@@ -30,7 +30,11 @@ import { studentActors } from "./monokuma.mjs";
 
 /** The student <option> list every give/take window opens with (ITEM-18). */
 function recipientOptions(students, selectedId) {
-    return students
+    /* The actor a window was opened for is in its list even when it is no student (E47-KFb; E47-C8's Open 3): the
+       Students window's Items on a Monokuma's or an NPC's row opened the hub with its select on the first student,
+       which the hub's doors then read as the one it is about. That actor first, then the students as before. */
+    const own = selectedId && !students.some(a => a.id === selectedId) ? game.actors.get(selectedId) : null;
+    return [...(own ? [own] : []), ...students]
         .map(a => `<option value="${a.id}"${a.id === selectedId ? " selected" : ""}>${esc(a.name)}</option>`)
         .join("");
 }

@@ -449,8 +449,11 @@ export { eachPane };
    with the 25 % growth on DR-E44-M1, q-grow). Each strip takes the first that fits its bar on one line of equal
    columns: today's size; then down by 0.5 px to the floor (11 px, D29's, under Monokuma Legacy; `--drpg-sg-floor`
    under Stained Glass, which is higher); there the letter-spacing down to 0; then the padding down to 4 px; then the
-   window up to a quarter wider (never past the screen less 16 px); only then rows, as few as fit. What it took is
-   written on the bar (`data-drpg-tab-fit`) and in three custom properties the bar's rule reads. On a page with no
+   window up to a quarter wider (never past the screen less 16 px); only then the tabs wrap, left to right, each at its
+   own width at the theme's own size, a row filled before the next starts - never a grid of columns (the owner on
+   comparison 1, 09.11.2026, F1: "the tab switches - once in a row, now stacked on each other"; Room setup's nine tabs
+   were a two-column grid; E47-KFb). What it took is written on the bar (`data-drpg-tab-fit`: "one" or "wrap") and, on
+   one line, in four custom properties the bar's rule reads. On a page with no
    layout (jsdom) the bar measures 0 and nothing is set. The quarter is of the window's width before its first growth
    (E21 C1b, q-grow; E44's Open 25): the fit runs twice on a first draw and again when a window is redrawn, and each
    run measured the quarter from the width it found, so a grown window could grow again by a quarter of the grown
@@ -459,24 +462,30 @@ export { eachPane };
 const TAB_FLOOR = 11;
 const GROWTH = 0.25;
 
+/* A tab's own width: its words' (`max-content`), not grown by the wrapping bar's `flex` (E47-KFb). */
+function ownWidth(b) {
+    const was = [b.style.width, b.style.flex];
+    b.style.width = "max-content";
+    b.style.flex = "none";
+    const w = b.getBoundingClientRect().width;
+    [b.style.width, b.style.flex] = was;
+    return w;
+}
+
 function tabNeed(nav, btns, cols, size, ls, pad) {
     nav.style.setProperty("--drpg-kit-tab-fit-size", `${size}px`);
     nav.style.setProperty("--drpg-kit-tab-fit-ls", `${ls}em`);
     nav.style.setProperty("--drpg-kit-tab-fit-pad", `${pad}px`);
     let widest = 0;
-    for (const b of btns) {
-        const was = b.style.width;
-        b.style.width = "max-content";
-        widest = Math.max(widest, b.getBoundingClientRect().width);
-        b.style.width = was;
-    }
+    for (const b of btns) widest = Math.max(widest, ownWidth(b));
     const gap = parseFloat(getComputedStyle(nav).columnGap) || 0;
     return cols * widest + (cols - 1) * gap;
 }
 
 /**
  * Fit one kit tab bar to one line (above). `win` is the window that may grow (its element); answers what was taken,
- * `{ rows, cols, size, ls, pad, grew }`, or null where nothing could be measured.
+ * `{ rows, cols, size, ls, pad, grew }` (`cols` null when the bar wraps: its rows are counted by laying the tabs' own
+ * widths left to right), or null where nothing could be measured.
  */
 export function fitKitTabs(nav, { win = null } = {}) {
     const btns = [...(nav?.children ?? [])].filter(b => b.matches('button[role="tab"]'));
@@ -500,8 +509,20 @@ export function fitKitTabs(nav, { win = null } = {}) {
     const done = fit => {
         nav.style.setProperty("--drpg-kit-tab-n", String(fit.cols));
         tabNeed(nav, btns, fit.cols, fit.size, fit.ls, fit.pad);
-        nav.dataset.drpgTabFit = fit.rows === 1 ? "one" : "rows";
+        nav.dataset.drpgTabFit = "one";
         return fit;
+    };
+    // The wrap: no size, spacing or padding of the fit's (the theme's own), and the rows the tabs' own widths take.
+    const wrap = () => {
+        for (const v of ["--drpg-kit-tab-fit-size", "--drpg-kit-tab-fit-ls", "--drpg-kit-tab-fit-pad"]) nav.style.removeProperty(v);
+        const gap = parseFloat(getComputedStyle(nav).columnGap) || 0;
+        let rows = 1, line = 0;
+        for (const b of btns) {
+            const w = ownWidth(b);
+            if (line && line + gap + w > room) { rows++; line = w; } else line += (line ? gap : 0) + w;
+        }
+        nav.dataset.drpgTabFit = "wrap";
+        return { rows, cols: null, size: f0, ls: ls0, pad: pad0, grew: 0 };
     };
     const grow = (cols, tries) => {
         if (!win) return null;
@@ -525,14 +546,7 @@ export function fitKitTabs(nav, { win = null } = {}) {
     for (let pad = pad0; pad >= 4; pad -= 1) if (tabNeed(nav, btns, n, floor, 0, pad) <= room) return done({ rows: 1, cols: n, size: floor, ls: 0, pad, grew: 0 });
     const grown = grow(n, [[floor, ls0, pad0], [floor, 0, 4]]);
     if (grown) return done({ rows: 1, cols: n, ...grown });
-    for (let cols = Math.ceil(n / 2); cols >= 1; cols--) {
-        const rows = Math.ceil(n / cols);
-        for (const size of sizes) if (tabNeed(nav, btns, cols, size, ls0, pad0) <= room) return done({ rows, cols, size, ls: ls0, pad: pad0, grew: 0 });
-        if (tabNeed(nav, btns, cols, floor, 0, 4) <= room) return done({ rows, cols, size: floor, ls: 0, pad: 4, grew: 0 });
-        const wider = grow(cols, [[f0, ls0, pad0], [floor, ls0, pad0], [floor, 0, 4]]);
-        if (wider) return done({ rows, cols, ...wider });
-    }
-    return done({ rows: n, cols: 1, size: floor, ls: 0, pad: 4, grew: 0 });
+    return wrap();
 }
 
 /* ---- the scroll signal ------------------------------------------------------------------------------------------ */

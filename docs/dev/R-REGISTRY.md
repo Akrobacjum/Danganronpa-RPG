@@ -997,8 +997,8 @@ Next free: R2092. Reserved and unused: none.
 | R2087 | 1 | E47 | the callers that wrote into the kit's markup after the draw use the kit's options (scripts/room-setup.mjs, passages-tab.mjs, investigation.mjs, gm-students.mjs, projects-ui.mjs; E47-KFa): no string edit of a builder's markup is left, and each option is named where the edit was |
 | R2088 | 1 | E47 | a kit footer's disabled button is drawn disabled in a DialogV2 window (scripts/ui-kit.mjs `dressFooter`; E47-KFa, E47-C1's Open 3): the harness's DialogV2 draws no `disabled`, and the kit writes it as `footerButton` does |
 | R2089 | 1 | E47 | a kit button outside a footer is the kit's `roleButton` (scripts/ui-kit.mjs; roll-draw.mjs, sheet-audit.mjs, gm-students.mjs, the checklist's action; E47-KFa, E47-C5's Open 10): its role's classes, `data-drpg-role`, the caller's class and attributes, no hand-written role button left |
-| R2090 | 1 | E47 | a kit tab bar that cannot hold its tabs on one line wraps them left to right at their own widths, never a grid of columns (scripts/ui-kit.mjs `fitKitTabs`, components.css `.drpg-tabs`; E47-KFb, the owner's F1 on comparison 1) (removed in E47) |
-| R2091 | 1 | E47 | Give / take items opened for a character who is no student names that character (scripts/gm-items.mjs `recipientOptions`; E47-KFb, E47-C8's Open 3): its select on them, first, the students after; opened for a student, the students alone as before (removed in E47) |
+| R2090 | 1 | E47 | a kit tab bar that cannot hold its tabs on one line wraps them left to right at their own widths, never a grid of columns (scripts/ui-kit.mjs `fitKitTabs`, components.css `.drpg-tabs`; E47-KFb, the owner's F1 on comparison 1) |
+| R2091 | 1 | E47 | Give / take items opened for a character who is no student names that character (scripts/gm-items.mjs `recipientOptions`; E47-KFb, E47-C8's Open 3): its select on them, first, the students after; opened for a student, the students alone as before |
 
 Tier-1 tests older than 1.2.61 with no number (70, names kept):
 

@@ -84332,6 +84332,63 @@ const SCENARIOS = [
 
     /* ---- E47-C3 (09.11.2026): the GM panel's tiles and the case window (MARKED) ---- */
 
+    ["E47-T7 - Give > Create new gives each kind its own icon at once (scripts/gm-items.mjs `gmGiveItemDialog`, inventory.mjs `grantItem`, config.mjs `itemIcon`; E47-KFb, the owner's F3 on comparison 1): for every category the Create new tab offers, the item handed over carries that category's drawing, a usable kind its category's", async () => {
+        /*
+         * E47-KFb, 09.11.2026; the owner on comparison 1: "does Give -> Create new pick the right icon at once?". Read in the
+         * code: Create new hands `img: null` (gm-items.mjs `giveFromResult`), and `grantItem` writes `itemIcon(category)`,
+         * one drawing per category (config.mjs, Dawid 28.08: "one drawing per category, not per item") - a usable's kind
+         * (healing, ...) is its category's drawing. The window draws no icon before the press. Read here through the window
+         * as E46-T2 drives it: each option of the tab's category select picked, Tier 1, a name, Give pressed, the new item's
+         * picture. A hold, not a fix: green on b6133c75 (nothing in the road was wrong).
+         */
+        const G = await import("./gm-items.mjs");
+        const CFG = await import("./config.mjs");
+        const [actor] = cast(1);
+        must(actor, "no student to give to - this would measure nothing");
+        const TAG = "SUITE E47-T7";
+        const had = new Set(actor.items.map(i => i.id));
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const read = [], want = [];
+        let values = null;
+        try {
+            const give = async value => {
+                D.wait = async config => {
+                    const element = document.createElement("div");
+                    if (typeof config?.content === "string") element.innerHTML = config.content;
+                    else if (config?.content) element.append(config.content);
+                    config?.render?.(null, { element });
+                    element.querySelector('[data-drpg-tab-key="create"]')?.click();
+                    const form = element.querySelector("form");
+                    values ??= [...form.elements.category.options].map(o => o.value).filter(Boolean);
+                    if (value === null) return "cancel";
+                    form.elements.category.value = value;
+                    form.elements.category.dispatchEvent(new Event("change"));
+                    form.elements.tier.value = "1";
+                    form.elements.name.value = `${TAG} ${value}`;
+                    form.elements.tell.checked = false;
+                    const ok = (config.buttons ?? []).find(b => b.action === "ok");
+                    return ok?.callback?.(null, null, { element }) ?? "cancel";
+                };
+                const before = new Set(actor.items.map(i => i.id));
+                const gave = await G.gmGiveItemDialog(actor);
+                await settle();
+                const item = actor.items.find(i => !before.has(i.id));
+                return [value, gave, item?.img ?? null];
+            };
+            await give(null);
+            must(values?.length >= 3, `the Create new tab offered ${values?.length ?? 0} categories - this would measure little`);
+            for (const value of values) {
+                read.push(await give(value));
+                want.push([value, true, CFG.itemIcon(value.split(":")[0])]);
+            }
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            for (const item of actor.items.filter(i => !had.has(i.id))) await item.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson(want), "Create new hands over an item whose picture is not its category's [each category offered: given, the item's img]");
+    }],
     ["E47-T3 - the GM panel's Murder tile in an Eclipse during an incident opens the incident tracker (E47-C3; audit S10-53): a direct murder opened between two students, then an Eclipse - the panel's Murder tile live, and pressed, the tracker", async () => {
         /*
          * E47-C3, 09.11.2026; audit S10-53. Here, on this GM's browser with real windows: an incident opened as E47-T2

@@ -35450,7 +35450,8 @@ const INVARIANTS = [
             panes: [["a", false, ""], ["b", true, ""], ["c", true, ""]],
             fields: ["r1353a", "r1353b", "r1353c"],
             clamped: [`${innerHeight - 8}px`, "8px"],
-            fits: [[1, 21, "421px", "400"], [2, 2, 0, "421px"]]
+            // the second bar wraps since E47-KFb (two rows of the tabs' own widths, no columns); a 2 x 2 grid before it
+            fits: [[1, 21, "421px", "400"], [2, null, 0, "421px"]]
         }), `[positions asked on the first draw; after each of three presses (b, c, a): what was asked, with the pane shown, the footer's shown buttons and the tabs onSwitch was told then (${asked.length} reposition(s) after 3 presses); the panes (key, hidden, inline display); the form's fields; the tops a page with no application clamped (5000 px, -50 px); the first fit (rows, grew, width, first width) and the second (rows, columns, grew, width)]`);
     }],
     ["R1355 - an on-screen keyboard does not switch the layout (scripts/settings.mjs `layoutHeight`, `shortScreen`, `keyboardUp`; E21 C1d, E21-17; the owner's 26.09 amend and A7): with focus in a text field a fall of the height alone keeps `shortScreen` and `narrowScreen` as they were and `keyboardUp` says so; the height risen, a fall with no field focused and a change of the width are taken; glass.mjs cuts nothing while the keyboard is up, and the keyboard is asked to overlay the page where the browser lets it", async () => {
@@ -43609,6 +43610,71 @@ const INVARIANTS = [
             refused: [true, true],
             hand: []
         }), "[the GM's road with an attribute; a secondary with the caller's class and attributes, a null one left out; a role that is none and an own attribute, refused; the callers still naming BUTTON_ROLES]");
+    }],
+    ["R2090 - a kit tab bar that cannot hold its tabs on one line wraps them left to right at their own widths, never a grid of columns (scripts/ui-kit.mjs `fitKitTabs`, components.css `.drpg-tabs`; E47-KFb, the owner's F1 on comparison 1)", async () => {
+        /*
+         * E47-KFb, 09.11.2026; the owner on comparison 1: "the tab switches - once in a row, now stacked on each other";
+         * Room setup's nine tabs were a two-column grid (5 rows of 2, 191 px under the glass at 1366x768) and stand in one
+         * row of their own widths after (41 px; Chromium, the style harness, both themes, 1366x768 and 1920x1080). Read
+         * here, with stated widths as R1353 reads the fit: nine tabs of 90-160 px in 500 px of room, no window to grow,
+         * then three of 100 px in 400 px (one line of equal columns, as before). And by source the bar's rule: a flex row
+         * that wraps, the equal columns only on a bar fitted to one line. Red on b6133c75: a grid of columns
+         * (`data-drpg-tab-fit="rows"`, `--drpg-kit-tab-n` 3), the bar's rule `repeat(auto-fit, ...)`.
+         */
+        const K = await import("./ui-kit.mjs");
+        const bar = (widths, room) => {
+            const host = document.createElement("div");
+            host.innerHTML = K.kitTabBar(widths.map((w, i) => ({ key: `t${i}`, label: `T${i}` })));
+            const nav = host.querySelector("nav.drpg-tabs");
+            nav.style.setProperty("column-gap", "0px", "important");
+            nav.style.setProperty("padding", "0px", "important");
+            Object.defineProperty(nav, "clientWidth", { get: () => room, configurable: true });
+            [...nav.querySelectorAll("button")].forEach((b, i) => { b.style.fontSize = "13px"; b.getBoundingClientRect = () => ({ width: widths[i], height: 20, top: 0, left: 0 }); });
+            document.body.append(host);
+            try {
+                const fit = K.fitKitTabs(nav);
+                return [fit?.rows, fit?.cols ?? null, nav.dataset.drpgTabFit ?? null, nav.style.getPropertyValue("--drpg-kit-tab-n") || null, nav.style.getPropertyValue("--drpg-kit-tab-fit-size") || null];
+            } finally { host.remove(); }
+        };
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/components.css`).then(lfText));
+        equal(stableJson({
+            nine: bar([130, 100, 130, 140, 100, 120, 160, 90, 110], 500),
+            three: bar([100, 100, 100], 400),
+            base: /\n\.drpg-tabs \{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/.test(css),
+            autoFit: css.includes("repeat(auto-fit, minmax(min(100%, 8em), 1fr))"),
+            one: /\.drpg-tabs\[data-drpg-tab-fit="one"\]\s*\{\s*display:\s*grid;/.test(css)
+        }), stableJson({
+            nine: [3, null, "wrap", null, null],
+            three: [1, 3, "one", "3", "13px"],
+            base: true, autoFit: false, one: true
+        }), "[nine tabs in 500 px: rows, cols, the bar's fit, its column count, its fitted size; three in 400 px the same; the bar's rule a wrapping flex row; the old column grid's rule; the equal columns on a one-line bar only]");
+    }],
+    ["R2091 - Give / take items opened for a character who is no student names that character (scripts/gm-items.mjs `recipientOptions`; E47-KFb, E47-C8's Open 3): its select on them, first, the students after; opened for a student, the students alone as before", async () => {
+        /*
+         * E47-KFb, 09.11.2026; STATUS E47-C8 Open 3: the Students window's Items on a Monokuma's or an NPC's row opened the
+         * hub with its "who" select listing students only, so it named the first student, which the hub's doors then read.
+         * Read: the hub's markup as DialogV2.wait is handed it, opened for the world's NPC (the seed's Remnant) and for a
+         * student. Red on b6133c75: the NPC is in no option and the first student is selected.
+         */
+        const G = await import("./gm-items.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const students = studentActors();
+        const other = game.actors.find(a => !students.some(s => s.id === a.id));
+        must(students.length >= 2 && other, "no two students and a character who is none - this would measure nothing");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const read = async actor => {
+            let config = null;
+            D.wait = async cfg => { config = cfg; return null; };
+            try { await G.openItemManager(actor); } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+            const host = document.createElement("div");
+            host.innerHTML = typeof config?.content === "string" ? config.content : config?.content?.outerHTML ?? "";
+            const select = host.querySelector('select[name="who"]');
+            return select ? [select.value, [...select.options].map(o => o.value)] : null;
+        };
+        equal(stableJson({ other: await read(other), student: await read(students[1]) }),
+            stableJson({ other: [other.id, [other.id, ...students.map(s => s.id)]], student: [students[1].id, students.map(s => s.id)] }),
+            "[the hub's who select opened for the NPC and for the second student: its value, its options]");
     }],
 ];
 
