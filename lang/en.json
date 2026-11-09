@@ -1011,7 +1011,7 @@
       "tabCreateNew": "Create new",
       "pickTable": "Which table",
       "pickExisting": "Which item",
-      "existingNote": "Category and tier follow the item's table. Adjust them only when the table does not say - a room pool names neither.",
+      "existingNote": "Category and tier follow the item: a tier pool's own, or for a room pool what the tier pools say of its name. Where nothing says, choose them.",
       "existingEmpty": "No item tables in this world yet - the Item Tables tile on the GM panel builds them. Create new still works.",
       "recipient": "Give it to",
       "needsRecipient": "Nobody is selected to receive this.",
@@ -1082,7 +1082,9 @@
       "takeNote": "Anything they are holding or have stashed - Truth Bullets and keys to other people's rooms included.",
       "inStash": "in the stash",
       "carriesNothing": "{actor} is carrying nothing and has nothing stashed.",
-      "whichCharacterHub": "Which student"
+      "whichCharacterHub": "Which student",
+      "chooseOne": "- choose -",
+      "setCategoryTier": "The tables do not say what this item is: choose its category and tier to give it."
     },
     "Monocub": {
       "panelTitle": "Monocub",

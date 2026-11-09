@@ -24,7 +24,7 @@ import { grantItem, itemsInCategory, countInCategory, countInGroup, inventorySum
 // Bullets is `pickableCategories`'s job now, not this file's.
 import { createTruthBullet, issueAutopsy, copiedRemnants }
     from "./truth-bullets.mjs";
-import { ITEM_POOLS, USABLE_GOALS, moduleTables, rolesOfResult, MULTI_ROLE_TIER, usableKindFor }
+import { ITEM_POOLS, USABLE_GOALS, moduleTables, rolesOfResult, MULTI_ROLE_TIER, usableKindFor, entryAs }
     from "./tables.mjs";
 import { studentActors } from "./monokuma.mjs";
 
@@ -35,7 +35,7 @@ function recipientOptions(students, selectedId) {
         .join("");
 }
 import { whisperToOwner, log, error, plural, cardHead, esc, serialWrite } from "./utils.mjs";
-import { kitTabs, wireKitTabs, shownTab, drpgWindow } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, shownTab, drpgWindow, box, emptyOption } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { homeScene } from "./rooms.mjs";
 
@@ -69,7 +69,8 @@ import { homeScene } from "./rooms.mjs";
  * `openVaultInspector` stays on the console for a GM who wants every
  * stash at once rather than one student's.
  */
-function holdingsHtml(who) {
+/* Exported for R2025 (E46-C3): the summary in the body's ink, the headings plural. */
+export function holdingsHtml(who) {
         const groups = [];
         for (const [key, cat] of Object.entries(ITEM_CATEGORIES)) {
             const all = itemsInCategory(who, key);
@@ -83,10 +84,12 @@ function holdingsHtml(who) {
                     ? ` <span class="notes">${esc(game.i18n.localize("DRPG.Items.inStash"))}</span>`
                     : ""}</li>`;
             }).join("");
-            groups.push(`<div class="drpg-holdings-group"><h4>${esc(cat.label)}</h4>`
+            // A group of what they hold, named in the plural (E46-C3, S13-36 (5)): "Tool" over three tools read as one.
+            groups.push(`<div class="drpg-holdings-group"><h4>${esc(cat.plural ?? cat.label)}</h4>`
                 + `<ul>${rows}</ul></div>`);
         }
-        return `<p class="notes">${esc(inventorySummary(who))}</p>`
+        // The summary is what the window is for, not fine print (E46-C3, S13-36 (5)): in the body's ink.
+        return `<p class="drpg-holdings-summary">${esc(inventorySummary(who))}</p>`
             + (groups.length
                 ? `<div class="drpg-holdings">${groups.join("")}</div>`
                 : `<p class="notes">${esc(game.i18n.format("DRPG.Items.carriesNothing",
@@ -473,6 +476,7 @@ function giveItemOptionsFor(table) {
  * hidden options is a control that reports values nobody can see.
  */
 function giveExistingPane(catalogue, categories, tiers) {
+    const EX_UNSET = emptyOption("DRPG.Items.chooseOne");
     const tableOptions = catalogue.map(table => {
         const cat = table.getFlag(MODULE_ID, "category") ?? "";
         const tier = table.getFlag(MODULE_ID, "tier");
@@ -487,10 +491,11 @@ function giveExistingPane(catalogue, categories, tiers) {
             <label>${game.i18n.localize("DRPG.Items.pickExisting")}
                 <select name="exItem">${giveItemOptionsFor(catalogue[0])}</select></label>
             <label>${game.i18n.localize("DRPG.Items.category")}
-                <select name="exCategory">${categories}</select></label>
+                <select name="exCategory" aria-describedby="drpg-give-to-set">${EX_UNSET}${categories}</select></label>
             <p class="notes drpg-warning" data-drpg-kind-note="exCategory" hidden></p>
             <label>${game.i18n.localize("DRPG.Items.tier")}
-                <select name="exTier">${tiers}</select></label>
+                <select name="exTier" aria-describedby="drpg-give-to-set">${EX_UNSET}${tiers}</select></label>
+            <div id="drpg-give-to-set" data-drpg-to-set hidden>${box("warning", esc(game.i18n.localize("DRPG.Items.setCategoryTier")))}</div>
             <p class="notes">${game.i18n.localize("DRPG.Items.existingNote")}</p>`
         : `<p class="notes">${game.i18n.localize("DRPG.Items.existingEmpty")}</p>`;
 }
@@ -521,44 +526,47 @@ function giveCreatePane({ categories, tiers, suggestions }) {
 }
 
 /** The give form's own rules: the table drives the item list, category and tier; the recipient rebuilds the counts; the roles follow tier and home. */
-function wireGiveForm(dialog) {
-    wireKitTabs(dialog.element, { win: dialog.element, app: dialog });
+function wireGiveForm(dialog, tables = game.tables) {
+    const form = dialog.element.querySelector("form");
+    const paintGate = () => gateGive(dialog, form);
+    wireKitTabs(dialog.element, { win: dialog.element, app: dialog, onSwitch: paintGate });
+    if (!form) return;
 
     /*
-     * THE TABLE DRIVES THE OTHER THREE.
+     * THE ENTRY DRIVES THE CATEGORY AND THE TIER (E46-C3, 09.11.2026; audit S08-42).
      *
-     * Picking a table refills the item list and moves the category and
-     * tier to whatever that table is. All three stay editable
-     * afterwards: a room pool carries no category of its own, and there
-     * the GM's answer is the only one there is.
+     * Picking a table refills the item list; picking a table or an item moves the category and the tier to what the
+     * picked entry is - `entryAs`, the draw's own answer (tables-pools.mjs `resultFrom`), so the hammer given by hand
+     * and the one a Search finds are one item: a tier pool's flags, a room pool's entry as the tier pools file its name
+     * or as the table's name says. Until E46-C3 only a table's flags moved them, so a room pool's entry kept the last
+     * table's category and tier. Where nothing says, both read "- choose -" with the line under them, and Give waits
+     * for the GM's answer (`gateGive`). Both stay editable.
      */
-    const form = dialog.element.querySelector("form");
-    const tableSelect = form?.elements?.exTable;
-    if (!tableSelect) return;
-
-    const syncFromTable = ({ refillItems = true } = {}) => {
-        const opt = tableSelect.selectedOptions?.[0];
-        if (!opt) return;
-
-        if (refillItems) {
-            const table = game.tables.get(tableSelect.value);
-            form.elements.exItem.innerHTML = giveItemOptionsFor(table);
-        }
-
-        const { category, tier, goal } = opt.dataset;
-        if (category) {
-            const value = category === "usable" && goal ? `${category}:${goal}` : category;
-            if (form.elements.exCategory.querySelector(`option[value="${CSS.escape(value)}"]`)) {
-                form.elements.exCategory.value = value;
+    const tableSelect = form.elements.exTable;
+    if (tableSelect) {
+        const syncFromEntry = ({ refillItems = true } = {}) => {
+            const table = tables?.get?.(tableSelect.value) ?? null;
+            if (refillItems) form.elements.exItem.innerHTML = giveItemOptionsFor(table);
+            const entry = table?.results?.get?.(form.elements.exItem.value) ?? null;
+            const as = entryAs(table, entry);
+            let value = as.category;
+            // A usable pool with no goal: the kind the tables give the name (`usableKindFor`, as `grantItem` reads it).
+            if (value === "usable") {
+                const goal = as.goal ?? usableKindFor(entry?.name ?? entry?.text ?? "");
+                value = goal ? `usable:${goal}` : null;
             }
-        }
-        if (tier !== "") form.elements.exTier.value = tier;
-    };
-
-    tableSelect.addEventListener("change", () => syncFromTable());
-    // On open the item list is already right, so only the two
-    // read-along selects need moving.
-    syncFromTable({ refillItems: false });
+            const offered = v => v && form.elements.exCategory.querySelector(`option[value="${CSS.escape(v)}"]`);
+            form.elements.exCategory.value = offered(value) ? value : "";
+            form.elements.exTier.value = as.tier === null ? "" : String(as.tier);
+            for (const select of [form.elements.exCategory, form.elements.exTier]) select.dispatchEvent(new Event("change"));
+        };
+        tableSelect.addEventListener("change", () => syncFromEntry());
+        form.elements.exItem.addEventListener("change", () => syncFromEntry({ refillItems: false }));
+        for (const name of ["exCategory", "exTier"]) form.elements[name].addEventListener("change", paintGate);
+        // On open the item list is already right, so only the two read-along selects need moving.
+        syncFromEntry({ refillItems: false });
+    }
+    paintGate();
 
     // Both category selects carry the counts, and both are rebuilt when
     // the recipient changes. The picked value is kept across the swap.
@@ -570,7 +578,7 @@ function wireGiveForm(dialog) {
             // The chosen value survives the swap - the options are
             // rebuilt for their counts, not for their identity.
             const keep = select.value;
-            select.innerHTML = giveCategoryOptions(who);
+            select.innerHTML = (name === "exCategory" ? emptyOption("DRPG.Items.chooseOne") : "") + giveCategoryOptions(who);
             if ([...select.options].some(o => o.value === keep)) select.value = keep;
         }
     });
@@ -615,6 +623,30 @@ function wireGiveForm(dialog) {
     paintRoles();
 }
 
+/*
+ * GIVE WAITS FOR A CATEGORY AND A TIER (E46-C3, S08-42): on Give existing, while either select reads "- choose -",
+ * each is marked (`aria-invalid`), the line under them shows, and Give is disabled with that line as its title; on
+ * Create new, Give is as it was. `giveFromResult` refuses the same answer, should one arrive.
+ */
+function gateGive(dialog, form) {
+    const selects = [form?.elements?.exCategory, form?.elements?.exTier].filter(Boolean);
+    const existing = (shownTab(dialog.element) ?? "existing") === "existing" && selects.length > 0;
+    const missing = existing && selects.some(s => !s.value);
+    for (const select of selects) {
+        if (existing && !select.value) select.setAttribute("aria-invalid", "true");
+        else select.removeAttribute("aria-invalid");
+    }
+    const line = form?.querySelector("[data-drpg-to-set]");
+    if (line) line.hidden = !missing;
+    const ok = dialog.element.querySelector('footer button[data-action="ok"]');
+    if (ok) {
+        ok.disabled = missing;
+        if (missing) ok.title = game.i18n.localize("DRPG.Items.setCategoryTier");
+        else ok.removeAttribute("title");
+    }
+    return !missing;
+}
+
 /** The give form's warnings of a usable's kind (`paintKinds`), wired whether or not the world has tables to give from. */
 function wireKindNotes(dialog) {
     const form = dialog.element.querySelector("form");
@@ -654,7 +686,8 @@ function readGiveForm(d) {
             tableId: f.elements.exTable.value,
             resultId: f.elements.exItem.value,
             category, kind,
-            tier: Number(f.elements.exTier.value),
+            // "- choose -" is no tier: `Number("")` is 0, a Tier 0 nobody picked.
+            tier: f.elements.exTier.value === "" ? NaN : Number(f.elements.exTier.value),
             tell: f.elements.tell.checked,
             recipient: f.elements.recipient?.value ?? null
         };
@@ -679,12 +712,17 @@ function readGiveForm(d) {
 
     // Both tabs funnel into one shape, so everything below - the grant, the
     // receipt, the log line - cannot diverge between them.
-function giveFromResult(result) {
+// Exported for R2022 (E46-C3); `tables` the world's.
+export function giveFromResult(result, tables = game.tables) {
     let give;
     if (result.mode === "existing") {
-        const entry = game.tables.get(result.tableId)?.results?.get(result.resultId);
+        const entry = tables?.get?.(result.tableId)?.results?.get(result.resultId);
         if (!entry) {
             ui.notifications.error(game.i18n.localize("DRPG.Items.failed"));
+            return null;
+        }
+        if (!result.category || !ITEM_TIERS.includes(result.tier)) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Items.setCategoryTier"));
             return null;
         }
         const name = entry.name ?? entry.text ?? "";
@@ -698,8 +736,9 @@ function giveFromResult(result) {
             description: entry.description && entry.description !== name ? entry.description : "",
             // The same roles a Search would have handed over. Without this the
             // hammer given by hand and the hammer found in a room were two
-            // different objects.
-            roles: rolesOfResult(entry),
+            // different objects. From `MULTI_ROLE_TIER` up only, as Create new
+            // offers them (E46-C3, S08-42): an Axe given at Tier 0 was two jobs.
+            roles: result.tier >= MULTI_ROLE_TIER ? rolesOfResult(entry) : [],
             img: entry.img ?? null
         };
     } else {
@@ -1039,7 +1078,8 @@ function readBulletForm(d) {
  * first, so the next copy of it carries the same name. Answers null when the
  * trace is gone.
  */
-async function bulletFromRemnant(result, traces, { setRemnantPublicById, markRemnantEditedById, tieForCopy }) {
+// Exported for R2023 (E46-C3), which holds E51 C5's comparison: the road's writers are its arguments.
+export async function bulletFromRemnant(result, traces, { setRemnantPublicById, markRemnantEditedById, tieForCopy }) {
     const entry = traces.find(t => t.token.id === result.remnantId && (!result.sceneId || t.token.parent?.id === result.sceneId));
     if (!entry) {
         ui.notifications.warn(game.i18n.localize("DRPG.TruthBullet.remnantGone"));

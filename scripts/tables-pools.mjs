@@ -847,6 +847,33 @@ function resultFrom(found, ctx, how) {
     return { ...found, ...ctx.asked };
 }
 
+/**
+ * WHAT A GM'S PICK IS (E46-C3, 09.11.2026; audit S08-42): `resultFrom`'s answer for an entry the GM picks in the Give
+ * window, so the item given by hand and the one drawn are the same item - the one place an answer is built (E41 C1c).
+ * A tier pool's entry by `poolEntryAs` (its flags, else its name); a room pool's by `roomEntryAs` (as the tier pools
+ * file its name, else as the table's name says - " - Tier N" its tier, a plural its category). Nothing was asked, so
+ * where neither says, the part is null: the window marks it to be chosen rather than keeping the last table's. The
+ * room's base is the longest of `roomTableBases` the table's name starts with ("<base> - "), else its own name: so
+ * "Kitchen - Tier 2" of a room pointed at "Kitchen" answers Tier 2, though its own `roomPool` flag makes it a base too.
+ *
+ * @returns {{category: string|null, tier: number|null, goal: string|null}}
+ */
+export function entryAs(table, entry) {
+    const none = { category: null, tier: null, goal: null };
+    if (!table || !entry) return none;
+    const name = entry.name ?? entry.text ?? "";
+    const tierPool = isTierPoolTable(table);
+    const bases = tierPool ? [] : [...roomTableBases()].filter(b => b !== table.name && String(table.name).startsWith(`${b} - `));
+    const roomBase = bases.sort((a, b) => b.length - a.length)[0] ?? table.name;
+    const read = resultFrom({ name }, { roomBase, asked: none }, { from: tierPool ? "pool" : "room", table });
+    const tier = read.tier === null || read.tier === undefined ? NaN : Number(read.tier);
+    return {
+        category: Object.hasOwn(ITEM_CATEGORIES, read.category ?? "") ? read.category : null,
+        tier: ITEM_TIERS.includes(tier) ? tier : null,
+        goal: read.category === "usable" ? read.goal ?? null : null
+    };
+}
+
 /*
  * THE STEPS OF A DRAW, IN THIS ORDER (D15, the owner: "tabele pokoju mają pierwszeństwo przed pulami świata"; E14 part 2
  * C2, 24.10.2026; a list since E41 C1c, audit S17-29): the room's own tables, then the GM's tier pools, then the

@@ -83709,6 +83709,69 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ hope: [0, true, true], health: [0, true, true], cut: [true, 0], flag: 1 }),
             "[after a Hope-only write, after a Health write: the original's renders, the Hope pips, the Health row true; a Hope gain under Despair: the write cut, the renders; after a flag write: the renders]");
     }],
+    /* ---- E46-C3 ------------------------------------------------------------------------------------------------------ */
+    ["E46-T2 - Give existing at the table (scripts/gm-items.mjs; E46-C3, S08-42): an Axe picked from a room pool and given at Tier 0 is a Murder Weapon with no second role; an entry picked from a tier pool is given as the pool's category and tier", async () => {
+        /*
+         * E46-C3, 09.11.2026; audit S08-42. Two tables of the suite's: "SUITE E46-T2 Room" (a room pool) holding "Axe" with
+         * the Tool role on its entry, and "SUITE E46-T2 mops", a Tier 1 Cleaning Tool pool by its flags. The Give window
+         * is drawn by a stand-in DialogV2.wait that runs its render on the content, picks as a GM would - the room pool,
+         * its Axe, then Tier 0; then the mops pool and its entry - and presses Give through the button's own callback
+         * (`readGiveForm`), with "tell the player" off. Read on the student's sheet: each given item's category, tier and
+         * roles (inventory.mjs `rolesOf`). Every table and item made here is taken away after. Red first at f7266b28:
+         * the Axe came with the Tool role at Tier 0, under the category the window opened with.
+         */
+        const G = await import("./gm-items.mjs");
+        const INV = await import("./inventory.mjs");
+        const [actor] = cast(1);
+        must(actor, "no student to give to - this would measure nothing");
+        const TAG = "SUITE E46-T2";
+        const TEXT = CONST.TABLE_RESULT_TYPES?.TEXT ?? "text";
+        const row = (name, roles) => ({ type: TEXT, name, text: name, description: name, range: [1, 1], weight: 1,
+            flags: { [MODULE_ID]: { roles } } });
+        const made = [], had = new Set(actor.items.map(i => i.id));
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const read = {};
+        try {
+            const room = await RollTable.create({ name: `${TAG} Room`, formula: "1d1", flags: { [MODULE_ID]: { roomPool: true } }, results: [row("Axe", ["tool"])] });
+            made.push(room);
+            const mops = await RollTable.create({ name: `${TAG} mops`, formula: "1d1", flags: { [MODULE_ID]: { category: "cleaningTool", tier: 1, goal: null } },
+                results: [row(`${TAG} mop`, [])] });
+            made.push(mops);
+            await settle();
+            const give = async (table, tier = null) => {
+                D.wait = async config => {
+                    const element = document.createElement("div");
+                    if (typeof config?.content === "string") element.innerHTML = config.content;
+                    else if (config?.content) element.append(config.content);
+                    config?.render?.(null, { element });
+                    const form = element.querySelector("form");
+                    const pick = (name, value) => { form.elements[name].value = value; form.elements[name].dispatchEvent(new Event("change")); };
+                    pick("exTable", table.id);
+                    pick("exItem", [...table.results][0].id);
+                    if (tier !== null) pick("exTier", String(tier));
+                    form.elements.tell.checked = false;
+                    const ok = (config.buttons ?? []).find(b => b.action === "ok");
+                    return ok?.callback?.(null, null, { element }) ?? "cancel";
+                };
+                const before = new Set(actor.items.map(i => i.id));
+                const gave = await G.gmGiveItemDialog(actor);
+                await settle();
+                const item = actor.items.find(i => !before.has(i.id));
+                return [gave, item?.getFlag(MODULE_ID, INV.ITEM_FLAGS.category) ?? null, item?.getFlag(MODULE_ID, INV.ITEM_FLAGS.tier) ?? null, item ? INV.rolesOf(item) : null];
+            };
+            read.axe = await give(room, 0);
+            read.mop = await give(mops);
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            for (const item of actor.items.filter(i => !had.has(i.id))) await item.delete().catch(() => {});
+            for (const table of made) if (game.tables.get(table.id)) await table.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ axe: [true, "crimeTool", 0, []], mop: [true, "cleaningTool", 1, []] }),
+            "Give existing hands over an entry as something other than what it is "
+            + "[the room pool's Axe at Tier 0, the mops pool's entry: given, the item's category, tier, roles]");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

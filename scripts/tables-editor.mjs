@@ -101,9 +101,10 @@ export async function installTables({ overwrite = false, prompt = true } = {}) {
             });
 
             if (!choice || choice === "cancel") return null;
+            /* KEEP MINE IS AN ANSWER, NOT A FAULT (E46-C3, S08-46): it said so as a warning and switched the sidebar to
+               the tables, as an install does, though nothing was installed - the GM stays where they were, told in blue. */
             if (choice === "keep") {
-                ui.notifications.warn(plural("DRPG.Tables.allPresent", { n: present.length }));
-                await openTablesTab();
+                ui.notifications.info(plural("DRPG.Tables.allPresent", { n: present.length }));
                 return { created: [], skipped: present.map(j => existingTableName(j.category, j.tier, j.goal)), failed: [] };
             }
             overwrite = true;
@@ -468,6 +469,30 @@ async function editResult(table, resultId, field, value) {
         error(`Could not edit "${table.name}"`, err);
         return false;
     }
+}
+
+/*
+ * AN EMPTIED NAME IS NOT WRITTEN (E46-C3, 09.11.2026; audit S08-46). A description may be emptied (above); a name may
+ * not: an entry with no name is drawn as nothing, and `editResult` wrote `{ name: "", text: "" }`. The field takes back
+ * the name it held (`data-drpg-initial`) with `DRPG.Tables.needsName` under it, and nothing is written. Answers whether
+ * it refused.
+ */
+function refuseEmptyName(field) {
+    if (field?.dataset?.drpgField !== "name" || field.value.trim()) return false;
+    field.value = field.dataset.drpgInitial ?? "";
+    let said = field.parentElement?.querySelector(":scope > [data-drpg-name-refused]") ?? null;
+    if (!said && field.parentElement) {
+        said = document.createElement("span");
+        said.className = "drpg-field-error";
+        said.dataset.drpgNameRefused = "";
+        said.id = `drpg-name-refused-${field.dataset.drpgOwnsResult ?? "entry"}`;
+        field.after(said);
+    }
+    if (said) {
+        said.textContent = game.i18n.localize("DRPG.Tables.needsName");
+        field.setAttribute("aria-describedby", said.id);
+    }
+    return true;
 }
 
 /** Take one entry out, and re-range what is left. Same reasoning as `addResult`. */
@@ -1059,7 +1084,8 @@ function wireNewItemForm(root) {
         const id = tierTableIdFor(form?.newCategory?.value, Number(form?.newTier?.value));
         const table = id ? game.tables.get(id) : null;
         tierLine.textContent = table
-            ? game.i18n.format("DRPG.Tables.tierTargetIs", { table: table.name })
+            // The pool as the list names it (E46-C3, S13-36 (3)): "Goes into DRPG Usables (Healing) - Tier 2" read the prefix the list drops.
+            ? game.i18n.format("DRPG.Tables.tierTargetIs", { table: shortPoolName(table.name) })
             : game.i18n.localize("DRPG.Tables.tierTargetNone");
         tierLine.classList.toggle("drpg-warning", !table);
     };
@@ -1173,11 +1199,14 @@ function wirePaneHeading(pane, root, { current, show, nameEl }) {
             return;
         }
 
-        root.querySelector(`[data-drpg-table="${CSS.escape(gone.id)}"]`)
-            ?.closest("li")?.remove();
-        const next = pane.querySelector("[data-drpg-table]");
+        /* THE NEXT TABLE FROM THE LIST (E46-C3, S08-46): `[data-drpg-table]` alone also matched the deleted table's own
+           rows in the body (each row carries its table's id), so after the last table of a tab the pane "clicked" a row
+           of a table that no longer exists and kept showing it, Rename and Delete live over nothing. */
+        root.querySelector(`.drpg-tables-list [data-drpg-table="${CSS.escape(gone.id)}"]`)
+            ?.closest("li, tr")?.remove();
+        const next = pane.querySelector(".drpg-tables-list [data-drpg-table]");
         if (next) next.click();
-        else show(null);
+        else await show(null);
         ui.notifications.info(game.i18n.format("DRPG.Tables.deleted", { name: gone.name }));
     });
 }
@@ -1325,6 +1354,8 @@ function wirePaneRows(pane, root, show) {
          * write.
          */
         if (field.value.trim() === (field.dataset.drpgInitial ?? "")) return;
+        if (refuseEmptyName(field)) return;
+        field.parentElement?.querySelector(":scope > [data-drpg-name-refused]")?.remove();
 
         // The ids live on the FIELD as well as on the row. Switching
         // tables redraws the whole list, and a field that is blurred by
@@ -1381,6 +1412,10 @@ function wirePoolPane(pane, root) {
         for (const field of bodyEl.querySelectorAll("[data-drpg-field]")) {
             const value = field.value.trim();
             if (value === (field.dataset.drpgInitial ?? "")) continue;
+            if (refuseEmptyName(field)) {
+                ui.notifications.warn(game.i18n.localize("DRPG.Tables.needsName"));
+                continue;
+            }
             const table = game.tables.get(field.dataset.drpgOwnsTable);
             if (!table || !field.dataset.drpgOwnsResult) continue;
             await editResult(table, field.dataset.drpgOwnsResult,
@@ -1393,7 +1428,8 @@ function wirePoolPane(pane, root) {
         await flush();
         current = table ?? null;
         showPoolName(nameEl, table?.name ?? "");
-        bodyEl.innerHTML = table ? tableItemsHtml(table) : "";
+        bodyEl.innerHTML = table ? tableItemsHtml(table)
+            : `<p class="notes">${game.i18n.localize("DRPG.Tables.noneYet")}</p>`;
         // Nothing selected is a real state - an empty world has no
         // tables at all - and a live button over nothing is a trap.
         if (renameButton) renameButton.disabled = !table;
@@ -1484,8 +1520,11 @@ async function addItemFrom(action) {
         })) added++;
     }
 
-    log(`Item tables: "${action.name}" added to ${added} table(s).`);
-    ui.notifications.info(plural("DRPG.Tables.itemAdded", { name: action.name, n: added }));
+    log(`Item tables: "${action.name}" added to ${added} of ${action.tables.length} table(s).`);
+    /* FEWER THAN ASKED IS A FAILURE (E46-C3, S08-46): "added to 0 tables" came in blue, as a success. The tables it
+       could not write are in the console (`addResult`). */
+    if (added < action.tables.length) ui.notifications.warn(game.i18n.localize("DRPG.Items.failed"));
+    else ui.notifications.info(plural("DRPG.Tables.itemAdded", { name: action.name, n: added }));
 }
 
 /**

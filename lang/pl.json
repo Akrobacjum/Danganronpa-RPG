@@ -1045,7 +1045,7 @@
       "tabCreateNew": "Utwórz nowy",
       "pickTable": "Która tabela",
       "pickExisting": "Który przedmiot",
-      "existingNote": "Kategoria i Tier idą za tabelą przedmiotu. Zmieniaj je tylko wtedy, gdy tabela ich nie określa - pula pokoju też nie określa żadnego z nich.",
+      "existingNote": "Kategoria i Tier idą za przedmiotem: z jego puli Tier, a w puli pokoju z tego, co pule Tier mówią o jego nazwie. Gdy nic tego nie mówi, wybierz je.",
       "existingEmpty": "W tym świecie nie ma jeszcze tabel przedmiotów - buduje je kafelek Tabele przedmiotów w panelu GM-a. „Utwórz nowy” wciąż działa.",
       "recipient": "Daj to",
       "needsRecipient": "Nikt nie jest wybrany jako odbiorca.",
@@ -1116,7 +1116,9 @@
       "takeNote": "Cokolwiek ma w rękach albo w skrytce - także Truth Bullets i klucze do cudzych pokoi.",
       "inStash": "w skrytce",
       "carriesNothing": "{actor} niczego nie nosi i nie ma nic w skrytce.",
-      "whichCharacterHub": "Który uczeń"
+      "whichCharacterHub": "Który uczeń",
+      "chooseOne": "- wybierz -",
+      "setCategoryTier": "Tabele nie mówią, czym jest ten przedmiot: wybierz jego kategorię i Tier, by go dać."
     },
     "Monocub": {
       "meddleRefused": "Confusion ich nie dosięga. Chwila minęła, zanim zdążyło zadziałać.",

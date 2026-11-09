@@ -41179,6 +41179,222 @@ const INVARIANTS = [
             none: [["reveal", null], ["close", null]]
         }), "{old: footerMarkup with no tooltip is 4954917b's markup; markup: footerMarkup's buttons [action, title, disabled]; drawn: a DialogV2 window's footer [action, title]; changed: liveFooter's answer; live: the redrawn footer; none: a footer with no tooltip redrawn}");
     }],
+    /* ---- E46-C3: Item tables, Give existing, Give a Truth Bullet and the item manager (R2021-R2025) ---------------------- */
+    ["R2021 - the Item tables editor's states tell the truth (scripts/tables-editor.mjs; E46-C3, S08-46): after deleting the last table of a tab the pane shows its empty state with Rename and Delete disabled; an emptied entry name is not written, in the flush and at the field, which takes the name back with DRPG.Tables.needsName under it; Install's Keep mine is an info and leaves the sidebar; an item written to fewer tables than asked says DRPG.Items.failed as a warning", async () => {
+        /*
+         * E46-C3, 09.11.2026; audit S08-46, four faults read on stand-in tables (plain objects in this browser's memory,
+         * answered by `game.tables` through `c3Tables` for the length of the test; nothing written) and the windows'
+         * own markup and wiring, drawn by a stand-in DialogV2.wait (`c3Wait`) that runs each window's render on its
+         * content and answers as the GM would. Red first at f7266b28: the deleted table still shown with Rename and
+         * Delete live; the name "" written (`{ name: "", text: "" }`) and the field left empty; Keep mine a warning and the
+         * sidebar switched; "added to 1 table" in blue for 1 of 2.
+         */
+        const T = await import("./tables.mjs");
+        const read = {};
+        const toasts = [];
+        const said = kind => (...args) => { toasts.push([kind, String(args[0] ?? "")]); };
+        const one = c3Table({ id: "r2021a", name: "DRPG Tools - Tier 1", flags: { category: "tool", tier: 1 }, entries: [{ name: "R2021 wrench" }] });
+        const two = c3Table({ id: "r2021b", name: "DRPG Tools - Tier 2", flags: { category: "tool", tier: 2 }, entries: [{ name: "R2021 crowbar" }] });
+        await c3Shadow(ui.notifications, { info: said("info"), warn: said("warn"), error: said("error") }, async () => {
+            // (1) the last table of a tab deleted
+            await c3Tables([one], () => c3Wait(async (config, element) => {
+                if (config?.classes?.includes("drpg-window-delete-table")) return true;
+                if (!config?.classes?.includes("drpg-window-tables")) return "close";
+                const pane = element.querySelector('[data-drpg-pool-pane="tiers"]');
+                pane.querySelector("[data-drpg-delete-table]").click();
+                await until(() => one.deleted, 3000);
+                await settle();
+                read.deleted = [pane.querySelector("[data-drpg-table-name]")?.textContent ?? null,
+                    pane.querySelector("[data-drpg-table-body]")?.textContent.trim() === game.i18n.localize("DRPG.Tables.noneYet"),
+                    pane.querySelector("[data-drpg-rename-table]")?.disabled, pane.querySelector("[data-drpg-delete-table]")?.disabled];
+                return "close";
+            }, () => T.openItemTables()));
+            // (2) an emptied name: the flush (another table picked) and the field's own commit
+            await c3Tables([c3Table({ ...one.spec, deleted: false }), two], tables => c3Wait(async (config, element) => {
+                if (!config?.classes?.includes("drpg-window-tables")) return "close";
+                const [a, b] = tables;
+                const pane = element.querySelector('[data-drpg-pool-pane="tiers"]');
+                const nameOf = id => pane.querySelector(`[data-drpg-field="name"][data-drpg-owns-table="${id}"]`);
+                pane.querySelector(`.drpg-tables-list [data-drpg-table="${a.id}"]`)?.click();
+                await settle();
+                nameOf(a.id).value = "";
+                pane.querySelector(`.drpg-tables-list [data-drpg-table="${b.id}"]`)?.click();
+                await settle();
+                const field = nameOf(b.id);
+                field.value = "  ";
+                field.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+                await settle();
+                read.emptied = { flush: [a.entries[0].updates, toasts.some(([k, t]) => k === "warn" && t === game.i18n.localize("DRPG.Tables.needsName"))],
+                    field: [b.entries[0].updates, field.value, field.parentElement?.querySelector("[data-drpg-name-refused]")?.textContent ?? null] };
+                return "close";
+            }, () => T.openItemTables()));
+            // (3) Keep mine
+            toasts.length = 0;
+            const tabs = [];
+            const sidebar = ui.sidebar ?? null;
+            if (!sidebar) ui.sidebar = { changeTab: (...a) => { tabs.push(a); } };
+            try {
+                await c3Shadow(ui.sidebar, { changeTab: (...a) => { tabs.push(a); } }, () => c3Shadow(game.tables, { getName: name => ({ name }) },
+                    () => c3Wait(async config => (config?.classes?.includes("drpg-window-install-tables") ? "keep" : "close"), async () => {
+                        const answer = await T.installTables();
+                        read.keep = [answer?.created?.length ?? null, toasts.map(([k]) => k), tabs.length];
+                    })));
+            } finally {
+                if (!sidebar) delete ui.sidebar;
+            }
+            // (4) an item written to fewer tables than asked
+            toasts.length = 0;
+            const broken = c3Table({ id: "r2021c", name: "DRPG Tools - Tier 3", flags: { category: "tool", tier: 3 }, entries: [], failAdd: true });
+            let asked = 0;
+            await c3Tables([c3Table({ ...one.spec, deleted: false }), broken], tables => c3Wait(async config => {
+                if (!config?.classes?.includes("drpg-window-tables")) return "close";
+                if (asked++) return "close";
+                return { name: "R2021 thing", description: "", img: "", category: "tool", tier: 1, roles: [], tables: tables.map(t => t.id) };
+            }, () => T.openItemTables()));
+            read.fewer = toasts.map(([k, t]) => [k, t === game.i18n.localize("DRPG.Items.failed")]);
+        });
+        equal(stableJson(read), stableJson({
+            deleted: ["", true, true, true],
+            emptied: { flush: [[], true], field: [[], "R2021 crowbar", game.i18n.localize("DRPG.Tables.needsName")] },
+            keep: [0, ["info"], 0],
+            fewer: [["warn", true]]
+        }), "{deleted: the pane after its last table went [heading, body is the empty state, Rename disabled, Delete disabled]; emptied: the flush [the entry's writes, the needsName warning], the field [its entry's writes, the field's value, the line under it]; keep: Keep mine [created, the toasts' kinds, sidebar switches]; fewer: 1 of 2 tables written, the toasts [kind, it is DRPG.Items.failed]}");
+    }],
+
+    ["R2022 - Give existing (scripts/gm-items.mjs, tables-pools.mjs `entryAs`; E46-C3, S08-42): the category and tier follow the picked entry as a draw reads it - a room pool's by the tier pools' filing of its name or the table's name, a tier pool's by its flags; where nothing says, both read \"- choose -\", marked, with DRPG.Items.setCategoryTier under them and Give disabled; the roles travel only from MULTI_ROLE_TIER up", async () => {
+        /*
+         * E46-C3, 09.11.2026; audit S08-42. On stand-in tables (`c3Tables`; nothing written): a room pool "R2022 Room"
+         * (roomPool) holding an unfiled name and "Axe", a "R2022 Room - Tier 1" holding the unfiled name, a Tier 1
+         * Cleaning Tool pool. Read: `entryAs` of each; the Give window drawn by a stand-in DialogV2.wait (`c3Wait`), its
+         * footer's Give added as DialogV2 draws it, after picking the pool then the room's unfiled entry then the Axe
+         * [category, tier, each marked, the line hidden, Give disabled]; `giveFromResult`'s roles of the Axe at Tier 0
+         * and 2, and its answer with no tier. Red first at f7266b28: no entryAs; the room's entries kept the pool's
+         * "cleaningTool" and "1", nothing marked; no giveFromResult export.
+         */
+        const T = await import("./tables.mjs");
+        const G = await import("./gm-items.mjs");
+        must(T.ITEM_POOLS.crimeTool[2].includes("Axe"), "\"Axe\" is no Tier 2 Murder Weapon of the built-in pools - this would read nothing");
+        const ODD = "R2022 odd thing";
+        const room = c3Table({ id: "r2022room", name: "R2022 Room", flags: { roomPool: true }, entries: [{ name: ODD }, { name: "Axe", roles: ["tool"] }] });
+        const roomTier = c3Table({ id: "r2022tier", name: "R2022 Room - Tier 1", flags: { roomPool: true }, entries: [{ name: ODD }] });
+        const pool = c3Table({ id: "r2022pool", name: "R2022 mops", flags: { category: "cleaningTool", tier: 1 }, entries: [{ name: "R2022 mop" }] });
+        const read = {};
+        const toasts = [];
+        await c3Shadow(ui.notifications, { warn: (...a) => { toasts.push(String(a[0])); } }, () => c3Tables([room, roomTier, pool], async () => {
+            const at = t => T.entryAs(t, t.entries.at(-1).doc);
+            read.entryAs = typeof T.entryAs === "function"
+                ? [T.entryAs(room, room.entries[0].doc), at(room), at(roomTier), at(pool)] : "no entryAs";
+            await c3Wait(async (config, element) => {
+                if (config?.window?.title !== game.i18n.localize("DRPG.Items.give")) return "cancel";
+                const form = element.querySelector("form");
+                const pick = (name, value) => { form.elements[name].value = value; form.elements[name].dispatchEvent(new Event("change")); };
+                const state = () => [form.elements.exCategory.value, form.elements.exTier.value,
+                    form.elements.exCategory.getAttribute("aria-invalid"), form.elements.exTier.getAttribute("aria-invalid"),
+                    form.querySelector("[data-drpg-to-set]")?.hidden ?? "no line", element.querySelector('footer button[data-action="ok"]')?.disabled];
+                pick("exTable", pool.id);
+                read.pool = state();
+                pick("exTable", room.id);
+                read.unfiled = state();
+                pick("exItem", room.entries[1].id);
+                read.axe = state();
+                return "cancel";
+            }, () => G.gmGiveItemDialog(null), { footer: ["ok"] });
+            const give = tier => (typeof G.giveFromResult === "function"
+                ? G.giveFromResult({ mode: "existing", tableId: room.id, resultId: room.entries[1].id, category: "crimeTool", kind: null, tier }, game.tables)
+                : "no giveFromResult");
+            read.roles = [give(0)?.roles ?? null, give(2)?.roles ?? null, give(NaN), toasts.includes(game.i18n.localize("DRPG.Items.setCategoryTier"))];
+        }));
+        equal(stableJson(read), stableJson({
+            entryAs: [{ category: null, tier: null, goal: null }, { category: "crimeTool", tier: 2, goal: null },
+                { category: null, tier: 1, goal: null }, { category: "cleaningTool", tier: 1, goal: null }],
+            pool: ["cleaningTool", "1", null, null, true, false],
+            unfiled: ["", "", "true", "true", false, true],
+            axe: ["crimeTool", "2", null, null, true, false],
+            roles: [[], ["tool"], null, true]
+        }), "{entryAs: the room's unfiled entry, its Axe, the room's Tier 1 table's unfiled entry, the pool's entry; pool, unfiled, axe: the Give window after each pick [category, tier, category marked, tier marked, the line hidden, Give disabled]; roles: giveFromResult's roles of the Axe at Tier 0 and 2, its answer with no tier, the setCategoryTier warning}");
+    }],
+
+    ["R2023 - a Truth Bullet from an unnamed trace (scripts/gm-items.mjs `bulletFromRemnant`; E46-C3, S08-40 held): a trace with no name, handed over under the word its box showed (DRPG.Remnant.tokenName, \"Remnant\" in EN and PL), writes neither a name nor the edited mark; renamed, it writes both", async () => {
+        /*
+         * E46-C3, 09.11.2026; S08-40, fixed by E51 C5 (0c8ace17): the name was compared with the trace's public name,
+         * empty on a trace nobody described, so every bullet from one wrote "Remnant" back and marked the trace edited.
+         * `bulletFromRemnant` takes its writers as arguments; here they only record their calls. Green on f7266b28's
+         * comparison; red with mutant m3 (`pub?.name` planted back for `entry.label ?? pub?.name`).
+         */
+        const G = await import("./gm-items.mjs");
+        must(typeof G.bulletFromRemnant === "function", "gm-items.mjs exports no bulletFromRemnant - this would measure nothing");
+        const words = {};
+        for (const lang of ["en", "pl"]) {
+            const file = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            words[lang] = file?.DRPG?.Remnant?.tokenName ?? null;
+        }
+        const label = game.i18n.localize("DRPG.Remnant.tokenName");
+        const trace = { token: { id: "r2023t", parent: { id: "r2023s" } }, label,
+            data: { type: "neutral", visibility: "evident", public: { name: "", playerText: "" } } };
+        const run = async name => {
+            const calls = { name: [], edited: [] };
+            const bullet = await G.bulletFromRemnant({ remnantId: "r2023t", sceneId: "r2023s", name, shown: "auto" }, [trace], {
+                setRemnantPublicById: async (...a) => { calls.name.push(a); }, markRemnantEditedById: async (...a) => { calls.edited.push(a); },
+                tieForCopy: () => null });
+            return [bullet?.name ?? null, calls.name, calls.edited];
+        };
+        equal(stableJson({ words, unnamed: await run(label), renamed: await run("R2023 knife") }), stableJson({
+            words: { en: "Remnant", pl: "Remnant" },
+            unnamed: [label, [], []],
+            renamed: ["R2023 knife", [["r2023s", "r2023t", { name: "R2023 knife" }]], [["r2023s", "r2023t"]]]
+        }), "{words: DRPG.Remnant.tokenName in en.json and pl.json; unnamed, renamed: [the bullet's name, the name writes, the edited marks]}");
+    }],
+
+    ["R2024 - Create an item names its tier pool as the list does (scripts/tables-editor.mjs `paintTierTarget`; E46-C3, S13-36 (3)): DRPG.Tables.tierTargetIs with the pool's short name, \"Usables (Healing) - Tier 2\", not \"DRPG Usables (Healing) - Tier 2\"", async () => {
+        /*
+         * E46-C3, 09.11.2026; S13-36 (3). The line under the category and tier said "Goes into DRPG Usables (Healing) -
+         * Tier 2" beside a list that names the pool "Usables (Healing) - Tier 2". Read on a stand-in pool (`c3Tables`)
+         * in the window's own markup, drawn by a stand-in DialogV2.wait: Usable - Healing at Tier 2 picked. Red first at
+         * f7266b28: the whole name.
+         */
+        const T = await import("./tables.mjs");
+        const pool = c3Table({ id: "r2024pool", name: "DRPG Usables (Healing) - Tier 2", flags: { category: "usable", tier: 2, goal: "healing" }, entries: [{ name: "R2024 plaster" }] });
+        let line = "no window";
+        await c3Tables([pool], () => c3Wait(async (config, element) => {
+            if (!config?.classes?.includes("drpg-window-tables")) return "close";
+            const form = element.querySelector("form");
+            for (const [name, value] of [["newCategory", "usable:healing"], ["newTier", "2"]]) {
+                form.elements[name].value = value;
+                form.elements[name].dispatchEvent(new Event("change"));
+            }
+            line = element.querySelector("[data-drpg-tier-target]")?.textContent.trim() ?? "no line";
+            return "close";
+        }, () => T.openItemTables()));
+        equal(line, game.i18n.format("DRPG.Tables.tierTargetIs", { table: "Usables (Healing) - Tier 2" }),
+            "the line under Create an item's category and tier does not name the pool as the list does");
+    }],
+
+    ["R2025 - the item manager's holdings (scripts/gm-items.mjs `holdingsHtml`; E46-C3, S13-36 (5)): the summary is a paragraph in the body's ink, not fine print, and each group's heading is its category's plural (ITEM_CATEGORIES[*].plural, which pl.json's DRPG.Config.ITEM_CATEGORIES.*.plural holds in Polish)", async () => {
+        /*
+         * E46-C3, 09.11.2026; S13-36 (5): the summary over a student's things was `p.notes` (the fine print) and each
+         * group was headed in the singular ("Tool" over three tools). Read on a stand-in student holding two tools and a
+         * Murder Weapon (plain objects; nothing written), and pl.json's plurals beside its labels. Red first at f7266b28:
+         * `p.notes`, the singular labels.
+         */
+        const G = await import("./gm-items.mjs");
+        const C = await import("./config.mjs");
+        must(typeof G.holdingsHtml === "function", "gm-items.mjs exports no holdingsHtml - this would measure nothing");
+        const item = (name, category, tier) => ({ name, getFlag: (scope, key) => (scope === MODULE_ID ? { category, tier }[key] : undefined) });
+        const who = { id: "r2025", name: "R2025 student", items: [item("R2025 wrench", "tool", 1), item("R2025 rope", "tool", 0), item("R2025 knife", "crimeTool", 2)] };
+        const box = document.createElement("div");
+        box.innerHTML = G.holdingsHtml(who);
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const words = pl?.DRPG?.Config?.ITEM_CATEGORIES ?? {};
+        equal(stableJson({
+            summary: [box.firstElementChild?.tagName ?? null, box.firstElementChild?.classList.contains("notes") ?? null],
+            heads: [...box.querySelectorAll(".drpg-holdings-group h4")].map(h => h.textContent),
+            pl: ["crimeTool", "tool"].map(key => [Boolean(words[key]?.plural), words[key]?.plural !== words[key]?.label])
+        }), stableJson({
+            summary: ["P", false],
+            heads: [C.ITEM_CATEGORIES.crimeTool.plural, C.ITEM_CATEGORIES.tool.plural],
+            pl: [[true, true], [true, true]]
+        }), "{summary: [the first element, it is fine print]; heads: the groups' headings; pl: pl.json's crimeTool and tool [a plural, it differs from the label]}");
+    }],
 ];
 
 /**
@@ -41830,6 +42046,74 @@ async function e45Held(actor, held, run) {
             if (own) Object.defineProperty(node, field, own); else delete node[field];
         }
     }
+}
+
+/* E46-C3's stand-ins (R2021-R2025): a table as the tables windows read one, in this browser's memory only. `entries`
+   `[{ name, roles }]`; each entry records the patches `update` was handed; `failAdd` refuses `createEmbeddedDocuments`
+   (the entry a write could not add); `delete` only marks the stand-in. `spec` makes a fresh copy. */
+function c3Table(spec) {
+    const { id, name, flags = {}, entries = [], failAdd = false } = spec;
+    const values = list => { const m = new Map(list.map(x => [x.id, x])); Object.defineProperty(m, Symbol.iterator, { value: () => m.values() }); return m; };
+    const made = entries.map((e, i) => {
+        const doc = { id: `${id}e${i}`, name: e.name, text: e.name, description: e.name, img: "", updates: [],
+            getFlag: (scope, key) => (scope === MODULE_ID && key === "roles" ? e.roles : undefined),
+            update: async patch => { doc.updates.push(patch); Object.assign(doc, patch); return doc; }, setFlag: async () => doc };
+        return { id: doc.id, doc, updates: doc.updates };
+    });
+    const table = {
+        spec, id, name, deleted: false, entries: made, results: values(made.map(e => e.doc)),
+        getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined),
+        delete: async () => { table.deleted = true; return table; }, update: async patch => Object.assign(table, patch),
+        createEmbeddedDocuments: async () => { if (failAdd) throw new Error("R2021: a stand-in that takes no entry"); return []; },
+        normalize: async () => table
+    };
+    return table;
+}
+
+/* `run` with `obj`'s `props` laid over it as own properties, each put back (or taken away) after. */
+async function c3Shadow(obj, props, run) {
+    const keys = Reflect.ownKeys(props);   // the symbols too: `Symbol.iterator` is how `Array.from` reads a collection
+    const kept = keys.map(key => [key, Object.getOwnPropertyDescriptor(obj, key)]);
+    try {
+        for (const key of keys) Object.defineProperty(obj, key, { configurable: true, writable: true, value: props[key] });
+        return await run();
+    } finally {
+        for (const [key, own] of kept) { if (own) Object.defineProperty(obj, key, own); else delete obj[key]; }
+    }
+}
+
+/* `run(tables)` with `game.tables` answering the stand-ins alone - `get`, `getName`, iteration, `contents`, `filter`,
+   `find`, `some`, `map`, `size` - read only. */
+async function c3Tables(tables, run) {
+    const it = () => tables.values();
+    const props = { get: id => tables.find(t => t.id === id), getName: name => tables.find(t => t.name === name), [Symbol.iterator]: it,
+        filter: fn => tables.filter(fn), find: fn => tables.find(fn), some: fn => tables.some(fn), map: fn => tables.map(fn) };
+    const kept = ["contents", "size"].map(key => [key, Object.getOwnPropertyDescriptor(game.tables, key)]);
+    try {
+        Object.defineProperty(game.tables, "contents", { configurable: true, get: () => [...tables] });
+        Object.defineProperty(game.tables, "size", { configurable: true, get: () => tables.length });
+        return await c3Shadow(game.tables, props, () => run(tables));
+    } finally {
+        for (const [key, own] of kept) { if (own) Object.defineProperty(game.tables, key, own); else delete game.tables[key]; }
+    }
+}
+
+/* `run()` with DialogV2.wait answered by `answer(config, element)`: the window's content drawn in a detached element
+   (a `<footer>` with a button per `footer` action, as DialogV2 draws them), its render run on it; put back after. */
+async function c3Wait(answer, run, { footer = [] } = {}) {
+    const D = foundry.applications.api.DialogV2;
+    return c3Shadow(D, { wait: async config => {
+        const element = document.createElement("div");
+        if (typeof config?.content === "string") element.innerHTML = config.content;
+        else if (config?.content) element.append(config.content);
+        if (footer.length) {
+            const bar = document.createElement("footer");
+            for (const action of footer) { const b = document.createElement("button"); b.dataset.action = action; bar.append(b); }
+            element.append(bar);
+        }
+        config?.render?.(null, { element });
+        return answer(config, element);
+    } }, run);
 }
 
 export { INVARIANTS };
