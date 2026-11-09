@@ -6896,15 +6896,46 @@ fieldset.drpg-voice-panel { margin-top: 8px; }
    Legacy's ink). Drawn at twice its grid, 32 px with the grid's 2-unit margin set off the left edge, so its 24 px of
    gem stand as tall as the system's 25 px badge in whole device pixels; at its grid's own 16 px it read as a 12 px
    gold fleck beside a 21 px number (the crops, 09.11). The badge grows to the mark, its gap and the number. */
+/* THREE COLUMNS, ONE X FOR EVERY NAME (E24-C5 fix, 09.11.2026; the orchestrator, on C5's crops). The system's row is
+   a flex box with `justify-content: space-between`, so a name stood wherever its row's free room put it ("+2" then
+   "Ultimate Baker" 27 px further right than "Mr. Cleaner" under the glass, Chromium at 1366x768, the slider at 0.85),
+   and a value's own width moved the name after it. The list is a grid of three tracks - the mark and value as wide as
+   the widest, the name the rest, the system's hidden chat control - and each row a subgrid of it, so every row keeps
+   its box (its tooltip, its frame) and every name starts at one x. `column-gap` 0: the system's `gap` would add 5 px
+   to the value's own 5 px margin. `!important` on what the system declares (its layer is above this one). */
+.application.sheet.actor .character-sidebar-sheet .experience-section .experience-list {
+    display: grid !important;
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
+    column-gap: 0 !important;
+}
 .application.sheet.actor .character-sidebar-sheet .experience-section .experience-row {
     width: auto !important;
-    align-self: stretch !important;
+    display: grid !important;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
     min-width: 0;
+}
+/* A name longer than its column breaks inside it instead of running past the rail, which clips it: under Legacy's
+   pixel face (16 px a letter) at the slider's 0.85 the column is 159.8 px and "Majsterkowicz" is 208 (fix's commit). */
+.application.sheet.actor .character-sidebar-sheet .experience-section .experience-name {
+    overflow-wrap: anywhere;
 }
 .application.sheet.actor .character-sidebar-sheet .experience-section .experience-value {
     width: auto !important;
+    text-align: left !important;
     padding-left: 28px;
     background: transparent url("../icons/mark-experience.svg") -4px center / 32px 32px no-repeat !important;
+}
+/* LEGACY'S NAMES KEEP THEIR ROOM. Legacy sets them in the pixel face at 16 px a letter, and the mark at twice its grid
+   took 26 px from them: at 52955be4 a name had 210 px on a 275 px rail (the 250 px row less the 35 px badge and its
+   5 px), after C5 177 - "Majsterkowicz", 208 px, broke (Chromium, the slider at 1). Under Legacy the mark stands at its
+   grid's own 16 px (12 px of gem), 1 px before the number, hung 6 px into the list's 10 px inset, and the number 3 px
+   from the name: the name column starts where the system's did, 210 px again at the slider's 1. Below 1 the rail is
+   narrower than the system's row and no mark fits beside the names it held: the fix's commit quotes those. */
+body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-sheet .experience-section .experience-value {
+    margin: 0 3px 0 -6px !important;
+    padding-left: 13px;
+    background: transparent url("../icons/mark-experience.svg") -2px center / 16px 16px no-repeat !important;
 }
 
 /* Daggerheart's Short/Long Rest sit in the header with different rules from
@@ -7804,6 +7835,23 @@ body.drpg-pixel-font .drpg-safeword-button {
     font-family: var(--drpg-font-pixel);
     font-size: var(--drpg-text-xs);
     letter-spacing: 0;
+}
+
+/* THE RAIL REACHES THE STOP'S ROW (E24-C5 fix, 09.11.2026; the orchestrator, on C5's crops: under Legacy the Stop's
+   lower part crossed the rail's painted foot). Daggerheart's rail spans the window grid's two rows; the Stop, appended
+   after it, took an implicit third row of its own height in the rail's column, so the rail ended that far above the
+   window's foot, and the sticky `bottom` above lifted the Stop 22 px into the rail's edge: Chromium, the parts stand-in
+   on 2.10.5's grid at 1366x768, the slider at 0.85, Legacy's rail ended at 591.1 px and the Stop at 601.1 (10 px out;
+   16.2 under the glass, where the rail paints nothing to see it by). The Stop is placed in that third row by name and
+   the rail spans it too, so the rail runs to the window's foot and the Stop stands inside it. `!important` on the
+   rail's span: the system declares it, from its layer above this one. On a stacked screen the window is a flex column
+   (E24 C4a) and neither placement applies. */
+.application.sheet.actor.character .window-content .character-sidebar-sheet {
+    grid-row: 1 / span 3 !important;
+}
+.application.sheet.actor.character .window-content > .drpg-safeword-button {
+    grid-row: 3;
+    grid-column: 1;
 }
 
 /* The sheet has to be a positioning context for the corner anchor above. */

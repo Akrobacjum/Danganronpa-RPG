@@ -40297,7 +40297,7 @@ const INVARIANTS = [
             stableJson({ word: [false, false], present: [["owner", true, true], ["gm", true, true], ["player", true, true], ["observer", true, true]] }),
             "{word: [another player's, an Observer's] drawn card naming Breakdown in its HTML, an attribute (a tooltip, a class, a data- one) or its data; present: each viewer's [result, the disadvantage die] on the card}");
     }],
-    ["R1490 - the safeword is as wide as its word, never as its rail (E24 C5, A6; the owner's report of 09.11): on the character sheet's window, in each theme with the pixel face and without, the Stop's winning `width` is `max-content`, its `max-width` its column less the corner's margins (`calc(100% - ...)`), its `justify-self` `start` - one item of Daggerheart's window grid, where `normal` stretched it across the rail - and it stays `sticky`", async () => {
+    ["R1490 - the safeword is as wide as its word, never as its rail (E24 C5, A6; the owner's report of 09.11): on the character sheet's window, in each theme with the pixel face and without, the Stop's winning `width` is `max-content`, its `max-width` its column less the corner's margins (`calc(100% - ...)`), its `justify-self` `start` - one item of Daggerheart's window grid, where `normal` stretched it across the rail - and it stays `sticky`; it stands in the third row of the rail's column, and the rail spans that row (`1 / span 3 !important`), so the panel under it reaches the window's foot (E24-C5 fix)", async () => {
         /*
          * E24 C5, 09.11.2026. The owner, 09.11, on 1.2.100: the safeword is too wide a button (a screenshot: wider than
          * the rail and past its right edge). Since E21 C5a the Stop is `position: sticky`, so it stays in the flow of
@@ -40309,7 +40309,10 @@ const INVARIANTS = [
          * under Legacy 130 of 130 (pixel face) and 91 of 91 (without). Read here: the module's sheets as a cascade
          * read from their text (`styleCascade`), the window built on a body of its own per theme and face, the Stop as
          * `injectSafeword` writes it. Red on 52955be4: `auto` under the glass, and no `max-width` or `justify-self`
-         * in either theme.
+         * in either theme. E24-C5 fix, 09.11.2026 (the orchestrator, on the crops): under Legacy the Stop's lower part
+         * crossed the rail's painted foot - Daggerheart's rail spans rows 1-2, the Stop sat in an implicit third row,
+         * and its sticky `bottom` lifted it 22 px into the rail's edge (the commit quotes the readings). The rail now
+         * spans the Stop's row too. Red on 0cdb534d: no `grid-row` on either.
          */
         const C = await styleCascade();
         const read = {};
@@ -40319,17 +40322,18 @@ const INVARIANTS = [
             html.append(body);
             body.innerHTML = `<div class="application sheet daggerheart actor character"><section class="window-content"><aside class="character-sidebar-sheet"></aside>`
                 + `<button type="button" class="drpg-safeword-button"><i class="fa-solid fa-hand" inert></i><span>R1490</span></button></section></div>`;
-            const stop = body.querySelector(".drpg-safeword-button");
+            const stop = body.querySelector(".drpg-safeword-button"), rail = C.winner(body.querySelector(".character-sidebar-sheet"), "grid-row");
             const won = name => C.winner(stop, name)?.value ?? "";
             read[`${theme.replace("drpg-theme-", "")}${pixel ? "" : " (no pixel face)"}`] = {
-                width: won("width"), maxWidth: /^calc\(\s*100%\s*-.+\)$/.test(won("max-width")), justify: won("justify-self"), position: won("position")
+                width: won("width"), maxWidth: /^calc\(\s*100%\s*-.+\)$/.test(won("max-width")), justify: won("justify-self"), position: won("position"),
+                place: `${won("grid-row")} / ${won("grid-column")}`, rail: `${rail?.value ?? ""}${rail?.important ? " !important" : ""}`
             };
         }
-        const want = { width: "max-content", maxWidth: true, justify: "start", position: "sticky" };
+        const want = { width: "max-content", maxWidth: true, justify: "start", position: "sticky", place: "3 / 1", rail: "1 / span 3 !important" };
         equal(stableJson(read), stableJson({ "stained-glass": want, "stained-glass (no pixel face)": want, "monokuma-legacy": want, "monokuma-legacy (no pixel face)": want }),
-            "{per theme and face: the Stop's winning width; whether its max-width is calc(100% - ...); its justify-self; its position}");
+            "{per theme and face: the Stop's winning width; whether its max-width is calc(100% - ...); its justify-self; its position; its grid-row / grid-column; the rail's grid-row}");
     }],
-    ["R1491 - the Experience badge is the module's and stands inside its rail (E24 C5, A7; the owner's report of 09.11): on the sheet's rail, in each theme, an Experience row's winning `width` is `auto` and its `align-self` `stretch`, each `!important` (Daggerheart 2.10.5 sets the row 250 px in a list that centres its rows, from a cascade layer above the module's), and the value's background (`background` or `background-image`, whichever wins) is an SVG under the module's icons/, served, on a 16x16 grid drawn crispEdges in whole-pixel rects, in the item icons' ink and one other colour of their palette (R1487's reading), with no `font-size` of nothing on the value", async () => {
+    ["R1491 - the Experience badge is the module's and stands inside its rail (E24 C5, A7; the owner's report of 09.11): on the sheet's rail, in each theme, an Experience row's winning `width` is `auto` (Daggerheart 2.10.5 sets the row 250 px in a list that centres its rows, from a cascade layer above the module's), the list a grid and each row a subgrid of it (`!important`), so the marks, the values and the names stand in three columns and every name starts at one x, the value left-aligned, a name too long for its column broken inside it rather than clipped by the rail (E24-C5 fix); the mark drawn at 32 px under the glass and at its grid's 16 px under Legacy, where a name has less room, and the value's background (`background` or `background-image`, whichever wins) is an SVG under the module's icons/, served, on a 16x16 grid drawn crispEdges in whole-pixel rects, in the item icons' ink and one other colour of their palette (R1487's reading), with no `font-size` of nothing on the value", async () => {
         /*
          * E24 C5, 09.11.2026. The owner, 09.11: the sheet has long cut the Experience icons off on the left, and they
          * are Daggerheart's own. Daggerheart 2.10.5 (sidebar.less): `.experience-list` is `.column-list(5px)`, a flex
@@ -40340,7 +40344,10 @@ const INVARIANTS = [
          * stand-in laid on 2.10.5's grid with sidebar.less's Experience rules, the commit quotes the readings. Read
          * here: the cascade from the sheets' text (`styleCascade`) on a rail built per theme, and the icon the value's
          * background names, fetched and read as R1487 reads the state icons. Red on 52955be4: no rule of the module's
-         * on the row's width or the value's background.
+         * on the row's width or the value's background. E24-C5 fix, 09.11.2026 (the orchestrator, on the crops): under
+         * Legacy the 2x mark took the room a name had ("Mr. Cleaner" wrapped at the slider's 0.85), and under the glass
+         * the names did not start at one x (the system's `justify-content: space-between`). Red on 0cdb534d: the row a
+         * flex box, the list a flex column, the value centred, Legacy's mark 32 px. The commit quotes the wraps.
          */
         const C = await styleCascade();
         const INK = "#1a1620";
@@ -40361,7 +40368,8 @@ const INVARIANTS = [
                 + `<div class="experience-section"><div class="title"><h3>Experience</h3></div><div class="experience-list">`
                 + `<div class="experience-row"><span class="experience-value">+2</span><span class="experience-name">R1491</span></div></div></div></aside></section></div>`;
             const row = body.querySelector(".experience-row"), value = body.querySelector(".experience-value");
-            const width = C.winner(row, "width"), align = C.winner(row, "align-self");
+            const width = C.winner(row, "width"), shown = C.winner(row, "display"), list = C.winner(body.querySelector(".experience-list"), "display");
+            const tracks = C.winner(row, "grid-template-columns")?.value ?? "", align = C.winner(value, "text-align");
             const image = C.winner(value, ["background", "background-image"])?.value ?? "";
             const file = /(?:^|\s)url\(\s*["']?\.\.\/icons\/([\w-]+\.svg)["']?\s*\)(?:\s|$)/.exec(image)?.[1] ?? null;
             const res = file ? await fetch(`/modules/${MODULE_ID}/icons/${file}`) : null;
@@ -40372,7 +40380,11 @@ const INVARIANTS = [
             const fills = new Set(fillsOf(text));
             const size = C.winner(value, "font-size")?.value ?? "";
             read[theme.replace("drpg-theme-", "")] = {
-                row: `${width?.value ?? ""}${width?.important ? " !important" : ""} / ${align?.value ?? ""}${align?.important ? " !important" : ""}`,
+                row: `${width?.value ?? ""}${width?.important ? " !important" : ""} / ${shown?.value ?? ""}${shown?.important ? " !important" : ""} / ${tracks}`,
+                list: `${list?.value ?? ""}${list?.important ? " !important" : ""}`,
+                value: `${align?.value ?? ""}${align?.important ? " !important" : ""}`,
+                name: C.winner(body.querySelector(".experience-name"), "overflow-wrap")?.value ?? "",
+                mark: /\b(\d+px) \1\b/.exec(image)?.[1] ?? "",
                 own: Boolean(file), served: Boolean(res?.ok),
                 grid: /\bviewBox="-?\d+ -?\d+ 16 16"/.test(root),
                 crisp: /\bshape-rendering="crispEdges"/.test(root),
@@ -40382,9 +40394,9 @@ const INVARIANTS = [
                 text: !/^0(?:px|rem|em)?$/.test(size.trim())
             };
         }
-        const want = { row: "auto !important / stretch !important", own: true, served: true, grid: true, crisp: true, rects: true, palette: true, inkAndOne: true, text: true };
-        equal(stableJson(read), stableJson({ "stained-glass": want, "monokuma-legacy": want }),
-            "{per theme: the row's winning width / align-self; own: the value's winning background names an SVG under the module's icons/; served; grid: a 16x16 view; crisp: crispEdges; rects: whole-pixel rects only; palette: every colour the item icons'; inkAndOne: the ink and exactly one other; text: the value's font-size not nothing}");
+        const want = { row: "auto !important / grid !important / subgrid", list: "grid !important", value: "left !important", name: "anywhere", own: true, served: true, grid: true, crisp: true, rects: true, palette: true, inkAndOne: true, text: true };
+        equal(stableJson(read), stableJson({ "stained-glass": { ...want, mark: "32px" }, "monokuma-legacy": { ...want, mark: "16px" } }),
+            "{per theme: the row's winning width / display / grid-template-columns; the list's display; the value's text-align; name: its overflow-wrap; mark: the value's background size; own: the value's winning background names an SVG under the module's icons/; served; grid: a 16x16 view; crisp: crispEdges; rects: whole-pixel rects only; palette: every colour the item icons'; inkAndOne: the ink and exactly one other; text: the value's font-size not nothing}");
     }],
 ];
 
