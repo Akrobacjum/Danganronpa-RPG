@@ -39550,25 +39550,39 @@ const INVARIANTS = [
             "drpg-theme-stained-glass": { ground: "transparent", edge: "transparent", border: "1px solid transparent", shadow: "none", padding: "4px 8px" }
         }), "[per theme, `#players` in a phase: the winning background, border-color, border, box-shadow and padding]");
     }],
-    ["R1467 - a student's frame under Monokuma Legacy is Legacy's bone (E23 fix L; the owner on 1.2.100, \"postacie maja zly kolor ramki (ze stained glass zamiast drpg bone)\"): own-ring.mjs `frameColour` asks `--drpg-bone` with Legacy's fallback for every frame under Legacy, and the glass's accent for the others under Stained Glass; Legacy's bone is danganronpa.css's `:root` #e4ded8", async () => {
+    ["R1467 - Monokuma Legacy's token frames are Legacy's bone (E23 fix L and L2; the owner on 1.2.100, \"postacie maja zly kolor ramki (ze stained glass zamiast drpg bone)\"): under Legacy own-ring.mjs `frameColour` asks `--drpg-bone` for the viewer's own frame and `--drpg-bone-dim` for every other student's, and `hourColour` (Foundry's controlled border) `--drpg-bone`; under Stained Glass the others and the controlled border keep the glass's accent; Legacy's two bones are danganronpa.css's `:root` #e4ded8 and #989492", async () => {
         /*
          * E23 fix L, 09.11.2026. Under Legacy the others' frames read `--drpg-own-ring`, the five hours danganronpa.css
-         * writes out from the glass's own palette: #bfe3ff, a pale blue-white, all morning (Chromium on the glass
-         * harness, the computed value under Legacy at each hour; the commit). The harness cannot draw tokens, so this
-         * reads the code path: `frameColour(whose, glass, read)` with a reader of its own, which records the property
-         * asked and its fallback, for the viewer's own frame and another student's in each theme. Then the value Legacy
-         * reads: the module's sheets as a cascade (`styleCascade`), `--drpg-bone` on the page's root, on a Legacy body
+         * wrote out from the glass's own palette: #bfe3ff, a pale blue-white, all morning (Chromium on the glass
+         * harness, the computed value under Legacy at each hour; the commit). Fix L made every Legacy frame bone.
+         * E23 fix L2, 09.11.2026, the owner's defaults for fix L's Open 2 and 3 (no answer given): under Legacy the
+         * viewer's own frame stays full bone and the others' are a dimmer bone, `--drpg-bone-dim`, so a player can still
+         * find their own token (W-6); and Foundry's controlled border, `CONFIG.Canvas.dispositionColors.CONTROLLED`,
+         * which `hourColour` writes, is bone rather than the glass's five hours.
+         * The harness cannot draw tokens, so this reads the code path: `frameColour(whose, glass, read)` and
+         * `hourColour(glass, read)` with a reader of their own, which records the property asked and its fallback, per
+         * theme and frame (mine, another student's, the controlled border). Then the values Legacy reads: the module's
+         * sheets as a cascade (`styleCascade`), `--drpg-bone` and `--drpg-bone-dim` on the page's root, on a Legacy body
          * (none of its own: it inherits the root's) and on a Stained Glass body. The colour handed to PIXI is that
-         * reading through utils.mjs `cssColour`; `hourColour`, which Foundry's controlled border is handed, is unchanged.
-         * Red on 52955be4: own-ring.mjs has no `frameColour`.
+         * reading through utils.mjs `cssColour`.
+         * Red on 52955be4: own-ring.mjs has no `frameColour`. Red on 01c5b36c: Legacy's others ask `--drpg-bone`, and
+         * `hourColour` takes no reader (the controlled border asks nothing it can see), no `--drpg-bone-dim` declared.
          */
         const ring = await import("./own-ring.mjs");
         must(typeof ring.frameColour === "function",
             "own-ring.mjs has no `frameColour`: under Monokuma Legacy a student's frame is hourColour's `--drpg-own-ring`, the glass's five hours");
         const asked = {};
-        for (const glass of [false, true]) for (const whose of ["mine", "student"]) {
-            ring.frameColour(whose, glass, (name, fallback) => {
-                asked[`${glass ? "stainedGlass" : "monokumaLegacy"} ${whose}`] = [name, `#${Number(fallback).toString(16).padStart(6, "0")}`];
+        const hex = n => `#${Number(n).toString(16).padStart(6, "0")}`;
+        for (const glass of [false, true]) {
+            const theme = glass ? "stainedGlass" : "monokumaLegacy";
+            for (const whose of ["mine", "student"]) {
+                ring.frameColour(whose, glass, (name, fallback) => {
+                    asked[`${theme} ${whose}`] = [name, hex(fallback)];
+                    return 0;
+                });
+            }
+            ring.hourColour(glass, (name, fallback) => {
+                asked[`${theme} controlled`] = [name, hex(fallback)];
                 return 0;
             });
         }
@@ -39579,14 +39593,17 @@ const INVARIANTS = [
             html.append(b);
             return b;
         };
-        const bone = { root: C.winner(document.documentElement, "--drpg-bone")?.value ?? null,
-            legacyBody: C.winner(body("drpg-theme-monokuma-legacy"), "--drpg-bone")?.value ?? null,
-            glassBody: C.winner(body("drpg-theme-stained-glass"), "--drpg-bone")?.value ?? null };
-        equal(stableJson({ asked, bone }), stableJson({
-            asked: { "monokumaLegacy mine": ["--drpg-bone", "#e4ded8"], "monokumaLegacy student": ["--drpg-bone", "#e4ded8"],
-                "stainedGlass mine": ["--drpg-bone", "#f2eee6"], "stainedGlass student": ["--drpg-glass-accent", "#ffd38f"] },
-            bone: { root: "#e4ded8", legacyBody: null, glassBody: "#f2eee6" }
-        }), "{asked: per theme and frame, the property `frameColour` reads and its fallback; bone: --drpg-bone on the root, a Legacy body and a Stained Glass body}");
+        const read = name => ({ root: C.winner(document.documentElement, name)?.value ?? null,
+            legacyBody: C.winner(body("drpg-theme-monokuma-legacy"), name)?.value ?? null,
+            glassBody: C.winner(body("drpg-theme-stained-glass"), name)?.value ?? null });
+        equal(stableJson({ asked, bone: read("--drpg-bone"), boneDim: read("--drpg-bone-dim") }), stableJson({
+            asked: { "monokumaLegacy mine": ["--drpg-bone", "#e4ded8"], "monokumaLegacy student": ["--drpg-bone-dim", "#989492"],
+                "monokumaLegacy controlled": ["--drpg-bone", "#e4ded8"],
+                "stainedGlass mine": ["--drpg-bone", "#f2eee6"], "stainedGlass student": ["--drpg-glass-accent", "#ffd38f"],
+                "stainedGlass controlled": ["--drpg-glass-accent", "#ffd38f"] },
+            bone: { root: "#e4ded8", legacyBody: null, glassBody: "#f2eee6" },
+            boneDim: { root: "#989492", legacyBody: null, glassBody: null }
+        }), "{asked: per theme and frame (mine, another student's, the controlled border), the property read and its fallback; bone and boneDim: each on the root, a Legacy body and a Stained Glass body}");
     }],
     ["R1468 - Monokuma Legacy's own drop-down list (E23 fix L; the owner on 1.2.100, \"listy rozwijane pochodza ze stained glass\"): in the module's picker (`appearance: base-select`) a Legacy list is square, its chosen row and tick the Eye's red, and Stained Glass's keeps the gold", async () => {
         /*

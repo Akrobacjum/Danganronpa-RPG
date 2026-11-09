@@ -4054,8 +4054,9 @@ const REGRESSIONS = [
         const whose = bodyOf(own, "function frameOf", { until: "function hourColour" });
         ok(/hasPlayerOwner/.test(whose), "only the viewer's token is framed again, not every student's");
         ok(/type !== "character"/.test(whose), "a frame reaches tokens that are not characters");
-        ok(/whose === "mine" \|\| !glass\) return read\("--drpg-bone"/.test(own) && /frameColour\(whose, glass\)/.test(own),
-            "the viewer's own frame is not bone (and, since E23 fix L, every student's under Monokuma Legacy: R1467)");
+        ok(/whose === "mine" \? read\("--drpg-bone", BONE_FALLBACK\)/.test(own)
+            && /whose === "mine" \? read\("--drpg-bone", LEGACY_BONE_FALLBACK\)/.test(own) && /frameColour\(whose, glass\)/.test(own),
+            "the viewer's own frame is not bone in both themes (and, since E23 fix L2, every other student's a dimmer bone under Monokuma Legacy: R1467)");
 
         const mine = bodyOf(own, "function isMine", { until: "function hourColour" });
         ok(/game\.user\?\.character/.test(mine),
@@ -4077,24 +4078,18 @@ const REGRESSIONS = [
             "the own-token ring registers before the Remnant rings");
 
         /*
-         * AND THE FIVE HOURS ARE DECLARED FOR MONOKUMA LEGACY, because
-         * `--drpg-glass-accent` is derived from the hour only under Stained Glass - on
-         * a Legacy client it holds the afternoon gold all day. The glass rule has the
-         * same specificity as the five, so it wins on SOURCE ORDER: that is read here
-         * rather than trusted, because moving it up is a one-line edit that would pin
-         * every Stained Glass ring to whatever the last hour rule said.
+         * THE HOURS ARE THE GLASS'S ALONE (E23 fix L2, 09.11.2026). Monokuma Legacy had the glass's five hours written
+         * out for this frame (`--drpg-own-ring`, danganronpa.css), and under Legacy they drew the frames and Foundry's
+         * controlled border in Stained Glass's palette. Since fix L and L2 Legacy reads its own two bones for both
+         * (R1467), so the five had no reader and went: a declaration nothing reads would say the hour still colours
+         * a Legacy map.
          */
         const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText))
             .replace(/\/\*[\s\S]*?\*\//g, " ");
-        for (const hour of ["morning", "noon", "afternoon", "evening", "night"]) {
-            ok(css.includes(`body[data-drpg-time="${hour}"] { --drpg-own-ring:`),
-                `Monokuma Legacy has no ring colour for the ${hour}`);
-        }
-        const glassRule = css.indexOf("body.drpg-theme-stained-glass { --drpg-own-ring:");
-        const lastHour = css.indexOf('body[data-drpg-time="night"] { --drpg-own-ring:');
-        ok(glassRule > lastHour,
-            "the glass's own accent is overridden by the hour rules - it has to come after "
-            + "them, since they have the same specificity");
+        ok(!/--drpg-own-ring\s*:/.test(css) && !/--drpg-own-ring/.test(own),
+            "`--drpg-own-ring` is declared or read again: under Monokuma Legacy it is Stained Glass's five hours, not Legacy's bone");
+        ok(/glass \? read\("--drpg-glass-accent", FALLBACK\) : read\("--drpg-bone", LEGACY_BONE_FALLBACK\)/.test(bodyOf(own, "function hourColour", { until: "function frameColour" })),
+            "the controlled border no longer follows the glass's accent under Stained Glass and Legacy's bone under Monokuma Legacy");
     }],
 
     ["R78 - the clock names what THIS client is hearing", async () => {

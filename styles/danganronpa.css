@@ -138,6 +138,10 @@
        exactly where it was. */
     --drpg-bone: #e4ded8;
     --drpg-bone-rgb: 228, 222, 216;
+    /* Another student's token frame under this theme, the viewer's own being Bone (E23 fix L2,
+       09.11.2026; own-ring.mjs). The glass's dim bone (its bone at 0.62) taken over to this Bone
+       on Ink and made solid, as the fog's raster below is: 5.72:1 on Ink, 2.25:1 against Bone. */
+    --drpg-bone-dim: #989492;
     --drpg-dim: #8a8296;               /* spent, unavailable - 4.84:1 */
     --drpg-grey-rgb: 127, 127, 127;
     --drpg-shadow-rgb: 0, 0, 0;
@@ -17917,40 +17921,6 @@ body.drpg-theme-monokuma-legacy {
     --font-size-64: calc(4rem * var(--drpg-legacy-scale, 1));
     --font-size-80: calc(5rem * var(--drpg-legacy-scale, 1));
 }
-
-/* ==========================================================================
-   YOUR OWN TOKEN WEARS THE HOUR (W-6, Dawid 18.09)
-   --------------------------------------------------------------------------
-   "Zeton gracza ginie w pokoju" - a bedroom holds a bed, a desk, two Remnants
-   and four students, all drawn at the same size out of the same tileset, and
-   the one token you may move looks exactly like the three you may not. So the
-   viewer's own token is ringed, in the colour of the time of day (own-ring.mjs).
-
-   THE HOUR IS DECLARED HERE FOR MONOKUMA LEGACY, and that is the whole reason
-   this block exists: `--drpg-glass-accent` is derived from `data-drpg-time` only
-   under Stained Glass (see stained-glass.css), so on a Legacy client it holds
-   the afternoon gold all day. The five values are the glass's own hours -
-   `--drpg-sg-morning` and its four siblings - written out rather than read,
-   because those tokens are declared inside that theme's own body rule and do
-   not resolve here.
-
-   UNDER THE GLASS THE RING READS THE ACCENT INSTEAD, and the rule below says so
-   in CSS as well as in the JS: same colour as the border of the room the token
-   is standing in, Eclipse included, with no second copy of that logic. That
-   includes the incident's red: on a client inside a killing the accent turns red
-   (`drpg-incident-here`, stained-glass.css), and the ring with it - on that
-   client alone, which is the only screen that stamp ever reaches.
-   Equal specificity to the five above, so it wins on source order - which is
-   why it is written after them and must stay there.
-   ========================================================================== */
-body[data-drpg-time="morning"] { --drpg-own-ring: #bfe3ff; }
-body[data-drpg-time="noon"] { --drpg-own-ring: #7fe4ff; }
-body[data-drpg-time="afternoon"] { --drpg-own-ring: #ffd38f; }
-body[data-drpg-time="evening"] { --drpg-own-ring: #ff8245; }
-body[data-drpg-time="night"] { --drpg-own-ring: #7f8cff; }
-/* An Eclipse is not an hour, and on this map it is the loudest thing there is. */
-body.drpg-eclipse { --drpg-own-ring: #a678ff; }
-body.drpg-theme-stained-glass { --drpg-own-ring: var(--drpg-glass-accent); }
 
 /* ==========================================================================
    WHAT IS PLAYING, UNDER THE CLOCK (N-1, Dawid 20.09)
