@@ -1170,7 +1170,7 @@ export const PATCHES = [
         file: "states.mjs",
         symbol: "ownDeadIcon",
         why: "The dead overlay wears the module's own pixel skull while Daggerheart's dead icon is its default; a GM's own icon is kept (E24 C1c, Q-E24-7).",
-        when: "at setup, while Daggerheart's deadIcon is its default",
+        when: "at setup and at each change of Daggerheart's Automation setting (updateSetting), while its deadIcon is its default",
         fallback: "not written: the dead overlay is Daggerheart's tombstone",
         probe: () => {
             const dead = (CONFIG.statusEffects ?? []).find(entry => entry?.id === "dead") ?? null;

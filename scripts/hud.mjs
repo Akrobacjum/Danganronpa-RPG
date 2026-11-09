@@ -253,7 +253,8 @@ export function registerHud() {
  * templates/hud/tokenHUD.hbs (`input[name="bar1"]`, `bar2`). Not measured on a canvas, which the
  * harness has none of: its check (15-held) hands the hook a HUD's shape.
  *
- * SINCE E24 C1b (08.11.2026, N5) a student's Health and Sanity bars are off for everybody by
+ * SINCE E24 C1b (08.11.2026, N5) a student's Health and Sanity bars (a Monokuma's and an NPC's
+ * too since E24 fix G2A, the sheet's one meaning) are off for everybody by
  * their attribute: states.mjs `reserveBar` answers them as the reserve with `editable: false`, and
  * tokenHUD.hbs disables an input whose attribute is not editable - a GM as well, since a number
  * typed there would be written to the marks. This stays for any other bar a student's token is

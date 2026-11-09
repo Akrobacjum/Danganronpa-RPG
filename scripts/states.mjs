@@ -32,7 +32,7 @@
  */
 
 import { MODULE_ID, FLAGS, STATES, DEAD_ICON } from "./config.mjs";
-import { isMonokuma, isNotInClass } from "./monokuma.mjs";
+import { isMonokuma } from "./monokuma.mjs";
 import { isDeceased } from "./settings.mjs";
 import { remaining, RESERVES, reserveView } from "./character.mjs";
 import { isPrimaryGm, primaryGmId, log, debug, error, whisperToGms } from "./utils.mjs";
@@ -76,6 +76,8 @@ export function registerStates() {
             error("Could not register the DRPG conditions", err);
         }
     });
+    // And again when a GM changes Daggerheart's dead icon mid-session (E24 fix G2A, review n2; `automationChanged`).
+    Hooks.on("updateSetting", setting => automationChanged(setting));
 
     /*
      * HEARD ON EACH BROWSER (E19 C6, audit S03-08). The sound used to be played by the primary's
@@ -97,12 +99,8 @@ export function registerStates() {
 
     Hooks.once("ready", () => {
         if (!isPrimaryGm()) return;
-        /* The system's conditions cleared once a load (E24 C3b, E24-25; audit S03-35): by the migration when it switched
-           the automations off this load, else here - not on every Health or Sanity write, which took a GM's own
-           Unconscious off at the next one. */
-        suppressSystemAutomation()
-            .then(switched => (switched ? null : clearAllSystemConditions()))
-            .then(() => syncAll())
+        // The migration, which alone clears the system's conditions, then the sync (`takeOverConditions`).
+        takeOverConditions()
             .catch(err => error("Could not take over the full-track conditions", err))
             // Once a load, after the sync has made or removed what it would: the effects made before
             // 1.2.101 put on the states' own icons (E24 C1c).
@@ -162,7 +160,7 @@ export function namesFlag(changes, key) {
  * settings writes them back (`giveBackAutomation`) and stops this until a GM holds them again. Exported for the
  * switch's re-hold and E20-T4.
  */
-export async function suppressSystemAutomation() {
+export async function suppressSystemAutomation({ actors = game.actors } = {}) {
     if (!game.user.isGM || foundryGivenBack()) return false;
 
     let automation;
@@ -188,7 +186,7 @@ export async function suppressSystemAutomation() {
         log("Switched off Daggerheart's Vulnerable and Defeated automations; "
             + "Breakdown and Wounded replace them.");
         // What the automations already put on the sheets goes with them, once (E24 C3b; `clearAllSystemConditions`).
-        await clearAllSystemConditions();
+        await clearAllSystemConditions({ actors });
         await whisperToGms(`<p>${game.i18n.localize("DRPG.GiveBack.automationOff")}</p>`);
         return true;
     } catch (err) {
@@ -249,16 +247,21 @@ export async function giveBackAutomation(kept) {
 const SYSTEM_CONDITIONS = ["vulnerable", "deathMove", "defeated", "unconscious"];
 
 /*
- * ONCE A LOAD, NOT ON EVERY WRITE (E24 C3b, 08.11.2026; E24-25, audit S03-35). `syncOnce` called this on every Health
- * and Sanity write, so an Unconscious a GM put on a student by hand went at the next write to either track. The markers
- * it is for are the automations' leftovers, and those stop arriving once the automations are off: cleared on the
- * primary GM at `ready` and by the migration that switches them off (`suppressSystemAutomation`, which a GM's re-hold
- * also runs), every student but a Monokuma, as `syncStates` reads them. Returns how many effects went.
+ * ONCE, BY THE MIGRATION ALONE (E24 C3b, 08.11.2026; E24-25, audit S03-35; E24 fix G2A, review M1). `syncOnce` called
+ * this on every Health and Sanity write, so an Unconscious a GM put on a student by hand went at the next write to
+ * either track. C3b kept it on every primary-GM `ready` instead, and once the automations are off - every world after
+ * its first load - the migration switches nothing, so each reload took the GM's Unconscious and Defeated all the same
+ * (R1496, red on 52955be4 with the ready step lifted out unchanged). The markers it is for are the automations'
+ * leftovers, and those stop arriving once the automations are off: cleared only by the migration that switches them
+ * off (`suppressSystemAutomation`, which a GM's re-hold also runs), every student but a Monokuma, as `syncStates`
+ * reads them. No pass for worlds switched off before 1.2.101: every release before it ran this on each write to either
+ * track, so a leftover there outlived only a student whose tracks nobody has written since. Returns how many effects
+ * went. Exported, with `actors` a stand-in world, for R1496.
  */
-async function clearAllSystemConditions() {
+export async function clearAllSystemConditions({ actors = game.actors } = {}) {
     if (!isPrimaryGm()) return 0;
     let cleared = 0;
-    for (const actor of game.actors ?? []) {
+    for (const actor of actors ?? []) {
         if (actor?.type !== "character" || isMonokuma(actor)) continue;
         cleared += await clearSystemConditions(actor);
     }
@@ -395,6 +398,20 @@ async function syncOnce(actor) {
     return applied;
 }
 
+/**
+ * The primary GM's ready step for the full-track conditions: the migration (`suppress`), which clears Daggerheart's
+ * leftovers with `actors` only on the load it switches the automations off, then the one-off sync. Clears nothing
+ * itself: a GM's own Unconscious and Defeated stay through every reload (E24 fix G2A, review M1; E24-25). Answers
+ * whether the migration switched them off; false on any browser but the primary GM's. `actors`, `suppress` and `sync`
+ * handed in by R1496's stand-in world.
+ */
+export async function takeOverConditions({ actors = game.actors, suppress = suppressSystemAutomation, sync = syncAll } = {}) {
+    if (!isPrimaryGm()) return false;
+    const switched = await suppress({ actors });
+    await sync();
+    return switched;
+}
+
 /** Every student, for the one-off pass at load. */
 export async function syncAll() {
     if (!game.user.isGM) return 0;
@@ -430,9 +447,10 @@ export async function syncAll() {
  * `ceil(data.value)` of them, `data` being Foundry's `TokenDocument#getBarAttribute`:
  * the marks, so a full bar was the wound (audit S12-36), and bar 2 showed another
  * player the Sanity the sheet now keeps from them. The attribute is wrapped (a row
- * of patches.mjs, `token-bars-reserve`): for a student's two reserves it answers what
+ * of patches.mjs, `token-bars-reserve`): for a character's two reserves (a student's, and
+ * since E24 fix G2A a Monokuma's and an NPC's, `reserveCharacter`) it answers what
  * is left of what maximum, and `editable: false`, which takes the token HUD's two
- * inputs off for everybody on a student (tokenHUD.hbs disables an input whose
+ * inputs off for everybody on a character (tokenHUD.hbs disables an input whose
  * attribute is not editable) - a number typed there would be written to the marks as
  * if it were the reserve. A GM edits on the sheet. Sanity answers null to a user
  * `reserveView` does not show it to: Foundry draws no bar for null. Read on Foundry's
@@ -450,20 +468,28 @@ export async function syncAll() {
  * every client holds, and a console reads it. A table's check (E24's live row of the icon, AUDIT 9.2).
  * ========================================================================== */
 
-/** A student, for the token's reserves: a character, not a Monokuma, not an NPC kept out of the class. */
-function reserveStudent(actor) {
-    return actor?.type === "character" && !isMonokuma(actor) && !isNotInClass(actor);
+/*
+ * ONE MEANING, THE SHEET'S (E24 fix G2A, 08.11.2026; review m4). The token's reserves are every character's, as the
+ * sheet's: `paintReserves` draws "Left: n / max" and hides Sanity on any character's sheet, a Monokuma's and an NPC's
+ * not in the class among them, while this asked for a student alone, so an NPC that had taken 3 of 4 Health read
+ * "Left: 1 / 4" on its sheet beside a token bar 3/4 full, and its Sanity bar and Breakdown icon (`syncStates` still
+ * gives an NPC Breakdown) showed to every player. Now its bars are the reserve, its Sanity bar and Breakdown icon the
+ * owner's and the GMs', and its HUD inputs off as a student's are (R1447, R1485; red on 52955be4: as Foundry's).
+ */
+/** A character, for the token's reserves: a student, a Monokuma or an NPC not in the class alike. */
+function reserveCharacter(actor) {
+    return actor?.type === "character";
 }
 
 /**
- * Foundry's bar answer `data` for `doc`, as `user` reads it: a student's Health or Sanity bar as its reserve - `value`
+ * Foundry's bar answer `data` for `doc`, as `user` reads it: a character's Health or Sanity bar as its reserve - `value`
  * what is left, `max` its maximum, not editable - or null for a Sanity `user` may not see; anything else as Foundry
  * answered it. Exported for R1447 and E24-T1.
  */
 export function reserveBar(doc, data, user = game.user) {
     if (!data || data.type !== "bar") return data;
     const key = Object.keys(RESERVES).find(k => data.attribute === `resources.${k}`);
-    if (!key || !reserveStudent(doc?.actor)) return data;
+    if (!key || !reserveCharacter(doc?.actor)) return data;
     const view = reserveView(doc.actor, key, user);
     if (!view.shown) return null;
     return { ...data, value: view.left, max: view.max, editable: false };
@@ -495,13 +521,13 @@ function installReserveBars() {
 }
 
 /**
- * Whether `user` is shown the icon of `effect` on `actor`'s token: not a student's Breakdown to a user `reserveView`
- * does not show that student's Sanity to (another player, an Observer); every other icon, a GM's and the owner's view,
- * and a Monokuma's, as Foundry draws them. Exported for R1485.
+ * Whether `user` is shown the icon of `effect` on `actor`'s token: not a character's Breakdown (a student's, a
+ * Monokuma's, an NPC's) to a user `reserveView` does not show that character's Sanity to (another player, an
+ * Observer); every other icon, a GM's and the owner's view, and another actor's, as Foundry draws them. Exported for R1485.
  */
 export function effectIconShown(actor, effect, user = game.user) {
     if (!effect?.statuses?.has?.(STATES.breakdown.id)) return true;
-    if (!reserveStudent(actor)) return true;
+    if (!reserveCharacter(actor)) return true;
     return reserveView(actor, "stress", user).shown;
 }
 
@@ -568,15 +594,33 @@ function automationSetting() {
 
 /**
  * Put the module's dead icon on the `dead` entry of `effects` (CONFIG.statusEffects) when `automation`'s
- * `defeated.deadIcon` is Daggerheart's default. True when it changed the entry; false for a GM's own icon, an
- * unreadable setting, no entry, or one already ours. Exported for R1488.
+ * `defeated.deadIcon` is Daggerheart's default, and a GM's own icon back on an entry that wears ours when it is not.
+ * True when it changed the entry; false for an unreadable setting, no entry, or one already as the setting says.
+ * Exported for R1488.
  */
 export function ownDeadIcon(effects, automation) {
-    if (automation?.defeated?.deadIcon !== DEAD_ICON.daggerheart) return false;
+    const icon = automation?.defeated?.deadIcon;
     const dead = (effects ?? []).find(entry => entry?.id === "dead");
-    if (!dead || dead.img === DEAD_ICON.img) return false;
-    dead.img = DEAD_ICON.img;
+    if (typeof icon !== "string" || !icon || !dead) return false;
+    const img = icon === DEAD_ICON.daggerheart ? DEAD_ICON.img : (dead.img === DEAD_ICON.img ? icon : dead.img);
+    if (dead.img === img) return false;
+    dead.img = img;
     return true;
+}
+
+/*
+ * A GM'S CHANGE MID-SESSION (E24 fix G2A, 08.11.2026; review n2). Daggerheart reads `defeated.deadIcon` into the dead
+ * entry at its setup only (2.10.11 daggerheart.mjs's setup hook builds `CONFIG.statusEffects` from
+ * `defeatedConditions()`; the setting's onChange, `DhAutomation#handleChange`, only stores the new value), so
+ * `ownDeadIcon` at setup alone left a GM who set the icon back to its default during a session on the old icon until
+ * a reload. Each client hears the setting's write (`updateSetting`) and puts the entry as the setting now says: ours
+ * at the default, the GM's own in place of ours. Effects already made keep the image they were made with. The hook
+ * and `Setting#key` as Foundry v13 has them, not read on v14's source. Exported, with `effects` and `automation`
+ * handed in, for R1488.
+ */
+export function automationChanged(setting, effects = CONFIG.statusEffects, automation = automationSetting()) {
+    if (setting?.key !== `${DH}.${AUTOMATION}`) return false;
+    return ownDeadIcon(effects, automation);
 }
 
 /**

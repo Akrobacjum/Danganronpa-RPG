@@ -39360,7 +39360,7 @@ const INVARIANTS = [
         "{source: [incidentCard asks incidentLines, still formats victimMarks, a bystander's gate first, the meta two parts]; seats: the victim at the killer's turn and at their own, "
             + "the killer at the victim's, a GM: [whose turn, the reserve line, a Sanity number in it, a mark word]}");
     }],
-    ["R1447 - the token bars and the Party sheet as the reserve (states.mjs `reserveBar`, `wrapBarAttribute`; sheet.mjs `paintPartyReserves`; E24 C1b, E24-10, E24-11; Q-E24-3): a student's two bars answer what is left of what maximum and are not editable, Sanity's none to a player who may not see it; a Monokuma's, an NPC's not in the class, another actor's and another attribute's as Foundry answered; the wrapper marked and not stacked; the contract's row `token-bars-reserve` ok here; the Party sheet's rows the reserve, its pips no toggle for a player, Sanity emptied for one who does not own the member", async () => {
+    ["R1447 - the token bars and the Party sheet as the reserve (states.mjs `reserveBar`, `wrapBarAttribute`; sheet.mjs `paintPartyReserves`; E24 C1b, E24-10, E24-11; Q-E24-3): a student's two bars answer what is left of what maximum and are not editable, Sanity's none to a player who may not see it; a Monokuma's and an NPC's not in the class as a student's (E24 fix G2A, review m4: the sheet's one meaning), another actor's and another attribute's as Foundry answered; the wrapper marked and not stacked; the contract's row `token-bars-reserve` ok here; the Party sheet's rows the reserve, its pips no toggle for a player, Sanity emptied for one who does not own the member", async () => {
         /*
          * E24 C1b, 08.11.2026. Daggerheart 2.10.5's `Token#_drawBar` draws one section a point of `data.max` and fills
          * `ceil(data.value)` of them, `data` being Foundry's `TokenDocument#getBarAttribute`: a student's bar 1 and 2
@@ -39386,7 +39386,9 @@ const INVARIANTS = [
             const bar = (actor, key, user) => ST.reserveBar({ actor }, foundry(actor, key), user);
             const same = (actor, key) => stableJson(bar(actor, key, viewer)) === stableJson(foundry(actor, key));
             bars.student = [["hitPoints", viewer], ["stress", viewer], ["stress", owner], ["stress", game.user]].map(([key, user]) => bar(student, key, user));
-            bars.asFoundry = [same(monokuma, "hitPoints"), same(monokuma, "stress"), same(npc, "stress"), same(adversary, "hitPoints"),
+            // A Monokuma's and an NPC's as a student's, the sheet's one meaning (E24 fix G2A, review m4).
+            bars.others = [["hitPoints", viewer], ["stress", viewer]].flatMap(([key, user]) => [bar(monokuma, key, user), bar(npc, key, user)]).concat([bar(npc, "stress", game.user)]);
+            bars.asFoundry = [same(adversary, "hitPoints"),
                 stableJson(ST.reserveBar({ actor: student }, { type: "bar", attribute: "resources.hope", value: 2, max: 6, editable: true }, viewer)) === stableJson({ type: "bar", attribute: "resources.hope", value: 2, max: 6, editable: true })];
         }
         let wrap = null;
@@ -39420,14 +39422,16 @@ const INVARIANTS = [
         equal(stableJson({ bars, wrap, row: row ? [row.kind, row.owner, row.file, row.target] : null, contract: contract?.state ?? null, party }), stableJson({
             bars: { student: [{ type: "bar", attribute: "resources.hitPoints", value: 3, max: 4, editable: false }, null,
                 { type: "bar", attribute: "resources.stress", value: 5, max: 7, editable: false }, { type: "bar", attribute: "resources.stress", value: 5, max: 7, editable: false }],
-            asFoundry: [true, true, true, true, true] },
+            others: [{ type: "bar", attribute: "resources.hitPoints", value: 3, max: 4, editable: false }, { type: "bar", attribute: "resources.hitPoints", value: 3, max: 4, editable: false },
+                null, null, { type: "bar", attribute: "resources.stress", value: 5, max: 7, editable: false }],
+            asFoundry: [true, true] },
             wrap: [true, true, 3, false],
             row: ["override", "foundry", "states.mjs", "TokenDocument.prototype.getBarAttribute"], contract: "ok",
             party: {
                 gm: { health: { value: "3 / 4", filled: 3, toggles: 4, numbers: reversed(4) }, sanity: { value: "5 / 7", filled: 5, toggles: 7, numbers: reversed(7) } },
                 owner: { health: { value: "3 / 4", filled: 3, toggles: 0, numbers: off(4) }, sanity: { value: "5 / 7", filled: 5, toggles: 0, numbers: off(7) } },
                 viewer: { health: { value: "3 / 4", filled: 3, toggles: 0, numbers: off(4) }, sanity: { value: "?", filled: 0, toggles: 0, numbers: off(7) } } } }),
-        "{bars: a student's [Health to another player, Sanity to them, to the owner, to a GM], [a Monokuma's two, an NPC's Sanity, an adversary's Health, a student's Hope as Foundry's]; "
+        "{bars: a student's [Health to another player, Sanity to them, to the owner, to a GM], [a Monokuma's and an NPC's Health to another player, their Sanity to them, an NPC's Sanity to a GM], [an adversary's Health, a student's Hope as Foundry's]; "
             + "wrap: [marked, a second wrap stacks nothing, bar 1's value and editable through it]; the contract's row [kind, owner, file, target] and its state here; "
             + "party: a GM's, the owner's and another player's sheet: [the row's numbers, pips filled, pips with a toggle, each pip's value for a toggle]}");
     }],
@@ -39454,7 +39458,7 @@ const INVARIANTS = [
         equal(stableJson([text.includes(line.replace(/\s+/g, " ")), text.includes(marks), /marked|zaznaczon/i.test(text), pair !== null && text.includes(pair)]), stableJson([true, false, false, true]),
             `[the line is the reserve (${line}), the marks ${marks} stand in it, a "marked", the pair (${pair}) as the cards write it]: ${text.slice(0, 600)}`);
     }],
-    ["R1485 - the Breakdown icon is drawn only for whom the student's Sanity is shown (states.mjs `wrapEffectIcons`; E24 C1b, STAGE.md Amend 08.11 A1; the owner's 08.11 \"ikone tez ukrywamy\"): on a stand-in token, the owner and a GM see a student's Breakdown icon, another player and an Observer-only player do not; Wounded and `dead` drawn for everybody; a Monokuma's as Foundry's; the wrapper marked and not stacked, and its contract row", async () => {
+    ["R1485 - the Breakdown icon is drawn only for whom the student's Sanity is shown (states.mjs `wrapEffectIcons`; E24 C1b, STAGE.md Amend 08.11 A1; the owner's 08.11 \"ikone tez ukrywamy\"): on a stand-in token, the owner and a GM see a student's Breakdown icon, another player and an Observer-only player do not; Wounded and `dead` drawn for everybody; a Monokuma's and an NPC's as a student's (E24 fix G2A, review m4); the wrapper marked and not stacked, and its contract row", async () => {
         /*
          * E24 C1b, 08.11.2026. states.mjs puts Breakdown on with `toggleStatusEffect`, so Daggerheart's token (2.10.5
          * module/canvas/placeables/token.mjs `_drawEffects`, which hands `_drawEffect(src, tint, effect)` each icon's
@@ -39471,6 +39475,7 @@ const INVARIANTS = [
         const stamp = Date.now().toString(36);
         const student = reserveActor({ id: `r1485s${stamp}`, stress: 6, owner: owner.id });
         const monokuma = Object.assign(reserveActor({ id: `r1485m${stamp}`, stress: 6 }), { getFlag: (scope, key) => key === FLAGS.monokuma });
+        const npc = Object.assign(reserveActor({ id: `r1485n${stamp}`, stress: 6 }), { getFlag: (scope, key) => key === FLAGS.notInClass });
         const effect = id => ({ img: `icons/r1485/${id}.webp`, statuses: new Set([id]) });
         const EFFECTS = [effect(STATES.breakdown.id), effect(STATES.wounded.id), effect("dead")];
         let seen = null, wrap = null, refused = null;
@@ -39478,7 +39483,9 @@ const INVARIANTS = [
             seen = {};
             const drawn = (actor, user) => EFFECTS.map(fx => ST.effectIconShown(actor, fx, user));
             for (const [who, user] of [["owner", owner], ["gm", game.user], ["player", viewer], ["observer", observer]]) seen[who] = drawn(student, user);
+            // As a student's, the sheet's one meaning (E24 fix G2A, review m4): hidden from another player, a GM's view.
             seen.monokuma = drawn(monokuma, viewer);
+            seen.npc = [drawn(npc, viewer), drawn(npc, game.user)];
         }
         if (typeof ST.wrapEffectIcons === "function") {
             const proto = { async _drawEffect(src) { return { drawn: src }; } };
@@ -39526,9 +39533,9 @@ const INVARIANTS = [
         "{refused: each token's [Breakdown handed its effect, Breakdown with no effect, Wounded handed its effect, Wounded with no effect] drawn through the wrapper with "
             + "this browser's user a player - on another player's student, on one it may only observe, on its own - and gm: the Breakdown with no effect drawn for a GM}");
         equal(stableJson({ seen, wrap, row: row ? [row.kind, row.owner, row.file] : null }), stableJson({
-            seen: { owner: [true, true, true], gm: [true, true, true], player: [false, true, true], observer: [false, true, true], monokuma: [true, true, true] },
+            seen: { owner: [true, true, true], gm: [true, true, true], player: [false, true, true], observer: [false, true, true], monokuma: [false, true, true], npc: [[false, true, true], [true, true, true]] },
             wrap: [true, true, true, true], row: ["override", "daggerheart", "states.mjs"] }),
-        "{seen: [Breakdown, Wounded, dead] drawn on a student's token for its owner, a GM, another player and an Observer-only player, and on a Monokuma's for another player; "
+        "{seen: [Breakdown, Wounded, dead] drawn on a student's token for its owner, a GM, another player and an Observer-only player, on a Monokuma's for another player, on an NPC's for another player and a GM; "
             + "wrap: [marked, a second wrap stacks nothing, a GM's Breakdown drawn through it, it asks effectIconShown with the token's actor]; the contract's row [kind, owner, file]}");
     }],
     ["R1456 - one step at a time (sheet.mjs `SHEET_STEPS`; E24 C3b, E24-21; audit S03-42): a step that throws - `tidyBiography` on a biography part whose lookup throws - is logged as \"Sheet step tidyBiography failed\" and every other step runs, `removeSystemCreators` first (Daggerheart's \"+\" gone, the inventory's groups and the Rules tab drawn); the primary GM is told once a load, by one notice naming the step; a player never", async () => {
@@ -39744,7 +39751,7 @@ const INVARIANTS = [
             stableJson({ none: calm, silence: { ...calm, locked: true, drawer: true }, fog: { ...calm, fogged: true, moveSays: "fog", budget: true } }),
             "[no Overflow, Silence, Fog]: Hope Call tiles drawn; all locked with Overflow.silenced; the drawer silenced; the free Move fogged; what its tooltip says; the budget line says Fog");
     }],
-    ["R1488 - the primary GM's ready step puts the states' own icons on the effects a world already holds (states.mjs `reimageStates`, `ownDeadIcon`; E24 C1c, STAGE.md \"Amend 08.11\" A3, Q-E24-7): on a stand-in world the old-image Breakdown and Wounded effects carry the new images, a dead and another status are untouched, a second run writes nothing, a non-primary GM writes nothing; the dead status wears ours only while Daggerheart's deadIcon setting is at its default", async () => {
+    ["R1488 - the primary GM's ready step puts the states' own icons on the effects a world already holds (states.mjs `reimageStates`, `ownDeadIcon`; E24 C1c, STAGE.md \"Amend 08.11\" A3, Q-E24-7): on a stand-in world the old-image Breakdown and Wounded effects carry the new images, a dead and another status are untouched, a second run writes nothing, a non-primary GM writes nothing; the dead status wears ours only while Daggerheart's deadIcon setting is at its default, and follows a GM's change of it mid-session (E24 fix G2A, review n2)", async () => {
         /*
          * E24 C1c, 08.11.2026. `toggleStatusEffect` makes an effect from `CONFIG.statusEffects` with the image the
          * entry has then, and the effect keeps it: a world played before C1c holds Breakdown and Wounded effects in
@@ -39802,6 +39809,15 @@ const INVARIANTS = [
                 chosen: [ST.ownDeadIcon(chosen, { defeated: { deadIcon: "worlds/w/my-dead.webp" } }), chosen[0].img],
                 unread: [ST.ownDeadIcon(unread, null), unread[0].img]
             };
+            // A GM's change mid-session (E24 fix G2A, review n2): to the default puts ours on, to their own takes ours off.
+            const ours = [{ id: "dead", img: DEAD_ICON?.img }];
+            dead.giveBack = [ST.ownDeadIcon(ours, { defeated: { deadIcon: "worlds/w/my-dead.webp" } }), ours[0].img];
+        }
+        if (typeof ST.automationChanged === "function") {
+            const list = () => [{ id: "dead", img: "worlds/w/my-dead.webp" }];
+            const toDefault = list(), other = list();
+            dead.changed = [ST.automationChanged({ key: "daggerheart.Automation" }, toDefault, { defeated: { deadIcon: DH_DEAD } }), toDefault[0].img,
+                ST.automationChanged({ key: "core.other" }, other, { defeated: { deadIcon: DH_DEAD } }), other[0].img];
         }
         // This world: the dead entry as the setting says, and the two states' entries on their own icons.
         let setting = null;
@@ -39812,19 +39828,73 @@ const INVARIANTS = [
             states: [entry(STATES.breakdown.id) === B, entry(STATES.wounded.id) === Wd]
         };
         const src = stripComments((await moduleSources()).get("states.mjs") ?? "");
-        const wired = [/\breimageStates\(\)/.test(fnSource(src, "registerStates")), /\bownDeadIcon\(/.test(fnSource(src, "registerStates"))];
+        const wired = [/\breimageStates\(\)/.test(fnSource(src, "registerStates")), /\bownDeadIcon\(/.test(fnSource(src, "registerStates")),
+            /Hooks\.on\("updateSetting", setting => automationChanged\(setting\)\)/.test(fnSource(src, "registerStates")), /\bfunction automationChanged\(/.test(src) && /\bownDeadIcon\(/.test(fnSource(src, "automationChanged"))];
         const row = PATCHES.find(r => r.id === "dead-icon-own") ?? null;
         equal(stableJson({ step, dead, here, wired, row: row ? [row.kind, row.owner, row.file, row.symbol] : null }), stableJson({
             step: { first: 3, afterFirst: [`e1:${B}`, `e2:${Wd}`, `e3:${DH_DEAD}`, "e4:icons/svg/blind.svg", `e5:${Wd}`],
                 writes: [["a", "ActiveEffect", ["_id,img", "_id,img"]], ["b", "ActiveEffect", ["_id,img"]]],
                 second: 0, secondWrites: 0, other: 0, otherWrites: 0,
                 otherImgs: [`e1:${OLD.breakdown}`, `e2:${OLD.wounded}`, `e3:${DH_DEAD}`, "e4:icons/svg/blind.svg", `e5:${OLD.wounded}`] },
-            dead: { atDefault: [true, [DEAD_ICON?.img, "icons/svg/blind.svg"]], again: false, chosen: [false, "worlds/w/my-dead.webp"], unread: [false, DH_DEAD] },
+            dead: { atDefault: [true, [DEAD_ICON?.img, "icons/svg/blind.svg"]], again: false, chosen: [false, "worlds/w/my-dead.webp"], unread: [false, DH_DEAD],
+                giveBack: [true, "worlds/w/my-dead.webp"], changed: [true, DEAD_ICON?.img, false, "worlds/w/my-dead.webp"] },
             here: { dead: setting === null ? "unread" : true, states: [true, true] },
-            wired: [true, true], row: ["override", "daggerheart", "states.mjs", "ownDeadIcon"] }),
+            wired: [true, true, true, true], row: ["override", "daggerheart", "states.mjs", "ownDeadIcon"] }),
         "{step: the primary's first run (effects written), the images after it, its writes [actor, type, keys], a second run and its writes, a non-primary GM's run, its writes and the images it left; "
-            + "dead: ownDeadIcon at the default (changed, the list's images), again, a GM's own icon, the setting unread; here: this world's dead entry as its setting says and the two states' entries on their icons; "
-            + "wired: registerStates calls both; the contract's row [kind, owner, file, symbol]}");
+            + "dead: ownDeadIcon at the default (changed, the list's images), again, a GM's own icon, the setting unread, ours under a GM's own icon chosen since, a change of the Automation setting to the default and of another setting [answer, image]; here: this world's dead entry as its setting says and the two states' entries on their icons; "
+            + "wired: registerStates calls both, it listens for a setting's change, the listener puts the icon through ownDeadIcon; the contract's row [kind, owner, file, symbol]}");
+    }],
+    ["R1496 - a GM's own Unconscious and Defeated stay through every load (states.mjs `takeOverConditions`, `clearAllSystemConditions`; E24 fix G2A, E24-25; review M1): the primary GM's ready step clears Daggerheart's conditions only through the migration that switches its automations off on that load - on a stand-in world whose automations are already off, two loads delete nothing; the load that switches them off clears a student's once and a Monokuma's never", async () => {
+        /*
+         * E24 fix G2A, 08.11.2026 (review M1). C3b moved the clear off every Health and Sanity write but kept it on every
+         * ready: once the automations are off - every world after its first load - the migration switches nothing and
+         * the ready step cleared every student's Unconscious, Defeated, Vulnerable and Death Move at each primary-GM
+         * load, so a GM's own Unconscious went at the next F5 (E24-25 says it stays). Only the automations make those
+         * leftovers, and they stop once the automations are off: the one clear is the migration's. A primary-GM write,
+         * so MARKED: the mutant is the clear at every load again, red here. Stand-ins (a world's actors, a migration
+         * and a sync handed in), so nothing of this world is written. Red on 52955be4 with only the ready step lifted
+         * into `takeOverConditions`: both loads delete the GM's two.
+         */
+        needs(env.primaryGm(), "the clear runs on the primary GM");
+        const ST = await import("./states.mjs");
+        const { FLAGS } = await import("./config.mjs");
+        const world = () => {
+            const deleted = [];
+            const actor = (id, statuses, flags = {}) => {
+                const effects = statuses.map((status, i) => ({ id: `${id}e${i}`, statuses: new Set([status]) }));
+                return {
+                    id, type: "character", name: `r1496 ${id}`, effects, getFlag: (scope, key) => flags[key],
+                    async deleteEmbeddedDocuments(type, ids) {
+                        deleted.push([id, type, ids]);
+                        for (const x of ids) effects.splice(effects.findIndex(e => e.id === x), 1);
+                        return ids;
+                    }
+                };
+            };
+            const actors = [actor("gm", ["unconscious", "defeated"]), actor("mk", ["unconscious"], { [FLAGS.monokuma]: true })];
+            return { deleted, actors, left: () => actors.map(a => `${a.id}:${a.effects.map(e => [...e.statuses][0]).join(",")}`) };
+        };
+        let loads = null, migration = null;
+        if (typeof ST.takeOverConditions === "function") {
+            const w = world(), synced = [];
+            const sync = async () => { synced.push(true); };
+            // The automations already off: the migration switches nothing, as `suppressSystemAutomation` answers then.
+            const off = async () => false;
+            const answers = [await ST.takeOverConditions({ actors: w.actors, suppress: off, sync }), await ST.takeOverConditions({ actors: w.actors, suppress: off, sync })];
+            loads = { answers, deleted: w.deleted, left: w.left(), synced: synced.length };
+        }
+        if (typeof ST.takeOverConditions === "function" && typeof ST.clearAllSystemConditions === "function") {
+            // The load that switches them off: the migration clears with the actors it is handed, as `suppressSystemAutomation` does after its write (R1461).
+            const m = world();
+            const on = async ({ actors }) => { await ST.clearAllSystemConditions({ actors }); return true; };
+            const answer = await ST.takeOverConditions({ actors: m.actors, suppress: on, sync: async () => {} });
+            migration = { answer, deleted: m.deleted, left: m.left() };
+        }
+        equal(stableJson({ loads, migration }), stableJson({
+            loads: { answers: [false, false], deleted: [], left: ["gm:unconscious,defeated", "mk:unconscious"], synced: 2 },
+            migration: { answer: true, deleted: [["gm", "ActiveEffect", ["gme0", "gme1"]]], left: ["gm:", "mk:unconscious"] } }),
+        "{loads: two loads with the automations already off [their answers, the deletes, what each stand-in holds after, the syncs run]; "
+            + "migration: the load that switches them off [its answer, the deletes, what each holds after]}");
     }],
     ["R1471 - the modes' matrix (E45 C1; audit S17-37): sheet.mjs `sheetMode(actor, user)` for a student, the dead, a Monocub, an NPC not in the class and a Monokuma, each for a GM, its owner and another player - the mode, who is looking, the header, the action panel, the row buttons, Level Up, the Calls, the inventory's groups and the Equipped, Experience and biography parts, the passages, the strip, the Objection and the room tile; frozen; and drawn on stand-in roots for a GM and the owner, every part R1455 reads is what the mode says", async () => {
         /*
