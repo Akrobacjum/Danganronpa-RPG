@@ -2041,7 +2041,8 @@ const REGRESSIONS = [
             + "button can put the room back into Daily Life");
         /* E11 C13 (11.10.2026): the window's form is `chapterEndForm`, whose `box(name, n)` helper writes the
            `<input name=...>` once for every box, so the box is named at its call and not in a literal. Since E22 C3b each
-           box is drawn by `option(name, n, words, ...)` (its reason when shut, its mark when permanent), which calls box. */
+           box is drawn by `option(name, n, words, ...)` (its reason when shut, its mark when permanent), which calls box;
+           since E46-C6 the helper is `tick(name, n)` (the kit's `box` draws the window's warnings). */
         ok(/name="endTrial"/.test(chapter) || /\b(?:box|option)\("endTrial"/.test(chapter),
             "the End of chapter screen has lost the checkbox that offers to close the "
             + "trial, so the step below can only be reached from the console");
@@ -21707,6 +21708,78 @@ const REGRESSIONS = [
             return [fn, body.length > 40 ? [re.test(body), (body.match(/drpg-warning/g) ?? []).length] : "not read"];
         }));
         equal(JSON.stringify(got), JSON.stringify(Object.fromEntries(Object.keys(places).map(fn => [fn, [true, 0]]))), "{each place: [it says the state through the builder, drpg-warning left]}");
+    }],
+    /* ---- E46 C6 (09.11.2026) ---- */
+
+    ["R2035 - the warning sites E21 homed in E46's windows are the kit's boxes (E46-C6; E46-20; STAGE E46 \"The carried warning sites\", E21 STATUS fix G2 item 10): each listed function draws its warnings with box(\"warning\") and its information lines with box(\"info\"), and keeps no drpg-warning; the sites in windows E47 rebuilds are listed as E47's and read for being there, as is Item tables' install receipt, a whisper to the GMs carried with the chat cards", async () => {
+        /*
+         * E46-C6, 09.11.2026. E21's list (fix G2 item 10) homed 19 `drpg-warning` sites by window, read at 3c952c67:
+         * chapter.mjs `chapterEndForm` (3: the untyped bullets, the last chapter, no Final Truth Remnant) and
+         * `askStoppedEnd` (1), gm-items.mjs's two kind notes, gm-stores.mjs `runHealthCheck`, gm-team-dialog.mjs
+         * `wireMonokumaLive`, projects-ui.mjs's three, room-setup.mjs `roomSetupContent` (2 W, 1 I), season-wipe.mjs
+         * `resetSeason` (2: the Reset window), tables-editor.mjs `installTables` and `wireNewItemForm` (2). Each row here:
+         * file, function, stage, and for stage E46 [warning boxes, info boxes] as the tree draws them - counted in the
+         * source with comments blanked: `box("warning", ` and gm-items.mjs's `kindNote("...")` (one such box, its own row)
+         * as warnings, `box("info", ` as information - and `drpg-warning` left, 0. room-setup.mjs's second info box is the
+         * room count's line (E21 C5, R1373), drawn in the same function. Rows of stage E47 (the case's health on a
+         * checkList since E47-C3, R2063/R2064; the project windows since E47-C6, R2076) are those groups' to hold and are
+         * read here for being there; `installTables`' site is the receipt whispered to the GMs (a chat card, as verdict.mjs
+         * `verdictSummaryContent` stays, E47-C1 Open 2), carried with the chat-card sites. The windows' look at a table:
+         * LIVE-E46-07. Red first on db40a379: chapter.mjs `chapterEndForm` [0,0,3], `askStoppedEnd` [0,0,1], season-wipe.mjs
+         * `resetSeason` [0,0,2].
+         */
+        const SITES = [
+            ["chapter.mjs", "chapterEndForm", "E46", 3, 0], ["chapter.mjs", "askStoppedEnd", "E46", 1, 0],
+            ["gm-items.mjs", "giveExistingPane", "E46", 2, 0], ["gm-items.mjs", "giveCreatePane", "E46", 1, 0], ["gm-items.mjs", "kindNote", "E46", 1, 0],
+            ["gm-team-dialog.mjs", "wireMonokumaLive", "E46", 1, 0], ["room-setup.mjs", "roomSetupContent", "E46", 2, 2],
+            ["season-wipe.mjs", "resetSeason", "E46", 2, 0], ["tables-editor.mjs", "wireNewItemForm", "E46", 2, 0],
+            ["gm-stores.mjs", "runHealthCheck", "E47"], ["projects-ui.mjs", "guardDescription", "E47"], ["projects-ui.mjs", "ownedFieldset", "E47"],
+            ["projects-ui.mjs", "passageFieldset", "E47"], ["tables-editor.mjs", "installTables", "chat"]
+        ];
+        const files = {};
+        for (const file of new Set(SITES.map(([file]) => file))) files[file] = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const count = (text, re) => (text.match(re) ?? []).length;
+        const got = {}, want = {};
+        for (const [file, fn, stage, w, i] of SITES) {
+            const body = fnSource(files[file], fn);
+            const name = `${file}:${fn} (${stage})`;
+            if (stage !== "E46") { got[name] = body.length > 40 ? "read" : "not read"; want[name] = "read"; continue; }
+            got[name] = body.length > 40 ? [count(body, /\bbox\("warning",/g) + count(body, /\bkindNote\("/g), count(body, /\bbox\("info",/g), count(body, /drpg-warning/g)] : "not read";
+            want[name] = [w, i, 0];
+        }
+        equal(JSON.stringify(got), JSON.stringify(want), "{file:function (stage): E46's [warning boxes, info boxes, drpg-warning left]; E47's and the chat card's read}");
+    }],
+
+    ["R2036 - the GM handbook names E46's new labels in both languages (E46-C6; E46-21): the checklist's red and \"!\" states and the uneven split, Room setup's picture warnings and the hall's cast columns, Item tables' columns, Give existing's empty choice, Overflow's rules table, Sound's Effects column and a Test's reason, and Music's folded order - each read from lang/ and found in docs/handbooks/gm-handbook.<lang>.md, a label in bold, a sentence the window says in italics", async () => {
+        /*
+         * E46-C6, 09.11.2026. E46's windows drew new words (E46-C1 the checklist's states, C2a/C2b Room setup, C3 the item
+         * windows, C4 Sound, C5a/C5b Despair Flow and Season setup; their keys added between f7266b28 and 552d6d69). The
+         * handbook names a label as the window draws it: `**<label>**` for a column head, a button, a choice or a fold,
+         * `*<words>` for a sentence the window says, cut at its first placeholder (scenario 50-lang's rule for the trial's
+         * labels). Red first on db40a379: the handbooks named none of the 16 in either language.
+         */
+        const LABELS = [
+            ["Kit.check.blocking", "said"], ["Kit.check.warning", "said"], ["Season.splitUneven", "said"],
+            ["Vault.imageLarge", "said"], ["Vault.imageBroken", "said"], ["TrialScene.castWho", "label"], ["TrialScene.castToken", "label"],
+            ["Tables.col.table", "label"], ["Tables.col.actions", "label"], ["Items.chooseOne", "label"],
+            ["Overflow.colOn", "label"], ["Overflow.colWhat", "label"], ["Overflow.colDoes", "label"],
+            ["Sound.rowButtons", "label"], ["Sound.why.noFile", "said"], ["Music.howOrder", "label"]
+        ];
+        const missing = [];
+        let read = 0;
+        for (const lang of ["en", "pl"]) {
+            const strings = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const text = await fetch(`/modules/${MODULE_ID}/docs/handbooks/gm-handbook.${lang}.md`).then(lfText);
+            must(text.includes("## 17."), `docs/handbooks/gm-handbook.${lang}.md was not read - this would measure nothing`);
+            for (const [key, how] of LABELS) {
+                const label = `DRPG.${key}`.split(".").reduce((o, k) => o?.[k], strings);
+                if (typeof label !== "string") { missing.push(`${lang} has no DRPG.${key}`); continue; }
+                const words = label.split("{")[0].replace(/[\s(:]+$/, "");
+                read++;
+                if (!words || !text.includes(how === "label" ? `**${words}**` : `*${words}`)) missing.push(`${lang} ${key}: ${words}`);
+            }
+        }
+        equal(JSON.stringify({ read, missing }), JSON.stringify({ read: LABELS.length * 2, missing: [] }), "{labels read in both files, those the handbook of their language does not name}");
     }],
 ];
 

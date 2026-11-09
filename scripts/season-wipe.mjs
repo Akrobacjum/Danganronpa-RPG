@@ -39,7 +39,7 @@ import { log, error, plural, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, server
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { cardFlag } from "./secret.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, box } from "./ui-kit.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks and its window counts (E42 C3).
 import { registerSeasonState, seasonStateEntries, seasonStateFor, everyPart } from "./season-reset.mjs";
 // A leaf (utils.mjs alone): the one runner of the procedures that cannot be taken back (E42 C1b).
@@ -268,7 +268,7 @@ export async function resetSeason() {
         : "";
 
     const unfinishedLine = unfinished.length
-        ? `<p class="drpg-warning">${esc(game.i18n.format("DRPG.Season.resetUnfinished", { groups: listOf(unfinished.map(groupLabel)) }))}</p>`
+        ? box("warning", `<p>${esc(game.i18n.format("DRPG.Season.resetUnfinished", { groups: listOf(unfinished.map(groupLabel)) }))}</p>`)
         : "";
     const memoryLine = remembered.keys.size && !unfinished.length
         ? `<p class="notes">${esc(plural("DRPG.Season.resetRemembered",
@@ -285,7 +285,7 @@ export async function resetSeason() {
         classes: ["drpg-panel", "drpg-window-season-reset"],
         title: game.i18n.localize("DRPG.Season.resetTitle"),
         body: `<form>
-            <p class="drpg-warning">${esc(game.i18n.localize("DRPG.Season.resetWarning"))}</p>
+            ${box("warning", `<p>${esc(game.i18n.localize("DRPG.Season.resetWarning"))}</p>`)}
             ${offlineLine}
             ${unfinishedLine}
             <p><strong>${esc(game.i18n.localize("DRPG.Season.resetGoes"))}</strong></p>

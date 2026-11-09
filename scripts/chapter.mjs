@@ -43,7 +43,7 @@ import { studentActors } from "./monokuma.mjs";
 import { announce, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc, isPrimaryGm, primaryGmId,
     serverNow, listOf } from "./utils.mjs";
 // The kit's frame (E21 C3a): every window of the case's chapter is a `drpgWindow` or a `drpgConfirm`, answering as before.
-import { drpgWindow, drpgConfirm, emptyOption } from "./ui-kit.mjs";
+import { drpgWindow, drpgConfirm, emptyOption, box } from "./ui-kit.mjs";
 // A leaf (utils.mjs alone): the one runner of the procedures that cannot be taken back, and its report (E42 C2).
 import { runSteps, stepsReport } from "./steps.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
@@ -1823,21 +1823,24 @@ export function chapterEndForm({ chapter, session, day, hidden = 0, typeless = 0
        fine print now (`.notes`, the palette's dim) with the reason after them (`DRPG.Chapter.optNothing`, the trial's own).
        The four that cannot be undone - the reveal, the sweep, the Faint clean-up, the Key Remnants taken off - stay ticked
        with their counts, as the owner's default keeps them, and carry the destructive mark: `drpg-destructive` on the
-       label and "cannot be undone" in its words (the mark's face is the role table's, E22 C6). */
-    const box = (name, n) => `<input type="checkbox" name="${name}"${n ? " checked" : " disabled"} />`;
+       label and "cannot be undone" in its words (the mark's face is the role table's, E22 C6). The checkbox's helper is
+       `tick`, named `box` until E46-C6 brought the kit's `box` into this file: the window's three warnings (the untyped
+       bullets, the last chapter, no Final Truth Remnant) are the kit's warning box since then, as E21 homed them (R2035),
+       and the Final Truth line stays a plain note while the Remnant is placed. */
+    const tick = (name, n) => `<input type="checkbox" name="${name}"${n ? " checked" : " disabled"} />`;
     const option = (name, n, words, { permanent = false, why = "DRPG.Chapter.optNothing" } = {}) => n
         ? `<label class="drpg-checkbox${permanent ? " drpg-destructive" : ""}"${permanent ? " data-drpg-permanent" : ""}>
-                ${box(name, n)}
+                ${tick(name, n)}
                 ${words}${permanent ? ` <span class="notes">${game.i18n.localize("DRPG.Chapter.optPermanent")}</span>` : ""}</label>`
         : `<label class="drpg-checkbox" data-drpg-off>
-                ${box(name, n)}
+                ${tick(name, n)}
                 <span class="notes">${words} - ${game.i18n.localize(why)}</span></label>`;
     return `<form>
             <p>${game.i18n.format("DRPG.Chapter.endIntro", { chapter })}</p>
             ${option("reveal", hidden, game.i18n.format("DRPG.Chapter.optReveal", { n: hidden }), { permanent: true })}
             <p class="notes">${game.i18n.localize("DRPG.Chapter.revealKeeps")}</p>
-            ${typeless ? `<p class="notes drpg-warning" data-drpg-typeless>${
-                plural("DRPG.Chapter.typeless", { n: typeless, who: esc(holders.join(", ")) })}</p>` : ""}
+            ${typeless ? box("warning", `<p data-drpg-typeless>${
+                plural("DRPG.Chapter.typeless", { n: typeless, who: esc(holders.join(", ")) })}</p>`) : ""}
             <hr />
             ${option("sweep", sweepable, game.i18n.format("DRPG.Chapter.optSweep", { n: sweepable }), { permanent: true })}
             ${option("faint", faintable, game.i18n.format("DRPG.Chapter.optFaint", { n: faintable }), { permanent: true })}
@@ -1847,8 +1850,8 @@ export function chapterEndForm({ chapter, session, day, hidden = 0, typeless = 0
             <label class="drpg-checkbox">
                 <input type="checkbox" name="nextChapter"${lastChapter ? "" : " checked"} />
                 ${game.i18n.format("DRPG.Chapter.optNextChapter", { from: chapter, to: chapter + 1 })}</label>
-            ${lastChapter ? `<p class="notes drpg-warning">${game.i18n.format("DRPG.Chapter.lastChapter", {
-                    n: chapter, next: chapter + 1 })}</p>` : ""}
+            ${lastChapter ? box("warning", `<p>${game.i18n.format("DRPG.Chapter.lastChapter", {
+                    n: chapter, next: chapter + 1 })}</p>`) : ""}
             <label class="drpg-checkbox">
                 <input type="checkbox" name="nextSession" checked />
                 ${game.i18n.format("DRPG.Chapter.optNextSession", { from: session, to: session + 1 })}</label>
@@ -1858,8 +1861,9 @@ export function chapterEndForm({ chapter, session, day, hidden = 0, typeless = 0
             <p class="notes">${game.i18n.localize("DRPG.Chapter.endNote")}</p>
             ${/* The Final Truth Remnant points at the Mastermind (E22 C3b; audit S06-47): a season with none set is told
                  nothing about it, and the warning was red at every chapter's end of such a season. */ ""}
-            ${mastermind ? `<p class="notes${finalTruthPlaced ? "" : " drpg-warning"}" data-drpg-final-truth>${game.i18n.localize(
-                finalTruthPlaced ? "DRPG.Mastermind.finalTruthPlaced" : "DRPG.Chapter.finalTruthMissing")}</p>` : ""}
+            ${!mastermind ? "" : finalTruthPlaced
+                ? `<p class="notes" data-drpg-final-truth>${game.i18n.localize("DRPG.Mastermind.finalTruthPlaced")}</p>`
+                : box("warning", `<p data-drpg-final-truth>${game.i18n.localize("DRPG.Chapter.finalTruthMissing")}</p>`)}
             <p class="notes">${esc(backup)}
                 <button type="button" data-drpg-backup>${esc(game.i18n.localize("DRPG.Case.backupNow"))}</button></p>
         </form>`;
@@ -2523,7 +2527,7 @@ async function askStoppedEnd(record) {
     const answer = await drpgWindow({
         title: game.i18n.localize("DRPG.Chapter.endTitle"),
         classes: ["drpg-panel"],
-        body: `<p class="drpg-warning">${esc(game.i18n.format("DRPG.Chapter.endStands", { steps: listOf(undone.map(stepWords)) }))}</p>${
+        body: `${box("warning", `<p>${esc(game.i18n.format("DRPG.Chapter.endStands", { steps: listOf(undone.map(stepWords)) }))}</p>`)}${
             earlier.length ? `<p>${esc(game.i18n.format("DRPG.Chapter.doneEarlier", { steps: listOf(earlier.map(stepWords)) }))}</p>` : ""}`,
         // Cancel the default, as before (E42 C2). Finish runs the rest of an end and Drop gives it up for good: both cannot
         // be undone (E22 rule 4), destructive, Cancel first under Enter.
