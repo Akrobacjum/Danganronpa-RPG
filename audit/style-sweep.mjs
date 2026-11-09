@@ -215,6 +215,8 @@ function misfits(win, state, still) {
     if (!state.window) out.push("window out");
     if (state.footer === false) out.push("footer out");
     if (state.buttonsOut.length) out.push(`button(s) out: ${state.buttonsOut.join(", ")}`);
+    if (state.shrunk?.length) out.push(`checkbox shrunk: ${state.shrunk.join(", ")}`);
+    if (state.labelsOff?.length) out.push(`label off its field: ${state.labelsOff.join(", ")}`);
     if (state.tabs === false) out.push("tab bar out");
     const demo = DEMO_SCROLLERS[win?.window] ?? [];
     const others = state.scrollers.filter(s => s !== "kit-body" && !demo.includes(s));
@@ -299,6 +301,26 @@ async function fitPass(browser) {
         await page.addStyleTag({ content: "html body .application.sheet.actor .drpg-safeword-button.drpg-safeword-button { position: static !important; }" });
         const d = (await page.evaluate(() => globalThis.drpgFit()))[0];
         say("(d) Stop's sticky rule off", d?.stop === false, `reads ${d?.stop ? "Stop in view" : "Stop out"}`);
+        /* (e)-(h), E47-FA (09.11.2026): what a fit reads inside the window (style-harness.html `cutText`, `shrunk`,
+           `labelOff`), each planted on the kit gallery at 1366x768 after its ground reads fit - a footer button moved
+           past the window's left edge (inside the screen), a button too narrow for its word, a switch 3 px wide, a
+           label moved 30 px under its field. */
+        const planted = async (id, css) => {
+            await load(page, kit);
+            if (css) await page.addStyleTag({ content: css });
+            const s = (await page.evaluate(o => globalThis.drpgFit(o), { only: id }))[0]?.states[0];
+            return s ? misfits(null, s, false) : ["no reading"];
+        };
+        const eGround = [...await planted("kit-form-wide", null), ...await planted("kit-controls", null)];
+        say("(e)-(h) ground", !eGround.length, `the gallery's form and controls windows read ${eGround.join("; ") || "fits"}`);
+        const e = await planted("kit-form-wide", '[data-window="kit-form-wide"] footer.form-footer button { margin-left: -120px !important; }');
+        say("(e) button past the window's edge", e.some(w => w.startsWith("button(s) out")), `reads ${e.join("; ") || "fits"}`);
+        const f = await planted("kit-form-wide", '[data-window="kit-form-wide"] footer.form-footer button { min-width: 0 !important; max-width: 2.5em !important; width: 2.5em !important; overflow: hidden !important; }');
+        say("(f) button cut", f.some(w => w.startsWith("button(s) out")), `reads ${f.join("; ") || "fits"}`);
+        const g = await planted("kit-controls", '[data-window="kit-controls"] input[name="t2"] { width: 3px !important; min-width: 0 !important; }');
+        say("(g) checkbox shrunk", g.some(w => w.startsWith("checkbox shrunk")), `reads ${g.join("; ") || "fits"}`);
+        const h = await planted("kit-form-wide", '[data-window="kit-form-wide"] .drpg-form-label { position: relative !important; top: 30px !important; }');
+        say("(h) label off its field", h.some(w => w.startsWith("label off its field")), `reads ${h.join("; ") || "fits"}`);
         await page.close();
     }
     const rows = [];

@@ -2077,6 +2077,7 @@
       "selfWentThrough": "<strong>Stało się.</strong> Nie ma walki do stoczenia. Stage 6 jest otwarty na twoim arkuszu: pokój zostawisz taki, jaki zostawisz go teraz.",
       "resolutionNoteSelf": "Stage 6, bez nikogo, przed kim trzeba by to ukryć - poza klasą. Widzą i sprzątają własne ślady, i wciąż żyją, by to zrobić - zamknięcie incydentu czyni śmierć prawdziwą.",
       "trackerStateSelf": "{stage} · bez tur - Stage 5 nie biegnie",
+      "trackerStateOver": "{stage} · tury się skończyły",
       "afterSelf": "Z własnej ręki - nikogo innego nie było w pokoju, a klasa ma tylko scenę.",
       "afterIntroSelf": "{name}, z własnej ręki. Wszystko poniżej wynika z tego, co właśnie się stało, a moduł przestał śledzić sam incydent.",
       "dayNote": "Nie noc, więc rzut otwarcia bez modyfikatora.",

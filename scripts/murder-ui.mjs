@@ -473,6 +473,12 @@ export function incidentTrackerHtml(now, cleanup) {
         ? game.i18n.format("DRPG.Murder.trackerStateSelf", {
             stage: game.i18n.localize(`DRPG.Murder.stage.${now.stage}`)
         })
+        /* AT STAGE 6 THE TURNS ARE OVER (E47-FA, 09.11.2026; E47-C2 Open 4, E47-C7 Open 2, the owner's default on comparison
+           2): the line read the fight's last fields - "Resolution · turn 1 · victim to act" - over a fight that ended. */
+        : now.stage === "resolution"
+        ? game.i18n.format("DRPG.Murder.trackerStateOver", {
+            stage: game.i18n.localize(`DRPG.Murder.stage.${now.stage}`)
+        })
         : game.i18n.format("DRPG.Murder.trackerState", {
             stage: game.i18n.localize(`DRPG.Murder.stage.${now.stage}`),
             turn: now.turn,
@@ -825,9 +831,11 @@ function killerCleanup(killer, cleanup, named) {
         : game.i18n.localize("DRPG.Cleanup.gmNoTool");
 
     if (!traces.length) {
+        /* one line under the tool's (E47-FA, 09.11.2026; comparison 2's ac016): the kit's empty state stood it in the
+           middle of a band 28 px high above and below, a list's whole emptiness, where a section says one fact */
         return `<h4>${title}</h4>
                 <p class="drpg-help">${toolLine}</p>
-                ${emptyState("DRPG.Cleanup.gmNothingHere")}`;
+                <p class="drpg-help" data-drpg-no-traces>${game.i18n.localize("DRPG.Cleanup.gmNothingHere")}</p>`;
     }
 
     // On the kit's dataTable (E47-C2): the Remnant, its note, what it takes to erase - the same three columns.

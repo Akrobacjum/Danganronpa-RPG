@@ -43974,6 +43974,91 @@ const INVARIANTS = [
             stableJson({ other: [other.id, [other.id, ...students.map(s => s.id)]], student: [students[1].id, students.map(s => s.id)] }),
             "[the hub's who select opened for the NPC and for the second student: its value, its options]");
     }],
+    ["R2093 - a formGrid label stands on its field's first line (components.css `.drpg-form-grid`, the kit's rule; E47-FA, comparison 2's ac015-ac017, ac042, ac044, ac060, ac075, ac078): the grid aligns its cells by their first baselines, under both themes", async () => {
+        /*
+         * E47-FA, 09.11.2026. The grid stood each label at the top of its row with a 0.3em pad: under the glass at
+         * 1366x768 a label's middle stood 6 px under a select's, 12 px under a text field's and 9 px under the
+         * tracker's facts; under Legacy 1, 7 and 3 px over (the comparison's pages, read in Chromium). By baseline the
+         * label's text is on the line of the control's text or of the fact. Read from the sheets' text (`styleCascade`)
+         * on a grid built on a body of each theme; in Chromium the fit sweep's `labelOff` (R2092). Red at a8ae16f6:
+         * "start" in both.
+         */
+        const C = await styleCascade();
+        const read = Object.fromEntries(Object.entries({ glass: "drpg-theme-stained-glass drpg-gm", legacy: "drpg-theme-monokuma-legacy drpg-gm" }).map(([dress, classes]) => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = classes;
+            html.append(body);
+            body.innerHTML = `<div class="application drpg-ui drpg-panel dialog"><div class="drpg-form-grid"><label class="drpg-form-label">Who</label><div class="drpg-form-field"><span>Aiko</span></div></div></div>`;
+            return [dress, C.winner(body.querySelector(".drpg-form-grid"), "align-items")?.value ?? null];
+        }));
+        equal(JSON.stringify(read), JSON.stringify({ glass: "baseline", legacy: "baseline" }), "{the grid's align-items under each theme}");
+    }],
+    ["R2094 - a checkbox in a formGrid keeps its box (components.css; E47-FA, comparison 2's ac044-ac046, ac075): the grid's `min-width: 0` for its fields leaves a checkbox and a radio out, so a long label beside one in a flex row does not shrink it", async () => {
+        /*
+         * E47-FA, 09.11.2026. Murder's "Indirect murder" box read 5x13 px under Legacy at 1366x768 (Chromium, the
+         * comparison's page): the grid's rule gave every input a least width of 0, and the label's flex row shrank the
+         * box beside its long words. Read on Murder's own markup (a full row's `label.drpg-checkbox`) in both themes,
+         * and a text field beside it keeps its 0 (the rule's own reason, M7's fields in a 274 px cell). Red at a8ae16f6:
+         * the box's min-width "0" in both.
+         */
+        const C = await styleCascade();
+        const read = Object.fromEntries(Object.entries({ glass: "drpg-theme-stained-glass drpg-gm", legacy: "drpg-theme-monokuma-legacy drpg-gm" }).map(([dress, classes]) => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = classes;
+            html.append(body);
+            body.innerHTML = `<div class="application drpg-ui drpg-panel dialog drpg-window-murder"><div class="drpg-form-grid"><label class="drpg-form-label" for="n">Name</label><div class="drpg-form-field"><input type="text" id="n"></div>`
+                + `<div class="drpg-form-full"><label class="drpg-checkbox"><input type="checkbox" name="indirect"><span>Indirect murder (a trap) - the long words of the row</span></label></div></div></div>`;
+            const box = body.querySelector('input[type="checkbox"]'), text = body.querySelector('input[type="text"]');
+            return [dress, [C.winner(box, "min-width")?.value ?? null, C.winner(text, "min-width")?.value ?? null]];
+        }));
+        equal(JSON.stringify(read), JSON.stringify({ glass: ["auto", "0"], legacy: ["auto", "0"] }), "{each theme: [the checkbox's min-width, the text field's]}");
+    }],
+    ["R2095 - the kit's box keeps no paragraph's margins inside it (components.css, the E47-FA section; E46-C6 Open 5, the owner's default on comparison 2): its first child takes no top margin and its last no bottom one, under both themes", async () => {
+        /*
+         * E47-FA, 09.11.2026. End of chapter's and the reset's warnings write a paragraph into `box()`, and the
+         * paragraph's own margins stood inside the box's padding, a blank line above and below the words. Read from the
+         * sheets' text on a warning box of two paragraphs in a kit window of each theme. Red at a8ae16f6: no rule of the
+         * module's sheets set them (null).
+         */
+        const C = await styleCascade();
+        const read = Object.fromEntries(Object.entries({ glass: "drpg-theme-stained-glass drpg-gm", legacy: "drpg-theme-monokuma-legacy drpg-gm" }).map(([dress, classes]) => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = classes;
+            html.append(body);
+            body.innerHTML = `<div class="application drpg-ui drpg-panel dialog"><div class="drpg-box" data-drpg-box="warning" role="note"><p>One.</p><p>Two.</p></div></div>`;
+            const [first, last] = body.querySelectorAll(".drpg-box > p");
+            return [dress, [C.winner(first, "margin-top")?.value ?? null, C.winner(last, "margin-bottom")?.value ?? null]];
+        }));
+        equal(JSON.stringify(read), JSON.stringify({ glass: ["0", "0"], legacy: ["0", "0"] }), "{each theme: [the first paragraph's margin-top, the last one's margin-bottom]}");
+    }],
+    ["R3123 - at Stage 6 the incident tracker says the turns are over (murder-ui.mjs `incidentTrackerHtml`, DRPG.Murder.trackerStateOver; E47-FA, E47-C2 Open 4, comparison 2's ac016), and a killer with no traces to clean reads one line, not the kit's empty state", async () => {
+        /*
+         * E47-FA, 09.11.2026. The turn bar read "Resolution · turn 1 · victim to act" at Stage 6 - the fight's last
+         * fields over a fight that ended (E47-C2 Open 4, E47-C7 Open 2; the owner's default on comparison 2: fix it). Read
+         * on two of the world's students, the tracker's HTML built for an incident at "resolution" (a builder: nothing is
+         * written), and at "incident" for the ground. The clean-up section with no trace is read from the source:
+         * `killerCleanup`'s branch for none draws a help line, not `emptyState` (its band of 28 px above and below stood
+         * one sentence in the middle of an empty block, ac016). Red at a8ae16f6: the bar held "turn" at Stage 6, and the
+         * branch drew `emptyState`.
+         */
+        needs(world.atLeast("livingStudents", 2), "two students for a fight's two sides");
+        const MU = await import("./murder-ui.mjs");
+        const [killer, victim] = studentActors();
+        const bar = stage => {
+            const root = document.createElement("div");
+            root.innerHTML = MU.incidentTrackerHtml({ stage, turn: 1, turnSide: "victim", killerId: killer.id, victimId: victim.id, recent: [], keyRemnants: 0 }, null);
+            return root.querySelector(".drpg-turn-bar")?.textContent.trim() ?? null;
+        };
+        const stageWord = s => game.i18n.localize(`DRPG.Murder.stage.${s}`);
+        const over = game.i18n.has("DRPG.Murder.trackerStateOver") ? game.i18n.format("DRPG.Murder.trackerStateOver", { stage: stageWord("resolution") }) : "(no key)";
+        const fight = game.i18n.format("DRPG.Murder.trackerState", { stage: stageWord("incident"), turn: 1, side: game.i18n.localize("DRPG.Murder.side.victim") });
+        const src = (await moduleSources()).get("murder-ui.mjs") ?? "";
+        const branch = bodyOf(src, "function killerCleanup(", { until: "const rows = traces.map" });
+        must(branch.includes("gmNothingHere"), "killerCleanup's branch for no trace was not found - this would read nothing");
+        equal(JSON.stringify({ stage6: bar("resolution"), incident: bar("incident"), empty: /emptyState\(\s*"DRPG\.Cleanup\.gmNothingHere"/.test(branch) }),
+            JSON.stringify({ stage6: over, incident: fight, empty: false }),
+            "{the turn bar at Stage 6, at the incident; the no-trace line drawn as the kit's empty state}");
+    }],
 ];
 
 /**

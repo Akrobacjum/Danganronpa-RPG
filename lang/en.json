@@ -1936,6 +1936,7 @@
       "selfWentThrough": "<strong>You went through with it.</strong> There is no fight to have. Stage 6 is open on your sheet: whatever you leave the room as, you leave it as now.",
       "resolutionNoteSelf": "Stage 6, with nobody left to hide it from but the class. They can see and clean their own traces, and they are still alive to do it - closing the incident is what makes the death real.",
       "trackerStateSelf": "{stage} · no turns - Stage 5 does not run",
+      "trackerStateOver": "{stage} · the turns are over",
       "afterSelf": "By their own hand - nobody else was in the room, and the class has only the scene to go on.",
       "afterIntroSelf": "{name}, by their own hand. Everything below follows from what just happened, and the module has stopped tracking the incident itself.",
       "dayNote": "Not night, so the opening roll is unmodified.",

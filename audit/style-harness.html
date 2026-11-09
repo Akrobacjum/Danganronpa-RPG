@@ -167,6 +167,57 @@
     const box = (win.querySelector(".window-content") ?? win).getBoundingClientRect(), r = stop.getBoundingClientRect();
     return inView(stop) && r.top >= box.top - 0.5 && r.bottom <= box.bottom + 0.5 && r.left >= box.left - 0.5 && r.right <= box.right + 0.5;
   };
+  /* WHAT A FIT READS INSIDE THE WINDOW (E47-FA, 09.11.2026; comparison 2's console, Murder and form cards). A footer
+     button counts out when it stands outside the WINDOW's box as well as the viewport's - a footer wider than its window
+     stood inside the screen and read fit - and when its words run past its own box or break inside a word onto a
+     second line (`cutText`). A checkbox or radio narrower than three quarters of its height has lost its box
+     (`shrunk`: Murder's "Indirect murder" read 5x13 px under Legacy). A formGrid label whose first line stands more than
+     LABEL_OFF px off its field's first line (`labelOff`: the label's first line against the control's first line of
+     text - its middle for a control of one line, the top of its content box for a taller one, `firstLine` - or the
+     field's first line of text) sits beside the wrong thing; a label on a row of its own (the grid's one column) is not
+     read. */
+  const LABEL_OFF = 4;
+  const inside = (el, win) => { const r = el.getBoundingClientRect(), w = win.getBoundingClientRect(); return r.left >= w.left - 0.5 && r.right <= w.right + 0.5 && r.top >= w.top - 0.5 && r.bottom <= w.bottom + 0.5; };
+  const lineRects = el => { const rg = document.createRange(); rg.selectNodeContents(el); return [...rg.getClientRects()].filter(t => t.width > 0); };
+  const brokenWord = el => {
+    const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+      for (const m of n.data.matchAll(/\S+/g)) {
+        const rg = document.createRange(); rg.setStart(n, m.index); rg.setEnd(n, m.index + m[0].length);
+        if (new Set([...rg.getClientRects()].filter(t => t.width > 0).map(t => Math.round(t.top))).size > 1) return true;
+      }
+    }
+    return false;
+  };
+  const cutText = b => { const r = b.getBoundingClientRect(); return lineRects(b).some(t => t.left < r.left - 0.5 || t.right > r.right + 0.5) || brokenWord(b); };
+  const shrunk = win => [...win.querySelectorAll('input:is([type="checkbox"], [type="radio"])')].filter(shown).filter(c => { const r = c.getBoundingClientRect(); return r.width < 0.75 * r.height; }).map(c => c.name || c.id || c.type);
+  /* A control's first line of text (E47-FA): a control of one line holds it in its middle; a taller one - a text area,
+     a list box, Legacy's select whose words wrap to a second line - at the top of its content box. */
+  const firstLine = c => {
+    const r = c.getBoundingClientRect(), cs = getComputedStyle(c);
+    const line = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2;
+    const top = r.top + parseFloat(cs.borderTopWidth) + parseFloat(cs.paddingTop);
+    const bottom = r.bottom - parseFloat(cs.borderBottomWidth) - parseFloat(cs.paddingBottom);
+    if (bottom - top > 1.5 * line) return { top, bottom: top + line, many: true };
+    const mid = (r.top + r.bottom) / 2;
+    return { top: mid - line / 2, bottom: mid + line / 2, many: false };
+  };
+  const labelOff = win => [...win.querySelectorAll(".drpg-form-grid > .drpg-form-label")].filter(shown).filter(l => {
+    const f = l.nextElementSibling;
+    if (!f || !shown(f)) return false;
+    const lb = lineRects(l)[0] ?? l.getBoundingClientRect();
+    if (f.getBoundingClientRect().top >= l.getBoundingClientRect().bottom - 0.5) return false;
+    const mid = (lb.top + lb.bottom) / 2;
+    const ctrl = [...f.querySelectorAll('input:not([type="hidden"]), select, textarea')].find(shown);
+    if (ctrl) {
+      // the label's first line against the control's first line: its middle for one line, within it for several
+      const band = firstLine(ctrl);
+      return band.many ? mid < band.top - LABEL_OFF || mid > band.bottom + LABEL_OFF : Math.abs(mid - (band.top + band.bottom) / 2) > LABEL_OFF;
+    }
+    const step = [...f.querySelectorAll(".drpg-kit-stepper")].find(shown);
+    const fb = step ? step.getBoundingClientRect() : lineRects(f)[0];
+    return fb ? Math.abs(mid - (fb.top + fb.bottom) / 2) > LABEL_OFF : false;
+  }).map(l => l.textContent.trim().slice(0, 40));
   const reading = (win, tab) => {
     const footer = win.querySelector("footer.form-footer");
     const nav = win.querySelector("nav.drpg-tabs");
@@ -182,7 +233,8 @@
     return {
       tab, box: box(win), window: inView(win),
       footer: footer ? inView(footer) : null,
-      buttonsOut: footer ? [...footer.querySelectorAll("button")].filter(shown).filter(b => !inView(b)).map(b => b.dataset.action ?? b.textContent.trim()) : [],
+      buttonsOut: footer ? [...footer.querySelectorAll("button")].filter(shown).filter(b => !inView(b) || !inside(b, win) || cutText(b)).map(b => b.dataset.action ?? b.textContent.trim()) : [],
+      shrunk: shrunk(win), labelsOff: labelOff(win),
       tabs: nav ? inView(nav) : null,
       // the kit's body taller than its box with nothing to scroll it: what it holds is cut off (the sweep's control b)
       cut: (() => { const b = win.querySelector(".drpg-kit-body"); return Boolean(b && b.scrollHeight > b.clientHeight + 1 && !/auto|scroll/.test(getComputedStyle(b).overflowY)); })(),

@@ -21901,6 +21901,39 @@ const REGRESSIONS = [
         }
         equal(JSON.stringify({ absent, unheld }), JSON.stringify({ absent: [], unheld: {} }), "{page|theme|size absent from the baseline, surface: page|theme|size readings that do not hold it}");
     }],
+    ["R2092 - the fit sweep reads what is wrong INSIDE a window (audit/style-sweep.mjs `--fit`, audit/style-harness.html `reading`; E47-FA, comparison 2's console, Murder and form cards): a footer button outside the window's own box or cut by it, a checkbox narrower than three quarters of its height, a formGrid label off its field's first line, each with its control planted on the kit gallery", async () => {
+        /*
+         * E47-FA, 09.11.2026. Comparison 2 drew the trial console's footer cut at both ends (ac036-ac040), Murder's
+         * "Indirect murder" box as a dot under Legacy (ac044) and the form labels under their fields (ac042, ac060, ac075),
+         * and `--fit` read every one of those pages fit: it held a footer button to the VIEWPORT (a footer wider than its
+         * window stood inside the screen), and read no checkbox and no label. The console's footer as the module draws it
+         * (the kit's two groups, `dressFooter`) fits in every state measured (S/stages/E46/STATUS.md "## E47-FA"); the
+         * pictures' cut was the comparison tool's footer rebuilt flat, but the sweep could not have told either. "Fits" is a
+         * reading in Chromium; this holds the sweep's reach, as R1356 does: the reading's words in the harness, the
+         * misfits in the sweep, and the four controls that plant each fault. Red at a8ae16f6: none of it there.
+         */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        const read = async path => {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" });
+                return res.ok ? await lfText(res) : "";
+            } catch { return ""; }
+        };
+        const [sweep, page] = await Promise.all(["audit/style-sweep.mjs", "audit/style-harness.html"].map(read));
+        must(sweep.length > 2000 && page.length > 2000, "the sweep or the style harness read nothing - this test would read nothing");
+        const reading = bodyOf(page, "const reading = (win, tab) => {", { until: "const switchByHand" });
+        const misfit = bodyOf(sweep, "function misfits(", { until: "\n}" });
+        equal(JSON.stringify({
+            box: /!inView\(b\) \|\| !inside\(b, win\) \|\| cutText\(b\)/.test(reading) && /const inside = \(el, win\)/.test(page),
+            cut: /const cutText = /.test(page) && /const brokenWord = /.test(page),
+            shrunk: /shrunk: shrunk\(win\)/.test(reading) && /r\.width < 0\.75 \* r\.height/.test(page),
+            labels: /labelsOff: labelOff\(win\)/.test(reading) && /const LABEL_OFF = \d+;/.test(page),
+            words: ["checkbox shrunk", "label off its field"].filter(w => misfit.includes(`\`${w}: `)),
+            controls: ["(e)-(h) ground", "(e) button past the window's edge", "(f) button cut", "(g) checkbox shrunk", "(h) label off its field"].filter(c => sweep.includes(`"${c}"`))
+        }), JSON.stringify({ box: true, cut: true, shrunk: true, labels: true, words: ["checkbox shrunk", "label off its field"],
+            controls: ["(e)-(h) ground", "(e) button past the window's edge", "(f) button cut", "(g) checkbox shrunk", "(h) label off its field"] }),
+            "{a footer button held to the window's box and its words; the checkbox reading; the label reading; the sweep's words for them; the controls}");
+    }],
 ];
 
 

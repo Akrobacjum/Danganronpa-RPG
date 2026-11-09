@@ -380,15 +380,27 @@ body .application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="t
        long checkbox label take the row under Legacy's pixel face and push the fields out of a 480 px panel */
     grid-template-columns: fit-content(max(8rem, 45%)) minmax(0, 1fr);
     gap: 6px 12px;
-    /* each label at the top of its row, beside its control's line: centred, M11's "Sound" stood beside the note
-       under the slider instead of the slider */
-    align-items: start;
+    /* each label on its field's first line: centred, M11's "Sound" stood beside the note under the slider instead of
+       the slider; at the top with a 0.3em pad (until E47-FA) it stood 6 px under a select's middle, 12 px under a text
+       field's and 9 px under a fact of the tracker under the glass, and 3 px over it under Legacy (comparison 2,
+       1366x768): the first baselines now, the label's text on the line of the control's text or of the fact */
+    align-items: baseline;
 }
 body .drpg-form-grid > .drpg-form-label { padding-top: 0.3em; }
+/* a text area has no first baseline of its text to give (Chromium synthesizes it from the box's foot: Room setup's
+   Scenes "Description" stood at the foot of its 49 px field, E47-FA's fit reading): its row stays at the top, and its
+   label takes no pad and its face's own line height, so its first line stands on the area's first line (with the pad
+   and the glass's line height Give's "Description (optional)" stood 13 px under it, as Create a project's did on
+   a8ae16f6) */
+body .drpg-form-grid > :is(.drpg-form-label:has(+ .drpg-form-field > textarea), .drpg-form-field:has(> textarea)) { align-self: start; }
+body .drpg-form-grid > .drpg-form-label:has(+ .drpg-form-field > textarea) { padding-top: 0; line-height: normal; }
 .drpg-form-grid > .drpg-form-full { grid-column: 1 / -1; }
 /* a field never wider than its cell, its padding and border inside (M7's text fields kept a 283 px width in a 274 px
    cell under Legacy) */
 body .drpg-form-grid :is(input, select, textarea, .drpg-kit-stepper) { min-width: 0; max-width: 100%; box-sizing: border-box; }
+/* but a checkbox or a radio keeps its box (E47-FA, 09.11.2026): with its least width 0 the flex row of its label shrank
+   Murder's "Indirect murder" box to 5x13 px under Legacy beside a long label (comparison 2, ac044) */
+body .drpg-form-grid input:is([type="checkbox"], [type="radio"]) { min-width: auto; }
 /* a field cell holds its control and what goes with it on one line, the control taking the room, and a note under
    it on a line of its own (M2's volume rows) */
 body .drpg-form-grid > .drpg-form-field { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
@@ -3001,3 +3013,10 @@ body.drpg-theme-stained-glass .chat-message :is(.drpg-away-card, .drpg-audit-car
     --button-focus-outline-color: var(--drpg-kit-role-primary);
 }
 .application.drpg-window-give-back .drpg-give-back-state > .drpg-box { margin: 0 0 8px; }
+
+/* ---- E47-FA (09.11.2026; comparison 2's fix round) ----
+   THE BOX'S WORDS WITHOUT A PARAGRAPH'S MARGINS (E46-C6 Open 5; the owner's default on comparison 2): a box whose body
+   is a paragraph (End of chapter's and the reset's warnings) kept the paragraph's margins above and below its text
+   inside the box's own padding. The kit's `box()`; its first child takes no top margin, its last no bottom one. */
+body .application.drpg-ui .drpg-box > :first-child { margin-top: 0; }
+body .application.drpg-ui .drpg-box > :last-child { margin-bottom: 0; }
