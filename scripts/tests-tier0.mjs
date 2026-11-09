@@ -18716,7 +18716,7 @@ const REGRESSIONS = [
          * Leave a Clue and Secure a Trace hints end "a critical leaves two" / „a krytyk zostawia dwa”, the entry's
          * `indirectVictim.count.critical`, and the digit rule cannot see a word. 2 to 12 only: "one" and „jeden” stand
          * in every other sentence as an article or a pronoun (Sprint's "one more" is section 13's, E71). Measured on
-         * this tree: these four places and no other. Their placeholder needs the owner's text change: E71 (row 1.2.121).
+         * this tree: these four places and no other. Their placeholder needs the owner's text change: E71 (row 1.2.120).
          */
         const NUMBER_WORDS = { en: ["", "", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"],
             pl: ["", "", "dwa|dwie|dwóch|dwoma|dwu", "trzy|trzech|trzema", "cztery|czterech", "pięć|pięciu", "sześć|sześciu", "siedem|siedmiu",
@@ -20027,7 +20027,7 @@ const REGRESSIONS = [
          * The queue is this browser's memory (`serialWrite`), so it holds one GM's browser to one copy (E60's fix round,
          * FG6; the end review's C-m8, S-m4): Observe's find, a hand-over, a Present and Monokuma's Reveal run on the
          * primary, and Give a Truth Bullet on whichever GM opened it - a give on a second GM's browser beside the
-         * primary's find of the same trace for the same receiver can still make two copies, and is E38's (row 1.2.127,
+         * primary's find of the same trace for the same receiver can still make two copies, and is E38's (row 1.2.126,
          * the stage of two GMs; STATUS Open 50).
          */
         const sources = await moduleSources();
@@ -21078,6 +21078,98 @@ const REGRESSIONS = [
             readme: /render after a write/i.test(cannot) && /LIVE-E45-01/.test(cannot) && /renderApps/.test(cannot)
         }), JSON.stringify({ listed: true, model: true, cited: true, readme: true }),
             "{listed: in UNCONFIRMED; model: renderApps renders false with the context and data; cited: its note names the id; readme: the section names the model}");
+    }],
+    /* ==========================================================================
+     * E46 C0 (09.11.2026): the 1.2.102 train's ledger and probe 08 by window and language. E46-C1's tests sit apart.
+     * ========================================================================== */
+    ["R2000 - probe 08 captures the GM windows E46 and E47 change, one window at a time, in Polish and elsewhere (E46 C0, E46-02; STAGE E46 \"The before/after comparison\"): WINDOWS holds give, bullet, students and projects; its header and probes/README.md name DRPG_CAPTURE_ONLY, DRPG_CAPTURE_LANG and DRPG_CAPTURE_OUT and the probe reads each; `mergeManifest` on a fixture rewrites only the named windows' rows", async () => {
+        /* E46 C0, 09.11.2026. E46's and E47's groups work in parallel worktrees and each re-captures only its own windows
+           (STAGE E46 rule 8): a probe that rewrote the whole manifest would hand each group's merge the others' rows as a
+           conflict. The merge is the probe's own pure function, read from its text and run here on a fixture of two
+           windows kept, one re-captured (its tab gone) and one new, in the order a whole run writes; with no window named
+           it answers the run's rows alone. Red first on 4de21046: none of the four ids, no option, no `mergeManifest`. */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        const read = async path => {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" });
+                return res.ok ? await lfText(res) : "";
+            } catch { return ""; }
+        };
+        const [probe, readme] = await Promise.all(["audit/harness/probes/08-capture-windows.mjs", "audit/harness/probes/README.md"].map(read));
+        must(probe.length > 5000 && readme.length > 1000, "probe 08 or probes/README.md read nothing - this test would read nothing");
+        // Read by pattern, not `bodyOf`: on a tree without them the answer is "absent", not a stop.
+        const list = /export const WINDOWS = \[([\s\S]*?)\n\];/.exec(probe)?.[1] ?? "";
+        const header = /^\/\*\*([\s\S]*?)\*\//.exec(probe)?.[1] ?? "";
+        const row = readme.split("\n").find(line => line.startsWith("| `08-capture-windows.mjs` |")) ?? "";
+        const OPTIONS = ["DRPG_CAPTURE_ONLY", "DRPG_CAPTURE_LANG", "DRPG_CAPTURE_OUT"];
+        const src = topLevelFunction(probe, "mergeManifest");
+        let merged = "absent";
+        if (src) {
+            const merge = new Function(`${src.replace(/^export /, "")}\nreturn mergeManifest;`)();
+            const old = [{ id: "a", run: 1 }, { id: "a--x", of: "a", run: 1 }, { id: "b", run: 1 }, { id: "b--y", of: "b", run: 1 }, { id: "gone", run: 1 }];
+            const fresh = [{ id: "b", run: 2 }, { id: "c", run: 2 }, { id: "c--z", of: "c", run: 2 }];
+            const ids = rows => rows.map(r => `${r.id}@${r.run}`).join(" ");
+            merged = { named: ids(merge(old, fresh, ["b", "c"], ["a", "b", "c"])), none: ids(merge(old, fresh, [], ["a", "b", "c"])) };
+        }
+        equal(JSON.stringify({
+            windows: ["give", "bullet", "students", "projects"].filter(id => new RegExp(`\\{ id: "${id}", module: "`).test(list)),
+            header: OPTIONS.filter(o => header.includes(o)),
+            readme: OPTIONS.filter(o => row.includes(o)),
+            read: OPTIONS.filter(o => new RegExp(`process\\.env\\.${o}\\b`).test(probe)),
+            merged
+        }), JSON.stringify({
+            windows: ["give", "bullet", "students", "projects"], header: OPTIONS, readme: OPTIONS, read: OPTIONS,
+            merged: { named: "a@1 a--x@1 b@2 c@2 c--z@2 gone@1", none: "b@2 c@2 c--z@2" }
+        }), "{windows: the four ids in WINDOWS; header, readme, read: the options each names; merged: mergeManifest on the fixture}");
+    }],
+    ["R2001 - every planned version quoted for a stage is the ledger's (E46 C0, E46-01; STAGE E46 \"The ledger rows\"): each \"row 1.2.N\" in docs/, scripts/ and the sheets names the version tools/stages.json plans for the stage it is quoted for - the nearest stage id before it, on its line or the line above", async () => {
+        /* E46 C0, 09.11.2026. A train that moves rows of the ledger (E46 and E47 into one release, every row after E47 one
+           version down) leaves every "(row ...)" quote of a moved stage naming a version nobody plans: the 1.2.101 train
+           moved 62 lines in 12 files by hand (6bf7fc76), with nothing to say when one was missed. The rule read here: a
+           quote is "row 1.2.N", and the stage it is quoted for is the last "E<nn>" before it on its line or on the line
+           above (a quote wrapped to the head of a comment line names its stage at the end of the one before); a quote with
+           no such id is unattributed, and fails, so it is rewritten as "E<nn> (row ...)". Where it is read: every script
+           module.mjs reaches (`moduleSources`), every sheet module.json names, and the 19 text files of docs/ (git ls-files
+           docs on 4de21046, the 6 pictures aside) - the tier lists no directory, so a new file under docs/ is read once
+           it is added to DOCS below. Red first: the ledger written, the quotes not yet moved - 56 stale. */
+        needs(env.tools(), "tools/stages.json and docs/ are read from the repository (an installed module's zip leaves them out, as it leaves tools/)");
+        const ledger = await stageLedger();
+        must(ledger && ledger.size > 80, `tools/stages.json read ${ledger?.size ?? 0} row(s) - this test would read nothing`);
+        const read = async path => {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" });
+                return res.ok ? await lfText(res) : "";
+            } catch { return ""; }
+        };
+        const DOCS = ["changelog-1.2.0.md", "glossary.json", "text-budgets.json", "text-style.md",
+            "design/glass-recipe.js", "design/identity-audit-v13.html", "design/typography.md", "design/windows.md",
+            "dev/METHOD.md", "dev/R-REGISTRY.md", "dev/text-batch-B01a.json", "dev/text-pilot.json", "dev/text-review-E65.md",
+            ...["gm-handbook", "player-handbook", "player-brochure"].flatMap(book => ["en", "pl"].map(lang => `handbooks/${book}.${lang}.md`))]
+            .map(file => `docs/${file}`);
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const files = [
+            ...[...await moduleSources()].map(([file, text]) => [`scripts/${file}`, text]),
+            ...await Promise.all([...(manifest.styles ?? []), ...DOCS].map(async path => [path, await read(path)]))
+        ];
+        const empty = files.filter(([, text]) => !text).map(([path]) => path);
+        equal(JSON.stringify(empty), "[]", "the files this test reads that came back empty");
+        let quotes = 0;
+        const stale = [], unattributed = [];
+        for (const [path, text] of files) {
+            const lines = text.split("\n");
+            for (const [at, line] of lines.entries()) for (const m of line.matchAll(/\brow 1\.2\.(\d+)\b/g)) {
+                quotes++;
+                const ids = [...`${lines[at - 1] ?? ""}\n${line.slice(0, m.index)}`.matchAll(/\bE(\d{2})\b/g)];
+                const where = `${path}:${at + 1}`;
+                if (!ids.length) { unattributed.push(where); continue; }
+                const stage = `E${ids.at(-1)[1]}`;
+                const planned = ledger.get(stage)?.planned ?? null;
+                if (planned !== `1.2.${m[1]}`) stale.push(`${where} ${stage} quoted at 1.2.${m[1]}, the ledger ${planned ? `plans ${planned}` : "has no such row"}`);
+            }
+        }
+        must(quotes >= 50, `read ${quotes} quote(s), and 4de21046 held 57 - this test would read too little`);
+        equal(JSON.stringify(unattributed), "[]", "the quotes with no stage id before them on their line or the line above");
+        ok(!stale.length, `${stale.length} stale quote(s) of ${quotes}: ${stale.slice(0, 6).join("; ")}${stale.length > 6 ? "; ..." : ""}`);
     }],
 ];
 

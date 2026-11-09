@@ -1286,6 +1286,190 @@
       "file": "gm-panel.html"
     },
     {
+      "id": "give",
+      "client": "gm",
+      "opener": "gm-items.mjs m.gmGiveItemDialog(student)",
+      "captured": true,
+      "title": "Give an item",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-give",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Give an item",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "give.html"
+    },
+    {
+      "id": "give--create",
+      "client": "gm",
+      "opener": "gm-items.mjs m.gmGiveItemDialog(student)",
+      "of": "give",
+      "tab": "create",
+      "captured": true,
+      "title": "Give an item",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-give",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Give an item",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "give--create.html"
+    },
+    {
+      "id": "bullet",
+      "client": "gm",
+      "opener": "gm-items.mjs m.giveTruthBulletDialog(student)",
+      "captured": true,
+      "title": "Give a Truth Bullet",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-bullet",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Give a Truth Bullet",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "bullet.html"
+    },
+    {
+      "id": "bullet--create",
+      "client": "gm",
+      "opener": "gm-items.mjs m.giveTruthBulletDialog(student)",
+      "of": "bullet",
+      "tab": "create",
+      "captured": true,
+      "title": "Give a Truth Bullet",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-bullet",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Give a Truth Bullet",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "bullet--create.html"
+    },
+    {
+      "id": "students",
+      "client": "gm",
+      "opener": "gm-students.mjs m.openWhoIsAliveDialog()",
+      "captured": true,
+      "title": "Students",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-window-alive",
+        "drpg-ui",
+        "drpg-kit-fit"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Apply",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        },
+        {
+          "action": "items",
+          "label": "Items",
+          "default": false
+        }
+      ],
+      "file": "students.html"
+    },
+    {
+      "id": "projects",
+      "client": "gm",
+      "opener": "projects-ui.mjs m.openProjectManager()",
+      "captured": true,
+      "title": "Create a project",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Create project",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "projects.html"
+    },
+    {
       "id": "sound-player",
       "client": "p1",
       "opener": "sound-panel.mjs m.openSoundDialog()",
