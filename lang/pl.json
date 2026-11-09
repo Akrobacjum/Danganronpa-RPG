@@ -1594,7 +1594,7 @@
       "tabEffects": "Efekty",
       "volumes": "Głośność",
       "volumeNote": "Oba dotyczą tylko tej przeglądarki.",
-      "effectsIntro": "Ten moduł nie zawiera dźwięków - ta sama umowa co przy playlistach. Wskaż zdarzeniu własny plik; puste pole gra ciszą, co jest wyborem, nie usterką.",
+      "effectsIntro": "Ten moduł nie zawiera dźwięków. Wskaż zdarzeniu własny plik; puste pole oznacza ciszę.",
       "assigned": {
         "one": "{n} z {total} zdarzeń ma plik.",
         "few": "{n} z {total} zdarzeń mają plik.",
@@ -1603,6 +1603,7 @@
       },
       "event": "Zdarzenie",
       "file": "Plik",
+      "rowButtons": "Sprawdź lub wyczyść",
       "notAssigned": "jeszcze nie przypisano",
       "severalHint": "Jeden plik albo kilka rozdzielonych | - losowany jest jeden, nigdy dwa razy z rzędu ten sam.",
       "fileCount": {
@@ -1618,21 +1619,18 @@
       "choose": "Wybierz",
       "test": "Test",
       "clear": "Wyczyść",
-      "chooseHint": "Wybierz plik. W wierszu, który już go ma, trafia obok, a za każdym razem losowany jest jeden z nich.",
-      "testHint": "Odtwórz tutaj, teraz.",
-      "clearHint": "Opróżnij ten wiersz: zdarzenie ucichnie.",
       "groupAssigned": "przypisano {n} z {total}",
       "autosave": "Zmiany zapisują się od razu: to okno nie ma przycisku Zastosuj.",
       "testFailed": "{label}: {why}",
       "why": {
-        "noEvent": "Nie ma takiego zdarzenia. Znane klucze: {keys}",
-        "noFile": "Do tego zdarzenia nie przypisano jeszcze pliku.",
-        "soundZero": "Suwak Dźwięk stoi na zerze.",
-        "interfaceZero": "Głośność interfejsu w samym Foundry stoi na zerze.",
-        "locked": "Ta przeglądarka nie pozwoliła jeszcze odtwarzać dźwięku. Najpierw kliknij gdziekolwiek na stronie, potem spróbuj ponownie.",
-        "refused": "Warstwa dźwięku odmówiła.",
-        "timeout": "Plik nie zdążył się wczytać.",
-        "failed": "Foundry nie mogło wczytać tego pliku."
+        "noEvent": "Nie ma zdarzenia o takim kluczu. Klucze zdarzeń to {keys}.",
+        "noFile": "To zdarzenie nie ma jeszcze pliku. Wybierz go w kolumnie Plik.",
+        "soundZero": "Suwak Dźwięk stoi na zerze. Podnieś go i przetestuj ponownie.",
+        "interfaceZero": "Głośność interfejsu w samym Foundry stoi na zerze. Podnieś ją i przetestuj ponownie.",
+        "locked": "Ta przeglądarka nie odtwarza dźwięku, dopóki nie klikniesz strony. Kliknij gdziekolwiek na niej i przetestuj ponownie.",
+        "refused": "Dźwięk się nie uruchomił. Przetestuj ponownie.",
+        "timeout": "Plik nie zdążył się wczytać. Sprawdź jego ścieżkę i przetestuj ponownie.",
+        "failed": "Foundry nie mogło wczytać tego pliku. Sprawdź jego ścieżkę w kolumnie Plik."
       }
     },
     "Vote": {
@@ -1796,7 +1794,8 @@
     },
     "Music": {
       "notSet": "- nie ustawiono -",
-      "intro": "Wybierz, która playlista gra kiedy. Moduł nigdy nie uruchamia playlisty, której tu nie wybrano, i nie zawiera własnej muzyki.",
+      "intro": "Wybierz playlistę dla każdego stanu; moduł nie uruchamia żadnej, której tu nie wybierzesz.",
+      "howOrder": "Jak działa kolejność",
       "orderNote": "Wygrywa pierwszy pasujący stan, w podanej kolejności. Class Trial nocą używa playlist Class Trial; Eclipse w jego trakcie - playlist Eclipse.",
       "trialNote": "Objection ma pierwszeństwo przed otwartą debatą, a debata przed samym trwaniem Class Trial. Rebuttal nie ma własnego wiersza: przez cały Rebuttal gra dalej muzyka Objection. Każdy losuje utwór, gdy przejmuje grę, nigdy ten sam co ostatnio. Objection trwa minutę, więc daj tej playliście krótkie wyciszenie.",
       "incidentNote": "Wiersz morderstwa gra tylko w przeglądarkach osób, które są w incydencie, i GM-ów, więc nikt inny nie dowie się z muzyki, że trwa morderstwo. Zostaw go pustym, a to, co gra, będzie grać dalej.",

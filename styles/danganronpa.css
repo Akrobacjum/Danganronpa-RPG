@@ -14250,22 +14250,6 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
    player sees, so they are laid out to stand on their own rather than as a
    header strip for the tabs beneath them.
    ========================================================================== */
-/* ---- variation and round robin -----------------------------------------
-   A badge on the event's name saying what the row does that a bare path
-   cannot say: how many files it draws from, and whether it bends. */
-.drpg-sfx-badge {
-    display: inline-block;
-    margin-left: 6px;
-    padding: 0 5px;
-    border: 1px solid rgba(var(--drpg-bone-rgb), 0.28);
-    border-radius: 2px;
-    font-size: var(--drpg-text-xs);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    opacity: 0.75;
-    vertical-align: middle;
-}
-
 /* One switch for the whole panel, sitting with the sliders rather than in the
    forty-row table - a control buried at the top of forty rows is not found. */
 /* `!important`, for the reason `.drpg-sound-slider` states below: this sheet is imported
@@ -14336,111 +14320,6 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
     grid-column: 1 / -1 !important;
     margin: 0 !important;
     text-align: left !important;
-}
-
-/* --------------------------------------------------------------------------
-   The mapping table. Thirty-five rows, so the columns are declared rather than
-   negotiated: a path is long, an event's hint is longer, and left to itself the
-   browser gives the buttons half the window.
-   -------------------------------------------------------------------------- */
-.drpg-sfx-table {
-    table-layout: fixed !important;
-    width: 100% !important;
-    /* NO MINIMUM, ON PURPOSE (Dawid, 28.08 - leave the GM window's width
-       alone). A fixed table never asks for room: `width: 100%` means
-       `scrollWidth` only ever reports the width it was already given, so the
-       window's measured fit has nothing to widen and the table has to live
-       inside the width the window already had. The columns below are cut to
-       that, rather than the window being cut to the columns. */
-}
-
-/* Two columns since E19 C6 (audit S11-21): the three word buttons, 213px in
-   this module's pixel face, had a column of their own with no heading and left
-   the event's hint about 250px, six lines for the safeword. They are icons now,
-   inside the file's cell, and the event takes the larger share. Not measured in
-   a browser here. */
-.drpg-sfx-table th:nth-child(1), .drpg-sfx-table td:nth-child(1) { width: 55%; }
-.drpg-sfx-table th:nth-child(2), .drpg-sfx-table td:nth-child(2) { width: 45%; }
-
-/* Wrapping, not scrolling. A fixed layout with `nowrap` still inherited from
-   somewhere is how a table looks unchanged after being "fixed" - the cell is
-   the right width and holds one very long line. Said on the cell AND on what
-   is inside it, because `white-space` inherits and a stray `<small>` with its
-   own rule would otherwise put the line back.
-
-   Buttons are the exception: a three-word button broken across two lines is
-   not a wrapped paragraph, it is a broken button. */
-.drpg-sfx-table td,
-.drpg-sfx-table td *:not(button) {
-    white-space: normal !important;
-    overflow-wrap: anywhere !important;
-}
-
-.drpg-sfx-table button {
-    white-space: nowrap !important;
-}
-
-.drpg-sfx-table td {
-    vertical-align: top;
-}
-
-.drpg-sfx-table input[type="text"] {
-    width: 100% !important;
-    font-size: var(--drpg-text-sm);
-}
-
-/* A category heading inside the table body: the panel groups thirty-five rows
-   into five, so the eye lands on a block before it lands on a row. */
-.drpg-sfx-group td {
-    padding-top: 14px;
-    border-bottom: 1px solid rgba(var(--drpg-bone-rgb), 0.25);
-    background: rgba(var(--drpg-bone-rgb), 0.05);
-}
-
-/* In the window's ink, not the eye: red means the GM's road, and a heading does nothing (audit S10-33, E22 C6b). */
-.drpg-sfx-group td strong {
-    color: var(--drpg-kit-ink);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    font-size: var(--drpg-text-sm);
-}
-
-.drpg-sfx-group td .notes {
-    display: block;
-    margin: 2px 0 0;
-}
-
-/* The file box and its three icons in a row, inside the cell rather than
-   instead of it: a `<td>` given `display: flex` stops being a table cell, and a
-   fixed layout that has lost one of its cells is a layout with a hole in it. */
-.drpg-sfx-file {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.drpg-sfx-file input[type="text"] {
-    flex: 1 1 0;
-    min-width: 0;
-}
-
-.drpg-sfx-actions {
-    display: flex;
-    flex: 0 0 auto;
-    gap: 2px;
-}
-
-.drpg-sfx-actions .drpg-mini-button {
-    flex: 0 0 auto;
-    padding: 2px 5px !important;
-    font-size: var(--drpg-text-xs, 0.72rem) !important;
-}
-
-/* "3 of 11 assigned" beside a group's name. */
-.drpg-sfx-group-count {
-    margin-left: 8px;
-    font-size: var(--drpg-text-xs, 0.72rem);
-    opacity: 0.75;
 }
 
 .drpg-messenger-bubble {

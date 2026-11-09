@@ -1058,7 +1058,7 @@ body.drpg-theme-stained-glass[data-drpg-turning] :is(#scene-controls, #sidebar-t
 body.drpg-theme-stained-glass[data-drpg-turning] :is(.drpg-panel .window-header,
     .drpg-panel .window-header .window-title, .drpg-action-button, .drpg-call-button,
     /* `.drpg-chip` was the audit page's name for these; the module's are these five. */
-    .drpg-tb-badge, .drpg-sfx-badge, .drpg-duality-badge, .drpg-overflow-badge,
+    .drpg-tb-badge, .drpg-duality-badge, .drpg-overflow-badge,
     .drpg-role-label) {
     transition-property: color, border-color, background-color, box-shadow, outline-color, -webkit-text-stroke-color, fill, stroke;
     /* on the curtain's clock (E23 C1b, the owner's 05.11): the blocks take the new colour as the glass around them
@@ -1964,7 +1964,7 @@ body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-section > .drpg-gmp-grid 
 
 /* 5. the chip and the stamp: a chip is information and never clicks - a hairline plate in the chrome
    face; a stamp (role, tier, GM only) a plate in its meaning's colour with Ink text. */
-body.drpg-theme-stained-glass :is(.drpg-tb-badge, .drpg-sfx-badge, .drpg-duality-badge, .drpg-role-label) {
+body.drpg-theme-stained-glass :is(.drpg-tb-badge, .drpg-duality-badge, .drpg-role-label) {
     font-family: var(--drpg-font-chrome);
     font-size: max(var(--drpg-sg-floor), calc(12px * var(--drpg-sg-scale)));
     letter-spacing: 0.06em;

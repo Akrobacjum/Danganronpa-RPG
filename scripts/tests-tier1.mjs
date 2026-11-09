@@ -22210,8 +22210,9 @@ const INVARIANTS = [
         const iconRows = rows.filter(row => {
             const buttons = [...row.querySelectorAll("button")];
             const cell = row.querySelector('input[type="text"]')?.closest("td");
+            // E46-C4: Choose stays beside the file box, Test and Clear stand in a cell of their own (the kit's table)
             return buttons.length === 3 && buttons.every(b => b.querySelector("i[class*='fa-']") && b.dataset.tooltip?.trim()
-                && b.getAttribute("aria-label")?.trim() && !b.textContent.trim() && b.closest("td") === cell);
+                && b.getAttribute("aria-label")?.trim() && !b.textContent.trim()) && row.querySelector("[data-drpg-sfx-pick]")?.closest("td") === cell;
         }).length;
         const heads = [...root.querySelectorAll("thead th")].map(th => th.textContent.trim().length > 0);
         const groups = Object.entries(SFX_CATEGORIES).map(([category]) => {
@@ -22222,7 +22223,7 @@ const INVARIANTS = [
         const table = root.querySelector("table");
         const before = node => Boolean(node && table && (node.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING));
         const legend = root.querySelector("[data-drpg-sfx-legend]");
-        const legendSays = Boolean(legend?.querySelector(".drpg-sfx-badge")) && legend.textContent.includes(game.i18n.localize("DRPG.Sound.variesHint"));
+        const legendSays = Boolean(legend?.querySelector(".drpg-sound-chip")) && legend.textContent.includes(game.i18n.localize("DRPG.Sound.variesHint"));
         const autosave = [...root.querySelectorAll("p")].find(p => p.textContent.trim() === game.i18n.localize("DRPG.Sound.autosave"));
         const varies = Object.values(SFX_EVENTS).some(event => event.vary);
         const sfx = stripComments((await moduleSources()).get("sfx.mjs") ?? "");
@@ -22231,7 +22232,7 @@ const INVARIANTS = [
             ["the legend above the table", varies && before(legend) && legendSays], ["the autosave sentence above it", before(autosave)], ["a change recounts the groups", recounts]]),
         stableJson([["icon rows", rows.length], ["every heading has a name", heads.map(() => true)], ["group counts", groups.map(([c]) => [c, true])],
             ["the legend above the table", true], ["the autosave sentence above it", true], ["a change recounts the groups", true]]),
-        "[rows whose three buttons are icons with a tooltip and an aria-label, in the file's cell]; [no empty heading]; [each group's count]; "
+        "[rows whose three buttons are icons with a tooltip and an aria-label, Choose in the file's cell]; [no empty heading]; [each group's count]; "
             + "[the varies legend before the table]; [DRPG.Sound.autosave before the table]; [wireSoundPanel updates the group counts]");
     }],
     ["R838 - a request to the GM is the words typed: `cancel` typed is sent, Cancel and a closed window send nothing, an empty one is asked again where the caller needs words (Dynamic, a Tier 0 item), and the card's body is one div.drpg-call-body; the GM's Reply takes `cancel` as words too (E18; S10-52, S11-60)", async () => {
@@ -41440,6 +41441,177 @@ const INVARIANTS = [
             room: [[true], ["r2020re0", "r2020re1"]],
             lists: [0, 0]
         }), "{list: [a dataTable, its heads, the first row's pick button's table, the other cells]; entries: [heads, each row: result, table, the name field in the first cell, remove in the actions' cell]; room: [each group row has its count, its entry rows]; lists: the li left in each pane}");
+    }],
+    ["R2026 - Sound > Effects on the kit (E46-C4; E46-13, card M2): one `dataTable` whose body is a group row per `SFX_CATEGORIES` entry with its \"n of m assigned\", each followed by its events in `SFX_EVENTS`' order (`tr[data-drpg-sfx]`); an event's name, its chips and its description in one cell cut after two lines with the whole in its title; the file box with its Choose; at most three buttons a row, Test and Clear the kit's icon buttons", async () => {
+        /*
+         * E46-C4, 09.11.2026; card M2 (Approve, 04.11) and STAGE E46's Sound shape. Measured at 3c952c67 (glass,
+         * 1366x768): the tab drew 60 hand rows (55 events, 5 group rows) of a median 118 px, the largest 227, a body of
+         * 7171 px, with 165 buttons in its rows (Choose, Test and Clear in the file's cell). Drawn here from
+         * `soundEffectsHtml` into a template (the world's own mapping, read; nothing written): the body's rows in order,
+         * each group's name, count and line, each event's cell, its file box and its buttons. Red first on f7266b28: one
+         * hand table, no group row the kit draws, no clamped cell, no icon button of the kit.
+         */
+        const { soundEffectsHtml, soundFor } = await import("./sfx.mjs");
+        const tpl = document.createElement("template");
+        tpl.innerHTML = soundEffectsHtml();
+        const root = tpl.content;
+        const L = key => game.i18n.localize(key);
+        const keys = Object.keys(SFX_EVENTS);
+        const inCategory = category => keys.filter(key => SFX_EVENTS[key].category === category);
+        const tables = [...root.querySelectorAll("table")];
+        const body = [...(tables[0]?.tBodies[0]?.rows ?? [])];
+        const groupOf = tr => tr.querySelector("[data-drpg-sfx-group-count]")?.dataset.drpgSfxGroupCount ?? "?";
+        const isGroup = tr => tr.classList.contains("drpg-data-group");
+        const read = {
+            tables: tables.length,
+            kit: Boolean(tables[0]?.classList.contains("drpg-data-table") && tables[0].closest(".drpg-data-table-box")),
+            order: body.map(tr => (isGroup(tr) ? `group:${groupOf(tr)}` : tr.dataset.drpgSfx ?? "?")),
+            groups: body.filter(isGroup).map(tr => {
+                const category = groupOf(tr), meta = SFX_CATEGORIES[category] ?? {}, own = inCategory(category);
+                const th = tr.querySelector(":scope > th[scope=colgroup]");
+                return [th?.firstChild?.textContent.trim() === meta.label,
+                    tr.querySelector("[data-drpg-sfx-group-count]")?.textContent.trim()
+                        === game.i18n.format("DRPG.Sound.groupAssigned", { n: own.filter(key => soundFor(key)).length, total: own.length }),
+                    th?.querySelector(".drpg-help")?.textContent.trim() === meta.hint];
+            }),
+            rows: body.filter(tr => tr.dataset.drpgSfx).map(tr => {
+                const key = tr.dataset.drpgSfx, event = SFX_EVENTS[key] ?? {};
+                const cell = tr.cells[0], clamp = cell?.querySelector(":scope > span.drpg-data-clamp");
+                const icon = (attr, word) => {
+                    const b = tr.querySelector(`button.drpg-kit-icon-button[${attr}]`);
+                    return Boolean(b && b.getAttribute("aria-label") === L(word) && b.dataset.tooltip === L(word) && !b.textContent.trim() && b.querySelector("i[class*='fa-']"));
+                };
+                return [
+                    Boolean(cell?.classList.contains("drpg-data-cell-lines-2") && clamp?.querySelector("strong")?.textContent === event.label
+                        && clamp.querySelector(".drpg-help")?.textContent === event.hint && cell.title.includes(event.label) && cell.title.includes(event.hint)),
+                    Boolean(event.vary) === Boolean(clamp?.querySelector("[data-drpg-sfx-varies]")),
+                    Boolean(tr.cells[1]?.querySelector(`input[name="sfx:${key}"]`) && icon("data-drpg-sfx-pick", "DRPG.Sound.choose")
+                        && tr.cells[1].querySelector("[data-drpg-sfx-pick]")),
+                    tr.querySelectorAll("button").length <= 3,
+                    icon("data-drpg-sfx-test", "DRPG.Sound.test") && icon("data-drpg-sfx-clear", "DRPG.Sound.clear")
+                ];
+            }),
+            buttons: root.querySelectorAll("button").length
+        };
+        const want = Object.keys(SFX_CATEGORIES).flatMap(category => [`group:${category}`, ...inCategory(category)]);
+        equal(stableJson(read), stableJson({
+            tables: 1, kit: true, order: want, groups: Object.keys(SFX_CATEGORIES).map(() => [true, true, true]),
+            rows: keys.map(() => [true, true, true, true, true]), buttons: keys.length * 3
+        }), "{tables in the tab; the one a kit dataTable; the body's rows in order (group:<category> or the event's key); per group [its name, "
+            + "its count, its line]; per event [name and description in one clamped cell with the whole in its title, the Varies chip where the event "
+            + "varies, the file box and Choose in the File cell, at most three buttons, Test and Clear the kit's icon buttons]; the buttons in the tab}");
+    }],
+    ["R2027 - Sound's text on the floor in both themes (E46-C4; E46-13): in a stand-in of the Sound window built on a body of each theme, the font size every one of its own text parts takes - an event's description and its chips, a group's line and count, the tab's lines above the table, the Music tab's notes - comes to a size of at least 11 px (styleCascade; Chromium's floor reads the rest)", async () => {
+        /*
+         * E46-C4, 09.11.2026. Measured at 3c952c67 (Legacy, 1366x768): the Effects tab's 60 descriptions, `small.notes`,
+         * at 10.83 px - no rule of the module's sheets sized a `<small>`, so the browser's `smaller` of 13 px drew them.
+         * Read here: the winner of `font-size` on each part (`styleCascade`), each `var()` followed to the token it names on
+         * the body (one hop at a time, at most eight), and the size it comes to held to the floor: a `max(11px, ...)`,
+         * the glass's floor (`--drpg-sg-floor`, 21 px at the glass's scale, or a multiple of it of 1 or more) or a size the
+         * module's scale writes at 11 px or more at 100 % (`--drpg-text-sm`, `--drpg-text-md`). A part no rule sizes takes
+         * its parent's; a `small` no rule sizes is the browser's `smaller`, and is red. Chromium
+         * reads the px (the measure probe, `WANT='^sound'`). Red first on f7266b28: the descriptions are no rule's.
+         */
+        const { soundEffectsHtml } = await import("./sfx.mjs");
+        const P = await import("./sound-panel.mjs");
+        const C = await styleCascade();
+        const FLOOR = /^(?:max\(\s*(?:11px|var\(--drpg-sg-floor\))|var\(--drpg-(?:text-(?:sm|md)|sg-floor)\)$|calc\(var\(--drpg-sg-floor\)\s*\*\s*1(?:\.\d+)?\)$)/;
+        const read = {};
+        for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-gm`;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-panel drpg-projects drpg-sound drpg-window-sound drpg-ui"><section class="window-content">`
+                + `<form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-kit-body">`
+                + `<section class="drpg-tab-pane" data-drpg-pane="music">${typeof P.soundPlaylistsPane === "function" ? P.soundPlaylistsPane([]) : ""}</section>`
+                + `<section class="drpg-tab-pane" data-drpg-pane="effects">${soundEffectsHtml()}</section></div></div></form></section></div>`;
+            const effects = body.querySelector('[data-drpg-pane="effects"]'), music = body.querySelector('[data-drpg-pane="music"]');
+            const varies = Object.keys(SFX_EVENTS).find(key => SFX_EVENTS[key].vary);
+            const parts = {
+                description: effects.querySelector("tr[data-drpg-sfx] td .drpg-help") ?? effects.querySelector("tr[data-drpg-sfx] small"),
+                chip: effects.querySelector(`tr[data-drpg-sfx="${varies}"] [data-drpg-sfx-varies]`) ?? effects.querySelector(`tr[data-drpg-sfx="${varies}"] .drpg-sfx-badge`),
+                groupLine: effects.querySelector("tr.drpg-data-group .drpg-help") ?? effects.querySelector(".drpg-sfx-group .notes"),
+                groupCount: effects.querySelector("[data-drpg-sfx-group-count]"),
+                lineAbove: effects.querySelector("[data-drpg-sfx-count]"),
+                musicNote: music.querySelector("details p") ?? music.querySelectorAll("p")[1]
+            };
+            const windowRoot = body.firstElementChild;
+            const sizeOf = el => {
+                if (!el) return "(not drawn)";
+                // no rule on the part: it inherits its parent's size - but a `small` (`sub`, `sup`) takes the browser's `smaller`
+                let at = el, value = null;
+                while (at && !(value = C.winner(at, "font-size")?.value ?? null) && !/^(?:small|sub|sup)$/.test(at.localName) && at !== windowRoot) at = at.parentElement;
+                if (!value) return `(no rule: the browser's, ${at?.localName})`;
+                for (let hop = 0; hop < 8; hop++) {
+                    const token = /^var\((--[\w-]+)\)$/.exec(value.trim())?.[1];
+                    if (!token || /^--drpg-(?:text-(?:sm|md)|sg-floor)$/.test(token)) break;
+                    value = C.winner(body, token)?.value ?? C.winner(html, token)?.value ?? `(${token} unset)`;
+                }
+                return value.trim();
+            };
+            read[theme] = Object.fromEntries(Object.entries(parts).map(([name, el]) => {
+                const size = sizeOf(el);
+                return [name, FLOOR.test(size) ? true : size];
+            }));
+        }
+        const yes = { description: true, chip: true, groupLine: true, groupCount: true, lineAbove: true, musicNote: true };
+        equal(stableJson(read), stableJson({ "drpg-theme-monokuma-legacy": yes, "drpg-theme-stained-glass": yes }),
+            "{per theme, per part: true when its size comes to the floor, else the size it comes to}");
+    }],
+    ["R2028 - Sound > Music on the kit (E46-C4; E46-13, S13-36 (6), D45): one sentence of intro, the four notes on the order folded into a closed `details` \"How the order works\", the rows a `dataTable` whose body is the live region `.drpg-music-map` (one row a state); no Apply anywhere and one Close on each tab", async () => {
+        /*
+         * E46-C4, 09.11.2026; S13-36 (6): the Music tab opened on a sentence of intro and three paragraphs of notes over
+         * the table and a fourth under it (1595 px of body at 3c952c67, glass, 1366x768). Here, as the GM, the window
+         * opened on the harness's DialogV2 (nothing chosen, nothing written), the Music pane read, each tab pressed and its
+         * footer read, then closed; the intro read as one sentence in both lang files. D45's save model is E50-T1's and
+         * E44-T2's, which read the same rows. Red first on f7266b28: two sentences, four loose paragraphs, a hand table.
+         */
+        needs(env.dialogs(), "the Sound window is drawn and its tabs pressed");
+        must(game.user.isGM, "the Music tab is a GM's");
+        must(!document.querySelector(".drpg-window-sound"), "a Sound window is open - close it: this test opens its own");
+        const M = await import("./music.mjs");
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json());
+        const [en, pl] = await Promise.all([lang("en"), lang("pl")]);
+        const sentences = text => String(text ?? "").split(/(?<=[.!?])\s+(?=\S)/).filter(s => s.trim()).length;
+        const L = key => game.i18n.localize(key);
+        const NOTES = ["orderNote", "trialNote", "incidentNote", "fadeNote"].map(k => L(`DRPG.Music.${k}`));
+        const read = { intro: [sentences(en.DRPG?.Music?.intro), sentences(pl.DRPG?.Music?.intro)] };
+        let answer = null;
+        try {
+            answer = Promise.resolve().then(() => M.openSoundDialog()).catch(err => `threw: ${err.message}`);
+            const root = () => document.querySelector(".drpg-window-sound");
+            must(await until(() => root()?.querySelector("select[name^='state:']"), 6000), "the Sound window did not open with its Music tab");
+            const pane = root().querySelector("select[name^='state:']").closest("[data-drpg-pane], .drpg-tab-pane, section");
+            const details = [...pane.querySelectorAll("details")];
+            const loose = [...pane.querySelectorAll("p")].filter(p => !p.closest("details") && !p.closest(".drpg-box")).map(p => p.textContent.trim());
+            const table = pane.querySelector("table");
+            read.pane = {
+                loose: loose.map(t => (t === L("DRPG.Music.intro") ? "intro" : t.slice(0, 40))),
+                details: details.map(d => [d.open, d.querySelector("summary")?.textContent.trim() === L("DRPG.Music.howOrder"),
+                    [...d.querySelectorAll("p")].map(p => NOTES.indexOf(p.textContent.trim()))]),
+                table: [Boolean(table?.classList.contains("drpg-data-table")), table?.tBodies[0]?.classList.contains("drpg-music-map") ?? false,
+                    table?.tBodies[0]?.querySelectorAll("select[name^='state:']").length === M.MUSIC_STATES.length]
+            };
+            const footer = () => [...root().querySelectorAll("footer.form-footer button[data-action]")].filter(b => !b.hidden).map(b => b.dataset.action);
+            read.tabs = {};
+            for (const tab of ["play", "music", "effects"]) {
+                root().querySelector(`nav.drpg-tabs [data-drpg-tab-key="${tab}"]`)?.click();
+                read.tabs[tab] = footer();
+            }
+            read.save = root().querySelectorAll('[data-action="save"], [data-action="apply"]').length;
+            root().querySelector('footer.form-footer button[data-action="close"]')?.click();
+            read.closed = (await Promise.race([answer, wait(3000).then(() => "still open")])) !== "still open";
+        } finally {
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.classList?.contains("drpg-window-sound"))) await app.close();
+            if (answer) await Promise.race([answer, wait(3000)]);
+        }
+        equal(stableJson(read), stableJson({
+            intro: [1, 1],
+            pane: { loose: ["intro"], details: [[false, true, [0, 1, 2, 3]]], table: [true, true, true] },
+            tabs: { play: ["close"], music: ["close"], effects: ["close"] }, save: 0, closed: true
+        }), "{the intro's sentences [en, pl]; the Music pane: its paragraphs outside a details or a box, each details [open, its summary How the order "
+            + "works, its paragraphs as the four notes' places], the table [a kit dataTable, its body the live region, one select a state]; each tab's "
+            + "footer; Apply buttons; Close closes}");
     }],
 ];
 

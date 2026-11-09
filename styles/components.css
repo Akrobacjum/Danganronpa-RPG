@@ -2341,3 +2341,58 @@ body.drpg-theme-monokuma-legacy .application.drpg-ui.drpg-window-give .drpg-role
 }
 .drpg-holdings-group ul { margin: 0; padding-left: 1.1em; list-style: disc; }
 .drpg-holdings-group li { margin: 0; line-height: 1.35; }
+
+/* ---- Sound (E46-C4, 09.11.2026; card M2, STAGE E46's Sound shape) ----
+   The Effects tab is the kit's `dataTable` (sfx.mjs `soundEffectsHtml`) and the Music tab's rows another
+   (sound-panel.mjs `musicMapTable`); these are the window's own parts beside the kit's. Their rules in danganronpa.css
+   (`.drpg-sfx-badge`, `.drpg-sfx-table` and its cells, `.drpg-sfx-group`, `.drpg-sfx-file`, `.drpg-sfx-actions`,
+   `.drpg-sfx-group-count`: 16 rules) and the chip's place in stained-glass.css's two chip lists went with it. The sliders'
+   rules (`.drpg-sound-slider`, `.drpg-sound-switch`, `.drpg-sound-volumes`) stay in danganronpa.css: the Settings window
+   draws them too. R2026, R2027 and R2028 read these. */
+/* the Effects table holds to the window it is given, as the hand table did ("leave the GM window's width alone",
+   28.08): a fixed layout, so the window's fit has nothing to widen for a long description or path. The Music table keeps
+   the automatic one, its state's name wrapping where it is long (beside the select's own width - the hand table's
+   select was cut to its column); the select's words do not ("- nie ustawiono -" broke in two, Legacy, Polish) */
+.application.drpg-window-sound [data-drpg-pane="effects"] .drpg-data-table-box > table.drpg-data-table { table-layout: fixed; width: 100%; }
+.application.drpg-window-sound [data-drpg-pane="music"] .drpg-data-table-box > table.drpg-data-table td.drpg-data-col-music-when { white-space: normal; }
+.application.drpg-window-sound table.drpg-data-table td { vertical-align: top; }
+/* under Legacy the cells keep the room the hand tables gave them (3 px by 6, danganronpa.css `.drpg-vault-table`) */
+body:not(.drpg-theme-stained-glass) .application.drpg-window-sound .drpg-data-table-box > table.drpg-data-table :is(th, td) { padding: 3px 6px; }
+/* a chip: information, never a click - under Legacy a hairline plate in capitals, under the glass in the chrome face */
+.application.drpg-window-sound .drpg-sound-chip {
+    display: inline-block;
+    margin-inline-start: 6px;
+    padding: 0 5px;
+    border: 1px solid var(--drpg-kit-line);
+    font-size: var(--drpg-kit-chip-size);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    vertical-align: middle;
+    color: var(--drpg-kit-help-ink);
+}
+body.drpg-theme-stained-glass .application.drpg-window-sound .drpg-sound-chip {
+    font-family: var(--drpg-font-chrome);
+    letter-spacing: 0.06em;
+    line-height: 1.1;
+    padding: 2px 6px;
+    color: var(--drpg-sg-bone);
+}
+body.drpg-theme-stained-glass[data-drpg-turning] .application.drpg-window-sound .drpg-sound-chip {
+    transition-property: color, border-color, background-color;
+    transition-duration: var(--drpg-t-curtain, 1200ms);
+    transition-timing-function: linear;
+}
+/* a group's line under its name and count, the kit's fine print on a line of its own, wrapping: under Legacy the head's
+   one line held "A death, the investigation, the trial floor and the states that lead there." whole and widened the
+   window from 918 to 1004 px at 1366x768 (Chromium, 09.11.2026) */
+body .drpg-data-table-box > table.drpg-data-table > tbody > tr.drpg-data-group > th > span.drpg-sound-group-line { display: block; margin-top: 2px; white-space: normal; }
+/* the count in the fine print's size under Legacy, where the head's 13 px (Foundry's `--font-size-13`) drew it; under the
+   glass the glass's sweep sizes it at its floor */
+body:not(.drpg-theme-stained-glass) .application.drpg-window-sound tr.drpg-data-group > th > span[data-drpg-sfx-group-count] { font-size: var(--drpg-kit-help-size); }
+/* the file box and its Choose in one line, inside the cell (a `td` given `display: flex` stops being a cell) */
+.application.drpg-window-sound .drpg-sound-file { display: flex; align-items: center; gap: 4px; }
+.application.drpg-window-sound .drpg-sound-file > input[type="text"] { flex: 1 1 0; min-width: 0; font-size: var(--drpg-text-sm); }
+.application.drpg-window-sound .drpg-sound-act { display: flex; gap: 2px; justify-content: flex-end; }
+/* the Music tab's notes on the order, folded */
+.application.drpg-window-sound details.drpg-sound-order { margin: 0 0 8px; }
+.application.drpg-window-sound details.drpg-sound-order > summary { cursor: pointer; margin-bottom: 4px; }

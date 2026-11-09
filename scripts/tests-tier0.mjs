@@ -21361,6 +21361,47 @@ const REGRESSIONS = [
             gallery: { cellLines: true, tooltip: true, iconButton: true }
         }), "{buttons: [tag, type, class, aria-label, data-tooltip, has a title, disabled, the attributes in order, children, the icon's class, the icon inert, text]; throws: [no label, an empty label, attrs naming aria-label, attrs naming class]; gallery: the kit branch draws a cellLines column, a disabled footer button with its tooltip, two icon buttons}");
     }],
+    ["R2029 - the Sound window's Test says why in the table's words (E46-C4; E46-14, S13-53 fixed by E50 C3): the eight `DRPG.Sound.why.*` stand in both lang files, Polish its own; every `why` sfx-play.mjs `testSfx` answers is one of them through game.i18n and no literal; the Test button's warning formats `DRPG.Sound.testFailed` with that `why`", async () => {
+        /*
+         * E46-C4, 09.11.2026; S13-53 (the Test's reasons were English sentences in the code), fixed by E50 C3 (50d9e9c6)
+         * and held here by name: R1070 reads every literal of the three bodies; this test reads the reasons themselves -
+         * each `why:` of `testSfx` (sfx-play.mjs, served, comments blanked) is `game.i18n.localize` or `.format` of a
+         * `DRPG.Sound.why.*` key, the set of them the eight, each in en.json and pl.json with the Polish not the English,
+         * noEvent's `{keys}` in both; and `wireSoundPanel`'s Test warns with `DRPG.Sound.testFailed` formatted with the
+         * answer's `why`, whose `{label}` and `{why}` stand in both files. The reader is run first on a planted body.
+         * Green on f7266b28 (the fix stands); red by mutant m4 - one reason written back as an English literal in
+         * `testSfx` - quoted in E46-C4's commit.
+         */
+        const WHY = ["noEvent", "noFile", "soundZero", "interfaceZero", "locked", "refused", "timeout", "failed"];
+        const served = new Map(await Promise.all(SFX_FAMILY.map(async file => [file, await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText)])));
+        const sfx = stripComments(sfxText(served));
+        must(sfx.length > 1000, "sfx.mjs and sfx-play.mjs were not served - this test reads nothing until they are");
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json());
+        const [en, pl] = await Promise.all([lang("en"), lang("pl")]);
+        const reasons = body => [...String(body).matchAll(/\bwhy\s*:\s*([^\n]*)/g)].map(m => {
+            const key = /^game\.i18n\.(?:localize|format)\(\s*"DRPG\.Sound\.why\.(\w+)"/.exec(m[1].trim())?.[1];
+            return key ?? `literal: ${m[1].trim().slice(0, 60)}`;
+        });
+        const planted = reasons('return { played: false, why: game.i18n.localize("DRPG.Sound.why.noFile") };\n'
+            + 'return { why: "The file did not finish loading." };\nreturn { why: game.i18n.format("DRPG.Sound.why.noEvent", { keys }) };');
+        equal(JSON.stringify(planted), JSON.stringify(["noFile", "literal: \"The file did not finish loading.\" };", "noEvent"]),
+            "the reader does not tell a key from a literal on a planted body: it reads nothing it can be trusted on");
+        const test = fnSource(sfx, "testSfx") ?? "";
+        const found = reasons(test);
+        const wire = bodyOf(fnSource(sfx, "wireSoundPanel") ?? "", "[data-drpg-sfx-test]", { until: "[data-drpg-sfx-clear]" }) ?? "";
+        const word = (file, key) => file?.DRPG?.Sound?.why?.[key];
+        const read = {
+            reasons: [...new Set(found)].sort(),
+            literals: found.filter(r => r.startsWith("literal")),
+            files: WHY.filter(key => typeof word(en, key) !== "string" || typeof word(pl, key) !== "string" || !word(pl, key).trim() || word(pl, key) === word(en, key)),
+            keys: [word(en, "noEvent"), word(pl, "noEvent")].map(text => String(text ?? "").includes("{keys}")),
+            warning: /ui\.notifications\.warn\(\s*game\.i18n\.format\(\s*"DRPG\.Sound\.testFailed"\s*,\s*\{[^}]*\bwhy\s*:\s*result\?\.why\b/.test(wire),
+            format: [en, pl].map(file => ["{label}", "{why}"].every(hole => String(file?.DRPG?.Sound?.testFailed ?? "").includes(hole)))
+        };
+        equal(JSON.stringify(read), JSON.stringify({ reasons: [...WHY].sort(), literals: [], files: [], keys: [true, true], warning: true, format: [true, true] }),
+            "{the reasons testSfx answers, by key; those that are a literal; the keys missing from a file or Polish as the English; noEvent's {keys} [en, pl]; "
+            + "the Test's warning formats testFailed with the answer's why; testFailed's {label} and {why} [en, pl]}");
+    }],
 ];
 
 

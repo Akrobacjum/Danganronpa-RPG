@@ -83772,6 +83772,64 @@ const SCENARIOS = [
             "Give existing hands over an entry as something other than what it is "
             + "[the room pool's Axe at Tier 0, the mops pool's entry: given, the item's category, tier, roles]");
     }],
+    ["E46-T3 - a Polish GM's Test on an event with no file (E46-C4; E46-14, S13-53): the Sound window drawn in Polish, its Effects tab one drawn row of the kit's table per `SFX_EVENTS` key in order; the Test of an event with no file warns `DRPG.Sound.testFailed` in Polish - the event's Polish name and `DRPG.Sound.why.noFile` - and plays nothing", async () => {
+        /*
+         * E46-C4, 09.11.2026. S13-53 (fixed by E50 C3, 50d9e9c6): a Polish GM's Test said why in English. Here, as the GM:
+         * the module's strings swapped to pl.json's for the reading (`game.i18n.translations`, the page's language, and
+         * the event's name in config.mjs's table as i18n.mjs `localizeConfig` writes it from pl.json), the window opened,
+         * its Effects rows read, the Test of the first event with no file pressed (one is cleared for the reading if
+         * every event has one, and put back) and `ui.notifications.warn` recorded (still shown); everything put back.
+         * Red first on f7266b28 (C1's tree under C0 and C1f): the rows are a hand table, not the kit's.
+         */
+        needs(env.dialogs(), "the Sound window is drawn and its Test pressed");
+        must(game.user.isGM, "the Effects tab is a GM's");
+        must(!document.querySelector(".drpg-window-sound"), "a Sound window is open - close it: this test opens its own");
+        const M = await import("./music.mjs"), X = await import("./sfx.mjs"), S = await import("./settings.mjs");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const keys = Object.keys(SFX_EVENTS);
+        let key = keys.find(k => !X.soundFor(k)), cleared = null;
+        if (!key) { key = keys[0]; cleared = getSetting(SETTINGS.sfxMap)?.[key] ?? null; await X.setSoundFor(key, null); await settle(); }
+        must(!X.soundFor(key), `the event ${key} still has a file - the Test would play`);
+        const event = SFX_EVENTS[key], plName = pl.DRPG?.Config?.SFX_EVENTS?.[key]?.label;
+        must(typeof plName === "string" && plName.trim(), `pl.json has no name for the event ${key}`);
+        const own = game.i18n.translations, ownName = event.label, warns = [], realWarn = ui.notifications.warn;
+        const read = {};
+        let was = null, swapped = false, answer = null;
+        try {
+            game.i18n.translations = { ...own, DRPG: pl.DRPG };
+            was = S.setPageLanguage("pl");
+            swapped = true;
+            event.label = plName;
+            ui.notifications.warn = function (...args) { warns.push(String(args[0])); return realWarn.apply(this, args); };
+            answer = Promise.resolve().then(() => M.openSoundDialog()).catch(err => `threw: ${err.message}`);
+            const root = () => document.querySelector(".drpg-window-sound");
+            must(await until(() => root()?.querySelector("tr[data-drpg-sfx]"), 6000), "the Sound window did not open with its Effects rows");
+            root().querySelector('nav.drpg-tabs [data-drpg-tab-key="effects"]')?.click();
+            const rows = [...root().querySelectorAll("tr[data-drpg-sfx]")];
+            read.rows = [rows.map(tr => tr.dataset.drpgSfx).join(",") === keys.join(","), rows.every(tr => tr.closest("table.drpg-data-table")),
+                rows.every(tr => tr.closest("table") === rows[0]?.closest("table"))];
+            const test = root().querySelector(`tr[data-drpg-sfx="${key}"] button[data-drpg-sfx-test]`);
+            must(test, `the row of ${key} has no Test`);
+            test.click();
+            await until(() => warns.length > 0, 3000);
+            const want = String(pl.DRPG.Sound.testFailed).replace("{label}", plName).replace("{why}", pl.DRPG.Sound.why.noFile);
+            read.warns = warns.map(text => (text === want ? "the Polish warning" : text));
+            read.english = warns.some(text => text.includes(String(own?.DRPG?.Sound?.why?.noFile ?? "\u0000")) || /DRPG\./.test(text));
+            root().querySelector('footer.form-footer button[data-action="close"]')?.click();
+            await Promise.race([answer, wait(3000)]);
+        } finally {
+            ui.notifications.warn = realWarn;
+            event.label = ownName;
+            game.i18n.translations = own;
+            if (swapped) S.setPageLanguage(was);
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.classList?.contains("drpg-window-sound"))) await app.close();
+            if (answer) await Promise.race([answer, wait(3000)]);
+            if (cleared) { await X.setSoundFor(key, cleared); await settle(); }
+        }
+        equal(stableJson(read), stableJson({ rows: [true, true, true], warns: ["the Polish warning"], english: false }),
+            "{the Effects rows [one a SFX_EVENTS key in order, each in the kit's table, all in one table]; the warnings the Test gave; whether one holds "
+            + "the English reason or a raw key}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
