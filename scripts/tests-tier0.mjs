@@ -20957,7 +20957,9 @@ const REGRESSIONS = [
                 decideNow: AUDIT_ROLE,
                 onRenderFlagged: AUDIT_ROLE,
                 sheetWrites: AUDIT_ROLE,
-                primaryLeft: AUDIT_ROLE
+                primaryLeft: AUDIT_ROLE,
+                // E24 fix G1 (09.11.2026): a new character's first mark asks whether the user who made it was a GM.
+                firstMark: "the audit's rule: whether the user who made a character was a GM (its maker's role, not a viewer's)"
             }
         };
         const strip = text => stripComments(text).replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, "\"\"");
