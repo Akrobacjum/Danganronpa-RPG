@@ -40,7 +40,7 @@
  *      Faint trace's row when gm2 approves a reshape of that trace (since E09 C10 on a proposal
  *      gm2 writes on the attempt's row first): the GM's window redraws
  *      (the words show the reshape, the typed name stays and is marked with the reshaped
- *      one), and the GM's Save refuses the name and says so once - both GMs keep the reshape.
+ *      one), and the GM's Save refuses the name, says so once and closes the window (E24 C6) - both GMs keep the reshape.
  *      (E09 fix r2-G2) gm2 rules from the console (`game.drpg.declineReshape`, then
  *      `approveReshape` at the same moment as the GM's own): each is ruled once, on the primary
  *      GM, and the second Approve is told it was ruled. On the code before the fix (08.10.2026)
@@ -584,15 +584,16 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
         redrawn.text === MARK.dText && redrawn.name === MARK.typed && redrawn.marked && redrawn.title.includes(MARK.dName), J(redrawn));
     const saved = await gm.eval(`${until} ${caseWindows} const d = globalThis.__s62d;
         d.app?.element?.querySelector('footer.form-footer button[data-action="save"]')?.click();
-        const again = await until(() => open().find(a => a !== d.app && a.element) ?? null, 15000);
+        // The Save closes the window (E24 C6; it reopened from E09 C13 until then): the opener answers once the Save has run.
+        const answer = await Promise.race([d.answer, new Promise(r => setTimeout(() => r("still waiting"), 15000))]);
+        const left = open().length;
         for (const a of open()) await a.close();
-        const answer = await Promise.race([d.answer, new Promise(r => setTimeout(() => r("still waiting"), 10000))]);
         const { gmStoresIdle } = await import("${repoUrl}/scripts/gm-store.mjs");
         await gmStoresIdle();
         ui.notifications.warn = d.warn; globalThis.__dialogWindows = d.windows; delete globalThis.__s62d;
-        return { reopened: Boolean(again), answer: answer ?? null, warned: d.warned };`, { timeout: 60000 });
-    verdict("the GM's Save refuses the typed name and says so once, naming it",
-        saved.reopened && saved.answer === null && saved.warned.length === 1 && saved.warned[0].includes(MARK.typed), J(saved));
+        return { left, answer: answer ?? null, warned: d.warned };`, { timeout: 60000 });
+    verdict("the GM's Save refuses the typed name and says so once, naming it, and closes the window",
+        saved.left === 0 && saved.answer === null && saved.warned.length === 1 && saved.warned[0].includes(MARK.typed), J(saved));
     await settle(800);
     const after = { gm: await publicOn(gm), gm2: await publicOn(gm2) };
     const others = side => J({ ...after[side], faint: null }) === J({ ...before[side], faint: null });

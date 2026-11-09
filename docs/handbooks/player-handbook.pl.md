@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.100, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.101, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z twojego krzesła: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co kliknąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje".
 
@@ -48,11 +48,21 @@ Twoje liczby zmieniają się w grze: przez wydaną akcję, rzut, Rest, użyty pr
 
 | Stan | Kiedy | Efekt |
 |---|---|---|
-| **Breakdown** | każdy punkt Sanity zaznaczony | utrudnienie na każdym rzucie, dopóki nie wróci trochę Sanity |
-| **Wounded** | każdy punkt Health zaznaczony | o jedną akcję mniej na porę dnia, dopóki ktoś cię nie poskłada |
+| **Breakdown** | Sanity się skończyło | utrudnienie na każdym rzucie, dopóki nie wróci trochę Sanity |
+| **Wounded** | Health się skończyło | o jedną akcję mniej na porę dnia, dopóki ktoś cię nie poskłada |
 
 > [!NOTE]
-> Oba włączają się same w chwili, gdy pasek się zapełni; Vulnerable i Death Move z Daggerheart są wyłączone. Nic w tym module nie zabija cię za zejście do zera Health. Śmierć to coś, co robi ci człowiek, i jest ogłaszana.
+> Oba włączają się same w chwili, gdy zapas się skończy; Vulnerable i Death Move z Daggerheart są wyłączone. Nic w tym module nie zabija cię za zejście do zera Health. Śmierć to coś, co robi ci człowiek, i jest ogłaszana.
+
+### Co mówi twoja karta
+
+- **Co zostało.** Pod każdym z dwóch pasków karta mówi, ile zostało, a nie ile ubyło: **Zostało: 3 / 4** dla Health, **Zostało: 6 / 6** dla Sanity. Nietknięty uczeń ma dwa pełne paski, a pasek skraca się, gdy cię ranią. Kropki są własne modułu i wyglądają tak samo na ekranie z włączonymi kropkami Daggerheart i na ekranie bez nich (jeszcze nie sprawdzone przy stole: LIVE-E24-02). Przy włączonym *Gracze nie edytują akcji, Hope, Health, Sanity ani statystyk* twoja karta nie ma pola na tę liczbę; przy wyłączonym pole jest, a to, co wpiszesz, jest liczbą tego, co zostało.
+- **Sanity jest tylko twoje.** Inny gracz, który otworzy twoją kartę albo przeczyta twój wiersz na karcie drużyny, czyta twoje Health i **?** w miejscu Sanity; twój token nie pokazuje mu paska Sanity, a gdy jesteś w Breakdown, także ikony Breakdown (jeszcze nie sprawdzone przy stole: LIVE-E24-01, LIVE-E24-03, LIVE-E24-09). Ty i GMowie czytacie oba. Tyle rysują ekrany: Foundry wysyła dane twojej postaci do każdej przeglądarki, a gracz, który otworzy konsolę przeglądarki, może je przeczytać (pisze o tym podręcznik GMa, sekcja 1).
+- **Rzut w Breakdown.** Dodatkowa kość na karcie rzutu nazywa się **Disadvantage** i karta nikomu nie mówi nic więcej o przyczynie. Twoje własne okno rzutu i odprawa akcji kryzysowej mówią, skąd się wzięła; inny gracz nie czyta tego na karcie (jeszcze nie sprawdzone przy stole: LIVE-E24-10).
+- **Ikony na tokenie** są własną pixel artową grafiką modułu. Wounded i nakładka śmierci widzą wszyscy; Breakdown tylko ty i GMowie.
+- **Twoja przeszłość.** Część biografii na twojej karcie ma pole z podpisem **Przeszłość**, na to, kim twoja postać była przed killing game. Zapisuje się samo, gdy z niego wyjdziesz, przełączysz się na inną kartę albo zamkniesz arkusz; samo otwarcie niczego nie zapisuje, a karta, której nie możesz edytować, pokazuje je tylko do odczytu. Karta innego gracza nie ma Przeszłości (co pokazuje, mówi część Co widzisz, niżej). Jeśli ktoś inny zapisze twoją Przeszłość w trakcie twojego pisania, twój następny zapis niczego nie zapisuje i raz ci o tym mówi: twój tekst zostaje w polu, a ponowne kliknięcie poza nim zapisuje go w miejsce tamtego.
+- **Twoja karta stoi spokojnie.** Trafienie, leczenie, wydana albo dana Hope zmieniają liczby na twojej otwartej karcie tam, gdzie stoją, na twoim ekranie i u każdego, kto ją ma otwartą, bez rysowania okna od nowa; wszystko inne, na przykład przedmiot, który dostajesz, rysuje ją od nowa. Tak czy inaczej to, co piszesz, zostaje (jeszcze nie sprawdzone przy stole: LIVE-E45-01).
+- **Karta zmarłego ucznia** zostaje jako zapis: pieczęć **Nie żyje**, nagłówek z Hope, akcjami i Move nadal widoczny, a przy jego przedmiotach nie ma przycisków do użycia, wyrzucenia, przekazania, udostępnienia ani schowania, ani Przedstaw i Analizuj. Mówi, co zmarli nadal robią: poza Class Trial nadal mówisz przy stole; w nim twój mikrofon jest wyłączony i nie oddajesz głosu.
 
 ### Rzuty
 
@@ -145,7 +155,7 @@ GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, raz
 - Widzisz tylko osoby stojące w twoim pokoju. Nikogo innego dla ciebie na mapie nie ma.
 - **Kafelek pokoju** stoi pod zegarem - albo, gdy ekran nie zostawia tam miejsca, na prawo od powiadomień - i pokazuje pokój, w którym stoi twoja własna postać, nigdy inny: jego nazwę, jego Search Tokens z liczbą przeszukań, które zostały (**2/3 przeszukań**), **Możesz tu pracować nad projektem**, gdy jest w nim projekt, nad którym możesz pracować, zdjęcie pokoju od GMa pod nimi i opis od GMa, schowany za małą strzałką w prawym górnym rogu kafelka: strzałka (**Czytaj dalej**) rozwija opis nad zdjęciem, a obrócona do góry (**Zwiń opis**) zwija go z powrotem. Kliknij zdjęcie, by zobaczyć je w dużym rozmiarze, tylko na swoim ekranie. Podczas Class Trialu kafelek pokazuje salę rozpraw: nazwę, zdjęcie i opis od GMa albo "Class Trial". Na wąskim ekranie jest jednym wierszem stosu: małe zdjęcie (kliknij, by zobaczyć duże), nazwa, Search Tokens i przycisk **Opis**, który otwiera opis w oknie. Gdy tę samą postać ma dwóch graczy, kafelek na ekranie jednego z nich może nadążyć za ruchem przez kilka punktów trasy mniej więcej półtorej sekundy później.
 - Zegar w lewej kolumnie da się kliknąć: tłumaczy fazę, porę dnia, gdzie jesteś, i wypisuje opis pokoju, jeśli GM go napisał.
-- Karta innego gracza otwiera się ocenzurowana: imię, portret, Ultimate, Health, Sanity, to, co trzyma w rękach, i ile ma doświadczeń. Nic więcej.
+- Karta innego gracza otwiera się ocenzurowana: imię, portret, Ultimate, Health (i ? w miejscu Sanity), to, co trzyma w rękach, i ile ma doświadczeń. Nic więcej.
 
 ### Głos
 
@@ -610,7 +620,7 @@ Twoja strona tego samego stołu, za kafelkiem **Akcje kryzysowe**:
 
 | Akcja | Rzut | Co robi |
 |---|---|---|
-| Strike | Hand / Leg / Body, 15 | 1 Health i 1 Sanity z nich; krytyk kładzie oba znaczniki na jednym torze, który wybierzesz, Health albo Sanity. Porażka z Despair wciąż zdejmuje 1 Sanity i zostawia Evident ślad. |
+| Strike | Hand / Leg / Body, 15 | 1 Health i 1 Sanity z nich; krytyk zdejmuje oba punkty z jednego zapasu, który wybierzesz, Health albo Sanity. Porażka z Despair wciąż zdejmuje 1 Sanity i zostawia Evident ślad. |
 | Pin Them Down | Body, 12 | Utrudnienie na Leave a Clue i Survive przez dwie najbliższe tury ofiary. |
 | Keep Your Distance | Leg, 12 | Utrudnienie na Secure a Trace i Role Reversal przez dwie najbliższe tury ofiary. |
 | Attack with a Weapon | Body / Hand / Leg, 15 | Obrażenia 1 + połowa Tier broni (w górę); 1 + cały Tier na krytyku. Bez broni: utrudnienie, a sukces wyrywa improwizowaną broń (Tier 2 przy Hope, Tier 1 przy Despair). Przedmiot Tier 0 ocenia GM. |
@@ -748,7 +758,7 @@ Ktoś wśród was mógł zbudować to miejsce. **Final Truth Remnants** - jeden 
 
 Gdy skończy się twój własny Class Trial, możesz dołączyć do GMów jako **Monocub**. Ten sam aktor, ten sam arkusz; panel akcji staje się **Move** i **Confusion**.
 
-- Zaczynasz z 0 Hope, bez oznaczonego Health i Sanity, i masz tyle akcji co żyjący, niezraniony uczeń - Wounded nigdy nie odbiera Monocubowi akcji. Widzisz tylko własny pokój. Twoje rzuty widzą wszyscy, którzy w nim stoją.
+- Zaczynasz z 0 Hope, z pełnym Health i Sanity, i masz tyle akcji co żyjący, niezraniony uczeń - Wounded nigdy nie odbiera Monocubowi akcji. Widzisz tylko własny pokój. Twoje rzuty widzą wszyscy, którzy w nim stoją.
 - **Confusion** kosztuje **1 akcję i 1 Hope**, a twój Hope istnieje tylko dlatego, że Monokuma zamienił w niego Despair (Fuel a Monocub). To goły rzut 2d12, bez statystyki. Wybierz kogoś w swoim pokoju i pomóż albo przeszkódź przy jego następnym rzucie (zobacz tabelę poniżej). Dowiadują się, że coś uspokoiło ich rękę albo ich rozproszyło, nigdy kto - ale wszyscy w twoim pokoju widzą, że rzucasz, więc mogą się domyślić, że to ty.
 - Monocub, który natknie się na miejsce zbrodni, jest zobowiązany do milczenia o nim do końca rozdziału. Confusion wciąż działa.
 
@@ -802,22 +812,24 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 
 ## 16. Wskazówki do interfejsu
 
-**HUD** (lewa kolumna): nazwa kampanii, rozdział, dzień, faza i pora dnia, ile minut gry ma już ta pora dnia (pauza, przeładowanie i przerwa między sesjami nic nie dodają; podczas Eclipse tej linii nie ma) i tytuł utworu, który słyszysz; pokój, w którym stoisz, jest na kafelku pokoju pod nim (rozdział 3). Podczas Class Trialu zamiast pory dnia pokazuje tylko tryb (Dyskusja, Debata, Objection albo Rebuttal); linia minut znika, a to, kto ma głos, widać na panelu zdarzeń. Kliknij, by dostać wyjaśnienie, gdzie jesteśmy, i opis twojego pokoju.
+**HUD** (lewa kolumna): nazwa kampanii, rozdział, dzień, faza i pora dnia, ile minut gry ma już ta pora dnia (pauza, przeładowanie i przerwa między sesjami nic nie dodają; podczas Eclipse tej linii nie ma) i pasek utworu: biegnie po nim tytuł utworu, który słyszysz, a gdy nic nie gra, zostaje pustą linią, więc zegar nie zmienia wysokości (od 1.2.101); pokój, w którym stoisz, jest na kafelku pokoju pod nim (rozdział 3). Podczas Class Trialu zamiast pory dnia pokazuje tylko tryb (Dyskusja, Debata, Objection albo Rebuttal); linia minut znika, a to, kto ma głos, widać na panelu zdarzeń. Gdy gra stoi na pauzie, na każdym ekranie w miejscu nazwy kampanii stoi **Wstrzymano**, dopóki gra nie ruszy; własny napis Foundry na środku ekranu i przygaszenie zostają. Podczas Eclipse linia fazy podaje jego nazwę, na przykład *Eclipse (Noc)*. Kliknij, by dostać wyjaśnienie, gdzie jesteśmy, i opis twojego pokoju.
 
 **Przyciski Foundry** nie stoją na ekranie gracza: nie ma paska sterowania sceną po lewej, tak jak nie ma paska bocznego. Swój token zaznaczasz i przeciągasz jak dotąd, a moduł nie zmienia żadnego skrótu klawiszowego Foundry; z paskiem odchodzi rysowanie, notatki na mapie i przycisk celowania.
 
-**Pasek tytułu okna**: dwukrotne kliknięcie zwija okno do paska tytułu, a kolejne rozwija je z powrotem, jak wszędzie w Foundry (od 1.2.99; wcześniej moduł blokował ten gest w każdym oknie). Zwinięte okno zachowuje to, co w nim było, a przycisk, który je otworzył, rozwija je z powrotem. Krótkie okno z jednym pytaniem, na przykład potwierdzenie, się nie zwija.
+**Pasek tytułu okna**: dwukrotne kliknięcie zwija okno do paska tytułu, a kolejne rozwija je z powrotem, jak wszędzie w Foundry (od 1.2.99; wcześniej moduł blokował ten gest w każdym oknie). Zwinięte okno zachowuje to, co w nim było, a przycisk, który je otworzył, rozwija je z powrotem. Krótkie okno z jednym pytaniem, na przykład potwierdzenie, się nie zwija. Okno, które czeka na twoją odpowiedź - rzut, Observe, deklaracja akcji, głosowanie, Level Up, pytania Class Trial - zostaje nad arkuszem postaci, także gdy klikniesz arkusz albo gdy on się przerysuje (od 1.2.101); pozostałe okna wychodzą na wierzch tak, jak wyciąga je Foundry.
 
-**Panel zdarzeń** (pod wierszami Despair): to, co dzieje się teraz - Motive z odliczaniem i ceną zignorowania, zwołane zgromadzenie, trwające zaciemnienie, znalezione ciało, tryb Class Trialu, mówca i pozostały czas, otwarte głosowanie, zatrzymana scena. Karty samego morderstwa widzą tylko jego uczestnicy.
+**Panel zdarzeń** (pod wierszami Despair): to, co dzieje się teraz - Motive z odliczaniem i ceną zignorowania, zwołane zgromadzenie, trwające zaciemnienie, znalezione ciało, tryb Class Trialu, mówca i pozostały czas, otwarte głosowanie, zatrzymana scena. Karty samego morderstwa widzą tylko jego uczestnicy. Panel ma jeden rozmiar, cokolwiek pokazuje; karta dłuższa od niego przewija się w środku (od 1.2.101).
 
 **Pasek stanu** (po prawej, nad zasobnikiem projektów): pozostałe akcje, czy Free Move wciąż jest, twój Hope i przejścia Eclipse, gdy trwa - stopa za każde pozostałe przejście albo, gdy możesz wybrać dowolny pokój, jedna pełna stopa, która zostaje dostępna; akcje Monocuba mówią wtedy *Tylko ustawianie.* Pasek martwego ucznia to jeden wiersz: **Nie żyje**. To, co masz w zapasie ze Sprint albo Burst, widać na arkuszu, w linii nad siatką akcji. Kliknij pasek, by dostać wyjaśnienie.
 
-**Zasobnik projektów** (po prawej, pod paskiem stanu) wymienia projekty, o których wiesz. Zanim jakiś się pojawi, i tak pokazuje swój tytuł i wiersz **Na razie brak projektów.** (od 1.2.79; jeszcze nie sprawdzone przy stole: LIVE-E79-16).
+**Zasobnik projektów** (po prawej, pod paskiem stanu) wymienia projekty, o których wiesz. Zanim jakiś się pojawi, i tak pokazuje swój tytuł i wiersz **Na razie brak projektów.** (od 1.2.79; jeszcze nie sprawdzone przy stole: LIVE-E79-16). Każdy projekt to jeden wiersz, z nazwą i licznikiem w jednej linii; gdy jest ich więcej niż pięć, lista się przewija, a jej dół gaśnie, póki niżej są kolejne (od 1.2.101).
 
 **Wiersze Despair** pokazują każdą pulę i to, jak jest pełna, a pod nimi overflow: "?" w miejscu jego licznika, obok liczby, przy której odpala. Kliknij, by dowiedzieć się, czym jest Despair.
 
+**Na wąskim ekranie** (tablet, telefon, wąskie okno) zegar, kafelek pokoju, wiersze Despair, panel zdarzeń, twój pasek stanu i zasobnik projektów stoją w jednej kolumnie u góry, a plansza pod nią zostaje widoczna i da się na niej grać (od 1.2.101). Twój pasek stanu i zasobnik projektów idą pierwsze, przed wierszami Despair. Gdy kolumna jest dłuższa niż miejsce na nią, przewija się, a jej dół gaśnie, póki niżej jest coś jeszcze.
+
 **Twój arkusz:**
-- *Akcje* - dziesięć kafelków, Hope Calle poniżej; podczas incydentu kafelek Direct Murder staje się **Broń się** dla ofiary i **Akcje kryzysowe** dla pozostałych i je otwiera; tutaj Move i Confusion jako Monocub.
+- *Akcje* - dziesięć kafelków, Hope Calle poniżej; pod Stained Glass kafelek, którego teraz nie możesz użyć albo na który cię nie stać, jest ciemny i ma przerywaną krawędź, bez względu na koszt (od 1.2.101); podczas incydentu kafelek Direct Murder staje się **Broń się** dla ofiary i **Akcje kryzysowe** dla pozostałych i je otwiera; tutaj Move i Confusion jako Monocub.
 - *Ekwipunek* - użytkowe, sprzęt (z *weź do ręki*), Truth Bullets (Analyze, Przedstaw, Podziel się kopią; grupujesz je wg Rozdziału albo Lokacji), klucze do pokoi i twoja skrytka, gdy stoisz w tym pokoju.
 - *Zasady* - stałe zasady Monokumy, dla wszystkich, cały czas.
 - Safeword, w lewym dolnym rogu. Level Up, gdy go zdobyłeś.
@@ -826,11 +838,11 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 
 **Książka**, pod nim w prawym dolnym rogu, przy samej krawędzi ekranu, tej samej wielkości co zębatka po jej lewej, otwiera podręczniki w grze: ten Podręcznik gracza i Ulotkę ucznia, w języku wybranym dla modułu. Spis treści po lewej przenosi do dowolnego rozdziału.
 
-**Karty i wyskakujące okna:** wyniki twoich akcji przychodzą jako karty powiadomień, a karta zostaje, dopóki jej nie zamkniesz - kliknięciem w nią, a przy dowodach i innych kartach, które trzeba przeczytać, przyciskiem X. Pod Stained Glass karty stoją pod każdym oknem, więc okno przeciągnięte na nie je zasłania; pod Monokuma Legacy stoją nad oknami. Najnowsza ląduje na górze i spycha starsze w dół; gdy nie mieszczą się wszystkie, reszta czeka pod spodem za "+N" obok przycisku zamknięcia, a zamknięcie karty przywraca następną; kliknięcie w "+N" zamyka naraz wszystkie karty poza kartami do przeczytania. Karta "czekamy na GM-a" zamyka się sama, gdy przyjdzie odpowiedź. Zamkniętą kartę można przeczytać jeszcze raz: przycisk ze stosem kart w prawym dolnym rogu kafelka powiadomień (pod Monokuma Legacy na komputerze pod zegarem, także bez kart; na wąskim ekranie w prawym dolnym rogu najniższej karty, gdy jakaś karta jest na ekranie) otwiera okno **Historia powiadomień** - powiadomienia, które pokazała ci ta przeglądarka, także karty o morderstwie, najnowsze, najwyżej 250. Trzyma je, najwyżej 40 od jednego nadawcy, do resetu sezonu, który czyści zegar, incydent, własne karty tego modułu albo resztę dziennika czatu; karta, którą moduł wycofa, znika i stąd. Gdy w tej przeglądarce zabraknie miejsca albo historie innych kont zapełnią jej udział, zostaje mniej albo zapis staje, a okno mówi, kiedy stanął. Otwiera je też klawisz w ustawieniach sterowania Foundry, jeśli go przypiszesz. **Wyczyść** w tym oknie je opróżnia: zrób to, zanim udostępnisz ekran. Na wspólnym komputerze inne konto zalogowane w tej przeglądarce może przeczytać twoją historię, więc wyczyść ją, zanim oddasz komputer. Gdy pora dnia się kończy - w Eclipse albo gdy GM przesuwa zegar dalej - otwiera ci się jej podsumowanie.
+**Karty i wyskakujące okna:** wyniki twoich akcji przychodzą jako karty powiadomień, a karta zostaje, dopóki jej nie zamkniesz - kliknięciem w nią, a przy dowodach i innych kartach, które trzeba przeczytać, przyciskiem X. Pod Stained Glass karty stoją pod każdym oknem, więc okno przeciągnięte na nie je zasłania; pod Monokuma Legacy stoją nad oknami. Najnowsza ląduje na górze i spycha starsze w dół; gdy nie mieszczą się wszystkie, reszta czeka pod spodem za "+N" obok przycisku zamknięcia, a zamknięcie karty przywraca następną; kliknięcie w "+N" zamyka naraz wszystkie karty poza kartami do przeczytania. Karta "czekamy na GM-a" zamyka się sama, gdy przyjdzie odpowiedź. Zamkniętą kartę można przeczytać jeszcze raz: przycisk ze stosem kart w prawym dolnym rogu kafelka powiadomień (pod Monokuma Legacy na komputerze pod zegarem, także bez kart; na wąskim ekranie w prawym dolnym rogu najniższej karty, gdy jakaś karta jest na ekranie) otwiera okno **Historia powiadomień** - powiadomienia, które pokazała ci ta przeglądarka, także karty o morderstwie, najnowsze, najwyżej 250. Trzyma je, najwyżej 40 od jednego nadawcy, do resetu sezonu, który czyści zegar, incydent, własne karty tego modułu albo resztę dziennika czatu; karta, którą moduł wycofa, znika i stąd. Gdy w tej przeglądarce zabraknie miejsca albo historie innych kont zapełnią jej udział, zostaje mniej albo zapis staje, a okno mówi, kiedy stanął. Otwiera je też klawisz w ustawieniach sterowania Foundry, jeśli go przypiszesz. **Wyczyść** w tym oknie je opróżnia: zrób to, zanim udostępnisz ekran. Na wspólnym komputerze inne konto zalogowane w tej przeglądarce może przeczytać twoją historię, więc wyczyść ją, zanim oddasz komputer. Gdy pora dnia się kończy - w Eclipse albo gdy GM przesuwa zegar dalej - otwiera ci się jej podsumowanie. Krótkie komunikaty samego Foundry, na przykład ostrzeżenie, stoją pod Stained Glass na ciemnej płytce pod wierszami Despair (od 1.2.101).
 
 **Okno Wygląd:** zębatka w prawym dolnym rogu otwiera ustawienia, które należą do tej przeglądarki - nikt inny nie widzi ani nie słyszy różnicy:
 - **Język** - English albo Polski dla okien, kart i arkusza modułu. Celowo osobno od języka Foundry. Działa po przeładowaniu. Nazwy własne zostają po angielsku w obu.
-- **Motyw** - Stained Glass (obecny wygląd) albo Monokuma Legacy (z przełącznikiem czcionki pikselowej).
+- **Motyw** - Stained Glass (obecny wygląd) albo Monokuma Legacy (z przełącznikiem czcionki pikselowej). Pod Stained Glass nowa faza albo pora dnia obraca szkło: nowy kolor przychodzi od środka w około sekundę, a spoiny raz błyskają; tam, gdzie panele muszą się przesunąć, szyby jadą w całości na nowe miejsca, razem z teksturą. Przy **ograniczonych animacjach** szkło od razu przyjmuje nowy stan (od 1.2.101).
 - **Skala interfejsu** (80% do 140%), a pod Stained Glass **puls szkła**, **nazwa stanu za zegarem** i **szkło rozmywa mapę** (pierwsze do wyłączenia, gdy ekran się przycina).
 - **Ograniczone animacje** i **wysoki kontrast**, pod oboma motywami; każde z nich idzie też za systemem operacyjnym, gdy ten o nie prosi.
 

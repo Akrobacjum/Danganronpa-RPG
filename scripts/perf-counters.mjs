@@ -58,6 +58,9 @@
  *                                                                       fills moved by no step, not drawn (E88 C5)
  *   glass.paintBand.kept                                                a window redrawn whose band's box and colour
  *                                                                       stood, so nothing was painted (E88 C4)
+ *   glass.turn, glass.turn.layers, glass.turn.recut                     a turn of the curtain handed to the browser, the
+ *                                                                       layers its bake cut, and a turn that moved glass
+ *                                                                       (glass.mjs `glassTurn`, E23 C1b)
  *   halo.baked | .shared | .live | .freed                               a seam's light drawn into a texture, a ring that
  *                                                                       wore one already drawn, a light left on its live
  *                                                                       filter, a texture freed (fog-reveal.mjs, E88 C1)

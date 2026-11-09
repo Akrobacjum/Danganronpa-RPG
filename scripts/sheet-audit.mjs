@@ -153,9 +153,11 @@ import { WARN_EVERY_MS, TRACE_PATHS } from "./relay-guard.mjs";
 /**
  * The module flags only a GM writes (the plan's 2.4), held in the mark and put back. `levelUpExperiences` since
  * E11 C11 (1.2.73): the Level Up's experiences the season reset deletes - a player who unset it would keep them.
+ * `notInClass` since E24 C3a (08.11.2026; R1454, 30-security's forgery): a player who set it on their own student
+ * would leave every ballot, Level Up and incident's cast the GMs build from monokuma.mjs `studentActors`.
  */
 const GM_FLAGS = [...["deceased", "monocub", "silencedChapter", "advances", "sheetAtStart", "levelUpExperiences", "lootTrace",
-    "swungWeapon", "betrayalWindow", "monokuma"].map(key => FLAGS[key]),
+    "swungWeapon", "betrayalWindow", "monokuma", "notInClass"].map(key => FLAGS[key]),
     /* The stashes a student has found (vault-store.mjs `VAULT_FLAGS.found`, written by the GMs' `resolveStashSearch`), since E16
        part 2 C3 (design-notes D10): its owner could write it, no judgement read it (`kindOf` answered null), and
        `stealFromVault` opened a concealed stash on it. Spelt here, not imported: this file reaches nothing that imports
@@ -554,8 +556,8 @@ function pathsOf(changes, at = "") {
     });
 }
 
-/** Which of this file's judgements a path of a student's update falls under, or null. */
-function kindOf(path) {
+/** Which of this file's judgements a path of a student's update falls under, or null. Exported for the suite (R1454). */
+export function kindOf(path) {
     if (/^system\.traits(?:\.|$)/.test(path)) return "traits";
     if (/^system\.experiences(?:\.|$)/.test(path)) return "experience";
     if (/^system\.levelData(?:\.|$)/.test(path)) return "levelData";
@@ -1208,10 +1210,30 @@ async function refreshMark(actor, moves = {}) {
  * 05.10.2026 (e29run/c3a1), tier 0/1's "changed nothing" check found three characters' marks
  * written during it.
  */
-function fillMarks() {
+function fillMarks(madeBy = {}) {
     const missing = (game.actors?.contents ?? []).filter(actor => actor.type === "character" && !sheetMarkStore.has(actor.id));
     if (!missing.length) return Promise.resolve();
-    return sheetMarkStore.patchMany(Object.fromEntries(missing.map(actor => [actor.id, markFrom(actor)])));
+    return sheetMarkStore.patchMany(Object.fromEntries(missing.map(actor => [actor.id, firstMark(actor, madeBy[actor.id] ?? null)])));
+}
+
+/*
+ * A NEW CHARACTER'S FIRST MARK, BY WHO MADE IT (E24 fix G1, 09.11.2026; the end review's security pre-existing item).
+ * `fillMarks` took a character's first mark from its document whole, and the createActor hook is where a character
+ * made at the table gets it. Foundry lets a user with the "Create New Actors" permission make one (ACTOR_CREATE: an
+ * Assistant GM's by default, a world's owner may grant it to Players or Trusted Players; this module asks nothing of
+ * it), and the creating data is that user's: a player who made a character carrying the Monokuma flag started with a
+ * mark that held it, so no write of theirs on it was ever judged (`judgeNow`: a Monokuma is no student), and one
+ * carrying `notInClass`, a death, `advances`, armed Calls or grants started with the GMs holding them. So a character
+ * a user who is not a GM made starts with a mark of no module flag the mark holds (`MARKED_FLAGS`): every one of them is
+ * a GM's flag or a value only the GMs' roads give, and a fresh character holds none of them; the document's are then
+ * what the held readers (`flagsHeldNow`) read past and the primary's next compare (`compareOne`) judges. A GM's own character, and one whose
+ * maker this browser did not hear (the fill at a hydration), take the document's as before. `userId` is the
+ * createActor hook's; exported for R1495.
+ */
+export function firstMark(actor, userId = null) {
+    const mark = markFrom(actor);
+    const maker = userId ? game.users?.get(userId) : null;
+    return maker && !maker.isGM ? { ...mark, flags: {} } : mark;
 }
 
 /*
@@ -1225,9 +1247,9 @@ function fillMarks() {
  * reset with "advancement" ticked the Monokuma - a character the reset's steps write nothing on - had
  * no mark, nor had a character made after it; with the fill (e29run/r1g6) every character has one.
  */
-export function refillMarks() {
+export function refillMarks(madeBy = {}) {
     if (!isPrimaryGm() || !gmStoresHydrated() || gmStoresQuiet()) return Promise.resolve();
-    return fillMarks();
+    return fillMarks(madeBy);
 }
 
 /* ---------------------------------------------------------------------------
@@ -3283,7 +3305,8 @@ export function registerSheetAudit() {
     Hooks.on("createChatMessage", onRollHeard);
     Hooks.on("createChatMessage", message => { void onForgedCard(message); });
     Hooks.on("updateChatMessage", (message, changes, options, userId) => { void onForgedUpdate(message, changes, userId); });
-    Hooks.on("createActor", actor => { if (actor?.type === "character") void refillMarks(); });
+    // Who made it (E24 fix G1): a character a player made starts with a mark of no module flag (`firstMark`).
+    Hooks.on("createActor", (actor, _options, userId) => { if (actor?.type === "character") void refillMarks({ [actor.id]: userId }); });
     Hooks.on("userConnected", primaryLeft);
     Hooks.on("deleteActor", actor => {
         heard.delete(actor.id);

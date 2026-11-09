@@ -242,7 +242,7 @@
       },
       "enforceAnonymity": {
         "name": "Anonimowe karty postaci",
-        "hint": "Karta innego gracza otwiera się ocenzurowana: imię, portret, Health, Sanity i to, co trzyma w rękach. Statystyki, Hope, akcje, ekwipunek i Truth Bullets są ukryte. Każdy gracz wciąż w pełni widzi własną kartę."
+        "hint": "Karta innego gracza otwiera się ocenzurowana: imię, portret, Health i to, co trzyma w rękach. Statystyki, Sanity, Hope, akcje, ekwipunek i Truth Bullets są ukryte. Każdy gracz wciąż w pełni widzi własną kartę."
       },
       "searchTokensPerRoom": {
         "name": "Search Tokens na pokój",
@@ -421,7 +421,9 @@
       "otherRemove": "Usuń ten przedmiot",
       "otherRemoveAsk": "Usunąć: {item} z karty postaci {actor}? Zniknie z karty na dobre.",
       "otherHint": "Jeszcze nie ma go pod żadnym nagłówkiem. Poproś GM-a, żeby go przypisał.",
-      "biographyPlaceholder": "Kim byli, zanim zaczęła się killing game."
+      "biographyLabel": "Przeszłość",
+      "biographyPlaceholder": "Kim była twoja postać, zanim zaczęła się killing game.",
+      "biographyChanged": "Ktoś inny zmienił w międzyczasie przeszłość tej postaci. Twój tekst nadal jest w polu, niezapisany: wyjdź z pola jeszcze raz, a zastąpi tamten."
     },
     "Guard": {
       "blocked": "To zmienia tylko GM. Akcje, Hope i statystyki zmieniają się przez grę.",
@@ -454,8 +456,8 @@
         "many": "{actor} ma {left} akcji, a potrzebuje {needed}.",
         "other": "{actor} ma {left} akcji, a potrzebuje {needed}."
       },
-      "woundedTooltip": "Całe Health zaznaczone - jedna akcja na porę dnia.",
-      "lockedTooltip": "Przepada. Całe Health zaznaczone, więc to zostaje zamknięte do czasu wyleczenia.",
+      "woundedTooltip": "Nie zostało już Health - jedna akcja na porę dnia.",
+      "lockedTooltip": "Przepada. Nie zostało już Health, więc to zostaje zamknięte do czasu wyleczenia.",
       "pipReadOnly": {
         "one": "{left} z {max} akcji o tej porze dnia. Wydawane przez działanie.",
         "few": "{left} z {max} akcji o tej porze dnia. Wydawane przez działanie.",
@@ -1520,7 +1522,11 @@
       "trialObjectionFloor": "{who} ma głos",
       "afterVerdict": "Werdykt zapadł",
       "trialNext": "Następny: {name}",
-      "trialLastTurn": "Ostatnia tura"
+      "trialLastTurn": "Ostatnia tura",
+      "waitingFor": "Incydent - ruch ma {name}",
+      "reserveYou": "Masz jeszcze {hp} z {hpMax} Health i {sanity} z {sanityMax} Sanity.",
+      "reserveOf": "{name} ma jeszcze {hp} z {hpMax} Health.",
+      "reserveVictim": "Ofiara ma jeszcze {hp} z {hpMax} Health i {sanity} z {sanityMax} Sanity."
     },
     "Handbooks": {
       "title": "Podręczniki",
@@ -1988,7 +1994,10 @@
         "few": "{n} Sanity",
         "many": "{n} Sanity",
         "other": "{n} Sanity"
-      }
+      },
+      "leftRow": "Zostało: {n} / {max}",
+      "fieldHealth": "Ile Health zostało. Wpisz liczbę, aby to zmienić.",
+      "fieldSanity": "Ile Sanity zostało. Wpisz liczbę, aby to zmienić."
     },
     "Unit": {
       "action": {
@@ -2114,7 +2123,7 @@
       "leftRemnant": "Zostawia Remnant.",
       "youLose": "Tracisz {what}.",
       "theyLose": "{name} traci {what}.",
-      "killerChooses": "Krytyk - zabójca wybiera: oba znaczniki z Health albo oba z Sanity.",
+      "killerChooses": "Krytyk - zabójca wybiera, skąd schodzą oba punkty: z Health albo z Sanity.",
       "hinderedActions": {
         "one": "Przeciwnik ma utrudnienie na {actions} przez {turns} turę.",
         "few": "Przeciwnik ma utrudnienie na {actions} przez {turns} tury.",
@@ -2223,7 +2232,7 @@
       "gmPicksTrait": "Rzut: {traits} - wybiera GM. Napisz mu w swoim wątku, co robisz.",
       "youPickTrait": "Rzut: {traits} - masz uzbrojone Resolve, więc wybierasz sam w oknie rzutu.",
       "criticalChoiceTitle": "Czyste trafienie",
-      "criticalChoiceIntro": "Cios trafia dokładnie tam, gdzie miał trafić. Zdejmij oba znaczniki z tego samego miejsca - z ciała albo z nerwów.",
+      "criticalChoiceIntro": "Cios trafia dokładnie tam, gdzie miał trafić. Oba punkty schodzą z tego samego zapasu - z ciała albo z nerwów.",
       "criticalChoiceHp": "Oba z Health",
       "criticalChoiceStress": "Oba z Sanity",
       "ranOutTwoKillers": "{victim} nie ma już nic. {killers} oboje w tym siedzą.",
@@ -2234,7 +2243,6 @@
       "crowdedNote": "Nikt nie ginie. To, co walka już zrobiła, zostaje: rany, Sanity i cokolwiek zostawiła na podłodze.",
       "freeResolution": "Nie ruszą się z miejsca. Weź w tej turze Survive albo Role Reversal - bez rzutu, po prostu działa.",
       "trackerCastGone": "Ten incydent wskazuje kogoś, kogo nie ma już w świecie ({who}). Nic nie popchnie go dalej - zakończy go przycisk „Zamknij morderstwo”.",
-      "victimMarks": "Ofiara: zaznaczone Health {hp}, Sanity {stress}.",
       "castMissingHere": "Ta przeglądarka nie ma obsady trwającego incydentu, więc nie da się tu ustalić jego tury. Wpisz obsadę ręcznie (kontrola zdrowia sprawy) albo pozwól działać GM-owi, którego przeglądarka ją ma.",
       "castNotArrived": "Kopie obsady incydentu od pozostałych GM-ów jeszcze nie dotarły do tej przeglądarki: spróbuj za chwilę.",
       "deniedByIncident": "Incydent odebrał ci tę akcję.",
@@ -2315,12 +2323,13 @@
       },
       "traceImage": "Obraz",
       "savedOver": {
-        "one": "Jedno pole zmieniło się gdzie indziej, gdy to okno było otwarte, i nie zostało zapisane: {list}. Okno pokazuje, co jest w nim teraz; wpisz swoje jeszcze raz, jeśli ma zostać.",
-        "few": "{n} pola zmieniły się gdzie indziej, gdy to okno było otwarte, i nie zostały zapisane: {list}. Okno pokazuje, co jest w nich teraz; wpisz swoje jeszcze raz, jeśli ma zostać.",
-        "many": "{n} pól zmieniło się gdzie indziej, gdy to okno było otwarte, i nie zostało zapisanych: {list}. Okno pokazuje, co jest w nich teraz; wpisz swoje jeszcze raz, jeśli ma zostać.",
-        "other": "{n} pól zmieniło się gdzie indziej, gdy to okno było otwarte, i nie zostało zapisanych: {list}. Okno pokazuje, co jest w nich teraz; wpisz swoje jeszcze raz, jeśli ma zostać."
+        "one": "Jedno pole zmieniło się gdzie indziej, gdy to okno było otwarte, i nie zostało zapisane: {list}. Otwórz Investigation ponownie, by zobaczyć, co jest w nim teraz; wpisz swoje jeszcze raz, jeśli ma zostać.",
+        "few": "{n} pola zmieniły się gdzie indziej, gdy to okno było otwarte, i nie zostały zapisane: {list}. Otwórz Investigation ponownie, by zobaczyć, co jest w nich teraz; wpisz swoje jeszcze raz, jeśli ma zostać.",
+        "many": "{n} pól zmieniło się gdzie indziej, gdy to okno było otwarte, i nie zostało zapisanych: {list}. Otwórz Investigation ponownie, by zobaczyć, co jest w nich teraz; wpisz swoje jeszcze raz, jeśli ma zostać.",
+        "other": "{n} pól zmieniło się gdzie indziej, gdy to okno było otwarte, i nie zostało zapisanych: {list}. Otwórz Investigation ponownie, by zobaczyć, co jest w nich teraz; wpisz swoje jeszcze raz, jeśli ma zostać."
       },
       "savedOverItem": "{field} - {row}: „{value}”",
+      "saveStopped": "Zapis zatrzymał się w połowie: {error}. To, co zapisał wcześniej, zostaje, a reszty nie zapisano; Investigation jest znów otwarte na tym, co jest teraz w świecie - wpisz resztę jeszcze raz.",
       "createHereTitle": "Utwórz tu Key Remnant",
       "createHereIntro": {
         "one": "Wskazali punkt zainteresowania, a ty uznajesz, że coś tam jest. To stawia ślad na mapie i może go podpiąć pod {n} zaplanowany trop.",
@@ -2540,7 +2549,7 @@
       "nobodyLeft": "Każdy uczeń już nie żyje.",
       "deadShort": "nie żyje",
       "deadPanelTitle": "Nie żyjesz",
-      "deadPanelNote": "Zmarli nie wykonują akcji i nie wydają Hope. Zachowujesz kartę i głos przy stole. Przywrócony jako Monocub, ten panel staje się Move i Confusion.",
+      "deadPanelNote": "Zmarli nie wykonują akcji i nie wydają Hope. Przywrócony jako Monocub, ten panel staje się Move i Confusion.",
       "deadCannotAct": "{name} nie żyje i nie może wykonywać akcji.",
       "deadUnfound": "Martwy, nieodnaleziony",
       "keepSecretUntilFound": "Zachowaj to dla GM-ów, dopóki ciało nie zostanie znalezione: bez flagi, bez znacznika, a ich Truth Bullets zostają do tego czasu",
@@ -3262,6 +3271,23 @@
       "sharedPool": "Pulę ({name}) dzielą: {actors}. Każdy Monokuma powinien mieć własną.",
       "saved": "Monokumy i pule zapisane."
     },
+    "SheetNotes": {
+      "failedSteps": "Części arkusza postaci nie udało się narysować: {steps}. Nowszy Daggerheart mógł przenieść to, z czego korzystają; konsola (F12) pokazuje każdy błąd.",
+      "fogFreeMove": "Fog: o tej porze dnia nie ma Free Move. Każde przejście kosztuje akcję.",
+      "fogBudget": "Fog: bez Free Move",
+      "noExperiences": "Nie masz jeszcze doświadczeń. Zaczynasz z dwoma po +2, a Level Up może dodać kolejne."
+    },
+    "Class": {
+      "notInClass": "Poza klasą",
+      "outTooltip": "Oznacz jako poza klasą: NPC bez akcji, głosów i Level Upów.",
+      "inTooltip": "Poza klasą. Kliknij, aby przywrócić do klasy.",
+      "markedOut": "{name} jest poza klasą: bez akcji, głosów i Level Upów.",
+      "markedIn": "{name} znów jest uczniem.",
+      "npcLine": "Poza klasą: bez akcji, głosów i Level Upów.",
+      "candidates": "Postaci bez gracza to {names}. Jeśli któraś z nich to NPC, oznacz ją na jej karcie jako Poza klasą.",
+      "deathMark": "Nie żyje",
+      "deadStill": "Poza Class Trial nadal mówisz przy stole. Podczas Class Trial twój mikrofon jest wyłączony i nie oddajesz głosu."
+    },
     "Overflow": {
       "hopeBlocked": "Zaciemnienie blokuje Hope w tej porze dnia - nic nie zostało wydane.",
       "title": "Despair overflow",
@@ -3673,7 +3699,9 @@
       "descriptionPlaceholder": "np. Fałszywe dno w regale, dość głębokie, by schować notes",
       "descriptionNote": "Opis czyta na karcie tokenu projektu każdy, kto ten projekt zna. Najwyżej {max} znaków.",
       "descriptionNeeded": "Projekt potrzebuje opisu.",
-      "descriptionTooLong": "Opis może mieć najwyżej {max} znaków, a ten ma {n}. Skróć go."
+      "descriptionTooLong": "Opis może mieć najwyżej {max} znaków, a ten ma {n}. Skróć go.",
+      "trayLessTooltip": "Odejmij temu projektowi jeden punkt postępu",
+      "trayMoreTooltip": "Dodaj temu projektowi jeden punkt postępu"
     },
     "TraitRuling": {
       "title": "Która statystyka?",
@@ -4109,7 +4137,7 @@
         "other": "Akcje odnowione dla {count} postaci"
       },
       "searchTokensRestocked": "Każdy pokój uzupełniony o Search Tokens",
-      "woundedNote": "Jedna akcja o tej porze dnia, całe Health zaznaczone: {names}.",
+      "woundedNote": "Jedna akcja o tej porze dnia, nie zostało już Health: {names}.",
       "rewindDuringEclipse": "Trwa Eclipse, więc zegar jeszcze się nie przesunął i nie ma do czego się cofać. Zakończ Eclipse w panelu GM-a - może się skończyć bez przesuwania zegara.",
       "takenBack": "Cofnięte: akcje, Free Move, Search Tokens i pieczęcie są takie, jak przed początkiem tej pory dnia."
     },
@@ -4905,11 +4933,11 @@
     "States": {
       "drpgBreakdown": {
         "name": "Breakdown",
-        "description": "Każdy punkt Sanity zaznaczony. Utrudnienie na każdym rzucie."
+        "description": "Nie zostało już Sanity. Utrudnienie na każdym rzucie."
       },
       "drpgWounded": {
         "name": "Wounded",
-        "description": "Każdy punkt Health zaznaczony. O jedną akcję mniej na porę dnia."
+        "description": "Nie zostało już Health. O jedną akcję mniej na porę dnia."
       }
     },
     "Rules": {
@@ -5500,7 +5528,7 @@
         "window": "Akcje, Move i Hope",
         "actionsTitle": "Akcje",
         "actionsWhat": "{actions} na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje {short}, Long Rest {long}.",
-        "actionsWounded": "Z całym Health zaznaczonym dostajesz {wounded} zamiast {actions}, dopóki ktoś cię nie poskłada.",
+        "actionsWounded": "Gdy nie zostało ci już Health, dostajesz {wounded} zamiast {actions}, dopóki ktoś cię nie poskłada.",
         "actionsNow": "Masz {left} z {max} o tej porze dnia.",
         "moveTitle": "Free Move",
         "moveWhat": "Jedno przejście między pokojami na porę dnia, które nic nie kosztuje. Potem zmiana pokoju kosztuje akcję jak wszystko inne.",
@@ -6961,6 +6989,10 @@
         "hook-dice-so-nice-roll-start": "każda kość Hope i Despair rysuje się w wyglądzie, który nadał jej Daggerheart osoby rzucającej, a raport wyglądu kości nie wymienia żadnego rzutu widzianego w tej przeglądarce",
         "hook-livekit-initialized": "pokoje głosowe, kafel głosu i mówcy rozprawy nie podążają za klientem głosu",
         "hook-image-popout-header": "okno zdjęcia pokoju pokazuje przycisk udostępniania Foundry i każdy, który doda moduł",
+        "token-bars-reserve": "paski na żetonach uczniów rosną, gdy uczeń traci punkty, jak rysuje je Daggerheart, a inny gracz widzi pasek Sanity",
+        "breakdown-icon-private": "ikona Breakdown na żetonie ucznia jest widoczna dla każdego gracza",
+        "dead-icon-own": "nakładka zmarłego to nagrobek z Daggerheart",
+        "hook-party-sheet-render": "karta drużyny liczy, co każdy członek stracił, jak rysuje ją Daggerheart, i pokazuje Sanity każdego członka każdemu graczowi",
         "user-permission-broadcast-audio": "niczyj mikrofon nie jest blokowany: przycisk GM-a mówi dlaczego, rozprawa również",
         "rtc-client-keys": "klucz, którego Foundry już nie trzyma, jest czytany jako domyślny (bez wyciszenia, pełna głośność, widoczny), a zapis do niego niczego nie zmienia",
         "push-to-talk-key": "wiersz o mówieniu na przycisk nie podaje klawisza",

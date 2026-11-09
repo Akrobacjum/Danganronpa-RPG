@@ -1121,6 +1121,9 @@ export async function askForRequest({ title, prompt, placeholder = "", intro = "
         // On the kit's frame (E21 C5a): Send is the GM's road (D11) - the words go to a GM's card - and Cancel withdraws.
         const answer = await drpgWindow({
             classes: ["drpg-panel"],
+            // An action's declaration in the player's own words, which the action waits on: kept above the sheet
+            // (stacking.mjs; E23 fix G3, the owner's Q-E23-5, R1404).
+            prompt: true,
             title,
             body: `${intro}<form>
                     <p>${prompt}</p>

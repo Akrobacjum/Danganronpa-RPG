@@ -41,7 +41,7 @@ import { chatLogClass } from "./secret.mjs";
 import { rollDialogClass } from "./roll-dialog.mjs";
 import { hourColour } from "./own-ring.mjs";
 import { ACTIONS_DEFINITION } from "./resources.mjs";
-import { ACTIONS_RESOURCE, MODULE_ID } from "./config.mjs";
+import { ACTIONS_RESOURCE, DEAD_ICON, MODULE_ID } from "./config.mjs";
 import { relayGuardStatus } from "./relay-guard.mjs";
 import { rollDrawState } from "./roll-draw.mjs";
 import { visibleGetterOf } from "./fog.mjs";
@@ -229,6 +229,10 @@ export function heldRows(enforced = ENFORCED, writes = FOUNDRY_WRITES) {
  * heading too, and the passages list goes at the sidebar's end with no Experience to follow (`injectKnownPassages`'s
  * `host.append`). Until this round their absence failed the row and gave the GM a permanent notice saying a thing
  * is not drawn that is. `optional` names that road; such a place is named in the row's note and fails nothing (R1548).
+ *
+ * THE PIP LAYOUT'S PLACES (E24 C1a, 08.11.2026). sheet.mjs `paintReserves` draws Health and Sanity in either of the
+ * system's layouts (the owner's D46): the bar layout's places stay as they were, and the pip layout's slots, found by
+ * their toggles, are optional - a client on the bar layout has none, and draws the bars instead.
  */
 export const SHEET_ANCHORS = Object.freeze([
     { selector: ".window-content", what: "the window's body" },
@@ -244,6 +248,8 @@ export const SHEET_ANCHORS = Object.freeze([
     { selector: ".character-sidebar-sheet .resources-section .status-bar", what: "the sidebar's bars" },
     { selector: "input.bar-input", what: "a bar's input" },
     { selector: "progress.progress-bar", what: "a bar's progress" },
+    { selector: ".slot[data-action='toggleHitPoints']", what: "Health's pips", optional: "the bar layout's instead" },
+    { selector: ".slot[data-action='toggleStress']", what: "Sanity's pips", optional: "the bar layout's instead" },
     { selector: ".equipment-section h3", what: "the equipment heading", optional: "found by its text instead" },
     { selector: ".loadout-section h3", what: "the loadout heading", optional: "found by its text instead" },
     { selector: ".character-sidebar-sheet .equipment-section .items-sidebar-list", what: "the equipped list" },
@@ -476,20 +482,20 @@ export const PATCHES = [
         target: "render, as an own property on each open character sheet",
         owner: "foundry",
         file: "sheet.mjs",
-        symbol: "armRenderGuard",
-        why: "A resource-only update skips one redraw, so the sheet does not flicker on every Hope or Health change.",
-        when: "per sheet, armed by the first resource-only update it sees",
-        fallback: "not armed: a character sheet redraws on every resource change, as Foundry draws it",
-        // Armed per sheet by its first resource-only update, so an open sheet not yet updated carries none.
-        marked: false,
+        symbol: "installRenderPlan",
+        why: "A resource-only update (renderContext \"updateActor\", renderData of Health, Sanity or Hope) is repainted in place, so the sheet does not flicker on every Hope or Health change; anything else renders.",
+        when: "per sheet, from its first render",
+        fallback: "not installed: the sheet renders on every change, as Foundry draws it",
+        // Installed from each character sheet's first render (E45 C2) and marked `drpgRenderPlan`: no open sheet, nothing to read.
+        marked: true,
         probe: () => {
             const sheets = [...(foundry.applications?.instances?.values?.() ?? [])]
                 .filter(app => app?.document?.type === "character");
-            const armed = sheets.filter(app => Object.hasOwn(app, "render")).length;
+            const ours = sheets.filter(app => Object.hasOwn(app, "render") && app.render?.[Symbol.for("drpgRenderPlan")] === true).length;
             return {
                 present: typeof foundry.applications?.api?.ApplicationV2?.prototype?.render === "function",
-                ours: sheets.length ? armed === sheets.length : null,
-                note: `${armed} of ${sheets.length} open character sheets carry it`
+                ours: sheets.length ? ours === sheets.length : null,
+                note: `${ours} of ${sheets.length} open character sheets carry it`
             };
         }
     },
@@ -1117,7 +1123,79 @@ export const PATCHES = [
             if (document.querySelector(".camera-view[data-user] audio.user-microphone-audio")) return { present: true, ours: null };
             return { present: null, ours: null, note: "no speaker's audio element on this page now" };
         }
-    }
+    },
+    {
+        id: "token-bars-reserve",
+        kind: "override",
+        target: "TokenDocument.prototype.getBarAttribute",
+        owner: "foundry",
+        file: "states.mjs",
+        symbol: "wrapBarAttribute",
+        why: "A student's token bars are the reserve, what is left of Health and Sanity, not editable, and Sanity's bar none to another player (E24 C1b).",
+        when: "always, from init",
+        fallback: "not installed, and the console says so: a student's token bars fill up as they are hurt, and another player sees their Sanity bar",
+        probe: () => {
+            let proto = (CONFIG.Token?.documentClass ?? foundry.documents?.TokenDocument)?.prototype ?? null;
+            while (proto && proto !== Object.prototype && !Object.hasOwn(proto, "getBarAttribute")) proto = Object.getPrototypeOf(proto);
+            const fn = proto && proto !== Object.prototype ? proto.getBarAttribute : null;
+            return { present: typeof fn === "function", ours: Boolean(fn?.[Symbol.for("drpgReserveBars")]) };
+        }
+    },
+    {
+        id: "breakdown-icon-private",
+        kind: "override",
+        target: "DhTokenPlaceable.prototype._drawEffect (Daggerheart's token class, CONFIG.Token.objectClass)",
+        owner: "daggerheart",
+        file: "states.mjs",
+        symbol: "wrapEffectIcons",
+        why: "A student's Breakdown icon is drawn only for whom their Sanity is shown, the owner and the GMs (E24 C1b; the owner's 08.11).",
+        when: "always, from setup",
+        fallback: "not installed: a student's Breakdown icon shows on their token to every player",
+        probe: () => {
+            const floor = foundry.canvas?.placeables?.Token?.prototype ?? null;
+            const proto = CONFIG.Token?.objectClass?.prototype ?? null;
+            // As iso-refresh-state's: the harness models no placeable Token (its objectClass is Object), so it cannot tell.
+            if (!floor || !proto || !(proto === floor || Object.prototype.isPrototypeOf.call(floor, proto))) {
+                return { present: null, ours: null, note: "the token class here is not Foundry's Token" };
+            }
+            const fn = proto._drawEffect;
+            return { present: typeof fn === "function", ours: Boolean(fn?.[Symbol.for("drpgBreakdownIcon")]) };
+        }
+    },
+    {
+        id: "dead-icon-own",
+        kind: "override",
+        target: "CONFIG.statusEffects: the dead entry's img (Daggerheart's defeated condition, from its Automation deadIcon)",
+        owner: "daggerheart",
+        file: "states.mjs",
+        symbol: "ownDeadIcon",
+        why: "The dead overlay wears the module's own pixel skull while Daggerheart's dead icon is its default; a GM's own icon is kept (E24 C1c, Q-E24-7).",
+        when: "at setup and at each change of Daggerheart's Automation setting (updateSetting), while its deadIcon is its default",
+        fallback: "not written: the dead overlay is Daggerheart's tombstone",
+        probe: () => {
+            const dead = (CONFIG.statusEffects ?? []).find(entry => entry?.id === "dead") ?? null;
+            let chosen = null;
+            try { chosen = game.settings.get("daggerheart", "Automation")?.defeated?.deadIcon ?? null; } catch { chosen = null; }
+            if (!dead) return { present: false, ours: null, note: "no dead status here" };
+            if (chosen === null) return { present: null, ours: null, note: "Daggerheart's Automation setting cannot be read here" };
+            if (chosen !== DEAD_ICON.daggerheart) return { present: true, ours: true, note: "the GM's own dead icon, kept" };
+            return { present: true, ours: dead.img === DEAD_ICON.img };
+        }
+    },
+    hookRow({
+        id: "hook-party-sheet-render",
+        target: "renderPartySheet",
+        owner: "daggerheart",
+        file: "sheet.mjs",
+        symbol: "registerSheetTweaks",
+        why: "The Party sheet's Health and Sanity are drawn as the reserve, its pips no toggle for a player, Sanity emptied for one who does not own the member (E24 C1b).",
+        when: "always",
+        road: "the Party sheet is drawn on this browser",
+        fallback: "none: the Party sheet counts what each member has lost, as Daggerheart draws it, and shows every member's Sanity to every player"
+    }, () => {
+        const classes = Object.values(CONFIG.Actor?.sheetClasses?.party ?? {});
+        return classes.length ? classes.some(entry => entry?.cls?.name === "PartySheet") : null;
+    })
 ];
 
 /* ==========================================================================

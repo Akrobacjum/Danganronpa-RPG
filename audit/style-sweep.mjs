@@ -17,7 +17,8 @@
  * dead `.drpg-turning` fix's class of error, and the E44 plan's risk. The cascade test (tests-kit.mjs `styleCascade`)
  * sees `!important`, specificity and order but not `@media`, `@container`, `@layer` or a resolved `var()`; this reads
  * what Chromium computes. For each page - every window probe 08 captured (audit/windows/manifest.json), one a page of
- * audit/style-harness.html, the same page's kit gallery (`?kit=1`, E44 C3a), and glass-harness.html's own page for a GM (with its GM Panel and messenger windows,
+ * audit/style-harness.html, the same page's kit gallery (`?kit=1`, E44 C3a), the sheet's parts (`?sheet=parts`, E24 C0: at
+ * 1920x1080 and 1366x768 only, its page's `sizes`), and glass-harness.html's own page for a GM (with its GM Panel and messenger windows,
  * `?gmp=1&msgr=1`) and for a player - at 1920x1080, 1366x768, 1024x768 and 390x844, in Stained Glass and Monokuma
  * Legacy, it runs scripts/style-snapshot.mjs `styleSnapshot` and keeps every surface found. A property that differs
  * from the baseline prints the page, the surface, the size, the theme, before and after; a surface found in one and
@@ -38,7 +39,8 @@
  *
  * THE FIT PASS (`--fit`; E21 C1c, E21-03: "every window and tab fits on the screen" as a reading, never a headless one -
  * jsdom lays nothing out). Pages: every window of audit/windows/manifest.json (probe 08's, per tab where a window has
- * tabs, the player's action windows among them), the kit gallery, the sheet stand-in (`?sheet=1`) and the glass
+ * tabs, the player's action windows among them), the kit gallery, the sheet stand-in (`?sheet=1`) and its parts (`?sheet=parts`,
+ * E24 C0: the same frame and Stop, the parts inside) and the glass
  * harness's GM and player pages for the A8 frames (Foundry tools and Map tools opened, `toggleFoundryTools`; "Who you
  * hear", `drpgVoiceList`). Sizes: FIT_SIZES - the plan's four, 1920x1080, 1366x768, 1280x800 and 1024x768 - for every
  * page, and 390x844 for every window a player opens and the sheet; both themes. Placement: style-harness.html `?fit=1`
@@ -105,6 +107,8 @@ function pages() {
         id: w.id, url: `/audit/style-harness.html?w=${encodeURIComponent(w.id)}${w.client === "gm" ? "" : "&role=player"}`
     }));
     out.push({ id: "kit-gallery", url: "/audit/style-harness.html?kit=1" });
+    /* The sheet's parts (E24 C0: style-harness.html `?sheet=parts`), at the two desk sizes the stage reads a sheet at. */
+    out.push({ id: "sheet-parts", url: "/audit/style-harness.html?sheet=parts", sizes: ["1920x1080", "1366x768"] });
     out.push({ id: "glass-gm", url: "/audit/glass-harness.html?gmp=1&msgr=1&still=1" });
     out.push({ id: "glass-player", url: "/audit/glass-harness.html?role=player&still=1" });
     return ONLY.size ? out.filter(p => ONLY.has(p.id)) : out;
@@ -150,7 +154,11 @@ async function controls(page, first) {
     if (!target) return [`no surface found on ${first.id} - the controls have nothing to plant on`];
     const { STYLE_SURFACES } = await import(url.pathToFileURL(path.join(REPO, "scripts", "style-snapshot.mjs")).href);
     const selector = STYLE_SURFACES.find(s => s.id === target).selector;
-    await page.addStyleTag({ content: `${selector} { color: rgb(1, 2, 3) !important; padding-top: 37px !important; }` });
+    /* Planted above any rule of the sheets (E24 C0): the surface's selector inside `:is()` and an id no element has, so an
+       `!important` of the module's with more classes cannot outvote the plant - on the sheet's parts the first surface
+       is the bar's number field, which the module colours with three classes and `!important`, and a plant of the bare
+       selector read as unchanged. */
+    await page.addStyleTag({ content: `:is(${selector}):not(#drpg-style-control) { color: rgb(1, 2, 3) !important; padding-top: 37px !important; }` });
     const c = found(await snap(page));
     const seen = differences(a, c).filter(d => d.id === target).map(d => d.what.split(":")[0]);
     if (!seen.includes("color") || !seen.includes("padding-top")) problems.push(`restyled: ${target}'s injected color and padding-top read as ${JSON.stringify(seen)}, not as both changed`);
@@ -186,6 +194,7 @@ function fitPages() {
     }));
     out.push({ id: "kit-gallery", phone: false, url: "/audit/style-harness.html?kit=1&fit=1" });
     out.push({ id: "sheet", phone: true, sheet: true, url: "/audit/style-harness.html?sheet=1&fit=1&role=player" });
+    out.push({ id: "sheet-parts", phone: true, sheet: true, url: "/audit/style-harness.html?sheet=parts&fit=1&role=player" });
     out.push({ id: "glass-gm", phone: false, a8: true, url: "/audit/glass-harness.html?still=1" });
     out.push({ id: "glass-player", phone: true, a8: true, url: "/audit/glass-harness.html?role=player&still=1" });
     return ONLY.size ? out.filter(p => ONLY.has(p.id)) : out;
@@ -365,7 +374,10 @@ async function main() {
         for (const [w, h] of SIZES) {
             for (const theme of THEMES) {
                 const page = await browser.newPage({ viewport: { width: w, height: h } });
+                let read = 0;
                 for (const p of list) {
+                    if (p.sizes && !p.sizes.includes(`${w}x${h}`)) continue;
+                    read++;
                     await load(page, withTheme(p.url, theme));
                     const s = await snap(page);
                     props ??= Object.keys(Object.values(s.surfaces).find(v => v.found)?.props ?? {});
@@ -373,7 +385,7 @@ async function main() {
                     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${p.id}-${theme}-${w}x${h}.png`), fullPage: true });
                 }
                 await page.close();
-                console.log(`style-sweep: ${w}x${h} ${theme}: ${list.length} page(s) read`);
+                console.log(`style-sweep: ${w}x${h} ${theme}: ${read} page(s) read`);
             }
         }
     } finally {

@@ -71,7 +71,6 @@ import { registerPreSessionNote } from "./pre-session-note.mjs";
 import { registerPassages, registerPassageMovement } from "./passages.mjs";
 import { registerPassagesGm } from "./passages-gm.mjs";
 import { registerGmOverlay } from "./gm-overlay.mjs";
-import { registerMonokuma } from "./monokuma.mjs";
 import { registerMessenger } from "./messenger.mjs";
 import { registerMessengerUi } from "./messenger-app.mjs";
 import { registerVoice } from "./voice.mjs";
@@ -230,7 +229,6 @@ Hooks.once("init", () => {
     safely("the players' secret passages", registerPassages);
     safely("the GMs' secret passages", registerPassagesGm);
     safely("the GMs' overlay on the board", registerGmOverlay);
-    safely("Monokumas", registerMonokuma);
     // Before the messenger, whose arrival chime is now a mapped event. Only a
     // hook goes up here - `playSfx` is a plain function and works whether or
     // not this ran, which is the point: a chime must never be able to take a

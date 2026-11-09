@@ -290,7 +290,7 @@ export async function breakOnDespair(actor, tool, roll, held = tool) {
  * A dead student readies, uses and throws away nothing, a Monocub included: what they
  * carried is on the body, the body's to be found. A death this browser may know
  * (`isDeadForGm`), so the victim's own player is stopped before the table learns of it;
- * the sheet's buttons are gone by the same reading (sheet.mjs `deadToViewer`). True, and
+ * the sheet's buttons are gone by the same reading (sheet.mjs `sheetMode`). True, and
  * the clicker told, when `actor` is dead.
  */
 function deadHands(actor) {

@@ -7,6 +7,8 @@
  * draws, all 0xFF9829. Everything else the module draws on the scene is the interface
  * colour - the room borders, the student frames, the glass's own seams - so the
  * selection takes it too, and follows the hour and the phase the way they do.
+ * Under Monokuma Legacy it is Legacy's bone, the viewer's own frame's (E23 fix L2,
+ * own-ring.mjs `hourColour`), not the glass's five hours.
  *
  * TWO PLACES, BECAUSE FOUNDRY HAS TWO (read in 14.365's foundry.mjs):
  *  - `CONFIG.Canvas.dispositionColors.CONTROLLED`, which every placeable's

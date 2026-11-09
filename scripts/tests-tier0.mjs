@@ -4054,8 +4054,9 @@ const REGRESSIONS = [
         const whose = bodyOf(own, "function frameOf", { until: "function hourColour" });
         ok(/hasPlayerOwner/.test(whose), "only the viewer's token is framed again, not every student's");
         ok(/type !== "character"/.test(whose), "a frame reaches tokens that are not characters");
-        ok(/whose === "mine" \? cssColour\("--drpg-bone"/.test(own),
-            "the viewer's own frame is not bone");
+        ok(/whose === "mine" \? read\("--drpg-bone", BONE_FALLBACK\)/.test(own)
+            && /whose === "mine" \? read\("--drpg-bone", LEGACY_BONE_FALLBACK\)/.test(own) && /frameColour\(whose, glass\)/.test(own),
+            "the viewer's own frame is not bone in both themes (and, since E23 fix L2, every other student's a dimmer bone under Monokuma Legacy: R1467)");
 
         const mine = bodyOf(own, "function isMine", { until: "function hourColour" });
         ok(/game\.user\?\.character/.test(mine),
@@ -4077,24 +4078,18 @@ const REGRESSIONS = [
             "the own-token ring registers before the Remnant rings");
 
         /*
-         * AND THE FIVE HOURS ARE DECLARED FOR MONOKUMA LEGACY, because
-         * `--drpg-glass-accent` is derived from the hour only under Stained Glass - on
-         * a Legacy client it holds the afternoon gold all day. The glass rule has the
-         * same specificity as the five, so it wins on SOURCE ORDER: that is read here
-         * rather than trusted, because moving it up is a one-line edit that would pin
-         * every Stained Glass ring to whatever the last hour rule said.
+         * THE HOURS ARE THE GLASS'S ALONE (E23 fix L2, 09.11.2026). Monokuma Legacy had the glass's five hours written
+         * out for this frame (`--drpg-own-ring`, danganronpa.css), and under Legacy they drew the frames and Foundry's
+         * controlled border in Stained Glass's palette. Since fix L and L2 Legacy reads its own two bones for both
+         * (R1467), so the five had no reader and went: a declaration nothing reads would say the hour still colours
+         * a Legacy map.
          */
         const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText))
             .replace(/\/\*[\s\S]*?\*\//g, " ");
-        for (const hour of ["morning", "noon", "afternoon", "evening", "night"]) {
-            ok(css.includes(`body[data-drpg-time="${hour}"] { --drpg-own-ring:`),
-                `Monokuma Legacy has no ring colour for the ${hour}`);
-        }
-        const glassRule = css.indexOf("body.drpg-theme-stained-glass { --drpg-own-ring:");
-        const lastHour = css.indexOf('body[data-drpg-time="night"] { --drpg-own-ring:');
-        ok(glassRule > lastHour,
-            "the glass's own accent is overridden by the hour rules - it has to come after "
-            + "them, since they have the same specificity");
+        ok(!/--drpg-own-ring\s*:/.test(css) && !/--drpg-own-ring/.test(own),
+            "`--drpg-own-ring` is declared or read again: under Monokuma Legacy it is Stained Glass's five hours, not Legacy's bone");
+        ok(/glass \? read\("--drpg-glass-accent", FALLBACK\) : read\("--drpg-bone", LEGACY_BONE_FALLBACK\)/.test(bodyOf(own, "function hourColour", { until: "function frameColour" })),
+            "the controlled border no longer follows the glass's accent under Stained Glass and Legacy's bone under Monokuma Legacy");
     }],
 
     ["R78 - the clock names what THIS client is hearing", async () => {
@@ -4122,6 +4117,13 @@ const REGRESSIONS = [
         const hud = stripComments(hudText(sources));
         ok(/function paintTrackLine\(/.test(hud), "the clock has no band to paint");
         ok(/drpg-hud-track/.test(hud), "the band has no class, so the stylesheet cannot reach it");
+        /* AND THE BAND IS NEVER TAKEN AWAY (E23 C2a, 07.11.2026; request A1, S10-28, D9 option 1). At 2b866dde a stop
+           removed the node (`existing?.remove()`), and `renderHud` threw it away with the rest of the clock: the clock
+           lost a line when nothing played, the curtain was cut again for it, and between two tracks of one playlist
+           the band went and came back with the 3 s interval. Both functions read with comments blanked. */
+        const paint = fnSource(hud, "paintTrackLine"), render = fnSource(hud, "renderHud");
+        ok(!/\.remove\(\)/.test(paint), "paintTrackLine removes a node (`.remove()`), so the band leaves the clock when nothing plays");
+        ok(!/hud\.replaceChildren\(\)/.test(render), "renderHud empties the whole clock (`hud.replaceChildren()`), so the band is thrown away and its title starts its scroll again");
         const wiring = bodyOf(hud, "export function registerHud", { length: 2000 });
         for (const hook of ["updatePlaylistSound", "deletePlaylistSound"]) {
             ok(wiring.includes(hook), `the band does not wake on ${hook}`);
@@ -4205,7 +4207,8 @@ const REGRESSIONS = [
         const sheet = stripComments(sources.get("sheet.mjs") ?? "");
         const button = bodyOf(sheet, "function injectAdvanceButton", { until: "function injectItemButton" });
         // E10 C6: a player with nothing on offer has the standing button taken off as well.
-        ok(/if \(!game\.user\.isGM && !offer\) \{\s*standing\?\.remove\(\);\s*return;/.test(button),
+        // The GM's role is the sheet's mode's since E45 C1 (`mode.gm`).
+        ok(/if \(!mode\.gm && !offer\) \{\s*standing\?\.remove\(\);\s*return;/.test(button),
             "the button is on every player's sheet whether or not anything was offered");
         ok(/is-offered/.test(button), "nothing lights the button up, so nobody notices it");
     }],
@@ -4894,6 +4897,36 @@ const REGRESSIONS = [
             "a short name's copy is narrower than the band, so the loop jumps");
     }],
 
+    ["R1388 - the 27.09 reading's reach (E23 C2a, E23-06, E23-12, E23-13): the glass harness's clock carries the track band empty, as the module draws it when nothing plays, and answers `drpgTrackCheck` - the band filled and emptied, and an hour's change with it emptied, refilled mid-turn, full and with a card on the notice tile, reading the clock's height, the cut's signature and drpgGlassCut - with a control that removes the band as 2b866dde did; glass-sweep.mjs reads it at every size of its sweep and in its `--track` mode, and the hour's turn is in `--turn`'s default list", async () => {
+        /*
+         * E23 C2a, 07.11.2026; the owner's 27.09 amend (the curtain changes its layout at every change of the time of
+         * day) and request A1. Whether the clock keeps its height and the curtain its cut is a reading in Chromium, never
+         * a headless one: this holds the reading's reach - that the page carries the band and the sweep reads it - not
+         * the reading, which the commit quotes. Both files are read whole as text; nothing is sliced. Red on 2b866dde:
+         * the harness's clock has no band ("no band").
+         */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        const read = async path => {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" });
+                return res.ok ? await lfText(res) : "";
+            } catch { return ""; }
+        };
+        const [sweep, page] = await Promise.all(["audit/glass-sweep.mjs", "audit/glass-harness.html"].map(read));
+        must(sweep.length > 20000 && page.length > 20000, "glass-sweep.mjs or glass-harness.html read nothing - this test would read nothing");
+        const clock = /<div id="drpg-hud">[\s\S]*?<\/div><\/div>\s*<section id="drpg-room-tile"/.exec(page)?.[0] ?? "";
+        ok(/<div class="drpg-hud-track is-empty" aria-hidden="true"><\/div>/.test(clock), "no band in the harness's clock, empty as the module draws it when nothing plays");
+        const missing = (text, list) => list.filter(s => !text.includes(s));
+        equal(JSON.stringify({
+            harness: missing(page, ["window.drpgTrackCheck = async", "window.drpgTrackFill", "window.drpgTrackEmpty", "Hooks.on(\"drpgGlassCut\", count)",
+                "hud.offsetHeight", "q.get(\"band\") === \"full\""]),
+            kinds: missing(page, ["\"fill\"", "\"hour-empty\"", "\"hour-full\"", "\"hour-swap\"", "\"hour-notice\""]),
+            sweep: missing(sweep, ["window.drpgTrackCheck?.()", "if (args.includes(\"--track\")) {", "plant: true", "track ${"]),
+            turn: /const KINDS = \(opt\("--kinds"\) \?\? "[^"]*\bhour\b[^"]*"\)/.test(sweep)
+        }), JSON.stringify({ harness: [], kinds: [], sweep: [], turn: true }),
+        "[what the harness's track check does not hold; the readings it cannot run; what the sweep does not read or print; the hour's turn in --turn's default kinds]");
+    }],
+
     ["R101 - the Despair Flow window comes back after a refusal, with its pools", async () => {
         /*
          * Review of stage D. A refused add or revoke came back to `openGmTeamDialog`
@@ -5140,7 +5173,8 @@ const REGRESSIONS = [
             "an owner never asks for their offers, so one made while they were away never lights");
 
         const button = bodyOf(sheet, "function injectAdvanceButton", { until: "function injectItemButton" });
-        ok(/!app\.document\.isOwner/.test(button),
+        // Whose offers are read is the sheet's mode's since E45 C1: `offers`, the owner (a GM included).
+        ok(/!mode\.offers \? \[\] :/.test(button) && /\boffers: owner\b/.test(bodyOf(sheet, "export function sheetMode", { until: "const RENDER_MODES" })),
             "the lit badge shows on characters the viewer does not own");
     }],
 
@@ -7587,7 +7621,7 @@ const REGRESSIONS = [
         const listed = new Set(guard.WRITE_REASONS ?? []);
         equal(JSON.stringify([...listed]), JSON.stringify(["spend", "refund", "price", "call", "rest", "itemUse", "itemWear", "stash",
             "retrieve", "discard", "searchFind", "concealment", "meddle", "setup", "levelUp", "incident", "reroll", "gmRuling",
-            "auditPutBack", "auditUndo", "equip", "ultimate", "sheetText"]), "the closed list of reasons moved - a reason is the plan's 2.2, and this list with it");
+            "auditPutBack", "auditUndo", "equip", "ultimate", "sheetText", "sheetReserve"]), "the closed list of reasons moved - a reason is the plan's 2.2, and this list with it");
         const FORWARDERS = [["inventory.mjs", "grantItem", true], ["inventory.mjs", "breakItem", true], ["inventory.mjs", "wearItem", true],
             ["use-items.mjs", "restore", false], ["use-items.mjs", "consume", false],
             // E29 C4: the Burst and Sprint grants go through the road, their reason the caller's (a Call, or a refund).
@@ -7875,7 +7909,7 @@ const REGRESSIONS = [
             ["observe.mjs", "undoPrevious", "scoreObserve"],
             ["observe.mjs", "scoreObserve", "resolveObserve"],
             ["states.mjs", "syncOnce", "syncStates"],
-            ["states.mjs", "clearSystemConditions", "syncOnce"],
+            ["states.mjs", "clearSystemConditions", "clearAllSystemConditions"],
             ["truth-bullets.mjs", "publishReading", "identify"],
             ["truth-bullets.mjs", "publishReading", "revealAllBulletTypes"],
             ["truth-bullets.mjs", "revertPlayerBulletEdit", "onBulletWrite"],
@@ -8324,7 +8358,8 @@ const REGRESSIONS = [
             ["SHEET trial.mjs#presentDialog", "out of scope: the presenter's own browser (R4): since C16 a dead presenter refused before it opens (document `isDeceased`, a courtesy); since E79 C16 a Present only, with no target list"],
             ["SHEET trial.mjs#presentBullet", "out of scope: the presenter's own browser (R4): since C16 a dead presenter's card is refused on the API's road (document `isDeceased`); since E79 C16 an Objection only on a GM's browser, judged by `seizeFloor` on the primary, and a Present has no GM-side judge - its popup (`registerTrial`) reads no death, left to E70's `isMutedDead`"],
             ["SHEET trial.mjs#seizeFloor", "judged (C16): a dead objector is refused and told on the primary - `isDeceased(await flagsAsHeld(actor))` before the item and the synchronous `floorRefusal`/`targetRefusal`, nothing paid [1b.2, F4]"],
-            ["SHEET sheet.mjs#addPresentButton", "out of scope: a display on the sheet's own browser (R4, C16): no Present button for a dead student (document `isDeceased`)"],
+            // sheet.mjs#addPresentButton struck in E45 C1: the dead's Present is the sheet's mode (`sheetMode`'s `presentShown`,
+            // the document's `isDeceased`), which the button reads; no trial road is left in it.
             ["SHEET trial-floor-ui.mjs#startClassTrial", "judged (C12): who is alive for 'nobody for the trial' is read as the GMs hold it - `isDeceased(flagsHeldNow(actor))` in one synchronous pass after `judgedFor` of every student, as `eligibleVoters`; the card's budget line after the write still counts `livingStudents()` (a display, R4) [1b.2]"],
             ["SHEET trial-floor-ui.mjs#readTrial", "out of scope: the trial console's display (R4, GM only, C12): the register's count (`blackenedIds`) and whether a student died this chapter of this season (`isDeadForGm`, `deathRecordFor` and since E11 C12 `sameSeason`, a death the GMs keep included), to warn of an empty register; it decides nothing - `manageClassTrial`, its only caller, answers a player with a warning before anything is read"],
             ["SHEET verdict.mjs#openFinalVerdictDialog", "out of scope: the Final Trial's window (display, GM only); `isDeadForGm` reads the GM deaths store beside the flag; since C10 the trial console's verdict opens it in a Final Trial (`TRIAL_ACTIONS.verdict`); since E41 C10b it is verdict.mjs's and marks the dead as the table knows them (`isDeceased(flagsHeldNow(a))` after `judgedFor`), every student choosable - who it names decides only the GMs' summary"],
@@ -14033,7 +14068,9 @@ const REGRESSIONS = [
          * visibility hidden, opacity 0 or content-visibility) but the one keyed on `[hidden]`, none states an
          * opacity or a transparent fill, and their colours are the two full inks the stylesheets give it (Legacy's
          * `--color-text-primary`, Stained Glass's `--drpg-glass-accent`); and `animation: none` on its runs under
-         * `body.drpg-no-ticker`, `body.drpg-reduced-motion`, `body.drpg-stacked` and `prefers-reduced-motion`.
+         * `body.drpg-no-ticker`, `body.drpg-reduced-motion` and `body.drpg-stacked` (and `prefers-reduced-motion` until
+         * E23 C5c: since then the system's preference puts `drpg-reduced-motion` on, motion.mjs `applyReducedMotion`,
+         * and no sheet but motion.css holds a `prefers-reduced-motion` block - R1410).
          * narrow.css, which loads last, is read with the rest: a rule there hiding the word is caught as anywhere.
          * The reader is held to three plants first: the word hidden with the ticker off, its colour at 0.2, and
          * the stacked screen's stop taken out. What the word looks like on the tile's picture is the glass
@@ -14105,7 +14142,7 @@ const REGRESSIONS = [
             const inks = [...new Set(word.map(({ decl }) => /(?:^|;)\s*color\s*:\s*([^;!]+)/.exec(decl)?.[1].trim()).filter(Boolean))].sort();
             const stops = rule => /\.drpg-voice-tile-state\s*>\s*span$/.test(rule.sel) && /(?:^|;)\s*animation\s*:\s*none\b/.test(rule.decl);
             const stopped = Object.fromEntries(Object.entries(SWITCHES).map(([what, re]) => [what, word.some(rule => stops(rule) && re.test(rule.sel))]));
-            stopped["prefers-reduced-motion"] = word.some(rule => stops(rule) && /prefers-reduced-motion\s*:\s*reduce/.test(rule.within));
+            stopped["prefers-reduced-motion"] = word.some(rule => /prefers-reduced-motion\s*:\s*reduce/.test(rule.within));
             const runs = word.some(({ sel, decl, within }) => /\.drpg-voice-tile-state\s*>\s*span$/.test(sel) && !within
                 && /(?:^|;)\s*animation\s*:\s*drpg-voice-word-run\b/.test(decl));
             return [word.length > 0, hides, faint, inks, stopped, runs];
@@ -14128,7 +14165,7 @@ const REGRESSIONS = [
         "the reader does not see the word hidden with the ticker off, its colour at 0.2, or the stacked screen's stop taken out");
         // Legacy's ink falls back to the literal components.css holds as a token (E44 C6: no literal outside one there).
         equal(J(reading(sheets)), J([true, [], [], ["var(--color-text-primary, var(--drpg-a8-text-fallback))", "var(--drpg-glass-accent)"],
-            { "no ticker": true, "reduced motion": true, stacked: true, "prefers-reduced-motion": true }, true]),
+            { "no ticker": true, "reduced motion": true, stacked: true, "prefers-reduced-motion": false }, true]),
         "[rules name the word; rules that hide it; rules that set it faint; its colours; its runs stopped by each switch; its runs running otherwise]");
         const all = sheets.flatMap(([name, css]) => rulesOf(css).map(rule => ({ ...rule, name, sel: rule.sel.replace(/\s+/g, " ") })));
         const last = (sel, prop) => all.filter(rule => rule.sel === sel && !rule.within)
@@ -14140,14 +14177,13 @@ const REGRESSIONS = [
             full: ["top", "bottom"].map(prop => last(FULL, prop)), compact: ["top", "bottom"].map(prop => last(COMPACT, prop)),
             faceRaised: all.filter(({ sel, decl }) => /\.drpg-voice-tile-face$/.test(sel) && /(?:^|;)\s*z-index\s*:/.test(decl)).map(({ name, sel }) => `${name} ${sel}`),
             still: ["body.drpg-no-ticker .drpg-voice-tile-state", "body.drpg-reduced-motion .drpg-voice-tile-state"].map(sel => ["top", "right"].map(prop => last(sel, prop))),
-            stillSystem: ["top", "right"].map(prop => all.filter(rule => rule.sel === ".drpg-voice-tile-state" && /prefers-reduced-motion\s*:\s*reduce/.test(rule.within))
-                .map(rule => new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;!]+)`).exec(rule.decl)?.[1].trim()).filter(Boolean).at(-1) ?? null),
+            stillSystem: all.filter(rule => /\.drpg-voice-tile-state\b/.test(rule.sel) && /prefers-reduced-motion\s*:\s*reduce/.test(rule.within)).length,
             rowFace: ["body.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden])", "body.drpg-theme-stained-glass.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden])"]
                 .map(sel => last(sel, "min-width"))
         }), J({ legacy: ["6px", "auto", "76px", "1", "var(--drpg-a8-deep-85)"], full: ["calc(7px - var(--drpg-voice-lift, 0px))", "auto"], compact: ["2px", "auto"], faceRaised: [],
-            still: [["40px", "6px"], ["40px", "6px"]], stillSystem: ["40px", "6px"], rowFace: ["196px", "124px"] }),
+            still: [["40px", "6px"], ["40px", "6px"]], stillSystem: 0, rowFace: ["196px", "124px"] }),
         "[Legacy's word: top, bottom, right (left of the two buttons), z-index, its ink band; the wall's full form: top, bottom; its compact form: top, bottom; rules that raise the face; "
-        + "the still word's top and right with the ticker off and under reduced motion, and under the system's; the least width of a face shown in the row, Legacy and Stained Glass]");
+        + "the still word's top and right with the ticker off and under reduced motion (the module's switch or the system's, one class since E23 C5c), the rules of the word under a media query of the system's (none); the least width of a face shown in the row, Legacy and Stained Glass]");
     }],
     ["R591 - the Objection's target and evidence are the primary GM's: LiveKit's speaker list is read in voice-tile.mjs and trial-speakers.mjs alone, the record and its two reads are declared once, exported, there; objectOnPrimary reads the packet's target only with no Room, the filled card is drawn from the holder's view, a player's own Objection card is refused, the trial bar does not load the trial at start, and the sheet's row raises no Objection", async () => {
         /*
@@ -16775,7 +16811,8 @@ const REGRESSIONS = [
             dead: [dead.length > 50, /\bincident\b|\bvictimId\b/.test(dead), /\bactor\.getFlag\(/.test(dead)],
             participants: [/\bheld\.getFlag\(MODULE_ID, FLAGS\.monocub\)/.test(participants), /\bactor\.getFlag\(MODULE_ID, FLAGS\.monocub\)/.test(participants)],
             present: ["presentDialog", "presentBullet"].map(name => /\bisMutedDead\(actor\)/.test(fn("trial.mjs", name))),
-            row: /\bisMutedDead\(app\.document\)/.test(fn("sheet.mjs", "addPresentButton")),
+            // The row asks the sheet's mode since E45 C1 (`presentShown`, built in `sheetMode` of `isMutedDead`).
+            row: /\bisMutedDead\(actor, facts\)/.test(fn("sheet.mjs", "sheetMode")) && /\bpresentShown\b/.test(fn("sheet.mjs", "addPresentButton")),
             card: [/\bisMutedDead\(/.test(register), /refusePlayersCard\(message, "dead"\)/.test(register), /if \(!playersCard\)\s*showPopup\(/.test(register)],
             tile: [/"updateSetting"/.test(tile), ["clock", "trialQueue", "trialProgress"].every(k => new RegExp(`SETTINGS\\.${k}\\b`).test(tile)), /\bpaintControls\(\)/.test(tile)]
         }), JSON.stringify({
@@ -18392,7 +18429,9 @@ const REGRESSIONS = [
                 "Investigation.filterCount", "Investigation.keyLimitLine", "Investigation.keySummary",
                 "Overflow.clearAsk", "Overflow.current", "Overflow.currentDrawn", "Overflow.currentWaiting",
                 "Overflow.gmHint", "Overflow.gmHintActive", "Overflow.gmHintActiveFull", "Overflow.gmHintQueued",
-                "Passage.pick.step", "Sound.groupAssigned", "Vote.accusesLine", "Vote.barLine", "Vote.namedByTable"
+                "Passage.pick.step", "Sound.groupAssigned", "Vote.accusesLine", "Vote.barLine", "Vote.namedByTable",
+                // E24 C1b: the incident card's reserves, "3 of 4 Health" / "3 z 4 Health" (the sheet's "Left: 3 / 4").
+                "Events.reserveOf", "Events.reserveVictim", "Events.reserveYou"
             ].map(key => [key, "R"]),
             ...[
                 "Vault.roomRatio"
@@ -18413,7 +18452,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 52, S: 25, R: 23, D: 1, P: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 52, S: 25, R: 26, D: 1, P: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
@@ -18677,7 +18716,7 @@ const REGRESSIONS = [
          * Leave a Clue and Secure a Trace hints end "a critical leaves two" / „a krytyk zostawia dwa”, the entry's
          * `indirectVictim.count.critical`, and the digit rule cannot see a word. 2 to 12 only: "one" and „jeden” stand
          * in every other sentence as an article or a pronoun (Sprint's "one more" is section 13's, E71). Measured on
-         * this tree: these four places and no other. Their placeholder needs the owner's text change: E71 (row 1.2.122).
+         * this tree: these four places and no other. Their placeholder needs the owner's text change: E71 (row 1.2.121).
          */
         const NUMBER_WORDS = { en: ["", "", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"],
             pl: ["", "", "dwa|dwie|dwóch|dwoma|dwu", "trzy|trzech|trzema", "cztery|czterech", "pięć|pięciu", "sześć|sześciu", "siedem|siedmiu",
@@ -18808,13 +18847,13 @@ const REGRESSIONS = [
             en: {
                 now: ["up to 1 connected room", "up to 5 connected rooms",
                     "2 actions each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs 1 action, a Long Rest 2 actions.",
-                    "With all your Health marked you get 1 action instead of 2 actions, until somebody patches you up.",
+                    "With no Health left you get 1 action instead of 2 actions, until somebody patches you up.",
                     "You have 2 actions", "A trap is built as projects. Budget about 7-10 progress across them, roughly 4 to 5 actions, or it costs more to set than it is worth.",
                     "Your own scene, tonight: no action, 1 Sanity each.", "-30 s", "+30 s", "-5 s", "The Closing Argument: who will sum up the case? Volunteer within 30 s; the GM confirms the speaker.",
                     "Nonstop Debate - 3 s over your budget. Everyone may speak; +30 s puts 30 s back on the clock."],
                 moved: ["up to 1 connected room", "up to 5 connected rooms",
                     "3 actions each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs 2 actions, a Long Rest 3 actions.",
-                    "With all your Health marked you get 2 actions instead of 3 actions, until somebody patches you up.",
+                    "With no Health left you get 2 actions instead of 3 actions, until somebody patches you up.",
                     "You have 3 actions", "A trap is built as projects. Budget about 9-14 progress across them, roughly 5 to 7 actions, or it costs more to set than it is worth.",
                     "Your own scene, tonight: no action, 2 Sanity each.", "-45 s", "+45 s", "-5 s", "The Closing Argument: who will sum up the case? Volunteer within 40 s; the GM confirms the speaker.",
                     "Nonstop Debate - 3 s over your budget. Everyone may speak; +45 s puts 45 s back on the clock."],
@@ -18823,13 +18862,13 @@ const REGRESSIONS = [
             pl: {
                 now: ["do 1 połączonego pokoju", "do 5 połączonych pokoi",
                     "2 akcje na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje 1 akcję, Long Rest 2 akcje.",
-                    "Z całym Health zaznaczonym dostajesz 1 akcję zamiast 2 akcji, dopóki ktoś cię nie poskłada.",
+                    "Gdy nie zostało ci już Health, dostajesz 1 akcję zamiast 2 akcji, dopóki ktoś cię nie poskłada.",
                     "Masz 2 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 7-10 postępu łącznie, mniej więcej 4 do 5 akcji, inaczej kosztuje więcej, niż jest warta.",
                     "Twoja własna scena, tej nocy: bez akcji, 1 Sanity za każdy.", "-30 s", "+30 s", "-5 s", "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 30 s; GM zatwierdza mówcę.",
                     "Nonstop Debate - 3 s ponad budżet. Każdy może mówić; +30 s oddaje zegarowi 30 s."],
                 moved: ["do 1 połączonego pokoju", "do 5 połączonych pokoi",
                     "3 akcje na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje 2 akcje, Long Rest 3 akcje.",
-                    "Z całym Health zaznaczonym dostajesz 2 akcje zamiast 3 akcji, dopóki ktoś cię nie poskłada.",
+                    "Gdy nie zostało ci już Health, dostajesz 2 akcje zamiast 3 akcji, dopóki ktoś cię nie poskłada.",
                     "Masz 3 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 9-14 postępu łącznie, mniej więcej 5 do 7 akcji, inaczej kosztuje więcej, niż jest warta.",
                     "Twoja własna scena, tej nocy: bez akcji, 2 Sanity za każdy.", "-45 s", "+45 s", "-5 s", "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 40 s; GM zatwierdza mówcę.",
                     "Nonstop Debate - 3 s ponad budżet. Każdy może mówić; +45 s oddaje zegarowi 45 s."],
@@ -19026,7 +19065,8 @@ const REGRESSIONS = [
             "actions.mjs#clearGrants": "the refill's reach, actor by actor as `resetActionsFor` skips the dead (the table's fact), for the grants a boundary opened again ends",
             "call-pickers.mjs#pickItem": "whose things Contraband can reach: a body's too, a Monokuma's or a Monocub's not"
         };
-        const WALKS = /\bstudentActors\(\)|\blivingStudents(?:ForGm)?\(\)|\bgame\.actors\.(?:filter|find|some|map|forEach)\(|\bof game\.actors\b/;
+        // `studentActors` with the GMs' `held` too (E24 fix G1: voice.mjs `deadForTrial` reads the roster through it).
+        const WALKS = /\bstudentActors\((?:\)|\{ held(?:: \w+)? \}\))|\blivingStudents(?:ForGm)?\(\)|\bgame\.actors\.(?:filter|find|some|map|forEach)\(|\bof game\.actors\b/;
         const DEATH = /\b(?:isDeceased|isDeadForGm|isMutedDead)\(|FLAGS\.deceased\b/;
         const CUB = /FLAGS\.monocub\b|\bisMonocub\(/;
         const found = [];
@@ -19043,7 +19083,8 @@ const REGRESSIONS = [
         const roster = fnSource(mono, "actingStudents");
         const doc = bodyOf(sources.get("monokuma.mjs"), "export function actingStudents", { back: 1500 });
         equal(JSON.stringify({
-            roster: [/^export function actingStudents\(\{ dead = isDeadForGm \} = \{\}\)/.test(roster), /\bstudentActors\(\)/.test(roster),
+            // `held` since E24 fix G1 (the GMs' roads hand `flagsHeldNow` through to `studentActors`).
+            roster: [/^export function actingStudents\(\{ dead = isDeadForGm, held = null \} = \{\}\)/.test(roster), /\bstudentActors\(\{ held \}\)/.test(roster),
                 /!dead\(a\) \|\| a\.getFlag\(MODULE_ID, FLAGS\.monocub\)/.test(roster),
                 /the students who still spend a budget: the living, and the dead back as a Monocub/i.test(doc)],
             strip: [/\bactingStudents\(\)/.test(fnSource(status, "buildTableView")), topLevelFunction(status, "trackedStudents") === null],
@@ -19986,7 +20027,7 @@ const REGRESSIONS = [
          * The queue is this browser's memory (`serialWrite`), so it holds one GM's browser to one copy (E60's fix round,
          * FG6; the end review's C-m8, S-m4): Observe's find, a hand-over, a Present and Monokuma's Reveal run on the
          * primary, and Give a Truth Bullet on whichever GM opened it - a give on a second GM's browser beside the
-         * primary's find of the same trace for the same receiver can still make two copies, and is E38's (row 1.2.128,
+         * primary's find of the same trace for the same receiver can still make two copies, and is E38's (row 1.2.127,
          * the stage of two GMs; STATUS Open 50).
          */
         const sources = await moduleSources();
@@ -20694,6 +20735,349 @@ const REGRESSIONS = [
         }
         equal(JSON.stringify(read), JSON.stringify({ en: { red: true, chat: true }, pl: { red: true, chat: true } }),
             "[per language: the player's handbook says, under the GM mark's note, that a red row or button in a window goes to the GM; the GM's handbook says, in the paragraph on Foundry's rails, that no player reads the chat]");
+    }],
+    ["R1383 - the turn's measure (audit/glass-sweep.mjs `--turn`; E23 C1a, E23-01..E23-06 and E23-08): the sweep has a turn mode that reads the turn's main-thread time, its long tasks, its frames, its first moved frame, the clip-path writes and canvas draws inside its frames, the texture energy in the moving band, the seams' flash peak, the self-check at three points inside it and the cut's signature, on the four turns the glass harness fires (`drpgTurn`), and names its two controls, `?turn=today` and `?flash=0.5`, which the harness answers", async () => {
+        /*
+         * E23 C1a, 07.11.2026. How a turn of the curtain moves is a reading in Chromium, never a headless one: jsdom lays
+         * nothing out and draws nothing. What this holds is the measure's reach - that the readings E23's acceptance rows
+         * name are taken and printed, on the turns they name, with the controls that show each reading can see its fault
+         * - not the readings, which every commit that changes the turn quotes against C1a's baseline (STAGE.md rule 1).
+         * Both files are read as text, whole; nothing is sliced. Red on 1d860414: no `--turn` in glass-sweep.mjs ("no
+         * turn mode").
+         */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        const read = async path => {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" });
+                return res.ok ? await lfText(res) : "";
+            } catch { return ""; }
+        };
+        const [sweep, page] = await Promise.all(["audit/glass-sweep.mjs", "audit/glass-harness.html"].map(read));
+        must(sweep.length > 20000 && page.length > 20000, "glass-sweep.mjs or glass-harness.html read nothing - this test would read nothing");
+        ok(sweep.includes("if (args.includes(\"--turn\")) {"), "no turn mode in audit/glass-sweep.mjs");
+        const missing = (text, list) => list.filter(s => !text.includes(s));
+        equal(JSON.stringify({
+            readings: missing(sweep, ["TaskDuration", "Page.startScreencast", "turnTexture", "turnFlashPeak", "Performance.getMetrics"]),
+            line: missing(sweep, ["main ${", "long ${", "frames ${", "first ${", "len ${", "clip ${", "draw ${", "tex ${", "flash ${", "cut ${", "check ${"]),
+            controls: missing(sweep, ["turn=today", "flash=0.5"]),
+            harness: missing(page, ["window.drpgTurn = async", "window.drpgTurnFreeze", "\"longtask\"", "HTMLCanvasElement.prototype.getContext", "was.clipPath !== now.clipPath",
+                "Hooks.on(\"drpgGlassCut\", S.onCut", "const turnRegions", "g?.CHECKS?.[0]"]),
+            kinds: missing(page, ["\"phase-recut\"", "\"phase\"", "\"hour\"", "\"layout\""]),
+            switches: missing(page, ["q.get(\"turn\") === \"today\"", "q.get(\"flash\")"])
+        }), JSON.stringify({ readings: [], line: [], controls: [], harness: [], kinds: [], switches: [] }),
+        "[what the sweep does not read; the fields its turn line does not print; the controls it does not name; what the harness's turn functions do not hold; "
+            + "the turns the harness cannot fire; the control switches the harness does not answer]");
+    }],
+    ["R1440 - the sheet stand-in's parts (audit/style-harness.html `?sheet=parts`; E24 C0, Q-ORCH-E24-2): both layouts of Daggerheart 2.10.5's resource-bar.hbs - the bar (`.status-bar`, `progress.progress-bar`, `input.bar-input` named by its system key, `.bar-label`, the plate) with what sheet.mjs `paintReserves` adds (`paintResourceBars` until E24 C1a), and with `&pips=1` the pips (`.slot-value`, a `.slot` per point carrying its toggle's `data-action`, `.slot-label`) - the biography part with a `.drpg-biography-text`, the inventory part with a group and its count, an action panel, and a viewer's `drpg-redacted-sheet`; every `drpg-*` class the parts carry a string literal of sheet.mjs (comments out), the viewer's of anonymity.mjs", async () => {
+        /*
+         * E24 C0, 08.11.2026. jsdom lays nothing out, so how the sheet's parts look - the biography's type, the bars'
+         * colours, the inventory's counters, the narrow column - is read in Chromium on the style harness, before a table.
+         * The stand-in is the module's markup on Daggerheart 2.10.5's shapes (resource-bar.hbs, the character sidebar),
+         * not Daggerheart's sheet; this holds the module's half of it: that each part the stage reads is drawn, and that
+         * no class on it is one the module does not write - a class sheet.mjs stopped writing would leave the stand-in
+         * styled by a rule the table no longer meets. The page is read as text and the parts cut by the kit's `bodyOf`
+         * (`sheetParts`, to its closing line); sheet.mjs and anonymity.mjs as their string literals, comments stripped
+         * (the kit's `stringLiterals`). The page's own classes (`drpg-style-*`) are not the module's. Red on c7dfa20b:
+         * the page has no `?sheet=parts` ("no parts page").
+         */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        let page = "";
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/audit/style-harness.html`, { cache: "no-cache" });
+            page = res.ok ? await lfText(res) : "";
+        } catch { /* read as empty below */ }
+        must(page.length > 10000, "audit/style-harness.html read nothing - this test would read nothing");
+        ok(page.includes("q.get(\"sheet\") === \"parts\""), "no parts page: audit/style-harness.html has no `?sheet=parts` branch");
+        const parts = bodyOf(page, "const sheetParts = (", { until: "\n  };\n" });
+        const sources = await moduleSources();
+        const literalClasses = file => {
+            const out = new Set();
+            for (const literal of stringLiterals(stripComments(sources.get(file) ?? ""))) {
+                for (const m of literal.text.matchAll(/(?<![\w-])drpg-[\w-]+/g)) out.add(m[0]);
+            }
+            return out;
+        };
+        const sheet = literalClasses("sheet.mjs"), anonymity = literalClasses("anonymity.mjs");
+        must(sheet.size > 100 && anonymity.size > 2, "sheet.mjs or anonymity.mjs read no class - this test would read nothing");
+        const carried = [...new Set([...parts.matchAll(/(?<![\w-])drpg-[\w-]+/g)].map(m => m[0]))].filter(c => !c.startsWith("drpg-style-"));
+        const VIEWER = ["drpg-redacted-sheet"];
+        const missing = (text, list) => list.filter(s => !text.includes(s));
+        must(carried.length >= 15, `the parts carry ${carried.length} class(es) of the module - the cut read too little`);
+        equal(JSON.stringify({
+            bar: missing(parts, ["class=\"status-bar\"", "class=\"progress-bar", "class=\"bar-input\" name=\"${", "class=\"bar-label\"", "class=\"status-label pointy\"",
+                "drpg-resource-bar", "drpg-resource-fill", "drpg-bar-replaced", "--drpg-bar-pct"]),
+            pips: missing(parts, ["pip-display", "class=\"slot-value\"", "class=\"slot-bar\"", "class=\"slot-label\"", "data-action=\"${", "data-value=\"${"]),
+            sidebar: missing(parts, ["character-sidebar-sheet", "resources-section", "\"system.resources.hitPoints.value\"", "\"system.resources.stress.value\"",
+                "\"toggleHitPoints\"", "\"toggleStress\"", "equipment-section", "items-sidebar-list"]),
+            tabs: missing(parts, ["data-application-part=\"${part}\"", "section(\"features\", ", "section(\"inventory\", ", "section(\"biography\", ",
+                "drpg-biography-text", "drpg-inventory-group", "drpg-group-count", "drpg-action-panel", "drpg-action-grid", "drpg-redacted-sheet"]),
+            page: missing(page, ["q.get(\"pips\")", "q.get(\"role\") === \"viewer\"", "q.get(\"pixel\")", "resource-bar.hbs", "character/sidebar.hbs", "2.10.5", "sheetParts(app, {"]),
+            notSheet: carried.filter(c => !VIEWER.includes(c) && !sheet.has(c)).sort(),
+            notAnonymity: VIEWER.filter(c => !anonymity.has(c))
+        }), JSON.stringify({ bar: [], pips: [], sidebar: [], tabs: [], page: [], notSheet: [], notAnonymity: [] }),
+        "[what the bar layout lacks; what the pip layout lacks; what the sidebar lacks; what the tabs' parts lack; what the page does not answer or name; "
+            + "the module classes on the parts that sheet.mjs writes in no literal; the viewer's class anonymity.mjs does not write]");
+    }],
+    ["R1448 - no DRPG text says Health or Sanity is marked (E24 C1b, E24-09; D5 option 1, docs/text-style.md M7 \"a resource is said as its reserve\"): in either language no string under DRPG that names Health or Sanity says \"mark\", \"zaznacz\" or \"znacznik\"; the eight keys the stage rewrote say none of the three; `Murder.victimMarks` is gone from both files", async () => {
+        /*
+         * E24 C1b, 08.11.2026. The sheet, the panel and the tracker say what is left (D5 option 1), and nine texts still
+         * said the marks: Wounded's and Breakdown's descriptions, the two tooltips of a wounded student's actions, the
+         * critical's choice and its intro, the GM's note at the clock, the Explain line and the panel's
+         * `Murder.victimMarks`. The intro names neither reserve ("their body, or their nerve"), so the eight that stay
+         * are read by name as well as by the pattern.
+         */
+        const MARK = /mark|zaznacz|znacznik/i, NAMES = /Health|Sanity/;
+        const EIGHT = ["Actions.woundedTooltip", "Actions.lockedTooltip", "Murder.killerChooses", "Murder.criticalChoiceIntro", "Clock.woundedNote",
+            "States.drpgBreakdown.description", "States.drpgWounded.description", "Explain.status.actionsWounded"];
+        const found = [], named = [], retired = [];
+        let read = 0;
+        for (const lang of ["en", "pl"]) {
+            const json = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const walk = (node, path) => {
+                for (const [key, value] of Object.entries(node ?? {})) {
+                    const at = path ? `${path}.${key}` : key;
+                    if (typeof value === "string") {
+                        read++;
+                        if (NAMES.test(value) && MARK.test(value)) found.push(`${lang} DRPG.${at}`);
+                    } else if (value && typeof value === "object") walk(value, at);
+                }
+            };
+            walk(json.DRPG, "");
+            const get = path => path.split(".").reduce((o, k) => o?.[k], json.DRPG);
+            for (const key of EIGHT) {
+                const text = get(key);
+                if (typeof text !== "string" || MARK.test(text)) named.push(`${lang} DRPG.${key}`);
+            }
+            if (get("Murder.victimMarks") !== undefined) retired.push(`${lang} DRPG.Murder.victimMarks`);
+        }
+        must(read > 4000, `read ${read} string(s) - it would measure nothing`);
+        equal(JSON.stringify({ found: found.sort(), named, retired }), JSON.stringify({ found: [], named: [], retired: [] }),
+            "{found: the strings naming Health or Sanity with a mark word; named: the eight rewritten keys missing or still saying it; retired: Murder.victimMarks still in a file}");
+    }],
+    ["R1461 - the system's conditions are cleared once a load, not on every write (states.mjs; E24 C3b, E24-25; audit S03-35): `syncOnce` - the pass every Health and Sanity write runs - calls no `clearSystemConditions`; `clearAllSystemConditions` asks `isPrimaryGm()` before anything and is its one caller; `suppressSystemAutomation` runs it once it has switched the automations off, and nothing else does: `registerStates`' ready hook runs `takeOverConditions`, which hands the migration the actors and clears nothing itself (E24 fix G2A, review M1: a clear at every load took a GM's own Unconscious at the next reload)", async () => {
+        /* E24 C3b, 08.11.2026. Read off the source, comments stripped: a GM's Unconscious is a status the world holds, and
+           tier 0 writes none. Red on the tree before: `syncOnce` calls it, no `clearAllSystemConditions`. */
+        const src = stripComments((await moduleSources()).get("states.mjs") ?? "");
+        must(src.length > 5000, "states.mjs read nothing - this test would read nothing");
+        const fn = name => topLevelFunction(src, name) ?? "";
+        const sync = fn("syncOnce"), all = fn("clearAllSystemConditions"), reg = fn("registerStates"), sup = fn("suppressSystemAutomation"), take = fn("takeOverConditions");
+        must(sync && reg && sup, "states.mjs no longer declares syncOnce, registerStates or suppressSystemAutomation - this test reads nothing");
+        const clears = [...src.matchAll(/(?<!function )\bclearAllSystemConditions\(/g)].length;
+        const callers = [...src.matchAll(/(?<!function )\bclearSystemConditions\(/g)].length;
+        equal(JSON.stringify({
+            syncOnce: /\bclearSystemConditions\(/.test(sync),
+            gate: /^[^\n]*\)\s*\{\s*if \(!isPrimaryGm\(\)\) return 0;/.test(all), calls: /\bclearSystemConditions\(actor\)/.test(all), callers,
+            ready: /Hooks\.once\("ready", \(\) => \{\s*if \(!isPrimaryGm\(\)\) return;\s*takeOverConditions\(\)/.test(reg),
+            take: [/\bawait suppress\(\{ actors \}\)/.test(take), /\bclearAllSystemConditions\(/.test(take), /\bawait sync\(\)/.test(take)],
+            migration: /await game\.settings\.set\(DH, AUTOMATION,[\s\S]*?\}\);[\s\S]*?await clearAllSystemConditions\(\{ actors \}\);[\s\S]*?return true;/.test(sup),
+            clears
+        }), JSON.stringify({ syncOnce: false, gate: true, calls: true, callers: 1, ready: true, take: [true, false, true], migration: true, clears: 1 }),
+        "[syncOnce calls clearSystemConditions; clearAllSystemConditions gated on the primary first; it calls it; the calls of it in states.mjs; the ready hook runs takeOverConditions; "
+            + "it [hands the migration the actors, calls the clear itself, syncs]; the migration's call after its write; the calls of clearAllSystemConditions in states.mjs]");
+    }],
+    ["R1487 - each state's icon is the module's own pixel art (E24 C1c; STAGE.md \"Amend 08.11\" A3, Q-E24-7): Breakdown's, Wounded's and the dead icon's `img` is an SVG under the module's icons/, served, on a 16x16 grid drawn crispEdges in whole-pixel rects, in the item icons' ink and one other colour of their palette", async () => {
+        /*
+         * E24 C1c, 08.11.2026. The owner, 08.11: "A ikony statusow (0hp, 0 sanity - breakdown i analogiczne dla hp) sa
+         * pixelartowe z drpg, czy dalej z daggerheart? Jesli z daggerheart, dodajmy do planu wlasne ikony, pasujace do
+         * reszty". Read at c90df638: config.mjs `STATES` gave Breakdown Foundry's painted
+         * `icons/magic/control/fear-fright-monster-grin-red-orange.webp` and Wounded
+         * `icons/skills/wounds/injury-triple-slash-bleed.webp`, and the dead overlay was Daggerheart's tombstone (its
+         * `deadIcon` setting). The module's own icons are icons/item-*.svg: a 16x16 view, `shape-rendering="crispEdges"`,
+         * one-pixel rects, ink #1a1620 and an accent (bone #e8e3ec beside it on four of six). "Pasujace do reszty" is read
+         * as that style: the three icons are held to the item icons' grid and palette, ink and exactly one other colour.
+         * Red on C1b's tree: two core .webp paths and no `DEAD_ICON`.
+         */
+        const C = await import("./config.mjs");
+        const INK = "#1a1620";
+        const fillsOf = text => [...text.matchAll(/\bfill="(#[0-9a-fA-F]{3,8})"/g)].map(m => m[1].toLowerCase());
+        const palette = new Set();
+        for (const category of Object.keys(C.ITEM_CATEGORIES ?? {})) {
+            const res = await fetch(`/modules/${MODULE_ID}/icons/item-${category}.svg`);
+            if (res.ok) for (const fill of fillsOf(await lfText(res))) palette.add(fill);
+        }
+        must(palette.has(INK) && palette.size >= 3, `the item icons' palette read ${JSON.stringify([...palette])} - it would measure nothing`);
+        const RUN = /^(?:M\d+ \d+h\d+v1H\d+z)+$/;
+        const rows = {};
+        for (const [name, img] of [["breakdown", C.STATES?.breakdown?.img], ["wounded", C.STATES?.wounded?.img], ["dead", C.DEAD_ICON?.img]]) {
+            const own = typeof img === "string" && new RegExp(`^modules/${MODULE_ID}/icons/[\\w-]+\\.svg$`).test(img);
+            const res = own ? await fetch(`/${img}`) : null;
+            const text = res?.ok ? await lfText(res) : "";
+            const root = text.match(/^<svg\b[^>]*>/)?.[0] ?? "";
+            const tags = [...text.matchAll(/<([a-zA-Z][\w-]*)\b/g)].map(m => m[1]);
+            const ds = [...text.matchAll(/<path\b[^>]*\bd="([^"]*)"/g)].map(m => m[1]);
+            const fills = new Set(fillsOf(text));
+            rows[name] = {
+                own,
+                served: Boolean(res?.ok),
+                grid: /\bviewBox="-?\d+ -?\d+ 16 16"/.test(root),
+                crisp: /\bshape-rendering="crispEdges"/.test(root),
+                rects: ds.length > 0 && tags.every(t => t === "svg" || t === "path") && ds.every(d => RUN.test(d)),
+                palette: fills.size > 0 && [...fills].every(f => palette.has(f)),
+                inkAndOne: fills.has(INK) && fills.size === 2
+            };
+        }
+        const want = { own: true, served: true, grid: true, crisp: true, rects: true, palette: true, inkAndOne: true };
+        equal(JSON.stringify(rows), JSON.stringify({ breakdown: want, wounded: want, dead: want }),
+            "{each icon: [own: an SVG under the module's icons/; served; grid: a 16x16 view; crisp: crispEdges; rects: paths of whole-pixel rects only; palette: every colour one of the item icons'; inkAndOne: the ink and exactly one other]}");
+    }],
+    ["R1470 - one sheet mode (E45 C1; audit S17-37): no mode predicate - `isDeceased(`, `isDeadForGm(`, `deadToViewer(`, `isMonocub(`, `isMonokuma(`, `isNotInClass(`, `FLAGS.notInClass`, `isMastermindActor(`, `testUserPermission(` or `?.(`, `.isOwner`, a user's `.isGM` or `?.isGM`, `isEditable` - in sheet.mjs or sheet-audit.mjs outside sheet.mjs `sheetMode`, but in the few declarations the list names, each with its reason; and each of those still reads one", async () => {
+        /* E45 C1, 08.11.2026. Read off the sources, comments and string literals stripped, cut at each top-level
+           declaration (a function, a const or let); the imports before the first are not read. Red on E24's tip: 46 lines
+           in 24 declarations (`injectActionPanel`'s eight the most), and `sheetMode` and `labelItemKind` reading none.
+           E24 fix G2B (general m1): `testUserPermission?.(` and `<name>?.isGM` were not read; read now, red on 52955be4 at
+           sheet.mjs `mayEditReserve`'s two lines and `paintPartyReserves`' one, and at sheet-audit.mjs's role checks, listed. */
+        const sources = await moduleSources();
+        const PREDICATE = /\bisDeceased\(|\bisDeadForGm\(|\bdeadToViewer\(|\bisMonocub\(|\bisMonokuma\(|\bisNotInClass\(|\bFLAGS\.notInClass\b|\bisMastermindActor\(|\btestUserPermission\??\.?\(|\.isOwner\b|\b\w+\??\.isGM\b|\bisEditable\b/;
+        const AUDIT_ROLE = "the audit's role: which browser judges, relays or decides a write (the GMs', D2), not a view's gate";
+        const ALLOWED = {
+            "sheet.mjs": {
+                sheetMode: "the one gate: the mode is built of these predicates here and nowhere else",
+                lockItemName: "an item's own sheet: an item has no sheet mode, and a GM keeps its name editable",
+                lockItemDescription: "an item's own sheet: the same, for its description",
+                labelItemKind: "an item's own sheet: whether a GM is told a Truth Bullet's real type",
+                buildOtherSection: "the Remove button's write is the GM's road: its own guard before `item.delete` (R220's census), whatever drew the button"
+            },
+            "sheet-audit.mjs": {
+                itemCovers: "the audit's rule of what a held item covers, read of the world on the GM's road, not a view's gate",
+                itemFindings: "the audit's rule: a dead student's held item spends nothing",
+                placeStands: "the audit's rule: a dead student's placement stands",
+                // E24 fix G2B: read since the reader sees `?.isGM` and `testUserPermission?.(` (general m1).
+                callsCover: "the audit's rule: whether a Call its author armed covers a write, read on the GM's road",
+                creationRefusal: AUDIT_ROLE,
+                deletedHeldBy: AUDIT_ROLE,
+                meansWrite: AUDIT_ROLE,
+                judgeNow: AUDIT_ROLE,
+                relayGainRefusal: AUDIT_ROLE,
+                onRollHeard: AUDIT_ROLE,
+                decideNow: AUDIT_ROLE,
+                onRenderFlagged: AUDIT_ROLE,
+                sheetWrites: AUDIT_ROLE,
+                primaryLeft: AUDIT_ROLE,
+                // E24 fix G1 (09.11.2026): a new character's first mark asks whether the user who made it was a GM.
+                firstMark: "the audit's rule: whether the user who made a character was a GM (its maker's role, not a viewer's)"
+            }
+        };
+        const strip = text => stripComments(text).replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, "\"\"");
+        const found = [], allowedRead = {};
+        for (const file of Object.keys(ALLOWED)) {
+            const src = strip(sources.get(file) ?? "");
+            must(src.length > 20000, `${file} read nothing - this test would read nothing`);
+            let name = null;
+            src.split("\n").forEach((line, i) => {
+                const decl = line.match(/^(?:export )?(?:async )?(?:function\*? (\w+)|(?:const|let) (\w+))/);
+                if (decl) name = decl[1] ?? decl[2];
+                if (!name || !PREDICATE.test(line)) return;
+                if (ALLOWED[file][name]) allowedRead[`${file}:${name}`] = true;
+                else found.push(`${file}:${i + 1} ${name}: ${line.trim().slice(0, 100)}`);
+            });
+        }
+        const listed = Object.entries(ALLOWED).flatMap(([file, names]) => Object.keys(names).map(name => `${file}:${name}`));
+        equal(JSON.stringify({ found, stale: listed.filter(key => !allowedRead[key]) }), JSON.stringify({ found: [], stale: [] }),
+            "{found: each line outside sheetMode and the allowed list that reads a mode predicate; stale: an allowed declaration that no longer reads one}");
+    }],
+    ["R1476 - the flicker's apparatus is gone (E45 C2, E45-07; audit S03-07): in sheet*.mjs, comments stripped, none of `skipNextRender`, `markResourceOnlyUpdate`, `willReallyChange`, `repaintAfterResourceUpdate`, no `preUpdateActor` hook, and sheet.mjs registers no `updateActor` hook", async () => {
+        /* E45 C2, 08.11.2026. Read off the source, comments stripped (the block "THE FLICKER" tells the history in
+           prose). sheet-audit.mjs's `updateActor` listener is the GMs' audit of a write (E29, the trust model's), not
+           the sheet's render: it stays and is not read here; its `preUpdateActor` would be. Red on the tree before:
+           sheet.mjs holds the four names and both hooks. */
+        const all = await moduleSources();
+        const files = [...all.keys()].filter(name => /^sheet[^/]*\.mjs$/.test(name)).sort();
+        must(files.includes("sheet.mjs") && files.includes("sheet-audit.mjs"), `sheet*.mjs read as ${JSON.stringify(files)} - this test would read nothing`);
+        const hook = (src, name) => new RegExp(`Hooks\\.(?:on|once)\\(\\s*["'\`]${name}["'\`]`).test(src);
+        const found = {};
+        for (const name of files) {
+            const src = stripComments(all.get(name) ?? "");
+            must(src.length > 1000, `${name} read nothing`);
+            const hits = ["skipNextRender", "markResourceOnlyUpdate", "willReallyChange", "repaintAfterResourceUpdate"]
+                .filter(word => new RegExp(`\\b${word}\\b`).test(src));
+            if (hook(src, "preUpdateActor")) hits.push("a preUpdateActor hook");
+            if (name === "sheet.mjs" && hook(src, "updateActor")) hits.push("an updateActor hook");
+            if (hits.length) found[name] = hits;
+        }
+        equal(JSON.stringify(found), "{}", "the flicker's old apparatus by file: [the four names, a preUpdateActor hook, sheet.mjs's updateActor hook]");
+    }],
+    ["R1465 - no handbook line, English or Polish, says Health or Sanity is marked (E24 C4b, E24-12; D5 option 1, docs/text-style.md M7 \"a resource is said as its reserve\"; R1448 holds the same of the UI's own texts): the four handbooks' sentences and table cells that name Health or Sanity carry no \"mark\" word - \"marked\", \"mark\", \"marks\" - in English and no \"zaznacz\", \"oznacz\" or \"znacznik\" in Polish; the brochure's \"at zero\" is not a line this test reads", async () => {
+        /*
+         * E24 C4b, 08.11.2026. The sheet, the panel, the tracker and the UI's texts say what is left (R1442, R1446,
+         * R1448); four handbook lines still said what is marked: the player handbook's two state rows ("every point of
+         * Sanity is marked", "every point of Health is marked"), the Monocub's start ("no Health or Sanity marked") and
+         * the critical's "both marks on the one track"; the GM handbook's Wounded ("all Health marked") and the Monocub's
+         * start. Read by nearness, not by the line (a first version read each sentence and a table cell, and found
+         * "marked decided" and "mark the victim dead" in long lines that also name Health): a mark word within 60
+         * characters of the name with no stop or quotation mark between, so a room "marked" and "marked as Monokuma" in a line that also
+         * says Health are not hits. Red first on 22c15a53:
+         * the lines above, in both languages.
+         */
+        const MARK = { en: "\\bmark(?:s|ed|ing)?\\b", pl: "(?:zaznacz|oznaczon|znaczni)[a-z\u0105\u0107\u0119\u0142\u0144\u00f3\u015b\u017a\u017c]*" };
+        const NAMES = /\bHealth\b|\bSanity\b/;
+        // A mark word within 60 characters of the name, no stop between: "every point of Sanity is marked", "no Health or
+        // Sanity marked", "both marks on the one track you choose, Health or Sanity"; not a roll "marked decided" in a
+        // line that names Health a sentence away.
+        const NEAR = lang => new RegExp(`(?:\\b(?:Health|Sanity)\\b[^.;:|!?\\"]{0,60}${MARK[lang]}|${MARK[lang]}[^.;:|!?\\"]{0,60}\\b(?:Health|Sanity)\\b)`, "i");
+        const found = [];
+        let sentences = 0;
+        for (const book of ["player-handbook", "gm-handbook"]) {
+            for (const lang of ["en", "pl"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}.${lang}.md`);
+                ok(res.ok, `docs/handbooks/${book}.${lang}.md did not load`);
+                const near = NEAR(lang);
+                (await lfText(res)).split("\n").forEach((line, at) => {
+                    if (NAMES.test(line)) sentences++;
+                    if (near.test(line)) found.push(`${book}.${lang}.md:${at + 1}`);
+                });
+            }
+        }
+        must(sentences > 150, `read ${sentences} line(s) that name Health or Sanity - it would measure nothing`);
+        equal(JSON.stringify(found), "[]", "the handbook lines whose sentence names Health or Sanity and says it is marked");
+    }],
+    ["R1482 - scenario 71-sheet exists as its README row says (E45 C3a, E45-12; STAGE E45 \"71-sheet\", Q-E45-1): the file declares `layers = [\"ci\"]` and names its parts A to H, and audit/harness/README.md's row 71 reads `ci`, `exists`, E45", async () => {
+        /* E45 C3a, 08.11.2026. The row, the file and its `layers` export agree (tools/check.mjs registry holds the
+           general rule); this holds 71's own: layers ci and nothing more until a v14 sandbox runs scenarios (Q-E45-1),
+           and the eight parts the slice names, each begun by its letter (`begin("A", ...)`). Red first on 52955be4: the
+           row read `local-gate | planned` and the file was not there. */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        const read = async path => {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" });
+                return res.ok ? await lfText(res) : "";
+            } catch { return ""; }
+        };
+        const [file, readme] = await Promise.all(["audit/harness/scenarios/71-sheet.mjs", "audit/harness/README.md"].map(read));
+        must(readme.length > 5000, "audit/harness/README.md read nothing - this test would read nothing");
+        const row = readme.split("\n").find(line => /^\| 71 \| scenarios\/71-sheet\.mjs \|/.test(line)) ?? null;
+        const cells = row ? row.split("|").map(cell => cell.trim()) : [];
+        const layers = /export const layers = (\[[^\]]*\]);/.exec(file)?.[1] ?? null;
+        const parts = "ABCDEFGH".split("").filter(letter => new RegExp(`begin\\("${letter}", "`).test(file));
+        equal(JSON.stringify({ row: cells.slice(3, 6), layers, parts: parts.join("") }),
+            JSON.stringify({ row: ["ci", "exists", "E45"], layers: "[\"ci\"]", parts: "ABCDEFGH" }),
+            "{row: README row 71's layers, state and stage; layers: the file's export; parts: the letters it begins}");
+    }],
+    ["R1483 - the harness's render after a write is named unconfirmed (E45 C3a, E45-15; STAGE E45 \"71-sheet\"): versions.mjs's `UNCONFIRMED` lists LIVE-E45-01, client-entry.mjs's `renderApps` cites it, and README's \"What the harness cannot do\" names the model", async () => {
+        /* E45 C3a, 08.11.2026. The render on an update is modelled from v13/v14 notes, not v14's source: every results
+           file lists the unconfirmed ids (versions.mjs `readVersions`), so a scenario's green on the model says which
+           assumption it stands on. Red first on 52955be4: none of the three. */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        const read = async path => {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" });
+                return res.ok ? await lfText(res) : "";
+            } catch { return ""; }
+        };
+        const [versions, entry, readme] = await Promise.all(["audit/harness/lib/versions.mjs", "audit/harness/client-entry.mjs", "audit/harness/README.md"].map(read));
+        must(versions.length > 1000 && entry.length > 20000 && readme.length > 5000, "a harness file read nothing - this test would read nothing");
+        const list = bodyOf(versions, "export const UNCONFIRMED", { until: "\n];" });
+        // Read by pattern, not `bodyOf`: on a tree without the model the answer is "absent", not a stop.
+        const model = /function renderApps\([\s\S]*?\n\}\n/.exec(entry)?.[0] ?? "";
+        const cannot = /## What the harness cannot do\n([\s\S]*?)(?=\n## |$)/.exec(readme)?.[1] ?? "";
+        // The note right above the function: one comment, no other comment's end inside it.
+        const head = /(\/\*(?:(?!\*\/)[\s\S])*\*\/)\s*function renderApps\(/.exec(entry)?.[1] ?? "";
+        equal(JSON.stringify({
+            listed: /"LIVE-E45-01"/.test(list),
+            model: /renderContext/.test(model) && /\.render\(false, \{ renderContext, renderData \}\)/.test(model),
+            cited: /LIVE-E45-01/.test(head),
+            readme: /render after a write/i.test(cannot) && /LIVE-E45-01/.test(cannot) && /renderApps/.test(cannot)
+        }), JSON.stringify({ listed: true, model: true, cited: true, readme: true }),
+            "{listed: in UNCONFIRMED; model: renderApps renders false with the context and data; cited: its note names the id; readme: the section names the model}");
     }],
 ];
 

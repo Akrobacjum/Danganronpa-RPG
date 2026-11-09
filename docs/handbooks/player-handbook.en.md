@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.100, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.101, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
@@ -48,11 +48,21 @@ Your numbers move through play: an action spent, a roll, a Rest, an item used, a
 
 | State | When | Effect |
 |---|---|---|
-| **Breakdown** | every point of Sanity is marked | disadvantage on every roll until some Sanity comes back |
-| **Wounded** | every point of Health is marked | one action fewer per time of day until somebody patches you up |
+| **Breakdown** | no Sanity left | disadvantage on every roll until some Sanity comes back |
+| **Wounded** | no Health left | one action fewer per time of day until somebody patches you up |
 
 > [!NOTE]
-> Both apply on their own the moment the track fills; Daggerheart's own Vulnerable and Death Move are switched off. Nothing in this module kills you for reaching zero Health. Dying is something a person does to you, and it is announced.
+> Both apply on their own the moment the reserve runs out; Daggerheart's own Vulnerable and Death Move are switched off. Nothing in this module kills you for reaching zero Health. Dying is something a person does to you, and it is announced.
+
+### What your sheet says
+
+- **What is left.** Under each of the two bars the sheet says what is left, not what has gone: **Left: 3 / 4** for Health, **Left: 6 / 6** for Sanity. An untouched student has two full bars, and a bar shortens as you are hurt. The pips are the module's own and read the same on a screen with Daggerheart's pips switched on and on one with them off (not yet checked at a table: LIVE-E24-02). With *Players cannot edit Actions, Hope, Health, Sanity or statistics* on, your sheet has no field to type the number in; with it off the field is there, and what you type is the number that is left.
+- **Sanity is yours alone.** Another player who opens your sheet or reads your row on the Party sheet reads your Health and a **?** where your Sanity would be; your token shows them no Sanity bar and, when you are in Breakdown, no Breakdown icon (not yet checked at a table: LIVE-E24-01, LIVE-E24-03, LIVE-E24-09). You and the GMs read both. This is what the screens draw: Foundry sends your character's data to every browser, and a player who opens the browser's console can read it (the GM handbook says so, section 1).
+- **A roll in Breakdown.** The extra die on a roll's card is named **Disadvantage** and the card says no more about why, to anybody. Your own roll window and the briefing of a crisis action tell you the cause; another player does not read it on the card (not yet checked at a table: LIVE-E24-10).
+- **The icons on a token** are the module's own pixel art. Wounded and the dead overlay are shown to everybody; Breakdown only to you and the GMs.
+- **Your background.** The biography part of your sheet has a field labelled **Background**, for who you were before the killing game. It saves by itself when you click out of it, switch to another tab or close the sheet; opening it writes nothing, and a sheet you may not edit shows it read-only. Another player's sheet has no Background (What you can see, below, says what it shows). If somebody else writes your Background while you type, your next save writes nothing and tells you once: your text stays in the field, and clicking out of it again saves yours over theirs.
+- **Your sheet holds still.** A hit, a heal, a Hope spent or given changes the numbers on your open sheet where they stand, on your screen and on everyone else's who has it open, without drawing the window again; anything else, an item you are given for one, draws it again. Either way what you are typing stays (not yet checked at a table: LIVE-E45-01).
+- **A dead student's sheet** stays as a record: a **Dead** stamp, the header with Hope, Actions and Move still shown, and no Use, Discard, Give or Share, Stash, Present or Analyze on its items. It says what the dead still do: outside the Class Trial you still speak at the table; in it your microphone is off and you hold no ballot.
 
 ### Rolling
 
@@ -145,7 +155,7 @@ Your GM may turn off the price of crossings; then which rooms connect, the stair
 - You only see the people standing in your room. Nobody else is on the map for you.
 - **The room tile** stands under the clock - or, when the screen leaves too little room there, to the right of the notices - and shows the room your own character stands in, never another: its name, its search tokens with how many Searches are left (**2/3 searches**), **You can work a project here** when it holds a project you can work on, the GM's picture of it behind them, and the GM's description, behind a small arrow in the tile's top right corner: the arrow (**Read more**) unfolds the description over the picture and, turned up (**Show less**), folds it again. Click the picture to see it large, on your screen alone. During a Class Trial it shows the trial hall: the name, picture and description the GM gave it, or "Class Trial". On a narrow screen it is one row of the stack: a small picture (click it for the large one), the name, the tokens and a **Description** button that opens the description in a window. When two players own the same character, the tile on one of their screens can follow a move of several waypoints about a second and a half late.
 - The clock in the left column can be clicked: it explains the phase, the time of day, where you are, and prints the room's description if the GM wrote one.
-- Another player's sheet opens redacted: name, portrait, Ultimate, Health, Sanity, what they hold ready and how many Experiences they have. Nothing else.
+- Another player's sheet opens redacted: name, portrait, Ultimate, Health (and a ? where Sanity would be), what they hold ready and how many Experiences they have. Nothing else.
 
 ### Voice
 
@@ -610,7 +620,7 @@ Your side of the same table, behind the **Crisis actions** tile:
 
 | Action | Roll | What it does |
 |---|---|---|
-| Strike | Hand / Leg / Body, 15 | 1 Health and 1 Sanity off them; a critical puts both marks on the one track you choose, Health or Sanity. A failure with Despair still takes 1 Sanity and leaves an Evident trace. |
+| Strike | Hand / Leg / Body, 15 | 1 Health and 1 Sanity off them; a critical takes both points from the one reserve you choose, Health or Sanity. A failure with Despair still takes 1 Sanity and leaves an Evident trace. |
 | Pin Them Down | Body, 12 | Disadvantage on Leave a Clue and Survive for the victim's next two turns. |
 | Keep Your Distance | Leg, 12 | Disadvantage on Secure a Trace and Role Reversal for the victim's next two turns. |
 | Attack with a Weapon | Body / Hand / Leg, 15 | Damage 1 + half the weapon's tier (rounded up); 1 + the full tier on a critical. Unarmed: disadvantage, and a success snatches an improvised weapon (Tier 2 on Hope, Tier 1 on Despair). A Tier 0 object is rated by the GM. |
@@ -748,7 +758,7 @@ Somebody among you may have built this place. The **Final Truth Remnants** - one
 
 Once your own Class Trial has ended, you may join the GMs as a **Monocub**. Same actor, same sheet; the action panel becomes **Move** and **Confusion**.
 
-- You start with 0 Hope and no Health or Sanity marked, and have the same action budget as an unwounded living student - Wounded never takes one from a Monocub. You see only your own room. Your rolls are shown to everyone standing in it.
+- You start with 0 Hope and all your Health and Sanity left, and have the same action budget as an unwounded living student - Wounded never takes one from a Monocub. You see only your own room. Your rolls are shown to everyone standing in it.
 - **Confusion** costs **1 action and 1 Hope**, and your Hope exists only because a Monokuma converted Despair into it (Fuel a Monocub). It is a flat 2d12 with no statistic. Pick somebody in your room and help or hinder their next roll (see the table below). They are told something steadied or rattled them, never who - but everyone in your room sees you roll, so they may work out it was you.
 - A Monocub who stumbles onto the crime scene is sworn to silence about it until the chapter ends. Confusion still works.
 
@@ -802,22 +812,24 @@ Bottom-left of your character sheet is a button with a word on it - **Safe Word*
 
 ## 16. Interface tips
 
-**The HUD** (left column): campaign name, chapter, day, phase and time of day, how many minutes of play this time of day has had (a pause, a reload and the break between two sessions add nothing; the line is not shown during an Eclipse), and the name of the track you are hearing; the room you stand in is on the room tile under it (chapter 3). During a trial it shows only the mode (Discussion, Debate, Objection or Rebuttal) in place of the time of day; the minutes line goes, and who holds the floor is on the Event panel. Click it for an explanation of where things stand and the description of your room.
+**The HUD** (left column): campaign name, chapter, day, phase and time of day, how many minutes of play this time of day has had (a pause, a reload and the break between two sessions add nothing; the line is not shown during an Eclipse), and the track band: the name of the track you are hearing runs along it, and while nothing plays it stays as an empty line, so the clock keeps its height (since 1.2.101); the room you stand in is on the room tile under it (chapter 3). During a trial it shows only the mode (Discussion, Debate, Objection or Rebuttal) in place of the time of day; the minutes line goes, and who holds the floor is on the Event panel. While the game is paused, **On hold** stands in place of the campaign name on every screen until the game runs again; Foundry's own caption in the middle of the screen and the dimming stay. During an Eclipse the phase line names it, *Night Eclipse* for instance. Click it for an explanation of where things stand and the description of your room.
 
 **Foundry's own buttons** are not on a player's screen: there is no bar of scene controls on the left, as there is no sidebar. Your token is selected and dragged as before, and the module changes none of Foundry's keys; what goes with the bar is drawing, map notes and the target button.
 
-**A window's title bar**: a double-click folds the window to its title bar, and a second one opens it again, as everywhere in Foundry (since 1.2.99; until then the module blocked the gesture on every window). A folded window keeps what it held, and the button that opened it opens it again. A short window that asks one question, such as a confirmation, does not fold.
+**A window's title bar**: a double-click folds the window to its title bar, and a second one opens it again, as everywhere in Foundry (since 1.2.99; until then the module blocked the gesture on every window). A folded window keeps what it held, and the button that opened it opens it again. A short window that asks one question, such as a confirmation, does not fold. A window that waits for your answer - a roll, Observe, an action you declare, the vote, a Level Up, the trial's questions - stays over your character sheet, also when you click the sheet or it redraws (since 1.2.101); other windows come to the front as Foundry brings them there.
 
-**The Event panel** (under the Despair rows): what is happening now - the Motive with its countdown and what ignoring it costs, a called assembly, a darkening that is running, a body found, the trial's mode, speaker and time left, an open vote, a stopped scene. A murder's own cards show only to the people in it.
+**The Event panel** (under the Despair rows): what is happening now - the Motive with its countdown and what ignoring it costs, a called assembly, a darkening that is running, a body found, the trial's mode, speaker and time left, an open vote, a stopped scene. A murder's own cards show only to the people in it. The panel keeps one size whatever it holds; a card longer than it scrolls inside it (since 1.2.101).
 
 **The status strip** (right, above the Projects tray): your actions left, whether your Free Move is still there, your Hope, and Eclipse crossings while one runs - a foot for each crossing left, or, in a placement where you may pick any room, one full foot that stays available; a Monocub's actions read *Placement only.* there. A dead student's strip is one row: **Dead**. Anything banked with Sprint or Burst shows on your sheet, in the line above the action grid. Click the strip for the explanation.
 
-**The Projects tray** (right, under the status strip) lists the projects you know of. Before there is one, it still shows its title and the line **No projects yet.** (since 1.2.79; not yet checked at a table: LIVE-E79-16).
+**The Projects tray** (right, under the status strip) lists the projects you know of. Before there is one, it still shows its title and the line **No projects yet.** (since 1.2.79; not yet checked at a table: LIVE-E79-16). Each project is one row, its name and its count on one line; with more than five, the list scrolls and its foot fades while there are more below (since 1.2.101).
 
 **The Despair rows** show every pool and how full it is, and under them the overflow: "?" where its count would be, beside the number it fires at. Click for what Despair is.
 
+**On a narrow screen** (a tablet, a phone, a narrow window) the clock, the room tile, the Despair rows, the Event panel, your status strip and the Projects tray stand in one column at the top, and the board stays visible and playable under it (since 1.2.101). Your status strip and the Projects tray come first, before the Despair rows. When the column is longer than its room, it scrolls, and its foot fades while there is more below.
+
 **Your sheet:**
-- *Actions* - the ten tiles, Hope Calls below; during an incident the Direct Murder tile becomes **Fight back** for the victim and **Crisis actions** for the others, and opens them; Move and Confusion here as a Monocub.
+- *Actions* - the ten tiles, Hope Calls below; under Stained Glass a tile you cannot use or pay for now is dark with a dashed edge, whatever it would cost (since 1.2.101); during an incident the Direct Murder tile becomes **Fight back** for the victim and **Crisis actions** for the others, and opens them; Move and Confusion here as a Monocub.
 - *Inventory* - Usables, Gear (with *hold ready*), Truth Bullets (Analyze, Present, Share; group them by Chapter or Location), Room Keys, and your stash when you stand in that room.
 - *Rules* - Monokuma's standing rules, everyone's, all the time.
 - The safeword, bottom-left. Level Up, when you earned one.
@@ -826,11 +838,11 @@ Bottom-left of your character sheet is a button with a word on it - **Safe Word*
 
 **The book**, under it at the bottom right against the edge of the screen, the size of the gear on its left, opens the handbooks in the game: this Player Handbook and the Student Brochure, in the language you picked for the module. The contents list on the left jumps to any section.
 
-**Cards and popups:** results of your actions arrive as notice cards, and a card stays until you close it - a click on it, or its X for evidence and other cards that must be read. Under Stained Glass the cards stand under every window, so a window dragged over them covers them; under Monokuma Legacy they stand over the windows. The newest goes on top and pushes the older ones down; when there are more than fit, the rest wait underneath behind a "+N" beside the close button, and closing a card brings the next one back; a click on "+N" closes every card at once, except the ones you must read. A "waiting for the GM" card closes itself when the answer arrives. A closed card can be read again: the stack-of-cards button in the bottom-right corner of the notice tile (with Monokuma Legacy on a computer, under the clock, even with no card on screen; on a narrow screen, at the bottom-right corner of the lowest card while a card is on screen) opens the **Notice history** - the notices this browser showed you, the cards about a murder too, the newest of them and 250 at most. It keeps them, 40 at most from any one sender, until a season reset that clears the clock, the incident, this module's cards or the rest of the chat log; a card the module takes back leaves it. When this browser runs short of room, or other accounts' histories on it fill its share, it keeps fewer or stops saving, and its window says when it has stopped. A key in Foundry's Controls opens it too, once you bind one. **Clear** in its window empties it: do that before you share your screen. On a shared computer another account logged in on this browser can read your history, so clear it before you hand the computer over. When a time of day ends - at an Eclipse, or when the GM moves the clock on - a summary of it opens for you.
+**Cards and popups:** results of your actions arrive as notice cards, and a card stays until you close it - a click on it, or its X for evidence and other cards that must be read. Under Stained Glass the cards stand under every window, so a window dragged over them covers them; under Monokuma Legacy they stand over the windows. The newest goes on top and pushes the older ones down; when there are more than fit, the rest wait underneath behind a "+N" beside the close button, and closing a card brings the next one back; a click on "+N" closes every card at once, except the ones you must read. A "waiting for the GM" card closes itself when the answer arrives. A closed card can be read again: the stack-of-cards button in the bottom-right corner of the notice tile (with Monokuma Legacy on a computer, under the clock, even with no card on screen; on a narrow screen, at the bottom-right corner of the lowest card while a card is on screen) opens the **Notice history** - the notices this browser showed you, the cards about a murder too, the newest of them and 250 at most. It keeps them, 40 at most from any one sender, until a season reset that clears the clock, the incident, this module's cards or the rest of the chat log; a card the module takes back leaves it. When this browser runs short of room, or other accounts' histories on it fill its share, it keeps fewer or stops saving, and its window says when it has stopped. A key in Foundry's Controls opens it too, once you bind one. **Clear** in its window empties it: do that before you share your screen. On a shared computer another account logged in on this browser can read your history, so clear it before you hand the computer over. When a time of day ends - at an Eclipse, or when the GM moves the clock on - a summary of it opens for you. Foundry's own short messages, such as a warning, stand under Stained Glass on a dark plate under the Despair rows (since 1.2.101).
 
 **The Look dialog:** the gear in the bottom-right corner opens settings that are this browser's own - nobody else sees or hears the difference:
 - **Language** - English or Polski for the module's windows, cards and sheet. Separate from Foundry's own language on purpose. Takes effect after a reload. The glossary stays English in both.
-- **Theme** - Stained Glass (the current look) or Monokuma Legacy (with its pixel font switch).
+- **Theme** - Stained Glass (the current look) or Monokuma Legacy (with its pixel font switch). Under Stained Glass a new phase or time of day turns the glass: the new color arrives from the middle within about a second and the seams flash once, and where the panels must move, the panes slide whole to their new places with their texture; with **reduced motion** the glass takes its new state at once (since 1.2.101).
 - **Interface scale** (80% to 140%), and under Stained Glass **glass pulse**, **state name behind the clock** and **glass blurs the map** (the first thing to turn off if the screen stutters).
 - **Reduced motion** and **high contrast**, under both themes; each also follows your operating system when it asks for them.
 

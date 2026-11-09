@@ -196,7 +196,7 @@ belongs to.
 | 67 | scenarios/67-trial-modes.mjs | ci | exists | E70 | the Class Trial's tools beside the debate (E70 part 2, 1.2.90): a Testimony on every player with its turn windows, Done and Pass from the players' own pages, an Objection at the speaker and the queue back (T); a Panic Round moved on by the players' browsers while the GM's heartbeat is held, its Objection refused (P); a death nobody has found given no turn, and on the trial's list of the dead on p1's browser - known leak TR30, red on purpose until E72 (part A, formerly E67) (D); the Closing Argument with its volunteers in the GMs' store, a pick, both decisions after an exchange and an Overrule (C); Monokuma's Reveal of a Key nobody found (R); Present's card and copies as shown, with and without the Analyze result (S); a turn's change with the GM's console and a sheet open: the console's region and no sheet rendered, the row's Present painted in place (M, E70-83; its HUD and sheet-pass counts 81's part F since E37); the canary's player scan after every phase |
 | 64 | scenarios/64-migration-drill.mjs | local-gate | planned | E38 | migrations on copies of real worlds (v1.1.0, 1.2.13, the table's 1.2.56); planned as 62 until E09 C0 took the number the E09 plan had given its investigation scenario, then as 63 until E10 C0 gave 63 to the Class Trial |
 | 70 | scenarios/70-movement.mjs | ci | planned | E39 | the movement rules end to end |
-| 71 | scenarios/71-sheet.mjs | local-gate | planned | E45 | the sheet on two accounts on a real v14 |
+| 71 | scenarios/71-sheet.mjs | ci | exists | E45 | the character sheet on the GM and two players through the harness's render after a write (E45 C3a): Health written fast from the field and by the GM, repainted on every client with no render and the same reserve, the pip layout on p1 and the bar on p2 (A); a write resource-guard.mjs or overflow.mjs cuts in preUpdate, then an item created: its row on every client's sheet (B); a Monocub's Confusion tile lit by the GM's Hope top-up with no render (C); a Health hit read alike on the sheets and the token's bar, no Sanity on a viewer's (D); the gates - dead, Monocub, NPC, Monokuma - as owner and viewer (E); the biography saved once by the X and by a tab change, untouched nothing, read-only for a viewer (F); a redacted sheet with no Sanity number in any tooltip or label (G); the Level Up offer offered, taken and taken back, the GM's button unlit after the take (H); the biography held unsaved while the GM writes it: the GM's text stands, the typist told once, their next save theirs (I, E45-C3b); the Party sheet's Sanity to a non-owner, a redacted sheet repainted after the owner's writes with no Sanity or Hope in it, a Hope maximum written alone (J, E45-C3b). Stand-in sheets and the render are the harness's model (LIVE-E45-01); a real table is LIVE-E45-01..04 |
 | 72 | scenarios/72-canary.mjs | ci | exists | E30 | what a player's browser holds: the canary's self-test, planted secrets at rest, and (E05) a chapter, scanned after every phase with the world-secrets rule, and (E06) the chat each phase's bystanders hold, read for the cast and the secret actions' titles; E43 takes it to the season |
 | 73 | scenarios/73-notice-history.mjs | ci | exists | E81 | a player's notice history after F5, the GM's own diet |
 | 74 | scenarios/74-room-tile.mjs | ci | exists | E77 | the room tile: every browser shows its own character's room, painted once the move has settled (a refused move draws nothing), the GM's text only as text (E77 C3: the GM's Room Setup on the viewer's tile and on no other's, every state a player's tile can take (A), a crossing and a refused crossing (B)); the curtain's cut, also with Foundry's windows open, comes with E77's later commits |
@@ -284,6 +284,26 @@ and player pages, at 1920x1080, 1366x768, 1024x768 and 390x844 in both themes,
 against `audit/style-baseline.json`. The captures are this harness's frame and
 seeded world, with no Foundry stylesheet: a shape to hold, not a table's picture.
 
+**The sheet stand-in's parts** (`audit/style-harness.html?sheet=parts`, E24 C0 and C4a). The same frame as `?sheet=1`
+with the parts the module fills drawn inside it: both layouts of Daggerheart 2.10.5's Health and Sanity (its
+resource-bar.hbs and sidebar.hbs, read as text at that tag), what sheet.mjs writes into them by its own literals (R1440
+holds every module class on the page to a string of sheet.mjs), the biography, the inventory's groups and the narrow
+column; `&pips=1`, `&role=viewer`, `&state=dead|monocub|npc` and `&lang=pl` draw the variants, and R1440 holds the page's shapes and the
+sweep's `sheet-parts` row reads it (`node audit/style-sweep.mjs --only sheet-parts`; 1920x1080 and 1366x768, and a
+phone's 390x844 with `--fit`). What it is not: Daggerheart's sheet - its other tabs, its own stylesheet and
+its Handlebars are neither here nor headless (only the two templates above were copied, so a Daggerheart upgrade reads
+them again) - nor Foundry's frame, nor a table's data; a viewer's page does not turn the values to "?" (the redaction
+is read on a stand-in root by R1445), and the inventory has no Truth Bullet group. A look measured here is a shape to
+hold; the table's reading is the stage's live rows (LIVE-E24-04 the biography's type, LIVE-E24-06 a light client).
+
+**The light-theme pass** (E24 C4a). `node audit/glass-sweep.mjs --scheme light` loads each page of the sweep with `?scheme=light` - the page's colour scheme light, `theme-light` on the
+body and on `#interface`, core's text dark - and reads the surfaces A7 and A8 listed (the corner's notice button, the
+launchers, the room tile, the voice tile, Foundry tools and Map tools) for their `color-scheme` and their ink against
+their ground; R1463 reads the same on the module's stylesheets (styleCascade). Core's light-theme text values are not in
+the repository, so the page stands in `#1d1a21` for them: a surface that reads dark here is dark against that value, and
+LIVE-E24-06 reads it on a real client with Foundry's light theme. What the harness still cannot say is in the list
+below.
+
 Whether a window fits on the screen is not this harness's to say: jsdom lays
 nothing out. `node audit/style-sweep.mjs --fit` (E21 C1c) reads it in Chromium on
 the same captures, one a tab, with each window placed where Foundry places a new
@@ -317,6 +337,38 @@ draws the GM's roster and a messenger window where one with no saved place opens
 shares a point with the tile or its portrait at which it is not on top. Its control - the roster's z-index set under
 the tile's at the first size where the two meet - must read covered points (`--no-control` leaves it out). These are
 the glass harness's stand-ins, not the module's own render and not v14 (LIVE-E50-06).
+
+The Projects tray's rows and the tab rail (E23 C3a, E23-16 and E23-19) are read by
+`node audit/glass-sweep.mjs --tray --chromium <executable>` from the repository root, instead of the sweep: at
+1920x1080, 1366x768, 1280x800 and 1024x768 by default, under Stained Glass unless `--themes` names Legacy, as GM and
+player, the page's `drpgTrayRows()` with its own two rows and filled to seven - each count on its name's line on the
+screen and 8-12 px after it where the tray is turned, inside its own row where it is not, no row cut by the list's foot
+without the fade - and, on the GM's desk pages, a fifteen-tab sidebar expanded with Foundry's windows on and
+`?windows=off`: the tab rail meets neither the status strip nor the tray, ends on the screen, and the GM's button does
+not move with a two-column tool palette. Its controls (the name's old `flex: 1 1 auto`, the list cut with no fade, the
+strip planted under the rail) must read their faults (`--no-control` leaves them out).
+
+The Event panel's box (E23 C3b, E23-18; the owner's 04.10) is read by
+`node audit/glass-sweep.mjs --events --chromium <executable>` from the repository root, instead of the sweep: at
+1366x768, 1920x1080, 1024x768 and 820x1180 by default, in both themes and as GM and player, the page's
+`drpgEventCheck()` lays the panel out with events.mjs's own `cardElement` for an incident, a trial (E70's speaker, the
+debate's clock and "GM: +30 s") and a safeword built from the longest texts of lang, each alone and all three, and a size
+fails where the panel's box is not the same for the four, a text is wider than its line, a card clips its words, a panel
+taller than its box does not scroll, the incident's meta is not two lines, or the ticker runs under a word or is drawn on
+a stacked screen. Its controls (the height following the cards again, the ticker back at the card's middle) must read
+their faults. The texts are lang's, the names three long stand-ins; a table's own cards are not read here.
+
+How the curtain turns from one state to the next (E23 C1a; the owner's 05.11) is read by
+`node audit/glass-sweep.mjs --turn --chromium <executable>` from the repository root, instead of the sweep: the glass
+harness's four turns (`drpgTurn`: a phase with a recut, a phase, an hour, the room tile hidden) at 1600x900 and 1366x768
+as GM and player under Stained Glass, the pulse off, each on three fresh pages - Chromium's main-thread time around the
+turn and the page's frames, long tasks, first moved frame, clip-path writes and canvas draws inside frames, self-check and
+cut; a screencast's texture energy over the cells the turn carries glass across; the seams' light with the frame's clock
+stood still inside the flash. A frame that writes a clip path or draws, a 64 px square of the band whose texture falls
+under 80 % of its rest, the flash more than 8 from today's (`--against` a baseline's file), an hour's turn that recuts, or a self-check inside the turn worse
+than the cut before and after it fails the line; its two controls (`?turn=today`, `?flash=0.5`) must read their faults.
+It is a shape against 1d860414's on the same machine, never a table's frame time (`game.drpg.fps()`, at a table), and a
+screencast is the frames the compositor sent, not every frame drawn. The table's own reading of a turn is LIVE-E23-01 (AUDIT 9.2).
 
 ## Daggerheart's dice
 
@@ -378,6 +430,13 @@ roll at a table.
 
 ## What the harness cannot do
 
+- **The render after a write is a model** (E45 C3a, `renderApps` in `client-entry.mjs`). After an update hook, each
+  open app in the document's `apps` is asked `render(false, { renderContext: "update<Doc>", renderData })` with the
+  changes as the hook got them, on every client, the writer's included; an embedded create, update or delete asks its
+  root's apps with `create<Doc>`, `update<Doc>` or `delete<Doc>`; `render: false` and an update that changed nothing on
+  that client's copy render nothing. From v13/v14 notes as remembered, not v14's source: LIVE-E45-01. Until C3a no
+  document had `apps` and nothing rendered on a write. There are still no Daggerheart sheets: scenario 71's sheet is a
+  stand-in whose own render builds the root again and calls the module's hook.
 - **No layout, canvas renderer, fonts, audio or Web Animations.** jsdom lays
   nothing out. A suite test that needs one of these asks the environment first
   and is counted as skipped (`needs`, `scripts/tests-kit.mjs`).

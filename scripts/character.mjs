@@ -261,20 +261,15 @@ export function resourceValue(actor, key) {
  * Remaining Health/Sanity. Both are reverse resources, so "how much is left" is
  * max minus marks.
  *
- * FOR RULES, NOT FOR SCREENS (W-1, Dawid 16.09). The sheet, and Daggerheart,
- * count marks UP: 0/6 is untouched and 6/6 is the wound. Three places used to
- * print this number instead, so the same victim read "2 Health left" in the
- * incident tracker and "4/6" on their own sheet, and a GM reading both had to
- * subtract to know which way either was going. Use `marksOf` for anything a
- * person reads; this stays for the thresholds that are about what is left.
+ * FOR RULES, NOT FOR SCREENS. Daggerheart counts marks UP: 0/6 is untouched and
+ * 6/6 is the wound. W-1 (Dawid, 16.09) had every screen print the marks
+ * (`marksOf`), so that the tracker and the sheet could not disagree; D5 option 1
+ * (E24, 08.11.2026) turned every screen the other way, to what is left, and
+ * `marksOf` went with E24 C1b. What a person reads is `reserveView`'s, below;
+ * this stays for the thresholds that are about what is left.
  */
 export function remaining(actor, key) {
     return resourceMax(actor, key) - resourceValue(actor, key);
-}
-
-/** Marks over maximum, the way the sheet shows them: `2/6` (W-1). */
-export function marksOf(actor, key) {
-    return `${resourceValue(actor, key)}/${resourceMax(actor, key)}`;
 }
 
 /** True when the character has taken every point of Sanity (Daggerheart: vulnerable). */
@@ -297,9 +292,10 @@ export function isWounded(actor) {
  * for a hit that landed nothing on a full Sanity, and the drain said the amount asked
  * for, not the amount marked. Everything that moves a reserve and says so asks here
  * now: what landed, what could not (`overflow`, which the incident puts on Health), and
- * the sentence, with a label from the language file. This stage builds what the
- * incident's notes need; the sheet, the Event panel and the tracker still show marks
- * (`marksOf`) until E24/E25 move them onto it.
+ * the sentence, with a label from the language file. Since E24 (08.11.2026, D5 option
+ * 1) every Health and Sanity number a person reads is the reserve, through
+ * `reserveView`: the sheet's two layouts (C1a), the Event panel's incident card, the
+ * incident tracker, the token bars and the Party sheet (C1b). R1441 holds the census.
  * ========================================================================== */
 
 /** The two reserves, by their resource key: the one place that knows `stress` means Sanity. */
@@ -323,6 +319,28 @@ export function reserveFrom(marks, max) {
 /** An actor's reserve of `key` (`hitPoints` or `stress`). */
 export function reserveOf(actor, key) {
     return reserveFrom(resourceValue(actor, key), resourceMax(actor, key));
+}
+
+/**
+ * A reserve as `user` may read it (E24 C1a, 08.11.2026; the owner's D5 option 1 and his words of 28.10): `reserveOf`
+ * and `key`, and `shown` - false for Sanity (`stress`) when `user` is neither a GM nor an owner of `actor`, so that
+ * another player reads no Sanity on any view the module draws. Health is shown to everybody ("you can see that
+ * somebody is hurt", anonymity.mjs). Every Health and Sanity number a person reads is asked here (R1441 holds the
+ * census): the sheet's painter, the redaction, the event panel, the tracker, the token bars and the Party sheet. A view
+ * change only: the actor's document still reaches every browser, and a console reads it (anonymity.mjs's header).
+ */
+export function reserveView(actor, key, user = game.user) {
+    const own = Boolean(user?.isGM) || Boolean(actor?.testUserPermission?.(user, "OWNER"));
+    return { key, ...reserveOf(actor, key), shown: key !== "stress" || own };
+}
+
+/**
+ * The reserve's fact row, "Left: 3 / 4" (`DRPG.Reserve.leftRow`; Q-E24-1's default, the owner's 05.10 words: a fact
+ * row with a label, never a bare "left {n}" in a sentence), or "?" for a view `user` may not read (`shown` false).
+ */
+export function reserveRow(view) {
+    if (!view?.shown) return "?";
+    return game.i18n.format("DRPG.Reserve.leftRow", { n: view.left, max: view.max });
 }
 
 /**

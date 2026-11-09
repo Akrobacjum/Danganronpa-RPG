@@ -3557,6 +3557,52 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         JSON.stringify(inRow?.spent ?? null), { flow: "sheet-audit" });
 
     /*
+     * A CONSOLE'S "NOT IN THE CLASS" (E24 C3a, 08.11.2026; E24-19, R1454). The flag is a GM's (config.mjs
+     * `FLAGS.notInClass`, sheet-audit.mjs `GM_FLAGS`): set on a student, it takes that student out of monokuma.mjs
+     * `studentActors`, and with it out of every ballot, Level Up and incident's cast the primary builds. p1's console
+     * sets it on Aiko, its own student, as `actor.setFlag` from the console. Expected: put back on every client, one
+     * row naming it, and Aiko still among the students and the trial's participants on the primary. The scenario waits
+     * for the put-back before that read; the vote's road does not need to (E24 fix G1, 09.11.2026; the end review's S-1,
+     * which found this comment saying it did): vote.mjs `studentsJudged` waits for every character's writes and
+     * `trialParticipants` reads the flag as the GMs hold it (sheet-audit.mjs `flagsHeldNow`), so the participants are
+     * also read on the primary in the forged write's own update hook - the document holding the flag, no put-back sent
+     * yet - and Aiko must be among them there too. Red at 52955be4: not there. The Monokuma flag's put-back, the same
+     * road (`HELD_PATH` covers every `flags.<module>.` path), is the check above.
+     */
+    phase("a console's not in the class", { flow: "sheet-audit" });
+    const readOut = `return { out: game.actors.get("${ids.aiko}").getFlag("${MOD}", "notInClass") ?? null };`;
+    let outForged = null;
+    try {
+        const fromO = await rowBack(null);
+        await gm.eval(`const V = await import("${repoUrl}/scripts/vote.mjs"); globalThis.__s30out = [];
+            globalThis.__s30outHook = Hooks.on("updateActor", (a, changes) => {
+                if (a.id !== "${ids.aiko}" || changes?.flags?.["${MOD}"]?.notInClass !== true) return;
+                globalThis.__s30out.push({ doc: a.getFlag("${MOD}", "notInClass") === true,
+                    ballot: V.trialParticipants({ connected: false }).some(p => p.actor.id === "${ids.aiko}") });
+            }); return true;`);
+        await p1.eval(`await game.actors.get("${ids.aiko}").setFlag("${MOD}", "notInClass", true); return true;`);
+        await gm.eval(`const end = Date.now() + 6000; const read = () => { ${readOut} };
+            await new Promise(r => setTimeout(r, 200));
+            while (read().out !== null && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+        await settle(800);
+        const seen = await Promise.all([gm, p1, p2, p3].map(c => c.eval(readOut)));
+        const roster = await gm.eval(`${audited} const M = await import("${repoUrl}/scripts/monokuma.mjs"), V = await import("${repoUrl}/scripts/vote.mjs");
+            return { student: M.studentActors().some(a => a.id === "${ids.aiko}"),
+                ballot: V.trialParticipants({ connected: false }).some(p => p.actor.id === "${ids.aiko}") };`);
+        const inWindow = await gm.eval(`return globalThis.__s30out ?? null;`);
+        outForged = { seen, roster, inWindow, rows: await gm.eval(rowsOf(fromO)) };
+    } finally {
+        await gm.eval(`Hooks.off("updateActor", globalThis.__s30outHook); const a = game.actors.get("${ids.aiko}"); if (a.getFlag("${MOD}", "notInClass") !== undefined) await a.unsetFlag("${MOD}", "notInClass");
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+    }
+    check("SECURITY: \"not in the class\" a player's console sets on their own student is put back on every client with a row of its own, and the student stays among the students and the trial's participants - before the put-back too",
+        Boolean(outForged) && everyClient(outForged.seen, { out: null }) && outForged.roster.student === true && outForged.roster.ballot === true
+            && JSON.stringify(outForged.inWindow) === JSON.stringify([{ doc: true, ballot: true }])
+            && JSON.stringify(outForged.rows) === JSON.stringify([`putBack:flags.${MOD}.notInClass`]),
+        JSON.stringify(outForged), { flow: "sheet-audit" });
+
+    /*
      * A CONSOLE'S WRITES OVER A WHOLE PART (E29 fix r1-G2, 05.10.2026; review round 1 sec B2, B4). p1's console
      * replaces Aiko's `system.resources` whole (v14's forced replacement, as the harness models it): Hope 2
      * to 4, its maximum up 2, two Health marks healed; then her module flags whole, with the Monokuma flag
@@ -6380,6 +6426,34 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("SECURITY: p2's console unsetting dead Botan's death mid-trial takes nothing back, the audit's put-back failing - Botan still listed and p2's microphone never given back",
         deadSetup.listed && deadSetup.blocked && deadForged === true && deadAfter.listed && deadAfter.blocked && !deadAfter.dead && deadAfter.changes.length === 0,
         JSON.stringify({ deadSetup, deadForged, deadAfter }), { flow: "class-trial" });
+    /* E24 fix G1 (1.2.101; the end review's S-1): the same for "not in the class". p2's console sets it on dead, listed
+       Botan: the settle that write schedules read the students off the document until the fix (monokuma.mjs
+       `studentActors`), left Botan off the list and gave p2's microphone back until the put-back's own settle. The
+       put-back held and failed as above, so only the GMs' held flags keep him a student. Red at 52955be4: unlisted, p2's
+       microphone given back. */
+    const outDeadSetup = await gm.eval(`globalThis.__s30dead.changes = [];
+        const botan = game.actors.get("${ids.botan}"), realUpdate = botan.update;
+        botan.update = async function (data, ...rest) {
+            if (!JSON.stringify(data ?? {}).includes("notInClass")) return realUpdate.call(this, data, ...rest);
+            await new Promise(r => setTimeout(r, 1500));
+            throw new Error("SEC a put-back that fails");
+        };
+        ${deadRead}`, { timeout: 30000 });
+    await settle(500);
+    const outDeadForged = await p2.eval(`const a = game.actors.get("${ids.botan}");
+        try { await a.setFlag("${MOD}", "notInClass", true); } catch (e) { return String(e?.message ?? e); }
+        return a.getFlag("${MOD}", "notInClass") === true;`);
+    await settle(2500);
+    const outDeadAfter = await gm.eval(`const { sheetAuditIdle } = await import("${repoUrl}/scripts/sheet-audit.mjs"); await sheetAuditIdle();
+        await new Promise(r => setTimeout(r, 1000)); delete game.actors.get("${ids.botan}").update;
+        const out = game.actors.get("${ids.botan}").getFlag("${MOD}", "notInClass") === true;
+        return { out, ...(() => { ${deadRead} })() };`, { timeout: 30000 });
+    await gm.eval(`const a = game.actors.get("${ids.botan}"); if (a.getFlag("${MOD}", "notInClass") !== undefined) await a.unsetFlag("${MOD}", "notInClass");
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`, { timeout: 30000 });
+    check("SECURITY: p2's console setting \"not in the class\" on dead Botan mid-trial takes nothing back, the audit's put-back failing - Botan still listed and p2's microphone never given back",
+        outDeadSetup.listed && outDeadSetup.blocked && outDeadForged === true && outDeadAfter.out && outDeadAfter.listed && outDeadAfter.blocked
+            && outDeadAfter.changes.length === 0,
+        JSON.stringify({ outDeadSetup, outDeadForged, outDeadAfter }), { flow: "class-trial" });
     const deadCard = await p2.eval(`const T = await import("${repoUrl}/scripts/trial.mjs"), a = game.actors.get("${ids.botan}");
         const doc = await ChatMessage.create({ content: "<p>SEC a dead student's evidence</p>", speaker: ChatMessage.getSpeaker({ actor: a }),
             flags: { "${MOD}": { [T.TRIAL_FLAGS.present]: true, [T.TRIAL_FLAGS.objection]: false, [T.TRIAL_FLAGS.presenter]: a.name, popupKind: "none" } } });

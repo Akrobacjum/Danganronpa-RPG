@@ -154,6 +154,12 @@ export function buildDocumentClasses(ctx) {
             this._source = U.deepClone(data);
             if (!this._source._id) this._source._id = U.randomID();
             this.parent = context.parent ?? null;
+            /* THE APPLICATIONS A DOCUMENT RENDERS (E45 C3a, 08.11.2026). Foundry's every document holds `apps`, the
+               windows that draw it by their id, and renders them after a write (client-entry.mjs `renderApps`). The
+               shim had none until C3a: R1478 and E45-T2 stood one in for their test. Not enumerable, so nothing that
+               copies a document's own properties carries it; empty until a scenario or a test registers a window. The
+               render on a write is modelled from v13/v14 notes, not from v14's source (LIVE-E45-01). */
+            Object.defineProperty(this, "apps", { configurable: true, writable: true, enumerable: false, value: {} });
             this._collections = {};
             const emb = EMBEDDED[this.documentName] ?? {};
             for (const [docName, key] of Object.entries(emb)) {
@@ -583,6 +589,24 @@ export function buildDocumentClasses(ctx) {
         /* The floor the token stands on: a level's id on its scene (E12 C0), null where the token names none - every
            token of the seed, so no scenario before 66 moves. See `LevelList` below. */
         get level() { return this._source.level ?? null; }
+        /* E24 C1b (08.11.2026): Foundry's `TokenDocument#getBarAttribute`, which a token's bars and its HUD's inputs read,
+           as recalled of v13 and not read in v14's source (E24's live row of the token bars, AUDIT 9.2): the attribute the bar
+           names (or `alternative`), read off the actor's system data; a number answers `{ type: "value" }`, an object with
+           `value` and `max` answers `{ type: "bar", value, max }` with both as integers, anything else null. `editable` is
+           true for both here (v13 asks the system's schema whether the field is a number field; Daggerheart's are). The
+           module wraps it (states.mjs `wrapBarAttribute`), so the wrap is installed and read on this model. */
+        getBarAttribute(barName, { alternative } = {}) {
+            const attribute = alternative || this._source[barName]?.attribute;
+            const system = this.actor?.system;
+            if (!attribute || !system) return null;
+            const data = U.getProperty(system, attribute);
+            if (data === null || data === undefined) return null;
+            if (Number.isFinite(Number(data)) && typeof data !== "object") return { type: "value", attribute, value: Number(data), editable: true };
+            if (typeof data === "object" && "value" in data && "max" in data) {
+                return { type: "bar", attribute, value: parseInt(data.value || 0, 10), max: parseInt(data.max || 0, 10), editable: true };
+            }
+            return null;
+        }
         get object() {
             const cv = ctx.gameRef().canvas;
             if (!cv?.scene || cv.scene.id !== this.parent?.id) return null;
@@ -1325,6 +1349,14 @@ export function buildPIXI() {
 /* ======================= Applications & dialogs ========================== */
 
 export function buildApplications(ctx) {
+    /* THE WINDOWS' ORDER (E23 C5a, 07.11.2026; S01-15). Foundry stacks its windows by a running z-index: `bringToFront`
+       writes the next one on the window's element, and a window comes to the front on its first render, on a pointerdown
+       in it (the frame's capture listener) and on a forced render of a window already open (`render(true)`). Until C5a
+       the harness wrote no z-index, so no order between two windows could be read headless. Modelled from v13's
+       ApplicationV2 as remembered, the module's notes (stacking.mjs) and the audit's reading of S01-15, not from v14's
+       source; the counter starts at 100, as Foundry's `--z-index-window`. Whether v14 raises on each of the three is the
+       check of LIVE-E23-04 (AUDIT 9.2, and lib/versions.mjs's UNCONFIRMED). */
+    let maxZ = 100;
     class ApplicationV2 {
         constructor(options = {}) {
             // Foundry concatenates `classes` down the DEFAULT_OPTIONS chain (DialogV2's
@@ -1375,9 +1407,13 @@ export function buildApplications(ctx) {
         async render(opts2 = {}) {
             const doc = globalThis.document;
             const first = !this.element;
+            // Foundry's RenderOptions as the hooks are handed them (v13: `render(true)` is `{ force: true }`).
+            const options = { ...(typeof opts2 === "object" && opts2 ? opts2 : {}), force: opts2 === true || opts2?.force === true, isFirstRender: first };
             if (first) {
                 this.element = doc.createElement(this.options.tag ?? "div");
                 this.element.id = this.id;
+                // The frame's pointerdown raises its window, in the capture phase (above, THE WINDOWS' ORDER).
+                if (this.hasFrame) this.element.addEventListener("pointerdown", () => this.bringToFront(), { capture: true });
                 this.element.classList.add("application", ...(this.options.classes ?? []));
                 if (this.element.tagName === "DIALOG") this.element.setAttribute("open", "");
                 // Foundry registers every rendered application here, and removes it on close.
@@ -1400,14 +1436,14 @@ export function buildApplications(ctx) {
             /* A first render puts the window in front, as `bringToFront` does (E50 C1): v13's `bringToFront` sets
                `ui.activeWindow`, read from memory and not on v14 - whether v14's first render and a click in the window
                set it is LIVE-E50-01, in `environment.unconfirmed`. The messenger reads it for "seen" (`seesThread`). */
-            if (first) this.bringToFront();
+            if (first || options.force) this.bringToFront();
             // Foundry's `_doEvent`: the "render" event (DialogV2's `render` option) BEFORE
             // the render hooks - the a11y sweep on the hook relies on it. A render that
             // throws stops there: no position (the window stays at 0,0) and no hooks.
             if (!this.dispatchEvent(new globalThis.window.Event("render"))) return this;
             if (first) this.setPosition(this.position);
-            ctx.hooks().callAll("renderApplicationV2", this, this.element, context);
-            ctx.hooks().callAll(`render${this.constructor.name}`, this, this.element, context);
+            ctx.hooks().callAll("renderApplicationV2", this, this.element, context, options);
+            ctx.hooks().callAll(`render${this.constructor.name}`, this, this.element, context, options);
             return this;
         }
         async close(opts2 = {}) {
@@ -1463,8 +1499,13 @@ export function buildApplications(ctx) {
                 new Promise(resolve => setTimeout(resolve, timeout))
             ]);
         }
-        // The window in front (E50 C1; LIVE-E50-01): `ui.activeWindow`, as v13's `bringToFront` sets it. No z-index.
-        bringToFront() { if (globalThis.ui) globalThis.ui.activeWindow = this; }
+        /* The window in front (E50 C1; LIVE-E50-01): `ui.activeWindow`, as v13's `bringToFront` sets it; and since E23 C5a
+           the next z-index on its element, unless it is in front already (THE WINDOWS' ORDER, above). */
+        bringToFront() {
+            const front = globalThis.ui?.activeWindow === this && Number(this.element?.style?.zIndex) === maxZ;
+            if (this.element && !front) this.element.style.zIndex = String(++maxZ);
+            if (globalThis.ui) globalThis.ui.activeWindow = this;
+        }
         bringToTop() {}
         changeTab() {}
     }

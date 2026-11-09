@@ -19,9 +19,10 @@ import {
 import { SETTINGS, isMutedDead } from "./settings.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
     canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
-import { resourceMax, resourceValue, initCharacter, needsStartingResources } from "./character.mjs";
+import { resourceMax, resourceValue, initCharacter, needsStartingResources, RESERVES, reserveOf, reserveView, reserveRow }
+    from "./character.mjs";
 import { standingOffers, advanceKindName } from "./level-up.mjs";
-import { isMonokuma, poolUserFor } from "./monokuma.mjs";
+import { isMonokuma, isNotInClass, poolUserFor } from "./monokuma.mjs";
 import { spendableDespair } from "./despair.mjs";
 import { hopeHeld, hopeMax, affordableHopeCalls, despairCallsFor } from "./calls.mjs";
 import { isEclipse, movesLeft as eclipseMovesLeft } from "./eclipse.mjs";
@@ -72,24 +73,181 @@ import { SearchTokens } from "./search-tokens.mjs";
 import { rules } from "./rules.mjs";
 import { safeword } from "./safeword.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
-import { debug, error, plural, proseOf, markLanguage, GM_ROUTE_CLASS } from "./utils.mjs";
+import { debug, error, plural, proseOf, markLanguage, GM_ROUTE_CLASS, markFired } from "./utils.mjs";
 import { drpgConfirm } from "./ui-kit.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
+import { announceSheetSteps } from "./requirements.mjs";
+import { overflowBlocksCalls, overflowBlocksFreeMove } from "./overflow.mjs";
 
 /*
- * Dead, as the person looking at this sheet may know it (E05 C9, rule C): on a
- * sheet the viewer owns - their own, or any sheet on a GM - what their browser
- * holds; on anybody else's, the table's fact - so the victim's own player sees the dead
- * panel before anybody has found the body, and nobody else does (E05 C10).
+ * ONE SHEET MODE (E45 C1, 08.11.2026; audit S17-37, S03-33; the owner's A8 of 11.10). The gates of the sheet asked
+ * their own questions in 27 functions - 57 lines on E24's tip that tested death, a Monocub, a Monokuma, "Not in the
+ * class", the mastermind, ownership, the GM's role or `isEditable` each where it drew - and the curtain's strip, the
+ * HUD's Objection, the redaction and the room tile asked theirs again. E24 C3a named the row's and the header's in
+ * two helpers; this is the one place all of them are built, once a render (`onRenderCharacterSheet` hands the answer
+ * to every step through `SHEET_STEPS`; `modeOf` reads it back for a row builder during that render). The answers are
+ * the ones those predicates gave (R1455's matrix runs unchanged; R1471 holds every gate), with one change the plan
+ * names: a Monokuma's sheet without a student's groups, headings and biography (S03-33).
+ *
+ * Dead as the person looking may know it (E05 C9, rule C; code.md "Death is two predicates"): on a sheet the viewer
+ * owns - their own, or any sheet on a GM - what their browser holds; on anybody else's, the table's fact - so the
+ * victim's own player sees the dead panel before anybody has found the body, and nobody else does (E05 C10).
+ *
+ * Client gates are courtesy: the GM's guards judge every request (D2); the redaction still fails closed
+ * (anonymity.mjs `onRenderSheet` closes the sheet on a throw, R1474). The suite hands `facts` ({ clock, record }, as
+ * settings.mjs `isMutedDead` takes them) for the trial's phase and its muted dead.
+ *
+ * @param {Actor} actor
+ * @param {User} [user] whose view: this browser's by default
+ * @param {{app?: object, editable?: boolean, facts?: object}} [options] `app`, the sheet: its `isEditable` decides the
+ *   editable parts; `editable` the suite's answer for it; with neither, whether the user owns the actor
+ * @returns {Readonly<object>} the mode; see the fields below
  */
-function deadToViewer(actor) {
-    return actor?.isOwner ? isDeadForGm(actor) : isDeceased(actor);
+export function sheetMode(actor, user = game.user, { app = null, editable, facts = {} } = {}) {
+    const gm = Boolean(user?.isGM);
+    const owner = gm || Boolean(typeof actor?.testUserPermission === "function"
+        ? actor.testUserPermission(user, "OWNER") : user === game.user && actor?.isOwner);
+    const canEdit = editable !== undefined ? Boolean(editable) : app ? Boolean(app.isEditable) : owner;
+    // A stand-in with no flags at all (a Party sheet's member read by its uuid, the suite's) is a student of the class.
+    const flagged = typeof actor?.getFlag === "function";
+    const monokuma = flagged && isMonokuma(actor);
+    const npc = flagged && isNotInClass(actor);
+    const monocub = flagged && isMonocub(actor);
+    const dead = owner ? isDeadForGm(actor) : isDeceased(actor);
+    const mode = monokuma ? "monokuma" : npc ? "npc" : monocub ? "monocub" : dead ? "dead" : "student";
+    // A Monocub's sheet plays on; the dead's and an NPC's header is still (E24 C3a).
+    const cub = dead && monocub;
+    const header = Object.freeze({ acts: (!dead || cub) && !npc, dead, mark: dead && !cub, npc });
+    // The action panel, by the order it always asked: a Monokuma's Despair Calls, an NPC's line (to a GM), a Monocub's
+    // two tiles, the dead's panel, the student's grid; nothing on a sheet the viewer may not edit.
+    const actions = !canEdit ? null : monokuma ? "calls" : npc ? (gm ? "npc" : null) : monocub ? "monocub" : dead ? "dead" : "grid";
+    // The row buttons (D15: a Monocub's body keeps its items, so no Use, Discard or Stash for it either).
+    const live = canEdit && !monokuma && !dead;
+    const rows = Object.freeze({ use: live, equip: live, discard: live, stash: live, give: live, bullets: live });
+    // Present (E70 C10): hidden outside a trial, for the table's dead and the trial's muted dead; held by the floor
+    // with trial-floor.mjs `presentRefusal`'s line, the Present window's own (trial.mjs). Asked only by the Present
+    // button: in a trial the muted dead are the trial's record (`trialProgress`), a setting the strip and the tile do
+    // not redraw on, so a mode built for them must not read it (R1013 inside a Class Trial; E45 C1 fix).
+    const presentFor = () => (facts.clock ?? getClock())?.phase === "classTrial" && !isDeceased(actor) && !isMutedDead(actor, facts);
+    const present = (floor = trialFloor()) => {
+        const shown = presentFor();
+        return { shown, held: shown ? presentRefusal(floor, actor?.id) : null };
+    };
+    return Object.freeze({
+        mode, gm, owner, viewer: !owner, editable: canEdit, dead, monokuma, npc, monocub,
+        // Dead, and nobody has found them yet (E05 C10): the victim's own player, and a GM.
+        unfound: dead && !isDeceased(actor),
+        header, actions, rows,
+        calls: actions === "grid" || actions === "calls",
+        levelUp: !npc, offers: owner, init: gm && !monokuma, itemButton: gm && !monokuma, classControls: gm,
+        pipEdit: gm, realBullets: gm, otherRemove: gm && canEdit, creators: gm,
+        // A Monokuma's sheet is no student's (S03-33): no student groups, no Equipped or Experience, no biography.
+        groups: !monokuma, equipped: !monokuma, experience: !monokuma, biography: !monokuma,
+        passages: owner && !monokuma, mastermind: gm && isMastermindActor(actor),
+        present,
+        get presentShown() {
+            return presentFor();
+        },
+        // The redaction (anonymity.mjs): another player's sheet, when the table enforces anonymity. Read when asked, so
+        // the strip and the tile, which never ask, read no setting that does not redraw them (R1013). A setting that
+        // cannot be read redacts: the redaction fails closed (E24 fix G2B; security N-3, R1474).
+        get redact() {
+            if (owner) return false;
+            try {
+                return Boolean(game.settings.get(MODULE_ID, SETTINGS.enforceAnonymity));
+            } catch {
+                return true;
+            }
+        },
+        // The reserve's field (`paintReserves`; E24 C1a, Q-E24-1): on a sheet the viewer may edit, a GM's, or the
+        // owner's while "Lock player resources" is off; never on the dead's (a Monocub's plays on) or a Monokuma's
+        // (E24 fix G2B; general m1, R1497). Read when asked, as `redact` is; a setting that cannot be read gives none.
+        get reserveField() {
+            if (!canEdit || monokuma || (dead && !cub)) return false;
+            if (gm) return true;
+            if (!owner) return false;
+            try {
+                return !game.settings.get(MODULE_ID, SETTINGS.lockPlayerResources);
+            } catch {
+                return false;
+            }
+        },
+        // The curtain's strip (player-status.mjs): nothing for a Monokuma or an NPC, the dead's one row, else full.
+        strip: monokuma || npc ? "none" : dead && !monocub ? "dead" : "full",
+        // The HUD's OBJECTION! (hud.mjs `objectionControl`): a living student of the class.
+        objection: mode === "student",
+        // The room tile (room-tile.mjs `viewerRoom`): a body lies in its room and a Monocub walks; an NPC is no student.
+        tile: !npc
+    });
+}
+
+/** The mode of the render in progress for `app` (`onRenderCharacterSheet`), or one computed now. */
+const RENDER_MODES = new WeakMap();
+function modeOf(app) {
+    return RENDER_MODES.get(app) ?? sheetMode(app?.document, game.user, { app });
+}
+
+/**
+ * Whether an item row on this sheet carries buttons: an editable sheet, no Monokuma, nobody dead - a Monocub included.
+ * Exported with `headerGate` for the suite (R1455); both read `sheetMode` since E45 C1.
+ */
+export function rowGate(app) {
+    return modeOf(app).rows.use;
+}
+
+/**
+ * What the header says of this character: `acts`, whether Hope, the Actions pips and the free Move are live (a flash,
+ * a budget's tooltip, a GM's correction) - the living and a Monocub, never the dead or an NPC not in the class;
+ * `dead`, dead as this viewer may know it; `mark`, the death mark on the portrait - the dead, not a Monocub, whose
+ * sheet plays on; `npc`, not in the class.
+ */
+export function headerGate(actor) {
+    return sheetMode(actor).header;
+}
+
+/*
+ * A MONOKUMA'S SHEET IS NO STUDENT'S (E45 C1, 08.11.2026; audit S03-33). Daggerheart draws the sidebar's Equipped and
+ * Experience headings and the Biography tab on every character; on a Monokuma the first two were headings over nothing
+ * and the third a student's backstory form on a GM's mask. The sections are hidden in place (Daggerheart's own markup,
+ * left in the DOM for whatever reads it by its selector); the biography's link leaves the tab bar, its part is emptied,
+ * and a sheet that came up on it is moved to the Actions tab (`features`) as `leaveLoadoutTab` moves one off Loadout.
+ */
+function hideSidebarSection(element, name) {
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    const section = root?.querySelector(`.character-sidebar-sheet .${name}`);
+    if (!section) return;
+    section.hidden = true;
+    section.style.display = "none";
+}
+
+function dropBiographyTab(app, element, part) {
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    if (!root) return;
+    const group = part.dataset.group || "primary";
+    if (part.classList.contains("active") || app?.tabGroups?.[group] === "biography") {
+        if (typeof app?.changeTab === "function") {
+            app.changeTab("features", group, { force: true, updatePosition: false });
+        } else {
+            for (const el of root.querySelectorAll("[data-tab]")) {
+                if ((el.dataset.group || group) === group) el.classList.toggle("active", el.dataset.tab === "features");
+            }
+            if (app?.tabGroups) app.tabGroups[group] = "features";
+        }
+    }
+    root.querySelectorAll('nav [data-tab="biography"], .sheet-tabs [data-tab="biography"]').forEach(link => link.remove());
+    part.replaceChildren();
 }
 
 export function registerSheetTweaks() {
     // ApplicationV2 fires a render hook per class in the inheritance chain,
     // so the concrete Daggerheart sheet class name is the precise target.
     Hooks.on("renderCharacterSheet", onRenderCharacterSheet);
+    // Daggerheart's Party sheet (2.10.5 module/applications/sheets/actors/party-sheet.mjs, class PartySheet): its
+    // members' Health and Sanity as the reserve (E24 C1b; patches.mjs `hook-party-sheet-render`).
+    Hooks.on("renderPartySheet", (app, element) => {
+        markFired("renderPartySheet");
+        try { paintPartyReserves(app, element); } catch (err) { error("Could not draw the Party sheet's reserves", err); }
+    });
     // The sheet's 'Known passages' follows this browser's copy of the passages (E79 C7).
     Hooks.on("drpgPassagesChanged", redrawPassageSheets);
     // The row's Present follows the floor (E70 C10): painted in place, no sheet rendered.
@@ -107,13 +265,11 @@ export function registerSheetTweaks() {
     Hooks.on("closeCharacterSheet", app => {
         try { app?._drpgTileFit?.disconnect(); } catch { /* already gone */ }
         if (app) app._drpgTileFit = null;
+        // The backstory typed and not yet saved goes with the close (E24 C2): from the app, as the element is gone.
+        try { saveBiography(app); } catch (err) { error("Could not save the backstory", err); }
     });
 
-    // The flicker. See the block comment above `onlyResourceKeys` for what
-    // these two do and, more importantly, for the measurement that decides
-    // which of them does what - the order is not the one it looks like.
-    Hooks.on("preUpdateActor", markResourceOnlyUpdate);
-    Hooks.on("updateActor", repaintAfterResourceUpdate);
+    // The flicker is decided inside the sheet's own render now (E45 C2): no hook here - see "THE FLICKER".
 
     /*
      * WHEN A CACHED TAMPER ANSWER STOPS BEING TRUE.
@@ -394,7 +550,7 @@ function labelItemKind(root, item) {
         if (data) {
             const badges = document.createElement("span");
             badges.className = "drpg-tb-badges";
-            badges.innerHTML = bulletBadges(data);
+            badges.innerHTML = bulletBadges(data, { gm: game.user.isGM });
             line.append(badges);
         }
     }
@@ -471,37 +627,51 @@ function lockItemDescription(root) {
  * --------------------------------------------------------------------------
  * Every write to `system.resources.*` made the WHOLE SHEET redraw. Not an
  * animation problem - a full re-render, which also replays every injection this
- * file makes: the action panel, the tabs, `tidyBiography`, `paintResourceBars`.
+ * file makes: the action panel, the tabs, `tidyBiography`, `paintReserves`.
  * One cause, two symptoms: the equipped tab blinking on a roll (a roll spends
  * Hope, and Hope is a resource) and the whole window blinking on a Health or
  * Sanity change.
  *
- * The repair is to stop rendering for those updates and repaint the bar in
- * place instead - `paintResourceBars` already exists and already knows how to
- * resume a half-finished animation.
+ * The repair is not to render for those updates and to repaint in place
+ * instead - the bars' painter (`paintReserves` since E24 C1a) already exists
+ * and already knows how to resume a half-finished animation.
  *
- * WHERE THE PLAN HAD IT BACKWARDS, AND THE MEASUREMENT THAT SHOWED IT.
+ * THE ORDER, MEASURED ON 14.365. One `actor.update()` runs
  *
- * The plan put the "skip the next render" mark in `updateActor`. Instrumented
- * on 14.365, the real order of one `actor.update()` is:
+ *     preUpdateActor  ->  render (the sheet)  ->  updateActor  ->  render (sidebar)
  *
- *     preUpdateActor  →  render (the sheet)  →  updateActor  →  render (sidebar)
+ * so the sheet's render comes after the actor holds the new values and before
+ * `updateActor`. From E4 to E45 that order was answered with state: a "skip the
+ * next render" mark laid on the sheet in `preUpdateActor` (the only hook early
+ * enough), eaten by an own `render`, and the repaint done in `updateActor`. A
+ * no-op update - `orderNoop` was exactly `["preUpdateActor"]` - fired no render
+ * to eat the mark, so the mark waited for the next legitimate render; a value
+ * comparison before the write kept it out of that one.
  *
- * The render being skipped has ALREADY HAPPENED by the time `updateActor`
- * runs. So the mark goes down in `preUpdateActor`, which is the only hook that
- * fires early enough, and `updateActor` does the repainting afterwards.
+ * WHY THE MARK WENT (E45 C2, 08.11.2026; audit S03-07, a bug seen at the table:
+ * lost renders, frozen pips). The mark was laid before overflow.mjs and
+ * resource-guard.mjs cut the write in their own `preUpdateActor` (this file's
+ * hook was registered first), so a write they emptied updated nothing and
+ * rendered nothing, and the mark ate the next render of anything: an item found
+ * by Search did not appear. And `preUpdateActor` fires only on the writer's
+ * browser, so only the writer skipped; every other client blinked.
  *
- * A NO-OP UPDATE IS THE TRAP THIS OPENS. Setting a resource to the value it
- * already holds fires `preUpdateActor` and then NOTHING - no render, no
- * `updateActor` - so a mark laid down for it would still be armed when
- * something legitimate rendered next, and would eat that instead. Measured, not
- * imagined: `orderNoop` was exactly `["preUpdateActor"]`. Hence the value
- * comparison below; the mark is only laid for an update that will really change
- * something and therefore really render.
+ * WHAT DECIDES NOW: THE RENDER'S OWN ARGUMENTS. Foundry hands every client that
+ * holds the sheet open the same render, with its options: `renderContext`
+ * "updateActor" and `renderData`, the changes (v13/v14's notes, not v14's
+ * source; E45's live check of the render's options confirms them at a table,
+ * AUDIT 9.2). `renderPlan` reads them and the
+ * sheet's own `render` (`installRenderPlan`, an own property from its first
+ * render) repaints in place or renders. Nothing is laid before a write and read
+ * after it, so a write cut in preUpdate leaves nothing behind, and every client
+ * repaints, not only the writer.
  *
  * THE CONDITION IS STRICT ON PURPOSE. Anything else in the same package - a
- * flag, an item, an effect - and the render happens. A skipped render that was
- * needed is a sheet showing something untrue, which is worse than a blink.
+ * flag, an item, an effect - and the render happens; so does any shape of the
+ * arguments `renderPlan` does not know (no options, `force`, a first render, no
+ * `renderData`, another context). A skipped render that was needed is a sheet
+ * showing something untrue, which is worse than a blink - and when Daggerheart's
+ * or Foundry's render signature changes, the way out is a blink.
  *
  * "RESOURCES" IS NARROWER THAN IT SOUNDS, AND THAT MATTERS.
  *
@@ -515,23 +685,28 @@ function lockItemDescription(root) {
  * still render exactly as they did.
  *
  * A SKIPPED RENDER LEAVES THE OLD NUMBERS IN THE DOM. Obvious in hindsight and
- * not obvious while writing it: `paintResourceBars` reads the `<progress>` and
- * the number input, both of which the render would have rewritten. Repainting
- * from them repaints the OLD value - measured, the bar sat at 0 while the actor
- * held 1. So the inputs are fed from the actor first, and only then painted.
+ * not obvious while writing it: the painter before E24 (`paintResourceBars`)
+ * read the `<progress>` and the number input, both of which the render would
+ * have rewritten. Repainting from them repainted the OLD value - measured, the
+ * bar sat at 0 while the actor held 1. So the inputs were fed from the actor
+ * first, and only then painted. Since E24 C1a the painter (`paintReserves`)
+ * reads the actor itself and the system's controls are hidden, so nothing is
+ * fed: a render and a repaint draw through the one function.
  * ========================================================================== */
-
-/** Sheets holding a one-shot "do not render" mark. */
-const skipNextRender = new WeakSet();
 
 const RESOURCE_PREFIX = "system.resources.";
 
 /**
  * The resources this file can redraw in place - see the note above.
  *
- * Adding one here is a promise that `repaintInPlace` below draws it.
+ * Adding one here is a promise that `repaintInPlace` below draws it: Health and
+ * Sanity through the painter a render calls (`paintReserves`, both layouts, E24
+ * C1a), Hope through its diamonds and the Calls and tiles it prices. Each by the
+ * fields it is drawn from: a reserve's value and maximum (the painter reads
+ * both), Hope's value alone - the repaint toggles the diamonds already drawn,
+ * so a new maximum renders (E24 fix G2B; general n1, R1477).
  */
-const REPAINTABLE = new Set(["hitPoints", "stress", "hope"]);
+const REPAINTABLE = new Map([["hitPoints", ["value", "max"]], ["stress", ["value", "max"]], ["hope", ["value"]]]);
 
 /**
  * Is every key in this update a resource this file can repaint itself?
@@ -539,9 +714,10 @@ const REPAINTABLE = new Set(["hitPoints", "stress", "hope"]);
  * `_id` and `_stats` are not part of the answer. MEASURED: the package handed
  * to `preUpdateActor` is exactly what the caller wrote, but by `updateActor`
  * the server has added `_stats.modifiedTime` - so a predicate that only
- * forgives `_id` says "no" on the second hook and the repaint never runs. That
- * failure is silent and looks exactly like the flicker fix working, except the
- * numbers stop moving.
+ * forgives `_id` says "no" on the changes Foundry hands on after the write,
+ * which are `renderData`'s, and the repaint never runs. That failure is silent
+ * and looks exactly like the flicker fix working, except the numbers stop
+ * moving.
  */
 function onlyResourceKeys(changes) {
     const keys = Object.keys(foundry.utils.flattenObject(changes ?? {}))
@@ -550,25 +726,36 @@ function onlyResourceKeys(changes) {
 
     return keys.every(key => {
         if (!key.startsWith(RESOURCE_PREFIX)) return false;
-        const name = key.slice(RESOURCE_PREFIX.length).split(".")[0];
-        return REPAINTABLE.has(name);
+        const [name, field, ...rest] = key.slice(RESOURCE_PREFIX.length).split(".");
+        return !rest.length && Boolean(REPAINTABLE.get(name)?.includes(field));
     });
 }
 
+const isOptions = value => typeof value === "object" && value !== null && !Array.isArray(value);
+
 /**
- * Will this update actually change a value - that is, will it render at all?
+ * "repaint" or "render", from a render's own arguments (E45 C2; pure, for the suite). `args` is what the sheet's
+ * `render` was called with; `rendered` whether the sheet is on screen now (a first render renders).
  *
- * ONLY ANSWERABLE BEFORE THE WRITE. Asked from `updateActor` it is always
- * false, because by then the actor already holds the new values, and a repaint
- * gated on it would never happen. That is why the two hooks below do not share
- * one predicate: the earlier one asks this, the later one must not.
+ * Two shapes are known: `render(options)`, ApplicationV2's, and `render(false, options)`, the one Foundry's document
+ * hands its apps after a write (v13's `ClientDocument#render(force, context)`, as remembered; ApplicationV2 reads a
+ * boolean first argument as `force`, so `false` asks for nothing more than the options say). Anything else renders:
+ * `render(true, ...)`, `render()`, `force`, `parts`, a context other than "updateActor", no `renderData`, a key in it
+ * that is not a repaintable resource.
  */
-function willReallyChange(actor, changes) {
-    const flat = foundry.utils.flattenObject(changes ?? {});
-    return Object.keys(flat)
-        .filter(key => key !== "_id" && !key.startsWith("_stats."))
-        .some(key => foundry.utils.getProperty(actor, key) !== flat[key]);
+export function renderPlan(args, { rendered = true } = {}) {
+    const list = Array.isArray(args) ? args : [];
+    let options = null;
+    if (list.length === 1 && isOptions(list[0])) options = list[0];
+    else if (list.length === 2 && list[0] === false && isOptions(list[1])) options = list[1];
+    if (!options || !rendered) return "render";
+    if (options.force || options.parts !== undefined || options.renderContext !== "updateActor") return "render";
+    if (!isOptions(options.renderData)) return "render";
+    return onlyResourceKeys(options.renderData) ? "repaint" : "render";
 }
+
+/** The mark the sheet's own `render` carries, read by the contract (patches.mjs `sheet-render-guard`). */
+export const RENDER_PLAN = Symbol.for("drpgRenderPlan");
 
 /** Every open character sheet for this actor. */
 function sheetsFor(actor) {
@@ -577,78 +764,53 @@ function sheetsFor(actor) {
 }
 
 /**
- * Give an instance its own `render` that eats one mark and then behaves.
+ * Give a character sheet its own `render` that asks `renderPlan` first (E45 C2): on "repaint" it repaints in place
+ * - `repaintInPlace`, inside `settle` - and resolves with the app, as a render does; otherwise, and whenever the
+ * repaint throws, it calls the render it shadows. Installed from the sheet's first render (`SHEET_STEPS`
+ * "installRenderPlan"), once.
  *
  * On the INSTANCE rather than on `ApplicationV2.prototype`: this concerns
  * character sheets and nothing else, and a global wrap would put every window
  * in the application through a check that can only ever be true for one kind.
  * An own property shadows the prototype's method for this object alone.
  */
-function armRenderGuard(app) {
-    if (Object.hasOwn(app, "render")) return;
+export function installRenderPlan(app) {
+    if (!app || Object.hasOwn(app, "render")) return;
 
-    const proto = Object.getPrototypeOf(app);
-    const original = proto?.render;
+    const original = Object.getPrototypeOf(app)?.render;
     if (typeof original !== "function") return;
 
-    Object.defineProperty(app, "render", {
-        configurable: true,
-        writable: true,
-        value: function(...args) {
-            if (skipNextRender.has(this)) {
-                skipNextRender.delete(this);
+    const render = function (...args) {
+        const root = this.element instanceof HTMLElement ? this.element : this.element?.[0];
+        if (this.document?.type === "character" && root
+            && renderPlan(args, { rendered: Boolean(this.rendered) }) === "repaint") {
+            try {
+                settle(root, () => repaintInPlace(this.document, root, this));
                 return Promise.resolve(this);
+            } catch (err) {
+                // A sheet that renders is the safe failure.
+                error("Could not repaint a resource in place; the sheet renders", err);
             }
-            return original.apply(this, args);
         }
-    });
-}
-
-/** Before the write, because the sheet redraws before `updateActor` runs. */
-function markResourceOnlyUpdate(actor, changes) {
-    try {
-        if (!onlyResourceKeys(changes)) return;
-        if (!willReallyChange(actor, changes)) return;
-        for (const app of sheetsFor(actor)) {
-            armRenderGuard(app);
-            skipNextRender.add(app);
-        }
-    } catch (err) {
-        // A sheet that renders is the safe failure, so this never rethrows.
-        error("Could not mark a resource-only update", err);
-    }
+        return original.apply(this, args);
+    };
+    render[RENDER_PLAN] = true;
+    Object.defineProperty(app, "render", { configurable: true, writable: true, value: render });
 }
 
 /**
- * Everything the skipped render would have redrawn, drawn here instead.
+ * Everything a render would have redrawn for a resource-only update, drawn here instead (the wrapper's
+ * "repaint", `installRenderPlan`).
  *
  * Two surfaces, because that is how many the three repaintable resources have:
- * the sidebar bars (whose own controls have to be fed from the actor first -
- * see the note above) and the Hope diamonds in the header, which the module
- * paints from `:has(> i.fa-solid)`, so the class on the inner glyph IS the
- * state and toggling it is the whole repaint.
+ * Health and Sanity in the sidebar, drawn by the same painter a render calls
+ * (`paintReserves`, which reads the actor - E24 C1a; until then this fed the
+ * system's own controls from the actor and the bar read them back), and the Hope
+ * diamonds in the header, which the module paints from `:has(> i.fa-solid)`, so
+ * the class on the inner glyph IS the state and toggling it is the whole repaint.
  */
-function repaintInPlace(actor, element) {
-    for (const bar of element.querySelectorAll(
-        ".character-sidebar-sheet .resources-section .status-bar")) {
-        const input = bar.querySelector("input.bar-input");
-        const progress = bar.querySelector("progress.progress-bar");
-        const name = input?.name;
-        if (!name) continue;
-
-        const value = Number(foundry.utils.getProperty(actor, name) ?? 0);
-        const max = Number(
-            foundry.utils.getProperty(actor, name.replace(/\.value$/, ".max"))
-            ?? progress?.max ?? 0);
-
-        // The system's own controls, which the render would have rewritten.
-        // Left stale they say something untrue right next to a correct bar.
-        input.value = String(value);
-        if (progress) {
-            progress.max = max;
-            progress.value = value;
-        }
-    }
+function repaintInPlace(actor, element, app = null) {
+    paintReserves(app, element, actor);
 
     const hope = Number(foundry.utils.getProperty(actor, "system.resources.hope.value") ?? 0);
     for (const slot of element.querySelectorAll(".hope-section .hope-value")) {
@@ -678,10 +840,18 @@ function repaintInPlace(actor, element) {
     // alone would show a price that stopped being true one pip ago.
     refreshPricedTiles(actor, element);
 
+    // AND A MONOCUB'S TILES (E45 C2; audit S03-07): Confusion costs Hope, and its tile's affordability is drawn when
+    // the grid is built - so a Hope-only change left it as the render before had drawn it.
+    refreshMonocubTiles(actor, element);
+
     // AFTER the glyphs, because the mark is counted off them. A repaint stands
     // in for a render and owes what the render owed - including saying that
-    // something moved. See `markHopeChange`.
-    markHopeChange(actor, element);
+    // something moved. See `markHopeChange`. And no more than the render owed:
+    // the dead's and an NPC's header is still, counted and never marked, as
+    // `flashHope` keeps it - since E45 C2 every client holding the sheet
+    // repaints (E24 fix G2B; general m3, R1479).
+    const mode = sheetMode(actor);
+    markHopeChange(actor, element, !mode.header.acts || mode.redact);
 }
 
 /**
@@ -725,7 +895,7 @@ function refreshCallsPanels(actor, element) {
         const max = monokuma ? STARTING.despairMax : hopeMax(actor);
         const lockNote = callLockNote(monokuma);
 
-        panel.classList.toggle("drpg-silenced", isCallSilenced(actor));
+        panel.classList.toggle("drpg-silenced", isCallSilenced(actor) || (!monokuma && overflowBlocksCalls()));
 
         const pool = panel.querySelector(".drpg-calls-pool");
         if (pool) pool.textContent = `${held} / ${max}`;
@@ -738,20 +908,16 @@ function refreshCallsPanels(actor, element) {
     }
 }
 
-/** After the write: what the skipped render would have drawn. */
-function repaintAfterResourceUpdate(actor, changes) {
-    // Shape only. The value test belongs to the hook before this one, and a
-    // no-op never reaches here anyway - Foundry does not fire `updateActor`
-    // for an update that changed nothing.
-    if (!onlyResourceKeys(changes)) return;
-
-    for (const app of sheetsFor(actor)) {
-        try {
-            repaintInPlace(actor, app.element);
-            paintResourceBars(app, app.element);
-        } catch (err) {
-            error("Could not repaint a resource in place", err);
-        }
+/**
+ * A Monocub's grid rebuilt from what it now holds (E45 C2): the tiles `injectMonocubPanel` draws, from the same
+ * `monocubTiles`. A tile in flight - `disabled` by the delegate while its action runs, as `refreshPricedTiles` reads
+ * it - is kept as it is, so a second click cannot fire it again.
+ */
+function refreshMonocubTiles(actor, element) {
+    for (const grid of element.querySelectorAll(".drpg-monocub-panel .drpg-action-grid")) {
+        const busy = new Map([...grid.querySelectorAll("[data-drpg-action]")]
+            .filter(node => node.disabled).map(node => [node.dataset.drpgAction, node]));
+        grid.replaceChildren(...monocubTiles(actor).map(tile => busy.get(tile.dataset?.drpgAction) ?? tile));
     }
 }
 
@@ -791,14 +957,73 @@ function settle(root, work) {
     }
 }
 
+/*
+ * ONE STEP AT A TIME (E24 C3b, 08.11.2026; E24-21, audit S03-42). The injections ran in one try, so the first one
+ * to throw - a Daggerheart that moved a part one of them reads, on the newer systems D1 lets the module start on -
+ * took every one after it with it: a sheet with an Actions tab and no Calls, or Daggerheart's own "+" back. Each step
+ * is now `[name, run]`, run in its own try inside `settle`, in the order they always ran, with `removeSystemCreators`
+ * first: its job is a guard (what it removes must not be there whatever else fails), and nothing after it creates a
+ * creator. A failed step is logged under its name, and the primary GM is told once a load which steps failed, beside
+ * the newer-Daggerheart warning (requirements.mjs `announceSheetSteps`) - never a player, whose console has the error.
+ * `run` takes `{ app, element, fresh, mode }`, `mode` the render's `sheetMode` (E45 C1). The table is the suite's to read
+ * and to plant a throwing step in (R1456); E54 moves it into the thin sheet.mjs.
+ */
+export const SHEET_STEPS = [
+    ["removeSystemCreators", ({ app, element, mode }) => removeSystemCreators(app, element, mode)],
+    ["leaveLoadoutTab", ({ app, element }) => leaveLoadoutTab(app, element)],
+    ["frameTraits", ({ element }) => frameTraits(element)],
+    ["injectUltimate", ({ app, element, mode }) => injectUltimate(app, element, mode)],
+    ["markSheetState", ({ app, element, mode }) => markSheetState(app, element, mode)],
+    ["injectInitButton", ({ app, element, mode }) => injectInitButton(app, element, mode)],
+    ["injectAdvanceButton", ({ app, element, mode }) => injectAdvanceButton(app, element, mode)],
+    ["injectClassControls", ({ app, element, mode }) => injectClassControls(app, element, mode)],
+    ["injectItemButton", ({ app, element, mode }) => injectItemButton(app, element, mode)],
+    ["injectActionBar", ({ app, element, fresh, mode }) => injectActionBar(app, element, fresh, mode)],
+    ["flashHope", ({ app, element, fresh, mode }) => flashHope(app, element, fresh, mode)],
+    ["injectActionPanel", ({ app, element, mode }) => injectActionPanel(app, element, mode)],
+    ["growForCalls", ({ app }) => growForCalls(app)],
+    ["fitActionTiles", ({ element }) => fitActionTiles(element)],
+    ["watchTileFit", ({ app, element }) => watchTileFit(app, element)],
+    ["holdActionsTab", ({ app, element }) => holdActionsTab(app, element)],
+    ["tidySidebar", ({ element }) => tidySidebar(element)],
+    ["paintReserves", ({ app, element }) => paintReserves(app, element)],
+    ["injectEquippedTools", ({ app, element, mode }) => injectEquippedTools(app, element, mode)],
+    ["noteEmptyExperience", ({ app, element, mode }) => noteEmptyExperience(app, element, mode)],
+    ["injectKnownPassages", ({ app, element, mode }) => injectKnownPassages(app, element, mode)],
+    ["injectSafeword", ({ app, element }) => injectSafeword(app, element)],
+    ["tidyBiography", ({ app, element, mode }) => tidyBiography(app, element, mode)],
+    ["groupInventory", ({ app, element, mode }) => groupInventory(app, element, mode)],
+    ["replaceEffectsTab", ({ app, element }) => replaceEffectsTab(app, element)],
+    // The render's own decision, installed once per sheet (E45 C2; "THE FLICKER").
+    ["installRenderPlan", ({ app }) => installRenderPlan(app)],
+    // Last: the tab's scroll back where it was, once everything above has drawn into it.
+    ["keepTabScroll", ({ app, element }) => keepTabScroll(app, element)]
+];
+
+/** Run each of `SHEET_STEPS` in its own try; the names of the steps that threw, in their order. */
+function runSheetSteps(ctx) {
+    const failed = [];
+    for (const [name, run] of SHEET_STEPS) {
+        try {
+            run(ctx);
+        } catch (err) {
+            failed.push(name);
+            error(`Sheet step ${name} failed`, err);
+        }
+    }
+    return failed;
+}
+
 function onRenderCharacterSheet(app, element, context, options) {
     try {
         if (app?.document?.type !== "character") return;
         // A first draw has nothing to compare against and nothing to announce.
         const fresh = Boolean(options?.isFirstRender);
+        // The one gate of this render (E45 C1): every step reads it, a row builder through `modeOf`.
+        const mode = sheetMode(app.document, game.user, { app });
         // CSS keys off this to grey out the parts a Monokuma does not use.
         const root = element instanceof HTMLElement ? element : element?.[0];
-        root?.classList?.toggle("drpg-monokuma", isMonokuma(app.document));
+        root?.classList?.toggle("drpg-monokuma", mode.monokuma);
         // The sheet's language, the page's (E66 C1): the module draws most of what it shows, its renamed traits and
         // resources included. Daggerheart's own words on it are in Foundry's language and carry no mark of their own.
         // ON THE ROOT, NOT ON THE MODULE'S PARTS (E66 fix r1 F2, STATUS Open 4; read 01.11.2026): lang/en.json and pl.json
@@ -810,32 +1035,74 @@ function onRenderCharacterSheet(app, element, context, options) {
         // repository or the harness). A table reads it: LIVE-E66-02.
         markLanguage(root);
 
-        settle(root, () => {
-            frameTraits(element);
-            injectUltimate(app, element);
-            injectInitButton(app, element);
-            injectAdvanceButton(app, element);
-            injectItemButton(app, element);
-            injectActionBar(app, element, fresh);
-            flashHope(app, element, fresh);
-            injectActionPanel(app, element);
-            growForCalls(app);
-            fitActionTiles(element);
-            watchTileFit(app, element);
-            holdActionsTab(app, element);
-            tidySidebar(element);
-            paintResourceBars(app, element);
-            injectEquippedTools(app, element);
-            injectKnownPassages(app, element);
-            injectSafeword(app, element);
-            tidyBiography(app, element);
-            groupInventory(app, element);
-            replaceEffectsTab(app, element);
-            removeSystemCreators(app, element);
-        });
+        let failed = [];
+        RENDER_MODES.set(app, mode);
+        try {
+            settle(root, () => {
+                failed = runSheetSteps({ app, element, fresh, mode });
+            });
+        } finally {
+            RENDER_MODES.delete(app);
+        }
+        if (failed.length) announceSheetSteps(failed);
     } catch (err) {
         error("Failed to render the Danganronpa sheet parts", err);
     }
+}
+
+/*
+ * THE LOADOUT TAB IS NEVER THE ONE SHOWN (E24 C3b, 08.11.2026; E24-22, audit S03-47, S12-45). Its link is hidden in
+ * the stylesheet (danganronpa.css "Loadout") because this game has no domain cards, but the part still rendered, and a
+ * sheet that came up on it - a tab Daggerheart remembered, a macro's `changeTab` - showed a pane of controls with no
+ * way back to it. At render, an active `loadout` tab is changed to the Actions tab (`features`, the one this module
+ * draws into) through the app's own `changeTab`, which keeps `tabGroups` and the nav in step; a stand-in without one
+ * gets the classes moved by hand. The part stays in the DOM, empty, for whatever reads it by its selector.
+ */
+function leaveLoadoutTab(app, element) {
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    if (!root) return;
+    const part = root.querySelector('section[data-application-part="loadout"], section.tab[data-tab="loadout"]');
+    if (!part) return;
+    const group = part.dataset.group || "primary";
+    if (part.classList.contains("active") || app?.tabGroups?.[group] === "loadout") {
+        if (typeof app?.changeTab === "function") {
+            app.changeTab("features", group, { force: true, updatePosition: false });
+        } else {
+            for (const el of root.querySelectorAll(`[data-group="${group}"][data-tab]`)) {
+                el.classList.toggle("active", el.dataset.tab === "features");
+            }
+            if (app?.tabGroups) app.tabGroups[group] = "features";
+        }
+    }
+    part.replaceChildren();
+}
+
+/*
+ * A TAB KEEPS ITS SCROLL (E24 C3b, 08.11.2026; E24-22, audit S03-14). Under the glass `section.tab` is the pane that
+ * scrolls (stained-glass.css "THE SHEET'S TABS SCROLL"), and every render draws a new one at the top: a player halfway
+ * down the Inventory was put back at its first row by any write to their sheet. Daggerheart keeps the scroll of its
+ * own inner lists only (`.items-section`, `.features-sections`). Each tab's `scrollTop` is kept here per app id and tab
+ * name, by one scroll listener on the window's root (which outlives its parts' renders; scroll does not bubble, so it
+ * is caught on the way down), and the active tab's is put back as the render's last step. Under Monokuma Legacy the
+ * same `section.tab` does not scroll: it keeps 0, and putting 0 back changes nothing.
+ */
+const tabScrolls = new Map();
+
+function keepTabScroll(app, element) {
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    const id = app?.id;
+    if (!root || !id) return;
+    if (!root.dataset.drpgTabScroll) {
+        root.dataset.drpgTabScroll = "1";
+        root.addEventListener("scroll", event => {
+            const tab = event.target;
+            if (!tab?.matches?.("section.tab[data-tab]")) return;
+            tabScrolls.set(`${id}|${tab.dataset.tab}`, tab.scrollTop);
+        }, { capture: true, passive: true });
+    }
+    const active = root.querySelector("section.tab.active[data-tab]");
+    const kept = active ? tabScrolls.get(`${id}|${active.dataset.tab}`) : undefined;
+    if (Number.isFinite(kept) && kept > 0 && active.scrollTop !== kept) active.scrollTop = kept;
 }
 
 /**
@@ -864,14 +1131,14 @@ function onRenderCharacterSheet(app, element, context, options) {
  */
 const CREATE_ACTIONS = ["addnewitem", "createitem", "createdoc", "additem", "newitem"];
 
-function removeSystemCreators(app, element) {
+function removeSystemCreators(app, element, mode = modeOf(app)) {
     const root = element instanceof HTMLElement ? element : element?.[0];
     if (!root) return;
 
     const sections = [
         ...root.querySelectorAll('section[data-application-part="features"], section.tab[data-tab="features"]')
     ];
-    if (!game.user.isGM) {
+    if (!mode.creators) {
         sections.push(...root.querySelectorAll(
             'section[data-application-part="inventory"], section.tab[data-tab="inventory"]'));
     }
@@ -1203,8 +1470,10 @@ function frameTraits(element) {
  * glyph in it - the same test the stylesheet's `:has()` makes to choose the
  * filled sprite - so the two cannot disagree about which diamonds are lit.
  */
-function flashHope(app, element, fresh = false) {
-    markHopeChange(app.document, element, fresh);
+function flashHope(app, element, fresh = false, mode = modeOf(app)) {
+    // Still for the dead and an NPC (E24 C3a; the mode's header since E45 C1): counted, never marked, as a first draw is.
+    // And on a sheet the redaction takes (E45-C3b): see `markHopeChange`.
+    markHopeChange(app.document, element, fresh || !mode.header.acts || mode.redact);
 }
 
 /**
@@ -1225,6 +1494,13 @@ function flashHope(app, element, fresh = false) {
  * difference on its second draw.
  */
 function markHopeChange(actor, element, fresh = false) {
+    /*
+     * NEVER ON A REDACTED SHEET (E45-C3b, 09.11.2026; found by scenario 71 J3). The count comes from the glyphs, and the
+     * redaction (anonymity.mjs `redactValues`) takes them out after the render counted them: the first repaint read 0
+     * held and marked every diamond the render had seen as spent - on p2's view of Aiko, three marked for her three
+     * Hope ({"hopeText":"??????","hopeClasses":3}), and a mark the redaction never strips. Its callers pass `fresh`
+     * for a sheet the mode redacts, so nothing on it is marked; counted as a first draw is.
+     */
     const slots = element?.querySelectorAll?.(
         ".character-header-sheet .hope-section .hope-value") ?? [];
     if (!slots.length) return;
@@ -1269,7 +1545,7 @@ function markHopeChange(actor, element, fresh = false) {
 // Always draw the full base budget. A wounded character keeps both circles,
 // but the one they have lost shows as a locked red slot - clearer than
 // silently rendering "1 / 1", which reads like an action already spent.
-function actionPips(actor, { left, max, spentActions, fresh, viewer = false }) {
+function actionPips(actor, { left, max, spentActions, fresh, viewer = false, still = false, gm = false }) {
     const pips = [];
     const budget = Math.max(max, 1);
     for (let i = 1; i <= Math.max(STARTING.actions, budget); i++) {
@@ -1281,14 +1557,16 @@ function actionPips(actor, { left, max, spentActions, fresh, viewer = false }) {
         // The pips between the old reading and the new one: the ones just paid.
         // Built empty like any other unspent socket; the mark only says how
         // they got that way. See the keyframes in the stylesheet.
-        markSpent(pip, fresh ? null : spentActions, i);
+        markSpent(pip, fresh || still ? null : spentActions, i);
         pip.dataset.value = String(i);
         pip.innerHTML = `<i class="fa-${filled ? "solid" : "regular"} fa-circle" inert></i>`;
 
-        if (locked) {
-            // A viewer's pips say nothing (S03-06, `viewerOf`); the redaction marks them.
+        if (still) {
+            // The dead's and an NPC's pips are drawn still (E24 C3a, the mode's header): no budget to read, none to correct.
+        } else if (locked) {
+            // A viewer's pips say nothing (S03-06, the mode's `viewer`); the redaction marks them.
             if (!viewer) pip.dataset.tooltip = game.i18n.localize("DRPG.Actions.lockedTooltip");
-        } else if (game.user.isGM) {
+        } else if (gm) {
             // GM only: players spend actions by taking actions, not by clicking.
             pip.classList.add("gm-editable");
             pip.dataset.tooltip = game.i18n.format("DRPG.Actions.pipTooltip", { n: i });
@@ -1313,14 +1591,18 @@ function actionPips(actor, { left, max, spentActions, fresh, viewer = false }) {
 }
 
 /* ---- free move ---- */
-function freeMovePip(actor, { spentMove, fresh, viewer = false }) {
+function freeMovePip(actor, { spentMove, fresh, viewer = false, still = false }) {
     const move = document.createElement("span");
     const freeMove = hasFreeMove(actor);
-    move.className = `drpg-free-move${freeMove ? " available" : " spent"}`;
-    markSpent(move, fresh ? null : spentMove);
-    if (!viewer) {
+    /* FOG IS A THIRD STATE (E24 C3b, 08.11.2026; E24-24, audit S03-13). `hasFreeMove` answers no under the Overflow's
+       Fog, and the pip said "Free Move used" of a Move nobody spent. Drawn as a spent one (it is not there to take),
+       with `drpg-fogged` and Fog's reason in the tooltip. */
+    const fog = !freeMove && overflowBlocksFreeMove();
+    move.className = `drpg-free-move${freeMove ? " available" : " spent"}${fog ? " drpg-fogged" : ""}`;
+    markSpent(move, fresh || still ? null : spentMove);
+    if (!viewer && !still) {
         move.dataset.tooltip = game.i18n.localize(
-            freeMove ? "DRPG.Actions.freeMoveAvailable" : "DRPG.Actions.freeMoveSpent"
+            freeMove ? "DRPG.Actions.freeMoveAvailable" : fog ? "DRPG.SheetNotes.fogFreeMove" : "DRPG.Actions.freeMoveSpent"
         );
     }
     // Solid while it is there, OUTLINED once it is gone - the same pair the
@@ -1399,7 +1681,8 @@ function pendingStack(actor) {
 }
 
 /**
- * Somebody looking at a sheet that is not theirs: neither a GM nor an owner.
+ * The header's Actions section. A viewer - somebody looking at a sheet that is not theirs, neither a GM nor an owner
+ * (the mode's `viewer`, E45 C1) - is drawn no tooltip and no stack:
  *
  * A VIEWER IS DRAWN NOTHING THE REDACTION WOULD HAVE TO TAKE BACK (E05 C15,
  * 27.09.2026; audit S03-06). anonymity.mjs turns a viewer's pips and free Move
@@ -1410,16 +1693,13 @@ function pendingStack(actor) {
  * drawn for a viewer at all, whether or not the table enforces anonymity, and the
  * redaction strips them too (`redactValues`) for anything a later hand adds.
  */
-function viewerOf(actor) {
-    return !game.user.isGM && !actor?.testUserPermission?.(game.user, "OWNER");
-}
-
-function injectActionBar(app, element, fresh = false) {
+function injectActionBar(app, element, fresh = false, mode = modeOf(app)) {
     const row = element.querySelector(".character-header-sheet .character-row");
     if (!row || row.querySelector(".drpg-actions-section")) return;
 
     const actor = app.document;
-    const viewer = viewerOf(actor);
+    const { viewer, pipEdit: gm } = mode;
+    const still = !mode.header.acts;
     const left = actionsLeft(actor);
     const max = actionsMax(actor);
     const { wounded } = actionBudget(actor);
@@ -1431,7 +1711,7 @@ function injectActionBar(app, element, fresh = false) {
     const spentMove = spentSince("sheet:move", actor.id, hasFreeMove(actor) ? 1 : 0);
 
     const section = document.createElement("div");
-    section.className = "drpg-actions-section";
+    section.className = `drpg-actions-section${still ? " drpg-still" : ""}`;
 
     /* ---- action pips ---- */
     const actions = document.createElement("div");
@@ -1439,19 +1719,19 @@ function injectActionBar(app, element, fresh = false) {
 
     const label = document.createElement("h4");
     label.textContent = game.i18n.localize("DRPG.Actions.label");
-    if (wounded) {
+    if (wounded && !still) {
         label.classList.add("drpg-wounded");
         label.dataset.tooltip = game.i18n.localize("DRPG.Actions.woundedTooltip");
     }
     actions.append(label);
 
-    for (const pip of actionPips(actor, { left, max, spentActions, fresh, viewer })) actions.append(pip);
+    for (const pip of actionPips(actor, { left, max, spentActions, fresh, viewer, still, gm })) actions.append(pip);
 
-    actions.append(freeMovePip(actor, { spentMove, fresh, viewer }));
+    actions.append(freeMovePip(actor, { spentMove, fresh, viewer, still }));
 
     section.append(actions);
 
-    const stack = viewer ? null : pendingStack(actor);
+    const stack = viewer || still ? null : pendingStack(actor);
     if (stack?.children.length) section.append(stack);
 
     // Sit right after Hope, before the domains/downtime buttons.
@@ -1517,12 +1797,11 @@ function needsInit(actor) {
     return needsStartingResources(actor);
 }
 
-function injectInitButton(app, element) {
-    if (!game.user.isGM) return;
+function injectInitButton(app, element, mode = modeOf(app)) {
+    if (!mode.init) return;
     const actor = app.document;
     // A Monokuma has no tracks worth setting - `setMonokuma` deliberately zeroes
     // what a student uses, so this would light up permanently on the GM's own sheet.
-    if (isMonokuma(actor)) return;
     if (!needsInit(actor)) return;
 
     const nameRow = element.querySelector(".character-header-sheet .name-row");
@@ -1573,7 +1852,7 @@ function injectInitButton(app, element) {
  * A button on the sheet beats a macro the GM has to install by hand.
  * ========================================================================== */
 
-function injectAdvanceButton(app, element) {
+function injectAdvanceButton(app, element, mode = modeOf(app)) {
     /*
      * THE PLAYER GETS THIS BUTTON TOO, WHEN ONE IS WAITING FOR THEM (N-2, 20.09).
      *
@@ -1593,21 +1872,26 @@ function injectAdvanceButton(app, element) {
     // AND THE GM'S (E10 C6, 1.2.71; audit S03-17). A GM was handed no offer here, so the
     // GM's button never lit and nothing said one stood: it lights from the GMs' store now,
     // and says how many stand; its menu takes one back (level-up.mjs `openAdvancementFor`).
-    const offers = !app.document.isOwner ? [] : standingOffers(app.document);
+    const offers = !mode.offers ? [] : standingOffers(app.document);
     const [offer] = offers;
 
     const nameRow = element.querySelector(".character-header-sheet .name-row");
     const standing = nameRow?.querySelector("[data-drpg-advance]");
+    // No Level Up for an NPC not in the class (E24 C3a, E24-20): no verdict offers one, and the GM's button would.
+    if (!mode.levelUp) {
+        standing?.remove();
+        return;
+    }
     // A player with nothing on offer has no button: a header drawn again after the offer
     // was spent or taken back used to keep the lit one, whose press said "GM only" (S03-17).
-    if (!game.user.isGM && !offer) {
+    if (!mode.gm && !offer) {
         standing?.remove();
         return;
     }
     if (!nameRow) return;
 
     const count = offers.length > 1 ? plural("DRPG.Advance.standing", { n: offers.length }) : "";
-    const tip = game.user.isGM
+    const tip = mode.gm
         ? (offer ? plural("DRPG.Advance.standing", { n: offers.length }) : game.i18n.localize("DRPG.Advance.buttonTooltip"))
         : [game.i18n.format("DRPG.Advance.offerTooltip", { kind: advanceKindName(offer.kind) }), count]
             .filter(Boolean).join(" ");
@@ -1632,7 +1916,7 @@ function injectAdvanceButton(app, element) {
         const { openAdvancementFor, openAdvancement } = await import("./level-up.mjs");
         // The GM is asked which kind and who picks; the player is not asked
         // anything - the offer already says which kind, and they are the who.
-        if (game.user.isGM) await openAdvancementFor(app.document);
+        if (mode.gm) await openAdvancementFor(app.document);
         else await openAdvancement(app.document);
     });
 
@@ -1641,15 +1925,95 @@ function injectAdvanceButton(app, element) {
 
 
 /* ==========================================================================
+ * WHO THIS IS: THE DEATH MARK AND THE GM'S CONTROLS
+ * --------------------------------------------------------------------------
+ * E24 C3a, 08.11.2026 (audit S03-15, S03-36; E24-18, E24-19; the owner's
+ * answer to Q-E24-5 and STAGE.md "Amend 08.11" A2).
+ * ========================================================================== */
+
+/**
+ * The sheet's state on its root, for the stylesheet: `drpg-sheet-still` while the header is still (the mode's header),
+ * `drpg-dead-sheet` and the stamp on the portrait for the dead (a Monocub's sheet plays on and carries neither),
+ * `drpg-npc-sheet` for an NPC not in the class. Dead as the viewer may know it, so a player who does not know of a
+ * death sees no mark (`sheetMode`'s death: the table's fact on anybody else's sheet).
+ */
+function markSheetState(app, element, mode = modeOf(app)) {
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    if (!root?.classList) return;
+    const { acts, mark, npc } = mode.header;
+    root.classList.toggle("drpg-sheet-still", !acts);
+    root.classList.toggle("drpg-dead-sheet", mark);
+    root.classList.toggle("drpg-npc-sheet", npc);
+    const portrait = root.querySelector(".character-sidebar-sheet .portrait");
+    portrait?.querySelectorAll(".drpg-death-mark").forEach(stamp => stamp.remove());
+    if (!mark || !portrait) return;
+    const stamp = document.createElement("span");
+    stamp.className = "drpg-death-mark";
+    stamp.textContent = game.i18n.localize("DRPG.Class.deathMark");
+    portrait.append(stamp);
+}
+
+/**
+ * THE GM'S CONTROLS OF WHO IS A STUDENT, ON THE SHEET'S HEADER. "Not in the class" (`FLAGS.notInClass`, a toggle, its
+ * state on `aria-pressed`) on every character, and Mark as Monokuma on a student or Unmark as Monokuma on a Monokuma -
+ * each in the state it changes. Mark and Unmark were the Actors directory's right-click entries (monokuma.mjs, E22
+ * C3b); the mark of a player's character still asks first (`markFromSheet`), Unmark does not. A GM's only: a player's
+ * sheet draws none, and the writes refuse a player (`setNotInClass`, `setMonokuma`) whatever a console calls.
+ * Redrawn each render, so a control shows the state the sheet was drawn in.
+ */
+function injectClassControls(app, element, mode = modeOf(app)) {
+    const nameRow = element.querySelector(".character-header-sheet .name-row");
+    nameRow?.querySelectorAll("[data-drpg-class-control]").forEach(button => button.remove());
+    if (!mode.classControls || !nameRow) return;
+    const actor = app.document;
+    const { npc: out, monokuma } = mode;
+    const control = (kind, icon, tip, run, pressed = null) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "drpg-advance-button drpg-class-control";
+        button.dataset.drpgClassControl = kind;
+        button.dataset.tooltip = tip;
+        button.setAttribute("aria-label", tip);
+        if (pressed !== null) button.setAttribute("aria-pressed", String(pressed));
+        button.innerHTML = `<i class="fa-solid ${icon}" inert></i>`;
+        button.addEventListener("click", async () => {
+            button.disabled = true;
+            try {
+                await run();
+            } catch (err) {
+                error("Could not change who is a student", err);
+            } finally {
+                button.disabled = false;
+            }
+        });
+        nameRow.append(button);
+    };
+    control("notInClass", "fa-user-slash", game.i18n.localize(out ? "DRPG.Class.inTooltip" : "DRPG.Class.outTooltip"), async () => {
+        const { setNotInClass } = await import("./monokuma.mjs");
+        await setNotInClass(actor, !sheetMode(actor).npc);
+    }, out);
+    if (monokuma) {
+        control("unmark", "fa-masks-theater", game.i18n.localize("DRPG.Monokuma.unmark"), async () => {
+            const { setMonokuma } = await import("./monokuma.mjs");
+            await setMonokuma(actor, false);
+        });
+    } else {
+        control("mark", "fa-masks-theater", game.i18n.localize("DRPG.Monokuma.toggle"), async () => {
+            const { markFromSheet } = await import("./monokuma.mjs");
+            await markFromSheet(actor);
+        });
+    }
+}
+
+/* ==========================================================================
  * GIVE / TAKE ITEMS
  * --------------------------------------------------------------------------
  * Right where the GM is already looking when they decide somebody should have
  * something - or should stop having it.
  * ========================================================================== */
 
-function injectItemButton(app, element) {
-    if (!game.user.isGM) return;
-    if (isMonokuma(app.document)) return;
+function injectItemButton(app, element, mode = modeOf(app)) {
+    if (!mode.itemButton) return;
 
     const nameRow = element.querySelector(".character-header-sheet .name-row");
     if (!nameRow || nameRow.querySelector("[data-drpg-items]")) return;
@@ -1674,13 +2038,13 @@ function injectItemButton(app, element) {
  * ULTIMATE
  * ========================================================================== */
 
-function injectUltimate(app, element) {
+function injectUltimate(app, element, mode = modeOf(app)) {
     const details = element.querySelector(".character-header-sheet .character-details");
     if (!details) return;
 
     const actor = app.document;
     const ultimate = actor.getFlag(MODULE_ID, FLAGS.ultimate) ?? "";
-    const editable = app.isEditable;
+    const editable = mode.editable;
 
     details.classList.add("drpg-ultimate");
     details.replaceChildren(buildUltimateRow(ultimate, editable));
@@ -1776,150 +2140,337 @@ function tidySidebar(element) {
     loadoutBlock?.classList.add("drpg-hidden-block");
 }
 
+/* ==========================================================================
+ * THE RESERVE ON THE SHEET (E24 C1a, 08.11.2026)
+ * --------------------------------------------------------------------------
+ * The owner's D5 (option 1): Health and Sanity are said as their reserve
+ * everywhere - "N left", a full bar a full reserve. D46 (option 2): with
+ * Daggerheart's pips on (its client setting useResourcePips), the module draws
+ * its own pips counting the reserve; without, its bar; both from one helper and
+ * one painter, which a render and a repaint both call.
+ *
+ * UNTIL E24 THE BAR DREW MARKS. Daggerheart stores both as marks counted up -
+ * 0/4 untouched, 4/4 the wound - and `paintResourceBars`, which this replaces,
+ * read the marks off the system's `<progress>` and filled the bar by them: a
+ * bar at 100 % was a student out of road, and the pip layout was not touched
+ * at all (S17-38). Measured at E24 C0 on `?sheet=parts`: Health 1 of 4 marked
+ * drew a 25 % bar, Sanity 2 of 6 a 33.3 % one.
+ *
+ * WHAT IT READS. The numbers come off the actor through character.mjs
+ * `reserveView`, never off the DOM, so a render and a repaint draw the same
+ * thing (the repaint used to feed the system's input and progress from the
+ * actor first, then read them back). Each block is found by its system key,
+ * never by its order: the bar layout by its number field's `name`, the pip
+ * layout by its slots' toggle (`RESERVE_PIPS`), and once painted by the
+ * `data-drpg-reserve` this writes on it, which the stylesheets colour by - and
+ * which a redacted sheet still carries after anonymity.mjs took the toggles'
+ * `data-action` away.
+ *
+ * WHAT IT HIDES. Daggerheart's progress, number field, "/" and maximum (the
+ * bar layout), and its slots and their "n / max" (the pip layout), each by a
+ * class (`drpg-reserve-hidden`): kept in the DOM, since the system may still
+ * write to them, and no longer read by anybody. The pips this draws are for
+ * reading only; a click on them does nothing.
+ *
+ * THE FIELD. For an editor - the mode's `reserveField`: on a sheet the viewer
+ * may edit, a GM always, a player who owns the student only with "Lock player
+ * resources" off (Q-E24-1's default); never on the dead's or a Monokuma's - the
+ * number in the row is a field of the reserve, 0 to the maximum; a change writes the marks it
+ * comes to (`writeReserve`, the road resource-guard.mjs names `sheetReserve`).
+ * Nobody else gets one.
+ *
+ * WHAT A VIEWER READS. Sanity is another player's to keep (the owner, 28.10):
+ * for a user `reserveView` does not show it to, the block says "?", its track is
+ * empty, no pip is drawn and no number is written into an attribute - the track
+ * no longer carries `data-value`/`data-max` for anybody. The system's own
+ * controls of it are emptied and its slots removed (`emptyReserveControls`,
+ * EMPTIED, NOT HIDDEN), with anonymity enforced or not; anonymity.mjs empties
+ * them again on a sheet it redacts.
+ * ========================================================================== */
+
+/** The pip layout's slot of each reserve, by the toggle Daggerheart 2.10.5 puts on it (resource-bar.hbs). */
+const RESERVE_PIPS = Object.freeze({
+    hitPoints: ".slot[data-action='toggleHitPoints']",
+    stress: ".slot[data-action='toggleStress']"
+});
+
+/** What the field says it is (its label and its tooltip). */
+const RESERVE_FIELD = Object.freeze({
+    hitPoints: "DRPG.Reserve.fieldHealth",
+    stress: "DRPG.Reserve.fieldSanity"
+});
+
+/** The class that hides the system's own controls of a reserve, which stay in the DOM. */
+const RESERVE_HIDDEN = "drpg-reserve-hidden";
+
 /**
- * Publish how full each resource bar is, so the stylesheet can draw it.
- *
- * Health and Sanity are `<progress>` elements, and the module styles them with
- * `appearance: none` to get rid of the platform look. That switch also removes
- * the element's native shadow DOM, which is where `::-webkit-progress-value`
- * lives - so the fill cannot be coloured from CSS at all. The rules for it were
- * being written and silently discarded, which is why both bars kept whatever
- * the system had painted.
- *
- * The fill is a plain background gradient instead, and the only thing CSS
- * cannot work out for itself is where to stop it: `value` and `max` are
- * attributes, and there is no `attr()` in a background position. So the ratio
- * is written here as a custom property and the stylesheet does the rest.
- *
- * Both are reverse resources in this game - `value` counts what has been
- * MARKED, not what is left - so a bar at 100% is a student out of road.
+ * A reserve's block in the sidebar's resources: painted before, the bar layout's (among `bars`, by its number field's
+ * name), or the pip layout's (by its slots' toggle).
  */
+function reserveBlock(section, key, bars) {
+    return section.querySelector(`[data-drpg-reserve="${key}"]`)
+        ?? bars.find(bar => bar.querySelector(`input.bar-input[name="system.resources.${key}.value"]`))
+        ?? section.querySelector(RESERVE_PIPS[key])?.closest(".slot-value")
+        ?? null;
+}
+
 /**
- * Health and Sanity as one flat bar apiece, filled by proportion.
- *
- * These were pips for a while - countable points, one per mark - and Dawid
- * asked for the bar back (26.08): a plain rectangle that fills the fraction of
- * itself the numerals beside it already state. Flat and square, drawn by this
- * module rather than by Daggerheart's `<progress>`, because `appearance: none`
- * on a progress element removes the shadow DOM its fill lives in and the fill
- * then cannot be coloured from CSS at all - which is the bug the pips were
- * originally routed around. Two spans obey a stylesheet; a progress element
- * argues with one.
- *
- * Both are REVERSE resources: `value` is what has been MARKED, not what is
- * left, so a bar at 100% is a student out of road.
- *
- * WHICH ROW IS WHICH, WITHOUT COUNTING ROWS. The stylesheet reaches these two
- * through `:nth-child(1)` and `:nth-child(2)` - the risk the audit flagged -
- * but script does not have to: each row carries an input whose `name` is
- * `system.resources.<key>.value`, which says what it is no matter what order
- * the system renders them in or what a future version puts between them.
- *
- * THE FLARE IS THE ONE THE PIPS HAD, aimed at the piece that changed. A pip
- * that went out flashed; here the BAND between the old fill and the new one
- * flashes, in the same colours, on the same beat, resuming mid-animation on a
- * redraw exactly as a pip did (`markSpent` carries the age). `spentSince`
- * counts what is HELD, which for a reverse resource is the capacity still
- * unmarked - so its `from`/`to` are mirrored back into marked units here.
- *
- * The system's own controls are untouched. The number input, its `/`, the max
- * and the +/- it wires up all stay exactly where they were; only the bar is
- * hidden, and it is hidden rather than removed so nothing the system does to
- * it later lands on a missing element.
+ * Health and Sanity on the sheet, as the reserve, in whichever layout the system drew (see the block above). Called
+ * by the render (`onRenderCharacterSheet`) and by the repaint (`repaintInPlace`); `user` is whose eyes it draws for.
  */
-function paintResourceBars(app, element) {
-    const actorId = app?.document?.id ?? null;
+export function paintReserves(app, element, actor = app?.document, user = game.user) {
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    const section = root?.querySelector?.(".character-sidebar-sheet .resources-section");
+    if (!section || !actor) return;
+    // Whether `user` may type the reserves: the mode's (`reserveField`), the sheet's editability read off `app`; with
+    // no app, ownership, as the mode reads a sheet it is not handed.
+    const editor = sheetMode(actor, user, { app }).reserveField;
+    // The bar layout's blocks, as patches.mjs SHEET_ANCHORS names them for the contract.
+    const bars = [...root.querySelectorAll(".character-sidebar-sheet .resources-section .status-bar")];
 
-    for (const bar of element.querySelectorAll(".character-sidebar-sheet .resources-section .status-bar")) {
-        const progress = bar.querySelector("progress.progress-bar");
-        if (!progress) continue;
+    for (const key of Object.keys(RESERVES)) {
+        const block = reserveBlock(section, key, bars);
+        if (!block) continue;
+        const view = reserveView(actor, key, user);
+        block.dataset.drpgReserve = key;
+        // The flare's memory is the reserve held, so a band or a pip lights the part that moved; nothing is
+        // remembered of a view this user may not read.
+        const change = view.shown && actor.id ? spentSince(`resource:${key}`, actor.id, view.left) : null;
+        if (block.classList.contains("slot-value")) paintReservePips(block, view, change);
+        else paintReserveBar(block, view, change);
+        if (!view.shown) emptyReserveControls(block);
+        paintReserveRow(block, view, actor, editor);
+    }
+}
 
-        const max = Number(progress.max) || 0;
-        const value = Math.max(0, Math.min(max, Number(progress.value) || 0));
+/**
+ * EMPTIED, NOT HIDDEN, whatever the anonymity setting (E24 fix G2B; general m2, security N-2; E24-06, R1445). The class
+ * hides the system's controls of a reserve; for a view not shown they also held it - the progress's `value` and `max`,
+ * the number field's, the label's maximum, and in the pip layout one slot a point, the marked ones `filled` - which
+ * anonymity.mjs empties only on a sheet it redacts, so with "Enforce anonymity" off another player's sheet kept
+ * Sanity in its DOM. Here they are emptied on every such sheet, and the slots go: their count is the maximum.
+ */
+function emptyReserveControls(block) {
+    for (const progress of block.querySelectorAll("progress")) {
+        progress.removeAttribute("value");
+        progress.removeAttribute("max");
+    }
+    for (const input of block.querySelectorAll("input.bar-input")) {
+        input.removeAttribute("value");
+        input.removeAttribute("max");
+        input.value = "";
+    }
+    for (const label of block.querySelectorAll(".bar-label, .slot-label .value")) label.textContent = "";
+    for (const slot of block.querySelectorAll(".slot")) slot.remove();
+}
 
-        // Kept fed: a stale percentage on a bar that comes back is a wrong bar.
-        const pct = max > 0 ? (value / max) * 100 : 0;
-        progress.style.setProperty("--drpg-bar-pct", `${pct}%`);
-
-        bar.querySelectorAll(".drpg-resource-pips").forEach(el => el.remove());
-
-        const key = bar.querySelector("input.bar-input")?.name
-            ?.match(/resources\.([A-Za-z]+)\./)?.[1] ?? null;
-
-        if (!key || max < 1) {
-            progress.classList.remove("drpg-bar-replaced");
-            bar.querySelectorAll(".drpg-resource-bar").forEach(el => el.remove());
-            continue;
+/**
+ * The bar layout: the module's flat bar filled to what is LEFT, the band over the part that just moved, the system's
+ * controls hidden.
+ *
+ * THE BAR IS UPDATED, NOT REBUILT (Dawid's flicker, kept from `paintResourceBars`). A MutationObserver over one
+ * Health change found the bar removed and added again, twice; a new element has no width to travel from, so the fill
+ * snapped instead of sliding. So the track is kept and its fill's width moved; a render builds it once.
+ *
+ * THE FLARE IS THE PIPS' ONE, aimed at the piece that changed, resuming mid-animation on a redraw (`markSpent`
+ * carries the age). `spentSince` counts what is HELD, which is now what the bar draws, so its range is the band.
+ */
+function paintReserveBar(block, view, change) {
+    const value = block.querySelector(".status-value") ?? block;
+    const progress = value.querySelector("progress.progress-bar");
+    const pct = view.shown ? view.pct : 0;
+    // The system's controls, kept: hidden by a class, in the DOM, read by nobody.
+    for (const el of value.children) {
+        if (el.matches("input.bar-input") || el.matches(".bar-label") || (el.localName === "span" && el.textContent.trim() === "/")) {
+            el.classList.add(RESERVE_HIDDEN);
         }
+    }
+    if (progress) {
         progress.classList.add("drpg-bar-replaced");
+        progress.style.setProperty("--drpg-bar-pct", `${pct}%`);
+    }
 
-        const held = max - value;
-        const change = actorId ? spentSince(`resource:${key}`, actorId, held) : null;
+    for (const stale of value.querySelectorAll(".drpg-resource-bar")) {
+        if (stale.dataset.resource !== view.key) stale.remove();
+    }
+    let track = value.querySelector(".drpg-resource-bar");
+    let fill = track?.querySelector(".drpg-resource-fill") ?? null;
+    if (!track || !fill) {
+        track?.remove();
+        track = document.createElement("div");
+        track.className = "drpg-resource-bar";
+        fill = document.createElement("span");
+        fill.className = "drpg-resource-fill";
+        track.append(fill);
+        if (progress) progress.after(track);
+        else value.append(track);
+    }
+    // The band from last time goes whatever happens: it describes a change that is no longer the latest.
+    track.querySelectorAll(".drpg-resource-delta").forEach(band => band.remove());
+    track.dataset.resource = view.key;
+    // No number in an attribute (E24 C1a): the track carried `data-value` and `data-max` until E24.
+    delete track.dataset.value;
+    delete track.dataset.max;
+    fill.style.width = `${pct}%`;
 
-        /*
-         * THE BAR IS UPDATED, NOT REBUILT - AND THAT IS THE REST OF THE FLICKER.
-         *
-         * Skipping the sheet's re-render (see THE FLICKER above) removed most
-         * of the blink and left a shorter one, which is what Dawid reported.
-         * A MutationObserver over one Health change found the whole of what was
-         * left: `div.drpg-resource-bar` removed and re-added, twice - once per
-         * bar. A brand-new element has no previous width to travel from, so its
-         * transition has nothing to animate and the fill snaps into place.
-         *
-         * Keeping the element and moving its width is what makes the change a
-         * movement instead of a replacement. On a full render there is nothing
-         * to reuse and this builds one exactly as before.
-         */
-        for (const stale of bar.querySelectorAll(".drpg-resource-bar")) {
-            if (stale.dataset.resource !== key) stale.remove();
+    if (change && view.max > 0) {
+        const from = Math.max(0, change.from - 1);
+        const to = Math.min(view.max, change.to);
+        if (to > from) {
+            const band = document.createElement("span");
+            band.className = "drpg-resource-delta";
+            band.style.left = `${(from / view.max) * 100}%`;
+            band.style.width = `${((to - from) / view.max) * 100}%`;
+            markSpent(band, change, change.from);
+            track.append(band);
         }
+    }
+}
 
-        let track = bar.querySelector(".drpg-resource-bar");
-        let fill = track?.querySelector(".drpg-resource-fill") ?? null;
+/**
+ * The pip layout (D46 = 2): the module's own pips, `max` of them with `left` filled, in place of the system's slots,
+ * which are hidden. For reading only - no `data-action`, no listener. A view not shown draws none.
+ */
+function paintReservePips(block, view, change) {
+    const slots = block.querySelector(".slot-bar");
+    slots?.classList.add(RESERVE_HIDDEN);
+    block.querySelector(".slot-label .value")?.classList.add(RESERVE_HIDDEN);
+    let pips = block.querySelector(".drpg-reserve-pips");
+    if (!pips) {
+        pips = document.createElement("div");
+        pips.className = "drpg-reserve-pips";
+        pips.setAttribute("aria-hidden", "true");
+        if (slots) slots.after(pips);
+        else block.prepend(pips);
+    }
+    const count = view.shown ? view.max : 0;
+    pips.replaceChildren(...Array.from({ length: count }, (_, i) => {
+        const pip = document.createElement("span");
+        pip.className = i < view.left ? "drpg-reserve-pip drpg-pip-full" : "drpg-reserve-pip";
+        return markSpent(pip, change, i + 1);
+    }));
+}
 
-        if (!track || !fill) {
-            track?.remove();
-            track = document.createElement("div");
-            track.className = "drpg-resource-bar";
-            fill = document.createElement("span");
-            fill.className = "drpg-resource-fill";
-            track.append(fill);
-            progress.after(track);
-        }
+/**
+ * The row under the bar or the pips: "Left: 3 / 4" (`reserveRow`), "?" for a view not shown, and for an editor the
+ * number is the field. A field that has the focus keeps what is being typed into it; its maximum still follows.
+ */
+function paintReserveRow(block, view, actor, editor) {
+    let row = block.querySelector(".drpg-reserve-row");
+    if (!row) {
+        row = document.createElement("div");
+        row.className = "drpg-reserve-row";
+        const host = block.querySelector(".status-value") ?? block.querySelector(".drpg-reserve-pips") ?? null;
+        if (host?.classList.contains("status-value")) host.append(row);
+        else if (host) host.after(row);
+        else block.append(row);
+    }
+    if (!editor || !view.shown) {
+        row.textContent = reserveRow(view);
+        return;
+    }
+    const typing = row.querySelector("input.drpg-reserve-field");
+    if (typing && typing === document.activeElement) {
+        typing.max = String(view.max);
+        return;
+    }
+    const field = document.createElement("input");
+    field.type = "number";
+    field.className = "drpg-reserve-field";
+    field.min = "0";
+    field.max = String(view.max);
+    field.step = "1";
+    field.value = String(view.left);
+    const label = game.i18n.localize(RESERVE_FIELD[view.key]);
+    field.setAttribute("aria-label", label);
+    field.dataset.tooltip = label;
+    // Not the system's form: the field has no `name`, and its change goes no further than here, so Daggerheart's
+    // submit-on-change sends nothing for it; Enter writes it rather than submitting the sheet.
+    field.addEventListener("change", event => {
+        event.stopPropagation();
+        // Nothing written: the field shows the reserve again - unless a repaint has replaced it (the new one was drawn
+        // from the actor) or it is being typed into again (E24 fix G2B; general n3, R1497).
+        writeReserve(actor, view.key, field.valueAsNumber)
+            .then(done => {
+                if (done === null && field.isConnected && field !== document.activeElement) field.value = String(reserveView(actor, view.key).left);
+            })
+            .catch(err => error("Could not write a reserve from the sheet", err));
+    });
+    field.addEventListener("keydown", event => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        event.stopPropagation();
+        field.blur();
+    });
+    // The row's words around the number, in the page's language: the field stands where `{n}` stands.
+    const [before, after = ""] = game.i18n.format("DRPG.Reserve.leftRow", { n: "{n}", max: view.max }).split("{n}");
+    row.replaceChildren(before, field, after);
+}
 
-        // The band from last time goes whatever happens: it describes a change
-        // that is no longer the most recent one.
-        track.querySelectorAll(".drpg-resource-delta").forEach(band => band.remove());
+/**
+ * The field's write (E24 C1a; MARKED): `n` is the reserve typed, held to 0..max, and the marks it comes to are
+ * written - `max - n` - through resource-guard.mjs's road as `sheetReserve`. A GM's write is the GM's own. A player's
+ * goes as a plain write, which the GMs' audit treats as it treated Daggerheart's own number field, and which this
+ * browser's guard cuts while "Lock player resources" is on (the reason is not in `JUDGED`, and the road marks it as a
+ * hand edit: resource-guard.mjs's note). Nothing to write answers null.
+ */
+export async function writeReserve(actor, key, n) {
+    if (!RESERVES[key] || !actor) return null;
+    const { max, left } = reserveOf(actor, key);
+    const want = Math.min(max, Math.max(0, Math.round(Number(n))));
+    if (!Number.isFinite(want) || want === left) return null;
+    return trustedWrite(actor, { [`system.resources.${key}.value`]: max - want }, { reason: "sheetReserve" });
+}
 
-        track.dataset.resource = key;
-        track.dataset.value = String(value);
-        track.dataset.max = String(max);
-        fill.style.width = `${pct}%`;
+/* The Party sheet's two slot sections of a member, by the label's tooltip key (party-members.hbs, Daggerheart 2.10.5):
+   found with no slot drawn too (a maximum of 0). */
+const PARTY_RESERVES = Object.freeze({ hitPoints: "DAGGERHEART.GENERAL.HitPoints.plural", stress: "DAGGERHEART.GENERAL.stress" });
 
-        // The band that just changed, laid over the fill.
-        //
-        // `spentSince` counts HELD sockets and reports the range of them that
-        // moved; the bar is drawn in MARKED units, and the two run in opposite
-        // directions - held socket `h` is marked slot `max - h + 1`. So the
-        // range flips end for end: held [from..to] is marked
-        // [max - to + 1 .. max - from + 1], which is the band that just changed
-        // colour whichever way it went.
-        if (change) {
-            const lo = max - change.to + 1;
-            const hi = max - change.from + 1;
-            const from = Math.max(0, lo - 1);
-            const to = Math.min(max, hi);
-            if (to > from) {
-                const band = document.createElement("span");
-                band.className = "drpg-resource-delta";
-                band.style.left = `${(from / max) * 100}%`;
-                band.style.width = `${((to - from) / max) * 100}%`;
-                // Same helper the pips used, so the class, the resume offset
-                // and the "is this one of the ones that moved" test are all
-                // the module's one implementation rather than a second copy.
-                markSpent(band, change, change.from);
-                track.append(band);
+/**
+ * THE PARTY SHEET AS THE RESERVE (E24 C1b, 08.11.2026; Q-E24-3's default, the owner's D5 option 1 and 28.10).
+ * Daggerheart's Party sheet (templates/sheets/actors/party/party-members.hbs) draws each member's Health and Stress as
+ * the marks: `.current` the marks, a slot `filled` per point marked, and every slot a toggle (`toggleHitPoints`,
+ * `toggleStress`) whose `data-value` is the marks it sets. For every character member - a student, and since E24 fix
+ * G2B an NPC kept out of the class and a Monokuma, as their sheets read (general m4; the token side is states.mjs's) -
+ * through `reserveView` for `user`: `.current` what is left, the first `left` slots filled. For a GM (the mode's
+ * `pipEdit`) each
+ * slot's `data-value` is turned (`max - i + 1` on the i-th), so that Daggerheart's own toggle - "a point at or below
+ * the value takes it to one less, any other sets it" - fills or empties the reserve up to the pip pressed; for a player
+ * the toggles go (a player changes their reserve on their own sheet, where Lock player resources allows). Sanity not
+ * shown to `user` is emptied, not hidden: "?" in place of its numbers and no slot, since their count is its maximum.
+ * Exported for R1447 and R1484, which hand `find` a stand-in's member.
+ */
+export function paintPartyReserves(app, element, user = game.user, find = uuid => globalThis.fromUuidSync?.(uuid) ?? null) {
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    for (const member of root?.querySelectorAll?.(".actor-resources") ?? []) {
+        const uuid = member.querySelector("[data-action='openDocument'][data-uuid]")?.dataset.uuid
+            ?? member.querySelector("[data-actor-id]")?.dataset.actorId ?? null;
+        const actor = uuid ? find(uuid) : null;
+        if (actor?.type !== "character") continue;
+        const toggles = sheetMode(actor, user).pipEdit;
+        for (const [key, tip] of Object.entries(PARTY_RESERVES)) {
+            const section = member.querySelector(`.slot-label[data-tooltip="${tip}"]`)?.closest(".slot-section");
+            if (!section) continue;
+            const view = reserveView(actor, key, user);
+            const value = section.querySelector(".slot-label .value");
+            const slots = [...section.querySelectorAll(".slot")];
+            if (!view.shown) {
+                // No slot: their count is the maximum (E24 fix G2B; security S-2, R1484).
+                slots.forEach(slot => slot.remove());
+                if (value) value.textContent = "?";
+                continue;
             }
+            slots.forEach((slot, i) => {
+                slot.classList.toggle("filled", i < view.left);
+                if (toggles) slot.dataset.value = String(view.max - i);
+                else {
+                    delete slot.dataset.action;
+                    delete slot.dataset.value;
+                }
+            });
+            const current = value?.querySelector(".current"), top = value?.querySelector(".max");
+            if (current) current.textContent = String(view.left);
+            if (top) top.textContent = String(view.max);
         }
     }
 }
@@ -1976,9 +2527,12 @@ function guardRow(li, item, app) {
     }, true);
 }
 
-function injectEquippedTools(app, element) {
+function injectEquippedTools(app, element, mode = modeOf(app)) {
     const actor = app.document;
-    if (isMonokuma(actor)) return;
+    if (!mode.equipped) {
+        hideSidebarSection(element, "equipment-section");
+        return;
+    }
 
     const list = element.querySelector(".character-sidebar-sheet .equipment-section .items-sidebar-list");
     if (!list) return;
@@ -1994,6 +2548,16 @@ function injectEquippedTools(app, element) {
         readied++;
 
         const tier = item.getFlag(MODULE_ID, "tier");
+        /* BOTH TAGS (E24 C3b, 08.11.2026; E24-23, the owner's 28.10): the row drew its slot's label alone, so a
+           Murder Weapon that is also a Tool read as a Murder Weapon only. The gear row's own tags (`itemTags`: the
+           home and the other roles, each once), the tier after them; the slot's label where an item has none. */
+        const tags = itemTags(item, true);
+        // One line, as the slot's label was: the tags side by side, not a block each (shots/c3b: three stacked lines).
+        const labels = (tags.length ? tags : [{ key: category, label: ITEM_CATEGORIES[category]?.label ?? category, hint: null }])
+            .map(tag => `<span class="drpg-equipped-tag" data-drpg-role="${classSafe(tag.key)}"${tag.hint
+                ? ` data-tooltip="${foundry.utils.escapeHTML(tag.hint)}"` : ""}>${foundry.utils.escapeHTML(tag.label)}</span>`).join(" · ");
+        const tierLabel = tier !== undefined && tier !== null
+            ? `<span class="drpg-equipped-tier"> - T${foundry.utils.escapeHTML(String(tier))}</span>` : "";
         const li = document.createElement("li");
         li.className = "inventory-item inventory-item-compact drpg-equipped-tool";
         li.dataset.drpgEquipped = category;
@@ -2005,9 +2569,7 @@ function injectEquippedTools(app, element) {
                 <img src="${foundry.utils.escapeHTML(item.img ?? "")}" class="item-img" alt="" />
             </div>
             <span class="item-name">${foundry.utils.escapeHTML(item.name)}</span>
-            <div class="item-labels"><div class="label">${
-                foundry.utils.escapeHTML(ITEM_CATEGORIES[category]?.label ?? category)
-            }${tier !== undefined && tier !== null ? ` - T${foundry.utils.escapeHTML(String(tier))}` : ""}</div></div>`;
+            <div class="item-labels"><div class="label">${labels}${tierLabel}</div></div>`;
 
         guardRow(li, item, app);
         li.addEventListener("click", event => {
@@ -2028,6 +2590,29 @@ function injectEquippedTools(app, element) {
         empty.textContent = game.i18n.localize("DRPG.Items.noneReadied");
         list.append(empty);
     }
+}
+
+/*
+ * AN EMPTY EXPERIENCE SAYS SO (E24 C3b, 08.11.2026; E24-23, audit S15-02, S03-29). A student with no experiences
+ * showed the Experience heading over nothing, which reads as a part that failed to draw. One line, as the Equipped
+ * list says its own empty state (`drpg-experience-empty`), worded from the player handbook (two at +2 at the start,
+ * one more from a Level Up). Not for a Monokuma, whose sheet has no experiences to keep.
+ */
+function noteEmptyExperience(app, element, mode = modeOf(app)) {
+    const actor = app?.document;
+    if (!actor) return;
+    if (!mode.experience) {
+        hideSidebarSection(element, "experience-section");
+        return;
+    }
+    const list = element.querySelector(".character-sidebar-sheet .experience-section .experience-list");
+    if (!list) return;
+    list.querySelectorAll(".drpg-experience-empty").forEach(row => row.remove());
+    if (Object.keys(actor.system?.experiences ?? {}).length) return;
+    const empty = document.createElement("p");
+    empty.className = "notes drpg-experience-empty";
+    empty.textContent = game.i18n.localize("DRPG.SheetNotes.noExperiences");
+    list.append(empty);
 }
 
 /*
@@ -2126,7 +2711,7 @@ async function goThrough(actor, row, button, mastermind, { hush = [] } = {}) {
     if (crossingsAsked.has(actor.id)) return;
     const scene = game.scenes?.get(row.passage.sceneId) ?? null;
     const ask = token => tunnelVerdict(actor, { id: row.passage.id, sceneId: row.passage.sceneId }, token,
-        { mover: mastermind ? { gm: game.user.isGM, mastermind: true } : null });
+        { mover: mastermind ? { gm: true, mastermind: true } : null });
     // As the primary picks it (passages-gm.mjs `crossTunnel`): of two tokens on the scene, the one at an end.
     const verdicts = Array.from(scene?.tokens ?? []).filter(t => t.actorId === actor.id).map(ask);
     const verdict = verdicts.find(v => !v?.code) ?? verdicts[0] ?? ask(null);
@@ -2189,7 +2774,8 @@ async function onTunnelStep(tokenDoc, changes, options, userId) {
     if (!entry) return;
     const scene = tokenDoc.parent ?? null;
     const actor = tokenDoc.actorId ? game.actors?.get(tokenDoc.actorId) ?? null : null;
-    if (!scene || !actor || actor.type !== "character" || isMonokuma(actor) || !actor.isOwner) {
+    const mode = actor?.type === "character" ? sheetMode(actor) : null;
+    if (!scene || !mode?.passages) {
         tunnelSteps.delete(tokenDoc.id);
         return;
     }
@@ -2199,7 +2785,7 @@ async function onTunnelStep(tokenDoc, changes, options, userId) {
     if (tunnelSteps.get(tokenDoc.id) !== entry || entry.turn !== turn) return;
     tunnelSteps.delete(tokenDoc.id);
     if (gmSpotWhy(tokenDoc) === "putBack") return;
-    const mastermind = game.user.isGM && isMastermindActor(actor);
+    const mastermind = mode.mastermind;
     const step = tunnelStepTarget({ changes, options, from: entry.from, to: stepSpot(tokenDoc), ends: tunnelEndsFor(actor, scene.id, null, { mastermind }),
         grid: scene.grid?.size ?? 100, userId, me: game.user.id });
     if (step) await goThrough(actor, { passage: { id: step.id, sceneId: scene.id } }, null, mastermind, { hush: ["cannotNow"] });
@@ -2228,14 +2814,14 @@ export function knownPassageItem(row) {
 }
 
 /** The list, after the Experience, on an owner's sheet of a student that knows a passage; none for a Monokuma. */
-function injectKnownPassages(app, element) {
+function injectKnownPassages(app, element, mode = modeOf(app)) {
     const actor = app.document;
     const root = element instanceof HTMLElement ? element : element?.[0];
     const host = root?.querySelector(".character-sidebar-sheet .shortcut-items-section");
     if (!host) return;
     host.querySelector(".drpg-passages-section")?.remove();
-    if (isMonokuma(actor) || !actor?.isOwner) return;
-    const mastermind = game.user.isGM && isMastermindActor(actor);
+    if (!actor || !mode.passages) return;
+    const { mastermind } = mode;
     const rows = knownPassageRows(actor, { mastermind });
     if (!rows.length) return;
 
@@ -2276,7 +2862,7 @@ function injectKnownPassages(app, element) {
 /** This browser's copy of the passages changed: the open sheets of its own students are drawn again. */
 function redrawPassageSheets() {
     for (const actor of game.actors ?? []) {
-        if (actor.type === "character" && actor.isOwner && actor.sheet?.rendered) actor.sheet.render(false);
+        if (actor.type === "character" && actor.sheet?.rendered && sheetMode(actor).owner) actor.sheet.render(false);
     }
 }
 
@@ -2377,9 +2963,56 @@ function plainBiography(html) {
     return (box.textContent ?? "").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-function tidyBiography(app, element) {
+/**
+ * Save the backstory once, from what the player typed (E24 C2; S03-25, S17-39, A6).
+ *
+ * The value comes from the app, not from the textarea: `tidyBiography` keeps what was typed and not yet saved on
+ * `app._drpgBiography`, so this needs no element and saves the same whether it runs on `focusout`, on a tab change or
+ * after the sheet's close, when Foundry has already taken the window out of the page (v13's ApplicationV2 runs the
+ * close hooks after it removes the element, as remembered; the harness's shim fires no `closeCharacterSheet` at all
+ * and removes the element first; a table reads v14's order, E24's live check of the saves in AUDIT 9.2). Cleared before the write, so a focusout
+ * followed by a close is one write, not two. Compared against the FLATTENED current value (`plainBiography`): a
+ * formatted backstory merely opened, focused and left is not rewritten.
+ */
+export function saveBiography(app) {
+    const held = app?._drpgBiography;
+    if (!held) return null;
+    const actor = app.document ?? null;
+    if (!actor) {
+        app._drpgBiography = null;
+        return null;
+    }
+    const next = String(held.value ?? "").trim();
+    const now = plainBiography(foundry.utils.getProperty(actor, "system.biography.background"));
+    /*
+     * SOMEBODY ELSE WROTE IT MEANWHILE (E45-C3b, 09.11.2026; general n6; Q-E45-C3b-1's default). `held.base` is the
+     * backstory as this browser last knew it stored when the typing began (`tidyBiography`). A save that finds another
+     * text stored writes nothing: the other write stands, the typed text stays held - the field keeps it, unsaved - and
+     * the typist is told once; their next save writes theirs, as the base is now what they were told of. Scenario 71
+     * I2 read on da8e8a3b: the player's save wrote their text over the GM's edit, no word said.
+     */
+    if (held.base !== undefined && held.base !== now && next !== now) {
+        app._drpgBiography = { ...held, base: now };
+        ui.notifications?.warn(game.i18n.localize("DRPG.Sheet.biographyChanged"));
+        return null;
+    }
+    app._drpgBiography = null;
+    // The same text already on its way (a tab's click, then the field's focusout, before the write is back) is not a second write.
+    if (next === now || next === app._drpgBiographySending) return null;
+    app._drpgBiographySending = next;
+    app._drpgBiographyBase = next;
+    return trustedWrite(actor, { "system.biography.background": next }, { reason: "sheetText" })
+        .catch(err => error("Could not save the backstory", err))
+        .finally(() => { if (app._drpgBiographySending === next) app._drpgBiographySending = null; });
+}
+
+export function tidyBiography(app, element, mode = modeOf(app)) {
     const tab = element.querySelector('section[data-application-part="biography"]');
     if (!tab) return;
+    if (!mode.biography) {
+        dropBiographyTab(app, element, tab);
+        return;
+    }
 
     /*
      * THREE SENTENCES OF BACKSTORY DO NOT NEED BOLD.
@@ -2395,33 +3028,80 @@ function tidyBiography(app, element) {
      * replaced. Nothing is left to restyle, which is a better outcome than the
      * plan's - that asked for the button to be re-dressed in the module's own
      * skin, and a button nobody needs is better removed than repainted.
+     *
+     * NOT A FIELD OF DAGGERHEART'S FORM (E24 C2, 08.11.2026; S03-25, S17-39). The textarea carried the system's
+     * `name`, so the sheet's `submitOnChange` form sent the flattened text with ANY field's change: a formatted
+     * backstory rewritten as plain text, and two writes and two renders for one edit. It has no `name` now
+     * (`data-drpg-field` instead) and saves through `saveBiography` alone: on `focusout`, on a tab change (the tab
+     * bar's click, in the capture phase, before the switch) and on the sheet's close (`registerSheetTweaks`). What is
+     * typed and not yet saved lives on the app (`app._drpgBiography`: the text, the selection, whether it had the
+     * focus), so a render while somebody types - a GM writing their Hope - draws the new textarea with the text, the
+     * selection and the focus the old one had. A sheet its viewer cannot edit gets a read-only field and no listener.
      */
     const actor = app?.document ?? null;
     const editor = tab.querySelector('prose-mirror[name="system.biography.background"]');
 
     if (actor && editor) {
         const area = document.createElement("textarea");
-        area.name = "system.biography.background";
+        area.dataset.drpgField = "biography";
         area.className = "drpg-biography-text";
         area.rows = 8;
-        area.value = plainBiography(
-            foundry.utils.getProperty(actor, "system.biography.background"));
         area.placeholder = game.i18n.localize("DRPG.Sheet.biographyPlaceholder");
+        // Daggerheart's legend over the field, on the module's own key (A6, D10): the word is the module's.
+        const legend = editor.closest("fieldset")?.querySelector(":scope > legend");
+        if (legend) legend.textContent = game.i18n.localize("DRPG.Sheet.biographyLabel");
 
-        area.addEventListener("focusout", () => {
-            const next = area.value.trim();
-            const now = plainBiography(
-                foundry.utils.getProperty(actor, "system.biography.background"));
-            // Nothing typed is not a save. Compared against the FLATTENED
-            // current value, so merely opening a formatted backstory and
-            // clicking away does not rewrite it.
-            if (next === now) return;
+        const held = app._drpgBiography ?? null;
+        const editable = mode.editable;
+        // Read once the field is in the sheet (below): whether it is in the page, and the text it was drawn with.
+        let inPage = false, drawn = "";
+        const stored = plainBiography(foundry.utils.getProperty(actor, "system.biography.background"));
+        // The stored text the next typing starts from (`saveBiography`'s base): what this draw shows, unless typed text is held.
+        if (!held) app._drpgBiographyBase = stored;
+        area.value = editable && held ? held.value : stored;
 
-            trustedWrite(actor, { "system.biography.background": next }, { reason: "sheetText" })
-                .catch(err => error("Could not save the backstory", err));
-        });
+        if (!editable) {
+            area.readOnly = true;
+        } else {
+            const remember = () => {
+                app._drpgBiography = { value: area.value, start: area.selectionStart, end: area.selectionEnd,
+                    focused: document.activeElement === area, base: app._drpgBiography?.base ?? app._drpgBiographyBase };
+            };
+            area.addEventListener("input", remember);
+            // The caret moved without a keystroke that typed: kept only while there is something unsaved.
+            for (const type of ["keyup", "pointerup"]) area.addEventListener(type, () => { if (app._drpgBiography) remember(); });
+            area.addEventListener("focusout", () => {
+                /* A textarea a render or the close took out of the page is not a player leaving the field: the
+                   render's new textarea takes the text, the close hook saves it. Asked once the removal is done. A
+                   root that was never in the page (a stand-in's) has nothing to be taken out of. A value set without
+                   an `input` (a script's) is what the old field saved on focusout, and still is. */
+                queueMicrotask(() => {
+                    if (inPage && !area.isConnected) return;
+                    if (!app._drpgBiography && area.value !== drawn) remember();
+                    saveBiography(app);
+                });
+            });
+        }
 
         editor.replaceWith(area);
+        inPage = area.isConnected;
+        drawn = area.value;
+
+        if (editable && held?.focused) {
+            try {
+                area.focus({ preventScroll: true });
+                area.setSelectionRange(held.start ?? area.value.length, held.end ?? area.value.length);
+            } catch { /* a field the page cannot focus keeps its text */ }
+        }
+    }
+
+    // A tab change saves before the switch; bound once per window, as the window outlives its renders.
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    if (root && !root.dataset.drpgBiographyTabs) {
+        root.dataset.drpgBiographyTabs = "1";
+        root.addEventListener("click", ev => {
+            if (ev.target?.closest?.("nav [data-tab]")) saveBiography(app);
+        }, { capture: true });
     }
 
     // Every characteristics field, plus connections, found by name.
@@ -2619,7 +3299,7 @@ function buildItemRow(li, item, app, actor, inGroup) {
     if (stashRoomsFor(actor, sceneOfActor(actor)).length) addStashButton(li, item, app, { stowing: true });
 }
 
-function groupInventory(app, element) {
+function groupInventory(app, element, mode = modeOf(app)) {
     const tab = element.querySelector('section[data-application-part="inventory"]');
     if (!tab) return;
 
@@ -2633,6 +3313,8 @@ function groupInventory(app, element) {
         const cat = group.key ? ITEM_CATEGORIES[group.key] : null;
         const inGroup = group.group ? new Set(categoriesInGroup(group.group)) : null;
         const items = groupItems(actor, group, inGroup);
+        // A Monokuma's sheet is no student's (E45 C1, S03-33): a group only for what it holds, and no student's limit.
+        if (!mode.groups && !items.length) continue;
 
         /*
          * THE COUNTER IS THE BUDGET, NOT THE ROW (E8, trap 69).
@@ -2644,8 +3326,8 @@ function groupInventory(app, element) {
          * inventory in three places at once, which is three lies rather than
          * one. Ungrouped rows are unchanged: Usables still count their own.
          */
-        const group_ = group.group ?? cat?.limitGroup ?? null;
-        const limit = group_ ? LIMIT_GROUPS[group_]?.limit : cat?.limit;
+        const group_ = mode.groups ? group.group ?? cat?.limitGroup ?? null : null;
+        const limit = !mode.groups ? null : group_ ? LIMIT_GROUPS[group_]?.limit : cat?.limit;
         const counted = group_ ? countInGroup(actor, group_) : items.length;
 
         const section = document.createElement("div");
@@ -2754,7 +3436,7 @@ function buildOtherSection(box, actor, app) {
 
     const hint = document.createElement("p");
     hint.className = "notes";
-    hint.textContent = game.i18n.localize(game.user.isGM ? "DRPG.Sheet.otherHintGm" : "DRPG.Sheet.otherHint");
+    hint.textContent = game.i18n.localize(modeOf(app).gm ? "DRPG.Sheet.otherHintGm" : "DRPG.Sheet.otherHint");
     section.append(hint);
 
     const list = document.createElement("ul");
@@ -2764,7 +3446,7 @@ function buildOtherSection(box, actor, app) {
         li.dataset.itemUuid = item.uuid;
         li.innerHTML = `<img src="${foundry.utils.escapeHTML(item.img ?? "")}" alt="" />
                         <span class="drpg-item-name">${foundry.utils.escapeHTML(item.name)}</span>`;
-        if (game.user.isGM && app.isEditable) {
+        if (modeOf(app).otherRemove) {
             const tip = game.i18n.localize("DRPG.Sheet.otherRemove");
             const button = document.createElement("button");
             button.type = "button";
@@ -2784,7 +3466,8 @@ function buildOtherSection(box, actor, app) {
                         item: foundry.utils.escapeHTML(item.name), actor: foundry.utils.escapeHTML(actor.name) })}</p>`,
                     rejectClose: false, modal: true
                 });
-                if (!sure) return;
+                // The write is the GM's road: its own guard, whatever drew the button (R220's census reads it).
+                if (!sure || !game.user.isGM) return;
                 await item.delete();
                 app.render(false);
             });
@@ -2810,10 +3493,10 @@ function buildOtherSection(box, actor, app) {
  * the Search action's own stash branch is for.
  */
 function buildOpenStashSection(box, actor, app) {
-    if (!app.isEditable || isMonokuma(actor)) return;
     // The dead rifle nothing, a Monocub included (D15, S08-30): it offered a
-    // Rifle the GM's side then refused (stash-reach.mjs `stealFromVault`).
-    if (deadToViewer(actor)) return;
+    // Rifle the GM's side then refused (stash-reach.mjs `stealFromVault`). The row's gate: an editable sheet, no
+    // Monokuma, nobody dead (`sheetMode`).
+    if (!modeOf(app).rows.stash) return;
 
     /*
      * ONE HEADING PER STASH, ONE BUTTON FOR THE ROOM.
@@ -2941,11 +3624,10 @@ function buildOneStashSection(box, actor, app, room, scene) {
  * and making things, not for opening what you already carry.
  */
 function addUseButton(li, item, app) {
-    if (!app.isEditable || isMonokuma(app.document)) return;
+    // Not the dead's, a Monocub too (D15, S08-30): what they carried in life is on the body,
+    // the body's to be found - `useItem` refuses the dead as well (`rowGate`).
+    if (!rowGate(app)) return;
     if (!isUsable(item)) return;
-    // A Monocub too (D15, S08-30): what they carried in life is on the body,
-    // the body's to be found - `useItem` refuses the dead as well.
-    if (deadToViewer(app.document)) return;
 
     // SHOWN, AND DEAD. An opened kit keeps its button so the row does not
     // quietly change shape when it is spent - the player looks at the same
@@ -3024,10 +3706,9 @@ function inCrisis(actor) {
  * mean to swing.
  */
 function addEquipButton(li, item, app) {
-    if (!app.isEditable || isMonokuma(app.document)) return;
+    // The dead ready nothing (E14 part 1 C3, S08-12): `toggleEquipped` refuses them too (`rowGate`).
+    if (!rowGate(app)) return;
     if (!isEquippable(item)) return;
-    // The dead ready nothing (E14 part 1 C3, S08-12): `toggleEquipped` refuses them too.
-    if (deadToViewer(app.document)) return;
 
     const ready = isEquipped(item);
     const broken = isBroken(item);
@@ -3068,11 +3749,10 @@ function addEquipButton(li, item, app) {
  * bedroom.
  */
 function addDiscardButton(li, item, app) {
-    if (!app.isEditable || isMonokuma(app.document)) return;
-    if (!isBroken(item)) return;
     // A corpse throws nothing away. Same gate as the Use button, a Monocub
     // included: the trace was laid at the Monocub's token, not at the body (S08-30).
-    if (deadToViewer(app.document)) return;
+    if (!rowGate(app)) return;
+    if (!isBroken(item)) return;
     // The stash is the OTHER answer, not a place to act from: something already
     // put away has to be taken back out before it can be thrown away.
     if (isStashed(item)) return;
@@ -3106,10 +3786,9 @@ function addDiscardButton(li, item, app) {
  * that matters lives in vault.mjs, this just offers the button.
  */
 function addStashButton(li, item, app, { stowing }) {
-    if (!app.isEditable || isMonokuma(app.document)) return;
     // The dead put nothing away and take nothing out, a Monocub included (S08-12,
-    // D15): a thing put away is off the body, and a body's loot takes none of those.
-    if (deadToViewer(app.document)) return;
+    // D15): a thing put away is off the body, and a body's loot takes none of those (`rowGate`).
+    if (!rowGate(app)) return;
 
     const tip = game.i18n.localize(stowing ? "DRPG.Vault.stowTooltip" : "DRPG.Vault.takeTooltip");
 
@@ -3168,7 +3847,7 @@ function classSafe(value) {
     return String(value ?? "").replace(/[^A-Za-z0-9_-]/g, "");
 }
 
-export function bulletBadges(data) {
+export function bulletBadges(data, { gm = false } = {}) {
     if (!data) return "";
 
     const badge = (text, cls, tooltip = "") =>
@@ -3231,7 +3910,7 @@ export function bulletBadges(data) {
     }
     // GM only, and only worth showing while it still differs from what the
     // player sees - once a bullet is identified the two badges say the same thing.
-    if (game.user.isGM && data.realType && data.realType !== data.shownType) {
+    if (gm && data.realType && data.realType !== data.shownType) {
         badges.push(badge(game.i18n.format("DRPG.TruthBullet.really", { type: data.realLabel }),
             "real", data.gmNote || game.i18n.localize("DRPG.TruthBullet.reallyTooltip")));
     }
@@ -3477,9 +4156,10 @@ function buildBulletRow(li, item, app) {
 
     li.innerHTML = `<img src="${foundry.utils.escapeHTML(item.img ?? "")}" alt="" />
                     <span class="drpg-item-name">${foundry.utils.escapeHTML(item.name)}</span>
-                    <span class="drpg-tb-badges">${bulletBadges(data)}</span>`;
+                    <span class="drpg-tb-badges">${bulletBadges(data, { gm: modeOf(app).realBullets })}</span>`;
 
-    if (!app.isEditable || isMonokuma(app.document)) return;
+    // Nor the dead's, a Monocub included (E24 C3a, `rowGate`): Share, Present and Analyze are a living student's.
+    if (!rowGate(app)) return;
 
     // Evidence is worth passing on whatever state it is in - an unidentified
     // copy is exactly what you hand to somebody whose analysis has not been
@@ -3532,7 +4212,7 @@ function buildBulletRow(li, item, app) {
  */
 function addPresentButton(li, item, app) {
     // Nor for a student on the trial's list of the dead (E70 fix p1-G1): a death nobody has found too (TR30).
-    if (!inClassTrial() || isDeceased(app.document) || isMutedDead(app.document)) return;
+    if (!modeOf(app).presentShown) return;
 
     const button = document.createElement("button");
     button.type = "button";
@@ -3557,7 +4237,7 @@ function addPresentButton(li, item, app) {
  * pressed. Painted in place when the floor moves (`repaintPresentButtons`), so a turn's change renders no sheet.
  */
 function paintPresentButton(button, actor) {
-    const held = presentRefusal(trialFloor(), actor.id);
+    const { held } = sheetMode(actor).present();
     const tip = held ?? game.i18n.localize("DRPG.Trial.presentTooltip");
     button.dataset.tooltip = tip;
     button.setAttribute("aria-label", tip);
@@ -3585,7 +4265,8 @@ function repaintPresentButtons() {
  * use, not a different one.
  */
 function addHandoverButton(li, item, app, { copying }) {
-    if (!app.isEditable || isMonokuma(app.document)) return;
+    // Nor the dead's, a Monocub included (E24 C3a, D15): what is on the body is the body's (`rowGate`).
+    if (!rowGate(app)) return;
 
     const tip = game.i18n.localize(copying ? "DRPG.Handover.shareTooltip" : "DRPG.Handover.giveTooltip");
 
@@ -3748,8 +4429,8 @@ function buildRulesPanel(app) {
  * no GM required for the repeatable ones.
  * ========================================================================== */
 
-function injectActionPanel(app, element) {
-    if (!app.isEditable) return;
+function injectActionPanel(app, element, mode = modeOf(app)) {
+    if (!mode.actions) return;
 
     // Must be the CONTENT section, never the navigation link.
     //
@@ -3767,19 +4448,31 @@ function injectActionPanel(app, element) {
     tab.querySelectorAll(".drpg-action-panel, .drpg-calls-panel").forEach(p => p.remove());
 
     const actor = app.document;
-    const monokuma = isMonokuma(actor);
 
     // A Monokuma has no action economy at all. Their sheet is Despair Calls.
-    if (monokuma) {
+    if (mode.actions === "calls") {
         injectCallsPanel(tab, actor, true);
         attachActionDelegate(app, element);
+        return;
+    }
+
+    // Not in the class (E24 C3a, E24-20): an NPC the GMs play takes no actions and buys no Calls, and its sheet
+    // says so to the GM in the panel's place. A player's sheet of one draws nothing here.
+    if (mode.actions === "npc") {
+        const note = document.createElement("div");
+        note.className = "drpg-action-panel drpg-npc-panel";
+        const line = document.createElement("p");
+        line.className = "notes drpg-keep";
+        line.textContent = game.i18n.localize("DRPG.Class.npcLine");
+        note.append(line);
+        tab.prepend(note);
         return;
     }
 
     // A Monocub keeps the normal action budget but only two things to spend it
     // on. Its own panel entirely, not a filtered version of the student grid -
     // Meddle targets another actor and has no place in the generic delegate.
-    if (isMonocub(actor)) {
+    if (mode.actions === "monocub") {
         injectMonocubPanel(tab, actor);
         attachActionDelegate(app, element);
         return;
@@ -3794,7 +4487,7 @@ function injectActionPanel(app, element) {
     // budget every time of day because it only ever skipped Monokumas. Becoming
     // a Monocub is a separate GM step that may come a whole trial later, or
     // never, and that gap is exactly where a corpse could keep taking turns.
-    if (deadToViewer(actor)) {
+    if (mode.actions === "dead") {
         const note = document.createElement("div");
         note.className = "drpg-action-panel drpg-dead-panel";
         const heading = document.createElement("h3");
@@ -3803,12 +4496,16 @@ function injectActionPanel(app, element) {
         const body = document.createElement("p");
         body.className = "notes";
         body.textContent = game.i18n.localize("DRPG.Chapter.deadPanelNote");
-        note.append(heading, body);
+        // What the dead still do (E24 C3a, E24-18): speak outside the trial; in it, no microphone and no ballot.
+        const still = document.createElement("p");
+        still.className = "notes drpg-dead-still";
+        still.textContent = game.i18n.localize("DRPG.Class.deadStill");
+        note.append(heading, body, still);
         // Dead, and nobody has found them yet (E05 C10): the victim's own player, and a GM.
-        if (!isDeceased(actor)) {
+        if (mode.unfound) {
             const unfound = document.createElement("p");
             unfound.className = "notes";
-            unfound.textContent = game.i18n.localize(game.user.isGM ? "DRPG.Chapter.deadUnfound" : "DRPG.Chapter.nobodyFoundYou");
+            unfound.textContent = game.i18n.localize(mode.gm ? "DRPG.Chapter.deadUnfound" : "DRPG.Chapter.nobodyFoundYou");
             note.append(unfound);
         }
         tab.prepend(note);
@@ -3905,9 +4602,7 @@ function injectMonocubPanel(tab, actor) {
 
     const grid = document.createElement("div");
     grid.className = "drpg-action-grid";
-    grid.append(actionButton(actor, "move", ACTIONS.move));
-    // One tile per row of the Monocub's table (E33 C10): Confusion today, a second ability a row.
-    for (const [key, def] of Object.entries(MONOCUB.abilities)) grid.append(abilityButton(actor, key, def));
+    grid.append(...monocubTiles(actor));
     panel.append(grid);
 
     if (isCrimeSilenced(actor)) {
@@ -3918,6 +4613,13 @@ function injectMonocubPanel(tab, actor) {
     }
 
     tab.prepend(panel);
+}
+
+/* A Monocub's tiles: the Move, then one tile per row of its table (E33 C10): Confusion today, a second ability a row.
+   The panel's build and the repaint's (`refreshMonocubTiles`, E45 C2) both draw these. */
+function monocubTiles(actor) {
+    return [actionButton(actor, "move", ACTIONS.move),
+        ...Object.entries(MONOCUB.abilities).map(([key, def]) => abilityButton(actor, key, def))];
 }
 
 function abilityButton(actor, key, def) {
@@ -3973,6 +4675,8 @@ function budgetLine(actor) {
     }, "max")];
 
     if (hasFreeMove(actor)) parts.push(game.i18n.localize("DRPG.Actions.freeMoveLeft"));
+    // Fog took it (E24 C3b; E24-24): said, so a Move that is not there reads as the weather's and not as spent.
+    else if (overflowBlocksFreeMove()) parts.push(game.i18n.localize("DRPG.SheetNotes.fogBudget"));
 
     // What Hope has already bought, next to what the day gave you.
     //
@@ -4031,7 +4735,7 @@ function injectCallsPanel(tab, actor, monokuma) {
     // Refusal stays where it is. The dimming says "not now"; pressing anyway is
     // still how a player is told why.
     panel.className = `drpg-calls-panel ${monokuma ? "drpg-despair-panel" : "drpg-hope-panel"}${
-        isCallSilenced(actor) ? " drpg-silenced" : ""}`;
+        isCallSilenced(actor) || (!monokuma && overflowBlocksCalls()) ? " drpg-silenced" : ""}`;
 
     // The pool is on the bar for a Monokuma and nowhere else: Despair is the
     // only thing their sheet is about, and the number is not repeated anywhere
@@ -4078,6 +4782,11 @@ function injectCallsPanel(tab, actor, monokuma) {
 function callLockNote(monokuma) {
     if (isEclipse()) return game.i18n.localize("DRPG.Eclipse.callsLocked");
     if (monokuma && inClassTrial()) return game.i18n.localize("DRPG.Trial.callsLocked");
+    /* SILENCE, THE WEATHER, ON THE DRAWER (E24 C3b, 08.11.2026; E24-24, audit S03-13). calls.mjs refuses every Hope
+       Call while the Overflow's Silence runs (`overflowBlocksCalls`, `DRPG.Overflow.silenced`), and the drawer went
+       on looking open: a player read six Hope and seven live tiles and learnt the rule from the refusal. A Despair
+       Call is not a Hope Call, so a Monokuma's drawer stays as it is. */
+    if (!monokuma && overflowBlocksCalls()) return game.i18n.localize("DRPG.Overflow.silenced");
     return null;
 }
 

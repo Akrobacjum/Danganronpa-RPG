@@ -242,7 +242,7 @@
       },
       "enforceAnonymity": {
         "name": "Keep character sheets anonymous",
-        "hint": "Another player's sheet opens redacted: name, portrait, Health, Sanity and what they are holding. Statistics, Hope, actions, inventory and Truth Bullets are hidden. Each player still owns their own sheet in full."
+        "hint": "Another player's sheet opens redacted: name, portrait, Health and what they are holding. Statistics, Sanity, Hope, actions, inventory and Truth Bullets are hidden. Each player still owns their own sheet in full."
       },
       "searchTokensPerRoom": {
         "name": "Search tokens per room",
@@ -416,7 +416,9 @@
       "otherRemove": "Remove this item",
       "otherRemoveAsk": "Remove {item} from {actor}? It is gone from the sheet for good.",
       "otherHint": "Not under any heading yet. Ask the GM to file it.",
-      "biographyPlaceholder": "Who they were before the killing game."
+      "biographyLabel": "Background",
+      "biographyPlaceholder": "Who you were before the killing game.",
+      "biographyChanged": "Someone else changed this character's Background meanwhile. Your text is still in the field, not saved: leave the field again and it replaces theirs."
     },
     "Guard": {
       "blocked": "Only the GM changes that. Actions, Hope and statistics move through play.",
@@ -445,8 +447,8 @@
         "one": "{actor} has {left} action left and needs {needed}.",
         "other": "{actor} has {left} actions left and needs {needed}."
       },
-      "woundedTooltip": "All Health is marked - one action per time of day.",
-      "lockedTooltip": "Forfeit. All Health is marked, so this stays shut until they heal.",
+      "woundedTooltip": "No Health left - one action per time of day.",
+      "lockedTooltip": "Forfeit. No Health left, so this stays shut until they heal.",
       "pipReadOnly": { "one": "{left} of {max} action this time of day. Spent by acting.", "other": "{left} of {max} actions this time of day. Spent by acting." },
       "freeMoveAvailable": "Free Move still available this time of day.",
       "freeMoveSpent": "Free Move used. The next crossing costs an action.",
@@ -1435,7 +1437,11 @@
       "trialObjectionFloor": "{who} has the floor",
       "afterVerdict": "The verdict is in",
       "trialNext": "Next: {name}",
-      "trialLastTurn": "The last turn"
+      "trialLastTurn": "The last turn",
+      "waitingFor": "Incident - waiting for {name}",
+      "reserveYou": "You have {hp} of {hpMax} Health and {sanity} of {sanityMax} Sanity left.",
+      "reserveOf": "{name} has {hp} of {hpMax} Health left.",
+      "reserveVictim": "The victim has {hp} of {hpMax} Health and {sanity} of {sanityMax} Sanity left."
     },
     "Handbooks": {
       "title": "Handbooks",
@@ -1855,7 +1861,10 @@
       "sanity": {
         "one": "{n} Sanity",
         "other": "{n} Sanity"
-      }
+      },
+      "leftRow": "Left: {n} / {max}",
+      "fieldHealth": "How much Health is left. Type a number to change it.",
+      "fieldSanity": "How much Sanity is left. Type a number to change it."
     },
     "Unit": {
       "action": {
@@ -1920,7 +1929,6 @@
         "critical": "a critical",
         "free": "no roll"
       },
-      "victimMarks": "Victim: Health {hp} marked, Sanity {stress} marked.",
       "thirdIs": "{name} walked in",
       "passTurn": "Pass the turn",
       "passTooSoon": "The turn was passed a moment ago. Press Pass the turn again to pass the next one.",
@@ -1968,7 +1976,7 @@
       "leftRemnant": "Leaves a Remnant behind.",
       "youLose": "You lose {what}.",
       "theyLose": "{name} loses {what}.",
-      "killerChooses": "Critical - the killer chooses: both marks off Health, or both off Sanity.",
+      "killerChooses": "Critical - the killer chooses where both points come off: Health or Sanity.",
       "hinderedActions": {
         "one": "Their opponent rolls {actions} at disadvantage for {turns} turn.",
         "other": "Their opponent rolls {actions} at disadvantage for {turns} turns."
@@ -2066,7 +2074,7 @@
       "gmPicksTrait": "Rolls: {traits} - the GM picks one. Tell them in your thread what you do.",
       "youPickTrait": "Rolls: {traits} - Resolve is armed, so you pick one in the roll window.",
       "criticalChoiceTitle": "A clean hit",
-      "criticalChoiceIntro": "The blow lands exactly where you wanted it. Take both marks off the same place - their body, or their nerve.",
+      "criticalChoiceIntro": "The blow lands exactly where you wanted it. Both points come off the same reserve - their body, or their nerve.",
       "criticalChoiceHp": "Both off Health",
       "criticalChoiceStress": "Both off Sanity",
       "ranOutTwoKillers": "{victim} has nothing left. {killers} are both in this.",
@@ -2155,10 +2163,11 @@
       },
       "traceImage": "Image",
       "savedOver": {
-        "one": "One field had changed elsewhere while this window was open, and was not saved: {list}. The window shows what it holds now; type yours again if it should stand.",
-        "other": "{n} fields had changed elsewhere while this window was open, and were not saved: {list}. The window shows what they hold now; type yours again if they should stand."
+        "one": "One field had changed elsewhere while this window was open, and was not saved: {list}. Open Investigation again to see what it holds now; type yours again if it should stand.",
+        "other": "{n} fields had changed elsewhere while this window was open, and were not saved: {list}. Open Investigation again to see what they hold now; type yours again if they should stand."
       },
       "savedOverItem": "{field} of {row}: \"{value}\"",
+      "saveStopped": "The Save stopped part-way: {error}. What it wrote before that stands and the rest was not saved; Investigation is open again on what the world holds now - type the rest again.",
       "createHereTitle": "Create a Key Remnant here",
       "createHereIntro": { "one": "They named a point of interest and you have decided there is something there. This puts it on the map, and can hang it on the {n} clue you planned.", "other": "They named a point of interest and you have decided there is something there. This puts it on the map, and can hang it on one of the {n} clues you planned." },
       "whichSlot": "Which planned clue is this?",
@@ -2341,7 +2350,7 @@
       "nobodyLeft": "Every student is already dead.",
       "deadShort": "dead",
       "deadPanelTitle": "You are dead",
-      "deadPanelNote": "The dead take no actions and spend no Hope. You keep your sheet and your voice at the table. Brought back as a Monocub, this panel becomes Move and Confusion.",
+      "deadPanelNote": "The dead take no actions and spend no Hope. Brought back as a Monocub, this panel becomes Move and Confusion.",
       "deadCannotAct": "{name} is dead and cannot take actions.",
       "deadUnfound": "Dead, not found",
       "keepSecretUntilFound": "Keep it the GMs' until the body is found: no flag, no marker, and their Truth Bullets stay until then",
@@ -2992,6 +3001,23 @@
       "sharedPool": "{name}'s pool is shared by: {actors}. Each Monokuma should have their own.",
       "saved": "Monokumas and pools saved."
     },
+    "SheetNotes": {
+      "failedSteps": "Parts of the character sheet failed to draw: {steps}. A newer Daggerheart may have moved what they read; the console (F12) has each error.",
+      "fogFreeMove": "Fog: no Free Move this time of day. Every crossing costs an action.",
+      "fogBudget": "Fog: no Free Move",
+      "noExperiences": "No experiences yet. You start with two at +2, and a Level Up can add one."
+    },
+    "Class": {
+      "notInClass": "Not in the class",
+      "outTooltip": "Mark as not in the class: an NPC, with no actions, ballots or Level Ups.",
+      "inTooltip": "Not in the class. Press to make them a student again.",
+      "markedOut": "{name} is not in the class: no actions, ballots or Level Ups.",
+      "markedIn": "{name} is a student again.",
+      "npcLine": "Not in the class: no actions, ballots or Level Ups.",
+      "candidates": "No player owns {names}. If one is an NPC, mark it Not in the class on its sheet.",
+      "deathMark": "Dead",
+      "deadStill": "Outside the Class Trial you still speak at the table. In it your microphone is off and you hold no ballot."
+    },
     "Overflow": {
       "hopeBlocked": "The darkening blocks Hope this time of day - nothing was spent.",
       "title": "Despair overflow",
@@ -3351,7 +3377,9 @@
       "descriptionPlaceholder": "e.g. A false back in the bookcase, deep enough to hide a notebook",
       "descriptionNote": "Everyone who knows the project reads this on its token's card. At most {max} characters.",
       "descriptionNeeded": "A project needs a description.",
-      "descriptionTooLong": "A description holds at most {max} characters, and this one has {n}. Shorten it."
+      "descriptionTooLong": "A description holds at most {max} characters, and this one has {n}. Shorten it.",
+      "trayLessTooltip": "Take one point of progress off this project",
+      "trayMoreTooltip": "Add one point of progress to this project"
     },
     "TraitRuling": {
       "title": "Which statistic?",
@@ -3766,7 +3794,7 @@
         "other": "Actions refilled for {count} characters"
       },
       "searchTokensRestocked": "Every room restocked with search tokens",
-      "woundedNote": "Down to one action this time of day, all Health marked: {names}."
+      "woundedNote": "Down to one action this time of day, no Health left: {names}."
     },
     "Panel": {
       "nextStartTrial": "Every planned Key Remnant has been found. Start the Class Trial from the trial console.",
@@ -4491,11 +4519,11 @@
     "States": {
       "drpgBreakdown": {
         "name": "Breakdown",
-        "description": "Every point of Sanity is marked. Disadvantage on every roll."
+        "description": "No Sanity left. Disadvantage on every roll."
       },
       "drpgWounded": {
         "name": "Wounded",
-        "description": "Every point of Health is marked. One action fewer per time of day."
+        "description": "No Health left. One action fewer per time of day."
       }
     },
     "Rules": {
@@ -4988,7 +5016,7 @@
         "window": "Actions, Move and Hope",
         "actionsTitle": "Actions",
         "actionsWhat": "{actions} each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs {short}, a Long Rest {long}.",
-        "actionsWounded": "With all your Health marked you get {wounded} instead of {actions}, until somebody patches you up.",
+        "actionsWounded": "With no Health left you get {wounded} instead of {actions}, until somebody patches you up.",
         "actionsNow": "You have {left} of {max} left this time of day.",
         "moveTitle": "Free Move",
         "moveWhat": "One move between rooms each time of day that costs you nothing. After that, changing rooms costs an action like anything else.",
@@ -5272,6 +5300,10 @@
         "hook-dice-so-nice-roll-start": "every Hope and Despair die is drawn in the look its thrower's Daggerheart gave it, and the dice look's report names no throw seen on this browser",
         "hook-livekit-initialized": "the voice rooms, the voice tile and the trial's speakers do not follow the voice client",
         "hook-image-popout-header": "a room picture's window shows Foundry's share control and any a module adds",
+        "token-bars-reserve": "a student's token bars fill up as they are hurt, as Daggerheart draws them, and another player sees their Sanity bar",
+        "breakdown-icon-private": "a student's Breakdown icon shows on their token to every player",
+        "dead-icon-own": "the dead overlay is Daggerheart's tombstone",
+        "hook-party-sheet-render": "the Party sheet counts what each member has lost, as Daggerheart draws it, and shows every member's Sanity to every player",
         "user-permission-broadcast-audio": "nobody's microphone is blocked: the GM's button says why, and so does the trial",
         "rtc-client-keys": "a key Foundry no longer keeps reads as its default (not muted, full volume, shown), and writing to it changes nothing",
         "push-to-talk-key": "the push-to-talk line names no key",

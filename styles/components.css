@@ -1074,10 +1074,6 @@ body.drpg-no-ticker .drpg-voice-tile-state > span,
 body.drpg-reduced-motion .drpg-voice-tile-state > span,
 body.drpg-stacked .drpg-voice-tile-state > span { animation: none; }
 
-@media (prefers-reduced-motion: reduce) {
-    .drpg-voice-tile-state > span { animation: none; }
-}
-
 /* STILL, UNDER THE BUTTONS (H81 fix r1, 20.10.2026; the review's H81C2-02). Standing still in the band left of the
    buttons, a word is cut: "Connecting" and "Connected" both read "CONNECT", so the one word that tells a Room
    reconnecting from a Room connected said the same of both. While it stands still - the ticker off, reduced motion
@@ -1091,13 +1087,6 @@ body.drpg-no-ticker .drpg-voice-tile-state,
 body.drpg-reduced-motion .drpg-voice-tile-state {
     top: 40px;
     right: 6px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .drpg-voice-tile-state {
-        top: 40px;
-        right: 6px;
-    }
 }
 
 /* On a stacked screen, in the tiles' row between the face (hidden while nobody speaks) and the buttons.
@@ -2083,11 +2072,16 @@ body.drpg-theme-stained-glass #drpg-room-tile .drpg-hud-room-tokens.is-sealed .d
    settings now, the cluster's hexagon at the small token's 44 px, and keeps the module's
    "this goes through the GM" red where the others wear the state's accent. Its mix is the E77
    plan's: an opaque red, where the others' ground lets the map through, so it is the one solid
-   button in the corner as the bar was the one solid control in its column. */
+   button in the corner as the bar was the one solid control in its column.
+   NO LIGHT EDGE AT ITS SIDES (E23 C1d, 08.11.2026; the owner's 14.10: "Monokuma's button has a white strip that would be
+   worth removing"). The hexagon's clip path cuts the button's 2 px border away everywhere but its two upright sides,
+   where it stood as a light line in `--drpg-sg-gm-light` at 85 % - read in Chromium on the glass harness at 4x
+   (S/stages/E23/shots/c1d/c1c-strip-*). The border keeps its width, so the box and the corner's cells do not move, and
+   takes no colour: the red ground runs to the cut, and under the cursor the ground brightens alone. R1382. */
 body.drpg-theme-stained-glass #drpg-gm-launcher {
     color: var(--drpg-sg-bone);
     background: color-mix(in srgb, var(--drpg-sg-gm) 72%, var(--drpg-a8-glass-ground));
-    border-color: color-mix(in srgb, var(--drpg-sg-gm-light) 85%, transparent);
+    border-color: transparent;
     border-radius: 0;
     clip-path: polygon(50% 0, 100% 28%, 100% 72%, 50% 100%, 0 72%, 0 28%);
     box-shadow: 0 0 12px color-mix(in srgb, var(--drpg-sg-gm-light) 55%, transparent);
@@ -2096,7 +2090,6 @@ body.drpg-theme-stained-glass #drpg-gm-launcher {
 body.drpg-theme-stained-glass #drpg-gm-launcher:hover,
 body.drpg-theme-stained-glass #drpg-gm-launcher:focus-visible {
     background: color-mix(in srgb, var(--drpg-sg-gm) 88%, var(--drpg-a8-glass-ground));
-    border-color: var(--drpg-sg-gm-light);
     box-shadow: 0 0 18px color-mix(in srgb, var(--drpg-sg-gm-light) 75%, transparent);
 }
 

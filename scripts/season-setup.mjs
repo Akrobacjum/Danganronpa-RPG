@@ -37,7 +37,7 @@ import {
 import { SETTINGS, DEFAULT_SAFEWORD, setSetting, isDeadForGm, isEclipse } from "./settings.mjs";
 import { safeword } from "./safeword.mjs";
 import { getClock, setClock } from "./clock.mjs";
-import { studentActors, isMonokuma, studentCensus } from "./monokuma.mjs";
+import { studentActors, isMonokuma, studentCensus, classCandidates } from "./monokuma.mjs";
 import { monokumaFor, feedsNobody, explicitPool, assignments } from "./assignments.mjs";
 import { listExperiences, initCharacter, needsStartingResources } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
@@ -57,7 +57,7 @@ import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { foundryGivenBack, openGiveBackFoundry } from "./enforced.mjs";
 // The hall's report, the one the Scenes tab prints (E51 C8, the First session screen): trial-scene.mjs never reaches back here.
 import { scenesReportOf } from "./trial-scene.mjs";
-import { log, error, plural, workingScene, esc, wholeNumber, localeFormat } from "./utils.mjs";
+import { log, error, plural, workingScene, esc, wholeNumber, localeFormat, listOf } from "./utils.mjs";
 import { stepper, stepperId, drpgWindow } from "./ui-kit.mjs";
 import { alreadyOpen, handOff, RAISED } from "./live.mjs";
 // Foundry's secret doors and the players' rulers (E80 C5): the doors as the map holds them, their
@@ -1292,12 +1292,18 @@ export async function preSessionReport({ av = {}, scenes = game.scenes, head, pr
     // The contract (E52 C2, E52-05): run now, the rows the load's notice names, so the report says what holds today.
     const reaches = contractSection(contract ?? runContract(), esc);
     const dice = diceLookSection(diceLook === undefined ? await diceLookFindingsHere() : diceLook, esc);
+    // The characters no player owns, named as NPCs to mark (E24 C3a; the owner's Q-E24-5): a line only when there is one,
+    // and nothing marked by itself - the GM decides on each sheet ("Not in the class").
+    const unowned = classCandidates();
+    const npcs = unowned.length ? `<p class="drpg-check-report" data-drpg-class-candidates>${esc(game.i18n.format("DRPG.Class.candidates",
+        { names: listOf(unowned.map(actor => actor.name)) }))}</p>` : "";
 
     // The marks in the state's colour (E20 fix round, the goal review's G-8): `checkMarks`.
     return `<div>
             ${held}
             <h3>${game.i18n.localize("DRPG.Panel.checksSetup")}</h3>
             <pre class="drpg-check-report">${checkMarks(esc(setup))}</pre>
+            ${npcs}
             <h3>${game.i18n.localize("DRPG.Fog.checksScenes")}</h3>
             <pre class="drpg-check-report">${checkMarks(esc(sceneLines))}</pre>
             ${pictures}

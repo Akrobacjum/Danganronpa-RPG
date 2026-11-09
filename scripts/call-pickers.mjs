@@ -321,15 +321,18 @@ async function pickMotive(ask) {
 
 async function pickPlayer(actor, ask) {
     const { kind } = ask;
-    const { isMonokuma } = await import("./monokuma.mjs");
+    const { studentActors } = await import("./monokuma.mjs");
     const { othersInRoom } = await import("./movement.mjs");
     const { isDeadForGm } = await import("./chapter.mjs");
 
-    // Support explicitly requires the same room; Monokuma reaches anyone.
+    // Support explicitly requires the same room; Monokuma reaches anyone. Either way a student (E24 fix G1, 09.11.2026;
+    // the owner: "wylacz takie npc", the general review's m7): the one roster, so a character marked "Not in the class"
+    // is never offered, as no Monokuma is. The GM judges a player's Call by the same roster as the GMs hold it
+    // (bridge-guards.mjs `guardArmOtherCharacter`).
     const sameRoomOnly = kind === "hope";
-    const reachable = sameRoomOnly
-        ? othersInRoom(actor)
-        : game.actors.filter(a => a.type === "character" && !isMonokuma(a) && a.id !== actor.id);
+    const students = new Set(studentActors().map(a => a.id));
+    const reachable = (sameRoomOnly ? othersInRoom(actor) : studentActors())
+        .filter(a => students.has(a.id) && a.id !== actor.id);
 
     /*
      * THE DEAD ARE NOT A TARGET (D-F4).

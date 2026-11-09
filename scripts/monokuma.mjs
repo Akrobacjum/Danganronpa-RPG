@@ -37,9 +37,48 @@ export function monokumaActors() {
     return game.actors.filter(a => a.type === "character" && isMonokuma(a));
 }
 
-/** Every student - a character that is not a Monokuma. */
-export function studentActors() {
-    return game.actors.filter(a => a.type === "character" && !isMonokuma(a));
+/**
+ * Not in the class (E24 C3a; config.mjs `FLAGS.notInClass`): an NPC the GMs play, which no ballot, Level Up or
+ * incident's cast takes as a student.
+ */
+export function isNotInClass(actor) {
+    return Boolean(actor?.getFlag?.(MODULE_ID, FLAGS.notInClass));
+}
+
+/**
+ * Every student - a character that is neither a Monokuma nor marked not in the class.
+ *
+ * THE NPC LEAVES WITH THE MONOKUMA (E24 C3a, 08.11.2026; audit S03-36, E24-19). Every `character` was a student, so an
+ * NPC the GMs keep on a sheet - a teacher, a shopkeeper - was handed a ballot, named on the verdict's list, offered a
+ * Level Up after a right verdict and put in the murder window as its default victim. The one roster is read by 71
+ * calls in 19 files (`studentCensus`, `actingStudents`, the vote's candidates, its size and `trialParticipants`, the
+ * verdict's survivors, the murder window's cast through chapter.mjs `livingStudentsForGm`, assignments.mjs, the GM
+ * panel), so the flag is read here once and every one of them leaves the NPC out (R1453).
+ *
+ * AS THE GMS HOLD THE TWO FLAGS, ON THE GMS' ROADS (E24 fix G1, 09.11.2026; the end review's S-1). Both flags are a GM's
+ * (sheet-audit.mjs `GM_FLAGS`), and the document is what the student's owner can write: a console that set
+ * `notInClass` (or `monokuma`) on its own student took it off the list the primary built in the window before the
+ * audit's put-back landed - off the vote's judged ids, so the step did not wait for that student's write, then off
+ * every ballot it sent, and off the trial's muted dead. `held` is the reader a GM's road hands in (sheet-audit.mjs
+ * `flagsHeldNow`, after `judgedFor` of every character, `characterIds`): each character is asked through it, and
+ * the mark's flags answer where the primary holds one. Without it the document answers, as every display reads it.
+ * The roads: vote.mjs `studentsJudged`, `candidatesFor`, `trialParticipants`, voice.mjs `deadForTrial` and its
+ * settle, and bridge-guards.mjs `guardArmOtherCharacter` for a Call (R1494).
+ */
+export function studentActors({ held = null } = {}) {
+    return game.actors.filter(a => {
+        if (a.type !== "character") return false;
+        const flags = held ? held(a) : a;
+        return !isMonokuma(flags) && !isNotInClass(flags);
+    });
+}
+
+/**
+ * Every character's id (E24 fix G1): the ids a GM's road waits on (sheet-audit.mjs `judgedFor`) before it reads the
+ * students as held - every character, not `studentActors()`'s, which a forged flag on the document still shortens.
+ */
+export function characterIds() {
+    return game.actors.filter(a => a.type === "character").map(a => a.id);
 }
 
 /**
@@ -51,7 +90,7 @@ export function studentActors() {
  * rooms-per-student line divides by. `actors` is the suite's to hand (R1500); otherwise the world's.
  */
 export function studentCensus(actors = studentActors()) {
-    const all = [...actors].filter(a => !isMonokuma(a));
+    const all = [...actors].filter(a => !isMonokuma(a) && !isNotInClass(a));
     const living = all.filter(a => !isDeadForGm(a));
     return { all, living, count: living.length };
 }
@@ -66,10 +105,10 @@ export function studentCensus(actors = studentActors()) {
  *
  * `dead` is the death the caller asks, the GMs' by default (`isDeadForGm`: the flag, or a death this browser holds); a
  * card sent to each owner is a document and asks the table's fact (`isDeceased`, rule A), and the trial hands its own
- * rule, which it filters again with the Monocub flag as the GMs hold it.
+ * rule, which it filters again with the Monocub flag as the GMs hold it. `held` is `studentActors`'s (E24 fix G1).
  */
-export function actingStudents({ dead = isDeadForGm } = {}) {
-    return studentActors().filter(a =>
+export function actingStudents({ dead = isDeadForGm, held = null } = {}) {
+    return studentActors({ held }).filter(a =>
         !dead(a) || a.getFlag(MODULE_ID, FLAGS.monocub));
 }
 
@@ -154,6 +193,32 @@ export async function setMonokuma(actor, value = true) {
 
     actor.sheet?.render(false);
     return actor;
+}
+
+/**
+ * Mark or unmark an actor as not in the class (E24 C3a; `FLAGS.notInClass`). GM only: the GM's own write, as
+ * `setMonokuma`'s flag is - the flag holds no resource, so no reason of resource-guard.mjs's list names it, and a
+ * player's write of it is put back by the GMs' audit. Nothing is cleared or given back: an NPC keeps its sheet as it
+ * stands, and unmarked it is a student again with what it holds.
+ */
+export async function setNotInClass(actor, value = true) {
+    if (!game.user.isGM || !actor) return null;
+    if (value) await actor.setFlag(MODULE_ID, FLAGS.notInClass, true);
+    else await actor.unsetFlag(MODULE_ID, FLAGS.notInClass);
+    log(`${actor.name} is ${value ? "now" : "no longer"} not in the class.`);
+    ui.notifications.info(game.i18n.format(value ? "DRPG.Class.markedOut" : "DRPG.Class.markedIn", { name: actor.name }));
+    actor.sheet?.render(false);
+    return actor;
+}
+
+/**
+ * The characters Pre-season's checks name as NPCs to mark (E24 C3a; the owner's Q-E24-5: "the characters no player
+ * owns as candidates"): students - not a Monokuma, not already out of the class - that no user who is no GM owns.
+ * Nothing is marked by itself; the GM decides on each sheet. `actors` and `users` are the suite's to hand (R1453).
+ */
+export function classCandidates({ actors = game.actors, users = game.users } = {}) {
+    return [...actors].filter(a => a?.type === "character" && !isMonokuma(a) && !isNotInClass(a)
+        && ![...users].some(u => !u.isGM && a.testUserPermission?.(u, "OWNER")));
 }
 
 /* ==========================================================================
@@ -287,19 +352,24 @@ export function monokumasWithoutPool() {
 /*
  * MARK AND UNMARK, BY STATE, AND ASKED FOR A PLAYER'S CHARACTER (E22 C3b, 06.11.2026; audit S03-34). One entry, "Mark as
  * Monokuma", marked and unmarked alike, with no question: a mis-click on a player's character set their Hope and actions
- * to 0, and unmarking gives nothing back. Two entries now, each shown in the state it changes (`condition`), and marking a
- * character a player owns asks first, the yes destructive with Cancel the default (E22 rule 4). Unmarking still gives back
- * nothing (a rules change, not E22's) and is not asked.
+ * to 0, and unmarking gives nothing back. Two entries now, each shown in the state it changes, and marking a character a
+ * player owns asks first, the yes destructive with Cancel the default (E22 rule 4). Unmarking still gives back nothing
+ * (a rules change, not E22's) and is not asked.
+ *
+ * ON THE SHEET, NOT IN THE ACTORS DIRECTORY (E24 C3a, 08.11.2026; the owner's answer to Q-E24-5, STAGE.md "Amend 08.11"
+ * A2: "warto mark as monokuma tez przeniesc"). The two entries sat on the directory's right-click menu
+ * (`getActorContextOptions`, registered by `registerMonokuma`, which is gone with them); they are the sheet header's GM
+ * controls now, beside "Not in the class" (sheet.mjs `injectClassControls`), each drawn in the state it changes, for a
+ * `character` and a GM only. The ask moved with them unchanged, under the name of the place it is asked from.
  */
-const entryActor = li => game.actors.get(li.dataset?.entryId ?? li.dataset?.documentId);
 
 /** Whether a user who is no GM owns `actor`: a player's character, whose Hope and actions a mark would take. */
 function playedByAPlayer(actor) {
     return game.users.some(u => !u.isGM && actor?.testUserPermission?.(u, "OWNER"));
 }
 
-/** Mark `actor` as a Monokuma from the directory: asked first when a player owns it. */
-async function markFromDirectory(actor) {
+/** Mark `actor` as a Monokuma from its sheet: asked first when a player owns it. */
+export async function markFromSheet(actor) {
     if (playedByAPlayer(actor)) {
         const { drpgConfirm } = await import("./ui-kit.mjs");
         const name = foundry.utils.escapeHTML(actor.name);
@@ -314,35 +384,4 @@ async function markFromDirectory(actor) {
         if (!sure) return null;
     }
     return setMonokuma(actor, true);
-}
-
-/** Add "Mark as Monokuma" and "Unmark as Monokuma" to the actor directory context menu, each in the state it changes. */
-export function registerMonokuma() {
-    Hooks.on("getActorContextOptions", (directory, options) => {
-        if (!game.user.isGM) return;
-
-        options.push({
-            name: "DRPG.Monokuma.toggle",
-            icon: '<i class="fa-solid fa-masks-theater"></i>',
-            condition: li => {
-                const actor = entryActor(li);
-                return actor?.type === "character" && !isMonokuma(actor);
-            },
-            callback: li => {
-                const actor = entryActor(li);
-                if (actor) markFromDirectory(actor);
-            }
-        }, {
-            name: "DRPG.Monokuma.unmark",
-            icon: '<i class="fa-solid fa-masks-theater"></i>',
-            condition: li => {
-                const actor = entryActor(li);
-                return actor?.type === "character" && isMonokuma(actor);
-            },
-            callback: li => {
-                const actor = entryActor(li);
-                if (actor) setMonokuma(actor, false);
-            }
-        });
-    });
 }

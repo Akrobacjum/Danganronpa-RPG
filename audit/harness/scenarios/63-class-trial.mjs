@@ -739,8 +739,9 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     /* E10 C9 (S01-16, S03-19): the player's own picker is a module panel too - it carried `drpg-advance` alone - draws no
        "Choice 1" over its one pick and no "For ..." line (that is the GM's), and says the reason in its intro. */
     verdict("p1's own Level Up picker is a module panel: one pick with no Choice legend, the reason in its intro and no line for whom (C9)",
-        // On the kit's frame since E21 C6a: its `drpg-ui` beside the module's panel class, each class read once.
-        J(picked.shown?.classes) === J(["drpg-advance", "drpg-panel", "drpg-ui"]) && picked.shown?.legends === 0 && picked.shown?.forLine === false
+        // On the kit's frame since E21 C6a: its `drpg-ui` beside the module's panel class, each class read once; a prompt the
+        // game waits on since E23 C5a (`drpg-prompt`, kept above the sheet: stacking.mjs).
+        J(picked.shown?.classes) === J(["drpg-advance", "drpg-panel", "drpg-prompt", "drpg-ui"]) && picked.shown?.legends === 0 && picked.shown?.forLine === false
             && picked.shown?.reason?.length > 0 && picked.shown.intro.includes(picked.shown.reason), J({ shown: picked.shown }));
     /* E10 C14 (S13-26): the privacy note's "until the next vote is opened", against the store - the second vote's open
        dropped every row of the first (round 1), and its own rows are the ones gm2 keeps now. */

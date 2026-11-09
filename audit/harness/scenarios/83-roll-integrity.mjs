@@ -851,6 +851,69 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
         trace: p1Rows(rf1b, "putBack", names.aiko).some(x => /hope/.test(x.change)) && f1bHealed?.player === names.p1 && rf1b.gm.audit.length >= 2,
         details: { f1b, healed: f1bHealed, undo: f1bUndo, now: f1bNow } });
 
+    /* --------------- F1c. the sheet's reserve field, from p1's console --------------- */
+
+    /* E24 C1b (C1a's Open 1): the sheet's reserve field writes through sheet.mjs `writeReserve` - `trustedWrite` with
+       the reason `sheetReserve`, which resource-guard.mjs `HAND_EDITS` leaves unstamped (no `drpgAutomated`), so it is
+       a hand edit as Daggerheart's own field was. p1's console calls it for Aiko's Health, one less than is left. Under
+       Lock player resources (the season's default) p1's own guard takes the marks out of the write: nothing lands and
+       Aiko's Health is what it was on all four clients, no row of it on the GM. With the lock off it is a player's hand
+       edit and stands: the new marks on all four, nothing put back or flagged. */
+    phase("F1c: p1's console writes Aiko's Health through the sheet's reserve field, locked and unlocked", { flow: "sheet-audit" });
+    await setOn(aiko, { "system.resources.hitPoints.value": 1 });
+    await settle(400);
+    const f1cWrite = `const a = game.actors.get("${aiko}"); ${LANDED(aiko)}
+        let err = null, answer = null;
+        try { const SH = await import("${SCRIPT("sheet")}"); const r = a.system.resources.hitPoints;
+            answer = await SH.writeReserve(a, "hitPoints", r.max - r.value - 1); answer = answer ? true : answer; }
+        catch (e) { err = String(e?.message ?? e).slice(0, 200); }
+        finally { Hooks.off("updateActor", hook); }
+        return { wrote: landed("system.resources.hitPoints.value", 0), err, answer };`;
+    const healthOf = id => `return game.actors.get("${id}")?.system.resources.hitPoints.value ?? null;`;
+    const aikoHealth = rows => rows.gm.trace.filter(x => x.character === names.aiko && /hitPoints/.test(x.change)).map(x => [x.verdict, x.change]);
+    mark = await readings();
+    const f1cLocked = await p1.eval(f1cWrite, { timeout: 30000 });
+    await settle(800);
+    const rf1cLocked = await mark.since();
+    const f1cLockedNow = await onAll(healthOf(aiko));
+    check("F1c: locked - nothing of p1's reserve write lands, Aiko's Health marks are 1 on all four clients, no row of it on the GM",
+        !f1cLocked.err && f1cLocked.wrote === null && allAre(f1cLockedNow, 1) && aikoHealth(rf1cLocked).length === 0,
+        J({ f1cLocked, now: f1cLockedNow, rows: aikoHealth(rf1cLocked) }), { flow: "sheet-audit" });
+    await gm.eval(`await game.settings.set("${MOD}", "lockPlayerResources", false); return true;`);
+    await settle(600);
+    let f1cOpen = null, f1cOpenNow = null, rf1cOpen = null, f1cHeal = null, f1cHealNow = null, rf1cHeal = null;
+    try {
+        mark = await readings();
+        f1cOpen = await p1.eval(f1cWrite, { timeout: 30000 });
+        await settle(1200);
+        rf1cOpen = await mark.since();
+        f1cOpenNow = await onAll(healthOf(aiko));
+        // The heal (E45-C3b's B4; G3's Open 3): one more left than the fall left, typed in the same field, the lock off.
+        mark = await readings();
+        f1cHeal = await p1.eval(f1cWrite.replace("r.max - r.value - 1", "r.max - r.value + 1"), { timeout: 30000 });
+        await settle(1200);
+        rf1cHeal = await mark.since();
+        f1cHealNow = await onAll(healthOf(aiko));
+    } finally {
+        await gm.eval(`await game.settings.set("${MOD}", "lockPlayerResources", ${J(season.lock)}); return true;`);
+        await setOn(aiko, { "system.resources.hitPoints.value": 1 });
+        await settle(600);
+    }
+    check("F1c: unlocked - p1's reserve write is a hand edit that stands: Aiko's Health marks 2 on all four clients, nothing put back or flagged",
+        !f1cOpen?.err && f1cOpen?.wrote === 2 && allAre(f1cOpenNow, 2) && aikoHealth(rf1cOpen).every(([verdict]) => !["putBack", "flagged"].includes(verdict)),
+        J({ f1cOpen, now: f1cOpenNow, rows: rf1cOpen ? aikoHealth(rf1cOpen) : null }), { flow: "sheet-audit" });
+    /* E45-C3b's B4 (E24 fix G3's Open 3): the handbook's "with the lock off a gain is listed, a fall stands unrecorded",
+       measured. The fall above leaves no row of Aiko's Health at all; the heal is listed - one `sheetWrites` row of
+       hers, of `hitPoints`, naming p1 - and stands: the marks back to 1 on all four clients. */
+    const healthRows = rows => rows ? [...rows.gm.listed, ...rows.gm.trace, ...rows.gm.covered]
+        .filter(x => x.character === names.aiko && /hitPoints/.test(x.change)) : null;
+    const f1cHealRows = healthRows(rf1cHeal);
+    check("F1c: unlocked - the fall left no row of Aiko's Health; the heal typed after it is listed as one row naming p1 and stands: marks 1 on all four clients",
+        healthRows(rf1cOpen)?.length === 0 && !f1cHeal?.err && f1cHeal?.wrote === 1 && allAre(f1cHealNow, 1)
+            && f1cHealRows?.length === 1 && f1cHealRows[0].verdict === "listed" && f1cHealRows[0].player === names.p1,
+        J({ fall: healthRows(rf1cOpen), f1cHeal, now: f1cHealNow, rows: f1cHealRows }), { flow: "sheet-audit" });
+    note("F1c: its rows", J({ locked: aikoHealth(rf1cLocked), open: rf1cOpen ? aikoHealth(rf1cOpen) : null }));
+
     /* --------------------- F2. a broken knife made whole --------------------- */
 
     /* The GM gives Aiko a knife and breaks it (inventory.mjs breakItem); p1's console unsets its `broken` flag. A

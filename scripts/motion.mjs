@@ -122,16 +122,78 @@ export const LEAVE = () => motionEase("--drpg-ease-leave");
 // one on every call, and the fog's ticker and the glass's loop call this per frame.
 let reducedQuery = null;
 
+/** The system's own `prefers-reduced-motion`, read once; null in a browser without `matchMedia`. */
+function systemMotionQuery() {
+    try {
+        reducedQuery ??= window.matchMedia?.("(prefers-reduced-motion: reduce)") ?? null;
+    } catch {
+        reducedQuery = null;
+    }
+    return reducedQuery;
+}
+
 export function reducedMotion() {
     try {
         // This browser's own switch first: a player who wants the interface to hold still
         // should not have to change an operating-system setting to say so (the Look window).
         if (document.body.classList.contains("drpg-reduced-motion")) return true;
-        reducedQuery ??= window.matchMedia("(prefers-reduced-motion: reduce)");
-        return reducedQuery.matches;
+        return Boolean(systemMotionQuery()?.matches);
     } catch {
         return false;
     }
+}
+
+/*
+ * ONE MECHANISM: THE CLASS, FOR THE SETTING OR THE SYSTEM (E23 C5c, 07.11.2026; audit S12-11, the plan's p10change).
+ * Until 1.2.100 `body.drpg-reduced-motion` came from the client setting alone (settings.mjs `applyTheme`) and the
+ * system's preference reached the sheets through 24 `@media (prefers-reduced-motion: reduce)` blocks of their own
+ * (danganronpa.css 15, stained-glass.css 7, components.css 2) - two lists of what stops, kept in step by hand, and they
+ * were not: six rules of danganronpa.css and four of stained-glass.css ran endless under the setting alone that the
+ * system's blocks stopped (R1410's reading on 6c9bd3c3: a pending Call and its button's mark, a due or own event's
+ * meta, the pause's two bars). Now the class is on for either, and every one of those blocks is a rule under the
+ * class; motion.css's token block stays as the system's own as well (the tokens are zero before this file has run).
+ * R1410 holds it.
+ *
+ * Written here and not in `applyTheme`: this file imports settings.mjs, so settings.mjs importing it would close a
+ * cycle in the static graph (R161). `applyTheme` ends with `drpgThemeApplied`, and `registerMotion` - which runs
+ * before the first `applyTheme` (module.mjs) - listens to it first, so the class is set before any other listener of
+ * that hook, and before the narrow layout and the curtain applyTheme imports, run. The system is watched for its
+ * `change`, so an operating-system switch made mid-session holds the interface still without a reload.
+ */
+const REDUCED_CLASS = "drpg-reduced-motion";
+
+/** This browser's own switch (the Look window's Reduced motion); false before the settings exist. */
+function ownStillness() {
+    try {
+        return getSetting(SETTINGS.reducedMotion) === true;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Put `drpg-reduced-motion` on the body for the setting or the system, off for neither. `query` is the system's
+ * MediaQueryList (R1410 hands in one of its own), `own` the setting's answer.
+ */
+export function applyReducedMotion(query = systemMotionQuery(), own = ownStillness()) {
+    let system = false;
+    try {
+        system = Boolean(query?.matches);
+    } catch {
+        system = false;
+    }
+    document.body?.classList.toggle(REDUCED_CLASS, own === true || system);
+}
+
+/**
+ * Follow a MediaQueryList's `change` with `applyReducedMotion`; the function that stops following. The system's
+ * query is followed once, from `registerMotion`.
+ */
+export function followSystemMotion(query = systemMotionQuery()) {
+    if (typeof query?.addEventListener !== "function") return () => {};
+    const follow = () => applyReducedMotion(query);
+    query.addEventListener("change", follow);
+    return () => query.removeEventListener("change", follow);
 }
 
 /**
@@ -500,6 +562,11 @@ export function registerMotion() {
     // old objection to window transitions, answered rather than argued with.
     Hooks.on("renderApplicationV2", animateWindowIn);
     markClosingWindows();
+    // The Reduced motion class: the first listener of `drpgThemeApplied` (see `applyReducedMotion`), and the system's
+    // own switch followed from here on.
+    Hooks.on("drpgThemeApplied", () => applyReducedMotion());
+    followSystemMotion();
+    applyReducedMotion();
 
     log(`${MODULE_ID}: motion layer ready `
         + `(snap ${SNAP()}ms, enter ${ENTER()}ms, beat ${BEAT()}ms, turn ${TURN()}ms`

@@ -30,8 +30,30 @@
  * nobody has met. Under Stained Glass it reads `--drpg-glass-accent` and is
  * therefore the same hairline colour as the border of the room the token is
  * standing in, Eclipse included. Under Monokuma Legacy the accent is not derived
- * from the hour at all, so danganronpa.css declares the five hours for this frame
- * itself - see the W-6 block there.
+ * from the hour at all, so danganronpa.css declared the five hours for this frame
+ * itself - the glass's own five, written out - until E23 fix L2 (below) took them out.
+ *
+ * UNDER MONOKUMA LEGACY EVERY STUDENT'S FRAME IS BONE (E23 fix L, 09.11.2026; the owner
+ * on 1.2.100: "postacie maja zly kolor ramki (ze stained glass zamiast drpg bone)"). Those
+ * five hours are Stained Glass's palette, and on a Legacy map they drew the frames in it:
+ * #bfe3ff, the pale blue-white of the owner's screenshot, all morning. Under Legacy a
+ * student's frame and the viewer's own are the bone Legacy's palette names,
+ * danganronpa.css's `:root` `--drpg-bone` (#e4ded8); under Stained Glass the others keep
+ * the glass's accent and the viewer's own its bone (#f2eee6). `frameColour` says which.
+ *
+ * AND UNDER LEGACY THE OTHERS' BONE IS DIMMER, AND SO IS NOTHING ELSE (E23 fix L2, 09.11.2026:
+ * fix L's Open 2 and 3, put to the owner and not answered, so the defaults stand). Fix L made
+ * every Legacy frame the same bone, and with it the one thing W-6 is for - finding your own
+ * token - was gone under that theme. The viewer's own stays `--drpg-bone`; every other
+ * student's is `--drpg-bone-dim` (danganronpa.css `:root`, #989492), a solid colour rather than
+ * the bone at a lower alpha, for the reason the fog's raster gives there: an alpha lets the
+ * map tint it, so the same frame would read differently over every floor. Its value is the
+ * glass's own dim bone (#f2eee6 at 0.62) taken over to Legacy's bone and Ink and made solid:
+ * on Ink #1d1a21 the own frame reads 12.88:1, the others' 5.72:1, the two against each other
+ * 2.25:1 and the others' against the fog's raster 2.46:1 (tests-css.mjs `contrastRatio`, the
+ * contrast tool's arithmetic, 09.11). The map under a frame is the scene's, not read here.
+ * Foundry's controlled border (`hourColour`, selection.mjs) is the viewer's bone under Legacy
+ * too, not the glass's five hours, which no longer have a reader and are not declared.
  *
  * WHAT IT IS NOT. Not a target ring: Foundry already draws one of those when a
  * token is controlled, and it is gone the moment you click somewhere else - which
@@ -75,8 +97,10 @@ const RING_GLOW_NAME = "drpgOwnRingGlow";
 
 /** The token the ring's colour falls back to when the hour has not been written yet. */
 const FALLBACK = 0xffd38f;   // the afternoon gold, which is what the sheets default to
-/** Bone, if the sheet has not declared it yet: Stained Glass's value. */
+/** Bone, if the sheet has not declared it yet: Stained Glass's value, and Monokuma Legacy's two (danganronpa.css `:root`). */
 const BONE_FALLBACK = 0xf2eee6;
+const LEGACY_BONE_FALLBACK = 0xe4ded8;
+const LEGACY_BONE_DIM_FALLBACK = 0x989492;
 
 /** The zoom the rings were last struck at - see the `canvasPan` guard below. */
 let ringZoom = 0;
@@ -195,9 +219,24 @@ function frameOf(token) {
  * same blue as the room borders around it. Measured on a live client, 20.09: the
  * accent came back as `rgb(87, 182, 255)` rather than as the hex the sheet
  * declares, which is why the reading goes through `cssColour` - see the note there.
+ *
+ * Under Monokuma Legacy it is not the hour: Legacy's bone, the viewer's own frame's colour
+ * (E23 fix L2). It is what Foundry's controlled border and drag rectangle are handed
+ * (selection.mjs). `read` is `cssColour`; R1467 hands it a reader of its own.
  */
-export function hourColour() {
-    return cssColour(glassOn() ? "--drpg-glass-accent" : "--drpg-own-ring", FALLBACK);
+export function hourColour(glass = glassOn(), read = cssColour) {
+    return glass ? read("--drpg-glass-accent", FALLBACK) : read("--drpg-bone", LEGACY_BONE_FALLBACK);
+}
+
+/**
+ * The colour a frame is drawn in: bone for the viewer's own in both themes; for the
+ * others the glass's accent under Stained Glass and the dimmer bone under Monokuma
+ * Legacy (E23 fix L and L2). `read` is `cssColour`; R1467 hands it a reader of its own
+ * to see which property is asked under each theme, and with which fallback.
+ */
+export function frameColour(whose, glass = glassOn(), read = cssColour) {
+    if (glass) return whose === "mine" ? read("--drpg-bone", BONE_FALLBACK) : read("--drpg-glass-accent", FALLBACK);
+    return whose === "mine" ? read("--drpg-bone", LEGACY_BONE_FALLBACK) : read("--drpg-bone-dim", LEGACY_BONE_DIM_FALLBACK);
 }
 
 /**
@@ -280,8 +319,8 @@ function paint(token, flags) {
 
         const w = Math.round(token.w ?? token.document.width * (canvas.grid?.size ?? 100));
         const h = Math.round(token.h ?? token.document.height * (canvas.grid?.size ?? 100));
-        const colour = whose === "mine" ? cssColour("--drpg-bone", BONE_FALLBACK) : hourColour();
         const glass = glassOn();
+        const colour = frameColour(whose, glass);
         const key = [glass ? "glass" : "legacy", whose, `${w}x${h}`, colour, glass ? seamWidth().toFixed(5) : ""].join("|");
         if (flags && ringKept(existing, key)) {
             count("ownRing.kept");
@@ -381,5 +420,6 @@ export function diagnoseOwnRings() {
     console.table(rows);
     return { theme: glassOn() ? "stainedGlass" : "monokumaLegacy",
         hour: document.body.dataset.drpgTime ?? null,
-        colour: `#${hourColour().toString(16).padStart(6, "0")}`, tokens: rows };
+        colour: `#${hourColour().toString(16).padStart(6, "0")}`,
+        frame: `#${frameColour("student").toString(16).padStart(6, "0")}`, tokens: rows };
 }

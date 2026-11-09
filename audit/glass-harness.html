@@ -13,7 +13,8 @@
      mounted at 0x0 and its observers placed the Legacy tile, which a table's never do: the sweep's
      Legacy lines read the same with either, 13.10.2026, but only this one measures
      glass.mjs's Legacy observer); `?card=1` one notice card in the tile;
-     `?scheme=light` a light-theme client. `node audit/glass-sweep.mjs` loads it at 23 sizes in
+     `?scheme=light` a light-theme client (since E24 C4a with `theme-light` on the body, and `drpgSchemeCheck()` reads
+     A7's and A8's surfaces on it). `node audit/glass-sweep.mjs` loads it at 23 sizes in
      both themes and fails on any size that is not right (E81 fix r2-H3); `drpgNoticeCheck()` draws
      the module's own notice cards on the tile and measures the stack and the corner (E81 fix r2-H2).
      The room tile stands under the clock as room-tile.mjs builds it, with a gradient for its picture,
@@ -26,7 +27,12 @@
      `drpgObjectionCheck()` draws a player's trial row, with OBJECTION!, in the clock's row and measures it. Since E21 C1d
      `?kbd=1` puts a text field on the page (`#drpg-kbd-field`) and `drpgKbdState()` answers the body's two shape classes
      and the curtain's cut (its frame and clip), so the sweep can stand an on-screen keyboard in: the page's height falls
-     by 40 % with focus in the field, then rises (glass-sweep.mjs's keyboard check). -->
+     by 40 % with focus in the field, then rises (glass-sweep.mjs's keyboard check). Since E23 C1a `drpgTurn(kind)` fires
+     one of four turns of the curtain - a phase with a recut, a phase, an hour, a recut from the layout - and reads how it
+     moved, `drpgTurnFreeze(at)` stands the frame's clock still, and `?turn=today` and `?flash=0.5` are the two controls
+     of glass-sweep.mjs `--turn` (the turn check, below). Since E23 C3a the tray's rows are countdowns.hbs 2.10.11's (the
+     minus, the count and the plus in the controls' box; a player's with neither button) and `drpgTrayRows()` reads each
+     row's count on its name's line on the screen and the list's foot (glass-sweep.mjs `--tray`). -->
 <!doctype html><html><head><meta charset="utf-8">
 <!-- THE SHEETS ARE module.json's, in its order (E44 C1d, 04.11.2026): read when the page loads, by a synchronous request,
      and written as links, so they block the first paint as the six links written here by hand until then did, and a
@@ -97,8 +103,10 @@
   .application .window-content{padding:12px;display:flex;flex-direction:column;gap:10px}
   .application .form-footer{display:flex;gap:8px}
   .application button{height:28px;padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  /* one Foundry-like countdown row */
+  /* one Foundry-like countdown row; the list and its category flex columns as Daggerheart's countdown.less (2.12.4)
+     lays them out, so the module's row gap (`--drpg-project-gap`) is between the rows here as at a table (E23 C3a) */
   #countdowns .countdowns-header{display:flex;align-items:center}
+  #countdowns .countdowns-container,#countdowns .countdown-category-container{display:flex;flex-direction:column}
   .countdown-container{display:flex;align-items:center;gap:8px}
   .countdown-main-container{display:flex;flex:1 1 auto;min-width:0}
   .countdown-content{display:flex;flex-direction:column;flex:1 1 auto;min-width:0}
@@ -111,7 +119,7 @@
     <div class="drpg-hud-campaign is-long">DanganRPG: Safe Havens Bleed</div><div class="drpg-hud-chapter">Chapter 1 · Day 3</div>
     <div class="drpg-hud-phase"><span class="drpg-hud-phase-glyph drpg-pxi"></span>Daily Life</div>
     <div class="drpg-hud-time-row"><button class="drpg-hud-button">&lt;</button><div class="drpg-hud-time-slot" style="min-width:118px"><div class="drpg-hud-time">Afternoon</div></div><button class="drpg-hud-button">&gt;</button></div>
-    <div class="drpg-hud-elapsed">43 min in</div></div>
+    <div class="drpg-hud-elapsed">43 min in</div><div class="drpg-hud-track is-empty" aria-hidden="true"></div></div>
   <section id="drpg-room-tile" class="drpg-room-tile" role="region" aria-label="Room" data-state="room"><div class="drpg-room-tile-art" style="background-image:linear-gradient(160deg,#6d86a8,#2f4a35 55%,#7a4a2c)"></div><button type="button" class="drpg-room-tile-open" aria-label="Show the picture"></button><h3 class="drpg-room-tile-name">Dorm</h3><div class="drpg-hud-room-tokens"><span class="drpg-hud-pip"></span><span class="drpg-hud-pip"></span><span class="drpg-hud-room-tokens-label" aria-hidden="true">0/2 searches</span></div><div class="drpg-hud-room-project">You can work a project here</div><button type="button" class="drpg-room-tile-more" aria-controls="drpg-room-tile-prose" aria-expanded="false"><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button><p class="drpg-room-tile-prose" id="drpg-room-tile-prose" tabindex="0" hidden>Two bunks under a high window.
 
 A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-label="Show the picture"><img alt="" loading="lazy" decoding="async" src="/docs/img/01-player-view.webp"></button><button type="button" class="drpg-room-tile-describe" aria-label="Description"><i class="fa-solid fa-align-left" aria-hidden="true"></i></button></section>
@@ -127,8 +135,8 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     <div id="drpg-player-status"><div class="drpg-status-field"><span class="drpg-status-label">Still to act</span><span class="drpg-status-value">4 / 4</span></div><div class="drpg-status-field"><span class="drpg-status-label">Hope</span><span class="drpg-status-value">3</span></div></div>
     <div id="countdowns"><div class="countdowns-header"><i class="fa-solid fa-clock"></i><span class="window-title">Projects</span><button class="drpg-projects-gear" aria-label="Manage projects"><i class="fa-solid fa-gear" inert></i></button></div>
       <div class="countdowns-container"><div class="countdown-category-container">
-        <div class="countdown-container" data-countdown="a"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt=""><div class="countdown-main-container"><div class="countdown-content"><header>Rig the dumbwaiter</header><div class="countdown-tools"><div class="progress-tag">2 / 4</div><div class="countdown-tool-controls"><a data-action="decreaseCountdown"><i class="fa-solid fa-minus"></i></a><a data-action="increaseCountdown"><i class="fa-solid fa-plus"></i></a></div></div></div></div></div>
-        <div class="countdown-container" data-countdown="b"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt=""><div class="countdown-main-container"><div class="countdown-content"><header>Poison the tea with something long</header><div class="countdown-tools"><div class="progress-tag">1 / 6</div><div class="countdown-tool-controls"><a data-action="decreaseCountdown"><i class="fa-solid fa-minus"></i></a><a data-action="increaseCountdown"><i class="fa-solid fa-plus"></i></a></div><div class="countdown-tool-icons"><i class="fa-solid fa-eye-slash"></i></div></div></div></div></div>
+        <div class="countdown-container" data-countdown="a"><div class="countdown-main-container"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt=""><div class="countdown-content"><header>Rig the dumbwaiter</header><div class="countdown-tools"><div class="countdown-tool-controls"><a data-action="decreaseCountdown"><i class="fa-solid fa-minus"></i></a><div class="progress-tag">2/4</div><a data-action="increaseCountdown"><i class="fa-solid fa-plus"></i></a></div><div class="countdown-tool-icons"></div></div></div></div></div>
+        <div class="countdown-container" data-countdown="b"><div class="countdown-main-container"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt=""><div class="countdown-content"><header>Poison the tea with something long</header><div class="countdown-tools"><div class="countdown-tool-controls"><a data-action="decreaseCountdown"><i class="fa-solid fa-minus"></i></a><div class="progress-tag">1/6</div><a data-action="increaseCountdown"><i class="fa-solid fa-plus"></i></a></div><div class="countdown-tool-icons"><i class="fa-solid fa-eye-slash"></i></div></div></div></div></div>
       </div></div></div>
   </div>
   <div id="sidebar"><div id="sidebar-content"><span class="stub-text">Chat Log</span><i class="fa-solid fa-gear stub-icon" inert></i></div><nav id="sidebar-tabs"><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button></nav></div>
@@ -712,8 +720,10 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     async function readFlat() {
       if (!room || !out.place || !room.flat) { out.why.push(`no place under this theme (stamp ${out.place}, LAST.room ${JSON.stringify(room)})`); return; }
       Object.assign(out, { F: room.F, need: room.need, maxH: room.maxH, box: room.box });
-      /* No free width beside the notices (fix r2-H3: the room before Foundry's right column) keeps the clock's place. */
-      const chose = room.F >= room.need || (room.free != null && room.free < 1) ? "clock" : "notes";
+      /* No free width beside the notices (fix r2-H3: the room before Foundry's right column) keeps the clock's place,
+         and since E23 fix G3b a free width under 265 px is none (glass.mjs ROOM_MIN_W, stated here on its own: at
+         1366x560 the capped Legacy tray left 51 px, and the tile was drawn 51x189 there). */
+      const chose = room.F >= room.need || (room.free != null && room.free < 265) ? "clock" : "notes";
       if (out.place !== chose || room.place !== chose) out.why.push(`place ${out.place} (LAST.room ${room.place}) where F ${room.F}, need ${room.need} and free ${room.free} choose ${chose}`);
       const { box: b, ...placed } = room;
       if (JSON.stringify(g.roomPlacement(innerWidth, innerHeight)) !== JSON.stringify(placed)) out.why.push("a second reading of roomPlacement differs from the placement");
@@ -725,10 +735,18 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
         const prev = tile.previousElementSibling, gauge = document.getElementById("players")?.getBoundingClientRect();
         out.clock = { w: [Math.round(t.width), Math.round(h.width)], left: [Math.round(t.left), Math.round(h.left)], dx: +((t.left + t.width / 2) - (h.left + h.width / 2)).toFixed(1), rail: null };
         // E78 C0: the height stops at glass.mjs `roomCapH` as well (the owner's decision of 13.10.2026)
-        out.flat = { h: [b.h, Math.min(room.F, room.maxH, g.roomCapH(innerHeight, room.need))], players: gauge?.height ? Math.round(gauge.top - t.bottom) : null };
+        /* AND WHERE F IS SHORT OF THE SMALLEST BOX, THE SMALLEST BOX (E23 fix G2, 08.11.2026; STATUS E23 Open 30, the end
+           review's goal M3). The clock's place is also the one kept when nothing is left beside the notices (fix r2-H3,
+           `free` under 1), and there `flatPlacement` gives the tile `need`, the smallest box that holds it, whatever F is.
+           This reading asked min(F, maxH, cap) of it all the same, which no size reached until C2a's track band
+           (7b4f286c) took 23 px out of F: at 1366x560, a GM and a player alike, F 306 against need 310, the box 430x310
+           (PIN_BOX's own, since E78 C0) and 20 px over `#players`, read as "not min(F, maxH, cap) 306". The rule read is
+           flatPlacement's, branch for branch: the box was right and this arithmetic was not. */
+        const floorBox = room.F >= room.need ? Math.min(room.F, room.maxH, g.roomCapH(innerHeight, room.need)) : room.need;
+        out.flat = { h: [b.h, floorBox], players: gauge?.height ? Math.round(gauge.top - t.bottom) : null };
         if (prev !== hud && !(prev?.id === "drpg-floors" && prev.previousElementSibling === hud)) out.why.push("not under the clock");
         if (!near(t.width, h.width) || !near(t.left, h.left)) out.why.push(`not the clock's width and edge: ${out.clock.w} ${out.clock.left}`);
-        if (b.h !== out.flat.h[1]) out.why.push(`the box is ${b.h} high, not min(F, maxH, cap) ${out.flat.h[1]}`);
+        if (b.h !== out.flat.h[1]) out.why.push(`the box is ${b.h} high, not ${room.F >= room.need ? "min(F, maxH, cap)" : "need, F short of it"} ${out.flat.h[1]}`);
         if (out.flat.players !== null && out.flat.players < 16) out.why.push(`the tile ends ${out.flat.players} px above #players, not 16`);
       } else {
         const sb = document.getElementById("drpg-popups")?.getBoundingClientRect();
@@ -926,7 +944,9 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       if (fit.points !== pane.poly.length) out.why.push(`the picture is clipped to ${fit.points} points, its pane has ${pane.poly.length}`);
       else if (!(fit.miss <= 1.5) || !fit.cover) out.why.push(`the picture's outline is ${fit.miss} px off its pane at ${out.art.pane}${fit.cover ? "" : ", its box short of a corner"}`);
       if (!near(fit.turn[0], fit.turn[1], 0.05)) out.why.push(`the picture is turned ${fit.turn[0]} deg, its tile ${fit.turn[1]} (H83: it leans with its pane)`);
-      if (out.art.z[0] !== out.art.z[1] || art.previousElementSibling !== cur || !glowAfter(art)) out.why.push(`the picture is not laid between the curtain and its glow (${out.art.z}, after ${out.art.under})`);
+      /* after the curtain, or after the layers its turn stands above it (E23 C1b: glass.mjs `curtainTop`) */
+      const top = [cur, document.getElementById("drpg-curtain-turn"), document.getElementById("drpg-curtain-flash")];
+      if (out.art.z[0] !== out.art.z[1] || !top.includes(art.previousElementSibling) || !glowAfter(art)) out.why.push(`the picture is not laid between the curtain and its glow (${out.art.z}, after ${out.art.under})`);
       if (!out.art.picture) out.why.push("the picture's layer has no picture");
     }
     if (cuts) await readCuts();
@@ -1277,7 +1297,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       out.why.push(...two.why.map(w => "with a name on two lines, " + w));
     }
     if (!loose || loose.parentElement !== body || own) out.why.push("the portrait is not on the curtain's pane");
-    else if (!glowAfter(loose) || ![cur, document.getElementById("drpg-room-art")].includes(loose.previousElementSibling)) out.why.push("the portrait is not laid between the curtain and its glow");
+    else if (!glowAfter(loose) || ![cur, document.getElementById("drpg-room-art"), document.getElementById("drpg-curtain-turn"), document.getElementById("drpg-curtain-flash")].includes(loose.previousElementSibling)) out.why.push("the portrait is not laid between the curtain and its glow");
     else {
       const fit = layerFit(loose, pane, cur.getBoundingClientRect(), tile);
       out.art = fit;
@@ -1577,6 +1597,266 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     return done();
   };
 </script>
+<script id="drpg-turn-check">
+  /* THE TURN, MEASURED IN A BROWSER (E23 C1a, 07.11.2026; the owner's 05.11 and E61's DIAGNOSIS.md of MK-R1). How the
+     curtain moves from one state to the next is read here on the module's own glass.mjs, and glass-sweep.mjs `--turn`
+     drives it: one page a turn, nothing put back. The four turns (`TURN_KINDS`), each fired as the module's own roads
+     would leave the page:
+       phase-recut  Daily Life -> Class Trial: the body's and the clock's `data-drpg-phase`, the phase's words, and the
+                    clock's stopwatch row taken out, as hud.mjs `showsStopwatch` leaves it out in a trial - the clock
+                    shorter, so the cut moves
+       phase        Daily Life -> Investigation: the same attributes and words, the stopwatch kept - a recolour that
+                    should keep the cut
+       hour         Afternoon -> Evening: the body's `data-drpg-time` and the hour's words in the clock (the 27.09
+                    amend: an hour's change recolours and never recuts)
+       layout       the room tile hidden, the accent unchanged: a recut from the layout alone, with no flash (none
+                    at 1366x768: there the tile stands beside the notices, and on 1d860414 hiding it recuts nothing)
+     `drpgTurn(kind, { stage })` runs in three stages so the sweep can read Chromium's own counters around each:
+       arm    the clock's `data-drpg-phase` written as renderHud writes it (the page's markup has none, and the sweep's
+              pins are of that markup, so it is written here and not there), `settle` ms for any pass that starts,
+              then the instruments: this page's requestAnimationFrame wrapped so every callback knows its frame, a
+              MutationObserver on every `style` attribute (`attributeOldValue`), CanvasRenderingContext2D's drawing
+              calls and HTMLCanvasElement `getContext` counted, a "longtask" PerformanceObserver, `drpgGlassCut`
+              counted, the cut's signature and panes taken
+       rest   `rest` ms of nothing done, the frames read: the page as it stands, the turn's reference
+       run    the turn fired, `ms` ms recorded, then read: each frame's time, whether it MOVED - a clip path, a
+              transform or an opacity written inside the frame on the curtain or a layer of its turn, a canvas drawn
+              inside the frame, or a Web Animation running on one of them - the first and the last moved frame after
+              the event, the clip-path writes and the draws made inside frames, the long tasks, the curtain's own
+              self-check (`CHECKS[0]`) before, at a quarter, half and three quarters of the turn and after, the cut's
+              signature after, and the regions the sweep's pictures are read over: `band`, the 8 px cells the turn
+              carries glass across (`turnRegions` says how; with none, the largest field pane's), and `seams`, every
+              side between two field panes of either cut, the seams' pixels the flash lights
+     and, for a picture taken with the clock stood still, two more:
+       prep   the clock's attribute and the settle alone, no instrument
+       fire   (after `drpgTurnFreeze`) the turn fired and `ms` ms waited with timers only, then the same regions
+     "The curtain or a layer of its turn" is `TURN_REGION`: inside #drpg-curtain, an element with a class starting
+     `drpg-curtain`, `drpg-glow` or `drpg-turn`, a `[data-glow]` canvas. A turn that moves other elements says so there.
+     `drpgTurnFreeze(at)` stands the page's clock still `at` ms after now - performance.now() returns now, every frame
+     is given now + at - as E61 MK-R2's flashpeak.js did to read the flash at its peak (0.2 of 420 ms is 84). It freezes
+     what is timed by the frame's clock (glass.mjs's flash and morph at 1d860414) and, since E23 C1b, what the turn hands
+     the browser: every Web Animation started after it is paused at `at` ms into its own run (its delay and `at`), so
+     each pane's flash, which starts at its batch's delay, stands at its own 0.2; one already running stands where it is.
+     The two controls the sweep runs, as switches of this page (the module script below):
+       ?turn=today  on 1d860414 HEAD's `morph` is what runs, so the switch changes nothing and the page says "head";
+                    once glass.mjs exports `glassTurn` (E23 C1b) it plants a clip-path write on the curtain in every
+                    frame of the turn's first 700 ms, which the measure must read
+       ?flash=0.5   every flash layer (`FLASH_LAYERS`) drawn at half its opacity, which must take the seams' peak out of
+                    its band
+     Headless Chromium rasterises in software: every number here is a shape against 1d860414's, never a table's. */
+  const TURN_KINDS = ["phase-recut", "phase", "hour", "layout"];
+  const TURN_REGION = el => Boolean(el?.closest?.("#drpg-curtain")) || el?.matches?.("[data-glow], canvas.curtain-glow") === true
+    || [...(el?.classList ?? [])].some(c => /^drpg-(curtain|glow|turn)/.test(c));
+  const turnState = { raf0: null, frozen: false };
+  const turnSig = panes => (panes ?? []).map(p => p.poly.map(q => q.map(v => Math.round(v)).join(",")).join(" ")).join("|");
+  const turnFire = kind => {
+    const body = document.body, hud = document.getElementById("drpg-hud");
+    const words = (sel, text) => { const el = hud?.querySelector(sel); const node = el && [...el.childNodes].reverse().find(n => n.nodeType === Node.TEXT_NODE); if (node) node.data = text; };
+    if (kind === "phase-recut" || kind === "phase") {
+      const [to, label] = kind === "phase-recut" ? ["classTrial", "Class Trial"] : ["investigation", "Investigation"];
+      body.setAttribute("data-drpg-phase", to);
+      hud?.setAttribute("data-drpg-phase", to);
+      words(".drpg-hud-phase", label);
+      for (const s of hud?.querySelectorAll(".drpg-hud-ticker span") ?? []) s.textContent = `${label} · ${label} · ${label} · `;
+      if (kind === "phase-recut") hud?.querySelector(".drpg-hud-elapsed")?.remove();
+    } else if (kind === "hour") {
+      body.setAttribute("data-drpg-time", "evening");
+      words(".drpg-hud-time", "Evening");
+    } else if (kind === "layout") document.getElementById("drpg-room-tile").style.display = "none";
+    else throw new Error(`drpgTurn: no turn "${kind}" (${TURN_KINDS.join(", ")})`);
+    /* ?turn=today from C1b's tree: the clip path written on the curtain in every frame for 700 ms */
+    if (window.__turnPlant) {
+      const cur = document.getElementById("drpg-curtain"), t0 = performance.now();
+      const plant = t => { if (!cur || t - t0 > 700) return; cur.style.clipPath = cur.style.clipPath === "inset(0px)" ? window.__turnPlantClip : "inset(0px)"; requestAnimationFrame(plant); };
+      window.__turnPlantClip = cur?.style.clipPath ?? "";
+      requestAnimationFrame(plant);
+    }
+  };
+  const LAST_W = () => window.__glass?.LAST?.frame?.W ?? innerWidth, LAST_H = () => window.__glass?.LAST?.frame?.H ?? innerHeight;
+  const turnRegions = (before, after) => {
+    const cur = document.getElementById("drpg-curtain"), at = cur ? cur.getBoundingClientRect() : { left: 0, top: 0 };
+    /* THE MOVING BAND, cell by cell (8 px): each pane of the new cut is matched to the old pane it comes from as
+       glass.mjs's morph matched them at 1d860414 - the same tone, the nearest centre, 200 px for a tone that differs -
+       and a cell is in the band where the new pane over its centre does not come from the old pane that stood there:
+       glass the turn carries across that point. A cut that changed nothing has no band, and the reading falls back to
+       the largest field pane's cells, 6 px in (`from` says which). */
+    const C = 8, old = before ?? [], now = after ?? [];
+    const inside = (poly, x, y) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; };
+    const centre = p => [(p.x0 + p.x1) / 2, (p.y0 + p.y1) / 2];
+    const from = now.map(p => { const c = centre(p); let best = -1, bd = Infinity; old.forEach((o, i) => { const oc = centre(o), d = Math.hypot(oc[0] - c[0], oc[1] - c[1]) + (o.tone === p.tone ? 0 : 200); if (d < bd) { bd = d; best = i; } }); return best; });
+    const which = (list, x, y) => list.findIndex(p => x >= p.x0 && x <= p.x1 && y >= p.y0 && y <= p.y1 && inside(p.poly, x, y));
+    let cells = [], kind = "moved";
+    const W0 = Math.round(LAST_W()), H0 = Math.round(LAST_H());
+    for (let y = C / 2; y < H0; y += C) for (let x = C / 2; x < W0; x += C) {
+      const n = which(now, x, y);
+      if (n >= 0 && from[n] !== which(old, x, y)) cells.push([x - C / 2, y - C / 2]);
+    }
+    if (!cells.length) {
+      const area = p => (p.x1 - p.x0) * (p.y1 - p.y0);
+      const field = now.filter(p => !p.tone && !p.empty && !p.plain).sort((a, b) => area(b) - area(a))[0];
+      if (field) for (let y = C / 2; y < H0; y += C) for (let x = C / 2; x < W0; x += C)
+        if (x - C / 2 >= field.x0 + 6 && x + C / 2 <= field.x1 - 6 && y - C / 2 >= field.y0 + 6 && y + C / 2 <= field.y1 - 6 && inside(field.poly, x, y)) cells.push([x - C / 2, y - C / 2]);
+      kind = "field";
+    }
+    const vis = cells.map(([x, y]) => [Math.round(x + at.left), Math.round(y + at.top)]).filter(([x, y]) => x >= 0 && y >= 0 && x + C <= innerWidth && y + C <= innerHeight);
+    const band = vis.length ? { x: Math.min(...vis.map(c => c[0])), y: Math.min(...vis.map(c => c[1])), w: Math.max(...vis.map(c => c[0])) + C - Math.min(...vis.map(c => c[0])),
+      h: Math.max(...vis.map(c => c[1])) + C - Math.min(...vis.map(c => c[1])), cell: C, cells: vis, from: kind } : null;
+    const W = innerWidth, H = innerHeight, edge = (a, b) => (a[0] < 1 && b[0] < 1) || (a[1] < 1 && b[1] < 1) || (a[0] > W - 1 && b[0] > W - 1) || (a[1] > H - 1 && b[1] > H - 1);
+    /* a side is a seam of the field where every pane it bounds is a field pane (no block's tone, not plain, not
+       empty): a block's own words and the launchers stand beside the others, and their light is not the seams' */
+    const sides = new Map();
+    for (const p of [...(before ?? []), ...(after ?? [])]) for (let i = 0; i < p.poly.length; i++) {
+      const a = [p.poly[i][0] + at.left, p.poly[i][1] + at.top], b = [p.poly[(i + 1) % p.poly.length][0] + at.left, p.poly[(i + 1) % p.poly.length][1] + at.top];
+      if (edge(a, b)) continue;
+      const k = [a, b].map(q => q.map(v => Math.round(v)).join(",")).sort().join(" ");
+      const field = !p.tone && !p.plain && !p.empty;
+      const s = sides.get(k);
+      if (s) s.field = s.field && field;
+      else sides.set(k, { seg: [+a[0].toFixed(1), +a[1].toFixed(1), +b[0].toFixed(1), +b[1].toFixed(1)], field });
+    }
+    const seams = [...sides.values()].filter(s => s.field).map(s => s.seg);
+    return { band, seams };
+  };
+  window.drpgTurnFreeze = (at = 84) => {
+    const C = performance.now(), raf = window.requestAnimationFrame.bind(window);
+    performance.now = () => C;
+    window.requestAnimationFrame = cb => raf(() => cb(C + at));
+    for (const a of document.getAnimations()) a.pause();
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (frames, timing) {
+      const a = animate.call(this, frames, timing);
+      a.pause();
+      a.currentTime = (typeof timing === "object" ? timing?.delay ?? 0 : 0) + at;
+      return a;
+    };
+    turnState.frozen = true;
+    return { at };
+  };
+  window.drpgTurn = async (kind, { stage = "all", settle = 2500, rest = 1000, ms = 3000 } = {}) => {
+    if (!TURN_KINDS.includes(kind)) throw new Error(`drpgTurn: no turn "${kind}" (${TURN_KINDS.join(", ")})`);
+    const g = window.__glass, wait = n => new Promise(r => setTimeout(r, n));
+    const acc = () => getComputedStyle(document.body).getPropertyValue("--drpg-glass-accent").trim();
+    const check = () => { const c = g?.CHECKS?.[0]; return c ? [c.overlaps, c.blockFails, c.edgeGaps] : null; };
+    const prep = async () => {
+      document.getElementById("drpg-hud")?.setAttribute("data-drpg-phase", document.body.dataset.drpgPhase ?? "dailyLife");
+      await wait(settle);
+    };
+    if (stage === "prep") { await prep(); return { prepared: true }; }
+    if (stage === "fire") {
+      const before = g?.LAST?.panes ?? null, sig0 = turnSig(before), acc0 = acc();
+      turnFire(kind);
+      await wait(ms);
+      const after = g?.LAST?.panes ?? null;
+      return { kind, ...turnRegions(before, after), cut: turnSig(after) === sig0 ? "same" : "new", acc: [acc0, acc()], frozen: turnState.frozen };
+    }
+    if (stage === "arm" || stage === "all") {
+      await prep();
+      const S = window.__turnRec = { frames: new Map(), longs: [], cuts: 0, gets: 0, draws: 0, clip: 0, region: 0, cur: null, t0: null };
+      const tmp = document.createElement("div");
+      const handle = (recs, t) => {
+        for (const r of recs) {
+          if (r.type !== "attributes" || r.attributeName !== "style") continue;
+          tmp.setAttribute("style", r.oldValue ?? "");
+          const el = r.target, was = tmp.style, now = el.style, inside = TURN_REGION(el);
+          const clipMoved = was.clipPath !== now.clipPath, shapeMoved = was.transform !== now.transform || was.opacity !== now.opacity;
+          if (clipMoved) S.clip++;
+          if (t == null) continue;
+          const f = S.frames.get(t) ?? S.frames.set(t, { t, clip: 0, region: 0, draws: 0 }).get(t);
+          if (clipMoved) f.clip++;
+          if (inside && (clipMoved || shapeMoved)) f.region++;
+        }
+      };
+      S.mo = new MutationObserver(recs => handle(recs, null));
+      S.mo.observe(document.documentElement, { attributes: true, attributeFilter: ["style"], attributeOldValue: true, subtree: true });
+      if (!turnState.raf0) {
+        turnState.raf0 = window.requestAnimationFrame.bind(window);
+        window.requestAnimationFrame = cb => turnState.raf0(t => {
+          const R = window.__turnRec, was = R?.cur;
+          if (R) R.cur = t;
+          try { cb(t); } finally { if (R) { handle(R.mo.takeRecords(), t); R.cur = was; } }
+        });
+        const P = CanvasRenderingContext2D.prototype;
+        for (const k of ["stroke", "fill", "fillRect", "strokeRect", "drawImage", "clearRect", "putImageData", "fillText", "strokeText"]) {
+          const f = P[k];
+          P[k] = function (...a) {
+            const R = window.__turnRec;
+            if (R) { R.draws++; if (R.cur != null) { const fr = R.frames.get(R.cur) ?? R.frames.set(R.cur, { t: R.cur, clip: 0, region: 0, draws: 0 }).get(R.cur); fr.draws++; } }
+            return f.apply(this, a);
+          };
+        }
+        const gc = HTMLCanvasElement.prototype.getContext;
+        HTMLCanvasElement.prototype.getContext = function (...a) { if (window.__turnRec) window.__turnRec.gets++; return gc.apply(this, a); };
+      }
+      try { S.po = new PerformanceObserver(l => { for (const e of l.getEntries()) S.longs.push([e.startTime, e.duration]); }); S.po.observe({ type: "longtask" }); } catch { S.po = null; }
+      Hooks.on("drpgGlassCut", S.onCut = () => { S.cuts++; });
+      S.before = g?.LAST?.panes ?? null;
+      S.sig0 = turnSig(S.before);
+      S.check0 = check();
+      S.acc0 = acc();
+      S.ticks = [];
+      S.on = true;
+      /* THE CORNER'S TILT (E23 C1d; E23-10, the owner's 14.10): each launcher's computed transform, by id, read every
+         frame, so the turn's line says whether a button stood straight at any frame of it (glass.mjs `blockTurns`). */
+      const tiltOf = () => Object.fromEntries([...document.querySelectorAll(g?.LAUNCHERS ?? "#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher, [data-drpg-cluster]")]
+        .filter(e => e.id && e.offsetWidth > 0).map(e => [e.id, getComputedStyle(e).transform]));
+      const tick = t => {
+        if (!S.on) return;
+        const anim = document.getAnimations().some(a => a.playState === "running" && TURN_REGION(a.effect?.target));
+        S.ticks.push({ t, anim, check: check(), tilt: tiltOf() });
+        turnState.raf0(tick);
+      };
+      turnState.raf0(tick);
+      if (stage === "arm") return { armed: true, sig: S.sig0.length, today: window.__turnToday ?? null, plant: Boolean(window.__turnPlant) };
+    }
+    const S = window.__turnRec;
+    if (!S) throw new Error("drpgTurn: arm first");
+    const deltas = list => list.slice(1).map((x, i) => x.t - list[i].t);
+    const stats = a => { const s = [...a].sort((x, y) => x - y); return s.length ? { n: s.length, med: +s[s.length >> 1].toFixed(1), p95: +s[Math.min(s.length - 1, Math.floor(s.length * 0.95))].toFixed(1), max: +s[s.length - 1].toFixed(1) } : null; };
+    if (stage === "rest" || stage === "all") {
+      const from = performance.now(), n0 = S.longs.length;
+      await wait(rest);
+      const ticks = S.ticks.filter(x => x.t >= from);
+      S.rest = { frames: stats(deltas(ticks)), long: S.longs.length - n0 };
+      if (stage === "rest") return S.rest;
+    }
+    S.gets = 0; S.draws = 0; S.clip = 0; S.cuts = 0; S.frames.clear();
+    const n0 = S.longs.length, t0 = S.t0 = performance.now(), wall = Date.now();
+    turnFire(kind);
+    await wait(ms);
+    S.on = false;
+    S.mo.disconnect(); S.po?.disconnect(); Hooks.off("drpgGlassCut", S.onCut);
+    const ticks = S.ticks.filter(x => x.t >= t0 - 0.5);
+    const moved = ticks.filter(x => x.anim || (S.frames.get(x.t)?.region ?? 0) > 0 || (S.frames.get(x.t)?.clip ?? 0) > 0 || (S.frames.get(x.t)?.draws ?? 0) > 0);
+    const first = moved.length ? moved[0].t - t0 : null, last = moved.length ? moved[moved.length - 1].t - t0 : null;
+    const during = moved.length ? ticks.filter(x => x.t >= moved[0].t && x.t <= moved[moved.length - 1].t) : ticks;
+    const frames = [...S.frames.values()];
+    const at = q => { if (!moved.length) return null; const T = moved[0].t + q * (moved[moved.length - 1].t - moved[0].t); return ticks.reduce((b, x) => Math.abs(x.t - T) < Math.abs(b.t - T) ? x : b, ticks[0])?.check ?? null; };
+    const after = g?.LAST?.panes ?? null;
+    return {
+      kind, wall, ms, today: window.__turnToday ?? null, plant: Boolean(window.__turnPlant), flash: window.__turnFlash ?? null,
+      rest: S.rest ?? null, frames: stats(deltas(during)), all: stats(deltas(ticks)), first: first == null ? null : Math.round(first), last: last == null ? null : Math.round(last),
+      clip: { frames: frames.filter(f => f.clip).length, writes: frames.reduce((s, f) => s + f.clip, 0), all: S.clip },
+      draw: { frames: frames.filter(f => f.draws).length, calls: frames.reduce((s, f) => s + f.draws, 0), all: S.draws, getContext: S.gets },
+      long: S.longs.slice(n0).filter(([st]) => st >= t0 - 1).map(([, d]) => Math.round(d)),
+      checks: [0.25, 0.5, 0.75].map(at), check0: S.check0 ?? null, check: check(),
+      trail: ticks.reduce((l, x) => { const k = JSON.stringify(x.check); if (!l.length || l[l.length - 1][1] !== k) l.push([Math.round(x.t - t0), k]); return l; }, []),
+      cut: turnSig(after) === S.sig0 ? "same" : "new", cuts: S.cuts, acc: [S.acc0, acc()],
+      /* the launchers through the turn: frames read, frames where one stood straight (`none`) and which, and how many
+         transforms each wore (1 on a turn that keeps the cut; a recut may turn them to its new angle once) */
+      tilt: (() => {
+        const seen = {}, straight = new Set();
+        let none = 0;
+        for (const x of ticks) {
+          let flat = false;
+          for (const [id, v] of Object.entries(x.tilt ?? {})) { (seen[id] ??= new Set()).add(v); if (v === "none") { flat = true; straight.add(id); } }
+          if (flat) none++;
+        }
+        return { frames: ticks.length, none, straight: [...straight], worn: Math.max(0, ...Object.values(seen).map(v => v.size)), buttons: Object.keys(seen).length };
+      })(),
+      ...turnRegions(S.before, after)
+    };
+  };
+</script>
 <script id="drpg-roster-check">
   /* drpgRosterCheck (E50 C2, 30.10.2026; the plan's amendment A9 of 11.10, E50-14): the GM's roster and a messenger
      window beside the voice tile. The roster is drawn as messenger-app.mjs `buildRoster` builds it (the heading, a list
@@ -1659,9 +1939,471 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     return done();
   };
 </script>
+<script id="drpg-track-check">
+  /* drpgTrackCheck (E23 C2a, 07.11.2026; request A1, S10-28, S12-24 and the owner's 27.09: "the curtain changes its
+     layout at every change of the time of day"). The clock above carries the track band as hud.mjs `paintTrackLine`
+     leaves it when nothing plays here: in the clock, its last child, empty, `is-empty` and `aria-hidden`.
+     `drpgTrackFill(name)` and `drpgTrackEmpty()` write it as `paintTrackLine` does with a track and with none (the two
+     runs with their notes, the copy `aria-hidden`, the tooltip as `data-tooltip-text`; or nothing at all), and
+     `?band=full` loads the page with a track in it, for `glass-sweep --turn` with the band full.
+     `drpgTrackCheck({ kind, plant, gap, settle })` runs one reading on the page as it stands and puts the band and the
+     hour back after it. Each step waits `settle` ms (2500: the curtain's drift watch recuts a block that moved twice,
+     500 ms apart, and a pass runs on any change of the page), then reads the clock's `offsetHeight`, the band's (`offsetHeight`, the box as laid out: the clock is turned under the glass, and a turned box's client rectangle is wider and taller),
+     `display` and children; across the whole reading the cut's signature (every pane's polygon, rounded) and the
+     `drpgGlassCut`s fired:
+       fill         the band filled, emptied, and filled with another track
+       hour-empty   the hour changed (Afternoon -> Evening: the body's `data-drpg-time` and the clock's words, as
+                    drpgTurn's "hour"), the band empty throughout
+       hour-full    the same, a track playing throughout
+       hour-swap    the music switching with the hour, as music.mjs does on `drpgTimeOfDayChanged`: a track playing, at
+                    the hour the band emptied while the new one loads, and `gap` ms later (3000: hud.mjs's interval, the
+                    longest the band can read nothing) filled with the next track
+       hour-notice  the hour with a card on the notice tile as the time of day's summary puts one there (popup.mjs
+                    `showPopup`, unrecorded, of the summary's size), taken away after
+     `plant` is the control, 2b866dde's road: an empty band is taken out of the clock (`existing?.remove()` at
+     2b866dde) and a track puts a new one in, so `fill` and `hour-swap` must read the clock's height move, or a recut.
+     It answers { ok, why, kind, steps: [{ at, h, band, display, children }], cut: same|new, cuts }: not ok when a
+     step's clock or band is not as tall as at the start, an empty band is `display: none` or holds anything, the cut's
+     signature moved, or a drpgGlassCut fired. Headless Chromium rasterises in software; a table's reading - music started
+     and stopped, the clock's height unchanged - is LIVE-E23-02 (AUDIT 9.2). */
+  window.drpgTrackFill = (name = "Afternoon Theme", band = document.querySelector("#drpg-hud > .drpg-hud-track")) => {
+    if (!band) return null;
+    band.classList.remove("is-empty");
+    band.removeAttribute("aria-hidden");
+    band.dataset.tooltipText = `Playing here: ${name}.`;
+    const run = document.createElement("span");
+    const note = () => { const i = document.createElement("i"); i.className = "fa-solid fa-music drpg-hud-track-note"; i.setAttribute("aria-hidden", "true"); return i; };
+    run.append(note(), document.createTextNode(` ${name} `), note());
+    const copy = run.cloneNode(true);
+    copy.setAttribute("aria-hidden", "true");
+    band.replaceChildren(run, copy);
+    return band;
+  };
+  window.drpgTrackEmpty = (band = document.querySelector("#drpg-hud > .drpg-hud-track")) => {
+    if (!band) return null;
+    band.replaceChildren();
+    band.classList.add("is-empty");
+    band.setAttribute("aria-hidden", "true");
+    delete band.dataset.tooltipText;
+    return band;
+  };
+  const TRACK_KINDS = ["fill", "hour-empty", "hour-full", "hour-swap", "hour-notice"];
+  window.drpgTrackCheck = async ({ kind = "fill", plant = false, gap = 3000, settle = 2500 } = {}) => {
+    const out = { ok: false, why: [], kind, plant, steps: [], cut: null, cuts: 0 };
+    const done = () => { out.ok = !out.why.length; if (!out.ok) out.why = out.why.join("; "); return out; };
+    if (!TRACK_KINDS.includes(kind)) { out.why.push(`no reading "${kind}" (${TRACK_KINDS.join(", ")})`); return done(); }
+    const g = window.__glass, hud = document.getElementById("drpg-hud");
+    let band = hud?.querySelector(":scope > .drpg-hud-track");
+    if (!hud || !band) { out.why.push("no track band in the clock"); return done(); }
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    const sig = () => (g?.LAST?.panes ?? []).map(p => p.poly.map(q => q.map(v => Math.round(v)).join(",")).join(" ")).join("|");
+    const words = (sel, text) => { const el = hud.querySelector(sel); const node = el && [...el.childNodes].reverse().find(n => n.nodeType === Node.TEXT_NODE); const was = node?.data ?? null; if (node) node.data = text; return was; };
+    const took = { html: band.outerHTML, time: document.body.getAttribute("data-drpg-time"), words: null };
+    let cuts = 0, closer = null;
+    const count = () => { cuts++; };
+    /* the band as the module would leave it: emptied, or (the plant) taken out; filled, or (the plant) put back new */
+    const empty = () => { if (!plant) return window.drpgTrackEmpty(band); band.remove(); };
+    const fill = name => {
+      if (plant && !band.isConnected) { band = document.createElement("div"); band.className = "drpg-hud-track"; hud.append(band); }
+      window.drpgTrackFill(name, band);
+    };
+    const step = at => {
+      const on = band.isConnected, cs = on ? getComputedStyle(band) : null;
+      out.steps.push({ at, h: hud.offsetHeight, band: on ? band.offsetHeight : 0, display: cs?.display ?? "gone",
+        children: on ? band.children.length : null, empty: on ? band.classList.contains("is-empty") : null, cuts });
+    };
+    const hour = () => { document.body.setAttribute("data-drpg-time", "evening"); took.words = words(".drpg-hud-time", "Evening"); };
+    Hooks.on("drpgGlassCut", count);
+    const sig0 = sig();
+    try {
+      if (kind === "hour-full" || kind === "hour-swap") { fill("Afternoon Theme"); await wait(settle); }
+      step("start");
+      if (kind === "fill") {
+        fill("Afternoon Theme"); await wait(settle); step("filled");
+        empty(); await wait(settle); step("emptied");
+        fill("Evening Theme"); await wait(settle); step("another");
+      } else {
+        if (kind === "hour-notice") {
+          const P = await import("/scripts/popup.mjs");
+          closer = P.showPopup(`<p>Your afternoon</p><ul><li>Kaede searched the Library</li><li>Botan worked a project</li><li>Chie rested</li></ul>`, { title: "The afternoon is over", record: false });
+        }
+        hour();
+        if (kind === "hour-swap") { empty(); await wait(gap); step("between"); fill("Evening Theme"); }
+        await wait(settle); step("the hour");
+      }
+      out.cut = sig() === sig0 ? "same" : "new";
+      out.cuts = cuts;
+      const first = out.steps[0];
+      for (const s of out.steps) {
+        if (Math.abs(s.h - first.h) > 0.5) out.why.push(`the clock ${s.h} px tall ${s.at}, ${first.h} at the start`);
+        if (Math.abs(s.band - first.band) > 0.5) out.why.push(`the band ${s.band} px tall ${s.at}, ${first.band} at the start`);
+        if (s.display === "none" || s.display === "gone") out.why.push(`the band ${s.display === "gone" ? "out of the clock" : "display: none"} ${s.at}`);
+        if (s.empty && s.children) out.why.push(`an empty band holds ${s.children} element(s) ${s.at}`);
+      }
+      if (out.cut !== "same") out.why.push("the cut's signature moved");
+      if (cuts) out.why.push(`${cuts} drpgGlassCut(s)`);
+    } finally {
+      Hooks.off("drpgGlassCut", count);
+      if (closer) { try { closer(); } catch { /* the card is gone */ } }
+      if (took.time === null) document.body.removeAttribute("data-drpg-time"); else document.body.setAttribute("data-drpg-time", took.time);
+      if (took.words !== null) words(".drpg-hud-time", took.words);
+      const back = document.createElement("div");
+      back.innerHTML = took.html;
+      if (band.isConnected) band.replaceWith(back.firstElementChild); else hud.append(back.firstElementChild);
+      await wait(settle);
+    }
+    return done();
+  };
+</script>
+<script id="drpg-tray-rows">
+  /* drpgTrayRows (E23 C3a, 07.11.2026; E23-16, S09-04, S10-34, S12-06, S12-53): the Projects tray's rows read as rows.
+     The tray is one block turned with its pane (glass.mjs ROT): each row's count must stand on its name's line on the
+     screen. Read per row, from layout and the tray's computed turn alone: the centres of the name and of the count
+     (each element's box on the screen is its turned box, so its centre is the turned centre), their offset turned back
+     into the tray's frame, then the run in that frame from the end of the name's words (a Range over them, its upright
+     width solved from the turned box, held to the element's width where the ellipsis cuts it) to the count's start, and
+     the fall on the screen over that run - `fall` must be within 2 px and `run` 8-12 px; where the tray is not turned
+     (Monokuma Legacy, the stack), the same 2 px between the two centres (E23 fix G3, 08.11.2026; the end review's
+     screens M1: this asked only that the count stand inside its own row, and Legacy's count on the line under its name
+     passed) - the run is not held there, since an upright row may set its count at the row's end. And the list: a row the
+     scrollport cuts (any part of it in, any part out) must not stand in a list that does not scroll with the foot's
+     signal on (`data-drpg-more`, projects-tray.mjs `markTrayMore`, imported here as the module's own: the render hook
+     is Daggerheart's, which this page does not have; and the fade it draws, a computed mask on the list - danganronpa.css
+     states it for both themes: the E23 fix G3 run read "fade" under Monokuma Legacy at 1366x768 and 1920x1080). `rows` fills the tray to that many rows first (copies of the
+     page's rows with longer names), and everything added is taken away before it answers. `plant` is the sweep's
+     control: "grow" puts the name's old `flex: 1 1 auto` back and must read a fall over 2 px; "cut" holds the list at
+     five and a half rows with the signal taken off, and must read a cut row; "column" (an unturned tray's) lays each
+     row's content out as a column again, the count under its name, and must read a fall over 2 px. Answers { ok, why,
+     turn, rows, list }. */
+  window.drpgTrayRows = async ({ rows = 0, plant = null } = {}) => {
+    const out = { ok: false, why: [], turn: null, rows: [], list: null };
+    const done = () => { out.ok = !out.why.length; out.why = out.why.join("; "); return out; };
+    const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const tray = document.getElementById("countdowns"), list = tray?.querySelector(".countdowns-container");
+    const cat = list?.querySelector(".countdown-category-container");
+    if (!tray || !list || !cat || !cat.children.length) { out.why.push("no tray rows on the page"); return done(); }
+    const added = [], lent = [];
+    const lend = (owner, key, value) => { if (owner[key] === undefined) { owner[key] = value; lent.push([owner, key]); } };
+    const any = () => new Proxy(function () {}, { get: (t, k) => (k === "then" ? undefined : k === Symbol.toPrimitive ? () => "" : any()), construct: () => ({}), apply: () => undefined });
+    for (const k of ["CONST", "Actor", "Item", "ChatMessage", "Roll", "Scene", "User", "JournalEntry", "Macro", "Playlist", "Folder", "TextEditor", "Dialog",
+      "Application", "FormApplication", "FilePicker", "canvas", "socket", "Handlebars", "loadTemplates", "renderTemplate", "fromUuid", "fromUuidSync",
+      "AudioHelper", "Token", "TokenDocument", "Combat"]) lend(globalThis, k, any());
+    const Base = class {};
+    lend(foundry, "applications", { api: { DialogV2: Base, ApplicationV2: Base, HandlebarsApplicationMixin: c => c, DocumentSheetV2: Base }, ux: any(), handlebars: any(), sheets: any(), apps: any(), elements: any(), instances: new Map() });
+    for (const k of ["appv1", "documents", "canvas", "helpers", "dice", "data"]) lend(foundry, k, any());
+    let PT = null;
+    try { PT = await import("/scripts/projects-tray.mjs"); } catch (err) { out.why.push(`projects-tray.mjs did not load here: ${err}`); }
+    for (const [owner, key] of lent.reverse()) delete owner[key];
+    if (!PT) return done();
+    const style = document.createElement("style");
+    const names = ["Bury the cafeteria key under the third floorboard", "Rewire the gym's scoreboard", "Copy the nurse's office ledger",
+      "Loosen the pool's drain grate", "Swap the library's card catalogue"];
+    try {
+      const model = cat.lastElementChild;
+      for (let i = cat.children.length; i < rows; i++) {
+        const row = model.cloneNode(true);
+        row.dataset.countdown = `drpg-tray-${i}`;
+        row.querySelector(".countdown-content > header").textContent = names[i % names.length];
+        cat.append(row);
+        added.push(row);
+      }
+      if (plant === "grow") style.textContent = "body #countdowns .countdown-content > header { flex: 1 1 auto !important; }";
+      if (plant === "column") style.textContent = "body #countdowns .countdown-content { flex-direction: column !important; align-items: stretch !important; }";
+      if (plant === "cut") style.textContent = "body #countdowns .countdowns-container { max-height: calc(5.5 * var(--drpg-project-row) + 5 * var(--drpg-project-gap)) !important; }";
+      document.head.append(style);
+      window.__glass?.refreshGlass?.();
+      await frame();
+      await new Promise(r => setTimeout(r, 450));
+      if (typeof PT.markTrayMore === "function") PT.markTrayMore(tray);
+      else out.why.push("projects-tray.mjs has no markTrayMore: nothing marks the list's foot");
+      if (plant === "cut") list.removeAttribute("data-drpg-more");
+      const t = getComputedStyle(tray).transform;
+      const m = t && t !== "none" ? new DOMMatrixReadOnly(t) : new DOMMatrixReadOnly();
+      const th = Math.atan2(m.b, m.a), cs = Math.cos(th), sn = Math.sin(th);
+      out.turn = Math.round(th * 1800 / Math.PI) / 10;
+      const centre = el => { const r = el.getBoundingClientRect(); return [(r.left + r.right) / 2, (r.top + r.bottom) / 2]; };
+      const words = el => {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const r = range.getBoundingClientRect();
+        const w = Math.abs(Math.cos(2 * th)) > 0.2 ? (r.width * cs - r.height * Math.abs(sn)) / Math.cos(2 * th) : el.offsetWidth;
+        return Math.min(el.offsetWidth, Math.max(0, w));
+      };
+      /* NOT TURNED (Monokuma Legacy, a stacked screen): the count on its name's line, its centre within 2 px of the
+         name's (E23 fix G3: until then it might stand under its name, as Legacy's two-line row set it, so long as it
+         stood inside its own row's box), and inside its own row. */
+      const turned = Math.abs(out.turn) >= 0.25;
+      for (const row of cat.children) {
+        const name = row.querySelector(".countdown-content > header"), tag = row.querySelector(".progress-tag");
+        if (!name || !tag || !name.getClientRects().length) continue;
+        const [nx, ny] = centre(name), [tx, ty] = centre(tag);
+        if (!turned) {
+          const r = row.getBoundingClientRect(), inside = ty > r.top && ty < r.bottom;
+          const read = { name: name.textContent.trim().slice(0, 24), run: null, fall: Math.round((ty - ny) * 10) / 10, own: inside };
+          out.rows.push(read);
+          if (!inside) out.why.push(`"${read.name}": its count stands outside its own row (${read.fall} px under the name)`);
+          else if (Math.abs(ty - ny) > 2) out.why.push(`"${read.name}": its count stands ${read.fall} px off its name's line (the tray upright)`);
+          continue;
+        }
+        const dx = (tx - nx) * cs + (ty - ny) * sn, dy = -(tx - nx) * sn + (ty - ny) * cs;
+        const run = dx - tag.offsetWidth / 2 + name.offsetWidth / 2 - words(name);
+        const fall = run * sn + dy * cs;
+        const read = { name: name.textContent.trim().slice(0, 24), run: Math.round(run * 10) / 10, fall: Math.round(fall * 10) / 10 };
+        out.rows.push(read);
+        if (Math.abs(fall) > 2) out.why.push(`"${read.name}": its count stands ${read.fall} px off its name's line on the screen (${read.run} px along the row, the tray turned ${out.turn} deg)`);
+        else if (run < 8 - 0.5 || run > 12 + 0.5) out.why.push(`"${read.name}": its count ${read.run} px after its name, not 8-12`);
+      }
+      if (!out.rows.length) out.why.push("no row's name and count were read");
+      const top = el => { let y = 0; for (let e = el; e; e = e.offsetParent) y += e.offsetTop; return y; };
+      const y0 = top(list) + list.clientTop + list.scrollTop, y1 = y0 + list.clientHeight;
+      /* offsetTop and offsetHeight are whole pixels: a row of 24.1 px drifts half a pixel in five, so a row is cut
+         only by more than one */
+      const cut = [...cat.children].filter(row => { const a = top(row), b = a + row.offsetHeight; return a < y1 - 1 && b > y0 + 1 && (a < y0 - 1 || b > y1 + 1); });
+      const scrolls = list.scrollHeight > list.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(list).overflowY);
+      /* the signal is what is drawn: the attribute, and the fade it puts on the list's foot (computed) */
+      const lcs = getComputedStyle(list), fade = [lcs.maskImage, lcs.webkitMaskImage].some(v => v && v !== "none");
+      const more = list.hasAttribute("data-drpg-more") && fade;
+      out.list = { rows: cat.children.length, client: list.clientHeight, scroll: list.scrollHeight, cut: cut.length, scrolls, more };
+      if (cut.length && !(scrolls && more)) out.why.push(`${cut.length} row(s) cut by the list's foot in a list that ${scrolls ? "scrolls with no signal" : "does not scroll"}`);
+      if (scrolls && !more && list.scrollTop + list.clientHeight < list.scrollHeight - 1) out.why.push("the list scrolls with rows below and no signal at its foot");
+    } finally {
+      style.remove();
+      for (const row of added) row.remove();
+      PT.markTrayMore?.(tray);
+      window.__glass?.refreshGlass?.();
+    }
+    return done();
+  };
+</script>
+<script id="drpg-event-check">
+  /* drpgEventCheck (E23 C3b, 07.11.2026; E23-18, the owner's 04.10 "the events panel has a fixed size whatever the event
+     and phase, always a similar layout, everything fits", S10-35, S12-30): the Event panel laid out in Chromium with the
+     module's own card (events.mjs `cardElement`, imported here with Foundry's globals lent while it loads, as
+     drpgTrayRows lends them for projects-tray.mjs) for three cards built from the longest texts of lang/en.json and
+     lang/pl.json, each key's longer one: an incident (the trap's or the fight's title, the room's line with three long
+     names, the meta's two parts - whose turn and the victim's marks), a trial (the longest mode, a speaker, "Next:" or
+     the floor's line, the GM's note and the debate's clock: E70's speaker and "GM: +30 s") and a safeword (the GM's
+     meta or the table's). The panel is put where events.mjs `renderEvents` puts it (after `#drpg-despair`), with each
+     card alone and then all three, the glass recut, and read: the panel's box (`offsetWidth` x `offsetHeight`, its own
+     frame: the turn the pane gives it does not count), which must be the same for the four within 1 px; nothing cut -
+     no text wider than its line (`scrollWidth`), no card clipping its own content, and a panel whose content is taller
+     than it scrolls (`overflow-y` auto or scroll); the incident's meta two lines; and the ticker never under words: its
+     band (offsetTop, offsetHeight in the card) meets no title, sub, clock, meta or note by more than 1 px, and on a
+     stacked screen it is not drawn. `plant` is the sweep's control: "grow" lets the panel's height follow its content
+     again (the base sheet's road before this commit), and must read a box that changes; "ticker" puts the ticker back
+     at the card's middle, and must read it under words. Everything added is taken away before it answers.
+     Answers { ok, why, boxes, read }. */
+  window.drpgEventCheck = async ({ plant = null } = {}) => {
+    const out = { ok: false, why: [], boxes: {}, read: {} };
+    const done = () => { out.ok = !out.why.length; out.why = out.why.join("; "); return out; };
+    const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const rail = document.getElementById("drpg-despair");
+    if (!rail) { out.why.push("no #drpg-despair on the page to put the panel after"); return done(); }
+    const lent = [];
+    const lend = (owner, key, value) => { if (owner[key] === undefined) { owner[key] = value; lent.push([owner, key]); } };
+    const any = () => new Proxy(function () {}, { get: (t, k) => (k === "then" ? undefined : k === Symbol.toPrimitive ? () => "" : any()), construct: () => ({}), apply: () => undefined });
+    for (const k of ["CONST", "Actor", "Item", "ChatMessage", "Roll", "Scene", "User", "JournalEntry", "Macro", "Playlist", "Folder", "TextEditor", "Dialog",
+      "Application", "FormApplication", "FilePicker", "canvas", "socket", "Handlebars", "loadTemplates", "renderTemplate", "fromUuid", "fromUuidSync",
+      "AudioHelper", "Token", "TokenDocument", "Combat"]) lend(globalThis, k, any());
+    const Base = class {};
+    lend(foundry, "applications", { api: { DialogV2: Base, ApplicationV2: Base, HandlebarsApplicationMixin: c => c, DocumentSheetV2: Base }, ux: any(), handlebars: any(), sheets: any(), apps: any(), elements: any(), instances: new Map() });
+    for (const k of ["appv1", "documents", "canvas", "helpers", "dice", "data"]) lend(foundry, k, any());
+    let EV = null;
+    try { EV = await import("/scripts/events.mjs"); } catch (err) { out.why.push(`events.mjs did not load here: ${err}`); }
+    for (const [owner, key] of lent.reverse()) delete owner[key];
+    if (!EV) return done();
+    if (typeof EV.cardElement !== "function") { out.why.push("events.mjs exports no cardElement: the panel's card cannot be drawn here"); return done(); }
+    const langs = await Promise.all(["en", "pl"].map(l => fetch(`/lang/${l}.json`).then(r => r.json())));
+    const pick = key => langs.map(d => key.split(".").reduce((o, p) => o?.[p], d)).filter(v => typeof v === "string");
+    const fill = (text, data) => text.replace(/\{(\w+)\}/g, (m, k) => (k in data ? String(data[k]) : m));
+    const longest = (keys, data = {}) => keys.flatMap(pick).map(t => fill(t, data)).sort((a, b) => b.length - a.length)[0] ?? "";
+    const NAMES = { killer: "Kirumi Tojo-Hoshino", victim: "Byakuya Togami-Fukawa", room: "Ultimate Pharmacist's Laboratory", who: "Kirumi Tojo-Hoshino", name: "Byakuya Togami-Fukawa" };
+    const MODES = ["discussion", "debate", "objection", "rebuttal", "testimony", "panic", "closing"].map(m => `DRPG.Hud.trial.${m}`);
+    const CARDS = {
+      incident: { kind: "incident", mine: true, title: longest(["DRPG.Events.incidentTitle", "DRPG.Events.incidentTitleDirect"]),
+        sub: longest(["DRPG.Events.incidentSubRoom"], NAMES),
+        meta: [longest(["DRPG.Murder.yourTurn", "DRPG.Murder.theirTurn"]), longest(["DRPG.Murder.victimMarks"], { hp: 10, stress: 10 })] },
+      trial: { kind: "trial", title: longest(MODES), sub: NAMES.who, clock: true,
+        meta: longest(["DRPG.Events.trialNext", "DRPG.Events.trialLastTurn", "DRPG.Events.trialObjectionFloor", "DRPG.Hud.trialVersus",
+          "DRPG.Events.trialDebateMeta", "DRPG.Events.trialDiscussionMeta"], NAMES),
+        note: longest(["DRPG.Floor.gmNoteAdjust", "DRPG.Floor.gmNoteBack", "DRPG.Floor.gmNoteOverrule"], { seconds: "+30" }) },
+      safeword: { kind: "safeword", due: true, title: longest(["DRPG.Events.safewordTitle"]), sub: longest(["DRPG.Events.safewordSub"]),
+        meta: longest(["DRPG.Events.safewordMeta", "DRPG.Events.safewordMetaGm"]) }
+    };
+    out.read.texts = Object.fromEntries(Object.entries(CARDS).map(([k, c]) => [k, [c.title, c.sub, c.meta, c.note].flat().filter(Boolean).join(" | ")]));
+    /* the ticker's word as lang/en.json says it: the page's own `localize` answers a key's last segment */
+    const i18n = game.i18n, word = key => pick(key)[0] ?? key.split(".").pop();
+    const style = document.createElement("style");
+    if (plant === "grow") style.textContent = "body #drpg-events { height: auto !important; min-height: 0 !important; max-height: none !important; }";
+    if (plant === "ticker") style.textContent = "body .drpg-event-ticker { top: 50% !important; height: auto !important; transform: translateY(-50%) !important; }";
+    document.head.append(style);
+    const stacked = document.body.classList.contains("drpg-stacked");
+    const TEXT = ".drpg-event-title, .drpg-event-sub, .drpg-event-clock, .drpg-event-meta, .drpg-event-meta-line, .drpg-event-note";
+    let panel = null;
+    try {
+      for (const [name, list] of [["incident", ["incident"]], ["trial", ["trial"]], ["safeword", ["safeword"]], ["all", ["safeword", "trial", "incident"]]]) {
+        panel?.remove();
+        panel = document.createElement("div");
+        panel.id = "drpg-events";
+        panel.className = "drpg-events";
+        panel.setAttribute("role", "status");
+        game.i18n = { ...i18n, localize: k => (k.startsWith("DRPG.Events.ticker.") ? word(k) : i18n.localize(k)) };
+        try { for (const k of list) panel.append(EV.cardElement(CARDS[k])); } finally { game.i18n = i18n; }
+        for (const c of panel.querySelectorAll(".drpg-event-clock")) c.textContent = "2:37";
+        rail.after(panel);
+        window.__glass?.refreshGlass?.();
+        await frame();
+        await new Promise(r => setTimeout(r, 450));
+        await frame();
+        for (const c of panel.querySelectorAll(".drpg-event-clock")) c.textContent = "2:37";
+        const pcs = getComputedStyle(panel);
+        const box = { w: panel.offsetWidth, h: panel.offsetHeight, content: panel.scrollHeight, overflow: pcs.overflowY };
+        out.boxes[name] = `${box.w}x${box.h}`;
+        const read = { box, cut: [], under: [], meta: null, ticker: [] };
+        if (box.content > panel.clientHeight + 1 && !/auto|scroll/.test(box.overflow)) out.why.push(`${name}: the panel's content is ${box.content} px in a box of ${panel.clientHeight} that does not scroll`);
+        for (const card of panel.querySelectorAll(".drpg-event")) {
+          const kind = card.dataset.kind;
+          if (card.scrollHeight > card.clientHeight + 1 && getComputedStyle(card).overflowY !== "visible") read.cut.push(`${kind} card clips ${card.scrollHeight - card.clientHeight} px of its content`);
+          for (const el of card.querySelectorAll(TEXT)) {
+            if (!el.getClientRects().length) continue;
+            if (el.scrollWidth > el.clientWidth + 1) read.cut.push(`${kind} ${el.className}: ${el.scrollWidth} px of text on a line of ${el.clientWidth}`);
+            if (el.offsetParent === card && el.offsetLeft + el.offsetWidth > card.clientWidth + 1) read.cut.push(`${kind} ${el.className} ends ${el.offsetLeft + el.offsetWidth - card.clientWidth} px past its card`);
+          }
+          if (kind === "incident") {
+            const meta = card.querySelector(".drpg-event-meta");
+            read.meta = meta ? [...meta.children].map(c => c.className) : null;
+            if (!meta || meta.children.length !== 2) out.why.push(`the incident's meta is not two lines: ${meta ? meta.children.length : "none"}`);
+          }
+          const ticker = card.querySelector(".drpg-event-ticker");
+          const shown = ticker && getComputedStyle(ticker).display !== "none" && ticker.getClientRects().length;
+          if (ticker) read.ticker.push(shown ? `${kind} ${ticker.offsetTop}+${ticker.offsetHeight}` : `${kind} hidden`);
+          if (stacked && shown) out.why.push(`${kind}: the ticker is drawn on a stacked screen`);
+          if (!shown) continue;
+          const [t0, t1] = [ticker.offsetTop, ticker.offsetTop + ticker.offsetHeight];
+          for (const el of card.querySelectorAll(TEXT)) {
+            if (!el.getClientRects().length || el.offsetParent !== card) continue;
+            const meet = Math.min(t1, el.offsetTop + el.offsetHeight) - Math.max(t0, el.offsetTop);
+            if (meet > 1) read.under.push(`${kind} ${el.className.split(" ")[0]} ${Math.round(meet)} px`);
+          }
+        }
+        if (read.cut.length) out.why.push(`${name}: ${read.cut.join(", ")}`);
+        if (read.under.length) out.why.push(`${name}: the ticker runs under ${read.under.join(", ")}`);
+        out.read[name] = read;
+      }
+      const sizes = new Set(Object.values(out.boxes));
+      const [w, h] = Object.values(out.boxes).map(b => b.split("x").map(Number)).reduce(([w0, h0], [w1, h1]) => [Math.max(w0, Math.abs(w1 - (out.read.incident?.box.w ?? w1))), Math.max(h0, Math.abs(h1 - (out.read.incident?.box.h ?? h1)))], [0, 0]);
+      if (sizes.size > 1 && (w > 1 || h > 1)) out.why.push(`the panel's box changes with its cards: ${JSON.stringify(out.boxes)}`);
+    } finally {
+      panel?.remove();
+      style.remove();
+      window.__glass?.refreshGlass?.();
+    }
+    return done();
+  };
+  /* THE LIGHT CLIENT'S READING (E24 C4a, 08.11.2026; the owner's A7 and A8 of 11.10, the audit's S12-26). On a page
+     loaded with `?scheme=light` (below: the page's scheme light, `theme-light` on the body and on #interface, core's
+     text colours dark), each of A7's and A8's surfaces this page draws is read: the corner's notice button, the three
+     launchers of E81's corner and, on a GM's page, the GM's button and Foundry tools; the room tile's name with its
+     picture's layer as drawn and with the picture taken out of it; the voice tile's name; and, on a GM's page, the
+     title of Foundry tools' and Map tools' frames, opened for the reading and shut again. For each, the computed
+     `color-scheme` of the surface and the contrast of its ink against its ground: a text 4.5:1, a glyph (a mask
+     painted in `currentColor`, or a button's own colour where no glyph is drawn) 3:1, WCAG's non-text figure. The
+     ground is the element's own background over its ancestors', composited down to the page's: a picture is not a
+     colour, so over the room tile's picture the reading is of the tile's own glass, which is what is left under the
+     name when a picture does not load. A surface not drawn at this size (display none, no box) is listed as such and
+     not judged. Not read here: the list "Who you hear" (voice-tile.mjs builds it only through `drpgVoiceList`'s
+     stand-ins), the "Voice" fieldset of the Look window and the narrow layout's description window, which this page
+     does not draw - the module's DARK-FIRST list holds the first, the other two are `drpg-panel` windows on it.
+     `{ plant: true }` is the control: those surfaces given `color-scheme: light` and core's dark text, as they had
+     before E24 C4a put them on the list, must read not ok. */
+  window.drpgSchemeCheck = async ({ plant = false } = {}) => {
+    const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const rgba = v => { const m = /rgba?\(([^)]+)\)/.exec(v ?? ""); if (!m) return [0, 0, 0, 0]; const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p[3] ?? 1]; };
+    const over = (top, under) => { const a = top[3] + under[3] * (1 - top[3]); return a ? [0, 1, 2].map(i => (top[i] * top[3] + under[i] * under[3] * (1 - top[3])) / a).concat(a) : [0, 0, 0, 0]; };
+    const lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+    const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+    const masked = el => { const c = getComputedStyle(el); return [c.maskImage, c.webkitMaskImage].some(m => m && m !== "none"); };
+    /* the ground's layers, the nearest last: each element's own background and, under a text, the brush an element's
+       `::before` lays over that background at the brush's opacity (Stained Glass's room name stands on its own, the
+       voice tile's name on its plate's); a glyph's `::before` is the glyph, so a glyph's ground reads none */
+    const ground = (from, brushes) => { const layers = [];
+      for (let e = from; e; e = e.parentElement) {
+        const b = brushes ? getComputedStyle(e, "::before") : null;
+        if (b && b.content !== "none") { const lit = rgba(b.backgroundColor); lit[3] *= Number(b.opacity); layers.push(lit); }
+        layers.push(rgba(getComputedStyle(e).backgroundColor));
+      }
+      let acc = [255, 255, 255, 1]; for (const l of layers.reverse()) acc = over(l, acc); return acc; };
+    const drawn = el => { if (!el) return false; const b = el.getBoundingClientRect(); return b.width > 0 && b.height > 0 && getComputedStyle(el).visibility !== "hidden"; };
+    const gm = document.body.classList.contains("drpg-gm");
+    const rows = [
+      ["notices corner", "#drpg-notices-corner", "#drpg-notices-corner > .drpg-notices-shape > i", "glyph"],
+      ["chat", "#drpg-messenger-launcher", "#drpg-messenger-launcher", "glyph"],
+      ["settings", "#drpg-sound-launcher", "#drpg-sound-launcher i", "glyph"],
+      ["handbooks", "#drpg-book-launcher", "#drpg-book-launcher i", "glyph"],
+      ...(gm ? [["gm button", "#drpg-gm-launcher", "#drpg-gm-launcher i", "glyph"], ["foundry tools", "#drpg-foundry-tools", "#drpg-foundry-tools i", "glyph"]] : []),
+      ["room picture", "#drpg-room-tile", "#drpg-room-tile .drpg-room-tile-name", "text"],
+      ["room bare", "#drpg-room-tile", "#drpg-room-tile .drpg-room-tile-name", "text", "bare"],
+      ["voice tile", "#drpg-voice-tile", "#drpg-voice-tile .drpg-voice-tile-name", "text"],
+      ...(gm ? [["foundry tools frame", "#drpg-win-ftools", "#drpg-win-ftools .drpg-foundry-window-title", "text", "open"], ["map tools frame", "#drpg-win-maptools", "#drpg-win-maptools .drpg-foundry-window-title", "text", "open"]] : [])
+    ];
+    const out = { ok: false, rows: [], why: [], plant, page: document.body.classList.contains("theme-light") ? "light" : "dark" };
+    const style = document.createElement("style");
+    if (plant) {
+      style.textContent = `:is(#drpg-notices-corner, #drpg-popups, #drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher, #drpg-gm-launcher,
+        #drpg-foundry-tools, #drpg-room-tile, #drpg-voice-tile, .drpg-voice-tile-face, #drpg-win-ftools, #drpg-win-maptools) { color-scheme: light !important;
+        --color-text-primary: #1d1a21 !important; --color-text-secondary: #1d1a21 !important; --color-text-subtle: #1d1a21 !important; }`;
+      document.head.append(style);
+    }
+    const art = document.querySelector("#drpg-room-tile .drpg-room-tile-art"), artWas = art?.style.backgroundImage ?? "";
+    const fw = window.__windows;
+    try {
+      await frame();
+      for (const [name, surfaceSel, inkSel, kind, how] of rows) {
+        if (how === "bare" && art) art.style.backgroundImage = "none";
+        if (how === "open") { fw?.toggleFoundryTools?.(true); await frame(); }
+        const surface = document.querySelector(surfaceSel), ink = document.querySelector(inkSel);
+        const row = { name, scheme: surface ? getComputedStyle(surface).colorScheme : null, kind, need: kind === "text" ? 4.5 : 3 };
+        if (!drawn(surface) || !drawn(ink)) row.drawn = false;
+        else {
+          const glyph = kind === "glyph" && masked(ink);
+          const fg = rgba(glyph ? getComputedStyle(ink).backgroundColor : getComputedStyle(ink).color);
+          const g = ground(glyph ? ink.parentElement : ink, kind === "text");
+          row.ratio = Math.round(ratio(over(fg, g), g) * 100) / 100;
+          row.ink = fg.slice(0, 3).map(Math.round).join(",");
+          row.ground = g.slice(0, 3).map(Math.round).join(",");
+          if (row.ratio < row.need) out.why.push(`${name}: ${row.ratio}:1 under ${row.need} (${row.ink} on ${row.ground}, scheme ${row.scheme})`);
+        }
+        out.rows.push(row);
+        if (how === "bare" && art) art.style.backgroundImage = artWas;
+        if (how === "open") { fw?.toggleFoundryTools?.(false); await frame(); }
+      }
+    } finally {
+      style.remove();
+      if (art) art.style.backgroundImage = artWas;
+    }
+    if (!out.rows.some(r => r.ratio !== undefined)) out.why.push("no surface was drawn, so nothing was read");
+    out.ok = !out.why.length;
+    out.why = out.why.join("; ");
+    return out;
+  };
+</script>
 <script type="module">
   const q = new URLSearchParams(location.search);
-  if (q.get("scheme") === "light") document.documentElement.style.colorScheme = "light";
+  /* `?scheme=light`: a client with Foundry's light theme. Until E24 C4a it set the page's colour scheme alone, which is
+     not what v14 does: a light client's body carries `theme-light` and #interface `themed theme-light` (which
+     foundry-windows.mjs `wearInterfaceTheme` copies onto its two frames), and core declares its text colours dark on the
+     body - the colours the DARK-FIRST list re-declares (danganronpa.css), since a surface that reads one without
+     re-declaring it inherits the body's. Standing in for those, the body's three text colours here are `#1d1a21`, the
+     module's own Ink: v14's light values are not read in this repository, and any dark ink shows the fault the list
+     exists for. Read by `drpgSchemeCheck` above and by glass-sweep.mjs `--scheme light`. */
+  if (q.get("scheme") === "light") {
+    document.documentElement.style.colorScheme = "light";
+    document.body.classList.add("theme-light");
+    document.getElementById("interface")?.classList.add("themed", "theme-light");
+    const core = document.createElement("style");
+    core.textContent = "body.theme-light { --color-text-primary: #1d1a21; --color-text-secondary: #1d1a21; --color-text-subtle: #1d1a21; }";
+    document.head.append(core);
+  }
   if (q.get("card")) document.getElementById("drpg-popups").insertAdjacentHTML("afterbegin", '<div class="drpg-popup drpg-popup-tone-hope"><div class="drpg-popup-title"><span>The time of day is over</span></div><div class="drpg-popup-body">Kaede found a <b>Tier 2 Cleaning Tool</b> in the Library.</div></div>');
   if (q.get("theme") === "legacy") { document.body.classList.replace("drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"); document.body.classList.add("drpg-pixel-font"); }
   if (q.get("still")) document.body.classList.add("drpg-reduced-motion");   // no pulse: the glass as painted
@@ -1701,6 +2443,9 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     window.__mover = { start() { if (!on) { on = true; requestAnimationFrame(tick); } }, stop() { on = false; } };
     if (q.get("mover")) window.__mover.start();
   }
+  /* `?band=full` (E23 C2a): the clock's track band with a track in it, as hud.mjs paints it while music plays here - for
+     `glass-sweep --turn` with the band full (the page's own band is empty, as it is when nothing plays). */
+  if (q.get("band") === "full") window.drpgTrackFill("Afternoon Theme");
   for (const row of document.querySelectorAll(".drpg-despair-pips")) for (let i = 0; i < 12; i++) { const p = document.createElement("span"); p.className = "drpg-despair-pip" + (i < 5 ? " filled" : ""); row.append(p); }
   /* `?windows=off` (E77 fix r2-H2): the world switch `foundryToolWindows` off, so registerFoundryWindows below builds
      nothing and Foundry's rails stay in its columns, as a GM's page loads with the switch off. */
@@ -1713,6 +2458,9 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     callAll(name, ...a) { for (const fn of hooks.get(name) ?? []) fn(...a); return true; } };
   const player = q.get("role") === "player";
   if (player) { document.getElementById("drpg-gm-launcher")?.remove(); document.body.classList.replace("drpg-gm", "drpg-player"); }
+  /* A player's rows as countdowns.hbs draws them where the countdown is not theirs (`countdown.editable` false, E23 C3a): no
+     minus and no plus, the count alone in the controls' box. */
+  if (player) for (const a of document.querySelectorAll('#countdowns [data-action$="Countdown"]')) a.remove();
   globalThis.game = { ready: true, i18n: { localize: k => k.split(".").pop(), format: (k, d) => k, has: () => false }, settings: { get: (m, k) => defaults[k], set: async (m, k, v) => { defaults[k] = v; return v; }, settings: new Map() }, user: { isGM: !player } };
   /* `deepClone` (E44 C1d, 04.11.2026): voice-tile.mjs's imports call foundry.utils.deepClone when they load, and without it
      the page's voice tile never loaded - glass-sweep read "voice-tile.mjs did not load here: TypeError:
@@ -1726,6 +2474,28 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
   fw.registerFoundryWindows();
   const m = await import("/scripts/glass.mjs");
   window.__glass = m;
+  /* The turn's two controls (E23 C1a; the turn check above, glass-sweep.mjs `--turn`). `?turn=today`: on a tree whose
+     glass.mjs has no `glassTurn` HEAD's `morph` is what runs, and the page says so ("head"); on one that has it, a
+     clip-path write planted in every frame of the turn's first 700 ms ("planted"). `?flash=0.5`: every flash layer at
+     that opacity. FLASH_LAYERS is 1d860414's flash canvas (still an objection's and a window band's) and, since E23 C1b,
+     the curtain's turn's: each pane's seams on a layer of their own (glass.mjs `bakeFlash`). */
+  const FLASH_LAYERS = "canvas.flash, .drpg-turn-flash-pane";
+  if (q.get("turn") === "today") {
+    window.__turnPlant = typeof m.glassTurn === "function";
+    window.__turnToday = window.__turnPlant ? "planted" : "head";
+  }
+  /* `?tilt=flat` (E23 C1d): the handbooks button held upright, `--turn`'s control for its tilt reading (E23-10). */
+  if (q.get("tilt") === "flat") {
+    const s = document.createElement("style");
+    s.textContent = "#drpg-book-launcher { transform: none !important; }";
+    document.head.append(s);
+  }
+  if (q.get("flash")) {
+    window.__turnFlash = Number(q.get("flash"));
+    const s = document.createElement("style");
+    s.textContent = `${FLASH_LAYERS} { opacity: ${window.__turnFlash} !important; }`;
+    document.head.append(s);
+  }
   /* applyTheme does not run here, so the harness stamps what it would: the two scale
      tokens and the two shape classes. They are read from settings.mjs rather than
      rewritten, so the breakpoints cannot drift apart from the module's own. */

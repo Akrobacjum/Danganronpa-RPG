@@ -30,7 +30,7 @@
 
 import { CRISIS_ACTIONS, RESOLUTION_STRESS_COST, TIMING, INDIRECT_MURDER, ACTIONS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { resourceValue, resourceMax, marksOf, reserveNote } from "./character.mjs";
+import { resourceValue, resourceMax, reserveNote, reserveView } from "./character.mjs";
 import { keepLive } from "./live.mjs";
 import { error, plural, esc } from "./utils.mjs";
 import { drpgWindow, drpgConfirm } from "./ui-kit.mjs";
@@ -353,14 +353,41 @@ function passAllowed(now = Date.now()) {
     return true;
 }
 
-/** The three people in the incident, and the victim's Health and Sanity marks as text. */
+/** The three people in the incident, and the victim's reserves as a GM reads them (`reserveLine`), "?" with no victim. */
 function incidentPeople(now) {
         const killer = game.actors.get(now.killerId);
         const victim = game.actors.get(now.victimId);
         const third = now.thirdId ? game.actors.get(now.thirdId) : null;
-        // Marks, the sheet's own direction (W-1): 0/6 is untouched.
-        const left = res => victim ? marksOf(victim, res) : "?";
+        const left = victim ? reserveLine(victim, "gm") : "?";
         return { killer, victim, third, left };
+}
+
+/**
+ * THE PAIR, WRITTEN ONCE (E24 C1b, 08.11.2026; audit S10-36). The opening card wrote "Player A -> Player B", the
+ * incident's card "Player A against Player B" and the tracker an arrow: three forms of one fact on three screens. One
+ * now, `DRPG.Events.incidentSub` (with the room, `incidentSubRoom`), for the opening card, the incident card and the
+ * tracker. `name` dresses each name (the tracker escapes and bolds them; the cards' text is set as text).
+ */
+export function pairOf(killer, victim, room = null, name = n => n) {
+    return game.i18n.format(room ? "DRPG.Events.incidentSubRoom" : "DRPG.Events.incidentSub",
+        { killer: name(killer?.name ?? "?"), victim: name(victim?.name ?? "?"), room });
+}
+
+/**
+ * THE VICTIM'S RESERVES, BY WHO READS THEM (E24 C1b, 08.11.2026; the owner's D5 option 1 and his words of 28.10; audit
+ * S10-36). The Event panel's line and the tracker's said `DRPG.Murder.victimMarks` - "Victim: Health 0/4 marked" - to
+ * every seat: the victim read about themself in the third person, the killer read the victim's Sanity, and "0/4" read
+ * as dead. Now what is left, from `reserveView` for `user`: `you`, the victim's own seat, both in the second person
+ * (`reserveYou`); `gm`, a GM's card and the tracker, both after "the victim" (`reserveVictim`); anybody else, the
+ * killer's side and a third seat, the victim's Health alone with their name (`reserveOf`) - Sanity is the owner's and
+ * the GMs' (`shown`). A view where Sanity is not shown never takes a line that says it.
+ */
+export function reserveLine(victim, seat, user = game.user) {
+    const hp = reserveView(victim, "hitPoints", user), sanity = reserveView(victim, "stress", user);
+    const args = { name: victim?.name ?? "?", hp: hp.left, hpMax: hp.max, sanity: sanity.left, sanityMax: sanity.max };
+    if (sanity.shown && seat === "you") return game.i18n.format("DRPG.Events.reserveYou", args);
+    if (sanity.shown && seat === "gm") return game.i18n.format("DRPG.Events.reserveVictim", args);
+    return game.i18n.format("DRPG.Events.reserveOf", args);
 }
 
 /* THE WRAPPER IS PART OF THE ANSWER, not decoration on the call site.
@@ -426,8 +453,7 @@ export function incidentTrackerHtml(now, cleanup) {
             // thing on this line that is not true.
             ? `<strong>${foundry.utils.escapeHTML(victim?.name ?? "?")}</strong> · ${
                 game.i18n.localize("DRPG.Murder.selfInflicted")}`
-            : `<strong>${foundry.utils.escapeHTML(killer?.name ?? "?")}</strong> →
-               <strong>${foundry.utils.escapeHTML(victim?.name ?? "?")}</strong>${
+            : `${pairOf(killer, victim, null, n => `<strong>${foundry.utils.escapeHTML(n)}</strong>`)}${
                 third ? ` · ${game.i18n.format("DRPG.Murder.thirdIs", {
                     name: foundry.utils.escapeHTML(third.name)
                 })}` : ""}`}</p>
@@ -450,9 +476,7 @@ export function incidentTrackerHtml(now, cleanup) {
             user: foundry.utils.escapeHTML(invited.name)
         })}</p>` : ""}
         ${recentTurnsHtml(now.recent)}
-        <p>${game.i18n.format("DRPG.Murder.victimMarks", {
-            hp: left("hitPoints"), stress: left("stress")
-        })}</p>
+        <p>${foundry.utils.escapeHTML(left)}</p>
         <p>${plural("DRPG.Murder.keyCount", { n: now.keyRemnants })}</p>
         ${cleanupSection(killerIds(now).map(id => game.actors.get(id)).filter(Boolean), cleanup)}</div>`;
 }

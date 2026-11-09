@@ -30,7 +30,8 @@ import { emptyOption, drpgConfirm, drpgWindow } from "./ui-kit.mjs";
 import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
 import {
-    leaveIconOnly, localiseRawKeys, hideUndiscovered, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl
+    leaveIconOnly, localiseRawKeys, hideUndiscovered, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl,
+    labelTrayControls, markTrayMore
 } from "./projects-tray.mjs";
 export { refreshProjects, hideUndiscovered } from "./projects-tray.mjs";
 
@@ -88,12 +89,15 @@ function onRenderCountdowns(app, element) {
         // after the rows the player has not found are gone: they count as none (E79 C12, U1)
         showTrayToPlayer(root);
         paintProgress(root);
+        // The minus and the plus named, and the list's foot faded while rows stand below it (E23 C3a).
+        labelTrayControls(root);
 
         // Folding the tray away is everybody's, not the GM's - a player with
         // four projects on a 1080p screen wants the map back, and the tray sits
         // directly under their own status strip.
         addCollapseControl(root);
         applyCollapsed(root);
+        markTrayMore(root);
 
         if (!game.user.isGM) return;
 
@@ -637,11 +641,13 @@ export function projectTraitOptions(current = "") {
  * PROJECT_DESCRIPTION_MAX characters). One textarea named `description`, in the markup of the window around it - the
  * player's proposal (action-project.mjs `startProject`) and this file's `openProjectDialog`, neither on the kit yet
  * (E21 moves them) - with no `maxlength`, which would cut a pasted text without a word: a description too long is
- * refused instead (`guardDescription`), with its length.
+ * refused instead (`guardDescription`), with its length. Its label is a column (`drpg-description-field`, danganronpa.css;
+ * E24 C6, the owner's A8 of 09.11.2026): the caption, the textarea the form's width, the note under it - as a row of
+ * `.drpg-panel label` the three stood side by side and the textarea took 59 of 544 px (R1492).
  */
 export function descriptionField(value = "") {
     const esc = foundry.utils.escapeHTML;
-    return `<label>${game.i18n.localize("DRPG.Project.description")}
+    return `<label class="drpg-description-field">${game.i18n.localize("DRPG.Project.description")}
                 <textarea name="description" rows="4"
                           placeholder="${esc(game.i18n.localize("DRPG.Project.descriptionPlaceholder"))}">${esc(value ?? "")}</textarea>
                 <small class="notes">${esc(game.i18n.format("DRPG.Project.descriptionNote", { max: PROJECT_DESCRIPTION_MAX }))}</small></label>`;

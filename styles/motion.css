@@ -66,12 +66,16 @@
     --drpg-t-turn: 840ms;
 
     /* THE SIXTH TIME, AND IT IS SEPARATE ON PURPOSE.
-       The curtain crossfades a whole screen of glass when the world changes state, and at the
+       The curtain turns a whole screen of glass when the world changes state, and at the
        interface's own beat that was over before the eye had followed it. It is not a sixth
        value for buttons to reach for: `--drpg-t-turn` stays the interface's beat, this is the
        curtain's alone, and it lives here so that an audit of movement is still an audit of
-       one file. Zeroed with the rest under reduced motion, below. */
-    --drpg-t-curtain: 1800ms;
+       one file. Zeroed with the rest under reduced motion, below.
+       1200 ms since E23 C1b (the owner's 05.11, the approved MK-R1/MK-R2 mockup): the glass's
+       move is over at 700 ms and its colour, batch by batch, by this; the blocks' colours
+       take the same time under the glass (stained-glass.css, the turning list). It was
+       1800 ms, a morph that spent most of it in a crawl after a jump (E61's DIAGNOSIS.md). */
+    --drpg-t-curtain: 1200ms;
 
     /* Not one of the three, and deliberately apart from them.
        The Eclipse draining the colour out of the map is the world changing
@@ -125,11 +129,14 @@
     }
 }
 
-/* The same, said by this browser rather than by its operating system: the Look window's
-   "Reduced motion" (a client setting) puts `drpg-reduced-motion` on the body, and everything
-   that reads the media query above reads this class too - `reducedMotion()` in motion.mjs and
-   `REDUCED()` in glass.mjs. A player should not have to change a system setting to ask one
-   module to hold still. */
+/* The same, said by this browser as well as by its operating system: motion.mjs
+   (`applyReducedMotion`) puts `drpg-reduced-motion` on the body for the Look window's
+   "Reduced motion" (a client setting) or for the system's preference, and follows the system's
+   change (E23 C5c). Everything that reads the media query above reads this class too -
+   `reducedMotion()` in motion.mjs and `REDUCED()` in glass.mjs - and every other sheet's
+   reduced-motion rule is a rule under it; the block above stays as the system's own for the
+   moment before motion.mjs has run. A player should not have to change a system setting to
+   ask one module to hold still. */
 body.drpg-reduced-motion {
     --drpg-t-snap: 0ms;
     --drpg-t-enter: 0ms;

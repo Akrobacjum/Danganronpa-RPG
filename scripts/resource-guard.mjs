@@ -242,11 +242,23 @@ function prune(node) {
  * backstory, sheet.mjs `tidyBiography`). A player's write of any of the three is listed in
  * `sheetWrites` and stands, as it was before it had a name (tier 2's "a player's write on the
  * road is judged as E29's table says"); none is in `JUDGED` below, so none leaves the browser.
+ *
+ * THE RESERVE TYPED ON THE SHEET (E24 C1a, 08.11.2026; MARKED). `sheetReserve` is sheet.mjs
+ * `writeReserve`: Health or Sanity typed as what is left, written as the marks it comes to. It
+ * replaces Daggerheart's own number field, which the sheet hides since E24, and it is offered to a GM,
+ * and to a player who owns the student only while "Lock player resources" is off. It is not in
+ * `JUDGED`: a reason a player's write carried to the GMs would be read as evidence, and a typed number
+ * is evidence of nothing - the GMs' audit treats the write exactly as it treated the system's field
+ * (a gain listed, a fall standing unrecorded, while the lock is off - scenario 83 F1c; flagged on a card with Undo
+ * and Keep should one reach it past the lock). And
+ * it is a HAND EDIT (`HAND_EDITS`): the road does not mark it as the module's, so this browser's own
+ * guard above still cuts it from a player's write while the lock is on - a console that calls
+ * `writeReserve` then writes nothing, as it wrote nothing through the system's field.
  */
 export const WRITE_REASONS = Object.freeze([
     "spend", "refund", "price", "call", "rest", "itemUse", "itemWear", "stash", "retrieve", "discard",
     "searchFind", "concealment", "meddle", "setup", "levelUp", "incident", "reroll", "gmRuling",
-    "auditPutBack", "auditUndo", "equip", "ultimate", "sheetText"
+    "auditPutBack", "auditUndo", "equip", "ultimate", "sheetText", "sheetReserve"
 ]);
 
 /** The option a module write carries where its reason goes with it (`stampOf`): `{ reason, ref }`. */
@@ -269,6 +281,9 @@ export const WRITE_STAMP = "drpgWrite";
  */
 const JUDGED = new Set(["spend", "refund", "price", "call", "rest", "itemUse", "stash", "retrieve", "discard", "searchFind"]);
 const AUDIT_OWN = new Set(["auditPutBack", "auditUndo"]);
+/* The reasons whose write goes as a hand edit, unmarked by `SYSTEM_WRITE`: what a person typed into the sheet, which
+   the guard on this browser holds to "Lock player resources" as it held the system's own field (E24 C1a, above). */
+const HAND_EDITS = new Set(["sheetReserve"]);
 
 /*
  * The options every road stamps. `ref` names the evidence the reason's judge reads - the
@@ -298,7 +313,7 @@ function stampOf(reason, ref, { giveBack = false, ...options } = {}) {
     if (!WRITE_REASONS.includes(reason)) throw new Error(`a module write named "${reason}", which is not a reason of WRITE_REASONS`);
     const gm = Boolean(game.user?.isGM);
     const goes = gm ? AUDIT_OWN.has(reason) : JUDGED.has(reason);
-    return { ...options, [SYSTEM_WRITE]: true, ...(goes ? { [WRITE_STAMP]: { reason, ref: ref ?? null } } : {}),
+    return { ...options, ...(HAND_EDITS.has(reason) ? {} : { [SYSTEM_WRITE]: true }), ...(goes ? { [WRITE_STAMP]: { reason, ref: ref ?? null } } : {}),
         ...(reason === "refund" ? { [HOPE_REFUND]: true } : {}), ...(giveBack && gm ? { [GIVE_BACK]: true } : {}) };
 }
 

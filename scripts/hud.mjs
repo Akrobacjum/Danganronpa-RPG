@@ -37,17 +37,20 @@ import { count } from "./perf-counters.mjs";
 // be a private copy here "for the cycle" (audit C3) - the cycle was real, the
 // copy was the wrong cure. character.mjs was the other such reader, and it went
 // with the incident row when that moved to the Event panel (1.2.47).
-import { incomingTimeOfDay, incidentWitness, SETTINGS, getSetting, bodyDiscovery, isDeadForGm, isMutedDead } from "./settings.mjs";
+import { incomingTimeOfDay, incidentWitness, SETTINGS, getSetting, bodyDiscovery, isMutedDead } from "./settings.mjs";
 // The room rows' four imports (movement, rooms, projects, search tokens) left with the rows for
 // room-tile.mjs (E77 C3). This file avoids static imports because it sits on the render path the
 // clock itself calls back into, so a cycle here would be a load-order problem rather than a lint
 // complaint; everything still imported below was walked for that when it was added.
 import { isMonokuma, poolUserFor, chooseOwnStudent, ownedStudents } from "./monokuma.mjs";
 // For OBJECTION! (E79 C16): monocub.mjs's static imports, walked to the end on 17.10.2026, never reach this file.
-import { isMonocub } from "./monocub.mjs";
+import { sheetMode } from "./sheet.mjs";
 // Static, and safe: murder.mjs reaches this file by no static import (nor hud-elapsed.mjs, which imports it too).
 import { murderState } from "./murder.mjs";
 import { nowPlayingHere } from "./music.mjs";
+// The phase stamp's name for an Eclipse (E23 C2b): eclipse.mjs's static imports, walked to the end on 07.11.2026 on
+// f26d4467, never reach this file, so the import closes no cycle (R161).
+import { eclipseLabel } from "./eclipse.mjs";
 import { renderEvents } from "./events.mjs";
 // Added when the trial's own bar was folded into this widget. Walked and clean: trial-floor.mjs reaches config, settings and
 // utils and nothing else - it stopped importing trial.mjs when the evidence
@@ -86,28 +89,55 @@ const HUD_ID = "drpg-hud";
  * TWO COPIES OF THE TEXT, like the ticker, because a marquee that scrolls one copy
  * shows a gap. Under reduced motion the animation is off in the stylesheet and the
  * line simply sits there, clipped at the end, which is a name you can still read.
+ * The copy is `aria-hidden`: a screen reader is told the name once.
+ *
+ * ONE NODE FROM `ready`, NEVER REMOVED (E23 C2a, 07.11.2026; request A1, S10-28, D9
+ * option 1). The band used to be removed whenever `nowPlayingHere()` read nothing, and
+ * between two tracks of one playlist it reads nothing while the new sound loads: the
+ * clock lost a line and found it again with the 3 s interval below, the curtain was cut
+ * for each (glass.mjs watches the blocks' boxes), and the title started its scroll from
+ * the left. The owner's 27.09 saw the same at every change of the time of day, when
+ * music.mjs switches the track with it. So the band is always there and as tall empty
+ * as full (`height: 1lh`, danganronpa.css): with nothing playing it holds nothing at
+ * all - no words, no tooltip, no animation - and wears `is-empty`, NOT `empty`, which
+ * `#drpg-hud .empty` hides; `aria-hidden`, since there is nothing in it to read. A track
+ * change swaps what it holds, never the node. `now` is what this browser hears unless a
+ * caller hands it a reading (R122 drives the band with tracks of its own).
  */
-function paintTrackLine(hud) {
+export function paintTrackLine(hud, now = nowPlayingHere()) {
     const host = hud ?? document.getElementById(HUD_ID);
     if (!host) return;
 
-    const now = nowPlayingHere();
-    const existing = host.querySelector(".drpg-hud-track");
+    let band = host.querySelector(":scope > .drpg-hud-track");
+    if (!band) {
+        band = document.createElement("div");
+        band.className = "drpg-hud-track";
+        host.append(band);
+        lastTrackName = undefined;
+    }
 
     if (!now) {
-        existing?.remove();
+        if (lastTrackName === null) return;
         lastTrackName = null;
+        // A tooltip still up over the band would go on naming a track nobody hears.
+        const tipOn = game.tooltip?.element;
+        if (tipOn instanceof Node && band.contains(tipOn)) game.tooltip.deactivate?.();
+        band.replaceChildren();
+        band.classList.add("is-empty");
+        band.setAttribute("aria-hidden", "true");
+        delete band.dataset.tooltipText;
+        delete band.dataset.tooltip;
         return;
     }
     // A repaint that says the same thing would restart the scroll from the left,
     // which on a two-minute track is a jolt every time anything else redraws.
-    if (existing && lastTrackName === now.track) return;
+    if (lastTrackName === now.track) return;
     lastTrackName = now.track;
 
-    const band = existing ?? document.createElement("div");
-    band.className = "drpg-hud-track";
-    band.dataset.tooltip = game.i18n.format("DRPG.Hud.nowPlaying", { track: now.track });
-    band.replaceChildren();
+    band.classList.remove("is-empty");
+    band.removeAttribute("aria-hidden");
+    delete band.dataset.tooltip;
+    band.dataset.tooltipText = game.i18n.format("DRPG.Hud.nowPlaying", { track: now.track });
     /* A NOTE AT EACH END OF THE NAME (22.09, Dawid on 1.2.50: "by bylo wiadomo o co
        chodzi"). A bare title scrolling under the clock read as one more line of the clock;
        the two notes say it is a song before the name has finished arriving, and they
@@ -121,12 +151,14 @@ function paintTrackLine(hud) {
         return i;
     };
     run.append(note(), document.createTextNode(` ${now.track} `), note());
-    band.append(run, run.cloneNode(true));
-    if (!existing) host.append(band);
+    const copy = run.cloneNode(true);
+    copy.setAttribute("aria-hidden", "true");
+    band.replaceChildren(run, copy);
 }
 
-/** What the band is showing, so a redraw that changes nothing leaves it running. */
-let lastTrackName = null;
+/** What the band is showing - a track's name, null when it is empty, undefined before its first paint - so a redraw
+ *  that changes nothing leaves it running. */
+let lastTrackName;
 
 export function registerHud() {
     Hooks.once("ready", () => renderHud());
@@ -217,10 +249,16 @@ export function registerHud() {
  * player who owns the token may type a new value there - a plain write on their student from
  * their own browser. While `lockPlayerResources` is on, a student's two inputs are disabled
  * for a player, as the sheet's pips are display-only (danganronpa.css); the GMs' audit judges
- * such a write either way (sheet-audit.mjs). Hiding the bars from players is N5's. The inputs
- * are read in Daggerheart 2.10.5's templates/hud/tokenHUD.hbs (`input[name="bar1"]`, `bar2`).
- * Not measured on a canvas, which the harness has none of: its check (15-held) hands the hook a
- * HUD's shape.
+ * such a write either way (sheet-audit.mjs). The inputs are read in Daggerheart 2.10.5's
+ * templates/hud/tokenHUD.hbs (`input[name="bar1"]`, `bar2`). Not measured on a canvas, which the
+ * harness has none of: its check (15-held) hands the hook a HUD's shape.
+ *
+ * SINCE E24 C1b (08.11.2026, N5) a student's Health and Sanity bars (a Monokuma's and an NPC's
+ * too since E24 fix G2A, the sheet's one meaning) are off for everybody by
+ * their attribute: states.mjs `reserveBar` answers them as the reserve with `editable: false`, and
+ * tokenHUD.hbs disables an input whose attribute is not editable - a GM as well, since a number
+ * typed there would be written to the marks. This stays for any other bar a student's token is
+ * pointed at (Hope, say), which the attribute leaves as Foundry answers it.
  */
 export function stillTokenBars(app, element) {
     try {
@@ -258,8 +296,9 @@ function hudTicker(phase, clock) {
     return ticker;
 }
 
-/** The campaign's name, the chapter and day, and the phase line with its glyph. */
-function hudHeader(clock) {
+/** The campaign's name (under the pause's stamp while the game is on hold), the chapter and day, and the phase line
+ *  with its glyph. Exported for R1386, which reads the stamp for clocks of its own (E23 C2b). */
+export function hudHeader(clock) {
     /* CHAPTER AND DAY ARE ONE LINE, IN BOTH THEMES.
        Two rows for six words, in a pane whose height the curtain is cut around: the
        audit page draws them as one line with a divider, which is a row of glass
@@ -275,7 +314,18 @@ function hudHeader(clock) {
        that is the one line on the clock that can be read without reading. Ours was a
        line of tinted text. The glyph is a masked sprite; which sprite is the
        stylesheet's business, from the phase and hour already on the body. */
-    const phaseLine = line("drpg-hud-phase", phaseLabel(clock.phase));
+    /* AN ECLIPSE IS NAMED ON IT (E23 C2b, 07.11.2026; audit S10-50). Until then the stamp read `phaseLabel(clock.phase)`
+       whatever the clock said, so through a whole Eclipse it said "Daily Life" while the clock's edge, its glyph, the
+       ticker behind it and the Event panel said Eclipse. It takes the Eclipse's own name now, the one its notices and
+       the ready check use ("Night Eclipse", eclipse.mjs `eclipseLabel`), for the same `clock.eclipse` that puts the
+       clock in the Eclipse's colours (`renderHud`'s `phase`). R1386. */
+    const phaseText = clock.eclipse === true ? eclipseLabel(clock) : phaseLabel(clock.phase);
+    const phaseLine = line("drpg-hud-phase", phaseText);
+    /* ONE LINE IN BOTH LANGUAGES (E23 C2b fix, 07.11.2026). The Polish names are the longest - "Eclipse (Popołudnie)",
+       20 characters - and under Stained Glass they wrapped to two lines (Chromium, the glass harness: the stamp 52 px
+       against 28, so the clock stood 24 px taller in some Eclipses than in others). By length, as the campaign line's
+       is: the clock's width is a constant. stained-glass.css sets an `is-long` stamp closer. R1386. */
+    if ((phaseText ?? "").length > 17) phaseLine.classList.add("is-long");
     /* In both themes: the glyph is a FACT drawn as a picture, not a flourish, and
        Legacy is the pixel-art theme - the sprite belongs there at least as much.
        Which sprite is the stylesheet's business, from the phase and hour already
@@ -294,6 +344,32 @@ function hudHeader(clock) {
     const nameLength = (campaignName(clock) ?? "").length;
     if (nameLength > 32) campaign.classList.add("is-very-long");
     else if (nameLength > 22) campaign.classList.add("is-long");
+    /* A PAUSE IS STAMPED ON THE CLOCK (E23 C2b, 07.11.2026; audit S12-22; the owner's Q-E23-2, yes, 07.11). Foundry
+       says a pause in the middle of the screen, and a window centred there - the GM panel, a roll - hid the only sign
+       that the game was on hold. The clock says it too now, in Foundry's own word (`GAME.Paused`, which the module's
+       language files word "On hold" / "Wstrzymano"), as a second stamp right after the phase's, on every client:
+       `pauseGame` renders every clock (`registerHud`) and the stamp follows `game.paused` at each render, so a world
+       that loads paused wears it from ready's render, with no `pauseGame` of its own. The centred caption, the veil and
+       its raster stay as they are (the orchestrator's answer to the owner's question back, 07.11).
+       IN THE CAMPAIGN LINE'S OWN BOX, NOT A ROW OF ITS OWN (E23 C2b fix, 07.11.2026; the orchestrator on C2b's Open 40,
+       after the owner's 27.09: a curtain whose layout changes when nothing but the state does is a fault). be22f1df
+       put it on a row under the phase's, and the clock grew 31 px under Stained Glass and 22 under Legacy, and the
+       curtain was cut again at the pause and at its end. Beside the phase's it does not fit: the clock's inside is
+       227 px under the glass, the shortest phase stamp 150 and the pause's 91 (Polish 120). So while paused the
+       campaign line keeps its box with its words hidden (`is-paused`), and the stamp lies over that box, out of the
+       flow (both stylesheets): the clock's rows and height are the same paused and unpaused. The campaign's name is
+       the one line on the clock that says nothing about the game's state, and it is back the moment the game is.
+       Measured in Chromium on the glass harness, the stamp planted as this writes it (07.11.2026, 1366x768 and
+       1920x1080, both themes, a GM and a player, English and Polish, Daily Life and three Eclipses each): the clock's
+       height the same paused, unpaused and after, the cut the same, no drpgGlassCut (S/stages/E23/scratch/c2b/
+       pause-same.mjs, outside the repository). R1387. */
+    if (game.paused) {
+        const stamp = document.createElement("span");
+        stamp.className = "drpg-hud-paused";
+        stamp.textContent = game.i18n.localize("GAME.Paused");
+        campaign.classList.add("is-paused");
+        campaign.append(stamp);
+    }
     return [campaign, ...dateLines, phaseLine];
 }
 
@@ -395,7 +471,14 @@ export function renderHud() {
         const previousTime = before?.dataset.drpgTime ?? null;
 
         const hud = outgoing ?? buildHudShell();
-        hud.replaceChildren();
+        /* EVERYTHING BUT THE TRACK BAND (E23 C2a; request A1, D9 option 1). The band is the one part that is not
+           rebuilt: thrown away here it lost its place in the clock for a frame and its title restarted its scroll on
+           every render. The other parts go, and the new ones are put in before it (`put`); it keeps itself up to date
+           from the playlist hooks and the interval in `registerHud`. Not `replaceChildren(band)`: that takes the band
+           out of the document and puts it back, which restarts its animation all the same. */
+        const band = hud.querySelector(":scope > .drpg-hud-track");
+        for (const node of [...hud.childNodes]) if (node !== band) node.remove();
+        const put = (...parts) => (band ? band.before(...parts) : hud.append(...parts));
         // Its language, the page's (E66 C1); a no-op on every redraw after the first.
         markLanguage(hud);
 
@@ -479,10 +562,10 @@ export function renderHud() {
            `eventsWindowActive` stopped being a theme test. */
         if (document.body.classList.contains("drpg-theme-stained-glass")
             && !document.body.classList.contains("drpg-no-ticker")) {
-            hud.append(hudTicker(phase, clock));
+            put(hudTicker(phase, clock));
         }
 
-        hud.append(
+        put(
             ...hudHeader(clock),
             buildTimeRow(clock, isGM)
         );
@@ -493,14 +576,17 @@ export function renderHud() {
            two widgets. And the minutes line is pacing advice for a time of day's two
            actions, which is not what anybody in a trial is counting.
            NOR IN AN ECLIPSE (E17 C6, 26.10.2026; audit S10-16): the clock has not moved yet, so the line went on
-           counting the time of day the Eclipse closes, in red, over a placement nobody is timing. */
-        if (showsStopwatch(clock)) hud.append(buildElapsed());
+           counting the time of day the Eclipse closes, in red, over a placement nobody is timing.
+           THE CLOCK IS SHORTER BY THAT LINE, AND THAT IS KEPT (E23 C2a, 07.11.2026; D9 option 1, S10-28, S12-24): in a
+           Class Trial and an Eclipse the clock loses the stopwatch's line, so it is shorter and the curtain is cut
+           again for it - a phase's change, which may recut (the owner's 27.09: only the hour's must not). The track
+           band below is not part of that: it holds its line with music and without. */
+        if (showsStopwatch(clock)) put(buildElapsed());
         else stopElapsed();
 
-        // And under that, what you are hearing (N-1). Rebuilt here because the whole
-        // clock has just been replaced; it keeps itself up to date after that.
-        lastTrackName = null;
-        paintTrackLine(hud);
+        // And under that, what you are hearing (N-1): made on the first render, and kept by every render after it
+        // (above); it keeps itself up to date from then on.
+        if (!band) paintTrackLine(hud);
 
         if (hud.parentElement !== host) host.append(hud);
         alignRightColumn(hud);
@@ -1352,7 +1438,8 @@ export function objectionOnHud(root = document) {
  * @returns {HTMLButtonElement|null|false}  `false` only when `given.unless` is the key of what would be drawn
  */
 export function objectionControl(actor = viewerActor(), given = {}) {
-    if (!actor || actor.type !== "character" || isMonokuma(actor) || isMonocub(actor) || isDeadForGm(actor)) return null;
+    // A living student of the class (sheet.mjs `sheetMode`'s `objection`, E45 C1): no Monokuma, Monocub, NPC or the dead.
+    if (!actor || actor.type !== "character" || !sheetMode(actor).objection) return null;
     // E70 C5: nor a student on the trial's list of the dead (a death nobody has found, TR30), whose voice the trial holds.
     if (isMutedDead(actor)) return null;
     const floor = "floor" in given ? given.floor : trialFloor();

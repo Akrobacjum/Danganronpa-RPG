@@ -29,10 +29,11 @@ import { error, esc, plural, proseOf } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 import { overflowCrossings } from "./overflow.mjs";
 import { baseActions } from "./actions.mjs";
-import { isMonokuma, viewerNeedsAssigning } from "./monokuma.mjs";
+import { viewerNeedsAssigning } from "./monokuma.mjs";
 // Static, and walked before adding (27.09.2026): the 44 modules hud.mjs reaches through
 // its static imports do not include this file - api.mjs and module.mjs are its importers.
 import { clockForDisplay, viewerActor } from "./hud.mjs";
+import { sheetMode } from "./sheet.mjs";
 
 
 const t = (key, data) => data ? game.i18n.format(key, data) : game.i18n.localize(key);
@@ -307,7 +308,7 @@ export async function openStatusExplainer() {
          * comment on `FLAGS.monokuma`; this is describing the existing game,
          * not adding to it.
          */
-        const standing = actor && isMonokuma(actor)
+        const standing = actor && sheetMode(actor).mode === "monokuma"
             ? [
                 esc(t("DRPG.Explain.status.monokumaActions")),
                 esc(t("DRPG.Explain.status.monokumaMove")),

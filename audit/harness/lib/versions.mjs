@@ -83,7 +83,37 @@ export const UNCONFIRMED = [
        and DialogV2's default `minimizable: false` - read from memory: lib/shim.mjs's ApplicationV2 has no fold, so R1339
        reads the options the module hands its windows and `alreadyOpen` on stand-ins (01); Escape on a DialogV2, modelled in
        lib/shim.mjs from the module's note on 14.365, not from v14's source (02). */
-    "LIVE-E44-08", "LIVE-E44-09"
+    "LIVE-E44-08", "LIVE-E44-09",
+    /* E23's (fix G4, 08.11.2026; STATUS E23 Open 70): the windows' order - a running z-index that `bringToFront` writes,
+       raised on a first render, on a pointerdown in the window and on `render(true)` of a window already open - modelled
+       in lib/shim.mjs from v13's ApplicationV2 as remembered and the module's notes (stacking.mjs), not from v14's source.
+       R1404 and E23-T2 read the prompts over the sheets on that model. The other E23 rows are not modelled by the
+       harness (the glass harness's stand-ins in Chromium, or nothing), so they stay in AUDIT section 9.2 only. */
+    "LIVE-E23-04",
+    /* E24's (C1b, 08.11.2026; C4b wrote its AUDIT item): `TokenDocument#getBarAttribute` as lib/shim.mjs models it - the
+       attribute a bar names read off the actor's system data, `{ type: "bar", value, max }` for an object with both and
+       `editable` true - from v13 as remembered, not v14's source. states.mjs `wrapBarAttribute` and R1447 read the
+       student's bars on that model (LIVE-E24-01). The other nine of E24's rows (the pips, the Party sheet, the
+       biography's type and saves, a light client, a step that throws, the victim's reading, the Breakdown icon and a
+       roll made in Breakdown) are read on stand-ins in the tests or Chromium, or not drawn here at all: the harness
+       models none of them, so they stay in AUDIT section 9.2 only. */
+    "LIVE-E24-01",
+    /* E45's (C3a, 08.11.2026): the render after a write - each open app in a document's `apps` asked for
+       `render(false, { renderContext: "update<Doc>", renderData: <the changes> })` after the update hook on every
+       client, the writer's included, and a descendant's create, update or delete rendering its root's apps the same
+       (client-entry.mjs `renderApps`) - from v13/v14 notes as remembered, not from v14's source. Scenario 71 and the
+       sheet's own render (sheet.mjs `renderPlan`) read the repaint on that model. E45's other live rows (the wrapper's
+       way out, 71's parts at a table, a Monocub's tile) are read on the same model: */
+    "LIVE-E45-01",
+    /* E45-C3b's (09.11.2026; AUDIT items 425-427): the wrapper's way out for a render signature it does not know (R1477 on
+       stand-in arguments; 02), 71's parts A, B, F, H and I at a table (03) and a Monocub's Confusion tile after a Hope
+       write (71 C; 04), each read headless on `renderApps` and the stand-in sheet, neither of them v14's. */
+    "LIVE-E45-02", "LIVE-E45-03", "LIVE-E45-04",
+    /* E24's, numbered after the fix groups (09.11.2026; AUDIT items 428-430): the project's description width read with
+       the module's sheets alone, no Foundry stylesheet (R1492; 11); Foundry's own `#players` under Monokuma Legacy read
+       on a planted list in the glass harness (R1466; 12); the `updateSetting` hook and `Setting#key` as v13 has them,
+       which states.mjs `automationChanged` reads (R1488 on a stand-in setting; 13). None is modelled from v14's source. */
+    "LIVE-E24-11", "LIVE-E24-12", "LIVE-E24-13"
 ];
 
 function readJson(file) {

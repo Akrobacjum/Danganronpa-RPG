@@ -3949,7 +3949,8 @@ export function applyTheme() {
     document.body.classList.toggle("drpg-no-pulse", getSetting(SETTINGS.glassPulse) === false);
     document.body.classList.toggle("drpg-no-ticker", getSetting(SETTINGS.hudTicker) === false);
     document.body.classList.toggle("drpg-no-blur", getSetting(SETTINGS.glassBlur) === false);
-    document.body.classList.toggle("drpg-reduced-motion", getSetting(SETTINGS.reducedMotion) === true);
+    // `drpg-reduced-motion` is motion.mjs's (`applyReducedMotion`, the first listener of `drpgThemeApplied` below): the
+    // setting or the system's `prefers-reduced-motion`, which this file cannot read from there without a cycle (R161).
     // W-7. Deliberately NOT in the pulse/ticker/blur group above: those three are one
     // theme's effects, and this one is about being able to read the other 235
     // sizes in the stylesheet, whichever theme is drawing them.

@@ -195,20 +195,47 @@
  * `--shots` both states are kept (`<theme>-<role>-<size>-dock-shown.png`, `-dock-hidden.png`). The line prints
  * `dock <lift shown>/<lift hidden>`. `--no-dock` leaves it out.
  *
- * usage: node audit/glass-sweep.mjs [--root <tree>] [--base <url>] [--page <path?query>]
+ * THE TRACK BAND (E23 C2a, 07.11.2026; request A1 and the owner's 27.09). The page's clock carries the track band empty,
+ * as hud.mjs leaves it when nothing plays, so every reading above is of the clock at the height it has with music and
+ * without. Last at every size, both roles, the page's `drpgTrackCheck` fills the band, empties it and fills it again,
+ * and fails the size where the clock or the band changes height, an empty band is hidden or holds anything, the cut's
+ * signature moves or a drpgGlassCut fires. Its control, once a run: 2b866dde's road planted (the empty band taken out of
+ * the clock), which must read not ok. The line prints `track ok h <clock heights> band <h> cut same cuts 0`.
+ * `--no-track` leaves it out; `--track` (below) reads the hour's change with it.
+ *
+ * A LIGHT CLIENT (E24 C4a, 08.11.2026; the owner's A7 and A8 of 11.10, the audit's S12-26). `--scheme light` loads every
+ * page of the sweep's sizes with `?scheme=light` - the page's colour scheme light, `theme-light` on the body and on
+ * #interface, core's text colours dark (the page's header says what stands in for v14's) - and reads each size as above,
+ * and then the page's `drpgSchemeCheck`: A7's and A8's surfaces the page draws (the corner's notice button, the three
+ * launchers and, on a GM's page, the GM's button and Foundry tools; the room tile's name with its picture and without;
+ * the voice tile's name; on a GM's page, the frames of Foundry tools and Map tools), each its `color-scheme` and its ink
+ * against its ground, 4.5:1 for a text and 3:1 for a glyph. A size fails on any reading under its figure. The line
+ * prints `scheme ok <n read>/<n listed>`. THE CONTROL runs at each page until one reads it, once a run: those surfaces
+ * planted with `color-scheme: light` and core's dark text, as they were before C4a listed them, must read not ok; a run
+ * whose control never read a fault fails (under Stained Glass nothing these surfaces draw depends on the scheme but
+ * Foundry tools on a GM's page, so a player's Stained Glass pages alone cannot read it). The once-a-run pages - the
+ * keyboard, the idle control, the voice runs - stay on the dark page. Without the option nothing changes.
+ *
+ * usage: node audit/glass-sweep.mjs [--root <tree>] [--base <url>] [--page <path?query>] [--scheme light]
  *          [--themes stained,legacy] [--sizes 1920x1080,...] [--known <size>:<ov|nc|bf|eg>=<n>,...]
  *          [--sel <launcher selector>] [--wait <ms after the glass, 2500>] [--shots <dir>] [--corner]
  *          [--chromium <executable>] [--no-control] [--no-notices] [--roles gm,player] [--no-room]
- *          [--no-windows] [--no-voice] [--no-objection] [--no-dock] [--idle <s>, 5]
+ *          [--no-windows] [--no-voice] [--no-objection] [--no-dock] [--no-track] [--idle <s>, 5]
  *        node audit/glass-sweep.mjs --frame-cost [--frames <n>, 30] [--themes ...] [--sizes ...] [--glow <n>]   (E88 C0: below)
  *        node audit/glass-sweep.mjs --edges [--edge-frames <n>, 30] [--edge-sel <part>|<part>] [--edge-plant <css>] [--themes ...] [--sizes ...] [--no-control]   (E89 C5: below)
  *        node audit/glass-sweep.mjs --roster [--themes ...] [--roles ...] [--sizes ..., 1366x768,1920x1080] [--no-control]   (E50 C2: below)
+ *        node audit/glass-sweep.mjs --track [--track-kinds fill,hour-empty,hour-full,hour-swap,hour-notice] [--themes ...] [--roles ...] [--sizes ...] [--no-control]   (E23 C2a: below)
+ *        node audit/glass-sweep.mjs --tray [--themes ..., stained,legacy] [--roles ...] [--sizes ..., 1920x1080,1366x768,1280x800,1024x768] [--no-control]   (E23 C3a: below)
+ *        node audit/glass-sweep.mjs --events [--themes ...] [--roles ...] [--sizes ..., 1366x768,1920x1080,1024x768,820x1180] [--no-control]   (E23 C3b: below)
+ *        node audit/glass-sweep.mjs --board [--themes ...] [--roles ...] [--sizes ..., 1024x768,820x1180,393x852,1200x800,844x390,640x360] [--no-control]   (E23 C4a: below)
+ *        node audit/glass-sweep.mjs --turn [--kinds phase-recut,phase,hour,layout] [--sizes ..., 1600x900,1366x768] [--roles ...]
+ *          [--themes ..., stained] [--turn-ms <n>, 3000] [--runs <n>, 1] [--json <file>] [--against <json>] [--no-control]   (E23 C1a: below)
  * `--corner` loads at twice the pixel density and `--shots` then keeps the bottom-right
  * 200x230 only; without it a shot is the full screen.
  */
 import { createRequire } from "module";
 import { spawn } from "child_process";
-import { mkdirSync } from "fs";
+import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 import url from "url";
 
@@ -223,6 +250,9 @@ const waitMs = Number(opt("--wait") ?? 2500);
 const shots = opt("--shots"), corner = args.includes("--corner"), control = !args.includes("--no-control"), notices = !args.includes("--no-notices");
 const roles = (opt("--roles") ?? "gm,player").split(",").filter(Boolean), rooms = !args.includes("--no-room");
 const windows = !args.includes("--no-windows"), voices = !args.includes("--no-voice"), objections = !args.includes("--no-objection"), docks = !args.includes("--no-dock");
+const tracks = !args.includes("--no-track");
+const scheme = opt("--scheme");
+if (scheme && scheme !== "light") { console.log(`glass-sweep: --scheme takes "light" (got ${scheme})`); process.exit(2); }
 const idleS = Number(opt("--idle") ?? 5);
 const known = Object.fromEntries((opt("--known") ?? "").split(",").filter(Boolean).map(k => {
     const [size, kv] = k.split(":"); const [key, v] = kv.split("=");
@@ -239,9 +269,14 @@ const SIZES = (opt("--sizes") ?? "1920x1080,1366x768,2560x1440,1440x900,1536x864
    round 2's goal Rb), read on fix r2-H3's tree: 'notes' under Stained Glass (F 83, box 301x321) and 'clock' under
    Monokuma Legacy (F 426, box 430x426), a GM and a player alike. 1366x600 and 1366x560 (E78 fix r2-H1, review round
    2's cor F1: two short desks, the voice tile's), read on af5eb69: 'notes' under Stained Glass (F 26 and -14) and
-   'clock' under Monokuma Legacy (F 369 and 329), a GM and a player alike. */
+   'clock' under Monokuma Legacy (F 369 and 329), a GM and a player alike.
+   E23 C2a (07.11.2026; request A1 and the plan's A8 amend: the fixed track band changes F) - the clock carries its track
+   band whether music plays or not, 34 px under Stained Glass at the 21 px floor (the band 24 + 4 + 1, its margin 4,
+   at a scale of 0.85) and 23 px under Monokuma Legacy, so F falls by as much at every desk. Read in Chromium on C2a's
+   tree, GM and player alike: 1536x864 moves from 'clock' (F 290 at 2b866dde) to 'notes' under Stained Glass (F 256,
+   box 301x145, pane 346x218 leaning 6 degrees); every other place holds. */
 const PIN_ROW = ["1024x768", "1180x820", "820x1180", "768x1024", "393x852", "844x390", "640x360"];
-const PIN_NOTES = { stained: ["1366x768", "1280x800", "1224x768", "1264x800", "1300x768", "1280x720", "1366x657", "1366x600", "1366x560"], legacy: [] };
+const PIN_NOTES = { stained: ["1366x768", "1536x864", "1280x800", "1224x768", "1264x800", "1300x768", "1280x720", "1366x657", "1366x600", "1366x560"], legacy: [] };
 const PINS = Object.fromEntries(["stained", "legacy"].flatMap(theme => ["gm", "player"].flatMap(role =>
     ("1920x1080,1366x768,2560x1440,1440x900,1536x864,1600x900,1680x1050,1280x800,1224x768,1264x800,1300x768,1400x900,3840x2160,"
         + "1920x1200,1024x768,1180x820,820x1180,768x1024,393x852,1280x720,1366x657,1366x600,1366x560,844x390,640x360").split(",").map(size =>
@@ -263,14 +298,17 @@ const PINS = Object.fromEntries(["stained", "legacy"].flatMap(theme => ["gm", "p
    1300x768, 301x270 became 301x155 at 1280x800 and 1264x800, 301x245 became 301x143 at 1280x720 and 1366x657
    (glass.mjs `roomNotesH`: half the run C0's pane had, less its two pads). The 'clock' rows and Legacy's did not
    move, and the sweep read them so on that tree. 1366x600 and 1366x560 (fix r2-H1) read on af5eb69: 301x143 beside
-   the notices, 430x310 under Legacy, as at 1366x657. E78 fix r2-H3 (14.10.2026; the owner on HF4's shot: "zdjecie mialo
+   the notices, 430x310 under Legacy, as at 1366x657. E23 C2a (07.11.2026; A8: the clock's track band always there, F
+   34 px less under Stained Glass) moved four rows of Stained Glass, read in Chromium on its tree: 265x302 became 265x268
+   at 1440x900, 1600x900 and 1400x900 (the clock's box shorter by the band), and 1536x864 went beside the notices,
+   265x266 becoming 301x145 there. E78 fix r2-H3 (14.10.2026; the owner on HF4's shot: "zdjecie mialo
    byc przeciagniete za krawedz ekranu", the picture was to run past the screen's edge) moved the same rows of Stained
    Glass and only those: the box stands 31 px over the screen's edge (`roomNotesLift`) with its pane run past it, 301x150
    became 301x129, 301x155 became 301x134 and 301x143 became 301x122 (`low`, the content's floor), read the same day. */
 const BOX = {
-    "stained 1920x1080": "265x364", "stained 1366x768": "301x129", "stained 2560x1440": "312x425", "stained 1440x900": "265x302",
-    "stained 1536x864": "265x266", "stained 1600x900": "265x302", "stained 1680x1050": "265x364", "stained 1280x800": "301x134",
-    "stained 1224x768": "301x129", "stained 1264x800": "301x134", "stained 1300x768": "301x129", "stained 1400x900": "265x302",
+    "stained 1920x1080": "265x364", "stained 1366x768": "301x129", "stained 2560x1440": "312x425", "stained 1440x900": "265x268",
+    "stained 1536x864": "301x145", "stained 1600x900": "265x268", "stained 1680x1050": "265x364", "stained 1280x800": "301x134",
+    "stained 1224x768": "301x129", "stained 1264x800": "301x134", "stained 1300x768": "301x129", "stained 1400x900": "265x268",
     "stained 3840x2160": "312x425", "stained 1920x1200": "265x364", "stained 1280x720": "301x122", "stained 1366x657": "301x122",
     "stained 1366x600": "301x122", "stained 1366x560": "301x122",
     "legacy 1920x1080": "430x364", "legacy 1366x768": "430x310", "legacy 2560x1440": "430x485", "legacy 1440x900": "430x310",
@@ -304,7 +342,7 @@ const PIN_BOX = Object.fromEntries(Object.entries(BOX).flatMap(([key, box]) => {
    HF4's box and its two pads), the leaning ones 344x202 at 1366x768 (its top edge from y 566 to 600, 583 at its middle: 185 px above the edge there; HF4's ran from 523 to 692 at its middle)
    and 344x195 at 1366x657, 1366x600 and 1366x560. `plantPane`'s `foot` control is HF4's cut: the pane ended 10 px
    under the box and a plain pane under it, which must fail the room check. */
-const PANE = { "1366x768": "344x202", "1224x768": "325x170", "1300x768": "325x170", "1280x800": "325x175", "1264x800": "325x175", "1280x720": "325x163", "1366x657": "344x195",
+const PANE = { "1366x768": "344x202", "1536x864": "346x218", "1224x768": "325x170", "1300x768": "325x170", "1280x800": "325x175", "1264x800": "325x175", "1280x720": "325x163", "1366x657": "344x195",
     "1366x600": "344x195", "1366x560": "344x195" };
 const PIN_PANE = Object.fromEntries(Object.entries(PANE).flatMap(([size, pane]) => ["gm", "player"].map(role => [`stained ${role} ${size}`, pane])));
 /* THE CORNER PINS (E78 fix r2-H3, 14.10.2026; the owner on HF4's shot: "przyciski na panelu livekit sa za daleko
@@ -314,12 +352,23 @@ const PIN_PANE = Object.fromEntries(Object.entries(PANE).flatMap(([size, pane]) 
    from the wall and 69 px under that edge at 1366x768. Read in Chromium on this tree the same day: 20,22 25,57 at
    every full tile, 19,22 24,57 at 2560x1440 and 3840x2160 (the tile 258 wide there). "-" is a compact tile, whose
    buttons keep H1's row (a GM's at 1366x657, 181x113 under VOICE_FULL's 114, and both roles' at 1366x600 and 1366x560).
-   `plantVoice`'s `inward` control stands them where 60741cf did and must fail the voice check. */
-const CORNER = "20,22 25,57", WIDE = "19,22 24,57", COMPACT = ["gm 1366x657", "gm 1366x600", "gm 1366x560", "player 1366x600", "player 1366x560"];
+   `plantVoice`'s `inward` control stands them where 60741cf did and must fail the voice check.
+   E23 fix G2 (08.11.2026; the end review's goal M3, the bisect heavy/bis-52a2522e.log): WIDE moves from 19,22 24,57 to
+   18,22 23,57, and the reason is the tray's rows, not the buttons. The tile's top is 24 px under the tray's capacity at
+   five rows (glass.mjs `voicePlacement`), the seam with the tray's pane halfway between the tray's box and the tile, and
+   the buttons stand on that seam (`--drpg-voice-lift`) - so on this page, whose tray draws one row, their place in the
+   tile's turned frame follows the capacity, and their distance from the wall falls by sin 8 degrees, 0.14 px, for every
+   px the seam drops. C3a (52a2522e, E23-16) made the rows their real line (28.35 px at a scale of 1, were 22) and moved
+   the list's 8 px foot pad to a margin: the five-row cap grew 11.75 px at 2560x1440 and 3840x2160 (scale 1), the tile
+   came 12 px lower (y 282 -> 294), the seam 6 (lift 49.2 -> 55.2), and the buttons 1.15 px nearer the wall, 0.83 of it the
+   seam and 0.31 the settle's floor to a pixel (`settleVoice`): 19.61 -> 18.46 and 24.34 -> 23.20 from the wall, under the
+   pane's top 22 and 57 unchanged (Chromium, the glass harness, 7b4f286c against ce3a821f, both roles). At 1920x1080
+   (scale 0.85) the same drop is 7 px and the buttons move 0.50 px, 20.48 -> 19.98, which still rounds to CORNER. */
+const CORNER = "20,22 25,57", WIDE = "18,22 23,57", COMPACT = ["gm 1366x657", "gm 1366x600", "gm 1366x560", "player 1366x600", "player 1366x560"];
 const PIN_CORNER = Object.fromEntries(["1920x1080", "1366x768", "2560x1440", "1440x900", "1536x864", "1600x900", "1680x1050", "1280x800", "1224x768", "1264x800",
     "1300x768", "1400x900", "3840x2160", "1920x1200", "1280x720", "1366x657", "1366x600", "1366x560"]
     .flatMap(size => ["gm", "player"].map(role => [`stained ${role} ${size}`, COMPACT.includes(`${role} ${size}`) ? "-" : /^(2560|3840)x/.test(size) ? WIDE : CORNER])));
-const TILT = { "1366x768": 6, "1224x768": 0, "1300x768": 0, "1280x800": 0, "1264x800": 0, "1280x720": 0, "1366x657": 6, "1366x600": 6, "1366x560": 6 };
+const TILT = { "1366x768": 6, "1536x864": 6, "1224x768": 0, "1300x768": 0, "1280x800": 0, "1264x800": 0, "1280x720": 0, "1366x657": 6, "1366x600": 6, "1366x560": 6 };
 const PIN_TILT = Object.fromEntries(Object.entries(TILT).flatMap(([size, deg]) => ["gm", "player"].map(role => [`stained ${role} ${size}`, deg])));
 if (shots) mkdirSync(shots, { recursive: true });
 
@@ -615,6 +664,549 @@ if (args.includes("--roster")) {
     process.exit(bad ? 1 : 0);
 }
 
+/* THE TRACK BAND AND THE HOUR (E23 C2a, 07.11.2026; request A1, S10-28, S12-24, the owner's 27.09: "the curtain changes
+   its layout at every change of the time of day"; E23-06, E23-12, E23-13). `--track` runs this instead of the sweep. At
+   each size (the sweep's own by default, or `--sizes`), in each theme and role, a fresh page for each reading of the
+   page's `drpgTrackCheck` (`--track-kinds`, by default all five): the band filled, emptied and filled again; the hour
+   changed with the band empty, with a track throughout, with the music switching (emptied at the hour, the next track
+   3 s later, hud.mjs's interval) and with a card on the notice tile as the time of day's summary puts one. A reading
+   fails where the clock or the band is not as tall as at its start, an empty band is hidden or holds anything, the
+   cut's signature moved or a drpgGlassCut fired. THE CONTROLS, once a run at the first size: `fill` and `hour-swap`
+   with 2b866dde's road planted (an empty band taken out of the clock, a track putting a new one in), each of which must
+   read not ok. The line prints the clock's heights in the order read, the band's, `cut same|new` and the cuts. The
+   sweep proper reads `fill` at every size as well (`| track`), with the same control once a run; `--no-track` leaves it
+   out there. */
+if (args.includes("--track")) {
+    const KINDS = (opt("--track-kinds") ?? "fill,hour-empty,hour-full,hour-swap,hour-notice").split(",").filter(Boolean);
+    let bad = 0, lines = 0, planted = 0;
+    const said = r => `h ${r.steps.map(s => s.h).join("/")} band ${r.steps.map(s => s.band).join("/")} cut ${r.cut} cuts ${r.cuts}`;
+    try {
+        for (const theme of themes) for (const role of roles) for (const size of SIZES) {
+            for (const [kind, plant] of [...KINDS.map(k => [k, false]), ...(control && !planted ? [["fill", true], ["hour-swap", true]] : [])]) {
+                const [W, H] = size.split("x").map(Number);
+                const page = await browser.newPage({ viewport: { width: W, height: H } });
+                const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
+                await page.goto(`${base}/${page0}${qs.length ? (page0.includes("?") ? "&" : "?") + qs.join("&") : ""}`);
+                const loaded = await page.waitForFunction(() => window.__glass && window.drpgTrackCheck, null, { timeout: 15000 }).then(() => true, () => false);
+                const tag = `track ${(plant ? "plant " + kind : kind).padEnd(16)} ${theme.padEnd(7)} ${role.padEnd(6)} ${size.padEnd(9)}`;
+                if (!loaded) { console.log(`${tag} FAIL: the page did not load the glass or drpgTrackCheck`); bad++; await page.close(); continue; }
+                await page.waitForTimeout(waitMs);
+                const r = await page.evaluate(a => window.drpgTrackCheck(a), { kind, plant });
+                await page.close();
+                lines++;
+                if (plant) {
+                    planted++;
+                    console.log(`${tag} ${said(r)} - control ${r.ok ? "MISSES IT" : "sees it"}${r.ok ? "" : `: ${String(r.why).slice(0, 120)}`}`);
+                    if (r.ok) bad++;
+                } else {
+                    console.log(`${tag} ${said(r)}${r.ok ? " ok" : `  FAIL: ${r.why}`}`);
+                    if (!r.ok) bad++;
+                }
+            }
+        }
+    } finally { await browser.close(); srv?.kill(); }
+    if (control && !planted) { console.log("FAIL: the track's controls never ran"); bad++; }
+    console.log(`TRACK ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s) x ${roles.length} role(s) x ${SIZES.length} size(s), ${lines} reading(s), ${planted} control(s), ${bad} failing`);
+    process.exit(bad ? 1 : 0);
+}
+
+/* THE PROJECTS TRAY'S ROWS AND THE TAB RAIL (E23 C3a, 07.11.2026; E23-16, E23-19: S09-04, S10-34, S12-06, S12-53, S12-07
+   and the owner's two of 04.10). `--tray` runs this instead of the sweep, at each size (by default 1920x1080, 1366x768,
+   1280x800 and 1024x768), role and theme (both by default since E23 fix G3, 08.11.2026 - the end review's screens M1:
+   E23-16 names no theme, and the Stained Glass default never held Legacy's rows to the rule; `--themes` narrows it).
+   ROWS: the page's `drpgTrayRows()` with its own two rows and filled to seven, and the size fails where a row's count
+   stands more than 2 px off its name's line on the screen - and, where the tray is turned, not 8-12 px after it; where
+   it is not, outside its own row - or where the list's foot cuts a row in a list with no fade. Its CONTROLS, once a run:
+   at the first turned size `grow` (the name's `flex: 1 1 auto` put back) must read a fall and `cut` (the list held at
+   five and a half rows, the fade off) a cut row; at the first unturned size `column` (the row's content a column again,
+   the count under its name) must read a fall. THE RAIL, on the GM's page at each size wider than the stack (a player has
+   neither rail): with Foundry's windows on (Foundry tools opened, the sidebar in it) and with the world switch off
+   (`?windows=off`), each with a fifteen-tab sidebar expanded in the HTML before the page loads (`page.route`: the
+   harness does not recut for tabs added later), the tab rail's box must meet neither the status strip's nor the
+   tray's, must end on the screen, and the GM's button must not move when the tool palette is made two columns wide
+   (six tools planted, Regions' palette). Its control, once: the strip planted under the rail must read a meeting.
+   The line prints each row's run and fall, the list's heights and its cut and fade, and the rail's meetings. */
+if (args.includes("--tray")) {
+    let bad = 0, rowsPlanted = false, uprightPlanted = false, railPlanted = false;
+    const tthemes = opt("--themes") ? themes : ["stained", "legacy"];
+    const tsizes = (opt("--sizes") ?? "1920x1080,1366x768,1280x800,1024x768").split(",");
+    const rowsLine = r => `turn ${r.turn} rows ${r.rows.length} run ${r.rows.map(x => x.run ?? "-").join(",")} fall ${r.rows.map(x => x.fall).join(",")}`
+        + (r.list ? ` list ${r.list.client}/${r.list.scroll} cut ${r.list.cut} ${r.list.more ? "fade" : "no fade"}` : "");
+    const railCheck = async ({ plant = false } = {}) => {
+        const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const settle = async () => { window.__glass?.refreshGlass?.(); await frame(); await new Promise(r => setTimeout(r, 500)); await frame(); };
+        const box = el => { if (!el || !el.getClientRects().length) return null; const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, r: r.right, b: r.bottom }; };
+        const meet = (a, c) => (a && c ? Math.max(0, Math.min(a.r, c.r) - Math.max(a.x, c.x)) * Math.max(0, Math.min(a.b, c.b) - Math.max(a.y, c.y)) : 0);
+        const why = [];
+        try { window.__windows?.toggleFoundryTools?.(true); } catch (err) { why.push(`Foundry tools did not open: ${err}`); }
+        await settle();
+        const strip = document.getElementById("drpg-player-status");
+        if (plant && strip) { const t = document.getElementById("sidebar-tabs").getBoundingClientRect(); strip.style.cssText = `position:fixed;left:${t.left - 20}px;top:${t.top + 20}px`; }
+        const tabs = box(document.getElementById("sidebar-tabs"));
+        if (!tabs) why.push("no tab rail on the page");
+        const met = { strip: Math.round(meet(tabs, box(strip))), tray: Math.round(meet(tabs, box(document.getElementById("countdowns")))) };
+        for (const [k, v] of Object.entries(met)) if (v) why.push(`the tab rail meets the ${k === "strip" ? "status strip" : "Projects tray"} over ${v} px2`);
+        const off = tabs ? Math.max(0, Math.round(tabs.r - innerWidth)) : 0;
+        if (off) why.push(`the tab rail runs ${off} px off the screen`);
+        const gm0 = box(document.getElementById("drpg-gm-launcher"));
+        const tools = document.getElementById("scene-controls-tools");
+        const planted = [];
+        if (tools) {
+            tools.style.cssText = "flex-direction:row;flex-wrap:wrap;width:84px";
+            for (let i = 0; i < 6; i++) { const li = document.createElement("li"); li.innerHTML = '<button class="ui-control"></button>'; tools.append(li); planted.push(li); }
+        }
+        await settle();
+        const gm1 = box(document.getElementById("drpg-gm-launcher"));
+        const moved = gm0 && gm1 ? [Math.round(gm1.x - gm0.x), Math.round(gm1.y - gm0.y)] : null;
+        if (moved && (moved[0] || moved[1])) why.push(`the GM's button moved ${moved.join(",")} px with a two-column tool palette`);
+        for (const li of planted) li.remove();
+        if (tools) tools.style.cssText = "";
+        if (strip) strip.style.cssText = "";
+        return { ok: !why.length, why: why.join("; "), tabs: tabs && [tabs.x, tabs.y, tabs.r, tabs.b].map(Math.round).join(","), met, off, moved: moved ? moved.join(",") : "-",
+            inWindow: Boolean(document.getElementById("sidebar")?.closest(".drpg-foundry-window")) };
+    };
+    try {
+        for (const theme of tthemes) for (const role of roles) for (const size of tsizes) {
+            const [W, H] = size.split("x").map(Number);
+            const tag = `${theme.padEnd(7)} ${role.padEnd(6)} ${size.padEnd(9)}`;
+            const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
+            const page = await browser.newPage({ viewport: { width: W, height: H } });
+            await page.goto(`${base}/${page0}${qs.length ? (page0.includes("?") ? "&" : "?") + qs.join("&") : ""}`);
+            const loaded = await page.waitForFunction(() => window.__glass && window.drpgTrayRows, null, { timeout: 15000 }).then(() => true, () => false);
+            if (!loaded) { console.log(`${tag} FAIL: the page did not load the glass or drpgTrayRows`); bad++; await page.close(); continue; }
+            await page.waitForTimeout(waitMs);
+            for (const rows of [0, 7]) {
+                const r = await page.evaluate(rows => window.drpgTrayRows({ rows }), rows);
+                console.log(`${tag} rows ${rows ? "filled" : "as drawn"}: ${rowsLine(r)}${r.ok ? "" : `  - FAIL: ${r.why}`}`);
+                if (!r.ok) bad++;
+                const upright = rows && r.turn !== null && Math.abs(r.turn) < 0.25;
+                if (control && !uprightPlanted && upright) {
+                    uprightPlanted = true;
+                    const p = await page.evaluate(() => window.drpgTrayRows({ rows: 7, plant: "column" }));
+                    console.log(`${tag} control column: ${p.ok ? "MISSES IT" : "sees it"} - ${p.ok ? rowsLine(p) : p.why.slice(0, 140)}`);
+                    if (p.ok) bad++;
+                }
+                if (control && !rowsPlanted && rows && r.turn) {
+                    rowsPlanted = true;
+                    for (const plant of ["grow", "cut"]) {
+                        const p = await page.evaluate(plant => window.drpgTrayRows({ rows: 7, plant }), plant);
+                        console.log(`${tag} control ${plant}: ${p.ok ? "MISSES IT" : "sees it"} - ${p.ok ? rowsLine(p) : p.why.slice(0, 140)}`);
+                        if (p.ok) bad++;
+                    }
+                }
+            }
+            const stacked = await page.evaluate(() => document.body.classList.contains("drpg-stacked"));
+            await page.close();
+            if (role !== "gm" || stacked) continue;
+            for (const switchOff of [false, true]) {
+                const p2 = await browser.newPage({ viewport: { width: W, height: H } });
+                await p2.route(url => /audit\/glass-harness\.html/.test(String(url)), async route => {
+                    const res = await route.fetch();
+                    const body = (await res.text()).replace('<div id="sidebar">', '<div id="sidebar" class="expanded">')
+                        .replace(/<nav id="sidebar-tabs">(?:<button class="ui-control"><\/button>)+<\/nav>/, `<nav id="sidebar-tabs">${'<button class="ui-control"></button>'.repeat(15)}</nav>`);
+                    await route.fulfill({ response: res, body });
+                });
+                const q2 = [...qs, switchOff ? "windows=off" : ""].filter(Boolean);
+                await p2.goto(`${base}/${page0}${q2.length ? (page0.includes("?") ? "&" : "?") + q2.join("&") : ""}`);
+                await p2.waitForFunction(() => window.__glass, null, { timeout: 15000 }).catch(() => {});
+                await p2.waitForTimeout(waitMs);
+                const r = await p2.evaluate(railCheck, {});
+                console.log(`${tag} rail, windows ${switchOff ? "off" : "on "}: tabs ${r.tabs ?? "-"}${r.inWindow ? " (in Foundry tools)" : ""} meets strip ${r.met.strip} tray ${r.met.tray} off ${r.off} gm moved ${r.moved}${r.ok ? "" : `  - FAIL: ${r.why}`}`);
+                if (!r.ok) bad++;
+                if (control && !railPlanted) {
+                    railPlanted = true;
+                    const p = await p2.evaluate(railCheck, { plant: true });
+                    console.log(`${tag} control rail: the strip planted under the rail ${p.met.strip ? "sees it" : "MISSES IT"} (${p.met.strip} px2)`);
+                    if (!p.met.strip) bad++;
+                }
+                await p2.close();
+            }
+        }
+    } finally { await browser.close(); srv?.kill(); }
+    if (control && !rowsPlanted) { console.log("control: no turned tray was read, so the rows' faults could not be planted - FAIL"); bad++; }
+    if (control && tthemes.includes("legacy") && !uprightPlanted) { console.log("control: no upright tray was read, so its row's fault could not be planted - FAIL"); bad++; }
+    if (control && roles.includes("gm") && !railPlanted) { console.log("control: no GM desk page was read, so the rail's fault could not be planted - FAIL"); bad++; }
+    console.log(`TRAY ${bad ? "RED" : "GREEN"}: ${tthemes.length} theme(s), ${roles.length} role(s), ${tsizes.length} size(s)`);
+    process.exit(bad ? 1 : 0);
+}
+
+/* THE EVENT PANEL'S BOX (E23 C3b, 07.11.2026; E23-18, the owner's 04.10 "the events panel has a fixed size whatever the
+   event and phase, always a similar layout, everything fits", S10-35, S12-30). `--events` runs this instead of the
+   sweep, at each size (by default 1366x768, 1920x1080, 1024x768 and 820x1180), role and theme: the page's
+   `drpgEventCheck()` lays the panel out with events.mjs's own card for an incident, a trial with E70's speaker, the
+   debate's clock and "GM: +30 s", and a safeword, each from the longest texts of lang, alone and all three, and the
+   size fails where the panel's box is not the same for the four, a text is wider than its line, a card clips its
+   words, a panel taller than its box does not scroll, the incident's meta is not two lines, or the ticker runs under a
+   word or is drawn on a stacked screen. Its CONTROLS, once a run, on the first desk page under Stained Glass: `grow`
+   (the panel's height following its cards, as before this commit) must read a box that changes, `ticker` (the ticker
+   back at the card's middle) must read it under words. The line prints the four boxes and the tickers' bands. */
+if (args.includes("--events")) {
+    let bad = 0, planted = 0;
+    const esizes = (opt("--sizes") ?? "1366x768,1920x1080,1024x768,820x1180").split(",");
+    const boxes = r => Object.entries(r.boxes).map(([k, v]) => `${k} ${v}`).join(", ");
+    try {
+        for (const theme of themes) for (const role of roles) for (const size of esizes) {
+            const [W, H] = size.split("x").map(Number);
+            const tag = `events ${theme.padEnd(7)} ${role.padEnd(6)} ${size.padEnd(9)}`;
+            const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
+            const page = await browser.newPage({ viewport: { width: W, height: H } });
+            await page.goto(`${base}/${page0}${qs.length ? (page0.includes("?") ? "&" : "?") + qs.join("&") : ""}`);
+            const loaded = await page.waitForFunction(() => window.__glass && window.drpgEventCheck, null, { timeout: 15000 }).then(() => true, () => false);
+            if (!loaded) { console.log(`${tag} FAIL: the page did not load the glass or drpgEventCheck`); bad++; await page.close(); continue; }
+            await page.waitForTimeout(waitMs);
+            const r = await page.evaluate(() => window.drpgEventCheck());
+            const tick = (r.read.all?.ticker ?? []).join(" ") || "-";
+            console.log(`${tag} ${boxes(r)} | ticker ${tick}${r.ok ? " ok" : `  - FAIL: ${r.why}`}`);
+            if (!r.ok) bad++;
+            const stacked = await page.evaluate(() => document.body.classList.contains("drpg-stacked"));
+            if (control && !planted && theme === "stained" && !stacked) {
+                for (const plant of ["grow", "ticker"]) {
+                    const p = await page.evaluate(plant => window.drpgEventCheck({ plant }), plant);
+                    planted++;
+                    console.log(`${tag} control ${plant}: ${p.ok ? "MISSES IT" : "sees it"} - ${p.ok ? boxes(p) : p.why.slice(0, 140)}`);
+                    if (p.ok) bad++;
+                }
+            }
+            await page.close();
+        }
+    } finally { await browser.close(); srv?.kill(); }
+    if (control && !planted) { console.log("control: no desk page under Stained Glass was read, so the panel's faults could not be planted - FAIL"); bad++; }
+    console.log(`EVENTS ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s), ${roles.length} role(s), ${esizes.length} size(s), ${planted} control(s)`);
+    process.exit(bad ? 1 : 0);
+}
+
+/* THE BOARD UNDER THE STACK AND THE STACK'S CEILING (E23 C4a, 07.11.2026; E23-20, E23-21: S12-04, S12-05). `--board` runs
+   this instead of the sweep, at each stacked size (by default 1024x768, 820x1180, 393x852, 1200x800, 844x390 and 640x360),
+   role and theme. Where the curtain is drawn (Stained Glass, a screen not short) it reads the cut from `LAST.panes` and
+   `LAST.open`: `glass` is the share of the screen under panes below the stack's foot (1d860414 and 6c9bd3c3: 38-58 %),
+   `field` the share of it in field panes, `board` the share left open as `board`; the size fails where the cut leaves no
+   board, or any of overlaps, nonconvex, blockFails, edgeGaps and openFails is not 0. On every stacked page the column:
+   the size fails where the stack scrolls without `drpg-stack-more` on it or wears it with nothing below. A player's
+   right column must stand before the Despair rail, a GM's after it (the owner's Q-E23-1 on its default). THE CONTROLS,
+   once a run each: a pane laid over the board (glass.mjs `cutCheck` on the cut and the pane) must read an open-area
+   fail, and a 600 px block put into the stack must turn the signal on, and scrolled to the stack's end, off. The line
+   prints the shares, the self-check, the column's ceiling, its rows' height and the signal. */
+if (args.includes("--board")) {
+    let bad = 0, planted = { open: 0, signal: 0 };
+    const bsizes = (opt("--sizes") ?? "1024x768,820x1180,393x852,1200x800,844x390,640x360").split(",");
+    try {
+        for (const theme of themes) for (const role of roles) for (const size of bsizes) {
+            const [W, H] = size.split("x").map(Number);
+            const tag = `board ${theme.padEnd(7)} ${role.padEnd(6)} ${size.padEnd(9)}`;
+            const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
+            const page = await browser.newPage({ viewport: { width: W, height: H } });
+            await page.goto(`${base}/${page0}${qs.length ? (page0.includes("?") ? "&" : "?") + qs.join("&") : ""}`);
+            const loaded = await page.waitForFunction(() => window.__glass, null, { timeout: 15000 }).then(() => true, () => false);
+            if (!loaded) { console.log(`${tag} FAIL: the page did not load the glass`); bad++; await page.close(); continue; }
+            await page.waitForTimeout(waitMs);
+            const r = await page.evaluate(() => {
+                const g = window.__glass, W = innerWidth, H = innerHeight, why = [];
+                const area = P => Math.abs(P.reduce((s, q, i) => { const n = P[(i + 1) % P.length]; return s + q[0] * n[1] - n[0] * q[1]; }, 0)) / 2;
+                const share = list => (list.reduce((s, P) => s + area(P), 0) / (W * H) * 100).toFixed(1) + "%";
+                const col = document.getElementById("drpg-column");
+                if (!document.body.classList.contains("drpg-stacked") || !col) return { stacked: false, ok: false, why: "the screen is not stacked" };
+                const cr = col.getBoundingClientRect(), more = col.classList.contains("drpg-stack-more");
+                const scrolls = col.scrollHeight - col.clientHeight - col.scrollTop > 1;
+                if (scrolls !== more) why.push(`the stack ${scrolls ? "scrolls" : "fits"} and the signal is ${more ? "on" : "off"}`);
+                const order = id => Number(getComputedStyle(document.getElementById(id) ?? col).order);
+                const player = document.body.classList.contains("drpg-player"), right = order("ui-right-column-1"), despair = order("drpg-despair");
+                if (player ? right >= despair : right <= despair) why.push(`the right column's order ${right} against the Despair rail's ${despair} for a ${player ? "player" : "GM"}`);
+                const out = { stacked: true, ceiling: Math.round(cr.height) + "/" + getComputedStyle(col).maxHeight, rows: col.scrollHeight, scrolls, more, glass: null };
+                const drawn = document.body.classList.contains("drpg-curtain-on") && (g?.LAST?.panes ?? []).length > 0;
+                if (drawn) {
+                    const foot = cr.bottom - 2, under = g.LAST.panes.filter(p => p.y0 >= foot);
+                    const board = (g.LAST.open ?? []).filter(o => o.name === "board");
+                    const c = g.CHECKS?.[g.CHECKS.length - 1];
+                    out.glass = share(under.map(p => p.poly)); out.field = share(under.filter(p => p.kind === "field").map(p => p.poly));
+                    out.board = share(board.map(o => o.poly));
+                    out.check = c ? [c.overlaps, c.nonconvex, c.blockFails, c.edgeGaps, c.openFails].join("/") : "none";
+                    if (!board.length) why.push("the cut leaves no board open");
+                    if (!c || c.overlaps || c.nonconvex || c.blockFails || c.edgeGaps || c.openFails) why.push(`the self-check reads ${out.check}`);
+                }
+                return { ...out, ok: !why.length, why: why.join("; ") };
+            });
+            console.log(`${tag} ${r.glass === null ? "no glass" : `glass ${r.glass} field ${r.field} board ${r.board} check ${r.check}`} | column ${r.ceiling ?? "-"} rows ${r.rows ?? "-"} ${r.scrolls ? "scrolls" : "fits"} signal ${r.more ? "on" : "off"}${r.ok ? " ok" : `  FAIL: ${r.why}`}`);
+            if (!r.ok) bad++;
+            if (control && r.stacked && r.glass !== null && !planted.open) {
+                const p = await page.evaluate(() => {
+                    const g = window.__glass, board = (g.LAST.open ?? []).filter(o => o.name === "board");
+                    if (!board.length || typeof g.cutCheck !== "function") return null;
+                    return g.cutCheck([...g.LAST.panes, { poly: board[0].poly }], g.LAST.open, innerWidth, innerHeight).openFails;
+                });
+                planted.open++;
+                console.log(`${tag} control: a pane over the board - openFails ${p ?? "unread"} - ${p > 0 ? "sees it" : "MISSES IT"}`);
+                if (!(p > 0)) bad++;
+            }
+            if (control && r.stacked && !planted.signal) {
+                const p = await page.evaluate(async () => {
+                    const col = document.getElementById("drpg-column"), block = document.createElement("div");
+                    const frames = () => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done)));
+                    block.style.cssText = "height: 600px; flex: 0 0 auto";
+                    col.append(block); await frames(); await frames();
+                    const on = col.classList.contains("drpg-stack-more");
+                    col.scrollTop = col.scrollHeight; await new Promise(done => setTimeout(done, 100)); await frames();
+                    const end = col.classList.contains("drpg-stack-more");
+                    block.remove(); col.scrollTop = 0; await frames(); await frames();
+                    return { on, end, after: col.classList.contains("drpg-stack-more") };
+                });
+                planted.signal++;
+                const seen = p.on && !p.end;
+                console.log(`${tag} control: 600 px put into the stack - signal ${p.on ? "on" : "off"}, at the end ${p.end ? "on" : "off"}, taken out ${p.after ? "on" : "off"} - ${seen ? "sees it" : "MISSES IT"}`);
+                if (!seen) bad++;
+            }
+            await page.close();
+        }
+    } finally { await browser.close(); srv?.kill(); }
+    if (control && (!planted.open || !planted.signal)) { console.log("control: no stacked page with glass was read, so the board's faults could not be planted - FAIL"); bad++; }
+    console.log(`BOARD ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s), ${roles.length} role(s), ${bsizes.length} size(s), ${planted.open + planted.signal} control(s), ${bad} failing`);
+    process.exit(bad ? 1 : 0);
+}
+
+/* THE TURN (E23 C1a, 07.11.2026; E23-01..E23-06 and E23-08, the owner's 05.11 and E61's DIAGNOSIS.md of MK-R1). `--turn`
+   runs this instead of the sweep: how the curtain moves from one state to the next, on the glass harness's four turns
+   (its `drpgTurn`: phase-recut, Daily Life -> Class Trial with the clock shorter; phase, Daily Life -> Investigation;
+   hour, Afternoon -> Evening; layout, the room tile hidden), at each size (1600x900 and 1366x768 by default) and role,
+   under Stained Glass (Legacy has no curtain to turn), the pulse off (`drpg-no-pulse`, so only the turn moves) and the
+   blur as loaded. Three pages a turn, each a fresh load, so no reading disturbs another:
+     the clock   CDP `Performance.getMetrics` `TaskDuration` around the turn (`main`, the renderer's main thread over
+                 `--turn-ms`, 3000 ms from the event) and around as long a rest before it (`rest`); the page's own
+                 readings: the long tasks ("longtask" entries from the event on: their count and the longest), the
+                 frames from the first moved frame to the last (median/p95/max) against the rest's median, the first
+                 moved frame and the last after the event (`first`, `len`), the frames that wrote a clip path and the
+                 writes (`clip`), the frames that drew on a canvas and the calls (`draw`), the self-check at a quarter,
+                 half and three quarters of the turn, the worst of the three with the cut's before and after (`check`),
+                 and the cut's signature before and after with the `drpgGlassCut` it fired (`cut same|new/<n>`)
+     the texture a screenshot at rest, a CDP screencast through the turn and a screenshot after it, read over the
+                 harness's `band` (the cells the turn carries glass across): E61's texmetric.js, the mean absolute
+                 4-neighbour Laplacian of luminance; `tex <low>/<rest>/<after> worst <n>% at <x,y> (<n> frames)`, low
+                 the band's lowest frame from the first moved frame to the last, and worst the 64 px square of the band
+                 whose lowest frame stands furthest under its reference (the texture page's note says which squares
+                 count): a band can be most of the screen, and a dip the size of one tile is lost in its mean
+     the flash   a screenshot at rest, then the clock stood still at 84 ms (`drpgTurnFreeze`, 0.2 of the 420 ms flash,
+                 inside its hold) and the turn fired: E61 MK-R2's flashpeak.js read on the seams' own pixels, their
+                 median Rec. 709 luminance (the harness's `seams`, the field's, both cuts; `turnFlashPeak` says why
+                 the median); `flash <peak>/<rest>`, read only on a turn that moves the accent (layout's is "-")
+   The line: `turn <kind> <size> <role> main <ms> (rest <ms>) long <n>/<longest> frames <median>/<p95>/<max> (rest
+   <median>) first <ms> len <ms> clip <frames>/<writes> draw <frames>/<calls> tex <low>/<rest>/<after> worst <n>% at
+   <x,y> (<n> frames) flash <peak>/<rest> cut <same|new>/<cuts> check <ov>/<bf>/<eg> (<before> -> <after>) tilt
+   <straight>/<frames> worn <n> (<n> buttons)`: since E23 C1d (E23-10, the owner's 14.10) each corner launcher's computed
+   transform read on every frame of the clock page from the event on - the frames in which any of them stood straight,
+   and the most transforms one button wore (1 on a turn that keeps the cut, 2 where a recut turns them to its angle). A
+   line FAILS, its reasons printed, where a frame wrote a clip path or drew a canvas (E23-01), a square of the band's
+   texture inside the turn falls under 80 % of its rest (E23-04), the flash peak stands more than 8 from today's
+   (E23-03), an hour's turn recut or fired `drpgGlassCut` (E23-06), the self-check inside the turn reads worse than both
+   the cut it found and the cut it leaves (E23-08; a fault of the cut itself is the sweep proper's), or a launcher stood
+   straight in a frame of the turn (E23-10). TODAY'S FLASH is the
+   reading of the same theme, role, size and turn in the file `--against <json>` names (a `--json` of 1d860414's run,
+   C1a's baseline), and without one MK-R2's 203 at 1600x900; anywhere else the peak is printed "(unjudged)". On
+   1d860414 itself it is not one number: 202-204 at 1600x900, but 187-199 at 1366x768, where a recut's old seams stand
+   dim under the frozen morph (C1a's baseline). E23-02 (the times) and E23-05 (the cost against 1d860414's) are read
+   off the line against that baseline, not judged here; a table's frames and cost are LIVE-E23-01.
+   THE CONTROLS, once a run at the first size and role (`--no-control` leaves them out), each must read its fault or the
+   run fails: `?turn=today`, a phase-recut whose frames must write the clip path (on 1d860414 that is HEAD's own morph,
+   and the page says "head"; from C1b's tree, where glass.mjs exports `glassTurn`, a write planted in every frame,
+   "planted"), and `?flash=0.5`, an hour's turn whose flash layers stand at half their opacity, which must take the
+   peak more than 8 from the same run's hour at that size (or the line's band); since E23 C1d a third, `?tilt=flat`, an
+   hour's turn with the handbooks button held upright (`transform: none !important`), which must read as straight
+   frames on the tilt reading. `--kinds` keeps some of the four, `--runs <n>` reads the clock page n times and prints
+   each, `--json <file>` writes every reading.
+   THE LAYOUT TURN AT 1366x768 IS NO TURN: there the room tile stands beside the notices, and hiding it recuts nothing
+   on 1d860414 (no moved frame, cut same, both roles); its line reads `first -`.
+   WHAT IT IS NOT. Headless Chromium rasterises in software (perf-baseline.json `headless`): the numbers are a SHAPE
+   against 1d860414's on the same machine and page, never a table's. A table's is `game.drpg.fps()`, at a table. The
+   screencast's frames are what the compositor sent, not every frame drawn; the frozen clock stills what is timed by the
+   frame's clock, not a Web Animation (the harness's turn check says so). */
+/* Runs in a blank page: one picture's texture energy over the band's cells, E61's texmetric.js (Rec. 601 luminance,
+   the mean absolute 4-neighbour Laplacian), each pixel of a cell read against its neighbours wherever they stand: the
+   band's mean, and the mean of each 64 px square of the screen the band's cells fall in (`tiles`, by "x,y"). */
+async function turnTexture([b64, band]) {
+    const bmp = await createImageBitmap(await (await fetch(`data:image/png;base64,${b64}`)).blob());
+    const W = bmp.width, H = bmp.height, g = new OffscreenCanvas(W, H).getContext("2d");
+    g.drawImage(bmp, 0, 0);
+    const d = g.getImageData(0, 0, W, H).data, C = band.cell;
+    const L = (i, j) => { const q = (j * W + i) * 4; return 0.299 * d[q] + 0.587 * d[q + 1] + 0.114 * d[q + 2]; };
+    let s = 0, n = 0;
+    const tiles = {};
+    for (const [x0, y0] of band.cells) {
+        const k = `${Math.floor(x0 / 64) * 64},${Math.floor(y0 / 64) * 64}`, t = tiles[k] ?? (tiles[k] = [0, 0, 0]);
+        t[2]++;
+        for (let j = Math.max(1, y0); j < Math.min(H - 1, y0 + C); j++) for (let i = Math.max(1, x0); i < Math.min(W - 1, x0 + C); i++) {
+            const v = Math.abs(4 * L(i, j) - L(i - 1, j) - L(i + 1, j) - L(i, j - 1) - L(i, j + 1));
+            s += v; n++; t[0] += v; t[1]++;
+        }
+    }
+    return { all: n ? +(s / n).toFixed(2) : null, tiles: Object.fromEntries(Object.entries(tiles).filter(([, t]) => t[1]).map(([k, t]) => [k, [+(t[0] / t[1]).toFixed(2), t[2]]])) };
+}
+/* Runs in a blank page: the median luminance (Rec. 709, as flashpeak.js) of the pixels the field's seams run through.
+   MK-R2's flashpeak.js read the p99.5 of every pixel of a region of the field, which is where its seams' own pixels
+   stand (they are under 1 % of it); read on the seams themselves the same quantity is their median: 1600x900, a GM,
+   an hour's turn on 1d860414, 122.1 at rest and 203.4 at the peak (MK-R2: 131 and 203), where their p99.5 is 238.1 and
+   252.0 - the seams' bright bevel, not the flash. */
+async function turnFlashPeak([b64, segs]) {
+    const bmp = await createImageBitmap(await (await fetch(`data:image/png;base64,${b64}`)).blob());
+    const W = bmp.width, H = bmp.height, g = new OffscreenCanvas(W, H).getContext("2d");
+    g.drawImage(bmp, 0, 0);
+    const d = g.getImageData(0, 0, W, H).data, seen = new Set(), L = [];
+    for (const [x0, y0, x1, y1] of segs) {
+        const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0)));
+        for (let k = 0; k <= n; k++) {
+            const x = Math.round(x0 + (x1 - x0) * k / n), y = Math.round(y0 + (y1 - y0) * k / n);
+            if (x < 0 || y < 0 || x >= W || y >= H || seen.has(y * W + x)) continue;
+            seen.add(y * W + x);
+            const q = (y * W + x) * 4;
+            L.push(0.2126 * d[q] + 0.7152 * d[q + 1] + 0.0722 * d[q + 2]);
+        }
+    }
+    L.sort((a, b) => a - b);
+    return L.length ? { p50: +L[L.length >> 1].toFixed(1), n: L.length } : null;
+}
+if (args.includes("--turn")) {
+    const KINDS = (opt("--kinds") ?? "phase-recut,phase,hour,layout").split(",").filter(Boolean);
+    const turnMs = Number(opt("--turn-ms") ?? 3000), runs = Math.max(1, Number(opt("--runs") ?? 1)), json = opt("--json");
+    const tThemes = (opt("--themes") ?? "stained").split(",").filter(Boolean);
+    const FLASH = 8, TEX_MIN = 0.8, MOVES_ACCENT = ["phase-recut", "phase", "hour"];
+    const against = opt("--against") ? JSON.parse(readFileSync(opt("--against"), "utf8")) : null;
+    /* the flash's band: today's peak +/- 8 - the baseline's reading of the same theme, role, size and turn with
+       `--against`, else MK-R2's 203 at 1600x900 (a GM's, read on the harness 05.11), else none and the peak unjudged */
+    const flashBase = (theme, role, size, kind) => against?.readings?.find(r => r.theme === theme && r.role === role && r.size === size && r.kind === kind)?.flash?.peak?.p50
+        ?? (size === "1600x900" ? 203 : null);
+    const outside = (peak, base) => base != null && peak != null && Math.abs(peak - base) > FLASH;
+    const calc = await browser.newPage();
+    const readings = [];
+    let bad = 0, today = null, halfFlash = null;
+    const hourFlash = new Map();
+    const open = async (theme, role, size, extra = []) => {
+        const [W, H] = size.split("x").map(Number);
+        const page = await browser.newPage({ viewport: { width: W, height: H } });
+        const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : "", ...extra].filter(Boolean);
+        await page.goto(`${base}/${page0}${qs.length ? (page0.includes("?") ? "&" : "?") + qs.join("&") : ""}`);
+        const loaded = await page.waitForFunction(() => window.__glass && window.drpgTurn, null, { timeout: 15000 }).then(() => true, () => false);
+        if (loaded) { await page.waitForTimeout(waitMs); await page.evaluate(() => document.body.classList.add("drpg-no-pulse")); }
+        return { page, loaded };
+    };
+    const metric = async cdp => Object.fromEntries((await cdp.send("Performance.getMetrics")).metrics.map(m => [m.name, m.value])).TaskDuration;
+    /* the clock page: Chromium's main-thread time around the rest and the turn, and the page's own readings */
+    const clock = async (theme, role, size, kind, extra = []) => {
+        const { page, loaded } = await open(theme, role, size, extra);
+        if (!loaded) { await page.close(); return null; }
+        const cdp = await page.context().newCDPSession(page);
+        await cdp.send("Performance.enable");
+        await page.evaluate(k => window.drpgTurn(k, { stage: "arm" }), kind);
+        const a = await metric(cdp);
+        await page.evaluate(([k, ms]) => window.drpgTurn(k, { stage: "rest", rest: ms }), [kind, turnMs]);
+        const b = await metric(cdp);
+        const r = await page.evaluate(([k, ms]) => window.drpgTurn(k, { stage: "run", ms }), [kind, turnMs]);
+        const c = await metric(cdp);
+        await page.close();
+        return { ...r, main: Math.round((c - b) * 1000), restMain: Math.round((b - a) * 1000) };
+    };
+    /* the texture page: a picture at rest, the screencast through the turn, a picture after it. A square of the band
+       counts where it holds 16 of its 64 cells and its reference - the lower of rest and after, so words the turn takes
+       away or glass it lays where a block stood are not read as texture lost - is 1 or more; its ratio is the lowest
+       of its frames from the first moved to the last over that reference, and `worst` is the lowest square's. */
+    const texture = async (theme, role, size, kind) => {
+        const { page, loaded } = await open(theme, role, size);
+        if (!loaded) { await page.close(); return null; }
+        await page.evaluate(k => window.drpgTurn(k, { stage: "arm" }), kind);
+        await page.evaluate(k => window.drpgTurn(k, { stage: "rest", rest: 300 }), kind);
+        const rest = (await page.screenshot({ type: "png" })).toString("base64");
+        const cdp = await page.context().newCDPSession(page), frames = [];
+        cdp.on("Page.screencastFrame", async f => { frames.push({ ts: f.metadata.timestamp, data: f.data }); try { await cdp.send("Page.screencastFrameAck", { sessionId: f.sessionId }); } catch { /* the page closed */ } });
+        await cdp.send("Page.startScreencast", { format: "png", everyNthFrame: 1 });
+        await page.waitForTimeout(300);
+        const r = await page.evaluate(([k, ms]) => window.drpgTurn(k, { stage: "run", ms }), [kind, turnMs]);
+        await cdp.send("Page.stopScreencast");
+        const after = (await page.screenshot({ type: "png" })).toString("base64");
+        await page.close();
+        if (!r.band) return { r, rest: null, after: null, low: null, n: 0 };
+        const R = await calc.evaluate(turnTexture, [rest, r.band]), A = await calc.evaluate(turnTexture, [after, r.band]);
+        if (r.first == null) return { r, rest: R.all, after: A.all, low: null, n: 0 };
+        const series = [];
+        for (const f of frames.map(f => ({ ms: Math.round(f.ts * 1000 - r.wall), data: f.data })).filter(f => f.ms >= r.first - 1 && f.ms <= r.last + 1))
+            series.push([f.ms, await calc.evaluate(turnTexture, [f.data, r.band])]);
+        let worst = null;
+        for (const [k, [ref0, cells]] of Object.entries(R.tiles)) {
+            const ref = Math.min(ref0, A.tiles[k]?.[0] ?? ref0);
+            if (cells < 16 || ref < 1 || !series.length) continue;
+            const low = Math.min(...series.map(([, v]) => v.tiles[k]?.[0] ?? ref));
+            if (!worst || low / ref < worst.ratio) worst = { at: k, ratio: +(low / ref).toFixed(2), low, ref };
+        }
+        return { r, rest: R.all, after: A.all, low: series.length ? Math.min(...series.map(([, v]) => v.all)) : null, n: series.length, worst,
+            series: series.map(([ms, v]) => [ms, v.all]) };
+    };
+    /* the flash page: a picture at rest, then the clock stood still inside the flash's hold */
+    const flash = async (theme, role, size, kind, extra = []) => {
+        const { page, loaded } = await open(theme, role, size, extra);
+        if (!loaded) { await page.close(); return null; }
+        await page.evaluate(k => window.drpgTurn(k, { stage: "prep" }), kind);
+        const rest = (await page.screenshot({ type: "png" })).toString("base64");
+        await page.evaluate(() => window.drpgTurnFreeze(84));
+        const r = await page.evaluate(k => window.drpgTurn(k, { stage: "fire", ms: 1500 }), kind);
+        const peak = (await page.screenshot({ type: "png" })).toString("base64");
+        await page.close();
+        return { r, rest: await calc.evaluate(turnFlashPeak, [rest, r.seams]), peak: await calc.evaluate(turnFlashPeak, [peak, r.seams]) };
+    };
+    const n1 = v => v == null ? "-" : String(Math.round(v));
+    const worst = cs => { const k = (cs ?? []).filter(Boolean); return k.length ? [0, 1, 2].map(i => Math.max(...k.map(c => c[i]))) : null; };
+    const judge = (kind, c, t, f, base) => {
+        const why = [];
+        if (c.clip.frames) why.push(`${c.clip.frames} frame(s) wrote a clip path (E23-01)`);
+        if (c.draw.frames) why.push(`${c.draw.frames} frame(s) drew on a canvas (E23-01)`);
+        if (t?.worst && t.worst.ratio < TEX_MIN) why.push(`the texture inside the turn fell to ${Math.round(100 * t.worst.ratio)} % of rest in the square at ${t.worst.at} (${t.worst.low}/${t.worst.ref}; E23-04: 80 %)`);
+        if (f?.peak && outside(f.peak.p50, base)) why.push(`the flash peak ${f.peak.p50} stands outside ${base} +/- ${FLASH} (E23-03)`);
+        if (kind === "hour" && (c.cut !== "same" || c.cuts)) why.push(`an hour's turn recut: cut ${c.cut}, ${c.cuts} drpgGlassCut (E23-06)`);
+        if (c.tilt?.none) why.push(`a corner button stood straight in ${c.tilt.none} frame(s) of the turn: ${c.tilt.straight.join(", ")} (E23-10)`);
+        /* inside the turn no worse than the cut it leaves or the one it found: a fault of the end state is the cut's,
+           read by the sweep proper, not the turn's */
+        const w = worst(c.checks), ends = worst([c.check0, c.check]);
+        if (w && ends && w.some((v, i) => v > ends[i])) why.push(`the self-check inside the turn read ${w.join("/")}, worse than ${ends.join("/")} before and after (E23-08)`);
+        return why;
+    };
+    const line = (kind, size, role, c, t, f, base) => `turn ${kind.padEnd(11)} ${size.padEnd(9)} ${role.padEnd(6)} main ${c.main} (rest ${c.restMain}) long ${c.long.length}/${c.long.length ? Math.max(...c.long) : 0} `
+        + `frames ${c.frames ? `${c.frames.med}/${c.frames.p95}/${c.frames.max}` : "-"} (rest ${c.rest?.frames?.med ?? "-"}) first ${n1(c.first)} len ${n1(c.last)} `
+        + `clip ${c.clip.frames}/${c.clip.writes} draw ${c.draw.frames}/${c.draw.calls} tex ${t?.low ?? "-"}/${t?.rest ?? "-"}/${t?.after ?? "-"} worst ${t?.worst ? `${Math.round(100 * t.worst.ratio)}% at ${t.worst.at}` : "-"} (${t?.n ?? 0} frames) `
+        + `flash ${f?.peak ? `${f.peak.p50}/${f.rest?.p50 ?? "-"}${base == null ? " (unjudged)" : ""}` : "-"} cut ${c.cut}/${c.cuts} check ${(worst(c.checks) ?? ["-", "-", "-"]).join("/")} (${(c.check0 ?? ["-"]).join("/")} -> ${(c.check ?? ["-"]).join("/")}) `
+        + `tilt ${c.tilt ? `${c.tilt.none}/${c.tilt.frames} worn ${c.tilt.worn} (${c.tilt.buttons} buttons)` : "-"}`;
+    try {
+        for (const theme of tThemes) for (const role of roles) for (const size of (opt("--sizes") ?? "1600x900,1366x768").split(",")) {
+            for (const kind of KINDS) {
+                const cs = [];
+                for (let i = 0; i < runs; i++) cs.push(await clock(theme, role, size, kind));
+                if (cs.some(c => !c)) { console.log(`turn ${kind} ${size} ${role} FAIL: the page did not load the glass or drpgTurn`); bad++; continue; }
+                const t = await texture(theme, role, size, kind);
+                const f = MOVES_ACCENT.includes(kind) ? await flash(theme, role, size, kind) : null;
+                const base = flashBase(theme, role, size, kind);
+                if (kind === "hour" && f?.peak) hourFlash.set(`${theme} ${role} ${size}`, f.peak.p50);
+                for (const c of cs) {
+                    const why = judge(kind, c, t, f, base);
+                    console.log(line(kind, size, role, c, t, f, base) + (why.length ? `  - FAIL: ${why.join("; ")}` : ""));
+                    if (why.length) bad++;
+                    readings.push({ theme, role, size, kind, clock: { ...c, seams: c.seams.length, band: c.band && { ...c.band, cells: c.band.cells.length } }, texture: t && { rest: t.rest, after: t.after, low: t.low, worst: t.worst, n: t.n, series: t.series, band: t.r.band && { ...t.r.band, cells: t.r.band.cells.length } }, flash: f && { rest: f.rest, peak: f.peak, cut: f.r.cut, acc: f.r.acc }, why });
+                }
+            }
+            if (control && !today) {
+                const c = await clock(theme, role, size, "phase-recut", ["turn=today"]);
+                today = { c, ok: Boolean(c && c.clip.frames > 0) };
+                console.log(`turn control ?turn=today (${c?.today ?? "-"}) ${size} ${role}: phase-recut clip ${c ? `${c.clip.frames}/${c.clip.writes}` : "-"}${today.ok ? " - read" : "  - FAIL: the control's clip-path writes were not read"}`);
+                if (!today.ok) bad++;
+                /* judged against this run's own hour at this size where it read one, else the line's band */
+                const f = await flash(theme, role, size, "hour", ["flash=0.5"]), base = hourFlash.get(`${theme} ${role} ${size}`) ?? flashBase(theme, role, size, "hour");
+                halfFlash = { f, ok: Boolean(f?.peak && outside(f.peak.p50, base)) };
+                console.log(`turn control ?flash=0.5 ${size} ${role}: hour flash ${f?.peak ? `${f.peak.p50}/${f.rest?.p50 ?? "-"}` : "-"} against ${base ?? "-"} +/- ${FLASH}${halfFlash.ok ? " - out of its band, read" : "  - FAIL: the flash at half its opacity was not read out of its band"}`);
+                if (!halfFlash.ok) bad++;
+                const ct = await clock(theme, role, size, "hour", ["tilt=flat"]);
+                const flatOk = Boolean(ct?.tilt?.none && ct.tilt.straight.includes("drpg-book-launcher"));
+                console.log(`turn control ?tilt=flat ${size} ${role}: hour tilt ${ct?.tilt ? `${ct.tilt.none}/${ct.tilt.frames} straight ${ct.tilt.straight.join(",") || "-"}` : "-"}${flatOk ? " - read" : "  - FAIL: the upright handbooks button was not read as straight"}`);
+                if (!flatOk) bad++;
+                readings.push({ theme, role, size, control: { today: c && { clip: c.clip, today: c.today }, flash: f && { rest: f.rest, peak: f.peak }, tilt: ct?.tilt ?? null } });
+            }
+        }
+    } finally { await browser.close(); srv?.kill(); }
+    if (json) writeFileSync(json, JSON.stringify({ when: new Date().toISOString(), turnMs, readings }, null, 1));
+    console.log(`TURN ${bad ? "RED" : "GREEN"}: ${readings.filter(r => r.kind).length} reading(s), ${KINDS.length} turn(s); headless Chromium (software): a shape against 1d860414's, not a table's number`);
+    process.exit(bad ? 1 : 0);
+}
+
 /* Runs in the page: `ms` of nothing done, once the load is 6 s old - the passes of the glass begun (the measuring
    attribute set where it was absent), the transform transitions started and on what, and the shifts the rotation
    sheet gives the blocks other than the two rails. */
@@ -861,13 +1453,14 @@ async function plantVoiceRow() {
    the page put back. Nothing here calls a pass: the clock changing size is what must move the tile, through the
    module's own observers (Stained Glass's on its blocks, `schedule`; Legacy's on the clock and its neighbours,
    `placeFlatRoomTile`), as at a table where nobody calls one either. The wait covers the turn as well: the move
-   recuts the curtain, and for the turn's length the old curtain's ghost stands between the picture and its glow -
+   recuts the curtain, and for the turn's length the old curtain's ghost stood between the picture and its glow -
    read at 1500 ms the room check failed on exactly that, and from 2000 ms on the order was back (Stained,
-   1920x1080, 13.10.2026). */
+   1920x1080, 13.10.2026). Since E23 C1b the turn's layers are what is waited out (glass.mjs `glassTurn`: the panes and
+   batches of `#drpg-curtain-turn`, the old glow's copy). */
 async function plantPin(px) {
     const hud = document.getElementById("drpg-hud"), g = window.__glass, tile = document.getElementById("drpg-room-tile");
     const wait = ms => new Promise(r => setTimeout(r, ms));
-    const pass = async () => { await wait(1500); for (let i = 0; i < 50 && document.querySelector(".drpg-curtain-ghost"); i++) await wait(100); };
+    const pass = async () => { await wait(1500); for (let i = 0; i < 50 && document.querySelector("#drpg-curtain-turn > canvas, .drpg-turn-glow"); i++) await wait(100); };
     hud.style.setProperty("max-height", "none", "important"); hud.style.setProperty("min-height", (hud.offsetHeight + px) + "px", "important");
     await pass();
     const res = { px, got: tile?.dataset.place ?? "-", F: g.LAST.room?.F ?? null, check: await window.drpgRoomCheck({ cuts: false }) };
@@ -990,10 +1583,11 @@ function deskAgain() {
 }
 
 const trayControlled = new Set();
+let trackControlled = false, schemeControlled = false;
 let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, paneControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false, voiceControlled = false, voiceNoneControlled = false, voiceRowControlled = false, idleRead = false, fillControlled = false, objectionControlled = false, dockControlled = false;
 try {
     for (const theme of themes) for (const role of roles) {
-        const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
+        const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : "", scheme ? `scheme=${scheme}` : ""].filter(Boolean);
         const query = qs.length ? (page0.includes("?") ? "&" : "?") + qs.join("&") : "";
         for (const size of SIZES) {
             const [W, H] = size.split("x").map(Number);
@@ -1280,6 +1874,36 @@ try {
                     if (v.ok) fails.push("dock control reads as a pass");
                 }
             }
+            /* THE TRACK BAND (E23 C2a): the page's `drpgTrackCheck` - the band filled, emptied and filled again - and its
+               control once a run, 2b866dde's road planted (below, `--track`). The line prints the clock's heights. */
+            if (tracks) {
+                const tc = await page.evaluate(() => window.drpgTrackCheck?.() ?? null);
+                if (!tc) fails.push("the page defines no drpgTrackCheck");
+                else {
+                    line += ` | track ${tc.ok ? "ok" : "NOT ok"} h ${[...new Set(tc.steps.map(s => s.h))].join("/")} band ${tc.steps[0]?.band ?? "-"} cut ${tc.cut} cuts ${tc.cuts}`;
+                    if (!tc.ok) fails.push("track: " + tc.why);
+                    if (control && !trackControlled) {
+                        trackControlled = true;
+                        const v = await page.evaluate(() => window.drpgTrackCheck({ plant: true }));
+                        console.log(`  track control  ${v.ok ? "MISSES IT" : "sees it"}: ${String(v.why).slice(0, 140)}`);
+                        if (v.ok) fails.push("track control reads as a pass");
+                    }
+                }
+            }
+            /* A LIGHT CLIENT (E24 C4a): the page's `drpgSchemeCheck`, and its control until one page reads it (above). */
+            if (scheme) {
+                const sc = await page.evaluate(() => window.drpgSchemeCheck?.() ?? null);
+                if (!sc) fails.push("the page defines no drpgSchemeCheck");
+                else {
+                    line += ` | scheme ${sc.ok ? "ok" : "NOT ok"} ${sc.rows.filter(x => x.ratio !== undefined).length}/${sc.rows.length}`;
+                    if (sc.page !== "light") fails.push("scheme: the page is not a light client's");
+                    if (!sc.ok) fails.push("scheme: " + sc.why);
+                    if (control && !schemeControlled) {
+                        const v = await page.evaluate(() => window.drpgSchemeCheck({ plant: true }));
+                        if (!v.ok) { schemeControlled = true; console.log(`  scheme control sees it: ${String(v.why).slice(0, 140)}`); }
+                    }
+                }
+            }
             if (!r.tile) fails.push("no #drpg-notices-corner");
             if (errs.length) line += " | pageerror " + errs[0].slice(0, 80);
             if (fails.length) { bad++; line += "  FAIL: " + fails.join("; "); }
@@ -1409,9 +2033,11 @@ if (control && rooms && !opt("--sizes") && themes.some(t => !pinControlled.has(t
 if (control && rooms && !opt("--sizes") && themes.includes("stained") && !paneControlled) { bad++; console.log("FAIL: the pane controls never ran (no Stained Glass size placed the tile beside the notices)"); }
 if (control && notices && themes.includes("stained") && !fillControlled) { bad++; console.log("FAIL: the fill controls never ran (no Stained Glass desk read the card on its pane)"); }
 if (control && rooms && stackedRead && !rowControlled) { bad++; console.log("FAIL: the row controls never ran (no stacked size read a row)"); }
+if (control && tracks && lines && !trackControlled) { bad++; console.log("FAIL: the track's control never ran"); }
+if (control && scheme && lines && !schemeControlled) { bad++; console.log("FAIL: the scheme's control never read a fault (no page's planted surfaces read under their figure)"); }
 if (control && docks && lines && !dockControlled) { bad++; console.log("FAIL: the dock's control never ran (no size read the dock ok)"); }
 if (control && objections && lines && !objectionControlled) { bad++; console.log("FAIL: the objection controls never ran (no size read the trial row ok)"); }
 if (control && themes.includes("stained") && !trayControlled.has("stained")) { bad++; console.log("FAIL: the tray's control never ran (no Stained Glass page was read)"); }
 if (windows && placesRead && !placesControlled) { bad++; console.log("FAIL: the places' control never read an unclamped place off the screen or on the cluster"); }
-console.log(`SWEEP ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s) x ${roles.length} role(s) x ${SIZES.length} sizes, ${glassSizes} with glass, ${bad} failing`);
+console.log(`SWEEP ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s) x ${roles.length} role(s) x ${SIZES.length} sizes${scheme ? `, a ${scheme} client` : ""}, ${glassSizes} with glass, ${bad} failing`);
 process.exit(bad ? 1 : 0);

@@ -984,12 +984,24 @@ export function guardArmBuyer(sender, payload, ctx) {
     return game.actors.get(armBuyerId(payload)) ? null : "the paying character does not exist";
 }
 
-/** And, for a Call aimed at another player, be somebody other than the character it is armed on (E29 C8: any other is the buyer's own). */
-export function guardArmOtherCharacter(sender, payload, ctx) {
+/*
+ * And, for a Call aimed at another player, be somebody other than the character it is armed on (E29 C8: any other is
+ * the buyer's own) - and a student (E24 fix G1, 09.11.2026; the owner: "wylacz takie npc", the general review's m7): a
+ * character marked "Not in the class" or a Monokuma is no Call's target. The picker offers neither (call-pickers.mjs
+ * `pickPlayer`); a console's packet that names one is refused here, by the flags as the GMs hold them (monokuma.mjs
+ * `studentActors` with sheet-audit.mjs `flagsHeldNow`), told as "cannot now" - the declaration's `prepare` has waited for the beneficiary's
+ * writes to be judged, so a flag the beneficiary's own console forged is not the one read (R1494).
+ */
+export async function guardArmOtherCharacter(sender, payload, ctx) {
     if (sender.isGM || HOPE_CALLS[payload.call?.key]?.target !== "player") return null;
     const buyer = game.actors.get(armBuyerId(payload));
-    return buyer && buyer.id === game.actors.get(payload.actorId)?.id
-        ? "a Call for somebody else, aimed at the buyer" : null;
+    const target = game.actors.get(payload.actorId);
+    if (buyer && buyer.id === target?.id) return "a Call for somebody else, aimed at the buyer";
+    const [{ studentActors }, { flagsHeldNow }] = await Promise.all([import("./monokuma.mjs"), import("./sheet-audit.mjs")]);
+    if (!target || studentActors({ held: flagsHeldNow }).some(a => a.id === target.id)) return null;
+    // Told as `guardArmLiving` tells a death: "cannot now", which names nobody; why is in this GM's log.
+    warn(`A Call on ${target.name} was refused: not a student (not in the class, or a Monokuma).`);
+    return "that cannot be done now";
 }
 
 /** The buyer may spend a Hope Call now, for the reasons their own client would ask (`hopeCallRefusal`). */

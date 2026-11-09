@@ -217,9 +217,12 @@ export const FLOWS = Object.freeze([
     // packet, and no scenario drove the Monocub's ask. E33 C4 (07.10.2026): 83 does - p2's dead Botan meddles in Aiko's
     // next roll from p2's browser, and Aiko's roll spends it with no alarm. E33 C10: the Meddle is the `meddle` row of
     // the Monocub's table, asked as `monocub.ability` (monocub.mjs `performCubAbility`, `cubAbilityOnGm`); 40 drives
-    // the ask end to end, 30 its forgeries.
+    // the ask end to end, 30 its forgeries. Train 1.2.101 (09.11.2026): partial until E45 since E30 (E45 was to drive
+    // the sheet's own button, then sheet.mjs `meddleButton`, which E33 C10 folded into the table); E45 shipped without
+    // it, and no scenario or tier-1 test clicks the sheet's Monocub tile - 40 and 83 call `performCubAbility` from
+    // p2's console, 71's part C reads the tile turn affordable. Moved to E72, the Monocub's stage.
     { id: "monocub-meddle", what: "A Monocub meddles: asked on the player's side, applied by the GM",
-        entry: { bridge: ["monocub.ability"], sockets: ["call-effects.mjs"] }, scenarios: ["40-flow", "83-roll-integrity"], status: "partial", stage: "E45" },
+        entry: { bridge: ["monocub.ability"], sockets: ["call-effects.mjs"] }, scenarios: ["40-flow", "83-roll-integrity"], status: "partial", stage: "E72" },
     // Partial until E32 when E30 wrote it (E32's grid was to complete it). At the 1.2.66 release (03.10.2026) four of
     // its five actions are sent from a player's browser in a ci scenario - murder.crisis and murder.betrayal (13),
     // murder.park (30, 61), murder.cleanup (72) - and murder.openingResult in none: each scenario resolves the opening

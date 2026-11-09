@@ -191,15 +191,23 @@ const NOTE_MAX = 360;
    in it, and the strip reserved four columns of glass beside two tiles ("za szeroka",
    Dawid). The tile gives up what a narrower strip is worth only while it keeps its floor;
    past that, the tools wrap as they did. */
-function gaugeFoot(H, s) {
+/** The notice tile's foot over the screen's bottom edge: 8 px over Foundry's gauge where it stands on the floor, else 100 on the geometry scale. */
+export function gaugeFoot(H, s) {
   const gauge = document.querySelector("#players");
   const g = gauge && gauge.offsetWidth > 0 && gauge.offsetHeight > 0 ? gauge.getBoundingClientRect() : null;
   /* The gauge only counts where it stands on the floor. In the glass harness it follows the
      rail down the column instead, and a foot read off that would put the tile mid-screen.
      The floor is the dock's top while a dock is shown (`avLift`): a gauge the dock lifted
-     still counts, and the foot never stands lower than 8 px over the dock. */
+     still counts, and the foot never stands lower than 8 px over the dock.
+     AND ONLY WHERE IT STANDS ON THE SCREEN (E23 C4b, 08.11.2026; S12-96, E23-22). On a stacked
+     screen the stack pushes Foundry's left column down by its own height, and a prototype run at
+     1200x800 read `#players` at y 1164: past the floor, so "near the floor" held, and the foot came
+     out 8 px over the dock - the tile's foot on the screen's edge, off a gauge nobody can see. A
+     gauge with any part under the screen's edge, or above its top, is no gauge; narrow.css stands
+     a GM's on the screen's foot when stacked and hides a player's. */
   const lift = avLift();
-  return g && g.bottom > H - lift - 80 ? Math.round(Math.max(H - g.top + 8, lift + 8)) : Math.round(lift + 100 * s);
+  const seen = g && g.top >= 0 && g.bottom <= H + 0.5;
+  return seen && g.bottom > H - lift - 80 ? Math.round(Math.max(H - g.top + 8, lift + 8)) : Math.round(lift + 100 * s);
 }
 function fitNoteTile(H, railEnds, s) {
   const body = document.body;
@@ -243,6 +251,8 @@ function fitNoteTile(H, railEnds, s) {
    read `--drpg-room-h` and state no height of their own (R509). */
 const ROOM = { place: null, box: null };
 const ROOM_TAN = Math.tan(8 * Math.PI / 180);
+/* The narrowest box the tile is placed at beside the notices under Monokuma Legacy: `flatPlacement`. */
+const ROOM_MIN_W = 265;
 const ROOM_VARS = ["--drpg-room-h", "--drpg-room-w", "--drpg-room-x", "--drpg-room-y", "--drpg-room-min-h", "--drpg-room-max-h"];
 function roomSizes(w) {
   const t = parseFloat(getComputedStyle(document.body).getPropertyValue("--drpg-sg-scale")) || 1;
@@ -387,11 +397,18 @@ function flatPlacement(W, H) {
      short of it. So the free width ends 16 px before the left of what Foundry's right column draws
      (its status column, and the sidebar where a GM's switch leaves it there), as it ends 16 px
      before the screen's edge. Where nothing is left there (1366x768 above), the tile keeps the
-     clock's place at the smallest box, as it does with no stack drawn. */
+     clock's place at the smallest box, as it does with no stack drawn.
+     A SLIVER IS NOTHING LEFT (E23 fix G3b, 08.11.2026). "Nothing" was `free < 1`, so any width at all
+     took the tile beside the notices at that width. With E23 fix G3's Legacy tray capped at 360 px the
+     right column began at 982 px on the glass harness at 1366x560 (848 uncapped, 903 at ce3a821f), free
+     read 51 and the tile was drawn 51x189 beside the notice stack - and moved when its words changed
+     (the sweep's second reading). The tile now goes there only where it gets at least ROOM_MIN_W, the
+     narrowest box it is drawn at anywhere the sweep pins it: 265, Stained Glass's under the clock at
+     1920x1080 (BOX in audit/glass-sweep.mjs, the accepted tile of E78 C0). */
   const right = ["#ui-right-column-1", "#sidebar"].map(q => document.querySelector(q))
     .filter(e => e && e.offsetWidth > 0 && e.offsetHeight > 0 && !inFoundryWindow(e)).map(e => e.getBoundingClientRect().left);
   const x = sb ? Math.round(sb.right + 16) : 0, free = Math.round(Math.min(W, ...right) - 16 - x);
-  if (F >= need || !sb || free < 1) return { place: "clock", flat: true, F, need, maxH, free: sb ? free : null, x: Math.round(hud.left), w: Math.round(hud.width), h: Math.round(F >= need ? Math.min(F, maxH, roomCapH(H, need)) : need) };
+  if (F >= need || !sb || free < ROOM_MIN_W) return { place: "clock", flat: true, F, need, maxH, free: sb ? free : null, x: Math.round(hud.left), w: Math.round(hud.width), h: Math.round(F >= need ? Math.min(F, maxH, roomCapH(H, need)) : need) };
   const y = Math.round(sb.top), w = Math.round(Math.min(hud.width, free));
   return { place: "notes", flat: true, F, need, maxH: roomSizes(w).maxH, free, x, y, w, h: Math.round(Math.min(roomSizes(w).maxH, H - foot - 8 - y, roomCapH(H, roomSizes(w).need))) };
 }
@@ -482,7 +499,16 @@ export function seatRoomArt() {
   art.id = "drpg-room-art";
   art.classList.toggle("is-open", tile.classList.contains("is-open"));
   layOnPane(art, paneLayer(pane.poly, tileTurn("#drpg-room-tile")), cur);
-  if (cur.nextElementSibling !== art) cur.after(art);
+  const top = curtainTop(cur);
+  if (top.nextElementSibling !== art) top.after(art);
+}
+/* The curtain and the turn's two layers above it (E23 C1b: `#drpg-curtain-turn`, `#drpg-curtain-flash`): the pictures
+   stand after the last of them, so a turn's moving glass passes under the room's picture and the voice tile's
+   portrait, as the morph's canvas did inside the curtain. */
+function curtainTop(cur) {
+  let top = cur;
+  for (const id of ["drpg-curtain-turn", "drpg-curtain-flash"]) if (top.nextElementSibling?.id === id) top = top.nextElementSibling;
+  return top;
 }
 /* THE PICTURES LEAN WITH THEIR PANE (H83, the owner's 26.10.2026 note: "Tak jak grafika postaci jest obrocona z
    kafelkiem, tak grafika pokoju tez powinna", and of the voice tile's portrait, "Tak, tez pochylic"). A block is
@@ -633,8 +659,8 @@ export function seatVoiceArt() {
   }
   art.id = "drpg-voice-art";
   layOnPane(art, paneLayer(pane.poly, tileTurn("#drpg-voice-tile")), cur);
-  const room = document.getElementById("drpg-room-art");
-  const after = room && room.previousElementSibling === cur ? room : cur;
+  const room = document.getElementById("drpg-room-art"), top = curtainTop(cur);
+  const after = room && room.previousElementSibling === top ? room : top;
   if (after.nextElementSibling !== art) after.after(art);
 }
 /* THE NOTICE CARD FILLS ITS PANE (E79 C13, the owner's N16 of 15.10.2026, "as the room tile and the
@@ -666,8 +692,8 @@ export function seatNoteFrame() {
   const set = { position: "fixed", left: (at.left + x0) + "px", top: (at.top + y0) + "px", width: (x1 - x0) + "px", height: (y1 - y0) + "px",
     "clip-path": "polygon(" + pane.poly.map(q => (q[0] - x0).toFixed(1) + "px " + (q[1] - y0).toFixed(1) + "px").join(", ") + ")", "z-index": cur.style.zIndex || "1" };
   for (const [k, v] of Object.entries(set)) frame.style.setProperty(k, v);
-  let after = cur.parentElement.querySelector(":scope > .curtain-glow[data-glow]:not(.drpg-glow-ghost)");
-  if (!after) { after = cur; while (after.nextElementSibling && after.nextElementSibling !== frame && ["drpg-room-art", "drpg-voice-art"].includes(after.nextElementSibling.id)) after = after.nextElementSibling; }
+  let after = cur.parentElement.querySelector(":scope > .curtain-glow[data-glow]:not(.drpg-turn-glow)");
+  if (!after) { after = curtainTop(cur); while (after.nextElementSibling && after.nextElementSibling !== frame && ["drpg-room-art", "drpg-voice-art"].includes(after.nextElementSibling.id)) after = after.nextElementSibling; }
   if (after.nextElementSibling !== frame) after.after(frame);
 }
 /* ---- the rotations: one stylesheet, rewritten after every geometry pass ----------------------
@@ -722,16 +748,17 @@ const RAIL_LEAN = 5 * Math.PI / 180;
    - and with it every way of changing tab or closing the thing again (Dawid, 07.09). Foundry
    marks the open sidebar with nothing at all - no class, no attribute, only a width - so the
    module marks it, and the rail's rule is written to apply only while it is shut. */
-let sidebarWatched = false;
+/* The observer is kept so that `unmount` can disconnect it (E23 C1c; S12-35): it was made once and never let go. */
+let sidebarWatch = null;
 function watchSidebar() {
   const bar = document.querySelector("#sidebar"), tabs = document.querySelector("#sidebar-tabs");
   if (!bar || !tabs) return;
   // a sidebar opened in the Foundry tools window (E77 C5) widens the window, not the right wall
   const read = () => document.body.classList.toggle("drpg-sidebar-open", !inFoundryWindow(bar) && bar.offsetWidth > tabs.offsetWidth + 40);
   read();
-  if (sidebarWatched) return;
-  sidebarWatched = true;
-  new ResizeObserver(read).observe(bar);
+  if (sidebarWatch) return;
+  sidebarWatch = new ResizeObserver(read);
+  sidebarWatch.observe(bar);
 }
 const RAIL_MARGIN = 16;
 /* WHERE A RAIL STILL IN THE COLUMN STARTS UNDER THE CLOCK. Until E77 C6 the GM button stood
@@ -848,8 +875,21 @@ function railRule(r) {
    when the screen's answer below changes a shift, and an unchanged pass writes nothing - which
    until E78 fix h76-HF2 this comment said and the code did not do (the shift was dropped from the
    first write of every pass, and the two writes were joined differently, so both happened). */
+/* NOTHING IS TURNED WITH NO CURTAIN ON THE PAGE (E23 C1c, 07.11.2026; S12-35). After a switch to Monokuma Legacy the
+   rails' ResizeObserver, never disconnected, ran this on the first click on the scene controls, and with the table it
+   still held it wrote the corner's buttons an inline `rotate` and put the rotation sheet back, which nothing took away
+   again. `unmount` now disconnects the observers and empties the table, and this stands down besides, off the theme or
+   with no curtain - whatever else may call it. A measuring flag a pass left on is still taken off. `rotationWrites`, a
+   test's road with no curtain, runs the passes themselves (`writeRotations`). */
 function applyRotations() {
-  const turned = new Set(ROT.filter(r => r.sel && !r.rail && r.transform && r.transform !== "none").map(r => r.sel));
+  if (!themeOn() || !curtains.length) {
+    if (document.body.hasAttribute("data-drpg-measuring")) measuring(false);
+    return;
+  }
+  writeRotations();
+}
+function writeRotations() {
+  const turned = new Set(ROT.filter(r => r.sel && !r.rail && !r.part && r.transform && r.transform !== "none").map(r => r.sel));
   for (const sel of OVERHANG.keys()) if (!turned.has(sel)) OVERHANG.delete(sel);
   const blockRule = r => {
     const shift = OVERHANG.get(r.sel);
@@ -877,7 +917,7 @@ function applyRotations() {
   /* the glass proposed the angle; this is the screen's answer to it */
   let moved = false;
   for (const r of ROT) {
-    if (!r.sel || !r.el || !r.transform || r.transform === "none" || r.rail) continue;
+    if (!r.sel || !r.el || !r.transform || r.transform === "none" || r.rail || r.part) continue;
     const was = OVERHANG.get(r.sel) || 0, shift = railOverhang(r.el, was);
     if (shift === was) continue;
     moved = true;
@@ -895,7 +935,8 @@ function applyRotations() {
 
 /* THE ROTATION PASSES, FOR A TEST THAT HAS NO LAYOUT (E78 fix h76-HF2, 14.10.2026; R547).
    jsdom cuts no curtain, so ROT is empty headless and `applyRotations` never runs there. This
-   runs it once per table given, in order, as consecutive passes do, and counts the writes of the
+   runs its passes (`writeRotations`, which `applyRotations` stands down from with no curtain since
+   E23 C1c) once per table given, in order, as consecutive passes do, and counts the writes of the
    sheet each pass made: an unchanged pass must make none, because in a browser every write
    that moves a rule is a snap and an 840 ms slide. It writes a sheet of its own
    (`drpg-glass-rotation-test`, which a test's stub reads) and keeps the screen's sheet, ROT
@@ -909,11 +950,35 @@ export function rotationWrites(tables) {
   mo.observe(sheet, { childList: true, characterData: true, subtree: true });
   OVERHANG.clear();
   try {
-    return tables.map(t => { ROT.length = 0; ROT.push(...t); applyRotations(); return { writes: mo.takeRecords().length, text: sheet.textContent }; });
+    return tables.map(t => { ROT.length = 0; ROT.push(...t); writeRotations(); return { writes: mo.takeRecords().length, text: sheet.textContent }; });
   } finally {
     mo.disconnect(); sheet.remove(); rotSheet = screen;
     ROT.length = 0; ROT.push(...rot); OVERHANG.clear(); for (const [k, v] of shifts) OVERHANG.set(k, v);
   }
+}
+
+/* A BLOCK'S ENTRIES IN THE ROTATION TABLE, read off its box and its pane's pivot (`px`, `py`) by the column's tilt.
+   THE CORNER'S BUTTONS TURN BY A RULE ON THEIR IDS (E23 C1d, 08.11.2026; the owner's 14.10: "the buttons in the
+   bottom-right corner sometimes refresh and straighten for no reason, and then tilt again"). A union's members each turn
+   about an origin of their own, so they were written an inline transform each (`sel: null`) - onto the element the last
+   real recut measured. Read in Chromium on the glass harness (1366x768, a GM; each launcher's transform sampled every
+   frame): turned through the load's rebuild, the watchdog's `mount`, a `refreshGlass`, a resize and back, a renderHud's
+   refill and the notice tile rebuilt; straight in every frame once the buttons were re-created as their render
+   functions re-create them (messenger-app.mjs `renderLauncher` on every message; the sound and handbooks buttons on
+   `canvasReady`), and through a `refreshGlass` after that, until a real recut. The pass that straightens them is every
+   pass over an unchanged cut: `moduleLayout` clears the inline transform of the element it finds - the new one - and the
+   fast path's `applyRotations` writes the table back onto the old one, out of the page. So a member with an id takes a
+   rule on its id, as every other block takes one on its selector, and a button made again wears it the moment it is in
+   the tree; `part` keeps it out of the wall's shift (`railOverhang`), which these never took. A member with no id keeps
+   the inline write. R1382. */
+export function blockTurns(b, px, py, turn) {
+  if (b.fixed) return [{ sel: b.sel, el: null, origin: (px - b.x) + "px " + (py - b.y) + "px", transform: turn }];
+  if (!b.el) return [];
+  const one = b.els.length === 1;
+  return b.els.map(e => {
+    const er = e.getBoundingClientRect(), id = !one && e.id ? "#" + (globalThis.CSS?.escape?.(e.id) ?? e.id) : null;
+    return { sel: one ? b.sel : id, el: e, part: Boolean(id), origin: (px - er.left) + "px " + (py - er.top) + "px", transform: turn };
+  });
 }
 
 /* THE RIGHT-HAND COLUMN STANDS STILL.
@@ -1430,12 +1495,15 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
   const rgba = (h, a) => "rgba(" + hex(h).join(",") + "," + a + ")";
   const DEG = Math.PI / 180;
 
-  const probe = document.createElement("span");
-  probe.style.position = "absolute"; probe.style.visibility = "hidden";
-  document.body.append(probe);
+  /* THE PROBE IS MADE WHEN A COLOUR IS FIRST ASKED FOR (E23 C1c, 07.11.2026; S12-35). It was put in the body when this
+     file was imported, on every client, whatever its theme. It is made by the first `resolveAcc` now, put back by the
+     next one if something took it out of the page, and taken out by `unmount` (R1380). */
+  let accProbe = null;
   const resolveAcc = w => {
-    probe.style.color = getComputedStyle(w).getPropertyValue("--acc") || "#7fe4ff";
-    const m = getComputedStyle(probe).color.match(/[0-9]+/g);
+    if (!accProbe) { accProbe = document.createElement("span"); accProbe.style.position = "absolute"; accProbe.style.visibility = "hidden"; }
+    if (!accProbe.isConnected) document.body.append(accProbe);
+    accProbe.style.color = getComputedStyle(w).getPropertyValue("--acc") || "#7fe4ff";
+    const m = getComputedStyle(accProbe).color.match(/[0-9]+/g);
     return m ? "#" + m.slice(0, 3).map(n => (+n).toString(16).padStart(2, "0")).join("") : "#7fe4ff";
   };
 
@@ -1813,7 +1881,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     const rot = (X, Y) => [px + X * cs - Y * sn, py + X * sn + Y * cs];
     // the rotation goes into a stylesheet rule keyed by the block's selector (applyRotations), so a
     // block the module re-renders from scratch wears it the moment it appears; a union of several
-    // elements gets inline styles, because each has its own origin
+    // elements, each with its own origin, gets a rule a member keyed by its id (`blockTurns`, E23 C1d)
     const turn = Math.abs(phi) < 0.004 ? "none" : "rotate(" + phi + "rad)";
     /* THE VOICE TILE IS THE TRAY COLUMN'S TAIL (E78 C6). It takes no part in the column's tilt or
        width - those are the tray's and the status strip's, as they were before it - and is settled
@@ -1836,12 +1904,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
          element is not measured and may not exist yet. Since E81 C8 popup.mjs builds the tile at
          `ready`, with the history's button in its corner and before the glass is cut, but the rule
          does not lean on that: a tile removed and rebuilt by `container()` turns all the same. */
-      if (b.fixed) { ROT.push({ sel: b.sel, el: null, origin: (px - b.x) + "px " + (py - b.y) + "px", transform: turn }); continue; }
-      if (!b.el) continue;
-      for (const e of b.els) {
-        const er = e.getBoundingClientRect();
-        ROT.push({ sel: b.els.length === 1 ? b.sel : null, el: e, origin: (px - er.left) + "px " + (py - er.top) + "px", transform: turn });
-      }
+      ROT.push(...blockTurns(b, px, py, turn));
     }
     /* TWO COLUMNS SHARE THE GAP BETWEEN THEM, THEY DO NOT EACH CLAIM IT.
        -----------------------------------------------------------------------
@@ -2321,17 +2384,18 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
    * WHAT IT CANNOT DO, AND WHY THAT IS THE SHAPE RATHER THAN THE CODE. A seam
    * between two full-width rows has to run the full width, and it may not reach
    * into either row: with 14 px between them it can lean about a degree and no
-   * more. The character has to come from where there is room for it - the field
-   * below the stack, which on a phone in portrait is most of the screen, and the
-   * strips down the two rails. Horizontal slabs at the top and broken glass below
-   * is what a tall screen looks like, and pretending otherwise means cutting
+   * more. The character has to come from where there is room for it - the seam
+   * under the stack, which leans, and the strips down the two rails. Horizontal
+   * slabs at the top and the board open below them is what a tall screen looks
+   * like (E23 C4a: until then the field below was broken glass too, and it hid the
+   * board; step 4 says what it measured), and pretending otherwise means cutting
    * through the clock.
    *
    * Nothing here leans a block: `ROT` is left empty, so `applyRotations` writes an
    * empty sheet and every block stands upright. A full-width pane has nowhere to
    * lean to.
    */
-  function stackShapes(host, W, H, rnd, boxes) {
+  function stackShapes(host, W, H, rnd, boxes, given = null) {
     let pieces = [[[0, 0], [W, 0], [W, H], [0, H]]];
     /* one cut: a line through (px, py) at `ang`, applied to the pieces `only` admits.
        Restricting it to some of the pieces is still a partition - each piece is either
@@ -2457,10 +2521,18 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       if (own) claimed.add(own);
     }
 
-    /* 4. the field below the stack, where there is room to break the glass. The rails'
-       bands first - the strip down each wall is the piece between the wall and the
-       band's inner edge, and the tiles stand on it the way they do on a desk - then a
-       few long diagonals across what is left, and a band along the bottom edge. */
+    /* 4. the field below the stack: the rails' wall strips, and the board.
+       THE BOARD IS NOT GLASS (E23 C4a, 07.11.2026; S12-04, E23-20). Until 1.2.100 the field was broken
+       into a few long diagonals and a band along the foot, and every piece of it was a pane - painted
+       about 70 % black, so on a stacked screen the board went dark under the stack: read in Chromium on
+       the glass harness (6c9bd3c3), field panes covered 38 % of the screen at 1024x768, 54-55 % at
+       820x1180, 38-40 % at 393x852 and 38 % at 1200x800, all of it below the stack, with the self-check
+       0/0/0 throughout. On a desk the middle of the curtain is a hole and the board is seen; here it is
+       one too. The rails' bands are cut first - the strip down each wall is the piece between the wall
+       and the band's inner edge, glass the rail stands on as on a desk - and a block below the stack
+       (the corner's launchers) keeps the piece step 3 claimed for it. Every other piece of the field is
+       taken out of the partition and named `board` in OPEN_AREAS: the self-check holds it clear of every
+       pane (`openFails`) and does not count its points on the screen's edge as gaps (`cutCheck`). */
     /* THE FIELD BEGINS AT THE HIGH END OF THAT SEAM, NOT AT ITS MIDDLE.
        The seam leans, so the piece under it starts `rise` px above the y the cut was
        made at. Tested against the middle, every piece of the field failed the test and
@@ -2470,25 +2542,22 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     const fieldTop = yBase - rise - 1;
     const inField = p => bbox(p).y0 >= fieldTop;
     const cv = host.querySelector(".curtain > canvas.sg, #drpg-curtain > canvas.sg");
-    const bands = [
+    // `given` is a test's: two bands' inner edges, the scene rail's and the tab rail's (`cutBoxes`)
+    const bands = given ?? [
       railBox(host, cv, W, "#scene-controls", 0, null),
       railBox(host, cv, W, "#sidebar-tabs", 1, null)
     ];
-    for (const band of bands) {
-      if (!band || band.real === false || !Number.isFinite(band.band)) continue;
+    const strips = [];
+    bands.forEach((band, side) => {
+      if (!band || band.real === false || !Number.isFinite(band.band)) return;
       cut(band.band, yBase, Math.PI / 2, inField);
-    }
-    const fieldH = H - yBase;
-    if (fieldH > 120) {
-      for (const at of [0.34 + rnd() * 0.1, 0.66 + rnd() * 0.1]) {
-        const ang = (rnd() < 0.5 ? -1 : 1) * (16 + rnd() * 16) * DEG;
-        cut(W / 2, yBase + fieldH * at, ang, inField);
-      }
-    }
-    if (fieldH > 260) {
-      const ang = Math.PI / 2 + (rnd() - 0.5) * 0.5;
-      cut(W * (0.3 + rnd() * 0.4), yBase + fieldH / 2, ang, p => bbox(p).y0 >= fieldTop + fieldH * 0.15);
-    }
+      strips.push(side ? p => bbox(p).x0 >= band.band - 0.5 : p => bbox(p).x1 <= band.band + 0.5);
+    });
+    pieces = pieces.filter(p => {
+      if (!p || claimed.has(p) || !inField(p) || strips.some(own => own(p))) return true;
+      if (p.length >= 3 && area(p) > 12) OPEN_AREAS.push({ name: "board", poly: p });
+      return false;
+    });
 
     /* 5. the panes. A piece carrying a block's centre is that block's - its tone, and
        `empty` when the block is a reserved box with nothing in it today. Every other
@@ -2540,6 +2609,40 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     if (narrowLayout()) return stackShapes(host, W, H, rnd, boxes);
     return deskShapes(host, W, H, rnd, boxes, FW);
   }
+  /* THE TWO BANDS' SECTIONS MEET, THEY DO NOT CROSS (E23 fix G2, 08.11.2026; STATUS E23 Open 30 and 90, the end review's
+     goal M3 and screens m3; R1421). A column of the top band leans about its top corner and one of the bottom band about
+     its bottom corner, so on a short desk their far edges run towards each other at the wall. With C2a's taller clock
+     (7b4f286c) the clock's box ends at 236 at 1366x560 and the notice tile's starts at 336: the clock's pane reached the
+     left wall at y 288 and the notice tile's started there at 280, an 8 px wedge both held - ov 1 in both roles, seen as
+     two seams in an X. The bottom band's pane keeps its shape (the room tile beside it, its frame and the sweep's
+     PIN_PANE are read off it), and the top section that crosses it is cut along the one edge of it that leaves the most
+     glass: a half-plane keeps a convex pane convex, and the wedge it gives up is the other pane's, so no gap opens. A cut
+     that would take a corner of the top block off its pane is not made (a fault the self-check then reports, as before).
+     At every size where the two did not cross, nothing changes. */
+  function meetBands(topPanes, botPanes, top, W, H) {
+    for (const t of topPanes) {
+      if (t.kind !== "section") continue;
+      const col = top.find(c => c.items.some(b => b.cls === t.tone) || c.tail?.cls === t.tone);
+      const b = col && (col.items.find(i => i.cls === t.tone) ?? col.tail);
+      const corners = b ? [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]].map(([x, y]) => col.rot(x - col.px, y - col.py))
+        .filter(q => q[0] > 1 && q[0] < W - 1 && q[1] > 1 && q[1] < H - 1) : [];
+      for (const o of botPanes) {
+        if (o.kind !== "section" || !overlaps(t.poly, o.poly)) continue;
+        const P = o.poly, n = P.length, mx = P.reduce((s, q) => s + q[0], 0) / n, my = P.reduce((s, q) => s + q[1], 0) / n;
+        let best = null, kept = -1;
+        for (let i = 0; i < n; i++) {
+          const a = P[i], e = P[(i + 1) % n];
+          let nx = -(e[1] - a[1]), ny = e[0] - a[0];
+          if ((mx - a[0]) * nx + (my - a[1]) * ny > 0) { nx = -nx; ny = -ny; }   // the normal away from the bottom pane
+          const q = clipHP(t.poly, a[0], a[1], nx, ny);
+          if (!q || overlaps(q, P) || !corners.every(([x, y]) => inside(q, x, y))) continue;
+          const A = area(q);
+          if (A > kept) { kept = A; best = q; }
+        }
+        if (best) t.poly = best;
+      }
+    }
+  }
   /* the desk's cut, on its own since E78 C6 so `cutBoxes` can ask for it on a screen the
      harness lays out 1024 px wide, which is a stacked one */
   function deskShapes(host, W, H, rnd, boxes, FW) {
@@ -2583,6 +2686,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     const trayCol = voice ? top.find(c => c.items.some(b => b.cls === "tray")) : null;
     if (trayCol) { trayCol.tail = voice; trayCol.floor = voiceFloor(bot, voice, W, H); }
     top.forEach(c => buildColumn(ctx, c, top, "top"));
+    meetBands(panes, cutFirst, top, W, H);
     panes.push(...cutFirst);
 
     /* How far down each band is the strip's alone - see the note in `pushPane`. Read after
@@ -2776,6 +2880,46 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
   const layerAfter = (after, cls, W, H) => { let c = after.parentElement.querySelector(":scope > canvas." + cls); if (!c) { c = document.createElement("canvas"); c.className = cls; c.style.cssText = LAYER; after.after(c); } c.width = W; c.height = H; return c; };
   /* ---- the curtain: geometry now, paint when it is looked at -------------------- */
   const rng = seed => { let sd = seed; return () => { sd = (sd * 1664525 + 1013904223) % 4294967296; return sd / 4294967296; }; };
+  /* C1 AND C2 OF THE SELF-CHECK, on a cut (out of `curtainGeometry` in E23 fix G2, 08.11.2026, so `cutBoxes` reads a test's
+     cut with the same arithmetic, as `cutCheck` does C3 and C4). C1: two panes that overlap, a pane not convex. C2: a
+     block's corners, turned with its column, each on its own pane and on no other; and a block laid out past its box. */
+  export function cutParts(panes, W, H) {
+    let ov = 0, nonconvex = 0, blockFails = 0, fitFails = 0; const ncv = [];
+    for (let i = 0; i < panes.length; i++) { if (!convex(panes[i].poly)) { nonconvex++; ncv.push(panes[i].kind + ':' + panes[i].poly.map(q => q.map(v => Math.round(v)).join(',')).join(' ')); } for (let j = i + 1; j < panes.length; j++) if (overlaps(panes[i].poly, panes[j].poly)) ov++; }
+    for (const col of [...panes.meta.top, ...panes.meta.bot]) for (const b of col.tail ? [...col.items, col.tail] : col.items) {
+      /* THE BLOCK'S OWN PANE, NOT ITS COLUMN-MATE'S.
+         This used to accept a pane toned for ANY member of the merged column, so a block that
+         had been absorbed into a neighbour's pane and lost its own passed the check by standing
+         inside the neighbour's glass. That is exactly the failure this check exists to catch,
+         and it is why the Despair rail could lose its pane on a narrow screen and report clean. */
+      const own = panes.filter(p => p.content && p.tone === b.cls);
+      if (b.r && !b.clipped && (b.r.x < b.x - 0.5 || b.r.y < b.y - 0.5 || b.r.x + b.r.w > b.x + b.w + 0.5 || b.r.y + b.r.h > b.y + b.h + 0.5)) fitFails++;
+      const qs = [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]].map(([x, y]) => col.rot(x - col.px, y - col.py)).filter(q => q[0] > 1 && q[0] < W - 1 && q[1] > 1 && q[1] < H - 1);
+      for (const q of qs) {
+        if (!own.some(p => inside(p.poly, q[0], q[1]))) blockFails++;
+        if (panes.some(p => !own.includes(p) && inside(p.poly, q[0], q[1]))) blockFails++;
+      }
+    }
+    return { overlaps: ov, nonconvex, ncv, blockFails, fitFails };
+  }
+  /* C3 and C4 of the self-check, on a cut and its open areas (out of `curtainGeometry` in E23 C4a, so `cutBoxes` reads
+     a test's cut with the same arithmetic). C3: every 8 px along the screen's four edges, a point no pane covers is a
+     gap - unless an area the cut leaves open on purpose holds it: the stacked screen's `board` reaches the foot and
+     the walls where no rail stands (E23 C4a, S12-04). C4 (E78 C6): an open area holds no glass - `voice-left`, Q16,
+     and `board`. Every 8 px inside it, 3 px clear of its edges, where a seam is shared with the panes around it. */
+  export function cutCheck(panes, open, W, H) {
+    let edgeGaps = 0, openFails = 0;
+    const cover = (x, y) => panes.some(p => inside(p.poly, x, y)) || open.some(o => inside(o.poly, x, y));
+    for (let x = 4; x < W; x += 8) { if (!cover(x, 0.5)) edgeGaps++; if (!cover(x, H - 0.5)) edgeGaps++; }
+    for (let y = 4; y < H; y += 8) { if (!cover(0.5, y)) edgeGaps++; if (!cover(W - 0.5, y)) edgeGaps++; }
+    const clear = (P, x, y) => P.every((a, i) => { const b = P[(i + 1) % P.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return Math.abs((b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0])) / L > 3; });
+    for (const o of open) {
+      const bb = bbox(o.poly);
+      for (let x = Math.ceil(bb.x0); x < bb.x1; x += 8) for (let y = Math.ceil(bb.y0); y < bb.y1; y += 8)
+        if (inside(o.poly, x, y) && clear(o.poly, x, y) && panes.some(p => inside(p.poly, x, y))) openFails++;
+    }
+    return { edgeGaps, openFails };
+  }
   /* THE CUT, FOR A TEST THAT HAS NO CANVAS (E78 C6, 14.10.2026; R545).
      jsdom lays nothing out, so the curtain never cuts headless - `curtainGeometry` stops at a
      canvas 0 px wide - and "the voice tile is always cut" would be a test skipped everywhere it
@@ -2784,13 +2928,19 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
      back the panes, the voice tile's settled box and the areas left open. What it changes on the
      way - the rotations, the voice box, the open areas - is put back, so a cut on the screen
      keeps its own. */
-  export function cutBoxes(W, H, boxes, seed = 1) {
+  /* THE STACK'S CUT TOO (E23 C4a, 07.11.2026; R1398). `{ stacked: true }` hands the boxes to `stackShapes` instead,
+     on the same empty host - so no column clips a row and no rail is measured: `bands` stands in for the two rails'
+     bands (`[{ band: x }, { band: x }]`, the scene rail's and the tab rail's inner edges, either null). `check` is the
+     self-check's edge and open-area reading of the cut (`cutCheck`). */
+  export function cutBoxes(W, H, boxes, seed = 1, { stacked = false, bands = null } = {}) {
     const rot = ROT.splice(0), voice = VOICE.box, open = OPEN_AREAS.splice(0);
     try {
       const given = boxes.map(b => ({ sel: BLOCKS.find(k => k.cls === b.cls)?.sel ?? null, ...b }));
       VOICE.box = null; OPEN_AREAS.length = 0;
-      const panes = deskShapes(document.createElement("div"), W, H, rng(seed), given, W);
-      return { panes, voice: VOICE.box && { ...VOICE.box }, open: OPEN_AREAS.map(a => ({ ...a })), rotations: ROT.map(r => ({ sel: r.sel, origin: r.origin, transform: r.transform })) };
+      const host = document.createElement("div");
+      const panes = stacked ? stackShapes(host, W, H, rng(seed), given, bands ?? [null, null]) : deskShapes(host, W, H, rng(seed), given, W);
+      return { panes, voice: VOICE.box && { ...VOICE.box }, open: OPEN_AREAS.map(a => ({ ...a })), check: { ...cutCheck(panes, OPEN_AREAS, W, H), ...cutParts(panes, W, H) },
+               rotations: ROT.map(r => ({ sel: r.sel, origin: r.origin, transform: r.transform })) };
     } finally {
       ROT.length = 0; ROT.push(...rot); VOICE.box = voice; OPEN_AREAS.length = 0; OPEN_AREAS.push(...open);
     }
@@ -2914,34 +3064,9 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
                  transform: ang ? "rotate(" + ang + "rad)" : "none" });
     }
     applyRotations();
-    // self-check: C1 no overlaps, convexity, C2 every block inside its own pane and no other, C3 the top edge covered
-    let ov = 0, nonconvex = 0, blockFails = 0, edgeGaps = 0, fitFails = 0, openFails = 0; const ncv = [];
-    for (let i = 0; i < panes.length; i++) { if (!convex(panes[i].poly)) { nonconvex++; ncv.push(panes[i].kind + ':' + panes[i].poly.map(q => q.map(v => Math.round(v)).join(',')).join(' ')); } for (let j = i + 1; j < panes.length; j++) if (overlaps(panes[i].poly, panes[j].poly)) ov++; }
-    for (const col of [...panes.meta.top, ...panes.meta.bot]) for (const b of col.tail ? [...col.items, col.tail] : col.items) {
-      /* THE BLOCK'S OWN PANE, NOT ITS COLUMN-MATE'S.
-         This used to accept a pane toned for ANY member of the merged column, so a block that
-         had been absorbed into a neighbour's pane and lost its own passed the check by standing
-         inside the neighbour's glass. That is exactly the failure this check exists to catch,
-         and it is why the Despair rail could lose its pane on a narrow screen and report clean. */
-      const own = panes.filter(p => p.content && p.tone === b.cls);
-      if (b.r && !b.clipped && (b.r.x < b.x - 0.5 || b.r.y < b.y - 0.5 || b.r.x + b.r.w > b.x + b.w + 0.5 || b.r.y + b.r.h > b.y + b.h + 0.5)) fitFails++;
-      const qs = [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]].map(([x, y]) => col.rot(x - col.px, y - col.py)).filter(q => q[0] > 1 && q[0] < W - 1 && q[1] > 1 && q[1] < H - 1);
-      for (const q of qs) {
-        if (!own.some(p => inside(p.poly, q[0], q[1]))) blockFails++;
-        if (panes.some(p => !own.includes(p) && inside(p.poly, q[0], q[1]))) blockFails++;
-      }
-    }
-    const cover = (x, y) => panes.some(p => inside(p.poly, x, y));
-    for (let x = 4; x < W; x += 8) { if (!cover(x, 0.5)) edgeGaps++; if (!cover(x, H - 0.5)) edgeGaps++; }
-    for (let y = 4; y < H; y += 8) { if (!cover(0.5, y)) edgeGaps++; if (!cover(W - 0.5, y)) edgeGaps++; }
-    /* C4 (E78 C6): an area the cut leaves open on purpose holds no glass - `voice-left`, Q16. Every
-       8 px inside it, 3 px clear of its edges, where a seam is shared with the panes around it. */
-    const clear = (P, x, y) => P.every((a, i) => { const b = P[(i + 1) % P.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return Math.abs((b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0])) / L > 3; });
-    for (const o of OPEN_AREAS) {
-      const bb = bbox(o.poly);
-      for (let x = Math.ceil(bb.x0); x < bb.x1; x += 8) for (let y = Math.ceil(bb.y0); y < bb.y1; y += 8)
-        if (inside(o.poly, x, y) && clear(o.poly, x, y) && panes.some(p => inside(p.poly, x, y))) openFails++;
-    }
+    // self-check: C1 no overlaps, convexity, C2 every block inside its own pane and no other (`cutParts`), C3 the top edge covered
+    const { overlaps: ov, nonconvex, ncv, blockFails, fitFails } = cutParts(panes, W, H);
+    const { edgeGaps, openFails } = cutCheck(panes, OPEN_AREAS, W, H);
     CHECKS.push({ seed: job.seed, count: panes.length, overlaps: ov, nonconvex, ncv, blockFails, edgeGaps, fitFails, openFails, sig: d.length, same });
     // kept on the job so a pass that finds the same signature can republish it rather than
     // cut the whole partition again only to say what this one already says (see above)
@@ -3101,7 +3226,8 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
   function pulseFrame(t) {
     count("glass.pulseFrame");
     for (const j of curtains) pulseJob(j, t);
-    for (const j of windows) pulseJob(j, t);
+    // a band whose element has left the page is not drawn (E23 C1c; S12-32): its job waits for `pruneWindows`
+    for (const j of windows) if (j.el.isConnected) pulseJob(j, t);
   }
 
 /* ---- lifecycle -------------------------------------------------------------- */
@@ -3201,10 +3327,21 @@ function mount() {
   el.style.cssText = STYLE + "z-index:" + z + ";" + (el.style.clipPath ? "clip-path:" + el.style.clipPath + ";" : "");
   el.querySelectorAll(":scope > canvas").forEach(c => { c.style.cssText = "position:absolute;inset:0;width:100%;height:100%;"; });
   if (!curtains.length) curtains.push({ el, seed: 44 });
+  // the loop runs while a curtain is mounted, and only then (E23 C1c; S12-35): it was started at `ready` on every client
+  if (!raf) raf = requestAnimationFrame(loop);
   rebuild();
 }
+/* EVERYTHING THE CURTAIN STARTED, IT STOPS (E23 C1c, 07.11.2026; S12-35). Until now this took the canvases and the
+   inline styles away and left running what kept them: the observers (the rails' ResizeObserver then turned the corner's
+   buttons under Monokuma Legacy, `applyRotations`), the sidebar's watch, the rotation table and its shifts, the colour
+   probe in the body and the 60 Hz loop. `glassLifecycle` reads each of them (R1380). */
 function unmount() {
-  for (const j of curtains) { j.el.remove(); document.querySelectorAll(".curtain-glow").forEach(g => g.remove()); }
+  observers.forEach(o => o.disconnect()); observers = [];
+  sidebarWatch?.disconnect(); sidebarWatch = null;
+  if (raf) { globalThis.cancelAnimationFrame?.(raf); raf = 0; }
+  ROT.length = 0; OVERHANG.clear();
+  accProbe?.remove();
+  for (const j of curtains) { j.turn?.cancel(); j.el.remove(); document.querySelectorAll(".curtain-glow").forEach(g => g.remove()); }
   curtains.length = 0;
   for (const j of windows) j.el.querySelectorAll(":scope > canvas").forEach(c => c.remove());
   windows.length = 0;
@@ -3226,24 +3363,46 @@ function unmount() {
   seatVoiceArt();
   seatNoteFrame();
   globalThis.Hooks?.callAll?.("drpgGlassCut", { room: null });
-  document.querySelectorAll(".drpg-curtain-ghost, #drpg-curtain > canvas.morph, #drpg-curtain > canvas.ghost").forEach(g => g.remove());
+  // the turn's siblings: the frost, the turn's layers, the flash's (E23 C1b)
+  document.querySelectorAll("#drpg-curtain-frost, #drpg-curtain-turn, #drpg-curtain-flash").forEach(g => g.remove());
   if (rotSheet) { rotSheet.remove(); rotSheet = null; }
 }
-/* ---- nothing on the glass ever jumps ---------------------------------------------------------
-   Before the curtain is recut or recoloured, what it looks like now is copied onto one canvas (the
-   ghost), placed under the new glass with the old silhouette, and faded out over the turn while the
-   new glass fades in. A rebuild that changes nothing (the same panes, the same colour) repaints
-   nothing, so the observers' constant rebuilds cost a geometry pass and no paint. */
-/* THE TURN, AND IT IS THE ONE THE SHEET STATES. The default is the fallback for a client
-   that has no theme sheet loaded yet; `--drpg-t-turn` in stained-glass.css is what actually
-   sets it, and it was raised to 1600 ms on 08.09 - a state change is the curtain crossfading
-   a whole screen of glass, and at 840 ms it was over before the eye had followed it. */
+/* THE LIFECYCLE, READ FOR A TEST (E23 C1c, 07.11.2026; R1380, R1381). What the curtain holds while it is up and must let
+   go of when it comes down: the curtains, the observers held, the rotation table and its shifts, the loop's frame, the
+   colour probe and the rotation sheet in the page, and the dressed bands (each with its element, window, kind, seed and
+   the flashes its first render started). `ask` resolves an element's accent first, as a paint would (`resolveAcc`, which
+   makes the probe); `down` runs `unmount`; `rotate` hands `applyRotations` a table of stand-ins and reads what it wrote -
+   whether a rotation sheet is in the page, and each stand-in's inline transform - with the table put back as it was. The
+   caller puts a curtain it took down back up (`refreshGlass`). */
+export function glassLifecycle({ ask = null, down = false, rotate = null } = {}) {
+  if (ask) resolveAcc(ask);
+  if (down) unmount();
+  let rotated = null;
+  if (rotate) {
+    const rot = ROT.splice(0, ROT.length, ...rotate);
+    try {
+      applyRotations();
+      rotated = { sheet: !!document.getElementById("drpg-glass-rotation"), transforms: rotate.map(r => r.el?.style.transform ?? "") };
+    } finally { ROT.length = 0; ROT.push(...rot); }
+  }
+  return {
+    curtains: curtains.length, observers: observers.length + (sidebarWatch ? 1 : 0), rot: ROT.length, overhang: OVERHANG.size, loop: raf,
+    probe: !!accProbe?.isConnected, sheet: !!rotSheet?.isConnected,
+    windows: windows.map(j => ({ el: j.el, app: j.app?.id ?? null, kind: j.kind ?? null, seed: j.seed, flashes: j.flashes ?? 0 })), rotated
+  };
+}
+/* ---- the turn: the glass moves, not its edges (E23 C1b) -------------------------------------------------------
+   When the world changes state (a phase, an hour) or the layout recuts the curtain, the glass does not jump: what it
+   looked like is cut into layers - one a pane that moves, one a batch of panes that only recolour - which the browser
+   then carries to the new look by transform and opacity alone, over the new glass already painted beneath (`glassTurn`,
+   below, and the measure it answers to, glass-sweep.mjs `--turn`). A rebuild that changes nothing (the same panes, the
+   same colour) repaints nothing and turns nothing, so the observers' constant rebuilds cost a geometry pass and no paint. */
 /* HOW LONG THE CURTAIN TAKES TO TURN, AND IT IS ITS OWN NUMBER.
    `--drpg-t-turn` is the interface's beat, shared with Monokuma Legacy and with the transform
    transition the rails ride on, so slowing the curtain by raising it would slow those too. The
-   curtain crossfades a whole screen of glass and wants longer than a button does: it reads
-   `--drpg-t-curtain` when the theme states one and falls back to the beat otherwise, which is
-   also how reduced motion still stops it dead (motion.css sets the beat to 0). */
+   curtain's turn reads `--drpg-t-curtain` (motion.css: 1200 ms since E23 C1b, the owner's 05.11 - the move done at 700,
+   the colour by 1200) when the theme states one and falls back to the beat otherwise, which is also how reduced motion
+   still stops it dead (motion.css sets both to 0). */
 const TURN = () => {
     const cs = getComputedStyle(document.body);
     for (const name of ["--drpg-t-curtain", "--drpg-t-turn"]) {
@@ -3253,15 +3412,14 @@ const TURN = () => {
     return 840;
 };
 const ECLIPSE = () => { const v = parseFloat(getComputedStyle(document.body).getPropertyValue("--drpg-t-eclipse")); return Number.isFinite(v) && v > 0 ? v : 1400; };
-const EASE = t => 1 - Math.pow(1 - t, 3);
 const lerp = (a, b, t) => a + (b - a) * t;
-const lerpHex = (h1, h2, t) => { const a = hex(h1), b = hex(h2); return "rgb(" + a.map((v, i) => Math.round(lerp(v, b[i], t))).join(",") + ")"; };
 /* A polygon as N points along its perimeter, starting at its topmost-leftmost vertex, so two
-   polygons of different vertex counts can be interpolated point by point without twisting.
+   polygons of different vertex counts can be compared point by point without twisting.
    EVERY VERTEX IS KEPT. The first version dropped N evenly spaced points along the perimeter
    and let the corners fall between them, so a pane on its way was a rounded sixteen-gon - the
    "circles floating over the screen" of 1.2.34. The corners are the points now; the rest are
-   spread along the edges by length, so a pane stays a pane at every frame. */
+   spread along the edges by length. The turn fits its affine map to these points when the two
+   polygons have different vertex counts (`turnPlan`). */
 function resample(poly, N) {
   let start = 0;
   for (let i = 1; i < poly.length; i++) if (poly[i][1] < poly[start][1] - 0.5 || (Math.abs(poly[i][1] - poly[start][1]) <= 0.5 && poly[i][0] < poly[start][0])) start = i;
@@ -3278,12 +3436,11 @@ function resample(poly, N) {
   pts.forEach((p, i) => { const q = pts[(i + 1) % pts.length]; out.push(p); for (let k = 1; k <= alloc[i]; k++) out.push([lerp(p[0], q[0], k / (alloc[i] + 1)), lerp(p[1], q[1], k / (alloc[i] + 1))]); });
   return out;
 }
-const centroid = poly => { const bb = bbox(poly); return [(bb.x0 + bb.x1) / 2, (bb.y0 + bb.y1) / 2]; };
+const centroid = poly => { const bb = bboxOf(poly); return [(bb.x0 + bb.x1) / 2, (bb.y0 + bb.y1) / 2]; };
 function snapshotPanes(j) {
   if (!j.panes) return null;
   return j.panes.map(p => ({ poly: p.poly, content: p.content, empty: p.empty, tone: p.tone, stained: p.stained, plain: p.plain, kind: p.kind }));
 }
-/* what the glass looks like right now - fills, texture, the pulse's frame, the seams - on one canvas */
 /** A copy of a canvas as it stands, for a layer that is about to be repainted. */
 function snapshotCanvas(src) {
   if (!src || !src.width || !src.height) return null;
@@ -3291,147 +3448,556 @@ function snapshotCanvas(src) {
   c.getContext("2d").drawImage(src, 0, 0);
   return c;
 }
-/* `painted` is asked for rather than read off the job: the one caller takes this AFTER the new
-   cut has been made, and a new cut has already set `j.painted` false (see `rebuildAll`). */
+/* What the glass looks like right now - fills, texture, the pulse's frame, the seams - on one canvas, the look the
+   turn's layers are cut from. `painted` is asked for rather than read off the job: the one caller takes this AFTER the
+   new cut has been made, and a new cut has already set `j.painted` false (see `rebuildAll`); nothing between the two
+   paints the curtain, so these are the pixels the pass began with. A layer the page does not show is not taken
+   (E23 C1b): with the pulse switched off (`drpg-no-pulse`, reduced motion) its canvas keeps its last frame under
+   `display: none`, and the old look carried it into the turn as a darker or lighter glass than the screen had shown. */
 function snapshotLook(j, painted = j.painted) {
   if (!j.panes || !painted) return null;
   const el = j.el, sg = el.querySelector(":scope > canvas.sg");
   if (!sg || !sg.width) return null;
   const c = document.createElement("canvas"); c.width = sg.width; c.height = sg.height;
   const g = c.getContext("2d");
-  for (const cls of ["sg", "pulse", "seamline"]) { const l = el.querySelector(":scope > canvas." + cls); if (l && l.width) g.drawImage(l, 0, 0, c.width, c.height); }
+  for (const cls of ["sg", "pulse", "seamline"]) {
+    const l = el.querySelector(":scope > canvas." + cls);
+    if (!l || !l.width) continue;
+    const cs = getComputedStyle(l);
+    if (cs.display === "none" || cs.visibility === "hidden") continue;
+    g.drawImage(l, 0, 0, c.width, c.height);
+  }
   return c;
 }
-/* THE MORPH: THE GLASS STAYS, THE EDGES TRAVEL.
-   The first morph swapped the whole curtain for flat fills for the length of the turn: no
-   texture, no pulse, every pane a plain colour, and the panes themselves rounded off on the
-   way (see `resample`). It is the other way round now. The new glass is painted at once and
-   stays visible - its texture, its pulse - with a copy of the old glass laid over it that
-   fades out over the turn, so the fills cross from one look to the other without a plain
-   frame in between; and over both, the seams alone are redrawn each frame on their way from
-   the old cut to the new one, in lead and in the colour on its way from the old state's to
-   the new. The silhouette follows the seams. The static seam layer and the glow are held
-   back until the seams have arrived, then shown in their place. */
-function morph(j, oldPanes, oldAcc, ghost, glowGhost) {
-  /* A STATE CHANGE IS NOT AN "EFFECT", IT IS THE TRANSITION BETWEEN TWO STATES.
-     `Glass effects` turns off the blur and the pane pulse - ambient things, running all the
-     time, which somebody may reasonably not want. This is neither: it happens once, when the
-     world changes, and it is how you SEE that it changed. Gated with the pulse it simply made
-     the curtain jump between colours (Dawid, 08.09, with the switch off and no idea that was
-     what he had turned off). Reduced motion still stops it: that is an accessibility
-     preference about motion itself, not a preference about ornament. */
-  if (!oldPanes || !j.panes || REDUCED()) return;
-  const el = j.el, W = j.W, H = j.H;
-  const newAcc = j.acc || oldAcc || "#ffd38f";
-  const recoloured = Boolean(oldAcc && j.acc && oldAcc !== j.acc);
-  const pairs = j.panes.map(p => {
+
+/* ---- THE TURN (E23 C1b, 07.11.2026; the owner's 05.11, E61's DIAGNOSIS.md of MK-R1, the approved MK-R1/MK-R2 mockup) --
+   What it replaced: `morph()` rewrote the curtain's `clip-path: path()` - about 6 KB of it - with every pane's
+   resampled polygon in every animation frame for 1800 ms, laid a copy of the old look under the curtain, hid the seams
+   and stroked them four times a frame on a full-screen canvas, once through `blur(4px)`. Measured at 1d860414 (C1a's
+   `--turn`, 1600x900, GM): 12-20 frames of a recut wrote the clip path and 10-19 frames of every turn drew, frames ran
+   at a median of 150 ms, 777 ms of main-thread time a phase turn; the texture in the moving band fell to 45 % of rest
+   (the new glass was painted at once at its destination and only the outline travelled).
+   What it does now, the mockup's motion on glass.mjs's own cut:
+   - THE BAKE, before the first frame. The old look (`snapshotLook`) is cut into one canvas a pane that moves - fill, ink
+     texture, seams and the pulse's frame together, so the texture is part of what moves - and one a batch of panes that
+     only recolour (eight batches: the recolour's cost is its number of layers, DIAGNOSIS 5). They stand in
+     `#drpg-curtain-turn`, a sibling of the curtain at its index and unclipped, so a pane crossing ground the new cut does
+     not cover is still seen. The new look is painted underneath by `curtainPaint`, as before, and the curtain's clip
+     path is set once, to the new cut, by `curtainGeometry`.
+   - ONLY TRANSFORM AND OPACITY MOVE. A pane travels to its new polygon by one affine map - exact for two polygons of the
+     same corners (a triangle's always), otherwise the least-squares map of `resample`'s points - sampled into eleven
+     keyframes on the curve (`--drpg-ease-arrive`), 700 ms; its last fifth crossfades it out over the true new shape
+     below. The batches fade out from the centre of the screen outward, 300 ms each, `gap` apart, the last done by
+     `--drpg-t-curtain`. No clip path is animated and no canvas is drawn in a frame of the turn: the browser runs it.
+   - THE FROST. The backdrop blur is a sibling under the curtain (`#drpg-curtain-frost`), clipped once a cut: a turn that
+     moves glass fades it out over 120 ms and back in over 180 ms once its moves are over and the frost has the new cut.
+   - THE FLASH AT TODAY'S BRIGHTNESS (`FLASH`), once a pane: each pane's seams baked once a cut (`bakeFlash`), each seam on
+     one pane's layer only, played with its pane's batch delay.
+   - THE CLOCK starts at the first frame painted after the bake (`startTurn`), never at the event.
+   - A colour-only change recuts nothing: the same cut keeps its panes, the turn recolours and flashes, and
+     `drpgGlassCut` is not fired. Reduced motion turns nothing: the end state stands at once.
+   The entry point is `glassTurn`, for E61's and E62's sequences as well as for this file's own turns; the self-check is
+   clean in every frame of a turn because the partition is never recut by one. */
+const ARRIVE = [0.16, 0.84, 0.28, 1];   // motion.css `--drpg-ease-arrive`, the same four numbers (an animation's easing cannot read a var())
+const cssCurve = c => "cubic-bezier(" + c.join(",") + ")";
+/* a cubic-bezier's y(x), for keyframes sampled in JS (Newton on x, eight steps; the mockup's `bez`) */
+function curveOf([x1, y1, x2, y2]) {
+  const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx, cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+  const xAt = t => ((ax * t + bx) * t + cx) * t;
+  const yAt = t => ((ay * t + by) * t + cy) * t;
+  const slope = t => (3 * ax * t + 2 * bx) * t + cx;
+  return x => { let t = x; for (let i = 0; i < 8; i++) { const d = slope(t); if (Math.abs(d) < 1e-6) break; t = Math.min(1, Math.max(0, t - (xAt(t) - x) / d)); } return yAt(t); };
+}
+const TURN_MOVE = 700, TURN_BATCHES = 8, TURN_FADE = 300, FROST_OUT = 120, FROST_IN = 180;
+/* How far a point has to travel before its pane counts as moving, and the share of moving panes that is worth a turn
+   when the colour stays: folding the Projects tray recuts a corner, and a corner is not worth a turn (morph's rule). */
+const TURN_MOVED = 2, TURN_WORTH = 0.3;
+/* how near its place a layer carried back must stand before the glass beneath takes over (`turnPlan`'s `back`) */
+const TURN_SNAP = 2;
+/* THE FLASH, TODAY'S (MK-R2, the owner: "keep today's flash"): `flashSeams(j, "#f2eee6", 420)` at 1d860414 - every seam
+   in bone, 1.6 px, alpha 1 at its peak, on a layer blended `screen`, rising over 8 % of the time, held to 32 %, then
+   (1 - x)^3. C1a's `--turn` read the field seams' median luminance at its peak 202-204 at 1600x900 (MK-R2: 203). One
+   table; the keyframes are read off it. */
+export const FLASH = Object.freeze({ color: "#f2eee6", width: 1.6, alpha: 1, blend: "screen", rise: 0.08, hold: 0.32, fall: 3, ms: 420 });
+export const FLASH_KF = (() => {
+  const out = [{ offset: 0, opacity: 0 }, { offset: FLASH.rise, opacity: 1 }, { offset: FLASH.hold, opacity: 1 }];
+  for (let s = 1; s < 6; s++) {
+    const offset = +(FLASH.hold + (1 - FLASH.hold) * s / 6).toFixed(3);
+    out.push({ offset, opacity: +Math.pow(1 - (offset - FLASH.hold) / (1 - FLASH.hold), FLASH.fall).toFixed(4) });
+  }
+  out.push({ offset: 1, opacity: 0 });
+  return out;
+})();
+const meanOf = poly => [poly.reduce((s, q) => s + q[0], 0) / poly.length, poly.reduce((s, q) => s + q[1], 0) / poly.length];
+/* the panes from the centre of the screen outward (MK-R1 `byCentre`): the order a phase's colour and its flash take */
+function centreOrder(panes, W, H) {
+  const cx = W / 2 || 1, cy = H / 2 || 1;
+  const dist = panes.map(p => { const [x, y] = meanOf(p.poly); return Math.hypot((x - cx) / cx, (y - cy) / cy); });
+  return { dist, order: panes.map((_, i) => i).sort((a, b) => dist[a] - dist[b] || a - b) };
+}
+const onBorder = (W, H) => (p, q) => (p[0] < 1 && q[0] < 1) || (p[0] > W - 1 && q[0] > W - 1) || (p[1] < 1 && q[1] < 1) || (p[1] > H - 1 && q[1] > H - 1);
+/* The affine map that carries the points F onto T, least squares ([a11, a12, tx, a21, a22, ty]); with three points of a
+   triangle it is exact. A degenerate set (every point on one line) is carried by its mean alone. */
+function fitAffine(F, T) {
+  let sxx = 0, sxy = 0, syy = 0, sx = 0, sy = 0;
+  const n = F.length, r = [[0, 0, 0], [0, 0, 0]];
+  for (let i = 0; i < n; i++) {
+    const [x, y] = F[i];
+    sxx += x * x; sxy += x * y; syy += y * y; sx += x; sy += y;
+    for (let k = 0; k < 2; k++) { r[k][0] += x * T[i][k]; r[k][1] += y * T[i][k]; r[k][2] += T[i][k]; }
+  }
+  const M = [[sxx, sxy, sx], [sxy, syy, sy], [sx, sy, n]];
+  const det3 = m => m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+  const D = det3(M);
+  if (Math.abs(D) < 1e-6 * Math.max(1, sxx * syy)) {
+    const f = meanOf(F), t = meanOf(T);
+    return [1, 0, t[0] - f[0], 0, 1, t[1] - f[1]];
+  }
+  const solve = b => [0, 1, 2].map(c => det3(M.map((row, i) => row.map((v, j) => (j === c ? b[i] : v)))) / D);
+  const [a11, a12, tx] = solve(r[0]), [a21, a22, ty] = solve(r[1]);
+  return [a11, a12, tx, a21, a22, ty];
+}
+const num = (v, d) => String(+v.toFixed(d));
+/* `A` (screen to screen) as the CSS transform of an element standing at `o` with its origin at its top left */
+function matrixAt(A, o) {
+  const [a11, a12, tx, a21, a22, ty] = A;
+  return "matrix(" + [num(a11, 5), num(a21, 5), num(a12, 5), num(a22, 5), num(a11 * o[0] + a12 * o[1] + tx - o[0], 2), num(a21 * o[0] + a22 * o[1] + ty - o[1], 2)].join(",") + ")";
+}
+/* the affine maps' algebra the hand-over needs: `A` undone (null when it folds the plane flat), `A` then `B`, and how
+   far `A` bends a picture from its own size - the larger of its linear part's singular values' logs, either way: a
+   picture squeezed to a quarter loses its seams as surely as one stretched loses its grain (the layout turn's pane
+   handed over at once, squeezed to 0.25, read 36 % of rest) */
+function invAffine(A) {
+  const [a, b, tx, c, d, ty] = A, D = a * d - b * c;
+  if (Math.abs(D) < 1e-9) return null;
+  return [d / D, -b / D, (b * ty - d * tx) / D, -c / D, a / D, (c * tx - a * ty) / D];
+}
+const thenAffine = (A, B) => [B[0] * A[0] + B[1] * A[3], B[0] * A[1] + B[1] * A[4], B[0] * A[2] + B[1] * A[5] + B[2], B[3] * A[0] + B[4] * A[3], B[3] * A[1] + B[4] * A[4], B[3] * A[2] + B[4] * A[5] + B[5]];
+function stretchOf(A) {
+  const [a, b, , c, d] = A, s = a * a + b * b + c * c + d * d, D = a * d - b * c, r = Math.sqrt(Math.max(0, s * s - 4 * D * D));
+  const hi = Math.sqrt((s + r) / 2), lo = Math.sqrt(Math.max(0, (s - r) / 2));
+  return lo > 1e-6 ? Math.max(Math.log(hi), -Math.log(lo)) : Infinity;
+}
+const boxOf = (polys, pad) => {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const p of polys) for (const [x, y] of p) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  return { x0: Math.floor(x0 - pad), y0: Math.floor(y0 - pad), x1: Math.ceil(x1 + pad), y1: Math.ceil(y1 + pad) };
+};
+/**
+ * The plan of a turn, pure (E23 C1b; exported for R1377-R1379): the panes `from` (what stood) and `to` (what stands
+ * now), each `{ poly, content, tone }`, the frame and the two accents in; keyframes out. Each new pane is matched to the
+ * old one it comes from as `morph` matched them (the same `content`, the nearest centre, 200 px against a tone that
+ * differs). A pane whose points travel more than TURN_MOVED px moves (`moves`: transform keyframes, the last fifth
+ * fading out); one that stands only recolours, in its batch (`batches`: opacity alone), when the accent changed; an old
+ * pane nothing comes from fades in the batch of its distance. `flashes` is every new pane once, at its batch's delay,
+ * when the accent changed. `none` when there is nothing to turn - reduced motion, nothing painted before, the same
+ * colour and under TURN_WORTH of the panes moving.
+ */
+export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 1200, move = TURN_MOVE, curve = ARRIVE, flash = true, reduced = false } = {}) {
+  const none = { none: true, recolour: false, recut: false, dur, move: { ms: move, curve }, order: [], batchOf: [], delayOf: [], gap: 0, moves: [], batches: [], flashes: [], frost: null, glow: null };
+  if (reduced || !from?.length || !to?.length) return none;
+  const recolour = Boolean(fromAcc && acc && fromAcc !== acc);
+  const { dist, order } = centreOrder(to, W, H);
+  const per = Math.ceil(order.length / TURN_BATCHES);
+  const batchOf = [];
+  order.forEach((i, k) => { batchOf[i] = Math.floor(k / per); });
+  const gap = Math.min(120, Math.max(70, Math.floor((dur - FLASH.ms) / (TURN_BATCHES - 1))));
+  const delayOf = batchOf.map(b => b * gap);
+  const ease = curveOf(curve);
+  const used = new Set(), moves = [], items = [], statics = [], holes = [];
+  to.forEach((p, i) => {
     const c = centroid(p.poly);
-    let best = null, bd = Infinity;
-    for (const o of oldPanes) { if (o.content !== p.content) continue; const oc = centroid(o.poly); const d = Math.hypot(oc[0] - c[0], oc[1] - c[1]) + (o.tone === p.tone ? 0 : 200); if (d < bd) { bd = d; best = o; } }
-    if (!best) for (const o of oldPanes) { const oc = centroid(o.poly); const d = Math.hypot(oc[0] - c[0], oc[1] - c[1]); if (d < bd) { bd = d; best = o; } }
-    const N = Math.max(24, p.poly.length, best ? best.poly.length : 0);
-    const to = resample(p.poly, N);
-    let from = resample(best ? best.poly : p.poly.map(() => c), N);
-    // align the two rings: start `from` where it lies closest to `to`, so no pane twists on the way
+    let best = -1, bd = Infinity;
+    from.forEach((o, k) => { if (o.content !== p.content) return; const oc = centroid(o.poly); const d = Math.hypot(oc[0] - c[0], oc[1] - c[1]) + (o.tone === p.tone ? 0 : 200); if (d < bd) { bd = d; best = k; } });
+    if (best < 0) from.forEach((o, k) => { const oc = centroid(o.poly); const d = Math.hypot(oc[0] - c[0], oc[1] - c[1]); if (d < bd) { bd = d; best = k; } });
+    if (best < 0) return;
+    used.add(best);
+    const a = from[best].poly, b = p.poly;
+    // the corners when both have as many, else the perimeter's points; the rings aligned so no pane twists
+    const same = a.length === b.length;
+    const N = same ? a.length : Math.max(24, a.length, b.length);
+    const T = same ? b : resample(b, N);
+    let F = same ? a : resample(a, N);
     let bestK = 0, bestD = Infinity;
-    for (let k = 0; k < N; k++) { let d = 0; for (let i = 0; i < N; i++) { const f = from[(i + k) % N]; d += (f[0] - to[i][0]) ** 2 + (f[1] - to[i][1]) ** 2; } if (d < bestD) { bestD = d; bestK = k; } }
-    from = from.map((_, i) => from[(i + bestK) % N]);
-    return { from, to, p };
-  });
-  /* HOW MUCH ACTUALLY MOVED. Folding the Projects tray recuts a corner of the glass; a corner
-     is not worth a turn. The morph runs when the screen changes state (everything recolours)
-     or when the shape really did change. */
-  const MOVED = 2;
-  const moved = pairs.filter(q => q.from.some((pt, i) => Math.hypot(pt[0] - q.to[i][0], pt[1] - q.to[i][1]) > MOVED)).length;
-  if (!recoloured && moved < pairs.length * 0.3) return;
-  const finalClip = el.style.clipPath;
-  const seamLayer = el.querySelector(":scope > canvas.seamline");
-  const glow = document.querySelector('[data-glow="' + j.seed + '"]');
-  // a morph already running is over: its cleanup must not undo this one's (a second state change
-  // inside the turn, a rebuild while the light is still travelling)
-  const my = (j.morphId = (j.morphId || 0) + 1);
-  el.querySelectorAll(":scope > canvas.morph, :scope > canvas.ghost").forEach(c => c.remove());
-  // and any ghost left standing OUTSIDE it by a morph this one is interrupting
-  document.querySelectorAll(".drpg-curtain-ghost").forEach(c => c.remove());
-  document.querySelectorAll(".drpg-glow-ghost").forEach(c => c.remove());
-  const mc = document.createElement("canvas"); mc.className = "morph"; mc.width = W; mc.height = H;
-  mc.style.cssText = "position:absolute;inset:0;width:100%;height:100%;z-index:4;";
-  let gc = null;
-  /* THE OLD CURTAIN FADES AS THE OLD CURTAIN, NOT AS A CUT-OUT OF THE NEW ONE.
-     The ghost is a snapshot of the glass as it was, and it used to be appended INSIDE the
-     curtain - which carries the clip path this morph is busy animating. So the old picture
-     was being re-cut to the new shape while it faded: wherever the two shapes differ, and
-     that is mostly at the screen edges, the old glass did not fade at all, it was clipped
-     away on the first frame. That is the "przejscie skokowe na krawedziach" (Dawid, 07.09).
-     As a SIBLING it keeps its own shape - the shape it was painted with, which is the morph's
-     `from` polygons - and simply fades out under the new one. */
-  if (ghost) {
-    gc = ghost; gc.className = "ghost drpg-curtain-ghost";
-    const oldD = pairs.map(q => "M" + q.from.map(v => v[0].toFixed(1) + " " + v[1].toFixed(1)).join("L") + "Z").join("");
-    gc.style.cssText = el.style.cssText;
-    gc.style.zIndex = String((parseInt(el.style.zIndex, 10) || 1) - 1);
-    gc.style.clipPath = "path('" + oldD + "')";
-    gc.style.pointerEvents = "none";
-    el.after(gc);
-  }
-  el.append(mc);
-  if (seamLayer) seamLayer.style.visibility = "hidden";
-  /* THE BLOOM NEVER GOES OUT. The glow was hidden for the length of the turn, so the light along
-     every seam vanished and came back - the one thing on screen that says "glass". The new glow
-     is painted by `curtainPaint` before this runs, so the OLD one is a snapshot taken beside the
-     ghost: they cross over, and the light changes colour without ever leaving. */
-  let gg = null;
-  if (glow && glowGhost) {
-    gg = glowGhost; gg.className = "curtain-glow drpg-glow-ghost";
-    gg.style.cssText = glow.style.cssText;
-    glow.after(gg);
-    glow.style.opacity = "0";
-  }
-  const g = mc.getContext("2d"), t0 = performance.now(), dur = TURN();
-  /* THE SCREEN'S OWN EDGE IS NOT A SEAM.
-     `strokeAll` walks every side of every pane, and the panes standing against the screen
-     have sides that ARE the screen's edge - so the morph drew a rim of light right around
-     the display on every turn of the clock. `seams()` has always skipped those segments;
-     this did not, which is the whole of the difference (Dawid, 2026-09-07: "szwy maja
-     blyskac, ale nie krawedz ekranu"). Same test, written here because the morph paints on
-     its own canvas: a segment with both ends against one border is the outline, not a seam. */
-  const border = (p, q) => (p[0] < 1 && q[0] < 1) || (p[0] > W - 1 && q[0] > W - 1)
-    || (p[1] < 1 && q[1] < 1) || (p[1] > H - 1 && q[1] > H - 1);
-  const strokeAll = (polys, alpha, style, width) => {
-    g.globalAlpha = alpha; g.strokeStyle = style; g.lineWidth = width; g.lineCap = "round";
-    g.beginPath();
-    for (const pl of polys) for (let i = 0; i < pl.length; i++) {
-      const a = pl[i], b = pl[(i + 1) % pl.length];
-      if (border(a, b)) continue;
-      g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]);
+    for (let k = 0; k < N; k++) { let d = 0; for (let n = 0; n < N; n++) { const f = F[(n + k) % N]; d += (f[0] - T[n][0]) ** 2 + (f[1] - T[n][1]) ** 2; } if (d < bestD) { bestD = d; bestK = k; } }
+    F = F.map((_, n) => F[(n + bestK) % N]);
+    if (!F.some((q, n) => Math.hypot(q[0] - T[n][0], q[1] - T[n][1]) > TURN_MOVED)) { if (recolour) items.push({ from: best, batch: batchOf[i] }); else statics.push(i); return; }
+    const A = fitAffine(F, T);
+    const err = Math.max(...F.map(([x, y], n) => Math.hypot(A[0] * x + A[1] * y + A[2] - T[n][0], A[3] * x + A[4] * y + A[5] - T[n][1])));
+    const box = boxOf([a], 1), o = [box.x0, box.y0];
+    const frames = [];
+    for (let s = 0; s <= 10; s++) {
+      const u = ease(s / 10), offset = s / 10;
+      const M = [1 + u * (A[0] - 1), u * A[1], u * A[2], u * A[3], 1 + u * (A[4] - 1), u * A[5]];
+      frames.push({ offset, transform: matrixAt(M, o), opacity: offset <= 0.8 ? 1 : +(1 - (offset - 0.8) / 0.2).toFixed(3) });
     }
-    g.stroke();
+    /* THE HAND-OVER (E23 C1b fix): a recut that keeps its colour carries both looks along the one path - the old look
+       cut to the old polygon by M(s), the new look cut to the new polygon by M(s) after A's inverse, so at every
+       sample the two stand on the same points and N(1) is the identity exactly - and hands the old over to the new at
+       `swap`, the sample at which the worse of the two pictures is bent least from its own size (`stretchOf`).
+       Its keyframes are written once every move's is known (`snap`, below). */
+    const Ai = invAffine(A), bbox = boxOf([b], 1);
+    const Mf = s => { const u = ease(s / 20); return [1 + u * (A[0] - 1), u * A[1], u * A[2], u * A[3], 1 + u * (A[4] - 1), u * A[5]]; };
+    const Nf = s => s >= 20 ? [1, 0, 0, 0, 1, 0] : thenAffine(Ai, Mf(s));
+    let swap = 10, sc = Infinity, near = 20;
+    if (Ai) {
+      for (let s = 0; s <= 20; s++) { const c = Math.max(stretchOf(Mf(s)), stretchOf(Nf(s))); if (c < sc - 1e-9) { sc = c; swap = s; } }
+      for (let s = swap; s < 20; s++) { const N = Nf(s); if (Math.max(...b.map(([x, y]) => Math.hypot(N[0] * x + N[1] * y + N[2] - x, N[3] * x + N[4] * y + N[5] - y))) <= TURN_SNAP) { near = s; break; } }
+    }
+    moves.push({ to: i, from: best, box, err: +err.toFixed(2), frames, back: Ai ? { box: bbox, Mf, Nf, swap, near, frames: null } : null });
+  });
+  // an old pane nothing comes from fades where it stood, in the batch of the nearest new pane by distance
+  const cx = W / 2 || 1, cy = H / 2 || 1;
+  from.forEach((o, k) => {
+    /* a block's plate nothing comes from left with its block, at once (E23 C1b fix: the room tile taken away left its
+       dark plate fading over the stained glass the recut put in its place); where it stood is a hole the new look
+       fills from the first frame (`hold`, below) */
+    if (used.has(k)) return;
+    if (o.content) { holes.push(k); return; }
+    const [x, y] = meanOf(o.poly), d = Math.hypot((x - cx) / cx, (y - cy) / cy);
+    let near = order[0], nd = Infinity;
+    for (const i of order) if (Math.abs(dist[i] - d) < nd) { nd = Math.abs(dist[i] - d); near = i; }
+    items.push({ from: k, batch: batchOf[near] });
+  });
+  if (!recolour && moves.length < to.length * TURN_WORTH) return none;
+  /* THE CURTAIN STANDS ASIDE WHILE THE NEW LOOK TRAVELS (E23 C1b fix, 07.11.2026). With the new cut painted beneath, a
+     travelling pane is translucent glass over its own destination: the two pictures, a few pixels apart, averaged each
+     other's streaks away - the harness's layout turn at 1600x900 read the squares the move crosses at 45-55 % of
+     their rest for 400 ms of it (the sweep's own per-square series), and in its last pixels the layer's filtering
+     softened them again. So for such a turn the curtain is held at opacity 0 (`hold`), the panes that stand are one
+     layer of the new look in its place, and every layer steps out - two keyframes at one offset - in the frame the
+     curtain steps back in, at `snap`: the first of twenty samples at which every travelling pane stands within
+     TURN_SNAP px of its place. The picture at that step is the same picture. Where a block's plate stood (`holes`)
+     nothing old travelled from: the new look stands there from the first frame, in the same layer as the panes that
+     stand, and the moving layers are clipped off it (`glassTurn`) - held aside, the curtain left the page bare there,
+     the square at 64,384 at 6 % of rest. */
+  let snap = 1, hold = null;
+  if (!recolour && moves.length && moves.every(m => m.back)) {
+    const s0 = Math.max(...moves.map(m => m.back.near));
+    snap = s0 / 20;
+    // two keyframes at one offset are a step: the layer is shown up to it and gone from it
+    const stepped = (fn, o, on, off) => { const f = []; for (let s = 0; s <= 20; s++) { const tr = matrixAt(fn(s), o), was = s > on && s <= off ? 1 : 0, is = s >= on && s < off ? 1 : 0; if (s && was !== is) f.push({ offset: s / 20, transform: tr, opacity: was }); f.push({ offset: s / 20, transform: tr, opacity: is }); } return f; };
+    for (const m of moves) {
+      m.frames = stepped(m.back.Mf, [m.box.x0, m.box.y0], 0, m.back.swap);
+      m.back.frames = stepped(m.back.Nf, [m.back.box.x0, m.back.box.y0], m.back.swap, s0);
+    }
+    const step = [{ offset: 0, opacity: 1 }, { offset: snap, opacity: 1 }, { offset: snap, opacity: 0 }, { offset: 1, opacity: 0 }];
+    const held = [...statics.map(i => to[i].poly), ...holes.map(k => from[k].poly)];
+    hold = { panes: statics, holes, box: boxOf(held.length ? held : [[[0, 0], [1, 1]]], 1), frames: step,
+      curtain: [{ offset: 0, opacity: 0 }, { offset: snap, opacity: 0 }, { offset: snap, opacity: 1 }, { offset: 1, opacity: 1 }] };
+  } else for (const m of moves) m.back = null;
+  for (const m of moves) if (m.back) { m.back = { box: m.back.box, swap: m.back.swap, frames: m.back.frames }; }
+  const batches = [];
+  for (const it of items) {
+    let b = batches.find(x => x.k === it.batch);
+    if (!b) { b = { k: it.batch, delay: it.batch * gap, ms: TURN_FADE, easing: cssCurve(curve), panes: [], box: null, frames: [{ offset: 0, opacity: 1 }, { offset: 1, opacity: 0 }] }; batches.push(b); }
+    if (!b.panes.includes(it.from)) b.panes.push(it.from);
+  }
+  batches.sort((p, q) => p.k - q.k);
+  for (const b of batches) b.box = boxOf(b.panes.map(k => from[k].poly), 1);
+  const flashes = flash && recolour ? order.map(i => ({ pane: i, delay: delayOf[i] })) : [];
+  const fadeEnd = batches.length ? Math.max(...batches.map(b => b.delay + b.ms)) : 0;
+  return {
+    /* WHICH LOOK TRAVELS (E23 C1b fix, 07.11.2026). A recolour carries the old look and lets it go in its last fifth, so
+       the colour arrives with the batches. A recut that keeps its colour carries both (`back`, the hand-over): the old
+       look is the glass as it was painted for the old cut, and `paintGlass` stains a pane by its centre, so a pane
+       carried old all the way arrived plain where its place is stained - the harness's layout turn at 1600x900, the
+       texture in its band at 26 % of rest (1d860414: 45 %); carried new all the way, it left squeezed or stretched
+       from corners that are not its own. */
+    carry: recolour ? "old" : hold ? "both" : "old", hold, snap,
+    none: false, recolour, recut: moves.length > 0, dur, move: { ms: move, curve }, order, batchOf, delayOf, gap, moves, batches, flashes,
+    frost: moves.length ? { out: FROST_OUT, in: FROST_IN } : null,
+    glow: { ms: Math.max(moves.length ? move : 0, fadeEnd) || move }
   };
-  const step = now => {
-    const u = Math.min(1, (now - t0) / dur), e = EASE(u);
-    if (!el.isConnected || j.morphId !== my) { done(); return; }
-    const polys = pairs.map(q => q.from.map((pt, i) => [lerp(pt[0], q.to[i][0], e), lerp(pt[1], q.to[i][1], e)]));
-    el.style.clipPath = "path('" + polys.map(pl => "M" + pl.map(q => q[0].toFixed(1) + " " + q[1].toFixed(1)).join("L") + "Z").join("") + "')";
-    if (gc) gc.style.opacity = String(1 - e);
-    if (gg) { gg.style.opacity = String(1 - e); if (glow) glow.style.opacity = String(e); }
-    g.clearRect(0, 0, W, H);
-    const acc = lerpHex(oldAcc || newAcc, newAcc, e);
-    // the seams on their way: a soft light under them (the glow's part), the lead, the bevel, the colour
-    g.save(); g.filter = "blur(4px)"; g.globalCompositeOperation = "lighter"; strokeAll(polys, 0.35, acc, 2.2); g.restore();
-    strokeAll(polys, 0.95, "#08050d", 1.2);
-    g.save(); g.translate(0, 1); strokeAll(polys, 0.22, "#ffffff", 0.5); g.restore();
-    strokeAll(polys, 0.92, acc, 0.7);
-    g.globalAlpha = 1;
-    if (u < 1) { requestAnimationFrame(step); return; }
-    el.style.clipPath = finalClip;
-    done();
+}
+/* ---- the turn's layers ---- */
+const TURN_LAYER = "position:absolute;margin:0;padding:0;border:0;pointer-events:none;transform-origin:0 0;";
+const layerBox = b => "left:" + b.x0 + "px;top:" + b.y0 + "px;width:" + (b.x1 - b.x0) + "px;height:" + (b.y1 - b.y0) + "px;";
+/* one canvas of a look, cut to the polygons given, the size of their box, one pixel of the look a pixel of the layer.
+   A LAYER THAT TRAVELS IS SAMPLED, NOT FILTERED (E23 fix G1, 08.11.2026; Open 15). The compositor samples a moved layer
+   between its pixels, and a pixel of a seam or a streak, averaged with its neighbour, went: C1b fix baked such a layer
+   at twice its size (the pane over 256,640 at 47 % of rest at one pixel a pixel, 56 % at four). Read again on the
+   turn's own frames - those after the screencast's last frame of the page before the rebuild - of the harness's layout
+   turn at 1600x900, two runs a role (08.11, scratch copies; `--turn`'s squares, a probe's window): twice the size 53-57
+   % of rest, three times 55-58 %, one pixel a pixel with `image-rendering: pixelated` 59-75 %; and the full `--turn` of
+   each, line by line, the recolours' worst square 85/85/117/119 % against 81/83/111/112 % (phase-recut, both sizes and
+   roles), the rest the same. So a travelling layer is drawn at its size and sampled to the nearest pixel: each pixel
+   on the screen is one of the look's. What it costs: a seam crossing the screen in a move is drawn in steps of a
+   pixel, not smoothed (seen at four times its size); at rest and in the standing layers nothing
+   changes. Headless and software; a table's pixels are a live reading's, not this one's. */
+function cutLook(look, polys, box, cls) {
+  const c = document.createElement("canvas"), moves = cls === "drpg-turn-pane";
+  c.className = cls; c.width = Math.max(1, box.x1 - box.x0); c.height = Math.max(1, box.y1 - box.y0);
+  c.style.cssText = TURN_LAYER + layerBox(box) + (moves ? "image-rendering:pixelated;" : "");
+  const g = c.getContext("2d");
+  if (g) {
+    g.imageSmoothingEnabled = false;
+    g.translate(-box.x0, -box.y0);
+    g.beginPath();
+    for (const poly of polys) poly.forEach((q, i) => (i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])));
+    g.closePath(); g.clip();
+    g.drawImage(look, 0, 0);
+  }
+  return c;
+}
+/* A sibling of the curtain at its index, written again only when its index moved. A written `cssText` takes the clip
+   with it, so the clip is asked for again (`clipToCut`). */
+function curtainSibling(j, id, cls, extra = "") {
+  let el = document.getElementById(id);
+  if (!el) { el = document.createElement("div"); el.id = id; el.className = cls; }
+  const css = STYLE + "z-index:" + j.el.style.zIndex + ";" + extra;
+  if (el.drpgCss !== css) { el.drpgCss = css; el.style.cssText = css; el.drpgClip = null; }
+  return el;
+}
+/* the frost and the flash's host take the cut's silhouette, once a cut and never in a frame of a turn */
+function clipToCut(el, d) {
+  if (!el || !d || el.drpgClip === d) return;
+  el.drpgClip = d;
+  el.style.clipPath = "path('" + d + "')";
+}
+/* THE FROST: the backdrop blur under the glass, a sibling the curtain stands on (stained-glass.css `#drpg-curtain-frost`) */
+function frostOf(j) {
+  const f = curtainSibling(j, "drpg-curtain-frost", "drpg-curtain-frost");
+  if (f.nextElementSibling !== j.el) j.el.before(f);
+  return f;
+}
+function turnHost(j) {
+  const h = curtainSibling(j, "drpg-curtain-turn", "drpg-turn");
+  if (h.previousElementSibling !== j.el) j.el.after(h);
+  return h;
+}
+function flashHost(j) {
+  /* no blend of its own (E23 C1b fix): its seam layers screen inside it, and the group lies over the page as
+     1d860414's flash canvas lay inside the curtain's group - screened over the page itself, the peak read 3 higher */
+  const h = curtainSibling(j, "drpg-curtain-flash", "drpg-turn-flash");
+  const turn = document.getElementById("drpg-curtain-turn");
+  const after = turn?.parentElement === j.el.parentElement ? turn : j.el;
+  if (h.previousElementSibling !== after) after.after(h);
+  return h;
+}
+/**
+ * A cut's seams, baked once (E23 C1b; exported for R1378): one canvas a pane, the size of its box, each seam of the
+ * cut stroked on the layer of the first pane of `centreOrder` that has it - so a seam lights once, with the first of
+ * its two panes to turn - in `FLASH`'s bone, width and alpha; the screen's own edge is not a seam (`seams()`'s rule).
+ * The layers are kept on the job against the panes they were baked for: the same cut again, or a recolour of it, bakes
+ * nothing. `make` is the canvas maker (a test's own; the page's by default).
+ */
+export function bakeFlash(job, { make = () => document.createElement("canvas") } = {}) {
+  if (!job?.panes) return [];
+  if (job.flash?.of === job.panes) return job.flash.layers;
+  const panes = job.panes, W = job.W, H = job.H, edge = onBorder(W, H), pad = 2;
+  const { order } = centreOrder(panes, W, H);
+  const claimed = new Set(), sides = panes.map(() => []);
+  for (const i of order) {
+    const poly = panes[i].poly;
+    for (let n = 0; n < poly.length; n++) {
+      const p = poly[n], q = poly[(n + 1) % poly.length];
+      if (edge(p, q) || Math.hypot(q[0] - p[0], q[1] - p[1]) < 0.5) continue;
+      const key = [p, q].map(v => Math.round(v[0]) + "," + Math.round(v[1])).sort().join(" ");
+      if (claimed.has(key)) continue;
+      claimed.add(key); sides[i].push([p, q]);
+    }
+  }
+  const layers = panes.map((p, i) => {
+    const box = boxOf([p.poly], pad), c = make();
+    c.className = "drpg-turn-flash-pane"; c.width = Math.max(1, box.x1 - box.x0); c.height = Math.max(1, box.y1 - box.y0);
+    c.style.cssText = TURN_LAYER + layerBox(box) + "opacity:0;mix-blend-mode:" + FLASH.blend + ";";
+    const g = sides[i].length ? c.getContext("2d") : null;
+    if (g) {
+      g.translate(-box.x0, -box.y0);
+      g.strokeStyle = FLASH.color; g.lineWidth = FLASH.width; g.globalAlpha = FLASH.alpha; g.lineCap = "round";
+      g.beginPath();
+      for (const [a, b] of sides[i]) { g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); }
+      g.stroke();
+    }
+    return c;
+  });
+  for (const c of job.flash?.layers ?? []) c.remove?.();
+  job.flash = { of: panes, layers };
+  return layers;
+}
+/**
+ * A turn's start (exported for R1379): the clock of the turn is the first frame the browser paints after the bake,
+ * never the event (DIAGNOSIS.md 4: half of the morph's travel fell in its first 0.29 s, in the frames the synchronous
+ * rebuild ate). Nothing here writes a style or draws: each layer posed at its first keyframe by the bake (`h.posed`) is
+ * let go at once, and a Web Animation let go inside a task waits, pending, for the next frame, whose time is its start
+ * time - so the first frame painted after the bake shows the first keyframe and the clock runs from it. A handle with
+ * nothing posed (a test's) has its animations made at that first frame. `h.t0` is that frame's time.
+ * LET GO AT THE BAKE, NOT TWO FRAMES AFTER IT (E23 fix G1, 08.11.2026; the screens review's m4, C1b's Open 14). C1b let
+ * the layers go in the second animation frame after the bake; posed, those two frames showed the first keyframe and
+ * moved nothing, and in headless Chromium's software frames they were 116-266 ms each: the first moved frame of
+ * `--turn` stood 320-560 ms after the event (1d860414: 50-180). The wall-clock marks of five layout turns at 1600x900
+ * (scratch copies, 08.11): the rebuild 199-276 ms after the event (the 150 ms debounce and the observer's wake), the bake
+ * done 99-132 ms later, and the clock 141-292 ms after that, the two frames. What the turn itself added was those two
+ * frames; the debounce and the rebuild are the page's (`schedule`, `curtainGeometry`, `curtainPaint`). Let go at the
+ * bake, two full `--turn` runs read the first moved frame 55-274 ms after the event on the recolours and 287-370 ms on
+ * the layout turn at 1600x900 (ce3a821f's heavy run: 321-516 and 537-562).
+ * `frame` is the frame scheduler (a test's own; the page's by default).
+ */
+export function startTurn(h, frame = cb => requestAnimationFrame(cb)) {
+  if (h.posed) for (const a of h.posed) if (a.drpgPosed) a.play();
+  frame(t => {
+    if (h.cancelled) return;
+    h.t0 = t;
+    h.anims = h.posed ?? h.layers.map(l => l.el.animate(l.frames, l.timing));
+    h.onStart?.();
+  });
+  return h;
+}
+/* A TURN INTERRUPTED HANDS ON THE FRAME ON THE SCREEN (E23 fix G1b, 08.11.2026; the end review's correctness m1). A
+   recut that comes while a turn runs cancels it, and the next turn's old look is the curtain's canvases - which hold
+   the first turn's end, not what was shown: its layers went in one frame and the next turn began from that end, a snap
+   of colour or shape. G1 held the recut until the turn's end instead (`defer`), and that held the layout with it: the
+   blocks the cut places stood where the old cut put them for up to the turn's 1.2 s, and the sweep's camera dock
+   check, which reads the notice tile 600 ms after the dock is hidden, read it where the dock had lifted it (failing
+   lines a run: 0 and 1 on 6dd87b7c, 4 and 1 on 18b9eaf8, 0, 0 and 0 on ce3a821f). So the recut is made at once again, and the
+   look it turns from is the one on the screen: the curtain's look at the curtain's opacity of the moment (`hold`), the
+   running turn's layers drawn over it in their order, each at its computed transform and opacity. Left out: the
+   frost, the flash and the clip of a turn's holes (`drpg-turn-moves`), so a layer that crossed a hole is carried over
+   it. Read by R1412. */
+function lookOnScreen(job, look) {
+  const h = job?.turn;
+  if (!h || h.ended || !look) return look;
+  const c = document.createElement("canvas"); c.width = look.width; c.height = look.height;
+  const g = c.getContext("2d");
+  if (!g) return look;
+  const k = job.W ? look.width / job.W : 1;
+  const opacity = el => { const v = parseFloat(getComputedStyle(el).opacity); return Number.isFinite(v) ? v : 1; };
+  const matrix = el => { const m = /^matrix\(([^)]+)\)$/.exec(getComputedStyle(el).transform ?? ""); const v = m ? m[1].split(",").map(Number) : null; return v?.length === 6 && v.every(Number.isFinite) ? v : null; };
+  g.globalAlpha = opacity(job.el);
+  g.drawImage(look, 0, 0);
+  const host = document.getElementById("drpg-curtain-turn");
+  for (const el of host?.querySelectorAll("canvas") ?? []) {
+    if (!h.made.includes(el)) continue;
+    const x = parseFloat(el.style.left) || 0, y = parseFloat(el.style.top) || 0, w = parseFloat(el.style.width) || el.width, ht = parseFloat(el.style.height) || el.height;
+    const m = matrix(el);
+    g.setTransform(k, 0, 0, k, 0, 0);
+    g.translate(x, y);
+    if (m) g.transform(...m);
+    g.globalAlpha = opacity(el);
+    g.drawImage(el, 0, 0, w, ht);
+  }
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.globalAlpha = 1;
+  return c;
+}
+/**
+ * THE ONE ENTRY POINT OF A TURN (E23 C1b; the line E61's and E62's sequences build on). `job` is the curtain's (the
+ * first by default), `from` the panes that stood (`snapshotPanes`), `look` their look (`snapshotLook`), `glow` the old
+ * glow's copy, `to` the panes standing now with their look already painted, `fromAcc` and `acc` the two accents;
+ * `move`, `flash`, `dur` and `curve` as `turnPlan` takes them; `frame` is `startTurn`'s (a test's own; the page's by
+ * default). A turn running is ended first. Answers the turn - its `plan`, its `layers`, `cancel()` - or null
+ * when there is nothing to turn, which leaves the end state standing.
+ */
+export function glassTurn({ job = curtains[0], from = null, look = null, glow = null, to = job?.panes, fromAcc = null, acc = job?.acc, move = TURN_MOVE, flash = true, dur = TURN(), curve = ARRIVE, frame = undefined } = {}) {
+  if (!job || !to) return null;
+  look = lookOnScreen(job, look);
+  job.turn?.cancel();
+  const plan = turnPlan(from, to, { W: job.W, H: job.H, fromAcc, acc, dur, move, curve, flash, reduced: REDUCED() });
+  if (plan.none || !look) return null;
+  /* THE PULSE IS IN THE NEW LOOK (E23 fix G1, 08.11.2026; the end review's correctness M1). `curtainPaint` has just set
+     the pulse layer's size again, which clears it (`layerAfter`), and the loop draws it on its next frame - after this
+     bake. So the new look below (`now`: the panes that stand, the holes, every move's way back) was taken with the pulse
+     blank, without its darkening (up to 0.72 black on a plain pane, `pulseJob`) and its texture, while the old look
+     carried the old pulse and the curtain stepped back in at `snap` with its pulse drawn: every pane whose pulse was
+     dark or textured jumped in that one frame, the frame the plan calls the same picture. One frame of the pulse is
+     drawn here, for the job, before any look is taken: the curtain under a recolour's batches has it too. A layer the
+     page does not show (`drpg-no-pulse`) is drawn and left out of the look (`snapshotLook`), as the loop's would be.
+     `--turn` runs with the pulse off, so its lines cannot read this; R1411 reads the new look on a stand-in job. */
+  pulseJob(job, performance.now());
+  const host = turnHost(job), made = [], layers = [];
+  // the new look is the curtain as `curtainPaint` has just left it
+  const now = plan.carry === "both" && plan.hold ? snapshotLook(job, true) : null;
+  /* where a block's plate stood the new look stands from the first frame, and nothing travels over it (E23 C1b fix):
+     the layers that move lie in one box clipped to everything but those places, written once, before the clock */
+  let into = host;
+  if (now && plan.hold.holes.length) {
+    into = document.createElement("div");
+    into.className = "drpg-turn-moves";
+    const d = "M0 0H" + job.W + "V" + job.H + "H0Z" + plan.hold.holes.map(k => from[k].poly.map((q, i) => (i ? "L" : "M") + num(q[0], 1) + " " + num(q[1], 1)).join("") + "Z").join("");
+    into.style.cssText = TURN_LAYER + "left:0;top:0;width:" + job.W + "px;height:" + job.H + "px;clip-path:path(evenodd,'" + d + "');";
+    host.append(into); made.push(into);
+  }
+  for (const m of plan.moves) {
+    const c = cutLook(look, [from[m.from].poly], m.box, "drpg-turn-pane");
+    into.append(c); made.push(c);
+    layers.push({ el: c, frames: m.frames, timing: { duration: plan.move.ms, easing: "linear", fill: "forwards" }, move: true });
+    if (!now || !m.back) continue;
+    const n = cutLook(now, [to[m.to].poly], m.back.box, "drpg-turn-pane");
+    into.append(n); made.push(n);
+    layers.push({ el: n, frames: m.back.frames, timing: { duration: plan.move.ms, easing: "linear", fill: "forwards" }, move: true });
+  }
+  if (now && plan.hold) {
+    const held = [...plan.hold.panes.map(i => to[i].poly), ...plan.hold.holes.map(k => from[k].poly)];
+    if (held.length) {
+      const c = cutLook(now, held, plan.hold.box, "drpg-turn-batch");
+      host.prepend(c); made.push(c);
+      layers.push({ el: c, frames: plan.hold.frames, timing: { duration: plan.move.ms, easing: "linear", fill: "forwards" } });
+    }
+    layers.push({ el: job.el, frames: plan.hold.curtain, timing: { duration: plan.move.ms, easing: "linear" } });
+  }
+  for (const b of plan.batches) {
+    const c = cutLook(look, b.panes.map(k => from[k].poly), b.box, "drpg-turn-batch");
+    host.append(c); made.push(c);
+    layers.push({ el: c, frames: b.frames, timing: { duration: b.ms, delay: b.delay, easing: b.easing, fill: "forwards" } });
+  }
+  if (plan.flashes.length) {
+    const fl = bakeFlash(job), fh = flashHost(job);
+    if (fh.drpgOf !== job.flash) { fh.replaceChildren(...fl); fh.drpgOf = job.flash; }
+    clipToCut(fh, job.pathD);
+    for (const f of plan.flashes) if (fl[f.pane]) layers.push({ el: fl[f.pane], frames: FLASH_KF, timing: { duration: FLASH.ms, delay: f.delay, easing: "linear" } });
+  }
+  const frost = plan.frost ? frostOf(job) : null;
+  if (frost) layers.push({ el: frost, frames: [{ opacity: 1 }, { opacity: 0 }], timing: { duration: plan.frost.out, fill: "forwards" }, frost: true });
+  // the bloom crosses over and never goes out: the old glow's copy fades over the new one as the new fades in
+  const gl = document.querySelector('[data-glow="' + job.seed + '"]');
+  if (gl && plan.glow) {
+    const timing = { duration: plan.glow.ms, easing: cssCurve(curve) };
+    layers.push({ el: gl, frames: [{ opacity: 0 }, { opacity: 1 }], timing });
+    if (glow) { glow.className = "curtain-glow drpg-turn-glow"; glow.style.cssText = gl.style.cssText; gl.after(glow); made.push(glow); layers.push({ el: glow, frames: [{ opacity: 1 }, { opacity: 0 }], timing: { ...timing, fill: "forwards" } }); }
+  }
+  count("glass.turn");
+  count("glass.turn.layers", made.length - (into === host ? 0 : 1));
+  if (plan.recut) count("glass.turn.recut");
+  /* POSED AT THE BAKE (E23 C1b fix, 07.11.2026): each layer's animation is made here and held at its start, so the
+     two frames before the clock show the first keyframe and not the layers as laid - the screencast of the harness's
+     layout turn at 1600x900 caught those two frames with the curtain whole under the new look already in place and the
+     old in its own, the square at 0,576 at 39 % of rest (2.48 of 6.31) in every version of the move tried. One held
+     already when it was made (the harness's frozen clock) is left held. */
+  const posed = layers.map(l => { const a = l.el.animate(l.frames, l.timing); a.drpgPosed = a.playState !== "paused"; if (a.drpgPosed) a.pause(); return a; });
+  const h = { plan, layers, made, posed, t0: null, anims: null, cancelled: false, ended: false };
+  /* REDUCED MOTION SWITCHED ON MID-TURN ENDS THE TURN (E23 fix G1; the end review's correctness n4). The plan reads
+     `REDUCED()` once; the Web Animations' keyframes do not read the zeroed tokens, so a turn begun ran its 1.2 s out
+     after the reader asked for stillness. The class is motion.mjs's (`applyReducedMotion`, which also follows the
+     system's switch); it is watched on the body for the turn's length, not imported - this file needs nothing of
+     motion.mjs but the class it writes - and the turn is cancelled, which is the end state at once (`end(false)`). R1413. */
+  const still = typeof MutationObserver === "function" ? new MutationObserver(() => { if (REDUCED()) h.cancel(); }) : null;
+  still?.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  const end = done => {
+    if (h.ended) return;
+    h.ended = true; h.cancelled = !done;
+    still?.disconnect();
+    for (const a of h.anims ?? h.posed) a.cancel();
+    if (!done) h.frostIn?.cancel();
+    for (const c of made) c.remove();
+    if (frost) clipToCut(frost, job.pathD);
+    if (job.turn === h) job.turn = null;
   };
-  const done = () => {
-    mc.remove(); if (gc) gc.remove(); if (gg) gg.remove();
-    if (seamLayer) seamLayer.style.visibility = "";
-    if (glow) { glow.style.visibility = ""; glow.style.opacity = ""; }
+  h.cancel = () => end(false);
+  h.onStart = () => {
+    const at = i => h.anims[i].finished.then(() => true, () => false);
+    if (frost) {
+      Promise.all(layers.map((l, i) => (l.move ? at(i) : true))).then(() => {
+        if (h.ended) return;
+        h.anims[layers.findIndex(l => l.frost)].cancel();
+        clipToCut(frost, job.pathD);
+        h.frostIn = frost.animate([{ opacity: 0 }, { opacity: 1 }], { duration: plan.frost.in });
+      });
+    }
+    h.finished = Promise.all(layers.map((_, i) => at(i))).then(() => end(true));
   };
-  requestAnimationFrame(step);
+  job.turn = h;
+  return frame ? startTurn(h, frame) : startTurn(h);
 }
 function rebuild() {
   try { rebuildAll(); } finally { if (document.body.hasAttribute("data-drpg-measuring")) measuring(false); }
@@ -3449,7 +4015,7 @@ function rebuildAll() {
       const check = CHECKS[CHECKS.length - 1];
       const changed = !wasPainted || !check?.same || acc !== oldAcc;
       if (changed) {
-        /* THE GHOST THE MORPH CROSSFADES FROM, TAKEN HERE RATHER THAN AT THE TOP OF THE PASS.
+        /* THE OLD LOOK THE TURN IS CUT FROM, TAKEN HERE RATHER THAN AT THE TOP OF THE PASS.
            Two full-screen canvases - 1920x1080 plus the glow's half-size copy, about 10 MB of
            backing store - were allocated, blitted into and dropped again on every rebuild, and
            most rebuilds change nothing. Measured in Chromium: 6.5 ms of the 21 ms a no-change
@@ -3459,8 +4025,8 @@ function rebuildAll() {
            rotation sheet, and `placeTiles` writes padding onto Foundry's rails. The pixels
            caught here are the pixels that were on the screen when the pass began.
            The gate is `oldPanes` and not `j.painted`: an identical cut leaves `painted` alone,
-           but a new one has already set it false by the time we are here, and the ghost is
-           exactly what the new cut is supposed to fade in over. */
+           but a new one has already set it false by the time we are here, and the old look is
+           exactly what the turn carries to the new cut (E23 C1b: `glassTurn`). */
         const oldLook = oldPanes && !REDUCED() ? snapshotLook(j, oldPanes) : null;
         const oldGlow = oldLook ? snapshotCanvas(document.querySelector('[data-glow="' + j.seed + '"]')) : null;
         /* `toggle(name, true)`, NOT `add(name)`, AND THE DIFFERENCE IS NOT STYLE.
@@ -3475,7 +4041,12 @@ function rebuildAll() {
         curtainPaint(j); document.body.classList.toggle("drpg-curtain-on", true);
         const gl = document.querySelector('[data-glow="' + j.seed + '"]');
         if (gl) gl.style.cssText = STYLE + "z-index:" + j.el.style.zIndex + ";mix-blend-mode:screen;width:" + j.W + "px;";
-        morph(j, oldPanes, oldAcc, oldLook, oldGlow);
+        /* THE TURN, AND THE FROST'S CUT (E23 C1b). The old look goes to `glassTurn`, which plans
+           and bakes it before the next frame and lets the browser run it; a turn that moves glass
+           clips the frost to the new cut once its moves are over, and a new cut with no such turn
+           (reduced motion, nothing painted before, a corner not worth a turn) clips it here. */
+        const turn = oldLook ? glassTurn({ job: j, from: oldPanes, look: oldLook, glow: oldGlow, fromAcc: oldAcc }) : null;
+        if (!turn?.plan.frost) clipToCut(frostOf(j), j.pathD);
         /* A NEW CUT, AND ONLY A NEW CUT, IS ANNOUNCED (E77 C4). The room tile's picture follows
            its pane here, and `drpgGlassCut` is what a test counts to say that a new description,
            a new picture or the description opened recut nothing: a recolour of the same cut and
@@ -3627,29 +4198,39 @@ function flashSeams(job, color, ms, { bloom = false } = {}) {
      first took the other's light away with it - a 1400 ms cut ending after 420. */
   const fc = document.createElement("canvas"); fc.className = "flash"; fc.width = W; fc.height = H;
   fc.style.cssText = LAYER; ref.after(fc);
+  /* DRAWN ONCE, PLAYED BY ITS OPACITY (E23 C1b fix, 07.11.2026). The seams were cleared and stroked again in every frame
+     of the flash at the envelope's alpha; on a phase change a window band's flash did so inside the curtain's turn
+     (`--turn` on the combined tree: 4 frames drew, a player's phase at 1600x900). They are stroked once at full
+     strength and the canvas's opacity runs `FLASH_KF` - the same rise, hold and cubic fall (`FLASH`) - over `ms`. */
   const g = fc.getContext("2d");
-  const t0 = performance.now();
-  const RISE = 0.08, HOLD = 0.32;
-  const step = t => {
-    const u = (t - t0) / ms;
-    g.clearRect(0, 0, W, H);
-    if (u >= 1 || !fc.isConnected) { fc.remove(); return; }
-    const a = u < RISE ? u / RISE : u < HOLD ? 1 : Math.pow(1 - (u - HOLD) / (1 - HOLD), 3);
-    g.strokeStyle = color;
-    if (bloom) {
-      g.save(); g.globalCompositeOperation = "lighter";
-      for (const [blur, mul, wdt] of [[12, 0.30, 3.0], [5, 0.42, 1.6]]) { g.filter = "blur(" + blur + "px)"; g.globalAlpha = a * mul; seams(g, job.panes, W / k, H / k, wdt, k); }
-      g.restore();
-    }
-    g.globalAlpha = a; seams(g, job.panes, W / k, H / k, 1.6, k);
-    g.globalAlpha = 1;
-    requestAnimationFrame(step);
-  };
-  requestAnimationFrame(step);
+  if (!g || typeof fc.animate !== "function") { fc.remove(); return; }
+  g.strokeStyle = color;
+  if (bloom) {
+    g.save(); g.globalCompositeOperation = "lighter";
+    for (const [blur, mul, wdt] of [[12, 0.30, 3.0], [5, 0.42, 1.6]]) { g.filter = "blur(" + blur + "px)"; g.globalAlpha = mul; seams(g, job.panes, W / k, H / k, wdt, k); }
+    g.restore();
+  }
+  g.globalAlpha = 1; seams(g, job.panes, W / k, H / k, FLASH.width, k);
+  const run = fc.animate(FLASH_KF, { duration: ms, easing: "linear", fill: "forwards" });
+  run.finished.then(() => fc.remove(), () => fc.remove());
 }
+/* A BAND'S SEED IS ITS WINDOW'S, NOT THE LIST'S (E23 C1c; S12-32): `seedBase + windows.length * 37` gave the same
+   window another pattern of panes whenever another band had come or gone. A window's `id` stands for it across its
+   renders and across a close and an open; a band with no window (the pause) keeps its base. */
+const bandSeed = (base, id) => { let h = 0; for (const ch of String(id ?? "")) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return base + (h % 9973) * 37; };
 /** Glass on a band: a window's title bar or the character sheet's header. */
-function dressBand(band, seedBase) {
+function dressBand(band, seedBase, app = null, kind = null) {
   let job = windows.find(j => j.el === band);
+  /* A NEW ELEMENT FOR THE SAME BAND IS THE SAME BAND (E23 C1c, 07.11.2026; S12-32). Daggerheart's sheet part `header`
+     has no root of its own, so every render of the sheet - a Hope spent, an item added, `refreshSheets` after the clock
+     moved - replaces its `.character-header-sheet`. Found by the element, each was a new job: another pattern, a full
+     paint, a 420 ms flash, and the old job with its canvases left in the list. A job is found by its window and kind
+     too, when the element it had has left the page: its canvases move to the new element, and the rest is a redraw's
+     (the box and the colour asked, below), with no flash. */
+  if (!job && app && kind) {
+    job = windows.find(j => j.app === app && j.kind === kind && !j.el.isConnected) ?? null;
+    if (job) { band.prepend(...job.el.querySelectorAll(":scope > canvas")); job.el = band; }
+  }
   /* THE FLASH MEANS "THE GLASS HAS JUST SET", SO IT HAPPENS ONCE.
      `dressWindow` is on `renderApplicationV2`, which fires on every REDRAW of a window as
      well as on its first render - a module panel redraws on every clock write, every Despair
@@ -3671,11 +4252,13 @@ function dressBand(band, seedBase) {
   const fresh = !job || !band.querySelector(":scope > canvas.sg");
   if (fresh) {
     if (job) job.panes = null;
-    else { job = { el: band, seed: seedBase + windows.length * 37 }; windows.push(job); }
+    else { job = { el: band, app, kind, seed: bandSeed(seedBase, app?.id), flashes: 0 }; windows.push(job); }
     if (!band.querySelector(":scope > canvas.sg")) {
       const c = document.createElement("canvas"); c.className = "sg"; band.prepend(c);
     }
   }
+  // the flashes a band's first render starts, counted on the job for a test with no box to paint (R1381)
+  if (fresh) job.flashes = (job.flashes ?? 0) + 1;
   requestAnimationFrame(() => {
     if (fresh) { paintBand(job); flashSeams(job, job.acc || "#f2eee6", 420); return; }
     // the same two numbers `paintBand` would give the canvas, so this compares like with like
@@ -3691,12 +4274,14 @@ function dressBand(band, seedBase) {
     header; called from renderApplicationV2. */
 export function dressWindow(app) {
   if (!glassRoom()) return;
+  // the jobs of windows gone from the page leave first (E23 C1c; S12-32), so a render never walks a closed one's
+  pruneWindows();
   const el = app?.element;
   if (!el?.querySelector) return;
   // module windows (`.drpg-panel`) and the messenger carry the glass on their title band
-  if (el.classList?.contains("drpg-panel") || el.classList?.contains("drpg-messenger")) { const h = el.querySelector(".window-header"); if (h) dressBand(h, 155); }
+  if (el.classList?.contains("drpg-panel") || el.classList?.contains("drpg-messenger")) { const h = el.querySelector(".window-header"); if (h) dressBand(h, 155, app, "header"); }
   const sheetHead = el.querySelector(".character-header-sheet");
-  if (sheetHead) { sheetHead.classList.add("drpg-glass-band"); dressBand(sheetHead, 999); }
+  if (sheetHead) { sheetHead.classList.add("drpg-glass-band"); dressBand(sheetHead, 999, app, "sheetHead"); }
 }
 /* the state changed (hour, phase, Eclipse): every seam flashes Bone and the glass takes the new colour */
 let stateTimer = 0;
@@ -3715,7 +4300,8 @@ function onStateChange() {
   clearTimeout(stateTimer);
   stateTimer = setTimeout(() => {
     let moved = false;
-    for (const j of curtains) { if (!j.panes) continue; const acc = resolveAcc(j.el); if (acc === j.acc) continue; moved = true; flashSeams(j, "#f2eee6", 420); }
+    /* the curtain's seams flash with its turn, pane by pane (`glassTurn`, E23 C1b); a band's still flash whole, below */
+    for (const j of curtains) { if (!j.panes) continue; const acc = resolveAcc(j.el); if (acc === j.acc) continue; moved = true; }
     if (moved) { turning(); rebuild(); }
     for (const j of windows) { if (!j.el.isConnected) continue; const acc = resolveAcc(j.el); if (acc === j.acc) continue; turning(); flashSeams(j, "#f2eee6", 420); }
     // a band's colour is inherited through the fading token (stained-glass.css @property), so it is
@@ -3723,7 +4309,15 @@ function onStateChange() {
     setTimeout(() => { for (const j of windows) { if (!j.el.isConnected) continue; const acc = resolveAcc(j.el); if (acc !== j.acc) paintBand(j); } }, TURN() + 80);
   }, 60);
 }
-function pruneWindows() { for (let i = windows.length - 1; i >= 0; i--) if (!windows[i].el.isConnected) windows.splice(i, 1); }
+/* WHICH BANDS ARE GONE (E23 C1c; S12-32). A job whose element has left the page is gone unless its window is still on
+   it - a sheet that has just replaced its header keeps its job for `dressBand` to move - and a window being closed
+   (`closeApplicationV2`, which can come while its element is still in the page) takes its jobs with it. */
+function pruneWindows(closing = null) {
+  for (let i = windows.length - 1; i >= 0; i--) {
+    const j = windows[i];
+    if ((closing && j.app === closing) || !(j.el.isConnected || j.app?.element?.isConnected)) windows.splice(i, 1);
+  }
+}
 
 /* `refreshGlass` rather than `rebuild`: a resize can cross the curtain's gate, and then
    there is nothing to rebuild - the curtain has to go, or come back. With one mounted it
@@ -3831,14 +4425,18 @@ export function refreshGlass() {
   placeFlatRoomTile();
   if (!glassRoom()) { if (anythingMounted()) { unmount(); placeFlatRoomTile(); } return; }
   if (curtains.length) { rebuild(); return; }
-  const go = () => { mount(); observe(); };
+  /* THE MOUNT WAITS FOR THE FONTS, AND THE THEME MAY HAVE CHANGED WHILE IT WAITED (E23 fix G2, 08.11.2026; the end
+     review's correctness m4, R1420). A switch back to Monokuma Legacy before the Stained Glass faces arrive found nothing
+     to take down, and this then mounted the curtain, its loop and its observers under Legacy (R1420 read 1 curtain, 3
+     observers and a frame there). So the room is asked again when the fonts are in, and a curtain another call put up
+     meanwhile is not put up twice. */
+  const go = () => { if (glassRoom() && !curtains.length) { mount(); observe(); } };
   (document.fonts?.ready ?? Promise.resolve()).then(go, go);
 }
 
 /** Called once at ready. */
 export function registerGlass() {
   refreshGlass();
-  if (!raf) raf = requestAnimationFrame(loop);
   /*
    * A BLOCK THAT LEAVES WHILE NOBODY IS LOOKING TAKES ITS PANE WITH IT, and
    * until this line the pane stayed behind (Dawid, 14.09).
@@ -3883,7 +4481,7 @@ export function registerGlass() {
   Hooks.on("drpgLayoutHeight", () => { if (themeOn()) schedule(); flatSoon(); });
   Hooks.on("drpgHudRendered", flatSoon);
   Hooks.on("renderApplicationV2", dressWindow);
-  Hooks.on("closeApplicationV2", pruneWindows);
+  Hooks.on("closeApplicationV2", app => pruneWindows(app));
   // the pause band is a pane of the curtain while the game is paused, breathing with the slow pulse
   Hooks.on("pauseGame", paused => {
     const band = document.getElementById("pause");

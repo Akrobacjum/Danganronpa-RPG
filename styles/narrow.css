@@ -28,9 +28,18 @@
 /* THE STACK'S CEILING IS A TOKEN (E81 C13, the A7 design's P0-5): `#drpg-column` reads it,
    and so does the notice stack at the foot of the screen, which stands 8 px under it (below).
    Two numbers in two places had been one fact - how far down the stack may reach - and a
-   later stage that moves it (E23's S12-05) now changes this value and nothing else. The
-   values are 1.2.74's, unchanged. */
-body.drpg-stacked { --drpg-column-max: 52dvh; }
+   later stage that moves it (E23's S12-05) now changes this value and nothing else.
+   E23 C4a (07.11.2026; S12-05, E23-21) changed it: 52dvh hid what a player reads first. With the
+   board open under the stack (glass.mjs `stackShapes`), the ceiling is the room the board leaves:
+   the stack may reach down as far as leaves the board a third of the screen under it (two thirds
+   less the stack's 8 px top), and
+   never so far that the notice stack's ceiling falls under its 96 px floor (the screen less the
+   stack's 8 px top, the 8 px between, 96 px and the corner's `--drpg-stack-foot`). Read in Chromium
+   on the glass harness (6c9bd3c3) the stack held 464 px of blocks at 1024x768, 1200x800 and
+   820x1180 and 497 at 393x852 under Stained Glass (400 and 484 under Monokuma Legacy) in 399, 416,
+   614 and 443 px: it scrolled at three of the four with nothing saying so. Now 504, 525, 779 and 560.
+   The short screen's value (below) is 1.2.74's, unchanged. */
+body.drpg-stacked { --drpg-column-max: min(calc(100dvh * 2 / 3 - 8px), calc(100dvh - 8px - 8px - 96px - var(--drpg-stack-foot))); }
 /* Sideways on a phone there is no height to give away, so the stack keeps more of
    what little there is and the board gets the rest - but never so much of it that it
    reaches the corner buttons. With 1.2.74's corner, 22 px off the bottom and 126 tall,
@@ -70,6 +79,16 @@ body.drpg-stacked.drpg-short { --drpg-column-max: min(60dvh, calc(100dvh - 170px
 }
 #drpg-column > * { pointer-events: auto; }
 body.drpg-short #drpg-column { gap: 2px; }
+/* MORE BELOW, SAID AT THE STACK'S FOOT (E23 C4a; S12-05, E23-21). Past its ceiling the stack
+   scrolls, and nothing said so: no bar (the column hides none, but a touch screen draws none) and
+   no shadow. narrow.mjs `markStackMore` puts `drpg-stack-more` on the column while a row stands
+   below its scrollport, and the foot's last 32 px fade out, as the Projects tray's last row does
+   (`data-drpg-more`, E23 C3a). The mask is the column's own box, so it stays at the foot while the
+   rows scroll under it. */
+#drpg-column.drpg-stack-more {
+    -webkit-mask-image: linear-gradient(to bottom, var(--drpg-ink) calc(100% - 32px), transparent);
+    mask-image: linear-gradient(to bottom, var(--drpg-ink) calc(100% - 32px), transparent);
+}
 
 /* THE GAP OPENS EXACTLY WHERE THERE IS GLASS TO PUT IN IT.
    The seam between two rows of the stack runs the full width and may not reach into
@@ -90,9 +109,16 @@ body.drpg-curtain-on #drpg-column > #ui-right-column-1 { gap: 14px; }
    the right column is appended last. */
 #drpg-column > #drpg-hud { order: 1; }
 #drpg-column > #drpg-tile-row { order: 2; }
-#drpg-column > #drpg-despair { order: 3; }
-#drpg-column > #drpg-events { order: 4; }
-#drpg-column > #ui-right-column-1 { order: 5; }
+#drpg-column > #drpg-despair { order: 4; }
+#drpg-column > #drpg-events { order: 5; }
+#drpg-column > #ui-right-column-1 { order: 6; }
+/* A PLAYER'S OWN STANDING BEFORE THE ROOM'S DESPAIR (E23 C4a; S12-05, E23-21). The order above put
+   three Monokuma pools before a player's Hope and actions, and under the ceiling the status strip
+   and the Projects tray were the rows scrolled away. For a player the right column stands third,
+   after the tiles' row and before the Despair rail and the Event card; a GM's order is the one
+   above. THE OWNER TOOK THIS DEFAULT FOR Q-E23-1 (08.11.2026); the other answer (the pools folded
+   to one line, the order unchanged) is this rule taken out and a rule for the pools put in. */
+body.drpg-player #drpg-column > #ui-right-column-1 { order: 3; }
 
 /* Every block in the stack is as wide as the stack. On a desk each is a box of a
    stated width in a column sized by it; here the column is the screen and they
@@ -173,6 +199,9 @@ body.drpg-stacked #drpg-hud .drpg-hud-campaign { flex-basis: 100%; }
    phase name scrolling behind the phase name. It is also positioned across the
    whole plaque, which in a wrapping row lands on top of the words. */
 body.drpg-stacked #drpg-hud .drpg-hud-ticker { display: none; }
+/* And the Event card's, for the same reason (E23 C3b; audit S12-30): stacked, a card is the stack's width and its
+   ticker ran across the whole screen behind the card's words. */
+body.drpg-stacked .drpg-event-ticker { display: none; }
 
 /* The right column is a row of the stack now, not a column against the sidebar:
    the margin that held it clear of the sidebar tabs, and the offset hud.mjs gives
@@ -186,6 +215,12 @@ body.drpg-stacked #drpg-column > #ui-right-column-1 {
    from each other; stacked, they are one above the other, and the rule can only
    make the strip taller than its own contents. */
 body.drpg-stacked #drpg-player-status { min-height: 0; }
+/* THE EVENT PANEL'S BOX, STACKED (E23 C3b; the owner's 04.10, the base sheet's `#drpg-events`). As wide as the stack,
+   so a card wraps less and needs less height than on a desk: under Stained Glass the tallest single card with the
+   longest texts of lang read 229 px at 393x852 and 205 at 820x1180 and 1024x768 (the glass harness's `drpgEventCheck`,
+   Chromium, 07.11.2026), against 261 on a 1366x768 desk. Monokuma Legacy's box is its desk's, which holds its tallest
+   card stacked too (175 px at 393x852). */
+body.drpg-stacked.drpg-theme-stained-glass #drpg-column > #drpg-events { --drpg-events-h: calc(272px * var(--drpg-sg-scale, 1)); }
 
 /* THE TILES' ROW (E77 C8, 13.10.2026; the E77 plan's C8). The room tile, which stands under the
    clock on a desk at the height glass.mjs gives it, is one row of 44 px here (narrow.mjs `tileRow`): the picture as a
@@ -403,6 +438,20 @@ body.drpg-stacked #ui-top:empty { display: none; }
    114 x 126 corner; S12-40). Hence the `!important` here,
    and the theme's own selector beside the plain one: an `!important` against an `!important`
    is decided by specificity before order. */
+/* A GM'S FOOT IS THE FIVE BUTTONS' (E23 fix G2, 08.11.2026; the end review's screens M2). `--drpg-stack-foot` is the
+   three buttons' outline, and E77 C6 put the GM's red button and Foundry tools on a row of their own over them
+   (danganronpa.css, `--drpg-launch-u-bottom`, where the question whether this foot counts that row was left open). On
+   a GM's stacked screen it does: the notices stood on the three buttons' outline and the upper row covered a card's
+   last line - read in Chromium on the glass harness at ce3a821f with one three-sentence notice from popup.mjs, the
+   card's foot 29 px under the upper row's top under Stained Glass and 37 under Monokuma Legacy at 393x852 and 1024x768,
+   `elementFromPoint` 8 px over the card's foot answering Foundry tools (Stained Glass) or the card over the buttons'
+   tops (Legacy). Here the foot is 8 px over the higher of the two upper buttons, as the GM's roster's is
+   (`--drpg-roster-foot`); the blocks' ceiling (`--drpg-column-max`) reads the same token, so on a GM's screen it leaves
+   that row's room too. A player's corner has no upper row, and keeps the outline. */
+body.drpg-stacked.drpg-gm {
+    --drpg-stack-foot: calc(var(--drpg-edge) + var(--drpg-launch-u-bottom)
+        + max(var(--drpg-launcher-small), calc(var(--drpg-launch-b-bottom) + var(--drpg-launcher-book))) + 8px + var(--drpg-av-lift, 0px));
+}
 body.drpg-stacked {
     --drpg-stack-max: max(96px, calc(100dvh - 8px - var(--drpg-column-max) - 8px - var(--drpg-stack-foot)));
 }
@@ -449,6 +498,15 @@ body.drpg-stacked #drpg-popups > .drpg-popup {
     max-height: var(--drpg-stack-max);
     overflow-y: auto;
 }
+/* A CARD THAT SCROLLS FADES AT ITS FOOT (E23 fix G2, 08.11.2026; STATUS E23 Open 91, the end review's screens m1).
+   narrow.mjs `markNotices` puts `drpg-stack-more` on a card while words stand below its scrollport, and its last 24 px
+   fade out, as the stack's foot does (`#drpg-column.drpg-stack-more`, above): at 393x852 under Monokuma Legacy a
+   three-sentence notice was cut through a line with nothing saying it scrolled. The mask is the card's own box, so it
+   stays at the foot while the words scroll under it. R1422. */
+body.drpg-stacked #drpg-popups > .drpg-popup.drpg-stack-more {
+    -webkit-mask-image: linear-gradient(to bottom, var(--drpg-ink) calc(100% - 24px), transparent);
+    mask-image: linear-gradient(to bottom, var(--drpg-ink) calc(100% - 24px), transparent);
+}
 /* SIDEWAYS ON A PHONE THERE IS NO ROOM OVER THE BUTTONS, so the notices stand beside them,
    on the screen's bottom line, as far in from the wall as the corner reaches - settings'
    place and size, the farthest in of the three - and 24 px more. That is 140 px from the
@@ -458,10 +516,10 @@ body.drpg-stacked #drpg-popups > .drpg-popup {
    Glass the buttons step inboard of the tab rail by `--drpg-launch-clear` (glass.mjs) and the
    notices with them; under Monokuma Legacy they do not move. */
 body.drpg-stacked.drpg-short {
-    --drpg-stack-max: max(96px, calc(100dvh - 8px - var(--drpg-column-max) - 8px - var(--drpg-edge) - var(--drpg-av-lift, 0px)));
+    --drpg-stack-max: max(96px, calc(100dvh - 8px - var(--drpg-column-max) - 8px - var(--drpg-edge) - var(--drpg-av-lift, 0px) - var(--drpg-players-line, 0px)));
 }
 body.drpg-stacked.drpg-short #drpg-popups {
-    bottom: calc(var(--drpg-edge) + var(--drpg-av-lift, 0px)) !important;
+    bottom: calc(var(--drpg-edge) + var(--drpg-av-lift, 0px) + var(--drpg-players-line, 0px)) !important;
     right: max(var(--drpg-notices-right, 8px),
         calc(var(--drpg-edge) + var(--drpg-launch-s-right) + var(--drpg-launcher-small) + 24px)) !important;
 }
@@ -482,6 +540,42 @@ body.drpg-stacked #drpg-messenger-roster { z-index: 99991; }
    `game.drpg.openNotices()` stay the way in; a card brings the button back in its corner.
    R298 (7) reads the rule, R299 (b) the button hidden. */
 body.drpg-stacked #drpg-popups:not(:has(> .drpg-popup:not(.drpg-popup-parked))) > #drpg-notices-corner { display: none; }
+
+/* FOUNDRY'S GAUGE ON A STACKED SCREEN (E23 C4b, 08.11.2026; S12-96, E23-22; the owner's Q-E23-4, 08.11: the
+   default). `#players` stands at the foot of Foundry's left column, and stacked that column is pushed down by the
+   whole stack's height (narrow.mjs `reserveRoom`): a prototype run read it at y 1164 on a 1200x800 screen, off the
+   screen - and glass.mjs `gaugeFoot` read the notice tile's foot off it. The glass harness's gauge is where its HTML
+   puts it and stood at 440-466 there (Chromium, 1d860414), so the fault was not seen on the harness; where it stands
+   at a table is LIVE-E23-07 (S12-96).
+   For a GM it is one line on the screen's foot: on the corner buttons' bottom line (`--drpg-edge` and the camera
+   dock's lift), at the stack's 8 px from the wall, no wider than leaves the buttons and the 24 px the notices keep
+   from them, and `--drpg-players-line` tall. The notices stand over it: 8 px over the buttons on a tall screen, far
+   above the line; on a short one, where they stand on the buttons' line, higher by the line's height (above).
+   A player's is hidden, the owner's default: since E79 C13 the gauge shows no latency or frame rate, and the list of
+   who is connected is not shown to anyone (danganronpa.css, "the corner is a gauge").
+   Neither rule is `!important` (this sheet's budget, tools/css-budget.json): what Foundry's own sheet states for
+   `#players`, and in which cascade layer, is not read in this repository. */
+body.drpg-stacked.drpg-gm { --drpg-players-line: 24px; }
+body.drpg-theme-stained-glass.drpg-stacked.drpg-gm { --drpg-players-line: calc(32px * var(--drpg-sg-scale, 1)); }
+body.drpg-stacked.drpg-gm #players {
+    position: fixed;
+    top: auto;
+    right: auto;
+    bottom: calc(var(--drpg-edge) + var(--drpg-av-lift, 0px));
+    left: 8px;
+    box-sizing: border-box;
+    height: var(--drpg-players-line);
+    max-width: calc(100vw - 8px - var(--drpg-edge) - var(--drpg-launch-s-right) - var(--drpg-launcher-small)
+        - var(--drpg-launch-clear, 0px) - 24px);
+    margin: 0;
+    padding-block: 0;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+body.drpg-stacked.drpg-player #players { display: none; }
 
 /* ---- windows -------------------------------------------------------------
    `scaleWindow` in settings.mjs already keeps a window's SIZE inside the screen

@@ -259,6 +259,12 @@ export async function dropOffer(actorId, offerId) {
     if (left.length) await offerStore.patch(actorId, listFields(row, left));
     else await offerStore.drop(actorId);
     await tellOwners(actorId);
+    /* AND THIS GM'S OWN SHEET (E45-C3b, 09.11.2026; C3a's Open 1). The owners redraw on the set they are sent; the GM's
+       button reads this store, and nothing drew the GM's open sheet again after a player's take: `applyAdvancement`
+       writes the rises first (the sheet renders for them, the offer still standing) and withdraws the offer after.
+       Scenario 71 H4 read the GM's button lit with no offer standing ({"offered":true,"standing":0}). A take-back
+       draws its own GM's sheet as well (`takeBackOffer`); a second render there is the old one's cost. */
+    game.actors.get(actorId)?.sheet?.render(false);
     return true;
 }
 
@@ -571,14 +577,16 @@ export async function openAdvancement(actor, kind = "standard", { extraPicks = 0
     const result = await drpgWindow({
         title: game.i18n.format("DRPG.Advance.title", { actor: actor.name }),
         /* A MODULE PANEL, AS EVERY OTHER WINDOW OF THE MODULE (E10 C9, 1.2.71; audit S01-16, S03-19). It carried
-           `drpg-advance` alone, and the module's rules read `drpg-panel`: stacking.mjs `KEEP_ON_TOP` (the sheet
-           buried the picker when a player clicked it to compare statistics), chrome.mjs `dressChrome` (the selects'
-           arrow) and a11y.mjs (focus into a new window) all match it and nothing else, and the audit saw the
-           buttons and the title bar come out unlike the module's. `drpg-advance` stays beside it: the widths, the
+           `drpg-advance` alone, and the module's rules read `drpg-panel`: chrome.mjs `dressChrome` (the selects'
+           arrow) and a11y.mjs (focus into a new window) match it and nothing else, and the audit saw the buttons
+           and the title bar come out unlike the module's; stacking.mjs read it too until E23 C5a, and keeps the
+           picker above the sheet by `prompt` (below) since. `drpg-advance` stays beside it: the widths, the
            pick rows and the notes are stated on it. Tier 2 "the Level Up window is a module panel" reads the
-           classes; what a browser then shows (the order of the windows, the arrow, the focus) is not something
-           the harness draws - LIVE check at a table, not measured here. */
+           classes; what a browser then shows (the arrow, the focus) is not something the harness draws - LIVE
+           check at a table, not measured here; the order of the windows is E23-T2's (tier 2). */
         classes: ["drpg-panel", "drpg-advance"],
+        // A prompt the game waits on: kept above the sheet the player compares it with (stacking.mjs; E23 C5a).
+        prompt: true,
         // The GM's window says for whom it is; a player's own picker is their own character's.
         body: buildContent(picks, experiences, why, asPlayer ? null : actor.name),
         footer: {
@@ -1210,6 +1218,7 @@ async function askWhoPicks(rows) {
     return drpgWindow({
         title: L("DRPG.Advance.queueTitle"),
         classes: ["drpg-panel", "drpg-advance-queue"],
+        prompt: true,
         body: `<p>${L("DRPG.Advance.queueIntro")}</p><ul class="drpg-advance-queue-list">${items}</ul>`,
         footer: {
             primary: { action: "give", label: L("DRPG.Advance.queueGive"), callback: (event, button, dialog) => read(dialog, false) },

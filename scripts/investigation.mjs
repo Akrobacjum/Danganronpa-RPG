@@ -2631,8 +2631,25 @@ export async function openInvestigationDashboard({ said = null } = {}) {
     // which stored slot) and what a changed field is checked against are the world now. What
     // the window drew each field from rides in the form itself (E09 C3; until then the
     // `shownTraces`/`shownKeyPlan` snapshots of S1-m7 and E05 C5).
-    await applyDashboardSave(action, { traces: allTraces(), plan: keyPlan() });
-    return openInvestigationDashboard();
+    /* SAVE SAVES AND CLOSES (E24 C6; the owner, 09.11.2026: "Przycisk save nie zamyka okna investigation").
+       Since E09 C13 the window reopened itself here so the GM saw the saved state; the owner calls that a
+       defect. The six other buttons keep their reopen (`runDashboardButton` above, with `said`). What a Save
+       did not save is told by a toast that stays up until the GM dismisses it, so it outlives the window:
+       a field refused because the world moved under it (`applyDashboardSave`, its own permanent warning
+       with the GM's typed value - the one place that value still exists, which a window redrawn from the
+       world would not show), and a Final Key Remnant whose room is gone (mastermind.mjs
+       `placeFinalRemnant`, permanent since this commit). A Save that throws part-way is the one case the
+       window comes back: what it wrote before the throw stands, nothing else says which fields that was,
+       and the window drawn from the world is that list (R1493; tier 2's "the dashboard's Save with a
+       change closes it"). */
+    try {
+        await applyDashboardSave(action, { traces: allTraces(), plan: keyPlan() });
+    } catch (err) {
+        error("the Investigation dashboard's Save stopped part-way", err);
+        ui.notifications.error(game.i18n.format("DRPG.Investigation.saveStopped", { error: err?.message ?? String(err) }), { permanent: true });
+        return openInvestigationDashboard();
+    }
+    return null;
 }
 
 /**
@@ -2700,9 +2717,9 @@ export async function applyDashboardSave(result, { traces, plan }) {
     if (tracesChanged) parts.push(plural("DRPG.Investigation.tracesSaved", { n: tracesChanged }));
     if (parts.length) ui.notifications.info(parts.join(" "));
 
-    /* SAID, AND IT STAYS UP. The window reopens on the ledger after a Save, so a refused field
-       comes back showing what the world holds and the GM's own value is gone from it - this
-       message is the only place it still exists, for them to type again. */
+    /* SAID, AND IT STAYS UP. The window closes after a Save (E24 C6; it reopened on the ledger from
+       E09 C13 until then), and the GM's own value of a refused field is in no window - this message
+       is the only place it still exists, for them to type again, so it waits to be dismissed. */
     if (refused.length) {
         const list = refused.map(r => game.i18n.format("DRPG.Investigation.savedOverItem", {
             field: game.i18n.localize(FIELD_LABELS[r.field]), row: r.row, value: refusedAs(r.field, r.value, traces)
