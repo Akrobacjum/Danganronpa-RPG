@@ -3772,6 +3772,12 @@
       "poolCreated": "Room table “{name}” created. Point a room at it in Room Setup.",
       "renameTable": "Rename table",
       "deleteTable": "Delete table",
+      "col": {
+        "table": "Table",
+        "items": "Items",
+        "description": "Description",
+        "actions": "Actions"
+      },
       "createTable": "Create table",
       "installAction": "Install / reinstall",
       "renameNote": "A tier pool keeps a name of its category and tier. A room table can take any other name.",

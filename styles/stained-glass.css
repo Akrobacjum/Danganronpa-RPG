@@ -3843,17 +3843,6 @@ body.drpg-theme-stained-glass #countdowns .countdown-tools .progress-tag {
     font-size: max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale)));
 }
 
-/* THE TABLE LISTS SCROLL DOWN, NEVER SIDEWAYS.
-   Both lists in the Item tables window reported four pixels of horizontal scroll with
-   nothing actually sticking out - measured every descendant, none reaches past the
-   scrollport - so it is a rounding artefact of the scrollport itself, not content. It
-   still counts as a sideways-scrolling box to R12, and a vertical list of table names
-   has no business scrolling sideways in any case. `clip` rather than `hidden`: it kills
-   the phantom axis without turning the box into a second scroll container. */
-body.drpg-theme-stained-glass :is(.drpg-tables-list, .drpg-table-items) {
-    overflow-x: clip;
-}
-
 /* THE PANEL'S OWN CHROME TAKES THE FLOOR TOO.
    The floor test walks `.drpg-panel` as well as the curtain, and a module window's header,
    body and section headings still carried Foundry's 13 px - which is the base size every

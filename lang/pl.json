@@ -4109,6 +4109,12 @@
       "poolCreated": "Tabela pokoju „{name}” utworzona. Wskaż ją pokojowi w Ustawieniach pokoi.",
       "renameTable": "Zmień nazwę tabeli",
       "deleteTable": "Usuń tabelę",
+      "col": {
+        "table": "Tabela",
+        "items": "Przedmioty",
+        "description": "Opis",
+        "actions": "Akcje"
+      },
       "createTable": "Utwórz tabelę",
       "installAction": "Zainstaluj / przeinstaluj",
       "renameNote": "Pula Tier nosi nazwę swojej kategorii i Tieru. Tabela pokoju może mieć każdą inną nazwę.",

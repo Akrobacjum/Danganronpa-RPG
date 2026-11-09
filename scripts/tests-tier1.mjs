@@ -25282,20 +25282,18 @@ const INVARIANTS = [
         const pool = { id: "r974pool", name: "DRPG Tools - Tier 2", results: new Set([entry]),
             getFlag: (scope, key) => (scope === MODULE_ID ? { category: "tool", tier: 2 }[key] : undefined) };
         const paneFrame = frameOf(tablesAsk, T.poolPaneHtml("tiers", [pool], pool));
-        const row = paneFrame.querySelector(".drpg-table-items > li");
-        must(row, "the pane drew no entry row - this would measure nothing");
-        const cells = [".drpg-table-item-icon", ".drpg-table-item-name", ".drpg-table-item-note", ".drpg-table-item-roles", "[data-drpg-place]", "[data-drpg-drop]"]
-            .map(sel => won(row.querySelector(`:scope > ${sel}`), "grid-area"));
-        const list = paneFrame.querySelector(".drpg-tables-list");
-        const pick = list?.querySelector(".drpg-table-pick");
-        /* The list's row is at least one row tall, and taller when a pool's name wraps (E44 C4a, S12-56: it was exactly
-           one row while a second rule cut the name to one line; R1326). */
-        equal(stableJson([won(row, "display"), cells, /var\(--drpg-pick-h\)/.test(won(list, "max-height") ?? ""), [won(pick, "height"), won(pick, "min-height")],
-            won(paneFrame.querySelector("p.notes"), "text-align")]),
-            stableJson(["grid", ["icon", "name", "note", "roles", "place", "drop"], true, ["auto", "var(--drpg-pick-h)"], "left"]),
-            "the tables window's entry row is not one grid row with its buttons in their own columns, its list is not in whole rows, "
-            + "or its help is centred [row display, grid areas of icon, name, description, roles, place, remove; list height in rows; "
-            + "row height and its floor of one row; the help's alignment]");
+        /* On the kit's dataTables since E46-C3b (09.11.2026): the entries a table laid out fixed, the name's cell the icon,
+           the field and the "+n" in one row; the pick list's box at most 26rem, a row the pick (the button's reach is
+           its row's: `position: relative` on the row). Before, an entry was one grid row of six areas (E14-48). */
+        const table = paneFrame.querySelector(".drpg-table-items table.drpg-data-table");
+        must(table?.querySelector("tr[data-drpg-result]"), "the pane drew no entry row - this would measure nothing");
+        const list = paneFrame.querySelector(".drpg-tables-list > .drpg-data-table-box");
+        const pickRow = list?.querySelector("tbody > tr");
+        equal(stableJson([won(table, "table-layout"), won(table.querySelector(".drpg-table-item-cell"), "display"), won(list, "max-height"),
+            won(pickRow, "position"), won(paneFrame.querySelector("p.notes"), "text-align")]),
+            stableJson(["fixed", "flex", "26rem", "relative", "left"]),
+            "the tables window's entries are not a fixed table with the name's pieces in one row, its list not held to its height, "
+            + "its row not the pick, or its help centred [the table's layout, the name cell's display, the list's height, the pick row's position, the help's alignment]");
 
         const tablesFrame = frameOf(tablesAsk);
         const caption = sel => tablesFrame.querySelector(`[data-drpg-pane="newItem"] ${sel} > .notes:first-child`);
@@ -25316,16 +25314,17 @@ const INVARIANTS = [
         must(open, "Give an item has no Create new tab - this would measure nothing");
         for (const section of giveFrame.querySelectorAll(".drpg-tab-pane")) section.hidden = section !== open;
         const closed = giveFrame.querySelector(".drpg-tab-pane[hidden]");
-        const rowsOf = parent => [...(parent?.querySelectorAll(":scope > label:not(.drpg-checkbox)") ?? [])]
-            .filter(l => l.querySelector("select, textarea, input:not([type=checkbox])"));
-        const giveRows = [...rowsOf(open), ...rowsOf(giveFrame.querySelector(".dialog-content"))];
+        /* Give's fields on the kit's formGrid since E46-C3b (09.11.2026): the open tab's grid and the one under the tabs
+           (the recipient, the tell switch, the note), each a grid of the same two columns, so every field starts at one edge. */
+        const grids = [open.querySelector(":scope > .drpg-form-grid"),
+            [...giveFrame.querySelectorAll(".drpg-form-grid")].find(g => !g.closest(".drpg-tab-pane")) ?? null];
         const hubRoles = (hubAsk.buttons ?? []).map(b => [b.action, /\bdrpg-role-(\w[\w-]*)/.exec(b.class ?? "")?.[1] ?? null]);
-        equal(stableJson([giveRows.length > 1 && giveRows.map(l => won(l, "grid-template-columns")),
-            won(open, "grid-template-columns"), won(closed, "display"), hubRoles]),
-            stableJson([giveRows.map(() => "subgrid"), "11rem minmax(0, 1fr)", "none",
+        const kitColumns = "11rem minmax(0, 1fr)";   // components.css, the Give and bullet windows' one label column
+        equal(stableJson([grids.map(g => won(g, "display")), grids.map(g => won(g, "grid-template-columns")), won(closed, "display"), hubRoles]),
+            stableJson([["grid", "grid"], [kitColumns, kitColumns], "none",
                 [["cancel", "close"], ...["give", "bullet", "key", "take", "takeBullet", "takeKey"].map(a => [a, "secondary"])]]),
-            "Give an item's fields are not in one grid, a closed tab is opened by it, or the hub's footer is not the kit's "
-            + "[each field row, the open tab's columns, the closed tab's display, the hub's buttons in tree order: action, role]");
+            "Give an item's fields are not on the kit's formGrid, a closed tab is opened by it, or the hub's footer is not the kit's "
+            + "[the open tab's and the lower grid's display and columns, the closed tab's display, the hub's buttons in tree order: action, role]");
     }],
     ["R975 - the item tables window's help names a button or a tab that is there, the gear group has one Polish word wherever it is read, and a stash out of reach says where it is (E14-49, S08-29, S08-48, S13-21)", async () => {
         /*
@@ -34360,11 +34359,13 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson(Object.fromEntries(["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"].map(theme =>
             [theme, { whiteSpace: "normal", overflow: null, ellipsis: null, container: "inline-size" }]))),
             "a pool's name does not wrap, or the tables window is no container [by theme: the name's white-space, overflow, text-overflow; the window's container-type]");
-        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
-        const picks = (css.match(/(^|[}\s,])\.drpg-table-pick > span:first-child\s*\{/g) ?? []).length;
-        equal(JSON.stringify([picks, /@container\s*\(max-width:\s*40rem\)\s*\{\s*\.drpg-tables-layout\s*\{\s*grid-template-columns:\s*1fr/.test(css),
-            /@media\s*\(max-width:\s*40rem\)\s*\{\s*\.drpg-tables-layout/.test(css)]), JSON.stringify([1, true, false]),
-            "[the rules of `.drpg-table-pick > span:first-child`, the layout's `@container` collapse, an `@media` one] are not one, yes, no");
+        /* The window's rules are components.css's since E46-C3b (09.11.2026): read there, and none left in danganronpa.css. */
+        const sheet = async name => (await fetch(`/modules/${MODULE_ID}/styles/${name}.css`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+        const [css, base] = [await sheet("components"), await sheet("danganronpa")];
+        const picks = text => (text.match(/(^|[}\s,])\.drpg-table-pick > span:first-child\s*\{/g) ?? []).length;
+        equal(JSON.stringify([picks(css), picks(base), /@container\s*\(max-width:\s*40rem\)\s*\{\s*\.drpg-tables-layout\s*\{\s*grid-template-columns:\s*1fr/.test(css),
+            /@media\s*\(max-width:\s*40rem\)\s*\{\s*\.drpg-tables-layout/.test(css + base)]), JSON.stringify([1, 0, true, false]),
+            "[the rules of `.drpg-table-pick > span:first-child` in components.css and in danganronpa.css, the layout's `@container` collapse, an `@media` one] are not one, none, yes, no");
     }],
     ["R1327 - one number control in both themes (E44 C4b; E44-16, S10-66): a field drawn by ui-kit.mjs `stepper` in a module window, after chrome.mjs `dressChrome` (what Foundry's render hook runs on every window), steps by its own `step` inside its `min` and `max` on - and +, says under itself when a typed value is out of range, and its label points at the input, not at the minus; `dressChrome` wires it before its theme gate, so Monokuma Legacy gets the same control; and no module file but ui-kit.mjs makes a `drpg-step` element", async () => {
         /*
@@ -41394,6 +41395,51 @@ const INVARIANTS = [
             heads: [C.ITEM_CATEGORIES.crimeTool.plural, C.ITEM_CATEGORIES.tool.plural],
             pl: [[true, true], [true, true]]
         }), "{summary: [the first element, it is fine print]; heads: the groups' headings; pl: pl.json's crimeTool and tool [a plural, it differs from the label]}");
+    }],
+    ["R2020 - Item tables' pick list and a pool's entries are the kit's dataTables (scripts/tables-editor.mjs `poolPaneHtml`; E46-C3b): the list a table of the short name and the entries, its row's first cell the pick button; the entries a table of name, description, roles and actions, each row a `tr` with the entry's and the table's ids; a room pool's tiers its group rows", async () => {
+        /*
+         * E46-C3b, 09.11.2026 (S/stages/E46 "Item tables"; acceptance E46-09). Read on two stand-in tables (`c3Table`,
+         * in this browser's memory; `game.tables` answers them alone through `c3Tables`, so a room pool's entry finds
+         * its tier pool): a Murder Weapons pool at Tier 0 with one entry and a room pool holding "Axe" (a name the
+         * module's own lists sort: one tier, one group row with its count) and one name nothing knows (the unfiled
+         * section's table, no group row). Red first at 26396cd0: the list a `ul` of `li > button`, the entries a `ul` of `li`, a room's tier
+         * an `h6`.
+         */
+        const T = await import("./tables.mjs");
+        const C = await import("./config.mjs");
+        must(typeof T.poolPaneHtml === "function", "tables.mjs exports no poolPaneHtml - this would measure nothing");
+        const pool = c3Table({ id: "r2020t", name: "DRPG R2020 weapons - Tier 0", flags: { category: "crimeTool", tier: 0 }, entries: [{ name: "R2020 axe", roles: [] }] });
+        const room = c3Table({ id: "r2020r", name: "R2020 kitchen", flags: { roomPool: true }, entries: [{ name: "Axe", roles: [] }, { name: "R2020 nobody's", roles: [] }] });
+        const L = key => game.i18n.localize(key);
+        const heads = el => [...(el?.querySelectorAll("table.drpg-data-table > thead th") ?? [])].map(th => th.textContent.trim());
+        const read = await c3Tables([pool, room], async () => {
+            const tiers = document.createElement("div"), rooms = document.createElement("div");
+            tiers.innerHTML = T.poolPaneHtml("tiers", [pool], pool);
+            rooms.innerHTML = T.poolPaneHtml("rooms", [room], room);
+            const list = tiers.querySelector(".drpg-tables-list");
+            const first = list?.querySelector("table.drpg-data-table > tbody > tr");
+            const cells = [...(first?.cells ?? [])];
+            const entries = tiers.querySelector("[data-drpg-table-body] .drpg-table-items");
+            const rowsOf = el => [...(el?.querySelectorAll("table.drpg-data-table > tbody > tr[data-drpg-result]") ?? [])];
+            const body = rooms.querySelector("[data-drpg-table-body]");
+            return {
+                list: [Boolean(list?.querySelector("table.drpg-data-table")), heads(list),
+                    cells[0]?.querySelector(":scope > button.drpg-table-pick")?.dataset.drpgTable ?? null,
+                    cells.slice(1).map(td => td.textContent.trim())],
+                entries: [heads(entries), rowsOf(entries).map(tr => [tr.dataset.drpgResult, tr.dataset.drpgTable,
+                    Boolean(tr.cells[0]?.querySelector("[data-drpg-field=name]")), Boolean(tr.querySelector("td.act [data-drpg-drop]"))])],
+                room: [[...(body?.querySelectorAll("tr.drpg-data-group > th") ?? [])].map(th => /^\d+$/.test(th.querySelector(":scope > span")?.textContent ?? "")),
+                    rowsOf(body).map(tr => tr.dataset.drpgResult)],
+                lists: [tiers, rooms].map(el => el.querySelectorAll("[data-drpg-table-body] li, .drpg-tables-list li").length)
+            };
+        });
+        const roles = C.EQUIPPABLE.includes("crimeTool") ? [L("DRPG.Items.alsoServesAs")] : [];
+        equal(stableJson(read), stableJson({
+            list: [true, [L("DRPG.Tables.col.table"), L("DRPG.Tables.col.items")], "r2020t", ["1"]],
+            entries: [[L("DRPG.Items.name"), L("DRPG.Tables.col.description"), ...roles, L("DRPG.Tables.col.actions")], [["r2020te0", "r2020t", true, true]]],
+            room: [[true], ["r2020re0", "r2020re1"]],
+            lists: [0, 0]
+        }), "{list: [a dataTable, its heads, the first row's pick button's table, the other cells]; entries: [heads, each row: result, table, the name field in the first cell, remove in the actions' cell]; room: [each group row has its count, its entry rows]; lists: the li left in each pane}");
     }],
 ];
 

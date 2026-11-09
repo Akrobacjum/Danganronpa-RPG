@@ -2197,3 +2197,147 @@ body.drpg-theme-stained-glass #drpg-gm-launcher :is(i, .fa, [class*="fa-"]) {
     font-size: var(--drpg-kit-brief-size);
     color: var(--drpg-kit-brief-ink);
 }
+
+/* ---- Item tables, Give an item, Give a Truth Bullet (E46-C3b, 09.11.2026; S/stages/E46 "Item tables, Give existing,
+   a bullet") ----
+   The windows' own rules, out of danganronpa.css (55) and stained-glass.css (1) with the markup they styled: the pick
+   list and a pool's entries are the kit's `dataTable`s, the Give and bullet forms the kit's `formGrid`, the item
+   manager's holdings as they were. What stays there is a room pool's chips and kind headings (the chips are
+   Passages' too) and Create an item's form, which this commit leaves as it was. The kit's scroll box is the window's
+   body, so the lists no longer scroll inside it - but the pick list, which is the left column beside the entries. */
+.application.drpg-window-tables { container-type: inline-size; }
+/* tables on the left, their contents on the right; one column when the WINDOW is under 40rem (E44 C4a, S12-56) */
+.drpg-tables-layout {
+    display: grid;
+    grid-template-columns: minmax(12rem, 20rem) minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+}
+@container (max-width: 40rem) {
+    .drpg-tables-layout { grid-template-columns: 1fr; }
+}
+.drpg-window-tables .drpg-tables-list > .drpg-data-table-box { max-height: 26rem; overflow-y: auto; scrollbar-width: thin; }
+/* 0,5,1: over the module dialogs' `max-content` table (danganronpa.css, `.application.dialog:is(.drpg-panel, ...) .dialog-content table`) */
+.application.drpg-window-tables :is(.drpg-tables-list, .drpg-table-items) > .drpg-data-table-box > table.drpg-data-table { width: 100%; }
+/* the row is the pick: the button in its first cell reaches over the whole row, so the count and the tier pick too */
+.drpg-window-tables .drpg-tables-list tbody > tr { position: relative; }
+body .application.drpg-ui.drpg-window-tables .drpg-tables-list .drpg-table-pick {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    text-align: start;
+    background: none;
+    border: 0;
+    box-shadow: none;
+    color: inherit;
+    font: inherit;
+    line-height: 1.3;
+    cursor: pointer;
+}
+.drpg-window-tables .drpg-tables-list .drpg-table-pick::after { content: ""; position: absolute; inset: 0; }
+/* the name wraps: two pools whose names begin alike are told apart without hovering (E44 C4a, S12-56, R1326);
+   `white-space` stated, since the glass's panel button rule gives the button `nowrap` */
+.drpg-table-pick > span:first-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+.drpg-window-tables .drpg-tables-list tbody > tr:hover > td { background: var(--drpg-kit-hover-bg); }
+.drpg-window-tables .drpg-tables-list tbody > tr:has(.drpg-table-pick.active) > td {
+    background: var(--drpg-kit-btn-on-bg);
+    color: var(--drpg-kit-btn-on-ink);
+    font-weight: 700;
+}
+.drpg-window-tables .drpg-tables-list tbody > tr:has(.drpg-table-pick.active) > td:first-child { box-shadow: inset 3px 0 0 var(--drpg-kit-btn-on-edge); }
+.drpg-window-tables .drpg-table-pick:focus-visible { outline: 2px solid var(--drpg-kit-btn-on-edge); outline-offset: -2px; }
+/* the heading over the entries: the name, then Rename, then Delete set apart */
+.drpg-window-tables .drpg-table-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+body .application.drpg-ui.drpg-window-tables .drpg-table-heading h4 { margin: 0 auto 0 0; text-transform: none; }
+.drpg-window-tables .drpg-mini-button { font-size: max(11px, calc(0.78rem * var(--drpg-legacy-scale, 1))); }
+.drpg-window-tables [data-drpg-delete-table] { margin-inline-start: 1rem; }
+.drpg-window-tables :is([data-drpg-delete-table], .drpg-table-items [data-drpg-drop]) { color: var(--drpg-kit-role-destructive); }
+body.drpg-theme-stained-glass .drpg-window-tables :is([data-drpg-delete-table], .drpg-table-items [data-drpg-drop]) {
+    --brush: var(--drpg-sg-gm);
+    --brush-edge: var(--drpg-sg-gm);
+    --brush-ink: var(--drpg-sg-gm-light);
+}
+/* a pool's entries: the name's cell holds the icon, the field and the "+n"; the actions' cell its two buttons */
+/* the entries' columns, laid out fixed so a long name or description stays in its own column; the pick list is laid
+   out by its content (two columns: its count takes what its head needs, the name the rest and wraps) */
+.drpg-window-tables .drpg-table-items col[data-drpg-col="name"] { width: 30%; }
+.drpg-window-tables .drpg-table-items col[data-drpg-col="roles"] { width: 12rem; }
+.drpg-window-tables .drpg-table-items col[data-drpg-col="act"] { width: 5.5rem; }
+.application.drpg-window-tables .drpg-table-items > .drpg-data-table-box > table.drpg-data-table { table-layout: fixed; }
+.drpg-window-tables .drpg-table-items td { vertical-align: middle; }
+.drpg-window-tables .drpg-table-items td.act { white-space: nowrap; }
+.drpg-window-tables .drpg-table-item-cell { display: flex; align-items: center; gap: 6px; min-width: 0; }
+body .application.drpg-ui.drpg-window-tables .drpg-table-items input[type="text"] { width: 100%; min-width: 0; box-sizing: border-box; }
+body .application.drpg-ui.drpg-window-tables .drpg-table-item-cell > input[type="text"] { flex: 1 1 auto; width: auto; }
+.drpg-window-tables .drpg-table-item-icon { flex: none; width: 22px; height: 22px; object-fit: contain; cursor: pointer; }
+/* "this name is in another tier pool too": counted once, the rest said here, so the count never lies about them */
+.drpg-window-tables .drpg-table-item-also {
+    flex: none;
+    padding: 0 4px;
+    border: 1px solid var(--drpg-kit-line);
+    border-radius: 2px;
+    font-variant-numeric: tabular-nums;
+    color: var(--drpg-kit-help-ink);
+    cursor: help;
+}
+.drpg-window-tables :is(.drpg-room-chip, .drpg-room-group > h5 .notes, .drpg-table-item-also) {
+    font-size: max(11px, calc(0.72rem * var(--drpg-legacy-scale, 1)));
+}
+.drpg-window-tables .drpg-table-item-roles > .drpg-check {
+    padding: 0 6px;
+    border: 1px solid var(--drpg-kit-line);
+    border-radius: 2px;
+    font-size: max(11px, var(--drpg-text-xs));
+    /* a long category ("Narzędzie do sprzątania" under Legacy's pixel face) wraps inside its box, not into Actions */
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+.drpg-window-tables .drpg-table-item-roles > .drpg-check:has(> input:checked) {
+    border-color: var(--drpg-kit-btn-on-edge);
+    background: var(--drpg-kit-btn-on-bg);
+    color: var(--drpg-kit-btn-on-ink);
+}
+.drpg-window-tables .drpg-room-group .drpg-data-table-box { margin-bottom: 4px; }
+/* Give an item and Give a Truth Bullet on the kit's formGrid: the notes and boxes of a full row sit on it */
+/* one label column for the grid in the tab and the grid under the tabs, so every field starts at one edge: the kit's
+   column is as wide as each grid's own longest label, and "Description (optional)" set the tab's 70 px wider than
+   "Give it to" set the lower one's (glass, 1366x768, 09.11.2026); 11rem is the width the windows' old grid had */
+.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet) .drpg-form-grid { grid-template-columns: 11rem minmax(0, 1fr); }
+.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet) .drpg-form-grid + .drpg-form-grid { margin-top: 6px; }
+/* the glass wraps a select in its own `.drpg-select` (chrome.mjs): the wrapper takes the field's width, the select the wrapper's */
+.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet) .drpg-form-field > .drpg-select { flex: 1 1 10rem; display: flex; min-width: 0; }
+.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet) .drpg-form-field > .drpg-select > select { width: 100%; }
+.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet) .drpg-form-full > :is(p, .drpg-box) { margin: 0; }
+.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet) .drpg-form-full > [data-drpg-kind-note] > .drpg-box { margin: 0; }
+.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet, .drpg-window-tables) input[type="checkbox"] {
+    accent-color: var(--drpg-bone);
+    --checkbox-checked-color: var(--drpg-bone);
+}
+body.drpg-theme-monokuma-legacy .application.drpg-ui.drpg-window-give .drpg-role-label {
+    font-size: max(11px, calc(0.690625rem * var(--drpg-legacy-scale, 1)));
+}
+/* the item manager's holdings: a group per category, its plural heading over its list (E46-C3a) */
+.application.drpg-ui .drpg-holdings {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+    gap: 2px 12px;
+    max-height: 14rem;
+    overflow-y: auto;
+    margin-bottom: 8px;
+}
+.drpg-holdings-group h4 {
+    margin: 4px 0 2px;
+    font-size: var(--drpg-text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.75;
+}
+.drpg-holdings-group ul { margin: 0; padding-left: 1.1em; list-style: disc; }
+.drpg-holdings-group li { margin: 0; line-height: 1.35; }
