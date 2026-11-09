@@ -58,7 +58,7 @@
  * px planted in its third pane and the tab switched without the kit's code (`drpgFit({ byHand: true })`, the reposition
  * skipped) - the tallest tab reads "footer out" (and through the kit's code, fit); (d) on the sheet stand-in at
  * 1366x768, where the Stop stands in view, the Stop's sticky rule taken off (`position: static`, E21 C5a's rule in
- * danganronpa.css) - "Stop out": its place at the content's foot is below the sheet's box; (e) E47-FB, 3000 px of width
+ * danganronpa.css) - "Stop out": its place at the content's foot is below the sheet's box; (i) E47-FB, 3000 px of width
  * planted in the gallery window's first pane - "content wider than its box: kit-body" (the body clips sideways since
  * 1.2.102, so it is no scroller; the harness reads the body's and the footer's width, `wide`). Exit 1 on any failure; a
  * page `outside` is not one before C6.
@@ -297,7 +297,7 @@ async function fitPass(browser) {
         await tall("three");
         const c = await tabsState({ byHand: true }, "three");
         say("(c) reposition skipped", c?.footer === false, `the tall third tab switched by hand reads ${c ? misfits(null, c, false).join("; ") || "fits" : "nothing"}`);
-        /* (e) E47-FB: 3000 px of width planted in the first pane - the body clips it sideways (1.2.102), so no scroller
+        /* (i) E47-FB: 3000 px of width planted in the first pane - the body clips it sideways (1.2.102), so no scroller
            reads it; the reading must say "content wider than its box". Its ground is the control "ground" above. */
         await load(page, kit);
         await page.evaluate(() => {
@@ -306,7 +306,7 @@ async function fitPass(browser) {
         });
         const i = await tabsState({}, "one");
         const iWords = i ? misfits(null, i, false) : [];
-        say("(e) wider than the body", iWords.some(w => w.startsWith("content wider than its box: kit-body")), `3000 px of width in the first pane reads ${iWords.join("; ") || "fits"}`);
+        say("(i) wider than the body", iWords.some(w => w.startsWith("content wider than its box: kit-body")), `3000 px of width in the first pane reads ${iWords.join("; ") || "fits"}`);
         await page.setViewportSize({ width: 1366, height: 768 });
         await load(page, "/audit/style-harness.html?sheet=1&fit=1&role=player");
         const d0 = (await page.evaluate(() => globalThis.drpgFit()))[0];

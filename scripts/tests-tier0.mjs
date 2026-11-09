@@ -21936,15 +21936,15 @@ const REGRESSIONS = [
     }],
 
     /* ---- E47-FB (09.11.2026): comparison 2's fixes ---- */
-    ["R2096 - the fit sweep reads a body or a footer wider than its box even where it clips (E47-FB; comparison 2): style-harness.html's reading has `wide`, the kit body's and the footer's `scrollWidth` against their `clientWidth` and every shown descendant's rectangle against their inner edges, left and right; style-sweep.mjs's misfits say \"content wider than its box\" and its control (e) plants 3000 px of width in the gallery window's first pane and must read it", async () => {
+    ["R2096 - the fit sweep reads a body or a footer wider than its box even where it clips (E47-FB; comparison 2): style-harness.html's reading has `wide`, the kit body's and the footer's `scrollWidth` against their `clientWidth` and every shown descendant's rectangle against their inner edges, left and right; style-sweep.mjs's misfits say \"content wider than its box\" and its control (i) plants 3000 px of width in the gallery window's first pane and must read it", async () => {
         /*
          * E47-FB, 09.11.2026. Since 1.2.102 the kit's body clips sideways (components.css `overflow-x: clip`, E96 C1): a
          * table wider than the body is cut where it scrolled, and a body that clips is no scroller, so `--fit` (which read
          * scrollers, the footer's and the buttons' rectangles against the viewport) passed every page of E46 and E47
          * while comparison 2's pictures showed columns and footer buttons cut. The sweep's reading now holds the width.
-         * In Chromium (quoted in the commit): control (e) "content wider than its box: kit-body 3000/544"; the whole pass on
+         * In Chromium (quoted in the commit): control (i) "content wider than its box: kit-body 3000/544"; the whole pass on
          * a8ae16f6 read action-analyze's textarea 6 px past its body, look-player at 390x844 and rooms-search's table at
-         * 1024x768 past theirs. Red on a8ae16f6: no `wide`, no words, no control (e).
+         * 1024x768 past theirs. Red on a8ae16f6: no `wide`, no words, no control (i).
          */
         needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
         const read = async path => {
@@ -21961,10 +21961,10 @@ const REGRESSIONS = [
             boxes: [".drpg-kit-body", "footer.form-footer"].filter(sel => wide.includes(`"${sel}"`)),
             measures: ["scrollWidth", "clientWidth", "getBoundingClientRect", "e.right > right + 1", "e.left < left - 1"].filter(m => wide.includes(m)),
             words: /if \(state\.wide\?\.length\) out\.push\(`content wider than its box: /.test(sweep),
-            control: sweep.includes('"(e) wider than the body"') && /width: 3000px/.test(sweep) && sweep.includes('w.startsWith("content wider than its box: kit-body")')
+            control: sweep.includes('"(i) wider than the body"') && /width: 3000px/.test(sweep) && sweep.includes('w.startsWith("content wider than its box: kit-body")')
         }), JSON.stringify({ reading: true, boxes: [".drpg-kit-body", "footer.form-footer"],
             measures: ["scrollWidth", "clientWidth", "getBoundingClientRect", "e.right > right + 1", "e.left < left - 1"], words: true, control: true }),
-            "{the harness reads `wide`, the boxes it reads, what it measures, the sweep's words, control (e)}");
+            "{the harness reads `wide`, the boxes it reads, what it measures, the sweep's words, control (i)}");
     }],
     ["R2098 - comparison 2's look fixes hold (E47-FB): the case dashboard's tables ask the fit for their ceiling less 5rem, not 3rem; the Traces table's ten columns each a share of their own and the shares 100 %; WHO HAS WHAT's count heads no word over 11 letters in English or Polish; the Key planner's status picker on one line; the Students table's cells 4 px a side; Create a project's Name field the rest of its row", async () => {
         /*
