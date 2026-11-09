@@ -116,7 +116,7 @@ body.drpg-curtain-on #drpg-column > #ui-right-column-1 { gap: 14px; }
    three Monokuma pools before a player's Hope and actions, and under the ceiling the status strip
    and the Projects tray were the rows scrolled away. For a player the right column stands third,
    after the tiles' row and before the Despair rail and the Event card; a GM's order is the one
-   above. THE OWNER'S Q-E23-1 IS OPEN, and this is its default: the other answer (the pools folded
+   above. THE OWNER TOOK THIS DEFAULT FOR Q-E23-1 (08.11.2026); the other answer (the pools folded
    to one line, the order unchanged) is this rule taken out and a rule for the pools put in. */
 body.drpg-player #drpg-column > #ui-right-column-1 { order: 3; }
 
