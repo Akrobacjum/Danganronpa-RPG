@@ -4076,59 +4076,10 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     overflow-wrap: anywhere !important;
 }
 
-/* ---- the Stashes matrix (E11) -------------------------------------------
-   One button per cell rather than two checkboxes: a cell carries two facts
-   and the pair of boxes would be 192 targets at eight students and twelve
-   rooms, half of them meaningless ("hidden" on a room with no stash). The
-   button cycles the three states that actually exist. */
-.drpg-stash-cell {
-    text-align: center;
-}
-
-/* The bedroom owner's cell, so a GM can see which stash appeared by itself
-   when they assigned the room rather than by their own hand. The swatch is the
-   legend's (E12 C15). 0.05 of bone was all but invisible in the audit's
-   screenshot (S12-23); 0.14 is a choice, not a reading - LIVE-E12-06 looks. */
-.drpg-stash-cell.drpg-stash-bedroom,
-.drpg-stash-swatch {
-    background: rgba(var(--drpg-bone-rgb), 0.14);
-}
-
-.drpg-stash-toggle {
-    width: 100%;
-    min-width: 0;
-    padding: 2px 0;
-    background: none;
-    border: 1px solid transparent;
-    border-radius: 3px;
-    color: var(--drpg-bone);
-    line-height: 1;
-    cursor: pointer;
-}
-
-.drpg-stash-toggle:hover {
-    border-color: rgba(var(--drpg-bone-rgb), 0.35);
-    background: rgba(var(--drpg-bone-rgb), 0.08);
-}
-
-/* The padlock rides the box rather than replacing it: "hidden" is a state of
-   a stash that is there, not a different kind of thing. */
-.drpg-stash-lock {
-    font-size: 0.7em;
-    margin-left: 2px;
-    vertical-align: super;
-    opacity: 0.85;
-}
-
-/* 0.35 read as an empty cell with nothing in it at all (S12-23); 0.7 is a
-   choice, not a reading, as the shading above. */
-.drpg-stash-none {
-    opacity: 0.7;
-}
-
 /* ---- Room Setup's tables (E12 C15, audit S08-26 and S12-23) ---------------
    FIXED COLUMNS. Every table of the window states its columns (`<col>`, one
-   class a kind of cell: `roomSetupColumns` in vault.mjs) and is laid out
+   class a kind of cell; since E46-C2a only the Passages tab's here, passages-tab.mjs
+   `passagesTabBody`, and the room tabs' components.css's section "Room setup") and is laid out
    fixed, so a column is as wide as its kind says and not as its content
    happens to push it. `width: 1px` is what lets the table be as wide as its
    columns and no wider: a fixed table is the larger of its stated width and
@@ -4150,28 +4101,9 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     min-width: 0 !important;
     max-width: none !important;
 }
+/* E46-C2a (09.11.2026): the room tabs are the kit's `dataTable`s, their widths components.css's section "Room setup";
+   what stands here is the Passages tab's, until E46-C2b puts it on the kit too. */
 .drpg-room-setup-table .drpg-col-room { width: calc(220px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table :is(.drpg-col-check, .drpg-col-student) { width: calc(96px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-select { width: calc(180px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-text { width: calc(220px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-step { width: calc(150px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-place { width: calc(360px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-prose { width: calc(560px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-picture { width: calc(150px * var(--drpg-legacy-scale, 1)); }
-
-/* The Description tab's picture (E77 C1): a 16:9 thumbnail the GM clicks to choose a file, an empty
-   framed box while the room has none, and the clear button under it. Sizes are choices, as the
-   columns' are, not readings (the harness lays nothing out; LIVE-E12-06 is Room Setup at a desk). */
-.drpg-room-setup-table .drpg-room-picture {
-    display: block;
-    width: calc(128px * var(--drpg-legacy-scale, 1));
-    min-width: calc(128px * var(--drpg-legacy-scale, 1));
-    height: calc(72px * var(--drpg-legacy-scale, 1));
-    object-fit: cover;
-    border: 1px solid var(--drpg-line-strong);
-    border-radius: 3px;
-    cursor: pointer;
-}
 
 /* The Passages tab (E79 C5; passages-tab.mjs), as the plan's D31 mockup drew it: its four columns one
    width a kind, as the others' are (choices of the mockup, not readings; the tab at a desk is LIVE-E79-06),
@@ -4255,30 +4187,6 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     white-space: normal;
     overflow-wrap: anywhere;
 }
-.drpg-room-setup-table input[type="text"] {
-    width: 100%;
-}
-
-/* A student's name on one line, centred, cut where the column ends; the
-   whole name is the heading's title (`studentHeads`). */
-.application.dialog.drpg-room-setup .dialog-content .drpg-room-setup-table thead th.drpg-student-head {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-align: center;
-}
-
-/* The search-token counter's four pieces in one row. The buttons are flex
-   items here, so Foundry's block-level button cannot take a line of its own. */
-.drpg-token-step {
-    display: inline-flex;
-    align-items: center;
-    flex-wrap: nowrap;
-    gap: 4px;
-}
-.drpg-token-step > * {
-    flex: none;
-}
 
 /* The place switches of a row, as many to a line as the column holds. */
 .drpg-place-switches {
@@ -4320,19 +4228,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     background: rgba(var(--drpg-eye-rgb), 0.2);
 }
 
-/* The legend over the Stashes matrix and the bulk buttons over the Fog one. */
-.drpg-stash-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 16px;
-}
-.drpg-stash-swatch {
-    display: inline-block;
-    width: 1.2em;
-    height: 1em;
-    vertical-align: middle;
-    border: 1px solid rgba(var(--drpg-bone-rgb), 0.3);
-}
+/* The bulk buttons over the Fog matrix (the Stashes legend beside them is components.css's since E46-C2a). */
 .drpg-fog-bulk {
     display: flex;
     gap: 6px;
@@ -12918,19 +12814,6 @@ body.drpg-theme-monokuma-legacy #countdowns .countdown-tools {
     font-size: var(--drpg-text-xs, 0.7rem);
     color: var(--drpg-dim);
     overflow-wrap: anywhere;
-}
-
-/* The search-token counter in Room Setup: a minus, the number, a plus and a
-   refill, the controls acting at once (in one row since E12 C15: see
-   `.drpg-token-step`). `white-space: nowrap` keeps "2 / 3" from breaking across
-   two lines when the table is narrow - the count and its cap are one value. */
-.drpg-token-cell {
-    white-space: nowrap;
-}
-
-.drpg-token-cell .drpg-mini-button {
-    margin-left: 2px;
-    padding: 1px 6px;
 }
 
 /* "Put a track on now", above the state-to-playlist table it does not belong

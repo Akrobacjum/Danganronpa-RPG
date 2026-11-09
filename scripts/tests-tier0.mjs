@@ -17890,7 +17890,7 @@ const REGRESSIONS = [
                 ["familyFormats", 9, 9], ["glossaryHits", 11, 11], ["itemQuotes", 3, 3], ["lengthOver", 8, 8], ["loanDeclension", 7, 7], ["loanGender", 7, 7],
                 ["localeCalls", 8, 8], ["mirror", 3, 3], ["monokumaVoice", 7, 7], ["naturalnessBefore", 2, 2], ["oxfordComma", 3, 3], ["pairParity", 5, 5], ["patterns", 22, 22], ["pluralForms", 4, 4],
                 ["renderChecks", 7, 7], ["retiredHits", 11, 11], ["ruleNumberWords", 9, 9], ["secondPersonToMany", 6, 6], ["tableWordProblems", 4, 4], ["telegraph", 3, 3], ["uiLiterals", 6, 6]],
-            baselines: [["dashesIn", 11], ["familyFormats", 0]],
+            baselines: [["dashesIn", 10], ["familyFormats", 0]],
             notDue: [["glossaryHits", 1, 1], ["retiredHits", 1, 1]],
             problems: [], caught: 2, ledgerBlind: 1, unlexed: ["dashesIn", "familyFormats", "itemQuotes", "lengthOver", "localeCalls", "monokumaVoice", "uiLiterals"],
             schemaStubs: [["glossarySchema", 1], ["budgetsSchema", 1]], pairsStub: 1, goneSeen: [1, 8], marksBlind: 3
@@ -17947,7 +17947,7 @@ const REGRESSIONS = [
         log(`R1059: ${runs.map(r => `${r.name} read ${r.read} found ${r.found.length} beyond its baseline, ${r.matched}/${r.sites} baseline site(s) filled`).join("; ")}; `
             + `en ${lang.en.size} keys, pl ${lang.pl.size}; ${scripts.size} scripts; ${docs.size} handbooks`);
         equal(JSON.stringify(runs.map(r => [r.name, r.read > 0, r.sites, r.found, r.gone])), JSON.stringify([
-            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 9, [], []],
+            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 8, [], []],
             ["localeCalls", true, 0, [], []]]),
         "[each FAIL detector that reads only what a table serves: its name, whether it read anything, the baseline sites judged here, "
             + "what it found that its baseline does not hold, the baseline rows nothing filled]");
@@ -21402,6 +21402,31 @@ const REGRESSIONS = [
             "{the reasons testSfx answers, by key; those that are a literal; the keys missing from a file or Polish as the English; noEvent's {keys} [en, pl]; "
             + "the Test's warning formats testFailed with the answer's why; testFailed's {label} and {why} [en, pl]}");
     }],
+    /* ---- E46-C2a (09.11.2026): Room setup's old rules out of the base sheets. ---- */
+    ["R2016 - Room setup's room tabs' old rules are gone from styles/danganronpa.css, stained-glass.css and narrow.css (E46-C2a; E46-19): no rule of the three names the counter's (`drpg-token-step`, `drpg-token-cell`), the student heads' (`drpg-student-head`), the Stashes matrix's (`drpg-stash-cell`, `-bedroom`, `-toggle`, `-lock`, `-none`, `-legend`, `-swatch`), the picture's (`drpg-room-picture`) or the room tabs' column kinds (`drpg-col-check`, `-student`, `-select`, `-text`, `-step`, `-place`, `-prose`, `-picture`), nor the text field of `.drpg-room-setup-table`; their rules are components.css's section \"Room setup\"", async () => {
+        /*
+         * E46-C2a. Read on each sheet's text, comments blanked, by rule (tools/css-lint.mjs's reading: a selector before
+         * its `{`). Red first on C1's tree: 22 rules (danganronpa.css; the other two none). Passages' column kinds and
+         * `.drpg-room-setup-table` itself stay until E46-C2b puts the Passages tab on the kit; `.drpg-stash-group` is the
+         * sheet's (sheet.mjs), not this window's.
+         */
+        const OLD = /\.(drpg-token-step|drpg-token-cell|drpg-student-head|drpg-stash-(?:cell|bedroom|toggle|lock|none|legend|swatch)|drpg-room-picture|drpg-col-(?:check|student|select|text|step|place|prose|picture))(?![\w-])|\.drpg-room-setup-table\s+input/;
+        const read = {};
+        let rules = 0;
+        for (const file of ["styles/danganronpa.css", "styles/stained-glass.css", "styles/narrow.css", "styles/components.css"]) {
+            const text = (await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+            const selectors = [...text.matchAll(/([^{};]+)\{/g)].map(m => m[1].trim()).filter(sel => sel && !sel.startsWith("@"));
+            rules += selectors.length;
+            read[file] = selectors.filter(sel => OLD.test(sel)).length;
+        }
+        must(rules > 1000, `${rules} rule(s) read - this would measure too little`);
+        const moved = read["styles/components.css"];
+        delete read["styles/components.css"];
+        equal(JSON.stringify(read), JSON.stringify({ "styles/danganronpa.css": 0, "styles/stained-glass.css": 0, "styles/narrow.css": 0 }),
+            "{each base sheet: its rules naming one of Room setup's room tabs' old classes}");
+        ok(moved >= 10, `components.css's section names ${moved} rule(s) of the old classes (the Stashes matrix's, the counter's, the picture's)`);
+    }],
+
 ];
 
 

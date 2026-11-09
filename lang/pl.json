@@ -2531,7 +2531,9 @@
       "neighboursColumn": "Sąsiedzi",
       "neighboursHint": "Pokoje, do których ten pokój ma drzwi, rozdzielone przecinkami. Puste: decydują ściany (wyszarzone nazwy).",
       "neighboursNote": "„Sąsiedzi” to miejsce, w którym drzwi mają pierwszeństwo przed mapą: wpisz pokoje, do których ten pokój prowadzi, rozdzielone przecinkami. Dwa pokoje są połączone, gdy którykolwiek z nich wpisał drugi, w obie strony. Pokój z listą nie łączy się z niczym innym, a pokój obok niego nie wejdzie do środka, dopóki jeden z nich nie wpisze drugiego. Gdy pole jest puste, sąsiedzi pokoju to pokoje bez listy, których ściany mają z jego ścianami wspólną krawędź (sam narożnik nie wystarczy), i każdy pokój, który go wpisał. Pokój, któremu listy i ściany nie dały żadnego sąsiada, nie ma żadnych drzwi. Pokój bez listy, którego nie wpisał żaden inny i który nie styka się z żadnym pokojem, nawet narożnikiem, nie jest sprawdzany: można z niego przejść do dowolnego pokoju.",
-      "neighboursUnknown": "{room}: żaden pokój tej sceny nie nazywa się {names}. Zostaje w Sąsiadach, ale niczego nie łączy."
+      "neighboursUnknown": "{room}: żaden pokój tej sceny nie nazywa się {names}. Zostaje w Sąsiadach, ale niczego nie łączy.",
+      "imageLarge": "To zdjęcie jest duże i każdemu graczowi wczytuje się powoli: {size}.",
+      "imageBroken": "To zdjęcie się nie wczytuje - wybierz plik jeszcze raz."
     },
     "Chapter": {
       "deathTitle": "Postać umiera",

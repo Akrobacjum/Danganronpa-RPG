@@ -41613,6 +41613,214 @@ const INVARIANTS = [
             + "works, its paragraphs as the four notes' places], the table [a kit dataTable, its body the live region, one select a state]; each tab's "
             + "footer; Apply buttons; Close closes}");
     }],
+    /* ---- E46-C2a (09.11.2026): Room setup's room tabs on the kit. Each test draws the window on this GM with
+       DialogV2.wait stood in for (nothing written: the stand-in answers null, the opener's "closed"), through
+       `roomSetupDrawn` below, and reads the markup it was handed. ---- */
+    ["R2010 - Room setup's room tabs on the kit (E46-C2a; E46-04, card M1): each of Bedrooms, Doors, Searching, Rests, Stashes, Description and Fog holds one kit `dataTable` and no other table, the room's column first (`drpg-data-col-room`) and the others' kinds in `ROOM_SETUP_COLUMN`'s order; Searching's token cell a compact kit stepper of the room (`data-drpg-token`) with its cap and a refill icon button, no button of the old counter; `wireTokenButtons` on a stand-in `SearchTokens` writes once a click - minus the count read now less one, plus the count read now plus one (a spend made since the draw kept), refill the cap", async () => {
+        /*
+         * E46-C2a. Red first on C1's tree (f7266b28): hand tables (`table.drpg-room-setup-table`), the counter three
+         * `drpg-mini-button`s, `wireTokenButtons` not exported. The mutant m-c (the token field listening to `input` as
+         * well as `change`, a click written twice) reads `writes` two a click here.
+         */
+        needs(world.atLeast("namedRooms", 1), "Room setup lists the named regions of the scene on screen");
+        const { root, pane } = await roomSetupDrawn();
+        const R = await import("./room-setup.mjs");
+        const K = await import("./ui-kit.mjs");
+        const KINDS = {
+            bedrooms: ["room", "select"], doors: ["room", "check", "check", "check", "check", "text"],
+            search: ["room", "check", "step", "select", "place"], rest: ["room", "check", "check"],
+            stashes: null, description: ["room", "prose", "picture"], fog: null
+        };
+        const students = studentActors();
+        const tables = {};
+        for (const [tab, kinds] of Object.entries(KINDS)) {
+            const p = pane(tab);
+            const all = [...(p?.querySelectorAll("table") ?? [])];
+            tables[tab] = [all.length, all.filter(t => t.matches(".drpg-data-table-box > table.drpg-data-table")).length,
+                [...(all[0]?.querySelectorAll("col") ?? [])].map(col => /drpg-data-col-([\w-]+)/.exec(col.className)?.[1] ?? null)];
+        }
+        const { SearchTokens } = await import("./search-tokens.mjs");
+        const cells = [...(pane("search")?.querySelectorAll("tbody td.drpg-data-col-step") ?? [])];
+        const shape = cells.map(td => [Boolean(td.querySelector(".drpg-kit-stepper.drpg-kit-stepper-compact > input[type=\"number\"][data-drpg-token]")),
+            td.querySelectorAll("button[data-drpg-token-refill].drpg-kit-icon-button").length, td.querySelectorAll("[data-drpg-token-by]").length,
+            td.querySelector("input[data-drpg-token]")?.max === String(SearchTokens.max)]);
+        must(cells.length > 0, "Searching drew no token cell - nothing below is read");
+        // The stand-in: two tokens a room, the cap 3; a write recorded, the count it leaves read back.
+        const counts = new Map(), writes = [];
+        const tokens = { max: 3, left: room => counts.get(room) ?? 0, setFor: async (room, n) => { writes.push([room, n]); counts.set(room, n); } };
+        const td = cells[0];
+        const input = td.querySelector("input[data-drpg-token]");
+        const room = input.dataset.drpgToken;
+        input.max = "3"; input.value = "2"; input.dataset.drpgShown = "2"; counts.set(room, 2);
+        const recount = where => { for (const i of where.querySelectorAll("input[data-drpg-token]")) { i.value = String(tokens.left(i.dataset.drpgToken)); i.dataset.drpgShown = i.value; } };
+        K.wireSteppers(td);
+        R.wireTokenButtons(td, null, recount, { tokens });
+        const press = async el => { el.click(); await settle(); return writes.splice(0); };
+        const minus = await press(td.querySelector('button[data-drpg-step="-1"]'));
+        counts.set(room, 0); // a player's spend since: the cell still reads 1
+        const plus = await press(td.querySelector('button[data-drpg-step="1"]'));
+        const refill = await press(td.querySelector("button[data-drpg-token-refill]"));
+        equal(stableJson({ tables, shape: [...new Set(shape.map(s => stableJson(s)))], minus, plus, refill }), stableJson({
+            tables: Object.fromEntries(Object.entries(KINDS).map(([tab, kinds]) => [tab, [1, 1, kinds ?? ["room", ...students.map(() => "student")]]])),
+            shape: [stableJson([true, 1, 0, true])], minus: [[room, 1]], plus: [[room, 1]], refill: [[room, 3]]
+        }), "{tables: per tab [tables, kit tables, the first one's column kinds]; shape: each token cell [a compact stepper of the room, refill icon buttons, old counter buttons, its max the cap]; the writes of one minus, one plus after a spend to 0 seen as 1, one refill}");
+    }],
+
+    ["R2011 - Room setup's form keeps every input name it had at 3c952c67 (E46-C2a; E46-05, near a road: Apply reads the form by name): drawn on this GM, every room of the window has each of the twelve names a room had in 3c952c67's audit/windows/rooms-*.html (desc, img, isroom, locked, long, neighbours, nosearch, notshared, owner, short, startlocked, table), `fav:` and `hin:` for each category a room can favour, `fog:` and `stash:` for each student, and the Scenes tab its seven", async () => {
+        /*
+         * E46-C2a. The list is written from 3c952c67's captures of the window (audit/windows/rooms-bedrooms.html ...
+         * rooms-scenes.html, 175 names on probe 08's world: 6 rooms x 12, 6 x 4 categories x 2, 6 x 4 students x 2, and
+         * scenes:hallName, hallPicture, hallWords, prepare, preparePlaylist, school, trial), by shape: a name with a room
+         * in it is asked of every room this world's window lists. Red by the mutant m1 (`locked:` written `lock:` in
+         * `roomCells`): every room's `locked` missing.
+         */
+        needs(world.atLeast("namedRooms", 1), "Room setup lists the named regions of the scene on screen");
+        const { root } = await roomSetupDrawn();
+        const names = new Set([...root.querySelectorAll("[name]")].map(el => el.getAttribute("name")));
+        const ROOM = ["desc", "img", "isroom", "locked", "long", "neighbours", "nosearch", "notshared", "owner", "short", "startlocked", "table"];
+        const SCENES = ["hallName", "hallPicture", "hallWords", "prepare", "preparePlaylist", "school", "trial"];
+        const rooms = [...root.querySelectorAll('[data-drpg-pane="bedrooms"] tbody td.drpg-data-col-room, [data-drpg-pane="bedrooms"] tbody tr > td:first-child')]
+            .map(td => td.textContent.trim()).filter((r, i, a) => r && a.indexOf(r) === i);
+        must(rooms.length > 0, "the Bedrooms tab listed no room - nothing below is read");
+        const { pickableCategories } = await import("./inventory.mjs");
+        const cats = pickableCategories({ splitUsables: false }).map(c => c.key);
+        const students = studentActors();
+        const missing = [
+            ...rooms.flatMap(room => ROOM.map(p => `${p}:${room}`)),
+            ...rooms.flatMap(room => cats.flatMap(c => [`fav:${room}:${c}`, `hin:${room}:${c}`])),
+            ...rooms.flatMap(room => students.flatMap(a => [`fog:${room}:${a.id}`, `stash:${room}:${a.id}`])),
+            ...SCENES.map(n => `scenes:${n}`)
+        ].filter(n => !names.has(n));
+        ok(names.size >= rooms.length * ROOM.length, `${names.size} name(s) read on the form`);
+        equal(stableJson(missing), "[]", `[the names of 3c952c67's form missing on ${rooms.length} room(s), ${cats.length} categories, ${students.length} student(s)]`);
+    }],
+
+    ["R2012 - Stashes' and Fog's student heads are the kit's two-line heads (E46-C2a; E46-04, the owner's Q-E46-2): `th.drpg-data-lines-2` with the whole name in `title` and `aria-label` and the clamp's span, no one-line `drpg-student-head`; the room's column, drawn with the window's classes on a body of each theme, takes its width (220 px at scale 1) and its wrapping from styles/components.css, and the clamp from it (tests-kit.mjs `styleCascade`)", async () => {
+        /*
+         * E46-C2a. Red first on C1's tree: `th.drpg-student-head` (nowrap, an ellipsis), the width danganronpa.css's
+         * `.drpg-room-setup-table .drpg-col-room`.
+         */
+        needs(world.atLeast("namedRooms", 1), "Room setup lists the named regions of the scene on screen");
+        const students = studentActors();
+        must(students.length > 0, "the matrices have no student's column - nothing below is read");
+        const { root, pane } = await roomSetupDrawn();
+        const heads = ["stashes", "fog"].map(tab => [...(pane(tab)?.querySelectorAll("thead th") ?? [])].slice(1)
+            .map(th => [th.classList.contains("drpg-data-lines-2"), th.title, th.getAttribute("aria-label"), th.querySelector(":scope > span.drpg-data-clamp")?.textContent ?? null,
+                th.classList.contains("drpg-student-head")]));
+        const C = await styleCascade();
+        const read = {};
+        for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-gm`;
+            html.append(body);
+            const app = document.createElement("div");
+            app.className = "application dialog drpg-panel drpg-projects drpg-room-setup drpg-window-rooms drpg-ui drpg-kit-fit";
+            app.innerHTML = `<section class="window-content"><form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-kit-body">${pane("stashes")?.outerHTML ?? ""}</div></div></form></section>`;
+            body.append(app);
+            const col = app.querySelector("col.drpg-data-col-room"), td = app.querySelector("tbody td.drpg-data-col-room"), table = app.querySelector("table.drpg-data-table");
+            const span = app.querySelector("thead th.drpg-data-lines-2 > span.drpg-data-clamp");
+            const w = (el, p) => { const v = el ? C.winner(el, p) : null; return v ? [v.file, v.value] : null; };
+            read[theme] = { width: w(col, "width"), wrap: w(td, "white-space"), layout: w(table, "table-layout"), clamp: w(span, "-webkit-line-clamp") };
+        }
+        const want = { width: ["styles/components.css", "calc(220px * var(--drpg-legacy-scale, 1))"], wrap: ["styles/components.css", "normal"],
+            layout: ["styles/components.css", "fixed"], clamp: ["styles/components.css", "2"] };
+        equal(stableJson({ heads, read }), stableJson({
+            heads: [students.map(a => [true, a.name, a.name, a.name, false]), students.map(a => [true, a.name, a.name, a.name, false])],
+            read: { "drpg-theme-monokuma-legacy": want, "drpg-theme-stained-glass": want }
+        }), "{heads: Stashes' then Fog's student heads [two-line, title, aria-label, the clamp's text, the old class]; read: per theme the winner [file, value] of the Room column's width, its cell's white-space, the table's layout and a head's clamp}");
+    }],
+
+    ["R2013 - Doors' \"This is a room\" is the kit's switch (E46-C2a; E46-04, E46's goal): for each room an `input[role=switch]` named `isroom:<room>` in `label.drpg-toggle`, named for a screen reader by its column and its room, disabled exactly when no piece of the name may be a room, `data-drpg-undecided` exactly when one may and not every piece is decided, ticked as `roomCells` reads it", async () => {
+        /*
+         * E46-C2a. Red first on C1's tree: a plain checkbox (no role, no `drpg-toggle`). Expected read from the world:
+         * the scene's regions of each name that may be rooms (rooms.mjs `canBeRoom`), decided by `roomDecided`.
+         */
+        needs(world.atLeast("namedRooms", 1), "Room setup lists the named regions of the scene on screen");
+        const { root, pane } = await roomSetupDrawn();
+        const Rm = await import("./rooms.mjs");
+        const { workingScene } = await import("./utils.mjs");
+        let scene = workingScene();
+        if (Rm.isTrialScene(scene)) scene = Rm.homeScene();
+        const players = Rm.playerRegionIds();
+        const label = game.i18n.localize("DRPG.Vault.isRoomColumn");
+        const boxes = [...(pane("doors")?.querySelectorAll('input[name^="isroom:"]') ?? [])];
+        must(boxes.length > 0, "Doors drew no \"This is a room\" - nothing below is read");
+        const read = boxes.map(b => {
+            const room = b.name.slice("isroom:".length);
+            const pieces = Rm.namedRegions(scene).filter(r => r.name === room && Rm.canBeRoom(r, players));
+            const possible = pieces.length > 0, decided = possible && pieces.every(Rm.roomDecided);
+            const on = decided ? pieces.some(p => p.getFlag(MODULE_ID, Rm.ROOM_FLAG) === true) : possible;
+            return [room, [b.type, b.getAttribute("role"), Boolean(b.closest("label.drpg-toggle")), b.getAttribute("aria-label"), b.disabled, b.hasAttribute("data-drpg-undecided"), b.checked],
+                ["checkbox", "switch", true, `${label}: ${room}`, !possible, possible && !decided, on]];
+        });
+        equal(stableJson(read.map(([room, got]) => [room, got])), stableJson(read.map(([room, , want]) => [room, want])),
+            "[each room: its switch's type, role, in the kit's toggle, accessible name, disabled, undecided, ticked]");
+    }],
+
+    ["R2014 - the description's example sentence stands in the first empty field only (E46-C2a; E46-06, audit S13-36 (4)): drawn on this GM, the Description tab's textareas with a placeholder are the first one with no text, or none; a field with text has none", async () => {
+        /*
+         * E46-C2a. Red first on C1's tree: the placeholder on every field (on this world's empty ones). Read on the
+         * window drawn, and on `roomSetupDrawn`'s second drawing with every stored description stood in empty, so a world
+         * whose rooms all have words still reads two empty fields.
+         */
+        needs(world.atLeast("namedRooms", 2), "two rooms, so the first empty field is one of several");
+        const read = async () => {
+            const { pane } = await roomSetupDrawn();
+            const areas = [...(pane("description")?.querySelectorAll('textarea[name^="desc:"]') ?? [])];
+            const first = areas.find(a => !a.value) ?? null;
+            return [areas.length, areas.filter(a => a.hasAttribute("placeholder")).map(a => a.name), first ? [first.name] : [], areas.filter(a => !a.value).length];
+        };
+        const drawn = await read();
+        const R = await import("./vault-store.mjs");
+        const flag = R.VAULT_FLAGS.description;
+        // Every region's description read as none, for the second drawing only (the getter on the regions, put back).
+        const regions = [...(game.scenes ?? [])].flatMap(s => [...(s.regions ?? [])]);
+        const kept = regions.map(r => [r, r.getFlag]);
+        for (const r of regions) r.getFlag = function (scope, key) { return scope === MODULE_ID && key === flag ? undefined : kept.find(k => k[0] === this)[1].call(this, scope, key); };
+        let empty;
+        try { empty = await read(); } finally { for (const [r, f] of kept) r.getFlag = f; }
+        ok(empty[3] >= 2, `${empty[3]} empty description(s) drawn with none stored`);
+        equal(stableJson([drawn[1], empty[1]]), stableJson([drawn[2], empty[2]]),
+            `[the fields with a placeholder, as drawn (${drawn[0]} fields, ${drawn[3]} empty) and with no description stored] against the first empty field`);
+    }],
+
+    ["R2015 - the picture cell says a picture is too large or does not load (E46-C2a; E46-06, the owner's 13.10 amend): room-setup.mjs `wirePictureWarnings` on a stand-in `imageFacts` writes a warning box in the cell naming the pixels and the bytes in Pre-season checks' words, one that does not load says so, a fitting one says nothing, a new `src` is read again; room-tile.mjs `imageFacts` reads the HEAD's length against `ROOM_IMAGE_LIMITS`; nothing of it holds Apply", async () => {
+        /*
+         * E46-C2a. Red first on C1's tree: no `wirePictureWarnings`, no `imageFacts` (no warning anywhere in Room setup).
+         */
+        const R = await import("./room-setup.mjs");
+        const T = await import("./room-tile.mjs");
+        const { ROOM_IMAGE_LIMITS } = await import("./config.mjs");
+        equal(stableJson([typeof R.wirePictureWarnings, typeof R.pictureWarning, typeof T.imageFacts]), stableJson(["function", "function", "function"]), "[the three exported]");
+        const FACTS = {
+            "big.webp": { width: 5000, height: 3000, bytes: 9437184, gone: false, late: false, pixels: true, heavy: true },
+            "gone.webp": { width: 0, height: 0, bytes: null, gone: true, late: false, pixels: false, heavy: false },
+            "fine.webp": { width: 1920, height: 1080, bytes: 400000, gone: false, late: false, pixels: false, heavy: false }
+        };
+        const root = document.createElement("div");
+        root.innerHTML = `<table><tbody>${Object.keys(FACTS).map(src => `<tr><td><img data-drpg-portrait="${src}" src="${src}"><div data-drpg-picture-say></div></td></tr>`).join("")}</tbody></table>`;
+        const asked = [];
+        R.wirePictureWarnings(root, { facts: async src => { asked.push(src); return FACTS[src]; } });
+        await settle();
+        const said = () => [...root.querySelectorAll("[data-drpg-picture-say]")].map(s => [s.querySelector('.drpg-box[data-drpg-box="warning"]') ? "warning" : null, s.textContent.trim()]);
+        const first = said();
+        root.querySelector('[data-drpg-portrait="big.webp"]').setAttribute("src", "fine.webp");
+        await settle();
+        const after = said();
+        const L = (k, d) => game.i18n.format(k, d);
+        const big = L("DRPG.Vault.imageLarge", { size: `${L("DRPG.Panel.checksImagesPixels", { width: 5000, height: 3000 })}, ${L("DRPG.Panel.checksImagesBytes", { mb: "9.0" })}` });
+        const facts = await T.imageFacts("rooms/x.webp", { ms: 30, head: async () => ({ status: 200, bytes: ROOM_IMAGE_LIMITS.bytes + 1 }) });
+        const missing = await T.imageFacts("rooms/x.webp", { ms: 30, head: async () => ({ status: 404, bytes: null }) });
+        const src = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/room-setup.mjs`).then(lfText), "wirePictureWarnings")
+            + fnSource(await fetch(`/modules/${MODULE_ID}/scripts/room-setup.mjs`).then(lfText), "pictureWarning"));
+        equal(stableJson({ first, after, asked, heavy: [facts.heavy, facts.gone], missing: missing.gone, holds: /setApplyBlock|disabled/.test(src) }), stableJson({
+            first: [["warning", big], ["warning", game.i18n.localize("DRPG.Vault.imageBroken")], [null, ""]],
+            after: [[null, ""], ["warning", game.i18n.localize("DRPG.Vault.imageBroken")], [null, ""]],
+            asked: ["big.webp", "gone.webp", "fine.webp", "fine.webp"],
+            heavy: [true, false], missing: true, holds: false
+        }), "{first: each cell [a warning box, its words] for a picture too large, one that does not load, one that fits; after: the first given the fitting picture; asked: the pictures read; imageFacts over the bytes [heavy, gone]; a 404 gone; whether the warning touches Apply}");
+    }],
+
 ];
 
 /**
@@ -42332,6 +42540,26 @@ async function c3Wait(answer, run, { footer = [] } = {}) {
         config?.render?.(null, { element });
         return answer(config, element);
     } }, run);
+}
+
+/* Room setup drawn on this GM with DialogV2.wait stood in for (E46-C2a: R2010-R2015): the opener runs to its window and
+   the stand-in answers null, which it reads as closed - nothing written. `root` holds the window's content, `pane(key)` a
+   tab's pane. */
+async function roomSetupDrawn() {
+    const D = foundry.applications.api.DialogV2;
+    const own = Object.getOwnPropertyDescriptor(D, "wait");
+    let cfg = null;
+    D.wait = async c => { cfg = c; return null; };
+    try {
+        await (await import("./room-setup.mjs")).openRoomSetupDialog();
+    } finally {
+        if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+    }
+    must(cfg, "Room setup opened no window on this GM");
+    const root = document.createElement("div");
+    const c = cfg.content;
+    root.innerHTML = typeof c === "string" ? c : (c?.outerHTML ?? "");
+    return { cfg, root, pane: key => root.querySelector(`[data-drpg-pane="${key}"]`) };
 }
 
 export { INVARIANTS };

@@ -2198,6 +2198,103 @@ body.drpg-theme-stained-glass #drpg-gm-launcher :is(i, .fa, [class*="fa-"]) {
     color: var(--drpg-kit-brief-ink);
 }
 
+/* ---- Room setup (E46-C2a, 09.11.2026; card M1, D31): the room tabs on the kit's `dataTable` ----
+   Moved here from danganronpa.css (E12 C15's "Room Setup's tables", the Stashes matrix of E11, the search-token counter,
+   the picture's thumbnail); room-setup.mjs `ROOM_SETUP_COLUMN` names a column's kind and the kit writes it as
+   `drpg-data-col-<kind>` on the column, its head and its cells. FIXED COLUMNS, as E12 C15 chose them: a fixed table of
+   `width: 1px` is as wide as its columns (CSS 2.1, 17.5.2.1), so the window fits the widest tab and the others leave the
+   rest of the line empty. No `!important`: the dialog tables' rule (danganronpa.css, `.application.dialog:is(.drpg-panel,
+   .drpg-advance) .dialog-content table`, 0,4,1) is passed by weight - these name the window and the kit's table. The
+   widths are E12 C15's (the Room column the audit's 220 px), choices and not readings, but the counter's: 232 px holds
+   the compact stepper, its cap and the refill under the glass (211 px of them and 16 px of the cell's padding, Chromium
+   at 1366x768 on probe 08's capture, 09.11.2026; Legacy 181 px with the pixel font, 147 without); the colours are the
+   window's own properties below, from the theme's bone. R2012 reads the cascade. */
+.application.drpg-window-rooms {
+    --drpg-rooms-shade: rgba(var(--drpg-bone-rgb), 0.14);
+    --drpg-rooms-edge: rgba(var(--drpg-bone-rgb), 0.3);
+    --drpg-rooms-hover-edge: rgba(var(--drpg-bone-rgb), 0.35);
+    --drpg-rooms-hover: rgba(var(--drpg-bone-rgb), 0.08);
+    --drpg-rooms-rule: rgba(var(--drpg-bone-rgb), 0.1);
+}
+/* under Legacy a cell keeps `.drpg-vault-table`'s room and its line (danganronpa.css, the tables before the kit): the kit's
+   table under Legacy pads a cell 1 px (the style sweep's reading of the room tabs, 09.11.2026); the glass's table rule
+   is the glass's */
+body:not(.drpg-theme-stained-glass) .application.drpg-window-rooms table.drpg-data-table :is(th, td) {
+    padding: 3px 6px;
+    border-bottom: 1px solid var(--drpg-rooms-rule);
+    vertical-align: middle;
+}
+body .application.drpg-window-rooms .drpg-data-table-box > table.drpg-data-table {
+    table-layout: fixed;
+    width: 1px;
+    min-width: 0;
+    max-width: none;
+}
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-room { width: calc(220px * var(--drpg-legacy-scale, 1)); }
+body .application.drpg-window-rooms table.drpg-data-table col:is(.drpg-data-col-check, .drpg-data-col-student) { width: calc(96px * var(--drpg-legacy-scale, 1)); }
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-select { width: calc(180px * var(--drpg-legacy-scale, 1)); }
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-text { width: calc(220px * var(--drpg-legacy-scale, 1)); }
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-step { width: calc(232px * var(--drpg-legacy-scale, 1)); }
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-place { width: calc(360px * var(--drpg-legacy-scale, 1)); }
+/* the description 390 px, the kit's widest (R1322, the 26.09 amend; 560 px in danganronpa.css before E46-C2a) */
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-prose { width: calc(390px * var(--drpg-legacy-scale, 1)); }
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-picture { width: calc(150px * var(--drpg-legacy-scale, 1)); }
+/* a room's name wraps inside its column (the dialog tables keep every cell on one line, and a fixed column does not grow) */
+body .application.drpg-window-rooms table.drpg-data-table td.drpg-data-col-room { white-space: normal; overflow-wrap: anywhere; }
+/* a box, a switch and a student's cell centred, as their heads */
+body .application.drpg-window-rooms table.drpg-data-table :is(td, th):is(.drpg-data-col-check, .drpg-data-col-student) { text-align: center; }
+body .application.drpg-window-rooms table.drpg-data-table td.drpg-data-col-check > .drpg-toggle { justify-content: center; margin: 0; }
+body .application.drpg-window-rooms table.drpg-data-table td.drpg-data-col-text > input[type="text"] { width: 100%; }
+/* a select and a description fill their column, as `.drpg-vault-table`'s rules drew them before the kit (danganronpa.css,
+   kept for the module's other tables): a description is prose, and two rows made a good one look like a mistake */
+body .application.drpg-window-rooms table.drpg-data-table td.drpg-data-col-select select { width: 100%; }
+body .application.drpg-window-rooms table.drpg-data-table td.drpg-data-col-prose textarea { width: 100%; min-height: 5.5rem; resize: vertical; line-height: 1.45; }
+/* the search-token counter: the compact stepper, its cap and the refill on one line */
+body .application.drpg-window-rooms .drpg-token-step { display: inline-flex; align-items: center; flex-wrap: nowrap; gap: 4px; white-space: nowrap; }
+body .application.drpg-window-rooms .drpg-token-step > * { flex: none; }
+/* the Stashes matrix (E11): one button a cell cycling its three states; the bedroom owner's cell shaded, on its button
+   since E46-C2a (the kit dresses a cell by its column) - 0.14 of bone, as E12 C15 chose it (LIVE-E12-06 looks) */
+body .application.drpg-window-rooms .drpg-stash-toggle {
+    width: 100%;
+    min-width: 0;
+    padding: 2px 0;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    color: var(--drpg-bone);
+    line-height: 1;
+    cursor: pointer;
+}
+body .application.drpg-window-rooms .drpg-stash-toggle:hover { border-color: var(--drpg-rooms-hover-edge); background: var(--drpg-rooms-hover); }
+body .application.drpg-window-rooms .drpg-stash-toggle.drpg-stash-bedroom,
+body .application.drpg-window-rooms .drpg-stash-swatch { background: var(--drpg-rooms-shade); }
+/* the padlock rides the box: "hidden" is a state of a stash that is there */
+body .application.drpg-window-rooms .drpg-stash-lock { font-size: 0.7em; margin-left: 2px; vertical-align: super; opacity: 0.85; }
+body .application.drpg-window-rooms .drpg-stash-none { opacity: 0.7; }
+/* the legend over the Stashes matrix */
+body .application.drpg-window-rooms .drpg-stash-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+body .application.drpg-window-rooms .drpg-stash-swatch {
+    display: inline-block;
+    width: 1.2em;
+    height: 1em;
+    vertical-align: middle;
+    border: 1px solid var(--drpg-rooms-edge);
+}
+/* the Description tab's picture (E77 C1): a 16:9 thumbnail the GM clicks to choose a file, and under it the clear button
+   and the line that says it is too large or does not load (E46-C2a, the 13.10 amend) */
+body .application.drpg-window-rooms .drpg-room-picture {
+    display: block;
+    width: calc(128px * var(--drpg-legacy-scale, 1));
+    min-width: calc(128px * var(--drpg-legacy-scale, 1));
+    height: calc(72px * var(--drpg-legacy-scale, 1));
+    object-fit: cover;
+    border: 1px solid var(--drpg-line-strong);
+    border-radius: 3px;
+    cursor: pointer;
+}
+body .application.drpg-window-rooms td.drpg-data-col-picture { white-space: normal; }
+body .application.drpg-window-rooms .drpg-room-picture-say > .drpg-box { margin: 4px 0 0; }
+
 /* ---- Item tables, Give an item, Give a Truth Bullet (E46-C3b, 09.11.2026; S/stages/E46 "Item tables, Give existing,
    a bullet") ----
    The windows' own rules, out of danganronpa.css (55) and stained-glass.css (1) with the markup they styled: the pick

@@ -58204,6 +58204,10 @@ const SCENARIOS = [
          * applied: the window is cancelled, and Room Setup writes on Apply only - but for the first room's refill,
          * pressed to read the counter again after its live recount; it acts at once on the search-token setting,
          * which the runner's restore puts back.
+         *
+         * E46-C2a (09.11.2026): read on the kit's tables - the counter a compact stepper in `td.drpg-data-col-step` (its
+         * - , field, + and the refill, one row), every table a `dataTable` in its box with a column a heading, the
+         * student heads the kit's two-line heads whose title is their whole name.
          */
         needs(env.dialogs(), "the window is drawn and its controls pressed");
         needs(world.atLeast("namedRooms", 1), "Room Setup lists the named regions of the scene on screen");
@@ -58224,16 +58228,17 @@ const SCENARIOS = [
                 footers[tab.dataset.drpgTabKey] = [...root.querySelectorAll("footer.form-footer button")]
                     .filter(button => button.style.display !== "none" && !button.hidden).map(button => button.dataset.action);
             }
-            const cell = root.querySelector(".drpg-token-cell");
+            // The counter on the kit since E46-C2a: the compact stepper's - , its field and its + , then the refill.
+            const cell = root.querySelector("td.drpg-data-col-step");
             const counter = () => {
-                const pieces = [...(cell?.querySelectorAll("[data-drpg-token-by], [data-drpg-tokens]") ?? [])];
+                const pieces = [...(cell?.querySelectorAll("button[data-drpg-step], input[data-drpg-token], button[data-drpg-token-refill]") ?? [])];
                 const step = cell?.querySelector(".drpg-token-step") ?? null;
-                return [pieces.map(piece => piece.dataset.drpgTokenBy ?? "count"), Boolean(step) && pieces.every(piece => step.contains(piece))];
+                return [pieces.map(piece => piece.dataset.drpgStep ?? (piece.matches("input") ? "count" : "max")), Boolean(step) && pieces.every(piece => step.contains(piece))];
             };
             const drawnFirst = counter();
             // And once more after the refill, which acts at once and is counted again in place (`recountTokenCells`):
             // the row is drawn by the window and rewritten by the count, and the count must leave it one row.
-            cell?.querySelector('[data-drpg-token-by="max"]')?.click();
+            cell?.querySelector("button[data-drpg-token-refill]")?.click();
             await settle();
             const recounted = counter();
             const boxes = [...root.querySelectorAll('input[name^="fav:"], input[name^="hin:"]')];
@@ -58251,7 +58256,7 @@ const SCENARIOS = [
                 }
                 clicks = [[...clicks].sort(), clicks[2] === was];
             }
-            const tables = [...root.querySelectorAll("table.drpg-vault-table")];
+            const tables = [...root.querySelectorAll("table.drpg-data-table")];
             const heads = [...root.querySelectorAll('[data-drpg-pane="stashes"] thead th, [data-drpg-pane="fog"] thead th')]
                 .filter(th => th.cellIndex > 0);
             const fogBoxes = () => [...root.querySelectorAll('input[type="checkbox"][name^="fog:"]')];
@@ -58267,7 +58272,7 @@ const SCENARIOS = [
                 counter: [drawnFirst, recounted],
                 place: [root.querySelectorAll("[data-drpg-place]").length * 2 === boxes.length && boxes.length > 0,
                     boxes.filter(box => !box.hidden).length, clicks],
-                tables: tables.map(table => table.classList.contains("drpg-room-setup-table")
+                tables: tables.map(table => Boolean(table.closest(".drpg-data-table-box"))
                     && table.querySelectorAll("col").length === table.querySelectorAll("thead th").length),
                 heads: heads.length > 0 && heads.every(th => th.title === th.textContent.trim()),
                 legend: [...root.querySelectorAll("[data-drpg-stash-legend] [data-drpg-stash-state]")].map(entry => entry.dataset.drpgStashState),
@@ -83830,6 +83835,130 @@ const SCENARIOS = [
             "{the Effects rows [one a SFX_EVENTS key in order, each in the kit's table, all in one table]; the warnings the Test gave; whether one holds "
             + "the English reason or a raw key}");
     }],
+    /* ---- E46-C2a (09.11.2026): Room setup on the kit, its writes held. ---- */
+    ["E46-T1 - Room setup opened on a scene while the GM views another (E46-C2a; E46-05, R119, near a road): Apply with nothing changed writes no region; one change on each room tab (Bedrooms' owner, Doors' lock, Searching's seal, Rests' short rest, Stashes' cell, Description's words, Fog's box) writes only its own field and only on the scene it was opened on; drawn on the GM, the footer is Apply and Cancel after every tab", async () => {
+        /*
+         * E46-C2a. Two scenes of the suite's own, each a room of one name (as R119's tier-2 test builds them), in a
+         * GM-store world of its own (`withGmStoreWorld`). Each Apply is answered as a GM answers it: the form handed to
+         * DialogV2.wait, one field set, the second scene viewed, Apply's own callback. Read per Apply: the region updates
+         * on each scene (an `updateRegion` hook) and the module flags they changed; the Fog box in the fog ledger
+         * (`discoveredFor`), on each scene. Red by the mutant m2 (Apply reading the camera's scene: `workingScene()` in
+         * `applyRoomRows`' place of the scene it was handed): the writes land on the second scene. The bedroom key Apply's
+         * sweep hands the owner is taken back.
+         */
+        needs(env.dialogs(), "the window is drawn and its tabs pressed");
+        needs(world.atLeast("namedRooms", 1), "Room setup lists the named regions of the scene on screen");
+        const [a, b] = cast(2);
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const F = await import("./fog.mjs");
+        const home = canvas?.scene ?? null;
+        const ROOM = "SUITE E46-T1 Lab", NAMES = ["SUITE E46-T1 opened on", "SUITE E46-T1 on screen at Apply"];
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const keyFor = actor => actor.items.filter(i => i.getFlag(MODULE_ID, V.KEY_FLAG) === ROOM).map(i => i.id);
+        let reading = null;
+        await G.withGmStoreWorld(`suite-e46t1-${foundry.utils.randomID(8)}`, async () => {
+            const scenes = [];
+            const updates = [];
+            const hook = Hooks.on("updateRegion", (region, changed) => {
+                updates.push([region.parent?.id ?? null, Object.keys(foundry.utils.flattenObject(changed?.flags?.[MODULE_ID] ?? {})).map(k => k.split(".")[0])]);
+            });
+            try {
+                for (const name of NAMES) {
+                    const scene = await Scene.create({ name, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                    scenes.push(scene);
+                    await scene.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                        flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                }
+                const [opened, other] = scenes;
+                // The room's module flags as stored, flattened: what an Apply changed is what differs after it. A row's first
+                // write stores its unset fields as their empties (an empty list, false, ""), as on 1.2.101: read as unset.
+                const empty = v => (v === undefined || v === null || v === false || v === "" || (Array.isArray(v) && !v.length) ? null : v);
+                const snap = scene => foundry.utils.flattenObject(foundry.utils.deepClone(scene.regions.find(r => r.name === ROOM)?.flags?.[MODULE_ID] ?? {}));
+                const applyWith = async change => {
+                    await opened.view();
+                    await settle();
+                    updates.length = 0;
+                    D.wait = async cfg => {
+                        const element = document.createElement("div"), form = document.createElement("form");
+                        if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                        else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                        element.append(form);
+                        const field = name => form.querySelector(`[name="${CSS.escape(name)}"]`);
+                        if (change) {
+                            const [name, set] = change;
+                            const el = field(name);
+                            must(el, `Room setup drew no "${name}" - the answer would change nothing`);
+                            set(el);
+                        }
+                        await other.view();
+                        await settle();
+                        const apply = (cfg.buttons ?? []).find(x => x.action === "ok");
+                        return apply.callback(new Event("click"), apply, { element });
+                    };
+                    const before = scenes.map(snap);
+                    try { await V.openRoomSetupDialog(); } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+                    await settle();
+                    const on = id => updates.filter(u => u[0] === id);
+                    const moved = scenes.map((scene, i) => { const now = snap(scene); return [...new Set([...Object.keys(now), ...Object.keys(before[i])])]
+                        .filter(k => stableJson(empty(now[k])) !== stableJson(empty(before[i][k]))).map(k => k.split(".")[0]).filter((k, j, all) => all.indexOf(k) === j).sort(); });
+                    return [on(opened.id).length > 0, on(other.id).length, ...moved];
+                };
+                const fogOf = scene => F.discoveredFor(scene.id, a.id).includes(ROOM);
+                const steps = {
+                    none: await applyWith(null),
+                    bedrooms: await applyWith([`owner:${ROOM}`, el => { el.value = a.id; }]),
+                    doors: await applyWith([`locked:${ROOM}`, el => { el.checked = true; }]),
+                    search: await applyWith([`nosearch:${ROOM}`, el => { el.checked = true; }]),
+                    rest: await applyWith([`short:${ROOM}`, el => { el.checked = true; }]),
+                    stashes: await applyWith([`stash:${ROOM}:${b.id}`, el => { el.value = "hidden"; }]),
+                    description: await applyWith([`desc:${ROOM}`, el => { el.value = "E46-T1 words"; }]),
+                    fog: await applyWith([`fog:${ROOM}:${a.id}`, el => { el.checked = !el.checked; }]),
+                    again: await applyWith(null)
+                };
+                reading = { steps, fog: scenes.map(fogOf) };
+            } finally {
+                Hooks.off("updateRegion", hook);
+                if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+                for (const actor of [a, b]) {
+                    const keys = keyFor(actor);
+                    if (keys.length) await actor.deleteEmbeddedDocuments("Item", keys);
+                }
+                await home?.view();
+                for (const scene of scenes) await scene.delete();
+                await settle();
+            }
+        });
+        // The footer on every tab, the window drawn on this GM and cancelled: nothing applied.
+        const drawn = () => [...foundry.applications.instances.values()].filter(app => app.rendered && app.element?.classList?.contains("drpg-window-rooms"));
+        must(!drawn().length, "a Room setup window is open already, and a second is not drawn");
+        const answer = Promise.resolve().then(() => V.openRoomSetupDialog()).catch(() => "threw");
+        const footers = {};
+        try {
+            must(await until(() => drawn().length === 1, 6000), "Room setup drew no window");
+            await settle();
+            const root = drawn()[0].element;
+            for (const tab of root.querySelectorAll("nav.drpg-tabs [data-drpg-tab-key]")) {
+                tab.click();
+                footers[tab.dataset.drpgTabKey] = [...root.querySelectorAll("footer.form-footer button")]
+                    .filter(button => button.style.display !== "none" && !button.hidden && root.contains(button)).map(button => button.dataset.action);
+            }
+        } finally {
+            for (const app of drawn()) app.element.querySelector('footer.form-footer button[data-action="cancel"]')?.click();
+            await Promise.race([answer, wait(3000)]);
+            for (const app of drawn()) await app.close();
+        }
+        equal(stableJson({ ...reading, footers }), stableJson({
+            steps: { none: [false, 0, [], []], bedrooms: [true, 0, ["drpgStashes", "drpgVaultOwner"], []], doors: [true, 0, ["drpgLocked"], []],
+                search: [true, 0, ["drpgNoSearch"], []], rest: [true, 0, ["restShort"], []], stashes: [true, 0, ["drpgStashes"], []],
+                description: [true, 0, ["drpgRoomDescription"], []], fog: [false, 0, [], []], again: [false, 0, [], []] },
+            fog: [true, false],
+            footers: Object.fromEntries(V.ROOM_SETUP_TABS.map(([tab]) => [tab, ["ok", "cancel"]]))
+        }), `{steps: per Apply [a region update on the scene opened on, the updates on the scene on screen, the module flags whose value changed on each]; fog: ${a.name}'s fog box on each scene; footers: the buttons after each tab}`);
+    }],
+
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
