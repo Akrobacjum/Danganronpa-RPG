@@ -36,9 +36,16 @@
  *   G - the redacted sheet: p2's view of Aiko has no Sanity number in the row, the track, or any tooltip, label or
  *       title; Health's row is there (E24-06, S03-06).
  *   H - the Level Up offer's cycle: offered by the GM, taken by p1 through the bridge, offered again and taken back
- *       by the GM; p1's and the GM's sheets follow each step.
+ *       by the GM; p1's and the GM's sheets follow each step (H4, the GM's button unlit after p1's take: E45-C3b's B1).
+ *   I - the biography held unsaved on p1 while the GM writes it (E45-C3b's B2, general n6): the GM's text stands, p1's
+ *       stays in the field and p1 is told once; p1's next save writes p1's.
+ *   J - fixes already on the tree, on live clients (E45-C3b's B3): the Party sheet's Sanity to a non-owner (security
+ *       S-2); p2's redacted sheet repainted after p1's Sanity and Hope writes, read for any Sanity or Hope number in its
+ *       text, attributes and classes (security "For 71"); a Hope maximum written alone (general n1). E2 is general m3:
+ *       a dead student's Hope write repaints with no mark.
  *
- * Red first: A, B and C on E45-C1's tree (before C2's render without state) - the commit's message quotes them.
+ * Red first: A, B and C on E45-C1's tree (before C2's render without state) - C3a's message quotes them; H4, I2, I3
+ * and J3 on da8e8a3b - C3b's message quotes them.
  */
 
 /* The client-side steps below run in a page (stringified for `eval`), where these are the page's. */
@@ -178,6 +185,16 @@ export async function run({ gm, p1, p2, check, note, phase, settle, repoUrl, IDS
     };
     const zero = async (repo, actorId) => { const app = globalThis.__s71.get(game.actors.get(actorId)); if (app) app.calls = 0; return Boolean(app); };
     const closeAll = async () => globalThis.__s71.closeAll();
+    /* The header's Hope as the sheet shows it: the diamonds drawn, those held (a solid glyph), those marked spent or
+       gained (motion.mjs `markSpent`'s classes), the render calls since the open, and the Hope the client holds. */
+    const hopeRead = async (repo, actorId) => {
+        const actor = game.actors.get(actorId);
+        const app = globalThis.__s71.get(actor);
+        const slots = [...(app?.element?.querySelectorAll(".character-header-sheet .hope-section .hope-value") ?? [])];
+        return { calls: app?.calls ?? null, slots: slots.length, held: slots.filter(s => s.querySelector("i.fa-solid")).length,
+            marked: slots.filter(s => s.classList.contains("drpg-spent") || s.classList.contains("drpg-gained")).length,
+            hope: Number(actor.system.resources.hope.value), max: Number(actor.system.resources.hope.max) };
+    };
     const setLock = async (repo, value) => {
         const { SETTINGS } = await import(`${repo}/scripts/settings.mjs`);
         await game.settings.set("danganronpa-rpg", SETTINGS.lockPlayerResources, value);
@@ -387,6 +404,15 @@ export async function run({ gm, p1, p2, check, note, phase, settle, repoUrl, IDS
         }, IDS.aiko);
         await wait(1500);
         matrix.dead = { owner: await on(p1, modeOn, IDS.aiko), viewer: await on(p2, modeOn, IDS.aiko) };
+        /* B3 (E45-C3b; E24 fix G2B, general m3): a dead student's Hope write repaints her sheet and marks nothing - her
+           header is still, as `flashHope` keeps it on a render. Read on the owner's and the GM's sheets. */
+        await on(gm, gmWrite, IDS.aiko, { "system.resources.hope.value": 2 });
+        await wait(600);
+        for (const c of [gm, p1]) await on(c, open, IDS.aiko, {});
+        await on(gm, gmWrite, IDS.aiko, { "system.resources.hope.value": 1 });
+        await wait(1200);
+        const deadHope = { gm: await on(gm, hopeRead, IDS.aiko), p1: await on(p1, hopeRead, IDS.aiko) };
+        console.log(`[71 E dead Hope] ${J(deadHope)}`);
         // A Monocub is a dead student who plays on (D15): the flag on the body, then off before she is revived.
         await on(gm, flagOn, IDS.aiko, "monocub", true);
         await wait(800);
@@ -416,6 +442,8 @@ export async function run({ gm, p1, p2, check, note, phase, settle, repoUrl, IDS
             student: { owner: { mode: "student", actions: "grid", use: true, drawn: "panel" }, viewer: { mode: "student", actions: null, use: false, drawn: null } }
         };
         verdict("Aiko is dead on a published death", killed, { killed });
+        verdict("her Hope written 2 -> 1 while dead: the sheet on gm and p1 is repainted (calls 0), one diamond held, and no diamond marked spent or gained",
+            same(deadHope, r => r.calls === 0 && r.held === 1 && r.slots > 0 && r.marked === 0), deadHope);
         for (const kind of Object.keys(WANT)) {
             verdict(`${kind}: the mode each viewer's sheet was drawn in, and the action panel drawn for it`, J(matrix[kind]) === J(WANT[kind]), { got: matrix[kind], want: WANT[kind] });
         }
@@ -549,13 +577,150 @@ export async function run({ gm, p1, p2, check, note, phase, settle, repoUrl, IDS
         verdict("the GM offers a Level Up: lit on p1's sheet and on the GM's", offered1 && h1.p1.offered && h1.gm.offered, { offered1, h1 });
         verdict("p1 takes it through the bridge: the offer is spent on the GM's store and p1's button is gone",
             taken.pending && taken.ok && h2.gm.standing === 0 && h2.p1.standing === 0 && !h2.p1.button, { taken, h2 });
-        /* NOT A CHECK, A CASE FOR E45-C3b (measured 08.11.2026 on 52955be4 + C3a): after a player's take the GM's own sheet
-           keeps the lit button - level-up.mjs `applyAdvancement` writes the rises (the sheet renders for them, the offer
-           still standing) and withdraws the offer after, and `dropOffer` tells the owners only; nothing renders the GM's
-           sheet again. The bug bash turns this into a red check and then its fix (STATUS E45-C3a Open). */
-        note("H: the GM's sheet after p1's take (E45-C3b's case)", J({ gm: h2.gm, litWithNoOffer: h2.gm.offered && h2.gm.standing === 0 }));
+        /* E45-C3b's B1 (C3a's Open 1, measured 08.11.2026 on 52955be4 + C3a): after a player's take the GM's own sheet
+           kept the lit button - level-up.mjs `applyAdvancement` writes the rises (the sheet renders for them, the offer
+           still standing) and withdraws the offer after, and `dropOffer` told the owners only; nothing rendered the GM's
+           sheet again. Red on da8e8a3b; `dropOffer` now draws the character's open sheet on the GM that drops it. */
+        verdict("after p1's take the GM's own sheet is drawn again: its button stands unlit, the offer spent",
+            h2.gm.button && !h2.gm.offered && h2.gm.standing === 0, { gm: h2.gm });
         verdict("offered again: lit on both", offered2 && h3.p1.offered && h3.gm.offered, { offered2, h3 });
         verdict("the GM takes it back: p1's button is gone and the GM's unlit", back === true && !h4.p1.button && h4.gm.button && !h4.gm.offered, { back, h4 });
+        await each(closeAll);
+
+        /* ------------------------------ I ------------------------------ */
+        /* E45-C3b's B2 (general n6): p1 holds biography text not yet saved while the GM writes the background. Measured
+           on da8e8a3b: p1's next save wrote p1's text over the GM's, no word said. Now (Q-E45-C3b-1's default) that save
+           writes nothing: the GM's text stands, p1's stays in the field unsaved, p1 is told once; p1's next save writes
+           theirs. */
+        begin("I", "the biography held unsaved while the GM writes it: the GM's write stands, p1 told once, p1's next save writes p1's");
+        const bioWasI = await gm.eval(`return game.actors.get("${IDS.aiko}").system.biography.background;`);
+        const bioStep = async (repo, actorId, step, text) => {
+            const actor = game.actors.get(actorId);
+            if (!globalThis.__s71Told) {
+                globalThis.__s71Told = [];
+                for (const kind of ["info", "warn", "error"]) {
+                    const own = ui.notifications[kind]?.bind(ui.notifications);
+                    ui.notifications[kind] = (message, ...rest) => { globalThis.__s71Told.push(String(message)); return own?.(message, ...rest); };
+                }
+            }
+            if (step === "type") {
+                const app = globalThis.__s71.open(actor, {});
+                await new Promise(r => setTimeout(r, 200));
+                const area = app.element.querySelector("textarea.drpg-biography-text");
+                area.focus();
+                area.value = text;
+                area.dispatchEvent(new Event("input", { bubbles: true }));
+            } else if (step === "save") {
+                globalThis.__s71.get(actor)?.element?.querySelector('nav [data-tab="inventory"]')?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+                await new Promise(r => setTimeout(r, 300));
+            }
+            const app = globalThis.__s71.get(actor);
+            const words = game.i18n.localize("DRPG.Sheet.biographyChanged");
+            return { field: app?.element?.querySelector("textarea.drpg-biography-text")?.value ?? null, calls: app?.calls ?? null,
+                stored: actor.system.biography.background, told: globalThis.__s71Told.filter(m => m === words).length };
+        };
+        const P1_TEXT = "S71 I p1's text, typed and not saved", GM_TEXT = "S71 I the GM's edit, made meanwhile";
+        const i0 = await on(p1, bioStep, IDS.aiko, "type", P1_TEXT);
+        await on(gm, gmWrite, IDS.aiko, { "system.biography.background": GM_TEXT });
+        await wait(1200);
+        const i1 = await on(p1, bioStep, IDS.aiko, "read");
+        await on(p1, bioStep, IDS.aiko, "save");
+        await wait(1200);
+        const i2 = { p1: await on(p1, bioStep, IDS.aiko, "read"), gm: await gm.eval(`return game.actors.get("${IDS.aiko}").system.biography.background;`) };
+        await on(p1, bioStep, IDS.aiko, "save");
+        await wait(1200);
+        const i3 = { p1: await on(p1, bioStep, IDS.aiko, "read"), gm: await gm.eval(`return game.actors.get("${IDS.aiko}").system.biography.background;`) };
+        console.log(`[71 I] ${J({ i0, i1, i2, i3 })}`);
+        verdict("the GM's write reaches p1 while p1 types: p1's sheet is drawn again and its field keeps p1's unsaved text",
+            i0.field === P1_TEXT && i1.stored === GM_TEXT && i1.calls >= 1 && i1.field === P1_TEXT, { i0, i1 });
+        verdict("p1's save after the GM's write writes nothing: the GM's text stands on the GM, p1's stays in p1's field, and p1 is told once",
+            i2.gm === GM_TEXT && i2.p1.stored === GM_TEXT && i2.p1.field === P1_TEXT && i2.p1.told === 1, i2);
+        verdict("p1's next save writes p1's text, and says nothing more", i3.gm === P1_TEXT && i3.p1.told === 1, i3);
+        await each(closeAll);
+        await on(gm, gmWrite, IDS.aiko, { "system.biography.background": bioWasI });
+        await wait(600);
+
+        /* ------------------------------ J ------------------------------ */
+        /* E45-C3b's B3: fixes already on the tree, on live clients (E24 fix G2B; security "For 71"). */
+        begin("J", "the Party sheet's Sanity, a redacted sheet's repaint, a Hope maximum written alone");
+        // The Party sheet's member row for Aiko, as party-members.hbs draws it (2.10.5), painted by the module's hook.
+        const partyRead = async (repo, actorId) => {
+            const actor = game.actors.get(actorId);
+            const section = (key, tip, action) => {
+                const { value, max } = actor.system.resources[key];
+                let slots = "";
+                for (let n = 1; n <= max; n++) slots += `<span class="slot${value >= n ? " filled" : ""}" data-action="${action}" data-value="${n}"></span>`;
+                return `<div class="slot-section"><div class="slot-label" data-tooltip="${tip}"><span class="label"><i class="fa-solid" inert></i></span>`
+                    + `<span class="value"><span class="current">${value}</span> / <span class="max">${max}</span></span></div><div class="slot-bar">${slots}</div></div>`;
+            };
+            const root = document.createElement("div");
+            root.innerHTML = `<ul class="actors-list"><li class="actor-resources"><header><a data-action="openDocument" data-uuid="Actor.${actor.id}">${actor.name}</a></header>`
+                + `<section class="body"><section class="resources">${section("hitPoints", "DAGGERHEART.GENERAL.HitPoints.plural", "toggleHitPoints")}`
+                + `${section("stress", "DAGGERHEART.GENERAL.stress", "toggleStress")}</section></section></li></ul>`;
+            Hooks.callAll("renderPartySheet", {}, root);
+            const of = tip => root.querySelector(`.slot-label[data-tooltip="${tip}"]`)?.closest(".slot-section") ?? null;
+            const st = of("DAGGERHEART.GENERAL.stress"), hp = of("DAGGERHEART.GENERAL.HitPoints.plural");
+            const text = el => el?.querySelector(".slot-label .value")?.textContent.replace(/\s+/g, " ").trim() ?? null;
+            return { sanity: text(st), sanitySlots: st?.querySelectorAll(".slot").length ?? null, health: text(hp),
+                healthSlots: hp?.querySelectorAll(".slot").length ?? null, sanityMax: Number(actor.system.resources.stress.max) };
+        };
+        const j1 = await each(partyRead, IDS.aiko);
+        console.log(`[71 J party] ${J(j1)}`);
+        verdict("the Party sheet: Sanity's row on gm and p1 has its slots and a number; on p2's it reads \"?\" with no slot (S-2), Health's slots there",
+            [j1.gm, j1.p1].every(r => r.sanitySlots === r.sanityMax && /\d/.test(r.sanity ?? "")) && j1.p2.sanity === "?" && j1.p2.sanitySlots === 0 && j1.p2.healthSlots > 0, j1);
+
+        // A redacted sheet repainted: p1 (the owner) writes Sanity from the field and Hope by hand with the lock off.
+        const lockWasJ = await gm.eval(`return game.settings.get("${MOD}", "lockPlayerResources");`);
+        await on(gm, setLock, false);
+        await on(gm, gmWrite, IDS.aiko, { "system.resources.hope.value": 3, "system.resources.stress.value": 1 });
+        await wait(800);
+        for (const c of [p1, p2]) await on(c, open, IDS.aiko, {});
+        const stLeft = await on(p1, async (repo, actorId) => (await import(`${repo}/scripts/character.mjs`)).reserveOf(game.actors.get(actorId), "stress").left, IDS.aiko);
+        const typedJ = await on(p1, typeField, IDS.aiko, "stress", [stLeft - 1], 0);
+        await wait(900);
+        const hopeJ = await p1.eval(`await game.actors.get("${IDS.aiko}").update({ "system.resources.hope.value": 2 }); return game.actors.get("${IDS.aiko}").system.resources.hope.value;`);
+        await wait(1200);
+        const redactRead = async (repo, actorId) => {
+            const actor = game.actors.get(actorId);
+            const app = globalThis.__s71.get(actor), root = app?.element ?? null;
+            const stress = root?.querySelector('[data-drpg-reserve="stress"]') ?? null;
+            const hope = root?.querySelector(".character-header-sheet .hope-section") ?? null;
+            const numbered = el => (el ? [el, ...el.querySelectorAll("*")] : []).flatMap(node => [...node.attributes]
+                .filter(at => /\d/.test(at.value) && !["style", "min", "data-value"].includes(at.name)).map(at => `${at.name}=${at.value}`));
+            const attrs = [];
+            for (const el of root?.querySelectorAll("[data-tooltip], [aria-label], [title]") ?? []) {
+                for (const name of ["data-tooltip", "aria-label", "title"]) if (el.hasAttribute(name)) attrs.push(el.getAttribute(name));
+            }
+            return { calls: app?.calls ?? null, redacted: Boolean(root?.classList.contains("drpg-redacted-sheet")),
+                row: globalThis.__s71.rowText(stress?.querySelector(".drpg-reserve-row")), stressText: stress?.textContent ?? null, stressAttrs: numbered(stress),
+                stressClasses: stress ? [...stress.querySelectorAll(".filled, .drpg-pip-full, .drpg-spent, .drpg-gained")].length : null,
+                hopeText: hope?.textContent ?? null, hopeAttrs: numbered(hope),
+                hopeClasses: hope ? [...hope.querySelectorAll("i.fa-solid, i.fa-regular, .drpg-spent, .drpg-gained")].length : null,
+                hopeMarked: hope ? hope.querySelectorAll(".drpg-spent, .drpg-gained").length : null,
+                tips: attrs.filter(a => /sanity|stress|poczytalno|hope|nadziej/i.test(a) && /\d/.test(a)),
+                sanityLeft: Number(actor.system.resources.stress.max) - Number(actor.system.resources.stress.value), hopeNow: Number(actor.system.resources.hope.value) };
+        };
+        const j2 = { p2: await on(p2, redactRead, IDS.aiko), p1: await on(p1, redactRead, IDS.aiko), p1Hope: await on(p1, hopeRead, IDS.aiko) };
+        console.log(`[71 J redacted] ${J({ stLeft, typedJ, hopeJ, j2 })}`);
+        verdict("p1's own writes landed and p1's sheet shows them: the new Sanity in its row, two diamonds held, the spent one marked",
+            typedJ[0] !== null && hopeJ === 2 && j2.p1.row?.includes(String(j2.p1.sanityLeft)) && j2.p1Hope.held === 2 && j2.p1Hope.marked > 0,
+            { typedJ, hopeJ, p1: j2.p1, p1Hope: j2.p1Hope });
+        verdict("p2's redacted sheet repainted for both writes (calls 0) and holds no Sanity or Hope number: none in the text, attributes or classes of either block, nor in a tooltip, label or title",
+            j2.p2.redacted && j2.p2.calls === 0 && !/\d/.test(j2.p2.stressText ?? "x1") && j2.p2.stressAttrs.length === 0 && j2.p2.stressClasses === 0
+                && !/\d/.test(j2.p2.hopeText ?? "x1") && j2.p2.hopeAttrs.length === 0 && j2.p2.hopeClasses === 0 && j2.p2.tips.length === 0, j2.p2);
+
+        // A Hope maximum written alone (n1): the diamonds follow it on every sheet holding it.
+        for (const c of [gm, p1]) await on(c, open, IDS.aiko, {});
+        const maxWas = await gm.eval(`return game.actors.get("${IDS.aiko}").system.resources.hope.max;`);
+        await on(gm, gmWrite, IDS.aiko, { "system.resources.hope.max": maxWas - 1 });
+        await wait(1200);
+        const j3 = { gm: await on(gm, hopeRead, IDS.aiko), p1: await on(p1, hopeRead, IDS.aiko) };
+        await on(gm, gmWrite, IDS.aiko, { "system.resources.hope.max": maxWas });
+        await wait(600);
+        console.log(`[71 J max] ${J({ maxWas, j3 })}`);
+        verdict("the GM writes Hope's maximum alone (one less): the sheet on gm and p1 draws that many diamonds",
+            same(j3, r => r.max === maxWas - 1 && r.slots === maxWas - 1), { maxWas, j3 });
+        await on(gm, setLock, lockWasJ);
     } finally {
         await each(closeAll).catch(() => null);
     }

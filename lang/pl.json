@@ -242,7 +242,7 @@
       },
       "enforceAnonymity": {
         "name": "Anonimowe karty postaci",
-        "hint": "Karta innego gracza otwiera się ocenzurowana: imię, portret, Health, Sanity i to, co trzyma w rękach. Statystyki, Hope, akcje, ekwipunek i Truth Bullets są ukryte. Każdy gracz wciąż w pełni widzi własną kartę."
+        "hint": "Karta innego gracza otwiera się ocenzurowana: imię, portret, Health i to, co trzyma w rękach. Statystyki, Sanity, Hope, akcje, ekwipunek i Truth Bullets są ukryte. Każdy gracz wciąż w pełni widzi własną kartę."
       },
       "searchTokensPerRoom": {
         "name": "Search Tokens na pokój",
@@ -422,7 +422,8 @@
       "otherRemoveAsk": "Usunąć: {item} z karty postaci {actor}? Zniknie z karty na dobre.",
       "otherHint": "Jeszcze nie ma go pod żadnym nagłówkiem. Poproś GM-a, żeby go przypisał.",
       "biographyLabel": "Przeszłość",
-      "biographyPlaceholder": "Kim była twoja postać, zanim zaczęła się killing game."
+      "biographyPlaceholder": "Kim była twoja postać, zanim zaczęła się killing game.",
+      "biographyChanged": "Ktoś inny zmienił w międzyczasie przeszłość tej postaci. Twój tekst nadal jest w polu, niezapisany: wyjdź z pola jeszcze raz, a zastąpi tamten."
     },
     "Guard": {
       "blocked": "To zmienia tylko GM. Akcje, Hope i statystyki zmieniają się przez grę.",

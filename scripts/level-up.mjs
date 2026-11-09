@@ -259,6 +259,12 @@ export async function dropOffer(actorId, offerId) {
     if (left.length) await offerStore.patch(actorId, listFields(row, left));
     else await offerStore.drop(actorId);
     await tellOwners(actorId);
+    /* AND THIS GM'S OWN SHEET (E45-C3b, 09.11.2026; C3a's Open 1). The owners redraw on the set they are sent; the GM's
+       button reads this store, and nothing drew the GM's open sheet again after a player's take: `applyAdvancement`
+       writes the rises first (the sheet renders for them, the offer still standing) and withdraws the offer after.
+       Scenario 71 H4 read the GM's button lit with no offer standing ({"offered":true,"standing":0}). A take-back
+       draws its own GM's sheet as well (`takeBackOffer`); a second render there is the old one's cost. */
+    game.actors.get(actorId)?.sheet?.render(false);
     return true;
 }
 

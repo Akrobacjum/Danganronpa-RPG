@@ -850,7 +850,8 @@ function repaintInPlace(actor, element, app = null) {
     // the dead's and an NPC's header is still, counted and never marked, as
     // `flashHope` keeps it - since E45 C2 every client holding the sheet
     // repaints (E24 fix G2B; general m3, R1479).
-    markHopeChange(actor, element, !sheetMode(actor).header.acts);
+    const mode = sheetMode(actor);
+    markHopeChange(actor, element, !mode.header.acts || mode.redact);
 }
 
 /**
@@ -1471,7 +1472,8 @@ function frameTraits(element) {
  */
 function flashHope(app, element, fresh = false, mode = modeOf(app)) {
     // Still for the dead and an NPC (E24 C3a; the mode's header since E45 C1): counted, never marked, as a first draw is.
-    markHopeChange(app.document, element, fresh || !mode.header.acts);
+    // And on a sheet the redaction takes (E45-C3b): see `markHopeChange`.
+    markHopeChange(app.document, element, fresh || !mode.header.acts || mode.redact);
 }
 
 /**
@@ -1492,6 +1494,13 @@ function flashHope(app, element, fresh = false, mode = modeOf(app)) {
  * difference on its second draw.
  */
 function markHopeChange(actor, element, fresh = false) {
+    /*
+     * NEVER ON A REDACTED SHEET (E45-C3b, 09.11.2026; found by scenario 71 J3). The count comes from the glyphs, and the
+     * redaction (anonymity.mjs `redactValues`) takes them out after the render counted them: the first repaint read 0
+     * held and marked every diamond the render had seen as spent - on p2's view of Aiko, three marked for her three
+     * Hope ({"hopeText":"??????","hopeClasses":3}), and a mark the redaction never strips. Its callers pass `fresh`
+     * for a sheet the mode redacts, so nothing on it is marked; counted as a first draw is.
+     */
     const slots = element?.querySelectorAll?.(
         ".character-header-sheet .hope-section .hope-value") ?? [];
     if (!slots.length) return;
@@ -2968,14 +2977,30 @@ function plainBiography(html) {
 export function saveBiography(app) {
     const held = app?._drpgBiography;
     if (!held) return null;
-    app._drpgBiography = null;
     const actor = app.document ?? null;
-    if (!actor) return null;
+    if (!actor) {
+        app._drpgBiography = null;
+        return null;
+    }
     const next = String(held.value ?? "").trim();
     const now = plainBiography(foundry.utils.getProperty(actor, "system.biography.background"));
+    /*
+     * SOMEBODY ELSE WROTE IT MEANWHILE (E45-C3b, 09.11.2026; general n6; Q-E45-C3b-1's default). `held.base` is the
+     * backstory as this browser last knew it stored when the typing began (`tidyBiography`). A save that finds another
+     * text stored writes nothing: the other write stands, the typed text stays held - the field keeps it, unsaved - and
+     * the typist is told once; their next save writes theirs, as the base is now what they were told of. Scenario 71
+     * I2 read on da8e8a3b: the player's save wrote their text over the GM's edit, no word said.
+     */
+    if (held.base !== undefined && held.base !== now && next !== now) {
+        app._drpgBiography = { ...held, base: now };
+        ui.notifications?.warn(game.i18n.localize("DRPG.Sheet.biographyChanged"));
+        return null;
+    }
+    app._drpgBiography = null;
     // The same text already on its way (a tab's click, then the field's focusout, before the write is back) is not a second write.
     if (next === now || next === app._drpgBiographySending) return null;
     app._drpgBiographySending = next;
+    app._drpgBiographyBase = next;
     return trustedWrite(actor, { "system.biography.background": next }, { reason: "sheetText" })
         .catch(err => error("Could not save the backstory", err))
         .finally(() => { if (app._drpgBiographySending === next) app._drpgBiographySending = null; });
@@ -3030,16 +3055,17 @@ export function tidyBiography(app, element, mode = modeOf(app)) {
         const editable = mode.editable;
         // Read once the field is in the sheet (below): whether it is in the page, and the text it was drawn with.
         let inPage = false, drawn = "";
-        area.value = editable && held
-            ? held.value
-            : plainBiography(foundry.utils.getProperty(actor, "system.biography.background"));
+        const stored = plainBiography(foundry.utils.getProperty(actor, "system.biography.background"));
+        // The stored text the next typing starts from (`saveBiography`'s base): what this draw shows, unless typed text is held.
+        if (!held) app._drpgBiographyBase = stored;
+        area.value = editable && held ? held.value : stored;
 
         if (!editable) {
             area.readOnly = true;
         } else {
             const remember = () => {
                 app._drpgBiography = { value: area.value, start: area.selectionStart, end: area.selectionEnd,
-                    focused: document.activeElement === area };
+                    focused: document.activeElement === area, base: app._drpgBiography?.base ?? app._drpgBiographyBase };
             };
             area.addEventListener("input", remember);
             // The caret moved without a keystroke that typed: kept only while there is something unsaved.

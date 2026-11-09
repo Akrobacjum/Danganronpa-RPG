@@ -103,8 +103,12 @@ export const UNCONFIRMED = [
        client, the writer's included, and a descendant's create, update or delete rendering its root's apps the same
        (client-entry.mjs `renderApps`) - from v13/v14 notes as remembered, not from v14's source. Scenario 71 and the
        sheet's own render (sheet.mjs `renderPlan`) read the repaint on that model. E45's other live rows (the wrapper's
-       way out, 71's parts at a table, a Monocub's tile; C3b writes their AUDIT items) are not modelled here. */
-    "LIVE-E45-01"
+       way out, 71's parts at a table, a Monocub's tile) are read on the same model: */
+    "LIVE-E45-01",
+    /* E45-C3b's (09.11.2026; AUDIT items 425-427): the wrapper's way out for a render signature it does not know (R1477 on
+       stand-in arguments; 02), 71's parts A, B, F, H and I at a table (03) and a Monocub's Confusion tile after a Hope
+       write (71 C; 04), each read headless on `renderApps` and the stand-in sheet, neither of them v14's. */
+    "LIVE-E45-02", "LIVE-E45-03", "LIVE-E45-04"
 ];
 
 function readJson(file) {

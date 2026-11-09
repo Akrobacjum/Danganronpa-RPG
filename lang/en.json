@@ -242,7 +242,7 @@
       },
       "enforceAnonymity": {
         "name": "Keep character sheets anonymous",
-        "hint": "Another player's sheet opens redacted: name, portrait, Health, Sanity and what they are holding. Statistics, Hope, actions, inventory and Truth Bullets are hidden. Each player still owns their own sheet in full."
+        "hint": "Another player's sheet opens redacted: name, portrait, Health and what they are holding. Statistics, Sanity, Hope, actions, inventory and Truth Bullets are hidden. Each player still owns their own sheet in full."
       },
       "searchTokensPerRoom": {
         "name": "Search tokens per room",
@@ -417,7 +417,8 @@
       "otherRemoveAsk": "Remove {item} from {actor}? It is gone from the sheet for good.",
       "otherHint": "Not under any heading yet. Ask the GM to file it.",
       "biographyLabel": "Background",
-      "biographyPlaceholder": "Who you were before the killing game."
+      "biographyPlaceholder": "Who you were before the killing game.",
+      "biographyChanged": "Someone else changed this character's Background meanwhile. Your text is still in the field, not saved: leave the field again and it replaces theirs."
     },
     "Guard": {
       "blocked": "Only the GM changes that. Actions, Hope and statistics move through play.",
