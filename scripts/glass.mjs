@@ -1957,6 +1957,18 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
        does: every non-strip pane is clipped out of the band across the tiles' own run, and
        only across it. Above and below the tiles the column keeps the wall, as it should. */
     c.hugL = c.x0 - PAD_SIDE < HUG; c.hugR = c.x1 + PAD_SIDE > W - HUG;
+    /* AND A COLUMN WITH A TAIL IS AS WIDE AS ITS TAIL (E96 C3, 09.11.2026; the owner on the 1.2.101 hotfix's review,
+       "Przyciski maja nie wychodzic poza panel livekit. Panel ma byc polaczony z reszta kurtyny"). The tile is settled
+       against the pin (`settleVoice`), and the column turns about its top left corner, so 200 px down it the tile's
+       right side stands about 28 px further right in the column's frame than the tray's, and the column's right edge
+       is the tray's. At a wall the column hugs it and the pane runs past the tile; with Foundry's tab rail the column
+       stands off the wall, and the voice pane ended short of the tile: in Chromium on the glass harness with
+       `?windows=off`, a GM at 2000x1072, the pane's right edge 1788 at its top, the buttons' 1811 and 1806, both with two
+       corners off it, and the seam with the tray 176 px long under a tile 191 wide (1.2.99 to 1.2.101 alike). So the
+       right edge takes the tile's side and its pad, as the left one does (`Xc`), and the tray's pane above it with it,
+       so the two still meet along one straight seam and one straight right edge. A column that hugs the wall is left
+       as it was: its pane runs into the wall below. R3121. */
+    if (tail && !c.hugR) X1 = Math.max(X1, tail.x + tail.w - px + PAD_SIDE);
     /* BOTH CORNERS, NOT JUST THE FAR ONE.
        A column at a wall runs its pane into the wall so no bare wedge is left there, and
        that was measured on the FAR corner alone. A pane is rotated, so its two corners sit
@@ -2932,8 +2944,12 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
      on the same empty host - so no column clips a row and no rail is measured: `bands` stands in for the two rails'
      bands (`[{ band: x }, { band: x }]`, the scene rail's and the tab rail's inner edges, either null). `check` is the
      self-check's edge and open-area reading of the cut (`cutCheck`). */
-  export function cutBoxes(W, H, boxes, seed = 1, { stacked = false, bands = null } = {}) {
-    const rot = ROT.splice(0), voice = VOICE.box, open = OPEN_AREAS.splice(0);
+  /* THE PIN TOO (E96 C3, 09.11.2026; R3121). `{ rail }` stands in for `pinRightColumn`'s distance of the right column
+     from the wall (`PIN.rail`: Foundry's tab rail and its band, 186 px for a GM at 2000x1072 in Chromium on the glass
+     harness with `?windows=off`), which the voice tile is settled against (`voiceWall`); put back after the cut. */
+  export function cutBoxes(W, H, boxes, seed = 1, { stacked = false, bands = null, rail = null } = {}) {
+    const rot = ROT.splice(0), voice = VOICE.box, open = OPEN_AREAS.splice(0), pin = PIN.rail;
+    if (rail != null) PIN.rail = rail;
     try {
       const given = boxes.map(b => ({ sel: BLOCKS.find(k => k.cls === b.cls)?.sel ?? null, ...b }));
       VOICE.box = null; OPEN_AREAS.length = 0;
@@ -2942,7 +2958,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       return { panes, voice: VOICE.box && { ...VOICE.box }, open: OPEN_AREAS.map(a => ({ ...a })), check: { ...cutCheck(panes, OPEN_AREAS, W, H), ...cutParts(panes, W, H) },
                rotations: ROT.map(r => ({ sel: r.sel, origin: r.origin, transform: r.transform })) };
     } finally {
-      ROT.length = 0; ROT.push(...rot); VOICE.box = voice; OPEN_AREAS.length = 0; OPEN_AREAS.push(...open);
+      ROT.length = 0; ROT.push(...rot); VOICE.box = voice; OPEN_AREAS.length = 0; OPEN_AREAS.push(...open); PIN.rail = pin;
     }
   }
   function curtainGeometry(job) {
