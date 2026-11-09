@@ -3456,83 +3456,10 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 /* ==========================================================================
    SETTING A SEASON UP
    --------------------------------------------------------------------------
-   The same list as the pre-season checks, from the other end. Each row carries
-   its own state, so an outstanding one stays visible with everything it is
-   waiting on named - a count with no names is a second lookup.
+   The same list as the pre-season checks, from the other end. Its rows are the
+   kit's checklist since E46-C5b (ui-kit.mjs `checkList`; components.css, "Season
+   setup and Pre-season checks"); the campaign's fields stay here.
    ========================================================================== */
-
-.drpg-setup-list {
-    list-style: none;
-    margin: 8px 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.drpg-setup-step {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    padding: 6px 8px;
-    border-radius: 3px;
-    border: 1px solid var(--drpg-line);
-    background: rgba(var(--drpg-veil-rgb), 0.5);
-}
-
-/* A finished row steps back rather than disappearing: the list is also the
-   record of what a season needs, and a list that shortens as you work loses
-   the half that explains why the rest matters.
-   By its title and its mark, not the whole row (E20 C4, S01-21, S12-20): at 0.55
-   opacity on the row its hint and its button went with it, read at about 2:1 in
-   the audit (not measured here). The hint stays readable; the title goes dim and
-   the tick quieter. */
-.drpg-setup-step.done {
-    border-color: rgba(var(--drpg-line-rgb, 232, 227, 236), 0.12);
-}
-
-.drpg-setup-step.done .drpg-setup-body strong {
-    color: var(--drpg-dim);
-}
-
-.drpg-setup-mark {
-    flex: 0 0 auto;
-    font-weight: 700;
-    line-height: 1.4;
-    color: var(--drpg-eye-light);
-}
-
-.drpg-setup-step.done .drpg-setup-mark {
-    color: var(--drpg-gold);
-    opacity: 0.55;
-}
-
-.drpg-setup-body {
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-/* Who the row is waiting on, in the colour of the row's state (E20 C4, S06-30,
-   S12-20; Q-4): the alarm's red beside the cross of a row a season needs, the
-   dim of the dash beside a row that is optional or waits for the cast. At
-   text-sm, not the 11 px floor: it is the line that says what to do. */
-.drpg-setup-missing {
-    margin-top: 2px;
-    font-size: var(--drpg-text-sm);
-    color: var(--drpg-eye-light);
-    overflow-wrap: anywhere;
-}
-
-.drpg-setup-step:is(.optional, .waiting) .drpg-setup-missing {
-    color: var(--drpg-dim);
-}
-
-/* The hints at the module's base size (E20 C4, S01-21, S06-30; Q-4). Six classes:
-   the panels' fine-print rule (`.dialog-form .notes`, text-sm) holds five and the
-   elements of its three `:not()`s, so five classes alone would lose to it. */
-.application.dialog.drpg-window-season .drpg-setup-step .drpg-setup-body .notes {
-    font-size: var(--drpg-text-base);
-}
 
 /* The campaign's fields in one block above the list (E20 C4, S06-30): what Save
    writes, in sight of the GM who presses it. */
@@ -3541,19 +3468,6 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     padding: 6px 8px;
     border: 1px solid var(--drpg-line);
     border-radius: 3px;
-}
-
-/* A scrollbar in view while the list runs past the window (E20 C4, S01-19): the kit's body scrolls since E21 C2b
-   (ui-kit.mjs `drpgWindow`, components.css), and this window's own `.window-content` overflow left with its frame (the
-   stage's rule 2). The gutter stays, on the body that scrolls, so the rows do not shift when the bar appears. */
-.application.dialog.drpg-window-season .drpg-kit-body {
-    scrollbar-gutter: stable;
-}
-
-.drpg-setup-do {
-    flex: 0 0 auto;
-    align-self: center;
-    white-space: nowrap;
 }
 
 /* ==========================================================================
@@ -11864,32 +11778,11 @@ body.drpg-stacked .application.sheet.actor.character {
     color: var(--drpg-bone);
 }
 
-/* The Pre-session checks report: fixed-width text in a window rather than a
-   whisper nobody scrolls back to. See `runPreSessionChecks`. No height of its
-   own (E20 C2, S01-20): a 16rem frame with its own scrollbar cut the CAST list
-   mid-line; R1509 reads both themes. How the window scrolls at a table's size
-   is not measured here. */
-.drpg-check-report {
-    white-space: pre-wrap;
-    font-family: "Cascadia Mono", Consolas, ui-monospace, monospace;
-    font-size: var(--drpg-text-xs);
-    line-height: 1.45;
-    padding: 8px 10px;
-    margin: 0 0 4px;
-    background: rgba(var(--drpg-bone-rgb), 0.06);
-    border: 1px solid var(--drpg-line);
-    border-radius: 3px;
-}
-
 /* The report's marks in their state's colour (E20 fix round, the goal review's G-8): a check in the evidence
    colour, a cross in the alarm, where both were the text's own colour (season-setup.mjs `checkMarks`; R1530
    reads both themes). */
 .drpg-check-ok { color: var(--drpg-evidence); font-weight: 700; }
 .drpg-check-bad { color: var(--drpg-eye-light); font-weight: 700; }
-
-/* Pre-season's unread rows of the contract: one counted line, the list folded under it (E52 C4, C3's gap). */
-.drpg-check-unknown > summary { cursor: pointer; }
-.drpg-check-unknown > div { opacity: 0.8; padding-left: 1em; }
 
 /* The one report (diagnostics.mjs `openReport`, E52 C4): the whole text in a frame of its own height, as it runs
    to hundreds of lines; copied whole by Copy report. Its look at a table's size is not measured here. */
@@ -13218,18 +13111,6 @@ body.drpg-theme-monokuma-legacy #countdowns .countdown-tools {
 
 .drpg-round-window .drpg-round-length {
     color: var(--drpg-dim);
-}
-
-/* ---- season setup: the row that is allowed to stay unticked ------------- */
-
-/* An optional step is not an outstanding one. It gets the dimmer mark and no
-   emphasis, so a GM scanning for what is missing reads past it. */
-.drpg-setup-step.optional .drpg-setup-mark {
-    color: var(--drpg-dim);
-}
-
-.drpg-setup-step.optional .drpg-setup-body strong {
-    font-weight: 400;
 }
 
 /* Drawn, not typed. A filled and an empty circle glyph have different advance

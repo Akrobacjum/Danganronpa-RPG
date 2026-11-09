@@ -47258,8 +47258,8 @@ const SCENARIOS = [
                 const el = document.createElement("div");
                 if (typeof cfg?.content === "string") el.innerHTML = cfg.content;
                 else if (cfg?.content) el.append(cfg.content.cloneNode(true));
-                rows = [...el.querySelectorAll(".drpg-setup-step")].map(li => ({
-                    title: li.querySelector("strong")?.textContent ?? "",
+                rows = [...el.querySelectorAll("li.drpg-check-row")].map(li => ({
+                    title: li.querySelector(".drpg-check-title")?.textContent ?? "",
                     detail: li.querySelector(".drpg-setup-missing")?.textContent ?? ""
                 }));
                 return null;
@@ -58623,7 +58623,7 @@ const SCENARIOS = [
             await settle();
             must(canvas?.scene === home && home !== floor, "the scene on screen moved - this would measure nothing");
             const drawn = await withFormAnswered(() => false, () => openSeasonSetup());
-            const row = [...(drawn[0]?.querySelectorAll(".drpg-setup-step") ?? [])].find(li => li.querySelector("strong")?.textContent === title);
+            const row = [...(drawn[0]?.querySelectorAll("li.drpg-check-row") ?? [])].find(li => li.querySelector(".drpg-check-title")?.textContent === title);
             must(row, "the checklist drew no row for the named regions - this would measure nothing");
             reading = [(row.querySelector(".drpg-setup-missing")?.textContent ?? "").includes(UNDECIDED)];
         } finally {
@@ -75663,7 +75663,8 @@ const SCENARIOS = [
             const root = document.createElement("div");
             root.innerHTML = await SS.preSessionReport?.() ?? "";
             text = root.textContent;
-            lines = [...root.querySelectorAll("p.drpg-check-report")].map(p => p.textContent);
+            // The pictures' rows (E46-C5b): the kit's checklist, a row's title its line, where each was `p.drpg-check-report`.
+            lines = [...root.querySelectorAll('[data-drpg-check-part="pictures"] li.drpg-check-row .drpg-check-title')].map(t => t.textContent);
         } finally {
             for (const [piece, was] of before) {
                 if (was === undefined || was === null) await piece.unsetFlag(MODULE_ID, VAULT_FLAGS.image);
@@ -83971,6 +83972,50 @@ const SCENARIOS = [
         }), `{steps: per Apply [a region update on the scene opened on, the updates on the scene on screen, the module flags whose value changed on each]; fog: ${a.name}'s fog box on each scene; footers: the buttons after each tab}`);
     }],
 
+    ["E46-T4 - Pre-season checks drawn on the GM (E46-C5b; card M4): the window holds its parts in today's order - the cast and the scenes always, the room pictures and the voice when they have a row, the contract, the dice look, the anonymity audit - each but the audit a kit checklist under its heading (or its one line, or the contract's unread rows folded); red only where a row is blocking, in a part whose rows may block (the cast, the scenes, the room pictures); no `pre`, no `p.drpg-check-report`, no mark of `checkMarks` outside the audit", async () => {
+        /*
+         * E46-C5b, 09.11.2026; card M4 (Approve: "red only for a blocking row"). R2033 reads `preSessionReport` with the
+         * facts handed in; this reads the window a GM opens (Season setup's Pre-season checks, `runPreSessionChecks`) over
+         * this world as it stands: its cast, its scenes and their pictures, the contract run here and this browser's dice
+         * look. It is closed with Close; nothing is written. Red first on c1046f5e: `runPreSessionChecks` is not exported
+         * (and the window drew `pre`).
+         */
+        needs(env.dialogs(), "Pre-season checks are read on a drawn window");
+        const SS = await import("./season-setup.mjs");
+        must(typeof SS.runPreSessionChecks === "function", "season-setup.mjs exports no runPreSessionChecks");
+        const ORDER = ["givenBack", "cast", "scenes", "pictures", "voice", "contract", "dice", "anonymity"];
+        const ALWAYS = ["cast", "scenes", "contract", "dice", "anonymity"];
+        const MAY_BLOCK = ["cast", "scenes", "pictures"];
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-preseason"));
+        must(of().length === 0, "a Pre-season checks window stands open already");
+        const run = SS.runPreSessionChecks();
+        let got = null;
+        try {
+            await until(() => of()[0]?.element?.querySelector('[data-drpg-check-part="anonymity"]'), 20000);
+            const el = of()[0]?.element;
+            must(el, "no Pre-season checks window was drawn - this would measure nothing");
+            const parts = [...el.querySelectorAll("[data-drpg-check-part]")];
+            const names = parts.map(p => p.dataset.drpgCheckPart);
+            got = {
+                order: names.every((name, i) => ORDER.includes(name) && (i === 0 || ORDER.indexOf(names[i - 1]) < ORDER.indexOf(name))),
+                always: ALWAYS.every(name => names.includes(name)),
+                listed: parts.filter(p => p.dataset.drpgCheckPart !== "anonymity")
+                    .every(p => p.querySelector(":scope > ul.drpg-checklist, :scope > .drpg-help, :scope > details.drpg-check-unknown")),
+                headed: parts.filter(p => p.dataset.drpgCheckPart !== "givenBack").every(p => p.querySelector(":scope > h3")?.textContent.trim()),
+                red: [...new Set([...el.querySelectorAll('li.drpg-check-row[data-drpg-state="blocking"]')]
+                    .map(li => li.closest("[data-drpg-check-part]")?.dataset.drpgCheckPart ?? null))].filter(p => !MAY_BLOCK.includes(p)),
+                old: el.querySelectorAll("pre, p.drpg-check-report").length,
+                marks: [...el.querySelectorAll(".drpg-check-ok, .drpg-check-bad")].filter(mark => !mark.closest("[data-drpg-anon]")).length
+            };
+        } finally {
+            for (const app of of()) await app.close().catch(() => {});
+            await Promise.race([run, wait(3000)]);
+        }
+        equal(stableJson(got), stableJson({ order: true, always: true, listed: true, headed: true, red: [], old: 0, marks: 0 }),
+            "Pre-season checks on the GM [its parts in today's order, the five that are always there, a checklist, a line or the contract's "
+            + "unread rows folded in each but the audit, a heading on each | parts with a blocking row that may not have one | pre and p.drpg-check-report left | checkMarks' "
+            + "marks outside the audit]");
+    }]
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

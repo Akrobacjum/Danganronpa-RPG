@@ -2408,8 +2408,8 @@ export const BASELINES = Object.freeze({
         Object.freeze({ in: "script", file: "scripts/config.mjs", quote: "rattles you: \u22121", issue: "S02-66", empties: "E25" }),
         Object.freeze({ in: "script", file: "scripts/action-report.mjs", quote: "\u2212", issue: "S02-66", empties: "E25", why: "`signed`, a roll's bonus (action-rolls.mjs until E41 C3)" }),
         Object.freeze({ in: "script", file: "scripts/action-report.mjs", quote: "\u2212", issue: "S02-66", empties: "E25", why: "the duality formula's operator (action-rolls.mjs until E41 C3)" }),
-        Object.freeze({ in: "script", file: "scripts/roll-dialog.mjs", quote: "\u2212", issue: "S02-66", empties: "E25", why: "a situational source's sign, written as an escape" }),
-        Object.freeze({ in: "script", file: "scripts/season-setup.mjs", quote: "\u2013", issue: "S06-52", empties: "E25", why: "an optional setup step's mark, written as an escape" })
+        Object.freeze({ in: "script", file: "scripts/roll-dialog.mjs", quote: "\u2212", issue: "S02-66", empties: "E25", why: "a situational source's sign, written as an escape" })
+        // season-setup.mjs's optional row's mark, the escape of U+2013 (S06-52): gone with E46-C5b (the kit's "-"; R2034).
     ])
 });
 

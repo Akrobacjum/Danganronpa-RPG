@@ -58,7 +58,7 @@ import { foundryGivenBack, openGiveBackFoundry } from "./enforced.mjs";
 // The hall's report, the one the Scenes tab prints (E51 C8, the First session screen): trial-scene.mjs never reaches back here.
 import { scenesReportOf } from "./trial-scene.mjs";
 import { log, error, plural, workingScene, esc, wholeNumber, localeFormat, listOf } from "./utils.mjs";
-import { stepper, stepperId, drpgWindow } from "./ui-kit.mjs";
+import { stepper, stepperId, drpgWindow, checkList } from "./ui-kit.mjs";
 import { alreadyOpen, handOff, RAISED } from "./live.mjs";
 // Foundry's secret doors and the players' rulers (E80 C5): the doors as the map holds them, their
 // conversion, and the permissions in force where `core.permissions` names none.
@@ -411,6 +411,8 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
              */
             key: "despairSplit",
             optional: true,
+            // Uneven is said (E46-C5b, S13-36 (2)): a warning with its counts, not an optional row's quiet mark.
+            warnKey: "DRPG.Season.splitUneven",
             waiting,
             done: !waiting && despairSplitEven(),
             missing: () => despairSplitCounts().map(p => `${p.name}: ${p.n}`),
@@ -458,8 +460,8 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
              * whole checklist to get right, because it costs nothing before the
              * scene is drawn and cannot be fixed cheaply afterwards.
              *
-             * `optional: true`, which is trap 118 and the reason this row reads
-             * "–" rather than "✗" when it is not met: a map smaller than the
+             * `optional: true`, which is trap 118 and the reason this row is
+             * advisory rather than blocking when it is not met: a map smaller than the
              * guide's ratio is cramped, not broken, and a checklist that shouts
              * about a working scene is a checklist a GM stops reading. It has
              * no `open` and no `fix` for the same reason - there is no button
@@ -702,7 +704,7 @@ export function firstSessionHtml(list) {
     return `<section class="drpg-setup-first" data-drpg-group="${FIRST_SESSION}">
             <h3>${esc(game.i18n.localize("DRPG.Season.firstSession"))}</h3>
             <p class="notes">${esc(game.i18n.localize("DRPG.Season.firstSessionNote"))}</p>
-            <ul class="drpg-setup-list">${setupRows(rows)}</ul>
+            ${setupRows(rows, { label: game.i18n.localize("DRPG.Season.firstSession") })}
         </section>`;
 }
 
@@ -842,9 +844,9 @@ export function seasonOpening(root, place = null) {
     const content = scroller(root);
     const focus = el => { try { el?.focus({ preventScroll: true }); } catch { /* a control that cannot take the focus */ } };
     if (place) {
-        const row = place.step ? root.querySelector(`.drpg-setup-step[data-drpg-step="${CSS.escape(String(place.step))}"]`) : null;
+        const row = place.step ? root.querySelector(`li.drpg-check-row[data-drpg-key="${CSS.escape(String(place.step))}"]`) : null;
         const target = place.action ? root.querySelector(`footer [data-action="${CSS.escape(String(place.action))}"]`)
-            : row?.querySelector(".drpg-setup-do") ?? null;
+            : row?.querySelector(":scope > button[data-drpg-action]") ?? null;
         focus(target);
         if (content) content.scrollTop = Number(place.scrollTop) || 0;
         return target ?? null;
@@ -896,47 +898,38 @@ function paintDraft(root, draft) {
     }
 }
 
-/** One line per step: the mark, the name and hint, what is missing, its extra, and a button when it can act. Exported for R1501. */
-export function setupRows(list) {
-    return list.map(step => {
-        // A row over the students with no student waits (E20 C1, S06-28): not done, no cross, no button.
+/**
+ * The steps as one list of the kit's checks (E46-C5b, 09.11.2026; card M4, S13-36): ui-kit.mjs `checkList`, a row a step,
+ * `li.drpg-check-row[data-drpg-key]` - done `done`; one that waits for the cast `waiting` (no mark, no button: E20 C1,
+ * S06-28); a step with a `warnKey` not done `warning`, its line in that key's words (the uneven Despair split: "Uneven:
+ * {counts}."); an optional one `advisory`; any other `blocking`, the only red - so the hint that the Mastermind's row
+ * "never turns red" holds. The detail: the hint, what it waits on (`.drpg-setup-missing`), its `extra`. Exported for R1501.
+ */
+export function setupRows(list, { label = null } = {}) {
+    return checkList(list.map(step => {
         const waits = Boolean(step.waiting) && !step.done;
+        const state = step.done ? "done" : waits ? "waiting" : step.warnKey ? "warning" : step.optional ? "advisory" : "blocking";
         const names = step.done ? [] : waits ? [game.i18n.localize("DRPG.Season.waitingForCast")] : step.missing();
-        const detail = names.length
-            ? `<div class="drpg-setup-missing">${esc(names.join(", "))}</div>`
-            : "";
+        const said = state === "warning" ? game.i18n.format(step.warnKey, { counts: listOf(names) }) : names.join(", ");
+        // Blocks, not spans: under the glass a panel's `span` is pinned to the chrome floor (stained-glass.css), and the
+        // hint is running text at the base size (E20 C4, S01-21; R1515).
+        const detail = `<div class="drpg-setup-hint">${esc(game.i18n.localize(step.hintKey ?? `DRPG.Season.hint.${step.key}`))}</div>${
+            names.length ? `<div class="drpg-setup-missing">${esc(said)}</div>` : ""}${step.extra ? step.extra() : ""}`;
         // A ROW THAT OPENS NOTHING OFFERS NOTHING (SEASON-02, 20.09). "The cast
         // exists" carried an "Open" button and no `open`, so pressing it threw inside
         // the handler, was logged, and closed and reopened the window for nothing -
         // and brought the GM panel with it. Its hint already says what to do, and
         // creating characters is Foundry's own sidebar rather than a window of ours.
         // A row with an `undo` (E80 C5, the rulers) offers it once it is done, its own word on it.
-        const button = step.done
-            ? (step.undo ? `<button type="button" class="drpg-setup-do" data-step="${step.key}" data-undo="1">${
-                esc(game.i18n.localize(step.undoKey))}</button>` : "")
+        const action = step.done
+            ? (step.undo ? { action: "undo", label: game.i18n.localize(step.undoKey) } : null)
             : waits || step.inline || !(step.fix || step.open)
-                ? ""
-                : `<button type="button" class="drpg-setup-do" data-step="${step.key}">${
-                    esc(game.i18n.localize(step.doKey ?? "DRPG.Season.openIt"))}</button>`;
-
-        // An optional row that is not done is not a failure, so it gets neither
-        // the cross nor the "outstanding" styling - a dash and its own note.
-        const mark = step.done ? "✓" : step.optional || waits ? "\u2013" : "✗";
-
+                ? null
+                : { action: "do", label: game.i18n.localize(step.doKey ?? "DRPG.Season.openIt") };
         // Its key on the row (E20 fix round): Check rooms draws the rooms row again in place (`repaintStep`), and a round
         // trip finds the row it acted on (`seasonOpening`).
-        return `<li class="drpg-setup-step${step.done ? " done" : ""}${
-            (step.optional || waits) && !step.done ? " optional" : ""}${waits ? " waiting" : ""}" data-drpg-step="${esc(step.key)}">
-            <span class="drpg-setup-mark">${mark}</span>
-            <div class="drpg-setup-body">
-                <strong>${esc(game.i18n.localize(`DRPG.Season.step.${step.key}`))}</strong>
-                <div class="notes">${esc(game.i18n.localize(step.hintKey ?? `DRPG.Season.hint.${step.key}`))}</div>
-                ${detail}
-                ${step.extra ? step.extra() : ""}
-            </div>
-            ${button}
-        </li>`;
-    }).join("");
+        return { key: step.key, state, title: game.i18n.localize(`DRPG.Season.step.${step.key}`), detail, action };
+    }), { label });
 }
 
 /**
@@ -968,19 +961,20 @@ export function repaintStep(li, step) {
     if (!li || !step) return;
     const box = document.createElement("template");
     box.innerHTML = setupRows([step]);
-    const fresh = box.content.querySelector(".drpg-setup-step");
+    const fresh = box.content.querySelector("li.drpg-check-row");
     if (!fresh) return;
-    li.className = fresh.className;
-    const mark = li.querySelector(":scope > .drpg-setup-mark");
-    if (mark) mark.textContent = fresh.querySelector(":scope > .drpg-setup-mark")?.textContent ?? "";
-    const body = li.querySelector(":scope > .drpg-setup-body");
-    const missing = body?.querySelector(":scope > .drpg-setup-missing") ?? null;
-    const nextMissing = fresh.querySelector(":scope > .drpg-setup-body > .drpg-setup-missing");
+    li.dataset.drpgState = fresh.dataset.drpgState;
+    const mark = li.querySelector(":scope > .drpg-check-mark");
+    const nextMark = fresh.querySelector(":scope > .drpg-check-mark");
+    if (mark && nextMark) mark.replaceWith(nextMark);
+    const detail = li.querySelector(":scope > .drpg-check-text > .drpg-check-detail");
+    const missing = detail?.querySelector(":scope > .drpg-setup-missing") ?? null;
+    const nextMissing = fresh.querySelector(":scope > .drpg-check-text > .drpg-check-detail > .drpg-setup-missing");
     if (missing && nextMissing) missing.replaceWith(nextMissing);
     else if (missing) missing.remove();
-    else if (nextMissing) body?.querySelector(":scope > .notes")?.after(nextMissing);
-    const button = li.querySelector(":scope > .drpg-setup-do");
-    const nextButton = fresh.querySelector(":scope > .drpg-setup-do");
+    else if (nextMissing) detail?.querySelector(":scope > .drpg-setup-hint")?.after(nextMissing);
+    const button = li.querySelector(":scope > button[data-drpg-action]");
+    const nextButton = fresh.querySelector(":scope > button[data-drpg-action]");
     if (button && nextButton) button.replaceWith(nextButton);
     else if (button) button.remove();
     else if (nextButton) li.append(nextButton);
@@ -998,7 +992,7 @@ function wireRoomCheck(dialog) {
            warnings that break the fog (`roomCheckProblems`, E20 fix round G-1), where the errors alone were kept; and the
            rooms row drawn again with them, where it kept the mark the window opened with. */
         if (canvas?.scene?.id) lastRoomChecks.set(canvas.scene.id, roomCheckProblems(findings));
-        repaintStep(dialog.element.querySelector('.drpg-setup-step[data-drpg-step="rooms"]'), steps().find(s => s.key === "rooms"));
+        repaintStep(dialog.element.querySelector('li.drpg-check-row[data-drpg-key="rooms"]'), steps().find(s => s.key === "rooms"));
         if (!findings.length) {
             checkOut.innerHTML = `<p class="notes">${
                 esc(game.i18n.localize("DRPG.Season.checkClean"))}</p>`;
@@ -1021,16 +1015,18 @@ function wireSetupSteps(dialog, onHandOff) {
     /* One listener on the list, not one per button (E20 fix round, G-1): Check rooms draws the rooms row again in place
        (`repaintStep`), and a button the redraw brings was wired by nobody. */
     // Each list: the checklist's and the First session screen's (E51 C8).
-    for (const list of dialog.element.querySelectorAll(".drpg-setup-list")) list.addEventListener("click", async ev => {
-        const button = ev.target?.closest?.(".drpg-setup-do");
+    // The kit's checklists (E46-C5b): the row's button is `data-drpg-action` "do" or "undo", its step the row's key.
+    for (const list of dialog.element.querySelectorAll("ul.drpg-checklist")) list.addEventListener("click", async ev => {
+        const button = ev.target?.closest?.("li.drpg-check-row > button[data-drpg-action]");
         if (!button || !list.contains(button)) return;
         ev.preventDefault();
-        const step = steps().find(s => s.key === button.dataset.step);
+        const key = button.closest("li.drpg-check-row")?.dataset.drpgKey;
+        const step = steps().find(s => s.key === key);
         if (!step) return;
         // The windows on the page before the row acts, so the checklist that comes back can raise what it opened (S06-30).
         const before = windowStack();
         try {
-            if (button.dataset.undo && step.undo) {
+            if (button.dataset.drpgAction === "undo" && step.undo) {
                 const n = await step.undo();
                 ui.notifications.info(plural(step.undoneKey, { n }));
             } else if (step.fix) {
@@ -1087,7 +1083,7 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
     const list = steps();
 
     // The First session screen's rows under their own heading, the rest as they were (E51 C8).
-    const rows = setupRows(list.filter(step => step.group !== FIRST_SESSION));
+    const rows = setupRows(list.filter(step => step.group !== FIRST_SESSION), { label: game.i18n.localize("DRPG.Season.title") });
 
     const outstanding = list.filter(s => !s.done && !s.optional).length;
 
@@ -1107,7 +1103,7 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
 
             ${campaignFieldsHtml(clock, safeword())}
 
-            <ul class="drpg-setup-list">${rows}</ul>
+            ${rows}
             ${firstSessionHtml(list)}
             <p class="notes">${esc(game.i18n.localize("DRPG.Season.note"))}</p>
         </form>`,
@@ -1229,9 +1225,9 @@ async function askStartHere() {
  * question asked at one moment - before a session - so they are one tile and
  * now one answer. Neither report goes to chat from here: they are handed back
  * as text and put on screen, because a question asked with a button should be
- * answered where the button was.
+ * answered where the button was. Exported for E46-T4, which reads the window it draws.
  */
-async function runPreSessionChecks() {
+export async function runPreSessionChecks() {
     const [body, { wireAnonymityFix }] = await Promise.all([preSessionReport(), import("./anonymity.mjs")]);
     // A read-out: Close (E21 C2b).
     await drpgWindow({
@@ -1280,39 +1276,72 @@ export async function preSessionReport({ av = {}, scenes = game.scenes, head, pr
     const sceneLines = diagnoseScenes({ lastChecks: lastRoomChecks });
     // E78 C5 (the owner's Q11, the A9 design's `avVideo`): a world in audio-and-video mode sends every camera while
     // the voice tile stands in for the dock, which shows none of them. E20 C3 (amend 11.10): the two worlds where the
-    // tile the GM switched on cannot stand - A/V off, and video alone. A row only when one is so.
-    const voice = [avOffForTile(av) && "DRPG.Panel.checksAvOff", videoWithoutAudio(av) && "DRPG.Panel.checksAvVideoOnly",
-        videoUnwatched(av) && "DRPG.Panel.checksAvVideo"].filter(Boolean);
-    const video = voice.length ? `<h3>${game.i18n.localize("DRPG.Voice.panel.legend")}</h3>
-            ${voice.map(key => `<p class="drpg-check-report">${esc(game.i18n.localize(key))}</p>`).join("")}` : "";
+    // tile the GM switched on cannot stand - A/V off, and video alone. A row only when one is so; each a warning (the
+    // GM decides: the tile, or Foundry's A/V), keyed by its sentence's key.
+    const voice = [avOffForTile(av) && "checksAvOff", videoWithoutAudio(av) && "checksAvVideoOnly", videoUnwatched(av) && "checksAvVideo"].filter(Boolean);
+    const video = voice.length ? checkPart("voice", game.i18n.localize("DRPG.Voice.panel.legend"),
+        checkList(voice.map(key => ({ key, state: "warning", title: game.i18n.localize(`DRPG.Panel.${key}`) })),
+            { label: game.i18n.localize("DRPG.Voice.panel.legend") })) : "";
     const pictures = roomImagesSection(await checkRoomImages({ scenes, ...(head ? { head } : {}), ...(probeMs ? { probeMs } : {}) }), esc,
         probeMs ?? ROOM_IMAGE_LIMITS.probeMs);
     // The module holds nothing while Foundry's settings are given back (E20 fix round, G-2): said first, it explains the rest.
-    const held = givenBack ? `<p class="drpg-check-report">${esc(game.i18n.localize("DRPG.GiveBack.preSeason"))}</p>` : "";
+    const held = givenBack ? checkPart("givenBack", null, checkList([{ key: "givenBack", state: "warning",
+        title: game.i18n.localize("DRPG.GiveBack.preSeason") }])) : "";
     // The contract (E52 C2, E52-05): run now, the rows the load's notice names, so the report says what holds today.
     const reaches = contractSection(contract ?? runContract(), esc);
     const dice = diceLookSection(diceLook === undefined ? await diceLookFindingsHere() : diceLook, esc);
-    // The characters no player owns, named as NPCs to mark (E24 C3a; the owner's Q-E24-5): a line only when there is one,
-    // and nothing marked by itself - the GM decides on each sheet ("Not in the class").
+    // The characters no player owns, named as NPCs to mark (E24 C3a; the owner's Q-E24-5): a row only when there is one,
+    // advisory, and nothing marked by itself - the GM decides on each sheet ("Not in the class").
     const unowned = classCandidates();
-    const npcs = unowned.length ? `<p class="drpg-check-report" data-drpg-class-candidates>${esc(game.i18n.format("DRPG.Class.candidates",
-        { names: listOf(unowned.map(actor => actor.name)) }))}</p>` : "";
+    const npcs = unowned.length ? checkList([{ key: "classCandidates", state: "advisory", title: game.i18n.format("DRPG.Class.candidates",
+        { names: listOf(unowned.map(actor => actor.name)) }) }]) : "";
+    const castHead = game.i18n.localize("DRPG.Panel.checksSetup"), scenesHead = game.i18n.localize("DRPG.Fog.checksScenes");
 
-    // The marks in the state's colour (E20 fix round, the goal review's G-8): `checkMarks`.
+    /* ONE CHECKLIST A PART (E46-C5b, 09.11.2026; card M4: "red only for a blocking row"). The cast and the scenes come as
+       marked text (diagnostics.mjs `diagnoseCharacters`, fog.mjs `diagnoseScenes`, read on c1046f5e: a line "✓ " or
+       "✗ ", a fix line indented under a cross, the header lines unmarked) and are read into rows here (`markedChecks`);
+       a cross there is blocking - a student not set up, a scene the players see black. The contract, the dice look, the
+       room pictures and the voice are built here from data. The anonymity audit stays the audit's own markup with its
+       marks (`checkMarks`, R1530): anonymity.mjs `wireAnonymityFix` draws it again in place after "Set them to Observer". */
     return `<div>
             ${held}
-            <h3>${game.i18n.localize("DRPG.Panel.checksSetup")}</h3>
-            <pre class="drpg-check-report">${checkMarks(esc(setup))}</pre>
-            ${npcs}
-            <h3>${game.i18n.localize("DRPG.Fog.checksScenes")}</h3>
-            <pre class="drpg-check-report">${checkMarks(esc(sceneLines))}</pre>
+            ${checkPart("cast", castHead, markedChecks(setup, { label: castHead }) + npcs)}
+            ${checkPart("scenes", scenesHead, markedChecks(sceneLines, { label: scenesHead }))}
             ${pictures}
             ${video}
             ${reaches}
             ${dice}
-            <h3>${game.i18n.localize("DRPG.Anonymity.audit.title")}</h3>
-            <div data-drpg-anon>${checkMarks(anon.body ?? "")}</div>
+            ${checkPart("anonymity", game.i18n.localize("DRPG.Anonymity.audit.title"), `<div data-drpg-anon>${checkMarks(anon.body ?? "")}</div>`)}
         </div>`;
+}
+
+/** One part of Pre-season's report: its heading (none for a part that explains the rest) and its body (E46-C5b). */
+function checkPart(part, heading, body) {
+    return `<section class="drpg-check-part" data-drpg-check-part="${part}">${
+        heading ? `<h3>${foundry.utils.escapeHTML(heading)}</h3>` : ""}${body}</section>`;
+}
+
+/**
+ * A report of marked text as the kit's checks (E46-C5b): a line marked "✓ " a `done` row, "✗ " a `crossed` row
+ * (blocking unless handed otherwise), an unmarked line under a row (indented: a fix, a reason) that row's detail, and an
+ * unmarked line elsewhere (the report's header, "no scene has rooms") fine print where it stands. Every line kept, in
+ * its order (D31). Exported for R2033.
+ */
+export function markedChecks(text, { crossed = "blocking", label = null } = {}) {
+    const out = [];
+    let rows = [];
+    const flush = () => { if (rows.length) out.push(checkList(rows.map(row => ({ ...row,
+        detail: row.lines.map(line => `<span class="drpg-check-line">${esc(line)}</span>`).join("") })), { label })); rows = []; };
+    for (const raw of String(text ?? "").split("\n")) {
+        const line = raw.trim();
+        if (!line) continue;
+        const mark = /^([✓✗])\s+(.*)$/u.exec(line);
+        if (mark) rows.push({ state: mark[1] === "✓" ? "done" : crossed, title: mark[2], lines: [] });
+        else if (rows.length && /^\s/.test(raw)) rows.at(-1).lines.push(line);
+        else { flush(); out.push(`<p class="drpg-help">${esc(line)}</p>`); }
+    }
+    flush();
+    return out.join("");
 }
 
 /*
@@ -1335,12 +1364,14 @@ async function diceLookFindingsHere() {
 
 /** Pre-season's Dice look part: its note, a line a finding (none read: no line), and the button for the whole window. */
 function diceLookSection(findings, esc) {
-    const lines = !Array.isArray(findings) ? []
-        : findings.length ? findings.map(finding => `✗ ${finding.words}`) : [`✓ ${game.i18n.localize("DRPG.DiceLook.diag.nothingFound")}`];
-    return `<h3>${esc(game.i18n.localize("DRPG.DiceLook.diag.title"))}</h3>
-            <p class="notes">${esc(game.i18n.localize("DRPG.DiceLook.diag.introGm"))}</p>
-            ${lines.map(line => `<p class="drpg-check-report">${checkMarks(esc(line))}</p>`).join("")}
-            <p><button type="button" data-drpg-dice-look>${esc(game.i18n.localize("DRPG.DiceLook.diag.open"))}</button></p>`;
+    // A finding is a warning (E46-C5b): the table plays with it, and the GM decides; none, a check.
+    const rows = !Array.isArray(findings) ? []
+        : findings.length ? findings.map(finding => ({ key: finding.code ?? null, state: "warning", title: finding.words }))
+            : [{ key: "nothingFound", state: "done", title: game.i18n.localize("DRPG.DiceLook.diag.nothingFound") }];
+    const title = game.i18n.localize("DRPG.DiceLook.diag.title");
+    return checkPart("dice", title, `<p class="drpg-help">${esc(game.i18n.localize("DRPG.DiceLook.diag.introGm"))}</p>
+            ${rows.length ? checkList(rows, { label: title }) : ""}
+            <p><button type="button" data-drpg-dice-look>${esc(game.i18n.localize("DRPG.DiceLook.diag.open"))}</button></p>`);
 }
 
 /**
@@ -1354,16 +1385,17 @@ function diceLookSection(findings, esc) {
  */
 function contractSection(contract, esc) {
     const failed = contract?.failed ?? [], unknown = contract?.unknown ?? [];
-    const lines = failed.map(r => `✗ ${r.target} (${r.where}): ${r.instead ?? r.fallback}`);
-    if (!lines.length && !unknown.length) lines.push(`✓ ${plural("DRPG.Contract.checksAllOk", { n: contract?.rows?.length ?? 0 })}`);
+    // A failed row a warning (E46-C5b): the table gets what it names instead, and the load's notice said so.
+    const rows = failed.map(r => ({ key: r.id ?? null, state: "warning", title: `${r.target} (${r.where}): ${r.instead ?? r.fallback}` }));
+    if (!rows.length && !unknown.length) rows.push({ key: "allOk", state: "done", title: plural("DRPG.Contract.checksAllOk", { n: contract?.rows?.length ?? 0 }) });
     // The unread rows as one counted line, their list folded under it (E52 C4, C3's gap): about two dozen on
     // every world (table-only checks, hooks not seen firing yet) drowned the failed rows above. Never a check.
     const fold = unknown.length
-        ? `<details class="drpg-check-report drpg-check-unknown"><summary>${esc(plural("DRPG.Contract.checksUnknown", { n: unknown.length }))}</summary>${
+        ? `<details class="drpg-check-unknown"><summary>${esc(plural("DRPG.Contract.checksUnknown", { n: unknown.length }))}</summary>${
             unknown.map(r => `<div>${esc(`${r.target} (${r.where}): ${r.note}`)}</div>`).join("")}</details>`
         : "";
-    return `<h3>${esc(game.i18n.localize("DRPG.Contract.checksTitle"))}</h3>
-            ${lines.map(line => `<p class="drpg-check-report">${checkMarks(esc(line))}</p>`).join("")}${fold}`;
+    const title = game.i18n.localize("DRPG.Contract.checksTitle");
+    return checkPart("contract", title, `${rows.length ? checkList(rows, { label: title }) : ""}${fold}`);
 }
 
 /**
@@ -1417,13 +1449,15 @@ function roomImagesSection(found, esc, probeMs = ROOM_IMAGE_LIMITS.probeMs) {
     const sized = entry => game.i18n.format("DRPG.Panel.checksImagesSized", { rooms: where(entry), size: [
         entry.pixels && game.i18n.format("DRPG.Panel.checksImagesPixels", { width: entry.width, height: entry.height }),
         entry.heavy && game.i18n.format("DRPG.Panel.checksImagesBytes", { mb: mb(entry.bytes) })].filter(Boolean).join(", ") });
-    const lines = [
-        found.missing.length && game.i18n.format("DRPG.Panel.checksImagesMissing", { rooms: listOf(found.missing) }),
-        found.large.length && game.i18n.format("DRPG.Panel.checksImagesLarge", { side: ROOM_IMAGE_LIMITS.side,
-            mb: mb(ROOM_IMAGE_LIMITS.bytes), rooms: found.large.map(sized).join("; ") }),
-        found.unknownSize.length && game.i18n.format("DRPG.Panel.checksImagesUnknown", { rooms: listOf(found.unknownSize) }),
-        found.late?.length && plural("DRPG.Panel.checksImagesLate", { s: probeMs / 1000, rooms: listOf(found.late) }, "s")
+    // A picture that does not load is blocking (the room tile shows nothing); one too large, one of no known size and
+    // one not checked in time are warnings (E46-C5b).
+    const rows = [
+        found.missing.length && { key: "missing", state: "blocking", title: game.i18n.format("DRPG.Panel.checksImagesMissing", { rooms: listOf(found.missing) }) },
+        found.large.length && { key: "large", state: "warning", title: game.i18n.format("DRPG.Panel.checksImagesLarge", { side: ROOM_IMAGE_LIMITS.side,
+            mb: mb(ROOM_IMAGE_LIMITS.bytes), rooms: found.large.map(sized).join("; ") }) },
+        found.unknownSize.length && { key: "unknownSize", state: "warning", title: game.i18n.format("DRPG.Panel.checksImagesUnknown", { rooms: listOf(found.unknownSize) }) },
+        found.late?.length && { key: "late", state: "warning", title: plural("DRPG.Panel.checksImagesLate", { s: probeMs / 1000, rooms: listOf(found.late) }, "s") }
     ].filter(Boolean);
-    return lines.length ? `<h3>${esc(game.i18n.localize("DRPG.Panel.checksImages"))}</h3>
-            ${lines.map(line => `<p class="drpg-check-report">${esc(line)}</p>`).join("")}` : "";
+    const title = game.i18n.localize("DRPG.Panel.checksImages");
+    return rows.length ? checkPart("pictures", title, checkList(rows, { label: title })) : "";
 }

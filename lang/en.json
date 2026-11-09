@@ -4982,6 +4982,7 @@
       "step.roomCount": "Enough rooms for the cast",
       "hint.roomCount": "About one and a half rooms per player, corridors and dormitories aside. Fewer works, but two private conversations cannot happen at once.",
       "waitingForCast": "Waiting for the cast: create the students first.",
+      "splitUneven": "Uneven: {counts}.",
       "fallsBackTo": "{name} (falls back to {pool})",
       "roomsUncovered": "{pct}% of {scene} belongs to no room: draw the missing rooms, or draw their regions out to the walls.",
       "roomsCheckErrors": {

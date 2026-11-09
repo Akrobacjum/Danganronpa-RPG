@@ -5361,6 +5361,7 @@
       "checkRooms": "Sprawdź pokoje na tej scenie",
       "checkClean": "Nie ma czego zgłaszać - pokoje na tej scenie są czyste.",
       "waitingForCast": "Czeka na obsadę: najpierw utwórz uczniów.",
+      "splitUneven": "Nierówny podział: {counts}.",
       "fallsBackTo": "{name} (bez przypisania: trafia do {pool})",
       "overflowNow": "{line} Teraz {n}.",
       "roomsUncovered": "{pct}% sceny {scene} nie należy do żadnego pokoju: narysuj brakujące pokoje albo dociągnij ich regiony do ścian.",

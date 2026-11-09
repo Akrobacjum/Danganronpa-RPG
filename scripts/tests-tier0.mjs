@@ -21438,6 +21438,20 @@ const REGRESSIONS = [
         ok(moved >= 10, `components.css's section names ${moved} rule(s) of the old classes (the Stashes matrix's, the counter's, the picture's)`);
     }],
 
+    ["R2034 - no en dash in season-setup.mjs, as a character or as an escape (E46-C5b; the house's dash is \"-\")", async () => {
+        /*
+         * E46-C5b, 09.11.2026. `setupRows` marked an optional row with the escape of U+2013 (c1046f5e, its line 924), and a
+         * comment above the rooms row quoted the character itself (462): the dash rule of CLAUDE.md, and the kit's checkList
+         * draws an optional row's mark ("-", ui-kit.mjs `CHECK_MARKS`). Read in the file's whole text, comments included.
+         * Red first on c1046f5e: lines 462 and 924.
+         */
+        const raw = await fetch(`/modules/${MODULE_ID}/scripts/season-setup.mjs`).then(lfText);
+        must(raw.includes("export function setupRows("), "season-setup.mjs was not read - this would measure nothing");
+        const dash = String.fromCharCode(0x2013);
+        const escape = new RegExp(["\\\\u2013", "\\\\u\\{2013\\}", "\\\\x96", "&ndash;", "&#8211;", "&#x2013;"].join("|"), "i");
+        const lines = raw.split("\n").map((line, i) => [i + 1, line]).filter(([, line]) => line.includes(dash) || escape.test(line)).map(([n]) => n);
+        equal(JSON.stringify(lines), "[]", "season-setup.mjs's lines with an en dash, as a character or an escape");
+    }]
 ];
 
 

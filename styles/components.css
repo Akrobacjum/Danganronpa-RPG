@@ -2584,3 +2584,35 @@ body:not(.drpg-theme-stained-glass) .application.drpg-window-sound tr.drpg-data-
 }
 /* the threshold's fine print under its stepper, read from the field's start in both themes */
 body .application.dialog.drpg-ui.drpg-window-gmteam .dialog-content .drpg-form-field > p.drpg-help { text-align: start; margin: 4px 0 0; }
+
+/* ---- Season setup and Pre-season checks (E46-C5b, 09.11.2026; card M4: one checklist of the kit, red only for a blocking row) ----
+   The rows are ui-kit.mjs `checkList`'s (season-setup.mjs `setupRows`, `markedChecks`); these rules place what a row holds.
+   Season setup: a row's hint, the line of what it waits on and its extra (the room guide, Check rooms) each a block of the
+   row's detail, the line in the row's state - the blocking red beside a cross, the warning's ink beside "!", the fine print
+   otherwise; the row's button beside its text on one line (`.drpg-setup-do` before). The scrollbar's gutter kept on the body
+   that scrolls (E20 C4, S01-19; danganronpa.css before). Pre-season: a fix line under its row, the contract's unread rows
+   folded under their count (E52 C4). */
+body .application.drpg-window-season .drpg-check-detail > .drpg-setup-missing { margin-top: 2px; overflow-wrap: anywhere; }
+/* The hint at the module's base size and the line of what a row waits on at text-sm, in both themes (E20 C4, S01-21,
+   S06-30; Q-4: R1515), over the kit's fine print; a done row steps back by its title (E20 C4, S12-20), its mark the
+   kit's evidence colour. */
+body .application.drpg-window-season .drpg-check-detail > .drpg-setup-hint { font-size: var(--drpg-text-base); }
+body .application.drpg-window-season .drpg-check-detail > .drpg-setup-missing { font-size: var(--drpg-text-sm); }
+body .application.drpg-window-season li.drpg-check-row[data-drpg-state="done"] > .drpg-check-text > .drpg-check-title { color: var(--drpg-kit-check-quiet); }
+body .application.drpg-window-season li.drpg-check-row[data-drpg-state="blocking"] .drpg-check-detail > .drpg-setup-missing { color: var(--drpg-kit-check-blocking); }
+body .application.drpg-window-season li.drpg-check-row[data-drpg-state="warning"] .drpg-check-detail > .drpg-setup-missing { color: var(--drpg-kit-check-warning); }
+body .application.drpg-window-season li.drpg-check-row > button[data-drpg-action] { align-self: center; white-space: nowrap; }
+body .application.drpg-window-season .drpg-kit-body { scrollbar-gutter: stable; }
+body .application.drpg-window-preseason .drpg-check-detail > .drpg-check-line { display: block; overflow-wrap: anywhere; }
+body .application.drpg-window-preseason .drpg-check-title { overflow-wrap: anywhere; }
+body .application.drpg-window-preseason .drpg-check-unknown > summary { cursor: pointer; }
+body .application.drpg-window-preseason .drpg-check-unknown > div { color: var(--drpg-kit-help-ink); padding-left: 1em; }
+/* Measured in Chromium (probe 08's capture, the style harness, 1366x768, 09.11): under Legacy the marks are set in the
+   pixel face, which draws nothing for a check or a cross (a 20 x 16 px box, the colour right, no glyph), and a title that
+   wraps set its lines into each other; the marks take the face Pre-season's report was set in before (over the pixel
+   face's `!important` on every module element, danganronpa.css "drpg-pixel-font"), the titles and
+   the fix lines a line height of their own. Pre-season's fine print (the cast's header, "no scene has rooms") from the
+   start, where the dialog's paragraph rule centred it. */
+body:not(.drpg-theme-stained-glass) .application:is(.drpg-window-season, .drpg-window-preseason) .drpg-check-mark { font-family: "Cascadia Mono", Consolas, ui-monospace, monospace; }
+body:not(.drpg-theme-stained-glass) .application:is(.drpg-window-season, .drpg-window-preseason) :is(.drpg-check-title, .drpg-check-line) { line-height: 1.4; }
+body .application.dialog.drpg-window-preseason .drpg-check-part > p.drpg-help { text-align: start; max-width: none; margin: 0 0 6px; }

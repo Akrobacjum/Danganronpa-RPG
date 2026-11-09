@@ -27623,14 +27623,14 @@ const INVARIANTS = [
         let SS = null, D = null, A = null, K = null;
         try { [SS, D, A, K] = await Promise.all(["./season-setup.mjs", "./despair.mjs", "./assignments.mjs", "./tests-kit.mjs"].map(p => import(p))); } catch { SS = null; }
         ok(typeof SS?.setupRows === "function" && typeof SS?.cursorRoles === "function", "season-setup.mjs exports no setupRows or cursorRoles");
-        const DASH = String.fromCharCode(0x2013);
         const over = ["resources", "ultimate", "experiences", "items", "assignments", "despairSplit", "roomCount"];
         const empty = SS.steps({ roster: [], scenes: [], roomScene: null, assigned: {}, lastChecks: new Map() });
         const pick = key => empty.find(r => r.key === key);
-        const box = document.createElement("ul");
+        const box = document.createElement("div");
         box.innerHTML = SS.setupRows(over.map(pick).filter(Boolean));
-        const drawn = [...box.querySelectorAll(".drpg-setup-step")].map(li => [li.querySelector(".drpg-setup-mark")?.textContent,
-            li.classList.contains("waiting"), li.querySelector(".drpg-setup-missing")?.textContent ?? null, Boolean(li.querySelector("button"))]);
+        // The kit's checklist since E46-C5b: a row that waits is `waiting`, with no mark (an en dash before).
+        const drawn = [...box.querySelectorAll("li.drpg-check-row")].map(li => [li.querySelector(".drpg-check-mark")?.textContent,
+            li.dataset.drpgState === "waiting", li.querySelector(".drpg-setup-missing")?.textContent ?? null, Boolean(li.querySelector("button"))]);
         const R = CONST.USER_ROLES;
         const cursor = [SS.cursorRoles({}, { SHOW_CURSOR: [R.PLAYER, R.TRUSTED, R.ASSISTANT, R.GAMEMASTER] }),
             SS.cursorRoles({ SHOW_CURSOR: [R.PLAYER] }, { SHOW_CURSOR: [R.PLAYER, R.GAMEMASTER] })];
@@ -27654,7 +27654,7 @@ const INVARIANTS = [
                 watch({ [loose.id]: pool.id, [byHand.id]: pool.id, [nobody.id]: A.NO_MONOKUMA })]
         }), stableJson({
             waiting: over.map(k => [k, false, true]),
-            drawn: over.map(() => [DASH, true, game.i18n.localize("DRPG.Season.waitingForCast"), false]),
+            drawn: over.map(() => ["", true, game.i18n.localize("DRPG.Season.waitingForCast"), false]),
             rooms: [false, false, [game.i18n.localize("DRPG.Season.noNamedRegions")]],
             cursor: [[R.PLAYER, R.TRUSTED, R.ASSISTANT, R.GAMEMASTER], [R.PLAYER]], readsInForce: true,
             watch: [[false, [game.i18n.format("DRPG.Season.fallsBackTo", { name: loose.name, pool: pool.name })]], [true, []]]
@@ -27947,9 +27947,10 @@ const INVARIANTS = [
             const html = document.createElement("html"), body = document.createElement("body");
             body.className = theme;
             html.append(body);
-            body.innerHTML = `<div class="application drpg-panel drpg-kit-width drpg-kit-width-wide"><section class="window-content"><div>
-                <h3>R1509</h3><pre class="drpg-check-report">R1509</pre></div></section></div>`;
-            const pre = body.querySelector("pre");
+            // The cast's part as drawn since E46-C5b (a kit checklist in its section, where it was `pre.drpg-check-report`).
+            body.innerHTML = `<div class="application drpg-panel drpg-window-preseason drpg-kit-width drpg-kit-width-wide"><section class="window-content"><div>
+                <section class="drpg-check-part" data-drpg-check-part="cast"><h3>R1509</h3><ul class="drpg-checklist"><li class="drpg-check-row" data-drpg-state="done">R1509</li></ul></section></div></section></div>`;
+            const pre = body.querySelector("ul.drpg-checklist");
             const value = names => C.winner(pre, names)?.value ?? null;
             return [value("max-height"), value(["overflow", "overflow-y"])];
         };
@@ -28188,7 +28189,7 @@ const INVARIANTS = [
         const root = document.createElement("div");
         root.className = "application dialog drpg-window-season";
         root.innerHTML = `<section class="window-content"><form><p>R1514</p>${SS.campaignFieldsHtml({ campaignName: "R1514" }, "R1514word")}
-            <ul class="drpg-setup-list"><li><button type="button">R1514 row</button></li></ul></form></section>
+            <ul class="drpg-checklist"><li class="drpg-check-row"><button type="button">R1514 row</button></li></ul></form></section>
             <footer class="form-footer"><button type="submit" data-action="save" autofocus>R1514 save</button></footer>`;
         let opening = null;
         document.body.append(root);
@@ -28214,7 +28215,7 @@ const INVARIANTS = [
         must(src.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
         const open = fnSource(src, "openSeasonSetup"), wire = fnSource(src, "wireSetupSteps");
         equal(stableJson({
-            opening, fields, blockFirst: open.indexOf("campaignFieldsHtml(") >= 0 && open.indexOf("campaignFieldsHtml(") < open.indexOf("drpg-setup-list"),
+            opening, fields, blockFirst: open.indexOf("campaignFieldsHtml(") >= 0 && open.indexOf("campaignFieldsHtml(") < open.indexOf("${rows}"),
             opened, raised, counts: apps.map(a => a.raised),
             // E20 fix round (C-2): the opener hands the place a round trip carried as a second argument (R1524).
             wired: [/seasonOpening\(dialog\.element\b/.test(open), /raiseOpened\(/.test(open), /windowStack\(\)/.test(wire)]
@@ -28238,42 +28239,46 @@ const INVARIANTS = [
          * box; the hint's colour, each theme's dim. Contrast and the drawn sizes are not measured here (no layout). Red at the parent: the hint at
          * text-sm and centred, the names line at text-xs in red on both rows, the done row at opacity 0.55.
          */
+        const SS = await import("./season-setup.mjs");
         const C = await styleCascade();
         const read = theme => {
             const html = document.createElement("html"), body = document.createElement("body");
             body.className = theme;
             html.append(body);
             // The kit's frame since E21 C2b: the body that scrolls is `.drpg-kit-body` (ui-kit.mjs `drpgWindow`).
+            // The rows as `setupRows` draws them since E46-C5b (the kit's checklist): done, blocking with its line, waiting with its line.
             body.innerHTML = `<div class="application dialog drpg-ui drpg-panel drpg-kit-width drpg-kit-width-wide drpg-window-season"><section class="window-content">
-                <form class="dialog-form"><div class="dialog-content"><div class="drpg-kit-body"><p class="r1515intro">R1515</p><ul class="drpg-setup-list">
-                <li class="drpg-setup-step done"><span class="drpg-setup-mark">R</span><div class="drpg-setup-body"><strong>R1515</strong><div class="notes">R1515</div></div></li>
-                <li class="drpg-setup-step r1515missing"><span class="drpg-setup-mark">R</span><div class="drpg-setup-body"><strong>R1515</strong><div class="notes">R1515</div>
-                    <div class="drpg-setup-missing">R1515</div></div></li>
-                <li class="drpg-setup-step optional waiting"><span class="drpg-setup-mark">R</span><div class="drpg-setup-body"><strong>R1515</strong>
-                    <div class="drpg-setup-missing">R1515</div></div></li>
-                </ul></div></div></form></section></div>`;
+                <form class="dialog-form"><div class="dialog-content"><div class="drpg-kit-body"><p class="r1515intro">R1515</p>${SS.setupRows([
+                    { key: "cast", done: true, missing: () => [] }, { key: "rooms", done: false, missing: () => ["R1515"] },
+                    { key: "overflow", optional: true, waiting: true, done: false, missing: () => [] }])}</div></div></form></section></div>`;
             const q = s => body.querySelector(s);
             const value = (el, names) => C.winner(el, names)?.value ?? null;
-            const hint = q(".r1515missing .notes"), done = q(".drpg-setup-step.done");
+            // What an element inherits where no rule names it (the kit states the detail's ink on the detail).
+            const up = (el, names) => { for (let n = el; n && n !== body; n = n.parentElement) { const v = value(n, names); if (v !== null) return v; } return null; };
+            const hint = q('[data-drpg-key="rooms"] .drpg-setup-hint'), done = q('li.drpg-check-row[data-drpg-state="done"]');
             return {
                 intro: value(q(".r1515intro"), "text-align"),
-                hint: [value(hint, "font-size"), value(hint, "text-align"), value(hint, "color")],
-                names: [value(q(".r1515missing .drpg-setup-missing"), "font-size"), value(q(".r1515missing .drpg-setup-missing"), "color"),
-                    value(q(".waiting .drpg-setup-missing"), "color")],
-                done: [value(done, "opacity"), value(done.querySelector("strong"), "color"), value(done.querySelector(".drpg-setup-mark"), "opacity"),
-                    value(done.querySelector(".notes"), "font-size")],
+                hint: [value(hint, "font-size"), up(hint, "text-align"), up(hint, "color")],
+                names: [value(q('[data-drpg-key="rooms"] .drpg-setup-missing'), "font-size"), value(q('[data-drpg-key="rooms"] .drpg-setup-missing'), "color"),
+                    up(q('[data-drpg-state="waiting"] .drpg-setup-missing'), "color")],
+                done: [value(done, "opacity"), value(done?.querySelector(".drpg-check-title"), "color"), value(done?.querySelector(".drpg-check-mark"), "color"),
+                    value(done?.querySelector(".drpg-setup-hint"), "font-size")],
                 scroll: [value(q(".drpg-kit-body"), ["overflow-y", "overflow"]), value(q(".drpg-kit-body"), "scrollbar-gutter")]
             };
         };
         const themes = ["drpg-theme-monokuma-legacy drpg-gm", "drpg-theme-stained-glass drpg-gm"].map(read);
-        const want = (hintColour) => ({
+        /* E46-C5b: the kit's checklist - the hint and the waiting row's line in the kit's fine-print ink (each theme's
+           dim bone under the glass, as before), a blocking row's line in the kit's red, a done row's title in its quiet
+           ink and its mark in the kit's evidence colour (0.55 opacity before). The hint is a block of the row's detail, no
+           longer a `.notes` paragraph: no rule of either sheet aligns it or an element above it (null: the start). */
+        const want = () => ({
             intro: "left",
-            hint: ["var(--drpg-text-base)", "left", hintColour],
-            names: ["var(--drpg-text-sm)", "var(--drpg-eye-light)", "var(--drpg-dim)"],
-            done: [null, "var(--drpg-dim)", "0.55", "var(--drpg-text-base)"],
+            hint: ["var(--drpg-text-base)", null, "var(--drpg-kit-help-ink)"],
+            names: ["var(--drpg-text-sm)", "var(--drpg-kit-check-blocking)", "var(--drpg-kit-help-ink)"],
+            done: [null, "var(--drpg-kit-check-quiet)", "var(--drpg-kit-check-done)", "var(--drpg-text-base)"],
             scroll: ["auto", "stable"]
         });
-        equal(stableJson(themes), stableJson([want("var(--drpg-dim)"), want("var(--drpg-sg-bone-dim)")]),
+        equal(stableJson(themes), stableJson([want(), want()]),
             "Set the season up is small, centred or faded whole [Monokuma Legacy, Stained Glass: the intro's alignment | a hint's size, alignment, colour | the "
             + "names line's size and colour on a missing row, its colour on a waiting row | a done row's opacity, its title's colour, its mark's opacity, "
             + "its hint's size | the content box's overflow, its scrollbar gutter]");
@@ -28656,7 +28661,7 @@ const INVARIANTS = [
         equal(stableJson({
             secret: [Boolean(secret), secret?.external === true, secret?.done ?? null],
             first: SS.firstOutstandingStep(rest)?.key ?? null,
-            mark: drawn.querySelector(".drpg-setup-mark")?.textContent ?? null,
+            mark: drawn.querySelector(".drpg-check-mark")?.textContent ?? null,
             tavern: list({ serverType: "tavern", password: "R1523secret" }).some(r => r.key === "liveKitSecret"),
             school
         }), stableJson({
@@ -28686,7 +28691,7 @@ const INVARIANTS = [
             const root = document.createElement("div");
             root.className = "application dialog drpg-window-season";
             root.innerHTML = `<section class="window-content"><form>${SS.campaignFieldsHtml({ campaignName: "R1524" }, "R1524word")}
-                <ul class="drpg-setup-list">${SS.setupRows(rows)}</ul></form></section>
+                ${SS.setupRows(rows)}</form></section>
                 <footer class="form-footer"><button type="submit" data-action="save" autofocus>R1524 save</button><button type="button" data-action="checks">R1524 checks</button></footer>`;
             document.body.append(root);
             return root;
@@ -28700,7 +28705,8 @@ const INVARIANTS = [
             const opened = place => {
                 const back = make(); made.push(back);
                 const focused = SS.seasonOpening(back, place);
-                return [focused?.dataset?.step ?? focused?.dataset?.action ?? focused?.name ?? null, document.activeElement === focused,
+                // A row's button is the kit's (E46-C5b): its step is the row's key.
+                return [focused?.closest?.("li.drpg-check-row")?.dataset?.drpgKey ?? focused?.dataset?.action ?? focused?.name ?? null, document.activeElement === focused,
                     back.querySelector(".window-content").scrollTop, Boolean(back.querySelector("footer [autofocus]"))];
             };
             out = { place: [row?.place ?? null, checks?.place ?? null], fields: [row?.campaignName, row?.safeword],
@@ -28789,12 +28795,12 @@ const INVARIANTS = [
         const full = fx.scene("R1526 full", [fx.region("R1526a", "R1526 Hall", { rect: [0, 0, 4000, 3000] })]);
         const roomsRow = lastChecks => SS.steps({ roster: [], scenes: [full], roomScene: full, assigned: {}, lastChecks }).find(r => r.key === "rooms");
         const done = roomsRow(new Map()), faulty = roomsRow(new Map([[full.id, FD.roomCheckProblems([f("warning", "adrift")])]]));
-        const list = document.createElement("ul");
+        const list = document.createElement("div");
         list.innerHTML = SS.setupRows([done]);
-        const li = list.querySelector(".drpg-setup-step");
+        const li = list.querySelector("li.drpg-check-row");
         const out = li?.querySelector("[data-drpg-check-out]");
         if (out) out.innerHTML = "<p>R1526 findings</p>";
-        const was = [li?.querySelector(".drpg-setup-mark")?.textContent ?? null, Boolean(li?.querySelector(":scope > .drpg-setup-do"))];
+        const was = [li?.querySelector(".drpg-check-mark")?.textContent ?? null, Boolean(li?.querySelector(":scope > button[data-drpg-action]"))];
         SS.repaintStep(li, faulty);
         const sources = await moduleSources();
         const src = stripComments(sources.get("season-setup.mjs") ?? "");
@@ -28804,10 +28810,12 @@ const INVARIANTS = [
             count: [FD.roomCheckProblems(counted), FD.roomCheckProblems(advice), FD.roomCheckProblems([...counted, ...advice])],
             rows: [done?.done, faulty?.done, faulty?.done ? [] : faulty?.missing?.()],
             was,
-            now: [li?.dataset?.drpgStep ?? null, li?.querySelector(".drpg-setup-mark")?.textContent ?? null, li?.classList.contains("done"),
-                li?.querySelector(":scope > .drpg-setup-body > .drpg-setup-missing")?.textContent ?? null,
-                li?.querySelector(":scope > .drpg-setup-do")?.dataset?.step ?? null, li?.querySelector("[data-drpg-check-out]") === out && out?.textContent === "R1526 findings"],
-            wired: [/roomCheckProblems\(findings\)/.test(check), /repaintStep\(/.test(check), /closest\?\.\("\.drpg-setup-do"\)/.test(wire)]
+            // The kit's checklist since E46-C5b: the key, the state, the line in the detail, the button's action; the list's one listener.
+            now: [li?.dataset?.drpgKey ?? null, li?.querySelector(".drpg-check-mark")?.textContent ?? null, li?.dataset?.drpgState === "done",
+                li?.querySelector(":scope > .drpg-check-text > .drpg-check-detail > .drpg-setup-missing")?.textContent ?? null,
+                li?.querySelector(":scope > button[data-drpg-action]")?.closest("li.drpg-check-row")?.dataset?.drpgKey ?? null,
+                li?.querySelector("[data-drpg-check-out]") === out && out?.textContent === "R1526 findings"],
+            wired: [/roomCheckProblems\(findings\)/.test(check), /repaintStep\(/.test(check), /closest\?\.\("li\.drpg-check-row > button\[data-drpg-action\]"\)/.test(wire)]
         }), stableJson({
             count: [5, 0, 5],
             rows: [true, false, [U.plural("DRPG.Season.roomsCheckErrors", { n: 1, scene: full.name })]],
@@ -28904,10 +28912,15 @@ const INVARIANTS = [
             const html = document.createElement("html"), body = document.createElement("body");
             body.className = theme;
             html.append(body);
-            body.innerHTML = `<div class="application dialog drpg-panel drpg-kit-width drpg-kit-width-wide"><section class="window-content"><pre class="drpg-check-report">${SS.checkMarks("✓ ✗")}</pre>
-                <div data-drpg-anon>${SS.checkMarks("<p>✓ R1530</p>")}</div></section></div>`;
+            /* Since E46-C5b the report's other parts are the kit's checklist (a done row's mark in the kit's evidence token, a
+               blocking row's in its red) and `checkMarks` marks the anonymity audit alone (anonymity.mjs draws it again in place). */
+            body.innerHTML = `<div class="application dialog drpg-panel drpg-window-preseason drpg-kit-width drpg-kit-width-wide"><section class="window-content">
+                <ul class="drpg-checklist"><li class="drpg-check-row" data-drpg-state="done"><span class="drpg-check-mark">✓</span></li>
+                <li class="drpg-check-row" data-drpg-state="blocking"><span class="drpg-check-mark">✗</span></li></ul>
+                <div data-drpg-anon>${SS.checkMarks("<p>✓ R1530 ✗</p>")}</div></section></div>`;
             const colour = el => C.winner(el, "color")?.value ?? null;
-            return [colour(body.querySelector("pre .drpg-check-ok")), colour(body.querySelector("pre .drpg-check-bad")), colour(body.querySelector("[data-drpg-anon] .drpg-check-ok"))];
+            return [colour(body.querySelector('[data-drpg-state="done"] > .drpg-check-mark')), colour(body.querySelector('[data-drpg-state="blocking"] > .drpg-check-mark')),
+                colour(body.querySelector("[data-drpg-anon] .drpg-check-ok")), colour(body.querySelector("[data-drpg-anon] .drpg-check-bad"))];
         };
         const sources = await moduleSources();
         const src = stripComments(sources.get("season-setup.mjs") ?? "");
@@ -28921,13 +28934,13 @@ const INVARIANTS = [
         }), stableJson({
             text: ["✓ R1530 <a>\n   ✗ R1530 b - ✓", 2, 1],
             attr: ["✓ R1530", 1],
-            looks: [["var(--drpg-evidence)", "var(--drpg-eye-light)", "var(--drpg-evidence)"],
-                ["var(--drpg-sg-evidence)", "var(--drpg-sg-gm-light)", "var(--drpg-sg-evidence)"]],
+            looks: [["var(--drpg-kit-check-done)", "var(--drpg-kit-check-blocking)", "var(--drpg-evidence)", "var(--drpg-eye-light)"],
+                ["var(--drpg-kit-check-done)", "var(--drpg-kit-check-blocking)", "var(--drpg-sg-evidence)", "var(--drpg-sg-gm-light)"]],
             ready: true,
-            report: 3
+            report: 1
         }), "Pre-season's marks are uncoloured, or the ready line promises a green report [escaped text: kept, checks, crosses | a mark in an attribute: "
-            + "kept, the text's | colour of a check, a cross, the audit's check: Monokuma Legacy, Stained Glass | the ready line names Pre-season checks "
-            + "as more | the report's three blocks marked]");
+            + "kept, the text's | colour of a done row's mark, a blocking row's, the audit's check, its cross: Monokuma Legacy, Stained Glass | the ready "
+            + "line names Pre-season checks as more | the report's blocks marked by checkMarks: the audit's]");
     }],
     ["R1531 - the Give back window says plainly what it cannot know and what it does not give back, and only a full Gamemaster gives back (E20 fix round; the owner's answer of 30.10 on the automations, the goal review's G-7, the correctness review's C-6): with no value of Daggerheart's automations kept it says the values from before the module are not known; it names the one dice look and says nobody's own look comes back; an Assistant GM reads that a full Gamemaster gives them back; a part not written stays kept", async () => {
         /*
@@ -31249,11 +31262,12 @@ const INVARIANTS = [
         const box = document.createElement("div");
         box.innerHTML = typeof SS.firstSessionHtml === "function" ? SS.firstSessionHtml(list(false, true)) : "";
         const section = box.querySelector('section[data-drpg-group="firstSession"]');
-        const drawn = [...(section?.querySelectorAll("li[data-drpg-step]") ?? [])].map(li => [li.dataset.drpgStep,
-            li.querySelector(".drpg-setup-mark")?.textContent ?? null, Boolean(li.querySelector(".drpg-setup-do")),
+        // The kit's checklist since E46-C5b: an optional row not done is advisory, marked "-" (an en dash before).
+        const drawn = [...(section?.querySelectorAll("li.drpg-check-row[data-drpg-key]") ?? [])].map(li => [li.dataset.drpgKey,
+            li.querySelector(".drpg-check-mark")?.textContent ?? null, Boolean(li.querySelector(":scope > button[data-drpg-action]")),
             li.querySelector(".drpg-setup-missing")?.textContent ?? null]);
         const modules = Boolean(foundry.applications?.sidebar?.apps?.ModuleManagement);
-        const DASH = String.fromCharCode(0x2013);
+        const DASH = "-";
         const sources = await moduleSources();
         must(sources.get("season-setup.mjs")?.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
         const code = stripComments(sources.get("season-setup.mjs"));
@@ -31263,8 +31277,8 @@ const INVARIANTS = [
             keys: off.map(r => r.key), optional: off.every(r => r.optional === true),
             state: [off.map(r => r.done), on.map(r => r.done)],
             heading: section?.querySelector("h3")?.textContent ?? null, drawn,
-            window: [/setupRows\(list\.filter\(step => step\.group !== FIRST_SESSION\)\)/.test(opener), /\$\{firstSessionHtml\(list\)\}/.test(opener),
-                /querySelectorAll\("\.drpg-setup-list"\)/.test(wiring)]
+            window: [/setupRows\(list\.filter\(step => step\.group !== FIRST_SESSION\)[,)]/.test(opener), /\$\{firstSessionHtml\(list\)\}/.test(opener),
+                /querySelectorAll\("ul\.drpg-checklist"\)/.test(wiring)]
         }), JSON.stringify({
             keys: ["hallTokens", "scenes", "foundryHeld", "diceSoNice"], optional: true,
             state: [[false, Boolean(SS.steps().find(r => r.key === "scenes")?.done), false, false], [false, Boolean(SS.steps().find(r => r.key === "scenes")?.done), true, true]],
@@ -33365,7 +33379,10 @@ const INVARIANTS = [
         const here = await draw();
         const others = game.users.contents.filter(u => u.id !== game.user.id)
             .map(u => game.i18n.format("DRPG.DiceLook.diag.finding.otherBrowser", { name: u.name }));
-        const marked = report => [...report.el.querySelectorAll("p.drpg-check-report")].map(p => p.textContent.trim()).filter(t => t.includes("R1300") || t.includes(clean));
+        // The part's rows on the kit's checklist since E46-C5b: a finding a warning ("!"), none a check.
+        const marked = report => [...report.el.querySelectorAll('[data-drpg-check-part="dice"] li.drpg-check-row')]
+            .map(li => `${li.querySelector(".drpg-check-mark")?.textContent ?? ""} ${li.querySelector(".drpg-check-title")?.textContent ?? ""}`.trim())
+            .filter(t => t.includes("R1300") || t.includes(clean));
         equal(JSON.stringify({
             panel: ["diceLook", "diagnoseDiceLook", "DRPG.DiceLook.diag.tile"].filter(name => panel.includes(name)),
             en: keys(lang.en), pl: keys(lang.pl),
@@ -33375,7 +33392,7 @@ const INVARIANTS = [
             here: [here.heads.includes(title), here.button, others.filter(words => here.text.includes(words)).length]
         }), JSON.stringify({
             panel: [], en: ["open"], pl: ["open"], season: [true, true],
-            found: [true, ["✗ R1300 shows only their own dice"], open],
+            found: [true, ["! R1300 shows only their own dice"], open],
             none: [true, [`✓ ${clean}`], open],
             here: [true, open, 0]
         }), "[the panel's family's names of the dice look; DRPG.DiceLook.diag's tile and open keys in English and in Polish; season-setup.mjs "
@@ -34896,6 +34913,9 @@ const INVARIANTS = [
            phantom `#drpg-settings-launcher` from its selector list - the same rule, the same value, another selector.
            The GM's hexagon's three since E23 C1d (14.10, R1382): its border's colour under Stained Glass transparent,
            won by the same components.css rule, and the hover rule no longer states one - 1:426d4aa5 -> 1:934c4f73.
+           The hexagon's three again since E46-C5b (09.11.2026): stained-glass.css's chrome-font sweep that wins its
+           font lost `.drpg-check-report` from its list (Pre-season's report is the kit's checklist) - the same rule, the
+           same value, another selector - 1:934c4f73 -> 1:ae4eb686.
            The room tile's, the voice tile's and Foundry tools' eighteen since E24 C4a (S12-26, the owner's A7 and A8):
            danganronpa.css's DARK-FIRST list names the three roots by their ids, and a property it states on them (its
            `color-scheme`, its re-declared text colours) is won there now, over components.css's class rules or nothing -
@@ -34905,18 +34925,18 @@ const INVARIANTS = [
             "curtain|monokuma-legacy|foundry-tools": "1:d635e754", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:999f5b79",
             "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:cf9e2a77", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
             "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:7268133b", "curtain|stained-glass|foundry-tools": "1:83b739cf",
-            "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:934c4f73", "curtain|stained-glass|room-art": "1:b38f7ef7",
+            "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:ae4eb686", "curtain|stained-glass|room-art": "1:b38f7ef7",
             "curtain|stained-glass|room-tile": "1:e4f711c4", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
             "curtain|stained-glass|voice-tile": "2:7c097704", "desk|monokuma-legacy|foundry-tools": "1:d635e754", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
             "desk|monokuma-legacy|gm-launcher": "1:999f5b79", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:3a251bf8",
             "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:cfb69a33",
-            "desk|stained-glass|foundry-tools": "1:83b739cf", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:934c4f73",
+            "desk|stained-glass|foundry-tools": "1:83b739cf", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:ae4eb686",
             "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:df847626", "desk|stained-glass|voice-art": "1:393b7dc4",
             "desk|stained-glass|voice-list": "1:e9f9c48e", "desk|stained-glass|voice-tile": "1:9028bf8f", "stacked|monokuma-legacy|foundry-tools": "1:d635e754",
             "stacked|monokuma-legacy|foundry-window": "2:3ad17c49", "stacked|monokuma-legacy|gm-launcher": "1:999f5b79", "stacked|monokuma-legacy|room-art": "1:b38f7ef7",
             "stacked|monokuma-legacy|room-tile": "1:164e7a4a", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:4671c967",
             "stacked|monokuma-legacy|voice-tile": "1:66481022", "stacked|stained-glass|foundry-tools": "1:83b739cf", "stacked|stained-glass|foundry-window": "2:8b75b7bd",
-            "stacked|stained-glass|gm-launcher": "1:934c4f73", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:e821c8f8",
+            "stacked|stained-glass|gm-launcher": "1:ae4eb686", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:e821c8f8",
             "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:e9f9c48e", "stacked|stained-glass|voice-tile": "1:4a4823b1"
         };
         equal(stableJson({ left: [...left].sort(), prints, sectionMedia }), stableJson({ left: [], prints: C5, sectionMedia: [] }),
@@ -42074,6 +42094,148 @@ const INVARIANTS = [
             read: stored
         }), "{threshold: [the grid's label, it points at the field, the field's fine print]; now: [the line, fine print?, Clear after it]; tables: [all, the kit's]; heads; rows: [key, on's name, checked, what, by's name, what it does]; lists: ul/li left; read: readOverflowForm = the rules stored}");
     }],
+    ["R2032 - Season setup's rows on the kit's checkList (E46-C5b; card M4, S13-36): `setupRows` draws one `ul.drpg-checklist` of `li.drpg-check-row[data-drpg-key]` - a done row `done`, a required row not done `blocking` (the only red), an optional one `advisory`, one that waits for the cast `waiting`, the uneven Despair split a `warning` that says its counts; the row's Do it, Open it or Show the item's action; no dash for a mark; `repaintStep` redraws a row through the same builder and keeps the rest of it", async () => {
+        /*
+         * E46-C5b, 09.11.2026; card M4 (Approve: "red only for a blocking row"), S13-36 (2). At c1046f5e a row was
+         * `li.drpg-setup-step` marked with a check, a cross or an en dash written as an escape, its state in the classes
+         * `done`, `optional` and `waiting`, and the uneven split an optional row's dash beside its bare counts. Drawn on a
+         * detached element from rows of the suite's own and the world's despairSplit row with its counts handed in;
+         * nothing is written. Red first on c1046f5e: no checklist, the dash.
+         */
+        const SS = await import("./season-setup.mjs");
+        const { listOf } = await import("./utils.mjs");
+        const L = key => game.i18n.localize(key);
+        const real = SS.steps().find(step => step.key === "despairSplit");
+        must(real, "steps() has no despairSplit row - this would measure nothing");
+        const counts = ["R2032 A: 2", "R2032 B: 0"];
+        const uneven = game.i18n.format("DRPG.Season.splitUneven", { counts: listOf(counts) });
+        const noop = async () => 0;
+        const rows = [
+            { key: "cast", done: true, missing: () => ["R2032 never"] },
+            { key: "rooms", done: false, missing: () => ["R2032 x", "R2032 y"], fix: noop },
+            { key: "mastermind", optional: true, done: false, missing: () => [], open: noop },
+            { key: "overflow", optional: true, waiting: true, done: false, missing: () => ["R2032 never"], open: noop },
+            { ...real, waiting: false, done: false, missing: () => counts },
+            { key: "rulers", optional: true, done: true, missing: () => [], fix: noop, undo: noop, doKey: "DRPG.Season.hideRulers", undoKey: "DRPG.Season.showRulers" }
+        ];
+        const box = document.createElement("div");
+        box.innerHTML = SS.setupRows(rows, { label: "R2032" });
+        const lists = box.querySelectorAll("ul.drpg-checklist");
+        const button = li => li?.querySelector(":scope > button[data-drpg-action]") ?? null;
+        const drawn = [...box.querySelectorAll("ul.drpg-checklist > li.drpg-check-row")].map(li => [li.dataset.drpgKey ?? null, li.dataset.drpgState ?? null,
+            li.querySelector(".drpg-check-mark")?.textContent ?? null, li.querySelector(".drpg-check-title")?.textContent ?? null,
+            li.querySelector(".drpg-check-detail > .drpg-setup-missing")?.textContent ?? null, button(li)?.dataset.drpgAction ?? null, button(li)?.textContent ?? null]);
+        // The blocking row drawn again done: its state, its mark (and the mark's name), the line of what it waited on and its
+        // button follow; what else the row holds (Check rooms' findings, in the window) stays.
+        const li = box.querySelector('li.drpg-check-row[data-drpg-key="rooms"]');
+        li?.querySelector(".drpg-check-detail")?.insertAdjacentHTML("beforeend", "<span data-r2032-kept>R2032 kept</span>");
+        SS.repaintStep(li, { ...rows[1], done: true });
+        const again = [li?.dataset.drpgState ?? null, li?.querySelector(".drpg-check-mark")?.textContent ?? null,
+            li?.querySelector(".drpg-check-mark")?.getAttribute("aria-label") ?? null, Boolean(li?.querySelector(".drpg-setup-missing")),
+            Boolean(button(li)), Boolean(li?.querySelector("[data-r2032-kept]"))];
+        const step = key => L(`DRPG.Season.step.${key}`);
+        ok(!uneven.startsWith("DRPG."), "DRPG.Season.splitUneven has no text");
+        equal(stableJson({ lists: lists.length, label: lists[0]?.getAttribute("aria-label") ?? null,
+            old: box.querySelectorAll(".drpg-setup-step, .drpg-setup-mark, .drpg-setup-do").length,
+            dash: box.innerHTML.includes(String.fromCharCode(0x2013)), drawn, again }), stableJson({
+            lists: 1, label: "R2032", old: 0, dash: false,
+            drawn: [
+                ["cast", "done", "✓", step("cast"), null, null, null],
+                ["rooms", "blocking", "✗", step("rooms"), "R2032 x, R2032 y", "do", L("DRPG.Season.openIt")],
+                ["mastermind", "advisory", "-", step("mastermind"), null, "do", L("DRPG.Season.openIt")],
+                ["overflow", "waiting", "", step("overflow"), L("DRPG.Season.waitingForCast"), null, null],
+                ["despairSplit", "warning", "!", step("despairSplit"), uneven, "do", L("DRPG.Season.openIt")],
+                ["rulers", "done", "✓", step("rulers"), null, "undo", L("DRPG.Season.showRulers")]
+            ],
+            again: ["done", "✓", L("DRPG.Kit.check.done"), false, false, true]
+        }), "Season setup's rows [lists, the list's name, rows of the old markup, a dash anywhere | each row: key, state, mark, title, "
+            + "what it waits on, its button's action and word | the rooms row repainted done: state, mark, the mark's name, a line of what "
+            + "it waits on, a button, the rest of the row kept]");
+    }],
+    ["R2033 - Pre-season checks on the kit's checkList (E46-C5b; card M4): each part a `ul.drpg-checklist` under its heading in today's order - the cast, the scenes, the room pictures (the decode row and the size row), the voice, the contract (a failed row named, the unread folded under it), the dice look - and the anonymity audit's own markup with its marks (R1530); red only for a blocking row (a student not set up, a scene not ready, a picture that does not load), every other finding a `warning`; no `pre`, no `p.drpg-check-report`", async () => {
+        /*
+         * E46-C5b, 09.11.2026; card M4 (Approve: "red only for a blocking row"; A/V off with the voice tile on is one of
+         * its rows). At c1046f5e the cast and the scenes were each a `pre.drpg-check-report` of marked text and every other
+         * line a `p.drpg-check-report`, each cross red whatever it said - a dice look's overlay as red as a scene the
+         * players see black. `preSessionReport` with the facts handed in: A/V off with the tile on, a school of the
+         * suite's own with two room pictures (one that does not decode, one 6000 px wide), a contract with one failed row
+         * and one nobody could read, one dice look finding. The world is read (the cast, the scenes, the audit), nothing
+         * is written. Red first on c1046f5e: `pre`.
+         */
+        needs(world.atLeast("livingStudents", 1), "a cast for the cast's part to list");
+        const SS = await import("./season-setup.mjs");
+        const { runContract } = await import("./patches.mjs");
+        const { diagnoseCharacters } = await import("./diagnostics.mjs");
+        const L = key => game.i18n.localize(key);
+        const { DISABLED = 0 } = foundry.av?.AVSettings?.AV_MODES ?? {};
+        const fx = await e20Fixture();
+        const scene = fx.scene("R2033 school", [
+            fx.region("R2033a", "R2033 Hall", { rect: [0, 0, 1000, 1000], image: "worlds/suite/r2033-big.webp" }),
+            fx.region("R2033b", "R2033 Gym", { rect: [1000, 0, 1000, 1000], image: "worlds/suite/r2033-gone.webp" })]);
+        const row = (id, probe) => ({ id, kind: "override", target: `R2033 target ${id}`, owner: "foundry", file: "fog.mjs",
+            symbol: "registerDoorControls", why: "R2033", when: "always", fallback: `R2033 fallback ${id}`, probe });
+        const contract = runContract({ rows: [row("gone", () => ({ present: false, ours: null })), row("blind", () => ({ present: null, ours: null }))] });
+        const RealImage = globalThis.Image;
+        const root = document.createElement("div");
+        try {
+            globalThis.Image = class {
+                set src(path) { this.path = path; this.naturalWidth = path.includes("big") ? 6000 : 1200; this.naturalHeight = 800; }
+                async decode() { if (this.path.includes("gone")) throw new Error("R2033: the stand-in does not decode"); }
+            };
+            root.innerHTML = await SS.preSessionReport({ av: { mode: DISABLED, on: true, available: false }, scenes: [scene],
+                head: async () => ({ status: 200, bytes: 400000 }), contract, diceLook: [{ code: "r2033", words: "R2033 dice" }], givenBack: false }) ?? "";
+        } finally {
+            globalThis.Image = RealImage;
+        }
+        const parts = [...root.querySelectorAll("[data-drpg-check-part]")];
+        const part = name => parts.find(p => p.dataset.drpgCheckPart === name) ?? null;
+        const rowsOf = p => [...(p?.querySelectorAll("ul.drpg-checklist > li.drpg-check-row") ?? [])];
+        const states = p => [...new Set(rowsOf(p).map(li => li.dataset.drpgState))].sort();
+        const keyed = p => rowsOf(p).map(li => [li.dataset.drpgKey ?? null, li.dataset.drpgState]);
+        const cast = diagnoseCharacters({ toChat: false });
+        const castMarked = cast.split("\n").filter(line => /^\s*[✓✗] /.test(line)).length;
+        const castCrossed = cast.split("\n").filter(line => /^\s*✗ /.test(line)).length;
+        const big = part("pictures")?.querySelector('li.drpg-check-row[data-drpg-key="large"] .drpg-check-title')?.textContent ?? "";
+        const gone = part("pictures")?.querySelector('li.drpg-check-row[data-drpg-key="missing"] .drpg-check-title')?.textContent ?? "";
+        const contractText = part("contract")?.textContent ?? "";
+        const blocking = [...root.querySelectorAll('li.drpg-check-row[data-drpg-state="blocking"]')].map(li => li.closest("[data-drpg-check-part]")?.dataset.drpgCheckPart ?? null);
+        equal(stableJson({
+            order: parts.map(p => p.dataset.drpgCheckPart),
+            heads: parts.map(p => p.querySelector(":scope > h3")?.textContent ?? null),
+            listed: parts.map(p => p.querySelectorAll(":scope > ul.drpg-checklist").length > 0),
+            cast: [rowsOf(part("cast")).filter(li => li.dataset.drpgKey !== "classCandidates").length === castMarked,
+                rowsOf(part("cast")).filter(li => li.dataset.drpgState === "blocking").length === castCrossed,
+                rowsOf(part("cast")).every(li => !/^[✓✗]/.test(li.querySelector(".drpg-check-title")?.textContent ?? ""))],
+            scenes: states(part("scenes")).every(s => s === "done" || s === "blocking"),
+            pictures: [keyed(part("pictures")), gone.includes("R2033 Gym"), big.includes("R2033 Hall") && big.includes("6000")],
+            voice: keyed(part("voice")),
+            contract: [keyed(part("contract")), contractText.includes("R2033 target gone") && contractText.includes("R2033 fallback gone"),
+                Boolean(part("contract")?.querySelector(":scope > details.drpg-check-unknown")) && contractText.includes("R2033 target blind")],
+            dice: [keyed(part("dice")), part("dice")?.querySelector(".drpg-check-title")?.textContent ?? null, Boolean(part("dice")?.querySelector("[data-drpg-dice-look]"))],
+            anon: [Boolean(part("anonymity")?.querySelector(":scope > [data-drpg-anon]")),
+                [...root.querySelectorAll(".drpg-check-ok, .drpg-check-bad")].every(mark => mark.closest("[data-drpg-anon]"))],
+            red: [...new Set(blocking)].filter(p => !["cast", "scenes", "pictures"].includes(p)),
+            old: root.querySelectorAll("pre, p.drpg-check-report").length
+        }), stableJson({
+            order: ["cast", "scenes", "pictures", "voice", "contract", "dice", "anonymity"],
+            heads: [L("DRPG.Panel.checksSetup"), L("DRPG.Fog.checksScenes"), L("DRPG.Panel.checksImages"), L("DRPG.Voice.panel.legend"),
+                L("DRPG.Contract.checksTitle"), L("DRPG.DiceLook.diag.title"), L("DRPG.Anonymity.audit.title")],
+            listed: [true, true, true, true, true, true, false],
+            cast: [true, true, true],
+            scenes: true,
+            pictures: [[["missing", "blocking"], ["large", "warning"]], true, true],
+            voice: [["checksAvOff", "warning"]],
+            contract: [[["gone", "warning"]], true, true],
+            dice: [[["r2033", "warning"]], "R2033 dice", true],
+            anon: [true, true],
+            red: [],
+            old: 0
+        }), "Pre-season checks [the parts in order, their headings, a checklist in each | the cast: a row a marked line, blocking a crossed "
+            + "one, no mark left in a title | the scenes done or blocking | the pictures' rows (key, state), the Gym that does not decode, "
+            + "the Hall's 6000 px | the voice's rows | the contract's rows, the failed one named, the unread folded | the dice look's rows, "
+            + "its finding, its button | the audit's own markup, every checkMarks mark inside it | parts with a blocking row that may not "
+            + "have one | pre and p.drpg-check-report left]");
+    }]
 ];
 
 /**
