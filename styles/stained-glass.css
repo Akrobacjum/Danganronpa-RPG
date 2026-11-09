@@ -124,9 +124,12 @@ body.drpg-theme-stained-glass {
     /* The two reserves (E24 C1a, 08.11.2026; the owner's D5, Q-E24-4): Health and Sanity each in a hue that means no
        state of the game - not the GM's red, Despair's pink, Eclipse's violet or Hope's gold - so a bar says how much is
        left and nothing else. The plate, the bar, the field and the pips read them through `--drpg-bar-fill`, set on
-       the block sheet.mjs `paintReserves` marks (`[data-drpg-reserve]`). */
-    --drpg-sg-res-health: #8fd14f;
-    --drpg-sg-res-sanity: #dc72f0;
+       the block sheet.mjs `paintReserves` marks (`[data-drpg-reserve]`).
+       Since 1.2.102 (E96 C1; the owner's H102-K1, 09.11.2026) Health is a vermilion, a red as a player expects of it
+       and not the GM's (#ff5566), and Sanity a teal: the violet of 1.2.101 read as Danganronpa's blood, a physical
+       wound. R1444 holds them apart from every state's colour, R3104 reads the two values. */
+    --drpg-sg-res-health: #ff4a26;
+    --drpg-sg-res-sanity: #2ec4b6;
 
     /* the colour the seams glow with: the time of day, replaced by the state.
        The clock writes `data-drpg-time` on the body (Milestone 2); until then
@@ -2060,14 +2063,22 @@ body.drpg-theme-stained-glass #drpg-popups {
    opaque, in the glass's face at its floor (21 px scaled: VT323 at 14 px and more at any scale down to two thirds),
    its level a 3 px rule on its left in the level's colour. Monokuma Legacy keeps Foundry's toasts. No `!important`:
    whether v14's own rules for the list (and their cascade layer against this sheet's) outweigh these is not read
-   here. R1406; the glass harness has no list, C5b's probe stands one in; v14's geometry, the owner's table. */
+   here. R1406; the glass harness has no list, C5b's probe stands one in; v14's geometry, the owner's table.
+   ONLY IN `#ui-top` (E96 C1, 1.2.102; H102 item 1, R3100). Written for any `#notifications`, the placement took the list
+   out of core's own wherever it stood: an unlayered rule of this sheet's outweighs a layered one of core's, so the list
+   became a flex item of its parent. At the owner's table on 1.2.101 the update toast stood in a narrow column and the
+   right column and the voice tile moved; the owner's console line (09.11.2026) read the list's parent as an element
+   with no id, a flex row. In Chromium, with a layered `position: fixed` for core and the list in an id-less flex row:
+   `position` static on 1.2.101, fixed with the child combinator. The placement now holds only where the list is a
+   child of `#ui-top`, which is the guess it was written for; elsewhere the list stands where core puts it, and the
+   plate below still dresses its toasts. LIVE-E23-08 reads the rest at the table. */
 body.drpg-theme-stained-glass {
     --drpg-sg-notice-info: var(--drpg-glass-accent);
     --drpg-sg-notice-warning: var(--drpg-sg-hope);
     --drpg-sg-notice-error: var(--drpg-sg-gm-light);
     --drpg-sg-notice-success: var(--drpg-sg-evidence);
 }
-body.drpg-theme-stained-glass #notifications {
+body.drpg-theme-stained-glass #ui-top > #notifications {
     position: static;
     order: 11;
     width: min(26rem, calc(100vw - 2 * var(--drpg-edge)));
@@ -3946,7 +3957,15 @@ body.drpg-theme-stained-glass .drpg-action-button[data-drpg-cost-kind="gm"]:not(
    `.ui.check` is 24 and every other control clears 24; 22 because the label rows were built around the old height,
    measured), the shaved corners, the state edge; checked, the checkbox filled with the sprite's tick in ink and the
    radio its ring with a square mark in the state colour. The colour is `--drpg-sg-check` where a row sets it (the
-   choice rows: their kind), the glass's accent elsewhere. R1407. */
+   choice rows: their kind), the glass's accent elsewhere. R1407.
+   FOUNDRY'S MARK OFF, THE BOX WHOLE (E96 C1, 1.2.102; H102 item 2, R3101). 1.2.101 gave the radio this box and mark and
+   took nothing of Foundry's away: core draws its own mark in the control's `::after`, in `--checkbox-checked-color`
+   (the name recalled, danganronpa.css "The tick in the module's ink"), and with a layered stand-in for it the Search
+   window's checked radio showed Foundry's orange ring over the square (Chromium, the style harness) - the
+   owner's "the orange circle is back". `content: none` on `::after` takes that mark away whatever glyph v14 draws
+   there, the variable is the state colour for whatever else core paints with it, and `flex: none` keeps the 22 px
+   box in a long row (the Search window's fifth radio was 13x22, Observe's checked one 12x22: a flex item that could
+   shrink). Which pseudo-element v14 really uses was not read: the owner's table. */
 body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"]) {
     appearance: none;
     -webkit-appearance: none;
@@ -3964,6 +3983,11 @@ body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .ap
     clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
     cursor: pointer;
     transition: border-color var(--drpg-t-snap, 120ms), background var(--drpg-t-snap, 120ms);
+    flex: none;
+    --checkbox-checked-color: var(--drpg-sg-check, var(--drpg-glass-accent));
+}
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"])::after {
+    content: none;
 }
 body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"]):hover:not(:disabled) {
     border-color: var(--drpg-sg-check, var(--drpg-glass-accent));

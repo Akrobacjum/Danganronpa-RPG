@@ -364,9 +364,12 @@ harness's four turns (`drpgTurn`: a phase with a recut, a phase, an hour, the ro
 as GM and player under Stained Glass, the pulse off, each on three fresh pages - Chromium's main-thread time around the
 turn and the page's frames, long tasks, first moved frame, clip-path writes and canvas draws inside frames, self-check and
 cut; a screencast's texture energy over the cells the turn carries glass across; the seams' light with the frame's clock
-stood still inside the flash. A frame that writes a clip path or draws, a 64 px square of the band whose texture falls
-under 80 % of its rest, the flash more than 8 from today's (`--against` a baseline's file), an hour's turn that recuts, or a self-check inside the turn worse
-than the cut before and after it fails the line; its two controls (`?turn=today`, `?flash=0.5`) must read their faults.
+stood still inside the flash; and since E96 C2, for each recolour, the curtain alone with every layer of the turn, and the
+page's own transitions, stood still 1 ms in and at the middle of a batch's fade, against two pictures at rest. A frame that
+writes a clip path or draws, a 64 px square of the band whose texture falls under 80 % of its rest, the flash more than 8
+from today's (`--against` a baseline's file), an hour's turn that recuts, a self-check inside the turn worse than the cut
+before and after it, a recolour's first frame further from rest than STILL_MAX along the screen's sides or inside, or the
+band's texture at that frame or the fade's middle outside TEX_MIN..TEX_MAX of rest fails the line; its two controls (`?turn=today`, `?flash=0.5`) must read their faults.
 It is a shape against 1d860414's on the same machine, never a table's frame time (`game.drpg.fps()`, at a table), and a
 screencast is the frames the compositor sent, not every frame drawn. The table's own reading of a turn is LIVE-E23-01 (AUDIT 9.2).
 

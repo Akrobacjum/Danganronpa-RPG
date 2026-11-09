@@ -1592,10 +1592,10 @@
         "dialog",
         "drpg-panel",
         "drpg-ui",
-        "drpg-kit-width"
+        "drpg-prompt"
       ],
       "tag": "dialog",
-      "width": 1008,
+      "width": 400,
       "buttons": [
         {
           "action": "ok",
@@ -1620,7 +1620,8 @@
         "application",
         "dialog",
         "drpg-panel",
-        "drpg-ui"
+        "drpg-ui",
+        "drpg-prompt"
       ],
       "tag": "dialog",
       "width": 400,
@@ -1648,7 +1649,8 @@
         "application",
         "dialog",
         "drpg-panel",
-        "drpg-ui"
+        "drpg-ui",
+        "drpg-prompt"
       ],
       "tag": "dialog",
       "width": 400,
@@ -1676,7 +1678,8 @@
         "application",
         "dialog",
         "drpg-panel",
-        "drpg-ui"
+        "drpg-ui",
+        "drpg-prompt"
       ],
       "tag": "dialog",
       "width": 400,
@@ -1704,7 +1707,8 @@
         "application",
         "dialog",
         "drpg-panel",
-        "drpg-ui"
+        "drpg-ui",
+        "drpg-prompt"
       ],
       "tag": "dialog",
       "width": 400,

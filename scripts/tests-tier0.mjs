@@ -18738,7 +18738,7 @@ const REGRESSIONS = [
          * Leave a Clue and Secure a Trace hints end "a critical leaves two" / „a krytyk zostawia dwa”, the entry's
          * `indirectVictim.count.critical`, and the digit rule cannot see a word. 2 to 12 only: "one" and „jeden” stand
          * in every other sentence as an article or a pronoun (Sprint's "one more" is section 13's, E71). Measured on
-         * this tree: these four places and no other. Their placeholder needs the owner's text change: E71 (row 1.2.120).
+         * this tree: these four places and no other. Their placeholder needs the owner's text change: E71 (row 1.2.121).
          */
         const NUMBER_WORDS = { en: ["", "", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"],
             pl: ["", "", "dwa|dwie|dwóch|dwoma|dwu", "trzy|trzech|trzema", "cztery|czterech", "pięć|pięciu", "sześć|sześciu", "siedem|siedmiu",
@@ -20049,7 +20049,7 @@ const REGRESSIONS = [
          * The queue is this browser's memory (`serialWrite`), so it holds one GM's browser to one copy (E60's fix round,
          * FG6; the end review's C-m8, S-m4): Observe's find, a hand-over, a Present and Monokuma's Reveal run on the
          * primary, and Give a Truth Bullet on whichever GM opened it - a give on a second GM's browser beside the
-         * primary's find of the same trace for the same receiver can still make two copies, and is E38's (row 1.2.126,
+         * primary's find of the same trace for the same receiver can still make two copies, and is E38's (row 1.2.127,
          * the stage of two GMs; STATUS Open 50).
          */
         const sources = await moduleSources();

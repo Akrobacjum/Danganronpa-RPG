@@ -2352,7 +2352,7 @@ function paintReservePips(block, view, change) {
 }
 
 /**
- * The row under the bar or the pips: "Left: 3 / 4" (`reserveRow`), "?" for a view not shown, and for an editor the
+ * The row under the bar or the pips: "3 / 4" (`reserveRow`), "?" for a view not shown, and for an editor the
  * number is the field. A field that has the focus keeps what is being typed into it; its maximum still follows.
  */
 function paintReserveRow(block, view, actor, editor) {
@@ -2402,7 +2402,7 @@ function paintReserveRow(block, view, actor, editor) {
         event.stopPropagation();
         field.blur();
     });
-    // The row's words around the number, in the page's language: the field stands where `{n}` stands.
+    // The row's text around the number, in the page's language (" / 4" since 1.2.102): the field stands where `{n}` stands.
     const [before, after = ""] = game.i18n.format("DRPG.Reserve.leftRow", { n: "{n}", max: view.max }).split("{n}");
     row.replaceChildren(before, field, after);
 }
