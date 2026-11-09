@@ -1448,7 +1448,6 @@
         "application",
         "dialog",
         "drpg-panel",
-        "drpg-projects",
         "drpg-window-alive",
         "drpg-ui",
         "drpg-kit-fit"
@@ -1464,11 +1463,6 @@
         {
           "action": "cancel",
           "label": "Cancel",
-          "default": false
-        },
-        {
-          "action": "items",
-          "label": "Items",
           "default": false
         }
       ],

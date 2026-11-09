@@ -35619,7 +35619,8 @@ const INVARIANTS = [
         const OPEN = [
             ["./enforced.mjs", "openGiveBackFoundry", undefined, "drpg-window-give-back", { give: "secondary", hold: "secondary", close: "close" }, ["close"]],
             ["./enforced.mjs", "offerHoldAgain", { user: game.user, givenBack: true, hold: async () => {} }, "drpg-window-give-back", { hold: "primary", close: "cancel" }, ["hold", "close"]],
-            ["./gm-students.mjs", "openWhoIsAliveDialog", undefined, "drpg-window-alive", { save: "primary", items: "secondary", cancel: "cancel" }, ["save", "items", "cancel"]],
+            // E47-C8 (the owner's 09.11 ask): Items left the footer for every row (R2083).
+            ["./gm-students.mjs", "openWhoIsAliveDialog", undefined, "drpg-window-alive", { save: "primary", cancel: "cancel" }, ["save", "cancel"]],
             ["./gm-team-dialog.mjs", "openGmTeamDialog", undefined, "drpg-window-gmteam", { save: "primary", addPool: "secondary", removePool: "secondary", auto: "secondary", cancel: "cancel" }, ["save", "cancel"]],
             ["./investigation.mjs", "openInvestigationDashboard", undefined, "drpg-window-case",
                 { save: "primary", newTrace: "secondary", autopsy: "secondary", log: "secondary", bodyFound: "secondary", clearFaint: "destructive", sweepBullets: "destructive", close: "cancel" },
@@ -42923,6 +42924,260 @@ const INVARIANTS = [
             widths: { off: [[false, false], [false, false], [false, false]], on: [[true, true], [true, true], [true, true]] }
         }), "{the manager: its table, head groups, heads in order, cut players' heads, room groups, rows, a row's fields, Delete buttons, Delete boxes, notes; the delete question: asked, its yes destructive and not the default, the project named, rows left; each form: a grid, every caption its field's, the fields' names, old warnings; the edit's rows shown with the trigger; the proposal's warning first and its request across the form; the description's refusal: a warning box, in the field's cell, pointed at; each window's width class and opening width with the setting off and on}");
     }],
+
+    /* ---- E47-C8 (09.11.2026; the owner's 09.11 ask): the Students window - a role, a Level Up and Items on every row, on the kit ---- */
+
+    ["R2080 - the Students window's table a dataTable (scripts/gm-students.mjs; E47-C8): Character (the name and the row's Items), Role, State, the Monocub columns while a Monocub exists, Level Up, Do; every character a row - the students first, then the Monokumas, then the characters not in the class, under group rows when more than one group has a row; a non-student's row its name, Items, Role and the Level Up its sheet gives, no State and nothing to do; the footer Apply and Cancel, no Items", async () => {
+        /*
+         * E47-C8, 09.11.2026 (the owner's 09.11 ask, Q-E47-3: "the roster lists every character ... each with its Role,
+         * Items and Level Up, so a mark made here can be undone here"). The window is drawn on this GM (the harness's
+         * DialogV2 draws it; at a table Foundry's) and read: the heads in order, the group rows, each character's row
+         * as [Items beside the name, the Role select's value, a State select, the Level Up's words or null, the Do
+         * cell's buttons] - the last for a non-student only, whose Do is empty; a student's Do is the state's own (the
+         * tier-2 tests click it). The Level Up is read against sheet.mjs `sheetMode` itself and its words against
+         * level-up.mjs `standingOffers`, so a later gate change follows. Red first on f7266b28: a hand table, no Role
+         * or Level Up, the footer's one Items.
+         */
+        needs(env.dialogs(), "the Students window is read drawn");
+        const { isMonokuma, isNotInClass } = await import("./monokuma.mjs");
+        const { isMonocub } = await import("./monocub.mjs");
+        const { sheetMode } = await import("./sheet.mjs");
+        const L = await import("./level-up.mjs");
+        const { plural } = await import("./utils.mjs");
+        const students = studentActors();
+        must(students.length > 0, "no student in this world - this would measure nothing");
+        const ids = new Set(students.map(a => a.id));
+        const others = game.actors.filter(a => a.type === "character" && !ids.has(a.id));
+        const kumas = others.filter(a => isMonokuma(a)), npcs = others.filter(a => !isMonokuma(a) && isNotInClass(a));
+        const T = key => game.i18n.localize(key);
+        const levelWords = a => {
+            if (!sheetMode(a, game.user).levelUp) return null;
+            const n = L.standingOffers(a).length;
+            return n ? plural("DRPG.Advance.standing", { n }) : T("DRPG.Advance.buttonTooltip");
+        };
+        const cubs = students.some(a => isMonocub(a));
+        const w = await studentsWindow();
+        let got = null;
+        try {
+            const table = w.app?.element?.querySelector(".drpg-alive-live table") ?? null;
+            must(table, "the Students window drew no table");
+            const row = id => {
+                const tr = table.querySelector(`tbody tr[data-actor="${CSS.escape(id)}"]`);
+                if (!tr) return null;
+                const cells = [...tr.children];
+                return [Boolean(cells[0]?.querySelector(`[data-drpg-items="${CSS.escape(id)}"]`)),
+                    tr.querySelector("select[data-drpg-role-select]")?.value ?? null,
+                    Boolean(tr.querySelector(`select[name="state.${CSS.escape(id)}"]`)),
+                    tr.querySelector(`[data-drpg-levelup="${CSS.escape(id)}"]`)?.textContent.trim() ?? null,
+                    cells.length];
+            };
+            got = {
+                kit: table.classList.contains("drpg-data-table"),
+                heads: [...table.querySelectorAll("thead th")].map(th => th.textContent.trim()),
+                groups: [...table.querySelectorAll("tbody tr.drpg-data-group > th")].map(th => th.textContent.trim()),
+                students: students.map(a => row(a.id)),
+                others: others.map(a => { const r = row(a.id); const tr = table.querySelector(`tbody tr[data-actor="${CSS.escape(a.id)}"]`); return r && [...r, tr.lastElementChild?.querySelectorAll("button").length ?? null]; }),
+                order: [...table.querySelectorAll("tbody tr[data-actor]")].map(tr => tr.dataset.actor),
+                footer: [...(w.app.element.querySelectorAll("footer [data-action]") ?? [])].map(b => b.dataset.action)
+            };
+        } finally {
+            await w.close();
+        }
+        const heads = [T("DRPG.Panel.character"), T("DRPG.Panel.roleColumn"), T("DRPG.Panel.stateColumn"),
+            ...(cubs ? [T("DRPG.Monocub.hope"), T("DRPG.Monocub.giveHopeColumn"), T("DRPG.Monocub.silenced")] : []),
+            T("DRPG.Panel.levelUpColumn"), T("DRPG.Panel.doColumn")];
+        const shown = [["students", students], ["monokumas", kumas], ["notInClass", npcs]].filter(([, list]) => list.length);
+        equal(stableJson(got), stableJson({
+            kit: true,
+            heads,
+            groups: shown.length > 1 ? shown.map(([key, list]) => `${T(`DRPG.Panel.group.${key}`)} ${list.length}`) : [],
+            students: students.map(a => [true, "student", true, levelWords(a), heads.length]),
+            others: others.map(a => [true, isMonokuma(a) ? "monokuma" : "npc", false, levelWords(a), heads.length, 0]),
+            order: [...students, ...kumas, ...npcs].map(a => a.id),
+            footer: ["save", "cancel"]
+        }), "{kit: the table a dataTable; heads; groups: each group row's words and count; students and others: [Items beside the name, the Role's value, a State select, "
+            + "the Level Up's words, the cells] (and for a non-student the Do cell's buttons); order: the rows' actors; footer: its actions}");
+    }],
+
+    ["R2081 - the Students window's Role (scripts/gm-students.mjs `changeRole`; E47-C8): each change calls its road with that row's actor - to Monokuma monokuma.mjs `markFromSheet`, back `setMonokuma(actor, false)`, to Not in the class `setNotInClass(actor, true)`, back `setNotInClass(actor, false)`, Monokuma to Not in the class the two in order, Not in the class to Monokuma the mark first; a Cancel of the ask writes nothing more and the drawn select goes back", async () => {
+        /*
+         * E47-C8, 09.11.2026 (the owner's 09.11 ask: the role "through the existing roads ... keeping their
+         * confirmations"). Stand-ins for the three roads record their arguments and answer as the roads do (the
+         * actor, or null where `markFromSheet`'s ask was cancelled); the characters are stand-ins with their flags, so
+         * nothing is written. Then the drawn window: a student's select moved to Not in the class and then to Monokuma
+         * with the ask cancelled - each its road with that row's actor, and the select back on the role the actor holds.
+         * NOT IN THE CLASS TO MONOKUMA MARKS FIRST: STAGE.md's order (unmark out, then mark) wrote the unmark before
+         * the ask, so a Cancel left an NPC a student; the mark asks first, and the unmark follows a yes. Red first on
+         * f7266b28: no `changeRole`, no select.
+         */
+        needs(env.dialogs(), "the select is changed on a drawn window");
+        const GS = await import("./gm-students.mjs");
+        equal(typeof GS.changeRole, "function", "[gm-students.mjs exports changeRole]");
+        const calls = [];
+        let yes = true;
+        const record = (name, answer = a => a) => async (actor, ...args) => { calls.push([name, actor.id, ...args]); return answer(actor); };
+        const roads = { markFromSheet: record("markFromSheet", a => (yes ? a : null)), setMonokuma: record("setMonokuma"), setNotInClass: record("setNotInClass") };
+        const standIn = (id, flags = {}) => ({ id, name: id, type: "character", getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const student = standIn("R2081-student"), kuma = standIn("R2081-kuma", { [FLAGS.monokuma]: true }), npc = standIn("R2081-npc", { [FLAGS.notInClass]: true });
+        const step = async (actor, to, ask = true) => { calls.length = 0; yes = ask; const moved = await GS.changeRole(actor, to, roads); return [moved, calls.map(c => c.join(" "))]; };
+        const got = {
+            toMonokuma: await step(student, "monokuma"), backFromMonokuma: await step(kuma, "student"),
+            out: await step(student, "npc"), backIn: await step(npc, "student"),
+            monokumaOut: await step(kuma, "npc"), npcToMonokuma: await step(npc, "monokuma"),
+            cancelled: await step(student, "monokuma", false), npcCancelled: await step(npc, "monokuma", false),
+            same: await step(kuma, "monokuma"), unknown: await step(student, "teacher")
+        };
+        const [first] = studentActors();
+        must(first, "no student in this world - the drawn select would measure nothing");
+        calls.length = 0;
+        const w = await studentsWindow(roads);
+        try {
+            const select = () => w.app?.element?.querySelector(`select[data-drpg-role-select="${CSS.escape(first.id)}"]`) ?? null;
+            must(select(), "the student's row drew no Role select");
+            const change = async (value, ask) => {
+                yes = ask;
+                const before = calls.length;
+                select().value = value;
+                select().dispatchEvent(new Event("change", { bubbles: true }));
+                await until(() => calls.length > before && !select()?.disabled, 3000);
+                return select()?.value ?? null;
+            };
+            got.drawn = [await change("npc", true), await change("monokuma", false), calls.map(c => c.join(" "))];
+        } finally {
+            await w.close();
+        }
+        equal(stableJson(got), stableJson({
+            toMonokuma: [true, ["markFromSheet R2081-student"]],
+            backFromMonokuma: [true, ["setMonokuma R2081-kuma false"]],
+            out: [true, ["setNotInClass R2081-student true"]],
+            backIn: [true, ["setNotInClass R2081-npc false"]],
+            monokumaOut: [true, ["setMonokuma R2081-kuma false", "setNotInClass R2081-kuma true"]],
+            npcToMonokuma: [true, ["markFromSheet R2081-npc", "setNotInClass R2081-npc false"]],
+            cancelled: [false, ["markFromSheet R2081-student"]],
+            npcCancelled: [false, ["markFromSheet R2081-npc"]],
+            same: [false, []],
+            unknown: [false, []],
+            drawn: ["npc", "student", [`setNotInClass ${first.id} true`, `markFromSheet ${first.id}`]]
+        }), "{each change: [changeRole's answer, the roads called with their arguments]; drawn: [the select after Not in the class (the stand-in wrote nothing, so it stands), "
+            + "after a cancelled Monokuma (back on the role the actor holds), the roads called]}");
+    }],
+
+    ["R2082 - the Students window's Level Up (scripts/gm-students.mjs; E47-C8): a button exactly on the rows sheet.mjs `sheetMode(actor, game.user).levelUp` holds, its words the standing offers' count (`DRPG.Advance.standing`) or Level Up; its click is level-up.mjs `openAdvancementFor` with that row's actor, and the window comes back after", async () => {
+        /*
+         * E47-C8, 09.11.2026 (the owner's 09.11 ask: "a Level Up control per row, reusing the road a GM uses today, no
+         * new road" - the sheet's GM button, sheet.mjs `injectAdvanceButton`, opens `openAdvancementFor`). Read against
+         * `sheetMode` itself on every row the window draws; a world with no character out of the class has no row
+         * whose button the gate takes away (E47-T6 marks one and reads it). The road a stand-in that answers at once,
+         * so the round trip (`wireAliveRow`: close, run, open again) ends in a second window. Red first on f7266b28: no
+         * button.
+         */
+        needs(env.dialogs(), "the Level Up is clicked on a drawn window");
+        const { sheetMode } = await import("./sheet.mjs");
+        const L = await import("./level-up.mjs");
+        const { plural } = await import("./utils.mjs");
+        const calls = [];
+        const roads = { openAdvancementFor: async actor => { calls.push(actor.id); return null; } };
+        const characters = game.actors.filter(a => a.type === "character");
+        const [first] = studentActors().filter(a => sheetMode(a, game.user).levelUp);
+        must(first, "no student whose sheet gives a Level Up - this would measure nothing");
+        const words = a => {
+            if (!sheetMode(a, game.user).levelUp) return null;
+            const n = L.standingOffers(a).length;
+            return n ? plural("DRPG.Advance.standing", { n }) : game.i18n.localize("DRPG.Advance.buttonTooltip");
+        };
+        const w = await studentsWindow(roads);
+        let got = null;
+        try {
+            const el = () => w.of()[0]?.element ?? null;
+            const drawn = characters.map(a => el()?.querySelector(`[data-drpg-levelup="${CSS.escape(a.id)}"]`)?.textContent.trim() ?? null);
+            const firstWindow = w.of()[0];
+            el()?.querySelector(`[data-drpg-levelup="${CSS.escape(first.id)}"]`)?.click();
+            await until(() => calls.length && w.of().some(a => a !== firstWindow && a.element?.querySelector(".drpg-alive-live")), 6000);
+            got = { drawn, calls: [...calls], back: w.of().some(a => a !== firstWindow), firstClosed: !firstWindow.rendered };
+        } finally {
+            await w.close();
+        }
+        equal(stableJson(got), stableJson({ drawn: characters.map(words), calls: [first.id], back: true, firstClosed: true }),
+            "{drawn: each character's Level Up words, or null where it has none; calls: the actors openAdvancementFor was called with; back: the window drawn again after; firstClosed: the first window closed for the trip}");
+    }],
+
+    ["R2083 - the Students window's Items (scripts/gm-students.mjs; E47-C8): a button beside every row's name, its click gm-items.mjs `openItemManager` with that row's actor - the window closes, the hub runs to its own Close and the table comes back; the footer has no Items", async () => {
+        /*
+         * E47-C8, 09.11.2026. The owner's 09.11 ask reverses the note "ITEMS FROM THE FOOTER, NOT FROM EVERY ROW (Dawid,
+         * 03.09)": "no single Items button that then asks which student - each row its own Items button beside the
+         * name, opening gm-items.mjs `openItemManager(actor)` for that student, with the round trip the current button
+         * makes (the table comes back after)". The hub a stand-in that resolves when it is let go, so the window stays
+         * closed while it runs. Red first on f7266b28: the footer's one Items, which opened the hub with nobody.
+         */
+        needs(env.dialogs(), "the Items button is clicked on a drawn window");
+        const calls = [];
+        let release = null;
+        const roads = { openItemManager: actor => { calls.push(actor.id); return new Promise(resolve => { release = resolve; }); } };
+        const rows = game.actors.filter(a => a.type === "character");
+        const [first] = studentActors();
+        must(first, "no student in this world - this would measure nothing");
+        const w = await studentsWindow(roads);
+        let got = null;
+        try {
+            const el = () => w.of()[0]?.element ?? null;
+            const beside = rows.map(a => Boolean(el()?.querySelector(`tr[data-actor="${CSS.escape(a.id)}"] > td:first-child [data-drpg-items="${CSS.escape(a.id)}"]`)));
+            const footer = [...(el()?.querySelectorAll("footer [data-action]") ?? [])].map(b => b.dataset.action);
+            const firstWindow = w.of()[0];
+            el()?.querySelector(`[data-drpg-items="${CSS.escape(first.id)}"]`)?.click();
+            await until(() => calls.length && !firstWindow.rendered, 3000);
+            const whileHub = w.of().length;
+            release?.(null);
+            await until(() => w.of().some(a => a !== firstWindow && a.element?.querySelector(".drpg-alive-live")), 6000);
+            got = { beside, footer, calls: [...calls], whileHub, back: w.of().some(a => a !== firstWindow) };
+        } finally {
+            release?.(null);
+            await w.close();
+        }
+        equal(stableJson(got), stableJson({ beside: rows.map(() => true), footer: ["save", "cancel"], calls: [first.id], whileHub: 0, back: true }),
+            "{beside: an Items button in each row's first cell; footer: its actions; calls: the actors openItemManager was called with; whileHub: Students windows drawn while the hub ran; back: the window drawn again after}");
+    }],
+
+    ["R2084 - the Students window is a GM's (scripts/gm-students.mjs; E47-C8): on a player's browser `openWhoIsAliveDialog` opens nothing, and the Role's roads called from it write nothing (monokuma.mjs `setMonokuma` and `setNotInClass` refuse on `game.user.isGM`, `markFromSheet` through them); Refund last crossing on the kit's secondary role", async () => {
+        /*
+         * E47-C8, 09.11.2026. Not MARKED (STAGE.md "Trust and MARKED"): the window adds no road, and each road it calls
+         * refuses a player itself. Read with this GM's `isGM` taken away for the call: no Students window drawn, and
+         * `changeRole` over the module's own roads on stand-in characters that record a write - every change answers
+         * false and nothing is written. Mutant m11 (the roads' `game.user.isGM` gate removed) turns the writes red.
+         * Refund (E17) on the kit: its button carries the secondary role's class and `data-drpg-role`, read in its
+         * source (a crossing the GMs hold is a world write, tier 2's E17-T6). Red first on f7266b28: the window opened on
+         * a player, no `changeRole`, Refund a bare mini button.
+         */
+        needs(env.dialogs(), "a window drawn on a player would be seen");
+        const GS = await import("./gm-students.mjs");
+        const K = await import("./ui-kit.mjs");
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-alive"));
+        must(of().length === 0, "a Students window stands open already");
+        const writes = [];
+        const standIn = (id, flags = {}) => ({ id, name: id, type: "character", getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined),
+            setFlag: async (scope, key, value) => { writes.push(["set", id, key, value]); }, unsetFlag: async (scope, key) => { writes.push(["unset", id, key]); },
+            update: async data => { writes.push(["update", id]); } });
+        const got = {};
+        Object.defineProperty(game.user, "isGM", { value: false, configurable: true });
+        let answer = null;
+        try {
+            answer = await Promise.race([GS.openWhoIsAliveDialog(), wait(1500).then(() => "still waiting")]);
+            got.opened = of().length;
+            got.changes = typeof GS.changeRole !== "function" ? "no changeRole" : [
+                await GS.changeRole(standIn("R2084-student"), "monokuma"), await GS.changeRole(standIn("R2084-kuma", { [FLAGS.monokuma]: true }), "student"),
+                await GS.changeRole(standIn("R2084-other"), "npc"), await GS.changeRole(standIn("R2084-npc", { [FLAGS.notInClass]: true }), "student")];
+        } finally {
+            delete game.user.isGM;
+            for (const a of of()) await a.close().catch(() => {});
+        }
+        got.answer = answer === "still waiting" ? answer : answer ?? null;
+        got.writes = writes;
+        const sources = new Map(await moduleSources());
+        const refund = fnSource(stripComments(sources.get("gm-students.mjs") ?? ""), "refundButton") ?? "";
+        got.refund = [/BUTTON_ROLES\.secondary\.cls/.test(refund), /data-drpg-role="secondary"/.test(refund), K.BUTTON_ROLES.secondary.cls];
+        equal(stableJson(got), stableJson({ opened: 0, changes: [false, false, false, false], answer: null, writes: [], refund: [true, true, "drpg-role-secondary"] }),
+            "{opened: Students windows drawn on a player; changes: changeRole's answers from a player; answer: openWhoIsAliveDialog's; writes: the stand-ins' writes; "
+            + "refund: [Refund's class the secondary role's, its data-drpg-role, the role's class]}");
+    }],
 ];
 
 /**
@@ -42944,6 +43199,28 @@ function quietWorld(run) {
     if (out && typeof out.then === "function") return out.finally(() => { game.settings.get = real; });
     game.settings.get = real;
     return out;
+}
+
+/**
+ * The Students window drawn on this GM for E47-C8's tests (R2080-R2083): gm-students.mjs `openWhoIsAliveDialog` with
+ * `roads`, the stand-ins a test hands for the roads its rows call (`markFromSheet`, `setMonokuma`, `setNotInClass`,
+ * `openAdvancementFor`, `openItemManager`). Answers `{ of, app, answer, close }`: the drawn Students windows, the first
+ * one, the opener's promise, and a close of every one of them that waits for that promise.
+ */
+async function studentsWindow(roads = undefined) {
+    const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-alive"));
+    must(of().length === 0, "a Students window stands open already");
+    const GS = await import("./gm-students.mjs");
+    const answer = Promise.resolve().then(() => GS.openWhoIsAliveDialog(roads ? { roads } : undefined)).catch(err => err);
+    await until(() => of().some(a => a.element?.querySelector(".drpg-alive-live")), 6000);
+    const close = async () => {
+        for (let round = 0; round < 3 && of().length; round++) {
+            for (const a of of()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(1000)]);
+        }
+        await Promise.race([answer, wait(2000)]);
+    };
+    return { of, app: of()[0] ?? null, answer, close };
 }
 
 /**

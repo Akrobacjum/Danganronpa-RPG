@@ -3593,7 +3593,8 @@ const REGRESSIONS = [
         const tail = bodyOf(panel, "const chosen = await drpgWindow");
         ok(tail.indexOf("if (roundTrip) return roundTrip;") > 0,
             "the round trip is not returned, so the GM panel reopens itself over it");
-        ok(tail.indexOf("if (roundTrip)") < tail.indexOf('chosen === "items"'),
+        // E47-C8: the footer's Items and its branch went (Items is every row's), so the answer's first reader is the apply path.
+        ok(tail.indexOf("if (roundTrip)") > 0 && tail.indexOf("if (roundTrip)") < tail.indexOf("applyAliveStates(chosen)"),
             "the answer is read before the handover, so a row press falls into the apply path");
     }],
 

@@ -2858,3 +2858,25 @@ body .application.drpg-project-form .drpg-viewer-list > .drpg-help { flex: 1 0 1
 /* the proposal's "Say what you are actually doing": a line across the form, its textarea the form's width (the owner's
    M19 note: "za waskie pole do wypelnienia w stained glass") */
 body .application.drpg-project-form .drpg-form-full > .drpg-specific-note > textarea { width: 100%; box-sizing: border-box; }
+
+/* ---- the Students window (E47-C8, 09.11.2026; the owner's 09.11 ask): every character's row on the kit's dataTable ----
+   gm-students.mjs `openWhoIsAliveDialog`. Until E47-C8 the window also carried `drpg-projects`, and four of the project
+   windows' rules in danganronpa.css reached its table through it: the table across the window, a select at least 8rem,
+   each row's wash and its hover (E47-C6 deletes those with the project windows, so they are this window's own here, at
+   the specificity they had). The hand table was `drpg-vault-table`, whose cells' padding, rule and middle alignment and
+   full-width select the kit's table does not set (the style sweep at 1366x768 under Legacy, 09.11.2026: a cell's padding
+   3px 6px -> 1px), kept here the same way. The Silenced box centred, as its cell's own style centred it; the name and
+   its Items button on one line. */
+.drpg-window-alive {
+    --drpg-alive-row-bg: rgba(var(--drpg-bone-rgb), 0.04);
+    --drpg-alive-row-hover-bg: rgba(var(--drpg-bone-rgb), 0.09);
+    --drpg-alive-cell-line: rgba(var(--drpg-bone-rgb), 0.1);
+}
+.drpg-window-alive table { width: 100%; }
+.drpg-window-alive :is(th, td) { padding: 3px 6px; border-bottom: 1px solid var(--drpg-alive-cell-line); vertical-align: middle; }
+.drpg-window-alive :is(th, td) select { width: 100%; }
+.application.dialog.drpg-window-alive select { min-width: 8rem; box-sizing: border-box; }
+.drpg-window-alive tbody tr[data-actor] { background: var(--drpg-alive-row-bg); }
+.drpg-window-alive tbody tr[data-actor]:hover { background: var(--drpg-alive-row-hover-bg); }
+.drpg-window-alive td.drpg-data-col-silenced { text-align: center; }
+.drpg-window-alive td.drpg-data-col-name { white-space: nowrap; }

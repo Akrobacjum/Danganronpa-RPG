@@ -16,11 +16,18 @@
  * panel's tile reaches the window through it; nothing here imports it back (the
  * facade rule, .claude/rules/code.md). `applyAliveStates` stands last, so a cut
  * of it by name runs to this file's end (tier 0 R66, R67).
+ *
+ * EVERY CHARACTER, ON THE KIT (E47-C8, 09.11.2026; the owner's 09.11 ask and
+ * Q-E47-3). The table is the kit's `dataTable`, and every row carries the
+ * character's Role (`changeRole`), its Level Up and its Items: the students
+ * first, then the Monokumas and the characters not in the class, so a mark made
+ * here can be undone here. Each control calls a road that exists - the sheet
+ * header's - with its own row's actor; the window adds no road.
  */
 
-import { studentActors } from "./monokuma.mjs";
+import { studentActors, isMonokuma, isNotInClass, markFromSheet, setMonokuma, setNotInClass } from "./monokuma.mjs";
 import { error, plural, esc, wholeNumber } from "./utils.mjs";
-import { stepper, drpgWindow } from "./ui-kit.mjs";
+import { stepper, drpgWindow, dataTable, iconButton, BUTTON_ROLES } from "./ui-kit.mjs";
 import { keepLive, alreadyOpen, handOff, RAISED } from "./live.mjs";
 import { crossingStore } from "./gm-stores.mjs";
 
@@ -53,7 +60,7 @@ import { crossingStore } from "./gm-stores.mjs";
  * THE TABLE, REBUILDABLE. Everything above is a function of the world now,
  * so this can be called again in place while the window stays open.
  */
-function aliveTableHtml({ roster, stateOf, donors, isCrimeSilenced, resourceValue, resourceMax }) {
+function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, resourceValue, resourceMax, levelUp, offers }) {
     /*
      * THE THREE MONOCUB COLUMNS ONLY EXIST WHEN A MONOCUB DOES (D-F4).
      *
@@ -70,7 +77,14 @@ function aliveTableHtml({ roster, stateOf, donors, isCrimeSilenced, resourceValu
      */
     const anyCub = () => roster().some(a => stateOf(a) === "monocub");
 
-    const buildRows = () => roster().map(a => {
+    const L = key => game.i18n.localize(key);
+
+    /*
+     * A STUDENT'S ROW is today's: the State select (the repair tool), the three Monocub cells while a Monocub exists,
+     * and the Do cell's procedures. E47-C8 puts the Role select after the name and the Level Up before Do, and the
+     * Items button beside the name (the owner's 09.11 ask).
+     */
+    const studentRow = a => {
         const state = stateOf(a);
         const cub = state === "monocub";
 
@@ -78,54 +92,119 @@ function aliveTableHtml({ roster, stateOf, donors, isCrimeSilenced, resourceValu
          * CALLED, not read. `anyCub` became a function when this table learned
          * to rebuild itself (E22) and this line was left reading the reference
          * - which is a function object, which is always truthy, so the cub
-         * cells were built on EVERY row whether or not a Monocub existed. The
-         * heading above calls it properly, so for four releases a table with no
-         * Monocub in it had three columns of heading over six columns of row.
+         * cells were built on EVERY row whether or not a Monocub existed, under
+         * a head of three columns fewer. `cubs` below is its answer, called once
+         * per build for the heads and the cells alike (E47-C8).
          */
-        const cubCells = !anyCub() ? "" : `
-            <td>${cub ? `${resourceValue(a, "hope")} / ${resourceMax(a, "hope")}` : "-"}</td>
-            <td>${cub && donors ? `
+        const cubCells = !cubs ? {} : {
+            hope: cub ? `${resourceValue(a, "hope")} / ${resourceMax(a, "hope")}` : "-",
+            give: cub && donors ? `
                 <select name="donor:${a.id}">${donors}</select>
-                ${stepper({ name: `amount:${a.id}`, value: 1, min: 1, attrs: { style: "width:3.5em" } })}
+                ${stepper({ name: `amount:${a.id}`, value: 1, min: 1, compact: true })}
                 <button type="button" class="drpg-mini-button" data-drpg-give="${a.id}">
-                    ${game.i18n.localize("DRPG.Monocub.give")}</button>` : "-"}</td>
-            <td style="text-align:center">${cub
-                ? `<input type="checkbox" name="silenced:${a.id}" ${
-                    isCrimeSilenced(a) ? "checked" : ""} />`
-                : "-"}</td>`;
+                    ${L("DRPG.Monocub.give")}</button>` : "-",
+            silenced: cub
+                ? `<input type="checkbox" name="silenced:${a.id}" ${isCrimeSilenced(a) ? "checked" : ""} />`
+                : "-"
+        };
 
-        return `<tr data-actor="${a.id}">
-            <td>${esc(a.name)}</td>
-            <td><select name="state.${a.id}">
+        return {
+            id: a.id, ...shared(a), ...cubCells,
+            state: `<select name="state.${a.id}">
                 ${(state === "unfound" ? ["alive", "unfound", "dead", "monocub"] : ["alive", "dead", "monocub"]).map(sKey =>
                     `<option value="${sKey}"${sKey === state ? " selected" : ""}>${
-                        game.i18n.localize(sKey === "unfound" ? "DRPG.Chapter.deadUnfound" : `DRPG.Panel.state.${sKey}`)}</option>`).join("")}
-            </select></td>${cubCells}
-            <td>
-                ${state === "alive"
-                    ? `<button type="button" class="drpg-mini-button drpg-gm-route"
-                           data-drpg-kill="${a.id}">${
-                           game.i18n.localize("DRPG.Chapter.deathTitle")}</button>`
-                    : state === "dead"
-                        ? `<button type="button" class="drpg-mini-button" data-drpg-cub="${a.id}">${
-                            game.i18n.localize("DRPG.Monocub.invite")}</button>`
-                        : ""}${refundButton(a)}</td>
-        </tr>`;
-    }).join("");
+                        L(sKey === "unfound" ? "DRPG.Chapter.deadUnfound" : `DRPG.Panel.state.${sKey}`)}</option>`).join("")}
+            </select>`,
+            do: `${state === "alive"
+                ? `<button type="button" class="drpg-mini-button drpg-gm-route"
+                       data-drpg-kill="${a.id}">${L("DRPG.Chapter.deathTitle")}</button>`
+                : state === "dead"
+                    ? `<button type="button" class="drpg-mini-button" data-drpg-cub="${a.id}">${L("DRPG.Monocub.invite")}</button>`
+                    : ""}${refundButton(a)}`
+        };
+    };
+
+    /*
+     * A MONOKUMA'S OR AN NPC'S ROW (Q-E47-3): the name, Items, the Role and the Level Up its sheet gives - no State, no
+     * Monocub cells and nothing to do, since neither is a student (E24's gates: no death, no ballot, no invitation).
+     * Without the row, a character marked out of the class here would leave the one row that marks it back.
+     */
+    const otherRow = a => ({ id: a.id, ...shared(a), state: "", hope: "", give: "", silenced: "", do: "" });
+
+    /* What every row carries: the name with its Items, the Role, the Level Up. */
+    const shared = a => {
+        const role = roleOf(a);
+        const n = offers(a);
+        return {
+            name: `${esc(a.name)} ${iconButton({ icon: "fa-solid fa-box-open", label: L("DRPG.Items.hubButton"), cls: "drpg-mini-button",
+                attrs: { "data-drpg-items": a.id } })}`,
+            role: `<select name="role:${a.id}" data-drpg-role-select="${a.id}" aria-label="${esc(`${a.name}: ${L("DRPG.Panel.roleColumn")}`)}">${
+                ROLES.map(r => `<option value="${r}"${r === role ? " selected" : ""}>${L(ROLE_WORDS[r])}</option>`).join("")}</select>`,
+            levelUp: !levelUp(a) ? "" : `<button type="button" class="drpg-mini-button ${BUTTON_ROLES.secondary.cls}" data-drpg-role="secondary"
+                data-drpg-levelup="${a.id}">${n ? plural("DRPG.Advance.standing", { n }) : L("DRPG.Advance.buttonTooltip")}</button>`
+        };
+    };
 
     const cubs = anyCub();
+    const students = roster();
+    const rest = others();
+    const groups = [["students", students, studentRow], ["monokumas", rest.filter(a => roleOf(a) === "monokuma"), otherRow],
+        ["notInClass", rest.filter(a => roleOf(a) === "npc"), otherRow]].filter(([, list]) => list.length);
+    // One group needs no heading (the Monocub columns' rule, D-F4): the rows say it already.
+    const headed = groups.length > 1;
+    const rows = groups.flatMap(([key, list, build]) => [...(headed ? [{ group: L(`DRPG.Panel.group.${key}`), count: list.length }] : []), ...list.map(build)]);
+    const columns = [
+        { key: "name", label: L("DRPG.Panel.character"), cls: "name" },
+        { key: "role", label: L("DRPG.Panel.roleColumn") },
+        { key: "state", label: L("DRPG.Panel.stateColumn") },
+        ...(cubs ? [{ key: "hope", label: L("DRPG.Monocub.hope") }, { key: "give", label: L("DRPG.Monocub.giveHopeColumn") },
+            { key: "silenced", label: L("DRPG.Monocub.silenced"), cls: "silenced" }] : []),
+        { key: "levelUp", label: L("DRPG.Panel.levelUpColumn") },
+        { key: "do", label: L("DRPG.Panel.doColumn") }
+    ];
     return `<div class="drpg-alive-live">
-        <p class="notes">${game.i18n.localize("DRPG.Panel.whoIsAliveNote")}</p>
-        <table class="drpg-vault-table"><thead><tr>
-            <th>${game.i18n.localize("DRPG.Panel.character")}</th>
-            <th>${game.i18n.localize("DRPG.Panel.stateColumn")}</th>
-            ${cubs ? `
-            <th>${game.i18n.localize("DRPG.Monocub.hope")}</th>
-            <th>${game.i18n.localize("DRPG.Monocub.giveHopeColumn")}</th>
-            <th data-tooltip="${esc(game.i18n.localize("DRPG.Monocub.silencedNote"))}">${game.i18n.localize("DRPG.Monocub.silenced")}</th>` : ""}
-            <th>${game.i18n.localize("DRPG.Panel.doColumn")}</th>
-        </tr></thead><tbody>${buildRows()}</tbody></table>
+        <p class="notes">${L("DRPG.Panel.whoIsAliveNote")}</p>
+        ${dataTable({ columns, rows, rowAttrs: r => ({ "data-actor": r.id }) })}
     </div>`;
+}
+
+/*
+ * THE ROLE (E47-C8, 09.11.2026; the owner's 09.11 ask). Student, Monokuma or Not in the class, as the sheet's own
+ * `sheetMode` reads the two flags (a Monokuma first: a character carrying both is a Monokuma). The select acts when it
+ * is changed, never on Apply, through the sheet header's roads (sheet.mjs `injectClassControls`), which are a GM's
+ * alone - each refuses a player itself (`game.user.isGM`), and a player's own write of either flag is put back by the
+ * GMs' audit (sheet-audit.mjs `GM_FLAGS`, E24 fix G1):
+ *   to Monokuma           monokuma.mjs `markFromSheet` - a player's character is asked first, Cancel the default;
+ *   from Monokuma         `setMonokuma(actor, false)` - not asked, as on the sheet;
+ *   to / from out         `setNotInClass(actor, true | false)`.
+ * Monokuma to Not in the class is the two in order (unmark, then mark out). Not in the class to Monokuma marks FIRST
+ * and unmarks out after a yes: STAGE.md's order (unmark out, then mark) wrote the unmark before the ask, so a Cancel
+ * left a student who had been an NPC. Answers whether the role moved; false when the ask was cancelled or a road refused.
+ * `roads` is the suite's to hand (R2081, R2084): stand-ins for the three, each called as the module's own.
+ */
+const ROLES = Object.freeze(["student", "monokuma", "npc"]);
+const ROLE_WORDS = Object.freeze({ student: "DRPG.Panel.role.student", monokuma: "DRPG.Monokuma.isMonokuma", npc: "DRPG.Class.notInClass" });
+const ROLE_ROADS = Object.freeze({ markFromSheet, setMonokuma, setNotInClass });
+
+/** The role a character holds by its flags, as the window's select names it. */
+function roleOf(actor) {
+    return isMonokuma(actor) ? "monokuma" : isNotInClass(actor) ? "npc" : "student";
+}
+
+/** Move `actor` to the role `to` through the roads above; see the note above. */
+export async function changeRole(actor, to, roads = {}) {
+    if (!actor || !ROLES.includes(to)) return false;
+    const from = roleOf(actor);
+    if (from === to) return false;
+    const road = { ...ROLE_ROADS, ...roads };
+    if (to === "monokuma") {
+        if (!(await road.markFromSheet(actor))) return false;
+        return from === "npc" ? Boolean(await road.setNotInClass(actor, false)) : true;
+    }
+    if (from === "monokuma" && !(await road.setMonokuma(actor, false))) return false;
+    // The sheet sets the two flags apart: a Monokuma marked out as well is out already, and is unmarked out on its way to student.
+    if (to === "npc") return isNotInClass(actor) ? true : Boolean(await road.setNotInClass(actor, true));
+    return isNotInClass(actor) ? Boolean(await road.setNotInClass(actor, false)) : true;
 }
 
 /*
@@ -139,7 +218,8 @@ function refundButton(actor) {
     if (!row || row.refunded) return "";
     const outside = game.i18n.localize("DRPG.Movement.outsideRooms");
     const note = game.i18n.format("DRPG.Panel.refundCrossingNote", { from: row.from ?? outside, to: row.to ?? outside });
-    return ` <button type="button" class="drpg-mini-button" data-drpg-refund="${esc(actor.id)}" data-tooltip="${esc(note)}">${
+    // On the kit's secondary role (E47-C8): a button that answers nothing of the window's, beside the row's procedures.
+    return ` <button type="button" class="drpg-mini-button ${BUTTON_ROLES.secondary.cls}" data-drpg-role="secondary" data-drpg-refund="${esc(actor.id)}" data-tooltip="${esc(note)}">${
         game.i18n.localize("DRPG.Panel.refundCrossing")}</button>`;
 }
 
@@ -153,8 +233,9 @@ function refundButton(actor) {
  *
  * An action that opens a window of its own closes this one first and brings
  * it back after: the death dialog is a place the GM goes and comes back
- * from, and so is the item manager behind the footer's Items button -
- * D-F5-2 settled that one deliberately, its own Close is the one exit.
+ * from, and so is the item manager behind a row's Items button (the footer's
+ * until E47-C8) - D-F5-2 settled that one deliberately, its own Close is the
+ * one exit - and the Level Up's menu.
  *
  * An action that opens NOTHING has no reason to. `setMonocub` writes a flag;
  * closing and reopening the whole table for it threw away the GM's scroll
@@ -175,10 +256,10 @@ function refundButton(actor) {
  * So the whole round trip - close, do the thing, open the table again - is ONE
  * promise, handed to `onHandOff` in the same turn as the close and returned by
  * `openWhoIsAliveDialog`. See `handOff` (live.mjs) for why it cannot be written
- * with an `await` in front of it. The footer's Items button has always had
- * this shape; the row buttons did not.
+ * with an `await` in front of it. The footer's Items button had this shape
+ * from the start; the row buttons did not, and since E47-C8 Items is a row's.
  */
-function wireAliveRow(dialog, attribute, run, { keepOpen = false, onHandOff = null } = {}) {
+function wireAliveRow(dialog, attribute, run, { keepOpen = false, onHandOff = null, reopen = () => openWhoIsAliveDialog() } = {}) {
         for (const button of dialog.element.querySelectorAll(`[${attribute}]`)) {
             button.addEventListener("click", async ev => {
                 ev.preventDefault();
@@ -196,11 +277,37 @@ function wireAliveRow(dialog, attribute, run, { keepOpen = false, onHandOff = nu
                 if (keepOpen) return void await work();
                 const trip = handOff(dialog, async () => {
                     await work();
-                    return openWhoIsAliveDialog();
+                    return reopen();
                 });
                 onHandOff?.(trip);
             });
         }
+}
+
+/*
+ * THE ROLE SELECT ACTS ON CHANGE (E47-C8), wired beside the row buttons: `wireAliveRow` answers a click, this a
+ * select's `change`. The window stays (the owner's ask; `keepOpen`'s reason, E6): the role's flags are an actor's, and
+ * `keepLive` draws the row again from them. A change that did not happen - the ask cancelled, a road refusing, a
+ * failure - puts the select back on the role the character holds, since nothing redraws a row nothing wrote.
+ */
+function wireRoleSelects(dialog, roads) {
+    for (const select of dialog.element.querySelectorAll("select[data-drpg-role-select]")) {
+        select.addEventListener("change", async () => {
+            const actor = game.actors.get(select.dataset.drpgRoleSelect);
+            if (!actor) return;
+            const held = roleOf(actor);
+            let moved = false;
+            select.disabled = true;
+            try {
+                moved = await changeRole(actor, select.value, roads);
+            } catch (err) {
+                error(`GM panel: the role of ${actor.name} did not change`, err);
+            } finally {
+                select.disabled = false;
+                if (!moved) select.value = roleOf(actor) ?? held;
+            }
+        });
+    }
 }
 
 /*
@@ -212,15 +319,28 @@ function wireAliveRow(dialog, attribute, run, { keepOpen = false, onHandOff = nu
  * `onHandOff` carries a row's round trip back to the window (F7) - see the
  * note above `wireAliveRow`.
  */
-function wireAliveTable(dialog, { openDeathDialog, setMonocub, onHandOff }) {
+function wireAliveTable(dialog, { openDeathDialog, setMonocub, onHandOff, roads, reopen }) {
     // The full death procedure, on the one character the row is about.
     // `openDeathDialog` owns the warning about the inventory and the
     // "keep their things" choice; repeating either here would be a
     // second copy of a rule that can only be right in one place.
-    wireAliveRow(dialog, "data-drpg-kill", actor => openDeathDialog({ actor }), { onHandOff });
+    wireAliveRow(dialog, "data-drpg-kill", actor => openDeathDialog({ actor }), { onHandOff, reopen });
+    /*
+     * ITEMS ON EVERY ROW (E47-C8; the owner's 09.11 ask: "no single Items button that then asks which student - each
+     * row its own Items button beside the name"). The round trip the footer's Items made (D-F5-2): this window closes,
+     * the hub runs to its own Close, the table comes back. The Level Up is the sheet's GM button's road
+     * (`openAdvancementFor`, sheet.mjs `injectAdvanceButton`), a window of its own, so the same round trip.
+     */
+    wireAliveRow(dialog, "data-drpg-items", actor => roads.openItemManager(actor), { onHandOff, reopen });
+    wireAliveRow(dialog, "data-drpg-levelup", actor => roads.openAdvancementFor(actor), { onHandOff, reopen });
+    wireRoleSelects(dialog, roads);
+    /* The Silenced head's tooltip (`DRPG.Monocub.silencedNote`): a `dataTable` head takes a label and no tooltip
+       (STATUS Open, E47-C8), so it is put on the drawn head, which the live region draws again. */
+    const silenced = dialog.element.querySelector("th.drpg-data-col-silenced");
+    if (silenced) silenced.dataset.tooltip = game.i18n.localize("DRPG.Monocub.silencedNote");
     // No window of its own, so the table stays where it is (E6).
     wireAliveRow(dialog, "data-drpg-cub", actor => setMonocub(actor, true),
-        { keepOpen: true });
+        { keepOpen: true, reopen });
     // Nothing of its own to open either (E17 C3): the store's change redraws the row.
     wireAliveRow(dialog, "data-drpg-refund", actor => import("./gm-bridge.mjs").then(m => m.requestRefundCrossing(actor.id)),
         { keepOpen: true });
@@ -248,8 +368,14 @@ function wireAliveTable(dialog, { openDeathDialog, setMonocub, onHandOff }) {
     }
 }
 
-/** The Students window (the panel's tile); exported for tier 2's click of its Refund last crossing (E17 fix e1-G2). */
-export async function openWhoIsAliveDialog() {
+/**
+ * The Students window (the panel's tile); exported for tier 2's click of its Refund last crossing (E17 fix e1-G2).
+ * A GM's: on a player's browser it opens nothing (E47-C8, R2084), as each road its rows call refuses a player.
+ * `roads` is the suite's to hand (R2081-R2083): stand-ins for `markFromSheet`, `setMonokuma`, `setNotInClass`,
+ * `openAdvancementFor` and `openItemManager`, carried into the window a round trip opens again.
+ */
+export async function openWhoIsAliveDialog(options = {}) {
+    if (!game.user.isGM) return;
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
@@ -263,6 +389,16 @@ export async function openWhoIsAliveDialog() {
     const { isMonocub, setMonocub, isCrimeSilenced } = await import("./monocub.mjs");
     const { monokumas, donorLabel } = await import("./despair.mjs");
     const { resourceValue, resourceMax } = await import("./character.mjs");
+    // The sheet's own gate for its Level Up and the GMs' store of offers (E47-C8): read, never copied.
+    const { sheetMode } = await import("./sheet.mjs");
+    const { standingOffers, openAdvancementFor } = await import("./level-up.mjs");
+    const roads = {
+        ...ROLE_ROADS,
+        openAdvancementFor,
+        openItemManager: actor => import("./gm-items.mjs").then(m => m.openItemManager(actor)),
+        ...(options?.roads ?? {})
+    };
+    const reopen = () => openWhoIsAliveDialog(options);
 
     /*
      * READ FRESH, because somebody dies while this window is open (E22, E17).
@@ -275,8 +411,14 @@ export async function openWhoIsAliveDialog() {
      * Apply.
      */
     const roster = () => studentActors();
-    const students = roster();
-    if (!students.length) {
+    /* EVERY OTHER CHARACTER (Q-E47-3): the Monokumas and the characters not in the class, for their Role, Items and
+       Level Up. Apply reads `roster()` alone, as before - a Monokuma and an NPC have no State to write. */
+    const others = () => {
+        const students = new Set(roster().map(a => a.id));
+        return game.actors.filter(a => a.type === "character" && !students.has(a.id));
+    };
+    // A world whose last student was marked out still opens: the row that marks them back is here.
+    if (!roster().length && !others().length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.noCharacters"));
         return;
     }
@@ -300,7 +442,8 @@ export async function openWhoIsAliveDialog() {
 
     const table = () => {
         const donors = buildDonors();
-        return aliveTableHtml({ roster, stateOf, donors, isCrimeSilenced, resourceValue, resourceMax });
+        return aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, resourceValue, resourceMax,
+            levelUp: a => Boolean(sheetMode(a, game.user).levelUp), offers: a => standingOffers(a).length });
     };
 
     // A row button's round trip, if one is running: this window did not answer,
@@ -309,7 +452,10 @@ export async function openWhoIsAliveDialog() {
 
     const chosen = await drpgWindow({
         title: game.i18n.localize("DRPG.Panel.whoIsAlive"),
-        classes: ["drpg-panel", "drpg-projects", "drpg-window-alive"],
+        /* `drpg-projects` went (E47-C8): the project windows' rules (E47-C6's to delete) reached this table through it;
+           the four that did - the table's width, the select's, the rows' wash and their hover - are the window's own
+           in components.css. */
+        classes: ["drpg-panel", "drpg-window-alive"],
         // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
         fit: true,
         body: `<form>${table()}</form>`,
@@ -321,23 +467,14 @@ export async function openWhoIsAliveDialog() {
                     silenced: Boolean(d.element.querySelector(`[name="silenced:${a.id}"]`)?.checked)
                 }]))
             },
-            /*
-             * ITEMS FROM THE FOOTER, NOT FROM EVERY ROW (Dawid, 03.09).
-             *
-             * The Give / take hub asks which student itself - a select at the
-             * top of its own window, with that student's pockets and stash
-             * under it - so a button per row was sixteen doors to the same
-             * room, each answering a question the room asks again. One button,
-             * nobody pre-picked. No callback, so the answer is the action's
-             * own name, which is what the branch under the window reads.
-             */
-            secondary: [{ action: "items", label: game.i18n.localize("DRPG.Items.hubButton") }],
+            /* ITEMS ON EVERY ROW, NOT IN THE FOOTER (E47-C8): the owner's 09.11 ask reverses "ITEMS FROM THE FOOTER,
+               NOT FROM EVERY ROW (Dawid, 03.09)" - each row's Items opens the hub on its own character. */
             // Apply is still to answer: Cancel (E21 rule 3), the answer "cancel" as before.
             close: { role: "cancel", action: "cancel" }
         },
         render: (event, dialog) => {
             const wireAll = () => wireAliveTable(dialog, {
-                openDeathDialog, setMonocub, onHandOff: trip => { roundTrip = trip; }
+                openDeathDialog, setMonocub, onHandOff: trip => { roundTrip = trip; }, roads, reopen
             });
 
             wireAll();
@@ -363,15 +500,6 @@ export async function openWhoIsAliveDialog() {
     // for the round trip instead of opening the panel over it (F7).
     if (roundTrip) return roundTrip;
 
-    if (chosen === "items") {
-        // The same round trip the row's Kill makes (E6): this window closed
-        // when the button was pressed, the hub runs for as long as the GM
-        // wants it - its own Close is the one exit (D-F5-2) - and the table
-        // comes back after, rebuilt around whatever was handed over.
-        const { openItemManager } = await import("./gm-items.mjs");
-        await openItemManager();
-        return openWhoIsAliveDialog();
-    }
     if (!chosen || chosen === "cancel") return;
 
     const changed = await applyAliveStates(chosen);

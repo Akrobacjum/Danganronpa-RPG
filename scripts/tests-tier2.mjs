@@ -84193,6 +84193,142 @@ const SCENARIOS = [
         equal(stableJson(reads), stableJson([["tracker", true, width, "killer"], ["tracker", true, width, "victim"], ["tracker", true, width, "killer"], ["tracker", true, width, "resolution"]]),
             "[data-drpg-width, the width class, position.width, the turn bar's side] at the opening, in the incident, after Pass the turn, at Stage 6");
     }],
+
+    /* ---- E47-C8 (09.11.2026; the owner's 09.11 ask): the Students window - a role, a Level Up and Items on every row ---- */
+
+    ["E47-T6 - the Students window's rows at the table (E47-C8; the owner's 09.11 ask): the GM marks a player's character Monokuma from its row - asked first, Cancel writes nothing and the select goes back, Yes writes the flag and clears the actions and Hope - and unmarks it; marks an unowned character Not in the class, whose Level Up goes, and back; a Level Up offered from a row stands on the player's character; Items from a row opens the hub on that character and the table comes back; the player's forged write of the flag is put back", async () => {
+        /*
+         * E47-C8, 09.11.2026. The window as the GM panel's tile opens it (gm-panel.mjs `openWhoIsAliveDialog`), on the
+         * module's own roads: the Role select through monokuma.mjs `markFromSheet` (its question drawn and answered by
+         * its own buttons), `setMonokuma` and `setNotInClass`; the Level Up through level-up.mjs `openAdvancementFor`
+         * (its two menus answered Standard and the player picks, every other window left to DialogV2); Items through
+         * gm-items.mjs `openItemManager` (the hub closed by hand). A character of the suite's own, owned by nobody, is
+         * the one marked out of the class. Then the player's own write of the Monokuma flag, as tier 2 makes one
+         * (`asPlayerWrite`): the GMs' audit puts it back (E24 fix G1, sheet-audit.mjs `GM_FLAGS`). Red first on
+         * f7266b28: no Role select, no Level Up, no Items on a row.
+         */
+        needs(env.dialogs(), "the window and its questions are answered drawn");
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the character marked first is a player's, so its mark is asked");
+        const GP = await import("./gm-panel.mjs");
+        const MK = await import("./monokuma.mjs");
+        const L = await import("./level-up.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { ACTIONS_RESOURCE } = await import("./config.mjs");
+        const { plural } = await import("./utils.mjs");
+        const { player, theirs } = playerAndCharacters();
+        must(MK.studentActors().includes(theirs), `${theirs.name} is no student - this would measure nothing`);
+        must(!S.offerStore.has(theirs.id), `${theirs.name} holds an offer already - this would read it, not the one made here`);
+        const HOPE = "system.resources.hope.value", ACTIONS = `system.resources.${ACTIONS_RESOURCE}.value`;
+        const putBack = sheetAsFound(theirs, [HOPE, ACTIONS]);
+        const kumaWas = theirs._source.flags?.[MODULE_ID]?.[FLAGS.monokuma];
+        const D = foundry.applications.api.DialogV2;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait"), realWait = D.wait;
+        const giveBackWait = () => { if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait; };
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-alive"));
+        const el = () => of()[0]?.element ?? null;
+        const select = actor => el()?.querySelector(`select[data-drpg-role-select="${CSS.escape(actor.id)}"]`) ?? null;
+        const question = () => [...foundry.applications.instances.values()].find(a => a.rendered && !a.options?.classes?.includes("drpg-window-alive")
+            && a.element?.querySelector("footer [data-action=\"yes\"]")) ?? null;
+        const choose = (actor, value) => { const s = select(actor); s.value = value; s.dispatchEvent(new Event("change", { bubbles: true })); };
+        const settled = actor => !select(actor)?.disabled;
+        let npc = null, answer = null;
+        const read = {};
+        try {
+            await theirs.update({ [HOPE]: 2, [ACTIONS]: 2 });
+            npc = await Actor.create({ name: "SUITE E47 T6 not in the class", type: "character" });
+            await settle();
+            answer = Promise.resolve().then(() => GP.openWhoIsAliveDialog()).catch(() => null);
+            await until(() => select(theirs) && select(npc), 6000);
+            must(select(theirs)?.value === "student", `${theirs.name}'s row does not read student - this would measure nothing`);
+
+            choose(theirs, "monokuma");
+            await until(() => question(), 3000);
+            const asked = Boolean(question());
+            question()?.element.querySelector("footer [data-action=\"cancel\"]")?.click();
+            await until(() => !question() && settled(theirs), 3000);
+            read.cancel = [asked, MK.isMonokuma(theirs), select(theirs)?.value ?? null];
+
+            choose(theirs, "monokuma");
+            await until(() => question(), 3000);
+            question()?.element.querySelector("footer [data-action=\"yes\"]")?.click();
+            await until(() => MK.isMonokuma(theirs) && select(theirs)?.value === "monokuma", 4000);
+            await settle();
+            read.yes = [MK.isMonokuma(theirs), Number(foundry.utils.getProperty(theirs, HOPE) ?? -1), Number(foundry.utils.getProperty(theirs, ACTIONS) ?? -1), select(theirs)?.value ?? null];
+
+            choose(theirs, "student");
+            await until(() => !MK.isMonokuma(theirs) && select(theirs)?.value === "student", 4000);
+            read.unmark = [MK.isMonokuma(theirs), Boolean(question()), select(theirs)?.value ?? null];
+
+            const levelUp = actor => Boolean(el()?.querySelector(`[data-drpg-levelup="${CSS.escape(actor.id)}"]`));
+            const npcHad = levelUp(npc);
+            choose(npc, "npc");
+            // The row is drawn again from the flag (`keepLive`): the select moved by hand reads "npc" before it is.
+            await until(() => MK.isNotInClass(npc) && select(npc)?.value === "npc" && !levelUp(npc), 4000);
+            read.out = [npcHad, MK.isNotInClass(npc), levelUp(npc), Boolean(question())];
+            choose(npc, "student");
+            await until(() => !MK.isNotInClass(npc) && select(npc)?.value === "student" && levelUp(npc), 4000);
+            read.backIn = [MK.isNotInClass(npc), levelUp(npc)];
+
+            // The Level Up's two menus answered; the Students window drawn again by DialogV2's own wait.
+            const menus = [];
+            D.wait = function (cfg) {
+                if ((cfg?.classes ?? []).includes("drpg-window-alive")) return realWait.call(this, cfg);
+                const markup = typeof cfg?.content === "string" ? cfg.content : (cfg?.content?.outerHTML ?? "");
+                const choices = [...markup.matchAll(/name="variant" value="([^"]*)"/g)].map(m => m[1]);
+                menus.push(choices.filter(v => !v.startsWith("take:")));
+                return Promise.resolve(choices.includes("standard") ? { value: "standard" } : choices.includes("player") ? { value: "player" } : null);
+            };
+            const first = of()[0];
+            el()?.querySelector(`[data-drpg-levelup="${CSS.escape(theirs.id)}"]`)?.click();
+            await until(() => L.standingOffers(theirs).length && of().some(a => a !== first && a.element?.querySelector(".drpg-alive-live")), 6000);
+            giveBackWait();
+            await settle();
+            const n = L.standingOffers(theirs).length;
+            read.levelUp = [menus, n, L.offersFor(player.id).offers?.[theirs.id] ? true : false,
+                el()?.querySelector(`[data-drpg-levelup="${CSS.escape(theirs.id)}"]`)?.textContent.trim() ?? null, n ? plural("DRPG.Advance.standing", { n }) : null];
+
+            const before = of()[0];
+            const hub = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-items")) ?? null;
+            el()?.querySelector(`[data-drpg-items="${CSS.escape(theirs.id)}"]`)?.click();
+            await until(() => hub(), 4000);
+            read.items = [hub()?.element?.querySelector("[name=who]")?.value ?? null, of().length];
+            await hub()?.close();
+            await until(() => of().some(a => a !== before && a.element?.querySelector(".drpg-alive-live")), 6000);
+            read.items.push(of().length);
+
+            const judged = await asPlayerWrite(theirs, { [`flags.${MODULE_ID}.${FLAGS.monokuma}`]: true }, player);
+            await until(() => !MK.isMonokuma(theirs), 3000);
+            await settle();
+            read.forged = [Boolean(judged), MK.isMonokuma(theirs), select(theirs)?.value ?? null];
+        } finally {
+            giveBackWait();
+            for (let round = 0; round < 3; round++) {
+                for (const a of [...foundry.applications.instances.values()].filter(a => a.rendered
+                    && (a.options?.classes ?? []).some(c => c === "drpg-window-alive" || c === "drpg-window-items"))) await a.close().catch(() => {});
+                await Promise.race([answer, wait(1000)]);
+            }
+            question()?.close().catch(() => {});
+            if (S.offerStore.has(theirs.id)) await S.offerStore.drop(theirs.id);
+            if (kumaWas === undefined) { if (theirs._source.flags?.[MODULE_ID]?.[FLAGS.monokuma] !== undefined) await theirs.unsetFlag(MODULE_ID, FLAGS.monokuma); }
+            else await theirs.setFlag(MODULE_ID, FLAGS.monokuma, kumaWas);
+            await npc?.delete();
+            await putBack();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            cancel: [true, false, "student"],
+            yes: [true, 0, 0, "monokuma"],
+            unmark: [false, false, "student"],
+            out: [true, true, false, false],
+            backIn: [false, true],
+            levelUp: [[["standard", "reinforced"], ["gm", "player"]], 1, true, plural("DRPG.Advance.standing", { n: 1 }), plural("DRPG.Advance.standing", { n: 1 })],
+            items: [theirs.id, 0, 1],
+            forged: [true, false, "student"]
+        }), "{cancel: [the mark asked, the flag, the select]; yes: [the flag, Hope, actions, the select]; unmark: [the flag, a question asked, the select]; "
+            + "out: [the NPC's Level Up before, the flag, its Level Up after, a question asked]; backIn: [the flag, its Level Up]; "
+            + "levelUp: [the menus' rows, the offers standing, the player told, the row's words, the words for them]; items: [the hub's character, Students windows while it ran, after it]; "
+            + "forged: [judged, the flag after the put-back, the select]}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

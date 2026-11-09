@@ -3958,13 +3958,23 @@
       "checksImagesBytes": "{mb} MB",
       "seasonChecks": "Pre-season checks",
       "whoIsAlive": "Students",
-      "whoIsAliveNote": "The dropdown only moves the flags - the repair tool, for a mis-click. The buttons on the right run the real thing: a death destroys Truth Bullets, an invitation makes a Monocub.",
+      "whoIsAliveNote": "State only moves the flags, on Apply - the repair tool, for a mis-click. Role changes at once. The buttons run the real thing: a death destroys Truth Bullets, an invitation makes a Monocub.",
       "doColumn": "Do",
       "refundCrossing": "Refund last crossing",
       "refundCrossingNote": "{to} back to {from}",
       "nextChapterEndStopped": "The end of the chapter stopped before every step was done. Finish it in End the chapter.",
       "nextTrialOutlived": "The chapter has moved on and the trial is still sitting. End the trial.",
-      "nextReady": "The players have been asked before the clock moves. Open the question again."
+      "nextReady": "The players have been asked before the clock moves. Open the question again.",
+      "roleColumn": "Role",
+      "role": {
+        "student": "Student"
+      },
+      "levelUpColumn": "Level Up",
+      "group": {
+        "students": "Students",
+        "monokumas": "Monokumas",
+        "notInClass": "Not in the class"
+      }
     },
     "Character": {
       "notACharacter": "That only works on a character.",

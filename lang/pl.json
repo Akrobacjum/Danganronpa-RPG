@@ -4323,14 +4323,24 @@
       "checksImagesBytes": "{mb} MB",
       "seasonChecks": "Kontrola przed sezonem",
       "whoIsAlive": "Uczniowie",
-      "whoIsAliveNote": "Lista rozwijana tylko przestawia flagi - narzędzie naprawcze na pomyłkę. Przyciski po prawej robią to naprawdę: śmierć niszczy Truth Bullets, zaproszenie tworzy Monocuba.",
+      "whoIsAliveNote": "Stan tylko przestawia flagi, po Zastosuj - narzędzie naprawcze na pomyłkę. Rola zmienia się od razu. Przyciski robią to naprawdę: śmierć niszczy Truth Bullets, zaproszenie tworzy Monocuba.",
       "doColumn": "Zrób",
       "refundCrossing": "Zwróć ostatnie przejście",
       "refundCrossingNote": "{to} z powrotem do {from}",
       "nextChapterEndStopped": "Koniec rozdziału zatrzymał się przed wykonaniem wszystkich kroków. Dokończ go w oknie Zakończ rozdział.",
       "nextTrialOutlived": "Rozdział poszedł dalej, a Class Trial wciąż trwa. Zakończ Class Trial.",
       "refilled": "Akcje i Search Tokens odnowione. Motive, pieczęcie i overflow zostały nietknięte, a na czat nie trafiła karta pory dnia.",
-      "nextReady": "Gracze dostali pytanie przed przesunięciem zegara. Otwórz je ponownie."
+      "nextReady": "Gracze dostali pytanie przed przesunięciem zegara. Otwórz je ponownie.",
+      "roleColumn": "Rola",
+      "role": {
+        "student": "Uczeń"
+      },
+      "levelUpColumn": "Level Up",
+      "group": {
+        "students": "Uczniowie",
+        "monokumas": "Monokumy",
+        "notInClass": "Poza klasą"
+      }
     },
     "Character": {
       "notACharacter": "To działa tylko na postaci.",
