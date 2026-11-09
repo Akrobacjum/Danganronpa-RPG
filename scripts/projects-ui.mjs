@@ -641,11 +641,13 @@ export function projectTraitOptions(current = "") {
  * PROJECT_DESCRIPTION_MAX characters). One textarea named `description`, in the markup of the window around it - the
  * player's proposal (action-project.mjs `startProject`) and this file's `openProjectDialog`, neither on the kit yet
  * (E21 moves them) - with no `maxlength`, which would cut a pasted text without a word: a description too long is
- * refused instead (`guardDescription`), with its length.
+ * refused instead (`guardDescription`), with its length. Its label is a column (`drpg-description-field`, danganronpa.css;
+ * E24 C6, the owner's A8 of 09.11.2026): the caption, the textarea the form's width, the note under it - as a row of
+ * `.drpg-panel label` the three stood side by side and the textarea took 59 of 544 px (R1492).
  */
 export function descriptionField(value = "") {
     const esc = foundry.utils.escapeHTML;
-    return `<label>${game.i18n.localize("DRPG.Project.description")}
+    return `<label class="drpg-description-field">${game.i18n.localize("DRPG.Project.description")}
                 <textarea name="description" rows="4"
                           placeholder="${esc(game.i18n.localize("DRPG.Project.descriptionPlaceholder"))}">${esc(value ?? "")}</textarea>
                 <small class="notes">${esc(game.i18n.format("DRPG.Project.descriptionNote", { max: PROJECT_DESCRIPTION_MAX }))}</small></label>`;

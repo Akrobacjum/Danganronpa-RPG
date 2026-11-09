@@ -2162,10 +2162,11 @@
       },
       "traceImage": "Image",
       "savedOver": {
-        "one": "One field had changed elsewhere while this window was open, and was not saved: {list}. The window shows what it holds now; type yours again if it should stand.",
-        "other": "{n} fields had changed elsewhere while this window was open, and were not saved: {list}. The window shows what they hold now; type yours again if they should stand."
+        "one": "One field had changed elsewhere while this window was open, and was not saved: {list}. Open Investigation again to see what it holds now; type yours again if it should stand.",
+        "other": "{n} fields had changed elsewhere while this window was open, and were not saved: {list}. Open Investigation again to see what they hold now; type yours again if they should stand."
       },
       "savedOverItem": "{field} of {row}: \"{value}\"",
+      "saveStopped": "The Save stopped part-way: {error}. What it wrote before that stands and the rest was not saved; Investigation is open again on what the world holds now - type the rest again.",
       "createHereTitle": "Create a Key Remnant here",
       "createHereIntro": { "one": "They named a point of interest and you have decided there is something there. This puts it on the map, and can hang it on the {n} clue you planned.", "other": "They named a point of interest and you have decided there is something there. This puts it on the map, and can hang it on one of the {n} clues you planned." },
       "whichSlot": "Which planned clue is this?",

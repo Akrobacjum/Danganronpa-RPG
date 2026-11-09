@@ -40512,6 +40512,103 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ "stained-glass": { ...want, mark: "32px" }, "monokuma-legacy": { ...want, mark: "16px" } }),
             "{per theme: the row's winning width / display / grid-template-columns; the list's display; the value's text-align; name: its overflow-wrap; mark: the value's background size; own: the value's winning background names an SVG under the module's icons/; served; grid: a 16x16 view; crisp: crispEdges; rects: whole-pixel rects only; palette: every colour the item icons'; inkAndOne: the ink and exactly one other; text: the value's font-size not nothing}");
     }],
+    ["R1492 - a project's description takes the form's width (projects-ui.mjs `descriptionField`; E24 C6, the owner's A8 of 09.11.2026): in the GM's Edit project and the player's proposal, under both themes, its label is a column - the caption, then the textarea stretched to the row's width, then the note under it", async () => {
+        /*
+         * E24 C6. The owner, 09.11.2026: "Opis okna projects - za waskie", with a screenshot of Edit project: the
+         * Description textarea about a third of the window, its placeholder wrapping, the note beside it on the right.
+         * `.drpg-panel label` is a flex row (danganronpa.css, for the checkbox rows), and the field's one label held the
+         * caption, the textarea and the note side by side. Measured in Chromium on a scratch page drawing both windows with
+         * the kit's own `drpgWindow` and this field's markup under the module's sheets (no Foundry stylesheet), at 52955be4:
+         * the textarea 59 px of a 544 px form under Stained Glass and 95 of 542 under Monokuma Legacy, the note beside it;
+         * after the fix, the textarea the form's width and the note under it (the commit quotes both readings). Read here
+         * from the sheets' text, as tier 1 can: the field's label in each window's stand-in tree (both open on
+         * `drpgWindow` with `drpg-panel`; R1351 holds both to the field: `descriptionField("")` in `startProject` and
+         * `descriptionField(start?.description ?? "")` in `openProjectDialog`), per theme: its winning direction and alignment, the textarea's
+         * width and the order of the parts. Red at 52955be4: a row, centred, no width.
+         */
+        const C = await styleCascade();
+        const UI = await import("./projects-ui.mjs");
+        must(typeof UI.descriptionField === "function", "projects-ui.mjs has no descriptionField - nothing to read");
+        const drawn = theme => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-gm`;
+            const app = document.createElement("div");
+            app.className = "application dialog drpg-panel drpg-ui";
+            app.innerHTML = `<section class="window-content"><form class="dialog-form standard-form"><div class="dialog-content standard-form">`
+                + `<div class="drpg-kit-body"><form>${UI.descriptionField("")}</form></div></div></form></section>`;
+            html.append(body);
+            body.append(app);
+            return app.querySelector('textarea[name="description"]')?.closest("label") ?? null;
+        };
+        const got = {}, want = {};
+        for (const theme of ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"]) {
+            const label = drawn(theme);
+            must(label, `the field drew no textarea in a label under ${theme}`);
+            const area = label.querySelector("textarea"), note = label.querySelector("small.notes");
+            got[theme] = {
+                direction: C.winner(label, "flex-direction")?.value ?? null, align: C.winner(label, "align-items")?.value ?? null,
+                width: C.winner(area, "width")?.value ?? null, maxWidth: C.winner(area, "max-width")?.value ?? null,
+                parts: [...label.children].map(e => e.tagName.toLowerCase()),
+                order: [area, note].map(e => (e ? C.winner(e, "order")?.value ?? null : "missing"))
+            };
+            want[theme] = { direction: "column", align: "stretch", width: "100%", maxWidth: null, parts: ["textarea", "small"], order: [null, null] };
+        }
+        equal(stableJson(got), stableJson(want),
+            "[per theme, the description's label in a drpg-panel window: its winning flex-direction and align-items; the textarea's winning width and "
+            + "max-width; the label's parts in order; the order property of the textarea and the note]");
+    }],
+    ["R1493 - the dashboard's Save closes it, and New trace opens it again (investigation.mjs `openInvestigationDashboard`; E24 C6, the owner's A9 of 09.11.2026): Save pressed on the drawn window answers null with no copy of the window left; New trace, its own window cancelled, draws the dashboard again", async () => {
+        /*
+         * E24 C6. The owner, 09.11.2026: "Przycisk save nie zamyka okna investigation." Since E09 C13 the window reopened
+         * itself after its Save, so the GM saw the saved state; the owner calls that a defect - Save saves and closes. The
+         * six other footer buttons keep their reopen with what they did (`runDashboardButton`, `said`). Pressed here on
+         * the window as a GM opens it, with nothing changed in it, so the Save writes nothing (`applyDashboardSave` writes
+         * only a field the GM changed; tier 2's "the dashboard's Save with a change closes it" writes one and reads it in
+         * the world) - and New trace, whose window is closed unanswered, so no trace is placed. Red at 52955be4: the Save
+         * drew the dashboard again and its opener was still waiting on the new copy.
+         */
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        must(game.user.isGM, "the dashboard is a GM's window");
+        const I = await import("./investigation.mjs");
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        const cases = () => of("drpg-window-case");
+        must(cases().length === 0 && of("drpg-window-newtrace").length === 0, "a dashboard or a New trace window stands open already - nothing here would be read cleanly");
+        const opened = () => Promise.resolve().then(() => I.openInvestigationDashboard()).catch(e => `threw: ${e?.message ?? e}`);
+        const answered = (answer, ms) => Promise.race([answer, wait(ms).then(() => "still waiting")]);
+        const pending = [];
+        const got = {};
+        try {
+            const first = opened();
+            pending.push(first);
+            await until(() => cases().some(a => a.element), 6000);
+            const save = cases()[0]?.element?.querySelector('footer.form-footer button[data-action="save"]') ?? null;
+            must(save, "the dashboard drew no Save in its footer");
+            save.click();
+            const answer = await answered(first, 6000);
+            await wait(200);
+            got.save = { answer: answer ?? null, left: cases().length };
+
+            const second = opened();
+            pending.push(second);
+            await until(() => cases().some(a => a.element), 6000);
+            const drawn = cases()[0] ?? null;
+            const button = drawn?.element?.querySelector('footer.form-footer button[data-action="newTrace"]') ?? null;
+            must(button, "the dashboard drew no New trace in its footer");
+            button.click();
+            await until(() => of("drpg-window-newtrace").some(a => a.element), 6000);
+            const trace = of("drpg-window-newtrace")[0] ?? null;
+            const traceDrawn = Boolean(trace?.element);
+            await trace?.close();
+            const again = await until(() => cases().some(a => a !== drawn && a.element), 6000);
+            got.newTrace = { traceDrawn, again, old: Boolean(drawn?.rendered), waiting: await answered(second, 200) === "still waiting" };
+        } finally {
+            for (const a of [...of("drpg-window-newtrace"), ...cases()]) await a.close().catch(() => {});
+            await Promise.all(pending.map(p => answered(p, 3000)));
+        }
+        equal(stableJson(got), stableJson({ save: { answer: null, left: 0 }, newTrace: { traceDrawn: true, again: true, old: false, waiting: true } }),
+            "{save: [what the opener answered after Save, how many dashboards stand open]; newTrace: [the New trace window drawn, the dashboard drawn "
+            + "again after it closed, the first copy still rendered, the opener still waiting on the new copy]}");
+    }],
 ];
 
 /**

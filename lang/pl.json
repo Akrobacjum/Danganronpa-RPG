@@ -2322,12 +2322,13 @@
       },
       "traceImage": "Obraz",
       "savedOver": {
-        "one": "Jedno pole zmieniło się gdzie indziej, gdy to okno było otwarte, i nie zostało zapisane: {list}. Okno pokazuje, co jest w nim teraz; wpisz swoje jeszcze raz, jeśli ma zostać.",
-        "few": "{n} pola zmieniły się gdzie indziej, gdy to okno było otwarte, i nie zostały zapisane: {list}. Okno pokazuje, co jest w nich teraz; wpisz swoje jeszcze raz, jeśli ma zostać.",
-        "many": "{n} pól zmieniło się gdzie indziej, gdy to okno było otwarte, i nie zostało zapisanych: {list}. Okno pokazuje, co jest w nich teraz; wpisz swoje jeszcze raz, jeśli ma zostać.",
-        "other": "{n} pól zmieniło się gdzie indziej, gdy to okno było otwarte, i nie zostało zapisanych: {list}. Okno pokazuje, co jest w nich teraz; wpisz swoje jeszcze raz, jeśli ma zostać."
+        "one": "Jedno pole zmieniło się gdzie indziej, gdy to okno było otwarte, i nie zostało zapisane: {list}. Otwórz Investigation ponownie, by zobaczyć, co jest w nim teraz; wpisz swoje jeszcze raz, jeśli ma zostać.",
+        "few": "{n} pola zmieniły się gdzie indziej, gdy to okno było otwarte, i nie zostały zapisane: {list}. Otwórz Investigation ponownie, by zobaczyć, co jest w nich teraz; wpisz swoje jeszcze raz, jeśli ma zostać.",
+        "many": "{n} pól zmieniło się gdzie indziej, gdy to okno było otwarte, i nie zostało zapisanych: {list}. Otwórz Investigation ponownie, by zobaczyć, co jest w nich teraz; wpisz swoje jeszcze raz, jeśli ma zostać.",
+        "other": "{n} pól zmieniło się gdzie indziej, gdy to okno było otwarte, i nie zostało zapisanych: {list}. Otwórz Investigation ponownie, by zobaczyć, co jest w nich teraz; wpisz swoje jeszcze raz, jeśli ma zostać."
       },
       "savedOverItem": "{field} - {row}: „{value}”",
+      "saveStopped": "Zapis zatrzymał się w połowie: {error}. To, co zapisał wcześniej, zostaje, a reszty nie zapisano; Investigation jest znów otwarte na tym, co jest teraz w świecie - wpisz resztę jeszcze raz.",
       "createHereTitle": "Utwórz tu Key Remnant",
       "createHereIntro": {
         "one": "Wskazali punkt zainteresowania, a ty uznajesz, że coś tam jest. To stawia ślad na mapie i może go podpiąć pod {n} zaplanowany trop.",

@@ -1037,9 +1037,10 @@ async function drawnMurderWindow(open) {
 
 /**
  * The Investigation Dashboard drawn, opened as a GM opens it (E09 C3). `field(name)` reads an
- * input fresh, because a redraw replaces them; `save()` presses Save, waits for the window the
- * Save reopens on and closes it, so the whole Save has run when it returns; `close()` closes
- * whatever copy stands. Each settles `answer`, the opener's own promise.
+ * input fresh, because a redraw replaces them; `save()` presses Save and waits for `answer`, the
+ * opener's own promise, which settles once the whole Save has run - the Save closes the window
+ * (E24 C6; until then it reopened, and this waited for that copy and closed it); `close()` closes
+ * whatever copy stands. Each settles `answer`.
  */
 async function drawnCaseWindow() {
     const investigation = await import("./investigation.mjs");
@@ -1057,9 +1058,8 @@ async function drawnCaseWindow() {
         app, answer, close,
         field: name => app?.element?.querySelector(`[name="${CSS.escape(name)}"]`) ?? null,
         save: async () => {
-            const seen = new Set(open());
             app?.element?.querySelector('footer.form-footer button[data-action="save"]')?.click();
-            await until(() => open().some(a => !seen.has(a) && a.element), 6000);
+            await Promise.race([answer, wait(10000)]);
             await close();
         }
     };
@@ -26646,6 +26646,51 @@ const SCENARIOS = [
             if (rows.length) await S.keyPlanStore.dropMany(rows);
             if (token && S.cleanupAttemptStore.get(who.id)?.tokenId === token.id) await S.cleanupAttemptStore.drop(who.id);
             await setClock(clock);
+        }
+    }],
+
+    ["the dashboard's Save with a change closes it, the change in the world (E24 C6; the owner's A9 of 09.11.2026)", async () => {
+        /*
+         * E24 C6. The owner, 09.11.2026: "Przycisk save nie zamyka okna investigation." From E09 C13 the dashboard reopened
+         * itself after its Save; now Save saves and closes (investigation.mjs `openInvestigationDashboard`). Tier 1's R1493
+         * presses Save on a window with nothing changed, so it writes nothing; this one changes a fixture trace's name in
+         * the drawn window, presses Save, and reads that the opener answered, that no copy of the window stands, and that
+         * the name is the trace's in the world. Red at 52955be4: the opener still waiting on the copy the Save reopened.
+         */
+        const remnants = await import("./remnants.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace stands on the scene on screen");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const scene = canvas.scene;
+        const open = () => [...foundry.applications.instances.values()]
+            .filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
+        let token = null;
+        let win = null;
+        try {
+            token = await remnants.placeRemnant({
+                type: "prep", visibility: "evident", x: 0, y: 0, scene, chapter: getClock().chapter,
+                note: "test fixture - E24 C6 the dashboard's Save closes it"
+            });
+            must(token, "could not place the fixture trace");
+            await remnants.setRemnantPublic(token, { name: "SUITE E24C6 as drawn" });
+            await gmStoresIdle();
+            const key = `${scene.id}__${token.id}`;
+            win = await drawnCaseWindow();
+            must(win.field(`name.${key}`)?.value === "SUITE E24C6 as drawn", `the dashboard does not list the fixture trace as drawn: ${stableJson({
+                open: Boolean(win.app?.element), value: win.field(`name.${key}`)?.value ?? null })}`);
+            win.field(`name.${key}`).value = "SUITE E24C6 saved";
+            win.app.element.querySelector('footer.form-footer button[data-action="save"]')?.click();
+            const answer = await Promise.race([win.answer, wait(10000).then(() => "still waiting")]);
+            await gmStoresIdle();
+            await wait(200);
+            equal(stableJson({ answer: answer ?? null, open: open().length, name: remnants.remnantData(token)?.public?.name ?? null }),
+                stableJson({ answer: null, open: 0, name: "SUITE E24C6 saved" }),
+                "{answer: what the opener answered after Save; open: dashboards still drawn; name: the fixture trace's name in the world}");
+        } finally {
+            if (win) await win.close().catch(() => {});
+            if (token) {
+                await remnants.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
         }
     }],
 

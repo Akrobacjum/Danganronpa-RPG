@@ -5996,6 +5996,23 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     width: 100%;
 }
 
+/* A project's description, laid out as "Which statistic?" is (E24 C6; the owner's A8 of 09.11.2026, "Opis okna projects -
+   za waskie"): the caption on the line above, the textarea the form's width, its note under it - in the GM's Edit project
+   and New project and the player's proposal, the one label projects-ui.mjs `descriptionField` draws. As a row of
+   `.drpg-panel label` the caption, the textarea and the note stood side by side: measured in Chromium at 52955be4 on a
+   scratch page drawing both windows with the kit's `drpgWindow` under the module's sheets, the textarea 59 px of a 544 px
+   form under Stained Glass and 95 of 542 under Monokuma Legacy (R1492; at a table, Foundry's own sheet beside these). */
+.drpg-panel label.drpg-description-field {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+}
+
+.drpg-panel label.drpg-description-field > textarea {
+    width: 100%;
+    box-sizing: border-box;
+}
+
 /* ==========================================================================
    WINDOWS ARRIVE, AND WINDOWS LEAVE
    --------------------------------------------------------------------------

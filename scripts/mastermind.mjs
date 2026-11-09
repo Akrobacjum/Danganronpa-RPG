@@ -767,7 +767,9 @@ export async function placeFinalRemnant({ room, scene: onScene = null, visibilit
     const scene = onScene ?? sceneOfRoom(room);
     const region = roomRegions(scene, room)[0];
     if (!region) {
-        ui.notifications.warn(game.i18n.format("DRPG.Calls.noSuchRoom", { room }));
+        // Until dismissed (E24 C6): its one caller is the Investigation dashboard's Save, which closes the window it was
+        // pressed on now, so a toast that faded in seconds would leave the GM nothing saying the clue was not placed.
+        ui.notifications.warn(game.i18n.format("DRPG.Calls.noSuchRoom", { room }), { permanent: true });
         return null;
     }
 
