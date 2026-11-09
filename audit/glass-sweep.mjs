@@ -986,17 +986,31 @@ if (args.includes("--board")) {
                  inside its hold) and the turn fired: E61 MK-R2's flashpeak.js read on the seams' own pixels, their
                  median Rec. 709 luminance (the harness's `seams`, the field's, both cuts; `turnFlashPeak` says why
                  the median); `flash <peak>/<rest>`, read only on a turn that moves the accent (layout's is "-")
+     the still   (E96 C2, 09.11.2026; the owner at the table on 1.2.101: "at the start of the move the colours and the
+                 textures near the edge refresh") two pages a recolour (phase-recut, phase, hour): two screenshots at
+                 rest 300 ms apart, then the clock stood still 1 ms into every layer (`drpgTurnFreeze(1)`) and the turn
+                 fired; the second the same with the flash off (`?flash=0`) at STILL_MID ms, each batch near the middle
+                 of its fade on ARRIVE. Each against its first rest picture: the mean absolute difference of R, G and B
+                 in the STILL_EDGE px band along the screen's sides and inside it (`turnDiff`); and `turnTexture` of the
+                 band at rest, at the first frame and at the middle. `still <edge>/<inside> (rest <edge>/<inside>) mid
+                 <edge>/<inside> tex <rest>/<first>/<mid>`; the first frame must stand within STILL_MAX of rest on both,
+                 and the texture at the first frame, and at the middle of a turn that keeps its cut, within
+                 TEX_MIN..TEX_MAX of rest. The pictures are of the curtain alone (`ALONE`): the blocks a recut
+                 answers change at once and are the page's; the page's own transitions begun by the turn stand still
+                 at the same ms. `--shots` keeps them, with the whole screen at the first frame and the middle
    The line: `turn <kind> <size> <role> main <ms> (rest <ms>) long <n>/<longest> frames <median>/<p95>/<max> (rest
    <median>) first <ms> len <ms> clip <frames>/<writes> draw <frames>/<calls> tex <low>/<rest>/<after> worst <n>% at
-   <x,y> (<n> frames) flash <peak>/<rest> cut <same|new>/<cuts> check <ov>/<bf>/<eg> (<before> -> <after>) tilt
+   <x,y> (<n> frames) still <...> flash <peak>/<rest> cut <same|new>/<cuts> check <ov>/<bf>/<eg> (<before> -> <after>) tilt
    <straight>/<frames> worn <n> (<n> buttons)`: since E23 C1d (E23-10, the owner's 14.10) each corner launcher's computed
    transform read on every frame of the clock page from the event on - the frames in which any of them stood straight,
    and the most transforms one button wore (1 on a turn that keeps the cut, 2 where a recut turns them to its angle). A
    line FAILS, its reasons printed, where a frame wrote a clip path or drew a canvas (E23-01), a square of the band's
    texture inside the turn falls under 80 % of its rest (E23-04), the flash peak stands more than 8 from today's
    (E23-03), an hour's turn recut or fired `drpgGlassCut` (E23-06), the self-check inside the turn reads worse than both
-   the cut it found and the cut it leaves (E23-08; a fault of the cut itself is the sweep proper's), or a launcher stood
-   straight in a frame of the turn (E23-10). TODAY'S FLASH is the
+   the cut it found and the cut it leaves (E23-08; a fault of the cut itself is the sweep proper's), a launcher stood
+   straight in a frame of the turn (E23-10), or (E96 C2) a recolour's first frame stands more than STILL_MAX from rest
+   along the sides or inside, or the band's texture at its first frame or its fade's middle outside TEX_MIN..TEX_MAX
+   of rest - the screencast's squares are bounded below only, as the flash lights the seams. TODAY'S FLASH is the
    reading of the same theme, role, size and turn in the file `--against <json>` names (a `--json` of 1d860414's run,
    C1a's baseline), and without one MK-R2's 203 at 1600x900; anywhere else the peak is printed "(unjudged)". On
    1d860414 itself it is not one number: 202-204 at 1600x900, but 187-199 at 1366x768, where a recut's old seams stand
@@ -1060,11 +1074,37 @@ async function turnFlashPeak([b64, segs]) {
     L.sort((a, b) => a - b);
     return L.length ? { p50: +L[L.length >> 1].toFixed(1), n: L.length } : null;
 }
+/* Runs in a blank page (E96 C2): two pictures of one size, the mean absolute difference of their R, G and B over the
+   band `edge` px wide along the screen's four sides (`edge`) and over the rest (`inside`). */
+async function turnDiff([a64, b64, edge]) {
+    const load = async s => {
+        const bmp = await createImageBitmap(await (await fetch(`data:image/png;base64,${s}`)).blob());
+        const g = new OffscreenCanvas(bmp.width, bmp.height).getContext("2d");
+        g.drawImage(bmp, 0, 0);
+        return { W: bmp.width, H: bmp.height, d: g.getImageData(0, 0, bmp.width, bmp.height).data };
+    };
+    const A = await load(a64), B = await load(b64);
+    if (A.W !== B.W || A.H !== B.H) return null;
+    const { W, H } = A, s = [0, 0], n = [0, 0];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const q = (y * W + x) * 4, k = x < edge || y < edge || x >= W - edge || y >= H - edge ? 0 : 1;
+        s[k] += (Math.abs(A.d[q] - B.d[q]) + Math.abs(A.d[q + 1] - B.d[q + 1]) + Math.abs(A.d[q + 2] - B.d[q + 2])) / 3; n[k]++;
+    }
+    return { edge: n[0] ? +(s[0] / n[0]).toFixed(2) : 0, inside: n[1] ? +(s[1] / n[1]).toFixed(2) : 0 };
+}
 if (args.includes("--turn")) {
     const KINDS = (opt("--kinds") ?? "phase-recut,phase,hour,layout").split(",").filter(Boolean);
     const turnMs = Number(opt("--turn-ms") ?? 3000), runs = Math.max(1, Number(opt("--runs") ?? 1)), json = opt("--json");
     const tThemes = (opt("--themes") ?? "stained").split(",").filter(Boolean);
     const FLASH = 8, TEX_MIN = 0.8, MOVES_ACCENT = ["phase-recut", "phase", "hour"];
+    /* E96 C2, read on the curtain alone (09.11.2026, GM, 2000x1072 and 1600x900, the three recolours): two pictures at
+       rest 300 ms apart stood 0/0 apart on every line, so the threshold is the turn's own first millisecond, not the
+       noise - each batch 1 ms into its fade on ARRIVE is about 0.0175 of the way (the curve's slope at 0, 0.84/0.16,
+       over 300 ms), 0.48-0.68 along the sides and 0.19-0.29 inside once the turn crossfades, against 2.04-2.53 and
+       0.62-0.99 at 7175878b; STILL_MAX stands between. The band's texture at the first frame read 95-99 % of rest on
+       the phases and the hours crossfaded, 115-118 % at 7175878b (two looks through the glass), so TEX_MAX is 110 %;
+       a recut's first frame reads 85-91 % (its moving layers sampled, E23 fix G1), over TEX_MIN. */
+    const TEX_MAX = 1.1, STILL = ["phase-recut", "phase", "hour"], STILL_EDGE = 140, STILL_MAX = 1, STILL_MID = 36;
     const against = opt("--against") ? JSON.parse(readFileSync(opt("--against"), "utf8")) : null;
     /* the flash's band: today's peak +/- 8 - the baseline's reading of the same theme, role, size and turn with
        `--against`, else MK-R2's 203 at 1600x900 (a GM's, read on the harness 05.11), else none and the peak unjudged */
@@ -1146,10 +1186,62 @@ if (args.includes("--turn")) {
         await page.close();
         return { r, rest: await calc.evaluate(turnFlashPeak, [rest, r.seams]), peak: await calc.evaluate(turnFlashPeak, [peak, r.seams]) };
     };
+    /* the still page (E96 C2): two pictures at rest 300 ms apart (`noise`), then the clock stood still 1 ms into every
+       layer of the turn (`drpgTurnFreeze(1)`) and the turn fired (`first`); a second page the same at STILL_MID ms
+       (`mid`, each batch near the middle of its crossfade on ARRIVE). Each against the first rest picture, in the
+       STILL_EDGE px band along the screen's sides and inside it; and the band's texture (`turnTexture`) at rest, at
+       the first frame and at the middle. `--shots` keeps the three pictures. */
+    /* the curtain alone: what is not the curtain or a layer of its turn (the harness's TURN_REGION) hidden for the
+       picture and shown again - the blocks a recut answers change at once and are the page's, not the turn's */
+    const ALONE = "body * { visibility: hidden !important; } #drpg-curtain, #drpg-curtain *, [id^=drpg-curtain-], [id^=drpg-curtain-] *, "
+        + "[data-glow], canvas.curtain-glow { visibility: visible !important; }";
+    const alone = async page => {
+        await page.evaluate(css => { const st = document.createElement("style"); st.id = "drpg-still-alone"; st.textContent = css; document.head.append(st); }, ALONE);
+        const png = (await page.screenshot({ type: "png" })).toString("base64");
+        await page.evaluate(() => document.getElementById("drpg-still-alone")?.remove());
+        return png;
+    };
+    const still = async (theme, role, size, kind) => {
+        const one = async (at, extra = []) => {
+            const { page, loaded } = await open(theme, role, size, extra);
+            if (!loaded) { await page.close(); return null; }
+            await page.evaluate(k => window.drpgTurn(k, { stage: "prep" }), kind);
+            const rest = await alone(page);
+            await page.waitForTimeout(300);
+            const rest2 = await alone(page);
+            await page.evaluate(a => window.drpgTurnFreeze(a), at);
+            /* the page's own transitions and animations begun by the turn - the interface's colours run on the
+               curtain's time (R1379) - stood still `at` ms into theirs as well: the frozen clock holds only what the
+               turn hands the browser, and a transition left to run is at its end in the picture, not at its start */
+            await page.evaluate(a => {
+                const seen = new Set(document.getAnimations());
+                const hold = () => { for (const x of document.getAnimations()) if (!seen.has(x) && /^CSS(Transition|Animation)$/.test(x.constructor?.name ?? "")) { seen.add(x); x.pause(); x.currentTime = (x.effect?.getTiming?.().delay || 0) + a; } };
+                for (const e of ["transitionrun", "animationstart"]) document.addEventListener(e, hold, true);
+            }, at);
+            const r = await page.evaluate(k => window.drpgTurn(k, { stage: "fire", ms: 1500 }), kind);
+            const turn = await alone(page), whole = (await page.screenshot({ type: "png" })).toString("base64");
+            await page.close();
+            return { r, rest, rest2, turn, whole };
+        };
+        const a = await one(1), b = a && await one(STILL_MID, ["flash=0"]);
+        if (!a || !b) return null;
+        if (shots) for (const [name, v] of [["rest", a.rest], ["first", a.turn], ["mid", b.turn], ["first-whole", a.whole], ["mid-whole", b.whole]]) writeFileSync(path.join(shots, `turn-${theme}-${role}-${size}-${kind}-${name}.png`), Buffer.from(v, "base64"));
+        const tex = async v => a.r.band ? (await calc.evaluate(turnTexture, [v, a.r.band])).all : null;
+        return { cut: a.r.cut, noise: await calc.evaluate(turnDiff, [a.rest, a.rest2, STILL_EDGE]), first: await calc.evaluate(turnDiff, [a.rest, a.turn, STILL_EDGE]),
+            mid: await calc.evaluate(turnDiff, [b.rest, b.turn, STILL_EDGE]), tex: { rest: await tex(a.rest), first: await tex(a.turn), mid: await tex(b.turn) } };
+    };
     const n1 = v => v == null ? "-" : String(Math.round(v));
     const worst = cs => { const k = (cs ?? []).filter(Boolean); return k.length ? [0, 1, 2].map(i => Math.max(...k.map(c => c[i]))) : null; };
-    const judge = (kind, c, t, f, base) => {
+    const judge = (kind, c, t, f, base, st = null) => {
         const why = [];
+        if (st?.first && Math.max(st.first.edge, st.first.inside) > STILL_MAX) why.push(`the first frame stood ${st.first.edge} from rest in the ${STILL_EDGE} px band along the sides and ${st.first.inside} inside (two rest frames: ${st.noise?.edge}/${st.noise?.inside}; E96: ${STILL_MAX})`);
+        for (const at of ["first", "mid"]) {
+            const v = st?.tex?.[at], r0 = st?.tex?.rest;
+            /* a recut's middle carries each moving pane over its new place, two textures by design (C1b's hand-over):
+               printed, not judged (1.29-1.54 at 36 ms, 1.39-1.62 at 7175878b) */
+            if (v == null || !r0 || (at === "mid" && st.cut !== "same")) continue;
+            if (v / r0 > TEX_MAX || v / r0 < TEX_MIN) why.push(`the band's texture at the ${at === "first" ? "first frame" : "fade's middle"} stood at ${Math.round(100 * v / r0)} % of rest (${v}/${r0}; E96: ${Math.round(100 * TEX_MIN)}-${Math.round(100 * TEX_MAX)} %)`);
+        }
         if (c.clip.frames) why.push(`${c.clip.frames} frame(s) wrote a clip path (E23-01)`);
         if (c.draw.frames) why.push(`${c.draw.frames} frame(s) drew on a canvas (E23-01)`);
         if (t?.worst && t.worst.ratio < TEX_MIN) why.push(`the texture inside the turn fell to ${Math.round(100 * t.worst.ratio)} % of rest in the square at ${t.worst.at} (${t.worst.low}/${t.worst.ref}; E23-04: 80 %)`);
@@ -1162,9 +1254,10 @@ if (args.includes("--turn")) {
         if (w && ends && w.some((v, i) => v > ends[i])) why.push(`the self-check inside the turn read ${w.join("/")}, worse than ${ends.join("/")} before and after (E23-08)`);
         return why;
     };
-    const line = (kind, size, role, c, t, f, base) => `turn ${kind.padEnd(11)} ${size.padEnd(9)} ${role.padEnd(6)} main ${c.main} (rest ${c.restMain}) long ${c.long.length}/${c.long.length ? Math.max(...c.long) : 0} `
+    const line = (kind, size, role, c, t, f, base, st = null) => `turn ${kind.padEnd(11)} ${size.padEnd(9)} ${role.padEnd(6)} main ${c.main} (rest ${c.restMain}) long ${c.long.length}/${c.long.length ? Math.max(...c.long) : 0} `
         + `frames ${c.frames ? `${c.frames.med}/${c.frames.p95}/${c.frames.max}` : "-"} (rest ${c.rest?.frames?.med ?? "-"}) first ${n1(c.first)} len ${n1(c.last)} `
         + `clip ${c.clip.frames}/${c.clip.writes} draw ${c.draw.frames}/${c.draw.calls} tex ${t?.low ?? "-"}/${t?.rest ?? "-"}/${t?.after ?? "-"} worst ${t?.worst ? `${Math.round(100 * t.worst.ratio)}% at ${t.worst.at}` : "-"} (${t?.n ?? 0} frames) `
+        + `still ${st ? `${st.first.edge}/${st.first.inside} (rest ${st.noise.edge}/${st.noise.inside}) mid ${st.mid.edge}/${st.mid.inside} tex ${st.tex.rest}/${st.tex.first}/${st.tex.mid}` : "-"} `
         + `flash ${f?.peak ? `${f.peak.p50}/${f.rest?.p50 ?? "-"}${base == null ? " (unjudged)" : ""}` : "-"} cut ${c.cut}/${c.cuts} check ${(worst(c.checks) ?? ["-", "-", "-"]).join("/")} (${(c.check0 ?? ["-"]).join("/")} -> ${(c.check ?? ["-"]).join("/")}) `
         + `tilt ${c.tilt ? `${c.tilt.none}/${c.tilt.frames} worn ${c.tilt.worn} (${c.tilt.buttons} buttons)` : "-"}`;
     try {
@@ -1176,12 +1269,13 @@ if (args.includes("--turn")) {
                 const t = await texture(theme, role, size, kind);
                 const f = MOVES_ACCENT.includes(kind) ? await flash(theme, role, size, kind) : null;
                 const base = flashBase(theme, role, size, kind);
+                const st = STILL.includes(kind) ? await still(theme, role, size, kind) : null;
                 if (kind === "hour" && f?.peak) hourFlash.set(`${theme} ${role} ${size}`, f.peak.p50);
                 for (const c of cs) {
-                    const why = judge(kind, c, t, f, base);
-                    console.log(line(kind, size, role, c, t, f, base) + (why.length ? `  - FAIL: ${why.join("; ")}` : ""));
+                    const why = judge(kind, c, t, f, base, st);
+                    console.log(line(kind, size, role, c, t, f, base, st) + (why.length ? `  - FAIL: ${why.join("; ")}` : ""));
                     if (why.length) bad++;
-                    readings.push({ theme, role, size, kind, clock: { ...c, seams: c.seams.length, band: c.band && { ...c.band, cells: c.band.cells.length } }, texture: t && { rest: t.rest, after: t.after, low: t.low, worst: t.worst, n: t.n, series: t.series, band: t.r.band && { ...t.r.band, cells: t.r.band.cells.length } }, flash: f && { rest: f.rest, peak: f.peak, cut: f.r.cut, acc: f.r.acc }, why });
+                    readings.push({ theme, role, size, kind, clock: { ...c, seams: c.seams.length, band: c.band && { ...c.band, cells: c.band.cells.length } }, still: st, texture: t && { rest: t.rest, after: t.after, low: t.low, worst: t.worst, n: t.n, series: t.series, band: t.r.band && { ...t.r.band, cells: t.r.band.cells.length } }, flash: f && { rest: f.rest, peak: f.peak, cut: f.r.cut, acc: f.r.acc }, why });
                 }
             }
             if (control && !today) {

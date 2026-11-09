@@ -38599,6 +38599,41 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify([[false, true], [true, true, 0]]),
             "[before: ended, layers laid]; [the class put on: ended, cancelled, layers left]");
     }],
+    ["R3120 - a recolour is a crossfade (glass.mjs `glassTurn`, E96 C2; the owner at the table on 1.2.101, H102 DIAGNOSIS 6): on a stand-in curtain a turn under a new accent bakes the new look per batch beside the old, rising 0 to 1 on the old one's delay while the old falls 1 to 0, each batch's two layers a group of their own with the new one added on; a moving pane's new place rises the same way under it; and the curtain is held at 0 under them until every rising layer ends, at one time", async () => {
+        /*
+         * E96 C2, 09.11.2026. C1b painted the new look beneath at once and laid the old over it, so the first frame of
+         * a recolour showed both looks through the see-through glass, the most on the wall panes along the sides
+         * (`--turn`'s still page reads the screen; this reads the layers). Read on a stand-in curtain (`turnRig`) with
+         * the old accent another, so the turn recolours: two triangles move and two stand. Red at 7175878b: no batch is
+         * a group, nothing of the new look is baked, the curtain is not held.
+         */
+        needs(env.motion());
+        const G = await import("./glass.mjs");
+        const rig = turnRig(G);
+        let read = null;
+        try {
+            const h = rig.turn({ fromAcc: "#ffd38f" });
+            must(h, "the stand-in recolour planned no turn - this reads nothing");
+            must(h.plan.recolour && h.plan.batches.length && h.plan.moves.length, `the stand-in recolour is not one that fades batches and moves panes (${h.plan.batches.length} batches, ${h.plan.moves.length} moves) - this reads nothing`);
+            const host = rig.host(), of = el => h.layers.find(l => l.el === el);
+            const pairs = [...host.querySelectorAll(".drpg-turn-fade")].map(p => {
+                const [o, n] = p.children, a = o && of(o), b = n && of(n);
+                return [Boolean(o && rig.ink(o).includes("old look")), Boolean(n?.classList.contains("drpg-turn-new") && rig.ink(n).includes("new glass")),
+                    a?.frames[0].opacity ?? null, a?.frames.at(-1).opacity ?? null, b?.frames[0].opacity ?? null, b?.frames.at(-1).opacity ?? null, Boolean(a && b && a.timing.delay === b.timing.delay)];
+            });
+            const rising = h.layers.filter(l => l.el.classList?.contains("drpg-turn-new"));
+            const under = rising.filter(l => !l.el.parentElement?.classList.contains("drpg-turn-fade"));
+            const ends = [...new Set(rising.map(l => (l.timing.delay ?? 0) + l.timing.duration))];
+            const curtain = of(rig.job.el);
+            read = [pairs.length === h.plan.batches.length, pairs.every(r => JSON.stringify(r) === JSON.stringify([true, true, 1, 0, 0, 1, true])),
+                under.length, under.every(l => l.frames[0].opacity === 0 && l.el.compareDocumentPosition(host.querySelector("canvas.drpg-turn-pane")) & 4),
+                ends.length, curtain ? [curtain.frames.map(f => f.opacity).join(","), curtain.timing.duration === ends[0]] : null];
+            h.cancel();
+            read.push(host.querySelectorAll("canvas, .drpg-turn-fade").length);
+        } finally { rig.done(); }
+        equal(JSON.stringify(read), JSON.stringify([true, true, 2, true, 1, ["0,0", true], 0]),
+            "[a group a batch, each [old look, new look added on, old 1 -> 0, new 0 -> 1, on one delay]; the moving panes' new places rising under the moves, each from 0; the rising layers' ends (one); the curtain's held opacity, until that end; layers left after the cancel]");
+    }],
     ["R1441 - the reserve census (E24 C0, E24-01; D5 option 1, \"everywhere the reserve\"): in scripts/ (the suite aside), every top-level function or table that reads Health or Sanity - `system.resources.hitPoints` or `.stress`, `resourceValue(_, \"hitPoints\"|\"stress\")`, a call of `marksOf(`, or the sheet's own bars (`.resources-section`) - either reads character.mjs `reserveView` or stands in the census's list of reads for rules, with its reason; every name on the list still reads; no file calls `marksOf` and character.mjs declares none; the curtain's files (glass.mjs, player-status.mjs, hud.mjs, room-tile.mjs) read none", async () => {
         /*
          * E24 C0, 08.11.2026. The owner's D5 option 1: everywhere a person reads Health or Sanity, the reserve ("N left",

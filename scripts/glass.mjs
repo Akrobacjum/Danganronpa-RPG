@@ -3704,7 +3704,7 @@ export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 120
        carried old all the way arrived plain where its place is stained - the harness's layout turn at 1600x900, the
        texture in its band at 26 % of rest (1d860414: 45 %); carried new all the way, it left squeezed or stretched
        from corners that are not its own. */
-    carry: recolour ? "old" : hold ? "both" : "old", hold, snap,
+    carry: recolour ? "old" : hold ? "both" : "old", hold, snap, holes: recolour ? holes : [],
     none: false, recolour, recut: moves.length > 0, dur, move: { ms: move, curve }, order, batchOf, delayOf, gap, moves, batches, flashes,
     frost: moves.length ? { out: FROST_OUT, in: FROST_IN } : null,
     glow: { ms: Math.max(moves.length ? move : 0, fadeEnd) || move }
@@ -3867,15 +3867,27 @@ function lookOnScreen(job, look) {
   g.globalAlpha = opacity(job.el);
   g.drawImage(look, 0, 0);
   const host = document.getElementById("drpg-curtain-turn");
-  for (const el of host?.querySelectorAll("canvas") ?? []) {
-    if (!h.made.includes(el)) continue;
+  const put = (t, el, op) => {
     const x = parseFloat(el.style.left) || 0, y = parseFloat(el.style.top) || 0, w = parseFloat(el.style.width) || el.width, ht = parseFloat(el.style.height) || el.height;
     const m = matrix(el);
-    g.setTransform(k, 0, 0, k, 0, 0);
-    g.translate(x, y);
-    if (m) g.transform(...m);
-    g.globalAlpha = opacity(el);
-    g.drawImage(el, 0, 0, w, ht);
+    t.setTransform(k, 0, 0, k, 0, 0);
+    t.translate(x, y);
+    if (m) t.transform(...m);
+    t.globalAlpha = opacity(el);
+    t.globalCompositeOperation = op;
+    t.drawImage(el, 0, 0, w, ht);
+    t.globalCompositeOperation = "source-over";
+  };
+  /* a recolour's batch (E96 C2) is a group: its new layer adds onto its old one, then the group lies over the rest */
+  let pair = null, pg = null;
+  for (const el of host?.querySelectorAll("canvas") ?? []) {
+    if (!h.made.includes(el)) continue;
+    const p = el.parentElement?.classList.contains("drpg-turn-fade") ? el.parentElement : null;
+    if (!p) { put(g, el, "source-over"); continue; }
+    if (p !== pair) { pair = p; const t = document.createElement("canvas"); t.width = c.width; t.height = c.height; pg = t.getContext("2d"); }
+    if (!pg) continue;
+    put(pg, el, el.classList.contains("drpg-turn-new") ? "lighter" : "source-over");
+    if (el === p.lastElementChild) { g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.drawImage(pg.canvas, 0, 0); }
   }
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.globalAlpha = 1;
@@ -3936,7 +3948,64 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
     }
     layers.push({ el: job.el, frames: plan.hold.curtain, timing: { duration: plan.move.ms, easing: "linear" } });
   }
-  for (const b of plan.batches) {
+  /* A RECOLOUR IS A CROSSFADE (E96 C2, 09.11.2026; the owner at the table on 1.2.101: "at the start of the move the
+     colours and the textures near the edge refresh"). C1b painted the new look beneath at once and laid the old over
+     it, fading by batches; the glass is see-through, so the first frame showed both looks - two textures, two fills,
+     and the wall panes along the sides, the most see-through and the last batches, the most. The glass harness at
+     2000x1072, the clock stood still 1 ms into every layer (`--turn`'s still page, 09.11): the first frame 4.51 from
+     rest along the sides and 1.61 inside on a phase, 5.14 and 3.04 on a phase with a recut (DIAGNOSIS 6). So the new
+     look is baked per batch too, from the curtain as `curtainPaint` has just left it (`fresh`), and rises 0 to 1 on
+     the old one's delay, length and curve while the old falls 1 to 0; the curtain is held at 0 under them for the
+     turn's span (`span`) and steps back in in the frame every rising layer steps out - the same picture, as
+     `plan.hold.curtain` does for a recut. Each batch's two layers stand in a group of their own (`drpg-turn-fade`,
+     isolated) and the new one adds onto the old (`plus-lighter`): the two weights sum to 1, so a translucent pane
+     keeps its coverage through the fade; source-over, a pane of alpha a loses a*a/4 of it at the middle. A browser
+     without `plus-lighter` draws it over (the value is dropped), the fade's middle that much thinner. Where a pane
+     moves (a phase with a recut), its new place rises the same way under the moving old pane, and where a block's
+     plate stood (`plan.holes`) the new look stands from the first frame, as before. */
+  const fresh = plan.recolour && plan.batches.length ? snapshotLook(job, true) : null;
+  let pairs = 0;
+  if (fresh) {
+    const moved = new Set(plan.moves.map(m => m.to));
+    const delayOf = k => k * plan.gap, easing = plan.batches[0].easing;
+    const ks = [...new Set([...plan.batches.map(b => b.k), ...[...moved].map(i => plan.batchOf[i])])];
+    const span = Math.max(plan.moves.length ? plan.move.ms : 0, ...ks.map(k => delayOf(k) + TURN_FADE));
+    // the layer is shown only by its animation: at 0 before its delay, at 1 from its fade's end to the span's
+    const rise = (el, d) => {
+      el.style.opacity = "0";
+      layers.push({ el, frames: [{ offset: 0, opacity: 0, easing }, { offset: Math.min(1, TURN_FADE / (span - d)), opacity: 1 }, { offset: 1, opacity: 1 }], timing: { duration: span - d, delay: d, fill: "backwards" } });
+    };
+    const under = [];
+    for (const k of ks) {
+      const arrive = [...moved].filter(i => plan.batchOf[i] === k);
+      if (!arrive.length) continue;
+      const c = cutLook(fresh, arrive.map(i => to[i].poly), boxOf(arrive.map(i => to[i].poly), 1), "drpg-turn-batch drpg-turn-new");
+      under.push(c); made.push(c); rise(c, delayOf(k));
+    }
+    if (plan.holes.length) {
+      const c = cutLook(fresh, plan.holes.map(k => from[k].poly), boxOf(plan.holes.map(k => from[k].poly), 1), "drpg-turn-batch drpg-turn-new");
+      c.style.opacity = "0";
+      under.unshift(c); made.push(c);
+      layers.push({ el: c, frames: [{ opacity: 1 }, { opacity: 1 }], timing: { duration: span } });
+    }
+    host.prepend(...under);
+    for (const b of plan.batches) {
+      const pair = document.createElement("div");
+      pair.className = "drpg-turn-fade";
+      pair.style.cssText = TURN_LAYER + "left:0;top:0;width:" + job.W + "px;height:" + job.H + "px;isolation:isolate;";
+      const c = cutLook(look, b.panes.map(k => from[k].poly), b.box, "drpg-turn-batch");
+      pair.append(c); made.push(c);
+      layers.push({ el: c, frames: b.frames, timing: { duration: b.ms, delay: b.delay, easing: b.easing, fill: "forwards" } });
+      const stand = to.map((_, i) => i).filter(i => !moved.has(i) && plan.batchOf[i] === b.k);
+      if (stand.length) {
+        const n = cutLook(fresh, stand.map(i => to[i].poly), boxOf(stand.map(i => to[i].poly), 1), "drpg-turn-batch drpg-turn-new");
+        n.style.cssText += "mix-blend-mode:plus-lighter;";
+        pair.append(n); made.push(n); rise(n, b.delay);
+      }
+      host.append(pair); made.push(pair); pairs++;
+    }
+    layers.push({ el: job.el, frames: [{ opacity: 0 }, { opacity: 0 }], timing: { duration: span } });
+  } else for (const b of plan.batches) {
     const c = cutLook(look, b.panes.map(k => from[k].poly), b.box, "drpg-turn-batch");
     host.append(c); made.push(c);
     layers.push({ el: c, frames: b.frames, timing: { duration: b.ms, delay: b.delay, easing: b.easing, fill: "forwards" } });
@@ -3957,7 +4026,7 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
     if (glow) { glow.className = "curtain-glow drpg-turn-glow"; glow.style.cssText = gl.style.cssText; gl.after(glow); made.push(glow); layers.push({ el: glow, frames: [{ opacity: 1 }, { opacity: 0 }], timing: { ...timing, fill: "forwards" } }); }
   }
   count("glass.turn");
-  count("glass.turn.layers", made.length - (into === host ? 0 : 1));
+  count("glass.turn.layers", made.length - (into === host ? 0 : 1) - pairs);
   if (plan.recut) count("glass.turn.recut");
   /* POSED AT THE BAKE (E23 C1b fix, 07.11.2026): each layer's animation is made here and held at its start, so the
      two frames before the clock show the first keyframe and not the layers as laid - the screencast of the harness's
