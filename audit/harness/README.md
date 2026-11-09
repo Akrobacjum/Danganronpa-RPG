@@ -196,7 +196,7 @@ belongs to.
 | 67 | scenarios/67-trial-modes.mjs | ci | exists | E70 | the Class Trial's tools beside the debate (E70 part 2, 1.2.90): a Testimony on every player with its turn windows, Done and Pass from the players' own pages, an Objection at the speaker and the queue back (T); a Panic Round moved on by the players' browsers while the GM's heartbeat is held, its Objection refused (P); a death nobody has found given no turn, and on the trial's list of the dead on p1's browser - known leak TR30, red on purpose until E72 (part A, formerly E67) (D); the Closing Argument with its volunteers in the GMs' store, a pick, both decisions after an exchange and an Overrule (C); Monokuma's Reveal of a Key nobody found (R); Present's card and copies as shown, with and without the Analyze result (S); a turn's change with the GM's console and a sheet open: the console's region and no sheet rendered, the row's Present painted in place (M, E70-83; its HUD and sheet-pass counts 81's part F since E37); the canary's player scan after every phase |
 | 64 | scenarios/64-migration-drill.mjs | local-gate | planned | E38 | migrations on copies of real worlds (v1.1.0, 1.2.13, the table's 1.2.56); planned as 62 until E09 C0 took the number the E09 plan had given its investigation scenario, then as 63 until E10 C0 gave 63 to the Class Trial |
 | 70 | scenarios/70-movement.mjs | ci | planned | E39 | the movement rules end to end |
-| 71 | scenarios/71-sheet.mjs | local-gate | planned | E45 | the sheet on two accounts on a real v14 |
+| 71 | scenarios/71-sheet.mjs | ci | exists | E45 | the character sheet on the GM and two players through the harness's render after a write (E45 C3a): Health written fast from the field and by the GM, repainted on every client with no render and the same reserve, the pip layout on p1 and the bar on p2 (A); a write resource-guard.mjs or overflow.mjs cuts in preUpdate, then an item created: its row on every client's sheet (B); a Monocub's Confusion tile lit by the GM's Hope top-up with no render (C); a Health hit read alike on the sheets and the token's bar, no Sanity on a viewer's (D); the gates - dead, Monocub, NPC, Monokuma - as owner and viewer (E); the biography saved once by the X and by a tab change, untouched nothing, read-only for a viewer (F); a redacted sheet with no Sanity number in any tooltip or label (G); the Level Up offer offered, taken and taken back (H). Stand-in sheets and the render are the harness's model (LIVE-E45-01); a real table is LIVE-E45-01..04 |
 | 72 | scenarios/72-canary.mjs | ci | exists | E30 | what a player's browser holds: the canary's self-test, planted secrets at rest, and (E05) a chapter, scanned after every phase with the world-secrets rule, and (E06) the chat each phase's bystanders hold, read for the cast and the secret actions' titles; E43 takes it to the season |
 | 73 | scenarios/73-notice-history.mjs | ci | exists | E81 | a player's notice history after F5, the GM's own diet |
 | 74 | scenarios/74-room-tile.mjs | ci | exists | E77 | the room tile: every browser shows its own character's room, painted once the move has settled (a refused move draws nothing), the GM's text only as text (E77 C3: the GM's Room Setup on the viewer's tile and on no other's, every state a player's tile can take (A), a crossing and a refused crossing (B)); the curtain's cut, also with Foundry's windows open, comes with E77's later commits |
@@ -430,6 +430,13 @@ roll at a table.
 
 ## What the harness cannot do
 
+- **The render after a write is a model** (E45 C3a, `renderApps` in `client-entry.mjs`). After an update hook, each
+  open app in the document's `apps` is asked `render(false, { renderContext: "update<Doc>", renderData })` with the
+  changes as the hook got them, on every client, the writer's included; an embedded create, update or delete asks its
+  root's apps with `create<Doc>`, `update<Doc>` or `delete<Doc>`; `render: false` and an update that changed nothing on
+  that client's copy render nothing. From v13/v14 notes as remembered, not v14's source: LIVE-E45-01. Until C3a no
+  document had `apps` and nothing rendered on a write. There are still no Daggerheart sheets: scenario 71's sheet is a
+  stand-in whose own render builds the root again and calls the module's hook.
 - **No layout, canvas renderer, fonts, audio or Web Animations.** jsdom lays
   nothing out. A suite test that needs one of these asks the environment first
   and is counted as skipped (`needs`, `scripts/tests-kit.mjs`).

@@ -97,7 +97,14 @@ export const UNCONFIRMED = [
        biography's type and saves, a light client, a step that throws, the victim's reading, the Breakdown icon and a
        roll made in Breakdown) are read on stand-ins in the tests or Chromium, or not drawn here at all: the harness
        models none of them, so they stay in AUDIT section 9.2 only. */
-    "LIVE-E24-01"
+    "LIVE-E24-01",
+    /* E45's (C3a, 08.11.2026): the render after a write - each open app in a document's `apps` asked for
+       `render(false, { renderContext: "update<Doc>", renderData: <the changes> })` after the update hook on every
+       client, the writer's included, and a descendant's create, update or delete rendering its root's apps the same
+       (client-entry.mjs `renderApps`) - from v13/v14 notes as remembered, not from v14's source. Scenario 71 and the
+       sheet's own render (sheet.mjs `renderPlan`) read the repaint on that model. E45's other live rows (the wrapper's
+       way out, 71's parts at a table, a Monocub's tile; C3b writes their AUDIT items) are not modelled here. */
+    "LIVE-E45-01"
 ];
 
 function readJson(file) {

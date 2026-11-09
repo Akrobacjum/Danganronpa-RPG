@@ -1733,6 +1733,38 @@ function findEmbKey(parentName, embName) {
 globalThis.__documentCounts = {};
 const counted = (kind, name, n = 1) => { const key = `${kind}${name}`; globalThis.__documentCounts[key] = (globalThis.__documentCounts[key] ?? 0) + n; };
 
+/*
+ * THE RENDER AFTER A WRITE (E45 C3a, 08.11.2026; STAGE E45 "71-sheet", LIVE-E45-01).
+ *
+ * Foundry renders the windows of a document that changed on every client that hears the write, the writer's
+ * included: after the `update<Doc>` hook, `_onUpdate` asks each app in the document's `apps` for
+ * `render(false, { renderContext: "update<Doc>", renderData: <the changes> })`, and a descendant's create, update or
+ * delete asks its root's apps the same with `create<Doc>`, `update<Doc>` or `delete<Doc>` and the data (v13's
+ * `ClientDocumentMixin#_onUpdate` and `_on<Op>DescendantDocuments`, as remembered; v14's names and shapes are the live
+ * check's). Until C3a the harness rendered nothing on a write - 0 hits for `renderContext` in audit/harness - so no
+ * scenario could see a sheet repaint, blink or stay stale after one. Here each app that is `rendered` is asked once, with
+ * the changes as the hook got them; a closed one is not asked (ApplicationV2 renders nothing for `force` false on a
+ * window that is not open); `render: false` in the options renders nothing, as Foundry's; and an update that changed
+ * nothing on this client's copy renders nothing (the module's old apparatus called it `orderNoop`; the server's diff
+ * the harness lacks). A render that throws is logged and does not stop the next app or the write. Modelled from notes,
+ * not from v14's source: LIVE-E45-01, in versions.mjs's unconfirmed list.
+ */
+function renderApps(doc, renderContext, renderData, options) {
+    if (options?.render === false) return;
+    for (const app of Object.values(doc?.apps ?? {})) {
+        if (!app?.rendered || typeof app.render !== "function") continue;
+        try {
+            const out = app.render(false, { renderContext, renderData });
+            if (out && typeof out.catch === "function") out.catch(err => console.error(`[harness] ${renderContext}: an app's render failed`, err));
+        } catch (err) {
+            console.error(`[harness] ${renderContext}: an app's render failed`, err);
+        }
+    }
+}
+
+/** Whether `doc` has a window open now (`renderApps` asks only those, and skips the no-op test for the rest). */
+const hasOpenApps = doc => Object.values(doc?.apps ?? {}).some(app => app?.rendered);
+
 function applyRemote(msg) {
     const { action, collName, userId, options = {} } = msg;
     if (action === "create" || action === "delete") counted(action, collName, action === "create" ? msg.docs.length : 1);
@@ -1750,6 +1782,7 @@ function applyRemote(msg) {
     if (action === "update") {
         const doc = coll(collName).get(msg.docId);
         if (!doc) return;
+        const open = hasOpenApps(doc), was = open ? JSON.stringify(doc._source) : null;
         U.applyDocChanges(collName, doc._source, msg.changes);
         /* A FIELD AN UPDATE BRINGS IS READ AS A PROPERTY (E13 fix n1-N1, 12.10.2026). The shim put a document's
            fields on it at construction only (lib/shim.mjs `_exposeSource`; `updateSource` already re-ran it), so a
@@ -1764,7 +1797,9 @@ function applyRemote(msg) {
         doc._exposeSource?.();
         // refresh embedded collections if raw arrays were replaced wholesale
         rebuildEmbedded(doc);
-        if (!options.noHook) hooks.callAll(`update${collName}`, doc, revive(U.expandObject(U.deepClone(msg.changes))), options, userId);
+        const changed = revive(U.expandObject(U.deepClone(msg.changes)));
+        if (!options.noHook) hooks.callAll(`update${collName}`, doc, changed, options, userId);
+        if (open && JSON.stringify(doc._source) !== was) renderApps(doc, `update${collName}`, changed, options);
         /* A SCENE MADE ACTIVE IS VIEWED BY EVERY CLIENT (E13 C0, 11.10.2026; plan-E13 2.1 item 1, A5's reading
            of Foundry: `Scene#_onUpdate` calls `view()` when `active` turns true, on every client that hears the
            update, the GM who made it included). Until C0 only `Scene#activate`'s caller moved its own canvas
@@ -1808,12 +1843,16 @@ function applyRemote(msg) {
                 parent._collections[embKey]?.set(doc.id, doc);
                 hooks.callAll(`create${msg.embeddedName}`, doc, options, userId);
             }
+            renderApps(root, `create${msg.embeddedName}`, U.deepClone(msg.docs), options);
         } else if (kind === "update") {
+            const open = hasOpenApps(root), was = open ? JSON.stringify(root._source) : null;
+            const handed = [];
             for (const u of msg.updates) {
                 const raws = lists.map(src => (src[embKey] ?? []).find(d => d._id === u._id)).filter(Boolean);
                 const doc = parent._collections[embKey]?.get(u._id);
                 if (!raws.length || !doc) continue;
                 const { _id, ...changes } = u;
+                const childWas = hasOpenApps(doc) ? JSON.stringify(doc._source) : null;
                 /* E89 C0 (30.10.2026; LIVE-E89-03): a token's `movement`, on the model - what the update's own `movement`
                    option names for it (`{ pending: { waypoints } }`), the request and v14's record of the move not told
                    apart; null for an update that names none. One dragged path is N updates, every one but the last with
@@ -1825,8 +1864,12 @@ function applyRemote(msg) {
                 if (!raws.includes(doc._source)) U.applyDocChanges(msg.embeddedName, doc._source, changes);
                 doc._exposeSource?.();   // the field the update brought, as for a world document above
                 rebuildEmbedded(doc);
-                hooks.callAll(`update${msg.embeddedName}`, doc, revive(U.expandObject(U.deepClone(changes))), options, userId);
+                const changed = revive(U.expandObject(U.deepClone(changes)));
+                hooks.callAll(`update${msg.embeddedName}`, doc, changed, options, userId);
+                if (childWas !== null && JSON.stringify(doc._source) !== childWas) renderApps(doc, `update${msg.embeddedName}`, changed, options);
+                handed.push({ _id, ...changed });
             }
+            if (open && handed.length && JSON.stringify(root._source) !== was) renderApps(root, `update${msg.embeddedName}`, handed, options);
         } else if (kind === "delete") {
             for (const id of msg.ids) {
                 const doc = parent._collections[embKey]?.get(id);
@@ -1834,6 +1877,7 @@ function applyRemote(msg) {
                 parent._collections[embKey]?.delete(id);
                 if (doc) hooks.callAll(`delete${msg.embeddedName}`, doc, options, userId);
             }
+            renderApps(root, `delete${msg.embeddedName}`, [...msg.ids], options);
         }
     }
 }

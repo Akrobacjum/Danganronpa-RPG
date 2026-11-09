@@ -21031,6 +21031,55 @@ const REGRESSIONS = [
         must(sentences > 150, `read ${sentences} line(s) that name Health or Sanity - it would measure nothing`);
         equal(JSON.stringify(found), "[]", "the handbook lines whose sentence names Health or Sanity and says it is marked");
     }],
+    ["R1482 - scenario 71-sheet exists as its README row says (E45 C3a, E45-12; STAGE E45 \"71-sheet\", Q-E45-1): the file declares `layers = [\"ci\"]` and names its parts A to H, and audit/harness/README.md's row 71 reads `ci`, `exists`, E45", async () => {
+        /* E45 C3a, 08.11.2026. The row, the file and its `layers` export agree (tools/check.mjs registry holds the
+           general rule); this holds 71's own: layers ci and nothing more until a v14 sandbox runs scenarios (Q-E45-1),
+           and the eight parts the slice names, each begun by its letter (`begin("A", ...)`). Red first on 52955be4: the
+           row read `local-gate | planned` and the file was not there. */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        const read = async path => {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" });
+                return res.ok ? await lfText(res) : "";
+            } catch { return ""; }
+        };
+        const [file, readme] = await Promise.all(["audit/harness/scenarios/71-sheet.mjs", "audit/harness/README.md"].map(read));
+        must(readme.length > 5000, "audit/harness/README.md read nothing - this test would read nothing");
+        const row = readme.split("\n").find(line => /^\| 71 \| scenarios\/71-sheet\.mjs \|/.test(line)) ?? null;
+        const cells = row ? row.split("|").map(cell => cell.trim()) : [];
+        const layers = /export const layers = (\[[^\]]*\]);/.exec(file)?.[1] ?? null;
+        const parts = "ABCDEFGH".split("").filter(letter => new RegExp(`begin\\("${letter}", "`).test(file));
+        equal(JSON.stringify({ row: cells.slice(3, 6), layers, parts: parts.join("") }),
+            JSON.stringify({ row: ["ci", "exists", "E45"], layers: "[\"ci\"]", parts: "ABCDEFGH" }),
+            "{row: README row 71's layers, state and stage; layers: the file's export; parts: the letters it begins}");
+    }],
+    ["R1483 - the harness's render after a write is named unconfirmed (E45 C3a, E45-15; STAGE E45 \"71-sheet\"): versions.mjs's `UNCONFIRMED` lists LIVE-E45-01, client-entry.mjs's `renderApps` cites it, and README's \"What the harness cannot do\" names the model", async () => {
+        /* E45 C3a, 08.11.2026. The render on an update is modelled from v13/v14 notes, not v14's source: every results
+           file lists the unconfirmed ids (versions.mjs `readVersions`), so a scenario's green on the model says which
+           assumption it stands on. Red first on 52955be4: none of the three. */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        const read = async path => {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" });
+                return res.ok ? await lfText(res) : "";
+            } catch { return ""; }
+        };
+        const [versions, entry, readme] = await Promise.all(["audit/harness/lib/versions.mjs", "audit/harness/client-entry.mjs", "audit/harness/README.md"].map(read));
+        must(versions.length > 1000 && entry.length > 20000 && readme.length > 5000, "a harness file read nothing - this test would read nothing");
+        const list = bodyOf(versions, "export const UNCONFIRMED", { until: "\n];" });
+        // Read by pattern, not `bodyOf`: on a tree without the model the answer is "absent", not a stop.
+        const model = /function renderApps\([\s\S]*?\n\}\n/.exec(entry)?.[0] ?? "";
+        const cannot = /## What the harness cannot do\n([\s\S]*?)(?=\n## |$)/.exec(readme)?.[1] ?? "";
+        // The note right above the function: one comment, no other comment's end inside it.
+        const head = /(\/\*(?:(?!\*\/)[\s\S])*\*\/)\s*function renderApps\(/.exec(entry)?.[1] ?? "";
+        equal(JSON.stringify({
+            listed: /"LIVE-E45-01"/.test(list),
+            model: /renderContext/.test(model) && /\.render\(false, \{ renderContext, renderData \}\)/.test(model),
+            cited: /LIVE-E45-01/.test(head),
+            readme: /render after a write/i.test(cannot) && /LIVE-E45-01/.test(cannot) && /renderApps/.test(cannot)
+        }), JSON.stringify({ listed: true, model: true, cited: true, readme: true }),
+            "{listed: in UNCONFIRMED; model: renderApps renders false with the context and data; cited: its note names the id; readme: the section names the model}");
+    }],
 ];
 
 

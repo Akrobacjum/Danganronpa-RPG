@@ -154,6 +154,12 @@ export function buildDocumentClasses(ctx) {
             this._source = U.deepClone(data);
             if (!this._source._id) this._source._id = U.randomID();
             this.parent = context.parent ?? null;
+            /* THE APPLICATIONS A DOCUMENT RENDERS (E45 C3a, 08.11.2026). Foundry's every document holds `apps`, the
+               windows that draw it by their id, and renders them after a write (client-entry.mjs `renderApps`). The
+               shim had none until C3a: R1478 and E45-T2 stood one in for their test. Not enumerable, so nothing that
+               copies a document's own properties carries it; empty until a scenario or a test registers a window. The
+               render on a write is modelled from v13/v14 notes, not from v14's source (LIVE-E45-01). */
+            Object.defineProperty(this, "apps", { configurable: true, writable: true, enumerable: false, value: {} });
             this._collections = {};
             const emb = EMBEDDED[this.documentName] ?? {};
             for (const [docName, key] of Object.entries(emb)) {
