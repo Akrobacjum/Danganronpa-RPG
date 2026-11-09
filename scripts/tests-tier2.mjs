@@ -29268,8 +29268,9 @@ const SCENARIOS = [
         }
         try {
             ok(input, "the Edit campaign window did not draw its day stepper");
-            const label = input.closest("label");
-            ok(label, "the day field is no longer inside its label");
+            // Inside its label, or (since E47-C2, Edit campaign on the kit's formGrid) the label column's, pointing at it by `for`.
+            const label = input.closest("label") ?? [...document.querySelectorAll("label[for]")].find(l => l.htmlFor === input.id) ?? null;
+            ok(label, "the day field has no label of its own");
             equal(label.control, input, "the day's label names something other than the day field");
             const was = input.value;
             label.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
@@ -84130,6 +84131,63 @@ const SCENARIOS = [
         }), "per state: the step, the right slot, the first on the left, the destructive zone, Enter on a destructive button, the panel's line says the step, the vote's lead names it; "
             + "the window opened again (a family's change) or the same window and footer element (a state within one), how many consoles");
         ok(["openDebate", "reopen", "openAgain"].includes(ended), `after the Objection's debate ended the step is ${ended}, not the debate again or a new one`);
+    }],
+
+    ["E47-T2 - the incident tracker keeps one stated width through a fight, its turn bar naming the side (E47-C2, E47-05; audit S04-38): a direct murder opened between two students with players, its invitation held; the tracker drawn at the opening, again after the opening roll lands and once the turn is passed, and at Stage 6 - each copy stating the tracker's width, `drpg-kit-width-tracker` and the same `position.width`, its live region opening on the turn bar of the side it waits for", async () => {
+        /*
+         * E47-C2, 09.11.2026. The tracker was a `fit` window (ui-kit.mjs `fitKitWidth`), so its width followed its widest
+         * table: S04-38 measured 629 px at the opening and 483 in the incident. It reopens itself when the stage changes
+         * (`incidentSignature`), so each stage is a new window: read each copy's stated width (`data-drpg-width`, its
+         * width class, `position.width`) and its turn bar. The widths in pixels are this page's; the layout itself is
+         * not measured headless (the screenshots of the commit are). Red on f7266b28: no stated width, no turn bar.
+         */
+        needs(env.dialogs(), "the tracker is a drawn window");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player the invitation goes to");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const copies = () => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-window-incident"));
+        const seen = new Set();
+        const fresh = () => copies().find(a => !seen.has(a));
+        const bar = app => app?.element?.querySelector(".drpg-incident-live > .drpg-turn-bar[data-drpg-side]:first-child")?.dataset.drpgSide ?? null;
+        const take = app => {
+            if (app) seen.add(app);
+            return app ? [app.element.dataset.drpgWidth ?? null, app.element.classList.contains("drpg-kit-width-tracker"), Math.round(Number(app.position?.width) || 0), bar(app)] : null;
+        };
+        const reads = [];
+        let opened = null;
+        try {
+            await heldInvitations(async () => {
+                await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+                must(M.murderState()?.stage === "openingRoll", `the fixture's opening is not waiting: ${stableJson(M.murderState())}`);
+                opened = Promise.resolve().then(() => M.openIncidentTracker()).catch(() => null);
+                await until(() => fresh(), 8000);
+                reads.push(take(fresh()));
+                await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+                await settle();
+                await until(() => fresh() && bar(fresh()), 8000);
+                const incident = fresh();
+                reads.push(take(incident));
+                await M.passTurn();
+                await settle();
+                await until(() => bar(incident) === "killer", 6000);
+                reads.push(take(incident));
+                must(await M.beginResolution("test"), "the GM could not take the fixture to Stage 6");
+                await settle();
+                await until(() => fresh(), 8000);
+                reads.push(take(fresh()));
+            });
+        } finally {
+            for (const app of copies()) await app.close().catch(() => {});
+            if (opened) await Promise.race([opened, wait(3000)]);
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+        }
+        const width = reads[0]?.[2] ?? 0;
+        must(width > 0, `the tracker at the opening states no width: ${stableJson(reads)}`);
+        equal(stableJson(reads), stableJson([["tracker", true, width, "killer"], ["tracker", true, width, "victim"], ["tracker", true, width, "killer"], ["tracker", true, width, "resolution"]]),
+            "[data-drpg-width, the width class, position.width, the turn bar's side] at the opening, in the incident, after Pass the turn, at Stage 6");
     }],
 ];
 

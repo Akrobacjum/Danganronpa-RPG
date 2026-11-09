@@ -1812,8 +1812,8 @@
       "gmTitleFor": "Cleaning up - {name}",
       "gmNothingHere": "No traces in the room the killer is standing in.",
       "gmAttemptsLeft": {
-        "one": "Sanity left for {n} more attempt. Stage 6 ends when that runs out, or when you close the murder - closing destroys the Murder Weapon that was used; the cleaning tool goes when the body is found.",
-        "other": "Sanity left for {n} more attempts. Stage 6 ends when that runs out, or when you close the murder - closing destroys the Murder Weapon that was used; the cleaning tool goes when the body is found."
+        "one": "Sanity left for {n} more attempt. Stage 6 ends when that runs out, or when you end the murder - ending it destroys the Murder Weapon that was used; the cleaning tool goes when the body is found.",
+        "other": "Sanity left for {n} more attempts. Stage 6 ends when that runs out, or when you end the murder - ending it destroys the Murder Weapon that was used; the cleaning tool goes when the body is found."
       },
       "stressBack": "You get {n} Sanity back.",
       "refundUnheld": "{name}'s clean-up asked for {what} back, and the GMs' audit held no record here to check it was paid: nothing was given back. If it was paid, give it back by hand.",
@@ -1916,8 +1916,8 @@
       "openIntro": "One opening roll, then a turn-based incident. A direct murder opens on the killer's roll; a trap opens on the victim's.",
       "killer": "Killer",
       "victim": "Victim",
-      "indirect": "Indirect murder - the victim is alone, and the drain is doubled",
-      "indirectCost": "A trap is built as projects. Budget about {low}-{high} progress across them, roughly {fewest} to {actions}, or it costs more to set than it is worth.",
+      "indirect": "Indirect murder (a trap) - the victim faces it alone and loses twice the Sanity or Health each turn",
+      "indirectCost": "A trap is built as projects. Plan about {low}-{high} progress in total, roughly {fewest} to {actions}.",
       "openConfirm": "Open the incident",
       "needOne": "There must be at least one living student.",
       "openSelfNote": "One name in both seats: this opens as a death by their own hand. There is no Stage 5 - the opening roll decides whether they go through with it, and the incident goes straight to Stage 6.",
@@ -1936,9 +1936,15 @@
       "afterIntroSelf": "{name}, by their own hand. Everything below follows from what just happened, and the module has stopped tracking the incident itself.",
       "dayNote": "Not night, so the opening roll is unmodified.",
       "keyCount": { "one": "This case will leave {n} Key Remnant.", "other": "This case will leave {n} Key Remnants." },
-      "trackerCastGone": "This incident names somebody the world does not have any more ({who}). Nothing can move it on - Close the murder ends it.",
+      "trackerCastGone": "This incident names somebody the world does not have any more ({who}). Nothing can move it on - press End the murder.",
       "trackerTitle": "Incident tracker",
       "trackerOver": "This incident is over.",
+      "trackerOpenMurder": "Open a murder...",
+      "fact": {
+        "who": "Who",
+        "left": "Left",
+        "case": "Case"
+      },
       "ranOutTitle": "They ran out",
       "ranOut": "{name} is out of Health and out of Sanity. The incident ends and they are dead - no Finishing Blow was needed, and none was earned.",
       "rerollLost": "A Reroll of a crisis action was not replayed: there was no record of it here, or the incident closed or moved on first. Its first roll goes back on the card and the Hope is returned. If the incident closed while it was being taken back, check that action's Remnant and the sheets by hand.",
@@ -1959,7 +1965,7 @@
       "whoWalkedIn": "Who?",
       "nobodyElse": "There is nobody else alive to walk in.",
       "endMurder": "End the murder",
-      "endConfirm": "End this murder? The incident state is cleared. Nothing already applied is undone.",
+      "endConfirm": "Stop tracking this murder? Lost Health and Sanity, items, and Remnants stay as they are.",
       "afterTitle": "The incident is over - what now",
       "afterIntro": "{killer} against {victim}. Everything below follows from what just happened, and the module has stopped tracking the incident itself.",
       "afterRoom": "The body is in {room}.",

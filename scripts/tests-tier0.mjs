@@ -3730,13 +3730,15 @@ const REGRESSIONS = [
         const clockWin = bodyOf(panel, "export async function openClockDialog");
         const list = bodyOf(clockWin, "const stated", { until: "const result" });
         ok(list.length > 80, "the chapter list has moved or gone");
-        ok(/Math\.max\(CHAPTERS_PER_SEASON/.test(list),
+        ok(/Math\.max\(CHAPTERS_PER_SEASON/.test(clockWin),
             "the chapter list is six long whatever the clock says, so a campaign past "
             + "chapter 6 opens this window on chapter 1 and Apply writes it");
         ok(/Number\.isFinite/.test(list),
             "the length of that array comes straight out of a world setting");
-        ok(/n === now \?/.test(list),
-            "the selected test compares against the raw setting, so a chapter stored as a "
+        // E47-C2, 09.11.2026: the list is a kit stepper (the owner's Q-E47-1) whose value and `max` read the coerced `now`.
+        const chapterField = bodyOf(clockWin, 'stepper({ name: "chapter"', { length: 200 });
+        ok(/\bvalue:\s*now\b/.test(chapterField) && /\bmax:\s*Math\.max\(CHAPTERS_PER_SEASON,\s*now\)/.test(chapterField),
+            "the chapter field reads the raw setting, so a chapter stored as a "
             + "string widens nothing and matches nothing");
 
         // AND THE RULE REACHES THE OTHER WINDOW WITH THE SAME CAP. A number input
@@ -17721,12 +17723,14 @@ const REGRESSIONS = [
          * themes, chrome.mjs dressing none), so the census counts `stepper({` calls and the name each passes (a
          * shorthand `name` is the template's `${name}`), and the readers are the same lines as before. Comments blanked.
          * Red at C7's parent: no `wholeNumber` in utils.mjs and no reader asks it; at C4b's parent, the twelve bare inputs.
+         * E47-C2, 09.11.2026: Edit campaign's Chapter is a stepper (the owner's Q-E47-1), read in `readClockForm`.
          */
         const src = new Map((await otherSources()).map(([file, raw]) => [file, stripComments(raw)]));
         must(src.size > 50, "the module's sources were not read - this would measure nothing");
         const FIELDS = [
             ["call-pickers.mjs", "timesOfDay", /\[name=timesOfDay\]"\)\??\.value/g],
             // E41 C7a (1.2.97): the Students window's donation and Edit campaign's two fields, in their own files.
+            ["gm-campaign.mjs", "chapter", /\bform\.chapter\.value\b/g],
             ["gm-campaign.mjs", "day", /\bform\.day\.value\b/g],
             ["gm-campaign.mjs", "session", /\bform\.session\.value\b/g],
             ["gm-students.mjs", "amount:${a.id}", /\[name="amount:\$\{id\}"\]`\)\?\.value/g],
@@ -18862,13 +18866,13 @@ const REGRESSIONS = [
                 now: ["up to 1 connected room", "up to 5 connected rooms",
                     "2 actions each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs 1 action, a Long Rest 2 actions.",
                     "With no Health left you get 1 action instead of 2 actions, until somebody patches you up.",
-                    "You have 2 actions", "A trap is built as projects. Budget about 7-10 progress across them, roughly 4 to 5 actions, or it costs more to set than it is worth.",
+                    "You have 2 actions", "A trap is built as projects. Plan about 7-10 progress in total, roughly 4 to 5 actions.",
                     "Your own scene, tonight: no action, 1 Sanity each.", "-30 s", "+30 s", "-5 s", "The Closing Argument: who will sum up the case? Volunteer within 30 s; the GM confirms the speaker.",
                     "Nonstop Debate - 3 s over your budget. Everyone may speak; +30 s puts 30 s back on the clock."],
                 moved: ["up to 1 connected room", "up to 5 connected rooms",
                     "3 actions each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs 2 actions, a Long Rest 3 actions.",
                     "With no Health left you get 2 actions instead of 3 actions, until somebody patches you up.",
-                    "You have 3 actions", "A trap is built as projects. Budget about 9-14 progress across them, roughly 5 to 7 actions, or it costs more to set than it is worth.",
+                    "You have 3 actions", "A trap is built as projects. Plan about 9-14 progress in total, roughly 5 to 7 actions.",
                     "Your own scene, tonight: no action, 2 Sanity each.", "-45 s", "+45 s", "-5 s", "The Closing Argument: who will sum up the case? Volunteer within 40 s; the GM confirms the speaker.",
                     "Nonstop Debate - 3 s over your budget. Everyone may speak; +45 s puts 45 s back on the clock."],
                 left: 0
@@ -18877,13 +18881,13 @@ const REGRESSIONS = [
                 now: ["do 1 połączonego pokoju", "do 5 połączonych pokoi",
                     "2 akcje na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje 1 akcję, Long Rest 2 akcje.",
                     "Gdy nie zostało ci już Health, dostajesz 1 akcję zamiast 2 akcji, dopóki ktoś cię nie poskłada.",
-                    "Masz 2 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 7-10 postępu łącznie, mniej więcej 4 do 5 akcji, inaczej kosztuje więcej, niż jest warta.",
+                    "Masz 2 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 7-10 postępu łącznie, mniej więcej 4 do 5 akcji.",
                     "Twoja własna scena, tej nocy: bez akcji, 1 Sanity za każdy.", "-30 s", "+30 s", "-5 s", "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 30 s; GM zatwierdza mówcę.",
                     "Nonstop Debate - 3 s ponad budżet. Każdy może mówić; +30 s oddaje zegarowi 30 s."],
                 moved: ["do 1 połączonego pokoju", "do 5 połączonych pokoi",
                     "3 akcje na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje 2 akcje, Long Rest 3 akcje.",
                     "Gdy nie zostało ci już Health, dostajesz 2 akcje zamiast 3 akcji, dopóki ktoś cię nie poskłada.",
-                    "Masz 3 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 9-14 postępu łącznie, mniej więcej 5 do 7 akcji, inaczej kosztuje więcej, niż jest warta.",
+                    "Masz 3 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 9-14 postępu łącznie, mniej więcej 5 do 7 akcji.",
                     "Twoja własna scena, tej nocy: bez akcji, 2 Sanity za każdy.", "-45 s", "+45 s", "-5 s", "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 40 s; GM zatwierdza mówcę.",
                     "Nonstop Debate - 3 s ponad budżet. Każdy może mówić; +45 s oddaje zegarowi 45 s."],
                 left: 0
@@ -21501,6 +21505,36 @@ const REGRESSIONS = [
             want[name] = [w, i, 0];
         }
         equal(JSON.stringify(got), JSON.stringify(want), "{file:function: [warning boxes, info boxes, drpg-warning left]}");
+    }],
+
+    ["R2059 - the murder windows' words by the guide (lang/en.json, lang/pl.json; E47-C2, E47-07; audit S13-38): the trap's box says what the doubled drain is, the trap's budget asks no guess of what it costs, End the murder's question says what stays, no tracker line names a button the window does not have, the GM's after-murder count of Key Remnants keeps its Polish few and many, and the tracker's new words stand in both files", async () => {
+        /*
+         * E47-C2, 09.11.2026. S13-38 read the murder windows' jargon: "the drain is doubled" said beside a checkbox to a GM
+         * who had not met the word, the trap's budget ended "or it costs more to set than it is worth" (a rationale, X2),
+         * End the murder asked "The incident state is cleared." (what the module does, not what the table keeps), and the
+         * tracker's cast warning and the clean-up's Sanity line named "Close the murder" - the button is End the murder
+         * since E22 C3b. Read in both files: each old phrase absent, each key present, the Polish count family whole. Red
+         * on f7266b28: every old phrase present, the new keys missing.
+         */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const at = (tree, key) => key.split(".").reduce((node, k) => node?.[k], tree);
+        const OLD = [
+            ["en", "DRPG.Murder.indirect", "the drain is doubled"], ["pl", "DRPG.Murder.indirect", "drenaż jest podwojony"],
+            ["en", "DRPG.Murder.indirectCost", "costs more to set than it is worth"], ["pl", "DRPG.Murder.indirectCost", "kosztuje więcej, niż jest warta"],
+            ["en", "DRPG.Murder.endConfirm", "The incident state is cleared"], ["pl", "DRPG.Murder.endConfirm", "Stan incydentu zostaje wyczyszczony"],
+            ["en", "DRPG.Murder.trackerCastGone", "Close the murder"], ["pl", "DRPG.Murder.trackerCastGone", "Zamknij morderstwo"],
+            ["en", "DRPG.Cleanup.gmAttemptsLeft.other", "close the murder"], ["pl", "DRPG.Cleanup.gmAttemptsLeft.other", "zamkniesz morderstwo"]
+        ];
+        const NEW = ["DRPG.Murder.trackerOpenMurder", "DRPG.Murder.fact.who", "DRPG.Murder.fact.left", "DRPG.Murder.fact.case"];
+        const files = { en, pl };
+        const old = OLD.filter(([lang, key, phrase]) => typeof at(files[lang], key) !== "string" || at(files[lang], key).includes(phrase))
+            .map(([lang, key]) => `${lang} ${key}`);
+        const missing = NEW.flatMap(key => ["en", "pl"].filter(lang => typeof at(files[lang], key) !== "string" || !at(files[lang], key).trim()).map(lang => `${lang} ${key}`));
+        const family = Object.keys(at(pl, "DRPG.Murder.afterKeys") ?? {}).sort();
+        const budget = [at(en, "DRPG.Murder.indirectCost"), at(pl, "DRPG.Murder.indirectCost")].map(t => ["{low}", "{high}", "{fewest}", "{actions}"].every(p => String(t).includes(p)));
+        equal(JSON.stringify({ old, missing, family, budget }), JSON.stringify({ old: [], missing: [], family: ["few", "many", "one", "other"], budget: [true, true] }),
+            "{old: a phrase S13-38 read still in its key; missing: the tracker's new words; family: Polish afterKeys; budget: the trap's budget keeps its four numbers}");
     }],
 ];
 

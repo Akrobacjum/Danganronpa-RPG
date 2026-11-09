@@ -975,9 +975,32 @@
       "id": "incident-tracker",
       "client": "gm",
       "opener": "murder-ui.mjs m.openIncidentTracker()",
-      "captured": false,
-      "answered": "null",
-      "threw": null
+      "captured": true,
+      "title": "Incident tracker",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-incident",
+        "drpg-ui",
+        "drpg-kit-width",
+        "drpg-kit-width-tracker"
+      ],
+      "tag": "dialog",
+      "width": 520,
+      "buttons": [
+        {
+          "action": "open",
+          "label": "Open a murder...",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Close",
+          "default": false
+        }
+      ],
+      "file": "incident-tracker.html"
     },
     {
       "id": "level-up",

@@ -35604,7 +35604,8 @@ const INVARIANTS = [
         const source = {};
         for (const [file, fn] of SOURCE) {
             const body = fnSource(stripComments(sources.get(file) ?? ""), fn);
-            source[`${file} ${fn}`] = !body ? "gone" : [/\bdrpgWindow\(\{/.test(body), /\bfit: true\b/.test(body), /\bfooter\b/.test(body), /\bbuttons:\s*\[/.test(body)];
+            // Fit, or a width the window states (E47-C2: the tracker's `width: "tracker"`, the kit's fixed width in place of the fit).
+            source[`${file} ${fn}`] = !body ? "gone" : [/\bdrpgWindow\(\{/.test(body), /\bfit: true\b|\bwidth: "[a-z]+"/.test(body), /\bfooter\b/.test(body), /\bbuttons:\s*\[/.test(body)];
         }
         /* Each opener with its window's class, the role per footer action, and the actions it must show. Give back's
            and Hold them again's windows share a class; Despair Flow's pool buttons depend on the world's accounts. */
@@ -42540,7 +42541,164 @@ const INVARIANTS = [
         equal(stableJson(drawn), stableJson({ step: F.trialNextStep(F.trialStepView()), footer: true }),
             "{step: the step the drawn window's lead names, against the table's for this world; footer: a kit footer}");
     }],
+
+    ["R2056 - the incident tracker at one width, its turn bar first (murder-ui.mjs `openIncidentTracker`, `incidentTrackerHtml`; E47-C2, E47-05; audit S04-38): the window states `width: \"tracker\"` and no `fit`; the live region opens on `div.drpg-turn-bar[data-drpg-side]` - the side whose roll the opening waits for, the side to act in the incident, `resolution` at Stage 6; at most three of the last turns; the victim's line from `reserveView`, as the sheet reads what is left", async () => {
+        /*
+         * E47-C2, 09.11.2026. The tracker was drawn `fit` (as wide as its widest table: S04-38 measured 629 px at the
+         * opening and 483 in the incident) and its state was one line among six. Read off the opener's source (comments
+         * blanked) and off the builder for five fights between two of the world's students (read only: nothing is
+         * written, and the world read as one with no incident, so the clean-up section reads none). Red on f7266b28: `fit: true`, the
+         * first child a `<p>`, five turns listed.
+         */
+        needs(world.atLeast("livingStudents", 2), "two students for a fight's two sides");
+        const MU = await import("./murder-ui.mjs");
+        const { reserveView } = await import("./character.mjs");
+        const opener = fnSource(stripComments((await moduleSources()).get("murder-ui.mjs") ?? ""), "openIncidentTracker") ?? "";
+        must(opener.length > 500, "openIncidentTracker was not found in murder-ui.mjs - this would measure nothing");
+        const [killer, victim] = studentActors();
+        const turn = n => ({ turn: n, side: n % 2 ? "victim" : "killer", key: "strike", band: "despair", success: false, changes: [] });
+        const fight = { stage: "incident", turn: 6, turnSide: "victim", killerId: killer.id, victimId: victim.id, recent: [1, 2, 3, 4, 5].map(turn), keyRemnants: 1 };
+        const read = state => {
+            const root = document.createElement("div");
+            root.innerHTML = MU.incidentTrackerHtml(state, null);
+            const live = root.querySelector(".drpg-incident-live");
+            const first = live?.firstElementChild ?? null;
+            return { first: first?.matches("div.drpg-turn-bar[data-drpg-side]") ? first.dataset.drpgSide : first?.tagName ?? null,
+                turns: live?.querySelectorAll(".drpg-incident-recent > li").length ?? null, text: (live?.textContent ?? "").replace(/\s+/g, " ") };
+        };
+        const hp = reserveView(victim, "hitPoints"), sanity = reserveView(victim, "stress");
+        const line = game.i18n.format("DRPG.Events.reserveVictim", { name: victim.name, hp: hp.left, hpMax: hp.max, sanity: sanity.left, sanityMax: sanity.max }).replace(/\s+/g, " ");
+        // The clean-up section asks the world's incident for its stage: read as a world with none (`quietWorld`).
+        const { inFight, sides } = quietWorld(() => ({ inFight: read(fight), sides: [read({ ...fight, stage: "openingRoll", turn: 0, recent: [] }).first,
+            read({ ...fight, stage: "openingRoll", turn: 0, indirect: true, recent: [] }).first, read(fight).first, read({ ...fight, turnSide: "killer" }).first,
+            read({ ...fight, stage: "resolution" }).first] }));
+        equal(stableJson({ width: [/\bwidth:\s*"tracker"/.test(opener), /\bfit:\s*true\b/.test(opener)], sides, turns: inFight.turns, reserve: inFight.text.includes(line) }),
+            stableJson({ width: [true, false], sides: ["killer", "victim", "victim", "killer", "resolution"], turns: 3, reserve: true }),
+            `{width: [the opener states "tracker", the opener fits], sides: the live region's first child (direct opening, trap opening, the victim's turn, the killer's, Stage 6), turns: listed of 5, reserve: the line is reserveView's (${line})}: ${inFight.text.slice(0, 400)}`);
+    }],
+    ["R2057 - with no murder the tracker opens on its empty state (murder-ui.mjs `openIncidentTracker`; E47-C2, E47-05; audit S04-38): `drpg-window-incident` at the tracker's width, the kit's empty state in its live region, Open a murder... the primary and the default with Close beside it, no warning toast; Open a murder... opens the murder window", async () => {
+        /*
+         * E47-C2, 09.11.2026. With no incident the tile's road warned "No murder is running." and opened nothing. Read on
+         * this GM with DialogV2's `wait` answering for the window (the first "open", then nothing), so nothing is written,
+         * and the world read as one with no incident and no Eclipse (`quietWorld`, so a table with a fight can run it):
+         * the tracker's config, then whether a second window came and is the murder window. Red on f7266b28: one warning,
+         * no window.
+         */
+        const MU = await import("./murder-ui.mjs");
+        needs(world.atLeast("livingStudents", 1), "a living student, for the murder window Open a murder... opens");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const warnWas = ui.notifications.warn;
+        const configs = [], warned = [];
+        let answer = "open";
+        D.wait = async cfg => { configs.push(cfg); const a = answer; answer = null; return a; };
+        ui.notifications.warn = (...args) => { warned.push(String(args[0])); };
+        try {
+            await quietWorld(() => MU.openIncidentTracker());
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            ui.notifications.warn = warnWas;
+        }
+        const [tracker, next] = configs;
+        const root = document.createElement("div");
+        root.innerHTML = tracker?.content?.outerHTML ?? String(tracker?.content ?? "");
+        const roleOf = b => /\bdrpg-role-([\w-]+)/.exec(String(b.class ?? ""))?.[1] ?? null;
+        equal(stableJson({
+            classes: ["drpg-window-incident", "drpg-kit-width-tracker"].map(c => Boolean(tracker?.classes?.includes(c))),
+            empty: root.querySelector(".drpg-incident-live .drpg-kit-empty")?.textContent.trim() ?? null,
+            buttons: (tracker?.buttons ?? []).map(b => [b.action, roleOf(b), Boolean(b.default), b.label]),
+            warned, next: next?.classes?.includes("drpg-window-murder") ?? null
+        }), stableJson({
+            classes: [true, true], empty: game.i18n.localize("DRPG.Murder.none"),
+            buttons: [["open", "primary", true, game.i18n.localize("DRPG.Murder.trackerOpenMurder")], ["close", "close", false, game.i18n.localize("DRPG.Kit.close")]],
+            warned: [], next: true
+        }), "{classes: [the tracker's, its width's], empty: the empty state's words, buttons: [action, role, default, label], warned: the toasts, next: Open a murder... opened the murder window}");
+    }],
+    ["R2058 - Murder and Edit campaign on formGrid, Edit campaign's Chapter a stepper (murder-ui.mjs `openMurderDialog`, gm-campaign.mjs `openClockDialog` and `readClockForm`; E47-C2, E47-06; the owner's Q-E47-1): each field in its order beside a `label.drpg-form-label` that points at it by `for`; the Chapter `input[type=number]` of a kit stepper from 1 to the season's chapters or the clock's past them, read as season-setup.mjs `readSeasonForm` reads its own", async () => {
+        /*
+         * E47-C2, 09.11.2026. Both windows were columns of `<label>Name <select></label>`, laid out by four rules of
+         * danganronpa.css (E32+E07 C14), and Edit campaign's Chapter was a `<select>` of the season's chapters (Q-E44-3:
+         * "a select until E47"). Read on this GM with DialogV2's `wait` answering nothing (no write), then Edit campaign's
+         * reader on its own form with five typed chapters, beside `readSeasonForm` on a form with the same `max`. Red on
+         * f7266b28: no form grid, the chapter a select, no `readClockForm`.
+         */
+        const M = await import("./murder.mjs");
+        const { CHAPTERS_PER_SEASON } = await import("./config.mjs");
+        const { getClock } = await import("./clock.mjs");
+        const GC = await import("./gm-campaign.mjs");
+        const { readSeasonForm } = await import("./season-setup.mjs");
+        needs(world.atLeast("livingStudents", 1), "a living student, for the murder window's lists");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const configs = [];
+        D.wait = async cfg => { configs.push(cfg); return null; };
+        try {
+            await GC.openClockDialog();
+            // Read as a world with no incident and no Eclipse (`quietWorld`): either would open something else.
+            await quietWorld(() => M.openMurderDialog());
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        const drawn = cls => {
+            const cfg = configs.find(c => c.classes?.includes(cls));
+            const root = document.createElement("div");
+            root.innerHTML = cfg?.content?.outerHTML ?? String(cfg?.content ?? "");
+            return root;
+        };
+        const fields = root => [...root.querySelectorAll(".drpg-form-grid > label.drpg-form-label")].map(l => {
+            const field = l.htmlFor ? [...root.querySelectorAll("[id]")].find(el => el.id === l.htmlFor) ?? null : null;
+            return [l.textContent.trim(), field?.name ?? null, field?.tagName.toLowerCase() ?? null];
+        });
+        const clock = drawn("drpg-window-clock"), murder = drawn("drpg-window-murder");
+        const L = key => game.i18n.localize(key);
+        const stated = Number(getClock().chapter);
+        const top = Math.max(CHAPTERS_PER_SEASON, Number.isFinite(stated) && stated >= 1 ? Math.round(stated) : 1);
+        const chapter = clock.querySelector('.drpg-kit-stepper > input[type="number"][name="chapter"]');
+        const typed = ["99", "0", "-2", "2.5", ""];
+        const seasonRead = v => {
+            const season = document.createElement("div");
+            season.innerHTML = `<form><input name="campaignName" value=""><input type="number" name="chapter" min="1" max="${top}" value="${v}"><input name="safeword" value=""></form>`;
+            return readSeasonForm({ element: season }).chapter;
+        };
+        const season = typed.map(seasonRead);
+        must(season[0] === top && season[1] === 1 && season[4] === 1, `readSeasonForm no longer holds the chapter to 1..${top}: ${stableJson(season)}`);
+        const reads = typeof GC.readClockForm !== "function" || !chapter ? null : typed.map((v, i) => {
+            chapter.value = v;
+            return [GC.readClockForm({ element: clock }).chapter, season[i]];
+        });
+        equal(stableJson({
+            clock: fields(clock), murder: fields(murder), select: Boolean(clock.querySelector('select[name="chapter"]')),
+            stepper: chapter ? [chapter.min, chapter.max] : null, reads, wrapped: [clock, murder].map(r => r.querySelectorAll("label > select, label > .drpg-kit-stepper").length)
+        }), stableJson({
+            clock: [[L("DRPG.Clock.campaignName"), "campaignName", "input"], [L("DRPG.Clock.chapter"), "chapter", "input"], [L("DRPG.Clock.phase"), "phase", "select"],
+                [L("DRPG.Clock.day"), "day", "input"], [L("DRPG.Clock.session"), "session", "input"], [L("DRPG.Clock.timeOfDay"), "timeOfDay", "select"]],
+            murder: [[L("DRPG.Murder.killer"), "killer", "select"], [L("DRPG.Murder.victim"), "victim", "select"], [L("DRPG.Murder.openingStatistic"), "openingTrait", "select"]],
+            select: false, stepper: ["1", String(top)], reads: season.map(n => [n, n]),
+            wrapped: [0, 0]
+        }), "{clock, murder: [label, the field it points at, its tag] in order; select: the chapter still a select; stepper: [min, max]; reads: [readClockForm, readSeasonForm] for 99, 0, -2, 2.5 and empty; wrapped: a label still wrapping its field}");
+    }],
 ];
+
+/**
+ * A world read as one with no incident and no Eclipse (E47-C2, for R2056-R2058): `game.settings.get` answers the
+ * murder's world half inactive and the clock's `eclipse` false while `run` runs (a promise is awaited), the setting
+ * itself untouched - so a tier-1 reading of the murder windows needs no skip at a table where a fight is running.
+ */
+function quietWorld(run) {
+    const real = game.settings.get;
+    game.settings.get = function (scope, key, ...rest) {
+        const value = real.call(this, scope, key, ...rest);
+        if (scope !== MODULE_ID) return value;
+        if (key === SETTINGS.murderState) return { active: false };
+        if (key === SETTINGS.clock) return { ...(value ?? {}), eclipse: false };
+        return value;
+    };
+    let out;
+    try { out = run(); } catch (err) { game.settings.get = real; throw err; }
+    if (out && typeof out.then === "function") return out.finally(() => { game.settings.get = real; });
+    game.settings.get = real;
+    return out;
+}
 
 /**
  * The translation keys R1 cannot see, because no file spells them out: each is

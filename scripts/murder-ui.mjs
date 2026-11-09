@@ -25,7 +25,10 @@
  * and `openingInvited`, the `let` the rules export for the tracker) and nothing
  * below calls back into them. It exports nothing that murder.mjs did not. Its windows
  * are the kit's since E21 (C2a the tracker, C3a the murder window and End the murder's
- * question: ui-kit.mjs `drpgWindow`, `drpgConfirm`), so it holds no `DialogV2` alias.
+ * question: ui-kit.mjs `drpgWindow`, `drpgConfirm`), so it holds no `DialogV2` alias; their
+ * insides are the kit's since E47-C2 (1.2.102): the murder window on `formGrid`, the tracker
+ * at the kit's stated width (`width: "tracker"`) with its turn bar, its facts on `formGrid`,
+ * its clean-up tries on `dataTable` and its empty state, and the warnings on `box()`.
  */
 
 import { CRISIS_ACTIONS, RESOLUTION_STRESS_COST, TIMING, INDIRECT_MURDER, ACTIONS } from "./config.mjs";
@@ -33,7 +36,7 @@ import { SETTINGS } from "./settings.mjs";
 import { resourceValue, resourceMax, reserveNote, reserveView } from "./character.mjs";
 import { keepLive } from "./live.mjs";
 import { error, plural, esc } from "./utils.mjs";
-import { drpgWindow, drpgConfirm } from "./ui-kit.mjs";
+import { drpgWindow, drpgConfirm, formGrid, dataTable, emptyState, box } from "./ui-kit.mjs";
 import { murderState, killerIds } from "./incident-store.mjs";
 import { openMurder, passTurn, endMurder, openingInvited, rollOpening } from "./murder-rules.mjs";
 
@@ -192,6 +195,16 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
         return { killerRoom: named(k), victimRoom: named(v) };
     };
 
+    /*
+     * ON THE KIT'S FORM GRID (E47-C2, 09.11.2026; the owner's M8 card, Approve): the label column beside the three
+     * lists, in their order - Killer, Victim, the trap's box and its budget across both columns, then the opening
+     * roll's statistic. Until E47 four rules of danganronpa.css (E32+E07 C14) laid out `<label>Name <select></label>`
+     * rows as a grid; each label now points at its field by `for`, so clicking the word still reaches the list. The ids
+     * are this copy's own: the window is not single-instance (no `alreadyOpen`, as the tracker). The three notes the
+     * window shows or hides are the kit's boxes: the dead builder and the rooms apart on the warning box, one name in
+     * both seats on the info box (E21's carried sites, homed in E47 by window).
+     */
+    const ids = Object.fromEntries(["killer", "victim", "openingTrait"].map(k => [k, `drpg-murder-${k}-${++murderFields}`]));
     const result = await drpgWindow({
         title: game.i18n.localize("DRPG.Murder.openTitle"),
         // Named so it can be addressed - the diagnostics count it and the suite
@@ -199,38 +212,38 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
         // like the incident tracker's own class.
         classes: ["drpg-panel", "drpg-window-murder"],
         body: `<form>
-            <p class="notes">${game.i18n.localize("DRPG.Murder.openIntro")}</p>
-            ${gone ? `<p class="notes drpg-warning" data-drpg-killer-gone>${
-                game.i18n.format("DRPG.Murder.killerNotAlive", { name: esc(gone) })}</p>` : ""}
-            <label>${game.i18n.localize("DRPG.Murder.killer")}
-                <select name="killer">${optionsFor(defaultKiller)}</select></label>
-            <label>${game.i18n.localize("DRPG.Murder.victim")}
-                <select name="victim">${options}</select></label>
-            <label class="drpg-checkbox">
-                <input type="checkbox" name="indirect"${
-                    /*
-                     * THE KILLER THE DROPDOWN IS SHOWING, NOT THE ONE THE CALLER
-                     * NAMED (F10). `killerId` is this function's argument and the
-                     * GM panel passes none, so `armed.has(null)` was false on the
-                     * one road where the question is worth asking - and the box
-                     * stayed unticked for a killer whose trap is finished until the
-                     * GM touched a dropdown they had no reason to touch. The
-                     * `change` listener below has always asked
-                     * `armed.has(form.killer.value)`; this is the same question at
-                     * first render. On the trap road `defaultKiller` IS `killerId`
-                     * while the builder lives, and the box is ticked by `indirect`
-                     * either way.
-                     */
+            <p class="drpg-help">${game.i18n.localize("DRPG.Murder.openIntro")}</p>
+            ${gone ? `<div data-drpg-killer-gone>${box("warning",
+                game.i18n.format("DRPG.Murder.killerNotAlive", { name: esc(gone) }))}</div>` : ""}
+            ${formGrid([
+                { label: game.i18n.localize("DRPG.Murder.killer"), id: ids.killer,
+                  field: `<select name="killer" id="${ids.killer}">${optionsFor(defaultKiller)}</select>` },
+                { label: game.i18n.localize("DRPG.Murder.victim"), id: ids.victim,
+                  field: `<select name="victim" id="${ids.victim}">${options}</select>` },
+                { full: `<label class="drpg-checkbox">
+                    <input type="checkbox" name="indirect"${
+                        /*
+                         * THE KILLER THE DROPDOWN IS SHOWING, NOT THE ONE THE CALLER
+                         * NAMED (F10). `killerId` is this function's argument and the
+                         * GM panel passes none, so `armed.has(null)` was false on the
+                         * one road where the question is worth asking - and the box
+                         * stayed unticked for a killer whose trap is finished until the
+                         * GM touched a dropdown they had no reason to touch. The
+                         * `change` listener below has always asked
+                         * `armed.has(form.killer.value)`; this is the same question at
+                         * first render. On the trap road `defaultKiller` IS `killerId`
+                         * while the builder lives, and the box is ticked by `indirect`
+                         * either way.
+                         */
                     indirect || armed.has(defaultKiller) ? " checked" : ""} />
-                ${game.i18n.localize("DRPG.Murder.indirect")}</label>
-            <p class="notes" data-drpg-trap-note${trapFirst ? "" : " hidden"}>${
-                indirectCostText()}</p>
-            <label>${game.i18n.localize("DRPG.Murder.openingStatistic")}
-                <select name="openingTrait">${trapFirst
-                    ? statisticOptions("victim", defaultVictim) : statisticOptions("killer", defaultKiller)}</select></label>
-            <p class="notes drpg-warning" data-drpg-rooms hidden></p>
-            <p class="notes drpg-warning" data-drpg-self hidden>${
-                game.i18n.localize("DRPG.Murder.openSelfNote")}</p>
+                    ${game.i18n.localize("DRPG.Murder.indirect")}</label>` },
+                { full: `<p class="drpg-help" data-drpg-trap-note${trapFirst ? "" : " hidden"}>${indirectCostText()}</p>` },
+                { label: game.i18n.localize("DRPG.Murder.openingStatistic"), id: ids.openingTrait,
+                  field: `<select name="openingTrait" id="${ids.openingTrait}">${trapFirst
+                      ? statisticOptions("victim", defaultVictim) : statisticOptions("killer", defaultKiller)}</select>` }
+            ])}
+            <div data-drpg-rooms hidden>${box("warning", "")}</div>
+            <div data-drpg-self hidden>${box("info", esc(game.i18n.localize("DRPG.Murder.openSelfNote")))}</div>
         </form>`,
         render: (event, dialog) => {
             const form = dialog.element.querySelector("form");
@@ -269,7 +282,9 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
                 const apart = side === "killer" && !self ? roomsApart(form.killer.value, form.victim.value) : null;
                 if (rooms) {
                     rooms.hidden = !apart;
-                    rooms.textContent = apart ? game.i18n.format("DRPG.Murder.roomsDiffer", {
+                    // The words go into the box, not over it: `textContent` on the wrapper would take the box away.
+                    const said = rooms.querySelector(".drpg-box") ?? rooms;
+                    said.textContent = apart ? game.i18n.format("DRPG.Murder.roomsDiffer", {
                         killer: game.actors.get(form.killer.value)?.name ?? "?",
                         victim: game.actors.get(form.victim.value)?.name ?? "?",
                         ...apart
@@ -332,6 +347,9 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
     await openIncidentTracker();
     return true;
 }
+
+/** The murder window's field ids, one set a copy (`openMurderDialog`: the label column points at each by `for`). */
+let murderFields = 0;
 
 /** The tracker's "ask again": once per ten seconds on this client. */
 let lastReask = 0;
@@ -403,7 +421,7 @@ export function incidentTrackerHtml(now, cleanup) {
     // The incident is gone but the window is still up - the live hook below closes it
     // on the next tick, and until then it says so rather than showing a dead fight.
     if (!now) {
-        return `<div class="drpg-incident-live"><p class="notes">${
+        return `<div class="drpg-incident-live"><p class="drpg-help">${
             game.i18n.localize("DRPG.Murder.trackerOver")}</p></div>`;
     }
     const { killer, victim, third, left } = incidentPeople(now);
@@ -445,40 +463,72 @@ export function incidentTrackerHtml(now, cleanup) {
     const invited = opening && openingInvited?.openedAt === (now.openedAt ?? null)
         ? game.users.get(openingInvited.userId) ?? null : null;
 
+    const state = opening
+        ? game.i18n.format("DRPG.Murder.trackerWaiting", {
+            stage: game.i18n.localize(`DRPG.Murder.stage.${now.stage}`),
+            name: foundry.utils.escapeHTML((now.indirect ? victim : killer)?.name ?? "?")
+        })
+        : now.selfInflicted
+        // No turn and no side to report: there is no Stage 5 in this one.
+        ? game.i18n.format("DRPG.Murder.trackerStateSelf", {
+            stage: game.i18n.localize(`DRPG.Murder.stage.${now.stage}`)
+        })
+        : game.i18n.format("DRPG.Murder.trackerState", {
+            stage: game.i18n.localize(`DRPG.Murder.stage.${now.stage}`),
+            turn: now.turn,
+            side: game.i18n.localize(`DRPG.Murder.side.${now.turnSide}`)
+        });
+    const who = now.selfInflicted
+        // One name, and an arrow pointing at itself would be the only
+        // thing on this line that is not true.
+        ? `<strong>${foundry.utils.escapeHTML(victim?.name ?? "?")}</strong> · ${
+            game.i18n.localize("DRPG.Murder.selfInflicted")}`
+        : `${pairOf(killer, victim, null, n => `<strong>${foundry.utils.escapeHTML(n)}</strong>`)}${
+            third ? ` · ${game.i18n.format("DRPG.Murder.thirdIs", {
+                name: foundry.utils.escapeHTML(third.name)
+            })}` : ""}`;
+
+    /*
+     * THE TURN BAR FIRST, THEN THE FACTS, THE LAST TURNS AND THE CLEAN-UP (E47-C2, 09.11.2026; audit S04-38; the plan's
+     * goal: "a turn bar, the last 2-3 results from E07, the reserve as D5 and the handbook say, the clean-up tries by
+     * D13"). The state line was the second of six lines of one weight, below the pair; it is the bar now
+     * (`div.drpg-turn-bar[data-drpg-side]`, `barSide`), in a colour the kit already has (the owner's Q-E47-2: the
+     * victim's turn on the warning box, the killer's and a third party's on the info box, Stage 6 and the opening's
+     * fine print never red - D11's red is the GM's road). The invitation's line under it, then the cast warning on the
+     * kit's warning box, then the three facts on the label column - who, what the victim has left (`reserveLine`, the
+     * sheet's numbers through `reserveView`: D5) and the Key Remnants the case leaves - then the last turns and, at
+     * Stage 6, each killer's clean-up. The same lines as before in that order: the state line moved first and the
+     * facts before the turns, by the goal's words.
+     */
     return `<div class="drpg-incident-live">
-        ${lost.length ? `<p class="drpg-warning">${game.i18n.format(
-            "DRPG.Murder.trackerCastGone", { who: lost.join(", ") })}</p>` : ""}
-        <p>${now.selfInflicted
-            // One name, and an arrow pointing at itself would be the only
-            // thing on this line that is not true.
-            ? `<strong>${foundry.utils.escapeHTML(victim?.name ?? "?")}</strong> · ${
-                game.i18n.localize("DRPG.Murder.selfInflicted")}`
-            : `${pairOf(killer, victim, null, n => `<strong>${foundry.utils.escapeHTML(n)}</strong>`)}${
-                third ? ` · ${game.i18n.format("DRPG.Murder.thirdIs", {
-                    name: foundry.utils.escapeHTML(third.name)
-                })}` : ""}`}</p>
-        <p>${opening
-            ? game.i18n.format("DRPG.Murder.trackerWaiting", {
-                stage: game.i18n.localize(`DRPG.Murder.stage.${now.stage}`),
-                name: foundry.utils.escapeHTML((now.indirect ? victim : killer)?.name ?? "?")
-            })
-            : now.selfInflicted
-            // No turn and no side to report: there is no Stage 5 in this one.
-            ? game.i18n.format("DRPG.Murder.trackerStateSelf", {
-                stage: game.i18n.localize(`DRPG.Murder.stage.${now.stage}`)
-            })
-            : game.i18n.format("DRPG.Murder.trackerState", {
-                stage: game.i18n.localize(`DRPG.Murder.stage.${now.stage}`),
-                turn: now.turn,
-                side: game.i18n.localize(`DRPG.Murder.side.${now.turnSide}`)
-            })}</p>
-        ${invited ? `<p class="notes">${game.i18n.format("DRPG.Murder.trackerInvited", {
+        <div class="drpg-turn-bar" data-drpg-side="${barSide(now)}">${state}</div>
+        ${invited ? `<p class="drpg-help">${game.i18n.format("DRPG.Murder.trackerInvited", {
             user: foundry.utils.escapeHTML(invited.name)
         })}</p>` : ""}
+        ${lost.length ? box("warning", game.i18n.format("DRPG.Murder.trackerCastGone", { who: lost.join(", ") })) : ""}
+        ${formGrid([
+            { label: game.i18n.localize("DRPG.Murder.fact.who"), field: `<span>${who}</span>` },
+            { label: game.i18n.localize("DRPG.Murder.fact.left"), field: `<span>${foundry.utils.escapeHTML(left)}</span>` },
+            { label: game.i18n.localize("DRPG.Murder.fact.case"), field: `<span>${plural("DRPG.Murder.keyCount", { n: now.keyRemnants })}</span>` }
+        ])}
         ${recentTurnsHtml(now.recent)}
-        <p>${foundry.utils.escapeHTML(left)}</p>
-        <p>${plural("DRPG.Murder.keyCount", { n: now.keyRemnants })}</p>
         ${cleanupSection(killerIds(now).map(id => game.actors.get(id)).filter(Boolean), cleanup)}</div>`;
+}
+
+/**
+ * The turn bar's side (E47-C2): at the opening the side whose roll it waits for (a direct murder's killer, a trap's
+ * victim), in the incident the side to act, and `resolution` at Stage 6 and for a death by their own hand, which has
+ * no turns. Its colour is components.css's (the tracker's section).
+ */
+function barSide(now) {
+    if (now?.stage === "openingRoll") return now.indirect ? "victim" : "killer";
+    if (now?.stage === "incident" && !now.selfInflicted) return ["victim", "killer", "third"].includes(now.turnSide) ? now.turnSide : "victim";
+    return "resolution";
+}
+
+/** With no incident (E47-C2; audit S04-38): the kit's empty state, in the live region the tracker rebuilds. */
+function emptyTrackerHtml() {
+    return `<div class="drpg-incident-live">${emptyState("DRPG.Murder.none")}</div>`;
 }
 
 /**
@@ -488,8 +538,12 @@ export function incidentTrackerHtml(now, cleanup) {
  * measured against since E51 C1 (murder-rules.mjs `turnEntry`); an entry written before has neither and reads as it
  * did. Exported for R1109.
  */
+const RECENT_SHOWN = 3;
+
 export function recentTurnsHtml(recent) {
-    const lines = (recent ?? []).map(({ turn, side, key, band, success, changes, total = null, threshold = null }) => {
+    // At most RECENT_SHOWN (E47-C2; the plan's "the last 2-3 results"): the cast keeps three, and a longer list is cut
+    // to its newest rather than growing the window.
+    const lines = (recent ?? []).slice(-RECENT_SHOWN).map(({ turn, side, key, band, success, changes, total = null, threshold = null }) => {
         const scored = Number.isFinite(total) && Number.isFinite(threshold)
             ? ` (${game.i18n.format("DRPG.Murder.trackerScore", { total, n: threshold })})` : "";
         const verdict = !band
@@ -587,6 +641,14 @@ function incidentButtons(state) {
     };
 }
 
+/** The empty state's footer (E47-C2): Open a murder... the primary and the default, Close beside it. */
+function emptyButtons() {
+    return {
+        primary: { action: "open", label: game.i18n.localize("DRPG.Murder.trackerOpenMurder") },
+        close: { role: "close", action: "close" }
+    };
+}
+
 /** Send the opening roll again, once the cooldown allows. */
 function reaskOpening() {
     const now = Date.now();
@@ -620,11 +682,11 @@ export async function openIncidentTracker() {
      */
 
     if (!game.user.isGM) return null;
+    /* NO MURDER: THE EMPTY STATE, NOT A TOAST (E47-C2, 09.11.2026; audit S04-38). It warned "No murder is running." and
+       opened nothing, so the GM panel's tile answered a press with a corner message. It opens on the kit's empty state
+       with Open a murder... the primary (`openMurderDialog`), and the live region below closes and reopens it as the
+       tracker when an incident opens elsewhere (`incidentSignature` null, then a stage). */
     const state = murderState();
-    if (!state) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Murder.none"));
-        return null;
-    }
 
     /* AWAITED ONCE, HERE, so the body below can be rebuilt synchronously.
 
@@ -654,20 +716,22 @@ export async function openIncidentTracker() {
      */
     const read = () => murderState();
 
-    const trackerBody = () => incidentTrackerHtml(read(), cleanup);
+    const trackerBody = () => (state ? incidentTrackerHtml(read(), cleanup) : emptyTrackerHtml());
     const signature = () => incidentSignature(read());
     const openedWith = signature();
     let settling = false;
 
     const action = await drpgWindow({
-        // `cleanupSection()` puts a table in this window once Stage 6 has traces to
-        // list - `fit` is what sizes the window to it.
         title: game.i18n.localize("DRPG.Murder.trackerTitle"),
         classes: ["drpg-panel", "drpg-window-incident"],
-        // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
-        fit: true,
+        /* ONE WIDTH, STATED (E47-C2, 09.11.2026; audit S04-38; the plan's risk, "the tracker's fixed width fights
+           tableDialog"). It was `fit` since E21 C2a - as wide as its widest table (ui-kit.mjs `fitKitWidth`) - and the
+           window reopens at every stage, so it jumped: 629 px at the opening and 483 in the incident (S04-38's
+           readings). The kit's `tracker` width (E46-C1: 32.5 rem, scaled under Legacy) at every stage; Stage 6's
+           clean-up table scrolls inside it (`dataTable`'s box). */
+        width: "tracker",
         body: trackerBody(),
-        footer: incidentButtons(state),
+        footer: state ? incidentButtons(state) : emptyButtons(),
         render: (event, dialog) => keepLive(dialog, {
             region: ".drpg-incident-live",
             build: trackerBody,
@@ -696,6 +760,7 @@ export async function openIncidentTracker() {
         rejectClose: false
     });
 
+    if (action === "open") return openMurderDialog();
     if (action === "pass") {
         if (passAllowed()) await passTurn();
         else ui.notifications.warn(game.i18n.localize("DRPG.Murder.passTooSoon"));
@@ -761,17 +826,18 @@ function killerCleanup(killer, cleanup, named) {
 
     if (!traces.length) {
         return `<h4>${title}</h4>
-                <p class="notes">${toolLine}</p>
-                <p><em>${game.i18n.localize("DRPG.Cleanup.gmNothingHere")}</em></p>`;
+                <p class="drpg-help">${toolLine}</p>
+                ${emptyState("DRPG.Cleanup.gmNothingHere")}`;
     }
 
-    const rows = traces.map(t => `<tr>
-        <td>${foundry.utils.escapeHTML(`${t.data.visibilityLabel} ${t.data.typeLabel}`)}</td>
-        <td>${foundry.utils.escapeHTML(t.data.note || t.data.subject || "-")}</td>
-        <td>${t.data.reinforced
+    // On the kit's dataTable (E47-C2): the Remnant, its note, what it takes to erase - the same three columns.
+    const rows = traces.map(t => ({
+        trace: foundry.utils.escapeHTML(`${t.data.visibilityLabel} ${t.data.typeLabel}`),
+        note: foundry.utils.escapeHTML(t.data.note || t.data.subject || "-"),
+        dc: t.data.reinforced
             ? `<strong>${game.i18n.localize("DRPG.Cleanup.gmReinforced")}</strong>`
-            : `DC ${t.dc}`}</td>
-    </tr>`).join("");
+            : `DC ${t.dc}`
+    }));
 
     // How much scrubbing the killer still has in them. Stage 6 has no turn
     // limit - it ends when the Sanity runs out or the GM says so - and without
@@ -780,14 +846,18 @@ function killerCleanup(killer, cleanup, named) {
         Math.floor((resourceMax(killer, "stress") - resourceValue(killer, "stress"))
             / RESOLUTION_STRESS_COST));
 
+    // The tries left are what decides Stage 6 (D13), so they are body text; the tool beside them is fine print.
     return `<h4>${title}</h4>
-        <p class="notes">${toolLine}</p>
-        <p class="notes">${plural("DRPG.Cleanup.gmAttemptsLeft", { n: left })}</p>
-        <table class="drpg-vault-table"><thead><tr>
-            <th>${game.i18n.localize("DRPG.Cleanup.gmTrace")}</th>
-            <th>${game.i18n.localize("DRPG.Cleanup.gmNote")}</th>
-            <th>${game.i18n.localize("DRPG.Cleanup.gmThreshold")}</th>
-        </tr></thead><tbody>${rows}</tbody></table>`;
+        <p class="drpg-help">${toolLine}</p>
+        <p>${plural("DRPG.Cleanup.gmAttemptsLeft", { n: left })}</p>
+        ${dataTable({
+            columns: [
+                { key: "trace", label: game.i18n.localize("DRPG.Cleanup.gmTrace") },
+                { key: "note", label: game.i18n.localize("DRPG.Cleanup.gmNote") },
+                { key: "dc", label: game.i18n.localize("DRPG.Cleanup.gmThreshold"), num: true }
+            ],
+            rows
+        })}`;
 }
 
 /**

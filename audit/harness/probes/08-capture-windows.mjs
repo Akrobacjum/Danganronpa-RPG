@@ -20,8 +20,9 @@
  * character p1 owns (Observe, Search, Analyze, Tamper, Rest, Projects, Palm), as `chooseVariant` draws them, and closed
  * unanswered (dismissed: no roll, no price). The notice history is kept again on p1 with 250 notices recorded first
  * (`before`; this browser's own history, no world write), and the room's description window as a phone opens it
- * (room-tile.mjs `openRoomWindow`). The incident tracker stays not captured: it opens on an incident, and opening one
- * writes the world, which this probe leaves as it found it.
+ * (room-tile.mjs `openRoomWindow`). The incident tracker is captured as this world has it, with no incident: its empty
+ * state since E47-C2 (until then it opened nothing without one, and opening one writes the world, which this probe
+ * leaves as it found it).
  *
  * BY WINDOW, BY LANGUAGE, ELSEWHERE (E46 C0, 09.11.2026; E46-02: E46's and E47's groups each re-capture only their own
  * windows, and the comparison of STAGE E46 draws each window in Polish too). Three environment options:

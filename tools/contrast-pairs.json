@@ -15,7 +15,7 @@
       "text": "--drpg-sg-bone-dim",
       "on": "--drpg-sg-ink",
       "size": "small",
-      "where": "notes and hints: body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, ...) and 23 more"
+      "where": "notes and hints: body.drpg-theme-stained-glass .application.dialog.drpg-window-body .dialog-form .notes and 23 more"
     },
     {
       "id": "sg-label",

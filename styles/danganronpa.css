@@ -11932,7 +11932,9 @@ body.drpg-stacked .application.sheet.actor.character {
     color: var(--drpg-bone);
 }
 
-/* THE MURDER WINDOW AND EDIT CAMPAIGN, LAID OUT AS A FORM (E32+E07 C14, 03.10.2026; audit
+/* THE BODY'S WINDOW, LAID OUT AS A FORM - ONCE THE MURDER WINDOW'S AND EDIT CAMPAIGN'S TOO. Since E47-C2
+   (1.2.102) those two are on the kit's `formGrid` (components.css) and take no rule of these six; the
+   note below is the rules' history. (E32+E07 C14, 03.10.2026; audit
    S04-30). Both are a column of `<label>Name <select></label>` rows, and `.drpg-panel label`
    is a flex row, so every field started where its own label ended - in Polish, Zabójca /
    Ofiara and the campaign's six fields made a ragged edge down the window (the audit's
@@ -11950,7 +11952,7 @@ body.drpg-stacked .application.sheet.actor.character {
    body?" selects each started where their own label ended, so the two were of different widths.
    That both its rows are reached by these rules is tier 2's "the body window's two fields share
    one width rule"; the widths themselves are not measurable headless. */
-.application.dialog:is(.drpg-window-murder, .drpg-window-clock, .drpg-window-body) .dialog-form
+.application.dialog.drpg-window-body .dialog-form
     :is(form, div):has(> label :is(select, input:not([type="checkbox"]))) {
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
@@ -11958,19 +11960,19 @@ body.drpg-stacked .application.sheet.actor.character {
     align-items: center;
 }
 
-.application.dialog:is(.drpg-window-murder, .drpg-window-clock, .drpg-window-body) .dialog-form
+.application.dialog.drpg-window-body .dialog-form
     :is(form, div):has(> label :is(select, input:not([type="checkbox"]))) > * {
     grid-column: 1 / -1;
 }
 
-.application.dialog:is(.drpg-window-murder, .drpg-window-clock, .drpg-window-body) .dialog-form
+.application.dialog.drpg-window-body .dialog-form
     :is(form, div) > label:not(.drpg-checkbox):has(:is(select, input:not([type="checkbox"]))) {
     display: grid;
     grid-template-columns: subgrid;
     align-items: center;
 }
 
-.application.dialog:is(.drpg-window-murder, .drpg-window-clock, .drpg-window-body) .dialog-form
+.application.dialog.drpg-window-body .dialog-form
     :is(form, div) > label:not(.drpg-checkbox):has(:is(select, input:not([type="checkbox"]))) > * {
     grid-column: 2;
 }
@@ -11987,12 +11989,12 @@ body.drpg-stacked .application.sheet.actor.character {
    note read in `--drpg-dim` beside the murder window's dim bone (round 1's residue R7); it is here
    since E11 fix r2-H6, read by tier 2's "the body window's fine print is in the glass's dim bone"
    (which rule reaches the note; the contrast itself is not measurable headless). */
-body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-window-clock, .drpg-window-body)
+body.drpg-theme-stained-glass .application.dialog.drpg-window-body
     .dialog-form .notes:not(.drpg-warning) {
     color: var(--drpg-sg-bone-dim);
 }
 
-body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-window-clock, .drpg-window-body)
+body.drpg-theme-stained-glass .application.dialog.drpg-window-body
     .dialog-form .notes.drpg-warning {
     color: var(--drpg-sg-bone);
 }

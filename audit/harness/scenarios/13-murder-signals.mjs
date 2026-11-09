@@ -279,8 +279,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     /* THE GM'S TRACKER, DRAWN (E32+E07 C17, 03.10.2026; audit S04-29). At the opening it read the fight's
        fields before there is a fight - "Opening · turn 0 · victim to act" - while the roll it waited for was
        Chie's; it names whose roll it waits for now, and on this GM, which sent the invitation, the player it
-       went to. Drawn as a GM opens it (`game.drpg.incidentTracker`), its live region read and the window
-       closed. The same reading after the Strike (1d) lists the fight's last turns. */
+       went to. Drawn as a GM opens it (`game.drpg.incidentTracker`), its live region read (its lines and,
+       since E47-C2, its turn bar, which holds the state line) and the window closed. The same reading after the Strike (1d) lists the fight's last turns. */
     const TRACKER_READ = `const { closeOpen } = await import("${repoUrl}/scripts/live.mjs");
         const until = async (test, ms = 6000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };
         const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-incident"));
@@ -291,7 +291,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
             game.drpg.incidentTracker()?.catch?.(() => null);
             await until(() => drawn()?.element?.querySelector(".drpg-incident-live"));
             const live = drawn()?.element?.querySelector(".drpg-incident-live");
-            return { lines: [...(live?.querySelectorAll(":scope > p") ?? [])].map(text), turns: [...(live?.querySelectorAll(".drpg-incident-recent li") ?? [])].map(text) };
+            return { lines: [...(live?.querySelectorAll(":scope > :is(p, .drpg-turn-bar)") ?? [])].map(text), turns: [...(live?.querySelectorAll(".drpg-incident-recent li") ?? [])].map(text) };
         } finally {
             globalThis.__dialogWindows = windows;
             closeOpen("drpg-window-incident");

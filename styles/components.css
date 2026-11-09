@@ -2690,3 +2690,45 @@ body .application.dialog.drpg-window-preseason .drpg-check-part > p.drpg-help { 
 .application.drpg-ui.drpg-window-vote .drpg-vote-status p {
     max-width: none;
 }
+
+/* ---- the incident tracker, Murder and Edit campaign (E47-C2, 09.11.2026; audit S04-38, S13-38) ----
+   The tracker's turn bar is the first line of its live region (murder-ui.mjs `incidentTrackerHtml`, `barSide`), in
+   colours the kit already has (the owner's Q-E47-2: no new colour, D11's red not used): the victim's turn on the warning
+   box, the killer's and a third party's on the info box, Stage 6 and a death by their own hand in the fine print's ink
+   on the info box's edge. Murder's and Edit campaign's fields are the kit's formGrid (no window rule lays them out since
+   E47-C2); a full-width row whose one child is hidden - the murder window's trap budget with the box unticked - takes
+   no row and no gap. */
+.application.drpg-ui.drpg-window-incident .drpg-turn-bar {
+    padding: 0.4rem 0.6rem;
+    margin: 0 0 8px;
+    border-left: 3px solid var(--drpg-kit-info-edge);
+    background: var(--drpg-kit-info-bg);
+    font-weight: 700;
+    line-height: 1.4;
+}
+/* Legacy's pixel face set two lines of a bar or a fact on top of each other (1366x768, Polish: "Aiko Hoshino przeciw
+   Botan / Kage"): the bar and the facts take a line height of their own */
+.application.drpg-ui.drpg-window-incident .drpg-form-grid > .drpg-form-field { line-height: 1.4; }
+.application.drpg-ui.drpg-window-incident .drpg-turn-bar[data-drpg-side="victim"] {
+    border-left-color: var(--drpg-kit-warn-edge);
+    background: var(--drpg-kit-warn-bg);
+}
+.application.drpg-ui.drpg-window-incident .drpg-turn-bar[data-drpg-side="resolution"] {
+    color: var(--drpg-kit-help-ink);
+    background: none;
+    font-weight: 400;
+}
+.application.drpg-ui:is(.drpg-window-murder, .drpg-window-clock) .drpg-form-grid > .drpg-form-full:has(> [hidden]:only-child) { display: none; }
+/* both themes wrap a select in chrome.mjs's `.drpg-select`, which formGrid's field rule does not reach (the select drew
+   at its options' width, 131 px of a 400 px window's field column under the glass): the wrapper takes the field's
+   width, the select the wrapper's - as E46-C3b's Give window does in its own section */
+.application.drpg-ui:is(.drpg-window-murder, .drpg-window-clock) .drpg-form-field > .drpg-select { flex: 1 1 10rem; display: flex; min-width: 0; }
+.application.drpg-ui:is(.drpg-window-murder, .drpg-window-clock) .drpg-form-field > .drpg-select > select { width: 100%; }
+/* the tracker's three facts keep the label column at the tracker's width: the kit's grid goes to one column under its
+   container's 30rem, and the tracker's body is 29.4rem at the root's 16 px (32.5rem less the frame's padding), so
+   "Who", "Left" and "Case" stood each on a line above its fact (1366x768, both themes); under 20rem - a phone's - they
+   stack as the kit stacks them */
+@container (min-width: 20rem) {
+    .application.drpg-ui.drpg-window-incident .drpg-form-grid > .drpg-form-label { grid-column: 1; }
+    .application.drpg-ui.drpg-window-incident .drpg-form-grid > .drpg-form-field { grid-column: 2; }
+}
