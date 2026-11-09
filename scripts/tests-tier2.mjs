@@ -83836,7 +83836,7 @@ const SCENARIOS = [
             + "the English reason or a raw key}");
     }],
     /* ---- E46-C2a (09.11.2026): Room setup on the kit, its writes held. ---- */
-    ["E46-T1 - Room setup opened on a scene while the GM views another (E46-C2a; E46-05, R119, near a road): Apply with nothing changed writes no region; one change on each room tab (Bedrooms' owner, Doors' lock, Searching's seal, Rests' short rest, Stashes' cell, Description's words, Fog's box) writes only its own field and only on the scene it was opened on; drawn on the GM, the footer is Apply and Cancel after every tab", async () => {
+    ["E46-T1 - Room setup opened on a scene while the GM views another (E46-C2a; E46-05, R119, near a road): Apply with nothing changed writes no region; one change on each room tab (Bedrooms' owner, Doors' lock, Searching's seal, Rests' short rest, Stashes' cell, Description's words, Fog's box) writes only its own field and only on the scene it was opened on; Apply with the Passages tab drawn writes no region (its buttons write at once), and the Scenes tab's school linked writes the scene roles and no region (E46-C2b); drawn on the GM, the footer is Apply and Cancel after every tab", async () => {
         /*
          * E46-C2a. Two scenes of the suite's own, each a room of one name (as R119's tier-2 test builds them), in a
          * GM-store world of its own (`withGmStoreWorld`). Each Apply is answered as a GM answers it: the form handed to
@@ -83845,6 +83845,10 @@ const SCENARIOS = [
          * (`discoveredFor`), on each scene. Red by the mutant m2 (Apply reading the camera's scene: `workingScene()` in
          * `applyRoomRows`' place of the scene it was handed): the writes land on the second scene. The bedroom key Apply's
          * sweep hands the owner is taken back.
+         * E46-C2b: two steps more. Passages - Apply with the tab's box drawn (`[data-drpg-passages]`) writes no region: its
+         * buttons write the GMs' store at once, never through Apply. Scenes - the school select set to the scene opened
+         * on: the scene roles hold it after Apply (`sceneRoles`), and no region is written; the roles as they were are put
+         * back before the two scenes go. Red by m2 as before.
          */
         needs(env.dialogs(), "the window is drawn and its tabs pressed");
         needs(world.atLeast("namedRooms", 1), "Room setup lists the named regions of the scene on screen");
@@ -83855,6 +83859,9 @@ const SCENARIOS = [
         const F = await import("./fog.mjs");
         const home = canvas?.scene ?? null;
         const ROOM = "SUITE E46-T1 Lab", NAMES = ["SUITE E46-T1 opened on", "SUITE E46-T1 on screen at Apply"];
+        const ROLES = SETTINGS.sceneRoles;
+        must(game.settings.settings.has(`${MODULE_ID}.${ROLES}`), "the scene roles are not a setting - the Scenes step would link nothing");
+        const rolesBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, ROLES) ?? {});
         const D = foundry.applications.api.DialogV2;
         const own = Object.getOwnPropertyDescriptor(D, "wait");
         const keyFor = actor => actor.items.filter(i => i.getFlag(MODULE_ID, V.KEY_FLAG) === ROOM).map(i => i.id);
@@ -83886,7 +83893,7 @@ const SCENARIOS = [
                         if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
                         else if (cfg?.content) form.append(cfg.content.cloneNode(true));
                         element.append(form);
-                        const field = name => form.querySelector(`[name="${CSS.escape(name)}"]`);
+                        const field = name => (name.startsWith("[") ? form.querySelector(name) : form.querySelector(`[name="${CSS.escape(name)}"]`));
                         if (change) {
                             const [name, set] = change;
                             const el = field(name);
@@ -83916,11 +83923,15 @@ const SCENARIOS = [
                     stashes: await applyWith([`stash:${ROOM}:${b.id}`, el => { el.value = "hidden"; }]),
                     description: await applyWith([`desc:${ROOM}`, el => { el.value = "E46-T1 words"; }]),
                     fog: await applyWith([`fog:${ROOM}:${a.id}`, el => { el.checked = !el.checked; }]),
-                    again: await applyWith(null)
+                    passages: await applyWith(["[data-drpg-pane=\"passages\"] [data-drpg-passages]", () => {}]),
+                    scenes: await applyWith(["scenes:school", el => { el.value = opened.id; }])
                 };
-                reading = { steps, fog: scenes.map(fogOf) };
+                const linked = R.sceneRoles().school === opened.id;
+                steps.again = await applyWith(null);
+                reading = { steps, fog: scenes.map(fogOf), linked };
             } finally {
                 Hooks.off("updateRegion", hook);
+                if (stableJson(game.settings.get(MODULE_ID, ROLES) ?? {}) !== stableJson(rolesBefore)) await game.settings.set(MODULE_ID, ROLES, rolesBefore);
                 if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
                 for (const actor of [a, b]) {
                     const keys = keyFor(actor);
@@ -83953,8 +83964,9 @@ const SCENARIOS = [
         equal(stableJson({ ...reading, footers }), stableJson({
             steps: { none: [false, 0, [], []], bedrooms: [true, 0, ["drpgStashes", "drpgVaultOwner"], []], doors: [true, 0, ["drpgLocked"], []],
                 search: [true, 0, ["drpgNoSearch"], []], rest: [true, 0, ["restShort"], []], stashes: [true, 0, ["drpgStashes"], []],
-                description: [true, 0, ["drpgRoomDescription"], []], fog: [false, 0, [], []], again: [false, 0, [], []] },
-            fog: [true, false],
+                description: [true, 0, ["drpgRoomDescription"], []], fog: [false, 0, [], []], passages: [false, 0, [], []],
+                scenes: [false, 0, [], []], again: [false, 0, [], []] },
+            fog: [true, false], linked: true,
             footers: Object.fromEntries(V.ROOM_SETUP_TABS.map(([tab]) => [tab, ["ok", "cancel"]]))
         }), `{steps: per Apply [a region update on the scene opened on, the updates on the scene on screen, the module flags whose value changed on each]; fog: ${a.name}'s fog box on each scene; footers: the buttons after each tab}`);
     }],

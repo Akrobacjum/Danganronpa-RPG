@@ -41821,6 +41821,128 @@ const INVARIANTS = [
         }), "{first: each cell [a warning box, its words] for a picture too large, one that does not load, one that fits; after: the first given the fitting picture; asked: the pictures read; imageFacts over the bytes [heavy, gone]; a 404 gone; whether the warning touches Apply}");
     }],
 
+    /* ---- E46-C2b (09.11.2026): Room setup's Passages and Scenes on the kit. ---- */
+    ["R2017 - Room setup's Passages tab on the kit (E46-C2b; E46-07, the owner's A10 of 11.10): passages-tab.mjs `passagesTabBody` draws one kit `dataTable`, its columns in A10's order (Rooms, Kind, Shape, Origin, Who knows, At season start, the state, the actions) by kind (`drpg-data-col-<kind>`), the At season start head still titled with its hint, and each student who knows a passage or starts with it a kit chip in a kit `chips` toolbar - pressed, its press the cross that takes it back (`data-drpg-passage-act` revoke or start-off), with no cross of its own", async () => {
+        /*
+         * E46-C2b. Red first on C2a's tree (f90e89a7): a hand `table.drpg-room-setup-table` with `col.drpg-col-*`, the chips
+         * `span.drpg-room-chip` with a cross button `.drpg-passage-chip-x` in `span.drpg-passage-chips`. Two passages of the
+         * suite's own on a stand-in scene, in stores of the suite's own (R561's engine): A knows the first (the GM's grant),
+         * B starts the season with it; nothing of the world's is written.
+         */
+        needs(world.atLeast("livingStudents", 2), "two students to know a passage and to start the season with it");
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const T = await import("./passages-tab.mjs");
+        let now = 9_100_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R2017GM", isGM: () => true, isPrimary: () => true, worldId: () => "R2017WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R2017GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r2017${name}`, key: `r2017${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r2017mm", key: "r2017mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const [A, B] = studentActors();
+        const scene = { id: "R2017SCENE", grid: { size: 100 }, levels: [], regions: [] };
+        const [P1, P2] = [1, 2].map(n => `${scene.id}.r2017p${n}`);
+        const row = (wall, x) => ({ sceneId: scene.id, level: null, shape: "wall", passageWallId: wall,
+            passageSeg: { x1: x, y1: 400, x2: x + 66, y2: 400 }, rooms: ["R2017 Kitchen", "R2017 Hall"], state: "secret", startAccess: [] });
+        await stores.map.patchMany({ [P1]: { ...row("R2017WALL1", 1234.5), startAccess: [B.id] }, [P2]: row("R2017WALL2", 1500.5) });
+        await stores.access.patchMany({ [`${P1}/${A.id}`]: { how: "gm", at: 1, by: { R2017GM: 1 } } });
+        const root = document.createElement("div");
+        root.innerHTML = T.passagesTabBody(scene, { stores, students: [A, B], actors: game.actors, users: [], told: new Map() });
+        const tables = [...root.querySelectorAll("table")];
+        const t = k => game.i18n.localize(`DRPG.Passage.tab.${k}`);
+        const P = id => root.querySelector(`tr[data-drpg-passage="${id}"]`);
+        const chipOf = (id, kind, actor) => {
+            const c = P(id)?.querySelector(`td.drpg-data-col-${kind} .drpg-chips[role="toolbar"] > button.drpg-chip.drpg-passage-chip[data-drpg-actor="${actor}"]`);
+            return c ? [c.dataset.drpgPassageAct ?? null, c.getAttribute("aria-pressed"), Boolean(c.getAttribute("aria-label")), Boolean(c.querySelector("[data-drpg-passage-act]"))] : null;
+        };
+        equal(stableJson({
+            tables: [tables.length, tables.filter(x => x.matches(".drpg-data-table-box > table.drpg-data-table")).length],
+            kinds: [...(tables[0]?.querySelectorAll("col") ?? [])].map(col => /drpg-data-col-([\w-]+)/.exec(col.className)?.[1] ?? null),
+            heads: [...(tables[0]?.querySelectorAll("thead th") ?? [])].map(th => th.textContent.trim()),
+            hint: tables[0]?.querySelector("thead th.drpg-data-col-knows-start")?.getAttribute("title") ?? null,
+            rows: [...(tables[0]?.querySelectorAll("tbody tr[data-drpg-passage]") ?? [])].map(tr => tr.dataset.drpgPassage),
+            knows: chipOf(P1, "knows", A.id), start: chipOf(P1, "knows-start", B.id),
+            toolbars: [...(tables[0]?.querySelectorAll("tbody .drpg-chips[role=\"toolbar\"][aria-label]") ?? [])].length,
+            old: root.querySelectorAll(".drpg-room-setup-table, [class*=\"drpg-col-\"], .drpg-passage-chip-x, .drpg-passage-chips, .drpg-room-chip").length
+        }), stableJson({
+            tables: [1, 1],
+            kinds: ["room", "kind", "shape", "origin", "knows", "knows-start", "state", "actions"],
+            heads: [t("rooms"), t("kind"), t("shape"), t("origin"), t("knows"), t("start"), t("state"), ""],
+            hint: t("startHint"), rows: [P1, P2],
+            knows: ["revoke", "true", true, false], start: ["start-off", "true", true, false],
+            toolbars: 4, old: 0
+        }), "{tables: [tables, kit tables]; kinds: the columns by kind; heads; hint: At season start's title; rows: the passages; knows and start: the chip of A who knows the first and of B who starts with it [its press, aria-pressed, named, a cross inside]; toolbars: the four chip cells; old: the hand table's classes left}");
+    }],
+
+    ["R2018 - Room setup's Scenes tab on the kit (E46-C2b; E46-08, E47's 05.10 point 5): trial-scene.mjs `scenesTabHtml` is a kit `formGrid` (the school and the hall selects, each its label's `for`), the hall's name, picture and words a `formGrid` of their own, the warnings a `box(\"warning\")`, the prepare ticks kit switches, `SCENES_ZONE_SLOT` a row of `scenesTabRows` that draws nothing (where E73 puts Zone A and Zone B), the hall's cast pick (`castPickerHtml`) a kit `dataTable` with a switch an actor; `readScenesTab`'s answer for a seeded form the one it gave before", async () => {
+        /*
+         * E46-C2b. Red first on C2a's tree (f90e89a7): labels around the selects, a list of checkboxes, `p.drpg-warning`, no
+         * `SCENES_ZONE_SLOT` and no `scenesTabRows`; `readScenesTab`'s part green there (the answer written below is the one
+         * f90e89a7 gave). The cast pick is drawn for a stand-in hall of no token and no stored choice (each tick
+         * `defaultReveal`'s), nothing written.
+         */
+        needs(world.atLeast("livingStudents", 1), "the cast pick lists the world's students");
+        const T = await import("./trial-scene.mjs");
+        const root = document.createElement("div");
+        root.innerHTML = `<form>${T.scenesTabHtml()}</form>`;
+        const grid = root.querySelector("form > .drpg-form-grid");
+        const labelled = name => {
+            const field = root.querySelector(`[name="${name}"]`);
+            return Boolean(field?.id) && root.querySelector(`label.drpg-form-label[for="${field.id}"]`)?.closest(".drpg-form-grid") === field.closest(".drpg-form-grid")
+                && Boolean(field.closest(".drpg-form-field"));
+        };
+        const switchOf = name => Boolean(root.querySelector(`label.drpg-toggle > input[type="checkbox"][role="switch"][name="${name}"]`));
+        const rows = typeof T.scenesTabRows === "function" ? T.scenesTabRows() : [];
+        const drawnRows = rows.filter(r => r !== T.SCENES_ZONE_SLOT);
+        const cells = grid ? grid.children.length : -1;
+        const slot = { exported: T.SCENES_ZONE_SLOT !== undefined, inRows: rows.includes(T.SCENES_ZONE_SLOT), empty: Array.isArray(T.SCENES_ZONE_SLOT) && T.SCENES_ZONE_SLOT.length === 0 && Object.isFrozen(T.SCENES_ZONE_SLOT),
+            draws: cells === drawnRows.reduce((n, r) => n + (r.full !== undefined ? 1 : 2), 0), afterHall: rows.indexOf(T.SCENES_ZONE_SLOT) === 2 };
+        // The warnings: both selects on no scene (the school's warning, whatever this world links), redrawn by the tab's
+        // own wiring, in one warning box.
+        for (const role of ["school", "trial"]) root.querySelector(`[name="scenes:${role}"]`).value = "";
+        T.wireScenesTab(root, () => {});
+        const report = root.querySelector("[data-drpg-scenes-report]");
+        const warn = [Boolean(report?.querySelector('.drpg-box[data-drpg-box="warning"] [data-drpg-scene-warning]')), report?.querySelectorAll("p.drpg-warning").length ?? -1];
+        // The cast pick, for a stand-in hall, in the tab's cast box.
+        const hall = { id: "R2018HALL", name: "R2018 hall", tokens: [], getFlag: () => undefined };
+        root.querySelector("[data-drpg-cast-box]").innerHTML = T.castPickerHtml(hall);
+        const actors = T.readCastActors();
+        const castTable = root.querySelector('[data-drpg-cast="R2018HALL"] .drpg-data-table-box > table.drpg-data-table');
+        const castRows = [...(castTable?.querySelectorAll("tbody tr") ?? [])];
+        const cast = [Boolean(castTable), castRows.length === actors.length && actors.length > 0,
+            castRows.every(tr => tr.querySelector('label.drpg-toggle > input[type="checkbox"][role="switch"][name^="cast:"]')),
+            root.querySelectorAll('[data-drpg-cast] ul, [data-drpg-cast] li').length];
+        // A seeded form: the school picked, the hall's three fields typed, the first actor's tick turned, prepare and the playlist on.
+        const school = root.querySelector('[name="scenes:school"]');
+        const first = game.scenes.contents[0] ?? null;
+        if (first) school.value = first.id;
+        const set = (name, value) => { const f = root.querySelector(`[name="scenes:${name}"]`); if (f) { f.disabled = false; f.value = value; } };
+        set("hallName", "R2018 Gallery"); set("hallPicture", "r2018/hall.webp"); set("hallWords", "R2018 words");
+        const tick = root.querySelector(`[name="cast:${actors[0]?.id}"]`);
+        const was = tick?.checked ?? null;
+        if (tick) tick.checked = !tick.checked;
+        root.querySelector('[name="scenes:prepare"]').checked = true;
+        root.querySelector('[name="scenes:preparePlaylist"]').checked = true;
+        const read = T.readScenesTab(root);
+        const drawn = { school: school.dataset.drawn ?? "", trial: root.querySelector('[name="scenes:trial"]').dataset.drawn ?? "" };
+        equal(stableJson({
+            grid: [Boolean(grid), labelled("scenes:school"), labelled("scenes:trial"), ["hallName", "hallPicture", "hallWords"].map(n => labelled(`scenes:${n}`))],
+            switches: [switchOf("scenes:prepare"), switchOf("scenes:preparePlaylist")], slot, warn, cast, read
+        }), stableJson({
+            grid: [true, true, true, [true, true, true]], switches: [true, true],
+            slot: { exported: true, inRows: true, empty: true, draws: true, afterHall: true }, warn: [true, 0], cast: [true, true, true, 0],
+            read: { school: first?.id ?? "", trial: "", drawn,
+                cast: { sceneId: "R2018HALL", changes: actors[0] ? { [actors[0].id]: !was } : {} },
+                hallRoom: { name: "R2018 Gallery", picture: "r2018/hall.webp", words: "R2018 words" },
+                prepare: { playlist: true, voice: false } }
+        }), "{grid: [the tab a formGrid, the school's and the hall's selects labelled in it, the hall's three fields labelled]; switches: prepare and the playlist; slot: SCENES_ZONE_SLOT [exported, in the rows, an empty frozen list, the grid drawing nothing for it, after the two selects]; warn: [the report in a warning box, old warning lines]; cast: [a kit table, a row an actor, a switch a row, list items left]; read: readScenesTab's answer}");
+    }],
+
 ];
 
 /**

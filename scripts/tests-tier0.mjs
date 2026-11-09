@@ -14288,14 +14288,23 @@ const REGRESSIONS = [
          * frame, the content's padding and the fit's 2 px of slack - the 34 a choice, not a reading: the harness lays
          * nothing out, and the frame is Foundry's (the theme's look and the window at a desk are the owner's, P1-22's
          * screenshot). A Legacy scale above 1 widens every Room Setup table alike and is not read. Red at b238929: 1540.
+         *
+         * E46-C2b (09.11.2026): the tab is the kit's `dataTable`, so its columns are read off passages-tab.mjs
+         * `PASSAGE_COLUMNS` (each `cls`, the kit's `drpg-data-col-<cls>`) and their widths off components.css's section
+         * "Room setup" (`col.drpg-data-col-<cls> { width: calc(Npx * ...) }`), where the hand table's `<col
+         * class="drpg-col-...">` and danganronpa.css's `.drpg-room-setup-table .drpg-col-...` stood. The sum is the one
+         * E80 fix r1-G5 chose, 1240 px; the window fits its widest tab (the kit's `fit`), under the same cap, and was
+         * 1124 px at 1366x768 on the room tabs alone (E46-C2a's Chromium reading, 09.11.2026).
          */
         const sources = await moduleSources();
-        const body = fnSource(sources.get("passages-tab.mjs") ?? "", "passagesTabBody");
-        const cols = [...body.matchAll(/<col class="(drpg-col-[\w-]+)"/g)].map(m => m[1]);
-        equal(cols.length, 8, "the Passages table's columns, read off passagesTabBody - the colgroup moved, and nothing below is read");
+        const T = await import("./passages-tab.mjs");
+        const cols = (T.PASSAGE_COLUMNS ?? []).map(c => `drpg-data-col-${c.cls}`);
+        equal(cols.length, 8, "the Passages table's columns, read off passages-tab.mjs PASSAGE_COLUMNS - and nothing below is read");
+        ok(/\bdataTable\(\{\s*columns: PASSAGE_COLUMNS\b/.test(stripComments(fnSource(sources.get("passages-tab.mjs") ?? "", "passagesTabBody"))),
+            "passagesTabBody draws its table from PASSAGE_COLUMNS");
         const css = await moduleStyles();
         const widthOf = cls => {
-            const m = css.match(new RegExp(`\\.drpg-room-setup-table\\s+\\.${cls}\\s*\\{\\s*width:\\s*calc\\((\\d+)px\\s*\\*\\s*var\\(--drpg-legacy-scale,\\s*1\\)\\)`));
+            const m = css.match(new RegExp(`\\.drpg-window-rooms\\s+table\\.drpg-data-table\\s+col\\.${cls}\\s*\\{\\s*width:\\s*calc\\((\\d+)px\\s*\\*\\s*var\\(--drpg-legacy-scale,\\s*1\\)\\)`));
             return m ? Number(m[1]) : null;
         };
         const widths = cols.map(widthOf);
@@ -14305,7 +14314,7 @@ const REGRESSIONS = [
         ok(Number.isFinite(cap), "the stylesheet's --drpg-window-max was not read");
         const room = Math.floor(Math.min(1366 * 0.94, cap)) - 34;
         const sum = widths.reduce((a, b) => a + b, 0);
-        ok(sum <= room, `the Passages table is ${sum} px at scale 1 (${cols.map((c, i) => `${c.slice(9)} ${widths[i]}`).join(", ")}) and Room Setup leaves it ${room} px at 1366x768 - its last columns are out of view`);
+        ok(sum <= room, `the Passages table is ${sum} px at scale 1 (${cols.map((c, i) => `${c.slice(14)} ${widths[i]}`).join(", ")}) and Room Setup leaves it ${room} px at 1366x768 - its last columns are out of view`);
         const actions = css.match(/\.drpg-passage-actions\s*\{([^}]*)\}/)?.[1] ?? "";
         ok(/flex-wrap:\s*wrap\b/.test(actions) && /display:\s*flex\b/.test(actions),
             `the buttons' cell (.drpg-passage-actions { ${actions.trim()} }) does not wrap inside its column - four buttons on one line run past it`);
@@ -14496,7 +14505,8 @@ const REGRESSIONS = [
                 && /finds a secret passage/.test(SFX_EVENTS.passageFound?.hint ?? "") && /showed it to them/.test(SFX_EVENTS.passageFound?.hint ?? ""),
             public: /export const makePassagePublic = \(passageId, \{ stores = PASSAGE_STORES \} = \{\}\) => setPublic\(passageId, true, stores\);/.test(gmSrc)
                 && /export const makePassageSecret = \(passageId, \{ stores = PASSAGE_STORES \} = \{\}\) => setPublic\(passageId, false, stores\);/.test(gmSrc),
-            columns: /\["rooms", "kind", "shape", "origin", "knows", "start", "state"\]/.test(code("passages-tab.mjs")),
+            // E46-C2b: the columns in passages-tab.mjs `PASSAGE_COLUMNS` (the kit's table), [key, width kind] each, in A10's order.
+            columns: /\["rooms", "room"\], \["kind", "kind"\], \["shape", "shape"\], \["origin", "origin"\], \["knows", "knows"\], \["start", "knows-start"\],\s*\["state", "state"\]/.test(code("passages-tab.mjs")),
             secretDoors: /key: "secretDoors",[\s\S]{0,200}fix: convertDoorsStep,\s*doKey: "DRPG\.Season\.convertDoors"/.test(season)
                 && /convertSecretDoors\(/.test(fnSource(season, "convertDoorsStep"))
                 && /findings\.push\(\.\.\.secretDoorRows\(scene\)\);/.test(fnSource(code("fog-diagnostics.mjs"), "checkRegions"))
@@ -21403,14 +21413,15 @@ const REGRESSIONS = [
             + "the Test's warning formats testFailed with the answer's why; testFailed's {label} and {why} [en, pl]}");
     }],
     /* ---- E46-C2a (09.11.2026): Room setup's old rules out of the base sheets. ---- */
-    ["R2016 - Room setup's room tabs' old rules are gone from styles/danganronpa.css, stained-glass.css and narrow.css (E46-C2a; E46-19): no rule of the three names the counter's (`drpg-token-step`, `drpg-token-cell`), the student heads' (`drpg-student-head`), the Stashes matrix's (`drpg-stash-cell`, `-bedroom`, `-toggle`, `-lock`, `-none`, `-legend`, `-swatch`), the picture's (`drpg-room-picture`) or the room tabs' column kinds (`drpg-col-check`, `-student`, `-select`, `-text`, `-step`, `-place`, `-prose`, `-picture`), nor the text field of `.drpg-room-setup-table`; their rules are components.css's section \"Room setup\"", async () => {
+    ["R2016 - Room setup's room tabs' old rules are gone from styles/danganronpa.css, stained-glass.css and narrow.css (E46-C2a; E46-19): no rule of the three names the counter's (`drpg-token-step`, `drpg-token-cell`), the student heads' (`drpg-student-head`), the Stashes matrix's (`drpg-stash-cell`, `-bedroom`, `-toggle`, `-lock`, `-none`, `-legend`, `-swatch`), the picture's (`drpg-room-picture`) or the room tabs' column kinds (`drpg-col-check`, `-student`, `-select`, `-text`, `-step`, `-place`, `-prose`, `-picture`), nor the text field of `.drpg-room-setup-table`, and since E46-C2b none the Passages tab's (`.drpg-room-setup-table` itself, `drpg-passage-table`, `drpg-passage-chips`, `drpg-passage-chip-x`, its column kinds `drpg-col-room`, `-kind`, `-shape`, `-origin`, `-knows`, `-knows-start`, `-state`, `-actions`) or the Scenes tab's cast list (`drpg-cast-list`); their rules are components.css's section \"Room setup\"", async () => {
         /*
          * E46-C2a. Read on each sheet's text, comments blanked, by rule (tools/css-lint.mjs's reading: a selector before
          * its `{`). Red first on C1's tree: 22 rules (danganronpa.css; the other two none). Passages' column kinds and
          * `.drpg-room-setup-table` itself stay until E46-C2b puts the Passages tab on the kit; `.drpg-stash-group` is the
-         * sheet's (sheet.mjs), not this window's.
+         * sheet's (sheet.mjs), not this window's. E46-C2b: the Passages tab's ten (the table's own, its eight column kinds,
+         * its room cell's wrapping), its table's cell rule and its chips' and cross's, red on f90e89a7 (danganronpa.css 13 rules).
          */
-        const OLD = /\.(drpg-token-step|drpg-token-cell|drpg-student-head|drpg-stash-(?:cell|bedroom|toggle|lock|none|legend|swatch)|drpg-room-picture|drpg-col-(?:check|student|select|text|step|place|prose|picture))(?![\w-])|\.drpg-room-setup-table\s+input/;
+        const OLD = /\.(drpg-token-step|drpg-token-cell|drpg-student-head|drpg-stash-(?:cell|bedroom|toggle|lock|none|legend|swatch)|drpg-room-picture|drpg-col-(?:check|student|select|text|step|place|prose|picture|room|kind|shape|origin|knows|knows-start|state|actions)|drpg-room-setup-table|drpg-passage-table|drpg-passage-chips|drpg-passage-chip-x|drpg-cast-list)(?![\w-])/;
         const read = {};
         let rules = 0;
         for (const file of ["styles/danganronpa.css", "styles/stained-glass.css", "styles/narrow.css", "styles/components.css"]) {

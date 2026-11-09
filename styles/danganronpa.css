@@ -4076,81 +4076,15 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     overflow-wrap: anywhere !important;
 }
 
-/* ---- Room Setup's tables (E12 C15, audit S08-26 and S12-23) ---------------
-   FIXED COLUMNS. Every table of the window states its columns (`<col>`, one
-   class a kind of cell; since E46-C2a only the Passages tab's here, passages-tab.mjs
-   `passagesTabBody`, and the room tabs' components.css's section "Room setup") and is laid out
-   fixed, so a column is as wide as its kind says and not as its content
-   happens to push it. `width: 1px` is what lets the table be as wide as its
-   columns and no wider: a fixed table is the larger of its stated width and
-   the sum of its columns (CSS 2.1, 17.5.2.1; read in the specification, not
-   measured here - the harness lays nothing out), so the window is fitted to
-   the widest tab (`fitWindowToTabs`) and a narrower tab leaves the rest of
-   the line empty instead of stretching its columns over it. `!important`
-   because the dialog-table rule above (`width: max-content; min-width: 100%;
-   table-layout: auto`) is the one it has to beat, for the reason written on
-   `.drpg-room-check-table`.
-
-   The widths are the audit's (a Room column of about 220 px) and choices for
-   the rest, one width a kind, not readings: LIVE-E12-06 is Room Setup at a
-   desk and on a narrow screen. Every column needs one - a fixed table of
-   width 1px gives a column without a width nothing. */
-.drpg-room-setup-table {
-    table-layout: fixed !important;
-    width: 1px !important;
-    min-width: 0 !important;
-    max-width: none !important;
-}
-/* E46-C2a (09.11.2026): the room tabs are the kit's `dataTable`s, their widths components.css's section "Room setup";
-   what stands here is the Passages tab's, until E46-C2b puts it on the kit too. */
-.drpg-room-setup-table .drpg-col-room { width: calc(220px * var(--drpg-legacy-scale, 1)); }
-
-/* The Passages tab (E79 C5; passages-tab.mjs), as the plan's D31 mockup drew it: its four columns one
-   width a kind, as the others' are (choices of the mockup, not readings; the tab at a desk is LIVE-E79-06),
-   a chip per student that is the module's `.drpg-room-chip`, the way each learnt the passage dimmed after the name, the students '+' offers hidden until it is pressed, and the state's lines
-   wrapping inside their column as a room's name does below. */
-/* E80 C6 (D4): Kind, Shape and Origin after Rooms, each a word or two, and a fourth button (Make public or
-   Make secret) in the last column. E80 fix r1-G2 (P1-22): the eight columns sum to 1240 px, inside the 1250 px
-   Room Setup's content has at 1366x768 (94% of the viewport, less the window's frame; R606 does the sum),
-   where C6's widths summed to 1540 and ran off the window's right edge. Every cell wraps (a Shape or Origin of
-   two or three words on two lines) and the buttons wrap onto a second line rather than leaving the column.
-   Choices, not readings: the tab at 1366x768 is the owner's to look at (the harness lays nothing out). The Kind
-   word in the inks the state lines use, the theme tokens `--drpg-red` and `--drpg-dim`.
-   E80 fix r1-G5 (the review's E80-G-5): Origin 100 -> 130 and Who knows 230 -> 200, still 1240. The table drawn
-   in Chromium with this stylesheet (not Foundry's) at 1366x768 and 1920x1080, both themes, EN and PL: 1240 px
-   wide in a 1284 or 1400 px window, no scroll, and the one cell whose text ran past its column was the Polish
-   header 'Pochodzenie' (112-120 px in a 99 px cell); at 130 none does. */
-.drpg-room-setup-table .drpg-col-kind { width: calc(80px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-shape { width: calc(110px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-origin { width: calc(130px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-knows { width: calc(200px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-knows-start { width: calc(140px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-state { width: calc(150px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-actions { width: calc(210px * var(--drpg-legacy-scale, 1)); }
+/* ---- Room Setup's tables (E12 C15, audit S08-26 and S12-23): since E46-C2b every tab of the window is the kit's
+   `dataTable`, its fixed columns, their widths and their wrapping components.css's section "Room setup". What stays here
+   is the Passages tab's own marks (passages-tab.mjs, E79 C5 and E80 C6): the Kind word, the menu '+' opens, the state's
+   lines, the buttons' cell, the bar over the table and the pick's window. */
 .drpg-passage-kind[data-kind="secret"] { color: var(--drpg-dim); }
 .drpg-passage-kind[data-kind="public"] { color: var(--drpg-red); font-weight: 600; }
-.drpg-passage-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-.drpg-passage-chip { align-items: center; white-space: nowrap; }
-.drpg-passage-chip b { font-weight: 400; color: var(--drpg-dim); font-size: 0.92em; }
-.drpg-passage-chip[data-how="gm"] { border-color: rgba(var(--drpg-red-rgb), 0.55); }
-.drpg-passage-chip[data-how="shown"] { border-style: dashed; }
-.drpg-passage-chip-x {
-    min-height: 0 !important;
-    height: 1.4em;
-    width: 1.4em;
-    padding: 0 !important;
-    margin-left: 2px;
-    line-height: 1;
-    background: none;
-    border: 0;
-    color: inherit;
-    cursor: pointer;
-    opacity: 0.7;
-}
 .drpg-passage-menu:not([hidden]) { display: flex; flex-wrap: wrap; gap: 4px; flex-basis: 100%; }
 .drpg-passage-none { color: var(--drpg-dim); font-style: italic; }
 .drpg-passage-state { display: block; }
-.application.dialog.drpg-room-setup .dialog-content .drpg-passage-table td { white-space: normal; overflow-wrap: anywhere; }
 .drpg-passage-state[data-state="closed"] { color: var(--drpg-dim); }
 .drpg-passage-state[data-state="broken"] { color: var(--drpg-red); }
 .drpg-passage-state:is([data-state="pending"], [data-state="shared"]) { color: var(--drpg-dim); font-size: 0.9em; }
@@ -4180,13 +4114,6 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
    to Dorm A" under Legacy and four under Stained Glass. At a desk it is LIVE-E80-04's to see. */
 .drpg-passage-way { display: block; width: 100%; max-width: 100%; margin-top: 4px; font-size: 0.92em; }
 
-/* A room's name wraps inside its 220 px rather than running under the next
-   column: the dialog-table rule keeps every cell on one line, and a fixed
-   column does not grow to hold it. */
-.application.dialog.drpg-room-setup .dialog-content .drpg-room-setup-table td:first-child {
-    white-space: normal;
-    overflow-wrap: anywhere;
-}
 
 /* The place switches of a row, as many to a line as the column holds. */
 .drpg-place-switches {

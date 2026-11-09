@@ -278,7 +278,7 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
                 rooms: el?.querySelector('[data-drpg-scene-warning="hallHasRooms"]')?.textContent
                     === game.i18n.format("DRPG.TrialScene.hallHasRooms", { names: "Gallery, Stand" }),
                 ticks: Object.fromEntries(["Aiko", "Botan", "Chie", "Ghost", "Monokuma", "Test"].map(name => [name, box(name)?.checked ?? null])),
-                placedByGm: ["Aiko", "Botan", "Chie", "Ghost", "Monokuma", "Test"].filter(name => box(name)?.closest("li")?.querySelector('[data-drpg-cast-note="placedByGm"]')),
+                placedByGm: ["Aiko", "Botan", "Chie", "Ghost", "Monokuma", "Test"].filter(name => box(name)?.closest("tr")?.querySelector('[data-drpg-cast-note="placedByGm"]')),
                 handPlaced: Boolean(el?.querySelector('[data-drpg-cast-note="handPlaced"]')),
                 held: Boolean(el?.querySelector('footer button[data-action="ok"]')?.disabled) };
             if (box("Chie")) box("Chie").checked = false;

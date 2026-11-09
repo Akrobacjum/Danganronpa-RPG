@@ -2215,6 +2215,8 @@ body.drpg-theme-stained-glass #drpg-gm-launcher :is(i, .fa, [class*="fa-"]) {
     --drpg-rooms-hover-edge: rgba(var(--drpg-bone-rgb), 0.35);
     --drpg-rooms-hover: rgba(var(--drpg-bone-rgb), 0.08);
     --drpg-rooms-rule: rgba(var(--drpg-bone-rgb), 0.1);
+    /* the Passages tab's chip of a student the GM told (E46-C2b; danganronpa.css's 0.55 of red before) */
+    --drpg-rooms-told-edge: rgba(var(--drpg-red-rgb), 0.55);
 }
 /* under Legacy a cell keeps `.drpg-vault-table`'s room and its line (danganronpa.css, the tables before the kit): the kit's
    table under Legacy pads a cell 1 px (the style sweep's reading of the room tabs, 09.11.2026); the glass's table rule
@@ -2294,6 +2296,39 @@ body .application.drpg-window-rooms .drpg-room-picture {
 }
 body .application.drpg-window-rooms td.drpg-data-col-picture { white-space: normal; }
 body .application.drpg-window-rooms .drpg-room-picture-say > .drpg-box { margin: 4px 0 0; }
+/* the Passages tab (E46-C2b, 09.11.2026; the owner's A10 of 11.10): its eight columns one width a kind, as E80 fix r1-G5
+   chose them in danganronpa.css (the Rooms column the room tabs' 220 px above), but Kind 80 -> 96 and the state 150 -> 134:
+   "Secret" and "Public" broke inside the word in 80 px under Legacy (Chromium at 1366x768, 09.11.2026) - 1240 px at scale 1, inside what Room
+   setup leaves a table at 1366x768 (R606 sums them off this section), each at most 390 px (R1322). Every cell wraps:
+   a Shape or an Origin of two or three words on two lines, the buttons onto a second line (`.drpg-passage-actions`). */
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-kind { width: calc(96px * var(--drpg-legacy-scale, 1)); }
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-shape { width: calc(110px * var(--drpg-legacy-scale, 1)); }
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-origin { width: calc(130px * var(--drpg-legacy-scale, 1)); }
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-knows { width: calc(200px * var(--drpg-legacy-scale, 1)); }
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-knows-start { width: calc(140px * var(--drpg-legacy-scale, 1)); }
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-state { width: calc(134px * var(--drpg-legacy-scale, 1)); }
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-actions { width: calc(210px * var(--drpg-legacy-scale, 1)); }
+body .application.drpg-window-rooms [data-drpg-passages] table.drpg-data-table td { white-space: normal; overflow-wrap: anywhere; }
+/* a student's chip: the kit's, pressed (they have it), wrapping inside its column - "Shown, until they leave the Kitchen"
+   ran 70 px past the 200 px column on one line under the glass (Chromium at 1366x768, 09.11.2026); the way they learnt it
+   dimmed after the name, a chip the GM told edged in red and one shown dashed (E79 C5's marks, kept), the cross a mark
+   inside the chip. Its class twice: the glass's button rule (stained-glass.css, `.drpg-panel button` and five `:not()`s,
+   0,7,2) keeps a button on one line, and this is 0,8,4. */
+body .application.drpg-window-rooms table.drpg-data-table td .drpg-chips > button.drpg-chip.drpg-passage-chip.drpg-passage-chip[type="button"] { white-space: normal; max-width: 100%; height: auto; text-align: start; }
+body .application.drpg-window-rooms .drpg-passage-chip > b { font-weight: 400; color: var(--drpg-dim); opacity: 1; }
+body .application.drpg-window-rooms .drpg-chips > button.drpg-chip.drpg-passage-chip[type="button"][aria-pressed="true"][data-how="gm"] { border-color: var(--drpg-rooms-told-edge); }
+body .application.drpg-window-rooms .drpg-chips > button.drpg-chip.drpg-passage-chip[type="button"][data-how="shown"] { border-style: dashed; }
+body .application.drpg-window-rooms .drpg-passage-chip-mark { margin-left: 4px; opacity: 0.7; }
+/* the Scenes tab (E46-C2b; trial-scene.mjs `scenesTabRows`): the kit's form grid; the hall's picture field and its picker
+   on one line, a field as wide as its column; the prepare switches one under another; the cast pick's two columns (the
+   window's tables are fixed: a column with no width takes nothing) - a name and its switch, and the note of a token the
+   GMs placed, which wraps. Chosen, not read: the tab at 1366x768 is in the commit's screenshots. */
+body .application.drpg-window-rooms .drpg-scene-hall-room .drpg-form-field { display: flex; align-items: center; gap: 4px; }
+body .application.drpg-window-rooms .drpg-scene-hall-room .drpg-form-field > :is(input[type="text"], textarea) { flex: 1 1 auto; min-width: 0; }
+body .application.drpg-window-rooms .drpg-scene-prepare { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-cast-who { width: calc(260px * var(--drpg-legacy-scale, 1)); }
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-cast-token { width: calc(360px * var(--drpg-legacy-scale, 1)); }
+body .application.drpg-window-rooms table.drpg-data-table td.drpg-data-col-cast-token { white-space: normal; }
 
 /* ---- Item tables, Give an item, Give a Truth Bullet (E46-C3b, 09.11.2026; S/stages/E46 "Item tables, Give existing,
    a bullet") ----

@@ -2749,7 +2749,9 @@
         "other": "Sala rozpraw nie ma tokenów dla {n} postaci z obsady rozprawy, więc rozprawa nie może ich pokazać: {names}. Moduł nie robi tokenu Monokumie, a token, którego nie dało się zrobić, jest opisany w konsoli - postaw każdej token ręcznie na scenie sali."
       },
       "handPlaced": "{names}: brak tokenu w sali rozpraw, a moduł nie robi tokenu Monokumie - postaw go ręcznie, jeśli rozprawa go potrzebuje.",
-      "placedByGm": "twój token w sali: pokazywany lub ukrywany, nigdy nie usuwany"
+      "placedByGm": "twój token w sali: pokazywany lub ukrywany, nigdy nie usuwany",
+      "castWho": "Bierze udział",
+      "castToken": "Token w sali"
     },
     "Trial": {
       "presentTooltip": "Przedstaw - połóż to na stole, by wszyscy zobaczyli.",

@@ -2517,7 +2517,9 @@
         "other": "The trial hall has no token for {n} of the trial's cast, so the trial cannot show them: {names}. The module makes none for Monokuma, and one it could not make is in the console - place one for each on the hall's scene by hand."
       },
       "handPlaced": "{names}: no token in the trial hall, and the module makes none for Monokuma - place one by hand if the trial needs it.",
-      "placedByGm": "your token in the hall: shown or hidden, never deleted"
+      "placedByGm": "your token in the hall: shown or hidden, never deleted",
+      "castWho": "Takes part",
+      "castToken": "Token in the hall"
     },
     "Trial": {
       "presentTooltip": "Present - put this on the table for everyone to see.",
