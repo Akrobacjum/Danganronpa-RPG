@@ -28,6 +28,7 @@ import { isTruthBullet, secretOf } from "./truth-bullets.mjs";
 import { caseMark, caseWarning, healthLine, keyPlanStore } from "./gm-stores.mjs";
 import { firstOutstandingStep } from "./season-setup.mjs";
 import { roundOf, readyRecord } from "./boundary.mjs";
+import { trialNextStep, trialStepView, trialStepText } from "./trial-floor.mjs";
 import { openWhoIsAliveDialog } from "./gm-students.mjs";
 import { openClockDialog } from "./gm-campaign.mjs";
 export { openWhoIsAliveDialog, applyAliveStates } from "./gm-students.mjs";
@@ -727,7 +728,7 @@ async function openFailureLog() {
  * @returns {{text: string, action: string|null}}
  */
 export function nextStep(clock, { setupList, incident = game.drpg?.murderState?.()?.active, eclipse = isEclipse(), round = roundOf(readyRecord(), clock),
-    endStopped = Boolean(chapterEndStopped()) } = {}) {
+    endStopped = Boolean(chapterEndStopped()), trial = null } = {}) {
     const students = actingStudents();
     const stillActing = students.filter(a => actionsLeft(a) > 0);
 
@@ -775,35 +776,15 @@ export function nextStep(clock, { setupList, incident = game.drpg?.murderState?.
             return { text: game.i18n.localize("DRPG.Panel.nextTrialOutlived"), action: "trial" };
         }
 
-        // THE TRIAL HAS AN ORDER NOW, so this line follows it rather than
-        // asking for a debate for the rest of the trial. The two finished steps
-        // are read from the trial's own progress record; see vote.mjs.
-        const progress = game.drpg?.trialProgress?.() ?? {};
-        if (progress.verdictApplied) {
-            return { text: game.i18n.localize("DRPG.Panel.nextChapterEnd"), action: "chapterEnd" };
-        }
-        if (progress.voteClosed) {
-            return { text: game.i18n.localize("DRPG.Panel.nextVerdict"), action: "trial" };
-        }
-
-        const floor = game.drpg?.trialFloor?.() ?? null;
-        if (!floor) {
-            return { text: game.i18n.localize("DRPG.Panel.nextNoFloor"), action: "trial" };
-        }
-        // The floor no longer has a single "speaker" to name - in a discussion
-        // everybody may talk, and in the two restrictive modes the interesting
-        // fact is the mode itself, not one name. So the line reports the mode,
-        // and adds who holds it only when somebody actually does.
-        const holder = game.drpg?.trialHolder?.()?.name ?? null;
-        const mode = game.i18n.localize(`DRPG.Floor.mode.${floor.mode}`);
-        return {
-            text: holder
-                // Escaped: the panel is drawn with `innerHTML`, and the holder's name
-                // is their player's to write (E02, audit S10-13).
-                ? game.i18n.format("DRPG.Panel.nextFloorHeld", { mode, who: esc(holder) })
-                : game.i18n.format("DRPG.Panel.nextFloor", { mode }),
-            action: "trial"
-        };
+        /* THE CONSOLE'S NEXT STEP, SAID ONCE (E47 C1, 09.11.2026; the owner's 05.10 D (4)). This line had its own
+           chain - the verdict, the count, then the floor - and said "Open the debate" with the ballots out, and the
+           chapter's end with a verdict stopped halfway, while the console named the vote and Finish the verdict. It
+           reads the console's table now (trial-floor.mjs `TRIAL_NEXT_STEPS`) and says the step's one text; its "Do it"
+           opens the console, whose primary is that step, and End the chapter opens that window, as the console's
+           button does. `trial` is the view the table reads, this GM's unless handed (R2051). */
+        const view = trial ?? trialStepView({ clock });
+        const step = trialNextStep(view);
+        return { text: trialStepText(step, view), action: step === "chapterEnd" ? "chapterEnd" : "trial" };
     }
 
     /* A body found and not yet answered. The phase has deliberately NOT moved (D5), so nothing

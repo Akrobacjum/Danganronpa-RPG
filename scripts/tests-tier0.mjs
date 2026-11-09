@@ -12590,8 +12590,9 @@ const REGRESSIONS = [
             finishRunner: /const runner = verdictRunner\(progress\);\s*if \(runner && runner !== game\.user\.id\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Vote\.finishOtherGm"/
                 .test(fnSource(vote, "finishVerdict"))
                 && /return by\?\.active \? by\.id : primaryGmId\(\);/.test(fnSource(vote, "verdictRunner"))
-                && /if \(progress\.verdictApplied && runner && runner !== game\.user\.id\) return stopped \? "finishElsewhere" : "verdictElsewhere";/
-                    .test(fnSource(floorUi, "trialNextStep")),
+                // The console's next step is trial-floor.mjs's table since E47 C1: the two rows of a verdict another GM runs.
+                && /\[view => view\.progress\.verdictApplied && notMine\(view\) && view\.stopped, "finishElsewhere"\],\s*\[view => view\.progress\.verdictApplied && notMine\(view\), "verdictElsewhere"\]/.test(floorCode)
+                && /const notMine = view => Boolean\(view\.runner\) && view\.runner !== game\.user\?\.id;/.test(floorCode),
             noRepeat: /if \(verdictCardPosted\(context\.record\)\) return;/.test(fnSource(vote, "verdictCard"))
                 && /given: context\.record\.given \?\? \[\]/.test(fnSource(vote, "verdictLevelUps"))
                 && /planned\.filter\(entry => !handled\.has\(entry\.actorId\)\)/.test(batch),
@@ -16363,8 +16364,10 @@ const REGRESSIONS = [
          * the reader is shown a clean twin first, then the 1.2.79 signature with the mode. Red at f388d722: the
          * signature read `floor?.mode` and `restrictive`, and `trialNextStep` answered "now" by `restrictive`.
          */
-        const readOf = src => {
-            const sig = fnSource(src, "trialSignature"), next = fnSource(src, "trialNextStep"), buttons = fnSource(src, "trialButtons");
+        /* The next step is trial-floor.mjs's table since E47 C1 (`TRIAL_NEXT_STEPS` and its reader): read there, rows and all. */
+        const tableOf = text => (text.includes("export const TRIAL_NEXT_STEPS") ? bodyOf(text, "export const TRIAL_NEXT_STEPS", { until: "export function trialNextStep(" }) : "");
+        const readOf = (src, floorSrc = src) => {
+            const sig = fnSource(src, "trialSignature"), next = fnSource(floorSrc, "trialNextStep") + tableOf(floorSrc), buttons = fnSource(src, "trialButtons");
             const modal = /\.mode\b|\brestrictive\b|FLOOR_MODES/;
             return {
                 cut: [sig, next, buttons].every(body => body.length > 100),
@@ -16386,7 +16389,8 @@ const REGRESSIONS = [
         equal(JSON.stringify(readOf(old)), JSON.stringify({ ...all, signature: false, footer: false }),
             "the reader misses the mode in a planted signature or a mode's button in a planted footer");
         const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/trial-floor-ui.mjs`).then(lfText));
-        equal(JSON.stringify(readOf(src)), JSON.stringify(all),
+        const floorSrc = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(lfText));
+        equal(JSON.stringify(readOf(src, floorSrc)), JSON.stringify(all),
             "the console's signature, next step or footer reads the floor's mode again, so the console reopens at every Objection (read: cut, signature, next, footer)");
     }],
 
@@ -21451,7 +21455,53 @@ const REGRESSIONS = [
         const escape = new RegExp(["\\\\u2013", "\\\\u\\{2013\\}", "\\\\x96", "&ndash;", "&#8211;", "&#x2013;"].join("|"), "i");
         const lines = raw.split("\n").map((line, i) => [i + 1, line]).filter(([, line]) => line.includes(dash) || escape.test(line)).map(([n]) => n);
         equal(JSON.stringify(lines), "[]", "season-setup.mjs's lines with an en dash, as a character or an escape");
-    }]
+    }],
+
+    /* ---- E47 C1 (09.11.2026) ---- */
+
+    ["R2054 - the slots E70 and E73 fill (E47 C1; E47-04, S18-89): trial-floor-ui.mjs `trialSignature` reads no mode and reads the floor's family (R1026 kept), the GM's bar (`trialBar`) is drawn inside the console's live region (`.drpg-trial-console`) and never in its footer (`trialButtons`, `trialFooter`, `consoleFooter`); and the window sites of the console, the vote and the verdict that E21 homed in E47 are on the kit's boxes (`box(\"warning\")`, `box(\"info\")`), no `drpg-warning` left in them", async () => {
+        /*
+         * E47 C1, 09.11.2026. The bar's buttons are the ones that depend on the floor's mode (E70 C1); in the live region
+         * they follow every second, in the footer they would move with the mode and bring the reopening back. Read in the
+         * sources, comments blanked. The reader is shown the bar planted in a footer first (mutant m5: red). The sites
+         * (STAGE "The carried warning sites"): their kinds by E21's list, read per function; verdict.mjs
+         * `verdictSummaryContent` is a whisper to the GMs (a chat card, where no kit box is styled), so it stays.
+         * Green on f7266b28 for the bar (E70 C1); red there for the sites: 18 `drpg-warning` in these functions.
+         */
+        const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const ui = await read("trial-floor-ui.mjs"), verdict = await read("verdict.mjs"), vote = await read("vote.mjs");
+        const BAR = /trialBar\(|data-drpg-bar|action: "(?:skip|minus|plus|overrule|endMode|back|repoint)"/;
+        const barOf = src => {
+            const consoleHtml = fnSource(src, "trialConsoleHtml"), sig = fnSource(src, "trialSignature");
+            const footer = ["trialButtons", "trialFooter", "consoleFooter"].map(fn => fnSource(src, fn));
+            return {
+                cut: consoleHtml.length > 1000 && footer.every(f => f.length > 50) && sig.length > 50,
+                signature: !/\.mode\b|\brestrictive\b|FLOOR_MODES/.test(sig) && /\bfloorFamily\(floor\)/.test(sig),
+                live: /return `<div class="drpg-trial-console">[^]*\$\{trialBar\(view\)\}[^]*<\/div>`;\s*\}\s*$/.test(consoleHtml)
+                    && /region: "\.drpg-trial-console"/.test(fnSource(src, "manageClassTrial")),
+                footer: footer.every(f => !BAR.test(f))
+            };
+        };
+        const all = { cut: true, signature: true, live: true, footer: true };
+        const m5 = ui.replace("function trialFooter(state) {", "function trialFooter(state) {\n    const bar = trialBar(state);");
+        must(m5 !== ui, "the mutant m5 was not planted - trialFooter not found");
+        equal(JSON.stringify(barOf(m5)), JSON.stringify({ ...all, footer: false }), "the control: the bar planted in the footer (mutant m5) is not read as moved");
+        equal(JSON.stringify(barOf(ui)), JSON.stringify(all), "{cut: the functions read; signature: no mode, the family; live: the bar in the live region; footer: no bar in the footer}");
+        const sites = {
+            "trial-floor-ui.mjs:endClassTrial": [ui, "endClassTrial", 1, 1], "trial-floor-ui.mjs:confirmReveal": [ui, "confirmReveal", 1, 0],
+            "trial-floor-ui.mjs:trialConsoleHtml": [ui, "trialConsoleHtml", 2, 3], "trial-floor-ui.mjs:openVoteDialog": [ui, "openVoteDialog", 2, 2],
+            "verdict.mjs:openVerdictDialog": [verdict, "openVerdictDialog", 3, 0], "verdict.mjs:askBlackenedRule": [verdict, "askBlackenedRule", 1, 0],
+            "verdict.mjs:openFinalVerdictDialog": [verdict, "openFinalVerdictDialog", 0, 1], "vote.mjs:castBallot": [vote, "castBallot", 0, 1]
+        };
+        const count = (text, re) => (text.match(re) ?? []).length;
+        const got = {}, want = {};
+        for (const [name, [src, fn, w, i]] of Object.entries(sites)) {
+            const body = fnSource(src, fn);
+            got[name] = body.length > 200 ? [count(body, /box\("warning",/g), count(body, /box\("info",/g), count(body, /drpg-warning/g)] : "not read";
+            want[name] = [w, i, 0];
+        }
+        equal(JSON.stringify(got), JSON.stringify(want), "{file:function: [warning boxes, info boxes, drpg-warning left]}");
+    }],
 ];
 
 

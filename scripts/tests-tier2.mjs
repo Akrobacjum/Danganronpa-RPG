@@ -38518,7 +38518,8 @@ const SCENARIOS = [
             let lines = null;
             if (sections.length) {
                 lines = 0;
-                for (let el = sections.at(-1).nextElementSibling; el; el = el.nextElementSibling) if (el.tagName === "P") lines++;
+                // A line is a paragraph or, since E47 C1, the kit's box: the ballots' "still out" is `box("info")` (E21's list).
+                for (let el = sections.at(-1).nextElementSibling; el; el = el.nextElementSibling) if (el.tagName === "P" || el.classList?.contains("drpg-box")) lines++;
             }
             return [buttons.filter(b => b.default).map(b => b.action), !voteButton ? "absent" : voteButton.disabled ? "closed" : "open",
                 content?.querySelector?.(".drpg-trial-lead")?.textContent?.trim() ?? null, sections.length, lines];
@@ -38743,7 +38744,8 @@ const SCENARIOS = [
             const text = line?.textContent?.trim() ?? null;
             return {
                 line: normal(text), isDebate: Boolean(text) && text.startsWith(loc("DRPG.Floor.mode.debate")),
-                warning: line?.classList?.contains("drpg-warning") ?? null,
+                // Since E47 C1 the past-time line is the kit's information box (E21's list: an I site), not a warning.
+                warning: line ? (line.dataset?.drpgBox ?? (line.classList.contains("drpg-warning") ? "drpg-warning" : null)) : "no line",
                 notes: [...(content?.querySelectorAll?.("p.notes") ?? [])].map(p => p.textContent.trim())
             };
         };
@@ -38776,11 +38778,11 @@ const SCENARIOS = [
         const modeNote = game.i18n.format("DRPG.Floor.modeNote", { step: (await import("./config.mjs")).TRIAL.modes.gm.adjustSeconds }),
             objectionNote = loc("DRPG.Floor.objectionNote");
         equal(stableJson(readings), stableJson({
-            discussion: { line: normal(loc("DRPG.Floor.inDiscussion")), isDebate: false, warning: false, notes: [] },
-            debate: { line: normal(game.i18n.format("DRPG.Floor.holdingDebate", { seconds: 0 })), isDebate: true, warning: false, notes: [objectionNote] },
-            over: { line: normal(game.i18n.format("DRPG.Floor.holdingDebateOver", { seconds: 0, step: (await import("./config.mjs")).TRIAL.modes.gm.adjustSeconds })), isDebate: true, warning: true, notes: [objectionNote] },
+            discussion: { line: normal(loc("DRPG.Floor.inDiscussion")), isDebate: false, warning: null, notes: [] },
+            debate: { line: normal(game.i18n.format("DRPG.Floor.holdingDebate", { seconds: 0 })), isDebate: true, warning: null, notes: [objectionNote] },
+            over: { line: normal(game.i18n.format("DRPG.Floor.holdingDebateOver", { seconds: 0, step: (await import("./config.mjs")).TRIAL.modes.gm.adjustSeconds })), isDebate: true, warning: "info", notes: [objectionNote] },
             objection: { line: normal(game.i18n.format("DRPG.Floor.holdingObjection", { who: holder.name, target: target.name, seconds: 0 })),
-                isDebate: false, warning: false, notes: [modeNote] }
+                isDebate: false, warning: null, notes: [modeNote] }
         }), "the console's debate line does not carry the debate's name (or the discussion's does), or a line that states the "
             + "trial's state is a `notes` footnote again (read per state: the line under \"The debate\" with its seconds as N, "
             + "whether it begins with the mode's name, whether it is the warning, and every `notes` paragraph of the console)");
@@ -84015,7 +84017,120 @@ const SCENARIOS = [
             "Pre-season checks on the GM [its parts in today's order, the five that are always there, a checklist, a line or the contract's "
             + "unread rows folded in each but the audit, a heading on each | parts with a blocking row that may not have one | pre and p.drpg-check-report left | checkMarks' "
             + "marks outside the audit]");
-    }]
+    }],
+
+    /* ---- E47 C1 (09.11.2026) ---- */
+
+    ["E47-T1 - the trial console through a trial (E47 C1; E47-01, E47-02): on this primary, a Class Trial with the console drawn - a debate (the window opens again: its family changed), an Objection, the debate's end, the ballots out, the count: one window through each family, its footer element kept and redrawn in place, the destructive zone the same slots in every state, the right slot the next step alone, Enter (the default and the first button in the tree) never on a destructive button, and the GM panel's Next line and the vote window's lead naming the console's step", async () => {
+        /*
+         * E47 C1, 09.11.2026. The console opened again whenever its footer would change (its signature held the next step,
+         * the count, the verdict, the flag and the table's door): with the ballots out a GM looking at it had it closed and
+         * redrawn under the pointer. Now only the trial's start and end and the floor's family reopen it, and the footer is
+         * redrawn in place (ui-kit.mjs `liveFooter`). The ballots are sent with the players' own handing stood in for
+         * (nobody is asked to vote; `vote.open` is swallowed), and counted with none in. The verdict itself is not given
+         * here (its window and its writes are E10's tests'): the state after the count is read with Deliver the verdict the
+         * step. Red first on f7266b28 (E46-C1's tree): a new window at the ballots and at the count.
+         * The clock, the floor, the trial's record and the cards are put back.
+         */
+        needs(env.dialogs(), "the console is drawn");
+        const F = await import("./trial-floor.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const V = await import("./vote.mjs");
+        const GP = await import("./gm-panel.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM - the floor and the vote are the primary's to write");
+        const [objector, target] = cast(2);
+        closeOpen("drpg-window-trial");
+        await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const socket = game.socket, ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
+        const consoles = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-trial"));
+        const footerOf = app => app?.element?.querySelector("footer.drpg-kit-footer") ?? null;
+        const state = app => {
+            const footer = footerOf(app);
+            const buttons = [...(footer?.querySelectorAll("button[data-action]") ?? [])];
+            const right = [...(footer?.querySelector(".drpg-kit-right")?.children ?? [])].map(b => b.dataset.action);
+            const left = [...(footer?.querySelector(".drpg-kit-left")?.children ?? [])];
+            const def = buttons.find(b => b.hasAttribute("autofocus")) ?? null;
+            // Guarded, so the tree before E47 C1 (none of the three) reads its windows rather than throwing.
+            const view = typeof F.trialStepView === "function" ? F.trialStepView() : null;
+            const step = view ? F.trialNextStep(view) : null;
+            const box = document.createElement("div");
+            box.innerHTML = view && typeof UI.voteLead === "function" ? UI.voteLead(view) : "";
+            const panel = GP.nextStep(getClock(), { setupList: [], incident: false, eclipse: false, round: null, endStopped: false });
+            return {
+                step, right, close: left[0]?.dataset.action ?? null,
+                zone: left.filter(b => b.dataset.drpgRole === "destructive").map(b => b.dataset.action),
+                enter: [def?.dataset.drpgRole ?? null, buttons[0]?.dataset.drpgRole ?? null].some(r => r === "destructive"),
+                panel: Boolean(view) && panel?.text === F.trialStepText(step, view), lead: box.querySelector(".drpg-vote-lead")?.dataset.drpgStep ?? null
+            };
+        };
+        const read = {};
+        try {
+            const send = socket.emit;
+            socket.emit = function (event, packet, ...rest) {
+                if (packet?.action === "vote.open") return true;
+                return send.call(this, event, packet, ...rest);
+            };
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, {});
+            await setClock({ ...clock, phase: "classTrial" });
+            await settle();
+            UI.manageClassTrial().catch(() => {});
+            await until(() => footerOf(consoles()[0]), 6000);
+            const first = consoles()[0] ?? null;
+            must(footerOf(first), "the trial console did not open");
+            read.discussion = state(first);
+            await F.startFloor({ seconds: 300 });
+            await until(() => consoles()[0] && consoles()[0] !== first && footerOf(consoles()[0]), 6000);
+            const debate = consoles()[0] ?? null;
+            const debateFooter = footerOf(debate);
+            read.debate = { ...state(debate), reopened: debate !== first, windows: consoles().length };
+            await F.openObjection(objector.id, target.id);
+            await settle();
+            await wait(1500);
+            read.objection = { ...state(consoles()[0]), same: consoles()[0] === debate && footerOf(debate) === debateFooter, windows: consoles().length };
+            await F.endFloor();
+            await until(() => consoles()[0] && consoles()[0] !== debate && footerOf(consoles()[0]), 6000);
+            const after = consoles()[0] ?? null;
+            const afterFooter = footerOf(after);
+            read.ended = { ...state(after), reopened: after !== debate, windows: consoles().length };
+            await V.openVote();
+            await settle();
+            await until(() => state(consoles()[0]).right.includes("vote"), 4000);
+            read.vote = { ...state(consoles()[0]), same: consoles()[0] === after && footerOf(after) === afterFooter, windows: consoles().length };
+            await V.closeVote();
+            await settle();
+            await until(() => state(consoles()[0]).right.includes("verdict"), 4000);
+            read.counted = { ...state(consoles()[0]), same: consoles()[0] === after && footerOf(after) === afterFooter, windows: consoles().length };
+        } finally {
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            closeOpen("drpg-window-trial");
+            await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await setClock(clock);
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        const zone = ["chapterEnd", "end", "toggleFinal"];
+        const ended = read.ended?.step ?? "?";
+        equal(stableJson(read), stableJson({
+            discussion: { step: "openDebate", right: ["openDebate"], close: "close", zone, enter: false, panel: true, lead: "openDebate" },
+            debate: { step: "closeDebate", right: ["closeDebate"], close: "close", zone, enter: false, panel: true, lead: "closeDebate", reopened: true, windows: 1 },
+            objection: { step: "closeDebate", right: ["closeDebate"], close: "close", zone, enter: false, panel: true, lead: "closeDebate", same: true, windows: 1 },
+            ended: { step: ended, right: [ended], close: "close", zone, enter: false, panel: true, lead: ended, reopened: true, windows: 1 },
+            vote: { step: "vote", right: ["vote"], close: "close", zone, enter: false, panel: true, lead: "vote", same: true, windows: 1 },
+            counted: { step: "verdict", right: ["verdict"], close: "close", zone, enter: false, panel: true, lead: "verdict", same: true, windows: 1 }
+        }), "per state: the step, the right slot, the first on the left, the destructive zone, Enter on a destructive button, the panel's line says the step, the vote's lead names it; "
+            + "the window opened again (a family's change) or the same window and footer element (a state within one), how many consoles");
+        ok(["openDebate", "reopen", "openAgain"].includes(ended), `after the Objection's debate ended the step is ${ended}, not the debate again or a new one`);
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

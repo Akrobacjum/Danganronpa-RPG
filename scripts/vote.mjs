@@ -51,7 +51,7 @@ import {
     announce, isPrimaryGm, primaryGmId, activeGmIds, log, warn, error, plural, serverNow
 } from "./utils.mjs";
 import { trialProgress, setTrialProgress, retrySentence } from "./trial-progress.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, box } from "./ui-kit.mjs";
 export {
     trialProgress, trialProgressChapter, TRIAL_PROGRESS_KEY, setTrialProgress, RECORD_FIELDS, recordPatchOf,
     recordOnPrimary, writeTrialProgressInStep, resetTrialProgress, trialSizeNow, executeAtExit, retrySentence,
@@ -828,8 +828,8 @@ async function castBallot({ round = 0, picks = 1, candidates = [] } = {}) {
             prompt: true,
             body: `<form>
                 <p>${game.i18n.localize("DRPG.Vote.ballotIntro")}</p>
-                ${wanted > 1 ? `<p class="drpg-warning">${
-                    game.i18n.format("DRPG.Vote.twoBlackened", { n: wanted })}</p>` : ""}
+                ${wanted > 1 ? box("info", `${
+                    game.i18n.format("DRPG.Vote.twoBlackened", { n: wanted })}`) : ""}
                 ${fields}
                 <p class="notes">${game.i18n.localize("DRPG.Vote.ballotNote")}</p>
             </form>`,

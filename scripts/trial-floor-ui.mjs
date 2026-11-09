@@ -10,7 +10,7 @@ import { MODULE_ID, TRIAL, staleStamp } from "./config.mjs";
 import {
     trialFloor, floorHolder, floorTarget, secondsLeft, startFloor, endFloor,
     returnToDebate, FLOOR_MODES, floorFamily, BAR_OPS, barRefusal, skipStep, adjustTime, endMode, overruleObjection, overruleTargetId,
-    adjustStep, drawOrder, debateSeconds
+    adjustStep, drawOrder, debateSeconds, trialNextStep, TRIAL_NEXT_STEPS, trialStepView, trialStepText
 } from "./trial-floor.mjs";
 import { topicOf, turnRange, isRoundMode, closingOf } from "./floor-machine.mjs";
 import {
@@ -20,7 +20,7 @@ import { keyRevealRecord } from "./investigation.mjs";
 import { closingClaimStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
 import { placeRoomOptions, plural, error, esc, serverNow, listOf, wholeNumber } from "./utils.mjs";
-import { stepper, stepperId, drpgWindow, drpgConfirm } from "./ui-kit.mjs";
+import { stepper, stepperId, drpgWindow, drpgConfirm, liveFooter, box } from "./ui-kit.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 
@@ -544,9 +544,9 @@ export async function endClassTrial() {
        them - a Final Trial's too, read off the GMs' store, on this GM's screen alone. */
     const sentenced = await pendingSentence();
     const notChapter = (trialProgress().verdictApplied
-        ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Floor.endTrialNotChapter")}</p>` : "")
-        + (sentenced.length ? `<p class="drpg-warning">${game.i18n.format("DRPG.Floor.endTrialExecutes", {
-            names: sentenced.map(actor => foundry.utils.escapeHTML(actor.name)).join(", ") })}</p>` : "");
+        ? box("info", `${game.i18n.localize("DRPG.Floor.endTrialNotChapter")}`) : "")
+        + (sentenced.length ? box("warning", `${game.i18n.format("DRPG.Floor.endTrialExecutes", {
+            names: sentenced.map(actor => foundry.utils.escapeHTML(actor.name)).join(", ") })}`) : "");
 
     /* AND IT SAYS WHERE THE TABLE GOES (E13 C3b, 12.10.2026; the owner's answer f of 09.10). With a
        trial hall linked, leaving the trial takes the table out of the hall, and the students' tokens
@@ -718,7 +718,7 @@ export async function closeTrial({ sceneId = null, room = null } = {}) {
  * opened it. Measured before this: the whole window byte-identical across an
  * Eclipse starting and ending underneath it.
  */
-function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress, verdictStopped, verdictRunner, blackenedIds,
+function readTrial({ inFinalTrial, mastermindActor, pendingVoters, voteBar, trialProgress, verdictStopped, verdictRunner, blackenedIds,
     studentActors, isDeadForGm, deathRecordFor, sameSeason, trialScene, schoolScene, trialReturnTo, leaveDestination, tableDoor }) {
         const floor = trialFloor();
         const { phase, chapter } = getClock();
@@ -728,6 +728,8 @@ function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress, verdic
             floor, running, progress,
             restrictive: Boolean(floor) && floor.mode !== FLOOR_MODES.debate,
             finalNow: inFinalTrial(),
+            // Whether a Mastermind is set (E47 C1; S13-36 (1)): Start the Final Trial is greyed with its reason without one.
+            mastermind: Boolean(mastermindActor()),
             pending: pendingVoters(),
             bar: voteBar(),
             // THE LAST THREE STEPS OUTLIVE THE TRIAL, and they have to: ending
@@ -795,27 +797,9 @@ function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress, verdic
  * not the verdict's runner (`verdictRunner`) the lead names the runner and no button is the next step, so
  * Enter presses nothing - the one state in which the next step is not a button.
  */
-export function trialNextStep({ floor, running, progress, afterwards, stopped, runner }) {
-    if (!afterwards) return "start";
-    /* THE WHOLE DEBATE IS ONE STEP OF THE FOOTER (E70 C1, 27.10.2026; E70-06). An Objection or a rebuttal made
-       Now the footer's step, and the step is in the console's signature, so the console closed and opened again at
-       every Objection and at its rebuttal's end - under the GM's pointer, at the tensest moment of the trial. The
-       footer's step is Close Debate for every mode of the debate now, and the bar's first button is Skip while an
-       Objection or a rebuttal runs (`readTrial`'s `barNext`). Enter presses the footer's step only. */
-    // A round's footer step is its end (E70 C7): the bar's Skip moves the speakers on.
-    if (running && floor) return floorFamily(floor) === "round" ? "endRound" : floorFamily(floor) === "closing" || closingOf(floor) ? "endClosing" : "closeDebate";
-    if (progress.verdictApplied && runner && runner !== game.user.id) return stopped ? "finishElsewhere" : "verdictElsewhere";
-    if (progress.verdictApplied) return stopped ? "finishVerdict" : "chapterEnd";
-    if (progress.voteClosed) return "verdict";
-    // Only a running trial gets here: `afterwards` without a count or a verdict is `running`.
-    if (progress.vote.open) return "vote";
-    /* THE DEBATE AGAIN AFTER AN OVERRULE (E70 C2; E70-11): an Objection overruled once its exchange was over leaves the
-       trial in discussion, and the step is the debate again with the time it had when the Objection cut in. */
-    /* AND AFTER ITS EXCHANGE (E70 C3; TR11 = 1): a rebuttal over, or an Objection or a rebuttal the GM ended, closed the
-       debate it cut into, and the step is the same debate again - its question and its budget, no window. */
-    if (progress.againAfterOverrule) return "openAgain";
-    return progress.debateAgain ? "reopen" : "openDebate";
-}
+// The table and its reading are trial-floor.mjs's since E47 C1 (`TRIAL_NEXT_STEPS`): the GM panel's line reads them too, and
+// that file is loaded on every client. Exported from here as before (R1030 reads `trialNextStep` off this module).
+export { trialNextStep, TRIAL_NEXT_STEPS };
 
 /**
  * A verdict's sentence the trial's end has not yet carried out (E70 C4; DC36): the console's lead says the trial goes
@@ -1036,7 +1020,7 @@ export async function confirmReveal(row, { left = 0 } = {}) {
         classes: ["drpg-panel", "drpg-narrow", "drpg-reveal-confirm"],
         body: `<form><p>${game.i18n.format("DRPG.Reveal.intro", { name: `<strong>${esc(name)}</strong>` })}</p>
             ${words}
-            ${left > 0 ? "" : `<p class="drpg-warning">${esc(game.i18n.localize("DRPG.Reveal.beyondPaid"))}</p>`}</form>`,
+            ${left > 0 ? "" : box("warning", `${esc(game.i18n.localize("DRPG.Reveal.beyondPaid"))}`)}</form>`,
         yes: { role: "destructive", action: "reveal", label: game.i18n.localize("DRPG.Reveal.button"),
             callback: (e, b, d) => ({ text: d.element.querySelector("[name=text]")?.value ?? "" }) },
         rejectClose: false
@@ -1139,8 +1123,8 @@ export function trialConsoleHtml(view) {
             ? `<p>${game.i18n.localize("DRPG.Floor.inDiscussion")}</p>`
             : floor.mode === FLOOR_MODES.debate
                 ? (over
-                    ? `<p class="drpg-warning">${game.i18n.format(
-                        "DRPG.Floor.holdingDebateOver", { seconds: Math.abs(left), step: adjustStep(floor) })}</p>`
+                    ? box("info", `${game.i18n.format(
+                        "DRPG.Floor.holdingDebateOver", { seconds: Math.abs(left), step: adjustStep(floor) })}`)
                     : `<p>${game.i18n.format("DRPG.Floor.holdingDebate", { seconds: left })}</p>`)
                 : isRoundMode(floor.mode)
                     // A round (E70 C7): its speaker, the turn's seconds and who is next in the frozen order.
@@ -1178,9 +1162,9 @@ export function trialConsoleHtml(view) {
         const voteLine = pending === null
             ? (progress.voteClosed ? "" : `<p>${game.i18n.localize("DRPG.Vote.notRunning")}</p>`)
             : pending.length
-                ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.stillOut", {
+                ? box("info", `${game.i18n.format("DRPG.Vote.stillOut", {
                     n: pending.length, who: esc(pending.map(v => v.name).join(", "))
-                })}</p>`
+                })}`)
                 : `<p>${game.i18n.localize("DRPG.Vote.allIn")}</p>`;
         // How many are back and the bar a conviction needs, as the vote window
         // prints it (E10 C3): a player who joins mid-vote raises it, and this
@@ -1196,14 +1180,14 @@ export function trialConsoleHtml(view) {
         const gateLine = !progress.voteClosed
             ? `<p>${game.i18n.localize("DRPG.Floor.gateVote")}</p>`
             : stopped
-                ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.verdictStopped", { steps: esc(stopped) })}</p>`
+                ? box("warning", `${game.i18n.format("DRPG.Vote.verdictStopped", { steps: esc(stopped) })}`)
                 : "";
 
         const registerLine = !register && deathThisChapter
-            ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Floor.registerEmpty")}</p>`
+            ? box("warning", `${game.i18n.localize("DRPG.Floor.registerEmpty")}`)
             : `<p>${plural("DRPG.Floor.registerCount", { n: register })}</p>`;
         const finalLine = finalNow
-            ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Mastermind.finalRunningNote")}</p>` : "";
+            ? box("info", `${game.i18n.localize("DRPG.Mastermind.finalRunningNote")}`) : "";
         const tableLine = table
             ? `<p>${game.i18n.format("DRPG.TrialScene.tableOn", { scene: esc(table.scene ?? "-") })}</p>` : "";
         /* THE TRIAL'S CLOCK AND THE DEBATE'S QUESTION (E70 C3; S18-80, S18-70). The minutes since the trial's start
@@ -1280,23 +1264,20 @@ export function trialConsoleHtml(view) {
  * change arriving from somebody else behave the same as one they made.
  */
 function trialSignature(view) {
-    const { floor, running, finalNow, progress, afterwards, stopped, next, table } = view;
-        // `next` too (E10 C14): the default is a button's property, so a vote opened by another GM
-        // moves Enter only by drawing the footer again. And the table's door (E13 C6), which another GM's
-        // activation turns from one into the other.
+    const { floor, running } = view;
         /* BY FAMILY, NOT BY MODE (E70 C1, 27.10.2026; E70-06). The mode was in it since 1.2.79, for Re-point, which
            stood in the footer only while an Objection ran: so every Objection and every rebuttal's end closed the
-           console and opened it again (tier 2 E70-T2 at f388d722: a new window at the Objection). The buttons that
-           depend on the mode are the bar's now, inside the live region (`trialBar`), and the footer changes only
-           with the floor's family - a debate and its exchange are one, no floor is another (trial-floor.mjs
-           `floorFamily`). Tier 0 R1026 holds this function to reading no mode. */
-        // The Closing had (E70 C8): its start is greyed once this trial has had it.
-        return [running, floorFamily(floor), finalNow, afterwards,
-            progress.voteClosed, progress.verdictApplied, Boolean(stopped), next, table?.action ?? "-", progress.closing?.done === true].join("|");
+           console and opened it again (tier 2 E70-T2 at f388d722). The buttons that depend on the mode are the bar's,
+           inside the live region (`trialBar`). Tier 0 R1026 holds this function to reading no mode.
+           AND NOTHING THE FOOTER SAYS (E47 C1, 09.11.2026; the owner's 05.10 D (3)): the next step, the vote, the
+           verdict, the Final Trial's flag and the table's door were in it until 1.2.101, because a DialogV2 footer was
+           drawn once; the footer is redrawn in place now (ui-kit.mjs `liveFooter`, `manageClassTrial`), so the window
+           opens again only when the trial starts or ends or the floor's family changes (trial-floor.mjs `floorFamily`). */
+        return [running, floorFamily(floor)].join("|");
 }
 
 /** The footer, by state: the debate toggle, the three closing steps, start or end, the Final Trial switch, close. */
-function trialButtons({ floor, running, finalNow, progress, afterwards, stopped, table, isDefault }) {
+function trialButtons({ floor, running, finalNow, progress, afterwards, stopped, table, isDefault, mastermind = true }) {
     return [
         ...(running
             ? [
@@ -1376,8 +1357,11 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
         // two opposite things is a coin flip when the GM reads quickly.
         // Starting the Final Trial is the destructive role (E22 C4; S06-09): the trial becomes the season's last.
         // Ending it puts the flag back, and is a secondary.
+        // GREYED WITH ITS REASON while no Mastermind is set (E47 C1, 09.11.2026; S13-36 (1)): it answered with
+        // `toggleFinalTrialFlag`'s toast, which stays as that door's own refusal (mastermind.mjs).
         { action: "toggleFinal", ...(finalNow ? {} : { role: "destructive" }), label: game.i18n.localize(finalNow
-            ? "DRPG.Mastermind.endFinalTrial" : "DRPG.Mastermind.startFinalTrial") },
+            ? "DRPG.Mastermind.endFinalTrial" : "DRPG.Mastermind.startFinalTrial"),
+          ...(finalNow || mastermind ? {} : { disabled: true, tooltip: game.i18n.localize("DRPG.Mastermind.noneSet") }) },
         { action: "close", role: "close", label: game.i18n.localize("DRPG.Panel.close") }
     ];
 }
@@ -1395,13 +1379,24 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
  */
 export function trialFooter(state) {
     const footer = { secondary: [], destructive: [], close: null };
-    for (const { role, default: isDefault, ...button } of trialButtons(state)) {
+    const defaultOf = state.isDefault ?? (action => state.next === action);
+    for (const { role, default: isDefault, ...button } of trialButtons({ ...state, isDefault: defaultOf })) {
         if (role === "close") footer.close = { role: "close", action: button.action };
         else if (role === "destructive") footer.destructive.push(button);
         else if (isDefault && !footer.primary) footer.primary = button;
         else footer.secondary.push(button);
     }
+    /* THE SLOTS STAY, AND ENTER IS HELD (E47 C1, 09.11.2026; the owner's 05.10 D (2)): while an Objection or its
+       rebuttal runs the next step keeps the primary's slot - Close Debate, the step of the whole debate - and Close is
+       the default, so a footer redrawn at an Objection moves nothing; Enter presses nothing there (`manageClassTrial`'s
+       keydown, E70 fix p1-G3). */
+    if (state.hold && footer.close) footer.default = footer.close.action;
     return footer;
+}
+
+/** The console's footer for a reading of `readTrial`: the next step the primary, Enter held in an exchange. */
+export function consoleFooter(view) {
+    return trialFooter({ ...view, isDefault: action => view.next === action, hold: Boolean(view.running && view.restrictive) });
 }
 
 /**
@@ -1470,7 +1465,7 @@ export async function manageClassTrial() {
         return null;
     }
 
-    const { inFinalTrial } = await import("./mastermind.mjs");
+    const { inFinalTrial, mastermindActor } = await import("./mastermind.mjs");
     const { pendingVoters, voteBar, trialProgress, verdictStopped, verdictRunner } = await import("./vote.mjs");
 
     const { blackenedIds } = await import("./murder.mjs");
@@ -1479,20 +1474,18 @@ export async function manageClassTrial() {
     const { blackenedStore, deathStore } = await import("./gm-stores.mjs");
     const { trialScene, schoolScene } = await import("./rooms.mjs");
     const { trialReturnTo, leaveDestination, tableDoor } = await import("./trial-scene.mjs");
-    const deps = { inFinalTrial, pendingVoters, voteBar, trialProgress, verdictStopped, verdictRunner, blackenedIds,
+    const deps = { inFinalTrial, mastermindActor, pendingVoters, voteBar, trialProgress, verdictStopped, verdictRunner, blackenedIds,
         studentActors, isDeadForGm, deathRecordFor, sameSeason, trialScene, schoolScene, trialReturnTo, leaveDestination, tableDoor };
     const read = () => readTrial(deps);
     const buildConsole = () => trialConsoleHtml(read());
     const signature = () => trialSignature(read());
 
     const view = read();
-    const { floor, running, finalNow, progress, afterwards, stopped, table } = view;
 
     // WHICH BUTTON ENTER PRESSES: the next step, read with the rest (`trialNextStep`) - and none while an Objection or
     // its rebuttal runs (E70 fix p1-G3; the review's BEH-3 = E70P1-R02): the footer's step is Close Debate for the whole
     // debate (E70-06), and Enter there ended the exchange and the debate under it, where at 1.2.89 it pressed Now. The
     // lead says "Skip on the bar cuts it short"; Enter presses nothing (`exchangeRuns`, below, for a console opened before).
-    const isDefault = action => !(view.running && view.restrictive) && view.next === action;
 
     const openedWith = signature();
     let reopening = false;
@@ -1500,9 +1493,11 @@ export async function manageClassTrial() {
     // The frame only (M6; E21 C4): the console's layout is E47's; its footer by roles (`trialFooter`).
     const action = await drpgWindow({
         classes: ["drpg-panel", "drpg-window-trial"],
+        // A fixed width (E47 C1; S12-51, S04-38: it jumped with its content), the text column the whole of it.
+        width: "console",
         title: game.i18n.localize("DRPG.Floor.manageTrial"),
         body: buildConsole(),
-        footer: trialFooter({ floor, running, finalNow, progress, afterwards, stopped, table, isDefault }),
+        footer: consoleFooter(view),
         render: (event, dialog) => {
             const live = keepLive(dialog, {
                 region: ".drpg-trial-console",
@@ -1541,7 +1536,17 @@ export async function manageClassTrial() {
                  */
                 watch: { hooks: ["drpgBallotsChanged", "userConnected", "updateScene"], stores: [blackenedStore, deathStore] },
                 after: () => {
-                    if (reopening || signature() === openedWith) return;
+                    if (reopening) return;
+                    /* THE FOOTER IN PLACE (E47 C1, 09.11.2026; the owner's 05.10 D (2), E47-02): a vote opened by
+                       another GM, a verdict given, the Final Trial's flag or the table's door redraw the buttons in their
+                       slots (ui-kit.mjs `liveFooter`, which draws nothing when they already stand so); only a change of
+                       `trialSignature` - the trial's start or end, the floor's family - opens the window again.
+                       Foundry v14's own footer under a footer changed in place is read at a table (E47's first live row). */
+                    const now = read();
+                    if (trialSignature(now) === openedWith) {
+                        try { liveFooter(dialog, consoleFooter(now)); } catch (err) { error("Could not redraw the trial console's footer", err); }
+                        return;
+                    }
                     reopening = true;
                     /*
                      * AWAITED, and the first run of this closed the window and left
@@ -1674,92 +1679,13 @@ export async function manageClassTrial() {
     return manageClassTrial();
 }
 
-/** Open or close the vote. One button, because it is one moment either way. */
-export async function openVoteDialog() {
-    if (!game.user.isGM) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
-        return null;
-    }
-    /* ONE OF THESE (E10 C14, 1.2.71; audit S06-26): a second press opened a second window, each with its
-       own idea of who was still out - see `alreadyOpen` in live.mjs. */
-    if (alreadyOpen("drpg-window-vote")) return RAISED;
-
-    const { openVote, closeVote, pendingVoters, remindVoters, votesIn, voteBar, ballotCopyStatus, trialProgress,
-        ballotRecipients } = await import("./vote.mjs");
-
-    // Who is still outstanding, while a vote is running.
-    //
-    // Counting the vote is irreversible and the counts only appear once it is
-    // closed, so "has everybody voted?" used to be a question this screen could
-    // not answer - a player who dismissed their ballot by accident was simply
-    // never counted and nobody could tell. Names only: who has voted is not how
-    // they voted, and only the second is the secret the guide keeps.
-    const pending = pendingVoters();
-    /* A vote is either running or it is not, and every button on this window means
-       something different either way. `pendingVoters` answers null for "no vote", which
-       is the same question - asked once here rather than three times below. */
+/**
+ * The vote window's footer, by the vote's state: `pending` is `pendingVoters`' answer (null with no vote open),
+ * `recipients` how many would be handed a ballot now (`ballotRecipients`). Redrawn in place (`liveFooter`, E47 C1).
+ */
+export function voteFooter({ pending, recipients }) {
     const running = pending !== null;
-    const returned = votesIn() ?? 0;
-    /* THE STATUS IS LIVE (E10 C3, 1.2.71). A player who joins mid-vote and asks for a ballot raises
-       how many went out, and with it the bar a conviction needs (`voteBar`, `DRPG.Vote.barLine`): the
-       window drawn before says so when it happens, redrawn as the trial console is - on the world's
-       record and on `drpgBallotsChanged`. Only this block: the buttons are drawn once, as the
-       console's are, so Send another ballot's count is the one read when the window opened.
-
-       THIS BROWSER'S COPY OF THE BALLOTS (E10 C1). They are counted on the primary GM, and a
-       GM's window shows the copy the GMs' store keeps here: until it has arrived the window says
-       so rather than naming every voter as outstanding, and a vote opened before this browser
-       loaded, with none of its ballots here, says that the count is the primary's to make. */
-    /* BEFORE THE BALLOTS GO OUT (E10 C14, 1.2.71; audit S06-26). Send with nobody connected said so in a
-       toast that was gone in seconds, and the window never said beforehand who would be handed a card; and
-       Close and count looked pressable with no vote open, and answered with a toast. Now the window names
-       the recipients - `ballotRecipients`, the list Send itself would use, as this GM reads it now - or says
-       that nobody is connected, and Send waits for somebody; Close and count waits for the ballots. */
-    const beforeSend = () => {
-        const recipients = ballotRecipients();
-        const who = recipients.length
-            ? `<p>${plural("DRPG.Vote.recipients", {
-                n: recipients.length, who: esc(recipients.map(r => `${r.name} (${r.user.name})`).join(", "))
-            })}</p>`
-            : `<p class="drpg-warning">${game.i18n.localize("DRPG.Vote.nobodyConnected")}</p>`;
-        return `<p class="notes">${game.i18n.localize("DRPG.Vote.sendFirst")}</p>${who}`;
-    };
-    const statusHtml = () => {
-        const waiting = pendingVoters();
-        const copy = ballotCopyStatus();
-        const bar = voteBar();
-        const outstanding = waiting?.length
-            ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.stillOut", {
-                n: waiting.length,
-                who: foundry.utils.escapeHTML(waiting.map(p => p.name).join(", "))
-            })}</p>`
-            : `<p class="notes">${game.i18n.localize("DRPG.Vote.allIn")}</p>`;
-        const status = waiting === null
-            ? `<p class="notes">${game.i18n.localize("DRPG.Vote.notRunning")}</p>${beforeSend()}`
-            : copy === "notReady"
-                ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Vote.storeNotReady")}</p>`
-                : copy === "none"
-                    ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.openNoBallots", {
-                        n: trialProgress().vote.round
-                    })}</p>${outstanding}`
-                    : outstanding;
-        return `<div class="drpg-vote-status">${status}${
-            bar ? `<p class="notes">${game.i18n.format("DRPG.Vote.barLine", bar)}</p>` : ""}</div>`;
-    };
-
-    /* THE FOOTER IS DRAWN ONCE, so the window opens again when it would change, as the trial console does
-       (`trialSignature`): a vote opened or closed by another GM, the first player connecting, the last
-       ballot coming back. Not on a count or a name changing - the window B of scenario 63 draws stays the
-       same window while a late player raises the bar. */
-    const hasRecipients = () => ballotRecipients().length > 0;
-    const signature = () => {
-        const waiting = pendingVoters();
-        return [waiting !== null, hasRecipients(), Boolean(waiting?.length)].join("|");
-    };
-    const openedWith = signature();
-    const canSend = hasRecipients();
-    let reopening = false;
-
+    const canSend = recipients > 0;
     /* ON THE KIT (E21 C4): Send the ballots is the primary before a vote, a secondary while one runs; Cancel the closing
        word. CLOSE AND COUNT IS DESTRUCTIVE (E21 fix G2, 07.11.2026; STATUS Open 44, the owner's decision): the count is
        final - the vote shuts and the tally card goes to the table - so it stands on the left with the destructive face
@@ -1789,6 +1715,100 @@ export async function openVoteDialog() {
     // above the footer says to send the ballots first. Never the default (Open 44): neither
     // it nor Send again (which restarts the vote) is what Enter presses while a vote runs.
     const tally = { action: "tally", label: game.i18n.localize("DRPG.Vote.tally"), disabled: !running };
+    return running
+        ? { secondary: [send, ...remind], destructive: [tally], close: "cancel" }
+        : canSend
+            ? { primary: send, secondary: remind, destructive: [tally], close: "cancel" }
+            : { secondary: [send, ...remind], destructive: [tally], close: "cancel" };
+}
+
+/**
+ * The vote window's first line (E47 C1, 09.11.2026; the owner's 05.10 D (4)): the trial's next step, the text the GM
+ * panel's line and the console's primary name (trial-floor.mjs `TRIAL_NEXT_STEPS`, `DRPG.Floor.next.<step>`), for a
+ * view of `trialStepView`'s shape. Drawn in the window's live status, so it follows the vote.
+ */
+export function voteLead(view) {
+    return `<p class="drpg-vote-lead" data-drpg-step="${esc(trialNextStep(view))}">${trialStepText(trialNextStep(view), view)}</p>`;
+}
+
+/** Open or close the vote. One button, because it is one moment either way. */
+export async function openVoteDialog() {
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return null;
+    }
+    /* ONE OF THESE (E10 C14, 1.2.71; audit S06-26): a second press opened a second window, each with its
+       own idea of who was still out - see `alreadyOpen` in live.mjs. */
+    if (alreadyOpen("drpg-window-vote")) return RAISED;
+
+    const { openVote, closeVote, pendingVoters, remindVoters, votesIn, voteBar, ballotCopyStatus, trialProgress,
+        ballotRecipients } = await import("./vote.mjs");
+
+    // Who is still outstanding, while a vote is running.
+    //
+    // Counting the vote is irreversible and the counts only appear once it is
+    // closed, so "has everybody voted?" used to be a question this screen could
+    // not answer - a player who dismissed their ballot by accident was simply
+    // never counted and nobody could tell. Names only: who has voted is not how
+    // they voted, and only the second is the secret the guide keeps.
+    const pending = pendingVoters();
+    /* A vote is either running or it is not, and every button on this window means
+       something different either way. `pendingVoters` answers null for "no vote", which
+       is the same question - asked once here rather than three times below. */
+    // Read again at the press (E47 C1): the window now stays open while the vote opens or closes under it.
+    const runningNow = () => pendingVoters() !== null;
+    /* THE STATUS IS LIVE (E10 C3, 1.2.71). A player who joins mid-vote and asks for a ballot raises
+       how many went out, and with it the bar a conviction needs (`voteBar`, `DRPG.Vote.barLine`): the
+       window drawn before says so when it happens, redrawn as the trial console is - on the world's
+       record and on `drpgBallotsChanged`, and its footer with it (`liveFooter`, E47 C1): Send another
+       ballot's count is the one standing now.
+
+       THIS BROWSER'S COPY OF THE BALLOTS (E10 C1). They are counted on the primary GM, and a
+       GM's window shows the copy the GMs' store keeps here: until it has arrived the window says
+       so rather than naming every voter as outstanding, and a vote opened before this browser
+       loaded, with none of its ballots here, says that the count is the primary's to make. */
+    /* BEFORE THE BALLOTS GO OUT (E10 C14, 1.2.71; audit S06-26). Send with nobody connected said so in a
+       toast that was gone in seconds, and the window never said beforehand who would be handed a card; and
+       Close and count looked pressable with no vote open, and answered with a toast. Now the window names
+       the recipients - `ballotRecipients`, the list Send itself would use, as this GM reads it now - or says
+       that nobody is connected, and Send waits for somebody; Close and count waits for the ballots. */
+    const beforeSend = () => {
+        const recipients = ballotRecipients();
+        const who = recipients.length
+            ? `<p>${plural("DRPG.Vote.recipients", {
+                n: recipients.length, who: esc(recipients.map(r => `${r.name} (${r.user.name})`).join(", "))
+            })}</p>`
+            : box("warning", `${game.i18n.localize("DRPG.Vote.nobodyConnected")}`);
+        return `<p class="notes">${game.i18n.localize("DRPG.Vote.sendFirst")}</p>${who}`;
+    };
+    const statusHtml = () => {
+        const waiting = pendingVoters();
+        const copy = ballotCopyStatus();
+        const bar = voteBar();
+        const outstanding = waiting?.length
+            ? box("info", `${game.i18n.format("DRPG.Vote.stillOut", {
+                n: waiting.length,
+                who: foundry.utils.escapeHTML(waiting.map(p => p.name).join(", "))
+            })}`)
+            : `<p class="notes">${game.i18n.localize("DRPG.Vote.allIn")}</p>`;
+        const status = waiting === null
+            ? `<p class="notes">${game.i18n.localize("DRPG.Vote.notRunning")}</p>${beforeSend()}`
+            : copy === "notReady"
+                ? box("info", `${game.i18n.localize("DRPG.Vote.storeNotReady")}`)
+                : copy === "none"
+                    ? box("warning", `${game.i18n.format("DRPG.Vote.openNoBallots", {
+                        n: trialProgress().vote.round
+                    })}`) + outstanding
+                    : outstanding;
+        return `<div class="drpg-vote-status">${voteLead(trialStepView())}${status}${
+            bar ? `<p class="notes">${game.i18n.format("DRPG.Vote.barLine", bar)}</p>` : ""}</div>`;
+    };
+
+    /* THE FOOTER IN PLACE (E47 C1, 09.11.2026; the owner's 05.10 D (2)): a vote opened or closed by another GM, the
+       first player connecting, the last ballot coming back redraw the buttons in their slots (ui-kit.mjs `liveFooter`);
+       until 1.2.101 the window closed and opened again for each, as the trial console did. The window B of scenario 63
+       draws stays the same window throughout. */
+
     const action = await drpgWindow({
         title: game.i18n.localize("DRPG.Vote.openTitle"),
         classes: ["drpg-panel", "drpg-window-vote"],
@@ -1797,21 +1817,15 @@ export async function openVoteDialog() {
             ${statusHtml()}
             <p class="notes">${game.i18n.localize("DRPG.Vote.privacyNote")}</p>
         </div>`,
-        footer: running
-            ? { secondary: [send, ...remind], destructive: [tally], close: "cancel" }
-            : canSend
-                ? { primary: send, secondary: remind, destructive: [tally], close: "cancel" }
-                : { secondary: [send, ...remind], destructive: [tally], close: "cancel" },
+        footer: voteFooter({ pending, recipients: ballotRecipients().length }),
         render: (event, dialog) => keepLive(dialog, {
             // Every setting of ours, the world's trial record among them; the ballots, which no setting
             // reports; and a player connecting, who is a recipient a moment later.
             region: ".drpg-vote-status", build: statusHtml, watch: { hooks: ["drpgBallotsChanged", "userConnected"] },
             after: () => {
-                if (reopening || signature() === openedWith) return;
-                reopening = true;
-                dialog.close()
-                    .then(() => openVoteDialog())
-                    .catch(err => error("Could not reopen the vote window", err));
+                try { liveFooter(dialog, voteFooter({ pending: pendingVoters(), recipients: ballotRecipients().length })); } catch (err) {
+                    error("Could not redraw the vote window's footer", err);
+                }
             }
         }),
         rejectClose: false
@@ -1843,6 +1857,8 @@ export async function openVoteDialog() {
            (the suite's "Start the vote over asks first on a GM whose copy of the ballots is
            not ready", red at f9be27d). There the question says it cannot tell how many. */
         const unseen = ballotCopyStatus() !== null;
+        const returned = votesIn() ?? 0;
+        const running = runningNow();
         if (returned || unseen) {
             // The ballots in are dropped: the destructive role, Cancel the default (E22 C4); the yes names its effect.
             const sure = await drpgConfirm({

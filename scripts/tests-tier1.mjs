@@ -36174,7 +36174,8 @@ const INVARIANTS = [
         const closeAnswers = ["trial-floor-ui.mjs", "trial.mjs", "verdict.mjs", "trial-prompt.mjs", "trait-ruling.mjs"]
             .flatMap(f => [...stripComments(src.get(f) ?? "").matchAll(/\{\s*action:\s*"close"(?![^}]*role:\s*"close")[^}]*\}/g)].map(m => `${f}: ${m[0].slice(0, 80)}`));
         const destructiveCancel = text => /destructive:\s*\[/.test(text) && /default:\s*"cancel"/.test(text);
-        const vote = fnSource(ui, "openVoteDialog");
+        // The vote window's footer is `voteFooter`'s since E47 C1 (redrawn in place by liveFooter): read with the window.
+        const vote = fnSource(ui, "openVoteDialog") + fnSource(ui, "voteFooter");
         const sources = {
             bar: ROLE.test(bar),
             newTrial: destructiveCancel(fnSource(ui, "confirmNewTrial")),
@@ -42235,7 +42236,310 @@ const INVARIANTS = [
             + "the Hall's 6000 px | the voice's rows | the contract's rows, the failed one named, the unread folded | the dice look's rows, "
             + "its finding, its button | the audit's own markup, every checkMarks mark inside it | parts with a blocking row that may not "
             + "have one | pre and p.drpg-check-report left]");
-    }]
+    }],
+
+    /* ---- E47 C1 (09.11.2026): the Class Trial console, the vote and the GM panel's Next line on one trialNextStep ---- */
+
+    ["R2050 - the trial's next step is one table (E47 C1; the owner's 05.10 amend, 11.10 and 27.10; S18-89): trial-floor.mjs `TRIAL_NEXT_STEPS` an ordered list of [when(view), step] rows, the first that holds answers (`trialNextStep`, read off trial-floor-ui.mjs too); 31 views answer as the chain it replaced did (f7266b28); a planted wrong row changes an answer; E73's Scrum Debate row slot written; every step its one text, EN and PL", async () => {
+        /*
+         * E47 C1, 09.11.2026. The views and their answers were written into this test from f7266b28's `trialNextStep` (the
+         * chain of E10 C14 and E70 C1-C8) before it became a table, evaluated with the floor families of trial-floor.mjs
+         * (scratch views.mjs): every step it can answer, a debate in each mode, the Closing's exchange, the verdict on this
+         * GM and on another, an ended trial with its record. The control: the same table with a wrong row planted first
+         * reads differently (the reader is not blind to the order). Red first on f7266b28: no TRIAL_NEXT_STEPS.
+         */
+        const F = await import("./trial-floor.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        equal(stableJson([Array.isArray(F.TRIAL_NEXT_STEPS), typeof F.trialNextStep, UI.trialNextStep === F.trialNextStep]), stableJson([true, "function", true]),
+            "[trial-floor.mjs exports the table, its reader, the console's module exports the same reader]");
+        if (!Array.isArray(F.TRIAL_NEXT_STEPS)) return;
+        const rows = F.TRIAL_NEXT_STEPS;
+        ok(rows.length >= 13 && rows.every(r => Array.isArray(r) && typeof r[0] === "function" && typeof r[1] === "string"), "a row of the table is not [when(view), step]");
+        const VIEWS = [
+            ["no trial", null, false, false, {}, null, null],
+            ["no trial, a debate floor left", "debate", false, false, {}, null, null],
+            ["no trial, a vote open", null, false, false, { vote: true }, null, null],
+            ["discussion", null, true, true, {}, null, null],
+            ["discussion after an exchange", null, true, true, { debateAgain: true }, null, null],
+            ["discussion after an Overrule", null, true, true, { againAfterOverrule: true }, null, null],
+            ["after an Overrule and an exchange", null, true, true, { againAfterOverrule: true, debateAgain: true }, null, null],
+            ["a debate", "debate", true, true, {}, null, null],
+            ["an Objection", "objection", true, true, {}, null, null],
+            ["a rebuttal", "rebuttal", true, true, {}, null, null],
+            ["a Testimony round", "testimony", true, true, {}, null, null],
+            ["a Panic round", "panic", true, true, {}, null, null],
+            ["the Closing", "closing", true, true, {}, null, null],
+            ["an Objection in the Closing", "closingX", true, true, {}, null, null],
+            ["a debate with the vote open", "debate", true, true, { vote: true }, null, null],
+            ["the vote open", null, true, true, { vote: true }, null, null],
+            ["the vote open after an exchange", null, true, true, { vote: true, debateAgain: true }, null, null],
+            ["the vote counted", null, true, true, { voteClosed: true }, null, null],
+            ["the vote counted, a debate open", "debate", true, true, { voteClosed: true }, null, null],
+            ["the verdict given", null, true, true, { voteClosed: true, verdictApplied: true }, null, null],
+            ["the verdict given by me", null, true, true, { voteClosed: true, verdictApplied: true }, null, "me"],
+            ["the verdict given by another GM", null, true, true, { voteClosed: true, verdictApplied: true }, null, "other"],
+            ["the verdict stopped", null, true, true, { voteClosed: true, verdictApplied: true }, "Level Ups", null],
+            ["the verdict stopped on me", null, true, true, { voteClosed: true, verdictApplied: true }, "Level Ups", "me"],
+            ["the verdict stopped on another GM", null, true, true, { voteClosed: true, verdictApplied: true }, "Level Ups", "other"],
+            ["ended, the vote counted", null, false, true, { voteClosed: true }, null, null],
+            ["ended, the verdict given", null, false, true, { voteClosed: true, verdictApplied: true }, null, null],
+            ["ended, the verdict stopped", null, false, true, { voteClosed: true, verdictApplied: true }, "Level Ups", null],
+            ["ended, the verdict another GM gives", null, false, true, { voteClosed: true, verdictApplied: true }, null, "other"],
+            ["ended, a floor left, the vote counted", "debate", false, true, { voteClosed: true }, null, null],
+            ["a debate, the verdict given", "debate", true, true, { voteClosed: true, verdictApplied: true }, null, null]
+        ];
+        const viewOf = ([, mode, running, afterwards, p, stopped, runner]) => ({
+            floor: mode === null ? null : mode === "closingX" ? { mode: "objection", closing: { phase: "speak" } } : { mode },
+            running, afterwards, stopped, runner: runner === "me" ? game.user.id : runner === "other" ? "otherGM000000000" : null,
+            progress: { voteClosed: Boolean(p.voteClosed), verdictApplied: Boolean(p.verdictApplied), debateAgain: Boolean(p.debateAgain),
+                againAfterOverrule: p.againAfterOverrule ? { messageId: "cardR2050AAAAAAA", seconds: 90 } : null, vote: { open: Boolean(p.vote) } }
+        });
+        const HEAD = {
+            "no trial": "start",
+            "no trial, a debate floor left": "start",
+            "no trial, a vote open": "start",
+            "discussion": "openDebate",
+            "discussion after an exchange": "reopen",
+            "discussion after an Overrule": "openAgain",
+            "after an Overrule and an exchange": "openAgain",
+            "a debate": "closeDebate",
+            "an Objection": "closeDebate",
+            "a rebuttal": "closeDebate",
+            "a Testimony round": "endRound",
+            "a Panic round": "endRound",
+            "the Closing": "endClosing",
+            "an Objection in the Closing": "endClosing",
+            "a debate with the vote open": "closeDebate",
+            "the vote open": "vote",
+            "the vote open after an exchange": "vote",
+            "the vote counted": "verdict",
+            "the vote counted, a debate open": "closeDebate",
+            "the verdict given": "chapterEnd",
+            "the verdict given by me": "chapterEnd",
+            "the verdict given by another GM": "verdictElsewhere",
+            "the verdict stopped": "finishVerdict",
+            "the verdict stopped on me": "finishVerdict",
+            "the verdict stopped on another GM": "finishElsewhere",
+            "ended, the vote counted": "verdict",
+            "ended, the verdict given": "chapterEnd",
+            "ended, the verdict stopped": "finishVerdict",
+            "ended, the verdict another GM gives": "verdictElsewhere",
+            "ended, a floor left, the vote counted": "verdict",
+            "a debate, the verdict given": "closeDebate"
+        };
+        const first = (table, view) => table.find(([when]) => when(view))?.[1] ?? null;
+        const read = Object.fromEntries(VIEWS.map(v => [v[0], F.trialNextStep(viewOf(v))]));
+        equal(stableJson(read), stableJson(HEAD), "{view: the step} - the table does not answer as the chain it replaced (f7266b28)");
+        equal(VIEWS.filter(v => first(rows, viewOf(v)) !== read[v[0]]).length, 0, "trialNextStep is not the first row that holds");
+        const planted = [[view => Boolean(view.progress.vote?.open), "vote"], ...rows];
+        ok(VIEWS.some(v => first(planted, viewOf(v)) !== HEAD[v[0]]), "the control: a wrong row planted first changes no answer - this would measure nothing");
+        const raw = await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(lfText);
+        const src = stripComments(raw);
+        const table = bodyOf(raw, "export const TRIAL_NEXT_STEPS", { until: "export function trialNextStep(" });
+        ok(table.length > 300 && /Scrum Debate/.test(table) && /\/\/ \[view => [^\n]*"scrum"\]/.test(table), "the table holds no commented row slot for E73's Scrum Debate after a split in the Straw Poll");
+        ok(!/"closeTrial"|"endTrial"|"end"\]/.test(stripComments(table)) && src.length > 2000, "a row of the table closes the trial (05.10, topic C: the sentence after the verdict is E70's)");
+        const steps = [...new Set(Object.values(HEAD))].sort();
+        equal(steps.length, 13, "the views do not reach every step");
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Floor?.next ?? {});
+        equal(stableJson(["en", "pl"].map(code => steps.filter(s => !(typeof lang[code][s] === "string" && lang[code][s].length > 10)))), stableJson([[], []]),
+            "[EN, PL]: the steps with no text of their own (DRPG.Floor.next.<step>)");
+    }],
+
+    ["R2051 - one next step for three readers (E47 C1; the owner's 05.10 D (4)): for each running view of R2050's list the GM panel's Next line (gm-panel.mjs `nextStep`, classTrial) says the console's step's text (`DRPG.Floor.next.<step>`, `trialStepText`) with the console's road (End the chapter its own, else the console), and the vote window's lead (`voteLead`) names the same step", async () => {
+        /*
+         * E47 C1, 09.11.2026. The panel's line had its own chain (the verdict, the count, then the floor), so with the ballots
+         * out it said "Open the debate" while the console named the vote, and with a verdict stopped it said End the chapter.
+         * The views are handed to `nextStep` (`trial`), so nothing of this world is read but the clock's chapter. Red first
+         * on f7266b28: the panel's own branch (its text for the world, not the view), no `voteLead`.
+         */
+        const F = await import("./trial-floor.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const GP = await import("./gm-panel.mjs");
+        const views = [
+            [{ floor: null }, {}], [{ floor: null }, { debateAgain: true }], [{ floor: null }, { againAfterOverrule: { messageId: "cardR2051AAAAAAA", seconds: 90 } }],
+            [{ floor: { mode: "debate" } }, {}], [{ floor: { mode: "objection" } }, { vote: { open: true } }], [{ floor: { mode: "testimony" } }, {}],
+            [{ floor: { mode: "closing" } }, {}], [{ floor: null }, { vote: { open: true } }], [{ floor: null }, { voteClosed: true }],
+            [{ floor: null }, { voteClosed: true, verdictApplied: true }], [{ floor: null, stopped: "Level Ups" }, { voteClosed: true, verdictApplied: true }],
+            [{ floor: null, runner: "otherGM000000000" }, { voteClosed: true, verdictApplied: true }],
+            [{ floor: null, runner: "otherGM000000000", stopped: "Level Ups" }, { voteClosed: true, verdictApplied: true }]
+        ].map(([over, p]) => ({ running: true, afterwards: true, stopped: null, runner: null, ...over,
+            progress: { voteClosed: false, verdictApplied: false, debateAgain: false, againAfterOverrule: null, vote: { open: false }, ...p } }));
+        const was = game.drpg?.trialProgressChapter?.() ?? null;
+        const clock = { ...getClock(), phase: "classTrial", chapter: was ?? getClock().chapter };
+        must(typeof F.trialNextStep === "function", "trial-floor.mjs has no trialNextStep - see R2050");
+        const box = document.createElement("div");
+        const read = views.map(view => {
+            const step = F.trialNextStep(view);
+            const line = GP.nextStep(clock, { setupList: [], incident: false, eclipse: false, round: null, endStopped: false, trial: view });
+            box.innerHTML = typeof UI.voteLead === "function" ? UI.voteLead(view) : "";
+            const lead = box.querySelector(".drpg-vote-lead");
+            const text = typeof F.trialStepText === "function" ? F.trialStepText(step, view) : null;
+            return [step, line?.text === text, line?.action ?? null, lead?.dataset.drpgStep ?? null, lead?.innerHTML === text];
+        });
+        equal(stableJson(read), stableJson(views.map(view => {
+            const step = F.trialNextStep(view);
+            return [step, true, step === "chapterEnd" ? "chapterEnd" : "trial", step, true];
+        })), "per view: [the console's step, the panel's line says its text, the line's road, the step the vote's lead names, the lead says its text]");
+        equal(new Set(read.map(r => r[0])).size, 12, "the views do not reach the twelve steps of a running trial - this would measure less than it says");
+    }],
+
+    ["R2052 - the console's footer slots (E47 C1; the owner's 05.10 D (2), E47-02; S13-36 (1)): `consoleFooter` across a family's states keeps Close first on the left and the destructive zone - End of chapter, End the trial, Start the Final Trial - last, never the default; the right slot holds the next step alone (the primary), Close the default while an Objection runs; Start the Final Trial greyed with its reason while no Mastermind is set; the console redraws the footer in place (`liveFooter`) and reopens only on its signature, which reads the trial's start and the floor's family alone", async () => {
+        /*
+         * E47 C1, 09.11.2026. Pure: the footer of a reading (`consoleFooter`) through ui-kit.mjs `footerButtons`, in the
+         * running trial's states with no floor (discussion, after an exchange, the vote, the count, the verdict, the verdict
+         * stopped, the verdict another GM gives) and in the debate's (a debate, an Objection), the Final Trial running and
+         * no Mastermind. Then the source: the console's live `after` redraws the footer and the signature names no step.
+         * Red first on f7266b28: no consoleFooter; the window reopened on every change of `next` (its signature), and in
+         * an Objection the step left the primary's slot (no default, so `trialFooter` filed it with the secondaries).
+         */
+        const UI = await import("./trial-floor-ui.mjs");
+        const K = await import("./ui-kit.mjs");
+        equal(typeof UI.consoleFooter, "function", "[trial-floor-ui.mjs exports consoleFooter]");
+        if (typeof UI.consoleFooter !== "function") return;
+        const F = await import("./trial-floor.mjs");
+        const view = (over, p = {}) => {
+            const v = { floor: null, running: true, afterwards: true, finalNow: false, mastermind: true, stopped: null, runner: null, table: null, restrictive: false, ...over,
+                progress: { voteClosed: false, verdictApplied: false, debateAgain: false, againAfterOverrule: null, closing: null, vote: { open: false }, ...p } };
+            v.restrictive = Boolean(v.floor) && v.floor.mode !== "debate";
+            v.next = F.trialNextStep(v);
+            return v;
+        };
+        const slots = v => {
+            const list = K.footerButtons(UI.consoleFooter(v));
+            return { right: list.filter(b => b.side === "right").map(b => b.action), left: list.filter(b => b.side === "left").map(b => [b.action, b.role]),
+                def: list.find(b => b.default)?.action ?? null, defRole: list.find(b => b.default)?.role ?? null, next: v.next };
+        };
+        const none = {
+            discussion: slots(view({})), again: slots(view({}, { debateAgain: true })), vote: slots(view({}, { vote: { open: true } })),
+            counted: slots(view({}, { voteClosed: true })), verdict: slots(view({}, { voteClosed: true, verdictApplied: true })),
+            stopped: slots(view({ stopped: "Level Ups" }, { voteClosed: true, verdictApplied: true })),
+            elsewhere: slots(view({ runner: "otherGM000000000" }, { voteClosed: true, verdictApplied: true }))
+        };
+        const debate = { debate: slots(view({ floor: { mode: "debate" } })), objection: slots(view({ floor: { mode: "objection" } })) };
+        const all = { ...none, ...debate };
+        const tail = s => s.left.filter(([, role]) => role === "destructive").map(([a]) => a);
+        equal(stableJson(Object.fromEntries(Object.entries(all).map(([k, s]) => [k, [s.left[0]?.[0] ?? null, tail(s), s.left.slice(-3).every(([, r]) => r === "destructive")]]))),
+            stableJson(Object.fromEntries(Object.keys(all).map(k => [k, ["close", ["chapterEnd", "end", "toggleFinal"], true]]))),
+            "{state: [the first button on the left, the destructive zone, the zone last on the left]}");
+        equal(stableJson(Object.fromEntries(Object.entries(all).map(([k, s]) => [k, [s.right, s.def, s.defRole === "destructive"]]))), stableJson({
+            discussion: [["openDebate"], "openDebate", false], again: [["reopen"], "reopen", false], vote: [["vote"], "vote", false],
+            counted: [["verdict"], "verdict", false], verdict: [[], "close", false], stopped: [["finishVerdict"], "finishVerdict", false],
+            elsewhere: [[], "close", false], debate: [["closeDebate"], "closeDebate", false], objection: [["closeDebate"], "close", false]
+        }), "{state: [the right slot, the default, the default destructive]}");
+        // The same set of buttons in every state of the family with no floor: only which one stands on the right changes.
+        const set = s => [...s.right, ...s.left.map(([a]) => a)].sort().join(",");
+        equal(new Set(["discussion", "again", "vote", "counted"].map(k => set(none[k]).replace(/openDebate|reopen/, "debate"))).size, 1,
+            "the buttons of the family with no floor are not the same set in each state (a button came or went, not only moved)");
+        const final = K.footerButtons(UI.consoleFooter(view({ mastermind: false }))).find(b => b.action === "toggleFinal");
+        const set2 = K.footerButtons(UI.consoleFooter(view({ mastermind: true }))).find(b => b.action === "toggleFinal");
+        const running = K.footerButtons(UI.consoleFooter(view({ finalNow: true, mastermind: false }))).find(b => b.action === "toggleFinal");
+        equal(stableJson([[final?.role, final?.disabled ?? false, final?.tooltip ?? null], [set2?.disabled ?? false, set2?.tooltip ?? null], [running?.role, running?.disabled ?? false]]),
+            stableJson([["destructive", true, game.i18n.localize("DRPG.Mastermind.noneSet")], [false, null], ["secondary", false]]),
+            "[no Mastermind: Start the Final Trial's role, greyed, its reason; a Mastermind set: greyed, reason; the Final Trial running: End the Final Trial's role, greyed]");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/trial-floor-ui.mjs`).then(lfText));
+        const manage = fnSource(src, "manageClassTrial"), sig = fnSource(src, "trialSignature");
+        equal(stableJson({ live: /liveFooter\(dialog, consoleFooter\(now\)\)/.test(manage), opensWith: /footer: consoleFooter\(view\)/.test(manage),
+            signature: /return \[running, floorFamily\(floor\)\]\.join\("\|"\);/.test(sig) && !/\bnext\b|finalNow|voteClosed|verdictApplied|table/.test(sig) }),
+            stableJson({ live: true, opensWith: true, signature: true }),
+            "{live: the console's live region redraws its footer by liveFooter; opensWith: it opens with the same footer; signature: the trial's start and the floor's family alone}");
+    }],
+
+    ["R2053 - the console's text full width (E47 C1; S12-51): drawn, the trial console states `width: \"console\"` (ui-kit.mjs WINDOW_WIDTHS, drpg-kit-width-console) and its lines and headings take no 74ch cap under either theme (the glass's prose rung, stained-glass.css), read by the sheets' cascade", async () => {
+        /*
+         * E47 C1, 09.11.2026. The audit read the console's text column 140 px short of its body (S12-51): the glass's prose
+         * rung caps every paragraph of a module window at 74ch. The console is opened on this GM (it writes nothing) and its
+         * root's classes read; the cascade (`styleCascade`) is read on a stand-in of its tree under each theme's body class.
+         * Red first on f7266b28: no width class, max-width 74ch under Stained Glass.
+         */
+        needs(env.dialogs(), "the window is drawn");
+        must(game.user.isGM, "the console is a GM's - this would measure nothing");
+        const UI = await import("./trial-floor-ui.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        closeOpen("drpg-window-trial");
+        await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+        const consoles = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-trial"));
+        let classes = null;
+        try {
+            UI.manageClassTrial().catch(() => {});
+            await until(() => consoles()[0]?.element, 6000);
+            classes = [...(consoles()[0]?.element?.classList ?? [])];
+        } finally {
+            closeOpen("drpg-window-trial");
+            await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+        }
+        must(classes, "the console did not open - this would measure nothing");
+        const C = await styleCascade();
+        const cap = (theme, tag) => {
+            const body = document.createElement("body");
+            body.className = theme;
+            const win = body.appendChild(document.createElement("div"));
+            win.className = "application drpg-ui drpg-panel drpg-window-trial drpg-kit-width drpg-kit-width-console";
+            const kit = win.appendChild(document.createElement("div"));
+            kit.className = "window-content";
+            const live = kit.appendChild(document.createElement("div"));
+            live.className = "drpg-trial-console";
+            const el = live.appendChild(document.createElement(tag));
+            return C.winner(el, ["max-width"])?.value ?? "none";
+        };
+        // The control: a paragraph of another module window under the glass keeps its cap - the reader sees the rule.
+        const control = (() => {
+            const body = document.createElement("body");
+            body.className = "drpg-theme-stained-glass";
+            const win = body.appendChild(document.createElement("div"));
+            win.className = "application drpg-ui drpg-panel";
+            return C.winner(win.appendChild(document.createElement("p")), ["max-width"])?.value ?? "none";
+        })();
+        equal(stableJson({ width: ["drpg-kit-width", "drpg-kit-width-console"].every(c => classes.includes(c)), control,
+            glass: [cap("drpg-theme-stained-glass", "p"), cap("drpg-theme-stained-glass", "h4")], legacy: [cap("drpg-theme-monokuma-legacy", "p"), cap("drpg-theme-monokuma-legacy", "h4")] }),
+            stableJson({ width: true, control: "74ch", glass: ["none", "none"], legacy: ["none", "none"] }),
+            "{width: the console states the console width; control: another window's paragraph under the glass; glass, legacy: [a line's, a heading's max-width]}");
+    }],
+
+    ["R2055 - the vote window on the same table and slots (E47 C1; the owner's 05.10 D (2), (4)): `voteFooter` keeps its buttons as 1.2.101 drew them by state (Send the primary before a vote with somebody to send to, Close and count destructive and never the default, Cancel the closing word); drawn, its footer is redrawn in place (`liveFooter`), not reopened, and its first line is the trial's next step (`voteLead`)", async () => {
+        /*
+         * E47 C1, 09.11.2026. The vote window closed and opened again when a vote opened or closed, the first player
+         * connected or the last ballot came back (its own signature). Now its live status redraws the footer in place, and
+         * the lead says the console's step. The window is opened on this GM (nothing is written) and closed. Red first on
+         * f7266b28: no voteFooter, no lead, the reopen in its `after`.
+         */
+        needs(env.dialogs(), "the window is drawn");
+        must(game.user.isGM, "the vote window is a GM's - this would measure nothing");
+        const UI = await import("./trial-floor-ui.mjs");
+        const K = await import("./ui-kit.mjs");
+        const F = await import("./trial-floor.mjs");
+        equal(stableJson([typeof UI.voteFooter, typeof UI.voteLead]), stableJson(["function", "function"]), "[trial-floor-ui.mjs exports voteFooter, voteLead]");
+        if (typeof UI.voteFooter !== "function") return;
+        const tree = f => K.footerButtons(f).map(b => [b.action, b.role, b.default, Boolean(b.disabled)]);
+        const two = [{ name: "A" }, { name: "B" }];
+        equal(stableJson({ nobody: tree(UI.voteFooter({ pending: null, recipients: 0 })), before: tree(UI.voteFooter({ pending: null, recipients: 2 })),
+            out: tree(UI.voteFooter({ pending: two, recipients: 2 })), allIn: tree(UI.voteFooter({ pending: [], recipients: 2 })) }), stableJson({
+            nobody: [["cancel", "cancel", true, false], ["open", "secondary", false, true], ["tally", "destructive", false, true]],
+            before: [["open", "primary", true, false], ["cancel", "cancel", false, false], ["tally", "destructive", false, true]],
+            out: [["cancel", "cancel", true, false], ["open", "secondary", false, false], ["remind", "secondary", false, false], ["tally", "destructive", false, false]],
+            allIn: [["cancel", "cancel", true, false], ["open", "secondary", false, false], ["tally", "destructive", false, false]]
+        }), "{state: [action, role, default, greyed] in the tree's order}");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/trial-floor-ui.mjs`).then(lfText));
+        const vote = fnSource(src, "openVoteDialog");
+        equal(stableJson({ live: /liveFooter\(dialog, voteFooter\(/.test(vote), reopen: /dialog\.close\(\)/.test(vote), lead: /voteLead\(trialStepView\(\)\)/.test(vote) }),
+            stableJson({ live: true, reopen: false, lead: true }), "{live: the footer redrawn by liveFooter; reopen: the window closed to open again; lead: the status leads with the step}");
+        const { closeOpen } = await import("./live.mjs");
+        closeOpen("drpg-window-vote");
+        await until(() => !document.querySelector(".drpg-window-vote"), 5000);
+        const wins = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-vote"));
+        let drawn = null;
+        try {
+            UI.openVoteDialog().catch(() => {});
+            await until(() => wins()[0]?.element?.querySelector("footer.drpg-kit-footer"), 6000);
+            const el = wins()[0]?.element;
+            drawn = { step: el?.querySelector(".drpg-vote-status .drpg-vote-lead")?.dataset.drpgStep ?? null, footer: Boolean(el?.querySelector("footer.drpg-kit-footer")) };
+        } finally {
+            closeOpen("drpg-window-vote");
+            await until(() => !document.querySelector(".drpg-window-vote"), 5000);
+        }
+        equal(stableJson(drawn), stableJson({ step: F.trialNextStep(F.trialStepView()), footer: true }),
+            "{step: the step the drawn window's lead names, against the table's for this world; footer: a kit footer}");
+    }],
 ];
 
 /**

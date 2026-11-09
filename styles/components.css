@@ -2616,3 +2616,77 @@ body .application.drpg-window-preseason .drpg-check-unknown > div { color: var(-
 body:not(.drpg-theme-stained-glass) .application:is(.drpg-window-season, .drpg-window-preseason) .drpg-check-mark { font-family: "Cascadia Mono", Consolas, ui-monospace, monospace; }
 body:not(.drpg-theme-stained-glass) .application:is(.drpg-window-season, .drpg-window-preseason) :is(.drpg-check-title, .drpg-check-line) { line-height: 1.4; }
 body .application.dialog.drpg-window-preseason .drpg-check-part > p.drpg-help { text-align: start; max-width: none; margin: 0 0 6px; }
+
+/* ---- the Class Trial console and the vote (E47 C1, 09.11.2026; M6, the owner's q-console; S12-51, S18-89) ----
+   The console's rules, moved from danganronpa.css with the window (the CSS contract), selector for selector, so their
+   cascade is the one they had: the start window's steps, the section headings, the state lines in the bone ink, the
+   GM's bar. THE TEXT COLUMN IS THE WINDOW'S (S12-51): the glass's prose rung caps a paragraph at 74ch
+   (stained-glass.css, THE PROSE RUNG), which left the console's lines about 140 px short of its body at 3c952c67; the
+   console states its width now (`width: "console"`, ui-kit.mjs WINDOW_WIDTHS) and its lines take all of it, in both
+   themes. R2053 reads the cascade. */
+/* The Start the Class Trial window's list of steps is what the window tells you, and the clock note under
+   it is the footnote: the audit (S06-29) found them the other way round, the steps smaller and darker than
+   the note. Only this list - the same class is metadata on the roll and murder briefings - so the steps
+   take the body's size and Bone, and the note after them text-sm in Dim (E10 C15, 1.2.71; the sizes are the
+   tokens' own, the rendering is not measured here: the harness draws no CSS). */
+.drpg-briefing-facts.drpg-trial-facts {
+    font-size: var(--drpg-text-md);
+    color: var(--drpg-bone);
+}
+
+.drpg-briefing-facts.drpg-trial-facts + .notes {
+    font-size: var(--drpg-text-sm);
+    color: var(--drpg-dim);
+}
+
+/* Three sections in the order a trial happens. The headings carry the weight;
+   the debate section is present even when nothing is running, which is why it
+   needs a shape of its own rather than only appearing when it has content. */
+.drpg-trial-console h4 {
+    margin: 10px 0 2px;
+    padding-bottom: 2px;
+    border-bottom: 1px solid color-mix(in srgb, var(--drpg-bone) 20%, transparent);
+    /* The audit read the section headings at about 8 px of capital height (S06-29); the body's size. */
+    font-size: var(--drpg-text-md);
+}
+
+/* The console's lines say the trial's STATE, in Bone; `notes` is left for the lines that explain
+   (E10 C15, 1.2.71). A warning keeps its own crimson ground and the ink that goes with it. */
+.drpg-trial-console p:not(.notes):not(.drpg-warning) {
+    color: var(--drpg-bone);
+}
+
+.drpg-trial-console h4:first-child {
+    margin-top: 0;
+}
+
+/* The GM's bar (E70 C1): six buttons in one fixed row in every mode, so nothing moves under the pointer when the
+   floor changes; a button that would change nothing is greyed and keeps its title (the reason). Wraps on a narrow
+   window rather than scrolling it. Not measured at a table: LIVE-E70-01 (1366x768, both themes). */
+.drpg-trial-console .drpg-trial-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 6px 0 2px;
+}
+
+.drpg-trial-console .drpg-trial-bar-op {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    font-size: var(--drpg-text-sm);
+}
+
+.drpg-trial-console .drpg-trial-bar-op[aria-disabled="true"] {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.drpg-trial-console .drpg-trial-bar-op.drpg-bar-next:not([aria-disabled="true"]) {
+    border-color: var(--drpg-crimson);
+}
+
+.application.drpg-ui.drpg-window-trial .drpg-trial-console :is(p, h4),
+.application.drpg-ui.drpg-window-vote .drpg-vote-status p {
+    max-width: none;
+}

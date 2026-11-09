@@ -796,10 +796,12 @@
         "dialog",
         "drpg-panel",
         "drpg-window-trial",
-        "drpg-ui"
+        "drpg-ui",
+        "drpg-kit-width",
+        "drpg-kit-width-console"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 704,
       "buttons": [
         {
           "action": "start",

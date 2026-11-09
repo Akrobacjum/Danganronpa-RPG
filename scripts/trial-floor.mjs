@@ -57,7 +57,7 @@ import { isPrimaryGm, error, serverNow, serialWrite, plural } from "./utils.mjs"
 import { bridgeRequest, sayNotDone } from "./bridge-guards.mjs";
 import { SEIZE_KEY, objectionRecord } from "./trial.mjs";
 // The trial's participants, asked synchronously by `targetRefusal` (E51 C6): static, and no cycle (R161).
-import { trialParticipants } from "./vote.mjs";
+import { trialParticipants, trialProgress, verdictStopped, verdictRunner } from "./vote.mjs";
 import { MODES, nextFloor, modeSecondsOf, overruleTarget, leftAt, isRoundMode, closingOf, closingTimed, closingRecordAfter } from "./floor-machine.mjs";
 
 const WIDGET_ID = "drpg-trial-floor";
@@ -101,6 +101,66 @@ export function floorFamily(floor = trialFloor()) {
     // The Closing's exchange is the Closing's (E70 C8): its footer, End the Closing Argument, stands through it.
     if (floor && closingOf(floor)) return "closing";
     return floor ? (MODE_RULES[floor.mode]?.family ?? floor.mode) : "none";
+}
+
+/*
+ * THE TRIAL'S NEXT STEP, ONE TABLE FOR THREE READERS (E47 C1, 09.11.2026; the owner's 05.10 amend as amended 11.10 and
+ * 27.10; S18-89). The console's primary button, the GM panel's Next line (gm-panel.mjs `nextStep`) and the vote window's
+ * lead each answered "what now" by a chain of their own, and the panel's said "Open the debate" while the console said
+ * the vote (its own branch read no ballot). Now one ordered list of `[when(view), step]`, the first that holds answers
+ * (`trialNextStep`): the branches of E10 C14, E70 C1-C8 in their order, each step's text `DRPG.Floor.next.<step>`.
+ * The console keeps its own longer lead (trial-floor-ui.mjs `TRIAL_LEADS`), keyed by the same step. Kept here, in the
+ * file every client loads, not in the console's: the panel's line is drawn synchronously, and trial-floor-ui.mjs is
+ * loaded only when a GM opens the console (its header). No row closes the trial: the sentence after the verdict is E70's
+ * (05.10, topic C). Tier 1 R2050 holds 31 views to the answers of the chain this replaced (f7266b28).
+ *
+ * A VERDICT ANOTHER GM RUNS HAS NO BUTTON (E10 fix r2-G2): on a GM who is not its runner (`verdictRunner`) the step is
+ * one of the two `...Elsewhere`, which no footer button carries, so Enter presses nothing.
+ * THE WHOLE DEBATE IS ONE STEP (E70 C1; E70-06): Close Debate for every mode of the debate, a round's end for a round,
+ * the Closing's end for the Closing and its exchange; the bar's Skip cuts an Objection or a rebuttal short.
+ */
+const notMine = view => Boolean(view.runner) && view.runner !== game.user?.id;
+export const TRIAL_NEXT_STEPS = Object.freeze([
+    [view => !view.afterwards, "start"],
+    [view => view.running && view.floor && floorFamily(view.floor) === "round", "endRound"],
+    [view => view.running && view.floor && floorFamily(view.floor) === "closing", "endClosing"],
+    [view => view.running && view.floor, "closeDebate"],
+    [view => view.progress.verdictApplied && notMine(view) && view.stopped, "finishElsewhere"],
+    [view => view.progress.verdictApplied && notMine(view), "verdictElsewhere"],
+    [view => view.progress.verdictApplied && view.stopped, "finishVerdict"],
+    [view => view.progress.verdictApplied, "chapterEnd"],
+    [view => view.progress.voteClosed, "verdict"],
+    // Only a running trial gets here: `afterwards` without a count or a verdict is `running`.
+    [view => view.progress.vote?.open, "vote"],
+    // E73's "Scrum Debate after a split in the Straw Poll" (the owner, 27.10) takes its row here, before the debate again.
+    // [view => view.progress.strawPoll?.split, "scrum"],
+    // The debate again after an Overrule (E70 C2; E70-11): the time it had when the Objection cut in.
+    [view => view.progress.againAfterOverrule, "openAgain"],
+    // And after its exchange (E70 C3; TR11 = 1): the same question and budget, no window.
+    [view => view.progress.debateAgain, "reopen"],
+    [() => true, "openDebate"]
+]);
+
+/** The console's next step for `view` (`{ floor, running, progress, afterwards, stopped, runner }`): `TRIAL_NEXT_STEPS`' first row that holds. */
+export function trialNextStep(view) {
+    return TRIAL_NEXT_STEPS.find(([when]) => when(view))[1];
+}
+
+/**
+ * The view `trialNextStep` reads, as this GM holds it now: the floor, the phase, the trial's record, a verdict stopped
+ * halfway and its runner - the fields the console's own reading has (trial-floor-ui.mjs `readTrial`), for the panel's
+ * line and the vote window, which keep no console.
+ */
+export function trialStepView({ clock = getClock(), progress = trialProgress() } = {}) {
+    const running = clock.phase === "classTrial";
+    return { floor: trialFloor(), running, progress, afterwards: running || progress.voteClosed || progress.verdictApplied,
+        stopped: verdictStopped(progress), runner: verdictRunner(progress) };
+}
+
+/** A step's one text (`DRPG.Floor.next.<step>`), the runner's name in the two a GM elsewhere gives. Markup: the name escaped. */
+export function trialStepText(step, view = {}) {
+    const name = game.users?.get(view.runner ?? "")?.name ?? "?";
+    return game.i18n.format(`DRPG.Floor.next.${step}`, { name: foundry.utils.escapeHTML(name) });
 }
 
 /**

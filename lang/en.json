@@ -1192,6 +1192,21 @@
       "finalPlacedIn": "Final Truth Remnant placed in {room}."
     },
     "Floor": {
+      "next": {
+        "start": "No Class Trial is running. Start the Class Trial.",
+        "openDebate": "The trial is in discussion. Open the debate when the room is ready for one.",
+        "openAgain": "An Objection was overruled after its exchange. Open the debate again with the time it had left.",
+        "reopen": "The exchange has closed the debate. Open the debate again with the same question.",
+        "closeDebate": "The debate is open. Close it when the room has argued it out.",
+        "endRound": "A round holds the floor. End the round once every speaker has had their turn.",
+        "endClosing": "The Closing Argument holds the floor. End it, then send the ballots.",
+        "vote": "The ballots are out. When they are back, Close and count in The vote.",
+        "verdict": "The vote is counted. Deliver the verdict.",
+        "finishVerdict": "The verdict stopped before every step was done. Finish the verdict.",
+        "finishElsewhere": "The verdict stopped before every step was done. Only {name} can finish it.",
+        "verdictElsewhere": "{name} is giving the verdict. End the chapter once it is done.",
+        "chapterEnd": "The verdict is in. End the chapter."
+      },
       "nobodyForTrial": "There is nobody alive to hold a Class Trial with.",
       "trialBegins": "The Class Trial begins",
       "debateOpenedTitle": "Nonstop Debate!",
@@ -3842,8 +3857,6 @@
       "goSeasonSetupButton": "Set the season up",
       "nextIncident": "An incident is running. Take it to the end before anything else.",
       "nextEclipse": "The Eclipse is open. Close it once everyone has placed.",
-      "nextNoFloor": "The trial is in discussion. Open the debate when the room is ready for one.",
-      "nextFloor": "The debate is open - {mode}.",
       "nextBodyFound": "A body has been found. Start the Investigation when the room is ready.",
       "nextKeysToPlace": {
         "one": "{n} Key Remnant of this case is not on the map yet. Place it from the Investigation window's Key Remnants tab.",
@@ -3934,14 +3947,11 @@
       "checksImagesPixels": "{width} x {height} px",
       "checksImagesBytes": "{mb} MB",
       "seasonChecks": "Pre-season checks",
-      "nextFloorHeld": "{mode} - {who} holds it.",
       "whoIsAlive": "Students",
       "whoIsAliveNote": "The dropdown only moves the flags - the repair tool, for a mis-click. The buttons on the right run the real thing: a death destroys Truth Bullets, an invitation makes a Monocub.",
       "doColumn": "Do",
       "refundCrossing": "Refund last crossing",
       "refundCrossingNote": "{to} back to {from}",
-      "nextVerdict": "The vote is counted. Deliver the verdict.",
-      "nextChapterEnd": "The verdict is in. End the chapter.",
       "nextChapterEndStopped": "The end of the chapter stopped before every step was done. Finish it in End the chapter.",
       "nextTrialOutlived": "The chapter has moved on and the trial is still sitting. End the trial.",
       "nextReady": "The players have been asked before the clock moves. Open the question again."

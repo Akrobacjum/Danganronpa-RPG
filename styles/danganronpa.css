@@ -2843,21 +2843,6 @@ body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
     cursor: pointer;
 }
 
-/* The Start the Class Trial window's list of steps is what the window tells you, and the clock note under
-   it is the footnote: the audit (S06-29) found them the other way round, the steps smaller and darker than
-   the note. Only this list - the same class is metadata on the roll and murder briefings - so the steps
-   take the body's size and Bone, and the note after them text-sm in Dim (E10 C15, 1.2.71; the sizes are the
-   tokens' own, the rendering is not measured here: the harness draws no CSS). */
-.drpg-briefing-facts.drpg-trial-facts {
-    font-size: var(--drpg-text-md);
-    color: var(--drpg-bone);
-}
-
-.drpg-briefing-facts.drpg-trial-facts + .notes {
-    font-size: var(--drpg-text-sm);
-    color: var(--drpg-dim);
-}
-
 /* The lead - the sentence that says what this action IS. One step above the
    body, which is all the loudness a lead needs when everything else steps
    down around it. */
@@ -13038,55 +13023,6 @@ body.drpg-theme-monokuma-legacy #countdowns .countdown-tools {
 .drpg-saved {
     outline: 2px solid rgba(var(--drpg-gold-antique-rgb), 0.9);
     outline-offset: 1px;
-}
-
-/* ---- the trial console ------------------------------------------------- */
-
-/* Three sections in the order a trial happens. The headings carry the weight;
-   the debate section is present even when nothing is running, which is why it
-   needs a shape of its own rather than only appearing when it has content. */
-.drpg-trial-console h4 {
-    margin: 10px 0 2px;
-    padding-bottom: 2px;
-    border-bottom: 1px solid rgba(var(--drpg-bone-rgb), 0.2);
-    /* The audit read the section headings at about 8 px of capital height (S06-29); the body's size. */
-    font-size: var(--drpg-text-md);
-}
-
-/* The console's lines say the trial's STATE, in Bone; `notes` is left for the lines that explain
-   (E10 C15, 1.2.71). A warning keeps its own crimson ground and the ink that goes with it. */
-.drpg-trial-console p:not(.notes):not(.drpg-warning) {
-    color: var(--drpg-bone);
-}
-
-.drpg-trial-console h4:first-child {
-    margin-top: 0;
-}
-
-/* The GM's bar (E70 C1): six buttons in one fixed row in every mode, so nothing moves under the pointer when the
-   floor changes; a button that would change nothing is greyed and keeps its title (the reason). Wraps on a narrow
-   window rather than scrolling it. Not measured at a table: LIVE-E70-01 (1366x768, both themes). */
-.drpg-trial-console .drpg-trial-bar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin: 6px 0 2px;
-}
-
-.drpg-trial-console .drpg-trial-bar-op {
-    flex: 1 1 auto;
-    width: auto;
-    min-width: 0;
-    font-size: var(--drpg-text-sm);
-}
-
-.drpg-trial-console .drpg-trial-bar-op[aria-disabled="true"] {
-    opacity: 0.45;
-    cursor: not-allowed;
-}
-
-.drpg-trial-console .drpg-trial-bar-op.drpg-bar-next:not([aria-disabled="true"]) {
-    border-color: var(--drpg-crimson);
 }
 
 /* A round's start window (E70 C7): the order as a numbered list, each name with its Up button on one row, the
